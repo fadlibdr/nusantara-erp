@@ -4778,6 +4778,16 @@ class PrintableDocuments
                     'warehouse' => fn ($query) => $query->withTrashed(),
                     'deployments.project' => fn ($query) => $query->withTrashed(),
                     'maintenances.vendor' => fn ($query) => $query->withTrashed(),
+                    // equipmentLogs is a hasManyThrough whose intermediate
+                    // (the deployment) keeps its soft-delete scope, so a
+                    // deleted mobilisation's readings never reach the card at
+                    // all — the same rule as the two history tables above.
+                    // withTrashed here is the class-docblock rule on the
+                    // belongsTo itself, and it can only ever see live rows.
+                    'equipmentLogs.deployment' => fn ($query) => $query->withTrashed(),
+                    // Users are deactivated, never deleted (see iam/users), so
+                    // PETUGAS cannot dangle.
+                    'equipmentLogs.loggedBy',
                 ],
                 // No PEMILIK box: a machine belongs to us, not to a customer.
                 // The PROYEK box appears when it is standing on somebody's job
@@ -4914,6 +4924,39 @@ class PrintableDocuments
                             ],
                         ],
                         'empty' => 'Belum ada pemeliharaan tercatat untuk aset ini.',
+                    ],
+                    /*
+                     * The BBM & hour-meter register (deviasi #13), the third
+                     * history table: the meter trail is exactly what a
+                     * mechanic reads off a kartu alat when deciding whether
+                     * the 2.000-hour service is due. A register only — the
+                     * fuel COST is petty cash (BbmTol) and prints nowhere
+                     * here, so this table carries no rupiah column at all.
+                     */
+                    [
+                        'id' => 'log-bbm-jam-alat',
+                        'title' => 'LOG BBM & JAM ALAT',
+                        'rows' => fn (Asset $asset): array => app(AssetFormService::class)->equipmentLogHistory($asset),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'TANGGAL', 'align' => 'center', 'width' => '26mm',
+                                'value' => 'log_date', 'cast' => 'date'],
+                            ['label' => 'NO. MOBILISASI', 'width' => '28mm', 'value' => 'deployment.code'],
+                            // Ruled when the gauge was not read that day — a
+                            // null reading is not a reading of zero hours.
+                            ['label' => 'HOUR METER (JAM)', 'align' => 'right', 'width' => '26mm',
+                                'value' => 'hour_meter', 'cast' => 'qty'],
+                            // Ruled on a no-refuel day for the same reason.
+                            ['label' => 'BBM (LITER)', 'align' => 'right', 'width' => '24mm',
+                                'value' => 'fuel_liters', 'cast' => 'qty'],
+                            ['label' => 'PETUGAS', 'width' => '30mm', 'value' => 'loggedBy.name'],
+                            ['label' => 'CATATAN', 'value' => 'notes'],
+                        ],
+                        // A sentence, not a pad: ruled rows would invite a
+                        // hand-written reading the register's monotonic guard
+                        // never saw.
+                        'empty' => 'Belum ada log BBM atau jam alat tercatat untuk aset ini.',
                     ],
                 ],
                 // The disposal facts ride here rather than as identity lines:

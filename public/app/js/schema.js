@@ -3237,6 +3237,68 @@ export const RESOURCES = {
         { key: 'notes', label: 'Catatan', type: 'textarea' },
       ],
     }],
+    // Riwayat pembacaan tampil di tempat mesinnya berada: show() memuat
+    // equipment_logs, layar detail generik menggambarnya sebagai tabel.
+    detail: {
+      tables: [{
+        key: 'equipment_logs', label: 'Log BBM & jam alat',
+        columns: [
+          { key: 'log_date', label: 'Tanggal', type: 'date' },
+          { key: 'hour_meter', label: 'Hour meter (jam)', type: 'qty', align: 'right' },
+          { key: 'fuel_liters', label: 'BBM (liter)', type: 'qty', align: 'right' },
+          { key: 'logged_by_name', label: 'Dicatat oleh' },
+          { key: 'notes', label: 'Catatan' },
+        ],
+      }],
+    },
+  },
+
+  /*
+   * Log BBM & jam alat (deviasi #13) — REGISTER, bukan buku besar: tidak ada
+   * jurnal, tidak ada stok, tidak ada tarif. Biaya solarnya sudah lewat kas
+   * kecil kategori BbmTol; register ini memegang sisi operasionalnya saja
+   * (jam mesin dan liter), dicatat oleh orang yang memang ada di lokasi.
+   *
+   * viewPerm/createPerm menimpa gerbang `${module}.view/.create` bawaan:
+   * register milik mesin (Aset) tetapi ditulis dan dibaca di lapangan
+   * (Proyek). site-manager memegang prj.* tanpa ast.view, jadi gerbang modul
+   * saja akan mengunci justru orang yang mengisi register — sama seperti
+   * rute API-nya (ast.view|prj.view untuk baca, prj.update untuk tulis).
+   *
+   * canEdit/canDelete false dan tanpa detail: register dikoreksi oleh
+   * pembacaan BERIKUTNYA, bukan dengan menyunting riwayat — server menolak
+   * PUT/DELETE dengan kalimat itu juga.
+   */
+  'assets/equipment-logs': {
+    module: 'ast', api: 'assets/equipment-logs', label: 'Log BBM & Jam Alat', labelOne: 'Log Alat',
+    viewPerm: ['ast.view', 'prj.view'],
+    createPerm: 'prj.update',
+    noDetail: true, canEdit: false, canDelete: false,
+    columns: [
+      { key: 'log_date', label: 'Tanggal', type: 'date' },
+      { key: 'deployment.asset.name', label: 'Aset', type: 'text', sub: 'deployment.code' },
+      { key: 'hour_meter', label: 'Hour meter (jam)', type: 'qty', align: 'right' },
+      { key: 'fuel_liters', label: 'BBM (liter)', type: 'qty', align: 'right' },
+      { key: 'logged_by_name', label: 'Dicatat oleh', type: 'text' },
+      { key: 'notes', label: 'Catatan', type: 'text' },
+    ],
+    filters: [
+      { key: 'deployment_id', label: 'Mobilisasi', lookup: 'deployments' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    form: {
+      sections: [{
+        title: 'Log BBM & jam alat',
+        help: 'Hour meter adalah ANGKA YANG TERBACA di meter, bukan selisih. Isi minimal salah satu: hour meter atau liter BBM.',
+        fields: [
+          { key: 'deployment_id', label: 'Mobilisasi', type: 'lookup', lookup: 'deployments', required: true },
+          { key: 'log_date', label: 'Tanggal', type: 'date', required: true, defaultToday: true },
+          { key: 'hour_meter', label: 'Hour meter (jam)', type: 'number', step: '0.1', min: 0 },
+          { key: 'fuel_liters', label: 'BBM diisi (liter)', type: 'number', step: '0.1', min: 0 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
   },
 
   'assets/maintenances': {
@@ -3496,6 +3558,10 @@ export const NAV = [
       { label: 'Daftar Aset', route: 'r/assets/assets' },
       { label: 'Kategori Aset', route: 'r/assets/categories' },
       { label: 'Mobilisasi', route: 'r/assets/deployments' },
+      // Izin sendiri, seperti "Impor Data Master": site manager memegang
+      // prj.view tanpa ast.view, dan justru dialah yang mengisi register ini
+      // — tanpa baris izin ini menu Aset tidak pernah tampil untuknya.
+      { label: 'Log BBM & Jam Alat', route: 'r/assets/equipment-logs', perm: ['ast.view', 'prj.view'] },
       { label: 'Perawatan', route: 'r/assets/maintenances' },
       { label: 'Penyusutan', route: 'r/assets/depreciation-runs' },
       { label: 'Utilisasi Aset', route: 'asset-utilization' },

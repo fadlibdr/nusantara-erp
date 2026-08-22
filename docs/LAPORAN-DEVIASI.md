@@ -24,22 +24,25 @@
 
 ## Ringkasan eksekutif
 
-**77 dari 81 temuan ditutup** — 43 persis seperti resepnya, 5 lewat mekanisme
+**78 dari 81 temuan ditutup** — 44 persis seperti resepnya, 5 lewat mekanisme
 yang berbeda, dan 29 **melampaui** resepnya. Tidak ada lagi yang sebagian atau
-belum disentuh. **4 sengaja ditolak**, masing-masing dengan pagarnya: #60 portal
-pelanggan dan #65 multi-valuta (alasan tertulis sejak awal), #71 peminjaman alat
-(pagar Bagian B), dan #13 BBM & hour meter — dipagari sadar pada gelombang
-ketiga, menunggu keputusan pemilik tentang alur pencatatan lapangan.
+belum disentuh. **3 sengaja ditolak**, masing-masing dengan pagarnya: #60 portal
+pelanggan dan #65 multi-valuta (alasan tertulis sejak awal) serta #71 peminjaman
+alat (pagar Bagian B). Penolakan keempat — #13 BBM & hour meter, dipagari sadar
+pada gelombang ketiga menunggu keputusan pemilik tentang alur pencatatan
+lapangan — dicabut 22 Agustus 2026: keputusannya jatuh dan registernya dibangun
+hari itu juga (baris 13 matriks).
 **Kesepuluh temuan kritis tuntas.** (Angka SESUDAH tiga gelombang perbaikan
-6-8 Agustus — 42 temuan ditutup pasca-laporan; riwayatnya di catatan gelombang.)
+6-8 Agustus dan keputusan pemilik 22 Agustus — 43 temuan ditutup pasca-laporan;
+riwayatnya di catatan gelombang.)
 Distribusinya tidak acak:
 
 | Keparahan | Jumlah | ✅ | ➕ | 🔀 | 🟡 | 🚫 | ⬜ |
 |---|---|---|---|---|---|---|---|
 | 🔴 Kritis | 10 | 3 | 7 | — | — | — | — |
-| 🟠 Besar | 44 | 19 | 19 | 5 | — | 1 | — |
+| 🟠 Besar | 44 | 20 | 19 | 5 | — | — | — |
 | 🟡 Kecil | 27 | 21 | 3 | — | — | 3 | — |
-| **Total** | **81** | **43** | **29** | **5** | **—** | **4** | **—** |
+| **Total** | **81** | **44** | **29** | **5** | **—** | **3** | **—** |
 
 Tiga kalimat yang merangkum tabel itu:
 
@@ -95,7 +98,7 @@ perlu dicatat (untuk ⬜: temuannya utuh seperti saat ditulis).
 | 10 | 🔴 Periode fiskal | 1-2 hari | ➕ | Tanpa permission baru: close=fin.post, reopen=fin.approve — pemisahan lewat role |
 | 11 | 🟠 Aksesibilitas modal | 1 hari | ➕ | + inert pada #root, stack multi-layer, fokus awal melompati field mati |
 | 12 | 🟠 Navigasi keyboard | 1 hari | 🔀 | Roving tabindex + Enter/Space, bukan link hash; Ctrl+klik buka-tab tetap tidak bisa |
-| 13 | 🟠 Alat berat — BBM & hour meter | 3-5 hari | 🚫 | Gelombang 6-8 Agu (3): TIDAK dibangun — log BBM/hour meter menunggu keputusan pemilik tentang alur lapangan; kategori kas kecil BbmTol menampung biayanya sementara. Satu-satunya temuan yang tersisa terbuka. |
+| 13 | 🟠 Alat berat — BBM & hour meter | 3-5 hari | ✅ | 22 Agu 2026: dipagari sadar gelombang ketiga menunggu keputusan pemilik; keputusan jatuh dan register Log BBM & Jam Alat dibangun hari itu — pembacaan jam & liter per mobilisasi, append-only, TANPA jurnal dan TANPA stok: uangnya tetap di kas kecil BbmTol |
 | 14 | 🟠 CCO ↔ jadwal termin | 1-2 hari | ✅ | Gelombang 6-8 Agu (2): aksi "jadwalkan penagihan nilai tambah" pada CCO approved — termin baru senilai value_change, idempoten lewat re-read |
 | 15 | 🟠 Denda keterlambatan | 2-3 hari | ✅ | Gelombang 6-8 Agu (2): baris potongan other_deduction BERALASAN pada alokasi penerimaan; identitas alokasi dijaga; reverse() memutarnya balik |
 | 16 | 🟠 Galeri foto progres | 2-3 hari | ✅ | Gelombang 6-8 Agu (2): galeri foto per proyek dari core_attachments ber-mime image lintas dokumen (termasuk BOQ/RAP setelah verifier menagih kejujuran daftar sumbernya), badge geotag |
@@ -278,13 +281,13 @@ penomorannya bertabrakan: **T13/T26/T28/T37/T43 adalah nomor temuan audit-ulang,
 BUKAN nomor lampiran** (lampiran #13 = BBM alat berat, #26 = kas kecil, #37 =
 retur proyek, #43 = baseline — temuan yang sama sekali lain).
 
-| Pagar audit | Isi | Status per 8 Agustus |
+| Pagar audit | Isi | Status terkini (8 Agu, dimutakhirkan 22 Agu) |
 |---|---|---|
-| T43 | Biaya alat internal satu gelondong saat demobilisasi | **DITUTUP** — akrual bulanan ber-kunci (mobilisasi × tahun × bulan) + residual eksak saat demobilisasi + butir checklist tutup buku `plant_accrued`; Rp 585 jt bulan-bulan lampau menunggu SATU aksi operator: `ast:accrue-plant` per bulan terbuka |
+| T43 | Biaya alat internal satu gelondong saat demobilisasi | **DITUTUP** — akrual bulanan ber-kunci (mobilisasi × tahun × bulan) + residual eksak saat demobilisasi + butir checklist tutup buku `plant_accrued`; aksi catch-up operator DIJALANKAN 22 Agu 2026: Maret–Juli terakru pada data hidup, **Rp 573.000.000** (selisih dari Rp 585 jt asesmen = hari-hari Agustus, yang baru boleh diakru setelah bulannya berakhir) |
 | T26 | Re-costing retrospektif tidak ada; dokumen mundur ditolak | Tetap dipagari — keputusan rancangan; sistem menjawab "tidak bisa", bukan menjawab salah |
 | T28/T29 | Nilai barang dalam perjalanan absen dari Saldo Stok | **DITUTUP** — satu query bersama layar & CLI, ubin "Dalam perjalanan" + "Total dimiliki", dan total dihitung SQL (undercount >200 baris ikut mati) |
 | T37 | Hanya bon yang bisa dibatalkan | **Sebagian besar DITUTUP** — pembatalan penerimaan kini ada (cermin + jurnal balik + kliring nol + qty PO kembali + PO auto-close terbuka lagi); transfer & opname tetap tanpa jalan pulang, dengan rasional tertulis (transfer kedua / opname kedua sudah mencapai keadaan akhir yang sama) |
-| T13 | Hanya admin bisa menuntaskan kunjungan bersuku-cadang | Tetap terbuka — keputusan operabilitas menunggu pemilik |
+| T13 | Hanya admin bisa menuntaskan kunjungan bersuku-cadang | **DITUTUP 22 Agu 2026** — pemilik memberi `teknisi` `inv.post` (RoleSeeder + migrasi Iam 000242 untuk tenant hidup); pelebarannya — `inv.post` menggerbangi 8 rute persediaan, bukan hanya bon kunjungan — dinyatakan di kode dan diterima; satu `revokePermissionTo` membalikkannya |
 
 Pagar keenam (T40, kemacetan tutup buku permanen) sudah ditutup 5 Agustus,
 bersama balapan status yang diciptakan perbaikannya sendiri. **Penutupan T43,
@@ -292,7 +295,12 @@ T28/T29, dan T37 menyusul 8 Agustus** — dengan itu satu-satunya baris yang
 pernah menjawab "Ya, angka salah hari ini" ikut padam: yang tersisa untuk
 angka-angka lampau T43 hanyalah aksi catch-up operator ke bulan-bulan yang
 masih terbuka, dijaga butir checklist WARN yang menyebut mesin, hari, dan
-rupiahnya setiap kali sebuah bulan mau ditutup.
+rupiahnya setiap kali sebuah bulan mau ditutup. **Catch-up itu dijalankan
+22 Agustus 2026** — Maret–Juli terakru penuh, Rp 573.000.000 — dan **T13
+ditutup pada hari yang sama** oleh keputusan pemilik. Dari lima pagar sadar,
+yang tinggal berdiri: T26 dan sisa T37 (transfer & opname tanpa jalan pulang)
+— keduanya keputusan rancangan beralasan tertulis, bukan pekerjaan yang
+menunggu.
 
 ### e. Sengaja tidak dibangun
 
@@ -300,10 +308,13 @@ Tiga temuan punya penolakan tertulis di dokumen induk (#56 multi-entitas,
 #60 portal pelanggan, #65 multi-valuta). #56 sempat dinilai 🟡 karena resep
 penolakannya sendiri — MENULIS dokumentasi batasannya — belum dikerjakan;
 gelombang kedua menulisnya (catatan entitas-tunggal + KSO porsi proporsional di
-ARCHITECTURE.md), maka matriks kini menilainya ✅. Penolakan keempat menyusul di
-gelombang ketiga: **#13 BBM & hour meter**, dipagari menunggu keputusan pemilik
-tentang alur pencatatan lapangan — sementara itu kategori kas kecil BbmTol
-menampung biayanya tanpa tautan aset. Dua penolakan lain menaungi temuan
+ARCHITECTURE.md), maka matriks kini menilainya ✅. Penolakan keempat sempat
+menyusul di gelombang ketiga — **#13 BBM & hour meter**, dipagari menunggu
+keputusan pemilik tentang alur pencatatan lapangan — lalu **dicabut 22 Agustus
+2026** begitu keputusannya jatuh: register Log BBM & Jam Alat dibangun hari itu
+juga, dan biaya BBM tetap mengalir lewat kas kecil BbmTol karena registernya
+murni operasional (tidak memposting apa pun); yang sengaja ditolak karena itu
+tinggal tiga. Dua penolakan lain menaungi temuan
 yang bukan dirinya: "aplikasi mobile native" ditolak padahal temuan #66 meminta
 `hideOnNarrow` (kini dibuat pada gelombang pertama), dan #71 peminjaman alat
 dirutekan ke daftar penolakan oleh tabel Bagian B yang semula tidak pernah

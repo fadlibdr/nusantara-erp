@@ -853,27 +853,28 @@ tetap riwayat yang sah, masih terposting dan masih terhitung di 1-1300. Menolakn
 akan menutup pintu bagi pembaca yang paling membutuhkannya. Yang salah bukan
 perilakunya, melainkan bahwa asimetrinya tampak tidak sengaja.
 
-### Yang sengaja dipagari — tinggal dua yang TIDAK ditutup (per 8 Agustus)
+### Yang sengaja dipagari — tinggal satu yang TIDAK ditutup (T13 ditutup 22 Agustus)
 
 Masing-masing diperiksa ulang ke kode hari ini, dan pertanyaan yang menentukan
 selalu sama: **apakah ini menghasilkan angka yang salah hari ini, atau ini celah?**
 T40 ditutup 5 Agustus; **T43, T28/T29, dan sebagian besar T37 menyusul
 8 Agustus** — akrual alat bulanan ber-checklist (satu-satunya "Ya" di tabel ini
-padam; bulan lampau menunggu `ast:accrue-plant` operator ke periode terbuka),
-nilai dalam-perjalanan di Saldo Stok dari query yang sama dengan CLI, dan
-pembatalan penerimaan barang lengkap dengan pemulihan qty PO. Yang tersisa
-dipagari: **T26** (re-costing retrospektif — keputusan rancangan, sistem
-menolak alih-alih salah) dan **T13** (keputusan operabilitas pemilik). Uraian
-di bawah dipertahankan sebagai riwayat KEADAAN SAAT DIPAGARI — status
+padam; bulan lampau yang menunggu `ast:accrue-plant` operator DIKEJAR 22 Agustus:
+Maret–Juli terakru, Rp 573.000.000), nilai dalam-perjalanan di Saldo Stok dari
+query yang sama dengan CLI, dan pembatalan penerimaan barang lengkap dengan
+pemulihan qty PO. **T13 ditutup 22 Agustus** — keputusan operabilitas diambil
+pemilik: `teknisi` diberi `inv.post`. Yang tersisa dipagari hanya **T26**
+(re-costing retrospektif — keputusan rancangan, sistem menolak alih-alih salah).
+Uraian di bawah dipertahankan sebagai riwayat KEADAAN SAAT DIPAGARI — status
 terkininya di [LAPORAN-DEVIASI.md](LAPORAN-DEVIASI.md) §d.
 
-| # | Pagar | Saat dipagari | Per 8 Agustus |
+| # | Pagar | Saat dipagari | Status kini |
 |---|---|---|---|
-| T43 | Biaya alat internal ditulis satu gelondong saat demobilisasi | **Ya** — angka manajemen salah | **DITUTUP** — akrual bulanan + residual + checklist |
+| T43 | Biaya alat internal ditulis satu gelondong saat demobilisasi | **Ya** — angka manajemen salah | **DITUTUP** 8 Agu — akrual bulanan + residual + checklist; catch-up operator 22 Agu |
 | T26 | Re-costing retrospektif tidak ada; mesinnya menolak dokumen mundur-tanggal | Tidak | Tetap dipagari (rancangan) |
-| T28/T29 | Nilai barang dalam perjalanan tidak ada di layar Saldo Stok | Tidak — laten | **DITUTUP** — ubin + query bersama CLI |
-| T37 | Hanya bon yang bisa dibatalkan; penerimaan, transfer, opname tidak | Tidak — remedi hilang | **Penerimaan kini bisa dibatalkan**; transfer & opname tetap (rasional tertulis) |
-| T13 | Tidak ada role tersemai selain admin yang bisa menuntaskan kunjungan bersuku-cadang | Tidak | Tetap terbuka (keputusan pemilik) |
+| T28/T29 | Nilai barang dalam perjalanan tidak ada di layar Saldo Stok | Tidak — laten | **DITUTUP** 8 Agu — ubin + query bersama CLI |
+| T37 | Hanya bon yang bisa dibatalkan; penerimaan, transfer, opname tidak | Tidak — remedi hilang | **Penerimaan kini bisa dibatalkan** (8 Agu); transfer & opname tetap (rasional tertulis) |
+| T13 | Tidak ada role tersemai selain admin yang bisa menuntaskan kunjungan bersuku-cadang | Tidak | **DITUTUP 22 Agu** — `teknisi` diberi `inv.post` (keputusan pemilik; pelebarannya dinyatakan di kode) |
 
 **T43 — dan pagarnya sendiri terlalu ramah pada dirinya.** `chargeProject()`
 hanya dipanggil dari `returnDeployment()`, jadi mobilisasi yang masih berjalan
@@ -994,16 +995,18 @@ cadang yang dibuat lewat SPA mentok di Draf selamanya: ditolak karena gudang
 kosong, pada kolom yang formulirnya tidak render. Perbaikan yang menciptakan
 kemacetan versinya sendiri.
 
-**T13 — seam yang tidak pernah dipasang** (masih terbuka; ini yang kelima).
-Setelah `acknowledge` menuntut `inv.post` untuk laporan bersuku-cadang, tidak
-ada role tersemai yang bisa menuntaskan kunjungan yang memakai suku cadang
+**T13 — seam yang tidak pernah dipasang** (ini yang kelima; **ditutup 22 Agustus
+2026**). Setelah `acknowledge` menuntut `inv.post` untuk laporan bersuku-cadang,
+tidak ada role tersemai yang bisa menuntaskan kunjungan yang memakai suku cadang
 kecuali admin: `warehouse` tidak punya keduanya — bukan `svc.update` maupun
 `inv.post` — sementara `teknisi` sudah punya `svc.update` dan hanya kurang
 `inv.post`, jadi jalan termurahnya adalah memberi `teknisi` satu izin, bukan
-memberi `warehouse` dua. Lubang keamanannya tertutup; keputusan operabilitasnya
-belum diambil dan belum tercatat — dan sekarang ia
-menggandeng T40: pada tenant yang baru disemai, satu-satunya yang bisa mengesahkan
-kunjungan bersuku-cadang tetap admin.
+memberi `warehouse` dua. Lubang keamanannya tertutup sejak itu; keputusan
+operabilitasnya diambil pemilik 22 Agustus 2026 — jalan termurah itu yang
+dipilih: `RoleSeeder` menyemai `teknisi` dengan `inv.post` dan migrasi Iam
+000242 memasangnya pada tenant hidup, dengan pelebaran izinnya (8 rute
+persediaan) dinyatakan di kode dan diterima. Regangan yang tinggal dicatat di
+PANDUAN-ADMINISTRATOR.md §12(b).
 
 ### Yang ditemukan dalam perjalanan — lima ditutup, satu sebagian (3 Agustus 2026)
 

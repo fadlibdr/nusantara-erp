@@ -5,6 +5,7 @@ namespace Modules\Assets\Services;
 use Illuminate\Support\Carbon;
 use Modules\Assets\Models\Asset;
 use Modules\Assets\Models\Deployment;
+use Modules\Assets\Models\EquipmentLog;
 use Modules\Assets\Models\Maintenance;
 use Modules\Core\Support\Money;
 
@@ -93,6 +94,24 @@ class AssetFormService
     {
         return $asset->maintenances
             ->sortBy([['maintenance_date', 'asc'], ['id', 'asc']])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The BBM & hour-meter register across all this asset's mobilisations,
+     * oldest first — the third history table on the card. The meter trail is
+     * exactly what a mechanic reads off a kartu alat when deciding whether
+     * the 2.000-hour service is due. Through LIVE deployments only (see
+     * Asset::equipmentLogs): a deleted mobilisation's readings must not come
+     * back onto the card, the same rule its two sibling tables follow.
+     *
+     * @return array<int, EquipmentLog>
+     */
+    public function equipmentLogHistory(Asset $asset): array
+    {
+        return $asset->equipmentLogs
+            ->sortBy([['log_date', 'asc'], ['id', 'asc']])
             ->values()
             ->all();
     }

@@ -22,6 +22,14 @@ class DeploymentResource extends JsonResource
             'notes' => $this->notes,
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
+            // Flat, for lookup.js which resolves no dot paths (pola
+            // picker_label VendorResource): the picker has to say WHICH
+            // machine, not just a DEP number.
+            'picker_label' => $this->whenLoaded('asset', fn () => trim(
+                ($this->asset->code.' '.$this->asset->name)
+                .($this->returned_at !== null ? ' (demobilisasi '.$this->returned_at->toDateString().')' : '')
+            )),
+            'equipment_logs' => EquipmentLogResource::collection($this->whenLoaded('equipmentLogs')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

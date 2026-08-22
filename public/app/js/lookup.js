@@ -51,6 +51,11 @@ export const SOURCES = {
   tickets: { path: 'servicedesk/tickets', label: 'title', sub: 'code', title: 'Tiket' },
   assetCategories: { path: 'assets/categories', label: 'name', sub: 'code', title: 'Kategori aset' },
   assets: { path: 'assets/assets', label: 'name', sub: 'code', title: 'Aset' },
+  // picker_label (DeploymentResource): kode + nama alat, plus tanggal
+  // demobilisasi bila sudah kembali — log susulan dalam rentang mobilisasi
+  // yang sudah selesai tetap sah, jadi mobilisasi lama tidak disaring dari
+  // picker; penjaga rentang tanggalnya ada di server (EquipmentLogService).
+  deployments: { path: 'assets/deployments', label: 'code', sub: 'picker_label', title: 'Mobilisasi alat' },
   roles: { path: 'iam/roles', label: 'name', sub: null, title: 'Peran' },
 };
 

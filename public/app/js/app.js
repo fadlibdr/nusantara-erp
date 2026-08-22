@@ -645,7 +645,12 @@ function registerRoutes() {
     setCrumbs([groupLabelFor(key), def.label]);
     setActiveNav(`r/${key}`);
 
-    if (!session.can(`${def.module}.view`)) return accessDenied(host, def.module);
+    // def.viewPerm (array = salah satu cukup, session.can sudah paham) menimpa
+    // gerbang modul untuk layar lintas-modul: assets/equipment-logs dibaca
+    // dengan ast.view ATAU prj.view — site manager memegang prj.* tanpa
+    // ast.view, dan gerbang modul saja akan menolak justru orang yang mengisi
+    // register itu. Cermin gerbang rutenya di server (permission:ast.view|prj.view).
+    if (!session.can(def.viewPerm || `${def.module}.view`)) return accessDenied(host, def.module);
     return guard(host, () => renderList(host, { key, def }));
   });
 
@@ -666,7 +671,8 @@ function registerRoutes() {
     setCrumbs([groupLabelFor(key), def.label, `#${id}`]);
     setActiveNav(`d/${key}/${id}`);
 
-    if (!session.can(`${def.module}.view`)) return accessDenied(host, def.module);
+    // Timpaan viewPerm yang sama dengan rute daftar r/* di atas.
+    if (!session.can(def.viewPerm || `${def.module}.view`)) return accessDenied(host, def.module);
 
     const custom = def.customDetail && CUSTOM_DETAILS[def.customDetail];
 

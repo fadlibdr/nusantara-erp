@@ -99,7 +99,11 @@ export async function renderList(host, { key, def }) {
   if (!ui.perPage) ui.perPage = def.perPage || 20;
   seedFromUrl(key, def, ui);
 
-  const canCreate = def.canCreate !== false && Boolean(def.form) && session.can(`${def.module}.create`);
+  // def.createPerm menimpa `${module}.create` untuk register lintas-modul:
+  // menulis log BBM (assets/equipment-logs) digerbangi prj.update — memberi
+  // site manager ast.create hanya demi tombol ini berarti memberinya hak
+  // MENCETAK ASET, kuasa yang jauh lebih lebar. Cermin gerbang POST servernya.
+  const canCreate = def.canCreate !== false && Boolean(def.form) && session.can(def.createPerm || `${def.module}.create`);
 
   const tableHost = el('.card');
   const head = el('.page-head', [

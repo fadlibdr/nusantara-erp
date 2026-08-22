@@ -1764,6 +1764,25 @@ export async function renderAsset(host, { id }) {
     'Aset ini belum pernah dimobilisasi ke proyek.',
   ));
 
+  // Register BBM & jam alat (deviasi #13) — riwayat pembacaan tampil di
+  // tempat mesinnya, di samping mobilisasi yang menampungnya. Register saja:
+  // tidak ada rupiah di tabel ini, biaya solar sudah hidup di kas kecil
+  // (kategori BbmTol).
+  host.appendChild(historyCard(
+    'Log BBM & jam alat',
+    data.equipment_logs || [],
+    [{ label: 'Tanggal' }, { label: 'Mobilisasi' }, { label: 'Hour meter (jam)', right: true }, { label: 'BBM (liter)', right: true }, { label: 'Dicatat oleh' }, { label: 'Catatan' }],
+    (row) => [
+      el('td', { text: fmt.date(row.log_date) }),
+      el('td.mono', { text: row.deployment?.code || '—' }),
+      el('td.right.num', { text: row.hour_meter !== null && row.hour_meter !== undefined ? fmt.qty(row.hour_meter) : '—' }),
+      el('td.right.num', { text: row.fuel_liters !== null && row.fuel_liters !== undefined ? fmt.qty(row.fuel_liters) : '—' }),
+      el('td', { text: row.logged_by_name || '—' }),
+      el('td', { text: row.notes || '—' }),
+    ],
+    'Belum ada log BBM atau jam alat tercatat.',
+  ));
+
   host.appendChild(historyCard(
     'Perawatan',
     maintenances,

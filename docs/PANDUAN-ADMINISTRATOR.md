@@ -1,7 +1,7 @@
 # Panduan Administrator — Nusantara ERP
 
-**PT Nusantara Karya Integrasi** · disusun 10 Agustus 2026 · untuk pemegang peran
-`admin` yang juga memegang akses shell ke server
+**PT Nusantara Karya Integrasi** · disusun 10 Agustus 2026, dimutakhirkan 22 Agustus
+2026 · untuk pemegang peran `admin` yang juga memegang akses shell ke server
 
 > Panduan ini menjelaskan cara **menjalankan** ERP ini hari demi hari: siapa boleh
 > apa, apa yang harus disiapkan sebelum orang bekerja, perintah apa yang jalan
@@ -237,6 +237,7 @@ lewat assign/resolve/close — tetapi berita acara lapangan punya: `submit` lalu
 (§8.2).
 
 **Assets (`ast`) — Aset.** Daftar aset, kategori aset, mobilisasi ke proyek,
+log BBM & jam alat (register pembacaan — tidak memposting apa pun; §12(c)),
 perawatan, run penyusutan, utilisasi. Juga tidak punya tahap persetujuan: run
 penyusutan berjalan draf → posting.
 
@@ -292,8 +293,8 @@ penerima peringatan cadangan** (`Modules/Core/Console/Commands/BackupWatchComman
 ### 3.2 Dua belas peran
 
 Diverifikasi baris per baris terhadap basis data hidup — isi `role_has_permissions`
-cocok persis dengan seeder ditambah empat migrasi; tidak ada peran yang disunting
-tangan.
+cocok persis dengan seeder ditambah lima migrasi (yang kelima, `inv.post` untuk
+teknisi, 22 Agustus 2026 — §12(b)); tidak ada peran yang disunting tangan.
 
 | Peran | Izin | Untuk apa |
 |---|---|---|
@@ -307,8 +308,8 @@ tangan.
 | **hr** | 6 | `hr` view/create/update/delete/post + `iam.view` |
 | **finance-manager** | 5 | `fin.view`, `fin.approve`, `crm.view`, `prc.view`, `scm.view` |
 | **site-manager** | 5 | `prj.view/create/update` + `inv.view/create` |
-| **warehouse** | 5 | `inv` view/create/update/delete + `prj.view`. **Tidak memegang `inv.post`** |
-| **teknisi** | 4 | `svc.view/create/update` + `inv.view` |
+| **warehouse** | 5 | `inv` view/create/update/delete + `prj.view`. **Tidak memegang `inv.post`** — yang sejak 22 Agustus justru dipegang teknisi; regangan itu dicatat di §12(b) |
+| **teknisi** | 5 | `svc.view/create/update` + `inv.view` + **`inv.post`** (keputusan pemilik 22 Agustus 2026 — §12(b)) |
 
 Tiga rasional dari seeder yang perlu Anda bawa saat menata ulang peran:
 
@@ -366,30 +367,34 @@ jadi peran itu juga tidak bisa diganti nama.
 Yang **tidak** dijaga: tidak ada apa pun yang mencegah pembuatan peran **baru** yang
 mencentang seluruh 74 izin.
 
-Admin juga satu-satunya pemegang bawaan untuk 16 izin. Dari daftar itu yang
-benar-benar dipakai kode: `core.update` (menyimpan Pengaturan dan Profil Perusahaan),
-**ketiga** izin `iam` administratif — `iam.create`, `iam.update`, `iam.delete`
-(`Modules/Iam/Routes/api.php:24, 29, 36`) — **`inv.post`** (8 rute), **`scm.post`**
-(2 rute), dan keempat izin `delete` (`ast`, `prj`, `scm`, `svc`).
+Admin juga satu-satunya pemegang bawaan untuk 15 izin — sebelumnya 16, sampai
+`inv.post` (8 rute) keluar dari daftar ini pada 22 Agustus 2026 karena teknisi ikut
+memegangnya (§12(b)). Dari daftar itu yang benar-benar dipakai kode: `core.update`
+(menyimpan Pengaturan dan Profil Perusahaan), **ketiga** izin `iam` administratif —
+`iam.create`, `iam.update`, `iam.delete` (`Modules/Iam/Routes/api.php:24, 29, 36`)
+— **`scm.post`** (2 rute), dan keempat izin `delete` (`ast`, `prj`, `scm`, `svc`).
 
 > **`iam.post` bukan yang keempat.** Ia nol pemakaian di seluruh basis kode dan sudah
 > disebut di §3.1 sebagai salah satu dari tiga belas izin yang tidak menjaga apa pun.
 > Mencentangnya pada sebuah peran tidak memberi kemampuan apa pun.
 
-> **Perangkap operasional yang lahir dari itu — tiga, dan ketiganya nyata hari ini:**
+> **Perangkap operasional yang lahir dari itu — dua yang masih nyata hari ini, satu
+> selesai 22 Agustus 2026:**
 >
-> 1. **Seluruh pergerakan stok yang menyentuh buku besar hanya bisa diselesaikan akun
->    admin.** `warehouse` boleh **membuat** penerimaan barang, bon keluar, dan
+> 1. **Pergerakan stok yang menyentuh buku besar tidak bisa diselesaikan orang
+>    gudang.** `warehouse` boleh **membuat** penerimaan barang, bon keluar, dan
 >    transfer, tetapi tidak boleh **memposting** satu pun — dan direktur juga tidak
->    (ia memegang `inv.approve`, bukan `inv.post`).
+>    (ia memegang `inv.approve`, bukan `inv.post`). Pemegang non-admin satu-satunya
+>    sejak 22 Agustus adalah **teknisi** (§12(b)) — jadi peran yang ada untuk
+>    menggerakkan stok tetap tidak bisa memposting bon yang bisa diposting teknisi
+>    lapangan. Regangan itu dicatat, bukan diputuskan.
 > 2. **Pencairan uang muka subkon dan pelepasan retensi subkon menuntut `scm.post`
 >    DAN `fin.approve` sekaligus.** Pada instalasi baku hanya akun admin yang
 >    memenuhi keduanya.
-> 3. **Menyelesaikan berita acara lapangan yang memakai suku cadang menuntut
->    `inv.post` di samping `svc.update`.** `teknisi` punya `svc.update` dan hanya
->    kurang `inv.post`. Jadi hanya admin yang bisa mengesahkan kunjungan
->    bersuku-cadang. Ini keterbatasan yang **sengaja dibiarkan terbuka menunggu
->    keputusan pemilik** — lihat §12(b).
+> 3. ~~Menyelesaikan berita acara lapangan yang memakai suku cadang hanya bisa
+>    dilakukan admin.~~ **Selesai**: pemilik memberi `teknisi` `inv.post` pada
+>    22 Agustus 2026 — teknisi kini mengesahkan kunjungannya sendiri. Harga dan
+>    pelebarannya di §12(b).
 
 Satu lagi yang mengejutkan siapa pun yang mengira `fin.post` mencakup semua
 pemostingan: **memposting JV manual digerbangi `fin.approve`, bukan `fin.post`.**
@@ -523,9 +528,10 @@ jumlah; nama-namanya didapat dari layar Pengguna dengan filter **Peran**.
 > belas peran itu akan hilang tanpa peringatan.** Peran buatan sendiri tidak
 > tersentuh karena tidak ada di seeder.
 >
-> Dan: empat migrasi Iam mencari perannya berdasarkan **nama harfiah** (`'finance'`,
-> `'hr'`, `'direktur'`, `'admin'`). Mengganti nama salah satu peran bawaan lewat layar
-> akan membuat migrasi perbaikan berikutnya diam-diam menjadi no-op pada instalasi ini.
+> Dan: lima migrasi Iam mencari perannya berdasarkan **nama harfiah** (`'finance'`,
+> `'hr'`, `'direktur'`, `'admin'`, `'teknisi'`). Mengganti nama salah satu peran
+> bawaan lewat layar akan membuat migrasi perbaikan berikutnya diam-diam menjadi
+> no-op pada instalasi ini.
 
 ### 3.7 Batas dari apa yang izin lakukan
 
@@ -541,12 +547,16 @@ jumlah; nama-namanya didapat dari layar Pengguna dengan filter **Peran**.
 | Core | 5 | 19 |
 | HrPayroll | 4 | 11 |
 | Procurement | 2 | 12 |
-| **Assets, Inventory, ServiceDesk, Subcontract** | **0** | **12, 21, 9, 9** |
+| Assets | 1 | 12 |
+| **Inventory, ServiceDesk, Subcontract** | **0** | **21, 9, 9** |
 
 "Terbuka" berarti middleware-nya hanya `auth:sanctum`. Termasuk di dalamnya
 `GET /api/hr/employees`, `GET /api/hr/employees/{id}/payslips`,
-`GET /api/hr/payroll-runs/{id}/payslips`, dan seluruh daftar persediaan, aset,
-subkontrak, dan tiket layanan.
+`GET /api/hr/payroll-runs/{id}/payslips`, seluruh daftar persediaan, subkontrak,
+dan tiket layanan, serta seluruh daftar aset KECUALI satu: register log BBM
+(22 Agustus 2026) adalah satu-satunya GET Aset yang tergerbang, dan gerbangnya
+`ast.view` **ATAU** `prj.view` — pipa `|` spatie, pemakaian pertama di basis kode
+ini (§12(c)).
 
 > **Menyembunyikan menu lewat izin `.view` menyembunyikan LAYARNYA, bukan datanya.**
 > Siapa pun yang bisa memanggil API dengan token yang sah bisa membacanya.
@@ -1433,7 +1443,10 @@ akan menghitung dua kali.
 >    seorang penutup **bisa** menutup bulan itu — sesudahnya biaya alat bulan tersebut
 >    baru muncul pada tanggal demobilisasi, permanen.
 
-**Kejar-tayang yang menunggu hari ini** dijelaskan lengkap di §12(d).
+**Kejar-tayang yang sempat menunggu sudah dijalankan 22 Agustus 2026** — Maret–Juli
+2026 terakru penuh, Rp 573.000.000; catatannya, termasuk angka per bulannya, di
+§12(d). Sisa Agustus diakru jadwal 05:40 pada 1 September, selama alatnya belum
+didemobilisasi (jebakan 3 di atas).
 
 ### 5.5 `svc:generate-pm`
 
@@ -2041,7 +2054,7 @@ about by email". Tiga penolakan, berurutan:
 flag, dan tidak ada setelan yang melewati penolakan PSAK 115 maupun urutan
 terbaru-dulu.
 
-### 6.8 Keadaan hidup per 10 Agustus 2026
+### 6.8 Keadaan hidup per 22 Agustus 2026
 
 - **2026-01 tertutup; 2026-02 sampai 2026-12 terbuka. Tidak ada baris 2027 sama
   sekali.** Januari yang tertutup itu **tanpa catatan siapa yang menutup dan tanpa baris
@@ -2049,9 +2062,8 @@ terbaru-dulu.
   jujur: *"Periode ini ditutup sebelum riwayat penutupan dicatat."* Jangan berasumsi
   setiap periode tertutup membawa jejak audit.
 - **Berikutnya dalam antrean adalah Februari 2026** — bulan berakhir tertua yang masih
-  terbuka. Lima bulan sudah lewat tenggat menurut definisi §5.7 (berakhir dan masih
-  terbuka lebih dari 10 hari): Februari sampai Juni. Juli baru berakhir 31 Juli, jadi
-  per 10 Agustus 2026 ia belum melewati ambang sepuluh hari itu.
+  terbuka. Enam bulan sudah lewat tenggat menurut definisi §5.7 (berakhir dan masih
+  terbuka lebih dari 10 hari): Februari sampai Juli.
 - **Nol run pengakuan pendapatan.** Jadi butir 7 adalah **blok keras yang gagal pada
   setiap bulan dari Februari ke depan**, dan tidak ada bulan yang bisa ditutup sampai
   sebuah run dihitung dan diposting untuknya — **berurutan maju, Februari lebih dulu.**
@@ -2059,7 +2071,10 @@ terbaru-dulu.
   bulan itu dan gagal untuk selebihnya.
 - Penyusutan: satu run terposting (Juni). **Karena run penyusutan maju-saja,
   Februari sampai Mei 2026 tidak bisa lagi disusutkan sama sekali — beban itu hilang.**
-- Tiga mobilisasi aktif bertarif harian positif ⇒ butir akrual alat akan berbunyi.
+- Tiga mobilisasi aktif bertarif harian positif — tetapi Maret–Juli sudah terakru
+  oleh kejar-tayang 22 Agustus (§12(d)), jadi butir akrual alat diam untuk kelima
+  bulan itu dan baru berbunyi lagi untuk Agustus begitu bulannya berakhir tanpa
+  akrual.
 - Dua rekening bank aktif, dua rekening koran terimpor. Tidak ada jurnal draf.
 
 ### 6.9 Yang tidak ada pada tutup buku
@@ -2854,9 +2869,13 @@ kapan — §9.7.
 
 ## 12. Keputusan yang menunggu pemilik
 
-Empat hal di bawah **bukan cacat dan bukan pekerjaan yang tertinggal.** Masing-masing
-adalah keputusan yang sengaja dibiarkan terbuka karena jawabannya milik pemilik, bukan
-milik kode. Keempatnya tercatat di [`LAPORAN-DEVIASI.md`](LAPORAN-DEVIASI.md) dan
+**Tinggal satu yang benar-benar menunggu: (a) pemutaran kata sandi demo.** Ia bukan
+cacat dan bukan pekerjaan yang tertinggal — keputusan yang sengaja dibiarkan terbuka
+karena jawabannya milik pemilik, bukan milik kode. Tiga butir lain yang pernah
+terbuka di halaman ini **diputuskan pemilik 22 Agustus 2026** dan dibiarkan di sini
+sebagai catatan keputusan: (b) `teknisi` diberi `inv.post`, (c) register log BBM &
+jam alat dibangun, (d) kejar-tayang akrual alat dijalankan. Keempatnya tercatat di
+[`LAPORAN-DEVIASI.md`](LAPORAN-DEVIASI.md) dan
 [`ASSESSMENT-LANJUTAN.md`](ASSESSMENT-LANJUTAN.md).
 
 ### (a) Memutar kata sandi demo, lalu menurunkan gerbang erp1
@@ -2904,83 +2923,91 @@ dokumen, terbuka bagi siapa pun yang bisa membaca seeder-nya.
 
 ### (b) Apakah `teknisi` mendapat `inv.post` yang tidak dipegangnya
 
-**Keadaan hari ini.** Mengesahkan berita acara lapangan yang memakai suku cadang menuntut
-**`inv.post` di samping `svc.update`**, karena pengesahan itu memposting bon persediaan
-sungguhan dalam transaksi yang sama. `teknisi` memegang `svc.update` dan **hanya kurang
-`inv.post`**; `warehouse` tidak memegang keduanya; direktur memegang `inv.approve`, bukan
-`inv.post`. **Hasilnya: hanya akun `admin` yang bisa mengesahkan kunjungan
-bersuku-cadang.** Tercatat sebagai T13.
+**DIPUTUSKAN 22 Agustus 2026: ya.** Dari empat pilihan yang pernah ditimbang di
+halaman ini, pemilik mengambil jalan termurah — `teknisi` diberi satu izin,
+`inv.post`.
 
-**Trade-off-nya:**
+**Duduk perkaranya** (T13): mengesahkan berita acara lapangan yang memakai suku
+cadang menuntut `inv.post` di samping `svc.update`, karena pengesahan itu memposting
+bon persediaan sungguhan dalam transaksi yang sama — dan `inv.post` hanya dipegang
+admin, jadi setiap kunjungan bersuku-cadang menunggu akun admin. Pada volume tinggi
+itu hambatan yang membuat orang berbagi kata sandi admin — persis kegagalan yang
+seluruh pemisahan tugas di sistem ini ada untuk mencegahnya.
 
-| Pilihan | Konsekuensinya |
-|---|---|
-| **Beri `teknisi` satu izin (`inv.post`)** — jalan termurah | Teknisi bisa menuntaskan kunjungannya sendiri. Tetapi `inv.post` bukan izin sempit: ia juga membuka pemostingan **dan pembatalan** penerimaan barang, bon keluar, retur, serta kirim/terima transfer. Peran teknisi berubah dari "boleh melihat stok" menjadi "boleh menggerakkan stok ke buku besar" |
-| **Beri `warehouse` dua izin** (`svc.update` + `inv.post`) | Lebih banyak izin, dan menaruh pengesahan kunjungan di tangan orang yang tidak melakukan kunjungannya |
-| **Buat peran baru** yang memegang `svc.update` + `inv.post` saja, diberikan kepada teknisi senior tertentu | Paling sempit dari ketiganya, tetapi ingat: **peran diganti wholesale**, jadi orang itu kehilangan peran lamanya kecuali keduanya diberikan bersamaan (§3.4) |
-| **Biarkan seperti sekarang** | Setiap kunjungan bersuku-cadang menunggu akun admin. Pada volume rendah ini tertangani; pada volume tinggi ia menjadi hambatan yang membuat orang berbagi kata sandi admin — persis kegagalan yang seluruh pemisahan tugas di sistem ini ada untuk mencegahnya |
+**Yang mengubahnya di kode.** `RoleSeeder` kini menyemai `teknisi` dengan lima izin,
+sehingga instalasi baru langsung sama dengan erp1, dan migrasi
+`2026_08_22_000242_give_the_teknisi_role_inv_post` melakukan operasi yang sama pada
+peran yang sudah tersemai di tenant hidup — dicari berdasarkan nama harfiah
+`'teknisi'`, no-op bila perannya tidak ada. Membatalkannya satu `revokePermissionTo`
+pada peran itu; izinnya sendiri kanon dan admin tetap memegangnya.
 
-**Catatan yang sama berlaku untuk dua sepupunya**, dan pemilik sebaiknya memutuskan
-ketiganya sekaligus: **seluruh pergerakan stok yang menyentuh buku besar** dan **kedua
-rute subkon yang menuntut `scm.post` + `fin.approve`** juga hanya bisa diselesaikan akun
-admin hari ini (§3.3).
+**Harga yang diterima pemilik — kedua paruhnya dinyatakan di kode:**
+
+- **Yang terbuka:** teknisi mengesahkan kunjungan yang ia lakukan sendiri; stok
+  keluar atas namanya, bukan atas nama admin yang dipinjam.
+- **Yang melebar:** `inv.post` bukan izin sempit — ia menggerbangi 8 rute persediaan
+  (posting & pembatalan penerimaan barang, posting & pembatalan bon keluar, posting
+  kedua retur, kirim/terima transfer). Teknisi kini bisa memposting atau membatalkan
+  dokumen stok draf APA PUN yang terjangkau `inv.view`, bukan hanya bon di balik
+  kunjungannya sendiri.
+
+**Dua regangan yang DICATAT, bukan diputuskan:**
+
+- Alur pengesahan kini bisa satu orang dari ujung ke ujung — menulis, mengajukan,
+  lalu mengesahkan laporannya sendiri; satu-satunya tanda tangan balik adalah
+  `customer_sign_name`, yang diketik teknisi itu juga. Jalur ini berada di luar
+  kedua cincin SoD yang tercatat (berita acara lapangan tidak ikut maker-checker,
+  dan bon yang lahir darinya di luar register maker-checker Inventory), jadi tidak
+  ada kontrol yang dilemahkan — tetapi di bawah `inv.post`-hanya-admin, pengesah
+  setidaknya selalu orang lain daripada penulisnya.
+- `warehouse` tetap tanpa `inv.post` sementara teknisi memegangnya — peran yang ada
+  untuk menggerakkan stok tidak bisa memposting bon yang bisa diposting teknisi
+  lapangan (§3.3 perangkap 1).
+
+Sepupu yang TIDAK ikut diputuskan dan masih menunggu akun admin: kedua rute subkon
+yang menuntut `scm.post` + `fin.approve` sekaligus (§3.3 perangkap 2).
 
 ### (c) Bagaimana log BBM dan hour meter dicatat
 
-**Keadaan hari ini.** **Tidak ada** pencatatan konsumsi BBM maupun pembacaan hour meter
-alat berat di mana pun dalam sistem ini. Biayanya sementara ditampung lewat kategori kas
-kecil BBM/tol — **tanpa tautan ke asetnya**, jadi tidak ada satu pun angka konsumsi per
-alat, per jam operasi, atau per proyek yang bisa dihitung.
+**DIPUTUSKAN 22 Agustus 2026: register lapangan — dan registernya sudah dibangun.**
+Deviasi #13, satu-satunya temuan asesmen yang tersisa terbuka, ditutup hari itu.
 
-Ini **satu-satunya temuan dari 81 temuan asesmen yang tersisa terbuka**, dan ia dipagari
-secara sadar pada gelombang ketiga — bukan karena sulit dibangun, melainkan **karena
-bentuknya bergantung pada alur pencatatan lapangan yang belum diputuskan**.
+**Bentuk yang diputuskan.** Layar `Aset › Log BBM & Jam Alat` menulis ke tabel
+`ast_equipment_logs`: satu baris per pembacaan pada sebuah MOBILISASI — tanggal,
+hour meter (angka yang terbaca di meter, bukan selisih), liter BBM yang diisi,
+catatan. Boleh lebih dari satu baris per hari (pengisian pagi dan sore adalah dua
+fakta); minimal salah satu dari kedua angka wajib diisi.
 
-**Yang harus diputuskan pemilik, dan pilihannya membentuk skemanya:**
+**Siapa yang mencatat: peran lapangan.** Menulis butuh `prj.update` — site manager
+dan manajer proyek — izin Proyek pada rute Aset, dengan sengaja: memberi mereka
+`ast.create` akan sekaligus membolehkan mencetak ASET baru, kuasa yang jauh lebih
+lebar daripada menambah baris BBM. Membaca butuh `ast.view` ATAU `prj.view` (pipa
+`|` spatie — §3.7). `teknisi` tidak bisa menulis register ini, dan kolom pencatat
+diambil dari akun yang sedang masuk, tidak pernah dari isian formulir.
 
-| Pertanyaan | Mengapa ia menentukan |
-|---|---|
-| **Siapa yang mencatat, dan kapan?** Operator alat pada tiap pengisian; kepala gudang saat mengeluarkan BBM; atau petugas administrasi dari nota SPBU akhir minggu | Menentukan apakah ini layar lapangan (mobile), turunan dari bon material, atau register administratif |
-| **Hour meter dibaca per hari atau per pengisian?** | Menentukan apakah barisnya kejadian atau harian, dan apakah konsumsi per jam bisa dihitung sama sekali |
-| **BBM dibeli lewat PO/vendor, ditarik dari stok gudang, atau dibayar tunai kas kecil?** | Menentukan jalur akuntansinya: tagihan AP, bon material dari persediaan, atau voucher kas kecil. Ketiganya sudah ada; yang belum ada adalah **tautan ke aset dan ke hour meter** |
-| **Apakah biayanya harus muncul sebagai biaya proyek per alat**, atau cukup sebagai beban peralatan agregat? | Menentukan apakah ia menyambung ke mekanisme yang sama dengan akrual mobilisasi — dan karenanya ikut ke EVM dan basis biaya POC |
+**REGISTER, bukan pembukuan.** Ia tidak memposting jurnal, tidak menggerakkan stok,
+tidak membawa rupiah. Biaya BBM tetap mengalir lewat kas kecil kategori "BBM & Tol" —
+mencatat di sini TIDAK menggantikan voucher kas kecilnya, dan sebaliknya. Barisnya
+append-only: tidak ada Ubah dan tidak ada Hapus; salah ketik dikoreksi baris
+berikutnya, dan server menolak PUT/DELETE dengan kalimat yang mengatakan persis
+itu. Hour meter dijaga monoton dari kedua arah, log hanya diterima pada rentang
+hari mesinnya memang di lokasi, dan tanggal masa depan ditolak.
 
-Selama belum diputuskan, jawaban jujur kepada siapa pun yang bertanya adalah: **biayanya
-tercatat, konsumsinya tidak, dan tidak ada laporan konsumsi per alat yang bisa dibuat.**
+Kartu Aset (Form F/KA) kini mencetak registernya sebagai tabel ketiga — LOG BBM &
+JAM ALAT — tanpa kolom rupiah, karena uangnya memang tidak di sini. Panduan
+pengguna §9.5 menjelaskan layarnya langkah demi langkah, termasuk kalimat-kalimat
+penolakannya.
 
 ### (d) Mengejar akrual alat yang tertinggal, per bulan terbuka
 
-**Keadaan hari ini.** Tiga alat masih di lapangan sejak Maret dan Mei, dan sebelum akrual
-bulanan ada, biaya alat internal hanya ditulis **satu gelondong pada tanggal
-demobilisasi**. Akibatnya ketiganya menyumbang **Rp 0** ke ember biaya peralatan
-sepanjang hidupnya sejauh ini. Asesmen mengukur paparannya **Rp 585.000.000 per 3
-Agustus 2026**, terhadap RAP/2026/0001 yang menganggarkan Rp 178.031.790,79 untuk
-peralatan.
-
-Aritmetikanya, dari baris `ast_deployments` sendiri (hari dihitung inklusif, dari
-`deployed_from` sampai 3 Agustus 2026):
-
-| Mobilisasi | Proyek | Sejak | Tarif/hari | Hari | Belum terakru |
-|---|---|---|---|---|---|
-| DEP/2026/III/0001 | 1 | 2026-03-02 | Rp 2.500.000 | 155 | **Rp 387.500.000** |
-| DEP/2026/III/0002 | 1 | 2026-03-02 | Rp 1.000.000 | 155 | Rp 155.000.000 |
-| DEP/2026/V/0003 | 2 | 2026-05-11 | Rp 500.000 | 85 | Rp 42.500.000 |
-| **Total** | | | | | **Rp 585.000.000** |
-
-Jadi **kedua alat di proyek 1 BERSAMA-SAMA** adalah Rp 542.500.000 = **3,05×** seluruh
-anggaran peralatan proyek itu (542.500.000 ÷ 178.031.790,79 = 3,047). **Satu alat
-terbesar sendirian**, DEP/2026/III/0001, adalah Rp 387.500.000 = **2,18×**
-(387.500.000 ÷ 178.031.790,79 = 2,177). Angka **3,05×** di
-[`ASSESSMENT-LANJUTAN.md`](ASSESSMENT-LANJUTAN.md) baris 885 dan 896 memang milik
-**pasangan** itu ("dua di proyek 1 … Rp 542.500.000"), bukan milik satu alat.
-
-**Angka mana yang salah, di layar mana.** Tabel biaya proyek adalah satu-satunya sumber
-AC pada EVM. Jadi yang mengecil adalah **AC, CPI, dan EAC di layar EVM**, dan **basis
-biaya POC** yang dihitung ulang. Pembilang tanpa peralatan di atas penyebut dengan
-peralatan **mengecilkan persentase progres dan karenanya pendapatan kumulatif.** Yang
-menyelamatkan sejauh ini: belum ada satu pun run pengakuan pendapatan yang terposting —
-jadi belum ada laporan laba rugi terposting yang salah. **Yang salah adalah setiap angka
-hidup dan setiap pratinjau.**
+**DIJALANKAN 22 Agustus 2026.** Kelima bulan Maret–Juli 2026 diakru pada basis data
+hidup selagi semuanya masih terbuka: 13 baris `fin_project_costs` — satu per
+mobilisasi per bulan — total **Rp 573.000.000**, cocok baris per baris dengan tabel
+di bawah. Ketiga alat yang sejak Maret dan Mei menyumbang Rp 0 ke ember biaya
+peralatan (paparan yang diukur asesmen: Rp 585.000.000 per 3 Agustus, versus
+RAP/2026/0001 yang menganggarkan Rp 178.031.790,79 untuk peralatan) kini membebani
+bulan pemakaiannya — AC, CPI/EAC, dan basis biaya POC membaca angka yang sama, dan
+belum ada run PSAK 115 terposting yang sempat memotret angka lamanya.
 
 **Mengapa tidak dikejar otomatis.** Alasannya tertulis penuh di kode, dan ia sah:
 akuntansi di sini **maju-saja**, dan mengakru bulan lampau sebuah mobilisasi yang masih
@@ -2995,50 +3022,14 @@ miss a month forever…; the plant_accrued checklist item cannot, because the cl
 read it before the month becomes unrepairable. This command is the hands, the checklist
 is the eyes."*
 
-**Yang harus diputuskan pemilik:** apakah kejar-tayang ini dijalankan **sekarang**,
-selagi Maret–Juli 2026 semuanya masih terbuka — atau bulan-bulan itu dibiarkan ditutup
-dengan pengabaian tertulis, menerima bahwa realisasi peralatannya **understated permanen**
-dan seluruh rentangnya muncul sekaligus pada hari demobilisasi.
+**Yang dijalankan 22 Agustus**: `ast:accrue-plant 2026 3` sampai `2026 7`, dari yang
+tertua, satu bulan per perintah, dalam bentuk baku §1 (`sudo -u www-data env
+HOME=/tmp …`). Memeriksa keadaannya kapan pun, tanpa menulis apa pun: buka
+**Keuangan → Periode Fiskal** bulan yang bersangkutan dan baca butir **"Akrual alat
+internal bulan ini sudah dicatat"** — ia menyebut per mobilisasi: kode, jumlah hari,
+dan rupiah yang belum diakru.
 
-**Prosedurnya, bila diputuskan dijalankan.**
-
-**Langkah 1 — verifikasi dulu, jangan mengasumsikan.** Jadwal 05:40 sudah berjalan
-setiap pagi dan mengakru "bulan yang baru saja berakhir", jadi **Juli 2026 kemungkinan
-sudah terakru sejak 1 Agustus** pada instalasi produksi. Cara memeriksanya **tanpa
-menulis apa pun**: buka **Keuangan → Periode Fiskal** untuk bulan yang bersangkutan dan
-baca butir **"Akrual alat internal bulan ini sudah dicatat"** — ia menyebut per
-mobilisasi: kode, jumlah hari, dan rupiah yang belum diakru.
-
-> Angka keadaan-hidup di panduan ini dibaca dari basis data **pohon sumber**, yang tidak
-> menerima cron. Pada salinan itu jumlah baris akrual alat adalah **nol**. Apakah Juli
-> sudah terakru di produksi **harus diverifikasi di sana lebih dulu.**
-
-**Langkah 2 — jalankan dari yang tertua, satu bulan per perintah.** Menjalankan bulan
-yang sudah terakru tetap aman (idempoten) **tetapi tidak tanpa syarat** — bila tarif
-harian sebuah mobilisasi pernah disunting, menjalankan ulang bulan lampau yang masih
-terbuka **diam-diam menyatakan ulang biaya bulan itu** (§5.4).
-
-```bash
-sudo -u www-data env HOME=/tmp php artisan ast:accrue-plant 2026 3
-```
-
-```bash
-sudo -u www-data env HOME=/tmp php artisan ast:accrue-plant 2026 4
-```
-
-```bash
-sudo -u www-data env HOME=/tmp php artisan ast:accrue-plant 2026 5
-```
-
-```bash
-sudo -u www-data env HOME=/tmp php artisan ast:accrue-plant 2026 6
-```
-
-```bash
-sudo -u www-data env HOME=/tmp php artisan ast:accrue-plant 2026 7
-```
-
-**Angka yang akan keluar**, dihitung dengan aturan hari yang sama seperti perintahnya
+**Angka yang terbukukan**, dihitung dengan aturan hari yang sama seperti perintahnya
 (inklusif kedua ujung, dimulai dari yang terakhir antara tanggal mobilisasi dan awal
 bulan):
 
@@ -3053,19 +3044,17 @@ bulan):
 
 Selisih dengan angka Rp 585 juta di asesmen **bukan kesalahan**: Rp 585 juta adalah
 paparan **per 3 Agustus 2026** termasuk hari-hari Agustus yang sudah lewat, sedangkan
-perintah ini hanya boleh mengakru bulan yang **sudah berakhir**. **Sisa Agustus baru
-dapat diakru pada 1 September** — atau otomatis oleh jadwal 05:40 pada pagi itu.
+perintah ini hanya boleh mengakru bulan yang **sudah berakhir**. **Sisa Agustus diakru
+otomatis oleh jadwal 05:40 pada 1 September** — SELAMA alatnya belum didemobilisasi
+lebih dulu: begitu sebuah alat dikembalikan, seluruh sisanya dilunasi baris residual
+bertanggal hari kembali dan bulan lampaunya tidak bisa lagi diakru (§5.4, jebakan 3).
 
-**Langkah 3 — jangan menunda melewati demobilisasi.** Begitu sebuah alat dikembalikan,
-bulan-bulan lampaunya **tidak bisa lagi diakru** dan tetap kosong selamanya (§5.4).
-
-**Batasnya:** Februari 2026 tidak punya apa-apa untuk diakru (mobilisasi tertua mulai
-2 Maret), dan Januari 2026 sudah tertutup. Kelima bulan Maret–Juli semuanya masih
-terbuka per 10 Agustus 2026, jadi kelimanya masih bisa dikejar — **selama belum ada
-yang menutupnya.**
+**Yang tetap berlaku sesudah kejar-tayang ini.** Wasitnya tetap butir daftar periksa
+`plant_accrued` — WARN yang menyebut mesin, hari, dan rupiahnya setiap kali sebuah
+bulan mau ditutup dengan akrual yang belum dicatat (§5.4, §6.3).
 
 ---
 
-*Panduan ini menjelaskan perilaku kode per 10 Agustus 2026. Setiap klaim di dalamnya
+*Panduan ini menjelaskan perilaku kode per 22 Agustus 2026. Setiap klaim di dalamnya
 diverifikasi terhadap berkas sumber atau terhadap salinan basis data hidup. Bila sebuah
 perilaku berubah, panduan inilah yang salah — bukan kodenya.*

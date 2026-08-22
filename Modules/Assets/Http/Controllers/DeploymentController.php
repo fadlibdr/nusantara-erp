@@ -55,7 +55,12 @@ class DeploymentController extends ApiController
 
     public function show(Deployment $deployment): JsonResponse
     {
-        return $this->ok(DeploymentResource::make($deployment->load('asset.category')));
+        // equipmentLogs ride along so the reading history is visible where
+        // the machine is — the generic detail screen draws them as a table.
+        return $this->ok(DeploymentResource::make($deployment->load([
+            'asset.category',
+            'equipmentLogs' => fn ($query) => $query->with('loggedBy')->orderByDesc('log_date')->orderByDesc('id'),
+        ])));
     }
 
     public function update(DeploymentUpdateRequest $request, Deployment $deployment): JsonResponse

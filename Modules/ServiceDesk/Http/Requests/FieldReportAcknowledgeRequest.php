@@ -15,22 +15,24 @@ class FieldReportAcknowledgeRequest extends FormRequest
      * inside the same transaction (FieldReportService::issueParts →
      * IssueService::create → StockService::postIssue): stock leaves a warehouse
      * at moving average and a journal Dr 6-4100 / Cr 1-1400 hits the general
-     * ledger. Gated on svc.update alone, the shipped `teknisi` role — which
-     * holds svc.view/create/update plus inv.VIEW and nothing else — could write
+     * ledger. Gated on svc.update alone, the `teknisi` role as first shipped —
+     * svc.view/create/update plus inv.VIEW and nothing else — could have written
      * off Rp 55.500.000 of ITM-0004 from WH-PUSAT on a report it wrote itself,
-     * signed with a customer name it typed itself, while the SAME login is
-     * refused POST inventory/issues/{id}/post with a 403. The `warehouse` role,
-     * which exists to move stock, cannot do it at all.
+     * signed with a customer name it typed itself, while the SAME login was
+     * refused POST inventory/issues/{id}/post with a 403.
      *
      * So the endpoint asks for the right it actually exercises. Scoped to
      * reports that carry parts on purpose: a signature-only sign-off moves no
      * stock and stays a technician's job, which is what it is.
      *
-     * NOTE FOR THE ROLE MATRIX (Modules/Iam RoleSeeder, not this module): inv.post
-     * is seeded to `admin` alone today, so nobody but an admin can complete a
-     * parts visit until either `teknisi` or `warehouse` is granted it. That is
-     * the privilege being made VISIBLE rather than smuggled in through svc.update
-     * — which is the point — but it is a decision the role matrix has to record.
+     * THE ROLE MATRIX RECORDED ITS DECISION on 22 Aug 2026: `teknisi` now holds
+     * inv.post (RoleSeeder on fresh installs, Iam migration 000242 on live
+     * tenants), so a technician completes the parts visit they made and this
+     * gate holds that login to the same right every other stock posting
+     * demands — the privilege stays VISIBLE instead of smuggled in through
+     * svc.update. The `warehouse` role still holds neither svc.update nor
+     * inv.post and cannot complete a parts visit; that strain is recorded in
+     * the role matrix, not decided here.
      */
     public function authorize(): bool
     {

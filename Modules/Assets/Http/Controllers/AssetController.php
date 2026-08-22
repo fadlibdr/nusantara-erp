@@ -12,6 +12,7 @@ use Modules\Assets\Http\Requests\AssetStoreRequest;
 use Modules\Assets\Http\Requests\AssetUpdateRequest;
 use Modules\Assets\Http\Resources\AssetResource;
 use Modules\Assets\Http\Resources\DeploymentResource;
+use Modules\Assets\Http\Resources\EquipmentLogResource;
 use Modules\Assets\Http\Resources\MaintenanceResource;
 use Modules\Assets\Models\Asset;
 use Modules\Assets\Services\AssetDisposalService;
@@ -134,12 +135,18 @@ class AssetController extends ApiController
             'deployments' => fn ($query) => $query->orderByDesc('deployed_from'),
             'maintenances' => fn ($query) => $query->orderByDesc('maintenance_date'),
             'depreciationEntries' => fn ($query) => $query->with('run')->orderByDesc('id'),
+            // The BBM & hour-meter register, newest first like its siblings.
+            // Through live deployments only — a deleted mobilisation's
+            // readings leave the trail with it (see Asset::equipmentLogs).
+            'equipmentLogs' => fn ($query) => $query->with(['deployment', 'loggedBy'])
+                ->orderByDesc('log_date')->orderByDesc('ast_equipment_logs.id'),
         ]);
 
         return $this->ok([
             'asset' => AssetResource::make($asset),
             'deployments' => DeploymentResource::collection($asset->deployments),
             'maintenances' => MaintenanceResource::collection($asset->maintenances),
+            'equipment_logs' => EquipmentLogResource::collection($asset->equipmentLogs),
             'depreciation_entries' => $asset->depreciationEntries->map(fn ($entry) => [
                 'id' => $entry->id,
                 'run_code' => $entry->run?->code,

@@ -4,6 +4,7 @@ namespace Modules\Assets\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Assets\Enums\AssetStatus;
@@ -68,6 +69,25 @@ class Asset extends BaseModel
     {
         return $this->hasOne(Deployment::class, 'asset_id')
             ->where('status', DeploymentStatus::Active->value);
+    }
+
+    /**
+     * Every BBM/hour-meter reading across all this asset's deployments.
+     *
+     * Through the LIVE deployments only: the soft-delete scope on the
+     * intermediate model excludes logs whose mobilisation somebody deleted —
+     * the same stance the kartu aset takes on the two history tables it
+     * already prints (a deleted mobilisation must not come back through its
+     * fuel receipts).
+     */
+    public function equipmentLogs(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            EquipmentLog::class,
+            Deployment::class,
+            'asset_id',
+            'deployment_id',
+        );
     }
 
     public function maintenances(): HasMany

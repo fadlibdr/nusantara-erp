@@ -26,16 +26,23 @@ use Tests\Unit\Inventory\InventoryFixtures;
  * warehouse at moving average and a journal Dr 6-4100 / Cr 1-1400 hits the
  * general ledger. It was gated on permission:svc.update alone.
  *
- * The audit proved it end to end with the shipped account. teknisi@nusantara.test
- * holds svc.view/create/update plus inv.VIEW and nothing else — RoleSeeder gives
- * inv.post to `admin` only, and deliberately withholds it even from `warehouse`.
- * That login wrote a report, listed 30 x ITM-0004 CCTV Dome 4MP against WH-PUSAT,
- * signed it with a customer name it typed itself, and moved Rp 55.500.000 of
- * stock onto the P&L — while the SAME login is refused
- * POST inventory/issues/{id}/post with a 403.
+ * The audit proved it end to end with the shipped account. At audit time
+ * teknisi@nusantara.test held svc.view/create/update plus inv.VIEW and nothing
+ * else — RoleSeeder gave inv.post to `admin` only, and deliberately withheld it
+ * even from `warehouse`. That login wrote a report, listed 30 x ITM-0004 CCTV
+ * Dome 4MP against WH-PUSAT, signed it with a customer name it typed itself,
+ * and moved Rp 55.500.000 of stock onto the P&L — while the SAME login is
+ * refused POST inventory/issues/{id}/post with a 403.
  *
  * So the endpoint now asks for the right it exercises, and only when it exercises
  * it: a signature-only sign-off moves no stock and stays a technician's job.
+ *
+ * SINCE 22 AUG 2026 the owner has GRANTED the seeded `teknisi` role inv.post
+ * (T13, migration 2026_08_22_000242 + RoleSeeder), so the shipped technician
+ * now passes this gate on purpose. The fixtures below build their roles by
+ * hand, so what stays proven here is the GATE — whoever lacks inv.post is
+ * refused the moment the report carries parts — not any one role's holdings;
+ * TeknisiInventoryPostingPermissionTest pins those.
  */
 class FieldReportStockPermissionTest extends ErpTestCase
 {
@@ -137,8 +144,11 @@ class FieldReportStockPermissionTest extends ErpTestCase
     // ----------------------------------------------------------------- fixtures
 
     /**
-     * The shipped technician: svc view/create/update plus inv.VIEW, exactly as
-     * Modules/Iam RoleSeeder seeds it.
+     * The PRE-GRANT technician: svc view/create/update plus inv.VIEW, exactly
+     * as Modules/Iam RoleSeeder seeded it before the owner's 22 Aug 2026
+     * decision added inv.post (T13). Kept in that shape deliberately — this is
+     * the login the gate must refuse, and it is one revokePermissionTo away
+     * from being the shipped role again.
      */
     private function teknisi(): User
     {
@@ -150,9 +160,11 @@ class FieldReportStockPermissionTest extends ErpTestCase
     }
 
     /**
-     * Someone who may both sign a report off and move stock. inv.post is
-     * admin-only in the shipped role matrix, which is why this is the privilege
-     * the finding wanted made VISIBLE rather than smuggled in through svc.update.
+     * Someone who may both sign a report off and move stock. inv.post was
+     * admin-only in the shipped role matrix when the finding was written, which
+     * is why this is the privilege it wanted made VISIBLE rather than smuggled
+     * in through svc.update — and being visible is what let the owner grant it
+     * to `teknisi` deliberately on 22 Aug 2026 (T13).
      */
     private function supervisor(): User
     {

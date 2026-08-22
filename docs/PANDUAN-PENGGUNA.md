@@ -57,12 +57,12 @@ panduan ini milik orang lain.
 | Petugas pengadaan / pembelian | `procurement` | 1, 2, **5** |
 | Penjaga gudang / logistik | `warehouse` | 1, 2, **6** |
 | Manajer proyek | `project-manager` | 1, 2, **7**, **8** (+ §4.4 RAP, bab 9 bila memegang alat) |
-| Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja) |
+| Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja; + §9.5 — Anda salah satu pencatat log BBM & jam alat) |
 | Petugas keuangan (AR, AP, kas) | `finance` | 1, 2, **10** (+ §3.10–§3.14 penagihan, §5.9–§5.10 bayar vendor) |
 | Manajer keuangan / direktur | `finance-manager`, `direktur` | 1, 2, **14**, lalu bab dokumen yang Anda setujui |
 | Kasir kas kecil | peran khusus (§14) | 1, 2, **§10.5–§10.7** |
 | Petugas SDM / payroll | `hr` | 1, 2, **11** |
-| Teknisi servis | `teknisi` | 1, 2, **12** (+ layar Lapangan lewat alamat `#/lapangan` — §7.4) |
+| Teknisi servis | `teknisi` | 1, 2, **12** (+ layar Lapangan lewat alamat `#/lapangan` — §7.4; sejak 22 Agu 2026 peran Anda memegang izin posting stok — §6.1) |
 | Admin alat berat / aset | `project-manager` atau admin | 1, 2, **9** |
 
 **Enam kalimat yang berlaku untuk semua orang**, apa pun peran Anda:
@@ -155,17 +155,19 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
 | SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
 | Layanan | Tiket · Tiket Lewat SLA · Kontrak Layanan · Jadwal Preventif · Berita Acara |
-| Aset | Daftar Aset · Kategori Aset · Mobilisasi · Perawatan · Penyusutan · Utilisasi Aset |
+| Aset | Daftar Aset · Kategori Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset |
 | Sistem | Pengguna · Peran & Hak Akses · Profil Perusahaan · Impor Data Master · Impor Dokumen · Pengaturan |
 
 **Kelompok yang izinnya tidak Anda pegang tidak digambar sama sekali.** Sidebar seorang
 petugas gudang tidak punya kelompok Keuangan; sidebar sales tidak punya kelompok
 Persediaan. Itu bukan kerusakan.
 
-Perkecualiannya dua baris di kelompok **Sistem**: **Impor Data Master** dan **Impor
-Dokumen** punya izinnya sendiri. Itu sebabnya seorang estimator bisa melihat kelompok
-"Sistem" yang hanya berisi satu baris **Impor Dokumen** — dan itu memang satu-satunya
-baris Sistem yang boleh ia buka.
+Perkecualiannya tiga baris yang punya izinnya sendiri: **Impor Data Master** dan
+**Impor Dokumen** di kelompok **Sistem**, dan **Log BBM & Jam Alat** di kelompok
+**Aset**. Itu sebabnya seorang estimator bisa melihat kelompok "Sistem" yang hanya
+berisi satu baris **Impor Dokumen**, dan seorang site manager melihat kelompok "Aset"
+yang hanya berisi **Log BBM & Jam Alat** — masing-masing memang satu-satunya baris
+kelompok itu yang boleh mereka buka.
 
 **Tema.** Tombol matahari/bulan berputar antara *mengikuti sistem* → *terang* → *gelap*,
 dan memberi tahu pilihannya lewat notifikasi kecil. Pilihan tema, lipatan sidebar, dan
@@ -2225,8 +2227,11 @@ setelah dibuat**. Setiap pembayaran selalu dimulai dari `Keuangan › Pembayaran
 
 ### 6.1 Baca ini lebih dulu: siapa yang boleh memposting
 
-Pada susunan peran bawaan, **hanya peran `admin` yang memegang `inv.post`**. Setiap
-tombol yang benar-benar menggerakkan stok bergerbang izin itu:
+Pada susunan peran bawaan, izin posting stok (`inv.post`) dipegang **`admin` dan —
+sejak 22 Agustus 2026 — `teknisi`**. Izin itu diberikan kepada teknisi supaya ia bisa
+mengesahkan sendiri berita acara servis yang memakai suku cadang (§12.5); harganya,
+yang diterima sadar, adalah bahwa izin ini juga membuka seluruh tombol stok di bab
+ini. Setiap tombol yang benar-benar menggerakkan stok bergerbang izin itu:
 
 **`Posting ke Stok`** (penerimaan dan bon) · **`Kirim`** dan **`Terima`** (transfer) ·
 **`Posting Retur`** (kedua jenis retur) · **`Batalkan Penerimaan`** · **`Batalkan Bon`**.
@@ -2463,8 +2468,8 @@ boleh melayani dua paket pekerjaan.
 > - **`Proyek tujuan` yang dikosongkan membuat pengeluaran itu menjadi overhead kantor,
 >   bukan biaya proyek.** Ia tidak akan pernah tampil di realisasi proyek, di EVM, di
 >   laporan varian material, maupun di basis biaya PSAK 115. Dan karena bon yang sudah
->   diposting tidak bisa diubah, satu-satunya perbaikan adalah `Batalkan Bon` (admin) lalu
->   mengeluarkan ulang.
+>   diposting tidak bisa diubah, satu-satunya perbaikan adalah `Batalkan Bon` (pemegang
+>   izin posting stok — §6.1) lalu mengeluarkan ulang.
 > - **`Paket pekerjaan (WBS)` yang dikosongkan membuat pemakaiannya tidak masuk laporan
 >   Varian Material** (§7.9) — kolom "aktual" di sana menjadi lebih kecil daripada
 >   pemakaian yang sebenarnya.
@@ -3757,8 +3762,8 @@ pelepasannya.
 
 ## 9. Aset & alat berat
 
-Kelompok **Aset** berisi enam layar: **Daftar Aset · Kategori Aset · Mobilisasi ·
-Perawatan · Penyusutan · Utilisasi Aset**.
+Kelompok **Aset** berisi tujuh layar: **Daftar Aset · Kategori Aset · Mobilisasi ·
+Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset**.
 
 ### 9.1 Siapa boleh apa
 
@@ -3775,6 +3780,12 @@ penyusutannya bukan orang yang sama.
 
 Tiga tombol butuh izin posting — **`Demobilisasi`**, **`Posting Penyusutan`**, dan
 **`Hapus Buku / Jual`** — jadi seorang manajer proyek tidak akan melihatnya.
+
+Satu layar berdiri di luar tabel di atas: **Log BBM & Jam Alat** (§9.5) memakai izin
+Proyek, bukan izin Aset — mencatatnya butuh izin ubah proyek (site manager dan manajer
+proyek), membacanya butuh izin lihat aset ATAU lihat proyek. Itu sebabnya seorang site
+manager, yang tidak memegang satu pun izin `ast`, tetap melihat kelompok Aset berisi
+satu baris itu.
 
 ### 9.2 Kategori Aset — isi ini lebih dulu
 
@@ -3816,14 +3827,14 @@ Status aset: **Tersedia · Termobilisasi · Dalam Perawatan · Dihapusbukukan**.
 4. **`Simpan`**.
 
 **Status "Dihapusbukukan" tidak ada di daftar pilihan** dan tidak bisa dicapai lewat
-`Ubah` — ia hanya lahir dari aksi **`Hapus Buku / Jual`** (§9.8), yang memposting jurnal
+`Ubah` — ia hanya lahir dari aksi **`Hapus Buku / Jual`** (§9.9), yang memposting jurnal
 pelepasannya.
 
 **Halaman aset** memperlihatkan empat petak — Harga perolehan · **Akumulasi penyusutan**
 (+ beban per bulan) · **Nilai buku** · **Umur manfaat** (+ "mulai {tanggal}" atau "belum
-disusutkan") — lalu tiga kartu riwayat: **Mobilisasi**, **Perawatan**, dan
-**Penyusutan**. Aset yang sudah dihapusbukukan mendapat panel kuning di atas berisi
-tanggal, alasan, dan hasil pelepasannya.
+disusutkan") — lalu empat kartu riwayat: **Mobilisasi**, **Log BBM & jam alat**,
+**Perawatan**, dan **Penyusutan**. Aset yang sudah dihapusbukukan mendapat panel
+kuning di atas berisi tanggal, alasan, dan hasil pelepasannya.
 
 ### 9.4 Mobilisasi dan Demobilisasi
 
@@ -3867,7 +3878,66 @@ Satu penolakan berbahasa Indonesia:
 **Tenggat** mengawasi mobilisasi yang melewati **Rencana sampai**, **7 hari** di muka,
 untuk pemegang izin ubah aset.
 
-### 9.5 Perawatan Aset — `Aset › Perawatan`
+### 9.5 Log BBM & Jam Alat — `Aset › Log BBM & Jam Alat`
+
+Register pembacaan lapangan (dibangun 22 Agustus 2026, setelah keputusan pemilik —
+deviasi #13): berapa jam alat sudah berjalan dan berapa liter BBM diisikan, per
+mobilisasi. **Register ini murni catatan — ia tidak membuat jurnal, tidak
+menggerakkan stok, dan tidak membawa rupiah.** Uang BBM-nya tetap dicatat lewat bon
+kas kecil kategori **BBM & Tol** (§10.6); mengisi register ini TIDAK menggantikan
+bonnya, dan bonnya tidak menggantikan register.
+
+Kolom: Tanggal · Aset (dengan kode mobilisasinya) · Hour meter (jam) · BBM (liter) ·
+Dicatat oleh · Catatan. Saringan: Mobilisasi, Proyek, dan rentang tanggal.
+
+**Siapa boleh apa.** Mencatat butuh **izin ubah proyek** — site manager dan manajer
+proyek, orang yang memang di lokasi. Membaca butuh izin lihat aset ATAU lihat
+proyek. Teknisi servis tidak menulis register ini. Kolom "Dicatat oleh" diisi dari
+akun yang sedang masuk, bukan dari formulir.
+
+**Mencatat satu baris:**
+
+1. **`Tambah Log Alat`**.
+2. **Mobilisasi** (wajib) — pemilihnya menampilkan kode DEP beserta kode dan nama
+   alatnya; mobilisasi yang sudah dikembalikan diberi tanda
+   "(demobilisasi {tanggal})".
+3. **Tanggal** (wajib, bawaan hari ini) · **Hour meter (jam)** · **BBM diisi
+   (liter)** · Catatan. Bantuan di formulir: *"Hour meter adalah ANGKA YANG TERBACA
+   di meter, bukan selisih. Isi minimal salah satu: hour meter atau liter BBM."*
+4. **`Simpan`**.
+
+Dua baris pada hari yang sama sah — pengisian pagi dan pengisian sore adalah dua
+fakta. Log susulan yang tanggalnya masih di dalam rentang mobilisasi juga diterima,
+termasuk pada mobilisasi yang sudah dikembalikan.
+
+**Penolakan yang akan Anda temui** — semuanya menyebut angka dan tanggalnya:
+
+- Formulir kosong dua-duanya: *"Isi hour meter atau liter BBM — baris log tanpa
+  satu pun pembacaan tidak mencatat apa-apa."*
+- Tanggal besok: *"Tanggal log {tanggal} masih di masa depan — register mencatat
+  pembacaan yang sudah terjadi, bukan rencana."*
+- Sebelum alat tiba: *"Mobilisasi {kode} baru mulai {tanggal}; log bertanggal
+  {tanggal} mencatat alat yang belum ada di lokasi."* — dan sesudah alat pulang:
+  *"Mobilisasi {kode} sudah demobilisasi {tanggal}; log bertanggal {tanggal}
+  mencatat alat yang sudah tidak ada di lokasi."*
+- Hour meter mundur: *"Hour meter {angka} lebih rendah dari pembacaan terakhir
+  {angka} ({tanggal}) pada mobilisasi {kode}. Meter hanya berjalan maju — angka
+  yang lebih rendah berarti salah ketik atau salah alat."* Log susulan yang
+  angkanya melompati pembacaan sesudahnya ditolak dari arah sebaliknya: *"… Meter
+  hanya berjalan maju — log susulan harus lebih kecil dari pembacaan sesudahnya."*
+
+**Tidak ada tombol Ubah dan tidak ada tombol Hapus, untuk siapa pun** — register
+ini hanya-tambah. Salah ketik dikoreksi dengan baris log baru berangka benar; API
+pun menolak dengan kalimat: *"Baris register tidak diubah dan tidak dihapus —
+register pembacaan dikoreksi oleh pembacaan berikutnya, bukan dengan menyunting
+riwayat. Catat baris log baru dengan angka yang benar dan sebutkan koreksinya di
+catatan."*
+
+Riwayat pembacaannya juga tampil di **halaman aset** (kartu "Log BBM & jam alat" —
+§9.3), di **halaman mobilisasi** (tabel dengan judul yang sama), dan tercetak pada
+**Kartu Aset** sebagai tabel LOG BBM & JAM ALAT (§9.10).
+
+### 9.6 Perawatan Aset — `Aset › Perawatan`
 
 Kolom: Kode · Aset · Tanggal · Jenis · Biaya · **Berikutnya** (dengan hitungan relatif).
 Saringan: Aset, Jenis.
@@ -3886,7 +3956,7 @@ Uraian pekerjaan.
 per aset yang membawa pengingat hidup — jadi mencatat perawatan baru otomatis
 menggulirkannya.
 
-### 9.6 Penyusutan — `Aset › Penyusutan`
+### 9.7 Penyusutan — `Aset › Penyusutan`
 
 Kolom: Kode · Periode · Jml aset · Total penyusutan · Diposting · Status (Draf /
 Terposting). Baris **tidak bisa diubah**; draf bisa dihapus.
@@ -3910,13 +3980,13 @@ Penolakan:
 diposting **sebelum** pengakuan pendapatan PSAK 115 bulan itu (§10.9). Urutannya:
 payroll → penyusutan → pengakuan pendapatan.
 
-### 9.7 Utilisasi Aset — `Aset › Utilisasi Aset`
+### 9.8 Utilisasi Aset — `Aset › Utilisasi Aset`
 
 Layar baca saja, sub-judul *"Hari mobilisasi dan nilai internal per proyek."* Tabel
 ringkas per aset dan per proyek; satu-satunya tombol adalah muat ulang. Bila kosong:
 *"Belum ada data mobilisasi aset."*
 
-### 9.8 Hapus Buku / Jual
+### 9.9 Hapus Buku / Jual
 
 Tombol merah **`Hapus Buku / Jual`** di halaman aset (izin posting), muncul pada aset
 berstatus **Tersedia** atau **Dalam Perawatan**.
@@ -3938,12 +4008,17 @@ Penolakan:
   > sudah dilepas."
 - Kategori tanpa akun harga perolehan/akumulasi (§9.2).
 
-### 9.9 Mencetak
+### 9.10 Mencetak
 
 | Formulir | Tombolnya di | Kode |
 |---|---|---|
 | **Kartu Aset** | halaman aset | Form F/KA |
 | **Berita Acara Mobilisasi Alat** | halaman mobilisasi | Form F/BAM |
+
+Kartu Aset mencetak tiga tabel riwayat: mobilisasi, perawatan, dan — sejak
+22 Agustus 2026 — **LOG BBM & JAM ALAT** (§9.5), tanpa kolom rupiah, karena uang
+BBM-nya hidup di kas kecil. Hari tanpa pembacaan meter atau tanpa pengisian dicetak
+bergaris kosong, bukan nol — aturan kejujuran §13.5.
 
 ---
 
@@ -4221,6 +4296,11 @@ Kolom: **Kas kecil** (wajib, hanya saat membuat) · **Tanggal bon** (wajib) · *
 Enam kategori, dan masing-masing mendarat di akun yang berbeda tergantung ada tidaknya
 proyek: **Material · Upah Harian · BBM & Tol · Konsumsi · Alat Bantu · Lain-lain**.
 
+Kategori **BBM & Tol** adalah tempat UANG solar dicatat; jam mesin dan liter yang
+diisikan ke alat berat dicatat terpisah di register **Log BBM & Jam Alat** (§9.5),
+yang tidak membukukan apa pun — keduanya saling melengkapi, bukan saling
+menggantikan.
+
 **Aksi:**
 
 - **`Posting Voucher`** — konfirmasi *"Posting bon ini? Beban dan saldo laci langsung
@@ -4380,7 +4460,7 @@ provisinya. Kartu **Cara membaca** menuliskan ketiga rumusnya.
 > "Payroll untuk periode 2026-06 belum diposting. Biaya bulan ini belum lengkap, sehingga
 > persentase penyelesaian akan understated — posting payroll dan penyusutan lebih dulu."
 >
-> **payroll (§11.6) → penyusutan (§9.6) → pengakuan pendapatan.**
+> **payroll (§11.6) → penyusutan (§9.7) → pengakuan pendapatan.**
 
 > **Draf yang tampil di layar bukan yang diposting.** Posting menghitung ulang seluruh
 > periode dari basis data, hanya mempertahankan EAC yang di-override manual. Angkanya boleh
@@ -4837,13 +4917,15 @@ Berita Acara**.
 
 ### 12.1 Siapa boleh apa
 
-Peran `teknisi` memegang lihat/buat/ubah pada modul Layanan dan **lihat** pada Persediaan.
-Ia **tidak** memegang izin hapus layanan, dan **tidak** memegang izin posting stok. Peran
-`sales` memegang lihat layanan (baca saja). Persetujuan layanan ada pada direktur dan
-admin.
+Peran `teknisi` memegang lihat/buat/ubah pada modul Layanan, serta **lihat** dan —
+sejak 22 Agustus 2026 — **posting** pada Persediaan. Ia **tidak** memegang izin hapus
+layanan. Peran `sales` memegang lihat layanan (baca saja). Persetujuan layanan ada
+pada direktur dan admin.
 
-Konsekuensi terpentingnya ada di §12.5: **seorang teknisi tidak bisa menyelesaikan
-kunjungan yang memakai suku cadang.**
+Izin posting stok itu diberikan justru untuk bab ini: **seorang teknisi kini bisa
+menyelesaikan sendiri kunjungan yang memakai suku cadang** (§12.5). Izin yang sama
+juga membuka tombol posting/pembatalan stok di bab 6 untuk peran teknisi — itu harga
+yang diterima sadar saat izinnya diberikan (§6.1).
 
 ### 12.2 Kontrak Layanan — `Layanan › Kontrak Layanan`
 
@@ -4991,18 +5073,19 @@ satu-satunya jalan mundur, dan **ia berhenti bekerja begitu pelanggan menandatan
 > Kotak **"Nama penandatangan"** di formulir **bukan** bukti tanda tangan; hanya
 > `Sahkan Pelanggan` yang mencapnya.
 
-> **Seorang teknisi tidak bisa menyelesaikan kunjungan yang memakai suku cadang.** Tombol
-> `Sahkan Pelanggan` digambar untuk siapa pun yang punya izin ubah layanan, tetapi ketika
-> laporan membawa sparepart, server **juga** menuntut izin posting stok — yang pada
-> susunan peran bawaan **hanya dipegang admin**. Teknisi akan menekan tombolnya dan
-> menerima galat 403 berbahasa Inggris yang tidak menjelaskan apa-apa
-> (`This action is unauthorized.`).
+> **Pengesahan laporan bersuku-cadang menuntut izin posting stok di samping izin ubah
+> layanan** — karena pengesahan itu memposting bon persediaan sungguhan dalam
+> transaksi yang sama. **Sejak 22 Agustus 2026 peran `teknisi` memegang izin itu**,
+> jadi seorang teknisi mengesahkan sendiri kunjungan yang ia lakukan — dulunya hanya
+> admin yang bisa, dan setiap kunjungan bersuku-cadang menunggu akun admin.
 >
 > **Laporan tanpa sparepart adalah tanda tangan murni** — tidak butuh gudang, tidak
-> menggerakkan stok, tidak butuh izin posting, dan bisa disahkan teknisi sendiri.
+> menggerakkan stok, dan tidak butuh izin posting.
 >
-> Bila kunjungan Anda memakai suku cadang: ajukan laporannya, lalu **hubungi admin** untuk
-> mengesahkannya. Lihat bab 14.
+> Peran selain teknisi/admin yang menekan `Sahkan Pelanggan` pada laporan bersuku-
+> cadang tetap menerima galat 403 berbahasa Inggris yang tidak menjelaskan apa-apa
+> (`This action is unauthorized.`) — tombolnya digambar untuk siapa pun yang punya
+> izin ubah layanan, servernya menuntut lebih.
 
 **Mencetak:** **`Cetak Berita Acara Servis`** (Form F/BS). Berlampiran: ya.
 
@@ -5241,22 +5324,23 @@ Ini bukan kerusakan. Tombol yang izinnya tidak Anda pegang **tidak digambar**.
 | **sales** | `Setujui` penawaran/CCO · `Aktifkan Kontrak` · seluruh kelompok Keuangan · peringatan Tenggat untuk jaminan dan kontrak | direktur (dan keuangan untuk penagihan) |
 | **estimator** | `Setujui` BOQ dan RAP | direktur |
 | **procurement** | `Setujui` PR dan PO · membuat penerimaan barang (GRN) | direktur; gudang |
-| **warehouse** | **`Posting ke Stok`** · **`Kirim`/`Terima`** transfer · **`Posting Retur`** · `Batalkan Penerimaan` · `Batalkan Bon` | **admin** — hanya peran admin yang memegang izin posting stok |
+| **warehouse** | **`Posting ke Stok`** · **`Kirim`/`Terima`** transfer · **`Posting Retur`** · `Batalkan Penerimaan` · `Batalkan Bon` | **admin atau teknisi** — peran gudang sendiri tidak memegang izin posting stok (§6.1) |
 | **site-manager** | `Verifikasi` / `Dispensasi` / `Buka kembali` temuan · `Tutup Insiden` K3 · `Setujui` BAST dan baseline · `Tutup proyek` | manajer proyek, direktur |
 | **project-manager** | `Setujui` SPK, addendum, opname subkon · **`Bayar Retensi`** dan **`Cairkan Uang Muka`** pada SPK · `Demobilisasi` / `Posting Penyusutan` / `Hapus Buku` aset | direktur; **admin** untuk dua tombol SPK itu; keuangan atau admin untuk aset |
 | **finance** | `Setujui` invoice/tagihan/pembayaran · **`Posting Jurnal`** · `Terbitkan nomor bukti potong` | manajer keuangan atau direktur |
 | **finance-manager** | membuat dokumen apa pun; `Posting Pembayaran` | petugas keuangan |
 | **hr** | `Setujui` cuti · **`Setujui` payroll** (yang sekaligus memposting) | direktur |
-| **teknisi** | **`Sahkan Pelanggan`** pada berita acara **yang membawa suku cadang** · menghapus tiket | **admin** |
+| **teknisi** | menghapus tiket (butuh izin hapus layanan; `Sahkan Pelanggan` bersuku-cadang sudah bisa sejak 22 Agu 2026 — §12.5) | **admin** |
 | **direktur** | membuat/mengubah dokumen apa pun; `Posting ke Stok`; `Posting Penyusutan` | pemegang perannya masing-masing |
 | **pemegang kas kecil** | memposting bon atau mencairkan kasbon **di laci orang lain** | pemegang laci itu sendiri |
 
-**Dua tombol yang paling sering ditemui buntu**, dan keduanya butuh **admin** pada susunan
-peran bawaan:
+**Dua tombol yang paling sering ditemui buntu** pada susunan peran bawaan:
 
-1. **`Posting ke Stok`** dan seluruh keluarga tombol stok (bab 6).
+1. **`Posting ke Stok`** dan seluruh keluarga tombol stok (bab 6) — butuh **admin
+   atau teknisi** (yang terakhir sejak 22 Agustus 2026, §6.1).
 2. **`Bayar Retensi`** dan **`Cairkan Uang Muka`** pada halaman SPK — keduanya menuntut
-   izin posting subkontrak **dan** izin persetujuan keuangan **sekaligus** (§8.6, §8.7).
+   izin posting subkontrak **dan** izin persetujuan keuangan **sekaligus** (§8.6,
+   §8.7); hanya **admin** yang memenuhi keduanya.
 
 **Tidak ada pemberian izin per orang di aplikasi ini** — semuanya lewat peran. Jadi
 permintaan yang benar selalu berbentuk *"tolong tambahkan saya ke peran X"* atau *"tolong
@@ -5308,7 +5392,7 @@ Baca ini sebelum menekan, bukan sesudah.
 | **`Setujui`** invoice / tagihan | Jurnal terbentuk | `Batalkan Dokumen` (jurnal pembalik), bila belum dibayar |
 | **`Posting Pembayaran`** | Uang bergerak di buku besar | `Balikkan Pembayaran` (dua jurnal berdampingan selamanya) |
 | **`Catat pencairan`** retensi | Jurnal langsung; seluruh baris cair | invoice-nya tidak bisa lagi dibatalkan, pembayarannya tidak bisa lagi dibalik |
-| **`Posting ke Stok`** (GRN / bon) | Stok dan HPP bergerak, dokumen terkunci | `Batalkan Penerimaan` / `Batalkan Bon` (admin), selama syaratnya terpenuhi |
+| **`Posting ke Stok`** (GRN / bon) | Stok dan HPP bergerak, dokumen terkunci | `Batalkan Penerimaan` / `Batalkan Bon` (pemegang izin posting stok, §6.1), selama syaratnya terpenuhi |
 | **`Kirim`** transfer | Tidak bisa diubah, dihapus, atau dibatalkan | transfer kedua ke arah sebaliknya |
 | **`Setujui`** opname stok | **Sekaligus memposting**; selisihnya menjadi beban | opname berikutnya |
 | **`Posting Retur`** | Stok dan kewajiban bergerak | tidak ada pembatalan sama sekali |
@@ -5320,6 +5404,7 @@ Baca ini sebelum menekan, bukan sesudah.
 | **`Setujui`** payroll | **Sekaligus memposting seluruh run** | jurnal pembalik oleh akuntan |
 | **`Posting Penyusutan`** | Akumulasi dan nilai buku berubah | jurnal pembalik |
 | **`Hapus Buku / Jual`** aset | Jurnal pelepasan terposting | jurnal pembalik |
+| **`Simpan`** log BBM / jam alat | Baris register permanen — tidak ada Ubah dan tidak ada Hapus (§9.5) | baris log baru berangka benar, koreksinya disebut di catatan |
 | **`Posting Jurnal`** | Masuk buku besar | jurnal kedua yang berlawanan |
 | **Impor Dokumen** memperbarui dokumen | Baris yang tidak dibawa berkas **dihapus** | impor ulang dari ekspor dokumen utuh |
 | **Hapus** apa pun dari daftar | Permanen sejauh yang bisa dilakukan layar | — |

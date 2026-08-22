@@ -117,9 +117,23 @@ class RoleSeeder extends Seeder
             ['prj.view', 'svc.view'],
         ));
 
+        /*
+         * inv.post — T13, decided by the owner on 22 Aug 2026 (migration
+         * 000242 does the same surgery on erp1's already-seeded role).
+         * Acknowledging a parts-bearing field report relieves stock and posts
+         * a journal, so the endpoint demands inv.post — held by admin alone,
+         * which meant a teknisi could submit their own visit report but only
+         * an admin could acknowledge one that consumed spare parts. Now the
+         * teknisi acknowledges the visit they made, stock relieved under
+         * their own name. Stated cost: inv.post gates 8 inventory routes,
+         * so a teknisi can also post/cancel any draft stock document they
+         * can reach with inv.view — accepted, reversible with one
+         * revokePermissionTo. TeknisiInventoryPostingPermissionTest pins
+         * this role to exactly these five permissions.
+         */
         $this->seedRole('teknisi', array_merge(
             $this->expand(['svc'], ['view', 'create', 'update']),
-            ['inv.view'],
+            ['inv.view', 'inv.post'],
         ));
     }
 
