@@ -385,7 +385,7 @@ class ProcurementPrintTest extends ErpTestCase
         $html = $this->forms->html('banding-penawaran', ['id' => $rfq->id]);
 
         $this->assertStringContainsString('TABULASI BANDING PENAWARAN', $html);
-        $this->assertStringContainsString('Form F/BP', $html);
+        $this->assertStringContainsString('Form F/TBP', $html);
         $this->assertStringContainsString('<body class="landscape">', $html);
         $this->assertStringContainsString('PT Semen Andalan', $html);
         $this->assertStringContainsString('CV Baja Kuat', $html);

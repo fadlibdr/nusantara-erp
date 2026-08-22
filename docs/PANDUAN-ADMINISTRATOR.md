@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 39 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 40 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai sebelas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -222,8 +222,9 @@ disetujui menerbitkan tagihan vendor di Keuangan.
 **Finance (`fin`) — Keuangan.** Invoice termin (AR), tagihan vendor (AP), pembayaran,
 kas kecil & kasbon, jurnal, biaya proyek, termin siap ditagih, piutang retensi,
 pengakuan pendapatan PSAK 115, periode fiskal, laporan keuangan, buku besar, ekspor
-pajak, kalender pajak, rekonsiliasi bank, bagan akun, pajak, rekening bank. Seluruh
-nilai yang sampai ke buku besar melewati satu pintu: `JournalService`.
+pajak, kalender pajak, ekualisasi pajak, rekonsiliasi bank, bagan akun, pajak,
+rekening bank. Seluruh nilai yang sampai ke buku besar melewati satu pintu:
+`JournalService`.
 
 **HrPayroll (`hr`) — SDM & Payroll.** Karyawan, sertifikat & PKWT, cuti & izin,
 absensi harian, rekap absensi, payroll. **Menyetujui run payroll = memposting ke
@@ -2439,9 +2440,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**39 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**40 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-32 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+33 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2455,7 +2456,7 @@ rute — izinnya diturunkan per permintaan dari registri.
 | `inv.view` | 7 (penerimaan, bon material, surat jalan transfer, berita acara opname, saldo stok, retur pembelian, retur material) |
 | `crm.view` | 4 (penawaran, kontrak ringkas, berita acara CCO, register jaminan) |
 | `prc.view` | 4 (permintaan pembelian, order pembelian, banding penawaran, evaluasi vendor) |
-| `fin.view` | 4 (tagihan vendor, bukti pembayaran, voucher jurnal, kewajiban pajak) |
+| `fin.view` | 5 (tagihan vendor, bukti pembayaran, voucher jurnal, kewajiban pajak, ekualisasi pajak) |
 | `est.view` | 3 (RAB, AHSP, RAP) |
 | `scm.view` | 3 (SPK subkon, addendum SPK, opname subkon) |
 | `hr.view` | 3 (rekap payroll, pengajuan cuti, daftar hadir) |
@@ -2485,7 +2486,7 @@ benar-benar **tidak ada**, bukan 403-saat-diklik.
    Schedule"-nya dideklarasikan — "the form works, the endpoint works, and not one screen
    carries its button".
 4. **Layar berbasis rute** — tombolnya sendiri, berjangkar pada satu baris yang ada di
-   layar (daftar hadir, kewajiban pajak).
+   layar (daftar hadir, kewajiban pajak, ekualisasi pajak).
 
 **DUA formulir membawa parameter dari layar** — laporan harian dengan `?tanggal=`
 (`public/app/js/schema.js:698`) dan progres mingguan dengan `?minggu=` (`:760`).
@@ -2533,9 +2534,9 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Sepuluh dari 39 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Sebelas dari 40 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, berita acara opname, saldo stok, opname subkon,
-kewajiban pajak, rekap payroll, dan daftar hadir. Sisanya potret.
+kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar hadir. Sisanya potret.
 
 Lembarnya sengaja berdiri sendiri: CSS inline, tanpa stylesheet eksternal, tanpa font
 web, logo disisipkan sebagai data — "a font fetched over the network would make the same

@@ -1523,7 +1523,11 @@ class PrintableDocuments
                 'permission' => 'prc.view',
                 'label' => 'Tabulasi Banding Penawaran',
                 'formTitle' => 'TABULASI BANDING PENAWARAN',
-                'formCode' => 'Form F/BP',
+                // F/TBP, bukan F/BP: kode itu sudah milik Bukti Pembayaran /
+                // Penerimaan, dan dua lembar berbeda dengan satu kode formulir
+                // mengalahkan tujuan kode itu ada — arsip tidak bisa lagi
+                // menunjuk lembar lewat kodenya.
+                'formCode' => 'Form F/TBP',
                 'orientation' => 'landscape',
                 /*
                  * withTrashed on both vendor paths. prc_vendors soft-deletes,
