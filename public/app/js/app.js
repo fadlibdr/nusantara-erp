@@ -40,6 +40,7 @@ import { renderKalender } from './views/kalender.js';
 import { renderKasKecil } from './views/kaskecil.js';
 import { renderBukuBesar } from './views/bukubesar.js';
 import { renderKalenderPajak } from './views/kalenderpajak.js';
+import { renderEkualisasi } from './views/ekualisasi.js';
 import { renderGaleriProyek } from './views/galeriproyek.js';
 import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
@@ -430,6 +431,14 @@ function registerRoutes() {
     const host = view();
     if (!session.can('fin.view')) return accessDenied(host, 'fin');
     return guard(host, () => renderKalenderPajak(host));
+  });
+
+  route('ekualisasi-pajak', () => {
+    setCrumbs(['Keuangan', 'Ekualisasi Pajak']);
+    setActiveNav('ekualisasi-pajak');
+    const host = view();
+    if (!session.can('fin.view')) return accessDenied(host, 'fin');
+    return guard(host, () => renderEkualisasi(host));
   });
 
   route('bank-recon', () => {

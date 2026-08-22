@@ -3460,6 +3460,9 @@ export const NAV = [
       { label: 'Buku Besar', route: 'buku-besar' },
       { label: 'Ekspor Pajak', route: 'tax-exports' },
       { label: 'Kalender Pajak', route: 'kalender-pajak' },
+      // Tepat di bawah Kalender Pajak: lembar cetaknya menjangkar pada baris
+      // masa kalender itu, jadi keduanya bertetangga di menu maupun di data.
+      { label: 'Ekualisasi Pajak', route: 'ekualisasi-pajak' },
       { label: 'Rekonsiliasi Bank', route: 'bank-recon' },
       { label: 'Bagan Akun', route: 'r/finance/accounts' },
       { label: 'Pajak', route: 'r/finance/taxes' },

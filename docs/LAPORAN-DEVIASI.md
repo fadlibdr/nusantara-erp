@@ -317,7 +317,7 @@ retroaktif (FORWARD-ONLY), dan auto-create periode fiskal.
 
 ## Pekerjaan di luar 81 temuan
 
-Enam deliverable lahir 1–9 Agustus tanpa pernah ada di daftar:
+Tujuh deliverable lahir 1–22 Agustus tanpa pernah ada di daftar:
 
 - **Buku besar** — tidak ada di 81 temuan "karena tidak seorang pun mengira
   layarnya belum ada". Service + endpoint + layar `#/buku-besar`, saldo akhir
@@ -347,6 +347,17 @@ Enam deliverable lahir 1–9 Agustus tanpa pernah ada di daftar:
   Suite **2.642 → 2.938** (13.339 asersi) selama pekerjaan formulir ini —
   angka 2.642 di §"Catatan gelombang perbaikan" adalah penutup kampanye 8
   Agustus dan benar untuk tanggalnya, bukan angka terakhir dokumen ini.
+
+- **Ekualisasi pajak (22 Agustus).** Permintaan pemilik: kertas kerja ekualisasi
+  yang diminta pemeriksa pajak / SP2DK — buku vs SPT per tahun pajak, empat
+  lembar (PPN keluaran, PPN masukan, PPh 21, PPh dipotong). Murni BACA — tanpa
+  migrasi, tanpa tabel baru, tanpa jurnal; setiap baris rekonsiliasi
+  DITURUNKAN dari fakta tersimpan (pergerakan `contract_balance` mesin PSAK
+  115 ADALAH baris "penagihan mendahului pendapatan"), dan baris **selisih
+  belum terjelaskan tidak pernah dipaksa nol** — pada buku demo ia berteriak
+  −Rp 344.770.346,83 karena dua run payroll lama memang tidak berjurnal.
+  Layar `#/ekualisasi-pajak` + formulir rumah F/EQ (lanskap); verifikasi
+  menghitung ulang keempat lembar lewat SQL independen. Suite 2.938 → 2.964.
 
   Tiga hal yang layak dicatat sebagai deviasi proses, bukan sebagai fitur:
 

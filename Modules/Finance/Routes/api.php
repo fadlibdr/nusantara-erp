@@ -18,6 +18,7 @@ use Modules\Finance\Http\Controllers\ProjectCostController;
 use Modules\Finance\Http\Controllers\ReportController;
 use Modules\Finance\Http\Controllers\RevenueRecognitionController;
 use Modules\Finance\Http\Controllers\TaxController;
+use Modules\Finance\Http\Controllers\TaxEqualizationController;
 use Modules\Finance\Http\Controllers\TaxExportController;
 use Modules\Finance\Http\Controllers\TaxObligationController;
 
@@ -199,6 +200,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // yang membuka laporan (atau sekadar melihat checklist tutup buku) ikut
     // menerbitkan nomor. Sebuah GET tidak boleh mengubah data.
     Route::post('tax-exports/e-bupot/numbers', [TaxExportController::class, 'issueBuktiPotongNumbers'])->middleware('permission:fin.approve');
+
+    // Ekualisasi pajak — kertas kerja rekonsiliasi buku vs SPT per tahun
+    // fiskal, untuk pemeriksa pajak / SP2DK. fin.view seperti laporan lain:
+    // setiap angkanya turunan baca-saja dari jurnal terposting dan dokumen
+    // sumber, dan selisih residunya dihitung — tidak pernah dipaksa nol.
+    Route::get('tax-equalization', [TaxEqualizationController::class, 'index'])->middleware('permission:fin.view');
 
     // Reports
     Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->middleware('permission:fin.view');

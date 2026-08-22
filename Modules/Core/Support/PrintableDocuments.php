@@ -26,6 +26,7 @@ use Modules\Finance\Models\Journal;
 use Modules\Finance\Models\Payment;
 use Modules\Finance\Models\TaxObligation;
 use Modules\Finance\Services\FinanceFormService;
+use Modules\Finance\Services\TaxEqualizationService;
 use Modules\HrPayroll\Enums\Department;
 use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\LeaveRequest;
@@ -3187,6 +3188,106 @@ class PrintableDocuments
      */
     protected function finance(): array
     {
+        /*
+         * EKUALISASI PAJAK — the row mapper and column set shared by the four
+         * worksheet tables of the 'ekualisasi-pajak' entry at the bottom of
+         * this method, used by nothing else. Defined once because the four
+         * tables are the SAME rendering of four service payloads: a copy per
+         * table would be four places for the dash-vs-zero rule below to drift
+         * apart.
+         *
+         * THE DASH IS DELIBERATE AND LOCAL TO THIS DOCUMENT. Everywhere else
+         * on these forms a null cell is RULED — dotted, "the site fills this
+         * in by hand". On an ekualisasi nothing is for the pen: every figure
+         * is derived, and a dotted rule under MENURUT SPT would invite a
+         * number to be written onto a working paper whose whole value is that
+         * the machine computed it. So a null amount prints '—' (the column
+         * does not apply to that row) while a stored 0 prints 0,00 — the
+         * difference between "tidak berlaku" and "nol yang teruji" is the
+         * product.
+         */
+        $ekualisasiRows = static function (string $worksheet): \Closure {
+            return static function (TaxObligation $anchor) use ($worksheet): array {
+                // The string IS the public method name on the service —
+                // ppnKeluaran / ppnMasukan / pph21 / pphWithholding — so a
+                // grep for either finds this call site.
+                $sheet = app(TaxEqualizationService::class)
+                    ->{$worksheet}((int) $anchor->masa_year);
+
+                // number_format(…, 2, ',', '.') IS the 'money' cast's own
+                // format (FormPrintService::money) — pre-rendered here only
+                // because the dash above needs the null branch that the cast
+                // pipeline reserves for the ruled blank.
+                $uang = static fn (?float $value): string => $value === null
+                    ? '—'
+                    : number_format($value, 2, ',', '.');
+
+                $residualRow = static fn (array $residual): array => [
+                    // Uppercase is this sheet's loudness — the generic table
+                    // has no bold row class, and the residual must shout on
+                    // paper exactly as it does on screen. Amount 0 prints as
+                    // 0,00: the tested zero, never a suppressed row.
+                    'uraian' => mb_strtoupper($residual['label']),
+                    'buku' => '—',
+                    'spt' => '—',
+                    'selisih' => $uang($residual['amount']),
+                ];
+
+                $rows = [];
+                $residualPrinted = false;
+
+                foreach ($sheet['rows'] as $row) {
+                    // Panel A of pph_dipotong owns the residual: it prints
+                    // where panel A's arithmetic ends, BEFORE the soft
+                    // panel-B comparison — split on the payload's own panel
+                    // key, never by parsing labels.
+                    if (! $residualPrinted
+                        && $sheet['residual'] !== null
+                        && ($row['panel'] ?? null) === 'dipotong_pelanggan') {
+                        $rows[] = $residualRow($sheet['residual']);
+                        $residualPrinted = true;
+                    }
+
+                    $rows[] = [
+                        // Section rows are the sub-headings of the two-panel
+                        // sheet; caps is what separates them from data rows.
+                        'uraian' => $row['kind'] === 'section'
+                            ? mb_strtoupper($row['label'])
+                            : $row['label'],
+                        'buku' => $uang($row['buku']),
+                        'spt' => $uang($row['spt']),
+                        'selisih' => $uang($row['selisih']),
+                    ];
+                }
+
+                if (! $residualPrinted && $sheet['residual'] !== null) {
+                    $rows[] = $residualRow($sheet['residual']);
+                }
+
+                // The worksheet's warnings reach the paper as rows — including
+                // the "Tidak ada … untuk tahun N" of an empty year, which is
+                // what keeps an empty sheet from printing as a bare table a
+                // reader could mistake for "nothing to reconcile".
+                foreach ($sheet['warnings'] as $warning) {
+                    $rows[] = [
+                        'uraian' => 'PERHATIAN — '.$warning,
+                        'buku' => '—',
+                        'spt' => '—',
+                        'selisih' => '—',
+                    ];
+                }
+
+                return $rows;
+            };
+        };
+
+        $ekualisasiColumns = [
+            ['label' => 'URAIAN', 'value' => 'uraian'],
+            ['label' => 'MENURUT BUKU (Rp)', 'align' => 'right', 'width' => '42mm', 'value' => 'buku'],
+            ['label' => 'MENURUT SPT/FAKTUR (Rp)', 'align' => 'right', 'width' => '42mm', 'value' => 'spt'],
+            ['label' => 'SELISIH (Rp)', 'align' => 'right', 'width' => '42mm', 'value' => 'selisih'],
+        ];
+
         return [
             /*
              * LEMBAR VERIFIKASI TAGIHAN — the sheet a verifier signs before
@@ -3687,7 +3788,12 @@ class PrintableDocuments
                 // No 'date': the register is cumulative and has no document
                 // date of its own, so the sheet is dated when it is printed
                 // and PERIODE says which tax year it covers.
-                'period' => fn (TaxObligation $row): string => 'Tahun pajak '.$row->masa_year,
+                // TIDAK ada deklarasi 'period' di sini: baris PERIODE hanya
+                // dicetak lewat kepala empat-pihak proyek (FormPrintService::
+                // header), dan dokumen tanpa kepala ('kind' => 'none') membuang
+                // opsinya tanpa jejak — deklarasi yang pernah ada di sini mati
+                // diam-diam. Rentang waktu lembar ini dinyatakan di blok
+                // identitasnya, yang memang tercetak.
                 'identityHouse' => false,
                 'identity' => [
                     // NO 'int' CAST. That cast is number_format with a
@@ -3788,6 +3894,120 @@ class PrintableDocuments
                     ],
                 ],
             ],
+            /*
+             * EKUALISASI PAJAK — buku vs SPT, one fiscal year, four worksheets
+             * on one landscape sheet (Form F/EQ). The working papers a
+             * pemeriksa pajak (or an SP2DK letter) asks for, and the copy that
+             * leaves the building — which is why the honesty rule matters MORE
+             * here, not less: a residual forced to zero on this paper is a
+             * forged working paper with our signature block under it.
+             *
+             * ANCHORED LIKE THE MASA REGISTER ABOVE: the endpoint hands one
+             * fin_tax_obligations row's id and the sheet prints the whole
+             * ekualisasi of that row's masa_year. Like that register, NO SPA
+             * RESOURCE KEY exists — 'finance/tax-obligations' is the API path
+             * the screens already read — and the button is views/ekualisasi.js
+             * own hard-coded core/print/forms call, with a reason on it while
+             * the chosen year has no masa row to anchor on.
+             *
+             * EVERY CELL COMES THROUGH TaxEqualizationService — the same
+             * service the screen renders — so paper and screen can never
+             * disagree about a figure and the residual is computed exactly
+             * once. The four rows closures map payloads to cells and do NO
+             * arithmetic; see $ekualisasiRows at the top of this method for
+             * the one mapping (and the dash-vs-zero rule) they share.
+             *
+             * Landscape: three 42mm money columns beside labels the length of
+             * "Pendapatan konstruksi/integrasi pada bulan tanpa run pengakuan
+             * terposting (Februari)" do not fit across a portrait page.
+             */
+            'ekualisasi-pajak' => [
+                'resource' => 'finance/tax-obligations',
+                'model' => TaxObligation::class,
+                'permission' => 'fin.view',
+                'label' => 'Ekualisasi Pajak',
+                'formTitle' => 'EKUALISASI PAJAK',
+                'formCode' => 'Form F/EQ',
+                'orientation' => 'landscape',
+                // No `with` at all — the honest declaration, as on the masa
+                // register: nothing on this sheet reads the anchor row beyond
+                // masa_year, and every printed cell is re-queried by the
+                // service against the whole tax year.
+                'header' => ['kind' => 'none'],
+                // No 'date': the working papers are cumulative for a year and
+                // dated when printed; PERIODE says which tax year they cover.
+                // TIDAK ada deklarasi 'period' di sini: baris PERIODE hanya
+                // dicetak lewat kepala empat-pihak proyek (FormPrintService::
+                // header), dan dokumen tanpa kepala ('kind' => 'none') membuang
+                // opsinya tanpa jejak — deklarasi yang pernah ada di sini mati
+                // diam-diam. Rentang waktu lembar ini dinyatakan di blok
+                // identitasnya, yang memang tercetak.
+                'identityHouse' => false,
+                'identity' => [
+                    // NO 'int' CAST — the kewajiban-pajak lesson: that cast is
+                    // number_format with a thousands separator and printed
+                    // "TAHUN PAJAK : 2.026". A year is a label, not a
+                    // quantity.
+                    'TAHUN PAJAK' => 'masa_year',
+                    'NPWP PERUSAHAAN' => fn (): ?string => Company::current()?->npwp,
+                ],
+                'body' => [
+                    [
+                        'id' => 'ekualisasi-ppn-keluaran',
+                        'title' => 'EKUALISASI PPN KELUARAN',
+                        'rows' => $ekualisasiRows('ppnKeluaran'),
+                        'columns' => $ekualisasiColumns,
+                        'empty' => 'Tidak ada data PPN keluaran untuk tahun pajak ini.',
+                    ],
+                    [
+                        'id' => 'ekualisasi-ppn-masukan',
+                        'title' => 'EKUALISASI PPN MASUKAN',
+                        'rows' => $ekualisasiRows('ppnMasukan'),
+                        'columns' => $ekualisasiColumns,
+                        'empty' => 'Tidak ada data PPN masukan untuk tahun pajak ini.',
+                    ],
+                    [
+                        'id' => 'ekualisasi-pph21',
+                        'title' => 'EKUALISASI PPH 21',
+                        'rows' => $ekualisasiRows('pph21'),
+                        'columns' => $ekualisasiColumns,
+                        'empty' => 'Tidak ada data PPh 21 untuk tahun pajak ini.',
+                    ],
+                    [
+                        'id' => 'ekualisasi-pph-dipotong',
+                        'title' => 'EKUALISASI PPH DIPOTONG',
+                        'rows' => $ekualisasiRows('pphWithholding'),
+                        'columns' => $ekualisasiColumns,
+                        'empty' => 'Tidak ada data PPh dipotong untuk tahun pajak ini.',
+                    ],
+                ],
+                // RULED, for the pemeriksa's own pen — the one part of this
+                // sheet that is legitimately handwritten.
+                'notes' => ['text' => null, 'lines' => 2],
+                'signatures' => [
+                    [
+                        'heading' => 'Disusun,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Staf Pajak',
+                    ],
+                    [
+                        'heading' => 'Diperiksa,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Keuangan',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Mengetahui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Direktur',
+                    ],
+                ],
+            ],
             // PRINTABLE REGISTRY (Finance) — tambahkan dokumen baru di sini.
         ];
     }
@@ -3849,8 +4069,12 @@ class PrintableDocuments
                 'date' => fn (PayrollRun $run): string => Carbon::create(
                     (int) $run->period_year, (int) $run->period_month, 1
                 )->endOfMonth()->toDateString(),
-                'period' => fn (PayrollRun $run): ?string => app(HrFormService::class)
-                    ->periodLabel((int) $run->period_month, (int) $run->period_year),
+                // TIDAK ada deklarasi 'period' di sini: baris PERIODE hanya
+                // dicetak lewat kepala empat-pihak proyek (FormPrintService::
+                // header), dan dokumen tanpa kepala ('kind' => 'none') membuang
+                // opsinya tanpa jejak — deklarasi yang pernah ada di sini mati
+                // diam-diam. Rentang waktu lembar ini dinyatakan di blok
+                // identitasnya, yang memang tercetak.
                 'title' => fn (PayrollRun $run): string => 'REKAP GAJI '.mb_strtoupper(
                     (string) app(HrFormService::class)->periodLabel((int) $run->period_month, (int) $run->period_year)
                 ),
