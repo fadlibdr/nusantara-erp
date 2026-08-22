@@ -1,0 +1,3529 @@
+/* Resource catalogue — the single description of every screen in the ERP.
+   The generic list / form / detail views read this; adding a screen means
+   adding an entry here, not writing a view.
+
+   column  { key, label, type, align, width, sub, lookup, enum, hideOnNarrow }
+   field   { key, label, type, required, span, options, enum, lookup, help, default }
+   line    { key, label, columns[], min }
+   action  { key, label, path, method, variant, perm, when, confirm, fields[] }
+
+   types — text | code | textarea | number | currency | qty | percent | date |
+           datetime | bool | select | lookup | status | enum | rel | json |
+           tags | progress | password | multiselect
+*/
+
+import { ENUMS } from './enums.js';
+
+const DRAFT_OR_REJECTED = (row) => ['draft', 'rejected'].includes(row.status);
+const IS_DRAFT = (row) => row.status === 'draft';
+const IS_SUBMITTED = (row) => row.status === 'submitted';
+
+/** Standard draft → submitted → approved/rejected buttons. */
+function approvalActions(module, { submitPerm, approvePerm } = {}) {
+  return [
+    {
+      key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
+      perm: submitPerm || `${module}.update`, when: DRAFT_OR_REJECTED, variant: 'primary',
+    },
+    {
+      key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
+      perm: approvePerm || `${module}.approve`, when: IS_SUBMITTED, variant: 'success',
+      fields: [{ key: 'note', label: 'Catatan persetujuan', type: 'textarea' }],
+    },
+    {
+      key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
+      perm: approvePerm || `${module}.approve`, when: IS_SUBMITTED, variant: 'danger',
+      fields: [{ key: 'note', label: 'Alasan penolakan', type: 'textarea', required: true }],
+    },
+  ];
+}
+
+const statusColumn = { key: 'status', label: 'Status', type: 'status', width: '1%' };
+const codeColumn = { key: 'code', label: 'Kode', type: 'code', width: '1%' };
+
+export const RESOURCES = {
+  /* ============================================================== CRM === */
+  'crm/customers': {
+    module: 'crm', api: 'crm/customers', label: 'Pelanggan', labelOne: 'Pelanggan',
+    lookupSource: 'customers',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama', type: 'text', sub: 'legal_name' },
+      { key: 'city', label: 'Kota', type: 'text' },
+      { key: 'pic_name', label: 'PIC', type: 'text', sub: 'pic_phone' },
+      { key: 'is_pkp', label: 'PKP', type: 'bool', align: 'center' },
+      { key: 'payment_term_days', label: 'TOP', type: 'number', align: 'right', suffix: ' hari' },
+      statusColumn,
+    ],
+    filters: [{ key: 'status', label: 'Status', enum: 'activeStatus' }],
+    form: {
+      sections: [
+        {
+          title: 'Identitas',
+          fields: [
+            { key: 'name', label: 'Nama pelanggan', type: 'text', required: true, span: 2 },
+            { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
+            { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis (CUST-xxxx).' },
+            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'is_pkp', label: 'Pengusaha Kena Pajak (PKP)', type: 'bool' },
+            { key: 'status', label: 'Status', type: 'select', enum: 'activeStatus', default: 'active' },
+          ],
+        },
+        {
+          title: 'Alamat & kontak',
+          fields: [
+            { key: 'billing_address', label: 'Alamat penagihan', type: 'textarea', span: 2 },
+            { key: 'city', label: 'Kota', type: 'text' },
+            { key: 'province', label: 'Provinsi', type: 'text' },
+            { key: 'phone', label: 'Telepon', type: 'text' },
+            { key: 'email', label: 'Email', type: 'text' },
+            { key: 'pic_name', label: 'Nama PIC', type: 'text' },
+            { key: 'pic_phone', label: 'Telepon PIC', type: 'text' },
+            { key: 'payment_term_days', label: 'Termin pembayaran (hari)', type: 'number', default: 30 },
+          ],
+        },
+      ],
+    },
+  },
+
+  'crm/leads': {
+    module: 'crm', api: 'crm/leads', label: 'Prospek (Lead)', labelOne: 'Prospek',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Kontak', type: 'text', sub: 'company_name' },
+      { key: 'source', label: 'Sumber', type: 'text' },
+      { key: 'estimated_value', label: 'Estimasi nilai', type: 'currency', align: 'right' },
+      { key: 'owner_name', label: 'Sales', type: 'text' },
+      // Pengingat funnel awal (temuan #58) — tanggal relatifnya ("3 hari lagi")
+      // yang membuat kolom ini terpakai sebagai antrean kerja sales.
+      { key: 'next_follow_up_at', label: 'Follow-up', type: 'date', withRelative: true },
+      { key: 'status', label: 'Status', type: 'status', width: '1%' },
+    ],
+    filters: [{ key: 'status', label: 'Status', enum: 'leadStatus' }],
+    form: {
+      sections: [{
+        title: 'Prospek',
+        fields: [
+          { key: 'name', label: 'Nama kontak', type: 'text', required: true },
+          { key: 'company_name', label: 'Perusahaan', type: 'text' },
+          { key: 'source', label: 'Sumber', type: 'text', help: 'mis. referral, tender, pameran' },
+          { key: 'status', label: 'Status', type: 'select', enum: 'leadStatus', default: 'new' },
+          { key: 'phone', label: 'Telepon', type: 'text' },
+          { key: 'email', label: 'Email', type: 'text' },
+          { key: 'estimated_value', label: 'Estimasi nilai', type: 'currency' },
+          { key: 'user_id', label: 'Sales penanggung jawab', type: 'lookup', lookup: 'users' },
+          // Pengingat funnel awal (temuan #58): sebelum ada penawaran, tidak
+          // ada dokumen lain yang bisa membawa tanggal tindak lanjut.
+          { key: 'next_follow_up_at', label: 'Follow-up berikutnya', type: 'date' },
+          { key: 'need_summary', label: 'Ringkasan kebutuhan', type: 'textarea', span: 2 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    actions: [{
+      // "Jadikan pelanggan" (temuan #58): penawaran mensyaratkan customer_id,
+      // jadi data prospek selama ini diketik dua kali. Server idempoten —
+      // klik kedua memulangkan pelanggan yang sama — tapi tombolnya memang
+      // tidak perlu tampil lagi setelah lead punya customer_id.
+      key: 'convert-to-customer', label: 'Jadikan Pelanggan', path: '{id}/convert-to-customer', method: 'POST',
+      perm: 'crm.create', variant: 'success', navigateTo: 'crm/customers',
+      when: (row) => row.status === 'won' && !row.customer_id,
+      confirm: 'Buat pelanggan baru dari data lead ini?',
+    }],
+  },
+
+  'crm/quotations': {
+    module: 'crm', api: 'crm/quotations', label: 'Penawaran', labelOne: 'Penawaran',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'customer.name' },
+      { key: 'scope_type', label: 'Lingkup', type: 'enum', enum: 'scopeType' },
+      { key: 'valid_until', label: 'Berlaku s/d', type: 'date' },
+      { key: 'total', label: 'Total', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'scope_type', label: 'Lingkup', enum: 'scopeType' },
+      { key: 'customer_id', label: 'Pelanggan', lookup: 'customers' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Penawaran',
+        fields: [
+          { key: 'customer_id', label: 'Pelanggan', type: 'lookup', lookup: 'customers', required: true },
+          { key: 'lead_id', label: 'Dari prospek', type: 'lookup', lookup: 'leads' },
+          { key: 'title', label: 'Judul penawaran', type: 'text', required: true, span: 2 },
+          { key: 'scope_type', label: 'Lingkup pekerjaan', type: 'select', enum: 'scopeType', required: true },
+          { key: 'valid_until', label: 'Berlaku sampai', type: 'date' },
+          { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
+          { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Rincian penawaran', min: 1,
+        columns: [
+          { key: 'description', label: 'Uraian', type: 'text', required: true, width: '46%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '12%', default: 1 },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '12%' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '20%' },
+        ],
+        total: (row) => Number(row.qty || 0) * Number(row.unit_price || 0),
+      }],
+    },
+    detail: {
+      summary: ['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'],
+      tables: [{
+        key: 'items', label: 'Rincian penawaran',
+        columns: [
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [
+      ...approvalActions('crm'),
+      {
+        key: 'mark-won', label: 'Tandai Menang', path: '{id}/mark-won', method: 'POST',
+        perm: 'crm.update', variant: 'success',
+        when: (row) => row.status === 'approved' && !row.won_at && !row.lost_at,
+        confirm: 'Tandai penawaran ini sebagai dimenangkan?',
+      },
+      {
+        key: 'mark-lost', label: 'Tandai Kalah', path: '{id}/mark-lost', method: 'POST',
+        perm: 'crm.update', when: (row) => !row.won_at && !row.lost_at,
+        fields: [{ key: 'lost_reason', label: 'Alasan kalah', type: 'textarea', required: true }],
+      },
+      {
+        key: 'revise', label: 'Buat Revisi', path: '{id}/revise', method: 'POST',
+        perm: 'crm.update', when: (row) => ['approved', 'rejected', 'submitted'].includes(row.status),
+        confirm: 'Buat revisi baru dari penawaran ini?', navigateToResult: true,
+      },
+    ],
+  },
+
+  'crm/contract-change-orders': {
+    module: 'crm', api: 'crm/contract-change-orders',
+    label: 'Pekerjaan Tambah-Kurang', labelOne: 'Pekerjaan Tambah-Kurang',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'contract.code' },
+      { key: 'change_date', label: 'Tanggal', type: 'date' },
+      // Eskalasi harga vs tambah-kurang (temuan #61) — pembeda jejak audit,
+      // bukan mesin formula.
+      { key: 'change_type', label: 'Jenis', type: 'enum', enum: 'ccoChangeType' },
+      // Signed: negative is pekerjaan kurang, and it reads as a negative amount
+      // rather than needing a separate direction column.
+      { key: 'value_change', label: 'Perubahan nilai', type: 'currency' },
+      { key: 'status', label: 'Status', type: 'enum', enum: 'documentStatus' },
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'change_type', label: 'Jenis', enum: 'ccoChangeType' },
+    ],
+    form: {
+      sections: [{
+        title: 'Perubahan pekerjaan',
+        fields: [
+          { key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts', required: true },
+          { key: 'change_date', label: 'Tanggal', type: 'date', required: true },
+          { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
+          {
+            // Temuan #61: tanpa jenis, eskalasi harga (klausul indeks kontrak
+            // multi-tahun) tercatat sebagai "pekerjaan tambah" yang salah makna
+            // di pemeriksaan. Nilainya tetap dihitung di luar dan masuk lewat
+            // value_change — tidak ada mesin formula indeks.
+            key: 'change_type', label: 'Jenis perubahan', type: 'select', enum: 'ccoChangeType', default: 'tambah_kurang',
+            help: 'Pilih "Eskalasi Harga" untuk penyesuaian indeks kontrak multi-tahun — bukan pekerjaan tambah/kurang.',
+          },
+          {
+            key: 'value_change', label: 'Perubahan nilai', type: 'currency', required: true,
+            help: 'Positif untuk pekerjaan tambah, negatif untuk pekerjaan kurang.',
+          },
+          {
+            key: 'reason', label: 'Sebab', type: 'select',
+            options: [
+              { value: 'permintaan_pelanggan', label: 'Permintaan pelanggan' },
+              { value: 'kondisi_lapangan', label: 'Kondisi lapangan' },
+              { value: 'desain', label: 'Perubahan desain' },
+              { value: 'lainnya', label: 'Lainnya' },
+            ],
+          },
+          { key: 'customer_ref', label: 'No. CCO pelanggan', type: 'text' },
+          { key: 'description', label: 'Uraian', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    detail: { summary: ['value_change', 'ppn_change'] },
+    actions: [
+      /* runAction membangun URL dari `path` apa adanya — tanpa {id} tombol ini
+         mem-POST ke koleksi (crm/contract-change-orders/submit), jadi seluruh
+         siklus CCO macet dari SPA. Bentuknya kini sama dengan
+         approvalActions(); `perm`, bukan `permission`, karena actions.js
+         membaca action.perm. */
+      {
+        key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
+        perm: 'crm.update', variant: 'primary', when: (r) => r.status === 'draft' || r.status === 'rejected',
+      },
+      {
+        key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
+        perm: 'crm.approve', variant: 'success', when: (r) => r.status === 'submitted',
+        fields: [{ key: 'note', label: 'Catatan persetujuan', type: 'textarea' }],
+      },
+      {
+        key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
+        perm: 'crm.approve', variant: 'danger', when: (r) => r.status === 'submitted',
+        fields: [{ key: 'note', label: 'Alasan penolakan', type: 'textarea', required: true }],
+      },
+      {
+        /* Temuan #14: wizard pasca-persetujuan — nilai tambah menjadi SATU
+           termin baru ber-due_date sehingga antrean siap tagih ikut
+           mengejarnya. Hanya CCO approved bernilai positif yang belum
+           dijadwalkan (termin_id kosong); sisanya ditolak server lewat
+           re-read di dalam transaksinya. */
+        key: 'schedule-termin', label: 'Jadwalkan Termin Nilai Tambah', path: '{id}/schedule-termin', method: 'POST',
+        perm: 'crm.update', variant: 'primary',
+        when: (r) => r.status === 'approved' && Number(r.value_change) > 0 && !r.termin_id,
+        fields: [
+          {
+            key: 'due_date', label: 'Rencana tagih', type: 'date', required: true,
+            help: 'Termin masuk antrean siap tagih begitu tanggal ini lewat.',
+          },
+          { key: 'name', label: 'Nama termin', type: 'text', help: 'Kosongkan untuk "Pekerjaan tambah <kode CCO>".' },
+        ],
+      },
+    ],
+  },
+
+  'crm/contracts': {
+    module: 'crm', api: 'crm/contracts', label: 'Kontrak', labelOne: 'Kontrak',
+    lookupSource: 'contracts',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'customer.name' },
+      { key: 'scope_type', label: 'Lingkup', type: 'enum', enum: 'scopeType' },
+      { key: 'sign_date', label: 'Tgl TTD', type: 'date' },
+      { key: 'value', label: 'Nilai (DPP)', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'customer_id', label: 'Pelanggan', lookup: 'customers' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Kontrak',
+        fields: [
+          { key: 'customer_id', label: 'Pelanggan', type: 'lookup', lookup: 'customers', required: true },
+          { key: 'quotation_id', label: 'Dari penawaran', type: 'lookup', lookup: 'quotations' },
+          { key: 'title', label: 'Judul kontrak', type: 'text', required: true, span: 2 },
+          { key: 'contract_number_customer', label: 'No. kontrak pelanggan', type: 'text' },
+          { key: 'scope_type', label: 'Lingkup', type: 'select', enum: 'scopeType', required: true },
+          { key: 'value', label: 'Nilai kontrak (DPP)', type: 'currency', required: true },
+          { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
+          { key: 'sign_date', label: 'Tanggal tanda tangan', type: 'date' },
+          { key: 'start_date', label: 'Mulai', type: 'date' },
+          { key: 'end_date', label: 'Selesai', type: 'date' },
+          { key: 'retention_pct', label: 'Retensi (%)', type: 'percent', default: 5 },
+          { key: 'warranty_months', label: 'Masa pemeliharaan (bulan)', type: 'number', default: 12 },
+        ],
+      }],
+      lines: [{
+        key: 'termins', label: 'Jadwal termin', min: 1,
+        help: 'Total persentase termin harus tepat 100%. Centang "Retensi" pada termin retensi (mis. "Retensi 5%") — kontrak yang memuatnya menagih retensi lewat termin itu, dan potongan retensi per invoice akan ditolak agar tidak tercatat dobel.',
+        columns: [
+          { key: 'name', label: 'Nama termin', type: 'text', required: true, width: '28%' },
+          { key: 'percent', label: 'Persen (%)', type: 'percent', required: true, width: '12%' },
+          { key: 'billing_condition', label: 'Syarat penagihan', type: 'text', width: '30%' },
+          // Penanda pola "retensi sebagai termin" (temuan #73). checkboxLabel
+          // spasi: judul kolom sudah bicara, label ganda hanya menyempitkan sel.
+          { key: 'is_retention', label: 'Retensi', type: 'bool', checkboxLabel: ' ', width: '8%' },
+          // Termin kalender (kontrak pemeliharaan triwulanan) tidak punya milestone
+          // yang memicunya — tanggal inilah yang membuatnya bisa diingatkan.
+          { key: 'due_date', label: 'Rencana tagih', type: 'date', width: '18%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['value', 'ppn_amount', 'total_with_ppn'],
+      tables: [{
+        key: 'termins', label: 'Jadwal termin', endpoint: '{id}/termins',
+        // Menagih termin langsung dari jadwalnya: kontrak, pelanggan dan termin
+        // sudah diketahui di sini. Alternatifnya adalah mengetik ID termin dari
+        // ingatan ke formulir invoice — dan salah ketik menagih termin lain
+        // tanpa ada yang menahan.
+        rowAction: {
+          label: 'Tagih termin ini',
+          perm: 'fin.create',
+          variant: 'primary',
+          when: (row) => !row.billed_at,
+          opens: 'finance/ar-invoices',
+          navigateTo: 'r/finance/ar-invoices',
+          prefill: (row, contract) => ({
+            termin_id: row.id,
+            contract_id: contract?.id ?? row.contract_id ?? null,
+            customer_id: contract?.customer_id ?? contract?.customer?.id ?? null,
+            description: `${contract?.code ? `${contract.code} — ` : ''}${row.name || ''}`.trim(),
+            // Dua pola retensi (temuan #73): kontrak yang jadwalnya memuat
+            // termin ber-flag retensi menagih retensinya LEWAT termin itu —
+            // menyalakan potongan per-invoice di sini mencatat retensi dua
+            // kali, dan server memang menolaknya.
+            withhold_retention: !(contract?.termins || []).some((t) => t.is_retention),
+          }),
+        },
+        columns: [
+          { key: 'termin_no', label: '#', align: 'right' },
+          { key: 'name', label: 'Termin' },
+          { key: 'percent', label: 'Persen', type: 'percent', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+          { key: 'billing_condition', label: 'Syarat' },
+          { key: 'is_retention', label: 'Retensi', type: 'bool', align: 'center' },
+          { key: 'due_date', label: 'Rencana tagih', type: 'date' },
+          { key: 'billed_at', label: 'Ditagih', type: 'date' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [{
+      key: 'activate', label: 'Aktifkan Kontrak', path: '{id}/activate', method: 'POST',
+      perm: 'crm.approve', variant: 'success', when: (row) => row.status !== 'approved',
+      confirm: 'Aktifkan kontrak ini? Termin akan siap ditagih.',
+    }],
+  },
+
+  'crm/guarantees': {
+    module: 'crm', api: 'crm/guarantees',
+    label: 'Jaminan & Asuransi', labelOne: 'Jaminan',
+    columns: [
+      { key: 'number', label: 'Nomor', type: 'text', sub: 'issuer' },
+      { key: 'guarantee_type', label: 'Jenis', type: 'enum', enum: 'guaranteeType' },
+      { key: 'value', label: 'Nilai', type: 'currency', align: 'right' },
+      // API mengurutkan end_date ASC — jaminan yang paling cepat habis selalu di
+      // baris teratas, jadi register menjawab "mana yang mati duluan" tanpa
+      // tampilan khusus; pengingat 30-harinya ada di layar Tenggat.
+      { key: 'end_date', label: 'Berakhir', type: 'date', withRelative: true },
+      { key: 'status', label: 'Status', type: 'status', width: '1%' },
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'guaranteeStatus' },
+      { key: 'guarantee_type', label: 'Jenis', enum: 'guaranteeType' },
+      { key: 'contract_id', label: 'Kontrak', lookup: 'contracts' },
+    ],
+    // Nomor jaminan unik per penerbit TERMASUK baris terhapus (index DB ikut
+    // menghitungnya) — hapus hanya untuk salah input, bukan untuk jaminan usai.
+    deleteConfirm: 'Hapus jaminan ini dari register? Nomornya tetap terkunci per penerbit sampai baris dipulihkan — untuk jaminan yang sudah kembali, ubah status ke "Dikembalikan", jangan dihapus.',
+    form: {
+      sections: [{
+        title: 'Jaminan / polis',
+        fields: [
+          { key: 'guarantee_type', label: 'Jenis', type: 'select', enum: 'guaranteeType', required: true },
+          { key: 'number', label: 'Nomor (dari penerbit)', type: 'text', required: true },
+          { key: 'issuer', label: 'Penerbit', type: 'text', required: true },
+          { key: 'value', label: 'Nilai', type: 'currency', required: true },
+          {
+            key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts',
+            help: 'Isi kontrak ATAU penawaran — jaminan penawaran terbit sebelum kontrak ada.',
+          },
+          { key: 'quotation_id', label: 'Penawaran', type: 'lookup', lookup: 'quotations' },
+          { key: 'start_date', label: 'Mulai berlaku', type: 'date', required: true },
+          { key: 'end_date', label: 'Berakhir', type: 'date', required: true },
+          { key: 'status', label: 'Status', type: 'select', enum: 'guaranteeStatus', default: 'active' },
+          {
+            key: 'document_location', label: 'Lokasi dokumen fisik', type: 'text',
+            help: 'Klaim pencairan butuh dokumen asli — catat di mana fisiknya disimpan.',
+          },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  /* ======================================================= ESTIMATION === */
+  'estimation/ahsp': {
+    module: 'est', api: 'estimation/ahsp', label: 'AHSP', labelOne: 'Analisa Harga Satuan',
+    lookupSource: 'ahsp',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Uraian analisa', type: 'text' },
+      { key: 'category', label: 'Kategori', type: 'enum', enum: 'ahspCategory' },
+      { key: 'unit', label: 'Satuan', type: 'text', align: 'center' },
+      { key: 'overhead_pct', label: 'Overhead', type: 'percent', align: 'right' },
+      { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+    ],
+    filters: [{ key: 'category', label: 'Kategori', enum: 'ahspCategory' }],
+    form: {
+      sections: [{
+        title: 'Analisa',
+        fields: [
+          { key: 'code', label: 'Kode AHSP', type: 'text', required: true, help: 'mis. A.2.3.1.1' },
+          { key: 'unit', label: 'Satuan', type: 'text', required: true },
+          { key: 'name', label: 'Uraian pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'category', label: 'Kategori', type: 'select', enum: 'ahspCategory', required: true },
+          { key: 'overhead_pct', label: 'Overhead & profit (%)', type: 'percent', default: 10 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'components', label: 'Komponen (upah / bahan / alat)',
+        columns: [
+          { key: 'component_type', label: 'Jenis', type: 'select', enum: 'componentType', required: true, width: '14%' },
+          { key: 'name', label: 'Uraian', type: 'text', required: true, width: '30%' },
+          { key: 'item_id', label: 'Item stok', type: 'lookup', lookup: 'items', width: '20%' },
+          { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '10%' },
+          { key: 'coefficient', label: 'Koefisien', type: 'qty', required: true, width: '12%' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '14%' },
+        ],
+        total: (row) => Number(row.coefficient || 0) * Number(row.unit_price || 0),
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'components', label: 'Komponen',
+        columns: [
+          { key: 'component_type', label: 'Jenis', type: 'enum', enum: 'componentType' },
+          { key: 'name', label: 'Uraian' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'coefficient', label: 'Koefisien', type: 'qty', align: 'right' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+  },
+
+  'estimation/boqs': {
+    module: 'est', api: 'estimation/boqs', label: 'BOQ / RAB', labelOne: 'BOQ',
+    lookupSource: 'boqs',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text' },
+      { key: 'version', label: 'Versi', type: 'number', align: 'center', prefix: 'v' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'total', label: 'Total', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'BOQ / RAB',
+        fields: [
+          { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts' },
+          { key: 'quotation_id', label: 'Penawaran', type: 'lookup', lookup: 'quotations' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      note: 'Bagian (section) dan item BOQ dikelola dari halaman detail setelah BOQ dibuat.',
+    },
+    detail: {
+      tables: [{
+        // The endpoint behind this has existed since the module was written and
+        // nothing ever called it. Flat, in BOQ order — the shape somebody copies
+        // into a spreadsheet, which the grouped view below cannot give them.
+        key: 'flat_items', label: 'Seluruh item (datar)', endpoint: '{id}/items',
+        columns: [
+          { key: 'wbs_code', label: 'Kode', type: 'code' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Volume', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+      }, {
+        key: 'sections', label: 'Bagian & item pekerjaan', nested: 'items',
+        columns: [
+          { key: 'wbs_code', label: 'Kode', type: 'code' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Volume', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [
+      ...approvalActions('est'),
+      {
+        key: 'new-version', label: 'Versi Baru', path: '{id}/new-version', method: 'POST',
+        perm: 'est.create', when: (row) => ['approved', 'rejected'].includes(row.status),
+        confirm: 'Buat versi baru dari BOQ ini? Versi baru dimulai sebagai draf.',
+        navigateToResult: true,
+      },
+    ],
+  },
+
+  'estimation/cost-budgets': {
+    module: 'est', api: 'estimation/cost-budgets', label: 'RAP (Anggaran Biaya)', labelOne: 'RAP',
+    columns: [
+      codeColumn,
+      { key: 'boq_code', label: 'Dari BOQ', type: 'code' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'target_margin_pct', label: 'Target margin', type: 'percent', align: 'right' },
+      { key: 'total_budget', label: 'Total anggaran', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'RAP',
+        fields: [
+          { key: 'boq_id', label: 'BOQ sumber', type: 'lookup', lookup: 'boqs', required: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'target_margin_pct', label: 'Target margin (%)', type: 'percent', required: true, default: 15 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Rincian anggaran',
+        columns: [
+          { key: 'cost_category', label: 'Kategori', type: 'enum', enum: 'costCategory' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Volume', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_cost', label: 'Biaya satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [
+      {
+        key: 'generate-from-boq', label: 'Buat dari BOQ', path: '{id}/generate-from-boq', method: 'POST',
+        perm: 'est.update', when: DRAFT_OR_REJECTED, variant: 'primary',
+        fields: [{ key: 'target_margin_pct', label: 'Target margin (%)', type: 'percent', help: 'Kosongkan untuk memakai margin yang tersimpan.' }],
+      },
+      ...approvalActions('est'),
+    ],
+  },
+
+  /* ========================================================= PROJECTS === */
+  'projects': {
+    module: 'prj', api: 'projects', label: 'Proyek', labelOne: 'Proyek',
+    lookupSource: 'projects', customDetail: 'project',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama proyek', type: 'text', sub: 'city' },
+      { key: 'type', label: 'Jenis', type: 'enum', enum: 'projectType', hideOnNarrow: true },
+      { key: 'contract_value', label: 'Nilai kontrak', type: 'currency', align: 'right' },
+      { key: 'actual_progress_pct', label: 'Progres', type: 'progress', width: '150px', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'projectStatus' },
+      { key: 'type', label: 'Jenis', enum: 'projectType' },
+      { key: 'customer_id', label: 'Pelanggan', lookup: 'customers' },
+      // Temuan #80: ProjectController sudah menghormati mine (tri-state —
+      // kosong: semua; Ya: proyek saya via users.employee_id →
+      // project_manager_id; Tidak: milik orang lain). Tanpa filter
+      // terdeklarasi ini list.js tidak pernah mengirimkannya, dan separuh
+      // temuan itu hanya hidup di dasbor.
+      { key: 'mine', label: 'Proyek saya', type: 'boolFilter' },
+    ],
+    form: {
+      sections: [
+        {
+          title: 'Proyek',
+          fields: [
+            { key: 'contract_id', label: 'Dari kontrak', type: 'lookup', lookup: 'contracts', help: 'Mengisi kontrak akan menyalin nilai, tanggal, retensi & garansi.' },
+            { key: 'customer_id', label: 'Pelanggan', type: 'lookup', lookup: 'customers' },
+            { key: 'name', label: 'Nama proyek', type: 'text', span: 2 },
+            { key: 'type', label: 'Jenis proyek', type: 'select', enum: 'projectType' },
+            { key: 'boq_id', label: 'BOQ', type: 'lookup', lookup: 'boqs' },
+            { key: 'contract_value', label: 'Nilai kontrak', type: 'currency' },
+            { key: 'retention_pct', label: 'Retensi (%)', type: 'percent', default: 5 },
+            { key: 'warranty_months', label: 'Masa pemeliharaan (bulan)', type: 'number', default: 12 },
+            { key: 'status', label: 'Status', type: 'select', enum: 'projectStatusEditable', editOnly: true, help: 'Menutup proyek lewat tombol "Tutup proyek" di halaman proyek — bukan dari sini.' },
+          ],
+        },
+        {
+          title: 'Lokasi & jadwal',
+          fields: [
+            { key: 'location', label: 'Lokasi', type: 'text', span: 2 },
+            { key: 'city', label: 'Kota', type: 'text' },
+            { key: 'province', label: 'Provinsi', type: 'text' },
+            { key: 'latitude', label: 'Lintang', type: 'number', step: 'any' },
+            { key: 'longitude', label: 'Bujur', type: 'number', step: 'any' },
+            { key: 'start_date', label: 'Rencana mulai', type: 'date' },
+            { key: 'end_date', label: 'Rencana selesai', type: 'date' },
+            { key: 'actual_start_date', label: 'Aktual mulai', type: 'date' },
+            { key: 'actual_end_date', label: 'Aktual selesai', type: 'date', editOnly: true },
+          ],
+        },
+        {
+          title: 'Tim',
+          fields: [
+            { key: 'project_manager_id', label: 'Project manager', type: 'lookup', lookup: 'employees' },
+            { key: 'site_manager_id', label: 'Site manager', type: 'lookup', lookup: 'employees' },
+            // Kotak KONSULTAN MK pada kop formulir rumah: tanpa field ini
+            // kotaknya tidak pernah bisa terisi dari aplikasi. Kosong = kotak
+            // kosong di kertas, sama seperti formulir aslinya.
+            { key: 'consultant_name', label: 'Konsultan MK / pengawas', type: 'text' },
+            { key: 'consultant_role', label: 'Sebutan konsultan', type: 'text', help: 'Judul kotak pada kop — mis. Konsultan MK, Konsultan Pengawas. Kosong = "KONSULTAN MK".' },
+          ],
+        },
+      ],
+    },
+  },
+
+  'projects/daily-reports': {
+    module: 'prj', api: 'projects/daily-reports', label: 'Laporan Harian', labelOne: 'Laporan Harian',
+    // Formulir rumah (Form F/LH) — lembar HTML siap cetak, bukan PDF dompdf:
+    // kop empat pihak, blok identitas, dan kolom-kolom yang diisi tangan di
+    // lapangan tetap bergaris seperti aslinya.
+    printForms: [
+      { form: 'laporan-harian', label: 'Laporan Harian', params: { tanggal: 'report_date' } },
+    ],
+    columns: [
+      codeColumn,
+      { key: 'report_date', label: 'Tanggal', type: 'date' },
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'manpower_count', label: 'Tenaga kerja', type: 'number', align: 'right', suffix: ' org' },
+      { key: 'weather_am', label: 'Cuaca pagi', type: 'enum', enum: 'weather' },
+      { key: 'weather_pm', label: 'Cuaca siang', type: 'enum', enum: 'weather' },
+      { key: 'activities', label: 'Kegiatan', type: 'text', truncate: 70 },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'date_from', label: 'Dari', type: 'date' },
+      { key: 'date_to', label: 'Sampai', type: 'date' },
+    ],
+    form: {
+      sections: [{
+        title: 'Laporan harian',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'report_date', label: 'Tanggal laporan', type: 'date', required: true, defaultToday: true },
+          { key: 'weather_am', label: 'Cuaca pagi', type: 'select', enum: 'weather' },
+          { key: 'weather_pm', label: 'Cuaca siang', type: 'select', enum: 'weather' },
+          { key: 'manpower_count', label: 'Jumlah tenaga kerja', type: 'number', required: true, default: 0 },
+          { key: 'activities', label: 'Kegiatan hari ini', type: 'textarea', required: true, span: 2 },
+          { key: 'obstacles', label: 'Kendala', type: 'textarea', span: 2 },
+          {
+            key: 'safety_notes', label: 'Catatan K3', type: 'textarea', span: 2,
+            // The seeded near-miss lived here, in prose, with no severity, no
+            // cause and nobody accountable. Kejadian belongs in the register.
+            help: 'Catatan pengamatan harian. Kejadian kecelakaan atau near miss dicatat di Register K3 (SMK3), bukan di sini.',
+          },
+        ],
+      }],
+      lines: [{
+        key: 'materials', label: 'Pemakaian material',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '52%' },
+          { key: 'qty_used', label: 'Qty dipakai', type: 'qty', required: true, width: '24%' },
+          { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '24%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'materials', label: 'Pemakaian material',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'qty_used', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+        ],
+      }],
+    },
+  },
+
+  'projects/weekly-progress': {
+    module: 'prj', api: 'projects/weekly-progress', label: 'Progres Mingguan', labelOne: 'Progres Mingguan',
+    noDetail: true, canDelete: false, canEdit: false,
+    // Detail Schedule / Program Kerja (Form F/DS) — lanskap, grid harian
+    // empat minggu. Dicetak dari baris minggu; idField menunjuk proyeknya.
+    printForms: [
+      { form: 'laporan-mingguan', label: 'Detail Schedule', idField: 'project_id', params: { minggu: 'week_no' } },
+    ],
+    columns: [
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'week_no', label: 'Minggu', type: 'number', align: 'center', prefix: 'M-' },
+      { key: 'period_start', label: 'Mulai', type: 'date' },
+      { key: 'period_end', label: 'Selesai', type: 'date' },
+      { key: 'planned_pct', label: 'Rencana', type: 'percent', align: 'right' },
+      { key: 'actual_pct', label: 'Aktual', type: 'percent', align: 'right' },
+      { key: 'deviation_pct', label: 'Deviasi', type: 'percent', align: 'right', signed: true },
+    ],
+    filters: [{ key: 'project_id', label: 'Proyek', lookup: 'projects' }],
+    form: {
+      sections: [{
+        title: 'Progres mingguan',
+        help: 'Menyimpan ulang minggu yang sama akan memperbarui data (upsert).',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          { key: 'week_no', label: 'Minggu ke-', type: 'number', required: true, min: 1 },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
+          { key: 'planned_pct', label: 'Rencana kumulatif (%)', type: 'percent', required: true },
+          { key: 'actual_pct', label: 'Aktual kumulatif (%)', type: 'percent', required: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  'projects/milestones': {
+    module: 'prj', api: 'projects/milestones', label: 'Milestone', labelOne: 'Milestone',
+    columns: [
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'name', label: 'Milestone', type: 'text' },
+      { key: 'due_date', label: 'Target', type: 'date' },
+      { key: 'achieved_date', label: 'Tercapai', type: 'date' },
+      { key: 'is_achieved', label: 'Status', type: 'flag', trueLabel: 'Tercapai', falseLabel: 'Belum' },
+      { key: 'is_overdue', label: 'Terlambat', type: 'flag', trueLabel: 'Terlambat', falseLabel: '—', trueTone: 'red', falseTone: 'muted' },
+    ],
+    filters: [{ key: 'project_id', label: 'Proyek', lookup: 'projects' }],
+    form: {
+      sections: [{
+        title: 'Milestone',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'name', label: 'Nama milestone', type: 'text', required: true, span: 2 },
+          { key: 'due_date', label: 'Target tanggal', type: 'date', required: true },
+          { key: 'achieved_date', label: 'Tanggal tercapai', type: 'date' },
+          { key: 'termin_id', label: 'ID termin terkait', type: 'number' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  'projects/bast': {
+    module: 'prj', api: 'projects/bast', label: 'BAST', labelOne: 'BAST',
+    // The handover the customer's representative signs; prj_bast has recorded
+    // their name since the first migration.
+    printable: { path: 'core/print/bast/{id}', prefix: 'bast' },
+    columns: [
+      codeColumn,
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'bast_type', label: 'Jenis', type: 'enum', enum: 'bastType' },
+      { key: 'handover_date', label: 'Tgl serah terima', type: 'date' },
+      { key: 'retention_release_due', label: 'Retensi jatuh tempo', type: 'date' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Berita Acara Serah Terima',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'bast_type', label: 'Jenis BAST', type: 'select', enum: 'bastType', required: true },
+          { key: 'handover_date', label: 'Tanggal serah terima', type: 'date', required: true },
+          { key: 'retention_release_due', label: 'Retensi dibayar setelah', type: 'date', help: 'Otomatis dari masa pemeliharaan bila dikosongkan (BAST I).' },
+          { key: 'customer_representative', label: 'Wakil pelanggan', type: 'text' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    // Bukan approvalActions('prj') polos: persetujuan BAST II membaca prasyarat
+    // (BAST I disetujui, punch list kritis/mayor bersih, tanggal & progres WBS
+    // wajar) dan PERINGATAN hanya boleh dilewati dengan alasan tertulis minimal
+    // 20 karakter. Tanpa isian override_reason di sini SPA tidak pernah bisa
+    // mengirimkannya, sehingga BAST II dengan satu temuan minor terbuka tertolak
+    // dari layar padahal API menerimanya — sementara retensi Rp 2.425.000.000
+    // menunggu persis di belakang persetujuan itu.
+    actions: [
+      {
+        key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
+        perm: 'prj.update', when: DRAFT_OR_REJECTED, variant: 'primary',
+      },
+      {
+        key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
+        perm: 'prj.approve', when: IS_SUBMITTED, variant: 'success',
+        fields: [
+          { key: 'note', label: 'Catatan persetujuan', type: 'textarea' },
+          {
+            key: 'override_reason', label: 'Alasan melewati prasyarat (bila ada peringatan)', type: 'textarea',
+            help: 'Minimal 20 karakter. Hanya melewati PERINGATAN — prasyarat wajib tidak dapat dilewati.',
+          },
+        ],
+      },
+      {
+        key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
+        perm: 'prj.approve', when: IS_SUBMITTED, variant: 'danger',
+        fields: [{ key: 'note', label: 'Alasan penolakan', type: 'textarea', required: true }],
+      },
+    ],
+  },
+
+  /* Terdaftar supaya ProjectBaseline bisa masuk ApprovableDocuments dan
+     pemberitahuan "baseline menunggu persetujuan" punya halaman untuk mendarat
+     (#/d/projects/baselines/{id}). SENGAJA tanpa entri menu dan tanpa form:
+     ruang kerjanya adalah layar `evm`, dan baseline dibuat lewat snapshot yang
+     menghitung kurva beku — bukan lewat formulir generik. */
+  'projects/baselines': {
+    module: 'prj', api: 'projects/baselines', label: 'Baseline Proyek', labelOne: 'Baseline',
+    canDelete: false,
+    columns: [
+      codeColumn,
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'revision_no', label: 'Revisi', type: 'number', align: 'center' },
+      { key: 'effective_date', label: 'Berlaku', type: 'date' },
+      { key: 'bac', label: 'BAC', type: 'currency', align: 'right' },
+      { key: 'planned_finish', label: 'Rencana selesai', type: 'date' },
+      { key: 'is_current', label: 'Berlaku kini', type: 'flag', trueLabel: 'Ya', trueTone: 'green', falseLabel: '—' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    actions: approvalActions('prj'),
+  },
+
+  /* Terdaftar supaya temuan punya halaman sendiri: tautan pemberitahuan
+     (#/d/projects/defects/{id}), pencarian global dan lampiran foto semuanya
+     berhenti di sini. Sengaja TIDAK punya entri menu — pintu masuk register
+     adalah layar `defects`, yang membawa ringkasan prasyarat BAST II. */
+  'projects/defects': {
+    module: 'prj', api: 'projects/defects', label: 'Register Defect (Punch List)', labelOne: 'Temuan',
+    // Daftar Temuan (Form F/QC) — register QC dalam format rumah, lanskap.
+    // Dicetak per proyek dari baris temuan mana pun.
+    printForms: [
+      { form: 'daftar-temuan', label: 'Daftar Temuan', idField: 'project_id' },
+    ],
+    columns: [
+      codeColumn,
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'title', label: 'Temuan', type: 'text', truncate: 70, sub: 'location' },
+      { key: 'severity', label: 'Keparahan', type: 'enum', enum: 'defectSeverity' },
+      { key: 'due_date', label: 'Target perbaikan', type: 'date' },
+      // Merah, bukan hijau bawaan: temuan yang lewat target adalah hal pertama
+      // yang ditanyakan pelanggan di meja serah terima.
+      { key: 'is_overdue', label: 'Lewat target', type: 'flag', trueLabel: 'Ya', trueTone: 'red', falseLabel: '—' },
+      { key: 'status', label: 'Status', type: 'enum', enum: 'defectStatus', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'severity', label: 'Keparahan', enum: 'defectSeverity' },
+      { key: 'status', label: 'Status', enum: 'defectStatus' },
+      { key: 'source', label: 'Sumber', enum: 'defectSource' },
+    ],
+    // Temuan yang sudah diverifikasi atau didispensasi adalah catatan
+    // penerimaan pelanggan. Mengoreksinya berarti membukanya kembali lebih
+    // dulu — servicenya sudah menolak, ini menghentikan formulir menawarkannya.
+    editableWhen: (row) => row.status !== 'closed' && row.status !== 'waived',
+    deletableWhen: (row) => row.status !== 'closed' && row.status !== 'waived',
+    form: {
+      sections: [
+        {
+          title: 'Temuan',
+          fields: [
+            { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+            { key: 'title', label: 'Temuan', type: 'text', required: true, span: 2 },
+            { key: 'severity', label: 'Keparahan', type: 'select', enum: 'defectSeverity', required: true, help: 'Kritis dan Mayor menahan BAST II sampai diverifikasi selesai atau diberi dispensasi.' },
+            { key: 'source', label: 'Sumber temuan', type: 'select', enum: 'defectSource', required: true },
+            { key: 'location', label: 'Lokasi', type: 'text', help: 'Mis. "Lantai 5, zona B".' },
+            { key: 'subcontract_id', label: 'SPK subkon', type: 'lookup', lookup: 'subcontracts', help: 'Diisi bila perbaikannya menjadi tanggungan subkontraktor.' },
+            { key: 'description', label: 'Uraian', type: 'textarea', span: 2 },
+          ],
+        },
+        {
+          title: 'Perbaikan',
+          fields: [
+            { key: 'responsible_employee_id', label: 'Penanggung jawab perbaikan', type: 'lookup', lookup: 'employees' },
+            { key: 'due_date', label: 'Target perbaikan', type: 'date' },
+            { key: 'reported_on', label: 'Tanggal temuan', type: 'date', help: 'Umur temuan dihitung dari tanggal ini.' },
+          ],
+        },
+      ],
+    },
+    actions: [
+      {
+        key: 'fixed', label: 'Selesai Diperbaiki', path: '{id}/fixed', method: 'POST',
+        perm: 'prj.update', when: (row) => row.status !== 'closed' && row.status !== 'waived',
+        fields: [{ key: 'fixed_at', label: 'Tanggal perbaikan selesai', type: 'date', help: 'Temuan pindah ke "Menunggu verifikasi" dan masih dihitung terbuka.' }],
+      },
+      {
+        key: 'verify', label: 'Verifikasi Selesai', path: '{id}/verify', method: 'POST',
+        perm: 'prj.approve', when: (row) => row.status !== 'closed' && row.status !== 'waived', variant: 'success',
+        fields: [{ key: 'verified_at', label: 'Tanggal diterima', type: 'date', help: 'Penerimaan atas perbaikannya — baris inilah yang dihitung prasyarat BAST II.' }],
+      },
+      {
+        key: 'waive', label: 'Dispensasi Pelanggan', path: '{id}/waive', method: 'POST',
+        perm: 'prj.approve', when: (row) => row.status !== 'closed' && row.status !== 'waived',
+        fields: [
+          { key: 'reason', label: 'Alasan dispensasi', type: 'textarea', required: true, help: 'Minimal 10 karakter. Ini satu-satunya jalan melewati blokir BAST II untuk temuan kritis/mayor — tulis siapa yang menerima dan atas dasar apa.' },
+          { key: 'waived_at', label: 'Tanggal dispensasi', type: 'date' },
+        ],
+      },
+      {
+        key: 'reopen', label: 'Buka Kembali', path: '{id}/reopen', method: 'POST',
+        perm: 'prj.approve', when: (row) => row.status === 'closed' || row.status === 'waived',
+        fields: [{ key: 'reason', label: 'Alasan dibuka kembali', type: 'textarea', required: true, help: 'Minimal 10 karakter. Ditulis di ATAS catatan lama, bukan menggantinya.' }],
+      },
+    ],
+  },
+
+  'projects/safety-incidents': {
+    module: 'prj', api: 'projects/safety-incidents', label: 'Register K3 (SMK3)', labelOne: 'Insiden K3',
+    columns: [
+      codeColumn,
+      { key: 'occurred_at', label: 'Waktu kejadian', type: 'datetime' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'severity', label: 'Keparahan', type: 'enum', enum: 'incidentSeverity' },
+      { key: 'category', label: 'Jenis', type: 'enum', enum: 'incidentCategory' },
+      { key: 'lost_days', label: 'Hari hilang', type: 'number', align: 'right' },
+      // Red, not the default green: an overdue corrective action is the one
+      // thing a site manager gets asked about on a safety walk.
+      { key: 'is_overdue', label: 'Tindakan telat', type: 'flag', trueLabel: 'Ya', trueTone: 'red', falseLabel: '—' },
+      { key: 'status', label: 'Status', type: 'enum', enum: 'incidentStatus', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'severity', label: 'Keparahan', enum: 'incidentSeverity' },
+      { key: 'category', label: 'Jenis kejadian', enum: 'incidentCategory' },
+      { key: 'status', label: 'Status', enum: 'incidentStatus' },
+    ],
+    // A closed incident is a record. Correcting one means reopening it first,
+    // which the service enforces; this stops the form offering the edit at all.
+    editableWhen: (row) => row.status !== 'closed',
+    deletableWhen: (row) => row.status !== 'closed',
+    form: {
+      sections: [
+        {
+          title: 'Kejadian',
+          fields: [
+            { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+            // Time of day, not just the date: the shift is half of what a safety
+            // review looks for.
+            { key: 'occurred_at', label: 'Waktu kejadian', type: 'datetime', required: true },
+            { key: 'location', label: 'Lokasi di site', type: 'text', help: 'Mis. "Lantai 5, zona B".' },
+            { key: 'severity', label: 'Keparahan', type: 'select', enum: 'incidentSeverity', required: true },
+            { key: 'category', label: 'Jenis kejadian', type: 'select', enum: 'incidentCategory', required: true },
+            { key: 'description', label: 'Uraian kejadian', type: 'textarea', required: true, span: 2 },
+            { key: 'people_involved', label: 'Jumlah orang terlibat', type: 'number' },
+            { key: 'lost_days', label: 'Hari kerja hilang', type: 'number', help: 'Pembilang severity rate pada laporan K3 bulanan.' },
+            { key: 'immediate_action', label: 'Tindakan segera di lokasi', type: 'textarea', span: 2 },
+          ],
+        },
+        {
+          title: 'Investigasi & tindak lanjut',
+          fields: [
+            { key: 'root_cause', label: 'Penyebab dasar', type: 'textarea', span: 2, help: 'Wajib diisi sebelum insiden dapat ditutup.' },
+            { key: 'corrective_action', label: 'Tindakan korektif', type: 'textarea', span: 2, help: 'Wajib diisi sebelum insiden dapat ditutup.' },
+            { key: 'responsible_employee_id', label: 'Penanggung jawab', type: 'lookup', lookup: 'employees' },
+            { key: 'due_date', label: 'Target selesai', type: 'date' },
+          ],
+        },
+        {
+          title: 'Pelaporan',
+          fields: [
+            { key: 'is_reportable', label: 'Wajib dilaporkan ke Disnaker/pemberi kerja', type: 'bool' },
+            { key: 'reported_to_authority_at', label: 'Tanggal dilaporkan', type: 'date' },
+          ],
+        },
+      ],
+    },
+    actions: [
+      {
+        key: 'close', label: 'Tutup Insiden', path: '{id}/close', method: 'POST',
+        perm: 'prj.approve', when: (row) => row.status !== 'closed', variant: 'success',
+        fields: [{ key: 'closed_at', label: 'Tanggal penutupan', type: 'date' }],
+      },
+      {
+        key: 'reopen', label: 'Buka Kembali', path: '{id}/reopen', method: 'POST',
+        perm: 'prj.approve', when: (row) => row.status === 'closed',
+        confirm: 'Buka kembali insiden ini? Lakukan bila tindakan korektif ternyata belum efektif.',
+      },
+    ],
+  },
+
+  'projects/manpower-assignments': {
+    module: 'prj', api: 'projects/manpower-assignments', label: 'Penugasan Personel', labelOne: 'Penugasan',
+    columns: [
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'employee_id', label: 'Karyawan', type: 'rel', lookup: 'employees' },
+      { key: 'role_on_project', label: 'Peran', type: 'text' },
+      { key: 'assigned_from', label: 'Dari', type: 'date' },
+      { key: 'assigned_until', label: 'Sampai', type: 'date' },
+      { key: 'is_current_today', label: 'Di lokasi hari ini', type: 'flag', trueLabel: 'Ya', falseLabel: 'Tidak' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'employee_id', label: 'Karyawan', lookup: 'employees' },
+    ],
+    form: {
+      sections: [{
+        title: 'Penugasan personel',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'employee_id', label: 'Karyawan', type: 'lookup', lookup: 'employees', required: true },
+          { key: 'role_on_project', label: 'Peran di proyek', type: 'text', required: true },
+          { key: 'assigned_from', label: 'Ditugaskan dari', type: 'date', required: true },
+          { key: 'assigned_until', label: 'Sampai', type: 'date' },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  /* ====================================================== PROCUREMENT === */
+  'procurement/vendors': {
+    module: 'prc', api: 'procurement/vendors', label: 'Vendor & Subkon', labelOne: 'Vendor',
+    lookupSource: 'vendors',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama vendor', type: 'text', sub: 'city' },
+      { key: 'classification', label: 'Klasifikasi', type: 'enum', enum: 'vendorClassification' },
+      { key: 'is_subcontractor', label: 'Subkon', type: 'bool', align: 'center' },
+      { key: 'is_pkp', label: 'PKP', type: 'bool', align: 'center' },
+      { key: 'rating', label: 'Rating', type: 'number', align: 'right', decimals: 2 },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'classification', label: 'Klasifikasi', enum: 'vendorClassification' },
+      { key: 'status', label: 'Status', enum: 'activeStatus' },
+      { key: 'is_subcontractor', label: 'Subkontraktor', type: 'boolFilter' },
+    ],
+    form: {
+      sections: [
+        {
+          title: 'Identitas vendor',
+          fields: [
+            { key: 'name', label: 'Nama vendor', type: 'text', required: true, span: 2 },
+            { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
+            { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis.' },
+            { key: 'classification', label: 'Klasifikasi', type: 'select', enum: 'vendorClassification', required: true },
+            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'sppkp_number', label: 'No. SPPKP', type: 'text', help: 'Wajib bila vendor berstatus PKP.' },
+            { key: 'is_pkp', label: 'PKP', type: 'bool' },
+            { key: 'is_subcontractor', label: 'Subkontraktor', type: 'bool' },
+            { key: 'status', label: 'Status', type: 'select', enum: 'activeStatus', default: 'active' },
+            { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', default: 30 },
+          ],
+        },
+        {
+          title: 'Kontak & bank',
+          fields: [
+            { key: 'address', label: 'Alamat', type: 'textarea', span: 2 },
+            { key: 'city', label: 'Kota', type: 'text' },
+            { key: 'phone', label: 'Telepon', type: 'text' },
+            { key: 'email', label: 'Email', type: 'text' },
+            { key: 'pic_name', label: 'Nama PIC', type: 'text' },
+            { key: 'bank_name', label: 'Bank', type: 'text' },
+            { key: 'bank_account_no', label: 'No. rekening', type: 'text' },
+            { key: 'bank_account_name', label: 'Atas nama', type: 'text', span: 2 },
+          ],
+        },
+      ],
+    },
+  },
+
+  'procurement/vendor-documents': {
+    module: 'prc', api: 'procurement/vendor-documents', label: 'Dokumen Vendor', labelOne: 'Dokumen Vendor',
+    columns: [
+      { key: 'vendor.name', label: 'Vendor', type: 'text', sub: 'vendor.code' },
+      { key: 'doc_type', label: 'Jenis', type: 'enum', enum: 'vendorDocumentType' },
+      { key: 'name', label: 'Dokumen', type: 'text', sub: 'number' },
+      { key: 'valid_until', label: 'Berlaku s/d', type: 'date' },
+      { key: 'is_mandatory', label: 'Wajib', type: 'bool', align: 'center' },
+      { key: 'is_expired', label: 'Kedaluwarsa', type: 'bool', align: 'center' },
+    ],
+    filters: [
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+      { key: 'doc_type', label: 'Jenis', enum: 'vendorDocumentType' },
+      { key: 'expired', label: 'Kedaluwarsa', type: 'boolFilter' },
+    ],
+    form: {
+      sections: [{
+        title: 'Dokumen prakualifikasi vendor',
+        help: 'Berlaku s/d: masih sah PADA hari itu; kosongkan bila tidak kedaluwarsa (mis. NPWP). Dokumen WAJIB yang lewat masa berlakunya memblokir pengajuan PO/SPK vendor ini (bisa di-override beralasan).',
+        fields: [
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
+          { key: 'doc_type', label: 'Jenis', type: 'select', enum: 'vendorDocumentType', required: true },
+          { key: 'name', label: 'Nama dokumen', type: 'text', required: true, span: 2 },
+          { key: 'number', label: 'Nomor', type: 'text' },
+          { key: 'issuer', label: 'Penerbit', type: 'text' },
+          { key: 'issued_date', label: 'Terbit', type: 'date' },
+          { key: 'valid_until', label: 'Berlaku s/d', type: 'date' },
+          { key: 'is_mandatory', label: 'Wajib untuk PO/SPK', type: 'bool' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  
+  'procurement/purchase-requisitions': {
+    module: 'prc', api: 'procurement/purchase-requisitions', label: 'Permintaan Pembelian (PR)', labelOne: 'PR',
+    lookupSource: 'purchaseRequisitions',
+    columns: [
+      codeColumn,
+      { key: 'purpose', label: 'Keperluan', type: 'text', truncate: 64 },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'warehouse_id', label: 'Gudang', type: 'rel', lookup: 'warehouses' },
+      { key: 'needed_date', label: 'Dibutuhkan', type: 'date' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Permintaan pembelian',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
+          { key: 'needed_date', label: 'Dibutuhkan tanggal', type: 'date', required: true },
+          { key: 'requested_by', label: 'Diminta oleh', type: 'lookup', lookup: 'users' },
+          { key: 'purpose', label: 'Keperluan', type: 'textarea', span: 2 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item yang diminta', min: 1,
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', width: '28%' },
+          { key: 'description', label: 'Uraian', type: 'text', width: '28%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '12%', default: 1 },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '12%' },
+          { key: 'estimated_price', label: 'Estimasi harga', type: 'currency', width: '20%' },
+        ],
+        total: (row) => Number(row.qty || 0) * Number(row.estimated_price || 0),
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Item yang diminta',
+        columns: [
+          { key: 'line_no', label: '#', align: 'right' },
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'estimated_price', label: 'Estimasi', type: 'currency', align: 'right' },
+        ],
+      }],
+    },
+    actions: [
+      ...approvalActions('prc'),
+      {
+        key: 'create-po', label: 'Buat PO', path: '{id}/create-po', method: 'POST',
+        perm: 'prc.create', variant: 'primary', when: (row) => row.status === 'approved',
+        navigateTo: 'procurement/purchase-orders',
+        fields: [
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
+          { key: 'order_date', label: 'Tanggal PO', type: 'date', defaultToday: true },
+          { key: 'expected_date', label: 'Perkiraan kirim', type: 'date' },
+          { key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea' },
+          { key: 'notes', label: 'Catatan', type: 'textarea' },
+          { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', help: 'Isi hanya bila vendor terblokir prakualifikasi dan PO tetap harus dibuat.' },
+        ],
+      },
+    ],
+  },
+
+  'procurement/rfqs': {
+    module: 'prc', api: 'procurement/rfqs', label: 'RFQ (Banding Penawaran)', labelOne: 'RFQ',
+    customDetail: 'rfq',
+    columns: [
+      codeColumn,
+      { key: 'rfq_date', label: 'Tanggal', type: 'date' },
+      { key: 'due_date', label: 'Batas penawaran', type: 'date', hideOnNarrow: true },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects', hideOnNarrow: true },
+      { key: 'purchase_requisition_id', label: 'Dari PR', type: 'rel', lookup: 'purchaseRequisitions', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Permintaan penawaran (RFQ)',
+        help: 'Isi "Dari PR" untuk menyalin baris PR yang disetujui — daftar barang di bawah diabaikan. RFQ mandiri mengetik barisnya sendiri. Matriks harga diisi di halaman detail.',
+        fields: [
+          { key: 'purchase_requisition_id', label: 'Dari PR (disetujui)', type: 'lookup', lookup: 'purchaseRequisitions', createOnly: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'rfq_date', label: 'Tanggal RFQ', type: 'date', required: true, defaultToday: true },
+          { key: 'due_date', label: 'Batas masuk penawaran', type: 'date' },
+          { key: 'vendor_ids', label: 'Vendor diundang', type: 'multiselect', lookup: 'vendors', required: true, span: 2, help: 'Harga hanya bisa diketik untuk vendor yang diundang di sini.' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Barang yang dimintakan penawaran',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', width: '24%' },
+          { key: 'description', label: 'Uraian', type: 'text', required: true, width: '40%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '14%', default: 1 },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '12%' },
+        ],
+      }],
+    },
+  },
+
+  'procurement/purchase-orders': {
+    module: 'prc', api: 'procurement/purchase-orders', label: 'Pesanan Pembelian (PO)', labelOne: 'PO',
+    lookupSource: 'purchaseOrders',
+    printable: { path: 'core/print/purchase-orders/{id}', prefix: 'po' },
+    columns: [
+      codeColumn,
+      { key: 'vendor.name', label: 'Vendor', type: 'text', sub: 'vendor.code' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects', hideOnNarrow: true },
+      { key: 'order_date', label: 'Tgl PO', type: 'date', hideOnNarrow: true },
+      { key: 'total', label: 'Total', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Pesanan pembelian',
+        fields: [
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
+          { key: 'purchase_requisition_id', label: 'Dari PR', type: 'lookup', lookup: 'purchaseRequisitions' },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
+          { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },
+          { key: 'expected_date', label: 'Perkiraan kirim', type: 'date' },
+          { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
+          { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
+          { key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea', span: 2 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila vendor terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan PO tetap harus dibuat.' },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item pesanan', min: 1,
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', width: '24%' },
+          { key: 'description', label: 'Uraian', type: 'text', required: true, width: '30%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '12%', default: 1 },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '10%' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '20%' },
+        ],
+        total: (row) => Number(row.qty || 0) * Number(row.unit_price || 0),
+      }],
+    },
+    detail: {
+      summary: ['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'],
+      tables: [{
+        key: 'items', label: 'Item pesanan',
+        columns: [
+          { key: 'line_no', label: '#', align: 'right' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'qty_received', label: 'Diterima', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [
+      // Ajukan milik PO membawa satu field opsional: alasan override
+      // prakualifikasi. Server menolak 422 bila vendor terblokir (nonaktif /
+      // dokumen wajib kedaluwarsa) dan alasannya kosong; alasan yang terpakai
+      // tersimpan di qualification_override_reason PO sebagai jejak audit.
+      ...approvalActions('prc').filter((action) => action.key !== 'submit'),
+      {
+        key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
+        perm: 'prc.update', when: DRAFT_OR_REJECTED, variant: 'primary',
+        fields: [{
+          key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
+          type: 'textarea',
+          help: 'Kosongkan bila vendor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap harus jalan (mis. pembelian darurat ke pemegang lisensi tunggal).',
+        }],
+        /*
+         * Dua peringatan pola confirm-resubmit (temuan #72) bisa muncul saat
+         * mengajukan, BERURUTAN: kendali harga #34 (items.N.unit_price) lalu
+         * gate anggaran #33 (budget). actions.js mengonfirmasi satu jenis per
+         * putaran dan mengulang panggilannya dengan flag terkait; pesan dialog
+         * adalah pesan server apa adanya — pesan itulah yang menyebut angka
+         * harga/anggaran yang dikonfirmasi.
+         */
+        confirmResubmit: [
+          {
+            flag: 'confirm_price_deviation',
+            test: /^items\.\d+\.unit_price$/,
+            title: 'Harga di atas harga BOQ — tetap ajukan?',
+            confirmLabel: 'Ya, harga sudah dinegosiasi',
+          },
+          {
+            flag: 'confirm_over_budget',
+            test: /^budget$/,
+            title: 'Melampaui sisa anggaran RAP — tetap ajukan?',
+            confirmLabel: 'Ya, tetap ajukan',
+          },
+        ],
+      },
+      {
+        key: 'close', label: 'Tutup PO', path: '{id}/close', method: 'POST',
+        perm: 'prc.update', when: (row) => row.status === 'approved',
+        confirm: 'Tutup PO ini? Sisa kuantitas yang belum diterima dibatalkan.',
+      },
+    ],
+  },
+
+  'procurement/vendor-evaluations': {
+    module: 'prc', api: 'procurement/vendor-evaluations', label: 'Evaluasi Vendor', labelOne: 'Evaluasi Vendor',
+    columns: [
+      { key: 'vendor.name', label: 'Vendor', type: 'text', sub: 'vendor.code' },
+      { key: 'period', label: 'Periode', type: 'text' },
+      { key: 'quality_score', label: 'Kualitas', type: 'number', align: 'center' },
+      { key: 'delivery_score', label: 'Pengiriman', type: 'number', align: 'center' },
+      { key: 'price_score', label: 'Harga', type: 'number', align: 'center' },
+      { key: 'service_score', label: 'Layanan', type: 'number', align: 'center' },
+      { key: 'total_score', label: 'Skor', type: 'number', align: 'right', decimals: 2, strong: true },
+    ],
+    filters: [{ key: 'vendor_id', label: 'Vendor', lookup: 'vendors' }],
+    form: {
+      sections: [{
+        title: 'Evaluasi vendor',
+        help: 'Skor 1 (buruk) sampai 5 (sangat baik). Skor total adalah rata-rata keempatnya.',
+        fields: [
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'period', label: 'Periode', type: 'text', required: true, help: 'mis. 2026-S1' },
+          { key: 'evaluated_by', label: 'Dievaluasi oleh', type: 'lookup', lookup: 'users' },
+          { key: 'quality_score', label: 'Kualitas (1-5)', type: 'number', required: true, min: 1, max: 5 },
+          { key: 'delivery_score', label: 'Ketepatan kirim (1-5)', type: 'number', required: true, min: 1, max: 5 },
+          { key: 'price_score', label: 'Harga (1-5)', type: 'number', required: true, min: 1, max: 5 },
+          { key: 'service_score', label: 'Layanan (1-5)', type: 'number', required: true, min: 1, max: 5 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  /* ======================================================== INVENTORY === */
+  'inventory/items': {
+    module: 'inv', api: 'inventory/items', label: 'Item', labelOne: 'Item',
+    lookupSource: 'items',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama item', type: 'text', sub: 'category.name' },
+      { key: 'item_type', label: 'Jenis', type: 'enum', enum: 'itemType' },
+      { key: 'unit', label: 'Satuan', type: 'text', align: 'center', hideOnNarrow: true },
+      { key: 'min_stock', label: 'Stok min.', type: 'qty', align: 'right', hideOnNarrow: true },
+      { key: 'avg_cost', label: 'HPP rata-rata', type: 'currency', align: 'right' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center', hideOnNarrow: true },
+    ],
+    filters: [
+      { key: 'item_type', label: 'Jenis', enum: 'itemType' },
+      { key: 'category_id', label: 'Kategori', lookup: 'itemCategories' },
+    ],
+    form: {
+      sections: [{
+        title: 'Item',
+        fields: [
+          { key: 'name', label: 'Nama item', type: 'text', required: true, span: 2 },
+          { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis (ITM-xxxx).' },
+          { key: 'category_id', label: 'Kategori', type: 'lookup', lookup: 'itemCategories', required: true },
+          { key: 'item_type', label: 'Jenis item', type: 'select', enum: 'itemType', required: true, default: 'material' },
+          { key: 'unit', label: 'Satuan', type: 'text', required: true },
+          { key: 'barcode', label: 'Barcode', type: 'text' },
+          { key: 'min_stock', label: 'Stok minimum', type: 'qty', default: 0 },
+          { key: 'last_price', label: 'Harga beli terakhir', type: 'currency' },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  'inventory/item-categories': {
+    module: 'inv', api: 'inventory/item-categories', label: 'Kategori Item', labelOne: 'Kategori Item',
+    lookupSource: 'itemCategories', noDetail: true,
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama kategori', type: 'text' },
+      { key: 'parent.name', label: 'Induk', type: 'text' },
+    ],
+    form: {
+      sections: [{
+        title: 'Kategori item',
+        fields: [
+          { key: 'code', label: 'Kode', type: 'text', required: true },
+          { key: 'name', label: 'Nama kategori', type: 'text', required: true },
+          { key: 'parent_id', label: 'Kategori induk', type: 'lookup', lookup: 'itemCategories', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  'inventory/warehouses': {
+    module: 'inv', api: 'inventory/warehouses', label: 'Gudang', labelOne: 'Gudang',
+    lookupSource: 'warehouses',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama gudang', type: 'text' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'is_site_warehouse', label: 'Gudang site', type: 'bool', align: 'center' },
+      { key: 'keeper_employee_id', label: 'Penjaga', type: 'rel', lookup: 'employees' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+    ],
+    form: {
+      sections: [{
+        title: 'Gudang',
+        fields: [
+          { key: 'code', label: 'Kode', type: 'text', required: true },
+          { key: 'name', label: 'Nama gudang', type: 'text', required: true },
+          { key: 'project_id', label: 'Proyek (gudang site)', type: 'lookup', lookup: 'projects', help: 'Diisi bila gudang berada di lokasi proyek.' },
+          { key: 'keeper_employee_id', label: 'Penjaga gudang', type: 'lookup', lookup: 'employees' },
+          { key: 'address', label: 'Alamat', type: 'textarea', span: 2 },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  'inventory/goods-receipts': {
+    module: 'inv', api: 'inventory/goods-receipts', label: 'Penerimaan Barang (GRN)', labelOne: 'GRN',
+    columns: [
+      codeColumn,
+      { key: 'receipt_date', label: 'Tanggal', type: 'date' },
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'purchase_order_id', label: 'PO', type: 'rel', lookup: 'purchaseOrders' },
+      { key: 'delivery_note_no', label: 'No. surat jalan', type: 'text' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'stockDocStatus' },
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      /*
+       * Temuan 72: server menolak (422 items.N.unit_cost) baris tertaut PO
+       * berharga 0 sampai payload membawa confirm_zero_cost — free-issue sah,
+       * salah ketik tidak. openForm menampilkan confirmDialog berisi pesan
+       * server apa adanya (pesan itulah yang menyebut nama barangnya) lalu
+       * mengirim ulang dengan flag ini.
+       */
+      confirmResubmit: {
+        flag: 'confirm_zero_cost',
+        test: /^items\.\d+\.unit_cost$/,
+        title: 'Harga satuan Rp 0 — lanjutkan?',
+        confirmLabel: 'Ya, barang gratis',
+      },
+      sections: [{
+        title: 'Penerimaan barang',
+        fields: [
+          { key: 'warehouse_id', label: 'Gudang penerima', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'receipt_date', label: 'Tanggal terima', type: 'date', required: true, defaultToday: true },
+          { key: 'purchase_order_id', label: 'PO terkait', type: 'lookup', lookup: 'purchaseOrders' },
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors' },
+          { key: 'delivery_note_no', label: 'No. surat jalan', type: 'text' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item diterima', min: 1,
+        help: 'Untuk penerimaan atas PO, pakai "Salin baris dari PO" — hanya lewat jalur itu baris '
+          + 'terhubung ke baris PO-nya, sehingga kolom "diterima" pada PO ikut terisi, penerimaan '
+          + 'melebihi pesanan tertahan, dan tagihan final PO bisa disetujui.',
+        columns: [
+          // Never typed, always copied: the id that makes the three-way match real.
+          { key: 'po_item_id', type: 'hidden' },
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '46%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '18%' },
+          { key: 'unit_cost', label: 'Harga satuan', type: 'currency', required: true, width: '26%' },
+        ],
+        total: (row) => Number(row.qty || 0) * Number(row.unit_cost || 0),
+        prefill: {
+          label: 'Salin baris dari PO',
+          sourceField: 'purchase_order_id',
+          missingSource: 'Pilih PO terkait dulu di bagian atas formulir.',
+          emptyMessage: 'Seluruh baris PO ini sudah diterima penuh.',
+          load: async (purchaseOrderId, api) => {
+            const order = await api.get(`procurement/purchase-orders/${purchaseOrderId}`);
+
+            // Sisa pesanan, bukan qty pesanan: penerimaan kedua atas PO yang sama
+            // tidak boleh menawarkan lagi barang yang sudah datang.
+            return (order.items || [])
+              .map((line) => ({
+                po_item_id: line.id,
+                item_id: line.item_id,
+                qty: Math.max(0, Number(line.qty || 0) - Number(line.qty_received || 0)),
+                unit_cost: Number(line.unit_price || 0),
+              }))
+              .filter((line) => line.item_id && line.qty > 0);
+          },
+        },
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Item diterima',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit_cost', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+          // Sudah kembali ke vendor lewat retur terposting.
+          { key: 'qty_returned', label: 'Diretur', type: 'qty', align: 'right' },
+          // Baris tanpa tautan tidak mengurangi sisa PO — layak terlihat.
+          { key: 'po_item_id', label: 'Baris PO', type: 'flag', trueLabel: 'Tertaut', falseLabel: 'Lepas', falseTone: 'amber' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [
+      {
+        key: 'post', label: 'Posting ke Stok', path: '{id}/post', method: 'POST',
+        perm: 'inv.post', variant: 'primary', when: IS_DRAFT,
+        confirm: 'Posting GRN ini? Stok dan HPP rata-rata bergerak akan diperbarui dan dokumen tidak bisa diubah lagi.',
+      },
+      {
+        // Jalan kembali UTUH untuk GRN yang salah diposting (audit T37) —
+        // pasangan dari "Buat Retur" di bawah yang membalik sebagian, dan
+        // bentuknya disamakan dengan "Batalkan Bon" pada pengeluaran barang:
+        // membatalkan memposting pergerakan stok CERMIN dan jurnal PEMBALIK,
+        // mengosongkan kliring GRN (tagihan vendor tidak bisa lagi menyapunya),
+        // dan mengembalikan kuantitas PO lewat PoService::unregisterReceipt —
+        // termasuk membuka kembali PO yang tertutup otomatis. GRN aslinya
+        // tidak pernah disentuh.
+        //
+        // when() menyaring status dan retur terposting; penolakan yang tidak
+        // terlihat dari baris (kliring sudah disapu tagihan, PO ditagih
+        // pembebanan langsung, stok sebagian sudah keluar) dijawab server
+        // dengan kalimat yang menyebut jalan keluarnya — retur pembelian
+        // untuk sebagian, opname untuk penyusutan.
+        key: 'cancel', label: 'Batalkan Penerimaan', path: '{id}/cancel', method: 'POST',
+        perm: 'inv.post', variant: 'danger',
+        when: (row) => row.status === 'posted'
+          && !(row.items || []).some((line) => Number(line.qty_returned || 0) > 0),
+        fields: [{
+          key: 'reason', label: 'Alasan pembatalan', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen dan jejak audit. Minimal 5 karakter.',
+        }],
+      },
+      {
+        // Retur pembelian (temuan 38): barang ditolak/berlebih kembali ke
+        // vendor. Membuat DRAF berisi sisa yang bisa diretur dari GRN ini
+        // (POST inventory/goods-receipts/{id}/returns, inv.create); memposting
+        // draf itulah yang menggerakkan stok, membalik irisan kliring GRN
+        // (tagihan vendor tidak bisa lagi menagih bagian yang diretur), dan
+        // mengembalikan kuantitas ke PO — termasuk membuka kembali PO yang
+        // tertutup otomatis. GRN stok awal (tanpa PO dan tanpa vendor) tidak
+        // ditawarkan: tidak ada pihak yang bisa menerima retur, keluarkan
+        // lewat opname.
+        key: 'return', label: 'Buat Retur', path: '{id}/returns', method: 'POST',
+        perm: 'inv.create', navigateTo: 'inventory/purchase-returns',
+        when: (row) => row.status === 'posted' && !!(row.vendor_id || row.purchase_order_id),
+        fields: [{
+          key: 'reason', label: 'Alasan retur', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen retur. Minimal 5 karakter.',
+        }],
+      },
+    ],
+  },
+
+  'inventory/issues': {
+    module: 'inv', api: 'inventory/issues', label: 'Pengeluaran Barang', labelOne: 'Pengeluaran Barang',
+    columns: [
+      codeColumn,
+      { key: 'issue_date', label: 'Tanggal', type: 'date' },
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'purpose', label: 'Keperluan', type: 'text', truncate: 56 },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'stockDocStatus' },
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Pengeluaran barang',
+        help: 'Biaya per baris dinilai otomatis pada HPP rata-rata gudang saat posting.',
+        fields: [
+          { key: 'warehouse_id', label: 'Gudang asal', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'issue_date', label: 'Tanggal keluar', type: 'date', required: true, defaultToday: true },
+          { key: 'project_id', label: 'Proyek tujuan', type: 'lookup', lookup: 'projects' },
+          { key: 'wbs_task_id', label: 'Paket pekerjaan (WBS)', type: 'lookup', lookup: 'wbsTasks' },
+          { key: 'purpose', label: 'Keperluan', type: 'textarea', required: true, span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item dikeluarkan', min: 1,
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '45%' },
+          // Per baris, bukan hanya di kepala: satu bon bisa melayani dua paket
+          // sekaligus — ISS/2026/VII/0001 membawa 150 zak semen (C.1) DAN
+          // 80 btg besi (B.3), dan tanpa kolom ini keduanya tertimpa satu nilai.
+          { key: 'wbs_task_id', label: 'Paket WBS', type: 'lookup', lookup: 'wbsTasks', width: '35%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '20%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Item dikeluarkan',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          // Bon terposting harus memperlihatkan paket yang dibebani — laporan
+          // varian material membaca kolom inilah, baris demi baris.
+          { key: 'wbs_task_id', label: 'Paket WBS', type: 'rel', lookup: 'wbsTasks' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          // Sudah kembali lewat retur terposting — pembaca bon perlu tahu
+          // berapa yang masih di proyek sebelum menekan "Buat Retur".
+          { key: 'qty_returned', label: 'Dikembalikan', type: 'qty', align: 'right' },
+          { key: 'unit_cost', label: 'HPP satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [
+      {
+        key: 'post', label: 'Posting ke Stok', path: '{id}/post', method: 'POST',
+        perm: 'inv.post', variant: 'primary', when: IS_DRAFT,
+        confirm: 'Posting pengeluaran ini? Stok akan berkurang dan dokumen dikunci.',
+      },
+      {
+        // Bon adalah satu-satunya dokumen stok yang mendarat di BIAYA PROYEK,
+        // jadi salah proyek di sini bukan salah ketik: ISS/2026/VII/0001
+        // mengeluarkan semen dan besi senilai Rp 18.740.000, dan bila
+        // dibebankan ke proyek yang keliru, realisasi, CPI dan basis biaya
+        // PSAK 115 kedua proyek salah selamanya. Endpoint pembatalannya sudah
+        // hidup (POST inventory/issues/{id}/cancel, inv.post) — tanpa tombol
+        // ini tidak ada satu pun jalan memanggilnya dari layar, dan layar tanpa
+        // jalan panggil pernah ikut rilis di sini sekali. Bentuknya disamakan
+        // persis dengan pembatalan AR/AP di bawah supaya keduanya tidak
+        // berpencar: membatalkan memposting pergerakan stok CERMIN dan jurnal
+        // PEMBALIK; bon aslinya tidak pernah disentuh.
+        //
+        // Bon dari pengesahan laporan lapangan (field_report_id terisi) sengaja
+        // tidak ditawarkan — StockService::cancelIssue menolaknya: laporannya
+        // yang harus dikoreksi, karena pengesahan dan keluarnya suku cadang
+        // adalah satu peristiwa yang sama.
+        key: 'cancel', label: 'Batalkan Bon', path: '{id}/cancel', method: 'POST',
+        perm: 'inv.post', variant: 'danger',
+        when: (row) => row.status === 'posted' && !row.field_report_id,
+        fields: [{
+          key: 'reason', label: 'Alasan pembatalan', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen dan jejak audit. Minimal 5 karakter.',
+        }],
+      },
+      {
+        // Jalan kembali SEBAGIAN — pasangan dari "Batalkan Bon" yang membalik
+        // utuh. Kasus audit temuan 37: 150 zak keluar, pekerjaan selesai, 30
+        // kembali. Tanpa dokumen ini sisa itu dipaksa lewat GRN tanpa vendor
+        // (kredit EKUITAS 3-3100) atau opname (kredit BEBAN 6-4400), dan biaya
+        // proyeknya tidak pernah berkurang. Tombol ini membuat DRAF berisi
+        // sisa yang bisa kembali (POST inventory/issues/{id}/returns) —
+        // operator merapikan barisnya lalu memposting dari layar retur, maka
+        // haknya inv.create; posting-nya sendiri tetap di inv.post.
+        //
+        // Bon laporan lapangan tidak ditawarkan — StockService menolaknya:
+        // koreksi laporannya, karena pengesahan dan keluarnya suku cadang
+        // adalah satu peristiwa yang sama (alasan yang sama dengan Batalkan).
+        key: 'return', label: 'Buat Retur', path: '{id}/returns', method: 'POST',
+        perm: 'inv.create', navigateTo: 'inventory/issue-returns',
+        when: (row) => row.status === 'posted' && !row.field_report_id,
+        fields: [{
+          key: 'reason', label: 'Alasan retur', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen retur. Minimal 5 karakter.',
+        }],
+      },
+    ],
+  },
+
+  'inventory/issue-returns': {
+    module: 'inv', api: 'inventory/issue-returns', label: 'Retur Material Proyek', labelOne: 'Retur Material',
+    columns: [
+      codeColumn,
+      { key: 'return_date', label: 'Tanggal', type: 'date' },
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'issue.code', label: 'Bon asal', type: 'text' },
+      { key: 'reason', label: 'Alasan', type: 'text', truncate: 56 },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'stockDocStatus' },
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Retur material dari proyek',
+        help: 'Barang kembali pada HARGA KELUARNYA (harga beku baris bon), bukan rata-rata hari ini, '
+          + 'dan biaya proyek berkurang sebesar irisan yang sama saat diposting.',
+        fields: [
+          { key: 'issue_id', label: 'Bon pengeluaran asal', type: 'lookup', lookup: 'issues', required: true },
+          { key: 'return_date', label: 'Tanggal kembali', type: 'date', required: true, defaultToday: true },
+          {
+            key: 'reason', label: 'Alasan retur', type: 'textarea', required: true, span: 2,
+            help: 'Tercatat permanen di dokumen. Minimal 5 karakter.',
+          },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item dikembalikan', min: 1,
+        help: 'Gunakan "Salin baris dari bon" — baris retur harus menunjuk baris bon asalnya, '
+          + 'karena baris itulah yang membawa harga keluar barangnya.',
+        columns: [
+          // Never typed, always copied: the reference that carries the issue price.
+          { key: 'issue_item_id', type: 'hidden' },
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '70%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '30%' },
+        ],
+        prefill: {
+          label: 'Salin baris dari bon',
+          sourceField: 'issue_id',
+          missingSource: 'Pilih bon pengeluaran asal dulu di bagian atas formulir.',
+          emptyMessage: 'Seluruh baris bon ini sudah kembali lewat retur sebelumnya.',
+          load: async (issueId, api) => {
+            const bon = await api.get(`inventory/issues/${issueId}`);
+
+            // Sisa yang bisa kembali, bukan qty bon: retur kedua tidak boleh
+            // menawarkan lagi barang yang sudah kembali. Server tetap menolak
+            // kumulatifnya — ini supaya operator tidak digiring ke 422.
+            return (bon.items || [])
+              .map((line) => ({
+                issue_item_id: line.id,
+                item_id: line.item_id,
+                qty: Math.max(0, Number(line.qty || 0) - Number(line.qty_returned || 0)),
+              }))
+              .filter((line) => line.qty > 0);
+          },
+        },
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Item dikembalikan',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit_cost', label: 'Harga keluar', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [{
+      key: 'post', label: 'Posting Retur', path: '{id}/post', method: 'POST',
+      perm: 'inv.post', variant: 'primary', when: IS_DRAFT,
+      confirm: 'Posting retur ini? Stok kembali pada harga keluarnya, jurnal Dr Persediaan / Cr HPP '
+        + 'diposting, biaya proyek berkurang, dan dokumen tidak bisa diubah lagi.',
+    }],
+  },
+
+  'inventory/purchase-returns': {
+    module: 'inv', api: 'inventory/purchase-returns', label: 'Retur Pembelian', labelOne: 'Retur Pembelian',
+    columns: [
+      codeColumn,
+      { key: 'return_date', label: 'Tanggal', type: 'date' },
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'goods_receipt.code', label: 'GRN asal', type: 'text' },
+      { key: 'vendor_id', label: 'Vendor', type: 'rel', lookup: 'vendors' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'stockDocStatus' },
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Retur pembelian ke vendor',
+        help: 'Saat diposting: stok keluar, irisan kewajiban vendor yang dicatat GRN dibalik (tagihan '
+          + 'vendor tidak bisa lagi menagih bagian yang diretur), dan kolom "diterima" PO berkurang. '
+          + 'Bagian yang sudah disapu tagihan vendor tidak bisa diretur — selesaikan lewat nota kredit di Keuangan.',
+        fields: [
+          { key: 'goods_receipt_id', label: 'Penerimaan (GRN) asal', type: 'lookup', lookup: 'goodsReceipts', required: true },
+          { key: 'return_date', label: 'Tanggal retur', type: 'date', required: true, defaultToday: true },
+          {
+            key: 'reason', label: 'Alasan retur', type: 'textarea', required: true, span: 2,
+            help: 'Tercatat permanen di dokumen. Minimal 5 karakter.',
+          },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item dikembalikan', min: 1,
+        help: 'Gunakan "Salin baris dari GRN" — baris retur harus menunjuk baris penerimaan asalnya, '
+          + 'karena baris itulah yang membawa harga terima barangnya.',
+        columns: [
+          // Never typed, always copied: the reference that carries the receipt price.
+          { key: 'grn_item_id', type: 'hidden' },
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '70%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '30%' },
+        ],
+        prefill: {
+          label: 'Salin baris dari GRN',
+          sourceField: 'goods_receipt_id',
+          missingSource: 'Pilih penerimaan (GRN) asal dulu di bagian atas formulir.',
+          emptyMessage: 'Seluruh baris GRN ini sudah kembali ke vendor lewat retur sebelumnya.',
+          load: async (grnId, api) => {
+            const grn = await api.get(`inventory/goods-receipts/${grnId}`);
+
+            // Sisa yang bisa diretur, bukan qty GRN: server menolak kumulatif
+            // melebihi penerimaan — ini supaya operator tidak digiring ke 422.
+            return (grn.items || [])
+              .map((line) => ({
+                grn_item_id: line.id,
+                item_id: line.item_id,
+                qty: Math.max(0, Number(line.qty || 0) - Number(line.qty_returned || 0)),
+              }))
+              .filter((line) => line.qty > 0);
+          },
+        },
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Item dikembalikan',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit_cost', label: 'Harga terima', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [{
+      key: 'post', label: 'Posting Retur', path: '{id}/post', method: 'POST',
+      perm: 'inv.post', variant: 'primary', when: IS_DRAFT,
+      confirm: 'Posting retur ini? Stok keluar, sisa tagihan vendor berkurang sebesar irisan retur, '
+        + 'kolom "diterima" PO berkurang, dan dokumen tidak bisa diubah lagi.',
+    }],
+  },
+
+  'inventory/transfers': {
+    module: 'inv', api: 'inventory/transfers', label: 'Transfer Antar Gudang', labelOne: 'Transfer',
+    columns: [
+      codeColumn,
+      { key: 'transfer_date', label: 'Tanggal', type: 'date' },
+      { key: 'from_warehouse.name', label: 'Dari', type: 'text', sub: 'from_warehouse.code' },
+      { key: 'to_warehouse.name', label: 'Ke', type: 'text', sub: 'to_warehouse.code' },
+      statusColumn,
+    ],
+    filters: [{ key: 'status', label: 'Status', enum: 'transferStatus' }],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Transfer stok',
+        fields: [
+          { key: 'from_warehouse_id', label: 'Gudang asal', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'to_warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'transfer_date', label: 'Tanggal transfer', type: 'date', required: true, defaultToday: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Item ditransfer', min: 1,
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '70%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '30%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Item ditransfer',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'unit_cost', label: 'HPP satuan', type: 'currency', align: 'right' },
+        ],
+      }],
+    },
+    actions: [
+      {
+        key: 'send', label: 'Kirim', path: '{id}/send', method: 'POST',
+        perm: 'inv.post', variant: 'primary', when: IS_DRAFT,
+        confirm: 'Kirim transfer ini? Stok keluar dari gudang asal pada HPP saat ini.',
+      },
+      {
+        key: 'receive', label: 'Terima', path: '{id}/receive', method: 'POST',
+        perm: 'inv.post', variant: 'success', when: (row) => row.status === 'in_transit',
+        confirm: 'Terima transfer ini di gudang tujuan?',
+      },
+    ],
+  },
+
+  'inventory/stock-adjustments': {
+    module: 'inv', api: 'inventory/stock-adjustments', label: 'Penyesuaian Stok (Opname)', labelOne: 'Penyesuaian Stok',
+    columns: [
+      codeColumn,
+      { key: 'adjustment_date', label: 'Tanggal', type: 'date' },
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'reason', label: 'Alasan', type: 'enum', enum: 'adjustmentReason' },
+      { key: 'posted_at', label: 'Diposting', type: 'datetime' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Penyesuaian stok',
+        help: 'Sistem menyimpan qty sistem saat ini sebagai pembanding hasil hitung fisik.',
+        fields: [
+          { key: 'warehouse_id', label: 'Gudang', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'adjustment_date', label: 'Tanggal opname', type: 'date', required: true, defaultToday: true },
+          { key: 'reason', label: 'Alasan', type: 'select', enum: 'adjustmentReason', required: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Hasil hitung fisik', min: 1,
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '70%' },
+          { key: 'counted_qty', label: 'Qty terhitung', type: 'qty', required: true, width: '30%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Hasil opname',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'system_qty', label: 'Qty sistem', type: 'qty', align: 'right' },
+          { key: 'counted_qty', label: 'Qty fisik', type: 'qty', align: 'right' },
+          { key: 'diff_qty', label: 'Selisih', type: 'qty', align: 'right', signed: true },
+          { key: 'unit_cost', label: 'HPP satuan', type: 'currency', align: 'right' },
+        ],
+      }],
+    },
+    actions: approvalActions('inv'),
+  },
+
+  /* ====================================================== SUBCONTRACT === */
+  'subcontract/subcontracts': {
+    module: 'scm', api: 'subcontract/subcontracts', label: 'SPK Subkontraktor', labelOne: 'SPK',
+    lookupSource: 'subcontracts', customDetail: 'subcontract',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Pekerjaan', type: 'text', sub: 'vendor.name' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'value', label: 'Nilai SPK', type: 'currency', align: 'right' },
+      { key: 'pph_rate', label: 'PPh final', type: 'percent', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'vendor_id', label: 'Subkontraktor', lookup: 'subcontractors' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Surat Perintah Kerja',
+        help: 'PPN mengikuti status PKP vendor; tarif PPh final PP 9/2022 di-snapshot dari skema yang dipilih.',
+        fields: [
+          { key: 'vendor_id', label: 'Subkontraktor', type: 'lookup', lookup: 'subcontractors', required: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'pph_scheme', label: 'Skema PPh final konstruksi', type: 'select', enum: 'pphScheme', required: true, span: 2 },
+          { key: 'retention_pct', label: 'Retensi (%)', type: 'percent', default: 5 },
+          { key: 'start_date', label: 'Mulai', type: 'date', required: true },
+          { key: 'end_date', label: 'Selesai', type: 'date' },
+          {
+            // Temuan #75: tanggal yang dibaca gate waktu pelepasan retensi.
+            key: 'defect_liability_until', label: 'Masa pemeliharaan s/d', type: 'date',
+            help: 'Retensi hanya dapat dilepas setelah tanggal ini (atau dengan alasan override).',
+          },
+          { key: 'scope', label: 'Lingkup pekerjaan', type: 'textarea', span: 2 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila subkon terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan SPK tetap harus dibuat.' },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Rincian pekerjaan', min: 1,
+        columns: [
+          { key: 'wbs_code', label: 'Kode WBS', type: 'text', width: '12%' },
+          { key: 'description', label: 'Uraian', type: 'text', width: '34%' },
+          { key: 'qty', label: 'Volume', type: 'qty', width: '14%' },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '12%' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '20%' },
+        ],
+        total: (row) => Number(row.qty || 0) * Number(row.unit_price || 0),
+      }],
+    },
+    actions: [...approvalActions('scm').map((action) => (action.key !== 'submit' ? action : {
+      ...action,
+      /*
+       * Cermin sisi PO: tanpa modal field ini, SPK yang subkonnya menjadi
+       * nonaktif (atau SBU-nya kedaluwarsa) di antara draf dan pengajuan
+       * TIDAK PERNAH bisa diajukan dari SPA — 422 gate prakualifikasi tidak
+       * membawa kunci `errors`, jadi alur confirm-resubmit tidak bisa
+       * menyambarnya, dan alasan override hanya dibaca server dari payload
+       * submit. Kosongkan bila subkonnya sehat.
+       */
+      fields: [{
+        key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
+        type: 'textarea',
+        help: 'Kosongkan bila subkon sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap harus jalan.',
+      }],
+      /*
+       * Gate anggaran #33 (kunci galat `budget`, pola confirm-resubmit temuan
+       * #72): pengajuan SPK yang melampaui sisa RAP subkon ditolak 422 sampai
+       * pengaju mengonfirmasi — actions.js mengulang panggilan dengan
+       * confirm_over_budget. Pesan dialog = pesan server yang menyebut
+       * anggaran, realisasi, komitmen, dokumen ini, dan pelampauannya.
+       */
+      confirmResubmit: [{
+        flag: 'confirm_over_budget',
+        test: /^budget$/,
+        title: 'Melampaui sisa anggaran RAP subkon — tetap ajukan?',
+        confirmLabel: 'Ya, tetap ajukan',
+      }],
+    })), {
+      /*
+       * Temuan #75 (susulan): tanggal masa pemeliharaan baru diketahui setelah
+       * SPK disetujui, sedangkan form Ubah tertutup begitu status bergerak —
+       * pintu ini mengisi SATU tanggal itu pada SPK submitted/approved; server
+       * menolak begitu retensi pernah dilepas.
+       */
+      key: 'defect-liability', label: 'Catat masa pemeliharaan', path: '{id}/defect-liability', method: 'PUT',
+      perm: 'scm.update', when: (row) => ['submitted', 'approved'].includes(row.status),
+      fields: [{ key: 'defect_liability_until', label: 'Masa pemeliharaan s/d', type: 'date', required: true, help: 'Gate pelepasan retensi memakai tanggal ini.' }],
+    }],
+  },
+
+  'subcontract/addenda': {
+    module: 'scm', api: 'subcontract/addenda', label: 'Addendum SPK', labelOne: 'Addendum SPK',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'subcontract.code' },
+      { key: 'addendum_date', label: 'Tanggal', type: 'date' },
+      // Pembeda jejak audit, hadir sejak hari pertama (Crm harus menambalnya
+      // belakangan — temuan #61): eskalasi harga bukan pekerjaan tambah.
+      { key: 'change_type', label: 'Jenis', type: 'enum', enum: 'ccoChangeType' },
+      // Signed: negatif adalah pekerjaan kurang.
+      { key: 'value_change', label: 'Perubahan nilai', type: 'currency' },
+      { key: 'status', label: 'Status', type: 'enum', enum: 'documentStatus' },
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'change_type', label: 'Jenis', enum: 'ccoChangeType' },
+      { key: 'subcontract_id', label: 'SPK', lookup: 'subcontracts' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Addendum SPK',
+        help: 'Pekerjaan tambah masuk sebagai BARIS BARU — baris lama tidak pernah diubah, opnamenya terlanjur dihitung dari nilai lama. Pekerjaan kurang cukup nilai negatif tanpa baris.',
+        fields: [
+          { key: 'subcontract_id', label: 'SPK', type: 'lookup', lookup: 'subcontracts', required: true, createOnly: true },
+          { key: 'addendum_date', label: 'Tanggal', type: 'date', required: true },
+          { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
+          {
+            key: 'change_type', label: 'Jenis perubahan', type: 'select', enum: 'ccoChangeType', default: 'tambah_kurang',
+            help: 'Pilih "Eskalasi Harga" untuk penyesuaian harga — nilainya dihitung di luar dan masuk lewat perubahan nilai.',
+          },
+          {
+            key: 'value_change', label: 'Perubahan nilai', type: 'currency', required: true,
+            help: 'Positif untuk pekerjaan tambah (wajib membawa baris), negatif untuk pekerjaan kurang.',
+          },
+          {
+            key: 'reason', label: 'Sebab', type: 'select',
+            options: [
+              { value: 'permintaan_pemberi_kerja', label: 'Permintaan pemberi kerja' },
+              { value: 'kondisi_lapangan', label: 'Kondisi lapangan' },
+              { value: 'desain', label: 'Perubahan desain' },
+              { value: 'lainnya', label: 'Lainnya' },
+            ],
+          },
+          { key: 'description', label: 'Uraian', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Baris pekerjaan tambahan (total harus sama dengan perubahan nilai)',
+        columns: [
+          { key: 'wbs_code', label: 'Kode WBS', type: 'text', width: '12%' },
+          { key: 'description', label: 'Uraian', type: 'text', width: '34%' },
+          { key: 'qty', label: 'Volume', type: 'qty', width: '14%' },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '12%' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '20%' },
+        ],
+        total: (row) => Number(row.qty || 0) * Number(row.unit_price || 0),
+      }],
+    },
+    detail: {
+      summary: ['value_change'],
+      tables: [{
+        key: 'items', label: 'Baris pekerjaan tambahan',
+        columns: [
+          { key: 'wbs_code', label: 'Kode WBS' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Volume', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('scm'),
+  },
+
+  'subcontract/progress-claims': {
+    module: 'scm', api: 'subcontract/progress-claims', label: 'Opname Subkon', labelOne: 'Opname',
+    lookupSource: 'progressClaims',
+    columns: [
+      codeColumn,
+      { key: 'subcontract.code', label: 'SPK', type: 'code', sub: 'subcontract.title' },
+      { key: 'claim_no', label: 'Opname ke-', type: 'number', align: 'center' },
+      // Klaim uang muka (DP) duduk di daftar yang sama dengan opname biasa —
+      // tanpa penanda, DP 40 juta terbaca sebagai opname pekerjaan.
+      { key: 'is_advance', label: 'UM', type: 'bool', align: 'center' },
+      { key: 'period_end', label: 'Periode s/d', type: 'date' },
+      { key: 'gross_amount', label: 'Bruto', type: 'currency', align: 'right' },
+      { key: 'net_payable', label: 'Netto dibayar', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'subcontract_id', label: 'SPK', lookup: 'subcontracts' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Opname progress',
+        help: 'Isi progres kumulatif per baris SPK. Nilai periode dihitung dari selisih terhadap progres sebelumnya.',
+        fields: [
+          { key: 'subcontract_id', label: 'SPK', type: 'lookup', lookup: 'subcontracts', required: true, createOnly: true },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Progres per baris pekerjaan', min: 1,
+        columns: [
+          { key: 'subcontract_item_id', label: 'ID baris SPK', type: 'number', required: true, width: '50%' },
+          { key: 'current_progress_pct', label: 'Progres kumulatif (%)', type: 'percent', required: true, width: '50%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['gross_amount', 'retention_amount', 'net_before_tax', 'ppn_amount', 'pph_amount', 'advance_recovery_amount', 'net_payable'],
+      tables: [{
+        key: 'items', label: 'Rincian progres',
+        columns: [
+          { key: 'subcontract_item.description', label: 'Uraian' },
+          { key: 'prev_progress_pct', label: 'Progres lalu', type: 'percent', align: 'right' },
+          { key: 'current_progress_pct', label: 'Progres kini', type: 'percent', align: 'right' },
+          { key: 'period_progress_pct', label: 'Periode ini', type: 'percent', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('scm'),
+  },
+
+  /* ========================================================== FINANCE === */
+  'finance/revenue-recognition': {
+    module: 'fin', api: 'finance/revenue-recognition', label: 'Pengakuan Pendapatan (PSAK 115)', labelOne: 'Run PSAK 115',
+    customDetail: 'revenueRun',
+    columns: [
+      codeColumn,
+      { key: 'period_year', label: 'Periode', type: 'period' },
+      { key: 'lines_count', label: 'Kontrak', type: 'number', align: 'right' },
+      { key: 'total_adjustment', label: 'Penyesuaian run', type: 'currency', align: 'right' },
+      { key: 'posted_at', label: 'Diposting', type: 'datetime' },
+      statusColumn,
+    ],
+    editableWhen: () => false,
+    deletableWhen: (row) => row.status === 'draft',
+    deleteConfirm: 'Hapus run draf ini? Perhitungan dapat dibuat ulang kapan saja.',
+    form: {
+      sections: [{
+        title: 'Hitung pengakuan pendapatan',
+        fields: [
+          { key: 'period_year', label: 'Tahun', type: 'number', required: true, default: new Date().getFullYear() },
+          {
+            key: 'period_month', label: 'Bulan', type: 'number', required: true,
+            default: new Date().getMonth() + 1,
+            help: 'Persentase penyelesaian dihitung per akhir bulan ini. Kebijakan lengkap: docs/KEBIJAKAN-PENDAPATAN.md.',
+          },
+        ],
+      }],
+    },
+  },
+
+  'finance/accounts': {
+    module: 'fin', api: 'finance/accounts', label: 'Bagan Akun (COA)', labelOne: 'Akun',
+    lookupSource: 'accounts', noDetail: true, perPage: 100,
+    columns: [
+      { key: 'code', label: 'Kode', type: 'code', width: '1%' },
+      { key: 'name', label: 'Nama akun', type: 'text', indentBy: 'code' },
+      { key: 'account_type', label: 'Tipe', type: 'enum', enum: 'accountType' },
+      { key: 'normal_balance', label: 'Saldo normal', type: 'enum', enum: 'normalBalance' },
+      { key: 'is_postable', label: 'Dapat diposting', type: 'bool', align: 'center' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+    ],
+    filters: [
+      { key: 'account_type', label: 'Tipe akun', enum: 'accountType' },
+      { key: 'is_postable', label: 'Dapat diposting', type: 'boolFilter' },
+    ],
+    form: {
+      sections: [{
+        title: 'Akun',
+        fields: [
+          { key: 'code', label: 'Kode akun', type: 'text', required: true, help: 'mis. 1-1210' },
+          { key: 'name', label: 'Nama akun', type: 'text', required: true },
+          { key: 'account_type', label: 'Tipe akun', type: 'select', enum: 'accountType', required: true },
+          { key: 'normal_balance', label: 'Saldo normal', type: 'select', enum: 'normalBalance', required: true },
+          { key: 'parent_id', label: 'Akun induk', type: 'lookup', lookup: 'accounts' },
+          { key: 'is_postable', label: 'Dapat diposting', type: 'bool', default: true, help: 'Akun grup tidak dapat menerima jurnal.' },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  'finance/taxes': {
+    module: 'fin', api: 'finance/taxes', label: 'Pajak', labelOne: 'Pajak',
+    lookupSource: 'taxes', noDetail: true,
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama pajak', type: 'text' },
+      { key: 'tax_type', label: 'Jenis', type: 'enum', enum: 'taxType' },
+      { key: 'rate', label: 'Tarif', type: 'percent', align: 'right' },
+      { key: 'object_code', label: 'Kode objek', type: 'code' },
+      { key: 'coa_account.code', label: 'Akun COA', type: 'code', sub: 'coa_account.name' },
+    ],
+    filters: [{ key: 'tax_type', label: 'Jenis', enum: 'taxType' }],
+    form: {
+      sections: [{
+        title: 'Pajak',
+        fields: [
+          { key: 'code', label: 'Kode', type: 'text', required: true },
+          { key: 'name', label: 'Nama pajak', type: 'text', required: true },
+          { key: 'tax_type', label: 'Jenis', type: 'select', enum: 'taxType', required: true },
+          { key: 'rate', label: 'Tarif (%)', type: 'percent', required: true },
+          { key: 'object_code', label: 'Kode objek pajak', type: 'text', help: 'Dipakai pada bukti potong e-Bupot. Salin dari daftar kode objek pajak DJP yang berlaku — kodenya berbeda per skema dan sesekali direvisi, jadi jangan disalin antar jenis pajak. Kosongkan bila pajak ini tidak dilaporkan lewat e-Bupot.' },
+          { key: 'coa_account_id', label: 'Akun COA', type: 'lookup', lookup: 'postableAccounts' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  'finance/journals': {
+    module: 'fin', api: 'finance/journals', label: 'Jurnal', labelOne: 'Jurnal',
+    columns: [
+      codeColumn,
+      { key: 'journal_date', label: 'Tanggal', type: 'date' },
+      { key: 'description', label: 'Keterangan', type: 'text', truncate: 70 },
+      { key: 'reference_type', label: 'Referensi', type: 'text' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'postingStatus' },
+      { key: 'date_from', label: 'Dari', type: 'date' },
+      { key: 'date_to', label: 'Sampai', type: 'date' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Voucher jurnal',
+        help: 'Minimal dua baris; total debit harus sama dengan total kredit.',
+        fields: [
+          { key: 'journal_date', label: 'Tanggal jurnal', type: 'date', required: true, defaultToday: true },
+          { key: 'description', label: 'Keterangan', type: 'text', required: true },
+          { key: 'reference_type', label: 'Tipe referensi', type: 'text' },
+          { key: 'reference_id', label: 'ID referensi', type: 'number' },
+        ],
+      }],
+      lines: [{
+        key: 'lines', label: 'Baris jurnal', min: 2,
+        columns: [
+          { key: 'account_id', label: 'Akun', type: 'lookup', lookup: 'postableAccounts', required: true, width: '30%' },
+          { key: 'description', label: 'Keterangan', type: 'text', width: '26%' },
+          { key: 'debit', label: 'Debit', type: 'currency', width: '18%' },
+          { key: 'credit', label: 'Kredit', type: 'currency', width: '18%' },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', width: '18%' },
+        ],
+        balance: { debit: 'debit', credit: 'credit' },
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'lines', label: 'Baris jurnal',
+        columns: [
+          { key: 'account.code', label: 'Kode', type: 'code' },
+          { key: 'account.name', label: 'Akun' },
+          { key: 'description', label: 'Keterangan' },
+          { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+          { key: 'debit', label: 'Debit', type: 'currency', align: 'right' },
+          { key: 'credit', label: 'Kredit', type: 'currency', align: 'right' },
+        ],
+        totals: ['debit', 'credit'],
+      }],
+    },
+    actions: [{
+      key: 'post', label: 'Posting Jurnal', path: '{id}/post', method: 'POST',
+      // fin.approve, bukan fin.post: JV manual adalah satu-satunya jalur
+      // pengeluaran tanpa dokumen, jadi postingnya kini butuh pemeriksa kedua —
+      // route API-nya sudah menuntut itu, tombolnya harus setuju.
+      perm: 'fin.approve', variant: 'primary', when: IS_DRAFT,
+      confirm: 'Posting jurnal ini ke buku besar? Jurnal terposting tidak dapat diubah.',
+    }],
+  },
+
+  'finance/ar-invoices': {
+    module: 'fin', api: 'finance/ar-invoices', label: 'Invoice Termin (AR)', labelOne: 'Invoice',
+    // The printed invoice is what the customer actually receives; the screen is
+    // only where it is prepared.
+    printable: { path: 'core/print/ar-invoices/{id}', prefix: 'invoice' },
+    columns: [
+      codeColumn,
+      { key: 'customer.name', label: 'Pelanggan', type: 'text', sub: 'contract.code' },
+      { key: 'invoice_date', label: 'Tgl invoice', type: 'date', hideOnNarrow: true },
+      { key: 'due_date', label: 'Jatuh tempo', type: 'date', hideOnNarrow: true },
+      { key: 'total', label: 'Total', type: 'currency', align: 'right' },
+      { key: 'outstanding', label: 'Sisa', type: 'currency', align: 'right', toneZero: 'green' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'customer_id', label: 'Pelanggan', lookup: 'customers' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      /*
+       * Temuan #32: server menolak (422 pada termin_id) penagihan termin yang
+       * milestone syaratnya belum tercapai, sampai payload membawa
+       * confirm_unachieved_milestone. Dialog menampilkan pesan server apa
+       * adanya (pesan itulah yang menyebut nama milestone-nya) lalu mengirim
+       * ulang dengan flag ini — dan invoice yang dikonfirmasi mencatat
+       * penyimpangannya permanen di uraiannya.
+       */
+      confirmResubmit: {
+        flag: 'confirm_unachieved_milestone',
+        test: /^termin_id$/,
+        title: 'Milestone syarat termin belum tercapai — tetap tagih?',
+        confirmLabel: 'Ya, tetap tagih (tercatat)',
+      },
+      sections: [{
+        title: 'Invoice penagihan',
+        help: 'Isi "Termin kontrak" untuk menagih satu termin — nilai, PPN dan retensi dihitung otomatis. Kosongkan untuk invoice manual.',
+        fields: [
+          { key: 'termin_id', label: 'Termin kontrak (ID)', type: 'number', createOnly: true },
+          {
+            key: 'withhold_retention', label: 'Tahan retensi sesuai kontrak', type: 'bool', createOnly: true,
+            // Temuan #73 — dua pola retensi: potongan per invoice (checkbox ini)
+            // vs termin "Retensi 5%" di jadwal. Satu kontrak hanya boleh satu pola.
+            help: 'Hanya untuk kontrak TANPA termin retensi di jadwalnya. Kontrak yang memuat termin "Retensi" menagih retensinya lewat termin itu — memotong di sini dobel, dan server menolaknya.',
+          },
+          { key: 'customer_id', label: 'Pelanggan', type: 'lookup', lookup: 'customers' },
+          { key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts' },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'description', label: 'Keterangan', type: 'text', span: 2 },
+          { key: 'dpp', label: 'DPP', type: 'currency' },
+          { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
+          { key: 'retention_withheld', label: 'Retensi ditahan', type: 'currency' },
+          { key: 'invoice_date', label: 'Tanggal invoice', type: 'date', defaultToday: true },
+          { key: 'due_date', label: 'Jatuh tempo', type: 'date' },
+        ],
+      }],
+    },
+    detail: { summary: ['dpp', 'ppn_amount', 'retention_withheld', 'total', 'amount_paid', 'outstanding'] },
+    actions: [
+      ...approvalActions('fin'),
+      {
+        key: 'faktur', label: 'Catat Faktur Pajak', path: '{id}/faktur', method: 'POST',
+        perm: 'fin.update', when: (row) => row.status === 'approved',
+        fields: [{ key: 'faktur_pajak_no', label: 'Nomor faktur pajak', type: 'text', required: true, help: 'mis. 010.000-26.00000001' }],
+      },
+      {
+        // Salah tagih adalah kejadian rutin. Sebelum ini dokumen yang terlanjur
+        // disetujui tidak bisa ditarik sama sekali: piutang/hutang fiktif
+        // menggantung selamanya dan termin terkunci "sudah ditagih" sehingga
+        // penggantinya justru ditolak. Membatalkan memposting jurnal PEMBALIK —
+        // jurnal aslinya tidak pernah disentuh.
+        key: 'cancel', label: 'Batalkan Dokumen', path: '{id}/cancel', method: 'POST',
+        perm: 'fin.post', variant: 'danger',
+        when: (row) => row.status === 'approved' && Number(row.amount_paid || 0) === 0,
+        fields: [{
+          key: 'reason', label: 'Alasan pembatalan', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen dan jejak audit. Minimal 5 karakter.',
+        }],
+      },
+    ],
+  },
+
+  'finance/ap-bills': {
+    module: 'fin', api: 'finance/ap-bills', label: 'Tagihan Vendor (AP)', labelOne: 'Tagihan',
+    columns: [
+      codeColumn,
+      { key: 'vendor.name', label: 'Vendor', type: 'text', sub: 'vendor.code' },
+      { key: 'bill_date', label: 'Tgl tagihan', type: 'date', hideOnNarrow: true },
+      { key: 'due_date', label: 'Jatuh tempo', type: 'date', hideOnNarrow: true },
+      { key: 'total_payable', label: 'Total bayar', type: 'currency', align: 'right' },
+      { key: 'outstanding', label: 'Sisa', type: 'currency', align: 'right', toneZero: 'green' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Tagihan vendor',
+        help: 'Isi PO atau opname subkon untuk menyalin nilainya otomatis; kosongkan keduanya untuk tagihan manual.',
+        fields: [
+          { key: 'purchase_order_id', label: 'Dari PO', type: 'lookup', lookup: 'purchaseOrders', createOnly: true },
+          { key: 'subcontract_claim_id', label: 'Dari opname subkon', type: 'lookup', lookup: 'progressClaims', createOnly: true },
+          {
+            key: 'is_advance', label: 'Tagihan uang muka (DP) atas PO', type: 'bool', createOnly: true,
+            help: 'DP ke pemasok sebelum barang datang. Dicatat sebagai uang muka, BUKAN beban proyek, '
+              + 'lalu dikreditkan kembali otomatis saat tagihan final PO yang sama disetujui.',
+          },
+          {
+            key: 'goods_receipt_id', label: 'Atas penerimaan barang (GRN)', type: 'lookup', lookup: 'goodsReceipts', createOnly: true,
+            help: 'Untuk barang yang sudah diterima tanpa PO: menagihkan akrual penerimaan yang '
+              + 'menggantung di 2-1150 supaya tidak mengendap di neraca.',
+          },
+          {
+            key: 'goods_receipt_ids', label: 'Tagihan parsial: GRN yang ditagih', type: 'multiselect', lookup: 'goodsReceipts', createOnly: true,
+            help: 'Isi bersama "Dari PO" untuk menagih sebagian pengiriman: pilih penerimaan (GRN) '
+              + 'PO itu yang difakturkan vendor — nilainya dihitung dari qty diterima x harga PO, '
+              + 'diskon dan uang muka dipotong proporsional. Kosongkan untuk menagih seluruh PO.',
+          },
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors' },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'vendor_invoice_no', label: 'No. invoice vendor', type: 'text', required: true },
+          { key: 'faktur_pajak_no', label: 'No. faktur pajak', type: 'text' },
+          { key: 'description', label: 'Keterangan', type: 'text', span: 2 },
+          { key: 'dpp', label: 'DPP', type: 'currency' },
+          { key: 'ppn_amount', label: 'PPN masukan', type: 'currency' },
+          { key: 'pph_tax_id', label: 'Jenis PPh dipotong', type: 'lookup', lookup: 'taxes' },
+          { key: 'pph_amount', label: 'PPh dipotong', type: 'currency', help: 'Kosongkan untuk menghitung dari tarif pajak yang dipilih.' },
+          { key: 'bill_date', label: 'Tanggal tagihan', type: 'date', defaultToday: true },
+          { key: 'due_date', label: 'Jatuh tempo', type: 'date' },
+        ],
+      }],
+    },
+    detail: { summary: ['dpp', 'ppn_amount', 'pph_amount', 'total_payable', 'amount_paid', 'outstanding'] },
+    actions: [
+      ...approvalActions('fin'),
+      {
+        // Salah tagih adalah kejadian rutin. Sebelum ini dokumen yang terlanjur
+        // disetujui tidak bisa ditarik sama sekali: piutang/hutang fiktif
+        // menggantung selamanya dan termin terkunci "sudah ditagih" sehingga
+        // penggantinya justru ditolak. Membatalkan memposting jurnal PEMBALIK —
+        // jurnal aslinya tidak pernah disentuh.
+        key: 'cancel', label: 'Batalkan Dokumen', path: '{id}/cancel', method: 'POST',
+        perm: 'fin.post', variant: 'danger',
+        when: (row) => row.status === 'approved' && Number(row.amount_paid || 0) === 0,
+        fields: [{
+          key: 'reason', label: 'Alasan pembatalan', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen dan jejak audit. Minimal 5 karakter.',
+        }],
+      },
+    ],
+  },
+
+  'finance/bank-accounts': {
+    module: 'fin', api: 'finance/bank-accounts', label: 'Rekening Bank', labelOne: 'Rekening Bank',
+    lookupSource: 'bankAccounts', noDetail: true,
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama', type: 'text' },
+      { key: 'bank_name', label: 'Bank', type: 'text' },
+      { key: 'account_no', label: 'No. rekening', type: 'code' },
+      { key: 'account_name', label: 'Atas nama', type: 'text' },
+      { key: 'coa_account.code', label: 'Akun COA', type: 'code' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+    ],
+    form: {
+      sections: [{
+        title: 'Rekening bank',
+        fields: [
+          { key: 'code', label: 'Kode', type: 'text', required: true },
+          { key: 'name', label: 'Nama rekening', type: 'text', required: true },
+          { key: 'bank_name', label: 'Bank', type: 'text', required: true },
+          { key: 'account_no', label: 'Nomor rekening', type: 'text', required: true },
+          { key: 'account_name', label: 'Atas nama', type: 'text', required: true },
+          { key: 'coa_account_id', label: 'Akun COA', type: 'lookup', lookup: 'postableAccounts', required: true },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  'finance/payments': {
+    module: 'fin', api: 'finance/payments', label: 'Pembayaran', labelOne: 'Pembayaran',
+    customDetail: 'payment',
+    columns: [
+      codeColumn,
+      { key: 'payment_date', label: 'Tanggal', type: 'date' },
+      { key: 'direction', label: 'Arah', type: 'enum', enum: 'paymentDirection' },
+      { key: 'bank_account.name', label: 'Rekening', type: 'text', sub: 'bank_account.bank_name' },
+      { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+      { key: 'reference', label: 'Referensi', type: 'text' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'paymentStatus' },
+      { key: 'direction', label: 'Arah', enum: 'paymentDirection' },
+    ],
+    // Uang keluar berjalan draf -> diajukan -> disetujui -> diposting. Yang
+    // ditolak harus bisa diperbaiki; yang sudah diajukan tidak, atau
+    // persetujuannya tidak berarti apa-apa.
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Pembayaran',
+        fields: [
+          { key: 'direction', label: 'Arah', type: 'select', enum: 'paymentDirection', required: true, createOnly: true },
+          { key: 'payment_date', label: 'Tanggal', type: 'date', required: true, defaultToday: true },
+          { key: 'bank_account_id', label: 'Rekening bank', type: 'lookup', lookup: 'bankAccounts', required: true },
+          { key: 'amount', label: 'Jumlah', type: 'currency', required: true },
+          { key: 'reference', label: 'Referensi transfer', type: 'text' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  'finance/project-costs': {
+    module: 'fin', api: 'finance/project-costs', label: 'Biaya Proyek', labelOne: 'Biaya Proyek',
+    noDetail: true, canCreate: false, canEdit: false, canDelete: false,
+    columns: [
+      { key: 'cost_date', label: 'Tanggal', type: 'date' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'cost_category', label: 'Kategori', type: 'enum', enum: 'costCategory' },
+      { key: 'description', label: 'Keterangan', type: 'text' },
+      { key: 'reference_type', label: 'Sumber', type: 'text' },
+      { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'cost_category', label: 'Kategori', enum: 'costCategory' },
+    ],
+  },
+
+  /* ======================================================== HR PAYROLL === */
+  'hr/employees': {
+    module: 'hr', api: 'hr/employees', label: 'Karyawan', labelOne: 'Karyawan',
+    lookupSource: 'employees', customDetail: 'employee',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama', type: 'text', sub: 'position' },
+      { key: 'department', label: 'Departemen', type: 'enum', enum: 'department' },
+      { key: 'employment_type', label: 'Status kerja', type: 'enum', enum: 'employmentType' },
+      { key: 'ptkp_status', label: 'PTKP', type: 'text', align: 'center' },
+      { key: 'base_salary', label: 'Gaji pokok', type: 'currency', align: 'right' },
+      { key: 'status', label: 'Status', type: 'status', width: '1%' },
+    ],
+    filters: [
+      { key: 'department', label: 'Departemen', enum: 'department' },
+      { key: 'status', label: 'Status', enum: 'employeeStatus' },
+      { key: 'employment_type', label: 'Status kerja', enum: 'employmentType' },
+    ],
+    form: {
+      sections: [
+        {
+          title: 'Data pribadi',
+          fields: [
+            { key: 'name', label: 'Nama lengkap', type: 'text', required: true, span: 2 },
+            { key: 'nik_ktp', label: 'NIK KTP', type: 'text', required: true, help: '16 digit' },
+            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'gender', label: 'Jenis kelamin', type: 'select', enum: 'gender', required: true },
+            { key: 'birth_date', label: 'Tanggal lahir', type: 'date', required: true },
+            { key: 'ptkp_status', label: 'Status PTKP', type: 'select', enum: 'ptkpStatus', required: true },
+          ],
+        },
+        {
+          title: 'Kepegawaian',
+          fields: [
+            { key: 'position', label: 'Jabatan', type: 'text', required: true },
+            { key: 'department', label: 'Departemen', type: 'select', enum: 'department', required: true },
+            { key: 'employment_type', label: 'Status kerja', type: 'select', enum: 'employmentType', required: true },
+            { key: 'pkwt_basis', label: 'Dasar PKWT', type: 'select', enum: 'pkwtBasis', help: 'PKWT selesainya pekerjaan tertentu sah tanpa tanggal akhir (PP 35/2021 Pasal 9) dan tidak ditagih pengawas tenggat.' },
+            { key: 'pkwt_end_date', label: 'Akhir PKWT', type: 'date', help: 'Wajib untuk PKWT jangka waktu — yang lewat tanggal demi hukum menjadi PKWTT (PP 35/2021).' },
+            { key: 'join_date', label: 'Tanggal masuk', type: 'date', required: true },
+            { key: 'status', label: 'Status', type: 'select', enum: 'employeeStatus', default: 'active' },
+            { key: 'resign_date', label: 'Tanggal resign', type: 'date' },
+          ],
+        },
+        {
+          title: 'Remunerasi & BPJS',
+          fields: [
+            { key: 'base_salary', label: 'Gaji pokok', type: 'currency', required: true },
+            { key: 'fixed_allowances', label: 'Tunjangan tetap', type: 'json', span: 2, help: 'Pasangan nama-tunjangan dan nominal, mis. jabatan / transport.' },
+            { key: 'bpjs_kesehatan_no', label: 'No. BPJS Kesehatan', type: 'text' },
+            { key: 'bpjs_tk_no', label: 'No. BPJS Ketenagakerjaan', type: 'text' },
+            { key: 'bank_name', label: 'Bank', type: 'text' },
+            { key: 'bank_account_no', label: 'No. rekening', type: 'text' },
+            { key: 'bank_account_name', label: 'Atas nama', type: 'text', span: 2 },
+          ],
+        },
+      ],
+    },
+  },
+
+  'hr/leave-requests': {
+    module: 'hr', api: 'hr/leave-requests', label: 'Cuti & Izin', labelOne: 'Pengajuan Cuti',
+    columns: [
+      codeColumn,
+      { key: 'employee.name', label: 'Karyawan', type: 'text' },
+      { key: 'leave_type', label: 'Jenis', type: 'enum', enum: 'leaveType' },
+      { key: 'start_date', label: 'Mulai', type: 'date' },
+      { key: 'end_date', label: 'Selesai', type: 'date' },
+      { key: 'day_count', label: 'Hari', type: 'number', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'employee_id', label: 'Karyawan', lookup: 'employees' },
+      { key: 'leave_type', label: 'Jenis', enum: 'leaveType' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Pengajuan cuti/izin',
+        fields: [
+          { key: 'employee_id', label: 'Karyawan', type: 'lookup', lookup: 'employees', required: true },
+          { key: 'leave_type', label: 'Jenis', type: 'select', enum: 'leaveType', required: true, help: 'Hanya cuti tahunan yang memotong saldo 12 hari (UU 13/2003 Pasal 79); sakit/izin/khusus tercatat tanpa memotong.' },
+          { key: 'start_date', label: 'Tanggal mulai', type: 'date', required: true },
+          { key: 'end_date', label: 'Tanggal selesai', type: 'date', required: true },
+          // day_count TIDAK ada di form: server yang menghitung hari kerja dari
+          // rentang (Minggu tidak dihitung) — angka ketikan akan diabaikan.
+          { key: 'reason', label: 'Alasan / keperluan', type: 'textarea', required: true, span: 2 },
+        ],
+      }],
+    },
+    actions: [...approvalActions('hr')],
+  },
+
+  'hr/attendance-recaps': {
+    module: 'hr', api: 'hr/attendance-recaps', label: 'Rekap Absensi', labelOne: 'Rekap Absensi',
+    noDetail: true,
+    columns: [
+      { key: 'employee.code', label: 'Kode', type: 'code' },
+      { key: 'employee.name', label: 'Karyawan', type: 'text' },
+      { key: 'period', label: 'Periode', type: 'period' },
+      { key: 'work_days', label: 'Hari kerja', type: 'number', align: 'right' },
+      { key: 'present_days', label: 'Hadir', type: 'number', align: 'right' },
+      { key: 'sick_days', label: 'Sakit', type: 'number', align: 'right' },
+      { key: 'leave_days', label: 'Cuti', type: 'number', align: 'right' },
+      { key: 'alpha_days', label: 'Alpa', type: 'number', align: 'right' },
+      { key: 'overtime_hours', label: 'Lembur (jam)', type: 'number', align: 'right', decimals: 2 },
+    ],
+    filters: [
+      { key: 'employee_id', label: 'Karyawan', lookup: 'employees' },
+      { key: 'period_year', label: 'Tahun', type: 'number' },
+      { key: 'period_month', label: 'Bulan', type: 'month' },
+    ],
+    form: {
+      sections: [{
+        title: 'Rekap absensi bulanan',
+        fields: [
+          { key: 'employee_id', label: 'Karyawan', type: 'lookup', lookup: 'employees', required: true },
+          { key: 'period_year', label: 'Tahun', type: 'number', required: true, defaultYear: true },
+          { key: 'period_month', label: 'Bulan', type: 'select', options: 'months', required: true },
+          { key: 'work_days', label: 'Hari kerja', type: 'number', required: true },
+          { key: 'present_days', label: 'Hari hadir', type: 'number', required: true },
+          { key: 'sick_days', label: 'Sakit', type: 'number', default: 0 },
+          { key: 'leave_days', label: 'Cuti', type: 'number', default: 0 },
+          { key: 'alpha_days', label: 'Alpa', type: 'number', default: 0 },
+          { key: 'overtime_hours', label: 'Jam lembur', type: 'number', step: '0.5', default: 0 },
+        ],
+      }],
+    },
+  },
+
+  'hr/payroll-runs': {
+    module: 'hr', api: 'hr/payroll-runs', label: 'Payroll', labelOne: 'Payroll Run',
+    customDetail: 'payroll',
+    columns: [
+      codeColumn,
+      { key: 'period', label: 'Periode', type: 'period' },
+      { key: 'run_type', label: 'Jenis', type: 'enum', enum: 'payrollRunType' },
+      { key: 'payment_date', label: 'Tgl bayar', type: 'date' },
+      { key: 'total_gross', label: 'Bruto', type: 'currency', align: 'right' },
+      { key: 'total_deductions', label: 'Potongan', type: 'currency', align: 'right' },
+      { key: 'total_net', label: 'Netto', type: 'currency', align: 'right', strong: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'run_type', label: 'Jenis', enum: 'payrollRunType' },
+      { key: 'period_year', label: 'Tahun', type: 'number' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Payroll run',
+        fields: [
+          { key: 'period_year', label: 'Tahun', type: 'number', required: true, defaultYear: true },
+          { key: 'period_month', label: 'Bulan', type: 'select', options: 'months', required: true },
+          { key: 'run_type', label: 'Jenis', type: 'select', enum: 'payrollRunType', required: true, default: 'regular' },
+          { key: 'payment_date', label: 'Tanggal pembayaran', type: 'date' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    actions: [
+      {
+        key: 'calculate', label: 'Hitung Payroll', path: '{id}/calculate', method: 'POST',
+        perm: 'hr.update', variant: 'primary', when: DRAFT_OR_REJECTED,
+        confirm: 'Hitung ulang payroll? Slip gaji yang sudah ada akan diganti.',
+      },
+      ...approvalActions('hr'),
+    ],
+  },
+
+  'hr/certificates': {
+    module: 'hr', api: 'hr/certificates', label: 'Sertifikat', labelOne: 'Sertifikat',
+    columns: [
+      { key: 'employee_id', label: 'Karyawan', type: 'rel', lookup: 'employees' },
+      { key: 'certificate_type', label: 'Jenis', type: 'enum', enum: 'certificateType' },
+      { key: 'name', label: 'Nama sertifikat', type: 'text', sub: 'number' },
+      { key: 'issuer', label: 'Penerbit', type: 'text' },
+      { key: 'issued_date', label: 'Terbit', type: 'date' },
+      { key: 'expiry_date', label: 'Kedaluwarsa', type: 'date' },
+    ],
+    filters: [
+      { key: 'employee_id', label: 'Karyawan', lookup: 'employees' },
+      { key: 'certificate_type', label: 'Jenis', enum: 'certificateType' },
+    ],
+    form: {
+      sections: [{
+        title: 'Sertifikat',
+        fields: [
+          { key: 'employee_id', label: 'Karyawan', type: 'lookup', lookup: 'employees', required: true },
+          { key: 'certificate_type', label: 'Jenis', type: 'select', enum: 'certificateType', required: true },
+          { key: 'name', label: 'Nama sertifikat', type: 'text', required: true, span: 2 },
+          { key: 'number', label: 'Nomor', type: 'text' },
+          { key: 'issuer', label: 'Penerbit', type: 'text', help: 'LPJK / Kemnaker / nama principal' },
+          { key: 'issued_date', label: 'Tanggal terbit', type: 'date' },
+          { key: 'expiry_date', label: 'Tanggal kedaluwarsa', type: 'date', help: 'Kosongkan bila tidak kedaluwarsa. Perpanjangan = ubah tanggal ini.' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  /* ====================================================== SERVICE DESK === */
+  'servicedesk/contracts': {
+    module: 'svc', api: 'servicedesk/contracts', label: 'Kontrak Layanan', labelOne: 'Kontrak Layanan',
+    lookupSource: 'serviceContracts',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Kontrak', type: 'text', sub: 'customer_name' },
+      { key: 'period_start', label: 'Mulai', type: 'date' },
+      { key: 'period_end', label: 'Berakhir', type: 'date' },
+      { key: 'contract_value', label: 'Nilai', type: 'currency', align: 'right' },
+      { key: 'sla_response_hours', label: 'SLA respons', type: 'number', align: 'right', suffix: ' jam' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'svcContractStatus' },
+      { key: 'customer_id', label: 'Pelanggan', lookup: 'customers' },
+    ],
+    form: {
+      sections: [{
+        title: 'Kontrak pemeliharaan',
+        fields: [
+          { key: 'customer_id', label: 'Pelanggan', type: 'lookup', lookup: 'customers', required: true },
+          { key: 'contract_id', label: 'Kontrak CRM', type: 'lookup', lookup: 'contracts' },
+          { key: 'name', label: 'Nama kontrak', type: 'text', required: true, span: 2 },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode berakhir', type: 'date', required: true },
+          { key: 'contract_value', label: 'Nilai kontrak', type: 'currency', required: true },
+          { key: 'billing_cycle', label: 'Siklus penagihan', type: 'select', enum: 'billingCycle', required: true },
+          { key: 'sla_response_hours', label: 'SLA respons (jam)', type: 'number', required: true },
+          { key: 'sla_resolution_hours', label: 'SLA penyelesaian (jam)', type: 'number', required: true },
+          { key: 'status', label: 'Status', type: 'select', enum: 'svcContractStatus', default: 'active' },
+          { key: 'coverage', label: 'Cakupan layanan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'sites', label: 'Lokasi layanan', min: 1,
+        columns: [
+          { key: 'site_name', label: 'Nama lokasi', type: 'text', required: true, width: '28%' },
+          { key: 'address', label: 'Alamat', type: 'text', width: '30%' },
+          { key: 'city', label: 'Kota', type: 'text', width: '14%' },
+          { key: 'pic_name', label: 'PIC', type: 'text', width: '14%' },
+          { key: 'pic_phone', label: 'Telepon PIC', type: 'text', width: '14%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'sites', label: 'Lokasi layanan',
+        columns: [
+          { key: 'site_name', label: 'Lokasi' },
+          { key: 'address', label: 'Alamat' },
+          { key: 'city', label: 'Kota' },
+          { key: 'pic_name', label: 'PIC' },
+          { key: 'pic_phone', label: 'Telepon' },
+        ],
+      }],
+    },
+  },
+
+  'servicedesk/tickets': {
+    module: 'svc', api: 'servicedesk/tickets', label: 'Tiket Layanan', labelOne: 'Tiket',
+    lookupSource: 'tickets', customDetail: 'ticket',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'customer_name' },
+      { key: 'category', label: 'Kategori', type: 'enum', enum: 'ticketCategory' },
+      { key: 'priority', label: 'Prioritas', type: 'priority' },
+      { key: 'reported_at', label: 'Dilaporkan', type: 'datetime' },
+      { key: 'resolution_due_at', label: 'SLA selesai', type: 'sla', breachKey: 'resolution_breached' },
+      { key: 'status', label: 'Status', type: 'status', width: '1%' },
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'ticketStatus' },
+      { key: 'priority', label: 'Prioritas', enum: 'ticketPriority' },
+      { key: 'category', label: 'Kategori', enum: 'ticketCategory' },
+      { key: 'service_contract_id', label: 'Kontrak', lookup: 'serviceContracts' },
+    ],
+    form: {
+      sections: [{
+        title: 'Tiket layanan',
+        help: 'SLA respons & penyelesaian dihitung otomatis dari kontrak (jam kerja, kecuali prioritas kritis yang 24/7).',
+        fields: [
+          { key: 'service_contract_id', label: 'Kontrak layanan', type: 'lookup', lookup: 'serviceContracts' },
+          { key: 'customer_id', label: 'Pelanggan', type: 'lookup', lookup: 'customers' },
+          { key: 'site_id', label: 'ID lokasi', type: 'number' },
+          { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
+          { key: 'category', label: 'Kategori', type: 'select', enum: 'ticketCategory', required: true },
+          { key: 'priority', label: 'Prioritas', type: 'select', enum: 'ticketPriority', required: true, default: 'medium' },
+          { key: 'channel', label: 'Kanal', type: 'select', enum: 'ticketChannel' },
+          { key: 'reported_by_name', label: 'Dilaporkan oleh', type: 'text' },
+          { key: 'reported_at', label: 'Waktu dilaporkan', type: 'datetime' },
+          { key: 'assigned_to', label: 'Teknisi', type: 'lookup', lookup: 'employees' },
+          { key: 'description', label: 'Deskripsi', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    actions: [
+      {
+        key: 'assign', label: 'Tugaskan', path: '{id}/assign', method: 'POST',
+        perm: 'svc.update', when: (row) => !['closed', 'cancelled'].includes(row.status),
+        fields: [{ key: 'employee_id', label: 'Teknisi', type: 'lookup', lookup: 'employees', required: true }],
+      },
+      {
+        key: 'activities', label: 'Tambah Aktivitas', path: '{id}/activities', method: 'POST',
+        perm: 'svc.update', when: (row) => !['closed', 'cancelled'].includes(row.status),
+        fields: [
+          { key: 'activity_type', label: 'Jenis aktivitas', type: 'select', enum: 'ticketActivityType', required: true, default: 'comment' },
+          { key: 'body', label: 'Isi', type: 'textarea', required: true },
+          { key: 'minutes_spent', label: 'Waktu (menit)', type: 'number' },
+        ],
+      },
+      {
+        key: 'resolve', label: 'Selesaikan', path: '{id}/resolve', method: 'POST',
+        perm: 'svc.update', variant: 'success',
+        when: (row) => !['resolved', 'closed', 'cancelled'].includes(row.status),
+        fields: [{ key: 'resolution_notes', label: 'Catatan penyelesaian', type: 'textarea', required: true }],
+      },
+      {
+        key: 'close', label: 'Tutup Tiket', path: '{id}/close', method: 'POST',
+        perm: 'svc.update', when: (row) => row.status === 'resolved',
+        confirm: 'Tutup tiket ini?',
+      },
+    ],
+  },
+
+  'servicedesk/preventive-schedules': {
+    module: 'svc', api: 'servicedesk/preventive-schedules', label: 'Jadwal Preventif', labelOne: 'Jadwal PM',
+    columns: [
+      { key: 'name', label: 'Jadwal', type: 'text', sub: 'service_contract_code' },
+      { key: 'site.site_name', label: 'Lokasi', type: 'text' },
+      { key: 'frequency', label: 'Frekuensi', type: 'enum', enum: 'pmFrequency' },
+      { key: 'next_due_date', label: 'Jatuh tempo', type: 'date', withRelative: true },
+      { key: 'assigned_to', label: 'Teknisi', type: 'rel', lookup: 'employees' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+    ],
+    filters: [{ key: 'service_contract_id', label: 'Kontrak', lookup: 'serviceContracts' }],
+    form: {
+      sections: [{
+        title: 'Jadwal pemeliharaan preventif',
+        fields: [
+          { key: 'service_contract_id', label: 'Kontrak layanan', type: 'lookup', lookup: 'serviceContracts', required: true },
+          { key: 'site_id', label: 'ID lokasi', type: 'number' },
+          { key: 'name', label: 'Nama jadwal', type: 'text', required: true, span: 2 },
+          { key: 'frequency', label: 'Frekuensi', type: 'select', enum: 'pmFrequency', required: true },
+          { key: 'next_due_date', label: 'Jatuh tempo berikutnya', type: 'date', required: true },
+          { key: 'assigned_to', label: 'Teknisi', type: 'lookup', lookup: 'employees' },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+          { key: 'checklist', label: 'Checklist', type: 'tags', span: 2, help: 'Satu poin per baris.' },
+        ],
+      }],
+    },
+    detail: { lists: [{ key: 'checklist', label: 'Checklist' }] },
+    collectionActions: [{
+      key: 'generate-now', label: 'Buat Tiket PM', path: 'generate-now', method: 'POST',
+      perm: 'svc.create', variant: 'primary',
+      confirm: 'Buat tiket untuk semua jadwal PM yang sudah jatuh tempo?',
+    }],
+  },
+
+  'servicedesk/field-reports': {
+    module: 'svc', api: 'servicedesk/field-reports', label: 'Berita Acara Lapangan', labelOne: 'Berita Acara',
+    columns: [
+      codeColumn,
+      { key: 'ticket_code', label: 'Tiket', type: 'code' },
+      { key: 'report_date', label: 'Tanggal', type: 'date' },
+      { key: 'technician_name', label: 'Teknisi', type: 'text' },
+      { key: 'customer_sign_name', label: 'TTD pelanggan', type: 'text' },
+      statusColumn,
+    ],
+    filters: [{ key: 'status', label: 'Status', enum: 'fieldReportStatus' }],
+    editableWhen: (row) => row.status === 'draft',
+    deletableWhen: (row) => row.status === 'draft',
+    form: {
+      sections: [{
+        title: 'Berita acara kunjungan',
+        fields: [
+          { key: 'ticket_id', label: 'Tiket', type: 'lookup', lookup: 'tickets', required: true },
+          { key: 'report_date', label: 'Tanggal kunjungan', type: 'date', required: true, defaultToday: true },
+          { key: 'technician_employee_id', label: 'Teknisi', type: 'lookup', lookup: 'employees', required: true },
+          { key: 'customer_sign_name', label: 'Nama penandatangan', type: 'text' },
+          // Wajib begitu ada baris sparepart: pengesahan pelanggan mengeluarkan
+          // barangnya dari gudang ini, dan sejak dry run di submit() berita acara
+          // bersuku-cadang tanpa gudang ditolak saat diajukan. Tanpa field ini
+          // form tidak pernah bisa mengisinya dan laporannya mentok di draf.
+          { key: 'warehouse_id', label: 'Gudang suku cadang', type: 'lookup', lookup: 'warehouses' },
+          { key: 'findings', label: 'Temuan', type: 'textarea', required: true, span: 2 },
+          { key: 'actions_taken', label: 'Tindakan', type: 'textarea', required: true, span: 2 },
+          { key: 'recommendations', label: 'Rekomendasi', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'parts', label: 'Sparepart terpakai',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '45%' },
+          { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '20%' },
+          { key: 'notes', label: 'Catatan', type: 'text', width: '35%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'parts', label: 'Sparepart terpakai',
+        columns: [
+          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+          { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+          { key: 'notes', label: 'Catatan' },
+        ],
+      }],
+    },
+    actions: [
+      {
+        key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
+        perm: 'svc.update', variant: 'primary', when: (row) => row.status === 'draft',
+      },
+      {
+        key: 'acknowledge', label: 'Sahkan Pelanggan', path: '{id}/acknowledge', method: 'POST',
+        perm: 'svc.update', variant: 'success', when: (row) => row.status === 'submitted',
+        fields: [{ key: 'customer_sign_name', label: 'Nama penandatangan pelanggan', type: 'text', required: true }],
+      },
+      {
+        // The only way back out of "diajukan", and it has to be on screen: a
+        // submitted berita acara that lists sparepart blocks the close of its
+        // own month until it is signed, and the signature can become impossible
+        // afterwards — Finance closes the month, or somebody posts a later
+        // movement on the same gudang/item and the mutasi-order guard refuses
+        // the bon for good. Without this button the report is unsignable,
+        // unerasable and undatable, and neither that month nor any month after
+        // it can ever be closed.
+        key: 'return-to-draft', label: 'Kembalikan ke Draf', path: '{id}/return-to-draft', method: 'POST',
+        perm: 'svc.update', when: (row) => row.status === 'submitted',
+        confirm: 'Kembalikan berita acara ini ke draf agar tanggal, gudang dan sparepart-nya bisa diperbaiki?',
+      },
+    ],
+  },
+
+  /* =========================================================== ASSETS === */
+  'assets/assets': {
+    module: 'ast', api: 'assets/assets', label: 'Aset', labelOne: 'Aset',
+    // The history endpoint carries deployments, maintenance and depreciation,
+    // none of which the plain show() loads.
+    lookupSource: 'assets', customDetail: 'asset',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama aset', type: 'text', sub: 'category.name' },
+      { key: 'serial_no', label: 'No. seri', type: 'code' },
+      { key: 'acquisition_cost', label: 'Harga perolehan', type: 'currency', align: 'right' },
+      { key: 'book_value', label: 'Nilai buku', type: 'currency', align: 'right' },
+      { key: 'current_project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'assetStatus' },
+      { key: 'category_id', label: 'Kategori', lookup: 'assetCategories' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    form: {
+      sections: [
+        {
+          title: 'Aset',
+          fields: [
+            { key: 'name', label: 'Nama aset', type: 'text', required: true, span: 2 },
+            { key: 'category_id', label: 'Kategori', type: 'lookup', lookup: 'assetCategories', required: true },
+            { key: 'serial_no', label: 'Nomor seri', type: 'text' },
+            { key: 'brand', label: 'Merek', type: 'text' },
+            { key: 'model', label: 'Model', type: 'text' },
+            { key: 'status', label: 'Status', type: 'select', enum: 'assetStatusEditable', editOnly: true },
+            { key: 'custodian_employee_id', label: 'Penanggung jawab', type: 'lookup', lookup: 'employees' },
+            { key: 'warehouse_id', label: 'Gudang', type: 'lookup', lookup: 'warehouses' },
+          ],
+        },
+        {
+          title: 'Perolehan & penyusutan',
+          fields: [
+            { key: 'acquisition_date', label: 'Tanggal perolehan', type: 'date', required: true },
+            { key: 'acquisition_cost', label: 'Harga perolehan', type: 'currency', required: true },
+            { key: 'salvage_value', label: 'Nilai residu', type: 'currency', default: 0 },
+            { key: 'useful_life_months', label: 'Umur manfaat (bulan)', type: 'number', required: true },
+            { key: 'depreciation_start_date', label: 'Mulai disusutkan', type: 'date' },
+            // disposal_date/value pindah ke aksi "Hapus Buku / Jual" — update
+            // biasa kini ditolak server karena jurnal pelepasan hanya
+            // diposting lewat jalur dispose (Temuan 55).
+            { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          ],
+        },
+      ],
+    },
+    actions: [{
+      key: 'deploy', label: 'Mobilisasi ke Proyek', path: '{id}/deploy', method: 'POST',
+      perm: 'ast.create', variant: 'primary', when: (row) => row.status === 'available',
+      fields: [
+        { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+        { key: 'deployed_from', label: 'Mulai', type: 'date', defaultToday: true },
+        { key: 'planned_until', label: 'Rencana sampai', type: 'date' },
+        { key: 'daily_rate_internal', label: 'Tarif internal per hari', type: 'currency' },
+        { key: 'notes', label: 'Catatan', type: 'textarea' },
+      ],
+    }, {
+      /*
+       * Satu-satunya jalur ke status disposed (update biasa menolaknya,
+       * Temuan 55): memposting jurnal pelepasan — harga perolehan dan
+       * akumulasi keluar dari neraca, laba/rugi diakui — lalu menandai aset.
+       * ast.post: mengeluarkan aset dari neraca sekelas memposting penyusutan.
+       */
+      key: 'dispose', label: 'Hapus Buku / Jual', path: '{id}/dispose', method: 'POST',
+      perm: 'ast.post', variant: 'danger',
+      when: (row) => row.status === 'available' || row.status === 'maintenance',
+      fields: [
+        { key: 'disposal_date', label: 'Tanggal pelepasan', type: 'date', required: true, defaultToday: true },
+        { key: 'disposal_value', label: 'Nilai pelepasan (hasil penjualan)', type: 'currency', required: true, default: 0, help: 'Isi 0 untuk scrap/hilang tanpa hasil penjualan.' },
+        { key: 'reason', label: 'Alasan (dijual / hilang / rusak total)', type: 'text', required: true },
+      ],
+    }],
+  },
+
+  'assets/categories': {
+    module: 'ast', api: 'assets/categories', label: 'Kategori Aset', labelOne: 'Kategori Aset',
+    lookupSource: 'assetCategories', noDetail: true,
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama kategori', type: 'text' },
+      { key: 'useful_life_months_default', label: 'Umur manfaat default', type: 'number', align: 'right', suffix: ' bln' },
+      { key: 'depreciation_account_hint', label: 'Akun beban', type: 'code' },
+      { key: 'accum_account_hint', label: 'Akun akumulasi', type: 'code' },
+      { key: 'asset_account_hint', label: 'Akun harga perolehan', type: 'code' },
+    ],
+    form: {
+      sections: [{
+        title: 'Kategori aset',
+        fields: [
+          { key: 'code', label: 'Kode', type: 'text', required: true },
+          { key: 'name', label: 'Nama kategori', type: 'text', required: true },
+          { key: 'useful_life_months_default', label: 'Umur manfaat default (bulan)', type: 'number', required: true },
+          { key: 'depreciation_account_hint', label: 'Kode akun beban penyusutan', type: 'text' },
+          { key: 'accum_account_hint', label: 'Kode akun akumulasi', type: 'text' },
+          { key: 'asset_account_hint', label: 'Kode akun harga perolehan', type: 'text', help: 'Dikredit saat aset dihapusbukukan/dijual (mis. 1-2300 Kendaraan). Tanpa akun ini pelepasan aset kategori ini ditolak.' },
+        ],
+      }],
+    },
+  },
+
+  'assets/deployments': {
+    module: 'ast', api: 'assets/deployments', label: 'Mobilisasi Aset', labelOne: 'Mobilisasi',
+    columns: [
+      codeColumn,
+      { key: 'asset.name', label: 'Aset', type: 'text', sub: 'asset.code' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'deployed_from', label: 'Dari', type: 'date' },
+      { key: 'planned_until', label: 'Rencana sampai', type: 'date' },
+      { key: 'daily_rate_internal', label: 'Tarif/hari', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'deploymentStatus' },
+    ],
+    form: {
+      sections: [{
+        title: 'Mobilisasi aset',
+        fields: [
+          { key: 'asset_id', label: 'Aset', type: 'lookup', lookup: 'assets', required: true, createOnly: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'deployed_from', label: 'Mulai', type: 'date', required: true, defaultToday: true, createOnly: true },
+          { key: 'planned_until', label: 'Rencana sampai', type: 'date' },
+          { key: 'daily_rate_internal', label: 'Tarif internal per hari', type: 'currency' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    actions: [{
+      key: 'return', label: 'Demobilisasi', path: '{id}/return', method: 'POST',
+      perm: 'ast.post', variant: 'primary', when: (row) => row.status === 'active',
+      fields: [
+        { key: 'returned_at', label: 'Tanggal kembali', type: 'date', defaultToday: true },
+        { key: 'notes', label: 'Catatan', type: 'textarea' },
+      ],
+    }],
+  },
+
+  'assets/maintenances': {
+    module: 'ast', api: 'assets/maintenances', label: 'Perawatan Aset', labelOne: 'Perawatan',
+    columns: [
+      codeColumn,
+      { key: 'asset.name', label: 'Aset', type: 'text', sub: 'asset.code' },
+      { key: 'maintenance_date', label: 'Tanggal', type: 'date' },
+      { key: 'maintenance_type', label: 'Jenis', type: 'enum', enum: 'maintenanceType' },
+      { key: 'cost', label: 'Biaya', type: 'currency', align: 'right' },
+      { key: 'next_due_date', label: 'Berikutnya', type: 'date', withRelative: true },
+    ],
+    filters: [
+      { key: 'asset_id', label: 'Aset', lookup: 'assets' },
+      { key: 'maintenance_type', label: 'Jenis', enum: 'maintenanceType' },
+    ],
+    form: {
+      sections: [{
+        title: 'Catatan perawatan',
+        fields: [
+          { key: 'asset_id', label: 'Aset', type: 'lookup', lookup: 'assets', required: true },
+          { key: 'maintenance_date', label: 'Tanggal', type: 'date', required: true, defaultToday: true },
+          { key: 'maintenance_type', label: 'Jenis perawatan', type: 'select', enum: 'maintenanceType', required: true },
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors' },
+          { key: 'cost', label: 'Biaya', type: 'currency', required: true, default: 0 },
+          { key: 'next_due_date', label: 'Jadwal berikutnya', type: 'date' },
+          { key: 'description', label: 'Uraian pekerjaan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  'assets/depreciation-runs': {
+    module: 'ast', api: 'assets/depreciation-runs', label: 'Penyusutan', labelOne: 'Run Penyusutan',
+    canEdit: false,
+    columns: [
+      codeColumn,
+      { key: 'period', label: 'Periode', type: 'text' },
+      { key: 'entries_count', label: 'Jml aset', type: 'number', align: 'right' },
+      { key: 'total_amount', label: 'Total penyusutan', type: 'currency', align: 'right' },
+      { key: 'posted_at', label: 'Diposting', type: 'datetime' },
+      statusColumn,
+    ],
+    filters: [{ key: 'status', label: 'Status', enum: 'postingStatus' }],
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Jalankan penyusutan',
+        help: 'Periode harus lebih baru dari periode terakhir yang diposting.',
+        fields: [
+          { key: 'year', label: 'Tahun', type: 'number', required: true, defaultYear: true },
+          { key: 'month', label: 'Bulan', type: 'select', options: 'months', required: true },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'entries', label: 'Rincian penyusutan',
+        columns: [
+          { key: 'asset.code', label: 'Kode', type: 'code' },
+          { key: 'asset.name', label: 'Aset' },
+          { key: 'amount', label: 'Beban bulan ini', type: 'currency', align: 'right' },
+          { key: 'book_value_after', label: 'Nilai buku setelah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: [{
+      key: 'post', label: 'Posting Penyusutan', path: '{id}/post', method: 'POST',
+      perm: 'ast.post', variant: 'primary', when: IS_DRAFT,
+      confirm: 'Posting run penyusutan ini? Akumulasi penyusutan dan nilai buku aset akan diperbarui.',
+    }],
+  },
+
+  /* ============================================================== IAM === */
+  'iam/users': {
+    module: 'iam', api: 'iam/users', label: 'Pengguna', labelOne: 'Pengguna',
+    lookupSource: 'users', noDetail: true,
+    deleteLabel: 'Nonaktifkan',
+    deleteConfirm: 'Nonaktifkan pengguna ini? Semua token API-nya dicabut. Pengguna tidak pernah dihapus permanen karena id-nya dipakai di dokumen.',
+    columns: [
+      { key: 'name', label: 'Nama', type: 'text', sub: 'email' },
+      { key: 'roles', label: 'Peran', type: 'tags' },
+      { key: 'employee_id', label: 'Karyawan', type: 'rel', lookup: 'employees' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+    ],
+    filters: [
+      { key: 'role', label: 'Peran', lookup: 'roles', valueKey: 'name' },
+      { key: 'is_active', label: 'Status', type: 'boolFilter' },
+    ],
+    form: {
+      sections: [{
+        title: 'Pengguna',
+        fields: [
+          { key: 'name', label: 'Nama', type: 'text', required: true },
+          { key: 'email', label: 'Email', type: 'text', required: true },
+          { key: 'password', label: 'Kata sandi', type: 'password', help: 'Minimal 8 karakter. Kosongkan saat mengubah untuk mempertahankan sandi lama.' },
+          { key: 'employee_id', label: 'Karyawan terkait', type: 'lookup', lookup: 'employees' },
+          { key: 'roles', label: 'Peran', type: 'multiselect', lookup: 'roles', valueKey: 'name', span: 2 },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  'iam/roles': {
+    module: 'iam', api: 'iam/roles', label: 'Peran & Hak Akses', labelOne: 'Peran',
+    lookupSource: 'roles', customDetail: 'role',
+    columns: [
+      { key: 'name', label: 'Peran', type: 'text' },
+      { key: 'users_count', label: 'Jumlah pengguna', type: 'number', align: 'right' },
+      { key: 'permissions', label: 'Hak akses', type: 'count', suffix: ' izin' },
+    ],
+    form: {
+      sections: [{
+        title: 'Peran',
+        fields: [{ key: 'name', label: 'Nama peran', type: 'text', required: true, span: 2 }],
+      }],
+      note: 'Hak akses diatur dari halaman detail peran.',
+    },
+  },
+};
+
+/** Sidebar structure. Each entry is gated by the module's `.view` permission. */
+export const NAV = [
+  {
+    label: 'Ringkasan', perm: null,
+    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+  },
+  {
+    label: 'Penjualan', perm: 'crm.view',
+    items: [
+      { label: 'Pelanggan', route: 'r/crm/customers' },
+      { label: 'Prospek', route: 'r/crm/leads' },
+      { label: 'Penawaran', route: 'r/crm/quotations' },
+      { label: 'Kontrak', route: 'r/crm/contracts' },
+      { label: 'Pekerjaan Tambah-Kurang', route: 'r/crm/contract-change-orders' },
+      // Temuan #78: agregasi menang/kalah yang datanya sudah lama dicatat.
+      { label: 'Analitik Win-Rate', route: 'pipeline' },
+      { label: 'Jaminan & Asuransi', route: 'r/crm/guarantees' },
+    ],
+  },
+  {
+    label: 'Estimasi', perm: 'est.view',
+    items: [
+      { label: 'AHSP', route: 'r/estimation/ahsp' },
+      { label: 'BOQ / RAB', route: 'r/estimation/boqs' },
+      { label: 'RAP', route: 'r/estimation/cost-budgets' },
+      { label: 'Riwayat Harga Satuan', route: 'harga-satuan' },
+    ],
+  },
+  {
+    label: 'Proyek', perm: 'prj.view',
+    items: [
+      { label: 'Daftar Proyek', route: 'r/projects' },
+      { label: 'Laporan Harian', route: 'r/projects/daily-reports' },
+      { label: 'Lapangan (mobile)', route: 'lapangan' },
+      { label: 'Progres Mingguan', route: 'r/projects/weekly-progress' },
+      { label: 'EVM & Baseline', route: 'evm' },
+      { label: 'Milestone', route: 'r/projects/milestones' },
+      { label: 'BAST', route: 'r/projects/bast' },
+      { label: 'Register K3 (SMK3)', route: 'r/projects/safety-incidents' },
+      { label: 'Laporan K3', route: 'k3' },
+      { label: 'Register Defect (Punch List)', route: 'defects' },
+      { label: 'Varian Material', route: 'varian' },
+      { label: 'Penugasan Personel', route: 'r/projects/manpower-assignments' },
+    ],
+  },
+  {
+    label: 'Pengadaan', perm: 'prc.view',
+    items: [
+      { label: 'Vendor & Subkon', route: 'r/procurement/vendors' },
+      { label: 'Dokumen Vendor', route: 'r/procurement/vendor-documents' },
+      { label: 'Permintaan (PR)', route: 'r/procurement/purchase-requisitions' },
+      { label: 'RFQ (Banding Penawaran)', route: 'r/procurement/rfqs' },
+      { label: 'Pesanan (PO)', route: 'r/procurement/purchase-orders' },
+      { label: 'Baris PO Terbuka', route: 'po-outstanding' },
+      { label: 'Evaluasi Vendor', route: 'r/procurement/vendor-evaluations' },
+    ],
+  },
+  {
+    label: 'Persediaan', perm: 'inv.view',
+    items: [
+      { label: 'Saldo Stok', route: 'stock' },
+      { label: 'Item', route: 'r/inventory/items' },
+      { label: 'Kategori Item', route: 'r/inventory/item-categories' },
+      { label: 'Gudang', route: 'r/inventory/warehouses' },
+      { label: 'Penerimaan (GRN)', route: 'r/inventory/goods-receipts' },
+      { label: 'Pengeluaran', route: 'r/inventory/issues' },
+      { label: 'Transfer', route: 'r/inventory/transfers' },
+      { label: 'Opname', route: 'r/inventory/stock-adjustments' },
+    ],
+  },
+  {
+    label: 'Subkontrak', perm: 'scm.view',
+    items: [
+      { label: 'SPK Subkon', route: 'r/subcontract/subcontracts' },
+      { label: 'Addendum SPK', route: 'r/subcontract/addenda' },
+      { label: 'Opname Subkon', route: 'r/subcontract/progress-claims' },
+    ],
+  },
+  {
+    label: 'Keuangan', perm: 'fin.view',
+    items: [
+      { label: 'Invoice Termin (AR)', route: 'r/finance/ar-invoices' },
+      { label: 'Tagihan Vendor (AP)', route: 'r/finance/ap-bills' },
+      { label: 'Pembayaran', route: 'r/finance/payments' },
+      { label: 'Kasir Kas Kecil', route: 'kas-kecil' },
+      { label: 'Kas Kecil & Kasbon', route: 'r/finance/petty-cash-funds' },
+      { label: 'Jurnal', route: 'r/finance/journals' },
+      { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
+      { label: 'Termin Siap Ditagih', route: 'siap-tagih' },
+      { label: 'Piutang Retensi', route: 'retensi' },
+      { label: 'Pengakuan Pendapatan', route: 'r/finance/revenue-recognition' },
+      { label: 'Periode Fiskal', route: 'periods' },
+      { label: 'Laporan Keuangan', route: 'reports' },
+      // Tepat di bawah Laporan Keuangan, bukan di sebelah Jurnal: buku besar
+      // adalah drill-down di balik neraca saldo, jadi orang yang baru membaca
+      // baris 1-1400 Rp 332.510.000 mencarinya di sini. Tanpa baris ini layar
+      // hanya bisa dicapai dengan mengetik #/buku-besar sendiri.
+      { label: 'Buku Besar', route: 'buku-besar' },
+      { label: 'Ekspor Pajak', route: 'tax-exports' },
+      { label: 'Kalender Pajak', route: 'kalender-pajak' },
+      { label: 'Rekonsiliasi Bank', route: 'bank-recon' },
+      { label: 'Bagan Akun', route: 'r/finance/accounts' },
+      { label: 'Pajak', route: 'r/finance/taxes' },
+      { label: 'Rekening Bank', route: 'r/finance/bank-accounts' },
+    ],
+  },
+  {
+    label: 'SDM & Payroll', perm: 'hr.view',
+    items: [
+      { label: 'Karyawan', route: 'r/hr/employees' },
+      { label: 'Sertifikat & PKWT', route: 'sertifikat' },
+      { label: 'Cuti & Izin', route: 'r/hr/leave-requests' },
+      { label: 'Absensi Harian', route: 'absensi' },
+      { label: 'Rekap Absensi', route: 'r/hr/attendance-recaps' },
+      { label: 'Payroll', route: 'r/hr/payroll-runs' },
+    ],
+  },
+  {
+    label: 'Layanan', perm: 'svc.view',
+    items: [
+      { label: 'Tiket', route: 'r/servicedesk/tickets' },
+      { label: 'Tiket Lewat SLA', route: 'sla-breaches' },
+      { label: 'Kontrak Layanan', route: 'r/servicedesk/contracts' },
+      { label: 'Jadwal Preventif', route: 'r/servicedesk/preventive-schedules' },
+      { label: 'Berita Acara', route: 'r/servicedesk/field-reports' },
+    ],
+  },
+  {
+    label: 'Aset', perm: 'ast.view',
+    items: [
+      { label: 'Daftar Aset', route: 'r/assets/assets' },
+      { label: 'Kategori Aset', route: 'r/assets/categories' },
+      { label: 'Mobilisasi', route: 'r/assets/deployments' },
+      { label: 'Perawatan', route: 'r/assets/maintenances' },
+      { label: 'Penyusutan', route: 'r/assets/depreciation-runs' },
+      { label: 'Utilisasi Aset', route: 'asset-utilization' },
+    ],
+  },
+  {
+    label: 'Sistem', perm: 'iam.view',
+    items: [
+      { label: 'Pengguna', route: 'r/iam/users' },
+      { label: 'Peran & Hak Akses', route: 'r/iam/roles' },
+      { label: 'Profil Perusahaan', route: 'company' },
+      // Carries its own permission so it reaches a warehouse or procurement
+      // officer, who has no business with the rest of Sistem. Any of the four
+      // create rights is enough to see the screen; the screen itself lists only
+      // the tables the caller may actually read.
+      { label: 'Impor Data Master', route: 'master-data', perm: ['inv.create', 'prc.create', 'crm.create', 'hr.create'] },
+      // Beside its sibling rather than under Estimasi: the two screens are one
+      // pair (each one's empty state points at the other), and this one spans
+      // two modules — penawaran is crm, BOQ/AHSP/RAP are est — so living under
+      // Estimasi (perm est.view) would hide it from the salesperson who imports
+      // penawaran. Its own perm carries it out of Sistem the same way its
+      // neighbour's does, so an estimator with est.create and no iam.view still
+      // sees it.
+      { label: 'Impor Dokumen', route: 'impor-dokumen', perm: ['crm.create', 'est.create'] },
+      { label: 'Pengaturan', route: 'settings' },
+    ],
+  },
+];
+
+export function resource(key) {
+  return RESOURCES[key] || null;
+}
+
+export { ENUMS };

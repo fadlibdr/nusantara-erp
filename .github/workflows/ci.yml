@@ -1,0 +1,134 @@
+# CI for the Nusantara Construction ERP.
+#
+#   test   — every push/PR: composer validate, code style (Pint), test suite
+#            on PHP 8.3 with the same extensions as the production Dockerfile
+#            (sqlite :memory: database — no services needed).
+#   docker — on version tags (v*), after test passes: build the production
+#            image and push it to the registry from repo secrets.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          # Mirror the production image (Dockerfile), plus sqlite for tests.
+          extensions: pdo_mysql, bcmath, gd, zip, intl, opcache, pcntl, redis, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # =======================================================================
+      # !! composer.lock IS NOT COMMITTED YET !!
+      #
+      # Until it is, every CI run (and every Docker build) resolves dependency
+      # versions FRESH from composer.json — builds are not reproducible.
+      #
+      # FIX THIS ON THE FIRST GREEN RUN: on a machine with PHP + Composer, run
+      #     composer update --no-interaction
+      # and commit the generated composer.lock. This workflow (and the
+      # Dockerfile's `COPY composer.json composer.lock* ./`) picks it up
+      # automatically and switches to reproducible `composer install`.
+      # =======================================================================
+      - name: Install dependencies
+        run: |
+          if [ -f composer.lock ]; then
+            composer install --no-interaction --no-progress --prefer-dist
+          else
+            echo "::warning title=composer.lock missing::Resolving dependencies from composer.json — commit a composer.lock for reproducible builds (see comment in .github/workflows/ci.yml)."
+            composer update --no-interaction --no-progress --prefer-dist
+          fi
+
+      - name: Code style (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run tests (sqlite in-memory)
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: php artisan test
+
+  docker:
+    name: docker
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Required repo secrets:
+      #   REGISTRY        e.g. ghcr.io  or  registry.example.co.id
+      #   REGISTRY_USER   registry username (for ghcr.io: the org/user name)
+      #   REGISTRY_TOKEN  registry password / access token
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.REGISTRY }}/${{ secrets.REGISTRY_USER }}/construction-erp:${{ github.ref_name }}
+            ${{ secrets.REGISTRY }}/${{ secrets.REGISTRY_USER }}/construction-erp:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # -----------------------------------------------------------------------
+      # Optional: deploy over SSH after a successful push. The production
+      # server deploys git-pull style (docker-compose.prod.yml builds the
+      # image locally), so this template checks out the tag and rebuilds
+      # there — see docs/DEPLOYMENT.md "Routine deployment". Uncomment and
+      # add secrets DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY to enable.
+      # -----------------------------------------------------------------------
+      # - name: Deploy to production over SSH
+      #   uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_SSH_KEY }}
+      #     script: |
+      #       set -eu
+      #       cd /opt/erp/construction-erp
+      #       git fetch --tags origin
+      #       git checkout ${{ github.ref_name }}
+      #       docker compose -f docker-compose.prod.yml build
+      #       docker compose -f docker-compose.prod.yml up -d --no-deps app queue scheduler nginx
+      #       docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force

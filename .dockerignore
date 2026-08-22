@@ -1,0 +1,63 @@
+# Applies to BOTH build stages (the vendor stage's `COPY . .` and the
+# runtime stage). Anything listed here never enters the build context.
+
+# --- VCS / CI ---------------------------------------------------------------
+.git
+.github
+.gitattributes
+.gitignore
+
+# --- Environment & secrets --------------------------------------------------
+# Config is injected at runtime via env_file — never baked into the image.
+# (.env.example / .env.production.example are templates; not needed at runtime.)
+.env
+.env.*
+auth.json
+
+# --- Dependencies (installed inside the image) ------------------------------
+/vendor
+/node_modules
+
+# --- Runtime state — never bake host state into the image -------------------
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing
+/storage/pail
+/storage/*.key
+/bootstrap/cache/*
+/public/hot
+/public/storage
+/database/*.sqlite
+
+# --- Dev / QA tooling -------------------------------------------------------
+/tests
+/.phpunit.cache
+.phpunit.result.cache
+phpunit.xml
+.editorconfig
+.phpactor.json
+/.idea
+/.vscode
+/.fleet
+/.nova
+/.zed
+
+# --- Documentation (not needed at runtime) ----------------------------------
+/docs
+**/*.md
+
+# --- Docker / deploy tooling not needed inside the PHP image ----------------
+Dockerfile
+.dockerignore
+docker-compose*.yml
+/deploy/nginx
+
+# --- Backup output (deploy/backup/backup.sh itself stays available) ---------
+/backups
+/deploy/backup/output
+/deploy/backup/archives
+/deploy/backup/*.sql
+/deploy/backup/*.sql.gz
+/deploy/backup/*.tar.gz

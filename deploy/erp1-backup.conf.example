@@ -1,0 +1,43 @@
+# Offsite backup destination for deploy/backup-erp1.sh.
+#
+# Install:  cp erp1-backup.conf.example /etc/erp1/backup.conf
+#           chmod 600 /etc/erp1/backup.conf
+#
+# Backups leave this machine ENCRYPTED (GPG AES-256) with the key at
+# /etc/erp1/backup.key. Keep a copy of that key somewhere that is not this
+# disk — a password manager entry is enough. Without it the offsite copies
+# are unreadable exactly when they are needed.
+#
+# Pick ONE mode and fill in its lines. Leaving OFFSITE_MODE empty makes every
+# backup run report "offsite not configured" and exit non-zero on purpose.
+#
+# FORMAT IS STRICT: plain KEY=value lines only — no spaces around '=', no
+# quotes, no shell syntax. The script validates before sourcing and refuses
+# the whole file otherwise (loudly, without harming the local backup).
+
+# --- another server you control (simplest; nothing to install) --------------
+# Authorize this host's key on the destination first:
+#   ssh-copy-id -i /root/.ssh/id_ed25519.pub backup@backup-host
+# The destination user needs: mkdir/ls/rm/sha256sum in the target directory.
+#
+#OFFSITE_MODE=rsync
+#OFFSITE_RSYNC_DEST=backup@backup-host:/srv/erp1-backups
+#OFFSITE_SSH_PORT=22
+
+# --- any cloud bucket via rclone (S3, B2, GCS, Drive, ...) ------------------
+# Configure the remote once, as root:  rclone config
+#
+#OFFSITE_MODE=rclone
+#OFFSITE_RCLONE_REMOTE=remote:bucket/erp1
+
+# --- shared -----------------------------------------------------------------
+# How long encrypted copies stay on the remote. Local retention (14 days) is
+# separate; offsite keeps more because it is the copy of last resort.
+#OFFSITE_KEEP_DAYS=30
+
+# Where the encryption key lives, if not the default.
+#OFFSITE_KEY=/etc/erp1/backup.key
+
+# After configuring, prove the whole path end to end:
+#   /var/www/erp1.pi2.co.id/deploy/backup-erp1.sh --offsite-only   -> "offsite ok"
+#   /var/www/erp1.pi2.co.id/deploy/backup-erp1.sh --restore-drill  -> "RESTORE DRILL PASSED"

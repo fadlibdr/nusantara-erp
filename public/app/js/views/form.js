@@ -1,0 +1,814 @@
+/* Schema-driven create/edit form, including repeatable line-item tables. */
+
+import { api } from '../api.js';
+import { el, clear, button, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog } from '../ui.js';
+import { ENUMS } from '../enums.js';
+import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
+import { combobox } from '../combobox.js';
+import { moneyInput } from '../money.js';
+import { MONTHS, rupiah, toDateInput, toDateTimeInput, today } from '../format.js';
+import { navigate } from '../router.js';
+
+/* ------------------------------------------------------ lookup field glue */
+
+/** The option list a lookup field renders; `valueKey` submits a column, not the id. */
+function lookupOptions(spec, rows) {
+  const options = optionsFor(spec.lookup, rows);
+  return spec.valueKey
+    ? options.map((option) => ({ ...option, value: option.row[spec.valueKey] }))
+    : options;
+}
+
+/* A source that answered 403, blew up, or is genuinely empty gives nothing to
+   pick from — the field says which of the three it is instead of sitting there
+   looking like a complete but unlucky list. */
+const lookupUsable = (state) => state.status === 'ok' && state.rows.length > 0;
+
+function lookupPlaceholder(spec, state) {
+  if (state.status === 'idle' || state.status === 'loading') return 'Memuat…';
+  if (state.status === 'forbidden') return 'Tidak ada hak akses';
+  if (state.status === 'failed') return 'Gagal memuat';
+  if (!state.rows.length) return 'Belum ada data';
+  return spec.required ? 'Pilih…' : '—';
+}
+
+/**
+ * What the box shows for a value that is not in the option list.
+ *
+ * This is the visible half of the bug the combobox exists to kill: a <select>
+ * handed a value with no matching <option> resets itself to '', read() returns
+ * null, and openForm writes that null into the PUT. subcontractors is filtered
+ * is_subcontractor:1 and postableAccounts is_postable:1, so unflagging a vendor
+ * and then editing its subcontract silently dropped the vendor on save. The id
+ * is now kept whatever the list says, and shown rather than hidden.
+ */
+function lookupLabel(value, options, state) {
+  if (value === null || value === undefined || value === '') return '';
+
+  const found = options.find((option) => String(option.value) === String(value));
+  if (found) return found.label;
+
+  // Nothing is proven while the rows are still coming.
+  if (state.status === 'idle' || state.status === 'loading') return '';
+  // Only a successful load proves the row is really gone from the source.
+  return state.status === 'ok' ? `#${value} (tidak ada di daftar)` : `#${value}`;
+}
+
+/**
+ * Build one input for a field descriptor; returns { node, read, write }.
+ * `compact` is passed only by buildLines — a line-table cell, not a form field.
+ */
+export function buildInput(spec, initial, { compact = false } = {}) {
+  const value = initial === undefined ? spec.default : initial;
+
+  switch (spec.type) {
+    /*
+     * A value the row must carry but nobody should type. po_item_id is the
+     * reason it exists: the three-way match lives or dies on the receipt line
+     * knowing which PO line it satisfies, and that id is meaningless to a
+     * warehouse clerk. Filled by "salin baris dari PO", never by hand.
+     */
+    case 'hidden': {
+      const node = el('input', { type: 'hidden' });
+      node.value = value ?? '';
+      return { node, read: () => (node.value === '' ? null : Number(node.value)) };
+    }
+
+    case 'textarea': {
+      const node = el('textarea', { rows: spec.rows || 3 });
+      node.value = value ?? '';
+      return { node, read: () => (node.value.trim() === '' ? null : node.value) };
+    }
+
+    case 'bool': {
+      const node = el('input', { type: 'checkbox' });
+      node.checked = Boolean(value);
+      return { node: el('.check-row', [node, el('label', { text: spec.checkboxLabel || spec.label })]), input: node, read: () => node.checked };
+    }
+
+    /*
+     * Rupiah lewat money.js, bukan <input type=number> polos: 15000000000 dan
+     * 1500000000 tak terbedakan mata, dan scroll-wheel bisa menggeser angkanya
+     * diam-diam. Ke-87 field currency di schema.js ikut tanpa satu pun edit
+     * skema; percent/qty/number tetap natif — bahaya miliaran itu khas currency.
+     * read() memulangkan Number yang sama dengan input lama, jadi snapshot
+     * dirty-check openForm tidak berubah makna.
+     */
+    case 'currency': {
+      return moneyInput({ value });
+    }
+
+    case 'percent': {
+      const node = el('input', { type: 'number', step: '0.01', min: spec.min ?? 0, max: spec.max ?? 100, inputmode: 'decimal' });
+      node.value = value ?? '';
+      const wrap = el('.input-affix.suffix', [el('span', { text: '%' }), node]);
+      return { node: wrap, input: node, read: () => (node.value === '' ? null : Number(node.value)) };
+    }
+
+    case 'qty': {
+      const node = el('input', { type: 'number', step: '0.001', min: spec.min ?? 0, inputmode: 'decimal' });
+      node.value = value ?? '';
+      return { node, read: () => (node.value === '' ? null : Number(node.value)) };
+    }
+
+    case 'number': {
+      const node = el('input', { type: 'number', step: spec.step || '1', min: spec.min, max: spec.max });
+      node.value = value ?? '';
+      return { node, read: () => (node.value === '' ? null : Number(node.value)) };
+    }
+
+    case 'date': {
+      const node = el('input', { type: 'date' });
+      node.value = value ? toDateInput(value) : (spec.defaultToday ? today() : '');
+      return { node, read: () => node.value || null };
+    }
+
+    case 'datetime': {
+      const node = el('input', { type: 'datetime-local' });
+      node.value = value ? toDateTimeInput(value) : '';
+      return { node, read: () => (node.value ? node.value.replace('T', ' ') : null) };
+    }
+
+    case 'password': {
+      const node = el('input', { type: 'password', autocomplete: 'new-password' });
+      return { node, read: () => (node.value === '' ? null : node.value) };
+    }
+
+    case 'select': {
+      const node = el('select');
+      node.appendChild(el('option', { value: '', text: spec.required ? 'Pilih…' : '—' }));
+      const options = spec.options === 'months'
+        ? MONTHS.map((label, index) => ({ value: index + 1, label }))
+        : (spec.enum ? ENUMS[spec.enum] : spec.options) || [];
+      options.forEach((option) => node.appendChild(el('option', { value: option.value, text: option.label })));
+      node.value = value ?? '';
+      return { node, read: () => (node.value === '' ? null : node.value) };
+    }
+
+    /*
+     * One combobox behind every reference field in the app. The old control was
+     * a <select> holding the entire source: reaching "Semen Portland Tipe I
+     * 40 kg" meant scrolling two thousand rows, on every line, on every PO.
+     */
+    case 'lookup': {
+      const state = sourceState(spec.lookup);
+      const options = lookupOptions(spec, state.rows);
+
+      const combo = combobox({
+        value: value === undefined || value === '' ? null : value,
+        label: lookupLabel(value, options, state),
+        options,
+        placeholder: lookupPlaceholder(spec, state),
+        allowEmpty: !spec.required,
+        notice: noticeFor(state),
+        compact,
+        onRetry: state.status === 'failed' ? () => retry() : null,
+      });
+
+      /*
+       * Unusable, but NOT `disabled`. A natively disabled input is not in the
+       * tab order at all: with the API down, a keyboard user on
+       * procurement/purchase-orders → Tambah tabbed from "Tanggal PO" straight
+       * to "Catatan", never met the required Vendor field, and then got a 422
+       * vendor_id back about a control they could neither reach nor hear — the
+       * sentence explaining why sits in that same unreachable field. Anyone
+       * missing pur.view got exactly the same silence. readOnly keeps the field
+       * tabbable and announced (the placeholder says "Gagal memuat" / "Tidak ada
+       * hak akses", and the popup still opens to show the full reason) while
+       * refusing every keystroke just as before.
+       *
+       * The three declarations are `.combo .combo-input:disabled` (app.css:917),
+       * repeated here because the field deliberately no longer matches it — a
+       * broken picker has to keep looking broken, especially in a 24%-wide item
+       * column where the placeholder is truncated.
+       */
+      const markUsable = (usable) => {
+        combo.input.readOnly = !usable;
+        combo.input.setAttribute('aria-disabled', String(!usable));
+        combo.input.style.backgroundColor = usable ? '' : 'var(--surface-3)';
+        combo.input.style.color = usable ? '' : 'var(--muted)';
+        combo.input.style.cursor = usable ? '' : 'not-allowed';
+      };
+
+      markUsable(lookupUsable(state));
+
+      const refresh = () => {
+        const next = sourceState(spec.lookup);
+        const nextOptions = lookupOptions(spec, next.rows);
+        combo.setOptions(nextOptions, {
+          label: lookupLabel(value, nextOptions, next),
+          placeholder: lookupPlaceholder(spec, next),
+          notice: noticeFor(next),
+          onRetry: next.status === 'failed' ? () => retry() : null,
+        });
+        markUsable(lookupUsable(next));
+      };
+
+      const retry = () => {
+        invalidate(spec.lookup); // status too, or a granted permission stays denied all session
+        refresh();               // straight back to "Memuat…" so the click is felt
+        loadSource(spec.lookup).then(refresh, refresh);
+      };
+
+      /*
+       * openForm and promptFields both await preload() before the first
+       * buildInput, so every real screen takes the synchronous path above. This
+       * is for a direct caller, and for a source nobody warmed.
+       *
+       * 'failed' belongs in that list. The <select> this replaced re-fetched on
+       * every build, so one 502 from the proxy during preload healed itself on
+       * the next render; gating on idle/loading alone left all 15 item cells of
+       * a purchase order dead for the life of the modal, showing a truncated
+       * "Gagal memuat" — and a compact cell renders no "Coba lagi" to press, so
+       * the only cure was closing the form and losing the header edits with it.
+       * loadSource's inflight map collapses those 15 calls into one request,
+       * which is exactly what the old control did.
+       */
+      if (state.status === 'idle' || state.status === 'loading' || state.status === 'failed') {
+        loadSource(spec.lookup).then(refresh, refresh);
+        // loadSource flips the source to 'loading' synchronously, so this second
+        // pass repaints "Gagal memuat" into "Memuat…" instead of leaving the
+        // clerk staring at last attempt's failure while a new one is in flight.
+        refresh();
+      }
+
+      return {
+        node: combo.node,
+        input: combo.input,
+        read: () => {
+          const picked = combo.read();
+          // Character for character the rule the <select> used, so all 94 fields
+          // put the same foreign key type in the payload as before.
+          return picked === null || picked === '' ? null : (spec.valueKey ? picked : Number(picked));
+        },
+      };
+    }
+
+    case 'multiselect': {
+      const box = el('div', {
+        style: {
+          border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)',
+          padding: '8px 10px', maxHeight: '190px', overflowY: 'auto',
+          display: 'flex', flexWrap: 'wrap', gap: '4px 14px',
+        },
+      });
+      const selected = new Set((Array.isArray(value) ? value : []).map(String));
+      loadSource(spec.lookup).then((rows) => {
+        clear(box);
+        optionsFor(spec.lookup, rows).forEach((option) => {
+          const key = String(spec.valueKey ? option.row[spec.valueKey] : option.value);
+          const checkbox = el('input', { type: 'checkbox' });
+          checkbox.checked = selected.has(key);
+          checkbox.addEventListener('change', () => {
+            if (checkbox.checked) selected.add(key);
+            else selected.delete(key);
+          });
+          box.appendChild(el('label', {
+            style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' },
+          }, [checkbox, option.label]));
+        });
+      });
+      return { node: box, read: () => [...selected] };
+    }
+
+    case 'tags': {
+      const node = el('textarea', { rows: 4, placeholder: 'Satu poin per baris' });
+      node.value = Array.isArray(value) ? value.join('\n') : (value ?? '');
+      return {
+        node,
+        read: () => {
+          const list = node.value.split('\n').map((line) => line.trim()).filter(Boolean);
+          return list.length ? list : null;
+        },
+      };
+    }
+
+    case 'json': {
+      const rows = el('div', { style: { display: 'grid', gap: '6px' } });
+      const addRow = (name = '', amount = '') => {
+        const nameInput = el('input', { type: 'text', placeholder: 'nama tunjangan', value: name });
+        const amountInput = el('input', { type: 'number', step: '0.01', placeholder: '0', value: amount });
+        const row = el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '6px' } }, [
+          nameInput, amountInput,
+          button('', { size: 'sm', variant: 'ghost', iconName: 'close', title: 'Hapus', onClick: () => row.remove() }),
+        ]);
+        row._read = () => (nameInput.value.trim() ? [nameInput.value.trim(), Number(amountInput.value || 0)] : null);
+        rows.appendChild(row);
+      };
+      Object.entries(value || {}).forEach(([name, amount]) => addRow(name, amount));
+      if (!Object.keys(value || {}).length) addRow();
+      const node = el('div', [rows, button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() })]);
+      return {
+        node,
+        read: () => {
+          const result = {};
+          [...rows.children].forEach((row) => {
+            const pair = row._read();
+            if (pair) result[pair[0]] = pair[1];
+          });
+          return Object.keys(result).length ? result : null;
+        },
+      };
+    }
+
+    default: {
+      const node = el('input', { type: 'text', maxlength: spec.maxlength });
+      node.value = value ?? '';
+      return { node, read: () => (node.value.trim() === '' ? null : node.value.trim()) };
+    }
+  }
+}
+
+/** Repeatable line-item table bound to one `lines` descriptor. */
+function buildLines(lineDef, initialRows, headerValues) {
+  const controls = [];
+  const body = el('tbody');
+
+  const hasTotal = typeof lineDef.total === 'function';
+  const hasBalance = Boolean(lineDef.balance);
+
+  const totalsRow = el('div.lines-total', {
+    style: { display: 'flex', justifyContent: 'flex-end', gap: '18px', padding: '10px 4px 0', fontSize: '13px', fontWeight: '600' },
+  });
+
+  function refreshTotals() {
+    clear(totalsRow);
+    if (hasTotal) {
+      const sum = controls.reduce((acc, row) => acc + (Number(lineDef.total(row.read())) || 0), 0);
+      totalsRow.appendChild(el('span', [el('span.muted', { text: 'Subtotal: ' }), el('span.num', { text: rupiah(sum) })]));
+    }
+    if (hasBalance) {
+      const debit = controls.reduce((acc, row) => acc + (Number(row.read()[lineDef.balance.debit]) || 0), 0);
+      const credit = controls.reduce((acc, row) => acc + (Number(row.read()[lineDef.balance.credit]) || 0), 0);
+      const balanced = Math.abs(debit - credit) <= 0.01 && debit > 0;
+      totalsRow.append(
+        el('span', [el('span.muted', { text: 'Debit: ' }), el('span.num', { text: rupiah(debit) })]),
+        el('span', [el('span.muted', { text: 'Kredit: ' }), el('span.num', { text: rupiah(credit) })]),
+        el('span', {
+          text: balanced ? 'Seimbang ✓' : `Selisih ${rupiah(Math.abs(debit - credit))}`,
+          style: { color: balanced ? 'var(--success)' : 'var(--danger)' },
+        }),
+      );
+    }
+  }
+
+  function addRow(data = {}) {
+    const inputs = {};
+    const hiddenNodes = [];
+    const cells = [];
+
+    for (const column of lineDef.columns) {
+      const control = buildInput(column, data[column.key], { compact: true });
+      inputs[column.key] = control;
+
+      // A hidden column rides inside the first cell: it holds a value, it is
+      // not a column the clerk sees or tabs through.
+      if (column.type === 'hidden') {
+        hiddenNodes.push(control.node);
+        continue;
+      }
+
+      (control.input || control.node).addEventListener('input', refreshTotals);
+      (control.input || control.node).addEventListener('change', refreshTotals);
+      cells.push(el('td', { style: column.width ? { width: column.width } : {} }, control.node));
+    }
+
+    if (hiddenNodes.length && cells.length) cells[0].append(...hiddenNodes.splice(0));
+
+    const row = el('tr', [
+      ...cells,
+      hasTotal ? el('td.right.row-total', { text: '—' }) : null,
+      el('td.right', button('', {
+        size: 'sm', variant: 'ghost', iconName: 'trash', title: 'Hapus baris',
+        onClick: () => {
+          const index = controls.indexOf(entry);
+          if (index >= 0) controls.splice(index, 1);
+          row.remove();
+          refreshTotals();
+        },
+      })),
+    ]);
+
+    const entry = {
+      read: () => Object.fromEntries(Object.entries(inputs).map(([key, control]) => [key, control.read()])),
+      row,
+      inputs,
+    };
+
+    if (hasTotal) {
+      const cell = row.querySelector('.row-total');
+      const update = () => { cell.textContent = rupiah(lineDef.total(entry.read())); };
+      row.addEventListener('input', update);
+      row.addEventListener('change', update);
+      update();
+    }
+
+    controls.push(entry);
+    body.appendChild(row);
+    refreshTotals();
+  }
+
+  (initialRows && initialRows.length ? initialRows : Array.from({ length: lineDef.min || 1 })).forEach((row) => addRow(row || {}));
+
+  function setRows(rows) {
+    controls.length = 0;
+    clear(body);
+    (rows.length ? rows : [{}]).forEach((row) => addRow(row));
+  }
+
+  /*
+   * Fill the lines from another document — "salin baris dari PO" on a goods
+   * receipt. The point is not typing convenience: it is the only way po_item_id
+   * ever reaches the server, and without it PoService::registerReceipt never
+   * runs, qty_received stays zero forever, and every final bill on a goods PO is
+   * refused until somebody closes the PO by hand.
+   */
+  const prefill = lineDef.prefill
+    ? button(lineDef.prefill.label, {
+      size: 'sm', variant: 'ghost', iconName: 'download',
+      onClick: async (event) => {
+        const sourceId = headerValues ? headerValues()[lineDef.prefill.sourceField] : null;
+
+        if (!sourceId) {
+          toast(lineDef.prefill.missingSource);
+          return;
+        }
+
+        try {
+          await withBusy(event.currentTarget, async () => {
+            const rows = await lineDef.prefill.load(sourceId, api);
+
+            if (!rows.length) {
+              toast(lineDef.prefill.emptyMessage || 'Tidak ada baris yang bisa disalin.');
+              return;
+            }
+
+            setRows(rows);
+            toast(`${rows.length} baris disalin.`);
+          });
+        } catch (error) {
+          toastError(error);
+        }
+      },
+    })
+    : null;
+
+  const node = el('.form-section', [
+    el('.lines-head', [
+      el('h3', { text: lineDef.label }),
+      el('.spacer'),
+      prefill,
+      button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() }),
+    ]),
+    lineDef.help ? el('.help', { text: lineDef.help, style: { marginBottom: '8px' } }) : null,
+    el('.table-wrap', el('table.lines', [
+      el('thead', el('tr', [
+        ...lineDef.columns.filter((column) => column.type !== 'hidden').map((column) => el('th', { text: column.label })),
+        hasTotal ? el('th.right', { text: 'Jumlah' }) : null,
+        el('th', { text: '' }),
+      ])),
+      body,
+    ])),
+    totalsRow,
+  ]);
+
+  const isFilled = (values) => Object.values(values).some((value) => value !== null && value !== '' && value !== false);
+
+  /*
+   * Baris TERISI, dalam urutan tampil — filternya SAMA PERSIS dengan read(),
+   * sehingga indeks server == indeks payload == indeks entries(). Itulah yang
+   * membuat 'items.6.qty' dari 422 selalu jatuh ke baris terlihat ke-7, bukan
+   * ke baris kosong yang tidak ikut terkirim.
+   */
+  const entries = () => controls.filter((entry) => isFilled(entry.read()));
+
+  return {
+    node,
+    read: () => entries().map((entry) => entry.read()),
+    entries,
+  };
+}
+
+/*
+ * Galat setingkat SEL untuk tabel baris. setFieldError buta secara struktural
+ * di sini: sel <td> tidak punya pembungkus .field — persis alasan items.6.qty
+ * tidak pernah sampai ke baris 7. Penanda dibersihkan saat sel itu diketik
+ * ulang ATAU nilainya di-commit, dan di awal setiap submit.
+ */
+function setCellError(control, message) {
+  const target = control.input || control.node;
+  const cell = target.closest ? target.closest('td') : null;
+  if (!cell) return;
+
+  cell.querySelectorAll('.err').forEach((node) => node.remove());
+  cell.classList.add('cell-invalid');
+  cell.appendChild(el('.err', { text: message }));
+  cell.addEventListener('input', () => clearCellError(cell), { once: true });
+  // Combobox yang di-commit murni lewat mouse (klik opsi, klik ×) sengaja
+  // hanya memancarkan 'change' (combobox.js) — tanpa pendengar ini penanda
+  // merah bertahan di atas nilai yang sudah sah. clearCellError idempoten,
+  // jadi pendengar sisa yang terpicu belakangan tidak berefek apa-apa.
+  cell.addEventListener('change', () => clearCellError(cell), { once: true });
+}
+
+function clearCellError(cell) {
+  cell.classList.remove('cell-invalid');
+  cell.querySelectorAll('.err').forEach((node) => node.remove());
+}
+
+/**
+ * Open a create/edit modal for a resource.
+ * `row` present => edit (PUT), absent => create (POST).
+ */
+export async function openForm({ def, key, row, prefill, onSaved }) {
+  const isEdit = Boolean(row);
+  const sections = def.form.sections || [];
+  const lineDefs = def.form.lines || [];
+
+  // Editing a header+lines document needs the full record, not the list row.
+  // A create can still arrive with values the caller already knows — "Tagih
+  // termin ini" knows the contract, the customer and which termin.
+  let record = row || prefill || null;
+  if (isEdit && lineDefs.length) {
+    try {
+      record = await api.get(`${def.api}/${row.id}`);
+    } catch {
+      record = row;
+    }
+  }
+
+  await preload([
+    ...sections.flatMap((section) => section.fields.map((f) => f.lookup)),
+    ...lineDefs.flatMap((line) => line.columns.map((c) => c.lookup)),
+  ]);
+
+  const controls = {};
+  const fieldControls = []; // [{ spec, control }] urut tampil — untuk validasi wajib-isi
+  const body = el('div');
+
+  for (const section of sections) {
+    const fields = section.fields.filter((spec) => (isEdit ? !spec.createOnly : !spec.editOnly));
+    if (!fields.length) continue;
+
+    const grid = el('.form-grid');
+    for (const spec of fields) {
+      const initial = record ? record[spec.key] : (spec.defaultYear ? new Date().getFullYear() : undefined);
+      const control = buildInput(spec, initial);
+      controls[spec.key] = control;
+      fieldControls.push({ spec, control });
+
+      const wrapper = spec.type === 'bool'
+        ? el('label.field', [el('label', { text: ' ' }), control.node, spec.help ? el('.help', { text: spec.help }) : null])
+        : field(spec.label, control.node, { required: spec.required, help: spec.help });
+
+      if (spec.span === 2) wrapper.classList.add('span2');
+      grid.appendChild(wrapper);
+    }
+
+    body.appendChild(el('.form-section', [
+      sections.length > 1 && section.title ? el('h3', { text: section.title }) : null,
+      section.help ? el('.alert.info', { style: { marginBottom: '12px' } }, section.help) : null,
+      grid,
+    ]));
+  }
+
+  const headerValues = () => Object.fromEntries(
+    Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()]),
+  );
+
+  const lineControls = lineDefs.map((lineDef) => {
+    const control = buildLines(lineDef, record ? record[lineDef.key] : null, headerValues);
+    body.appendChild(control.node);
+    return { def: lineDef, control };
+  });
+
+  if (def.form.note) {
+    body.appendChild(el('.alert.info', { style: { marginTop: '16px' } }, def.form.note));
+  }
+
+  const save = button(isEdit ? 'Simpan Perubahan' : 'Simpan', { variant: 'primary', type: 'submit' });
+
+  /*
+   * Unsaved-data guard: one snapshot of every control at open, compared on
+   * close. Not input-event tracking — "salin baris dari PO" replaces every line
+   * through setRows() without an input event reaching the container, and typing
+   * a character then deleting it would leave an event-tracked form dirty for
+   * good. Every read() in buildInput is synchronous and settled on the first
+   * tick, the combobox included: its read() returns the committed id and is
+   * never derived from rows that arrive later. With the old <select> this could
+   * not have worked at all — the options landed after the snapshot and
+   * select.value flipped from '' to the real id, so every edit form in the app
+   * would have opened already dirty and the prompt would be pure noise.
+   */
+  const snapshot = () => JSON.stringify([
+    Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()]),
+    lineControls.map(({ control }) => control.read()),
+  ]);
+  const pristine = snapshot();
+
+  const dialog = modal({
+    title: `${isEdit ? 'Ubah' : 'Tambah'} ${def.labelOne}`,
+    width: lineDefs.length ? 'wide' : '',
+    body,
+    // Batal sits right beside Simpan in .modal-foot; a mis-aimed click there
+    // loses the same 15 lines a mis-aimed Escape does.
+    footer: [button('Batal', { onClick: () => dialog.requestClose() }), save],
+    dirty: () => snapshot() !== pristine,
+  });
+
+  /*
+   * 'items.6.qty' dari 422 → sel qty pada baris terlihat ke-7. entries()
+   * memakai filter baris-terisi yang sama dengan read(), jadi indeks server
+   * (indeks payload) langsung menjadi indeks entries(). Kunci yang tidak
+   * berhasil dipetakan jatuh kembali ke jalur lama (setFieldError / toast),
+   * jadi tidak ada yang mundur.
+   */
+  function applyLineError(fieldKey, message, scrolled) {
+    const match = /^([A-Za-z_]\w*)\.(\d+)\.(\w+)$/.exec(fieldKey);
+    if (!match) return false;
+    const line = lineControls.find(({ def: lineDef }) => lineDef.key === match[1]);
+    if (!line) return false;
+    const entry = line.control.entries()[Number(match[2])];
+    const cell = entry && entry.inputs[match[3]];
+    if (!cell) return false;
+
+    setCellError(cell, message);
+    if (!scrolled.done) {
+      entry.row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      scrolled.done = true;
+    }
+    return true;
+  }
+
+  save.addEventListener('click', async () => {
+    // Bersihkan penanda putaran sebelumnya dulu — kegagalan lama tidak boleh
+    // menumpuk dengan hasil putaran ini.
+    body.querySelectorAll('.field.invalid').forEach((node) => {
+      node.classList.remove('invalid');
+      node.querySelectorAll('.err').forEach((err) => err.remove());
+    });
+    body.querySelectorAll('td.cell-invalid').forEach((cell) => clearCellError(cell));
+
+    /*
+     * Wajib-isi diperiksa SEBELUM request — hanya wajib-isi: format sudah
+     * dijamin input native date/number, dan aturan bisnis tetap milik server.
+     * Baris yang diperiksa adalah baris yang sama persis dengan yang akan
+     * dikirim read() (baris kosong tersaring), jadi tidak ada penanda pada
+     * baris yang tidak ikut terkirim.
+     */
+    const invalid = [];
+    for (const { spec, control } of fieldControls) {
+      if (!spec.required) continue;
+      const value = control.read();
+      if (value === null || value === '') {
+        setFieldError(control.input || control.node, 'Wajib diisi.');
+        invalid.push(control);
+      }
+    }
+    for (const { def: lineDef, control } of lineControls) {
+      for (const entry of control.entries()) {
+        for (const column of lineDef.columns) {
+          if (!column.required) continue;
+          const cell = entry.inputs[column.key];
+          const value = cell.read();
+          if (value === null || value === '') {
+            setCellError(cell, 'Wajib diisi.');
+            invalid.push(cell);
+          }
+        }
+      }
+    }
+    if (invalid.length) {
+      toast('Periksa isian yang ditandai.', { tone: 'err' });
+      const first = invalid[0].input || invalid[0].node;
+      first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      first.focus({ preventScroll: true });
+      return;
+    }
+
+    const payload = {};
+    for (const [fieldKey, control] of Object.entries(controls)) {
+      const value = control.read();
+      if (value !== null || isEdit) payload[fieldKey] = value;
+    }
+    for (const { def: lineDef, control } of lineControls) {
+      payload[lineDef.key] = control.read();
+    }
+
+    await withBusy(save, async () => {
+      const submit = () => (isEdit
+        ? api.put(`${def.api}/${record.id}`, payload)
+        : api.post(def.api, payload));
+
+      const finish = (saved) => {
+        invalidateByPath(def.api);
+        toast(`${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
+        dialog.close();
+        if (onSaved) onSaved(saved);
+      };
+
+      const paintErrors = (error) => {
+        if (error.errors) {
+          const scrolled = { done: false };
+          for (const [fieldKey, messages] of Object.entries(error.errors)) {
+            const message = [].concat(messages)[0];
+            if (applyLineError(fieldKey, message, scrolled)) continue;
+            const control = controls[fieldKey.split('.')[0]];
+            if (control) setFieldError(control.input || control.node, message);
+          }
+        }
+        toastError(error);
+      };
+
+      try {
+        finish(await submit());
+      } catch (error) {
+        /*
+         * Alur konfirmasi-lanjut (def.form.confirmResubmit — GRN harga 0
+         * pada baris tertaut PO adalah pemakainya, Temuan 72): server
+         * menolak 422 pada field yang cocok `test` sampai payload membawa
+         * `flag`. Dialog memakai pesan server apa adanya — pesan itulah
+         * yang menyebut nama barang berharga nol. Hanya berjalan bila SEMUA
+         * galat cocok pola: bila ada galat lain, dikonfirmasi pun kiriman
+         * ulang tetap ditolak, jadi galatnya dilukis biasa saja.
+         */
+        const rule = def.form.confirmResubmit;
+        const keys = error.errors ? Object.keys(error.errors) : [];
+        if (rule && !payload[rule.flag] && keys.length && keys.every((key) => rule.test.test(key))) {
+          const ok = await confirmDialog({
+            title: rule.title,
+            message: keys.map((key) => [].concat(error.errors[key])[0]).join(' '),
+            confirmLabel: rule.confirmLabel,
+          });
+          if (!ok) return;
+          payload[rule.flag] = true;
+          try {
+            finish(await submit());
+          } catch (retryError) {
+            paintErrors(retryError);
+          }
+          return;
+        }
+        paintErrors(error);
+      }
+    });
+  });
+}
+
+/** Ad-hoc modal form for lifecycle actions (approve note, assign, faktur…). */
+export async function promptFields(title, fields, { submitLabel = 'Kirim' } = {}) {
+  await preload(fields.map((spec) => spec.lookup));
+
+  return new Promise((resolve) => {
+    const controls = {};
+    const grid = el('.form-grid');
+
+    for (const spec of fields) {
+      const control = buildInput(spec, undefined);
+      controls[spec.key] = control;
+      const wrapper = spec.type === 'bool'
+        ? el('label.field', [el('label', { text: ' ' }), control.node])
+        : field(spec.label, control.node, { required: spec.required, help: spec.help });
+      wrapper.classList.add('span2');
+      grid.appendChild(wrapper);
+    }
+
+    const submit = button(submitLabel, { variant: 'primary' });
+    const dialog = modal({
+      title,
+      width: 'narrow',
+      body: grid,
+      footer: [button('Batal', {
+        // Resolve BEFORE closing, the same order as confirmDialog's cancel
+        // button in ui.js, and do not "tidy" it back. close() fires onClose,
+        // which settles this promise itself: today both answers are null so the
+        // order does not show, but the day promptFields gets a `dirty` guard —
+        // it is a form with lookups too — Batal routes through requestClose()
+        // and a surviving close() on this line would settle the promise before
+        // the user has answered the discard prompt. Every action with fields
+        // (faktur, assign, pembayaran retensi at custom.js:417) would then look
+        // cancelled and silently do nothing.
+        onClick: () => { resolve(null); dialog.close(); },
+      }), submit],
+      onClose: () => resolve(null),
+    });
+
+    submit.addEventListener('click', () => {
+      const payload = {};
+      let valid = true;
+      for (const spec of fields) {
+        const value = controls[spec.key].read();
+        if (spec.required && (value === null || value === '')) {
+          setFieldError(controls[spec.key].input || controls[spec.key].node, 'Wajib diisi.');
+          valid = false;
+        }
+        if (value !== null) payload[spec.key] = value;
+      }
+      if (!valid) return;
+      // Resolve before closing: close() fires onClose, which would settle this
+      // promise as `null` first and make the action look cancelled.
+      resolve(payload);
+      dialog.close();
+    });
+  });
+}
