@@ -7,8 +7,8 @@ PPN efektif 11% (PMK 131/2024), PPh final jasa konstruksi (PP 9/2022), PPh 21 me
 TER (PMK 168/2023), BPJS Kesehatan & Ketenagakerjaan dengan plafon, THR, terbilang,
 penomoran dokumen `PO/2026/VII/0001`.
 
-> Terverifikasi berjalan: 161 migrasi + seed demo penuh, PHPUnit hijau (2.992 uji,
-> 13.599 asersi), dan smoke test API (login, seluruh modul, alur
+> Terverifikasi berjalan: 161 migrasi + seed demo penuh, PHPUnit hijau (2.995 uji,
+> 13.610 asersi), dan smoke test API (login, seluruh modul, alur
 > create→submit→approve) lulus pada PHP 8.3 / SQLite.
 
 ## Modules
@@ -138,7 +138,7 @@ tinjau setiap tahun:
 ## Roadmap yang disarankan
 
 1. ~~Tes otomatis untuk matematika bisnis (PPh 21 TER, moving average, opname subkon,
-   laporan keuangan)~~ — **selesai**, `phpunit` menjalankan 2.992 tes.
+   laporan keuangan)~~ — **selesai**, `phpunit` menjalankan 2.995 tes.
 2. ~~Ekspor pajak & integrasi bank~~ — **selesai**:
    - e-Faktur (PPN keluaran) & e-Bupot (PPh dipotong), di *Keuangan › Ekspor Pajak*;
    - impor rekening koran (MT940 & CSV) + rekonsiliasi, di
