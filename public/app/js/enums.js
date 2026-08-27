@@ -94,13 +94,6 @@ export const ENUMS = {
     ['principal', 'Sertifikat Principal'], ['akta', 'Akta Perusahaan'],
     ['lainnya', 'Lainnya'],
   ]),
-  /* Cermin Modules\Procurement\Enums\VendorDocumentType. */
-  vendorDocumentType: opts([
-    ['nib', 'NIB'], ['siup', 'SIUP'], ['npwp', 'NPWP'], ['sppkp', 'SPPKP (PKP)'],
-    ['sbu_konstruksi', 'SBU Konstruksi'], ['skk', 'SKK Penanggung Jawab'],
-    ['principal', 'Sertifikat Principal'], ['akta', 'Akta Perusahaan'],
-    ['lainnya', 'Lainnya'],
-  ]),
 
   itemType: opts([
     ['material', 'Material'], ['sparepart', 'Sparepart'],
