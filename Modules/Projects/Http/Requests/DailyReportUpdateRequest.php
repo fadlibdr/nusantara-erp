@@ -5,6 +5,7 @@ namespace Modules\Projects\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Projects\Enums\Weather;
+use Modules\Projects\Rules\UniqueDailyReportDate;
 
 class DailyReportUpdateRequest extends FormRequest
 {
@@ -20,11 +21,20 @@ class DailyReportUpdateRequest extends FormRequest
         return [
             'report_date' => [
                 'sometimes',
+                // 'string' sebelum 'date': angka JSON 20260325 lolos aturan
+                // 'date' lalu di-cast model sebagai UNIX timestamp — tanggal
+                // 1970 tersimpan diam-diam. Formulir selalu mengirim string.
+                'string',
                 'date',
-                Rule::unique('prj_daily_reports', 'report_date')
-                    ->where('project_id', (int) ($this->input('project_id') ?? $report?->project_id))
-                    ->whereNull('deleted_at')
-                    ->ignore($report?->id),
+                // Per TANGGAL, laporan ini sendiri dikecualikan — lihat
+                // UniqueDailyReportDate untuk cacat string-compare yang
+                // digantikan. Proyeknya SELALU milik route model:
+                // DailyReportService::update tidak pernah memindahkan laporan
+                // antar proyek, dan versi yang memercayai input('project_id')
+                // bisa dikecoh — project_id palsu membuat aturan memeriksa
+                // proyek yang salah, lolos, lalu pecah 500 di indeks unik
+                // proyek yang sebenarnya.
+                new UniqueDailyReportDate($report?->project_id, $report?->id),
             ],
             'weather_am' => ['nullable', Rule::enum(Weather::class)],
             'weather_pm' => ['nullable', Rule::enum(Weather::class)],

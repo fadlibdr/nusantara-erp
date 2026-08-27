@@ -9,6 +9,7 @@ use Modules\Assets\Models\Asset;
 use Modules\Assets\Models\Deployment;
 use Modules\Assets\Services\AssetFormService;
 use Modules\Core\Models\Company;
+use Modules\Core\Services\FormPrintService;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\Guarantee;
@@ -5133,6 +5134,25 @@ class PrintableDocuments
     public function catalogue(?Authorizable $user): array
     {
         $catalogue = [];
+
+        // The seven bespoke Projects forms ride the same catalogue: printable
+        // has meant "served by the endpoint" since day one, and a catalogue
+        // that lists 33 of 40 makes the other seven undiscoverable to any
+        // client that trusts it (temuan T3). Same permission filter as below;
+        // slug collisions are impossible (PrintRegistryTest pins disjointness).
+        foreach (FormPrintService::catalogueRows() as $row) {
+            if ($user === null || ! $user->can($row['permission'])) {
+                continue;
+            }
+
+            $catalogue[] = [
+                'slug' => $row['slug'],
+                'resource' => $row['resource'],
+                'label' => $row['label'],
+                'idField' => $row['idField'],
+                'params' => $row['params'],
+            ];
+        }
 
         foreach ($this->keys() as $slug) {
             $definition = $this->definition($slug);

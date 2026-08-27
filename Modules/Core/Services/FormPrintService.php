@@ -59,11 +59,44 @@ class FormPrintService
      * refused exactly like an unknown slug, so a half-applied change cannot
      * reach a user as a 500.
      */
+    /**
+     * The seven bespoke forms, in the catalogue's row shape.
+     *
+     * The catalogue used to answer only for the declarative registry, so
+     * GET api/core/print/forms said 33 while the endpoint served 40 — the
+     * seven Projects forms were printable but undiscoverable (temuan T3,
+     * laporan v2 Bagian 10). The SPA already dedups by slug (printButtonsFor
+     * keeps a schema.js declaration over its catalogue twin), so listing them
+     * here draws no second button anywhere.
+     *
+     * @return array<int, array{slug: string, resource: string, label: string, idField: string, params: array<string, string>, permission: string}>
+     */
+    public static function catalogueRows(): array
+    {
+        $rows = [];
+
+        foreach (self::FORMS as $slug => $definition) {
+            $rows[] = [
+                'slug' => $slug,
+                'resource' => $definition['resource'],
+                'label' => $definition['label'],
+                'idField' => $definition['idField'],
+                'params' => $definition['params'],
+                'permission' => $definition['permission'],
+            ];
+        }
+
+        return $rows;
+    }
+
     private const FORMS = [
         'data-proyek' => [
             'label' => 'Data Proyek',
             'permission' => 'prj.view',
             'compose' => 'dataProyek',
+            'resource' => 'projects',
+            'idField' => 'id',
+            'params' => [],
         ],
         // FORM REGISTRY — tambahkan formulir baru tepat di bawah baris ini.
         'laporan-harian' => [
@@ -72,16 +105,25 @@ class FormPrintService
             // report is one printed page, and the project comes off the report.
             'permission' => 'prj.view',
             'compose' => 'laporanHarian',
+            'resource' => 'projects/daily-reports',
+            'idField' => 'id',
+            'params' => ['tanggal' => 'report_date'],
         ],
         'laporan-mingguan' => [
             'label' => 'Detail Schedule / Program Kerja',
             'permission' => 'prj.view',
             'compose' => 'laporanMingguan',
+            'resource' => 'projects/weekly-progress',
+            'idField' => 'project_id',
+            'params' => ['minggu' => 'week_no'],
         ],
         'daftar-temuan' => [
             'label' => 'Daftar Temuan / Defect List',
             'permission' => 'prj.view',
             'compose' => 'daftarTemuan',
+            'resource' => 'projects/defects',
+            'idField' => 'project_id',
+            'params' => [],
         ],
         // The three site permits. prj.view like the rest, and for the same
         // reason even though they print no project data beyond the letterhead:
@@ -91,16 +133,25 @@ class FormPrintService
             'label' => 'Izin Kerja Lapangan',
             'permission' => 'prj.view',
             'compose' => 'izinKerja',
+            'resource' => 'projects',
+            'idField' => 'id',
+            'params' => [],
         ],
         'izin-lembur' => [
             'label' => 'Izin Kerja Lembur',
             'permission' => 'prj.view',
             'compose' => 'izinLembur',
+            'resource' => 'projects',
+            'idField' => 'id',
+            'params' => [],
         ],
         'izin-material' => [
             'label' => 'Izin Masuk / Keluar Material & Peralatan',
             'permission' => 'prj.view',
             'compose' => 'izinMaterial',
+            'resource' => 'projects',
+            'idField' => 'id',
+            'params' => [],
         ],
     ];
 
