@@ -84,6 +84,44 @@ pointing at `127.0.0.1:8080` (file provider) with a certresolver; make sure
 commented-out `caddy` service (bottom of the file): uncomment it plus its two
 volumes, set `ERP_DOMAIN` in `.env`, and skip the host proxy entirely.
 
+### 2.1 Batas unggah lampiran (post_max_size / upload_max_filesize)
+
+Attachment size limits live in three places that must agree, and the deploy
+already sets them consistently — change one, change all:
+
+| Layer | Setting | Value | Where |
+|---|---|---|---|
+| PHP | `upload_max_filesize` | **25M** | `deploy/docker/php.ini` |
+| PHP | `post_max_size` | **26M** | `deploy/docker/php.ini` |
+| in-stack nginx | `client_max_body_size` | **26m** | `deploy/nginx/app.conf` |
+| host proxy | body limit | **26m** | section 2 above |
+
+The application enforces its own per-extension policy on top
+(`AttachmentService`): 5 MB default, 25 MB for `dwg`/`dxf`/`mpp`. The
+arithmetic that shapes the two upload routes: the JSON route carries files as
+base64, which inflates by a third — 5 MB becomes ~6.7 MB on the wire, safely
+inside `post_max_size`; 25 MB would become ~33.4 MB, over the 26M limit, which
+is why files of the 25 MB class travel raw on the multipart route
+(`POST api/core/attachments/upload`), where 25 MB + framing still fits 26M and
+exactly matches `upload_max_filesize`. A request the proxy or php-fpm refuses
+dies as an empty **413** before the app can say anything friendly (see
+Troubleshooting) — the limits above exist so that in practice only the app's
+own, explained refusals are ever hit.
+
+One deliberate seam remains: a multipart file over 25M whose body still fits
+`post_max_size` is dropped by PHP alone (`upload_max_filesize`), so Laravel
+answers **422 `The file failed to upload.`** — English, no size named —
+instead of the app's Indonesian per-extension message. Because the app's own
+cap is the same 25 MB, only a genuinely over-limit file can ever land there;
+the friendly message is what users see below that threshold.
+
+Uploaded attachments are **live data**, like the database: the backup tars
+`storage/app` (section 5), and code-sync scripts must keep excluding it —
+`deploy/sync-erp1.sh` excludes `storage/app/private/**` and
+`storage/app/public/**` from its `rsync --delete` precisely so a deploy can
+never wipe what users attached. That exclusion stays, whatever the limits
+above are tuned to.
+
 ## 3. First deployment (langkah demi langkah)
 
 **3.1 — Clone and configure**
@@ -430,6 +468,7 @@ brute-forcing the new password is bounded rather than free.
 | Browser calls fail with CORS errors | `CORS_ALLOWED_ORIGINS` empty or origin mismatch (scheme/port count) | Set the exact origin in `.env`, then recreate `app` (`up -d --no-deps app`) so config re-caches |
 | Redirects/URLs generated as `http://`, cookies rejected | Host proxy not sending `X-Forwarded-Proto`, or `FORCE_HTTPS` unset | Fix proxy headers (section 2); `FORCE_HTTPS=true` |
 | **413 Request Entity Too Large** on uploads | Host proxy body limit below 26 m | Add `client_max_body_size 26m;` (nginx) or equivalent on the host proxy |
+| **422 `The file failed to upload.`** on `attachments/upload` | File over `upload_max_filesize` (25M): PHP dropped it before Laravel saw it, body still fit `post_max_size` | Working as designed — the app's own cap is the same 25 MB (section 2.1). If legitimate files hit this, both numbers must move together |
 | Entrypoint warns `route:cache failed (closure routes?)` | A route file defines closure routes | Non-fatal — app runs with uncached routes; convert closures to controllers to re-enable the cache |
 | `ProductionSeeder` aborts about `ERP_ADMIN_*` | `ERP_ADMIN_EMAIL`/`ERP_ADMIN_PASSWORD` missing or too weak | Set them in `.env`, `up -d --no-deps app`, re-run the seed command (idempotent) |
 | `Permission denied` writing `storage/app` | Volume created with root ownership before the image's `erp` user ran | `docker compose -f docker-compose.prod.yml exec -u root app chown -R erp:erp /var/www/html/storage/app` |

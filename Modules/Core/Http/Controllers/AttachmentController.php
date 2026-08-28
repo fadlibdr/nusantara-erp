@@ -93,6 +93,55 @@ class AttachmentController extends ApiController
         }
     }
 
+    /**
+     * The multipart twin of store(), for the sizes base64-in-JSON cannot
+     * carry (a 25 MB drawing is ~33 MB of base64 — over the deployed 26M
+     * post_max_size; raw multipart fits). Same permission, same registry
+     * checks, same service path, same resource shape — only the transport
+     * differs.
+     */
+    public function upload(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'document_type' => ['required', 'string', Rule::in(AttachableDocuments::slugs())],
+            'document_id' => ['required', 'integer', 'min:1'],
+            // No size rule here: the per-extension limit is the service's,
+            // shared with the JSON route so the two can never disagree.
+            'file' => ['required', 'file'],
+            'caption' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy_m' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if (($denied = $this->deny($request, $data['document_type'], 'update')) !== null) {
+            return $denied;
+        }
+
+        try {
+            $document = $this->attachments->resolveDocument($data['document_type'], (int) $data['document_id']);
+
+            $file = $request->file('file');
+
+            $attachment = $this->attachments->storeBinary(
+                $document,
+                $file->getClientOriginalName(),
+                (string) file_get_contents($file->getRealPath()),
+                $data['caption'] ?? null,
+                $request->user()?->id,
+                [
+                    'latitude' => $data['latitude'] ?? null,
+                    'longitude' => $data['longitude'] ?? null,
+                    'accuracy_m' => $data['accuracy_m'] ?? null,
+                ],
+            );
+
+            return $this->created($attachment, "Lampiran {$attachment->original_name} disimpan.");
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
     public function download(Request $request, int $attachment): Response|JsonResponse
     {
         $found = $this->reachable($request, $attachment, 'view');

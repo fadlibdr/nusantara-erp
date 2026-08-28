@@ -533,13 +533,31 @@ F/IL-nya mencetak baris pekerjanya sendiri — tidak ada foto yang perlu ditempe
 kontrak layanan, jadwal preventif, payroll, rekap absensi, kalender pajak, dan dana kas
 kecil.
 
-Yang diterima: PDF, gambar (jpg/png/webp/gif/heic), Word, Excel, CSV, teks —
-**maksimal 5 MB per berkas**.
+Yang diterima: PDF, gambar (jpg/png/webp/gif/heic), Word, Excel, PowerPoint
+(pptx/ppt), CSV, teks, XML, gambar teknik AutoCAD (dwg/dxf), dan jadwal
+MS Project (mpp).
 
-Server memeriksa **isi berkas**, bukan namanya. Berkas yang isinya tidak cocok dengan
-ekstensinya ditolak: `Isi berkas terbaca sebagai <mime>, tidak cocok dengan ekstensi
-".<ext>". Berkas yang isinya berbeda dari namanya ditolak.` Kasus paling sering: berkas
-`.xlsx` yang diganti namanya menjadi `.csv`.
+Dua batas ukuran: **maksimal 5 MB per berkas**, kecuali **`.dwg`, `.dxf`, dan `.mpp`
+yang boleh sampai 25 MB** — gambar kerja dan jadwal proyek memang sebesar itu. Peramban
+menimbang lebih dulu dan menolak tanpa mengunggah: *"Berkas 30.1 MB melebihi batas
+25.0 MB."* Yang lolos ditimbang ulang server, dengan batas menurut ekstensinya:
+`Berkas berukuran 6.2 MB, melebihi batas 5 MB untuk berkas .pdf.`
+
+Server memeriksa **isi berkas**, bukan namanya. Yang ditolak, dengan pesan persisnya:
+
+- **Ekstensi di luar daftar:** `Jenis berkas ".zip" tidak diizinkan. Yang diterima:
+  pdf, jpg, jpeg, png, webp, gif, heic, doc, docx, xls, xlsx, csv, txt, dwg, dxf, mpp,
+  xml, pptx, ppt.` — `.svg`, HTML, dan semua format arsip sengaja tidak ada di daftar.
+- **Isi tidak cocok dengan ekstensi:** `Isi berkas terbaca sebagai <mime>, tidak cocok
+  dengan ekstensi ".<ext>". Berkas yang isinya berbeda dari namanya ditolak.` Kasus
+  paling sering: berkas `.xlsx` yang diganti namanya menjadi `.csv`. Kasus baru yang
+  penting: **DXF biner ditolak** (pesannya menyebut `application/octet-stream`) —
+  hanya DXF **ASCII** yang diterima, jadi ekspor ulang dari CAD sebagai ASCII DXF.
+- **`.xml` yang isinya HTML:** `Berkas .xml ini terlihat seperti dokumen HTML (diawali
+  tag <script>), bukan data XML. Berkas HTML tidak diizinkan.` Bagian dalam kurung
+  menyebut penanda HTML yang ditemukan di berkas Anda.
+- **Nama tanpa ekstensi:** `Nama berkas tidak memiliki ekstensi, jadi jenisnya tidak
+  dapat dipastikan.`
 
 Menghapus lampiran permanen: *"Berkasnya dihapus dari penyimpanan dan tidak dapat
 dikembalikan."*

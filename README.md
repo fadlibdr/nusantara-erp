@@ -243,7 +243,7 @@ satu event — jadi jenis dokumen baru ikut otomatis, asal terdaftar di
 
 ### Lampiran berkas
 
-Ada pada 22 jenis dokumen (lihat `Modules\Core\Support\AttachableDocuments`),
+Ada pada 31 jenis dokumen (lihat `Modules\Core\Support\AttachableDocuments`),
 muncul sebagai kartu **Lampiran** di layar detail. Izinnya ikut dokumennya:
 melihat lampiran tagihan vendor butuh `fin.view`, menambah butuh `fin.update`.
 
@@ -251,17 +251,26 @@ Yang ditolak, dan alasannya:
 
 - **Nama berkas tidak pernah menyentuh disk.** Nama simpan dibangkitkan
   (ULID), nama asli hanya label. `../../.env` dan `shell.php` adalah tulisan.
-- **Ekstensi dibatasi** — PDF, gambar, Word, Excel, CSV, teks. `.svg` sengaja
-  tidak ada: itu satu-satunya format gambar yang menjalankan skrip.
-- **Isi berkas diperiksa** dengan `finfo` dan harus cocok dengan ekstensinya.
-  Berkas HTML bernama `.pdf` ditolak — itulah cara unggahan menjadi XSS.
+- **Ekstensi dibatasi** — PDF, gambar, Word, Excel, PowerPoint, CSV/teks, XML,
+  gambar teknik (DWG/DXF), jadwal MS Project (MPP). `.svg` sengaja tidak ada:
+  itu satu-satunya format gambar yang menjalankan skrip. Arsip juga tidak —
+  isinya tidak bisa diperiksa di sini.
+- **Isi berkas diperiksa** dengan `finfo` dan harus cocok dengan ekstensinya —
+  MIME per tipe dipatok dari sampel biner asli (`tests/fixtures/attachments/`),
+  bukan dari registri. Berkas HTML bernama `.pdf` ditolak — itulah cara
+  unggahan menjadi XSS; `.xml` yang isinya HTML ditolak dengan sniff terpisah,
+  dan DXF hanya diterima dalam bentuk ASCII.
 - **Berkas tidak berada di web root.** Semuanya di `storage/app/private`, yang
   tidak dilayani nginx; satu-satunya jalan membacanya adalah endpoint yang
   memeriksa izin. Unduhan dikirim dengan `X-Content-Type-Options: nosniff`, dan
   hanya gambar serta PDF yang boleh tampil inline.
-- **Batas 5 MB.** Berkas dikirim sebagai base64 di dalam badan JSON biasa
-  (api.js mengirim semua badan sebagai JSON), sehingga 5 MB menjadi ~6,7 MB di
-  kabel — masih di bawah `post_max_size` php-fpm.
+- **Batas 5 MB — gambar teknik (dwg/dxf) dan jadwal MPP 25 MB.** Berkas kecil
+  dikirim sebagai base64 di dalam badan JSON biasa (api.js mengirim semua badan
+  sebagai JSON), sehingga 5 MB menjadi ~6,7 MB di kabel — masih di bawah
+  `post_max_size` php-fpm. Kelas 25 MB tidak mungkin lewat situ (~33 MB
+  base64), jadi ia naik mentah lewat rute multipart
+  `POST api/core/attachments/upload`; `api.uploadFile()` memilih rutenya
+  otomatis. Angka `php.ini` produksinya di `docs/DEPLOYMENT.md` §2.1.
 
 ### Lapangan & foto ber-GPS
 

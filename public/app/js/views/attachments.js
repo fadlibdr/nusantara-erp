@@ -1,13 +1,14 @@
 /* Attachments card for document detail screens.
  *
- * Files go up as base64 inside the normal JSON body — api.js authenticates on a
- * header and serialises every request as JSON, so multipart would mean a second
- * transport for one card. The 33% base64 overhead is why the server's raw cap
- * is well under php-fpm's post limit.
+ * Files go up through api.uploadFile(), which picks the transport by size: up
+ * to 5 MB as base64 inside the normal JSON body, above that (the 25 MB
+ * engineering-drawing class, P0-D) as multipart — 25 MB of base64 is ~33 MB of
+ * JSON, more than post_max_size on any deployment. Both routes land on the
+ * same server-side checks.
  *
- * Downloads go through fetch() rather than a plain <a href>, for the same
- * reason: a link carries no token header, so it would be a 401. The response
- * becomes a blob and the blob becomes a click. */
+ * Downloads go through fetch() rather than a plain <a href>: a link carries no
+ * token header, so it would be a 401. The response becomes a blob and the blob
+ * becomes a click. */
 
 import { api, session } from '../api.js';
 import { el, clear, button, icon, confirmDialog, errorState, toast, toastError, withBusy } from '../ui.js';
@@ -34,21 +35,27 @@ export const ATTACHABLE = new Set([
   'assets/assets',
 ]);
 
+/* Mirrors AttachmentService::MAX_BYTES / SIZE_LIMITS, drift caught by
+ * AttachmentSpaPolicyTest. The server enforces the real limits; checking here
+ * only saves reading and shipping a file the API would refuse anyway. */
 const MAX_BYTES = 5 * 1024 * 1024;
+const SIZE_LIMITS = {
+  dwg: 25 * 1024 * 1024,
+  dxf: 25 * 1024 * 1024,
+  mpp: 25 * 1024 * 1024,
+};
+
+/** The cap for one file, by its extension. */
+function sizeLimit(name) {
+  const dot = name.lastIndexOf('.');
+  const extension = dot === -1 ? '' : name.slice(dot + 1).toLowerCase();
+  return SIZE_LIMITS[extension] || MAX_BYTES;
+}
 
 function sizeLabel(bytes) {
   return bytes >= 1024 * 1024
     ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
     : `${Math.max(1, Math.round(bytes / 1024))} kB`;
-}
-
-function readAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Berkas tidak dapat dibaca.'));
-    reader.readAsDataURL(file);
-  });
 }
 
 async function download(attachment) {
@@ -142,7 +149,8 @@ export function attachmentsCard(slug, id, module) {
 function uploader(slug, id, onUploaded) {
   const input = el('input', {
     type: 'file',
-    accept: '.pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt',
+    // Kept in step with AttachmentService::ALLOWED by AttachmentSpaPolicyTest.
+    accept: '.pdf,.jpg,.jpeg,.png,.webp,.gif,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt,.dwg,.dxf,.mpp,.xml,.pptx,.ppt',
     style: { display: 'none' },
   });
 
@@ -156,20 +164,16 @@ function uploader(slug, id, onUploaded) {
     const file = input.files && input.files[0];
     if (!file) return;
 
-    if (file.size > MAX_BYTES) {
-      toastError(new Error(`Berkas ${sizeLabel(file.size)} melebihi batas ${sizeLabel(MAX_BYTES)}.`));
+    const limit = sizeLimit(file.name);
+    if (file.size > limit) {
+      toastError(new Error(`Berkas ${sizeLabel(file.size)} melebihi batas ${sizeLabel(limit)}.`));
       input.value = '';
       return;
     }
 
     await withBusy(pick, async () => {
       try {
-        await api.post('core/attachments', {
-          document_type: slug,
-          document_id: id,
-          filename: file.name,
-          content: await readAsBase64(file),
-        });
+        await api.uploadFile(file, { document_type: slug, document_id: id });
         toast(`${file.name} dilampirkan.`);
         onUploaded();
       } catch (error) {
@@ -184,7 +188,8 @@ function uploader(slug, id, onUploaded) {
     pick,
     input,
     el('.help', {
-      text: `PDF, gambar, Word, Excel, CSV atau teks — maksimal ${sizeLabel(MAX_BYTES)}. `
+      text: 'PDF, gambar, Word, Excel, PowerPoint, CSV/teks, XML, gambar teknik (DWG/DXF) atau jadwal (MPP) — '
+        + `maksimal ${sizeLabel(MAX_BYTES)}, khusus DWG, DXF dan MPP ${sizeLabel(SIZE_LIMITS.dwg)}. `
         + 'Isi berkas diperiksa, jadi berkas yang isinya tidak sesuai namanya akan ditolak.',
     }),
   ]);

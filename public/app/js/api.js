@@ -86,14 +86,20 @@ async function request(method, path, { body, params, raw = false } = {}) {
   // it, so the gate would reject every API call and the 401 would read as an
   // expired session. The API accepts either header — see IamServiceProvider.
   if (token) headers['X-Api-Token'] = token;
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  // A FormData body passes through untouched, and its Content-Type must NOT be
+  // set here: the browser writes multipart/form-data with the boundary it
+  // chose, and a hand-set header would omit that boundary, leaving the server
+  // an unparseable body.
+  const multipart = body instanceof FormData;
+  if (body !== undefined && !multipart) headers['Content-Type'] = 'application/json';
 
   let response;
   try {
     response = await fetch(buildUrl(path, params), {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || multipart ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'Tidak dapat terhubung ke server.');
@@ -167,6 +173,54 @@ async function requestBlob(path) {
   return response.blob();
 }
 
+/**
+ * The largest file the JSON attachment route can carry, mirroring
+ * AttachmentService::MAX_BYTES (drift caught by AttachmentSpaPolicyTest).
+ * Base64 inflates by a third, so 5 MB raw is ~6.99 M characters — just inside
+ * the server's 7 000 000-char content rule. One byte more and the JSON route
+ * would refuse it, which is what the multipart route below is for.
+ */
+const JSON_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+
+function readAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    // reader.result is a data: URI; the server strips the prefix itself.
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Berkas tidak dapat dibaca.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * One file onto one document, on whichever transport can carry it.
+ *
+ * Up to 5 MB goes as base64 inside the ordinary JSON body (POST
+ * core/attachments) — the route this client has always used. Bigger files (the
+ * 25 MB engineering-drawing class, P0-D) travel raw as multipart form data to
+ * core/attachments/upload, because 25 MB of base64 is ~33 MB of JSON — beyond
+ * post_max_size on any deployment. Same fields, same server-side checks, same
+ * response shape: the two routes land on one policy in AttachmentService.
+ *
+ * @param {File} file
+ * @param {object} fields document_type + document_id, optionally caption,
+ *                        latitude, longitude, accuracy_m
+ */
+async function uploadFile(file, fields) {
+  if (file.size <= JSON_UPLOAD_MAX_BYTES) {
+    return request('POST', 'core/attachments', {
+      body: { ...fields, filename: file.name, content: await readAsBase64(file) },
+    });
+  }
+
+  const form = new FormData();
+  form.append('file', file, file.name);
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined && value !== null) form.append(key, value);
+  }
+  return request('POST', 'core/attachments/upload', { body: form });
+}
+
 export const api = {
   get: (path, params) => request('GET', path, { params }),
   blob: (path) => requestBlob(path),
@@ -175,6 +229,7 @@ export const api = {
   post: (path, body) => request('POST', path, { body }),
   put: (path, body) => request('PUT', path, { body }),
   del: (path) => request('DELETE', path),
+  uploadFile,
 };
 
 export async function login(email, password) {

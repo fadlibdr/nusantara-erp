@@ -109,6 +109,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('attachments', [AttachmentController::class, 'index']);
     Route::post('attachments', [AttachmentController::class, 'store']);
+    // Multipart, for the 25 MB class (dwg/dxf/mpp) that base64-inside-JSON
+    // arithmetically cannot carry — see AttachmentService::MAX_BYTES.
+    Route::post('attachments/upload', [AttachmentController::class, 'upload']);
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->whereNumber('attachment');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->whereNumber('attachment');
 });
