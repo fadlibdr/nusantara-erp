@@ -31,6 +31,7 @@ use Modules\Projects\Models\Defect;
 use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WorkPermit;
+use Modules\Quality\Models\Inspection;
 use Modules\ServiceDesk\Models\FieldReport;
 use Modules\ServiceDesk\Models\Ticket;
 use Modules\Subcontract\Models\ProgressClaim;
@@ -69,6 +70,14 @@ class AttachableDocuments
          */
         'engineering/drawing-submittals' => ['class' => DrawingSubmittal::class, 'prefix' => 'eng', 'label' => 'Persetujuan gambar (SDS)'],
         'engineering/material-submittals' => ['class' => MaterialSubmittal::class, 'prefix' => 'eng', 'label' => 'Persetujuan material (SMS)'],
+        /*
+         * P1-QC — inspection photos ride the INSPECTION sheet: the photo of the
+         * exposed rebar IS the evidence the checklist verdict rests on. The NCR
+         * and the concrete sample are deliberately NOT attachable here — an
+         * NCR's evidence is the inspection it cites, and a sample's is its
+         * computed break sheet, not a dropped photo the pass/fail never saw.
+         */
+        'quality/inspections' => ['class' => Inspection::class, 'prefix' => 'qc', 'label' => 'Inspeksi mutu (QCI)'],
         'estimation/boqs' => ['class' => Boq::class, 'prefix' => 'est', 'label' => 'BOQ / RAB'],
         'estimation/cost-budgets' => ['class' => CostBudget::class, 'prefix' => 'est', 'label' => 'RAP'],
         'projects/projects' => ['class' => Project::class, 'prefix' => 'prj', 'label' => 'Proyek'],

@@ -39,13 +39,22 @@ class RoleSeeder extends Seeder
          * refuses the submittal's own creator). direktur inherits eng.view +
          * eng.approve through the PREFIXES expansion above, admin everything.
          */
+        /*
+         * P1-QC — qc.* follows the eng.* reasoning: quality inspections and NCRs
+         * are prepared by the site and the project's own QC, and INTERNALLY
+         * authorised by the Manajer Proyek, so qc.approve lands on the same role
+         * that holds prj.approve/eng.approve. qc.approve also covers VERIFYING an
+         * NCR (accepting that a correction held is approve-adjacent power) and
+         * approving an inspection sheet. direktur inherits qc.view + qc.approve
+         * through the PREFIXES expansion above; admin everything.
+         */
         $this->seedRole('project-manager', array_merge(
-            $this->expand(['prj', 'est', 'scm', 'inv', 'ast', 'eng'], ['view', 'create', 'update']),
-            ['prj.approve', 'eng.approve'],
+            $this->expand(['prj', 'est', 'scm', 'inv', 'ast', 'eng', 'qc'], ['view', 'create', 'update']),
+            ['prj.approve', 'eng.approve', 'qc.approve'],
         ));
 
         $this->seedRole('site-manager', array_merge(
-            $this->expand(['prj', 'eng'], ['view', 'create', 'update']),
+            $this->expand(['prj', 'eng', 'qc'], ['view', 'create', 'update']),
             $this->expand(['inv'], ['view', 'create']),
         ));
 

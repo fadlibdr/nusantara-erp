@@ -18,6 +18,9 @@ use Modules\Estimation\Models\CostBudget;
 use Modules\Estimation\Services\AhspService;
 use Modules\Estimation\Services\BoqService;
 use Modules\Estimation\Services\RapService;
+use Modules\Quality\Http\Requests\InspectionTemplateStoreRequest;
+use Modules\Quality\Models\InspectionTemplate;
+use Modules\Quality\Services\InspectionTemplateService;
 
 /**
  * What can be loaded in bulk when one file carries whole DOCUMENTS, and the
@@ -615,6 +618,75 @@ class ImportableDocuments
                     ['tipe' => 'item', 'dokumen' => 'RAP-GRAHA', 'item_boq' => 'A.1', 'kategori' => 'alat',
                         'uraian' => 'Pembersihan lahan - excavator', 'volume' => '1.500', 'satuan' => 'm2',
                         'harga_satuan' => '2.800', 'jumlah' => '4.200.000'],
+                ],
+            ],
+
+            // ============================ template inspeksi mutu (Quality) ===
+            'inspection-templates' => [
+                'label' => 'Template Inspeksi Mutu',
+                'module' => 'Quality',
+                'permission' => 'qc',
+                'model' => InspectionTemplate::class,
+                // No document_type — the AHSP exception applies: Q1..Q31 is a
+                // catalogue code the quality office owns, not a document number
+                // the sequence mints, so an unknown code CREATES rather than
+                // being suspected of being a typo.
+                'document_type' => null,
+                // The group column IS the stored code. One workbook is a whole
+                // checklist library; nobody imports one template at a time.
+                'group' => 'kode',
+                'request' => InspectionTemplateStoreRequest::class,
+                // Re-importing the library must not have every template refuse
+                // itself on its own code uniqueness — the AHSP move, exactly.
+                'update_rules' => function (array $rules, object $target): array {
+                    $rules['code'] = ['required', 'string', 'max:20',
+                        Rule::unique('qc_inspection_templates', 'code')->ignore($target->id)->whereNull('deleted_at')];
+
+                    return $rules;
+                },
+                'rows' => [
+                    'template' => [
+                        'label' => 'Kepala template',
+                        'role' => 'header',
+                        'aliases' => ['dokumen'],
+                        'columns' => [
+                            ['header' => 'kode', 'field' => 'code', 'required' => true, 'cast' => 'text'],
+                            ['header' => 'paket', 'field' => 'work_package', 'required' => true],
+                            ['header' => 'tahap', 'field' => 'stage', 'required' => true, 'enum' => [
+                                'before' => ['sebelum', 'pra', 'persiapan'],
+                                'during' => ['saat', 'pelaksanaan', 'proses'],
+                                'after' => ['setelah', 'pasca', 'selesai'],
+                            ]],
+                        ],
+                    ],
+                    'butir' => [
+                        'label' => 'Butir pemeriksaan',
+                        'role' => 'line',
+                        'aliases' => ['item'],
+                        'relation' => 'items',
+                        'columns' => [
+                            ['header' => 'butir', 'field' => 'check_text', 'required' => true],
+                            ['header' => 'kriteria', 'field' => 'acceptance', 'required' => true],
+                            ['header' => 'toleransi', 'field' => 'tolerance'],
+                        ],
+                    ],
+                ],
+                'create' => fn (array $payload): object => app(InspectionTemplateService::class)->create($payload),
+                'update' => fn (object $target, array $payload): object => app(InspectionTemplateService::class)->update($target, $payload),
+                'template_notes' => [
+                    'kolom kode adalah nomor katalog checklist-nya sendiri (mis. Q7): kode yang sudah ada DIPERBARUI'
+                        .' beserta seluruh butirnya, kode baru DIBUAT. Satu berkas boleh memuat seluruh pustaka checklist.',
+                    'tahap: sebelum | saat | setelah (before/during/after) — menentukan titik henti mutunya.',
+                    'setiap baris butir menempel pada template terdekat di atasnya; toleransi boleh kosong.',
+                ],
+                'template_example' => [
+                    ['tipe' => 'template', 'kode' => 'Q7', 'paket' => 'Pengecoran kolom struktur', 'tahap' => 'sebelum'],
+                    ['tipe' => 'butir', 'kode' => 'Q7', 'butir' => 'Kebersihan bekisting dan tulangan',
+                        'kriteria' => 'Bebas kotoran, minyak, dan karat lepas', 'toleransi' => '-'],
+                    ['tipe' => 'butir', 'kode' => 'Q7', 'butir' => 'Selimut beton (beton decking)',
+                        'kriteria' => 'Sesuai gambar', 'toleransi' => '± 5 mm'],
+                    ['tipe' => 'butir', 'kode' => 'Q7', 'butir' => 'Slump beton di lapangan',
+                        'kriteria' => '12 ± 2 cm', 'toleransi' => '± 2 cm'],
                 ],
             ],
 

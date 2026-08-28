@@ -21,6 +21,7 @@ penomoran dokumen `PO/2026/VII/0001`.
 | Estimation | `api/estimation` | **AHSP**, **BOQ/RAB** berversi, **RAP** (anggaran biaya pelaksanaan) |
 | Engineering | `api/engineering` | Register **shop drawing**, submittal **gambar (SDS)** & **material (SMS)** dengan empat stempel MK, **transmittal**, **IPP** (ijin pelaksanaan) bergerbang submittal disetujui, lokasi tapak hierarkis |
 | Projects | `api/projects` | Proyek, **WBS** dari BOQ, laporan harian, progress mingguan (**kurva-S**), milestone, **BAST**, penugasan manpower |
+| Quality | `api/quality` | Template checklist inspeksi, **inspeksi mutu (QCI)**, **NCR** (ketidaksesuaian) yang memblokir inspeksi tahap berikutnya & BAST I, **benda uji beton** dengan lulus/tidak kuat tekan dihitung server (K→fc' silinder, PBI 1971) |
 | Procurement | `api/procurement` | Vendor (termasuk subkon), **PR → PO** dengan approval berjenjang, evaluasi vendor |
 | Inventory | `api/inventory` | Item, gudang pusat & site, **GRN**, pengeluaran barang, transfer, **opname**, kartu stok moving-average |
 | Subcontract | `api/subcontract` | **SPK** subkon, **opname** progress claim, retensi, PPh final konstruksi |
@@ -39,7 +40,7 @@ tidak ada Node, npm, bundler, atau dependensi CDN. Di-serve sebagai file statis 
 web server yang sama; root `/` mengarahkan ke `/app/`.
 
 - Login Sanctum (token bearer), navigasi & tombol aksi otomatis mengikuti permission user.
-- Seluruh 13 modul: daftar (cari, filter, paginasi), detail dokumen, form create/edit
+- Seluruh 14 modul: daftar (cari, filter, paginasi), detail dokumen, form create/edit
   termasuk baris item, dan aksi lifecycle (`submit`/`approve`/`reject`/`post`).
 - Layar khusus: dasbor lintas modul + kotak persetujuan, workspace proyek dengan
   **kurva-S** dan pohon WBS, laporan keuangan (neraca saldo, L/R, neraca, aging AR/AP,

@@ -71,6 +71,14 @@ export const SOURCES = {
   /* Hanya IPP berstatus disetujui: bon gudang hanya boleh menunjuk ijin yang
      sudah hidup (IssueService menolak status lain dengan 422 bernama). */
   approvedIpps: { path: 'engineering/ipp', label: 'code', sub: 'description', params: { status: 'approved' }, title: 'IPP disetujui' },
+  /* P1-QC. Pustaka checklist untuk pemilih template pada lembar inspeksi —
+     sub-nya kode katalog (Q7), label-nya paket pekerjaan. Prefill baris hasil
+     inspeksi menarik butir template terpilih lewat get show-nya. Dijaga
+     qc.view; loadSource menoleransi 403. */
+  inspectionTemplates: { path: 'quality/inspection-templates', label: 'work_package', sub: 'code', title: 'Template inspeksi' },
+  /* Inspeksi sebagai asal NCR (opsional — NCR mandiri tidak menunjuk satu).
+     Menunjuk inspeksi mengisi tahap NCR otomatis (NcrService). */
+  inspections: { path: 'quality/inspections', label: 'work_package', sub: 'code', title: 'Inspeksi mutu' },
 };
 
 const cache = new Map();

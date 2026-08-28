@@ -299,7 +299,12 @@ class ProjectService
     {
         $overrideReason = $overrideReason === null || trim($overrideReason) === '' ? null : trim($overrideReason);
 
-        $evaluation = $bast->isBast2() && $bast->status === DocumentStatus::Submitted
+        // Both handovers run the checklist once submitted — BAST II the full
+        // gate in front of the retensi, BAST I the P1-QC "no open NCR" block
+        // (BastPrerequisiteService::evaluate branches on the type). A draft
+        // still fails inside approve() with "while status is draft", the more
+        // fundamental error, before any prerequisite is read.
+        $evaluation = $bast->status === DocumentStatus::Submitted
             ? $this->prerequisites->assertApprovable($bast, $overrideReason)
             : null;
 

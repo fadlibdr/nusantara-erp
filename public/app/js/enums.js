@@ -271,6 +271,21 @@ export const ENUMS = {
     ['axis', 'As'], ['room', 'Ruang'],
   ]),
 
+  /* P1-QC — cermin Modules\Quality\Enums. Titik henti mutu (before<during<after);
+     urutan ini adalah perbandingan gerbang NCR (InspectionService). */
+  inspectionStage: opts([
+    ['before', 'Sebelum pelaksanaan'], ['during', 'Saat pelaksanaan'], ['after', 'Setelah pelaksanaan'],
+  ]),
+  /* Verdikt satu butir; 'nok' menggagalkan lembar (overall pass), 'na' tidak. */
+  itemResult: opts([['ok', 'Sesuai'], ['nok', 'Tidak sesuai'], ['na', 'Tidak berlaku']]),
+  witnessParty: opts([['mk', 'Konsultan MK'], ['owner', 'Pemilik']]),
+  /* Daur hidup NCR — enum sendiri, BUKAN DocumentStatus. 'open'/'under_correction'
+     memblokir (isOpen); 'verified'/'closed' tidak. */
+  ncrStatus: opts([
+    ['open', 'Terbuka'], ['under_correction', 'Perbaikan berjalan'],
+    ['verified', 'Terverifikasi'], ['closed', 'Ditutup'],
+  ]),
+
   assetStatus: opts([
     ['available', 'Tersedia'], ['deployed', 'Termobilisasi'],
     ['maintenance', 'Dalam Perawatan'], ['disposed', 'Dihapusbukukan'],

@@ -53,6 +53,10 @@ use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
 use Modules\Procurement\Services\ProcurementFormService;
+use Modules\Quality\Models\ConcreteSample;
+use Modules\Quality\Models\Inspection;
+use Modules\Quality\Models\Ncr;
+use Modules\Quality\Services\ConcreteStrengthService;
 use Modules\ServiceDesk\Models\FieldReport;
 use Modules\ServiceDesk\Models\ServiceContract;
 use Modules\ServiceDesk\Services\ServiceDeskFormService;
@@ -369,7 +373,8 @@ class PrintableDocuments
             + $this->hr()
             + $this->serviceDesk()
             + $this->assets()
-            + $this->engineering();
+            + $this->engineering()
+            + $this->quality();
     }
 
     // ===================================================== Crm ==============
@@ -5562,6 +5567,225 @@ class PrintableDocuments
                 'signatures' => 'house',
             ],
         ];
+    }
+
+    /**
+     * P1-QC — the three Quality house forms (F/QI, F/NCR, F/BU).
+     *
+     * THE HONESTY RULE these carry: a verdict is printed FROM THE DATABASE or
+     * ruled blank, never a plausible default. An inspection with no result rows
+     * rules its HASIL cell ("Belum diperiksa") rather than claiming LULUS off a
+     * `passed` that is only vacuously true. A concrete test prints its STORED
+     * `pass` — the value ConcreteStrengthService computed against the grade
+     * target when the break was recorded — so the signed sheet cannot disagree
+     * with the arithmetic. An NCR still open leaves its verification columns
+     * ruled, because nobody has verified it yet.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function quality(): array
+    {
+        return [
+            /*
+             * LEMBAR INSPEKSI MUTU — QCI. The filled checklist: the identity
+             * block carries the sheet's provenance and its overall verdict; the
+             * body is the butir the inspector ticked.
+             */
+            'inspeksi-mutu' => [
+                'resource' => 'quality/inspections',
+                'model' => Inspection::class,
+                'permission' => 'qc.view',
+                'label' => 'Inspeksi Mutu (QCI)',
+                'formTitle' => 'LEMBAR INSPEKSI MUTU',
+                'formCode' => 'Form F/QI',
+                // withTrashed on every soft-deleting parent a resolver reads —
+                // class docblock. The location chain to its full depth because
+                // path() walks every ancestor; a lazy step past the eager depth
+                // would silently drop the withTrashed on a deleted floor.
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'ipp' => fn ($query) => $query->withTrashed(),
+                    'location' => fn ($query) => $query->withTrashed(),
+                    'location.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'template' => fn ($query) => $query->withTrashed(),
+                    'inspector' => fn ($query) => $query->withTrashed(),
+                    'results.templateItem',
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                'date' => 'inspected_at',
+                'identity' => [
+                    'NO. DOKUMEN' => 'code',
+                    'PAKET PEKERJAAN' => 'template.work_package',
+                    'TAHAP' => fn (Inspection $i): ?string => $i->template?->stage?->label(),
+                    'LOKASI' => fn (Inspection $i): ?string => $i->location?->path(),
+                    'IPP TERKAIT' => 'ipp.code',
+                    'TANGGAL INSPEKSI' => ['value' => 'inspected_at', 'cast' => 'date'],
+                    'INSPEKTOR' => 'inspector.name',
+                    'DISAKSIKAN OLEH' => fn (Inspection $i): ?string => $i->witness_party?->label(),
+                    // The overall verdict off the STORED boolean — but ruled
+                    // blank while the sheet carries no result rows, because
+                    // `passed` is only vacuously true on an unfilled checklist.
+                    'HASIL KESELURUHAN' => fn (Inspection $i): ?string => $i->results->isEmpty()
+                        ? null
+                        : ($i->passed ? 'LULUS' : 'TIDAK LULUS'),
+                    'STATUS' => fn (Inspection $i): ?string => $i->status?->label(),
+                ],
+                'body' => [
+                    [
+                        'id' => 'hasil-inspeksi',
+                        'title' => 'BUTIR PEMERIKSAAN',
+                        'rows' => 'results',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'BUTIR YANG DIPERIKSA',
+                                'value' => fn (mixed $row): ?string => $row->templateItem?->check_text],
+                            ['label' => 'KRITERIA KEBERTERIMAAN',
+                                'value' => fn (mixed $row): ?string => $row->templateItem?->acceptance],
+                            ['label' => 'TOLERANSI', 'width' => '24mm',
+                                'value' => fn (mixed $row): ?string => $row->templateItem?->tolerance],
+                            ['label' => 'HASIL', 'align' => 'center', 'width' => '22mm',
+                                'value' => fn (mixed $row): ?string => $row->result?->label()],
+                            ['label' => 'CATATAN', 'width' => '34mm', 'value' => 'remark'],
+                        ],
+                        'minRows' => 5,
+                        'empty' => 'Inspeksi ini belum memiliki butir hasil.',
+                    ],
+                ],
+                'notes' => ['lines' => 3],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * LAPORAN KETIDAKSESUAIAN — NCR. Identity-only: the whole report is
+             * its narrative fields. The verification columns rule until QC has
+             * verified (verified_by / verified_at are the columns NcrService
+             * writes on verify), so an open NCR never prints a verifier it has
+             * not got.
+             */
+            'ketidaksesuaian' => [
+                'resource' => 'quality/ncr',
+                'model' => Ncr::class,
+                'permission' => 'qc.view',
+                'label' => 'Ketidaksesuaian (NCR)',
+                'formTitle' => 'LAPORAN KETIDAKSESUAIAN',
+                'formCode' => 'Form F/NCR',
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'inspection' => fn ($query) => $query->withTrashed(),
+                    'location' => fn ($query) => $query->withTrashed(),
+                    'location.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'responsibleEmployee' => fn ($query) => $query->withTrashed(),
+                    'subcontract' => fn ($query) => $query->withTrashed(),
+                    // verifier is a users row — no SoftDeletes, so no withTrashed.
+                    'verifier',
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                'date' => 'created_at',
+                'identity' => [
+                    'NO. NCR' => 'code',
+                    'TAHAP' => fn (Ncr $n): ?string => $n->stage?->label(),
+                    'LOKASI' => fn (Ncr $n): ?string => $n->location?->path(),
+                    'INSPEKSI TERKAIT' => 'inspection.code',
+                    'URAIAN KETIDAKSESUAIAN' => 'description',
+                    'AKAR MASALAH' => 'root_cause',
+                    'TINDAKAN KOREKSI' => 'corrective_action',
+                    'TINDAKAN PENCEGAHAN' => 'preventive_action',
+                    // Exactly one of the two is set (the XOR in NcrService);
+                    // whichever it is, that is the party named.
+                    'PENANGGUNG JAWAB' => fn (Ncr $n): ?string => $n->responsibleEmployee?->name
+                        ?? $n->subcontract?->code,
+                    'BATAS WAKTU' => ['value' => 'due_date', 'cast' => 'date'],
+                    'STATUS' => fn (Ncr $n): ?string => $n->status?->label(),
+                    'DIVERIFIKASI OLEH' => 'verifier.name',
+                    'TANGGAL VERIFIKASI' => ['value' => 'verified_at', 'cast' => 'date'],
+                ],
+                'notes' => ['lines' => 3],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * BENDA UJI BETON & HASIL UJI — F/BU. The pour identity above, the
+             * breaks below. HASIL reads the STORED `pass` — the arithmetic
+             * ConcreteStrengthService did at record time, not a rule beside the
+             * column inviting a verdict to be inked in.
+             */
+            'benda-uji-beton' => [
+                'resource' => 'quality/concrete-samples',
+                'model' => ConcreteSample::class,
+                'permission' => 'qc.view',
+                'label' => 'Benda Uji Beton',
+                'formTitle' => 'BENDA UJI BETON & HASIL UJI',
+                'formCode' => 'Form F/BU',
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'location' => fn ($query) => $query->withTrashed(),
+                    'location.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'tests',
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                'date' => 'pour_date',
+                'identity' => [
+                    'LOKASI COR' => fn (ConcreteSample $s): ?string => $s->location?->path(),
+                    'TANGGAL COR' => ['value' => 'pour_date', 'cast' => 'date'],
+                    'MUTU BETON' => 'grade',
+                    // The 28-day fc' the grade means — the target the pass/fail
+                    // is measured against, from ConcreteStrengthService. Ruled
+                    // blank on a grade the parser cannot read, never a guess.
+                    'TARGET fc\' (28 HARI)' => fn (ConcreteSample $s): ?string => $this->concreteTarget($s),
+                    'SLUMP (cm)' => 'slump_cm',
+                    'NO. TRUK MIXER' => 'truck_no',
+                    'VOLUME (m³)' => 'volume_m3',
+                    'JUMLAH BENDA UJI' => 'sample_count',
+                ],
+                'body' => [
+                    [
+                        'id' => 'hasil-uji',
+                        'title' => 'HASIL UJI TEKAN',
+                        'rows' => 'tests',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'UMUR (HARI)', 'align' => 'center', 'width' => '24mm',
+                                'value' => 'age_days', 'cast' => 'int'],
+                            ['label' => 'KEKUATAN (MPa)', 'align' => 'right', 'width' => '30mm',
+                                'value' => fn (mixed $row): string => number_format((float) $row->strength_mpa, 2, ',', '.')],
+                            ['label' => 'LAB', 'width' => '40mm', 'value' => 'lab'],
+                            ['label' => 'TANGGAL UJI', 'width' => '28mm',
+                                'value' => 'tested_at', 'cast' => 'date'],
+                            // The STORED verdict — computed at record time.
+                            ['label' => 'HASIL', 'align' => 'center', 'width' => '30mm',
+                                'value' => fn (mixed $row): string => $row->pass ? 'MEMENUHI' : 'TIDAK MEMENUHI'],
+                        ],
+                        'minRows' => 3,
+                        'empty' => 'Belum ada hasil uji tekan pada benda uji ini.',
+                    ],
+                ],
+                'notes' => ['lines' => 3],
+                'signatures' => 'house',
+            ],
+        ];
+    }
+
+    /** The grade's 28-day fc' target as a printed string, ruled blank when unparseable. */
+    private function concreteTarget(ConcreteSample $sample): ?string
+    {
+        try {
+            $target = app(ConcreteStrengthService::class)->targetFcMpa((string) $sample->grade);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return number_format($target, 2, ',', '.').' MPa';
     }
 
     // ------------------------------------------------------------- reading

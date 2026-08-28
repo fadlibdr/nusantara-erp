@@ -67,6 +67,21 @@ one-way*):
                                   proyek ber-IPP aktif tapi bon tak menunjuk satu pun)
 ```
 
+**Quality (P1-QC)** sits on the delivery side too, on top of the field work — inspection
+templates, filled inspections (QCI), non-conformance reports (NCR), and concrete-sample
+strength tests. Its two gates: an OPEN NCR at a location refuses the submit of a
+*later-stage* inspection there, and blocks BAST I on the project. Its dependency arrows
+(arrow = *references, one-way*):
+
+```
+   Quality  ──▶ Projects     (project_id; open NCR is the BAST I prerequisite)
+   Quality  ──▶ Engineering  (inspection ipp_id → eng_work_permits_ipp; shared location_id)
+   Quality  ──▶ Core         (numbering QCI/NCR, attachments, locations, Approvable, import)
+   Projects ┈┈▶ (qc_ncr)     (BastPrerequisiteService reads the qc_ncr TABLE behind
+                              Schema::hasTable — NOT a code dependency: Projects must not
+                              depend on Quality, so "open NCR" is a raw read by value)
+```
+
 Hierarchical site **locations** (`core_locations`: tower/floor/zone/axis/room) live in
 **Core** — Engineering, Quality (P1-QC) and Projects all point at them — carrying a bare
 `project_id` (no constraint, no relation back to Projects), because Core may depend on
@@ -92,6 +107,15 @@ rides a submittal not approved/approved-as-noted or any material line one not ap
 (the 422 names every blocker). An approved IPP carries a WBS work package; a **bon**
 (material issue) pointing at it inherits that attribution, and a bon on an IPP-bearing
 project that names no IPP triggers a confirmation, not a block.
+
+**Quality (inspection → NCR → concrete test):**
+An inspection fills a template checklist at a location; its overall pass/fail is DERIVED
+from the ticked rows (any `nok` fails). Submitting runs the gate: an open NCR raised at an
+earlier hold point at the same location refuses the submit (the 422 names every blocking
+NCR). An NCR runs its own lifecycle (open → under_correction → verified → closed), not the
+Approvable cycle; while open it also blocks BAST I on the project. A concrete sample's tests
+store a `pass` **computed** against the grade's age-adjusted target (K-grade cube → cylinder
+fc' via SNI 2847:2019 / PBI 1971), never typed.
 
 **Procure → pay:**
 PR (site or warehouse) → approval (two-level above Rp 100 jt) → PO (PPN only for PKP

@@ -24,6 +24,9 @@ export const ATTACHABLE = new Set([
   /* P1-ENG: lembar gambar (dwg/dxf, kebijakan P0-D) pada submittal gambar;
    * brosur & mill certificate pada submittal material. IPP sengaja tidak. */
   'engineering/drawing-submittals', 'engineering/material-submittals',
+  /* P1-QC: foto inspeksi mutu (rebar terbuka, hasil uji slump) menumpang lembar
+   * QCI — buktinya. NCR & benda uji sengaja tidak. */
+  'quality/inspections',
   'projects/projects', 'projects/daily-reports', 'projects/bast', 'projects/defects',
   /* P0-C: foto izin kerja (kondisi area, APD) & foto muatan izin gerbang. */
   'projects/work-permits', 'projects/gate-passes',

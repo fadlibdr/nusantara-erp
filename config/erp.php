@@ -82,6 +82,8 @@ return [
         'SMS' => 'SMS/{Y}/{RM}/{N4}',   // Pengajuan persetujuan material (P1-ENG)
         'TRM' => 'TRM/{Y}/{RM}/{N4}',   // Transmittal dokumen (P1-ENG)
         'IPP' => 'IPP/{Y}/{RM}/{N4}',   // Ijin pelaksanaan pekerjaan (P1-ENG)
+        'QCI' => 'QCI/{Y}/{RM}/{N4}',   // Inspeksi mutu (P1-QC)
+        'NCR' => 'NCR/{Y}/{RM}/{N4}',   // Laporan ketidaksesuaian / non-conformance report (P1-QC)
     ],
 
     /*

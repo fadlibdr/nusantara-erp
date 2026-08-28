@@ -4137,6 +4137,257 @@ export const RESOURCES = {
       note: 'Lokasi yang masih memiliki sub-lokasi tidak bisa dihapus; pindahkan atau hapus dulu anak-anaknya. Impor massal tersedia lewat Impor Data Master.',
     },
   },
+
+  /* P1-QC seam (lane BACKEND): the three keys the PHP registries demand —
+     ApprovableDocuments links notifications to 'quality/inspections', that same
+     slug carries attachment cards (AttachmentRegistryTest holds the JS/PHP lists
+     together), and all three are the resources of PrintableDocuments::quality()
+     (F/QI, F/NCR, F/BU), so PrintFormReachabilityTest needs each as a RESOURCES
+     key. Minimal but functional; extended IN PLACE by the SPA lane (template
+     picker, result-line editor, concrete-test line table, NAV group) — never
+     re-adding the keys. */
+  'quality/inspections': {
+    module: 'qc', api: 'quality/inspections', label: 'Inspeksi Mutu (QCI)', labelOne: 'Inspeksi Mutu',
+    columns: [
+      codeColumn,
+      { key: 'work_package', label: 'Paket', type: 'text' },
+      { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
+      { key: 'inspected_at', label: 'Tgl Inspeksi', type: 'date' },
+      { key: 'passed', label: 'Lulus', type: 'bool', width: '1%' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    form: {
+      sections: [{
+        title: 'Inspeksi Mutu',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          // template_id dikunci saat pembuatan — InspectionUpdateRequest tidak
+          // menerimanya (service membacanya dari model). Memilihnya di sini yang
+          // memberi tombol "Muat butir dari template" di bawah sumbernya.
+          { key: 'template_id', label: 'Template checklist', type: 'lookup', lookup: 'inspectionTemplates', required: true, createOnly: true },
+          { key: 'location_id', label: 'Lokasi', type: 'lookup', lookup: 'locations', required: true },
+          { key: 'ipp_id', label: 'IPP terkait', type: 'lookup', lookup: 'approvedIpps', help: 'Opsional — mengaitkan inspeksi ke ijin pelaksanaannya.' },
+          { key: 'inspected_at', label: 'Tanggal inspeksi', type: 'date', required: true },
+          { key: 'inspector_employee_id', label: 'Inspektor', type: 'lookup', lookup: 'employees' },
+          { key: 'witness_party', label: 'Disaksikan', type: 'select', enum: 'witnessParty' },
+        ],
+      }],
+      lines: [{
+        key: 'results',
+        label: 'Butir hasil pemeriksaan',
+        help: 'Klik "Muat butir dari template" untuk menarik seluruh butir checklist, lalu tandai hasil tiap butir. Butir & kriteria terkunci (milik template); Anda mengisi Hasil dan Catatan.',
+        min: 0,
+        columns: [
+          { key: 'template_item_id', type: 'hidden' },
+          { key: 'check_text', label: 'Butir diperiksa', type: 'text', readonly: true },
+          { key: 'acceptance', label: 'Kriteria keberterimaan', type: 'text', readonly: true },
+          { key: 'result', label: 'Hasil', type: 'select', enum: 'itemResult', required: true, width: '150px' },
+          { key: 'remark', label: 'Catatan', type: 'text' },
+        ],
+        prefill: {
+          label: 'Muat butir dari template',
+          sourceField: 'template_id',
+          missingSource: 'Pilih template checklist dulu di bagian atas formulir.',
+          emptyMessage: 'Template ini belum memiliki butir pemeriksaan.',
+          load: async (templateId, api) => {
+            const template = await api.get(`quality/inspection-templates/${templateId}`);
+            return (template.items || []).map((item) => ({
+              template_item_id: item.id,
+              check_text: item.check_text,
+              acceptance: item.acceptance,
+              result: '',
+              remark: '',
+            }));
+          },
+        },
+      }],
+      note: 'Hasil keseluruhan (lulus/tidak) dihitung dari butir; satu butir "tidak sesuai" menggagalkan lembar. Pengajuan tertahan bila ada NCR terbuka dari tahap sebelumnya di lokasi yang sama.',
+    },
+    // submit menjalankan GERBANG NCR (InspectionService); approve/reject adalah
+    // daur Approvable rumah (maker-checker qc.approve) — sama seperti IPP.
+    actions: approvalActions('qc'),
+    detail: {
+      tables: [{
+        key: 'results',
+        label: 'Butir hasil pemeriksaan',
+        columns: [
+          { key: 'check_text', label: 'Butir diperiksa', type: 'text' },
+          { key: 'acceptance', label: 'Kriteria', type: 'text' },
+          { key: 'tolerance', label: 'Toleransi', type: 'text' },
+          { key: 'result', label: 'Hasil', type: 'enum', enum: 'itemResult' },
+          { key: 'remark', label: 'Catatan', type: 'text' },
+        ],
+      }],
+    },
+  },
+
+  'quality/ncr': {
+    module: 'qc', api: 'quality/ncr', label: 'Ketidaksesuaian (NCR)', labelOne: 'NCR',
+    columns: [
+      codeColumn,
+      { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
+      { key: 'description', label: 'Uraian', type: 'text' },
+      { key: 'due_date', label: 'Batas Waktu', type: 'date' },
+      { key: 'status', label: 'Status', type: 'enum', enum: 'ncrStatus', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'ncrStatus' },
+    ],
+    form: {
+      sections: [{
+        title: 'Laporan Ketidaksesuaian',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          // inspection_id dikunci saat pembuatan (service membacanya dari model).
+          // Menunjuk inspeksi mengisi tahap & lokasi NCR otomatis (NcrService).
+          { key: 'inspection_id', label: 'Inspeksi asal', type: 'lookup', lookup: 'inspections', createOnly: true, help: 'Opsional. Bila diisi, tahap NCR mengikuti inspeksi ini.' },
+          { key: 'location_id', label: 'Lokasi', type: 'lookup', lookup: 'locations' },
+          { key: 'stage', label: 'Tahap', type: 'select', enum: 'inspectionStage', help: 'Diisi otomatis dari inspeksi bila mengacu satu; wajib untuk NCR mandiri.' },
+          { key: 'description', label: 'Uraian ketidaksesuaian', type: 'textarea', required: true, span: 2 },
+          { key: 'root_cause', label: 'Akar masalah', type: 'textarea' },
+          { key: 'corrective_action', label: 'Tindakan koreksi', type: 'textarea' },
+          { key: 'preventive_action', label: 'Tindakan pencegahan', type: 'textarea' },
+          // Penanggung jawab XOR — tepat satu terisi (ditegakkan NcrService 422).
+          { key: 'responsible_employee_id', label: 'Penanggung jawab (karyawan)', type: 'lookup', lookup: 'employees', help: 'Isi ini ATAU subkontraktor — tepat satu, tidak keduanya.' },
+          { key: 'subcontract_id', label: 'Penanggung jawab (subkontraktor)', type: 'lookup', lookup: 'subcontracts' },
+          { key: 'due_date', label: 'Batas waktu', type: 'date' },
+        ],
+      }],
+      note: 'Penanggung jawab tepat satu: karyawan sendiri ATAU subkontraktor. Alur: Terbuka → Perbaikan → Terverifikasi → Ditutup; verifikasi menuntut pemegang lain (qc.approve). NCR terbuka memblokir inspeksi tahap berikutnya dan serah terima pertama (BAST I).',
+    },
+    // Daur NcrStatus lewat transisi eksplisit — BUKAN submit/approve. Tiap tombol
+    // menjaga status asalnya (NcrService); verify boleh dari open ATAU perbaikan.
+    actions: [
+      {
+        key: 'start-correction', label: 'Mulai Perbaikan', path: '{id}/start-correction', method: 'POST',
+        perm: 'qc.update', variant: 'primary', when: (row) => row.status === 'open',
+        confirm: 'Tandai NCR ini sedang dalam perbaikan oleh penanggung jawabnya?',
+      },
+      {
+        key: 'verify', label: 'Verifikasi', path: '{id}/verify', method: 'POST',
+        perm: 'qc.approve', variant: 'success',
+        when: (row) => ['open', 'under_correction'].includes(row.status),
+        fields: [{ key: 'verified_at', label: 'Tanggal verifikasi', type: 'date', help: 'Kosongkan untuk memakai tanggal hari ini.' }],
+      },
+      {
+        key: 'close', label: 'Tutup', path: '{id}/close', method: 'POST',
+        perm: 'qc.update', when: (row) => row.status === 'verified',
+        confirm: 'Tutup NCR ini secara administratif? Setelah ditutup tidak dapat diubah lagi.',
+      },
+    ],
+  },
+
+  'quality/concrete-samples': {
+    module: 'qc', api: 'quality/concrete-samples', label: 'Benda Uji Beton', labelOne: 'Benda Uji',
+    columns: [
+      { key: 'pour_date', label: 'Tgl Cor', type: 'date' },
+      { key: 'grade', label: 'Mutu', type: 'text', width: '1%' },
+      { key: 'target_fc_mpa', label: "Target fc' (MPa)", type: 'number' },
+      { key: 'truck_no', label: 'No. Truk', type: 'text' },
+      { key: 'volume_m3', label: 'Volume (m³)', type: 'qty' },
+      { key: 'sample_count', label: 'Jml', type: 'number', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    form: {
+      sections: [{
+        title: 'Benda Uji Beton',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'location_id', label: 'Lokasi', type: 'lookup', lookup: 'locations', required: true },
+          { key: 'pour_date', label: 'Tanggal cor', type: 'date', required: true },
+          { key: 'grade', label: 'Mutu (mis. K-350)', type: 'text', required: true },
+          { key: 'slump_cm', label: 'Slump (cm)', type: 'number' },
+          { key: 'truck_no', label: 'No. truk mixer', type: 'text' },
+          { key: 'volume_m3', label: 'Volume (m³)', type: 'number' },
+          { key: 'sample_count', label: 'Jumlah benda uji', type: 'number', required: true, default: 1 },
+        ],
+      }],
+      lines: [{
+        key: 'tests',
+        label: 'Hasil uji tekan',
+        help: 'Umur 7 / 14 / 28 hari. Lulus/tidak dihitung server terhadap target umurnya saat disimpan — tidak diketik. Menyimpan perubahan menghitung ulang seluruh hasil.',
+        min: 0,
+        columns: [
+          { key: 'age_days', label: 'Umur', type: 'select', required: true, width: '130px', options: [
+            { value: 7, label: '7 hari' }, { value: 14, label: '14 hari' }, { value: 28, label: '28 hari' },
+          ] },
+          { key: 'strength_mpa', label: 'Kekuatan (MPa)', type: 'number', step: '0.01', required: true },
+          { key: 'lab', label: 'Laboratorium', type: 'text' },
+          { key: 'tested_at', label: 'Tanggal uji', type: 'date' },
+        ],
+      }],
+      note: "Mutu K-xxx dikonversi ke fc' silinder (× 0,0980665 × 0,83, SNI/PBI); lulus/tidak setiap uji dihitung server terhadap target umurnya — tidak pernah diketik.",
+    },
+    detail: {
+      tables: [{
+        key: 'tests',
+        label: 'Hasil uji tekan',
+        columns: [
+          { key: 'age_days', label: 'Umur (hari)', type: 'number' },
+          { key: 'strength_mpa', label: 'Kekuatan (MPa)', type: 'number' },
+          { key: 'target_at_age_mpa', label: 'Target umur itu (MPa)', type: 'number' },
+          { key: 'lab', label: 'Lab', type: 'text' },
+          { key: 'tested_at', label: 'Tgl Uji', type: 'date' },
+          { key: 'pass', label: 'Memenuhi', type: 'bool', align: 'center' },
+        ],
+      }],
+    },
+  },
+
+  /* P1-QC — pustaka checklist (management screen ditambah lane SPA di atas seam
+     backend). Q1..Q31 milik kantor mutu; juga diimpor massal via Impor Data
+     Master (ImportableDocuments 'inspection-templates'). */
+  'quality/inspection-templates': {
+    module: 'qc', api: 'quality/inspection-templates', label: 'Template Inspeksi', labelOne: 'Template Inspeksi',
+    lookupSource: 'inspectionTemplates',
+    columns: [
+      { key: 'code', label: 'Kode', type: 'code', width: '1%' },
+      { key: 'work_package', label: 'Paket Pekerjaan', type: 'text' },
+      { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
+    ],
+    filters: [
+      { key: 'stage', label: 'Tahap', enum: 'inspectionStage' },
+    ],
+    form: {
+      sections: [{
+        title: 'Template Checklist',
+        fields: [
+          { key: 'code', label: 'Kode katalog (mis. Q7)', type: 'text', required: true },
+          { key: 'work_package', label: 'Paket pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'stage', label: 'Tahap (titik henti mutu)', type: 'select', enum: 'inspectionStage', required: true },
+        ],
+      }],
+      lines: [{
+        key: 'items',
+        label: 'Butir pemeriksaan',
+        min: 1,
+        columns: [
+          { key: 'check_text', label: 'Butir yang diperiksa', type: 'text', required: true },
+          { key: 'acceptance', label: 'Kriteria keberterimaan', type: 'text', required: true },
+          { key: 'tolerance', label: 'Toleransi', type: 'text' },
+        ],
+      }],
+      note: 'Pustaka checklist juga dapat diimpor massal lewat Impor Data Master (satu berkas memuat banyak template). Mengubah butir template yang sudah dipakai inspeksi terisi belum didukung — buat template baru bila butirnya perlu berbeda.',
+    },
+    detail: {
+      tables: [{
+        key: 'items',
+        label: 'Butir pemeriksaan',
+        columns: [
+          { key: 'check_text', label: 'Butir', type: 'text' },
+          { key: 'acceptance', label: 'Kriteria', type: 'text' },
+          { key: 'tolerance', label: 'Toleransi', type: 'text' },
+        ],
+      }],
+    },
+  },
 };
 
 /** Sidebar structure. Each entry is gated by the module's `.view` permission. */
@@ -4205,6 +4456,18 @@ export const NAV = [
       { label: 'Register Defect (Punch List)', route: 'defects' },
       { label: 'Varian Material', route: 'varian' },
       { label: 'Penugasan Personel', route: 'r/projects/manpower-assignments' },
+    ],
+  },
+  {
+    /* P1-QC. Setelah Proyek: QA lapangan yang dijalankan tim mutu selama
+       pelaksanaan dan menggerbangi BAST I (NCR terbuka menahan serah terima).
+       Template inspeksi di paling bawah — pustakanya, bukan transaksi harian. */
+    label: 'Mutu (QA/QC)', perm: 'qc.view',
+    items: [
+      { label: 'Inspeksi Mutu (QCI)', route: 'r/quality/inspections' },
+      { label: 'Ketidaksesuaian (NCR)', route: 'r/quality/ncr' },
+      { label: 'Benda Uji Beton', route: 'r/quality/concrete-samples' },
+      { label: 'Template Inspeksi', route: 'r/quality/inspection-templates' },
     ],
   },
   {
