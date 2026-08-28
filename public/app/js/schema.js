@@ -2031,10 +2031,30 @@ export const RESOURCES = {
           { key: 'warehouse_id', label: 'Gudang asal', type: 'lookup', lookup: 'warehouses', required: true },
           { key: 'issue_date', label: 'Tanggal keluar', type: 'date', required: true, defaultToday: true },
           { key: 'project_id', label: 'Proyek tujuan', type: 'lookup', lookup: 'projects' },
-          { key: 'wbs_task_id', label: 'Paket pekerjaan (WBS)', type: 'lookup', lookup: 'wbsTasks' },
+          {
+            // P1-ENG: bon yang menunjuk IPP mewarisi paket pekerjaannya
+            // (IssueService) — kolom WBS di bawah boleh dikosongkan.
+            key: 'ipp_id', label: 'IPP (ijin pelaksanaan)', type: 'lookup', lookup: 'approvedIpps',
+            help: 'Hanya IPP disetujui pada proyek yang sama. Kosongkan bila pengeluaran memang di luar cakupan IPP — pada proyek yang punya IPP aktif, server meminta konfirmasi.',
+          },
+          { key: 'wbs_task_id', label: 'Paket pekerjaan (WBS)', type: 'lookup', lookup: 'wbsTasks', help: 'Kosongkan bila IPP dipilih — diwarisi dari IPP-nya.' },
           { key: 'purpose', label: 'Keperluan', type: 'textarea', required: true, span: 2 },
         ],
       }],
+      /*
+       * Peringatan pola confirm-resubmit (preseden GRN harga 0, temuan #72;
+       * pola PriceDeviationService): bon TANPA IPP pada proyek yang MEMILIKI
+       * IPP aktif ditolak 422 pada 'ipp_id' sampai payload membawa flag —
+       * pesan dialognya pesan server apa adanya, yang menyebut nomor IPP
+       * aktifnya. Peringatan, bukan blokir: material di luar ijin (konsumsi
+       * site, pembersihan) sah, yang dituntut hanyalah pengakuan sadar.
+       */
+      confirmResubmit: {
+        flag: 'confirm_without_ipp',
+        test: /^ipp_id$/,
+        title: 'Proyek ini punya IPP aktif — tetap keluarkan tanpa IPP?',
+        confirmLabel: 'Ya, bon ini di luar cakupan IPP',
+      },
       lines: [{
         key: 'items', label: 'Item dikeluarkan', min: 1,
         columns: [
@@ -3776,6 +3796,347 @@ export const RESOURCES = {
       note: 'Hak akses diatur dari halaman detail peran.',
     },
   },
+
+  /* ====================================================== Engineering === */
+
+  /* Register shop drawing (FM-10-01/21). Status kolomnya CERMIN keputusan
+     submittal terkininya — digerakkan DrawingSubmittalService, tidak pernah
+     diketik: form ini sengaja tidak menawarkan field status. */
+  'engineering/drawings': {
+    module: 'eng', api: 'engineering/drawings', label: 'Register Gambar', labelOne: 'Gambar',
+    lookupSource: 'drawings',
+    columns: [
+      { key: 'number', label: 'No. Gambar', type: 'code', width: '1%' },
+      { key: 'title', label: 'Judul', type: 'text' },
+      { key: 'discipline', label: 'Disiplin', type: 'enum', enum: 'discipline', width: '1%' },
+      { key: 'planned_submit_date', label: 'Rencana ajuan', type: 'date' },
+      { key: 'current_submittal_code', label: 'SDS berlaku', type: 'text', sub: 'current_revision', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'discipline', label: 'Disiplin', enum: 'discipline' },
+      { key: 'status', label: 'Status', enum: 'drawingStatus' },
+    ],
+    form: {
+      sections: [{
+        title: 'Register Gambar',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'number', label: 'Nomor gambar', type: 'text', required: true },
+          { key: 'title', label: 'Judul gambar', type: 'text', required: true, span: 2 },
+          { key: 'discipline', label: 'Disiplin', type: 'select', enum: 'discipline', required: true },
+          { key: 'planned_submit_date', label: 'Rencana tanggal ajuan', type: 'date' },
+        ],
+      }],
+      note: 'Status register bergerak sendiri mengikuti keputusan MK pada SDS terbarunya; ajukan revisi dari layar Persetujuan Gambar (SDS).',
+    },
+  },
+
+  /* P1-ENG seam (lane BACKEND-1): the three keys the PHP registries demand —
+     ApprovableDocuments links notifications to 'engineering/ipp', and both
+     submittal slugs carry attachment cards (AttachmentRegistryTest holds the
+     two lists together). Extended IN PLACE by the SPA lane: lookups instead of
+     raw ids, enums.js maps, line tables, detail tables — never re-adding the
+     keys. */
+  'engineering/drawing-submittals': {
+    module: 'eng', api: 'engineering/drawing-submittals', label: 'Persetujuan Gambar (SDS)', labelOne: 'Persetujuan Gambar',
+    columns: [
+      codeColumn,
+      { key: 'drawing_number', label: 'No. Gambar', type: 'text' },
+      { key: 'revision', label: 'Rev', type: 'text', width: '1%' },
+      { key: 'submitted_at', label: 'Diajukan', type: 'date' },
+      { key: 'reviewer_party_label', label: 'Pemeriksa', type: 'text', hideOnNarrow: true },
+      { key: 'state_label', label: 'Keputusan', type: 'text' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: (row) => !row.decision && !row.superseded_at,
+    deletableWhen: (row) => !row.decision && !row.superseded_at,
+    actions: [
+      {
+        key: 'decision', label: 'Catat Keputusan MK', path: '{id}/decision', method: 'POST',
+        perm: 'eng.approve', when: (row) => !row.decision && !row.superseded_at, variant: 'primary',
+        fields: [
+          { key: 'decision', label: 'Stempel', type: 'select', enum: 'submittalDecision', required: true },
+          { key: 'decided_at', label: 'Tanggal stempel', type: 'date', required: true },
+          { key: 'notes', label: 'Catatan stempel (apa adanya)', type: 'textarea' },
+        ],
+      },
+    ],
+    form: {
+      sections: [{
+        title: 'Pengajuan Persetujuan Gambar',
+        fields: [
+          { key: 'drawing_id', label: 'Gambar (register)', type: 'lookup', lookup: 'drawings', required: true, createOnly: true },
+          { key: 'revision', label: 'Revisi', type: 'text', required: true, default: 'R0' },
+          { key: 'submitted_at', label: 'Tanggal diajukan', type: 'date', required: true },
+          { key: 'reviewer_party', label: 'Pemeriksa', type: 'select', enum: 'reviewerParty', required: true },
+        ],
+      }],
+      note: 'Revisi baru menggantikan revisi berjalan gambar yang sama; revisi lama tercap "Digantikan" dan tidak bisa diubah lagi.',
+    },
+  },
+
+  'engineering/material-submittals': {
+    module: 'eng', api: 'engineering/material-submittals', label: 'Persetujuan Material (SMS)', labelOne: 'Persetujuan Material',
+    columns: [
+      codeColumn,
+      { key: 'material_name', label: 'Material', type: 'text' },
+      { key: 'brand', label: 'Merek', type: 'text', hideOnNarrow: true },
+      { key: 'submitted_at', label: 'Diajukan', type: 'date' },
+      { key: 'state_label', label: 'Keputusan', type: 'text' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    editableWhen: (row) => !row.decision,
+    deletableWhen: (row) => !row.decision,
+    actions: [
+      {
+        key: 'decision', label: 'Catat Keputusan MK', path: '{id}/decision', method: 'POST',
+        perm: 'eng.approve', when: (row) => !row.decision, variant: 'primary',
+        fields: [
+          { key: 'decision', label: 'Stempel', type: 'select', enum: 'submittalDecision', required: true },
+          { key: 'decided_at', label: 'Tanggal stempel', type: 'date', required: true },
+          { key: 'notes', label: 'Catatan stempel (apa adanya)', type: 'textarea' },
+        ],
+      },
+    ],
+    form: {
+      sections: [{
+        title: 'Pengajuan Persetujuan Material',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'material_name', label: 'Nama material', type: 'text', required: true },
+          { key: 'brand', label: 'Merek', type: 'text' },
+          { key: 'spec_reference', label: 'Rujukan spesifikasi', type: 'text' },
+          { key: 'item_id', label: 'Item persediaan', type: 'lookup', lookup: 'items' },
+          { key: 'sample_attached', label: 'Sampel disertakan', type: 'bool' },
+          { key: 'submitted_at', label: 'Tanggal diajukan', type: 'date', required: true },
+          { key: 'reviewer_party', label: 'Pemeriksa', type: 'select', enum: 'reviewerParty', required: true },
+        ],
+      }],
+      note: 'Material yang ditolak diajukan ulang sebagai SMS baru — keputusan yang sudah tercatat tidak pernah ditimpa. Ingat: "Disetujui dengan catatan" TIDAK meloloskan baris material pada IPP; hanya Disetujui penuh.',
+    },
+  },
+
+  /* Transmittal (TRM) — surat pengantar dokumen. Setelah tanda terima
+     tercatat, dokumen terkunci (server menolak ubah/hapus dengan menyebut
+     nama penerimanya). */
+  'engineering/transmittals': {
+    module: 'eng', api: 'engineering/transmittals', label: 'Transmittal', labelOne: 'Transmittal',
+    columns: [
+      codeColumn,
+      { key: 'direction', label: 'Arah', type: 'enum', enum: 'transmittalDirection', width: '1%' },
+      { key: 'to_party', label: 'Kepada', type: 'text' },
+      { key: 'transmittal_date', label: 'Tanggal', type: 'date' },
+      { key: 'state_label', label: 'Tanda terima', type: 'text', sub: 'received_by' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'direction', label: 'Arah', enum: 'transmittalDirection' },
+    ],
+    editableWhen: (row) => !row.received_at,
+    deletableWhen: (row) => !row.received_at,
+    actions: [
+      {
+        // Aksi tanda-terima: eng.update, bukan approve — mencatat siapa yang
+        // menandatangani bukanlah keputusan (lihat Routes/api.php Engineering).
+        key: 'terima', label: 'Catat Tanda Terima', path: '{id}/terima', method: 'POST',
+        perm: 'eng.update', when: (row) => !row.received_at, variant: 'primary',
+        fields: [
+          { key: 'received_by', label: 'Diterima oleh (nama penandatangan)', type: 'text', required: true },
+          { key: 'received_at', label: 'Tanggal terima', type: 'date', help: 'Kosongkan untuk memakai waktu saat ini.' },
+        ],
+      },
+    ],
+    form: {
+      sections: [{
+        title: 'Transmittal',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'direction', label: 'Arah', type: 'select', enum: 'transmittalDirection', required: true },
+          { key: 'to_party', label: 'Kepada (pihak penerima)', type: 'text', required: true },
+          { key: 'transmittal_date', label: 'Tanggal transmittal', type: 'date', required: true, defaultToday: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'lines', label: 'Dokumen yang disertakan', min: 1,
+        help: 'Baris SDS/SMS diisi ID dokumennya (kolom ID pada layar Persetujuan Gambar/Material); baris "Lainnya" cukup uraian teks.',
+        columns: [
+          { key: 'kind', label: 'Jenis', type: 'select', enum: 'transmittalLineKind', required: true, width: '22%' },
+          { key: 'document_id', label: 'ID dokumen (SDS/SMS)', type: 'number', width: '18%' },
+          { key: 'description', label: 'Uraian', type: 'text', width: '40%' },
+          { key: 'remarks', label: 'Keterangan', type: 'text', width: '20%' },
+        ],
+      }],
+      note: 'Server menolak baris SDS/SMS milik proyek lain dan menyebut nomor dokumennya.',
+    },
+    detail: {
+      tables: [{
+        key: 'lines', label: 'Dokumen yang disertakan',
+        columns: [
+          { key: 'kind', label: 'Jenis', type: 'enum', enum: 'transmittalLineKind' },
+          { key: 'document_code', label: 'No. dokumen', type: 'text' },
+          { key: 'description', label: 'Uraian', type: 'text' },
+          { key: 'remarks', label: 'Keterangan', type: 'text' },
+        ],
+      }],
+    },
+  },
+
+  'engineering/ipp': {
+    module: 'eng', api: 'engineering/ipp', label: 'Ijin Pelaksanaan (IPP)', labelOne: 'Ijin Pelaksanaan Pekerjaan',
+    columns: [
+      codeColumn,
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'scope_label', label: 'Lingkup', type: 'text', width: '1%' },
+      { key: 'description', label: 'Pekerjaan', type: 'text', truncate: 60 },
+      { key: 'planned_start', label: 'Rencana mulai', type: 'date' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    /* Ajukan menjalankan GERBANG di IppService::submit: 422-nya menyebut
+       setiap nomor SDS/SMS penghambat sekaligus (kunci galat 'status'), dan
+       toastError menampilkannya utuh — TANPA flag konfirmasi: bekerja di atas
+       gambar yang belum disetujui adalah persis yang dicegah formulir ini. */
+    actions: approvalActions('eng'),
+    form: {
+      sections: [{
+        title: 'Ijin Pelaksanaan Pekerjaan',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'scope', label: 'Lingkup', type: 'select', enum: 'ippScope', required: true },
+          { key: 'planned_start', label: 'Rencana mulai', type: 'date', required: true },
+          { key: 'duration_days', label: 'Durasi (hari)', type: 'number', required: true },
+          { key: 'location_id', label: 'Lokasi tapak', type: 'lookup', lookup: 'locations' },
+          {
+            key: 'wbs_task_id', label: 'Paket pekerjaan (WBS)', type: 'lookup', lookup: 'wbsTasks',
+            help: 'Paket daun ber-BOQ pada proyek yang sama — bon gudang yang menunjuk IPP ini mewarisinya. Server menolak paket proyek lain / bukan daun, dengan pesan bernama.',
+          },
+          { key: 'description', label: 'Uraian pekerjaan', type: 'textarea', required: true, span: 2 },
+        ],
+      }],
+      lines: [
+        {
+          key: 'materials', label: 'Bahan',
+          columns: [
+            { key: 'item_id', label: 'Item persediaan', type: 'lookup', lookup: 'items', width: '28%' },
+            { key: 'description', label: 'Uraian bahan', type: 'text', required: true, width: '36%' },
+            { key: 'qty', label: 'Qty', type: 'qty', required: true, width: '16%' },
+            { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '14%' },
+          ],
+        },
+        {
+          key: 'equipment', label: 'Alat',
+          columns: [
+            { key: 'description', label: 'Uraian alat', type: 'text', required: true, width: '48%' },
+            { key: 'qty', label: 'Qty', type: 'number', required: true, width: '14%' },
+            { key: 'notes', label: 'Keterangan', type: 'text', width: '32%' },
+          ],
+        },
+        {
+          key: 'drawings', label: 'Gambar rujukan (SDS)',
+          help: 'Gerbang ajuan: setiap SDS di sini harus Disetujui / Disetujui dengan catatan.',
+          columns: [
+            { key: 'drawing_submittal_id', label: 'SDS', type: 'lookup', lookup: 'drawingSubmittals', required: true, width: '90%' },
+          ],
+        },
+        {
+          key: 'material_approvals', label: 'Persetujuan material (SMS)',
+          help: 'Gerbang ajuan: setiap SMS di sini harus Disetujui PENUH — "Disetujui dengan catatan" belum meloloskan material.',
+          columns: [
+            { key: 'material_submittal_id', label: 'SMS', type: 'lookup', lookup: 'materialSubmittals', required: true, width: '90%' },
+          ],
+        },
+      ],
+      note: 'IPP tidak dapat diajukan sebelum submittal gambar & material pada barisnya disetujui MK; pesan penolakan menyebut nomor dokumen penghambatnya satu per satu.',
+    },
+    detail: {
+      tables: [
+        {
+          key: 'materials', label: 'Bahan',
+          columns: [
+            { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+            { key: 'description', label: 'Uraian', type: 'text' },
+            { key: 'qty', label: 'Qty', type: 'qty', align: 'right' },
+            { key: 'unit', label: 'Satuan', type: 'text' },
+          ],
+        },
+        {
+          key: 'equipment', label: 'Alat',
+          columns: [
+            { key: 'description', label: 'Uraian', type: 'text' },
+            { key: 'qty', label: 'Qty', type: 'number', align: 'right' },
+            { key: 'notes', label: 'Keterangan', type: 'text' },
+          ],
+        },
+        {
+          key: 'drawings', label: 'Gambar rujukan (SDS)',
+          columns: [
+            { key: 'submittal_code', label: 'No. SDS', type: 'text' },
+            { key: 'drawing_number', label: 'No. gambar', type: 'text' },
+            { key: 'revision', label: 'Rev', type: 'text' },
+            /* decision_label datang dari IppResource dengan turunan jujurnya:
+               null → 'Menunggu keputusan' — bukan stempel pura-pura. */
+            { key: 'decision_label', label: 'Keputusan MK', type: 'text' },
+          ],
+        },
+        {
+          key: 'material_approvals', label: 'Persetujuan material (SMS)',
+          columns: [
+            { key: 'submittal_code', label: 'No. SMS', type: 'text' },
+            { key: 'material_name', label: 'Material', type: 'text' },
+            { key: 'decision_label', label: 'Keputusan MK', type: 'text' },
+          ],
+        },
+      ],
+    },
+  },
+
+  /* Lokasi tapak (core_locations) — pohon tower/lantai/zona/as/ruang milik
+     CORE karena Quality (P1-QC) dan Projects ikut memakainya. Modulnya di
+     sini 'prj', BUKAN 'eng': rute api/core/locations digerbangi prj.* (tim
+     proyeklah yang menyusun rincian tapak), jadi tombol tambah/ubah layar ini
+     harus mengikuti izin yang sama dengan yang ditegakkan server. */
+  'core/locations': {
+    module: 'prj', api: 'core/locations', label: 'Lokasi Tapak', labelOne: 'Lokasi',
+    lookupSource: 'locations',
+    columns: [
+      codeColumn,
+      { key: 'name', label: 'Nama', type: 'text', sub: 'path' },
+      { key: 'kind', label: 'Jenjang', type: 'enum', enum: 'locationKind', width: '1%' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'parent_name', label: 'Induk', type: 'text', sub: 'parent_code', hideOnNarrow: true },
+      { key: 'children_count', label: 'Sub-lokasi', type: 'number', align: 'right', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'kind', label: 'Jenjang', enum: 'locationKind' },
+    ],
+    form: {
+      sections: [{
+        title: 'Lokasi Tapak',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'parent_id', label: 'Induk', type: 'lookup', lookup: 'locations', help: 'Kosongkan untuk simpul teratas (mis. tower). Induk harus pada proyek yang sama — server menolak silang proyek.' },
+          { key: 'kind', label: 'Jenjang', type: 'select', enum: 'locationKind', required: true },
+          { key: 'code', label: 'Kode', type: 'text', required: true },
+          { key: 'name', label: 'Nama', type: 'text', required: true },
+          { key: 'sort_order', label: 'Urutan', type: 'number', default: 0 },
+        ],
+      }],
+      note: 'Lokasi yang masih memiliki sub-lokasi tidak bisa dihapus; pindahkan atau hapus dulu anak-anaknya. Impor massal tersedia lewat Impor Data Master.',
+    },
+  },
 };
 
 /** Sidebar structure. Each entry is gated by the module's `.view` permission. */
@@ -3804,6 +4165,25 @@ export const NAV = [
       { label: 'BOQ / RAB', route: 'r/estimation/boqs' },
       { label: 'RAP', route: 'r/estimation/cost-budgets' },
       { label: 'Riwayat Harga Satuan', route: 'harga-satuan' },
+    ],
+  },
+  {
+    /* P1-ENG. Di antara Estimasi dan Proyek karena di situlah pekerjaannya
+       duduk: gambar & material disetujui MK sebelum lapangan boleh mulai. */
+    label: 'Engineering', perm: 'eng.view',
+    items: [
+      { label: 'Register Gambar', route: 'r/engineering/drawings' },
+      { label: 'Persetujuan Gambar (SDS)', route: 'r/engineering/drawing-submittals' },
+      { label: 'Persetujuan Material (SMS)', route: 'r/engineering/material-submittals' },
+      { label: 'Transmittal', route: 'r/engineering/transmittals' },
+      { label: 'Ijin Pelaksanaan (IPP)', route: 'r/engineering/ipp' },
+      // Izin sendiri, pola "Log BBM & Jam Alat": layarnya digerbangi prj.*
+      // di server (tim proyek yang menyusun rincian tapak), tetapi tempatnya
+      // di sini — lokasi dipakai kolom LOKASI pada IPP (lalu inspeksi P1-QC),
+      // jadi orang mencarinya di samping dokumen yang memakainya. Site
+      // manager ber-prj.view tanpa eng.view tetap melihat baris ini
+      // (visibleNav meloloskan item yang membawa izinnya sendiri).
+      { label: 'Lokasi Tapak', route: 'r/core/locations', perm: 'prj.view' },
     ],
   },
   {

@@ -24,6 +24,9 @@ const HIDDEN_KEYS = new Set([
   // Baris pekerja izin lembur (P0-C) — detail.tables; tanpa ini panel
   // Informasi memajang array objeknya sebagai badge JSON di atas tabelnya.
   'workers',
+  // Empat tabel baris IPP (P1-ENG) — 'materials'/'equipment' sudah di atas;
+  // dua sisanya dirender detail.tables juga, bukan badge JSON.
+  'drawings', 'material_approvals',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -36,6 +39,9 @@ const WHEN_SET_KEYS = new Set([
   'days_change', 'new_end_date', 'original_end_date',
   // Cap gerbang IMK (P0-C): kosong sampai security menekan 'periksa'.
   'checked_by', 'checked_at',
+  // P1-ENG: revisi hidup belum digantikan siapa pun — "Digantikan pada: —"
+  // pada SDS yang justru sedang berlaku adalah kebalikan dari informasi.
+  'superseded_at', 'superseded_by_code',
 ]);
 
 /*
@@ -51,6 +57,14 @@ const NAME_SHADOWED = {
   safety_officer_id: 'safety_officer_name',
   checked_by: 'checked_by_name',
   vendor_id: 'vendor_name',
+  // P1-ENG: Resource Engineering meratakan rujukannya sendiri — nomor gambar
+  // untuk SDS, kode SDS pengganti, jalur lokasi untuk IPP, nomor IPP untuk
+  // bon gudang, dan pembuat dokumen.
+  drawing_id: 'drawing_number',
+  superseded_by_id: 'superseded_by_code',
+  location_id: 'location_path',
+  ipp_id: 'ipp_code',
+  created_by: 'created_by_name',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
 
@@ -80,6 +94,11 @@ const ID_LOOKUPS = {
   // (GR/transfer) tampil sebagai nomor dokumennya, bukan id basis data.
   safety_officer_id: ['employees'], wbs_task_id: ['wbsTasks'],
   goods_receipt_id: ['goodsReceipts'], transfer_id: ['transfers'],
+  // P1-ENG. drawing_id/location_id/ipp_id biasanya sudah dibayangi kunci
+  // rata Resource-nya (NAME_SHADOWED); baris ini melayani baris DAFTAR dan
+  // dokumen yang datang tanpa relasi termuat. parent_id sengaja TIDAK
+  // dipetakan: akun COA dan kategori juga memakai nama kolom itu.
+  drawing_id: ['drawings'], location_id: ['locations'],
 };
 
 /** Indonesian labels for the generic key/value panel. */
@@ -295,6 +314,23 @@ const LABELS = {
   counterparty: 'Asal/tujuan barang', transfer_id: 'Transfer antar gudang',
   checked_by: 'Diperiksa oleh', checked_by_name: 'Diperiksa oleh', checked_at: 'Diperiksa pada',
   vendor_name: 'Vendor',
+  // P1-ENG — Engineering: register gambar, submittal, transmittal, IPP,
+  // lokasi tapak. Tanpa entri ini panel Informasi memajang "Reviewer Party".
+  discipline: 'Disiplin', planned_submit_date: 'Rencana tanggal ajuan',
+  current_submittal_code: 'SDS berlaku', current_revision: 'Revisi berlaku',
+  drawing_id: 'Gambar', drawing_number: 'No. gambar', drawing_title: 'Judul gambar',
+  submitted_at: 'Tanggal diajukan', reviewer_party: 'Pemeriksa',
+  decision: 'Keputusan', decided_at: 'Tanggal keputusan',
+  superseded_by_code: 'Digantikan oleh', created_by_name: 'Dibuat oleh',
+  material_name: 'Nama material', spec_reference: 'Rujukan spesifikasi',
+  sample_attached: 'Sampel disertakan',
+  to_party: 'Kepada', transmittal_date: 'Tanggal transmittal',
+  received_at: 'Diterima pada',
+  ipp_id: 'IPP', ipp_code: 'No. IPP',
+  location_id: 'Lokasi tapak', location_name: 'Lokasi tapak', location_path: 'Lokasi tapak',
+  duration_days: 'Durasi (hari)', wbs_task_code: 'Kode paket WBS', wbs_task_name: 'Paket pekerjaan',
+  kind: 'Jenjang', parent_id: 'Induk', parent_code: 'Kode induk', parent_name: 'Induk',
+  path: 'Jalur lokasi', sort_order: 'Urutan', children_count: 'Jumlah sub-lokasi',
 };
 
 /*

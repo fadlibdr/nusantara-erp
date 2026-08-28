@@ -41,6 +41,7 @@ teknisi.
 13. [Mencetak formulir rumah](#13-mencetak-formulir-rumah)
 14. [Yang tidak bisa Anda lakukan sendiri][bab14]
 15. [Persetujuan oleh Pemilik/MK](#15-persetujuan-oleh-pemilikmk)
+16. [Engineering — gambar, submittal, IPP](#16-engineering--gambar-submittal-ipp)
 
 [bab14]: #14-yang-tidak-bisa-anda-lakukan-sendiri--dan-siapa-yang-bisa
 
@@ -54,11 +55,11 @@ panduan ini milik orang lain.
 | Saya seorang… | Peran akun | Baca bab |
 |---|---|---|
 | Sales / pemasaran | `sales` | 1, 2, **3** (berhenti di §3.9 — penagihan bukan pekerjaan Anda) |
-| Estimator | `estimator` | 1, 2, **4** |
-| Petugas pengadaan / pembelian | `procurement` | 1, 2, **5** |
-| Penjaga gudang / logistik | `warehouse` | 1, 2, **6** |
-| Manajer proyek | `project-manager` | 1, 2, **7**, **8** (+ §4.4 RAP, bab 9 bila memegang alat, **15** bila meminta tanda tangan MK/Owner) |
-| Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja; + §9.5 — Anda salah satu pencatat log BBM & jam alat) |
+| Estimator / drafter | `estimator` | 1, 2, **4**, **16** (Anda drafter yang mendaftarkan gambar & menyiapkan submittal — bab 16) |
+| Petugas pengadaan / pembelian | `procurement` | 1, 2, **5** (+ §16.4 — baca daftar SMS sebelum membeli material yang belum disetujui MK) |
+| Penjaga gudang / logistik | `warehouse` | 1, 2, **6** (+ §16.5 — bon bisa menunjuk IPP) |
+| Manajer proyek | `project-manager` | 1, 2, **7**, **8**, **16** (+ §4.4 RAP, bab 9 bila memegang alat, **15** bila meminta tanda tangan MK/Owner) |
+| Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja; + §9.5 — Anda salah satu pencatat log BBM & jam alat; + **16** — Anda yang mengajukan IPP) |
 | Petugas keuangan (AR, AP, kas) | `finance` | 1, 2, **10** (+ §3.10–§3.14 penagihan, §5.9–§5.10 bayar vendor) |
 | Manajer keuangan / direktur | `finance-manager`, `direktur` | 1, 2, **14**, lalu bab dokumen yang Anda setujui (+ **15** untuk tanda tangan MK/Owner) |
 | Kasir kas kecil | peran khusus (§14) | 1, 2, **§10.5–§10.7** |
@@ -519,7 +520,7 @@ menunggu tombol Ubah muncul lagi.
 
 ### 2.7 Lampiran
 
-Kartu **Lampiran** hanya ada pada 31 jenis dokumen. Untuk melihatnya Anda butuh
+Kartu **Lampiran** hanya ada pada 33 jenis dokumen. Untuk melihatnya Anda butuh
 `<modul>.view`; untuk **`Tambah lampiran`** dan **`Hapus`** Anda butuh `<modul>.update`.
 
 Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · proyek · laporan
@@ -571,7 +572,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 41 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 45 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -2536,7 +2537,8 @@ posting."*
 
 1. **`Tambah Pengeluaran Barang`**.
 2. Isi **Gudang asal** (wajib), **Tanggal keluar** (wajib), **Proyek tujuan**,
-   **Paket pekerjaan (WBS)**, **Keperluan** (wajib, maksimal 500 karakter).
+   **IPP (Ijin Pelaksanaan)**, **Paket pekerjaan (WBS)**, **Keperluan** (wajib,
+   maksimal 500 karakter).
 3. Isi **Item dikeluarkan** (minimal 1): Item · **Paket WBS** (per baris) · **Qty**.
    **Tidak ada kolom harga** — nilainya ditentukan saat posting.
 4. **`Simpan`**, lalu minta **`Posting ke Stok`** (konfirmasi *"Posting pengeluaran ini?
@@ -2567,6 +2569,28 @@ Penolakan pemilih WBS: *"Tugas WBS yang dipilih bukan bagian dari WBS proyek ini
 *"Tugas WBS yang dipilih tidak terhubung ke item BOQ, sehingga pemakaian material tidak
 dapat dibandingkan dengan analisa harga satuan."* Pemilihnya memuat tugas daun **seluruh
 proyek**, dibedakan oleh sub-label seperti `PRJ-2026-001 · B.3` — perhatikan.
+
+**IPP: dari mana paket pekerjaan bon bisa datang sendiri.** Bila proyeknya memakai modul
+Engineering (bab 16), bon boleh menunjuk sebuah **IPP** — dan bila IPP itu membawa paket
+pekerjaan, bon **mewarisi** paket itu tanpa Anda mengetiknya. Aturannya:
+
+- **Hanya IPP yang sudah disetujui yang berlaku.** IPP draf, diajukan, atau ditolak tidak
+  bisa jadi dasar bon: *"IPP {kode} masih berstatus {status}; hanya IPP yang disetujui
+  yang dapat menjadi dasar pengeluaran material."*
+- **IPP harus milik proyek yang sama:** *"IPP {kode} milik proyek lain dan tidak dapat
+  menjadi dasar bon proyek ini."*
+- **Kalau Anda mengisi paket WBS sendiri sekaligus menunjuk IPP, keduanya harus cocok.**
+  Bila bentrok: *"Bon menunjuk {kode} yang paket pekerjaannya WBS {WBS}, tetapi tugas WBS
+  bon diisi {WBS lain}. Kosongkan tugas WBS agar diwarisi dari IPP, atau lepaskan IPP-nya
+  bila bon ini untuk pekerjaan lain."* — kosongkan paket WBS-nya dan biarkan diwarisi.
+
+**Peringatan konfirmasi (bukan blokir).** Bila proyeknya **punya IPP aktif** tetapi bon
+ini tidak menunjuk satu pun, server menahan sekali dengan: *"Proyek ini memiliki IPP
+aktif: {kode,…}. Pilih IPP yang mendasari pengeluaran ini agar bon mewarisi paket
+pekerjaannya, atau ajukan ulang dengan konfirmasi bila bon ini memang di luar cakupan
+IPP."* Pilih IPP-nya, **atau** kirim ulang untuk menegaskan bon ini memang di luar IPP
+(bahan habis pakai, kebersihan) — material di luar izin itu nyata dan tetap boleh keluar.
+Peringatan hanya muncul saat bon dibuat dan saat penyuntingan menyentuh kolom IPP.
 
 Penolakan posting: `"Issue {kode} is {status}; only draft issues can be posted."` ·
 `"Issue {kode} has no lines to post."` ·
@@ -5386,7 +5410,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **41** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **45** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -5421,7 +5445,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 41 formulir
+### 13.3 Daftar lengkap 45 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -5439,6 +5463,15 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | RAB / BOQ | F/RAB | halaman BOQ |
 | Analisa Harga Satuan Pekerjaan | F/AHSP | halaman AHSP |
 | RAP | F/RAP | halaman RAP |
+
+**Engineering** (izin lihat engineering) — dijelaskan lengkap di §16:
+
+| Formulir | Kode | Tombolnya di |
+|---|---|---|
+| Lembar Persetujuan Shop Drawing | F/SD | halaman Persetujuan Gambar (SDS) |
+| Lembar Persetujuan Material | F/SM | halaman Persetujuan Material (SMS) |
+| Transmittal Dokumen | F/TR | halaman Transmittal |
+| Ijin Pelaksanaan Pekerjaan | F/IPP | halaman IPP |
 
 **Pengadaan** (izin lihat pengadaan):
 
@@ -5549,6 +5582,8 @@ Yang paling sering ditemui:
 | Berita Acara Tambah-Kurang | baris **nilai kontrak sesudahnya** | hanya terisi bila CCO-nya sudah disetujui; lembar addendum waktu tidak punya baris nilai sama sekali — baris tanggal selesainya berbunyi "belum disetujui" selama draf (§3.7) |
 | Detail Schedule | **batang rencana** | hanya diarsir bila ada baseline yang disetujui |
 | Kop empat pihak | kotak **KONSULTAN MK** dan kolom tanda tangannya | kosong bila kolom Konsultan pada proyek belum diisi (§7.2) |
+| Persetujuan Gambar / Material (F/SD, F/SM) | sel **KEPUTUSAN** — tetapi tidak bergaris: submittal yang belum dijawab MK tercetak *"Menunggu keputusan Konsultan MK"*, dan revisi yang tergantikan tercetak *"DIGANTIKAN oleh {kode SDS}"* | keputusan MK adalah fakta yang diketik (bab 16); yang belum diketik dicetak sebagai keadaan menunggu, bukan garis kosong dan bukan stempel karangan. Kolom tanda tangan MK tetap kosong — tak ada yang mencatat siapa membubuhkannya |
+| Ijin Pelaksanaan (F/IPP) | tabel bahan/alat/gambar/material terisi dari baris IPP; kolom KEPUTUSAN per baris gambar/material tercetak stempel MK apa adanya | F/IPP mencetak keadaan tersimpan **apa adanya** sementara gerbang IPP (§16.5) menimbangnya terpisah — lembar boleh menampilkan "Disetujui dengan catatan" pada baris material yang gerbang tetap tolak |
 
 **Lembar yang sudah diisi dan ditandatangani itulah catatannya.** Arsipkan di berkas
 proyek — tidak ada layar untuk merekamnya kembali.
@@ -5826,6 +5861,208 @@ administrator menurunkan gerbang itu (`docs/PANDUAN-ADMINISTRATOR.md`), tautan y
 Anda terbitkan hanya bisa dibuka dari dalam gerbang, dan **pintu yang berfungsi penuh
 untuk MK/Owner adalah lembar fisik**. Kartu, register bukti, dan loncengnya bekerja
 sejak sekarang.
+
+---
+
+## 16. Engineering — gambar, submittal, IPP
+
+Bab ini milik tim teknik: **drafter/estimator** yang mendaftarkan gambar dan menyiapkan
+submittal, **site manager** yang mengajukan izin pelaksanaan, dan **manajer proyek** yang
+mencatat stempel MK serta menyetujui IPP. Di sidebar, semuanya ada di grup **Engineering**,
+tepat di antara Estimasi dan Proyek — karena di situlah pekerjaannya duduk: gambar dan
+material disetujui MK **sebelum** lapangan boleh mulai.
+
+**Satu aturan yang mendasari seluruh bab ini: keputusan MK adalah fakta yang diketik, bukan
+persetujuan di dalam sistem.** Konsultan MK bukan pengguna aplikasi ini — ia mengembalikan
+lembar berstempel, dan seseorang mengetik stempel itu ke kolom keputusan. Karena itu
+submittal gambar dan material **tidak** memakai tombol `Ajukan`/`Setujui`/`Tolak` seperti
+dokumen lain; ia memakai satu tombol **`Catat Keputusan MK`**. Hanya **IPP** yang berjalan
+lewat persetujuan sungguhan di dalam sistem.
+
+### 16.1 Siapa boleh apa
+
+| Peran | Di modul Engineering |
+|---|---|
+| **Estimator / drafter** (`estimator`) | Daftar gambar, siapkan submittal SDS/SMS, buat transmittal & IPP, ajukan IPP. **Tidak** mencatat stempel MK (bukan pemegang `eng.approve`) |
+| **Site manager** (`site-manager`) | Sama seperti drafter: buat & ajukan, termasuk mengajukan IPP dari lapangan |
+| **Manajer proyek** (`project-manager`) | Semua di atas **plus** `Catat Keputusan MK` pada submittal, dan `Setujui`/`Tolak` IPP |
+| **Direktur** (`direktur`) | Membaca semuanya; boleh mencatat stempel MK dan menyetujui IPP — tetapi **tidak membuat** dokumen (bukan pemegang `eng.create`) |
+| **Petugas pengadaan** (`procurement`) | **Hanya membaca** — terutama daftar SMS: membeli material yang belum disetujui MK persis yang dicegah dengan membaca register itu (§16.3) |
+
+Dua pagar melekat pada `Catat Keputusan MK` sekaligus: Anda perlu izin `eng.approve`,
+**dan** Anda tidak boleh orang yang mengajukan submittal itu sendiri. Jadi drafter yang
+menyiapkan submittal tak akan pernah mencatat stempelnya sendiri, dan seorang MP yang
+kebetulan menyiapkannya pun ditolak — mesti pemegang `eng.approve` yang lain.
+
+### 16.2 Register Gambar — `Engineering › Register Gambar`
+
+Daftar shop drawing proyek (FM-10-01). Kolom: No. Gambar · Judul · Disiplin · Rencana ajuan
+· SDS berlaku · Status. Disiplin salah satu dari **Struktur, Arsitektur, MEP, ELV, ICT**
+(ELV dan ICT berdiri sendiri karena perusahaan ini juga integrator sistem).
+
+1. **`Tambah Gambar`**. Isi **Proyek** (wajib, hanya saat membuat), **Nomor gambar**,
+   **Judul**, **Disiplin**, **Rencana tanggal ajuan**.
+2. Nomor gambar unik per proyek — nomor yang sama tidak bisa didaftarkan dua kali.
+
+**Kolom Status bergerak sendiri.** Anda tidak mengetiknya: ia mengikuti keputusan MK pada
+SDS terbaru gambar itu (Belum diajukan → Diajukan → salah satu dari empat stempel). Revisi
+gambar diajukan dari layar **Persetujuan Gambar (SDS)**, bukan dari sini.
+
+### 16.3 Persetujuan Gambar (SDS) — `Engineering › Persetujuan Gambar (SDS)`
+
+Kode `SDS/…`. Ini pengajuan satu **revisi** gambar untuk diperiksa MK. Kolom daftar: Kode ·
+No. Gambar · Rev · Diajukan · Pemeriksa · Keputusan.
+
+1. **`Tambah Persetujuan Gambar`**. Isi **Gambar (register)** (wajib, hanya saat membuat),
+   **Revisi** (bawaan `R0`), **Tanggal diajukan**, **Pemeriksa** (Konsultan MK / Pemilik).
+2. Lampiran berkas gambar (dwg/pdf) menempel di sini, di kartu Lampiran submittal — bukan di
+   register gambar. Yang distempel MK adalah satu revisi, dan berkasnya milik revisi itu.
+
+**Revisi baru menggantikan yang lama.** Mengajukan revisi berikutnya (mis. R1) untuk gambar
+yang sama membuat revisi sebelumnya bercap **Digantikan** dalam satu transaksi; kolom
+keputusan revisi lama tidak disentuh — ia riwayat.
+
+**Mencatat stempel MK.** Setelah lembar kembali dari MK, tekan **`Catat Keputusan MK`**
+(butuh `eng.approve`) dan isi **Stempel**, **Tanggal stempel**, **Catatan stempel (apa
+adanya)**. Empat stempel, persis lembar FM-10:
+
+| Stempel | Arti | Membuka gerbang IPP? |
+|---|---|---|
+| **Disetujui** | Laksanakan | Ya |
+| **Disetujui dengan catatan** | Laksanakan sambil memasukkan catatannya | Ya (untuk baris **gambar**) |
+| **Revisi & ajukan ulang** | Perbaiki dan ajukan revisi baru | Tidak |
+| **Ditolak** | Ditolak | Tidak |
+
+Yang akan menahan Anda:
+
+- Bukan pencatatnya: *"Pencatat keputusan tidak boleh orang yang mengajukan submittal {kode}
+  sendiri — minta pemegang eng.approve lain mencatat lembar stempel MK."*
+- Sudah pernah dicatat: *"Keputusan {stempel} sudah tercatat untuk {kode} pada {tanggal} dan
+  tidak dapat ditimpa; bila lembar stempel berbeda, ajukan revisi baru."*
+- Revisi sudah tergantikan: *"Submittal {kode} telah digantikan revisi {kode}; keputusan MK
+  dicatat pada revisi terbarunya."*
+
+### 16.4 Persetujuan Material (SMS) — `Engineering › Persetujuan Material (SMS)`
+
+Kode `SMS/…`. Sama pola dengan SDS, untuk **material** (FM-10-05/22). Isi **Nama material**,
+**Merek**, **Rujukan spesifikasi**, **Item persediaan** (opsional), **Sampel disertakan**,
+**Pemeriksa**. Stempel dicatat dengan **`Catat Keputusan MK`** yang sama.
+
+Bedanya dari gambar: **tak ada rantai revisi**. Material yang dikembalikan diajukan
+**sebagai SMS baru** — keputusan yang sudah tercatat tak pernah ditimpa: *"Submittal
+{kode} sudah berkeputusan {stempel} dan tidak dapat diubah; material yang dikembalikan
+diajukan sebagai submittal baru."*
+
+> **Asimetri yang wajib Anda ingat: "Disetujui dengan catatan" TIDAK meloloskan baris
+> material pada IPP; hanya "Disetujui" penuh.** Catatan pada material ("ganti merek",
+> "lengkapi sertifikat uji") mengubah apa yang boleh datang ke lapangan — beda dari catatan
+> pada gambar yang hanya soal cara membaca lembar. Maka gerbang IPP (§16.5) menuntut
+> material berstempel **Disetujui** utuh, sementara gambar boleh "Disetujui dengan catatan".
+
+### 16.5 Ijin Pelaksanaan Pekerjaan (IPP) — `Engineering › Ijin Pelaksanaan (IPP)`
+
+Kode `IPP/…` (FM-10-11). IPP mengumpulkan **gambar, material, bahan, dan alat** sebuah
+pekerjaan, lalu diajukan agar disetujui **sebelum** pekerjaan berjalan. Inilah satu-satunya
+dokumen Engineering yang memakai siklus `Ajukan` → `Setujui`/`Tolak` biasa.
+
+1. **`Tambah Ijin Pelaksanaan Pekerjaan`**. Isi **Proyek** (wajib, hanya saat membuat),
+   **Lingkup** (Struktur/Arsitektur/MEP), **Rencana mulai**, **Durasi (hari)**, **Lokasi
+   tapak** (§16.7), **Paket pekerjaan (WBS)**, **Uraian pekerjaan**.
+2. Isi baris **bahan** (item, qty, satuan), **alat**, **gambar** (menunjuk submittal SDS),
+   dan **material** (menunjuk submittal SMS).
+3. **`Simpan`**, lalu **`Ajukan`**.
+
+**Paket pekerjaan (WBS) di IPP menetes ke bon.** Bila diisi, ia harus paket **daun** ber-BOQ
+pada proyek yang sama (tiga penolakan sama persis dengan pemilih WBS pada bon, §6.5) —
+karena bon gudang yang menunjuk IPP ini **mewarisi** paket itu. Submittal yang dirujuk
+pun harus milik proyek yang sama: *"Submittal {kode} berada pada proyek lain dan tidak
+dapat dirujuk IPP proyek ini."*
+
+**Gerbangnya — inilah inti modul.** `Ajukan` **ditolak** selama ada baris yang belum beres,
+dan pesannya menyebut **setiap** dokumen penghambat sekaligus (bukan satu per satu), supaya
+Anda tahu persis lembar mana yang harus dikejar ke MK. **Tidak ada tombol konfirmasi di
+sini** — bekerja di atas gambar yang belum disetujui adalah persis yang formulir ini
+cegah. Bentuk pesannya:
+
+> *"IPP {kode} tidak dapat diajukan: gambar {kode} ({no} {rev}) masih menunggu keputusan
+> Konsultan MK; material {kode} ({nama}) berkeputusan Disetujui dengan catatan — baris
+> material menuntut keputusan Disetujui penuh; bereskan catatannya dan ajukan ulang
+> submittal-nya. Selesaikan persetujuan MK-nya dahulu."*
+
+Tiap penghambat berbunyi salah satu dari:
+
+- gambar belum dijawab: *"gambar {kode} ({no} {rev}) masih menunggu keputusan {pemeriksa}"*
+- gambar berstempel bukan-pembuka: *"gambar {kode} ({no} {rev}) berkeputusan {stempel}"*
+- gambar sudah tergantikan: *"gambar {kode} ({no} {rev}) telah digantikan revisi {kode} —
+  rujuk revisi terbarunya"*
+- material belum dijawab: *"material {kode} ({nama}) masih menunggu keputusan {pemeriksa}"*
+- material belum Disetujui penuh: *"material {kode} ({nama}) berkeputusan Disetujui dengan
+  catatan — baris material menuntut keputusan Disetujui penuh; bereskan catatannya dan
+  ajukan ulang submittal-nya"*
+
+Setelah lolos gerbang, IPP masuk siklus baku: pemegang `eng.approve` (MP, direktur)
+menekan **`Setujui`** atau **`Tolak`**, dan Anda tetap tidak boleh menyetujui IPP yang Anda
+ajukan sendiri (§2.5). IPP yang sudah keluar dari Draf/Ditolak tak bisa diubah lagi: *"IPP
+{kode} berstatus {status} dan tidak dapat diubah lagi."*
+
+### 16.6 Transmittal — `Engineering › Transmittal`
+
+Kode `TRM/…`. Surat pengantar yang mencatat dokumen apa keluar (atau masuk) dari kendali
+dokumen proyek. Isi **Arah** (Keluar/Masuk), **Kepada**, **Tanggal transmittal**, lalu baris
+**Dokumen yang disertakan**: tiap baris berjenis `drawing_submittal`, `material_submittal`,
+atau `lainnya` (teks bebas).
+
+- Baris SDS/SMS diisi **ID dokumennya**; baris "lainnya" cukup uraian teks —
+  *"Baris teks bebas wajib membawa uraian."*
+- Jenis di luar ketiganya ditolak: *"Jenis baris \"{x}\" tidak dikenal. Yang tersedia:
+  drawing_submittal, material_submittal, lainnya."*
+- Dokumen proyek lain ditolak dan disebut nomornya: *"Dokumen {kode} berada pada proyek lain
+  dan tidak dapat dimuat pada transmittal proyek ini."*
+
+**Tanda terima mengunci lembar.** Tekan **`Catat Tanda Terima`** (butuh `eng.update` —
+mencatat siapa menandatangani adalah tata usaha, bukan keputusan), isi **Diterima oleh**
+dan tanggal (kosongkan untuk memakai waktu saat ini). Sesudahnya transmittal tak bisa
+diubah/dihapus:
+*"Transmittal {kode} sudah diterima {nama} pada {waktu} dan tidak dapat diubah lagi."*
+
+### 16.7 Lokasi Tapak — `Engineering › Lokasi Tapak`
+
+Rincian tapak hierarkis: **Tower › Lantai › Zona › As › Ruang**. Dipakai kolom LOKASI pada
+IPP (dan inspeksi mutu kelak), maka tempatnya di samping dokumen yang memakainya. Layar ini
+**digerbangi izin proyek** (`prj.*`), bukan `eng.*` — tim proyek yang menyusun rinciannya —
+jadi site manager tanpa `eng.view` pun tetap melihat barisnya.
+
+1. **`Tambah Lokasi`**. Isi **Proyek**, **Induk** (opsional), **Jenis**, **Kode** (unik),
+   **Nama**, **Urutan**.
+2. Untuk tapak besar, **impor CSV** lewat layar Data Master (kolom: kode, nama, proyek_kode,
+   jenis, induk_kode, urutan) jauh lebih cepat daripada mengetik ratusan baris.
+
+Pagar hirarkinya:
+
+- Induk dan anak harus satu proyek: *"Induk lokasi {kode} berada pada proyek lain; induk dan
+  anak harus pada proyek yang sama."*
+- Tak boleh melingkar: *"Lokasi {kode} tidak boleh menjadi induk dari dirinya sendiri
+  (siklus hirarki)."*
+- Tak bisa dihapus selama beranak: *"Lokasi {kode} masih memiliki {n} sub-lokasi; hapus atau
+  pindahkan dulu sub-lokasinya."*
+
+### 16.8 Mencetak
+
+Empat formulir rumah, semua kop empat pihak, dicetak dari tombol **`Cetak`** di halaman
+daftar/detailnya (§13):
+
+| Tombol | Formulir | Dari layar |
+|---|---|---|
+| `Cetak Persetujuan Gambar (SDS)` | F/SD Lembar Persetujuan Shop Drawing | Persetujuan Gambar |
+| `Cetak Persetujuan Material (SMS)` | F/SM Lembar Persetujuan Material | Persetujuan Material |
+| `Cetak Transmittal` | F/TR Transmittal Dokumen | Transmittal |
+| `Cetak Ijin Pelaksanaan (IPP)` | F/IPP Ijin Pelaksanaan Pekerjaan | IPP |
+
+Aturan kejujuran berlaku penuh (§13.5): submittal yang **belum** dijawab MK tercetak
+*"Menunggu keputusan Konsultan MK"* — bukan stempel karangan, bukan garis kosong — dan
+revisi yang tergantikan tercetak *"DIGANTIKAN oleh {kode SDS}"* di mukanya. F/IPP mencetak
+stempel **apa adanya** sementara gerbang menimbangnya terpisah; kolom tanda tangan MK tetap
+kosong, karena tak ada yang mencatat siapa membubuhkannya.
 
 ---
 

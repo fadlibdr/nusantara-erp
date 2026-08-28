@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Core\Models\BaseModel;
 use Modules\Core\Traits\HasDocumentNumber;
+use Modules\Engineering\Models\WorkPermitIpp;
 use Modules\Inventory\Enums\StockDocumentStatus;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WbsTask;
@@ -63,6 +64,17 @@ class Issue extends BaseModel
     public function wbsTask(): BelongsTo
     {
         return $this->belongsTo(WbsTask::class, 'wbs_task_id');
+    }
+
+    /**
+     * The Ijin Pelaksanaan Pekerjaan this bon draws material for, when one was
+     * named — the source the header wbs_task_id is inherited from
+     * (IssueService). Cross-module belongsTo with no FK behind it (§3), the
+     * Inventory → Engineering arrow of the site-demand chain.
+     */
+    public function ipp(): BelongsTo
+    {
+        return $this->belongsTo(WorkPermitIpp::class, 'ipp_id');
     }
 
     public function items(): HasMany

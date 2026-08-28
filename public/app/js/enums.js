@@ -234,6 +234,43 @@ export const ENUMS = {
     ['waived', 'Dispensasi pelanggan'],
   ]),
 
+  /* P1-ENG — cermin Modules\Engineering\Enums, satu peta per enum, SEKALI.
+     Nilai persis milik server; label mengikuti label() PHP huruf demi huruf,
+     karena kata yang sama juga tercetak di F/SD–F/IPP (PrintableDocuments). */
+  discipline: opts([
+    ['struktur', 'Struktur'], ['arsitektur', 'Arsitektur'], ['mep', 'MEP'],
+    ['elv', 'ELV'], ['ict', 'ICT'],
+  ]),
+  /* Empat stempel keputusan FM-10, urut seperti pada stempelnya. INGAT:
+     'approved_as_noted' membuka gerbang IPP untuk GAMBAR tetapi TIDAK untuk
+     MATERIAL (IppService — baris material menuntut Disetujui penuh). */
+  submittalDecision: opts([
+    ['approved', 'Disetujui'], ['approved_as_noted', 'Disetujui dengan catatan'],
+    ['revise_resubmit', 'Revisi & ajukan ulang'], ['rejected', 'Ditolak'],
+  ]),
+  reviewerParty: opts([['mk', 'Konsultan MK'], ['owner', 'Pemilik']]),
+  /* Status register gambar — CERMIN keputusan submittal terkini, digerakkan
+     DrawingSubmittalService, tidak pernah diketik dari form mana pun. */
+  drawingStatus: opts([
+    ['belum_diajukan', 'Belum diajukan'], ['diajukan', 'Diajukan'],
+    ['approved', 'Disetujui'], ['approved_as_noted', 'Disetujui dengan catatan'],
+    ['revise_resubmit', 'Revisi & ajukan ulang'], ['rejected', 'Ditolak'],
+  ]),
+  transmittalDirection: opts([['keluar', 'Keluar'], ['masuk', 'Masuk']]),
+  /* Kosakata baris transmittal — TransmittalService::LINE_KINDS, bukan enum
+     PHP: kelas tidak pernah melintasi kabel, hanya tiga kata ini. */
+  transmittalLineKind: opts([
+    ['drawing_submittal', 'Shop drawing (SDS)'],
+    ['material_submittal', 'Material (SMS)'],
+    ['lainnya', 'Lainnya (teks bebas)'],
+  ]),
+  ippScope: opts([['struktur', 'Struktur'], ['arsitek', 'Arsitektur'], ['mep', 'MEP']]),
+  /* Cermin Modules\Core\Enums\LocationKind — jenjang lokasi tapak. */
+  locationKind: opts([
+    ['tower', 'Tower'], ['floor', 'Lantai'], ['zone', 'Zona'],
+    ['axis', 'As'], ['room', 'Ruang'],
+  ]),
+
   assetStatus: opts([
     ['available', 'Tersedia'], ['deployed', 'Termobilisasi'],
     ['maintenance', 'Dalam Perawatan'], ['disposed', 'Dihapusbukukan'],

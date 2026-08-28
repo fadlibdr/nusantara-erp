@@ -47,20 +47,23 @@ class IssueController extends ApiController
         $data = $request->validated();
         $data['issued_by'] = $request->user()?->id;
 
-        $issue = $this->service->create($data);
+        // Read straight off the request, not validated(): the flag is an
+        // acknowledgement, not document data — the confirm_price_deviation
+        // precedent (PurchaseOrderController::submit).
+        $issue = $this->service->create($data, $request->boolean('confirm_without_ipp'));
 
         return $this->created(IssueResource::make($issue));
     }
 
     public function show(Issue $issue): JsonResponse
     {
-        return $this->ok(IssueResource::make($issue->load('items.item', 'warehouse')));
+        return $this->ok(IssueResource::make($issue->load('items.item', 'warehouse', 'ipp')));
     }
 
     public function update(IssueUpdateRequest $request, Issue $issue): JsonResponse
     {
         try {
-            $issue = $this->service->update($issue, $request->validated());
+            $issue = $this->service->update($issue, $request->validated(), $request->boolean('confirm_without_ipp'));
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }

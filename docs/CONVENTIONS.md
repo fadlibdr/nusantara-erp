@@ -49,6 +49,7 @@ Modules/<Name>/
 | HrPayroll   | `api/hr`           | `hr_`        | 001000–001099 |
 | Finance     | `api/finance`      | `fin_`       | 001100–001199 |
 | ServiceDesk | `api/servicedesk`  | `svc_`       | 001200–001299 |
+| Engineering | `api/engineering`  | `eng_`       | 001300–001399 |
 
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
 inside your block). Never use another module's block.

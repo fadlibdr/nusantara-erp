@@ -11,6 +11,7 @@ use Modules\Core\Http\Controllers\DocumentImportController;
 use Modules\Core\Http\Controllers\DocumentPdfController;
 use Modules\Core\Http\Controllers\ExternalApprovalController;
 use Modules\Core\Http\Controllers\FormPrintController;
+use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
@@ -81,6 +82,17 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('print/forms/{form}/{id}', [FormPrintController::class, 'show'])
         ->where('form', '[a-z0-9-]+')
         ->whereNumber('id');
+
+    // Lokasi tapak (P1-ENG): the hierarchical site breakdown Engineering,
+    // Quality and Projects all point at. Gated by prj.*, not core.* — the
+    // ProjectPhotoController precedent: rows that live in Core because three
+    // modules share them, but are PROJECT site data maintained by the project
+    // side, and core.* belongs to admins alone (RoleSeeder reality).
+    Route::get('locations', [LocationController::class, 'index'])->middleware('permission:prj.view');
+    Route::post('locations', [LocationController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('locations/{location}', [LocationController::class, 'show'])->middleware('permission:prj.view');
+    Route::put('locations/{location}', [LocationController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('locations/{location}', [LocationController::class, 'destroy'])->middleware('permission:prj.delete');
 
     // Bulk load / export of master data. No route-level permission: the right
     // one depends on which table is being loaded, so the controller derives it
