@@ -82,6 +82,12 @@ echo "    ok"
 
 echo "==> Migrating and rebuilding caches"
 cd "$SITE"
+# clear the PREVIOUS deploy's cached config BEFORE migrating: a stale
+# config:cache made `migrate` read an old state and report "Nothing to
+# migrate" while migrate:status showed pending rows — Engineering (P1-ENG)
+# and Quality (P1-QC) both landed on prod with their whole migration block
+# skipped until re-run by hand. Clear first, migrate against live config.
+sudo -u www-data php artisan config:clear >/dev/null
 sudo -u www-data php artisan migrate --force
 sudo -u www-data php artisan optimize:clear >/dev/null
 sudo -u www-data php artisan config:cache >/dev/null
