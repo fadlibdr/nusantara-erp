@@ -81,6 +81,24 @@ export const ENUMS = {
     ['finishing', 'Finishing'], ['warranty', 'Masa Pemeliharaan'],
   ]),
   weather: opts([['cerah', 'Cerah'], ['mendung', 'Mendung'], ['hujan', 'Hujan']]),
+  /* Cermin Modules\Projects\Enums\DailyReportRole — 12 jabatan tabel JUMLAH
+     ORANG pada pad FM-10-12, persis dan urut. value adalah role_key yang
+     tersimpan; label mengikuti label() PHP huruf demi huruf, karena teks
+     inilah yang juga tercetak di pad (LaporanFormService::harian). */
+  dailyReportRole: opts([
+    ['project_manager', 'Project Manager'],
+    ['deputy_project_manager', 'Deputy Project Manager'],
+    ['engineering', 'Engineering'],
+    ['komersial', 'Komersial'],
+    ['keuangan', 'Keuangan'],
+    ['danlat', 'Danlat'],
+    ['produksi', 'Produksi'],
+    ['safety_officer', 'Safety Officer'],
+    ['mandor_sipil', 'Mandor Sipil + Tukang'],
+    ['mandor_arsitek', 'Mandor Arsitek + Tukang'],
+    ['mandor_mep', 'Mandor MEP + Tukang'],
+    ['subkont', 'Subkont'],
+  ]),
   bastType: opts([['bast1', 'BAST I — Serah Terima Pertama'], ['bast2', 'BAST II — Serah Terima Kedua']]),
 
   vendorClassification: opts([

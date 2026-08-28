@@ -13,6 +13,7 @@
 
 import { api, session } from '../api.js';
 import { el, clear, button, badge, icon, errorState, toast, toastError, withBusy, field } from '../ui.js';
+import { ENUMS } from '../enums.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
 
@@ -242,8 +243,74 @@ async function renderHarian(host) {
   await paint();
 }
 
+/*
+ * Tenaga kerja per jabatan — 12 stepper, satu per baris tabel JUMLAH ORANG
+ * FM-10-12 (P0-A). Stepper, bukan 12 kotak angka: di terik dengan satu tangan,
+ * dua ketukan besar lebih pasti daripada memunculkan keyboard angka — tetapi
+ * kotaknya tetap input sungguhan supaya "23 tukang" tidak berarti 23 ketukan.
+ *
+ * read() memulangkan baris manpower[] persis bentuk API: hanya jabatan yang
+ * terisi (> 0). Server MENURUNKAN manpower_count dari sini; layar ini tidak
+ * pernah mengirim klaim manual di sampingnya, jadi 422 selisih tidak mungkin
+ * lahir dari sini.
+ */
+function manpowerSteppers() {
+  const inputs = new Map(); // role_key -> input
+  const total = el('b', { text: '0' });
+
+  const refreshTotal = () => {
+    let sum = 0;
+    inputs.forEach((input) => { sum += Math.max(0, Number(input.value) || 0); });
+    total.textContent = String(sum);
+  };
+
+  const stepButton = (input, delta, role) => {
+    const node = button(delta > 0 ? '+' : '−', {
+      title: `${delta > 0 ? 'Tambah' : 'Kurangi'} ${role.label}`,
+      onClick: () => {
+        input.value = String(Math.max(0, (Number(input.value) || 0) + delta));
+        refreshTotal();
+      },
+    });
+    // Sasaran sentuh lapangan: lebar tombol minimum ~44px (ukuran jari).
+    Object.assign(node.style, { minWidth: '44px', minHeight: '40px', fontSize: '17px', flex: 'none' });
+    return node;
+  };
+
+  const rows = ENUMS.dailyReportRole.map((role) => {
+    const input = el('input', {
+      type: 'number', min: 0, value: 0, inputmode: 'numeric', 'aria-label': role.label,
+      style: { width: '56px', textAlign: 'center', flex: 'none' },
+      oninput: refreshTotal,
+    });
+    inputs.set(role.value, input);
+
+    return el('div', {
+      style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 0' },
+    }, [
+      el('span', { text: role.label, style: { flex: '1', fontSize: '13.5px' } }),
+      stepButton(input, -1, role),
+      input,
+      stepButton(input, +1, role),
+    ]);
+  });
+
+  const node = el('div', [
+    ...rows,
+    el('div', {
+      style: { display: 'flex', justifyContent: 'flex-end', gap: '5px', padding: '8px 0 0', fontSize: '14px' },
+    }, [el('span.muted', { text: 'Total:' }), total, el('span.muted', { text: 'orang' })]),
+  ]);
+
+  const read = () => ENUMS.dailyReportRole
+    .map((role) => ({ role_key: role.value, headcount: Math.max(0, Number(inputs.get(role.value).value) || 0) }))
+    .filter((row) => row.headcount > 0);
+
+  return { node, read };
+}
+
 function newReportCard(onCreated) {
-  const manpower = el('input.field-select', { type: 'number', min: 0, value: 0, inputmode: 'numeric' });
+  const manpower = manpowerSteppers();
   const activities = el('textarea.field-select', { rows: 3, placeholder: 'Pekerjaan hari ini…' });
 
   const save = button('Buat laporan hari ini', {
@@ -251,11 +318,15 @@ function newReportCard(onCreated) {
     size: 'lg',
     onClick: (event) => withBusy(event.currentTarget, async () => {
       try {
+        const rows = manpower.read();
         await api.post('projects/daily-reports', {
           project_id: state.projectId,
           report_date: state.date,
-          manpower_count: Number(manpower.value) || 0,
           activities: activities.value.trim(),
+          // Baris per jabatan bila ada — server menurunkan manpower_count
+          // darinya (P0-A). Tanpa satu pun jabatan terisi, klaim manual 0
+          // tetap sah (hari hujan, site berhenti): jalur kompat data lama.
+          ...(rows.length ? { manpower: rows } : { manpower_count: 0 }),
         });
         toast('Laporan harian dibuat.');
         onCreated();
@@ -268,7 +339,9 @@ function newReportCard(onCreated) {
   return el('.card', [
     el('.card-head', el('h2', { text: 'Belum ada laporan untuk tanggal ini' })),
     el('.card-body', [
-      field('Jumlah tenaga kerja', manpower),
+      field('Tenaga kerja per jabatan', manpower.node, {
+        help: 'Total dihitung otomatis dari jabatan yang diisi.',
+      }),
       field('Kegiatan', activities),
       session.can('prj.create')
         ? save

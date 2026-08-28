@@ -40,7 +40,10 @@
                      lines   int      ruled lines when it recorded nothing
                      weather ?array   ['options' => ['Cerah',…],
                                        'pagi' => ?string, 'sore' => ?string]
-                     hours   bool     the two hand-filled working-day sentences
+                     hours   bool|array  the two working-day sentences: true
+                                      prints them hand-filled; an array
+                                      ['start','end','reason'] prints each
+                                      recorded value, rules for the rest
       $docControl  — null, or ['judul','no_dok','no_rev','tanggal'] (WIKA IK)
       $money,$date — formatters, so no form formats a number its own way
 --}}
@@ -264,15 +267,34 @@
             @endif
 
             @if (! empty($notes['hours']))
-                {{-- Nothing in this ERP records a start or finish time, or why a
-                     working day was lost. Hand-filled on the pad, hand-filled here. --}}
+                {{-- The laporan harian passes hours as an array since P0-A —
+                     start/end 'HH:MM' and the lost-hours reason, read off the
+                     report itself; a bool (the registry forms) still means the
+                     hand-filled rules. A slot the report did not record keeps
+                     its rule: a printed value never invents its neighbour.
+                     The flush-left directives are byte-preserving on purpose —
+                     see the note in laporan-harian.blade.php. --}}
+@php($jam = is_array($notes['hours']) ? $notes['hours'] : [])
                 <div class="baris">
+@if (filled($jam['start'] ?? null))
+                    Pekerjaan dimulai jam {{ $jam['start'] }}
+@else
                     Pekerjaan dimulai jam <span class="fill-line" style="min-width:16mm"></span>
+@endif
+@if (filled($jam['end'] ?? null))
+                    s/d jam {{ $jam['end'] }}
+@else
                     s/d jam <span class="fill-line" style="min-width:16mm"></span>
+@endif
                 </div>
                 <div class="baris">
+@if (filled($jam['reason'] ?? null))
+                    Jam kerja (sepenuhnya dapat / sebagian tidak dapat digunakan untuk bekerja) karena
+                    {{ $jam['reason'] }}
+@else
                     Jam kerja (sepenuhnya dapat / sebagian tidak dapat digunakan untuk bekerja) karena
                     <span class="fill-line" style="min-width:70mm"></span>
+@endif
                 </div>
             @endif
         </div>

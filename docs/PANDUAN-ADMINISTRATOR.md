@@ -2504,12 +2504,12 @@ benar-benar **tidak ada**, bukan 403-saat-diklik.
    layar (daftar hadir, kewajiban pajak, ekualisasi pajak).
 
 **DUA formulir membawa parameter dari layar** — laporan harian dengan `?tanggal=`
-(`public/app/js/schema.js:698`) dan progres mingguan dengan `?minggu=` (`:760`).
+(`public/app/js/schema.js:702`) dan progres mingguan dengan `?minggu=` (`:913`).
 Keduanya dideklarasikan di definisi layar, bukan di registri, karena katalog tidak bisa
 mengetahui sebuah parameter dari satu baris saja.
 
 > **Daftar Temuan tidak termasuk, walaupun endpointnya menerima `?status=`.**
-> Deklarasi tombolnya (`schema.js:912`) hanya membawa `idField: 'project_id'` dan
+> Deklarasi tombolnya (`schema.js:1065`) hanya membawa `idField: 'project_id'` dan
 > **tidak punya `params`**, jadi `printablePath()` tidak pernah mengeluarkan `?status=`:
 > tombol di layar selalu mencetak **seluruh** register. Punch list tersaring hanya bisa
 > dicapai dengan mengetik URL-nya sendiri —
@@ -2638,7 +2638,7 @@ Kasus yang benar-benar akan ditanyakan kepada Anda, masing-masing dengan alasann
 | **Ketiga formulir izin tercetak nyaris seluruhnya kosong** | **Itu produk jadinya.** Tidak ada apa pun di basis data ini yang mencatat izin kerja, izin lembur, atau izin material — "not a partial table, none". Setiap lembar membawa kalimat tercetak yang mengatakannya: *"Formulir ini dicetak kosong: Nusantara ERP belum menyimpan data …, sehingga lembar kertas yang sudah diisi dan ditandatangani inilah satu-satunya catatan. Arsipkan di berkas proyek."* Layar proyek mengulang kalimat yang sama sebelum tombolnya |
 | **Ketiga formulir izin tidak bertanggal** | Sengaja, kecuali tanggal diminta. "A site office prints a pad of these once and works through it for a month; stamping every sheet with the day somebody pressed print would put 'HARI KE 52' on a permit filled in on day 71." Hanya baris yang bergerak yang dikosongkan; tanggal SPK — fakta kontrak yang tidak berpindah — tetap tercetak |
 | **PERPANJANGAN WAKTU I dan II selalu kosong** | **Tidak ada apa pun di ERP yang mencatat perpanjangan waktu** — tabel CCO membawa perubahan nilai dan **tidak membawa hari sama sekali**. Kedua baris itu diisi tangan, persis seperti di kertas. **Tidak ada jumlah pengisian data yang akan mengisinya** |
-| **Jam kerja pada laporan harian kosong** | Tidak ada kolom di mana pun yang mencatat jam mulai, jam selesai, atau alasan hari kerja hilang |
+| **Jam kerja pada laporan harian kosong** | Kolomnya ada sejak Laporan Harian penuh — jam mulai/selesai kerja dan alasan jam kerja hilang — dan barisnya tercetak dari laporan bila dicatat. Kosong berarti laporan itu tidak mencatatnya: pekerjaan pengisian data, bukan kerusakan. Hal yang sama berlaku untuk empat tabel baris FM-10-12 (per jabatan, material masuk, alat, uraian): laporan pra-pembaruan tidak punya barisnya dan tercetak bergaris kosong persis seperti dulu, dan catatan kaki lembar menyebut hanya tabel yang masih manual pada laporan itu |
 | **"No. Rev." selalu kosong** | Tidak ada apa pun di ERP yang menerbitkan nomor revisi untuk formulir cetak, dan "0" akan **menegaskan** bahwa ada |
 | **Tabel berpad terisi garis kosong** | Bukan baris nol. Sengaja |
 | **Daftar Temuan yang difilter `?status=` tetap merekap SELURUH register** | Dan lembarnya mencetak kalimat yang mengatakannya. Alasannya: "Printing a filtered recap next to filtered rows would let a page of two open items read as a job with two findings." Nilai status yang tidak dikenali **ditolak menyebut nama**, bukan disaring menjadi lembar kosong — tebakan Indonesia yang masuk akal seperti `?status=selesai` terhadap nilai yang dieja `closed` akan mencetak punch list bersih untuk pekerjaan yang punya temuan |

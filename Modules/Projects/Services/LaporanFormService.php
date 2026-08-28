@@ -5,8 +5,13 @@ namespace Modules\Projects\Services;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Modules\Projects\Enums\DailyReportRole;
 use Modules\Projects\Models\BaselineTask;
 use Modules\Projects\Models\DailyReport;
+use Modules\Projects\Models\DailyReportActivity;
+use Modules\Projects\Models\DailyReportEquipment;
+use Modules\Projects\Models\DailyReportManpower;
+use Modules\Projects\Models\DailyReportReceipt;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WbsTask;
 use Modules\Projects\Models\WeeklyProgress;
@@ -25,16 +30,17 @@ use Modules\Projects\Models\WeeklyProgress;
  * because the interesting property of these two forms is what they must REFUSE
  * to print:
  *
- *   - prj_daily_reports holds ONE headcount for the whole site
- *     (manpower_count). The pad wants twelve, by role. Eleven of those twelve
- *     cannot be derived from one, and the twelfth is not the total's identity
- *     either — so all twelve come back null and the pad's dotted rule prints.
- *   - prj_daily_report_materials is qty_USED. The pad's columns are "jumlah
- *     yang diterima" and "jumlah yang ditolak", which are goods-receipt facts
- *     (and the rejected quantity is recorded absolutely nowhere). Consumption
- *     is therefore printed under its own heading and the receipt table stays
- *     empty, because printing the one under the other's heading is the same
- *     lie as inventing the figure.
+ *   - The pad's twelve JUMLAH ORANG rows fill ONLY from
+ *     prj_daily_report_manpower, one row per DailyReportRole. A role with no
+ *     row comes back null and the pad's rule prints — never a share of
+ *     manpower_count, which stays the TOTAL line and nothing more. Reports
+ *     from before P0-A have no rows at all and print exactly as they always
+ *     did: twelve blanks and one number.
+ *   - prj_daily_report_materials is qty_USED. The pad's "jumlah yang
+ *     diterima" / "jumlah yang ditolak" pair is an arrival fact and fills
+ *     only from prj_daily_report_receipts; consumption keeps printing under
+ *     its own heading, because printing the one under the other's heading is
+ *     the same lie as inventing the figure.
  *   - prj_weekly_progress is the only source for the RENCANA/REALISASI footer,
  *     and a week with no row comes back null rather than 0.0. "Rencana 0%,
  *     realisasi 0%" on a signed schedule sheet is a statement that the site
@@ -51,26 +57,11 @@ use Modules\Projects\Models\WeeklyProgress;
  */
 class LaporanFormService
 {
-    /**
-     * The manpower table exactly as the owner's pad has it: twelve roles, then
-     * TOTAL. Kept here rather than in the template because the honesty rule is
-     * about this list — every one of these rows is a ruled blank, and a future
-     * edit that quietly fills one has to come through this file.
-     */
-    private const MANPOWER_ROLES = [
-        'Project Manager',
-        'Deputy Project Manager',
-        'Engineering',
-        'Komersial',
-        'Keuangan',
-        'Danlat',
-        'Produksi',
-        'Safety Officer',
-        'Mandor Sipil + Tukang',
-        'Mandor Arsitek + Tukang',
-        'Mandor MEP + Tukang',
-        'Subkont',
-    ];
+    // The manpower table exactly as the owner's pad has it — twelve roles,
+    // then TOTAL — no longer lives here as a constant: DailyReportRole is the
+    // one source both this printer and the store/update validation consume,
+    // so a row cannot fill itself on the sheet without its role_key having
+    // passed through the same list on the way into the database.
 
     /** Senin..Sabtu. The pad has six day columns; Minggu is not one of them. */
     private const DAY_LETTERS = ['S', 'S', 'R', 'K', 'J', 'S'];
@@ -79,12 +70,16 @@ class LaporanFormService
     private const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
     /**
-     * How many empty ruled rows each unsourced table gets.
+     * How many ruled rows each pad table gets when it has nothing to print.
      *
      * Chosen so the whole sheet still lands on one A4 portrait page next to a
      * thirteen-row manpower table, a notes block and three signature columns.
      * Fewer rows than the pad has, and deliberately: a second page of nothing
      * but blanks is a page the site throws away.
+     *
+     * Sourced rows displace blanks one for one (FormPrintService's registry
+     * minRows pattern): the table keeps this geometry until the data outgrows
+     * it, and a report with no rows prints all-blank exactly as before P0-A.
      */
     private const BLANK_ROWS = ['materialMasuk' => 5, 'alat' => 4, 'uraian' => 3];
 
@@ -99,11 +94,23 @@ class LaporanFormService
      */
     public function harian(DailyReport $report): array
     {
-        $report->loadMissing(['project', 'materials.item']);
+        $report->loadMissing(['project', 'materials.item', 'manpower', 'equipment', 'receipts', 'activityLines']);
+
+        $materialMasuk = $this->materialMasuk($report);
+        $alat = $this->alat($report);
+        $uraianRows = $this->uraianRows($report);
 
         return [
             'manpower' => $this->manpowerRows($report),
             'materialsUsed' => $this->materialsUsed($report),
+            'materialMasuk' => $materialMasuk,
+            'alat' => $alat,
+            'uraianRows' => $uraianRows,
+            'workHours' => [
+                'start' => $this->clock($report->work_start),
+                'end' => $this->clock($report->work_end),
+                'reason' => $this->text($report->lost_hours_reason),
+            ],
             'weather' => [
                 'pagi' => $report->weather_am?->label(),
                 'sore' => $report->weather_pm?->label(),
@@ -111,26 +118,65 @@ class LaporanFormService
             'activities' => $this->text($report->activities),
             'obstacles' => $this->text($report->obstacles),
             'safetyNotes' => $this->text($report->safety_notes),
-            'blankRows' => self::BLANK_ROWS,
-            'handFilled' => [
-                'Kolom JUMLAH ORANG per jabatan diisi manual — ERP hanya menyimpan satu angka tenaga kerja '
-                    .'untuk seluruh proyek per hari, bukan rinciannya per jabatan.',
-                'Tabel MATERIAL YANG MASUK HARI INI diisi manual — penerimaan barang tercatat per surat jalan '
-                    .'di modul Pengadaan, bukan per laporan harian, dan jumlah yang DITOLAK tidak tercatat di mana pun.',
-                'Tabel ALAT-ALAT diisi manual — ERP tidak menyimpan pemakaian alat per hari.',
-                'Kolom PROGRESS dan TARGET diisi manual — progres dicatat per paket pekerjaan WBS dan per minggu, '
-                    .'tidak pernah per hari.',
+            'blankRows' => [
+                'materialMasuk' => max(0, self::BLANK_ROWS['materialMasuk'] - count($materialMasuk)),
+                'alat' => max(0, self::BLANK_ROWS['alat'] - count($alat)),
+                // The legacy layout is one summary row plus these blanks; the
+                // sourced layout pads to the same four-row table.
+                'uraian' => $uraianRows === []
+                    ? self::BLANK_ROWS['uraian']
+                    : max(0, self::BLANK_ROWS['uraian'] + 1 - count($uraianRows)),
             ],
+            'handFilled' => $this->handFilled($report),
         ];
     }
 
     /**
-     * Twelve ruled blanks and one number.
+     * The footnote names only the cells still manual for THIS report.
      *
-     * manpower_count is unsigned with a default of 0, so "0" is what an
-     * untouched field looks like as much as it is what an empty site looks
-     * like. On a sheet three parties sign, the two must not print the same, so
-     * a zero total is a blank as well.
+     * Each sentence stands while its table has no rows — for a pre-P0-A
+     * report that is all four, word for word as the sheet has always printed
+     * them, and for that report each is still the truth: its per-jabatan
+     * numbers, receipts, equipment and daily progress were never recorded
+     * anywhere and live only on the paper. The moment a table has rows it is
+     * sourced, its sentence goes, and a report sourced everywhere prints no
+     * footnote at all.
+     *
+     * @return list<string>
+     */
+    private function handFilled(DailyReport $report): array
+    {
+        return array_values(array_filter([
+            $report->manpower->isEmpty()
+                ? 'Kolom JUMLAH ORANG per jabatan diisi manual — ERP hanya menyimpan satu angka tenaga kerja '
+                    .'untuk seluruh proyek per hari, bukan rinciannya per jabatan.'
+                : null,
+            $report->receipts->isEmpty()
+                ? 'Tabel MATERIAL YANG MASUK HARI INI diisi manual — penerimaan barang tercatat per surat jalan '
+                    .'di modul Pengadaan, bukan per laporan harian, dan jumlah yang DITOLAK tidak tercatat di mana pun.'
+                : null,
+            $report->equipment->isEmpty()
+                ? 'Tabel ALAT-ALAT diisi manual — ERP tidak menyimpan pemakaian alat per hari.'
+                : null,
+            $report->activityLines->isEmpty()
+                ? 'Kolom PROGRESS dan TARGET diisi manual — progres dicatat per paket pekerjaan WBS dan per minggu, '
+                    .'tidak pernah per hari.'
+                : null,
+        ]));
+    }
+
+    /**
+     * Twelve rows in the pad's own order — DailyReportRole::cases() — each
+     * filled ONLY when prj_daily_report_manpower holds a row for that
+     * role_key, and a ruled blank otherwise. A report from before the line
+     * table existed has no rows and prints as it always did.
+     *
+     * TOTAL stays manpower_count: for a report with rows the service derives
+     * it from their sum, and for an old report it is the one number the site
+     * ever recorded. manpower_count is unsigned with a default of 0, so "0"
+     * is what an untouched field looks like as much as it is what an empty
+     * site looks like — on a sheet three parties sign, the two must not print
+     * the same, so a zero total is a blank as well.
      *
      * @return list<array{label: string, count: ?int, total: bool}>
      */
@@ -138,14 +184,98 @@ class LaporanFormService
     {
         $rows = [];
 
-        foreach (self::MANPOWER_ROLES as $role) {
-            $rows[] = ['label' => $role, 'count' => null, 'total' => false];
+        foreach (DailyReportRole::cases() as $role) {
+            // Identity match against the cast enum: the row order the relation
+            // hands back is entry order, and the pad's order is the enum's.
+            $line = $report->manpower->first(
+                fn (DailyReportManpower $row): bool => $row->role_key === $role,
+            );
+
+            $rows[] = ['label' => $role->label(), 'count' => $line?->headcount, 'total' => false];
         }
 
         $total = (int) $report->manpower_count;
         $rows[] = ['label' => 'TOTAL', 'count' => $total > 0 ? $total : null, 'total' => true];
 
         return $rows;
+    }
+
+    /**
+     * MATERIAL MASUK — arrival rows from prj_daily_report_receipts, the table
+     * that answers the pad's diterima/ditolak column pair.
+     *
+     * rejected prints even at 0: unlike manpower_count's untouched default,
+     * a receipt row exists only because somebody recorded that delivery, so
+     * "nothing rejected" is a recorded statement rather than an absence.
+     *
+     * @return list<array{description: string, received: float, rejected: float, unit: ?string, reason: ?string}>
+     */
+    private function materialMasuk(DailyReport $report): array
+    {
+        return $report->receipts
+            ->map(fn (DailyReportReceipt $row): array => [
+                'description' => $row->description,
+                'received' => (float) $row->qty_received,
+                'rejected' => (float) $row->qty_rejected,
+                'unit' => $this->text($row->unit),
+                'reason' => $this->text($row->rejection_reason),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * ALAT-ALAT from prj_daily_report_equipment. hours is null when nobody
+     * recorded it — the sheet prints nothing, not "0 jam".
+     *
+     * @return list<array{description: string, qty: int, hours: ?float}>
+     */
+    private function alat(DailyReport $report): array
+    {
+        return $report->equipment
+            ->map(fn (DailyReportEquipment $row): array => [
+                'description' => $row->description,
+                'qty' => (int) $row->qty,
+                'hours' => $row->hours === null ? null : (float) $row->hours,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * URAIAN / PROGRESS / TARGET / HAMBATAN from prj_daily_report_activities,
+     * in sort_order (the relation orders them; entry order breaks ties). A
+     * null note keeps its ruled blank inside an otherwise sourced row —
+     * per-line progress the site did not record is still not the ERP's to
+     * invent.
+     *
+     * @return list<array{description: ?string, progress: ?string, target: ?string, obstacle: ?string}>
+     */
+    private function uraianRows(DailyReport $report): array
+    {
+        return $report->activityLines
+            ->map(fn (DailyReportActivity $row): array => [
+                'description' => $this->text($row->description),
+                'progress' => $this->text($row->progress_note),
+                'target' => $this->text($row->target_note),
+                'obstacle' => $this->text($row->obstacle),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * work_start/work_end as the pad line prints them: HH:MM.
+     *
+     * The columns are TIME and the model deliberately leaves them un-cast, so
+     * most drivers hand back the stored 'HH:MM' — but one that appends
+     * seconds must not put ':00' on the signed sheet.
+     */
+    private function clock(?string $value): ?string
+    {
+        $text = $this->text($value);
+
+        return $text === null ? null : substr($text, 0, 5);
     }
 
     /**

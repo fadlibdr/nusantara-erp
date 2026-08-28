@@ -17,10 +17,13 @@ const HIDDEN_KEYS = new Set([
   'id', 'code', 'status', 'status_label', 'created_at', 'updated_at', 'deleted_at',
   'items', 'lines', 'sections', 'termins', 'sites', 'components', 'materials', 'parts',
   'entries', 'checklist', 'payslips', 'approvals', 'permissions', 'activities', 'allocations',
+  // Empat tabel baris FM-10-12 (P0-A) — dirender sebagai detail.tables, dan
+  // 'locked' bool hanyalah bayangan locked_at yang sudah tampil sendiri.
+  'manpower', 'equipment', 'receipts', 'activity_lines', 'locked',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
-const WHEN_SET_KEYS = new Set(['cancelled_at', 'cancellation_reason', 'cancelled_by']);
+const WHEN_SET_KEYS = new Set(['cancelled_at', 'cancellation_reason', 'cancelled_by', 'locked_at']);
 
 const MONEY_KEY = /(amount|total|value|price|cost|salary|dpp|ppn|pph|budget|payable|paid|outstanding|retention|gross|net|subtotal|discount|rate_internal)/;
 const PERCENT_KEY = /(_pct|_rate)$/;
@@ -107,6 +110,9 @@ const LABELS = {
   reference_id: 'ID referensi', reference: 'Referensi', revision: 'Revisi', version: 'Versi',
   claim_no: 'Opname ke-', line_no: 'Baris', week_no: 'Minggu ke-', manpower_count: 'Jumlah tenaga kerja',
   activities: 'Kegiatan', obstacles: 'Kendala', safety_notes: 'Catatan K3',
+  // Laporan harian penuh (P0-A) — kop jam kerja dan kunci BAST I.
+  work_start: 'Jam mulai kerja', work_end: 'Jam selesai kerja',
+  lost_hours_reason: 'Alasan jam kerja hilang', locked_at: 'Terkunci pada',
   findings: 'Temuan', actions_taken: 'Tindakan', recommendations: 'Rekomendasi',
   resolution_notes: 'Catatan penyelesaian', coverage: 'Cakupan layanan',
   address: 'Alamat', city: 'Kota', province: 'Provinsi', postal_code: 'Kode pos',

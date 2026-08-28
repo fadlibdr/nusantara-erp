@@ -3,26 +3,33 @@
 
     Read this next to Modules\Projects\Services\LaporanFormService, which is
     where every value below comes from and, more to the point, where the nulls
-    come from. The pad has four tables and this ERP can answer one and a half of
-    them:
+    come from. Since P0-A each pad table has its own line table, and each fills
+    ONLY from it:
 
-      TENAGA KERJA        twelve roles, and prj_daily_reports holds ONE headcount
-                          for the whole site. TOTAL is printed; the twelve are
-                          the site's to write.
-      MATERIAL MASUK      "diterima" is a goods receipt and lives in Pengadaan
-                          per surat jalan; "ditolak" is recorded nowhere at all.
-                          Both columns stay empty.
+      TENAGA KERJA        prj_daily_report_manpower, one row per jabatan. A
+                          role without a row keeps its ruled blank; TOTAL is
+                          manpower_count, as ever.
+      MATERIAL MASUK      prj_daily_report_receipts — diterima AND ditolak are
+                          arrival facts recorded on the report itself now.
       MATERIAL DIPAKAI    prj_daily_report_materials, printed under its own
                           heading — it is consumption, and putting it under the
                           receipt table's heading would be the same lie as
                           inventing the figure.
-      ALAT-ALAT           no table in this database records equipment per day.
-      URAIAN / HAMBATAN   activities and obstacles, verbatim. PROGRESS and
-                          TARGET are blank: progress is recorded per WBS package
-                          and per week, never per day.
+      ALAT-ALAT           prj_daily_report_equipment.
+      URAIAN dst.         prj_daily_report_activities per line (sort_order);
+                          a report without lines prints its summary activities
+                          and obstacles text exactly as before.
 
-    The footnote at the bottom names all of it, because the clerk holding the
-    printout should not have to guess which cells the computer declined to fill.
+    Ruled blanks pad every table to its pre-P0-A geometry, and a report with
+    no line rows at all — every report from before the tables existed —
+    renders BYTE-identically to the old sheet. The footnote at the bottom
+    names whichever tables are still manual for this report.
+
+    NOTE ON WHITESPACE: the flush-left Blade directives below are deliberate.
+    A directive's leading indentation is emitted as literal output, and the
+    compat contract above is byte-level — LaporanHarianPenuhTest holds the
+    render against a golden fixture captured before P0-A. Indenting these
+    directives prettily would shift those bytes.
 --}}
 @extends('coredoc::forms.layout')
 
@@ -79,6 +86,16 @@
                         </tr>
                     </thead>
                     <tbody>
+@foreach ($materialMasuk as $baris)
+                        <tr>
+                            <td>{{ $baris['description'] }}@if ($baris['reason'] !== null) <span style="font-size:6.5pt">(ditolak: {{ $baris['reason'] }})</span>@endif</td>
+                            {{-- DITOLAK prints even at 0: this row exists because the
+                                 delivery was recorded, so "nothing rejected" is a
+                                 statement, not an untouched default. --}}
+                            <td class="num">{{ rtrim(rtrim(number_format($baris['received'], 3, ',', '.'), '0'), ',') }}@if ($baris['unit'] !== null) {{ $baris['unit'] }}@endif</td>
+                            <td class="num">{{ rtrim(rtrim(number_format($baris['rejected'], 3, ',', '.'), '0'), ',') }}</td>
+                        </tr>
+@endforeach
                         @for ($i = 0; $i < $blankRows['materialMasuk']; $i++)
                             <tr>
                                 <td><div class="fill"></div></td>
@@ -122,6 +139,13 @@
                         </tr>
                     </thead>
                     <tbody>
+@foreach ($alat as $baris)
+                        <tr>
+                            {{-- No hours recorded prints no hours — not "0 jam". --}}
+                            <td>{{ $baris['description'] }}@if ($baris['hours'] !== null) <span style="font-size:6.5pt">({{ rtrim(rtrim(number_format($baris['hours'], 2, ',', '.'), '0'), ',') }} jam)</span>@endif</td>
+                            <td class="ctr">{{ $baris['qty'] }}</td>
+                        </tr>
+@endforeach
                         @for ($i = 0; $i < $blankRows['alat']; $i++)
                             <tr>
                                 <td><div class="fill"></div></td>
@@ -145,6 +169,7 @@
             </tr>
         </thead>
         <tbody>
+@if ($uraianRows === [])
             <tr>
                 <td class="ctr">1</td>
                 <td>
@@ -154,9 +179,11 @@
                         <div class="fill"></div>
                     @endif
                 </td>
-                {{-- The two columns nobody can source. prj_wbs_tasks.progress_pct
-                     is a package's cumulative percentage, not a day's, and no
-                     table in this database holds a daily target at all. --}}
+                {{-- No activity lines on this report — pre-P0-A shape — so the
+                     summary text prints as it always did, and PROGRESS and
+                     TARGET have nothing to answer them: prj_wbs_tasks'
+                     progress_pct is a package's cumulative percentage, not a
+                     day's, and there is no daily target outside the lines. --}}
                 <td class="kosong"></td>
                 <td class="kosong"></td>
                 <td>
@@ -176,9 +203,32 @@
                     <td><div class="fill"></div></td>
                 </tr>
             @endfor
+@else
+            @foreach ($uraianRows as $baris)
+                <tr>
+                    <td class="ctr">{{ $loop->iteration }}</td>
+                    <td>@if ($baris['description'] !== null){!! nl2br(e($baris['description'])) !!}@else<div class="fill"></div>@endif</td>
+                    {{-- A note the site did not record keeps its ruled blank
+                         inside an otherwise sourced row. --}}
+                    <td class="{{ $baris['progress'] === null ? 'kosong' : 'ctr' }}">{{ $baris['progress'] }}</td>
+                    <td class="{{ $baris['target'] === null ? 'kosong' : 'ctr' }}">{{ $baris['target'] }}</td>
+                    <td>@if ($baris['obstacle'] !== null){!! nl2br(e($baris['obstacle'])) !!}@else<div class="fill"></div>@endif</td>
+                </tr>
+            @endforeach
+            @for ($i = 0; $i < $blankRows['uraian']; $i++)
+                <tr>
+                    <td class="ctr">{{ count($uraianRows) + $i + 1 }}</td>
+                    <td><div class="fill"></div></td>
+                    <td class="kosong"></td>
+                    <td class="kosong"></td>
+                    <td><div class="fill"></div></td>
+                </tr>
+            @endfor
+@endif
         </tbody>
     </table>
 
+@if ($handFilled !== [])
     <div class="catatan-kaki">
         <b>Diisi manual di lapangan :</b>
         <ol>
@@ -187,4 +237,5 @@
             @endforeach
         </ol>
     </div>
+@endif
 @endsection

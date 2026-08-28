@@ -708,9 +708,11 @@ class FormPrintService
                     'pagi' => $body['weather']['pagi'],
                     'sore' => $body['weather']['sore'],
                 ],
-                // No column anywhere records a start time, a finish time, or
-                // why a working day was lost. Hand-filled, as on the pad.
-                'hours' => true,
+                // work_start/work_end and the lost-hours reason, as HH:MM
+                // strings off the report (P0-A). A report from before those
+                // columns carries nulls and the pad's rules print hand-filled,
+                // exactly as before.
+                'hours' => $body['workHours'],
             ],
             'docControl' => [
                 'judul' => 'Laporan Harian',

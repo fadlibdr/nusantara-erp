@@ -3,13 +3,17 @@
    adding an entry here, not writing a view.
 
    column  { key, label, type, align, width, sub, lookup, enum, hideOnNarrow }
-   field   { key, label, type, required, span, options, enum, lookup, help, default }
-   line    { key, label, columns[], min }
+   field   { key, label, type, required, span, options, enum, lookup, help,
+             default, hideWhen(record) }
+   line    { key, label, columns[], min, prefill, importPick }
+           prefill MENGGANTI seluruh baris dari dokumen sumber tanpa bertanya;
+           importPick membuka dialog centang lalu MENAMBAHKAN baris terpilih —
+           lihat buildLines di views/form.js untuk kedua bentuknya.
    action  { key, label, path, method, variant, perm, when, confirm, fields[] }
 
    types — text | code | textarea | number | currency | qty | percent | date |
-           datetime | bool | select | lookup | status | enum | rel | json |
-           tags | progress | password | multiselect
+           datetime | time | bool | select | lookup | status | enum | rel |
+           json | tags | progress | password | multiselect
 */
 
 import { ENUMS } from './enums.js';
@@ -711,6 +715,15 @@ export const RESOURCES = {
       { key: 'date_from', label: 'Dari', type: 'date' },
       { key: 'date_to', label: 'Sampai', type: 'date' },
     ],
+    /*
+     * P0-A: laporan yang locked_at-nya terisi (BAST I proyek disetujui)
+     * MEMBEKU — tombol Ubah/Hapus disembunyikan di daftar maupun detail.
+     * Server tetap menolak dengan 422 yang menyebut BAST pengunci dan tanggal
+     * serah terimanya; sembunyi di sini hanya supaya penolakan itu tidak
+     * menjadi kalimat pertama yang dibaca pengawas.
+     */
+    editableWhen: (row) => !row.locked,
+    deletableWhen: (row) => !row.locked,
     form: {
       sections: [{
         title: 'Laporan harian',
@@ -719,7 +732,26 @@ export const RESOURCES = {
           { key: 'report_date', label: 'Tanggal laporan', type: 'date', required: true, defaultToday: true },
           { key: 'weather_am', label: 'Cuaca pagi', type: 'select', enum: 'weather' },
           { key: 'weather_pm', label: 'Cuaca siang', type: 'select', enum: 'weather' },
-          { key: 'manpower_count', label: 'Jumlah tenaga kerja', type: 'number', required: true, default: 0 },
+          // Kolom WAKTU pada kop FM-10-12 — 'HH:MM'; server menolak
+          // work_end ≤ work_start dengan menyebut kedua jamnya.
+          { key: 'work_start', label: 'Jam mulai kerja', type: 'time' },
+          { key: 'work_end', label: 'Jam selesai kerja', type: 'time' },
+          {
+            key: 'lost_hours_reason', label: 'Alasan jam kerja hilang', type: 'text', span: 2,
+            help: 'Hujan, tunggu material, listrik padam — alasan jam efektif lebih pendek dari jam kerja.',
+          },
+          {
+            key: 'manpower_count', label: 'Jumlah tenaga kerja', type: 'number',
+            // P0-A: begitu tabel per jabatan diisi, angka ini TURUNAN dari
+            // jumlah headcount — klaim manual yang berbeda ditolak server
+            // dengan 422 yang menyebut kedua angkanya. Kotak ini tinggal
+            // untuk laporan lama tanpa rincian (kompat maju): hanya di sana
+            // angka manual masih sah. hideWhen menahannya ikut terkirim basi
+            // setiap kali rincian jabatan diedit.
+            help: 'Terhitung otomatis begitu tabel "Tenaga kerja per jabatan" diisi — kosongkan saja. '
+              + 'Isi manual hanya untuk laporan tanpa rincian jabatan.',
+            hideWhen: (record) => Array.isArray(record && record.manpower) && record.manpower.length > 0,
+          },
           { key: 'activities', label: 'Kegiatan hari ini', type: 'textarea', required: true, span: 2 },
           { key: 'obstacles', label: 'Kendala', type: 'textarea', span: 2 },
           {
@@ -730,24 +762,145 @@ export const RESOURCES = {
           },
         ],
       }],
-      lines: [{
-        key: 'materials', label: 'Pemakaian material',
-        columns: [
-          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '52%' },
-          { key: 'qty_used', label: 'Qty dipakai', type: 'qty', required: true, width: '24%' },
-          { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '24%' },
-        ],
-      }],
+      /*
+       * Empat tabel baris FM-10-12 (P0-A) + pemakaian material yang sudah ada.
+       * Sel formulir rumah yang dulu bergaris kosong kini punya sumber datanya
+       * di sini; baris kosong = tetap bergaris kosong di kertas.
+       */
+      lines: [
+        {
+          key: 'manpower', label: 'Tenaga kerja per jabatan',
+          help: 'Tabel JUMLAH ORANG pada FM-10-12. Total tenaga kerja dihitung otomatis dari headcount — '
+            + 'jabatan yang kosong tetap bergaris kosong di cetakan.',
+          columns: [
+            { key: 'role_key', label: 'Jabatan', type: 'select', enum: 'dailyReportRole', required: true, width: '34%' },
+            { key: 'headcount', label: 'Jumlah orang', type: 'number', min: 0, required: true, width: '18%' },
+            { key: 'notes', label: 'Keterangan', type: 'text', width: '44%' },
+          ],
+        },
+        {
+          key: 'activity_lines', label: 'Uraian pekerjaan',
+          help: 'Kolom URAIAN PEKERJAAN / PROGRESS / TARGET / HAMBATAN pada FM-10-12 — satu baris per pekerjaan.',
+          columns: [
+            { key: 'wbs_task_id', label: 'Paket WBS', type: 'lookup', lookup: 'wbsTasks', width: '22%' },
+            { key: 'description', label: 'Uraian pekerjaan', type: 'text', required: true, width: '30%' },
+            { key: 'progress_note', label: 'Progress', type: 'text', width: '14%' },
+            { key: 'target_note', label: 'Target', type: 'text', width: '14%' },
+            { key: 'obstacle', label: 'Hambatan', type: 'text', width: '16%' },
+          ],
+        },
+        {
+          key: 'receipts', label: 'Material masuk',
+          help: 'Tabel MATERIAL MASUK (diterima/ditolak) pada FM-10-12 — kedatangan di lapangan hari ini, '
+            + 'BUKAN pemakaian. Pakai "Impor dari GRN" supaya baris tertaut ke penerimaan gudang site; '
+            + 'baris ketik tangan sah untuk kedatangan tanpa GRN.',
+          columns: [
+            // Tertaut lewat "Impor dari GRN", tidak pernah diketik.
+            { key: 'goods_receipt_id', type: 'hidden' },
+            { key: 'item_id', type: 'hidden' },
+            { key: 'description', label: 'Material', type: 'text', required: true, width: '30%' },
+            { key: 'qty_received', label: 'Diterima', type: 'qty', required: true, width: '13%' },
+            { key: 'qty_rejected', label: 'Ditolak', type: 'qty', width: '13%' },
+            { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '12%' },
+            { key: 'rejection_reason', label: 'Alasan ditolak', type: 'text', width: '28%' },
+          ],
+          importPick: {
+            label: 'Impor dari GRN',
+            title: 'Impor dari penerimaan gudang site (GRN)',
+            requiresRecord: 'Simpan laporan ini dulu, lalu buka Ubah — kandidat GRN dibaca dari proyek dan tanggal laporan yang tersimpan.',
+            empty: 'Tidak ada GRN terposting di gudang site proyek ini pada tanggal laporan.',
+            hint: 'GRN terposting di gudang site proyek pada tanggal laporan tersimpan. Centang baris yang '
+              + 'benar-benar tiba di lapangan; baris bertanda "Sudah diimpor" akan menjadi baris ganda bila dicentang lagi.',
+            load: (record, api) => api.get(`projects/daily-reports/${record.id}/receipts-candidates`),
+            columns: [
+              { key: 'grn_code', label: 'GRN', sub: 'delivery_note_no' },
+              { key: 'description', label: 'Material', sub: 'item_code' },
+              { key: 'qty_received', label: 'Qty', type: 'qty', align: 'right' },
+              { key: 'unit', label: 'Satuan' },
+              { key: 'vendor_name', label: 'Vendor' },
+            ],
+            note: (row) => (row.already_imported ? 'Sudah diimpor' : null),
+            // Bentuk persis baris receipts[] — konteks tampilan tidak ikut.
+            map: (row) => ({
+              goods_receipt_id: row.goods_receipt_id,
+              item_id: row.item_id,
+              description: row.description,
+              qty_received: row.qty_received,
+              qty_rejected: row.qty_rejected ?? 0,
+              unit: row.unit,
+            }),
+          },
+        },
+        {
+          key: 'materials', label: 'Pemakaian material',
+          help: 'Material yang DIPAKAI hari ini — berbeda dari Material masuk di atas.',
+          columns: [
+            { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true, width: '52%' },
+            { key: 'qty_used', label: 'Qty dipakai', type: 'qty', required: true, width: '24%' },
+            { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '24%' },
+          ],
+        },
+        {
+          key: 'equipment', label: 'Alat-alat',
+          help: 'Tabel ALAT-ALAT pada FM-10-12. Pilih aset untuk alat milik perusahaan; alat sewa cukup uraiannya.',
+          columns: [
+            { key: 'asset_id', label: 'Aset', type: 'lookup', lookup: 'assets', width: '28%' },
+            { key: 'description', label: 'Uraian alat', type: 'text', required: true, width: '34%' },
+            { key: 'qty', label: 'Jumlah', type: 'number', min: 1, required: true, width: '14%' },
+            { key: 'hours', label: 'Jam operasi', type: 'number', step: '0.5', min: 0, max: 24, width: '18%' },
+          ],
+        },
+      ],
     },
     detail: {
-      tables: [{
-        key: 'materials', label: 'Pemakaian material',
-        columns: [
-          { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
-          { key: 'qty_used', label: 'Qty', type: 'qty', align: 'right' },
-          { key: 'unit', label: 'Satuan' },
-        ],
-      }],
+      tables: [
+        {
+          key: 'manpower', label: 'Tenaga kerja per jabatan',
+          columns: [
+            { key: 'role_label', label: 'Jabatan' },
+            { key: 'headcount', label: 'Jumlah', type: 'number', align: 'right', suffix: ' org' },
+            { key: 'notes', label: 'Keterangan' },
+          ],
+        },
+        {
+          key: 'activity_lines', label: 'Uraian pekerjaan',
+          columns: [
+            { key: 'wbs_task_id', label: 'Paket WBS', type: 'rel', lookup: 'wbsTasks' },
+            { key: 'description', label: 'Uraian pekerjaan' },
+            { key: 'progress_note', label: 'Progress' },
+            { key: 'target_note', label: 'Target' },
+            { key: 'obstacle', label: 'Hambatan' },
+          ],
+        },
+        {
+          key: 'receipts', label: 'Material masuk',
+          columns: [
+            { key: 'goods_receipt_id', label: 'GRN', type: 'rel', lookup: 'goodsReceipts' },
+            { key: 'description', label: 'Material' },
+            { key: 'qty_received', label: 'Diterima', type: 'qty', align: 'right' },
+            { key: 'qty_rejected', label: 'Ditolak', type: 'qty', align: 'right' },
+            { key: 'unit', label: 'Satuan' },
+            { key: 'rejection_reason', label: 'Alasan ditolak' },
+          ],
+        },
+        {
+          key: 'materials', label: 'Pemakaian material',
+          columns: [
+            { key: 'item_id', label: 'Item', type: 'rel', lookup: 'items' },
+            { key: 'qty_used', label: 'Qty', type: 'qty', align: 'right' },
+            { key: 'unit', label: 'Satuan' },
+          ],
+        },
+        {
+          key: 'equipment', label: 'Alat-alat',
+          columns: [
+            { key: 'asset_id', label: 'Aset', type: 'rel', lookup: 'assets' },
+            { key: 'description', label: 'Uraian alat' },
+            { key: 'qty', label: 'Jumlah', type: 'number', align: 'right' },
+            { key: 'hours', label: 'Jam operasi', type: 'number', decimals: 2, align: 'right' },
+          ],
+        },
+      ],
     },
   },
 

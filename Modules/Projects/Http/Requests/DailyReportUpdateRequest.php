@@ -38,7 +38,12 @@ class DailyReportUpdateRequest extends FormRequest
             ],
             'weather_am' => ['nullable', Rule::enum(Weather::class)],
             'weather_pm' => ['nullable', Rule::enum(Weather::class)],
-            'manpower_count' => ['sometimes', 'integer', 'min:0'],
+            'work_start' => ['nullable', 'date_format:H:i'],
+            'work_end' => ['nullable', 'date_format:H:i'],
+            'lost_hours_reason' => ['nullable', 'string', 'max:300'],
+            // nullable: null eksplisit berarti "tidak ada klaim manual" —
+            // dengan rincian per jabatan tersimpan, angkanya tetap turunan.
+            'manpower_count' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'activities' => ['sometimes', 'string'],
             'obstacles' => ['nullable', 'string'],
             'safety_notes' => ['nullable', 'string'],
@@ -48,6 +53,14 @@ class DailyReportUpdateRequest extends FormRequest
             'materials.*.item_id' => ['required', 'integer', 'min:1'],
             'materials.*.qty_used' => ['required', 'numeric', 'min:0.001'],
             'materials.*.unit' => ['required', 'string', 'max:20'],
+            // Empat tabel baris FM-10-12 — aturan bentuknya satu sumber
+            // dengan store, di DailyReportStoreRequest::lineRules().
+            ...DailyReportStoreRequest::lineRules(),
         ];
+    }
+
+    public function messages(): array
+    {
+        return DailyReportStoreRequest::lineMessages();
     }
 }

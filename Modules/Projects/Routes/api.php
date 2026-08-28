@@ -33,6 +33,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('daily-reports', [DailyReportController::class, 'index']);
     Route::post('daily-reports', [DailyReportController::class, 'store'])->middleware('permission:prj.create');
     Route::get('daily-reports/{dailyReport}', [DailyReportController::class, 'show']);
+    // Kandidat GRN untuk tabel MATERIAL MASUK (P0-A) — prj.view seperti GET
+    // sensitif lain di file ini: barisnya menyebut vendor dan surat jalan.
+    Route::get('daily-reports/{dailyReport}/receipts-candidates', [DailyReportController::class, 'receiptsCandidates'])->middleware('permission:prj.view');
     Route::put('daily-reports/{dailyReport}', [DailyReportController::class, 'update'])->middleware('permission:prj.update');
     Route::delete('daily-reports/{dailyReport}', [DailyReportController::class, 'destroy'])->middleware('permission:prj.delete');
 

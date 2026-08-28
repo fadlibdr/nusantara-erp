@@ -2878,35 +2878,115 @@ siang · Kegiatan. Saringan: Proyek, Dari, Sampai.
 
 1. **`Tambah Laporan Harian`**.
 2. Isi **Proyek** (wajib, **tidak bisa dipindah setelah tersimpan**), **Tanggal laporan**
-   (wajib, bawaan hari ini), Cuaca pagi, Cuaca siang, **Jumlah tenaga kerja** (wajib),
-   **Kegiatan hari ini** (wajib), Kendala, **Catatan K3** (bantuan: *"Catatan pengamatan
-   harian. Kejadian kecelakaan atau near miss dicatat di Register K3 (SMK3), bukan di
-   sini."*).
-3. Isi tabel **Pemakaian material** bila ada: Item (wajib) · Qty dipakai (wajib) · Satuan
-   (wajib). **Menyimpan dengan tabel terisi mengganti seluruh baris yang ada.**
+   (wajib, bawaan hari ini), Cuaca pagi, Cuaca siang, **Jam mulai kerja**, **Jam selesai
+   kerja**, **Alasan jam kerja hilang** (bantuan: *"Hujan, tunggu material, listrik
+   padam — alasan jam efektif lebih pendek dari jam kerja."*), **Jumlah tenaga kerja**
+   (lihat aturan turunannya di bawah), **Kegiatan hari ini** (wajib), Kendala, **Catatan
+   K3** (bantuan: *"Catatan pengamatan harian. Kejadian kecelakaan atau near miss
+   dicatat di Register K3 (SMK3), bukan di sini."*).
+3. Isi lima tabel baris di bawah formulir. **Menyimpan dengan sebuah tabel terisi
+   mengganti seluruh baris tabel itu**; tabel yang tidak disentuh tidak berubah, dan
+   mengosongkan tabel menghapus seluruh barisnya.
+
+   - **Tenaga kerja per jabatan** — tabel JUMLAH ORANG pada FM-10-12: **Jabatan**
+     (wajib; dua belas pilihan: Project Manager · Deputy Project Manager · Engineering ·
+     Komersial · Keuangan · Danlat · Produksi · Safety Officer · Mandor Sipil + Tukang ·
+     Mandor Arsitek + Tukang · Mandor MEP + Tukang · Subkont; jabatan yang sama dua kali
+     ditolak: *"Jabatan yang sama tercantum dua kali pada rincian tenaga kerja."*) ·
+     **Jumlah orang** (wajib) · Keterangan.
+   - **Uraian pekerjaan** — kolom URAIAN PEKERJAAN / PROGRESS / TARGET / HAMBATAN,
+     satu baris per pekerjaan: Paket WBS · **Uraian pekerjaan** (wajib) · Progress ·
+     Target · Hambatan.
+   - **Material masuk** — kedatangan di lapangan hari ini, **BUKAN pemakaian**:
+     **Material** (wajib) · **Diterima** (wajib) · Ditolak · **Satuan** (wajib) ·
+     Alasan ditolak. Tombol **`Impor dari GRN`** mengisinya dari penerimaan gudang —
+     lihat di bawah.
+   - **Pemakaian material** — material yang **DIPAKAI** hari ini, tabel yang sudah ada
+     sejak dulu: Item (wajib) · Qty dipakai (wajib) · Satuan (wajib).
+   - **Alat-alat** — tabel ALAT-ALAT pada FM-10-12: Aset (untuk alat milik perusahaan;
+     alat sewa cukup uraiannya) · **Uraian alat** (wajib) · **Jumlah** (wajib) · Jam
+     operasi.
 4. **`Simpan`**.
+
+**Jumlah tenaga kerja menjadi TURUNAN begitu rincian per jabatan diisi.** Totalnya
+dihitung dari jumlah orang seluruh baris, dan kotak manualnya tidak digambar lagi pada
+laporan yang sudah punya rincian (bantuan kotaknya: *"Terhitung otomatis begitu tabel
+"Tenaga kerja per jabatan" diisi — kosongkan saja. Isi manual hanya untuk laporan tanpa
+rincian jabatan."*). Angka manual yang tetap terkirim dan berbeda ditolak dengan pesan
+yang menyebut kedua angkanya:
+
+> "Jumlah tenaga kerja manual ({manual}) berbeda dengan total rincian per jabatan
+> ({turunan}); selisih {selisih}. Kosongkan angka manual atau samakan dengan
+> rinciannya — rincian per jabatan adalah sumbernya."
+
+Laporan lama tanpa rincian tidak dipaksa mundur: angka manualnya tetap berlaku, dan
+kotaknya wajib diisi hanya selama tabel rinciannya kosong.
+
+**`Impor dari GRN`** (di kepala tabel Material masuk) membuka daftar GRN **terposting
+pada gudang site proyek ini dengan tanggal penerimaan = tanggal laporan yang
+tersimpan** — per baris item, lengkap dengan kode GRN, no. surat jalan, dan vendornya.
+Yang ditawarkan adalah penerimaan **gudang site proyek** (ke mana barangnya datang),
+bukan GRN atas PO proyek yang diterima gudang lain. Centang baris yang benar-benar tiba
+di lapangan lalu **`Tambahkan yang dipilih`** — baris terpilih DITAMBAHKAN ke tabel,
+baris yang sudah diketik tangan tidak tersentuh, dan **tidak ada yang diimpor
+otomatis**: Anda yang memilih. Baris berlencana **"Sudah diimpor"** akan menjadi baris
+ganda bila dicentang lagi. Pada laporan yang belum tersimpan tombolnya menjawab:
+*"Simpan laporan ini dulu, lalu buka Ubah — kandidat GRN dibaca dari proyek dan tanggal
+laporan yang tersimpan."*; tanpa kandidat: *"Tidak ada GRN terposting di gudang site
+proyek ini pada tanggal laporan."* Baris ketik tangan tetap sah untuk kedatangan tanpa
+GRN.
 
 **Satu laporan per proyek per tanggal.** Duplikat ditolak dengan pesan berbahasa Inggris
 di bawah kolom Tanggal laporan: `The report date has already been taken.`
+
+Penolakan lain, masing-masing di bawah kolomnya:
+
+- Jam selesai ≤ jam mulai: *"Jam selesai ({selesai}) harus setelah jam mulai
+  ({mulai})."* Pembandingnya nilai yang berlaku — menggeser jam selesai saja tetap
+  diadu dengan jam mulai yang tersimpan.
+- Ditolak > diterima pada Material masuk: *"Jumlah ditolak ({ditolak}) melebihi jumlah
+  diterima ({diterima}) pada baris "{material}" — yang ditolak adalah bagian dari yang
+  datang."*
 
 Halaman laporan harian memuat kartu **Lampiran** (foto masuk ke sini dan ke Galeri) dan
 tombol **`Cetak Laporan Harian`** (Form F/LH). Lembarnya diberi tanggal oleh **tanggal
 laporan**, sehingga "HARI KE"/"SISA HARI" pada kop dihitung dari tanggal laporan, bukan
 hari mencetak.
 
-**Yang benar-benar tercetak dari basis data:** total tenaga kerja (bila > 0), tabel
-pemakaian material, cuaca pagi/sore, kegiatan, kendala, catatan K3.
+**Yang tercetak dari basis data — sel per sel, hanya bila laporannya mencatatnya:**
 
-**Yang tercetak BERGARIS KOSONG untuk diisi tangan — dan lembarnya menyebutkan
-alasannya:**
+- dua belas baris JUMLAH ORANG per jabatan dari tabel Tenaga kerja per jabatan;
+  jabatan tanpa baris tetap bergaris kosong, dan TOTAL tetap Jumlah tenaga kerja —
+  kosong bila 0, karena kotak yang tidak pernah diisi dan site yang berhenti tidak
+  boleh tercetak sama;
+- tabel MATERIAL YANG MASUK HARI INI dari Material masuk — diterima, ditolak, dan
+  alasan penolakan; DITOLAK dicetak walau 0, karena baris penerimaan yang dicatat
+  adalah pernyataan "tidak ada yang ditolak", bukan kolom yang belum tersentuh;
+- tabel MATERIAL YANG DIPAKAI HARI INI dari Pemakaian material — di bawah judulnya
+  sendiri: pemakaian tidak pernah dicetak di bawah judul material masuk;
+- tabel ALAT-ALAT dari Alat-alat, dengan jam operasi bila dicatat (bukan "0 jam");
+- kolom URAIAN PEKERJAAN / PROGRESS / TARGET / HAMBATAN dari Uraian pekerjaan, urut
+  barisnya; catatan yang kosong pada sebuah baris tetap bergaris kosong, dan laporan
+  tanpa baris uraian mencetak teks Kegiatan dan Kendala seperti biasa;
+- baris "Pekerjaan dimulai jam … s/d jam …" dan alasan jam kerja hilang, dari Jam
+  mulai/selesai kerja dan Alasan jam kerja hilang;
+- cuaca pagi/sore, kegiatan, kendala, catatan K3 — seperti sebelumnya.
 
-- dua belas baris JUMLAH ORANG per jabatan (sistem hanya menyimpan satu angka per hari);
-- tabel MATERIAL YANG MASUK HARI INI (penerimaan tercatat per surat jalan di Pengadaan;
-  **jumlah yang ditolak tidak tercatat di mana pun**);
-- tabel ALAT-ALAT (tidak ada pemakaian alat harian di sistem);
-- kolom PROGRESS dan TARGET (progres dicatat per paket WBS dan per minggu, **tidak pernah
-  per hari**);
-- jam kerja mulai/selesai dan PERPANJANGAN WAKTU I/II.
+**Sel yang laporannya tidak mencatat tetap bergaris kosong untuk diisi tangan**, dan
+laporan lama tanpa satu pun baris tabel tercetak persis seperti sebelum tabel-tabelnya
+ada. Catatan kaki *"Diisi manual di lapangan"* di kaki lembar kini menyebut **hanya
+tabel yang masih manual pada laporan itu** — laporan yang seluruh tabelnya terisi tidak
+membawa catatan kaki sama sekali. **PERPANJANGAN WAKTU I/II pada kop tetap tercetak
+BERGARIS KOSONG untuk diisi tangan** — ERP belum mencatat addendum waktu di mana pun.
+
+**BAST I yang disetujui MENGUNCI laporan harian.** Saat BAST I disetujui, seluruh
+laporan proyek itu yang bertanggal sampai dengan tanggal serah terima terkunci: tombol
+`Ubah` dan `Hapus` tidak digambar lagi pada laporan terkunci, dan permintaan yang tetap
+dikirim ditolak dengan:
+
+> "Laporan {kode} terkunci oleh BAST I {kode BAST} (serah terima {tanggal}) dan tidak
+> dapat {diubah|dihapus}: pekerjaan sebelum serah terima sudah ditandatangani tiga
+> pihak."
 
 > **Menyetujui BAST I mematikan seluruh entri lapangan.** Sejak saat itu — dan sejak
 > proyek diubah ke **Ditangguhkan** — laporan harian baru, **koreksi laporan harian
@@ -2916,6 +2996,10 @@ alasannya:**
 > "Proyek {kode} berstatus Masa Pemeliharaan; {laporan harian|progres mingguan|progres
 > paket pekerjaan|generate WBS} hanya dapat dientri pada proyek berstatus Persiapan,
 > Berjalan, atau Finishing."
+>
+> Khusus laporan yang sudah terkunci BAST I, penolakannya memakai pesan kunci di atas —
+> kuncinya diperiksa lebih dulu, supaya yang disebut adalah dokumen yang membekukan
+> laporannya, bukan sekadar status proyek.
 >
 > **Rapikan seluruh laporan harian dan progres SEBELUM BAST I disetujui.**
 
@@ -2937,13 +3021,19 @@ proyek (`prj.view`) kepada administrator.
 
 1. Pilih **Proyek** dan **Tanggal**.
 2. Bila laporan sudah ada, muncul kartu kode laporan berlencana hijau **"Sudah ada"**.
-3. Bila belum, muncul kartu **"Belum ada laporan untuk tanggal ini"** dengan **Jumlah
-   tenaga kerja**, **Kegiatan**, dan tombol **`Buat laporan hari ini`**.
+3. Bila belum, muncul kartu **"Belum ada laporan untuk tanggal ini"** dengan **Tenaga
+   kerja per jabatan** — dua belas baris stepper `−`/`+`, satu per jabatan FM-10-12,
+   dengan total yang menghitung sendiri (*"Total dihitung otomatis dari jabatan yang
+   diisi."*) — **Kegiatan**, dan tombol **`Buat laporan hari ini`**. Layar ini mencatat
+   tenaga kerja **hanya** lewat stepper per jabatan — server yang menurunkan totalnya
+   dari rincian (§7.3); tanpa satu pun jabatan terisi, laporan dibuat dengan total 0
+   (site berhenti — hari hujan pun tercatat).
 
-> **Formulir cepat itu hanya punya dua kolom.** Cuaca, kendala, catatan K3, dan pemakaian
-> material tidak ada di sana. Laporan yang dibuat dari ponsel akan tercetak di Form F/LH
-> dengan kolom-kolom itu kosong. **Lengkapi lewat `Proyek › Laporan Harian` → `Ubah`
-> sebelum lembarnya dicetak dan ditandatangani.**
+> **Formulir cepat itu hanya punya dua isian.** Cuaca, jam kerja, kendala, catatan K3,
+> dan keempat tabel baris lainnya tidak ada di sana. Rincian per jabatan yang diisi dari
+> ponsel ikut tercetak pada baris JUMLAH ORANG Form F/LH; kolom yang tidak ada di layar
+> ini tercetak kosong. **Lengkapi lewat `Proyek › Laporan Harian` → `Ubah` sebelum
+> lembarnya dicetak dan ditandatangani.**
 
 > **Dropdown proyek di layar Lapangan menawarkan SEMUA proyek — termasuk yang ditutup dan
 > ditangguhkan.** Tidak ada penyaringan status di sana; penolakan baru muncul setelah
@@ -3408,7 +3498,7 @@ periksanya lagi.
 | Formulir | Tombolnya di mana | Sumber datanya |
 |---|---|---|
 | **Data Proyek** (F/DP) | halaman proyek, kepala halaman | 17 baris dari data proyek — semuanya terisi |
-| **Laporan Harian** (F/LH) | **halaman** laporan harian | satu laporan + materialnya (§7.3) |
+| **Laporan Harian** (F/LH) | **halaman** laporan harian | satu laporan + kelima tabel barisnya (§7.3) |
 | **Detail Schedule** (F/DS) | **baris** daftar Progres Mingguan (ikon printer) | WBS + baseline + progres mingguan |
 | **Daftar Temuan** (F/DT) | **halaman** satu temuan | **seluruh register temuan proyek itu** |
 | **Izin Kerja Lapangan** (F/IK) | halaman proyek, kartu Formulir izin lapangan | **kosong** — hanya kop |
@@ -5280,7 +5370,7 @@ Yang paling sering ditemui:
 |---|---|---|
 | Surat Penawaran Harga | blok **SYARAT & KETENTUAN**, 4 baris | sistem tidak menyimpan syarat penjualan |
 | SPK Subkontraktor | **TERMIN PEMBAYARAN** | SPK tidak menyimpan jadwal pembayaran apa pun; termin bayar vendor bukan syarat SPK ini |
-| Laporan Harian | 12 baris **JUMLAH ORANG per jabatan**, **MATERIAL MASUK**, **ALAT-ALAT**, **PROGRESS/TARGET**, **jam kerja** | sistem hanya menyimpan satu angka tenaga kerja per hari, tidak ada penerimaan/alat/progres harian |
+| Laporan Harian | hanya sel yang laporannya tidak mencatat: jabatan tanpa baris, tabel tanpa baris (termasuk semua laporan lama), catatan kosong di dalam baris uraian, jam kerja yang tidak diisi | keempat tabel FM-10-12 dan jam kerja kini punya sumber di layar Laporan Harian (§7.3); catatan kaki lembarnya menyebut hanya tabel yang masih manual pada laporan itu |
 | Semua kop proyek | **PERPANJANGAN WAKTU I & II** | tidak ada tempat mencatat adendum waktu di mana pun |
 | Izin Kerja Lapangan / Lembur / Material | **seluruh badan lembar** | sistem tidak menyimpan satu pun data izin lapangan |
 | Berita Acara Tambah-Kurang | baris **nilai kontrak sesudahnya** | hanya terisi bila CCO-nya sudah disetujui |

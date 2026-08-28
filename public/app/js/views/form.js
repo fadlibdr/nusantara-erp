@@ -1,7 +1,8 @@
 /* Schema-driven create/edit form, including repeatable line-item tables. */
 
 import { api } from '../api.js';
-import { el, clear, button, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog } from '../ui.js';
+import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog } from '../ui.js';
+import { renderCell } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
@@ -127,6 +128,19 @@ export function buildInput(spec, initial, { compact = false } = {}) {
       const node = el('input', { type: 'datetime-local' });
       node.value = value ? toDateTimeInput(value) : '';
       return { node, read: () => (node.value ? node.value.replace('T', ' ') : null) };
+    }
+
+    /*
+     * 'HH:MM' apa adanya — jam kerja laporan harian (P0-A). Resource sudah
+     * menormalkan ke 'HH:MM', tetapi slice tetap dipasang: kolom TIME MySQL
+     * yang sampai lewat jalur lain membawa detik ('08:00:00'), dan <input
+     * type=time> menolak nilai itu DIAM-DIAM — kotak kosong di atas data
+     * yang ada. read() memulangkan 'HH:MM', persis date_format:H:i server.
+     */
+    case 'time': {
+      const node = el('input', { type: 'time' });
+      node.value = value ? String(value).slice(0, 5) : '';
+      return { node, read: () => node.value || null };
     }
 
     case 'password': {
@@ -319,8 +333,10 @@ export function buildInput(spec, initial, { compact = false } = {}) {
   }
 }
 
-/** Repeatable line-item table bound to one `lines` descriptor. */
-function buildLines(lineDef, initialRows, headerValues) {
+/** Repeatable line-item table bound to one `lines` descriptor.
+    `record` is the full record on edit (null on create) — importPick needs
+    its id to ask the server for candidate rows. */
+function buildLines(lineDef, initialRows, headerValues, record) {
   const controls = [];
   const body = el('tbody');
 
@@ -453,11 +469,62 @@ function buildLines(lineDef, initialRows, headerValues) {
     })
     : null;
 
+  /*
+   * Impor-pilih (P0-A — tabel MATERIAL MASUK laporan harian): kebalikan sadar
+   * dari prefill di atas. prefill MENGGANTI seluruh baris tanpa bertanya —
+   * pas untuk baris PO yang memang satu-satunya isi sebuah GRN. Impor GRN
+   * tidak boleh begitu: kandidatnya SEMUA penerimaan gudang site pada tanggal
+   * laporan, dan pengawas MEMILIH mana yang benar-benar tiba di lapangan —
+   * aturan paketnya tegas "bukan otomatis". Baris terpilih DITAMBAHKAN;
+   * baris yang sudah diketik tangan tidak tersentuh.
+   */
+  const importPick = lineDef.importPick
+    ? button(lineDef.importPick.label, {
+      size: 'sm', variant: 'ghost', iconName: 'download',
+      onClick: async (event) => {
+        const spec = lineDef.importPick;
+
+        // Endpoint kandidat hidup di /{id}/… — sebelum tersimpan tidak ada id,
+        // dan proyek+tanggal yang dibaca server adalah yang TERSIMPAN.
+        if (!record || !record.id) {
+          toast(spec.requiresRecord);
+          return;
+        }
+
+        let candidates;
+        try {
+          candidates = await withBusy(event.currentTarget, () => spec.load(record, api));
+        } catch (error) {
+          toastError(error);
+          return;
+        }
+
+        if (!candidates || !candidates.length) {
+          toast(spec.empty);
+          return;
+        }
+
+        const picked = await pickRowsDialog({
+          title: spec.title,
+          rows: candidates,
+          columns: spec.columns,
+          note: spec.note,
+          hint: spec.hint,
+        });
+        if (!picked || !picked.length) return;
+
+        picked.forEach((candidate) => addRow(spec.map ? spec.map(candidate) : candidate));
+        toast(`${picked.length} baris ditambahkan.`);
+      },
+    })
+    : null;
+
   const node = el('.form-section', [
     el('.lines-head', [
       el('h3', { text: lineDef.label }),
       el('.spacer'),
       prefill,
+      importPick,
       button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() }),
     ]),
     lineDef.help ? el('.help', { text: lineDef.help, style: { marginBottom: '8px' } }) : null,
@@ -532,8 +599,14 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
   if (isEdit && lineDefs.length) {
     try {
       record = await api.get(`${def.api}/${row.id}`);
-    } catch {
-      record = row;
+    } catch (error) {
+      /* JANGAN membuka form dari baris daftar: baris tidak membawa tabel
+         barisnya, form akan tampil dengan semua tabel KOSONG, dan Simpan
+         mengirimkannya sebagai penghapusan seluruh rincian. Satu gangguan
+         jaringan saat mengklik Ubah tidak boleh bisa menghapus lima tabel.
+         Gagal membuka lebih jujur daripada berhasil membuka yang salah. */
+      toastError(error);
+      return;
     }
   }
 
@@ -547,7 +620,18 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
   const body = el('div');
 
   for (const section of sections) {
-    const fields = section.fields.filter((spec) => (isEdit ? !spec.createOnly : !spec.editOnly));
+    const fields = section.fields
+      .filter((spec) => (isEdit ? !spec.createOnly : !spec.editOnly))
+      /*
+       * hideWhen(record): field yang tidak boleh ada pada KEADAAN dokumen ini —
+       * bukan sekadar mode create/edit. Pemakai pertamanya manpower_count
+       * laporan harian (P0-A): begitu laporan punya rincian per jabatan,
+       * angkanya TURUNAN dan server menolak klaim manual yang berbeda dengan
+       * 422; menampilkan kotaknya berarti mengirim angka basi setiap kali
+       * rinciannya diedit. Field tersembunyi tidak masuk payload sama sekali,
+       * dan server mengartikan absennya sebagai "tidak ada klaim baru".
+       */
+      .filter((spec) => !spec.hideWhen || !spec.hideWhen(record, isEdit));
     if (!fields.length) continue;
 
     const grid = el('.form-grid');
@@ -577,7 +661,7 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
   );
 
   const lineControls = lineDefs.map((lineDef) => {
-    const control = buildLines(lineDef, record ? record[lineDef.key] : null, headerValues);
+    const control = buildLines(lineDef, record ? record[lineDef.key] : null, headerValues, isEdit ? record : null);
     body.appendChild(control.node);
     return { def: lineDef, control };
   });
@@ -751,6 +835,76 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
         }
         paintErrors(error);
       }
+    });
+  });
+}
+
+/**
+ * Dialog pilih-baris — saudara promptFields untuk data berbentuk TABEL:
+ * sejumlah baris kandidat, centang yang mau diambil, dan jawabannya adalah
+ * baris-baris terpilih itu sendiri (null = batal). Pemakai pertamanya "Impor
+ * dari GRN" pada laporan harian (P0-A); mesinnya generik untuk impor-pilih
+ * berikutnya. Barisnya datar (teks/angka siap tampil), jadi renderCell cukup
+ * tanpa preload lookup.
+ *
+ * columns  kolom tampilan (kosakata renderCell; sub untuk baris kedua)
+ * note     (row) => teks | null — badge amber di ujung baris, mis. penanda
+ *          "Sudah diimpor" supaya baris ganda lahir dengan mata terbuka,
+ *          bukan dilarang (server memang mengizinkannya)
+ * hint     satu kalimat pengantar di atas tabel
+ */
+function pickRowsDialog({ title, rows, columns, note, hint, confirmLabel = 'Tambahkan yang dipilih' }) {
+  return new Promise((resolve) => {
+    const checks = [];
+
+    const body = el('tbody', rows.map((row) => {
+      const check = el('input', { type: 'checkbox', 'aria-label': 'Pilih baris ini' });
+      checks.push(check);
+
+      const noteText = note ? note(row) : null;
+      const tr = el('tr', { style: { cursor: 'pointer' } }, [
+        el('td', { style: { width: '34px' } }, check),
+        ...columns.map((column) => el(`td${column.align ? `.${column.align}` : ''}`, renderCell(row, column))),
+        note ? el('td', noteText ? badge(noteText, 'amber') : null) : null,
+      ]);
+
+      // Satu baris = satu sasaran sentuh: klik di mana pun membalik centangnya.
+      tr.addEventListener('click', (event) => {
+        if (event.target !== check) check.checked = !check.checked;
+      });
+
+      return tr;
+    }));
+
+    const submit = button(confirmLabel, { variant: 'primary' });
+    submit.addEventListener('click', () => {
+      const picked = rows.filter((_, index) => checks[index].checked);
+      if (!picked.length) {
+        toast('Centang dulu baris yang mau diambil.', { tone: 'err' });
+        return;
+      }
+      // Selesaikan SEBELUM menutup — close() memicu onClose yang menjawab null
+      // (urutan yang sama dengan promptFields di bawah).
+      resolve(picked);
+      dialog.close();
+    });
+
+    const dialog = modal({
+      title,
+      width: 'wide',
+      body: el('div', [
+        hint ? el('.help', { text: hint, style: { marginBottom: '10px' } }) : null,
+        el('.table-wrap', el('table.data', [
+          el('thead', el('tr', [
+            el('th', { text: '' }),
+            ...columns.map((column) => el(`th${column.align ? `.${column.align}` : ''}`, { text: column.label })),
+            note ? el('th', { text: '' }) : null,
+          ])),
+          body,
+        ])),
+      ]),
+      footer: [button('Batal', { onClick: () => { resolve(null); dialog.close(); } }), submit],
+      onClose: () => resolve(null),
     });
   });
 }

@@ -351,6 +351,23 @@ class ProjectsDatabaseSeeder extends Seeder
                     ['item' => 'ITM-0007', 'qty_used' => 86, 'unit' => 'm3'],   // Ready Mix K-300
                     ['item' => 'ITM-0002', 'qty_used' => 420, 'unit' => 'btg'], // Besi Beton D16
                 ],
+                // P0-A: rincian per jabatan; jumlahnya = manpower_count di atas.
+                'manpower' => [
+                    'project_manager' => 1, 'deputy_project_manager' => 1, 'engineering' => 3,
+                    'komersial' => 2, 'keuangan' => 1, 'danlat' => 2, 'produksi' => 4,
+                    'safety_officer' => 2, 'mandor_sipil' => 60, 'mandor_arsitek' => 30,
+                    'mandor_mep' => 24, 'subkont' => 18,
+                ], // 148
+                'activity_lines' => [
+                    [
+                        'description' => 'Pengecoran plat & balok lantai 5 zona A',
+                        'progress_note' => '86 m3 tercor', 'target_note' => 'Zona B besok',
+                    ],
+                    [
+                        'description' => 'Pembesian kolom lantai 6 zona B',
+                        'progress_note' => '420 btg terpasang', 'target_note' => 'Selesai kolom K19-K24',
+                    ],
+                ],
             ],
             [
                 'code' => 'DRP/2026/03/0002',
@@ -366,6 +383,22 @@ class ProjectsDatabaseSeeder extends Seeder
                     ['item' => 'ITM-0007', 'qty_used' => 92, 'unit' => 'm3'],  // Ready Mix K-300
                     ['item' => 'ITM-0001', 'qty_used' => 150, 'unit' => 'zak'], // Semen Portland 50kg
                 ],
+                'manpower' => [
+                    'project_manager' => 1, 'deputy_project_manager' => 1, 'engineering' => 3,
+                    'komersial' => 2, 'keuangan' => 1, 'danlat' => 2, 'produksi' => 4,
+                    'safety_officer' => 2, 'mandor_sipil' => 62, 'mandor_arsitek' => 30,
+                    'mandor_mep' => 24, 'subkont' => 20,
+                ], // 152
+                'activity_lines' => [
+                    [
+                        'description' => 'Lanjutan pengecoran plat lantai 5 zona B',
+                        'progress_note' => '92 m3 tercor', 'obstacle' => 'Antrian truk mixer 1,5 jam',
+                    ],
+                    [
+                        'description' => 'Pasangan dinding bata lantai 2 & sparing MEP plat lantai 6',
+                        'target_note' => 'Marking bata lantai 3',
+                    ],
+                ],
             ],
             [
                 'code' => 'DRP/2026/03/0003',
@@ -380,6 +413,23 @@ class ProjectsDatabaseSeeder extends Seeder
                 'materials' => [
                     ['item' => 'ITM-0002', 'qty_used' => 380, 'unit' => 'btg'], // Besi Beton D16
                     ['item' => 'ITM-0005', 'qty_used' => 24, 'unit' => 'm3'],   // Pasir Beton
+                ],
+                'manpower' => [
+                    'project_manager' => 1, 'deputy_project_manager' => 1, 'engineering' => 3,
+                    'komersial' => 2, 'keuangan' => 1, 'danlat' => 2, 'produksi' => 4,
+                    'safety_officer' => 2, 'mandor_sipil' => 55, 'mandor_arsitek' => 28,
+                    'mandor_mep' => 22, 'subkont' => 16,
+                ], // 137
+                'activity_lines' => [
+                    [
+                        'description' => 'Pembesian balok lantai 6 zona A',
+                        'progress_note' => '380 btg terpasang',
+                        'obstacle' => 'Hujan deras 14.00-16.00, area terbuka berhenti',
+                    ],
+                    [
+                        'description' => 'Erection scaffolding lantai 6 & marking bata lantai 3',
+                        'target_note' => 'Scaffolding tuntas sebelum cor zona B',
+                    ],
                 ],
             ],
         ];
@@ -415,6 +465,27 @@ class ProjectsDatabaseSeeder extends Seeder
                     'qty_used' => $line['qty_used'],
                     'unit' => $line['unit'],
                 ]);
+            }
+
+            // P0-A: rincian per jabatan + baris uraian, SEEDER SAJA — basis
+            // data hidup tidak pernah di-seed ulang, dan laporan lama di
+            // instalasi nyata tetap tanpa rincian (forward-only, tanpa
+            // backfill). Ditulis lewat model, bukan DailyReportService: seeder
+            // ini di-replay idempoten dan angka manpower_count demo di atas
+            // memang = jumlah rinciannya.
+            $report->manpower()->delete();
+
+            foreach ($data['manpower'] as $roleKey => $headcount) {
+                $report->manpower()->create([
+                    'role_key' => $roleKey,
+                    'headcount' => $headcount,
+                ]);
+            }
+
+            $report->activityLines()->delete();
+
+            foreach ($data['activity_lines'] as $i => $line) {
+                $report->activityLines()->create($line + ['sort_order' => $i + 1]);
             }
         }
     }

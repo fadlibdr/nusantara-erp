@@ -26,6 +26,7 @@ class ProjectService
         private readonly ProgressService $progress,
         private readonly BastPrerequisiteService $prerequisites,
         private readonly NotificationService $notifications,
+        private readonly DailyReportService $dailyReports,
     ) {}
 
     public function create(array $data): Project
@@ -275,6 +276,12 @@ class ProjectService
                     'actual_end_date' => $project->actual_end_date?->toDateString()
                         ?? $bast->handover_date?->toDateString(),
                 ])->save();
+
+                // P0-A: serah terima yang ditandatangani membekukan laporan
+                // harian bertanggal ≤ tanggal serah terima — riwayat yang
+                // diserahkan tiga pihak berhenti menjadi draf. Cakupan dan
+                // alasannya di DailyReportService::lockForApprovedBastOne.
+                $this->dailyReports->lockForApprovedBastOne($bast);
 
                 return $bast->refresh();
             }
