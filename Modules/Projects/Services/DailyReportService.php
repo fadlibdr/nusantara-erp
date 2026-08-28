@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Models\ExternalApproval;
+use Modules\Core\Support\ExternalApprovableDocuments;
 use Modules\Projects\Enums\BastType;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
@@ -145,11 +147,8 @@ class DailyReportService
      *
      * Dipanggil dari ProjectService::approveBast, di dalam transaksinya.
      * Idempoten: baris yang sudah terkunci tidak dicap ulang, sehingga kunci
-     * yang lebih dulu (kelak: keputusan eksternal) tidak bergeser waktunya.
-     *
-     * Seam: bila patch spike ExternalApprovalService hadir, keputusan
-     * eksternal PERTAMA atas satu laporan mengunci laporan itu di sini juga —
-     * satu kolom locked_at, dua pintu masuk.
+     * yang lebih dulu (keputusan eksternal, pintu di bawah) tidak bergeser
+     * waktunya.
      */
     public function lockForApprovedBastOne(Bast $bast): int
     {
@@ -162,6 +161,26 @@ class DailyReportService
             ->update(['locked_at' => now()]);
     }
 
+    /**
+     * PINTU KEDUA kolom locked_at (P0-F): keputusan eksternal MK/Owner yang
+     * PERTAMA atas satu laporan menguncinya — satu kolom, dua pintu masuk,
+     * seperti dijanjikan komentar seam yang digantikan method ini.
+     *
+     * Dipanggil ExternalApprovalService::afterDecision lewat hook registri
+     * ExternalApprovableDocuments (mode record), di dalam transaksi
+     * keputusannya. Idempoten dengan cara yang sama dengan pintu BAST:
+     * whereNull menjadikan keputusan KEDUA (Owner sesudah MK, atau lembar
+     * fisik sesudah tautan) tidak menggeser cap waktu kunci yang pertama —
+     * dan BAST I yang menyusul juga tidak.
+     */
+    public function lockFromExternalDecision(DailyReport $report): void
+    {
+        DailyReport::query()
+            ->whereKey($report->getKey())
+            ->whereNull('locked_at')
+            ->update(['locked_at' => now()]);
+    }
+
     // ---------------------------------------------------------------- rules
 
     private function assertUnlocked(DailyReport $report, string $verb): void
@@ -170,11 +189,11 @@ class DailyReportService
             return;
         }
 
-        // Cari dokumen penguncinya untuk disebut dalam pesan. Satu-satunya
-        // pintu yang mengisi locked_at hari ini adalah BAST I disetujui;
-        // fallback tanggal kunci menjaga pesan tetap jujur bila pintu kedua
-        // (keputusan eksternal, patch spike) hadir lebih dulu daripada
-        // pembaruan pesan ini.
+        // Cari dokumen penguncinya untuk disebut dalam pesan. Dua pintu
+        // mengisi locked_at: BAST I disetujui (disebut lebih dulu — tanda
+        // tangan tiga pihak adalah klaim yang lebih berat), lalu keputusan
+        // eksternal MK/Owner (P0-F); fallback tanggal kunci tinggal untuk
+        // baris yang dikunci sebelum kedua pesan ini ada.
         $bast = Bast::query()
             ->where('project_id', $report->project_id)
             ->where('bast_type', BastType::Bast1->value)
@@ -182,14 +201,33 @@ class DailyReportService
             ->orderByDesc('id')
             ->first();
 
-        throw new LogicException($bast !== null
-            ? sprintf(
+        if ($bast !== null) {
+            throw new LogicException(sprintf(
                 'Laporan %s terkunci oleh BAST I %s (serah terima %s) dan tidak dapat %s: '
                     .'pekerjaan sebelum serah terima sudah ditandatangani tiga pihak.',
                 $report->code, $bast->code, $bast->handover_date?->toDateString() ?? '—', $verb,
-            )
-            : sprintf('Laporan %s terkunci sejak %s dan tidak dapat %s.',
-                $report->code, $report->locked_at?->toDateTimeString(), $verb));
+            ));
+        }
+
+        $external = ExternalApproval::query()
+            ->where('document_slug', ExternalApprovableDocuments::slugFor(DailyReport::class))
+            ->where('document_id', $report->getKey())
+            ->whereNotNull('decided_at')
+            ->orderBy('decided_at')
+            ->orderBy('id')
+            ->first();
+
+        if ($external !== null) {
+            throw new LogicException(sprintf(
+                'Laporan %s terkunci oleh keputusan eksternal %s — %s (%s) pada %s — dan tidak dapat %s: '
+                    .'yang sudah diputuskan pihak luar bukan draf lagi.',
+                $report->code, $external->decision?->label(), $external->name,
+                $external->partyLabel(), $external->decided_at?->format('d-m-Y H:i'), $verb,
+            ));
+        }
+
+        throw new LogicException(sprintf('Laporan %s terkunci sejak %s dan tidak dapat %s.',
+            $report->code, $report->locked_at?->toDateTimeString(), $verb));
     }
 
     /**

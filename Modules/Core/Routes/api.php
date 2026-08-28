@@ -9,6 +9,7 @@ use Modules\Core\Http\Controllers\DashboardController;
 use Modules\Core\Http\Controllers\DeadlineController;
 use Modules\Core\Http\Controllers\DocumentImportController;
 use Modules\Core\Http\Controllers\DocumentPdfController;
+use Modules\Core\Http\Controllers\ExternalApprovalController;
 use Modules\Core\Http\Controllers\FormPrintController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\NotificationController;
@@ -106,6 +107,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // controller (before the id resolves, to avoid an existence oracle), and
     // each SOURCE of photos then requires its own module's .view.
     Route::get('projects/{project}/photos', ProjectPhotoController::class)->whereNumber('project');
+
+    // Persetujuan eksternal MK/Owner (P0-F). No route-level permission for the
+    // attachments reason: the right one depends on which document the mandate
+    // hangs off, so the controller derives it per request from the registry —
+    // {prefix}.view to read the list, {prefix}.approve to issue, revoke, or
+    // record a signed physical sheet (issuing a decision link is
+    // approve-adjacent power). The plaintext token appears ONLY in the issue
+    // response, exactly once.
+    Route::get('external-approvals', [ExternalApprovalController::class, 'index']);
+    Route::post('external-approvals', [ExternalApprovalController::class, 'issue']);
+    Route::post('external-approvals/record-physical', [ExternalApprovalController::class, 'recordPhysical']);
+    Route::post('external-approvals/{externalApproval}/revoke', [ExternalApprovalController::class, 'revoke'])->whereNumber('externalApproval');
 
     Route::get('attachments', [AttachmentController::class, 'index']);
     Route::post('attachments', [AttachmentController::class, 'store']);

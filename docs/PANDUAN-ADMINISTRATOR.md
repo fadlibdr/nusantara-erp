@@ -505,6 +505,26 @@ keluar-masuk.**
 **Pembatasan laju**: login 10 percobaan per menit; seluruh API 120 permintaan per
 menit per pengguna.
 
+**Satu halaman — dan hanya satu — dibuka tanpa login: `/persetujuan/{token}`**
+(sejak 28 Agustus 2026). Itu halaman keputusan MK/Owner atas tautan sekali-pakai
+(panduan pengguna bab 15; desainnya di
+[`PERSETUJUAN-EKSTERNAL.md`](PERSETUJUAN-EKSTERNAL.md)). GET menampilkan formulir
+keputusan, POST mencatatnya; keduanya dimuat `CoreServiceProvider` dari
+`Modules/Core/Routes/web.php` dan dibatasi `throttle:10,1` — batas yang sama dengan
+login: sepuluh percobaan per menit per IP, sehingga menebak token 40 karakter bukan
+serangan yang selesai. Kapabilitas halaman ini adalah tokennya, bukan sesi: tanpa
+cookie, tanpa CSRF, dan server hanya menyimpan **sha256** token — maka tidak ada
+yang bisa Anda tampilkan ulang untuk penerbit yang kehilangan tautannya, termasuk
+lewat tinker; jalannya cabut lalu terbitkan baru. Token tak dikenal dijawab 404
+tanpa keterangan; yang sudah dipakai menampilkan struk keputusannya; yang dicabut
+atau kedaluwarsa dijawab 410 dengan alasannya.
+
+> **Di erp1 hari ini halaman itu tetap terhalang gerbang Basic-auth nginx.**
+> MK/Owner tanpa kredensial gerbang tidak bisa membukanya sampai gerbang
+> diturunkan — dan penurunannya menunggu pemutaran kata sandi demo (§12(a)).
+> Sampai hari itu, pintu yang berfungsi penuh di produksi adalah **lembar fisik**
+> (panduan pengguna §15.3).
+
 ### 3.6 Membuat dan menata peran
 
 Layar **Peran & Hak Akses** menampilkan kolom Peran, Jumlah pengguna, dan Hak akses.
@@ -2892,6 +2912,14 @@ satu-satunya hal yang membuat itu layak dipublikasikan.** Ada 18 baris token API
 beredar.
 
 Pengerasannya **sudah ter-deploy**; yang tersisa adalah **ketukan tombol pemilik**.
+
+**Sejak 28 Agustus 2026 gerbang itu menahan satu hal lagi:** tautan persetujuan
+eksternal `/persetujuan/{token}` (§3.5) — satu-satunya halaman aplikasi yang memang
+dirancang tanpa login — ikut terblokir bagi MK/Owner yang tidak memegang kredensial
+gerbang. Selama gerbang berdiri, keputusan eksternal di produksi praktis berjalan
+lewat **lembar fisik** saja; kartu, register bukti, dan loncengnya sudah bekerja.
+Aplikasi tidak mengubah nginx dan tidak boleh — itu keputusan dan keystroke pemilik,
+dengan urutan enam langkah [`DEPLOYMENT.md` §7.1](DEPLOYMENT.md) yang sama.
 
 **Keputusannya bukan "kapan memutar", melainkan "untuk apa demo ini setelah gerbangnya
 turun"** — dan itulah langkah yang paling sering dilewati, yang bila dilewati
