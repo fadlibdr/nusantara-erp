@@ -31,7 +31,7 @@ class PrintCatalogueBespokeTest extends ErpTestCase
             ->assertOk()
             ->json('data');
 
-        $this->assertCount(40, $rows, 'katalog = 33 registri + 7 formulir rumah proyek');
+        $this->assertCount(41, $rows, 'katalog = 34 registri + 7 formulir rumah proyek');
 
         $slugs = array_column($rows, 'slug');
         foreach (self::BESPOKE as $slug) {

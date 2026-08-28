@@ -570,7 +570,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 40 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 41 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -5385,7 +5385,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **40** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **41** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -5420,7 +5420,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 40 formulir
+### 13.3 Daftar lengkap 41 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -5447,6 +5447,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Pesanan Pembelian (formulir rumah) | F/PO | halaman PO — **berbeda dari tombol `PDF`**, yang mencetak pesanan komersial untuk pemasok |
 | Tabulasi Banding Penawaran (mendatar) | F/TBP | halaman RFQ |
 | Evaluasi Vendor | F/EV | halaman Evaluasi Vendor |
+| Persyaratan K3L Vendor | F/K3V | halaman Vendor |
 
 **Persediaan** (izin lihat persediaan):
 

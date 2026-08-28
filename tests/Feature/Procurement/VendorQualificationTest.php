@@ -34,12 +34,21 @@ class VendorQualificationTest extends ErpTestCase
         $this->service = app(VendorQualificationService::class);
     }
 
+    /**
+     * is_subcontractor => false SEJAK P0-E, dan itu perubahan makna yang
+     * disengaja: paket itu menyempitkan filosofi "register absen bukan
+     * pelanggaran" khusus untuk subkontraktor (komitmen K3L + pakta
+     * integritas wajib HADIR), sehingga uji-uji filosofi lama di berkas ini —
+     * "vendor tanpa register tidak diblokir" dkk. — kini menyatakan hal yang
+     * benar hanya untuk vendor NON-subkon. Itulah yang mereka uji sekarang.
+     * Cerita subkontraktor lengkapnya di VendorK3lGateTest.
+     */
     private function vendor(array $attributes = []): Vendor
     {
         return Vendor::query()->create(array_merge([
-            'name' => 'PT Subkon Struktur Utama',
+            'name' => 'PT Pemasok Struktur Utama',
             'classification' => 'sipil',
-            'is_subcontractor' => true,
+            'is_subcontractor' => false,
             'payment_term_days' => 30,
             'status' => 'active',
         ], $attributes));

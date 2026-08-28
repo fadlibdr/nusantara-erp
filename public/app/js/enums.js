@@ -125,6 +125,7 @@ export const ENUMS = {
     ['nib', 'NIB'], ['siup', 'SIUP'], ['npwp', 'NPWP'], ['sppkp', 'SPPKP (PKP)'],
     ['sbu_konstruksi', 'SBU Konstruksi'], ['skk', 'SKK Penanggung Jawab'],
     ['principal', 'Sertifikat Principal'], ['akta', 'Akta Perusahaan'],
+    ['k3l_commitment', 'Komitmen K3L'], ['pakta_integritas', 'Pakta Integritas'],
     ['lainnya', 'Lainnya'],
   ]),
 

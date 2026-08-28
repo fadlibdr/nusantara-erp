@@ -45,6 +45,7 @@ use Modules\Inventory\Services\InventoryFormService;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Rfq;
+use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
 use Modules\Procurement\Services\ProcurementFormService;
 use Modules\ServiceDesk\Models\FieldReport;
@@ -1708,6 +1709,64 @@ class PrintableDocuments
              * leaves no provenance and gets ruled lines, not a manufactured
              * explanation.
              */
+            /*
+             * PERSYARATAN K3L UNTUK VENDOR — templat yang ditandatangani
+             * subkontraktor sebelum SPK-nya bisa diajukan (gerbang P0-E).
+             *
+             * ISINYA SENGAJA BERGARIS KOSONG: pemilik tidak menitipkan teks
+             * klausul K3L di repo ini, dan panduan yang MENGARANG klausul
+             * keselamatan akan dipercaya orang persis di saat yang salah.
+             * Lembar ini memberi kop, identitas vendor, ruang klausul
+             * bergaris, dan blok tanda tangan — klausulnya milik HSE, ditulis
+             * tangan atau dilampirkan.
+             */
+            'persyaratan-k3l-vendor' => [
+                'resource' => 'procurement/vendors',
+                'model' => Vendor::class,
+                'permission' => 'prc.view',
+                'label' => 'Persyaratan K3L Vendor',
+                'formTitle' => 'PERSYARATAN K3L UNTUK VENDOR',
+                'formCode' => 'Form F/K3V',
+                'with' => [],
+                'header' => ['kind' => 'vendor', 'source' => fn (Vendor $vendor): Vendor => $vendor],
+                'date' => 'created_at',
+                'identityHouse' => false,
+                'title' => 'name',
+                'identity' => [
+                    'VENDOR' => 'name',
+                    'KODE VENDOR' => 'code',
+                    'NPWP' => 'npwp',
+                    'ALAMAT' => 'address',
+                    'KLASIFIKASI' => 'classification',
+                    'STATUS SUBKONTRAKTOR' => ['value' => 'is_subcontractor', 'cast' => 'text'],
+                ],
+                'body' => [],
+                'notes' => ['text' => null, 'lines' => 14],
+                'signatures' => [
+                    [
+                        'heading' => 'Menyetujui dan menyanggupi,',
+                        'subheading' => 'Vendor / Subkontraktor',
+                        'party' => 'name',
+                        'name' => null,
+                        'role' => 'Nama, Jabatan & Stempel',
+                    ],
+                    [
+                        'heading' => 'Diperiksa,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Safety Officer / HSE',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Mengetahui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Pengadaan',
+                    ],
+                ],
+            ],
+
             'evaluasi-vendor' => [
                 'resource' => 'procurement/vendor-evaluations',
                 'model' => VendorEvaluation::class,

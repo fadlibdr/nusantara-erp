@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 40 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 41 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai sebelas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -2456,9 +2456,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**40 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**41 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-33 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+34 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2552,7 +2552,7 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Sebelas dari 40 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Sebelas dari 41 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, berita acara opname, saldo stok, opname subkon,
 kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar hadir. Sisanya potret.
 

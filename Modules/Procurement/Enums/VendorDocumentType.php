@@ -17,6 +17,11 @@ enum VendorDocumentType: string
     case Skk = 'skk';
     case Principal = 'principal';
     case Akta = 'akta';
+    // Dua jenis P0-E: untuk vendor subkontraktor keduanya WAJIB HADIR —
+    // gerbang prakualifikasi menolak SPK/PO subkon tanpa keduanya, lihat
+    // VendorQualificationService::blockers.
+    case K3lCommitment = 'k3l_commitment';
+    case PaktaIntegritas = 'pakta_integritas';
     case Lainnya = 'lainnya';
 
     public function label(): string
@@ -30,6 +35,8 @@ enum VendorDocumentType: string
             self::Skk => 'SKK Penanggung Jawab',
             self::Principal => 'Sertifikat Principal',
             self::Akta => 'Akta Perusahaan',
+            self::K3lCommitment => 'Komitmen K3L',
+            self::PaktaIntegritas => 'Pakta Integritas',
             self::Lainnya => 'Lainnya',
         };
     }

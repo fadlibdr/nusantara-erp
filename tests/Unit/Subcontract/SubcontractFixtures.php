@@ -48,15 +48,42 @@ trait SubcontractFixtures
         return app(RetentionService::class);
     }
 
+    /**
+     * Vendor SEHAT — dan sejak P0-E, "sehat" untuk subkontraktor MENCAKUP
+     * dokumen komitmen K3L dan pakta integritas: gerbang prakualifikasi kini
+     * menolak SPK/PO subkon tanpa keduanya, jadi fixture tanpa dokumen bukan
+     * lagi vendor sehat melainkan vendor terblokir. Tiga belas uji lama merah
+     * karena perubahan makna ini, bukan karena cacat — memperbaikinya DI SINI,
+     * sekali, mempertahankan maksud semua pemanggil ("vendor yang lolos").
+     * Uji yang MEMANG menginginkan vendor tanpa dokumen mengirim
+     * 'k3l_documents' => false.
+     */
     protected function makeVendor(array $attributes = []): Vendor
     {
-        return Vendor::create(array_merge([
+        $withDocuments = (bool) ($attributes['k3l_documents'] ?? true);
+        unset($attributes['k3l_documents']);
+
+        $vendor = Vendor::create(array_merge([
             'name' => 'PT Subkon Jaya Konstruksi',
             'classification' => 'sipil',
             'is_pkp' => true,
             'is_subcontractor' => true,
             'status' => 'active',
         ], $attributes));
+
+        if ($withDocuments && $vendor->is_subcontractor) {
+            foreach ([
+                ['doc_type' => 'k3l_commitment', 'name' => 'Komitmen K3L'],
+                ['doc_type' => 'pakta_integritas', 'name' => 'Pakta Integritas'],
+            ] as $document) {
+                $vendor->documents()->create($document + [
+                    'is_mandatory' => true,
+                    'valid_until' => null, // tanpa masa berlaku = tidak kedaluwarsa
+                ]);
+            }
+        }
+
+        return $vendor;
     }
 
     protected function defaultVendor(): Vendor

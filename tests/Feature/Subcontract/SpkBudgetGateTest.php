@@ -47,6 +47,15 @@ class SpkBudgetGateTest extends ErpTestCase
             'payment_term_days' => 30,
             'status' => 'active',
         ]);
+
+        /* P0-E: subkon "sehat" kini mencakup dua dokumen ini — tanpanya
+           setiap submit di berkas ini tersangkut gerbang prakualifikasi,
+           bukan gerbang anggaran yang sedang diuji. */
+        foreach (['k3l_commitment' => 'Komitmen K3L', 'pakta_integritas' => 'Pakta Integritas'] as $type => $name) {
+            $this->subcontractor->documents()->create([
+                'doc_type' => $type, 'name' => $name, 'is_mandatory' => true, 'valid_until' => null,
+            ]);
+        }
     }
 
     /**

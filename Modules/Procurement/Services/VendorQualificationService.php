@@ -2,6 +2,7 @@
 
 namespace Modules\Procurement\Services;
 
+use Modules\Procurement\Enums\VendorDocumentType;
 use Modules\Procurement\Enums\VendorStatus;
 use Modules\Procurement\Exceptions\VendorNotQualifiedException;
 use Modules\Procurement\Models\Vendor;
@@ -51,6 +52,20 @@ class VendorQualificationService
             ->where('is_mandatory', true)
             ->whereNotNull('valid_until')
             ->where('valid_until', '<', now()->toDateString())
+            /*
+             * Untuk SUBKONTRAKTOR, dua jenis K3L/pakta sepenuhnya milik
+             * klausul penyempitan di bawah — absen maupun kedaluwarsa, buta
+             * tanda is_mandatory, dan baris TERSEGAR yang menang. Tanpa
+             * pengecualian ini satu lembar K3L wajib-kedaluwarsa disebut DUA
+             * KALI dalam satu pesan, dan subkon yang MEMPERBARUI K3L-nya
+             * (baris segar ditambah, baris basi dibiarkan) tetap terblokir
+             * oleh baris basinya. Vendor non-subkon tidak berubah: baris K3L
+             * mereka tunduk aturan lama seperti dokumen wajib lain.
+             */
+            ->when($vendor->is_subcontractor, fn ($query) => $query->whereNotIn('doc_type', [
+                VendorDocumentType::K3lCommitment->value,
+                VendorDocumentType::PaktaIntegritas->value,
+            ]))
             ->orderBy('valid_until')
             ->get();
 
@@ -58,6 +73,52 @@ class VendorQualificationService
             /** @var VendorDocument $document */
             $blockers[] = "dokumen wajib {$document->name} kedaluwarsa sejak "
                 .$document->valid_until->format('d-m-Y');
+        }
+
+        /*
+         * PENYEMPITAN SADAR (P0-E) atas filosofi "absen bukan pelanggaran" di
+         * atas: khusus vendor SUBKONTRAKTOR, komitmen K3L dan pakta
+         * integritas wajib HADIR dan belum kedaluwarsa — apa pun tanda
+         * is_mandatory barisnya. Orang yang mengirim pekerjanya ke site tanpa
+         * komitmen K3L bukan register yang belum rapi; itulah risiko yang
+         * gerbang ini ada untuk menahan. Vendor material murni tidak
+         * tersentuh, dan override beralasan tetap menjadi jalan daruratnya —
+         * mobilisasi besok pagi tidak menunggu tanda tangan hari ini.
+         */
+        if ($vendor->is_subcontractor) {
+            $required = [
+                VendorDocumentType::K3lCommitment,
+                VendorDocumentType::PaktaIntegritas,
+            ];
+
+            foreach ($required as $type) {
+                $document = $vendor->documents()
+                    ->where('doc_type', $type->value)
+                    ->orderByRaw('valid_until IS NULL DESC')
+                    ->orderByDesc('valid_until')
+                    ->first();
+
+                // Nama dalam-kalimat: akronim mempertahankan kapitalnya
+                // ('komitmen K3L', bukan 'komitmen k3l' hasil strtolower).
+                $inSentence = match ($type) {
+                    VendorDocumentType::K3lCommitment => 'komitmen K3L',
+                    VendorDocumentType::PaktaIntegritas => 'pakta integritas',
+                };
+
+                if ($document === null) {
+                    $blockers[] = "subkontraktor tanpa dokumen {$inSentence}"
+                        .' — wajib ada sebelum SPK/PO diajukan';
+
+                    continue;
+                }
+
+                $validUntil = $document->valid_until;
+
+                if ($validUntil !== null && $validUntil->toDateString() < now()->toDateString()) {
+                    $blockers[] = "dokumen {$inSentence}"
+                        ." kedaluwarsa sejak {$validUntil->format('d-m-Y')}";
+                }
+            }
         }
 
         return $blockers;
