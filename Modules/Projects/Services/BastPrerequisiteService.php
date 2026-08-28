@@ -76,7 +76,25 @@ class BastPrerequisiteService
             'checks' => [],
         ];
 
-        if ($bast->bast_type !== BastType::Bast2 || $project === null) {
+        if ($project === null) {
+            return $payload;
+        }
+
+        // P1-QC: BAST I — the start of masa pemeliharaan — is gated on ONE
+        // thing, "no open NCR". A first handover must not proceed while a
+        // nonconformance is still unresolved on the project. It is otherwise
+        // ungated (it releases no retention and there is nothing yet to check it
+        // against), so this is the whole of its checklist. defectChecks and the
+        // rest stay BAST II's, where the retensi is at stake.
+        if ($bast->bast_type === BastType::Bast1) {
+            $checks = $this->ncrChecks($project);
+            $payload['checks'] = $checks;
+            $payload['can_approve'] = $this->failed($checks, self::BLOCK) === [];
+
+            return $payload;
+        }
+
+        if ($bast->bast_type !== BastType::Bast2) {
             return $payload;
         }
 
@@ -276,6 +294,62 @@ class BastPrerequisiteService
     }
 
     /**
+     * P1-QC — the ONE check on a BAST I: no open NCR on the project.
+     *
+     * A hard BLOCK, and satisfiable the same way every hard block here is — an
+     * open NCR is verified or closed in QC, an afternoon's work, not a number
+     * nobody can correct. Reads qc_ncr behind Schema::hasTable exactly as
+     * retentionAtStake reads fin_ar_retentions: Projects must NOT depend on
+     * Quality (the dependency arrow is Quality → Projects), so there is no
+     * Quality model here and the two "open" status strings are literals,
+     * NcrStatus::openValues() by value — the Quality tests assert they match.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function ncrChecks(Project $project): array
+    {
+        $open = $this->openNcrCodes($project);
+        $count = count($open);
+        $named = array_slice($open, 0, self::MAX_NAMED_DEFECTS);
+        $rest = $count - count($named);
+        $list = implode(', ', $named).($rest > 0 ? ", dan {$rest} lainnya" : '');
+
+        return [
+            $this->check(
+                'ncr_terbuka',
+                self::BLOCK,
+                $count === 0,
+                'Tidak ada NCR yang masih terbuka',
+                $count === 0
+                    ? 'Tidak ada NCR yang masih terbuka pada proyek ini.'
+                    : "{$count} NCR masih terbuka ({$list}); verifikasi atau tutup dahulu sebelum serah terima pertama",
+            ),
+        ];
+    }
+
+    /**
+     * Open NCR codes on the project, or an empty list when Quality is not
+     * installed. `open` = status in (open, under_correction) — NcrStatus's own
+     * definition, by value.
+     *
+     * @return list<string>
+     */
+    private function openNcrCodes(Project $project): array
+    {
+        if (! Schema::hasTable('qc_ncr')) {
+            return [];
+        }
+
+        return DB::table('qc_ncr')
+            ->where('project_id', $project->id)
+            ->whereIn('status', ['open', 'under_correction'])
+            ->whereNull('deleted_at')
+            ->orderBy('code')
+            ->pluck('code')
+            ->all();
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     private function progressCheck(Project $project): array
@@ -446,7 +520,7 @@ class BastPrerequisiteService
 
     private function documentLabel(Bast $bast): string
     {
-        return 'BAST II '.$bast->code;
+        return ($bast->isBast2() ? 'BAST II' : 'BAST I').' '.$bast->code;
     }
 
     private function rupiah(float $amount): string

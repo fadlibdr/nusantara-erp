@@ -509,6 +509,7 @@ class SettingService
         'K3' => 'Insiden K3', 'POC' => 'Pengakuan pendapatan',
         'SDS' => 'Persetujuan gambar (SDS)', 'SMS' => 'Persetujuan material (SMS)',
         'TRM' => 'Transmittal', 'IPP' => 'Ijin pelaksanaan pekerjaan',
+        'QCI' => 'Inspeksi mutu (QCI)', 'NCR' => 'Laporan ketidaksesuaian (NCR)',
     ];
 
     /**

@@ -328,6 +328,11 @@ export function buildInput(spec, initial, { compact = false } = {}) {
     default: {
       const node = el('input', { type: 'text', maxlength: spec.maxlength });
       node.value = value ?? '';
+      // A value the row carries for context but nobody edits — the butir text
+      // and its acceptance on a QCI result line belong to the template, not the
+      // inspector, so they are shown but locked (out of the tab order too).
+      // read() still returns the value; the server drops unvalidated keys.
+      if (spec.readonly) { node.readOnly = true; node.tabIndex = -1; }
       return { node, read: () => (node.value.trim() === '' ? null : node.value.trim()) };
     }
   }

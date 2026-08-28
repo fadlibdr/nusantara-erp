@@ -42,6 +42,7 @@ teknisi.
 14. [Yang tidak bisa Anda lakukan sendiri][bab14]
 15. [Persetujuan oleh Pemilik/MK](#15-persetujuan-oleh-pemilikmk)
 16. [Engineering — gambar, submittal, IPP](#16-engineering--gambar-submittal-ipp)
+17. [Mutu — inspeksi, NCR, benda uji beton](#17-mutu--inspeksi-ncr-benda-uji-beton)
 
 [bab14]: #14-yang-tidak-bisa-anda-lakukan-sendiri--dan-siapa-yang-bisa
 
@@ -58,8 +59,8 @@ panduan ini milik orang lain.
 | Estimator / drafter | `estimator` | 1, 2, **4**, **16** (Anda drafter yang mendaftarkan gambar & menyiapkan submittal — bab 16) |
 | Petugas pengadaan / pembelian | `procurement` | 1, 2, **5** (+ §16.4 — baca daftar SMS sebelum membeli material yang belum disetujui MK) |
 | Penjaga gudang / logistik | `warehouse` | 1, 2, **6** (+ §16.5 — bon bisa menunjuk IPP) |
-| Manajer proyek | `project-manager` | 1, 2, **7**, **8**, **16** (+ §4.4 RAP, bab 9 bila memegang alat, **15** bila meminta tanda tangan MK/Owner) |
-| Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja; + §9.5 — Anda salah satu pencatat log BBM & jam alat; + **16** — Anda yang mengajukan IPP) |
+| Manajer proyek | `project-manager` | 1, 2, **7**, **8**, **16**, **17** (+ §4.4 RAP, bab 9 bila memegang alat, **15** bila meminta tanda tangan MK/Owner; bab 17 — Anda yang menyetujui inspeksi & memverifikasi NCR) |
+| Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja; + §9.5 — Anda salah satu pencatat log BBM & jam alat; + **16** — Anda yang mengajukan IPP; + **17** — inspeksi mutu, NCR, & benda uji di lokasi Anda) |
 | Petugas keuangan (AR, AP, kas) | `finance` | 1, 2, **10** (+ §3.10–§3.14 penagihan, §5.9–§5.10 bayar vendor) |
 | Manajer keuangan / direktur | `finance-manager`, `direktur` | 1, 2, **14**, lalu bab dokumen yang Anda setujui (+ **15** untuk tanda tangan MK/Owner) |
 | Kasir kas kecil | peran khusus (§14) | 1, 2, **§10.5–§10.7** |
@@ -572,7 +573,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 45 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 48 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -5410,7 +5411,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **45** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **48** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -5445,7 +5446,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 45 formulir
+### 13.3 Daftar lengkap 48 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -5472,6 +5473,14 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Lembar Persetujuan Material | F/SM | halaman Persetujuan Material (SMS) |
 | Transmittal Dokumen | F/TR | halaman Transmittal |
 | Ijin Pelaksanaan Pekerjaan | F/IPP | halaman IPP |
+
+**Mutu (QA/QC)** (izin lihat mutu) — dijelaskan lengkap di §17:
+
+| Formulir | Kode | Tombolnya di |
+|---|---|---|
+| Lembar Inspeksi Mutu | F/QI | halaman Inspeksi Mutu (QCI) |
+| Laporan Ketidaksesuaian | F/NCR | halaman Ketidaksesuaian (NCR) |
+| Benda Uji Beton & Hasil Uji | F/BU | halaman Benda Uji Beton |
 
 **Pengadaan** (izin lihat pengadaan):
 
@@ -5584,6 +5593,9 @@ Yang paling sering ditemui:
 | Kop empat pihak | kotak **KONSULTAN MK** dan kolom tanda tangannya | kosong bila kolom Konsultan pada proyek belum diisi (§7.2) |
 | Persetujuan Gambar / Material (F/SD, F/SM) | sel **KEPUTUSAN** — tetapi tidak bergaris: submittal yang belum dijawab MK tercetak *"Menunggu keputusan Konsultan MK"*, dan revisi yang tergantikan tercetak *"DIGANTIKAN oleh {kode SDS}"* | keputusan MK adalah fakta yang diketik (bab 16); yang belum diketik dicetak sebagai keadaan menunggu, bukan garis kosong dan bukan stempel karangan. Kolom tanda tangan MK tetap kosong — tak ada yang mencatat siapa membubuhkannya |
 | Ijin Pelaksanaan (F/IPP) | tabel bahan/alat/gambar/material terisi dari baris IPP; kolom KEPUTUSAN per baris gambar/material tercetak stempel MK apa adanya | F/IPP mencetak keadaan tersimpan **apa adanya** sementara gerbang IPP (§16.5) menimbangnya terpisah — lembar boleh menampilkan "Disetujui dengan catatan" pada baris material yang gerbang tetap tolak |
+| Inspeksi Mutu (F/QI) | sel **HASIL KESELURUHAN** — bergaris kosong selama lembar belum punya satu pun butir hasil | verdict lulus/tidak dicetak dari boolean tersimpan, tetapi `passed` hanya benar secara hampa pada checklist yang belum diisi; maka selama tak ada butir, selnya dikosongkan, bukan dicetak LULUS (bab 17) |
+| Ketidaksesuaian (F/NCR) | kolom **DIVERIFIKASI OLEH** & **TANGGAL VERIFIKASI** | terisi hanya setelah NCR diverifikasi (§17.3); NCR yang masih terbuka tak pernah mencetak pemverifikasi yang belum ada |
+| Benda Uji Beton (F/BU) | kolom **MEMENUHI** membaca hasil hitung tersimpan; **TARGET fc' (28 HARI)** bergaris kosong pada mutu yang tak terbaca | lulus/tidak adalah aritmetika ConcreteStrengthService saat uji direkam — bukan verdict yang diketik di samping kolom; mutu yang tak dikenali parser dikosongkan, bukan ditebak (§17.4) |
 
 **Lembar yang sudah diisi dan ditandatangani itulah catatannya.** Arsipkan di berkas
 proyek — tidak ada layar untuk merekamnya kembali.
@@ -6063,6 +6075,207 @@ Aturan kejujuran berlaku penuh (§13.5): submittal yang **belum** dijawab MK ter
 revisi yang tergantikan tercetak *"DIGANTIKAN oleh {kode SDS}"* di mukanya. F/IPP mencetak
 stempel **apa adanya** sementara gerbang menimbangnya terpisah; kolom tanda tangan MK tetap
 kosong, karena tak ada yang mencatat siapa membubuhkannya.
+
+---
+
+## 17. Mutu — inspeksi, NCR, benda uji beton
+
+Bab ini milik tim mutu di lapangan: **site manager** dan **QC proyek** yang mengisi lembar
+inspeksi dan mencatat benda uji, dan **manajer proyek** yang menyetujui lembar inspeksi
+serta memverifikasi ketidaksesuaian. Di sidebar semuanya ada di grup **Mutu (QA/QC)**,
+tepat sesudah Proyek — karena mutu berjalan di atas pekerjaan lapangan dan menggerbanginya:
+sebuah ketidaksesuaian yang belum beres **menahan** inspeksi tahap berikutnya di lokasi yang
+sama, dan menahan serah terima pertama (BAST I).
+
+**Satu aturan yang mendasari seluruh bab ini: verdict adalah aritmetika, bukan pendapat.**
+Lulus/tidak sebuah inspeksi dihitung dari butir yang Anda tandai — satu butir "tidak sesuai"
+menggagalkan lembarnya, dan Anda tidak bisa mengetik "lulus" di atas butir yang tidak
+mendukungnya. Lulus/tidak sebuah benda uji dihitung server terhadap target mutunya pada umur
+uji — tidak pernah diketik. Ini bukan kerewelan; ini supaya tak ada angka karangan muncul di
+atas lembar uji yang ditandatangani.
+
+### 17.1 Siapa boleh apa
+
+| Peran | Di modul Mutu |
+|---|---|
+| **Site manager** (`site-manager`) | Buat & ajukan inspeksi, catat NCR & mulai perbaikannya, catat benda uji & hasil, susun template checklist. **Tidak** menyetujui inspeksi atau memverifikasi NCR (bukan pemegang `qc.approve`) |
+| **Manajer proyek** (`project-manager`) | Semua di atas **plus** `Setujui`/`Tolak` inspeksi, dan `Verifikasi` NCR |
+| **Direktur** (`direktur`) | Membaca semuanya; boleh menyetujui inspeksi dan memverifikasi NCR — tetapi **tidak membuat** dokumen (bukan pemegang `qc.create`) |
+| **Petugas lain** | Tanpa `qc.view`, grup **Mutu (QA/QC)** tidak muncul di sidebar sama sekali |
+
+Seperti di seluruh aplikasi, pemegang `qc.approve` tidak boleh menyetujui inspeksi yang ia
+ajukan sendiri (§2.5) — maker-checker berlaku penuh pada lembar inspeksi.
+
+### 17.2 Inspeksi Mutu (QCI) — `Mutu › Inspeksi Mutu (QCI)`
+
+Kode `QCI/…`. Sebuah inspeksi adalah **satu template checklist yang diisi** di satu lokasi
+pada satu tanggal. Kolom daftar: Kode · Paket · Tahap · Tgl Inspeksi · Lulus · Status.
+
+1. **`Tambah Inspeksi Mutu`**. Isi **Proyek** (wajib, hanya saat membuat), **Template
+   checklist** (wajib, hanya saat membuat — §17.5), **Lokasi**, **IPP terkait** (opsional),
+   **Tanggal inspeksi**, **Inspektor**, **Disaksikan** (Konsultan MK / Pemilik).
+2. Tekan **`Muat butir dari template`** untuk menarik seluruh butir checklist ke bawah
+   formulir. Butir dan kriteria terkunci (milik template); Anda mengisi **Hasil** tiap butir
+   — **Sesuai / Tidak sesuai / Tidak berlaku** — dan **Catatan** bila perlu.
+3. **`Simpan`**, lalu **`Ajukan`**.
+
+**Hasil keseluruhan dihitung, bukan diketik.** Satu butir **Tidak sesuai** menggagalkan
+lembar (kolom Lulus menjadi tidak); **Tidak berlaku** tak pernah menggagalkan — butir yang
+tidak berlaku pada pengecoran ini tidak bisa membuat pengecorannya tidak sesuai.
+
+**Disaksikan oleh ≠ yang menyetujui.** Konsultan MK yang menyaksikan adalah **fakta yang
+dicatat** (dicetak di F/QI di samping kolom tanda tangan), bukan penyetuju di dalam sistem.
+Inspeksi berjalan lewat maker-checker rumah biasa (`Ajukan` → `Setujui`/`Tolak`,
+`qc.approve`) — persis IPP.
+
+**Gerbang NCR — inti bab ini.** `Ajukan` **ditolak** bila ada NCR terbuka di lokasi yang
+sama yang berasal dari **tahap sebelumnya**. Titik henti mutunya berurutan **sebelum → saat
+→ setelah**: inspeksi ulang pada tahap yang **sama** tetap lolos, lokasi lain lolos; hanya
+melangkah ke tahap berikutnya di atas ketidaksesuaian yang belum beres yang ditolak.
+Pesannya menyebut **setiap** NCR penghambat sekaligus, dan **tidak ada tombol konfirmasi**
+— bekerja di tahap berikutnya di atas NCR terbuka adalah persis yang gerbang ini cegah:
+
+> *"Inspeksi {kode} tahap {tahap} tidak dapat diajukan: masih ada NCR terbuka di lokasi ini
+> dari tahap sebelumnya — {NCR} ({tahap}, {status}); …. Selesaikan (verifikasi) NCR-nya
+> dahulu sebelum melanjutkan ke tahap berikutnya."*
+
+Penolakan lain yang mungkin Anda temui:
+
+- Lokasi bukan milik proyek: *"Lokasi yang dipilih bukan bagian dari proyek inspeksi ini."*
+- IPP proyek lain: *"IPP yang dipilih berada pada proyek lain dan tidak dapat mendasari
+  inspeksi ini."*
+- Butir asing: *"Butir hasil tidak termasuk dalam template inspeksi ini."*
+- Sudah keluar dari draf: *"Inspeksi {kode} berstatus {status} dan tidak dapat diubah
+  lagi."*
+
+### 17.3 Ketidaksesuaian (NCR) — `Mutu › Ketidaksesuaian (NCR)`
+
+Kode `NCR/…`. Laporan ketidaksesuaian dibuat ketika pekerjaan tidak memenuhi kriteria. Kolom
+daftar: Kode · Tahap · Uraian · Batas Waktu · Status.
+
+**NCR bukan dokumen persetujuan.** Ia tidak memakai `Ajukan`/`Setujui`; ia punya siklusnya
+sendiri: **Terbuka → Perbaikan berjalan → Terverifikasi → Ditutup**. Setiap perpindahan
+punya tombolnya sendiri:
+
+| Tombol | Dari status | Butuh izin | Artinya |
+|---|---|---|---|
+| **`Mulai Perbaikan`** | Terbuka | `qc.update` | Penanggung jawab mulai memperbaiki |
+| **`Verifikasi`** | Terbuka / Perbaikan | `qc.approve` | QC memeriksa ulang dan menerima koreksinya |
+| **`Tutup`** | Terverifikasi | `qc.update` | Ditutup secara administratif |
+
+`Mulai Perbaikan` bertanya *"Tandai NCR ini sedang dalam perbaikan oleh penanggung
+jawabnya?"*. `Verifikasi` meminta **Tanggal verifikasi** (kosongkan untuk memakai hari
+ini) — ini yang mencabut blokir: begitu NCR terverifikasi, ia tak lagi menahan inspeksi
+maupun BAST I. `Tutup` bertanya *"Tutup NCR ini secara administratif? Setelah ditutup tidak
+dapat diubah lagi."*
+
+1. **`Tambah NCR`**. Isi **Proyek** (wajib, hanya saat membuat), **Inspeksi asal**
+   (opsional — bila diisi, **Tahap** dan **Lokasi** NCR terisi otomatis dari inspeksi itu),
+   **Lokasi**, **Tahap**, **Uraian ketidaksesuaian** (wajib), **Akar masalah**, **Tindakan
+   koreksi**, **Tindakan pencegahan**, penanggung jawab, dan **Batas waktu**.
+2. **Penanggung jawab tepat satu:** isi **karyawan sendiri** ATAU **subkontraktor**, tidak
+   keduanya dan tidak kosong. Keduanya menyalahkan semua orang dan tak seorang pun.
+
+Yang akan menahan Anda:
+
+- Bukan tepat satu penanggung jawab: *"Isi tepat satu penanggung jawab: karyawan sendiri
+  ATAU subkontraktor, tidak keduanya dan tidak kosong."*
+- Tahap kosong pada NCR mandiri: *"Tahap NCR wajib diisi bila tidak mengacu pada inspeksi."*
+- Inspeksi asal proyek lain: *"Inspeksi yang dirujuk berada pada proyek lain dan tidak dapat
+  menjadi asal NCR ini."*
+- Lokasi bukan milik proyek: *"Lokasi yang dipilih bukan bagian dari proyek NCR ini."*
+- Perpindahan status yang salah: *"NCR {kode} berstatus {status} dan tidak dapat {tindakan}
+  dari status itu."* (tindakan: memulai perbaikan / memverifikasi / menutup)
+- NCR yang sudah ditutup: *"NCR {kode} sudah ditutup dan tidak dapat diubah lagi."*
+
+**Dua pintu yang ditahan NCR terbuka.** Selama status masih **Terbuka** atau **Perbaikan
+berjalan**, NCR itu (a) menahan inspeksi tahap berikutnya di lokasinya (§17.2), dan (b)
+menahan **BAST I** proyeknya — serah terima pertama tidak dapat disetujui selama ada NCR
+terbuka. Yang kedua muncul di layar BAST sebagai:
+
+> *"BAST I {kode} belum dapat disetujui — {n} NCR masih terbuka ({daftar NCR}); verifikasi
+> atau tutup dahulu sebelum serah terima pertama."*
+
+(BAST II punya prasyaratnya sendiri — bab persetujuan proyek, §7 — dan tidak digerbangi NCR;
+NCR menjaga **pintu masuk** masa pemeliharaan, bukan pintu keluarnya.)
+
+### 17.4 Benda Uji Beton — `Mutu › Benda Uji Beton`
+
+Serah-simpan benda uji sebuah pengecoran (FM-10-24) dan hasil uji tekannya (FM-10-23). Kolom
+daftar: Tgl Cor · Mutu · Target fc' (MPa) · No. Truk · Volume · Jml.
+
+1. **`Tambah Benda Uji`**. Isi **Proyek** (wajib, hanya saat membuat), **Lokasi**, **Tanggal
+   cor**, **Mutu** (mis. `K-350`), **Slump**, **No. truk mixer**, **Volume**, **Jumlah benda
+   uji**.
+2. Isi baris **Hasil uji tekan**: **Umur** (7 / 14 / 28 hari), **Kekuatan (MPa)**,
+   **Laboratorium**, **Tanggal uji**. Kolom **Memenuhi** tidak Anda isi — server
+   menghitungnya saat menyimpan, dan menghitung ulang seluruh baris tiap kali Anda menyimpan
+   perubahan.
+
+**Bagaimana lulus/tidak dihitung — dan sumbernya.** Mutu ditulis dua cara: `K-xxx` (kekuatan
+karakteristik **kubus** dalam kg/cm², konvensi PBI 1971) atau `fc'-xx` (kuat tekan
+**silinder** dalam MPa, konvensi SNI 2847:2019). Karena SNI menilai keberterimaan pada fc'
+silinder, sebuah mutu-K dikonversi lebih dulu:
+
+- kg/cm² → MPa: **× 0,0980665**
+- kubus → silinder: **× 0,83** (fc' silinder ≈ 0,83 × σbk kubus, konversi PBI yang lazim)
+- contoh: **K-350** → 350 × 0,0980665 × 0,83 = **28,49 MPa** (target fc' 28 hari)
+
+Keberterimaan ada pada fc' **28 hari**. Benda uji yang dipecah lebih awal dibandingkan
+terhadap pecahan target menurut tabel kematangan **PBI 1971 (N.I.-2) Tabel 4.1.4** semen
+tipe I: **7 hari = 0,65**, **14 hari = 0,88**, **28 hari = 1,00**. Jadi K-350 pada 7 hari
+dibandingkan terhadap 0,65 × 28,49 ≈ 18,52 MPa. Benda uji **memenuhi** bila kekuatannya ≥
+target umur itu.
+
+Penolakan yang menjaga kejujuran hitungan:
+
+- Mutu tak terbaca: *"Mutu beton \"{x}\" tidak dikenali; gunakan K-xxx (kubus, kg/cm²) atau
+  fc'-xx (silinder, MPa)."*
+- Umur di luar tabel: *"Umur uji {n} hari tidak ada pada tabel kematangan PBI 1971 (7, 14,
+  atau 28 hari); pass/fail hanya dihitung pada umur baku, bukan ditebak."*
+
+Angka yang tak bisa dihitung ditolak, bukan ditebak — menebak rasio umur adalah persis
+pendapat yang layar ini ada untuk menjauhkannya dari lembar bertanda tangan.
+
+### 17.5 Template Inspeksi — `Mutu › Template Inspeksi`
+
+Pustaka checklist: satu template adalah satu lembar titik henti mutu (kode katalog `Q1…Q31`,
+mis. `Q7` "Pengecoran kolom struktur"), milik satu paket pekerjaan dan satu **tahap**
+(sebelum / saat / setelah). Butirnya adalah baris yang ditandai inspektor `ok/nok/na` di
+lapangan.
+
+1. **`Tambah Template Inspeksi`**. Isi **Kode katalog** (mis. `Q7`, unik), **Paket
+   pekerjaan**, **Tahap (titik henti mutu)**, lalu baris **Butir pemeriksaan**: **Butir yang
+   diperiksa**, **Kriteria keberterimaan**, **Toleransi** (boleh kosong).
+2. **Kode `Q1…Q31` milik kantor mutu**, bukan nomor dokumen yang dicetak sistem — sama
+   seperti kode AHSP. Karena itu seluruh pustaka bisa **diimpor massal** lewat **Impor
+   Data Master** (§2.9): satu berkas memuat banyak template, kolom `kode, paket, tahap`
+   untuk kepala dan `butir, kriteria, toleransi` untuk tiap butir; kode yang sudah ada
+   **diperbarui**, kode baru **dibuat**.
+
+> **Jangan mengubah butir template yang sudah dipakai inspeksi terisi.** Butir hasil sebuah
+> inspeksi menunjuk butir template aslinya; mengganti butir yang sudah dirujuk belum
+> didukung. Bila sebuah checklist perlu berbeda, **buat template baru** (kode baru) — jangan
+> sunting butir template lama yang sudah terpakai. Formulir ini mengingatkannya di catatan
+> bawahnya.
+
+### 17.6 Mencetak
+
+Tiga formulir rumah, semua kop empat pihak, dicetak dari tombol **`Cetak`** di halaman
+daftar/detailnya (§13):
+
+| Tombol | Formulir | Dari layar |
+|---|---|---|
+| `Cetak Inspeksi Mutu (QCI)` | F/QI Lembar Inspeksi Mutu | Inspeksi Mutu |
+| `Cetak Ketidaksesuaian (NCR)` | F/NCR Laporan Ketidaksesuaian | Ketidaksesuaian |
+| `Cetak Benda Uji Beton` | F/BU Benda Uji Beton & Hasil Uji | Benda Uji Beton |
+
+Aturan kejujuran berlaku penuh (§13.5): F/QI mengosongkan sel **HASIL KESELURUHAN** selama
+lembar belum punya butir hasil (bukan mencetak LULUS pada checklist kosong); F/NCR
+mengosongkan kolom verifikasi selama NCR belum diverifikasi; F/BU mencetak kolom
+**MEMENUHI** dari hasil hitung yang tersimpan, dan mengosongkan **TARGET fc'** pada mutu
+yang tak terbaca — bukan menebak. Kolom tanda tangan Konsultan MK tetap kosong bila kolom
+Konsultan pada proyek belum diisi (§7.2).
 
 ---
 

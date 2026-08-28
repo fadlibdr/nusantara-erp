@@ -15,6 +15,7 @@ class PermissionSeeder extends Seeder
         'core', 'iam', 'crm', 'inv', 'ast', 'est',
         'prj', 'prc', 'scm', 'hr', 'fin', 'svc',
         'eng', // P1-ENG: Engineering (eng_ tables, api/engineering)
+        'qc',  // P1-QC: Quality (qc_ tables, api/quality)
     ];
 
     public const ACTIONS = ['view', 'create', 'update', 'delete', 'approve', 'post'];

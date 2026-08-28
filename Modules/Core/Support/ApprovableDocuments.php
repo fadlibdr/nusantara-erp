@@ -20,6 +20,7 @@ use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\OvertimePermit;
 use Modules\Projects\Models\ProjectBaseline;
 use Modules\Projects\Models\WorkPermit;
+use Modules\Quality\Models\Inspection;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
@@ -70,6 +71,14 @@ class ApprovableDocuments
          * not theirs to approve.
          */
         WorkPermitIpp::class => ['prefix' => 'eng', 'label' => 'Ijin pelaksanaan pekerjaan', 'resource' => 'engineering/ipp'],
+        /*
+         * P1-QC — the ONE Quality approvable. The NCR is deliberately NOT here:
+         * its lifecycle is NcrStatus (open → under_correction → verified →
+         * closed), not submit → approve, so an entry here would notify
+         * qc.approve holders to "approve" a report that is never approved. The
+         * concrete sample/test carry no approval cycle at all.
+         */
+        Inspection::class => ['prefix' => 'qc', 'label' => 'Inspeksi mutu', 'resource' => 'quality/inspections'],
         PurchaseRequisition::class => ['prefix' => 'prc', 'label' => 'Permintaan pembelian', 'resource' => 'procurement/purchase-requisitions'],
         PurchaseOrder::class => ['prefix' => 'prc', 'label' => 'Pesanan pembelian', 'resource' => 'procurement/purchase-orders'],
         StockAdjustment::class => ['prefix' => 'inv', 'label' => 'Penyesuaian stok', 'resource' => 'inventory/stock-adjustments'],

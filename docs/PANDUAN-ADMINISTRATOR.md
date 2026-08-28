@@ -24,7 +24,7 @@
 0. [**Rujukan cepat**](#rujukan-cepat--satu-halaman-untuk-hari-ketika-ada-yang-salah)
    — satu halaman untuk hari ketika ada yang salah
 1. [Untuk siapa panduan ini](#1-untuk-siapa-panduan-ini-dan-apa-yang-tidak-ada-di-sini)
-2. [Gambaran sistem — tiga belas modul](#2-gambaran-sistem--tiga-belas-modul)
+2. [Gambaran sistem — empat belas modul](#2-gambaran-sistem--empat-belas-modul)
 3. [Akses & peran](#3-akses--peran)
 4. [Penyiapan awal](#4-penyiapan-awal)
 5. [Rutinitas & alarm](#5-rutinitas--delapan-perintah-dan-sistem-alarm)
@@ -178,16 +178,16 @@ sudo -u www-data env HOME=/tmp php artisan fin:ensure-calendar
 
 ---
 
-## 2. Gambaran sistem — tiga belas modul
+## 2. Gambaran sistem — empat belas modul
 
-Satu monolit modular. Tiga belas modul, masing-masing dengan prefiks izin sendiri;
+Satu monolit modular. Empat belas modul, masing-masing dengan prefiks izin sendiri;
 di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 45 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
-dipakai dua belas modul lain.
+cetak 48 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+dipakai tiga belas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
 otentikasi saja: masuk, keluar, "siapa saya". Tidak ada layanan mandiri kata sandi.
@@ -216,6 +216,18 @@ Bergantung ke Projects, Estimation, dan Core — tidak sebaliknya.
 EVM & baseline, milestone, BAST, register K3, register defect (punch list), varian
 material, penugasan personel, penutupan proyek. Sumber angka AC pada EVM adalah
 `fin_project_costs`, bukan buku besar.
+
+**Quality (`qc`) — Mutu (QA/QC).** Template checklist inspeksi (kode katalog Q1..Q31),
+inspeksi mutu (QCI), laporan ketidaksesuaian (NCR), dan benda uji beton dengan hasil uji
+tekan. Inspeksi `Approvable` (submit → approve, `qc.approve`) — Konsultan MK yang menyaksikan
+adalah **fakta yang dicatat**, bukan penyetuju. NCR **bukan** `Approvable`: statusnya siklus
+sendiri (terbuka → perbaikan → terverifikasi → ditutup), dan NCR terbuka **memblokir**
+inspeksi tahap berikutnya di lokasi yang sama serta serah terima pertama (BAST I) — gerbang
+itu ditulis di `InspectionService` dan `BastPrerequisiteService`, yang membaca `qc_ncr` di
+balik `Schema::hasTable` karena Projects tidak boleh bergantung ke Quality. Lulus/tidak benda
+uji **dihitung** `ConcreteStrengthService` terhadap target mutunya (K → fc' silinder, tabel
+kematangan PBI 1971) — tidak pernah diketik. Bergantung ke Projects, Engineering, dan Core —
+tidak sebaliknya.
 
 **Procurement (`prc`) — Pengadaan.** Vendor & subkon, dokumen vendor (prakualifikasi),
 permintaan pembelian (PR), RFQ/banding penawaran, pesanan pembelian (PO), baris PO
@@ -256,17 +268,17 @@ penyusutan berjalan draf → posting.
 
 ## 3. Akses & peran
 
-### 3.1 Skema izin: 80 izin
+### 3.1 Skema izin: 86 izin
 
-Nama izin selalu `<prefiks modul>.<aksi>`. Tiga belas prefiks —
-`core, iam, crm, inv, ast, est, prj, prc, scm, hr, fin, svc, eng` — dikali enam aksi —
-`view, create, update, delete, approve, post` — menghasilkan 78 izin, ditambah dua
-izin direktur `prc.approve-director` dan `scm.approve-director`. **Total 80**, dan
-tabel `permissions` pada basis data hidup berisi tepat 80 baris.
+Nama izin selalu `<prefiks modul>.<aksi>`. Empat belas prefiks —
+`core, iam, crm, inv, ast, est, prj, prc, scm, hr, fin, svc, eng, qc` — dikali enam aksi —
+`view, create, update, delete, approve, post` — menghasilkan 84 izin, ditambah dua
+izin direktur `prc.approve-director` dan `scm.approve-director`. **Total 86**, dan
+tabel `permissions` pada basis data hidup berisi tepat 86 baris.
 
-Kedua izin direktur sengaja tidak dimekarkan ke tiga belas prefiks. Alasannya ditulis
+Kedua izin direktur sengaja tidak dimekarkan ke empat belas prefiks. Alasannya ditulis
 di `Modules/Iam/Database/Seeders/PermissionSeeder.php:21-31`: memekarkannya akan
-mencetak sepuluh izin yang tidak diperiksa kode mana pun, dan "izin yang tidak
+mencetak dua belas izin yang tidak diperiksa kode mana pun, dan "izin yang tidak
 diperiksa, di layar peran, terbaca sebagai kontrol yang ada". Hanya PO dan SPK yang
 menstempel `needs_director_approval`, jadi hanya dua izin itu yang dicetak.
 
@@ -290,13 +302,13 @@ orang kedua **approve** (menilai), orang ketiga — atau orang pertama lagi — 
 `finance-manager`: "memindahkan posting ke penyetuju hanya membuat penyetuju
 mengerjakan pekerjaan tata usaha".
 
-**Empat belas izin tidak menjaga apa pun.** Penelusuran seluruh `Modules/`, `app/`,
+**Lima belas izin tidak menjaga apa pun.** Penelusuran seluruh `Modules/`, `app/`,
 dan `public/app/js` tidak menemukan satu pun pemakaian untuk `core.create`,
 `core.delete`, `core.post`, `iam.approve`, `iam.post`, `ast.approve`, `est.post`,
-`crm.post`, `prj.post`, `prc.post`, `hr.post`, `svc.approve`, `svc.post`, `eng.post`.
-Semuanya ada di layar Peran dan bisa dicentang. **Jangan pernah merancang pembagian
-tugas berdasarkan salah satu dari keempat belasnya** — mencentangnya tidak memberi
-kemampuan apa pun, mengosongkannya tidak mencabut apa pun.
+`crm.post`, `prj.post`, `prc.post`, `hr.post`, `svc.approve`, `svc.post`, `eng.post`,
+`qc.post`. Semuanya ada di layar Peran dan bisa dicentang. **Jangan pernah merancang
+pembagian tugas berdasarkan salah satu dari kelima belasnya** — mencentangnya tidak
+memberi kemampuan apa pun, mengosongkannya tidak mencabut apa pun.
 
 `core.approve` dipakai, tetapi bukan sebagai gerbang rute: ia adalah **daftar
 penerima peringatan cadangan** (`Modules/Core/Console/Commands/BackupWatchCommand.php`).
@@ -309,16 +321,16 @@ teknisi, 22 Agustus 2026 — §12(b)); tidak ada peran yang disunting tangan.
 
 | Peran | Izin | Untuk apa |
 |---|---|---|
-| **admin** | 80 | Seluruh izin sistem |
-| **direktur** | 28 | `view` + `approve` ketiga belas modul + dua izin direktur. **Tidak punya satu pun `create`, `update`, `delete`, atau `post`** — ia tidak bisa membuat atau membukukan apa pun |
-| **project-manager** | 20 | `view/create/update` atas prj, est, scm, inv, ast, eng + `prj.approve` + `eng.approve` |
+| **admin** | 86 | Seluruh izin sistem |
+| **direktur** | 30 | `view` + `approve` keempat belas modul + dua izin direktur. **Tidak punya satu pun `create`, `update`, `delete`, atau `post`** — ia tidak bisa membuat atau membukukan apa pun |
+| **project-manager** | 24 | `view/create/update` atas prj, est, scm, inv, ast, eng, qc + `prj.approve` + `eng.approve` + `qc.approve` |
 | **finance** | 11 | `fin` view/create/update/delete/post; `crm.view`, `prc.view`, `scm.view`, `hr.view`; `ast.view` + `ast.post` |
 | **estimator** | 10 | `est` view/create/update/delete/post + `eng.view/create/update` + `prj.view` + `crm.view` |
 | **procurement** | 8 | `prc` view/create/update/delete/post + `inv.view` + `est.view` + `eng.view`. **Tidak** memegang `prc.approve` |
 | **sales** | 7 | `crm` view/create/update/delete/post + `prj.view` + `svc.view` |
 | **hr** | 6 | `hr` view/create/update/delete/post + `iam.view` |
 | **finance-manager** | 5 | `fin.view`, `fin.approve`, `crm.view`, `prc.view`, `scm.view` |
-| **site-manager** | 8 | `prj.view/create/update` + `eng.view/create/update` + `inv.view/create` |
+| **site-manager** | 11 | `prj.view/create/update` + `eng.view/create/update` + `qc.view/create/update` + `inv.view/create` |
 | **warehouse** | 5 | `inv` view/create/update/delete + `prj.view`. **Tidak memegang `inv.post`** — yang sejak 22 Agustus justru dipegang teknisi; regangan itu dicatat di §12(b) |
 | **teknisi** | 5 | `svc.view/create/update` + `inv.view` + **`inv.post`** (keputusan pemilik 22 Agustus 2026 — §12(b)) |
 
@@ -343,7 +355,7 @@ Tiga rasional dari seeder yang perlu Anda bawa saat menata ulang peran:
 | Izin approve | Pemegang aktif |
 |---|---|
 | `fin.approve` | direktur, admin — **dan `finance-manager`, yang di erp1 tidak dipegang siapa pun** |
-| `prj.approve`, `eng.approve` | direktur, project-manager, admin |
+| `prj.approve`, `eng.approve`, `qc.approve` | direktur, project-manager, admin |
 | `crm`, `est`, `prc`, `scm`, `hr`, `inv` `.approve` | direktur dan admin **saja** |
 | `ast.approve`, `svc.approve`, `iam.approve`, `core.approve` | direktur dan admin — tetapi tidak ada rute yang memeriksa ketiga yang pertama |
 
@@ -361,7 +373,7 @@ cuti/payroll, dan opname stok **semuanya menumpuk di satu login direktur**.
 
 ### 3.3 Peran admin, dan apa artinya bagi pemisahan tugas
 
-Admin memegang 80 dari 80 izin. Setiap kontrol yang dibangun aplikasi ini masih
+Admin memegang 86 dari 86 izin. Setiap kontrol yang dibangun aplikasi ini masih
 berlaku bagi admin **kecuali** kontrol yang bentuknya "peran A tidak memegang izin
 B". Admin memegang semua B.
 
@@ -376,18 +388,19 @@ menonaktifkan seluruh kotak centang. Penjagaannya berdasarkan **nama** `'admin'`
 jadi peran itu juga tidak bisa diganti nama.
 
 Yang **tidak** dijaga: tidak ada apa pun yang mencegah pembuatan peran **baru** yang
-mencentang seluruh 80 izin.
+mencentang seluruh 86 izin.
 
-Admin juga satu-satunya pemegang bawaan untuk 17 izin — 15 sampai modul Engineering
-menambah `eng.delete` dan `eng.post` (28 Agustus 2026), dan 16 sebelum `inv.post`
-(8 rute) keluar dari daftar ini pada 22 Agustus 2026 karena teknisi ikut memegangnya
-(§12(b)). Dari daftar itu yang benar-benar dipakai kode: `core.update`
-(menyimpan Pengaturan dan Profil Perusahaan), **ketiga** izin `iam` administratif —
-`iam.create`, `iam.update`, `iam.delete` (`Modules/Iam/Routes/api.php:24, 29, 36`)
-— **`scm.post`** (2 rute), dan kelima izin `delete` (`ast`, `prj`, `scm`, `svc`, `eng`).
+Admin juga satu-satunya pemegang bawaan untuk 19 izin — 17 sampai modul Quality
+menambah `qc.delete` dan `qc.post`, 15 sebelum modul Engineering menambah `eng.delete`
+dan `eng.post` (keduanya 28 Agustus 2026), dan 16 sebelum `inv.post` (8 rute) keluar
+dari daftar ini pada 22 Agustus 2026 karena teknisi ikut memegangnya (§12(b)). Dari
+daftar itu yang benar-benar dipakai kode: `core.update` (menyimpan Pengaturan dan
+Profil Perusahaan), **ketiga** izin `iam` administratif — `iam.create`, `iam.update`,
+`iam.delete` (`Modules/Iam/Routes/api.php:24, 29, 36`) — **`scm.post`** (2 rute), dan
+keenam izin `delete` (`ast`, `prj`, `scm`, `svc`, `eng`, `qc`).
 
 > **`iam.post` bukan yang keempat.** Ia nol pemakaian di seluruh basis kode dan sudah
-> disebut di §3.1 sebagai salah satu dari empat belas izin yang tidak menjaga apa pun.
+> disebut di §3.1 sebagai salah satu dari lima belas izin yang tidak menjaga apa pun.
 > Mencentangnya pada sebuah peran tidak memberi kemampuan apa pun.
 
 > **Perangkap operasional yang lahir dari itu — dua yang masih nyata hari ini, satu
@@ -2488,9 +2501,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**45 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**48 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-38 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+41 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2585,9 +2598,10 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Sebelas dari 45 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Sebelas dari 48 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, berita acara opname, saldo stok, opname subkon,
-kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar hadir. Sisanya potret.
+kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar hadir. Sisanya potret
+(termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU).
 
 Lembarnya sengaja berdiri sendiri: CSS inline, tanpa stylesheet eksternal, tanpa font
 web, logo disisipkan sebagai data — "a font fetched over the network would make the same

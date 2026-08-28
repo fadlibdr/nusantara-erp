@@ -768,14 +768,16 @@ class BastTwoPrerequisiteTest extends ErpTestCase
     // ------------------------------------------------------- what is NOT gated
 
     /**
-     * BAST I starts the masa pemeliharaan, releases nothing and has nothing yet
-     * to be checked against. Gating it would refuse the very handover that makes
-     * the punch list meaningful.
+     * BAST I releases no retention, so the BAST II gate — defects, progress,
+     * masa pemeliharaan, the retensi at stake — never runs on it. The ONLY
+     * thing that gates a BAST I is the P1-QC "no open NCR" block, and with no
+     * NCR that single check passes: an open critical DEFECT (which gates BAST
+     * II) does not refuse the first handover.
      */
-    public function test_bast_one_is_not_gated_by_the_new_checklist(): void
+    public function test_bast_one_is_not_gated_by_the_bast_two_checklist(): void
     {
         $this->project->forceFill(['actual_progress_pct' => 0, 'status' => ProjectStatus::Finishing])->save();
-        $this->defect(); // critical, open
+        $this->defect(); // critical, open — gates BAST II, never BAST I
 
         $first = $this->bast('bast1');
         $first->submit();
@@ -784,7 +786,11 @@ class BastTwoPrerequisiteTest extends ErpTestCase
 
         $this->assertSame(DocumentStatus::Approved, $first->refresh()->status);
         $this->assertSame(ProjectStatus::Warranty, $this->project->refresh()->status);
-        $this->assertSame([], $this->checklist->evaluate($first)['checks']);
+
+        // The one check a BAST I carries is the NCR block, passing here.
+        $checks = $this->checks($first);
+        $this->assertSame(['ncr_terbuka'], array_keys($checks));
+        $this->assertTrue($checks['ncr_terbuka']['passed']);
     }
 
     /**
