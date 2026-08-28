@@ -9,7 +9,10 @@ use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\Customer;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Projects\Models\Defect;
+use Modules\Projects\Models\GatePass;
+use Modules\Projects\Models\OvertimePermit;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\WorkPermit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -27,12 +30,16 @@ use Tests\ErpTestCase;
  *   the summary band is DefectService::summary() — the same counts the BAST II
  *   gate reads, not a second tally computed here that could drift from it.
  *
- *   IZIN KERJA / IZIN LEMBUR / IZIN MASUK-KELUAR MATERIAL have no table
- *   anywhere in this ERP. Not a partial one — none. So the body of all three is
- *   ruled blanks, and the only thing the computer contributes is the letterhead
- *   the site currently photocopies and the identity block it currently writes
- *   out by hand. The tests below pin BOTH halves: that the header really is
- *   filled, and that nothing else is.
+ *   IZIN KERJA / IZIN LEMBUR / IZIN MASUK-KELUAR MATERIAL were blank pads
+ *   until P0-C and are real documents now (prj_work_permits /
+ *   prj_overtime_permits / prj_gate_passes), each sheet anchored on ITS OWN
+ *   row. The blank-pad pins that used to live here — undated sheets, no
+ *   signatory ever printed, "Formulir ini dicetak kosong" — were REPLACED with
+ *   the new contract, not kept alongside it: the behaviour they pinned is the
+ *   one the paket removes. Body content per permit is covered in
+ *   tests/Feature/Projects/{WorkPermit,OvertimePermit,GatePass}Test; what this
+ *   file keeps is the shared frame — the permit sheet still carries the house
+ *   letterhead, and it is dated from its own row, not from print-day.
  */
 class QcFormPrintTest extends ErpTestCase
 {
@@ -286,27 +293,71 @@ class QcFormPrintTest extends ErpTestCase
         $this->assertStringContainsString('<b>Lewat tenggat</b> : 1', $html);
     }
 
-    // ======================================================= izin (blank)
+    // ================================================== izin (P0-C: dari baris)
 
+    /**
+     * Each provider row builds ITS OWN permit and hands back the id the sheet
+     * is anchored on — the P0-C anchoring, permit id, not project id.
+     *
+     * @return array<string, array{0: string, 1: string, 2: string}>
+     */
     public static function permitProvider(): array
     {
         return [
-            'izin kerja' => ['izin-kerja', 'IZIN KERJA LAPANGAN'],
-            'izin lembur' => ['izin-lembur', 'IZIN KERJA LEMBUR'],
+            'izin kerja' => ['izin-kerja', 'IZIN KERJA LAPANGAN', 'workPermit'],
+            'izin lembur' => ['izin-lembur', 'IZIN KERJA LEMBUR', 'overtimePermit'],
             // No ampersand in the expectation: the sheet's title really is
             // "MATERIAL & PERALATAN" and Blade escapes it to &amp;.
-            'izin material' => ['izin-material', 'IZIN MASUK / KELUAR MATERIAL'],
+            'izin material' => ['izin-material', 'IZIN MASUK / KELUAR MATERIAL', 'gatePass'],
         ];
     }
 
+    private function workPermit(Project $project): int
+    {
+        return WorkPermit::query()->create([
+            'project_id' => $project->id,
+            'permit_date' => '2026-06-15',
+            'shift' => 'pagi',
+            'work_description' => 'Pengecoran kolom lantai 3',
+            'valid_from' => '2026-06-15 08:00:00',
+            'valid_until' => '2026-06-15 17:00:00',
+            'requested_by' => $this->employee('Sutrisno Hadi', 'Mandor Sipil', '3216012504780001')->id,
+            'status' => 'draft',
+        ])->id;
+    }
+
+    private function overtimePermit(Project $project): int
+    {
+        return OvertimePermit::query()->create([
+            'project_id' => $project->id,
+            'overtime_date' => '2026-06-15',
+            'start_time' => '18:00',
+            'end_time' => '21:00',
+            'reason' => 'Kejar target pengecoran',
+            'status' => 'draft',
+        ])->id;
+    }
+
+    private function gatePass(Project $project): int
+    {
+        return GatePass::query()->create([
+            'project_id' => $project->id,
+            'direction' => 'in',
+            'pass_date' => '2026-06-15',
+            'status' => 'draft',
+        ])->id;
+    }
+
     /**
-     * The half the ERP can honestly contribute: the letterhead and the contract
-     * identity the site currently writes out by hand on every sheet.
+     * The shared frame survives the P0-C rewrite: every permit sheet still
+     * carries the four-party band and the contract identity block, now around
+     * a body printed from the permit's own rows (which the three
+     * tests/Feature/Projects permit suites cover cell by cell).
      */
     #[DataProvider('permitProvider')]
-    public function test_a_permit_form_carries_the_project_header(string $form, string $title): void
+    public function test_a_permit_sheet_carries_the_project_header(string $form, string $title, string $builder): void
     {
-        $html = $this->forms->html($form, ['id' => $this->project()->id]);
+        $html = $this->forms->html($form, ['id' => $this->{$builder}($this->project())]);
 
         $this->assertStringContainsString($title, $html);
         $this->assertStringContainsString('PENGEMBANGAN BANDAR UDARA SULTAN HASANUDIN - MAKASSAR', $html);
@@ -318,106 +369,78 @@ class QcFormPrintTest extends ErpTestCase
     }
 
     /**
-     * …and the half it cannot. Said in plain Indonesian on the sheet itself,
-     * because the clerk holding it has to know that filing the paper IS the
-     * record — there is nowhere in the ERP for it to go afterwards.
+     * The sheet is dated from ITS OWN row. The blank-pad era printed undated
+     * sheets so a pad printed Monday could serve all month; a permit is one
+     * dated document now, and HARI KE counts from the permit's date, never
+     * from whichever day somebody pressed print.
      */
     #[DataProvider('permitProvider')]
-    public function test_a_permit_form_says_plainly_that_it_is_a_printable_blank(string $form): void
+    public function test_a_permit_sheet_is_dated_from_its_own_row(string $form, string $title, string $builder): void
     {
-        $html = $this->forms->html($form, ['id' => $this->project()->id]);
+        $html = $this->forms->html($form, ['id' => $this->{$builder}($this->project())]);
 
-        $this->assertStringContainsString('Formulir ini dicetak kosong', $html);
-        $this->assertStringContainsString('belum menyimpan data', $html);
-        $this->assertStringContainsString('lembar kertas', $html);
+        $this->assertStringContainsString('15 Juni 2026', $html);
+        $this->assertStringContainsString('18 Desember 2025', $html, 'tanggal SPK still prints');
+        // 2026-06-15 is day 166 of a job that started 2026-01-01.
+        $this->assertStringContainsString('166', $html);
+        // …and the honest sentence of the blank-pad era is gone WITH the pads.
+        $this->assertStringNotContainsString('dicetak kosong', $html);
+        $this->assertStringNotContainsString('belum menyimpan data', $html);
     }
 
     /**
-     * A pad of fifty permits printed on a Monday and used across the month must
-     * not all claim to be Monday's. The day-dependent lines are ruled blanks
-     * unless the caller names a date; the CONTRACT lines, which do not move,
-     * stay filled.
+     * The sheet says what the permit IS. A draft printed before anyone
+     * approved it is exactly the sheet somebody might wave at a gate, so the
+     * NO. IZIN line carries the status in so many words — "STATUS: Draf" — and
+     * never the word Disetujui until the approval actually happened. Printed
+     * from the row or printed as a rule was the P0-A rule; printed AS ITS OWN
+     * STATUS is this paket's extension of it.
      */
     #[DataProvider('permitProvider')]
-    public function test_a_blank_permit_is_undated_unless_a_date_is_asked_for(string $form): void
+    public function test_an_unapproved_permit_prints_its_status_instead_of_pretending(string $form, string $title, string $builder): void
     {
-        $project = $this->project();
+        $id = $this->{$builder}($this->project());
 
-        $blank = $this->forms->html($form, ['id' => $project->id]);
+        $draft = $this->forms->html($form, ['id' => $id]);
+        $this->assertStringContainsString('STATUS: Draf', $draft);
+        $this->assertStringNotContainsString('Disetujui', $draft);
 
-        // PERIODE, TANGGAL, MINGGU KE, HARI KE, SISA HARI + the two
-        // PERPANJANGAN WAKTU lines (this contract has no approved addendum
-        // waktu to print on them — P0-B). The bare
-        // `<span class="fill-line"></span>` is precisely the identity block's
-        // markup — every rule a form draws in its own body carries an explicit
-        // min-width, so this counts the identity block and only that.
-        $this->assertSame(7, substr_count($blank, '<span class="fill-line"></span>'));
-        $this->assertStringContainsString('18 Desember 2025', $blank, 'tanggal SPK does not move');
+        $model = match ($builder) {
+            'workPermit' => WorkPermit::class,
+            'overtimePermit' => OvertimePermit::class,
+            'gatePass' => GatePass::class,
+        };
+        $model::query()->whereKey($id)->update(['status' => 'approved']);
 
-        $dated = $this->forms->html($form, ['id' => $project->id, 'date' => '2026-06-15']);
-
-        $this->assertSame(2, substr_count($dated, '<span class="fill-line"></span>'));
-        $this->assertStringContainsString('15 Juni 2026', $dated);
+        $approved = $this->forms->html($form, ['id' => $id]);
+        $this->assertStringContainsString('STATUS: Disetujui', $approved);
     }
 
     /**
-     * Nobody in this ERP is recorded as the applicant, the K3 officer, the
-     * storeman or the security guard on a given shift. The roles print; the
-     * names do not, and in particular the site manager is not quietly promoted
-     * into whichever box happens to be free.
+     * The Diperiksa column carries the one claim only the gate can make. An
+     * approved-but-unchecked pass prints its ruled blank there and in the JAM
+     * cell; only the periksa stamp (checked_by + checked_at) puts the guard's
+     * name and the clock time on paper — "checked" is exactly what that column
+     * asserts, and the sheet must not assert it early.
      */
-    #[DataProvider('permitProvider')]
-    public function test_a_permit_form_invents_no_signatory(string $form): void
+    public function test_the_diperiksa_column_stays_blank_until_the_gate_stamps_the_pass(): void
     {
-        $project = $this->project([
-            'project_manager_id' => $this->employee('Rina Wijaya', 'Project Manager', '3273010101850001')->id,
-            'site_manager_id' => $this->employee('Budi Santoso', 'Site Manager', '3273010101850002')->id,
+        $guard = $this->adminUser();
+        $id = $this->gatePass($this->project());
+        GatePass::query()->whereKey($id)->update(['status' => 'approved']);
+
+        $unchecked = $this->forms->html('izin-material', ['id' => $id]);
+        $this->assertStringNotContainsString($guard->name, $unchecked);
+        $this->assertStringNotContainsString('(diperiksa)', $unchecked);
+
+        GatePass::query()->whereKey($id)->update([
+            'checked_by' => $guard->id,
+            'checked_at' => '2026-06-15 14:30:00',
         ]);
 
-        $html = $this->forms->html($form, ['id' => $project->id]);
-
-        $this->assertStringNotContainsString('Budi Santoso', $html);
-        $this->assertStringNotContainsString('Rina Wijaya', $html);
-        // Three rules, nothing above any of them — the layout prints
-        // `<div class="sig-name">{name}&nbsp;</div>` and a filled column would
-        // put the name inside it.
-        $this->assertSame(3, substr_count($html, '<div class="sig-name">&nbsp;</div>'));
-    }
-
-    public function test_izin_kerja_rules_blank_rows_for_equipment_and_hazards(): void
-    {
-        $html = $this->forms->html('izin-kerja', ['id' => $this->project()->id]);
-
-        $this->assertStringContainsString('ALAT YANG DIPAKAI', $html);
-        $this->assertStringContainsString('POTENSI BAHAYA', $html);
-        $this->assertStringContainsString('ALAT PELINDUNG DIRI', $html);
-        $this->assertSame(11, substr_count($html, '<tr class="kosong">'), '5 baris alat + 6 baris bahaya');
-        $this->assertStringContainsString('Petugas K3', $html);
-    }
-
-    public function test_izin_lembur_rules_twelve_worker_rows(): void
-    {
-        $html = $this->forms->html('izin-lembur', ['id' => $this->project()->id]);
-
-        $this->assertStringContainsString('ALASAN LEMBUR', $html);
-        $this->assertStringContainsString('TOTAL JAM', $html);
-        $this->assertStringContainsString('TANDA TANGAN', $html);
-        $this->assertStringContainsString('Pemohon', $html);
-        $this->assertSame(12, substr_count($html, '<tr class="kosong">'));
-    }
-
-    public function test_izin_material_has_direction_boxes_and_ten_blank_rows(): void
-    {
-        $html = $this->forms->html('izin-material', ['id' => $this->project()->id]);
-
-        $this->assertStringContainsString('MASUK', $html);
-        $this->assertStringContainsString('KELUAR', $html);
-        $this->assertStringContainsString('NO. POLISI', $html);
-        $this->assertStringContainsString('SPESIFIKASI', $html);
-        $this->assertStringContainsString('Security', $html);
-        $this->assertSame(10, substr_count($html, '<tr class="kosong">'));
-        // Unticked on both sides: the gate decides which way the load is going.
-        $this->assertSame(2, substr_count($html, '<span class="kotak"></span>'));
+        $checked = $this->forms->html('izin-material', ['id' => $id]);
+        $this->assertStringContainsString($guard->name, $checked);
+        $this->assertStringContainsString('14:30 (diperiksa)', $checked);
     }
 
     // ---------------------------------------------------------- the endpoint
@@ -435,16 +458,16 @@ class QcFormPrintTest extends ErpTestCase
         $this->assertStringContainsString($defect->code, $response->getContent());
     }
 
-    public function test_the_permit_endpoint_needs_the_permission_to_see_the_project(): void
+    public function test_the_permit_endpoint_needs_the_permission_to_see_the_permit(): void
     {
-        $project = $this->project();
+        $permitId = $this->workPermit($this->project());
 
         $user = $this->adminUser();
         $user->roles->first()->revokePermissionTo('prj.view');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->actingAs($user->refresh())
-            ->get("/api/core/print/forms/izin-kerja/{$project->id}")
+            ->get("/api/core/print/forms/izin-kerja/{$permitId}")
             ->assertForbidden();
     }
 }

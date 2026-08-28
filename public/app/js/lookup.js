@@ -34,6 +34,9 @@ export const SOURCES = {
   itemCategories: { path: 'inventory/item-categories', label: 'name', sub: 'code', title: 'Kategori item' },
   warehouses: { path: 'inventory/warehouses', label: 'name', sub: 'code', title: 'Gudang' },
   goodsReceipts: { path: 'inventory/goods-receipts', label: 'code', sub: 'delivery_note_no', title: 'Penerimaan barang' },
+  // Rujukan gudang pada izin gerbang IMK (P0-C): transfer_id tampil sebagai
+  // nomor TRF-nya di panel detail, bukan id mentah.
+  transfers: { path: 'inventory/transfers', label: 'code', sub: 'notes', title: 'Transfer antar gudang' },
   // Untuk formulir retur material: memilih bon asal yang barisnya akan disalin.
   issues: { path: 'inventory/issues', label: 'code', sub: 'purpose', title: 'Pengeluaran barang' },
   employees: { path: 'hr/employees', label: 'name', sub: 'code', title: 'Karyawan' },

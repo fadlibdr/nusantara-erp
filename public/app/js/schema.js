@@ -925,6 +925,186 @@ export const RESOURCES = {
     },
   },
 
+  /*
+   * P0-C — tiga izin lapangan menjadi transaksi. Form F/IK, F/IL, F/IM
+   * berhenti dicetak sebagai pad kosong: satu baris = satu izin, dan tombol
+   * cetak di sini berjangkar pada id IZINNYA (printForms tanpa idField =
+   * id baris), bukan lagi id proyek seperti kartu blank-pad project.js lama.
+   */
+  'projects/work-permits': {
+    module: 'prj', api: 'projects/work-permits', label: 'Izin Kerja (IKL)', labelOne: 'Izin Kerja Lapangan',
+    printForms: [
+      { form: 'izin-kerja', label: 'Izin Kerja Lapangan' },
+    ],
+    columns: [
+      codeColumn,
+      { key: 'permit_date', label: 'Tanggal', type: 'date' },
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'shift', label: 'Shift', type: 'enum', enum: 'workShift' },
+      { key: 'work_description', label: 'Pekerjaan', type: 'text', truncate: 60 },
+      { key: 'requested_by_name', label: 'Pemohon', type: 'text', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'shift', label: 'Shift', enum: 'workShift' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Izin Kerja Lapangan',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'permit_date', label: 'Tanggal izin', type: 'date', required: true, help: 'Harus di dalam waktu pelaksanaan proyek.' },
+          { key: 'shift', label: 'Shift', type: 'select', enum: 'workShift', required: true },
+          { key: 'wbs_task_id', label: 'Paket WBS', type: 'lookup', lookup: 'wbsTasks' },
+          { key: 'valid_from', label: 'Berlaku mulai', type: 'datetime', required: true },
+          { key: 'valid_until', label: 'Berlaku sampai', type: 'datetime', required: true },
+          { key: 'work_description', label: 'Pekerjaan yang dimohonkan', type: 'textarea', required: true, span: 2 },
+          { key: 'hazard_notes', label: 'Potensi bahaya', type: 'textarea', span: 2, help: 'Satu potensi bahaya per baris — tercetak per baris pada tabel APD.' },
+          { key: 'ppe_required', label: 'APD wajib', type: 'tags', span: 2, help: 'Satu APD per baris (helm, harness, sepatu safety, …).' },
+          { key: 'requested_by', label: 'Pemohon (pelaksana/mandor)', type: 'lookup', lookup: 'employees', required: true },
+          { key: 'safety_officer_id', label: 'Petugas K3', type: 'lookup', lookup: 'employees' },
+        ],
+      }],
+    },
+    actions: [...approvalActions('prj')],
+  },
+
+  'projects/overtime-permits': {
+    module: 'prj', api: 'projects/overtime-permits', label: 'Izin Lembur (ILB)', labelOne: 'Izin Kerja Lembur',
+    printForms: [
+      { form: 'izin-lembur', label: 'Izin Kerja Lembur' },
+    ],
+    columns: [
+      codeColumn,
+      { key: 'overtime_date', label: 'Tanggal', type: 'date' },
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'start_time', label: 'Mulai', type: 'text', align: 'center' },
+      { key: 'end_time', label: 'Selesai', type: 'text', align: 'center' },
+      { key: 'total_hours', label: 'Total jam', type: 'number', decimals: 2, align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Izin Kerja Lembur',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'overtime_date', label: 'Tanggal lembur', type: 'date', required: true },
+          {
+            key: 'start_time', label: 'Jam mulai', type: 'time', required: true,
+          },
+          {
+            key: 'end_time', label: 'Jam selesai', type: 'time', required: true,
+            help: 'Lembur melewati tengah malam ditulis dengan jam selesai lebih kecil (mis. 22:00 s/d 02:00).',
+          },
+          { key: 'reason', label: 'Alasan lembur', type: 'textarea', required: true, span: 2 },
+        ],
+      }],
+      /* Satu baris per orang, karena lembarnya ditandatangani per orang dan
+         jam per KARYAWAN inilah yang diumpankan ke rekap payroll saat izin
+         disetujui. Kru mandor non-karyawan diketik namanya — tetap tercetak,
+         tidak pernah menyentuh rekap. */
+      lines: [{
+        key: 'workers', label: 'Daftar pekerja lembur',
+        help: 'Pilih karyawan ATAU ketik nama (kru non-karyawan) — tepat satu per baris. Jam per baris > 0.',
+        columns: [
+          { key: 'employee_id', label: 'Karyawan', type: 'lookup', lookup: 'employees', width: '34%' },
+          { key: 'worker_name', label: 'Nama non-karyawan', type: 'text', width: '34%' },
+          { key: 'hours', label: 'Jam', type: 'number', step: '0.5', min: 0, max: 24, required: true, width: '16%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'workers', label: 'Daftar pekerja lembur',
+        columns: [
+          { key: 'display_name', label: 'Nama' },
+          { key: 'hours', label: 'Jam', type: 'number', decimals: 2, align: 'right' },
+        ],
+      }],
+    },
+    actions: [...approvalActions('prj')],
+  },
+
+  'projects/gate-passes': {
+    module: 'prj', api: 'projects/gate-passes', label: 'Izin Material (IMK)', labelOne: 'Izin Masuk/Keluar Material',
+    printForms: [
+      { form: 'izin-material', label: 'Izin Masuk / Keluar Material & Peralatan' },
+    ],
+    columns: [
+      codeColumn,
+      { key: 'pass_date', label: 'Tanggal', type: 'date' },
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'direction', label: 'Arah', type: 'enum', enum: 'gatePassDirection' },
+      { key: 'vehicle_no', label: 'No. polisi', type: 'text', hideOnNarrow: true },
+      { key: 'checked_at', label: 'Diperiksa', type: 'date', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'direction', label: 'Arah', enum: 'gatePassDirection' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Izin Masuk / Keluar Material & Peralatan',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'direction', label: 'Arah barang', type: 'select', enum: 'gatePassDirection', required: true },
+          { key: 'pass_date', label: 'Tanggal', type: 'date', required: true },
+          { key: 'vehicle_no', label: 'No. polisi kendaraan', type: 'text' },
+          { key: 'driver_name', label: 'Nama pengemudi', type: 'text' },
+          { key: 'vendor_id', label: 'Vendor (bila terdaftar)', type: 'lookup', lookup: 'vendors' },
+          { key: 'counterparty', label: 'Asal/tujuan (teks bebas)', type: 'text', help: 'Untuk pihak yang bukan vendor terdaftar.' },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Rincian material / peralatan',
+        columns: [
+          { key: 'item_id', label: 'Item stok', type: 'lookup', lookup: 'items', width: '24%' },
+          { key: 'description', label: 'Jenis barang', type: 'text', required: true, width: '30%' },
+          { key: 'qty', label: 'Jumlah', type: 'qty', required: true, width: '12%' },
+          { key: 'unit', label: 'Satuan', type: 'text', required: true, width: '12%' },
+          { key: 'notes', label: 'Keterangan', type: 'text', width: '20%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'items', label: 'Rincian material / peralatan',
+        columns: [
+          { key: 'item_id', label: 'Item stok', type: 'rel', lookup: 'items' },
+          { key: 'description', label: 'Jenis barang' },
+          { key: 'qty', label: 'Jumlah', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'notes', label: 'Keterangan' },
+        ],
+      }],
+    },
+    /* Urutan yang ditegakkan server: manajemen menyetujui dulu (prj.approve),
+       baru satpam memeriksa muatan — 'periksa' hanya muncul pada izin
+       approved yang belum dicap, dan capnya sekali saja. */
+    actions: [
+      ...approvalActions('prj'),
+      {
+        key: 'periksa', label: 'Periksa di gerbang', path: '{id}/periksa', method: 'POST',
+        perm: 'prj.update', variant: 'primary',
+        when: (row) => row.status === 'approved' && !row.checked_at,
+      },
+    ],
+  },
+
   'projects/weekly-progress': {
     module: 'prj', api: 'projects/weekly-progress', label: 'Progres Mingguan', labelOne: 'Progres Mingguan',
     noDetail: true, canDelete: false, canEdit: false,
@@ -3636,6 +3816,10 @@ export const NAV = [
       { label: 'EVM & Baseline', route: 'evm' },
       { label: 'Milestone', route: 'r/projects/milestones' },
       { label: 'BAST', route: 'r/projects/bast' },
+      // P0-C — tiga izin lapangan: dokumen sungguhan, bukan pad cetak kosong.
+      { label: 'Izin Kerja (IKL)', route: 'r/projects/work-permits' },
+      { label: 'Izin Lembur (ILB)', route: 'r/projects/overtime-permits' },
+      { label: 'Izin Material (IMK)', route: 'r/projects/gate-passes' },
       { label: 'Register K3 (SMK3)', route: 'r/projects/safety-incidents' },
       { label: 'Laporan K3', route: 'k3' },
       { label: 'Register Defect (Punch List)', route: 'defects' },

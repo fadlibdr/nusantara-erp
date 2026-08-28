@@ -67,6 +67,9 @@ return [
         'TKT' => 'TKT-{Y}{M2}-{N4}',    // Service ticket
         'BAST' => 'BAST/{Y}/{RM}/{N3}',  // Berita acara serah terima
         'DRP' => 'DRP/{Y}/{M2}/{N4}',   // Daily report (laporan harian)
+        'IKL' => 'IKL/{Y}/{RM}/{N4}',   // Izin kerja lapangan (P0-C)
+        'ILB' => 'ILB/{Y}/{RM}/{N4}',   // Izin kerja lembur (P0-C)
+        'IMK' => 'IMK/{Y}/{RM}/{N4}',   // Izin masuk/keluar material & peralatan (P0-C)
         'SVC' => 'SVC/{Y}/{RM}/{N4}',   // ServiceDesk maintenance contract
         'AST' => 'AST-{Y}-{N4}',        // Asset code ({Y} added: 'AST-{N4}' collided each January)
         'DEP' => 'DEP/{Y}/{RM}/{N3}',   // Asset deployment (mobilisasi)

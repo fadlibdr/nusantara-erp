@@ -93,6 +93,9 @@ export const ENUMS = {
     ['finishing', 'Finishing'], ['warranty', 'Masa Pemeliharaan'],
   ]),
   weather: opts([['cerah', 'Cerah'], ['mendung', 'Mendung'], ['hujan', 'Hujan']]),
+  /* P0-C — cermin Modules\Projects\Enums\WorkShift & GatePassDirection. */
+  workShift: opts([['pagi', 'Pagi'], ['siang', 'Siang'], ['malam', 'Malam']]),
+  gatePassDirection: opts([['in', 'Masuk'], ['out', 'Keluar']]),
   /* Cermin Modules\Projects\Enums\DailyReportRole — 12 jabatan tabel JUMLAH
      ORANG pada pad FM-10-12, persis dan urut. value adalah role_key yang
      tersimpan; label mengikuti label() PHP huruf demi huruf, karena teks

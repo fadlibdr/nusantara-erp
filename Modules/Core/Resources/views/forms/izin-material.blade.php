@@ -1,15 +1,14 @@
 {{--
-    IZIN MASUK / KELUAR MATERIAL & PERALATAN — the gate pass, printed blank.
+    IZIN MASUK / KELUAR MATERIAL & PERALATAN — P0-C: printed FROM
+    prj_gate_passes + its item lines.
 
-    Nothing in this ERP records a gate movement. Inventory knows a goods receipt
-    against a surat jalan and an issue against a project, but neither is this:
-    the guard on the gate stops a truck, and what he writes on this sheet is the
-    only record that a genset left the site at all. So the whole body is ruled,
-    and the foot of the sheet says why in plain Indonesian.
+    ONE direction box is ticked — the recorded direction of the pass. Before
+    P0-C both boxes printed empty because the computer never saw the load;
+    now the direction is a fact of the document management approved, and the
+    guard's periksa stamp attests the load matched it.
 
-    BOTH DIRECTION BOXES PRINT EMPTY. Ticking one would be the computer deciding
-    which way a load it never saw was going, and this is exactly the form on
-    which that question is the whole point.
+    Cells with no backing column keep their rules: JAM, JENIS KENDARAAN (only
+    the plate is recorded), PEMOHON, and the SPESIFIKASI column of the table.
 --}}
 @extends('coredoc::forms.layout')
 
@@ -22,37 +21,62 @@
         .isian td.s { width: 3mm; }
         .grid tr.kosong td { height: 7mm; }
         .tempat { text-align: right; margin-top: 4mm; font-size: 8pt; }
-        .blanko { margin-top: 2.5mm; font-size: 6.8pt; line-height: 1.35; font-style: italic; }
     </style>
 
     <div class="arah">
         ARAH BARANG :
-        <span class="kotak"></span>MASUK
-        <span class="kotak"></span>KELUAR
+        <span class="kotak">@if ($pass->direction?->value === 'in')&#10005;@endif</span>MASUK
+        <span class="kotak">@if ($pass->direction?->value === 'out')&#10005;@endif</span>KELUAR
     </div>
 
     <table class="isian">
         <tr>
+            <td class="k">NO. IZIN</td><td class="s">:</td>
+            <td>{{ $pass->code }} &nbsp;&nbsp;&mdash;&nbsp; STATUS: {{ $pass->status?->label() }}</td>
+        </tr>
+        <tr>
             <td class="k">TANGGAL</td><td class="s">:</td>
             <td>
-                <span class="fill-line" style="min-width:40mm"></span>
-                &nbsp;&nbsp;JAM <span class="fill-line" style="min-width:18mm"></span>
+                {{ $date($pass->pass_date) }}
+                &nbsp;&nbsp;JAM
+                @if ($pass->checked_at)
+                    {{ $pass->checked_at->format('H:i') }} (diperiksa)
+                @else
+                    <span class="fill-line" style="min-width:18mm"></span>
+                @endif
             </td>
         </tr>
         <tr>
             <td class="k">JENIS KENDARAAN</td><td class="s">:</td>
             <td>
                 <span class="fill-line" style="min-width:46mm"></span>
-                &nbsp;&nbsp;NO. POLISI <span class="fill-line" style="min-width:34mm"></span>
+                &nbsp;&nbsp;NO. POLISI
+                @if (filled($pass->vehicle_no))
+                    {{ $pass->vehicle_no }}
+                @else
+                    <span class="fill-line" style="min-width:34mm"></span>
+                @endif
             </td>
         </tr>
         <tr>
             <td class="k">NAMA PENGEMUDI</td><td class="s">:</td>
-            <td><span class="fill-line" style="min-width:100mm"></span></td>
+            <td>
+                @if (filled($pass->driver_name))
+                    {{ $pass->driver_name }}
+                @else
+                    <span class="fill-line" style="min-width:100mm"></span>
+                @endif
+            </td>
         </tr>
         <tr>
             <td class="k">ASAL / TUJUAN</td><td class="s">:</td>
-            <td><span class="fill-line" style="min-width:100mm"></span></td>
+            <td>
+                @if (filled($counterparty))
+                    {{ $counterparty }}
+                @else
+                    <span class="fill-line" style="min-width:100mm"></span>
+                @endif
+            </td>
         </tr>
         <tr>
             <td class="k">PEMOHON / PENANGGUNG JAWAB</td><td class="s">:</td>
@@ -60,7 +84,13 @@
         </tr>
         <tr>
             <td class="k">NO. SURAT JALAN / REFERENSI</td><td class="s">:</td>
-            <td><span class="fill-line" style="min-width:100mm"></span></td>
+            <td>
+                @if (filled($reference))
+                    {{ $reference }}
+                @else
+                    <span class="fill-line" style="min-width:100mm"></span>
+                @endif
+            </td>
         </tr>
     </table>
 
@@ -77,7 +107,18 @@
             </tr>
         </thead>
         <tbody>
-            @for ($i = 0; $i < $blankRows['barang']; $i++)
+            @foreach ($pass->items as $i => $item)
+                <tr>
+                    <td class="ctr">{{ $i + 1 }}</td>
+                    <td>{{ $item->description }}</td>
+                    {{-- No spec field; the rule stays for the pen. --}}
+                    <td></td>
+                    <td class="ctr">{{ rtrim(rtrim(number_format((float) $item->qty, 3, '.', ''), '0'), '.') }}</td>
+                    <td class="ctr">{{ $item->unit }}</td>
+                    <td>{{ $item->notes }}</td>
+                </tr>
+            @endforeach
+            @for ($i = $pass->items->count(); $i < $blankRows; $i++)
                 <tr class="kosong">
                     <td class="ctr">{{ $i + 1 }}</td>
                     <td></td>
@@ -90,8 +131,6 @@
         </tbody>
     </table>
 
-    <div class="blanko">{{ $blankNotice }}</div>
-
     <div class="catatan">
         <div class="h">Catatan :</div>
         <div class="rule"></div>
@@ -100,10 +139,6 @@
 
     <div class="tempat">
         @if (filled($header['place'])){{ $header['place'] }}, @endif
-        @if (filled($header['dateLabel']))
-            {{ $header['dateLabel'] }}
-        @else
-            <span class="fill-line" style="min-width:34mm"></span>
-        @endif
+        {{ $header['dateLabel'] }}
     </div>
 @endsection

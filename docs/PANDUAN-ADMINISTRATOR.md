@@ -994,7 +994,7 @@ Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
 | **Rekonsiliasi Bank** | Jendela pencocokan tanggal (1–30 hari) |
 | **Proyeksi Arus Kas** | Hari penagihan termin (0–365) |
 | **Akun Jurnal Otomatis** | Tujuh kode akun di §4.4(A) |
-| **Penomoran Dokumen** | 35 format, satu per jenis dokumen — §4.7 |
+| **Penomoran Dokumen** | 38 format, satu per jenis dokumen — §4.7 |
 
 > **Satu setelan muncul di DUA kelompok, dan layar tidak mengatakannya.**
 > `cashflow.termin_collection_days` didaftarkan dua kali di
@@ -1117,7 +1117,8 @@ atau `config/erp.php`, lalu di dalam satu transaksi baris urutan dikunci
 Token: `{Y}` tahun 4 digit, `{M2}` bulan 2 digit, `{RM}` bulan romawi, `{N3}/{N4}/{N5}`
 urutan berimbuh nol. **Urutan reset per jenis per tahun.**
 
-**35 jenis ada di Pengaturan → Penomoran Dokumen.** Setiap format **wajib memuat
+**38 jenis ada di Pengaturan → Penomoran Dokumen** (tiga terakhirnya IKL/ILB/IMK,
+ketiga izin lapangan). Setiap format **wajib memuat
 `{Y}` dan salah satu dari `{N3}/{N4}/{N5}`**, maksimal 60 karakter, dan hanya boleh
 memakai huruf, angka, spasi, serta `/ . _ -` di luar keenam token.
 
@@ -2504,12 +2505,12 @@ benar-benar **tidak ada**, bukan 403-saat-diklik.
    layar (daftar hadir, kewajiban pajak, ekualisasi pajak).
 
 **DUA formulir membawa parameter dari layar** — laporan harian dengan `?tanggal=`
-(`public/app/js/schema.js:702`) dan progres mingguan dengan `?minggu=` (`:913`).
+(`public/app/js/schema.js:723`) dan progres mingguan dengan `?minggu=` (`:1114`).
 Keduanya dideklarasikan di definisi layar, bukan di registri, karena katalog tidak bisa
 mengetahui sebuah parameter dari satu baris saja.
 
 > **Daftar Temuan tidak termasuk, walaupun endpointnya menerima `?status=`.**
-> Deklarasi tombolnya (`schema.js:1065`) hanya membawa `idField: 'project_id'` dan
+> Deklarasi tombolnya (`schema.js:1266`) hanya membawa `idField: 'project_id'` dan
 > **tidak punya `params`**, jadi `printablePath()` tidak pernah mengeluarkan `?status=`:
 > tombol di layar selalu mencetak **seluruh** register. Punch list tersaring hanya bisa
 > dicapai dengan mengetik URL-nya sendiri —
@@ -2520,12 +2521,14 @@ mengetahui sebuah parameter dari satu baris saja.
 > kalimat yang mengatakan begitu.
 
 Ketiga formulir di atas — laporan harian, progres mingguan, daftar temuan — adalah yang
-dideklarasikan di `schema.js`. **Empat formulir proyek sisanya** digambar layar proyek
-sendiri: "Cetak Data Proyek" ada di baris tindakan; ketiga formulir izin ada di
-**kartunya sendiri** — dan alasannya
-tertulis: Data Proyek mencetak isi basis data sementara ketiga izin mencetak **kertas
-bergaris kosong**, dan kalimat yang menjelaskan itu harus ada di layar juga, "otherwise
-somebody presses the button, sees a blank sheet, and concludes the button is broken".
+dideklarasikan di `schema.js`. Dari empat formulir proyek sisanya, hanya **"Cetak Data
+Proyek"** yang masih digambar layar proyek sendiri, di baris tindakannya. **Ketiga
+formulir izin berjangkar pada id IZINNYA sejak P0-C** — `printForms` pada entri register
+`projects/work-permits` / `overtime-permits` / `gate-passes`, plus baris katalog server
+yang menunjuk resource yang sama — sehingga tombolnya duduk di kepala halaman
+masing-masing izin seperti dokumen biasa. Kartu izin di halaman proyek tinggal papan
+penunjuk ke ketiga register; tombol cetak lamanya, yang mengirim id PROYEK ke composer
+yang kini `findOrFail` id IZIN, dicabut bersama pad kosongnya.
 
 **Bagaimana lembarnya sampai ke printer**: SPA tidak bisa memakai tautan biasa, karena
 token sesinya menumpang di header khusus dan sebuah tautan tidak mengirim header. Jadi
@@ -2635,8 +2638,8 @@ Kasus yang benar-benar akan ditanyakan kepada Anda, masing-masing dengan alasann
 
 | Yang dilihat pemakai | Kenyataannya |
 |---|---|
-| **Ketiga formulir izin tercetak nyaris seluruhnya kosong** | **Itu produk jadinya.** Tidak ada apa pun di basis data ini yang mencatat izin kerja, izin lembur, atau izin material — "not a partial table, none". Setiap lembar membawa kalimat tercetak yang mengatakannya: *"Formulir ini dicetak kosong: Nusantara ERP belum menyimpan data …, sehingga lembar kertas yang sudah diisi dan ditandatangani inilah satu-satunya catatan. Arsipkan di berkas proyek."* Layar proyek mengulang kalimat yang sama sebelum tombolnya |
-| **Ketiga formulir izin tidak bertanggal** | Sengaja, kecuali tanggal diminta. "A site office prints a pad of these once and works through it for a month; stamping every sheet with the day somebody pressed print would put 'HARI KE 52' on a permit filled in on day 71." Hanya baris yang bergerak yang dikosongkan; tanggal SPK — fakta kontrak yang tidak berpindah — tetap tercetak |
+| **Lembar izin (F/IK, F/IL, F/IM) masih punya sel bergaris kosong** | Sejak ketiga izin menjadi dokumen (IKL/ILB/IMK), lembarnya tercetak **dari baris izinnya**: nomor & tanggal izin, shift dan jam, tabel bahaya/APD, baris pekerja, baris barang dengan kotak arah dicentang. Yang tetap bergaris adalah sel **tanpa kolom di basis data** — lokasi/area dan tabel ALAT (F/IK), jam per orang (F/IL), kolom SPESIFIKASI dan JAM (F/IM), kolom PENGENDALIAN — plus sisa baris tabel untuk ditulis tangan; dan kolom *Diperiksa* F/IM baru terisi setelah cap `Periksa di gerbang`. Kosong per-dokumen pada sel yang ada sumbernya berarti izinnya yang belum diisi |
+| **Formulir izin tidak bisa dicetak dari halaman proyek lagi** | Benar, dan disengaja — composer ketiganya kini menuntut **id izin**, bukan id proyek, dan tombol pad-kosong lama dicabut bersama perilakunya. Izin dicatat di registernya (`Proyek › Izin Kerja/Lembur/Material`) lalu dicetak dari halaman izinnya; proyek lama memang tanpa baris izin — tidak ada backfill. Lembarnya sekarang **bertanggal dari tanggal izinnya**, bukan tanggal tombol cetak ditekan: satu lembar adalah satu izin, bukan pad sebulan |
 | **PERPANJANGAN WAKTU I dan II kosong** | Sejak addendum waktu (P0-B) kedua baris ini **tercetak dari CCO berjenis `waktu` yang DISETUJUI** pada kontrak proyeknya — dua addendum pertama urut tanggal perubahan, format `+14 hari → 14 Agu 2027 (CCO/2026/VIII/0003)`; addendum ketiga dst membuat baris II berbunyi `lihat register`. Kosong berarti kontrak itu **tidak punya addendum waktu yang disetujui** — draf dan yang ditolak tidak pernah mencapai kop, dan CCO nilai bukan perpanjangan waktu. Baris kosongnya tetap diisi tangan, persis seperti di kertas |
 | **Jam kerja pada laporan harian kosong** | Kolomnya ada sejak Laporan Harian penuh — jam mulai/selesai kerja dan alasan jam kerja hilang — dan barisnya tercetak dari laporan bila dicatat. Kosong berarti laporan itu tidak mencatatnya: pekerjaan pengisian data, bukan kerusakan. Hal yang sama berlaku untuk empat tabel baris FM-10-12 (per jabatan, material masuk, alat, uraian): laporan pra-pembaruan tidak punya barisnya dan tercetak bergaris kosong persis seperti dulu, dan catatan kaki lembar menyebut hanya tabel yang masih manual pada laporan itu |
 | **"No. Rev." selalu kosong** | Tidak ada apa pun di ERP yang menerbitkan nomor revisi untuk formulir cetak, dan "0" akan **menegaskan** bahwa ada |

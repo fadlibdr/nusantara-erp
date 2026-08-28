@@ -52,9 +52,12 @@ class PrintCatalogueBespokeTest extends ErpTestCase
         $this->assertSame('project_id', $rows['laporan-mingguan']['idField']);
         $this->assertSame(['minggu' => 'week_no'], $rows['laporan-mingguan']['params']);
 
-        // Kunci RESOURCES yang NYATA — 'projects', bukan 'projects/projects':
-        // klien yang memetakan resource ke layar harus menemukan layarnya.
-        $this->assertSame('projects', $rows['izin-kerja']['resource']);
+        // P0-C: ketiga izin berjangkar pada BARIS izinnya sendiri, bukan lagi
+        // pada proyek — resource-nya kunci RESOURCES layar daftar izin.
+        $this->assertSame('projects/work-permits', $rows['izin-kerja']['resource']);
+        $this->assertSame('projects/overtime-permits', $rows['izin-lembur']['resource']);
+        $this->assertSame('projects/gate-passes', $rows['izin-material']['resource']);
+        $this->assertSame('id', $rows['izin-kerja']['idField']);
     }
 
     public function test_a_caller_without_prj_view_gets_none_of_the_seven(): void

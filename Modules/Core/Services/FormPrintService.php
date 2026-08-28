@@ -12,11 +12,16 @@ use Modules\Core\Support\PrintableDocuments;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Services\CrmFormService;
+use Modules\Inventory\Models\GoodsReceipt;
+use Modules\Inventory\Models\Transfer;
 use Modules\Projects\Enums\DefectSeverity;
 use Modules\Projects\Enums\DefectStatus;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Defect;
+use Modules\Projects\Models\GatePass;
+use Modules\Projects\Models\OvertimePermit;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\WorkPermit;
 use Modules\Projects\Services\DefectService;
 use Modules\Projects\Services\LaporanFormService;
 
@@ -40,13 +45,13 @@ use Modules\Projects\Services\LaporanFormService;
  * disagree about which day of the contract today is.
  *
  * THE RULE THAT MATTERS MOST HERE — a form is signed by three parties and
- * filed as the project record. Many cells on the paper have no counterpart in
- * this ERP (the three izin bodies; every laporan table cell whose report
- * predates the P0-A line tables; perpanjangan waktu on a contract with no
- * approved addendum). The paper leaves those as dotted lines for the site to
- * fill in by hand, and so does this. A cell is printed from the database or it
- * is printed as a ruled blank. There is no third option, and in particular
- * there is no plausible-looking default.
+ * filed as the project record. Some cells on the paper have no counterpart in
+ * this ERP (lokasi/area and the ALAT table on an izin kerja; every laporan
+ * table cell whose report predates the P0-A line tables; perpanjangan waktu on
+ * a contract with no approved addendum). The paper leaves those as dotted
+ * lines for the site to fill in by hand, and so does this. A cell is printed
+ * from the database or it is printed as a ruled blank. There is no third
+ * option, and in particular there is no plausible-looking default.
  */
 class FormPrintService
 {
@@ -129,15 +134,15 @@ class FormPrintService
             'idField' => 'project_id',
             'params' => [],
         ],
-        // The three site permits. prj.view like the rest, and for the same
-        // reason even though they print no project data beyond the letterhead:
-        // the SPK number, the contract dates and the owner's name ARE the
-        // project record, and reading them off a printed blank is still reading.
+        // The three site permits — P0-C: real documents now, so each sheet is
+        // anchored on the PERMIT id (one row, one printed permit), no longer on
+        // the project id of the blank-pad era. prj.view still guards all three:
+        // printing is reading in another shape, and the permit is prj data.
         'izin-kerja' => [
             'label' => 'Izin Kerja Lapangan',
             'permission' => 'prj.view',
             'compose' => 'izinKerja',
-            'resource' => 'projects',
+            'resource' => 'projects/work-permits',
             'idField' => 'id',
             'params' => [],
         ],
@@ -145,7 +150,7 @@ class FormPrintService
             'label' => 'Izin Kerja Lembur',
             'permission' => 'prj.view',
             'compose' => 'izinLembur',
-            'resource' => 'projects',
+            'resource' => 'projects/overtime-permits',
             'idField' => 'id',
             'params' => [],
         ],
@@ -153,7 +158,7 @@ class FormPrintService
             'label' => 'Izin Masuk / Keluar Material & Peralatan',
             'permission' => 'prj.view',
             'compose' => 'izinMaterial',
-            'resource' => 'projects',
+            'resource' => 'projects/gate-passes',
             'idField' => 'id',
             'params' => [],
         ],
@@ -1135,140 +1140,202 @@ class FormPrintService
     }
 
     /**
-     * IZIN KERJA LAPANGAN — the permit to work a shift on site.
+     * IZIN KERJA LAPANGAN — P0-C: printed FROM the prj_work_permits row.
+     *
+     * The blank-pad behaviour this replaces printed an undated letterhead and
+     * ruled everything else. A sheet is now one permit: it carries the permit's
+     * own number, date, shift and hours, the work asked for, the hazard/APD
+     * table from hazard_notes + ppe_required, and the pemohon's name from
+     * requested_by. Cells with NO backing column — lokasi/area, jumlah
+     * pekerja, the ALAT table — keep their ruled blanks: printed from the
+     * database or printed as a rule, never a plausible default.
      */
     private function izinKerja(array $context): array
     {
-        return $this->izinDocument('izin-kerja', $context, [
+        $permit = WorkPermit::query()
+            ->with(['wbsTask', 'requestedBy', 'safetyOfficer'])
+            ->findOrFail($context['id'] ?? null);
+
+        // withTrashed: reprinting the permit of a since-archived project is
+        // still reading the site file (the laporanHarian rule).
+        $project = $permit->project()->withTrashed()->firstOrFail();
+
+        $options = array_merge($context, [
+            'date' => $permit->permit_date,
+            'period' => $this->date($permit->permit_date),
+        ]);
+
+        $header = $this->header($project, $options);
+        $header['signatures'] = [
+            // The one column the ERP genuinely knows: who asked. The two
+            // supervisory columns keep their blank rules — the wet signature
+            // on the filed sheet is that evidence, and the system's own
+            // approval trail lives in core_approvals, not in a printed name.
+            ['heading' => 'Pemohon,', 'subheading' => null, 'party' => null, 'name' => $permit->requestedBy?->name, 'role' => 'Pelaksana / Mandor'],
+            ['heading' => 'Menyetujui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pengawas Lapangan'],
+            ['heading' => 'Memeriksa,', 'subheading' => null, 'party' => null, 'name' => $permit->safetyOfficer?->name, 'role' => 'Petugas K3'],
+        ];
+
+        return $this->document('izin-kerja', $project, $options, [
             'formTitle' => 'IZIN KERJA LAPANGAN',
             'formCode' => 'Form F/IK',
-            'judulDokumen' => 'Izin Kerja Lapangan',
-            'blankRows' => ['alat' => 5, 'bahaya' => 6],
-            'signatures' => [
-                ['heading' => 'Pemohon,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pelaksana / Mandor'],
-                ['heading' => 'Menyetujui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pengawas Lapangan'],
-                ['heading' => 'Memeriksa,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Petugas K3'],
+            'header' => $header,
+            'permit' => $permit,
+            'jam' => $permit->valid_from?->format('H:i').' s/d '.$permit->valid_until?->format('H:i'),
+            'hazards' => $this->hazardRows($permit),
+            'notes' => null,
+            'docControl' => [
+                'judul' => 'Izin Kerja Lapangan',
+                'no_dok' => $permit->code,
+                'no_rev' => null,
+                'tanggal' => $this->date($permit->permit_date),
             ],
         ]);
     }
 
     /**
-     * IZIN KERJA LEMBUR — twelve ruled worker rows, because a lembur sheet is
-     * signed per person and the hours on it are what payroll is later asked to
-     * pay against.
+     * The POTENSI BAHAYA / APD table: hazard_notes split per line into the
+     * bahaya column, ppe_required items into the APD column, row-aligned. The
+     * PENGENDALIAN column has no backing field and stays a rule on every row.
+     *
+     * @return list<array{bahaya: ?string, apd: ?string}>
+     */
+    private function hazardRows(WorkPermit $permit): array
+    {
+        $hazards = array_values(array_filter(array_map(
+            'trim',
+            preg_split('/\r\n|\r|\n/', (string) $permit->hazard_notes) ?: [],
+        ), fn (string $line): bool => $line !== ''));
+
+        $apd = array_values(array_filter(array_map(
+            fn ($item): string => trim((string) $item),
+            $permit->ppe_required ?? [],
+        ), fn (string $item): bool => $item !== ''));
+
+        $rows = [];
+
+        for ($i = 0; $i < max(count($hazards), count($apd)); $i++) {
+            $rows[] = ['bahaya' => $hazards[$i] ?? null, 'apd' => $apd[$i] ?? null];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * IZIN KERJA LEMBUR — P0-C: printed FROM prj_overtime_permits + its worker
+     * rows. One printed line per worker — employee lines with the name and
+     * position payroll knows, worker_name lines exactly as typed, because the
+     * mandor's non-employee crew is real on paper even though it has no recap
+     * row to feed. Remaining rows of the twelve-row block stay ruled for the
+     * names decided on site after printing.
      */
     private function izinLembur(array $context): array
     {
-        return $this->izinDocument('izin-lembur', $context, [
+        $permit = OvertimePermit::query()
+            ->with(['workers.employee'])
+            ->findOrFail($context['id'] ?? null);
+
+        $project = $permit->project()->withTrashed()->firstOrFail();
+
+        $options = array_merge($context, [
+            'date' => $permit->overtime_date,
+            'period' => $this->date($permit->overtime_date),
+        ]);
+
+        $header = $this->header($project, $options);
+        $header['signatures'] = [
+            ['heading' => 'Pemohon,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pelaksana / Mandor'],
+            ['heading' => 'Mengetahui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pengawas Lapangan'],
+            ['heading' => 'Menyetujui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Manajer Proyek'],
+        ];
+
+        return $this->document('izin-lembur', $project, $options, [
             'formTitle' => 'IZIN KERJA LEMBUR',
             'formCode' => 'Form F/IL',
-            'judulDokumen' => 'Izin Kerja Lembur',
-            'blankRows' => ['pekerja' => 12],
-            'signatures' => [
-                ['heading' => 'Pemohon,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pelaksana / Mandor'],
-                ['heading' => 'Mengetahui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pengawas Lapangan'],
-                ['heading' => 'Menyetujui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Manajer Proyek'],
+            'header' => $header,
+            'permit' => $permit,
+            // end < start crosses midnight (OvertimePermitService's decision);
+            // the sheet says so instead of looking like a typo three people sign.
+            'jamLembur' => substr((string) $permit->start_time, 0, 5).' s/d '.substr((string) $permit->end_time, 0, 5)
+                .($permit->crossesMidnight() ? ' (lewat tengah malam)' : ''),
+            'workers' => $permit->workers->map(fn ($worker): array => [
+                'name' => $worker->displayName(),
+                'position' => $worker->employee?->position,
+                'hours' => rtrim(rtrim(number_format((float) $worker->hours, 2, '.', ''), '0'), '.'),
+            ])->all(),
+            'blankRows' => 12,
+            'notes' => null,
+            'docControl' => [
+                'judul' => 'Izin Kerja Lembur',
+                'no_dok' => $permit->code,
+                'no_rev' => null,
+                'tanggal' => $this->date($permit->overtime_date),
             ],
         ]);
     }
 
     /**
-     * IZIN MASUK / KELUAR MATERIAL & PERALATAN — the gate pass.
+     * IZIN MASUK / KELUAR MATERIAL & PERALATAN — P0-C: printed FROM
+     * prj_gate_passes + its item lines, and the direction box is TICKED from
+     * the row: the direction is a recorded fact of the pass now, no longer the
+     * computer guessing at a load it never saw.
+     *
+     * The Diperiksa column prints the name only after the gate's periksa act
+     * stamped it — before that the rule stays blank, because "checked" is
+     * exactly the claim that column exists to carry.
      */
     private function izinMaterial(array $context): array
     {
-        return $this->izinDocument('izin-material', $context, [
+        $pass = GatePass::query()
+            ->with(['items', 'vendor', 'checkedBy'])
+            ->findOrFail($context['id'] ?? null);
+
+        $project = $pass->project()->withTrashed()->firstOrFail();
+
+        $options = array_merge($context, [
+            'date' => $pass->pass_date,
+            'period' => $this->date($pass->pass_date),
+        ]);
+
+        $header = $this->header($project, $options);
+        $header['signatures'] = [
+            ['heading' => 'Diperiksa,', 'subheading' => null, 'party' => null, 'name' => $pass->checked_at !== null ? $pass->checkedBy?->name : null, 'role' => 'Security / Satpam'],
+            ['heading' => 'Menyerahkan / Menerima,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Gudang Proyek'],
+            ['heading' => 'Mengetahui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pengawas Lapangan'],
+        ];
+
+        return $this->document('izin-material', $project, $options, [
             'formTitle' => 'IZIN MASUK / KELUAR MATERIAL & PERALATAN',
             'formCode' => 'Form F/IM',
-            'judulDokumen' => 'Izin Masuk / Keluar Material & Peralatan',
-            'blankRows' => ['barang' => 10],
-            'signatures' => [
-                ['heading' => 'Diperiksa,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Security / Satpam'],
-                ['heading' => 'Menyerahkan / Menerima,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Gudang Proyek'],
-                ['heading' => 'Mengetahui,', 'subheading' => null, 'party' => null, 'name' => null, 'role' => 'Pengawas Lapangan'],
-            ],
-        ]);
-    }
-
-    /**
-     * What the three permits share: a filled letterhead and an empty body.
-     *
-     * TWO DECISIONS LIVE HERE, and both are about not asserting things.
-     *
-     * The signature row is REPLACED rather than reused. The house block's three
-     * columns are the owner, the MK and us; a permit's three are all site-side
-     * and all signed by whoever is on that shift. Every name is left blank —
-     * including the one the ERP could supply, because prj_projects.site_manager
-     * is not the pemohon, not the K3 officer, not the storeman and not the
-     * guard on the gate, and dropping his name into whichever box happens to be
-     * free is forging a signature line on a document that gets filed.
-     *
-     * The sheet is UNDATED unless the caller names a date. A site office prints
-     * a pad of these once and works through it for a month; stamping every
-     * sheet with the day somebody pressed print would put "HARI KE 52" on a
-     * permit filled in on day 71 and "TANGGAL 3 Juni" on one used in July. The
-     * lines that do not move — no. SPK, tanggal SPK, waktu pelaksanaan — stay
-     * filled, and those are the ones the site is currently copying out by hand.
-     */
-    private function izinDocument(string $view, array $context, array $data): array
-    {
-        $project = $this->project($context);
-        $header = $this->header($project, $context);
-
-        $header['signatures'] = $data['signatures'];
-        $judul = $data['judulDokumen'];
-        unset($data['signatures'], $data['judulDokumen']);
-
-        if (blank($context['date'] ?? null)) {
-            $header['identity'] = $this->undate($header['identity']);
-            $header['dateLabel'] = '';
-        }
-
-        return $this->document($view, $project, $context, $data + [
             'header' => $header,
-            // The honest sentence. Written plainly because it is addressed to
-            // the clerk at the site office, not to a developer.
-            'blankNotice' => 'Formulir ini dicetak kosong: Nusantara ERP belum menyimpan data '
-                .mb_strtolower($judul).', sehingga lembar kertas yang sudah diisi dan '
-                .'ditandatangani inilah satu-satunya catatan. Arsipkan di berkas proyek.',
-            // The layout's notes block sits between the body and the
-            // signatures, which is the wrong side of the place-date line on a
-            // permit. Each permit draws its own "Catatan :" in the right order
-            // instead, using the same .catatan / .rule the layout defines.
+            'pass' => $pass,
+            'counterparty' => $pass->counterpartyName(),
+            'reference' => $this->gatePassReference($pass),
+            'blankRows' => 10,
             'notes' => null,
             'docControl' => [
-                'judul' => $judul,
-                'no_dok' => $project->code,
-                // Both blank on purpose: the permit's own serial and revision
-                // are written by the site when the sheet is issued, because
-                // nothing in this ERP issues either of them.
+                'judul' => 'Izin Masuk / Keluar Material & Peralatan',
+                'no_dok' => $pass->code,
                 'no_rev' => null,
-                'tanggal' => $header['dateLabel'],
+                'tanggal' => $this->date($pass->pass_date),
             ],
         ]);
     }
 
     /**
-     * Blank the identity lines that mean "as at today", on a form that will be
-     * filled in on some other day.
-     *
-     * Exact label matches, so TANGGAL SPK — a contract fact that never moves —
-     * is untouched while TANGGAL is cleared.
-     *
-     * @param  array<int, array{label: string, value: ?string}>  $identity
-     * @return array<int, array{label: string, value: ?string}>
+     * NO. SURAT JALAN / REFERENSI: the code of the GRN or transfer the pass
+     * escorts. Shared-ID references (no FK), so a pointed-at document that has
+     * since vanished simply leaves the rule blank — the pass does not invent a
+     * number for paper it cannot find.
      */
-    private function undate(array $identity): array
+    private function gatePassReference(GatePass $pass): ?string
     {
-        $moving = ['PERIODE', 'TANGGAL', 'MINGGU KE', 'HARI KE', 'SISA HARI'];
+        $codes = array_filter([
+            $pass->goods_receipt_id === null ? null : GoodsReceipt::query()->withTrashed()->find($pass->goods_receipt_id)?->code,
+            $pass->transfer_id === null ? null : Transfer::query()->withTrashed()->find($pass->transfer_id)?->code,
+        ]);
 
-        foreach ($identity as $index => $entry) {
-            if (in_array($entry['label'], $moving, true)) {
-                $identity[$index]['value'] = null;
-            }
-        }
-
-        return $identity;
+        return $codes === [] ? null : implode(' / ', $codes);
     }
 
     // ==================================================================

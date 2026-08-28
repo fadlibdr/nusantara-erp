@@ -6,13 +6,16 @@ use Modules\Projects\Http\Controllers\BastController;
 use Modules\Projects\Http\Controllers\DailyReportController;
 use Modules\Projects\Http\Controllers\DefectController;
 use Modules\Projects\Http\Controllers\EvmController;
+use Modules\Projects\Http\Controllers\GatePassController;
 use Modules\Projects\Http\Controllers\ManpowerAssignmentController;
 use Modules\Projects\Http\Controllers\MaterialVarianceController;
 use Modules\Projects\Http\Controllers\MilestoneController;
+use Modules\Projects\Http\Controllers\OvertimePermitController;
 use Modules\Projects\Http\Controllers\ProjectController;
 use Modules\Projects\Http\Controllers\SafetyIncidentController;
 use Modules\Projects\Http\Controllers\WbsTaskController;
 use Modules\Projects\Http\Controllers\WeeklyProgressController;
+use Modules\Projects\Http\Controllers\WorkPermitController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     // Projects — collection routes. Single-project routes sit at the BOTTOM of
@@ -115,6 +118,45 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // was done, and the register's whole value rests on that being true.
     Route::post('safety-incidents/{safetyIncident}/close', [SafetyIncidentController::class, 'close'])->middleware('permission:prj.approve');
     Route::post('safety-incidents/{safetyIncident}/reopen', [SafetyIncidentController::class, 'reopen'])->middleware('permission:prj.approve');
+
+    // P0-C — tiga izin lapangan (IKL/ILB/IMK). Literal prefixes, so they stay
+    // above the `{project}` wildcard at the bottom of this file. The GETs
+    // carry no explicit permission like the module's older document GETs
+    // (daily-reports, bast); write/approve follow the house verbs.
+    Route::get('work-permits', [WorkPermitController::class, 'index']);
+    Route::post('work-permits', [WorkPermitController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('work-permits/{workPermit}', [WorkPermitController::class, 'show']);
+    Route::put('work-permits/{workPermit}', [WorkPermitController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('work-permits/{workPermit}', [WorkPermitController::class, 'destroy'])->middleware('permission:prj.delete');
+    Route::post('work-permits/{workPermit}/submit', [WorkPermitController::class, 'submit'])->middleware('permission:prj.update');
+    Route::post('work-permits/{workPermit}/approve', [WorkPermitController::class, 'approve'])->middleware('permission:prj.approve');
+    Route::post('work-permits/{workPermit}/reject', [WorkPermitController::class, 'reject'])->middleware('permission:prj.approve');
+
+    Route::get('overtime-permits', [OvertimePermitController::class, 'index']);
+    Route::post('overtime-permits', [OvertimePermitController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('overtime-permits/{overtimePermit}', [OvertimePermitController::class, 'show']);
+    Route::put('overtime-permits/{overtimePermit}', [OvertimePermitController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('overtime-permits/{overtimePermit}', [OvertimePermitController::class, 'destroy'])->middleware('permission:prj.delete');
+    Route::post('overtime-permits/{overtimePermit}/submit', [OvertimePermitController::class, 'submit'])->middleware('permission:prj.update');
+    // Approve umpan rekap payroll — tetap prj.approve, bukan hr.approve:
+    // lembar F/IL disetujui manajer proyek (kolom "Menyetujui" pada pad), dan
+    // tulisan lintas modulnya lewat OvertimeRecapService milik HrPayroll.
+    Route::post('overtime-permits/{overtimePermit}/approve', [OvertimePermitController::class, 'approve'])->middleware('permission:prj.approve');
+    Route::post('overtime-permits/{overtimePermit}/reject', [OvertimePermitController::class, 'reject'])->middleware('permission:prj.approve');
+
+    Route::get('gate-passes', [GatePassController::class, 'index']);
+    Route::post('gate-passes', [GatePassController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('gate-passes/{gatePass}', [GatePassController::class, 'show']);
+    Route::put('gate-passes/{gatePass}', [GatePassController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('gate-passes/{gatePass}', [GatePassController::class, 'destroy'])->middleware('permission:prj.delete');
+    Route::post('gate-passes/{gatePass}/submit', [GatePassController::class, 'submit'])->middleware('permission:prj.update');
+    Route::post('gate-passes/{gatePass}/approve', [GatePassController::class, 'approve'])->middleware('permission:prj.approve');
+    Route::post('gate-passes/{gatePass}/reject', [GatePassController::class, 'reject'])->middleware('permission:prj.approve');
+    // Periksa = aksi satpam SETELAH manajemen menyetujui (urutan ditegakkan di
+    // GatePassService). prj.update, bukan prj.approve: memeriksa muatan adalah
+    // pekerjaan lapangan, bukan persetujuan kedua — dan satpam tidak memegang
+    // prj.approve pada matriks peran mana pun.
+    Route::post('gate-passes/{gatePass}/periksa', [GatePassController::class, 'periksa'])->middleware('permission:prj.update');
 
     // Manpower assignments
     Route::get('manpower-assignments', [ManpowerAssignmentController::class, 'index']);

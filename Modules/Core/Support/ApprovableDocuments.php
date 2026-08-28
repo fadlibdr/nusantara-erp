@@ -15,13 +15,16 @@ use Modules\Inventory\Models\StockAdjustment;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Projects\Models\Bast;
+use Modules\Projects\Models\GatePass;
+use Modules\Projects\Models\OvertimePermit;
 use Modules\Projects\Models\ProjectBaseline;
+use Modules\Projects\Models\WorkPermit;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
 
 /**
- * The seventeen documents that go through submit → approve/reject, and the three
+ * The twenty documents that go through submit → approve/reject, and the three
  * things a notification needs to know about each: who may approve it, what to
  * call it, and where to send the reader.
  *
@@ -45,6 +48,18 @@ class ApprovableDocuments
         // NotificationService::documentSubmitted returned early and no
         // prj.approve holder was ever told a baseline was waiting.
         ProjectBaseline::class => ['prefix' => 'prj', 'label' => 'Baseline proyek', 'resource' => 'projects/baselines'],
+        /*
+         * P0-C — the three field permits. All three approve on prj.approve:
+         * the spec names it for IKL outright; for ILB the pad's own
+         * "Menyetujui" column is the Manajer Proyek, and prj.approve is what
+         * the project-manager role holds in RoleSeeder; for IMK the pass is a
+         * prj_ document approved by site management before the gate checks it
+         * (the periksa act is prj.update — checking is not a second approval),
+         * and CONVENTIONS §6 derives the permission from the table prefix.
+         */
+        WorkPermit::class => ['prefix' => 'prj', 'label' => 'Izin kerja lapangan', 'resource' => 'projects/work-permits'],
+        OvertimePermit::class => ['prefix' => 'prj', 'label' => 'Izin kerja lembur', 'resource' => 'projects/overtime-permits'],
+        GatePass::class => ['prefix' => 'prj', 'label' => 'Izin masuk/keluar material', 'resource' => 'projects/gate-passes'],
         PurchaseRequisition::class => ['prefix' => 'prc', 'label' => 'Permintaan pembelian', 'resource' => 'procurement/purchase-requisitions'],
         PurchaseOrder::class => ['prefix' => 'prc', 'label' => 'Pesanan pembelian', 'resource' => 'procurement/purchase-orders'],
         StockAdjustment::class => ['prefix' => 'inv', 'label' => 'Penyesuaian stok', 'resource' => 'inventory/stock-adjustments'],

@@ -23,7 +23,9 @@ use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Defect;
+use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\WorkPermit;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 
@@ -167,6 +169,10 @@ class ProjectPhotoController extends ApiController
             'projects/daily-reports' => DailyReport::query()->where('project_id', $id),
             'projects/bast' => Bast::query()->where('project_id', $id),
             'projects/defects' => Defect::query()->where('project_id', $id),
+            // P0-C: foto APD pada izin kerja dan foto muatan pada izin gerbang
+            // adalah bukti lapangan proyek itu sendiri — project_id langsung.
+            'projects/work-permits' => WorkPermit::query()->where('project_id', $id),
+            'projects/gate-passes' => GatePass::query()->where('project_id', $id),
             // est_boqs / est_cost_budgets membawa project_id sendiri — foto
             // survei lokasi di BOQ dan lampiran RAP adalah bukti proyek,
             // bukan hanya dokumen pra-kontrak; sebelum baris ini keduanya

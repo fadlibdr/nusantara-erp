@@ -148,7 +148,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Ringkasan | Dasbor · Tenggat · Kalender |
 | Penjualan | Pelanggan · Prospek · Penawaran · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan |
-| Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · EVM & Baseline · Milestone · BAST · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
+| Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · EVM & Baseline · Milestone · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
 | Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon |
@@ -241,8 +241,9 @@ dokumen berstatus **Diajukan** yang boleh Anda setujui, terbaru di atas, **palin
 Kartu ini hanya mencakup **11 jenis dokumen**: Penawaran, BOQ/RAB, RAP, Permintaan (PR),
 Pesanan (PO), SPK subkon, Opname subkon, Opname stok, Invoice termin, Tagihan vendor,
 Payroll. **Tidak** termasuk: pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK,
-baseline proyek, dan pengajuan cuti — keenamnya hanya sampai lewat lonceng dan lewat
-layar daftarnya sendiri yang disaring ke status **Diajukan**.
+baseline proyek, pengajuan cuti, dan ketiga izin lapangan (IKL/ILB/IMK, §7.13) —
+kesembilannya hanya sampai lewat lonceng dan lewat layar daftarnya sendiri yang
+disaring ke status **Diajukan**.
 
 Bila salah satu sumber gagal dimuat, kartu berkata *"Tidak ada dokumen yang dapat
 ditampilkan"* dan menyebut sumber yang gagal. **Daftar yang pendek bukan bukti tidak ada
@@ -517,18 +518,20 @@ menunggu tombol Ubah muncul lagi.
 
 ### 2.7 Lampiran
 
-Kartu **Lampiran** hanya ada pada 29 jenis dokumen. Untuk melihatnya Anda butuh
+Kartu **Lampiran** hanya ada pada 31 jenis dokumen. Untuk melihatnya Anda butuh
 `<modul>.view`; untuk **`Tambah lampiran`** dan **`Hapus`** Anda butuh `<modul>.update`.
 
 Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · proyek · laporan
-harian · BAST · temuan defect · PR · PO · vendor · dokumen vendor · penerimaan barang ·
-opname stok · SPK subkon · opname subkon · invoice AR · tagihan AP · pembayaran ·
-jurnal · voucher kas kecil · kasbon · karyawan · sertifikat · cuti · tiket · berita acara
-servis · aset.
+harian · BAST · temuan defect · izin kerja lapangan · izin masuk/keluar material · PR ·
+PO · vendor · dokumen vendor · penerimaan barang · opname stok · SPK subkon · opname
+subkon · invoice AR · tagihan AP · pembayaran · jurnal · voucher kas kecil · kasbon ·
+karyawan · sertifikat · cuti · tiket · berita acara servis · aset.
 
 Yang **tidak** bisa: RFQ, evaluasi vendor, bon pengeluaran, transfer, kedua jenis retur,
-insiden K3, milestone, progres mingguan, penugasan personel, kontrak layanan, jadwal
-preventif, payroll, rekap absensi, kalender pajak, dan dana kas kecil.
+insiden K3, milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
+F/IL-nya mencetak baris pekerjanya sendiri — tidak ada foto yang perlu ditempel),
+kontrak layanan, jadwal preventif, payroll, rekap absensi, kalender pajak, dan dana kas
+kecil.
 
 Yang diterima: PDF, gambar (jpg/png/webp/gif/heic), Word, Excel, CSV, teks —
 **maksimal 5 MB per berkas**.
@@ -2857,7 +2860,8 @@ Anda:
   **tidak bisa diubah maupun dihapus dari layar mana pun**.
 - **Kinerja biaya & jadwal (EVM)** — §7.10.
 - **Baseline proyek** — tombol **`Bekukan baseline`**, §7.10.
-- **Formulir izin lapangan** — tiga tombol cetak, §7.13.
+- **Izin lapangan (IKL / ILB / IMK)** — papan penunjuk ke ketiga register izin, §7.13.
+  Tombol cetaknya sendiri ada di halaman masing-masing izin, bukan di kartu ini.
 - **Struktur WBS** — §7.2 di bawah.
 - **Milestone** (20 terakhir) · **Personel di proyek** · **BAST** · **Punch list**
   (hanya temuan **terbuka**) · **Laporan harian terakhir** (5 terakhir) · **Lampiran**.
@@ -2915,8 +2919,8 @@ Penolakan: `"No BOQ found for project {kode}; link a BOQ before generating the W
 > **Empat kolom terakhir menentukan isi setiap kertas yang ditandatangani.**
 > `Konsultan MK / pengawas` mengisi kotak kedua pita empat pihak dan kolom tanda tangan
 > kedua **pada ketujuh formulir rumah proyek**. **Kosong berarti kotak kosong di kertas.**
-> Isilah SEBELUM mencetak satu pad izin lapangan — satu pad dicetak sekali lalu dipakai
-> berminggu-minggu.
+> Isilah SEBELUM lembar pertama diarsipkan — kotak yang kosong saat dicetak tetap
+> kosong di berkas yang ditandatangani.
 >
 > `Site manager` (atau, bila kosong, `Project manager`) mengisi **nama dan jabatan** pada
 > kolom tanda tangan ketiga. Kolom PEMILIK dan KONSULTAN sengaja tanpa nama — sistem tidak
@@ -3122,9 +3126,10 @@ tanggal unggah. Klik foto membuka dialog berisi dokumen asalnya, tanggal, pengun
 lokasi, dan tombol **`Buka dokumen`**.
 
 Fotonya diambil dari lampiran bergambar pada: proyek · laporan harian · BAST · temuan ·
-BOQ · RAP · SPK subkon · opname subkon · PR · PO · penerimaan barang · invoice AR ·
-tagihan AP · jurnal · voucher kas kecil · kasbon. **Tiap sumber disaring izin modulnya** —
-foto nota vendor hanya terlihat oleh yang boleh membuka Keuangan.
+izin kerja lapangan · izin masuk/keluar material · BOQ · RAP · SPK subkon · opname
+subkon · PR · PO · penerimaan barang · invoice AR · tagihan AP · jurnal · voucher kas
+kecil · kasbon. **Tiap sumber disaring izin modulnya** — foto nota vendor hanya terlihat
+oleh yang boleh membuka Keuangan.
 
 Bila kosong: *"Belum ada foto pada dokumen proyek ini. Foto diunggah dari layar Lapangan
 atau dari kartu Lampiran tiap dokumen."*
@@ -3566,20 +3571,92 @@ periksanya lagi.
 | **Laporan Harian** (F/LH) | **halaman** laporan harian | satu laporan + kelima tabel barisnya (§7.3) |
 | **Detail Schedule** (F/DS) | **baris** daftar Progres Mingguan (ikon printer) | WBS + baseline + progres mingguan |
 | **Daftar Temuan** (F/DT) | **halaman** satu temuan | **seluruh register temuan proyek itu** |
-| **Izin Kerja Lapangan** (F/IK) | halaman proyek, kartu Formulir izin lapangan | **kosong** — hanya kop |
-| **Izin Kerja Lembur** (F/IL) | idem | **kosong** — hanya kop |
-| **Izin Material & Peralatan** (F/IM) | idem | **kosong** — hanya kop |
+| **Izin Kerja Lapangan** (F/IK) | **halaman satu izin** — register `Izin Kerja (IKL)` | izin itu: shift, jam berlaku, pekerjaan, tabel bahaya/APD |
+| **Izin Kerja Lembur** (F/IL) | **halaman satu izin** — register `Izin Lembur (ILB)` | izin + satu baris tercetak per pekerja |
+| **Izin Material & Peralatan** (F/IM) | **halaman satu izin** — register `Izin Material (IMK)` | izin + baris barangnya; kotak MASUK/KELUAR dicentang |
 
-> **Ketiga formulir izin lapangan tercetak BENAR-BENAR KOSONG, dan sistem tidak menyimpan
-> satu pun datanya.** Kartu di layar mengatakannya kata demi kata:
+**Ketiga izin lapangan adalah dokumen bernomor sekarang** — IKL/ILB/IMK, masing-masing
+dengan registernya sendiri di menu **Proyek**: `Izin Kerja (IKL)`, `Izin Lembur (ILB)`,
+`Izin Material (IMK)`. Satu baris register = satu izin, dan lembarnya **tercetak dari
+baris itu** lewat tombol `Cetak …` di kepala halaman izinnya. Kartu **Izin lapangan
+(IKL / ILB / IMK)** di halaman proyek tinggal papan penunjuk ke ketiga register —
+tombol cetak lama yang mencetak pad kosong dari halaman proyek sudah tidak ada.
+
+Ketiganya memakai siklus dokumen baku (§2.5): `Ajukan` oleh pemegang ubah proyek,
+`Setujui`/`Tolak` oleh pemegang **setujui proyek** — pada peran bawaan direktur,
+project-manager, dan admin — dengan maker-checker seperti dokumen lain. Ubah dan hapus
+hanya saat Draf atau Ditolak. Izin hanya bisa dientri pada proyek operasional;
+selain itu ditolak: *"Proyek {kode} berstatus {status}; izin … hanya dapat dientri
+pada proyek berstatus Persiapan, Berjalan, atau Finishing."*
+
+**Izin Kerja Lapangan — `Proyek › Izin Kerja (IKL)`.** `Tambah Izin Kerja Lapangan`:
+Proyek · Tanggal izin (*"Harus di dalam waktu pelaksanaan proyek."*) · Shift
+(Pagi/Siang/Malam) · Paket WBS · Berlaku mulai/sampai · Pekerjaan yang dimohonkan ·
+Potensi bahaya (*"Satu potensi bahaya per baris — tercetak per baris pada tabel APD."*) ·
+APD wajib (satu per baris: helm, harness, …) · Pemohon (pelaksana/mandor) · Petugas K3.
+Lembar F/IK mencetak nomor & tanggal izin, shift dan jamnya, pekerjaan, tabel
+bahaya/APD baris-sejajar, nama pemohon, dan nama petugas K3 bila diisi. Penolakan yang
+akan Anda temui:
+
+> *"Berlaku sampai ({waktu}) harus setelah berlaku mulai ({waktu})."*
 >
-> *"Dicetak KOSONG: hanya kop dan blok identitas proyek — no. SPK, tanggal SPK, waktu
-> pelaksanaan — yang terisi dari basis data; sisanya bergaris untuk ditulis tangan di
-> lokasi… Nusantara ERP tidak menyimpan satu pun data izin lapangan, jadi lembar yang
-> sudah diisi dan ditandatangani itulah catatannya — arsipkan di berkas proyek."*
+> *"Tanggal izin {tanggal} di luar waktu pelaksanaan proyek {kode} ({mulai} s/d
+> {selesai}). Izin kerja hanya untuk hari di dalam masa pelaksanaan — perpanjangan
+> waktu dicatat lewat CCO waktu, bukan lewat izin."*
+
+**Izin Kerja Lembur — `Proyek › Izin Lembur (ILB)`.** `Tambah Izin Kerja Lembur`:
+Tanggal lembur · Jam mulai/selesai · Alasan lembur, lalu tabel **Daftar pekerja
+lembur** — per baris pilih **Karyawan** ATAU ketik **Nama non-karyawan** (kru mandor),
+tepat satu, plus **Jam** (> 0, ≤ 24). Lembur melewati tengah malam ditulis dengan jam
+selesai lebih kecil (mis. 22:00 s/d 02:00) — lembarnya mencetak *"(lewat tengah
+malam)"* di samping jamnya. Penolakannya:
+
+> *"Jam selesai ({jam}) sama dengan jam mulai ({jam}) — lembur berdurasi nol. Lembur
+> yang melewati tengah malam ditulis dengan jam selesai lebih kecil dari jam mulai
+> (mis. 22:00 s/d 02:00)."*
 >
-> Tombolnya tidak rusak. Tidak ada layar untuk merekam izin kerja, izin lembur, atau izin
-> masuk/keluar material kembali ke sistem.
+> *"Izin lembur tanpa satu pun baris pekerja bukan izin — lembar ini ditandatangani per
+> orang."*
+>
+> *"Baris pekerja #{n}: isi employee_id ATAU worker_name, tepat satu — karyawan dirujuk
+> ke daftar karyawan, kru mandor non-karyawan ditulis namanya."*
+
+**`Setujui` pada izin lembur mengisi rekap payroll.** Jam per KARYAWAN bulan itu
+dihitung ulang dari seluruh izin yang disetujui dan ditulis ke kolom jam lembur rekap
+absensi (§11.5) — baris nama non-karyawan tetap tercetak di lembar tetapi tidak
+pernah menyentuh rekap. Periode yang payrollnya sudah diposting **tidak ditulis ulang**;
+pesannya mengatakannya: *"Izin lembur disetujui. Rekap {YYYY-MM} tidak diubah — payroll
+periode itu sudah diposting."* Register izinnya tetap menyimpan kebenarannya.
+
+**Izin Masuk/Keluar Material — `Proyek › Izin Material (IMK)`.** `Tambah Izin
+Masuk/Keluar Material`: Arah barang (Masuk/Keluar) · Tanggal · No. polisi kendaraan ·
+Nama pengemudi · Vendor (bila terdaftar) atau Asal/tujuan (teks bebas), lalu tabel
+**Rincian material / peralatan** (Item stok bila ada di gudang, Jenis barang, Jumlah,
+Satuan, Keterangan). Urutannya ditegakkan server: **manajemen menyetujui dulu, baru
+gerbang memeriksa** — tombol **`Periksa di gerbang`** (butuh izin ubah proyek; ditekan
+oleh yang mewakili pos jaga) hanya muncul pada izin **Disetujui** yang belum dicap,
+mengecap *Diperiksa oleh/pada* dengan pemakai yang menekannya — sekali saja, lalu
+tombolnya hilang. Sukses: *"Muatan diperiksa di gerbang."* Penolakannya:
+
+> *"Izin {kode} belum disetujui (status: {status}) — pemeriksaan gerbang hanya untuk
+> izin yang sudah disetujui manajemen."*
+>
+> *"Izin {kode} sudah diperiksa oleh {nama} pada {waktu} — cap gerbang adalah bukti
+> satu kejadian dan tidak ditimpa."*
+
+Lembar F/IM mencentang kotak arah dari izinnya, mencetak baris barangnya, dan mengisi
+kolom *Diperiksa* **hanya setelah** cap gerbang. Foto muatan ditempel lewat kartu
+**Lampiran** izin itu (foto APD pada izin kerja juga begitu); keduanya ikut muncul di
+Galeri Foto Progres (§7.4).
+
+> **Aturan kejujuran tetap berlaku (§13.5)**: yang tercetak adalah baris izinnya; sel
+> yang tidak punya sumber di basis data — lokasi/area dan tabel ALAT pada F/IK, jam per
+> orang pada F/IL, kolom SPESIFIKASI pada F/IM, kolom PENGENDALIAN, dan sisa baris
+> tabel — tetap **bergaris untuk ditulis tangan di lokasi**. Blok tanda tangan hanya
+> membawa nama yang benar-benar tersimpan: pemohon dan petugas K3 pada F/IK, pemeriksa
+> gerbang pada F/IM setelah dicap — kolom lainnya menunggu tanda tangan basah, karena
+> riwayat persetujuan di aplikasi bukan klaim yang sama dengan "orang ini
+> menandatangani lembarnya".
 
 **Form F/DS (Detail Schedule).** Mendatar. Satu blok kolom per minggu ISO yang menyentuh
 bulan itu, enam kolom hari Senin–Sabtu. Baris = pohon WBS.
@@ -4988,6 +5065,15 @@ the work days of the period.`).
 > Pemotongan gaji karena ketidakhadiran harus diurus di luar sistem, atau lewat jurnal
 > penyesuaian.
 
+> **Kolom jam lembur kini punya sumber di layar: Izin Lembur (ILB, §7.13).** Menyetujui
+> sebuah ILB menghitung ulang jam lembur bulan itu untuk karyawan-karyawan izin itu —
+> dari **seluruh** izin yang disetujui bulan itu, bukan ditambah-tambahkan — lalu
+> menulisnya ke rekap. Jam lembur yang diketik tangan untuk karyawan yang punya ILB
+> disetujui akan **tertimpa** pada persetujuan berikutnya; ketik tangan hanya untuk
+> lembur yang memang tidak lewat izin. Periode yang payrollnya sudah diposting tidak
+> pernah ditulis ulang — persetujuannya berkata: *"Rekap {YYYY-MM} tidak diubah —
+> payroll periode itu sudah diposting."*
+
 ### 11.6 Payroll — `SDM & Payroll › Payroll`
 
 Kolom: Kode · Periode · Jenis · Tgl bayar · Bruto · Potongan · Netto · Status. Saringan:
@@ -5409,9 +5495,9 @@ sebelum penggantian itu.)*
 | Laporan Harian | F/LH | halaman Laporan Harian |
 | Detail Schedule / Program Kerja (mendatar) | F/DS | **baris** daftar Progres Mingguan |
 | Daftar Temuan / Defect List (mendatar) | F/DT | halaman satu temuan — mencetak **seluruh register proyek** |
-| Izin Kerja Lapangan | F/IK | halaman proyek — **tercetak kosong** |
-| Izin Kerja Lembur | F/IL | halaman proyek — **tercetak kosong** |
-| Izin Masuk / Keluar Material & Peralatan | F/IM | halaman proyek — **tercetak kosong** |
+| Izin Kerja Lapangan | F/IK | halaman satu izin — register `Izin Kerja (IKL)` |
+| Izin Kerja Lembur | F/IL | halaman satu izin — register `Izin Lembur (ILB)` |
+| Izin Masuk / Keluar Material & Peralatan | F/IM | halaman satu izin — register `Izin Material (IMK)` |
 
 ### 13.4 Empat dokumen yang punya PDF sungguhan
 
@@ -5439,7 +5525,7 @@ Yang paling sering ditemui:
 | SPK Subkontraktor | **TERMIN PEMBAYARAN** | SPK tidak menyimpan jadwal pembayaran apa pun; termin bayar vendor bukan syarat SPK ini |
 | Laporan Harian | hanya sel yang laporannya tidak mencatat: jabatan tanpa baris, tabel tanpa baris (termasuk semua laporan lama), catatan kosong di dalam baris uraian, jam kerja yang tidak diisi | keempat tabel FM-10-12 dan jam kerja kini punya sumber di layar Laporan Harian (§7.3); catatan kaki lembarnya menyebut hanya tabel yang masih manual pada laporan itu |
 | Semua kop proyek | **PERPANJANGAN WAKTU I & II** — hanya pada kontrak tanpa addendum waktu yang disetujui | addendum waktu (CCO jenis `waktu`, §3.7) yang disetujui kini mengisi kedua baris; mulai addendum ketiga baris II berbunyi `lihat register`, tidak pernah dipotong diam-diam |
-| Izin Kerja Lapangan / Lembur / Material | **seluruh badan lembar** | sistem tidak menyimpan satu pun data izin lapangan |
+| Izin Kerja Lapangan / Lembur / Material | lokasi/area & tabel ALAT (F/IK) · jam per orang (F/IL) · kolom SPESIFIKASI & JAM (F/IM) · kolom PENGENDALIAN · sisa baris tabel · dua kolom tanda tangan pengawas | sejak izin menjadi dokumen (§7.13) badan lembar tercetak dari baris izinnya; yang tetap bergaris adalah sel yang tidak punya kolom di basis data — dan kolom *Diperiksa* F/IM baru terisi setelah cap `Periksa di gerbang` |
 | Berita Acara Tambah-Kurang | baris **nilai kontrak sesudahnya** | hanya terisi bila CCO-nya sudah disetujui; lembar addendum waktu tidak punya baris nilai sama sekali — baris tanggal selesainya berbunyi "belum disetujui" selama draf (§3.7) |
 | Detail Schedule | **batang rencana** | hanya diarsir bila ada baseline yang disetujui |
 | Kop empat pihak | kotak **KONSULTAN MK** dan kolom tanda tangannya | kosong bila kolom Konsultan pada proyek belum diisi (§7.2) |

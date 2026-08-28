@@ -21,6 +21,8 @@ export const ATTACHABLE = new Set([
   'crm/quotations', 'crm/contracts', 'crm/guarantees',
   'estimation/boqs', 'estimation/cost-budgets',
   'projects/projects', 'projects/daily-reports', 'projects/bast', 'projects/defects',
+  /* P0-C: foto izin kerja (kondisi area, APD) & foto muatan izin gerbang. */
+  'projects/work-permits', 'projects/gate-passes',
   'procurement/purchase-requisitions', 'procurement/purchase-orders', 'procurement/vendors',
   'procurement/vendor-documents',
   'inventory/goods-receipts', 'inventory/stock-adjustments',

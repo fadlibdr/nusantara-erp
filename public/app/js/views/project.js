@@ -159,66 +159,34 @@ function wbsTree(tasks, { canUpdate, onProgress }) {
 }
 
 /*
- * Tiga izin lapangan yang menggantung pada sebuah proyek — Form F/IK, F/IL,
- * F/IM di FormPrintService::FORMS.
+ * P0-C — tiga izin lapangan adalah DOKUMEN sekarang, bukan pad cetak kosong.
  *
- * KENAPA DI LAYAR INI. Endpoint-nya `core/print/forms/<slug>/{id}` dan {id}
- * itu adalah PROYEK: izinDocument() memanggil project($context), mengambil kop
- * dan blok identitas SPK-nya, lalu mengosongkan seluruh badan lembar.
- * Izinnya juga dijaga prj.view — izin yang sama dengan yang sudah dilewati
- * rute d/projects/:id sebelum sampai ke sini — jadi tidak ada penjaga kedua di
- * bawah, dan tidak ada layar lain di SPA ini yang punya id proyek DAN
- * pembacanya. Ketiganya sebelumnya tidak punya tombol di mana pun: Blade-nya
- * jadi, tesnya hijau, endpoint-nya jalan, tapi tidak ada satu jalan pun dari
- * layar mana pun untuk mencetaknya.
- *
- * KENAPA KARTU, BUKAN BARIS AKSI DI KEPALA HALAMAN seperti "Cetak Data
- * Proyek". Data Proyek mencetak isi basis data; ketiga lembar ini mencetak
- * KERTAS KOSONG bergaris, dan kalimat yang menjelaskan itu harus ikut
- * tercetak di layar — kalau tidak, orang menekan tombolnya, melihat lembar
- * kosong, dan menyimpulkan tombolnya rusak. Baris aksi tidak punya tempat
- * untuk kalimat itu (dan sudah berisi enam tombol lain).
+ * Kartu blank-pad yang dulu di sini — tombol `core/print/forms/<izin>/<id
+ * PROYEK>` plus kalimat "dicetak KOSONG" — hilang BERSAMA perilakunya
+ * (aturan kejujuran: tidak ada tombol yatim yang kini 404 karena composer
+ * menuntut id izin). Penggantinya register masing-masing: entri RESOURCES
+ * `projects/work-permits` / `overtime-permits` / `gate-passes` di schema.js,
+ * dengan tombol cetak per BARIS izin (printForms) dan siklus
+ * ajukan/setujui/periksa-nya. Kartu ini tinggal papan penunjuk arah.
  */
-const IZIN_LAPANGAN = [
-  {
-    form: 'izin-kerja',
-    label: 'Izin Kerja Lapangan',
-    code: 'Form F/IK',
-    note: 'Izin satu shift kerja — daftar alat dan potensi bahaya, ditandatangani pemohon, pengawas lapangan dan petugas K3.',
-  },
-  {
-    form: 'izin-lembur',
-    label: 'Izin Kerja Lembur',
-    code: 'Form F/IL',
-    note: 'Satu baris per pekerja; jam yang ditulis di lembar inilah yang nanti ditagihkan sebagai upah lembur.',
-  },
-  {
-    form: 'izin-material',
-    label: 'Izin Material & Peralatan',
-    code: 'Form F/IM',
-    note: 'Izin Masuk / Keluar Material & Peralatan — lembar pintu gerbang, diperiksa security lalu ditahan sebagai bukti.',
-  },
+const IZIN_REGISTERS = [
+  { route: '#/r/projects/work-permits', label: 'Izin Kerja (IKL)', code: 'Form F/IK', note: 'izin satu shift — bahaya & APD, disetujui prj.approve' },
+  { route: '#/r/projects/overtime-permits', label: 'Izin Lembur (ILB)', code: 'Form F/IL', note: 'jam per pekerja mengalir ke rekap payroll saat disetujui' },
+  { route: '#/r/projects/gate-passes', label: 'Izin Material (IMK)', code: 'Form F/IM', note: 'disetujui manajemen, lalu diperiksa security di gerbang' },
 ];
 
-function izinLapanganCard(projectId) {
+function izinLapanganCard() {
   return el('.card', [
-    el('.card-head', el('h2', { text: 'Formulir izin lapangan' })),
+    el('.card-head', el('h2', { text: 'Izin lapangan (IKL / ILB / IMK)' })),
     el('.card-body', [
-      /* Kalimat yang sama dengan blankNotice di kaki lembarnya, supaya yang
-         menekan tombol sudah tahu apa yang akan keluar dari printer. */
       el('p.muted', {
-        text: 'Dicetak KOSONG: hanya kop dan blok identitas proyek — no. SPK, tanggal SPK, waktu pelaksanaan — yang terisi dari basis data; '
-          + 'sisanya bergaris untuk ditulis tangan di lokasi, dan lembarnya sengaja tanpa tanggal karena satu pad dicetak sekali lalu dipakai berminggu-minggu. '
-          + 'Nusantara ERP tidak menyimpan satu pun data izin lapangan, jadi lembar yang sudah diisi dan ditandatangani itulah catatannya — arsipkan di berkas proyek.',
+        text: 'Ketiga izin kini dicatat sebagai dokumen bernomor dan lembarnya dicetak DARI datanya '
+          + '(baris kosong tetap bergaris untuk diisi tangan). Buat dan cetak dari registernya:',
         style: { margin: '0 0 12px', fontSize: '12.5px' },
       }),
-      el('div', { style: { display: 'flex', flexDirection: 'column', gap: '11px' } }, IZIN_LAPANGAN.map((izin) => el('div', [
-        button(`Cetak ${izin.label}`, {
-          iconName: 'print',
-          title: `Cetak ${izin.code} kosong dengan kop proyek ini`,
-          onClick: (event) => openPrintable(`core/print/forms/${izin.form}/${projectId}`, event.currentTarget),
-        }),
-        el('.cell-sub', { text: `${izin.code} · ${izin.note}`, style: { marginTop: '4px' } }),
+      el('div', { style: { display: 'flex', flexDirection: 'column', gap: '9px' } }, IZIN_REGISTERS.map((izin) => el('div', [
+        el('a', { href: izin.route, text: izin.label }),
+        el('.cell-sub', { text: `${izin.code} · ${izin.note}`, style: { marginTop: '2px' } }),
       ]))),
     ]),
   ]);
@@ -381,12 +349,11 @@ export async function renderProject(host, { id }) {
   main.appendChild(await evmCard(id, evm));
   side.appendChild(await baselineCard(id, reload));
 
-  /* ------------------------------------------------- izin lapangan (cetak)
-     Di sini, bukan di kaki kolom: kertas ini dicari oleh kerani lokasi yang
-     baru membuka proyeknya, dan kartu yang harus digulir melewati WBS, BAST
-     dan punch list untuk ditemukan sama tidak terjangkaunya dengan tidak ada
-     tombol sama sekali — keadaan yang baru saja diperbaiki. */
-  side.appendChild(izinLapanganCard(id));
+  /* ------------------------------------------------- izin lapangan (P0-C)
+     Papan penunjuk ke tiga register izin — tetap di sini karena kerani
+     lokasi mencarinya dari halaman proyek, tetapi tombol cetaknya kini per
+     BARIS izin di register masing-masing. */
+  side.appendChild(izinLapanganCard());
 
   /* ---------------------------------------------------------------- WBS */
   const tasks = await safe(`projects/${id}/wbs-tasks`, { per_page: 300 });

@@ -20,6 +20,9 @@ const HIDDEN_KEYS = new Set([
   // Empat tabel baris FM-10-12 (P0-A) — dirender sebagai detail.tables, dan
   // 'locked' bool hanyalah bayangan locked_at yang sudah tampil sendiri.
   'manpower', 'equipment', 'receipts', 'activity_lines', 'locked',
+  // Baris pekerja izin lembur (P0-C) — detail.tables; tanpa ini panel
+  // Informasi memajang array objeknya sebagai badge JSON di atas tabelnya.
+  'workers',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -30,7 +33,25 @@ const WHEN_SET_KEYS = new Set([
   // berarti kontrak tidak pernah diperpanjang — "Tanggal selesai awal: —"
   // pada kontrak biasa hanyalah kebisingan.
   'days_change', 'new_end_date', 'original_end_date',
+  // Cap gerbang IMK (P0-C): kosong sampai security menekan 'periksa'.
+  'checked_by', 'checked_at',
 ]);
+
+/*
+ * P0-C: Resource izin lapangan meratakan nama relasinya (requested_by_name,
+ * …) karena requested_by/safety_officer menunjuk hr_employees sementara
+ * ID_LOOKUPS global memetakan requested_by ke 'users' — id yang sama, orang
+ * yang berbeda. Bila nama rata itu ada, baris id mentahnya digantikan; kunci
+ * _name yang kosong juga tidak menyisakan baris "—" kembar di samping baris
+ * id-nya.
+ */
+const NAME_SHADOWED = {
+  requested_by: 'requested_by_name',
+  safety_officer_id: 'safety_officer_name',
+  checked_by: 'checked_by_name',
+  vendor_id: 'vendor_name',
+};
+const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
 
 const MONEY_KEY = /(amount|total|value|price|cost|salary|dpp|ppn|pph|budget|payable|paid|outstanding|retention|gross|net|subtotal|discount|rate_internal)/;
 const PERCENT_KEY = /(_pct|_rate)$/;
@@ -54,6 +75,10 @@ const ID_LOOKUPS = {
   bank_account_id: ['bankAccounts'], subcontract_id: ['subcontracts'],
   subcontract_claim_id: ['progressClaims'], service_contract_id: ['serviceContracts'],
   ticket_id: ['tickets'], asset_id: ['assets'],
+  // Izin lapangan P0-C — petugas K3 adalah karyawan, dan rujukan gudang IMK
+  // (GR/transfer) tampil sebagai nomor dokumennya, bukan id basis data.
+  safety_officer_id: ['employees'], wbs_task_id: ['wbsTasks'],
+  goods_receipt_id: ['goodsReceipts'], transfer_id: ['transfers'],
 };
 
 /** Indonesian labels for the generic key/value panel. */
@@ -259,6 +284,16 @@ const LABELS = {
   terbilang: 'Terbilang', roles: 'Peran', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
   asset_account_hint: 'Akun aset (petunjuk)', accum_account_hint: 'Akun akumulasi (petunjuk)',
   depreciation_account_hint: 'Akun penyusutan (petunjuk)',
+  // Tiga izin lapangan (P0-C): IKL, ILB, IMK.
+  shift: 'Shift', permit_date: 'Tanggal izin', work_description: 'Pekerjaan yang dimohonkan',
+  hazard_notes: 'Potensi bahaya', ppe_required: 'APD wajib', valid_from: 'Berlaku mulai',
+  requested_by_name: 'Pemohon', safety_officer_id: 'Petugas K3', safety_officer_name: 'Petugas K3',
+  overtime_date: 'Tanggal lembur', start_time: 'Jam mulai', end_time: 'Jam selesai',
+  crosses_midnight: 'Melewati tengah malam', total_hours: 'Total jam lembur',
+  pass_date: 'Tanggal', vehicle_no: 'No. polisi kendaraan', driver_name: 'Pengemudi',
+  counterparty: 'Asal/tujuan barang', transfer_id: 'Transfer antar gudang',
+  checked_by: 'Diperiksa oleh', checked_by_name: 'Diperiksa oleh', checked_at: 'Diperiksa pada',
+  vendor_name: 'Vendor',
 };
 
 /*
@@ -310,6 +345,12 @@ function autoValue(record, key) {
   if (record[labelKey]) return el('span', { text: record[labelKey] });
 
   if (PERCENT_KEY.test(key)) return el('span.num', { text: fmt.percent(value) });
+  // Sebelum MONEY_KEY: total_hours (ILB, P0-C) memuat kata 'total' dan akan
+  // tampil "Rp 8" — jam bukan uang, berapa pun kemiripan nama kolomnya.
+  if (/_hours$/.test(key) && !Number.isNaN(Number(value))) {
+    const hours = Number(value);
+    return el('span.num', { text: fmt.num(hours, Number.isInteger(hours) ? 0 : 2) });
+  }
   if (MONEY_KEY.test(key) && !Number.isNaN(Number(value))) return el('span.num', { text: fmt.rupiah(value) });
   if (DATE_KEY.test(key)) return el('span', { text: String(value).length > 10 ? fmt.dateTime(value) : fmt.date(value) });
   if (key.endsWith('_terbilang')) return el('em', { text: String(value) });
@@ -574,6 +615,10 @@ export async function renderDetail(host, { key, def, id }) {
     // Bidang pembatalan baru berarti setelah terisi. Tanpa ini setiap invoice
     // sehat memasang "Dibatalkan pada —" di kartu Informasi.
     !(WHEN_SET_KEYS.has(fieldKey) && (record[fieldKey] === null || record[fieldKey] === '')) &&
+    // Nama relasi yang diratakan Resource menggantikan baris id mentahnya
+    // (P0-C — lihat NAME_SHADOWED), dan tidak meninggalkan baris "—" saat kosong.
+    !(NAME_SHADOWED[fieldKey] && record[NAME_SHADOWED[fieldKey]]) &&
+    !(NAME_KEYS.has(fieldKey) && (record[fieldKey] === null || record[fieldKey] === '')) &&
     !(typeof record[fieldKey] === 'object' && record[fieldKey] !== null && !Array.isArray(record[fieldKey]) && record[fieldKey].id));
 
   main.appendChild(el('.card', [

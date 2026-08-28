@@ -503,6 +503,7 @@ class SettingService
         'PAY' => 'Pengeluaran pembayaran', 'JV' => 'Voucher jurnal', 'BST' => 'Rekening koran',
         'PYR' => 'Payroll',
         'TKT' => 'Tiket layanan', 'BAST' => 'BAST', 'DRP' => 'Laporan harian',
+        'IKL' => 'Izin kerja lapangan', 'ILB' => 'Izin kerja lembur', 'IMK' => 'Izin masuk/keluar material',
         'SVC' => 'Kontrak layanan', 'AST' => 'Aset', 'DEP' => 'Mobilisasi aset',
         'DPR' => 'Penyusutan', 'MTC' => 'Perawatan aset', 'PM' => 'Kunjungan preventif',
         'K3' => 'Insiden K3', 'POC' => 'Pengakuan pendapatan',

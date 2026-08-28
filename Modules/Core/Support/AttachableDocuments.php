@@ -26,7 +26,9 @@ use Modules\Procurement\Models\VendorDocument;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Defect;
+use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\WorkPermit;
 use Modules\ServiceDesk\Models\FieldReport;
 use Modules\ServiceDesk\Models\Ticket;
 use Modules\Subcontract\Models\ProgressClaim;
@@ -63,6 +65,13 @@ class AttachableDocuments
         // unlevel lift door IS the temuan, and the photo of the repair is what
         // gets it past verification.
         'projects/defects' => ['class' => Defect::class, 'prefix' => 'prj', 'label' => 'Temuan (defect)'],
+        // P0-C, per the spec's parenthetical: foto izin kerja (kondisi area,
+        // APD terpasang) on the IKL, foto muatan on the IMK gate pass — the
+        // photo of the loaded truck is what the guard's periksa stamp attests
+        // to. ILB deliberately not here: an overtime sheet's evidence is its
+        // signatures, which live on paper, not in a camera roll.
+        'projects/work-permits' => ['class' => WorkPermit::class, 'prefix' => 'prj', 'label' => 'Izin kerja lapangan'],
+        'projects/gate-passes' => ['class' => GatePass::class, 'prefix' => 'prj', 'label' => 'Izin masuk/keluar material'],
         'procurement/purchase-requisitions' => ['class' => PurchaseRequisition::class, 'prefix' => 'prc', 'label' => 'Permintaan pembelian'],
         'procurement/purchase-orders' => ['class' => PurchaseOrder::class, 'prefix' => 'prc', 'label' => 'Pesanan pembelian'],
         'procurement/vendors' => ['class' => Vendor::class, 'prefix' => 'prc', 'label' => 'Vendor'],
