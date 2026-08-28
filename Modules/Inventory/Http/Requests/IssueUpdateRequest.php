@@ -29,6 +29,11 @@ class IssueUpdateRequest extends IssueStoreRequest
             // B.3, permanent once posted. A draft charged to the wrong project
             // is deleted and raised again.
             'wbs_task_id' => $this->wbsTaskRules(),
+            // Changeable on a draft (pointing the bon at its permit, or
+            // detaching it — the detach re-runs the confirm_without_ipp
+            // warning in IssueService); 'sometimes' so an update that does not
+            // mention the permit leaves it alone.
+            'ipp_id' => array_merge(['sometimes'], $this->crossModuleId('eng_work_permits_ipp')),
             'issue_date' => ['sometimes', 'required', 'date'],
             'purpose' => ['sometimes', 'required', 'string', 'max:500'],
             'items' => ['sometimes', 'array', 'min:1'],

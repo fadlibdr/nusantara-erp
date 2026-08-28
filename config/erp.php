@@ -78,6 +78,10 @@ return [
         'PM' => 'PM/{Y}/{RM}/{N4}',    // Preventive maintenance visit
         'K3' => 'K3/{Y}/{RM}/{N3}',    // Register kecelakaan kerja (SMK3)
         'POC' => 'POC/{Y}/{M2}/{N3}',   // Pengakuan pendapatan PSAK 115 (persentase penyelesaian)
+        'SDS' => 'SDS/{Y}/{RM}/{N4}',   // Pengajuan persetujuan shop drawing (P1-ENG)
+        'SMS' => 'SMS/{Y}/{RM}/{N4}',   // Pengajuan persetujuan material (P1-ENG)
+        'TRM' => 'TRM/{Y}/{RM}/{N4}',   // Transmittal dokumen (P1-ENG)
+        'IPP' => 'IPP/{Y}/{RM}/{N4}',   // Ijin pelaksanaan pekerjaan (P1-ENG)
     ],
 
     /*

@@ -6,6 +6,8 @@ use Modules\Assets\Models\Asset;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\Guarantee;
 use Modules\Crm\Models\Quotation;
+use Modules\Engineering\Models\DrawingSubmittal;
+use Modules\Engineering\Models\MaterialSubmittal;
 use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
 use Modules\Finance\Models\ApBill;
@@ -56,6 +58,17 @@ class AttachableDocuments
         'crm/quotations' => ['class' => Quotation::class, 'prefix' => 'crm', 'label' => 'Penawaran'],
         'crm/contracts' => ['class' => Contract::class, 'prefix' => 'crm', 'label' => 'Kontrak'],
         'crm/guarantees' => ['class' => Guarantee::class, 'prefix' => 'crm', 'label' => 'Jaminan'],
+        /*
+         * P1-ENG. The drawing FILE rides the drawing SUBMITTAL, not the
+         * register row: what the MK stamped is one revision's sheet, and P0-D's
+         * dwg/dxf policy applies to exactly that file. The material submittal
+         * carries brochures and mill certificates the same way. The IPP is
+         * deliberately NOT attachable — its evidence IS the approved
+         * submittals its lines reference, and a photo dropped on an IPP would
+         * be a claim the gate never checked.
+         */
+        'engineering/drawing-submittals' => ['class' => DrawingSubmittal::class, 'prefix' => 'eng', 'label' => 'Persetujuan gambar (SDS)'],
+        'engineering/material-submittals' => ['class' => MaterialSubmittal::class, 'prefix' => 'eng', 'label' => 'Persetujuan material (SMS)'],
         'estimation/boqs' => ['class' => Boq::class, 'prefix' => 'est', 'label' => 'BOQ / RAB'],
         'estimation/cost-budgets' => ['class' => CostBudget::class, 'prefix' => 'est', 'label' => 'RAP'],
         'projects/projects' => ['class' => Project::class, 'prefix' => 'prj', 'label' => 'Proyek'],

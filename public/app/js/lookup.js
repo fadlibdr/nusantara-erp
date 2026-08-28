@@ -60,6 +60,17 @@ export const SOURCES = {
   // picker; penjaga rentang tanggalnya ada di server (EquipmentLogService).
   deployments: { path: 'assets/deployments', label: 'code', sub: 'picker_label', title: 'Mobilisasi alat' },
   roles: { path: 'iam/roles', label: 'name', sub: null, title: 'Peran' },
+  /* P1-ENG. Lokasi tapak lintas proyek dalam satu daftar (form.js tidak punya
+     lookup berantai — pola wbsTasks): sub-nya kode unik GSP-T1-L01, dan server
+     yang menolak lokasi milik proyek lain. Sumber ini dijaga prj.view
+     (api/core/locations), bukan eng.view — loadSource menoleransi 403. */
+  locations: { path: 'core/locations', label: 'name', sub: 'code', title: 'Lokasi tapak' },
+  drawings: { path: 'engineering/drawings', label: 'number', sub: 'title', title: 'Register gambar' },
+  drawingSubmittals: { path: 'engineering/drawing-submittals', label: 'code', sub: 'drawing_number', title: 'Persetujuan gambar (SDS)' },
+  materialSubmittals: { path: 'engineering/material-submittals', label: 'code', sub: 'material_name', title: 'Persetujuan material (SMS)' },
+  /* Hanya IPP berstatus disetujui: bon gudang hanya boleh menunjuk ijin yang
+     sudah hidup (IssueService menolak status lain dengan 422 bernama). */
+  approvedIpps: { path: 'engineering/ipp', label: 'code', sub: 'description', params: { status: 'approved' }, title: 'IPP disetujui' },
 };
 
 const cache = new Map();

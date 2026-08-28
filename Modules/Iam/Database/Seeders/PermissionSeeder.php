@@ -14,6 +14,7 @@ class PermissionSeeder extends Seeder
     public const PREFIXES = [
         'core', 'iam', 'crm', 'inv', 'ast', 'est',
         'prj', 'prc', 'scm', 'hr', 'fin', 'svc',
+        'eng', // P1-ENG: Engineering (eng_ tables, api/engineering)
     ];
 
     public const ACTIONS = ['view', 'create', 'update', 'delete', 'approve', 'post'];
@@ -25,7 +26,7 @@ class PermissionSeeder extends Seeder
      * — and before these permissions existed the flag was stamped, displayed
      * and never enforced: SPK/2026/II/0001 (Rp 6,5 miliar, 32,5× the threshold)
      * was approved by a single non-director login. Deliberately NOT an entry in
-     * ACTIONS: expanding it across all twelve prefixes would mint ten
+     * ACTIONS: expanding it across all thirteen prefixes would mint eleven
      * permissions nothing checks, and an unchecked permission on the roles
      * screen reads as a control that exists.
      */

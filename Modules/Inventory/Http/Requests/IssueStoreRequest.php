@@ -20,6 +20,10 @@ class IssueStoreRequest extends FormRequest
         return [
             'warehouse_id' => ['required', 'integer', Rule::exists('inv_warehouses', 'id')],
             'project_id' => $this->crossModuleId('prj_projects'),
+            // eng_work_permits_ipp — existence here, everything with a message
+            // (project match, approved-only, wbs inheritance and the
+            // confirm_without_ipp warning) in IssueService::applyIppRules.
+            'ipp_id' => $this->crossModuleId('eng_work_permits_ipp'),
             'wbs_task_id' => $this->wbsTaskRules(),
             'issue_date' => ['required', 'date'],
             'purpose' => ['required', 'string', 'max:500'],

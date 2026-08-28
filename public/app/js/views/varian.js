@@ -35,6 +35,7 @@ import { navigate } from '../router.js';
 const TABS = [
   { key: 'paket', label: 'Per paket pekerjaan' },
   { key: 'material', label: 'Per material' },
+  { key: 'ipp', label: 'Per IPP' },
   { key: 'belum', label: 'Bon belum ditandai' },
 ];
 
@@ -288,6 +289,149 @@ function cakupan(summary) {
 
 function kosong(text) {
   return el('.alert.info', text);
+}
+
+/* ------------------------------------------------------------------ per IPP */
+
+/* Daftar IPP proyek terpilih, diambil SEKALI per proyek dan dibuang saat
+   laporan dimuat ulang — berpindah tab tidak boleh memanggil ulang server,
+   aturan yang sama dengan tiga tab lainnya. */
+const ippCache = { projectId: null, rows: null, truncated: false };
+
+async function fetchIpps(projectId) {
+  if (ippCache.projectId === projectId && ippCache.rows !== null) return ippCache;
+
+  const payload = await api.get('engineering/ipp', { project_id: projectId, per_page: 500 });
+  const rows = (payload && payload.data) || [];
+  const total = payload && payload.meta && payload.meta.total !== undefined
+    ? Number(payload.meta.total)
+    : rows.length;
+
+  ippCache.projectId = projectId;
+  ippCache.rows = rows;
+  // Terpotong harus DIKATAKAN, bukan ditelan: 500 IPP pada satu proyek berarti
+  // tabel ini tidak lagi memuat semuanya.
+  ippCache.truncated = total > rows.length;
+
+  return ippCache;
+}
+
+/**
+ * Tab "Per IPP" — ijin pelaksanaan proyek ini, masing-masing disandingkan
+ * dengan teori/aktual PAKET PEKERJAANNYA dari laporan yang sudah dimuat.
+ *
+ * KEJUJURAN ATRIBUSI, dikatakan di layar juga: bon mewarisi paket dari
+ * IPP-nya (IssueService), tetapi kolom aktual milik PAKET — semua bon paket
+ * itu terhitung, dari IPP mana pun, termasuk bon tanpa IPP yang menandai
+ * paket yang sama. Laporan varian tidak menyimpan atribusi per IPP, jadi
+ * layar ini tidak berpura-pura memilikinya: dua IPP yang berbagi satu paket
+ * membaca angka paket yang sama dan diberi penanda "paket berbagi".
+ */
+function ippView(host, report) {
+  const container = el('div');
+  host.appendChild(container);
+
+  const taskTotals = new Map();
+  (report.rows || []).forEach((row) => {
+    if (row.wbs_task_id === null || row.wbs_task_id === undefined) return;
+    const entry = taskTotals.get(row.wbs_task_id) || { theory: 0, actual: 0 };
+    entry.theory += n0(row.theory_value);
+    entry.actual += n0(row.actual_value);
+    taskTotals.set(row.wbs_task_id, entry);
+  });
+
+  const run = () => {
+    clear(container);
+    container.appendChild(skeletonTable(4, 5));
+
+    fetchIpps(state.projectId).then(({ rows, truncated }) => {
+      if (!container.isConnected) return; // tab sudah ditinggalkan
+      clear(container);
+
+      if (!rows.length) {
+        container.appendChild(kosong('Proyek ini belum memiliki Ijin Pelaksanaan Pekerjaan (IPP). '
+          + 'IPP dibuat di menu Engineering; bon gudang yang menunjuk IPP otomatis mewarisi paket '
+          + 'pekerjaannya, dan pemakaiannya terbaca di tab per paket.'));
+        return;
+      }
+
+      const sharers = new Map();
+      rows.forEach((ipp) => {
+        if (ipp.wbs_task_id === null || ipp.wbs_task_id === undefined) return;
+        sharers.set(ipp.wbs_task_id, (sharers.get(ipp.wbs_task_id) || 0) + 1);
+      });
+
+      container.appendChild(el('.alert.info',
+        'Kolom teori/aktual di bawah milik PAKET PEKERJAAN yang dipayungi IPP itu — semua bon paket '
+        + 'tersebut terhitung, dari IPP mana pun (bon yang menunjuk IPP mewarisi paketnya). Laporan '
+        + 'ini tidak mencatat atribusi per IPP, jadi dua IPP yang berbagi satu paket membaca angka '
+        + 'paket yang sama.'));
+
+      if (truncated) {
+        container.appendChild(el('.alert.warn',
+          'Daftar IPP proyek ini melebihi 500 baris; sebagian tidak ditampilkan di tabel ini.'));
+      }
+
+      const lines = el('tbody');
+      rows.forEach((ipp) => {
+        const paket = [ipp.wbs_task_code, ipp.wbs_task_name].filter(Boolean).join(' · ');
+        const totals = ipp.wbs_task_id !== null && ipp.wbs_task_id !== undefined
+          ? taskTotals.get(ipp.wbs_task_id)
+          : null;
+        const selisih = totals ? totals.actual - totals.theory : null;
+        const berbagi = (sharers.get(ipp.wbs_task_id) || 0) > 1;
+
+        lines.appendChild(el('tr', [
+          el('td', twoLine(ipp.code || '—', ipp.description || '')),
+          el('td', { text: ipp.status_label || ipp.status || '—' }),
+          el('td', paket
+            ? el('span', [
+              el('span.cell-main', { text: paket }),
+              berbagi ? badge('Paket berbagi antar IPP', 'amber') : null,
+            ])
+            : badge('Tanpa paket WBS — bon tidak mewarisi apa pun', 'amber')),
+          el('td.right.num', { text: totals ? money(totals.theory) : '—' }),
+          el('td.right.num', { text: totals ? money(totals.actual) : '—' }),
+          el('td.right.num', {
+            text: selisih === null ? '—' : signedMoney(selisih),
+            style: selisih === null ? {} : { color: TONE[arah(selisih)] },
+          }),
+        ]));
+      });
+
+      container.appendChild(el('.card', [
+        el('.card-head', [
+          el('h2', { text: 'Ijin pelaksanaan dan paket pekerjaannya' }),
+          el('.cell-sub', { text: 'teori/aktual dibaca dari paket pekerjaan IPP, per tanggal laporan di atas' }),
+        ]),
+        el('.table-wrap', el('table.data', [
+          el('thead', el('tr', [
+            el('th', { text: 'IPP' }),
+            el('th', { text: 'Status' }),
+            el('th', { text: 'Paket pekerjaan' }),
+            el('th.right', { text: 'Teori paket' }),
+            el('th.right', { text: 'Aktual paket' }),
+            el('th.right', { text: 'Selisih' }),
+          ])),
+          lines,
+        ])),
+      ]));
+
+      if (session.can('eng.view')) {
+        container.appendChild(el('.row-actions', [
+          button('Buka daftar IPP', { iconName: 'chevron', onClick: () => navigate('r/engineering/ipp') }),
+        ]));
+      }
+    }).catch((error) => {
+      if (!container.isConnected) return;
+      clear(container).appendChild(errorState(error, () => {
+        ippCache.rows = null;
+        run();
+      }));
+    });
+  };
+
+  run();
 }
 
 function paketView(host, rows, summary, hiddenCount) {
@@ -604,9 +748,10 @@ export async function renderVarian(host) {
     if (!report) return;
     clear(body);
 
-    // Ambang tidak menyaring apa pun di daftar bon yang belum ditandai, dan
-    // penyaring yang terlihat tetapi tidak bekerja terbaca sebagai rusak.
-    flaggedRow.style.display = state.tab === 'belum' ? 'none' : '';
+    // Ambang tidak menyaring apa pun di daftar bon yang belum ditandai maupun
+    // di tabel per IPP, dan penyaring yang terlihat tetapi tidak bekerja
+    // terbaca sebagai rusak.
+    flaggedRow.style.display = state.tab === 'belum' || state.tab === 'ipp' ? 'none' : '';
 
     const summary = report.summary || {};
     const allRows = report.rows || [];
@@ -628,6 +773,10 @@ export async function renderVarian(host) {
       paketView(body, shown, summary, hidden);
     } else if (state.tab === 'material') {
       materialView(body, shown, hidden);
+    } else if (state.tab === 'ipp') {
+      // Mengisi kartunya sendiri secara asinkron — daftar IPP diambil sekali
+      // per proyek (ippCache) dan laporan yang berat tidak dipanggil ulang.
+      ippView(body, report);
     } else {
       belumView(body, report, summary);
     }
@@ -654,6 +803,10 @@ export async function renderVarian(host) {
     }
 
     body.appendChild(skeletonTable(6, 5));
+
+    // Muat ulang laporan = muat ulang daftar IPP juga: bon dan ijin bergerak
+    // bersama, dan cache yang selamat dari "Muat ulang" adalah cache basi.
+    ippCache.rows = null;
 
     try {
       report = await api.get(`projects/${state.projectId}/material-variance`, {

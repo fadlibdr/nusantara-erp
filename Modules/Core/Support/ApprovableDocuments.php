@@ -4,6 +4,7 @@ namespace Modules\Core\Support;
 
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\Quotation;
+use Modules\Engineering\Models\WorkPermitIpp;
 use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
 use Modules\Finance\Models\ApBill;
@@ -60,6 +61,15 @@ class ApprovableDocuments
         WorkPermit::class => ['prefix' => 'prj', 'label' => 'Izin kerja lapangan', 'resource' => 'projects/work-permits'],
         OvertimePermit::class => ['prefix' => 'prj', 'label' => 'Izin kerja lembur', 'resource' => 'projects/overtime-permits'],
         GatePass::class => ['prefix' => 'prj', 'label' => 'Izin masuk/keluar material', 'resource' => 'projects/gate-passes'],
+        /*
+         * P1-ENG — the ONE Engineering approvable. The submittals (SDS/SMS)
+         * are deliberately NOT here: their four-stamp decision belongs to the
+         * external MK and is recorded as fact through the module's own
+         * decision endpoints, not walked through submit → approve — an entry
+         * here would notify eng.approve holders to "approve" a sheet that is
+         * not theirs to approve.
+         */
+        WorkPermitIpp::class => ['prefix' => 'eng', 'label' => 'Ijin pelaksanaan pekerjaan', 'resource' => 'engineering/ipp'],
         PurchaseRequisition::class => ['prefix' => 'prc', 'label' => 'Permintaan pembelian', 'resource' => 'procurement/purchase-requisitions'],
         PurchaseOrder::class => ['prefix' => 'prc', 'label' => 'Pesanan pembelian', 'resource' => 'procurement/purchase-orders'],
         StockAdjustment::class => ['prefix' => 'inv', 'label' => 'Penyesuaian stok', 'resource' => 'inventory/stock-adjustments'],

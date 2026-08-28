@@ -53,6 +53,25 @@ Coupling rules:
         └──────────────┘   └─────────────┘   └─────────────┘
 ```
 
+**Engineering (P1-ENG)** sits on the delivery side, between Estimation and Projects —
+shop drawing register, drawing/material submittals with the four MK decision stamps,
+transmittals, and the IPP (ijin pelaksanaan pekerjaan) whose submit gate refuses work
+on an unapproved drawing or material. Its dependency arrows (arrow = *references,
+one-way*):
+
+```
+   Engineering ──▶ Estimation   (material submittal item → inv/est master)
+   Engineering ──▶ Projects     (project_id, WBS work-package task, EVM attribution)
+   Engineering ──▶ Core         (numbering, attachments, locations, Approvable)
+   Inventory   ──▶ Engineering  (bon menunjuk IPP → mewarisi wbs_task; konfirmasi bila
+                                  proyek ber-IPP aktif tapi bon tak menunjuk satu pun)
+```
+
+Hierarchical site **locations** (`core_locations`: tower/floor/zone/axis/room) live in
+**Core** — Engineering, Quality (P1-QC) and Projects all point at them — carrying a bare
+`project_id` (no constraint, no relation back to Projects), because Core may depend on
+no module.
+
 ## Core document flows
 
 **Sales → delivery (construction):**
@@ -63,6 +82,16 @@ Coupling rules:
 3. Projects: project created from contract; WBS generated from BOQ sections/items with
    value-based weights; laporan harian, weekly progress vs plan (**kurva-S**), milestones,
    **BAST** at handover, retention release after masa pemeliharaan.
+
+**Engineering (shop drawing → IPP → bon):**
+Drawing register → drawing submittal (SDS) and material submittal (SMS) → the MK returns
+the sheet stamped one of four decisions, typed in as **recorded fact** (not the Approvable
+cycle) → transmittal records what left document control → **IPP** lists the work's
+drawings, materials, tools; its **submit gate** refuses the permit while any drawing line
+rides a submittal not approved/approved-as-noted or any material line one not approved
+(the 422 names every blocker). An approved IPP carries a WBS work package; a **bon**
+(material issue) pointing at it inherits that attribution, and a bon on an IPP-bearing
+project that names no IPP triggers a confirmation, not a block.
 
 **Procure → pay:**
 PR (site or warehouse) → approval (two-level above Rp 100 jt) → PO (PPN only for PKP

@@ -2,6 +2,7 @@
 
 namespace Modules\Core\Support;
 
+use Modules\Core\Models\Location;
 use Modules\Crm\Models\Customer;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Inventory\Models\Item;
@@ -129,6 +130,36 @@ class ImportableResources
                     ['header' => 'no_rekening', 'field' => 'bank_account_no', 'cast' => 'text', 'rules' => ['string', 'max:40']],
                     ['header' => 'nama_rekening', 'field' => 'bank_account_name', 'rules' => ['string', 'max:120']],
                     ['header' => 'status', 'field' => 'status', 'rules' => ['in:active,resigned'], 'default' => 'active'],
+                ],
+            ],
+            /*
+             * P1-ENG. A tower of forty floors with four zones each is 160 rows
+             * nobody should type into forms. Flat and honest: one row, one
+             * location, matched on its globally unique code.
+             *
+             * The parent is looked up by CODE against rows already in the
+             * database, and the importer validates the whole file BEFORE the
+             * commit transaction writes any of it — so a child whose parent
+             * arrives in the same file is reported on the first run and
+             * resolves on the second (matching on code makes re-runs safe;
+             * that is the importer's own documented workflow: import, read
+             * the errors, import again). Order parents first or run the file
+             * twice. The hierarchy invariants themselves (same project, no
+             * cycle) are enforced by the Location model's saving hook, which
+             * this importer's direct writes also pass through.
+             */
+            'locations' => [
+                'label' => 'Lokasi Tapak (tower/lantai/zona)',
+                'model' => Location::class,
+                'permission' => 'prj',
+                'unique' => 'code',
+                'columns' => [
+                    ['header' => 'kode', 'field' => 'code', 'required' => true, 'cast' => 'text', 'rules' => ['string', 'max:40']],
+                    ['header' => 'nama', 'field' => 'name', 'required' => true, 'rules' => ['string', 'max:150']],
+                    ['header' => 'proyek_kode', 'field' => 'project_id', 'required' => true, 'lookup' => ['prj_projects', 'code']],
+                    ['header' => 'jenis', 'field' => 'kind', 'required' => true, 'rules' => ['in:tower,floor,zone,axis,room']],
+                    ['header' => 'induk_kode', 'field' => 'parent_id', 'lookup' => ['core_locations', 'code']],
+                    ['header' => 'urutan', 'field' => 'sort_order', 'cast' => 'int', 'rules' => ['integer', 'min:0'], 'default' => 0],
                 ],
             ],
         ];

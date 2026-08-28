@@ -21,6 +21,9 @@ import * as fmt from '../format.js';
 export const ATTACHABLE = new Set([
   'crm/quotations', 'crm/contracts', 'crm/guarantees',
   'estimation/boqs', 'estimation/cost-budgets',
+  /* P1-ENG: lembar gambar (dwg/dxf, kebijakan P0-D) pada submittal gambar;
+   * brosur & mill certificate pada submittal material. IPP sengaja tidak. */
+  'engineering/drawing-submittals', 'engineering/material-submittals',
   'projects/projects', 'projects/daily-reports', 'projects/bast', 'projects/defects',
   /* P0-C: foto izin kerja (kondisi area, APD) & foto muatan izin gerbang. */
   'projects/work-permits', 'projects/gate-passes',

@@ -507,6 +507,8 @@ class SettingService
         'SVC' => 'Kontrak layanan', 'AST' => 'Aset', 'DEP' => 'Mobilisasi aset',
         'DPR' => 'Penyusutan', 'MTC' => 'Perawatan aset', 'PM' => 'Kunjungan preventif',
         'K3' => 'Insiden K3', 'POC' => 'Pengakuan pendapatan',
+        'SDS' => 'Persetujuan gambar (SDS)', 'SMS' => 'Persetujuan material (SMS)',
+        'TRM' => 'Transmittal', 'IPP' => 'Ijin pelaksanaan pekerjaan',
     ];
 
     /**

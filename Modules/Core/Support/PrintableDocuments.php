@@ -3,6 +3,7 @@
 namespace Modules\Core\Support;
 
 use Illuminate\Contracts\Auth\Access\Authorizable;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Modules\Assets\Models\Asset;
@@ -15,6 +16,10 @@ use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\Guarantee;
 use Modules\Crm\Models\Quotation;
 use Modules\Crm\Services\CrmFormService;
+use Modules\Engineering\Models\DrawingSubmittal;
+use Modules\Engineering\Models\MaterialSubmittal;
+use Modules\Engineering\Models\Transmittal;
+use Modules\Engineering\Models\WorkPermitIpp;
 use Modules\Estimation\Enums\ComponentType;
 use Modules\Estimation\Models\Ahsp;
 use Modules\Estimation\Models\AhspComponent;
@@ -363,7 +368,8 @@ class PrintableDocuments
             + $this->finance()
             + $this->hr()
             + $this->serviceDesk()
-            + $this->assets();
+            + $this->assets()
+            + $this->engineering();
     }
 
     // ===================================================== Crm ==============
@@ -5165,6 +5171,396 @@ class PrintableDocuments
                 ],
             ],
             // PRINTABLE REGISTRY (Assets) — tambahkan dokumen baru di sini.
+        ];
+    }
+
+    // ============================================= Engineering ==============
+
+    /**
+     * P1-ENG — the four Engineering house forms (F/SD, F/SM, F/TR, F/IPP).
+     *
+     * THE ONE RULE THESE FOUR SHARE: the MK's stamp is DATA, typed in from the
+     * sheet the MK returned (recorded-fact columns on the submittal —
+     * decision / decided_at / notes), and the print reads those columns and
+     * nothing else. A submittal the MK has not answered prints its waiting
+     * state in words ("Menunggu keputusan Konsultan MK") — a state read off
+     * decision IS NULL + reviewer_party, exactly the derivation the API's
+     * state_label uses — never a plausible stamp and never a bare rule beside
+     * the word KEPUTUSAN inviting one to be inked in after three signatures. A
+     * superseded revision says DIGANTIKAN on its face and names its successor,
+     * because a reprint of R0 that looks current is a sheet somebody builds
+     * from. And no signature column is ever named from a master: received_by
+     * on a transmittal is the one name printed, because it is the one column
+     * that really records who signed (TransmittalService::receive).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function engineering(): array
+    {
+        return [
+            /*
+             * LEMBAR PERSETUJUAN SHOP DRAWING — SDS, FM-10-03/21.
+             *
+             * The band resolves through drawing.project (an SDS has no
+             * project_id of its own; the drawing owns the job).
+             */
+            'persetujuan-gambar' => [
+                'resource' => 'engineering/drawing-submittals',
+                'model' => DrawingSubmittal::class,
+                'permission' => 'eng.view',
+                'label' => 'Persetujuan Gambar (SDS)',
+                'formTitle' => 'LEMBAR PERSETUJUAN SHOP DRAWING',
+                'formCode' => 'Form F/SD',
+                // withTrashed down the drawing path — see the class docblock:
+                // eng_drawings and prj_projects both soft-delete, and an SDS
+                // outlives both. supersededBy likewise (a successor revision
+                // can itself be deleted later; the DIGANTIKAN line must still
+                // name it).
+                'with' => [
+                    'drawing' => fn ($query) => $query->withTrashed(),
+                    'drawing.project' => fn ($query) => $query->withTrashed(),
+                    'supersededBy' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'project', 'source' => 'drawing.project'],
+                // The sheet's own date is the day the revision was handed
+                // over — a reprint in September must not re-date a March
+                // submittal.
+                'date' => 'submitted_at',
+                'identity' => [
+                    'NO. DOKUMEN' => 'code',
+                    'NO. GAMBAR' => 'drawing.number',
+                    'JUDUL GAMBAR' => 'drawing.title',
+                    'DISIPLIN' => 'drawing.discipline',
+                    'REVISI' => 'revision',
+                    'TANGGAL DIAJUKAN' => ['value' => 'submitted_at', 'cast' => 'date'],
+                    'PEMERIKSA' => 'reviewer_party',
+                    // Which revision speaks for the drawing — from
+                    // superseded_at / superseded_by_id, the columns
+                    // DrawingSubmittalService writes when a new revision lands.
+                    'STATUS REVISI' => fn (DrawingSubmittal $submittal): string => $submittal->superseded_at !== null
+                        ? sprintf('DIGANTIKAN oleh %s', $submittal->supersededBy?->code ?? '-')
+                        : 'Revisi berlaku',
+                    // The stamp AS RECORDED (see the method docblock); a
+                    // superseded, never-decided revision rules the cell —
+                    // "menunggu" would claim the MK still owes an answer on a
+                    // dead revision.
+                    'KEPUTUSAN' => fn (DrawingSubmittal $submittal): ?string => $submittal->decision?->label()
+                        ?? ($submittal->superseded_at !== null
+                            ? null
+                            : 'Menunggu keputusan '.$submittal->reviewer_party?->label()),
+                    'TANGGAL KEPUTUSAN' => ['value' => 'decided_at', 'cast' => 'date'],
+                    'CATATAN KEPUTUSAN' => 'notes',
+                ],
+                'notes' => ['lines' => 3],
+                // 'house': Mengetahui (owner) / Menyetujui-menolak (MK) /
+                // Kontraktor — with only OUR column named. The MK's stamp on
+                // this sheet is the KEPUTUSAN line above, off the recorded
+                // columns; a name in the MK signature column would be a forged
+                // signature line (nothing records who signs for the MK).
+                'signatures' => 'house',
+            ],
+
+            /*
+             * LEMBAR PERSETUJUAN MATERIAL — SMS, FM-10-05/22. No supersede
+             * chain: a rejected material comes back as a NEW SMS row.
+             */
+            'persetujuan-material' => [
+                'resource' => 'engineering/material-submittals',
+                'model' => MaterialSubmittal::class,
+                'permission' => 'eng.view',
+                'label' => 'Persetujuan Material (SMS)',
+                'formTitle' => 'LEMBAR PERSETUJUAN MATERIAL',
+                'formCode' => 'Form F/SM',
+                // withTrashed on both soft-deleting parents — class docblock.
+                // NOT on the band's customer/contract: the shared house header
+                // loads those itself (FormPrintService::header).
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'item' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                'date' => 'submitted_at',
+                'identity' => [
+                    'NO. DOKUMEN' => 'code',
+                    'NAMA MATERIAL' => 'material_name',
+                    'MEREK' => 'brand',
+                    'RUJUKAN SPESIFIKASI' => 'spec_reference',
+                    'ITEM PERSEDIAAN' => 'item.code',
+                    // A stored boolean is a fact either way — a bon of samples
+                    // either rode along or did not.
+                    'SAMPEL DISERTAKAN' => fn (MaterialSubmittal $submittal): string => $submittal->sample_attached
+                        ? 'Ya'
+                        : 'Tidak',
+                    'TANGGAL DIAJUKAN' => ['value' => 'submitted_at', 'cast' => 'date'],
+                    'PEMERIKSA' => 'reviewer_party',
+                    'KEPUTUSAN' => fn (MaterialSubmittal $submittal): string => $submittal->decision?->label()
+                        ?? 'Menunggu keputusan '.$submittal->reviewer_party?->label(),
+                    'TANGGAL KEPUTUSAN' => ['value' => 'decided_at', 'cast' => 'date'],
+                    'CATATAN KEPUTUSAN' => 'notes',
+                ],
+                'notes' => ['lines' => 3],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * TRANSMITTAL DOKUMEN — TRM, the paper that rides with the bundle.
+             * Locks once received_at is stamped (TransmittalService), so what
+             * this prints after that moment is the document that was signed
+             * for.
+             */
+            'transmittal' => [
+                'resource' => 'engineering/transmittals',
+                'model' => Transmittal::class,
+                'permission' => 'eng.view',
+                'label' => 'Transmittal',
+                'formTitle' => 'TRANSMITTAL DOKUMEN',
+                'formCode' => 'Form F/TR',
+                // The lines morph to either submittal type (or nothing, for a
+                // free-text line); both targets soft-delete, and a transmittal
+                // that carried SDS/2026/III/0004 must keep saying so after
+                // that revision is tidied away — constrain() is the morph
+                // shape of the class docblock's withTrashed rule.
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'lines.document' => fn (MorphTo $morphTo) => $morphTo->constrain([
+                        DrawingSubmittal::class => fn ($query) => $query->withTrashed(),
+                        MaterialSubmittal::class => fn ($query) => $query->withTrashed(),
+                    ]),
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                'date' => 'transmittal_date',
+                'identity' => [
+                    'NO. TRANSMITTAL' => 'code',
+                    'ARAH' => 'direction',
+                    'KEPADA' => 'to_party',
+                    'TANGGAL' => ['value' => 'transmittal_date', 'cast' => 'date'],
+                    // Ruled until somebody signs; the STATUS line below says
+                    // so in words, off received_at, the resource's own
+                    // state_label derivation.
+                    'DITERIMA OLEH' => 'received_by',
+                    'DITERIMA PADA' => ['value' => 'received_at', 'cast' => 'date'],
+                    'STATUS TANDA TERIMA' => fn (Transmittal $transmittal): string => $transmittal->received_at !== null
+                        ? 'Diterima'
+                        : 'Belum diterima',
+                ],
+                'body' => [
+                    [
+                        'id' => 'daftar-dokumen',
+                        'title' => 'DAFTAR DOKUMEN YANG DISERTAKAN',
+                        'rows' => 'lines',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            // The wire vocabulary of TransmittalService::
+                            // LINE_KINDS, in Indonesian — mirrors
+                            // TransmittalResource's own reverse map.
+                            ['label' => 'JENIS', 'width' => '30mm',
+                                'value' => fn (mixed $row): string => match ($row->document_type) {
+                                    DrawingSubmittal::class => 'Shop drawing (SDS)',
+                                    MaterialSubmittal::class => 'Material (SMS)',
+                                    default => 'Lainnya',
+                                }],
+                            ['label' => 'NO. DOKUMEN', 'width' => '34mm',
+                                'value' => fn (mixed $row): ?string => $row->document?->code],
+                            ['label' => 'URAIAN', 'value' => 'description'],
+                            ['label' => 'KETERANGAN', 'width' => '30mm', 'value' => 'remarks'],
+                        ],
+                        'minRows' => 5,
+                        'empty' => 'Transmittal ini belum memiliki baris dokumen.',
+                    ],
+                ],
+                'notes' => ['text' => 'notes', 'lines' => 3],
+                // The one Engineering sheet with its own three columns:
+                // received_by is the ONE column in this module that really
+                // records who signs (stamped once by the tanda-terima action),
+                // so it is the one name printed. Diserahkan stays unnamed —
+                // created_by records who typed the row, not who handed the
+                // bundle over.
+                'signatures' => [
+                    [
+                        'heading' => 'Diserahkan,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Document Control',
+                    ],
+                    [
+                        'heading' => 'Diterima,',
+                        'subheading' => null,
+                        'party' => 'to_party',
+                        'name' => 'received_by',
+                        'role' => 'Penerima Dokumen',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Mengetahui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Proyek',
+                    ],
+                ],
+            ],
+
+            /*
+             * IJIN PELAKSANAAN PEKERJAAN — IPP, FM-10-11 & Master IPP. The one
+             * Approvable document in the module; the sheet prints the four
+             * line tables and, on the reference tables, the MK stamps AS
+             * RECORDED — the sheet records stamps, the gate (IppService::
+             * submit, with its asymmetric material rule) weighs them.
+             */
+            'ijin-pelaksanaan' => [
+                'resource' => 'engineering/ipp',
+                'model' => WorkPermitIpp::class,
+                'permission' => 'eng.view',
+                'label' => 'Ijin Pelaksanaan (IPP)',
+                'formTitle' => 'IJIN PELAKSANAAN PEKERJAAN',
+                'formCode' => 'Form F/IPP',
+                // withTrashed on every soft-deleting parent a resolver reads —
+                // class docblock. The location chain is loaded to its full
+                // five-kind depth because path() walks every ancestor, and a
+                // lazy step past the eager depth would silently drop the
+                // withTrashed. wbsTask hard-deletes; no constraint there.
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'location' => fn ($query) => $query->withTrashed(),
+                    'location.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'wbsTask',
+                    'materials.item' => fn ($query) => $query->withTrashed(),
+                    'equipment',
+                    'drawings.drawingSubmittal' => fn ($query) => $query->withTrashed(),
+                    'drawings.drawingSubmittal.drawing' => fn ($query) => $query->withTrashed(),
+                    'drawings.drawingSubmittal.supersededBy' => fn ($query) => $query->withTrashed(),
+                    'materialApprovals.materialSubmittal' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                'identity' => [
+                    'NO. IPP' => 'code',
+                    'LINGKUP' => 'scope',
+                    'LOKASI' => fn (WorkPermitIpp $ipp): ?string => $ipp->location?->path(),
+                    // The work package this permit authorises — the value a
+                    // bon pointing at this IPP inherits (IssueService). A real
+                    // column, printed code and name; an IPP without one rules
+                    // the cell.
+                    'PAKET PEKERJAAN' => fn (WorkPermitIpp $ipp): ?string => $ipp->wbsTask !== null
+                        ? trim($ipp->wbsTask->wbs_code.' — '.$ipp->wbsTask->name)
+                        : null,
+                    'RENCANA MULAI' => ['value' => 'planned_start', 'cast' => 'date'],
+                    'DURASI' => fn (WorkPermitIpp $ipp): ?string => $ipp->duration_days !== null
+                        ? sprintf('%d hari kalender', (int) $ipp->duration_days)
+                        : null,
+                    'URAIAN PEKERJAAN' => 'description',
+                    'STATUS' => 'status',
+                ],
+                'body' => [
+                    [
+                        'id' => 'ipp-bahan',
+                        'title' => 'BAHAN',
+                        'rows' => 'materials',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'KODE ITEM', 'width' => '22mm',
+                                'value' => fn (mixed $row): ?string => $row->item?->code],
+                            ['label' => 'URAIAN BAHAN', 'value' => 'description'],
+                            ['label' => 'QTY', 'align' => 'right', 'width' => '18mm',
+                                'value' => 'qty', 'cast' => 'qty'],
+                            ['label' => 'SAT', 'align' => 'center', 'width' => '14mm', 'value' => 'unit'],
+                        ],
+                        'minRows' => 3,
+                        'empty' => 'IPP ini tidak mencantumkan baris bahan.',
+                    ],
+                    [
+                        'id' => 'ipp-alat',
+                        'title' => 'ALAT',
+                        'rows' => 'equipment',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'URAIAN ALAT', 'value' => 'description'],
+                            ['label' => 'QTY', 'align' => 'right', 'width' => '18mm',
+                                'value' => 'qty', 'cast' => 'int'],
+                            ['label' => 'KETERANGAN', 'width' => '34mm', 'value' => 'notes'],
+                        ],
+                        'minRows' => 3,
+                        'empty' => 'IPP ini tidak mencantumkan baris alat.',
+                    ],
+                    [
+                        'id' => 'ipp-gambar',
+                        'title' => 'GAMBAR RUJUKAN (SDS)',
+                        'rows' => 'drawings',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NO. DOKUMEN', 'width' => '32mm',
+                                'value' => fn (mixed $row): ?string => $row->drawingSubmittal?->code],
+                            ['label' => 'NO. GAMBAR',
+                                'value' => fn (mixed $row): ?string => $row->drawingSubmittal?->drawing?->number],
+                            ['label' => 'REV', 'align' => 'center', 'width' => '12mm',
+                                'value' => fn (mixed $row): ?string => $row->drawingSubmittal?->revision],
+                            ['label' => 'PEMERIKSA', 'width' => '24mm',
+                                'value' => fn (mixed $row): ?string => $row->drawingSubmittal?->reviewer_party?->label()],
+                            // The stamp column, off the recorded columns only
+                            // — see the method docblock. A superseded
+                            // reference is named as such: the gate will refuse
+                            // it, and the sheet must not look cleaner than the
+                            // gate reads it.
+                            ['label' => 'KEPUTUSAN', 'width' => '38mm',
+                                'value' => function (mixed $row): ?string {
+                                    $submittal = $row->drawingSubmittal;
+
+                                    if ($submittal === null) {
+                                        return null;
+                                    }
+
+                                    if ($submittal->isSuperseded()) {
+                                        return 'Digantikan oleh '.($submittal->supersededBy?->code ?? '-');
+                                    }
+
+                                    return $submittal->decision?->label()
+                                        ?? 'Menunggu keputusan '.$submittal->reviewer_party?->label();
+                                }],
+                        ],
+                        'empty' => 'IPP ini tidak merujuk gambar (SDS).',
+                    ],
+                    [
+                        'id' => 'ipp-material-approval',
+                        'title' => 'PERSETUJUAN MATERIAL (SMS)',
+                        'rows' => 'materialApprovals',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NO. DOKUMEN', 'width' => '32mm',
+                                'value' => fn (mixed $row): ?string => $row->materialSubmittal?->code],
+                            ['label' => 'MATERIAL',
+                                'value' => fn (mixed $row): ?string => $row->materialSubmittal?->material_name],
+                            ['label' => 'PEMERIKSA', 'width' => '24mm',
+                                'value' => fn (mixed $row): ?string => $row->materialSubmittal?->reviewer_party?->label()],
+                            // Printed AS RECORDED — approved-as-noted prints
+                            // "Disetujui dengan catatan" even though the gate
+                            // will still refuse it for a material line
+                            // (IppService's asymmetric rule): the sheet
+                            // records stamps, the gate weighs them.
+                            ['label' => 'KEPUTUSAN', 'width' => '38mm',
+                                'value' => function (mixed $row): ?string {
+                                    $submittal = $row->materialSubmittal;
+
+                                    if ($submittal === null) {
+                                        return null;
+                                    }
+
+                                    return $submittal->decision?->label()
+                                        ?? 'Menunggu keputusan '.$submittal->reviewer_party?->label();
+                                }],
+                        ],
+                        'empty' => 'IPP ini tidak merujuk persetujuan material (SMS).',
+                    ],
+                ],
+                'notes' => ['lines' => 3],
+                'signatures' => 'house',
+            ],
         ];
     }
 

@@ -27,24 +27,42 @@ class RoleSeeder extends Seeder
             PermissionSeeder::DIRECTOR_APPROVALS,
         ));
 
+        /*
+         * P1-ENG — eng.* distribution, decided from RoleSeeder reality:
+         * engineering documents are prepared by the drafter/estimator and the
+         * site (Made Wirawan is "Drafter/Estimator", the IPP is raised by the
+         * pelaksana), and INTERNALLY authorised by the Manajer Proyek — the
+         * same person whose prj.approve signs the P0-C field permits, so
+         * eng.approve lands on the same role. eng.approve also covers
+         * RECORDING the MK's stamp on a submittal (typing the external
+         * decision in is approve-adjacent power; the service separately
+         * refuses the submittal's own creator). direktur inherits eng.view +
+         * eng.approve through the PREFIXES expansion above, admin everything.
+         */
         $this->seedRole('project-manager', array_merge(
-            $this->expand(['prj', 'est', 'scm', 'inv', 'ast'], ['view', 'create', 'update']),
-            ['prj.approve'],
+            $this->expand(['prj', 'est', 'scm', 'inv', 'ast', 'eng'], ['view', 'create', 'update']),
+            ['prj.approve', 'eng.approve'],
         ));
 
         $this->seedRole('site-manager', array_merge(
-            $this->expand(['prj'], ['view', 'create', 'update']),
+            $this->expand(['prj', 'eng'], ['view', 'create', 'update']),
             $this->expand(['inv'], ['view', 'create']),
         ));
 
         $this->seedRole('estimator', array_merge(
             $this->expand(['est'], $allButApprove),
+            // The drafter half of "Drafter/Estimator": registers drawings and
+            // prepares submittals, never records the MK's stamp on their own
+            // submission (no eng.approve).
+            $this->expand(['eng'], ['view', 'create', 'update']),
             ['prj.view', 'crm.view'],
         ));
 
         $this->seedRole('procurement', array_merge(
             $this->expand(['prc'], $allButApprove),
-            ['inv.view', 'est.view'],
+            // eng.view only: buying a material that the MK has not approved is
+            // exactly what reading the SMS register prevents.
+            ['inv.view', 'est.view', 'eng.view'],
         ));
 
         // Warehouse handles physical stock; approving and posting stock
