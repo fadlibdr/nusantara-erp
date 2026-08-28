@@ -5,6 +5,7 @@ import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast } 
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
+import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
 import { openForm } from './form.js';
 import { RESOURCES } from '../schema.js';
@@ -682,6 +683,11 @@ export async function renderDetail(host, { key, def, id }) {
 
   const attachments = attachmentsCard(key, record.id, def.module);
   if (attachments) side.appendChild(attachments);
+
+  // Persetujuan Eksternal MK/Owner (P0-F) — same one-line wiring as the
+  // attachments card: the registry mirror inside the card decides membership.
+  const externalApprovals = externalApprovalsCard(key, record.id, def.module);
+  if (externalApprovals) side.appendChild(externalApprovals);
 
   side.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Metadata' })),

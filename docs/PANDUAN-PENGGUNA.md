@@ -40,6 +40,7 @@ teknisi.
 12. [Layanan & pemeliharaan](#12-layanan--pemeliharaan)
 13. [Mencetak formulir rumah](#13-mencetak-formulir-rumah)
 14. [Yang tidak bisa Anda lakukan sendiri][bab14]
+15. [Persetujuan oleh Pemilik/MK](#15-persetujuan-oleh-pemilikmk)
 
 [bab14]: #14-yang-tidak-bisa-anda-lakukan-sendiri--dan-siapa-yang-bisa
 
@@ -56,10 +57,10 @@ panduan ini milik orang lain.
 | Estimator | `estimator` | 1, 2, **4** |
 | Petugas pengadaan / pembelian | `procurement` | 1, 2, **5** |
 | Penjaga gudang / logistik | `warehouse` | 1, 2, **6** |
-| Manajer proyek | `project-manager` | 1, 2, **7**, **8** (+ §4.4 RAP, bab 9 bila memegang alat) |
+| Manajer proyek | `project-manager` | 1, 2, **7**, **8** (+ §4.4 RAP, bab 9 bila memegang alat, **15** bila meminta tanda tangan MK/Owner) |
 | Site manager / pengawas lapangan | `site-manager` | 1, 2, **7** (§7.3–§7.6 saja; + §9.5 — Anda salah satu pencatat log BBM & jam alat) |
 | Petugas keuangan (AR, AP, kas) | `finance` | 1, 2, **10** (+ §3.10–§3.14 penagihan, §5.9–§5.10 bayar vendor) |
-| Manajer keuangan / direktur | `finance-manager`, `direktur` | 1, 2, **14**, lalu bab dokumen yang Anda setujui |
+| Manajer keuangan / direktur | `finance-manager`, `direktur` | 1, 2, **14**, lalu bab dokumen yang Anda setujui (+ **15** untuk tanda tangan MK/Owner) |
 | Kasir kas kecil | peran khusus (§14) | 1, 2, **§10.5–§10.7** |
 | Petugas SDM / payroll | `hr` | 1, 2, **11** |
 | Teknisi servis | `teknisi` | 1, 2, **12** (+ layar Lapangan lewat alamat `#/lapangan` — §7.4; sejak 22 Agu 2026 peran Anda memegang izin posting stok — §6.1) |
@@ -5693,6 +5694,138 @@ karena tombol yang tidak ada hampir selalu berarti izin, bukan kerusakan.
 
 Bila pesan merahnya panjang dan tidak hilang sendiri, itu memang disengaja — ia menunggu
 Anda membacanya, dan biasanya sudah memuat nama orang yang harus Anda datangi.
+
+---
+
+## 15. Persetujuan oleh Pemilik/MK
+
+MK dan Pemilik bukan pengguna sistem ini — mereka tidak punya akun, dan tidak akan
+diberi akun. Keputusan mereka masuk lewat **dua pintu**, dan dua-duanya bermuara pada
+register bukti yang sama:
+
+1. **Tautan sekali-pakai** — Anda menerbitkan sebuah alamat web, mengirimkannya sendiri
+   (WhatsApp / e-mail pribadi), dan MK/Owner membukanya di ponselnya, membaca ringkasan
+   dokumennya, lalu menekan satu dari tiga tombol: **Setuju** · **Setuju dengan
+   catatan** · **Tolak**. Tautan mati pada keputusan pertama.
+2. **Lembar fisik** — dokumen dicetak, ditandatangani di lapangan, discan, dilampirkan
+   pada dokumennya, lalu keputusannya dicatat dari kartu yang sama.
+
+Keduanya dikerjakan dari kartu **Persetujuan Eksternal (MK/Owner)** di halaman detail
+**tiga** dokumen — hanya tiga, yang lain tidak punya kartu ini:
+
+| Dokumen | Akibat keputusan eksternal |
+|---|---|
+| Laporan Harian (§7.3) | Bukti dicatat, dan laporan **terkunci** pada keputusan pertama — seperti terkunci oleh BAST I |
+| Pekerjaan Tambah-Kurang / CCO (§3.7) | **Bukti saja.** CCO tidak berpindah status — tombol `Setujui` internal tetap harus ditekan pemegang setujui CCO |
+| Izin Kerja Lapangan / IKL (§7.13) | Keputusan eksternal **menggerakkan** izinnya: Setuju/Setuju dengan catatan menyetujui, Tolak menolak |
+
+Melihat kartunya butuh izin lihat modul dokumen itu; **menerbitkan tautan, mencabutnya,
+dan mencatat lembar fisik butuh izin setujui** modul itu (menerbitkan tautan keputusan
+adalah kuasa setingkat menyetujui) — tanpa izin itu tombolnya tidak digambar, dan
+server pun menolak: *"Anda tidak memiliki izin prj.approve."*
+
+### 15.1 Menerbitkan tautan
+
+Tekan **`Terbitkan Tautan`** pada kartunya. Isiannya: **Pihak** (MK / Pemilik) ·
+**Nama pemutus** · **Organisasi** · **E-mail** (*"Opsional, arsip untuk siapa tautan
+diterbitkan — sistem tidak mengirim e-mail."*) · **Masa berlaku (hari)** (*"Kosongkan
+untuk 7 hari."*). Setelah `Terbitkan`, dialog **Tautan persetujuan diterbitkan**
+menampilkan alamatnya dengan tombol `Salin` — dan ini satu-satunya kesempatan Anda:
+
+> **Salin sekarang — tautan hanya ditampilkan sekali dan tidak dapat dilihat lagi.
+> Bila hilang: cabut tautan ini, lalu terbitkan yang baru.**
+
+Itu bukan kelalaian layar. Server hanya menyimpan sidik jari tautannya, bukan
+tautannya, sehingga **tidak ada seorang pun** — termasuk administrator — yang bisa
+menampilkannya lagi. Mengirimkannya kepada MK/Owner adalah pekerjaan Anda, lewat
+saluran Anda; sistem tidak mengirim apa pun.
+
+Penolakan penerbitan yang akan Anda temui:
+
+> *"Tautan persetujuan pekerjaan tambah-kurang hanya dapat diterbitkan saat dokumen
+> berstatus submitted — saat ini draft."* — CCO dan IKL harus **Diajukan** dulu;
+> laporan harian bebas kapan saja.
+>
+> *"Maker-checker: pengaju izin kerja lapangan ini tidak boleh menerbitkan tautan
+> persetujuan eksternal untuk dokumennya sendiri — keputusan dari tautan diterapkan
+> atas nama penerbitnya. Minta pemegang izin approve yang lain menerbitkannya."* —
+> hanya pada IKL, karena di sanalah keputusan eksternal benar-benar menggerakkan
+> dokumen.
+
+### 15.2 Apa yang dilihat — dan tidak bisa dilakukan — MK/Owner
+
+Halaman tautan berdiri sendiri: ringkasan dokumen (kode, proyek/kontrak, angka
+kuncinya), tiga tombol keputusan, dan satu kolom catatan. Tidak ada login, tidak ada
+menu, tidak ada dokumen lain, tidak ada lampiran — pemegang tautan **hanya bisa
+memutuskan dokumen itu, sekali**. Dua orang yang membuka tautan yang sama: keputusan
+pertama yang tercatat; klik kedua melihat **struk** keputusan yang menang, bukan
+formulir. Sesudah dipakai, tautan yang sama menampilkan struk itu selamanya; yang
+dicabut atau kedaluwarsa berkata jujur (*"Tautan sudah dicabut oleh penerbitnya."* /
+*"Tautan sudah kedaluwarsa sejak {waktu}."*), dan tautan yang salah ketik dijawab
+*"Tautan tidak dikenal atau sudah tidak berlaku."* tanpa keterangan apa-apa lagi.
+
+Pada IKL ada satu penolakan lagi di ujung: bila di antara terbit dan klik pengaju
+izinnya berganti sehingga penerbit tautan menjadi pengajunya sendiri, halaman berkata
+*"Keputusan tidak dapat dicatat: aturan pemisahan tugas internal kontraktor menolak
+penerapannya. Tautan Anda belum terpakai — hubungi penerbit tautan."* — terbitkan
+tautan baru lewat orang lain.
+
+### 15.3 Mencatat lembar fisik
+
+Urutannya dua langkah, dan langkah pertama bukan di kartu ini: **scan lembar
+bertanda tangan dilampirkan dulu pada dokumen itu** lewat kartu **Lampiran** (§2.7).
+Baru tekan **`Catat Tanda Tangan Fisik`**: pilih scannya (*"Hanya lampiran dokumen ini
+yang bisa dipilih — scan lembar dokumen lain ditolak server."*), lalu Pihak · Nama
+penanda tangan · Organisasi · **Keputusan** · Catatan keputusan · Tanggal keputusan
+(*"Kosongkan untuk hari ini."*). Tanpa lampiran, kartu menolak sebelum formulirnya
+terbuka: *"Lampirkan dulu scan lembar bertanda tangan pada dokumen ini (kartu
+Lampiran), baru catat keputusannya."* Keputusan tanpa bukti memang tidak dicatat;
+scan dari dokumen lain ditolak dengan menyebut nama berkasnya.
+
+Pencatatan lembar fisik **tidak dibatasi status dokumen** — kertas boleh pulang
+terlambat, berhari-hari setelah CCO-nya disetujui proksi internal; buktinya tetap
+dicatat. (Pada IKL aturan siklus dokumen tetap berlaku, karena di sana keputusan
+benar-benar menggerakkan izinnya.)
+
+### 15.4 Sesudah keputusan tercatat
+
+Dari pintu mana pun, tiga hal terjadi:
+
+- **Lonceng** berbunyi untuk semua pemegang izin setujui modul itu: *"Keputusan
+  eksternal tercatat: …"* — tombol `Buka dokumen` membawa ke halaman dokumennya.
+- **Barisnya di kartu** menunjukkan chip `Diputuskan`, keputusannya, catatannya, via
+  tautan atau lembar fisik, dan waktunya. Baris keputusan adalah **bukti permanen** —
+  tidak bisa diubah dan tidak bisa dicabut.
+- **Akibat per dokumen** pada tabel di atas berjalan. Laporan harian yang terkunci
+  menolak ubah/hapus dengan menyebut pemutusnya: *"Laporan {kode} terkunci oleh
+  keputusan eksternal {keputusan} — {nama} ({pihak}) pada {waktu} — dan tidak dapat
+  {diubah/dihapus}: yang sudah diputuskan pihak luar bukan draf lagi."*
+
+Pada CCO, sekali lagi: keputusan eksternal **tidak menggantikan** tombol `Setujui`
+internal (§2.5). Bukti MK/Owner tercatat; yang menggerakkan status CCO tetap pemegang
+setujui CCO di dalam sistem.
+
+### 15.5 Mencabut tautan
+
+Tombol **`Cabut`** ada di tiap baris tautan yang masih hidup (chip `Terbit`). Tautan
+yang dicabut tidak bisa dipakai memutuskan. Yang tidak bisa dicabut:
+
+> *"Tautan ini sudah dipakai mencatat keputusan (Setuju, {waktu}) — keputusan adalah
+> bukti dan tidak dapat dicabut."*
+>
+> *"Tautan sudah dicabut pada {waktu}."*
+
+Kedaluwarsa tidak perlu dicabut — chipnya berganti `Kedaluwarsa` sendiri dan tautannya
+menolak dipakai.
+
+### 15.6 Catatan jujur tentang produksi hari ini
+
+Server produksi (erp1) masih berdiri di belakang gerbang kata sandi tingkat server
+yang memblokir **semua** akses tanpa login — termasuk halaman tautan ini. Sampai
+administrator menurunkan gerbang itu (`docs/PANDUAN-ADMINISTRATOR.md`), tautan yang
+Anda terbitkan hanya bisa dibuka dari dalam gerbang, dan **pintu yang berfungsi penuh
+untuk MK/Owner adalah lembar fisik**. Kartu, register bukti, dan loncengnya bekerja
+sejak sekarang.
 
 ---
 

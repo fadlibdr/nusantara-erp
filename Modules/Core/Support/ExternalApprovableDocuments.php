@@ -1,0 +1,213 @@
+<?php
+
+namespace Modules\Core\Support;
+
+use Illuminate\Database\Eloquent\Model;
+use Modules\Crm\Enums\ChangeOrderType;
+use Modules\Crm\Models\ContractChangeOrder;
+use Modules\Projects\Models\DailyReport;
+use Modules\Projects\Models\WorkPermit;
+use Modules\Projects\Services\DailyReportService;
+use Modules\Projects\Services\WorkPermitService;
+
+/**
+ * Dokumen yang boleh dimintakan keputusan MK/Owner lewat tautan sekali-pakai
+ * atau lembar fisik (keputusan pemilik #1), dialamatkan dengan SLUG — kosakata
+ * yang sama dengan AttachableDocuments, dan alasan yang sama: string kelas
+ * tidak pernah menyeberangi kawat.
+ *
+ * DUA MODE, karena keputusan pemilik #6 mempertahankan proksi internal untuk
+ * 18 dokumen Approvable:
+ *
+ *  - MODE_RECORD (bawaan): keputusan eksternal DICATAT sebagai bukti; siapa
+ *    yang menggerakkan status dokumen tetap si proksi internal. Baris boleh
+ *    membawa 'hook' — service modul yang dipanggil begitu keputusan tercatat
+ *    (laporan harian: kunci locked_at pada keputusan pertama).
+ *  - MODE_TRANSITION ('transisi'): keputusan eksternal MENGGERAKKAN dokumen,
+ *    lewat ADAPTER SERVICE di modul pemiliknya ('hook' yang menerima dokumen
+ *    dan baris keputusannya) — bukan trait, sesuai catatan 🧪 P0-C. Adapter
+ *    itulah yang memegang aturan Approvable dan maker-checker.
+ *
+ * Core menunjuk kelas modul HANYA dari berkas registri ini — preseden
+ * ApprovableDocuments: satu tabel eksplisit, bukan konvensi namespace, karena
+ * prefix izin yang salah adalah notifikasi yang terkirim ke kosong.
+ */
+class ExternalApprovableDocuments
+{
+    public const MODE_RECORD = 'record';
+
+    public const MODE_TRANSITION = 'transisi';
+
+    /**
+     * issuable_statuses: status dokumen yang mengizinkan PENERBITAN tautan
+     * (dan hanya penerbitan — pencatatan lembar fisik tidak dibatasi status,
+     * lihat ExternalApprovalService::recordPhysical). CCO: hanya submitted
+     * (keputusan pemilik #7, pertahankan). Izin kerja: hanya submitted,
+     * KEPUTUSAN DI SINI karena mode transisi — tautan atas draf akan
+     * menghasilkan keputusan yang tidak bisa diterapkan Approvable, dan
+     * tautan yang pasti gagal bukan tautan yang jujur. Laporan harian tidak
+     * punya status, maka null.
+     *
+     * @var array<string, array{class: class-string, prefix: string, label: string,
+     *      mode: string, hook: array{class-string, string}|null,
+     *      issuable_statuses: list<string>|null}>
+     */
+    private const MAP = [
+        'projects/daily-reports' => [
+            'class' => DailyReport::class,
+            'prefix' => 'prj',
+            'label' => 'Laporan harian',
+            'mode' => self::MODE_RECORD,
+            'hook' => [DailyReportService::class, 'lockFromExternalDecision'],
+            'issuable_statuses' => null,
+        ],
+        'crm/contract-change-orders' => [
+            'class' => ContractChangeOrder::class,
+            'prefix' => 'crm',
+            'label' => 'Pekerjaan tambah-kurang',
+            'mode' => self::MODE_RECORD,
+            'hook' => null,
+            'issuable_statuses' => ['submitted'],
+        ],
+        'projects/work-permits' => [
+            'class' => WorkPermit::class,
+            'prefix' => 'prj',
+            'label' => 'Izin kerja lapangan',
+            'mode' => self::MODE_TRANSITION,
+            'hook' => [WorkPermitService::class, 'applyExternalDecision'],
+            'issuable_statuses' => ['submitted'],
+        ],
+    ];
+
+    /** @return list<string> */
+    public static function slugs(): array
+    {
+        return array_keys(self::MAP);
+    }
+
+    public static function knows(string $slug): bool
+    {
+        return isset(self::MAP[$slug]);
+    }
+
+    /** @return class-string|null */
+    public static function classFor(string $slug): ?string
+    {
+        return self::MAP[$slug]['class'] ?? null;
+    }
+
+    public static function prefixFor(string $slug): ?string
+    {
+        return self::MAP[$slug]['prefix'] ?? null;
+    }
+
+    public static function labelFor(string $slug): string
+    {
+        return self::MAP[$slug]['label'] ?? 'Dokumen';
+    }
+
+    public static function modeFor(string $slug): string
+    {
+        return self::MAP[$slug]['mode'] ?? self::MODE_RECORD;
+    }
+
+    /** @return array{class-string, string}|null [service class, method] */
+    public static function hookFor(string $slug): ?array
+    {
+        return self::MAP[$slug]['hook'] ?? null;
+    }
+
+    /** @return list<string>|null null = penerbitan tidak dibatasi status */
+    public static function issuableStatusesFor(string $slug): ?array
+    {
+        return self::MAP[$slug]['issuable_statuses'] ?? null;
+    }
+
+    public static function slugFor(object|string $document): ?string
+    {
+        $class = is_string($document) ? $document : $document::class;
+
+        foreach (self::MAP as $slug => $entry) {
+            if ($entry['class'] === $class) {
+                return $slug;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Rute detail SPA, bentuk "#/d/…" yang sama dengan ApprovableDocuments —
+     * slug registri ini memang kosakata resource SPA.
+     */
+    public static function linkFor(string $slug, int $id): string
+    {
+        return "#/d/{$slug}/{$id}";
+    }
+
+    /**
+     * Ringkasan dokumen untuk halaman keputusan publik: label → nilai, angka
+     * kunci milik modulnya. Di berkas registri INI dan bukan di service, agar
+     * ExternalApprovalService tetap buta terhadap modul — satu-satunya tempat
+     * Core boleh mengenal kelas modul adalah tabel di atas.
+     *
+     * @return list<array{label: string, value: string}>
+     */
+    public static function summarize(string $slug, Model $document): array
+    {
+        return match ($slug) {
+            'projects/daily-reports' => self::summarizeDailyReport($document),
+            'crm/contract-change-orders' => self::summarizeChangeOrder($document),
+            'projects/work-permits' => self::summarizeWorkPermit($document),
+            default => [],
+        };
+    }
+
+    /** @return list<array{label: string, value: string}> */
+    private static function summarizeDailyReport(DailyReport $report): array
+    {
+        $project = $report->project;
+
+        return array_values(array_filter([
+            ['label' => 'Proyek', 'value' => trim(($project?->code ?? '—').' — '.($project?->name ?? ''))],
+            ['label' => 'Tanggal laporan', 'value' => $report->report_date?->format('d-m-Y') ?? '—'],
+            ['label' => 'Jumlah tenaga kerja', 'value' => (string) ($report->manpower_count ?? 0).' orang'],
+            $report->activities ? ['label' => 'Kegiatan', 'value' => mb_substr((string) $report->activities, 0, 200)] : null,
+        ]));
+    }
+
+    /** @return list<array{label: string, value: string}> */
+    private static function summarizeChangeOrder(ContractChangeOrder $order): array
+    {
+        $contract = $order->contract;
+
+        return array_values(array_filter([
+            ['label' => 'Kontrak', 'value' => trim(($contract?->code ?? '—').' — '.($contract?->title ?? ''))],
+            ['label' => 'Jenis perubahan', 'value' => $order->change_type?->label() ?? '—'],
+            $order->change_type === ChangeOrderType::Waktu
+                ? ['label' => 'Perubahan waktu', 'value' => sprintf('%+d hari', (int) $order->days_change)]
+                : ['label' => 'Nilai perubahan', 'value' => Money::format((float) $order->value_change)],
+            ['label' => 'Tanggal', 'value' => $order->change_date?->format('d-m-Y') ?? '—'],
+            $order->title ? ['label' => 'Uraian', 'value' => mb_substr((string) $order->title, 0, 200)] : null,
+        ]));
+    }
+
+    /** @return list<array{label: string, value: string}> */
+    private static function summarizeWorkPermit(WorkPermit $permit): array
+    {
+        $project = $permit->project;
+
+        return array_values(array_filter([
+            ['label' => 'Proyek', 'value' => trim(($project?->code ?? '—').' — '.($project?->name ?? ''))],
+            ['label' => 'Tanggal izin', 'value' => $permit->permit_date?->format('d-m-Y') ?? '—'],
+            ['label' => 'Shift', 'value' => ucfirst((string) ($permit->shift?->value ?? '—'))],
+            ['label' => 'Uraian pekerjaan', 'value' => mb_substr((string) $permit->work_description, 0, 200)],
+            ['label' => 'Berlaku', 'value' => sprintf(
+                '%s s/d %s',
+                $permit->valid_from?->format('d-m-Y H:i') ?? '—',
+                $permit->valid_until?->format('d-m-Y H:i') ?? '—',
+            )],
+            $permit->hazard_notes ? ['label' => 'Catatan bahaya', 'value' => mb_substr((string) $permit->hazard_notes, 0, 200)] : null,
+        ]));
+    }
+}

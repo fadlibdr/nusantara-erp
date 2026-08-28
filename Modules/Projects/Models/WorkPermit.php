@@ -17,10 +17,11 @@ use Modules\Projects\Enums\WorkShift;
  * One row is one permit for one shift's work. The F/IK sheet used to print as
  * a blank pad; it now prints FROM this row (FormPrintService::izinKerja).
  *
- * Approve = prj.approve, per the spec's own words. 🧪 Seam: bila patch spike
- * ExternalApprovableDocuments hadir, prj_work_permits masuk mode TRANSISI di
- * sana (MK menyetujui izin kerja berisiko tinggi) — lewat adapter service,
- * bukan trait.
+ * Approve = prj.approve, per the spec's own words. 🧪 Seam DITUNAIKAN (P0-F):
+ * prj_work_permits terdaftar di ExternalApprovableDocuments mode TRANSISI —
+ * MK menyetujui izin kerja berisiko tinggi lewat tautan sekali-pakai, dan
+ * keputusannya diterapkan WorkPermitService::applyExternalDecision (adapter
+ * service, bukan trait).
  */
 class WorkPermit extends BaseModel
 {

@@ -113,6 +113,11 @@ class CoreServiceProvider extends ServiceProvider
         Route::middleware('api')
             ->prefix('api/core')
             ->group(__DIR__.'/../Routes/api.php');
+
+        // Halaman keputusan MK/Owner (P0-F): rute web publik tanpa grup 'web'
+        // — tidak ada sesi yang perlu CSRF di halaman yang kapabilitasnya
+        // adalah token sekali-pakai di URL-nya. Lihat komentar Routes/web.php.
+        Route::group([], __DIR__.'/../Routes/web.php');
     }
 
     /**

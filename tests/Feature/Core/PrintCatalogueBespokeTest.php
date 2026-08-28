@@ -7,8 +7,8 @@ use Spatie\Permission\Models\Permission;
 use Tests\ErpTestCase;
 
 /**
- * Katalog cetak menjawab untuk SEMUA yang bisa dicetak endpoint-nya — 40,
- * bukan 33.
+ * Katalog cetak menjawab untuk SEMUA yang bisa dicetak endpoint-nya —
+ * jumlahnya dipaku di ujinya dan naik seiring formulir baru.
  *
  * Temuan T3 laporan v2: tujuh formulir rumah proyek hidup di
  * FormPrintService::FORMS dan dilayani print/forms/{slug}/{id}, tetapi tidak
@@ -24,7 +24,7 @@ class PrintCatalogueBespokeTest extends ErpTestCase
         'izin-kerja', 'izin-lembur', 'izin-material',
     ];
 
-    public function test_the_admin_catalogue_lists_all_forty_forms(): void
+    public function test_the_admin_catalogue_lists_every_form_the_endpoint_serves(): void
     {
         $rows = $this->actingAs($this->adminUser())
             ->getJson('api/core/print/forms')

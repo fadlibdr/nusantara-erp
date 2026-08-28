@@ -2,11 +2,14 @@
 
 namespace Modules\Projects\Services;
 
+use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Models\ExternalApproval;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WorkPermit;
 
@@ -64,6 +67,63 @@ class WorkPermitService
 
             return $permit;
         });
+    }
+
+    /**
+     * ADAPTER TRANSISI P0-F — keputusan eksternal MK menggerakkan izin ini.
+     *
+     * Dipanggil ExternalApprovalService::afterDecision lewat hook registri
+     * ExternalApprovableDocuments (mode transisi), DI DALAM transaksi
+     * keputusan: penolakan di sini menggulung pencatatan keputusannya ikut —
+     * tidak ada "tercatat tetapi tidak diterapkan" yang setengah benar, dan
+     * tautannya tetap belum terpakai.
+     *
+     * ATURANNYA, diputuskan tertulis: transisi dijalankan ATAS NAMA PENERBIT
+     * TAUTAN (issued_by) sebagai proksi internal — keputusan pemilik #6
+     * mempertahankan proksi, dan MK bukan baris users. Karena identitas
+     * penerbit ikut, maker-checker jatuh pada mekanisme rumah yang sudah ada:
+     * trait Approvable menolak approve oleh pengaju dokumen, maka tautan yang
+     * diterbitkan si pengaju sendiri TIDAK BISA menyetujui dokumennya —
+     * penerbitan semacam itu sudah ditolak di ExternalApprovalService::issue,
+     * dan pemeriksaan di sini menahan sisa celahnya (pengaju berganti lewat
+     * reject-resubmit di antara terbit dan klik). Baris core_approvals memuat
+     * user penerbit dengan catatan yang menyebut keputusan eksternal dan
+     * pemutus aslinya; bukti SIAPA yang sesungguhnya memutuskan hidup di
+     * core_external_approvals.
+     *
+     * Setuju dan setuju-dengan-catatan sama-sama APPROVE (catatan menempel di
+     * note); tolak = REJECT. Trait yang menegakkan status submitted — izin
+     * yang kadung digerakkan proksi internal menolak di sini dengan kalimat
+     * trait, dan halaman publik menerjemahkannya jujur.
+     */
+    public function applyExternalDecision(WorkPermit $permit, ExternalApproval $approval): WorkPermit
+    {
+        $issuer = $approval->issued_by === null ? null : User::query()->find($approval->issued_by);
+
+        if ($issuer === null) {
+            throw new LogicException(sprintf(
+                'Keputusan eksternal atas izin %s tidak dapat diterapkan: penerbit tautannya tidak dikenal, '
+                    .'padahal transisi dijalankan atas nama penerbit.',
+                $permit->code,
+            ));
+        }
+
+        /** @var WorkPermit $locked */
+        $locked = WorkPermit::query()->whereKey($permit->getKey())->lockForUpdate()->firstOrFail();
+
+        $note = sprintf(
+            'Keputusan eksternal %s: %s — %s%s, via %s.%s',
+            $approval->partyLabel(),
+            $approval->decision?->label(),
+            $approval->name,
+            filled($approval->organization) ? " ({$approval->organization})" : '',
+            $approval->decided_via === ExternalApproval::VIA_PHYSICAL ? 'lembar fisik' : 'tautan',
+            filled($approval->decision_notes) ? " Catatan: {$approval->decision_notes}" : '',
+        );
+
+        return $approval->decision?->isApproval() === true
+            ? $locked->approve($issuer, $note)
+            : $locked->reject($issuer, $note);
     }
 
     // ---------------------------------------------------------------- rules
