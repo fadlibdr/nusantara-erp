@@ -31,6 +31,9 @@ class Contract extends BaseModel
             'sign_date' => 'date',
             'start_date' => 'date',
             'end_date' => 'date',
+            // Set once by the first approved addendum waktu, mirroring
+            // original_value — null means "never extended".
+            'original_end_date' => 'date',
             'retention_pct' => 'decimal:4',
             'warranty_months' => 'integer',
             'status' => DocumentStatus::class,

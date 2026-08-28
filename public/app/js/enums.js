@@ -41,8 +41,20 @@ export const ENUMS = {
   ]),
   /* Jenis CCO (temuan #61) — eskalasi harga menggerakkan nilai lewat jalur CCO
      yang sama dengan pekerjaan tambah-kurang; yang dibedakan makna jejak
-     auditnya, bukan hitungannya (tidak ada mesin formula indeks). */
-  ccoChangeType: opts([['tambah_kurang', 'Tambah-Kurang'], ['eskalasi_harga', 'Eskalasi Harga']]),
+     auditnya, bukan hitungannya (tidak ada mesin formula indeks). 'waktu'
+     (P0-B) menggeser TANGGAL SELESAI kontrak dan bukan nilainya: value_change
+     wajib 0, harinya lewat days_change (bertanda), dan tanggal barunya
+     dihitung server saat disetujui — tidak pernah diinput. */
+  ccoChangeType: opts([
+    ['tambah_kurang', 'Tambah-Kurang'], ['eskalasi_harga', 'Eskalasi Harga'],
+    ['waktu', 'Addendum Waktu'],
+  ]),
+  /* Cermin Modules\Subcontract\Enums\AddendumChangeType — sengaja enum PHP
+     sendiri dan TANPA 'waktu': addendum SPK hanya menggerakkan nilai, dan
+     servernya menolak 'waktu' dengan 422. Pola projectStatusEditable: daftar
+     tersaring untuk layar yang pilihannya lebih sempit daripada padanannya,
+     supaya form tidak menawarkan jenis yang pasti ditolak. */
+  spkAddendumType: opts([['tambah_kurang', 'Tambah-Kurang'], ['eskalasi_harga', 'Eskalasi Harga']]),
   activeStatus: opts([['active', 'Aktif'], ['inactive', 'Nonaktif']]),
   certificateType: opts([['skk', 'SKK Konstruksi'], ['k3', 'Sertifikat K3/AK3'], ['principal', 'Sertifikasi Principal'], ['lainnya', 'Lainnya']]),
   guaranteeType: opts([

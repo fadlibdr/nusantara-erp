@@ -940,30 +940,61 @@ daftar Pekerjaan Tambah-Kurang.
 ### 3.7 Pekerjaan Tambah-Kurang — `Penjualan › Pekerjaan Tambah-Kurang`
 
 Kolom: Kode · Judul (dengan kode kontrak) · Tanggal · **Jenis** · **Perubahan nilai**
-(bertanda — negatif berarti pekerjaan kurang) · Status. Nomor `CCO/…`.
+(bertanda — negatif berarti pekerjaan kurang) · **Perubahan waktu** (hari, bertanda —
+terisi hanya pada addendum waktu) · **Selesai baru** (terisi begitu addendum waktunya
+disetujui) · Status. Nomor `CCO/…`.
 
-Jenis: **Tambah-Kurang** dan **Eskalasi Harga**.
+Jenis: **Tambah-Kurang**, **Eskalasi Harga**, dan **Addendum Waktu**. Dua yang pertama
+menggerakkan nilai kontrak; **Addendum Waktu menggeser tanggal selesai kontrak dan
+tidak menyentuh rupiah** — waktu dan nilai tidak pernah bergerak di satu lembar.
 
 **Mencatat pekerjaan tambah-kurang:**
 
 1. **`Tambah Pekerjaan Tambah-Kurang`**.
 2. Isi **Kontrak** (wajib), **Tanggal** (wajib), **Judul** (wajib), **Jenis perubahan**
-   (bantuan: *"Pilih 'Eskalasi Harga' untuk penyesuaian indeks kontrak multi-tahun —
-   bukan pekerjaan tambah/kurang."*), **Perubahan nilai** (wajib, **tidak boleh 0**;
-   bantuan: *"Positif untuk pekerjaan tambah, negatif untuk pekerjaan kurang."*),
-   Sebab, No. CCO pelanggan, Uraian.
+   (bantuan: *"Pilih 'Eskalasi Harga' untuk penyesuaian indeks kontrak multi-tahun;
+   'Addendum Waktu' (P0-B) menggeser tanggal selesai, bukan nilai."*), **Perubahan
+   nilai** (wajib; **tidak boleh 0** pada CCO nilai, **wajib 0** pada Addendum Waktu;
+   bantuan: *"Positif untuk pekerjaan tambah, negatif untuk pekerjaan kurang. Untuk
+   Addendum Waktu isi 0 — waktu dan nilai tidak pernah bergerak di satu lembar."*),
+   **Perubahan waktu (hari)** (hanya untuk Addendum Waktu — bertanda, tidak boleh 0;
+   bantuan: *"Hanya untuk Addendum Waktu: bertanda dan tidak boleh 0 — negatif
+   memendekkan. Kosongkan pada jenis lain."*), Sebab, No. CCO pelanggan, Uraian.
 3. **`Simpan`**, lalu **`Ajukan`**.
 
 Ditolak bila kontraknya belum disetujui:
 > "Kontrak {kode} berstatus {status}. Pekerjaan tambah-kurang hanya berlaku atas kontrak
 > yang sudah disetujui — ubah nilainya langsung selama masih draf."
 
+**Mencatat addendum waktu** memakai langkah yang sama dengan Jenis perubahan **Addendum
+Waktu**: Perubahan nilai diisi **0**, **Perubahan waktu (hari)** diisi — bertanda,
+negatif berarti pengurangan waktu. **Tanggal selesai barunya tidak pernah diketik**:
+sistem menghitungnya dari tanggal selesai kontrak berjalan + hari **saat addendum
+disetujui**, lalu menampilkannya di kolom Selesai baru. Penolakan yang menegakkannya:
+
+- Perubahan nilai selain 0 pada Addendum Waktu:
+  `"Addendum waktu tidak memindahkan nilai — value_change wajib 0."`
+- Perubahan waktu diisi pada jenis lain:
+  `"days_change hanya bermakna pada addendum waktu (change_type waktu)."`
+- Klien yang mencoba mengirim tanggal selesai baru:
+  `"new_end_date dihitung sistem saat addendum disetujui — tanggal selesai kontrak
+  berjalan + days_change — bukan diinput."`
+- Kontrak yang kolom Selesai-nya kosong:
+  `"Kontrak {kode} tidak memiliki tanggal selesai — addendum waktu tidak punya dasar
+  untuk digeser."`
+- Proyek kontraknya sudah lewat serah terima (Masa Pemeliharaan atau Ditutup) —
+  diperiksa saat membuat dan diperiksa ulang saat menyetujui:
+  `"Proyek {kode} berstatus {status}; addendum waktu hanya berlaku atas pekerjaan yang
+  masih berjalan — perpanjangan setelah serah terima adalah instrumen lain."`
+  Proyek **Ditangguhkan** justru diterima — penangguhan adalah alasan paling lazim
+  sebuah addendum waktu ditandatangani.
+
 **Tombol `Ubah` pada CCO yang sudah tersimpan akan gagal.** Formulir mengirim kembali
 kolom Kontrak, sementara server menolak kolom itu saat memperbarui — hasilnya galat
 pemeriksaan pada isian Kontrak, **pada status apa pun termasuk Draf**. Selama ini belum
 diperbaiki: **CCO yang salah harus dihapus selagi masih Draf dan diketik ulang.**
 
-**Menyetujui CCO langsung menggerakkan nilai kontrak.** Nilai tanda tangan dicatat
+**Menyetujui CCO nilai langsung menggerakkan nilai kontrak.** Nilai tanda tangan dicatat
 sekali, `Nilai (DPP)` kontrak menjadi nilai + perubahan, PPN dan total dihitung ulang,
 dan **nilai kontrak yang tersalin ke layar proyek ikut diperbarui**. Notifikasi di layar
 hanya `Setujui berhasil.` (§2.5) — nilai barunya dibaca di halaman kontrak, bukan dari
@@ -973,12 +1004,33 @@ Penolakan saat menyetujui:
 `"Nilai kontrak setelah perubahan ({angka}) lebih kecil daripada yang sudah ditagihkan
 ({angka})."` · `"Nilai kontrak tidak boleh menjadi negatif."`
 
+**Menyetujui addendum waktu menggeser tanggal selesai kontrak DAN proyeknya.** Tanggal
+selesai tanda tangan dicatat sekali pada addendum waktu pertama — halaman kontrak tidak
+menampilkannya (kolom Selesai selalu tanggal **sekarang**, persis seperti Nilai (DPP)
+pada CCO nilai); yang mencetaknya adalah baris "Tanggal selesai kontrak sesuai tanda
+tangan" pada lembar addendumnya. Kolom Selesai kontrak menjadi tanggal berjalan + hari,
+dan tanggal selesai pada layar proyek ikut digeser. Tanggal hasilnya distempel ke
+CCO-nya: kolom **Selesai baru** di daftar, **Tanggal selesai baru** di halamannya.
+Addendum berikutnya menumpuk — dihitung dari tanggal yang sudah tergeser, bukan dari
+tanggal tanda tangan. Notifikasi di layar tetap `Setujui berhasil.` (§2.5); tanggal
+barunya dibaca dari kolom Selesai baru, bukan dari notifikasi.
+
+Penolakan tambahan saat menyetujui, bila pengurangan waktu kebablasan:
+`"Pengurangan {angka} hari menggeser tanggal selesai menjadi {tanggal} — mendahului
+tanggal mulai kontrak ({tanggal})."`
+
+**Addendum waktu yang disetujui bersifat final** — CCO tidak punya tombol batal.
+Kekeliruan dikoreksi dengan addendum waktu kedua berhari negatif, yang diterima
+seperti addendum lainnya.
+
 **Menyetujui CCO TIDAK membuat termin.** Nilai tambah yang tidak dijadwalkan tidak punya
 Rencana tagih, tidak masuk antrean Termin Siap Ditagih, dan tidak muncul di Tenggat.
 Jalankan langkah berikut segera setelah persetujuan, atau nilai tambahnya akan terlupa:
 
 **Menjadwalkan nilai tambah.** Tombol **`Jadwalkan Termin Nilai Tambah`** muncul pada CCO
-yang **Disetujui, bernilai positif, dan belum pernah dijadwalkan**. Isiannya:
+yang **Disetujui, bernilai positif, bukan addendum waktu, dan belum pernah dijadwalkan**
+— pada addendum waktu ia tidak pernah muncul, tidak ada nilai untuk dijadwalkan.
+Isiannya:
 **Rencana tagih** (tanggal, **wajib**; bantuan: *"Termin masuk antrean siap tagih begitu
 tanggal ini lewat."*) dan **Nama termin** (opsional; *"Kosongkan untuk 'Pekerjaan tambah
 <kode CCO>'."*).
@@ -998,6 +1050,8 @@ Penolakan `Jadwalkan Termin Nilai Tambah`:
 
 - `"Perubahan {kode} berstatus {status}; hanya perubahan yang sudah disetujui yang
   nilainya masuk kontrak — dan hanya nilai itu yang bisa dijadwalkan."`
+- `"Addendum waktu {kode} tidak membawa nilai — tidak ada yang dijadwalkan untuk
+  ditagih."`
 - `"Perubahan {kode} bernilai {angka}; pekerjaan kurang mengurangi sisa yang boleh
   ditagih, bukan menambah jadwal — tidak ada termin baru untuk dijadwalkan."`
 - `"Nilai tambah {kode} sudah dijadwalkan sebagai termin {no} (\"{nama}\") — satu
@@ -1015,6 +1069,13 @@ jejak auditnya; nilainya dihitung di luar aplikasi dan diketik ke kolom Perubaha
 **tanggal perubahan**, bukan hari mencetak. Tabel nilainya berisi empat baris: nilai
 kontrak sesuai tanda tangan, nilai perubahan, PPN atas perubahan, dan nilai kontrak
 sesudahnya — baris terakhir **hanya terisi bila CCO sudah disetujui**.
+
+**CCO berjenis `waktu` mencetak lembar yang berbeda dari tombol yang sama**: judulnya
+BERITA ACARA ADDENDUM WAKTU, tanpa pad rincian dan tanpa baris nilai (addendum waktu
+tidak menggerakkan rupiah). Sebagai gantinya tabel PERUBAHAN WAKTU PELAKSANAAN: tanggal
+selesai sesuai tanda tangan, perubahan hari (bertanda), lalu tanggal selesai sesudah
+disetujui — pada draf, baris terakhir memuat tanggal selesai **berjalan** dan berbunyi
+"belum disetujui", tidak pernah tanggal proyeksi yang belum disepakati siapa pun.
 
 ### 3.8 Jaminan & Asuransi — `Penjualan › Jaminan & Asuransi`
 
@@ -2976,8 +3037,12 @@ hari mencetak.
 laporan lama tanpa satu pun baris tabel tercetak persis seperti sebelum tabel-tabelnya
 ada. Catatan kaki *"Diisi manual di lapangan"* di kaki lembar kini menyebut **hanya
 tabel yang masih manual pada laporan itu** — laporan yang seluruh tabelnya terisi tidak
-membawa catatan kaki sama sekali. **PERPANJANGAN WAKTU I/II pada kop tetap tercetak
-BERGARIS KOSONG untuk diisi tangan** — ERP belum mencatat addendum waktu di mana pun.
+membawa catatan kaki sama sekali. **PERPANJANGAN WAKTU I/II pada kop kini tercetak dari
+addendum waktu yang DISETUJUI** pada kontrak proyeknya (CCO berjenis `waktu`, §3.7):
+dua addendum pertama urut tanggal perubahan, format
+`+14 hari → 14 Agu 2027 (CCO/2026/VIII/0003)`; addendum ketiga dst membuat baris II
+berbunyi `lihat register` — tidak pernah dipotong diam-diam. Kontrak tanpa addendum
+waktu yang disetujui tetap mencetak kedua baris BERGARIS KOSONG, persis seperti dulu.
 
 **BAST I yang disetujui MENGUNCI laporan harian.** Saat BAST I disetujui, seluruh
 laporan proyek itu yang bertanggal sampai dengan tanggal serah terima terkunci: tombol
@@ -3535,12 +3600,14 @@ bulan itu, enam kolom hari Senin–Sabtu. Baris = pohon WBS.
 
 **Kop empat pihak** sama di ketujuhnya: PEMILIK (nama pelanggan) / KONSULTAN MK / PROYEK /
 KONTRAKTOR, lalu NO. SPK / KONTRAK (nomor kontrak **milik pelanggan** lebih dulu) ·
-TANGGAL SPK · WAKTU PELAKSANAAN · **PERPANJANGAN WAKTU I & II (selalu kosong — sistem
-tidak menyimpan perpanjangan waktu)** · PERIODE · TANGGAL · MINGGU KE · HARI KE · SISA
-HARI. Ketiga angka terakhir kosong bila proyek belum punya tanggal.
+TANGGAL SPK · WAKTU PELAKSANAAN · **PERPANJANGAN WAKTU I & II (dari addendum waktu yang
+disetujui — kosong bila kontraknya tidak punya)** · PERIODE · TANGGAL · MINGGU KE ·
+HARI KE · SISA HARI. Ketiga angka terakhir kosong bila proyek belum punya tanggal.
 
-**Tidak ada tempat mencatat perpanjangan waktu (adendum waktu) di mana pun** — pekerjaan
-tambah-kurang hanya menyimpan perubahan nilai, tidak ada kolom hari.
+**Perpanjangan waktu dicatat sebagai CCO berjenis `waktu`** (§3.7). Yang DISETUJUI
+tercetak pada kedua baris kop, urut tanggal perubahan, format
+`+14 hari → 14 Agu 2027 (CCO/2026/VIII/0003)`; addendum ketiga dst membuat baris II
+berbunyi `lihat register`. Draf, yang ditolak, dan CCO nilai tidak pernah mencapai kop.
 
 ---
 
@@ -5257,7 +5324,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 |---|---|---|
 | Surat Penawaran Harga | F/PN | halaman Penawaran |
 | Ringkasan Kontrak | F/RK | halaman Kontrak |
-| Berita Acara Pekerjaan Tambah / Kurang | F/BATK | halaman Pekerjaan Tambah-Kurang |
+| Berita Acara Pekerjaan Tambah / Kurang — CCO berjenis waktu tercetak **BERITA ACARA ADDENDUM WAKTU** dari tombol yang sama (§3.7) | F/BATK | halaman Pekerjaan Tambah-Kurang |
 | Register Jaminan & Asuransi (mendatar) | F/RJ | halaman Jaminan — mencetak **seluruh jaminan kontrak itu** |
 
 **Estimasi** (izin lihat estimasi):
@@ -5371,9 +5438,9 @@ Yang paling sering ditemui:
 | Surat Penawaran Harga | blok **SYARAT & KETENTUAN**, 4 baris | sistem tidak menyimpan syarat penjualan |
 | SPK Subkontraktor | **TERMIN PEMBAYARAN** | SPK tidak menyimpan jadwal pembayaran apa pun; termin bayar vendor bukan syarat SPK ini |
 | Laporan Harian | hanya sel yang laporannya tidak mencatat: jabatan tanpa baris, tabel tanpa baris (termasuk semua laporan lama), catatan kosong di dalam baris uraian, jam kerja yang tidak diisi | keempat tabel FM-10-12 dan jam kerja kini punya sumber di layar Laporan Harian (§7.3); catatan kaki lembarnya menyebut hanya tabel yang masih manual pada laporan itu |
-| Semua kop proyek | **PERPANJANGAN WAKTU I & II** | tidak ada tempat mencatat adendum waktu di mana pun |
+| Semua kop proyek | **PERPANJANGAN WAKTU I & II** — hanya pada kontrak tanpa addendum waktu yang disetujui | addendum waktu (CCO jenis `waktu`, §3.7) yang disetujui kini mengisi kedua baris; mulai addendum ketiga baris II berbunyi `lihat register`, tidak pernah dipotong diam-diam |
 | Izin Kerja Lapangan / Lembur / Material | **seluruh badan lembar** | sistem tidak menyimpan satu pun data izin lapangan |
-| Berita Acara Tambah-Kurang | baris **nilai kontrak sesudahnya** | hanya terisi bila CCO-nya sudah disetujui |
+| Berita Acara Tambah-Kurang | baris **nilai kontrak sesudahnya** | hanya terisi bila CCO-nya sudah disetujui; lembar addendum waktu tidak punya baris nilai sama sekali — baris tanggal selesainya berbunyi "belum disetujui" selama draf (§3.7) |
 | Detail Schedule | **batang rencana** | hanya diarsir bila ada baseline yang disetujui |
 | Kop empat pihak | kotak **KONSULTAN MK** dan kolom tanda tangannya | kosong bila kolom Konsultan pada proyek belum diisi (§7.2) |
 

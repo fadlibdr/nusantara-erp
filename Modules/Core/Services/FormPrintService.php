@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Modules\Core\Models\Company;
 use Modules\Core\Support\PrintableDocuments;
+use Modules\Crm\Models\Contract;
+use Modules\Crm\Models\ContractChangeOrder;
+use Modules\Crm\Services\CrmFormService;
 use Modules\Projects\Enums\DefectSeverity;
 use Modules\Projects\Enums\DefectStatus;
 use Modules\Projects\Models\DailyReport;
@@ -37,12 +40,13 @@ use Modules\Projects\Services\LaporanFormService;
  * disagree about which day of the contract today is.
  *
  * THE RULE THAT MATTERS MOST HERE — a form is signed by three parties and
- * filed as the project record. Half the cells on the paper have no counterpart
- * anywhere in this ERP: manpower by role per day, material ditolak, alat yang
- * digunakan, jam kerja, perpanjangan waktu. The paper leaves those as dotted
- * lines for the site to fill in by hand, and so does this. A cell is printed
- * from the database or it is printed as a ruled blank. There is no third
- * option, and in particular there is no plausible-looking default.
+ * filed as the project record. Many cells on the paper have no counterpart in
+ * this ERP (the three izin bodies; every laporan table cell whose report
+ * predates the P0-A line tables; perpanjangan waktu on a contract with no
+ * approved addendum). The paper leaves those as dotted lines for the site to
+ * fill in by hand, and so does this. A cell is printed from the database or it
+ * is printed as a ruled blank. There is no third option, and in particular
+ * there is no plausible-looking default.
  */
 class FormPrintService
 {
@@ -173,6 +177,18 @@ class FormPrintService
     ];
 
     /**
+     * The abbreviated months of the kop's PERPANJANGAN WAKTU lines — "14 Agu
+     * 2027", the format the P0-B spec fixes for a line that packs a day
+     * count, a date and a document number into one identity cell. Only there:
+     * every other date on every form stays spelled out through MONTHS above
+     * (and F/BATK's own time table spells its months in full).
+     */
+    private const MONTHS_SHORT = [
+        1 => 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+    ];
+
+    /**
      * The form as a standalone HTML document, ready for the print dialog.
      *
      * $context is the URL: ['id' => 12, 'date' => '2026-06-15', 'week' => 24].
@@ -278,6 +294,7 @@ class FormPrintService
         $date = $this->toDate($options['date'] ?? null) ?? Carbon::now()->startOfDay();
         $schedule = $this->schedule($project, $date);
         $consultantRole = trim((string) ($project->consultant_role ?? '')) ?: 'Konsultan MK';
+        $extensions = $this->timeExtensionLines($contract);
 
         return [
             // The band across the top. Four boxes on the paper, four boxes here
@@ -303,11 +320,12 @@ class FormPrintService
                 ['label' => 'NO. SPK / KONTRAK', 'value' => $contract?->contract_number_customer ?: $contract?->code],
                 ['label' => 'TANGGAL SPK', 'value' => $this->date($contract?->sign_date)],
                 ['label' => 'WAKTU PELAKSANAAN', 'value' => $this->executionWindow($project, $schedule)],
-                // Nothing in this ERP records a time extension —
-                // crm_contract_change_orders carries value_change and no days at
-                // all — so both lines are hand-filled, exactly as on the paper.
-                ['label' => 'PERPANJANGAN WAKTU I', 'value' => null],
-                ['label' => 'PERPANJANGAN WAKTU II', 'value' => null],
+                // P0-B: the first two APPROVED addendum waktu of the contract,
+                // in change-date order — see timeExtensionLines() for why a
+                // third makes line II read "lihat register". No approved
+                // addendum leaves the ruled blanks the paper has always had.
+                ['label' => 'PERPANJANGAN WAKTU I', 'value' => $extensions[0]],
+                ['label' => 'PERPANJANGAN WAKTU II', 'value' => $extensions[1]],
                 ['label' => 'PERIODE', 'value' => $options['period'] ?? $this->date($date)],
                 ['label' => 'TANGGAL', 'value' => $this->date($date)],
                 ['label' => 'MINGGU KE', 'value' => $schedule['weekNo'] === null ? null : (string) $schedule['weekNo']],
@@ -556,6 +574,76 @@ class FormPrintService
 
         return $this->date($project->start_date).' s/d '.$this->date($project->end_date)
             .' ('.$schedule['totalDays'].' hari kalender)';
+    }
+
+    /**
+     * The kop's two PERPANJANGAN WAKTU lines (P0-B).
+     *
+     * WHICH rows may reach a letterhead is the module's decision and lives in
+     * CrmFormService::approvedTimeExtensions — approved only, change-date
+     * order, each row quoting the new_end_date its own approval stamped. That
+     * method hands over EVERY row; the paper's two lines are the layout
+     * decision made here:
+     *
+     *   one row   — line I, line II stays the ruled blank;
+     *   two rows  — lines I and II;
+     *   three+    — line I, and line II reads "lihat register". The paper has
+     *               no third line, and a kop that showed I and II while a
+     *               third approval exists would be read as the WHOLE story —
+     *               "+21 hari in total" — by three parties signing under it.
+     *               Naming the register is honest; truncating silently is not.
+     *
+     * No approved addendum (or no contract at all) leaves both lines null —
+     * the ruled blanks the paper has always had, byte-identical to the sheets
+     * printed before this paket.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function timeExtensionLines(?Contract $contract): array
+    {
+        if ($contract === null) {
+            return [null, null];
+        }
+
+        $extensions = app(CrmFormService::class)->approvedTimeExtensions($contract);
+        $first = $extensions->first();
+
+        return [
+            $first === null ? null : $this->timeExtensionLine($first),
+            match (true) {
+                $extensions->count() < 2 => null,
+                $extensions->count() === 2 => $this->timeExtensionLine($extensions[1]),
+                default => 'lihat register',
+            },
+        ];
+    }
+
+    /**
+     * One extension as the kop states it: "+14 hari → 14 Agu 2027
+     * (CCO/2026/VIII/0003)". The signed day count (a pengurangan prints its
+     * minus), the stamped new_end_date — quoted, never re-derived — and the
+     * document number the register files the sheet's authority under.
+     */
+    private function timeExtensionLine(ContractChangeOrder $extension): string
+    {
+        return sprintf(
+            '%+d hari → %s (%s)',
+            (int) $extension->days_change,
+            $this->shortDate($extension->new_end_date),
+            $extension->code,
+        );
+    }
+
+    /** "14 Agu 2027" — the kop lines only; every other date stays spelled out. */
+    private function shortDate($value): string
+    {
+        $date = $this->toDate($value);
+
+        if ($date === null) {
+            return '';
+        }
+
+        return $date->format('d').' '.self::MONTHS_SHORT[(int) $date->format('n')].' '.$date->format('Y');
     }
 
     /**
@@ -1244,7 +1332,12 @@ class FormPrintService
             // from it; null is ordinary here — most documents have no project.
             'project' => $project,
             'header' => $header,
-            'formTitle' => $definition['formTitle'],
+            // Through caption(): a plain string prints as written (which every
+            // entry but one declares), and the one slug that serves two
+            // instruments resolves its title off the record — a berita acara
+            // addendum waktu headed PEKERJAAN TAMBAH / KURANG would misname
+            // the instrument three parties sign.
+            'formTitle' => $this->caption($definition['formTitle'], $record),
             'formCode' => $definition['formCode'],
             'orientation' => $definition['orientation'] === 'landscape' ? 'landscape' : 'portrait',
             'tables' => $this->registryTables($definition, $record),
@@ -1536,6 +1629,18 @@ class FormPrintService
         $tables = [];
 
         foreach ($definition['body'] as $table) {
+            /*
+             * 'when' — a VALUE SPEC deciding whether this table belongs on
+             * THIS record's sheet at all (P0-B). The layout branch for a slug
+             * that serves two instruments: F/BATK prints money tables on a
+             * tambah-kurang and the time table on an addendum waktu, and a
+             * skipped table leaves no trace — no empty grid asserting columns
+             * the instrument does not have. Absent = always printed.
+             */
+            if (array_key_exists('when', $table) && ! $this->resolve($table['when'], $record)) {
+                continue;
+            }
+
             $rows = [];
             $source = $this->resolve($table['rows'] ?? null, $record);
 

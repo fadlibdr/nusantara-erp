@@ -24,7 +24,8 @@ use Tests\Unit\Subcontract\SubcontractFixtures;
  *   vendor's payment_term_days is a MASTER-DATA default for invoices, not a
  *   term of this SPK — printing it under "termin pembayaran" would put a
  *   contract term on a signed sheet that nobody agreed to. Ruled for the pen,
- *   exactly as PERPANJANGAN WAKTU is on the house block.
+ *   exactly as PERPANJANGAN WAKTU is on the house block of a contract with no
+ *   approved addendum waktu.
  *
  *   PPN ON A NON-PKP SUBCONTRACTOR. ppn_rate 0 is not an unknown: the
  *   migration says it is 0 precisely when the vendor is not PKP. A ruled blank
@@ -170,7 +171,8 @@ class SubcontractPrintTest extends ErpTestCase
     /**
      * On the CELL, because the sheet is full of rules for other reasons.
      *
-     * An SPK's house identity block rules PERPANJANGAN WAKTU on every copy and
+     * An SPK's house identity block rules PERPANJANGAN WAKTU on every copy of
+     * a job without approved addendum waktu (all of this file's jobs) and
      * the notes block rules two more lines, so
      * assertStringContainsString('fill-line') is true of every SPK ever
      * printed — it stayed true with TERMIN PEMBAYARAN printing the words

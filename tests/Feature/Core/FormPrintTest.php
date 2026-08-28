@@ -239,12 +239,6 @@ class FormPrintTest extends ErpTestCase
     }
 
     /**
-     * Nothing in this ERP records a time extension — crm_contract_change_orders
-     * carries value_change and no days at all. The paper leaves the two
-     * PERPANJANGAN WAKTU lines empty for the site to write on, so the printed
-     * form does too.
-     */
-    /**
      * The band and the identity block survive a tidied-up customer row.
      *
      * These four relations are loaded ONCE, in the shared house header, on
@@ -291,6 +285,11 @@ class FormPrintTest extends ErpTestCase
         $this->assertStringContainsString('Pengembangan Bandar Udara Sultan Hasanudin', $before);
     }
 
+    /**
+     * Since P0-B the two PERPANJANGAN WAKTU lines print approved addendum
+     * waktu (FormPrintKopWaktuTest owns that side); this contract has none, so
+     * both lines keep the ruled blank the paper has always had.
+     */
     public function test_a_field_the_erp_does_not_know_prints_as_a_ruled_blank(): void
     {
         $html = $this->forms->html('data-proyek', ['id' => $this->project()->id]);

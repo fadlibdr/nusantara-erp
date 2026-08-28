@@ -9,9 +9,12 @@ use Illuminate\Support\Str;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\Erp;
+use Modules\Crm\Enums\ChangeOrderType;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\ContractTermin;
+use Modules\Projects\Enums\ProjectStatus;
+use Modules\Projects\Services\ProjectService;
 
 /**
  * Change orders against a signed contract.
@@ -24,6 +27,14 @@ use Modules\Crm\Models\ContractTermin;
  * Existing termins are never modified. A schedule whose early milestones are
  * already invoiced cannot be re-spread without restating what was billed, so
  * added scope is billed through new termins rather than by moving percentages.
+ *
+ * ADDENDUM WAKTU (P0-B) rides the same document: a CCO of type 'waktu' moves
+ * the contract's END DATE and nothing else. Time and money never move on the
+ * same sheet — value_change is required to be exactly 0 — because a combined
+ * addendum would make "what did this CCO do" a two-part answer no register
+ * column can hold. new_end_date is computed at approval from the contract's
+ * CURRENT end_date, so sequential addenda stack; original_end_date is written
+ * once by the first approval, mirroring original_value.
  */
 class ContractChangeOrderService
 {
@@ -43,9 +54,22 @@ class ContractChangeOrderService
                 );
             }
 
+            $this->assertComputedDateNotInput($data);
+
+            if ($this->typeOf($data) === ChangeOrderType::Waktu) {
+                // The screen may simply omit the money field on a time sheet.
+                $data['value_change'] = $data['value_change'] ?? 0;
+                $this->assertTimeAddendum($contract, (float) $data['value_change'], $data['days_change'] ?? null);
+            } elseif (($data['days_change'] ?? null) !== null) {
+                throw new LogicException(
+                    'days_change hanya bermakna pada addendum waktu — perubahan nilai tidak menggeser tanggal; '
+                    .'waktu dan nilai diubah lewat dua CCO terpisah.'
+                );
+            }
+
             $order = new ContractChangeOrder(Arr::only($data, [
                 'contract_id', 'change_date', 'title', 'description',
-                'reason', 'change_type', 'value_change', 'customer_ref',
+                'reason', 'change_type', 'value_change', 'days_change', 'customer_ref',
             ]));
 
             $order->ppn_change = $this->ppnFor($contract, (float) $data['value_change']);
@@ -59,10 +83,23 @@ class ContractChangeOrderService
     public function update(ContractChangeOrder $order, array $data): ContractChangeOrder
     {
         $this->assertEditable($order);
+        $this->assertComputedDateNotInput($data);
 
         $order->fill(Arr::only($data, [
-            'change_date', 'title', 'description', 'reason', 'change_type', 'value_change', 'customer_ref',
+            'change_date', 'title', 'description', 'reason', 'change_type', 'value_change', 'days_change', 'customer_ref',
         ]));
+
+        // The RESULTING combination is what must hold — an edit that switches
+        // a draft to 'waktu' must also zero its value, and one that switches
+        // away must clear days_change (send null; 'prohibited' allows empty).
+        if ($order->change_type === ChangeOrderType::Waktu) {
+            $order->days_change = $order->days_change === null ? null : (int) $order->days_change;
+            $this->assertTimeAddendum($order->contract, (float) $order->value_change, $order->days_change);
+        } elseif ($order->days_change !== null) {
+            throw new LogicException(
+                'days_change hanya bermakna pada addendum waktu — kosongkan saat mengubah jenis perubahan.'
+            );
+        }
 
         if (array_key_exists('value_change', $data)) {
             $order->ppn_change = $this->ppnFor($order->contract, (float) $data['value_change']);
@@ -96,6 +133,10 @@ class ContractChangeOrderService
 
             /** @var Contract $contract */
             $contract = Contract::query()->whereKey($order->contract_id)->lockForUpdate()->firstOrFail();
+
+            if ($order->change_type === ChangeOrderType::Waktu) {
+                return $this->approveTimeAddendum($order, $contract, $by, $note);
+            }
 
             $change = round((float) $order->value_change, 2);
             $newValue = round((float) $contract->value + $change, 2);
@@ -153,6 +194,61 @@ class ContractChangeOrderService
         });
     }
 
+    /**
+     * Approve an addendum waktu: shift the contract's end date, and the
+     * project's copy of it, by days_change.
+     *
+     * Runs inside approve()'s transaction, on rows already re-read under lock.
+     *
+     * new_end_date is computed HERE, from the end_date the locked row carries
+     * NOW — which is what makes sequential addenda stack: the second one
+     * builds on the date the first already shifted, never on the signing-day
+     * date. It is stamped onto the CCO row so the printed register and the kop
+     * quote a recorded fact instead of re-deriving one.
+     *
+     * The project side goes through ProjectService::shiftEndDateForContract —
+     * its own locked re-read, and the warranty/closed gate lives there, beside
+     * the write it protects. A refusal rolls this whole approval back.
+     *
+     * There is no cancel path for a CCO (Approvable knows submit, approve and
+     * reject; DocumentStatus::Cancelled belongs to Finance documents), so an
+     * approved addendum is final — the undo instrument is a counter-addendum
+     * with negative days, which this method accepts like any other.
+     */
+    private function approveTimeAddendum(ContractChangeOrder $order, Contract $contract, User $by, ?string $note): ContractChangeOrder
+    {
+        // Defense in depth: create/update refuse these combinations, but this
+        // method is the one that writes, and rows can predate the rules.
+        $this->assertTimeAddendum($contract, (float) $order->value_change, $order->days_change);
+
+        $days = (int) $order->days_change;
+        $newEnd = $contract->end_date->copy()->addDays($days);
+
+        if ($contract->start_date !== null && $newEnd->lt($contract->start_date)) {
+            throw new LogicException(sprintf(
+                'Pengurangan %d hari menggeser tanggal selesai menjadi %s — mendahului tanggal mulai kontrak (%s).',
+                abs($days),
+                $newEnd->toDateString(),
+                $contract->start_date->toDateString(),
+            ));
+        }
+
+        app(ProjectService::class)->shiftEndDateForContract($contract->id, $newEnd);
+
+        $order->approve($by, $note);
+        $order->forceFill(['new_end_date' => $newEnd->toDateString()])->save();
+
+        $contract->forceFill([
+            // Recorded once, on the first approved time addendum, mirroring
+            // original_value: "when did we promise to finish" survives every
+            // later shift.
+            'original_end_date' => ($contract->original_end_date ?? $contract->end_date)->toDateString(),
+            'end_date' => $newEnd->toDateString(),
+        ])->save();
+
+        return $order->refresh();
+    }
+
     public function reject(ContractChangeOrder $order, User $by, ?string $note = null): ContractChangeOrder
     {
         $order->reject($by, $note);
@@ -200,6 +296,12 @@ class ContractChangeOrderService
                 throw new LogicException(
                     "Perubahan {$order->code} berstatus {$order->status->value}; hanya perubahan yang "
                     .'sudah disetujui yang nilainya masuk kontrak — dan hanya nilai itu yang bisa dijadwalkan.'
+                );
+            }
+
+            if ($order->change_type === ChangeOrderType::Waktu) {
+                throw new LogicException(
+                    "Addendum waktu {$order->code} tidak membawa nilai — tidak ada yang dijadwalkan untuk ditagih."
                 );
             }
 
@@ -276,6 +378,8 @@ class ContractChangeOrderService
             ->where('status', DocumentStatus::Approved->value)
             ->get();
 
+        $timeAddenda = $approved->where('change_type', ChangeOrderType::Waktu);
+
         return [
             'contract' => $contract->code,
             'original_value' => (float) ($contract->original_value ?? $contract->value),
@@ -285,6 +389,12 @@ class ContractChangeOrderService
             'reductions' => round((float) $approved->where('value_change', '<', 0)->sum('value_change'), 2),
             'change_order_count' => $approved->count(),
             'billed_to_date' => $this->billedTotal($contract),
+            // The time story, same shape as the value story: what was signed,
+            // what stands now, how it got there (P0-B).
+            'original_end_date' => ($contract->original_end_date ?? $contract->end_date)?->toDateString(),
+            'current_end_date' => $contract->end_date?->toDateString(),
+            'net_days_change' => (int) $timeAddenda->sum('days_change'),
+            'time_addendum_count' => $timeAddenda->count(),
         ];
     }
 
@@ -303,6 +413,83 @@ class ContractChangeOrderService
             ->where('status', DocumentStatus::Approved->value)
             ->whereNull('deleted_at')
             ->sum('dpp'), 2);
+    }
+
+    private function typeOf(array $data): ChangeOrderType
+    {
+        $raw = $data['change_type'] ?? null;
+
+        if ($raw instanceof ChangeOrderType) {
+            return $raw;
+        }
+
+        // Absent means tambah_kurang, the column default — same reading the
+        // controller gives older clients.
+        return ChangeOrderType::tryFrom((string) ($raw ?? '')) ?? ChangeOrderType::TambahKurang;
+    }
+
+    /**
+     * What must hold before a time addendum may exist or be written.
+     *
+     * value_change exactly 0: time and money never move on the same sheet.
+     * days_change signed and non-zero: a pengurangan waktu is real; a zero-day
+     * addendum is a note. And the contract must HAVE an end date — a shift
+     * without a basis is not computable, and inventing one here would be this
+     * service deciding the contract's schedule on its own.
+     *
+     * The project gate (masa pemeliharaan / ditutup) is checked here too so a
+     * doomed draft is refused at entry; the AUTHORITATIVE copy of that gate
+     * lives in ProjectService::shiftEndDateForContract, under lock, beside the
+     * write — a status change between create and approve is caught there.
+     */
+    private function assertTimeAddendum(Contract $contract, float $valueChange, mixed $daysChange): void
+    {
+        if (round($valueChange, 2) !== 0.0) {
+            throw new LogicException(
+                'Addendum waktu tidak memindahkan nilai — value_change wajib 0; '
+                .'perubahan nilai dicatat sebagai CCO tambah-kurang tersendiri.'
+            );
+        }
+
+        if ((int) ($daysChange ?? 0) === 0) {
+            throw new LogicException(
+                'Addendum waktu tanpa hari bukan perubahan — days_change wajib diisi dan tidak boleh 0 '
+                .'(negatif berarti pengurangan waktu).'
+            );
+        }
+
+        if ($contract->end_date === null) {
+            throw new LogicException(
+                "Kontrak {$contract->code} tidak memiliki tanggal selesai — addendum waktu tidak punya dasar untuk digeser."
+            );
+        }
+
+        $status = $contract->project?->status;
+
+        if (in_array($status, [ProjectStatus::Warranty, ProjectStatus::Closed], true)) {
+            throw new LogicException(sprintf(
+                'Proyek %s berstatus %s; addendum waktu hanya berlaku atas pekerjaan yang masih berjalan — '
+                .'perpanjangan setelah serah terima adalah instrumen lain.',
+                $contract->project->code,
+                $status->label(),
+            ));
+        }
+    }
+
+    /**
+     * new_end_date is DERIVED — contract.end_date + days_change, computed at
+     * approval — and accepting it as input would let two pending addenda both
+     * promise dates that ignore each other, the exact mistake
+     * changeOrderValues() refuses for money.
+     */
+    private function assertComputedDateNotInput(array $data): void
+    {
+        if (($data['new_end_date'] ?? null) !== null) {
+            throw new LogicException(
+                'new_end_date dihitung sistem saat addendum disetujui — tanggal selesai kontrak berjalan '
+                .'+ days_change — bukan diinput.'
+            );
+        }
     }
 
     private function assertEditable(ContractChangeOrder $order): void

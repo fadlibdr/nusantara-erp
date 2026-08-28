@@ -109,6 +109,51 @@ class ProjectService
         });
     }
 
+    /**
+     * Geser tanggal selesai proyek mengikuti addendum waktu kontraknya (P0-B).
+     *
+     * Called by ContractChangeOrderService::approve INSIDE its transaction —
+     * the project row is re-read under lock here (the TOCTOU idiom this
+     * codebase uses everywhere), so the status the gate reads is the status
+     * the write happens under, and a refusal rolls the whole approval back.
+     *
+     * THE GATE: a project in masa pemeliharaan or ditutup has been handed
+     * over — its deadline is history, and "extending" it is a different
+     * instrument (a warranty arrangement or a new contract), not a CCO. The
+     * refusal names the status, per the assertOperational precedent. On-hold
+     * projects pass deliberately: a suspension is exactly why a time addendum
+     * gets signed.
+     *
+     * Null when the contract has not been opened as a project yet — the
+     * contract's own end_date still moves; there is simply no project copy to
+     * keep in step.
+     */
+    public function shiftEndDateForContract(int $contractId, Carbon $newEndDate): ?Project
+    {
+        /** @var Project|null $project */
+        $project = Project::query()
+            ->where('contract_id', $contractId)
+            ->lockForUpdate()
+            ->first();
+
+        if ($project === null) {
+            return null;
+        }
+
+        if (in_array($project->status, [ProjectStatus::Warranty, ProjectStatus::Closed], true)) {
+            throw new LogicException(sprintf(
+                'Proyek %s berstatus %s; addendum waktu hanya berlaku atas pekerjaan yang masih berjalan — '
+                .'perpanjangan setelah serah terima adalah instrumen lain.',
+                $project->code,
+                $project->status->label(),
+            ));
+        }
+
+        $project->forceFill(['end_date' => $newEndDate->toDateString()])->save();
+
+        return $project;
+    }
+
     public function delete(Project $project): void
     {
         if ($project->status === ProjectStatus::Active) {

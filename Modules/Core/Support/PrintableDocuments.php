@@ -103,7 +103,10 @@ use Modules\Subcontract\Services\SubcontractFormService;
  *   permission   REQUIRED. Spatie permission, always the owning module's .view:
  *                printing is reading in another shape.
  *   label        REQUIRED. The button reads "Cetak <label>".
- *   formTitle    REQUIRED. The underlined title on the sheet, upper case.
+ *   formTitle    REQUIRED. The underlined title on the sheet, upper case. A
+ *                plain string nearly always; a slug that serves two
+ *                instruments (berita-acara-cco) may pass a VALUE SPEC and
+ *                title the sheet off the record.
  *   title        VALUE SPEC for the big centred line above it. Default: the
  *                project's name when one resolves, otherwise the counterparty's
  *                — which is what the owner's paper puts there.
@@ -305,6 +308,11 @@ use Modules\Subcontract\Services\SubcontractFormService;
  *
  *   id        optional html id, so a test can address one table of two
  *   title     optional grouped header row spanning every column
+ *   when      optional VALUE SPEC; resolved falsy, the whole table is left off
+ *             THIS record's sheet — the layout branch for a slug that prints
+ *             two instruments (F/BATK: money tables on a tambah-kurang, the
+ *             time table on an addendum waktu). A skipped table leaves no
+ *             empty grid behind. Absent = always printed.
  *   rows      VALUE SPEC resolving an iterable (a relation name, usually)
  *   columns   [ ['label' => 'URAIAN', 'value' => …, 'cast' => …,
  *               'align' => 'left'|'center'|'right', 'width' => '22mm'] ]
@@ -662,24 +670,37 @@ class PrintableDocuments
             ],
 
             /*
-             * BERITA ACARA PEKERJAAN TAMBAH / KURANG — the paper the three
-             * parties sign before the contract value moves.
+             * BERITA ACARA CCO, Form F/BATK — the paper the three parties sign
+             * before the contract moves. ONE slug, TWO instruments, and the
+             * sheet must never dress one as the other:
              *
-             * THE ONE DECISION ON THIS SHEET is what "nilai sesudah" may say,
-             * and it is made in CrmFormService::changeOrderValues() where a test
-             * can address it: crm_contracts.value moves only on APPROVAL, so an
-             * approved amendment quotes the contract row and an unapproved one
-             * says plainly that it has not been agreed. The projection
-             * value + value_change is never printed — with two change orders
-             * pending, each sheet's total would ignore the other and both would
-             * look authoritative.
+             *   tambah-kurang / eskalasi — the contract's VALUE moves. THE ONE
+             *   DECISION is what "nilai sesudah" may say, and it is made in
+             *   CrmFormService::changeOrderValues() where a test can address
+             *   it: crm_contracts.value moves only on APPROVAL, so an approved
+             *   amendment quotes the contract row and an unapproved one says
+             *   plainly that it has not been agreed. The projection
+             *   value + value_change is never printed — with two change orders
+             *   pending, each sheet's total would ignore the other and both
+             *   would look authoritative.
+             *
+             *   waktu (P0-B) — the contract's END DATE moves and no rupiah
+             *   does, so the sheet prints the time table
+             *   (CrmFormService::changeOrderTimeValues, the same quoted-record
+             *   rule applied to dates) and NEITHER money table: an itemisation
+             *   pad with HARGA SATUAN columns on a time addendum is an
+             *   invitation to write a rupiah figure onto an instrument that
+             *   moves none. The branch is the tables' own 'when' key, and the
+             *   title follows the instrument.
              */
             'berita-acara-cco' => [
                 'resource' => 'crm/contract-change-orders',
                 'model' => ContractChangeOrder::class,
                 'permission' => 'crm.view',
                 'label' => 'Berita Acara Tambah-Kurang',
-                'formTitle' => 'BERITA ACARA PEKERJAAN TAMBAH / KURANG',
+                'formTitle' => fn (ContractChangeOrder $order): string => $order->isTimeAddendum()
+                    ? 'BERITA ACARA ADDENDUM WAKTU'
+                    : 'BERITA ACARA PEKERJAAN TAMBAH / KURANG',
                 'formCode' => 'Form F/BATK',
                 // withTrashed down the contract path — see the class docblock.
                 // A CCO that lost its contract would print an addendum to a
@@ -718,11 +739,13 @@ class PrintableDocuments
                      * ONE lump-sum value_change and no line items at all, so the
                      * itemisation the three parties argue over at the site
                      * meeting is written here by hand — the same convention the
-                     * three izin forms print on.
+                     * three izin forms print on. Value instruments only: an
+                     * addendum waktu itemises nothing in rupiah.
                      */
                     [
                         'id' => 'rincian-perubahan',
                         'title' => 'RINCIAN PEKERJAAN TAMBAH / KURANG',
+                        'when' => fn (ContractChangeOrder $order): bool => ! $order->isTimeAddendum(),
                         'columns' => [
                             ['label' => 'NO', 'align' => 'center', 'width' => '9mm'],
                             ['label' => 'URAIAN PEKERJAAN'],
@@ -736,11 +759,32 @@ class PrintableDocuments
                     [
                         'id' => 'nilai-perubahan',
                         'title' => 'NILAI KONTRAK',
+                        'when' => fn (ContractChangeOrder $order): bool => ! $order->isTimeAddendum(),
                         'rows' => fn (ContractChangeOrder $order): array => app(CrmFormService::class)->changeOrderValues($order),
                         'columns' => [
                             ['label' => 'URAIAN', 'value' => 'uraian'],
                             ['label' => 'NILAI (Rp)', 'align' => 'right', 'width' => '40mm',
                                 'value' => 'nilai', 'cast' => 'money'],
+                        ],
+                    ],
+                    /*
+                     * The waktu branch (P0-B): three time lines from
+                     * CrmFormService::changeOrderTimeValues — the signed end
+                     * date, the signed day change, and either the stamped
+                     * new_end_date (approved) or the CURRENT date labelled
+                     * "belum disetujui". Pre-formatted text, deliberately NOT
+                     * the money cast: "+14 hari" and "31 Juli 2027" are the
+                     * cells, and a null keterangan is the ruled blank.
+                     */
+                    [
+                        'id' => 'perubahan-waktu',
+                        'title' => 'PERUBAHAN WAKTU PELAKSANAAN',
+                        'when' => fn (ContractChangeOrder $order): bool => $order->isTimeAddendum(),
+                        'rows' => fn (ContractChangeOrder $order): array => app(CrmFormService::class)->changeOrderTimeValues($order),
+                        'columns' => [
+                            ['label' => 'URAIAN', 'value' => 'uraian'],
+                            ['label' => 'KETERANGAN', 'align' => 'center', 'width' => '48mm',
+                                'value' => 'keterangan'],
                         ],
                     ],
                 ],

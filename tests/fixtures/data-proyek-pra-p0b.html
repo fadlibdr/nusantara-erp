@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DATA PROYEK — PRJ-2026-002</title>
+    <style>
+        @page { size: A4 portrait; margin: 10mm 8mm 11mm 8mm; }
+        /* Named page, switched on by the body class. The weekly grid is the
+           reason this exists; dompdf's @page could not have done it. */
+        @page landscape { size: A4 landscape; margin: 8mm 8mm 10mm 8mm; }
+        body.landscape { page: landscape; }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            font-size: 8.5pt; line-height: 1.25; color: #000; background: #fff;
+            /* Without this Chrome prints every shaded header white and the
+               grouping the header exists to show disappears. */
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        b, strong { font-weight: bold; }
+
+        /* On screen the sheet looks like the paper it becomes; in print it IS
+           the paper and the chrome around it goes away. */
+        @media screen {
+            body { background: #eceff1; padding: 6mm; }
+            .lembar { background: #fff; max-width: 210mm; margin: 0 auto; padding: 10mm 8mm; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+            body.landscape .lembar { max-width: 297mm; }
+        }
+        .hint { max-width: 210mm; margin: 0 auto 5mm; padding: 2.5mm 3mm; border: 1px solid #b0bec5; background: #fff8e1; font-size: 9pt; }
+        body.landscape .hint { max-width: 297mm; }
+        @media print { .hint { display: none; } .lembar { padding: 0; box-shadow: none; max-width: none; } }
+
+        table { width: 100%; border-collapse: collapse; }
+        /* Grouped headers repeat on every page; rows are never sliced. */
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { break-inside: avoid; page-break-inside: avoid; }
+
+        /* --- the four-party band ------------------------------------------- */
+        .band { border: 1pt solid #000; margin-bottom: 2.5mm; table-layout: fixed; }
+        .band td { width: 25%; border-right: .7pt solid #000; padding: 1.4mm 1.6mm; text-align: center; vertical-align: top; }
+        .band td:last-child { border-right: 0; }
+        .band .cap { font-size: 6.5pt; letter-spacing: .06em; text-transform: uppercase; border-bottom: .5pt solid #999; padding-bottom: .6mm; margin-bottom: 1.2mm; }
+        .band .party { min-height: 11mm; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 8.5pt; word-break: break-word; }
+        .band .party img { max-height: 10mm; max-width: 100%; }
+        .band .meta { font-size: 7pt; }
+
+        /* --- document control (WIKA IK convention) ------------------------- */
+        .dokkontrol { border: .7pt solid #000; margin-bottom: 2.5mm; font-size: 7.5pt; }
+        .dokkontrol td { border-right: .5pt solid #000; padding: 1mm 1.4mm; }
+        .dokkontrol td:last-child { border-right: 0; }
+        .dokkontrol .k { font-weight: bold; }
+
+        /* --- titles --------------------------------------------------------- */
+        .judul { text-align: center; font-weight: bold; font-size: 11pt; letter-spacing: .01em; margin: 1mm 0 .8mm; }
+        .pekerjaan { text-align: center; font-size: 8.5pt; margin-bottom: 2mm; }
+        .form-title { text-align: center; font-weight: bold; font-size: 10pt; letter-spacing: .08em; text-decoration: underline; margin: 1.5mm 0 2.5mm; }
+
+        /* --- identity block ------------------------------------------------- */
+        .identitas { margin-bottom: 2.5mm; font-size: 8pt; }
+        .identitas td { padding: .35mm 0; vertical-align: top; }
+        .identitas td.k { width: 33mm; white-space: nowrap; }
+        .identitas td.s { width: 3mm; }
+        .identitas td.v { padding-right: 6mm; }
+
+        /* --- body grid ------------------------------------------------------ */
+        .grid { margin-bottom: 2mm; }
+        .grid th, .grid td { border: .7pt solid #000; padding: 1.3mm 1.4mm; vertical-align: top; }
+        .grid thead th { background: #e6e6e6; text-align: center; font-weight: bold; font-size: 7.5pt; line-height: 1.15; }
+        .grid td.num, .grid th.num { text-align: right; }
+        .grid td.ctr, .grid th.ctr { text-align: center; }
+        .grid tbody tr.total td { background: #f2f2f2; font-weight: bold; }
+
+        /* --- the hand-fill convention --------------------------------------- */
+        /* A cell the ERP cannot answer. Not empty — ruled, so the site knows it
+           is theirs to write on, exactly as the printed pad has always been. */
+        .fill { min-height: 7mm; }
+        .fill::after { content: ""; display: block; border-bottom: .4pt dotted #666; margin-top: 3.6mm; }
+        .fill-line { display: inline-block; min-width: 22mm; border-bottom: .4pt dotted #444; height: 1.05em; vertical-align: bottom; }
+
+        /* --- notes ----------------------------------------------------------- */
+        .catatan { border: .7pt solid #000; padding: 1.6mm; margin-top: 2.5mm; break-inside: avoid; page-break-inside: avoid; }
+        .catatan .h { font-weight: bold; margin-bottom: 1mm; }
+        .catatan .rule { border-bottom: .4pt dotted #666; height: 4.6mm; }
+        .catatan .baris { margin-top: 1.4mm; }
+        .kotak { display: inline-block; width: 3.2mm; height: 3.2mm; border: .7pt solid #000; margin: 0 1.2mm 0 2.5mm; text-align: center; line-height: 2.9mm; font-size: 7pt; font-weight: bold; vertical-align: -.4mm; }
+        .kotak:first-of-type { margin-left: 0; }
+
+        /* --- signatures ------------------------------------------------------ */
+        .ttd { margin-top: 5mm; break-inside: avoid; page-break-inside: avoid; }
+        .ttd td { width: 33.33%; padding: 0 3mm; text-align: center; vertical-align: top; font-size: 8pt; }
+        .ttd .party { font-weight: bold; min-height: 4.6mm; }
+        .sig-space { height: 19mm; }
+        .sig-name { border-top: .6pt solid #000; padding-top: 1mm; display: inline-block; min-width: 46mm; font-weight: bold; }
+        .sig-role { font-size: 7.5pt; }
+
+        /* --- foot ------------------------------------------------------------ */
+        .kaki { margin-top: 3mm; font-size: 7pt; overflow: hidden; }
+        .kaki .kode { float: left; font-weight: bold; }
+        .kaki .cetak { float: right; }
+    </style>
+</head>
+<body class="portrait">
+
+
+<div class="hint">
+    Tekan <b>Ctrl+P</b> lalu pilih <b>Simpan sebagai PDF</b>. Kertas <b>A4</b>,
+    orientasi <b>Potret</b>, skala 100%,
+    dan aktifkan <b>Grafik latar belakang</b> agar arsiran kepala tabel ikut tercetak.
+</div>
+
+<div class="lembar">
+
+    <table class="band">
+        <tr>
+                            <td>
+                    <div class="cap">PEMILIK</div>
+                    <div class="party">
+                                                    
+                            <span>PT Angkasa Pura I (Persero)</span>
+                                            </div>
+                                    </td>
+                            <td>
+                    <div class="cap">KONSULTAN MK</div>
+                    <div class="party">
+                                                    
+                            <span>PT Jaya CM</span>
+                                            </div>
+                                    </td>
+                            <td>
+                    <div class="cap">PROYEK</div>
+                    <div class="party">
+                                                    
+                            <span>Pengembangan Bandar Udara Sultan Hasanudin - Makassar</span>
+                                            </div>
+                                            <div class="meta">PRJ-2026-002</div>
+                                    </td>
+                            <td>
+                    <div class="cap">KONTRAKTOR</div>
+                    <div class="party">
+                                                    
+                            <span>PT Nusantara Karya Integrasi</span>
+                                            </div>
+                                    </td>
+                    </tr>
+    </table>
+
+    
+    
+            <div class="judul">PENGEMBANGAN BANDAR UDARA SULTAN HASANUDIN - MAKASSAR</div>
+        <div class="pekerjaan">
+        PEKERJAAN :
+                    Pengembangan Bandar Udara Sultan Hasanudin
+            </div>
+
+    <div class="form-title">DATA PROYEK</div>
+
+    
+        <table class="identitas">
+                    <tr>
+                                                        <td class="k">NO. SPK / KONTRAK</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    SPK/AP1/2026/VIII/0142
+                                            </td>
+                                                        <td class="k">PERIODE</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    28 Agustus 2026
+                                            </td>
+                            </tr>
+                    <tr>
+                                                        <td class="k">TANGGAL SPK</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    18 Agustus 2026
+                                            </td>
+                                                        <td class="k">TANGGAL</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    28 Agustus 2026
+                                            </td>
+                            </tr>
+                    <tr>
+                                                        <td class="k">WAKTU PELAKSANAAN</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    01 September 2026 s/d 31 Juli 2027 (334 hari kalender)
+                                            </td>
+                                                        <td class="k">MINGGU KE</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    <span class="fill-line"></span>
+                                            </td>
+                            </tr>
+                    <tr>
+                                                        <td class="k">PERPANJANGAN WAKTU I</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    <span class="fill-line"></span>
+                                            </td>
+                                                        <td class="k">HARI KE</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    <span class="fill-line"></span>
+                                            </td>
+                            </tr>
+                    <tr>
+                                                        <td class="k">PERPANJANGAN WAKTU II</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    <span class="fill-line"></span>
+                                            </td>
+                                                        <td class="k">SISA HARI</td>
+                    <td class="s">:</td>
+                    <td class="v">
+                                                    337 hari
+                                            </td>
+                            </tr>
+            </table>
+
+        <table class="grid">
+        <thead>
+            <tr>
+                <th class="ctr" style="width: 9mm">NO</th>
+                <th style="width: 52mm">URAIAN</th>
+                <th>KETERANGAN</th>
+            </tr>
+        </thead>
+        <tbody>
+                            <tr>
+                    <td class="ctr">1</td>
+                    <td>Kode proyek</td>
+                    <td>
+                                                    PRJ-2026-002
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">2</td>
+                    <td>Nama proyek</td>
+                    <td>
+                                                    Pengembangan Bandar Udara Sultan Hasanudin - Makassar
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">3</td>
+                    <td>Jenis pekerjaan</td>
+                    <td>
+                                                    Konstruksi Gedung
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">4</td>
+                    <td>Lokasi</td>
+                    <td>
+                                                    Makassar, Sulawesi Selatan
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">5</td>
+                    <td>Pemilik proyek</td>
+                    <td>
+                                                    PT Angkasa Pura I (Persero)
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">6</td>
+                    <td>Konsultan MK</td>
+                    <td>
+                                                    PT Jaya CM
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">7</td>
+                    <td>Kontraktor pelaksana</td>
+                    <td>
+                                                    PT Nusantara Karya Integrasi
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">8</td>
+                    <td>No. kontrak internal</td>
+                    <td>
+                                                    CTR/2026/VIII/0001
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">9</td>
+                    <td>Nilai kontrak (DPP)</td>
+                    <td>
+                                                    Rp 48.500.000.000,00
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">10</td>
+                    <td>Retensi</td>
+                    <td>
+                                                    5% — Rp 2.425.000.000,00
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">11</td>
+                    <td>Masa pemeliharaan</td>
+                    <td>
+                                                    12 bulan
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">12</td>
+                    <td>Manajer proyek</td>
+                    <td>
+                                                    <div class="fill"></div>
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">13</td>
+                    <td>Manajer lapangan</td>
+                    <td>
+                                                    <div class="fill"></div>
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">14</td>
+                    <td>Progres rencana</td>
+                    <td>
+                                                    0%
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">15</td>
+                    <td>Progres realisasi</td>
+                    <td>
+                                                    0%
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">16</td>
+                    <td>Deviasi</td>
+                    <td>
+                                                    0%
+                                            </td>
+                </tr>
+                            <tr>
+                    <td class="ctr">17</td>
+                    <td>Status</td>
+                    <td>
+                                                    Berjalan
+                                            </td>
+                </tr>
+                    </tbody>
+    </table>
+
+            <div class="catatan">
+            <div class="h">Catatan :</div>
+                                                <div class="rule"></div>
+                                    <div class="rule"></div>
+                                    <div class="rule"></div>
+                            
+            
+                    </div>
+    
+    <table class="ttd">
+        <tr>
+                            <td>
+                    <div>Mengetahui,</div>
+                    
+                    <div>&nbsp;</div>
+                    <div class="party">PT Angkasa Pura I (Persero)</div>
+                    <div class="sig-space"></div>
+                    
+                    <div class="sig-name">&nbsp;</div>
+                    <div class="sig-role">Pemilik Proyek</div>
+                </td>
+                            <td>
+                    <div>Menyetujui / menolak</div>
+                    
+                    <div>Konsultan MK&nbsp;</div>
+                    <div class="party">PT Jaya CM</div>
+                    <div class="sig-space"></div>
+                    
+                    <div class="sig-name">&nbsp;</div>
+                    <div class="sig-role">Konsultan MK</div>
+                </td>
+                            <td>
+                    <div>Makassar, 28 Agustus 2026</div>
+                    
+                    <div>Kontraktor Pelaksana&nbsp;</div>
+                    <div class="party">PT Nusantara Karya Integrasi</div>
+                    <div class="sig-space"></div>
+                    
+                    <div class="sig-name">&nbsp;</div>
+                    <div class="sig-role"></div>
+                </td>
+                    </tr>
+    </table>
+
+    <div class="kaki">
+        <span class="kode">Form F/DP</span>        <span class="cetak">Dicetak [dinormalisasi] — Nusantara ERP</span>
+    </div>
+
+</div>
+</body>
+</html>

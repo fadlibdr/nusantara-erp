@@ -346,7 +346,8 @@ class QcFormPrintTest extends ErpTestCase
         $blank = $this->forms->html($form, ['id' => $project->id]);
 
         // PERIODE, TANGGAL, MINGGU KE, HARI KE, SISA HARI + the two
-        // PERPANJANGAN WAKTU lines nothing in this ERP records. The bare
+        // PERPANJANGAN WAKTU lines (this contract has no approved addendum
+        // waktu to print on them — P0-B). The bare
         // `<span class="fill-line"></span>` is precisely the identity block's
         // markup — every rule a form draws in its own body carries an explicit
         // min-width, so this counts the identity block and only that.

@@ -23,7 +23,14 @@ const HIDDEN_KEYS = new Set([
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
-const WHEN_SET_KEYS = new Set(['cancelled_at', 'cancellation_reason', 'cancelled_by', 'locked_at']);
+const WHEN_SET_KEYS = new Set([
+  'cancelled_at', 'cancellation_reason', 'cancelled_by', 'locked_at',
+  // Kisah waktu P0-B, hanya bila ada: days_change/new_end_date null pada CCO
+  // nilai (dan new_end_date null sampai disetujui), original_end_date null
+  // berarti kontrak tidak pernah diperpanjang — "Tanggal selesai awal: —"
+  // pada kontrak biasa hanyalah kebisingan.
+  'days_change', 'new_end_date', 'original_end_date',
+]);
 
 const MONEY_KEY = /(amount|total|value|price|cost|salary|dpp|ppn|pph|budget|payable|paid|outstanding|retention|gross|net|subtotal|discount|rate_internal)/;
 const PERCENT_KEY = /(_pct|_rate)$/;
@@ -214,6 +221,10 @@ const LABELS = {
   is_due: 'Sudah jatuh tempo', is_retention: 'Termin retensi',
   billing_condition: 'Syarat penagihan', billing_amount_per_period: 'Tagihan per periode',
   original_value: 'Nilai awal', value_change: 'Perubahan nilai', change_type: 'Jenis perubahan',
+  // Addendum waktu (P0-B): hari bertanda, tanggal hasil persetujuan, dan
+  // tanggal selesai sebagaimana ditandatangani (sekali tulis di kontrak).
+  days_change: 'Perubahan waktu (hari)', new_end_date: 'Tanggal selesai baru',
+  original_end_date: 'Tanggal selesai awal',
   advance_recovery_amount: 'Pemulihan uang muka', is_advance: 'Klaim uang muka',
   float_amount: 'Float dana', spend: 'Belanja', cash_returned: 'Kas dikembalikan',
   total_debit: 'Total debit', total_credit: 'Total kredit', total_amount: 'Total',

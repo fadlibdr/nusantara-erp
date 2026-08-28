@@ -207,6 +207,25 @@ class CrmFormPrintTest extends ErpTestCase
         ]);
     }
 
+    /**
+     * An addendum waktu (P0-B) on the same contract: +14 hari on an end date
+     * of 31 Desember 2026, so the approved date is 14 Januari 2027.
+     */
+    private function timeAddendum(Contract $contract, int $days = 14): ContractChangeOrder
+    {
+        return app(ContractChangeOrderService::class)->create([
+            'contract_id' => $contract->id,
+            'change_date' => '2026-06-01',
+            'title' => 'Perpanjangan waktu — curah hujan ekstrem',
+            'description' => 'Perpanjangan waktu pelaksanaan akibat curah hujan ekstrem.',
+            'reason' => 'kondisi_lapangan',
+            'change_type' => 'waktu',
+            'days_change' => $days,
+            'value_change' => 0,
+            'customer_ref' => 'CCO-GSP-003',
+        ]);
+    }
+
     /** Maker-checker: the change order is approved by somebody else. */
     private function approve(ContractChangeOrder $order): ContractChangeOrder
     {
@@ -471,6 +490,76 @@ class CrmFormPrintTest extends ErpTestCase
 
         $this->assertStringContainsString('RINCIAN PEKERJAAN', $html);
         $this->assertGreaterThanOrEqual(5, substr_count($html, '<div class="fill"></div>'));
+    }
+
+    // -------------------------------------------- berita acara addendum waktu
+
+    /**
+     * P0-B: the F/BATK layout branch. A waktu change order carries days and no
+     * money, so its sheet prints the time table and NEITHER money table — the
+     * itemisation pad and the NILAI KONTRAK lines are a value CCO's story, and
+     * money rows on a time addendum would invite a rupiah figure to be written
+     * onto an instrument that moves no rupiah.
+     */
+    public function test_a_waktu_cco_prints_the_time_layout_and_no_value_rows(): void
+    {
+        $order = $this->timeAddendum($this->contract());
+
+        $html = $this->forms->html('berita-acara-cco', ['id' => $order->id]);
+
+        $this->assertStringContainsString('BERITA ACARA ADDENDUM WAKTU', $html);
+        $this->assertStringNotContainsString('PEKERJAAN TAMBAH / KURANG', $html);
+        $this->assertStringContainsString('Addendum Waktu', $html); // JENIS PERUBAHAN, spelled
+        $this->assertStringContainsString('PERUBAHAN WAKTU PELAKSANAAN', $html);
+        $this->assertStringContainsString('31 Desember 2026', $html); // the signed end date
+        $this->assertStringContainsString('+14 hari', $html);
+        // A draft prints the CURRENT end date and says plainly it has not been
+        // agreed — never end_date + days on an unapproved sheet.
+        $this->assertStringContainsString('belum disetujui', $html);
+        $this->assertStringNotContainsString('14 Januari 2027', $html);
+        $this->assertStringNotContainsString('NILAI KONTRAK', $html);
+        $this->assertStringNotContainsString('RINCIAN PEKERJAAN', $html);
+    }
+
+    /** Approved, the sheet quotes the stamped record: original and new end date. */
+    public function test_an_approved_waktu_cco_quotes_its_stamped_dates(): void
+    {
+        $order = $this->approve($this->timeAddendum($this->contract()));
+
+        $html = $this->forms->html('berita-acara-cco', ['id' => $order->id]);
+
+        // What was signed (original_end_date, backfilled by the first approved
+        // addendum) and what was agreed — both read off stored columns.
+        $this->assertStringContainsString('31 Desember 2026', $html);
+        $this->assertStringContainsString('setelah perubahan ini disetujui', $html);
+        $this->assertStringContainsString('14 Januari 2027', $html);
+        $this->assertStringNotContainsString('belum disetujui', $html);
+    }
+
+    /**
+     * THE COMPAT PROOF for the branch that already shipped: a tambah-kurang
+     * sheet prints BYTE-IDENTICALLY to the pre-P0-B renderer.
+     *
+     * tests/fixtures/berita-acara-cco-pra-p0b.html was captured before the
+     * waktu branch existed, by rendering exactly the draft built by
+     * contract() + changeOrder() and normalising the one wall-clock string on
+     * the sheet — the "Dicetak …" footer. If this test fails, the waktu
+     * layout has leaked into the money sheet.
+     */
+    public function test_a_tambah_kurang_cco_prints_byte_identically_to_the_pre_p0b_renderer(): void
+    {
+        $fixture = base_path('tests/fixtures/berita-acara-cco-pra-p0b.html');
+        $this->assertFileExists($fixture, 'The golden fixture is part of this paket; it must not be regenerated from post-P0-B code.');
+
+        $order = $this->changeOrder($this->contract());
+
+        $html = preg_replace(
+            '/Dicetak .* — Nusantara ERP/u',
+            'Dicetak [dinormalisasi] — Nusantara ERP',
+            $this->forms->html('berita-acara-cco', ['id' => $order->id]),
+        );
+
+        $this->assertSame(file_get_contents($fixture), $html);
     }
 
     // ------------------------------------------------------ register jaminan

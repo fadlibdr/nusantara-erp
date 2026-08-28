@@ -15,7 +15,12 @@ use Modules\Crm\Enums\ChangeOrderType;
  *
  * value_change is SIGNED: negative is removed scope, which is as ordinary as
  * added scope. An unsigned amount plus a direction flag would work too, and
- * every reader would have to remember to apply it.
+ * every reader would have to remember to apply it. days_change (type waktu
+ * only) is signed for the same reason — negative is pengurangan waktu.
+ *
+ * new_end_date is written by approval alone (computed from the contract's
+ * then-current end_date), so on this row it means "the date this addendum
+ * actually produced", never a proposal.
  */
 class ContractChangeOrder extends BaseModel
 {
@@ -33,6 +38,8 @@ class ContractChangeOrder extends BaseModel
             'change_date' => 'date',
             'value_change' => 'decimal:2',
             'ppn_change' => 'decimal:2',
+            'days_change' => 'integer',
+            'new_end_date' => 'date',
             'change_type' => ChangeOrderType::class,
             'status' => DocumentStatus::class,
         ];
@@ -56,5 +63,10 @@ class ContractChangeOrder extends BaseModel
     public function isAddition(): bool
     {
         return (float) $this->value_change >= 0;
+    }
+
+    public function isTimeAddendum(): bool
+    {
+        return $this->change_type === ChangeOrderType::Waktu;
     }
 }

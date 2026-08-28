@@ -67,7 +67,7 @@ class ContractChangeOrderController extends ApiController
     public function update(Request $request, ContractChangeOrder $contractChangeOrder): JsonResponse
     {
         try {
-            return $this->ok($this->service->update($contractChangeOrder, $this->validated($request, false)));
+            return $this->ok($this->service->update($contractChangeOrder, $this->validated($request, false, $contractChangeOrder)));
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }
@@ -100,7 +100,9 @@ class ContractChangeOrderController extends ApiController
         try {
             $approved = $this->service->approve($contractChangeOrder, $request->user(), $request->input('note'));
 
-            return $this->ok($approved, "Disetujui — nilai kontrak diperbarui menjadi {$approved->contract->value}.");
+            return $this->ok($approved, $approved->isTimeAddendum()
+                ? "Disetujui — tanggal selesai kontrak digeser menjadi {$approved->new_end_date?->toDateString()}."
+                : "Disetujui — nilai kontrak diperbarui menjadi {$approved->contract->value}.");
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }
@@ -143,8 +145,17 @@ class ContractChangeOrderController extends ApiController
         }
     }
 
-    private function validated(Request $request, bool $creating): array
+    private function validated(Request $request, bool $creating, ?ContractChangeOrder $order = null): array
     {
+        // Which rule set applies is the RESULTING type's business: the request's
+        // change_type when sent, the stored one on update, tambah_kurang for
+        // older clients that never send the field.
+        $type = ChangeOrderType::tryFrom((string) $request->input('change_type', ''))
+            ?? $order?->change_type
+            ?? ChangeOrderType::TambahKurang;
+
+        $waktu = $type === ChangeOrderType::Waktu;
+
         return $request->validate([
             'contract_id' => [$creating ? 'required' : 'prohibited', 'integer', Rule::exists('crm_contracts', 'id')],
             'change_date' => [$creating ? 'required' : 'sometimes', 'date'],
@@ -155,9 +166,25 @@ class ContractChangeOrderController extends ApiController
             // clients that never send this field keep meaning what they meant.
             'change_type' => ['sometimes', 'required', Rule::enum(ChangeOrderType::class)],
             // Signed, and never zero — a change order that changes nothing is a
-            // note, not an amendment.
-            'value_change' => [$creating ? 'required' : 'sometimes', 'numeric', 'not_in:0'],
+            // note, not an amendment. An addendum waktu inverts the rule: it
+            // moves days, so its value_change must be exactly 0.
+            'value_change' => $waktu
+                ? ['sometimes', 'numeric', function (string $attribute, mixed $value, callable $fail): void {
+                    if (abs((float) $value) > 0.0) {
+                        $fail('Addendum waktu tidak memindahkan nilai — value_change wajib 0.');
+                    }
+                }]
+                : [$creating ? 'required' : 'sometimes', 'numeric', 'not_in:0'],
+            // Signed for the same reason value_change is: negative days is
+            // pengurangan waktu, and it is real.
+            'days_change' => $waktu
+                ? [$creating ? 'required' : 'sometimes', 'integer', 'not_in:0', 'between:-32767,32767']
+                : ['prohibited'],
+            'new_end_date' => ['prohibited'],
             'customer_ref' => ['nullable', 'string', 'max:60'],
+        ], [
+            'days_change.prohibited' => 'days_change hanya bermakna pada addendum waktu (change_type waktu).',
+            'new_end_date.prohibited' => 'new_end_date dihitung sistem saat addendum disetujui — tanggal selesai kontrak berjalan + days_change — bukan diinput.',
         ]);
     }
 }

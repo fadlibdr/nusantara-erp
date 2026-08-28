@@ -226,6 +226,11 @@ export const RESOURCES = {
       // Signed: negative is pekerjaan kurang, and it reads as a negative amount
       // rather than needing a separate direction column.
       { key: 'value_change', label: 'Perubahan nilai', type: 'currency' },
+      // P0-B: kolom waktu dari addendum waktu — hari bertanda (negatif
+      // memendekkan) dan tanggal selesai yang DISTEMPEL saat persetujuan;
+      // '—' pada CCO nilai, dan Selesai baru '—' selama belum disetujui.
+      { key: 'days_change', label: 'Perubahan waktu', type: 'number', align: 'right', suffix: ' hari' },
+      { key: 'new_end_date', label: 'Selesai baru', type: 'date' },
       { key: 'status', label: 'Status', type: 'enum', enum: 'documentStatus' },
     ],
     filters: [
@@ -245,11 +250,21 @@ export const RESOURCES = {
             // di pemeriksaan. Nilainya tetap dihitung di luar dan masuk lewat
             // value_change — tidak ada mesin formula indeks.
             key: 'change_type', label: 'Jenis perubahan', type: 'select', enum: 'ccoChangeType', default: 'tambah_kurang',
-            help: 'Pilih "Eskalasi Harga" untuk penyesuaian indeks kontrak multi-tahun — bukan pekerjaan tambah/kurang.',
+            help: 'Pilih "Eskalasi Harga" untuk penyesuaian indeks kontrak multi-tahun; "Addendum Waktu" (P0-B) menggeser tanggal selesai, bukan nilai.',
           },
           {
             key: 'value_change', label: 'Perubahan nilai', type: 'currency', required: true,
-            help: 'Positif untuk pekerjaan tambah, negatif untuk pekerjaan kurang.',
+            help: 'Positif untuk pekerjaan tambah, negatif untuk pekerjaan kurang. Untuk Addendum Waktu isi 0 — waktu dan nilai tidak pernah bergerak di satu lembar.',
+          },
+          {
+            /* P0-B. Form generik tidak punya field kondisional yang mengikuti
+               nilai select (hideWhen membaca KEADAAN record, bukan isian) —
+               jadi kejujurannya lewat bantuan + penolakan server: days_change
+               pada jenis lain ditolak 422 menyebut nama, dan tanggal selesai
+               baru TIDAK pernah diinput — dihitung server dari tanggal selesai
+               berjalan saat disetujui, lalu tampil di kolom Selesai baru. */
+            key: 'days_change', label: 'Perubahan waktu (hari)', type: 'number',
+            help: 'Hanya untuk Addendum Waktu: bertanda dan tidak boleh 0 — negatif memendekkan. Kosongkan pada jenis lain.',
           },
           {
             key: 'reason', label: 'Sebab', type: 'select',
@@ -294,7 +309,13 @@ export const RESOURCES = {
            re-read di dalam transaksinya. */
         key: 'schedule-termin', label: 'Jadwalkan Termin Nilai Tambah', path: '{id}/schedule-termin', method: 'POST',
         perm: 'crm.update', variant: 'primary',
-        when: (r) => r.status === 'approved' && Number(r.value_change) > 0 && !r.termin_id,
+        /* Addendum waktu tidak membawa nilai — servernya menolak dengan
+           "tidak ada yang dijadwalkan untuk ditagih" (P0-B). value_change 0
+           sudah menyembunyikan tombolnya; syarat jenis ditulis eksplisit
+           supaya wizard-nya tidak muncul kembali bila aturan nilainya
+           berubah. */
+        when: (r) => r.status === 'approved' && r.change_type !== 'waktu'
+          && Number(r.value_change) > 0 && !r.termin_id,
         fields: [
           {
             key: 'due_date', label: 'Rencana tagih', type: 'date', required: true,
@@ -2290,14 +2311,16 @@ export const RESOURCES = {
       { key: 'addendum_date', label: 'Tanggal', type: 'date' },
       // Pembeda jejak audit, hadir sejak hari pertama (Crm harus menambalnya
       // belakangan — temuan #61): eskalasi harga bukan pekerjaan tambah.
-      { key: 'change_type', label: 'Jenis', type: 'enum', enum: 'ccoChangeType' },
+      // spkAddendumType, bukan ccoChangeType: addendum SPK tidak punya jenis
+      // 'waktu' (P0-B) dan servernya menolaknya dengan 422.
+      { key: 'change_type', label: 'Jenis', type: 'enum', enum: 'spkAddendumType' },
       // Signed: negatif adalah pekerjaan kurang.
       { key: 'value_change', label: 'Perubahan nilai', type: 'currency' },
       { key: 'status', label: 'Status', type: 'enum', enum: 'documentStatus' },
     ],
     filters: [
       { key: 'status', label: 'Status', enum: 'documentStatus' },
-      { key: 'change_type', label: 'Jenis', enum: 'ccoChangeType' },
+      { key: 'change_type', label: 'Jenis', enum: 'spkAddendumType' },
       { key: 'subcontract_id', label: 'SPK', lookup: 'subcontracts' },
     ],
     editableWhen: DRAFT_OR_REJECTED,
@@ -2311,7 +2334,7 @@ export const RESOURCES = {
           { key: 'addendum_date', label: 'Tanggal', type: 'date', required: true },
           { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
           {
-            key: 'change_type', label: 'Jenis perubahan', type: 'select', enum: 'ccoChangeType', default: 'tambah_kurang',
+            key: 'change_type', label: 'Jenis perubahan', type: 'select', enum: 'spkAddendumType', default: 'tambah_kurang',
             help: 'Pilih "Eskalasi Harga" untuk penyesuaian harga — nilainya dihitung di luar dan masuk lewat perubahan nilai.',
           },
           {
