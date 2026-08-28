@@ -44,3 +44,7 @@ yarn-error.log
 
 # Konfigurasi cadangan memuat tujuan offsite dan nama berkas kunci.
 /deploy/erp1-backup.conf
+
+# Ruang kerja sesi Claude (worktree cabang PR dsb.) — bukan bagian aplikasi,
+# dan `git add -A` pernah menyapunya masuk sebagai gitlink kosong.
+/.claude/
