@@ -9,11 +9,15 @@ use Modules\Core\Services\FormPrintService;
 use Modules\Core\Support\Terbilang;
 use Modules\Inventory\Models\GoodsReceipt;
 use Modules\Inventory\Models\Warehouse;
+use Modules\Procurement\Models\AwardDecision;
+use Modules\Procurement\Models\BidEvaluation;
+use Modules\Procurement\Models\NegotiationMinute;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
+use Modules\Procurement\Services\ProcurementFormService;
 use Modules\Procurement\Services\RfqService;
 use Modules\Procurement\Services\VendorEvaluationService;
 use Modules\Projects\Models\Project;
@@ -74,8 +78,7 @@ class ProcurementPrintTest extends ErpTestCase
 
     private function project(): Project
     {
-        return Project::query()->create([
-            'code' => 'PRJ-2026-001',
+        return Project::query()->firstOrCreate(['code' => 'PRJ-2026-001'], [
             'name' => 'Pengembangan Bandar Udara Sultan Hasanudin - Makassar',
             'type' => 'construction',
             'status' => 'active',
@@ -605,5 +608,219 @@ class ProcurementPrintTest extends ErpTestCase
             'JUMLAH (Rp) must be the last column of the tabulation, so the total foots under it.',
         );
         $this->assertStringContainsString('28.400.000,00', $html);
+    }
+
+    // ------------------------------------------ penilaian berbobot (P2)
+
+    /**
+     * Seed a weighted tabulation on the three-vendor RFQ: A and B scored, C
+     * invited but never scored. Ranks and weighted totals are set by hand so the
+     * PRINT is what is under test, not the scoring service.
+     *
+     * @return array{0: Rfq, 1: Vendor, 2: Vendor, 3: Vendor}
+     */
+    private function scoredTabulation(): array
+    {
+        [$rfq, $a, $b, $c] = $this->tabulation(false);
+
+        // harga 50 / mutu 30 / waktu 5 / keuangan 10 / k3 5 (config default).
+        // A: 100·.5 + 90·.3 + 80·.05 + 85·.1 + 70·.05 = 93,00  -> rank 1
+        BidEvaluation::query()->create([
+            'rfq_id' => $rfq->id, 'vendor_id' => $a->id,
+            'rab_amount' => 30_000_000, 'offered_amount' => 28_000_000,
+            'harga_score' => 100, 'mutu_score' => 90, 'waktu_score' => 80,
+            'keuangan_score' => 85, 'k3_score' => 70, 'weighted_score' => 93, 'rank' => 1,
+        ]);
+        // B: 66,67·.5 + 70·.3 + 60·.05 + 50·.1 + 40·.05 = 64,34  -> rank 2
+        BidEvaluation::query()->create([
+            'rfq_id' => $rfq->id, 'vendor_id' => $b->id,
+            'rab_amount' => 30_000_000, 'offered_amount' => 45_000_000,
+            'harga_score' => 66.67, 'mutu_score' => 70, 'waktu_score' => 60,
+            'keuangan_score' => 50, 'k3_score' => 40, 'weighted_score' => 64.34, 'rank' => 2,
+        ]);
+        // C (PT Tidak Menawar) is left unscored on purpose.
+
+        return [$rfq->refresh(), $a, $b, $c];
+    }
+
+    public function test_the_weighted_tabulation_shows_the_weight_split_footing_to_100(): void
+    {
+        [$rfq] = $this->scoredTabulation();
+
+        $html = $this->forms->html('banding-penawaran', ['id' => $rfq->id]);
+
+        $this->assertStringContainsString('BOBOT PENILAIAN', $html);
+        $this->assertStringContainsString('TABULASI PENILAIAN BERBOBOT', $html);
+        // The five aspect weights and the foot that proves the scale is whole.
+        $this->assertStringContainsString('JUMLAH BOBOT (%)', $html);
+        $this->assertMatchesRegularExpression('/JUMLAH BOBOT \(%\).*?>\s*100\s*</s', $html);
+    }
+
+    public function test_the_weighted_tabulation_ranks_the_scored_vendors_and_rules_the_unscored(): void
+    {
+        [$rfq, $a, $b, $c] = $this->scoredTabulation();
+
+        $rows = app(ProcurementFormService::class)
+            ->evaluationRows($rfq->load('bidEvaluations.vendor', 'vendors.vendor'));
+
+        // Scored vendors first, in rank order; the unscored vendor last.
+        $this->assertSame(1, $rows[0]['rank']);
+        $this->assertSame('PT Semen Andalan', $rows[0]['vendor']);
+        $this->assertSame(93.0, $rows[0]['weighted']);
+        $this->assertSame(2, $rows[1]['rank']);
+        $this->assertSame('CV Baja Kuat', $rows[1]['vendor']);
+
+        // The honesty rule: the invited-but-unscored vendor is RULED across
+        // every score cell — null in, ruled blank out — never a zero somebody
+        // could read as a score that was given.
+        $this->assertSame('PT Tidak Menawar', $rows[2]['vendor']);
+        $this->assertNull($rows[2]['rank']);
+        $this->assertNull($rows[2]['harga']);
+        $this->assertNull($rows[2]['mutu']);
+        $this->assertNull($rows[2]['weighted']);
+        $this->assertSame('Belum dinilai', $rows[2]['note']);
+
+        $html = $this->forms->html('banding-penawaran', ['id' => $rfq->id]);
+        $this->assertStringContainsString('Belum dinilai', $html);
+        // 93,00 prints as "93"; 64,34 keeps its decimals.
+        $this->assertStringContainsString('64,34', $html);
+    }
+
+    public function test_an_unscored_banding_prints_no_weighted_tabulation(): void
+    {
+        [$rfq] = $this->tabulation();
+
+        $html = $this->forms->html('banding-penawaran', ['id' => $rfq->id]);
+
+        // No vendor scored yet — the weighted grid is skipped entirely, no empty
+        // scoring exercise asserted on a sheet that only priced offers.
+        $this->assertStringNotContainsString('BOBOT PENILAIAN', $html);
+        $this->assertStringNotContainsString('TABULASI PENILAIAN BERBOBOT', $html);
+    }
+
+    // ----------------------------------------- berita acara negosiasi
+
+    private function negotiationMinute(): NegotiationMinute
+    {
+        [$rfq, $a] = $this->tabulation(false);
+
+        /** @var NegotiationMinute $minute */
+        $minute = NegotiationMinute::query()->create([
+            'rfq_id' => $rfq->id,
+            'vendor_id' => $a->id,
+            'meeting_date' => '2026-08-16',
+            'location' => 'Ruang Rapat Pengadaan, Kantor Pusat',
+            'peserta' => [
+                ['nama' => 'Bagas Prakoso', 'jabatan' => 'Manajer Pengadaan', 'pihak' => 'PT Nusantara Karya Integrasi'],
+                ['nama' => 'Hendra Wijaya', 'jabatan' => 'Direktur', 'pihak' => 'PT Semen Andalan'],
+            ],
+            'notes' => 'Harga besi disepakati turun; semen tetap.',
+        ]);
+
+        $minute->items()->create([
+            'line_no' => 1, 'description' => 'Semen PCC 50 kg', 'qty' => 200, 'unit' => 'zak',
+            'harga_awal' => 72_000, 'harga_nego' => 70_000,
+        ]);
+        // Second line NOT negotiated yet — harga_nego is the column default 0,
+        // which must be ruled, not printed as Rp 0,00.
+        $minute->items()->create([
+            'line_no' => 2, 'description' => 'Besi beton D16 panjang 12 m', 'qty' => 100, 'unit' => 'btg',
+            'harga_awal' => 140_000, 'harga_nego' => 0,
+        ]);
+
+        return $minute->refresh();
+    }
+
+    public function test_the_negotiation_minute_prints_participants_and_negotiated_prices(): void
+    {
+        $minute = $this->negotiationMinute();
+
+        $html = $this->forms->html('berita-acara-negosiasi', ['id' => $minute->id]);
+
+        $this->assertStringContainsString('BERITA ACARA NEGOSIASI', $html);
+        $this->assertStringContainsString('Form F/BAN', $html);
+        $this->assertStringContainsString('<body class="landscape">', $html);
+        // Attendees from the peserta json.
+        $this->assertStringContainsString('Bagas Prakoso', $html);
+        $this->assertStringContainsString('Hendra Wijaya', $html);
+        // Negotiated line: 72.000 -> 70.000, selisih -2.000.
+        $this->assertStringContainsString('72.000,00', $html);
+        $this->assertStringContainsString('70.000,00', $html);
+    }
+
+    public function test_a_not_yet_negotiated_price_is_ruled_never_zero(): void
+    {
+        $minute = $this->negotiationMinute();
+
+        $rows = app(ProcurementFormService::class)
+            ->negotiationItemRows($minute);
+
+        // Line 1 negotiated: both prices stated, selisih stated.
+        $this->assertSame(72_000.0, $rows[0]['harga_awal']);
+        $this->assertSame(70_000.0, $rows[0]['harga_nego']);
+        $this->assertSame(-2_000.0, $rows[0]['selisih']);
+
+        // Line 2 not negotiated: the 0 default is ruled, and a delta against an
+        // unknown is not a delta.
+        $this->assertSame(140_000.0, $rows[1]['harga_awal']);
+        $this->assertNull($rows[1]['harga_nego']);
+        $this->assertNull($rows[1]['selisih']);
+    }
+
+    // -------------------------------------------- keputusan pemenang
+
+    private function awardDecision(array $attributes = []): AwardDecision
+    {
+        [$rfq, $a] = $this->tabulation(false);
+
+        /** @var AwardDecision $award */
+        $award = AwardDecision::query()->create(array_merge([
+            'rfq_id' => $rfq->id,
+            'vendor_id' => $a->id,
+            'rab_amount' => 250_000_000,
+            'awarded_amount' => 240_000_000,
+            'deviation_amount' => 0,
+            'committee' => [
+                ['nama' => 'Andi Saputra', 'jabatan' => 'Ketua Panitia'],
+                ['nama' => 'Rina Melati', 'jabatan' => 'Sekretaris'],
+            ],
+            'status' => DocumentStatus::Approved,
+        ], $attributes));
+
+        return $award->refresh();
+    }
+
+    public function test_the_award_sheet_names_the_winner_the_value_and_the_committee(): void
+    {
+        $award = $this->awardDecision();
+
+        $html = $this->forms->html('keputusan-pemenang', ['id' => $award->id]);
+
+        $this->assertStringContainsString('BERITA ACARA KEPUTUSAN PEMENANG', $html);
+        $this->assertStringContainsString('Form F/AWD', $html);
+        $this->assertStringContainsString('PT Semen Andalan', $html);
+        $this->assertStringContainsString('240.000.000,00', $html);
+        // Spelled by Core's Terbilang — the same speller the PO uses.
+        $this->assertStringContainsString(Terbilang::rupiah(240_000_000), $html);
+        $this->assertStringContainsString('Andi Saputra', $html);
+        $this->assertStringContainsString('Rina Melati', $html);
+    }
+
+    public function test_a_deviation_reason_prints_only_when_the_award_deviates(): void
+    {
+        // Clean award (awarded at or below RAB, deviation 0): no reason on paper.
+        $clean = $this->awardDecision();
+        $cleanHtml = $this->forms->html('keputusan-pemenang', ['id' => $clean->id]);
+        $this->assertStringNotContainsString('Alasan deviasi', $cleanHtml);
+
+        // Deviating award: the reason is printed in the notes.
+        $over = $this->awardDecision([
+            'awarded_amount' => 300_000_000,
+            'deviation_amount' => 50_000_000,
+            'deviation_reason' => 'Harga pasar baja naik di atas RAB saat keputusan.',
+        ]);
+        $overHtml = $this->forms->html('keputusan-pemenang', ['id' => $over->id]);
+        $this->assertStringContainsString('Alasan deviasi terhadap RAB', $overHtml);
+        $this->assertStringContainsString('Harga pasar baja naik di atas RAB', $overHtml);
     }
 }

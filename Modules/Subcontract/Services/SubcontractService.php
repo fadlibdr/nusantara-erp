@@ -10,6 +10,7 @@ use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\Erp;
 use Modules\Procurement\Models\Vendor;
+use Modules\Procurement\Services\AwardDecisionService;
 use Modules\Procurement\Services\VendorQualificationService;
 use Modules\Procurement\Support\DirectorApproval;
 use Modules\Subcontract\Enums\PphConstructionScheme;
@@ -27,6 +28,11 @@ class SubcontractService
      */
     public function approve(Subcontract $subcontract, User $by, ?string $note = null): Subcontract
     {
+        // Kriteria #4 (P2): SPK yang lahir dari RFQ subkon tidak boleh disetujui
+        // sebelum keputusan pemenang (award) untuk vendornya disetujui. Inert
+        // untuk SPK biasa (rfq_id null — sebagian besar SPK).
+        app(AwardDecisionService::class)->assertApprovedAward($subcontract, $subcontract->rfq_id, (int) $subcontract->vendor_id);
+
         DirectorApproval::assertMayApprove(
             $subcontract,
             $by,

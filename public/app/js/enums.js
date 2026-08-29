@@ -30,6 +30,23 @@ export const ENUMS = {
   stockDocStatus: opts([['draft', 'Draf'], ['posted', 'Diposting'], ['cancelled', 'Dibatalkan']]),
   transferStatus: opts([['draft', 'Draf'], ['in_transit', 'Dalam Perjalanan'], ['received', 'Diterima']]),
 
+  /* Cermin Modules\Procurement\Enums\ProcurementMethod — metode paket belanja
+     pada Rencana Pengadaan (PBL, P2). Nilai wajib sama persis dengan API. */
+  procurementMethod: opts([
+    ['pembelian_langsung', 'Pembelian langsung'],
+    ['penunjukan_langsung', 'Penunjukan langsung'],
+    ['rfq', 'Seleksi / banding penawaran (RFQ)'],
+    ['tender', 'Tender'],
+  ]),
+  /* Status baris paket PBL — perencanaan, bukan dokumen berjenjang. */
+  procurementPlanItemStatus: opts([
+    ['planned', 'Direncanakan'], ['in_progress', 'Berjalan'],
+    ['contracted', 'Terkontrak'], ['cancelled', 'Dibatalkan'],
+  ]),
+  procurementPlanStatus: opts([
+    ['draft', 'Draf'], ['active', 'Aktif'], ['closed', 'Selesai'],
+  ]),
+
   scopeType: opts([
     ['construction', 'Konstruksi Gedung'],
     ['system_integration', 'Integrasi Sistem (ELV/ICT)'],

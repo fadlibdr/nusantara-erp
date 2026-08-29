@@ -30,6 +30,7 @@ export const SOURCES = {
   subcontractors: { path: 'procurement/vendors', label: 'name', sub: 'picker_label', params: { is_subcontractor: 1 }, title: 'Subkontraktor' },
   purchaseRequisitions: { path: 'procurement/purchase-requisitions', label: 'purpose', sub: 'code', title: 'Permintaan pembelian' },
   purchaseOrders: { path: 'procurement/purchase-orders', label: 'code', sub: 'notes', title: 'Pesanan pembelian' },
+  rfqs: { path: 'procurement/rfqs', label: 'code', sub: 'notes', title: 'RFQ (banding penawaran)' },
   items: { path: 'inventory/items', label: 'name', sub: 'code', title: 'Item' },
   itemCategories: { path: 'inventory/item-categories', label: 'name', sub: 'code', title: 'Kategori item' },
   warehouses: { path: 'inventory/warehouses', label: 'name', sub: 'code', title: 'Gudang' },

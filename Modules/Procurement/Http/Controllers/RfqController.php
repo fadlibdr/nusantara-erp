@@ -6,17 +6,23 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use LogicException;
 use Modules\Core\Http\ApiController;
+use Modules\Procurement\Http\Requests\RfqEvaluationRequest;
 use Modules\Procurement\Http\Requests\RfqQuotesRequest;
 use Modules\Procurement\Http\Requests\RfqStoreRequest;
 use Modules\Procurement\Http\Requests\RfqUpdateRequest;
+use Modules\Procurement\Http\Resources\BidEvaluationResource;
 use Modules\Procurement\Http\Resources\PurchaseOrderResource;
 use Modules\Procurement\Http\Resources\RfqResource;
 use Modules\Procurement\Models\Rfq;
+use Modules\Procurement\Services\BidEvaluationService;
 use Modules\Procurement\Services\RfqService;
 
 class RfqController extends ApiController
 {
-    public function __construct(private readonly RfqService $service) {}
+    public function __construct(
+        private readonly RfqService $service,
+        private readonly BidEvaluationService $evaluations,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -134,5 +140,28 @@ class RfqController extends ApiController
         }
 
         return $this->ok(RfqResource::make($rfq), 'RFQ ditutup.');
+    }
+
+    /** P2 — tabulasi penilaian berbobot (sistem nilai DAN 4.8). */
+    public function evaluations(Rfq $rfq): JsonResponse
+    {
+        return $this->ok(BidEvaluationResource::collection(
+            $rfq->bidEvaluations()->with('vendor')->get()
+        ));
+    }
+
+    /** Isi/mutakhirkan skor per vendor; skor harga & peringkat dihitung server. */
+    public function evaluate(RfqEvaluationRequest $request, Rfq $rfq): JsonResponse
+    {
+        try {
+            $rfq = $this->evaluations->evaluate($rfq, $request->validated()['evaluations']);
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage());
+        }
+
+        return $this->ok(
+            BidEvaluationResource::collection($rfq->bidEvaluations()->with('vendor')->get()),
+            'Penilaian berbobot tersimpan.',
+        );
     }
 }

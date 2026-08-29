@@ -8,6 +8,7 @@ use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Events\DocumentTransitioned;
 use Modules\Core\Models\Approval;
+use Modules\Core\Support\ApprovalLevels;
 use Modules\Core\Support\SegregationOfDuties;
 
 /**
@@ -50,10 +51,81 @@ trait Approvable
         $this->assertStatus([DocumentStatus::Submitted], 'approve');
         SegregationOfDuties::assertNotSubmitter($this, $by);
 
+        // A document that opts into the n-level ladder (P2) needs several
+        // distinct approvers and flips to Approved only at the last of them —
+        // everything else keeps the single-approval lifecycle unchanged.
+        if ($this->requiredApprovalLevels() > 1) {
+            return $this->approveLevelled($by, $note);
+        }
+
         $this->forceFill(['status' => DocumentStatus::Approved])->save();
         $this->recordApproval('approved', $by, $note);
 
         return $this;
+    }
+
+    /**
+     * The n-level path. Each distinct approver records one 'approved' row; the
+     * document stays Submitted until the required number of DISTINCT approvers
+     * is reached, and only the completing approval announces the transition —
+     * an intermediate level is a real approval in the audit trail but is not
+     * yet an approved document, so it must not notify the submitter that it is.
+     *
+     * ApprovalLevels enforces the two extra rules on top of maker-checker: a
+     * person cannot supply two of the distinct approvals, and levels 2+ demand
+     * the module's director permission.
+     */
+    protected function approveLevelled(User $by, ?string $note): static
+    {
+        $prior = ApprovalLevels::distinctApprovals($this);
+        ApprovalLevels::assertMayApproveNext($this, $by, $prior);
+
+        $isFinal = ($prior + 1) >= $this->requiredApprovalLevels();
+
+        if ($isFinal) {
+            $this->forceFill(['status' => DocumentStatus::Approved])->save();
+            $this->recordApproval('approved', $by, $note); // row + DocumentTransitioned
+
+            return $this;
+        }
+
+        // Intermediate level: record the approval (it counts toward the ladder)
+        // but stay Submitted and stay quiet.
+        $this->approvals()->create([
+            'action' => 'approved',
+            'user_id' => $by->id,
+            'note' => $note,
+        ]);
+
+        return $this;
+    }
+
+    /**
+     * The ladder key a document opts into, or null for the single-approval
+     * default every existing Approvable keeps. A model returning a key must
+     * also override approvalAmount() so the ladder has an amount to resolve.
+     */
+    public function approvalLadderKey(): ?string
+    {
+        return null;
+    }
+
+    /** The signed amount an amount-tiered ladder is resolved against. */
+    public function approvalAmount(): float
+    {
+        return 0.0;
+    }
+
+    /** How many distinct approvers this document needs (1 unless a ladder says more). */
+    public function requiredApprovalLevels(): int
+    {
+        $key = $this->approvalLadderKey();
+
+        if ($key === null) {
+            return 1;
+        }
+
+        return ApprovalLevels::forAmount($key, $this->approvalAmount());
     }
 
     public function reject(User $by, ?string $note = null): static

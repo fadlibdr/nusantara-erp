@@ -84,6 +84,9 @@ return [
         'IPP' => 'IPP/{Y}/{RM}/{N4}',   // Ijin pelaksanaan pekerjaan (P1-ENG)
         'QCI' => 'QCI/{Y}/{RM}/{N4}',   // Inspeksi mutu (P1-QC)
         'NCR' => 'NCR/{Y}/{RM}/{N4}',   // Laporan ketidaksesuaian / non-conformance report (P1-QC)
+        'BAN' => 'BAN/{Y}/{RM}/{N4}',   // Berita acara negosiasi vendor (P2)
+        'AWD' => 'AWD/{Y}/{RM}/{N4}',   // Keputusan pemenang / award decision (P2 — AWD dipilih agar tidak bentrok BAP/BAPP zona P3)
+        'PBL' => 'PBL/{Y}/{N4}',        // Rencana pengadaan / pola belanja (P2 — PBL dipilih agar tidak bentrok tipe RPB milik retur pembelian)
     ],
 
     /*
@@ -388,14 +391,10 @@ return [
     | cukup besar untuk butuh direktur cukup besar pula untuk berutang
     | evaluasi. Dibaca VendorEvaluationService::promptEvaluationIfDue dengan
     | default yang sama bila kunci ini absen.
-    */
-    'procurement' => [
-        'evaluation_threshold' => 100000000,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Pengadaan
+    |
+    | (Blok 'procurement' duplikat yang hanya memuat evaluation_threshold sudah
+    | dihapus: PHP hanya menyimpan kemunculan terakhir sebuah kunci larik, jadi
+    | blok pertama itu diam-diam terbuang — footgun laten pra-P2 yang ditutup.)
     |--------------------------------------------------------------------------
     | evaluation_threshold — PO dengan total >= nilai ini dianggap "besar":
     | menutupnya (manual maupun otomatis saat terima penuh) memicu ajakan
@@ -408,6 +407,25 @@ return [
     */
     'procurement' => [
         'evaluation_threshold' => 100000000,
+
+        /*
+         * P2 — bobot penilaian penawaran berbobot (sistem nilai DAN 4.8).
+         *
+         * Lima aspek, bobot dalam PERSEN, JUMLAH WAJIB 100. Validasi jumlah
+         * dilakukan SAAT BOOT (ProcurementServiceProvider memanggil
+         * Procurement\Support\BidWeights::assertValidConfig, yang melempar
+         * BidWeightConfigException) — config yang salah bobot tidak boleh sampai
+         * ke tabulasi bertanda tangan. Skor harga TIDAK diinput: dihitung dari
+         * rasio harga penawaran terhadap RAB (BidEvaluationService::hargaScore);
+         * empat aspek lain (mutu, waktu, keuangan, k3) diinput 0–100 per vendor.
+         */
+        'bid_weights' => [
+            'harga' => 50,
+            'mutu' => 30,
+            'waktu' => 5,
+            'keuangan' => 10,
+            'k3' => 5,
+        ],
 
         /*
          * Kendali harga PO (temuan #34 tahap 2): baris PO ber-boq_item_id yang
@@ -432,8 +450,45 @@ return [
 
     'approvals' => [
         // Documents at or above this amount need a second (direktur) approval.
+        //
+        // PO and SPK keep the ORIGINAL two-level mechanism (needs_director_approval
+        // stamped on submit + Procurement\Support\DirectorApproval enforced in
+        // PoService/SubcontractService::approve): one approval, but at/above the
+        // threshold that approval must be a prc/scm.approve-director holder, and
+        // maker-checker still forbids the submitter. That mechanism ships unchanged
+        // — every PurchaseOrderDirectorApprovalTest / SubcontractDirectorApprovalTest
+        // assertion stays meaningful — so these two keys are LEFT AS THEY WERE.
         'purchase_order' => ['threshold_two_level' => 100000000],
         'subcontract' => ['threshold_two_level' => 200000000],
+
+        /*
+         * P2 — n-level approval ladder (generalised shared mechanism).
+         *
+         * A document type listed here opts into Core\Traits\Approvable's n-level
+         * path: Approvable::requiredLevels() resolves the amount against this
+         * ladder (Core\Support\ApprovalLevels), approve() records one 'approved'
+         * row per DISTINCT user, and the document flips to 'approved' only when the
+         * required number of distinct approvers is reached. Levels 2 and above
+         * additionally require the module's <prefix>.approve-director permission —
+         * this is what keeps the director right meaningful under the new counter,
+         * exactly as DirectorApproval kept it for PO/SPK.
+         *
+         * Bracket semantics match the historical threshold: `to` is the EXCLUSIVE
+         * upper bound of a bracket, so an amount AT the boundary falls into the
+         * next (higher) bracket — an award of exactly Rp 100 juta needs 2 levels,
+         * the same >= reading PO/SPK have always used at their own thresholds.
+         *
+         *   < Rp 100 juta         1 level  (any prc.approve holder)
+         *   Rp 100 juta – 1 M     2 levels (2nd from a prc.approve-director holder)
+         *   >= Rp 1 miliar        3 levels (2nd & 3rd from prc.approve-director)
+         */
+        'award_decision' => [
+            'ladder' => [
+                ['to' => 100000000, 'levels' => 1],
+                ['to' => 1000000000, 'levels' => 2],
+                ['to' => null, 'levels' => 3],
+            ],
+        ],
 
         /*
          * MAKER-CHECKER. Refuse an approval by the same person who submitted
