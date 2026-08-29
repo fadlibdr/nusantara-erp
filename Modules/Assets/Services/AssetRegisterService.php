@@ -43,15 +43,54 @@ class AssetRegisterService
                 throw new LogicException("Aset {$asset->code} sedang termobilisasi; kembalikan dari proyek terlebih dahulu.");
             }
 
+            $this->assertFieldsMatchOwnership($asset, $data);
+
             $asset->update($data);
 
-            // Nilai buku tersimpan mengikuti komponen biayanya.
+            // Nilai buku tersimpan mengikuti komponen biayanya — dan NULL
+            // mengikuti NULL: alat sewa (P5) tidak punya harga perolehan,
+            // jadi nilai bukunya bergaris, bukan Rp 0 hasil cast diam-diam.
             $asset->forceFill([
-                'book_value' => round((float) $asset->acquisition_cost - (float) $asset->accumulated_depreciation, 2),
+                'book_value' => $asset->acquisition_cost === null
+                    ? null
+                    : round((float) $asset->acquisition_cost - (float) $asset->accumulated_depreciation, 2),
             ])->save();
 
             return $asset->load('category');
         });
+    }
+
+    /**
+     * P5 — bentuk kolom mengikuti kepemilikan, dua arah: aset sewa menolak
+     * suntingan kolom perolehan (harga perolehannya memang tidak ada), aset
+     * beli menolak kolom sewa (tarif sewanya memang tidak ada). Guard di
+     * service, bukan hanya request, karena request update tidak tahu
+     * kepemilikan barisnya — service yang membaca ulang barisnya yang tahu.
+     */
+    private function assertFieldsMatchOwnership(Asset $asset, array $data): void
+    {
+        $acquisitionFields = ['acquisition_date', 'acquisition_cost', 'salvage_value', 'useful_life_months', 'depreciation_start_date'];
+        $rentalFields = ['vendor_id', 'rental_rate', 'rate_basis', 'rental_start', 'rental_end'];
+
+        if ($asset->isRented()) {
+            foreach ($acquisitionFields as $field) {
+                if (array_key_exists($field, $data) && $data[$field] !== null) {
+                    throw new LogicException(
+                        "Aset {$asset->code} adalah alat sewa; kolom perolehan/penyusutan tidak berlaku untuknya."
+                    );
+                }
+            }
+
+            return;
+        }
+
+        foreach ($rentalFields as $field) {
+            if (array_key_exists($field, $data) && $data[$field] !== null) {
+                throw new LogicException(
+                    "Aset {$asset->code} milik sendiri; kolom sewa tidak berlaku untuknya."
+                );
+            }
+        }
     }
 
     public function delete(Asset $asset): void

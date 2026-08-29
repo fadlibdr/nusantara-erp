@@ -164,6 +164,14 @@ export const ENUMS = {
   // P4 — skema PPh upah mandor (SP3). pph21_ter tampil apa adanya sebagai
   // pintu yang belum diaktifkan: memilihnya dijawab server dengan 422 yang
   // menjelaskan dirinya (LaborContractService::assertSchemeActive).
+  // P5 — basis tarif sewa alat/jasa (PPK): per_jam ditagih dari delta
+  // hour-meter register, per_bulan/per_hari_8jam dari kalender.
+  rateBasis: opts([
+    ['per_bulan', 'Per bulan'],
+    ['per_hari_8jam', 'Per hari (8 jam)'],
+    ['per_jam', 'Per jam'],
+  ]),
+
   laborPphScheme: opts([
     ['final_umkm', 'PPh Final UMKM 0,5% (PP 55/2022)'],
     ['pph21_ter', 'PPh 21 TER (mesin payroll — belum diaktifkan)'],

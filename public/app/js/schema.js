@@ -2093,6 +2093,117 @@ export const RESOURCES = {
     },
   },
 
+  /* P5 — PPK: perintah kerja alat sewa & jasa berbasis periode. Baris =
+     alat/uraian x tarif x basis (per_bulan/per_hari_8jam/per_jam) x plafon
+     qty_periods; baris per_jam wajib menunjuk alat (jam dibaca dari register
+     hour-meter, bukan diketik). */
+  'procurement/work-orders': {
+    module: 'prc', api: 'procurement/work-orders', label: 'PPK Alat & Jasa', labelOne: 'PPK',
+    lookupSource: 'workOrders',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Pekerjaan', type: 'text', sub: 'vendor.name' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'value', label: 'Nilai PPK', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'PPK alat & jasa (per periode)',
+        help: 'Vendor harus bertipe rental atau pemasok jasa (mandor memakai SP3, subkontraktor memakai SPK). qty_periods adalah plafon kuantitas dalam satuan basisnya: jam untuk per_jam, hari untuk per_hari_8jam, bulan untuk per_bulan.',
+        fields: [
+          { key: 'vendor_id', label: 'Vendor rental/jasa', type: 'lookup', lookup: 'vendors', required: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'start_date', label: 'Mulai', type: 'date' },
+          { key: 'end_date', label: 'Selesai', type: 'date' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila vendor terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan PPK tetap harus dibuat.' },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Baris alat / jasa', min: 1,
+        columns: [
+          { key: 'asset_id', label: 'ID aset (wajib utk per_jam)', type: 'number', width: '16%' },
+          { key: 'description', label: 'Uraian', type: 'text', required: true, width: '34%' },
+          { key: 'rate_basis', label: 'Basis tarif', type: 'select', enum: 'rateBasis', required: true, width: '18%' },
+          { key: 'rate', label: 'Tarif', type: 'currency', required: true, width: '16%' },
+          { key: 'qty_periods', label: 'Plafon kuantitas', type: 'number', required: true, width: '16%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['value', 'ppn_rate'],
+      tables: [{
+        key: 'items', label: 'Baris alat / jasa',
+        columns: [
+          { key: 'line_no', label: 'No', align: 'center' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'rate_basis_label', label: 'Basis' },
+          { key: 'rate', label: 'Tarif', type: 'currency', align: 'right' },
+          { key: 'qty_periods', label: 'Plafon', type: 'qty', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('prc'),
+  },
+
+  /* P5 — tagihan per periode atas PPK. Kuantitasnya DITURUNKAN server dari
+     register hour-meter (per_jam: delta pembacaan DI DALAM periode) dan
+     kalender (per_bulan wajib bulan kalender utuh; per_hari_8jam hari
+     inklusif) — form ini hanya memilih PPK dan rentang tanggal. Periode
+     tumpang-tindih dan plafon terlampaui ditolak server. */
+  'procurement/work-order-billings': {
+    module: 'prc', api: 'procurement/work-order-billings', label: 'Tagihan Periode PPK', labelOne: 'Tagihan periode',
+    columns: [
+      codeColumn,
+      { key: 'work_order_code', label: 'PPK', type: 'code' },
+      { key: 'period_start', label: 'Periode mulai', type: 'date' },
+      { key: 'period_end', label: 'Periode selesai', type: 'date' },
+      { key: 'total_amount', label: 'Nilai tagihan', type: 'currency', align: 'right' },
+    ],
+    filters: [
+      { key: 'work_order_id', label: 'PPK', lookup: 'workOrders' },
+    ],
+    deletableWhen: () => true, // server menolak bila sudah ada tagihan AP hidup
+    form: {
+      sections: [{
+        title: 'Tagihan periode PPK',
+        help: 'Kuantitas dan rupiah dihitung server dari register hour-meter dan kalender — tidak ada angka yang diketik di sini. Satu periode hanya ditagih sekali; buat tagihan AP-nya dari layar Tagihan Vendor (Finance).',
+        fields: [
+          { key: 'work_order_id', label: 'PPK', type: 'lookup', lookup: 'workOrders', required: true, createOnly: true },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['total_amount'],
+      tables: [{
+        key: 'lines', label: 'Rincian kuantitas',
+        columns: [
+          { key: 'description', label: 'Uraian' },
+          { key: 'rate_basis', label: 'Basis' },
+          { key: 'meter_start', label: 'Meter awal', type: 'qty', align: 'right' },
+          { key: 'meter_end', label: 'Meter akhir', type: 'qty', align: 'right' },
+          { key: 'qty', label: 'Kuantitas', type: 'qty', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+  },
+
   /* ======================================================== INVENTORY === */
   'inventory/items': {
     module: 'inv', api: 'inventory/items', label: 'Item', labelOne: 'Item',

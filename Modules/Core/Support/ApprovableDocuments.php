@@ -16,6 +16,7 @@ use Modules\Inventory\Models\StockAdjustment;
 use Modules\Procurement\Models\AwardDecision;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
+use Modules\Procurement\Models\WorkOrder;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\OvertimePermit;
@@ -110,6 +111,16 @@ class ApprovableDocuments
          * not by a second registry.
          */
         AwardDecision::class => ['prefix' => 'prc', 'label' => 'Keputusan pemenang', 'resource' => 'procurement/award-decisions'],
+        /*
+         * P5 — PPK alat & jasa berbasis periode: komitmen belanja, maka
+         * Approvable penuh seperti PO/SPK (maker-checker di trait, submit
+         * memberi tahu pemegang prc.approve). Tagihan periodenya (PPKB)
+         * sengaja TIDAK di sini: angkanya turunan register hour-meter dan
+         * kalender — tidak ada yang diketik untuk disetujui — dan rupiahnya
+         * ber-maker-checker di tagihan AP Finance; mendaftarkannya berarti
+         * meminta prc.approve menyetujui angka yang sama tiga kali.
+         */
+        WorkOrder::class => ['prefix' => 'prc', 'label' => 'PPK alat & jasa', 'resource' => 'procurement/work-orders'],
         StockAdjustment::class => ['prefix' => 'inv', 'label' => 'Penyesuaian stok', 'resource' => 'inventory/stock-adjustments'],
         Subcontract::class => ['prefix' => 'scm', 'label' => 'SPK subkontraktor', 'resource' => 'subcontract/subcontracts'],
         // Registered so submit notifications reach scm.approve holders like

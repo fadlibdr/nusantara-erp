@@ -13,6 +13,7 @@ use Modules\Finance\Enums\CostCategory;
 use Modules\Inventory\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\Vendor;
+use Modules\Procurement\Models\WorkOrderBilling;
 use Modules\Projects\Models\Project;
 use Modules\Subcontract\Models\LaborClaim;
 use Modules\Subcontract\Models\ProgressClaim;
@@ -83,6 +84,16 @@ class ApBill extends BaseModel
     public function laborClaim(): BelongsTo
     {
         return $this->belongsTo(LaborClaim::class, 'labor_claim_id');
+    }
+
+    /**
+     * P5 — the PPK period billing this bill pays. Again a NEW column
+     * (work_order_billing_id, migration 001127) mirroring labor_claim_id,
+     * for the same one-FK-per-source-table reason.
+     */
+    public function workOrderBilling(): BelongsTo
+    {
+        return $this->belongsTo(WorkOrderBilling::class, 'work_order_billing_id');
     }
 
     /**

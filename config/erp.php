@@ -92,6 +92,8 @@ return [
         'BSK' => 'BSK/{Y}/{RM}/{N4}',   // BAST subkontraktor I/II (P3 — BST sudah dipakai rekening koran, BAST milik serah terima owner)
         'SP3' => 'SP3/{Y}/{RM}/{N4}',   // SP3 Induk — SPK mandor upah borongan (P4; SPK tetap milik subkon)
         'OPM' => 'OPM/{Y}/{RM}/{N4}',   // Opname mandor (P4 — CLM milik opname subkon, OPN milik opname owner)
+        'PPK' => 'PPK/{Y}/{RM}/{N4}',   // PPK — perintah kerja alat sewa & jasa berbasis periode (P5)
+        'PPKB' => 'PPKB/{Y}/{RM}/{N4}',  // Tagihan per periode atas PPK (P5 — kuantitas turunan register/kalender)
     ],
 
     /*

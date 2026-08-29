@@ -5,6 +5,7 @@ namespace Modules\Assets\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use LogicException;
+use Modules\Assets\Enums\AssetOwnership;
 use Modules\Assets\Enums\AssetStatus;
 use Modules\Assets\Http\Requests\AssetDeployRequest;
 use Modules\Assets\Http\Requests\AssetDisposeRequest;
@@ -54,13 +55,28 @@ class AssetController extends ApiController
     public function store(AssetStoreRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $data['salvage_value'] = $data['salvage_value'] ?? 0;
-        // Depreciation starts in the acquisition month unless stated otherwise
-        // (praktik umum fiskal Indonesia: penyusutan dimulai bulan perolehan).
-        $data['depreciation_start_date'] = $data['depreciation_start_date'] ?? $data['acquisition_date'];
         $data['accumulated_depreciation'] = 0;
-        $data['book_value'] = $data['acquisition_cost'];
         $data['status'] = AssetStatus::Available;
+
+        if (($data['ownership'] ?? 'owned') === AssetOwnership::Rented->value) {
+            // P5 — alat sewa: tidak pernah dibeli, jadi kolom perolehan NULL
+            // (bukan Rp 0) dan nilai bukunya NULL — bergaris di layar dan
+            // cetakan, karena alat ini tidak ada di neraca kita. Penyusutan
+            // tidak pernah menyentuhnya (gate ownership di
+            // DepreciationService::runForPeriod).
+            $data['acquisition_date'] = null;
+            $data['acquisition_cost'] = null;
+            $data['salvage_value'] = 0;
+            $data['useful_life_months'] = 0;
+            $data['depreciation_start_date'] = null;
+            $data['book_value'] = null;
+        } else {
+            $data['salvage_value'] = $data['salvage_value'] ?? 0;
+            // Depreciation starts in the acquisition month unless stated otherwise
+            // (praktik umum fiskal Indonesia: penyusutan dimulai bulan perolehan).
+            $data['depreciation_start_date'] = $data['depreciation_start_date'] ?? $data['acquisition_date'];
+            $data['book_value'] = $data['acquisition_cost'];
+        }
 
         $asset = Asset::query()->create($data);
 

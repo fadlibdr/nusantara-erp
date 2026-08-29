@@ -25,10 +25,116 @@ class AssetsDatabaseSeeder extends Seeder
         $this->call(AssetCategorySeeder::class);
 
         $this->seedAssets();
+        $this->seedRentedAsset();
         $this->seedDeployments();
+        $this->seedRentedDeploymentAndLogs();
         $this->seedMaintenance();
         $this->seedJuneDepreciationRun();
         $this->syncNumberSequences();
+    }
+
+    /**
+     * P5 — satu alat SEWA di register (deviasi 3.6 "milik sendiri saja").
+     * Tanpa harga perolehan dan tanpa nilai buku (NULL, bukan Rp 0 — alat ini
+     * bukan milik kita), tanpa kolom penyusutan; tarifnya per jam mengikuti
+     * PPK/2026/VI/0001 di seeder Procurement.
+     *
+     * KEMBARAN: ProcurementDatabaseSeeder::rentedDemoAssetId meng-updateOrCreate
+     * baris AST-0007 yang SAMA dengan muatan yang sama (pola menara GSP-T1,
+     * CONVENTIONS §8) karena Procurement diseed lebih dulu dan baris per_jam
+     * PPK demo harus menunjuk alat ini. Mana pun yang jalan lebih dulu yang
+     * membuatnya; ubah muatannya = ubah KEDUA seeder. Yang di sini menambah
+     * custodian (EMP-0003) — pengayaan deskriptif, bukan fakta finansial.
+     */
+    private function seedRentedAsset(): void
+    {
+        $categoryId = AssetCategory::query()->where('code', 'ALAT-BERAT')->value('id');
+
+        if ($categoryId === null) {
+            return;
+        }
+
+        $asset = Asset::withTrashed()->firstOrNew(['code' => 'AST-0007']);
+
+        $asset->fill([
+            'name' => 'Excavator Doosan DX225LCA (sewa)',
+            'category_id' => $categoryId,
+            'brand' => 'Doosan',
+            'model' => 'DX225LCA',
+            'serial_no' => 'DSN-DX225-88413',
+            'ownership' => 'rented',
+            'vendor_id' => $this->lookupId('prc_vendors', 'VND-0007'),
+            'rental_rate' => 400000,
+            'rate_basis' => 'per_jam',
+            'rental_start' => '2026-06-01',
+            'rental_end' => '2026-12-31',
+            'custodian_employee_id' => $this->lookupId('hr_employees', 'EMP-0003'),
+        ]);
+
+        if (! $asset->exists) {
+            $asset->fill([
+                'acquisition_date' => null,
+                'acquisition_cost' => null,
+                'salvage_value' => 0,
+                'useful_life_months' => 0,
+                'depreciation_start_date' => null,
+                'accumulated_depreciation' => 0,
+                'book_value' => null,
+                'status' => AssetStatus::Available,
+            ]);
+        }
+
+        $asset->save();
+    }
+
+    /**
+     * Mobilisasi alat sewa ke site Graha Sentosa + dua pembacaan hour-meter
+     * Juli 2026 (3.240,0 → 3.375,5 = 135,5 jam) — sumber angka tagihan
+     * periode PPKB/2026/VII/0001 di seeder Procurement dan baris sewa di
+     * layar Evaluasi Sewa vs Beli. daily_rate_internal SENGAJA null: beban
+     * alat sewa masuk lewat tagihan AP vendornya (PPK), dan akrual internal
+     * di atasnya akan menghitung solar yang sama dua kali.
+     */
+    private function seedRentedDeploymentAndLogs(): void
+    {
+        $code = 'DEP/2026/VI/0004';
+
+        if (Deployment::withTrashed()->where('code', $code)->exists()) {
+            return;
+        }
+
+        $asset = Asset::query()->where('code', 'AST-0007')->first();
+        $projectId = $this->lookupId('prj_projects', 'PRJ-2026-001');
+        $userId = DB::table('users')->orderBy('id')->value('id');
+
+        if (! $asset || $projectId === null || $userId === null) {
+            return;
+        }
+
+        $deployment = new Deployment([
+            'asset_id' => $asset->id,
+            'project_id' => $projectId,
+            'deployed_from' => '2026-06-01',
+            'planned_until' => '2026-12-31',
+            'returned_at' => null,
+            'daily_rate_internal' => null,
+            'notes' => 'Mobilisasi excavator sewa (PPK VND-0007) untuk galian & timbunan tahap struktur.',
+            'status' => DeploymentStatus::Active,
+        ]);
+        $deployment->code = $code;
+        $deployment->save();
+
+        $asset->forceFill([
+            'status' => AssetStatus::Deployed,
+            'current_project_id' => $projectId,
+        ])->save();
+
+        foreach ([
+            ['log_date' => '2026-07-01', 'hour_meter' => 3240.0, 'notes' => 'Pembacaan awal periode Juli.'],
+            ['log_date' => '2026-07-31', 'hour_meter' => 3375.5, 'notes' => 'Pembacaan akhir periode Juli.'],
+        ] as $reading) {
+            $deployment->equipmentLogs()->create($reading + ['logged_by' => $userId]);
+        }
     }
 
     /**
@@ -327,7 +433,7 @@ class AssetsDatabaseSeeder extends Seeder
      */
     private function syncNumberSequences(): void
     {
-        foreach (['AST' => 6, 'DEP' => 3, 'MTC' => 1, 'DPR' => 1] as $type => $lastNumber) {
+        foreach (['AST' => 7, 'DEP' => 4, 'MTC' => 1, 'DPR' => 1] as $type => $lastNumber) {
             $sequence = NumberSequence::query()->firstOrCreate(
                 ['type' => $type, 'year' => 2026],
                 ['last_number' => 0],

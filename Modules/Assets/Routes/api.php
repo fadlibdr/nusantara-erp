@@ -92,4 +92,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Reports
     Route::get('reports/utilization', [ReportController::class, 'utilization']);
+    // P5 — Evaluasi Sewa vs Beli, baca saja (log jam x tarif vs harga
+    // beli/penyusutan); kejujuran barisnya dijaga RentVsOwnService.
+    Route::get('reports/rent-vs-own', [ReportController::class, 'rentVsOwn']);
 });

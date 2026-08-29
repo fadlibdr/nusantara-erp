@@ -11,6 +11,8 @@ use Modules\Procurement\Http\Controllers\RfqController;
 use Modules\Procurement\Http\Controllers\VendorController;
 use Modules\Procurement\Http\Controllers\VendorDocumentController;
 use Modules\Procurement\Http\Controllers\VendorEvaluationController;
+use Modules\Procurement\Http\Controllers\WorkOrderBillingController;
+use Modules\Procurement\Http\Controllers\WorkOrderController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     // Vendors (also the canonical vendor master for the Subcontract module)
@@ -97,6 +99,28 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Reports. Gated on prc.view explicitly — unlike a per-document GET this
     // aggregates open commitments and prices across every vendor at once.
     Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->middleware('permission:prc.view');
+
+    /*
+     * P5 — PPK: perintah kerja alat sewa & jasa berbasis periode, plus
+     * tagihan per periodenya (kuantitas turunan register/kalender, bukan
+     * ketikan) dan Rekap Tagihan Alat. Rute rekap literal SEBELUM wildcard
+     * {workOrder} tidak diperlukan (segmennya tiga), tetapi tetap ditaruh di
+     * atas demi pola vendor-evaluations yang sama terbacanya.
+     */
+    Route::get('work-orders/reports/billing-recap', [WorkOrderBillingController::class, 'recap'])->middleware('permission:prc.view');
+    Route::get('work-orders', [WorkOrderController::class, 'index']);
+    Route::post('work-orders', [WorkOrderController::class, 'store'])->middleware('permission:prc.create');
+    Route::get('work-orders/{workOrder}', [WorkOrderController::class, 'show']);
+    Route::put('work-orders/{workOrder}', [WorkOrderController::class, 'update'])->middleware('permission:prc.update');
+    Route::delete('work-orders/{workOrder}', [WorkOrderController::class, 'destroy'])->middleware('permission:prc.delete');
+    Route::post('work-orders/{workOrder}/submit', [WorkOrderController::class, 'submit'])->middleware('permission:prc.update');
+    Route::post('work-orders/{workOrder}/approve', [WorkOrderController::class, 'approve'])->middleware('permission:prc.approve');
+    Route::post('work-orders/{workOrder}/reject', [WorkOrderController::class, 'reject'])->middleware('permission:prc.approve');
+
+    Route::get('work-order-billings', [WorkOrderBillingController::class, 'index']);
+    Route::post('work-order-billings', [WorkOrderBillingController::class, 'store'])->middleware('permission:prc.create');
+    Route::get('work-order-billings/{workOrderBilling}', [WorkOrderBillingController::class, 'show']);
+    Route::delete('work-order-billings/{workOrderBilling}', [WorkOrderBillingController::class, 'destroy'])->middleware('permission:prc.delete');
 
     // Vendor evaluations
     Route::get('vendor-evaluations', [VendorEvaluationController::class, 'index']);

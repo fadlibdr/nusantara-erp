@@ -6,6 +6,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
+use Modules\Assets\Enums\AssetOwnership;
 use Modules\Assets\Enums\AssetStatus;
 use Modules\Assets\Enums\DepreciationRunStatus;
 use Modules\Assets\Models\Asset;
@@ -77,6 +78,12 @@ class DepreciationService
 
             $assets = Asset::query()
                 ->where('status', '!=', AssetStatus::Disposed->value)
+                // P5 — HANYA aset milik sendiri yang disusutkan. Alat sewa
+                // tidak pernah dikapitalisasi, jadi tidak ada biaya perolehan
+                // untuk disusutkan — sekalipun seseorang mengisi kolom
+                // depreciation_start_date/useful_life_months pada barisnya,
+                // gate ini yang menahannya, bukan kebetulan kolomnya kosong.
+                ->where('ownership', AssetOwnership::Owned->value)
                 ->whereNotNull('depreciation_start_date')
                 ->whereDate('depreciation_start_date', '<=', $periodEnd->toDateString())
                 ->where('useful_life_months', '>', 0)

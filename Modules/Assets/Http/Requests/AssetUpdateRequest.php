@@ -4,6 +4,7 @@ namespace Modules\Assets\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Assets\Enums\RateBasis;
 
 class AssetUpdateRequest extends FormRequest
 {
@@ -25,6 +26,17 @@ class AssetUpdateRequest extends FormRequest
             'salvage_value' => ['sometimes', 'numeric', 'min:0'],
             'useful_life_months' => ['sometimes', 'integer', 'min:1', 'max:600'],
             'depreciation_start_date' => ['nullable', 'date'],
+            // P5 — kolom sewa (hanya bermakna pada aset rented; guard bentuk
+            // vs kepemilikan berjalan di AssetRegisterService::update, yang
+            // membaca ulang barisnya di dalam transaksi). ownership sendiri
+            // SENGAJA tidak bisa diubah lewat update: beli-putus alat sewa
+            // (kapitalisasi) adalah peristiwa akuntansi, bukan suntingan
+            // register.
+            'vendor_id' => ['nullable', 'integer', Rule::exists('prc_vendors', 'id')],
+            'rental_rate' => ['sometimes', 'numeric', 'min:0.01'],
+            'rate_basis' => ['sometimes', Rule::enum(RateBasis::class)],
+            'rental_start' => ['nullable', 'date'],
+            'rental_end' => ['nullable', 'date', 'after_or_equal:rental_start'],
             'custodian_employee_id' => ['nullable', 'integer'], // cross-module: hr_employees.id
             'warehouse_id' => ['nullable', 'integer'], // cross-module: inv_warehouses.id
             // deployed is reachable only through the deploy/return flow, and

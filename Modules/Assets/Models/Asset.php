@@ -7,12 +7,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Assets\Enums\AssetOwnership;
 use Modules\Assets\Enums\AssetStatus;
 use Modules\Assets\Enums\DeploymentStatus;
+use Modules\Assets\Enums\RateBasis;
 use Modules\Core\Models\BaseModel;
 use Modules\Core\Traits\HasDocumentNumber;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Inventory\Models\Warehouse;
+use Modules\Procurement\Models\Vendor;
 use Modules\Projects\Models\Project;
 
 class Asset extends BaseModel
@@ -27,6 +30,11 @@ class Asset extends BaseModel
     protected function casts(): array
     {
         return [
+            'ownership' => AssetOwnership::class,
+            'rental_rate' => 'decimal:2',
+            'rate_basis' => RateBasis::class,
+            'rental_start' => 'date',
+            'rental_end' => 'date',
             'acquisition_date' => 'date',
             'acquisition_cost' => 'decimal:2',
             'salvage_value' => 'decimal:2',
@@ -43,6 +51,17 @@ class Asset extends BaseModel
     public function category(): BelongsTo
     {
         return $this->belongsTo(AssetCategory::class, 'category_id');
+    }
+
+    /** Lessor of a RENTED asset (P5); null for owned. Cross-module read. */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
+    public function isRented(): bool
+    {
+        return $this->ownership === AssetOwnership::Rented;
     }
 
     public function currentProject(): BelongsTo
@@ -102,9 +121,21 @@ class Asset extends BaseModel
 
     /**
      * Straight-line depreciable base: cost minus salvage, never negative.
+     *
+     * A NULL acquisition_cost (P5: rented assets never had one) is answered
+     * with an EXPLICIT 0.0 — "nothing was capitalised, so nothing can be
+     * depreciated" — never by letting the null ride the (float) cast into an
+     * arithmetic it does not belong in. Book value is a different question:
+     * a rented asset's book_value column stays NULL (it is not on our balance
+     * sheet), and every writer of that column guards the null the same way
+     * (AssetRegisterService::update, DepreciationService's owned-only gate).
      */
     public function depreciableBase(): float
     {
+        if ($this->acquisition_cost === null) {
+            return 0.0;
+        }
+
         return max(round((float) $this->acquisition_cost - (float) $this->salvage_value, 2), 0.0);
     }
 
