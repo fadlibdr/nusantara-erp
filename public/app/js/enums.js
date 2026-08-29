@@ -152,6 +152,14 @@ export const ENUMS = {
   ]),
   adjustmentReason: opts([['opname', 'Stock Opname'], ['damage', 'Barang Rusak'], ['loss', 'Barang Hilang']]),
 
+  // P4 — skema PPh upah mandor (SP3). pph21_ter tampil apa adanya sebagai
+  // pintu yang belum diaktifkan: memilihnya dijawab server dengan 422 yang
+  // menjelaskan dirinya (LaborContractService::assertSchemeActive).
+  laborPphScheme: opts([
+    ['final_umkm', 'PPh Final UMKM 0,5% (PP 55/2022)'],
+    ['pph21_ter', 'PPh 21 TER (mesin payroll — belum diaktifkan)'],
+  ]),
+
   pphScheme: opts([
     ['pelaksanaan_kecil_bersertifikat', 'Pelaksanaan — kualifikasi kecil, bersertifikat (1,75%)'],
     ['pelaksanaan_bersertifikat', 'Pelaksanaan — bersertifikat menengah/besar (2,65%)'],

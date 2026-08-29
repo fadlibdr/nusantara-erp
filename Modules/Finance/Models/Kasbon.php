@@ -33,6 +33,7 @@ class Kasbon extends BaseModel
             'settlement_date' => 'date',
             'amount' => 'decimal:2',
             'cash_returned' => 'decimal:2',
+            'wage_offset_total' => 'decimal:2',
             'status' => KasbonStatus::class,
             'issued_at' => 'datetime',
             'settled_at' => 'datetime',
@@ -68,5 +69,19 @@ class Kasbon extends BaseModel
     public function isOutstanding(): bool
     {
         return $this->status === KasbonStatus::Issued;
+    }
+
+    /**
+     * Sisa uang muka yang masih di tangan (P4): nilai kasbon dikurangi bagian
+     * yang sudah dipulihkan lewat potongan upah mandor. Hanya kasbon ISSUED
+     * yang punya sisa — draft belum cair, settled sudah selesai.
+     */
+    public function outstandingAmount(): float
+    {
+        if ($this->status !== KasbonStatus::Issued) {
+            return 0.0;
+        }
+
+        return round((float) $this->amount - (float) $this->wage_offset_total, 2);
     }
 }

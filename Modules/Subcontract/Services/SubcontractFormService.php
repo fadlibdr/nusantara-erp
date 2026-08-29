@@ -4,6 +4,9 @@ namespace Modules\Subcontract\Services;
 
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\Terbilang;
+use Modules\Procurement\Models\Vendor;
+use Modules\Subcontract\Models\LaborClaim;
+use Modules\Subcontract\Models\LaborContract;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
@@ -270,6 +273,64 @@ class SubcontractFormService
         $rate = (float) ($claim->subcontract?->pph_rate ?? 0);
 
         return 'PPh final konstruksi '.$this->percent($rate).' (dipotong)';
+    }
+
+    // ------------------------------------------------------------- P4: mandor
+
+    /**
+     * Riwayat SP3 seorang mandor untuk lembar F/CVM — pengalaman kerja yang
+     * BENAR-BENAR tercatat di sistem ini, tidak lebih: SP3 approved/closed,
+     * proyeknya, periodenya, nilainya. Riwayat di luar sistem milik lampiran
+     * CV-nya sendiri (prc_vendor_documents tipe cv_mandor), bukan tebakan
+     * lembar ini; tabel kosong berkata begitu apa adanya.
+     *
+     * @return list<LaborContract>
+     */
+    public function mandorContractRows(Vendor $vendor): array
+    {
+        return LaborContract::query()
+            ->with(['project' => fn ($query) => $query->withTrashed()])
+            ->where('vendor_id', $vendor->id)
+            ->whereIn('status', [DocumentStatus::Approved->value, DocumentStatus::Closed->value])
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get()
+            ->all();
+    }
+
+    /**
+     * Baris F/RU — rekap upah PER PROYEK PER PERIODE, dijangkarkan pada satu
+     * opname mandor: setiap opname mandor proyek yang sama yang periodenya
+     * BERIRISAN dengan periode lembar ini, opname jangkarnya termasuk.
+     *
+     * Statusnya ikut tercetak per baris, karena rekap yang mencampur draf dan
+     * approved tanpa berkata mana yang mana adalah angka total yang bohong —
+     * kolom status membiarkan pembaca menjumlah sendiri yang sudah sah.
+     *
+     * @return list<LaborClaim>
+     */
+    public function rekapUpahRows(LaborClaim $claim): array
+    {
+        $projectId = $claim->laborContract?->project_id;
+
+        if ($projectId === null) {
+            return [$claim];
+        }
+
+        return LaborClaim::query()
+            ->with([
+                'laborContract' => fn ($query) => $query->withTrashed(),
+                'laborContract.vendor' => fn ($query) => $query->withTrashed(),
+            ])
+            ->whereHas('laborContract', fn ($query) => $query
+                ->withTrashed()
+                ->where('project_id', $projectId))
+            ->whereDate('period_start', '<=', $claim->period_end)
+            ->whereDate('period_end', '>=', $claim->period_start)
+            ->orderBy('period_start')
+            ->orderBy('id')
+            ->get()
+            ->all();
     }
 
     // ------------------------------------------------------------- internals

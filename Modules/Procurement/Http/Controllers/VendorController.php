@@ -34,6 +34,7 @@ class VendorController extends ApiController
             ->when($request->filled('classification'), fn ($query) => $query->where('classification', $request->string('classification')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->has('is_subcontractor'), fn ($query) => $query->where('is_subcontractor', $request->boolean('is_subcontractor')))
+            ->when($request->filled('vendor_type'), fn ($query) => $query->where('vendor_type', $request->string('vendor_type')))
             ->orderBy('code');
 
         return $this->listing($request, $query, VendorResource::class,

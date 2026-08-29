@@ -17,11 +17,13 @@ enum VendorDocumentType: string
     case Skk = 'skk';
     case Principal = 'principal';
     case Akta = 'akta';
-    // Dua jenis P0-E: untuk vendor subkontraktor keduanya WAJIB HADIR —
-    // gerbang prakualifikasi menolak SPK/PO subkon tanpa keduanya, lihat
-    // VendorQualificationService::blockers.
+    // Dua jenis P0-E: untuk vendor subkontraktor (dan sejak P4 mandor)
+    // keduanya WAJIB HADIR — gerbang prakualifikasi menolak SPK/PO/SP3 tanpa
+    // keduanya, lihat VendorQualificationService::blockers.
     case K3lCommitment = 'k3l_commitment';
     case PaktaIntegritas = 'pakta_integritas';
+    // P4 — daftar riwayat hidup mandor borongan; dicetak sebagai F/CVM.
+    case CvMandor = 'cv_mandor';
     case Lainnya = 'lainnya';
 
     public function label(): string
@@ -37,6 +39,7 @@ enum VendorDocumentType: string
             self::Akta => 'Akta Perusahaan',
             self::K3lCommitment => 'Komitmen K3L',
             self::PaktaIntegritas => 'Pakta Integritas',
+            self::CvMandor => 'CV Mandor',
             self::Lainnya => 'Lainnya',
         };
     }

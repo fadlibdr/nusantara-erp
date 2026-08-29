@@ -24,6 +24,8 @@ use Modules\Projects\Models\ProjectBaseline;
 use Modules\Projects\Models\WorkPermit;
 use Modules\Quality\Models\Inspection;
 use Modules\Subcontract\Models\Handover;
+use Modules\Subcontract\Models\LaborClaim;
+use Modules\Subcontract\Models\LaborContract;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
@@ -120,6 +122,11 @@ class ApprovableDocuments
         // SPK: BAST I starts the masa pemeliharaan the retention we hold
         // secures, and BAST II ends it.
         Handover::class => ['prefix' => 'scm', 'label' => 'BAST subkontraktor', 'resource' => 'subcontract/handovers'],
+        // P4 — SP3 mandor dan opname mandornya. scm.approve seperti dokumen
+        // Subcontract lain; opname adalah dokumen yang mengubah volume jadi
+        // uang terhutang, jadi ia ber-maker-checker penuh seperti opname subkon.
+        LaborContract::class => ['prefix' => 'scm', 'label' => 'SP3 mandor', 'resource' => 'subcontract/labor-contracts'],
+        LaborClaim::class => ['prefix' => 'scm', 'label' => 'Opname mandor', 'resource' => 'subcontract/labor-claims'],
         ArInvoice::class => ['prefix' => 'fin', 'label' => 'Invoice termin', 'resource' => 'finance/ar-invoices'],
         ApBill::class => ['prefix' => 'fin', 'label' => 'Tagihan vendor', 'resource' => 'finance/ap-bills'],
         // Payment does not use the Approvable trait (its status is a different

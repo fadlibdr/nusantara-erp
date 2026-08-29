@@ -25,6 +25,10 @@ class ApBillStoreRequest extends FormRequest
             // that receipt credited instead of expensing the goods again.
             'goods_receipt_id' => ['nullable', 'integer', Rule::exists('inv_goods_receipts', 'id')],
             'subcontract_claim_id' => ['nullable', 'integer', Rule::exists('scm_progress_claims', 'id')],
+            // P4 — tagihan atas opname mandor (SP3); kolom cermin
+            // subcontract_claim_id, lihat migrasi 001125 untuk mengapa bukan
+            // pemakaian ulang.
+            'labor_claim_id' => ['nullable', 'integer', Rule::exists('scm_labor_claims', 'id')],
 
             // Uang muka (down payment) against a PO. It skips the goods-received
             // gate, debits the purchase advance asset account and is netted off
@@ -40,16 +44,16 @@ class ApBillStoreRequest extends FormRequest
             'goods_receipt_ids.*' => ['integer', Rule::exists('inv_goods_receipts', 'id')],
 
             // Manual mode.
-            'vendor_id' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id', 'integer', Rule::exists('prc_vendors', 'id')],
+            'vendor_id' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id', 'integer', Rule::exists('prc_vendors', 'id')],
             'project_id' => ['nullable', 'integer'],
             // Which RAP bucket this bill charges. Left blank it is derived from
             // the source document, which called every PO purchase material —
             // including a crane hired on a services PO. See
             // ApBillService::costCategory().
             'cost_category' => ['nullable', Rule::enum(CostCategory::class)],
-            'description' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id', 'string', 'max:500'],
+            'description' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id', 'string', 'max:500'],
             'dpp' => [
-                'required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id',
+                'required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id',
                 Rule::requiredIf(fn (): bool => $this->boolean('is_advance')),
                 'numeric',
                 'min:0.01',

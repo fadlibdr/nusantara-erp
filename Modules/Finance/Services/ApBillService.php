@@ -16,10 +16,12 @@ use Modules\Finance\Enums\CostCategory;
 use Modules\Finance\Enums\TaxType;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ApBillGoodsReceipt;
+use Modules\Finance\Models\Kasbon;
 use Modules\Finance\Models\Tax;
 use Modules\Finance\Support\BuktiPotongNumber;
 use Modules\Inventory\Enums\StockDocumentStatus;
 use Modules\Procurement\Models\PurchaseOrder;
+use Modules\Subcontract\Models\LaborClaim;
 use Modules\Subcontract\Models\ProgressClaim;
 
 /**
@@ -94,6 +96,13 @@ class ApBillService
     /** Retention withheld from subcontractors, owed back on release. */
     private const SUBCON_RETENTION_ACCOUNT = '2-1500';
 
+    /**
+     * Piutang Karyawan — the receivable a kasbon issue debits (KasbonService
+     * uses the same literal). A mandor wage bill's kasbon deduction credits
+     * it back out: the advance was recovered by short-paying the wages.
+     */
+    private const EMPLOYEE_ADVANCE_ACCOUNT = '1-1370';
+
     private const DEFAULT_PURCHASE_VARIANCE_ACCOUNT = '6-4500';
 
     /**
@@ -149,6 +158,13 @@ class ApBillService
             $claim = ProgressClaim::query()->findOrFail($data['subcontract_claim_id']);
 
             return $this->createFromSubconClaim($claim, $data);
+        }
+
+        if (! empty($data['labor_claim_id'])) {
+            /** @var LaborClaim $claim */
+            $claim = LaborClaim::query()->findOrFail($data['labor_claim_id']);
+
+            return $this->createFromLaborClaim($claim, $data);
         }
 
         return $this->createManual($data);
@@ -777,6 +793,85 @@ class ApBillService
     }
 
     /**
+     * P4 — bill an APPROVED mandor opname (SP3 labor claim), the mirror of
+     * createFromSubconClaim with the differences the instrument demands:
+     *
+     *   - dpp is priced NET of the claim's kasbon deduction, exactly as a
+     *     subcon bill is priced net of its potongan uang muka: total_payable
+     *     then equals the claim's net_payable, and approve() adds the
+     *     deduction back for the labor-cost leg while crediting it out of
+     *     1-1370 Piutang Karyawan (laborKasbonDeduction) — the kasbon was
+     *     cash advanced earlier, and the wages pay it back;
+     *   - the withholding tax row comes from the SP3's LaborPphScheme
+     *     (PPH4A2-UMKM, PP 55/2022 0,5%), never from PP 9/2022 — a mandor
+     *     borongan is not a certified construction-services provider;
+     *   - no retention: upah borongan carries none.
+     *
+     * Approving the bill is also the moment the kasbon offset becomes a fact:
+     * KasbonService::offsetAgainstWageBill records it (and re-refuses a
+     * deduction that no longer fits the kasbon's live outstanding), inside
+     * the same transaction as the journal.
+     */
+    public function createFromLaborClaim(LaborClaim $claim, array $options = []): ApBill
+    {
+        return DB::transaction(function () use ($claim, $options): ApBill {
+            if (! empty($options['is_advance'])) {
+                throw new LogicException('Uang muka hanya dapat dibuat atas pesanan pembelian (PO).');
+            }
+
+            if ($claim->status !== DocumentStatus::Approved) {
+                throw new LogicException(
+                    "Opname mandor {$claim->code} berstatus {$claim->status->value}; hanya opname "
+                    .'yang sudah disetujui yang dapat ditagihkan.'
+                );
+            }
+
+            if (ApBill::query()
+                ->where('labor_claim_id', $claim->id)
+                ->whereNot('status', DocumentStatus::Cancelled->value)
+                ->exists()) {
+                throw new LogicException(
+                    "Tagihan atas opname mandor {$claim->code} sudah ada."
+                );
+            }
+
+            $contract = $claim->laborContract;
+            $billDate = $options['bill_date'] ?? now()->toDateString();
+
+            // The PPh final tax row for the SP3's scheme (TaxSeeder plants it).
+            $pphTaxId = null;
+            $taxCode = $contract->pph_scheme?->taxCode();
+
+            if ($taxCode !== null) {
+                $pphTaxId = Tax::query()->where('code', $taxCode)->value('id');
+            }
+
+            return $this->build([
+                'vendor_id' => (int) $contract->vendor_id,
+                'project_id' => $contract->project_id,
+                'purchase_order_id' => null,
+                'goods_receipt_id' => null,
+                'subcontract_claim_id' => null,
+                'labor_claim_id' => (int) $claim->id,
+                'is_advance' => false,
+                'bill_date' => $billDate,
+                'due_date' => $options['due_date']
+                    ?? Carbon::parse($billDate)->addDays(30)->toDateString(),
+                'description' => $options['description']
+                    ?? "Tagihan opname mandor {$claim->code} — {$contract->title} ({$contract->code})",
+                'cost_category' => $options['cost_category'] ?? null,
+                // NET of the kasbon deduction — see the docblock above.
+                'dpp' => round((float) $claim->gross_amount - (float) $claim->kasbon_deduction_amount, 2),
+                'ppn_amount' => round((float) $claim->ppn_amount, 2),
+                'pph_tax_id' => $pphTaxId !== null ? (int) $pphTaxId : null,
+                'pph_amount' => round((float) $claim->pph_amount, 2),
+                'vendor_invoice_no' => $options['vendor_invoice_no'] ?? '',
+                'faktur_pajak_no' => $options['faktur_pajak_no'] ?? null,
+            ]);
+        });
+    }
+
+    /**
      * Approve + auto-journal. The journal shapes are laid out on the class
      * docblock; this method only picks between them from recorded facts:
      *
@@ -849,9 +944,14 @@ class ApBillService
                     ), 2);
                 } else {
                     $clearing = $this->recordedClearing($bill);
-                    $advanceApplied = $bill->subcontract_claim_id !== null
-                        ? $this->subconAdvanceRecovery($bill)
-                        : $this->approvedAdvanceTotals($bill)['dpp'];
+                    $advanceApplied = match (true) {
+                        $bill->subcontract_claim_id !== null => $this->subconAdvanceRecovery($bill),
+                        // P4: the mandor bill's "advance consumed" is the
+                        // kasbon deduction its opname carries — same netting
+                        // machinery, different prepaid asset (1-1370).
+                        $bill->labor_claim_id !== null => $this->laborKasbonDeduction($bill),
+                        default => $this->approvedAdvanceTotals($bill)['dpp'],
+                    };
                 }
 
                 $grossDpp = round($grossDpp + $advanceApplied, 2);
@@ -866,10 +966,20 @@ class ApBillService
                     : $this->threeWayMatchLines($bill, $clearing, $grossDpp);
 
                 if ($advanceApplied > 0.0) {
+                    $isLaborBill = $bill->labor_claim_id !== null;
+
                     $valueLines[] = [
-                        'account_code' => $this->advanceAccountCode(),
+                        // A labor bill's netting credits the EMPLOYEE advance
+                        // (the kasbon's own 1-1370), never 1-1500 Uang Muka
+                        // Proyek — the cash left through a petty-cash drawer
+                        // to an employee, not through a vendor prepayment.
+                        'account_code' => $isLaborBill
+                            ? self::EMPLOYEE_ADVANCE_ACCOUNT
+                            : $this->advanceAccountCode(),
                         'credit' => $advanceApplied,
-                        'description' => "Perhitungan uang muka {$bill->code}",
+                        'description' => $isLaborBill
+                            ? "Potongan kasbon {$bill->code}"
+                            : "Perhitungan uang muka {$bill->code}",
                         'project_id' => $bill->project_id,
                     ];
                 }
@@ -923,6 +1033,20 @@ class ApBillService
                 'advance_applied_amount' => $advanceApplied,
                 'bupot_no' => $this->buktiPotongNumberFor($bill),
             ])->save();
+
+            // P4: the moment the 1-1370 credit is posted is the moment the
+            // kasbon offset becomes a fact — recorded through KasbonService
+            // (the documented Finance seam), inside this same transaction.
+            // offsetAgainstWageBill re-refuses a deduction the kasbon's LIVE
+            // outstanding no longer covers (another wage bill approved in
+            // between), rolling this approval back journal and all.
+            if ($bill->labor_claim_id !== null && $advanceApplied > 0.0) {
+                $this->kasbons()->offsetAgainstWageBill(
+                    $this->laborClaimKasbonOrFail($bill),
+                    $advanceApplied,
+                    $bill->bill_date->toDateString(),
+                );
+            }
 
             // The same record, per receipt, for a partial bill: which slice of
             // each named receipt's clearing this approval consumed. Written on
@@ -1020,6 +1144,20 @@ class ApBillService
 
             $this->assertAdvanceNotConsumed($bill);
             $this->assertRetentionNotReleased($bill);
+
+            // P4: the reversal below re-debits 1-1370 for the kasbon deduction
+            // this bill posted, so the offset recorded on the kasbon has to be
+            // handed back too — through the same KasbonService seam, which
+            // REFUSES (and thereby aborts this cancellation) when the kasbon
+            // can no longer honestly take it back: already swept into a
+            // replenishment payment, or since settled with receipts.
+            if ($bill->labor_claim_id !== null && (float) $bill->advance_applied_amount > 0.0) {
+                $this->kasbons()->releaseWageOffset(
+                    $this->laborClaimKasbonOrFail($bill),
+                    round((float) $bill->advance_applied_amount, 2),
+                );
+            }
+
             $this->journals->reverseFor(
                 'ap_bill',
                 (int) $bill->id,
@@ -1785,6 +1923,54 @@ class ApBillService
         return Erp::string('accounting.purchase_advance_account', self::DEFAULT_PURCHASE_ADVANCE_ACCOUNT);
     }
 
+    /**
+     * P4 — potongan kasbon on the mandor opname behind this bill: the labor
+     * mirror of subconAdvanceRecovery(). The bill was priced NET of it
+     * (createFromLaborClaim), so approve() adds it back into the gross labor
+     * cost leg and credits it out of 1-1370. Read through the schema,
+     * guarded, for the same module-absence reason as its subcon twin.
+     */
+    private function laborKasbonDeduction(ApBill $bill): float
+    {
+        if ($bill->labor_claim_id === null
+            || ! Schema::hasTable('scm_labor_claims')) {
+            return 0.0;
+        }
+
+        return round((float) DB::table('scm_labor_claims')
+            ->where('id', $bill->labor_claim_id)
+            ->value('kasbon_deduction_amount'), 2);
+    }
+
+    /**
+     * The kasbon the bill's opname deducts. Failing loudly here is right:
+     * a labor bill with a recorded deduction but no resolvable kasbon is a
+     * broken fact, and posting past it would credit 1-1370 against nothing.
+     */
+    private function laborClaimKasbonOrFail(ApBill $bill): Kasbon
+    {
+        $kasbonId = DB::table('scm_labor_claims')
+            ->where('id', $bill->labor_claim_id)
+            ->value('kasbon_id');
+
+        if ($kasbonId === null) {
+            throw new LogicException(
+                "Opname mandor di balik tagihan {$bill->code} mencatat potongan kasbon "
+                .'tanpa menunjuk kasbonnya; perbaiki opnamenya lebih dulu.'
+            );
+        }
+
+        return Kasbon::query()->findOrFail((int) $kasbonId);
+    }
+
+    private function kasbons(): KasbonService
+    {
+        // Resolved lazily rather than constructor-injected: KasbonService
+        // pulls the petty-cash stack with it, which every non-labor bill
+        // (the overwhelming majority) never needs.
+        return app(KasbonService::class);
+    }
+
     // ------------------------------------------------------------ clearing (GR/IR)
 
     /**
@@ -1814,6 +2000,9 @@ class ApBillService
 
         return match (true) {
             $bill->subcontract_claim_id !== null => CostCategory::Subcon,
+            // P4: a mandor opname bill is wages — the RAP bucket its BOQ
+            // lines were budgeted under.
+            $bill->labor_claim_id !== null => CostCategory::Labor,
             $bill->purchase_order_id !== null, $bill->goods_receipt_id !== null => CostCategory::Material,
             default => CostCategory::Overhead,
         };

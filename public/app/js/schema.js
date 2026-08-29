@@ -2979,6 +2979,129 @@ export const RESOURCES = {
     actions: approvalActions('scm'),
   },
 
+  /* P4 — SP3 Induk: SPK mandor upah borongan. Baris = boq_item x tarif upah
+     x qty; plafon klaim per baris adalah qty-nya (volume, bukan persen). */
+  'subcontract/labor-contracts': {
+    module: 'scm', api: 'subcontract/labor-contracts', label: 'SP3 Mandor', labelOne: 'SP3',
+    lookupSource: 'laborContracts',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Pekerjaan', type: 'text', sub: 'vendor.name' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'value', label: 'Nilai SP3', type: 'currency', align: 'right' },
+      { key: 'pph_rate', label: 'PPh final', type: 'percent', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'vendor_id', label: 'Mandor', lookup: 'mandorVendors' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'SP3 Induk (SPK mandor)',
+        help: 'Vendor harus bertipe mandor. Tarif PPh final UMKM (PP 55/2022) di-snapshot saat dibuat; skema PPh 21 TER belum diaktifkan.',
+        fields: [
+          { key: 'vendor_id', label: 'Mandor', type: 'lookup', lookup: 'mandorVendors', required: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'pph_scheme', label: 'Skema PPh upah', type: 'select', enum: 'laborPphScheme', required: true, span: 2 },
+          { key: 'start_date', label: 'Mulai', type: 'date' },
+          { key: 'end_date', label: 'Selesai', type: 'date' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila mandor terblokir prakualifikasi (nonaktif / K3L / pakta integritas) dan SP3 tetap harus dibuat.' },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Baris upah borongan', min: 1,
+        columns: [
+          { key: 'boq_item_id', label: 'ID baris BOQ', type: 'number', width: '15%' },
+          { key: 'description', label: 'Uraian pekerjaan', type: 'text', width: '35%' },
+          { key: 'qty', label: 'Volume', type: 'number', required: true, width: '15%' },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '10%' },
+          { key: 'unit_rate', label: 'Tarif upah', type: 'currency', required: true, width: '25%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['value', 'ppn_rate', 'pph_rate'],
+      tables: [{
+        key: 'items', label: 'Baris upah',
+        columns: [
+          { key: 'line_no', label: 'No', align: 'center' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Volume', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_rate', label: 'Tarif upah', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('scm'),
+  },
+
+  /* P4 — Opname mandor: volume per baris SP3 per periode; potongan kasbon
+     tercatat di sini dan menjadi fakta akuntansi saat tagihan AP-nya
+     disetujui (kredit 1-1370 + offset pada kasbonnya). */
+  'subcontract/labor-claims': {
+    module: 'scm', api: 'subcontract/labor-claims', label: 'Opname Mandor', labelOne: 'Opname mandor',
+    columns: [
+      codeColumn,
+      { key: 'labor_contract.code', label: 'SP3', type: 'code', sub: 'labor_contract.title' },
+      { key: 'claim_no', label: 'Opname ke-', type: 'number', align: 'center' },
+      { key: 'period_end', label: 'Periode s/d', type: 'date' },
+      { key: 'gross_amount', label: 'Bruto upah', type: 'currency', align: 'right' },
+      { key: 'kasbon_deduction_amount', label: 'Potongan kasbon', type: 'currency', align: 'right' },
+      { key: 'net_payable', label: 'Netto dibayar', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'labor_contract_id', label: 'SP3', lookup: 'laborContracts' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Opname mandor',
+        help: 'Volume periode ini per baris SP3; tidak boleh melebihi sisa (qty kontrak dikurangi yang sudah di-opname approved). Potongan kasbon tidak boleh melebihi sisa kasbon maupun upah yang terbayarkan.',
+        fields: [
+          { key: 'labor_contract_id', label: 'SP3', type: 'lookup', lookup: 'laborContracts', required: true, createOnly: true },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
+          { key: 'kasbon_id', label: 'ID kasbon dipotong', type: 'number', help: 'Kasbon berstatus cair milik proyek SP3 ini.' },
+          { key: 'kasbon_deduction_amount', label: 'Potongan kasbon', type: 'currency' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Volume per baris SP3', min: 1,
+        columns: [
+          { key: 'labor_contract_item_id', label: 'ID baris SP3', type: 'number', required: true, width: '50%' },
+          { key: 'qty_this', label: 'Volume periode ini', type: 'number', required: true, width: '50%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['gross_amount', 'ppn_amount', 'pph_amount', 'kasbon_deduction_amount', 'net_payable'],
+      tables: [{
+        key: 'items', label: 'Rincian volume',
+        columns: [
+          { key: 'labor_contract_item.description', label: 'Uraian' },
+          { key: 'qty_prev', label: 'S/d lalu', type: 'qty', align: 'right' },
+          { key: 'qty_this', label: 'Periode ini', type: 'qty', align: 'right' },
+          { key: 'labor_contract_item.unit_rate', label: 'Tarif upah', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('scm'),
+  },
+
   /* ========================================================== FINANCE === */
   'finance/revenue-recognition': {
     module: 'fin', api: 'finance/revenue-recognition', label: 'Pengakuan Pendapatan (PSAK 115)', labelOne: 'Run PSAK 115',

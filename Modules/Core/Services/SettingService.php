@@ -166,6 +166,14 @@ class SettingService
                     ['key' => 'tax.pph_final_construction.perancangan_tanpa_sertifikat', 'label' => 'Perancangan/pengawasan — tanpa sertifikat', 'type' => 'percent'],
                     ['key' => 'tax.pph_final_construction.terintegrasi_bersertifikat', 'label' => 'Terintegrasi — bersertifikat', 'type' => 'percent'],
                     ['key' => 'tax.pph_final_construction.terintegrasi_tanpa_sertifikat', 'label' => 'Terintegrasi — tanpa sertifikat', 'type' => 'percent'],
+                    // P4 — dibaca runtime oleh LaborPphScheme::rate() saat SP3
+                    // mandor dibuat, lalu di-snapshot pada SP3 tersebut (pola
+                    // yang sama dengan tarif PP 9/2022 di atas).
+                    [
+                        'key' => 'tax.pph_final_umkm_rate',
+                        'label' => 'PPh Final UMKM (PP 55/2022) — upah mandor',
+                        'type' => 'percent',
+                    ],
                     [
                         'key' => 'cashflow.termin_collection_days',
                         'label' => 'Asumsi lama penagihan termin (hari)',
@@ -512,6 +520,7 @@ class SettingService
         'QCI' => 'Inspeksi mutu (QCI)', 'NCR' => 'Laporan ketidaksesuaian (NCR)',
         'BAN' => 'BA Negosiasi', 'AWD' => 'Keputusan pemenang', 'PBL' => 'Rencana pengadaan',
         'OPN' => 'Opname progres owner', 'BAPP' => 'BAPP per zona', 'BSK' => 'BAST subkontraktor',
+        'SP3' => 'SP3 mandor (induk)', 'OPM' => 'Opname mandor',
     ];
 
     /**
