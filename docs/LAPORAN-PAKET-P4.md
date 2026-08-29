@@ -122,9 +122,25 @@ kanon di CONVENTIONS §8.
 
 ## Smoke test curl (endpoint baru, pesan 422 yang dijanjikan — kutip kata demi kata)
 
-Belum dijalankan pada tree ini (langkah 7 protokol butuh `migrate:fresh --seed` pada tree
-bersama; milik orkestrator — pola yang sama dengan P3). Pesan yang dijanjikan, dikutip
-dari sumbernya dan **diuji** oleh uji di sampingnya:
+**Dijalankan 29 Agustus 2026 oleh orkestrator (langkah 7 protokol)** pada tree bersama di
+HEAD a4db468: `php artisan migrate:fresh --seed` (database dev; sqlite produksi
+`/var/www/erp1.pi2.co.id` tidak tersentuh), lalu `artisan serve` + curl memakai login
+seeded (`project-manager@`, `finance@`, `finance-manager@`, `direktur@`, `admin@`).
+Hasilnya: **enam pesan 422 di bawah keluar kata demi kata lewat HTTP** — bukan vendor
+mandor (VND-0001), `pph21_ter`, volume 5000 m2 > sisa 1980 m2, potongan 3.000.000 >
+sisa kasbon KSB/2026/VIII/0001 (1.500.000), menagih opname draft, tagihan ganda atas
+OPM/2026/III/0001. Juga diverifikasi: skema & seed P4 semua mendarat pasca-fresh
+(`vendor_type` terisi benar untuk keenam vendor, `PPH4A2-UMKM` ada, SP3/OPM kanon
+approved dengan matematika 27.220.000/136.100/27.083.900); F/RU dan F/CVM ter-render
+(katalog cetak menyaring diri: PM melihat 33 formulir termasuk `rekap-upah` tanpa
+`cv-mandor`, admin melihat 55 dengan keduanya); dan seam offset kasbon menjadi fakta
+tepat saat tagihan disetujui — `wage_offset_total` 0 → 500.000 pada approve
+BIL/2026/VIII/0003, kasbon tetap `issued`. Rantai penyiapannya sendiri lewat jalur
+resmi: kas kecil → isi ulang (PAY draf → submit finance → approve finance-manager →
+post finance) → kasbon → pencairan oleh pemegang. Suite penuh diulang orkestrator pada
+HEAD yang sama: **OK (3.410 uji, 15.468 asersi, 8 menit 13 detik)** — angka jalur
+cetak+SPA direproduksi persis. Pesan yang dijanjikan, dikutip dari sumbernya dan
+**diuji** oleh uji di sampingnya:
 
 - Skema PPh yang belum dibangun (`LaborContractService::assertSchemeActive`,
   `LaborContractTest`):
@@ -205,8 +221,8 @@ dari sumbernya dan **diuji** oleh uji di sampingnya:
   angka) di daftar maupun panel Terkait.
 - **Skema `pph21_ter` tidak diimplementasikan** — sengaja, per roadmap ("siapkan
   cabangnya"). Yang ada: nilai enum, kolom, dan 422 yang menunjuk `Pph21TerService`.
-- **Smoke test curl (langkah 7)** — butuh `migrate:fresh --seed` pada tree bersama;
-  milik orkestrator.
+- ~~Smoke test curl (langkah 7)~~ — **sudah dijalankan orkestrator 29 Agustus 2026**;
+  hasil lengkapnya di bagian *Smoke test curl* di atas.
 - **Angka uji di `README.md`** — berubah lagi begitu orkestrator meng-commit.
 - **`prj_projects` tidak diberi relasi balik ke SP3** — halaman proyek tidak menampilkan
   SP3 proyeknya; daftar SP3 tersaring proyek sudah menjawab kebutuhan yang sama lewat
