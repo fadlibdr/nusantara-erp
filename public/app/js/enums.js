@@ -137,12 +137,21 @@ export const ENUMS = {
     ['material', 'Material'], ['jasa', 'Jasa'], ['ict', 'ICT'],
     ['sipil', 'Sipil'], ['me', 'Mekanikal & Elektrikal'],
   ]),
+  /* P4 — cermin Modules\Procurement\Enums\VendorType (label dari label()-nya).
+     Menggantikan boolean is_subcontractor pada layar Vendor; boolean lama
+     tetap dibaca berkas SPA lain dan disinkronkan model Vendor. */
+  vendorType: opts([
+    ['supplier', 'Pemasok'], ['subcontractor', 'Subkontraktor'],
+    ['mandor', 'Mandor'], ['rental', 'Rental / sewa alat'],
+  ]),
   /* Cermin Modules\Procurement\Enums\VendorDocumentType. */
   vendorDocumentType: opts([
     ['nib', 'NIB'], ['siup', 'SIUP'], ['npwp', 'NPWP'], ['sppkp', 'SPPKP (PKP)'],
     ['sbu_konstruksi', 'SBU Konstruksi'], ['skk', 'SKK Penanggung Jawab'],
     ['principal', 'Sertifikat Principal'], ['akta', 'Akta Perusahaan'],
     ['k3l_commitment', 'Komitmen K3L'], ['pakta_integritas', 'Pakta Integritas'],
+    // P4 — daftar riwayat hidup mandor; sumber lembar F/CVM.
+    ['cv_mandor', 'CV Mandor'],
     ['lainnya', 'Lainnya'],
   ]),
 
@@ -151,6 +160,14 @@ export const ENUMS = {
     ['tool', 'Alat Bantu'], ['merchandise', 'Barang Dagangan'],
   ]),
   adjustmentReason: opts([['opname', 'Stock Opname'], ['damage', 'Barang Rusak'], ['loss', 'Barang Hilang']]),
+
+  // P4 — skema PPh upah mandor (SP3). pph21_ter tampil apa adanya sebagai
+  // pintu yang belum diaktifkan: memilihnya dijawab server dengan 422 yang
+  // menjelaskan dirinya (LaborContractService::assertSchemeActive).
+  laborPphScheme: opts([
+    ['final_umkm', 'PPh Final UMKM 0,5% (PP 55/2022)'],
+    ['pph21_ter', 'PPh 21 TER (mesin payroll — belum diaktifkan)'],
+  ]),
 
   pphScheme: opts([
     ['pelaksanaan_kecil_bersertifikat', 'Pelaksanaan — kualifikasi kecil, bersertifikat (1,75%)'],

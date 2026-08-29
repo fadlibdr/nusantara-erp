@@ -36,6 +36,8 @@ class ApBillResource extends JsonResource
                     'cleared_amount' => $claim->cleared_amount,
                 ])->all()),
             'subcontract_claim_id' => $this->subcontract_claim_id,
+            // P4 — opname mandor (SP3) yang ditagihkan tagihan ini.
+            'labor_claim_id' => $this->labor_claim_id,
             'subcontract_claim' => $this->whenLoaded('subcontractClaim', fn () => $this->subcontractClaim === null ? null : [
                 'id' => $this->subcontractClaim->id,
                 'code' => $this->subcontractClaim->code,

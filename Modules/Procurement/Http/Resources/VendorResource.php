@@ -19,6 +19,8 @@ class VendorResource extends JsonResource
             'is_pkp' => (bool) $this->is_pkp,
             'sppkp_number' => $this->sppkp_number,
             'is_subcontractor' => (bool) $this->is_subcontractor,
+            'vendor_type' => $this->vendor_type?->value,
+            'vendor_type_label' => $this->vendor_type?->label(),
             'classification' => $this->classification?->value,
             'classification_label' => $this->classification?->label(),
             'address' => $this->address,

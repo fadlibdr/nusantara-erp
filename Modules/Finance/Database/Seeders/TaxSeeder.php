@@ -72,6 +72,21 @@ class TaxSeeder extends Seeder
             ];
         }
 
+        // P4 — PPh final UMKM (PP 55/2022 Pasal 56, melanjutkan PP 23/2018):
+        // 0,5% dari peredaran bruto. Skema bawaan upah mandor borongan per
+        // asumsi #3 — mandor sebagai vendor ber-PPh-final, bukan karyawan.
+        // Liabilitasnya PPh final juga, jadi menumpang 2-1230 bersama PP
+        // 9/2022 — SSP-nya sama-sama PPh Pasal 4(2)/final.
+        $rows[] = [
+            'code' => 'PPH4A2-UMKM',
+            'name' => 'PPh Final UMKM 0,5% (PP 55/2022) — upah mandor',
+            'rate' => (float) config('erp.tax.pph_final_umkm_rate', 0.5),
+            'tax_type' => 'pph_withholding',
+            'coa_code' => '2-1230',
+            'notes' => 'PPh final PP 55/2022 Pasal 56 (0,5% omzet, WP UMKM). Dipakai tagihan opname '
+                .'mandor (SP3). Isi kode objek pajak e-Bupot sebelum menyiapkan bukti potong.',
+        ];
+
         foreach ($rows as $row) {
             // object_code is deliberately absent here. Kode objek pajak is issued by
             // DJP and revised from time to time, and it differs per scheme — seeding

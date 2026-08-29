@@ -90,6 +90,8 @@ return [
         'OPN' => 'OPN/{Y}/{RM}/{N4}',   // Opname progres ke pemilik (P3 — sisi pendapatan; CLM tetap milik opname subkon)
         'BAPP' => 'BAPP/{Y}/{RM}/{N4}',  // Berita acara pemeriksaan pekerjaan per zona (P3 — BAPP, kode yang disisakan AWD)
         'BSK' => 'BSK/{Y}/{RM}/{N4}',   // BAST subkontraktor I/II (P3 — BST sudah dipakai rekening koran, BAST milik serah terima owner)
+        'SP3' => 'SP3/{Y}/{RM}/{N4}',   // SP3 Induk — SPK mandor upah borongan (P4; SPK tetap milik subkon)
+        'OPM' => 'OPM/{Y}/{RM}/{N4}',   // Opname mandor (P4 — CLM milik opname subkon, OPN milik opname owner)
     ],
 
     /*
@@ -111,6 +113,18 @@ return [
 
         // PPh 23 on services (jasa) when not covered by PPh final.
         'pph23_services_rate' => 2.0,
+
+        /*
+         * PPh final UMKM — PP 55/2022 Pasal 56 (melanjutkan PP 23/2018):
+         * 0,5% dari peredaran bruto untuk WP dengan omzet <= Rp 4,8 miliar.
+         * Dipakai P4 untuk upah mandor borongan per asumsi #3 (mandor
+         * diperlakukan sebagai VENDOR dengan PPh final, bukan karyawan PPh
+         * 21): seorang mandor borongan perorangan bukan pemberi jasa
+         * konstruksi bersertifikat PP 9/2022, dan skema finalnya adalah
+         * tarif UMKM ini. Snapshot per SP3 (scm_labor_contracts.pph_rate) —
+         * mengubah angka ini tidak menulis ulang kontrak yang sudah ada.
+         */
+        'pph_final_umkm_rate' => 0.5,
 
         // PPh final jasa konstruksi — PP 9/2022 classifications.
         'pph_final_construction' => [

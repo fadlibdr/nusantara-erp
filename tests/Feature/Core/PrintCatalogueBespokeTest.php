@@ -31,7 +31,8 @@ class PrintCatalogueBespokeTest extends ErpTestCase
             ->assertOk()
             ->json('data');
 
-        $this->assertCount(53, $rows, 'katalog = 46 registri + 7 formulir rumah proyek');
+        // P4 menambah dua entri registri: cv-mandor (F/CVM) + rekap-upah (F/RU).
+        $this->assertCount(55, $rows, 'katalog = 48 registri + 7 formulir rumah proyek');
 
         $slugs = array_column($rows, 'slug');
         foreach (self::BESPOKE as $slug) {

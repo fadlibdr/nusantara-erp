@@ -178,7 +178,8 @@ class PettyCashFundController extends ApiController
     /**
      * The fund row plus the numbers every screen needs: drawer balance, bons
      * awaiting reimbursement, advances still in employees' pockets,
-     * settled-kasbon spend awaiting reimbursement — and the imprest identity
+     * settled-kasbon spend and wage-offset recoveries awaiting reimbursement
+     * — and the imprest identity
      * itself (imprest_expected), computed by the SERVICE so the cashier
      * screen compares instead of re-deriving a formula of its own (the
      * screen's shorter float − bon − kasbon rang a permanent false alarm
@@ -198,6 +199,7 @@ class PettyCashFundController extends ApiController
             'unreplenished_voucher_total' => $this->service->unreplenishedVoucherTotal($fund),
             'outstanding_kasbon_total' => $this->service->outstandingKasbonTotal($fund),
             'settled_kasbon_spend_total' => $this->service->settledKasbonSpendTotal($fund),
+            'unreplenished_wage_offset_total' => $this->service->unreplenishedWageOffsetTotal($fund),
             'imprest_expected' => $this->service->imprestExpectation($fund),
         ]);
     }

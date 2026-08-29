@@ -24,13 +24,16 @@ use Modules\Finance\Models\PettyCashFund;
  *
  *   GL balance == float − unreimbursed vouchers − outstanding kasbon
  *                       − unreimbursed settled-kasbon spend
+ *                       − unreimbursed wage-offset recoveries
  *
  * computed in ONE place — imprestExpectation() — because the cashier screen
  * used to recompute a shorter formula (float − bon − kasbon) itself and every
  * settled kasbon left a permanent false "Identitas imprest tidak menutup"
  * alert: settle Rp 800.000 of a Rp 1.000.000 advance and the drawer honestly
  * holds 4.200.000, but the short formula said 5.000.000. Settlement spend
- * rides fin_kasbon_lines, never vouchers, so it needs its own term.
+ * rides fin_kasbon_lines, never vouchers, so it needs its own term — and a
+ * kasbon recovered by a mandor WAGE OFFSET (P4) rides neither pile, so the
+ * offset needs its own term too: see unreplenishedWageOffsetTotal().
  *
  * The identity is readable straight off the trial balance because every fund
  * posts to its own 1-11xx leaf. That is why the COA guards below exist: a
@@ -211,11 +214,14 @@ class PettyCashFundService
      * stamp is absent or unposted (same "reimbursed means POSTED" rule as
      * unreplenishedVoucherTotal).
      *
-     * Σ lines IS the drawer impact of a whole kasbon lifecycle regardless of
-     * how the change fell: advance 1.000.000 with 800.000 of receipts returns
-     * 200.000 (net −800.000); an overspent 1.300.000 settlement pays the extra
-     * 300.000 out of the drawer (net −1.300.000). Either way the drawer is
-     * down by exactly Σ lines.
+     * Σ lines IS the drawer impact of a whole RECEIPTS-ONLY kasbon lifecycle
+     * regardless of how the change fell: advance 1.000.000 with 800.000 of
+     * receipts returns 200.000 (net −800.000); an overspent 1.300.000
+     * settlement pays the extra 300.000 out of the drawer (net −1.300.000).
+     * Either way the drawer is down by exactly Σ lines. A kasbon partly
+     * recovered by wage offset is down by Σ lines PLUS the offset — the
+     * offset slice is unreplenishedWageOffsetTotal()'s, never this term's,
+     * so the two can never count the same rupiah twice.
      */
     public function settledKasbonSpendTotal(PettyCashFund $fund): float
     {
@@ -235,12 +241,61 @@ class PettyCashFundService
     }
 
     /**
+     * Kasbon money recovered by a mandor WAGE OFFSET (P4) and not yet
+     * reimbursed — the identity's fourth subtraction.
+     *
+     * Follow the drawer's claim through the offset. At issue the drawer
+     * swapped cash for paper: Dr 1-1370 / Cr fund — cash left, an equal
+     * receivable arrived, the identity unmoved. When the wage bill posts,
+     * its own journal credits 1-1370 for the deduction
+     * (ApBillService::approve → KasbonService::offsetAgainstWageBill): the
+     * drawer's receivable is CONSUMED by the wage payable — the employee's
+     * debt paid the mandor's wages — and no cash returns to the drawer.
+     * From that posting the drawer's total claim (cash + paper) is short by
+     * exactly the offset, and only the next POSTED replenishment restores
+     * it. The expectation must fall the moment the ledger does; before this
+     * term existed, a full 2.000.000 offset on a 5.000.000 float read as a
+     * permanent 2.000.000 "finding" on the cashier screen.
+     *
+     * SETTLED kasbons only, deliberately: while a partly-offset kasbon is
+     * still ISSUED, outstandingKasbonTotal() subtracts its FULL face amount,
+     * which already contains the recovered slice — counting
+     * wage_offset_total there too would subtract the same rupiah twice. The
+     * moment the kasbon flips Settled (full offset, or receipts for the
+     * remainder), the face amount leaves the outstanding term and Σ lines
+     * covers only the receipts — the offset slice would vanish from the
+     * identity; this term catches it.
+     *
+     * Same "reimbursed means POSTED" stamp rule as the other two piles:
+     * stampCoveredVouchers() stamps every settled kasbon — offset-settled,
+     * zero-line ones included — so this term clears when the replenishment
+     * posts and holds through submit/approve/reject exactly like the rest.
+     * releaseWageOffset() (wage-bill cancel) needs no seam here: its
+     * reversal re-debits 1-1370 and flips the kasbon back to Issued, so the
+     * offset leaves this term as the face amount re-enters outstanding —
+     * the expectation is restored exactly.
+     */
+    public function unreplenishedWageOffsetTotal(PettyCashFund $fund): float
+    {
+        return round((float) $fund->kasbons()
+            ->where('status', KasbonStatus::Settled->value)
+            ->where(function ($stamp): void {
+                $stamp->whereNull('replenishment_payment_id')
+                    ->orWhereHas(
+                        'replenishmentPayment',
+                        fn ($payment) => $payment->where('status', '!=', PaymentStatus::Posted->value),
+                    );
+            })
+            ->sum('wage_offset_total'), 2);
+    }
+
+    /**
      * THE imprest identity, in its one home (see the class docblock):
      * what the drawer's GL balance should read given the paper —
      * float − unreimbursed bons − outstanding kasbon − unreimbursed
-     * settled-kasbon spend. The cashier screen compares this against
-     * balance() and a difference is a finding (short initial funding, a
-     * partial top-up), not noise.
+     * settled-kasbon spend − unreimbursed wage-offset recoveries. The
+     * cashier screen compares this against balance() and a difference is a
+     * finding (short initial funding, a partial top-up), not noise.
      */
     public function imprestExpectation(PettyCashFund $fund): float
     {
@@ -248,7 +303,8 @@ class PettyCashFundService
             (float) $fund->float_amount
             - $this->unreplenishedVoucherTotal($fund)
             - $this->outstandingKasbonTotal($fund)
-            - $this->settledKasbonSpendTotal($fund),
+            - $this->settledKasbonSpendTotal($fund)
+            - $this->unreplenishedWageOffsetTotal($fund),
             2,
         );
     }

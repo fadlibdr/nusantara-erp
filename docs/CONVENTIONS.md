@@ -151,7 +151,13 @@ another module's rows, look them up by these canonical codes and skip gracefully
   yang sama oleh kedua seeder — mana pun yang jalan lebih dulu yang membuatnya.
 - Vendors: `VND-0001` PT Semen Distribusi Utama, `VND-0002` CV Baja Mandiri,
   `VND-0003` PT Elektrindo Supply (ICT distributor), `VND-0004` CV Karya Sipil Sejahtera
-  (subcontractor, sipil), `VND-0005` PT Mekanika Prima (subcontractor, ME).
+  (subcontractor, sipil), `VND-0005` PT Mekanika Prima (subcontractor, ME),
+  `VND-0006` Mandor Harjo Wibowo (`vendor_type` mandor, non-PKP, jasa — P4; register
+  dokumennya memuat K3L + pakta integritas + CV mandor `cv_mandor`).
+- SP3 mandor (P4): `SP3/2026/III/0001` upah borongan pasangan bata & plesteran
+  (VND-0006 × PRJ-2026-001, approved, PPh final UMKM 0,5%) dengan opname mandor
+  `OPM/2026/III/0001` (approved, tanpa potongan kasbon — kasbon demo milik seeder
+  Finance, menautkannya lintas-seeder rapuh terhadap urutan).
 - Items: `ITM-0001` Semen Portland 50kg (zak), `ITM-0002` Besi Beton D16 (btg),
   `ITM-0003` Kabel UTP Cat6 (roll), `ITM-0004` CCTV Dome 4MP (unit),
   `ITM-0005` Pasir Beton (m3), `ITM-0006` Switch Managed 24 Port (unit),

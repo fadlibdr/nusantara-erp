@@ -53,16 +53,18 @@ class VendorQualificationService
             ->whereNotNull('valid_until')
             ->where('valid_until', '<', now()->toDateString())
             /*
-             * Untuk SUBKONTRAKTOR, dua jenis K3L/pakta sepenuhnya milik
-             * klausul penyempitan di bawah — absen maupun kedaluwarsa, buta
-             * tanda is_mandatory, dan baris TERSEGAR yang menang. Tanpa
-             * pengecualian ini satu lembar K3L wajib-kedaluwarsa disebut DUA
-             * KALI dalam satu pesan, dan subkon yang MEMPERBARUI K3L-nya
-             * (baris segar ditambah, baris basi dibiarkan) tetap terblokir
-             * oleh baris basinya. Vendor non-subkon tidak berubah: baris K3L
-             * mereka tunduk aturan lama seperti dokumen wajib lain.
+             * Untuk vendor yang MENGIRIM PEKERJA KE SITE (P4: vendor_type
+             * subcontractor ATAU mandor — dulu is_subcontractor), dua jenis
+             * K3L/pakta sepenuhnya milik klausul penyempitan di bawah — absen
+             * maupun kedaluwarsa, buta tanda is_mandatory, dan baris TERSEGAR
+             * yang menang. Tanpa pengecualian ini satu lembar K3L
+             * wajib-kedaluwarsa disebut DUA KALI dalam satu pesan, dan subkon
+             * yang MEMPERBARUI K3L-nya (baris segar ditambah, baris basi
+             * dibiarkan) tetap terblokir oleh baris basinya. Vendor
+             * material/rental tidak berubah: baris K3L mereka tunduk aturan
+             * lama seperti dokumen wajib lain.
              */
-            ->when($vendor->is_subcontractor, fn ($query) => $query->whereNotIn('doc_type', [
+            ->when($this->sendsWorkersToSite($vendor), fn ($query) => $query->whereNotIn('doc_type', [
                 VendorDocumentType::K3lCommitment->value,
                 VendorDocumentType::PaktaIntegritas->value,
             ]))
@@ -77,15 +79,30 @@ class VendorQualificationService
 
         /*
          * PENYEMPITAN SADAR (P0-E) atas filosofi "absen bukan pelanggaran" di
-         * atas: khusus vendor SUBKONTRAKTOR, komitmen K3L dan pakta
-         * integritas wajib HADIR dan belum kedaluwarsa — apa pun tanda
-         * is_mandatory barisnya. Orang yang mengirim pekerjanya ke site tanpa
-         * komitmen K3L bukan register yang belum rapi; itulah risiko yang
-         * gerbang ini ada untuk menahan. Vendor material murni tidak
-         * tersentuh, dan override beralasan tetap menjadi jalan daruratnya —
-         * mobilisasi besok pagi tidak menunggu tanda tangan hari ini.
+         * atas: khusus vendor SUBKONTRAKTOR — dan sejak P4 juga MANDOR —
+         * komitmen K3L dan pakta integritas wajib HADIR dan belum kedaluwarsa
+         * — apa pun tanda is_mandatory barisnya. Orang yang mengirim
+         * pekerjanya ke site tanpa komitmen K3L bukan register yang belum
+         * rapi; itulah risiko yang gerbang ini ada untuk menahan. Vendor
+         * material murni tidak tersentuh, dan override beralasan tetap
+         * menjadi jalan daruratnya — mobilisasi besok pagi tidak menunggu
+         * tanda tangan hari ini.
+         *
+         * KEPUTUSAN P4 YANG DIDOKUMENTASIKAN (roadmap diam soal mandor):
+         * mandor IKUT dikenai penyempitan ini. Alasan P0-E di paragraf atas —
+         * "mengirim pekerjanya ke site" — adalah persis seluruh bisnis
+         * seorang mandor borongan; membebaskannya berarti gerbang menahan CV
+         * subkon ber-akta tetapi meloloskan rombongan tukang tanpa komitmen
+         * K3L apa pun. F/CVM (P4) menambah CV Mandor sebagai lembar
+         * KUALIFIKASI mandor, bukan pengganti komitmen keselamatan — CV
+         * menjawab "siapa dia", K3L menjawab "bagaimana orang-orangnya
+         * bekerja dengan selamat"; dua pertanyaan, dua dokumen. Sejak P4
+         * klausul ini membaca vendor_type (kode baru membaca vendor_type;
+         * is_subcontractor deprecated), dan perilakunya untuk
+         * vendor_type=subcontractor identik dengan perilaku lama untuk
+         * is_subcontractor=true — VendorTypeTest memakukan keduanya.
          */
-        if ($vendor->is_subcontractor) {
+        if ($this->sendsWorkersToSite($vendor)) {
             $required = [
                 VendorDocumentType::K3lCommitment,
                 VendorDocumentType::PaktaIntegritas,
@@ -150,5 +167,21 @@ class VendorQualificationService
         }
 
         throw VendorNotQualifiedException::make($vendor, $blockers);
+    }
+
+    /**
+     * Siapa yang dikenai penyempitan K3L/pakta P0-E — dibaca dari
+     * vendor_type (P4). Fallback ke is_subcontractor hanya untuk baris yang
+     * belum pernah tersentuh model sejak kolomnya lahir (hook sinkron di
+     * Vendor::booted mengisi vendor_type pada setiap simpan), supaya vendor
+     * lama yang belum pernah di-load tetap dinilai dengan aturan yang sama.
+     */
+    private function sendsWorkersToSite(Vendor $vendor): bool
+    {
+        if ($vendor->vendor_type !== null) {
+            return $vendor->vendor_type->sendsWorkersToSite();
+        }
+
+        return (bool) $vendor->is_subcontractor;
     }
 }

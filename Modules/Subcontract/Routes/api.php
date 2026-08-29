@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Subcontract\Http\Controllers\HandoverController;
+use Modules\Subcontract\Http\Controllers\LaborClaimController;
+use Modules\Subcontract\Http\Controllers\LaborContractController;
 use Modules\Subcontract\Http\Controllers\ProgressClaimController;
 use Modules\Subcontract\Http\Controllers\SubcontractAddendumController;
 use Modules\Subcontract\Http\Controllers\SubcontractController;
@@ -74,6 +76,28 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('handovers/{handover}/submit', [HandoverController::class, 'submit'])->middleware('permission:scm.update');
     Route::post('handovers/{handover}/approve', [HandoverController::class, 'approve'])->middleware('permission:scm.approve');
     Route::post('handovers/{handover}/reject', [HandoverController::class, 'reject'])->middleware('permission:scm.approve');
+
+    // P4 — SP3 Induk (SPK mandor upah borongan). Approve membawa scm.approve
+    // seperti SPK subkon; maker-checker di dalam Approvable.
+    Route::get('labor-contracts', [LaborContractController::class, 'index']);
+    Route::post('labor-contracts', [LaborContractController::class, 'store'])->middleware('permission:scm.create');
+    Route::get('labor-contracts/{laborContract}', [LaborContractController::class, 'show']);
+    Route::put('labor-contracts/{laborContract}', [LaborContractController::class, 'update'])->middleware('permission:scm.update');
+    Route::delete('labor-contracts/{laborContract}', [LaborContractController::class, 'destroy'])->middleware('permission:scm.delete');
+    Route::post('labor-contracts/{laborContract}/submit', [LaborContractController::class, 'submit'])->middleware('permission:scm.update');
+    Route::post('labor-contracts/{laborContract}/approve', [LaborContractController::class, 'approve'])->middleware('permission:scm.approve');
+    Route::post('labor-contracts/{laborContract}/reject', [LaborContractController::class, 'reject'])->middleware('permission:scm.approve');
+
+    // P4 — Opname mandor: volume per baris SP3 per periode, potongan kasbon,
+    // lalu tagihan AP lewat Finance (fin_ap_bills.labor_claim_id).
+    Route::get('labor-claims', [LaborClaimController::class, 'index']);
+    Route::post('labor-claims', [LaborClaimController::class, 'store'])->middleware('permission:scm.create');
+    Route::get('labor-claims/{laborClaim}', [LaborClaimController::class, 'show']);
+    Route::put('labor-claims/{laborClaim}', [LaborClaimController::class, 'update'])->middleware('permission:scm.update');
+    Route::delete('labor-claims/{laborClaim}', [LaborClaimController::class, 'destroy'])->middleware('permission:scm.delete');
+    Route::post('labor-claims/{laborClaim}/submit', [LaborClaimController::class, 'submit'])->middleware('permission:scm.update');
+    Route::post('labor-claims/{laborClaim}/approve', [LaborClaimController::class, 'approve'])->middleware('permission:scm.approve');
+    Route::post('labor-claims/{laborClaim}/reject', [LaborClaimController::class, 'reject'])->middleware('permission:scm.approve');
 
     // Progress claims (opname)
     Route::get('progress-claims', [ProgressClaimController::class, 'index']);

@@ -68,6 +68,7 @@ use Modules\ServiceDesk\Models\FieldReport;
 use Modules\ServiceDesk\Models\ServiceContract;
 use Modules\ServiceDesk\Services\ServiceDeskFormService;
 use Modules\Subcontract\Models\Handover;
+use Modules\Subcontract\Models\LaborClaim;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
@@ -2392,6 +2393,106 @@ class PrintableDocuments
                     ],
                 ],
             ],
+            /*
+             * CV MANDOR (P4) — lembar kualifikasi mandor borongan.
+             *
+             * Yang dicetak adalah yang BENAR-BENAR tercatat: identitas dari
+             * master vendor, riwayat SP3 dari scm_labor_contracts (hanya
+             * approved/closed — pengalaman yang sistem ini saksikan sendiri),
+             * dan register dokumennya. Riwayat kerja di luar sistem milik
+             * lampiran CV-nya (prc_vendor_documents tipe cv_mandor); baris
+             * catatan bergaris di bawah disediakan untuk keahlian/pengalaman
+             * yang ditulis tangan — bukan diarang lembar ini.
+             *
+             * Lembar ini sengaja tidak menolak vendor non-mandor: JENIS
+             * VENDOR tercetak apa adanya, dan CV untuk pemasok terbaca
+             * sebagai apa adanya pula.
+             */
+            'cv-mandor' => [
+                'resource' => 'procurement/vendors',
+                'model' => Vendor::class,
+                'permission' => 'prc.view',
+                'label' => 'CV Mandor',
+                'formTitle' => 'DAFTAR RIWAYAT HIDUP (CV) MANDOR',
+                'formCode' => 'Form F/CVM',
+                'with' => ['documents'],
+                'header' => ['kind' => 'vendor', 'source' => fn (Vendor $vendor): Vendor => $vendor],
+                'date' => 'created_at',
+                'identityHouse' => false,
+                'title' => 'name',
+                'identity' => [
+                    'NAMA MANDOR' => 'name',
+                    'KODE VENDOR' => 'code',
+                    'JENIS VENDOR' => fn (Vendor $vendor): ?string => $vendor->vendor_type?->label(),
+                    'NPWP' => 'npwp',
+                    'ALAMAT' => 'address',
+                    'KOTA' => 'city',
+                    'TELEPON' => 'phone',
+                    'PENANGGUNG JAWAB' => 'pic_name',
+                ],
+                'body' => [
+                    [
+                        'id' => 'riwayat-sp3',
+                        'title' => 'RIWAYAT SP3 DI PERUSAHAAN INI',
+                        'rows' => fn (Vendor $vendor): array => app(SubcontractFormService::class)
+                            ->mandorContractRows($vendor),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NO. SP3', 'width' => '36mm', 'value' => 'code'],
+                            ['label' => 'PROYEK', 'value' => 'project.name'],
+                            ['label' => 'PEKERJAAN', 'value' => 'title'],
+                            ['label' => 'MULAI', 'width' => '24mm', 'value' => 'start_date', 'cast' => 'date'],
+                            ['label' => 'SELESAI', 'width' => '24mm', 'value' => 'end_date', 'cast' => 'date'],
+                            ['label' => 'NILAI (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'value', 'cast' => 'money'],
+                        ],
+                        'empty' => 'Belum ada SP3 tercatat untuk mandor ini.',
+                    ],
+                    [
+                        'id' => 'register-dokumen',
+                        'title' => 'REGISTER DOKUMEN',
+                        'rows' => 'documents',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            // text cast prints a backed enum's label().
+                            ['label' => 'JENIS', 'width' => '34mm', 'value' => 'doc_type'],
+                            ['label' => 'NAMA DOKUMEN', 'value' => 'name'],
+                            ['label' => 'NOMOR', 'width' => '34mm', 'value' => 'number'],
+                            ['label' => 'BERLAKU S/D', 'width' => '26mm',
+                                'value' => 'valid_until', 'cast' => 'date'],
+                        ],
+                        'empty' => 'Register dokumen mandor ini masih kosong.',
+                    ],
+                ],
+                // Ruang tulis tangan untuk keahlian/pengalaman di luar sistem.
+                'notes' => ['text' => null, 'lines' => 8],
+                'signatures' => [
+                    [
+                        'heading' => 'Menyatakan benar,',
+                        'subheading' => 'Mandor',
+                        'party' => 'name',
+                        'name' => null,
+                        'role' => 'Nama & Tanda Tangan',
+                    ],
+                    [
+                        'heading' => 'Diperiksa,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Pengadaan',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Mengetahui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Proyek',
+                    ],
+                ],
+            ],
+
             // PRINTABLE REGISTRY (Procurement) — tambahkan dokumen baru di sini.
         ];
     }
@@ -3952,6 +4053,115 @@ class PrintableDocuments
                     ],
                 ],
             ],
+            /*
+             * REKAP UPAH (P4) — rekap upah mandor PER PROYEK PER PERIODE,
+             * dijangkarkan pada satu opname mandor: lembar ini memuat setiap
+             * opname proyek yang sama yang periodenya beririsan dengan
+             * periode opname jangkar (SubcontractFormService::rekapUpahRows).
+             *
+             * SENGAJA TANPA BARIS TOTAL: rekap bisa memuat draf dan approved
+             * berdampingan, dan satu angka total yang menjumlah keduanya
+             * adalah klaim yang belum ditandatangani siapa pun. Kolom STATUS
+             * tercetak per baris; pembaca menjumlah yang sudah sah.
+             *
+             * Setiap angka rupiah adalah kolom TERSIMPAN yang dihitung
+             * LaborClaimService — lembar dan tagihan AP membaca kolom yang
+             * sama, tidak ada yang dihitung ulang di sini.
+             */
+            'rekap-upah' => [
+                'resource' => 'subcontract/labor-claims',
+                'model' => LaborClaim::class,
+                'permission' => 'scm.view',
+                'label' => 'Rekap Upah',
+                'formTitle' => 'REKAP UPAH MANDOR PER PROYEK PER PERIODE',
+                'formCode' => 'Form F/RU',
+                // Sepuluh kolom badan — lanskap, aturan registry sendiri.
+                'orientation' => 'landscape',
+                'with' => [
+                    'laborContract' => fn ($query) => $query->withTrashed(),
+                    'laborContract.vendor' => fn ($query) => $query->withTrashed(),
+                    'laborContract.project' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => [
+                    'kind' => 'vendor',
+                    'source' => 'laborContract.vendor',
+                    'project' => 'laborContract.project',
+                ],
+                // Dated by the period it covers — a reprint in December is
+                // still the rekap for March (pola opname-subkon).
+                'date' => 'period_end',
+                'pekerjaan' => 'laborContract.title',
+                'identityHouse' => false,
+                'identity' => [
+                    'NO. OPNAME JANGKAR' => 'code',
+                    'NO. SP3' => 'laborContract.code',
+                    'PROYEK' => 'laborContract.project.name',
+                    'PERIODE DARI' => ['value' => 'period_start', 'cast' => 'date'],
+                    'PERIODE S/D' => ['value' => 'period_end', 'cast' => 'date'],
+                ],
+                'body' => [
+                    [
+                        'id' => 'rekap-upah-baris',
+                        'rows' => fn (LaborClaim $claim): array => app(SubcontractFormService::class)
+                            ->rekapUpahRows($claim),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NO. OPNAME', 'width' => '34mm', 'value' => 'code'],
+                            ['label' => 'NO. SP3', 'width' => '34mm', 'value' => 'laborContract.code'],
+                            ['label' => 'MANDOR', 'value' => 'laborContract.vendor.name'],
+                            ['label' => 'PERIODE S/D', 'width' => '24mm',
+                                'value' => 'period_end', 'cast' => 'date'],
+                            ['label' => 'BRUTO UPAH (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'gross_amount', 'cast' => 'money'],
+                            ['label' => 'PPh (Rp)', 'align' => 'right', 'width' => '22mm',
+                                'value' => 'pph_amount', 'cast' => 'money'],
+                            ['label' => 'POT. KASBON (Rp)', 'align' => 'right', 'width' => '28mm',
+                                'value' => 'kasbon_deduction_amount', 'cast' => 'money'],
+                            // Aturan kejujuran P4 juga di atas kertas: potongan
+                            // kasbon menyebut KODE kasbonnya pada barisnya.
+                            // Baris tanpa potongan tetap garis kosong — kode
+                            // kasbon yang kebetulan tertaut tanpa potongan
+                            // bukan fakta lembar ini.
+                            ['label' => 'KODE KASBON', 'align' => 'center', 'width' => '26mm',
+                                'value' => fn (LaborClaim $row): ?string => (float) $row->kasbon_deduction_amount > 0
+                                    ? $row->kasbon?->code
+                                    : null],
+                            ['label' => 'NETTO (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'net_payable', 'cast' => 'money'],
+                            // text cast prints the DocumentStatus label.
+                            ['label' => 'STATUS', 'align' => 'center', 'width' => '22mm',
+                                'value' => 'status'],
+                        ],
+                        'empty' => 'Tidak ada opname mandor pada proyek dan periode ini.',
+                    ],
+                ],
+                'notes' => ['text' => 'notes', 'lines' => 3],
+                'signatures' => [
+                    [
+                        'heading' => 'Disusun,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Admin Proyek',
+                    ],
+                    [
+                        'heading' => 'Diperiksa,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Site Manager',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Menyetujui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Proyek',
+                    ],
+                ],
+            ],
+
             // PRINTABLE REGISTRY (Subcontract) — tambahkan dokumen baru di sini.
         ];
     }

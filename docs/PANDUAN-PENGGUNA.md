@@ -154,7 +154,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
 | Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
-| Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon |
+| Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
 | SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
 | Layanan | Tiket · Tiket Lewat SLA · Kontrak Layanan · Jadwal Preventif · Berita Acara |
@@ -581,7 +581,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 53 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 55 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -1901,18 +1901,27 @@ Jalur procure-to-pay: dari lapangan yang butuh semen sampai uangnya keluar dari 
 
 ### 5.2 Vendor & Subkon — `Pengadaan › Vendor & Subkon`
 
-Kolom: Kode · Nama vendor (dengan kota) · Klasifikasi · Subkon · PKP · Rating · Status.
-Saringan: Klasifikasi, Status, Subkontraktor.
+Kolom: Kode · Nama vendor (dengan kota) · Klasifikasi · **Jenis** · PKP · Rating ·
+Status. Saringan: Klasifikasi, Status, **Jenis vendor**.
 
 Formulir, dua bagian:
 
 - *Identitas vendor*: **Nama vendor** (wajib) · Nama badan hukum · **Kode** (kosong =
   otomatis) · **Klasifikasi** (wajib: Material / Jasa / ICT / Sipil / Mekanikal &
   Elektrikal) · NPWP · **No. SPPKP** (bantuan: *"Wajib bila vendor berstatus PKP"* —
-  server memaksanya) · **PKP** · **Subkontraktor** · Status · **Termin bayar (hari)**
-  (bawaan 30).
+  server memaksanya) · **PKP** · **Jenis vendor** (Pemasok / Subkontraktor / Mandor /
+  Rental — lihat di bawah) · Status · **Termin bayar (hari)** (bawaan 30).
 - *Kontak & bank*: Alamat · Kota · Telepon · Email · Nama PIC · Bank · No. rekening ·
   Atas nama.
+
+**Jenis vendor menggantikan centang "Subkontraktor" lama** di layar ini (sejak paket
+mandor): boolean lama hanya bisa menyebut dua dari empat hal yang bisa menjadi vendor.
+Bantuan pada isiannya, kata demi kata: *"Subkontraktor & mandor terkena gerbang
+prakualifikasi K3L/pakta integritas; mandor untuk SP3 upah borongan, rental untuk sewa
+alat."* Vendor lama tidak perlu disentuh — jenisnya sudah terisi otomatis dari centang
+lamanya (bercentang → Subkontraktor, tidak → Pemasok), dan layar-layar lain yang masih
+membaca tanda subkon lama tetap benar karena keduanya disinkronkan server pada setiap
+simpan.
 
 Tidak ada tombol aksi. Menghapus vendor yang punya PO ditolak:
 `"Vendor {code} has purchase orders and cannot be deleted; set it inactive instead."`
@@ -1926,8 +1935,25 @@ Tidak ada tombol aksi. Menghapus vendor yang punya PO ditolak:
   > tidak boleh memungut PPN."
 - **Termin bayar (hari)** diam-diam mengisi Jatuh tempo tagihan vendor (tanggal tagihan +
   termin), kecuali PO-nya menyebut termin sendiri.
-- **Subkontraktor.** Hanya vendor yang bercentang ini yang boleh dipakai pada SPK subkon
-  (bab 8): `"Vendor {code} ({nama}) is not registered as a subcontractor."`
+- **Jenis vendor.** Hanya vendor berjenis **Subkontraktor** yang boleh dipakai pada SPK
+  subkon (bab 8): `"Vendor {code} ({nama}) is not registered as a subcontractor."` Dan
+  hanya vendor berjenis **Mandor** yang boleh dipakai pada SP3 mandor (§8.9):
+  > "Vendor {kode} ({nama}) bukan vendor bertipe mandor; SP3 hanya dapat dibuat untuk
+  > mandor. Ubah jenis vendornya di master vendor, atau pakai SPK subkon untuk
+  > subkontraktor."
+
+  Keduanya — subkontraktor **dan** mandor — terkena penyempitan prakualifikasi yang
+  sama: **Komitmen K3L dan Pakta Integritas wajib hadir dan belum kedaluwarsa** di
+  register Dokumen Vendor (§5.3), apa pun tanda Wajib-nya. Alasannya satu kalimat:
+  keduanya mengirim pekerjanya ke site.
+
+**Mencetak dari halaman vendor:** selain **`Cetak Persyaratan K3L Vendor`** (F/K3V), kini
+ada **`Cetak CV Mandor`** — *DAFTAR RIWAYAT HIDUP (CV) MANDOR* (Form F/CVM). Lembar itu
+mencetak identitas dari master vendor, **riwayat SP3 yang tercatat di sistem ini**
+(hanya yang disetujui/ditutup), dan register dokumennya; delapan baris bergaris kosong di
+bawahnya untuk keahlian/pengalaman di luar sistem, ditulis tangan (§13.5). Tombolnya
+tampil untuk vendor jenis apa pun — jenis vendornya tercetak apa adanya di blok
+identitas, jadi CV untuk pemasok terbaca sebagai apa adanya pula.
 
 **Rating tidak diketik di sini.** Ia rata-rata berjalan dari setiap Evaluasi Vendor
 (§5.8), satu desimal, ditulis ulang setiap kali sebuah evaluasi disimpan atau dihapus.
@@ -1944,9 +1970,15 @@ Teks bantuan di formulir, kata demi kata:
 > di-override beralasan)."
 
 Kolomnya: **Vendor** (wajib) · **Jenis** (wajib: NIB / SIUP / NPWP / SPPKP (PKP) / SBU
-Konstruksi / SKK Penanggung Jawab / Sertifikat Principal / Akta Perusahaan / Lainnya) ·
-**Nama dokumen** (wajib) · Nomor · Penerbit · Terbit · Berlaku s/d (≥ Terbit) ·
-**Wajib untuk PO/SPK** · Catatan.
+Konstruksi / SKK Penanggung Jawab / Sertifikat Principal / Akta Perusahaan / Komitmen
+K3L / Pakta Integritas / **CV Mandor** / Lainnya) · **Nama dokumen** (wajib) · Nomor ·
+Penerbit · Terbit · Berlaku s/d (≥ Terbit) · **Wajib untuk PO/SPK** · Catatan.
+
+**CV Mandor** adalah lembar kualifikasi mandor borongan (P4): rekamlah CV-nya di sini
+(lampirkan berkasnya bila ada), dan lembar cetak F/CVM di halaman vendor (§5.2) akan
+memuatnya di register dokumennya. CV menjawab *siapa dia*; ia **bukan** pengganti
+Komitmen K3L dan Pakta Integritas, yang tetap wajib hadir untuk mandor sebagaimana untuk
+subkontraktor.
 
 **Centang "Wajib untuk PO/SPK" adalah gerbangnya.** Prakualifikasi hanya memblokir dua
 fakta:
@@ -2258,15 +2290,16 @@ lampiran.
 Kolom: Kode · Vendor · Tgl tagihan · Jatuh tempo · Total bayar · **Sisa** (hijau bila
 nol) · Status. Bisa diubah/dihapus hanya saat Draf atau Ditolak.
 
-Bantuan di formulir: *"Isi PO atau opname subkon untuk menyalin nilainya otomatis;
-kosongkan keduanya untuk tagihan manual."*
+Bantuan di formulir: *"Isi PO, opname subkon, atau opname mandor untuk menyalin nilainya
+otomatis; kosongkan semuanya untuk tagihan manual."*
 
-**Lima kolom pertama hanya ada saat MEMBUAT** — semuanya hilang dari formulir Ubah:
+**Enam kolom pertama hanya ada saat MEMBUAT** — semuanya hilang dari formulir Ubah:
 
 | Kolom | Bantuan di layar |
 |---|---|
 | **Dari PO** | — |
 | **Dari opname subkon** | — |
+| **Dari opname mandor** | — (P4: DPP = bruto − potongan kasbon, PPh final UMKM 0,5%; §8.10) |
 | **Tagihan uang muka (DP) atas PO** | "DP ke pemasok sebelum barang datang. Dicatat sebagai uang muka, BUKAN beban proyek, lalu dikreditkan kembali otomatis saat tagihan final PO yang sama disetujui." |
 | **Atas penerimaan barang (GRN)** | "Untuk barang yang sudah diterima tanpa PO: menagihkan akrual penerimaan yang menggantung di 2-1150 supaya tidak mengendap di neraca." |
 | **Tagihan parsial: GRN yang ditagih** | "Isi bersama 'Dari PO' untuk menagih sebagian pengiriman: pilih penerimaan (GRN) PO itu yang difakturkan vendor — nilainya dihitung dari qty diterima x harga PO, diskon dan uang muka dipotong proporsional. Kosongkan untuk menagih seluruh PO." |
@@ -4178,8 +4211,9 @@ Cetak: **F/BAPP** — §13.3.
 
 ## 8. Subkontraktor
 
-Empat layar di kelompok **Subkontrak**: **SPK Subkon**, **Addendum SPK**, **Opname
-Subkon**, **BAST Subkon**. Uang keluarnya lewat Tagihan Vendor (AP) dan Pembayaran di
+Enam layar di kelompok **Subkontrak**: **SPK Subkon**, **Addendum SPK**, **Opname
+Subkon**, **BAST Subkon**, dan — sejak paket mandor — **SP3 Mandor** dengan **Opname
+Mandor** (§8.9–§8.10). Uang keluarnya lewat Tagihan Vendor (AP) dan Pembayaran di
 kelompok Keuangan.
 
 ### 8.1 Siapa mengerjakan apa
@@ -4540,6 +4574,168 @@ dan satu BAST II hidup per SPK.
 > muka, bukan pekerjaan yang terukur.
 
 Cetak: **F/BST-SK** — §13.3.
+
+### 8.9 SP3 Mandor — `Subkontrak › SP3 Mandor`
+
+**SP3 Induk** adalah SPK upah borongan untuk **mandor**: vendor perorangan yang membawa
+rombongan tukangnya sendiri dan dibayar **per volume terpasang**, bukan per nilai
+kontrak. Tiga perbedaan dari SPK subkon (§8.2), semuanya disengaja:
+
+1. **Tanpa retensi dan tanpa uang muka** — upah borongan dibayar per opname volume;
+   kasbon (§10.7) adalah uang-di-muka versi mandor, dan dipulihkan lewat potongan upah
+   (§8.10), bukan lewat mesin uang muka SPK.
+2. **PPh-nya PPh final UMKM 0,5% (PP 55/2022)**, bukan tarif jasa konstruksi PP 9/2022 —
+   mandor borongan perorangan bukan penyedia jasa konstruksi bersertifikat.
+3. **Tanpa ambang direktur** — SP3 tidak melewati ambang Rp 200 juta yang berlaku untuk
+   SPK subkon, dan tidak diadu dengan anggaran RAP. Keduanya belum diputuskan pemilik;
+   sampai ada keputusan, penyetujunya tetap tunduk pemisahan tugas biasa (§2.5).
+
+Kolom: Kode · Pekerjaan (dengan nama mandor) · Proyek · **Nilai SP3** · **PPh final** ·
+Status. Saringan: Status, Proyek, Mandor. Bisa diubah/dihapus hanya saat Draf atau
+Ditolak.
+
+Teks bantuan di formulir: *"Vendor harus bertipe mandor. Tarif PPh final UMKM (PP
+55/2022) di-snapshot saat dibuat; skema PPh 21 TER belum diaktifkan."*
+
+**Menyusun SP3:**
+
+1. **`Tambah SP3`**.
+2. Isi **Mandor** (wajib) — pemilihnya hanya memuat vendor berjenis **Mandor** (§5.2).
+   Vendor jenis lain ditolak:
+   > "Vendor {kode} ({nama}) bukan vendor bertipe mandor; SP3 hanya dapat dibuat untuk
+   > mandor. Ubah jenis vendornya di master vendor, atau pakai SPK subkon untuk
+   > subkontraktor."
+3. Isi **Proyek** (wajib), **Judul pekerjaan** (wajib), **Skema PPh upah** (wajib),
+   Mulai, Selesai, Catatan.
+4. Isi tabel **Baris upah borongan** (minimal 1): **ID baris BOQ** (opsional — mengisi
+   uraian, volume, dan satuan dari baris BOQ itu) · Uraian · **Volume** (wajib) ·
+   Satuan · **Tarif upah** (wajib). **Tarif upah selalu diketik, tidak pernah diambil
+   dari BOQ** — harga BOQ adalah harga jual ke pemberi kerja, bukan upah mandor.
+5. **`Simpan`**, lalu **`Ajukan`**, lalu **`Setujui`** oleh orang lain.
+
+Penolakan baris: *"Setiap baris SP3 memerlukan volume (qty) lebih dari nol."* ·
+*"Setiap baris SP3 memerlukan tarif upah lebih dari nol."*
+
+**Gerbang prakualifikasi berbunyi DUA KALI: saat membuat, dan lagi saat mengajukan**
+(atas data hidup — mandor yang menjadi nonaktif di antara draf dan pengajuan tetap
+tertahan). Formulir SP3 membawa kotak **Alasan override prakualifikasi** sendiri (*"Isi
+hanya bila mandor terblokir prakualifikasi (nonaktif / K3L / pakta integritas) dan SP3
+tetap harus dibuat."*), dan tombol `Ajukan` membuka dialog dengan kotak yang sama
+(*"Kosongkan bila mandor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan
+tetap harus jalan."*) — seperti pada PO/SPK, **alasan hanya tercap bila gerbangnya
+benar-benar memblokir**. Yang diperiksa gerbang untuk mandor sama dengan subkon: vendor
+Aktif, dokumen Wajib tak kedaluwarsa, dan **Komitmen K3L + Pakta Integritas hadir dan
+berlaku** (§5.2).
+
+**Skema PPh upah** — dua pilihan, satu pintu yang belum dibangun:
+
+| Skema | Tarif | Keadaan |
+|---|---|---|
+| PPh Final UMKM 0,5% (PP 55/2022) | 0,5% dari bruto | bawaan; lengkap |
+| PPh 21 TER (mesin payroll) | per penerima | **belum diaktifkan** |
+
+Memilih PPh 21 TER ditolak, kata demi kata:
+
+> "Skema PPh 21 (TER) untuk upah mandor belum diaktifkan; SP3 saat ini memakai PPh final
+> UMKM 0,5% (PP 55/2022) sesuai asumsi #3. Bila pemilik memutuskan PPh 21, jalur ini
+> akan memakai mesin payroll (Pph21TerService)."
+
+Tarif di-snapshot ke SP3 saat dibuat — perubahan tarif di Pengaturan kelak tidak menulis
+ulang SP3 yang ada. **PPN** mengikuti status PKP mandornya (non-PKP = tanpa PPN, aturan
+yang sama dengan SPK); mandor PKP praktis tidak ada, tetapi aturannya milik master
+vendor, bukan tebakan layar ini.
+
+**Halaman SP3** menampilkan strip Nilai/PPN/PPh dan tabel **Baris upah** dengan kolom
+**ID**. **Kolom ID itu penting** — angka itulah yang Anda ketik ke kolom "ID baris SP3"
+pada formulir opname mandor (§8.10), sama seperti pasangan ID di halaman SPK (§8.2).
+
+Penolakan lain: `"SP3 {kode} berstatus {status} dan tidak dapat diubah lagi."` ·
+`"SP3 {kode} sudah memiliki opname mandor dan tidak dapat dihapus."`
+
+### 8.10 Opname Mandor — `Subkontrak › Opname Mandor`
+
+Opname mandor mencatat **volume terpasang per baris SP3 per periode** — dan berbeda dari
+opname subkon (§8.4), yang Anda ketik adalah **volume periode ini**, bukan progres
+kumulatif. Plafonnya keras, per baris, dalam volume:
+
+> volume approved sebelumnya + volume periode ini ≤ volume baris SP3-nya.
+
+Kolom: Kode · SP3 (dengan judulnya) · **Opname ke-** · Periode s/d · **Bruto upah** ·
+**Potongan kasbon** (dengan kode kasbonnya) · **Netto dibayar** · Status.
+
+Teks bantuan di formulir, dan ia adalah aturannya: *"Volume periode ini per baris SP3;
+tidak boleh melebihi sisa (qty kontrak dikurangi yang sudah di-opname approved).
+Potongan kasbon tidak boleh melebihi sisa kasbon maupun upah yang terbayarkan."*
+
+**Membuat opname:**
+
+1. **`Tambah Opname mandor`**. SP3-nya harus sudah **Disetujui**:
+   > "SP3 {kode} berstatus {status}; opname mandor hanya dapat dibuat atas SP3 yang
+   > sudah disetujui."
+2. Isi **SP3** (wajib, hanya saat membuat), **Periode mulai**, **Periode selesai**.
+3. Isi tabel **Volume per baris SP3**: **ID baris SP3** (angka mentah — salin dari kolom
+   **ID** di halaman SP3) dan **Volume periode ini**.
+4. Bila ada kasbon yang mau dipotong dari upah periode ini: isi **ID kasbon dipotong**
+   (bantuan: *"Kasbon berstatus cair milik proyek SP3 ini."* — angkanya dari layar
+   Kasir Kas Kecil, §10.7) dan **Potongan kasbon**.
+5. **`Simpan`**, lalu **`Ajukan`**, lalu **`Setujui`**.
+
+Matematikanya, semuanya kolom tersimpan yang dihitung server:
+
+`Bruto = Σ (volume × tarif upah)` · `PPN = 0` (mandor non-PKP) · `PPh = 0,5% × bruto` ·
+`Netto dibayar = bruto + PPN − PPh − potongan kasbon`. **PPh dipotong atas bruto PENUH**
+— potongan kasbon adalah cara membayar upahnya, bukan pengurang penghasilan mandor.
+
+**Penolakan volume**, kata demi kata:
+
+- > "Volume {x} {satuan} pada baris "{uraian}" melebihi sisa SP3 {y} {satuan} (qty
+  > kontrak {q}, sudah di-opname {p})."
+- `"Baris {id} bukan milik SP3 {kode}."` — ID baris yang Anda ketik milik SP3 lain.
+- `"Volume periode ini pada baris "{uraian}" harus lebih dari nol."`
+- Volume bergeser sejak opname didraf (opname lain disetujui di antaranya):
+  > "Volume approved baris "{uraian}" kini {x} {satuan}, bukan {y} seperti saat opname
+  > {kode} disusun; ubah dan ajukan ulang opname ini."
+
+**Penolakan potongan kasbon**, kata demi kata:
+
+- `"Potongan kasbon harus menunjuk kasbon yang dipotong; pilih kasbonnya."`
+- > "Kasbon {kode} berstatus {status}; hanya kasbon yang sudah cair dan belum
+  > diselesaikan yang dapat dipotong dari upah mandor."
+- > "Kasbon {kode} milik proyek lain; potongan upah hanya untuk kasbon proyek SP3 ini."
+  — uang muka site A tidak dipulihkan dari upah proyek B.
+- `"Potongan kasbon {x} melebihi sisa kasbon {kode} ({y})."`
+- > "Potongan kasbon {x} melebihi upah yang terbayarkan pada opname ini ({y}); netto
+  > tidak boleh minus — sisanya dipotong pada opname berikutnya."
+
+Seluruh pemeriksaan itu **berjalan ulang atas data hidup saat `Setujui`** — opname yang
+angkanya sudah basi diedit dan diajukan ulang, tidak disetujui begitu saja.
+
+**Menagihkan opname — sisi keuangan.** Keuangan membuat tagihan dari `Keuangan ›
+Tagihan Vendor (AP)` dengan mengisi kolom **Dari opname mandor** (§5.9). Nilainya
+diturunkan dari opname: **DPP = bruto dikurangi potongan kasbon** (persis seperti
+tagihan subkon dipotong uang mukanya), PPh final UMKM 0,5% pada baris pajak
+`PPH4A2-UMKM`, tanpa retensi. Penolakan:
+
+- > "Opname mandor {kode} berstatus {status}; hanya opname yang sudah disetujui yang
+  > dapat ditagihkan."
+- `"Tagihan atas opname mandor {kode} sudah ada."`
+
+**Menyetujui tagihannya adalah saat potongan kasbon menjadi fakta akuntansi**: jurnal
+tagihan mengkredit piutang karyawan (1-1370) sebesar potongan, dan sisa kasbonnya
+berkurang pada saat yang sama — kasbon yang sisanya habis oleh potongan langsung
+berstatus **Selesai** (§10.7). Membatalkan tagihan mengembalikan potongan itu ke
+kasbonnya; pembatalan **ditolak** bila kasbonnya sudah terlanjur dihitung selesai oleh
+pengisian ulang laci atau oleh pertanggungjawaban kuitansi — koreksinya jurnal manual.
+
+**Mencetak: `Cetak Rekap Upah`** — *REKAP UPAH MANDOR PER PROYEK PER PERIODE* (Form
+F/RU, mendatar), dari halaman opname mana pun. Lembar itu dijangkarkan pada opname yang
+Anda buka: ia memuat **setiap opname mandor proyek yang sama yang periodenya beririsan**
+dengan periode opname itu — SP3 lain dan mandor lain ikut, itulah gunanya rekap. Kolom
+per baris: No. opname · No. SP3 · Mandor · Periode s/d · Bruto upah · PPh · Potongan
+kasbon · Netto · **Status**. **Sengaja tidak ada baris total**: rekap bisa memuat draf
+dan approved berdampingan, dan satu angka total yang menjumlah keduanya adalah klaim
+yang belum ditandatangani siapa pun — kolom Status membiarkan pembaca menjumlah sendiri
+yang sudah sah (§13.5).
 
 ---
 
@@ -5164,6 +5360,24 @@ pertanggungjawaban harus menyebut belanjanya."* · dan bila kelebihan belanjanya
 isi laci:
 > "Belanja pertanggungjawaban … melebihi kasbon KSB/… dan kelebihannya … melebihi saldo
 > laci KK-HO per {tanggal} (…). Isi ulang dananya lebih dulu."
+
+**Jalan pulang kedua: potongan upah mandor (P4).** Kasbon yang cair ke seorang mandor
+bisa dipulihkan tanpa kuitansi sama sekali — **dipotong dari upahnya** lewat opname
+mandor (§8.10). Potongan itu menjadi fakta saat **tagihan AP opnamenya disetujui**:
+jurnal tagihan mengkredit 1-1370 sebesar potongan, dan sisa kasbon berkurang pada saat
+yang sama. Tiga akibat yang perlu diketahui pemegang laci:
+
+- **Kasbon yang sisanya habis oleh potongan langsung Selesai** — tanpa baris
+  pertanggungjawaban, tanpa uang kembali ke laci. Tidak ada lagi yang perlu
+  dipertanggungjawabkan; ia keluar dari hitungan kasbon-beredar rumus imprest.
+- **Pertanggungjawaban kuitansi menjadi sadar-potongan**: yang diselesaikan kuitansi
+  hanyalah **sisa** setelah potongan upah — mengkredit uang muka penuh dua kali untuk
+  rupiah yang sama adalah persis yang dihindarinya.
+- **Membatalkan tagihan upahnya mengembalikan potongan ke kasbon** — kecuali kasbonnya
+  sudah dihitung selesai oleh pengisian ulang laci atau oleh pertanggungjawaban
+  kuitansi. Keduanya ditolak dengan kalimat yang menyuruh koreksi lewat jurnal:
+  > "Kasbon {kode} sudah dicap pada pembayaran pengisian ulang kas kecil; potongan
+  > upahnya tidak dapat dibuka kembali dari sini — koreksi lewat jurnal."
 
 > **Kasbon yang dicairkan BUKAN pengeluaran.** Ia piutang karyawan. Biaya baru diakui baris
 > demi baris saat pertanggungjawaban. Manajer lokasi yang membaca posisi laci sebagai "kami
@@ -5951,7 +6165,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 53 formulir
+### 13.3 Daftar lengkap 55 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -5998,6 +6212,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Berita Acara Keputusan Pemenang | F/AWD | halaman Keputusan Pemenang (§5.12) |
 | Evaluasi Vendor | F/EV | halaman Evaluasi Vendor |
 | Persyaratan K3L Vendor | F/K3V | halaman Vendor |
+| Daftar Riwayat Hidup (CV) Mandor — identitas + riwayat SP3 **tercatat** + register dokumen; 8 baris bergaris untuk pengalaman di luar sistem (§5.2) | F/CVM | halaman Vendor |
 
 **Persediaan** (izin lihat persediaan):
 
@@ -6019,6 +6234,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Berita Acara Addendum SPK | F/AS | halaman Addendum |
 | Berita Acara Opname dan Pembayaran Subkontraktor (mendatar) | F/BO | halaman Opname Subkon |
 | Berita Acara Serah Terima Pekerjaan Subkontraktor | F/BST-SK | halaman BAST Subkon (§8.8) |
+| Rekap Upah Mandor per Proyek per Periode (mendatar) — status per baris, **sengaja tanpa baris total** (§8.10) | F/RU | halaman Opname Mandor |
 
 **Keuangan** (izin lihat keuangan):
 
@@ -6132,6 +6348,8 @@ Yang paling sering ditemui:
 | Opname ke Pemilik (F/OPN) | kolom **LOKASI / ZONA** pada baris yang tidak diukur per zona · kolom **VOL. KONTRAK + CCO** bila item BOQ di balik baris itu sudah tidak ada — dan **item BOQ yang tidak diukur periode itu tidak punya baris sama sekali** | lokasi memang opsional pada baris opname; plafon adalah fakta tentang kontrak, jadi tanpa item BOQ tidak ada plafon untuk dinyatakan. Baris tidak digaris dan tidak diisi nol karena "tidak diukur" dan "diukur, hasilnya nol" adalah dua pernyataan berbeda dan hanya yang kedua boleh berdiri di atas tanda tangan (§7.14) |
 | BAPP per Zona (F/BAPP) | **DIPERIKSA OLEH (PIHAK)** & **NAMA PEMERIKSA** selama belum ditandatangani. Status zona TIDAK pernah kosong — `Selesai` / `Diperiksa` / `Nunggu perbaikan` tercetak sebagai kata | keduanya diisi dari lembar yang benar-benar ditandatangani; nama Konsultan MK dari halaman proyek tidak pernah menggantikannya. Status wajib tercetak karena lembar inilah bukti yang menahan tagihan zona (§3.11a, §7.16) |
 | BAST Subkon (F/BST-SK) | **RETENSI DAPAT DILEPAS MULAI** bila SPK-nya belum mencatat akhir masa pemeliharaan · **YANG MENYERAHKAN / MENERIMA** yang belum dicatat | SPK tidak menyimpan *panjang* masa pemeliharaan, jadi tidak ada yang bisa dihitung — dan kosongnya persis keadaan yang juga membuat pelepasan retensi menuntut alasan override (§8.7, §8.8) |
+| CV Mandor (F/CVM) | **8 baris catatan bergaris** untuk keahlian/pengalaman di luar sistem · tabel **RIWAYAT SP3** hanya memuat SP3 disetujui/ditutup — kosong berbunyi *"Belum ada SP3 tercatat untuk mandor ini."* | riwayat kerja mandor sebelum sistem ini tidak tersimpan di kolom mana pun; yang tercatat hanyalah SP3 yang perusahaan ini saksikan sendiri. Lembar ini tidak mengarang pengalaman — ia menyediakan garis untuk ditulis tangan dan menunjuk lampiran CV-nya (§5.3) |
+| Rekap Upah (F/RU) | tidak ada yang bergaris — tetapi **tidak ada baris TOTAL**, dan kolom **STATUS** tercetak per baris sebagai kata | rekap boleh memuat draf dan approved berdampingan; satu total yang menjumlah keduanya adalah klaim yang belum ditandatangani siapa pun. Periode tanpa opname **tidak punya baris** — "tidak di-opname" dan "di-opname, nol" adalah dua pernyataan berbeda (§8.10) |
 
 **Lembar yang sudah diisi dan ditandatangani itulah catatannya.** Arsipkan di berkas
 proyek — tidak ada layar untuk merekamnya kembali.

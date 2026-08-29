@@ -14,6 +14,7 @@ use Modules\Inventory\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\Vendor;
 use Modules\Projects\Models\Project;
+use Modules\Subcontract\Models\LaborClaim;
 use Modules\Subcontract\Models\ProgressClaim;
 
 class ApBill extends BaseModel
@@ -71,6 +72,17 @@ class ApBill extends BaseModel
     public function subcontractClaim(): BelongsTo
     {
         return $this->belongsTo(ProgressClaim::class, 'subcontract_claim_id');
+    }
+
+    /**
+     * P4 — the mandor opname (SP3) this bill pays. A NEW column mirroring
+     * subcontract_claim_id, not a reuse of it: one column pointing at two
+     * tables with no discriminator is a number nobody can audit (the
+     * migration adding it spells this out).
+     */
+    public function laborClaim(): BelongsTo
+    {
+        return $this->belongsTo(LaborClaim::class, 'labor_claim_id');
     }
 
     /**

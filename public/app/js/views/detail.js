@@ -267,6 +267,12 @@ const LABELS = {
   qualification_override_reason: 'Alasan override kualifikasi',
   goods_receipt_id: 'Penerimaan barang', field_report_id: 'Laporan lapangan',
   issue_id: 'Pengeluaran barang', wbs_task_id: 'Tugas WBS', boq_item_id: 'Item BOQ',
+  // P4 — SP3 mandor & opname mandor; tanpa entri ini titleize() jatuh ke
+  // "Labor Contract" / "Kasbon Id" pada layar berbahasa Indonesia.
+  vendor_type: 'Jenis vendor', labor_contract_id: 'SP3', labor_contract: 'SP3',
+  labor_claim_id: 'Opname mandor', labor_claim: 'Opname mandor',
+  kasbon_id: 'Kasbon', kasbon: 'Kasbon dipotong',
+  kasbon_deduction_amount: 'Potongan kasbon', unit_rate: 'Tarif upah',
   // Uang, termin, progres.
   amount: 'Jumlah', percent: 'Persentase', termin_no: 'Termin ke-', is_billed: 'Sudah ditagih',
   is_due: 'Sudah jatuh tempo', is_retention: 'Termin retensi',

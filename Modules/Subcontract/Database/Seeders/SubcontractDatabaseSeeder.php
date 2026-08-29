@@ -10,6 +10,8 @@ use Modules\Core\Models\NumberSequence;
 use Modules\Procurement\Models\Vendor;
 use Modules\Subcontract\Enums\HandoverType;
 use Modules\Subcontract\Models\Handover;
+use Modules\Subcontract\Models\LaborClaim;
+use Modules\Subcontract\Models\LaborContract;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\ProgressClaimItem;
 use Modules\Subcontract\Models\Subcontract;
@@ -22,7 +24,137 @@ class SubcontractDatabaseSeeder extends Seeder
         $this->seedSubcontracts();
         $this->seedProgressClaims();
         $this->seedHandover();
+        $this->seedLaborContract();
+        $this->seedLaborClaim();
         $this->syncNumberSequences();
+    }
+
+    /**
+     * P4 — satu SP3 Induk approved untuk Mandor Harjo (VND-0006) di proyek
+     * Graha Sentosa: baris upah borongan (volume x tarif upah), PPh final
+     * UMKM 0,5% (PP 55/2022) di-snapshot, tanpa PPN (non-PKP).
+     */
+    private function seedLaborContract(): void
+    {
+        $vendorId = Vendor::query()->where('code', 'VND-0006')->value('id');
+        $projectId = DB::table('prj_projects')->where('code', 'PRJ-2026-001')->value('id');
+
+        if ($vendorId === null || $projectId === null) {
+            return;
+        }
+
+        $userId = User::query()->orderBy('id')->value('id');
+
+        $contract = LaborContract::withTrashed()->updateOrCreate(
+            ['code' => 'SP3/2026/III/0001'],
+            [
+                'vendor_id' => $vendorId,
+                'project_id' => $projectId,
+                'title' => 'Upah borongan pasangan bata & plesteran lantai 1-3',
+                'ppn_rate' => 0, // mandor non-PKP
+                'pph_scheme' => 'final_umkm',
+                'pph_rate' => (float) config('erp.tax.pph_final_umkm_rate', 0.5),
+                'start_date' => '2026-03-02',
+                'end_date' => '2026-07-31',
+                'notes' => 'Opname dua-mingguan; upah dibayar per volume terpasang, potong kasbon bila ada.',
+                'status' => 'approved',
+            ],
+        );
+
+        $lines = [
+            ['line_no' => 1, 'wbs_code' => 'A.1', 'description' => 'Pasangan bata merah 1/2 batu', 'qty' => 2400, 'unit' => 'm2', 'unit_rate' => 45000],
+            ['line_no' => 2, 'wbs_code' => 'A.2', 'description' => 'Plesteran + acian dinding', 'qty' => 4800, 'unit' => 'm2', 'unit_rate' => 32000],
+        ];
+
+        $contract->items()->delete();
+
+        $value = 0.0;
+
+        foreach ($lines as $line) {
+            $line['amount'] = round($line['qty'] * $line['unit_rate'], 2);
+            $value = round($value + $line['amount'], 2);
+            $contract->items()->create($line);
+        }
+
+        // 2400x45.000 + 4800x32.000 = 108.000.000 + 153.600.000 = 261.600.000
+        $contract->forceFill(['value' => $value])->save();
+
+        $this->writeApprovalTrail($contract, [
+            ['action' => 'submitted', 'note' => null],
+            ['action' => 'approved', 'note' => 'Tarif upah sesuai kesepakatan borongan; mulai kerja 2 Maret.'],
+        ], $userId);
+    }
+
+    /**
+     * P4 — satu opname mandor approved: volume dua minggu pertama, tanpa
+     * potongan kasbon (kasbon demo milik seeder Finance; menautkannya dari
+     * sini berarti seeder lintas-modul yang rapuh terhadap urutan).
+     */
+    private function seedLaborClaim(): void
+    {
+        $contract = LaborContract::query()->where('code', 'SP3/2026/III/0001')->first();
+
+        if (! $contract || $contract->items()->doesntExist()) {
+            return;
+        }
+
+        $userId = User::query()->orderBy('id')->value('id');
+        $items = $contract->items()->get()->keyBy('wbs_code');
+
+        // Matematika yang sama dengan LaborClaimService::recalcTotals.
+        $volumes = ['A.1' => 420, 'A.2' => 260]; // m2 terpasang periode ini
+        $gross = 0.0;
+        $lines = [];
+
+        foreach ($volumes as $wbs => $qtyThis) {
+            $item = $items->get($wbs);
+
+            if (! $item) {
+                continue;
+            }
+
+            $amount = round($qtyThis * (float) $item->unit_rate, 2);
+            $gross = round($gross + $amount, 2);
+
+            $lines[] = [
+                'labor_contract_item_id' => $item->id,
+                'qty_prev' => 0,
+                'qty_this' => $qtyThis,
+                'amount' => $amount,
+            ];
+        }
+
+        // 420x45.000 + 260x32.000 = 18.900.000 + 8.320.000 = 27.220.000
+        $pph = round($gross * (float) $contract->pph_rate / 100, 2); // 0,5% = 136.100
+
+        $claim = LaborClaim::withTrashed()->updateOrCreate(
+            ['code' => 'OPM/2026/III/0001'],
+            [
+                'labor_contract_id' => $contract->id,
+                'claim_no' => 1,
+                'period_start' => '2026-03-02',
+                'period_end' => '2026-03-14',
+                'gross_amount' => $gross,
+                'ppn_amount' => 0,
+                'pph_amount' => $pph,
+                'kasbon_id' => null,
+                'kasbon_deduction_amount' => 0,
+                'net_payable' => round($gross - $pph, 2),
+                'notes' => 'Opname mandor minggu ke-1 & ke-2: dinding lantai 1 sisi utara.',
+                'status' => 'approved',
+            ],
+        );
+
+        $claim->items()->delete();
+
+        foreach ($lines as $line) {
+            $claim->items()->create($line);
+        }
+
+        $this->writeApprovalTrail($claim, [
+            ['action' => 'submitted', 'note' => null],
+            ['action' => 'approved', 'note' => 'Volume terpasang dicek bersama pengawas lapangan.'],
+        ], $userId);
     }
 
     /**
@@ -319,7 +451,7 @@ class SubcontractDatabaseSeeder extends Seeder
      * Rebuild the approval trail idempotently so re-running the seeder does
      * not duplicate rows.
      */
-    private function writeApprovalTrail(Subcontract|ProgressClaim $document, array $trail, ?int $userId): void
+    private function writeApprovalTrail(Subcontract|ProgressClaim|LaborContract|LaborClaim $document, array $trail, ?int $userId): void
     {
         $document->approvals()->delete();
 
@@ -373,14 +505,14 @@ class SubcontractDatabaseSeeder extends Seeder
      */
     private function syncNumberSequences(): void
     {
-        foreach (['SPK', 'CLM'] as $type) {
+        foreach (['SPK' => 2, 'CLM' => 2, 'SP3' => 1, 'OPM' => 1] as $type => $minimum) {
             $sequence = NumberSequence::query()->firstOrCreate(
                 ['type' => $type, 'year' => 2026],
                 ['last_number' => 0],
             );
 
-            if ((int) $sequence->last_number < 2) {
-                $sequence->update(['last_number' => 2]);
+            if ((int) $sequence->last_number < $minimum) {
+                $sequence->update(['last_number' => $minimum]);
             }
         }
     }

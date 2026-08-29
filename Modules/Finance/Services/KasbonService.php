@@ -200,7 +200,13 @@ class KasbonService
 
             $this->assertCustodian($fund, $by, 'menerima pertanggungjawaban kasbon');
 
-            $advance = (float) $kasbon->amount;
+            // SADAR-OFFSET (P4): bagian kasbon yang sudah dipulihkan lewat
+            // potongan upah mandor (wage_offset_total) telah dikredit dari
+            // 1-1370 oleh jurnal tagihan upahnya sendiri. Pertanggungjawaban
+            // ini hanya menyelesaikan SISANYA — mengkredit uang muka penuh
+            // di sini berarti 1-1370 dikredit dua kali untuk rupiah yang
+            // sama dan bersaldo kredit atas piutang yang sudah lunas.
+            $advance = round((float) $kasbon->amount - (float) $kasbon->wage_offset_total, 2);
             $spent = 0.0;
             $journalLines = [];
             $costRows = [];
@@ -334,6 +340,124 @@ class KasbonService
 
             return $kasbon->refresh()->load('lines');
         });
+    }
+
+    // ------------------------------------------------- wage offset (P4 seam)
+
+    /**
+     * SEAM TERDOKUMENTASI untuk potongan upah mandor (P4): tagihan AP atas
+     * opname SP3 memulihkan kasbon dengan MEMOTONG upah — jurnal tagihannya
+     * sendiri yang mengkredit 1-1370 (satu jurnal berimbang per dokumen,
+     * pola autoPost), dan metode ini yang mencatat FAKTA offset itu pada
+     * kasbonnya. Dipanggil oleh ApBillService::approve, di dalam transaksi
+     * yang sama dengan jurnalnya. Tidak ada baris pertanggungjawaban yang
+     * dirakit tangan di mana pun — settle() tetap satu-satunya jalan kuitansi.
+     *
+     * Kasbon yang sisanya habis oleh offset ini langsung SETTLED (tanpa
+     * baris, cash_returned 0): tidak ada lagi yang perlu
+     * dipertanggungjawabkan, dan status itulah yang mengeluarkannya dari
+     * hitungan kasbon-beredar rumus imprest.
+     */
+    public function offsetAgainstWageBill(Kasbon $kasbon, float $amount, string $date): Kasbon
+    {
+        /** @var Kasbon $kasbon */
+        $kasbon = Kasbon::query()->whereKey($kasbon->id)->lockForUpdate()->firstOrFail();
+
+        if ($kasbon->status !== KasbonStatus::Issued) {
+            throw new LogicException(
+                "Kasbon {$kasbon->code} berstatus {$kasbon->status->value}; hanya kasbon yang sudah "
+                .'cair dan belum diselesaikan yang dapat dipotong dari upah mandor.'
+            );
+        }
+
+        $amount = round($amount, 2);
+
+        if ($amount <= 0) {
+            throw new LogicException('Potongan kasbon harus lebih besar dari nol.');
+        }
+
+        $outstanding = $kasbon->outstandingAmount();
+
+        if ($this->cents($amount - $outstanding) > 1) {
+            throw new LogicException(
+                "Potongan kasbon {$amount} melebihi sisa kasbon {$kasbon->code} ({$outstanding})."
+            );
+        }
+
+        $offsetTotal = round((float) $kasbon->wage_offset_total + $amount, 2);
+        $fullyRecovered = $this->cents((float) $kasbon->amount - $offsetTotal) <= 1;
+
+        $kasbon->forceFill([
+            'wage_offset_total' => $offsetTotal,
+            'status' => $fullyRecovered ? KasbonStatus::Settled : KasbonStatus::Issued,
+            'settlement_date' => $fullyRecovered ? $date : null,
+            'cash_returned' => $fullyRecovered ? 0 : null,
+            'settled_at' => $fullyRecovered ? now() : null,
+        ])->save();
+
+        return $kasbon->refresh();
+    }
+
+    /**
+     * Kebalikan offsetAgainstWageBill, untuk pembatalan tagihan upahnya:
+     * jurnal pembaliknya baru saja mendebit 1-1370 kembali, jadi catatan
+     * offset pada kasbon harus ikut kembali — atau sisa kasbon akan
+     * understate persis sebesar potongan yang sudah tidak berdiri.
+     *
+     * Dua keadaan yang JUJURNYA MENOLAK (dan karena dipanggil di dalam
+     * transaksi cancel, penolakan ini membatalkan pembatalannya):
+     *
+     *   - kasbon sudah dicap pembayaran pengisian ulang: laci sudah diisi
+     *     ulang dengan menghitung kasbon ini selesai — membukanya kembali
+     *     menulis ulang cerita yang uangnya sudah berpindah; koreksinya
+     *     jurnal manual oleh akuntan;
+     *   - kasbon diselesaikan lewat pertanggungjawaban KUITANSI setelah
+     *     offset parsial (ada baris / cash_returned bukan jejak offset):
+     *     settle() sudah mengkredit sisa 1-1370-nya — tidak ada piutang
+     *     untuk dibuka kembali.
+     */
+    public function releaseWageOffset(Kasbon $kasbon, float $amount): Kasbon
+    {
+        /** @var Kasbon $kasbon */
+        $kasbon = Kasbon::query()->whereKey($kasbon->id)->lockForUpdate()->firstOrFail();
+
+        $amount = round($amount, 2);
+
+        if ($amount <= 0 || $this->cents($amount - (float) $kasbon->wage_offset_total) > 0) {
+            throw new LogicException(
+                "Offset upah yang diminta kembali ({$amount}) melebihi yang tercatat pada "
+                ."kasbon {$kasbon->code} ({$kasbon->wage_offset_total})."
+            );
+        }
+
+        if ($kasbon->replenishment_payment_id !== null) {
+            throw new LogicException(
+                "Kasbon {$kasbon->code} sudah dicap pada pembayaran pengisian ulang kas kecil; "
+                .'potongan upahnya tidak dapat dibuka kembali dari sini — koreksi lewat jurnal.'
+            );
+        }
+
+        $settledByOffsetAlone = $kasbon->status === KasbonStatus::Settled
+            && ! $kasbon->lines()->exists()
+            && $this->cents((float) $kasbon->cash_returned) === 0
+            && $this->cents((float) $kasbon->wage_offset_total - (float) $kasbon->amount) === 0;
+
+        if ($kasbon->status === KasbonStatus::Settled && ! $settledByOffsetAlone) {
+            throw new LogicException(
+                "Kasbon {$kasbon->code} sudah diselesaikan lewat pertanggungjawaban kuitansi; "
+                .'potongan upahnya tidak dapat dibuka kembali — koreksi lewat jurnal.'
+            );
+        }
+
+        $kasbon->forceFill([
+            'wage_offset_total' => round((float) $kasbon->wage_offset_total - $amount, 2),
+            'status' => KasbonStatus::Issued,
+            'settlement_date' => null,
+            'cash_returned' => null,
+            'settled_at' => null,
+        ])->save();
+
+        return $kasbon->refresh();
     }
 
     // ------------------------------------------------------------- guards

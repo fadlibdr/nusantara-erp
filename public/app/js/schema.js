@@ -1618,7 +1618,11 @@ export const RESOURCES = {
       codeColumn,
       { key: 'name', label: 'Nama vendor', type: 'text', sub: 'city' },
       { key: 'classification', label: 'Klasifikasi', type: 'enum', enum: 'vendorClassification' },
-      { key: 'is_subcontractor', label: 'Subkon', type: 'bool', align: 'center' },
+      /* P4 — jenis vendor menggantikan kolom boolean "Subkon" di layar ini:
+         empat nilai (pemasok/subkon/mandor/rental), bukan dua. Pembaca
+         is_subcontractor lain (combobox/lookup/detail/form.js) tidak diubah —
+         model Vendor menyinkronkan kedua kolom pada setiap simpan. */
+      { key: 'vendor_type', label: 'Jenis', type: 'enum', enum: 'vendorType' },
       { key: 'is_pkp', label: 'PKP', type: 'bool', align: 'center' },
       { key: 'rating', label: 'Rating', type: 'number', align: 'right', decimals: 2 },
       statusColumn,
@@ -1626,7 +1630,7 @@ export const RESOURCES = {
     filters: [
       { key: 'classification', label: 'Klasifikasi', enum: 'vendorClassification' },
       { key: 'status', label: 'Status', enum: 'activeStatus' },
-      { key: 'is_subcontractor', label: 'Subkontraktor', type: 'boolFilter' },
+      { key: 'vendor_type', label: 'Jenis vendor', enum: 'vendorType' },
     ],
     form: {
       sections: [
@@ -1640,7 +1644,14 @@ export const RESOURCES = {
             { key: 'npwp', label: 'NPWP', type: 'text' },
             { key: 'sppkp_number', label: 'No. SPPKP', type: 'text', help: 'Wajib bila vendor berstatus PKP.' },
             { key: 'is_pkp', label: 'PKP', type: 'bool' },
-            { key: 'is_subcontractor', label: 'Subkontraktor', type: 'bool' },
+            /* P4 — menggantikan centang "Subkontraktor" lama: vendor_type
+               menang di server bila keduanya terkirim, dan centang boolean
+               diturunkan otomatis dari jenis (Vendor::booted). */
+            {
+              key: 'vendor_type', label: 'Jenis vendor', type: 'select', enum: 'vendorType',
+              default: 'supplier',
+              help: 'Subkontraktor & mandor terkena gerbang prakualifikasi K3L/pakta integritas; mandor untuk SP3 upah borongan, rental untuk sewa alat.',
+            },
             { key: 'status', label: 'Status', type: 'select', enum: 'activeStatus', default: 'active' },
             { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', default: 30 },
           ],
@@ -2979,6 +2990,148 @@ export const RESOURCES = {
     actions: approvalActions('scm'),
   },
 
+  /* P4 — SP3 Induk: SPK mandor upah borongan. Baris = boq_item x tarif upah
+     x qty; plafon klaim per baris adalah qty-nya (volume, bukan persen). */
+  'subcontract/labor-contracts': {
+    module: 'scm', api: 'subcontract/labor-contracts', label: 'SP3 Mandor', labelOne: 'SP3',
+    lookupSource: 'laborContracts',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Pekerjaan', type: 'text', sub: 'vendor.name' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'value', label: 'Nilai SP3', type: 'currency', align: 'right' },
+      { key: 'pph_rate', label: 'PPh final', type: 'percent', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'vendor_id', label: 'Mandor', lookup: 'mandorVendors' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'SP3 Induk (SPK mandor)',
+        help: 'Vendor harus bertipe mandor. Tarif PPh final UMKM (PP 55/2022) di-snapshot saat dibuat; skema PPh 21 TER belum diaktifkan.',
+        fields: [
+          { key: 'vendor_id', label: 'Mandor', type: 'lookup', lookup: 'mandorVendors', required: true },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'pph_scheme', label: 'Skema PPh upah', type: 'select', enum: 'laborPphScheme', required: true, span: 2 },
+          { key: 'start_date', label: 'Mulai', type: 'date' },
+          { key: 'end_date', label: 'Selesai', type: 'date' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila mandor terblokir prakualifikasi (nonaktif / K3L / pakta integritas) dan SP3 tetap harus dibuat.' },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Baris upah borongan', min: 1,
+        columns: [
+          { key: 'boq_item_id', label: 'ID baris BOQ', type: 'number', width: '15%' },
+          { key: 'description', label: 'Uraian pekerjaan', type: 'text', width: '35%' },
+          { key: 'qty', label: 'Volume', type: 'number', required: true, width: '15%' },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '10%' },
+          { key: 'unit_rate', label: 'Tarif upah', type: 'currency', required: true, width: '25%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['value', 'ppn_rate', 'pph_rate'],
+      tables: [{
+        key: 'items', label: 'Baris upah',
+        columns: [
+          { key: 'line_no', label: 'No', align: 'center' },
+          /* Kolom ID penting — angka inilah yang diketik ke kolom "ID baris
+             SP3" formulir opname mandor (pola kartu Rincian pekerjaan SPK). */
+          { key: 'id', label: 'ID', align: 'center' },
+          { key: 'description', label: 'Uraian' },
+          { key: 'qty', label: 'Volume', type: 'qty', align: 'right' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'unit_rate', label: 'Tarif upah', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    /*
+     * Cermin SPK subkon: gate prakualifikasi berjalan ulang saat AJUKAN
+     * (LaborContractController::submit, atas data hidup), dan tanpa field ini
+     * SP3 yang mandornya menjadi nonaktif (atau K3L/paktanya kedaluwarsa) di
+     * antara draf dan pengajuan TIDAK PERNAH bisa diajukan dari SPA — alasan
+     * override hanya dibaca server dari payload submit. Kosongkan bila
+     * mandornya sehat.
+     */
+    actions: approvalActions('scm').map((action) => (action.key !== 'submit' ? action : {
+      ...action,
+      fields: [{
+        key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
+        type: 'textarea',
+        help: 'Kosongkan bila mandor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap harus jalan.',
+      }],
+    })),
+  },
+
+  /* P4 — Opname mandor: volume per baris SP3 per periode; potongan kasbon
+     tercatat di sini dan menjadi fakta akuntansi saat tagihan AP-nya
+     disetujui (kredit 1-1370 + offset pada kasbonnya). */
+  'subcontract/labor-claims': {
+    module: 'scm', api: 'subcontract/labor-claims', label: 'Opname Mandor', labelOne: 'Opname mandor',
+    columns: [
+      codeColumn,
+      { key: 'labor_contract.code', label: 'SP3', type: 'code', sub: 'labor_contract.title' },
+      { key: 'claim_no', label: 'Opname ke-', type: 'number', align: 'center' },
+      { key: 'period_end', label: 'Periode s/d', type: 'date' },
+      { key: 'gross_amount', label: 'Bruto upah', type: 'currency', align: 'right' },
+      /* Aturan kejujuran: potongan menyebut KODE kasbonnya, bukan hanya angka. */
+      { key: 'kasbon_deduction_amount', label: 'Potongan kasbon', type: 'currency', align: 'right', sub: 'kasbon.code' },
+      { key: 'net_payable', label: 'Netto dibayar', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'labor_contract_id', label: 'SP3', lookup: 'laborContracts' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Opname mandor',
+        help: 'Volume periode ini per baris SP3; tidak boleh melebihi sisa (qty kontrak dikurangi yang sudah di-opname approved). Potongan kasbon tidak boleh melebihi sisa kasbon maupun upah yang terbayarkan.',
+        fields: [
+          { key: 'labor_contract_id', label: 'SP3', type: 'lookup', lookup: 'laborContracts', required: true, createOnly: true },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
+          { key: 'kasbon_id', label: 'ID kasbon dipotong', type: 'number', help: 'Kasbon berstatus cair milik proyek SP3 ini.' },
+          { key: 'kasbon_deduction_amount', label: 'Potongan kasbon', type: 'currency' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Volume per baris SP3', min: 1,
+        columns: [
+          { key: 'labor_contract_item_id', label: 'ID baris SP3', type: 'number', required: true, width: '50%' },
+          { key: 'qty_this', label: 'Volume periode ini', type: 'number', required: true, width: '50%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['gross_amount', 'ppn_amount', 'pph_amount', 'kasbon_deduction_amount', 'net_payable'],
+      tables: [{
+        key: 'items', label: 'Rincian volume',
+        columns: [
+          { key: 'labor_contract_item.description', label: 'Uraian' },
+          { key: 'qty_prev', label: 'S/d lalu', type: 'qty', align: 'right' },
+          { key: 'qty_this', label: 'Periode ini', type: 'qty', align: 'right' },
+          { key: 'labor_contract_item.unit_rate', label: 'Tarif upah', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('scm'),
+  },
+
   /* ========================================================== FINANCE === */
   'finance/revenue-recognition': {
     module: 'fin', api: 'finance/revenue-recognition', label: 'Pengakuan Pendapatan (PSAK 115)', labelOne: 'Run PSAK 115',
@@ -3271,10 +3424,14 @@ export const RESOURCES = {
     form: {
       sections: [{
         title: 'Tagihan vendor',
-        help: 'Isi PO atau opname subkon untuk menyalin nilainya otomatis; kosongkan keduanya untuk tagihan manual.',
+        help: 'Isi PO, opname subkon, atau opname mandor untuk menyalin nilainya otomatis; kosongkan semuanya untuk tagihan manual.',
         fields: [
           { key: 'purchase_order_id', label: 'Dari PO', type: 'lookup', lookup: 'purchaseOrders', createOnly: true },
           { key: 'subcontract_claim_id', label: 'Dari opname subkon', type: 'lookup', lookup: 'progressClaims', createOnly: true },
+          /* P4 — cermin baris di atasnya untuk opname mandor (SP3): DPP netto
+             potongan kasbon, PPh final UMKM; hanya opname approved yang lolos
+             server (ApBillService::createFromLaborClaim). */
+          { key: 'labor_claim_id', label: 'Dari opname mandor', type: 'lookup', lookup: 'laborClaims', createOnly: true },
           {
             key: 'is_advance', label: 'Tagihan uang muka (DP) atas PO', type: 'bool', createOnly: true,
             help: 'DP ke pemasok sebelum barang datang. Dicatat sebagai uang muka, BUKAN beban proyek, '
@@ -4891,6 +5048,10 @@ export const NAV = [
       // memulai masa pemeliharaan yang dijamin retensi, dan HandoverService
       // menolaknya selagi ada opname yang belum disetujui.
       { label: 'BAST Subkon', route: 'r/subcontract/handovers' },
+      // P4 — alur mandor upah borongan, dua layar berurutan seperti pasangan
+      // SPK/Opname di atasnya: SP3 dulu (kontraknya), opname kemudian.
+      { label: 'SP3 Mandor', route: 'r/subcontract/labor-contracts' },
+      { label: 'Opname Mandor', route: 'r/subcontract/labor-claims' },
     ],
   },
   {

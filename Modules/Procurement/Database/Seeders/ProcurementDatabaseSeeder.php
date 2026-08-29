@@ -127,12 +127,65 @@ class ProcurementDatabaseSeeder extends Seeder
                 'payment_term_days' => 30,
                 'status' => 'active',
             ],
+            [
+                // P4 — vendor bertipe MANDOR (upah borongan, SP3). Perorangan
+                // non-PKP; PPh final UMKM 0,5% (PP 55/2022) dipotong pada
+                // tagihan opname mandornya.
+                'code' => 'VND-0006',
+                'name' => 'Mandor Harjo Wibowo',
+                'legal_name' => 'Harjo Wibowo',
+                'npwp' => '09.123.456.7-412.000',
+                'is_pkp' => false,
+                'sppkp_number' => null,
+                'is_subcontractor' => false,
+                'vendor_type' => 'mandor',
+                'classification' => 'jasa',
+                'address' => 'Kp. Rawa Bebek RT 04/02, Cakung',
+                'city' => 'Jakarta Timur',
+                'phone' => '0813-8020-4471',
+                'email' => null,
+                'pic_name' => 'Harjo Wibowo',
+                'bank_name' => 'BRI',
+                'bank_account_no' => '032201009945021',
+                'bank_account_name' => 'Harjo Wibowo',
+                'payment_term_days' => 7,
+                'status' => 'active',
+            ],
         ];
 
         foreach ($vendors as $vendor) {
             Vendor::withTrashed()->updateOrCreate(
                 ['code' => $vendor['code']],
                 $vendor,
+            );
+        }
+
+        $this->seedMandorDocuments();
+    }
+
+    /**
+     * P4 — register dokumen mandor demo: K3L + pakta integritas (tanpa
+     * keduanya gate prakualifikasi menolak SP3-nya — penyempitan P0-E berlaku
+     * juga untuk mandor) dan CV Mandor, sumber lembar F/CVM.
+     */
+    private function seedMandorDocuments(): void
+    {
+        $mandor = Vendor::query()->where('code', 'VND-0006')->first();
+
+        if (! $mandor) {
+            return;
+        }
+
+        $documents = [
+            ['doc_type' => 'k3l_commitment', 'name' => 'Komitmen K3L Mandor Harjo', 'number' => null, 'valid_until' => null, 'is_mandatory' => true],
+            ['doc_type' => 'pakta_integritas', 'name' => 'Pakta Integritas Mandor Harjo', 'number' => null, 'valid_until' => null, 'is_mandatory' => true],
+            ['doc_type' => 'cv_mandor', 'name' => 'CV Mandor Harjo Wibowo — borongan sipil sejak 2011', 'number' => 'CV/HW/2026', 'valid_until' => null, 'is_mandatory' => false],
+        ];
+
+        foreach ($documents as $document) {
+            $mandor->documents()->updateOrCreate(
+                ['doc_type' => $document['doc_type'], 'name' => $document['name']],
+                $document,
             );
         }
     }
