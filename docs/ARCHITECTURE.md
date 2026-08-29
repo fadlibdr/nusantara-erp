@@ -118,6 +118,33 @@ on `qc_ncr`, and for the same reason:
                              release from a real one — the existing arrow, reused)
 ```
 
+**P4 — the mandor labor contract (SP3), its opname and the kasbon offset.** A mandor is
+a **vendor** (`prc_vendors.vendor_type = mandor`, asumsi #3), so the SP3
+(`scm_labor_contracts`) and its per-period volume claims (`scm_labor_claims`) live in
+Subcontract and bill through Finance like their subcon twins — with one new coupling in
+each direction, both through documented seams:
+
+```
+   Subcontract ──▶ Procurement (SP3 vendor must be vendor_type=mandor; the P0-E
+                             K3L/pakta narrowing now covers mandor too —
+                             VendorQualificationService::sendsWorkersToSite)
+   Subcontract ──▶ Estimation  (SP3 line may borrow description/qty/unit from
+                             est_boq_items; the wage rate is always typed)
+   Subcontract ┈┈▶ (fin_kasbons)
+                             LaborClaimService READS the kasbon (status, project,
+                             outstanding) to admit or refuse a wage deduction; it never
+                             writes one. The write — the offset becoming an accounting
+                             fact — happens in Finance when the AP bill is approved:
+                             ApBillService credits 1-1370 and calls
+                             KasbonService::offsetAgainstWageBill / releaseWageOffset,
+                             the documented seam, inside the journal's own transaction.
+   Finance  ──▶ Subcontract  (ApBillService::createFromLaborClaim builds the bill from
+                             an approved scm_labor_claims row via
+                             fin_ap_bills.labor_claim_id — a NEW column, not a reuse of
+                             subcontract_claim_id: two FKs into two tables through one
+                             column with no discriminator cannot be audited)
+```
+
 ## Core document flows
 
 **Sales → delivery (construction):**

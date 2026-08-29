@@ -41,6 +41,7 @@ export const SOURCES = {
   // P4 — pemilih mandor (SP3) membaca vendor_type, bukan boolean lama.
   mandorVendors: { path: 'procurement/vendors', label: 'name', sub: 'picker_label', params: { vendor_type: 'mandor' }, title: 'Mandor' },
   laborContracts: { path: 'subcontract/labor-contracts', label: 'code', sub: 'title', title: 'SP3 mandor' },
+  laborClaims: { path: 'subcontract/labor-claims', label: 'code', sub: 'notes', title: 'Opname mandor' },
   purchaseRequisitions: { path: 'procurement/purchase-requisitions', label: 'purpose', sub: 'code', title: 'Permintaan pembelian' },
   purchaseOrders: { path: 'procurement/purchase-orders', label: 'code', sub: 'notes', title: 'Pesanan pembelian' },
   rfqs: { path: 'procurement/rfqs', label: 'code', sub: 'notes', title: 'RFQ (banding penawaran)' },

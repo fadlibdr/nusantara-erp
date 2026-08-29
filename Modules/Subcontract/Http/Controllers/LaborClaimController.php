@@ -19,7 +19,7 @@ class LaborClaimController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $query = LaborClaim::query()
-            ->with('laborContract')
+            ->with('laborContract', 'kasbon')
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $q = $request->string('q');
                 $query->where(function ($where) use ($q): void {
@@ -50,7 +50,7 @@ class LaborClaimController extends ApiController
     public function show(LaborClaim $laborClaim): JsonResponse
     {
         return $this->ok(LaborClaimResource::make(
-            $laborClaim->load('items.laborContractItem', 'laborContract')
+            $laborClaim->load('items.laborContractItem', 'laborContract', 'kasbon')
         ));
     }
 

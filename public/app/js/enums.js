@@ -137,12 +137,21 @@ export const ENUMS = {
     ['material', 'Material'], ['jasa', 'Jasa'], ['ict', 'ICT'],
     ['sipil', 'Sipil'], ['me', 'Mekanikal & Elektrikal'],
   ]),
+  /* P4 — cermin Modules\Procurement\Enums\VendorType (label dari label()-nya).
+     Menggantikan boolean is_subcontractor pada layar Vendor; boolean lama
+     tetap dibaca berkas SPA lain dan disinkronkan model Vendor. */
+  vendorType: opts([
+    ['supplier', 'Pemasok'], ['subcontractor', 'Subkontraktor'],
+    ['mandor', 'Mandor'], ['rental', 'Rental / sewa alat'],
+  ]),
   /* Cermin Modules\Procurement\Enums\VendorDocumentType. */
   vendorDocumentType: opts([
     ['nib', 'NIB'], ['siup', 'SIUP'], ['npwp', 'NPWP'], ['sppkp', 'SPPKP (PKP)'],
     ['sbu_konstruksi', 'SBU Konstruksi'], ['skk', 'SKK Penanggung Jawab'],
     ['principal', 'Sertifikat Principal'], ['akta', 'Akta Perusahaan'],
     ['k3l_commitment', 'Komitmen K3L'], ['pakta_integritas', 'Pakta Integritas'],
+    // P4 — daftar riwayat hidup mandor; sumber lembar F/CVM.
+    ['cv_mandor', 'CV Mandor'],
     ['lainnya', 'Lainnya'],
   ]),
 

@@ -21,11 +21,17 @@ export function renderCell(row, column) {
     case 'code':
       return raw ? el('span.mono', { text: String(raw) }) : el('span.muted', { text: '—' });
 
-    case 'currency':
-      return el('span.num', {
+    case 'currency': {
+      const money = el('span.num', {
         text: fmt.rupiah(raw),
         class: Number(raw) === 0 && column.toneZero ? 'muted' : '',
       });
+      // P4 — `sub` pada kolom uang, komposisi yang sama dengan case default:
+      // potongan kasbon opname mandor menyebut KODE kasbonnya di bawah angka.
+      const moneySub = column.sub ? pluck(row, column.sub) : null;
+      if (!moneySub) return money;
+      return el('span', [money, el('span.cell-sub', { text: truncate(moneySub, 60) })]);
+    }
 
     case 'currency2':
       return el('span.num', { text: fmt.rupiah(raw, { decimals: 2 }) });

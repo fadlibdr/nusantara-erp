@@ -96,7 +96,7 @@ Metode kerja, IK Proses P1–P31, template inspeksi Q1–Q31, Q-Plan: **semua �
 |---|---|---|---|
 | PR | ✅ | `prc_purchase_requisitions` + items `boq_item_id` | — |
 | Pola Belanja / Schedule / Monitoring Perolehan | ⬜ | "Baris PO Terbuka", `CommitmentService` | monitoring komitmen ≠ rencana pengadaan |
-| Vendor master + dokumen + VPI | 🟡 | `prc_vendors`, `prc_vendor_documents` (nib/siup/npwp/sppkp/sbu/skk/principal/akta/lainnya; `valid_until`, `is_mandatory` ➕), `prc_vendor_evaluations` (4 kriteria 1–5) | **mandor bukan tipe vendor**; CV Mandor ⬜ |
+| Vendor master + dokumen + VPI | ✅ | `prc_vendors` + `vendor_type` supplier/subcontractor/mandor/rental (P4; `is_subcontractor` deprecated, disinkron model), `prc_vendor_documents` (… + `k3l_commitment`/`pakta_integritas` P0-E + `cv_mandor` P4 → F/CVM), `prc_vendor_evaluations` (4 kriteria 1–5) | — |
 | DPP/RFQ | ✅ | `prc_rfqs`, vendors, items, `rfq_quotes.is_winner`, F/TBP | — |
 | BA Aanwijzing subkon | ⬜ | — | — |
 | Penawaran vendor (SPH) | 🟡 | `rfq_quotes.unit_price` | tanpa validitas, franco, termin |
@@ -107,7 +107,7 @@ Metode kerja, IK Proses P1–P31, template inspeksi Q1–Q31, Q-Plan: **semua �
 | PPB/PO | ✅ | PPN per PKP, `boq_item_id`, `qty_received`, ambang direktur, override kualifikasi, F/PO + PDF | tanpa Kode Tahap/SD, franco, B3/MSDS |
 | PPK/SPK alat & jasa per periode | 🟡 | baris jasa PO | tanpa WO berbasis periode; alat sewa tak bisa masuk `ast_assets` |
 | Kontrak Subkon + syarat | ➕ | `scm_subcontracts` (PPh final snapshot, retensi, `defect_liability_until`, gerbang kualifikasi), addenda, uang muka, rilis retensi | — |
-| SPK Mandor / SP3 Induk / opname mandor | ⬜ | — | — |
+| SPK Mandor / SP3 Induk / opname mandor | ✅ | `scm_labor_contracts` (SP3, PPh final UMKM 0,5% PP 55/2022 per asumsi #3, `pph_scheme` konfigurabel — `pph21_ter` pintu 422 "belum diaktifkan"), `scm_labor_claims` (OPM, plafon volume per baris, potongan kasbon) → AP bill `labor_claim_id` (P4) | ambang direktur & gerbang RAP untuk SP3 ⏳ keputusan pemilik |
 | Addendum generik | 🟡 | ADS ✅; CCO nilai saja | waktu ⬜ |
 | Monitoring SPK/PPK; evaluasi alat | 🟡 | daftar PO/SPK; Utilisasi Aset; `ast_equipment_logs` (BBM, jam) | sewa-vs-beli ⬜; alat sewa tak terlog |
 
@@ -155,7 +155,7 @@ Inspeksi IK, benda uji & slump (FM-10-24), kuat tekan (FM-10-23), Q-Pass, Q-Plan
 | Dokumen | Status | Bukti | Deviasi |
 |---|---|---|---|
 | Opname ke owner (volume per item BoQ) | 🟡 | progres % per WBS & mingguan | tanpa opname kuantitas |
-| Opname mandor / rekap upah | ⬜ | — | — |
+| Opname mandor / rekap upah | ✅ | `scm_labor_claims` (OPM: qty_this per baris ≤ sisa SP3, guard basi saat approve) + rekap upah per proyek per periode F/RU (status per baris, tanpa total campur-status) — P4 | — |
 | BAP Progress Subkon (FM-10-19) | ✅ | `scm_progress_claims`, F/BO | — |
 | Risalah Pembayaran (FM-10-18) | 🟡 | subkon: retensi, uang muka, PPN, PPh | **denda** ⬜; owner tanpa pemulihan UM |
 | Progress claim owner per zona (BAPP) | 🟡 | "Termin Siap Ditagih" via milestone/jadwal | termin-%, bukan volume per zona |
@@ -171,7 +171,7 @@ Inspeksi IK, benda uji & slump (FM-10-24), kuat tekan (FM-10-23), Q-Pass, Q-Plan
 | Dokumen | Status | Bukti | Deviasi |
 |---|---|---|---|
 | Petty cash | ➕ | kasir, voucher, kasbon | — |
-| Upah tenaga kerja | 🟡 | payroll karyawan (TER, BPJS, THR) | mandor/harian ⬜ |
+| Upah tenaga kerja | 🟡 | payroll karyawan (TER, BPJS, THR); **mandor borongan ✅ P4** (SP3 → OPM → AP bill, PPh final UMKM, potongan kasbon lewat seam KasbonService) | harian ⬜ |
 | Laporan keuangan konstruksi | ➕ | TB/L-R/neraca/aging, **PSAK 115**, periode fiskal | — |
 | Laporan bulanan proyek | 🟡 | laporan ada; dokumen tersusun ⬜ | — |
 | Perencanaan tenaga kerja | ⬜ | penugasan saja | — |

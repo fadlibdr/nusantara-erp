@@ -29,6 +29,13 @@ class LaborClaimResource extends JsonResource
             'ppn_amount' => $this->ppn_amount,
             'pph_amount' => $this->pph_amount,
             'kasbon_id' => $this->kasbon_id,
+            // Aturan kejujuran P4: potongan kasbon menyebut KODE kasbonnya di
+            // layar, bukan hanya angka — pembaca harus bisa menunjuk kasbon
+            // mana yang dipulihkan potongan ini.
+            'kasbon' => $this->whenLoaded('kasbon', fn () => [
+                'id' => $this->kasbon->id,
+                'code' => $this->kasbon->code,
+            ]),
             'kasbon_deduction_amount' => $this->kasbon_deduction_amount,
             'net_payable' => $this->net_payable,
             'net_payable_terbilang' => Terbilang::rupiah($this->net_payable ?? 0),
