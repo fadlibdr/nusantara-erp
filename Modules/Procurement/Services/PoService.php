@@ -28,6 +28,11 @@ class PoService
      */
     public function approve(PurchaseOrder $po, User $by, ?string $note = null): PurchaseOrder
     {
+        // Kriteria #4 (P2): PO yang lahir dari RFQ tidak boleh disetujui sebelum
+        // keputusan pemenang (award) untuk vendornya disetujui. Inert untuk PO
+        // biasa (rfq_id null).
+        app(AwardDecisionService::class)->assertApprovedAward($po, $po->rfq_id, (int) $po->vendor_id);
+
         DirectorApproval::assertMayApprove(
             $po,
             $by,

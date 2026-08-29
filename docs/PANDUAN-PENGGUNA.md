@@ -496,6 +496,14 @@ yang terkunci — bukan A. Mematikan aturan itu adalah keputusan administrator
 
 **Menolak dokumen sendiri diperbolehkan.** Hanya menyetujui yang dijaga.
 
+**Satu dokumen menuntut LEBIH dari satu penyetuju.** **Keputusan Pemenang (award, §5.12)**
+memakai **persetujuan berjenjang** menurut nilainya: tombol **`Setujui`** tetap muncul
+setelah persetujuan pertama, dan dokumen baru berpindah ke **Disetujui** setelah tingkat
+terakhir tercapai — dari **penyetuju yang berbeda di tiap tingkat**. Panel detailnya
+menampilkan **Persetujuan masuk** dan **Tingkat persetujuan diperlukan** supaya Anda tahu
+berapa tingkat lagi yang kurang. Ini satu-satunya dokumen berjenjang hari ini; semua
+dokumen lain menjadi Disetujui pada satu ketukan `Setujui`. Rinciannya di §5.12.
+
 Pesan penolakan sepanjang itu **tetap tampil sampai Anda menutupnya** — notifikasi di
 atas 160 karakter tidak punya penghitung waktu.
 
@@ -573,7 +581,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 48 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 50 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -1800,9 +1808,11 @@ Jalur procure-to-pay: dari lapangan yang butuh semen sampai uangnya keluar dari 
 | 2. Ajukan PR | tombol `Ajukan` | pengadaan | **direktur** diberi tahu |
 | 3. Setujui PR | tombol `Setujui` | direktur | pengadaan melihat tombol `Buat PO` |
 | 4. Banding harga (opsional) | Pengadaan › RFQ (Banding Penawaran) | pengadaan | — |
+| 4a. Negosiasi harga (bila harga bergerak) | Pengadaan › BA Negosiasi (§5.11) | pengadaan | dasar keputusan pemenang |
+| 4b. Keputusan pemenang (bila dari RFQ) | Pengadaan › Keputusan Pemenang (§5.12) | pengadaan menyusun, **direktur** menyetujui **berjenjang** | PO/SPK dari RFQ baru boleh disetujui |
 | 5. Buat PO | `Buat PO` dari PR atau RFQ | pengadaan | — |
 | 6. Ajukan PO | tombol `Ajukan` | pengadaan | dua gerbang berbunyi (§4.7); direktur diberi tahu |
-| 7. Setujui PO | tombol `Setujui` | direktur | **gudang** bisa menerima barangnya |
+| 7. Setujui PO | tombol `Setujui` | direktur | **gudang** bisa menerima barangnya — **PO dari RFQ butuh keputusan pemenang yang disetujui dulu** (§5.12) |
 | 8. Terima barang | Persediaan › Penerimaan (GRN) | gudang, posting oleh admin | bab 6 |
 | 9. Buat tagihan vendor | Keuangan › Tagihan Vendor (AP) | keuangan | — |
 | 10. Setujui tagihan | tombol `Setujui` | manajer keuangan | hutang terbentuk |
@@ -1971,6 +1981,35 @@ Catatan kaki yang tercetak di bawah tabel:
 **Sel yang dikosongkan berarti "tidak menawar", bukan nol.** Nol adalah penawaran yang
 sah.
 
+**Kartu Penilaian berbobot (sistem nilai).** Di bawah tabulasi harga ada kartu kedua,
+**`Penilaian berbobot (sistem nilai)`**, yang menilai vendor bukan pada harga saja
+melainkan pada **lima aspek berbobot** — bobot bawaannya **Harga 50 · Mutu 30 · Waktu 5 ·
+Keuangan 10 · K3 5** (berjumlah 100; administrator yang menyetelnya — lihat
+`docs/PANDUAN-ADMINISTRATOR.md` §4.6). Satu baris per vendor terundang, kolomnya: Vendor ·
+**Harga** · Mutu · Waktu · Keuangan · K3 · RAB (HPS) · **Nilai akhir** · **Peringkat**.
+
+- **Skor Harga tidak Anda ketik.** Server menghitungnya dari **rasio penawaran vendor
+  terhadap RAB (HPS)** — makin dekat ke anggaran, makin tinggi; penawaran tepat di RAB
+  bernilai 100. Kolom Harga hanya menampilkan hasilnya.
+- **Empat aspek lain Anda ketik 0–100** per vendor: Mutu, Waktu, Keuangan, K3. Mengisinya
+  butuh izin yang sama dengan mengetik harga (`prc.update`).
+- **`Simpan penilaian`** menghitung ulang **Nilai akhir dan Peringkat atas SELURUH vendor
+  sekaligus** — peringkat #1 hijau adalah nilai berbobot tertinggi. Bantuan di kartu:
+  *"Skor mutu/waktu/keuangan/K3 diisi 0–100 oleh panitia; RAB kosong memakai harga BOQ
+  baris. \*Skor harga dihitung server dari rasio penawaran terhadap RAB — tidak diketik.
+  Nilai akhir dan peringkat dihitung ulang atas seluruh vendor tiap kali disimpan. Vendor
+  yang tidak diberi skor apa pun dibiarkan belum dinilai (bergaris pada tabulasi cetak),
+  bukan diberi nol."*
+- **Vendor yang tak Anda beri satu skor pun tetap "belum dinilai"** — bukan nol. Menyimpan
+  tanpa satu angka pun ditolak: *"Isi minimal satu skor aspek (mutu/waktu/keuangan/K3)
+  untuk satu vendor."*
+
+**Penilaian ini hanya bisa diisi selagi RFQ masih Draf**, dan **memberi peringkat, bukan
+memilih pemenang** — memilih pemenang tetap lewat tombol `Menang` / `Menangkan semua` di
+tabulasi harga di atas, lalu **dicatat resmi** pada **Keputusan Pemenang (§5.12)**.
+Peringkat berbobot itu tercetak pada lembar **Tabulasi Banding Penawaran** (F/TBP) begitu
+ada vendor yang dinilai; lembar yang belum dinilai tetap tabulasi harga seperti sebelumnya.
+
 Penolakan: `"Vendor {nama} tidak diundang pada RFQ {kode}; tambahkan dulu ke daftar
 undangan."` · `"Vendor belum menawar baris 2, 5 pada RFQ {kode}; lengkapi harganya dulu
 atau pilih pemenang per baris."` · dan bila tidak ada yang diketik: *"Belum ada harga
@@ -1997,7 +2036,16 @@ Menghapus RFQ yang sudah melahirkan PO ditolak: `"RFQ {kode} sudah melahirkan PO
 tidak dapat dihapus."`
 
 **RFQ tidak bisa menampung lampiran.** Lembar penawaran vendor yang dipindai tidak bisa
-diarsipkan di sini; tempat terdekatnya adalah PR atau PO yang dihasilkannya.
+diarsipkan di sini; tempat terdekatnya adalah PR atau PO yang dihasilkannya. **Daftar
+hadir negosiasi**, sebaliknya, punya rumahnya sendiri — lihat BA Negosiasi (§5.11).
+
+> **Sesudah RFQ, tiga layar baru menutup tata kelola pengadaan** (bernomor di akhir bab
+> ini karena ditambahkan belakangan, tetapi datang di sini dalam alurnya):
+> **BA Negosiasi (§5.11)** merisalahkan tawar-menawar harga, **Keputusan Pemenang
+> (§5.12)** mencatat siapa yang menang dan berapa nilainya lalu disetujui berjenjang, dan
+> **Rencana Pengadaan (§5.13)** adalah pola belanja yang disusun dari RAP sebelum PR
+> terbit. **Menyetujui PO/SPK yang lahir dari RFQ kini menuntut Keputusan Pemenang yang
+> disetujui** — §5.12 menjelaskan pagarnya.
 
 ### 5.6 Pesanan Pembelian (PO) — `Pengadaan › Pesanan (PO)`
 
@@ -2305,6 +2353,133 @@ setelah dibuat**. Setiap pembayaran selalu dimulai dari `Keuangan › Pembayaran
 `Tambah Pembayaran`.
 
 **Mencetak:** **`Cetak Bukti Pembayaran / Penerimaan`** (Form F/BP).
+
+### 5.11 BA Negosiasi — `Pengadaan › BA Negosiasi`
+
+**Berita Acara Negosiasi (BAN)** adalah risalah satu pertemuan tawar-menawar harga dengan
+satu vendor: harga awalnya, harga hasil nego, dan selisihnya per baris. Ia **bukan
+dokumen berjenjang** — tidak ada `Ajukan`/`Setujui`; ia sekadar catatan yang jadi **dasar**
+Keputusan Pemenang (§5.12) ketika harga bergerak.
+
+Kolom daftar: Kode · RFQ · Vendor · Tanggal · Tempat. Saring per RFQ atau per Vendor.
+
+**Menambah (`Tambah BA Negosiasi`).** Bantuan di kepala formulir: *"Risalah pertemuan
+negosiasi harga. Lampirkan daftar hadir lewat kartu Lampiran di bawah."* Isian:
+
+- **RFQ** (wajib, **hanya bisa dipilih saat membuat**) dan **Vendor** (wajib, hanya saat
+  membuat) — vendornya harus vendor yang **diundang** pada RFQ itu.
+- **Tanggal pertemuan** (wajib, bawaan hari ini), **Tempat**, **Catatan**.
+- Baris **`Harga awal → harga nego`**: Uraian (wajib) · Qty · Satuan · **Harga awal** ·
+  **Harga nego**. Selisihnya dihitung sendiri saat dicetak.
+
+**Daftar hadir dilampirkan, bukan diketik.** Tidak ada tabel peserta di formulir ini;
+pindaian daftar hadir yang ditandatangani ditempel lewat **kartu Lampiran** (§2.7) — dan
+lembar cetaknya yang menyatakan begitu (tabel PESERTA-nya bergaris: *"Daftar hadir
+dilampirkan terpisah pada berita acara ini."*). BA Negosiasi adalah **satu-satunya**
+dokumen pengadaan baru yang bisa menampung lampiran; Keputusan Pemenang sengaja tidak.
+
+**Mencetak:** **`Cetak Berita Acara Negosiasi`** (Form F/BAN, mendatar).
+
+### 5.12 Keputusan Pemenang — `Pengadaan › Keputusan Pemenang`
+
+**Keputusan Pemenang (award)** adalah catatan resmi: RFQ ini dimenangkan vendor ini pada
+nilai ini. Ia **dokumen berjenjang** — dan ia **memasang dua pagar** yang mengubah cara PO
+dan SPK dari RFQ boleh disetujui. Bisa diubah/dihapus hanya saat **Draf**.
+
+Kolom daftar: Kode · RFQ · Pemenang · Nilai · Deviasi vs RAB · Status.
+
+**Menambah (`Tambah Keputusan Pemenang`).** Bantuan di kepala formulir: *"Nilai keputusan
+di atas RAB wajib mengisi alasan deviasi. Bila nilai berbeda dari penawaran terakhir
+vendor, keputusan hanya bisa diajukan setelah ada BA Negosiasi untuk vendor ini.
+Persetujuan berjenjang menurut nilai: ≥ Rp 100 juta butuh direktur, ≥ Rp 1 miliar butuh
+tiga penyetuju."* Isian: **RFQ** & **Vendor pemenang** (wajib, hanya saat membuat) ·
+**Nilai RAB (HPS)** (wajib) · **Nilai diputuskan** (wajib) · **Alasan deviasi (bila di
+atas RAB)** · **Catatan**. **Deviasi vs RAB dihitung sendiri** (nilai diputuskan − RAB).
+
+**Alasan deviasi wajib HANYA bila memutuskan DI ATAS RAB.** Di bawah RAB adalah
+penghematan dan tidak perlu dibela. Menyimpan nilai di atas RAB tanpa alasan ditolak:
+
+> "Nilai keputusan melampaui RAB; alasan deviasi (deviation_reason) wajib diisi karena
+> memutuskan di atas nilai wajar harus dapat dipertanggungjawabkan."
+
+#### Pagar pertama — harga berubah menuntut BA Negosiasi
+
+Bila **Nilai diputuskan berbeda** dari penawaran terakhir vendor pemenang, keputusan itu
+**hanya bisa diajukan/disetujui bila sudah ada BA Negosiasi (§5.11)** untuk (RFQ, vendor)
+itu. Tanpa BAN-nya, penolakannya berbunyi kata demi kata:
+
+> "Nilai keputusan (Rp {nilai}) berbeda dari penawaran terakhir vendor (Rp {nilai}),
+> sehingga keputusan pemenang ini WAJIB didasari Berita Acara Negosiasi (BAN) untuk RFQ
+> {kode}; belum ada BAN untuk vendor ini — buat BAN-nya dulu."
+
+Nilai yang **sama persis** dengan penawaran terakhir tidak dianggap "berubah" — tidak ada
+negosiasi, jadi tidak ada BAN yang ditagih.
+
+#### Pagar kedua — PO/SPK dari RFQ menuntut Keputusan Pemenang yang disetujui
+
+Sebuah **PO** (atau **SPK subkontraktor**) yang **lahir dari RFQ** tidak boleh disetujui
+sebelum ada Keputusan Pemenang **berstatus Disetujui** untuk (RFQ, vendor)-nya. Menekan
+`Setujui` pada PO/SPK itu lebih dulu akan ditolak kata demi kata:
+
+> "{Dokumen} {kode} berasal dari RFQ {kode} namun keputusan pemenang (award) untuk vendor
+> ini belum ada atau belum disetujui; terbitkan dan setujui keputusan pemenang dulu
+> sebelum menyetujui {Dokumen}."
+
+PO/SPK biasa yang **tidak** berasal dari RFQ tidak tersentuh pagar ini.
+
+#### Persetujuan berjenjang menurut nilai
+
+Berapa banyak **penyetuju berbeda** yang dibutuhkan bergantung pada **Nilai diputuskan**:
+
+| Nilai diputuskan | Penyetuju berbeda | Siapa |
+|---|---|---|
+| **< Rp 100 juta** | 1 | pemegang `prc.approve` mana pun |
+| **Rp 100 juta – < Rp 1 miliar** | 2 | tingkat ke-2 dari **direktur** (`prc.approve-director`) |
+| **≥ Rp 1 miliar** | 3 | tingkat ke-2 & ke-3 dari **direktur** |
+
+Ambang membaca **tepat di batas ke atas**: award senilai **persis Rp 100 juta** sudah butuh
+2 penyetuju. Tombol **`Setujui`** **tetap muncul** selama status masih Diajukan dan tingkat
+terakhir belum tercapai; **panel detail** menampilkan **Persetujuan masuk** dan **Tingkat
+persetujuan diperlukan** supaya Anda tahu berapa tingkat lagi yang kurang. Baru pada tingkat
+terakhir status berpindah ke **Disetujui**.
+
+Dua penolakan menjaga jenjang itu:
+
+> "{Dokumen} {kode} sudah Anda setujui pada tingkat sebelumnya; persetujuan berjenjang
+> menuntut penyetuju yang BERBEDA di tiap tingkat. Minta tingkat berikutnya kepada pengguna
+> lain."
+
+> "Persetujuan tingkat {n} atas {Dokumen} {kode} hanya dapat diberikan oleh pemegang izin
+> {izin} (persetujuan direktur). Minta persetujuan direktur untuk melengkapi jenjangnya."
+
+Maker-checker (§2.5) tetap berlaku di atas semuanya: pengaju award tidak boleh menjadi
+salah satu penyetujunya.
+
+**Vendor pemenang harus vendor yang diundang** pada RFQ; kalau bukan: *"Vendor #{id} tidak
+diundang pada RFQ {kode}; keputusan pemenang hanya untuk vendor yang diajak banding."*
+
+**Mencetak:** **`Cetak Keputusan Pemenang`** (Form F/AWD). **Keputusan Pemenang tidak bisa
+menampung lampiran** — buktinya adalah BAN yang disetujui yang dirujuknya dan panitia yang
+menandatanganinya, bukan foto yang ditempel.
+
+### 5.13 Rencana Pengadaan — `Pengadaan › Rencana Pengadaan`
+
+**Rencana Pengadaan / Pola Belanja (PBL)** adalah register **perencanaan**, bukan komitmen:
+ia **tidak menggerakkan uang** dan **tidak berjenjang**. Disusun dari RAP untuk memetakan
+paket belanja ke metodenya, target tanggal kontrak, dan PIC-nya **sebelum PR terbit**.
+
+Kolom daftar: Kode · Judul · Proyek · Status. Statusnya **Draf · Aktif · Selesai**.
+
+**Menambah (`Tambah Rencana Pengadaan`).** Bantuan: *"Disusun dari RAP: paket belanja,
+metode, target tanggal kontrak, dan PIC — sebelum PR terbit."* Isian: **Judul** (wajib) ·
+**Proyek** · **Status** · **Catatan**. Baris **`Paket belanja`**: **Paket** (wajib) ·
+**Metode** · **Perkiraan nilai** · **Target kontrak** · **PIC**. Metodenya empat —
+**Pembelian langsung**, **Penunjukan langsung**, **Seleksi / banding penawaran (RFQ)**,
+**Tender** — dan tiap paket memikul status sendiri: Direncanakan · Berjalan · Terkontrak ·
+Dibatalkan.
+
+**Rencana Pengadaan tidak dicetak sebagai formulir rumah** — ia alat perencanaan di layar,
+bukan lembar bertanda tangan.
 
 ---
 
@@ -5411,7 +5586,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **48** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **50** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -5425,7 +5600,7 @@ Ia **bukan** unduhan PDF. Bila peramban memblokir jendela barunya, muncul notifi
 **Setiap lembar membawa bilah petunjuk yang hanya tampil di layar, tidak ikut tercetak**,
 yang mengingatkan Anda menekan Ctrl+P, memilih A4, orientasi yang benar, dan
 **menyalakan "Grafik latar belakang"** — tanpa itu, kepala tabel yang berarsir tercetak
-putih. Rinciannya (termasuk sebelas formulir mendatar) ada di
+putih. Rinciannya (termasuk dua belas formulir mendatar) ada di
 `docs/PANDUAN-ADMINISTRATOR.md` §9.3.
 
 **Tombol yang izinnya tidak Anda pegang tidak digambar sama sekali** — daftar formulirnya
@@ -5446,7 +5621,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 48 formulir
+### 13.3 Daftar lengkap 50 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -5488,7 +5663,9 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 |---|---|---|
 | Permintaan Pembelian | F/PP | halaman PR |
 | Pesanan Pembelian (formulir rumah) | F/PO | halaman PO — **berbeda dari tombol `PDF`**, yang mencetak pesanan komersial untuk pemasok |
-| Tabulasi Banding Penawaran (mendatar) | F/TBP | halaman RFQ |
+| Tabulasi Banding Penawaran (mendatar) — kini juga memuat **penilaian berbobot** begitu ada vendor yang dinilai (§5.5) | F/TBP | halaman RFQ |
+| Berita Acara Negosiasi (mendatar) | F/BAN | halaman BA Negosiasi (§5.11) |
+| Berita Acara Keputusan Pemenang | F/AWD | halaman Keputusan Pemenang (§5.12) |
 | Evaluasi Vendor | F/EV | halaman Evaluasi Vendor |
 | Persyaratan K3L Vendor | F/K3V | halaman Vendor |
 

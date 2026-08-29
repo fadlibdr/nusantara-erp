@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 48 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 50 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai tiga belas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -664,7 +664,9 @@ ditunjukkan kepada pengaju. Ia **maju-saja**: dokumen yang terlanjur disetujui s
 penjagaan ini ada tetap disetujui. Dan ia berpadu dengan maker-checker.
 
 Ambangnya diubah di **Pengaturan → Proyek & Persetujuan**: "PO wajib persetujuan
-direktur di atas" dan "SPK wajib persetujuan direktur di atas".
+direktur di atas" dan "SPK wajib persetujuan direktur di atas". **Keputusan Pemenang
+(award, P2) memperluas mekanisme ini menjadi tangga n-tingkat** yang membaca nilai —
+disetel dari `config/erp.php`, bukan layar ini; perilakunya di §8.5, penyetelannya di §4.6.
 
 **3. Gerbang dua izin.** Dua rute menuntut **dua** izin sekaligus: pencairan uang muka
 subkon dan pelepasan retensi subkon, keduanya `scm.post` + `fin.approve`. Alasannya:
@@ -1039,7 +1041,7 @@ Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
 | **Rekonsiliasi Bank** | Jendela pencocokan tanggal (1–30 hari) |
 | **Proyeksi Arus Kas** | Hari penagihan termin (0–365) |
 | **Akun Jurnal Otomatis** | Tujuh kode akun di §4.4(A) |
-| **Penomoran Dokumen** | 38 format, satu per jenis dokumen — §4.7 |
+| **Penomoran Dokumen** | 47 format, satu per jenis dokumen — §4.8 |
 
 > **Satu setelan muncul di DUA kelompok, dan layar tidak mengatakannya.**
 > `cashflow.termin_collection_days` didaftarkan dua kali di
@@ -1069,6 +1071,32 @@ Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
   Yang benar-benar memotong PPh 23 saat runtime adalah tarif pada baris `fin_taxes`
   berkode PPH23, dirawat di **Keuangan → Pajak**.
 - **`accounting.perpetual_inventory`** — §4.7.
+
+- **`procurement.bid_weights` dan `approvals.award_decision.ladder`** (P2) — dua kebijakan
+  tata kelola pengadaan yang **ditetapkan di `config/erp.php`, bukan di layar**, dengan
+  alasan yang sama seperti `erp.closing.*`: keduanya menandatangani catatan (tabulasi
+  penilaian berbobot dan jenjang persetujuan award), dan **operator yang bisa melemahkan
+  sebuah kendali dari formulir web akan**. Menyetelnya berarti menyunting `config/erp.php`
+  di server dan men-deploy.
+
+  - **`procurement.bid_weights`** = lima bobot aspek penilaian penawaran dalam **persen**:
+    `harga 50 · mutu 30 · waktu 5 · keuangan 10 · k3 5`. **Jumlahnya WAJIB 100.** Divalidasi
+    **SAAT BOOT** — `ProcurementServiceProvider::boot()` memanggil
+    `BidWeights::assertValidConfig()`, yang melempar `BidWeightConfigException` (sebuah
+    `RuntimeException`) bila bobotnya tidak berjumlah 100 atau kehilangan satu aspek.
+    Akibatnya **aplikasi berhenti start**, bukan diam-diam memberi peringkat vendor pada
+    skala yang tak disepakati siapa pun; pesannya menyebut jumlah yang ditemukannya
+    (mis. *"…harus berjumlah 100, tetapi berjumlah 95…"*). **Skor harga bukan salah satu
+    yang diinput** — ia dihitung dari rasio penawaran terhadap RAB; empat aspek lain diketik
+    panitia 0–100 di kartu penilaian pada halaman RFQ.
+  - **`approvals.award_decision.ladder`** = tangga kurung `[['to'=>100000000,'levels'=>1],
+    ['to'=>1000000000,'levels'=>2],['to'=>null,'levels'=>3]]`. **`to` adalah batas atas
+    EKSKLUSIF** (nilai persis di batas jatuh ke kurung berikutnya, persis pembacaan `>=`
+    ambang direktur); `levels` = jumlah penyetuju **berbeda**; **tingkat 2+ menuntut
+    `prc.approve-director`**. Kurung tanpa `to` (`null`) adalah tangkap-semua tertinggi.
+    Menaikkan sebuah tangga = mengganti daftar kurungnya. Perilaku lengkapnya (termasuk dua
+    pagar kriteria #4) di §8.5. **PO dan SPK TIDAK memakai tangga ini** — keduanya tetap
+    pada `needs_director_approval` dua-tingkat yang ambangnya di layar Pengaturan (§3.8).
 
 **Apa yang layar tolak**, dan mengapa tiap penolakan ada:
 
@@ -1162,8 +1190,9 @@ atau `config/erp.php`, lalu di dalam satu transaksi baris urutan dikunci
 Token: `{Y}` tahun 4 digit, `{M2}` bulan 2 digit, `{RM}` bulan romawi, `{N3}/{N4}/{N5}`
 urutan berimbuh nol. **Urutan reset per jenis per tahun.**
 
-**38 jenis ada di Pengaturan → Penomoran Dokumen** (tiga terakhirnya IKL/ILB/IMK,
-ketiga izin lapangan). Setiap format **wajib memuat
+**47 jenis ada di Pengaturan → Penomoran Dokumen** (yang terakhir ditambahkan BAN/AWD/PBL
+pada P2 — BA negosiasi, keputusan pemenang, dan rencana pengadaan). Setiap format **wajib
+memuat
 `{Y}` dan salah satu dari `{N3}/{N4}/{N5}`**, maksimal 60 karakter, dan hanya boleh
 memakai huruf, angka, spasi, serta `/ . _ -` di luar keenam token.
 
@@ -2401,6 +2430,54 @@ Tiga gerbang berbentuk pengabaian lain yang akan Anda temui:
 > **Memberi alasan terhadap sebuah BLOK tidak mengubah apa pun.** Mengatakan kepada
 > pembaca "tulis alasan dan ia akan lolos" salah untuk blok.
 
+**Persetujuan berjenjang n-tingkat (Keputusan Pemenang, P2).** Ambang direktur di atas
+adalah dua tingkat: di bawah ambang satu penyetuju, di atasnya penyetuju itu harus
+direktur. **Keputusan Pemenang (award)** menggeneralisasi ide itu menjadi **tangga
+n-tingkat** yang membaca **nilai yang diputuskan** — ini satu-satunya dokumen yang riding
+tangga itu hari ini, dan mekanismenya (`Modules/Core/Support/ApprovalLevels.php`,
+`config('erp.approvals.award_decision.ladder')`) dirawat terpisah dari
+`needs_director_approval` milik PO/SPK yang **tidak berubah**.
+
+| Nilai diputuskan | Penyetuju BERBEDA | Tingkat 2+ |
+|---|---|---|
+| < Rp 100 juta | 1 | — |
+| Rp 100 juta – < Rp 1 miliar | 2 | `prc.approve-director` |
+| ≥ Rp 1 miliar | 3 | tingkat 2 & 3 `prc.approve-director` |
+
+Yang harus Anda tahu apa adanya:
+
+- **Tiap tingkat menulis satu baris `approved` atas nama orang berbeda; dokumen tetap
+  Diajukan sampai jumlah penyetuju BERBEDA terpenuhi**, dan **hanya persetujuan terakhir
+  yang mengumumkan transisi** — tingkat antara adalah persetujuan sungguhan di jejak audit
+  tetapi bukan dokumen yang disetujui, jadi ia tidak memberi tahu pengaju bahwa ia sudah.
+- **Batasnya membaca ke atas** (`to` eksklusif), persis seperti `>=` ambang direktur: award
+  senilai **persis Rp 100 juta** butuh 2 tingkat. Kurung diurut menaik saat resolusi, jadi
+  config yang tak berurutan tidak bisa membayangi satu kurung.
+- **Orang yang sama tidak bisa mengisi dua tingkat**, dan **tingkat 2+ menuntut
+  `prc.approve-director`** — izin yang sama yang menjaga PO/SPK, diturunkan dari baris
+  registri yang menamai penyetuju biasanya, sehingga keduanya tak pernah berselisih soal
+  prefiks modulnya. Maker-checker tetap di atas semuanya.
+
+**Dua pagar kriteria #4** berdiri di sekitar award ini, dan administrator akan diminta
+menjelaskan keduanya:
+
+- **Harga berubah menuntut BA Negosiasi.** Bila nilai yang diputuskan berbeda dari
+  penawaran terakhir vendor pemenang, award **tak bisa diajukan/disetujui** tanpa BA
+  Negosiasi (BAN) untuk (RFQ, vendor)-nya — ditegakkan di
+  `AwardDecisionService::submit`/`approve`. Nilai yang sama persis tidak dianggap berubah.
+- **PO/SPK dari RFQ menuntut award yang disetujui.** `assertApprovedAward` dipanggil dari
+  **`PoService::approve` DAN `SubcontractService::approve`**: sebuah PO/SPK ber-`rfq_id`
+  tidak bisa disetujui sebelum ada Keputusan Pemenang **Disetujui** untuk vendornya. PO/SPK
+  tanpa `rfq_id` (mayoritas SPK) tak tersentuh. Ini menjadikan Subkontrak bergantung pada
+  `Procurement\Services\AwardDecisionService` — arah Subkontrak→Pengadaan yang diizinkan,
+  mencerminkan pemakaian `DirectorApproval`/`VendorQualificationService` yang sudah ada.
+
+**Apa yang tangga ini tinggalkan untuk audit**: satu baris `approved` per tingkat di
+`core_approvals`, masing-masing dengan `user_id`-nya — jejak yang **memperlihatkan setiap
+penyetuju berbeda**, bukan satu cap. **Alasan deviasi** (bila award di atas RAB) tersimpan
+sebagai kolom pada dokumen dan tercetak di catatan lembar F/AWD. Cara menyetel tangganya
+dan bobot penilaian ada di §4.6.
+
 ### 8.6 Tiga-arah match: apa yang ditolaknya
 
 Pencocokan ditanyakan saat **persetujuan tagihan AP**, dan seluruh rancangannya bertumpu
@@ -2501,9 +2578,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**48 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**50 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-41 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+43 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2516,7 +2593,7 @@ rute — izinnya diturunkan per permintaan dari registri.
 |---|---|
 | `inv.view` | 7 (penerimaan, bon material, surat jalan transfer, berita acara opname, saldo stok, retur pembelian, retur material) |
 | `crm.view` | 4 (penawaran, kontrak ringkas, berita acara CCO, register jaminan) |
-| `prc.view` | 5 (permintaan pembelian, order pembelian, banding penawaran, evaluasi vendor, persyaratan K3L vendor) |
+| `prc.view` | 7 (permintaan pembelian, order pembelian, banding penawaran, berita acara negosiasi, keputusan pemenang, evaluasi vendor, persyaratan K3L vendor) |
 | `fin.view` | 5 (tagihan vendor, bukti pembayaran, voucher jurnal, kewajiban pajak, ekualisasi pajak) |
 | `est.view` | 3 (RAB, AHSP, RAP) |
 | `eng.view` | 4 (persetujuan gambar SDS, persetujuan material SMS, transmittal, ijin pelaksanaan IPP) |
@@ -2598,10 +2675,11 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Sebelas dari 48 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
-register jaminan, banding penawaran, berita acara opname, saldo stok, opname subkon,
-kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar hadir. Sisanya potret
-(termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU).
+**Dua belas dari 50 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+register jaminan, banding penawaran, **berita acara negosiasi (F/BAN, P2)**, berita acara
+opname, saldo stok, opname subkon, kewajiban pajak, ekualisasi pajak, rekap payroll, dan
+daftar hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, dan
+keputusan pemenang F/AWD).
 
 Lembarnya sengaja berdiri sendiri: CSS inline, tanpa stylesheet eksternal, tanpa font
 web, logo disisipkan sebagai data — "a font fetched over the network would make the same

@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Procurement\Http\Controllers\AwardDecisionController;
+use Modules\Procurement\Http\Controllers\NegotiationMinuteController;
+use Modules\Procurement\Http\Controllers\ProcurementPlanController;
 use Modules\Procurement\Http\Controllers\PurchaseOrderController;
 use Modules\Procurement\Http\Controllers\PurchaseRequisitionController;
 use Modules\Procurement\Http\Controllers\ReportController;
@@ -49,6 +52,36 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('rfqs/{rfq}/choose-winner', [RfqController::class, 'chooseWinner'])->middleware('permission:prc.update');
     Route::post('rfqs/{rfq}/create-po', [RfqController::class, 'createPo'])->middleware('permission:prc.create');
     Route::post('rfqs/{rfq}/close', [RfqController::class, 'close'])->middleware('permission:prc.update');
+    // P2 — tabulasi penilaian berbobot (sistem nilai DAN 4.8): membaca = prc.view,
+    // mengisi skor = prc.update (seperti mengisi harga).
+    Route::get('rfqs/{rfq}/evaluations', [RfqController::class, 'evaluations'])->middleware('permission:prc.view');
+    Route::post('rfqs/{rfq}/evaluations', [RfqController::class, 'evaluate'])->middleware('permission:prc.update');
+
+    // P2 — Berita Acara Negosiasi (BAN, DAN 31).
+    Route::get('negotiation-minutes', [NegotiationMinuteController::class, 'index']);
+    Route::post('negotiation-minutes', [NegotiationMinuteController::class, 'store'])->middleware('permission:prc.create');
+    Route::get('negotiation-minutes/{negotiationMinute}', [NegotiationMinuteController::class, 'show']);
+    Route::put('negotiation-minutes/{negotiationMinute}', [NegotiationMinuteController::class, 'update'])->middleware('permission:prc.update');
+    Route::delete('negotiation-minutes/{negotiationMinute}', [NegotiationMinuteController::class, 'destroy'])->middleware('permission:prc.delete');
+
+    // P2 — Keputusan Pemenang / Award Decision (AWD). Approvable dengan ambang
+    // n-level: approve digerbangi prc.approve; tingkat 2+ menuntut
+    // prc.approve-director di dalam service (Core\Support\ApprovalLevels).
+    Route::get('award-decisions', [AwardDecisionController::class, 'index']);
+    Route::post('award-decisions', [AwardDecisionController::class, 'store'])->middleware('permission:prc.create');
+    Route::get('award-decisions/{awardDecision}', [AwardDecisionController::class, 'show']);
+    Route::put('award-decisions/{awardDecision}', [AwardDecisionController::class, 'update'])->middleware('permission:prc.update');
+    Route::delete('award-decisions/{awardDecision}', [AwardDecisionController::class, 'destroy'])->middleware('permission:prc.delete');
+    Route::post('award-decisions/{awardDecision}/submit', [AwardDecisionController::class, 'submit'])->middleware('permission:prc.update');
+    Route::post('award-decisions/{awardDecision}/approve', [AwardDecisionController::class, 'approve'])->middleware('permission:prc.approve');
+    Route::post('award-decisions/{awardDecision}/reject', [AwardDecisionController::class, 'reject'])->middleware('permission:prc.approve');
+
+    // P2 — Rencana Pengadaan / Pola Belanja (PBL).
+    Route::get('procurement-plans', [ProcurementPlanController::class, 'index']);
+    Route::post('procurement-plans', [ProcurementPlanController::class, 'store'])->middleware('permission:prc.create');
+    Route::get('procurement-plans/{procurementPlan}', [ProcurementPlanController::class, 'show']);
+    Route::put('procurement-plans/{procurementPlan}', [ProcurementPlanController::class, 'update'])->middleware('permission:prc.update');
+    Route::delete('procurement-plans/{procurementPlan}', [ProcurementPlanController::class, 'destroy'])->middleware('permission:prc.delete');
 
     // Purchase orders
     Route::get('purchase-orders', [PurchaseOrderController::class, 'index']);

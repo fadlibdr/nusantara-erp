@@ -6,12 +6,15 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Support\Terbilang;
+use Modules\Procurement\Models\AwardDecision;
+use Modules\Procurement\Models\NegotiationMinute;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\RfqItem;
 use Modules\Procurement\Models\RfqQuote;
 use Modules\Procurement\Models\VendorEvaluation;
+use Modules\Procurement\Support\BidWeights;
 
 /**
  * The body of the four Pengadaan house forms, in the taste of
@@ -78,6 +81,22 @@ class ProcurementFormService
         'delivery_score' => 'Ketepatan waktu pengiriman',
         'price_score' => 'Kewajaran harga',
         'service_score' => 'Layanan, komunikasi dan penanganan keluhan',
+    ];
+
+    /**
+     * The five weighted-tabulation aspects on paper (sistem nilai DAN 4.8, P2),
+     * keyed by BidWeights::ASPECTS so the printed labels move with the config.
+     *
+     * harga says where its score comes from because it is the ONE aspect the
+     * evaluator does not type — the tabulation must not let a reader mistake a
+     * computed ratio score for a panel judgement.
+     */
+    private const ASPECT_LABELS = [
+        'harga' => 'Harga (rasio thd RAB)',
+        'mutu' => 'Mutu / teknis',
+        'waktu' => 'Ketepatan waktu',
+        'keuangan' => 'Kemampuan keuangan',
+        'k3' => 'K3 / HSE',
     ];
 
     // ------------------------------------------------- permintaan pembelian
@@ -297,6 +316,195 @@ class ProcurementFormService
         return $winners->isEmpty() ? null : $this->sumQuotes($rfq, $winners);
     }
 
+    // ---------------------------------------------- penilaian berbobot (P2)
+
+    /**
+     * True once at least one vendor on this RFQ has been scored.
+     *
+     * The weighted tabulation is PRINTED only from here on. An RFQ nobody has
+     * scored yet has no ranking to show, and printing an empty weighted grid
+     * with the header weights would assert a scoring exercise that has not
+     * happened — the banding sheet stays the price tabulation until it does.
+     */
+    public function hasWeightedTabulation(Rfq $rfq): bool
+    {
+        return $rfq->bidEvaluations->isNotEmpty();
+    }
+
+    /**
+     * The weight split printed above the weighted tabulation, one row per
+     * aspect, footing to 100.
+     *
+     * Read from the validated config (BidWeights) so the split this sheet
+     * declares is the SAME split the tabulation was scored on — a printed 50 %
+     * beside a score computed at 40 % would be a document contradicting itself.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function bidWeightRows(Rfq $rfq): array
+    {
+        $weights = BidWeights::weights();
+        $rows = [];
+        $no = 0;
+
+        foreach (BidWeights::ASPECTS as $aspect) {
+            $rows[] = [
+                'no' => ++$no,
+                'aspect' => self::ASPECT_LABELS[$aspect] ?? $aspect,
+                'weight' => round((float) ($weights[$aspect] ?? 0), 2),
+                'source' => $aspect === 'harga'
+                    ? 'Dihitung dari rasio penawaran terhadap RAB'
+                    : 'Dinilai panitia (0–100)',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /** The declared weights' sum — 100 on a valid config, and shown as the foot. */
+    public function bidWeightTotal(): float
+    {
+        return round(array_sum(BidWeights::weights()), 2);
+    }
+
+    /**
+     * The weighted tabulation itself: one row per INVITED vendor, the scored
+     * ones in rank order and the rest at the foot.
+     *
+     * A vendor invited but NOT scored is ruled across every score cell — never
+     * a zero. prc_bid_evaluations defaults every aspect column to 0, so a
+     * missing evaluation and a genuine zero would print identically if this
+     * reached for the columns; it reaches for the ROW instead, and a vendor
+     * with no row gets ruled blanks and "Belum dinilai". A blank score and a
+     * score of nought are different claims on a sheet that ranks suppliers.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function evaluationRows(Rfq $rfq): array
+    {
+        $rows = [];
+        $seen = [];
+
+        foreach ($rfq->bidEvaluations as $evaluation) {
+            $vendorId = (int) $evaluation->vendor_id;
+            $seen[$vendorId] = true;
+
+            $rows[] = [
+                'rank' => $evaluation->rank !== null ? (int) $evaluation->rank : null,
+                'vendor' => $this->vendorName($evaluation->vendor?->name, $vendorId),
+                'harga' => (float) $evaluation->harga_score,
+                'mutu' => (float) $evaluation->mutu_score,
+                'waktu' => (float) $evaluation->waktu_score,
+                'keuangan' => (float) $evaluation->keuangan_score,
+                'k3' => (float) $evaluation->k3_score,
+                'weighted' => (float) $evaluation->weighted_score,
+                'note' => null,
+            ];
+        }
+
+        foreach ($rfq->vendors as $invitation) {
+            $vendorId = (int) $invitation->vendor_id;
+
+            if (isset($seen[$vendorId])) {
+                continue;
+            }
+
+            $rows[] = [
+                'rank' => null,
+                'vendor' => $this->vendorName($invitation->vendor?->name, $vendorId),
+                'harga' => null, 'mutu' => null, 'waktu' => null,
+                'keuangan' => null, 'k3' => null, 'weighted' => null,
+                'note' => 'Belum dinilai',
+            ];
+        }
+
+        return $rows;
+    }
+
+    // ------------------------------------------------ berita acara negosiasi
+
+    /**
+     * The negotiated lines: what was quoted, and what it became.
+     *
+     * A stored 0 on either price column is the table default, not a figure, so
+     * it is ruled rather than printed as Rp 0,00 — the same rule the whole file
+     * keeps. SELISIH is null unless BOTH prices are stated, because a delta
+     * against an unknown is not a delta.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function negotiationItemRows(NegotiationMinute $minute): array
+    {
+        $rows = [];
+
+        foreach ($minute->items as $item) {
+            $awal = $this->statedPrice($item->harga_awal);
+            $nego = $this->statedPrice($item->harga_nego);
+
+            $rows[] = [
+                'line_no' => (int) $item->line_no,
+                'description' => $item->description,
+                'qty' => $item->qty !== null ? (float) $item->qty : null,
+                'unit' => $item->unit,
+                'harga_awal' => $awal,
+                'harga_nego' => $nego,
+                'selisih' => ($awal !== null && $nego !== null) ? round($nego - $awal, 2) : null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /** The negotiation's attendees, from the peserta json. */
+    public function negotiationParticipantRows(NegotiationMinute $minute): array
+    {
+        return $this->personRows($minute->peserta);
+    }
+
+    // --------------------------------------------------- keputusan pemenang
+
+    /** The award committee, from the committee json. */
+    public function awardCommitteeRows(AwardDecision $award): array
+    {
+        return $this->personRows($award->committee);
+    }
+
+    /**
+     * The single-row terbilang box under the award value.
+     *
+     * Spelled by Core's Terbilang, the same speller the PO and every other
+     * money document here use — one award worded two ways is a document that
+     * argues with itself.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function awardTerbilangRow(AwardDecision $award): array
+    {
+        return [[
+            'amount' => (float) $award->awarded_amount,
+            'terbilang' => Terbilang::rupiah((float) $award->awarded_amount),
+        ]];
+    }
+
+    /**
+     * The award's notes block: whatever was written, and the deviation reason
+     * WHEN there is a deviation.
+     *
+     * In the notes rather than an identity line for the same reason
+     * orderNotes() is: a clean award would otherwise carry "ALASAN DEVIASI :
+     * ......" and invite one to be written in after the signatures. The reason
+     * only belongs on the paper when the award actually deviates.
+     */
+    public function awardNotes(AwardDecision $award): ?string
+    {
+        return $this->paragraphs([
+            $award->notes,
+            (float) $award->deviation_amount > 0
+                ? $this->labelled('Alasan deviasi terhadap RAB', $award->deviation_reason)
+                : null,
+        ]);
+    }
+
     // ------------------------------------------------------- evaluasi vendor
 
     /**
@@ -348,6 +556,40 @@ class ProcurementFormService
         }
 
         return $vendorId > 0 ? 'Vendor #'.$vendorId : null;
+    }
+
+    /**
+     * A json list of people — the BAN's peserta, the award's committee — as
+     * printable rows. Entries may be plain strings (a name) or objects carrying
+     * nama / jabatan / pihak (or the english keys). A blank name is dropped: an
+     * empty row on a signed attendance table is a place to write a name in.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function personRows(mixed $people): array
+    {
+        $rows = [];
+        $no = 0;
+
+        foreach ((array) ($people ?? []) as $person) {
+            if (is_array($person)) {
+                $name = trim((string) ($person['nama'] ?? $person['name'] ?? ''));
+                $role = trim((string) ($person['jabatan'] ?? $person['role'] ?? ''));
+                $side = trim((string) ($person['pihak'] ?? $person['side'] ?? ''));
+            } else {
+                $name = trim((string) $person);
+                $role = '';
+                $side = '';
+            }
+
+            if ($name === '') {
+                continue;
+            }
+
+            $rows[] = ['no' => ++$no, 'name' => $name, 'role' => $role ?: null, 'side' => $side ?: null];
+        }
+
+        return $rows;
     }
 
     /** @return Collection<int, RfqQuote> */

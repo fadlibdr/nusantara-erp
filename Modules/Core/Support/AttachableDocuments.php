@@ -21,6 +21,7 @@ use Modules\HrPayroll\Models\Employee;
 use Modules\HrPayroll\Models\LeaveRequest;
 use Modules\Inventory\Models\GoodsReceipt;
 use Modules\Inventory\Models\StockAdjustment;
+use Modules\Procurement\Models\NegotiationMinute;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Vendor;
@@ -100,6 +101,12 @@ class AttachableDocuments
         // Lampiran menempel pada BARIS register — hasil scan SBU/NIB dengan
         // masa berlakunya sendiri — bukan pada vendor secara umum.
         'procurement/vendor-documents' => ['class' => VendorDocument::class, 'prefix' => 'prc', 'label' => 'Dokumen vendor'],
+        // P2 — the daftar hadir scan rides the negotiation minute (BAN): the
+        // signed attendance sheet IS the evidence the minute happened. The award
+        // decision is deliberately NOT attachable — its evidence is the approved
+        // BAN it cites and the committee that signed it, recorded as fields, not
+        // a dropped photo the ladder never checked.
+        'procurement/negotiation-minutes' => ['class' => NegotiationMinute::class, 'prefix' => 'prc', 'label' => 'BA Negosiasi (daftar hadir)'],
         // Lampiran menempel pada BARIS register — hasil scan SBU/NIB dengan
         // masa berlakunya sendiri — bukan pada vendor secara umum.
         'inventory/goods-receipts' => ['class' => GoodsReceipt::class, 'prefix' => 'inv', 'label' => 'Penerimaan barang'],

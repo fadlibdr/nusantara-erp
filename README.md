@@ -22,7 +22,7 @@ penomoran dokumen `PO/2026/VII/0001`.
 | Engineering | `api/engineering` | Register **shop drawing**, submittal **gambar (SDS)** & **material (SMS)** dengan empat stempel MK, **transmittal**, **IPP** (ijin pelaksanaan) bergerbang submittal disetujui, lokasi tapak hierarkis |
 | Projects | `api/projects` | Proyek, **WBS** dari BOQ, laporan harian, progress mingguan (**kurva-S**), milestone, **BAST**, penugasan manpower |
 | Quality | `api/quality` | Template checklist inspeksi, **inspeksi mutu (QCI)**, **NCR** (ketidaksesuaian) yang memblokir inspeksi tahap berikutnya & BAST I, **benda uji beton** dengan lulus/tidak kuat tekan dihitung server (K→fc' silinder, PBI 1971) |
-| Procurement | `api/procurement` | Vendor (termasuk subkon), **PR → PO** dengan approval berjenjang, evaluasi vendor |
+| Procurement | `api/procurement` | Vendor (termasuk subkon), **PR → RFQ → PO** dengan approval berjenjang, **penilaian penawaran berbobot** (sistem nilai), **BA negosiasi**, **keputusan pemenang** dengan persetujuan **n-tingkat** menurut nilai (award tanpa BA negosiasi saat harga berubah → 422; PO/SPK dari RFQ butuh award disetujui), **rencana pengadaan** (pola belanja), evaluasi vendor |
 | Inventory | `api/inventory` | Item, gudang pusat & site, **GRN**, pengeluaran barang, transfer, **opname**, kartu stok moving-average |
 | Subcontract | `api/subcontract` | **SPK** subkon, **opname** progress claim, retensi, PPh final konstruksi |
 | Finance | `api/finance` | COA, jurnal, pajak, **invoice termin AR** + faktur pajak + terbilang, AP bill + potongan PPh, pembayaran, biaya proyek, laporan (TB, L/R, neraca, profitabilitas proyek, aging) |

@@ -147,6 +147,12 @@ const LABELS = {
   useful_life_months: 'Umur manfaat (bulan)', is_pkp: 'PKP', is_active: 'Aktif',
   is_subcontractor: 'Subkontraktor', is_postable: 'Dapat diposting', is_site_warehouse: 'Gudang site',
   needs_director_approval: 'Perlu persetujuan direktur', npwp: 'NPWP', nib: 'NIB',
+  // P2 — jenjang persetujuan berbobot nilai (award decision): berapa penyetuju
+  // berbeda yang dibutuhkan, dan berapa yang sudah masuk. Selisihnya = sisa.
+  required_levels: 'Tingkat persetujuan diperlukan', approvals_given: 'Persetujuan masuk',
+  awarded_amount: 'Nilai diputuskan', rab_amount: 'Nilai RAB (HPS)',
+  deviation_amount: 'Deviasi thd RAB', deviation_reason: 'Alasan deviasi',
+  meeting_date: 'Tanggal negosiasi', harga_awal: 'Harga awal', harga_nego: 'Harga nego',
   nik_ktp: 'NIK KTP', sppkp_number: 'No. SPPKP', faktur_pajak_no: 'No. faktur pajak',
   occurred_at: 'Waktu kejadian', severity: 'Keparahan', category: 'Jenis kejadian',
   is_recordable: 'Masuk hitungan frequency rate', people_involved: 'Orang terlibat',

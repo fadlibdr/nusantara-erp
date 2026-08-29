@@ -66,4 +66,20 @@ class Rfq extends BaseModel
     {
         return $this->hasMany(PurchaseOrder::class, 'rfq_id');
     }
+
+    /** P2 — tabulasi penilaian berbobot per vendor (sistem nilai DAN 4.8). */
+    public function bidEvaluations(): HasMany
+    {
+        return $this->hasMany(BidEvaluation::class, 'rfq_id')->orderBy('rank');
+    }
+
+    public function negotiationMinutes(): HasMany
+    {
+        return $this->hasMany(NegotiationMinute::class, 'rfq_id');
+    }
+
+    public function awardDecisions(): HasMany
+    {
+        return $this->hasMany(AwardDecision::class, 'rfq_id');
+    }
 }

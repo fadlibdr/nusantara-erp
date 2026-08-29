@@ -47,6 +47,8 @@ use Modules\Inventory\Models\StockBalance;
 use Modules\Inventory\Models\Transfer;
 use Modules\Inventory\Models\Warehouse;
 use Modules\Inventory\Services\InventoryFormService;
+use Modules\Procurement\Models\AwardDecision;
+use Modules\Procurement\Models\NegotiationMinute;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Rfq;
@@ -1601,6 +1603,12 @@ class PrintableDocuments
                     'project' => fn ($query) => $query->withTrashed(),
                     'items.quotes.vendor' => fn ($query) => $query->withTrashed(),
                     'vendors.vendor' => fn ($query) => $query->withTrashed(),
+                    // P2: the weighted tabulation, rank-ordered, and its vendors
+                    // withTrashed for the same reason the quote rows are — a
+                    // supplier deleted after being scored keeps its name on the
+                    // ranked row rather than leaving a blank beside a "1".
+                    'bidEvaluations' => fn ($query) => $query->orderBy('rank'),
+                    'bidEvaluations.vendor' => fn ($query) => $query->withTrashed(),
                 ],
                 'header' => ['kind' => 'none', 'project' => 'project'],
                 'date' => 'rfq_date',
@@ -1681,6 +1689,70 @@ class PrintableDocuments
                         ],
                         'empty' => 'Lembar banding ini belum memiliki baris barang.',
                     ],
+                    /*
+                     * PENILAIAN BERBOBOT (sistem nilai DAN 4.8, P2) — printed
+                     * ONLY once a vendor has been scored (the `when` below), so
+                     * an unscored banding stays the price tabulation it always
+                     * was and no existing sheet grows an empty weighted grid.
+                     *
+                     * The weight split prints first and foots to 100: the
+                     * ranking underneath means nothing without the scale it was
+                     * measured on, and the JUMLAH BOBOT foot is the reader's
+                     * proof the scale is whole.
+                     */
+                    [
+                        'id' => 'bobot-penilaian',
+                        'title' => 'BOBOT PENILAIAN (SISTEM NILAI)',
+                        'when' => fn (Rfq $rfq): bool => app(ProcurementFormService::class)
+                            ->hasWeightedTabulation($rfq),
+                        'rows' => fn (Rfq $rfq): array => app(ProcurementFormService::class)->bidWeightRows($rfq),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm', 'value' => 'no'],
+                            ['label' => 'ASPEK PENILAIAN', 'value' => 'aspect'],
+                            ['label' => 'BOBOT (%)', 'align' => 'right', 'width' => '22mm',
+                                'value' => 'weight', 'cast' => 'qty'],
+                            ['label' => 'SUMBER SKOR', 'value' => 'source'],
+                        ],
+                        'totals' => [
+                            [
+                                'label' => 'JUMLAH BOBOT (%)',
+                                'value' => fn (Rfq $rfq): float => app(ProcurementFormService::class)
+                                    ->bidWeightTotal(),
+                                'cast' => 'qty',
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'tabulasi-berbobot',
+                        'title' => 'TABULASI PENILAIAN BERBOBOT PER VENDOR (0–100)',
+                        'when' => fn (Rfq $rfq): bool => app(ProcurementFormService::class)
+                            ->hasWeightedTabulation($rfq),
+                        'rows' => fn (Rfq $rfq): array => app(ProcurementFormService::class)->evaluationRows($rfq),
+                        'columns' => [
+                            // A vendor invited but not scored is RULED across
+                            // every score cell below — never a zero. The value
+                            // resolver returns null for those rows and null is a
+                            // ruled blank; a stored 0 would be a score somebody
+                            // gave, which nobody did.
+                            ['label' => 'PERINGKAT', 'align' => 'center', 'width' => '20mm',
+                                'value' => 'rank', 'cast' => 'int'],
+                            ['label' => 'VENDOR', 'value' => 'vendor'],
+                            ['label' => 'HARGA', 'align' => 'right', 'width' => '16mm',
+                                'value' => 'harga', 'cast' => 'qty'],
+                            ['label' => 'MUTU', 'align' => 'right', 'width' => '16mm',
+                                'value' => 'mutu', 'cast' => 'qty'],
+                            ['label' => 'WAKTU', 'align' => 'right', 'width' => '16mm',
+                                'value' => 'waktu', 'cast' => 'qty'],
+                            ['label' => 'KEUANGAN', 'align' => 'right', 'width' => '18mm',
+                                'value' => 'keuangan', 'cast' => 'qty'],
+                            ['label' => 'K3', 'align' => 'right', 'width' => '14mm',
+                                'value' => 'k3', 'cast' => 'qty'],
+                            ['label' => 'NILAI AKHIR', 'align' => 'right', 'width' => '22mm',
+                                'value' => 'weighted', 'cast' => 'qty'],
+                            ['label' => 'KETERANGAN', 'width' => '26mm', 'value' => 'note'],
+                        ],
+                        'empty' => 'Belum ada vendor yang dinilai pada lembar banding ini.',
+                    ],
                 ],
                 'notes' => ['text' => 'notes', 'lines' => 3],
                 'signatures' => [
@@ -1690,6 +1762,199 @@ class PrintableDocuments
                         'party' => null,
                         'name' => null,
                         'role' => 'Staf Pengadaan',
+                    ],
+                    [
+                        'heading' => 'Diperiksa,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Pengadaan',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Menyetujui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Direktur',
+                    ],
+                ],
+            ],
+
+            /*
+             * BERITA ACARA NEGOSIASI (BAN) — the risalah of a price negotiation
+             * (P2, 3.5 baris "nego"). LANDSCAPE because it carries the widest
+             * table on this lane after the banding: harga awal, harga nego and
+             * the selisih between them, read across.
+             *
+             * F/BAN, and the code is its own — "BAN" is already the numbering
+             * type (BAN/{Y}/{RM}/{N4}) and the two agreeing is the point. The
+             * daftar hadir is ATTACHED, not typed: PESERTA prints whoever the
+             * record holds and rules its own empty state, saying the sheet is
+             * separate rather than inviting names onto a signed table.
+             */
+            'berita-acara-negosiasi' => [
+                'resource' => 'procurement/negotiation-minutes',
+                'model' => NegotiationMinute::class,
+                'permission' => 'prc.view',
+                'label' => 'Berita Acara Negosiasi',
+                'formTitle' => 'BERITA ACARA NEGOSIASI',
+                'formCode' => 'Form F/BAN',
+                'orientation' => 'landscape',
+                // withTrashed on the vendor for the reason every money document
+                // here carries it: a supplier deleted after the negotiation
+                // keeps its name on the minute it was a party to.
+                'with' => [
+                    'vendor' => fn ($query) => $query->withTrashed(),
+                    'rfq' => fn ($query) => $query->withTrashed(),
+                    'rfq.project' => fn ($query) => $query->withTrashed(),
+                    'items',
+                ],
+                'header' => ['kind' => 'vendor', 'source' => 'vendor', 'project' => 'rfq.project'],
+                'date' => 'meeting_date',
+                'identityHouse' => false,
+                'identity' => [
+                    'NO. BAN' => 'code',
+                    'TANGGAL NEGOSIASI' => ['value' => 'meeting_date', 'cast' => 'date'],
+                    'DASAR RFQ' => 'rfq.code',
+                    'VENDOR' => 'vendor.name',
+                    'TEMPAT' => 'location',
+                ],
+                'body' => [
+                    [
+                        'id' => 'peserta',
+                        'title' => 'PESERTA NEGOSIASI',
+                        'rows' => fn (NegotiationMinute $minute): array => app(ProcurementFormService::class)
+                            ->negotiationParticipantRows($minute),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm', 'value' => 'no'],
+                            ['label' => 'NAMA', 'value' => 'name'],
+                            ['label' => 'JABATAN', 'value' => 'role'],
+                            ['label' => 'PIHAK', 'width' => '48mm', 'value' => 'side'],
+                        ],
+                        'empty' => 'Daftar hadir dilampirkan terpisah pada berita acara ini.',
+                    ],
+                    [
+                        'id' => 'rincian-nego',
+                        'title' => 'RINCIAN HARGA AWAL DAN HASIL NEGOSIASI',
+                        'rows' => fn (NegotiationMinute $minute): array => app(ProcurementFormService::class)
+                            ->negotiationItemRows($minute),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm', 'value' => 'line_no'],
+                            ['label' => 'URAIAN BARANG / JASA', 'value' => 'description'],
+                            ['label' => 'VOL', 'align' => 'right', 'width' => '16mm',
+                                'value' => 'qty', 'cast' => 'qty'],
+                            ['label' => 'SAT', 'align' => 'center', 'width' => '12mm', 'value' => 'unit'],
+                            ['label' => 'HARGA AWAL (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'harga_awal', 'cast' => 'money'],
+                            ['label' => 'HARGA NEGO (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'harga_nego', 'cast' => 'money'],
+                            ['label' => 'SELISIH (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'selisih', 'cast' => 'money'],
+                        ],
+                        'empty' => 'Belum ada baris harga yang dinegosiasi pada berita acara ini.',
+                    ],
+                ],
+                'notes' => ['text' => 'notes', 'lines' => 3],
+                'signatures' => [
+                    [
+                        'heading' => 'Vendor / Pemasok,',
+                        'subheading' => null,
+                        'party' => 'vendor.name',
+                        'name' => null,
+                        'role' => 'Nama & Jabatan',
+                    ],
+                    [
+                        'heading' => 'Tim Negosiasi,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Pengadaan',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Mengetahui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Pengadaan',
+                    ],
+                ],
+            ],
+
+            /*
+             * KEPUTUSAN PEMENANG / AWARD (AWD) — the berita acara that names the
+             * winner and the value awarded (P2, 3.5 baris "keputusan pemenang").
+             *
+             * F/AWD, not F/KP: F/KP is Kontrak Payung's and F/BAP/F/BAPP sit in
+             * the P3 zone, so AWD keeps this sheet's code out of both. The value
+             * is spelled by Core's Terbilang, and the deviation reason prints in
+             * the notes ONLY when there is a deviation — a clean award carrying
+             * "ALASAN DEVIASI : ......" is an invitation to write one in after
+             * the three signatures land.
+             */
+            'keputusan-pemenang' => [
+                'resource' => 'procurement/award-decisions',
+                'model' => AwardDecision::class,
+                'permission' => 'prc.view',
+                'label' => 'Keputusan Pemenang',
+                'formTitle' => 'BERITA ACARA KEPUTUSAN PEMENANG',
+                'formCode' => 'Form F/AWD',
+                'with' => [
+                    'vendor' => fn ($query) => $query->withTrashed(),
+                    'rfq' => fn ($query) => $query->withTrashed(),
+                    'rfq.project' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'vendor', 'source' => 'vendor', 'project' => 'rfq.project'],
+                'date' => 'created_at',
+                'identityHouse' => false,
+                'identity' => [
+                    'NO. KEPUTUSAN' => 'code',
+                    'TANGGAL' => ['value' => 'created_at', 'cast' => 'date'],
+                    'DASAR RFQ' => 'rfq.code',
+                    'PEMENANG' => 'vendor.name',
+                    'NILAI RAB (HPS)' => ['value' => 'rab_amount', 'cast' => 'rupiah'],
+                    'NILAI DIPUTUSKAN' => ['value' => 'awarded_amount', 'cast' => 'rupiah'],
+                    // A stored 0 here is a fact — the award landed on the RAB —
+                    // and prints as Rp 0,00 rather than being ruled.
+                    'DEVIASI THD RAB' => ['value' => 'deviation_amount', 'cast' => 'rupiah'],
+                    'STATUS' => 'status',
+                ],
+                'body' => [
+                    [
+                        'id' => 'panitia',
+                        'title' => 'PANITIA / TIM PENGADAAN',
+                        'rows' => fn (AwardDecision $award): array => app(ProcurementFormService::class)
+                            ->awardCommitteeRows($award),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm', 'value' => 'no'],
+                            ['label' => 'NAMA', 'value' => 'name'],
+                            ['label' => 'JABATAN', 'value' => 'role'],
+                            ['label' => 'PERAN', 'width' => '48mm', 'value' => 'side'],
+                        ],
+                        'empty' => 'Susunan panitia dilampirkan terpisah pada keputusan ini.',
+                    ],
+                    [
+                        'id' => 'terbilang-award',
+                        'rows' => fn (AwardDecision $award): array => app(ProcurementFormService::class)
+                            ->awardTerbilangRow($award),
+                        'columns' => [
+                            ['label' => 'NILAI DIPUTUSKAN (Rp)', 'align' => 'right', 'width' => '42mm',
+                                'value' => 'amount', 'cast' => 'money'],
+                            ['label' => 'TERBILANG', 'value' => 'terbilang'],
+                        ],
+                    ],
+                ],
+                'notes' => [
+                    'text' => fn (AwardDecision $award): ?string => app(ProcurementFormService::class)
+                        ->awardNotes($award),
+                    'lines' => 3,
+                ],
+                'signatures' => [
+                    [
+                        'heading' => 'Disusun,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Ketua Panitia Pengadaan',
                     ],
                     [
                         'heading' => 'Diperiksa,',

@@ -32,6 +32,8 @@ export const ATTACHABLE = new Set([
   'projects/work-permits', 'projects/gate-passes',
   'procurement/purchase-requisitions', 'procurement/purchase-orders', 'procurement/vendors',
   'procurement/vendor-documents',
+  /* P2: daftar hadir menumpang BA Negosiasi (BAN) — buktinya. */
+  'procurement/negotiation-minutes',
   'inventory/goods-receipts', 'inventory/stock-adjustments',
   'subcontract/subcontracts', 'subcontract/progress-claims',
   'finance/ar-invoices', 'finance/ap-bills', 'finance/payments', 'finance/journals',

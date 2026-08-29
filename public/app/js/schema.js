@@ -1782,6 +1782,137 @@ export const RESOURCES = {
     },
   },
 
+  /* P2 — tata kelola pengadaan: BA negosiasi, keputusan pemenang, rencana. */
+  'procurement/negotiation-minutes': {
+    module: 'prc', api: 'procurement/negotiation-minutes', label: 'BA Negosiasi', labelOne: 'BA Negosiasi',
+    columns: [
+      codeColumn,
+      { key: 'rfq_id', label: 'RFQ', type: 'rel', lookup: 'rfqs', hideOnNarrow: true },
+      { key: 'vendor.name', label: 'Vendor', type: 'text' },
+      { key: 'meeting_date', label: 'Tanggal', type: 'date' },
+      { key: 'location', label: 'Tempat', type: 'text', hideOnNarrow: true },
+    ],
+    filters: [
+      { key: 'rfq_id', label: 'RFQ', lookup: 'rfqs' },
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+    ],
+    form: {
+      sections: [{
+        title: 'Berita Acara Negosiasi (BAN)',
+        help: 'Risalah pertemuan negosiasi harga. Lampirkan daftar hadir lewat kartu Lampiran di bawah.',
+        fields: [
+          { key: 'rfq_id', label: 'RFQ', type: 'lookup', lookup: 'rfqs', required: true, createOnly: true },
+          { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true, createOnly: true },
+          { key: 'meeting_date', label: 'Tanggal pertemuan', type: 'date', required: true, defaultToday: true },
+          { key: 'location', label: 'Tempat', type: 'text' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Harga awal → harga nego',
+        columns: [
+          { key: 'description', label: 'Uraian', type: 'text', required: true, width: '40%' },
+          { key: 'qty', label: 'Qty', type: 'qty', width: '12%' },
+          { key: 'unit', label: 'Satuan', type: 'text', width: '12%' },
+          { key: 'harga_awal', label: 'Harga awal', type: 'currency', width: '18%' },
+          { key: 'harga_nego', label: 'Harga nego', type: 'currency', width: '18%' },
+        ],
+      }],
+    },
+  },
+
+  'procurement/award-decisions': {
+    module: 'prc', api: 'procurement/award-decisions', label: 'Keputusan Pemenang', labelOne: 'Keputusan Pemenang',
+    columns: [
+      codeColumn,
+      { key: 'rfq_id', label: 'RFQ', type: 'rel', lookup: 'rfqs', hideOnNarrow: true },
+      { key: 'vendor.name', label: 'Pemenang', type: 'text' },
+      { key: 'awarded_amount', label: 'Nilai', type: 'currency', align: 'right' },
+      { key: 'deviation_amount', label: 'Deviasi vs RAB', type: 'currency', align: 'right', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'rfq_id', label: 'RFQ', lookup: 'rfqs' },
+      { key: 'vendor_id', label: 'Vendor', lookup: 'vendors' },
+    ],
+    editableWhen: IS_DRAFT,
+    deletableWhen: IS_DRAFT,
+    form: {
+      sections: [{
+        title: 'Keputusan Pemenang (Award)',
+        help: 'Nilai keputusan di atas RAB wajib mengisi alasan deviasi. Bila nilai berbeda dari penawaran '
+          + 'terakhir vendor, keputusan hanya bisa diajukan setelah ada BA Negosiasi untuk vendor ini. '
+          + 'Persetujuan berjenjang menurut nilai: ≥ Rp 100 juta butuh direktur, ≥ Rp 1 miliar butuh tiga penyetuju.',
+        fields: [
+          { key: 'rfq_id', label: 'RFQ', type: 'lookup', lookup: 'rfqs', required: true, createOnly: true },
+          { key: 'vendor_id', label: 'Vendor pemenang', type: 'lookup', lookup: 'vendors', required: true, createOnly: true },
+          { key: 'rab_amount', label: 'Nilai RAB (HPS)', type: 'currency', required: true },
+          { key: 'awarded_amount', label: 'Nilai diputuskan', type: 'currency', required: true },
+          { key: 'deviation_reason', label: 'Alasan deviasi (bila di atas RAB)', type: 'textarea', span: 2 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['rab_amount', 'awarded_amount', 'deviation_amount'],
+    },
+    // Persetujuan berjenjang menurut nilai award: submit/reject seperti biasa,
+    // tetapi 'approve' hanya menjadi Disetujui pada tingkat terakhir. Tombol
+    // Setujui tetap muncul selama status masih 'submitted' (butuh tingkat
+    // berikutnya), dan help-nya menunjuk panel detail untuk sisa tingkat.
+    actions: [
+      ...approvalActions('prc').filter((action) => action.key !== 'approve'),
+      {
+        key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
+        perm: 'prc.approve', when: IS_SUBMITTED, variant: 'success',
+        fields: [{
+          key: 'note', label: 'Catatan persetujuan', type: 'textarea',
+          help: 'Persetujuan berjenjang: award baru menjadi Disetujui setelah tingkat '
+            + 'terakhir, dari penyetuju yang BERBEDA tiap tingkat. Lihat "Persetujuan '
+            + 'masuk" vs "Tingkat persetujuan diperlukan" di panel detail untuk sisa '
+            + 'tingkat yang masih dibutuhkan (mis. ≥ Rp 100 juta butuh direktur, '
+            + '≥ Rp 1 miliar butuh tiga penyetuju).',
+        }],
+      },
+    ],
+  },
+
+  'procurement/procurement-plans': {
+    module: 'prc', api: 'procurement/procurement-plans', label: 'Rencana Pengadaan', labelOne: 'Rencana Pengadaan',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects', hideOnNarrow: true },
+      { key: 'status', label: 'Status', type: 'text', align: 'center' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    form: {
+      sections: [{
+        title: 'Rencana Pengadaan / Pola Belanja (PBL)',
+        help: 'Disusun dari RAP: paket belanja, metode, target tanggal kontrak, dan PIC — sebelum PR terbit.',
+        fields: [
+          { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          { key: 'status', label: 'Status', type: 'select', enum: 'procurementPlanStatus', default: 'draft' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Paket belanja',
+        columns: [
+          { key: 'package', label: 'Paket', type: 'text', required: true, width: '30%' },
+          { key: 'method', label: 'Metode', type: 'select', enum: 'procurementMethod', width: '18%' },
+          { key: 'estimated_amount', label: 'Perkiraan nilai', type: 'currency', width: '18%' },
+          { key: 'target_contract_date', label: 'Target kontrak', type: 'date', width: '16%' },
+          { key: 'pic', label: 'PIC', type: 'text', width: '18%' },
+        ],
+      }],
+    },
+  },
+
   /* ======================================================== INVENTORY === */
   'inventory/items': {
     module: 'inv', api: 'inventory/items', label: 'Item', labelOne: 'Item',
@@ -4479,6 +4610,9 @@ export const NAV = [
       { label: 'RFQ (Banding Penawaran)', route: 'r/procurement/rfqs' },
       { label: 'Pesanan (PO)', route: 'r/procurement/purchase-orders' },
       { label: 'Baris PO Terbuka', route: 'po-outstanding' },
+      { label: 'BA Negosiasi', route: 'r/procurement/negotiation-minutes' },
+      { label: 'Keputusan Pemenang', route: 'r/procurement/award-decisions' },
+      { label: 'Rencana Pengadaan', route: 'r/procurement/procurement-plans' },
       { label: 'Evaluasi Vendor', route: 'r/procurement/vendor-evaluations' },
     ],
   },

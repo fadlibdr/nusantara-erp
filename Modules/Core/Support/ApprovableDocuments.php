@@ -13,6 +13,7 @@ use Modules\Finance\Models\Payment;
 use Modules\HrPayroll\Models\LeaveRequest;
 use Modules\HrPayroll\Models\PayrollRun;
 use Modules\Inventory\Models\StockAdjustment;
+use Modules\Procurement\Models\AwardDecision;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Projects\Models\Bast;
@@ -81,6 +82,16 @@ class ApprovableDocuments
         Inspection::class => ['prefix' => 'qc', 'label' => 'Inspeksi mutu', 'resource' => 'quality/inspections'],
         PurchaseRequisition::class => ['prefix' => 'prc', 'label' => 'Permintaan pembelian', 'resource' => 'procurement/purchase-requisitions'],
         PurchaseOrder::class => ['prefix' => 'prc', 'label' => 'Pesanan pembelian', 'resource' => 'procurement/purchase-orders'],
+        /*
+         * P2 — the award decision is the ONE new procurement approvable, and the
+         * first document in the app that rides the n-level ladder: approve()
+         * counts distinct approvers and levels 2+ demand prc.approve-director
+         * (Core\Support\ApprovalLevels, config('erp.approvals.award_decision')).
+         * Registered here so submit notifies prc.approve holders like every
+         * other approvable — the ladder is enforced inside Approvable::approve,
+         * not by a second registry.
+         */
+        AwardDecision::class => ['prefix' => 'prc', 'label' => 'Keputusan pemenang', 'resource' => 'procurement/award-decisions'],
         StockAdjustment::class => ['prefix' => 'inv', 'label' => 'Penyesuaian stok', 'resource' => 'inventory/stock-adjustments'],
         Subcontract::class => ['prefix' => 'scm', 'label' => 'SPK subkontraktor', 'resource' => 'subcontract/subcontracts'],
         // Registered so submit notifications reach scm.approve holders like

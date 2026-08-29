@@ -510,6 +510,7 @@ class SettingService
         'SDS' => 'Persetujuan gambar (SDS)', 'SMS' => 'Persetujuan material (SMS)',
         'TRM' => 'Transmittal', 'IPP' => 'Ijin pelaksanaan pekerjaan',
         'QCI' => 'Inspeksi mutu (QCI)', 'NCR' => 'Laporan ketidaksesuaian (NCR)',
+        'BAN' => 'BA Negosiasi', 'AWD' => 'Keputusan pemenang', 'PBL' => 'Rencana pengadaan',
     ];
 
     /**

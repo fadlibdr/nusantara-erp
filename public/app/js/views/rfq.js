@@ -45,6 +45,16 @@ export async function renderRfq(host, { id }) {
     return host.appendChild(errorState(error, () => renderRfq(host, { id })));
   }
 
+  // P2 — penilaian berbobot dilayani endpoint terpisah (RfqResource sengaja
+  // tidak memuatnya). Gagal memuatnya tidak boleh menjatuhkan seluruh layar:
+  // matriks harga tetap berguna tanpa kartu penilaian.
+  let evaluations = [];
+  try {
+    evaluations = (await api.get(`procurement/rfqs/${id}/evaluations`)) || [];
+  } catch (error) {
+    evaluations = [];
+  }
+
   const reload = () => renderRfq(host, { id });
   const def = RESOURCES['procurement/rfqs'];
   const editable = IS_DRAFT(rfq) && session.can('prc.update');
@@ -194,6 +204,10 @@ export async function renderRfq(host, { id }) {
     }),
   ]));
 
+  /* --------------------------------------------- penilaian berbobot (P2) */
+
+  host.appendChild(scoringCard(rfq, evaluations, editable, reload));
+
   /* ------------------------------------------------------- PO turunannya */
 
   const orders = rfq.purchase_orders || [];
@@ -238,6 +252,124 @@ async function saveQuotes(rfq, cellInputs, trigger, reload) {
     try {
       await api.post(`procurement/rfqs/${rfq.id}/quotes`, { quotes });
       toast('Penawaran tercatat.');
+      reload();
+    } catch (error) { toastError(error); }
+  });
+}
+
+/* Empat aspek yang DIKETIK panitia (0–100). Skor harga TIDAK di sini — server
+   menghitungnya dari rasio penawaran terhadap RAB (BidEvaluationService). */
+const SCORE_ASPECTS = [
+  ['mutu_score', 'Mutu'],
+  ['waktu_score', 'Waktu'],
+  ['keuangan_score', 'Keuangan'],
+  ['k3_score', 'K3'],
+];
+
+/* Tabulasi penilaian berbobot: satu baris per vendor terundang. Kolom skor bisa
+   diketik saat draf; harga, nilai akhir dan peringkat dihitung server dan
+   ditampilkan apa adanya. Vendor tanpa skor apa pun sengaja tidak dikirim,
+   sehingga tabulasi cetak membiarkannya bergaris ("belum dinilai"), bukan nol. */
+function scoringCard(rfq, evaluations, editable, reload) {
+  const vendors = rfq.vendors || [];
+  const byVendor = new Map((evaluations || []).map((row) => [Number(row.vendor_id), row]));
+  const inputs = new Map(); // `${vendorId}:${field}` -> input
+
+  const show = (value, decimals = 2) => (value === null || value === undefined || value === '' ? '—' : fmt.num(value, decimals));
+
+  const scoreCell = (vid, field, value, max) => {
+    if (!editable) return el('td.right', { text: show(value) });
+    const input = el('input', {
+      type: 'number', min: '0', max: String(max), step: '0.01',
+      value: (value === null || value === undefined) ? '' : String(Number(value)),
+      placeholder: '—', style: { width: '84px', textAlign: 'right' },
+    });
+    inputs.set(`${vid}:${field}`, input);
+    return el('td.right', input);
+  };
+
+  const rabCell = (vid, value) => {
+    if (!editable) return el('td.right', { text: value === null || value === undefined || value === '' ? '—' : fmt.rupiah(value) });
+    const input = el('input', {
+      type: 'number', min: '0', step: '0.01',
+      value: (value === null || value === undefined) ? '' : String(Number(value)),
+      placeholder: 'auto BOQ', style: { width: '120px', textAlign: 'right' },
+    });
+    inputs.set(`${vid}:rab_amount`, input);
+    return el('td.right', input);
+  };
+
+  const header = el('tr', [
+    el('th', { text: 'Vendor' }),
+    el('th.right', { text: 'RAB (HPS)' }),
+    ...SCORE_ASPECTS.map(([, label]) => el('th.right', { text: label })),
+    el('th.right', { text: 'Harga*' }),
+    el('th.right', { text: 'Nilai akhir' }),
+    el('th.right', { text: 'Peringkat' }),
+  ]);
+
+  const rows = vendors.map((invited) => {
+    const vid = Number(invited.vendor_id);
+    const ev = byVendor.get(vid) || {};
+
+    return el('tr', [
+      el('td', { text: invited.name || `#${vid}` }),
+      rabCell(vid, ev.rab_amount),
+      ...SCORE_ASPECTS.map(([field]) => scoreCell(vid, field, ev[field], 100)),
+      el('td.right', { text: show(ev.harga_score) }),
+      el('td.right', ev.weighted_score === undefined || ev.weighted_score === null
+        ? el('span', { text: '—' })
+        : el('strong', { text: show(ev.weighted_score) })),
+      el('td.right', ev.rank ? badge(`#${ev.rank}`, ev.rank === 1 ? 'ok' : '') : el('span', { text: '—' })),
+    ]);
+  });
+
+  return el('.card', [
+    el('.card-head', [
+      el('h2', { text: 'Penilaian berbobot (sistem nilai)' }),
+      editable ? button('Simpan penilaian', {
+        variant: 'primary',
+        onClick: (event) => saveEvaluations(rfq, inputs, event.currentTarget, reload),
+      }) : null,
+    ]),
+    el('.table-wrap', el('table.data', [el('thead', header), el('tbody', rows)])),
+    el('.muted', {
+      style: { padding: '8px 12px', fontSize: '12px' },
+      text: 'Skor mutu/waktu/keuangan/K3 diisi 0–100 oleh panitia; RAB kosong memakai harga BOQ '
+        + 'baris. *Skor harga dihitung server dari rasio penawaran terhadap RAB — tidak diketik. '
+        + 'Nilai akhir dan peringkat dihitung ulang atas seluruh vendor tiap kali disimpan. Vendor '
+        + 'yang tidak diberi skor apa pun dibiarkan belum dinilai (bergaris pada tabulasi cetak), '
+        + 'bukan diberi nol.',
+    }),
+  ]);
+}
+
+/* Satu baris per vendor yang diberi MINIMAL satu skor aspek. Vendor tanpa satu
+   pun angka tidak dikirim — supaya "belum dinilai" tetap belum dinilai, bukan
+   nol yang menyusup ke peringkat. */
+async function saveEvaluations(rfq, inputs, trigger, reload) {
+  const byVendor = new Map();
+
+  for (const [key, input] of inputs) {
+    if (input.value === '') continue;
+    const [vendorId, field] = key.split(':');
+    const vid = Number(vendorId);
+    if (!byVendor.has(vid)) byVendor.set(vid, { vendor_id: vid });
+    byVendor.get(vid)[field] = Number(input.value);
+  }
+
+  const evaluations = [...byVendor.values()].filter((row) =>
+    ['mutu_score', 'waktu_score', 'keuangan_score', 'k3_score'].some((field) => row[field] !== undefined));
+
+  if (!evaluations.length) {
+    toast('Isi minimal satu skor aspek (mutu/waktu/keuangan/K3) untuk satu vendor.', { tone: 'err' });
+    return;
+  }
+
+  await withBusy(trigger, async () => {
+    try {
+      await api.post(`procurement/rfqs/${rfq.id}/evaluations`, { evaluations });
+      toast('Penilaian berbobot tersimpan.');
       reload();
     } catch (error) { toastError(error); }
   });
