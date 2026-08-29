@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Modules\Crm\Enums\ChangeOrderType;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Projects\Models\DailyReport;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\WorkPermit;
 use Modules\Projects\Services\DailyReportService;
+use Modules\Projects\Services\MeasurementService;
 use Modules\Projects\Services\WorkPermitService;
 
 /**
@@ -75,6 +77,32 @@ class ExternalApprovableDocuments
             'label' => 'Izin kerja lapangan',
             'mode' => self::MODE_TRANSITION,
             'hook' => [WorkPermitService::class, 'applyExternalDecision'],
+            'issuable_statuses' => ['submitted'],
+        ],
+        /*
+         * P3 — OPNAME KE PEMILIK. Mode TRANSISI, because the signature this
+         * sheet exists to collect is the MK's: an opname the contractor
+         * approves alone is a claim, and only the MK's mark turns it into a
+         * measurement the owner can be billed for.
+         *
+         * The adapter is MeasurementService::applyExternalDecision — a service
+         * method and not the trait, roadmap §7 — so an external approval
+         * re-checks the ceiling against live rows and re-derives the weekly
+         * curve exactly as an internal approval does. And per §7 again: this
+         * records who the MK's representative WAS in core_external_approvals;
+         * nothing here writes an owner/MK name onto the document from project
+         * master data.
+         *
+         * Only `submitted` may be linked, the same decision the izin kerja
+         * carries: a link over a draft would produce a decision Approvable
+         * cannot apply, and a link that is certain to fail is not an honest one.
+         */
+        'projects/progress-measurements' => [
+            'class' => ProgressMeasurement::class,
+            'prefix' => 'prj',
+            'label' => 'Opname progres owner',
+            'mode' => self::MODE_TRANSITION,
+            'hook' => [MeasurementService::class, 'applyExternalDecision'],
             'issuable_statuses' => ['submitted'],
         ],
     ];
@@ -159,8 +187,38 @@ class ExternalApprovableDocuments
             'projects/daily-reports' => self::summarizeDailyReport($document),
             'crm/contract-change-orders' => self::summarizeChangeOrder($document),
             'projects/work-permits' => self::summarizeWorkPermit($document),
+            'projects/progress-measurements' => self::summarizeMeasurement($document),
             default => [],
         };
+    }
+
+    /**
+     * What the MK sees on the public decision page before signing an opname.
+     *
+     * The LINE COUNT and the period value, not the lines themselves: the
+     * backsheet with every measured quantity is F/OPN, which the MK already
+     * has on paper, and reproducing it inside a one-time link would put a
+     * hundred rows behind a URL that needs no login.
+     *
+     * @return list<array{label: string, value: string}>
+     */
+    private static function summarizeMeasurement(ProgressMeasurement $measurement): array
+    {
+        $project = $measurement->project;
+        $lines = $measurement->items()->count();
+
+        return array_values(array_filter([
+            ['label' => 'Proyek', 'value' => trim(($project?->code ?? '—').' — '.($project?->name ?? ''))],
+            ['label' => 'Periode', 'value' => sprintf(
+                '%s s/d %s',
+                $measurement->period_start?->format('d-m-Y') ?? '—',
+                $measurement->period_end?->format('d-m-Y') ?? '—',
+            )],
+            ['label' => 'Jumlah item diukur', 'value' => $lines.' item'],
+            ['label' => 'Nilai pekerjaan periode ini', 'value' => Money::format((float) $measurement->period_amount)],
+            ['label' => 'Nilai kumulatif terukur', 'value' => Money::format((float) $measurement->cumulative_amount)],
+            $measurement->notes ? ['label' => 'Catatan', 'value' => mb_substr((string) $measurement->notes, 0, 200)] : null,
+        ]));
     }
 
     /** @return list<array{label: string, value: string}> */

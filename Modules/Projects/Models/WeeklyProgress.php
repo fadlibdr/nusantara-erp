@@ -7,6 +7,19 @@ use Modules\Core\Models\BaseModel;
 
 class WeeklyProgress extends BaseModel
 {
+    /**
+     * The two things actual_pct can BE, named once so the writer
+     * (ProgressService), the reader (EvmService) and the print layer cannot
+     * drift into three spellings of two facts.
+     *
+     *   SOURCE_WEEKLY       a percentage a supervisor typed — an estimate;
+     *   SOURCE_MEASUREMENT  derived from an APPROVED opname, value-weighted
+     *                       over the BOQ — a measurement (P3).
+     */
+    public const SOURCE_WEEKLY = 'weekly_report';
+
+    public const SOURCE_MEASUREMENT = 'progress_measurement';
+
     protected $table = 'prj_weekly_progress';
 
     protected function casts(): array

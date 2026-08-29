@@ -87,6 +87,9 @@ return [
         'BAN' => 'BAN/{Y}/{RM}/{N4}',   // Berita acara negosiasi vendor (P2)
         'AWD' => 'AWD/{Y}/{RM}/{N4}',   // Keputusan pemenang / award decision (P2 — AWD dipilih agar tidak bentrok BAP/BAPP zona P3)
         'PBL' => 'PBL/{Y}/{N4}',        // Rencana pengadaan / pola belanja (P2 — PBL dipilih agar tidak bentrok tipe RPB milik retur pembelian)
+        'OPN' => 'OPN/{Y}/{RM}/{N4}',   // Opname progres ke pemilik (P3 — sisi pendapatan; CLM tetap milik opname subkon)
+        'BAPP' => 'BAPP/{Y}/{RM}/{N4}',  // Berita acara pemeriksaan pekerjaan per zona (P3 — BAPP, kode yang disisakan AWD)
+        'BSK' => 'BSK/{Y}/{RM}/{N4}',   // BAST subkontraktor I/II (P3 — BST sudah dipakai rekening koran, BAST milik serah terima owner)
     ],
 
     /*

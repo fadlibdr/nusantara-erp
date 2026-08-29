@@ -14,6 +14,10 @@ import { api } from './api.js';
 export const SOURCES = {
   customers: { path: 'crm/customers', label: 'name', sub: 'code', title: 'Pelanggan' },
   contracts: { path: 'crm/contracts', label: 'title', sub: 'code', title: 'Kontrak' },
+  /* P3: register variasi kontrak menautkan volume ke CCO-nya. Dijaga crm.view
+     di server sementara layarnya digerbangi prj.* — sama seperti `locations`
+     di bawah, dan loadSource menoleransi 403. */
+  contractChangeOrders: { path: 'crm/contract-change-orders', label: 'title', sub: 'code', title: 'Pekerjaan tambah-kurang' },
   quotations: { path: 'crm/quotations', label: 'title', sub: 'code', title: 'Penawaran' },
   leads: { path: 'crm/leads', label: 'name', sub: 'company_name', title: 'Prospek' },
   projects: { path: 'projects', label: 'name', sub: 'code', title: 'Proyek' },
@@ -21,6 +25,12 @@ export const SOURCES = {
   // berantai — sub-nya 'PRJ-2026-001 · B.3' sebagai pembeda, dan server yang
   // menolak (422, berbahasa Indonesia) bila paket proyek lain yang dipilih.
   wbsTasks: { path: 'projects/wbs-tasks', label: 'name', sub: 'picker_label', params: { leaf: 1 }, title: 'Paket pekerjaan (WBS)' },
+  /* P3 — hanya opname ke pemilik yang sudah DISETUJUI: klaim owner hanya boleh
+     disusun dari volume yang sudah ditandatangani (ArInvoiceService menolak
+     status lain dengan 422 bernama). Dijaga prj.view sementara layar pemakainya
+     (Invoice Termin) digerbangi fin.*; loadSource menoleransi 403, pola
+     `approvedIpps` di bawah. */
+  approvedMeasurements: { path: 'projects/progress-measurements', label: 'code', sub: 'picker_label', params: { status: 'approved' }, title: 'Opname ke pemilik disetujui' },
   boqs: { path: 'estimation/boqs', label: 'title', sub: 'code', title: 'BOQ' },
   ahsp: { path: 'estimation/ahsp', label: 'name', sub: 'code', title: 'AHSP' },
   // picker_label (VendorResource): kode + rating + bendera "nonaktif" /

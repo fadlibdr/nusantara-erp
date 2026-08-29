@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Subcontract\Http\Controllers\HandoverController;
 use Modules\Subcontract\Http\Controllers\ProgressClaimController;
 use Modules\Subcontract\Http\Controllers\SubcontractAddendumController;
 use Modules\Subcontract\Http\Controllers\SubcontractController;
@@ -59,6 +60,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // row must actually hold the AP approval right, not just a Subcontract one.
     Route::post('subcontracts/{subcontract}/retention-release', [SubcontractController::class, 'retentionRelease'])
         ->middleware(['permission:scm.post', 'permission:fin.approve']);
+
+    // P3 — BAST subkon I/II. Approve carries scm.approve like the SPK's own
+    // approval: BAST I starts the masa pemeliharaan the retention secures, and
+    // BAST II ends it. The prerequisites GET is readable by anybody who can
+    // read the SPK — it names no money, only which paperwork is missing.
+    Route::get('handovers', [HandoverController::class, 'index']);
+    Route::post('handovers', [HandoverController::class, 'store'])->middleware('permission:scm.create');
+    Route::get('handovers/{handover}', [HandoverController::class, 'show']);
+    Route::get('handovers/{handover}/prerequisites', [HandoverController::class, 'prerequisites']);
+    Route::put('handovers/{handover}', [HandoverController::class, 'update'])->middleware('permission:scm.update');
+    Route::delete('handovers/{handover}', [HandoverController::class, 'destroy'])->middleware('permission:scm.delete');
+    Route::post('handovers/{handover}/submit', [HandoverController::class, 'submit'])->middleware('permission:scm.update');
+    Route::post('handovers/{handover}/approve', [HandoverController::class, 'approve'])->middleware('permission:scm.approve');
+    Route::post('handovers/{handover}/reject', [HandoverController::class, 'reject'])->middleware('permission:scm.approve');
 
     // Progress claims (opname)
     Route::get('progress-claims', [ProgressClaimController::class, 'index']);

@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Modules\Assets\Models\Asset;
 use Modules\Assets\Models\Deployment;
 use Modules\Assets\Services\AssetFormService;
+use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\Company;
 use Modules\Core\Services\FormPrintService;
 use Modules\Crm\Models\Contract;
@@ -55,6 +56,10 @@ use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
 use Modules\Procurement\Services\ProcurementFormService;
+use Modules\Projects\Models\ProgressMeasurement;
+use Modules\Projects\Models\ZoneCertificate;
+use Modules\Projects\Services\MeasurementService;
+use Modules\Projects\Services\ZoneCertificateService;
 use Modules\Quality\Models\ConcreteSample;
 use Modules\Quality\Models\Inspection;
 use Modules\Quality\Models\Ncr;
@@ -62,6 +67,7 @@ use Modules\Quality\Services\ConcreteStrengthService;
 use Modules\ServiceDesk\Models\FieldReport;
 use Modules\ServiceDesk\Models\ServiceContract;
 use Modules\ServiceDesk\Services\ServiceDeskFormService;
+use Modules\Subcontract\Models\Handover;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
@@ -353,6 +359,14 @@ class PrintableDocuments
 {
     /** Keys every entry must carry; a half-written row is refused, not printed. */
     private const REQUIRED = ['resource', 'model', 'permission', 'label', 'formTitle'];
+
+    /**
+     * Ceiling maps already computed, by opname id — see measurementCeilings().
+     * Per-instance and never cleared: one printed sheet is one request.
+     *
+     * @var array<int, array<int, float>>
+     */
+    private array $ceilingCache = [];
 
     /**
      * Every printable document, by slug.
@@ -1286,14 +1300,267 @@ class PrintableDocuments
         ];
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * P3 — the two Projects house forms that are NOT bespoke: F/OPN (backsheet
+     * opname ke pemilik) and F/BAPP (berita acara pemeriksaan per zona).
+     *
+     * THE HONESTY RULE on these two is about to be worth money, which is why it
+     * is restated here rather than left to the class docblock:
+     *
+     *   F/OPN is the backsheet an owner claim bills against. A BOQ item this
+     *   opname never measured HAS NO ROW. Padding the sheet with every contract
+     *   line at 0,000 would put a measured zero over three signatures — a claim
+     *   that the excavation was inspected and found not to have moved, which is
+     *   a different statement from "not measured this period" and the one that
+     *   gets quoted back in a dispute. The engine's minRows pad is deliberately
+     *   NOT used: this sheet is not a pad the site fills in by hand.
+     *
+     *   F/BAPP is what the owner claim reads to refuse a zone (kriteria #6). Its
+     *   status prints as the WORD — "Nunggu perbaikan" — because a blank there
+     *   reads as an unremarkable zone on the very sheet the refusal rests on.
+     *   Its signing party and name are nullable BY DESIGN (roadmap §7) and are
+     *   ruled when absent; nothing here reaches for the project's consultant_name
+     *   to make the paper look complete.
+     *
+     * The seven forms already shipped are NOT here: they keep their bespoke
+     * composers in FormPrintService::FORMS. See the lookup order documented on
+     * FormPrintService::definition().
+     *
+     * @return array<string, array<string, mixed>>
+     */
     protected function projects(): array
     {
         // PRINTABLE REGISTRY (Projects) — tambahkan dokumen baru di sini.
-        // The seven forms already shipped are NOT here: they keep their bespoke
-        // composers in FormPrintService::FORMS. See the lookup order documented
-        // on FormPrintService::definition().
-        return [];
+        return [
+            /*
+             * BERITA ACARA OPNAME PEKERJAAN — F/OPN, the backsheet.
+             *
+             * Landscape, because the row this sheet exists for is eight columns
+             * wide before the money starts: uraian, satuan, three volumes, the
+             * ceiling, unit price and amount. Portrait would either drop the
+             * ceiling or set the volumes in a column too narrow to read, and the
+             * ceiling is the number the MK's signature is actually checked
+             * against.
+             *
+             * Every printed line is a SNAPSHOT off prj_progress_measurement_items
+             * — description, unit and unit_price were copied when the line was
+             * drafted, so a later BOQ revision cannot silently re-price a sheet
+             * somebody already signed. The one live figure is the ceiling, and it
+             * is live on purpose: it is a fact about the CONTRACT (its BOQ volume
+             * plus the volume of every APPROVED change order), read through
+             * MeasurementService, which is the same arithmetic the 422 quotes.
+             */
+            'opname-owner' => [
+                'resource' => 'projects/progress-measurements',
+                'model' => ProgressMeasurement::class,
+                'permission' => 'prj.view',
+                'label' => 'Opname ke Pemilik (OPN)',
+                'formTitle' => 'BERITA ACARA OPNAME PEKERJAAN',
+                'formCode' => 'Form F/OPN',
+                'orientation' => 'landscape',
+                // withTrashed on every soft-deleting parent a resolver reads —
+                // class docblock. The location chain to its full depth because
+                // path() walks every ancestor; a lazy step past the eager depth
+                // would silently drop the withTrashed on a deleted floor.
+                // items.boqItem is named so the ceiling map has its ids without
+                // one query per printed row.
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'contract' => fn ($query) => $query->withTrashed(),
+                    'items',
+                    'items.boqItem',
+                    'items.location' => fn ($query) => $query->withTrashed(),
+                    'items.location.parent' => fn ($query) => $query->withTrashed(),
+                    'items.location.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'items.location.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'items.location.parent.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                // The opname's own period end, never the day somebody pressed
+                // print: an opname for June is an opname for June whenever it is
+                // reprinted, and HARI KE is counted to the day it measured.
+                'date' => 'period_end',
+                'period' => fn (ProgressMeasurement $opname): string => sprintf(
+                    '%s s/d %s',
+                    FormPrintService::dateText($opname->period_start),
+                    FormPrintService::dateText($opname->period_end),
+                ),
+                'identity' => [
+                    'NO. OPNAME' => 'code',
+                    'OPNAME KE-' => ['value' => 'measurement_no', 'cast' => 'int'],
+                    'NO. KONTRAK' => 'contract.code',
+                    'PERIODE PENGUKURAN' => fn (ProgressMeasurement $opname): string => sprintf(
+                        '%s s/d %s',
+                        FormPrintService::dateText($opname->period_start),
+                        FormPrintService::dateText($opname->period_end),
+                    ),
+                    'NILAI PEKERJAAN PERIODE INI' => ['value' => 'period_amount', 'cast' => 'rupiah'],
+                    'NILAI KUMULATIF TERUKUR' => ['value' => 'cumulative_amount', 'cast' => 'rupiah'],
+                    'STATUS' => 'status',
+                ],
+                'body' => [
+                    [
+                        'id' => 'backsheet-opname',
+                        'title' => 'RINCIAN VOLUME TERUKUR (BACKSHEET)',
+                        'rows' => 'items',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'WBS', 'align' => 'center', 'width' => '16mm',
+                                'value' => fn (mixed $row): ?string => $row->boqItem?->wbs_code],
+                            ['label' => 'URAIAN PEKERJAAN', 'value' => 'description'],
+                            // Optional per the spec, so most lines rule it —
+                            // which is the honest mark for an opname measured
+                            // across a whole floor rather than per zone.
+                            ['label' => 'LOKASI / ZONA', 'width' => '34mm',
+                                'value' => fn (mixed $row): ?string => $row->location?->path()],
+                            ['label' => 'SAT', 'align' => 'center', 'width' => '14mm', 'value' => 'unit'],
+                            ['label' => 'VOL. LALU', 'align' => 'right', 'width' => '22mm',
+                                'value' => 'qty_prev', 'cast' => 'qty'],
+                            ['label' => 'VOL. PERIODE INI', 'align' => 'right', 'width' => '24mm',
+                                'value' => 'qty_this', 'cast' => 'qty'],
+                            ['label' => 'VOL. KUMULATIF', 'align' => 'right', 'width' => '24mm',
+                                'value' => 'qty_cum', 'cast' => 'qty'],
+                            // The plafon beside the cumulative — contract volume
+                            // plus APPROVED CCO volume. Ruled when the BOQ item
+                            // behind the line has gone, because then there is no
+                            // ceiling to state rather than a ceiling of zero.
+                            ['label' => 'VOL. KONTRAK + CCO', 'align' => 'right', 'width' => '26mm',
+                                'value' => fn (mixed $row, int $index, ProgressMeasurement $opname): ?float => $this
+                                    ->measurementCeilings($opname)[(int) $row->boq_item_id] ?? null,
+                                'cast' => 'qty'],
+                            ['label' => 'HARGA SATUAN (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'unit_price', 'cast' => 'money'],
+                            ['label' => 'JUMLAH (Rp)', 'align' => 'right', 'width' => '32mm',
+                                'value' => 'amount', 'cast' => 'money'],
+                        ],
+                        'totals' => [
+                            ['label' => 'JUMLAH NILAI PERIODE INI', 'value' => 'period_amount', 'cast' => 'money'],
+                            ['label' => 'NILAI KUMULATIF TERUKUR', 'value' => 'cumulative_amount', 'cast' => 'money'],
+                        ],
+                        // No minRows. See the method docblock: this is a
+                        // measurement, not a pad, and a ruled line here would
+                        // invite a volume to be written in after signature.
+                        'empty' => 'Opname ini belum memiliki baris volume terukur.',
+                    ],
+                ],
+                'notes' => ['text' => 'notes', 'lines' => 3],
+                // 'house': Mengetahui (owner) / Menyetujui-menolak (MK) / our
+                // column. Only ours is named — roadmap §7, and the MK's real
+                // decision lives in core_external_approvals, not on this paper.
+                'signatures' => 'house',
+            ],
+
+            /*
+             * BERITA ACARA PEMERIKSAAN PEKERJAAN PER ZONA — F/BAPP.
+             *
+             * Identity-plus-one-table: the whole document is what an inspector
+             * wrote about one zone, and the table is the reason he could not
+             * write "Selesai" — the OPEN NCR at that location, the same list
+             * ZoneCertificateService refuses on. Printing the gate's own answer
+             * beside the mark is what stops the paper and the software from
+             * telling two stories about the same floor.
+             */
+            'bapp-zona' => [
+                'resource' => 'projects/zone-certificates',
+                'model' => ZoneCertificate::class,
+                'permission' => 'prj.view',
+                'label' => 'BAPP per Zona',
+                'formTitle' => 'BERITA ACARA PEMERIKSAAN PEKERJAAN (BAPP) PER ZONA',
+                'formCode' => 'Form F/BAPP',
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'location' => fn ($query) => $query->withTrashed(),
+                    'location.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                    'location.parent.parent.parent.parent' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                // certified_at is nullable — a BAPP drafted before the walk has
+                // no inspection date — and the engine then falls back to the
+                // URL's ?tanggal= and finally to today, which is the right
+                // fallback for a sheet printed to be carried into the zone.
+                'date' => 'certified_at',
+                'identity' => [
+                    'NO. BAPP' => 'code',
+                    'ZONA / LOKASI' => fn (ZoneCertificate $bapp): ?string => $bapp->location?->path(),
+                    'KODE LOKASI' => 'location.code',
+                    'HASIL PEMERIKSAAN' => fn (ZoneCertificate $bapp): ?string => $bapp->status?->label(),
+                    'TANGGAL PEMERIKSAAN' => ['value' => 'certified_at', 'cast' => 'date'],
+                    // Roadmap §7: a recorded decision or a ruled blank. Never
+                    // the project's consultant_name "supaya terlihat lengkap".
+                    'DIPERIKSA OLEH (PIHAK)' => fn (ZoneCertificate $bapp): ?string => $bapp
+                        ->certified_by_party?->label(),
+                    'NAMA PEMERIKSA' => 'certified_by_name',
+                ],
+                'body' => [
+                    [
+                        'id' => 'ncr-terbuka',
+                        'title' => 'NCR TERBUKA DI ZONA INI',
+                        'rows' => fn (ZoneCertificate $bapp): array => $this->openNcrRows($bapp),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NO. NCR', 'value' => 'code'],
+                        ],
+                        'empty' => 'Tidak ada NCR terbuka di zona ini.',
+                    ],
+                ],
+                'notes' => ['text' => 'notes', 'lines' => 3],
+                'signatures' => 'house',
+            ],
+        ];
+    }
+
+    /**
+     * The ceiling per BOQ item for one opname, computed ONCE per printed sheet.
+     *
+     * Memoised by measurement id rather than recomputed per row: without it a
+     * hundred-line backsheet would run a hundred queries inside one print, which
+     * is the failure this file's `with` documentation warns about. An opname
+     * whose contract has gone returns an empty map, and every ceiling cell on
+     * that sheet then rules itself.
+     *
+     * @return array<int, float>
+     */
+    private function measurementCeilings(ProgressMeasurement $measurement): array
+    {
+        $key = (int) $measurement->id;
+
+        if (! array_key_exists($key, $this->ceilingCache)) {
+            $contract = $measurement->contract;
+
+            $this->ceilingCache[$key] = $contract === null
+                ? []
+                : app(MeasurementService::class)->ceilingsFor(
+                    $contract,
+                    $measurement->items->pluck('boq_item_id')->map('intval')->all(),
+                    $measurement->project,
+                );
+        }
+
+        return $this->ceilingCache[$key];
+    }
+
+    /**
+     * The open NCR at a BAPP's zone, in row shape — the gate's own list, asked
+     * of the service that owns it rather than re-queried here.
+     *
+     * @return list<array{code: string}>
+     */
+    private function openNcrRows(ZoneCertificate $certificate): array
+    {
+        $location = $certificate->location;
+
+        if ($location === null) {
+            return [];
+        }
+
+        return array_map(
+            static fn (string $code): array => ['code' => $code],
+            app(ZoneCertificateService::class)->openNcrCodes($location),
+        );
     }
 
     /**
@@ -3551,8 +3818,169 @@ class PrintableDocuments
                     ],
                 ],
             ],
+            /*
+             * P3 — BERITA ACARA SERAH TERIMA PEKERJAAN SUBKONTRAKTOR, F/BST-SK.
+             *
+             * The sheet that starts (BAST I) or ends (BAST II) the masa
+             * pemeliharaan whose retention we are holding, so the two cells
+             * worth reading twice are the ones about that clock:
+             *
+             *   RETENSI DAPAT DILEPAS MULAI is COPIED by HandoverService from
+             *   the SPK's defect_liability_until and is null when the SPK never
+             *   recorded one. It rules. An SPK carries no maintenance-period
+             *   LENGTH, so a computed date here would be a warranty end nothing
+             *   in the database supports — printed over three signatures, on the
+             *   one document whose whole subject is that period. The blank is
+             *   also the state RetentionService already refuses to release
+             *   against, so the paper and the gate say the same thing.
+             *
+             *   The body tables are titled after what they ARE. The first is the
+             *   SPK's own scope, a REFERENCE; titling it "pekerjaan yang
+             *   diserahterimakan" would turn it into an assertion that every
+             *   line was accepted, which scm_handovers records nowhere (it has
+             *   one free-text scope_notes and no lines). The second is the
+             *   approved opname behind the handover — the prerequisite
+             *   HandoverService enforces, printed so the sheet carries its own
+             *   evidence.
+             */
+            'bast-subkon' => [
+                'resource' => 'subcontract/handovers',
+                'model' => Handover::class,
+                'permission' => 'scm.view',
+                'label' => 'BAST Subkontraktor',
+                'formTitle' => 'BERITA ACARA SERAH TERIMA PEKERJAAN SUBKONTRAKTOR',
+                'formCode' => 'Form F/BST-SK',
+                // withTrashed down the SPK path — see the class docblock. The
+                // claims are the SPK's own children and are NOT withTrashed: a
+                // deleted opname was deleted on purpose and reprinting it here
+                // would put a withdrawn measurement back onto a handover.
+                'with' => [
+                    'subcontract' => fn ($query) => $query->withTrashed(),
+                    'subcontract.vendor' => fn ($query) => $query->withTrashed(),
+                    'subcontract.project' => fn ($query) => $query->withTrashed(),
+                    'subcontract.items',
+                    'subcontract.claims',
+                ],
+                'header' => [
+                    'kind' => 'vendor',
+                    'source' => 'subcontract.vendor',
+                    'project' => 'subcontract.project',
+                ],
+                'date' => 'handover_date',
+                'pekerjaan' => 'subcontract.title',
+                // identityHouse false for the reason the whole module states
+                // above: "NO. SPK / KONTRAK" on the house block means the
+                // CUSTOMER's contract, and beside a subcon SPK number that is
+                // exactly how the wrong number gets copied onto a payment.
+                'identityHouse' => false,
+                'identity' => [
+                    'NO. BERITA ACARA' => 'code',
+                    'JENIS SERAH TERIMA' => fn (Handover $bast): ?string => $bast->handover_type?->label(),
+                    'TANGGAL SERAH TERIMA' => ['value' => 'handover_date', 'cast' => 'date'],
+                    'NO. SPK' => 'subcontract.code',
+                    'SUBKONTRAKTOR' => 'subcontract.vendor.name',
+                    'PROYEK' => 'subcontract.project.name',
+                    'NILAI SPK (DPP)' => ['value' => 'subcontract.value', 'cast' => 'rupiah'],
+                    'RETENSI' => ['value' => 'subcontract.retention_pct', 'cast' => 'percent'],
+                    // Copied, never computed — see the comment above.
+                    'RETENSI DAPAT DILEPAS MULAI' => ['value' => 'retention_release_due', 'cast' => 'date'],
+                    // Two recorded columns: the people who actually stood on
+                    // site. Ruled when the sheet was raised before they were
+                    // known, which is the ordinary state of a draft.
+                    'YANG MENYERAHKAN' => 'handed_over_by',
+                    'YANG MENERIMA' => 'received_by',
+                    'STATUS' => 'status',
+                ],
+                'body' => [
+                    [
+                        'id' => 'lingkup-spk',
+                        'title' => 'LINGKUP PEKERJAAN MENURUT SPK',
+                        'rows' => 'subcontract.items',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'WBS', 'align' => 'center', 'width' => '16mm', 'value' => 'wbs_code'],
+                            ['label' => 'URAIAN PEKERJAAN', 'value' => 'description'],
+                            ['label' => 'VOLUME', 'align' => 'right', 'width' => '20mm',
+                                'value' => 'qty', 'cast' => 'qty'],
+                            ['label' => 'SAT', 'align' => 'center', 'width' => '14mm', 'value' => 'unit'],
+                            ['label' => 'JUMLAH (Rp)', 'align' => 'right', 'width' => '32mm',
+                                'value' => 'amount', 'cast' => 'money'],
+                        ],
+                        'empty' => 'SPK ini tidak memiliki baris lingkup pekerjaan.',
+                    ],
+                    [
+                        'id' => 'opname-disetujui',
+                        'title' => 'OPNAME YANG SUDAH DISETUJUI',
+                        'rows' => fn (Handover $bast): array => $this->approvedClaimsOf($bast),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NO. OPNAME', 'width' => '38mm', 'value' => 'code'],
+                            ['label' => 'OPNAME KE-', 'align' => 'center', 'width' => '22mm',
+                                'value' => 'claim_no', 'cast' => 'int'],
+                            ['label' => 'PERIODE S/D', 'width' => '32mm',
+                                'value' => 'period_end', 'cast' => 'date'],
+                            ['label' => 'NILAI BRUTO (Rp)', 'align' => 'right', 'width' => '34mm',
+                                'value' => 'gross_amount', 'cast' => 'money'],
+                        ],
+                        'empty' => 'SPK ini belum memiliki opname yang disetujui.',
+                    ],
+                ],
+                'notes' => ['text' => 'scope_notes', 'lines' => 3],
+                'signatures' => [
+                    [
+                        'heading' => 'Menyerahkan,',
+                        'subheading' => 'Subkontraktor',
+                        'party' => 'subcontract.vendor.name',
+                        'name' => null,
+                        'role' => 'Nama & Jabatan',
+                    ],
+                    [
+                        'heading' => 'Menerima,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Pengawas Lapangan',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Mengetahui,',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Proyek',
+                    ],
+                ],
+            ],
             // PRINTABLE REGISTRY (Subcontract) — tambahkan dokumen baru di sini.
         ];
+    }
+
+    /**
+     * The approved opname behind a BAST subkon — the prerequisite, as rows.
+     *
+     * Advance (DP) claims are left out: a uang muka is money paid forward, not
+     * work measured, and listing one under "opname yang sudah disetujui" on a
+     * handover would count a payment as a measurement. Filtered off the ALREADY
+     * EAGER-LOADED collection rather than re-queried, so the second body table
+     * costs the sheet nothing.
+     *
+     * @return list<ProgressClaim>
+     */
+    private function approvedClaimsOf(Handover $handover): array
+    {
+        $claims = $handover->subcontract?->claims;
+
+        if ($claims === null) {
+            return [];
+        }
+
+        return $claims
+            ->filter(fn (ProgressClaim $claim): bool => ! $claim->is_advance
+                && in_array($claim->status, [DocumentStatus::Approved, DocumentStatus::Closed], true))
+            ->sortBy('claim_no')
+            ->values()
+            ->all();
     }
 
     /**

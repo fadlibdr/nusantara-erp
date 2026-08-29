@@ -28,6 +28,10 @@ export const ATTACHABLE = new Set([
    * QCI — buktinya. NCR & benda uji sengaja tidak. */
   'quality/inspections',
   'projects/projects', 'projects/daily-reports', 'projects/bast', 'projects/defects',
+  /* P3: foto opname (bekisting, hasil cor, meteran di atas galian) menumpang
+   * lembar OPN — buktinya volume yang diukur. BAPP zona & register variasi
+   * kontrak sengaja tidak. */
+  'projects/progress-measurements',
   /* P0-C: foto izin kerja (kondisi area, APD) & foto muatan izin gerbang. */
   'projects/work-permits', 'projects/gate-passes',
   'procurement/purchase-requisitions', 'procurement/purchase-orders', 'procurement/vendors',

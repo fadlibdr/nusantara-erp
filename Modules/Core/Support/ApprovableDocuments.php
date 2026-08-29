@@ -19,17 +19,23 @@ use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\OvertimePermit;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\ProjectBaseline;
 use Modules\Projects\Models\WorkPermit;
 use Modules\Quality\Models\Inspection;
+use Modules\Subcontract\Models\Handover;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
 use Modules\Subcontract\Models\SubcontractAddendum;
 
 /**
- * The twenty documents that go through submit → approve/reject, and the three
+ * Every document that goes through submit → approve/reject, and the three
  * things a notification needs to know about each: who may approve it, what to
  * call it, and where to send the reader.
+ *
+ * (The header used to name a count. It was wrong by three the moment P1 landed
+ * and wrong by five after P3, because nothing recomputes prose — so the count
+ * is gone rather than re-broken.)
  *
  * One explicit table rather than convention. Deriving the permission prefix
  * from the namespace would be shorter and would silently produce "estimation."
@@ -80,6 +86,16 @@ class ApprovableDocuments
          * concrete sample/test carry no approval cycle at all.
          */
         Inspection::class => ['prefix' => 'qc', 'label' => 'Inspeksi mutu', 'resource' => 'quality/inspections'],
+        /*
+         * P3 — the owner opname. Registered like every other approvable so a
+         * submit notifies prj.approve holders; the MK's own signature arrives
+         * through ExternalApprovableDocuments in TRANSITION mode on top of this
+         * internal cycle, not instead of it. The BAPP zona is deliberately NOT
+         * here: its status is ZoneCertificateStatus (done/check/waiting_repair),
+         * a record of what an inspector saw, so an entry would ask prj.approve
+         * holders to "approve" a sheet nobody approves.
+         */
+        ProgressMeasurement::class => ['prefix' => 'prj', 'label' => 'Opname progres owner', 'resource' => 'projects/progress-measurements'],
         PurchaseRequisition::class => ['prefix' => 'prc', 'label' => 'Permintaan pembelian', 'resource' => 'procurement/purchase-requisitions'],
         PurchaseOrder::class => ['prefix' => 'prc', 'label' => 'Pesanan pembelian', 'resource' => 'procurement/purchase-orders'],
         /*
@@ -100,6 +116,10 @@ class ApprovableDocuments
         // does not ride Procurement's DirectorApproval.
         SubcontractAddendum::class => ['prefix' => 'scm', 'label' => 'Addendum SPK', 'resource' => 'subcontract/addenda'],
         ProgressClaim::class => ['prefix' => 'scm', 'label' => 'Opname subkon', 'resource' => 'subcontract/progress-claims'],
+        // P3 — BAST subkon I/II. scm.approve, the same right that approves the
+        // SPK: BAST I starts the masa pemeliharaan the retention we hold
+        // secures, and BAST II ends it.
+        Handover::class => ['prefix' => 'scm', 'label' => 'BAST subkontraktor', 'resource' => 'subcontract/handovers'],
         ArInvoice::class => ['prefix' => 'fin', 'label' => 'Invoice termin', 'resource' => 'finance/ar-invoices'],
         ApBill::class => ['prefix' => 'fin', 'label' => 'Tagihan vendor', 'resource' => 'finance/ap-bills'],
         // Payment does not use the Approvable trait (its status is a different

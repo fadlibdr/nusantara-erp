@@ -8,9 +8,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Models\NumberSequence;
 use Modules\Procurement\Models\Vendor;
+use Modules\Subcontract\Enums\HandoverType;
+use Modules\Subcontract\Models\Handover;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\ProgressClaimItem;
 use Modules\Subcontract\Models\Subcontract;
+use Modules\Subcontract\Services\HandoverService;
 
 class SubcontractDatabaseSeeder extends Seeder
 {
@@ -18,7 +21,37 @@ class SubcontractDatabaseSeeder extends Seeder
     {
         $this->seedSubcontracts();
         $this->seedProgressClaims();
+        $this->seedHandover();
         $this->syncNumberSequences();
+    }
+
+    /**
+     * P3 — one BAST subkon I on SPK/2026/II/0001, left as a DRAFT.
+     *
+     * The SPK is in exactly the state the prerequisites want: both its opnames
+     * are approved and no retention has been released. Approving the BAST from
+     * the demo therefore SUCCEEDS, which is the point — a demo whose only
+     * example is a blocked document teaches the block and never the flow. It
+     * ships as a draft because approving needs two people (maker-checker) and a
+     * seeder is nobody, the same reasoning ProjectsDatabaseSeeder::seedBaseline
+     * spells out.
+     */
+    private function seedHandover(): void
+    {
+        $subcontract = Subcontract::query()->where('code', 'SPK/2026/II/0001')->first();
+
+        if (! $subcontract || Handover::query()->where('subcontract_id', $subcontract->id)->exists()) {
+            return;
+        }
+
+        app(HandoverService::class)->create([
+            'subcontract_id' => $subcontract->id,
+            'handover_type' => HandoverType::Bast1->value,
+            'handover_date' => '2026-08-31',
+            'handed_over_by' => 'CV Karya Sipil Sejahtera',
+            'received_by' => 'Agus Prasetyo (Site Manager)',
+            'scope_notes' => 'Serah terima pertama pekerjaan struktur — galian, pondasi, kolom & balok lantai 1-3.',
+        ]);
     }
 
     /**

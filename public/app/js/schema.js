@@ -1105,6 +1105,163 @@ export const RESOURCES = {
     ],
   },
 
+  /* P3 — OPNAME KE PEMILIK (OPN). Volume terukur per item BOQ per periode, cermin
+     opname subkon di sisi pendapatan. Plafonnya (volume kontrak + CCO disetujui)
+     ditegakkan MeasurementService, bukan di sini: layar ini mengirim qty_this dan
+     server yang menghitung qty_prev/qty_cum dari riwayat yang sudah disetujui. */
+  'projects/progress-measurements': {
+    module: 'prj', api: 'projects/progress-measurements', label: 'Opname Owner (OPN)', labelOne: 'Opname ke Pemilik',
+    columns: [
+      codeColumn,
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'measurement_no', label: 'Opname ke-', type: 'number', align: 'center' },
+      { key: 'period_end', label: 'Periode s/d', type: 'date' },
+      { key: 'period_amount', label: 'Nilai periode', type: 'currency', align: 'right' },
+      { key: 'cumulative_amount', label: 'Nilai kumulatif', type: 'currency', align: 'right', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Opname ke Pemilik',
+        help: 'Isi volume yang diukur PERIODE INI per item BOQ. Volume lalu dan kumulatif dihitung server '
+          + 'dari opname yang sudah disetujui, dan ditolak bila kumulatifnya melampaui volume kontrak + CCO.',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
+          { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'items', label: 'Volume terukur per item BOQ', min: 1,
+        // ID item BOQ mentah, pola yang sama dengan baris opname subkon
+        // (subcontract_item_id): tidak ada endpoint daftar item BOQ yang datar
+        // untuk dijadikan sumber pilih, dan menebak satu di sini akan mengukur
+        // volume ke item yang salah. Server menolak id dari BOQ kontrak lain
+        // dengan 422 berbahasa Indonesia.
+        help: 'ID item BOQ dibaca dari halaman BOQ/RAB kontrak ini. Satu baris per item — '
+          + 'server menolak item yang tercantum dua kali dan item dari BOQ kontrak lain. '
+          + 'Lokasi/zona boleh dikosongkan, tetapi bila diisi harus lokasi proyek ini: '
+          + 'zona proyek lain ditolak (baris seperti itu luput selamanya dari gerbang BAPP).',
+        columns: [
+          { key: 'boq_item_id', label: 'ID item BOQ', type: 'number', required: true, width: '20%' },
+          { key: 'location_id', label: 'Lokasi/zona', type: 'lookup', lookup: 'locations', width: '30%' },
+          { key: 'qty_this', label: 'Volume periode ini', type: 'qty', required: true, width: '20%' },
+          { key: 'notes', label: 'Keterangan', type: 'text', width: '30%' },
+        ],
+      }],
+    },
+    detail: {
+      summary: ['period_amount', 'cumulative_amount'],
+      tables: [{
+        key: 'items', label: 'Backsheet opname',
+        columns: [
+          { key: 'description', label: 'Uraian pekerjaan' },
+          { key: 'location_path', label: 'Lokasi' },
+          { key: 'unit', label: 'Satuan' },
+          { key: 'qty_prev', label: 'Volume lalu', type: 'qty', align: 'right' },
+          { key: 'qty_this', label: 'Periode ini', type: 'qty', align: 'right' },
+          { key: 'qty_cum', label: 'Kumulatif', type: 'qty', align: 'right' },
+          { key: 'unit_price', label: 'Harga satuan', type: 'currency', align: 'right' },
+          { key: 'amount', label: 'Nilai periode', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'amount',
+      }],
+    },
+    actions: approvalActions('prj'),
+  },
+
+  /* P3 — BAPP per zona. Bukan Approvable: statusnya catatan pemeriksa, bukan
+     tahapan persetujuan. Menandai "Selesai" digerbangi NCR terbuka di zona itu
+     (422 menyebut nomor NCR-nya), dan "Nunggu perbaikan" memblokir klaim owner. */
+  'projects/zone-certificates': {
+    module: 'prj', api: 'projects/zone-certificates', label: 'BAPP per Zona', labelOne: 'Berita Acara Pemeriksaan Pekerjaan',
+    columns: [
+      codeColumn,
+      { key: 'project_code', label: 'Proyek', type: 'code' },
+      { key: 'location_path', label: 'Zona', type: 'text' },
+      { key: 'status', label: 'Status', type: 'enum', enum: 'zoneCertificateStatus' },
+      { key: 'certified_at', label: 'Tanggal', type: 'date' },
+      { key: 'certified_by_party_label', label: 'Diperiksa oleh', type: 'text', hideOnNarrow: true },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+      { key: 'location_id', label: 'Lokasi', lookup: 'locations' },
+      { key: 'status', label: 'Status', enum: 'zoneCertificateStatus' },
+    ],
+    form: {
+      sections: [{
+        title: 'Berita Acara Pemeriksaan Pekerjaan (BAPP)',
+        help: 'Satu lembar per pemeriksaan. Zona yang diperiksa ulang mendapat lembar baru — '
+          + 'lembar terakhir yang menentukan status zona.',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'location_id', label: 'Zona/lokasi', type: 'lookup', lookup: 'locations', required: true },
+          { key: 'status', label: 'Hasil pemeriksaan', type: 'select', enum: 'zoneCertificateStatus', required: true },
+          { key: 'certified_at', label: 'Tanggal pemeriksaan', type: 'date' },
+          { key: 'certified_by_party', label: 'Pihak pemeriksa', type: 'select', enum: 'certifyingParty' },
+          { key: 'certified_by_name', label: 'Nama pemeriksa', type: 'text', help: 'Diisi dari lembar yang benar-benar ditandatangani — jangan disalin dari master proyek.' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
+  /* P3 — REGISTER VARIASI KONTRAK. Volume tambah-kurang per item BOQ: separuh
+     plafon opname yang tidak bisa diungkapkan CCO, karena CCO mencatat NILAI
+     yang ditandatangani dan tidak membawa baris sama sekali.
+
+     Register kecil, bukan dokumen: siklus hidup yang menentukan adalah siklus
+     CCO-nya, dan MeasurementService hanya menghitung baris yang CCO-nya sudah
+     DISETUJUI. Kolom status CCO tampil di daftar supaya QS melihat mengapa
+     sebuah volume belum menaikkan plafon.
+
+     Layar ini adalah tujuan kalimat kedua pesan 422 opname ("…atau catat dahulu
+     volume CCO-nya pada register variasi kontrak"); tanpa entri di sini pesan
+     itu menunjuk ke tempat yang tidak ada. */
+  'projects/contract-variations': {
+    module: 'prj', api: 'projects/contract-variations', label: 'Variasi Kontrak (Plafon Opname)', labelOne: 'Volume Tambah-Kurang',
+    noDetail: true,
+    columns: [
+      { key: 'change_order_code', label: 'CCO', type: 'code' },
+      { key: 'change_order_status', label: 'Status CCO', type: 'enum', enum: 'documentStatus' },
+      { key: 'boq_wbs_code', label: 'WBS', type: 'text' },
+      { key: 'boq_description', label: 'Item BOQ', type: 'text', truncate: 60 },
+      // Bertanda: pekerjaan kurang MENURUNKAN plafon, dan tanda minusnya
+      // adalah satu-satunya cara jujur menampilkannya.
+      { key: 'qty_change', label: 'Perubahan volume', type: 'qty', align: 'right' },
+      { key: 'unit', label: 'Satuan', type: 'text', align: 'center' },
+    ],
+    filters: [
+      { key: 'contract_id', label: 'Kontrak', lookup: 'contracts' },
+      { key: 'change_order_id', label: 'CCO', lookup: 'contractChangeOrders' },
+    ],
+    form: {
+      sections: [{
+        title: 'Volume tambah-kurang per item BOQ',
+        help: 'Satu baris per pasangan CCO x item BOQ. Plafon opname baru naik setelah CCO-nya DISETUJUI — '
+          + 'baris atas CCO yang masih diajukan tercatat tetapi belum dihitung.',
+        fields: [
+          { key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts', required: true, createOnly: true },
+          { key: 'change_order_id', label: 'Pekerjaan tambah-kurang (CCO)', type: 'lookup', lookup: 'contractChangeOrders', required: true, createOnly: true },
+          // ID item BOQ mentah, pola yang sama dengan baris opname subkon
+          // (subcontract_item_id): belum ada endpoint daftar item BOQ yang
+          // datar untuk dijadikan sumber pilih.
+          { key: 'boq_item_id', label: 'ID item BOQ', type: 'number', required: true, createOnly: true },
+          { key: 'qty_change', label: 'Perubahan volume', type: 'qty', required: true, help: 'Negatif untuk pekerjaan kurang.' },
+          { key: 'unit', label: 'Satuan', type: 'text' },
+          { key: 'notes', label: 'Keterangan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
   'projects/weekly-progress': {
     module: 'prj', api: 'projects/weekly-progress', label: 'Progres Mingguan', labelOne: 'Progres Mingguan',
     noDetail: true, canDelete: false, canEdit: false,
@@ -1120,20 +1277,32 @@ export const RESOURCES = {
       { key: 'period_end', label: 'Selesai', type: 'date' },
       { key: 'planned_pct', label: 'Rencana', type: 'percent', align: 'right' },
       { key: 'actual_pct', label: 'Aktual', type: 'percent', align: 'right' },
+      // P3 — dua hal yang sangat berbeda hidup di kolom Aktual: taksiran yang
+      // diketik pengawas, dan volume terukur dari opname yang disetujui.
+      // Tanpa kolom ini, angka yang berubah sendiri tidak punya penjelasan
+      // apa pun di layar.
+      { key: 'actual_pct_source', label: 'Sumber aktual', type: 'enum', enum: 'actualPctSource', hideOnNarrow: true },
       { key: 'deviation_pct', label: 'Deviasi', type: 'percent', align: 'right', signed: true },
     ],
     filters: [{ key: 'project_id', label: 'Proyek', lookup: 'projects' }],
     form: {
       sections: [{
         title: 'Progres mingguan',
-        help: 'Menyimpan ulang minggu yang sama akan memperbarui data (upsert).',
+        help: 'Menyimpan ulang minggu yang sama akan memperbarui data (upsert). Bila ada OPNAME KE PEMILIK '
+          + 'yang sudah disetujui mencakup periode ini, kolom Aktual DIGANTI dengan volume terukur berbobot '
+          + 'nilai — angka yang Anda ketik di situ tidak disimpan, dan kolom "Sumber aktual" pada daftar '
+          + 'mengatakan yang mana yang dipakai.',
         fields: [
           { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
           { key: 'week_no', label: 'Minggu ke-', type: 'number', required: true, min: 1 },
           { key: 'period_start', label: 'Periode mulai', type: 'date', required: true },
           { key: 'period_end', label: 'Periode selesai', type: 'date', required: true },
           { key: 'planned_pct', label: 'Rencana kumulatif (%)', type: 'percent', required: true },
-          { key: 'actual_pct', label: 'Aktual kumulatif (%)', type: 'percent', required: true },
+          {
+            key: 'actual_pct', label: 'Aktual kumulatif (%)', type: 'percent', required: true,
+            help: 'Diabaikan pada minggu yang dicakup opname ke pemilik yang sudah disetujui — '
+              + 'server memakai volume terukur dan mencatat sumbernya.',
+          },
           { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
         ],
       }],
@@ -2714,6 +2883,45 @@ export const RESOURCES = {
     actions: approvalActions('scm'),
   },
 
+  /* P3 — BAST subkon I/II. Dua prasyarat keras ditegakkan HandoverService saat
+     APPROVE (opname terakhir sudah disetujui; untuk BAST I retensi belum dilepas),
+     jadi layar ini tidak menyalin aturannya — ia hanya menyediakan pintunya. */
+  'subcontract/handovers': {
+    module: 'scm', api: 'subcontract/handovers', label: 'BAST Subkon', labelOne: 'BAST Subkontraktor',
+    columns: [
+      codeColumn,
+      { key: 'subcontract_code', label: 'SPK', type: 'code', sub: 'subcontract_title' },
+      { key: 'handover_type', label: 'Jenis', type: 'enum', enum: 'handoverType' },
+      { key: 'handover_date', label: 'Tanggal', type: 'date' },
+      { key: 'retention_release_due', label: 'Retensi jatuh tempo', type: 'date', hideOnNarrow: true },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'subcontract_id', label: 'SPK', lookup: 'subcontracts' },
+      { key: 'handover_type', label: 'Jenis', enum: 'handoverType' },
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Berita Acara Serah Terima Subkontraktor',
+        help: 'BAST I memulai masa pemeliharaan; BAST II mengakhirinya. Persetujuan ditolak bila masih ada '
+          + 'opname yang belum disetujui, dan — untuk BAST I — bila retensinya sudah terlanjur dilepas.',
+        fields: [
+          { key: 'subcontract_id', label: 'SPK', type: 'lookup', lookup: 'subcontracts', required: true, createOnly: true },
+          { key: 'handover_type', label: 'Jenis serah terima', type: 'select', enum: 'handoverType', required: true },
+          { key: 'handover_date', label: 'Tanggal serah terima', type: 'date', required: true },
+          { key: 'retention_release_due', label: 'Retensi dapat dilepas mulai', type: 'date', help: 'Kosongkan: BAST I menyalinnya dari akhir masa pemeliharaan SPK, dan membiarkannya kosong bila SPK belum mencatatnya.' },
+          { key: 'handed_over_by', label: 'Menyerahkan (wakil subkon)', type: 'text' },
+          { key: 'received_by', label: 'Menerima (wakil kami)', type: 'text' },
+          { key: 'scope_notes', label: 'Lingkup yang diserahterimakan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+    actions: approvalActions('scm'),
+  },
+
   'subcontract/progress-claims': {
     module: 'scm', api: 'subcontract/progress-claims', label: 'Opname Subkon', labelOne: 'Opname',
     lookupSource: 'progressClaims',
@@ -2961,8 +3169,19 @@ export const RESOURCES = {
       },
       sections: [{
         title: 'Invoice penagihan',
-        help: 'Isi "Termin kontrak" untuk menagih satu termin — nilai, PPN dan retensi dihitung otomatis. Kosongkan untuk invoice manual.',
+        help: 'Tiga pintu, pilih SATU. Isi "Opname ke pemilik" untuk menagih volume yang sudah diukur dan '
+          + 'ditandatangani (P3) — DPP-nya nilai periode opname itu, dan potongan uang muka dihitung server. '
+          + 'Isi "Termin kontrak" untuk menagih satu termin jadwal. Kosongkan keduanya untuk invoice manual.',
         fields: [
+          /* P3 — pintu klaim owner. Server menolak opname yang belum disetujui,
+             opname yang sudah pernah ditagihkan, dan — kriteria #6 — opname yang
+             menyentuh zona ber-BAPP "Nunggu perbaikan", dengan 422 yang menyebut
+             zonanya. Layar ini tidak menyalin satu pun aturan itu. */
+          {
+            key: 'measurement_id', label: 'Opname ke pemilik (OPN)', type: 'lookup', lookup: 'approvedMeasurements', createOnly: true,
+            help: 'Hanya opname berstatus Disetujui. DPP, potongan uang muka dan uraian invoice diambil dari opname itu — '
+              + 'jangan isi Pelanggan/Kontrak/DPP bersamaan dengan ini.',
+          },
           { key: 'termin_id', label: 'Termin kontrak (ID)', type: 'number', createOnly: true },
           {
             key: 'withhold_retention', label: 'Tahan retensi sesuai kontrak', type: 'bool', createOnly: true,
@@ -2977,12 +3196,36 @@ export const RESOURCES = {
           { key: 'dpp', label: 'DPP', type: 'currency' },
           { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
           { key: 'retention_withheld', label: 'Retensi ditahan', type: 'currency' },
+          /* P3 — DENDA. Nilainya manual dan tidak dihitung dari klausul mana
+             pun: tidak ada rumus liquidated damages di sistem ini, jadi ALASAN
+             adalah satu-satunya bukti yang dimiliki angkanya. Server menolak
+             denda tanpa alasan (422 pada penalty_reason). */
+          {
+            key: 'penalty_amount', label: 'Denda / potongan', type: 'currency',
+            help: 'Kosong atau 0 bila tidak ada. Diisi manual — tidak dihitung dari klausul kontrak.',
+          },
+          {
+            key: 'penalty_reason', label: 'Alasan denda', type: 'text', span: 2,
+            help: 'WAJIB bila denda > 0. Sebutkan dasar pemotongannya (keterlambatan, pekerjaan tidak sesuai, '
+              + 'atau kesepakatan lain) — kalimat inilah satu-satunya bukti angka itu.',
+          },
+          /* P3 — uang muka owner. Invoice DP tidak menahan retensi (uang muka
+             belum membeli pekerjaan apa pun) dan menjadi dasar potongan
+             proporsional pada setiap klaim opname berikutnya. */
+          {
+            key: 'is_advance', label: 'Invoice uang muka (DP)', type: 'bool', createOnly: true,
+            help: 'Hanya untuk invoice manual. Tidak menahan retensi, dan dipotong kembali secara proporsional '
+              + 'dari klaim opname berikutnya.',
+          },
           { key: 'invoice_date', label: 'Tanggal invoice', type: 'date', defaultToday: true },
           { key: 'due_date', label: 'Jatuh tempo', type: 'date' },
         ],
       }],
     },
-    detail: { summary: ['dpp', 'ppn_amount', 'retention_withheld', 'total', 'amount_paid', 'outstanding'] },
+    detail: {
+      summary: ['dpp', 'ppn_amount', 'retention_withheld', 'advance_recovery_amount', 'penalty_amount',
+        'total', 'amount_paid', 'outstanding'],
+    },
     actions: [
       ...approvalActions('fin'),
       {
@@ -4575,8 +4818,17 @@ export const NAV = [
       { label: 'Laporan Harian', route: 'r/projects/daily-reports' },
       { label: 'Lapangan (mobile)', route: 'lapangan' },
       { label: 'Progres Mingguan', route: 'r/projects/weekly-progress' },
+      // P3 — opname ke pemilik, tepat di bawah progres mingguan karena itulah
+      // hubungannya: opname yang disetujui MENGGANTIKAN persen yang diketik
+      // tangan pada minggu-minggu yang dicakupnya, dan register variasi di
+      // bawahnya adalah tempat plafonnya dinaikkan.
+      { label: 'Opname Owner (OPN)', route: 'r/projects/progress-measurements' },
+      { label: 'Variasi Kontrak (Plafon Opname)', route: 'r/projects/contract-variations' },
       { label: 'EVM & Baseline', route: 'evm' },
       { label: 'Milestone', route: 'r/projects/milestones' },
+      // P3 — BAPP per zona, di atas BAST karena urutannya memang begitu: zona
+      // diperiksa satu per satu, lalu proyeknya diserahterimakan.
+      { label: 'BAPP per Zona', route: 'r/projects/zone-certificates' },
       { label: 'BAST', route: 'r/projects/bast' },
       // P0-C — tiga izin lapangan: dokumen sungguhan, bukan pad cetak kosong.
       { label: 'Izin Kerja (IKL)', route: 'r/projects/work-permits' },
@@ -4635,6 +4887,10 @@ export const NAV = [
       { label: 'SPK Subkon', route: 'r/subcontract/subcontracts' },
       { label: 'Addendum SPK', route: 'r/subcontract/addenda' },
       { label: 'Opname Subkon', route: 'r/subcontract/progress-claims' },
+      // P3 — BAST subkon I/II, setelah opname karena itu prasyaratnya: BAST I
+      // memulai masa pemeliharaan yang dijamin retensi, dan HandoverService
+      // menolaknya selagi ada opname yang belum disetujui.
+      { label: 'BAST Subkon', route: 'r/subcontract/handovers' },
     ],
   },
   {

@@ -303,6 +303,29 @@ export const ENUMS = {
     ['verified', 'Terverifikasi'], ['closed', 'Ditutup'],
   ]),
 
+  /* P3 — cermin Modules\Projects\Enums\ZoneCertificateStatus. 'done' digerbangi
+     NCR terbuka di zona itu; 'waiting_repair' memblokir klaim owner (kriteria #6). */
+  zoneCertificateStatus: opts([
+    ['done', 'Selesai'], ['check', 'Diperiksa'], ['waiting_repair', 'Nunggu perbaikan'],
+  ]),
+  /* Pihak yang menandatangani BAPP — fakta tercatat, tidak pernah diisi dari
+     master proyek (roadmap §7). */
+  certifyingParty: opts([
+    ['mk', 'Konsultan MK'], ['owner', 'Pemilik'], ['kontraktor', 'Kontraktor'],
+  ]),
+  /* P3 — cermin Modules\Subcontract\Enums\HandoverType. */
+  handoverType: opts([
+    ['bast1', 'BAST I (serah terima pertama)'], ['bast2', 'BAST II (akhir masa pemeliharaan)'],
+  ]),
+  /* P3 — cermin Modules\Projects\Models\WeeklyProgress::SOURCE_*. Dua hal yang
+     sangat berbeda pada satu kolom: taksiran yang diketik pengawas, dan volume
+     terukur berbobot nilai dari opname yang disetujui. Baris progres mingguan
+     yang dicakup opname MENGGANTIKAN angka ketikannya, jadi kolom ini adalah
+     satu-satunya yang menjelaskan mengapa angkanya berubah sendiri. */
+  actualPctSource: opts([
+    ['weekly_report', 'Diketik (laporan mingguan)'], ['progress_measurement', 'Opname disetujui'],
+  ]),
+
   assetStatus: opts([
     ['available', 'Tersedia'], ['deployed', 'Termobilisasi'],
     ['maintenance', 'Dalam Perawatan'], ['disposed', 'Dihapusbukukan'],

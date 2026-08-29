@@ -87,6 +87,37 @@ Hierarchical site **locations** (`core_locations`: tower/floor/zone/axis/room) l
 `project_id` (no constraint, no relation back to Projects), because Core may depend on
 no module.
 
+**P3 — the owner opname, the BAPP and the subcontractor handover.** Measured volume per
+BOQ item (`prj_progress_measurements`, OPN) becomes the project's value-weighted actual
+percentage and the DPP of an owner claim; a per-zone BAPP (`prj_zone_certificates`) records
+what an inspector saw; `scm_handovers` gives the subcontractor side the BAST it never had.
+Two of its arrows are **reads by value** — the same device `BastPrerequisiteService` uses
+on `qc_ncr`, and for the same reason:
+
+```
+   Projects ──▶ Estimation  (opname line → est_boq_items; the ceiling is BOQ qty)
+   Projects ──▶ Core        (numbering OPN/BAPP, attachments, locations, Approvable,
+                             external approval in TRANSITION mode — the MK signs the opname)
+   Projects ┈┈▶ (crm_contract_change_orders.status)
+                             MeasurementService reads the CCO status column BY VALUE to
+                             decide which prj_contract_variations rows raise the ceiling.
+                             One fact; pulling in a Crm service to fetch it would buy a
+                             dependency for nothing.
+   Finance  ┈┈▶ (prj_progress_measurements, prj_progress_measurement_items,
+                 prj_zone_certificates, core_locations)
+                             ArInvoiceService assembles an owner claim from an approved
+                             opname and refuses to bill a zone whose latest BAPP says
+                             waiting_repair (kriteria #6) — four tables read RAW, with
+                             'waiting_repair' as a literal, because Finance must not depend
+                             on Projects at runtime (TerminBillingService's rule, already
+                             applied to prj_milestones). OwnerClaimTest drives both sides
+                             in one test — the enum through ZoneCertificateService and the
+                             literal through the billing gate — so the two cannot drift
+                             apart without a red run.
+   Subcontract ──▶ Finance   (HandoverService reads ApBill to tell a cancelled retention
+                             release from a real one — the existing arrow, reused)
+```
+
 ## Core document flows
 
 **Sales → delivery (construction):**
