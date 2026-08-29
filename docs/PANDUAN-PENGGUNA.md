@@ -151,10 +151,10 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Ringkasan | Dasbor · Tenggat · Kalender |
 | Penjualan | Pelanggan · Prospek · Penawaran · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan |
-| Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · EVM & Baseline · Milestone · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
+| Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
 | Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
-| Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon |
+| Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
 | SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
 | Layanan | Tiket · Tiket Lewat SLA · Kontrak Layanan · Jadwal Preventif · Berita Acara |
@@ -581,7 +581,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 50 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 53 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -1222,8 +1222,14 @@ Kolom: Kode · Pelanggan (dengan kode kontrak) · Tgl invoice · Jatuh tempo · 
 **Sisa** (hijau bila nol) · Status. Kotak cari mencakup kode, keterangan, dan **nomor
 faktur pajak**. Nomor `INV/…`.
 
-Strip ringkasan di halaman invoice: **DPP · PPN · Retensi ditahan · Total · Sudah
-dibayar · Sisa**.
+Strip ringkasan di halaman invoice: **DPP · PPN · Retensi ditahan · Potongan uang muka ·
+Denda · Total · Sudah dibayar · Sisa**.
+
+**Tiga pintu, pilih satu.** Bantuan di formulirnya menyebut ketiganya: *"Tiga pintu, pilih
+SATU. Isi 'Opname ke pemilik' untuk menagih volume yang sudah diukur dan ditandatangani
+(P3) — DPP-nya nilai periode opname itu, dan potongan uang muka dihitung server. Isi
+'Termin kontrak' untuk menagih satu termin jadwal. Kosongkan keduanya untuk invoice
+manual."* Pintu opname dijelaskan di **§3.11a**; sisa bab ini membicarakan pintu termin.
 
 **Cara yang benar menagih satu termin:**
 
@@ -1244,9 +1250,11 @@ berbunyi *"Isi 'Termin kontrak' untuk menagih satu termin — nilai, PPN dan ret
 dihitung otomatis. Kosongkan untuk invoice manual."* Dalam mode itu **Pelanggan,
 Kontrak, Keterangan dan DPP menjadi wajib**.
 
-Hitungannya: `PPN = DPP × tarif ÷ 100`; **`Total = DPP + PPN − Retensi ditahan`**. Jatuh
-tempo bawaan = tanggal invoice + termin bayar pelanggan (§3.3), dan harus ≥ tanggal
-invoice.
+Hitungannya: `PPN = (DPP − potongan uang muka) × tarif ÷ 100`;
+**`Total = DPP + PPN − Retensi ditahan − Potongan uang muka − Denda`**. Pada invoice tanpa
+uang muka dan tanpa denda kedua potongan itu nol, sehingga rumusnya sama persis dengan
+sebelumnya. Jatuh tempo bawaan = tanggal invoice + termin bayar pelanggan (§3.3), dan
+harus ≥ tanggal invoice.
 
 **Dialog milestone.** Bila termin yang ditagih punya milestone dan **tidak satu pun
 tercapai**, muncul dialog **"Milestone syarat termin belum tercapai — tetap tagih?"**
@@ -1322,6 +1330,72 @@ dibatalkan."`
 **Mencetak.** Hanya tombol **`PDF`** (mengunduh `invoice-{kode}.pdf`). **Tidak ada
 formulir rumah untuk invoice AR**, dan tidak ada kwitansi/bukti terima dari sisi
 penerimaan.
+
+### 3.11a Klaim owner dari opname, uang muka, dan denda
+
+Pintu ketiga formulir invoice: **Opname ke pemilik (OPN)**. Alih-alih menagih persentase
+termin, invoice disusun dari **volume yang sudah diukur dan ditandatangani** (§7.14).
+
+1. Pastikan opnamenya **Disetujui**. Pemilih hanya memuat yang disetujui — opname draf
+   dan yang diajukan tidak muncul sama sekali, dan server menolak keduanya.
+2. **`Tambah Invoice`** → isi **Opname ke pemilik (OPN)**. Kosongkan Termin kontrak,
+   Pelanggan, Kontrak, Keterangan dan DPP: semuanya diambil dari opname itu.
+3. **`Simpan`**.
+
+**DPP-nya adalah nilai periode opname** — jumlah `volume periode ini × harga satuan
+kontrak` seluruh barisnya. **Keterangan** terisi sendiri: *"Penagihan opname {kode opname}
+periode {mulai} s/d {selesai} — {judul kontrak} ({kode kontrak})"*.
+
+**Potongan uang muka dihitung server, proporsional.** Bila kontrak ini pernah ditagih
+lewat invoice **uang muka** (centang **Invoice uang muka (DP)** pada invoice manual),
+setiap klaim opname mengembalikannya menurut porsi nilai yang ditagih terhadap nilai
+kontrak. Tidak ada isian untuk memaksanya: angka itu tidak boleh berbeda antara satu
+klaim dan klaim berikutnya. Invoice uang muka sendiri **tidak menahan retensi** —
+penolakannya berbunyi *"Invoice uang muka tidak menahan retensi: retensi ditahan dari
+nilai pekerjaan, dan uang muka belum membeli pekerjaan apa pun."*
+
+**Denda diisi tangan, dan alasannya wajib.** Kolom **Denda / potongan** dan **Alasan
+denda** ada di formulir yang sama. Tidak ada rumus *liquidated damages* di sistem ini —
+angkanya dihitung di luar, dan **kalimat alasannya adalah satu-satunya bukti yang dimiliki
+angka itu**. Denda tanpa alasan ditolak:
+
+> "Denda wajib disertai alasan — sebutkan dasar pemotongannya (keterlambatan, pekerjaan
+> tidak sesuai, atau kesepakatan lain)."
+
+Dan denda negatif ditolak juga: *"Denda tidak boleh negatif; potongan yang menambah
+tagihan bukan denda."*
+
+**Zona yang menunggu perbaikan menolak ditagih.** Bila satu saja baris opname menunjuk
+zona yang **BAPP terakhirnya** (§7.16) berbunyi *Nunggu perbaikan*, seluruh invoice
+ditolak — sebelum apa pun dihitung:
+
+> "Zona {kode} — {nama} pada opname {kode} masih berstatus \"Nunggu perbaikan\";
+> pekerjaan di zona itu tidak dapat ditagihkan sampai BAPP-nya menyatakan selesai."
+
+Baris opname **tanpa** lokasi tidak pernah menahan tagihan: BAPP tidak punya apa-apa untuk
+dikatakan tentangnya, dan menolaknya akan membuat kolom Lokasi/zona wajib lewat pintu
+belakang — padahal kolom itu memang opsional.
+
+Perbaikannya bukan mengubah invoice: perbaiki pekerjaannya, lalu **terbitkan BAPP baru**
+untuk zona itu (§7.16). Zona berstatus *Diperiksa* **tidak** menahan tagihan — setengah
+zona di lantai yang sedang berjalan selalu dalam pemeriksaan, dan gerbang yang menyala
+untuk itu adalah gerbang yang dihindari orang.
+
+Penolakan lain di pintu ini:
+
+- *"Opname {kode} berstatus {status}; hanya opname yang sudah disetujui dapat
+  ditagihkan."*
+- *"Opname {kode} sudah ditagihkan lewat invoice {kode}."*
+- *"Opname {kode} tidak mengukur volume apa pun pada periodenya; tidak ada yang dapat
+  ditagih."*
+- Potongan melebihi tagihannya:
+  > "Potongan pada invoice ini (retensi {x}, uang muka {y}, denda {z}) melebihi nilai
+  > tagihannya; kurangi dendanya atau tagih pada periode berikutnya."
+
+> **Termin jadwal TIDAK dicap `Ditagih` oleh klaim opname**, sekalipun kontraknya punya
+> jadwal termin. Kedua skema menagih nilai yang sama lewat dua pintu; memakai keduanya
+> pada satu kontrak berarti menagih pekerjaan yang sama dua kali. Pilih satu pola per
+> kontrak.
 
 ### 3.12 Menerima uang — `Keuangan › Pembayaran`
 
@@ -3360,9 +3434,9 @@ Hapus.** Satu-satunya koreksi adalah menyimpan ulang nomor minggu yang sama pada
 yang sama — bantuan di formulirnya mengatakannya: *"Menyimpan ulang minggu yang sama akan
 memperbarui data (upsert)."*
 
-Kolom: Proyek · Minggu (`M-8`) · Mulai · Selesai · Rencana (%) · Aktual (%) ·
-**Deviasi** (bertanda). Saringan: Proyek. Ikon printer per baris mencetak **Detail
-Schedule** (§7.13).
+Kolom: Proyek · Minggu (`M-8`) · Mulai · Selesai · Rencana (%) · Aktual (%) · **Sumber
+aktual** · **Deviasi** (bertanda). Saringan: Proyek. Ikon printer per baris mencetak
+**Detail Schedule** (§7.13).
 
 1. **`Tambah Progres Mingguan`**.
 2. Isi **Proyek** (wajib), **Minggu ke-** (wajib, 1–520), **Periode mulai** (wajib),
@@ -3370,10 +3444,31 @@ Schedule** (§7.13).
    **Aktual kumulatif (%)** (wajib, 0–100), Catatan.
 3. **`Simpan`**.
 
-> **Kedua persen diketik tangan.** Tidak ada satu pun angka di layar ini yang dihitung
-> dari WBS, laporan harian, atau baseline. Kolom **Aktual** di sini boleh berbeda dari
-> progres WBS di halaman proyek. Satu-satunya turunan adalah **Deviasi** = aktual −
-> rencana.
+> **Rencana selalu diketik tangan. Aktual belum tentu — dan kolom Sumber aktual
+> mengatakan yang mana.** Sejak P3 kolom itu punya dua isi yang mungkin:
+>
+> | Sumber aktual | Artinya |
+> |---|---|
+> | **Diketik (laporan mingguan)** | persen taksiran pengawas, persis yang Anda ketik |
+> | **Opname disetujui** | volume terukur pada harga satuan kontrak, berbobot nilai atas BOQ, diturunkan server dari opname ke pemilik yang sudah disetujui (§7.14) |
+>
+> **Bila sebuah opname yang disetujui mencakup periode minggu ini, angka Aktual yang Anda
+> ketik tidak disimpan** — server menggantinya dan mencatat sumbernya. Bantuan di isian
+> Aktual mengatakannya: *"Diabaikan pada minggu yang dicakup opname ke pemilik yang sudah
+> disetujui — server memakai volume terukur dan mencatat sumbernya."* Isian itu tetap
+> wajib: layar tidak tahu sebelumnya opname mana yang mencakup periode yang belum Anda
+> ketik, dan server yang memutuskan.
+>
+> Minggu yang **tidak** dicakup opname mana pun tetap sepenuhnya manual, dan barisnya
+> berbunyi *Diketik (laporan mingguan)*. Menyetujui opname pertama sebuah proyek karena
+> itu **mengubah angka Aktual minggu-minggu yang sudah tersimpan** — itu perilaku yang
+> dirancang, bukan kerusakan; §7.14 menjelaskan mengapa.
+>
+> Selain penggantian itu, tidak ada angka di layar ini yang dihitung dari WBS, laporan
+> harian, atau baseline. Kolom **Aktual** di sini boleh berbeda dari progres WBS di
+> halaman proyek — keduanya mengukur hal yang berbeda, dan menyetujui opname **tidak**
+> menggeser progres WBS. Satu-satunya turunan lain adalah **Deviasi** = aktual − rencana,
+> yang ikut dihitung ulang ketika Aktual diganti.
 >
 > Laporan EVM sengaja **mengabaikan kolom Rencana ini** dan memakai kurva baseline yang
 > beku (§7.10).
@@ -3626,6 +3721,19 @@ Cara membacanya, dinyatakan layar itu sendiri:
   pekerjaan yang sudah selesai setelah baseline disetujui tidak menambah EV sepeser pun.
 - **AC** = penjumlahan Biaya Proyek sampai tanggal laporan.
 - Angka yang tidak bisa dihitung tampil **"—"** beserta alasannya, bukan 0.
+
+> **Kurva-S menyebut sendiri dari mana garis fisiknya berasal.** Di bawah kurva ada satu
+> kalimat, dan sejak P3 ia punya dua bunyi karena sumbernya memang dua (§7.5). Bila titik
+> terakhir berasal dari opname yang disetujui: *"Garis fisik memakai OPNAME KE PEMILIK
+> yang sudah disetujui — volume terukur pada harga satuan kontrak, berbobot nilai atas BOQ
+> (bukan persen yang diketik tangan)."* Bila berasal dari laporan mingguan: *"Garis fisik
+> memakai persen yang diketik pada laporan progres mingguan — sebuah taksiran pengawas,
+> bukan volume terukur. Opname ke pemilik yang disetujui akan menggantikannya untuk
+> minggu-minggu yang dicakupnya."* Kalimat itu menyebut sumber **titik terakhir**, yaitu
+> titik yang mata orang berhenti di situ. Proyek yang belum punya satu pun laporan
+> mingguan tidak mendapat kalimat ini sama sekali — layar sudah menjelaskan keadaannya
+> dengan alasannya sendiri, dan menyebut sumber yang belum ada akan lebih buruk daripada
+> diam.
 
 > **CPI boleh berwarna kuning selamanya, dan itu bukan kerusakan layar.** Selama ada
 > kategori biaya yang dianggarkan di RAP tetapi realisasinya masih di bawah ambang, AC
@@ -3888,6 +3996,14 @@ bulan itu, enam kolom hari Senin–Sabtu. Baris = pohon WBS.
   kertas."*
 - Baris JUMLAH BOBOT RENCANA/REALISASI diambil dari progres mingguan **menurut rentang
   tanggal**, bukan nomor minggu; minggu tanpa baris dicetak **kosong**, bukan 0%.
+- Angka **REALISASI menyebutkan sumbernya**. Sejak P3 satu baris progres mingguan bisa
+  membawa dua hal yang berbeda: persen yang **diketik** pengawas (taksiran) atau persen
+  **berbobot nilai dari OPNAME yang disetujui** (pengukuran) — lihat kolom *Sumber aktual*
+  pada daftar Progres Mingguan (§7.5). Minggu yang angkanya berasal dari opname mencetak
+  **nomor opname itu di bawah angkanya** (opname terakhir yang tercakup; angkanya kumulatif
+  atas seluruh opname disetujui sampai minggu itu), dan catatan kaki lembar menyebut sumber
+  yang benar-benar tercetak — satu kalimat untuk lembar yang seluruhnya diketik, satu untuk
+  yang seluruhnya dari opname, dan satu lagi untuk bulan yang bercampur.
 
 > **Tombol cetak Detail Schedule pada baris Progres Mingguan selalu mencetak jadwal BULAN
 > BERJALAN.** Mencetak dari baris minggu 3 (Februari) menghasilkan lembar bulan Agustus.
@@ -3905,12 +4021,166 @@ tercetak pada kedua baris kop, urut tanggal perubahan, format
 `+14 hari → 14 Agu 2027 (CCO/2026/VIII/0003)`; addendum ketiga dst membuat baris II
 berbunyi `lihat register`. Draf, yang ditolak, dan CCO nilai tidak pernah mencapai kop.
 
+### 7.14 Opname ke Pemilik (OPN) — `Proyek › Opname Owner (OPN)`
+
+Berita acara pengukuran volume yang ditandatangani MK, **per kontrak per periode**, satu
+baris per item BOQ. Ini kembaran opname subkon (§8.4) di sisi pendapatan — bedanya opname
+subkon mengukur **persen** per baris SPK, dan yang ini mengukur **volume** per item BOQ,
+karena itulah yang ditandatangani MK dan itulah yang menjadi backsheet tagihan.
+
+Kolom: Kode · Proyek · Opname ke- · Periode s/d · Nilai periode · Nilai kumulatif ·
+Status. Saringan: Proyek, Status. Bisa diubah/dihapus hanya saat Draf atau Ditolak.
+
+1. **`Tambah Opname ke Pemilik`**.
+2. **Proyek** (wajib, tidak bisa dipindah) · **Periode mulai** · **Periode selesai**
+   (≥ mulai) · Catatan.
+3. Tabel baris **Volume terukur per item BOQ**, minimal satu: **ID item BOQ** (wajib) ·
+   Lokasi/zona (opsional, **harus lokasi proyek ini**) · **Volume periode ini** (wajib) ·
+   Keterangan.
+4. **`Simpan`** → **`Ajukan`** → **`Setujui`** / **`Tolak`**.
+
+> **Anda hanya mengisi volume PERIODE INI.** Volume lalu dan kumulatif dihitung server
+> dari opname yang **sudah disetujui** pada kontrak yang sama. Bantuan di layar
+> mengatakannya: *"Isi volume yang diukur PERIODE INI per item BOQ. Volume lalu dan
+> kumulatif dihitung server dari opname yang sudah disetujui, dan ditolak bila
+> kumulatifnya melampaui volume kontrak + CCO."*
+
+> **`ID item BOQ` meminta ID mentah dari basis data**, sama seperti `ID baris SPK` pada
+> opname subkon. Bacanya dari halaman **BOQ / RAB** kontrak ini. Server menolak id dari
+> BOQ kontrak lain, dan menolak satu item yang tercantum dua kali.
+
+**Plafon — aturan yang menjadi alasan dokumen ini ada.** Volume kumulatif satu item tidak
+boleh melampaui **volume kontrak + volume CCO yang DISETUJUI**:
+
+> "Volume kumulatif item \"{uraian}\" {x} {satuan} melampaui volume kontrak + CCO
+> disetujui {y} {satuan}; perbaiki volume opname, atau catat dahulu volume CCO-nya pada
+> register variasi kontrak."
+
+Kalimat kedua itu menunjuk **§7.15**: CCO mencatat **nilai** yang ditandatangani dan tidak
+membawa baris volume sama sekali, jadi volume tambah-kurang per item dicatat terpisah.
+
+Penolakan lain:
+
+- *"Proyek {kode} belum tertaut ke kontrak; opname ke pemilik diukur per kontrak."*
+- *"Kontrak {kode} belum memiliki BOQ; opname mengukur volume per item BOQ dan tidak dapat
+  disusun tanpanya."*
+- *"Item BOQ pada baris {n} bukan bagian dari BOQ kontrak {kode}."*
+- Zona milik proyek lain pada satu baris:
+  > "Lokasi {kode} ({jalur lokasi}) pada baris {n} bukan bagian dari proyek {kode}
+  > melainkan proyek {kode}; opname hanya boleh mengukur lokasi proyeknya sendiri."
+
+  Bukan kerapian belaka: gerbang kriteria #6 (§3.11a) mencari BAPP **zona proyek ini**,
+  jadi baris yang menunjuk zona proyek lain tidak akan pernah tertahan olehnya, apa pun
+  keadaan zona itu — dan backsheet F/OPN mencetak jalur lokasi asing itu di atas tanda
+  tangan kita. Baris **tanpa** lokasi tetap sah dan memang lazim.
+- *"Item \"{uraian}\" tercantum dua kali pada opname ini; gabungkan volumenya dalam satu
+  baris."*
+- *"Volume kumulatif item \"{uraian}\" menjadi {x} {satuan}; koreksi tidak boleh membuat
+  volume terukur negatif."*
+- Opname disusun di atas angka yang sudah basi (opname lain disetujui di antaranya):
+  > "Volume kumulatif item \"{uraian}\" kini {x} {satuan} sedangkan opname ini disusun atas
+  > {y} {satuan}; ubah dan ajukan ulang opname."
+- Sudah dipakai tagihan: *"Opname {kode} sudah dipakai invoice {kode}; batalkan invoicenya
+  lebih dulu."*
+
+**Efek persetujuan — kurva-S berhenti menjadi ketikan.** Sejak satu opname disetujui,
+kolom **Aktual** pada Progres Mingguan (§7.5) untuk minggu-minggu yang dicakupnya
+**dihitung ulang dari opname**, berbobot nilai atas BOQ, dan menggantikan persen yang
+diketik tangan. Minggu yang tidak dicakup opname mana pun tetap manual **dan
+mengatakannya** — setiap baris progres membawa sumbernya, sehingga kurva tidak pernah
+menyembunyikan mana dari keduanya yang sedang Anda baca.
+
+**Tanda tangan MK.** Halaman opname membawa kartu **Persetujuan Eksternal** (§15): terbitkan
+tautan sekali-pakai ke MK, atau catat lembar fisik yang sudah ditandatangani. Keputusan MK
+**menggerakkan dokumennya** — setuju berarti disetujui, dengan plafon diperiksa ulang atas
+data terkini persis seperti persetujuan internal. Lampiran foto (bekisting, hasil cor,
+meteran di atas galian) menumpang halaman yang sama.
+
+Cetak: **F/OPN**, backsheet mendatar — §13.3.
+
+### 7.15 Variasi Kontrak — `Proyek › Variasi Kontrak (Plafon Opname)`
+
+Register kecil: **volume tambah-kurang per item BOQ**, satu baris per pasangan CCO × item.
+Inilah separuh plafon opname yang tidak bisa diungkapkan CCO, karena CCO adalah **nilai**
+yang ditandatangani dan tidak membawa baris.
+
+Kolom: CCO · **Status CCO** · WBS · Item BOQ · Perubahan volume (bertanda) · Satuan.
+Tombol tambahnya berbunyi **`Tambah Volume Tambah-Kurang`** — satu baris volume, bukan
+satu CCO; CCO-nya sendiri dibuat di **Penjualan › Pekerjaan Tambah-Kurang** (§3.7).
+Formulir: **Kontrak** · **Pekerjaan tambah-kurang (CCO)** · **ID item BOQ** · **Perubahan
+volume** (negatif untuk pekerjaan kurang) · Satuan · Keterangan. Menulis di sini menuntut
+izin ubah proyek (`prj.update`).
+
+> **Plafon baru naik setelah CCO-nya DISETUJUI.** Baris atas CCO yang masih draf atau
+> diajukan tercatat rapi dan tetap tidak dihitung — itulah gunanya kolom **Status CCO**
+> di daftar. Menaikkan plafon lewat CCO yang belum ditandatangani berarti menagih atas
+> perubahan yang belum disepakati.
+
+Penolakan: *"Item BOQ ini sudah tercatat pada CCO tersebut; ubah barisnya, jangan menambah
+baris kedua — dua baris untuk satu pasangan akan menggandakan plafon opname."*
+
+### 7.16 BAPP per Zona — `Proyek › BAPP per Zona`
+
+Berita acara pemeriksaan pekerjaan, **satu lembar per pemeriksaan satu zona**. Bukan
+dokumen persetujuan: tidak ada Ajukan dan tidak ada Setujui — seorang pemeriksa berjalan
+di zona itu dan menuliskan apa yang dilihatnya.
+
+Kolom: Kode · Proyek · Zona · Status · Tanggal · Diperiksa oleh. Saringan: Proyek, Lokasi,
+Status.
+
+Tombol tambahnya berbunyi **`Tambah Berita Acara Pemeriksaan Pekerjaan`**.
+Formulir: **Proyek** (wajib, tidak bisa dipindah) · **Zona/lokasi** (wajib, dari Lokasi
+Tapak §16) · **Hasil pemeriksaan** (wajib: *Selesai* / *Diperiksa* / *Nunggu perbaikan*) ·
+Tanggal pemeriksaan · **Pihak pemeriksa** (*Konsultan MK* / *Pemilik* / *Kontraktor*) ·
+**Nama pemeriksa** · Catatan.
+
+> **Zona yang diperiksa ulang mendapat lembar BARU.** Tidak ada `unique` per zona: BAPP I
+> berbunyi "Nunggu perbaikan", perbaikannya dikerjakan, BAPP II berbunyi "Selesai".
+> **Lembar terakhir** — menurut tanggal pemeriksaan, lalu id — yang menentukan status zona.
+> Menimpa lembar pertama akan menghapus justru bukti yang mendasari lembar kedua.
+
+**Gerbang "Selesai".** Zona dengan **NCR terbuka** (§17 — status *Terbuka* atau *Dalam
+perbaikan*) tidak dapat ditandai Selesai:
+
+> "Zona {kode} ({jalur lokasi}) tidak dapat ditandai \"Selesai\": {n} NCR masih terbuka di
+> zona ini atau di bawahnya ({daftar kode NCR beserta lokasinya}). Verifikasi atau tutup
+> NCR-nya dahulu, atau tandai zona ini \"Nunggu perbaikan\"."
+
+> **Gerbangnya membaca seluruh RANTING lokasi, bukan satu simpul.** Lokasi Tapak (§16)
+> berjenjang — Tower › Lantai › Zona › As › Ruang — dan NCR dicatat di simpul **terhalus**
+> yang bisa ditunjuk pemeriksa: ruangnya, as-nya. NCR di Ruang `Z-A-01` karena itu menahan
+> "Selesai" pada Zona `Z-A` di atasnya, dan pesan penolakannya menyebut **di lokasi mana**
+> setiap NCR itu berada, sebab "NCR di zona ini" kini adalah pernyataan tentang sebuah
+> tempat yang ada ruangannya. NCR di zona **sebelah**, atau di lantai **di atas** zona ini,
+> tidak menahan apa pun. F/BAPP mencetak daftar yang sama, sehingga kalimat "Tidak ada NCR
+> terbuka di zona ini." di atas tanda tangan benar-benar berarti tidak ada — termasuk di
+> dalam ruang-ruangnya.
+
+*Diperiksa* dan *Nunggu perbaikan* **tidak** digerbangi — seorang pemeriksa harus bisa
+menuliskan apa yang ditemukannya pada detik ia menemukannya, termasuk "nunggu perbaikan",
+yang justru mark jujur untuk zona ber-NCR terbuka. Hanya **klaim kelengkapan** yang
+diperiksa.
+
+**Apa artinya bagi uang.** Status *Nunggu perbaikan* menahan penagihan pekerjaan di zona
+itu (§3.11a, kriteria #6). Status *Diperiksa* tidak menahan apa pun.
+
+> **Kolom Pihak pemeriksa dan Nama pemeriksa boleh kosong, dan memang sering kosong.**
+> Keduanya diisi dari lembar yang benar-benar ditandatangani — bantuan di layar
+> mengatakannya: *"Diisi dari lembar yang benar-benar ditandatangani — jangan disalin dari
+> master proyek."* Pada cetakan keduanya tetap **bergaris kosong** bila belum diisi
+> (§13.5); nama konsultan MK dari halaman proyek tidak pernah menggantikannya.
+
+Penolakan lain: *"Lokasi tersebut bukan bagian dari proyek {kode}."*
+
+Cetak: **F/BAPP** — §13.3.
+
 ---
 
 ## 8. Subkontraktor
 
-Tiga layar di kelompok **Subkontrak**: **SPK Subkon**, **Addendum SPK**, **Opname
-Subkon**. Uang keluarnya lewat Tagihan Vendor (AP) dan Pembayaran di kelompok Keuangan.
+Empat layar di kelompok **Subkontrak**: **SPK Subkon**, **Addendum SPK**, **Opname
+Subkon**, **BAST Subkon**. Uang keluarnya lewat Tagihan Vendor (AP) dan Pembayaran di
+kelompok Keuangan.
 
 ### 8.1 Siapa mengerjakan apa
 
@@ -4210,6 +4480,66 @@ Penolakan:
 Pelepasan retensi **menerbitkan tagihan vendor tersendiri**, yang lalu dibayar lewat jalur
 Pembayaran biasa (§5.10). Alasan override, bila dipakai, tersimpan permanen pada baris
 pelepasannya.
+
+### 8.8 BAST Subkon — `Subkontrak › BAST Subkon`
+
+Berita acara serah terima pekerjaan subkontraktor, dua lembar per SPK: **BAST I** memulai
+masa pemeliharaan yang dijamin retensi (§8.7), **BAST II** mengakhirinya. Sebelum ini sisi
+subkontraktor hanya punya *tanggal* masa pemeliharaan tanpa lembar di belakangnya —
+padahal itulah pihak yang retensinya sedang kita tahan.
+
+Kolom: Kode · SPK · Jenis · Tanggal · Retensi jatuh tempo · Status. Nomor `BSK/…`. Bisa
+diubah/dihapus hanya saat Draf atau Ditolak.
+
+Tombol tambahnya berbunyi **`Tambah BAST Subkontraktor`**.
+Formulir: **SPK** (wajib, tidak bisa dipindah — hanya SPK yang sudah disetujui) · **Jenis
+serah terima** (wajib) · **Tanggal serah terima** (wajib) · **Retensi dapat dilepas
+mulai** · Menyerahkan (wakil subkon) · Menerima (wakil kami) · Lingkup yang
+diserahterimakan.
+
+Aksi: **`Ajukan`** → **`Setujui`** / **`Tolak`** (`scm.approve`).
+
+> **Kosongkan "Retensi dapat dilepas mulai".** BAST I **menyalinnya** dari akhir masa
+> pemeliharaan SPK, dan **membiarkannya kosong** bila SPK belum mencatatnya. SPK tidak
+> menyimpan *panjang* masa pemeliharaan, jadi tidak ada yang bisa dihitung — sel itu
+> tercetak bergaris kosong (§13.5), dan kosongnya persis keadaan yang juga membuat
+> pelepasan retensi menuntut alasan override (§8.7). Lengkapi tanggalnya di SPK lewat aksi
+> **Catat masa pemeliharaan**, bukan dengan menebak di sini.
+
+**Prasyarat, diperiksa saat `Setujui`** (bukan saat Ajukan — draf ditolak lebih dulu oleh
+pesan status biasa). Layar menyediakan `GET .../prerequisites` untuk dibaca lebih dulu.
+
+| Jenis | Butirnya |
+|---|---|
+| **BAST I** | opname terakhir sudah disetujui (tidak ada opname non-DP yang masih draf/diajukan, **dan** minimal satu sudah disetujui) · **retensi belum dilepas** |
+| **BAST II** | opname terakhir sudah disetujui · **BAST I sudah disetujui**, dan tanggal BAST II tidak mendahuluinya |
+
+Semuanya **blokir keras**, tidak ada yang bisa dilewati dengan alasan — karena ketiganya
+bisa dibereskan sore itu juga: setujui opnamenya, terbitkan BAST I-nya dulu, atau
+perbaiki tanggalnya.
+
+Penolakannya satu kalimat: *"{Jenis} {kode} belum dapat disetujui — {daftar butir}."*
+Butirnya berbunyi, misalnya:
+
+- *"opname {kode} pada SPK {kode} belum disetujui, sehingga volume yang diserahterimakan
+  masih terbuka"*
+- *"SPK {kode} belum memiliki opname yang disetujui, sehingga tidak ada pekerjaan terukur
+  untuk diserahterimakan"*
+- *"retensi SPK {kode} sudah dilepas sebesar {x} pada {tanggal}, sehingga masa pemeliharaan
+  yang dimulai BAST I sudah tidak dijamin retensi"*
+- *"SPK {kode} belum memiliki BAST I yang disetujui, padahal BAST II mengakhiri masa
+  pemeliharaan yang dimulai BAST I"*
+- *"tanggal BAST II ({tanggal}) mendahului BAST I {kode} ({tanggal})"*
+
+Penolakan lain: *"SPK {kode} berstatus {status}; berita acara serah terima hanya atas SPK
+yang sudah disetujui."* dan *"SPK {kode} sudah memiliki {jenis} ({kode})."* — satu BAST I
+dan satu BAST II hidup per SPK.
+
+> **Opname yang DITOLAK tidak menahan apa pun.** Itu kertas mati, bukan pertanyaan yang
+> masih menggantung. Begitu pula klaim uang muka: uang muka adalah uang yang dibayar di
+> muka, bukan pekerjaan yang terukur.
+
+Cetak: **F/BST-SK** — §13.3.
 
 ---
 
@@ -5621,7 +5951,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 50 formulir
+### 13.3 Daftar lengkap 53 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -5688,6 +6018,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Surat Perintah Kerja (SPK) Subkontraktor | F/SP | halaman SPK |
 | Berita Acara Addendum SPK | F/AS | halaman Addendum |
 | Berita Acara Opname dan Pembayaran Subkontraktor (mendatar) | F/BO | halaman Opname Subkon |
+| Berita Acara Serah Terima Pekerjaan Subkontraktor | F/BST-SK | halaman BAST Subkon (§8.8) |
 
 **Keuangan** (izin lihat keuangan):
 
@@ -5738,6 +6069,31 @@ sebelum penggantian itu.)*
 | Izin Kerja Lembur | F/IL | halaman satu izin — register `Izin Lembur (ILB)` |
 | Izin Masuk / Keluar Material & Peralatan | F/IM | halaman satu izin — register `Izin Material (IMK)` |
 
+**Proyek — dua lembar P3**, yang **bukan** bagian dari ketujuh formulir bespoke di atas
+(keduanya lahir dari registri cetak, sama seperti lembar Engineering dan Mutu):
+
+| Formulir | Kode | Tombolnya di |
+|---|---|---|
+| Berita Acara Opname Pekerjaan — backsheet volume (mendatar) | F/OPN | halaman Opname Owner (OPN) (§7.14) |
+| Berita Acara Pemeriksaan Pekerjaan (BAPP) per Zona | F/BAPP | halaman BAPP per Zona (§7.16) |
+
+**F/OPN** mencetak satu baris per item BOQ yang **benar-benar diukur** opname itu, dengan
+VOL. LALU · VOL. PERIODE INI · VOL. KUMULATIF dan — di sebelahnya — **VOL. KONTRAK + CCO**,
+yaitu plafon yang tanda tangan MK diperiksa terhadapnya. Item BOQ yang tidak diukur pada
+periode itu **tidak muncul sama sekali**: barisnya tidak digaris dan tidak diisi nol, sebab
+"tidak diukur" dan "diukur, hasilnya nol" adalah dua pernyataan berbeda dan hanya yang
+kedua boleh berdiri di atas tanda tangan. Lembar tanpa baris sama sekali berbunyi *"Opname
+ini belum memiliki baris volume terukur."*
+
+**F/BAPP** mencetak status zona sebagai **kata** — `Selesai` / `Diperiksa` / **`Nunggu
+perbaikan`** — tidak pernah kosong, karena lembar inilah bukti yang menahan tagihan
+(§3.11a). Di bawahnya tercetak daftar **NCR yang masih terbuka di zona itu — termasuk di
+seluruh lokasi di bawahnya** (§7.16), yaitu daftar yang sama yang menolak tanda "Selesai";
+zona bersih berbunyi *"Tidak ada NCR terbuka di zona ini."*, dan kalimat itu kini
+benar-benar mencakup ruang-ruang di dalamnya. Kolom **DIPERIKSA OLEH (PIHAK)** dan **NAMA PEMERIKSA** bergaris kosong selama
+belum ada yang menandatangani — nama konsultan MK dari halaman proyek tidak pernah
+mengisinya (§13.5).
+
 ### 13.4 Empat dokumen yang punya PDF sungguhan
 
 Berbeda dari formulir rumah, keempat ini **mengunduh berkas**:
@@ -5766,13 +6122,16 @@ Yang paling sering ditemui:
 | Semua kop proyek | **PERPANJANGAN WAKTU I & II** — hanya pada kontrak tanpa addendum waktu yang disetujui | addendum waktu (CCO jenis `waktu`, §3.7) yang disetujui kini mengisi kedua baris; mulai addendum ketiga baris II berbunyi `lihat register`, tidak pernah dipotong diam-diam |
 | Izin Kerja Lapangan / Lembur / Material | lokasi/area & tabel ALAT (F/IK) · jam per orang (F/IL) · kolom SPESIFIKASI & JAM (F/IM) · kolom PENGENDALIAN · sisa baris tabel · dua kolom tanda tangan pengawas | sejak izin menjadi dokumen (§7.13) badan lembar tercetak dari baris izinnya; yang tetap bergaris adalah sel yang tidak punya kolom di basis data — dan kolom *Diperiksa* F/IM baru terisi setelah cap `Periksa di gerbang` |
 | Berita Acara Tambah-Kurang | baris **nilai kontrak sesudahnya** | hanya terisi bila CCO-nya sudah disetujui; lembar addendum waktu tidak punya baris nilai sama sekali — baris tanggal selesainya berbunyi "belum disetujui" selama draf (§3.7) |
-| Detail Schedule | **batang rencana** | hanya diarsir bila ada baseline yang disetujui |
+| Detail Schedule | **batang rencana** · dan baris **REALISASI** yang menyebut sumbernya | batang hanya diarsir bila ada baseline yang disetujui; angka REALISASI bisa berupa persen yang diketik (taksiran) atau hasil OPNAME yang disetujui (pengukuran berbobot nilai) — yang dari opname mencetak nomor opnamenya di bawah angkanya, dan catatan kaki menyebut sumber yang benar-benar tercetak, tidak pernah satu kalimat untuk dua asal-usul (§7.13) |
 | Kop empat pihak | kotak **KONSULTAN MK** dan kolom tanda tangannya | kosong bila kolom Konsultan pada proyek belum diisi (§7.2) |
 | Persetujuan Gambar / Material (F/SD, F/SM) | sel **KEPUTUSAN** — tetapi tidak bergaris: submittal yang belum dijawab MK tercetak *"Menunggu keputusan Konsultan MK"*, dan revisi yang tergantikan tercetak *"DIGANTIKAN oleh {kode SDS}"* | keputusan MK adalah fakta yang diketik (bab 16); yang belum diketik dicetak sebagai keadaan menunggu, bukan garis kosong dan bukan stempel karangan. Kolom tanda tangan MK tetap kosong — tak ada yang mencatat siapa membubuhkannya |
 | Ijin Pelaksanaan (F/IPP) | tabel bahan/alat/gambar/material terisi dari baris IPP; kolom KEPUTUSAN per baris gambar/material tercetak stempel MK apa adanya | F/IPP mencetak keadaan tersimpan **apa adanya** sementara gerbang IPP (§16.5) menimbangnya terpisah — lembar boleh menampilkan "Disetujui dengan catatan" pada baris material yang gerbang tetap tolak |
 | Inspeksi Mutu (F/QI) | sel **HASIL KESELURUHAN** — bergaris kosong selama lembar belum punya satu pun butir hasil | verdict lulus/tidak dicetak dari boolean tersimpan, tetapi `passed` hanya benar secara hampa pada checklist yang belum diisi; maka selama tak ada butir, selnya dikosongkan, bukan dicetak LULUS (bab 17) |
 | Ketidaksesuaian (F/NCR) | kolom **DIVERIFIKASI OLEH** & **TANGGAL VERIFIKASI** | terisi hanya setelah NCR diverifikasi (§17.3); NCR yang masih terbuka tak pernah mencetak pemverifikasi yang belum ada |
 | Benda Uji Beton (F/BU) | kolom **MEMENUHI** membaca hasil hitung tersimpan; **TARGET fc' (28 HARI)** bergaris kosong pada mutu yang tak terbaca | lulus/tidak adalah aritmetika ConcreteStrengthService saat uji direkam — bukan verdict yang diketik di samping kolom; mutu yang tak dikenali parser dikosongkan, bukan ditebak (§17.4) |
+| Opname ke Pemilik (F/OPN) | kolom **LOKASI / ZONA** pada baris yang tidak diukur per zona · kolom **VOL. KONTRAK + CCO** bila item BOQ di balik baris itu sudah tidak ada — dan **item BOQ yang tidak diukur periode itu tidak punya baris sama sekali** | lokasi memang opsional pada baris opname; plafon adalah fakta tentang kontrak, jadi tanpa item BOQ tidak ada plafon untuk dinyatakan. Baris tidak digaris dan tidak diisi nol karena "tidak diukur" dan "diukur, hasilnya nol" adalah dua pernyataan berbeda dan hanya yang kedua boleh berdiri di atas tanda tangan (§7.14) |
+| BAPP per Zona (F/BAPP) | **DIPERIKSA OLEH (PIHAK)** & **NAMA PEMERIKSA** selama belum ditandatangani. Status zona TIDAK pernah kosong — `Selesai` / `Diperiksa` / `Nunggu perbaikan` tercetak sebagai kata | keduanya diisi dari lembar yang benar-benar ditandatangani; nama Konsultan MK dari halaman proyek tidak pernah menggantikannya. Status wajib tercetak karena lembar inilah bukti yang menahan tagihan zona (§3.11a, §7.16) |
+| BAST Subkon (F/BST-SK) | **RETENSI DAPAT DILEPAS MULAI** bila SPK-nya belum mencatat akhir masa pemeliharaan · **YANG MENYERAHKAN / MENERIMA** yang belum dicatat | SPK tidak menyimpan *panjang* masa pemeliharaan, jadi tidak ada yang bisa dihitung — dan kosongnya persis keadaan yang juga membuat pelepasan retensi menuntut alasan override (§8.7, §8.8) |
 
 **Lembar yang sudah diisi dan ditandatangani itulah catatannya.** Arsipkan di berkas
 proyek — tidak ada layar untuk merekamnya kembali.
@@ -6365,10 +6724,12 @@ Yang akan menahan Anda:
   dari status itu."* (tindakan: memulai perbaikan / memverifikasi / menutup)
 - NCR yang sudah ditutup: *"NCR {kode} sudah ditutup dan tidak dapat diubah lagi."*
 
-**Dua pintu yang ditahan NCR terbuka.** Selama status masih **Terbuka** atau **Perbaikan
-berjalan**, NCR itu (a) menahan inspeksi tahap berikutnya di lokasinya (§17.2), dan (b)
-menahan **BAST I** proyeknya — serah terima pertama tidak dapat disetujui selama ada NCR
-terbuka. Yang kedua muncul di layar BAST sebagai:
+**Tiga pintu yang ditahan NCR terbuka.** Selama status masih **Terbuka** atau **Perbaikan
+berjalan**, NCR itu (a) menahan inspeksi tahap berikutnya di lokasinya (§17.2), (b) menahan
+tanda **"Selesai"** pada BAPP zona yang memuat lokasinya — termasuk bila NCR itu dicatat di
+ruang **di bawah** zona tersebut (§7.16), dan (c) menahan **BAST I** proyeknya — serah
+terima pertama tidak dapat disetujui selama ada NCR terbuka. Yang terakhir muncul di layar
+BAST sebagai:
 
 > *"BAST I {kode} belum dapat disetujui — {n} NCR masih terbuka ({daftar NCR}); verifikasi
 > atau tutup dahulu sebelum serah terima pertama."*

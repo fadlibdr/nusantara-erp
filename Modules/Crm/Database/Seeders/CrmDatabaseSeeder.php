@@ -4,8 +4,11 @@ namespace Modules\Crm\Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\NumberSequence;
+use Modules\Crm\Enums\ChangeOrderType;
 use Modules\Crm\Models\Contract;
+use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\Customer;
 use Modules\Crm\Models\Lead;
 use Modules\Crm\Models\Quotation;
@@ -18,7 +21,109 @@ class CrmDatabaseSeeder extends Seeder
         $this->seedLeads();
         $this->seedQuotations();
         $this->seedContracts();
+        $this->seedChangeOrders();
         $this->syncNumberSequences();
+    }
+
+    /**
+     * ADDENDUM I & II on CTR/2026/I/0001 — a pekerjaan tambah and the pekerjaan
+     * kurang that pays for it, of EQUAL value, both approved.
+     *
+     * They exist because P3's opname ceiling is "volume kontrak + CCO disetujui"
+     * and the demo had no approved change order at all: every ceiling in the
+     * demo was the bare BOQ, the register screen (Variasi Kontrak) was empty,
+     * and F/BATK printed nothing. The volume half lives in
+     * prj_contract_variations, seeded by ProjectsDatabaseSeeder — this is only
+     * the money-and-signature half, which is Crm's to seed.
+     *
+     * WHY A PAIR, AND WHY THEY CANCEL. CONVENTIONS §8 pins this contract at
+     * Rp 48,5 M, and BOQ/2026/0001's grand total is that same number — several
+     * modules' demo stories rest on the two being equal. An approved addendum
+     * that moved the value would break that canon (and the DEMO would then
+     * disagree with the document that defines it), while a single addendum
+     * worth Rp 0 is a document the create screen refuses outright
+     * (ContractChangeOrderController: value_change not_in:0). A tambah of
+     * Rp 84.592.000 offset by a kurang of the same amount is what really
+     * happens on site, is legal on both screens, and leaves the contract worth
+     * exactly what it was signed for.
+     *
+     * WRITTEN APPROVED, NOT APPROVED THROUGH THE SERVICE — the seedBaseline
+     * rule: maker-checker needs two people and a seeder is nobody. Running
+     * ContractChangeOrderService::approve twice would end at the same
+     * Rp 48,5 M, and the only thing it would additionally write is
+     * original_value, which is set here for exactly that reason. The runtime
+     * approve path (and the contract value it moves) is covered by
+     * tests/Feature/Crm/ContractChangeOrderTest.
+     */
+    private function seedChangeOrders(): void
+    {
+        $contract = Contract::query()->where('code', 'CTR/2026/I/0001')->first();
+
+        if ($contract === null || $contract->status !== DocumentStatus::Approved) {
+            return;
+        }
+
+        if (ContractChangeOrder::query()->where('contract_id', $contract->id)->exists()) {
+            return; // idempotent: never mint a second pair on a re-run
+        }
+
+        $approver = User::query()->where('email', 'direktur@nusantara.test')->value('id')
+            ?? User::query()->orderBy('id')->value('id');
+
+        if ($approver === null) {
+            return; // Iam not seeded yet — skip gracefully (CONVENTIONS §8)
+        }
+
+        // Rp 84.592.000 = 800 m3 galian tanah basement at BOQ B.1's own unit
+        // price of Rp 105.740/m3. The volume itself is recorded against this
+        // change order by ProjectsDatabaseSeeder; the number here is what the
+        // parties signed for it.
+        $amount = 84_592_000.0;
+
+        $addenda = [
+            [
+                'customer_ref' => 'ADD-I/GSP/2026',
+                'change_date' => '2026-03-12',
+                'title' => 'Addendum I — tambah volume galian tanah basement 800 m3',
+                'description' => 'Muka air tanah lebih tinggi daripada data penyelidikan tanah, sehingga galian '
+                    .'basement bertambah 800 m3 dengan harga satuan kontrak (item BOQ B.1).',
+                'value_change' => $amount,
+            ],
+            [
+                'customer_ref' => 'ADD-II/GSP/2026',
+                'change_date' => '2026-03-12',
+                'title' => 'Addendum II — kurang lingkup pekerjaan MEP lainnya',
+                'description' => 'Sebagian lingkup pekerjaan MEP lainnya (item lump sum BOQ C.5) dikeluarkan dari '
+                    .'kontrak senilai tambahan galian pada Addendum I, sehingga nilai kontrak tidak berubah.',
+                'value_change' => -$amount,
+            ],
+        ];
+
+        foreach ($addenda as $data) {
+            $order = ContractChangeOrder::query()->create([
+                'contract_id' => $contract->id,
+                'change_date' => $data['change_date'],
+                'title' => $data['title'],
+                'description' => $data['description'],
+                'reason' => 'kondisi_lapangan',
+                'change_type' => ChangeOrderType::TambahKurang,
+                'value_change' => $data['value_change'],
+                'ppn_change' => round($data['value_change'] * (float) $contract->ppn_rate / 100, 2),
+                'customer_ref' => $data['customer_ref'],
+                'status' => DocumentStatus::Approved,
+            ]);
+
+            $order->approvals()->create([
+                'action' => 'approved',
+                'user_id' => (int) $approver,
+                'note' => 'Addendum ditandatangani bersama pemilik dan Konsultan MK.',
+            ]);
+        }
+
+        // What ContractChangeOrderService::approve backfills on the first
+        // approved amendment: the value this contract started at. The pair
+        // cancels, so it is also the value it carries now.
+        $contract->forceFill(['original_value' => (float) $contract->value])->save();
     }
 
     private function seedCustomers(): void

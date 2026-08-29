@@ -26,6 +26,13 @@ class Location extends BaseModel
 {
     use SoftDeletes;
 
+    /**
+     * How deep subtreeIds() is willing to walk. The vocabulary is five kinds
+     * deep (LocationKind), and the doubling is slack for a site broken down
+     * more finely than the enum's names suggest — never an invitation.
+     */
+    private const MAX_SUBTREE_DEPTH = 10;
+
     protected $table = 'core_locations';
 
     protected function casts(): array
@@ -78,6 +85,48 @@ class Location extends BaseModel
         }
 
         return implode(' › ', $names);
+    }
+
+    /**
+     * This node's id together with every id BENEATH it.
+     *
+     * A LOCATION IS A PLACE, NOT A POINT. This table is a hierarchy (Tower ›
+     * Lantai › Zona › As › Ruang, PANDUAN §16) and a fact recorded at the room
+     * is a fact inside the zone containing it, because that is where an
+     * inspector actually stands when he writes it down. Anything that asks
+     * "what is open in this zone" by comparing a foreign location_id to one key
+     * asks about the node and answers about the place — which is how a zone
+     * with an open NCR one level down stayed freely markable "Selesai" on a
+     * BAPP (ZoneCertificateService::openNcrCodes).
+     *
+     * One query per LEVEL, not per node, so a floor with sixty rooms costs the
+     * same as a floor with one. Trashed nodes stay out, by the model's own
+     * scope: a deleted room is not on the drawing any more, and the deleting
+     * hook above refuses while children exist, so no live node hides beneath a
+     * deleted one.
+     *
+     * @return list<int>
+     */
+    public function subtreeIds(): array
+    {
+        $ids = [(int) $this->getKey()];
+        $frontier = $ids;
+
+        // Bounded. The saving hook refuses a cycle, but it only guards rows
+        // that pass through this model, and a loop reached from here would spin
+        // inside a request instead of refusing one.
+        for ($depth = 0; $depth < self::MAX_SUBTREE_DEPTH && $frontier !== []; $depth++) {
+            $frontier = self::query()
+                ->whereIn('parent_id', $frontier)
+                ->whereNotIn('id', $ids)
+                ->pluck('id')
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all();
+
+            $ids = array_merge($ids, $frontier);
+        }
+
+        return $ids;
     }
 
     private function assertParentIsCoherent(): void

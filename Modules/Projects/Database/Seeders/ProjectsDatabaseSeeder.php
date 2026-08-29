@@ -8,23 +8,56 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Models\Location;
 use Modules\Core\Models\NumberSequence;
+use Modules\Projects\Enums\CertifyingParty;
 use Modules\Projects\Enums\IncidentCategory;
 use Modules\Projects\Enums\IncidentSeverity;
 use Modules\Projects\Enums\IncidentStatus;
 use Modules\Projects\Enums\ProjectStatus;
 use Modules\Projects\Enums\ProjectType;
+use Modules\Projects\Enums\ZoneCertificateStatus;
+use Modules\Projects\Models\ContractVariation;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\ManpowerAssignment;
 use Modules\Projects\Models\Milestone;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\ProjectBaseline;
 use Modules\Projects\Models\SafetyIncident;
+use Modules\Projects\Models\ZoneCertificate;
 use Modules\Projects\Services\BaselineService;
+use Modules\Projects\Services\MeasurementService;
 use Modules\Projects\Services\ProgressService;
+use Modules\Projects\Services\ZoneCertificateService;
 
 class ProjectsDatabaseSeeder extends Seeder
 {
+    /**
+     * What OPN 1 measures, per BOQ/2026/0001 item: the SAME physical percentage
+     * the matching WBS leaf carries in seedWbs() below, and nothing invented.
+     *
+     * The C leaves consolidate several BOQ items each (C.1 covers BOQ C.1+C.2,
+     * C.2 covers BOQ C.3+C.4+C.5 — see seedWbs), so those items repeat their
+     * leaf's percentage. Because the leaf weights ARE the BOQ cost shares, the
+     * value-weighted total comes to 55,0001 % — the kurva-S's own week-8
+     * actual, which is the whole reason approving this opname leaves the demo's
+     * narrative standing instead of contradicting it.
+     */
+    private const MEASURED_PCT = [
+        'A.1' => 100,     // WBS A.1 mobilisasi — selesai
+        'A.2' => 100,     // WBS A.2 direksi keet — selesai
+        'B.1' => 100,     // WBS B.1 galian — selesai
+        'B.2' => 65,      // WBS B.2 beton ready mix
+        'B.3' => 60,      // WBS B.3 pembesian
+        'B.4' => 60,      // WBS B.4 bekisting
+        'C.1' => 4.0604,  // WBS C.1 (BOQ C.1 + C.2)
+        'C.2' => 4.0604,
+        'C.3' => 5,       // WBS C.2 (BOQ C.3 + C.4 + C.5)
+        'C.4' => 5,
+        'C.5' => 5,
+    ];
+
     /**
      * Demo dataset:
      *  - PRJ-2026-001 (active) from CTR/2026/I/0001 — Gedung Kantor Graha Sentosa,
@@ -54,11 +87,409 @@ class ProjectsDatabaseSeeder extends Seeder
         // taken before that finds no RAP and refuses itself.
         $this->seedBaseline($graha, $baselineService);
 
+        // P3 — after the backfill for the same reason the baseline is: the
+        // opname measures BOQ/2026/0001, and MeasurementService resolves that
+        // BOQ through the contract/project link the backfill repairs. The order
+        // inside the block is load-bearing: the variation register raises the
+        // ceiling the second opname measures against, and the zones are what
+        // its lines and the BAPP sheets point at.
+        $this->seedContractVariations($graha);
+        $zones = $this->seedZones($graha);
+        $this->seedZoneCertificates($graha, $zones);
+        $this->seedProgressMeasurement($graha, $progressService, $zones);
+
         // Seeded codes carry fixed sequence numbers; push the shared counters
         // past them so runtime-generated numbers never collide with the canon.
         $this->bumpSequence('PRJ', 2);
         $this->bumpSequence('DRP', 3);
         $this->bumpSequence('K3', 2);
+    }
+
+    /**
+     * P3 — two owner opnames on PRJ-2026-001: OPN 1 APPROVED, OPN 2 a draft.
+     *
+     * WHY ONE OF THEM IS APPROVED. An approved opname is what makes P3 visible
+     * at all: ProgressService rewrites every weekly row it covers with the
+     * value-weighted measurement and relabels it 'progress_measurement'. A demo
+     * whose only opname is a draft shows the form and none of the mechanism —
+     * not the actual_pct switch, not an owner claim built from a measurement,
+     * not the F/DS sheet naming its opname.
+     *
+     * AND WHY IT DOES NOT MOVE THE KURVA-S. The measured volumes are not
+     * invented: each BOQ item is measured at the physical percentage its own
+     * WBS leaf reports (self::MEASURED_PCT mirrors seedWbs above, item for
+     * item). The WBS leaf weights ARE the BOQ cost shares, so the
+     * value-weighted percentage lands on 55,0001 % — the week-8 actual the
+     * kurva-S already carries, CONFIRMED by measurement rather than replaced by
+     * a different story. The opname closes on 29-03-2026, the last day of week
+     * 8, so it covers that week and no earlier one: week 8 flips its source to
+     * the opname and weeks 1-7 keep their typed percentages, which is both
+     * halves of the rule standing side by side in the demo.
+     *
+     * WRITTEN APPROVED, NOT APPROVED THROUGH MeasurementService — the
+     * seedBaseline rule (maker-checker needs two people, a seeder is nobody).
+     * The service's ceiling guards already ran on create(); its other effect,
+     * re-deriving the weekly rows, is called explicitly below through the same
+     * public method the approval itself calls, so the demo's weekly rows are
+     * derived by the real service and never typed here. NO JOURNAL IS POSTED —
+     * approving an opname is not an accounting event (roadmap §7,
+     * FORWARD-ONLY); the owner claim built from it is what books revenue, and
+     * that is left to whoever walks the demo.
+     *
+     * OPN 2 STAYS A DRAFT, and carries the two things worth demonstrating:
+     * 800 m3 of galian that ONLY the approved addendum volume in
+     * prj_contract_variations makes legal (its qty_cum lands exactly on the
+     * ceiling), and lines located in the two zones — one accepted, one waiting
+     * for repair — so approving it and billing it demonstrates kriteria #6
+     * refusing the blocked zone by name.
+     */
+    /**
+     * Point already-seeded opname lines back at the BOQ rows that exist NOW.
+     *
+     * Silent no-op in the normal case (a first seed, or a second one where the
+     * ids happened to survive). It repairs rather than reports because a demo
+     * database is not a place to raise an alarm — but it repairs only what it
+     * can prove: a line whose description matches exactly one current BOQ row.
+     * A line it cannot resolve is LEFT ALONE and left broken, because guessing
+     * which item a measured volume belongs to is the one thing worse than a
+     * dangling id.
+     */
+    private function rekeyMeasurementLines(Project $project): void
+    {
+        if ($project->contract_id === null || ! Schema::hasTable('est_boq_items')) {
+            return;
+        }
+
+        $boqId = DB::table('est_boqs')->where('contract_id', $project->contract_id)->value('id');
+
+        if ($boqId === null) {
+            return;
+        }
+
+        $current = DB::table('est_boq_items')->where('boq_id', $boqId)->get(['id', 'description']);
+        $live = $current->pluck('id')->all();
+
+        // description => id, only where the description names exactly one row.
+        $byDescription = $current->groupBy('description')
+            ->filter(fn ($rows): bool => $rows->count() === 1)
+            ->map(fn ($rows): int => (int) $rows->first()->id);
+
+        $stale = DB::table('prj_progress_measurement_items')
+            ->join('prj_progress_measurements as opname', 'opname.id', '=', 'prj_progress_measurement_items.progress_measurement_id')
+            ->where('opname.project_id', $project->id)
+            ->whereNotIn('prj_progress_measurement_items.boq_item_id', $live)
+            ->get(['prj_progress_measurement_items.id', 'prj_progress_measurement_items.description']);
+
+        foreach ($stale as $line) {
+            $id = $byDescription[(string) $line->description] ?? null;
+
+            if ($id !== null) {
+                DB::table('prj_progress_measurement_items')->where('id', $line->id)->update(['boq_item_id' => $id]);
+            }
+        }
+    }
+
+    private function seedProgressMeasurement(Project $project, ProgressService $progressService, array $zones): void
+    {
+        if (ProgressMeasurement::query()->where('project_id', $project->id)->exists()) {
+            // Idempotent — but not merely "already there". EstimationDatabaseSeeder
+            // rebuilds BOQ/2026/0001 through BoqService::replaceSections, which
+            // hard-deletes and re-inserts every est_boq_items row, so on a SECOND
+            // `db:seed` the boq_item_id these lines point at no longer exists. The
+            // sibling register (seedContractVariations) converges by replacing its
+            // rows; an opname cannot — it is an approved document, and rewriting an
+            // approved measurement is exactly what the ceiling exists to prevent.
+            // So it re-keys instead, matching on the description it snapshotted at
+            // approval, which is the only stable handle it kept.
+            $this->rekeyMeasurementLines($project);
+
+            return;
+        }
+
+        if ($project->contract_id === null || ! Schema::hasTable('est_boq_items')) {
+            return; // Crm/Estimation not seeded yet — skip gracefully (CONVENTIONS §8)
+        }
+
+        $boqId = DB::table('est_boqs')->where('contract_id', $project->contract_id)->value('id');
+
+        if ($boqId === null) {
+            return;
+        }
+
+        $items = DB::table('est_boq_items')
+            ->where('boq_id', $boqId)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'wbs_code', 'qty']);
+
+        $lines = [];
+
+        foreach ($items as $item) {
+            $pct = self::MEASURED_PCT[(string) $item->wbs_code] ?? null;
+            $qty = $pct === null ? 0.0 : round((float) $item->qty * $pct / 100, 3);
+
+            if ($qty > 0) {
+                $lines[] = ['boq_item_id' => (int) $item->id, 'qty_this' => $qty];
+            }
+        }
+
+        if ($lines === []) {
+            return;
+        }
+
+        $measurements = app(MeasurementService::class);
+
+        $first = $measurements->create([
+            'project_id' => $project->id,
+            'period_start' => '2026-02-02',
+            'period_end' => '2026-03-29',
+            'notes' => 'Opname bersama MK — volume terpasang kumulatif s/d minggu ke-8 (29 Maret 2026), '
+                .'diukur per item BOQ/2026/0001.',
+            'items' => $lines,
+        ]);
+
+        $approver = User::query()->where('email', 'direktur@nusantara.test')->value('id')
+            ?? User::query()->orderBy('id')->value('id');
+
+        if ($approver !== null) {
+            $first->forceFill(['status' => DocumentStatus::Approved])->save();
+
+            $first->approvals()->create([
+                'action' => 'approved',
+                'user_id' => (int) $approver,
+                'note' => 'Opname 1 disetujui bersama Konsultan MK; volume terukur sesuai laporan mingguan ke-8.',
+            ]);
+
+            // The one effect of an approval that is not a status: every weekly
+            // row this opname covers is re-derived from the measurement, by the
+            // service, exactly as MeasurementService::approve does it.
+            $progressService->refreshWeeklyActualsFromMeasurements($project);
+        }
+        // else: Iam not seeded, so there is nobody to approve on behalf of and
+        // the opname ships as the draft it was created as — the demo then shows
+        // the document without the switch, which is honest about what it has.
+
+        $this->seedSecondMeasurement($project, $zones);
+        $this->bumpSequence('OPN', 2);
+    }
+
+    /**
+     * OPN 2 — the April draft: the addendum volume, and the two zones.
+     *
+     * Skipped line by line rather than wholesale: without the approved CCO
+     * volume in the register the galian line would exceed the ceiling and
+     * MeasurementService would (rightly) refuse the whole document, so that
+     * line is added only when the register actually carries it.
+     */
+    private function seedSecondMeasurement(Project $project, array $zones): void
+    {
+        $lines = [];
+
+        $galian = $this->lookupBoqItemId('BOQ/2026/0001', 'B.1');
+        $beton = $this->lookupBoqItemId('BOQ/2026/0001', 'B.2');
+        $besi = $this->lookupBoqItemId('BOQ/2026/0001', 'B.3');
+
+        $addendumVolume = $galian === null ? 0.0 : (float) ContractVariation::query()
+            ->where('boq_item_id', $galian)
+            ->where('qty_change', '>', 0)
+            ->sum('qty_change');
+
+        if ($galian !== null && $addendumVolume > 0) {
+            $lines[] = [
+                'boq_item_id' => $galian,
+                'qty_this' => $addendumVolume,
+                'notes' => 'Volume tambahan Addendum I (galian basement) — tepat pada plafon kontrak + CCO.',
+            ];
+        }
+
+        if ($beton !== null) {
+            $lines[] = [
+                'boq_item_id' => $beton,
+                'location_id' => $zones['a']?->id,
+                'qty_this' => 300,
+                'notes' => 'Pengecoran plat & balok lantai 5 zona A.',
+            ];
+        }
+
+        if ($besi !== null) {
+            $lines[] = [
+                'boq_item_id' => $besi,
+                'location_id' => $zones['b']?->id,
+                'qty_this' => 40000,
+                'notes' => 'Pembesian lantai 5 zona B — zona masih menunggu perbaikan (BAPP terakhir).',
+            ];
+        }
+
+        if ($lines === []) {
+            return;
+        }
+
+        app(MeasurementService::class)->create([
+            'project_id' => $project->id,
+            'period_start' => '2026-03-30',
+            'period_end' => '2026-04-30',
+            'notes' => 'Opname 2 (draf) — periode April 2026, termasuk volume tambahan Addendum I.',
+            'items' => $lines,
+        ]);
+    }
+
+    /**
+     * P3 — the VOLUME face of the two approved addenda CrmDatabaseSeeder signs.
+     *
+     * The change order is a VALUE document and carries no lines, so without
+     * these rows the opname ceiling silently degrades to the bare BOQ and every
+     * legitimate addendum volume is refused with no way out. Addendum I adds
+     * 800 m3 to BOQ B.1 at the contract's own unit price; Addendum II removes
+     * lump-sum scope, whose volume face is a FRACTION of the one 'ls' the item
+     * carries — the money is the primary figure there and 0,102 ls is that
+     * figure divided by the lump-sum price, which the row's own notes say.
+     *
+     * REPLACED PER CHANGE ORDER ON EVERY RUN, not updateOrCreate'd on
+     * (change_order_id, boq_item_id). EstimationDatabaseSeeder rebuilds
+     * BOQ/2026/0001 through BoqService::replaceSections, which hard-deletes and
+     * re-inserts every est_boq_items row — so on a second `db:seed` the item id
+     * this register points at no longer exists, and a key that included it
+     * would leave the orphan behind and add a second row beside it. Replacing
+     * the change order's rows converges instead: one row per addendum item,
+     * pointing at the BOQ line that exists now.
+     */
+    private function seedContractVariations(Project $project): void
+    {
+        if ($project->contract_id === null || ! Schema::hasTable('crm_contract_change_orders')) {
+            return; // Crm not seeded yet — skip gracefully (CONVENTIONS §8)
+        }
+
+        $rows = [
+            ['ref' => 'ADD-I/GSP/2026', 'wbs' => 'B.1', 'qty' => 800.0, 'unit' => 'm3',
+                'notes' => 'Tambah volume galian tanah basement 800 m3 (Addendum I) pada harga satuan kontrak.'],
+            ['ref' => 'ADD-II/GSP/2026', 'wbs' => 'C.5', 'qty' => -0.102, 'unit' => 'ls',
+                'notes' => 'Kurang lingkup MEP lainnya senilai Rp 84.592.000 (Addendum II) = 0,102 dari harga lump sum item C.5.'],
+        ];
+
+        foreach ($rows as $row) {
+            $orderId = $this->lookupChangeOrderId((int) $project->contract_id, $row['ref']);
+            $itemId = $this->lookupBoqItemId('BOQ/2026/0001', $row['wbs']);
+
+            if ($orderId === null || $itemId === null) {
+                continue;
+            }
+
+            ContractVariation::query()->where('change_order_id', $orderId)->delete();
+
+            ContractVariation::query()->create([
+                'contract_id' => (int) $project->contract_id,
+                'change_order_id' => $orderId,
+                'boq_item_id' => $itemId,
+                'qty_change' => $row['qty'],
+                'unit' => $row['unit'],
+                'notes' => $row['notes'],
+            ]);
+        }
+    }
+
+    /**
+     * The two zones of lantai 5 the seeded daily reports already work in
+     * ("pengecoran plat & balok lantai 5 zona A", "zona B").
+     *
+     * core_locations is Core's table and EngineeringDatabaseSeeder seeds the
+     * SAME tower row by code — with the same payload, and it runs after this
+     * one — so whichever seeder runs first creates it and the other's
+     * updateOrCreate is a no-op. Lantai 5 and its two zones belong here because
+     * BAPP and the opname's per-zone lines are Projects documents and the
+     * Engineering seeder knows nothing about them.
+     *
+     * @return array{a: ?Location, b: ?Location}
+     */
+    private function seedZones(Project $project): array
+    {
+        if (! Schema::hasTable('core_locations')) {
+            return ['a' => null, 'b' => null];
+        }
+
+        $tower = Location::query()->updateOrCreate(['code' => 'GSP-T1'], [
+            'project_id' => $project->id,
+            'kind' => 'tower',
+            'name' => 'Gedung Utama',
+            'sort_order' => 1,
+        ]);
+
+        $floor = Location::query()->updateOrCreate(['code' => 'GSP-T1-L05'], [
+            'project_id' => $project->id,
+            'parent_id' => $tower->id,
+            'kind' => 'floor',
+            'name' => 'Lantai 5',
+            'sort_order' => 5,
+        ]);
+
+        $zones = [];
+
+        foreach ([['a', 'ZA', 'Zona A', 1], ['b', 'ZB', 'Zona B', 2]] as [$key, $suffix, $name, $order]) {
+            $zones[$key] = Location::query()->updateOrCreate(['code' => "GSP-T1-L05-{$suffix}"], [
+                'project_id' => $project->id,
+                'parent_id' => $floor->id,
+                'kind' => 'zone',
+                'name' => $name,
+                'sort_order' => $order,
+            ]);
+        }
+
+        return $zones;
+    }
+
+    /**
+     * P3 — four BAPP sheets over two zones, which is what the register looks
+     * like on a real floor.
+     *
+     * Zona A tells the story the table exists for: BAPP I found a defect
+     * (nunggu perbaikan), BAPP II accepted the repair (selesai) — the second
+     * sheet rests on the first, which is why prj_zone_certificates has no
+     * unique key per zone and why "the zone's status" is the LATEST sheet.
+     * Zona B is mid-story: inspected (diperiksa), then found defective
+     * (nunggu perbaikan) — so the demo carries a zone an owner claim refuses to
+     * bill, which is kriteria #6 with something to point at.
+     *
+     * Through the service, not the model: the `done` sheet on zona A has to
+     * pass the open-NCR gate like any other, and a demo that bypassed its own
+     * gate would be seeding a state the app refuses.
+     */
+    private function seedZoneCertificates(Project $project, array $zones): void
+    {
+        if ($zones['a'] === null || $zones['b'] === null) {
+            return;
+        }
+
+        if (ZoneCertificate::query()->where('project_id', $project->id)->exists()) {
+            return; // idempotent: never mint a second round of sheets
+        }
+
+        $sheets = [
+            ['zone' => 'a', 'status' => ZoneCertificateStatus::WaitingRepair, 'date' => '2026-03-20',
+                'notes' => 'Keropos pada sisi bawah balok B5-B7 dan sudut kolom K12; zona menunggu perbaikan.'],
+            ['zone' => 'a', 'status' => ZoneCertificateStatus::Done, 'date' => '2026-03-27',
+                'notes' => 'Grouting balok B5-B7 dan perbaikan sudut kolom K12 selesai serta diperiksa ulang; zona diterima.'],
+            ['zone' => 'b', 'status' => ZoneCertificateStatus::Check, 'date' => '2026-03-24',
+                'notes' => 'Pemeriksaan bersama plat lantai 5 zona B dimulai; hasil belum lengkap.'],
+            ['zone' => 'b', 'status' => ZoneCertificateStatus::WaitingRepair, 'date' => '2026-03-28',
+                'notes' => 'Retak susut pada plat zona B dan bekas bekisting belum dirapikan; zona menunggu perbaikan.'],
+        ];
+
+        $service = app(ZoneCertificateService::class);
+
+        foreach ($sheets as $sheet) {
+            $service->create([
+                'project_id' => $project->id,
+                'location_id' => $zones[$sheet['zone']]->id,
+                'status' => $sheet['status']->value,
+                'certified_at' => $sheet['date'],
+                // A recorded fact, never derived from project master data
+                // (roadmap §7): the MK walked these zones and signed.
+                'certified_by_party' => CertifyingParty::Mk->value,
+                'certified_by_name' => 'Ir. Bambang Setiawan (Konsultan MK)',
+                'notes' => $sheet['notes'],
+            ]);
+        }
+
+        $this->bumpSequence('BAPP', 4);
     }
 
     /**
@@ -649,6 +1080,26 @@ class ProjectsDatabaseSeeder extends Seeder
         $id = DB::table('est_boq_items')
             ->where('boq_id', $boqId)
             ->where('wbs_code', $wbsCode)
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * Resolve an approved CRM change order by the customer reference the Crm
+     * seeder stamps on it; null when Crm isn't migrated/seeded.
+     *
+     * ONLY AN APPROVED ONE: the variation register may hold rows for a draft
+     * addendum (that is how a QS works) but the demo's ceiling story rests on a
+     * signed document, and MeasurementService counts nothing else.
+     */
+    private function lookupChangeOrderId(int $contractId, string $customerRef): ?int
+    {
+        $id = DB::table('crm_contract_change_orders')
+            ->where('contract_id', $contractId)
+            ->where('customer_ref', $customerRef)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('deleted_at')
             ->value('id');
 
         return $id !== null ? (int) $id : null;

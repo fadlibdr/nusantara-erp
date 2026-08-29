@@ -140,6 +140,15 @@ another module's rows, look them up by these canonical codes and skip gracefully
   `CTR/2026/III/0003` (maintenance CCTV & akses kontrol RS Medika, Rp 480 jt/tahun).
 - Projects: `PRJ-2026-001` Pembangunan Gedung Kantor Graha Sentosa (8 lantai, Jakarta Selatan),
   `PRJ-2026-002` Instalasi ELV & Data Center Bank Artha Nusantara.
+- Addenda CTR/2026/I/0001 (`crm_contract_change_orders.customer_ref`, kodenya sendiri
+  dibangkitkan): `ADD-I/GSP/2026` tambah volume galian 800 m3, `ADD-II/GSP/2026` kurang
+  lingkup MEP lump sum senilai sama — **sepasang dan saling meniadakan**, sehingga nilai
+  kontrak demo tetap Rp 48.5 M (= total BOQ/2026/0001). `ProjectsDatabaseSeeder` mencari
+  keduanya lewat `customer_ref` itu untuk mengisi register volume `prj_contract_variations`.
+- Lokasi (`core_locations`): `GSP-T1` Gedung Utama · `GSP-T1-L01` + `GSP-T1-L01-ZA`
+  (EngineeringDatabaseSeeder) · `GSP-T1-L05` + `GSP-T1-L05-ZA`/`-ZB` (ProjectsDatabaseSeeder,
+  zona BAPP dan baris opname per zona). Menara `GSP-T1` di-`updateOrCreate` dengan muatan
+  yang sama oleh kedua seeder — mana pun yang jalan lebih dulu yang membuatnya.
 - Vendors: `VND-0001` PT Semen Distribusi Utama, `VND-0002` CV Baja Mandiri,
   `VND-0003` PT Elektrindo Supply (ICT distributor), `VND-0004` CV Karya Sipil Sejahtera
   (subcontractor, sipil), `VND-0005` PT Mekanika Prima (subcontractor, ME).

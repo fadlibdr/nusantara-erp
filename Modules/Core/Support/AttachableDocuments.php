@@ -30,6 +30,7 @@ use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Defect;
 use Modules\Projects\Models\GatePass;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WorkPermit;
 use Modules\Quality\Models\Inspection;
@@ -84,6 +85,17 @@ class AttachableDocuments
         'projects/projects' => ['class' => Project::class, 'prefix' => 'prj', 'label' => 'Proyek'],
         'projects/daily-reports' => ['class' => DailyReport::class, 'prefix' => 'prj', 'label' => 'Laporan harian'],
         'projects/bast' => ['class' => Bast::class, 'prefix' => 'prj', 'label' => 'BAST'],
+        /*
+         * P3 — the opname's photos. The spec asks for them on the OPNAME, and
+         * that is the honest place: a photo of the poured slab with the tape
+         * across it IS the evidence the measured volume rests on, and it is
+         * what the MK looks at before signing the backsheet. The BAPP zona is
+         * deliberately NOT attachable — its evidence is the NCR register the
+         * "Selesai" gate reads, not a dropped photo that gate never saw — and
+         * neither is the contract-variation register, which is a transcription
+         * of a signed addendum BOQ, not a document of its own.
+         */
+        'projects/progress-measurements' => ['class' => ProgressMeasurement::class, 'prefix' => 'prj', 'label' => 'Opname progres owner (OPN)'],
         // A punch list without photos is half a punch list: the photo of the
         // unlevel lift door IS the temuan, and the photo of the repair is what
         // gets it past verification.

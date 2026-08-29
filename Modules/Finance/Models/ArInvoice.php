@@ -12,6 +12,7 @@ use Modules\Core\Traits\HasDocumentNumber;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractTermin;
 use Modules\Crm\Models\Customer;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 
 class ArInvoice extends BaseModel
@@ -33,6 +34,10 @@ class ArInvoice extends BaseModel
             'ppn_rate' => 'decimal:4',
             'ppn_amount' => 'decimal:2',
             'retention_withheld' => 'decimal:2',
+            // P3 — the owner claim's three deductions and the advance flag.
+            'is_advance' => 'boolean',
+            'advance_recovery_amount' => 'decimal:2',
+            'penalty_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'paid_at' => 'date',
@@ -64,6 +69,12 @@ class ArInvoice extends BaseModel
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    /** P3 — the owner opname this claim was assembled from, when it was. */
+    public function measurement(): BelongsTo
+    {
+        return $this->belongsTo(ProgressMeasurement::class, 'measurement_id');
     }
 
     public function retentions(): HasMany

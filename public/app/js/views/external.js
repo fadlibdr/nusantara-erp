@@ -25,6 +25,9 @@ export const EXTERNAL_APPROVABLE = new Set([
   'projects/daily-reports',
   'crm/contract-change-orders',
   'projects/work-permits',
+  /* P3: tanda tangan MK pada opname ke pemilik — mode transisi, keputusannya
+   * menggerakkan dokumennya lewat MeasurementService::applyExternalDecision. */
+  'projects/progress-measurements',
 ]);
 
 /* Both vocabularies are pinned to their PHP sources (ExternalApproval::PARTIES,

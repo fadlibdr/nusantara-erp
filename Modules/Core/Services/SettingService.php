@@ -511,6 +511,7 @@ class SettingService
         'TRM' => 'Transmittal', 'IPP' => 'Ijin pelaksanaan pekerjaan',
         'QCI' => 'Inspeksi mutu (QCI)', 'NCR' => 'Laporan ketidaksesuaian (NCR)',
         'BAN' => 'BA Negosiasi', 'AWD' => 'Keputusan pemenang', 'PBL' => 'Rencana pengadaan',
+        'OPN' => 'Opname progres owner', 'BAPP' => 'BAPP per zona', 'BSK' => 'BAST subkontraktor',
     ];
 
     /**

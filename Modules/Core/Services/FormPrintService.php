@@ -731,7 +731,24 @@ class FormPrintService
     /** Empty string, not "01 Januari 1970", when there is no such date. */
     private function date($value): string
     {
-        $date = $this->toDate($value);
+        return self::dateText($value);
+    }
+
+    /**
+     * The house date, "30 Juni 2026" — the ONE spelling every sheet uses.
+     *
+     * Public and static so a PrintableDocuments entry that has to COMPOSE a
+     * date rather than cast one ("01 Juni 2026 s/d 30 Juni 2026" on an opname's
+     * PERIODE line) can reach it. The alternative was a fourth copy of MONTHS
+     * inside the registry, and a form whose period line spelled its months
+     * differently from its own TANGGAL is exactly the kind of drift the
+     * constant's docblock is already apologising for three times over.
+     *
+     * Empty string, never a fabricated date, when there is nothing to format.
+     */
+    public static function dateText($value): string
+    {
+        $date = self::asDate($value);
 
         if ($date === null) {
             return '';
@@ -741,6 +758,11 @@ class FormPrintService
     }
 
     private function toDate($value): ?Carbon
+    {
+        return self::asDate($value);
+    }
+
+    private static function asDate($value): ?Carbon
     {
         if ($value === null || $value === '') {
             return null;

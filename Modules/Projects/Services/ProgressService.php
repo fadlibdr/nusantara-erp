@@ -118,6 +118,16 @@ class ProgressService
      * Upsert one weekly progress row (unique per project + week_no).
      * Deviation is derived (actual - planned); the project header planned
      * percentage follows the latest reported week.
+     *
+     * P3 — WHERE actual_pct COMES FROM is now a question with two answers, and
+     * the row records which one it got. An APPROVED opname covering this week
+     * REPLACES the typed percentage with the value-weighted measurement; a week
+     * no opname covers keeps the typed number, exactly as before. The typed
+     * value is discarded rather than kept alongside, deliberately: two
+     * percentages on one row invite a screen to show the flattering one, and
+     * "menggantikan" is what the spec asks for. What is never discarded is the
+     * LABEL — actual_pct_source says which of the two this is, because a curve
+     * that cannot tell you is worse than either.
      */
     public function recordWeekly(array $data): WeeklyProgress
     {
@@ -130,6 +140,17 @@ class ProgressService
         return DB::transaction(function () use ($data): WeeklyProgress {
             $planned = round((float) $data['planned_pct'], 4);
             $actual = round((float) $data['actual_pct'], 4);
+            $source = WeeklyProgress::SOURCE_WEEKLY;
+
+            $project = Project::query()->findOrFail((int) $data['project_id']);
+
+            $measured = app(MeasurementService::class)
+                ->actualPctAt($project, (string) $data['period_end']);
+
+            if ($measured !== null) {
+                $actual = $measured;
+                $source = WeeklyProgress::SOURCE_MEASUREMENT;
+            }
 
             $row = WeeklyProgress::query()->updateOrCreate(
                 [
@@ -141,12 +162,12 @@ class ProgressService
                     'period_end' => $data['period_end'],
                     'planned_pct' => $planned,
                     'actual_pct' => $actual,
+                    'actual_pct_source' => $source,
                     'deviation_pct' => round($actual - $planned, 4),
                     'notes' => $data['notes'] ?? null,
                 ],
             );
 
-            $project = Project::query()->findOrFail((int) $data['project_id']);
             // reorder() is mandatory: weeklyProgress() carries a default
             // ->orderBy('week_no') asc, and a plain orderByDesc() would only be
             // APPENDED to it ("order by week_no asc, week_no desc"), so first()
@@ -159,6 +180,46 @@ class ProgressService
 
             return $row;
         });
+    }
+
+    /**
+     * P3 — re-derive every weekly row an approved opname now covers.
+     *
+     * Called by MeasurementService::approve, so the kurva-S stops disagreeing
+     * with the signed sheet the moment the sheet is signed rather than at the
+     * next weekly entry. Rows no opname covers are not touched at all: their
+     * typed percentage stays, and so does their 'weekly_report' label.
+     *
+     * The project header's actual_progress_pct is deliberately NOT moved here.
+     * That number is the frozen-weight WBS rollup (recalcProjectProgress), it
+     * is what EVM's as-of point and the BAST II checklist read, and quietly
+     * overwriting it from a different measurement basis would make two numbers
+     * that mean different things say the same thing. The opname's value-weighted
+     * percentage travels on the weekly rows, where its source is written down.
+     */
+    public function refreshWeeklyActualsFromMeasurements(Project $project): void
+    {
+        $measurements = app(MeasurementService::class);
+
+        foreach ($project->weeklyProgress()->reorder()->orderBy('period_end')->get() as $week) {
+            $periodEnd = $week->period_end?->toDateString();
+
+            if ($periodEnd === null) {
+                continue;
+            }
+
+            $derived = $measurements->actualPctAt($project, $periodEnd);
+
+            if ($derived === null) {
+                continue;
+            }
+
+            $week->forceFill([
+                'actual_pct' => $derived,
+                'actual_pct_source' => WeeklyProgress::SOURCE_MEASUREMENT,
+                'deviation_pct' => round($derived - (float) $week->planned_pct, 4),
+            ])->save();
+        }
     }
 
     /**

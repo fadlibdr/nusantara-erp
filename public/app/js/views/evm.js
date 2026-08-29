@@ -241,6 +241,38 @@ function curveLegend() {
   ]);
 }
 
+/*
+ * P3 — KALIMAT INI HARUS MENYEBUT SUMBERNYA, dan sejak P3 sumbernya dua.
+ *
+ * Sebelum P3 garis fisik selalu berasal dari persen yang diketik pengawas, dan
+ * keterangan di bawah kurva boleh mengatakannya sebagai fakta tetap. Sekarang
+ * minggu yang dicakup opname DISETUJUI membawa angka berbobot nilai dari
+ * volume terukur, dan minggu yang tidak tetap manual — dua hal yang sangat
+ * berbeda pada garis yang sama. `curve.actual_pct_source` (EvmService) menyebut
+ * sumber titik TERAKHIR, yaitu titik yang dibaca orang; menampilkan satu
+ * kalimat tetap untuk keduanya akan membuat kurva berbobot terbaca sebagai
+ * taksiran, atau — jauh lebih buruk — taksiran terbaca sebagai ukuran.
+ */
+function curveSourceNote(curve) {
+  const source = (curve || {}).actual_pct_source;
+
+  /* Proyek tanpa satu pun laporan mingguan: server sudah menjelaskan keadaannya
+     lewat `reason`, dan `actual_pct_source` di situ adalah nilai bawaan
+     'weekly_report' — bukan pernyataan tentang data yang ada. Menambahkan
+     kalimat "garis fisik memakai persen yang diketik" di atas kalimat "belum
+     ada laporan progres mingguan" akan menyebutkan sumber yang tidak ada. */
+  if ((curve || {}).reason) return null;
+
+  if (source === 'progress_measurement') {
+    return 'Garis fisik memakai OPNAME KE PEMILIK yang sudah disetujui — volume terukur '
+      + 'pada harga satuan kontrak, berbobot nilai atas BOQ (bukan persen yang diketik tangan).';
+  }
+
+  return 'Garis fisik memakai persen yang diketik pada laporan progres mingguan — sebuah '
+    + 'taksiran pengawas, bukan volume terukur. Opname ke pemilik yang disetujui akan '
+    + 'menggantikannya untuk minggu-minggu yang dicakupnya.';
+}
+
 /* --------------------------------------------------------- baseline actions */
 
 /**
@@ -454,6 +486,11 @@ export async function evmCard(projectId, prefetched) {
   if (curve) {
     body.appendChild(curve);
     body.appendChild(curveLegend());
+
+    const sourceNote = curveSourceNote(report.curve);
+    if (sourceNote) {
+      body.appendChild(el('p.muted', { text: sourceNote, style: { margin: '6px 0 0', fontSize: '12.5px' } }));
+    }
   }
 
   /* The two completion percentages, printed together with the sentence that
@@ -988,10 +1025,16 @@ function reportView(host, report, ctx) {
         el('p.muted', {
           text: (report.curve || {}).reason
             || 'Garis rencana adalah kurva yang dibekukan dari bobot dan tanggal WBS pada saat baseline '
-              + 'disetujui; garis fisik memakai laporan progres mingguan, dan titik terakhirnya memakai '
-              + 'agregat bobot beku yang juga dipakai seluruh angka di atas.',
+              + 'disetujui, dan titik terakhirnya memakai agregat bobot beku yang juga dipakai seluruh '
+              + 'angka di atas.',
           style: { margin: '10px 0 0', fontSize: '12.5px' },
         }),
+        curveSourceNote(report.curve)
+          ? el('p.muted', {
+            text: curveSourceNote(report.curve),
+            style: { margin: '6px 0 0', fontSize: '12.5px' },
+          })
+          : null,
       ])
       : el('p.muted', { text: 'Baseline ini tidak punya titik kurva.', style: { margin: 0 } })),
   ]));

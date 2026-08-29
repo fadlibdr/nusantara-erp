@@ -17,6 +17,7 @@ use Modules\Projects\Models\BaselineTask;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\ProjectBaseline;
 use Modules\Projects\Models\WbsTask;
+use Modules\Projects\Models\WeeklyProgress;
 use Modules\Projects\Support\PlannedCurve;
 
 /**
@@ -791,11 +792,20 @@ class EvmService
     /**
      * The chart: frozen planned points, plus whatever actual history exists.
      *
-     * prj_weekly_progress is the only physical history this schema stores, so
-     * it supplies actual_pct and is labelled as its source. It is NOT the
-     * planned series: those 8 rows stop at 29-03-2026 on a project running to
-     * 2027, they hold no forward plan at all, and planned_pct there is
-     * rewritable through an updateOrCreate. The frozen curve is the plan.
+     * prj_weekly_progress is the physical history this schema stores, so it
+     * supplies actual_pct. It is NOT the planned series: those 8 rows stop at
+     * 29-03-2026 on a project running to 2027, they hold no forward plan at
+     * all, and planned_pct there is rewritable through an updateOrCreate. The
+     * frozen curve is the plan.
+     *
+     * P3 — actual_pct_source is no longer the constant 'weekly_report'. A week
+     * an APPROVED OPNAME covers carries a value-weighted measurement instead of
+     * a typed estimate, and the row says which (WeeklyProgress::SOURCE_*). The
+     * label reported here is the source of the LAST week in the series — the
+     * point a reader's eye lands on, and the one the printed sheet quotes — so
+     * a curve fed by opnames can never be read as one fed by hand. A project
+     * with no weeks at all reports 'weekly_report' with a `reason` saying there
+     * is no history yet, which is the same answer it has always given.
      *
      * @param  list<string>  $warnings
      */
@@ -875,7 +885,9 @@ class EvmService
 
         return [
             'planned_source' => 'baseline_wbs',
-            'actual_pct_source' => 'weekly_report',
+            'actual_pct_source' => $weeks->isEmpty()
+                ? WeeklyProgress::SOURCE_WEEKLY
+                : (string) ($weeks->last()->actual_pct_source ?? WeeklyProgress::SOURCE_WEEKLY),
             'reason' => $reason,
             'points' => $points,
         ];

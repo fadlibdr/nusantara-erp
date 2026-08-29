@@ -38,7 +38,7 @@ class DocumentFormatValidationTest extends ErpTestCase
      * without a format — or a format dropped — must fail here rather than
      * quietly escape the data-provider sweep below.
      */
-    private const SHIPPED_DOCUMENT_TYPES = 47; // +IKL/ILB/IMK (P0-C) +SDS/SMS/TRM/IPP (P1-ENG) +QCI/NCR (P1-QC) +BAN/AWD/PBL (P2)
+    private const SHIPPED_DOCUMENT_TYPES = 50; // +IKL/ILB/IMK (P0-C) +SDS/SMS/TRM/IPP (P1-ENG) +QCI/NCR (P1-QC) +BAN/AWD/PBL (P2) +OPN/BAPP/BSK (P3)
 
     private SettingService $settings;
 

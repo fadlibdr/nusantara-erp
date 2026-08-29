@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 50 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 53 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai tiga belas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -2578,9 +2578,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**50 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**53 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-43 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+46 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2597,11 +2597,12 @@ rute — izinnya diturunkan per permintaan dari registri.
 | `fin.view` | 5 (tagihan vendor, bukti pembayaran, voucher jurnal, kewajiban pajak, ekualisasi pajak) |
 | `est.view` | 3 (RAB, AHSP, RAP) |
 | `eng.view` | 4 (persetujuan gambar SDS, persetujuan material SMS, transmittal, ijin pelaksanaan IPP) |
-| `scm.view` | 3 (SPK subkon, addendum SPK, opname subkon) |
+| `qc.view` | 3 (inspeksi mutu QCI, ketidaksesuaian NCR, benda uji beton) |
+| `scm.view` | 4 (SPK subkon, addendum SPK, opname subkon, **BAST subkon F/BST-SK, P3**) |
 | `hr.view` | 3 (rekap payroll, pengajuan cuti, daftar hadir) |
 | `svc.view` | 2 (berita acara servis, kontrak layanan) |
 | `ast.view` | 2 (kartu aset, berita acara mobilisasi) |
-| `prj.view` | 7 formulir khusus |
+| `prj.view` | 7 formulir khusus **+ 2 di registri** (opname ke pemilik F/OPN, BAPP per zona F/BAPP — keduanya P3) |
 
 **Penolakan yang akan dilihat pemakai**: 403 *"Anda tidak memiliki izin untuk mencetak
 formulir ini."*; slug tak dikenal 404 *"Jenis formulir cetak tidak dikenal: {form}."* —
@@ -2675,11 +2676,12 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Dua belas dari 50 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Tiga belas dari 53 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, **berita acara negosiasi (F/BAN, P2)**, berita acara
-opname, saldo stok, opname subkon, kewajiban pajak, ekualisasi pajak, rekap payroll, dan
-daftar hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, dan
-keputusan pemenang F/AWD).
+opname, saldo stok, opname subkon, **backsheet opname ke pemilik (F/OPN, P3)**, kewajiban
+pajak, ekualisasi pajak, rekap payroll, dan daftar hadir. Sisanya potret (termasuk ketiga
+formulir Mutu: F/QI, F/NCR, F/BU, keputusan pemenang F/AWD, dan kedua lembar P3 lainnya:
+BAPP per zona F/BAPP dan BAST subkon F/BST-SK).
 
 Lembarnya sengaja berdiri sendiri: CSS inline, tanpa stylesheet eksternal, tanpa font
 web, logo disisipkan sebagai data — "a font fetched over the network would make the same
@@ -2980,10 +2982,51 @@ sebenarnya berlaku, jangan mengutip angka dari repositori.
 | **Sebuah pengawas tenggat "tidak pernah berbunyi"** | Mungkin ia **BLIND** — semua tanggalnya NULL | Jalankan `erp:deadline-watch` tangan dan baca baris BLIND; keluaran terjadwal dibuang ke `/dev/null` — §5.2, §5.8 |
 | **Stok tidak bisa dicatat mundur** | Penjagaan kronologi: dokumen bertanggal lebih awal daripada pergerakan terakhir untuk (gudang, item) ditolak | Penolakannya menyebut tanggal paling awal yang bisa diterima dan menawarkan opname sebagai alternatif |
 | **Realisasi peralatan sebuah proyek nol padahal alatnya di lapangan berbulan-bulan** | Akrual bulanan belum dikejar | §12(d) |
+| **Pengawas bilang persen Aktual yang diketiknya "hilang" atau berubah sendiri di Progres Mingguan** | **Benar, bukan kerusakan.** Sebuah opname ke pemilik disetujui dan mencakup minggu itu | Kolom **Sumber aktual** pada barisnya berbunyi *Opname disetujui* — §11.2 |
 | **Neraca saldo Januari masih membawa pendapatan tahun lalu** | **Benar, bukan kerusakan** | §7 |
 | **Butir bank kuning "Jembatan cocok" padahal residualnya nol** | Masih ada item terbuka atau selisih saldo awal | §6.3 |
 
-### 11.2 Dua salah paham yang layak disebut sendiri
+### 11.2 Tiga salah paham yang layak disebut sendiri
+
+**Persen Aktual di Progres Mingguan punya DUA sumber sejak P3, dan opname menang.** Ini
+telepon yang akan Anda terima, jadi jawabannya ada di sini dan bukan di panduan pemakai.
+
+Sampai P3 kolom **Aktual** pada `Proyek › Progres Mingguan` selalu berisi persis persen
+yang diketik pengawas. Sekarang ada sumber kedua: **opname ke pemilik yang disetujui**
+(`OPN/…`), yang mengukur volume per item BOQ dan menurunkan persentase **berbobot nilai**
+— volume terukur pada harga satuan kontrak, dibagi nilai BOQ kontrak itu.
+
+**Yang menang, tanpa setelan dan tanpa pengecualian:**
+
+| Keadaan minggu itu | Angka yang disimpan | `actual_pct_source` |
+|---|---|---|
+| Ada opname **disetujui** yang periodenya berakhir pada atau sebelum akhir minggu itu | turunan berbobot nilai dari opname | `progress_measurement` — layar: *Opname disetujui* |
+| Tidak ada | persis yang diketik pengawas | `weekly_report` — layar: *Diketik (laporan mingguan)* |
+
+Opname **draf, diajukan, atau ditolak tidak menggantikan apa pun.** Hanya yang disetujui.
+
+**Mengapa persentase sebuah proyek bisa berubah pada hari opname pertamanya disetujui.**
+Menyetujui opname tidak hanya menulis baris minggu berjalan — ia **menurunkan ulang setiap
+baris progres mingguan yang dicakupnya**, termasuk minggu-minggu yang sudah lama
+tersimpan. Sebuah proyek yang kemarin berbunyi 62 % bisa berbunyi 57 % hari ini tanpa satu
+pun orang menyunting baris itu. Itu bukan kehilangan data: sebuah taksiran digantikan
+sebuah ukuran, dan **kolom Sumber aktual pada setiap baris mengatakan yang mana yang
+sedang dibaca**. Bila kolom itu tidak ada di layar seseorang, ia sedang melihat layar
+sempit — kolomnya disembunyikan pada lebar kecil, bukan hilang.
+
+Dua batas yang perlu Anda tahu sebelum menjawab telepon berikutnya:
+
+- **Progres WBS di halaman proyek TIDAK ikut bergerak.** Angka itu rollup bobot beku yang
+  dibaca EVM dan daftar periksa BAST II; ia diukur dengan dasar yang berbeda, dan opname
+  sengaja tidak menyentuhnya. Dua angka yang berbeda di dua layar karena itu bisa keduanya
+  benar.
+- **Kurva-S pada Laporan EVM ikut berpindah sumber**, dan kalimat di bawahnya menyebut
+  sumber **titik terakhir**. Kurva yang disuapi opname tidak pernah terbaca sebagai
+  taksiran, dan sebaliknya.
+
+Tidak ada perintah artisan dan tidak ada tombol untuk memaksa penurunan ulang: ia terjadi
+sebagai efek samping persetujuan opname (`MeasurementService::approve`). Bila sebuah baris
+terlihat salah, yang diperiksa adalah opnamenya — bukan baris mingguannya.
 
 **Ada dua tombol berbeda di layar detail yang sama-sama berarti "cetak".** Ikon printer
 tanpa label berjudul **"Cetak halaman"** adalah cetak halaman web itu sendiri — ia

@@ -10,6 +10,7 @@ use Illuminate\Validation\ValidationException;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\Erp;
+use Modules\Core\Support\Money;
 use Modules\Core\Support\Terbilang;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractTermin;
@@ -20,26 +21,63 @@ use Modules\Projects\Models\Project;
 /**
  * AR termin invoicing:
  *
- *   dpp       = termin amount (or contract value * percent / 100)
- *   ppn       = dpp * ppn_rate / 100     (PMK 131/2024 effective 11%)
+ *   dpp       = termin amount (or contract value * percent / 100), or — P3 —
+ *               the period value of an APPROVED owner opname
+ *   recovery  = potongan uang muka (OwnerAdvanceService; 0 without a billed DP)
+ *   penalty   = denda, manual, reason mandatory
+ *   ppn       = (dpp - recovery) * ppn_rate / 100   (PMK 131/2024 effective 11%;
+ *               see recalc for why the recovered slice is out of the base)
  *   retention = optional per-termin retensi withheld by the customer
- *   total     = dpp + ppn - retention
+ *   total     = dpp + ppn - retention - recovery - penalty
  *
  * Approval books the revenue journal, records the retention receivable and
  * stamps the termin as billed.
+ *
+ * P3 — THE OWNER CLAIM. A claim carrying measurement_id is assembled from a
+ * signed opname instead of a termin percentage: its DPP is measured volume at
+ * contract prices, and two gates ride on it. The first is kriteria #6 — a claim
+ * REFUSES to bill work in a zone whose latest BAPP says "Nunggu perbaikan",
+ * because billing a zone we have already written down as defective is how a
+ * retention gets released against work nobody accepted. The second is the DP:
+ * an opname claim bills the FULL value of the work, so the uang muka paid
+ * before any of it was built comes back out proportionally (OwnerAdvanceService,
+ * the mirror of the SPK side).
  */
 class ArInvoiceService
 {
+    /** Pendapatan Diterima Dimuka (Uang Muka) — the customer advance liability. */
+    private const CUSTOMER_ADVANCE_ACCOUNT = '2-1400';
+
+    /** Beban Denda & Potongan Lain-lain — denda the owner deducts from a claim. */
+    private const PENALTY_ACCOUNT = '7-2400';
+
+    /**
+     * The BAPP mark an owner claim refuses to bill, BY VALUE.
+     *
+     * Projects\Enums\ZoneCertificateStatus::WaitingRepair is the definition;
+     * this literal is the same read BastPrerequisiteService makes of qc_ncr's
+     * two open statuses, and for the same reason — Finance reading one project
+     * fact must not make Finance depend on the Projects module at runtime
+     * (TerminBillingService's rule, applied to prj_milestones). A test asserts
+     * the two still say the same word.
+     */
+    private const ZONE_BLOCKS_BILLING = 'waiting_repair';
+
     public function __construct(
         private readonly JournalService $journals,
+        private readonly OwnerAdvanceService $advances,
     ) {}
 
     /**
-     * Store entry point: from a contract termin when termin_id is given,
-     * manual otherwise.
+     * Store entry point: from an approved owner opname when measurement_id is
+     * given, from a contract termin when termin_id is, manual otherwise.
      */
     public function create(array $data): ArInvoice
     {
+        if (! empty($data['measurement_id'])) {
+            return $this->createFromMeasurement((int) $data['measurement_id'], $data);
+        }
+
         if (! empty($data['termin_id'])) {
             /** @var ContractTermin $termin */
             $termin = ContractTermin::query()->findOrFail($data['termin_id']);
@@ -153,18 +191,227 @@ class ArInvoiceService
     }
 
     /**
+     * P3 — the owner claim, assembled from a SIGNED opname.
+     *
+     * The opname must be APPROVED. A claim built from a draft measurement is a
+     * number nobody has agreed to, and the whole point of measuring volume per
+     * BOQ item is that somebody signed for it.
+     *
+     * The termin is deliberately NOT stamped billed here even when one is
+     * named: an opname claim bills MEASURED WORK against the contract, and a
+     * termin's billed_at is what stops a percentage termin being invoiced
+     * twice. Mixing the two schemes on one contract would let the same value
+     * out through both doors.
+     *
+     * $options: invoice_date?, due_date?, description?, retention_withheld?,
+     *           withhold_retention?, penalty_amount?, penalty_reason?
+     */
+    public function createFromMeasurement(int $measurementId, array $options = []): ArInvoice
+    {
+        return DB::transaction(function () use ($measurementId, $options): ArInvoice {
+            $measurement = $this->measurementRow($measurementId);
+
+            if ($measurement === null) {
+                throw new LogicException("Opname #{$measurementId} tidak ditemukan.");
+            }
+
+            if ($measurement->status !== DocumentStatus::Approved->value) {
+                throw new LogicException(
+                    "Opname {$measurement->code} berstatus {$measurement->status}; "
+                    .'hanya opname yang sudah disetujui dapat ditagihkan.'
+                );
+            }
+
+            $existing = ArInvoice::query()
+                ->where('measurement_id', $measurementId)
+                ->whereNot('status', DocumentStatus::Cancelled->value)
+                ->value('code');
+
+            if ($existing !== null) {
+                throw new LogicException(
+                    "Opname {$measurement->code} sudah ditagihkan lewat invoice {$existing}."
+                );
+            }
+
+            /** @var Contract $contract */
+            $contract = Contract::query()->findOrFail($measurement->contract_id);
+
+            if ($contract->status !== DocumentStatus::Approved) {
+                throw new LogicException(
+                    "Contract {$contract->code} is {$contract->status->value}; only approved contracts can be billed."
+                );
+            }
+
+            // KRITERIA #6 — before anything is priced.
+            $this->assertNoBlockedZone($measurement);
+
+            $dpp = round((float) $measurement->period_amount, 2);
+
+            if ($dpp <= 0.0) {
+                throw new LogicException(
+                    "Opname {$measurement->code} tidak mengukur volume apa pun pada periodenya; tidak ada yang dapat ditagih."
+                );
+            }
+
+            $retention = isset($options['retention_withheld'])
+                ? round((float) $options['retention_withheld'], 2)
+                : (! empty($options['withhold_retention'])
+                    ? round($dpp * (float) $contract->retention_pct / 100, 2)
+                    : 0.0);
+
+            $this->assertRetentionNotDoubled($contract, $retention);
+
+            $invoiceDate = $options['invoice_date'] ?? now()->toDateString();
+
+            return $this->build([
+                'customer_id' => (int) $contract->customer_id,
+                'contract_id' => (int) $contract->id,
+                'termin_id' => null,
+                'measurement_id' => $measurementId,
+                'project_id' => $measurement->project_id !== null
+                    ? (int) $measurement->project_id
+                    : $this->projectIdForContract((int) $contract->id),
+                'invoice_date' => $invoiceDate,
+                'due_date' => $options['due_date']
+                    ?? $this->defaultDueDate($invoiceDate, (int) $contract->customer_id),
+                'description' => $options['description'] ?? sprintf(
+                    'Penagihan opname %s periode %s s/d %s — %s (%s)',
+                    $measurement->code,
+                    $measurement->period_start,
+                    $measurement->period_end,
+                    $contract->title,
+                    $contract->code,
+                ),
+                'dpp' => $dpp,
+                'ppn_rate' => (float) ($contract->ppn_rate ?? Erp::float('tax.ppn_rate', 11.0)),
+                'retention_withheld' => $retention,
+                'penalty_amount' => round((float) ($options['penalty_amount'] ?? 0), 2),
+                'penalty_reason' => $options['penalty_reason'] ?? null,
+            ]);
+        });
+    }
+
+    /**
+     * KRITERIA #6 — an owner claim refuses to include a zone whose latest BAPP
+     * says "Nunggu perbaikan", and the refusal NAMES the zone.
+     *
+     * "Latest" is certified_at, then id: a zone is inspected more than once
+     * (BAPP I nunggu perbaikan → repair → BAPP II selesai) and only the last
+     * sheet describes it now. That is the same rule
+     * Projects\Services\ZoneCertificateService::statusFor applies; both tables
+     * are read here BY VALUE rather than through that service, the way
+     * TerminBillingService reads prj_milestones, so Finance keeps no runtime
+     * dependency on Projects. A test pins the two answers together.
+     *
+     * Lines with NO location are not blocked and not silently passed either —
+     * they are simply not zone work, and the BAPP has nothing to say about
+     * them. Refusing them would make location_id mandatory by the back door,
+     * which the spec explicitly says it is not.
+     */
+    private function assertNoBlockedZone(object $measurement): void
+    {
+        $locationIds = DB::table('prj_progress_measurement_items')
+            ->where('progress_measurement_id', $measurement->id)
+            ->whereNotNull('location_id')
+            ->distinct()
+            ->pluck('location_id')
+            ->all();
+
+        if ($locationIds === []) {
+            return;
+        }
+
+        $blocked = [];
+
+        foreach ($locationIds as $locationId) {
+            $status = DB::table('prj_zone_certificates')
+                ->where('project_id', $measurement->project_id)
+                ->where('location_id', $locationId)
+                ->whereNull('deleted_at')
+                ->orderByRaw('certified_at IS NULL')
+                ->orderByDesc('certified_at')
+                ->orderByDesc('id')
+                ->value('status');
+
+            if ($status !== self::ZONE_BLOCKS_BILLING) {
+                continue;
+            }
+
+            $zone = DB::table('core_locations')->where('id', $locationId)->first(['code', 'name']);
+
+            $blocked[] = $zone === null
+                ? "lokasi #{$locationId}"
+                : "{$zone->code} — {$zone->name}";
+        }
+
+        if ($blocked === []) {
+            return;
+        }
+
+        throw ValidationException::withMessages(['measurement_id' => sprintf(
+            'Zona %s pada opname %s masih berstatus "Nunggu perbaikan"; '
+            .'pekerjaan di zona itu tidak dapat ditagihkan sampai BAPP-nya menyatakan selesai.',
+            implode('; ', $blocked),
+            $measurement->code,
+        )]);
+    }
+
+    /**
+     * The opname row, read as a RAW TABLE — see assertNoBlockedZone for why
+     * Finance does not reach for the Projects model here.
+     */
+    private function measurementRow(int $measurementId): ?object
+    {
+        return DB::table('prj_progress_measurements')
+            ->where('id', $measurementId)
+            ->whereNull('deleted_at')
+            ->first(['id', 'code', 'project_id', 'contract_id', 'status', 'period_start', 'period_end', 'period_amount']);
+    }
+
+    /**
      * Approve + auto-journal:
      *
      *   Dr 1-1300 Piutang Usaha        total
      *   Dr 1-1350 Piutang Retensi      retention_withheld
+     *   Dr 2-1400 Uang Muka            advance_recovery_amount   (P3)
+     *   Dr 7-2400 Beban Denda          penalty_amount            (P3)
      *   Cr 4-xxxx Pendapatan           dpp        (account by project/contract type)
      *   Cr 2-1300 PPN Keluaran         ppn_amount
      *
-     * Balanced by construction: total + retention = dpp + ppn.
+     * Balanced by construction: total + retention + recovery + penalty = dpp + ppn.
+     * Zero legs are dropped by autoPost, so an ordinary termin invoice posts
+     * exactly the four lines it always did.
+     *
+     * AN ADVANCE INVOICE CREDITS 2-1400, NOT REVENUE. An uang muka is money
+     * received for work not yet done — a contract liability, not income — and
+     * the opname claims that follow bill the full value of the work and recover
+     * it out of them. Crediting revenue here and again on those claims would
+     * report the DP's value twice. Under the old termin-percentage scheme
+     * nothing was recovered (DP 20 % + progres 80 % = the contract), so
+     * is_advance defaults false and every existing invoice keeps posting to
+     * revenue exactly as it always has. Forward-only: no historical journal is
+     * restated by this.
      */
     public function approve(ArInvoice $invoice, User $by, ?string $note = null): ArInvoice
     {
         return DB::transaction(function () use ($invoice, $by, $note): ArInvoice {
+            // KRITERIA #6 re-checked at the money moment: a zone can be marked
+            // "Nunggu perbaikan" between drafting the claim and approving it,
+            // and approving is what books the receivable.
+            //
+            // Only on a SUBMITTED invoice, the ordering ProjectService::
+            // approveBast and Approvable's own maker-checker guard both use: a
+            // draft must still fail with the trait's "while status is draft",
+            // which is the more fundamental error and the message several
+            // suites assert verbatim.
+            if ($invoice->status === DocumentStatus::Submitted && $invoice->measurement_id !== null) {
+                $measurement = $this->measurementRow((int) $invoice->measurement_id);
+
+                if ($measurement !== null) {
+                    $this->assertNoBlockedZone($measurement);
+                }
+            }
+
             $invoice->approve($by, $note); // Approvable: submitted -> approved
 
             $retention = (float) $invoice->retention_withheld;
@@ -186,7 +433,21 @@ class ArInvoiceService
                         'project_id' => $invoice->project_id,
                     ],
                     [
-                        'account_code' => $this->revenueAccountCode($invoice),
+                        'account_code' => self::CUSTOMER_ADVANCE_ACCOUNT,
+                        'debit' => (float) $invoice->advance_recovery_amount,
+                        'description' => "Potongan uang muka {$invoice->code}",
+                        'project_id' => $invoice->project_id,
+                    ],
+                    [
+                        'account_code' => self::PENALTY_ACCOUNT,
+                        'debit' => (float) $invoice->penalty_amount,
+                        'description' => trim("Denda {$invoice->code} — ".(string) $invoice->penalty_reason),
+                        'project_id' => $invoice->project_id,
+                    ],
+                    [
+                        'account_code' => $invoice->is_advance
+                            ? self::CUSTOMER_ADVANCE_ACCOUNT
+                            : $this->revenueAccountCode($invoice),
                         'credit' => (float) $invoice->dpp,
                         'description' => $invoice->description,
                         'project_id' => $invoice->project_id,
@@ -356,6 +617,12 @@ class ArInvoiceService
 
             $invoice->fill(Arr::only($data, [
                 'invoice_date', 'due_date', 'description', 'dpp', 'ppn_rate', 'retention_withheld',
+                // P3 — the two manual deductions. measurement_id and is_advance
+                // are deliberately NOT editable: they decide which gates ran
+                // and which account the credit leg lands on, and switching
+                // either on a draft would silently re-price a claim somebody
+                // has already read.
+                'penalty_amount', 'penalty_reason',
             ]));
 
             // Pagar dua-pola retensi berlaku juga di sini: invoice yang lahir
@@ -514,6 +781,11 @@ class ArInvoiceService
                 'dpp' => round((float) $data['dpp'], 2),
                 'ppn_rate' => (float) ($data['ppn_rate'] ?? Erp::float('tax.ppn_rate', 11.0)),
                 'retention_withheld' => round((float) ($data['retention_withheld'] ?? 0), 2),
+                // P3 — the manual door for a DP invoice (there is no termin and
+                // no opname behind an uang muka) and for the two deductions.
+                'is_advance' => (bool) ($data['is_advance'] ?? false),
+                'penalty_amount' => round((float) ($data['penalty_amount'] ?? 0), 2),
+                'penalty_reason' => $data['penalty_reason'] ?? null,
             ]);
         });
     }
@@ -542,6 +814,12 @@ class ArInvoiceService
         $invoice = new ArInvoice($attributes);
         $invoice->status = DocumentStatus::Draft;
         $invoice->amount_paid = 0;
+        // Written explicitly rather than left to the column defaults: a DB
+        // default is not hydrated on a freshly built model, and recalc() below
+        // reads all three before the row exists (the WorkPermitService rule).
+        $invoice->is_advance = (bool) ($attributes['is_advance'] ?? false);
+        $invoice->advance_recovery_amount = 0;
+        $invoice->penalty_amount = round((float) ($attributes['penalty_amount'] ?? 0), 2);
 
         $this->recalc($invoice);
         $invoice->save(); // HasDocumentNumber fills the INV code
@@ -550,23 +828,108 @@ class ArInvoiceService
     }
 
     /**
-     * ppn, total and terbilang always derive from dpp/rate/retention.
+     * ppn, recovery, total and terbilang always derive from
+     * dpp / rate / retention / penalty.
+     *
+     * PPN IS CHARGED ON (dpp − recovery), mirroring the SPK opname exactly: the
+     * DP invoice already charged PPN on the advance, so leaving the recovered
+     * slice in the base here would charge it a second time. Across the contract
+     * the total PPN still comes to value × rate, which is the whole test of
+     * whether the netting is right. Retention does NOT reduce the base — it
+     * defers payment, not the supply.
+     *
+     * With no DP billed the recovery is zero and every line of this reduces to
+     * the arithmetic every existing invoice was computed with.
      */
     private function recalc(ArInvoice $invoice): void
     {
         $dpp = round((float) $invoice->dpp, 2);
-        $ppn = round($dpp * (float) $invoice->ppn_rate / 100, 2);
         $retention = round((float) $invoice->retention_withheld, 2);
+        $penalty = round((float) $invoice->penalty_amount, 2);
 
         if ($retention > $dpp) {
             throw new LogicException('Retention withheld cannot exceed the invoice DPP.');
         }
 
-        $total = round($dpp + $ppn - $retention, 2);
+        $this->assertPenaltyIsAccountedFor($invoice, $penalty);
 
+        if ($invoice->is_advance && $retention > 0) {
+            throw new LogicException(
+                'Invoice uang muka tidak menahan retensi: retensi ditahan dari nilai pekerjaan, '
+                .'dan uang muka belum membeli pekerjaan apa pun.'
+            );
+        }
+
+        $recovery = $this->recoveryFor($invoice, $dpp, $retention, $penalty);
+        $ppn = round(($dpp - $recovery) * (float) $invoice->ppn_rate / 100, 2);
+        $total = round($dpp + $ppn - $retention - $recovery - $penalty, 2);
+
+        if ($total < 0) {
+            throw new LogicException(sprintf(
+                'Potongan pada invoice ini (retensi %s, uang muka %s, denda %s) melebihi nilai tagihannya; '
+                .'kurangi dendanya atau tagih pada periode berikutnya.',
+                Money::format($retention),
+                Money::format($recovery),
+                Money::format($penalty),
+            ));
+        }
+
+        $invoice->advance_recovery_amount = $recovery;
         $invoice->ppn_amount = $ppn;
         $invoice->total = $total;
         $invoice->terbilang = Terbilang::rupiah($total);
+    }
+
+    /**
+     * Potongan uang muka — zero unless a DP was actually billed and approved on
+     * this contract. An advance invoice recovers nothing (it IS the advance).
+     */
+    private function recoveryFor(ArInvoice $invoice, float $dpp, float $retention, float $penalty): float
+    {
+        if ($invoice->is_advance || $invoice->contract_id === null) {
+            return 0.0;
+        }
+
+        $contract = Contract::query()->find($invoice->contract_id);
+
+        if ($contract === null) {
+            return 0.0;
+        }
+
+        return $this->advances->recoveryFor(
+            $contract,
+            $invoice->exists ? (int) $invoice->getKey() : null,
+            $dpp,
+            $retention,
+            $penalty,
+        );
+    }
+
+    /**
+     * DENDA WITHOUT A REASON IS A NUMBER NOBODY CAN DEFEND.
+     *
+     * A deduction on a signed Risalah Pembayaran is read months later by
+     * somebody reconciling why the customer paid less than the claim; an
+     * unexplained one is exactly the plausible-looking cell PANDUAN §13.5
+     * refuses to print, and it is also how a keying error survives review. The
+     * amount is manual on purpose — nothing here pretends to compute
+     * liquidated damages from a contract clause — so the reason is the only
+     * evidence the figure has.
+     */
+    private function assertPenaltyIsAccountedFor(ArInvoice $invoice, float $penalty): void
+    {
+        if ($penalty < 0) {
+            throw ValidationException::withMessages([
+                'penalty_amount' => 'Denda tidak boleh negatif; potongan yang menambah tagihan bukan denda.',
+            ]);
+        }
+
+        if ($penalty > 0 && trim((string) $invoice->penalty_reason) === '') {
+            throw ValidationException::withMessages([
+                'penalty_reason' => 'Denda wajib disertai alasan — sebutkan dasar pemotongannya '
+                    .'(keterlambatan, pekerjaan tidak sesuai, atau kesepakatan lain).',
+            ]);
+        }
     }
 
     /**

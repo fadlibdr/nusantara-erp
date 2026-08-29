@@ -20,6 +20,10 @@ class ArInvoiceUpdateRequest extends FormRequest
             'dpp' => ['sometimes', 'numeric', 'min:0.01'],
             'ppn_rate' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'retention_withheld' => ['sometimes', 'numeric', 'min:0'],
+            // P3 — see ArInvoiceStoreRequest for why the reason's requirement
+            // lives in the service and not in the rule set.
+            'penalty_amount' => ['sometimes', 'numeric', 'min:0'],
+            'penalty_reason' => ['sometimes', 'nullable', 'string', 'max:300'],
         ];
     }
 }

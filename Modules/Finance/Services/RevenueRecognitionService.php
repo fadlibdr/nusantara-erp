@@ -490,6 +490,14 @@ class RevenueRecognitionService
         $invoices = DB::table('fin_ar_invoices')
             ->where('contract_id', $contract->id)
             ->whereNull('deleted_at')
+            // P3 — an UANG MUKA invoice is not a billing of revenue. It credits
+            // 2-1400 Pendapatan Diterima Dimuka, never a 4-xxxx account, and
+            // the opname claims that follow bill the full value of the work and
+            // recover it out of them. Counting it here would have this engine
+            // credit revenue that no journal ever recognised, and then reverse
+            // it into 2-1410. Every pre-P3 invoice carries is_advance = false,
+            // so this filter changes nothing that has already been measured.
+            ->where('is_advance', false)
             ->whereIn('status', [DocumentStatus::Approved->value, DocumentStatus::Cancelled->value])
             ->whereDate('invoice_date', '<=', $periodEnd)
             ->orderBy('id')

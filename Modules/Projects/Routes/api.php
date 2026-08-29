@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Projects\Http\Controllers\BaselineController;
 use Modules\Projects\Http\Controllers\BastController;
+use Modules\Projects\Http\Controllers\ContractVariationController;
 use Modules\Projects\Http\Controllers\DailyReportController;
 use Modules\Projects\Http\Controllers\DefectController;
 use Modules\Projects\Http\Controllers\EvmController;
@@ -11,11 +12,13 @@ use Modules\Projects\Http\Controllers\ManpowerAssignmentController;
 use Modules\Projects\Http\Controllers\MaterialVarianceController;
 use Modules\Projects\Http\Controllers\MilestoneController;
 use Modules\Projects\Http\Controllers\OvertimePermitController;
+use Modules\Projects\Http\Controllers\ProgressMeasurementController;
 use Modules\Projects\Http\Controllers\ProjectController;
 use Modules\Projects\Http\Controllers\SafetyIncidentController;
 use Modules\Projects\Http\Controllers\WbsTaskController;
 use Modules\Projects\Http\Controllers\WeeklyProgressController;
 use Modules\Projects\Http\Controllers\WorkPermitController;
+use Modules\Projects\Http\Controllers\ZoneCertificateController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     // Projects — collection routes. Single-project routes sit at the BOTTOM of
@@ -157,6 +160,39 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // pekerjaan lapangan, bukan persetujuan kedua — dan satpam tidak memegang
     // prj.approve pada matriks peran mana pun.
     Route::post('gate-passes/{gatePass}/periksa', [GatePassController::class, 'periksa'])->middleware('permission:prj.update');
+
+    // P3 — opname ke pemilik (OPN). Literal prefix, so it stays above the
+    // `{project}` wildcard at the bottom of this file.
+    //
+    // The GET carries prj.view, on the same ground as the EVM and baseline
+    // GETs: an opname quotes measured volumes at contract unit prices, which
+    // is the commercially sensitive half of the RAB, and it is what the owner
+    // claim's DPP is computed from.
+    Route::get('progress-measurements', [ProgressMeasurementController::class, 'index'])->middleware('permission:prj.view');
+    Route::post('progress-measurements', [ProgressMeasurementController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('progress-measurements/{progressMeasurement}', [ProgressMeasurementController::class, 'show'])->middleware('permission:prj.view');
+    Route::put('progress-measurements/{progressMeasurement}', [ProgressMeasurementController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('progress-measurements/{progressMeasurement}', [ProgressMeasurementController::class, 'destroy'])->middleware('permission:prj.delete');
+    Route::post('progress-measurements/{progressMeasurement}/submit', [ProgressMeasurementController::class, 'submit'])->middleware('permission:prj.update');
+    Route::post('progress-measurements/{progressMeasurement}/approve', [ProgressMeasurementController::class, 'approve'])->middleware('permission:prj.approve');
+    Route::post('progress-measurements/{progressMeasurement}/reject', [ProgressMeasurementController::class, 'reject'])->middleware('permission:prj.approve');
+
+    // P3 — register volume tambah-kurang per item BOQ (plafon opname). prj.view
+    // for the same reason as the opname itself: these are contract quantities.
+    Route::get('contract-variations', [ContractVariationController::class, 'index'])->middleware('permission:prj.view');
+    Route::post('contract-variations', [ContractVariationController::class, 'store'])->middleware('permission:prj.update');
+    Route::put('contract-variations/{contractVariation}', [ContractVariationController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('contract-variations/{contractVariation}', [ContractVariationController::class, 'destroy'])->middleware('permission:prj.update');
+
+    // P3 — BAPP per zona. The GETs carry no explicit permission, like the
+    // module's other field-document GETs (daily-reports, defects): a zone's
+    // mark is what the site needs to read all day, and it names no money.
+    // Marking one "Selesai" runs the NCR gate in ZoneCertificateService.
+    Route::get('zone-certificates', [ZoneCertificateController::class, 'index']);
+    Route::post('zone-certificates', [ZoneCertificateController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('zone-certificates/{zoneCertificate}', [ZoneCertificateController::class, 'show']);
+    Route::put('zone-certificates/{zoneCertificate}', [ZoneCertificateController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('zone-certificates/{zoneCertificate}', [ZoneCertificateController::class, 'destroy'])->middleware('permission:prj.delete');
 
     // Manpower assignments
     Route::get('manpower-assignments', [ManpowerAssignmentController::class, 'index']);

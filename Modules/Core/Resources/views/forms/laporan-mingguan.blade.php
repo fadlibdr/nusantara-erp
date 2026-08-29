@@ -21,6 +21,12 @@
       RENCANA/        prj_weekly_progress, cumulative, matched to each week by
       REALISASI       DATE RANGE. A week with no row prints EMPTY. "0%" there
                       would read as a week in which the site did nothing.
+                      REALISASI is TWO different numbers since P3 — a typed
+                      percentage or an approved opname's value-weighted
+                      measurement (actual_pct_source) — so a measured week
+                      prints its OPNAME NUMBER under the figure and the footnote
+                      states the provenance of what was actually printed. An
+                      estimate and a measurement may not print identically.
 
     The header repeats on page two (thead + display: table-header-group in the
     layout), which is the whole reason these forms are browser-printed rather
@@ -47,6 +53,9 @@
         .jadwal tr.grup td { background: #f2f2f2; font-weight: bold; }
         .jadwal tfoot td { background: #f2f2f2; font-weight: bold; }
         .jadwal tfoot td.wk { text-align: center; }
+        /* The opname a measured realisasi came from, under its own figure. The
+           block is 26mm wide and an OPN code is 17 characters at 5.5pt. */
+        .jadwal tfoot td.wk .sumber { display: block; font-weight: normal; font-size: 5.5pt; letter-spacing: -.1pt; }
         .catatan-kaki { margin-top: 2mm; font-size: 6.8pt; line-height: 1.3; }
         .catatan-kaki ol { margin: .6mm 0 0; padding-left: 4.5mm; }
     </style>
@@ -116,7 +125,12 @@
                 <td colspan="4">JUMLAH BOBOT — REALISASI (kumulatif %)</td>
                 <td></td>
                 @foreach ($weeks as $minggu)
-                    <td class="wk" colspan="6">@if ($minggu['actual'] !== null){{ number_format($minggu['actual'], 4, ',', '.') }}@endif</td>
+                    {{-- The figure, and — when it came from an approved opname
+                         rather than from a typed percentage — the number of the
+                         opname that produced it. The footnote says what the
+                         mark means; an unmarked figure is a supervisor's
+                         estimate and must not read as a measurement. --}}
+                    <td class="wk" colspan="6">@if ($minggu['actual'] !== null){{ number_format($minggu['actual'], 4, ',', '.') }}@if ($minggu['actualNote'] !== null)<span class="sumber">{{ $minggu['actualNote'] }}</span>@endif @endif</td>
                 @endforeach
                 <td></td>
             </tr>

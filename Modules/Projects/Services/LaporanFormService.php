@@ -5,6 +5,7 @@ namespace Modules\Projects\Services;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Modules\Core\Enums\DocumentStatus;
 use Modules\Projects\Enums\DailyReportRole;
 use Modules\Projects\Models\BaselineTask;
 use Modules\Projects\Models\DailyReport;
@@ -12,6 +13,7 @@ use Modules\Projects\Models\DailyReportActivity;
 use Modules\Projects\Models\DailyReportEquipment;
 use Modules\Projects\Models\DailyReportManpower;
 use Modules\Projects\Models\DailyReportReceipt;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WbsTask;
 use Modules\Projects\Models\WeeklyProgress;
@@ -45,6 +47,13 @@ use Modules\Projects\Models\WeeklyProgress;
  *     and a week with no row comes back null rather than 0.0. "Rencana 0%,
  *     realisasi 0%" on a signed schedule sheet is a statement that the site
  *     stopped, and a missing row says nothing of the kind.
+ *   - REALISASI is one of TWO different numbers since P3 and the sheet says
+ *     which: a percentage a supervisor typed, or the value-weighted figure an
+ *     APPROVED OPNAME produced (prj_weekly_progress.actual_pct_source). An
+ *     estimate and a measurement printed identically, under one footnote
+ *     asserting a single provenance, is the plausible-looking cell PANDUAN
+ *     §13.5 forbids — so the measured weeks carry their opname number under
+ *     the figure and the footnote describes only the sources actually printed.
  *   - The bar in the day grid is prj_baseline_tasks' frozen span and nothing
  *     else. prj_wbs_tasks carries planned_start/planned_end too, but those move
  *     — a bar drawn from them redraws itself every time the plan slips, which is
@@ -344,8 +353,9 @@ class LaporanFormService
             'handFilled' => array_values(array_filter([
                 'Kolom VOLUME memuat volume KONTRAK dari BOQ yang tertaut, bukan volume bulan berjalan — '
                     .'ERP tidak menyimpan pemecahan volume per bulan; kosong berarti paket itu belum tertaut ke baris BOQ.',
-                'Baris JUMLAH BOBOT RENCANA dan REALISASI adalah persentase KUMULATIF proyek dari progres mingguan; '
+                'Baris JUMLAH BOBOT RENCANA adalah persentase RENCANA kumulatif proyek dari progres mingguan; '
                     .'minggu yang belum punya baris progres dicetak kosong, bukan 0%.',
+                $this->realisasiProvenance($weeks),
                 $baseline === null
                     ? 'Batang rencana TIDAK dicetak: proyek ini belum memiliki baseline yang disetujui, '
                         .'sehingga kolom hari diisi manual seperti pada form kertas.'
@@ -357,7 +367,16 @@ class LaporanFormService
 
     /**
      * The ISO weeks that overlap the month, with the cumulative progress row
-     * that covers each one.
+     * that covers each one — AND, for every week, where its realisasi came
+     * from.
+     *
+     * actualSource is the row's own label (WeeklyProgress::SOURCE_*), null for
+     * a week with no row at all. actualOpname is the opname whose approval put
+     * the figure there, and actualNote is what the sheet prints under the
+     * number — the opname's code, or the word alone when the document behind an
+     * opname-sourced week can no longer be found. A typed percentage carries
+     * neither, so an unmarked column and a marked one cannot be read as the
+     * same kind of statement.
      *
      * @return list<array<string, mixed>>
      */
@@ -366,6 +385,7 @@ class LaporanFormService
         $weeks = [];
         $cursor = $monthStart->startOfWeek(CarbonInterface::MONDAY);
         $index = 0;
+        $opnames = null; // loaded once, and only if a week actually needs it
 
         while ($cursor->lessThanOrEqualTo($monthEnd)) {
             $days = [];
@@ -385,6 +405,24 @@ class LaporanFormService
             $saturday = $cursor->addDays(5);
             $progress = $this->weekProgress($project, $cursor);
 
+            // Only a row that actually prints a figure gets a provenance: a
+            // week nobody reported says nothing about where its number came
+            // from, because it has no number.
+            $actual = $progress?->actual_pct === null ? null : (float) $progress->actual_pct;
+            $source = $actual === null
+                ? null
+                // The column is NOT NULL with a default, but a row written
+                // before the P3 migration (or by a raw insert) can still hand
+                // back null, and every such percentage genuinely was typed.
+                : (string) ($progress->actual_pct_source ?? WeeklyProgress::SOURCE_WEEKLY);
+
+            $opname = null;
+
+            if ($source === WeeklyProgress::SOURCE_MEASUREMENT) {
+                $opnames ??= $this->approvedOpnames($project);
+                $opname = $this->opnameAsAt($opnames, $progress?->period_end?->toDateString());
+            }
+
             $weeks[] = [
                 'roman' => self::ROMAN[$index] ?? (string) ($index + 1),
                 'start' => $cursor->toDateString(),
@@ -393,7 +431,12 @@ class LaporanFormService
                 'label' => $cursor->format('d/m').' – '.$saturday->format('d/m'),
                 'days' => $days,
                 'planned' => $progress?->planned_pct === null ? null : (float) $progress->planned_pct,
-                'actual' => $progress?->actual_pct === null ? null : (float) $progress->actual_pct,
+                'actual' => $actual,
+                'actualSource' => $source,
+                'actualOpname' => $opname,
+                'actualNote' => $source === WeeklyProgress::SOURCE_MEASUREMENT
+                    ? ($opname ?? 'dari opname disetujui')
+                    : null,
             ];
 
             $index++;
@@ -423,6 +466,115 @@ class LaporanFormService
             ->whereDate('period_end', '>=', $monday->toDateString())
             ->orderBy('period_start')
             ->first();
+    }
+
+    /**
+     * Every APPROVED opname of this project's contract, oldest first, as
+     * period_end => code.
+     *
+     * Keyed on the CONTRACT and filtered on the same two statuses
+     * MeasurementService::actualPctAt sums over, because the number printed in
+     * the REALISASI row is that sum: naming a document from a different set
+     * would name a document that did not produce the figure. A project with no
+     * contract cannot have an opname-sourced week at all, and gets no query.
+     *
+     * One query per sheet, loaded lazily and only when a week actually says
+     * SOURCE_MEASUREMENT — the same rule the rest of this read model keeps.
+     *
+     * @return list<array{end: string, code: string}>
+     */
+    private function approvedOpnames(Project $project): array
+    {
+        if ($project->contract_id === null) {
+            return [];
+        }
+
+        return ProgressMeasurement::query()
+            ->where('contract_id', $project->contract_id)
+            ->whereIn('status', [DocumentStatus::Approved->value, DocumentStatus::Closed->value])
+            ->orderBy('period_end')
+            ->orderBy('id')
+            ->get(['code', 'period_end'])
+            ->map(fn (ProgressMeasurement $row): array => [
+                'end' => (string) $row->period_end?->toDateString(),
+                'code' => (string) $row->code,
+            ])
+            ->all();
+    }
+
+    /**
+     * The LAST opname closing on or before this week's period_end — the one
+     * whose approval last moved the figure.
+     *
+     * The percentage itself is cumulative over every approved opname up to that
+     * date, which is why the footnote says so rather than letting one code be
+     * read as the whole story. Null when no opname reaches back that far, which
+     * on a row labelled SOURCE_MEASUREMENT means the document was deleted after
+     * it wrote the number: the sheet then prints the word without a number it
+     * cannot support.
+     *
+     * @param  list<array{end: string, code: string}>  $opnames
+     */
+    private function opnameAsAt(array $opnames, ?string $asOf): ?string
+    {
+        if ($asOf === null) {
+            return null;
+        }
+
+        $code = null;
+
+        // String comparison on 'Y-m-d' — exact and total, the rule bars() uses.
+        foreach ($opnames as $opname) {
+            if ($opname['end'] !== '' && $opname['end'] <= $asOf) {
+                $code = $opname['code'];
+            }
+        }
+
+        return $code;
+    }
+
+    /**
+     * The footnote sentence for the REALISASI row: it describes the sources the
+     * sheet ACTUALLY printed, and there are three different true sentences.
+     *
+     * A month whose weeks are all typed may not mention opname, a month whose
+     * weeks all came from opname may not call them progres mingguan, and a
+     * mixed month — which is the ordinary case while the first opname is being
+     * signed — has to say both and say which is which. A month that prints no
+     * realisasi at all gets no sentence: there is no number whose provenance
+     * could be stated.
+     *
+     * @param  list<array<string, mixed>>  $weeks
+     */
+    private function realisasiProvenance(array $weeks): ?string
+    {
+        $sources = array_column(array_filter($weeks, fn (array $week): bool => $week['actual'] !== null), 'actualSource');
+
+        $measured = in_array(WeeklyProgress::SOURCE_MEASUREMENT, $sources, true);
+        $typed = in_array(WeeklyProgress::SOURCE_WEEKLY, $sources, true);
+
+        if ($measured && $typed) {
+            return 'Baris JUMLAH BOBOT REALISASI bercampur sumber: minggu yang mencantumkan nomor OPN diambil dari '
+                .'OPNAME yang telah DISETUJUI — persentase berbobot NILAI atas BOQ kontrak, kumulatif sampai opname '
+                .'tersebut — sedangkan minggu tanpa nomor memakai persen yang DIKETIK pada progres mingguan '
+                .'(taksiran pengawas, bukan hasil pengukuran).';
+        }
+
+        if ($measured) {
+            return 'Baris JUMLAH BOBOT REALISASI diambil dari OPNAME yang telah DISETUJUI, bukan dari persen yang '
+                .'diketik pada progres mingguan: persentase berbobot NILAI atas BOQ kontrak. Nomor di bawah angkanya '
+                .'adalah opname terakhir yang tercakup; angkanya kumulatif atas seluruh opname disetujui sampai minggu itu.';
+        }
+
+        if ($typed) {
+            // Deliberately silent about opname: no figure on this sheet came
+            // from one, and naming a document the sheet does not print is how a
+            // footnote starts implying data that is not there.
+            return 'Baris JUMLAH BOBOT REALISASI adalah persentase realisasi kumulatif yang DIKETIK pada progres '
+                .'mingguan — taksiran pengawas, bukan hasil pengukuran volume di lapangan.';
+        }
+
+        return null;
     }
 
     /**
