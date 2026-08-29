@@ -307,6 +307,11 @@ class SubcontractFormService
      * approved tanpa berkata mana yang mana adalah angka total yang bohong —
      * kolom status membiarkan pembaca menjumlah sendiri yang sudah sah.
      *
+     * Kasbonnya ikut dimuat (withTrashed, seperti setiap dokumen uang di
+     * registri): aturan kejujuran P4 menuntut potongan kasbon menyebut KODE
+     * kasbonnya di lembar yang ditandatangani, dan kasbon yang dihapus setelah
+     * dipotong tetap harus bernama pada cetak ulangnya.
+     *
      * @return list<LaborClaim>
      */
     public function rekapUpahRows(LaborClaim $claim): array
@@ -314,13 +319,14 @@ class SubcontractFormService
         $projectId = $claim->laborContract?->project_id;
 
         if ($projectId === null) {
-            return [$claim];
+            return [$claim->loadMissing(['kasbon' => fn ($query) => $query->withTrashed()])];
         }
 
         return LaborClaim::query()
             ->with([
                 'laborContract' => fn ($query) => $query->withTrashed(),
                 'laborContract.vendor' => fn ($query) => $query->withTrashed(),
+                'kasbon' => fn ($query) => $query->withTrashed(),
             ])
             ->whereHas('laborContract', fn ($query) => $query
                 ->withTrashed()

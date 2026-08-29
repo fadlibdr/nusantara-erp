@@ -81,7 +81,10 @@ class LaborClaimService
             $this->syncItems($claim, $contract, $items);
             $this->recalcTotals($claim, $contract);
 
-            return $claim->load('items.laborContractItem', 'laborContract');
+            // 'kasbon' ikut dimuat: Resource memakai whenLoaded, dan potongan
+            // yang baru dicatat harus menyebut KODE kasbonnya pada respons
+            // LANGSUNG — bukan baru pada GET berikutnya.
+            return $claim->load('items.laborContractItem', 'laborContract', 'kasbon');
         });
     }
 
@@ -110,13 +113,25 @@ class LaborClaimService
 
             $this->recalcTotals($claim, $contract);
 
-            return $claim->load('items.laborContractItem', 'laborContract');
+            return $claim->load('items.laborContractItem', 'laborContract', 'kasbon');
         });
     }
 
     /**
-     * Semua guard berjalan ulang pada data HIDUP di dalam transaksi terkunci:
-     * plafon volume per baris, kesegaran qty_prev, dan sisa kasbon.
+     * Guard berjalan ulang pada data HIDUP di dalam transaksi terkunci:
+     * kesegaran qty_prev per baris dan sisa kasbon.
+     *
+     * Plafon volume TIDAK diperiksa ulang di sini — guard kesegaran terbukti
+     * menyubsumsinya: qty_prev/qty_this hanya ditulis syncItems, yang saat
+     * menulis juga menegakkan qty_this ≤ qty − qty_prev (assertWithinItemQty);
+     * qty baris SP3 beku begitu kontrak approved (klaim hanya tersusun atas
+     * kontrak approved, dan approved tak punya jalur kembali ke editable);
+     * dan semua kuantitas kelipatan 0,001 sedangkan toleransi kesegaran
+     * 0,0005 — lolos guard kesegaran berarti livePrev == qty_prev PERSIS,
+     * sehingga kondisi plafon di sini identik dengan yang sudah lolos saat
+     * opname disusun. Re-check yang dulu ada di sini dihapus sebagai kode
+     * mati, bukan pelonggaran; plafonnya dipagari dua test compose-time
+     * (jalur create dan jalur update) di LaborClaimTest.
      */
     public function approve(LaborClaim $claim, User $by, ?string $note = null): LaborClaim
     {
@@ -150,7 +165,9 @@ class LaborClaimService
                     );
                 }
 
-                $this->assertWithinItemQty($item, $livePrev, (float) $line->qty_this);
+                // Plafon sengaja tidak diperiksa ulang: begitu qty_prev
+                // terbukti segar, kondisinya identik dengan assert
+                // compose-time di syncItems — lihat docblock method ini.
             }
 
             // Sisa kasbon diperiksa ulang hidup-hidup: tagihan upah lain yang
@@ -164,7 +181,7 @@ class LaborClaimService
 
             $claim->approve($by, $note); // Approvable: submitted -> approved (maker-checker di dalamnya)
 
-            return $claim->load('items.laborContractItem', 'laborContract');
+            return $claim->load('items.laborContractItem', 'laborContract', 'kasbon');
         });
     }
 

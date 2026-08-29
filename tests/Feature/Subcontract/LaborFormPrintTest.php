@@ -2,8 +2,13 @@
 
 namespace Tests\Feature\Subcontract;
 
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Models\Company;
 use Modules\Core\Services\FormPrintService;
+use Modules\Finance\Enums\KasbonStatus;
+use Modules\Finance\Models\Account;
+use Modules\Finance\Models\Kasbon;
+use Modules\Finance\Models\PettyCashFund;
 use Tests\ErpTestCase;
 use Tests\Unit\Subcontract\LaborFixtures;
 
@@ -115,5 +120,96 @@ class LaborFormPrintTest extends ErpTestCase
         // Status tercetak per baris; dua status yang berbeda dua-duanya tampak.
         $this->assertStringContainsString('Disetujui', $html);
         $this->assertStringContainsString('Draf', $html);
+    }
+
+    public function test_rekap_upah_menyebut_kode_kasbon_hanya_pada_baris_yang_dipotong(): void
+    {
+        $kasbon = $this->issuedKasbon(3000000);
+
+        // Mandor A: opname approved DENGAN potongan kasbon (jangkar).
+        $contractA = $this->makeApprovedLaborContract(
+            ['title' => 'Upah bata'],
+            [['qty' => 100, 'unit_rate' => 50000, 'amount' => 5000000]],
+        );
+        $anchor = $this->approvedLaborClaim($contractA, [$contractA->items()->first()->id => 60], [
+            'kasbon_id' => $kasbon->id,
+            'kasbon_deduction_amount' => 1000000,
+        ]);
+
+        // Mandor B, proyek dan periode sama, TANPA potongan — barisnya tampil
+        // dengan sel kasbon KOSONG (garis), bukan kode pinjaman orang lain.
+        $mandorB = $this->makeMandor(['name' => 'Mandor Ibu Siti']);
+        $contractB = $this->makeApprovedLaborContract(
+            ['vendor_id' => $mandorB->id, 'title' => 'Upah plesteran'],
+            [['qty' => 80, 'unit_rate' => 40000, 'amount' => 3200000]],
+        );
+        $undeducted = $this->draftLaborClaim($contractB, [$contractB->items()->first()->id => 20]);
+
+        $html = $this->forms->html('rekap-upah', ['id' => $anchor->id]);
+
+        // Aturan kejujuran P4 di atas kertas yang ditandatangani tiga orang:
+        // potongan kasbon menyebut KODE kasbonnya pada barisnya sendiri —
+        // dan HANYA di sana.
+        $table = substr($html, (int) strpos($html, 'rekap-upah-baris'));
+        $table = substr($table, 0, (int) strpos($table, '</table>'));
+        $rows = array_values(array_filter(
+            explode('<tr>', $table),
+            static fn (string $row): bool => str_contains($row, 'OPM/'),
+        ));
+
+        $anchorRow = null;
+        $undeductedRow = null;
+        foreach ($rows as $row) {
+            if (str_contains($row, $anchor->code)) {
+                $anchorRow = $row;
+            }
+            if (str_contains($row, $undeducted->code)) {
+                $undeductedRow = $row;
+            }
+        }
+
+        $this->assertNotNull($anchorRow, 'Baris opname jangkar harus tercetak.');
+        $this->assertNotNull($undeductedRow, 'Baris opname tanpa potongan harus tercetak.');
+        $this->assertStringContainsString($kasbon->code, $anchorRow);
+        $this->assertStringNotContainsString($kasbon->code, $undeductedRow);
+    }
+
+    /**
+     * Kasbon ISSUED milik proyek SP3 default — salinan sadar dari
+     * LaborClaimTest::issuedKasbon: fixture dirakit bodoh di tempat tes yang
+     * memakainya (gaya LaborFixtures), bukan disembunyikan di trait bersama.
+     */
+    private function issuedKasbon(float $amount = 3000000): Kasbon
+    {
+        $this->seedLedger();
+
+        $fund = PettyCashFund::create([
+            'code' => 'PCF-P4-PRINT',
+            'name' => 'Kas Kecil Site P4',
+            'coa_account_id' => Account::query()->where('code', '1-1120')->value('id')
+                ?? Account::query()->where('is_postable', true)->value('id'),
+            'custodian_id' => $this->laborActor()->id,
+            'float_amount' => 10000000,
+            'is_active' => true,
+        ]);
+
+        $employeeId = DB::table('hr_employees')->insertGetId([
+            'code' => 'EMP-P4-PRINT', 'name' => 'Agus Prasetyo', 'nik_ktp' => '3175010101900002',
+            'gender' => 'male', 'birth_date' => '1990-01-01', 'ptkp_status' => 'TK/0',
+            'join_date' => '2024-01-05', 'employment_type' => 'tetap', 'position' => 'Site Manager',
+            'department' => 'proyek', 'base_salary' => 9000000,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return Kasbon::create([
+            'fund_id' => $fund->id,
+            'employee_id' => $employeeId,
+            'advance_date' => '2026-03-01',
+            'amount' => $amount,
+            'purpose' => 'Uang muka upah mandor',
+            'project_id' => $this->defaultLaborProject()->id,
+            'status' => KasbonStatus::Issued,
+            'created_by' => $this->laborActor()->id,
+        ]);
     }
 }

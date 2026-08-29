@@ -771,7 +771,8 @@ export async function renderKasKecil(host) {
     body.appendChild(positionRow(fund));
 
     /* Identitas imprest: float − bon belum diganti − kasbon berjalan − belanja
-       kasbon belum diganti harus sama dengan saldo GL laci. Rumusnya dihitung
+       kasbon belum diganti − potongan upah belum diganti harus sama dengan
+       saldo GL laci. Rumusnya dihitung
        SERVER (PettyCashFundService::imprestExpectation — satu rumah untuk satu
        rumus): versi layar yang lama menghitung sendiri tanpa suku belanja
        kasbon, sehingga setiap kasbon selesai meninggalkan alarm palsu
@@ -781,7 +782,7 @@ export async function renderKasKecil(host) {
     if (Number.isFinite(expected) && Math.abs(expected - Number(fund.balance)) > 0.01) {
       body.appendChild(el('.alert.warn', [
         icon('warn', 15),
-        el('div', { text: 'Identitas imprest tidak menutup: float − bon − kasbon berjalan − belanja kasbon '
+        el('div', { text: 'Identitas imprest tidak menutup: float − bon − kasbon berjalan − belanja kasbon − potongan upah '
           + `= ${fmt.rupiah(expected)}, tetapi saldo laci di GL ${fmt.rupiah(fund.balance)}. Biasanya `
           + 'pendanaan awal di bawah float atau isi ulang yang belum diposting penuh — cocokkan dengan '
           + 'uang fisik sebelum tutup hari.' }),
@@ -803,9 +804,14 @@ export async function renderKasKecil(host) {
     ]));
   }
 
-  /** Lima angka kasir: float, − bon, − kasbon, − belanja kasbon, = di laci. */
+  /** Lima angka kasir: float, − bon, − kasbon, − belanja kasbon, = di laci —
+      plus suku potongan upah HANYA saat ikut bermain: kasbon yang dipulihkan
+      lewat potongan upah mandor (P4) mengkredit piutang laci dari jurnal
+      tagihan upahnya, tanpa uang kembali ke laci, dan tanpa suku ini kolom-
+      kolom di baris ini tidak lagi menjumlah ke imprest_expected server. */
   function positionRow(fund) {
     const due = Number(fund.replenishment_due || 0);
+    const wageOffset = Number(fund.unreplenished_wage_offset_total || 0);
     return el('.stat-row', [
       el('.stat', [
         el('.label', { text: 'Dana tetap (float)' }),
@@ -829,6 +835,11 @@ export async function renderKasKecil(host) {
         el('.value.sm', { text: fmt.rupiah(fund.settled_kasbon_spend_total) }),
         el('.delta', { text: 'bukti pertanggungjawaban, menunggu isi ulang' }),
       ]),
+      ...(wageOffset > 0 ? [el('.stat', [
+        el('.label', { text: '− Potongan upah belum diganti' }),
+        el('.value.sm', { text: fmt.rupiah(wageOffset) }),
+        el('.delta', { text: 'kasbon dipotong upah mandor, menunggu isi ulang' }),
+      ])] : []),
       el('.stat', [
         el('.label', { text: '= Seharusnya di laci' }),
         el('.value.sm', { text: fmt.rupiah(fund.balance) }),

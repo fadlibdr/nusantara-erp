@@ -4075,7 +4075,7 @@ class PrintableDocuments
                 'label' => 'Rekap Upah',
                 'formTitle' => 'REKAP UPAH MANDOR PER PROYEK PER PERIODE',
                 'formCode' => 'Form F/RU',
-                // Sembilan kolom badan — lanskap, aturan registry sendiri.
+                // Sepuluh kolom badan — lanskap, aturan registry sendiri.
                 'orientation' => 'landscape',
                 'with' => [
                     'laborContract' => fn ($query) => $query->withTrashed(),
@@ -4118,6 +4118,15 @@ class PrintableDocuments
                                 'value' => 'pph_amount', 'cast' => 'money'],
                             ['label' => 'POT. KASBON (Rp)', 'align' => 'right', 'width' => '28mm',
                                 'value' => 'kasbon_deduction_amount', 'cast' => 'money'],
+                            // Aturan kejujuran P4 juga di atas kertas: potongan
+                            // kasbon menyebut KODE kasbonnya pada barisnya.
+                            // Baris tanpa potongan tetap garis kosong — kode
+                            // kasbon yang kebetulan tertaut tanpa potongan
+                            // bukan fakta lembar ini.
+                            ['label' => 'KODE KASBON', 'align' => 'center', 'width' => '26mm',
+                                'value' => fn (LaborClaim $row): ?string => (float) $row->kasbon_deduction_amount > 0
+                                    ? $row->kasbon?->code
+                                    : null],
                             ['label' => 'NETTO (Rp)', 'align' => 'right', 'width' => '30mm',
                                 'value' => 'net_payable', 'cast' => 'money'],
                             // text cast prints the DocumentStatus label.

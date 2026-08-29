@@ -84,6 +84,84 @@ class LaborClaimTest extends ErpTestCase
         $this->assertSame(DocumentStatus::Submitted, $second->fresh()->status);
     }
 
+    /**
+     * Pin kedua atas klausa plafon compose-time, lewat jalur fixture yang
+     * BERBEDA dari test_qty_melebihi_sisa_sp3_ditolak_saat_menyusun: bukan
+     * create dengan riwayat approved, melainkan UPDATE draf yang menembus qty
+     * kontrak mentah. Dua pin pada dua jalur — mencabut klausa sisa di
+     * assertWithinItemQty harus memerahkan keduanya.
+     */
+    public function test_qty_melebihi_qty_kontrak_ditolak_saat_mengubah_opname(): void
+    {
+        $contract = $this->makeApprovedLaborContract(
+            [],
+            [['qty' => 100, 'unit' => 'm2', 'unit_rate' => 50000, 'amount' => 5000000]],
+        );
+        $item = $contract->items()->first();
+
+        // Draf sah 50 dari 100 — lalu diubah menembus qty kontraknya.
+        $claim = $this->draftLaborClaim($contract, [$item->id => 50]);
+
+        try {
+            $this->laborClaims()->updateClaim($claim, [
+                'items' => [['labor_contract_item_id' => $item->id, 'qty_this' => 120]],
+            ]);
+            $this->fail('Perubahan volume menembus qty kontrak harus ditolak.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('melebihi sisa', $e->getMessage());
+        }
+
+        // Transaksi digulung balik utuh: baris draf lamanya masih 50, bukan
+        // terhapus oleh syncItems yang setengah jalan.
+        $this->assertSame('50.000', (string) $claim->fresh()->items()->first()->qty_this);
+    }
+
+    /**
+     * Plafon menghitung klaim APPROVED SAJA (docblock LaborClaimService dan
+     * approvedQtyFor): opname yang DITOLAK melepas volumenya kembali ke baris
+     * SP3, dan opname yang baru diajukan (submitted) memang BELUM menahan
+     * volume — draft/submitted bukan reservasi, itu perilaku yang
+     * didokumentasikan.
+     */
+    public function test_opname_ditolak_melepas_volume_dan_submitted_tidak_menahan(): void
+    {
+        $contract = $this->makeApprovedLaborContract(
+            [],
+            [['qty' => 100, 'unit' => 'm2', 'unit_rate' => 50000, 'amount' => 5000000]],
+        );
+        $item = $contract->items()->first();
+
+        // 60 dari 100 disetujui — sisa hidup 40.
+        $this->approvedLaborClaim($contract, [$item->id => 60]);
+
+        // Opname 40 diajukan, belum diputus.
+        $submitted = $this->draftLaborClaim($contract, [$item->id => 40]);
+        $submitted->submit($this->laborActor());
+
+        // SUBMITTED TIDAK menahan volume: draf 40 lain atas baris yang sama
+        // tetap tersusun, dengan qty_prev 60 (yang approved saja).
+        $whileSubmitted = $this->draftLaborClaim($contract, [$item->id => 40]);
+        $this->assertSame('60.000', (string) $whileSubmitted->items()->first()->qty_prev);
+
+        // Ditolak: volumenya lepas kembali ke baris SP3...
+        $submitted->refresh()->reject($this->laborApprover(), 'Volume tidak sesuai cek lapangan');
+        $this->assertSame(DocumentStatus::Rejected, $submitted->fresh()->status);
+
+        // ...sehingga opname 40 yang segar tersusun DAN disetujui penuh.
+        $fresh = $this->approvedLaborClaim($contract, [$item->id => 40]);
+        $this->assertSame('60.000', (string) $fresh->items()->first()->qty_prev);
+        $this->assertSame(DocumentStatus::Approved, $fresh->fresh()->status);
+
+        // Plafon kini lunas persis (60 + 40 approved): draf baru sekecil apa
+        // pun ditolak — dan yang rejected memang tidak pernah ikut dihitung.
+        try {
+            $this->draftLaborClaim($contract, [$item->id => 1]);
+            $this->fail('Baris yang plafonnya lunas harus menolak volume baru.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('melebihi sisa', $e->getMessage());
+        }
+    }
+
     // ------------------------------------------------------------ matematika
 
     public function test_matematika_upah_ppn_nol_pph_final_umkm(): void
@@ -277,6 +355,32 @@ class LaborClaimTest extends ErpTestCase
         } catch (LogicException $e) {
             $this->assertStringContainsString('menunjuk kasbon', $e->getMessage());
         }
+    }
+
+    public function test_respon_store_langsung_menyebut_kode_kasbon_yang_dipotong(): void
+    {
+        $kasbon = $this->issuedKasbon(3000000);
+
+        $contract = $this->makeApprovedLaborContract(
+            [],
+            [['qty' => 100, 'unit' => 'm2', 'unit_rate' => 50000, 'amount' => 5000000]],
+        );
+        $item = $contract->items()->first();
+
+        // Aturan kejujuran P4 di respons LANGSUNG: potongan yang baru dicatat
+        // menyebut KODE kasbonnya saat itu juga — bukan baru pada GET
+        // berikutnya (index/show), karena Resource memakai whenLoaded.
+        $this->postJson('/api/subcontract/labor-claims', [
+            'labor_contract_id' => $contract->id,
+            'period_start' => '2026-03-01',
+            'period_end' => '2026-03-31',
+            'kasbon_id' => $kasbon->id,
+            'kasbon_deduction_amount' => 2000000,
+            'items' => [['labor_contract_item_id' => $item->id, 'qty_this' => 50]],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.kasbon.code', $kasbon->code)
+            ->assertJsonPath('data.kasbon.id', $kasbon->id);
     }
 
     // ------------------------------------------------------------ maker-checker
