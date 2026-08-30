@@ -85,6 +85,21 @@ class AssetDisposalService
                 throw new LogicException("Aset {$asset->code} sudah dihapusbukukan pada {$asset->disposal_date?->toDateString()}.");
             }
 
+            /*
+             * P5 — alat SEWA tidak punya apa pun di neraca untuk dilepas:
+             * harga perolehan NULL, akumulasi 0. Tanpa guard ini postJournal
+             * membukukan Dr 1-1300 sebesar nilai pelepasan lawan "laba" penuh
+             * di 7-1200 — piutang dan laba atas penjualan mesin yang bukan
+             * milik kita. Mengakhiri sebuah sewa adalah mengembalikan
+             * mobilisasinya lalu menonaktifkan masternya, bukan pelepasan.
+             */
+            if ($asset->isRented()) {
+                throw new LogicException(
+                    'Alat sewa tidak dihapusbukukan — alat milik vendor rental dikembalikan ke pemiliknya, '
+                    .'bukan dilepas dari neraca. Akhiri mobilisasinya lalu nonaktifkan masternya.'
+                );
+            }
+
             if ($asset->status === AssetStatus::Deployed) {
                 throw new LogicException("Aset {$asset->code} sedang termobilisasi; kembalikan dari proyek sebelum dihapusbukukan.");
             }

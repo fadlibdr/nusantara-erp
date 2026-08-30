@@ -42,8 +42,10 @@ export const SOURCES = {
   mandorVendors: { path: 'procurement/vendors', label: 'name', sub: 'picker_label', params: { vendor_type: 'mandor' }, title: 'Mandor' },
   laborContracts: { path: 'subcontract/labor-contracts', label: 'code', sub: 'title', title: 'SP3 mandor' },
   laborClaims: { path: 'subcontract/labor-claims', label: 'code', sub: 'notes', title: 'Opname mandor' },
-  // P5 — pemilih PPK (tagihan periode alat sewa & jasa).
+  // P5 — pemilih PPK (tagihan periode alat sewa & jasa) dan pemilih tagihan
+  // periodenya (formulir AP "Dari tagihan periode PPK").
   workOrders: { path: 'procurement/work-orders', label: 'code', sub: 'title', title: 'PPK alat & jasa' },
+  workOrderBillings: { path: 'procurement/work-order-billings', label: 'code', sub: 'work_order_code', title: 'Tagihan periode PPK' },
   purchaseRequisitions: { path: 'procurement/purchase-requisitions', label: 'purpose', sub: 'code', title: 'Permintaan pembelian' },
   purchaseOrders: { path: 'procurement/purchase-orders', label: 'code', sub: 'notes', title: 'Pesanan pembelian' },
   rfqs: { path: 'procurement/rfqs', label: 'code', sub: 'notes', title: 'RFQ (banding penawaran)' },

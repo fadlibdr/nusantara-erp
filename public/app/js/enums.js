@@ -355,6 +355,13 @@ export const ENUMS = {
     ['available', 'Tersedia'], ['deployed', 'Termobilisasi'],
     ['maintenance', 'Dalam Perawatan'], ['disposed', 'Dihapusbukukan'],
   ]),
+  // P5 — kepemilikan aset. Sewa: kolom perolehan/penyusutan NULL (bergaris,
+  // bukan Rp 0 — alat itu tidak ada di neraca kita) dan tidak pernah
+  // disusutkan; kepemilikan TIDAK bisa diubah lewat sunting biasa (beli-putus
+  // alat sewa adalah peristiwa akuntansi, bukan suntingan register).
+  assetOwnership: opts([
+    ['owned', 'Milik sendiri'], ['rented', 'Sewa'],
+  ]),
   // Tanpa 'disposed': status itu hanya lahir dari aksi "Hapus Buku / Jual"
   // (POST assets/{id}/dispose) yang memposting jurnal pelepasannya — lewat
   // update biasa server kini menolaknya (Temuan 55).

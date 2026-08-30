@@ -241,4 +241,47 @@ class AssetOwnershipTest extends ErpTestCase
         $this->assertSame('rented', $row['ownership']);
         $this->assertSame(31, $row['days_deployed']);
     }
+
+    /**
+     * P5 (lane SPA, deviasi ditemukan) — alat SEWA tidak bisa dihapusbukukan:
+     * tidak ada apa pun di neraca untuk dilepas (harga perolehan NULL,
+     * akumulasi 0), dan jurnal pelepasan atas NULL akan memposting angka
+     * karangan. Alat sewa dikembalikan ke lessor (mobilisasi selesai, master
+     * dinonaktifkan) — bukan dilepas dari neraca. Tanpa guard ini tombol
+     * "Hapus Buku / Jual" memposting Dr 1-1300 sebesar nilai pelepasan lawan
+     * "laba" penuh di 7-1200, atas mesin yang bukan milik kita.
+     */
+    public function test_alat_sewa_tidak_bisa_dihapusbukukan(): void
+    {
+        $id = $this->postJson('/api/assets/assets', $this->rentedPayload())->json('data.id');
+
+        $this->postJson("/api/assets/assets/{$id}/dispose", [
+            'disposal_date' => '2026-08-01',
+            'disposal_value' => 25_000_000,
+            'reason' => 'Dijual.',
+        ])->assertStatus(422)
+            ->assertJsonFragment(['message' => 'Alat sewa tidak dihapusbukukan — alat milik vendor rental dikembalikan ke pemiliknya, bukan dilepas dari neraca. Akhiri mobilisasinya lalu nonaktifkan masternya.']);
+    }
+
+    /**
+     * P5 (lane SPA) — saringan Kepemilikan pada register aset: layar daftar
+     * menawarkan filter ownership, dan filter yang server-nya diam-diam
+     * mengabaikan adalah daftar yang berbohong — semua aset tampil di bawah
+     * label "Sewa".
+     */
+    public function test_daftar_aset_tersaring_ownership(): void
+    {
+        $this->postJson('/api/assets/assets', $this->ownedPayload())->assertCreated();
+        $this->postJson('/api/assets/assets', $this->rentedPayload())->assertCreated();
+
+        $rented = $this->getJson('/api/assets/assets?ownership=rented')->assertOk()->json('data');
+        $this->assertCount(1, $rented);
+        $this->assertSame('rented', $rented[0]['ownership']);
+
+        $owned = $this->getJson('/api/assets/assets?ownership=owned')->assertOk()->json('data');
+        $this->assertCount(1, $owned);
+        $this->assertSame('owned', $owned[0]['ownership']);
+
+        $this->assertCount(2, $this->getJson('/api/assets/assets')->assertOk()->json('data'));
+    }
 }

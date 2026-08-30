@@ -44,6 +44,8 @@ class AssetController extends ApiController
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            // P5 — saringan kepemilikan (owned|rented) untuk monitoring sewa.
+            ->when($request->filled('ownership'), fn ($query) => $query->where('ownership', $request->string('ownership')))
             ->when($request->filled('project_id'), fn ($query) => $query->where('current_project_id', $request->integer('project_id')))
             ->orderBy('code');
 

@@ -509,4 +509,114 @@ class AssetPrintTest extends ErpTestCase
 
         $this->assertStringContainsString('10.000.000,00', $html);
     }
+
+    // ------------------------------------------------- kartu aset sewa (P5)
+
+    /**
+     * A rented machine, the shape AssetController::store writes for
+     * ownership=rented: no purchase facts at all, book value NULL — the
+     * machine is the lessor's and was never on our balance sheet.
+     */
+    private function rentedAsset(array $attributes = []): Asset
+    {
+        $lessor = Vendor::query()->create([
+            'name' => 'PT Alat Berat Nusantara',
+            'classification' => 'jasa',
+            'vendor_type' => 'rental',
+            'is_pkp' => true,
+            'status' => 'active',
+        ]);
+
+        return Asset::query()->create(array_merge([
+            'code' => 'AST-0002',
+            'name' => 'Excavator Hitachi ZX200 (sewa)',
+            'category_id' => $this->category()->id,
+            'ownership' => 'rented',
+            'vendor_id' => $lessor->id,
+            'rental_rate' => 350_000,
+            'rate_basis' => 'per_jam',
+            'rental_start' => '2026-06-01',
+            'rental_end' => '2026-12-31',
+            'acquisition_date' => null,
+            'acquisition_cost' => null,
+            'salvage_value' => 0,
+            'useful_life_months' => 0,
+            'depreciation_start_date' => null,
+            'accumulated_depreciation' => 0,
+            'book_value' => null,
+            'status' => 'available',
+        ], $attributes));
+    }
+
+    /**
+     * P5 — THE HONESTY RULE ON THE BOOK-VALUE CELL. A rented machine's
+     * book_value is NULL and the card rules it: "Rp 0,00" there would be a
+     * balance-sheet claim about a machine that was never on our balance
+     * sheet. Same for the purchase facts — the machine was never bought.
+     */
+    public function test_a_rented_asset_rules_its_book_value_and_purchase_lines(): void
+    {
+        $html = $this->forms->html('kartu-aset', ['id' => $this->rentedAsset()->id]);
+
+        $this->assertMatchesRegularExpression($this->ruledIdentityCell('NILAI BUKU'), $html);
+        $this->assertMatchesRegularExpression($this->ruledIdentityCell('HARGA PEROLEHAN'), $html);
+        $this->assertMatchesRegularExpression($this->ruledIdentityCell('TANGGAL PEROLEHAN'), $html);
+        $this->assertMatchesRegularExpression($this->ruledIdentityCell('PENYUSUTAN PER BULAN'), $html);
+        $this->assertStringNotContainsString('null', $html);
+    }
+
+    /** The card says which kind of machine this is, off the stored enum. */
+    public function test_the_card_states_ownership_for_both_kinds(): void
+    {
+        $rented = $this->forms->html('kartu-aset', ['id' => $this->rentedAsset()->id]);
+        $this->assertMatchesRegularExpression($this->identityCell('KEPEMILIKAN', 'Sewa'), $rented);
+
+        $owned = $this->forms->html('kartu-aset', ['id' => $this->asset()->id]);
+        $this->assertMatchesRegularExpression($this->identityCell('KEPEMILIKAN', 'Milik sendiri'), $owned);
+    }
+
+    /**
+     * The rental facts ride in the catatan block, the same reasoning as the
+     * disposal facts: identity lines print their label whether or not they
+     * have a value, so putting VENDOR RENTAL / TARIF SEWA there would leave
+     * every OWNED card carrying ruled lines inviting a lessor to be written
+     * onto a machine the company owns.
+     */
+    public function test_the_rental_facts_ride_in_the_catatan_block(): void
+    {
+        $html = $this->forms->html('kartu-aset', ['id' => $this->rentedAsset()->id]);
+
+        $this->assertStringContainsString('PT Alat Berat Nusantara', $html);
+        $this->assertStringContainsString('350.000,00', $html);
+        $this->assertStringContainsString('per jam', $html);
+        $this->assertStringContainsString('01 Juni 2026', $html);
+        $this->assertStringContainsString('31 Desember 2026', $html);
+    }
+
+    /** ...and an owned card says nothing about a rental. */
+    public function test_an_owned_card_says_nothing_about_a_rental(): void
+    {
+        $html = $this->forms->html('kartu-aset', ['id' => $this->asset()->id]);
+
+        $this->assertStringNotContainsString('Aset sewa', $html);
+        $this->assertStringNotContainsString('VENDOR RENTAL', $html);
+    }
+
+    /**
+     * A rental with no stated period still composes a sentence, not a stray
+     * " : ." — the same defensive wording the disposal sentence carries, and
+     * for the same reason: seeders and imports write columns without passing
+     * a FormRequest.
+     */
+    public function test_a_rental_with_no_period_still_reads_as_a_sentence(): void
+    {
+        $html = $this->forms->html('kartu-aset', ['id' => $this->rentedAsset([
+            'rental_start' => null,
+            'rental_end' => null,
+        ])->id]);
+
+        $this->assertStringContainsString('PT Alat Berat Nusantara', $html);
+        $this->assertStringNotContainsString(' : .', $html);
+        $this->assertStringNotContainsString('null', $html);
+    }
 }

@@ -45,6 +45,15 @@ function approvalActions(module, { submitPerm, approvePerm } = {}) {
 const statusColumn = { key: 'status', label: 'Status', type: 'status', width: '1%' };
 const codeColumn = { key: 'code', label: 'Kode', type: 'code', width: '1%' };
 
+/* P5 — kepemilikan aset pada form aset. Saat MEMBUAT, select ownership yang
+   menentukan; saat MENYUNTING field itu createOnly (kepemilikan tidak bisa
+   diubah — beli-putus alat sewa adalah peristiwa akuntansi), jadi dibaca dari
+   record. Server menolak kolom pihak lain dengan prohibited_if dua arah,
+   sehingga field yang tersembunyi memang TIDAK boleh ikut terkirim
+   (form.js visibleWhen menahannya dari payload). */
+const ASSET_OWNED = (values, record) => (values.ownership ?? (record && record.ownership) ?? 'owned') === 'owned';
+const ASSET_RENTED = (values, record) => (values.ownership ?? (record && record.ownership) ?? 'owned') === 'rented';
+
 export const RESOURCES = {
   /* ============================================================== CRM === */
   'crm/customers': {
@@ -2152,6 +2161,19 @@ export const RESOURCES = {
           { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
         ],
         totalKey: 'amount',
+      }, {
+        /* P5 — monitoring sewa (deviasi 3.6): periode mana saja yang sudah
+           ditagih atas PPK ini, langsung di dokumennya. Tagihan periodenya
+           DIBUAT dari layar Tagihan Periode PPK (NAV Pengadaan) — kuantitas
+           diturunkan server, tidak ada angka yang diketik. */
+        key: 'billings', label: 'Tagihan periode yang sudah dibuat',
+        columns: [
+          { key: 'code', label: 'Kode', type: 'code' },
+          { key: 'period_start', label: 'Periode mulai', type: 'date' },
+          { key: 'period_end', label: 'Periode selesai', type: 'date' },
+          { key: 'total_amount', label: 'Nilai (DPP)', type: 'currency', align: 'right' },
+        ],
+        totalKey: 'total_amount',
       }],
     },
     actions: approvalActions('prc'),
@@ -2193,7 +2215,7 @@ export const RESOURCES = {
         key: 'lines', label: 'Rincian kuantitas',
         columns: [
           { key: 'description', label: 'Uraian' },
-          { key: 'rate_basis', label: 'Basis' },
+          { key: 'rate_basis', label: 'Basis', type: 'enum', enum: 'rateBasis' },
           { key: 'meter_start', label: 'Meter awal', type: 'qty', align: 'right' },
           { key: 'meter_end', label: 'Meter akhir', type: 'qty', align: 'right' },
           { key: 'qty', label: 'Kuantitas', type: 'qty', align: 'right' },
@@ -3535,7 +3557,7 @@ export const RESOURCES = {
     form: {
       sections: [{
         title: 'Tagihan vendor',
-        help: 'Isi PO, opname subkon, atau opname mandor untuk menyalin nilainya otomatis; kosongkan semuanya untuk tagihan manual.',
+        help: 'Isi PO, opname subkon, opname mandor, atau tagihan periode PPK untuk menyalin nilainya otomatis; kosongkan semuanya untuk tagihan manual.',
         fields: [
           { key: 'purchase_order_id', label: 'Dari PO', type: 'lookup', lookup: 'purchaseOrders', createOnly: true },
           { key: 'subcontract_claim_id', label: 'Dari opname subkon', type: 'lookup', lookup: 'progressClaims', createOnly: true },
@@ -3543,6 +3565,12 @@ export const RESOURCES = {
              potongan kasbon, PPh final UMKM; hanya opname approved yang lolos
              server (ApBillService::createFromLaborClaim). */
           { key: 'labor_claim_id', label: 'Dari opname mandor', type: 'lookup', lookup: 'laborClaims', createOnly: true },
+          /* P5 — cermin yang sama untuk tagihan periode PPK: DPP dari
+             kuantitas turunan register/kalender, PPN dari snapshot PPK, dan
+             DPP-nya tidak bisa diketik ulang (ApBillService::
+             createFromWorkOrderBilling). Tanpa baris ini seam-nya hanya
+             terjangkau lewat curl — celah kelas vendor_type P4. */
+          { key: 'work_order_billing_id', label: 'Dari tagihan periode PPK', type: 'lookup', lookup: 'workOrderBillings', createOnly: true },
           {
             key: 'is_advance', label: 'Tagihan uang muka (DP) atas PO', type: 'bool', createOnly: true,
             help: 'DP ke pemasok sebelum barang datang. Dicatat sebagai uang muka, BUKAN beban proyek, '
@@ -4123,7 +4151,10 @@ export const RESOURCES = {
     columns: [
       codeColumn,
       { key: 'name', label: 'Nama aset', type: 'text', sub: 'category.name' },
-      { key: 'serial_no', label: 'No. seri', type: 'code' },
+      // P5 — milik sendiri atau sewa; nilai buku alat sewa NULL tampil '—'
+      // (bergaris), bukan Rp 0: alat itu tidak ada di neraca kita.
+      { key: 'ownership', label: 'Kepemilikan', type: 'enum', enum: 'assetOwnership', align: 'center' },
+      { key: 'serial_no', label: 'No. seri', type: 'code', hideOnNarrow: true },
       { key: 'acquisition_cost', label: 'Harga perolehan', type: 'currency', align: 'right' },
       { key: 'book_value', label: 'Nilai buku', type: 'currency', align: 'right' },
       { key: 'current_project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
@@ -4131,6 +4162,7 @@ export const RESOURCES = {
     ],
     filters: [
       { key: 'status', label: 'Status', enum: 'assetStatus' },
+      { key: 'ownership', label: 'Kepemilikan', enum: 'assetOwnership' },
       { key: 'category_id', label: 'Kategori', lookup: 'assetCategories' },
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
     ],
@@ -4141,38 +4173,75 @@ export const RESOURCES = {
           fields: [
             { key: 'name', label: 'Nama aset', type: 'text', required: true, span: 2 },
             { key: 'category_id', label: 'Kategori', type: 'lookup', lookup: 'assetCategories', required: true },
+            // P5 — menentukan bagian mana di bawah yang tampil. createOnly:
+            // beli-putus alat sewa (kapitalisasi) adalah peristiwa akuntansi,
+            // bukan suntingan register — server menolak perubahannya.
+            { key: 'ownership', label: 'Kepemilikan', type: 'select', enum: 'assetOwnership', required: true, default: 'owned', createOnly: true },
             { key: 'serial_no', label: 'Nomor seri', type: 'text' },
             { key: 'brand', label: 'Merek', type: 'text' },
             { key: 'model', label: 'Model', type: 'text' },
             { key: 'status', label: 'Status', type: 'select', enum: 'assetStatusEditable', editOnly: true },
             { key: 'custodian_employee_id', label: 'Penanggung jawab', type: 'lookup', lookup: 'employees' },
             { key: 'warehouse_id', label: 'Gudang', type: 'lookup', lookup: 'warehouses' },
+            { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
           ],
         },
         {
+          /* P5 — hanya aset MILIK SENDIRI: alat sewa tidak pernah dibeli,
+             jadi kolom perolehan pada rented DITOLAK server (prohibited_if),
+             bukan sekadar disembunyikan. */
           title: 'Perolehan & penyusutan',
           fields: [
-            { key: 'acquisition_date', label: 'Tanggal perolehan', type: 'date', required: true },
-            { key: 'acquisition_cost', label: 'Harga perolehan', type: 'currency', required: true },
-            { key: 'salvage_value', label: 'Nilai residu', type: 'currency', default: 0 },
-            { key: 'useful_life_months', label: 'Umur manfaat (bulan)', type: 'number', required: true },
-            { key: 'depreciation_start_date', label: 'Mulai disusutkan', type: 'date' },
+            { key: 'acquisition_date', label: 'Tanggal perolehan', type: 'date', required: true, visibleWhen: ASSET_OWNED },
+            { key: 'acquisition_cost', label: 'Harga perolehan', type: 'currency', required: true, visibleWhen: ASSET_OWNED },
+            { key: 'salvage_value', label: 'Nilai residu', type: 'currency', default: 0, visibleWhen: ASSET_OWNED },
+            { key: 'useful_life_months', label: 'Umur manfaat (bulan)', type: 'number', required: true, visibleWhen: ASSET_OWNED },
+            { key: 'depreciation_start_date', label: 'Mulai disusutkan', type: 'date', visibleWhen: ASSET_OWNED },
             // disposal_date/value pindah ke aksi "Hapus Buku / Jual" — update
             // biasa kini ditolak server karena jurnal pelepasan hanya
             // diposting lewat jalur dispose (Temuan 55).
-            { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+          ],
+        },
+        {
+          /* P5 — hanya alat SEWA (deviasi 3.6): pemilik alatnya vendor
+             rental, tarifnya masuk register supaya Evaluasi Sewa vs Beli dan
+             PPK punya angka masternya. Penyusutan tidak pernah menyentuh
+             alat sewa (gate ownership di DepreciationService). */
+          title: 'Sewa',
+          fields: [
+            { key: 'vendor_id', label: 'Vendor rental (lessor)', type: 'lookup', lookup: 'vendors', required: true, visibleWhen: ASSET_RENTED },
+            { key: 'rental_rate', label: 'Tarif sewa', type: 'currency', required: true, visibleWhen: ASSET_RENTED },
+            { key: 'rate_basis', label: 'Basis tarif', type: 'select', enum: 'rateBasis', required: true, visibleWhen: ASSET_RENTED },
+            { key: 'rental_start', label: 'Mulai sewa', type: 'date', visibleWhen: ASSET_RENTED },
+            { key: 'rental_end', label: 'Selesai sewa', type: 'date', visibleWhen: ASSET_RENTED },
           ],
         },
       ],
     },
     actions: [{
       key: 'deploy', label: 'Mobilisasi ke Proyek', path: '{id}/deploy', method: 'POST',
-      perm: 'ast.create', variant: 'primary', when: (row) => row.status === 'available',
+      perm: 'ast.create', variant: 'primary',
+      when: (row) => row.status === 'available' && row.ownership !== 'rented',
       fields: [
         { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
         { key: 'deployed_from', label: 'Mulai', type: 'date', defaultToday: true },
         { key: 'planned_until', label: 'Rencana sampai', type: 'date' },
         { key: 'daily_rate_internal', label: 'Tarif internal per hari', type: 'currency' },
+        { key: 'notes', label: 'Catatan', type: 'textarea' },
+      ],
+    }, {
+      /* P5 — dialog kembar TANPA kotak tarif internal untuk alat SEWA:
+         biayanya sampai ke proyek lewat tagihan vendor (PPK -> tagihan AP),
+         dan tarif internal di atasnya ditolak server dua pintu
+         (DeploymentService) — alat yang sama dibebankan dua kali. Kotak yang
+         pasti berujung 422 tidak ditawarkan. */
+      key: 'deploy', label: 'Mobilisasi ke Proyek', path: '{id}/deploy', method: 'POST',
+      perm: 'ast.create', variant: 'primary',
+      when: (row) => row.status === 'available' && row.ownership === 'rented',
+      fields: [
+        { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+        { key: 'deployed_from', label: 'Mulai', type: 'date', defaultToday: true },
+        { key: 'planned_until', label: 'Rencana sampai', type: 'date' },
         { key: 'notes', label: 'Catatan', type: 'textarea' },
       ],
     }, {
@@ -4184,7 +4253,10 @@ export const RESOURCES = {
        */
       key: 'dispose', label: 'Hapus Buku / Jual', path: '{id}/dispose', method: 'POST',
       perm: 'ast.post', variant: 'danger',
-      when: (row) => row.status === 'available' || row.status === 'maintenance',
+      // P5 — bukan untuk alat sewa: tidak ada apa pun di neraca untuk
+      // dilepas, dan server menolaknya (AssetDisposalService). Sewa berakhir
+      // dengan mengembalikan mobilisasi lalu menonaktifkan masternya.
+      when: (row) => (row.status === 'available' || row.status === 'maintenance') && row.ownership !== 'rented',
       fields: [
         { key: 'disposal_date', label: 'Tanggal pelepasan', type: 'date', required: true, defaultToday: true },
         { key: 'disposal_value', label: 'Nilai pelepasan (hasil penjualan)', type: 'currency', required: true, default: 0, help: 'Isi 0 untuk scrap/hilang tanpa hasil penjualan.' },
@@ -5130,6 +5202,14 @@ export const NAV = [
       { label: 'RFQ (Banding Penawaran)', route: 'r/procurement/rfqs' },
       { label: 'Pesanan (PO)', route: 'r/procurement/purchase-orders' },
       { label: 'Baris PO Terbuka', route: 'po-outstanding' },
+      /* P5 — tiga baris berurutan seperti alur uangnya: PPK dulu (komitmen
+         plafon per baris), tagihan periodenya kemudian (kuantitas turunan
+         register/kalender), lalu rekapnya. Di bawah PO karena PPK adalah
+         saudara PO untuk alat sewa & jasa — tanpa baris menu, ketiga layar
+         hanya terjangkau lewat URL (lubang P4 yang tidak boleh berulang). */
+      { label: 'PPK Alat & Jasa', route: 'r/procurement/work-orders' },
+      { label: 'Tagihan Periode PPK', route: 'r/procurement/work-order-billings' },
+      { label: 'Rekap Tagihan Alat', route: 'rekap-alat' },
       { label: 'BA Negosiasi', route: 'r/procurement/negotiation-minutes' },
       { label: 'Keputusan Pemenang', route: 'r/procurement/award-decisions' },
       { label: 'Rencana Pengadaan', route: 'r/procurement/procurement-plans' },
@@ -5230,6 +5310,9 @@ export const NAV = [
       { label: 'Perawatan', route: 'r/assets/maintenances' },
       { label: 'Penyusutan', route: 'r/assets/depreciation-runs' },
       { label: 'Utilisasi Aset', route: 'asset-utilization' },
+      // P5 — BACA SAJA: jam register x tarif vs harga beli/penyusutan; layar
+      // ini tidak menulis apa pun dan tidak menyimpan kesimpulan apa pun.
+      { label: 'Evaluasi Sewa vs Beli', route: 'sewa-vs-beli' },
     ],
   },
   {
