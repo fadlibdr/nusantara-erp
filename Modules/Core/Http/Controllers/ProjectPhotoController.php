@@ -24,6 +24,7 @@ use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Defect;
 use Modules\Projects\Models\GatePass;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\SafetyIncident;
 use Modules\Projects\Models\WorkPermit;
@@ -177,6 +178,10 @@ class ProjectPhotoController extends ApiController
             // P6 (temuan panduan §7.7): foto kejadian K3 kini menempel pada
             // insidennya — project_id langsung, bukti lapangan proyek itu.
             'projects/safety-incidents' => SafetyIncident::query()->where('project_id', $id),
+            // Deviasi P6 #1: foto opname owner (bekisting, hasil cor, angka
+            // meteran) adalah bukti progres persis — project_id langsung.
+            // Attachable sejak P3, tetapi terlewat dari daftar ini.
+            'projects/progress-measurements' => ProgressMeasurement::query()->where('project_id', $id),
             // est_boqs / est_cost_budgets membawa project_id sendiri — foto
             // survei lokasi di BOQ dan lampiran RAP adalah bukti proyek,
             // bukan hanya dokumen pra-kontrak; sebelum baris ini keduanya
