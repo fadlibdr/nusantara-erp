@@ -15,6 +15,8 @@ class InspectionTemplateResource extends JsonResource
             'work_package' => $this->work_package,
             'stage' => $this->stage?->value,
             'stage_label' => $this->stage?->label(),
+            'jenis' => $this->jenis?->value,
+            'jenis_label' => $this->jenis?->label(),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
                 'sort_order' => (int) $item->sort_order,

@@ -64,6 +64,11 @@ class DailyReportService
                 $this->replaceLines($report, $key, $rows);
             }
 
+            // P6 — taut-balik: formulir K3 harian (FM-10-13) hari itu mungkin
+            // sudah dicatat sebelum laporan hariannya lahir; tautannya diisi
+            // sekarang, dari (proyek, tanggal), bukan diketik siapa pun.
+            app(HseDailyService::class)->relink($report);
+
             return $report->load(['materials', 'manpower', 'equipment', 'receipts', 'activityLines']);
         });
     }
@@ -120,6 +125,11 @@ class DailyReportService
                 $this->replaceLines($report, $key, $rows);
             }
 
+            // P6 — laporan yang pindah tanggal melepaskan tautan formulir K3
+            // lamanya dan (bila ada) mengambil yang baru; relink menangani
+            // kedua arah dari fakta (proyek, tanggal).
+            app(HseDailyService::class)->relink($report);
+
             return $report->load(['materials', 'manpower', 'equipment', 'receipts', 'activityLines']);
         });
     }
@@ -133,6 +143,10 @@ class DailyReportService
         $report->project()->firstOrFail()->assertOperational('laporan harian');
 
         $report->delete();
+
+        // P6 — tautan formulir K3 ke laporan yang sudah tidak ada adalah kode
+        // yang mencetak dokumen terhapus; formulirnya berdiri sendiri lagi.
+        app(HseDailyService::class)->unlink($report);
     }
 
     /**

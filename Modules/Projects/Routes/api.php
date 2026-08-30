@@ -8,12 +8,14 @@ use Modules\Projects\Http\Controllers\DailyReportController;
 use Modules\Projects\Http\Controllers\DefectController;
 use Modules\Projects\Http\Controllers\EvmController;
 use Modules\Projects\Http\Controllers\GatePassController;
+use Modules\Projects\Http\Controllers\HseDailyController;
 use Modules\Projects\Http\Controllers\ManpowerAssignmentController;
 use Modules\Projects\Http\Controllers\MaterialVarianceController;
 use Modules\Projects\Http\Controllers\MilestoneController;
 use Modules\Projects\Http\Controllers\OvertimePermitController;
 use Modules\Projects\Http\Controllers\ProgressMeasurementController;
 use Modules\Projects\Http\Controllers\ProjectController;
+use Modules\Projects\Http\Controllers\RiskRegisterController;
 use Modules\Projects\Http\Controllers\SafetyIncidentController;
 use Modules\Projects\Http\Controllers\WbsTaskController;
 use Modules\Projects\Http\Controllers\WeeklyProgressController;
@@ -121,6 +123,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // was done, and the register's whole value rests on that being true.
     Route::post('safety-incidents/{safetyIncident}/close', [SafetyIncidentController::class, 'close'])->middleware('permission:prj.approve');
     Route::post('safety-incidents/{safetyIncident}/reopen', [SafetyIncidentController::class, 'reopen'])->middleware('permission:prj.approve');
+
+    // P6 — formulir K3 harian (FM-10-13) dan register IBPRP. Literal prefixes,
+    // so they stay above the `{project}` wildcard at the bottom of this file.
+    // GETs carry no explicit permission like the module's older document GETs
+    // (daily-reports, safety-incidents); writes follow the house verbs.
+    Route::get('hse-daily', [HseDailyController::class, 'index']);
+    Route::post('hse-daily', [HseDailyController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('hse-daily/{hseDaily}', [HseDailyController::class, 'show']);
+    Route::put('hse-daily/{hseDaily}', [HseDailyController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('hse-daily/{hseDaily}', [HseDailyController::class, 'destroy'])->middleware('permission:prj.delete');
+
+    Route::get('risk-register', [RiskRegisterController::class, 'index']);
+    Route::post('risk-register', [RiskRegisterController::class, 'store'])->middleware('permission:prj.create');
+    Route::get('risk-register/{entry}', [RiskRegisterController::class, 'show']);
+    Route::put('risk-register/{entry}', [RiskRegisterController::class, 'update'])->middleware('permission:prj.update');
+    Route::delete('risk-register/{entry}', [RiskRegisterController::class, 'destroy'])->middleware('permission:prj.delete');
 
     // P0-C — tiga izin lapangan (IKL/ILB/IMK). Literal prefixes, so they stay
     // above the `{project}` wildcard at the bottom of this file. The GETs

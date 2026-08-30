@@ -27,6 +27,7 @@ class InspectionTemplateController extends ApiController
                 });
             })
             ->when($request->filled('stage'), fn ($query) => $query->where('stage', $request->string('stage')))
+            ->when($request->filled('jenis'), fn ($query) => $query->where('jenis', $request->string('jenis')))
             ->orderBy('code');
 
         return $this->listing($request, $query, InspectionTemplateResource::class,

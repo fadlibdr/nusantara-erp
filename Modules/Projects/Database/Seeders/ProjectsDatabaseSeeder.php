@@ -19,11 +19,13 @@ use Modules\Projects\Enums\ProjectType;
 use Modules\Projects\Enums\ZoneCertificateStatus;
 use Modules\Projects\Models\ContractVariation;
 use Modules\Projects\Models\DailyReport;
+use Modules\Projects\Models\HseDaily;
 use Modules\Projects\Models\ManpowerAssignment;
 use Modules\Projects\Models\Milestone;
 use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\ProjectBaseline;
+use Modules\Projects\Models\RiskRegisterEntry;
 use Modules\Projects\Models\SafetyIncident;
 use Modules\Projects\Models\ZoneCertificate;
 use Modules\Projects\Services\BaselineService;
@@ -75,6 +77,10 @@ class ProjectsDatabaseSeeder extends Seeder
         $this->seedWeeklyProgress($graha, $progressService);
         $this->seedDailyReports($graha);
         $this->seedSafetyIncidents($graha);
+        // P6 — after the daily reports: the FM-10-13 link resolves by
+        // (project, date) against DRP/2026/03/0001, which must exist first.
+        $this->seedHseDaily($graha);
+        $this->seedRiskRegister($graha);
         $this->seedManpower($graha);
         $this->seedMilestones($graha);
 
@@ -103,6 +109,113 @@ class ProjectsDatabaseSeeder extends Seeder
         $this->bumpSequence('PRJ', 2);
         $this->bumpSequence('DRP', 3);
         $this->bumpSequence('K3', 2);
+        $this->bumpSequence('HSE', 1);
+    }
+
+    /**
+     * P6 — satu FM-10-13 pada hari laporan harian pertama. Tautannya di-seed
+     * dengan resolusi yang sama dengan HseDailyService: dicari dari (proyek,
+     * tanggal), bukan angka yang dikarang.
+     */
+    private function seedHseDaily(Project $project): void
+    {
+        $createdBy = User::query()->orderBy('id')->value('id');
+
+        $reportId = DailyReport::query()
+            ->where('project_id', $project->id)
+            ->whereDate('report_date', '2026-03-25')
+            ->value('id');
+
+        /** @var HseDaily $daily */
+        $daily = HseDaily::withTrashed()->updateOrCreate(
+            ['code' => 'HSE/2026/03/0001'],
+            [
+                'project_id' => $project->id,
+                'report_date' => '2026-03-25',
+                'daily_report_id' => $reportId,
+                'toolbox_topic' => 'Bekerja di ketinggian: pengecoran lantai 5',
+                'toolbox_attendees' => ['Agus Prasetyo', 'Joko Susilo', 'Harjo Wibowo'],
+                'notes' => 'Seluruh pekerja zona A hadir toolbox meeting pagi.',
+                'created_by' => $createdBy,
+            ],
+        );
+
+        $daily->apd()->delete();
+
+        foreach ([
+            ['category' => 'helm', 'qty' => 148],
+            ['category' => 'rompi', 'qty' => 148],
+            ['category' => 'sepatu safety', 'qty' => 148],
+            ['category' => 'harness', 'qty' => 22],
+        ] as $line) {
+            $daily->apd()->create($line);
+        }
+
+        $daily->findings()->delete();
+        $daily->findings()->create([
+            'sort_order' => 1,
+            'finding' => 'Toe board scaffolding sisi timur lantai 5 belum terpasang',
+            'follow_up' => 'Dipasang sebelum pengecoran zona B (26/3)',
+        ]);
+    }
+
+    /** P6 — tiga baris IBPRP; skor = L×S, aritmetika yang sama dengan service. */
+    private function seedRiskRegister(Project $project): void
+    {
+        $createdBy = User::query()->orderBy('id')->value('id');
+
+        $rows = [
+            [
+                'activity' => 'Pengecoran plat & balok lantai atas',
+                'hazard' => 'Bekerja di ketinggian tanpa proteksi tepi',
+                'impact' => 'Pekerja terjatuh — cedera berat/fatal',
+                'likelihood' => 3, 'severity' => 5,
+                'controls' => 'Railing tepi & jaring pengaman, harness terkait di atas 1,8 m, toolbox meeting harian',
+                'residual_likelihood' => 1, 'residual_severity' => 5,
+            ],
+            [
+                'activity' => 'Pengangkatan material dengan tower crane',
+                'hazard' => 'Muatan lepas / rigging gagal di atas area kerja',
+                'impact' => 'Tertimpa material — cedera berat/fatal',
+                'likelihood' => 2, 'severity' => 5,
+                'controls' => 'Inspeksi rigging harian, zona eksklusi di bawah lintasan, signalman bersertifikat',
+                'residual_likelihood' => 1, 'residual_severity' => 5,
+            ],
+            [
+                'activity' => 'Pekerjaan pembesian',
+                'hazard' => 'Ujung besi terekspos pada stek kolom',
+                'impact' => 'Tertusuk / tergores — P3K s.d. perawatan medis',
+                'likelihood' => 3, 'severity' => 2,
+                'controls' => 'Pelindung ujung stek (rebar cap), sarung tangan wajib',
+                // Risiko sisa sengaja belum dinilai pada baris ini: demo untuk
+                // sel BERGARIS di F/IBPRP (bukan 0).
+                'residual_likelihood' => null, 'residual_severity' => null,
+            ],
+        ];
+
+        foreach ($rows as $order => $row) {
+            RiskRegisterEntry::withTrashed()->updateOrCreate(
+                [
+                    'project_id' => $project->id,
+                    'activity' => $row['activity'],
+                    'hazard' => $row['hazard'],
+                ],
+                [
+                    'sort_order' => $order + 1,
+                    'impact' => $row['impact'],
+                    'likelihood' => $row['likelihood'],
+                    'severity' => $row['severity'],
+                    'initial_score' => $row['likelihood'] * $row['severity'],
+                    'controls' => $row['controls'],
+                    'residual_likelihood' => $row['residual_likelihood'],
+                    'residual_severity' => $row['residual_severity'],
+                    'residual_score' => $row['residual_likelihood'] !== null
+                        ? $row['residual_likelihood'] * $row['residual_severity']
+                        : null,
+                    'created_by' => $createdBy,
+                ],
+            );
+        }
     }
 
     /**

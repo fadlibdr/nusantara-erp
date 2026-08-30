@@ -10,6 +10,7 @@ use Modules\Projects\Models\Project;
 use Modules\Quality\Enums\InspectionStage;
 use Modules\Quality\Enums\ItemResult;
 use Modules\Quality\Enums\NcrStatus;
+use Modules\Quality\Enums\TemplateKind;
 use Modules\Quality\Enums\WitnessParty;
 use Modules\Quality\Models\ConcreteSample;
 use Modules\Quality\Models\Inspection;
@@ -51,6 +52,40 @@ class QualityDatabaseSeeder extends Seeder
         $this->seedInspection($project, $zone, $template);
         $this->seedNcr($project, $zone);
         $this->seedConcrete($project, $zone);
+        $this->seedFiveRTemplate();
+    }
+
+    /**
+     * P6 — satu template patroli 5R (jenis '5r'). Checklist 5R terisi adalah
+     * INSPEKSI BIASA atas template ini lewat layar Inspeksi Mutu; tidak ada
+     * mesin 5R terpisah untuk di-seed.
+     */
+    private function seedFiveRTemplate(): void
+    {
+        /** @var InspectionTemplate $template */
+        $template = InspectionTemplate::query()->updateOrCreate(
+            ['code' => '5R1'],
+            ['work_package' => 'Patroli 5R area kerja & gudang site', 'stage' => InspectionStage::During, 'jenis' => TemplateKind::FiveR],
+        );
+
+        if ($template->items()->exists()) {
+            return;
+        }
+
+        foreach ([
+            ['Ringkas — tidak ada barang tak terpakai di area kerja', 'Area bebas barang tak terpakai'],
+            ['Rapi — material tersusun pada tempatnya dan berlabel', 'Material tersusun & berlabel'],
+            ['Resik — area kerja bersih dari sampah dan ceceran', 'Tidak ada sampah/ceceran'],
+            ['Rawat — jalur evakuasi dan APAR tidak terhalang', 'Jalur & APAR bebas hambatan'],
+            ['Rajin — papan 5R terisi dan patroli sebelumnya ditindaklanjuti', 'Papan terisi, temuan lama tuntas'],
+        ] as $order => [$check, $acceptance]) {
+            $template->items()->create([
+                'sort_order' => $order + 1,
+                'check_text' => $check,
+                'acceptance' => $acceptance,
+                'tolerance' => null,
+            ]);
+        }
     }
 
     private function seedTemplate(): InspectionTemplate

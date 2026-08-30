@@ -25,6 +25,7 @@ use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Defect;
 use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\SafetyIncident;
 use Modules\Projects\Models\WorkPermit;
 use Modules\Subcontract\Models\ProgressClaim;
 use Modules\Subcontract\Models\Subcontract;
@@ -173,6 +174,9 @@ class ProjectPhotoController extends ApiController
             // adalah bukti lapangan proyek itu sendiri — project_id langsung.
             'projects/work-permits' => WorkPermit::query()->where('project_id', $id),
             'projects/gate-passes' => GatePass::query()->where('project_id', $id),
+            // P6 (temuan panduan §7.7): foto kejadian K3 kini menempel pada
+            // insidennya — project_id langsung, bukti lapangan proyek itu.
+            'projects/safety-incidents' => SafetyIncident::query()->where('project_id', $id),
             // est_boqs / est_cost_budgets membawa project_id sendiri — foto
             // survei lokasi di BOQ dan lampiran RAP adalah bukti proyek,
             // bukan hanya dokumen pra-kontrak; sebelum baris ini keduanya

@@ -522,6 +522,7 @@ class SettingService
         'OPN' => 'Opname progres owner', 'BAPP' => 'BAPP per zona', 'BSK' => 'BAST subkontraktor',
         'SP3' => 'SP3 mandor (induk)', 'OPM' => 'Opname mandor',
         'PPK' => 'PPK alat & jasa', 'PPKB' => 'Tagihan periode PPK',
+        'HSE' => 'Formulir K3 harian',
     ];
 
     /**

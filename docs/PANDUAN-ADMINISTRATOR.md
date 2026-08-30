@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 56 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 58 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai tiga belas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -2594,9 +2594,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**56 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**58 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-49 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+51 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2692,11 +2692,11 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Empat belas dari 56 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Lima belas dari 58 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, **berita acara negosiasi (F/BAN, P2)**, berita acara
 opname, saldo stok, opname subkon, **backsheet opname ke pemilik (F/OPN, P3)**, **rekap
-upah mandor (F/RU, P4)**, kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar
-hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, keputusan
+upah mandor (F/RU, P4)**, **register IBPRP (F/IBPRP, P6)**, kewajiban pajak, ekualisasi
+pajak, rekap payroll, dan daftar hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, keputusan
 pemenang F/AWD, kedua lembar P3 lainnya: BAPP per zona F/BAPP dan BAST subkon F/BST-SK,
 CV mandor F/CVM, P4, serta PPK alat & jasa F/PPK, P5).
 

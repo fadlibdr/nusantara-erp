@@ -318,6 +318,12 @@ export const ENUMS = {
   inspectionStage: opts([
     ['before', 'Sebelum pelaksanaan'], ['during', 'Saat pelaksanaan'], ['after', 'Setelah pelaksanaan'],
   ]),
+  /* P6 — cermin Modules\Quality\Enums\TemplateKind. Checklist 5R = inspeksi
+     biasa atas template ber-jenis '5r'; tanpa mesin checklist paralel. */
+  templateKind: opts([['quality', 'Checklist mutu'], ['5r', 'Checklist 5R']]),
+  /* P6 — cermin Modules\Projects\Enums\RiskLevel: banding matriks 5×5
+     Permen PUPR 10/2021 (1–4 kecil, 5–12 sedang, 15–25 besar). */
+  riskLevel: opts([['kecil', 'Risiko kecil'], ['sedang', 'Risiko sedang'], ['besar', 'Risiko besar']]),
   /* Verdikt satu butir; 'nok' menggagalkan lembar (overall pass), 'na' tidak. */
   itemResult: opts([['ok', 'Sesuai'], ['nok', 'Tidak sesuai'], ['na', 'Tidak berlaku']]),
   witnessParty: opts([['mk', 'Konsultan MK'], ['owner', 'Pemilik']]),
