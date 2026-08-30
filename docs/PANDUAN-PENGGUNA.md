@@ -3874,6 +3874,28 @@ tipe kecelakaan** · **Kemungkinan (F, 1–5)** dan **Keparahan (A, 1–5)** (wa
 > kecil** 1–4 · **Risiko sedang** 5–12 · **Risiko besar** 15–25, matriks 5×5 Permen PUPR
 > 10/2021) diturunkan dari skor itu — satu banding untuk layar, API, dan lembar cetak.
 
+Matriks 5×5-nya, F menurun × A mendatar — setiap sel adalah hasil kali yang akan
+dihitung server, diberi tingkat menurut bandingnya:
+
+| F \ A | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| **1** | 1 | 2 | 3 | 4 | 5 |
+| **2** | 2 | 4 | 6 | 8 | 10 |
+| **3** | 3 | 6 | 9 | 12 | 15 |
+| **4** | 4 | 8 | 12 | 16 | 20 |
+| **5** | 5 | 10 | 15 | 20 | 25 |
+
+| Skor F×A | Tingkat | Ditampilkan sebagai |
+|---|---|---|
+| 1–4 | kecil | **Risiko kecil** |
+| 5–12 | sedang | **Risiko sedang** |
+| 15–25 | besar | **Risiko besar** |
+
+Celah 13–14 bukan salah ketik: tidak ada hasil kali dua bilangan 1–5 yang bernilai 13
+atau 14, jadi banding sedang/besar tidak pernah memperebutkannya. Dan tidak ada pita
+keempat ("ekstrem") — Permen PUPR 10/2021 yang dikutip register kecelakaan kerja hanya
+menyatakan tiga tingkat; ambang yang tidak dinyatakan sumbernya tidak dikarang di sini.
+
 > **Risiko sisa dinilai berpasangan atau tidak sama sekali.** Mengisi salah satu saja
 > ditolak: *"Risiko sisa dinilai lengkap: kemungkinan DAN keparahan, atau kosongkan
 > keduanya."* Baris yang risiko sisanya belum dinilai menyimpan kosong — pada F/IBPRP

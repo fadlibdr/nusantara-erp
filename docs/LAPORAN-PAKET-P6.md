@@ -1,7 +1,7 @@
 # Laporan Paket P6 — HSE terstruktur
 
-Branch: feat/p6 · Commit: lane backend = 2bfb871; lane cetak+SPA = commit yang
-membawa perubahan laporan ini · Tanggal: 2026-08-30
+Branch: feat/p6 · Commit: lane backend = 2bfb871; lane cetak+SPA = ae9245f; lane
+dokumentasi = commit yang membawa perubahan laporan ini · Tanggal: 2026-08-30
 
 K3 harian berhenti menjadi satu kolom prosa. **Formulir K3 harian** (FM-10-13, mask
 `HSE`, cetak **F/K3H**) mencatat toolbox meeting, hitungan APD per kategori sebagai
@@ -138,6 +138,15 @@ tingkat LEMBAR:
 - suite penuh (lane ini): **OK (3.500 uji, 15.903 asersi, 09:09)** — +2 uji
   lembar, +18 asersi (termasuk penguatan idiom pada dua uji cetak lama).
 
+### Lane dokumentasi (di atas ae9245f)
+
+- baru: 0 · lama yang diubah: 0 — perubahan hanya di `docs/`. Satu-satunya angka
+  baru yang ditulis lane ini (55, §4.8) sudah dipaku uji SEBELUM lane ini oleh
+  `DocumentFormatValidationTest::SHIPPED_DOCUMENT_TYPES` + sapuan `editableKeys()`;
+  menambah paku kedua untuk kalimat prosa adalah duplikasi, bukan perlindungan.
+- suite penuh (lane ini): **OK (3.500 uji, 15.903 asersi, 08:49)** — tidak
+  bergeser dari lane cetak+SPA; perubahan docs tidak menyentuh runtime.
+
 ## Smoke test curl (endpoint baru, pesan 422 yang dijanjikan — kutip kata demi kata)
 
 Terhadap basis data scratch hasil `migrate:fresh --seed` (sqlite hidup tidak disentuh),
@@ -173,6 +182,17 @@ login `admin@nusantara.test`:
   daftar "Yang bisa" dilengkapi 1:1 dengan registri (SDS, SMS, QCI, OPN, BAN,
   insiden K3), "insiden K3" DIHAPUS dari daftar "Yang tidak bisa" — lihat
   Deviasi baru #3.
+- *(lane dokumentasi)* `PANDUAN-PENGGUNA.md` §7.7 — matriks 5×5 F×A dan tabel banding
+  tingkat risiko ditambahkan di bawah catatan "Nilai risiko tidak pernah diketik",
+  disalin dari `RiskLevel::fromScore` (celah 13–14 dijelaskan: bukan salah ketik,
+  tidak ada hasil kali dua bilangan 1–5 yang bernilai 13/14; pita "ekstrem" absen
+  dengan alasan sumber).
+- *(lane dokumentasi)* `PANDUAN-ADMINISTRATOR.md` §2 — paragraf Projects menyebut dua
+  layar HSE baru DAN alasan pilihan modul (relasi dua arah in-module vs panah tulis
+  Projects → Quality yang haram); paragraf Quality menyebut kolom `jenis`
+  (forward-only, backfill `'quality'`, guard template terisi tak membedakan jenis).
+- *(lane dokumentasi)* `PANDUAN-ADMINISTRATOR.md` baris tabel Pengaturan "Penomoran
+  Dokumen" dan §4.8: 47 → **55** — lihat Deviasi baru #4 (DIPERBAIKI).
 - README Modules: tidak ada modul baru — tidak ada baris baru.
 - CONVENTIONS/ARCHITECTURE: tidak diubah (tidak ada panah baru; keputusan modul ditulis
   di migrasi 000742 dan laporan ini).
@@ -212,9 +232,15 @@ login `admin@nusantara.test`:
    Dokumen — 47 format, satu per jenis dokumen" basi pra-P6**: mask terkirim
    kini 55 dan `SettingService::DOCUMENT_LABELS` juga 55. Angka 47 tidak cocok
    dengan pembacaan mana pun (55 semua, atau 49 bila enam dokumen swanomor
-   §catatan-1222 dikecualikan). TIDAK disentuh — perlu keputusan apakah kalimat
-   itu menghitung layar atau mask; satu angka + satu catatan kaki untuk lane
-   dokumentasi.
+   §catatan-1222 dikecualikan). DIPERBAIKI lane dokumentasi, dengan keputusan
+   tertulis di §4.8: kalimatnya menghitung **layar** (kendali grup Penomoran
+   Dokumen = `DOCUMENT_LABELS`); jejak 47-nya adalah hitungan pasca-P2 yang
+   berhenti diperbarui (P3 +3, P4 +2, P5 +2, P6 +1 = 55). Hari ini layar = mask
+   = 55, dan satu arah dipaku `DocumentFormatValidationTest` (mask tanpa label
+   merah); arah sebaliknya (label yatim tanpa mask) TIDAK dipaku — §4.8 sengaja
+   tidak mengklaimnya. Parenthetical "terakhir ditambahkan" BAN/AWD/PBL(P2) →
+   HSE(P6). Enam swanomor (KSB PCV RTM RPB DEF BSL) tetap di luar kedua
+   hitungan, catatan §4.8 lama tetap berdiri.
 5. **Replay `php artisan db:seed` (tanpa fresh) pecah di `SubcontractDatabaseSeeder`
    sejak P4** — `seedLaborContract()` menghapus `scm_labor_contract_items` yang masih
    dirujuk FK baris opname mandor: `SQLSTATE[23000] … delete from
