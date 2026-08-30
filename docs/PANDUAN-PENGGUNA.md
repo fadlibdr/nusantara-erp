@@ -947,7 +947,8 @@ Jenis: **Tambah-Kurang** dan **Eskalasi Harga**.
 **Mencatat pekerjaan tambah-kurang:**
 
 1. **`Tambah Pekerjaan Tambah-Kurang`**.
-2. Isi **Kontrak** (wajib), **Tanggal** (wajib), **Judul** (wajib), **Jenis perubahan**
+2. Isi **Kontrak** (wajib, **hanya saat membuat**), **Tanggal** (wajib), **Judul**
+   (wajib), **Jenis perubahan**
    (bantuan: *"Pilih 'Eskalasi Harga' untuk penyesuaian indeks kontrak multi-tahun —
    bukan pekerjaan tambah/kurang."*), **Perubahan nilai** (wajib, **tidak boleh 0**;
    bantuan: *"Positif untuk pekerjaan tambah, negatif untuk pekerjaan kurang."*),
@@ -958,10 +959,12 @@ Ditolak bila kontraknya belum disetujui:
 > "Kontrak {kode} berstatus {status}. Pekerjaan tambah-kurang hanya berlaku atas kontrak
 > yang sudah disetujui — ubah nilainya langsung selama masih draf."
 
-**Tombol `Ubah` pada CCO yang sudah tersimpan akan gagal.** Formulir mengirim kembali
-kolom Kontrak, sementara server menolak kolom itu saat memperbarui — hasilnya galat
-pemeriksaan pada isian Kontrak, **pada status apa pun termasuk Draf**. Selama ini belum
-diperbaiki: **CCO yang salah harus dihapus selagi masih Draf dan diketik ulang.**
+**Tombol `Ubah` bekerja pada CCO berstatus Draf atau Ditolak.** Kolom Kontrak hanya
+tampil saat membuat — formulir Ubah tidak memperlihatkannya dan tidak mengirimnya
+kembali, sebab server menolak kolom itu saat memperbarui. Karena itu **memindahkan CCO ke
+kontrak lain tetap tidak bisa lewat Ubah: hapus selagi masih Draf, lalu ketik ulang pada
+kontrak yang benar.** Isian lainnya (tanggal, judul, jenis, nilai, sebab, uraian) dapat
+diperbaiki langsung.
 
 **Menyetujui CCO langsung menggerakkan nilai kontrak.** Nilai tanda tangan dicatat
 sekali, `Nilai (DPP)` kontrak menjadi nilai + perubahan, PPN dan total dihitung ulang,
