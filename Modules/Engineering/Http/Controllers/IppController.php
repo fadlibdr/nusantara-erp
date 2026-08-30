@@ -25,6 +25,9 @@ class IppController extends ApiController
 
     private const DETAIL = [
         'project', 'location', 'wbsTask',
+        // P8 (D9): superseded_by_code pada Resource hanya terisi bila relasi
+        // ini termuat — banner "digantikan" di SPA menyebut nomor penggantinya.
+        'supersededBy',
         'materials', 'equipment',
         'drawings.drawingSubmittal.drawing', 'materialApprovals.materialSubmittal',
     ];
@@ -71,6 +74,8 @@ class IppController extends ApiController
 
     public function destroy(WorkPermitIpp $ipp): JsonResponse
     {
+        $ipp->assertRevisiBerlaku('dihapus');
+
         if (! $ipp->status->isEditable()) {
             return $this->error("IPP {$ipp->code} berstatus {$ipp->status->value} dan tidak dapat dihapus lagi.");
         }
@@ -93,6 +98,8 @@ class IppController extends ApiController
 
     public function approve(Request $request, WorkPermitIpp $ipp): JsonResponse
     {
+        $ipp->assertRevisiBerlaku('disetujui');
+
         try {
             $ipp->approve($request->user(), $request->input('note'));
         } catch (LogicException $e) {
@@ -104,6 +111,8 @@ class IppController extends ApiController
 
     public function reject(Request $request, WorkPermitIpp $ipp): JsonResponse
     {
+        $ipp->assertRevisiBerlaku('ditolak');
+
         try {
             $ipp->reject($request->user(), $request->input('note'));
         } catch (LogicException $e) {
@@ -111,5 +120,17 @@ class IppController extends ApiController
         }
 
         return $this->ok(IppResource::make($ipp->load(self::DETAIL)), 'IPP ditolak.');
+    }
+
+    /**
+     * P8 — revisi generik (D9): baris BARU bernomor baru lewat service, baris
+     * material/alat/gambar ikut tersalin; pendahulu distempel dan tinggal
+     * sebagai arsip yang tetap bisa dicetak.
+     */
+    public function revise(WorkPermitIpp $ipp): JsonResponse
+    {
+        $successor = $this->service->revise($ipp);
+
+        return $this->created(IppResource::make($successor->load(self::DETAIL)));
     }
 }

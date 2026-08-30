@@ -45,6 +45,49 @@ function approvalActions(module, { submitPerm, approvePerm } = {}) {
 const statusColumn = { key: 'status', label: 'Status', type: 'status', width: '1%' };
 const codeColumn = { key: 'code', label: 'Kode', type: 'code', width: '1%' };
 
+/* P8 — revisi generik (D9) untuk izin kerja, IPP, dan inspeksi mutu: dokumen
+   yang belum punya pola revisinya sendiri. Semantiknya semantik SDS — revisi
+   adalah BARIS BARU bernomor baru; pendahulu tercap "Digantikan", nomor,
+   status dan riwayat persetujuannya utuh, tetap tercetak sebagai arsip — dan
+   hanya baris hidup yang punya tombol.
+
+   is_current !== false, bukan === true: baris dari respons lama tanpa kunci
+   ini (undefined) tetap diperlakukan hidup — menyembunyikan tombol karena
+   kuncinya belum termuat adalah kegagalan yang tak terlihat. Server tetap
+   penjaganya (assertRevisiBerlaku menjawab 422 yang menyebut penggantinya). */
+const IS_LIVE_REVISION = (row) => row.is_current !== false;
+
+/* Kolom penanda pada daftar ketiganya: dua baris dengan uraian pekerjaan yang
+   sama dan tanpa lencana di antaranya adalah cara revisi yang salah ikut
+   disetujui. */
+const revisionColumn = {
+  key: 'is_current', label: 'Revisi', type: 'flag', width: '1%', hideOnNarrow: true,
+  trueLabel: 'Berlaku', trueTone: '', falseLabel: 'Digantikan', falseTone: 'amber',
+};
+
+/* Aksi siklus hidup yang sadar-revisi: submit/approve/reject disembunyikan
+   pada baris yang sudah digantikan (server toh menjawab 422 — tombol yang
+   satu-satunya jawaban mungkinnya penolakan bukan tombol), plus aksi Buat
+   Revisi itu sendiri. Rute {id}/revise bergerbang {module}.create karena
+   hasilnya memang dokumen baru. */
+function revisableActions(module, actions) {
+  return [
+    ...actions.map((action) => ({
+      ...action,
+      when: (row) => IS_LIVE_REVISION(row) && (!action.when || action.when(row)),
+    })),
+    {
+      key: 'revise', label: 'Buat Revisi', path: '{id}/revise', method: 'POST',
+      perm: `${module}.create`,
+      // Trio yang sama dengan revisi penawaran: draf cukup diubah langsung.
+      when: (row) => IS_LIVE_REVISION(row) && ['submitted', 'approved', 'rejected'].includes(row.status),
+      confirm: 'Buat revisi dari dokumen ini? Baris lama tetap tersimpan dan tetap tercetak, tercap '
+        + '"Digantikan"; revisi barunya lahir sebagai Draf bernomor baru.',
+      navigateToResult: true,
+    },
+  ];
+}
+
 /* P5 — kepemilikan aset pada form aset. Saat MEMBUAT, select ownership yang
    menentukan; saat MENYUNTING field itu createOnly (kepemilikan tidak bisa
    diubah — beli-putus alat sewa adalah peristiwa akuntansi), jadi dibaca dari
@@ -1123,6 +1166,7 @@ export const RESOURCES = {
    */
   'projects/work-permits': {
     module: 'prj', api: 'projects/work-permits', label: 'Izin Kerja (IKL)', labelOne: 'Izin Kerja Lapangan',
+    revisable: true, // P8 (D9): banner "digantikan" pada detail generik
     printForms: [
       { form: 'izin-kerja', label: 'Izin Kerja Lapangan' },
     ],
@@ -1133,6 +1177,7 @@ export const RESOURCES = {
       { key: 'shift', label: 'Shift', type: 'enum', enum: 'workShift' },
       { key: 'work_description', label: 'Pekerjaan', type: 'text', truncate: 60 },
       { key: 'requested_by_name', label: 'Pemohon', type: 'text', hideOnNarrow: true },
+      revisionColumn,
       statusColumn,
     ],
     filters: [
@@ -1140,8 +1185,8 @@ export const RESOURCES = {
       { key: 'shift', label: 'Shift', enum: 'workShift' },
       { key: 'status', label: 'Status', enum: 'documentStatus' },
     ],
-    editableWhen: DRAFT_OR_REJECTED,
-    deletableWhen: DRAFT_OR_REJECTED,
+    editableWhen: (row) => DRAFT_OR_REJECTED(row) && IS_LIVE_REVISION(row),
+    deletableWhen: (row) => DRAFT_OR_REJECTED(row) && IS_LIVE_REVISION(row),
     form: {
       sections: [{
         title: 'Izin Kerja Lapangan',
@@ -1160,7 +1205,7 @@ export const RESOURCES = {
         ],
       }],
     },
-    actions: [...approvalActions('prj')],
+    actions: revisableActions('prj', approvalActions('prj')),
   },
 
   'projects/overtime-permits': {
@@ -5012,25 +5057,27 @@ export const RESOURCES = {
 
   'engineering/ipp': {
     module: 'eng', api: 'engineering/ipp', label: 'Ijin Pelaksanaan (IPP)', labelOne: 'Ijin Pelaksanaan Pekerjaan',
+    revisable: true, // P8 (D9)
     columns: [
       codeColumn,
       { key: 'project_code', label: 'Proyek', type: 'code' },
       { key: 'scope_label', label: 'Lingkup', type: 'text', width: '1%' },
       { key: 'description', label: 'Pekerjaan', type: 'text', truncate: 60 },
       { key: 'planned_start', label: 'Rencana mulai', type: 'date' },
+      revisionColumn,
       statusColumn,
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
       { key: 'status', label: 'Status', enum: 'documentStatus' },
     ],
-    editableWhen: DRAFT_OR_REJECTED,
-    deletableWhen: DRAFT_OR_REJECTED,
+    editableWhen: (row) => DRAFT_OR_REJECTED(row) && IS_LIVE_REVISION(row),
+    deletableWhen: (row) => DRAFT_OR_REJECTED(row) && IS_LIVE_REVISION(row),
     /* Ajukan menjalankan GERBANG di IppService::submit: 422-nya menyebut
        setiap nomor SDS/SMS penghambat sekaligus (kunci galat 'status'), dan
        toastError menampilkannya utuh — TANPA flag konfirmasi: bekerja di atas
        gambar yang belum disetujui adalah persis yang dicegah formulir ini. */
-    actions: approvalActions('eng'),
+    actions: revisableActions('eng', approvalActions('eng')),
     form: {
       sections: [{
         title: 'Ijin Pelaksanaan Pekerjaan',
@@ -5224,12 +5271,18 @@ export const RESOURCES = {
      re-adding the keys. */
   'quality/inspections': {
     module: 'qc', api: 'quality/inspections', label: 'Inspeksi Mutu (QCI)', labelOne: 'Inspeksi Mutu',
+    revisable: true, // P8 (D9)
+    /* HANYA gerbang revisi, bukan gerbang status: layar ini tidak pernah punya
+       editableWhen dan server tetap penentu status mana yang boleh diubah. */
+    editableWhen: IS_LIVE_REVISION,
+    deletableWhen: IS_LIVE_REVISION,
     columns: [
       codeColumn,
       { key: 'work_package', label: 'Paket', type: 'text' },
       { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
       { key: 'inspected_at', label: 'Tgl Inspeksi', type: 'date' },
       { key: 'passed', label: 'Lulus', type: 'bool', width: '1%' },
+      revisionColumn,
       statusColumn,
     ],
     filters: [
@@ -5285,7 +5338,7 @@ export const RESOURCES = {
     },
     // submit menjalankan GERBANG NCR (InspectionService); approve/reject adalah
     // daur Approvable rumah (maker-checker qc.approve) — sama seperti IPP.
-    actions: approvalActions('qc'),
+    actions: revisableActions('qc', approvalActions('qc')),
     detail: {
       tables: [{
         key: 'results',
@@ -5716,15 +5769,21 @@ export const NAV = [
       // officer, who has no business with the rest of Sistem. Any of the four
       // create rights is enough to see the screen; the screen itself lists only
       // the tables the caller may actually read.
-      { label: 'Impor Data Master', route: 'master-data', perm: ['inv.create', 'prc.create', 'crm.create', 'hr.create'] },
+      // prj.create menyusul di P8: impor Lokasi Tapak (P1-ENG) bergerbang prj,
+      // dan pintunya harus terlihat oleh kerani proyek juga.
+      { label: 'Impor Data Master', route: 'master-data', perm: ['inv.create', 'prc.create', 'crm.create', 'hr.create', 'prj.create'] },
       // Beside its sibling rather than under Estimasi: the two screens are one
       // pair (each one's empty state points at the other), and this one spans
       // two modules — penawaran is crm, BOQ/AHSP/RAP are est — so living under
       // Estimasi (perm est.view) would hide it from the salesperson who imports
       // penawaran. Its own perm carries it out of Sistem the same way its
       // neighbour's does, so an estimator with est.create and no iam.view still
-      // sees it.
-      { label: 'Impor Dokumen', route: 'impor-dokumen', perm: ['crm.create', 'est.create'] },
+      // sees it. P8 melebarkan daftarnya: importer warisan (laporan harian,
+      // kartu stok, SP3, progress pay — prj/inv/scm) dan template inspeksi (qc)
+      // menumpang layar yang sama, dan pintunya harus terlihat oleh kerani
+      // modul-modul itu juga. Layarnya sendiri tetap hanya menampilkan jenis
+      // yang boleh dibaca si pemanggil (GET core/document-import menyaring).
+      { label: 'Impor Dokumen', route: 'impor-dokumen', perm: ['crm.create', 'est.create', 'prj.create', 'inv.create', 'scm.create', 'qc.create'] },
       { label: 'Pengaturan', route: 'settings' },
     ],
   },

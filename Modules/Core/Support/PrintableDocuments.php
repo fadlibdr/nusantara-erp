@@ -12,6 +12,7 @@ use Modules\Assets\Services\AssetFormService;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\Company;
 use Modules\Core\Services\FormPrintService;
+use Modules\Core\Services\FormXlsxExportService;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\Guarantee;
@@ -7464,6 +7465,12 @@ class PrintableDocuments
                 'label' => $row['label'],
                 'idField' => $row['idField'],
                 'params' => $row['params'],
+                // P8: which forms also answer at …/{id}/xlsx. Served rather
+                // than hardcoded in the SPA, so the whitelist has one owner
+                // (FormXlsxExportService::FORMS) and a slug added there grows
+                // its button with no front-end change — the catalogue's own
+                // argument, applied to the second format.
+                'xlsx' => in_array($row['slug'], FormXlsxExportService::FORMS, true),
             ];
         }
 
@@ -7480,6 +7487,7 @@ class PrintableDocuments
                 'label' => $definition['label'],
                 'idField' => $definition['idField'],
                 'params' => $definition['params'],
+                'xlsx' => in_array($slug, FormXlsxExportService::FORMS, true),
             ];
         }
 

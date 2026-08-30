@@ -207,6 +207,20 @@ class FormPrintService
     }
 
     /**
+     * The composed document — the view name plus every value the print run
+     * would hand that view — for a consumer rendering the SAME data in another
+     * medium. Public for exactly one reason (P8): the XLSX export must never
+     * re-derive a figure, so whatever it writes, this composition already
+     * prints; a cell the composer left null stays an EMPTY cell there too.
+     *
+     * @return array{view: string, data: array}
+     */
+    public function composed(string $form, array $context = []): array
+    {
+        return $this->compose($form, $context);
+    }
+
+    /**
      * What guards a form and what to call it — read by the endpoint before it
      * touches the record, and by nothing else.
      *

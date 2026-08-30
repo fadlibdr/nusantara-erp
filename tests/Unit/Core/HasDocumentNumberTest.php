@@ -3,10 +3,13 @@
 namespace Tests\Unit\Core;
 
 use Illuminate\Support\Carbon;
+use LogicException;
 use Modules\Core\Models\NumberSequence;
+use Modules\Projects\Models\Project;
 use Tests\ErpTestCase;
 use Tests\Unit\Core\Fixtures\CustomColumnDocument;
 use Tests\Unit\Core\Fixtures\NumberedDocument;
+use Tests\Unit\Core\Fixtures\ProjectScopedDocument;
 use Tests\Unit\Core\Fixtures\ProtectedColumnDocument;
 use Tests\Unit\Core\Fixtures\TestDocumentSchema;
 use Tests\Unit\Core\Fixtures\UntypedDocument;
@@ -119,5 +122,77 @@ class HasDocumentNumberTest extends ErpTestCase
         $document = NumberedDocument::query()->create(['title' => 'Format khusus']);
 
         $this->assertSame('PO-2026-00001', $document->code);
+    }
+
+    // ---------------------------------------------------------------- {PROJ} (P8)
+
+    private function project(string $code): Project
+    {
+        return Project::query()->create([
+            'code' => $code,
+            'name' => "Proyek {$code}",
+            'type' => 'construction',
+        ]);
+    }
+
+    public function test_a_proj_mask_renders_the_project_code_and_scopes_the_counter(): void
+    {
+        $this->setSetting('documents.PO', 'PO/{PROJ}/{Y}/{RM}/{N4}');
+
+        $alpha = $this->project('PRJ-2026-101');
+        $beta = $this->project('PRJ-2026-102');
+
+        $first = ProjectScopedDocument::query()->create(['title' => 'A1', 'project_id' => $alpha->id]);
+        $other = ProjectScopedDocument::query()->create(['title' => 'B1', 'project_id' => $beta->id]);
+        $second = ProjectScopedDocument::query()->create(['title' => 'A2', 'project_id' => $alpha->id]);
+
+        // {PROJ} = prj_projects.code, and each project counts alone.
+        $this->assertSame('PO/PRJ-2026-101/2026/VII/0001', $first->code);
+        $this->assertSame('PO/PRJ-2026-102/2026/VII/0001', $other->code);
+        $this->assertSame('PO/PRJ-2026-101/2026/VII/0002', $second->code);
+    }
+
+    public function test_a_token_less_mask_never_touches_the_project(): void
+    {
+        // Shipped documents.PO carries no {PROJ}: a project-bound document
+        // numbers exactly like before — the same bytes, one shared counter.
+        $alpha = $this->project('PRJ-2026-103');
+
+        $document = ProjectScopedDocument::query()->create(['title' => 'PO', 'project_id' => $alpha->id]);
+
+        $this->assertSame('PO/2026/VII/0001', $document->code);
+        $this->assertDatabaseHas('core_number_sequences', ['type' => 'PO', 'year' => 2026, 'scope' => '']);
+    }
+
+    public function test_a_proj_mask_on_a_model_without_a_project_relation_fails_loudly(): void
+    {
+        // Configuration error: {PROJ} switched on for a type whose model
+        // cannot answer "proyek yang mana?" — the mint must stop.
+        $this->setSetting('documents.PO', 'PO/{PROJ}/{Y}/{RM}/{N4}');
+
+        try {
+            NumberedDocument::query()->create(['title' => 'Tanpa relasi proyek']);
+            $this->fail('Expected the mint to be refused.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('tidak punya relasi proyek', $e->getMessage());
+            $this->assertStringContainsString('documents.PO', $e->getMessage());
+        }
+
+        $this->assertDatabaseCount('test_documents', 0);
+        $this->assertSame(0, NumberSequence::query()->count());
+    }
+
+    public function test_a_proj_mask_on_a_document_without_a_project_fails_loudly(): void
+    {
+        $this->setSetting('documents.PO', 'PO/{PROJ}/{Y}/{RM}/{N4}');
+
+        try {
+            ProjectScopedDocument::query()->create(['title' => 'Proyek belum diisi']);
+            $this->fail('Expected the mint to be refused.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('belum menunjuk proyek', $e->getMessage());
+        }
+
+        $this->assertDatabaseCount('test_documents', 0);
     }
 }

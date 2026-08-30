@@ -448,8 +448,13 @@ Anda terhubung ke baris asalnya** (§6.4).
 
 Kepala halaman: kode dokumen sebagai judul, **lencana status** di sebelahnya, lalu baris
 tombol: panah kembali, ikon **Cetak halaman**, tombol **`PDF`** pada empat dokumen yang
-punya, satu tombol **`Cetak <nama formulir>`** per formulir rumah, **`Ubah`**, lalu
-tombol-tombol siklus hidup.
+punya, satu tombol **`Cetak <nama formulir>`** per formulir rumah (plus **`XLSX`** pada
+sepuluh formulir tersering, §13.2a), **`Ubah`**, lalu tombol-tombol siklus hidup.
+
+Kode dokumen diterbitkan sistem mengikuti format yang disetel administrator — sejak P8
+format sebuah jenis boleh memuat **kode proyek** (token `{PROJ}`), sehingga nomor
+seperti `IPP/GSP-T1/2026/0001` berjalan urut **per proyek**. Itu keputusan Pengaturan,
+bukan pilihan di formulir; lihat `PANDUAN-ADMINISTRATOR.md` §4.8.
 
 Isi kolom kiri: kartu **Informasi** (semua kolom dokumen), lalu satu kartu per tabel
 baris. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
@@ -604,8 +609,9 @@ mengunduh: *"Anda dapat mengunduh data ini, tetapi tidak mengimpornya. Impor mem
 baris yang sudah ada, sehingga memerlukan izin ubah selain izin tambah."*
 
 **a. Sistem → Impor Data Master** (`#/master-data`) — tabel datar, satu baris satu
-catatan. Empat jenis: **Item / Material**, **Vendor & Subkontraktor**, **Pelanggan**,
-**Karyawan**. Anda hanya melihat yang boleh Anda baca.
+catatan. Lima jenis: **Item / Material**, **Vendor & Subkontraktor**, **Pelanggan**,
+**Karyawan**, **Lokasi Tapak** (tower/lantai/zona — §16.7). Anda hanya melihat yang
+boleh Anda baca.
 
 Langkahnya:
 
@@ -640,8 +646,28 @@ Penolakan per baris: `<kolom>: wajib diisi.` · `<kolom>: "<nilai>" tidak ditemu
 Baris yang kolom `kode`-nya diawali `#` dibaca sebagai komentar dan dilewati.
 
 **b. Sistem → Impor Dokumen** (`#/impor-dokumen`) — untuk dokumen berkepala dan berbaris.
-Empat jenis: **Penawaran**, **BOQ / RAB**, **AHSP / Analisa Harga Satuan**,
-**RAP / Anggaran Pelaksanaan**. Rinciannya di §3.5 dan §4.5.
+Sembilan jenis: **Penawaran**, **BOQ / RAB**, **AHSP / Analisa Harga Satuan**,
+**RAP / Anggaran Pelaksanaan** (rinciannya di §3.5 dan §4.5), **Template Inspeksi**
+(§17.5), dan — sejak P8 — empat layout warisan dari arsip lama perusahaan:
+**Laporan Harian (warisan)**, **Kartu Stok (warisan)**, **SP3 Induk (warisan)**, dan
+**Progress Payment / Opname ke Pemilik (warisan)**. Anda hanya melihat jenis yang boleh
+Anda baca; pemetaan kolom lembar lama → kolom template keempat jenis warisan
+didokumentasikan per kolom di `docs/IMPOR-WARISAN.md`.
+
+Dua hal yang berlaku dobel untuk keempat jenis warisan:
+
+- **Tidak ada yang diposting dari unggahan.** Semua mendarat **draf** (laporan harian:
+  baris hidup biasa — memang tidak pernah memposting apa pun). Kartu stok lama menjadi
+  satu opname draf per gudang; SP3 lama menjadi SP3 induk draf; opname owner lama
+  menjadi OPN draf. Stok, jurnal, dan tagihan baru bergerak saat manusia menyetujui
+  dokumennya dari layarnya — bukan saat berkas naik.
+- **Setiap dokumen hasil impor dicap nama berkas asalnya** (kolom "Sumber impor" di
+  halaman dokumennya). Kolom itu tidak bisa diketik; kosong selalu berarti dientri
+  manusia.
+
+Satu penolakan khas laporan harian warisan, kata demi kata (satu proyek satu laporan
+per tanggal): `tanggal: sudah ada laporan harian <kode> untuk proyek ini pada
+<dd-mm-yyyy>; isi kolom dokumen dengan kode itu bila memang ingin memperbaruinya.`
 
 Dua hal yang berlaku pada keduanya dan sering menjadi kerugian:
 
@@ -3743,6 +3769,7 @@ menampilkan semuanya.
 | **`Cetak Data Proyek`** | — | Form F/DP di tab baru |
 | **`Ubah`** | izin ubah | formulir proyek |
 | **`Buat WBS dari BOQ`** | izin ubah + status **bukan** Ditutup | lihat peringatan di bawah |
+| **`Impor Jadwal (MPP-XML)`** | izin ubah + status **bukan** Ditutup | dialog impor jadwal MS Project — lihat di bawah |
 | **`Tutup proyek`** (merah) | izin setujui + status bukan Ditutup | dialog berdaftar-periksa (§7.12) |
 
 **Enam petak angka**, dan tiga di antaranya berarti sesuatu yang lain daripada dugaan
@@ -3816,6 +3843,28 @@ Penolakan: `"No BOQ found for project {kode}; link a BOQ before generating the W
 > satu tugas WBS**, dan tidak ada cara mengubah bobot, nama, kode, urutan, atau tanggal
 > rencana satu paket pekerjaan. Perbaiki BOQ-nya lalu bangun ulang WBS-nya (dengan
 > konsekuensi progres hilang), atau minta administrator.
+
+**`Impor Jadwal (MPP-XML)`** — sumber kedua untuk pohon WBS yang sama (P8): jadwal
+Microsoft Project yang diekspor sebagai **XML** (File > Save As > XML Format — **bukan**
+`.mpp` biner). Dialognya: pilih berkas (maksimal 5 MB), centang **Bekukan baseline
+(kurva S) dari jadwal ini** (bawaan menyala), dan **BAC** opsional — kosong berarti
+memakai RAP proyek. Hierarki outline menjadi pohon WBS, tanggal mulai/selesai menjadi
+tanggal tugas, dan **bobot daun dihitung dari porsi durasinya** (MS Project tidak
+mengenal bobot; porsi durasi adalah satu-satunya angka yang benar-benar dibawa
+berkasnya). Baseline dibekukan lewat mesin baseline yang sama dengan §7.10, sehingga
+kurva S-nya keluar dari jalur yang sama dengan laporan EVM. Notifikasi sukses:
+*"N tugas WBS diimpor dari <berkas>. Baseline <kode> dibekukan (N titik kurva S)."*
+
+Tiga penolakan yang perlu Anda kenal, kata demi kata:
+
+- Proyek sudah ber-WBS (impor **tidak pernah menimpa**): `Proyek <kode> sudah memiliki
+  <n> tugas WBS (<contoh>, …); impor MPP-XML hanya menata proyek yang belum ber-WBS.
+  Kosongkan WBS dari layarnya sendiri lebih dulu bila jadwal memang akan diganti.`
+- Berkas bukan XML MS Project (termasuk `.mpp` biner yang diganti ekstensinya):
+  `Berkas <nama> bukan XML MS Project yang dapat dibaca; ekspor jadwal dari Microsoft
+  Project sebagai XML (File > Save As > XML Format).`
+- Baseline diminta tetapi proyek tanpa RAP dan tanpa BAC: kalimat penolakan mesin
+  baseline sendiri — dan **seluruh impor batal**, tidak ada pohon setengah-berbaseline.
 
 **Formulir proyek** (tombol `Ubah`), tiga bagian:
 
@@ -4623,6 +4672,17 @@ akan Anda temui:
 > *"Tanggal izin {tanggal} di luar waktu pelaksanaan proyek {kode} ({mulai} s/d
 > {selesai}). Izin kerja hanya untuk hari di dalam masa pelaksanaan — perpanjangan
 > waktu dicatat lewat CCO waktu, bukan lewat izin."*
+
+**Revisi izin kerja (P8).** IKL yang sudah Diajukan/Disetujui/Ditolak membawa tombol
+**`Buat Revisi`**: baris **baru** bernomor baru lahir sebagai Draf menyalin isi izin,
+dan baris lama tercap **Digantikan** (kolom *Revisi* di daftar; spanduk kuning di
+halamannya menunjuk penggantinya) — nomor, status, dan riwayat persetujuannya **tetap
+utuh**, lembarnya tetap bisa dicetak sebagai arsip. Hanya baris hidup yang bisa
+diubah/diajukan/diputus; membuka izin lama lalu memaksa aksi lewat cara lain dijawab,
+kata demi kata: *"Izin kerja lapangan {kode} telah digantikan revisi {kode-baru} dan
+tidak dapat {aksi}; buka revisi terbarunya."* Pola yang sama berlaku untuk **IPP**
+(§16.5) dan **Inspeksi Mutu** (§17.2). ILB dan IMK tidak berpola revisi — keduanya
+sekali pakai per tanggal/kendaraan.
 
 **Izin Kerja Lembur — `Proyek › Izin Lembur (ILB)`.** `Tambah Izin Kerja Lembur`:
 Tanggal lembur · Jam mulai/selesai · Alasan lembur, lalu tabel **Daftar pekerja
@@ -6930,6 +6990,31 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
+### 13.2a Tombol XLSX — sepuluh formulir yang juga turun sebagai Excel
+
+Sejak P8, **sepuluh formulir tersering** membawa tombol kedua **di samping tombol
+cetaknya** — `XLSX` di halaman dokumen, ikon unduh di baris daftar layar tanpa halaman
+dokumen. Ia **mengunduh berkas Excel** berisi **data yang persis sama** dengan lembar
+cetaknya: keduanya dibaca dari satu komposisi, sehingga sebuah angka tidak mungkin
+berbeda antara kertas dan Excel-nya.
+
+Kesepuluhnya: **Laporan Harian** (F/LH) · **Daftar Saldo Stok** · **Bon Pengeluaran
+Barang** · **Bukti Penerimaan Barang** · **Berita Acara Stock Opname** (F/BAO) ·
+**Permintaan Pembelian** (PR) · **Pesanan Pembelian** (PO, formulir rumah) · **SPK
+Subkontraktor** · **Opname ke Pemilik** (OPN) · **Rekap Upah**. Daftar ini milik
+server (tombolnya digambar dari katalog cetak) — formulir lain yang kelak ditambahkan
+memunculkan tombolnya sendiri.
+
+**Aturan kejujuran ikut ke Excel: sel yang di kertas bergaris adalah sel KOSONG di
+XLSX, bukan 0.** Excel yang menjumlahkan kolom berisi nol karangan menghasilkan total
+yang kelihatan benar — persis yang dilarang §13.5 — jadi jangan mengisi sel kosong itu
+dengan nol saat mengolah lanjut.
+
+Formulir di luar kesepuluhnya menjawab, kata demi kata: `Formulir <slug> belum tersedia
+sebagai XLSX; cetak HTML-nya tetap ada. Daftar formulir ber-XLSX: laporan-harian,
+saldo-stok, bon-material, penerimaan-barang, berita-acara-opname, permintaan-pembelian,
+order-pembelian, spk-subkon, opname-owner, rekap-upah.`
+
 ### 13.3 Daftar lengkap 61 formulir
 
 **Penjualan** (izin lihat penjualan):
@@ -7607,6 +7692,15 @@ menekan **`Setujui`** atau **`Tolak`**, dan Anda tetap tidak boleh menyetujui IP
 ajukan sendiri (§2.5). IPP yang sudah keluar dari Draf/Ditolak tak bisa diubah lagi: *"IPP
 {kode} berstatus {status} dan tidak dapat diubah lagi."*
 
+**Revisi IPP (P8).** Metode berubah setelah IPP disetujui? Tombol **`Buat Revisi`**
+(pada IPP Diajukan/Disetujui/Ditolak yang masih berlaku) melahirkan IPP **baru**
+berstatus Draf, menyalin baris bahan/alat/gambar/materialnya — dan revisi baru itu
+**melewati gerbang SDS/SMS lagi dari awal** saat diajukan. IPP lama tercap
+**Digantikan**: nomor, status, dan riwayat persetujuannya utuh, lembarnya tetap
+tercetak; aksi apa pun pada baris lama dijawab *"Ijin pelaksanaan pekerjaan {kode}
+telah digantikan revisi {kode-baru} dan tidak dapat {aksi}; buka revisi terbarunya."*
+Pola yang sama berlaku pada izin kerja lapangan (§7.13) dan inspeksi mutu (§17.2).
+
 ### 16.6 Transmittal — `Engineering › Transmittal`
 
 Kode `TRM/…`. Surat pengantar yang mencatat dokumen apa keluar (atau masuk) dari kendali
@@ -7738,6 +7832,15 @@ Penolakan lain yang mungkin Anda temui:
 - Sudah keluar dari draf: *"Inspeksi {kode} berstatus {status} dan tidak dapat diubah
   lagi."*
 
+**Revisi inspeksi (P8).** Lembar yang keliru isi tetapi sudah Diajukan/Disetujui/
+Ditolak tidak disunting — tombol **`Buat Revisi`** melahirkan inspeksi **baru**
+berstatus Draf yang menyalin butir hasilnya untuk dikoreksi. Lembar lama tercap
+**Digantikan** (kolom *Revisi* di daftar; spanduk kuning di halamannya): nomor, status,
+riwayat persetujuan, dan lembarnya yang tercetak tetap utuh sebagai arsip. Aksi pada
+lembar lama dijawab *"Inspeksi mutu {kode} telah digantikan revisi {kode-baru} dan
+tidak dapat {aksi}; buka revisi terbarunya."* Pola yang sama berlaku pada izin kerja
+lapangan (§7.13) dan IPP (§16.5).
+
 ### 17.3 Ketidaksesuaian (NCR) — `Mutu › Ketidaksesuaian (NCR)`
 
 Kode `NCR/…`. Laporan ketidaksesuaian dibuat ketika pekerjaan tidak memenuhi kriteria. Kolom
@@ -7856,9 +7959,10 @@ template itu akan berpindah saringan Jenis tanpa jejak. Butuh jenis berbeda? Bua
 template versi baru.
 2. **Kode `Q1…Q31` milik kantor mutu**, bukan nomor dokumen yang dicetak sistem — sama
    seperti kode AHSP. Karena itu seluruh pustaka bisa **diimpor massal** lewat **Impor
-   Data Master** (§2.9): satu berkas memuat banyak template, kolom `kode, paket, tahap`
-   untuk kepala dan `butir, kriteria, toleransi` untuk tiap butir; kode yang sudah ada
-   **diperbarui**, kode baru **dibuat**.
+   Dokumen** (§2.9 — jenis **Template Inspeksi**; bukan Impor Data Master, seperti yang
+   pernah tertulis di sini): satu berkas memuat banyak template, kolom `kode, paket,
+   tahap` untuk kepala dan `butir, kriteria, toleransi` untuk tiap butir; kode yang
+   sudah ada **diperbarui**, kode baru **dibuat**.
 
 > **Jangan mengubah butir template yang sudah dipakai inspeksi terisi.** Butir hasil sebuah
 > inspeksi menunjuk butir template aslinya; mengganti butir yang sudah dirujuk belum

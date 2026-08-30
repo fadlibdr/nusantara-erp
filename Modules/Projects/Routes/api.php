@@ -150,6 +150,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('work-permits/{workPermit}', [WorkPermitController::class, 'update'])->middleware('permission:prj.update');
     Route::delete('work-permits/{workPermit}', [WorkPermitController::class, 'destroy'])->middleware('permission:prj.delete');
     Route::post('work-permits/{workPermit}/submit', [WorkPermitController::class, 'submit'])->middleware('permission:prj.update');
+    // Revisi membuat DOKUMEN BARU, maka izinnya izin membuat (P8, D9).
+    Route::post('work-permits/{workPermit}/revise', [WorkPermitController::class, 'revise'])->middleware('permission:prj.create');
     Route::post('work-permits/{workPermit}/approve', [WorkPermitController::class, 'approve'])->middleware('permission:prj.approve');
     Route::post('work-permits/{workPermit}/reject', [WorkPermitController::class, 'reject'])->middleware('permission:prj.approve');
 
@@ -231,6 +233,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('{project}/closure', [ProjectController::class, 'closure'])->middleware('permission:prj.view');
     Route::post('{project}/close', [ProjectController::class, 'close'])->middleware('permission:prj.approve');
     Route::post('{project}/generate-wbs', [ProjectController::class, 'generateWbs'])->middleware('permission:prj.update');
+    // Impor jadwal MS Project XML (P8 #8): pintu yang sama beratnya dengan
+    // generate-wbs — keduanya menulis pohon WBS — maka izinnya juga sama.
+    Route::post('{project}/import-mpp-xml', [ProjectController::class, 'importMppXml'])->middleware('permission:prj.update');
     Route::get('{project}/s-curve', [ProjectController::class, 'sCurve']);
     Route::get('{project}/evm', [EvmController::class, 'show'])->middleware('permission:prj.view');
     // Varian material: teori AHSP x volume BOQ vs bon gudang. prj.view for the

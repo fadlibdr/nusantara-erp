@@ -8,6 +8,7 @@ use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\BaseModel;
 use Modules\Core\Traits\Approvable;
 use Modules\Core\Traits\HasDocumentNumber;
+use Modules\Core\Traits\Revisable;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Projects\Enums\WorkShift;
 
@@ -27,6 +28,7 @@ class WorkPermit extends BaseModel
 {
     use Approvable;
     use HasDocumentNumber;
+    use Revisable;
     use SoftDeletes;
 
     protected $table = 'prj_work_permits';
@@ -41,6 +43,7 @@ class WorkPermit extends BaseModel
             'ppe_required' => 'array',
             'valid_from' => 'datetime',
             'valid_until' => 'datetime',
+            'superseded_at' => 'datetime',
             'status' => DocumentStatus::class,
         ];
     }

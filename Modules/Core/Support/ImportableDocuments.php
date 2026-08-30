@@ -3,6 +3,7 @@
 namespace Modules\Core\Support;
 
 use Illuminate\Contracts\Auth\Access\Authorizable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
@@ -18,9 +19,21 @@ use Modules\Estimation\Models\CostBudget;
 use Modules\Estimation\Services\AhspService;
 use Modules\Estimation\Services\BoqService;
 use Modules\Estimation\Services\RapService;
+use Modules\Inventory\Http\Requests\StockAdjustmentStoreRequest;
+use Modules\Inventory\Models\StockAdjustment;
+use Modules\Inventory\Services\StockAdjustmentService;
+use Modules\Projects\Http\Requests\DailyReportStoreRequest;
+use Modules\Projects\Http\Requests\ProgressMeasurementStoreRequest;
+use Modules\Projects\Models\DailyReport;
+use Modules\Projects\Models\ProgressMeasurement;
+use Modules\Projects\Services\DailyReportService;
+use Modules\Projects\Services\MeasurementService;
 use Modules\Quality\Http\Requests\InspectionTemplateStoreRequest;
 use Modules\Quality\Models\InspectionTemplate;
 use Modules\Quality\Services\InspectionTemplateService;
+use Modules\Subcontract\Http\Requests\LaborContractStoreRequest;
+use Modules\Subcontract\Models\LaborContract;
+use Modules\Subcontract\Services\LaborContractService;
 
 /**
  * What can be loaded in bulk when one file carries whole DOCUMENTS, and the
@@ -97,6 +110,16 @@ use Modules\Quality\Services\InspectionTemplateService;
  *                    warnings: array} — arithmetic a column pair cannot express,
  *                    e.g. an AHSP's stated unit price against its components.
  *                    An error here refuses the document, exactly like a bad line.
+ *   source_column    optional — a column on the target table that the ENGINE
+ *                    stamps with the uploaded file's name after every landed
+ *                    create/update (P8, the legacy importers). The one narrow
+ *                    exception to "the importer never touches a model", and
+ *                    deliberately so: provenance is the importer's own fact —
+ *                    no service can know a file was involved, no screen edits
+ *                    it, and the fin_bank_statements.source_format precedent
+ *                    says a document born from a file names that file on its
+ *                    own row. NULL on the column always means "typed by a
+ *                    person on its own screen".
  *   template_notes   extra '# ...' lines for the generated template
  *   template_example rows of the worked example, emitted commented out
  *
@@ -690,6 +713,379 @@ class ImportableDocuments
                 ],
             ],
 
+            /*
+             * ============================================================
+             * EMPAT IMPORTER WARISAN (P8, kriteria #10, D12).
+             *
+             * Layout korpus XLS pemilik dipetakan ke tata bahasa berkas yang
+             * sama dengan entri lain — kolom `tipe`, kolom grup `dokumen` —
+             * dan pemetaan kolom lembar ASLI ke kolom template ini
+             * didokumentasikan di docs/IMPOR-WARISAN.md, satu bagian per
+             * importer.
+             *
+             * Aturan rumah berlaku dobel untuk data warisan:
+             *
+             * FORWARD-ONLY. Keempatnya mendarat lewat service modulnya dalam
+             * status DRAFT (laporan harian: baris hidup biasa yang memang
+             * tidak pernah memposting apa pun), sehingga TIDAK ada jurnal,
+             * mutasi stok, atau tagihan yang lahir dari sebuah unggahan.
+             * Kartu stok warisan TIDAK memutar ulang baris mutasinya — hanya
+             * saldo penutupnya yang menjadi qty hitung sebuah opname draft;
+             * lembar Opname/SP3 warisan mendaratkan SP3 Induknya saja —
+             * kolom opname kumulatifnya tinggal di kertas, karena opname
+             * baru harus disusun atas SP3 hidup yang disetujui.
+             *
+             * PENANDA SUMBER. source_column menyuruh mesin mencap nama
+             * berkas warisan pada dokumen yang mendarat (import_source),
+             * jadi enam bulan lagi masih terbaca baris mana yang lahir dari
+             * migrasi dan dari berkas apa.
+             * ============================================================
+             */
+
+            // ================================ laporan harian (Projects) ===
+            'daily-reports' => [
+                'label' => 'Laporan Harian (warisan)',
+                'module' => 'Projects',
+                'permission' => 'prj',
+                'model' => DailyReport::class,
+                'document_type' => 'DRP',
+                'group' => 'dokumen',
+                'request' => DailyReportStoreRequest::class,
+                'source_column' => 'import_source',
+                'rows' => [
+                    'laporan' => [
+                        'label' => 'Kepala laporan harian',
+                        'role' => 'header',
+                        'aliases' => ['dokumen'],
+                        'columns' => [
+                            ['header' => 'proyek_kode', 'field' => 'project_id', 'required' => true, 'lookup' => ['prj_projects', 'code']],
+                            ['header' => 'tanggal', 'field' => 'report_date', 'required' => true, 'cast' => 'date'],
+                            ['header' => 'cuaca_pagi', 'field' => 'weather_am', 'enum' => [
+                                'cerah' => ['panas', 'terang'],
+                                'mendung' => ['berawan'],
+                                'hujan' => ['gerimis', 'hujan deras'],
+                            ]],
+                            ['header' => 'cuaca_sore', 'field' => 'weather_pm', 'enum' => [
+                                'cerah' => ['panas', 'terang'],
+                                'mendung' => ['berawan'],
+                                'hujan' => ['gerimis', 'hujan deras'],
+                            ]],
+                            // Jam sebagai teks HH:MM — date_format:H:i milik
+                            // request yang menolaknya bila bukan jam.
+                            ['header' => 'jam_mulai', 'field' => 'work_start', 'cast' => 'text'],
+                            ['header' => 'jam_selesai', 'field' => 'work_end', 'cast' => 'text'],
+                            ['header' => 'alasan_jam_hilang', 'field' => 'lost_hours_reason'],
+                            // Angka lembar lama TANPA rincian per jabatan.
+                            // Begitu baris `tenaga` ikut di berkas, service
+                            // MENURUNKAN angkanya dan angka manual yang
+                            // menyimpang ditolak 422 — aturan P0-A, tidak
+                            // dilonggarkan untuk data warisan.
+                            ['header' => 'jumlah_tenaga', 'field' => 'manpower_count', 'cast' => 'int'],
+                            ['header' => 'kegiatan', 'field' => 'activities', 'required' => true],
+                            ['header' => 'kendala', 'field' => 'obstacles'],
+                            ['header' => 'catatan_k3', 'field' => 'safety_notes'],
+                        ],
+                    ],
+                    'tenaga' => [
+                        'label' => 'Rincian tenaga kerja per jabatan',
+                        'role' => 'line',
+                        'relation' => 'manpower',
+                        'columns' => [
+                            ['header' => 'jabatan', 'field' => 'role_key', 'required' => true, 'enum' => [
+                                // Kata-kata pad FM-10-12, persis label enumnya.
+                                'project_manager' => ['manajer proyek', 'pm'],
+                                'deputy_project_manager' => ['wakil manajer proyek', 'deputy pm'],
+                                'engineering' => ['teknik'],
+                                'komersial' => ['commercial'],
+                                'keuangan' => ['finance'],
+                                'danlat' => ['komandan peralatan'],
+                                'produksi' => ['production'],
+                                'safety_officer' => ['petugas k3', 'hse'],
+                                'mandor_sipil' => ['mandor sipil'],
+                                'mandor_arsitek' => ['mandor arsitek'],
+                                'mandor_mep' => ['mandor me', 'mandor mep'],
+                                'subkont' => ['subkon', 'subkontraktor'],
+                            ]],
+                            ['header' => 'jumlah_orang', 'field' => 'headcount', 'required' => true, 'cast' => 'int'],
+                            ['header' => 'keterangan', 'field' => 'notes'],
+                        ],
+                    ],
+                    'alat' => [
+                        'label' => 'Alat yang beroperasi',
+                        'role' => 'line',
+                        'relation' => 'equipment',
+                        'columns' => [
+                            ['header' => 'uraian', 'field' => 'description', 'required' => true],
+                            ['header' => 'jumlah_alat', 'field' => 'qty', 'required' => true, 'cast' => 'int'],
+                            ['header' => 'jam_operasi', 'field' => 'hours', 'cast' => 'decimal'],
+                        ],
+                    ],
+                    'material_masuk' => [
+                        'label' => 'Material yang masuk hari itu',
+                        'role' => 'line',
+                        'relation' => 'receipts',
+                        'columns' => [
+                            ['header' => 'uraian', 'field' => 'description', 'required' => true],
+                            ['header' => 'volume_diterima', 'field' => 'qty_received', 'required' => true, 'cast' => 'qty'],
+                            ['header' => 'volume_ditolak', 'field' => 'qty_rejected', 'cast' => 'qty'],
+                            ['header' => 'satuan', 'field' => 'unit', 'required' => true],
+                            ['header' => 'alasan_tolak', 'field' => 'rejection_reason'],
+                        ],
+                    ],
+                    'material_dipakai' => [
+                        'label' => 'Material yang dipakai (dari gudang)',
+                        'role' => 'line',
+                        'relation' => 'materials',
+                        'columns' => [
+                            // Item gudang dicari per kode dan yang tak dikenal
+                            // MENOLAK barisnya — pemakaian material warisan
+                            // yang menempel ke item yang salah akan mengotori
+                            // varian material selamanya.
+                            ['header' => 'item_kode', 'field' => 'item_id', 'required' => true, 'lookup' => ['inv_items', 'code']],
+                            ['header' => 'volume', 'field' => 'qty_used', 'required' => true, 'cast' => 'qty'],
+                            ['header' => 'satuan', 'field' => 'unit', 'required' => true],
+                        ],
+                    ],
+                ],
+                'create' => fn (array $payload): object => app(DailyReportService::class)->create($payload),
+                'update' => fn (object $target, array $payload): object => app(DailyReportService::class)->update($target, $payload),
+                // Satu laporan per (proyek, tanggal) — indeks uniknya ada,
+                // tetapi jawaban indeks adalah SQLSTATE, dan
+                // UniqueDailyReportDate pada request yang di-instantiate
+                // telanjang tidak melihat project_id payload. Ini yang membuat
+                // penolakannya menyebut laporan yang sudah ada, dengan kode
+                // dan tanggalnya.
+                'checks' => function (array $payload, ?object $target): array {
+                    $projectId = $payload['project_id'] ?? null;
+                    $date = $payload['report_date'] ?? null;
+
+                    if ($projectId === null || $date === null) {
+                        return ['errors' => [], 'warnings' => []];
+                    }
+
+                    $existing = DB::table('prj_daily_reports')
+                        ->where('project_id', (int) $projectId)
+                        ->whereDate('report_date', (string) $date)
+                        ->whereNull('deleted_at')
+                        ->when($target !== null, fn ($query) => $query->where('id', '!=', $target->id))
+                        ->first(['code', 'report_date']);
+
+                    if ($existing === null) {
+                        return ['errors' => [], 'warnings' => []];
+                    }
+
+                    return ['errors' => [sprintf(
+                        'tanggal: sudah ada laporan harian %s untuk proyek ini pada %s; '
+                        .'isi kolom dokumen dengan kode itu bila memang ingin memperbaruinya.',
+                        $existing->code,
+                        Carbon::parse($existing->report_date)->format('d-m-Y'),
+                    )], 'warnings' => []];
+                },
+                'template_notes' => [
+                    'kolom dokumen: isi nomor DRP yang sudah ada untuk MEMPERBARUI, atau label bebas'
+                        .' (mis. LH-GRAHA-0301) untuk MEMBUAT BARU — nomor DRP diberikan sistem, bukan berkas.',
+                    'jumlah_tenaga hanya untuk lembar lama tanpa rincian per jabatan; begitu ada baris tenaga,'
+                        .' angkanya diturunkan dari rincian dan angka manual yang berbeda ditolak.',
+                    'material_dipakai menunjuk item gudang per kode (Impor Master Data untuk membuat item);'
+                        .' impor ini TIDAK memotong stok — bon gudang tetap dokumennya sendiri.',
+                    'pemetaan kolom lembar warisan ke template ini: docs/IMPOR-WARISAN.md §1.',
+                ],
+                'template_example' => [
+                    ['tipe' => 'laporan', 'dokumen' => 'LH-GRAHA-0301', 'proyek_kode' => 'PRJ-2026-001',
+                        'tanggal' => '01/03/2026', 'cuaca_pagi' => 'cerah', 'cuaca_sore' => 'hujan',
+                        'jam_mulai' => '08:00', 'jam_selesai' => '17:00', 'kegiatan' => 'Pengecoran kolom lantai 2'],
+                    ['tipe' => 'tenaga', 'dokumen' => 'LH-GRAHA-0301', 'jabatan' => 'mandor sipil', 'jumlah_orang' => '12'],
+                    ['tipe' => 'material_masuk', 'dokumen' => 'LH-GRAHA-0301', 'uraian' => 'Besi beton D16',
+                        'volume_diterima' => '2.000', 'volume_ditolak' => '0', 'satuan' => 'kg'],
+                ],
+            ],
+
+            // ================================== kartu stok (Inventory) ===
+            'stock-cards' => [
+                'label' => 'Kartu Stok (warisan)',
+                'module' => 'Inventory',
+                'permission' => 'inv',
+                'model' => StockAdjustment::class,
+                'document_type' => 'ADJ',
+                'group' => 'dokumen',
+                'request' => StockAdjustmentStoreRequest::class,
+                'source_column' => 'import_source',
+                'rows' => [
+                    'kartu' => [
+                        'label' => 'Kepala opname (satu gudang, satu tanggal)',
+                        'role' => 'header',
+                        'aliases' => ['dokumen'],
+                        'columns' => [
+                            ['header' => 'gudang_kode', 'field' => 'warehouse_id', 'required' => true, 'lookup' => ['inv_warehouses', 'code']],
+                            ['header' => 'tanggal', 'field' => 'adjustment_date', 'required' => true, 'cast' => 'date'],
+                            // Kosong = opname: saldo penutup kartu stok adalah
+                            // hitungan fisik menurut kartunya.
+                            ['header' => 'alasan', 'field' => 'reason', 'default' => 'opname', 'enum' => [
+                                'opname' => ['stock opname', 'hitung fisik'],
+                                'damage' => ['rusak', 'barang rusak'],
+                                'loss' => ['hilang', 'barang hilang'],
+                            ]],
+                            ['header' => 'catatan', 'field' => 'notes'],
+                        ],
+                    ],
+                    'saldo' => [
+                        'label' => 'Saldo penutup per item',
+                        'role' => 'line',
+                        'relation' => 'items',
+                        'columns' => [
+                            ['header' => 'item_kode', 'field' => 'item_id', 'required' => true, 'lookup' => ['inv_items', 'code']],
+                            ['header' => 'saldo_akhir', 'field' => 'counted_qty', 'required' => true, 'cast' => 'qty'],
+                        ],
+                    ],
+                ],
+                'create' => fn (array $payload): object => app(StockAdjustmentService::class)->create($payload),
+                'update' => fn (object $target, array $payload): object => app(StockAdjustmentService::class)->update($target, $payload),
+                'template_notes' => [
+                    'yang diimpor adalah SALDO PENUTUP kartu — baris mutasi masuk/keluar kartu lama TIDAK diputar'
+                        .' ulang; sejarah pergerakannya tinggal di kertas (forward-only).',
+                    'dokumen mendarat sebagai stock opname DRAFT: stok dan jurnal baru bergerak saat opname itu'
+                        .' disetujui dan diposting orang dari layarnya sendiri.',
+                    'alasan kosong = opname. satu kartu = satu gudang + satu tanggal saldo.',
+                    'pemetaan kolom kartu warisan ke template ini: docs/IMPOR-WARISAN.md §2.',
+                ],
+                'template_example' => [
+                    ['tipe' => 'kartu', 'dokumen' => 'KS-GUDANG-UTAMA', 'gudang_kode' => 'WH-01',
+                        'tanggal' => '30/06/2026', 'catatan' => 'Saldo penutup kartu stok manual Juni 2026'],
+                    ['tipe' => 'saldo', 'dokumen' => 'KS-GUDANG-UTAMA', 'item_kode' => 'ITM-0001', 'saldo_akhir' => '150'],
+                    ['tipe' => 'saldo', 'dokumen' => 'KS-GUDANG-UTAMA', 'item_kode' => 'ITM-0002', 'saldo_akhir' => '80,5'],
+                ],
+            ],
+
+            // ============================ Opname/SP3 mandor (Subcontract) ===
+            'sp3' => [
+                'label' => 'SP3 Induk — lembar Opname/SP3 (warisan)',
+                'module' => 'Subcontract',
+                'permission' => 'scm',
+                'model' => LaborContract::class,
+                'document_type' => 'SP3',
+                'group' => 'dokumen',
+                'request' => LaborContractStoreRequest::class,
+                'source_column' => 'import_source',
+                'rows' => [
+                    'sp3' => [
+                        'label' => 'Kepala SP3 Induk',
+                        'role' => 'header',
+                        'aliases' => ['dokumen'],
+                        'columns' => [
+                            ['header' => 'mandor_kode', 'field' => 'vendor_id', 'required' => true, 'lookup' => ['prc_vendors', 'code']],
+                            ['header' => 'proyek_kode', 'field' => 'project_id', 'required' => true, 'lookup' => ['prj_projects', 'code']],
+                            ['header' => 'judul', 'field' => 'title', 'required' => true],
+                            // Kosong = PPh final UMKM (asumsi #3). pph21_ter
+                            // valid secara bentuk; service yang menolaknya
+                            // "belum diaktifkan" — pintu jujur yang sama
+                            // dengan layar.
+                            ['header' => 'skema_pph', 'field' => 'pph_scheme', 'default' => 'final_umkm', 'enum' => [
+                                'final_umkm' => ['pph final', 'final umkm', 'umkm', 'final'],
+                                'pph21_ter' => ['pph 21', 'pph21', 'ter'],
+                            ]],
+                            ['header' => 'tanggal_mulai', 'field' => 'start_date', 'cast' => 'date'],
+                            ['header' => 'tanggal_selesai', 'field' => 'end_date', 'cast' => 'date'],
+                            ['header' => 'catatan', 'field' => 'notes'],
+                            // Gate prakualifikasi K3L/pakta berlaku juga untuk
+                            // impor warisan; kolom ini jalan daruratnya yang
+                            // TERCATAT, bukan pintu belakang — alasan kosong
+                            // pada mandor yang belum lolos gate menolak
+                            // dokumennya dengan kalimat gate itu sendiri.
+                            ['header' => 'alasan_override_kualifikasi', 'field' => 'qualification_override_reason'],
+                        ],
+                    ],
+                    'item' => [
+                        'label' => 'Baris upah borongan',
+                        'role' => 'line',
+                        'relation' => 'items',
+                        'amount' => ['qty', 'unit_rate'],
+                        'columns' => [
+                            ['header' => 'uraian', 'field' => 'description', 'required' => true],
+                            ['header' => 'wbs', 'field' => 'wbs_code', 'cast' => 'text'],
+                            ['header' => 'volume', 'field' => 'qty', 'required' => true, 'cast' => 'qty'],
+                            ['header' => 'satuan', 'field' => 'unit'],
+                            ['header' => 'tarif_upah', 'field' => 'unit_rate', 'required' => true, 'cast' => 'money'],
+                            ['header' => 'jumlah', 'checksum' => true, 'cast' => 'money'],
+                        ],
+                    ],
+                ],
+                'create' => fn (array $payload): object => app(LaborContractService::class)->create($payload),
+                'update' => fn (object $target, array $payload): object => app(LaborContractService::class)->update($target, $payload),
+                'template_notes' => [
+                    'lembar warisan "Opname/SP3" memuat dua hal; yang diimpor hanya SP3 INDUKNYA (baris volume x'
+                        .' tarif). Kolom opname kumulatif TIDAK diimpor: opname mandor baru disusun di aplikasi atas'
+                        .' SP3 yang sudah disetujui, supaya plafon volumenya hidup (forward-only).',
+                    'mandor dicari per kode vendor (vendor bertipe mandor); nilai SP3, tarif PPN dan snapshot tarif'
+                        .' PPh dihitung service — berkas tidak membawa kolomnya.',
+                    'skema_pph kosong = PPh final UMKM (PP 55/2022).',
+                    'pemetaan kolom lembar warisan ke template ini: docs/IMPOR-WARISAN.md §3.',
+                ],
+                'template_example' => [
+                    ['tipe' => 'sp3', 'dokumen' => 'SP3-BUDI-01', 'mandor_kode' => 'VND-0001',
+                        'proyek_kode' => 'PRJ-2026-001', 'judul' => 'Upah borongan pembesian tower A',
+                        'skema_pph' => 'pph final'],
+                    ['tipe' => 'item', 'dokumen' => 'SP3-BUDI-01', 'uraian' => 'Pembesian kolom', 'wbs' => 'B.1',
+                        'volume' => '120', 'satuan' => 'kg', 'tarif_upah' => '1.500', 'jumlah' => '180.000'],
+                ],
+            ],
+
+            // ========================= progress pay / opname OPN (Projects) ===
+            'progress-pay' => [
+                'label' => 'Progress Payment / Opname ke Pemilik (warisan)',
+                'module' => 'Projects',
+                'permission' => 'prj',
+                'model' => ProgressMeasurement::class,
+                'document_type' => 'OPN',
+                'group' => 'dokumen',
+                'request' => ProgressMeasurementStoreRequest::class,
+                'source_column' => 'import_source',
+                'rows' => [
+                    'opname' => [
+                        'label' => 'Kepala opname progres',
+                        'role' => 'header',
+                        'aliases' => ['dokumen'],
+                        'columns' => [
+                            ['header' => 'proyek_kode', 'field' => 'project_id', 'required' => true, 'lookup' => ['prj_projects', 'code']],
+                            // Jangkar scope untuk pencarian item_boq di bawah —
+                            // A.1 berarti hal berbeda di setiap BOQ (pelajaran
+                            // entri RAP). MeasurementService tetap menegakkan
+                            // bahwa item milik BOQ kontrak proyeknya; boq_kode
+                            // yang salah ditolak dengan kalimat service.
+                            ['header' => 'boq_kode', 'field' => 'boq_id', 'required' => true, 'lookup' => ['est_boqs', 'code']],
+                            ['header' => 'periode_mulai', 'field' => 'period_start', 'required' => true, 'cast' => 'date'],
+                            ['header' => 'periode_selesai', 'field' => 'period_end', 'required' => true, 'cast' => 'date'],
+                            ['header' => 'catatan', 'field' => 'notes'],
+                        ],
+                    ],
+                    'item' => [
+                        'label' => 'Volume periode ini per item BOQ',
+                        'role' => 'line',
+                        'relation' => 'items',
+                        'columns' => [
+                            ['header' => 'item_boq', 'field' => 'boq_item_id', 'required' => true,
+                                'lookup' => ['est_boq_items', 'wbs_code'], 'scope' => ['boq_id', 'boq_id']],
+                            ['header' => 'volume_ini', 'field' => 'qty_this', 'required' => true, 'cast' => 'qty'],
+                            ['header' => 'keterangan', 'field' => 'notes'],
+                        ],
+                    ],
+                ],
+                'create' => fn (array $payload): object => app(MeasurementService::class)->create($payload),
+                'update' => fn (object $target, array $payload): object => app(MeasurementService::class)->update($target, $payload),
+                'template_notes' => [
+                    'lembar Progress Payment warisan dipetakan ke opname progres (OPN): hanya VOLUME PERIODE INI'
+                        .' per item BOQ yang dibawa berkas — kumulatif s/d lalu, harga, dan nilai tagihan dihitung'
+                        .' service dari riwayat approved dan harga kontrak, bukan dari kertas.',
+                    'dokumen mendarat DRAFT; tagihan ke pemilik baru bisa lahir setelah opname disetujui.',
+                    'volume periode boleh negatif (opname koreksi); kumulatif tidak boleh menjadi negatif.',
+                    'pemetaan kolom lembar warisan ke template ini: docs/IMPOR-WARISAN.md §4.',
+                ],
+                'template_example' => [
+                    ['tipe' => 'opname', 'dokumen' => 'OPN-JUNI', 'proyek_kode' => 'PRJ-2026-001',
+                        'boq_kode' => 'BOQ/2026/0001', 'periode_mulai' => '01/06/2026', 'periode_selesai' => '30/06/2026'],
+                    ['tipe' => 'item', 'dokumen' => 'OPN-JUNI', 'item_boq' => 'A.1', 'volume_ini' => '250'],
+                ],
+            ],
+
         ];
     }
 
@@ -755,6 +1151,7 @@ class ImportableDocuments
             'update_rules' => null,
             'blockers' => null,
             'checks' => null,
+            'source_column' => null,
             'template_notes' => [],
             'template_example' => [],
         ];

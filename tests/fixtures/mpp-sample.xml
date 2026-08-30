@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+    Berkas contoh MS Project XML (kriteria #8, P8) — dibuat tangan, BUKAN ekspor
+    sungguhan, tetapi mengikuti kerangka skema Microsoft Project XML
+    (namespace http://schemas.microsoft.com/project) persis pada subset yang
+    dibaca MppXmlImportService:
+
+      Tasks > Task : UID, Name, OutlineNumber, OutlineLevel, Summary,
+                     Start, Finish.
+
+    Yang SENGAJA ada di berkas ini tetapi TIDAK dibaca importer (dan
+    didokumentasikan begitu): PredecessorLink (dependensi antar tugas —
+    prj_wbs_tasks tidak punya kolomnya), Duration/Work/Cost, dan Assignments.
+    Baris Task UID=0 / OutlineLevel=0 adalah ringkasan proyek bawaan MS Project
+    dan dilewati.
+
+    Empat daun dengan durasi 10 + 20 + 30 + 40 = 100 hari (inklusif kedua
+    ujung), sehingga bobot porsi-durasi bulat: 10%, 20%, 30%, 40% — angka yang
+    dihitung ulang dengan tangan di MppXmlImportTest, termasuk titik kurva S:
+    43,0% (28-02-2026), 89,0% (31-03-2026), 100,0% (30-04-2026).
+-->
+<Project xmlns="http://schemas.microsoft.com/project">
+    <SaveVersion>14</SaveVersion>
+    <Name>jadwal-graha.xml</Name>
+    <StartDate>2026-02-01T08:00:00</StartDate>
+    <FinishDate>2026-04-11T17:00:00</FinishDate>
+    <Tasks>
+        <Task>
+            <UID>0</UID>
+            <ID>0</ID>
+            <Name>Jadwal Induk Graha</Name>
+            <OutlineNumber>0</OutlineNumber>
+            <OutlineLevel>0</OutlineLevel>
+            <Summary>1</Summary>
+            <Start>2026-02-01T08:00:00</Start>
+            <Finish>2026-04-11T17:00:00</Finish>
+        </Task>
+        <Task>
+            <UID>1</UID>
+            <ID>1</ID>
+            <Name>Pekerjaan Persiapan</Name>
+            <OutlineNumber>1</OutlineNumber>
+            <OutlineLevel>1</OutlineLevel>
+            <Summary>1</Summary>
+            <Start>2026-02-01T08:00:00</Start>
+            <Finish>2026-02-25T17:00:00</Finish>
+        </Task>
+        <Task>
+            <UID>2</UID>
+            <ID>2</ID>
+            <Name>Mobilisasi</Name>
+            <OutlineNumber>1.1</OutlineNumber>
+            <OutlineLevel>2</OutlineLevel>
+            <Summary>0</Summary>
+            <Start>2026-02-01T08:00:00</Start>
+            <Finish>2026-02-10T17:00:00</Finish>
+            <Duration>PT80H0M0S</Duration>
+        </Task>
+        <Task>
+            <UID>3</UID>
+            <ID>3</ID>
+            <Name>Pagar proyek dan direksi keet</Name>
+            <OutlineNumber>1.2</OutlineNumber>
+            <OutlineLevel>2</OutlineLevel>
+            <Summary>0</Summary>
+            <Start>2026-02-06T08:00:00</Start>
+            <Finish>2026-02-25T17:00:00</Finish>
+            <PredecessorLink>
+                <PredecessorUID>2</PredecessorUID>
+                <Type>1</Type>
+            </PredecessorLink>
+        </Task>
+        <Task>
+            <UID>4</UID>
+            <ID>4</ID>
+            <Name>Pekerjaan Struktur</Name>
+            <OutlineNumber>2</OutlineNumber>
+            <OutlineLevel>1</OutlineLevel>
+            <Summary>1</Summary>
+            <Start>2026-02-16T08:00:00</Start>
+            <Finish>2026-04-11T17:00:00</Finish>
+        </Task>
+        <Task>
+            <UID>5</UID>
+            <ID>5</ID>
+            <Name>Pondasi dan pile cap</Name>
+            <OutlineNumber>2.1</OutlineNumber>
+            <OutlineLevel>2</OutlineLevel>
+            <Summary>0</Summary>
+            <Start>2026-02-16T08:00:00</Start>
+            <Finish>2026-03-17T17:00:00</Finish>
+        </Task>
+        <Task>
+            <UID>6</UID>
+            <ID>6</ID>
+            <Name>Struktur atas lantai 1-2</Name>
+            <OutlineNumber>2.2</OutlineNumber>
+            <OutlineLevel>2</OutlineLevel>
+            <Summary>0</Summary>
+            <Start>2026-03-03T08:00:00</Start>
+            <Finish>2026-04-11T17:00:00</Finish>
+            <PredecessorLink>
+                <PredecessorUID>5</PredecessorUID>
+                <Type>1</Type>
+            </PredecessorLink>
+        </Task>
+    </Tasks>
+    <Assignments>
+        <Assignment>
+            <UID>1</UID>
+            <TaskUID>2</TaskUID>
+            <ResourceUID>1</ResourceUID>
+        </Assignment>
+    </Assignments>
+</Project>

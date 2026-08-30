@@ -10,6 +10,7 @@ use Modules\Core\Models\BaseModel;
 use Modules\Core\Models\Location;
 use Modules\Core\Traits\Approvable;
 use Modules\Core\Traits\HasDocumentNumber;
+use Modules\Core\Traits\Revisable;
 use Modules\Engineering\Models\WorkPermitIpp;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Projects\Models\Project;
@@ -34,6 +35,7 @@ class Inspection extends BaseModel
 {
     use Approvable;
     use HasDocumentNumber;
+    use Revisable;
     use SoftDeletes;
 
     protected $table = 'qc_inspections';
@@ -46,6 +48,7 @@ class Inspection extends BaseModel
             'inspected_at' => 'date',
             'witness_party' => WitnessParty::class,
             'passed' => 'boolean',
+            'superseded_at' => 'datetime',
             'status' => DocumentStatus::class,
         ];
     }

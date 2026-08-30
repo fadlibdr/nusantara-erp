@@ -47,6 +47,8 @@ class WorkPermitService
 
     public function update(WorkPermit $permit, array $data): WorkPermit
     {
+        $permit->assertRevisiBerlaku('diubah');
+
         $project = $permit->project()->firstOrFail();
         $project->assertOperational('izin kerja lapangan');
 
@@ -96,6 +98,38 @@ class WorkPermitService
      * yang kadung digerakkan proksi internal menolak di sini dengan kalimat
      * trait, dan halaman publik menerjemahkannya jujur.
      */
+    /**
+     * P8 — revisi generik (D9), pola DrawingSubmittalService: baris BARU
+     * bernomor IKL baru, revision + 1, siklus draft dari awal; pendahulunya
+     * dikunci lalu distempel superseded_at + superseded_by_id. Nomor, status,
+     * dan riwayat persetujuan pendahulu tidak disentuh — lembarnya tetap sah
+     * dan tetap bisa dicetak sebagai arsip.
+     */
+    public function revise(WorkPermit $permit): WorkPermit
+    {
+        return DB::transaction(function () use ($permit): WorkPermit {
+            /** @var WorkPermit $locked */
+            $locked = WorkPermit::query()->whereKey($permit->getKey())->lockForUpdate()->firstOrFail();
+
+            // Locked before stamping, so two racing revisions cannot both
+            // believe they are the current one (the BaselineService pattern).
+            $locked->assertRevisiBerlaku('direvisi');
+
+            $successor = $locked->replicate(['code', 'status', 'revision', 'superseded_at', 'superseded_by_id', 'deleted_at']);
+            $successor->forceFill([
+                'status' => DocumentStatus::Draft,
+                'revision' => (int) $locked->revision + 1,
+            ])->save();
+
+            $locked->forceFill([
+                'superseded_at' => now(),
+                'superseded_by_id' => $successor->id,
+            ])->save();
+
+            return $successor;
+        });
+    }
+
     public function applyExternalDecision(WorkPermit $permit, ExternalApproval $approval): WorkPermit
     {
         $issuer = $approval->issued_by === null ? null : User::query()->find($approval->issued_by);
@@ -110,6 +144,11 @@ class WorkPermitService
 
         /** @var WorkPermit $locked */
         $locked = WorkPermit::query()->whereKey($permit->getKey())->lockForUpdate()->firstOrFail();
+
+        // P8: tautan yang diterbitkan untuk revisi lama tidak boleh
+        // menggerakkan izin yang sudah digantikan — keputusannya ikut
+        // tergulung balik oleh transaksi pencatat.
+        $locked->assertRevisiBerlaku('diputus lewat tautan eksternal');
 
         $note = sprintf(
             'Keputusan eksternal %s: %s — %s%s, via %s.%s',

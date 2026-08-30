@@ -2,13 +2,13 @@
    documents pulled from the other modules. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, progressBar, errorState, emptyState, toast, toastError, icon } from '../ui.js';
+import { el, clear, button, badge, progressBar, errorState, emptyState, toast, toastError, icon, modal, withBusy } from '../ui.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
 import { evmCard, baselineCard } from './evm.js';
 import { preload } from '../lookup.js';
 import { openForm } from './form.js';
-import { promptFields } from './form.js';
+import { promptFields, buildInput } from './form.js';
 import { navigate, back } from '../router.js';
 import { openPrintable } from '../print.js';
 import { RESOURCES } from '../schema.js';
@@ -192,6 +192,111 @@ function izinLapanganCard() {
   ]);
 }
 
+/* P8 — impor MPP-XML (kriteria #8): jadwal MS Project → pohon WBS + baseline,
+   dari halaman proyek — bersebelahan dengan "Buat WBS dari BOQ" karena
+   keduanya adalah dua sumber untuk satu pohon. Yang dibaca berkasnya hanyalah
+   hierarki outline dan tanggal per tugas; bobot daun dihitung dari porsi
+   durasi (konvensi terdokumentasi MppXmlImportService, bukan tebakan per
+   sel). Dialog TIDAK memeriksa apa pun sendiri: proyek yang sudah ber-WBS,
+   XML yang bukan MS Project, baseline tanpa RAP/BAC — semuanya dijawab 422
+   server dengan kalimat bernama, dan toastError menampilkannya utuh. */
+function openMppXmlImport(project, { onImported } = {}) {
+  const picker = el('input', {
+    type: 'file',
+    accept: '.xml,text/xml,application/xml',
+    'aria-label': 'Berkas XML MS Project',
+  });
+
+  const makeBaseline = el('input', { type: 'checkbox', checked: true });
+  const bac = buildInput({ type: 'currency' }, '');
+
+  const body = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } }, [
+    el('p', {
+      style: { margin: '0', fontSize: '13px', color: 'var(--text-2)' },
+      text: 'Ekspor jadwal dari Microsoft Project sebagai XML (File > Save As > XML Format) — '
+        + 'bukan .mpp biner. Hierarki outline menjadi pohon WBS, tanggal mulai/selesai menjadi '
+        + 'tanggal tugas; bobot daun dihitung dari porsi durasinya. Maksimal 5 MB.',
+    }),
+    el('p', {
+      style: { margin: '0', fontSize: '13px', color: 'var(--text-2)' },
+      text: 'Impor hanya menata proyek yang belum ber-WBS — proyek yang sudah punya tugas ditolak '
+        + 'dengan menyebut apa yang ada, bukan ditimpa.',
+    }),
+    el('.field', [el('label', { text: 'Berkas XML' }), picker]),
+    el('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, [
+      makeBaseline,
+      el('span', { text: 'Bekukan baseline (kurva S) dari jadwal ini' }),
+    ]),
+    el('.field', [
+      el('label', { text: 'BAC — nilai anggaran baseline (opsional)' }),
+      bac.node,
+      el('.help', {
+        text: 'Kosongkan untuk memakai RAP proyek. Tanpa RAP dan tanpa nilai di sini, pembekuan '
+          + 'baseline ditolak server dengan kalimatnya sendiri dan seluruh impor batal.',
+      }),
+    ]),
+  ]);
+
+  const submit = button('Impor', {
+    variant: 'primary',
+    onClick: (event) => runImport(event.currentTarget),
+  });
+
+  async function runImport(trigger) {
+    const file = picker.files && picker.files[0];
+    if (!file) {
+      toast('Pilih berkas XML-nya dulu.', { tone: 'err' });
+      return;
+    }
+
+    await withBusy(trigger, async () => {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('Berkas tidak dapat dibaca.'));
+        reader.readAsDataURL(file);
+      });
+
+      // Server mendekode base64 KETAT (base64_decode(..., true)); awalan
+      // dataURL FileReader ("data:…;base64,") harus dibuang di sini.
+      const content = dataUrl.split(',').pop();
+      const bacValue = bac.read();
+
+      let result;
+      try {
+        result = await api.post(`projects/${project.id}/import-mpp-xml`, {
+          filename: file.name,
+          content,
+          buat_baseline: makeBaseline.checked,
+          ...(bacValue ? { bac_override: bacValue } : {}),
+        });
+      } catch (error) {
+        toastError(error);
+        return;
+      }
+
+      toast(
+        `${result.tasks} tugas WBS diimpor dari ${file.name}.`
+        + (result.baseline_code
+          ? ` Baseline ${result.baseline_code} dibekukan (${result.baseline_points} titik kurva S).`
+          : ' Baseline tidak dibekukan.'),
+      );
+      handle.close();
+      if (onImported) onImported();
+    });
+  }
+
+  const handle = modal({
+    title: `Impor Jadwal MPP-XML — ${project.code}`,
+    body,
+    footer: [
+      button('Batal', { variant: 'ghost', onClick: () => handle.requestClose() }),
+      submit,
+    ],
+    dirty: () => Boolean(picker.files && picker.files.length),
+  });
+}
+
 const safe = (path, params) => api.get(path, params).then((rows) => rows || []).catch(() => []);
 
 export async function renderProject(host, { id }) {
@@ -262,6 +367,15 @@ export async function renderProject(host, { id }) {
               toastError(error);
             }
           },
+        })
+        : null,
+      /* P8 — sumber kedua untuk pohon yang sama: jadwal MS Project (XML).
+         Tombolnya tetap digambar untuk proyek ber-WBS — penolakannya urusan
+         server, dan kalimat 422-nya (menyebut tugas yang sudah ada) lebih
+         mendidik daripada tombol yang diam-diam hilang. */
+      canUpdate && project.status !== 'closed'
+        ? button('Impor Jadwal (MPP-XML)', {
+          onClick: () => openMppXmlImport(project, { onImported: reload }),
         })
         : null,
       /* Aksi eksplisit di balik status 'Ditutup' (Temuan 47): checklist item

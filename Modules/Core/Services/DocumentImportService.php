@@ -210,10 +210,29 @@ class DocumentImportService
                 // One transaction per DOCUMENT: a line that only the database can
                 // refuse rolls back its own document whole, and leaves the others
                 // already committed beside it.
-                $record = DB::transaction(function () use ($definition, $document) {
-                    return $document['action'] === 'update'
+                $record = DB::transaction(function () use ($definition, $document, $filename) {
+                    $record = $document['action'] === 'update'
                         ? ($definition['update'])($document['target_model'], $document['payload'])
                         : ($definition['create'])($document['payload']);
+
+                    /*
+                     * Provenance stamp (P8, the legacy importers). The engine's
+                     * own fact, written by the engine: no module service can
+                     * know a FILE was involved, and threading the name through
+                     * four services' fill lists would teach each of them a
+                     * column that is none of their business. saveQuietly —
+                     * a marker, not an edit; no observer should mistake it
+                     * for one. Inside the document's transaction, so a stamp
+                     * that cannot be written rolls its document back rather
+                     * than leaving it unmarked.
+                     */
+                    if ($definition['source_column'] !== null) {
+                        $record->forceFill([
+                            $definition['source_column'] => mb_substr($filename, 0, 160),
+                        ])->saveQuietly();
+                    }
+
+                    return $record;
                 });
 
                 $codes[$document['group']] = (string) $record->{$definition['code_column']};

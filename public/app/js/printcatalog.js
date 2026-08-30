@@ -101,6 +101,12 @@ export function printFormsFor(resource) {
       label: entry.label,
       idField: entry.idField || 'id',
       params: entry.params || {},
+      /* P8 — which forms also answer at …/{id}/xlsx. The list has ONE owner
+         (FormXlsxExportService::FORMS di PHP) and arrives as this flag; a slug
+         yang ditambahkan di sana menumbuhkan tombolnya tanpa perubahan
+         front-end. Ketat `=== true` supaya katalog lama tanpa kunci ini
+         berarti "tidak ada tombol", bukan undefined yang truthy-diragukan. */
+      xlsx: entry.xlsx === true,
     }));
 }
 
@@ -121,6 +127,20 @@ export function printablePath(form, row) {
 }
 
 /**
+ * P8 — the same button, second format: the export URL is the print URL with
+ * an /xlsx tail BEFORE the query. Dibangun dari printablePath dan bukan
+ * dirakit ulang per layar, supaya ?tanggal= milik tombol laporan harian ikut
+ * ke ekspornya — XLSX yang menjawab hari yang berbeda dari lembar yang sedang
+ * dilihat adalah dua kebenaran untuk satu tombol.
+ */
+export function xlsxPath(form, row) {
+  const base = printablePath(form, row);
+  const query = base.indexOf('?');
+
+  return query === -1 ? `${base}/xlsx` : `${base.slice(0, query)}/xlsx${base.slice(query)}`;
+}
+
+/**
  * Every button for a screen: the schema.js entries first, then the catalogue's,
  * with anything already declared in schema.js dropped.
  *
@@ -135,7 +155,16 @@ export function printButtonsFor(def, resource) {
   const declared = def.printForms || [];
   const known = new Set(declared.map((entry) => entry.form));
 
-  return [...declared, ...printFormsFor(resource).filter((entry) => !known.has(entry.form))];
+  /* P8: a schema.js-declared entry borrows the catalogue's xlsx flag for its
+     own slug — the catalogue lists every printable slug including the seven
+     declared ones, and the flag's owner stays the server even for buttons the
+     catalogue does not draw. */
+  const xlsxBySlug = new Map((cache || []).map((entry) => [entry.slug, entry.xlsx === true]));
+
+  return [
+    ...declared.map((entry) => ({ ...entry, xlsx: xlsxBySlug.get(entry.form) === true })),
+    ...printFormsFor(resource).filter((entry) => !known.has(entry.form)),
+  ];
 }
 
 /**

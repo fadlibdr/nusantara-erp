@@ -155,6 +155,63 @@ class DocumentNumberServiceTest extends ErpTestCase
         $this->assertSame(1, (int) NumberSequence::query()->where(['type' => 'PO', 'year' => 2027])->value('last_number'));
     }
 
+    // ---------------------------------------------------------------- {PROJ} (P8)
+
+    public function test_a_proj_mask_splits_the_counter_per_project(): void
+    {
+        $this->setSetting('documents.PO', 'PO/{PROJ}/{Y}/{RM}/{N4}');
+
+        // Two projects, interleaved: each carries its own counter, and the
+        // rendered code names the project so the unique code column holds.
+        $this->assertSame('PO/PRJ-2026-001/2026/VII/0001', $this->numbers->next('PO', 'PRJ-2026-001'));
+        $this->assertSame('PO/PRJ-2026-002/2026/VII/0001', $this->numbers->next('PO', 'PRJ-2026-002'));
+        $this->assertSame('PO/PRJ-2026-001/2026/VII/0002', $this->numbers->next('PO', 'PRJ-2026-001'));
+
+        $this->assertDatabaseHas('core_number_sequences', ['type' => 'PO', 'year' => 2026, 'scope' => 'PRJ-2026-001', 'last_number' => 2]);
+        $this->assertDatabaseHas('core_number_sequences', ['type' => 'PO', 'year' => 2026, 'scope' => 'PRJ-2026-002', 'last_number' => 1]);
+        $this->assertSame(2, NumberSequence::query()->count());
+    }
+
+    public function test_an_unscoped_sequence_and_a_scoped_one_do_not_collide(): void
+    {
+        // The migrated-live-data shape: an old scope='' row next to a scoped
+        // one. The unscoped counter must keep minting byte-identically.
+        NumberSequence::query()->create(['type' => 'PO', 'year' => 2026, 'scope' => 'PRJ-2026-001', 'last_number' => 41]);
+        NumberSequence::query()->create(['type' => 'PO', 'year' => 2026, 'scope' => '', 'last_number' => 7]);
+
+        $this->assertSame('PO/2026/VII/0008', $this->numbers->next('PO'));
+
+        $this->assertDatabaseHas('core_number_sequences', ['type' => 'PO', 'scope' => '', 'last_number' => 8]);
+        $this->assertDatabaseHas('core_number_sequences', ['type' => 'PO', 'scope' => 'PRJ-2026-001', 'last_number' => 41]);
+    }
+
+    public function test_a_scope_under_a_token_less_mask_is_discarded(): void
+    {
+        // documents.PO has no {PROJ}: a passed scope must not quietly split the
+        // counter into buckets no rendered code could tell apart.
+        $this->assertSame('PO/2026/VII/0001', $this->numbers->next('PO', 'PRJ-2026-001'));
+        $this->assertSame('PO/2026/VII/0002', $this->numbers->next('PO'));
+
+        $this->assertSame(1, NumberSequence::query()->count());
+        $this->assertDatabaseHas('core_number_sequences', ['type' => 'PO', 'year' => 2026, 'scope' => '', 'last_number' => 2]);
+    }
+
+    public function test_a_proj_mask_without_project_context_refuses_to_mint(): void
+    {
+        $this->setSetting('documents.PO', 'PO/{PROJ}/{Y}/{RM}/{N4}');
+
+        try {
+            $this->numbers->next('PO');
+            $this->fail('Expected the mint to be refused.');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('memakai token {PROJ}', $e->getMessage());
+            $this->assertStringContainsString('Nomor tidak diterbitkan', $e->getMessage());
+        }
+
+        // Refused loudly, and no number was burned.
+        $this->assertSame(0, NumberSequence::query()->count());
+    }
+
     public function test_each_shipped_document_type_produces_its_configured_shape(): void
     {
         // Spot-check the formats that differ from the PO shape.

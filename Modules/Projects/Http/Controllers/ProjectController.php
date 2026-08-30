@@ -7,10 +7,12 @@ use Illuminate\Http\Request;
 use LogicException;
 use Modules\Core\Http\ApiController;
 use Modules\Projects\Exceptions\ProjectClosureException;
+use Modules\Projects\Http\Requests\MppXmlImportRequest;
 use Modules\Projects\Http\Requests\ProjectStoreRequest;
 use Modules\Projects\Http\Requests\ProjectUpdateRequest;
 use Modules\Projects\Http\Resources\ProjectResource;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Services\MppXmlImportService;
 use Modules\Projects\Services\ProgressService;
 use Modules\Projects\Services\ProjectClosureService;
 use Modules\Projects\Services\ProjectService;
@@ -120,6 +122,41 @@ class ProjectController extends ApiController
             ProjectResource::make($project->load('rootWbsTasks.children')),
             'WBS generated from BOQ.'
         );
+    }
+
+    /**
+     * Impor jadwal MS Project XML (P8, kriteria #8) — pohon WBS + baseline
+     * lewat MppXmlImportService; semua penolakan (WBS sudah ada, XML rusak,
+     * BAC tidak ada) adalah kalimat service, diteruskan sebagai 422.
+     */
+    public function importMppXml(MppXmlImportRequest $request, Project $project): JsonResponse
+    {
+        $data = $request->validated();
+        $content = base64_decode((string) $data['content'], true);
+
+        if ($content === false || $content === '') {
+            return $this->error('Isi berkas bukan base64 yang dapat dibaca; unggah ulang berkas XML-nya.');
+        }
+
+        if (strlen($content) > MppXmlImportRequest::MAX_BYTES) {
+            return $this->error('Berkas XML melebihi 5 MB.');
+        }
+
+        try {
+            $result = app(MppXmlImportService::class)->import($project, $data['filename'], $content, [
+                'baseline' => (bool) ($data['buat_baseline'] ?? true),
+                'bac_override' => isset($data['bac_override']) ? (float) $data['bac_override'] : null,
+                'by' => $request->user(),
+            ]);
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage());
+        }
+
+        return $this->ok([
+            'tasks' => $result['tasks'],
+            'baseline_code' => $result['baseline']?->code,
+            'baseline_points' => $result['baseline']?->points()->count() ?? 0,
+        ], sprintf('%d tugas WBS diimpor dari %s.', $result['tasks'], $data['filename']));
     }
 
     /**

@@ -10,8 +10,8 @@ import { preload, labelFor } from '../lookup.js';
 import { openForm } from './form.js';
 import { RESOURCES } from '../schema.js';
 import { actionButtons } from './actions.js';
-import { downloadPdf, openPrintable, pdfName } from '../print.js';
-import { loadPrintForms, printButtonsFor, printablePath } from '../printcatalog.js';
+import { downloadPdf, openPrintable, pdfName, xlsxName } from '../print.js';
+import { loadPrintForms, printButtonsFor, printablePath, xlsxPath } from '../printcatalog.js';
 import { navigate, back } from '../router.js';
 
 const HIDDEN_KEYS = new Set([
@@ -42,6 +42,9 @@ const WHEN_SET_KEYS = new Set([
   // P1-ENG: revisi hidup belum digantikan siapa pun — "Digantikan pada: —"
   // pada SDS yang justru sedang berlaku adalah kebalikan dari informasi.
   'superseded_at', 'superseded_by_code',
+  // P8: cap asal berkas warisan — hanya dokumen hasil impor yang memilikinya;
+  // "Sumber impor: —" pada dokumen yang diketik tangan adalah kebisingan.
+  'import_source',
   // P7: kode metode pelaksanaan berdampingan dengan judulnya, dan penawaran
   // yang memang tidak mengutip metode tidak perlu dua baris "—" untuk satu
   // ketiadaan yang sama.
@@ -136,6 +139,7 @@ const LABELS = {
   custodian_employee_id: 'Penanggung jawab', keeper_employee_id: 'Penjaga gudang',
   technician_employee_id: 'Teknisi',
   title: 'Judul', name: 'Nama', legal_name: 'Nama badan hukum', description: 'Keterangan',
+  import_source: 'Sumber impor',
   notes: 'Catatan', scope: 'Lingkup', scope_type: 'Lingkup', purpose: 'Keperluan',
   needed_date: 'Dibutuhkan', order_date: 'Tanggal PO', expected_date: 'Perkiraan kirim',
   invoice_date: 'Tanggal invoice', bill_date: 'Tanggal tagihan', due_date: 'Jatuh tempo',
@@ -307,7 +311,10 @@ const LABELS = {
   planned_duration_days: 'Durasi rencana (hari)',
   // Baseline & EVM.
   bac: 'BAC', bac_source: 'Sumber BAC', curve_source: 'Sumber kurva',
-  revision_no: 'Revisi ke-', reference_no: 'No. referensi', is_current: 'Baseline berlaku',
+  // 'Revisi berlaku', bukan 'Baseline berlaku': kunci yang sama kini dibawa
+  // izin kerja, IPP, inspeksi (P8) dan pustaka metode — dan untuk baseline pun
+  // kalimatnya tetap benar.
+  revision_no: 'Revisi ke-', reference_no: 'No. referensi', is_current: 'Revisi berlaku',
   leaf_task_count: 'Jumlah paket kerja', leaf_weight_total: 'Total bobot paket',
   // Lain-lain yang muncul di panel Informasi.
   source: 'Sumber', need_summary: 'Ringkasan kebutuhan', note: 'Catatan', remark: 'Keterangan',
@@ -565,11 +572,29 @@ export function approvalTimeline(approvals) {
 export function formButtons(forms, record) {
   return (forms || [])
     .filter((form) => record[form.idField || 'id'])
-    .map((form) => button(`Cetak ${form.label}`, {
-      iconName: 'print',
-      title: `Cetak ${form.label} dalam format formulir perusahaan`,
-      onClick: (event) => openPrintable(printablePath(form, record), event.currentTarget),
-    }));
+    .flatMap((form) => [
+      button(`Cetak ${form.label}`, {
+        iconName: 'print',
+        title: `Cetak ${form.label} dalam format formulir perusahaan`,
+        onClick: (event) => openPrintable(printablePath(form, record), event.currentTarget),
+      }),
+      /* P8 — the same composition as the print sheet, as a spreadsheet. Drawn
+         ONLY when the catalogue flags the slug (form.xlsx — satu pemilik di
+         PHP), and downloaded like a PDF: fetched as a blob so the session
+         token rides along. */
+      form.xlsx
+        ? button('XLSX', {
+          iconName: 'download',
+          title: `Unduh ${form.label} sebagai XLSX — sel yang di kertas bergaris adalah sel kosong, bukan 0`,
+          onClick: (event) => downloadPdf(
+            xlsxPath(form, record),
+            xlsxName(form.form, record.code || record[form.idField || 'id']),
+            event.currentTarget,
+          ),
+        })
+        : null,
+    ])
+    .filter(Boolean);
 }
 
 export async function renderDetail(host, { key, def, id }) {
@@ -652,6 +677,30 @@ export async function renderDetail(host, { key, def, id }) {
       ...actionButtons(def, record, reload),
     ]),
   ]));
+
+  /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
+     words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.
+     Gated on def.revisable, not on the data alone: baselines and the method
+     library expose is_current too, and their screens already tell this story
+     their own way. The old row stays printable — that is the point of it. */
+  if (def.revisable && record.is_current === false && record.superseded_by_id) {
+    host.appendChild(el('.alert.warn', [
+      icon('warn', 15),
+      el('div', { style: { flex: '1' } }, [
+        el('div', {
+          text: `${def.labelOne} ini telah digantikan revisi ${record.superseded_by_code || `#${record.superseded_by_id}`} `
+            + 'dan tidak dapat diubah, diajukan, atau diputus lagi.',
+        }),
+        el('.cell-sub', {
+          text: 'Nomor, status, dan riwayat persetujuannya tetap tersimpan; lembarnya tetap bisa dicetak sebagai arsip.',
+        }),
+      ]),
+      button('Buka revisi terbarunya', {
+        size: 'sm',
+        onClick: () => navigate(`d/${key}/${record.superseded_by_id}`),
+      }),
+    ]));
+  }
 
   if (detail.summary) host.appendChild(summaryStrip(record, detail.summary));
 

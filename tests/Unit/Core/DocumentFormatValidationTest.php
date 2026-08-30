@@ -71,6 +71,17 @@ class DocumentFormatValidationTest extends ErpTestCase
         $this->assertAccepted('documents.PO', '{N5}/PO/{Y}');
     }
 
+    public function test_the_validator_accepts_the_proj_token(): void
+    {
+        // P8 — {PROJ} renders the project code and splits the counter per
+        // project; opt-in per type. It joins the alphabet, but buys nothing
+        // against the year/sequence rule.
+        $this->assertAccepted('documents.PO', 'PO/{PROJ}/{Y}/{RM}/{N4}');
+        $this->assertAccepted('documents.IKL', 'IKL/{PROJ}/{Y}/{N4}');
+        $this->assertRejected('documents.PO', 'PO/{PROJ}/{N4}'); // still no year
+        $this->assertRejected('documents.PO', 'PO/{PROJ}/{Y}');  // still no sequence
+    }
+
     public function test_the_validator_still_rejects_a_format_with_no_sequence_token(): void
     {
         // {Y} alone would hand every document of a year the same number.

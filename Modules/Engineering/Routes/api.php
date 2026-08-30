@@ -52,6 +52,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('ipp/{ipp}', [IppController::class, 'update'])->middleware('permission:eng.update');
     Route::delete('ipp/{ipp}', [IppController::class, 'destroy'])->middleware('permission:eng.delete');
     Route::post('ipp/{ipp}/submit', [IppController::class, 'submit'])->middleware('permission:eng.update');
+    // Revisi membuat DOKUMEN BARU, maka izinnya izin membuat (P8, D9).
+    Route::post('ipp/{ipp}/revise', [IppController::class, 'revise'])->middleware('permission:eng.create');
     Route::post('ipp/{ipp}/approve', [IppController::class, 'approve'])->middleware('permission:eng.approve');
     Route::post('ipp/{ipp}/reject', [IppController::class, 'reject'])->middleware('permission:eng.approve');
 });

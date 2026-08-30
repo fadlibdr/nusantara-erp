@@ -8,6 +8,7 @@ use Illuminate\Http\Response;
 use InvalidArgumentException;
 use Modules\Core\Http\ApiController;
 use Modules\Core\Services\FormPrintService;
+use Modules\Core\Services\FormXlsxExportService;
 use Modules\Core\Support\PrintableDocuments;
 
 /**
@@ -111,6 +112,51 @@ class FormPrintController extends ApiController
             'X-Content-Type-Options' => 'nosniff',
             // A generated form is never worth caching: the project behind it can
             // change, and a stale laporan harian is worse than a slow one.
+            'Cache-Control' => 'private, max-age=0, no-store',
+        ]);
+    }
+
+    /**
+     * Formulir yang sama, sebagai XLSX (P8) — sepuluh slug tersering,
+     * FormXlsxExportService::FORMS. Gerbangnya identik dengan show(): slug tak
+     * dikenal 404 sebelum menyentuh record, izinnya izin view modul pemilik,
+     * dan parameter formulir divalidasi dengan daftar yang sama — satu URL
+     * hanya berbeda ekornya (/xlsx), jadi tombolnya bisa berdampingan.
+     */
+    public function xlsx(Request $request, string $form, int $id): Response|JsonResponse
+    {
+        try {
+            $definition = $this->forms->definition($form);
+        } catch (InvalidArgumentException $e) {
+            return $this->error($e->getMessage(), 404);
+        }
+
+        if (! $request->user()?->can($definition['permission'])) {
+            return $this->error('Anda tidak memiliki izin untuk mengekspor formulir ini.', 403);
+        }
+
+        $filters = $request->validate([
+            'tanggal' => ['nullable', 'date'],
+            'minggu' => ['nullable', 'integer', 'min:1', 'max:520'],
+            'status' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        try {
+            $export = app(FormXlsxExportService::class)->export($form, [
+                'id' => $id,
+                'date' => $filters['tanggal'] ?? null,
+                'week' => isset($filters['minggu']) ? (int) $filters['minggu'] : null,
+                'status' => $filters['status'] ?? null,
+            ]);
+        } catch (InvalidArgumentException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
+
+        return response($export['content'], 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$export['filename'].'"',
+            'Content-Length' => (string) strlen($export['content']),
+            'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=0, no-store',
         ]);
     }

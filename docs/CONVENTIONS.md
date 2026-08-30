@@ -103,7 +103,16 @@ Cross-module Eloquent relations (belongsTo another module's model) ARE allowed a
   BOQ versions, stock adjustments.
 - Document numbering: use trait `Modules\Core\Traits\HasDocumentNumber` and set
   `public string $documentType = 'PO';` on the model. Type keys come from `config/erp.php`
-  → `documents`.
+  → `documents`. A mask may carry `{PROJ}` (the document's project CODE; sequence then
+  runs per `(type, year, project)`) — only for types whose documents always carry a
+  project: a `{PROJ}` mask on a project-less document fails the mint loudly (P8).
+- Generic revision (P8): a document that needs Rn revisions and has no pattern of its
+  own uses trait `Modules\Core\Traits\Revisable` (columns `revision`, `superseded_at`,
+  `superseded_by_id`; a revision is a NEW row via the module service's `revise()`, the
+  predecessor keeps number/status/approval history and stays printable; guard every
+  action with `assertRevisiBerlaku()`). Documents with their own versioning pattern
+  (DrawingSubmittal, ProjectBaseline, MethodLibraryEntry, BOQ versions, quotation
+  revisions) do NOT take this trait.
 - Helpers: `Modules\Core\Support\Terbilang::rupiah()` (amount → Indonesian words),
   `Modules\Core\Support\Money::format()`.
 

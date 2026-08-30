@@ -16,6 +16,7 @@ use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
+use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
 
@@ -62,6 +63,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // a log the application can write on request is not evidence.
     Route::get('audit-log', [AuditLogController::class, 'index'])->middleware('permission:core.view');
 
+    // Riwayat tarif PPN & PPh final (P8, D5). Baca-saja seperti audit-log:
+    // baris ditulis oleh SettingService, bukan oleh permintaan; snapshot per
+    // dokumen tetap sumber angka.
+    Route::get('rate-history', [RateHistoryController::class, 'index'])->middleware('permission:core.view');
+
     // Printable documents. Each carries the view permission of the module that
     // owns the record — printing is reading, in another shape.
     Route::get('print/ar-invoices/{arInvoice}', [DocumentPdfController::class, 'arInvoice'])->middleware('permission:fin.view');
@@ -81,6 +87,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // answers only with the documents the caller's own permissions allow.
     Route::get('print/forms', [FormPrintController::class, 'index']);
     Route::get('print/forms/{form}/{id}', [FormPrintController::class, 'show'])
+        ->where('form', '[a-z0-9-]+')
+        ->whereNumber('id');
+    // Formulir yang sama sebagai XLSX (P8) — sepuluh slug tersering; daftar
+    // dan aturan kejujurannya milik FormXlsxExportService.
+    Route::get('print/forms/{form}/{id}/xlsx', [FormPrintController::class, 'xlsx'])
         ->where('form', '[a-z0-9-]+')
         ->whereNumber('id');
 
