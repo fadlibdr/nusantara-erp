@@ -153,11 +153,24 @@ another module's rows, look them up by these canonical codes and skip gracefully
   `VND-0003` PT Elektrindo Supply (ICT distributor), `VND-0004` CV Karya Sipil Sejahtera
   (subcontractor, sipil), `VND-0005` PT Mekanika Prima (subcontractor, ME),
   `VND-0006` Mandor Harjo Wibowo (`vendor_type` mandor, non-PKP, jasa — P4; register
-  dokumennya memuat K3L + pakta integritas + CV mandor `cv_mandor`).
+  dokumennya memuat K3L + pakta integritas + CV mandor `cv_mandor`),
+  `VND-0007` PT Alat Berat Nusantara (`vendor_type` rental, PKP, jasa — P5; lessor
+  aset sewa demo).
 - SP3 mandor (P4): `SP3/2026/III/0001` upah borongan pasangan bata & plesteran
   (VND-0006 × PRJ-2026-001, approved, PPh final UMKM 0,5%) dengan opname mandor
   `OPM/2026/III/0001` (approved, tanpa potongan kasbon — kasbon demo milik seeder
   Finance, menautkannya lintas-seeder rapuh terhadap urutan).
+- Aset sewa (P5): `AST-0007` Excavator Doosan DX225LCA (sewa dari VND-0007,
+  Rp 400.000/jam, periode 2026-06-01 s/d 2026-12-31) — di-`updateOrCreate` dengan
+  muatan yang sama oleh `AssetsDatabaseSeeder` DAN `ProcurementDatabaseSeeder`
+  (pola menara `GSP-T1`: mana pun yang jalan lebih dulu yang membuatnya, karena
+  baris per_jam PPK demo harus bisa menunjuk alatnya berapa pun urutan seed).
+  Register hour-meter demonya 3.240,0 → 3.375,5 (Juli 2026, = 135,5 jam).
+- PPK alat & jasa (P5): `PPK/2026/VI/0001` sewa excavator per jam + scaffolding per
+  bulan (VND-0007 × PRJ-2026-001, approved, PPN 11%, nilai plafon Rp 585 jt) dengan
+  tagihan periode `PPKB/2026/VII/0001` (Juli 2026: 135,5 jam dari register + 1 bulan
+  kalender = Rp 69,2 jt). Tagihan AP-nya sengaja TIDAK diseed — membuatnya adalah
+  alur demo, dan seeder Finance memiliki jurnalnya sendiri (pelajaran P4).
 - Items: `ITM-0001` Semen Portland 50kg (zak), `ITM-0002` Besi Beton D16 (btg),
   `ITM-0003` Kabel UTP Cat6 (roll), `ITM-0004` CCTV Dome 4MP (unit),
   `ITM-0005` Pasir Beton (m3), `ITM-0006` Switch Managed 24 Port (unit),

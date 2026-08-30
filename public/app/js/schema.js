@@ -2176,7 +2176,22 @@ export const RESOURCES = {
         totalKey: 'total_amount',
       }],
     },
-    actions: approvalActions('prc'),
+    /*
+     * Cermin SPK/SP3 (celah kelas P4, ditemukan lane dokumentasi): gate
+     * prakualifikasi berjalan ulang saat AJUKAN (WorkOrderController::submit,
+     * atas data hidup), dan tanpa field ini PPK yang vendornya menjadi
+     * nonaktif (atau dokumen wajibnya kedaluwarsa) di antara draf dan
+     * pengajuan TIDAK PERNAH bisa diajukan dari SPA — alasan override hanya
+     * dibaca server dari payload submit. Kosongkan bila vendornya sehat.
+     */
+    actions: approvalActions('prc').map((action) => (action.key !== 'submit' ? action : {
+      ...action,
+      fields: [{
+        key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
+        type: 'textarea',
+        help: 'Kosongkan bila vendor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap harus jalan.',
+      }],
+    })),
   },
 
   /* P5 — tagihan per periode atas PPK. Kuantitasnya DITURUNKAN server dari

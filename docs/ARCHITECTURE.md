@@ -145,6 +145,33 @@ each direction, both through documented seams:
                              column with no discriminator cannot be audited)
 ```
 
+**P5 — rented plant, the PPK and its period billing.** A rented machine is an
+`ast_assets` row (`ownership = rented`, lessor `vendor_id` — bare id, the vendor lives
+in Procurement) with NO acquisition cost: it is never on our balance sheet, never
+depreciated (ownership gate in DepreciationService), never disposed. Its money moves
+through Procurement — the **PPK** (`prc_work_orders`, a capped commitment per line:
+rate × basis × qty_periods plafon) and its **period billings**
+(`prc_work_order_billings`), whose quantities are DERIVED, never typed:
+
+```
+   Assets      ┈┈▶ (prc_vendors)  ast_assets.vendor_id names the lessor — read-only,
+                             unsignedBigInteger + index, no constraint
+   Procurement ──▶ Assets     (a per_jam PPK line must name its ast_assets row;
+                             WorkOrderBillingService reads ast_equipment_logs through
+                             live deployments to the PPK's OWN project — the in-period
+                             meter delta is the billed quantity, and the four-layer
+                             anti-double-billing argument lives on migration 000869)
+   Finance     ──▶ Procurement (ApBillService::createFromWorkOrderBilling bills one
+                             period via fin_ap_bills.work_order_billing_id — the same
+                             one-FK-per-source-table reasoning as labor_claim_id;
+                             DPP is the billing's derived total, PPN the PPK snapshot,
+                             cost category Alat)
+```
+
+The Rekap Tagihan Alat is a report over those billings (deliberately not a print
+form), and Evaluasi Sewa vs Beli is a read-only comparison screen that stores no
+conclusion.
+
 ## Core document flows
 
 **Sales → delivery (construction):**
@@ -200,9 +227,15 @@ Service contract with SLA → tickets (response/resolution due computed in busin
 hours) → field service reports with parts consumption → preventive-maintenance
 schedules auto-generate visits (daily scheduler).
 
-**Assets:**
+**Assets (owned):**
 Deployment (mobilisasi) to projects with internal daily rate → monthly straight-line
 depreciation run → Finance journal; utilization reporting per project.
+
+**Assets (rented, P5):**
+Register with ownership=rented (no acquisition cost, no depreciation, no internal
+rate) → deployment + hour-meter logs → PPK period billing (quantity = in-period meter
+delta or calendar) → AP bill (cost category Alat) → payment. Utilization covers both
+kinds; rent-vs-own is a read-only comparison.
 
 ## Cross-cutting kernel services (Modules/Core)
 

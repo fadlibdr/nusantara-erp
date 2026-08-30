@@ -105,11 +105,11 @@ Metode kerja, IK Proses P1–P31, template inspeksi Q1–Q31, Q-Plan: **semua �
 | BA Keputusan Pemenang / SK (DAN 4.4/4.5/4.9/32/36) | ⬜ | — | tanpa komite |
 | Komitmen K3L vendor | 🟡 | bisa dipaksa via `is_mandatory` tipe `lainnya` | tanpa tipe dokumen; kontrak tidak memeriksa |
 | PPB/PO | ✅ | PPN per PKP, `boq_item_id`, `qty_received`, ambang direktur, override kualifikasi, F/PO + PDF | tanpa Kode Tahap/SD, franco, B3/MSDS |
-| PPK/SPK alat & jasa per periode | 🟡 | baris jasa PO | tanpa WO berbasis periode; alat sewa tak bisa masuk `ast_assets` |
+| PPK/SPK alat & jasa per periode | ✅ | `prc_work_orders` (PPK, Approvable, vendor rental/supplier, baris tarif × basis × plafon `qty_periods`, per_jam wajib menunjuk aset) + `prc_work_order_billings` (PPKB — kuantitas turunan register/kalender, anti tagih-ganda empat lapis) → AP bill `work_order_billing_id`; `ast_assets.ownership` rented (P5) | — |
 | Kontrak Subkon + syarat | ➕ | `scm_subcontracts` (PPh final snapshot, retensi, `defect_liability_until`, gerbang kualifikasi), addenda, uang muka, rilis retensi | — |
 | SPK Mandor / SP3 Induk / opname mandor | ✅ | `scm_labor_contracts` (SP3, PPh final UMKM 0,5% PP 55/2022 per asumsi #3, `pph_scheme` konfigurabel — `pph21_ter` pintu 422 "belum diaktifkan"), `scm_labor_claims` (OPM, plafon volume per baris, potongan kasbon) → AP bill `labor_claim_id` (P4) | ambang direktur & gerbang RAP untuk SP3 ⏳ keputusan pemilik |
 | Addendum generik | 🟡 | ADS ✅; CCO nilai saja | waktu ⬜ |
-| Monitoring SPK/PPK; evaluasi alat | 🟡 | daftar PO/SPK; Utilisasi Aset; `ast_equipment_logs` (BBM, jam) | sewa-vs-beli ⬜; alat sewa tak terlog |
+| Monitoring SPK/PPK; evaluasi alat | ✅ | tabel "Tagihan periode yang sudah dibuat" di halaman PPK; utilisasi memuat ownership (alat sewa ikut); layar Evaluasi Sewa vs Beli baca-saja (`RentVsOwnService` — sewa tanpa jam bergaris, owned tanpa harga "Tidak dapat dibandingkan") — P5 | — |
 
 ### 3.6 Logistik & Gudang (`INV`) — repo: `Inventory` + `Assets`
 
@@ -123,7 +123,7 @@ Metode kerja, IK Proses P1–P31, template inspeksi Q1–Q31, Q-Plan: **semua �
 | Izin Keluar Alat/Material | ⬜ | F/IM kosong; transfer antar gudang ✅ | peminjaman alat kecil 🚫 (#71) |
 | Stock Opname | ✅ | `inv_stock_adjustments`, F/BAO | — |
 | Analisa pemakaian vs BoQ / waste / Ra-Ri | ✅ | layar **Varian Material** | besi terpasang/cutting plan ⬜ |
-| Monitoring alat, sewa per vendor | 🟡 | `ast_deployments`, `ast_equipment_logs` | milik sendiri saja |
+| Monitoring alat, sewa per vendor | ✅ | `ast_assets.ownership` owned\|rented + `vendor_id`/`rental_rate`/`rate_basis`/periode sewa (P5); alat sewa masuk register, mobilisasi, log jam, utilisasi; Rekap Tagihan Alat per vendor | — |
 | Pemeliharaan alat | ✅ | `ast_maintenances` | — |
 
 ### 3.7 Produksi & Pelaporan Lapangan (`SITE`) — repo: `Projects`
@@ -164,7 +164,7 @@ Inspeksi IK, benda uji & slump (FM-10-24), kuat tekan (FM-10-23), Q-Pass, Q-Plan
 | Invoice, kwitansi, e-Faktur | ➕ | AR termin, faktur unik, terbilang, ekspor e-Faktur | — |
 | Laporan pajak | ➕ | kalender, ekualisasi, e-Bupot | — |
 | Garansi & komplain | ➕ | `ServiceDesk` | — |
-| Rekap tagihan alat | 🟡 | AP bill per vendor | tak terikat periode sewa |
+| Rekap tagihan alat | ✅ | `WorkOrderBillingService::recap` — billing per periode per PPK per vendor, kolom tagihan AP jujur kosong bila belum ditagihkan; layar Rekap Tagihan Alat (P5, laporan — sengaja tanpa formulir cetak) | — |
 
 ### 3.11 Keuangan & SDM (`FIN`, `HR`)
 
