@@ -75,7 +75,7 @@ class UpdateSettingsRequest extends FormRequest
                 .'urut {N3}, {N4} atau {N5}. Nomor urut direset ke 1 setiap awal tahun, sehingga '
                 .'format tanpa {Y} akan menghasilkan nomor yang sama persis dengan tahun sebelumnya '
                 .'pada 1 Januari dan dokumen baru gagal disimpan karena nomor harus unik. '
-                .'Token yang dikenal hanya {Y}, {M2}, {RM}, {N3}, {N4} dan {N5}; selain token, '
+                .'Token yang dikenal hanya {Y}, {M2}, {RM}, {N3}, {N4}, {N5} dan {PROJ}; selain token, '
                 .'format hanya boleh berisi huruf, angka, spasi dan tanda / . _ - dalam satu baris.',
         ];
     }

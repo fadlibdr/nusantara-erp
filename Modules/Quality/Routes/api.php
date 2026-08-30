@@ -23,6 +23,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('inspections/{inspection}', [InspectionController::class, 'update'])->middleware('permission:qc.update');
     Route::delete('inspections/{inspection}', [InspectionController::class, 'destroy'])->middleware('permission:qc.delete');
     Route::post('inspections/{inspection}/submit', [InspectionController::class, 'submit'])->middleware('permission:qc.update');
+    // Revisi membuat DOKUMEN BARU, maka izinnya izin membuat (P8, D9).
+    Route::post('inspections/{inspection}/revise', [InspectionController::class, 'revise'])->middleware('permission:qc.create');
     Route::post('inspections/{inspection}/approve', [InspectionController::class, 'approve'])->middleware('permission:qc.approve');
     Route::post('inspections/{inspection}/reject', [InspectionController::class, 'reject'])->middleware('permission:qc.approve');
 

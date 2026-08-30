@@ -3,6 +3,7 @@
 namespace Modules\Core\Services;
 
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -487,8 +488,10 @@ class SettingService
             'documents' => [
                 'label' => 'Penomoran Dokumen',
                 'description' => 'Token: {Y} tahun 4 digit · {M2} bulan 2 digit · {RM} bulan romawi · '
-                    .'{N3}/{N4}/{N5} nomor urut. Urutan direset per jenis per tahun, '
-                    .'jadi setiap format wajib memuat {Y} dan salah satu token nomor urut. '
+                    .'{N3}/{N4}/{N5} nomor urut · {PROJ} kode proyek (opsional). Urutan direset per '
+                    .'jenis per tahun, jadi setiap format wajib memuat {Y} dan salah satu token nomor '
+                    .'urut. {PROJ} membelah urutan per proyek dan hanya untuk jenis dokumen yang '
+                    .'selalu menunjuk proyek — jenis tanpa proyek akan menolak menerbitkan nomor. '
                     .'Mengubah format tidak menomori ulang dokumen lama.',
                 'settings' => array_map(
                     fn (string $type): array => [
@@ -583,6 +586,13 @@ class SettingService
     {
         $this->assertValid($key, $value);
 
+        // P8 — riwayat tarif (D5): tarif efektif SEBELUM tulisan, dibaca di
+        // sini karena set() adalah satu-satunya jalur tulis Pengaturan. Yang
+        // direkam hanya kunci PPN/PPh final (RateHistoryService::tracks), dan
+        // rekaman itu murni riwayat — snapshot per dokumen tetap sumber angka.
+        $rates = app(RateHistoryService::class);
+        $oldEffective = $rates->tracks($key) ? $this->get($key) : null;
+
         if ($value === null) {
             Setting::query()->where('key', $key)->delete();
         } else {
@@ -593,6 +603,14 @@ class SettingService
         }
 
         $this->flush();
+
+        if ($rates->tracks($key)) {
+            // Efektif SESUDAH: nilai yang baru ditulis, atau default pabrik
+            // bila reset. Dihitung, bukan dibaca ulang lewat get() — set()
+            // meninggalkan cache dingin, dan pembacaan di sini akan diam-diam
+            // menghangatkannya kembali (SettingServiceTest memaku itu).
+            $rates->record($key, $oldEffective, $value ?? $this->default($key), Auth::id());
+        }
     }
 
     /**
@@ -858,7 +876,7 @@ class SettingService
      * registry that uses regex.
      */
     public const DOCUMENT_FORMAT_PATTERN =
-        '/\A(?=.*\{Y\})(?=.*\{N[345]\})(?:[A-Za-z0-9\/._ -]|\{(?:Y|M2|RM|N[345])\})+\z/';
+        '/\A(?=.*\{Y\})(?=.*\{N[345]\})(?:[A-Za-z0-9\/._ -]|\{(?:Y|M2|RM|N[345]|PROJ)\})+\z/';
 
     /**
      * Validation rules for a bulk update, derived from the registry so the API

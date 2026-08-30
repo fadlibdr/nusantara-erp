@@ -1095,6 +1095,17 @@ disimpan di `core_settings` di bawah kunci bertitik yang sama **dan menang**.
 > Penawaran, kontrak, PO, SPK dan invoice semuanya memotret tarifnya saat dibuat,
 > sehingga riwayat tidak pernah ditulis ulang. Layar mengatakan ini kepada Anda.
 
+**Riwayat tarif PPN & PPh final (P8, `core_rate_history`).** Setiap kali tarif pajak
+(`tax.ppn_rate`, `tax.ppn_headline_rate`, `tax.pph_final_umkm_rate`, dan ketujuh tarif
+`tax.pph_final_construction.*`) disimpan dari layar Pengaturan, satu baris riwayat
+ditulis otomatis: tarif lama → baru, siapa, kapan. Membacanya: kartu **Riwayat Tarif
+PPN & PPh Final** di kaki layar Pengaturan (tombol *Muat riwayat*; `GET
+api/core/rate-history`, izin `core.view`). **Tabel ini catatan semata (record-only)**:
+tidak ada satu angka dokumen pun yang dihitung darinya — snapshot per dokumen tetap
+sumber kebenaran, dan mengubah tarif di tengah hidup sebuah dokumen terbukti (diuji)
+tidak menggeser angka dokumen itu. Baris riwayat tidak bisa ditulis atau diubah lewat
+permintaan apa pun; riwayat yang bisa ditulis bukan riwayat.
+
 Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
 
 | Kelompok | Isinya |
@@ -1290,7 +1301,27 @@ atau `config/erp.php`, lalu di dalam satu transaksi baris urutan dikunci
 (`lockForUpdate`) sehingga **dua permintaan bersamaan tidak bisa berbagi satu nomor**.
 
 Token: `{Y}` tahun 4 digit, `{M2}` bulan 2 digit, `{RM}` bulan romawi, `{N3}/{N4}/{N5}`
-urutan berimbuh nol. **Urutan reset per jenis per tahun.**
+urutan berimbuh nol, dan — sejak P8 — `{PROJ}` **kode proyek dokumennya**, opsional per
+jenis. **Urutan reset per jenis per tahun**; mask ber-`{PROJ}` membelah urutan itu
+sekali lagi **per proyek** (kunci urutannya `(jenis, tahun, kode proyek)`; mask tanpa
+token memakai kode proyek kosong dan menerbitkan nomor bita-demi-bita seperti sebelum
+P8 — keduanya dipaku uji agar tidak saling menabrak).
+
+> **`{PROJ}` hanya untuk jenis dokumen yang membawa proyek.** Menyetel mask ber-
+> `{PROJ}` pada jenis yang dokumennya bisa lahir tanpa proyek adalah salah konfigurasi,
+> dan sistem **gagal keras saat menerbitkan nomor** — bukan mencetak kosong: *"Mask
+> penomoran {jenis} memakai token {PROJ}, tetapi tidak ada konteks proyek untuk dokumen
+> ini — hapus {PROJ} dari documents.{jenis} di Pengaturan, atau isi proyek pada
+> dokumennya. Nomor tidak diterbitkan."* Dokumen yang gagal menomori tidak tersimpan;
+> cabut masknya atau lengkapi proyeknya.
+>
+> **Catatan migrasi skema (deploy).** P8 mengubah indeks unik `core_number_sequences`
+> dari `(type, year)` menjadi `(type, year, scope)` — migrasi
+> `2026_08_30_000192`, aman untuk data lama (baris lama diberi scope `''`, bukan NULL:
+> keunikan atas NULL berbeda-beda antar driver). **Jangan pernah menjalankan kode lama
+> di atas skema baru**: layanan lama mencari urutan hanya dengan `(type, year)` dan di
+> atas tabel yang sudah ber-scope bisa cocok ke baris proyek mana pun. Deploy migrasi
+> dan kode bersama-sama, seperti biasa (§DEPLOYMENT).
 
 **59 jenis ada di Pengaturan → Penomoran Dokumen** (yang terakhir ditambahkan pada P7:
 `TND` paket tender, `TKD` lembar TKDN, `RKK` RKK penawaran, `MTD` pustaka metode kerja).
@@ -1300,7 +1331,7 @@ sama dengan hitungan mask terkirim di `config/erp.php`, dan satu arahnya dipaku 
 ini, jadi mask baru tidak bisa lagi menyelinap tanpa menaikkan angka ini.
 Setiap format **wajib memuat
 `{Y}` dan salah satu dari `{N3}/{N4}/{N5}`**, maksimal 60 karakter, dan hanya boleh
-memakai huruf, angka, spasi, serta `/ . _ -` di luar keenam token.
+memakai huruf, angka, spasi, serta `/ . _ -` di luar ketujuh token.
 
 > **Format tanpa `{Y}` lolos di mata dan ditolak kode — dan andaikan tersimpan,
 > kerusakannya muncul pada 1 Januari, bukan pada hari ia disetel.** Penghitung
@@ -1338,7 +1369,8 @@ yang tidak menulis apa pun** dan sebuah commit; keduanya mencocokkan pada kode b
 sehingga menjalankan ulang berkas yang sudah diperbaiki **memperbarui, bukan
 menggandakan**.
 
-**A. Data master rata** — Sistem → Impor Data Master. **Empat sumber daya saja:**
+**A. Data master rata** — Sistem → Impor Data Master. **Lima sumber daya** (dokumen
+lama menulis "empat" — Lokasi Tapak menyusul di P1-ENG dan luput dicatat di sini):
 
 | Sumber daya | Izin | Kolom wajib |
 |---|---|---|
@@ -1346,12 +1378,13 @@ menggandakan**.
 | Vendor & Subkontraktor | `prc.create` + `prc.update` | kode, nama |
 | Pelanggan | `crm.create` + `crm.update` | kode, nama |
 | Karyawan | `hr.create` + `hr.update` | kode, nama, nik_ktp, jenis_kelamin, tanggal_lahir, status_ptkp, tanggal_masuk, jenis_hubungan_kerja, jabatan, departemen |
+| Lokasi Tapak (tower/lantai/zona) | `prj.create` + `prj.update` | kode, nama, proyek_kode, jenis |
 
 Mengimpor menuntut `.create` **dan** `.update` sekaligus, karena impor yang mencocokkan
 pada kode juga memperbarui baris yang ada — "somebody who may only create should not be
 able to rewrite two thousand records by uploading a sheet".
 
-Keempat itu dipilih karena mereka **rata**: satu baris di berkas = satu baris di tabel.
+Kelimanya dipilih karena mereka **rata**: satu baris di berkas = satu baris di tabel.
 AHSP sengaja tidak ada, karena sebuah analisa adalah kepala plus N komponen dan
 "berpura-pura itu muat di lembar rata akan diam-diam menjatuhkan komponennya".
 
@@ -1399,10 +1432,16 @@ nomor rekening berawalan nol, dan barcode dibaca sebagai **teks**.
 > sekali**, jadi setiap karyawan kontrak yang dimuat massal datang tanpa tanggal akhir
 > PKWT dan pengawas tenggat akan beralarm atas kekosongan itu.
 
-**B. Dokumen berbaris** — Sistem → Impor Dokumen. Empat: **Penawaran** (`crm`),
-**BOQ/RAB**, **AHSP**, **RAP** (ketiganya `est`).
+**B. Dokumen berbaris** — Sistem → Impor Dokumen. Sembilan: **Penawaran** (`crm`),
+**BOQ/RAB**, **AHSP**, **RAP** (ketiganya `est`), **Template Inspeksi** (`qc`), dan —
+sejak P8 — empat layout warisan: **Laporan Harian** (`prj`), **Kartu Stok** (`inv`),
+**SP3 Induk** (`scm`), **Progress Pay / Opname ke Pemilik** (`prj`). Pemetaan kolom
+lembar warisan → template, plus dua keputusan pemetaannya yang disengaja (kartu stok
+mendarat sebagai opname draf, SP3 tanpa kolom opname kumulatifnya), ada di
+`docs/IMPOR-WARISAN.md`; dokumen hasil impor dicap `import_source` = nama berkasnya,
+kolom yang tidak pernah bisa diketik dari layar.
 
-Satu tata bahasa berkas untuk keempatnya: satu baris header; kolom `tipe` yang
+Satu tata bahasa berkas untuk kesembilannya: satu baris header; kolom `tipe` yang
 menyatakan setiap baris **itu apa**; kolom grup supaya satu workbook bisa membawa
 banyak dokumen. `abaikan` (alias `lewati`) berarti "ini subtotal atau pemisah,
 lewati".

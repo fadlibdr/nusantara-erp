@@ -29,6 +29,11 @@ class WorkPermitResource extends JsonResource
             'safety_officer_name' => $this->whenLoaded('safetyOfficer', fn () => $this->safetyOfficer?->name),
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
+            // P8 — revisi generik: diturunkan dari stempel, bukan flag tersimpan.
+            'revision' => (int) $this->revision,
+            'is_current' => ! $this->isSuperseded(),
+            'superseded_by_id' => $this->superseded_by_id,
+            'superseded_by_code' => $this->whenLoaded('supersededBy', fn () => $this->supersededBy?->code),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

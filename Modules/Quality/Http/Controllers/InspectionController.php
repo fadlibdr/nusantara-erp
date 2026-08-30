@@ -22,7 +22,9 @@ class InspectionController extends ApiController
     public function __construct(private readonly InspectionService $service) {}
 
     private const DETAIL = [
-        'project', 'ipp', 'location', 'template', 'inspector', 'results.templateItem',
+        // supersededBy: P8 (D9) — superseded_by_code pada Resource hanya
+        // terisi bila relasi ini termuat; banner SPA menyebut penggantinya.
+        'project', 'ipp', 'location', 'template', 'inspector', 'supersededBy', 'results.templateItem',
     ];
 
     public function index(Request $request): JsonResponse
@@ -64,6 +66,8 @@ class InspectionController extends ApiController
 
     public function destroy(Inspection $inspection): JsonResponse
     {
+        $inspection->assertRevisiBerlaku('dihapus');
+
         if (! $inspection->status->isEditable()) {
             return $this->error("Inspeksi {$inspection->code} berstatus {$inspection->status->value} dan tidak dapat dihapus lagi.");
         }
@@ -86,6 +90,8 @@ class InspectionController extends ApiController
 
     public function approve(Request $request, Inspection $inspection): JsonResponse
     {
+        $inspection->assertRevisiBerlaku('disetujui');
+
         try {
             $inspection->approve($request->user(), $request->input('note'));
         } catch (LogicException $e) {
@@ -97,6 +103,8 @@ class InspectionController extends ApiController
 
     public function reject(Request $request, Inspection $inspection): JsonResponse
     {
+        $inspection->assertRevisiBerlaku('ditolak');
+
         try {
             $inspection->reject($request->user(), $request->input('note'));
         } catch (LogicException $e) {
@@ -104,5 +112,17 @@ class InspectionController extends ApiController
         }
 
         return $this->ok(InspectionResource::make($inspection->load(self::DETAIL)), 'Inspeksi ditolak.');
+    }
+
+    /**
+     * P8 — revisi generik (D9): baris BARU bernomor QCI baru lewat service,
+     * butir hasil ikut tersalin; pendahulu distempel dan tinggal sebagai arsip
+     * yang tetap bisa dicetak.
+     */
+    public function revise(Inspection $inspection): JsonResponse
+    {
+        $successor = $this->service->revise($inspection);
+
+        return $this->created(InspectionResource::make($successor->load(self::DETAIL)));
     }
 }

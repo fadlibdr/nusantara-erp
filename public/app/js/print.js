@@ -28,9 +28,20 @@ import { el, toast, toastError, withBusy } from './ui.js';
  * A filename any browser on any OS will save without argument — document codes
  * carry slashes (PO/2026/VII/0001), which a filename cannot.
  */
-export function pdfName(prefix, code) {
+function safeName(prefix, code, ext) {
   const slug = String(code || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return `${prefix}-${slug || 'dokumen'}.pdf`;
+  return `${prefix}-${slug || 'dokumen'}.${ext}`;
+}
+
+export function pdfName(prefix, code) {
+  return safeName(prefix, code, 'pdf');
+}
+
+/* P8 — ekspor XLSX formulir rumah. Nama berkasnya dihitung di sini karena
+   blob hasil fetch tidak membawa Content-Disposition server (lihat komentar
+   pembuka berkas ini). */
+export function xlsxName(prefix, code) {
+  return safeName(prefix, code, 'xlsx');
 }
 
 export async function downloadPdf(path, filename, trigger) {

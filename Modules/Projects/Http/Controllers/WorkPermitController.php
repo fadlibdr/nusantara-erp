@@ -49,7 +49,9 @@ class WorkPermitController extends ApiController
 
     public function show(WorkPermit $workPermit): JsonResponse
     {
-        return $this->ok(WorkPermitResource::make($workPermit->load(['project', 'requestedBy', 'safetyOfficer'])));
+        // supersededBy: P8 (D9) — superseded_by_code pada Resource hanya
+        // terisi bila relasi ini termuat; banner SPA menyebut penggantinya.
+        return $this->ok(WorkPermitResource::make($workPermit->load(['project', 'requestedBy', 'safetyOfficer', 'supersededBy'])));
     }
 
     public function update(WorkPermitUpdateRequest $request, WorkPermit $workPermit): JsonResponse
@@ -69,6 +71,8 @@ class WorkPermitController extends ApiController
 
     public function destroy(WorkPermit $workPermit): JsonResponse
     {
+        $workPermit->assertRevisiBerlaku('dihapus');
+
         if (! $workPermit->status->isEditable()) {
             return $this->error("Izin {$workPermit->code} berstatus {$workPermit->status->value} dan tidak dapat dihapus lagi.");
         }
@@ -80,6 +84,8 @@ class WorkPermitController extends ApiController
 
     public function submit(Request $request, WorkPermit $workPermit): JsonResponse
     {
+        $workPermit->assertRevisiBerlaku('diajukan');
+
         try {
             $workPermit->submit($request->user());
         } catch (LogicException $e) {
@@ -91,6 +97,8 @@ class WorkPermitController extends ApiController
 
     public function approve(Request $request, WorkPermit $workPermit): JsonResponse
     {
+        $workPermit->assertRevisiBerlaku('disetujui');
+
         try {
             $workPermit->approve($request->user(), $request->input('note'));
         } catch (LogicException $e) {
@@ -102,6 +110,8 @@ class WorkPermitController extends ApiController
 
     public function reject(Request $request, WorkPermit $workPermit): JsonResponse
     {
+        $workPermit->assertRevisiBerlaku('ditolak');
+
         try {
             $workPermit->reject($request->user(), $request->input('note'));
         } catch (LogicException $e) {
@@ -109,5 +119,16 @@ class WorkPermitController extends ApiController
         }
 
         return $this->ok(WorkPermitResource::make($workPermit), 'Izin kerja ditolak.');
+    }
+
+    /**
+     * P8 — revisi generik (D9): baris BARU bernomor baru lewat service;
+     * pendahulu distempel dan tinggal sebagai arsip yang tetap bisa dicetak.
+     */
+    public function revise(WorkPermit $workPermit): JsonResponse
+    {
+        $successor = $this->service->revise($workPermit);
+
+        return $this->created(WorkPermitResource::make($successor->load(['project', 'requestedBy', 'safetyOfficer'])));
     }
 }

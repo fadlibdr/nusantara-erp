@@ -31,6 +31,11 @@ class InspectionResource extends JsonResource
             'passed' => (bool) $this->passed,
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
+            // P8 — revisi generik: diturunkan dari stempel, bukan flag tersimpan.
+            'revision' => (int) $this->revision,
+            'is_current' => ! $this->isSuperseded(),
+            'superseded_by_id' => $this->superseded_by_id,
+            'superseded_by_code' => $this->whenLoaded('supersededBy', fn () => $this->supersededBy?->code),
             'results' => $this->whenLoaded('results', fn () => $this->results->map(fn ($row) => [
                 'id' => $row->id,
                 'template_item_id' => $row->template_item_id,

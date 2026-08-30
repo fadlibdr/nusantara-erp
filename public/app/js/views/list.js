@@ -11,8 +11,8 @@ import { runAction } from './actions.js';
 import { navigate } from '../router.js';
 import { MONTHS, rupiah } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
-import { openPrintable } from '../print.js';
-import { loadPrintForms, printButtonsFor, printablePath } from '../printcatalog.js';
+import { downloadPdf, openPrintable, xlsxName } from '../print.js';
+import { loadPrintForms, printButtonsFor, printablePath, xlsxPath } from '../printcatalog.js';
 
 const state = new Map(); // per-resource UI state, kept across navigations
 
@@ -587,16 +587,34 @@ export async function renderList(host, { key, def }) {
 
     return printButtonsFor(def, key)
       .filter((form) => row[form.idField || 'id'])
-      .map((form) => button('', {
-        size: 'sm',
-        variant: 'ghost',
-        iconName: 'print',
-        title: `Cetak ${form.label} dalam format formulir perusahaan`,
-        onClick: (event) => {
-          event.stopPropagation();
-          openPrintable(printablePath(form, row), event.currentTarget);
-        },
-      }));
+      .flatMap((form) => [
+        button('', {
+          size: 'sm',
+          variant: 'ghost',
+          iconName: 'print',
+          title: `Cetak ${form.label} dalam format formulir perusahaan`,
+          onClick: (event) => {
+            event.stopPropagation();
+            openPrintable(printablePath(form, row), event.currentTarget);
+          },
+        }),
+        /* P8 — pendamping ekspornya, hanya bila katalog menandai slug-nya
+           (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah tombol untuk
+           layar noDetail, jadi ekspor harus ikut duduk di sini. */
+        form.xlsx
+          ? button('', {
+            size: 'sm',
+            variant: 'ghost',
+            iconName: 'download',
+            title: `Unduh ${form.label} sebagai XLSX — sel yang di kertas bergaris adalah sel kosong, bukan 0`,
+            onClick: (event) => {
+              event.stopPropagation();
+              downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), event.currentTarget);
+            },
+          })
+          : null,
+      ])
+      .filter(Boolean);
   }
 
   function rowActions(row) {

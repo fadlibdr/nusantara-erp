@@ -42,6 +42,7 @@ class LaborContractResource extends JsonResource
             'status_label' => $this->status?->label(),
             'items' => LaborContractItemResource::collection($this->whenLoaded('items')),
             'claims' => LaborClaimResource::collection($this->whenLoaded('claims')),
+            'import_source' => $this->import_source,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

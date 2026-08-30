@@ -21,6 +21,8 @@ trait TestDocumentSchema
             $table->string('doc_no', 40)->nullable();
             $table->string('title')->nullable();
             $table->string('status', 30)->default('draft');
+            // P8 — {PROJ}: the conventional project pointer a scoped document carries.
+            $table->unsignedBigInteger('project_id')->nullable();
             $table->timestamps();
         });
     }

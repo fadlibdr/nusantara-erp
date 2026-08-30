@@ -57,6 +57,8 @@ class IppService
 
     public function update(WorkPermitIpp $ipp, array $data): WorkPermitIpp
     {
+        $ipp->assertRevisiBerlaku('diubah');
+
         if (! $ipp->status->isEditable()) {
             throw ValidationException::withMessages(['status' => sprintf(
                 'IPP %s berstatus %s dan tidak dapat diubah lagi.',
@@ -100,6 +102,8 @@ class IppService
      */
     public function submit(WorkPermitIpp $ipp, User $by): WorkPermitIpp
     {
+        $ipp->assertRevisiBerlaku('diajukan');
+
         $blockers = [];
 
         foreach ($ipp->drawings()->with(['drawingSubmittal.drawing', 'drawingSubmittal.supersededBy'])->get() as $line) {
@@ -173,6 +177,49 @@ class IppService
         }
 
         return $ipp->submit($by);
+    }
+
+    /**
+     * P8 — revisi generik (D9), pola DrawingSubmittalService: baris BARU
+     * bernomor IPP baru, revision + 1, siklus draft dari awal, dan seluruh
+     * baris material/alat/gambar/persetujuan-material TERSALIN — revisi
+     * berangkat dari isi yang direvisinya, bukan dari nol. Pendahulu dikunci
+     * lalu distempel; nomor, status, dan riwayat persetujuannya tak disentuh.
+     */
+    public function revise(WorkPermitIpp $ipp): WorkPermitIpp
+    {
+        return DB::transaction(function () use ($ipp): WorkPermitIpp {
+            /** @var WorkPermitIpp $locked */
+            $locked = WorkPermitIpp::query()->whereKey($ipp->getKey())->lockForUpdate()->firstOrFail();
+
+            $locked->assertRevisiBerlaku('direvisi');
+
+            $successor = $locked->replicate(['code', 'status', 'revision', 'superseded_at', 'superseded_by_id', 'deleted_at']);
+            $successor->forceFill([
+                'status' => DocumentStatus::Draft,
+                'revision' => (int) $locked->revision + 1,
+            ])->save();
+
+            $sets = [
+                'materials' => ['item_id', 'description', 'qty', 'unit'],
+                'equipment' => ['description', 'qty', 'notes'],
+                'drawings' => ['drawing_submittal_id'],
+                'materialApprovals' => ['material_submittal_id'],
+            ];
+
+            foreach ($sets as $relation => $columns) {
+                foreach ($locked->{$relation}()->get() as $line) {
+                    $successor->{$relation}()->create(Arr::only($line->getAttributes(), $columns));
+                }
+            }
+
+            $locked->forceFill([
+                'superseded_at' => now(),
+                'superseded_by_id' => $successor->id,
+            ])->save();
+
+            return $successor;
+        });
     }
 
     // ------------------------------------------------------------------ lines

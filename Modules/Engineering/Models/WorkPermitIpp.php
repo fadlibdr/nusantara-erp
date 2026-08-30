@@ -10,6 +10,7 @@ use Modules\Core\Models\BaseModel;
 use Modules\Core\Models\Location;
 use Modules\Core\Traits\Approvable;
 use Modules\Core\Traits\HasDocumentNumber;
+use Modules\Core\Traits\Revisable;
 use Modules\Engineering\Enums\IppScope;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\WbsTask;
@@ -28,6 +29,7 @@ class WorkPermitIpp extends BaseModel
 {
     use Approvable;
     use HasDocumentNumber;
+    use Revisable;
     use SoftDeletes;
 
     protected $table = 'eng_work_permits_ipp';
@@ -39,6 +41,7 @@ class WorkPermitIpp extends BaseModel
         return [
             'scope' => IppScope::class,
             'planned_start' => 'date',
+            'superseded_at' => 'datetime',
             'status' => DocumentStatus::class,
         ];
     }

@@ -34,6 +34,7 @@ class ProgressMeasurementResource extends JsonResource
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
             'items' => ProgressMeasurementItemResource::collection($this->whenLoaded('items')),
+            'import_source' => $this->import_source,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

@@ -55,6 +55,8 @@ class InspectionService
 
     public function update(Inspection $inspection, array $data): Inspection
     {
+        $inspection->assertRevisiBerlaku('diubah');
+
         if (! $inspection->status->isEditable()) {
             throw ValidationException::withMessages(['status' => sprintf(
                 'Inspeksi %s berstatus %s dan tidak dapat diubah lagi.',
@@ -89,6 +91,8 @@ class InspectionService
      */
     public function submit(Inspection $inspection, User $by): Inspection
     {
+        $inspection->assertRevisiBerlaku('diajukan');
+
         $stage = $inspection->template?->stage
             ?? InspectionTemplate::query()->whereKey($inspection->template_id)->value('stage');
 
@@ -114,6 +118,44 @@ class InspectionService
         }
 
         return $inspection->submit($by);
+    }
+
+    /**
+     * P8 — revisi generik (D9), pola DrawingSubmittalService: baris BARU
+     * bernomor QCI baru, revision + 1, siklus draft dari awal, dan butir hasil
+     * TERSALIN sebagai titik berangkat — merevisi lembar berarti membetulkan
+     * isinya, bukan mengetik ulang dari nol (nilai salinan diedit sebelum
+     * diajukan, seperti draf mana pun). Pendahulu dikunci lalu distempel;
+     * nomor, status, verdict, dan riwayat persetujuannya tak disentuh.
+     */
+    public function revise(Inspection $inspection): Inspection
+    {
+        return DB::transaction(function () use ($inspection): Inspection {
+            /** @var Inspection $locked */
+            $locked = Inspection::query()->whereKey($inspection->getKey())->lockForUpdate()->firstOrFail();
+
+            $locked->assertRevisiBerlaku('direvisi');
+
+            $successor = $locked->replicate(['code', 'status', 'revision', 'superseded_at', 'superseded_by_id', 'deleted_at']);
+            $successor->forceFill([
+                'status' => DocumentStatus::Draft,
+                'revision' => (int) $locked->revision + 1,
+            ])->save();
+
+            foreach ($locked->results()->get() as $line) {
+                $successor->results()->create(Arr::only($line->getAttributes(), ['template_item_id', 'result', 'remark']));
+            }
+
+            // `passed` ikut tersalin oleh replicate dan tetap konsisten dengan
+            // butir salinannya; update() berikutnya menurunkannya ulang.
+
+            $locked->forceFill([
+                'superseded_at' => now(),
+                'superseded_by_id' => $successor->id,
+            ])->save();
+
+            return $successor;
+        });
     }
 
     // ------------------------------------------------------------------ helpers

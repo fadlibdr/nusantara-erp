@@ -27,6 +27,11 @@ class IppResource extends JsonResource
             'duration_days' => (int) $this->duration_days,
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
+            // P8 — revisi generik: diturunkan dari stempel, bukan flag tersimpan.
+            'revision' => (int) $this->revision,
+            'is_current' => ! $this->isSuperseded(),
+            'superseded_by_id' => $this->superseded_by_id,
+            'superseded_by_code' => $this->whenLoaded('supersededBy', fn () => $this->supersededBy?->code),
             'materials' => $this->whenLoaded('materials', fn () => $this->materials->map(fn ($line) => [
                 'id' => $line->id,
                 'item_id' => $line->item_id,

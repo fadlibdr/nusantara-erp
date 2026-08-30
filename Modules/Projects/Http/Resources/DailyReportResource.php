@@ -29,6 +29,7 @@ class DailyReportResource extends JsonResource
             'obstacles' => $this->obstacles,
             'safety_notes' => $this->safety_notes,
             'photos' => $this->photos,
+            'import_source' => $this->import_source,
             'created_by' => $this->created_by,
             'locked_at' => $this->locked_at?->toIso8601String(),
             'locked' => $this->locked_at !== null,

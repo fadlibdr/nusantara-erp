@@ -21,7 +21,10 @@ const SNAPSHOT_NOTE = 'Perubahan hanya berlaku untuk dokumen baru. Penawaran, ko
 
 const READONLY_NOTE = 'Anda hanya dapat melihat pengaturan. Hak akses "core.update" diperlukan untuk menyimpan perubahan.';
 
-/** Mirrors DocumentNumberService: {Y} {M2} {RM} {N3} {N4} {N5}. */
+/** Mirrors DocumentNumberService: {Y} {M2} {RM} {N3} {N4} {N5} — dan {PROJ}
+    (P8), yang SENGAJA dibiarkan tampak apa adanya di contoh: pratinjau tidak
+    punya proyek, dan kode proyek karangan bukan contoh; kalimat penjelasnya
+    ditambahkan buildControl. */
 export function previewNumber(format, sequence = 1, when = new Date()) {
   const month = when.getMonth() + 1;
   const tokens = {
@@ -189,6 +192,14 @@ function buildControl(setting, ctx) {
           return;
         }
         hint.textContent = `Contoh nomor berikutnya: ${previewNumber(format)}`;
+        if (format.includes('{PROJ}')) {
+          // P8 — {PROJ} membelah urutan per proyek. Dua fakta yang harus
+          // terbaca SEBELUM disimpan: dari mana kodenya, dan bahwa jenis
+          // dokumen tanpa proyek menolak menerbitkan nomor (gagal keras,
+          // bukan mencetak kosong).
+          hint.textContent += ' — {PROJ} diisi kode proyek dokumennya dan nomor urut berjalan '
+            + 'terpisah per proyek; dokumen tanpa proyek menolak menerbitkan nomor bermask {PROJ}.';
+        }
       };
       input.addEventListener('input', sync);
       sync();
@@ -319,6 +330,77 @@ async function loadPostableAccounts() {
   }
 }
 
+/* P8 — riwayat tarif PPN & PPh final (D5), kartu baca-saja di kaki layar
+   Pengaturan: setiap penyimpanan tarif pajak lewat layar ini juga dicatat
+   RateHistoryService, dan di sinilah catatannya dibaca — di samping tarif yang
+   dicatatnya, bukan sebagai layar sendiri. Dimuat saat diminta, bukan saat
+   layar terbuka: riwayat adalah bacaan sesekali, dan kegagalannya tidak boleh
+   menumbangkan layar pengaturan. */
+function rateHistoryCard() {
+  const body = el('.card-body');
+  const intro = el('p.muted', {
+    style: { margin: '0 0 10px', fontSize: '12.5px' },
+    text: 'Riwayat ini catatan semata — tidak ada angka dokumen yang dihitung ulang darinya; '
+      + 'snapshot per dokumen tetap sumber kebenaran. Baris ditulis otomatis setiap tarif '
+      + 'PPN / PPh final disimpan dari layar ini.',
+  });
+
+  const loadButton = button('Muat riwayat', {
+    size: 'sm',
+    onClick: (event) => load(event.currentTarget),
+  });
+
+  async function load(trigger) {
+    let entries;
+    try {
+      await withBusy(trigger, async () => {
+        entries = await api.get('core/rate-history', { per_page: 50 });
+      });
+    } catch (error) {
+      toastError(error);
+      return;
+    }
+
+    const rows = Array.isArray(entries) ? entries : [];
+    clear(body).appendChild(intro);
+
+    if (!rows.length) {
+      body.appendChild(el('p.muted', { text: 'Belum ada perubahan tarif yang tercatat.', style: { margin: '0' } }));
+      return;
+    }
+
+    body.appendChild(el('.table-wrap', el('table.data', [
+      el('thead', el('tr', [
+        el('th', { text: 'Waktu' }),
+        el('th', { text: 'Parameter' }),
+        el('th.right', { text: 'Dari' }),
+        el('th.right', { text: 'Menjadi' }),
+        el('th', { text: 'Oleh' }),
+      ])),
+      el('tbody', rows.map((row) => el('tr', [
+        el('td', { text: fmt.dateTime(row.created_at) }),
+        el('td.mono', { text: row.rate_key }),
+        // Tarif pertama yang tercatat tidak punya "dari" — strip kosong,
+        // bukan 0%: nol adalah tarif, ketiadaan bukan.
+        el('td.right.num', { text: row.old_rate === null ? '—' : fmt.percent(row.old_rate, { decimals: 4 }) }),
+        el('td.right.num', { text: row.new_rate === null ? '—' : fmt.percent(row.new_rate, { decimals: 4 }) }),
+        el('td', { text: row.changed_by_name || '—' }),
+      ]))),
+    ])));
+  }
+
+  body.append(intro, loadButton);
+
+  return el('.card', [
+    el('.card-head', [
+      el('h2', { text: 'Riwayat Tarif PPN & PPh Final' }),
+      el('.spacer'),
+      el('span.muted', { text: 'baca-saja', style: { fontSize: '12px' } }),
+    ]),
+    body,
+  ]);
+}
+
 /* ======================================================== PENGATURAN === */
 export async function renderSettings(host) {
   clear(host);
@@ -335,6 +417,10 @@ export async function renderSettings(host) {
   };
 
   const body = el('div', { style: { marginTop: '14px' } });
+  // Dibangun SEKALI di luar paint(): paint() membersihkan body setiap simpan,
+  // dan node yang sama dipasang ulang supaya riwayat yang sudah dimuat tidak
+  // hilang hanya karena satu parameter lain disimpan.
+  const historyCard = session.can('core.view') ? rateHistoryCard() : null;
   const status = el('span.muted', { text: 'Belum ada perubahan.', style: { fontSize: '12.5px' } });
 
   const revert = button('Batalkan perubahan', {
@@ -383,6 +469,7 @@ export async function renderSettings(host) {
 
     if (!groups.length) {
       body.appendChild(el('.card', emptyState('Tidak ada parameter yang dapat diubah.')));
+      if (historyCard) body.appendChild(historyCard);
       refresh();
       return;
     }
@@ -409,6 +496,8 @@ export async function renderSettings(host) {
         ]),
       ]));
     }
+
+    if (historyCard) body.appendChild(historyCard);
 
     refresh();
   }

@@ -22,6 +22,7 @@ class StockAdjustmentResource extends JsonResource
             'status_label' => $this->status?->label(),
             'posted_at' => $this->posted_at?->toIso8601String(),
             'items' => StockAdjustmentItemResource::collection($this->whenLoaded('items')),
+            'import_source' => $this->import_source,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
