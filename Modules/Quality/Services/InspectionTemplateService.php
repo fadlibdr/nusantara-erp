@@ -32,6 +32,28 @@ class InspectionTemplateService
     public function update(InspectionTemplate $template, array $data): InspectionTemplate
     {
         return DB::transaction(function () use ($template, $data): InspectionTemplate {
+            /*
+             * P6: jenis pada template TERISI mengikuti sikap butir-butirnya —
+             * sejarah. Membalik 5r ↔ quality memindahkan seluruh inspeksi lama
+             * template itu antar saringan Jenis tanpa jejak: patroli 5R yang
+             * sudah terisi tiba-tiba terbaca sebagai inspeksi mutu. Sebelum
+             * guard ini, update() membalik jenis dengan bebas sementara hanya
+             * replaceItems() yang dijaga — dua pintu, satu kunci. Koreksinya
+             * sama dengan butir: buat template versi baru.
+             */
+            $jenisChanges = array_key_exists('jenis', $data)
+                && $data['jenis'] !== $template->jenis->value;
+
+            if ($jenisChanges && InspectionResult::query()
+                ->whereIn('template_item_id', $template->items()->pluck('id'))
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'jenis' => 'Template ini sudah dipakai inspeksi yang terisi; jenisnya tidak bisa '
+                        .'diubah karena akan memindahkan inspeksi lama antar saringan. Buat template '
+                        .'versi baru untuk jenis yang berbeda.',
+                ]);
+            }
+
             $template->fill(Arr::except($data, ['items']))->save();
 
             if (array_key_exists('items', $data)) {

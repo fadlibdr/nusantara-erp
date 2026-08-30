@@ -136,6 +136,53 @@ class TemplateKindTest extends ErpTestCase
         );
     }
 
+    /**
+     * Jenis pada template TERISI adalah sejarah, sama seperti butirnya:
+     * membaliknya memindahkan patroli 5R lama ke saringan inspeksi mutu tanpa
+     * jejak. Sebelum guard ini update() membalik jenis dengan bebas sementara
+     * hanya replaceItems() yang dijaga — dua pintu, satu kunci.
+     */
+    public function test_jenis_of_a_filled_template_cannot_be_flipped(): void
+    {
+        $project = $this->project();
+        $location = $this->location($project);
+        $template = $this->template(InspectionStage::During, ['code' => '5R4', 'jenis' => '5r']);
+        $items = $template->items()->orderBy('sort_order')->get();
+
+        $this->admin();
+        $this->postJson('/api/quality/inspections', [
+            'project_id' => $project->id,
+            'location_id' => $location->id,
+            'template_id' => $template->id,
+            'inspected_at' => '2026-08-22',
+            'results' => [['template_item_id' => $items[0]->id, 'result' => 'ok']],
+        ])->assertCreated();
+
+        $this->admin();
+        $this->putJson('/api/quality/inspection-templates/'.$template->id, [
+            'code' => '5R4',
+            'work_package' => (string) $template->work_package,
+            'stage' => 'during',
+            'jenis' => 'quality',
+        ])->assertStatus(422)->assertJsonPath(
+            'errors.jenis.0',
+            'Template ini sudah dipakai inspeksi yang terisi; jenisnya tidak bisa '
+                .'diubah karena akan memindahkan inspeksi lama antar saringan. Buat template '
+                .'versi baru untuk jenis yang berbeda.',
+        );
+
+        $this->assertSame('5r', $template->fresh()->jenis->value);
+
+        // Jenis yang SAMA tetap boleh dikirim ulang — guard menolak perubahan,
+        // bukan kehadiran kuncinya.
+        $this->putJson('/api/quality/inspection-templates/'.$template->id, [
+            'code' => '5R4',
+            'work_package' => 'Housekeeping area fabrikasi',
+            'stage' => 'during',
+            'jenis' => '5r',
+        ])->assertOk();
+    }
+
     /** Template yang ada tidak berubah jenis diam-diam saat di-update tanpa kunci jenis. */
     public function test_updating_without_jenis_keeps_the_stored_kind(): void
     {

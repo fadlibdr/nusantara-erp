@@ -7375,6 +7375,12 @@ lewat layar **Inspeksi Mutu (QCI)** biasa dengan memilih template itu: butir dit
 `ok/nok/na`, foto temuan menempel di kartu Lampiran, verdict lembar diturunkan dari
 barisnya, dan lembarnya dicetak F/QI — mesin yang sama dengan inspeksi mutu. Saringan
 **Jenis** di daftar template memisahkan pustaka mutu dari checklist 5R.
+
+**Jenis template yang sudah terisi tidak bisa dibalik.** Begitu satu inspeksi terisi
+menunjuk butir template itu, mengubah jenisnya (5R ↔ mutu) ditolak 422 — sama dengan
+larangan menulis ulang butirnya, dan dengan alasan yang sama: seluruh inspeksi lama
+template itu akan berpindah saringan Jenis tanpa jejak. Butuh jenis berbeda? Buat
+template versi baru.
 2. **Kode `Q1…Q31` milik kantor mutu**, bukan nomor dokumen yang dicetak sistem — sama
    seperti kode AHSP. Karena itu seluruh pustaka bisa **diimpor massal** lewat **Impor
    Data Master** (§2.9): satu berkas memuat banyak template, kolom `kode, paket, tahap`
