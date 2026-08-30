@@ -1,6 +1,7 @@
 # Laporan Paket P6 — HSE terstruktur
 
-Branch: feat/p6 · Commit: lane backend = commit yang membawa laporan ini · Tanggal: 2026-08-30
+Branch: feat/p6 · Commit: lane backend = 2bfb871; lane cetak+SPA = commit yang
+membawa perubahan laporan ini · Tanggal: 2026-08-30
 
 K3 harian berhenti menjadi satu kolom prosa. **Formulir K3 harian** (FM-10-13, mask
 `HSE`, cetak **F/K3H**) mencatat toolbox meeting, hitungan APD per kategori sebagai
@@ -102,9 +103,40 @@ index, tanpa constraint (kontrak §3). `config('erp.documents')` bertambah kunci
   jugalah yang menangkap bahwa mask baru wajib berlabel di
   `SettingService::DOCUMENT_LABELS` agar bisa disunting di layar Pengaturan
   (`'HSE' => 'Formulir K3 harian'` ditambahkan).
-- suite penuh: **OK (3.498 uji, 15.885 asersi, 08:51)** — dari 3.475 pra-P6: +22 uji
-  baru +1 baris data-provider (mask `HSE` ikut sapuan
+- suite penuh (lane backend): **OK (3.498 uji, 15.885 asersi, 08:51)** — dari 3.475
+  pra-P6: +22 uji baru +1 baris data-provider (mask `HSE` ikut sapuan
   `test_every_shipped_document_format_satisfies_the_rule`).
+
+### Lane cetak+SPA (di atas 2bfb871)
+
+Registri SPA, NAV, saringan jenis 5R, kartu lampiran insiden, dan kedua entri
+cetak sudah terbawa commit backend (dipaksa selaras oleh AttachmentRegistryTest /
+PrintFormReachabilityTest / NavRouteRegistryTest); lane ini MEMVERIFIKASI, tidak
+membangun ulang, dan menemukan dua klaim kejujuran yang baru separuh terpaku di
+tingkat LEMBAR:
+
+- `HseDailyTest` +1 uji: lembar F/K3H yang TERTAUT mencetak kode DRP di sel
+  NO. LAPORAN HARIAN (sebelumnya hanya lembar tak-tertaut yang diuji cetaknya);
+  uji lama diperkuat idiom `identityCell`/`ruledIdentityCell` (regex label + ':'
+  + sel nilai — bukan "fill-line muncul di suatu tempat", pelajaran dua belas
+  uji tak-terfalsifikasi gelombang sebelumnya).
+- `RiskRegisterTest` +1 uji: baris IBPRP tanpa penilaian sisa menggarisi TEPAT
+  empat selnya (F′, A′, F′×A′, TINGKAT SISA) dan tidak memuat sel "0" —
+  `(int) null` PHP adalah 0, kelas bug yang persis diuji; separuh penolaknya
+  baris ternilai lengkap dengan nol sel bergaris.
+- Keduanya DIBUKTIKAN menggigit: registri dimutasi sengaja
+  (`residual_likelihood` → `(int)` paksa; `NO. LAPORAN HARIAN` → null), kedua
+  uji merah, mutasi dikembalikan, hijau lagi.
+- Verifikasi statis SPA (tanpa runtime JS di host): tipe field yang dipakai
+  entri P6 semuanya ada di form.js (`tags`, `default`, `lines`, `note`,
+  `detail.tables`); `cells.js` merender null jujur ('—' untuk code/number/enum);
+  tombol cetak k3-harian & ibprp tergambar otomatis dari katalog (idField
+  `project_id` didukung detail.js/list.js); kartu lampiran insiden muncul lewat
+  detail generik (`attachmentsCard` + keanggotaan ATTACHABLE, tanpa wiring
+  tambahan); scan keseimbangan kurung 8 berkas JS tersentuh — semua seimbang
+  (pemindai dibuktikan bisa menolak berkas rusak).
+- suite penuh (lane ini): **OK (3.500 uji, 15.903 asersi, 09:09)** — +2 uji
+  lembar, +18 asersi (termasuk penguatan idiom pada dua uji cetak lama).
 
 ## Smoke test curl (endpoint baru, pesan 422 yang dijanjikan — kutip kata demi kata)
 
@@ -137,6 +169,10 @@ login `admin@nusantara.test`:
   cara mengisi 5R lewat layar QCI; tabel menu §1; "dua belas formulir mendatar" §13.1 →
   "lima belas" (angka 12 sudah basi sebelum P6 — deviasi baru #2).
 - `PANDUAN-ADMINISTRATOR.md` §9 — 56 → 58; lanskap 14 → 15 (+F/IBPRP).
+- *(lane cetak+SPA)* `PANDUAN-PENGGUNA.md` §2.7 — sensus kartu Lampiran 33 → 37,
+  daftar "Yang bisa" dilengkapi 1:1 dengan registri (SDS, SMS, QCI, OPN, BAN,
+  insiden K3), "insiden K3" DIHAPUS dari daftar "Yang tidak bisa" — lihat
+  Deviasi baru #3.
 - README Modules: tidak ada modul baru — tidak ada baris baru.
 - CONVENTIONS/ARCHITECTURE: tidak diubah (tidak ada panah baru; keputusan modul ditulis
   di migrasi 000742 dan laporan ini).
@@ -165,7 +201,21 @@ login `admin@nusantara.test`:
    sebelum P6** — PANDUAN-ADMINISTRATOR §9.3 menghitung empat belas untuk korpus yang
    sama. Keduanya kini lima belas (14 + F/IBPRP); sumber selisih lamanya tidak dilacak
    lebih jauh.
-3. **Replay `php artisan db:seed` (tanpa fresh) pecah di `SubcontractDatabaseSeeder`
+3. *(lane cetak+SPA)* **Sensus kartu Lampiran PANDUAN §2.7 basi pra-P6**: teks
+   berkata "33 jenis dokumen" dan daftarnya memuat 31 nama, sementara registri
+   berisi 36 pra-P6 (QCI dari P1-QC, BAN dari P2, OPN dari P3 tidak pernah
+   dicensuskan; SDS/SMS dinaikkan angkanya oleh P1-ENG tanpa masuk daftar) —
+   dan "insiden K3" masih berdiri di daftar "Yang tidak bisa", bertentangan
+   langsung dengan §7.7 pasca-P6. DIPERBAIKI lane ini: 37, daftar lengkap 1:1
+   dengan `AttachableDocuments`, insiden K3 pindah kolom.
+4. *(lane cetak+SPA)* **PANDUAN-ADMINISTRATOR §17 (±baris 1058) "Penomoran
+   Dokumen — 47 format, satu per jenis dokumen" basi pra-P6**: mask terkirim
+   kini 55 dan `SettingService::DOCUMENT_LABELS` juga 55. Angka 47 tidak cocok
+   dengan pembacaan mana pun (55 semua, atau 49 bila enam dokumen swanomor
+   §catatan-1222 dikecualikan). TIDAK disentuh — perlu keputusan apakah kalimat
+   itu menghitung layar atau mask; satu angka + satu catatan kaki untuk lane
+   dokumentasi.
+5. **Replay `php artisan db:seed` (tanpa fresh) pecah di `SubcontractDatabaseSeeder`
    sejak P4** — `seedLaborContract()` menghapus `scm_labor_contract_items` yang masih
    dirujuk FK baris opname mandor: `SQLSTATE[23000] … delete from
    "scm_labor_contract_items" where "labor_contract_id" = 1`. Pra-P6 (berkas terakhir

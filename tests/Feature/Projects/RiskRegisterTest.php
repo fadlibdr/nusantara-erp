@@ -176,4 +176,62 @@ class RiskRegisterTest extends ErpTestCase
         $this->assertStringContainsString('Risiko besar', $html); // 3×5=15, dari banding satu tempat
         $this->assertStringNotContainsString('Penarikan kabel tray shaft', $html);
     }
+
+    /**
+     * Kejujuran §13.5 pada BARISNYA, bukan pada lembar: risiko sisa yang belum
+     * dinilai menggarisi TEPAT empat selnya (F′, A′, F′×A′, TINGKAT SISA) —
+     * (int) null di PHP adalah 0, dan 0 di kolom skor adalah klaim "sudah
+     * dinilai, hasilnya kecil" yang tidak pernah dibuat siapa pun. Baris yang
+     * SUDAH dinilai adalah separuh penolaknya: nol sel bergaris.
+     */
+    public function test_the_f_ibprp_sheet_rules_unassessed_residual_cells_never_zero(): void
+    {
+        Company::query()->create(['name' => 'PT Nusantara Karya Integrasi']);
+        $project = $this->grahaProject();
+
+        $this->actingAs($this->userWith('prj.create'));
+        $this->postJson('/api/projects/risk-register', $this->payload($project, [
+            'residual_likelihood' => null,
+            'residual_severity' => null,
+        ]))->assertCreated();
+        $this->postJson('/api/projects/risk-register', $this->payload($project, [
+            'activity' => 'Pengangkatan girder dengan mobile crane',
+            'hazard' => 'Beban jatuh dari sling',
+        ]))->assertCreated();
+
+        $html = app(FormPrintService::class)->html('ibprp', ['id' => $project->id]);
+
+        // Baris tanpa penilaian sisa: kolom lain terisi semua, jadi TEPAT
+        // empat sel bergaris — regex yang diam-diam kelonggaran akan
+        // menghitung lebih dan gagal di sini, bukan lolos.
+        $unassessed = $this->bodyRow($html, 'Pengecoran plat lantai 5');
+        $this->assertSame(4, substr_count($unassessed, '<div class="fill"></div>'));
+        $this->assertDoesNotMatchRegularExpression('~>\s*0\s*<~', $unassessed);
+        $this->assertStringContainsString('15', $unassessed);          // F×A tersimpan
+        $this->assertStringContainsString('Risiko besar', $unassessed); // banding satu tempat
+
+        // Separuh yang menolak: baris yang dinilai lengkap (1×5=5, sedang)
+        // tidak menggarisi satu sel pun.
+        $assessed = $this->bodyRow($html, 'Pengangkatan girder dengan mobile crane');
+        $this->assertSame(0, substr_count($assessed, '<div class="fill"></div>'));
+        $this->assertStringContainsString('Risiko sedang', $assessed);
+    }
+
+    /**
+     * Satu baris <tr>…</tr> tabel isi yang memuat penanda — supaya hitungan
+     * sel bergaris terkurung pada BARIS itu, bukan menghitung garis milik
+     * baris lain di lembar yang sama.
+     */
+    private function bodyRow(string $html, string $marker): string
+    {
+        $at = strpos($html, $marker);
+        $this->assertNotFalse($at, sprintf('Baris "%s" tidak ada di lembar.', $marker));
+
+        $start = strrpos(substr($html, 0, $at), '<tr>');
+        $end = strpos($html, '</tr>', $at);
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+
+        return substr($html, $start, $end - $start);
+    }
 }

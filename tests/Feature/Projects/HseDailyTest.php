@@ -168,8 +168,50 @@ class HseDailyTest extends ErpTestCase
         $this->assertStringContainsString('helm', $html);
         $this->assertStringContainsString('harness', $html);
         $this->assertStringContainsString('Toe board scaffolding lantai 5 belum terpasang', $html);
-        // Tidak ada laporan harian hari itu: selnya bergaris, tidak pernah "0"
-        // dan tidak pernah kode laporan hari lain.
+        // Tidak ada laporan harian hari itu: SELNYA yang bergaris — bukan
+        // sekadar "fill-line muncul di suatu tempat" (lembar mana pun punya
+        // sel bergaris lain), dan tidak pernah "0" atau kode laporan hari lain.
+        $this->assertMatchesRegularExpression($this->ruledIdentityCell('NO. LAPORAN HARIAN'), $html);
         $this->assertStringNotContainsString('DRP/', $html);
+    }
+
+    /**
+     * Separuh tautan yang satunya di atas kertas: lembar F/K3H yang TERTAUT
+     * mencetak kode laporan hariannya di sel NO. LAPORAN HARIAN — endpoint
+     * yang menjawab benar belum membuktikan selnya terisi (kejujuran §13.5
+     * bekerja dua arah: bergaris bila tidak ada, kodenya bila ada).
+     */
+    public function test_the_f_k3h_sheet_prints_the_linked_daily_report_code(): void
+    {
+        Company::query()->create(['name' => 'PT Nusantara Karya Integrasi']);
+        $project = $this->grahaProject();
+        $report = $this->dailyReport($project, '2026-03-29');
+
+        $this->actingAs($this->userWith('prj.create'));
+        $linked = $this->postJson('/api/projects/hse-daily', $this->payload($project, '2026-03-29'))
+            ->assertCreated()->json('data.id');
+
+        $html = app(FormPrintService::class)->html('k3-harian', ['id' => $linked]);
+
+        $this->assertMatchesRegularExpression(
+            $this->identityCell('NO. LAPORAN HARIAN', $report->code),
+            $html,
+        );
+        // Separuh yang menolak: pada lembar TERTAUT, pola sel bergaris TIDAK
+        // boleh cocok — kalau cocok juga, kedua uji ini tidak menguji apa-apa.
+        $this->assertDoesNotMatchRegularExpression($this->ruledIdentityCell('NO. LAPORAN HARIAN'), $html);
+    }
+
+    /** Satu baris identitas, label dan nilai bersama, dalam markup bloknya. */
+    private function identityCell(string $label, string $value): string
+    {
+        return '~>'.preg_quote($label, '~').'</td>\s*<td class="s">:</td>\s*<td class="v">\s*'
+            .preg_quote($value, '~').'\s*</td>~';
+    }
+
+    /** Baris yang sama dengan SEL BERGARIS di tempat nilainya. */
+    private function ruledIdentityCell(string $label): string
+    {
+        return $this->identityCell($label, '<span class="fill-line"></span>');
     }
 }

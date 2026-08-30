@@ -531,17 +531,19 @@ menunggu tombol Ubah muncul lagi.
 
 ### 2.7 Lampiran
 
-Kartu **Lampiran** hanya ada pada 33 jenis dokumen. Untuk melihatnya Anda butuh
+Kartu **Lampiran** hanya ada pada 37 jenis dokumen. Untuk melihatnya Anda butuh
 `<modul>.view`; untuk **`Tambah lampiran`** dan **`Hapus`** Anda butuh `<modul>.update`.
 
-Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · proyek · laporan
-harian · BAST · temuan defect · izin kerja lapangan · izin masuk/keluar material · PR ·
-PO · vendor · dokumen vendor · penerimaan barang · opname stok · SPK subkon · opname
-subkon · invoice AR · tagihan AP · pembayaran · jurnal · voucher kas kecil · kasbon ·
-karyawan · sertifikat · cuti · tiket · berita acara servis · aset.
+Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · submittal gambar
+(SDS) · submittal material (SMS) · inspeksi mutu (QCI) · proyek · laporan harian ·
+BAST · temuan defect · opname owner (OPN) · insiden K3 · izin kerja lapangan ·
+izin masuk/keluar material · PR · PO · vendor · dokumen vendor · BA negosiasi (BAN) ·
+penerimaan barang · opname stok · SPK subkon · opname subkon · invoice AR · tagihan
+AP · pembayaran · jurnal · voucher kas kecil · kasbon · karyawan · sertifikat · cuti ·
+tiket · berita acara servis · aset.
 
 Yang **tidak** bisa: RFQ, evaluasi vendor, bon pengeluaran, transfer, kedua jenis retur,
-insiden K3, milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
+milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
 F/IL-nya mencetak baris pekerjanya sendiri — tidak ada foto yang perlu ditempel),
 kontrak layanan, jadwal preventif, payroll, rekap absensi, kalender pajak, dan dana kas
 kecil.
