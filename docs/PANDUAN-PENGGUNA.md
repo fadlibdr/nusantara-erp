@@ -152,7 +152,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Penjualan | Pelanggan · Prospek · Penawaran · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
-| Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
+| Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Formulir K3 Harian · Register IBPRP · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
 | Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton · Template Inspeksi |
 | Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat & Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang · Rencana Pengadaan · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
@@ -531,17 +531,19 @@ menunggu tombol Ubah muncul lagi.
 
 ### 2.7 Lampiran
 
-Kartu **Lampiran** hanya ada pada 33 jenis dokumen. Untuk melihatnya Anda butuh
+Kartu **Lampiran** hanya ada pada 37 jenis dokumen. Untuk melihatnya Anda butuh
 `<modul>.view`; untuk **`Tambah lampiran`** dan **`Hapus`** Anda butuh `<modul>.update`.
 
-Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · proyek · laporan
-harian · BAST · temuan defect · izin kerja lapangan · izin masuk/keluar material · PR ·
-PO · vendor · dokumen vendor · penerimaan barang · opname stok · SPK subkon · opname
-subkon · invoice AR · tagihan AP · pembayaran · jurnal · voucher kas kecil · kasbon ·
-karyawan · sertifikat · cuti · tiket · berita acara servis · aset.
+Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · submittal gambar
+(SDS) · submittal material (SMS) · inspeksi mutu (QCI) · proyek · laporan harian ·
+BAST · temuan defect · opname owner (OPN) · insiden K3 · izin kerja lapangan ·
+izin masuk/keluar material · PR · PO · vendor · dokumen vendor · BA negosiasi (BAN) ·
+penerimaan barang · opname stok · SPK subkon · opname subkon · invoice AR · tagihan
+AP · pembayaran · jurnal · voucher kas kecil · kasbon · karyawan · sertifikat · cuti ·
+tiket · berita acara servis · aset.
 
 Yang **tidak** bisa: RFQ, evaluasi vendor, bon pengeluaran, transfer, kedua jenis retur,
-insiden K3, milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
+milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
 F/IL-nya mencetak baris pekerjanya sendiri — tidak ada foto yang perlu ditempel),
 kontrak layanan, jadwal preventif, payroll, rekap absensi, kalender pajak, dan dana kas
 kecil.
@@ -583,7 +585,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 56 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 58 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -3814,9 +3816,11 @@ koreksi."*
 ada aksi yang memindahkannya ke sana; satu-satunya jalan masuk adalah tombol
 `Buka Kembali` pada insiden yang sudah ditutup.
 
-**Insiden K3 tidak bisa menampung foto.** Tidak ada kartu Lampiran di halamannya, dan
-fotonya tidak akan pernah muncul di Galeri Proyek. **Unggah foto kejadian ke laporan
-harian hari itu** (atau ke proyek), dan tuliskan nomor insidennya pada keterangannya.
+**Foto kejadian menempel pada insidennya sendiri.** Halaman insiden punya kartu
+**Lampiran** (unggah butuh izin ubah proyek, melihat butuh izin lihat), dan foto
+ber-mime gambar ikut muncul di **Galeri Proyek**. Kebiasaan lama menitipkan foto ke
+laporan harian dengan nomor insiden di keterangan tidak diperlukan lagi — foto yang
+terlanjur di sana tetap di sana; sistem tidak memindahkannya.
 
 **`Proyek › Laporan K3`** — layar baca saja, tidak pernah menulis. Saringan Proyek +
 Dari/Sampai (bawaan: tanggal 1 bulan berjalan sampai hari ini).
@@ -3832,6 +3836,75 @@ kejadian**, dan kartu **Cara membaca**.
 > hari. Layar mengatakannya sendiri: *"Laporan harian yang belum diisi membuat rate tampak
 > lebih buruk daripada seharusnya."* Nol man-hour menghasilkan **"—"**, bukan 0,00, dengan
 > peringatan kuning *"Belum ada laporan harian pada periode ini…"*.
+
+**`Proyek › Formulir K3 Harian`** — FM-10-13: toolbox meeting, hitungan APD per
+kategori, temuan & tindak lanjut. Kolom: Kode (`HSE/2026/03/0001`) · Tanggal · Proyek ·
+Topik toolbox · Laporan harian · Temuan.
+
+Formulir: **Proyek** (wajib, tidak bisa dipindah) · **Tanggal** (wajib — *"Satu formulir
+per proyek per hari"*; tanggal yang sudah terisi ditolak dengan *"Formulir K3 harian
+untuk proyek dan tanggal ini sudah ada."*) · **Topik toolbox meeting** · **Peserta
+toolbox** (satu nama per baris) · **Catatan** · baris **Pemakaian APD per kategori**
+(**Kategori** teks bebas — helm, rompi, sepatu, harness, kacamata, sarung tangan, dst —
+dan **Jumlah terpakai**; kategori yang sama dua kali ditolak: *"Kategori APD yang sama
+tercantum dua kali."*) · baris **Temuan & tindak lanjut**.
+
+> **Kolom "Laporan harian" bukan isian.** Tautan ke laporan harian **proyek dan tanggal
+> yang sama** diselesaikan server: sudah ada laporan hari itu → langsung tertaut; belum →
+> kosong, dan **begitu laporan hariannya dibuat belakangan, tautannya terisi sendiri**.
+> Formulir K3 tanpa laporan harian tetap sah tercatat — toolbox meeting tidak menunggu
+> laporan harian.
+
+> **Kategori APD yang tidak dihitung TIDAK diisi baris.** Pada cetakan F/K3H selnya
+> bergaris untuk diisi tangan di lapangan — bukan dicetak 0, karena "tidak dihitung" dan
+> "dihitung, hasilnya nol" adalah dua pernyataan berbeda (§13.5).
+
+**`Proyek › Register IBPRP`** — Identifikasi Bahaya, Penilaian Risiko dan Pengendalian
+per proyek (elemen SMKK, Permen PUPR 10/2021). Kolom: Proyek · Aktivitas · Bahaya ·
+**F×A** · **Tingkat** · **Sisa** · **Tingkat sisa**.
+
+Formulir, dua bagian: *Bahaya & risiko awal* — **Proyek** (wajib, tidak bisa dipindah) ·
+**Uraian pekerjaan / aktivitas** (wajib) · **Identifikasi bahaya** (wajib) · **Dampak /
+tipe kecelakaan** · **Kemungkinan (F, 1–5)** dan **Keparahan (A, 1–5)** (wajib) — dan
+*Pengendalian & risiko sisa* — **Pengendalian** · **Kemungkinan sisa (F′)** dan
+**Keparahan sisa (A′)**.
+
+> **Nilai risiko tidak pernah diketik.** F×A dihitung server dari kemungkinan ×
+> keparahan; angka skor yang ikut terkirim dibuang tanpa dibaca. Tingkatnya (**Risiko
+> kecil** 1–4 · **Risiko sedang** 5–12 · **Risiko besar** 15–25, matriks 5×5 Permen PUPR
+> 10/2021) diturunkan dari skor itu — satu banding untuk layar, API, dan lembar cetak.
+
+Matriks 5×5-nya, F menurun × A mendatar — setiap sel adalah hasil kali yang akan
+dihitung server, diberi tingkat menurut bandingnya:
+
+| F \ A | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| **1** | 1 | 2 | 3 | 4 | 5 |
+| **2** | 2 | 4 | 6 | 8 | 10 |
+| **3** | 3 | 6 | 9 | 12 | 15 |
+| **4** | 4 | 8 | 12 | 16 | 20 |
+| **5** | 5 | 10 | 15 | 20 | 25 |
+
+| Skor F×A | Tingkat | Ditampilkan sebagai |
+|---|---|---|
+| 1–4 | kecil | **Risiko kecil** |
+| 5–12 | sedang | **Risiko sedang** |
+| 15–25 | besar | **Risiko besar** |
+
+Celah 13–14 bukan salah ketik: tidak ada hasil kali dua bilangan 1–5 yang bernilai 13
+atau 14, jadi banding sedang/besar tidak pernah memperebutkannya. Dan tidak ada pita
+keempat ("ekstrem") — Permen PUPR 10/2021 yang dikutip register kecelakaan kerja hanya
+menyatakan tiga tingkat; ambang yang tidak dinyatakan sumbernya tidak dikarang di sini.
+
+> **Risiko sisa dinilai berpasangan atau tidak sama sekali.** Mengisi salah satu saja
+> ditolak: *"Risiko sisa dinilai lengkap: kemungkinan DAN keparahan, atau kosongkan
+> keduanya."* Baris yang risiko sisanya belum dinilai menyimpan kosong — pada F/IBPRP
+> keempat selnya bergaris, bukan 0.
+
+Cetak: **F/K3H** dari halaman formulir K3 harian; **F/IBPRP** (mendatar, **satu lembar
+seluruh register proyek**) dari halaman salah satu barisnya — §13.3. Checklist **5R**
+bukan layar di sini: ia template `jenis 5R` yang diisi lewat `Mutu › Inspeksi Mutu` —
+§17.5.
 
 ### 7.8 Milestone dan Penugasan Personel
 
@@ -6404,7 +6477,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **56** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **58** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -6418,7 +6491,7 @@ Ia **bukan** unduhan PDF. Bila peramban memblokir jendela barunya, muncul notifi
 **Setiap lembar membawa bilah petunjuk yang hanya tampil di layar, tidak ikut tercetak**,
 yang mengingatkan Anda menekan Ctrl+P, memilih A4, orientasi yang benar, dan
 **menyalakan "Grafik latar belakang"** — tanpa itu, kepala tabel yang berarsir tercetak
-putih. Rinciannya (termasuk dua belas formulir mendatar) ada di
+putih. Rinciannya (termasuk lima belas formulir mendatar) ada di
 `docs/PANDUAN-ADMINISTRATOR.md` §9.3.
 
 **Tombol yang izinnya tidak Anda pegang tidak digambar sama sekali** — daftar formulirnya
@@ -6439,7 +6512,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 56 formulir
+### 13.3 Daftar lengkap 58 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -6567,6 +6640,19 @@ sebelum penggantian itu.)*
 |---|---|---|
 | Berita Acara Opname Pekerjaan — backsheet volume (mendatar) | F/OPN | halaman Opname Owner (OPN) (§7.14) |
 | Berita Acara Pemeriksaan Pekerjaan (BAPP) per Zona | F/BAPP | halaman BAPP per Zona (§7.16) |
+
+**Proyek — dua lembar P6** (registri cetak juga, keluarga K3 — §7.7):
+
+| Formulir | Kode | Tombolnya di |
+|---|---|---|
+| Formulir K3 Harian (FM-10-13) | F/K3H | halaman Formulir K3 Harian |
+| IBPRP (mendatar) | F/IBPRP | halaman satu baris register — mencetak **seluruh register proyek** |
+
+**F/K3H** mencetak hitungan APD **dari baris yang tercatat** — kategori yang tidak
+dihitung hari itu bergaris untuk diisi tangan, tidak pernah dicetak 0 — dan menggarisi
+**NO. LAPORAN HARIAN** pada hari yang tidak punya laporan harian. **F/IBPRP** mencetak
+skor **tersimpan** hasil hitung F×A dengan tingkatnya dari banding Permen PUPR 10/2021;
+risiko sisa yang belum dinilai bergaris di keempat kolomnya.
 
 **F/OPN** mencetak satu baris per item BOQ yang **benar-benar diukur** opname itu, dengan
 VOL. LALU · VOL. PERIODE INI · VOL. KUMULATIF dan — di sebelahnya — **VOL. KONTRAK + CCO**,
@@ -7278,8 +7364,23 @@ mis. `Q7` "Pengecoran kolom struktur"), milik satu paket pekerjaan dan satu **ta
 lapangan.
 
 1. **`Tambah Template Inspeksi`**. Isi **Kode katalog** (mis. `Q7`, unik), **Paket
-   pekerjaan**, **Tahap (titik henti mutu)**, lalu baris **Butir pemeriksaan**: **Butir yang
-   diperiksa**, **Kriteria keberterimaan**, **Toleransi** (boleh kosong).
+   pekerjaan**, **Tahap (titik henti mutu)**, **Jenis checklist** (bawaan *Checklist
+   mutu*; pilih *Checklist 5R* untuk patroli housekeeping), lalu baris **Butir
+   pemeriksaan**: **Butir yang diperiksa**, **Kriteria keberterimaan**, **Toleransi**
+   (boleh kosong).
+
+**Checklist 5R tidak punya layar sendiri — dan memang tidak perlu.** Buat template
+ber-jenis *Checklist 5R* (kode bebas milik kantor mutu, mis. `5R1`), lalu isi patrolinya
+lewat layar **Inspeksi Mutu (QCI)** biasa dengan memilih template itu: butir ditandai
+`ok/nok/na`, foto temuan menempel di kartu Lampiran, verdict lembar diturunkan dari
+barisnya, dan lembarnya dicetak F/QI — mesin yang sama dengan inspeksi mutu. Saringan
+**Jenis** di daftar template memisahkan pustaka mutu dari checklist 5R.
+
+**Jenis template yang sudah terisi tidak bisa dibalik.** Begitu satu inspeksi terisi
+menunjuk butir template itu, mengubah jenisnya (5R ↔ mutu) ditolak 422 — sama dengan
+larangan menulis ulang butirnya, dan dengan alasan yang sama: seluruh inspeksi lama
+template itu akan berpindah saringan Jenis tanpa jejak. Butuh jenis berbeda? Buat
+template versi baru.
 2. **Kode `Q1…Q31` milik kantor mutu**, bukan nomor dokumen yang dicetak sistem — sama
    seperti kode AHSP. Karena itu seluruh pustaka bisa **diimpor massal** lewat **Impor
    Data Master** (§2.9): satu berkas memuat banyak template, kolom `kode, paket, tahap`

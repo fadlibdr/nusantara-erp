@@ -32,6 +32,7 @@ use Modules\Projects\Models\Defect;
 use Modules\Projects\Models\GatePass;
 use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\SafetyIncident;
 use Modules\Projects\Models\WorkPermit;
 use Modules\Quality\Models\Inspection;
 use Modules\ServiceDesk\Models\FieldReport;
@@ -107,6 +108,10 @@ class AttachableDocuments
         // signatures, which live on paper, not in a camera roll.
         'projects/work-permits' => ['class' => WorkPermit::class, 'prefix' => 'prj', 'label' => 'Izin kerja lapangan'],
         'projects/gate-passes' => ['class' => GatePass::class, 'prefix' => 'prj', 'label' => 'Izin masuk/keluar material'],
+        // P6 — temuan panduan §7.7: foto kejadian menempel pada INSIDENNYA,
+        // bukan dititipkan ke laporan harian dengan nomor insiden di
+        // keterangan. Foto titik jatuh material adalah bukti investigasinya.
+        'projects/safety-incidents' => ['class' => SafetyIncident::class, 'prefix' => 'prj', 'label' => 'Insiden K3 (SMK3)'],
         'procurement/purchase-requisitions' => ['class' => PurchaseRequisition::class, 'prefix' => 'prc', 'label' => 'Permintaan pembelian'],
         'procurement/purchase-orders' => ['class' => PurchaseOrder::class, 'prefix' => 'prc', 'label' => 'Pesanan pembelian'],
         'procurement/vendors' => ['class' => Vendor::class, 'prefix' => 'prc', 'label' => 'Vendor'],

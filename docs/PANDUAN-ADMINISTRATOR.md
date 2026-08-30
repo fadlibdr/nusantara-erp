@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 56 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 58 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai tiga belas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -213,9 +213,15 @@ Core (dipakai bersama Proyek dan mutu kelak) tetapi digerbangi `prj.*`, bukan `c
 Bergantung ke Projects, Estimation, dan Core — tidak sebaliknya.
 
 **Projects (`prj`) — Proyek.** Daftar proyek, laporan harian & progres mingguan,
-EVM & baseline, milestone, BAST, register K3, register defect (punch list), varian
-material, penugasan personel, penutupan proyek. Sumber angka AC pada EVM adalah
-`fin_project_costs`, bukan buku besar.
+EVM & baseline, milestone, BAST, register K3, **formulir K3 harian (FM-10-13)** dan
+**register IBPRP** (keduanya P6), register defect (punch list), varian material,
+penugasan personel, penutupan proyek. Sumber angka AC pada EVM adalah
+`fin_project_costs`, bukan buku besar. HSE terstruktur ditaruh di modul ini, bukan di
+Quality, dan alasannya arsitektural, bukan selera: tautan formulir K3 harian ↔ laporan
+harian berjalan **dua arah** (laporan harian yang dibuat belakangan menaut-balik ke
+formulir K3 tanggal yang sama), dan arah tulis Projects → Quality adalah panah yang
+diharamkan peta dependensi — di dalam satu modul, relasi itu legal. Keluarga K3 lain
+(register insiden, Laporan K3) memang sudah di sini.
 
 **Quality (`qc`) — Mutu (QA/QC).** Template checklist inspeksi (kode katalog Q1..Q31),
 inspeksi mutu (QCI), laporan ketidaksesuaian (NCR), dan benda uji beton dengan hasil uji
@@ -226,7 +232,12 @@ inspeksi tahap berikutnya di lokasi yang sama serta serah terima pertama (BAST I
 itu ditulis di `InspectionService` dan `BastPrerequisiteService`, yang membaca `qc_ncr` di
 balik `Schema::hasTable` karena Projects tidak boleh bergantung ke Quality. Lulus/tidak benda
 uji **dihitung** `ConcreteStrengthService` terhadap target mutunya (K → fc' silinder, tabel
-kematangan PBI 1971) — tidak pernah diketik. Bergantung ke Projects, Engineering, dan Core —
+kematangan PBI 1971) — tidak pernah diketik. Sejak P6 template inspeksi punya kolom
+**`jenis`** (`quality` | `5r`), forward-only: kolom baru berbawaan `'quality'` dan baris
+lama di-backfill eksplisit, jadi makna data lama tidak berubah. Checklist **5R** adalah
+inspeksi QCI biasa atas template ber-jenis `5r` — satu kolom, bukan mesin checklist
+kedua; guard "template yang sudah dipakai inspeksi terisi menolak tulis-ulang" berlaku
+tanpa membedakan jenis. Bergantung ke Projects, Engineering, dan Core —
 tidak sebaliknya.
 
 **Procurement (`prc`) — Pengadaan.** Vendor & subkon, dokumen vendor (prakualifikasi),
@@ -1055,7 +1066,7 @@ Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
 | **Rekonsiliasi Bank** | Jendela pencocokan tanggal (1–30 hari) |
 | **Proyeksi Arus Kas** | Hari penagihan termin (0–365) |
 | **Akun Jurnal Otomatis** | Tujuh kode akun di §4.4(A) |
-| **Penomoran Dokumen** | 47 format, satu per jenis dokumen — §4.8 |
+| **Penomoran Dokumen** | 55 format, satu per jenis dokumen — §4.8 |
 
 > **Satu setelan muncul di DUA kelompok, dan layar tidak mengatakannya.**
 > `cashflow.termin_collection_days` didaftarkan dua kali di
@@ -1204,9 +1215,12 @@ atau `config/erp.php`, lalu di dalam satu transaksi baris urutan dikunci
 Token: `{Y}` tahun 4 digit, `{M2}` bulan 2 digit, `{RM}` bulan romawi, `{N3}/{N4}/{N5}`
 urutan berimbuh nol. **Urutan reset per jenis per tahun.**
 
-**47 jenis ada di Pengaturan → Penomoran Dokumen** (yang terakhir ditambahkan BAN/AWD/PBL
-pada P2 — BA negosiasi, keputusan pemenang, dan rencana pengadaan). Setiap format **wajib
-memuat
+**55 jenis ada di Pengaturan → Penomoran Dokumen** (yang terakhir ditambahkan `HSE`
+pada P6 — formulir K3 harian). Angka itu menghitung **kendali di layar**; hari ini ia
+sama dengan hitungan mask terkirim di `config/erp.php`, dan satu arahnya dipaku uji:
+`DocumentFormatValidationTest` menolak mask yang tidak punya kendali berlabel di layar
+ini, jadi mask baru tidak bisa lagi menyelinap tanpa menaikkan angka ini.
+Setiap format **wajib memuat
 `{Y}` dan salah satu dari `{N3}/{N4}/{N5}`**, maksimal 60 karakter, dan hanya boleh
 memakai huruf, angka, spasi, serta `/ . _ -` di luar keenam token.
 
@@ -2594,9 +2608,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**56 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**58 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-49 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+51 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2692,11 +2706,11 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Empat belas dari 56 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Lima belas dari 58 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, **berita acara negosiasi (F/BAN, P2)**, berita acara
 opname, saldo stok, opname subkon, **backsheet opname ke pemilik (F/OPN, P3)**, **rekap
-upah mandor (F/RU, P4)**, kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar
-hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, keputusan
+upah mandor (F/RU, P4)**, **register IBPRP (F/IBPRP, P6)**, kewajiban pajak, ekualisasi
+pajak, rekap payroll, dan daftar hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, keputusan
 pemenang F/AWD, kedua lembar P3 lainnya: BAPP per zona F/BAPP dan BAST subkon F/BST-SK,
 CV mandor F/CVM, P4, serta PPK alat & jasa F/PPK, P5).
 

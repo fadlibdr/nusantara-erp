@@ -32,6 +32,9 @@ export const ATTACHABLE = new Set([
    * lembar OPN — buktinya volume yang diukur. BAPP zona & register variasi
    * kontrak sengaja tidak. */
   'projects/progress-measurements',
+  /* P6: foto kejadian menempel pada INSIDENNYA (temuan panduan §7.7) — bukan
+   * lagi dititipkan ke laporan harian dengan nomor insiden di keterangan. */
+  'projects/safety-incidents',
   /* P0-C: foto izin kerja (kondisi area, APD) & foto muatan izin gerbang. */
   'projects/work-permits', 'projects/gate-passes',
   'procurement/purchase-requisitions', 'procurement/purchase-orders', 'procurement/vendors',

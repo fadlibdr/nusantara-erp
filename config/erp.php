@@ -94,6 +94,7 @@ return [
         'OPM' => 'OPM/{Y}/{RM}/{N4}',   // Opname mandor (P4 — CLM milik opname subkon, OPN milik opname owner)
         'PPK' => 'PPK/{Y}/{RM}/{N4}',   // PPK — perintah kerja alat sewa & jasa berbasis periode (P5)
         'PPKB' => 'PPKB/{Y}/{RM}/{N4}',  // Tagihan per periode atas PPK (P5 — kuantitas turunan register/kalender)
+        'HSE' => 'HSE/{Y}/{M2}/{N4}',   // Formulir K3 harian FM-10-13 (P6 — {M2} meniru DRP: dokumen harian)
     ],
 
     /*

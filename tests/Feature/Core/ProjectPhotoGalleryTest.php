@@ -16,6 +16,7 @@ use Modules\Procurement\Models\Vendor;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Models\SafetyIncident;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -264,6 +265,36 @@ class ProjectPhotoGalleryTest extends ErpTestCase
         $sources = collect($response->json('meta.sources'))->pluck('count', 'slug');
         $this->assertSame(1, $sources['estimation/boqs']);
         $this->assertSame(1, $sources['estimation/cost-budgets']);
+    }
+
+    /**
+     * Paruh kedua penutupan temuan §7.7 (P6): laporan K3 bukan cuma bisa
+     * MENERIMA foto (SafetyIncidentAttachmentTest), fotonya juga MUNCUL di
+     * Galeri Proyek. Tanpa paku ini baris sumber di sources() bisa dihapus dan
+     * tak satu uji pun merah — persis celah yang panduan pra-P6 keluhkan:
+     * "fotonya tidak akan pernah muncul di Galeri Proyek".
+     */
+    public function test_safety_incident_photos_appear_in_the_gallery(): void
+    {
+        $incident = SafetyIncident::query()->create([
+            'code' => 'K3/2026/VIII/0001',
+            'project_id' => $this->project->id,
+            'occurred_at' => '2026-08-04 09:30:00',
+            'severity' => 'near_miss',
+            'category' => 'struck_by_object',
+            'description' => 'Material lepas dari sling saat pengangkatan; tidak ada korban.',
+        ]);
+        $this->photoOn($incident, 'kondisi-sling.png');
+
+        $this->actAsHolderOf('prj.view');
+        $response = $this->getJson("api/core/projects/{$this->project->id}/photos")->assertOk();
+
+        $this->assertContains(
+            'kondisi-sling.png',
+            array_column($response->json('data'), 'original_name')
+        );
+        $sources = collect($response->json('meta.sources'))->pluck('count', 'slug');
+        $this->assertSame(1, $sources['projects/safety-incidents']);
     }
 
     public function test_refuses_a_caller_without_prj_view(): void

@@ -57,7 +57,10 @@ use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
 use Modules\Procurement\Models\WorkOrder;
 use Modules\Procurement\Services\ProcurementFormService;
+use Modules\Projects\Models\HseDaily;
 use Modules\Projects\Models\ProgressMeasurement;
+use Modules\Projects\Models\Project;
+use Modules\Projects\Models\RiskRegisterEntry;
 use Modules\Projects\Models\ZoneCertificate;
 use Modules\Projects\Services\MeasurementService;
 use Modules\Projects\Services\ZoneCertificateService;
@@ -1510,6 +1513,147 @@ class PrintableDocuments
                     ],
                 ],
                 'notes' => ['text' => 'notes', 'lines' => 3],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * FORMULIR K3 HARIAN — F/K3H (FM-10-13 di keluarga formulir
+             * pemilik): toolbox meeting, hitungan APD per kategori, temuan &
+             * tindak lanjut. P6.
+             *
+             * APD tercetak DARI BARIS YANG TERCATAT: kategori yang tidak
+             * pernah dihitung hari itu tidak muncul — tidak digaris nol —
+             * karena "tidak dihitung" dan "dihitung, hasilnya nol" adalah dua
+             * pernyataan berbeda dan hanya yang kedua boleh berdiri di atas
+             * tanda tangan. minRows menambah baris BERGARIS untuk kategori
+             * yang site hitung dengan tangan di lapangan, cara pad kertasnya.
+             *
+             * NO. LAPORAN HARIAN adalah tautan turunan (proyek, tanggal) yang
+             * diselesaikan HseDailyService; hari tanpa laporan harian
+             * menggarisi selnya.
+             */
+            'k3-harian' => [
+                'resource' => 'projects/hse-daily',
+                'model' => HseDaily::class,
+                'permission' => 'prj.view',
+                'label' => 'Formulir K3 Harian',
+                'formTitle' => 'FORMULIR K3 HARIAN (FM-10-13)',
+                'formCode' => 'Form F/K3H',
+                'with' => [
+                    'project' => fn ($query) => $query->withTrashed(),
+                    // withTrashed berjaga-jaga: service melepas tautan saat
+                    // laporannya dihapus, tetapi lembar yang telanjur memuat
+                    // id lama tidak boleh kehilangan barisnya diam-diam.
+                    'dailyReport' => fn ($query) => $query->withTrashed(),
+                    'apd',
+                    'findings',
+                ],
+                'header' => ['kind' => 'project', 'source' => 'project'],
+                // Tanggal formulirnya sendiri — lembar 25 Maret adalah lembar
+                // 25 Maret kapan pun dicetak ulang.
+                'date' => 'report_date',
+                'identity' => [
+                    'NO. DOKUMEN' => 'code',
+                    'NO. LAPORAN HARIAN' => 'dailyReport.code',
+                    'TOPIK TOOLBOX MEETING' => 'toolbox_topic',
+                    'PESERTA TOOLBOX' => fn (HseDaily $daily): ?string => empty($daily->toolbox_attendees)
+                        ? null
+                        : implode(', ', $daily->toolbox_attendees),
+                ],
+                'body' => [
+                    [
+                        'id' => 'apd-per-kategori',
+                        'title' => 'PEMAKAIAN APD PER KATEGORI',
+                        'rows' => 'apd',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'KATEGORI APD', 'value' => 'category'],
+                            ['label' => 'JUMLAH TERPAKAI', 'align' => 'right', 'width' => '32mm',
+                                'value' => 'qty', 'cast' => 'int'],
+                        ],
+                        'minRows' => 4,
+                        'empty' => 'Belum ada hitungan APD yang tercatat pada formulir ini.',
+                    ],
+                    [
+                        'id' => 'temuan-tindak-lanjut',
+                        'title' => 'TEMUAN & TINDAK LANJUT',
+                        'rows' => 'findings',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'TEMUAN', 'value' => 'finding'],
+                            ['label' => 'TINDAK LANJUT', 'value' => 'follow_up'],
+                        ],
+                        'minRows' => 3,
+                        'empty' => 'Tidak ada temuan yang tercatat pada formulir ini.',
+                    ],
+                ],
+                'notes' => ['text' => 'notes', 'lines' => 2],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * IBPRP — F/IBPRP, register identifikasi bahaya per proyek
+             * (Permen PUPR 10/2021). SATU LEMBAR PER PROYEK: dokumennya
+             * dijangkarkan pada Project (idField project_id, pola
+             * daftar-temuan), barisnya seluruh register proyek itu.
+             *
+             * Skor tercetak adalah kolom TERSIMPAN hasil aritmetika
+             * RiskRegisterService; tingkatnya diturunkan lewat
+             * RiskLevel::fromScore — banding satu tempat. Risiko sisa yang
+             * belum dinilai menggarisi keempat selnya, tidak pernah 0.
+             * Landscape: tiga belas kolom.
+             */
+            'ibprp' => [
+                'resource' => 'projects/risk-register',
+                'model' => Project::class,
+                'permission' => 'prj.view',
+                'label' => 'IBPRP',
+                'formTitle' => 'IDENTIFIKASI BAHAYA, PENILAIAN RISIKO DAN PENGENDALIAN (IBPRP)',
+                'formCode' => 'Form F/IBPRP',
+                'orientation' => 'landscape',
+                'idField' => 'project_id',
+                'header' => ['kind' => 'project'],
+                'body' => [
+                    [
+                        'id' => 'register-ibprp',
+                        'rows' => fn (Project $project): array => RiskRegisterEntry::query()
+                            ->where('project_id', $project->id)
+                            ->orderBy('sort_order')
+                            ->orderBy('id')
+                            ->get()
+                            ->all(),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'URAIAN PEKERJAAN', 'value' => 'activity'],
+                            ['label' => 'IDENTIFIKASI BAHAYA', 'value' => 'hazard'],
+                            ['label' => 'DAMPAK / TIPE KECELAKAAN', 'value' => 'impact'],
+                            ['label' => 'F', 'align' => 'center', 'width' => '10mm',
+                                'value' => 'likelihood', 'cast' => 'int'],
+                            ['label' => 'A', 'align' => 'center', 'width' => '10mm',
+                                'value' => 'severity', 'cast' => 'int'],
+                            ['label' => 'F×A', 'align' => 'center', 'width' => '12mm',
+                                'value' => 'initial_score', 'cast' => 'int'],
+                            ['label' => 'TINGKAT', 'align' => 'center', 'width' => '22mm',
+                                'value' => fn (mixed $row): string => $row->initialLevel()->label()],
+                            ['label' => 'PENGENDALIAN', 'value' => 'controls'],
+                            ['label' => 'F′', 'align' => 'center', 'width' => '10mm',
+                                'value' => 'residual_likelihood', 'cast' => 'int'],
+                            ['label' => 'A′', 'align' => 'center', 'width' => '10mm',
+                                'value' => 'residual_severity', 'cast' => 'int'],
+                            ['label' => 'F′×A′', 'align' => 'center', 'width' => '13mm',
+                                'value' => 'residual_score', 'cast' => 'int'],
+                            ['label' => 'TINGKAT SISA', 'align' => 'center', 'width' => '22mm',
+                                'value' => fn (mixed $row): ?string => $row->residualLevel()?->label()],
+                        ],
+                        // No minRows: sebuah penilaian risiko ditulis di
+                        // register, bukan di lembar yang sudah ditandatangani.
+                        'empty' => 'Register IBPRP proyek ini belum memiliki baris.',
+                    ],
+                ],
+                'notes' => ['lines' => 3],
                 'signatures' => 'house',
             ],
         ];

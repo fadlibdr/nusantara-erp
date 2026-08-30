@@ -34,7 +34,8 @@ class PrintCatalogueBespokeTest extends ErpTestCase
         // P4 menambah dua entri registri: cv-mandor (F/CVM) + rekap-upah (F/RU).
         // P5 menambah satu: ppk-alat-jasa (F/PPK). Rekap Tagihan Alat SENGAJA
         // tidak menambah entri — laporan, bukan lembar tanda tangan.
-        $this->assertCount(56, $rows, 'katalog = 49 registri + 7 formulir rumah proyek');
+        // P6 menambah dua: k3-harian (F/K3H, FM-10-13) + ibprp (F/IBPRP).
+        $this->assertCount(58, $rows, 'katalog = 51 registri + 7 formulir rumah proyek');
 
         $slugs = array_column($rows, 'slug');
         foreach (self::BESPOKE as $slug) {

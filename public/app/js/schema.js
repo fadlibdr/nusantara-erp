@@ -1590,6 +1590,118 @@ export const RESOURCES = {
     ],
   },
 
+  /* P6 — formulir K3 harian (FM-10-13, cetak F/K3H). Tautan ke laporan harian
+     adalah FAKTA TURUNAN (proyek, tanggal) yang diselesaikan server — tidak
+     ada isian untuk memilihnya; laporan harian yang lahir belakangan
+     menaut-balik sendiri. */
+  'projects/hse-daily': {
+    module: 'prj', api: 'projects/hse-daily', label: 'Formulir K3 Harian', labelOne: 'Formulir K3 Harian',
+    columns: [
+      codeColumn,
+      { key: 'report_date', label: 'Tanggal', type: 'date' },
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'toolbox_topic', label: 'Topik toolbox', type: 'text' },
+      { key: 'daily_report_code', label: 'Laporan harian', type: 'code' },
+      { key: 'findings_count', label: 'Temuan', type: 'number', align: 'right', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    form: {
+      sections: [{
+        title: 'Toolbox meeting',
+        fields: [
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+          { key: 'report_date', label: 'Tanggal', type: 'date', required: true, help: 'Satu formulir per proyek per hari. Laporan harian tanggal yang sama tertaut otomatis.' },
+          { key: 'toolbox_topic', label: 'Topik toolbox meeting', type: 'text', span: 2 },
+          { key: 'toolbox_attendees', label: 'Peserta toolbox', type: 'tags', span: 2, help: 'Satu nama per baris.' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [
+        {
+          key: 'apd',
+          label: 'Pemakaian APD per kategori',
+          columns: [
+            { key: 'category', label: 'Kategori (helm, rompi, sepatu, harness, …)', type: 'text', required: true },
+            { key: 'qty', label: 'Jumlah terpakai', type: 'number', required: true },
+          ],
+        },
+        {
+          key: 'findings',
+          label: 'Temuan & tindak lanjut',
+          columns: [
+            { key: 'finding', label: 'Temuan', type: 'text', required: true },
+            { key: 'follow_up', label: 'Tindak lanjut', type: 'text' },
+          ],
+        },
+      ],
+      note: 'Kategori APD yang tidak dihitung hari itu TIDAK diisi baris — pada lembar cetak selnya bergaris, bukan 0.',
+    },
+    detail: {
+      tables: [
+        {
+          key: 'apd',
+          label: 'Pemakaian APD',
+          columns: [
+            { key: 'category', label: 'Kategori', type: 'text' },
+            { key: 'qty', label: 'Jumlah', type: 'number', align: 'right' },
+          ],
+        },
+        {
+          key: 'findings',
+          label: 'Temuan & tindak lanjut',
+          columns: [
+            { key: 'finding', label: 'Temuan', type: 'text' },
+            { key: 'follow_up', label: 'Tindak lanjut', type: 'text' },
+          ],
+        },
+      ],
+    },
+  },
+
+  /* P6 — register IBPRP per proyek (cetak F/IBPRP, satu lembar per proyek).
+     Nilai risiko DIHITUNG server (F×A); tidak ada isian skor, dan tingkatnya
+     turun dari banding satu tempat (Permen PUPR 10/2021). */
+  'projects/risk-register': {
+    module: 'prj', api: 'projects/risk-register', label: 'Register IBPRP', labelOne: 'Baris IBPRP',
+    columns: [
+      { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
+      { key: 'activity', label: 'Aktivitas', type: 'text' },
+      { key: 'hazard', label: 'Bahaya', type: 'text' },
+      { key: 'initial_score', label: 'F×A', type: 'number', align: 'right', width: '1%' },
+      { key: 'initial_level', label: 'Tingkat', type: 'enum', enum: 'riskLevel', width: '1%' },
+      { key: 'residual_score', label: 'Sisa', type: 'number', align: 'right', width: '1%' },
+      { key: 'residual_level', label: 'Tingkat sisa', type: 'enum', enum: 'riskLevel', width: '1%' },
+    ],
+    filters: [
+      { key: 'project_id', label: 'Proyek', lookup: 'projects' },
+    ],
+    form: {
+      sections: [
+        {
+          title: 'Bahaya & risiko awal',
+          fields: [
+            { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, createOnly: true },
+            { key: 'activity', label: 'Uraian pekerjaan / aktivitas', type: 'text', required: true },
+            { key: 'hazard', label: 'Identifikasi bahaya', type: 'text', required: true, span: 2 },
+            { key: 'impact', label: 'Dampak / tipe kecelakaan', type: 'text', span: 2 },
+            { key: 'likelihood', label: 'Kemungkinan (F, 1–5)', type: 'number', required: true },
+            { key: 'severity', label: 'Keparahan (A, 1–5)', type: 'number', required: true, help: 'Nilai risiko F×A dihitung otomatis — tidak pernah diketik.' },
+          ],
+        },
+        {
+          title: 'Pengendalian & risiko sisa',
+          fields: [
+            { key: 'controls', label: 'Pengendalian', type: 'textarea', span: 2 },
+            { key: 'residual_likelihood', label: 'Kemungkinan sisa (F′, 1–5)', type: 'number' },
+            { key: 'residual_severity', label: 'Keparahan sisa (A′, 1–5)', type: 'number', help: 'Isi keduanya atau kosongkan keduanya; sisa yang belum dinilai tercetak bergaris, bukan 0.' },
+          ],
+        },
+      ],
+    },
+  },
+
   'projects/manpower-assignments': {
     module: 'prj', api: 'projects/manpower-assignments', label: 'Penugasan Personel', labelOne: 'Penugasan',
     columns: [
@@ -5080,17 +5192,23 @@ export const RESOURCES = {
       { key: 'code', label: 'Kode', type: 'code', width: '1%' },
       { key: 'work_package', label: 'Paket Pekerjaan', type: 'text' },
       { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
+      // P6 — jenis: pustaka mutu Q1..Q31 atau checklist 5R.
+      { key: 'jenis', label: 'Jenis', type: 'enum', enum: 'templateKind', width: '1%' },
     ],
     filters: [
       { key: 'stage', label: 'Tahap', enum: 'inspectionStage' },
+      { key: 'jenis', label: 'Jenis', enum: 'templateKind' },
     ],
     form: {
       sections: [{
         title: 'Template Checklist',
         fields: [
-          { key: 'code', label: 'Kode katalog (mis. Q7)', type: 'text', required: true },
+          { key: 'code', label: 'Kode katalog (mis. Q7, 5R1)', type: 'text', required: true },
           { key: 'work_package', label: 'Paket pekerjaan', type: 'text', required: true, span: 2 },
           { key: 'stage', label: 'Tahap (titik henti mutu)', type: 'select', enum: 'inspectionStage', required: true },
+          // P6 — kosong berarti checklist mutu; '5r' menjadikan template ini
+          // patroli 5R yang diisi lewat layar Inspeksi Mutu biasa.
+          { key: 'jenis', label: 'Jenis checklist', type: 'select', enum: 'templateKind', default: 'quality' },
         ],
       }],
       lines: [{
@@ -5190,6 +5308,10 @@ export const NAV = [
       { label: 'Izin Lembur (ILB)', route: 'r/projects/overtime-permits' },
       { label: 'Izin Material (IMK)', route: 'r/projects/gate-passes' },
       { label: 'Register K3 (SMK3)', route: 'r/projects/safety-incidents' },
+      // P6 — K3 terstruktur: formulir harian FM-10-13 dan register IBPRP,
+      // berdampingan dengan register insiden karena satu keluarga SMKK.
+      { label: 'Formulir K3 Harian', route: 'r/projects/hse-daily' },
+      { label: 'Register IBPRP', route: 'r/projects/risk-register' },
       { label: 'Laporan K3', route: 'k3' },
       { label: 'Register Defect (Punch List)', route: 'defects' },
       { label: 'Varian Material', route: 'varian' },
