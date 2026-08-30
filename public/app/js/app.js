@@ -33,6 +33,8 @@ import { renderPeriods } from './views/periods.js';
 import { renderVarian } from './views/varian.js';
 import { renderHargaSatuan } from './views/hargasatuan.js';
 import { renderPoOutstanding } from './views/pooutstanding.js';
+import { renderRekapAlat } from './views/rekapalat.js';
+import { renderSewaVsBeli } from './views/sewavsbeli.js';
 import { renderTenggat } from './views/tenggat.js';
 import { renderSertifikat } from './views/sertifikat.js';
 import { renderAbsensi } from './views/absensi.js';
@@ -523,6 +525,24 @@ function registerRoutes() {
     const host = view();
     if (!session.can('prc.view')) return accessDenied(host, 'prc');
     return guard(host, () => renderPoOutstanding(host));
+  });
+
+  // P5 — Rekap Tagihan Alat: laporan billing periode PPK per vendor.
+  route('rekap-alat', () => {
+    setCrumbs(['Pengadaan', 'Rekap Tagihan Alat']);
+    setActiveNav('rekap-alat');
+    const host = view();
+    if (!session.can('prc.view')) return accessDenied(host, 'prc');
+    return guard(host, () => renderRekapAlat(host));
+  });
+
+  // P5 — Evaluasi Sewa vs Beli, baca saja.
+  route('sewa-vs-beli', () => {
+    setCrumbs(['Aset', 'Evaluasi Sewa vs Beli']);
+    setActiveNav('sewa-vs-beli');
+    const host = view();
+    if (!session.can('ast.view')) return accessDenied(host, 'ast');
+    return guard(host, () => renderSewaVsBeli(host));
   });
 
   route('siap-tagih', () => {

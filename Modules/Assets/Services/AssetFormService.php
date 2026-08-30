@@ -135,7 +135,7 @@ class AssetFormService
      */
     public function assetNotes(Asset $asset): ?string
     {
-        $blocks = [trim((string) $asset->notes)];
+        $blocks = [trim((string) $asset->notes), trim((string) $this->rentalSentence($asset))];
 
         if ($asset->disposal_date !== null || $asset->disposal_value !== null || filled($asset->disposal_reason)) {
             $facts = array_filter([
@@ -175,6 +175,54 @@ class AssetFormService
         $notes = implode("\n", array_filter($blocks, fn (string $block): bool => $block !== ''));
 
         return $notes === '' ? null : $notes;
+    }
+
+    /**
+     * P5 — the rental facts of a RENTED machine, as one composed sentence in
+     * the catatan block. Not identity lines, for the disposal facts' reason:
+     * an identity line prints its caption on every card, so an OWNED
+     * excavator would carry "VENDOR RENTAL : ......" — a ruled line inviting
+     * a lessor to be written onto plant the company owns. (The KEPEMILIKAN
+     * identity line, which always has a value, is what says which kind of
+     * card this is.)
+     *
+     * Composed only from the columns that hold something, and the sentence
+     * survives any of them being absent — the disposal sentence's defensive
+     * wording, for its reason: AssetStoreRequest requires vendor/tarif/basis
+     * together on a rented asset, but seeders, imports and console fixes
+     * write these columns without a FormRequest in sight, and a sentence
+     * that composes " : ." or "Rp 0,00 per " under a validator's protection
+     * is not a sentence to print over three signatures. Null when the asset
+     * is not rented at all.
+     */
+    public function rentalSentence(Asset $asset): ?string
+    {
+        if (! $asset->isRented()) {
+            return null;
+        }
+
+        $facts = [];
+
+        if (filled($asset->vendor?->name)) {
+            $facts[] = 'dari '.trim((string) $asset->vendor->name);
+        }
+
+        if ($asset->rental_rate !== null) {
+            // lcfirst on the enum label: "Per hari (8 jam)" reads as
+            // "tarif Rp 1.500.000,00 per hari (8 jam)" inside a sentence.
+            $facts[] = 'tarif '.Money::format($asset->rental_rate)
+                .($asset->rate_basis !== null ? ' '.lcfirst($asset->rate_basis->label()) : '');
+        }
+
+        if ($asset->rental_start !== null && $asset->rental_end !== null) {
+            $facts[] = 'periode sewa '.$this->date($asset->rental_start).' s/d '.$this->date($asset->rental_end);
+        } elseif ($asset->rental_start !== null) {
+            $facts[] = 'periode sewa sejak '.$this->date($asset->rental_start);
+        } elseif ($asset->rental_end !== null) {
+            $facts[] = 'periode sewa s/d '.$this->date($asset->rental_end);
+        }
+
+        return 'Aset sewa'.($facts === [] ? '' : ' '.implode(', ', $facts)).'.';
     }
 
     private function date(mixed $value): string

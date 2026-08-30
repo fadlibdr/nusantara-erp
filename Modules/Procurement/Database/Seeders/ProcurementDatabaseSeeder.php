@@ -6,11 +6,15 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Modules\Assets\Database\Seeders\AssetCategorySeeder;
+use Modules\Assets\Models\Asset;
 use Modules\Core\Models\NumberSequence;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
+use Modules\Procurement\Models\WorkOrder;
+use Modules\Procurement\Models\WorkOrderBilling;
 use Modules\Procurement\Services\VendorEvaluationService;
 
 class ProcurementDatabaseSeeder extends Seeder
@@ -20,6 +24,7 @@ class ProcurementDatabaseSeeder extends Seeder
         $this->seedVendors();
         $this->seedPurchaseRequisitions();
         $this->seedPurchaseOrders();
+        $this->seedWorkOrders();
         $this->seedVendorEvaluations();
         $this->syncNumberSequences();
     }
@@ -149,6 +154,29 @@ class ProcurementDatabaseSeeder extends Seeder
                 'bank_account_no' => '032201009945021',
                 'bank_account_name' => 'Harjo Wibowo',
                 'payment_term_days' => 7,
+                'status' => 'active',
+            ],
+            [
+                // P5 — vendor bertipe RENTAL (alat sewa, PPK). PKP: tagihan
+                // sewanya ber-PPN.
+                'code' => 'VND-0007',
+                'name' => 'PT Alat Berat Nusantara',
+                'legal_name' => 'PT Alat Berat Nusantara',
+                'npwp' => '01.667.889.0-045.000',
+                'is_pkp' => true,
+                'sppkp_number' => 'S-455PKP/WPJ.07/KP.0203/2020',
+                'is_subcontractor' => false,
+                'vendor_type' => 'rental',
+                'classification' => 'jasa',
+                'address' => 'Jl. Raya Narogong Km 14, Pangkalan 5',
+                'city' => 'Bekasi',
+                'phone' => '021-8250-7741',
+                'email' => 'rental@alatberatnusantara.co.id',
+                'pic_name' => 'Bimo Prakoso',
+                'bank_name' => 'BNI',
+                'bank_account_no' => '0448812276',
+                'bank_account_name' => 'PT Alat Berat Nusantara',
+                'payment_term_days' => 30,
                 'status' => 'active',
             ],
         ];
@@ -414,7 +442,192 @@ class ProcurementDatabaseSeeder extends Seeder
      * Rebuild the approval trail idempotently so re-running the seeder does
      * not duplicate rows.
      */
-    private function writeApprovalTrail(PurchaseRequisition|PurchaseOrder $document, array $trail, ?int $userId): void
+    /**
+     * P5 — satu PPK approved (sewa excavator per jam + scaffolding per bulan,
+     * VND-0007 x PRJ-2026-001) dengan satu tagihan periode Juli 2026 yang
+     * angkanya SAMA dengan register hour-meter demo (AssetsDatabaseSeeder:
+     * 3.240,0 → 3.375,5 = 135,5 jam) — angka billing dan angka register harus
+     * bercerita satu cerita di demo. Tagihan AP-nya sengaja tidak diseed:
+     * membuatnya adalah alur demo (dan seeder Finance memiliki jurnalnya
+     * sendiri; menautkan lintas-seeder rapuh terhadap urutan — pelajaran P4).
+     */
+    private function seedWorkOrders(): void
+    {
+        $vendor = Vendor::query()->where('code', 'VND-0007')->first();
+        $projectId = $this->lookupId('prj_projects', 'PRJ-2026-001');
+        $assetId = $this->rentedDemoAssetId($vendor?->id);
+        $userId = User::query()->orderBy('id')->value('id');
+
+        if (! $vendor || $projectId === null) {
+            return;
+        }
+
+        $ppnRate = (float) config('erp.tax.ppn_rate', 11.0);
+
+        /** @var WorkOrder $workOrder */
+        $workOrder = WorkOrder::withTrashed()->updateOrCreate(
+            ['code' => 'PPK/2026/VI/0001'],
+            [
+                'vendor_id' => $vendor->id,
+                'project_id' => $projectId,
+                'title' => 'Sewa excavator & scaffolding tahap struktur Graha Sentosa',
+                'ppn_rate' => $ppnRate,
+                'start_date' => '2026-06-01',
+                'end_date' => '2026-12-31',
+                'notes' => 'Excavator ditagih per jam dari register hour-meter; scaffolding per bulan kalender.',
+                'status' => 'approved',
+            ],
+        );
+
+        $hadItems = $workOrder->items()->exists();
+
+        if (! $hadItems) {
+            $workOrder->items()->createMany([
+                [
+                    'line_no' => 1,
+                    'asset_id' => $assetId,
+                    'description' => 'Sewa excavator Doosan DX225LCA berikut operator',
+                    'rate_basis' => 'per_jam',
+                    'rate' => 400000,
+                    'qty_periods' => 1200,
+                    'amount' => 480000000,
+                ],
+                [
+                    'line_no' => 2,
+                    'asset_id' => null,
+                    'description' => 'Sewa scaffolding lengkap zona struktur',
+                    'rate_basis' => 'per_bulan',
+                    'rate' => 15000000,
+                    'qty_periods' => 7,
+                    'amount' => 105000000,
+                ],
+            ]);
+
+            $workOrder->forceFill(['value' => 585000000])->save();
+        }
+
+        $this->writeApprovalTrail($workOrder, [
+            ['action' => 'submitted', 'note' => null],
+            ['action' => 'approved', 'note' => 'Tarif sesuai penawaran ABN 28 Mei; plafon jam mengikuti RAP alat.'],
+        ], $userId);
+
+        $this->seedWorkOrderBilling($workOrder, $assetId !== null);
+    }
+
+    /**
+     * P5 — aset sewa demo AST-0007, di-updateOrCreate DI SINI DAN di
+     * AssetsDatabaseSeeder::seedRentedAsset dengan muatan yang sama: pola
+     * menara GSP-T1 di CONVENTIONS §8 (core_locations ditulis Engineering
+     * DAN Projects) — Procurement diseed SEBELUM Assets, jadi tanpa baris ini
+     * baris per_jam PPK demo tidak pernah bisa menunjuk alatnya pada seed
+     * segar. Mana pun yang jalan lebih dulu yang membuatnya; siapa pun yang
+     * mengubah muatannya wajib mengubah KEDUA seeder. Muatan finansial (NULL
+     * harga perolehan / nilai buku) hanya pada pembuatan pertama, disiplin
+     * yang sama dengan seedAssets Assets.
+     */
+    private function rentedDemoAssetId(?int $vendorId): ?int
+    {
+        if ($vendorId === null
+            || ! Schema::hasTable('ast_assets')
+            || ! class_exists(AssetCategorySeeder::class)) {
+            return null;
+        }
+
+        // Idempoten dan milik Assets; dipanggil di sini persis seperti
+        // ProductionSeeder memanggilnya, agar kategori ALAT-BERAT ada.
+        $this->call(AssetCategorySeeder::class);
+
+        $categoryId = DB::table('ast_categories')->where('code', 'ALAT-BERAT')->value('id');
+
+        if ($categoryId === null) {
+            return null;
+        }
+
+        $asset = Asset::withTrashed()->firstOrNew(['code' => 'AST-0007']);
+
+        $asset->fill([
+            'name' => 'Excavator Doosan DX225LCA (sewa)',
+            'category_id' => $categoryId,
+            'brand' => 'Doosan',
+            'model' => 'DX225LCA',
+            'serial_no' => 'DSN-DX225-88413',
+            'ownership' => 'rented',
+            'vendor_id' => $vendorId,
+            'rental_rate' => 400000,
+            'rate_basis' => 'per_jam',
+            'rental_start' => '2026-06-01',
+            'rental_end' => '2026-12-31',
+        ]);
+
+        if (! $asset->exists) {
+            $asset->fill([
+                'acquisition_date' => null,
+                'acquisition_cost' => null,
+                'salvage_value' => 0,
+                'useful_life_months' => 0,
+                'depreciation_start_date' => null,
+                'accumulated_depreciation' => 0,
+                'book_value' => null,
+                'status' => 'available',
+            ]);
+        }
+
+        $asset->save();
+
+        return (int) $asset->id;
+    }
+
+    /**
+     * Tagihan Juli 2026: 135,5 jam x Rp 400.000 (snapshot meter 3.240,0 →
+     * 3.375,5) + 1 bulan scaffolding x Rp 15.000.000 = Rp 69.200.000. Baris
+     * per_jam hanya diseed bila register asetnya ada (Assets terseed).
+     */
+    private function seedWorkOrderBilling(WorkOrder $workOrder, bool $withHourLine): void
+    {
+        if ($workOrder->billings()->withTrashed()->exists()) {
+            return;
+        }
+
+        /** @var WorkOrderBilling $billing */
+        $billing = new WorkOrderBilling([
+            'work_order_id' => $workOrder->id,
+            'billing_no' => 1,
+            'period_start' => '2026-07-01',
+            'period_end' => '2026-07-31',
+            'notes' => 'Tagihan periode Juli 2026.',
+        ]);
+        $billing->code = 'PPKB/2026/VII/0001';
+        $billing->save();
+
+        $items = $workOrder->items()->orderBy('line_no')->get();
+        $total = 0.0;
+
+        if ($withHourLine && ($hourItem = $items->firstWhere('line_no', 1)) !== null) {
+            $billing->lines()->create([
+                'work_order_item_id' => $hourItem->id,
+                'qty' => 135.5,
+                'amount' => 54200000,
+                'meter_start' => 3240.0,
+                'meter_end' => 3375.5,
+            ]);
+            $total += 54200000;
+        }
+
+        if (($monthItem = $items->firstWhere('line_no', 2)) !== null) {
+            $billing->lines()->create([
+                'work_order_item_id' => $monthItem->id,
+                'qty' => 1,
+                'amount' => 15000000,
+                'meter_start' => null,
+                'meter_end' => null,
+            ]);
+            $total += 15000000;
+        }
+
+        $billing->forceFill(['total_amount' => round($total, 2)])->save();
+    }
+
+    private function writeApprovalTrail(PurchaseRequisition|PurchaseOrder|WorkOrder $document, array $trail, ?int $userId): void
     {
         $document->approvals()->delete();
 
@@ -448,14 +661,14 @@ class ProcurementDatabaseSeeder extends Seeder
      */
     private function syncNumberSequences(): void
     {
-        foreach (['PR', 'PO'] as $type) {
+        foreach (['PR' => 2, 'PO' => 2, 'PPK' => 1, 'PPKB' => 1] as $type => $lastNumber) {
             $sequence = NumberSequence::query()->firstOrCreate(
                 ['type' => $type, 'year' => 2026],
                 ['last_number' => 0],
             );
 
-            if ((int) $sequence->last_number < 2) {
-                $sequence->update(['last_number' => 2]);
+            if ((int) $sequence->last_number < $lastNumber) {
+                $sequence->update(['last_number' => $lastNumber]);
             }
         }
     }

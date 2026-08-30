@@ -622,6 +622,19 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
 
   const controls = {};
   const fieldControls = []; // [{ spec, control }] urut tampil — untuk validasi wajib-isi
+  /*
+   * visibleWhen(values, record, isEdit): field yang ikut-menghilang mengikuti
+   * NILAI field lain pada form yang sama — reaktif, dievaluasi ulang setiap
+   * kali sebuah field header berubah, berbeda dari hideWhen yang statis pada
+   * KEADAAN dokumen saat form dibuka. Pemakai pertamanya form aset (P5):
+   * kolom perolehan hanya untuk ownership=owned, kolom sewa hanya untuk
+   * rented, dan server MENOLAK kolom pihak lain dengan prohibited_if dua
+   * arah — jadi field yang sedang tersembunyi TIDAK masuk payload sama
+   * sekali (bukan dikirim kosong), dan wajib-isinya tidak diperiksa: sebuah
+   * field yang tidak tampil bukanlah field yang belum diisi.
+   */
+  const hiddenKeys = new Set();
+  const visibilityWatchers = []; // [{ spec, wrapper, sectionNode, sectionSpecs }]
   const body = el('div');
 
   for (const section of sections) {
@@ -640,6 +653,7 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     if (!fields.length) continue;
 
     const grid = el('.form-grid');
+    const sectionWatchers = [];
     for (const spec of fields) {
       const initial = record ? record[spec.key] : (spec.defaultYear ? new Date().getFullYear() : undefined);
       const control = buildInput(spec, initial);
@@ -652,18 +666,58 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
 
       if (spec.span === 2) wrapper.classList.add('span2');
       grid.appendChild(wrapper);
+      if (spec.visibleWhen) sectionWatchers.push({ spec, wrapper });
     }
 
-    body.appendChild(el('.form-section', [
+    const sectionNode = el('.form-section', [
       sections.length > 1 && section.title ? el('h3', { text: section.title }) : null,
       section.help ? el('.alert.info', { style: { marginBottom: '12px' } }, section.help) : null,
       grid,
-    ]));
+    ]);
+    body.appendChild(sectionNode);
+
+    for (const watcher of sectionWatchers) {
+      visibilityWatchers.push({ ...watcher, sectionNode, sectionSpecs: fields });
+    }
   }
 
   const headerValues = () => Object.fromEntries(
-    Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()]),
+    Object.entries(controls)
+      .filter(([fieldKey]) => !hiddenKeys.has(fieldKey))
+      .map(([fieldKey, control]) => [fieldKey, control.read()]),
   );
+
+  const applyVisibility = () => {
+    if (!visibilityWatchers.length) return;
+    // Predikatnya membaca nilai MENTAH semua control (termasuk yang sedang
+    // tersembunyi) — field pengendali (mis. ownership) tidak pernah membawa
+    // visibleWhen sendiri, jadi tidak ada rekursi definisi di sini.
+    const raw = Object.fromEntries(
+      Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()]),
+    );
+    for (const { spec, wrapper } of visibilityWatchers) {
+      const visible = Boolean(spec.visibleWhen(raw, record, isEdit));
+      wrapper.style.display = visible ? '' : 'none';
+      if (visible) hiddenKeys.delete(spec.key); else hiddenKeys.add(spec.key);
+    }
+    // Satu section yang SEMUA field-nya tersembunyi ikut hilang — judul
+    // "Perolehan & penyusutan" di atas grid kosong hanya membingungkan.
+    const seen = new Set();
+    for (const { sectionNode, sectionSpecs } of visibilityWatchers) {
+      if (seen.has(sectionNode)) continue;
+      seen.add(sectionNode);
+      const allHidden = sectionSpecs.every((spec) => spec.visibleWhen && hiddenKeys.has(spec.key));
+      sectionNode.style.display = allHidden ? 'none' : '';
+    }
+  };
+
+  if (visibilityWatchers.length) {
+    applyVisibility();
+    // Delegasi pada body: combobox memancarkan 'change', input native
+    // memancarkan 'input' — keduanya cukup untuk mengevaluasi ulang.
+    body.addEventListener('input', applyVisibility);
+    body.addEventListener('change', applyVisibility);
+  }
 
   const lineControls = lineDefs.map((lineDef) => {
     const control = buildLines(lineDef, record ? record[lineDef.key] : null, headerValues, isEdit ? record : null);
@@ -748,6 +802,9 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     const invalid = [];
     for (const { spec, control } of fieldControls) {
       if (!spec.required) continue;
+      // Field yang sedang tersembunyi (visibleWhen) tidak dikirim, jadi
+      // wajib-isinya juga tidak berlaku — ia bukan field yang belum diisi.
+      if (hiddenKeys.has(spec.key)) continue;
       const value = control.read();
       if (value === null || value === '') {
         setFieldError(control.input || control.node, 'Wajib diisi.');
@@ -777,6 +834,10 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
 
     const payload = {};
     for (const [fieldKey, control] of Object.entries(controls)) {
+      // Field yang sedang tersembunyi (visibleWhen) tidak masuk payload sama
+      // sekali — server memvalidasinya prohibited_if, dan nilai sisa ketikan
+      // di field yang sudah disembunyikan bukan pernyataan pengguna.
+      if (hiddenKeys.has(fieldKey)) continue;
       const value = control.read();
       if (value !== null || isEdit) payload[fieldKey] = value;
     }

@@ -14,6 +14,7 @@ use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\RfqItem;
 use Modules\Procurement\Models\RfqQuote;
 use Modules\Procurement\Models\VendorEvaluation;
+use Modules\Procurement\Models\WorkOrder;
 use Modules\Procurement\Support\BidWeights;
 
 /**
@@ -199,6 +200,55 @@ class ProcurementFormService
             'amount' => (float) $order->total,
             'terbilang' => Terbilang::rupiah((float) $order->total),
         ]];
+    }
+
+    // ------------------------------------------------------- ppk alat & jasa
+
+    /**
+     * The PPK's notes block: what was written on the order, and the reason
+     * the prakualifikasi gate was overridden when it was — the exact shape of
+     * orderNotes above, for the exact reason: an identity line would print
+     * "OVERRIDE PRAKUALIFIKASI : ......" on every clean PPK and invite one.
+     */
+    public function workOrderNotes(WorkOrder $workOrder): ?string
+    {
+        return $this->paragraphs([
+            $workOrder->notes,
+            $this->labelled('Override prakualifikasi vendor', $workOrder->qualification_override_reason),
+        ]);
+    }
+
+    /**
+     * "PPN 11%", or a label that does not claim a rate when none applies —
+     * SubcontractFormService::ppnLabel's wording, because a PPK is the same
+     * kind of paper as an SPK: a work commitment whose vendor may be non-PKP,
+     * and "PPN 0% : Rp 0,00" reads as a rate somebody agreed rather than a
+     * tax that is simply not levied.
+     */
+    public function workOrderPpnLabel(WorkOrder $workOrder): string
+    {
+        $rate = (float) $workOrder->ppn_rate;
+
+        return $rate > 0
+            ? 'PPN '.rtrim(rtrim(number_format($rate, 2, ',', '.'), '0'), ',').'%'
+            : 'PPN (tidak dikenakan)';
+    }
+
+    /**
+     * Arithmetic over the PPK's own two stored columns (value = Σ amount
+     * baris via WorkOrderService::recalcValue, ppn_rate = snapshot saat
+     * dibuat) — never today's config. The AP bills that realise this plafon
+     * compute their PPN per billing off the same snapshot
+     * (ApBillService::createFromWorkOrderBilling), so sheet and ledger agree.
+     */
+    public function workOrderPpnAmount(WorkOrder $workOrder): float
+    {
+        return round((float) $workOrder->value * (float) $workOrder->ppn_rate / 100, 2);
+    }
+
+    public function workOrderTotal(WorkOrder $workOrder): float
+    {
+        return round((float) $workOrder->value + $this->workOrderPpnAmount($workOrder), 2);
     }
 
     // ----------------------------------------------------- banding penawaran

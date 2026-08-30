@@ -64,6 +64,8 @@ class DeploymentService
             );
         }
 
+        $this->assertInternalRateFitsOwnership($asset, $data['daily_rate_internal'] ?? null);
+
         return DB::transaction(function () use ($asset, $data): Deployment {
             $deployment = $asset->deployments()->create([
                 'project_id' => (int) $data['project_id'],
@@ -81,6 +83,25 @@ class DeploymentService
 
             return $deployment->load('asset');
         });
+    }
+
+    /**
+     * P5 — a RENTED asset's deployment never carries an internal daily rate.
+     * Its cost reaches the project through the vendor's AP bill (PPK period
+     * billing → fin_ap_bills → project cost, category Alat); an internal
+     * accrual on top would charge the same machine to the same bucket twice.
+     * Owned assets are the mirror image: their money left at purchase, and
+     * the internal rate is the only way plant reaches project cost.
+     */
+    public function assertInternalRateFitsOwnership(Asset $asset, mixed $rate): void
+    {
+        if ($rate !== null && (float) $rate > 0 && $asset->isRented()) {
+            throw new LogicException(
+                "Aset {$asset->code} adalah alat sewa: biayanya masuk lewat tagihan AP vendor rentalnya "
+                .'(tagihan periode PPK), sehingga tarif internal harian akan membebankan alat yang sama '
+                .'dua kali ke proyek. Kosongkan tarif internalnya.'
+            );
+        }
     }
 
     /**
@@ -462,6 +483,9 @@ class DeploymentService
                 'asset_id' => $deployment->asset_id,
                 'asset_code' => $deployment->asset?->code,
                 'asset_name' => $deployment->asset?->name,
+                // P5 — utilisasi mencakup alat sewa; barisnya menyebut
+                // kepemilikan supaya layar bisa membedakan tanpa join lagi.
+                'ownership' => $deployment->asset?->ownership?->value,
                 'category' => $deployment->asset?->category?->name,
                 'project_id' => $deployment->project_id,
                 'deployed_from' => $deployment->deployed_from->toDateString(),

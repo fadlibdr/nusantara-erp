@@ -1698,7 +1698,8 @@ export async function renderAsset(host, { id }) {
 
   const { asset, deployments, maintenances } = data;
   const depreciation = data.depreciation_entries || [];
-  await preload(['projects', 'employees']);
+  const rented = asset.ownership === 'rented';
+  await preload(['projects', 'employees', ...(rented ? ['vendors'] : [])]);
 
   clear(host);
   host.appendChild(pageHead(
@@ -1724,20 +1725,50 @@ export async function renderAsset(host, { id }) {
     }));
   }
 
-  host.appendChild(el('.stat-row', [
-    el('.stat', [el('.label', { text: 'Harga perolehan' }), el('.value.sm', { text: fmt.rupiah(asset.acquisition_cost) })]),
-    el('.stat', [
-      el('.label', { text: 'Akumulasi penyusutan' }),
-      el('.value.sm', { text: fmt.rupiah(asset.accumulated_depreciation) }),
-      el('.delta', { text: `${fmt.rupiah(asset.monthly_depreciation)} / bulan` }),
-    ]),
-    el('.stat', [el('.label', { text: 'Nilai buku' }), el('.value.sm', { text: fmt.rupiah(asset.book_value) })]),
-    el('.stat', [
-      el('.label', { text: 'Umur manfaat' }),
-      el('.value.sm', { text: `${asset.useful_life_months} bulan` }),
-      el('.delta', { text: asset.depreciation_start_date ? `mulai ${fmt.date(asset.depreciation_start_date)}` : 'belum disusutkan' }),
-    ]),
-  ]));
+  /* P5 — dua bentuk kartu ringkas, mengikuti kepemilikan. Alat SEWA tidak
+     punya harga perolehan/penyusutan (kolomnya NULL — bergaris, bukan Rp 0:
+     alat itu tidak ada di neraca kita), jadi barisnya menyebut fakta sewanya:
+     lessor, tarif, periode. */
+  host.appendChild(rented
+    ? el('.stat-row', [
+      el('.stat', [
+        el('.label', { text: 'Kepemilikan' }),
+        el('.value.sm', { text: asset.ownership_label || 'Sewa' }),
+        el('.delta', { text: asset.vendor_id ? (labelFor('vendors', asset.vendor_id) || `vendor #${asset.vendor_id}`) : 'vendor belum tercatat' }),
+      ]),
+      el('.stat', [
+        el('.label', { text: 'Tarif sewa' }),
+        el('.value.sm', { text: fmt.rupiah(asset.rental_rate) }),
+        asset.rate_basis_label ? el('.delta', { text: asset.rate_basis_label.toLowerCase() }) : null,
+      ]),
+      el('.stat', [
+        el('.label', { text: 'Periode sewa' }),
+        el('.value.sm', {
+          text: asset.rental_start || asset.rental_end
+            ? `${asset.rental_start ? fmt.date(asset.rental_start) : '—'} – ${asset.rental_end ? fmt.date(asset.rental_end) : '—'}`
+            : '—',
+        }),
+      ]),
+      el('.stat', [
+        el('.label', { text: 'Nilai buku' }),
+        el('.value.sm', { text: fmt.rupiah(asset.book_value) }),
+        el('.delta', { text: 'alat sewa — tidak di neraca, tidak disusutkan' }),
+      ]),
+    ])
+    : el('.stat-row', [
+      el('.stat', [el('.label', { text: 'Harga perolehan' }), el('.value.sm', { text: fmt.rupiah(asset.acquisition_cost) })]),
+      el('.stat', [
+        el('.label', { text: 'Akumulasi penyusutan' }),
+        el('.value.sm', { text: fmt.rupiah(asset.accumulated_depreciation) }),
+        el('.delta', { text: `${fmt.rupiah(asset.monthly_depreciation)} / bulan` }),
+      ]),
+      el('.stat', [el('.label', { text: 'Nilai buku' }), el('.value.sm', { text: fmt.rupiah(asset.book_value) })]),
+      el('.stat', [
+        el('.label', { text: 'Umur manfaat' }),
+        el('.value.sm', { text: `${asset.useful_life_months} bulan` }),
+        el('.delta', { text: asset.depreciation_start_date ? `mulai ${fmt.date(asset.depreciation_start_date)}` : 'belum disusutkan' }),
+      ]),
+    ]));
 
   const historyCard = (title, rows, headers, cells, empty) => el('.card', [
     el('.card-head', [el('h2', { text: title }), el('.cell-sub', { text: `${rows.length} baris` })]),
@@ -1810,7 +1841,12 @@ export async function renderAsset(host, { id }) {
       el('td.right.num', { text: fmt.rupiah(row.book_value_after) }),
       el('td', badge(enumLabel('postingStatus', row.run_status) || '—', fmt.statusTone(row.run_status))),
     ],
-    'Belum ada penyusutan yang diposting untuk aset ini.',
+    // P5 — kalimat kosong yang jujur: pada alat sewa "belum" akan berbohong
+    // (menyiratkan suatu saat akan), karena gate ownership di
+    // DepreciationService memastikan tidak akan pernah.
+    rented
+      ? 'Alat sewa tidak pernah disusutkan — biayanya tagihan vendor, bukan penyusutan.'
+      : 'Belum ada penyusutan yang diposting untuk aset ini.',
   ));
 }
 
@@ -2069,6 +2105,8 @@ export async function renderAssetUtilization(host) {
         if (money.includes(key)) return el('td.right.num', { text: fmt.rupiah(row[key]) });
         if (key === 'project_id') return el('td', { text: labelFor('projects', row[key]) || `#${row[key]}` });
         if (key === 'asset_id') return el('td', { text: labelFor('assets', row[key]) || `#${row[key]}` });
+        // P5 — utilisasi mencakup alat sewa; nilai enumnya diberi label.
+        if (key === 'ownership') return el('td', { text: enumLabel('assetOwnership', row[key]) || '—' });
         return el('td', { text: row[key] === null || row[key] === undefined ? '—' : String(row[key]) });
       })))),
     ]))));

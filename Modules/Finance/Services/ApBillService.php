@@ -21,6 +21,7 @@ use Modules\Finance\Models\Tax;
 use Modules\Finance\Support\BuktiPotongNumber;
 use Modules\Inventory\Enums\StockDocumentStatus;
 use Modules\Procurement\Models\PurchaseOrder;
+use Modules\Procurement\Models\WorkOrderBilling;
 use Modules\Subcontract\Models\LaborClaim;
 use Modules\Subcontract\Models\ProgressClaim;
 
@@ -165,6 +166,13 @@ class ApBillService
             $claim = LaborClaim::query()->findOrFail($data['labor_claim_id']);
 
             return $this->createFromLaborClaim($claim, $data);
+        }
+
+        if (! empty($data['work_order_billing_id'])) {
+            /** @var WorkOrderBilling $billing */
+            $billing = WorkOrderBilling::query()->findOrFail($data['work_order_billing_id']);
+
+            return $this->createFromWorkOrderBilling($billing, $data);
         }
 
         return $this->createManual($data);
@@ -872,6 +880,82 @@ class ApBillService
     }
 
     /**
+     * P5 — bill one PPK period billing (prc_work_order_billings).
+     *
+     * The DPP is the billing's total: a figure DERIVED from the hour-meter
+     * register and the calendar by WorkOrderBillingService, never typed. PPN
+     * follows the PPK's snapshot rate (0 for a non-PKP lessor, the same
+     * master-vendor rule as PO/SPK/SP3). WITHHOLDING IS THE CALLER'S, the
+     * documented createFromPo stance: equipment hire with an operator is
+     * typically PPh 23 sewa/jasa, but which scheme applies is a statement of
+     * fact the operator makes, not a guess this method hard-codes.
+     *
+     * One billing, at most ONE live bill: the guard below mirrors
+     * createFromLaborClaim word for word — a cancelled bill releases its
+     * billing (the cancellation reversed the journal), anything else holds it.
+     */
+    public function createFromWorkOrderBilling(WorkOrderBilling $billing, array $options = []): ApBill
+    {
+        return DB::transaction(function () use ($billing, $options): ApBill {
+            if (! empty($options['is_advance'])) {
+                throw new LogicException('Uang muka hanya dapat dibuat atas pesanan pembelian (PO).');
+            }
+
+            $workOrder = $billing->workOrder;
+
+            if ($workOrder === null || $workOrder->status !== DocumentStatus::Approved) {
+                throw new LogicException(
+                    "PPK di balik tagihan periode {$billing->code} tidak lagi berstatus disetujui; "
+                    .'tagihan AP tidak dapat dibuat darinya.'
+                );
+            }
+
+            if (ApBill::query()
+                ->where('work_order_billing_id', $billing->id)
+                ->whereNot('status', DocumentStatus::Cancelled->value)
+                ->exists()) {
+                throw new LogicException(
+                    "Tagihan atas periode PPK {$billing->code} sudah ada."
+                );
+            }
+
+            $billDate = $options['bill_date'] ?? now()->toDateString();
+            $dpp = round((float) $billing->total_amount, 2);
+            [$pphTaxId, $pphAmount] = $this->resolvePph($options, $dpp);
+
+            return $this->build([
+                'vendor_id' => (int) $workOrder->vendor_id,
+                'project_id' => $workOrder->project_id,
+                'purchase_order_id' => null,
+                'goods_receipt_id' => null,
+                'subcontract_claim_id' => null,
+                'labor_claim_id' => null,
+                'work_order_billing_id' => (int) $billing->id,
+                'is_advance' => false,
+                'bill_date' => $billDate,
+                'due_date' => $options['due_date']
+                    ?? Carbon::parse($billDate)->addDays(30)->toDateString(),
+                'description' => $options['description']
+                    ?? sprintf(
+                        'Tagihan periode PPK %s — %s (%s, %s s.d. %s)',
+                        $billing->code,
+                        $workOrder->title,
+                        $workOrder->code,
+                        $billing->period_start->toDateString(),
+                        $billing->period_end->toDateString(),
+                    ),
+                'cost_category' => $options['cost_category'] ?? null,
+                'dpp' => $dpp,
+                'ppn_amount' => round($dpp * (float) $workOrder->ppn_rate / 100, 2),
+                'pph_tax_id' => $pphTaxId,
+                'pph_amount' => $pphAmount,
+                'vendor_invoice_no' => $options['vendor_invoice_no'] ?? '',
+                'faktur_pajak_no' => $options['faktur_pajak_no'] ?? null,
+            ]);
+        });
+    }
+
+    /**
      * Approve + auto-journal. The journal shapes are laid out on the class
      * docblock; this method only picks between them from recorded facts:
      *
@@ -1233,6 +1317,21 @@ class ApBillService
                 throw new LogicException(
                     "DPP tagihan parsial {$bill->code} diturunkan dari penerimaan yang ditagihnya "
                     .'dan tidak dapat diubah; batalkan tagihannya dan terbitkan ulang.'
+                );
+            }
+
+            // P5 — the same stance for a PPK period bill: its DPP is the
+            // billing total WorkOrderBillingService derived from the
+            // hour-meter register and the calendar. A typed-over number would
+            // break the one-period-one-amount chain the billing guards, so
+            // the repair is cancel-and-reissue here too.
+            if (array_key_exists('dpp', $data)
+                && round((float) $data['dpp'], 2) !== round((float) $bill->dpp, 2)
+                && $bill->work_order_billing_id !== null) {
+                throw new LogicException(
+                    "DPP tagihan {$bill->code} diturunkan dari tagihan periode PPK "
+                    .'(register hour-meter/kalender) dan tidak dapat diubah; batalkan tagihannya '
+                    .'dan terbitkan ulang.'
                 );
             }
 
@@ -2003,6 +2102,8 @@ class ApBillService
             // P4: a mandor opname bill is wages — the RAP bucket its BOQ
             // lines were budgeted under.
             $bill->labor_claim_id !== null => CostCategory::Labor,
+            // P5: a PPK period billing is plant hire — the alat bucket.
+            $bill->work_order_billing_id !== null => CostCategory::Equipment,
             $bill->purchase_order_id !== null, $bill->goods_receipt_id !== null => CostCategory::Material,
             default => CostCategory::Overhead,
         };

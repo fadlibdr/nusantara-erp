@@ -186,7 +186,7 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 55 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 56 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai tiga belas modul lain.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
@@ -231,7 +231,11 @@ tidak sebaliknya.
 
 **Procurement (`prc`) — Pengadaan.** Vendor & subkon, dokumen vendor (prakualifikasi),
 permintaan pembelian (PR), RFQ/banding penawaran, pesanan pembelian (PO), baris PO
-terbuka, evaluasi vendor. PO adalah komitmen — tidak memposting jurnal.
+terbuka, BA negosiasi, keputusan pemenang, rencana pengadaan, evaluasi vendor. Sejak P5
+juga **PPK alat & jasa** (`prc_work_orders`, komitmen berplafon untuk sewa alat/jasa
+per periode) dan **tagihan periode PPK** (`prc_work_order_billings`, kuantitas turunan
+register hour-meter/kalender — bukan diketik) plus laporan rekap tagihan alat. PO dan
+PPK adalah komitmen — tidak memposting jurnal; uangnya bergerak di tagihan AP.
 
 **Inventory (`inv`) — Persediaan.** Saldo stok, item & kategori, gudang, penerimaan
 (GRN), pengeluaran/bon material, transfer antar gudang, opname. Di bawah metode
@@ -261,8 +265,18 @@ lewat assign/resolve/close — tetapi berita acara lapangan punya: `submit` lalu
 
 **Assets (`ast`) — Aset.** Daftar aset, kategori aset, mobilisasi ke proyek,
 log BBM & jam alat (register pembacaan — tidak memposting apa pun; §12(c)),
-perawatan, run penyusutan, utilisasi. Juga tidak punya tahap persetujuan: run
-penyusutan berjalan draf → posting.
+perawatan, run penyusutan, utilisasi, evaluasi sewa vs beli (baca saja). Juga tidak
+punya tahap persetujuan: run penyusutan berjalan draf → posting.
+
+Sejak P5 register aset memuat **kepemilikan** (`ast_assets.ownership` owned|rented).
+Catatan migrasinya (2026_08_29_000544), untuk siapa pun yang membaca data lama:
+**semua baris pra-P5 di-backfill `owned`** (restatement fakta — semuanya memang aset
+beli), dan `acquisition_date`/`acquisition_cost`/`book_value` **dilonggarkan menjadi
+NULLABLE** supaya alat sewa tidak menyimpan harga perolehan karangan; NULL-nya berarti
+"tidak ada", bukan nol, dan layar/cetak menggariskannya. Run penyusutan menyaring
+`ownership = owned` di gerbangnya sendiri — **alat sewa tidak pernah disusutkan**,
+sekalipun kolom penyusutannya terisi — dan `Hapus Buku / Jual` menolak alat sewa
+(tidak ada apa pun di neraca untuk dilepas).
 
 ---
 
@@ -2240,10 +2254,12 @@ layar.
 diajukan. **Tidak ada batal-setuju.** Setiap transisi menulis satu baris ke
 `core_approvals` dan memicu notifikasi.
 
-Lima belas model memakai mesin bersama itu (penawaran, CCO, BOQ, RAP, tagihan AP,
-invoice AR, cuti, payroll, opname stok, PO, PR, BAST, opname subkon, SPK, addendum SPK),
-ditambah dua yang menempuh tahap yang sama tanpa mesinnya: **pembayaran** dan
-**baseline proyek**.
+Dua puluh enam model memakai mesin bersama itu per P5 — daftar hidupnya adalah registri
+`Modules/Core/Support/ApprovableDocuments.php` (dari penawaran dan CCO sampai izin
+lapangan P0-C, submittal/IPP P1, keputusan pemenang P2, opname owner dan BAST subkon
+P3, SP3/opname mandor P4, dan PPK alat & jasa P5) — ditambah dua yang menempuh tahap
+yang sama tanpa mesinnya: **pembayaran** dan **baseline proyek**. Registri itulah
+sumber kebenarannya; angka di paragraf ini menyusul, bukan memimpin.
 
 ### 8.2 Modul yang menyimpang dari siklus baku
 
@@ -2578,9 +2594,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**55 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**56 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-48 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+49 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2593,7 +2609,7 @@ rute — izinnya diturunkan per permintaan dari registri.
 |---|---|
 | `inv.view` | 7 (penerimaan, bon material, surat jalan transfer, berita acara opname, saldo stok, retur pembelian, retur material) |
 | `crm.view` | 4 (penawaran, kontrak ringkas, berita acara CCO, register jaminan) |
-| `prc.view` | 8 (permintaan pembelian, order pembelian, banding penawaran, berita acara negosiasi, keputusan pemenang, evaluasi vendor, persyaratan K3L vendor, **CV mandor F/CVM, P4**) |
+| `prc.view` | 9 (permintaan pembelian, order pembelian, banding penawaran, berita acara negosiasi, keputusan pemenang, evaluasi vendor, persyaratan K3L vendor, **CV mandor F/CVM, P4**, **PPK alat & jasa F/PPK, P5**) |
 | `fin.view` | 5 (tagihan vendor, bukti pembayaran, voucher jurnal, kewajiban pajak, ekualisasi pajak) |
 | `est.view` | 3 (RAB, AHSP, RAP) |
 | `eng.view` | 4 (persetujuan gambar SDS, persetujuan material SMS, transmittal, ijin pelaksanaan IPP) |
@@ -2676,13 +2692,13 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Empat belas dari 55 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Empat belas dari 56 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, **berita acara negosiasi (F/BAN, P2)**, berita acara
 opname, saldo stok, opname subkon, **backsheet opname ke pemilik (F/OPN, P3)**, **rekap
 upah mandor (F/RU, P4)**, kewajiban pajak, ekualisasi pajak, rekap payroll, dan daftar
 hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, keputusan
 pemenang F/AWD, kedua lembar P3 lainnya: BAPP per zona F/BAPP dan BAST subkon F/BST-SK,
-serta CV mandor F/CVM, P4).
+CV mandor F/CVM, P4, serta PPK alat & jasa F/PPK, P5).
 
 Lembarnya sengaja berdiri sendiri: CSS inline, tanpa stylesheet eksternal, tanpa font
 web, logo disisipkan sebagai data — "a font fetched over the network would make the same

@@ -38,6 +38,14 @@ class ApBillResource extends JsonResource
             'subcontract_claim_id' => $this->subcontract_claim_id,
             // P4 — opname mandor (SP3) yang ditagihkan tagihan ini.
             'labor_claim_id' => $this->labor_claim_id,
+            // P5 — tagihan periode PPK yang ditagihkan tagihan ini.
+            'work_order_billing_id' => $this->work_order_billing_id,
+            'work_order_billing' => $this->whenLoaded('workOrderBilling', fn () => $this->workOrderBilling === null ? null : [
+                'id' => $this->workOrderBilling->id,
+                'code' => $this->workOrderBilling->code,
+                'period_start' => $this->workOrderBilling->period_start?->toDateString(),
+                'period_end' => $this->workOrderBilling->period_end?->toDateString(),
+            ]),
             'subcontract_claim' => $this->whenLoaded('subcontractClaim', fn () => $this->subcontractClaim === null ? null : [
                 'id' => $this->subcontractClaim->id,
                 'code' => $this->subcontractClaim->code,

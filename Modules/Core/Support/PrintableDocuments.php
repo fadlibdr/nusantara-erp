@@ -55,6 +55,7 @@ use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Models\VendorEvaluation;
+use Modules\Procurement\Models\WorkOrder;
 use Modules\Procurement\Services\ProcurementFormService;
 use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\ZoneCertificate;
@@ -2489,6 +2490,147 @@ class PrintableDocuments
                         'party' => null,
                         'name' => null,
                         'role' => 'Manajer Proyek',
+                    ],
+                ],
+            ],
+
+            /*
+             * PPK — PERINTAH KERJA ALAT & JASA (P5, deviasi 3.5), the house
+             * sheet a rental/jasa vendor signs before a single hour is logged.
+             *
+             * EVERY FIGURE ON IT IS A PLAFON AND THE SHEET SAYS SO. A PPK
+             * line is rate × basis × qty_periods, and qty_periods fences what
+             * MAY be billed — the realised quantity is derived per period
+             * from the hour-meter register and the calendar
+             * (WorkOrderBillingService) and maker-checked on the AP bill.
+             * So the totals read JUMLAH PLAFON / TOTAL PLAFON, and no billing
+             * history prints here: a realisation table on a sheet signed at
+             * commitment time would be empty at the only moment the sheet is
+             * actually signed, and a reprint later would put unsigned numbers
+             * under signed ink. Rekap Tagihan Alat is the report for that,
+             * and deliberately NOT a house form.
+             *
+             * Totals off stored columns only: value = Σ amount baris
+             * (WorkOrderService::recalcValue), ppn_rate = the snapshot taken
+             * when the vendor was chosen. The PPN arithmetic is
+             * ProcurementFormService::workOrderPpnAmount — the same two
+             * columns ApBillService::createFromWorkOrderBilling bills from.
+             */
+            'ppk-alat-jasa' => [
+                'resource' => 'procurement/work-orders',
+                'model' => WorkOrder::class,
+                'permission' => 'prc.view',
+                'label' => 'PPK Alat & Jasa',
+                'formTitle' => 'PERINTAH KERJA ALAT & JASA (PPK)',
+                'formCode' => 'Form F/PPK',
+                // withTrashed on the lessor, the job and each line's asset —
+                // see the class docblock. A PPK is a commitment to pay; its
+                // vendor archived later must keep its name on the paper. The
+                // asset is the machine a per_jam line reads its meter from,
+                // and its code stays on the line after the register row goes.
+                'with' => [
+                    'vendor' => fn ($query) => $query->withTrashed(),
+                    'project' => fn ($query) => $query->withTrashed(),
+                    'items.asset' => fn ($query) => $query->withTrashed(),
+                ],
+                'header' => ['kind' => 'vendor', 'source' => 'vendor', 'project' => 'project'],
+                // prc_work_orders has no signing-date column: created_at is
+                // the day the PPK was raised in this ERP — named so a reprint
+                // years later still says when it was issued (pola F/SP).
+                'date' => 'created_at',
+                'pekerjaan' => 'title',
+                'identityHouse' => false,
+                'identity' => [
+                    'NO. PPK' => 'code',
+                    'TANGGAL PPK' => ['value' => 'created_at', 'cast' => 'date'],
+                    'VENDOR' => 'vendor.name',
+                    'ALAMAT' => 'vendor.address',
+                    'NPWP' => 'vendor.npwp',
+                    'PROYEK' => 'project.name',
+                    // Ruled when no period was stated: the plafon fences the
+                    // money, not the calendar, and WorkOrderBillingService
+                    // deliberately does not fence billing periods to these
+                    // dates either — inventing a period here would print a
+                    // fence the server does not hold.
+                    'TANGGAL MULAI' => ['value' => 'start_date', 'cast' => 'date'],
+                    'TANGGAL SELESAI' => ['value' => 'end_date', 'cast' => 'date'],
+                    'STATUS' => 'status',
+                ],
+                'body' => [
+                    [
+                        'id' => 'rincian-plafon',
+                        'title' => 'RINCIAN ALAT / JASA (PLAFON PER BARIS)',
+                        'rows' => 'items',
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            // Ruled on a jasa line without a machine — a
+                            // per_jam line always has one (WorkOrderService
+                            // refuses it otherwise), and that is exactly the
+                            // line where the code matters: it names the meter
+                            // the billing will read.
+                            ['label' => 'KODE ALAT', 'align' => 'center', 'width' => '22mm',
+                                'value' => 'asset.code'],
+                            ['label' => 'URAIAN ALAT / JASA', 'value' => 'description'],
+                            // text cast prints a backed enum's label().
+                            ['label' => 'BASIS TARIF', 'align' => 'center', 'width' => '24mm',
+                                'value' => 'rate_basis'],
+                            ['label' => 'TARIF (Rp)', 'align' => 'right', 'width' => '28mm',
+                                'value' => 'rate', 'cast' => 'money'],
+                            ['label' => 'PLAFON', 'align' => 'right', 'width' => '18mm',
+                                'value' => 'qty_periods', 'cast' => 'qty'],
+                            ['label' => 'SATUAN', 'align' => 'center', 'width' => '14mm',
+                                'value' => fn (mixed $row): ?string => $row->rate_basis?->unit()],
+                            ['label' => 'JUMLAH PLAFON (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'amount', 'cast' => 'money'],
+                        ],
+                        'totals' => [
+                            ['label' => 'JUMLAH PLAFON (DPP)', 'value' => 'value', 'cast' => 'money'],
+                            [
+                                'label' => fn (WorkOrder $ppk): string => app(ProcurementFormService::class)
+                                    ->workOrderPpnLabel($ppk),
+                                'value' => fn (WorkOrder $ppk): float => app(ProcurementFormService::class)
+                                    ->workOrderPpnAmount($ppk),
+                                'cast' => 'money',
+                            ],
+                            [
+                                'label' => 'TOTAL PLAFON PPK',
+                                'value' => fn (WorkOrder $ppk): float => app(ProcurementFormService::class)
+                                    ->workOrderTotal($ppk),
+                                'cast' => 'money',
+                            ],
+                        ],
+                        'empty' => 'PPK ini belum memiliki baris alat / jasa.',
+                    ],
+                ],
+                // Notes plus the override-prakualifikasi reason when there is
+                // one — ruled when there is nothing (pola F/PO).
+                'notes' => [
+                    'text' => fn (WorkOrder $ppk): ?string => app(ProcurementFormService::class)
+                        ->workOrderNotes($ppk),
+                    'lines' => 3,
+                ],
+                'signatures' => [
+                    [
+                        'heading' => 'Menyetujui,',
+                        'subheading' => 'Vendor Rental / Jasa',
+                        'party' => 'vendor.name',
+                        'name' => null,
+                        'role' => 'Nama & Jabatan',
+                    ],
+                    [
+                        'heading' => 'Diperiksa,',
+                        'subheading' => null,
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Manajer Proyek',
+                    ],
+                    [
+                        'heading' => null,
+                        'subheading' => 'Kontraktor Pelaksana',
+                        'party' => null,
+                        'name' => null,
+                        'role' => 'Direktur',
                     ],
                 ],
             ],
@@ -5791,6 +5933,10 @@ class PrintableDocuments
                 // onto a card that charges a project for it.
                 'with' => [
                     'category' => fn ($query) => $query->withTrashed(),
+                    // P5 — the lessor of a rented machine, named in the
+                    // catatan block; an archived rental company keeps its
+                    // name on the card of the machine it rented out.
+                    'vendor' => fn ($query) => $query->withTrashed(),
                     'currentProject' => fn ($query) => $query->withTrashed(),
                     'custodian' => fn ($query) => $query->withTrashed(),
                     'warehouse' => fn ($query) => $query->withTrashed(),
@@ -5821,6 +5967,21 @@ class PrintableDocuments
                     'MEREK' => 'brand',
                     'TIPE / MODEL' => 'model',
                     'NO. SERI' => 'serial_no',
+                    /*
+                     * P5 — owned or rented, off the stored enum (text cast
+                     * prints its label()). This line is what makes the ruled
+                     * money lines below READABLE on a rental: HARGA PEROLEHAN
+                     * and NILAI BUKU rule themselves because the machine was
+                     * never bought and was never on our balance sheet, and
+                     * without this line those blanks look like data entry
+                     * nobody finished. The rental facts themselves (lessor,
+                     * tarif, periode) ride in the catatan block — identity
+                     * lines print their captions on every card, and a ruled
+                     * "VENDOR RENTAL : ......" on an OWNED machine invites a
+                     * lessor to be written onto plant the company owns
+                     * (AssetFormService::assetNotes, pola kalimat pelepasan).
+                     */
+                    'KEPEMILIKAN' => 'ownership',
                     'TANGGAL PEROLEHAN' => ['value' => 'acquisition_date', 'cast' => 'date'],
                     'HARGA PEROLEHAN' => ['value' => 'acquisition_cost', 'cast' => 'rupiah'],
                     'NILAI RESIDU' => ['value' => 'salvage_value', 'cast' => 'rupiah'],

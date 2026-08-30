@@ -29,6 +29,10 @@ class ApBillStoreRequest extends FormRequest
             // subcontract_claim_id, lihat migrasi 001125 untuk mengapa bukan
             // pemakaian ulang.
             'labor_claim_id' => ['nullable', 'integer', Rule::exists('scm_labor_claims', 'id')],
+            // P5 — tagihan atas satu periode PPK (prc_work_order_billings);
+            // kolom cermin labor_claim_id, lihat migrasi 001127 untuk mengapa
+            // bukan pemakaian ulang.
+            'work_order_billing_id' => ['nullable', 'integer', Rule::exists('prc_work_order_billings', 'id')->whereNull('deleted_at')],
 
             // Uang muka (down payment) against a PO. It skips the goods-received
             // gate, debits the purchase advance asset account and is netted off
@@ -44,16 +48,16 @@ class ApBillStoreRequest extends FormRequest
             'goods_receipt_ids.*' => ['integer', Rule::exists('inv_goods_receipts', 'id')],
 
             // Manual mode.
-            'vendor_id' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id', 'integer', Rule::exists('prc_vendors', 'id')],
+            'vendor_id' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id,work_order_billing_id', 'integer', Rule::exists('prc_vendors', 'id')],
             'project_id' => ['nullable', 'integer'],
             // Which RAP bucket this bill charges. Left blank it is derived from
             // the source document, which called every PO purchase material —
             // including a crane hired on a services PO. See
             // ApBillService::costCategory().
             'cost_category' => ['nullable', Rule::enum(CostCategory::class)],
-            'description' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id', 'string', 'max:500'],
+            'description' => ['required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id,work_order_billing_id', 'string', 'max:500'],
             'dpp' => [
-                'required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id',
+                'required_without_all:purchase_order_id,goods_receipt_id,subcontract_claim_id,labor_claim_id,work_order_billing_id',
                 Rule::requiredIf(fn (): bool => $this->boolean('is_advance')),
                 'numeric',
                 'min:0.01',

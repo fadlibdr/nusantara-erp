@@ -143,7 +143,7 @@ membuka/menutup sidebar), remah roti (mis. `Keuangan › Invoice Termin (AR) ›
 tombol **`Cari`**, tombol tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan
 peran Anda (atau "tanpa peran").
 
-**Sidebar** berisi dua belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
+**Sidebar** berisi empat belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
 isinya, dan keadaan lipatan itu diingat peramban Anda.
 
 | Kelompok | Isinya |
@@ -151,14 +151,16 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Ringkasan | Dasbor · Tenggat · Kalender |
 | Penjualan | Pelanggan · Prospek · Penawaran · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan |
+| Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
 | Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
-| Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · Evaluasi Vendor |
+| Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton · Template Inspeksi |
+| Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat & Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang · Rencana Pengadaan · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
 | SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
 | Layanan | Tiket · Tiket Lewat SLA · Kontrak Layanan · Jadwal Preventif · Berita Acara |
-| Aset | Daftar Aset · Kategori Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset |
+| Aset | Daftar Aset · Kategori Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset · Evaluasi Sewa vs Beli |
 | Sistem | Pengguna · Peran & Hak Akses · Profil Perusahaan · Impor Data Master · Impor Dokumen · Pengaturan |
 
 **Kelompok yang izinnya tidak Anda pegang tidak digambar sama sekali.** Sidebar seorang
@@ -581,7 +583,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 55 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 56 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -2290,16 +2292,17 @@ lampiran.
 Kolom: Kode · Vendor · Tgl tagihan · Jatuh tempo · Total bayar · **Sisa** (hijau bila
 nol) · Status. Bisa diubah/dihapus hanya saat Draf atau Ditolak.
 
-Bantuan di formulir: *"Isi PO, opname subkon, atau opname mandor untuk menyalin nilainya
-otomatis; kosongkan semuanya untuk tagihan manual."*
+Bantuan di formulir: *"Isi PO, opname subkon, opname mandor, atau tagihan periode PPK
+untuk menyalin nilainya otomatis; kosongkan semuanya untuk tagihan manual."*
 
-**Enam kolom pertama hanya ada saat MEMBUAT** — semuanya hilang dari formulir Ubah:
+**Tujuh kolom pertama hanya ada saat MEMBUAT** — semuanya hilang dari formulir Ubah:
 
 | Kolom | Bantuan di layar |
 |---|---|
 | **Dari PO** | — |
 | **Dari opname subkon** | — |
 | **Dari opname mandor** | — (P4: DPP = bruto − potongan kasbon, PPh final UMKM 0,5%; §8.10) |
+| **Dari tagihan periode PPK** | — (P5: DPP = nilai tagihan periode, tidak bisa diketik ulang; PPN dari snapshot PPK; §5.15) |
 | **Tagihan uang muka (DP) atas PO** | "DP ke pemasok sebelum barang datang. Dicatat sebagai uang muka, BUKAN beban proyek, lalu dikreditkan kembali otomatis saat tagihan final PO yang sama disetujui." |
 | **Atas penerimaan barang (GRN)** | "Untuk barang yang sudah diterima tanpa PO: menagihkan akrual penerimaan yang menggantung di 2-1150 supaya tidak mengendap di neraca." |
 | **Tagihan parsial: GRN yang ditagih** | "Isi bersama 'Dari PO' untuk menagih sebagian pengiriman: pilih penerimaan (GRN) PO itu yang difakturkan vendor — nilainya dihitung dari qty diterima x harga PO, diskon dan uang muka dipotong proporsional. Kosongkan untuk menagih seluruh PO." |
@@ -2376,9 +2379,11 @@ ditolaknya:
 - Pemisahan tugas (§2.5).
 
 **Kategori biaya RAP yang dibebani tagihan tidak bisa dipilih di layar.** Tidak ada kolom
-untuk itu; penurunannya selalu: opname subkon → **Subkon**; apa pun yang punya PO atau
-GRN → **Material**; sisanya → **Overhead**. Crane yang disewa lewat PO jasa karena itu
-dibebankan ke proyek sebagai **Material**.
+untuk itu; penurunannya selalu: opname subkon → **Subkon**; opname mandor → **Upah**;
+tagihan periode PPK → **Alat**; apa pun yang punya PO atau GRN → **Material**; sisanya →
+**Overhead**. Crane yang disewa lewat PO jasa karena itu dibebankan ke proyek sebagai
+**Material** — sejak P5, sewa alat yang seharusnya membebani kategori **Alat** punya
+pintunya sendiri: PPK (§5.14).
 
 **Membatalkan tagihan.** **`Batalkan Dokumen`** (izin `fin.post`, hanya saat Disetujui
 **dan** belum dibayar sepeser pun; *Alasan pembatalan* wajib minimal 5 karakter) memposting
@@ -2587,6 +2592,170 @@ Dibatalkan.
 
 **Rencana Pengadaan tidak dicetak sebagai formulir rumah** — ia alat perencanaan di layar,
 bukan lembar bertanda tangan.
+
+### 5.14 PPK Alat & Jasa — `Pengadaan › PPK Alat & Jasa`
+
+**PPK (Perintah Kerja Alat & Jasa)** adalah saudara PO untuk **alat sewa dan jasa yang
+ditagih per periode**: sewa excavator per jam, scaffolding per bulan, genset per hari.
+Ia **komitmen berplafon**, bukan realisasi — setiap barisnya menyebut tarif, basis
+tarif, dan **plafon kuantitas**, dan uang baru bergerak lewat **Tagihan Periode PPK**
+(§5.15) → tagihan AP.
+
+Kolom: Kode · Pekerjaan (dengan vendornya) · Proyek · **Nilai PPK** · Status. Saringan:
+Status, Proyek, Vendor. Bisa diubah/dihapus hanya saat Draf atau Ditolak; PPK yang
+statusnya sudah bergerak menjawab `"PPK {kode} berstatus {status} dan tidak dapat
+diubah lagi."`, dan PPK yang sudah punya tagihan periode menolak dihapus: `"PPK {kode}
+sudah memiliki tagihan periode dan tidak dapat dihapus."`
+
+**Membuat (`Tambah PPK`):**
+
+1. **Vendor rental/jasa** (wajib) · **Proyek** (wajib) · **Judul pekerjaan** (wajib) ·
+   Mulai · Selesai · Catatan · **Alasan override prakualifikasi** (bantuan: *"Isi hanya
+   bila vendor terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan PPK
+   tetap harus dibuat."*).
+2. Baris **`Baris alat / jasa`** (minimal satu): **ID aset** (wajib untuk per_jam) ·
+   **Uraian** (wajib) · **Basis tarif** (Per bulan / Per hari (8 jam) / Per jam) ·
+   **Tarif** · **Plafon kuantitas** — plafonnya dalam satuan basisnya: jam untuk
+   per_jam, hari untuk per_hari_8jam, bulan untuk per_bulan.
+3. **`Simpan`**, lalu siklus persetujuan baku (§2.5): `Ajukan` → `Setujui`/`Tolak`.
+   Maker-checker berlaku; tidak ada ambang nilai berjenjang seperti PO. Dialog
+   `Ajukan` membawa kotak **Alasan override prakualifikasi** (bantuan: *"Kosongkan
+   bila vendor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap
+   harus jalan."*) — gerbangnya berjalan ulang saat mengajukan, atas data vendor hari
+   itu, persis pola PO/SPK/SP3.
+
+**Nilai PPK selalu = Σ (tarif × plafon) barisnya** — dihitung server, bukan diketik.
+**Tarif PPN di-snapshot saat dibuat** dari status PKP vendornya (non-PKP = tanpa PPN),
+persis pola SPK/SP3.
+
+**Vendornya harus bertipe Rental atau Pemasok** (roadmap menyebut "vendor rental/jasa",
+dan pemasok jasa terdaftar sebagai Pemasok hari ini). Mandor dan subkontraktor ditolak
+dengan kalimat yang menunjuk pintunya:
+
+> "Vendor {kode} ({nama}) bertipe {jenis}; PPK alat & jasa hanya untuk vendor rental
+> atau pemasok jasa. Mandor memakai SP3, subkontraktor memakai SPK."
+
+Gerbang **prakualifikasi** yang sama dengan PO/SPK ikut berjalan (vendor Nonaktif atau
+dokumen Wajib kedaluwarsa memblokir; override beralasan dicatat dan ikut tercetak di
+F/PPK).
+
+**Dua penolakan baris** yang paling sering ditemui, kata demi kata:
+
+- *"Setiap baris PPK memerlukan tarif lebih dari nol."* — juga *"Setiap baris PPK
+  memerlukan plafon kuantitas (qty_periods) lebih dari nol."*
+- > "Baris tarif per_jam harus menunjuk alat yang terdaftar di register aset — jam
+  > tagihannya dibaca dari hour-meter alat itu, bukan diketik."
+
+  Alat sewa didaftarkan lebih dulu di `Aset › Daftar Aset` dengan Kepemilikan **Sewa**
+  (§9.3) dan dimobilisasi ke proyek PPK-nya — register hour-meternya (§9.5) itulah yang
+  ditagih.
+
+**Tanggal Mulai/Selesai PPK opsional dan tidak memagari tagihan** — yang memagari uang
+adalah plafon per baris. Periode tagihan di luar rentang itu tidak ditolak; PPK tanpa
+tanggal mencetak barisnya bergaris (§13.5).
+
+**Halaman PPK** memuat dua tabel: **Baris alat / jasa** (dengan total) dan **Tagihan
+periode yang sudah dibuat** — monitoring sewa langsung di dokumennya: periode mana yang
+sudah ditagih, berapa nilainya.
+
+**Mencetak:** **`Cetak PPK Alat & Jasa`** (Form F/PPK) — lembar **plafon komitmen**
+dengan totals JUMLAH PLAFON (DPP) · PPN · TOTAL PLAFON PPK. Tidak ada tabel realisasi
+di lembar ini: kertas ini ditandatangani sebelum satu jam pun tercatat (§13.5).
+
+### 5.15 Tagihan Periode PPK — `Pengadaan › Tagihan Periode PPK`
+
+Satu baris = satu periode tagihan atas satu PPK. **Kuantitasnya DITURUNKAN server,
+tidak pernah diketik** — formulirnya hanya memilih PPK dan rentang tanggal. Bantuan di
+formulir, kata demi kata: *"Kuantitas dan rupiah dihitung server dari register
+hour-meter dan kalender — tidak ada angka yang diketik di sini. Satu periode hanya
+ditagih sekali; buat tagihan AP-nya dari layar Tagihan Vendor (Finance)."*
+
+Kolom: Kode · PPK · Periode mulai · Periode selesai · Nilai tagihan. Saringan: PPK.
+Isian (`Tambah Tagihan periode`): **PPK** (wajib, hanya saat membuat) · **Periode
+mulai** (wajib) · **Periode selesai** (wajib) · Catatan. Hanya PPK **yang sudah disetujui**
+yang bisa ditagih: `"PPK {kode} berstatus {status}; tagihan periode hanya dapat dibuat
+atas PPK yang sudah disetujui."`
+
+**Dari mana kuantitasnya, per basis tarif:**
+
+| Basis | Kuantitas periode ini |
+|---|---|
+| **Per jam** | **Delta hour-meter DI DALAM periode**: pembacaan terakhir − pembacaan pertama yang bertanggal di dalam periode, dari register alat baris itu pada mobilisasi ke **proyek PPK ini** (mobilisasi hidup saja). Kurang dari dua pembacaan = tidak ada delta terukur — baris itu tidak menagih |
+| **Per bulan** | Bulan kalender utuh: periode **wajib mulai tanggal 1 dan berakhir di akhir bulan**. Boleh menagih di muka — sewa terhutang untuk periodenya, dipakai atau tidak |
+| **Per hari (8 jam)** | Hari inklusif kedua ujung periode; boleh di muka |
+
+> **Aturan batas per_jam — dalam-periode saja**, dipin di kode dan diuji: pembacaan
+> 1.200,0 → 1.207,5 → 1.213,0 di dalam periode = **13,0 jam**, dan pembacaan 1.195,0
+> SEBELUM periode tidak mengubah apa pun. Alternatifnya ("pembacaan pertama dalam
+> periode minus pembacaan terakhir sebelum periode") membocorkan jam yang berjalan
+> SEBELUM periode ke dalam tagihan periode ini — 1.213,0 − 1.195,0 = 18 jam, 5 di
+> antaranya bukan milik periode. Konsekuensi jujur dari aturan ini: jam yang berjalan
+> di antara pembacaan terakhir pra-periode dan pembacaan pertama dalam periode **tidak
+> tertagih di mana pun** — itu jam yang tidak terukur oleh register, dan menagih jam
+> yang tidak terukur berarti mengarang angka. **Situs yang membaca meter di batas
+> periode tidak kehilangan apa-apa.**
+
+**Penolakan yang menjaga uangnya**, kata demi kata:
+
+- Periode tumpang-tindih (anti tagih-ganda):
+  > "Periode {a} s.d. {b} tumpang-tindih dengan tagihan {kode} ({c} s.d. {d}) pada PPK
+  > {kode} — satu periode hanya ditagih sekali."
+- Melebihi plafon baris (menolak, bukan memangkas — kelebihan komitmen diselesaikan
+  dengan PPK baru, bukan diam-diam):
+  > "Kuantitas {x} {satuan} pada baris \"{uraian}\" melebihi sisa plafon PPK {y}
+  > {satuan} (plafon {p}, sudah tertagih {q})."
+- Bulan tidak utuh pada per_bulan:
+  > "Baris per_bulan \"{uraian}\" menagih bulan kalender utuh; periode {a} s.d. {b}
+  > bukan bulan kalender utuh (mulai tanggal 1, berakhir di akhir bulan)."
+- Tidak ada yang bisa ditagih:
+  > "Pada periode {a} s.d. {b} tidak ada kuantitas yang dapat ditagih: baris per_jam
+  > butuh minimal dua pembacaan hour-meter di dalam periode, dan tidak ada baris
+  > kalender yang menagih. Tagihan kosong tidak dibuat."
+- Meter mundur **di dalam satu mobilisasi** (register korup — angka mundur ANTAR
+  mobilisasi adalah meter baru/alat pengganti dan sah, deltanya dijumlah per segmen):
+  *"Pembacaan hour-meter baris \"{uraian}\" mundur di dalam periode pada mobilisasi
+  {kode} ({x} → {y}); periksa registernya sebelum menagih."* — dan periode
+  terbalik: *"Periode tagihan terbalik: {a} sampai {b}."*
+
+**Halaman tagihan** memuat tabel **Rincian kuantitas**: Uraian · Basis · **Meter awal ·
+Meter akhir** (hanya terisi pada baris per_jam) · Kuantitas · Jumlah.
+
+**Tagihan periode sengaja tidak berjenjang persetujuan** — angkanya turunan register
+dan kalender; **rupiahnya ber-maker-checker di tagihan AP** yang dibuat darinya.
+Menghapus boleh selama belum ada tagihan AP hidup — `"Tagihan periode {kode} sudah
+ditagihkan ke AP lewat tagihan {kode BIL}; batalkan tagihan AP itu lebih dulu sebelum
+menghapus billing ini."` — dan menghapusnya **membebaskan periodenya** untuk disusun
+ulang.
+
+**Menagihkannya:** di `Keuangan › Tagihan Vendor (AP)`, baris **Dari tagihan periode
+PPK** (§5.9). DPP disalin dari nilai tagihan periode dan **tidak bisa diketik ulang**;
+PPN mengikuti snapshot PPK; jenis PPh (bila dipotong) Anda yang memilih. Satu tagihan
+periode = maksimal satu tagihan AP hidup: `"Tagihan atas periode PPK {kode} sudah
+ada."` Uang muka ditolak (*"Uang muka hanya dapat dibuat atas pesanan pembelian
+(PO)."*), dan PPK yang keburu tidak-approved lagi menjawab `"PPK di balik tagihan
+periode {kode} tidak lagi berstatus disetujui; tagihan AP tidak dapat dibuat darinya."`
+Kategori biaya proyeknya otomatis **Alat**.
+
+### 5.16 Rekap Tagihan Alat — `Pengadaan › Rekap Tagihan Alat`
+
+**Laporan**, bukan register dan bukan lembar tanda tangan — **sengaja tidak punya
+formulir cetak**: tidak ada tiga pihak yang menandatangani sebuah rekap, dan rupiahnya
+sudah ber-maker-checker di tagihan AP masing-masing.
+
+Saringan: **Dari tanggal** dan **Sampai tanggal** (bawaan bulan berjalan) · vendor
+(*"Semua vendor"*) · proyek (*"Semua proyek"*) · tombol **`Tampilkan`**. Isinya semua
+tagihan periode PPK yang **menyentuh** rentang itu.
+
+Tiga petak ringkas — **Tagihan periode** · **Total nilai (DPP)** · **Belum ada tagihan
+AP** — lalu tabel **Tagihan per periode**: Tagihan · PPK · Vendor · Proyek · Periode ·
+Nilai (DPP) · **Tagihan AP**, dan **Ringkasan per vendor**. Klik barisnya membuka
+tagihan periodenya.
+
+**Kolom Tagihan AP bergaris (`—`) berarti belum ditagihkan** — bukan "draf" karangan;
+tagihan AP yang dibatalkan tidak dihitung hidup. Rentang tanpa tagihan berbunyi:
+*"Tidak ada tagihan periode PPK yang menyentuh rentang ini. Rekap hanya membaca tagihan
+periode yang sudah dibuat dari layar Tagihan Periode PPK — periode sewa yang belum
+ditagih tidak dikarang di sini."*
 
 ---
 
@@ -4741,8 +4910,13 @@ yang sudah sah (§13.5).
 
 ## 9. Aset & alat berat
 
-Kelompok **Aset** berisi tujuh layar: **Daftar Aset · Kategori Aset · Mobilisasi ·
-Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset**.
+Kelompok **Aset** berisi delapan layar: **Daftar Aset · Kategori Aset · Mobilisasi ·
+Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset · Evaluasi Sewa vs Beli**.
+
+Sejak paket alat sewa (P5), register aset memuat **dua bentuk aset**: **milik sendiri**
+(dibeli, disusutkan, ada di neraca) dan **sewa** (milik vendor rental, tidak pernah ada
+di neraca kita, biayanya masuk lewat tagihan vendor — PPK, §5.14). Bab ini menandai di
+mana keduanya berbeda; yang tidak ditandai berlaku untuk keduanya.
 
 ### 9.1 Siapa boleh apa
 
@@ -4789,31 +4963,57 @@ perolehan** — yang terakhir berbantuan: *"Dikredit saat aset dihapusbukukan/di
 
 ### 9.3 Daftar Aset — `Aset › Daftar Aset`
 
-Kolom: Kode · Nama aset (dengan kategorinya) · No. seri · Harga perolehan · **Nilai
-buku** · Proyek · Status. Saringan: Status, Kategori, Proyek.
+Kolom: Kode · Nama aset (dengan kategorinya) · **Kepemilikan** (Milik sendiri / Sewa) ·
+No. seri · Harga perolehan · **Nilai buku** · Proyek · Status. Saringan: Status,
+**Kepemilikan**, Kategori, Proyek.
 
 Status aset: **Tersedia · Termobilisasi · Dalam Perawatan · Dihapusbukukan**.
+
+**Pada baris alat sewa, Harga perolehan dan Nilai buku tampil bergaris (`—`), bukan
+Rp 0** — alat itu tidak ada di neraca kita, dan nol adalah angka, bukan ketiadaan.
 
 **Mendaftarkan aset:**
 
 1. **`Tambah Aset`**.
-2. Bagian *Aset*: **Nama aset** (wajib) · **Kategori** (wajib) · Nomor seri · Merek ·
-   Model · **Status** (hanya saat Ubah, dan pilihannya **hanya Tersedia dan Dalam
-   Perawatan**) · Penanggung jawab · Gudang.
-3. Bagian *Perolehan & penyusutan*: **Tanggal perolehan** (wajib) · **Harga perolehan**
-   (wajib) · Nilai residu · **Umur manfaat (bulan)** (wajib) · Mulai disusutkan ·
+2. Bagian *Aset*: **Nama aset** (wajib) · **Kategori** (wajib) · **Kepemilikan** (wajib;
+   bawaan Milik sendiri; **hanya bisa dipilih saat membuat** — beli-putus alat sewa
+   adalah peristiwa akuntansi, bukan suntingan register, dan server menolak
+   perubahannya) · Nomor seri · Merek · Model · **Status** (hanya saat Ubah, dan
+   pilihannya **hanya Tersedia dan Dalam Perawatan**) · Penanggung jawab · Gudang ·
    Catatan.
+3. Bagian berikutnya **mengikuti Kepemilikan** — formulirnya hanya menampilkan satu:
+   - **Milik sendiri** → bagian *Perolehan & penyusutan*: **Tanggal perolehan** (wajib) ·
+     **Harga perolehan** (wajib) · Nilai residu · **Umur manfaat (bulan)** (wajib) ·
+     Mulai disusutkan.
+   - **Sewa** → bagian *Sewa*: **Vendor rental (lessor)** (wajib) · **Tarif sewa**
+     (wajib) · **Basis tarif** (wajib: Per bulan / Per hari (8 jam) / Per jam) ·
+     Mulai sewa · Selesai sewa.
 4. **`Simpan`**.
+
+**Pemisahan kolomnya dijaga server dua arah**, bukan sekadar disembunyikan formulir.
+Saat **membuat**, kolom milik bentuk yang lain ditolak validasi (berbahasa Inggris,
+bawaan Laravel — §2.10): `"The acquisition cost field is prohibited when ownership is
+rented."` dan kerabatnya. Saat **mengubah**, service yang membaca ulang barisnya yang
+menolak, berbahasa Indonesia: `"Aset {kode} adalah alat sewa; kolom perolehan/
+penyusutan tidak berlaku untuknya."` / `"Aset {kode} milik sendiri; kolom sewa tidak
+berlaku untuknya."` Harga perolehan alat sewa bukan nol yang disembunyikan; ia
+**memang tidak ada**.
 
 **Status "Dihapusbukukan" tidak ada di daftar pilihan** dan tidak bisa dicapai lewat
 `Ubah` — ia hanya lahir dari aksi **`Hapus Buku / Jual`** (§9.9), yang memposting jurnal
 pelepasannya.
 
-**Halaman aset** memperlihatkan empat petak — Harga perolehan · **Akumulasi penyusutan**
-(+ beban per bulan) · **Nilai buku** · **Umur manfaat** (+ "mulai {tanggal}" atau "belum
-disusutkan") — lalu empat kartu riwayat: **Mobilisasi**, **Log BBM & jam alat**,
-**Perawatan**, dan **Penyusutan**. Aset yang sudah dihapusbukukan mendapat panel
-kuning di atas berisi tanggal, alasan, dan hasil pelepasannya.
+**Halaman aset milik sendiri** memperlihatkan empat petak — Harga perolehan ·
+**Akumulasi penyusutan** (+ beban per bulan) · **Nilai buku** · **Umur manfaat**
+(+ "mulai {tanggal}" atau "belum disusutkan"). **Halaman alat sewa** memperlihatkan
+empat petak yang lain: **Kepemilikan** (dengan nama lessor-nya) · **Tarif sewa**
+(dengan basisnya) · **Periode sewa** · **Nilai buku** bergaris dengan keterangan
+*"alat sewa — tidak di neraca, tidak disusutkan"*. Kartu penyusutan alat sewa yang
+kosong berbunyi *"Alat sewa tidak pernah disusutkan — biayanya tagihan vendor, bukan
+penyusutan."* — bukan "belum", karena tidak akan pernah (§9.7). Di bawahnya, keduanya
+sama: empat kartu riwayat — **Mobilisasi**, **Log BBM & jam alat**, **Perawatan**, dan
+**Penyusutan**. Aset yang sudah dihapusbukukan mendapat panel kuning di atas berisi
+tanggal, alasan, dan hasil pelepasannya.
 
 ### 9.4 Mobilisasi dan Demobilisasi
 
@@ -4822,6 +5022,17 @@ Dua pintu masuk yang sama hasilnya:
 **a. Dari asetnya.** `Aset › Daftar Aset` → buka asetnya → **`Mobilisasi ke Proyek`**
 (muncul hanya pada aset berstatus **Tersedia**). Isian: **Proyek** (wajib) · Mulai
 (bawaan hari ini) · Rencana sampai · **Tarif internal per hari** · Catatan.
+
+**Pada alat sewa, dialognya sama minus satu kotak: Tarif internal per hari tidak
+ditawarkan** — dan mengirimkannya lewat jalur mana pun ditolak server:
+
+> "Aset {kode} adalah alat sewa: biayanya masuk lewat tagihan AP vendor rentalnya
+> (tagihan periode PPK), sehingga tarif internal harian akan membebankan alat yang sama
+> dua kali ke proyek. Kosongkan tarif internalnya."
+
+Biaya alat sewa sampai ke proyek lewat **Tagihan Periode PPK → tagihan AP** (§5.15),
+kategori **Alat**; tarif internal hanya untuk alat milik sendiri, yang uangnya sudah
+keluar saat membeli.
 
 **b. Dari daftar mobilisasi.** `Aset › Mobilisasi` → **`Tambah Mobilisasi`**: **Aset**
 (wajib) · **Proyek** (wajib) · **Mulai** (wajib) — ketiganya **hanya bisa diisi saat
@@ -4955,6 +5166,11 @@ Penolakan:
 - `"Depreciation run {periode} has no entries to post."`
 - Kategori tanpa akun (§9.2).
 
+**Alat sewa tidak pernah ikut run penyusutan.** Gerbangnya kepemilikan barisnya, bukan
+kebetulan kolomnya kosong — sekalipun seseorang berhasil mengisi kolom umur manfaat
+atau tanggal mulai disusutkan pada alat sewa, run berikutnya tetap melewatinya. Alat
+milik vendor tidak dikapitalisasi, jadi tidak ada biaya perolehan untuk disusutkan.
+
 **Penyusutan bulanan adalah langkah tutup buku yang dimiliki keuangan**, dan ia harus
 diposting **sebelum** pengakuan pendapatan PSAK 115 bulan itu (§10.9). Urutannya:
 payroll → penyusutan → pengakuan pendapatan.
@@ -4965,10 +5181,24 @@ Layar baca saja, sub-judul *"Hari mobilisasi dan nilai internal per proyek."* Ta
 ringkas per aset dan per proyek; satu-satunya tombol adalah muat ulang. Bila kosong:
 *"Belum ada data mobilisasi aset."*
 
+**Alat sewa ikut dihitung** (monitoring sewa, P5) — barisnya berlabel kepemilikan
+supaya hari-mobilisasi alat sewa dan alat milik terbaca terpisah. Nilai internal alat
+sewa selalu kosong: mobilisasinya memang tidak membawa tarif internal (§9.4).
+
 ### 9.9 Hapus Buku / Jual
 
 Tombol merah **`Hapus Buku / Jual`** di halaman aset (izin posting), muncul pada aset
-berstatus **Tersedia** atau **Dalam Perawatan**.
+**milik sendiri** berstatus **Tersedia** atau **Dalam Perawatan**.
+
+**Alat sewa tidak punya tombol ini**, dan API-nya pun menolak:
+
+> "Alat sewa tidak dihapusbukukan — alat milik vendor rental dikembalikan ke pemiliknya,
+> bukan dilepas dari neraca. Akhiri mobilisasinya lalu nonaktifkan masternya."
+
+Mengakhiri sebuah sewa adalah **Demobilisasi** (§9.4) lalu — bila masternya tidak akan
+dipakai lagi — **Hapus** dari daftar aset (alat sewa tidak punya riwayat penyusutan,
+jadi jalur hapus biasa terbuka untuknya). Bukan jurnal pelepasan atas mesin yang bukan
+milik kita.
 
 Isian: **Tanggal pelepasan** (wajib) · **Nilai pelepasan (hasil penjualan)** (wajib;
 *"Isi 0 untuk scrap/hilang tanpa hasil penjualan."*) · **Alasan (dijual / hilang / rusak
@@ -4998,6 +5228,50 @@ Kartu Aset mencetak tiga tabel riwayat: mobilisasi, perawatan, dan — sejak
 22 Agustus 2026 — **LOG BBM & JAM ALAT** (§9.5), tanpa kolom rupiah, karena uang
 BBM-nya hidup di kas kecil. Hari tanpa pembacaan meter atau tanpa pengisian dicetak
 bergaris kosong, bukan nol — aturan kejujuran §13.5.
+
+Sejak P5 blok identitas Kartu Aset membawa baris **KEPEMILIKAN** (Milik sendiri /
+Sewa). Pada kartu alat sewa, **NILAI BUKU dicetak bergaris kosong — bukan Rp 0** —
+dan fakta sewanya (lessor, tarif, periode) tercetak sebagai satu kalimat di blok
+Catatan, mis. *"Aset sewa dari PT Alat Berat Nusantara, tarif Rp 400.000,00 per jam,
+periode sewa 01 Juni 2026 s/d 31 Desember 2026."* Kartu aset milik sendiri tidak membawa
+baris VENDOR RENTAL bergaris — tidak ada lessor yang perlu ditulis tangan pada mesin
+milik perusahaan (§13.5).
+
+### 9.11 Evaluasi Sewa vs Beli — `Aset › Evaluasi Sewa vs Beli`
+
+Layar **baca saja** (P5). Sub-judulnya berkata apa adanya: *"Baca saja: jam register ×
+tarif sewa vs harga perolehan/penyusutan. Tidak ada yang ditulis, tidak ada kesimpulan
+yang disimpan."* Satu-satunya tombol adalah muat ulang; keputusannya milik pembaca —
+layar ini tidak pernah menyimpan verdict "sewa lebih murah".
+
+Satu baris per aset hidup (yang dihapusbukukan tidak ikut), kolomnya: Aset ·
+Kepemilikan (dengan lessor pada alat sewa) · **Jam tercatat** · Tarif sewa · **Biaya
+sewa terikat** · Harga perolehan · Akum. penyusutan · **Biaya per jam** · Catatan.
+Klik barisnya membuka halaman asetnya. Kartu *Cara membaca* di bawah tabel menjelaskan
+aritmetikanya:
+
+- **Jam tercatat** = Σ (pembacaan hour-meter terakhir − pertama) per mobilisasi hidup
+  aset itu; mobilisasi dengan kurang dari dua pembacaan tidak menyumbang jam terukur.
+- **Biaya sewa terikat**: per jam = jam tercatat × tarif (yang terikat baru jam yang
+  sudah berjalan); per hari/bulan = seluruh periode sewa pada master aset s/d akhir
+  sewa — **komitmen penuh periode, bukan yang sudah berjalan sampai hari ini** (sewa
+  Juni–Desember yang dibaca 30 Agustus tetap 7 bulan, bukan 3). Untuk pertanyaan
+  "sewa vs beli", komitmen penuh itulah yang sebanding dengan harga perolehan;
+  realisasi rupiah yang sudah berjalan hidup di buku besar. **Biaya per jam** sisi
+  beli = akumulasi penyusutan ÷ jam tercatat.
+
+**Kejujuran selnya** — persis alasan layar ini tidak menghitung lebih dari yang ia
+tahu:
+
+- Alat sewa **tanpa jam tercatat tampil bergaris (`—`), bukan 0** — "belum ada data"
+  dan "tidak pernah dipakai" adalah dua kalimat berbeda. Alat sewa berbasis
+  hari/bulan yang master asetnya belum menyebut periode sewa berkata *"Periode sewa
+  (rental_start) belum diisi — biaya sewa terikat belum dapat dihitung."*
+- Aset milik **tanpa harga perolehan** (baris warisan) berkata *"Tidak dapat
+  dibandingkan — harga perolehan tidak tercatat."* — tidak dibandingkan dengan Rp 0.
+- Aset milik yang belum punya jam register berkata *"Belum ada jam tercatat pada
+  register — biaya per jam belum dapat dihitung."*
+- Bila belum ada aset sama sekali: *"Belum ada aset hidup untuk dibandingkan."*
 
 ---
 
@@ -6130,7 +6404,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **50** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **56** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -6165,7 +6439,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 55 formulir
+### 13.3 Daftar lengkap 56 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -6213,6 +6487,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Evaluasi Vendor | F/EV | halaman Evaluasi Vendor |
 | Persyaratan K3L Vendor | F/K3V | halaman Vendor |
 | Daftar Riwayat Hidup (CV) Mandor — identitas + riwayat SP3 **tercatat** + register dokumen; 8 baris bergaris untuk pengalaman di luar sistem (§5.2) | F/CVM | halaman Vendor |
+| Perintah Kerja Alat & Jasa (PPK) — lembar **plafon komitmen**, tanpa tabel realisasi (§5.14) | F/PPK | halaman PPK |
 
 **Persediaan** (izin lihat persediaan):
 
@@ -6350,6 +6625,8 @@ Yang paling sering ditemui:
 | BAST Subkon (F/BST-SK) | **RETENSI DAPAT DILEPAS MULAI** bila SPK-nya belum mencatat akhir masa pemeliharaan · **YANG MENYERAHKAN / MENERIMA** yang belum dicatat | SPK tidak menyimpan *panjang* masa pemeliharaan, jadi tidak ada yang bisa dihitung — dan kosongnya persis keadaan yang juga membuat pelepasan retensi menuntut alasan override (§8.7, §8.8) |
 | CV Mandor (F/CVM) | **8 baris catatan bergaris** untuk keahlian/pengalaman di luar sistem · tabel **RIWAYAT SP3** hanya memuat SP3 disetujui/ditutup — kosong berbunyi *"Belum ada SP3 tercatat untuk mandor ini."* | riwayat kerja mandor sebelum sistem ini tidak tersimpan di kolom mana pun; yang tercatat hanyalah SP3 yang perusahaan ini saksikan sendiri. Lembar ini tidak mengarang pengalaman — ia menyediakan garis untuk ditulis tangan dan menunjuk lampiran CV-nya (§5.3) |
 | Rekap Upah (F/RU) | tidak ada yang bergaris — tetapi **tidak ada baris TOTAL**, dan kolom **STATUS** tercetak per baris sebagai kata | rekap boleh memuat draf dan approved berdampingan; satu total yang menjumlah keduanya adalah klaim yang belum ditandatangani siapa pun. Periode tanpa opname **tidak punya baris** — "tidak di-opname" dan "di-opname, nol" adalah dua pernyataan berbeda (§8.10) |
+| PPK Alat & Jasa (F/PPK) | baris **TANGGAL MULAI** & **TANGGAL SELESAI** bila PPK tidak menyebut periode · **KODE ALAT** pada baris jasa tanpa mesin · seluruh lembar adalah **plafon**, tanpa tabel realisasi | plafonnya yang memagari uang, bukan kalender — server memang tidak memagari periode tagihan ke tanggal PPK, jadi mencetak tanggal karangan berarti mencetak pagar yang tidak dipegang server. Realisasi tidak dicetak karena lembar ini ditandatangani **sebelum** satu jam pun tercatat; realisasinya hidup di Tagihan Periode PPK (§5.15) |
+| Kartu Aset alat sewa (F/KA) | **NILAI BUKU** bergaris kosong — **bukan Rp 0** | alat sewa milik vendor rental tidak pernah ada di neraca kita: harga perolehannya bukan nol, melainkan **tidak ada**. Fakta sewanya (lessor, tarif, periode) tercetak sebagai kalimat di blok Catatan, dan kartu aset milik sendiri tidak membawa baris VENDOR RENTAL bergaris (§9.10) |
 
 **Lembar yang sudah diisi dan ditandatangani itulah catatannya.** Arsipkan di berkas
 proyek — tidak ada layar untuk merekamnya kembali.

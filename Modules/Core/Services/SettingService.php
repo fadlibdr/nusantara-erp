@@ -521,6 +521,7 @@ class SettingService
         'BAN' => 'BA Negosiasi', 'AWD' => 'Keputusan pemenang', 'PBL' => 'Rencana pengadaan',
         'OPN' => 'Opname progres owner', 'BAPP' => 'BAPP per zona', 'BSK' => 'BAST subkontraktor',
         'SP3' => 'SP3 mandor (induk)', 'OPM' => 'Opname mandor',
+        'PPK' => 'PPK alat & jasa', 'PPKB' => 'Tagihan periode PPK',
     ];
 
     /**

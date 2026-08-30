@@ -5,11 +5,15 @@ namespace Modules\Assets\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Assets\Services\DeploymentService;
+use Modules\Assets\Services\RentVsOwnService;
 use Modules\Core\Http\ApiController;
 
 class ReportController extends ApiController
 {
-    public function __construct(private readonly DeploymentService $service) {}
+    public function __construct(
+        private readonly DeploymentService $service,
+        private readonly RentVsOwnService $rentVsOwn,
+    ) {}
 
     /**
      * GET reports/utilization?project_id=&from=&to=
@@ -28,5 +32,14 @@ class ReportController extends ApiController
             $request->filled('from') ? $request->string('from')->toString() : null,
             $request->filled('to') ? $request->string('to')->toString() : null,
         ));
+    }
+
+    /**
+     * GET reports/rent-vs-own — Evaluasi Sewa vs Beli (P5), BACA SAJA:
+     * tidak menulis apa pun, tidak menyimpan kesimpulan apa pun.
+     */
+    public function rentVsOwn(): JsonResponse
+    {
+        return $this->ok($this->rentVsOwn->compare());
     }
 }

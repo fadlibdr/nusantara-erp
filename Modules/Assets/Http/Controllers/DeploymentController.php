@@ -65,7 +65,20 @@ class DeploymentController extends ApiController
 
     public function update(DeploymentUpdateRequest $request, Deployment $deployment): JsonResponse
     {
-        $deployment->update($request->validated());
+        $data = $request->validated();
+
+        // P5 — pintu belakang guard deploy(): tanpa baris ini tarif internal
+        // bisa disematkan SESUDAH mobilisasi pada alat sewa, dan akrual
+        // bulanan akan membebankan alat yang tagihan vendornya sudah berjalan.
+        if (array_key_exists('daily_rate_internal', $data) && $deployment->asset !== null) {
+            try {
+                $this->service->assertInternalRateFitsOwnership($deployment->asset, $data['daily_rate_internal']);
+            } catch (LogicException $e) {
+                return $this->error($e->getMessage());
+            }
+        }
+
+        $deployment->update($data);
 
         return $this->ok(DeploymentResource::make($deployment->load('asset.category')));
     }
