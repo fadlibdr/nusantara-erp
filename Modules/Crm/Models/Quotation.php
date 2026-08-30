@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\BaseModel;
+use Modules\Core\Models\MethodLibraryEntry;
 use Modules\Core\Traits\Approvable;
 use Modules\Core\Traits\HasDocumentNumber;
 use Modules\Crm\Enums\ScopeType;
@@ -53,6 +54,22 @@ class Quotation extends BaseModel
     public function items(): HasMany
     {
         return $this->hasMany(QuotationItem::class, 'quotation_id')->orderBy('line_no');
+    }
+
+    /**
+     * P7: "Metode Pelaksanaan" — the library version this offer cites. A read
+     * into Core, which every module may depend on; the column carries no FK
+     * (CONVENTIONS §3) and the not-superseded rule lives in QuotationService.
+     */
+    public function methodLibraryEntry(): BelongsTo
+    {
+        return $this->belongsTo(MethodLibraryEntry::class, 'method_library_id');
+    }
+
+    /** P7: lembar hitung TKDN atas penawaran ini, bila sudah dibuat. */
+    public function tkdnWorksheet(): HasOne
+    {
+        return $this->hasOne(TkdnWorksheet::class, 'quotation_id');
     }
 
     public function contract(): HasOne

@@ -18,6 +18,23 @@ class QuotationResource extends JsonResource
             'title' => $this->title,
             'scope_type' => $this->scope_type?->value,
             'scope_type_label' => $this->scope_type?->label(),
+            /*
+             * P7 — "Metode Pelaksanaan". Kunci id-nya WAJIB pulang: SPA
+             * menyemai form edit dari endpoint show dan mengirim kembali setiap
+             * field yang terlihat, jadi rujukan yang tidak pernah terbaca akan
+             * terkirim sebagai null dan TERHAPUS oleh penyimpanan yang tidak
+             * menyentuhnya sama sekali.
+             *
+             * Kode dan judulnya diratakan mengikuti idiom Resource modul lain
+             * (drawing_number, ipp_code, location_path): pemilih di layar butuh
+             * LABEL, dan sebuah id telanjang memaksa satu tembakan kedua ke
+             * pustaka metode hanya untuk menuliskan namanya.
+             */
+            'method_library_id' => $this->method_library_id,
+            'method_library_code' => $this->whenLoaded(
+                'methodLibraryEntry', fn () => $this->methodLibraryEntry?->code),
+            'method_library_title' => $this->whenLoaded(
+                'methodLibraryEntry', fn () => $this->methodLibraryEntry?->title),
             'valid_until' => $this->valid_until?->toDateString(),
             'subtotal' => $this->subtotal,
             'discount_amount' => $this->discount_amount,

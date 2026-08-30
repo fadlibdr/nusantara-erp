@@ -48,7 +48,12 @@ class QuotationController extends ApiController
 
     public function show(Quotation $quotation): JsonResponse
     {
-        return $this->ok(QuotationResource::make($quotation->load('items', 'customer', 'lead', 'contract')));
+        // methodLibraryEntry ikut dimuat: Resource meratakan kode dan judulnya,
+        // dan relasi yang tidak disebut di sini membuat kunci ratanya hilang
+        // dari justru satu-satunya endpoint yang menyemai form edit.
+        return $this->ok(QuotationResource::make(
+            $quotation->load('items', 'customer', 'lead', 'contract', 'methodLibraryEntry')
+        ));
     }
 
     public function update(QuotationUpdateRequest $request, Quotation $quotation): JsonResponse

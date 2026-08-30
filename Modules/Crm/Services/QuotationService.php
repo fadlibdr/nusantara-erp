@@ -4,8 +4,11 @@ namespace Modules\Crm\Services;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Models\MethodLibraryEntry;
+use Modules\Core\Services\MethodLibraryService;
 use Modules\Core\Support\Erp;
 use Modules\Crm\Enums\GuaranteeStatus;
 use Modules\Crm\Enums\LeadStatus;
@@ -15,8 +18,54 @@ use Modules\Crm\Models\Quotation;
 
 class QuotationService
 {
+    /**
+     * P7 — "Metode Pelaksanaan": the cited library version must still be the
+     * CURRENT one.
+     *
+     * A superseded version is a withdrawn document. Citing one on an offer
+     * that goes out today promises the customer a method the company has
+     * replaced, and nothing downstream would ever notice: the id resolves, the
+     * title prints, the sheet looks complete. So the refusal names the version
+     * that IS current, because the author of the offer needs to know where to
+     * point, not merely that they pointed wrong.
+     *
+     * A missing row is refused too — the reference is a claim that a method
+     * exists, and a dangling id prints as a ruled blank on the sheet while the
+     * checklist ticks "metode pelaksanaan" as supplied.
+     */
+    private function assertMethodReferenceIsCurrent(array $data): void
+    {
+        if (! array_key_exists('method_library_id', $data) || $data['method_library_id'] === null) {
+            return;
+        }
+
+        $entry = MethodLibraryEntry::query()->find((int) $data['method_library_id']);
+
+        if ($entry === null) {
+            throw ValidationException::withMessages([
+                'method_library_id' => ['Metode pelaksanaan yang dirujuk tidak ditemukan di pustaka metode.'],
+            ]);
+        }
+
+        if ($entry->isCurrent()) {
+            return;
+        }
+
+        $current = app(MethodLibraryService::class)->current($entry->category, $entry->work_package);
+
+        throw ValidationException::withMessages([
+            'method_library_id' => [
+                "Metode {$entry->code} versi {$entry->version} sudah digantikan"
+                    .($current !== null ? "; versi yang berlaku adalah {$current->code} versi {$current->version}" : '')
+                    .'.',
+            ],
+        ]);
+    }
+
     public function create(array $data): Quotation
     {
+        $this->assertMethodReferenceIsCurrent($data);
+
         return DB::transaction(function () use ($data): Quotation {
             $items = Arr::pull($data, 'items', []);
 
@@ -36,6 +85,7 @@ class QuotationService
     public function update(Quotation $quotation, array $data): Quotation
     {
         $this->assertEditable($quotation);
+        $this->assertMethodReferenceIsCurrent($data);
 
         return DB::transaction(function () use ($quotation, $data): Quotation {
             $items = Arr::pull($data, 'items');

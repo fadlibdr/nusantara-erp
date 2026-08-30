@@ -47,6 +47,25 @@ export const ENUMS = {
     ['draft', 'Draf'], ['active', 'Aktif'], ['closed', 'Selesai'],
   ]),
 
+  /* P7 — cermin Modules\Crm\Enums\Tkdn*. Nilainya adalah tabel Permenperin
+     35/2025 Lampiran IV huruf B, bukan pilihan gaya rumah: tenaga kerja
+     dinilai dari KEWARGANEGARAAN, alat kerja dari NEGARA PEMBUAT × KEPEMILIKAN,
+     jasa umum dari ASAL PENYEDIA. Tidak ada pilihan "persen dalam negeri" yang
+     bisa diketik, di sini maupun di server. */
+  tkdnCostGroup: opts([
+    ['tenaga_kerja', 'Tenaga kerja'],
+    ['alat_kerja', 'Alat kerja / fasilitas kerja'],
+    ['jasa_umum', 'Jasa umum'],
+  ]),
+  tkdnNationality: opts([
+    ['wni', 'Warga Negara Indonesia'], ['wna', 'Warga Negara Asing'],
+  ]),
+  tkdnOrigin: opts([['dn', 'Dalam negeri'], ['ln', 'Luar negeri']]),
+  tkdnOwnership: opts([
+    ['dn', 'Dimiliki dalam negeri'], ['ln', 'Dimiliki luar negeri'],
+    ['campuran', 'Dimiliki dalam negeri + luar negeri'],
+  ]),
+
   scopeType: opts([
     ['construction', 'Konstruksi Gedung'],
     ['system_integration', 'Integrasi Sistem (ELV/ICT)'],

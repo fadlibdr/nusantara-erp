@@ -13,6 +13,7 @@ use Modules\Core\Http\Controllers\ExternalApprovalController;
 use Modules\Core\Http\Controllers\FormPrintController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
+use Modules\Core\Http\Controllers\MethodLibraryController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
 use Modules\Core\Http\Controllers\SearchController;
@@ -93,6 +94,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('locations/{location}', [LocationController::class, 'show'])->middleware('permission:prj.view');
     Route::put('locations/{location}', [LocationController::class, 'update'])->middleware('permission:prj.update');
     Route::delete('locations/{location}', [LocationController::class, 'destroy'])->middleware('permission:prj.delete');
+
+    // Pustaka metode kerja (P7): the "Metode Pelaksanaan" a penawaran cites and
+    // the site executes. Gated by est.*, not core.*, for the reason the
+    // locations block above states — a Core table maintained by another
+    // module's people; here the estimator/drafter who writes the method
+    // alongside the RAB. Reading is est.view: procurement, project management
+    // and estimating all read it.
+    Route::get('method-library', [MethodLibraryController::class, 'index'])->middleware('permission:est.view');
+    Route::post('method-library', [MethodLibraryController::class, 'store'])->middleware('permission:est.create');
+    Route::get('method-library/{methodLibrary}', [MethodLibraryController::class, 'show'])->middleware('permission:est.view');
+    Route::put('method-library/{methodLibrary}', [MethodLibraryController::class, 'update'])->middleware('permission:est.update');
+    // POST, not PUT: a revision CREATES version n+1 and stamps its predecessor.
+    Route::post('method-library/{methodLibrary}/revisions', [MethodLibraryController::class, 'publishRevision'])->middleware('permission:est.create');
+    Route::delete('method-library/{methodLibrary}', [MethodLibraryController::class, 'destroy'])->middleware('permission:est.delete');
 
     // Bulk load / export of master data. No route-level permission: the right
     // one depends on which table is being loaded, so the controller derives it

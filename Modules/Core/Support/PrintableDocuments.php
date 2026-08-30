@@ -16,7 +16,11 @@ use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Models\Guarantee;
 use Modules\Crm\Models\Quotation;
+use Modules\Crm\Models\RkkDocument;
+use Modules\Crm\Models\TenderPackage;
 use Modules\Crm\Services\CrmFormService;
+use Modules\Crm\Services\RkkService;
+use Modules\Crm\Services\TenderQualificationService;
 use Modules\Engineering\Models\DrawingSubmittal;
 use Modules\Engineering\Models\MaterialSubmittal;
 use Modules\Engineering\Models\Transmittal;
@@ -372,6 +376,18 @@ class PrintableDocuments
      * @var array<int, array<int, float>>
      */
     private array $ceilingCache = [];
+
+    /**
+     * P7 — the qualification composer's answers, by tender package id. Same
+     * reasoning as $ceilingCache, and keyed the same way: one request is one
+     * sheet, but the key is what makes that true rather than assumed.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    private array $personnelCache = [];
+
+    /** @var array<int, array<string, mixed>> */
+    private array $equipmentCache = [];
 
     /**
      * Every printable document, by slug.
@@ -953,7 +969,373 @@ class PrintableDocuments
                     ],
                 ],
             ],
+
+            /*
+             * P7 — F/RKK, Rencana Keselamatan Konstruksi yang dilampirkan pada
+             * penawaran (struktur Permen PUPR 10/2021).
+             *
+             * DUA TABEL, DUA SUMBER YANG SAMA-SAMA HIDUP. Bagian IBPRP mencetak
+             * baris prj_risk_register yang ditaut RKK ini, dibaca saat cetak —
+             * bukan salinan yang membeku pada hari penautan; baris register yang
+             * sudah dihapus tetap tercetak sebagai baris dengan sel BERGARIS,
+             * karena penilaian risiko yang lenyap adalah fakta tentang RKK-nya
+             * dan menghilangkannya membuat lembar ini terbaca lengkap.
+             *
+             * Biaya SMKK mencetak baris est_boq_items yang ditaut, dengan
+             * rupiah yang DITURUNKAN dari baris RAB itu — tidak ada rupiah
+             * kedua yang disimpan di sisi RKK, jadi lembar ini tidak bisa
+             * berselisih dengan RAB yang ditandatangani bersamanya. Baris yang
+             * RAB-nya hilang membawa amount null: sel bergaris, dan ia TIDAK
+             * ikut dijumlahkan (RkkService::smkkTotal) — 0,00 di sana berarti
+             * "tidak berbiaya", yang bukan yang kita ketahui.
+             *
+             * header 'none': sebuah RKK penawaran belum punya proyek, belum
+             * punya SPK, dan pemberi tugasnya masih instansi pada berkas
+             * lelang — bukan Customer. identityHouse otomatis false karena tak
+             * ada Project yang terurai.
+             */
+            'rkk' => [
+                'resource' => 'crm/rkk-documents',
+                'model' => RkkDocument::class,
+                'permission' => 'crm.view',
+                'label' => 'RKK Penawaran',
+                'formTitle' => 'RENCANA KESELAMATAN KONSTRUKSI (RKK)',
+                'formCode' => 'Form F/RKK',
+                'orientation' => 'landscape',
+                // smkkCosts.boqItem dinamai, bukan hanya smkkCosts: RkkService
+                // membaca amount dari baris BoQ-nya, dan relasi yang tidak
+                // disebut di sini adalah satu query per baris DI DALAM satu
+                // cetakan — kesalahan yang diperingatkan docblock berkas ini.
+                'with' => [
+                    'tenderPackage' => fn ($query) => $query->withTrashed(),
+                    'ibprpLinks',
+                    'smkkCosts',
+                    'smkkCosts.boqItem',
+                ],
+                'header' => ['kind' => 'none'],
+                'title' => 'title',
+                'pekerjaan' => 'tenderPackage.title',
+                'identity' => [
+                    'NO. RKK' => 'code',
+                    'PAKET TENDER' => 'tenderPackage.code',
+                    'PEMBERI TUGAS' => 'tenderPackage.owner_name',
+                    'NO. LELANG' => 'tenderPackage.tender_number',
+                    // Dari register siapa baris IBPRP di bawah berasal. Sebuah
+                    // RKK penawaran belum punya proyek, jadi barisnya datang
+                    // dari register proyek sejenis — dan lembar yang tidak
+                    // menyebutkannya membuat pembacanya mengira penilaian itu
+                    // dibuat untuk pekerjaan ini. Kosong (bergaris) bila RKK
+                    // tidak menyebut proyek sumbernya.
+                    'SUMBER REGISTER IBPRP' => [
+                        'value' => fn (RkkDocument $rkk): ?string => app(RkkService::class)->sourceProjectCode($rkk),
+                    ],
+                    'JUMLAH BIAYA PENERAPAN SMKK' => [
+                        'value' => fn (RkkDocument $rkk): float => app(RkkService::class)->smkkTotal($rkk),
+                        'cast' => 'rupiah',
+                    ],
+                ],
+                'body' => [
+                    [
+                        'id' => 'rkk-kebijakan',
+                        'title' => 'A. KEPEMIMPINAN DAN PARTISIPASI PEKERJA — KEBIJAKAN KESELAMATAN KONSTRUKSI',
+                        // Tabel satu baris teks — dan NOL baris bila teksnya
+                        // belum ditulis, supaya kalimat 'empty' di bawah yang
+                        // tercetak, bukan satu baris kosong yang terbaca seolah
+                        // kebijakannya ada tapi tak terbaca.
+                        'rows' => fn (RkkDocument $rkk): array => $rkk->policy === null || $rkk->policy === ''
+                            ? []
+                            : [['teks' => $rkk->policy]],
+                        'columns' => [
+                            ['label' => 'URAIAN', 'value' => 'teks'],
+                        ],
+                        'empty' => 'Kebijakan keselamatan konstruksi belum diisi.',
+                    ],
+                    [
+                        'id' => 'rkk-ibprp',
+                        'title' => 'B. PERENCANAAN KESELAMATAN KONSTRUKSI — IDENTIFIKASI BAHAYA, PENILAIAN RISIKO DAN PENGENDALIAN',
+                        'rows' => fn (RkkDocument $rkk): array => app(RkkService::class)->ibprpRows($rkk),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'URAIAN PEKERJAAN', 'value' => 'activity'],
+                            ['label' => 'IDENTIFIKASI BAHAYA', 'value' => 'hazard'],
+                            ['label' => 'DAMPAK', 'value' => 'impact'],
+                            ['label' => 'F', 'align' => 'center', 'width' => '10mm', 'value' => 'likelihood', 'cast' => 'int'],
+                            ['label' => 'A', 'align' => 'center', 'width' => '10mm', 'value' => 'severity', 'cast' => 'int'],
+                            ['label' => 'F×A', 'align' => 'center', 'width' => '12mm', 'value' => 'initial_score', 'cast' => 'int'],
+                            ['label' => 'PENGENDALIAN', 'value' => 'controls'],
+                            ['label' => 'RISIKO SISA', 'align' => 'center', 'width' => '20mm',
+                                'value' => 'residual_score', 'cast' => 'int'],
+                        ],
+                        'empty' => 'RKK ini belum menaut satu pun baris IBPRP.',
+                    ],
+                    [
+                        'id' => 'rkk-program',
+                        'title' => 'C. PROGRAM DAN SASARAN KESELAMATAN KONSTRUKSI',
+                        'rows' => fn (RkkDocument $rkk): array => $rkk->program === null || $rkk->program === ''
+                            ? []
+                            : [['teks' => $rkk->program]],
+                        'columns' => [
+                            ['label' => 'URAIAN', 'value' => 'teks'],
+                        ],
+                        'empty' => 'Program keselamatan konstruksi belum diisi.',
+                    ],
+                    [
+                        'id' => 'rkk-biaya-smkk',
+                        'title' => 'D. BIAYA PENERAPAN SMKK (BARIS RAB)',
+                        'rows' => fn (RkkDocument $rkk): array => app(RkkService::class)->smkkRows($rkk),
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'KOMPONEN', 'width' => '40mm', 'value' => 'category'],
+                            ['label' => 'KODE RAB', 'align' => 'center', 'width' => '20mm', 'value' => 'wbs_code'],
+                            ['label' => 'URAIAN BARIS RAB', 'value' => 'description'],
+                            ['label' => 'VOL', 'align' => 'right', 'width' => '18mm', 'value' => 'qty', 'cast' => 'qty'],
+                            ['label' => 'SAT', 'align' => 'center', 'width' => '14mm', 'value' => 'unit'],
+                            ['label' => 'HARGA SATUAN (Rp)', 'align' => 'right', 'width' => '30mm',
+                                'value' => 'unit_price', 'cast' => 'money'],
+                            ['label' => 'JUMLAH (Rp)', 'align' => 'right', 'width' => '32mm',
+                                'value' => 'amount', 'cast' => 'money'],
+                        ],
+                        'totals' => [
+                            [
+                                'label' => 'Jumlah biaya penerapan SMKK',
+                                'value' => fn (RkkDocument $rkk): float => app(RkkService::class)->smkkTotal($rkk),
+                                'cast' => 'money',
+                            ],
+                        ],
+                        'empty' => 'RKK ini belum menaut satu pun baris biaya SMKK pada RAB.',
+                    ],
+                ],
+                'notes' => ['lines' => 3],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * P7 — F/SBD, daftar personil inti dan pernyataan bersedia
+             * ditugaskan.
+             *
+             * BERJANGKAR PADA PAKET TENDER, bukan pada satu baris sertifikat.
+             * Satu lembar per lelang yang memuat personilnya adalah bentuk yang
+             * dipakai panitia; satu lembar per orang akan menggarisi judul
+             * paket, pemberi tugas dan nomor lelang pada setiap salinannya,
+             * karena tak satu pun dari itu diketahui sebuah baris hr_certificates.
+             *
+             * YANG DICETAK HANYA SERTIFIKAT YANG MASIH BERLAKU. Baris yang
+             * kedaluwarsa TIDAK muncul di tabel ini — sebuah lembar yang
+             * menyatakan seorang ahli bersedia ditugaskan tidak boleh berdiri di
+             * atas SKK yang sudah lewat — tetapi juga tidak dibuang diam-diam:
+             * jumlahnya tercetak pada blok identitas ("SERTIFIKAT KEDALUWARSA
+             * TIDAK DIDAFTAR"), supaya orang yang memegang lembar ini tahu ada
+             * yang perlu diperpanjang, bukan mengira tidak ada.
+             *
+             * Tanggal acuannya tercetak sendiri (PERSONIL PER TANGGAL): daftar
+             * ini menjawab "berlaku pada tanggal berapa", dan sebuah lembar yang
+             * tidak menyebut tanggalnya menjawab pertanyaan yang berbeda setiap
+             * kali dicetak.
+             *
+             * DAN TANGGAL ITU ADALAH TANGGAL LEMBAR, BUKAN HARI CETAK —
+             * 'date' => 'submission_deadline'. Batas pemasukan penawaran adalah
+             * tanggal panitia menilai berkas yang dimasukkan, jadi itulah
+             * tanggal yang harus dijawab: sertifikat yang masih berlaku hari ini
+             * tetapi lewat sebelum berkasnya dinilai bukan kualifikasi. Kolom
+             * itu sekaligus menjadi tanggal di kepala lembar, sehingga lembar
+             * dan jawabannya menyebut tanggal yang sama, dan cetak ulang bulan
+             * depan memulangkan lembar yang sama. Paket yang belum mencatat
+             * batas pemasukan jatuh ke ?tanggal= / hari cetak seperti blanko
+             * mana pun — dan barisnya tetap tercetak, jadi yang membaca lembar
+             * tahu tanggal apa yang dijawab.
+             */
+            'daftar-personil' => [
+                'resource' => 'crm/tender-packages',
+                'model' => TenderPackage::class,
+                'permission' => 'crm.view',
+                'label' => 'Daftar Personil (F/SBD)',
+                'formTitle' => 'DAFTAR PERSONIL INTI DAN SURAT BERSEDIA DITUGASKAN',
+                'formCode' => 'Form F/SBD',
+                'orientation' => 'landscape',
+                'header' => ['kind' => 'none'],
+                'date' => 'submission_deadline',
+                'title' => 'title',
+                'pekerjaan' => 'title',
+                'identity' => [
+                    'NO. PAKET TENDER' => 'code',
+                    'PEMBERI TUGAS' => 'owner_name',
+                    'NO. LELANG' => 'tender_number',
+                    'PERSONIL PER TANGGAL' => [
+                        'value' => fn (TenderPackage $package): string => $this->qualification($package)['as_of'],
+                        'cast' => 'date',
+                    ],
+                    'SERTIFIKAT KEDALUWARSA TIDAK DIDAFTAR' => [
+                        'value' => fn (TenderPackage $package): int => count($this->qualification($package)['kedaluwarsa']),
+                        'cast' => 'int',
+                    ],
+                ],
+                'body' => [
+                    [
+                        'id' => 'daftar-personil-inti',
+                        'title' => 'DAFTAR PERSONIL INTI (SERTIFIKAT MASIH BERLAKU)',
+                        'rows' => fn (TenderPackage $package): array => $this->qualification($package)['memenuhi'],
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'NAMA', 'value' => 'employee_name'],
+                            ['label' => 'JABATAN', 'width' => '38mm', 'value' => 'position'],
+                            // Labelnya, bukan nilai enum mentahnya: lampiran
+                            // bertanda tangan tidak menulis 'skk'.
+                            ['label' => 'JENIS SERTIFIKAT', 'width' => '26mm', 'value' => 'certificate_type_label'],
+                            ['label' => 'NAMA SERTIFIKAT', 'value' => 'certificate_name'],
+                            ['label' => 'NOMOR', 'width' => '34mm', 'value' => 'number'],
+                            ['label' => 'PENERBIT', 'width' => '26mm', 'value' => 'issuer'],
+                            ['label' => 'BERLAKU S/D', 'align' => 'center', 'width' => '28mm',
+                                'value' => 'expiry_date', 'cast' => 'date'],
+                            // Kolom tanda tangan pernyataan bersedia — diisi
+                            // tangan di lapangan, seperti pada kertasnya.
+                            ['label' => 'TANDA TANGAN', 'align' => 'center', 'width' => '34mm',
+                                'value' => fn (mixed $row): ?string => null],
+                        ],
+                        'empty' => 'Belum ada personil bersertifikat yang masih berlaku pada tanggal ini.',
+                    ],
+                ],
+                'notes' => [
+                    'text' => 'Yang bertanda tangan pada kolom terakhir menyatakan bersedia ditugaskan '
+                        .'pada paket pekerjaan tersebut di atas sesuai jabatan yang tercantum.',
+                    'lines' => 2,
+                ],
+                'signatures' => 'house',
+            ],
+
+            /*
+             * P7 — F/DA, dukungan peralatan.
+             *
+             * MEMUAT ALAT SEWA, DAN MENYEBUTNYA SEWA. P5 membuat alat sewa
+             * menjadi baris ast_assets yang sah dan sebuah alat sewa memang
+             * boleh mendukung penawaran — itu fakta yang dapat diungkapkan.
+             * Yang tidak boleh adalah lembar yang membuatnya terbaca seperti
+             * milik sendiri, karena STATUS KEPEMILIKAN adalah kolom yang
+             * diperiksa panitia. Maka kolom STATUS dan PEMILIK / LESSOR berdiri
+             * di tengah tabel, bukan sebagai catatan kaki, dan alat milik
+             * sendiri menggarisi kolom lessor-nya (tidak ada lessor untuk
+             * digarisbawahi, dan "-" akan menjadi kalimat).
+             *
+             * ALAT SEWA YANG MASA SEWANYA SUDAH BERAKHIR TIDAK DICETAK, dengan
+             * alasan yang persis sama yang membuang sertifikat lewat dari
+             * F/SBD: sebuah lembar yang menawarkan excavator tidak boleh
+             * menawarkan excavator yang sudah kembali ke lessor, dan tidak ada
+             * apa pun di modul Aset yang memindahkan statusnya ketika sewanya
+             * habis. Ia juga tidak dibuang diam-diam — jumlahnya tercetak pada
+             * blok identitas (SEWA BERAKHIR TIDAK DIDAFTAR), supaya sewanya
+             * sempat diperpanjang sebelum batas pemasukan.
+             *
+             * Tanggal pembandingnya adalah TANGGAL LEMBAR, sama seperti F/SBD:
+             * 'date' => 'submission_deadline'. Lihat catatan pada F/SBD.
+             */
+            'dukungan-alat' => [
+                'resource' => 'crm/tender-packages',
+                'model' => TenderPackage::class,
+                'permission' => 'crm.view',
+                'label' => 'Dukungan Alat (F/DA)',
+                'formTitle' => 'DAFTAR PERALATAN UTAMA / SURAT DUKUNGAN ALAT',
+                'formCode' => 'Form F/DA',
+                'orientation' => 'landscape',
+                'header' => ['kind' => 'none'],
+                'date' => 'submission_deadline',
+                'title' => 'title',
+                'pekerjaan' => 'title',
+                'identity' => [
+                    'NO. PAKET TENDER' => 'code',
+                    'PEMBERI TUGAS' => 'owner_name',
+                    'NO. LELANG' => 'tender_number',
+                    'ALAT PER TANGGAL' => [
+                        'value' => fn (TenderPackage $package): string => $this->equipmentRows($package)['as_of'],
+                        'cast' => 'date',
+                    ],
+                    'JUMLAH ALAT DIDAFTAR' => [
+                        'value' => fn (TenderPackage $package): int => count($this->equipmentRows($package)['memenuhi']),
+                        'cast' => 'int',
+                    ],
+                    'SEWA BERAKHIR TIDAK DIDAFTAR' => [
+                        'value' => fn (TenderPackage $package): int => count($this->equipmentRows($package)['kedaluwarsa']),
+                        'cast' => 'int',
+                    ],
+                ],
+                'body' => [
+                    [
+                        'id' => 'daftar-peralatan-utama',
+                        'title' => 'DAFTAR PERALATAN UTAMA',
+                        'rows' => fn (TenderPackage $package): array => $this->equipmentRows($package)['memenuhi'],
+                        'columns' => [
+                            ['label' => 'NO', 'align' => 'center', 'width' => '9mm',
+                                'value' => fn (mixed $row, int $index): int => $index + 1],
+                            ['label' => 'KODE', 'width' => '28mm', 'value' => 'code'],
+                            ['label' => 'JENIS / NAMA ALAT', 'value' => 'name'],
+                            ['label' => 'MERK', 'width' => '26mm', 'value' => 'brand'],
+                            ['label' => 'TIPE', 'width' => '26mm', 'value' => 'model'],
+                            ['label' => 'NO. SERI', 'width' => '30mm', 'value' => 'serial_no'],
+                            ['label' => 'STATUS', 'align' => 'center', 'width' => '24mm', 'value' => 'ownership_label'],
+                            ['label' => 'PEMILIK / LESSOR', 'width' => '40mm', 'value' => 'lessor_name'],
+                            ['label' => 'SEWA S/D', 'align' => 'center', 'width' => '26mm',
+                                'value' => 'rental_end', 'cast' => 'date'],
+                        ],
+                        'empty' => 'Belum ada peralatan tercatat pada register aset.',
+                    ],
+                ],
+                'notes' => [
+                    'text' => 'Alat berstatus "Sewa" bukan milik perusahaan; pemilik/lessor dan masa sewanya '
+                        .'tercantum pada baris yang bersangkutan.',
+                    'lines' => 2,
+                ],
+                'signatures' => 'house',
+            ],
         ];
+    }
+
+    /**
+     * THE SHEET'S OWN DATE for a tender package, and the reason it is not today.
+     *
+     * A qualification annex is judged on the day the bid is opened, so the date
+     * it must answer as at is the package's BATAS PEMASUKAN PENAWARAN: a
+     * certificate that lapses, or a lease that ends, between the day somebody
+     * presses print and the day the committee reads the envelope is not a
+     * qualification. Both sheets declare that same column as their registry
+     * 'date', so the date this returns is also the date printed at the head of
+     * the sheet — one date, stated once, and a reprint next month returns the
+     * same sheet.
+     *
+     * A package that records no deadline falls back to the print date, which is
+     * what the registry's own fallback does for a blank pad. Nothing is hidden
+     * by the fallback: both sheets print the date they answered as at
+     * (PERSONIL PER TANGGAL / ALAT PER TANGGAL) in their identity block.
+     */
+    private function sheetDate(TenderPackage $package): Carbon
+    {
+        return $package->submission_deadline?->copy()->startOfDay() ?? Carbon::now()->startOfDay();
+    }
+
+    /**
+     * The qualified/lapsed personnel split, computed ONCE per printed sheet.
+     *
+     * Memoised for the reason measurementCeilings() is: F/SBD asks the composer
+     * three times (two identity lines and the body table) and one printed sheet
+     * must not be three sweeps of hr_certificates. Keyed by package id rather
+     * than a bare `??=`: one request is one sheet in production, but a caller
+     * that composes two packages must not be handed the first one's answer.
+     *
+     * @return array{as_of: string, memenuhi: array<int, array<string, mixed>>, kedaluwarsa: array<int, array<string, mixed>>}
+     */
+    private function qualification(TenderPackage $package): array
+    {
+        return $this->personnelCache[$package->id] ??= app(TenderQualificationService::class)
+            ->personnel($this->sheetDate($package));
+    }
+
+    /**
+     * @return array{as_of: string, memenuhi: array<int, array<string, mixed>>, kedaluwarsa: array<int, array<string, mixed>>}
+     */
+    private function equipmentRows(TenderPackage $package): array
+    {
+        return $this->equipmentCache[$package->id] ??= app(TenderQualificationService::class)
+            ->equipment(null, $this->sheetDate($package));
     }
 
     // ===================================================== the other modules =

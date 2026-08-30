@@ -19,7 +19,15 @@ import * as fmt from '../format.js';
  * they diverge — a slug that exists on only one side is either a card that
  * 422s or a document that silently cannot hold files. */
 export const ATTACHABLE = new Set([
+  /* P7: pustaka metode kerja — inilah dokumen yang kebijakan pptx/docx P0-D
+   * dipaku untuknya; metode pelaksanaan datang sebagai dek slide atau Word.
+   * Lampirannya menempel pada VERSI, bukan pada metodenya. */
+  'core/method-library',
   'crm/quotations', 'crm/contracts', 'crm/guarantees',
+  /* P7: kertas milik PEMBERI TUGAS — dokumen pemilihan, tiap addendum, dan
+   * BA aanwijzing yang ditandatangani. Lembar TKDN & RKK sengaja tidak:
+   * keduanya disusun dari baris yang dimiliki ERP ini. */
+  'crm/tender-packages',
   'estimation/boqs', 'estimation/cost-budgets',
   /* P1-ENG: lembar gambar (dwg/dxf, kebijakan P0-D) pada submittal gambar;
    * brosur & mill certificate pada submittal material. IPP sengaja tidak. */

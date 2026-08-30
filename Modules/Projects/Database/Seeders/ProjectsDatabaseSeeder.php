@@ -10,6 +10,8 @@ use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\Location;
 use Modules\Core\Models\NumberSequence;
+use Modules\Crm\Models\RkkDocument;
+use Modules\Crm\Services\RkkService;
 use Modules\Projects\Enums\CertifyingParty;
 use Modules\Projects\Enums\IncidentCategory;
 use Modules\Projects\Enums\IncidentSeverity;
@@ -81,6 +83,10 @@ class ProjectsDatabaseSeeder extends Seeder
         // (project, date) against DRP/2026/03/0001, which must exist first.
         $this->seedHseDaily($graha);
         $this->seedRiskRegister($graha);
+        // P7 — segera setelah registernya ada: Crm diseed SEBELUM modul ini,
+        // jadi pada seed segar seedRkk-nya menemukan register kosong dan RKK
+        // demo tinggal tanpa tautan IBPRP; kembaran di sini yang melengkapinya.
+        $this->completeRkkIbprpLinks();
         $this->seedManpower($graha);
         $this->seedMilestones($graha);
 
@@ -215,6 +221,57 @@ class ProjectsDatabaseSeeder extends Seeder
                     'created_by' => $createdBy,
                 ],
             );
+        }
+    }
+
+    /**
+     * P7 — KEMBARAN dari blok IBPRP pada CrmDatabaseSeeder::seedRkk (pola
+     * AST-0007: Procurement & Assets meng-updateOrCreate baris yang sama,
+     * CONVENTIONS §8). Crm diseed pada posisi 3, modul ini pada posisi 7 —
+     * jadi pada `migrate:fresh --seed` yang sebenarnya, seedRkk bertanya ke
+     * prj_risk_register yang MASIH KOSONG dan RKK demo tinggal dengan
+     * project_id NULL dan nol tautan; sisi yang jalan BELAKANGAN inilah yang
+     * melengkapinya, begitu barisan registernya ada.
+     *
+     * PEMILIHANNYA HURUF DEMI HURUF SAMA dengan sisi Crm (register hidup
+     * ber-project_id terkecil, lima baris pertama menurut sort_order), dan
+     * penulisannya lewat RkkService::syncIbprpLinks yang sama — ganti utuh,
+     * jadi jalan dua kali mendarat di keadaan yang sama, bukan menggandakan.
+     * SIAPA PUN YANG MENGUBAH PEMILIHANNYA WAJIB MENGUBAH KEDUA SEEDER;
+     * RkkSeederLinkageTest yang berbunyi bila salah satu sisi bergeser.
+     */
+    private function completeRkkIbprpLinks(): void
+    {
+        if (! class_exists(RkkService::class)
+            || ! Schema::hasTable('crm_rkk_documents')
+            || ! Schema::hasTable('crm_rkk_ibprp_links')) {
+            return;
+        }
+
+        // Hanya melengkapi RKK kanon yang sudah dibuat sisi Crm — membuatnya
+        // adalah pekerjaan CrmDatabaseSeeder, bukan seeder ini.
+        $rkk = RkkDocument::query()->where('code', 'RKK/2026/VIII/0001')->first();
+
+        if ($rkk === null) {
+            return;
+        }
+
+        $source = DB::table('prj_risk_register')
+            ->whereNull('deleted_at')
+            ->orderBy('project_id')
+            ->value('project_id');
+
+        $entryIds = $source === null ? [] : DB::table('prj_risk_register')
+            ->where('project_id', $source)
+            ->whereNull('deleted_at')
+            ->orderBy('sort_order')
+            ->limit(5)
+            ->pluck('id')
+            ->all();
+
+        if ($entryIds !== []) {
+            $rkk->forceFill(['project_id' => $source])->save();
+            app(RkkService::class)->syncIbprpLinks($rkk->refresh(), $entryIds);
         }
     }
 

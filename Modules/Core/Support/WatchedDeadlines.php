@@ -126,6 +126,46 @@ class WatchedDeadlines
                     ->where('status', '!=', DocumentStatus::Rejected->value),
             ],
             [
+                /*
+                 * P7 — batas pemasukan penawaran lelang.
+                 *
+                 * Ini adalah tenggat yang paling mahal dalam daftar ini dan
+                 * satu-satunya yang tidak bisa diperbaiki setelah lewat: sebuah
+                 * kontrak yang lewat tanggal masih bisa di-addendum, sebuah PO
+                 * yang telat masih bisa ditagih, tetapi lelang yang batas
+                 * pemasukannya terlewat sudah kalah — tidak ada tindakan yang
+                 * tersisa, hanya berkas yang terlanjur disiapkan.
+                 *
+                 * lead_days 7 dan valid_through_end: berkas masih boleh
+                 * dimasukkan PADA hari batasnya, jadi hari itu masih MENIPIS
+                 * ("hari ini") dan LEWAT baru mulai keesokan harinya. Tanpa
+                 * valid_through_end, hari terakhir — satu-satunya hari yang
+                 * masih bisa diselamatkan — akan jatuh di antara dua tingkat
+                 * dan tidak berbunyi sama sekali.
+                 *
+                 * crm.create, bukan crm.approve: yang harus bertindak adalah
+                 * tim yang menyusun berkasnya. 'value' sengaja kosong — paket
+                 * tender tidak menyimpan nilai HPS, dan mengutip rupiah yang
+                 * tidak ada adalah hal yang tidak boleh dilakukan lembar mana
+                 * pun di repo ini.
+                 */
+                'key' => 'tender_submission_deadline',
+                'table' => 'crm_tender_packages',
+                'date' => 'submission_deadline',
+                'display' => 'code',
+                'label' => 'Paket tender',
+                'unit' => 'paket tender',
+                'date_word' => 'batas pemasukan',
+                'lead_days' => 7,
+                'valid_through_end' => true,
+                'permission' => 'crm.create',
+                'link' => 'r/crm/tender-packages',
+                'title_upcoming' => 'Paket tender mendekati batas pemasukan',
+                'title_overdue' => 'Paket tender lewat batas pemasukan',
+                'columns' => ['deleted_at'],
+                'scope' => static fn (Builder $query): Builder => $query->whereNull('deleted_at'),
+            ],
+            [
                 // CTR/2026/II/0002 (Rp 9,8 M) ends 2026-12-18: perpanjangan,
                 // EOT or BAST has to move before that date, and wanprestasi is
                 // a management event — hence crm.approve, the direktur.

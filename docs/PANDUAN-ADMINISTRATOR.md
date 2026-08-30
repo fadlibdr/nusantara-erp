@@ -186,8 +186,21 @@ di sidebar, Core dan Iam bergabung menjadi satu grup **Sistem**.
 **Core (`core`) — Sistem.** Fondasi bersama: profil perusahaan, pengaturan
 (`core_settings`), penomoran dokumen, notifikasi (lonceng), log audit, pencarian
 global, dasbor, kalender, layar Tenggat, impor data master & dokumen, dan mesin
-cetak 58 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
+cetak 61 formulir rumah. Modul ini tidak punya dokumen bisnisnya sendiri; ia yang
 dipakai tiga belas modul lain.
+
+Sejak P7 Core juga menyimpan **pustaka metode kerja** (`core_method_library`, mask
+`MTD`) — "Metode Pelaksanaan" yang dikutip penawaran dan dikerjakan lapangan. Ia di Core
+karena dua sisi memakainya, dan **tabelnya tidak memuat satu pun kolom milik modul lain**
+(tidak ada `project_id`, tidak ada `boq_item_id`) — Core tidak boleh bergantung ke modul
+mana pun. **Izinnya `est.*`, bukan `core.*`**, dengan alasan yang persis sama yang
+membuat `core_locations` memakai `prj.*`: yang menulis sebuah metode pelaksanaan adalah
+estimator/drafter yang menyusunnya bersama RAB, sementara `core.*` hanya dipegang admin
+dan direktur — memakai `core.*` akan membuat pustaka ini praktis hanya-admin dan
+mendorong orang menempelkan metodenya di tempat lain. **Satu baris = satu versi**:
+revisi menerbitkan baris `version + 1` dan menstempel `superseded_by_id` pada
+pendahulunya (pola revisi submittal P1-ENG), dan `QuotationService` menolak penawaran
+baru yang mengutip versi yang sudah digantikan.
 
 **Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
 otentikasi saja: masuk, keluar, "siapa saya". Tidak ada layanan mandiri kata sandi.
@@ -196,6 +209,34 @@ otentikasi saja: masuk, keluar, "siapa saya". Tidak ada layanan mandiri kata san
 termin, pekerjaan tambah-kurang (CCO), jaminan & asuransi, analitik win-rate. Tidak
 ada satu pun dokumen CRM yang memposting ke buku besar — kontrak adalah komitmen,
 bukan jurnal.
+
+Sejak P7 juga **berkas lelang**: **paket tender** (`crm_tender_packages`, mask `TND` —
+register dokumen lelang dengan addendum berurutan, BA aanwijzing, checklist kelengkapan
+sebagai snapshot json), **lembar TKDN** (`crm_tkdn_worksheets`, mask `TKD`), **RKK
+penawaran** (`crm_rkk_documents`, mask `RKK`), dan **penyusun kualifikasi** — tiga
+endpoint baca-saja yang merakit lampiran sampul dari master modul lain. Empat catatan
+arsitektural yang layak Anda ketahui sebelum menyentuh apa pun di sini:
+
+- **Tidak satu pun dari ketiganya `Approvable`.** Maker-checker berkas lelang hidup pada
+  **penawarannya**, yang sudah melewati siklus itu; siklus kedua akan meminta pemegang
+  `crm.approve` menyetujui pengajuan yang sama dua kali (alasan yang sama menahan PPKB
+  P5 dan BAPP zona P3 keluar dari `ApprovableDocuments`). Ketiganya tetap bernomor —
+  berkas butuh identitas.
+- **Crm tidak mendapat panah dependensi baru.** `RkkService` membaca `prj_risk_register`
+  dan `TenderQualificationService` membaca `hr_certificates`, `ast_assets`, dan
+  `prc_vendors` **mentah, by value, di balik `Schema::hasTable`** — peranti yang sama
+  yang dipakai `BastPrerequisiteService` atas `qc_ncr` dan yang sudah dipakai
+  `TerminBillingService` atas `prj_milestones` dari dalam modul ini. Setiap nilai enum
+  yang disebut kueri-kueri itu (`'rented'`, `'subcontractor'`, `'active'`, `'disposed'`)
+  dieja sebagai literal **dan dipaku uji** supaya tidak bisa menyimpang diam-diam. Yang
+  dibaca lewat modelnya hanya `est_boq_items` — Crm → Estimation memang panah yang ada.
+- **Tidak ada rupiah kedua.** `crm_rkk_smkk_costs` tidak menyimpan satu kolom rupiah pun;
+  jumlah biaya SMKK dihitung dari baris RAB yang ditaut, setiap kali. Baris yang baris
+  RAB-nya lenyap melaporkan `amount` NULL dan **dikecualikan dari jumlah**, bukan
+  dihitung nol.
+- **Tidak ada tabel nominasi.** Penyusun kualifikasi tidak menyimpan "siapa yang
+  diajukan pada lelang mana": daftar nominasi yang tidak dirawat adalah roster kedua yang
+  membusuk, dan itulah yang pertama diperiksa panitia.
 
 **Estimation (`est`) — Estimasi.** AHSP (analisa harga satuan), BOQ/RAB, RAP
 (anggaran pelaksanaan), riwayat harga satuan. Dokumen perencanaan; tidak memposting.
@@ -1066,7 +1107,7 @@ Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
 | **Rekonsiliasi Bank** | Jendela pencocokan tanggal (1–30 hari) |
 | **Proyeksi Arus Kas** | Hari penagihan termin (0–365) |
 | **Akun Jurnal Otomatis** | Tujuh kode akun di §4.4(A) |
-| **Penomoran Dokumen** | 55 format, satu per jenis dokumen — §4.8 |
+| **Penomoran Dokumen** | 59 format, satu per jenis dokumen — §4.8 |
 
 > **Satu setelan muncul di DUA kelompok, dan layar tidak mengatakannya.**
 > `cashflow.termin_collection_days` didaftarkan dua kali di
@@ -1122,6 +1163,42 @@ Layarnya **Sistem → Pengaturan**, menyimpan butuh `core.update`. Kelompoknya:
     Menaikkan sebuah tangga = mengganti daftar kurungnya. Perilaku lengkapnya (termasuk dua
     pagar kriteria #4) di §8.5. **PO dan SPK TIDAK memakai tangga ini** — keduanya tetap
     pada `needs_director_approval` dua-tingkat yang ambangnya di layar Pengaturan (§3.8).
+
+- **`tender.checklist_template`** (P7) — 21 butir kelengkapan paket tender dalam empat
+  grup (`administrasi`, `kualifikasi`, `teknis`, `harga`), dan **inilah satu-satunya
+  tempat menambah, membuang, atau mengganti kalimat sebuah butir.** Alasannya sama:
+  daftar periksa yang bisa dipendekkan diam-diam oleh siapa pun lewat formulir web
+  berhenti berarti "kelengkapan", dan itu justru satu-satunya hal yang harus dijaga
+  sebuah daftar periksa. Di `config/erp.php` ia masuk git, terbaca di diff, dan ditinjau
+  seperti mask penomoran di atasnya.
+
+  Dua hal yang harus Anda ketahui sebelum menyuntingnya:
+
+  - **Yang tersimpan di `crm_tender_packages.checklist` bukan template ini, melainkan
+    SNAPSHOT-nya** — label dan grup ikut tersimpan di samping centangnya. Menyunting
+    template **tidak pernah menulis ulang** checklist paket yang sudah diisi dan
+    difilekan; paket lama tetap memperlihatkan kalimat yang benar-benar dijawab
+    penyusunnya.
+  - **Kunci di luar template ditolak 422** — *"Butir checklist "xxx" tidak dikenali
+    template kelengkapan paket tender."* Daftar periksa yang bisa menumbuhkan butirnya
+    sendiri saat diisi bukan daftar periksa. Konsekuensinya: **membuang sebuah butir dari
+    template membuat pengiriman berikutnya yang masih memuat kunci itu ditolak**, jadi
+    buang butir hanya ketika Anda memang bermaksud menghentikannya.
+
+  Butirnya adalah **praktik rumah, bukan kutipan peraturan** — apa yang biasa diminta
+  satu dokumen lelang jasa konstruksi. Menambah atau mengurangi butir adalah keputusan
+  pemilik.
+
+- **`tender.tkdn_min_cost_to_value_pct`** (P7, bawaan **50,0**) — ambang cakupan biaya
+  per baris lembar TKDN: berapa persen dari nilai sebuah baris penawaran yang harus
+  benar-benar diuraikan biayanya sebelum baris itu boleh dihitung "dinilai penuh". Di
+  bawah ambang, baris berstatus **"dinilai sebagian"** dan nilainya keluar dari cakupan;
+  persen TKDN-nya sendiri **tidak** bergeser, dan barisnya **tidak** ditolak. Ia ada di
+  sini dan bukan di layar dengan alasan yang sama seperti checklist di atas: **ambang
+  pengungkapan yang bisa diturunkan ke 0 lewat formulir web berhenti berarti "cakupan"**.
+  Ini **angka rumah, bukan angka Permen** — peraturannya tidak menyebut pecahan apa pun
+  antara biaya dan harga penawaran. Seluruh alasannya, beserta keputusan yang menunggu
+  pemilik, ada di §12(e).
 
 **Apa yang layar tolak**, dan mengapa tiap penolakan ada:
 
@@ -1215,8 +1292,9 @@ atau `config/erp.php`, lalu di dalam satu transaksi baris urutan dikunci
 Token: `{Y}` tahun 4 digit, `{M2}` bulan 2 digit, `{RM}` bulan romawi, `{N3}/{N4}/{N5}`
 urutan berimbuh nol. **Urutan reset per jenis per tahun.**
 
-**55 jenis ada di Pengaturan → Penomoran Dokumen** (yang terakhir ditambahkan `HSE`
-pada P6 — formulir K3 harian). Angka itu menghitung **kendali di layar**; hari ini ia
+**59 jenis ada di Pengaturan → Penomoran Dokumen** (yang terakhir ditambahkan pada P7:
+`TND` paket tender, `TKD` lembar TKDN, `RKK` RKK penawaran, `MTD` pustaka metode kerja).
+Angka itu menghitung **kendali di layar**; hari ini ia
 sama dengan hitungan mask terkirim di `config/erp.php`, dan satu arahnya dipaku uji:
 `DocumentFormatValidationTest` menolak mask yang tidak punya kendali berlabel di layar
 ini, jadi mask baru tidak bisa lagi menyelinap tanpa menaikkan angka ini.
@@ -1759,13 +1837,14 @@ bukan kuning.
 
 ### 5.11 Registri tenggat — apa yang diawasi
 
-Satu daftar deklaratif, **18 entri**. "In the taste of AuditedModels: one declarative
+Satu daftar deklaratif, **19 entri**. "In the taste of AuditedModels: one declarative
 list, so the next date worth watching is added as one array entry — never a new command,
 never a second loop."
 
 | Kunci | Tanggal yang diawasi | Lead | Izin penerima |
 |---|---|---|---|
 | `quotation_valid_until` | Masa berlaku penawaran | 14 hari | `crm.update` |
+| `tender_submission_deadline` | Batas pemasukan penawaran lelang † | 7 | `crm.create` |
 | `contract_end` | Akhir kontrak | 30 | `crm.approve` |
 | `termin_due` | Jatuh tempo termin | 7 | `fin.create` |
 | `guarantee_end` | Akhir jaminan † | 30 | `crm.approve` |
@@ -2608,9 +2687,9 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 
 ### 9.1 Apa yang ada
 
-**58 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
+**61 formulir rumah**: 7 formulir khusus proyek (Data Proyek, Laporan Harian, Detail
 Schedule/Program Kerja, Daftar Temuan, Izin Kerja, Izin Lembur, Izin Material) ditambah
-51 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
+54 dokumen di registri. Semuanya dilayani **satu rute**, dan tidak ada izin di tingkat
 rute — izinnya diturunkan per permintaan dari registri.
 
 **Aturan rumahnya, dan ia berlaku sebagai instruksi operasional untuk Anda:**
@@ -2622,7 +2701,7 @@ rute — izinnya diturunkan per permintaan dari registri.
 | Modul pemilik | Jumlah formulir |
 |---|---|
 | `inv.view` | 7 (penerimaan, bon material, surat jalan transfer, berita acara opname, saldo stok, retur pembelian, retur material) |
-| `crm.view` | 4 (penawaran, kontrak ringkas, berita acara CCO, register jaminan) |
+| `crm.view` | 7 (penawaran, kontrak ringkas, berita acara CCO, register jaminan, **RKK penawaran F/RKK, daftar personil F/SBD, dukungan alat F/DA — ketiganya P7**) |
 | `prc.view` | 9 (permintaan pembelian, order pembelian, banding penawaran, berita acara negosiasi, keputusan pemenang, evaluasi vendor, persyaratan K3L vendor, **CV mandor F/CVM, P4**, **PPK alat & jasa F/PPK, P5**) |
 | `fin.view` | 5 (tagihan vendor, bukti pembayaran, voucher jurnal, kewajiban pajak, ekualisasi pajak) |
 | `est.view` | 3 (RAB, AHSP, RAP) |
@@ -2706,10 +2785,11 @@ background graphics — live in the browser's dialog and nowhere else."
 putih, dan pengelompokan yang menjadi alasan kepala itu ada ikut hilang.** Ini penyebab
 paling sering dari "formulirnya kok beda dengan pad kami".
 
-**Lima belas dari 58 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
+**Delapan belas dari 61 formulir berorientasi lanskap**: Detail Schedule, Daftar Temuan,
 register jaminan, banding penawaran, **berita acara negosiasi (F/BAN, P2)**, berita acara
 opname, saldo stok, opname subkon, **backsheet opname ke pemilik (F/OPN, P3)**, **rekap
-upah mandor (F/RU, P4)**, **register IBPRP (F/IBPRP, P6)**, kewajiban pajak, ekualisasi
+upah mandor (F/RU, P4)**, **register IBPRP (F/IBPRP, P6)**, **RKK penawaran (F/RKK, P7)**,
+**daftar personil (F/SBD, P7)**, **dukungan alat (F/DA, P7)**, kewajiban pajak, ekualisasi
 pajak, rekap payroll, dan daftar hadir. Sisanya potret (termasuk ketiga formulir Mutu: F/QI, F/NCR, F/BU, keputusan
 pemenang F/AWD, kedua lembar P3 lainnya: BAPP per zona F/BAPP dan BAST subkon F/BST-SK,
 CV mandor F/CVM, P4, serta PPK alat & jasa F/PPK, P5).
@@ -3073,9 +3153,10 @@ kapan — §9.7.
 
 ## 12. Keputusan yang menunggu pemilik
 
-**Tinggal satu yang benar-benar menunggu: (a) pemutaran kata sandi demo.** Ia bukan
-cacat dan bukan pekerjaan yang tertinggal — keputusan yang sengaja dibiarkan terbuka
-karena jawabannya milik pemilik, bukan milik kode. Tiga butir lain yang pernah
+**Dua yang benar-benar menunggu: (a) pemutaran kata sandi demo dan (e) rumus TKDN.**
+Keduanya bukan cacat dan bukan pekerjaan yang tertinggal — keputusan yang sengaja
+dibiarkan terbuka karena jawabannya milik pemilik, bukan milik kode. Tiga butir lain
+yang pernah
 terbuka di halaman ini **diputuskan pemilik 22 Agustus 2026** dan dibiarkan di sini
 sebagai catatan keputusan: (b) `teknisi` diberi `inv.post`, (c) register log BBM &
 jam alat dibangun, (d) kejar-tayang akrual alat dijalankan. Keempatnya tercatat di
@@ -3264,6 +3345,126 @@ bertanggal hari kembali dan bulan lampaunya tidak bisa lagi diakru (§5.4, jebak
 **Yang tetap berlaku sesudah kejar-tayang ini.** Wasitnya tetap butir daftar periksa
 `plant_accrued` — WARN yang menyebut mesin, hari, dan rupiahnya setiap kali sebuah
 bulan mau ditutup dengan akrual yang belum dicatat (§5.4, §6.3).
+
+### (e) Rumus TKDN — asal-usulnya, dan apa yang masih menunggu jawaban
+
+**Sebuah angka TKDN pada dokumen penawaran adalah klaim hukum**, bukan statistik
+internal. Karena itu asal-usul rumusnya ditulis di sini dan di docblock kelasnya, bukan
+diingat-ingat.
+
+**Yang dikodekan, dan dari mana.** `Modules/Crm/Services/TkdnService.php` menghitung
+**TKDN Jasa** menurut **Peraturan Menteri Perindustrian Nomor 35 Tahun 2025** tentang
+Ketentuan dan Tata Cara Sertifikasi Tingkat Komponen Dalam Negeri dan Bobot Manfaat
+Perusahaan. Salinan resmi yang **dibaca** saat menulis kelas itu — bukan diingat dari
+korpus — adalah `https://peraturan.go.id/files/permenperin-no-35-tahun-2025.pdf`, dengan
+halaman peraturannya di `https://peraturan.go.id/id/permenperin-no-35-tahun-2025` dan
+`https://peraturan.bpk.go.id/Details/333003/permenperin-no-35-tahun-2025`.
+
+> **Tanggal penetapannya tidak dikutip di sini**, karena blok "Ditetapkan di Jakarta
+> pada tanggal …" tidak terbaca dari salinan PDF yang diperoleh (halaman tanda
+> tangannya tidak menghasilkan teks). Nomor dan judul peraturannya terverifikasi;
+> tanggalnya tidak, jadi ia tidak ditulis.
+
+Dua pasal yang dipakai:
+
+- **Pasal 14** — TKDN Jasa = (biaya keseluruhan − biaya luar negeri) ÷ biaya keseluruhan,
+  dihitung sampai di lokasi pengerjaan, atas **tiga kelompok biaya dan hanya tiga**:
+  tenaga kerja, alat kerja/fasilitas kerja, jasa umum.
+- **Lampiran IV huruf B** — faktor komponen dalam negeri per kelompok: tenaga kerja
+  menurut kewarganegaraan (WNI 100%, WNA 0%); alat kerja menurut negara pembuat ×
+  kepemilikan (buatan DN 100% apa pun kepemilikannya; buatan LN: milik DN 50%, milik
+  campuran 50% × porsi saham DN, milik LN 0%); jasa umum menurut asal penyedia (DN 100%,
+  LN 0%).
+
+> **Mengapa BUKAN rumus TKDN yang biasa beredar.** Rumus yang beredar luas adalah
+> keturunan **Permenperin 16/M-IND/PER/2/2011**, yang **dicabut Pasal 74 huruf a**
+> peraturan 2025 itu (bersama Permenperin 02/2014, 03/2014, dan 46/2022). Sejak itu ia
+> bukan lagi rumus yang berlaku.
+
+> **Ketiga tabel faktor di atas, Pasal 14, Pasal 17, dan Pasal 74 telah diperiksa ulang
+> lane dokumentasi terhadap teks peraturannya sendiri** (PDF diunduh dan diekstrak),
+> dan cocok kata demi kata dengan yang dikodekan. Pasal 74 memang mencabut Permenperin
+> 16/M-IND/PER/2/2011, 02/2014, 03/2014, dan 46/2022.
+
+**Enam hal yang BELUM dijawab, dan tidak dikarang:**
+
+1. **Keputusan Sekretaris Jenderal (Pasal 17).** Bunyinya persis: *"Penghitungan
+   nilai TKDN Jasa Industri ditetapkan oleh Sekretaris Jenderal."* Perhatikan apa yang
+   diserahkan: **penghitungannya sendiri**, bukan petunjuk teknis tentangnya. (Kata
+   *"Petunjuk teknis"* ada di **Pasal 13**, yang berbicara tentang **Barang**:
+   *"Petunjuk teknis penghitungan nilai TKDN Barang ditetapkan oleh Sekretaris
+   Jenderal."* Menukar keduanya mengecilkan pendelegasian sisi Jasa menjadi sekadar
+   panduan — kekeliruan yang sempat ada di docblock `TkdnService` dan sudah diperbaiki.)
+   Keputusan Sekjen itu adalah dokumen terpisah yang **tidak diperoleh**. Yang dikodekan
+   adalah Pasal 14 dan Lampiran IV huruf B **apa adanya**; bila keputusan itu menetapkan
+   penghitungan yang berbeda dari salah satu barisnya, tempat perubahannya ada di bawah.
+2. **TKDN gabungan Barang dan Jasa (Pasal 18–20) tidak dihitung.** Pekerjaan konstruksi
+   umumnya gabungan Barang dan Jasa, dan angka gabungannya menimbang TKDN tiap **Barang**
+   dengan proporsi nilai perolehannya — nilai yang menurut Lampiran IV huruf A datang
+   dari **Sertifikat TKDN barang itu**, bukan dari uraian biaya kita. Tidak ada tabel
+   sertifikat TKDN barang di ERP ini, dan sebuah kolom "TKDN barang" yang boleh diketik
+   adalah persis mesin pemalsu yang lembar ini dibuat untuk menghindari. Lembar ini
+   menjawab **sisi Jasa**-nya dan menyebut dirinya begitu.
+3. **Ambang TKDN minimum tidak ditegakkan.** Kepmen PUPR 602/KPTS/M/2023 (ambang TKDN
+   minimum jasa konstruksi) **tidak dibaca** dan tidak ada pemeriksaan ambang di mana
+   pun: lembar ini menghitung dan melaporkan, tidak meluluskan.
+4. **Butir checklist kelengkapan adalah praktik rumah, bukan kutipan peraturan** — §4.6.
+5. **Penelusuran tingkat 2 dan 3 (Pasal 15) tidak dilakukan.** Peraturan itu menyuruh
+   penghitungan TKDN Jasa **ditelusuri sampai Barang dan/atau Jasa tingkat 2** yang
+   dihasilkan penyedia dalam negeri, dan bila di dalamnya ada komponen dari **Jasa
+   Industri tingkat 3** oleh penyedia dalam negeri, komponen itu **diperhitungkan 100%**.
+   Lembar di sistem ini menerima uraian biaya **datar** — satu tingkat — jadi rantai
+   pasok di balik sebuah baris biaya tidak ditelusuri dan aturan 100% tingkat-3 tidak
+   pernah berlaku. Praktisnya: angka yang dihasilkan adalah TKDN Jasa **atas uraian biaya
+   yang diketik**, dan bila sebagian biayanya sendiri dibeli dari penyedia dalam negeri
+   yang punya kandungan impor, angka itu bisa **lebih tinggi** daripada hasil penelusuran
+   penuh. Ini yang paling perlu dikonfirmasi bersama juknis Sekjen di butir 1.
+6. **Kesesuaian KBLI (Pasal 16) tidak diperiksa.** Aktivitas jasa yang dihitung harus
+   masuk ruang lingkup KBLI Jasa Industri pada Perizinan Berusaha (Lampiran III
+   peraturan itu). Sistem ini tidak menyimpan KBLI perusahaan dan tidak
+   membandingkannya dengan apa pun.
+
+**Satu angka yang MEMANG milik pemilik: ambang cakupan biaya per baris.** Ia berdiri
+terpisah dari keenam butir di atas karena ia **bukan angka peraturan sama sekali**.
+Cakupan lembar TKDN dulu diukur dengan uji *keberadaan* — baris penawaran yang punya
+setidaknya satu baris biaya dihitung "dinilai" — dan uji keberadaan bisa dikalahkan
+dengan **Rp 1**: satu baris biaya Rp 1 pada baris penawaran Rp 100 juta membuat lembarnya
+melaporkan cakupan 100% dan menyebut dirinya dinilai penuh. Sekarang cakupan
+membandingkan **jumlah biaya yang diuraikan** dengan **nilai baris penawaran itu
+sendiri**, dan baris yang tidak mencapai ambang berstatus **"dinilai sebagian"**.
+
+| | |
+|---|---|
+| **Kunci** | `config('erp.tender.tkdn_min_cost_to_value_pct')` — bawaan **50,0** |
+| **Yang dilakukannya** | Baris di bawah ambang → lencana `DINILAI SEBAGIAN`; nilai barisnya keluar dari `assessed_value`/`coverage_pct` dan masuk `partially_assessed_value`; `fully_assessed` menjadi `false` |
+| **Yang TIDAK dilakukannya** | Ia **tidak pernah menolak simpanan** (baris Rp 1 tetap tersimpan — lembar yang sedang dikerjakan separuh jalan memang belum lengkap) dan **tidak pernah menggeser `tkdn_pct`**: biaya baris "sebagian" tetap masuk pembilang dan penyebut Pasal 14 |
+| **Mengapa bukan angka Permen** | Permenperin 35/2025 tidak menyebut pecahan apa pun antara biaya dan nilai penawaran. Pasal 14 berbicara tentang **biaya**; nilai baris penawaran adalah **harga**, yang memuat margin yang tidak diatur peraturan mana pun. Ambang ini karena itu **mengungkapkan**, tidak menegakkan — dan lembarnya mengumumkan sendiri asal-usulnya lewat `min_cost_to_value_pct` dan kalimat `basis_cakupan` |
+| **Mengapa tidak ada di layar Pengaturan** | Ambang pengungkapan yang bisa diturunkan ke 0 lewat formulir web berhenti berarti "cakupan" — alasan yang sama yang menahan `tender.checklist_template` (§4.6) |
+| **Keputusan yang menunggu** | Apakah 50% cocok dengan margin pekerjaan perusahaan. Menaikkannya membuat lebih banyak baris berstatus "dinilai sebagian"; menurunkannya melemahkan penjagaan. Bila lembar demo/nyata menandai baris yang menurut tim sudah lengkap, periksa dulu uraian biayanya sebelum menggeser ambangnya |
+
+**Bagaimana mengubah rumusnya bila pemilik sudah mengonfirmasi.** Rumusnya **tidak** ada
+di `config/erp.php` dan tidak bisa disetel dari layar — ia adalah tabel peraturan, dan
+tabel peraturan yang bisa disunting operator lewat formulir web bukan lagi tabel
+peraturan. (Ambang cakupan di atas adalah pengecualian yang membuktikan aturannya: ia ada
+di `config/erp.php` justru **karena** ia bukan tabel peraturan.) Menggantinya adalah
+perubahan kode, deploy, dan tiga berkas:
+
+| Yang berubah | Tempatnya |
+|---|---|
+| Faktor per kelompok biaya (angka 100% / 50% / 0% dan perlakuan saham DN) | `TkdnService::domesticFactor()` dan `TkdnService::toolFactor()` |
+| Nilai kolom penentu yang boleh dipilih (kewarganegaraan, asal, kepemilikan, kelompok biaya) | `Modules/Crm/Enums/Tkdn{CostGroup,Nationality,Origin,Ownership}.php` — dan cerminnya di `public/app/js/enums.js` |
+| Kalimat dasar hitung yang tercetak di layar dan di API | kunci `basis` pada `TkdnService::summary()` |
+| Tiga keadaan cakupan (`belum`/`sebagian`/`penuh`) dan ambangnya | `TkdnService::assessmentState()` + kunci config di atas; kalimatnya pada `basis_cakupan` |
+
+**Ketiga tabel itu dipaku uji**, dan itu disengaja:
+`TkdnWorksheetTest::test_the_domestic_factors_follow_the_lampiran_iv_table` dan
+`::test_a_foreign_built_jointly_owned_tool_uses_the_share_proportion` akan **merah**
+begitu satu faktor bergeser. Mengubah rumus berarti mengubah uji itu **bersama alasan
+tertulis** — sebuah faktor yang berubah tanpa uji yang ikut berubah adalah faktor yang
+tidak ada yang memutuskan.
+
+**Docblock `TkdnService` adalah salinan panjang catatan ini**, lengkap dengan kutipan
+pasalnya. Bila panduan ini dan docblock itu berbeda, docblock-nya yang dibaca kode.
 
 ---
 

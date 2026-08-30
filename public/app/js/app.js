@@ -35,6 +35,7 @@ import { renderHargaSatuan } from './views/hargasatuan.js';
 import { renderPoOutstanding } from './views/pooutstanding.js';
 import { renderRekapAlat } from './views/rekapalat.js';
 import { renderSewaVsBeli } from './views/sewavsbeli.js';
+import { renderTkdnWorksheet, renderRkkDocument, renderKualifikasi } from './views/tender.js';
 import { renderTenggat } from './views/tenggat.js';
 import { renderSertifikat } from './views/sertifikat.js';
 import { renderAbsensi } from './views/absensi.js';
@@ -371,6 +372,10 @@ const CUSTOM_DETAILS = {
   asset: renderAsset,
   revenueRun: renderRevenueRun,
   rfq: renderRfq,
+  // P7 — keduanya menyusun baris milik dokumen/modul lain, jadi keduanya butuh
+  // pemilih yang menampilkan baris aslinya; kisi generik hanya punya kotak id.
+  tkdn: renderTkdnWorksheet,
+  rkk: renderRkkDocument,
 };
 
 function registerRoutes() {
@@ -543,6 +548,22 @@ function registerRoutes() {
     const host = view();
     if (!session.can('ast.view')) return accessDenied(host, 'ast');
     return guard(host, () => renderSewaVsBeli(host));
+  });
+
+  /* P7 — Penyusun Kualifikasi: lampiran personil, alat dan subkon sebuah
+     penawaran, dirakit baca-saja dari master SDM/Aset/Pengadaan.
+
+     Digerbangi crm.view dan bukan hr.view/ast.view/prc.view, sama seperti
+     gerbang rutenya di server: yang dilayani layar ini adalah tim tender, dan
+     kolom yang dikembalikan servernya memang sudah sempit — nama, jabatan,
+     sertifikat dan masa berlakunya; tidak ada gaji, harga perolehan, atau
+     rekening yang bisa bocor lewat pintu ini. */
+  route('kualifikasi', () => {
+    setCrumbs(['Penjualan', 'Penyusun Kualifikasi']);
+    setActiveNav('kualifikasi');
+    const host = view();
+    if (!session.can('crm.view')) return accessDenied(host, 'crm');
+    return guard(host, () => renderKualifikasi(host));
   });
 
   route('siap-tagih', () => {
