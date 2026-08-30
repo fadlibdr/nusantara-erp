@@ -17,10 +17,15 @@ use Modules\Procurement\Models\WorkOrderItem;
  * Tagihan per periode atas PPK (P5, deviasi 3.10) — kuantitas DITURUNKAN,
  * tidak pernah diketik:
  *
- *   per_jam        delta hour-meter DI DALAM periode: pembacaan terakhir
- *                  minus pembacaan pertama yang bertanggal di dalam
- *                  [period_start, period_end], dari register alat baris itu
- *                  pada mobilisasi ke PROYEK PPK ini.
+ *   per_jam        delta hour-meter DI DALAM periode, dijumlahkan PER SEGMEN
+ *                  MOBILISASI: untuk tiap mobilisasi alat baris itu ke PROYEK
+ *                  PPK ini, pembacaan terakhir minus pembacaan pertama yang
+ *                  bertanggal di dalam [period_start, period_end] DAN di dalam
+ *                  jendela mobilisasi itu; kuantitasnya jumlah delta
+ *                  segmen-segmen. Jam yang tercatat pada mobilisasi ke proyek
+ *                  LAIN tidak pernah ikut — alat yang ulang-alik antar proyek
+ *                  di tengah periode hanya membawa pulang jam segmennya
+ *                  sendiri (hoursInPeriod).
  *   per_bulan      kalender: bulan kalender utuh dalam periode (periode
  *                  wajib mulai tanggal 1 dan berakhir di akhir bulan).
  *   per_hari_8jam  kalender: hari inklusif kedua ujung periode.
@@ -38,9 +43,9 @@ use Modules\Procurement\Models\WorkOrderItem;
  * Situs yang membaca meter di batas periode tidak kehilangan apa-apa.
  *
  * Bersama periode yang saling lepas (guard tumpang-tindih di bawah), aturan
- * ini membuat setiap pasangan pembacaan berurutan jatuh di paling banyak
- * SATU periode tagihan — argumen anti-tagih-ganda lengkapnya di migrasi
- * 000869.
+ * per-segmen, dan guard berjam lintas-PPK (assertHoursFreeAcrossWorkOrders),
+ * setiap pasangan pembacaan berurutan jatuh di paling banyak SATU tagihan —
+ * argumen anti-tagih-ganda lengkapnya di migrasi 000869.
  *
  * Basis kalender BOLEH menagih di muka (sewa dibayar di muka lazim; sewa
  * terhutang untuk periodenya, dipakai atau tidak); per_jam dengan sendirinya
@@ -77,6 +82,7 @@ class WorkOrderBillingService
             }
 
             $this->assertPeriodFree($workOrder, $periodStart, $periodEnd);
+            $this->lockPerJamAssets($workOrder);
 
             $billing = new WorkOrderBilling([
                 'work_order_id' => $workOrder->id,
@@ -95,6 +101,10 @@ class WorkOrderBillingService
 
                 if ($qty <= 0.0) {
                     continue; // tidak ada kuantitas terukur pada baris ini periode ini
+                }
+
+                if ($item->rate_basis === RateBasis::PerJam) {
+                    $this->assertHoursFreeAcrossWorkOrders($workOrder, $item, $periodStart, $periodEnd);
                 }
 
                 $this->assertWithinCap($item, $qty, $billing->id);
@@ -139,10 +149,12 @@ class WorkOrderBillingService
             /** @var WorkOrderBilling $billing */
             $billing = WorkOrderBilling::query()->whereKey($billing->id)->lockForUpdate()->firstOrFail();
 
-            if ($this->liveApBill($billing) !== null) {
+            $apBill = $this->liveApBill($billing);
+
+            if ($apBill !== null) {
                 throw new LogicException(
-                    "Tagihan periode {$billing->code} sudah ditagihkan ke AP; batalkan tagihan AP-nya "
-                    .'lebih dulu sebelum menghapus billing ini.'
+                    "Tagihan periode {$billing->code} sudah ditagihkan ke AP lewat tagihan {$apBill->code}; "
+                    .'batalkan tagihan AP itu lebih dulu sebelum menghapus billing ini.'
                 );
             }
 
@@ -233,16 +245,30 @@ class WorkOrderBillingService
     }
 
     /**
-     * Delta hour-meter DALAM periode (aturan batas di docblock kelas), dari
-     * mobilisasi alat baris ini ke PROYEK PPK ini — jam alat yang sama di
-     * proyek lain milik PPK proyek itu, bukan tagihan ini. Lewat mobilisasi
-     * HIDUP saja, sikap yang sama dengan Asset::equipmentLogs.
+     * Delta hour-meter DALAM periode, dijumlahkan PER SEGMEN MOBILISASI alat
+     * baris ini ke PROYEK PPK ini: di dalam tiap mobilisasi, pembacaan
+     * terakhir minus pembacaan pertama yang jatuh di dalam periode DAN di
+     * dalam jendela mobilisasi itu (aturan batas dalam-periode di docblock
+     * kelas berlaku per segmen). Last-minus-first LINTAS mobilisasi dulu
+     * membocorkan jam: alat yang ditarik ke proyek lain di tengah periode
+     * lalu kembali membawa serta delta yang berjalan DI proyek lain — dan
+     * PPK proyek sana menagihnya lagi. Jam antar segmen (di proyek lain atau
+     * di perjalanan) bukan milik tagihan ini; jam segmen proyek lain milik
+     * PPK proyek itu. Lewat mobilisasi HIDUP saja, sikap yang sama dengan
+     * Asset::equipmentLogs.
+     *
+     * Snapshot meter_start/meter_end hanya diisi bila TEPAT SATU segmen
+     * terukur menyumbang: "1.200,0 → 1.213,0 = 13,0 jam" hanya benar tanpa
+     * selingan. Lebih dari satu segmen membuat pasangan angka tunggal mana
+     * pun berbohong tentang qty (ujung-ke-ujung menyiratkan delta yang bukan
+     * kuantitasnya), jadi keduanya jujur kosong — pola ap_bill_code di rekap.
      *
      * @return array{0: float, 1: ?float, 2: ?float}
      */
     private function hoursInPeriod(WorkOrder $workOrder, WorkOrderItem $item, Carbon $periodStart, Carbon $periodEnd): array
     {
-        $readings = EquipmentLog::query()
+        $segments = EquipmentLog::query()
+            ->with('deployment')
             ->whereHas('deployment', fn ($query) => $query
                 ->where('asset_id', $item->asset_id)
                 ->where('project_id', $workOrder->project_id))
@@ -250,29 +276,54 @@ class WorkOrderBillingService
             ->whereDate('log_date', '>=', $periodStart->toDateString())
             ->whereDate('log_date', '<=', $periodEnd->toDateString())
             ->orderBy('log_date')->orderBy('id')
-            ->get();
+            ->get()
+            // Sabuk pengaman di atas guard register (EquipmentLogService sudah
+            // menolak log di luar jendela mobilisasinya): hanya pembacaan yang
+            // bertanggal saat alat ADA di lokasi yang membentuk segmen.
+            ->filter(fn (EquipmentLog $log) => $log->deployment !== null
+                && $log->deployment->wasOnSiteOn($log->log_date))
+            ->groupBy('deployment_id');
 
-        if ($readings->count() < 2) {
-            return [0.0, null, null]; // tidak ada delta yang terukur — bukan nol jam terpakai, melainkan tak terukur
+        $total = 0.0;
+        $measuredSegments = 0;
+        $meterStart = null;
+        $meterEnd = null;
+
+        foreach ($segments as $readings) {
+            if ($readings->count() < 2) {
+                continue; // segmen tanpa delta terukur — bukan nol jam terpakai, melainkan tak terukur
+            }
+
+            $first = (float) $readings->first()->hour_meter;
+            $last = (float) $readings->last()->hour_meter;
+            $delta = round($last - $first, 3);
+
+            if ($delta < 0) {
+                // Register per mobilisasi monoton (EquipmentLogService);
+                // angka mundur di dalam satu segmen berarti data yang tidak
+                // bisa ditagih.
+                throw new LogicException(sprintf(
+                    'Pembacaan hour-meter baris "%s" mundur di dalam periode pada mobilisasi %s (%s → %s); '
+                    .'periksa registernya sebelum menagih.',
+                    $item->description,
+                    $readings->first()->deployment?->code,
+                    number_format($first, 1, ',', '.'),
+                    number_format($last, 1, ',', '.'),
+                ));
+            }
+
+            $total = round($total + $delta, 3);
+            $measuredSegments++;
+            $meterStart = $first;
+            $meterEnd = $last;
         }
 
-        $first = (float) $readings->first()->hour_meter;
-        $last = (float) $readings->last()->hour_meter;
-        $delta = round($last - $first, 3);
-
-        if ($delta < 0) {
-            // Register per mobilisasi monoton (EquipmentLogService); lintas
-            // mobilisasi angka mundur berarti data yang tidak bisa ditagih.
-            throw new LogicException(sprintf(
-                'Pembacaan hour-meter baris "%s" mundur di dalam periode (%s → %s); '
-                .'periksa registernya sebelum menagih.',
-                $item->description,
-                number_format($first, 1, ',', '.'),
-                number_format($last, 1, ',', '.'),
-            ));
+        if ($measuredSegments !== 1) {
+            $meterStart = null;
+            $meterEnd = null;
         }
 
-        return [$delta, $first, $last];
+        return [$total, $meterStart, $meterEnd];
     }
 
     /**
@@ -320,6 +371,86 @@ class WorkOrderBillingService
                 $clash->period_start->toDateString(),
                 $clash->period_end->toDateString(),
                 $workOrder->code,
+            ));
+        }
+    }
+
+    /**
+     * Titik serialisasi LINTAS-PPK untuk jam alat: lock baris ast_assets
+     * setiap alat baris per_jam, diambil terurut naik pada id supaya dua
+     * penyusun yang menyentuh himpunan alat yang sama tidak saling menunggu
+     * bersilangan. Lock baris PPK di create() hanya menserialisasi penyusun
+     * SATU PPK; dua PPK berbeda atas alat yang sama butuh titik temu yang
+     * sama-sama mereka lewati — baris alatnya — supaya
+     * assertHoursFreeAcrossWorkOrders selalu melihat billing pemenang yang
+     * lebih dulu, bukan potret basi.
+     */
+    private function lockPerJamAssets(WorkOrder $workOrder): void
+    {
+        $assetIds = $workOrder->items
+            ->filter(fn (WorkOrderItem $item) => $item->rate_basis === RateBasis::PerJam && $item->asset_id !== null)
+            ->pluck('asset_id')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($assetIds === []) {
+            return;
+        }
+
+        DB::table('ast_assets')->whereIn('id', $assetIds)->orderBy('id')->lockForUpdate()->get(['id']);
+    }
+
+    /**
+     * Guard tagih-ganda LINTAS PPK (kasus PPK lama tertinggal approved setelah
+     * renegosiasi tarif melahirkan PPK baru atas alat+proyek yang sama).
+     *
+     * PREDIKAT YANG DITOLAK — irisan periode berjam yang SUDAH TERTAGIH, bukan
+     * sekadar adanya PPK lain: ada billing HIDUP milik PPK LAIN (mana pun
+     * statusnya kini — jam yang telanjur tertagih lewat PPK yang kemudian
+     * ditutup tetap tertagih) yang (a) memuat BARIS berbasis per_jam atas
+     * asset_id DAN project_id yang sama, dan (b) periodenya beririsan dengan
+     * periode billing yang sedang disusun. Dua PPK yang menagih paruh periode
+     * BERBEDA lolos — periodenya saling lepas. Billing PPK lain yang beririsan
+     * tetapi TIDAK menulis baris jam alat ini juga lolos: tidak ada jam yang
+     * tertagih di sana, dan menolaknya membuat jam terukur tidak tertagih di
+     * mana pun. Konservatif pada irisan parsial: irisan periode dengan baris
+     * berjam ditolak utuh walau pembacaan di irisan itu belum tentu terhitung
+     * dua kali — memilah jam per tanggal di dalam irisan berarti menebak
+     * register; menolak dengan menyebut PPK lawannya membiarkan manusia
+     * memilih periode yang saling lepas.
+     */
+    private function assertHoursFreeAcrossWorkOrders(WorkOrder $workOrder, WorkOrderItem $item, Carbon $periodStart, Carbon $periodEnd): void
+    {
+        $clash = DB::table('prc_work_order_billing_lines as line')
+            ->join('prc_work_order_billings as billing', 'billing.id', '=', 'line.work_order_billing_id')
+            ->join('prc_work_order_items as item', 'item.id', '=', 'line.work_order_item_id')
+            ->join('prc_work_orders as wo', 'wo.id', '=', 'billing.work_order_id')
+            ->whereNull('billing.deleted_at')
+            ->whereNull('wo.deleted_at')
+            ->where('wo.id', '!=', $workOrder->id)
+            ->where('wo.project_id', $workOrder->project_id)
+            ->where('item.rate_basis', RateBasis::PerJam->value)
+            ->where('item.asset_id', $item->asset_id)
+            ->whereDate('billing.period_start', '<=', $periodEnd->toDateString())
+            ->whereDate('billing.period_end', '>=', $periodStart->toDateString())
+            ->orderBy('billing.id')
+            ->first(['wo.code as work_order_code', 'billing.code as billing_code', 'billing.period_start', 'billing.period_end']);
+
+        if ($clash !== null) {
+            throw new LogicException(sprintf(
+                'Jam alat baris "%s" pada periode %s s.d. %s sudah tertagih lewat PPK lain: tagihan %s '
+                .'milik PPK %s menagih jam alat yang sama di proyek yang sama untuk %s s.d. %s — satu jam '
+                .'meter jatuh di maksimal satu tagihan. Pilih periode yang saling lepas, atau bereskan PPK '
+                .'yang seharusnya tidak lagi menagih.',
+                $item->description,
+                $periodStart->toDateString(),
+                $periodEnd->toDateString(),
+                $clash->billing_code,
+                $clash->work_order_code,
+                Carbon::parse($clash->period_start)->toDateString(),
+                Carbon::parse($clash->period_end)->toDateString(),
             ));
         }
     }

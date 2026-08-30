@@ -4,6 +4,7 @@ namespace Tests\Feature\Finance;
 
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
+use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ProjectCost;
@@ -117,6 +118,41 @@ class ApBillWorkOrderSeamTest extends ErpTestCase
             'work_order_billing_id' => $billing->id,
             'vendor_invoice_no' => 'INV-ABN-072',
         ])->assertCreated();
+    }
+
+    public function test_tagihan_hidup_berstatus_approved_tetap_menahan_penagihan_ulang_billing(): void
+    {
+        // Jalur merah KEDUA untuk guard satu-billing-satu-tagihan-hidup,
+        // fixture berbeda dari uji di atas: panggilan level service (bukan
+        // HTTP) dan tagihan pertama sudah APPROVED — "hidup" berarti status
+        // apa pun selain cancelled, bukan hanya draft.
+        $billing = $this->approvedBilling();
+        $service = app(ApBillService::class);
+
+        $bill = $service->create([
+            'work_order_billing_id' => $billing->id,
+            'vendor_invoice_no' => 'INV-ABN-070',
+            'bill_date' => '2026-07-31',
+        ]);
+        $bill->submit($this->admin);
+
+        $approver = User::query()->create([
+            'name' => 'Manajer Keuangan',
+            'email' => 'fm-p5-guard@test.local',
+            'password' => 'password',
+            'is_active' => true,
+        ]);
+        $service->approve($bill, $approver);
+
+        try {
+            $service->createFromWorkOrderBilling($billing, ['vendor_invoice_no' => 'INV-ABN-071']);
+            $this->fail('Billing dengan tagihan AP approved seharusnya tidak bisa ditagihkan lagi.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('sudah ada', $e->getMessage());
+            $this->assertStringContainsString($billing->code, $e->getMessage());
+        }
+
+        $this->assertSame(1, ApBill::query()->where('work_order_billing_id', $billing->id)->count());
     }
 
     public function test_dpp_tagihan_billing_ppk_tidak_bisa_diketik_ulang(): void

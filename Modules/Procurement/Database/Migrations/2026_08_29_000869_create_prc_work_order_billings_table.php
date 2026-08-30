@@ -23,11 +23,25 @@ use Illuminate\Support\Facades\Schema;
  *      di dalam transaksi ber-lockForUpdate pada baris PPK — dua penyusun
  *      yang balapan diserialisasi di titik yang sama. Maka periode-periode
  *      billing satu PPK saling lepas (disjoint).
- *   2. Jam per_jam dihitung HANYA dari pembacaan di dalam periode billing
- *      (aturan batas dalam-periode — lihat WorkOrderBillingService). Karena
- *      periodenya saling lepas, setiap pasangan pembacaan berurutan jatuh di
- *      dalam paling banyak SATU periode, sehingga satu jam meter tidak
- *      mungkin tertagih pada dua billing.
+ *   2. Jam per_jam dihitung HANYA dari pembacaan di dalam periode billing,
+ *      dijumlahkan PER SEGMEN MOBILISASI alat ke proyek PPK itu: di dalam
+ *      tiap mobilisasi, pembacaan terakhir minus pembacaan pertama (aturan
+ *      batas dalam-periode — lihat WorkOrderBillingService::hoursInPeriod).
+ *      Jam yang tercatat pada mobilisasi ke proyek LAIN tidak pernah masuk —
+ *      alat yang ulang-alik antar proyek di tengah periode tidak membawa
+ *      pulang delta yang berjalan di proyek sana. Karena periode billing
+ *      satu PPK saling lepas (butir 1) dan register menolak log di luar
+ *      jendela mobilisasinya (EquipmentLogService), setiap pasangan
+ *      pembacaan berurutan jatuh pada paling banyak SATU billing per PPK.
+ *   2b. LINTAS PPK atas (alat, proyek) yang sama: baris per_jam ditolak bila
+ *      billing HIDUP milik PPK LAIN dengan baris per_jam atas alat+proyek
+ *      yang sama periodenya beririsan
+ *      (WorkOrderBillingService::assertHoursFreeAcrossWorkOrders,
+ *      diserialisasi pada lock baris ast_assets) — kasus PPK lama tertinggal
+ *      approved setelah renegosiasi tarif. Yang ditolak irisan periode
+ *      berjam yang sudah tertagih, bukan sekadar adanya PPK lain: dua PPK
+ *      yang menagih paruh periode BERBEDA sah. Bersama butir 2, satu jam
+ *      meter jatuh di maksimal satu tagihan, lintas PPK sekalipun.
  *   3. Plafon qty_periods di-roll-forward per baris PPK, dikunci pada
  *      work_order_item_id — id baris, yang stabil dengan argumen migrasi
  *      000868 (baris PPK tidak pernah diregenerasi setelah approved).
@@ -46,7 +60,11 @@ use Illuminate\Support\Facades\Schema;
  *
  * meter_start/meter_end pada baris per_jam adalah SNAPSHOT pembacaan yang
  * dipakai — supaya rekap dan tagihan bisa menyebut "1.200,0 → 1.213,0 =
- * 13 jam" tanpa membaca ulang register yang mungkin sudah bertambah.
+ * 13 jam" tanpa membaca ulang register yang mungkin sudah bertambah. Diisi
+ * hanya bila TEPAT SATU segmen mobilisasi terukur menyumbang jam periode
+ * itu; alat yang ulang-alik membuat pasangan angka tunggal mana pun
+ * menyesatkan tentang qty (jumlah delta per segmen), jadi keduanya jujur
+ * kosong (null).
  */
 return new class extends Migration
 {
@@ -73,8 +91,8 @@ return new class extends Migration
             $table->foreignId('work_order_item_id')->constrained('prc_work_order_items'); // kunci roll-forward (lihat docblock)
             $table->decimal('qty', 15, 3); // jam / hari / bulan pada periode ini
             $table->decimal('amount', 18, 2); // qty x rate baris PPK
-            $table->decimal('meter_start', 12, 3)->nullable(); // snapshot pembacaan pertama dalam periode (per_jam)
-            $table->decimal('meter_end', 12, 3)->nullable(); // snapshot pembacaan terakhir dalam periode (per_jam)
+            $table->decimal('meter_start', 12, 3)->nullable(); // snapshot pembacaan pertama dalam periode (per_jam, satu segmen terukur)
+            $table->decimal('meter_end', 12, 3)->nullable(); // snapshot pembacaan terakhir dalam periode (per_jam, satu segmen terukur)
             $table->timestamps();
         });
     }

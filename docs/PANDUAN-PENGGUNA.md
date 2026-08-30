@@ -2711,8 +2711,10 @@ atas PPK yang sudah disetujui."`
   > "Pada periode {a} s.d. {b} tidak ada kuantitas yang dapat ditagih: baris per_jam
   > butuh minimal dua pembacaan hour-meter di dalam periode, dan tidak ada baris
   > kalender yang menagih. Tagihan kosong tidak dibuat."
-- Meter mundur lintas mobilisasi: *"Pembacaan hour-meter baris \"{uraian}\" mundur di
-  dalam periode ({x} → {y}); periksa registernya sebelum menagih."* — dan periode
+- Meter mundur **di dalam satu mobilisasi** (register korup — angka mundur ANTAR
+  mobilisasi adalah meter baru/alat pengganti dan sah, deltanya dijumlah per segmen):
+  *"Pembacaan hour-meter baris \"{uraian}\" mundur di dalam periode pada mobilisasi
+  {kode} ({x} → {y}); periksa registernya sebelum menagih."* — dan periode
   terbalik: *"Periode tagihan terbalik: {a} sampai {b}."*
 
 **Halaman tagihan** memuat tabel **Rincian kuantitas**: Uraian · Basis · **Meter awal ·
@@ -2721,8 +2723,9 @@ Meter akhir** (hanya terisi pada baris per_jam) · Kuantitas · Jumlah.
 **Tagihan periode sengaja tidak berjenjang persetujuan** — angkanya turunan register
 dan kalender; **rupiahnya ber-maker-checker di tagihan AP** yang dibuat darinya.
 Menghapus boleh selama belum ada tagihan AP hidup — `"Tagihan periode {kode} sudah
-ditagihkan ke AP; batalkan tagihan AP-nya lebih dulu sebelum menghapus billing ini."`
-— dan menghapusnya **membebaskan periodenya** untuk disusun ulang.
+ditagihkan ke AP lewat tagihan {kode BIL}; batalkan tagihan AP itu lebih dulu sebelum
+menghapus billing ini."` — dan menghapusnya **membebaskan periodenya** untuk disusun
+ulang.
 
 **Menagihkannya:** di `Keuangan › Tagihan Vendor (AP)`, baris **Dari tagihan periode
 PPK** (§5.9). DPP disalin dari nilai tagihan periode dan **tidak bisa diketik ulang**;
@@ -5243,15 +5246,19 @@ layar ini tidak pernah menyimpan verdict "sewa lebih murah".
 
 Satu baris per aset hidup (yang dihapusbukukan tidak ikut), kolomnya: Aset ·
 Kepemilikan (dengan lessor pada alat sewa) · **Jam tercatat** · Tarif sewa · **Biaya
-sewa berjalan** · Harga perolehan · Akum. penyusutan · **Biaya per jam** · Catatan.
+sewa terikat** · Harga perolehan · Akum. penyusutan · **Biaya per jam** · Catatan.
 Klik barisnya membuka halaman asetnya. Kartu *Cara membaca* di bawah tabel menjelaskan
 aritmetikanya:
 
 - **Jam tercatat** = Σ (pembacaan hour-meter terakhir − pertama) per mobilisasi hidup
   aset itu; mobilisasi dengan kurang dari dua pembacaan tidak menyumbang jam terukur.
-- **Biaya sewa berjalan**: per jam = jam tercatat × tarif; per hari/bulan dihitung dari
-  periode sewa pada master aset. **Biaya per jam** sisi beli = akumulasi penyusutan ÷
-  jam tercatat.
+- **Biaya sewa terikat**: per jam = jam tercatat × tarif (yang terikat baru jam yang
+  sudah berjalan); per hari/bulan = seluruh periode sewa pada master aset s/d akhir
+  sewa — **komitmen penuh periode, bukan yang sudah berjalan sampai hari ini** (sewa
+  Juni–Desember yang dibaca 30 Agustus tetap 7 bulan, bukan 3). Untuk pertanyaan
+  "sewa vs beli", komitmen penuh itulah yang sebanding dengan harga perolehan;
+  realisasi rupiah yang sudah berjalan hidup di buku besar. **Biaya per jam** sisi
+  beli = akumulasi penyusutan ÷ jam tercatat.
 
 **Kejujuran selnya** — persis alasan layar ini tidak menghitung lebih dari yang ia
 tahu:
@@ -5259,7 +5266,7 @@ tahu:
 - Alat sewa **tanpa jam tercatat tampil bergaris (`—`), bukan 0** — "belum ada data"
   dan "tidak pernah dipakai" adalah dua kalimat berbeda. Alat sewa berbasis
   hari/bulan yang master asetnya belum menyebut periode sewa berkata *"Periode sewa
-  (rental_start) belum diisi — biaya sewa berjalan belum dapat dihitung."*
+  (rental_start) belum diisi — biaya sewa terikat belum dapat dihitung."*
 - Aset milik **tanpa harga perolehan** (baris warisan) berkata *"Tidak dapat
   dibandingkan — harga perolehan tidak tercatat."* — tidak dibandingkan dengan Rp 0.
 - Aset milik yang belum punya jam register berkata *"Belum ada jam tercatat pada

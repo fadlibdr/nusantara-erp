@@ -60,7 +60,10 @@ export async function renderSewaVsBeli(host) {
         el('th', { text: 'Kepemilikan' }),
         el('th.right', { text: 'Jam tercatat' }),
         el('th.right', { text: 'Tarif sewa' }),
-        el('th.right', { text: 'Biaya sewa berjalan' }),
+        // 'terikat', bukan 'berjalan': basis kalender dihitung s/d akhir
+        // sewa (rental_end) — komitmen penuh periode, bukan yang sudah
+        // lewat tanggal hari ini. Kunci servicenya bernama sama.
+        el('th.right', { text: 'Biaya sewa terikat' }),
         el('th.right', { text: 'Harga perolehan' }),
         el('th.right', { text: 'Akum. penyusutan' }),
         el('th.right', { text: 'Biaya per jam' }),
@@ -80,7 +83,7 @@ export async function renderSewaVsBeli(host) {
           el('td.right.num', row.rental_rate !== null && row.rental_rate !== undefined
             ? { text: `${money(row.rental_rate)} ${(enumLabel('rateBasis', row.rate_basis) || '').toLowerCase()}`.trim() }
             : { text: '—' }),
-          el('td.right.num', { text: money(row.rental_cost) }),
+          el('td.right.num', { text: money(row.committed_rental_cost) }),
           el('td.right.num', { text: money(row.acquisition_cost) }),
           el('td.right.num', { text: money(row.accumulated_depreciation) }),
           el('td.right.num.strong', { text: money(row.cost_per_hour) }),
@@ -96,7 +99,7 @@ export async function renderSewaVsBeli(host) {
     el('.card-head', el('h2', { text: 'Cara membaca' })),
     el('.card-body', [
       el('p', { text: 'Jam tercatat = Σ (pembacaan hour-meter terakhir − pertama) per mobilisasi hidup aset itu. Mobilisasi dengan kurang dari dua pembacaan tidak menyumbang jam yang terukur.' }),
-      el('p', { text: 'Biaya sewa berjalan: per jam = jam tercatat × tarif; per hari/bulan dihitung dari periode sewa pada master aset. Biaya per jam sisi beli = akumulasi penyusutan ÷ jam tercatat.' }),
+      el('p', { text: 'Biaya sewa terikat: per jam = jam tercatat × tarif (yang terikat baru jam yang sudah berjalan); per hari/bulan = seluruh periode sewa pada master aset s/d akhir sewa — komitmen penuh periode, bukan yang sudah berjalan sampai hari ini. Biaya per jam sisi beli = akumulasi penyusutan ÷ jam tercatat.' }),
       el('p', { text: 'Sel bergaris (—) berarti datanya belum ada — bukan nol. Baris "Tidak dapat dibandingkan" berarti salah satu sisinya tidak punya angka yang jujur untuk dibandingkan.' }),
     ]),
   ]));

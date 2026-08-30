@@ -94,5 +94,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('reports/utilization', [ReportController::class, 'utilization']);
     // P5 — Evaluasi Sewa vs Beli, baca saja (log jam x tarif vs harga
     // beli/penyusutan); kejujuran barisnya dijaga RentVsOwnService.
-    Route::get('reports/rent-vs-own', [ReportController::class, 'rentVsOwn']);
+    // Dijaga ast.view eksplisit — alasan yang sama dengan reports/outstanding
+    // milik Procurement: tidak seperti GET per dokumen, laporan ini
+    // mengagregasi tarif sewa, vendor rental, dan harga perolehan SELURUH
+    // aset sekaligus, dan itu bukan bacaan pemegang auth:sanctum sembarang.
+    Route::get('reports/rent-vs-own', [ReportController::class, 'rentVsOwn'])->middleware('permission:ast.view');
 });

@@ -25,7 +25,17 @@ use Modules\Assets\Models\Asset;
  *     mengizinkan NULL) berkata "tidak dapat dibandingkan", bukan
  *     membandingkan dengan Rp 0;
  *   - alat sewa basis kalender tanpa rental_start tidak bisa menghitung
- *     berapa lama ia sudah disewa, dan berkata begitu.
+ *     berapa lama ia sudah disewa, dan berkata begitu;
+ *   - sisi sewa diberi nama committed_rental_cost — biaya sewa TERIKAT,
+ *     bukan "berjalan": basis kalender dihitung sampai rental_end (sewa
+ *     Jun–Des dibaca 30 Agustus = 7 bulan, bukan 3), karena pertanyaan
+ *     layar ini adalah "sewa vs beli" dan yang sebanding dengan harga
+ *     perolehan adalah komitmen penuh periode sewa, bukan potongan yang
+ *     kebetulan sudah lewat tanggal hari ini. Untuk basis per jam, yang
+ *     terikat memang baru jam yang sudah tercatat × tarif. Angka "sudah
+ *     berjalan sampai hari ini" tidak diberi kolom kedua: grid layarnya
+ *     sudah sembilan kolom, dan realisasi rupiahnya hidup di buku besar,
+ *     bukan di layar perbandingan ini.
  *
  * Jam dihitung per mobilisasi — pembacaan terakhir minus pembacaan pertama
  * (meter monoton per mobilisasi, dijaga EquipmentLogService) — lalu
@@ -58,7 +68,7 @@ class RentVsOwnService
                 'hours_logged' => $hours,
                 'rate_basis' => $asset->rate_basis?->value,
                 'rental_rate' => $asset->rental_rate !== null ? (float) $asset->rental_rate : null,
-                'rental_cost' => null,
+                'committed_rental_cost' => null,
                 'vendor_name' => $asset->vendor?->name,
                 'acquisition_cost' => $asset->acquisition_cost !== null ? (float) $asset->acquisition_cost : null,
                 'accumulated_depreciation' => null,
@@ -69,11 +79,11 @@ class RentVsOwnService
             ];
 
             if ($asset->isRented()) {
-                [$row['rental_cost'], $row['note']] = $this->rentalCost($asset, $hours);
-                $row['comparable'] = $row['rental_cost'] !== null;
+                [$row['committed_rental_cost'], $row['note']] = $this->committedRentalCost($asset, $hours);
+                $row['comparable'] = $row['committed_rental_cost'] !== null;
 
-                if ($hours !== null && $hours > 0 && $row['rental_cost'] !== null) {
-                    $row['cost_per_hour'] = round($row['rental_cost'] / $hours, 2);
+                if ($hours !== null && $hours > 0 && $row['committed_rental_cost'] !== null) {
+                    $row['cost_per_hour'] = round($row['committed_rental_cost'] / $hours, 2);
                 }
             } else {
                 if ($asset->acquisition_cost === null) {
@@ -123,12 +133,13 @@ class RentVsOwnService
     }
 
     /**
-     * Biaya sewa berjalan menurut basisnya, atau [null, alasan] bila belum
-     * bisa dihitung dengan jujur.
+     * Biaya sewa TERIKAT menurut basisnya (basis kalender: komitmen penuh
+     * sampai rental_end, bukan yang kebetulan sudah berjalan), atau
+     * [null, alasan] bila belum bisa dihitung dengan jujur.
      *
      * @return array{0: ?float, 1: ?string}
      */
-    private function rentalCost(Asset $asset, ?float $hours): array
+    private function committedRentalCost(Asset $asset, ?float $hours): array
     {
         $rate = $asset->rental_rate !== null ? (float) $asset->rental_rate : null;
 
@@ -146,7 +157,7 @@ class RentVsOwnService
 
         // Basis kalender: butuh tahu sejak kapan alat ini disewa.
         if ($asset->rental_start === null) {
-            return [null, 'Periode sewa (rental_start) belum diisi — biaya sewa berjalan belum dapat dihitung.'];
+            return [null, 'Periode sewa (rental_start) belum diisi — biaya sewa terikat belum dapat dihitung.'];
         }
 
         $start = $asset->rental_start->copy()->startOfDay();
