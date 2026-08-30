@@ -3,9 +3,11 @@
 namespace Modules\Core\Support;
 
 use Modules\Assets\Models\Asset;
+use Modules\Core\Models\MethodLibraryEntry;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\Guarantee;
 use Modules\Crm\Models\Quotation;
+use Modules\Crm\Models\TenderPackage;
 use Modules\Engineering\Models\DrawingSubmittal;
 use Modules\Engineering\Models\MaterialSubmittal;
 use Modules\Estimation\Models\Boq;
@@ -59,7 +61,30 @@ class AttachableDocuments
 {
     /** @var array<string, array{class: class-string, prefix: string, label: string}> */
     private const MAP = [
+        /*
+         * P7 — the metode pelaksanaan library. THIS is the document P0-D's
+         * pptx/docx policy was pinned for: a metode pelaksanaan arrives as a
+         * slide deck or a Word file, and until now nothing in the registry
+         * could carry one. est.*, not core.*, for the reason spelled out on
+         * migration 000191 — the estimator writes the method, and core.* is
+         * held only by admin and direktur.
+         *
+         * The attachment rides the VERSION, not the method: revision 2's deck
+         * is not revision 1's, and a library that shared one file between them
+         * would let a superseded row's evidence change under it.
+         */
+        'core/method-library' => ['class' => MethodLibraryEntry::class, 'prefix' => 'est', 'label' => 'Pustaka metode kerja'],
         'crm/quotations' => ['class' => Quotation::class, 'prefix' => 'crm', 'label' => 'Penawaran'],
+        /*
+         * P7 — the tender dossier. What attaches here is the OWNER'S paper:
+         * the dokumen pemilihan PDF, each addendum, the signed BA aanwijzing.
+         * The register rows beside them say what arrived and when; the files
+         * are what arrived. The TKDN worksheet and the RKK are deliberately
+         * NOT attachable — each is composed from rows this ERP holds, and a
+         * dropped PDF beside a computed sheet is a second version of the same
+         * claim with nothing keeping the two in step.
+         */
+        'crm/tender-packages' => ['class' => TenderPackage::class, 'prefix' => 'crm', 'label' => 'Paket tender'],
         'crm/contracts' => ['class' => Contract::class, 'prefix' => 'crm', 'label' => 'Kontrak'],
         'crm/guarantees' => ['class' => Guarantee::class, 'prefix' => 'crm', 'label' => 'Jaminan'],
         /*

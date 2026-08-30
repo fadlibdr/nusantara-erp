@@ -95,6 +95,10 @@ return [
         'PPK' => 'PPK/{Y}/{RM}/{N4}',   // PPK — perintah kerja alat sewa & jasa berbasis periode (P5)
         'PPKB' => 'PPKB/{Y}/{RM}/{N4}',  // Tagihan per periode atas PPK (P5 — kuantitas turunan register/kalender)
         'HSE' => 'HSE/{Y}/{M2}/{N4}',   // Formulir K3 harian FM-10-13 (P6 — {M2} meniru DRP: dokumen harian)
+        'TND' => 'TND/{Y}/{RM}/{N4}',   // Paket tender — berkas satu lelang (P7; TDR/TND, bukan LEAD yang tak bernomor)
+        'TKD' => 'TKD/{Y}/{RM}/{N4}',   // Lembar hitung TKDN atas satu penawaran (P7)
+        'RKK' => 'RKK/{Y}/{RM}/{N4}',   // Rencana Keselamatan Konstruksi penawaran (P7 — Permen PUPR 10/2021)
+        'MTD' => 'MTD/{Y}/{N4}',        // Entri pustaka metode kerja (P7 — master, tanpa bulan seperti BOQ/RAP)
     ],
 
     /*
@@ -466,6 +470,86 @@ return [
          * ketik kebijakan tidak boleh diam-diam mematikan gate.
          */
         'budget_gate' => 'warn',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Paket tender (P7)
+    |--------------------------------------------------------------------------
+    |
+    | TEMPLATE CHECKLIST KELENGKAPAN — dan mengapa ia di sini, bukan di tabel
+    | dan bukan di core_settings.
+    |
+    | Tiga tempat dipertimbangkan. Sebuah TABEL menuntut CRUD, izin, seeder,
+    | layar, dan satu layar lagi untuk versinya — semua itu demi daftar yang
+    | berubah kira-kira sekali setahun. Sebuah baris `core_settings` membuatnya
+    | dapat disunting lewat formulir web tanpa struktur: checklist yang bisa
+    | dipendekkan diam-diam oleh siapa pun berhenti berarti "kelengkapan", dan
+    | itu justru satu-satunya hal yang harus dijaga oleh sebuah daftar periksa.
+    | Di config, template ini adalah KONSTANTA PASANG — masuk git, terbaca di
+    | diff, ditinjau seperti mask penomoran di atasnya.
+    |
+    | Yang DISIMPAN di `crm_tender_packages.checklist` bukan template ini,
+    | melainkan SNAPSHOT-nya: label dan grup ikut tersimpan bersama centangnya,
+    | sehingga menyunting template di sini tidak pernah menulis ulang checklist
+    | paket yang sudah diisi dan ditandatangani. Kunci yang tidak dikenal
+    | template ditolak 422 — daftar periksa yang bisa menambah butirnya sendiri
+    | saat diisi bukan daftar periksa.
+    |
+    | Butirnya adalah praktik rumah, bukan kutipan peraturan: apa yang biasa
+    | diminta satu dokumen lelang jasa konstruksi. Menambah/mengurangi butir
+    | adalah keputusan pemilik, dan tempatnya persis di sini.
+    */
+    'tender' => [
+        /*
+         * Ambang CAKUPAN BIAYA satu baris lembar TKDN (persen dari nilai baris
+         * penawaran itu sendiri).
+         *
+         * Uji keberadaan pernah dikalahkan dengan Rp 1: satu baris biaya Rp 1
+         * pada baris penawaran Rp 100 juta membuat lembarnya menyatakan cakupan
+         * 100% dan "dinilai penuh". Baris yang uraian biayanya tidak mencapai
+         * sekian persen dari nilai barisnya berstatus "dinilai sebagian" —
+         * persennya tetap dihitung dan tetap tampil, tetapi lembarnya TIDAK
+         * boleh menyebut dirinya dinilai penuh dan nilai barisnya tidak masuk
+         * cakupan.
+         *
+         * ANGKA INI ADALAH ANGKA RUMAH, BUKAN ANGKA PERMEN. Permenperin
+         * 35/2025 tidak menyebut pecahan apa pun antara biaya dan nilai
+         * penawaran — Pasal 14 berbicara tentang biaya keseluruhan, dan harga
+         * penawaran memuat margin yang besarnya tidak diketahui peraturan
+         * mana pun. Karena itu ambang ini MENGUNGKAPKAN, tidak pernah menolak:
+         * baris di bawahnya tetap tersimpan. Preseden bentuknya
+         * `projects.cpi_coverage_min_pct`, yang lahir dari cacat yang sama.
+         *
+         * Sengaja TIDAK ada di layar Pengaturan: ambang pengungkapan yang bisa
+         * diturunkan ke 0 lewat formulir web berhenti berarti "cakupan" —
+         * alasan yang sama yang menahan checklist_template di bawah ini.
+         */
+        'tkdn_min_cost_to_value_pct' => 50.0,
+
+        'checklist_template' => [
+            ['key' => 'surat_penawaran', 'group' => 'administrasi', 'label' => 'Surat penawaran bermeterai'],
+            ['key' => 'surat_kuasa', 'group' => 'administrasi', 'label' => 'Surat kuasa (bila ditandatangani penerima kuasa)'],
+            ['key' => 'jaminan_penawaran', 'group' => 'administrasi', 'label' => 'Jaminan penawaran'],
+            ['key' => 'pakta_integritas', 'group' => 'administrasi', 'label' => 'Pakta integritas'],
+            ['key' => 'formulir_kualifikasi', 'group' => 'administrasi', 'label' => 'Formulir isian kualifikasi'],
+            ['key' => 'akta_perusahaan', 'group' => 'kualifikasi', 'label' => 'Akta pendirian dan perubahan terakhir'],
+            ['key' => 'izin_usaha', 'group' => 'kualifikasi', 'label' => 'NIB / izin usaha'],
+            ['key' => 'sbu', 'group' => 'kualifikasi', 'label' => 'Sertifikat Badan Usaha (SBU)'],
+            ['key' => 'npwp_spt', 'group' => 'kualifikasi', 'label' => 'NPWP dan SPT tahunan terakhir'],
+            ['key' => 'neraca', 'group' => 'kualifikasi', 'label' => 'Neraca keuangan / laporan keuangan'],
+            ['key' => 'pengalaman', 'group' => 'kualifikasi', 'label' => 'Daftar pengalaman pekerjaan sejenis'],
+            ['key' => 'metode_pelaksanaan', 'group' => 'teknis', 'label' => 'Metode pelaksanaan'],
+            ['key' => 'jadwal_pelaksanaan', 'group' => 'teknis', 'label' => 'Jadwal dan waktu pelaksanaan'],
+            ['key' => 'daftar_personil', 'group' => 'teknis', 'label' => 'Daftar personil inti'],
+            ['key' => 'daftar_peralatan', 'group' => 'teknis', 'label' => 'Daftar peralatan utama'],
+            ['key' => 'rkk', 'group' => 'teknis', 'label' => 'Rencana Keselamatan Konstruksi (RKK)'],
+            ['key' => 'daftar_subkontraktor', 'group' => 'teknis', 'label' => 'Daftar bagian pekerjaan yang disubkontrakkan'],
+            ['key' => 'daftar_kuantitas_harga', 'group' => 'harga', 'label' => 'Daftar kuantitas dan harga (BoQ)'],
+            ['key' => 'analisa_harga_satuan', 'group' => 'harga', 'label' => 'Analisa harga satuan pekerjaan (AHSP)'],
+            ['key' => 'daftar_upah_bahan_alat', 'group' => 'harga', 'label' => 'Daftar harga upah, bahan, dan peralatan'],
+            ['key' => 'formulir_tkdn', 'group' => 'harga', 'label' => 'Formulir penghitungan TKDN'],
+        ],
     ],
 
     'approvals' => [

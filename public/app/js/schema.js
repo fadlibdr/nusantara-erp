@@ -170,6 +170,13 @@ export const RESOURCES = {
           { key: 'lead_id', label: 'Dari prospek', type: 'lookup', lookup: 'leads' },
           { key: 'title', label: 'Judul penawaran', type: 'text', required: true, span: 2 },
           { key: 'scope_type', label: 'Lingkup pekerjaan', type: 'select', enum: 'scopeType', required: true },
+          {
+            // P7 — "Metode Pelaksanaan". Pemilihnya hanya menawarkan versi yang
+            // BERLAKU; versi yang sudah digantikan ditolak server dengan 422
+            // yang menyebut versi penggantinya.
+            key: 'method_library_id', label: 'Metode pelaksanaan', type: 'lookup', lookup: 'methodLibrary',
+            help: 'Dirujuk pada dokumen penawaran. Hanya versi yang berlaku boleh dikutip.',
+          },
           { key: 'valid_until', label: 'Berlaku sampai', type: 'date' },
           { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
           { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
@@ -432,6 +439,180 @@ export const RESOURCES = {
       perm: 'crm.approve', variant: 'success', when: (row) => row.status !== 'approved',
       confirm: 'Aktifkan kontrak ini? Termin akan siap ditagih.',
     }],
+  },
+
+  /* ---------------------------------------------------------------- P7
+     Paket tender: berkas satu lelang. Bukan dokumen ber-persetujuan (lihat
+     migrasi 000386), jadi tidak ada tombol Ajukan/Setujui di sini — yang
+     ber-maker-checker adalah PENAWARAN-nya.
+
+     Register dokumen lelang adalah `lines`, karena register memang daftar:
+     judul, bab, tanggal terbit, dan addendum ke-n per baris. Urutan addendum
+     TIDAK diperiksa di sini — server menolak register yang melompat dengan
+     422 yang menyebut nomor yang bolong, dan sebuah tiruan aturannya di
+     browser hanya akan punya kesempatan untuk berbeda. */
+  'crm/tender-packages': {
+    module: 'crm', api: 'crm/tender-packages',
+    label: 'Paket Tender', labelOne: 'Paket Tender',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Paket pekerjaan', type: 'text', sub: 'owner_name' },
+      { key: 'tender_number', label: 'No. lelang', type: 'text' },
+      { key: 'aanwijzing_date', label: 'Aanwijzing', type: 'date' },
+      // API mengurutkan batas pemasukan menaik: yang paling cepat jatuh tempo
+      // di baris teratas, karena "mana yang harus dikejar" adalah pertanyaan
+      // yang dijawab daftar ini.
+      { key: 'submission_deadline', label: 'Batas pemasukan', type: 'date', withRelative: true },
+      { key: 'last_addendum_no', label: 'Addendum ke', type: 'text', align: 'right', width: '1%' },
+    ],
+    filters: [
+      { key: 'lead_id', label: 'Prospek', lookup: 'leads' },
+    ],
+    form: {
+      sections: [{
+        title: 'Paket tender',
+        fields: [
+          { key: 'lead_id', label: 'Prospek', type: 'lookup', lookup: 'leads', required: true },
+          { key: 'title', label: 'Paket pekerjaan', type: 'text', required: true, span: 2 },
+          { key: 'owner_name', label: 'Pemberi tugas / instansi', type: 'text' },
+          { key: 'tender_number', label: 'Nomor pengumuman lelang', type: 'text' },
+          { key: 'registered_at', label: 'Tanggal pendaftaran', type: 'date' },
+          { key: 'submission_deadline', label: 'Batas pemasukan penawaran', type: 'date' },
+          { key: 'aanwijzing_date', label: 'Tanggal aanwijzing', type: 'date' },
+          {
+            key: 'aanwijzing_notes', label: 'Catatan berita acara aanwijzing', type: 'textarea', span: 2,
+            help: 'Aanwijzing lanjutan yang punya berita acara sendiri dicatat sebagai baris register di bawah.',
+          },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'documents', label: 'Register dokumen lelang',
+        columns: [
+          { key: 'title', label: 'Judul dokumen', type: 'text', required: true, width: '38%' },
+          { key: 'chapter', label: 'Bab / bagian', type: 'text', width: '20%' },
+          { key: 'issued_date', label: 'Tanggal terbit', type: 'date', required: true, width: '18%' },
+          {
+            key: 'addendum_no', label: 'Addendum ke', type: 'number', width: '12%',
+            help: 'Kosongkan untuk terbitan asli. Nomor harus berurutan dari 1.',
+          },
+          { key: 'notes', label: 'Catatan', type: 'text', width: '12%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'documents', label: 'Register dokumen lelang',
+        columns: [
+          { key: 'title', label: 'Judul dokumen' },
+          { key: 'chapter', label: 'Bab / bagian' },
+          { key: 'issued_date', label: 'Terbit', type: 'date' },
+          { key: 'addendum_no', label: 'Addendum ke', align: 'right' },
+          { key: 'notes', label: 'Catatan' },
+        ],
+      }],
+    },
+  },
+
+  /* P7 — lembar hitung TKDN Jasa (Permenperin 35/2025 Pasal 14 & Lampiran IV
+     huruf B). Tiap baris adalah satu BIAYA, ditandai baris penawaran yang
+     ditanggungnya; kolom penentunya adalah tabel peraturannya, bukan sebuah
+     kolom persen yang bisa diketik.
+
+     Persentase paket TIDAK ditampilkan sendirian di mana pun: ia datang dari
+     `summary` bersama cakupan penilaiannya, karena baris penawaran yang belum
+     diuraikan biayanya BELUM DINILAI — bukan 0%, bukan 100%. */
+  'crm/tkdn-worksheets': {
+    module: 'crm', api: 'crm/tkdn-worksheets',
+    label: 'Lembar TKDN', labelOne: 'Lembar TKDN',
+    // Layar detail sendiri (views/tender.js): rincian biaya menguraikan BARIS
+    // PENAWARAN LEMBAR INI, dan satu-satunya cara memilihnya dengan jujur
+    // adalah daftar baris penawaran itu sendiri.
+    customDetail: 'tkdn',
+    columns: [
+      codeColumn,
+      { key: 'quotation.title', label: 'Penawaran', type: 'text', sub: 'quotation.code' },
+      { key: 'summary.tkdn_pct', label: 'TKDN jasa (%)', type: 'text', align: 'right' },
+      { key: 'summary.coverage_pct', label: 'Cakupan dinilai (%)', type: 'text', align: 'right' },
+      // TIGA EMBER, bukan dua. Cakupan hanya menghitung baris yang uraian
+      // biayanya benar-benar sepadan dengan nilai barisnya; tanpa kolom ini
+      // daftar akan berbunyi "cakupan 0% · belum dinilai 5,6 M" atas lembar
+      // yang sudah menguraikan 4,2 M — dan ketiganya berhenti menjumlah nilai
+      // penawaran. Ember yang tidak punya kolom adalah ember yang hilang.
+      { key: 'summary.partially_assessed_value', label: 'Baru sebagian', type: 'currency', align: 'right' },
+      { key: 'summary.unassessed_value', label: 'Belum dinilai', type: 'currency', align: 'right' },
+    ],
+    filters: [
+      { key: 'quotation_id', label: 'Penawaran', lookup: 'quotations' },
+      { key: 'tender_package_id', label: 'Paket tender', lookup: 'tenderPackages' },
+    ],
+    form: {
+      sections: [{
+        title: 'Lembar TKDN',
+        fields: [
+          {
+            key: 'quotation_id', label: 'Penawaran', type: 'lookup', lookup: 'quotations', required: true,
+            help: 'Satu penawaran satu lembar. Rincian biaya menguraikan baris penawaran ini.',
+          },
+          { key: 'tender_package_id', label: 'Paket tender', type: 'lookup', lookup: 'tenderPackages' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      /* TANPA kisi `lines`, disengaja — dan inilah alasan layar detailnya
+         khusus. Endpoint-nya memang menerima `items` sekaligus, tetapi kisi
+         generik hanya bisa menawarkan KOTAK ANGKA untuk `quotation_item_id`:
+         angka yang tidak dilihat siapa pun, pada lembar yang persennya dikutip
+         di dokumen penawaran, berjarak satu salah ketik dari menguraikan biaya
+         ke baris penawaran yang salah — dan hasilnya tetap terlihat wajar,
+         karena persennya tetap terhitung. Pemilihnya ada di layar detail,
+         menampilkan nomor dan uraian baris penawaran yang sebenarnya. */
+      note: 'Rincian komponen biaya diisi di halaman detail lembar ini, lewat pemilih yang menampilkan baris penawarannya sendiri.',
+    },
+  },
+
+  /* P7 — RKK penawaran (Permen PUPR 10/2021). Baris IBPRP dan baris biaya SMKK
+     TIDAK disunting di sini: keduanya menautkan baris milik modul lain
+     (prj_risk_register dan est_boq_items) lewat endpoint tersendiri, dan
+     nilainya dibaca hidup dari sana — sebuah editor baris di layar ini akan
+     mengundang salinan yang bisa membeku. Yang ditampilkan adalah hasil
+     bacanya. */
+  'crm/rkk-documents': {
+    module: 'crm', api: 'crm/rkk-documents',
+    label: 'RKK Penawaran', labelOne: 'RKK',
+    // Layar detail sendiri (views/tender.js): dua pemilih yang menampilkan
+    // baris register risiko dan baris RAB yang sebenarnya, lalu menuliskannya
+    // lewat /ibprp-links dan /smkk-costs — bukan lewat rekaman RKK-nya.
+    customDetail: 'rkk',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'tender_package.code' },
+      { key: 'smkk_total', label: 'Biaya SMKK', type: 'currency', align: 'right' },
+    ],
+    filters: [
+      { key: 'tender_package_id', label: 'Paket tender', lookup: 'tenderPackages' },
+      { key: 'project_id', label: 'Proyek (sumber IBPRP)', lookup: 'projects' },
+    ],
+    form: {
+      sections: [{
+        title: 'RKK penawaran',
+        fields: [
+          { key: 'tender_package_id', label: 'Paket tender', type: 'lookup', lookup: 'tenderPackages', required: true },
+          { key: 'title', label: 'Judul RKK', type: 'text', required: true, span: 2 },
+          {
+            key: 'project_id', label: 'Proyek sumber IBPRP', type: 'lookup', lookup: 'projects',
+            help: 'Register risiko proyek inilah yang boleh ditaut sebagai baris IBPRP.',
+          },
+          {
+            key: 'boq_id', label: 'BoQ / RAB', type: 'lookup', lookup: 'boqs',
+            help: 'Biaya penerapan SMKK diambil dari baris RAB ini — tidak diketik ulang.',
+          },
+          { key: 'policy', label: 'Kebijakan keselamatan konstruksi', type: 'textarea', span: 2 },
+          { key: 'program', label: 'Program & sasaran keselamatan konstruksi', type: 'textarea', span: 2 },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      note: 'Baris IBPRP dan baris biaya SMKK dipilih di halaman detail RKK ini — keduanya menunjuk baris milik register risiko proyek dan RAB, dan nilainya dibaca dari sana.',
+    },
   },
 
   'crm/guarantees': {
@@ -4979,6 +5160,60 @@ export const RESOURCES = {
     },
   },
 
+  /* P7 seam (lane BACKEND) — pustaka metode kerja. Kuncinya dituntut registri
+     PHP: AttachableDocuments memuat 'core/method-library' (dek pptx/docx
+     metode pelaksanaan, kebijakan P0-D), dan AttachmentRegistryTest menuntut
+     ada layar yang merendernya. Digerbangi est.* seperti core_locations
+     digerbangi prj.*: tabel Core yang dirawat orang modul lain — di sini
+     estimator/drafter yang menulis metodenya bersama RAB.
+
+     SATU BARIS = SATU VERSI, dan revisi bukan suntingan: tombol "Terbitkan
+     Revisi" membuat versi n+1 dan menstempel pendahulunya, karena penawaran
+     yang sudah dikirim mengutip versi yang berlaku SAAT ITU. Daftarnya secara
+     bawaan hanya memuat versi berlaku — server yang menyaring, supaya pemilih
+     pada layar Penawaran tidak pernah menawarkan dokumen yang sudah ditarik. */
+  'core/method-library': {
+    module: 'est', api: 'core/method-library',
+    label: 'Pustaka Metode Kerja', labelOne: 'Metode Kerja',
+    columns: [
+      codeColumn,
+      { key: 'title', label: 'Judul', type: 'text', sub: 'work_package' },
+      { key: 'category', label: 'Kategori', type: 'text' },
+      { key: 'version', label: 'Versi', type: 'number', align: 'right', width: '1%' },
+      { key: 'effective_date', label: 'Berlaku sejak', type: 'date' },
+    ],
+    filters: [
+      { key: 'category', label: 'Kategori' },
+    ],
+    form: {
+      sections: [{
+        title: 'Metode kerja',
+        fields: [
+          {
+            key: 'category', label: 'Kategori', type: 'text', required: true, createOnly: true,
+            help: 'Bebas — struktur, arsitektur, mep, elv, pekerjaan tanah. Bersama paket kerja ia adalah identitas rangkaian versinya.',
+          },
+          { key: 'work_package', label: 'Paket pekerjaan', type: 'text', required: true, createOnly: true, span: 2 },
+          { key: 'title', label: 'Judul metode', type: 'text', required: true, span: 2 },
+          { key: 'summary', label: 'Ringkasan', type: 'textarea', span: 2 },
+          { key: 'effective_date', label: 'Berlaku sejak', type: 'date' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      note: 'Dek pptx/docx metode dilampirkan pada VERSI ini lewat kartu Lampiran, bukan pada metodenya — revisi berikutnya membawa dek-nya sendiri.',
+    },
+    actions: [{
+      key: 'publish-revision', label: 'Terbitkan Revisi', path: '{id}/revisions', method: 'POST',
+      perm: 'est.create', when: (row) => row.is_current,
+      fields: [
+        { key: 'title', label: 'Judul versi baru', type: 'text', required: true },
+        { key: 'summary', label: 'Ringkasan', type: 'textarea' },
+        { key: 'effective_date', label: 'Berlaku sejak', type: 'date' },
+      ],
+      navigateToResult: true,
+    }],
+  },
+
   /* P1-QC seam (lane BACKEND): the three keys the PHP registries demand —
      ApprovableDocuments links notifications to 'quality/inspections', that same
      slug carries attachment cards (AttachmentRegistryTest holds the JS/PHP lists
@@ -5248,7 +5483,18 @@ export const NAV = [
     items: [
       { label: 'Pelanggan', route: 'r/crm/customers' },
       { label: 'Prospek', route: 'r/crm/leads' },
+      // P7 — berkas lelang duduk di antara prospek dan penawaran karena di
+      // situlah pekerjaannya: dokumen lelang dan aanwijzing datang lebih dulu,
+      // penawaran menyusul, dan lembar TKDN menguraikan penawaran itu.
+      { label: 'Paket Tender', route: 'r/crm/tender-packages' },
       { label: 'Penawaran', route: 'r/crm/quotations' },
+      { label: 'Lembar TKDN', route: 'r/crm/tkdn-worksheets' },
+      { label: 'RKK Penawaran', route: 'r/crm/rkk-documents' },
+      // P7 — lampiran kualifikasi, baca saja. Tempatnya di sini dan bukan di
+      // SDM/Aset/Pengadaan karena yang dilayaninya adalah SAMPUL PENAWARAN;
+      // ketiga masternya tetap dirawat di modul pemiliknya masing-masing, dan
+      // layar ini tidak menulis satu baris pun ke sana.
+      { label: 'Penyusun Kualifikasi', route: 'kualifikasi' },
       { label: 'Kontrak', route: 'r/crm/contracts' },
       { label: 'Pekerjaan Tambah-Kurang', route: 'r/crm/contract-change-orders' },
       // Temuan #78: agregasi menang/kalah yang datanya sudah lama dicatat.
@@ -5263,6 +5509,14 @@ export const NAV = [
       { label: 'BOQ / RAB', route: 'r/estimation/boqs' },
       { label: 'RAP', route: 'r/estimation/cost-budgets' },
       { label: 'Riwayat Harga Satuan', route: 'harga-satuan' },
+      /* P7 — pustaka metode kerja. Tabel Core yang dirawat orang modul lain,
+         dan tempatnya mengikuti preseden "Lokasi Tapak" di grup Engineering:
+         baris itu duduk di grup tempat ORANGNYA bekerja, bukan di grup Sistem
+         yang digerbangi iam.view — estimator yang menulis metode pelaksanaan
+         bersama RAB-nya tidak memegang iam.view, jadi entri di sana akan
+         menyembunyikan layar ini justru dari satu-satunya orang yang mengisinya.
+         Digerbangi est.view bersama grupnya, persis gerbang rutenya di server. */
+      { label: 'Pustaka Metode Kerja', route: 'r/core/method-library' },
     ],
   },
   {

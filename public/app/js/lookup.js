@@ -20,6 +20,15 @@ export const SOURCES = {
   contractChangeOrders: { path: 'crm/contract-change-orders', label: 'title', sub: 'code', title: 'Pekerjaan tambah-kurang' },
   quotations: { path: 'crm/quotations', label: 'title', sub: 'code', title: 'Penawaran' },
   leads: { path: 'crm/leads', label: 'name', sub: 'company_name', title: 'Prospek' },
+  /* P7 — berkas lelang, dirujuk lembar TKDN dan RKK penawaran. */
+  tenderPackages: { path: 'crm/tender-packages', label: 'title', sub: 'code', title: 'Paket tender' },
+  /* P7 — pustaka metode kerja. Bawaan daftarnya HANYA versi yang berlaku
+     (MethodLibraryController: whereNull superseded_by_id kecuali diminta
+     sebaliknya), jadi pemilih pada layar Penawaran tidak pernah menawarkan
+     versi yang sudah ditarik — yang memang ditolak server dengan 422. Dijaga
+     est.view sementara layar pemakainya digerbangi crm.*; loadSource
+     menoleransi 403, pola `contractChangeOrders` di atas. */
+  methodLibrary: { path: 'core/method-library', label: 'title', sub: 'code', title: 'Metode pelaksanaan' },
   projects: { path: 'projects', label: 'name', sub: 'code', title: 'Proyek' },
   // Daftar SEMUA daun dari semua proyek, karena form.js tidak punya lookup
   // berantai — sub-nya 'PRJ-2026-001 · B.3' sebagai pembeda, dan server yang

@@ -9,6 +9,10 @@ use Modules\Crm\Http\Controllers\GuaranteeController;
 use Modules\Crm\Http\Controllers\LeadController;
 use Modules\Crm\Http\Controllers\PipelineReportController;
 use Modules\Crm\Http\Controllers\QuotationController;
+use Modules\Crm\Http\Controllers\RkkDocumentController;
+use Modules\Crm\Http\Controllers\TenderPackageController;
+use Modules\Crm\Http\Controllers\TenderQualificationController;
+use Modules\Crm\Http\Controllers\TkdnWorksheetController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     // Customers
@@ -77,6 +81,50 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // PUT contract-termins/{id}; persetujuan nilainya sudah lewat crm.approve.
     Route::post('contract-change-orders/{contractChangeOrder}/schedule-termin', [ContractChangeOrderController::class, 'scheduleTermin'])->middleware('permission:crm.update');
     Route::get('contracts/{contract}/change-summary', [ContractChangeOrderController::class, 'summary'])->middleware('permission:crm.view');
+
+    /*
+     * P7 — Paket tender. Berkas satu lelang; bukan dokumen ber-persetujuan,
+     * jadi tidak ada submit/approve di sini (lihat migrasi 000386).
+     */
+    Route::get('tender-packages', [TenderPackageController::class, 'index'])->middleware('permission:crm.view');
+    // Literal sebelum wildcard: 'checklist-template' tidak boleh ditelan {tenderPackage}.
+    Route::get('tender-packages/checklist-template', [TenderPackageController::class, 'checklistTemplate'])->middleware('permission:crm.view');
+    Route::post('tender-packages', [TenderPackageController::class, 'store'])->middleware('permission:crm.create');
+    Route::get('tender-packages/{tenderPackage}', [TenderPackageController::class, 'show'])->middleware('permission:crm.view');
+    Route::put('tender-packages/{tenderPackage}', [TenderPackageController::class, 'update'])->middleware('permission:crm.update');
+    Route::delete('tender-packages/{tenderPackage}', [TenderPackageController::class, 'destroy'])->middleware('permission:crm.delete');
+    Route::put('tender-packages/{tenderPackage}/documents', [TenderPackageController::class, 'replaceDocuments'])->middleware('permission:crm.update');
+    Route::get('tender-packages/{tenderPackage}/checklist', [TenderPackageController::class, 'checklist'])->middleware('permission:crm.view');
+    Route::put('tender-packages/{tenderPackage}/checklist', [TenderPackageController::class, 'setChecklist'])->middleware('permission:crm.update');
+
+    // P7 — Lembar hitung TKDN Jasa (Permenperin 35/2025).
+    Route::get('tkdn-worksheets', [TkdnWorksheetController::class, 'index'])->middleware('permission:crm.view');
+    Route::post('tkdn-worksheets', [TkdnWorksheetController::class, 'store'])->middleware('permission:crm.create');
+    Route::get('tkdn-worksheets/{tkdnWorksheet}', [TkdnWorksheetController::class, 'show'])->middleware('permission:crm.view');
+    Route::put('tkdn-worksheets/{tkdnWorksheet}', [TkdnWorksheetController::class, 'update'])->middleware('permission:crm.update');
+    Route::delete('tkdn-worksheets/{tkdnWorksheet}', [TkdnWorksheetController::class, 'destroy'])->middleware('permission:crm.delete');
+    Route::put('tkdn-worksheets/{tkdnWorksheet}/items', [TkdnWorksheetController::class, 'replaceItems'])->middleware('permission:crm.update');
+    Route::get('tkdn-worksheets/{tkdnWorksheet}/summary', [TkdnWorksheetController::class, 'summary'])->middleware('permission:crm.view');
+
+    // P7 — RKK penawaran (Permen PUPR 10/2021). Cetak F/RKK.
+    Route::get('rkk-documents', [RkkDocumentController::class, 'index'])->middleware('permission:crm.view');
+    Route::post('rkk-documents', [RkkDocumentController::class, 'store'])->middleware('permission:crm.create');
+    Route::get('rkk-documents/{rkkDocument}', [RkkDocumentController::class, 'show'])->middleware('permission:crm.view');
+    Route::put('rkk-documents/{rkkDocument}', [RkkDocumentController::class, 'update'])->middleware('permission:crm.update');
+    Route::delete('rkk-documents/{rkkDocument}', [RkkDocumentController::class, 'destroy'])->middleware('permission:crm.delete');
+    Route::put('rkk-documents/{rkkDocument}/ibprp-links', [RkkDocumentController::class, 'syncIbprpLinks'])->middleware('permission:crm.update');
+    Route::put('rkk-documents/{rkkDocument}/smkk-costs', [RkkDocumentController::class, 'syncSmkkCosts'])->middleware('permission:crm.update');
+
+    /*
+     * P7 — Penyusun kualifikasi. crm.view, tidak hr.view/ast.view/prc.view:
+     * yang dilayani di sini adalah LAMPIRAN PENAWARAN, disusun tim tender, dan
+     * kolom yang dikembalikan sengaja sempit — nama, jabatan, sertifikat dan
+     * masa berlakunya; kode, jenis dan status alat; nama dan klasifikasi
+     * subkon. Tidak ada gaji, tidak ada harga perolehan, tidak ada rekening.
+     */
+    Route::get('tender-qualification/personnel', [TenderQualificationController::class, 'personnel'])->middleware('permission:crm.view');
+    Route::get('tender-qualification/equipment', [TenderQualificationController::class, 'equipment'])->middleware('permission:crm.view');
+    Route::get('tender-qualification/subcontractors', [TenderQualificationController::class, 'subcontractors'])->middleware('permission:crm.view');
 
     // Register jaminan & asuransi. A register, not a document — no numbering,
     // no approval; identity is the bank's own (issuer, number). end_date on

@@ -21,6 +21,17 @@ class QuotationStoreRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'scope_type' => ['required', Rule::enum(ScopeType::class)],
             'valid_until' => ['nullable', 'date'],
+            /*
+             * P7 — "Metode Pelaksanaan". Hanya keberadaannya yang diperiksa di
+             * sini; aturan yang sebenarnya — rujukan harus ke versi yang
+             * BERLAKU, bukan yang sudah digantikan — ada di QuotationService,
+             * karena sebuah Rule::exists tidak bisa menyatakannya dan seeder
+             * yang memanggil service langsung harus tunduk pada aturan yang
+             * sama. Tanpa baris ini kuncinya dibuang validated() tanpa suara:
+             * penawaran tersimpan TANPA metode, dan tidak ada yang keliru
+             * terlihat di mana pun.
+             */
+            'method_library_id' => ['nullable', 'integer', Rule::exists('core_method_library', 'id')->whereNull('deleted_at')],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'ppn_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string'],

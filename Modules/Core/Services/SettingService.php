@@ -523,6 +523,8 @@ class SettingService
         'SP3' => 'SP3 mandor (induk)', 'OPM' => 'Opname mandor',
         'PPK' => 'PPK alat & jasa', 'PPKB' => 'Tagihan periode PPK',
         'HSE' => 'Formulir K3 harian',
+        'TND' => 'Paket tender', 'TKD' => 'Lembar TKDN', 'RKK' => 'RKK penawaran',
+        'MTD' => 'Pustaka metode kerja',
     ];
 
     /**

@@ -260,8 +260,8 @@ class SettingServiceTest extends ErpTestCase
     }
 
     /**
-     * The one key the engine reads through Erp:: that must never be editable,
-     * with the reason it is not, asserted above.
+     * The keys the engine reads through Erp:: that must never be editable,
+     * each with the reason it is not, asserted above.
      */
     private const RUNTIME_KEYS_DELIBERATELY_NOT_EDITABLE = [
         'accounting.perpetual_inventory' => 'it elects the inventory accounting method (audit A2). '
@@ -270,6 +270,16 @@ class SettingServiceTest extends ErpTestCase
             .'real change of method needs a stock revaluation at a fiscal-period boundary. It is an '
             .'install-time constant in config/erp.php; erp:inventory-method-check reports whether a change '
             .'is safe.',
+
+        'tender.tkdn_min_cost_to_value_pct' => 'it is the floor below which a TKDN worksheet line counts '
+            .'as "dinilai sebagian" rather than fully assessed — the guard that stops a Rp 1 cost row on a '
+            .'Rp 100 million offer line from claiming a clean 100% coverage. A disclosure floor that any '
+            .'holder of the settings screen can dial down to 0 stops meaning "coverage" at all, which is '
+            .'the same reason tender.checklist_template is not on the screen either. It never refuses a '
+            .'save and never moves tkdn_pct, so it is not a parameter the engine obeys; it is a house '
+            .'judgement about how much description is enough, and the regulation it discloses against '
+            .'(Permenperin 35/2025) names no such fraction. Owner decision, in config/erp.php, in git, '
+            .'read in a diff — see PANDUAN-ADMINISTRATOR §12(e).',
     ];
 
     /**

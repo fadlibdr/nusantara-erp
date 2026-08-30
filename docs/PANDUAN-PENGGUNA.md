@@ -149,8 +149,8 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Kelompok | Isinya |
 |---|---|
 | Ringkasan | Dasbor · Tenggat · Kalender |
-| Penjualan | Pelanggan · Prospek · Penawaran · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
-| Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan |
+| Penjualan | Pelanggan · Prospek · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
+| Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
 | Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Formulir K3 Harian · Register IBPRP · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
 | Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton · Template Inspeksi |
@@ -269,6 +269,7 @@ Yang diawasi Tenggat, dan siapa yang melihatnya:
 
 | Yang diawasi | Diperingatkan | Terlihat oleh pemegang |
 |---|---|---|
+| Paket tender mendekati batas pemasukan | 7 hari | `crm.create` |
 | Penawaran mendekati akhir masa berlaku | 14 hari | `crm.update` |
 | Kontrak mendekati tanggal berakhir | 30 hari | `crm.approve` |
 | Termin kontrak mendekati rencana tagih | 7 hari | `fin.create` |
@@ -531,11 +532,12 @@ menunggu tombol Ubah muncul lagi.
 
 ### 2.7 Lampiran
 
-Kartu **Lampiran** hanya ada pada 37 jenis dokumen. Untuk melihatnya Anda butuh
+Kartu **Lampiran** hanya ada pada 39 jenis dokumen. Untuk melihatnya Anda butuh
 `<modul>.view`; untuk **`Tambah lampiran`** dan **`Hapus`** Anda butuh `<modul>.update`.
 
-Yang bisa berlampiran: penawaran · kontrak · jaminan · BOQ · RAP · submittal gambar
-(SDS) · submittal material (SMS) · inspeksi mutu (QCI) · proyek · laporan harian ·
+Yang bisa berlampiran: penawaran · **paket tender** · kontrak · jaminan · BOQ · RAP ·
+**pustaka metode kerja** · submittal gambar (SDS) · submittal material (SMS) ·
+inspeksi mutu (QCI) · proyek · laporan harian ·
 BAST · temuan defect · opname owner (OPN) · insiden K3 · izin kerja lapangan ·
 izin masuk/keluar material · PR · PO · vendor · dokumen vendor · BA negosiasi (BAN) ·
 penerimaan barang · opname stok · SPK subkon · opname subkon · invoice AR · tagihan
@@ -545,8 +547,12 @@ tiket · berita acara servis · aset.
 Yang **tidak** bisa: RFQ, evaluasi vendor, bon pengeluaran, transfer, kedua jenis retur,
 milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
 F/IL-nya mencetak baris pekerjanya sendiri — tidak ada foto yang perlu ditempel),
-kontrak layanan, jadwal preventif, payroll, rekap absensi, kalender pajak, dan dana kas
-kecil.
+kontrak layanan, jadwal preventif, payroll, rekap absensi, kalender pajak, dana kas
+kecil, dan — sengaja — **lembar TKDN serta RKK penawaran**: keduanya disusun dari baris
+yang sudah tersimpan di sistem, dan sebuah PDF yang ditempelkan di sebelah lembar
+terhitung adalah versi kedua dari klaim yang sama, tanpa apa pun yang menjaga keduanya
+tetap sejalan. Yang menampung kertas pemilik lelang adalah **paket tender**: dokumen
+pemilihan, tiap addendum, dan berita acara aanwijzing yang sudah ditandatangani.
 
 Yang diterima: PDF, gambar (jpg/png/webp/gif/heic), Word, Excel, PowerPoint
 (pptx/ppt), CSV, teks, XML, gambar teknik AutoCAD (dwg/dxf), dan jadwal
@@ -585,7 +591,7 @@ dikembalikan."*
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
    baris slip di halaman Payroll run (§11.6, §13.4).
-3. **Tombol `Cetak <nama formulir>`** — 58 formulir rumah perusahaan. Bab 13.
+3. **Tombol `Cetak <nama formulir>`** — 61 formulir rumah perusahaan. Bab 13.
 
 ### 2.9 Dua layar impor
 
@@ -693,6 +699,13 @@ Jalur order-to-cash: dari prospek yang menelepon sampai uangnya masuk rekening.
 | 11. Catat uang masuk | Keuangan › Pembayaran | keuangan | invoice lunas |
 | 12. Cairkan retensi | Keuangan › Piutang Retensi | keuangan | — |
 
+**Bila pekerjaannya dilelangkan**, langkah 3 punya berkasnya sendiri: **Paket Tender**
+menyimpan register dokumen lelang dan aanwijzing (§3.5a), **Lembar TKDN** menguraikan
+komponen dalam negeri penawaran itu (§3.5b), **RKK Penawaran** menyusun rencana
+keselamatan konstruksinya (§3.5c), dan **Penyusun Kualifikasi** merakit lampiran
+personil, alat, dan subkon dari master (§3.5d). Keempatnya digerbangi izin `crm.*` yang
+sama dengan penawaran, dan tidak satu pun menambah tahap persetujuan baru.
+
 **Batas seorang sales.** Peran `sales` **tidak memegang satu pun izin keuangan**, jadi
 kelompok **Keuangan** tidak ada di sidebarnya. Invoice, Pembayaran, Termin Siap Ditagih,
 dan Piutang Retensi berada di luar jangkauannya. Sales juga **tidak memegang
@@ -789,8 +802,8 @@ Lingkup pekerjaan: **Konstruksi Gedung · Integrasi Sistem (ELV/ICT) · Pemeliha
 
 1. **`Tambah Penawaran`**.
 2. Isi **Pelanggan** (wajib), **Judul penawaran** (wajib), **Lingkup pekerjaan** (wajib).
-   Opsional: *Dari prospek*, *Berlaku sampai*, *Diskon*, *Tarif PPN (%)* (bawaan 11),
-   *Catatan*.
+   Opsional: *Dari prospek*, **Metode pelaksanaan** (§4.6a), *Berlaku sampai*, *Diskon*,
+   *Tarif PPN (%)* (bawaan 11), *Catatan*.
 3. Isi tabel **Rincian penawaran** — minimal satu baris: **Uraian** (wajib, maksimal 500
    karakter) · **Qty** (wajib) · Satuan · **Harga satuan** (wajib). Jumlah per baris
    dihitung layar.
@@ -805,6 +818,25 @@ layar. Tidak ada penambahan baris "di belakang" — apa yang ada di tabel saat A
 Simpan itulah isi penawaran.
 
 Penawaran bisa diubah dan dihapus **hanya saat Draf atau Ditolak**.
+
+**Metode pelaksanaan hanya boleh menunjuk versi yang berlaku.** Pemilihnya menawarkan
+versi berlaku saja dari **Pustaka Metode Kerja** (§4.6a). Bila versi yang sudah
+digantikan tetap terkirim — lewat penawaran lama yang disalin, atau lewat pemanggilan
+API langsung — server menolak dan **menyebut penggantinya**, karena yang dibutuhkan
+penyusun penawaran bukan "salah" melainkan "yang benar ada di mana":
+
+> "Metode MTD/2026/0001 versi 1 sudah digantikan; versi yang berlaku adalah MTD/2026/0002
+> versi 2."
+
+Rujukan ke entri yang tidak ada di pustaka ditolak juga: *"Metode pelaksanaan yang
+dirujuk tidak ditemukan di pustaka metode."* — sebuah rujukan menggantung akan tercetak
+bergaris kosong pada lembar penawaran sementara checklist paket tender mencentang
+"Metode pelaksanaan" sebagai sudah dilampirkan.
+
+Metode yang sudah dipilih **terbaca kembali**: halaman penawaran menampilkannya sebagai
+judul metodenya (bukan nomor id), dan membuka kembali formulir edit menyemai pemilihnya
+dengan pilihan yang tersimpan — jadi menekan `Simpan` tanpa menyentuhnya **tidak**
+menghapus rujukan itu.
 
 **Tombol di halaman penawaran:**
 
@@ -894,6 +926,346 @@ Mengubah pelanggan pada penawaran yang sudah ada **diberi peringatan, bukan dito
 Tidak ada impor untuk kontrak, jadwal termin, pekerjaan tambah-kurang, jaminan, atau
 invoice. Yang bisa diimpor di jalur ini hanya **Pelanggan** (lewat Impor Data Master —
 di sana kolom `kode` **wajib**, berbeda dari formulir layar) dan **Penawaran**.
+
+### 3.5a Paket Tender — `Penjualan › Paket Tender`
+
+Empat layar berikut (3.5a–3.5d) melayani **satu berkas lelang**. Urutannya di sidebar
+mengikuti urutan pekerjaannya: dokumen lelang dan aanwijzing datang lebih dulu,
+penawaran menyusul, lalu lembar TKDN dan RKK **menguraikan penawaran itu**, dan
+Penyusun Kualifikasi merakit lampiran sampulnya.
+
+Paket tender **menggantung pada prospek**, bukan pada penawaran: sebuah lelang punya
+berkas, jadwal, dan berita acara aanwijzing sebelum ada penawaran, dan sering berakhir
+tanpa satu pun.
+
+Kolom daftar: Kode · Paket pekerjaan (dengan pemberi tugas di bawahnya) · No. lelang ·
+Aanwijzing · **Batas pemasukan** (dengan "3 hari lagi") · Addendum ke. Nomor terbit
+otomatis: `TND/{tahun}/{bulan Romawi}/{4 digit}`. Saringan: Prospek.
+
+**Daftar diurutkan menaik menurut batas pemasukan** — yang paling cepat jatuh tempo di
+baris teratas, karena "mana yang harus dikejar" adalah pertanyaan yang dijawab daftar
+ini. Paket yang **belum** punya batas pemasukan jatuh ke bawah, bukan ke atas.
+
+**Membuat paket:**
+
+1. **`Tambah Paket Tender`**.
+2. Isi **Prospek** (wajib) dan **Paket pekerjaan** (wajib). Opsional: *Pemberi tugas /
+   instansi*, *Nomor pengumuman lelang*, *Tanggal pendaftaran*, *Batas pemasukan
+   penawaran*, *Tanggal aanwijzing*, *Catatan berita acara aanwijzing*, *Catatan*.
+3. Isi tabel **Register dokumen lelang** — satu baris per dokumen yang diterima:
+   **Judul dokumen** (wajib) · Bab / bagian · **Tanggal terbit** (wajib) · *Addendum
+   ke* · Catatan.
+4. **`Simpan`**.
+
+**Register addendum tidak boleh berlubang.** Nomor addendum berjalan 1, 2, 3 … tanpa
+lompatan. Register yang memuat "Addendum ke-3" tanpa Addendum ke-2 bukan register yang
+berantakan — ia adalah pernyataan bahwa satu dokumen yang sudah terbit **tidak pernah
+sampai kepada kita**, dan penawaran yang dihargai di atas register itu dihargai di atas
+informasi yang kurang. Karena itu ditolak, dan penolakannya menyebut nomor yang bolong:
+
+> "Register dokumen lelang melompat: addendum ke-2 belum tercatat, sementara addendum
+> ke-3 sudah. Catat dokumen yang terlewat dahulu."
+
+Penolakan lain, kata demi kata:
+
+| Yang Anda lakukan | Pesannya |
+|---|---|
+| Dua baris memakai nomor addendum yang sama | *"Baris 3: addendum ke-1 sudah tercatat pada register ini."* |
+| Mengisi *Addendum ke* dengan 0 atau negatif | *"Baris 2: nomor addendum dimulai dari 1; kosongkan untuk terbitan asli."* |
+| Baris tanpa judul | *"Baris 2: judul dokumen wajib diisi."* |
+| Baris tanpa tanggal terbit | *"Baris 2: tanggal terbit dokumen wajib diisi."* |
+
+**Kosongkan *Addendum ke* untuk terbitan asli** — Dokumen Pemilihan dan Berita Acara
+Aanwijzing bukan addendum.
+
+**Kartu Lampiran** (§2.7) ada di halaman paket, dan yang menempel di sana adalah **kertas
+pemilik lelang**: dokumen pemilihan PDF, tiap addendum, berita acara aanwijzing yang
+sudah ditandatangani. Baris register di sebelahnya berkata *apa* yang datang dan
+*kapan*; lampirannya adalah *yang datang*.
+
+**Batas pemasukan diawasi layar Tenggat** (§1.7) mulai **7 hari** sebelumnya, dan
+**hari batasnya sendiri masih terhitung "hari ini"**, bukan "lewat" — berkas masih boleh
+dimasukkan pada hari itu. Yang menerima peringatannya adalah pemegang `crm.create`, yaitu
+tim yang menyusun berkasnya. Tenggat ini adalah satu-satunya di daftar itu yang
+**tidak bisa diperbaiki setelah lewat**: kontrak yang lewat tanggal masih bisa
+di-addendum, PO yang telat masih bisa ditagih, tetapi lelang yang batas pemasukannya
+terlewat sudah kalah.
+
+**Paket tender bukan dokumen ber-persetujuan** — tidak ada `Ajukan`/`Setujui` di
+halamannya. Maker-checker berkas lelang ini hidup pada **penawarannya** (§3.4), yang
+sudah melewati siklus itu; siklus kedua di sini hanya akan meminta pemegang
+`crm.approve` menyetujui pengajuan yang sama dua kali.
+
+**Checklist kelengkapan paket belum punya layar.** Templatnya (21 butir dalam empat
+grup: administrasi, kualifikasi, teknis, harga) hidup di `config/erp.php`, jawabannya
+tersimpan sebagai snapshot pada paketnya, dan keduanya dilayani API —
+tetapi tidak ada kartu di layar yang menampilkan atau mencentangnya hari ini. Lihat
+§14.3.
+
+### 3.5b Lembar TKDN — `Penjualan › Lembar TKDN`
+
+Satu penawaran, satu lembar. Kolom daftar: Kode · Penawaran (dengan kodenya) ·
+**TKDN jasa (%)** · **Cakupan dinilai (%)** · **Baru sebagian** · Belum dinilai. Nomor
+`TKD/{tahun}/{bulan Romawi}/{4 digit}`. Saringan: Penawaran, Paket tender.
+
+Ketiga kolom rupiah itu — *dinilai* (yang tercakup persennya), *baru sebagian*, dan
+*belum dinilai* — **menjumlah persis nilai penawaran**. Bila salah satunya hilang dari
+pandangan, sisanya berbohong tentang selisihnya.
+
+**Dasar hitungnya ditulis di lembar dan di layar**: *TKDN Jasa — Permenperin 35/2025
+Pasal 14 & Lampiran IV huruf B.* Rumus itu **bukan** rumus TKDN yang biasa beredar;
+yang beredar adalah keturunan Permenperin 16/2011, yang **dicabut** Pasal 74 huruf a
+peraturan 2025 itu. Rinciannya, dan apa yang masih menunggu keputusan pemilik, ada di
+`docs/PANDUAN-ADMINISTRATOR.md` §12(e).
+
+Yang dihitung: `TKDN Jasa = (biaya keseluruhan − biaya luar negeri) ÷ biaya
+keseluruhan`, dengan biaya keseluruhan terdiri dari **tiga kelompok, dan hanya tiga**:
+tenaga kerja, alat kerja/fasilitas kerja, dan jasa umum.
+
+**Tidak ada kolom persen yang bisa diketik.** Faktor komponen dalam negeri setiap baris
+datang dari tabel peraturannya, menurut kelompok biayanya:
+
+| Kelompok biaya | Yang menentukan | Hasilnya |
+|---|---|---|
+| Tenaga kerja | **Kewarganegaraan** | WNI 100% · WNA 0% |
+| Alat kerja / fasilitas kerja | **Negara pembuat × kepemilikan** | Dibuat dalam negeri 100% (kepemilikan apa pun) · dibuat luar negeri: dimiliki DN 50%, dimiliki DN+LN 50% × porsi saham DN, dimiliki LN 0% |
+| Jasa umum | **Asal penyedia** | Penyedia dalam negeri 100% · penyedia luar negeri 0% |
+
+**Membuat lembar:**
+
+1. **`Tambah Lembar TKDN`**, pilih **Penawaran** (wajib). Opsional: *Paket tender*,
+   *Catatan*.
+2. Buka halaman lembarnya, tekan **`Tambah Komponen`**.
+3. **Langkah pertama** menanyakan **Baris penawaran yang menanggung biaya ini**,
+   **Kelompok biaya**, **Uraian komponen**, dan **Biaya komponen**.
+4. **Langkah kedua** menanyakan kolom penentu **kelompok itu saja** — kewarganegaraan
+   untuk tenaga kerja; dibuat di / dimiliki (+ porsi saham DN bila campuran) untuk alat
+   kerja; asal penyedia untuk jasa umum.
+
+Dua langkah itu disengaja: satu dialog berisi semua kolom penentu akan menawarkan
+"Kewarganegaraan" pada baris alat kerja, dan kolom yang tidak berlaku adalah kolom yang
+cepat atau lambat terisi.
+
+**Baris penawaran dipilih dari daftar baris penawaran itu sendiri** — nomor dan
+uraiannya, bukan kotak angka. Baris milik penawaran lain ditolak: *"Baris 1: baris
+penawaran tidak dikenali pada penawaran lembar ini."*
+
+Penolakan lain, kata demi kata:
+
+| Yang Anda lakukan | Pesannya |
+|---|---|
+| Baris tenaga kerja tanpa kewarganegaraan | *"Baris 1: biaya tenaga kerja wajib menyebut kewarganegaraan (wni atau wna)."* |
+| Baris jasa umum tanpa asal penyedia | *"Baris 1: biaya jasa umum wajib menyebut asal penyedia (dn atau ln)."* |
+| Baris alat kerja tanpa pembuat/kepemilikan | *"Baris 1: biaya alat kerja wajib menyebut negara pembuat (dn/ln) dan kepemilikan (dn/ln/campuran)."* |
+| Alat buatan LN, kepemilikan campuran, tanpa porsi saham | *"Baris 1: alat buatan luar negeri dengan kepemilikan campuran wajib menyebut proporsi saham dalam negeri (0–100)."* |
+| Biaya komponen negatif | *"Baris 1: biaya komponen tidak boleh negatif."* |
+| Membuat lembar kedua untuk penawaran yang sama | *"Penawaran QTN/2026/II/0002 sudah memiliki lembar TKDN (TKD/2026/VIII/0001)."* |
+
+Tidak ada bawaan diam-diam pada kolom penentu. Baris tenaga kerja tanpa kewarganegaraan
+bukan "anggap saja WNI" — ia adalah baris yang belum dinilai, dan menyimpannya berarti
+mengunci tebakan ke dalam penyebut sebuah klaim hukum.
+
+**Aturan terpenting layar ini: baris penawaran yang belum diuraikan biayanya BELUM
+DINILAI — bukan 0%, bukan 100%.** Barisnya diberi lencana kuning **`BELUM DINILAI`**,
+selnya bergaris (—), dan nilainya **tidak masuk pembilang maupun penyebut** persen
+paket; ia dilaporkan terpisah sebagai *Nilai penawaran belum dinilai*. Menghitungnya
+0% akan menurunkan angka yang kita klaim tanpa ada yang pernah memeriksa barisnya;
+menghitungnya 100% akan menaikkannya — dan yang kedua berbohong ke arah yang
+menguntungkan kita.
+
+**Aturan kedua layar ini: satu baris biaya Rp 1 bukan "sudah dinilai".** Sebuah baris
+penawaran Rp 100 juta yang uraian biayanya hanya satu baris Rp 1 dulu terbaca sebagai
+baris yang sudah diperiksa — cakupannya melompat ke 100% tanpa ada yang menguraikan
+apa pun. Sekarang layar membandingkan **jumlah biaya yang Anda uraikan** dengan **nilai
+baris penawaran itu sendiri**, dan setiap baris berada di salah satu dari **tiga**
+keadaan:
+
+| Lencana | Artinya | Pengaruhnya pada cakupan |
+|---|---|---|
+| `Dinilai` (hijau) | Uraian biayanya mencapai ambang terhadap nilai barisnya | Nilai barisnya **masuk** cakupan |
+| **`DINILAI SEBAGIAN`** (kuning) | Ada uraian biaya, tetapi jauh lebih kecil daripada nilai barisnya | Nilai barisnya **tidak** masuk cakupan; berdiri sendiri sebagai *Nilai penawaran baru dinilai sebagian* |
+| **`BELUM DINILAI`** (kuning) | Tidak ada uraian biaya sama sekali | Nilai barisnya masuk *Nilai penawaran belum dinilai* |
+
+Baris `DINILAI SEBAGIAN` **tetap mencetak persennya** dan **biayanya tetap dihitung**
+pada persen paket — biaya yang Anda uraikan itu nyata. Yang ditahan hanyalah
+pengakuannya sebagai baris yang sudah diperiksa penuh; di bawah persennya tertulis
+berapa persen biaya yang sudah diuraikan terhadap nilai barisnya, mis. *"biaya 19,05%
+dari nilai baris"*.
+
+> **Ambangnya adalah angka rumah, bukan angka Permen — dan layar mengatakannya sendiri.**
+> Permenperin 35/2025 tidak menyebut pecahan apa pun antara biaya dan nilai penawaran:
+> Pasal 14 berbicara tentang biaya, sedangkan nilai penawaran adalah harga, yang memuat
+> margin. Karena itu ambang ini **mengungkapkan, tidak menolak** — lembar Anda tetap
+> tersimpan apa adanya, termasuk saat masih dikerjakan separuh jalan. Bawaannya **50%**,
+> tercetak di kartu rekap bersama kalimat yang menyatakan asal-usulnya, dan mengubahnya
+> adalah keputusan pemilik (`docs/PANDUAN-ADMINISTRATOR.md` §12(e)). Jika lembar Anda
+> menandai baris yang menurut Anda sudah lengkap, yang perlu diperiksa adalah apakah
+> uraian biayanya memang selengkap itu — atau apakah ambangnya cocok dengan margin
+> pekerjaan Anda.
+
+**Persen TKDN tidak pernah tampil sendirian.** Di mana pun angka paket muncul,
+cakupannya berdiri di sebelahnya: *"4 dari 7 item dinilai · cakupan nilai 62,50%"*
+— dan bila ada baris yang baru sebagian, kalimatnya menyebutkannya juga:
+*"4 dari 7 item dinilai (2 baru dinilai sebagian)"*.
+Lembar yang belum menilai seluruh baris penawaran membawa peringatan:
+
+> "Lembar ini belum menilai seluruh baris penawaran. Persen di atas berlaku untuk 4 dari
+> 7 item dinilai; mencantumkannya pada dokumen penawaran tanpa kalimat cakupan ini
+> adalah klaim yang lebih luas daripada yang diperiksa."
+
+Lembar tanpa satu pun baris yang dinilai **tidak mencetak nol** — persennya bergaris.
+
+**Persen paket adalah akumulasi berbobot BIAYA**, bukan rata-rata polos persentase per
+baris penawaran. Dua baris 100% dan 0% dengan biaya sangat berbeda tidak menghasilkan
+50%.
+
+> **Sejauh mana angka ini boleh dipakai.** Ia adalah TKDN **Jasa** atas **uraian biaya
+> yang Anda ketik**. Dua hal yang diminta peraturannya belum dilakukan sistem:
+> **penelusuran ke tingkat 2 dan 3** (Pasal 15 — rantai pasok di balik satu baris biaya)
+> dan **TKDN gabungan Barang dan Jasa** (Pasal 18, yang butuh sertifikat TKDN tiap
+> barang). Untuk pekerjaan yang gabungan barang dan jasa, angka di layar ini **bukan**
+> angka gabungan yang diminta panitia. Rinciannya di
+> `docs/PANDUAN-ADMINISTRATOR.md` §12(e).
+
+**Tidak ada tombol cetak pada lembar TKDN, dan itu disengaja.** Formulir TKDN adalah
+formulir Kemenperin, bukan formulir rumah — mencetaknya di kop empat pihak akan
+menyamarkan lembar sertifikasi sebagai lembar proyek. Angkanya dibaca dari layar dan
+disalin tangan ke formulir Kemenperin (§13.3, catatan penutup).
+
+### 3.5c RKK Penawaran — `Penjualan › RKK Penawaran`
+
+Rencana Keselamatan Konstruksi yang dilampirkan pada penawaran, berstruktur Permen PUPR
+10/2021. Kolom daftar: Kode · Judul (dengan kode paket tender) · Biaya SMKK. Nomor
+`RKK/{tahun}/{bulan Romawi}/{4 digit}`. Saringan: Paket tender, Proyek (sumber IBPRP).
+
+**Membuat RKK:** **`Tambah RKK`** → **Paket tender** (wajib), **Judul RKK** (wajib),
+lalu *Proyek sumber IBPRP*, *BoQ / RAB*, *Kebijakan keselamatan konstruksi*,
+*Program & sasaran keselamatan konstruksi*, *Catatan*.
+
+Halaman RKK punya empat bagian, mengikuti urutan lembarnya:
+
+**A. Kebijakan** dan **C. Program & sasaran** adalah teks yang Anda tulis lewat `Ubah`.
+Yang belum diisi berbunyi *"Kebijakan keselamatan konstruksi belum diisi."* /
+*"Program keselamatan konstruksi belum diisi."* — di layar maupun di lembarnya.
+
+**B. IBPRP — dibaca hidup dari register risiko proyek.** Tombol **`Pilih Baris IBPRP`**
+membuka daftar baris **Register IBPRP** (§7.7) milik proyek sumber, dengan aktivitas,
+bahaya, F×A, dan risiko sisanya terbaca — bukan kotak id. Yang dicentang tercetak pada
+bagian B F/RKK.
+
+> **Mengapa RKK penawaran menunjuk register proyek LAIN.** Sebuah RKK penawaran belum
+> punya proyek — pekerjaannya belum dimenangkan — jadi IBPRP-nya memang disusun dari
+> register pekerjaan sejenis yang sudah berjalan. Itu cara IBPRP penawaran disusun. Yang
+> tidak boleh adalah mencetak bahaya-bahaya itu seolah dinilai untuk pekerjaan ini:
+> **F/RKK mencetak kode dan nama proyek sumbernya** pada baris SUMBER REGISTER IBPRP.
+
+Nilai F, A, dan risiko sisa **dibaca dari register saat halaman dibuka dan saat F/RKK
+dicetak** — tidak disalin saat menaut, jadi lembar ini tidak bisa membeku pada penilaian
+yang sudah direvisi. Baris register yang **sudah dihapus tetap tampil**, berlabel
+*"Baris register #12: sumber tidak ditemukan."*, karena penilaian bahaya yang lenyap
+adalah fakta tentang RKK ini; menghilangkannya dari layar membuat RKK terbaca lengkap.
+
+**D. Biaya penerapan SMKK — baris RAB.** Tombol **`Pilih Baris Biaya SMKK`** membuka
+daftar baris **BOQ / RAB** (§4.3) yang dirujuk RKK ini. Yang Anda tambahkan hanyalah
+label rumah pada barisnya (mis. *"APD & rambu"*) — **tidak ada kotak rupiah pada
+pemilihnya, dan tidak akan pernah ada.** Nilai biaya SMKK **adalah** nilai baris RAB
+yang ditunjuk; kotak rupiah di sini akan menjadi angka kedua untuk uang yang sama, bebas
+berselisih dengan RAB yang ditandatangani bersamanya.
+
+Baris yang baris RAB-nya sudah lenyap tampil sebagai *"Baris RAB #48: sumber tidak
+ditemukan."* dan **tidak ikut dijumlahkan** — 0,00 di sana berarti "tidak berbiaya",
+yang bukan yang kita ketahui.
+
+Penolakan, kata demi kata:
+
+| Yang Anda lakukan | Pesannya |
+|---|---|
+| Menaut baris IBPRP yang tidak ada di register hidup | *"Baris IBPRP tidak ditemukan pada register risiko proyek ini: 91, 92."* |
+| Menaut baris IBPRP milik proyek lain | pesan yang sama — id-nya disebut |
+| Menaut baris RAB yang tidak ada | *"Baris 1: baris BoQ #4321 tidak ditemukan; biaya SMKK harus menunjuk baris RAB yang ada."* |
+| Menaut baris RAB dari BoQ lain | *"Baris 1: baris BoQ #77 bukan milik BoQ yang dirujuk RKK ini."* |
+| Menaut baris RAB yang sama dua kali | *"Baris 2: baris BoQ #77 sudah tercatat sebagai biaya SMKK pada RKK ini."* |
+
+**Dua tombol pemilih baru muncul setelah sumbernya diisi.** RKK tanpa *Proyek sumber
+IBPRP* menampilkan pemberitahuan yang mengatakan begitu, dan RKK tanpa *BoQ / RAB*
+berbunyi *"RKK ini belum menunjuk RAB, jadi belum ada baris biaya yang boleh ditaut."*
+
+**Tidak ada kotak "jumlah biaya SMKK" di mana pun.** Jumlahnya dihitung dari baris RAB
+yang ditaut, di layar dan di lembar.
+
+### 3.5d Penyusun Kualifikasi — `Penjualan › Penyusun Kualifikasi`
+
+**Baca saja.** Layar ini merakit tiga lampiran kualifikasi dari master yang sudah
+dirawat modul pemiliknya: personil bersertifikat dari **SDM** (§11.3), dukungan alat
+dari **Aset** (§9.3), daftar subkon dari **Pengadaan** (§5.2). **Tidak ada yang ditulis
+di sini** — memperbaiki isinya berarti memperbaiki masternya, satu-satunya tempat yang
+tidak bisa basi.
+
+Di kepala layar: **tanggal acuan**, **pemilih paket tender** (untuk tombol cetak), dan
+`Muat ulang`.
+
+**A. Personil inti — sertifikat masih berlaku.** Nama · Jabatan · Jenis · Nama
+sertifikat · Nomor · Penerbit · Berlaku s/d. Karyawan yang sudah tidak aktif tidak
+muncul, sertifikat apa pun yang ia tinggalkan.
+
+**Sertifikat kedaluwarsa berdiri di kartunya sendiri** — dengan tanggal lewatnya dan
+berapa hari sudah lewat — dan kartunya berkata:
+
+> "Baris di sini TIDAK tercetak pada F/SBD — sebuah lembar yang menyatakan seorang ahli
+> bersedia ditugaskan tidak boleh berdiri di atas sertifikat yang sudah lewat. Ia berdiri
+> di sini supaya ada yang sempat memperpanjangnya sebelum batas pemasukan, bukan supaya
+> bisa diabaikan."
+
+Itu keputusan yang sengaja diambil: **sertifikat lewat tidak pernah dihitung sebagai
+kualifikasi, dan tidak pernah dibuang diam-diam.** Membuangnya berarti tim tender
+menemukan lubangnya setelah kalah lelang — atau tidak menemukannya sama sekali.
+
+**Tanggal acuan menentukan mana yang masih berlaku**, dan jawabannya "berlaku pada
+tanggal itu", bukan "berlaku hari ini": lembar kualifikasi bertanggal 12 September harus
+menjawab per 12 September berapa lama pun setelahnya ia dicetak ulang.
+
+**B. Dukungan alat — milik sendiri dan sewa.** Kode · Jenis/nama · Merk · Tipe ·
+No. seri · **Status** · **Pemilik / lessor** · Sewa s/d. Alat yang sudah dihapus buku
+tidak muncul. Alat sewa **boleh** mendukung penawaran dan tercetak pada F/DA — **sebagai
+sewa, dengan lessornya**. Yang tidak boleh adalah lembar yang membuatnya terbaca seperti
+milik sendiri, karena status kepemilikan justru kolom yang diperiksa panitia.
+
+**Alat sewa yang masa sewanya sudah berakhir berdiri di kartunya sendiri** — dengan
+tanggal berakhirnya dan berapa hari sudah lewat — persis seperti sertifikat kedaluwarsa,
+dan kartunya berkata:
+
+> "Baris di sini TIDAK tercetak pada F/DA — alat yang sudah kembali ke lessor bukan
+> dukungan alat, dan status asetnya tetap 'tersedia' karena tidak ada yang
+> memindahkannya saat sewa habis. Ia berdiri di sini supaya sewanya sempat diperpanjang
+> sebelum batas pemasukan, bukan supaya bisa diabaikan."
+
+Itu perlu justru karena **tidak ada apa pun di modul Aset yang mengubah status alat sewa
+ketika sewanya habis**: barisnya tetap `available` selamanya. Menyaring pada status saja
+akan mendaftarkan excavator yang sudah dikembalikan sebagai dukungan alat, dan
+menghitungnya pada **JUMLAH ALAT DIDAFTAR** di lembar yang masuk sampul penawaran.
+
+**C. Daftar subkontraktor.** Vendor bertipe subkontraktor yang berstatus aktif — kode,
+nama, badan hukum, klasifikasi, NPWP, kota, rating. Mengklik barisnya membuka halaman
+vendornya.
+
+**Tombol cetak F/SBD dan F/DA baru muncul setelah paket tender dipilih**, dan itu bukan
+kerewelan: judul paket, pemberi tugas, dan nomor lelang **tidak diketahui satu baris
+sertifikat atau satu baris aset pun**, dan lembar yang menggarisi ketiganya bukan lembar
+yang bisa dimasukkan ke sampul penawaran.
+
+> **F/SBD dan F/DA dijawab per BATAS PEMASUKAN paket yang dipilih**, bukan per hari
+> cetak. Itulah tanggal panitia menilai berkas yang dimasukkan — sertifikat yang masih
+> berlaku hari ini tetapi lewat sebelum berkasnya dinilai bukan kualifikasi, dan sewa
+> alat yang habis sebelum tanggal itu bukan dukungan alat. Tanggal itu pula yang
+> **tercetak di kepala lembar** dan pada baris **PERSONIL PER TANGGAL** / **ALAT PER
+> TANGGAL**, sehingga cetak ulang bulan depan memulangkan lembar yang sama. Paket yang
+> belum mencatat batas pemasukan jatuh ke hari cetak — dan lembarnya tetap menyebut
+> tanggal yang dijawabnya. Tanggal acuan di layar ini bebas, jadi **layar memperingatkan
+> bila keduanya berbeda** dan menyebut kedua tanggalnya.
+
+**Layar ini tidak menyimpan pilihan siapa pun.** Tidak ada tabel "personil yang
+dinominasikan": daftar nominasi yang tidak dirawat justru hal pertama yang diperiksa
+panitia, dan roster kedua yang basi lebih buruk daripada tidak ada roster.
 
 ### 3.6 Kontrak — `Penjualan › Kontrak`
 
@@ -1837,6 +2209,52 @@ tidak ada apa pun di layar ini yang mengubah harga yang sudah tersimpan di sebua
 
 Bila kosong: *"Belum ada pembelian tercatat untuk item ini pada rentang tanggal terpilih…
 Harga di layar lain (AHSP, BOQ) berarti masih berdiri di atas taksiran, bukan riwayat."*
+
+### 4.6a Pustaka Metode Kerja — `Estimasi › Pustaka Metode Kerja`
+
+Metode pelaksanaan yang dikutip penawaran sebagai **"Metode Pelaksanaan"** dan yang
+dikerjakan lapangan. Kolom: Kode · Judul (dengan paket pekerjaan) · Kategori · Versi ·
+Berlaku sejak. Nomor `MTD/{tahun}/{4 digit}` — master, tanpa bulan, seperti BOQ dan RAP.
+Saringan: Kategori.
+
+Layarnya duduk di kelompok **Estimasi** dan izinnya `est.*`, karena yang menulis metode
+pelaksanaan adalah estimator/drafter yang menyusunnya bersama RAB. Isinya dibaca semua
+orang yang memegang `est.view`.
+
+**Membuat entri:** **`Tambah Metode Kerja`** → **Kategori** (wajib) dan **Paket
+pekerjaan** (wajib) — keduanya **hanya bisa diisi saat membuat**, karena bersama-sama
+merekalah identitas rangkaian versinya — lalu **Judul metode** (wajib), *Ringkasan*,
+*Berlaku sejak*, *Catatan*.
+
+Kategori adalah teks bebas (struktur, arsitektur, mep, elv, pekerjaan tanah, …), bukan
+daftar tertutup: taksonomi metode kerja berbeda antar perusahaan, dan daftar yang tidak
+memuat "pekerjaan tanah" hanya akan memaksa orang memilih kategori yang salah.
+
+**Satu baris = satu versi, dan revisi bukan suntingan.** Tombol **`Terbitkan Revisi`**
+membuat **versi n+1** sebagai baris baru dan menstempel pendahulunya sebagai digantikan.
+Muatan versi baru = muatan versi lama, ditimpa apa yang Anda isi — revisi yang harus
+mengetik ulang seluruh isinya adalah revisi yang kehilangan bagian yang tidak berubah.
+
+Alasannya sama dengan revisi submittal (§16.3): **penawaran yang dikirim pada bulan Maret
+mengutip metode yang berlaku pada bulan Maret**, dan menimpa baris itu pada bulan Juni
+menulis ulang lampiran surat yang sudah keluar.
+
+**Daftarnya secara bawaan hanya memuat versi yang berlaku.** Versi yang sudah digantikan
+tetap tersimpan dan tetap terbaca lewat halamannya, tetapi tidak ikut ditawarkan pemilih
+di layar Penawaran — karena penawaran baru **tidak boleh** mengutipnya (§3.4).
+
+Penolakan, kata demi kata:
+
+| Yang Anda lakukan | Pesannya |
+|---|---|
+| Membuat entri untuk paket yang metodenya sudah ada dan berlaku | *"Metode untuk paket \"Pekerjaan pondasi bore pile\" sudah ada dan berlaku (MTD/2026/0002 versi 2); terbitkan revisi, jangan entri baru."* |
+| Mengubah versi yang sudah digantikan | *"MTD/2026/0001 sudah digantikan versi berikutnya dan tidak dapat disunting."* |
+| Menerbitkan revisi dari versi yang sudah digantikan | *"MTD/2026/0001 sudah digantikan oleh MTD/2026/0002 versi 2; terbitkan revisi dari versi yang berlaku."* |
+
+**Kartu Lampiran menempel pada VERSI, bukan pada metodenya.** Dek `pptx`/`docx` metode
+pelaksanaan diunggah ke baris versi yang bersangkutan (§2.7): dek revisi 2 bukan dek
+revisi 1, dan pustaka yang berbagi satu berkas di antara keduanya akan membuat bukti
+sebuah versi yang sudah digantikan berubah di belakangnya.
 
 ### 4.7 Mengapa BOQ dan RAP mengikat pengadaan
 
@@ -6477,7 +6895,7 @@ Jadwal preventif **tidak menerima lampiran**.
 ### 13.1 Cara kerjanya
 
 Formulir rumah adalah kertas perusahaan — lembar berkop yang ditandatangani, diarsipkan,
-dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **58** di antaranya.
+dan diperlihatkan kepada pelanggan, konsultan MK, atau pemeriksa. Ada **61** di antaranya.
 
 Menekan tombol **`Cetak <nama formulir>`**:
 
@@ -6491,7 +6909,7 @@ Ia **bukan** unduhan PDF. Bila peramban memblokir jendela barunya, muncul notifi
 **Setiap lembar membawa bilah petunjuk yang hanya tampil di layar, tidak ikut tercetak**,
 yang mengingatkan Anda menekan Ctrl+P, memilih A4, orientasi yang benar, dan
 **menyalakan "Grafik latar belakang"** — tanpa itu, kepala tabel yang berarsir tercetak
-putih. Rinciannya (termasuk lima belas formulir mendatar) ada di
+putih. Rinciannya (termasuk delapan belas formulir mendatar) ada di
 `docs/PANDUAN-ADMINISTRATOR.md` §9.3.
 
 **Tombol yang izinnya tidak Anda pegang tidak digambar sama sekali** — daftar formulirnya
@@ -6512,7 +6930,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 
 **Kalau Anda tidak menemukan tombol cetak di halaman dokumen, lihat barisnya di daftar.**
 
-### 13.3 Daftar lengkap 58 formulir
+### 13.3 Daftar lengkap 61 formulir
 
 **Penjualan** (izin lihat penjualan):
 
@@ -6522,6 +6940,48 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Ringkasan Kontrak | F/RK | halaman Kontrak |
 | Berita Acara Pekerjaan Tambah / Kurang — CCO berjenis waktu tercetak **BERITA ACARA ADDENDUM WAKTU** dari tombol yang sama (§3.7) | F/BATK | halaman Pekerjaan Tambah-Kurang |
 | Register Jaminan & Asuransi (mendatar) | F/RJ | halaman Jaminan — mencetak **seluruh jaminan kontrak itu** |
+
+**Penjualan — tiga lembar tender P7** (izin lihat penjualan, semuanya mendatar —
+§3.5a–3.5d):
+
+| Formulir | Kode | Tombolnya di |
+|---|---|---|
+| Rencana Keselamatan Konstruksi (RKK) | F/RKK | halaman RKK Penawaran (§3.5c) |
+| Daftar Personil Inti & Surat Bersedia Ditugaskan | F/SBD | halaman **Paket Tender**, dan layar **Penyusun Kualifikasi** setelah paket dipilih (§3.5d) |
+| Daftar Peralatan Utama / Surat Dukungan Alat | F/DA | halaman **Paket Tender**, dan layar **Penyusun Kualifikasi** setelah paket dipilih (§3.5d) |
+
+**Ketiganya berjangkar pada PAKET TENDER**, bukan pada baris sertifikat atau baris aset:
+judul paket, pemberi tugas, dan nomor lelang tidak diketahui satu baris master pun, dan
+lembar yang menggarisi ketiganya bukan lembar yang bisa dimasukkan ke sampul penawaran.
+Ketiganya juga **tidak memakai kop empat pihak** — sebuah RKK penawaran belum punya
+proyek, belum punya SPK, dan pemberi tugasnya masih instansi pada berkas lelang.
+
+**F/RKK** mencetak baris IBPRP **yang dibaca hidup dari register risiko proyek sumber**
+(F, A, F×A, pengendalian, risiko sisa) dan menyebut **kode proyek sumbernya** pada blok
+identitas; baris register yang sudah dihapus tetap tercetak dengan sel bergaris.
+Rupiah biaya SMKK-nya **diturunkan dari baris RAB** yang ditaut — tidak ada rupiah kedua
+yang disimpan di sisi RKK — dan baris yang baris RAB-nya hilang bergaris serta **tidak
+ikut dijumlahkan**. Bagian yang belum diisi berbunyi *"Kebijakan keselamatan konstruksi
+belum diisi."*, *"RKK ini belum menaut satu pun baris IBPRP."*, *"Program keselamatan
+konstruksi belum diisi."*, dan *"RKK ini belum menaut satu pun baris biaya SMKK pada
+RAB."* — kalimat, bukan tabel kosong yang terbaca seolah nihil.
+
+**F/SBD** mencetak **hanya sertifikat yang masih berlaku**, dan menyebut berapa yang
+tidak: blok identitasnya membawa **PERSONIL PER TANGGAL** dan **SERTIFIKAT KEDALUWARSA
+TIDAK DIDAFTAR** (jumlahnya). Tanpa personil bersertifikat berlaku, lembarnya berbunyi
+*"Belum ada personil bersertifikat yang masih berlaku pada tanggal ini."* — dengan
+tanggal dan kepala yang tetap terisi. **Lembar ini dijawab per batas pemasukan paket
+tendernya**, bukan per hari mencetak (§3.5d). Kolom TANDA TANGAN bergaris kosong untuk
+diisi tangan, seperti pada kertasnya.
+
+**F/DA** memuat alat **milik sendiri dan sewa**, dan kolom **STATUS** serta **PEMILIK /
+LESSOR** berdiri di tengah tabel — bukan sebagai catatan kaki — karena kepemilikan
+justru kolom yang diperiksa panitia. Alat milik sendiri menggarisi kolom lessornya.
+**Alat sewa yang masa sewanya sudah berakhir pada tanggal lembar tidak dicetak**, dan
+jumlahnya diungkapkan pada blok identitas (**SEWA BERAKHIR TIDAK DIDAFTAR**), di samping
+**ALAT PER TANGGAL** dan **JUMLAH ALAT DIDAFTAR**. Catatan kaki lembarnya: *"Alat
+berstatus "Sewa" bukan milik perusahaan; pemilik/lessor dan masa sewanya tercantum pada
+baris yang bersangkutan."*
 
 **Estimasi** (izin lihat estimasi):
 
@@ -6671,6 +7131,13 @@ benar-benar mencakup ruang-ruang di dalamnya. Kolom **DIPERIKSA OLEH (PIHAK)** d
 belum ada yang menandatangani — nama konsultan MK dari halaman proyek tidak pernah
 mengisinya (§13.5).
 
+> **Tidak ada formulir rumah untuk TKDN, dan itu keputusan.** Lembar TKDN (§3.5b)
+> menghitung persennya di layar, tetapi **tidak punya tombol cetak**: formulir
+> penghitungan TKDN adalah **formulir Kemenperin**, bukan kertas perusahaan, dan
+> mencetaknya di kop empat pihak akan menyamarkan lembar sertifikasi sebagai lembar
+> proyek. Angkanya dibaca dari layar dan **disalin tangan** ke formulir Kemenperin —
+> beserta kalimat cakupannya, yang tidak boleh ditinggalkan.
+
 ### 13.4 Empat dokumen yang punya PDF sungguhan
 
 Berbeda dari formulir rumah, keempat ini **mengunduh berkas**:
@@ -6713,6 +7180,9 @@ Yang paling sering ditemui:
 | Rekap Upah (F/RU) | tidak ada yang bergaris — tetapi **tidak ada baris TOTAL**, dan kolom **STATUS** tercetak per baris sebagai kata | rekap boleh memuat draf dan approved berdampingan; satu total yang menjumlah keduanya adalah klaim yang belum ditandatangani siapa pun. Periode tanpa opname **tidak punya baris** — "tidak di-opname" dan "di-opname, nol" adalah dua pernyataan berbeda (§8.10) |
 | PPK Alat & Jasa (F/PPK) | baris **TANGGAL MULAI** & **TANGGAL SELESAI** bila PPK tidak menyebut periode · **KODE ALAT** pada baris jasa tanpa mesin · seluruh lembar adalah **plafon**, tanpa tabel realisasi | plafonnya yang memagari uang, bukan kalender — server memang tidak memagari periode tagihan ke tanggal PPK, jadi mencetak tanggal karangan berarti mencetak pagar yang tidak dipegang server. Realisasi tidak dicetak karena lembar ini ditandatangani **sebelum** satu jam pun tercatat; realisasinya hidup di Tagihan Periode PPK (§5.15) |
 | Kartu Aset alat sewa (F/KA) | **NILAI BUKU** bergaris kosong — **bukan Rp 0** | alat sewa milik vendor rental tidak pernah ada di neraca kita: harga perolehannya bukan nol, melainkan **tidak ada**. Fakta sewanya (lessor, tarif, periode) tercetak sebagai kalimat di blok Catatan, dan kartu aset milik sendiri tidak membawa baris VENDOR RENTAL bergaris (§9.10) |
+| RKK Penawaran (F/RKK) | **SUMBER REGISTER IBPRP** bila RKK tidak menyebut proyek sumbernya · sel baris IBPRP yang baris registernya sudah dihapus · **JUMLAH (Rp)** baris SMKK yang baris RAB-nya lenyap — dan baris itu **tidak ikut dijumlahkan** | nilai IBPRP dan rupiah SMKK dibaca **hidup** dari register risiko dan dari RAB saat mencetak, tidak disalin saat menaut; sumber yang lenyap tetap dicetak sebagai baris bergaris karena penilaian yang hilang adalah fakta tentang RKK ini, sementara 0,00 akan berarti "tidak berbiaya" (§3.5c) |
+| Daftar Personil (F/SBD) | kolom **TANDA TANGAN** · sel personil yang masternya tidak mengisi jabatan/penerbit — dan **sertifikat kedaluwarsa tidak punya baris sama sekali** | tanda tangan pernyataan bersedia ditugaskan memang dibubuhkan tangan. Sertifikat lewat tidak dibuang diam-diam: **jumlahnya tercetak** pada blok identitas sebagai SERTIFIKAT KEDALUWARSA TIDAK DIDAFTAR, supaya pemegang lembar tahu ada yang perlu diperpanjang — lembar yang menyatakan seorang ahli bersedia ditugaskan tidak boleh berdiri di atas SKK yang sudah lewat (§3.5d) |
+| Dukungan Alat (F/DA) | kolom **PEMILIK / LESSOR** dan **SEWA S/D** pada alat milik sendiri — dan **alat sewa yang masa sewanya sudah berakhir tidak punya baris sama sekali** | tidak ada lessor untuk dituliskan, dan tanda "-" akan menjadi sebuah kalimat. Kolom **STATUS** tidak pernah kosong: `Milik sendiri` atau `Sewa` tercetak sebagai kata, di tengah tabel — alat sewa boleh mendukung penawaran, yang tidak boleh adalah lembar yang membuatnya terbaca seperti milik sendiri. Sewa yang habis tidak dibuang diam-diam: **jumlahnya tercetak** pada blok identitas sebagai SEWA BERAKHIR TIDAK DIDAFTAR, karena status aset sewa tetap "tersedia" walau alatnya sudah kembali ke lessor (§3.5d) |
 
 **Lembar yang sudah diisi dan ditandatangani itulah catatannya.** Arsipkan di berkas
 proyek — tidak ada layar untuk merekamnya kembali.
@@ -6787,6 +7257,9 @@ Bukan soal izin — memang tidak ada tombolnya untuk siapa pun.
 | Mengubah **Rencana tagih** satu termin pada kontrak yang jadwalnya terkunci | Tidak ada layar yang memanggilnya | Minta administrator (§3.10) |
 | Melihat nilai kontrak **sebelum dan sesudah** semua CCO | Tidak ada layarnya | Cetak Berita Acara Tambah-Kurang per CCO; cari CCO lewat kotak cari dengan kode kontraknya (§3.7) |
 | Membatalkan penawaran yang salah ditandai **Kalah** | Tidak ada tombolnya, dan status Selesai tidak bisa diubah | Buat penawaran baru bernomor lain (§3.4) |
+| Mencentang **checklist kelengkapan paket tender** | Templat 21 butirnya ada di `config/erp.php`, jawabannya tersimpan pada paketnya, dan keduanya dilayani API — tetapi **tidak ada kartu di layar** yang menampilkan atau mencentangnya | Pakai kolom *Catatan* paket tender sebagai daftar sementara, atau minta administrator mengisinya lewat API (§3.5a) |
+| Mencetak **lembar TKDN** | Sengaja tidak ada tombolnya: formulir TKDN adalah formulir Kemenperin, bukan formulir rumah | Baca angkanya beserta **kalimat cakupannya** di layar Lembar TKDN, salin tangan ke formulir Kemenperin (§3.5b, §13.3) |
+| Mencetak **F/SBD** atau **F/DA** untuk tanggal selain batas pemasukan paketnya | Tanggal lembarnya adalah batas pemasukan paket tender, bukan parameter yang bisa dipilih saat mencetak | Ubah **Batas pemasukan penawaran** pada paket tendernya bila memang salah; untuk sekadar melihat jawaban tanggal lain, pakai tanggal acuan di layar Penyusun Kualifikasi — layar memperingatkan bila berbeda dengan lembarnya (§3.5d) |
 | Mencetak **Detail Schedule** bulan selain bulan berjalan | Pemilih bulannya tidak ada | Cetak pada bulan yang bersangkutan (§7.13) |
 | Menautkan **JV** ke sebuah kewajiban di Kalender Pajak | Pemilihnya tidak pernah berhasil memuat | Tulis nomor JV-nya di kolom Catatan (§10.10) |
 | Mengirim penawaran atau invoice **lewat email** dari aplikasi | Tidak ada | Cetak PDF-nya, kirim sendiri |

@@ -42,6 +42,10 @@ const WHEN_SET_KEYS = new Set([
   // P1-ENG: revisi hidup belum digantikan siapa pun — "Digantikan pada: —"
   // pada SDS yang justru sedang berlaku adalah kebalikan dari informasi.
   'superseded_at', 'superseded_by_code',
+  // P7: kode metode pelaksanaan berdampingan dengan judulnya, dan penawaran
+  // yang memang tidak mengutip metode tidak perlu dua baris "—" untuk satu
+  // ketiadaan yang sama.
+  'method_library_code',
 ]);
 
 /*
@@ -65,6 +69,9 @@ const NAME_SHADOWED = {
   location_id: 'location_path',
   ipp_id: 'ipp_code',
   created_by: 'created_by_name',
+  // P7: QuotationResource meratakan metode pelaksanaan yang dikutip penawaran.
+  // Tanpa baris ini kartu Informasi menuliskan "Method Library Id: 3".
+  method_library_id: 'method_library_title',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
 
@@ -99,6 +106,9 @@ const ID_LOOKUPS = {
   // dokumen yang datang tanpa relasi termuat. parent_id sengaja TIDAK
   // dipetakan: akun COA dan kategori juga memakai nama kolom itu.
   drawing_id: ['drawings'], location_id: ['locations'],
+  // P7: sama alasannya — QuotationResource meratakan judul metodenya hanya bila
+  // relasinya termuat, dan respons POST/PUT penawaran datang tanpa relasi itu.
+  method_library_id: ['methodLibrary'],
 };
 
 /** Indonesian labels for the generic key/value panel. */
@@ -343,6 +353,9 @@ const LABELS = {
   duration_days: 'Durasi (hari)', wbs_task_code: 'Kode paket WBS', wbs_task_name: 'Paket pekerjaan',
   kind: 'Jenjang', parent_id: 'Induk', parent_code: 'Kode induk', parent_name: 'Induk',
   path: 'Jalur lokasi', sort_order: 'Urutan', children_count: 'Jumlah sub-lokasi',
+  // P7 — metode pelaksanaan yang dikutip penawaran.
+  method_library_id: 'Metode pelaksanaan', method_library_title: 'Metode pelaksanaan',
+  method_library_code: 'Kode metode',
 };
 
 /*
