@@ -1335,6 +1335,24 @@ class ApBillService
                 );
             }
 
+            // The mandor bill (P4) is the third member of the same family —
+            // its DPP is the opname's gross minus the kasbon deduction, and
+            // approve() rebuilds the gross debit and the 1-1370 offset from
+            // the OPNAME's numbers, not the bill's. A typed-over DPP would
+            // post a gross that no longer matches the claim while the kasbon
+            // offset stayed at the claim's figure. Closed under the Deviasi
+            // baru #3 mandate (LAPORAN P5); cancel-and-reissue works here too
+            // — cancellation hands the kasbon offset back.
+            if (array_key_exists('dpp', $data)
+                && round((float) $data['dpp'], 2) !== round((float) $bill->dpp, 2)
+                && $bill->labor_claim_id !== null) {
+                throw new LogicException(
+                    "DPP tagihan {$bill->code} diturunkan dari opname mandor "
+                    .'(bruto minus potongan kasbon) dan tidak dapat diubah; batalkan tagihannya '
+                    .'dan terbitkan ulang.'
+                );
+            }
+
             $bill->fill(Arr::only($data, [
                 'bill_date', 'due_date', 'description', 'cost_category', 'dpp', 'ppn_amount',
                 'pph_tax_id', 'pph_amount', 'vendor_invoice_no', 'faktur_pajak_no',
