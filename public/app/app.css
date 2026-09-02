@@ -12,14 +12,14 @@
   --border-strong: #cbd2da;
   --text: #14181d;
   --text-2: #47505b;
-  --muted: #6b7684;
+  --muted: #5e6874; /* dulu #6b7684 = 4,26:1 di atas --bg pada teks 11 px — di bawah AA (2 Sep 2026) */
   --primary: #1a56db;
   --primary-hover: #1745b0;
   --primary-soft: #e8effc;
   --primary-fg: #ffffff;
   --danger: #c62828;
   --danger-soft: #fdecec;
-  --success: #1b7f4d;
+  --success: #17714a; /* dulu #1b7f4d = 4,42:1 di atas --success-soft pada badge 11,5 px */
   --success-soft: #e6f4ec;
   --warning: #96601a;
   --warning-soft: #fdf1dd;
@@ -73,8 +73,8 @@
   color-scheme: light;
   --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
   --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
-  --muted: #6b7684; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
-  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #1b7f4d;
+  --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
+  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
   --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
   --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
   --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
@@ -754,7 +754,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
 .chart .grid { stroke: var(--border); stroke-width: 1; }
 .chart .axis { stroke: var(--border-strong); stroke-width: 1; }
-.chart text { fill: var(--muted); font-size: 10px; font-family: var(--font); }
+.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
 .chart .plan { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 3; }
 .chart .act { fill: none; stroke: var(--primary); stroke-width: 2.5; }
 .chart .act-fill { fill: var(--primary); opacity: .08; }
@@ -1091,6 +1091,9 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
 @media (pointer: coarse) {
   .combo-opt { min-height: 42px; display: flex; align-items: center; }
   .combo-pop { max-height: 50vh; }
+  /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
+  .btn.sm { height: 36px; }
+  .btn.sm.icon { width: 36px; }
 }
 
 /* Print is the only way a financial report leaves this app; an open picker

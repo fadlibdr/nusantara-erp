@@ -14,6 +14,7 @@ use Modules\Core\Http\Controllers\FormPrintController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
+use Modules\Core\Http\Controllers\InboxController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
 use Modules\Core\Http\Controllers\RateHistoryController;
@@ -53,6 +54,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // The caller's own inbox. Scoped to $request->user() in the service, so no
     // permission gate applies — and none could help: there is no parameter that
     // would let one user read another's.
+    // Kotak masuk persetujuan: semua jenis dokumen submitted yang boleh
+    // disetujui pemanggil, minus yang ia ajukan sendiri. Tanpa gerbang izin —
+    // penyaringannya per {modul}.approve di dalam controller, dan yang tidak
+    // punya satu pun mendapat daftar kosong yang jujur.
+    Route::get('inbox', InboxController::class);
+
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('notifications/read', [NotificationController::class, 'markRead']);

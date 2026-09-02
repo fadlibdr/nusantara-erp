@@ -137,9 +137,14 @@ export function toast(message, { tone = 'ok', title, timeout = 5200 } = {}) {
 export function toastError(error) {
   const details = error && error.details ? error.details : [];
   const message = details.length ? details.slice(0, 4).join('\n') : error.message || String(error);
+  /* Laravel menaruh galat pertama sebagai `message` DAN sebagai baris pertama
+     `errors`, jadi toast 422 dulu membaca kalimat yang sama dua kali — sekali
+     sebagai judul, sekali sebagai rincian (diukur 2 Sep 2026 pada PO). Judul
+     hanya dipakai bila ia memang kalimat lain. */
+  const firstDetail = details.length ? details[0].replace(/^[^:]+:\s*/, '') : null;
   toast(message, {
     tone: 'err',
-    title: details.length ? error.message : undefined,
+    title: details.length && firstDetail !== error.message ? error.message : undefined,
     /* A long refusal stays until dismissed. The maker-checker message is ~40
        words ending with the way out ("… matikan di Pengaturan"); at 200 wpm it
        needs ~12 detik, and the 8-second timer ate exactly the clause that told
@@ -411,6 +416,19 @@ export function modal({ title, body, footer, width = '', onClose, dirty, dirtyPr
 export function closeModal() {
   const top = topModal();
   if (top) top.close();
+}
+
+/*
+ * Menutup SEMUA lapisan tanpa bertanya. Satu-satunya pemanggilnya adalah jalur
+ * 401: sesi yang berakhir di tengah formulir dulu menggambar halaman masuk DI
+ * BAWAH overlay yang masih terbuka — tombol Masuk tertutup backdrop, dan satu-
+ * satunya jalan adalah Esc → "Buang isian" (diukur 2 Sep 2026). Isian tidak
+ * hilang karena penutupan ini: form.js sudah menyimpan drafnya ke localStorage
+ * pada setiap ketikan, dan app.js meminta flush sekali lagi sebelum memanggil
+ * ini.
+ */
+export function closeAllModals() {
+  while (stack.length) stack[stack.length - 1].close();
 }
 
 /*

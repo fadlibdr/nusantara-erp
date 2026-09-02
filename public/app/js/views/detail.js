@@ -530,6 +530,47 @@ function nestedTable(sections, table) {
   ]));
 }
 
+/** Kalimat keadaan dokumen di bawah judul, atau null bila statusnya tidak dikenal. */
+function statusStrip(def, record, canEdit) {
+  const status = String(record.status || '');
+  const approvals = Array.isArray(record.approvals) ? record.approvals : [];
+  const last = (action) => [...approvals].reverse().find((a) => a.action === action);
+  const who = (entry) => (entry && entry.user ? entry.user.name : 'Sistem');
+  const when = (entry) => (entry ? fmt.date(entry.created_at) : '');
+  const label = (def.labelOne || 'Dokumen');
+
+  let tone = 'info';
+  let text = null;
+  let sub = null;
+
+  if (status === 'draft') {
+    text = `${label} ini masih draf — belum masuk antrean siapa pun.`;
+    sub = canEdit ? 'Ubah dan Hapus tersedia sampai diajukan. Tekan Ajukan bila sudah lengkap.' : null;
+  } else if (status === 'submitted') {
+    const s = last('submitted');
+    const given = approvals.filter((a) => a.action === 'approved').length;
+    const need = Number(record.required_levels || 0);
+    text = `${s ? `Diajukan ${when(s)} oleh ${who(s)}` : 'Diajukan'} · menunggu persetujuan${need > 1 ? ` (${given} dari ${need} tingkat)` : ''}.`;
+    sub = 'Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.';
+    tone = 'warn';
+  } else if (status === 'rejected') {
+    const r = last('rejected');
+    text = `Ditolak ${when(r)} oleh ${who(r)}${r && r.note ? `: "${r.note}"` : '.'}`;
+    sub = 'Perbaiki lalu ajukan lagi; riwayat penolakan tetap tersimpan.';
+    tone = 'error';
+  } else if (['approved', 'posted', 'active', 'closed'].includes(status)) {
+    const a = last('approved');
+    text = a ? `Disetujui ${when(a)} oleh ${who(a)} · dokumen terkunci.` : `${label} ini terkunci (${record.status_label || status}).`;
+    sub = 'Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.';
+  }
+
+  if (!text) return el('span', { hidden: true });
+  return el(`.alert.${tone}`, { style: { marginBottom: '14px' } }, [
+    icon(tone === 'info' ? 'inbox' : 'warn', 15),
+    el('div', { style: { flex: '1' } }, [el('div', { text }), sub ? el('.cell-sub', { text: sub }) : null]),
+  ]);
+}
+
 export function approvalTimeline(approvals) {
   if (!approvals || !approvals.length) {
     return el('p.muted', { text: 'Belum ada riwayat persetujuan.', style: { margin: 0, fontSize: '13px' } });
@@ -677,6 +718,16 @@ export async function renderDetail(host, { key, def, id }) {
       ...actionButtons(def, record, reload),
     ]),
   ]));
+
+  /*
+   * Strip status: satu kalimat tentang di mana dokumen ini berada dan apa yang
+   * bisa dilakukan sekarang. Ini jawaban di layar untuk tiga dari "enam kalimat
+   * untuk semua orang" di panduan pengguna — Ubah yang menghilang tanpa pesan,
+   * maker-checker, dan tidak ada batal setelah posting — yang dulu hanya bisa
+   * dibaca di dokumen, bukan di tempat orang bertanya (asesmen 2 Sep 2026).
+   * Datanya sudah ada di record.approvals; tidak ada permintaan tambahan.
+   */
+  host.appendChild(statusStrip(def, record, canEdit));
 
   /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
      words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.

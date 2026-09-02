@@ -2,7 +2,7 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal } from './ui.js';
+import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
@@ -47,6 +47,9 @@ import { renderEkualisasi } from './views/ekualisasi.js';
 import { renderGaleriProyek } from './views/galeriproyek.js';
 import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
+import { renderTugas } from './views/tugas.js';
+import { openForm } from './views/form.js';
+import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
 const root = document.getElementById('root');
 const THEME_KEY = 'nusantara_erp_theme';
@@ -123,6 +126,7 @@ function renderLogin({ message } = {}) {
     passwordInput.value = 'password';
     passwordInput.focus();
   };
+  const hint = el('.login-hint');
 
   root.appendChild(el('.login', el('.login-card', [
     el('.login-brand', [
@@ -133,16 +137,20 @@ function renderLogin({ message } = {}) {
     el('.sub', { text: 'Gunakan email dan kata sandi yang diberikan administrator.' }),
     message ? el('.alert.info', { style: { marginBottom: '14px' } }, message) : null,
     form,
-    el('.login-hint', [
-      el('div', { text: 'Akun demo (kata sandi: password):' }),
-      el('div', [
-        el('code', { text: 'admin@nusantara.test', onclick: () => fill('admin@nusantara.test') }), ' · ',
-        el('code', { text: 'direktur@nusantara.test', onclick: () => fill('direktur@nusantara.test') }), ' · ',
-        el('code', { text: 'finance@nusantara.test', onclick: () => fill('finance@nusantara.test') }), ' · ',
-        el('code', { text: 'project-manager@nusantara.test', onclick: () => fill('project-manager@nusantara.test') }),
-      ]),
-    ]),
+    hint,
   ])));
+
+  // Akun demo hanya bila server mengaku bukan produksi (GET iam/auth/demo-accounts).
+  // Dulu daftar email peran internal ini tercetak di halaman masuk publik tanpa
+  // memeriksa lingkungan apa pun.
+  api.get('iam/auth/demo-accounts').then((accounts) => {
+    if (!Array.isArray(accounts) || !accounts.length) return;
+    hint.appendChild(el('div', { text: 'Akun demo (kata sandi: password):' }));
+    hint.appendChild(el('div', accounts.flatMap((email, index) => [
+      index ? ' · ' : null,
+      el('code', { text: email, onclick: () => fill(email) }),
+    ])));
+  }).catch(() => {});
 
   emailInput.focus();
 }
@@ -590,6 +598,14 @@ function registerRoutes() {
     return guard(host, () => renderRetensi(host));
   });
 
+  route('tugas', () => {
+    setCrumbs(['Ringkasan', 'Tugas Saya']);
+    setActiveNav('tugas');
+    const host = view();
+    // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
+    return guard(host, () => renderTugas(host));
+  });
+
   route('tenggat', () => {
     setCrumbs(['Ringkasan', 'Tenggat']);
     setActiveNav('tenggat');
@@ -786,11 +802,53 @@ async function boot() {
 
   // Refresh permissions in the background — roles may have changed since login.
   refreshMe().catch(() => {});
+  offerDrafts();
 }
 
+/*
+ * Sesi berakhir di tengah pekerjaan. Urutannya penting: (1) simpan draf
+ * formulir yang sedang terbuka, (2) tutup paksa semua overlay TANPA membuang
+ * draf itu, (3) baru gambar halaman masuk — yang dulu digambar DI BAWAH modal
+ * yang masih terbuka, sehingga tombol Masuk tertutup backdrop dan jalan keluar
+ * satu-satunya adalah Esc → "Buang isian" (diukur 2 Sep 2026).
+ */
 setUnauthorizedHandler(() => {
-  renderLogin({ message: 'Sesi Anda berakhir. Silakan masuk kembali.' });
+  flushAll();
+  suspendDraftRemoval(true);
+  try { closeAllModals(); } finally { suspendDraftRemoval(false); }
+  const drafts = listDrafts();
+  renderLogin({
+    message: drafts.length
+      ? `Sesi Anda berakhir. Isian ${drafts[0].label} yang sedang Anda buat tersimpan di peramban ini — masuk kembali untuk memulihkannya.`
+      : 'Sesi Anda berakhir. Silakan masuk kembali.',
+  });
 });
+
+/* Setelah masuk: tawarkan draf yang tertinggal, sekali, dengan jalan langsung
+   ke formulirnya. Toast bertahan sampai ditutup — orang yang baru saja
+   kehilangan sesi tidak boleh kehilangan tawarannya dalam lima detik. */
+function offerDrafts() {
+  const drafts = listDrafts().filter((d) => RESOURCES[d.resourceKey]);
+  if (!drafts.length) return;
+  const d = drafts[0];
+  const node = toast(`Ada isian ${d.label} yang belum tersimpan (${relativeAge(d.savedAt)}).`, {
+    tone: 'info', timeout: 0, title: 'Draf tersimpan di peramban ini',
+  });
+  node.querySelector('.msg').appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
+    button('Pulihkan', {
+      size: 'sm', variant: 'primary',
+      onClick: () => {
+        node.remove();
+        const key = d.resourceKey;
+        openForm({
+          def: RESOURCES[key], key, row: d.rowId ? { id: d.rowId } : null,
+          onSaved: (saved) => navigate(saved && saved.id && !RESOURCES[key].noDetail ? `d/${key}/${saved.id}` : `r/${key}`),
+        });
+      },
+    }),
+    button('Buang', { size: 'sm', variant: 'ghost', onClick: () => { removeDraft(d.resourceKey, d.rowId); node.remove(); } }),
+  ]));
+}
 
 // A view that blows up must say so rather than leaving a blank page behind.
 window.addEventListener('unhandledrejection', (event) => {

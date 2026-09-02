@@ -1,10 +1,35 @@
 /* Lifecycle actions (submit / approve / post / assign / …) declared in schema.js. */
 
 import { api, session } from '../api.js';
-import { button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
+import { el, button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
 import { invalidateByPath } from '../lookup.js';
 import { promptFields } from './form.js';
 import { navigate } from '../router.js';
+
+const PAST = {
+  submit: 'diajukan · menunggu persetujuan', approve: 'disetujui', reject: 'ditolak', post: 'diposting',
+  close: 'ditutup', cancel: 'dibatalkan', activate: 'diaktifkan', reopen: 'dibuka kembali',
+};
+
+/*
+ * Setelah memutus satu dokumen, tunjukkan yang berikutnya di antrean — tanpa
+ * kembali ke dasbor (18 permintaan) dan mencari barisnya lagi. Satu permintaan
+ * ke core/inbox; gagal = tidak ada tawaran, bukan galat.
+ */
+async function offerNext(justDecided) {
+  try {
+    const rows = (await api.get('core/inbox')) || [];
+    const next = rows.find((r) => r.code !== justDecided);
+    if (!next) { toast('Kotak masuk persetujuan Anda kosong.', { tone: 'info', timeout: 4000 }); return; }
+    const node = toast(`${next.code} · ${next.label}${next.amount ? ` · Rp ${Number(next.amount).toLocaleString('id-ID')}` : ''}`, {
+      tone: 'info', title: `Berikutnya menunggu Anda (${rows.length})`, timeout: 12000,
+    });
+    node.querySelector('.msg').appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
+      button('Buka', { size: 'sm', variant: 'primary', onClick: () => { node.remove(); navigate(next.link.replace(/^#\//, '')); } }),
+      rows.length > 1 ? button('Semua tugas', { size: 'sm', variant: 'ghost', onClick: () => { node.remove(); navigate('tugas'); } }) : null,
+    ]));
+  } catch { /* tawaran, bukan kewajiban */ }
+}
 
 /** Run one action against a row (or the collection when `row` is null). */
 export async function runAction(action, row, def, { trigger, onDone } = {}) {
@@ -31,7 +56,12 @@ export async function runAction(action, row, def, { trigger, onDone } = {}) {
   const call = async () => {
     const result = await api[action.method === 'PUT' ? 'put' : 'post'](path, payload);
     invalidateByPath(def.api);
-    toast(`${action.label} berhasil.`);
+    /* Nomor dokumen sebagai subjek kalimat, bukan "Ajukan berhasil.": toast
+       adalah satu-satunya jejak yang dilihat orang setelah tombolnya hilang. */
+    const code = (result && result.code) || (row && row.code) || '';
+    const said = PAST[action.key];
+    toast(code && said ? `${code} ${said}.` : `${action.label} berhasil.`);
+    if (['approve', 'reject'].includes(action.key)) offerNext(code);
 
     if (action.navigateTo && result && result.id) {
       navigate(`d/${action.navigateTo}/${result.id}`);

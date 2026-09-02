@@ -9,6 +9,7 @@ import { combobox } from '../combobox.js';
 import { moneyInput } from '../money.js';
 import { MONTHS, rupiah, toDateInput, toDateTimeInput, today } from '../format.js';
 import { navigate } from '../router.js';
+import { saveDraft, loadDraft, removeDraft, registerDraftFlush, relativeAge, draftRemovalSuspended } from '../drafts.js';
 
 /* ------------------------------------------------------ lookup field glue */
 
@@ -620,6 +621,30 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     ...lineDefs.flatMap((line) => line.columns.map((c) => c.lookup)),
   ]);
 
+  /*
+   * Draf di peramban (drafts.js). Bila formulir yang sama (resource + id) pernah
+   * ditinggalkan dengan isian — sesi berakhir, tab tertutup, laptop mati — isian
+   * itu ditawarkan kembali SEBELUM kontrol dibangun, supaya nilai header masuk
+   * lewat jalur `record` yang sama dengan Ubah, dan baris lewat initialRows yang
+   * sama dengan salin-dari-PO. Menolak = draf dibuang; tidak ada tawaran kedua.
+   */
+  const draftRowId = isEdit ? row.id : null;
+  const draft = loadDraft(key, draftRowId);
+  if (draft && (draft.header || draft.lines)) {
+    const restore = await confirmDialog({
+      title: 'Pulihkan isian yang belum tersimpan?',
+      message: `${def.labelOne} ini pernah diisi ${relativeAge(draft.savedAt)} dan belum disimpan — sesi berakhir atau tab tertutup. Pulihkan isiannya?`,
+      confirmLabel: 'Pulihkan',
+      cancelLabel: 'Mulai kosong',
+      tone: 'primary',
+    });
+    if (restore) {
+      record = { ...(record || {}), ...(draft.header || {}), ...(draft.lines || {}) };
+    } else {
+      removeDraft(key, draftRowId);
+    }
+  }
+
   const controls = {};
   const fieldControls = []; // [{ spec, control }] urut tampil — untuk validasi wajib-isi
   /*
@@ -749,6 +774,28 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
   ]);
   const pristine = snapshot();
 
+  /*
+   * Draf otomatis: setiap ketikan menjadwalkan simpanan ke localStorage 1,2
+   * detik kemudian; app.js meminta flush langsung saat 401. Formulir yang
+   * kembali bersih (isian dihapus lagi) mencabut drafnya, dan draf hilang saat
+   * Simpan berhasil atau pengguna sendiri memilih "Buang isian" — tetapi TIDAK
+   * saat overlay ditutup paksa oleh sesi yang berakhir (draftRemovalSuspended).
+   */
+  let draftTimer = null;
+  const persistDraft = () => {
+    clearTimeout(draftTimer);
+    if (snapshot() === pristine) { removeDraft(key, draftRowId); return; }
+    saveDraft(key, draftRowId, {
+      label: def.labelOne,
+      header: Object.fromEntries(Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()])),
+      lines: Object.fromEntries(lineControls.map(({ def: lineDef, control }) => [lineDef.key, control.read()])),
+    });
+  };
+  const scheduleDraft = () => { clearTimeout(draftTimer); draftTimer = setTimeout(persistDraft, 1200); };
+  body.addEventListener('input', scheduleDraft, true);
+  body.addEventListener('change', scheduleDraft, true);
+  const unregisterFlush = registerDraftFlush(persistDraft);
+
   const dialog = modal({
     title: `${isEdit ? 'Ubah' : 'Tambah'} ${def.labelOne}`,
     width: lineDefs.length ? 'wide' : '',
@@ -757,6 +804,11 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     // loses the same 15 lines a mis-aimed Escape does.
     footer: [button('Batal', { onClick: () => dialog.requestClose() }), save],
     dirty: () => snapshot() !== pristine,
+    onClose: () => {
+      clearTimeout(draftTimer);
+      unregisterFlush();
+      if (!draftRemovalSuspended()) removeDraft(key, draftRowId);
+    },
   });
 
   /*
@@ -852,6 +904,7 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
 
       const finish = (saved) => {
         invalidateByPath(def.api);
+        removeDraft(key, draftRowId);
         toast(`${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
         dialog.close();
         if (onSaved) onSaved(saved);

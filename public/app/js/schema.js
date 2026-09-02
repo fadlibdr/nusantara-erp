@@ -5529,7 +5529,7 @@ export const RESOURCES = {
 export const NAV = [
   {
     label: 'Ringkasan', perm: null,
-    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view',

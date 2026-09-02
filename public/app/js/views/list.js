@@ -120,7 +120,7 @@ export async function renderList(host, { key, def }) {
       canCreate
         ? button(`Tambah ${def.labelOne}`, {
           variant: 'primary', iconName: 'plus',
-          onClick: () => openForm({ def, key, onSaved: () => load() }),
+          onClick: () => openForm({ def, key, onSaved: afterCreate }),
         })
         : null,
     ]),
@@ -617,6 +617,16 @@ export async function renderList(host, { key, def }) {
       .filter(Boolean);
   }
 
+  /* Dokumen yang baru dibuat dibuka, bukan dikembalikan ke daftar: langkah
+     berikutnya hampir selalu ada di halamannya (Ajukan, lampiran, cetak), dan
+     mendarat di daftar berarti mencari barisnya dulu — satu klik ekstra pada
+     setiap dokumen (diukur 2 Sep 2026: 13 klik PO 2 baris, 1 di antaranya ini).
+     Layar tanpa halaman detail tetap memuat ulang daftarnya. */
+  function afterCreate(saved) {
+    if (saved && saved.id && !def.noDetail) navigate(`d/${key}/${saved.id}`);
+    else load();
+  }
+
   function rowActions(row) {
     const wrap = el('div', { style: { display: 'flex', gap: '4px', justifyContent: 'flex-end' } });
 
@@ -693,7 +703,7 @@ export async function renderList(host, { key, def }) {
           : `Belum ada ${def.label.toLowerCase()} yang tercatat.`,
         {
           action: canCreate && !ui.q
-            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: () => load() }) })
+            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: afterCreate }) })
             : null,
         },
       ));

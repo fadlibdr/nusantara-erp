@@ -7,6 +7,14 @@ use Modules\Iam\Http\Controllers\RoleController;
 use Modules\Iam\Http\Controllers\UserController;
 
 // Public (unauthenticated) — brute-force protected.
+// Akun demo untuk halaman masuk — HANYA di luar produksi. Sebelum ini
+// app.js menuliskan daftar email peran internal di halaman masuk publik
+// tanpa memeriksa lingkungan (asesmen UX 2 Sep 2026).
+Route::get('auth/demo-accounts', fn () => response()->json([
+    'data' => app()->environment('production')
+        ? []
+        : ['admin@nusantara.test', 'direktur@nusantara.test', 'finance@nusantara.test', 'project-manager@nusantara.test'],
+]));
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 Route::middleware('auth:sanctum')->group(function (): void {
