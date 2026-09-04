@@ -195,3 +195,90 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
 | S8 · kontras badge sukses | 4.42 | 5.29 | 5.29 |
 | S8 · font terkecil (px) | 10 | 10 | 10 |
 
+
+---
+
+## Phase 1
+
+### T1.1 — Permission-drift check: `erp:permission-check` + `deploy/sync-erp1.sh --check`
+- Commit: 4754faf
+- Files: `Modules/Iam/Console/Commands/PermissionCheckCommand.php` (new),
+  `Modules/Iam/Providers/IamServiceProvider.php` (registers it, the `$this->commands([...])`
+  pattern Core uses), `Modules/Iam/Database/Seeders/PermissionSeeder.php` (new
+  `public static expected()`; `run()` now iterates it), `Modules/Iam/Database/Seeders/RoleSeeder.php`
+  (new `public static intended()` role→permission map; `run()` now iterates it — same file,
+  same comments, moved into the map), `deploy/sync-erp1.sh` (`--check` mode + post-deploy gate),
+  `tests/Feature/Iam/PermissionCheckTest.php` (new, 9 tests)
+- Acceptance:
+  - `bash deploy/sync-erp1.sh --check` locally (checkout DB, read-only) → exit **0**:
+    ```
+    Izin: 86 diharapkan (14 awalan × 6 aksi + 2 persetujuan direktur), 86 di basis data.
+    +-----------------+------------+----------+--------+-------+---------+
+    | Peran           | Diharapkan | Dipegang | Kurang | Lebih | Keadaan |
+    +-----------------+------------+----------+--------+-------+---------+
+    | admin           | 86         | 86       | 0      | 0     | sesuai  |
+    | direktur        | 30         | 30       | 0      | 0     | sesuai  |
+    | project-manager | 24         | 24       | 0      | 0     | sesuai  |
+    | site-manager    | 11         | 11       | 0      | 0     | sesuai  |
+    | estimator       | 10         | 10       | 0      | 0     | sesuai  |
+    | procurement     | 8          | 8        | 0      | 0     | sesuai  |
+    | warehouse       | 5          | 5        | 0      | 0     | sesuai  |
+    | finance         | 11         | 11       | 0      | 0     | sesuai  |
+    | finance-manager | 5          | 5        | 0      | 0     | sesuai  |
+    | hr              | 6          | 6        | 0      | 0     | sesuai  |
+    | sales           | 7          | 7        | 0      | 0     | sesuai  |
+    | teknisi         | 5          | 5        | 0      | 0     | sesuai  |
+    +-----------------+------------+----------+--------+-------+---------+
+    Tidak ada penyimpangan izin: 86 izin dan 12 peran sesuai seeder.
+    ```
+    `bash deploy/sync-erp1.sh --bogus` → `usage: deploy/sync-erp1.sh [--check]`, exit **2**,
+    before any deploy step. The deploy path itself was **not** run.
+  - The 86 is derived, never typed: `count(PREFIXES)=14 × count(ACTIONS)=6 + count(DIRECTOR_APPROVALS)=2`
+    (`PermissionSeeder::expected()`); the test pins that arithmetic and that `run()` mints
+    exactly that list. On the drifted fixture (one permission deleted) the same header reads
+    `86 diharapkan … 85 di basis data`, `Kurang di basis data (1): eng.view`, and six roles
+    (`admin, direktur, project-manager, site-manager, estimator, procurement`) each get a
+    `<peran> kurang: eng.view` line, exit **1**. Strip `fin.post` from `finance` → exit **1**,
+    `PENYIMPANGAN IZIN: 0 izin kurang, 0 izin tidak dikenal, 1 peran menyimpang (finance)` +
+    `finance kurang: fin.post`.
+  - `tests/Feature/Iam` (whole directory) → OK (**32 tests, 146 assertions**), 15 s
+    (23 + 9 new; `TeknisiInventoryPostingPermissionTest`'s five-permission pin and
+    `SegregationOfDutiesRoleTest` still hold against the refactored `RoleSeeder`).
+  - `tests/Feature/Core` → OK (**564 tests, 3435 assertions**), 1 min 47 s.
+  - `vendor/bin/pint --test` on the five PHP files → passed.
+- Notes:
+  - **Local DB is already clean** (86/86, every role count equals the seeder's), so the
+    production 74/86 (HASIL-UJI §6.2 P-1) could only be reproduced in the test fixture, not
+    against a real database here. The server-side re-seed on erp1 remains the owner's step
+    (RECAP § Not for Claude Code); after it, `cd /var/www/erp1.pi2.co.id && sudo -u www-data php artisan erp:permission-check`
+    is the confirmation — **not** `--check`, which reads the checkout's database.
+  - **Per-role diff needed the seeder's intent without re-seeding**, so `RoleSeeder` now
+    exposes `public static intended()` and `run()` iterates the same map (the two cannot
+    drift). One semantic nuance, documented in the docblock: `admin` is now spelled out as
+    `PermissionSeeder::expected()` rather than "every row in the permissions table". Identical
+    on a healthy database; on a drifted one a row the seeder never minted is reported as
+    `Tidak dikenal seeder` instead of being silently absorbed by admin on re-seed. Nothing in
+    the application mints permissions outside `PermissionSeeder` (the roles API only assigns
+    existing names; migrations 000220–000242 all mint canonical names), so no existing
+    installation changes shape.
+  - **Roles the seeder does not know** (created on Sistem › Peran & Hak Akses — the petty-cash
+    custodian case in `PermissionSeeder`'s NAMED SEAM comment) are listed as
+    `Peran di luar seeder, tidak diperiksa (n): …` and are **not** drift: `RoleSeeder` never
+    touches them, so there is no intent to compare against. Tested.
+  - **Gate placement in the deploy path: last, after the smoke test, not right after
+    `migrate`.** A failure immediately after migrate would abort before `config:cache` /
+    `route:cache` / the php-fpm reload, leaving new code with a cleared config cache and a
+    stale opcache — a worse state than a fully deployed site whose roles need a re-seed. The
+    deploy still exits **1** on drift (`set -euo pipefail` intact; the check is an explicit
+    `if !` so the message is printed before the exit), with the re-seed hint the command
+    prints plus the exact re-check command. The RECAP wording "compare `Permission::count()`"
+    is exceeded on purpose: a count check would pass a database with one wrong permission
+    swapped for another.
+  - `--json` was cheap (the same report array) and is tested; `drift`, `missing`, `extra`,
+    `roles.<name>.{missing,extra,exists}`, `drifted_roles`, `unmanaged_roles`.
+  - The command's re-seed hint prints `Modules\\Iam\\…` with doubled backslashes on purpose —
+    the shell-escaped form RECAP T1.1 uses, pasteable into bash — and the test asserts that
+    form.
+  - `docs/DEPLOYMENT.md` deliberately untouched (T1.2 owns it in this run; a later docs pass
+    may add one line about `--check`). No SPA/API contract touched. The PROGRESS block is a
+    separate docs commit, as in Phase 0, because it must carry the task commit's sha.
