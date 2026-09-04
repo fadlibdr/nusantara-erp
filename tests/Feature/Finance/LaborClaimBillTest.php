@@ -285,6 +285,29 @@ class LaborClaimBillTest extends ErpTestCase
         $this->assertSame(KasbonStatus::Settled, $kasbon->fresh()->status);
     }
 
+    public function test_dpp_tagihan_opname_mandor_tidak_bisa_diketik_ulang(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $kasbon = $this->issuedKasbon(3000000);
+        $claim = $this->approvedClaimWithKasbon($kasbon, 2000000);
+
+        $bill = $this->apBills()->create(['labor_claim_id' => $claim->id]);
+
+        // DPP-nya turunan opname (bruto minus potongan kasbon); approve()
+        // membangun ulang bruto dan offset 1-1370 dari angka OPNAME, jadi
+        // angka ketikan memutus sinkron tagihan-opname-kasbon. Perbaikannya
+        // batalkan dan terbitkan ulang — sikap yang sama dengan tagihan
+        // parsial dan tagihan periode PPK (Deviasi baru #3, LAPORAN P5).
+        $response = $this->putJson("/api/finance/ap-bills/{$bill->id}", [
+            'dpp' => 9_900_000,
+            'vendor_invoice_no' => 'OPM-TAGIH-099',
+        ])->assertUnprocessable();
+
+        $this->assertStringContainsString('diturunkan', (string) $response->json('message'));
+        $this->assertSame('3000000.00', (string) $bill->fresh()->dpp);
+    }
+
     public function test_dispatch_store_menerima_labor_claim_id_lewat_api(): void
     {
         Sanctum::actingAs($this->adminUser());

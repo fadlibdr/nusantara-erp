@@ -224,6 +224,11 @@ biaya sewa berjalan belum dapat dihitung."*; katalog cetak admin = **56** dengan
 3. **`ApBillService::update` membiarkan DPP tagihan `labor_claim` (P4) diketik ulang**
    — P5 menutupnya untuk `work_order_billing`; baris P4 dibiarkan supaya tidak
    mengubah perilaku P4 tanpa mandat. Layak ditinjau pemilik/orkestrator.
+   **DITUTUP pasca-P5 (30 Agu 2026, mandat pemilik):** guard yang sama untuk
+   `labor_claim_id` — DPP tagihan mandor turunan opname (bruto minus potongan
+   kasbon), perbaikannya batalkan-dan-terbitkan-ulang; uji
+   `test_dpp_tagihan_opname_mandor_tidak_bisa_diketik_ulang` di
+   `LaborClaimBillTest`.
 4. **Dokumen basi yang ditemukan dan diperbaiki jalur dokumentasi** (kerabat pelajaran
    P3 #8 / P4 #2 — paket yang menambah layar harus mencari daftar-daftar lama):
    (a) PANDUAN §13.1 masih berbunyi "Ada **50** di antaranya" sementara §2.8/§13.3
