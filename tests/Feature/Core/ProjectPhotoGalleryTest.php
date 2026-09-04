@@ -15,6 +15,7 @@ use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\Vendor;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
+use Modules\Projects\Models\ProgressMeasurement;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\SafetyIncident;
 use Spatie\Permission\Models\Role;
@@ -295,6 +296,49 @@ class ProjectPhotoGalleryTest extends ErpTestCase
         );
         $sources = collect($response->json('meta.sources'))->pluck('count', 'slug');
         $this->assertSame(1, $sources['projects/safety-incidents']);
+    }
+
+    /**
+     * Deviasi P6 #1: slug attachable projects/progress-measurements (P3) tidak
+     * termuat di sources() DAN tidak disebut "Deliberately absent" — foto
+     * bekisting/hasil cor/meteran pada opname owner diam-diam tak pernah
+     * sampai ke galeri. Paku ini menahan barisnya agar tak terhapus lagi.
+     */
+    public function test_progress_measurement_photos_appear_in_the_gallery(): void
+    {
+        $opname = ProgressMeasurement::query()->create([
+            'code' => 'OPN/2026/VIII/0001',
+            'project_id' => $this->project->id,
+            'contract_id' => 1,
+            'measurement_no' => 1,
+            'period_start' => '2026-08-01',
+            'period_end' => '2026-08-31',
+        ]);
+        $this->photoOn($opname, 'hasil-cor-lantai-3.png');
+
+        // Opname proyek lain: fotonya bukan bukti progres proyek INI.
+        $other = Project::query()->create([
+            'code' => 'PRJ-2026-002', 'name' => 'Proyek Lain',
+            'type' => 'construction', 'status' => 'active',
+        ]);
+        $this->photoOn(ProgressMeasurement::query()->create([
+            'code' => 'OPN/2026/VIII/0002',
+            'project_id' => $other->id,
+            'contract_id' => 2,
+            'measurement_no' => 1,
+            'period_start' => '2026-08-01',
+            'period_end' => '2026-08-31',
+        ]), 'opname-proyek-lain.png');
+
+        $this->actAsHolderOf('prj.view');
+        $response = $this->getJson("api/core/projects/{$this->project->id}/photos")->assertOk();
+        $names = array_column($response->json('data'), 'original_name');
+
+        $this->assertContains('hasil-cor-lantai-3.png', $names);
+        $this->assertNotContains('opname-proyek-lain.png', $names);
+
+        $sources = collect($response->json('meta.sources'))->pluck('count', 'slug');
+        $this->assertSame(1, $sources['projects/progress-measurements']);
     }
 
     public function test_refuses_a_caller_without_prj_view(): void
