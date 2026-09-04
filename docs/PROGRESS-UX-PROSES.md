@@ -369,3 +369,42 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   `database/database.sqlite` only read; no `-wal`/`-shm` left beside it after the command's
   connection closed.
 - Production untouched; the deploy path was never executed.
+
+---
+
+## Phase 2
+
+### T2.1 — Toast 422 tanpa kunci mentah bila field sudah dilukis
+- Commit: (this commit)
+- Files: `public/app/js/views/form.js` (`paintErrors` in `openForm`), `docs/PROGRESS-UX-PROSES.md`
+- Acceptance: harness `S3 › toast_on_422` → **`["Periksa isian yang ditandai."]`** — no `items.N.`
+  prefix (gate Phase 0 measured `["items.0.qty: Kuantitas minimal 0.001."]`). Same run:
+  `server_errors_rendered` still `["Kuantitas minimal 0.001."]` (the cell stays painted),
+  **12 klik**, `saved` true, landing `#/d/procurement/purchase-orders/3`, `PO/2026/IX/0003`,
+  status `Diajukan`, 0 `ERROR`, 15 990 ms. `toast_after_save` reads
+  `Periksa isian yang ditandai. · PO dibuat.` (the 422 toast's 8 s lifetime, as before).
+- Notes:
+  - Scope exactly the entry's Steps: keys that `applyLineError` or `setFieldError` painted are
+    collected; only the rest reach `toastError`; none left → `toast('Periksa isian yang
+    ditandai.')`, the sentence the client-side wajib-isi path already uses (`form.js:~880`).
+    Partial case: that sentence becomes the title and the unmapped keys stay listed with their
+    key (the key is the only pointer the operator has). Nothing painted → the old path is
+    unchanged (Laravel's own message + details), because "ditandai" would then be untrue.
+  - A header key whose field is currently hidden by `visibleWhen` counts as **unmapped**:
+    `setFieldError` would paint into a `display:none` wrapper, which is not a mark the operator
+    can see. `hiddenKeys` is the set the payload builder already uses (`form.js:~892`).
+  - `ui.js` (`toastError`) untouched: it already accepts a `{ message, details }` shape (the
+    `details` getter on `ApiError` is duck-typed there) and its title dedupe still applies.
+  - No server behaviour changed → no Feature test (rule 3 is for server changes); the harness
+    scenario named by the entry is the acceptance. No node on the box, so the harness run is
+    also the syntax check (a broken module would not open the form).
+  - Environment: fresh scratch seed `<scratchpad>/ux/t2.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t2.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached, `bootstrap/cache` has no `config.php`), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t2.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`,
+    harness `ERP_DB=<scratch>/ux/t2.sqlite UXTEST_OUT=<scratch>/ux/out-t2 /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S3`.
+    Bare seed, no Sebelum replay → `PO/2026/IX/0003` (the gate replayed one S3 pass to reach
+    0004; the number is not what this task measures). `database/database.sqlite` untouched
+    (mtime 13:10:55 before and after, no `-wal`/`-shm` beside it). Screenshots in
+    `<scratchpad>/ux/out-t2/s3-server-errors.png` (toast bottom-right reads only
+    `Periksa isian yang ditandai.`, qty cell still red).

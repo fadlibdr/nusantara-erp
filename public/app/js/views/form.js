@@ -910,17 +910,44 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
         if (onSaved) onSaved(saved);
       };
 
+      /*
+       * Toast 422 hanya menyebut kunci yang TIDAK terpetakan ke kontrol.
+       * Diukur 2 Sep 2026 pada PO (HASIL-UJI §2.4, harness S3): sel qty
+       * sudah merah "Kuantitas minimal 0.001." dan toast masih membaca
+       * `items.0.qty: Kuantitas minimal 0.001.` — awalan mentah itu hanya
+       * berguna untuk kunci yang tidak punya kontrol di layar (kolom yang
+       * tidak ada di formulir, field yang sedang disembunyikan visibleWhen —
+       * penanda di pembungkus display:none bukan penanda yang tampak). Bila
+       * semua kunci berhasil dilukis, toastnya kalimat yang sama dengan
+       * pemeriksaan wajib-isi di atas; bila hanya sebagian, kalimat itu jadi
+       * judul dan sisanya tetap disebut dengan kuncinya; bila tidak ada satu
+       * pun yang dilukis, jalur lama utuh — jangan bilang "ditandai" untuk
+       * galat yang tidak ditandai.
+       */
       const paintErrors = (error) => {
-        if (error.errors) {
-          const scrolled = { done: false };
-          for (const [fieldKey, messages] of Object.entries(error.errors)) {
-            const message = [].concat(messages)[0];
-            if (applyLineError(fieldKey, message, scrolled)) continue;
-            const control = controls[fieldKey.split('.')[0]];
-            if (control) setFieldError(control.input || control.node, message);
-          }
+        if (!error.errors) {
+          toastError(error);
+          return;
         }
-        toastError(error);
+        const scrolled = { done: false };
+        const unmapped = [];
+        for (const [fieldKey, messages] of Object.entries(error.errors)) {
+          const message = [].concat(messages)[0];
+          if (applyLineError(fieldKey, message, scrolled)) continue;
+          const headKey = fieldKey.split('.')[0];
+          const control = controls[headKey];
+          if (control && !hiddenKeys.has(headKey)) {
+            setFieldError(control.input || control.node, message);
+            continue;
+          }
+          unmapped.push(`${fieldKey}: ${message}`);
+        }
+        if (!unmapped.length) {
+          toast('Periksa isian yang ditandai.', { tone: 'err' });
+          return;
+        }
+        const painted = unmapped.length < Object.keys(error.errors).length;
+        toastError({ message: painted ? 'Periksa isian yang ditandai.' : error.message, details: unmapped });
       };
 
       try {
