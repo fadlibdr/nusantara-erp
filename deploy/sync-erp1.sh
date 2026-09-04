@@ -42,16 +42,19 @@ echo "==> Running the test suite before touching the live site"
 }
 
 echo "==> Syncing code"
+# database.sqlite-* : the WAL side files (-wal, -shm) belong to whichever process
+# has the site's database open — php-fpm, during a deploy. `--delete` used to
+# remove them (rsync -an --delete printed `deleting database/database.sqlite-shm`)
+# and a stale local -wal left by a killed `php -S` could be pushed over the live
+# one. Found by the Phase 1 verifier, 4 Sep 2026 (T1.1 addendum). The comment
+# lives HERE, not between the continued lines: a `#` line inside a
+# backslash-continued command ends the argument list and rsync then runs
+# without source/destination — which is exactly how the 5 Sep deploy died.
 rsync -a --delete \
   --exclude='.env' \
   --exclude='.git' \
   --exclude='node_modules' \
   --exclude='database/database.sqlite' \
-  # The WAL side files (-wal, -shm) belong to whichever process has the site's
-  # database open — php-fpm, during a deploy. `--delete` used to remove them
-  # (rsync -an --delete printed `deleting database/database.sqlite-shm`) and a
-  # stale local -wal left by a killed `php -S` could be pushed over the live
-  # one. Found by the Phase 1 verifier, 4 Sep 2026 (T1.1 addendum).
   --exclude='database/database.sqlite-*' \
   --exclude='storage/logs/*' \
   `# Uploaded attachments are LIVE DATA, like the database. Without these two` \
