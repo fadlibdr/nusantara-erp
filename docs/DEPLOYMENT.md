@@ -295,6 +295,11 @@ backup: the VM dying takes both with it.
 > `erp:backup-watch` (scheduled 08:00 WIB) raises an in-app alarm to
 > `core.approve` holders. That nagging is intentional — a local-only backup
 > is the deficiency, not the alarm.
+>
+> While php-fpm has the database open there are also `database.sqlite-wal`
+> and `database.sqlite-shm` next to it. Section 9.4 explains what they hold
+> and why nothing but `backup-erp1.sh` may copy, restore or sync anything
+> under `database/`.
 
 ### 5.2 Restore procedure
 
@@ -474,3 +479,166 @@ brute-forcing the new password is bounded rather than free.
 | `Permission denied` writing `storage/app` | Volume created with root ownership before the image's `erp` user ran | `docker compose -f docker-compose.prod.yml exec -u root app chown -R erp:erp /var/www/html/storage/app` |
 | Jobs stuck as `pending`, emails/exports never happen | `queue` container down, or `QUEUE_CONNECTION` not `redis` | `docker compose -f docker-compose.prod.yml ps` + `logs queue`; check `.env` |
 | Scheduled tasks (PM ServiceDesk) not firing | `scheduler` container down | `docker compose -f docker-compose.prod.yml ps` + `logs scheduler` |
+| Requests hang as "pending", then nginx answers **503** during a burst (erp1, bare-metal SQLite — measured 2 Sep 2026 at ~40 requests, HASIL-UJI-UX-2026-09 §6.4) | php-fpm workers queue on the SQLite write lock and exhaust `pm.max_children` | Section 9: confirm the three PRAGMAs reach the app's connection (`5000 wal 1`); if `pm.max_children` ≤ 5, raise it to 10–16 |
+
+## 9. SQLite: WAL, busy_timeout, synchronous (bare-metal erp1)
+
+This section applies only where `DB_CONNECTION=sqlite` — today the bare-metal
+demo at `erp1.pi2.co.id`, where the whole ERP is one file,
+`database/database.sqlite`, served by php-fpm without Docker. The MySQL stack
+above never sends these pragmas. (Hanya untuk deployment SQLite.)
+
+### 9.1 What is set, and where
+
+`config/database.php`, connection `sqlite`, has carried three keys since the
+initial commit (3b933f1, 22 Aug 2026). Laravel's `SQLiteConnector`
+(`vendor/laravel/framework/src/Illuminate/Database/Connectors/SQLiteConnector.php`)
+turns each one into a `PRAGMA` right after it opens the PDO handle — on
+**every** connection, which under php-fpm means every request:
+
+| Key | Default | `.env` override | PRAGMA sent on connect |
+|---|---|---|---|
+| `busy_timeout` | `5000` (ms) | `DB_BUSY_TIMEOUT` | `pragma busy_timeout = 5000` |
+| `journal_mode` | `WAL` | `DB_JOURNAL_MODE` | `pragma journal_mode = WAL` |
+| `synchronous` | `NORMAL` | `DB_SYNCHRONOUS` | `pragma synchronous = NORMAL` |
+
+The connector sends a pragma only if its key **is set**. A key that is `null`
+— which is what `DB_JOURNAL_MODE=null` in `.env` produces — means "send
+nothing", not "use the default"; it is the state the config comment quoted
+below says it replaced.
+
+`tests/Feature/Core/SqlitePragmaTest.php` reads all three back through the
+same connector on a file-backed database and fails when any is missing
+(run on 4 Sep 2026 against a copy of the config without the keys: `60000`
+instead of `5000`, and no `-wal` file). It has to open a file of its own
+because the suite's connection is `:memory:`, which SQLite can never put into
+WAL mode — `pragma journal_mode = WAL` answers `memory`, without an error —
+so a `journal_mode` assertion on the test connection would pass vacuously or
+fail for the wrong reason.
+
+### 9.2 Why these three — the config comment, verbatim
+
+> busy_timeout: without it, a connection that finds the database
+> locked fails IMMEDIATELY with "database is locked" rather than
+> waiting. Under the rollback journal a single long report blocks
+> every write in the system, so that failure reaches users as a 500
+> on save. Five seconds is far longer than any query here.
+>
+> journal_mode WAL: the default rollback journal makes readers block
+> writers and writers block readers. WAL lets them run concurrently,
+> which is the difference between the reports screen being slow and
+> the reports screen taking the whole application down with it.
+>
+> synchronous NORMAL: under WAL this is the documented safe setting —
+> durable against application crashes, and only at risk from an OS
+> crash or power loss mid-write, which is what the daily backup is
+> for. FULL costs an fsync per transaction for a guarantee this
+> deployment does not need.
+>
+> None of this fixes lockForUpdate(), which SQLite compiles to an
+> empty string — see docs/ASSESSMENT.md §3.2. That needs MySQL.
+
+One measured refinement to the first paragraph (4 Sep 2026, PHP 8.3.6,
+SQLite 3.45.1): a PHP handle that receives **no** pragma does not fail
+immediately — `pdo_sqlite` applies its own `PDO::ATTR_TIMEOUT` default and
+reports `busy_timeout = 60000`, with `synchronous = 2` (FULL) and, on a fresh
+file, `journal_mode = delete`. On this stack `5000` is therefore a **ceiling
+on how long a php-fpm worker sits waiting for the lock**, not the difference
+between waiting and failing — and that is exactly the failure in
+HASIL-UJI-UX-2026-09 §6.4: `/up` answered 503 twice in three days, the second
+time about two minutes after ~40 requests (28 sequential + 12 parallel), the
+requests hanging "pending" until nginx gave up. Workers that wait 60 s each
+exhaust `pm.max_children` far sooner than workers that wait 5 s. The pragma
+is still worth sending for the reason the comment gives — it bounds the
+damage — and the sibling fix on the box is the php-fpm pool: if
+`pm.max_children` ≤ 5, raise it to 10–16.
+
+Two of the three are per connection and are re-sent on every request
+(`busy_timeout`, `synchronous`). `journal_mode = WAL` is different: SQLite
+writes it into the database file once, and from then on every handle —
+including one that sends nothing, and the `sqlite3` CLI — reads `wal`.
+
+### 9.3 Verify on the box
+
+Run everything as `www-data`. Opening a WAL database creates its `-shm` side
+file when absent; one created by root is unwritable for php-fpm, and SQLite
+requires write access to `-shm` from every process that opens the database
+(https://sqlite.org/wal.html).
+
+```bash
+cd /var/www/erp1.pi2.co.id
+
+# 1. What the file itself says — journal_mode persists in the file; no app needed.
+sudo -u www-data php -r '$p = new PDO("sqlite:database/database.sqlite"); echo $p->query("pragma journal_mode")->fetchColumn(), PHP_EOL;'
+#    -> wal
+sudo -u www-data sqlite3 database/database.sqlite 'pragma journal_mode;'   # same answer, if the CLI is installed
+
+# 2. What the application's own connection receives — all three, through the connector
+#    (HOME=/tmp because psysh cannot write to /var/www/.config as www-data).
+sudo -u www-data env HOME=/tmp php artisan tinker --execute='echo DB::selectOne("pragma busy_timeout")->timeout, " ", DB::selectOne("pragma journal_mode")->journal_mode, " ", DB::selectOne("pragma synchronous")->synchronous, PHP_EOL;'
+#    -> 5000 wal 1       (1 = NORMAL)
+#    -> 60000 wal 2      means the pragmas are NOT reaching the app: check .env, then config:cache
+
+# 3. The side files, present while a request holds the database open:
+ls -l database/database.sqlite*
+```
+
+Locally the same three-number line comes from
+`DB_DATABASE=<file> php artisan tinker --execute='…'` (4 Sep 2026, against a
+scratch copy of the seed: `5000 wal 1`; a bare `new PDO` on the same file:
+`60000 wal 2`).
+
+**Changing them.** Set `DB_BUSY_TIMEOUT` / `DB_SYNCHRONOUS` in the site's
+`.env`, then `sudo -u www-data php artisan config:cache`
+(`deploy/sync-erp1.sh` does this on every deploy); the new values reach the
+next request's connection. Leave `DB_JOURNAL_MODE` alone on erp1: taking a
+live database out of WAL needs every other handle closed, and `null` silently
+stops sending the pragma — the test guards the repository defaults, not the
+box's `.env`.
+
+### 9.4 Backups, restore and rsync: the `-wal` and `-shm` files
+
+While the application holds the database open SQLite keeps two side files
+next to it: `database.sqlite-wal` — committed transactions not yet written
+into the main file — and `database.sqlite-shm`, its shared index. A
+checkpoint folds the WAL into the main file automatically (every 1000 WAL
+pages by default) and when the last connection closes; under php-fpm that is
+the end of each request, so on a quiet site the two files come and go and on
+a busy one they are always there. Three consequences:
+
+1. **Copying `database.sqlite` alone is not a backup.** `SqlitePragmaTest`
+   demonstrates it rather than asserting it: a row committed through the
+   application is absent from a `cp` of the main file taken a moment later,
+   and present in a `VACUUM INTO` snapshot taken through a live connection,
+   because that reads through the WAL. `deploy/backup-erp1.sh` snapshots
+   with `VACUUM INTO` and integrity-checks the result (its header explains
+   why) — keep using it; never `cp`, `tar` or `rsync` the file directly, and
+   let `--restore-drill` prove the artifact.
+
+2. **Restore on erp1** (section 5.2 is the MySQL/Docker path). Stop
+   everything that opens the file — `systemctl stop php8.3-fpm`, then wait
+   until no artisan entry from `/etc/cron.d/erp1` is running and
+   `fuser database/database.sqlite*` (or `lsof`) reports nothing. **Delete
+   any leftover `database.sqlite-wal` and `-shm` before** putting the
+   decompressed snapshot in place as `www-data`, then start php-fpm. SQLite
+   replays a WAL it finds next to the file on the next open, whatever file
+   that now is: a stale WAL from the old database applied to the restored
+   one is corruption. The snapshot need not be in WAL mode itself; the first
+   application connection sends `pragma journal_mode = WAL` and the file is
+   back in WAL from then on.
+
+3. **The code sync must exclude the side files, not just the database.**
+   `deploy/sync-erp1.sh` runs `rsync -a --delete` with
+   `--exclude='database/database.sqlite'`. Measured 4 Sep 2026 with a dry
+   run over that exact exclude set: a live `database.sqlite-wal`/`-shm` on
+   the site is **deleted** by the sync (a request in flight during the deploy
+   loses its uncheckpointed commits, and the next connection starts a fresh
+   WAL that disagrees with the handles still holding the old one), and a
+   stray `database/database.sqlite-wal` in the source checkout — what a
+   killed local `php -S` leaves behind — is **pushed onto production**.
+   `--exclude='database/database.sqlite-*'` closes both, also measured.
+   Check that the script's exclude list carries it before deploying onto a
+   busy site; while it does not, deploy only when the site is idle
+   (`ls /var/www/erp1.pi2.co.id/database/database.sqlite*` shows one file)
+   and after confirming `ls /root/construction-erp/database/database.sqlite*`
+   shows one file too.
