@@ -57,7 +57,13 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
 - Notes: RECAP § Phase 0 says `git am ux-p0-and-process.patch` from `docs/`; after T0.0 the
   file lives at `docs/patches/ux-p0-and-process.patch` (the path CLAUDE-CODE-PROMPT.md uses).
   The patch's own tests (`tests/Feature/Core/ApprovalWatchTest.php`) passed first time — no
-  fix-forward commit was needed.
+  test fix-forward was needed. One **style** fix-forward was: CI runs `vendor/bin/pint --test`
+  (`.github/workflows/ci.yml:68`) and three patch files failed it (`ApprovalWatchCommand.php`
+  not_operator_with_successor_space; `Core/Routes/api.php` ordered_imports; `ApprovalQueue.php`
+  7 fixers incl. braces/indentation). Commit 3925894 applies Pint to those three files only and
+  moves the `ApprovalQueue::pending()` docblock prose above `@return` (Pint's phpdoc_align had
+  pushed it ~70 columns right). After it: `pint --test` over every PHP file on the branch →
+  passed; `tests/Feature/Core` → OK (564 tests, 3435 assertions) again. No behaviour change.
 
 ### T0.2 — `RevenueRecognitionTest::test_the_catch_up_lands_in_the_month_the_reversal_was_posted` date-independent
 - Commit: c263b48
