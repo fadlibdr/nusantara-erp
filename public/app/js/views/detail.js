@@ -678,6 +678,10 @@ export async function renderDetail(host, { key, def, id }) {
   const title = record.code || record.name || record.title || `${def.labelOne} #${record.id}`;
   const subtitle = record.code ? (record.title || record.name || '') : '';
   document.title = `${title} · Nusantara ERP`;
+  // Enum kolom status di schema.js (ncrStatus, incidentStatus, defectStatus)
+  // menentukan warna lencananya; tanpa enum, peta kata bersama statusTone.
+  // Diukur 4 Sep 2026: NCR/2026/IX/0002 "Terbuka → green" di sini.
+  const statusEnum = (def.columns.find((column) => column.key === 'status') || {}).enum;
 
   // The breadcrumb was drawn with a placeholder id before the record loaded.
   const crumb = document.querySelector('#crumbs b');
@@ -689,7 +693,7 @@ export async function renderDetail(host, { key, def, id }) {
     el('div', [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
         el('h1', { text: title }),
-        record.status ? badge(record.status_label || record.status, fmt.statusTone(record.status)) : null,
+        record.status ? badge(record.status_label || record.status, fmt.statusTone(record.status, statusEnum)) : null,
       ]),
       subtitle ? el('.desc', { text: subtitle }) : null,
     ]),

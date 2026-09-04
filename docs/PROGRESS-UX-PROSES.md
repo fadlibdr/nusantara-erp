@@ -410,7 +410,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `Periksa isian yang ditandai.`, qty cell still red).
 
 ### T2.2 — Petunjuk tanggal id-ID di bawah input date
-- Commit: (this commit)
+- Commit: 38ed3ad (placeholder `(this commit)` replaced in the T2.8 commit — one task, one commit)
 - Files: `public/app/js/views/form.js` (`buildInput` `case 'date'`; import `date as fmtDate`
   from `format.js`; module-level `dateHintSeq`), `docs/bukti-uji/s3-tanggal-po-petunjuk-t2.2.png`
   (new — the acceptance screenshot, verbatim copy of the harness's `s3-form-empty.png`),
@@ -451,3 +451,71 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Environment as T2.1 (same server on `t2.sqlite`; harness `… S3` into `out-t22`, then `… S4`
     for the regression). Server stopped after the run (`pkill -f 'php -S 127.0.0.1:8000'`);
     `database/database.sqlite` untouched throughout.
+
+### T2.8 — Warna lencana status per enum: `open` merah untuk NCR/K3/defect
+- Commit: (this commit)
+- Files: `public/app/js/enums.js` (`opts` takes an optional third element `tone`; tones on
+  `ncrStatus`, `incidentStatus`, `defectStatus`; new `enumTone()` beside `enumLabel()`),
+  `public/app/js/format.js` (`statusTone(value, enumName)` prefers the enum's own tone, `''`
+  included; imports `enumTone`), `public/app/js/cells.js` (`case 'status'` passes `column.enum`,
+  label falls back to `enumLabel`), `public/app/js/views/detail.js` (page-head badge takes the
+  enum of the `status` column in `def.columns`), `public/app/js/views/custom.js` (ticket detail
+  names `ticketStatus`), `public/app/js/views/defect.js` (private `STATUS_TONE` map removed —
+  the register now reads `statusTone(row.status, 'defectStatus')`), `public/app/js/schema.js`
+  (NCR / K3 / defect `status` columns `type: 'enum'` → `type: 'status'`, `enum:` kept),
+  `docs/bukti-uji/harness-playwright.py` (S7 also opens the first row and records the
+  page-head badge as `<key>_detail`), `docs/PROGRESS-UX-PROSES.md`
+- Acceptance: harness **S7** on a scratch seed with one open NCR, K3 incident, defect and ticket
+  planted through the API (`POST quality/ncr`, `projects/safety-incidents`, `projects/defects`,
+  `servicedesk/tickets` as admin — `NCR/2026/IX/0002`, `K3/2026/IX/003`, `DEF/2026/IX/0001`,
+  `TKT-202609-0005`, all `status: open`):
+  - **Before** (same harness, same DB, code at 38ed3ad): `ncr` **`[]`** (the list wrote the
+    status as plain text — no badge to measure), `ncr_detail` **`Terbuka → green`**;
+    `k3` `["— → ", "Ya → red"]` (only the overdue flag), `k3_detail` **`Terbuka → green`**;
+    `defects` `["Mayor → amber", "Terbuka → red"]` (the register's private map),
+    `defects_detail` **`Terbuka → green`** — the same document red on one screen, green on the
+    next; `tickets_detail` `Ditugaskan → blue`.
+  - **After**: `ncr` **`["Terbuka → red", "Ditutup → green"]`**, `ncr_detail` **`Terbuka → red`**;
+    `k3` `["— → ", "Terbuka → red", "Ya → red", "Investigasi → amber", "Selesai → green"]`,
+    `k3_detail` **`Terbuka → red`**; `defects` `["Mayor → amber", "Terbuka → red"]`,
+    `defects_detail` **`Terbuka → red`**; `tickets` `[…, "Terbuka → green", …]` and
+    `tickets_detail` **`Terbuka → green`** on the planted ticket — green stays for service
+    tickets. 0 `ERROR`, 4 klik, 16 033 ms.
+  - Regression on the shared `detail.js` badge: **S2** → `status_badge` `Diajukan`, toast
+    `RAP/2026/0001 disetujui.`, strip `Diajukan · menunggu persetujuan.`, 5 klik, Berikutnya
+    opened `PR/2026/III/0002` — as the gate.
+- Notes:
+  - **Where the green actually showed.** HASIL-UJI §1 could not observe the finding (no open
+    NCR in the seed). Measured here: the NCR and K3 *lists* never had a status badge — their
+    `status` columns were `type: 'enum'` (plain text) since P1-QC / the initial commit, so
+    S7's `table.data .badge` selector had nothing to read; the green badge lived on the
+    detail page (`detail.js` page-head) and, for defects, only there (the register had its
+    own red map). Two consequences for scope: (a) S7 was extended by four lines to also open
+    the first row and record the page-head badge — that is the measurement the entry's
+    evidence describes; (b) the three list columns became `type: 'status'` (badge) with their
+    `enum` kept, so the list and the detail of one NCR read the same colour. Without (b) the
+    entry's acceptance ("harness S7 on a seeded open NCR") measures nothing on the NCR list.
+    Both are flagged here because neither is literally in the entry's Steps.
+  - `tone` is only set on the option when the tuple names it, so `statusTone` can tell "this
+    enum decides" (`'tone' in option`, `''` = neutral, as `waived`) from "fall back to the
+    word map". `ticketStatus` deliberately carries no tone: `open` green is the word map's
+    answer and the right one there — written at the enum.
+  - `views/defect.js`'s private `STATUS_TONE` map existed only because `statusTone` could not
+    know its enum (its own comment said so); with the tones on `defectStatus` the map would be
+    a second copy that drifts, so the register now calls `statusTone(value, 'defectStatus')`.
+    The WHY (retention, `waived` neutral) moved to the enum comment.
+  - `slabreaches.js:92` passes a *priority* through `statusTone` — not a status, not touched.
+  - No server behaviour changed → no Feature test (rule 3). No node on the box: the harness run
+    is the syntax check for all seven modules (every S7 route rendered, 0 console `ERROR`).
+  - Observed, not touched: `NcrStoreRequest` marks `location_id` nullable but `NcrService`
+    rejects a missing location with the "bukan bagian dari proyek" message (422) — the planted
+    NCR needed `location_id: 3`. Possible tidy-up for a later pass.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t28.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t28.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t28.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    planting script `<scratchpad>/ux/plant-open.py`; harness
+    `ERP_DB=<scratch>/ux/t28.sqlite UXTEST_OUT=<scratch>/ux/out-t28-before … S7 S8` (before),
+    `… UXTEST_OUT=<scratch>/ux/out-t28b … S7 S2` (after). `UXTEST_OUT` must exist beforehand
+    (the harness does not `mkdir`). `database/database.sqlite` untouched (mtime 13:10:55, no
+    `-wal`/`-shm`).

@@ -1678,7 +1678,9 @@ export const RESOURCES = {
       // Merah, bukan hijau bawaan: temuan yang lewat target adalah hal pertama
       // yang ditanyakan pelanggan di meja serah terima.
       { key: 'is_overdue', label: 'Lewat target', type: 'flag', trueLabel: 'Ya', trueTone: 'red', falseLabel: '—' },
-      { key: 'status', label: 'Status', type: 'enum', enum: 'defectStatus', width: '1%' },
+      // Lencana, bukan teks polos: warnanya kini milik enumnya (open merah),
+      // sama seperti halaman detail dan register punch list.
+      { key: 'status', label: 'Status', type: 'status', enum: 'defectStatus', width: '1%' },
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
@@ -1754,7 +1756,9 @@ export const RESOURCES = {
       // Red, not the default green: an overdue corrective action is the one
       // thing a site manager gets asked about on a safety walk.
       { key: 'is_overdue', label: 'Tindakan telat', type: 'flag', trueLabel: 'Ya', trueTone: 'red', falseLabel: '—' },
-      { key: 'status', label: 'Status', type: 'enum', enum: 'incidentStatus', width: '1%' },
+      // Lencana, bukan teks polos: warnanya kini milik enumnya (open merah).
+      // Diukur 4 Sep 2026: daftar K3 tanpa lencana status, detailnya hijau.
+      { key: 'status', label: 'Status', type: 'status', enum: 'incidentStatus', width: '1%' },
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
@@ -5361,7 +5365,9 @@ export const RESOURCES = {
       { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
       { key: 'description', label: 'Uraian', type: 'text' },
       { key: 'due_date', label: 'Batas Waktu', type: 'date' },
-      { key: 'status', label: 'Status', type: 'enum', enum: 'ncrStatus', width: '1%' },
+      // Lencana, bukan teks polos: warnanya kini milik enumnya (open merah).
+      // Diukur 4 Sep 2026: daftar NCR tanpa lencana (S7 ncr → []), detailnya hijau.
+      { key: 'status', label: 'Status', type: 'status', enum: 'ncrStatus', width: '1%' },
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },

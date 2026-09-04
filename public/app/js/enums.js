@@ -2,7 +2,12 @@
    directory and the Rule::in() lists in the FormRequests.
    Values must match the API exactly. */
 
-const opts = (pairs) => pairs.map(([value, label]) => ({ value, label }));
+/* Pasangan [value, label] — dan, bila enum itu punya makna warna sendiri,
+   [value, label, tone]. `tone` hanya dipasang bila disebut (termasuk '' untuk
+   netral), supaya statusTone() bisa membedakan "enum ini menetapkan warnanya"
+   dari "ikuti peta kata bersama di format.js". */
+const opts = (pairs) => pairs.map(([value, label, tone]) =>
+  (tone === undefined ? { value, label } : { value, label, tone }));
 
 export const ENUMS = {
   documentStatus: opts([
@@ -248,6 +253,9 @@ export const ENUMS = {
     ['incident', 'Gangguan'], ['request', 'Permintaan'], ['preventive', 'Pemeliharaan Preventif'],
   ]),
   ticketPriority: opts([['low', 'Rendah'], ['medium', 'Sedang'], ['high', 'Tinggi'], ['critical', 'Kritis']]),
+  /* Tanpa tone sendiri: tiket yang baru dibuka adalah keadaan normal meja
+     layanan, jadi 'open' → hijau dari peta bersama statusTone memang benar di
+     sini — berbeda dengan NCR/insiden/defect di bawah. */
   ticketStatus: opts([
     ['open', 'Terbuka'], ['assigned', 'Ditugaskan'], ['in_progress', 'Dikerjakan'],
     ['pending_customer', 'Menunggu Pelanggan'], ['resolved', 'Terselesaikan'],
@@ -276,8 +284,11 @@ export const ENUMS = {
     ['traffic', 'Lalu lintas / kendaraan'], ['environmental', 'Lingkungan (tumpahan, limbah)'],
     ['property_damage', 'Kerusakan properti'], ['other', 'Lainnya'],
   ]),
+  /* Tone per nilai: insiden K3 yang masih terbuka adalah kecelakaan yang
+     tindakan koreksinya belum selesai — merah, bukan hijau 'open' tiket
+     layanan (diukur 4 Sep 2026: lencana detail K3/2026/IX/003 "Terbuka → green"). */
   incidentStatus: opts([
-    ['open', 'Terbuka'], ['investigating', 'Investigasi'], ['closed', 'Selesai'],
+    ['open', 'Terbuka', 'red'], ['investigating', 'Investigasi', 'amber'], ['closed', 'Selesai', 'green'],
   ]),
 
   /* Register defect (punch list). "Menunggu verifikasi" masih dihitung TERBUKA:
@@ -289,10 +300,16 @@ export const ENUMS = {
   defectSource: opts([
     ['handover', 'Serah terima (BAST I)'], ['warranty', 'Masa pemeliharaan'], ['internal', 'QC internal'],
   ]),
+  /* Tone per nilai (dulu peta pribadi views/defect.js): temuan yang terbuka
+     adalah pekerjaan yang belum selesai pada proyek yang retensinya belum
+     cair — merah. `waived` sengaja netral dan bukan hijau: pelanggan
+     menerimanya apa adanya, tidak ada yang diperbaiki. Diukur 4 Sep 2026:
+     register memakai peta pribadinya (Terbuka → red) sementara halaman detail
+     temuan yang sama memakai statusTone (Terbuka → green). */
   defectStatus: opts([
-    ['open', 'Terbuka'], ['in_progress', 'Perbaikan berjalan'],
-    ['ready_for_review', 'Menunggu verifikasi'], ['closed', 'Selesai (terverifikasi)'],
-    ['waived', 'Dispensasi pelanggan'],
+    ['open', 'Terbuka', 'red'], ['in_progress', 'Perbaikan berjalan', 'amber'],
+    ['ready_for_review', 'Menunggu verifikasi', 'blue'], ['closed', 'Selesai (terverifikasi)', 'green'],
+    ['waived', 'Dispensasi pelanggan', ''],
   ]),
 
   /* P1-ENG — cermin Modules\Engineering\Enums, satu peta per enum, SEKALI.
@@ -347,10 +364,13 @@ export const ENUMS = {
   itemResult: opts([['ok', 'Sesuai'], ['nok', 'Tidak sesuai'], ['na', 'Tidak berlaku']]),
   witnessParty: opts([['mk', 'Konsultan MK'], ['owner', 'Pemilik']]),
   /* Daur hidup NCR — enum sendiri, BUKAN DocumentStatus. 'open'/'under_correction'
-     memblokir (isOpen); 'verified'/'closed' tidak. */
+     memblokir (isOpen); 'verified'/'closed' tidak. Tone per nilai: NCR terbuka
+     menahan inspeksi tahap berikutnya dan BAST I, jadi merah adalah warnanya
+     yang jujur — statusTone bersama melukis 'open' hijau (diukur 4 Sep 2026:
+     lencana detail NCR/2026/IX/0002 "Terbuka → green"). */
   ncrStatus: opts([
-    ['open', 'Terbuka'], ['under_correction', 'Perbaikan berjalan'],
-    ['verified', 'Terverifikasi'], ['closed', 'Ditutup'],
+    ['open', 'Terbuka', 'red'], ['under_correction', 'Perbaikan berjalan', 'amber'],
+    ['verified', 'Terverifikasi', 'blue'], ['closed', 'Ditutup', 'green'],
   ]),
 
   /* P3 — cermin Modules\Projects\Enums\ZoneCertificateStatus. 'done' digerbangi
@@ -404,4 +424,15 @@ export function enumLabel(name, value) {
   const list = ENUMS[name] || [];
   const hit = list.find((option) => option.value === value);
   return hit ? hit.label : value;
+}
+
+/**
+ * Warna lencana yang ditetapkan enum itu sendiri untuk satu nilai, atau
+ * `undefined` bila enum tidak menetapkannya (statusTone lalu memakai peta
+ * kata bersamanya). '' adalah jawaban sah: netral, bukan "tidak tahu".
+ */
+export function enumTone(name, value) {
+  const list = ENUMS[name] || [];
+  const hit = list.find((option) => option.value === value);
+  return hit && 'tone' in hit ? hit.tone : undefined;
 }

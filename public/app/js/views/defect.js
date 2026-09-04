@@ -56,22 +56,11 @@ const SEVERITY = {
   minor: ['Minor', ''],
 };
 
-/*
- * Peta warna sendiri, BUKAN fmt.statusTone.
- *
- * statusTone memetakan 'open' ke hijau — benar untuk tiket layanan, yang memang
- * sehat selama masih terbuka. Temuan yang terbuka adalah kebalikannya: itu
- * pekerjaan yang belum selesai pada proyek yang retensinya belum cair.
- * `waived` sengaja netral dan bukan hijau: pelanggan menerimanya apa adanya,
- * tidak ada yang diperbaiki.
- */
-const STATUS_TONE = {
-  open: 'red',
-  in_progress: 'amber',
-  ready_for_review: 'blue',
-  closed: 'green',
-  waived: '',
-};
+/* Warna status datang dari ENUMS.defectStatus (enums.js) lewat
+   fmt.statusTone(value, 'defectStatus'), bukan peta pribadi lagi: sebelumnya
+   register ini merah untuk temuan terbuka sementara halaman detail temuan yang
+   sama (detail.js) hijau (diukur 4 Sep 2026: DEF/2026/IX/0001). Alasan
+   merahnya tertulis di enum itu. */
 
 /** Umur temuan memakai skala beban yang sama dengan antrean siap-tagih. */
 function warnaUmur(days) {
@@ -485,7 +474,7 @@ export async function renderDefects(host) {
         text: row.days_open === null || row.days_open === undefined ? '—' : `${row.days_open} hari`,
         style: { color: warnaUmur(row.days_open) },
       }),
-      el('td', badge(row.status_label || row.status, STATUS_TONE[row.status] ?? '')),
+      el('td', badge(row.status_label || row.status, fmt.statusTone(row.status, 'defectStatus'))),
       adaTindakan ? tombolBaris(row) : null,
     ]);
 

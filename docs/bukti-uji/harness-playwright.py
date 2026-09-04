@@ -357,6 +357,12 @@ def s7(pg):
     for key, route in [("ncr","#/r/quality/ncr"), ("k3","#/r/projects/safety-incidents"), ("defects","#/defects"), ("tickets","#/r/servicedesk/tickets")]:
         pg.goto(BASE + route); pg.wait_for_timeout(1800)
         out[key] = pg.evaluate("() => [...new Set([...document.querySelectorAll('table.data .badge')].map(b => b.innerText.trim()+' → '+[...b.classList].filter(c=>['green','red','amber','blue','primary'].includes(c)).join('/')))]")
+        # T2.8 — lencana di kepala halaman detail juga diukur: di sanalah statusTone
+        # melukis 'open' (detail.js), sedangkan daftar NCR/K3/defect semula menulis
+        # statusnya sebagai teks polos tanpa lencana (diukur 4 Sep 2026: ncr → []).
+        if pg.locator("tr.clickable").count():
+            click(pg, "tr.clickable >> nth=0"); pg.wait_for_selector(".page-head h1", timeout=15000); pg.wait_for_timeout(1200)
+            out[key + "_detail"] = pg.evaluate("() => { const b=document.querySelector('.page-head .badge'); return { h1: (document.querySelector('.page-head h1')||{}).innerText, badge: b ? b.innerText.trim()+' → '+[...b.classList].filter(c=>['green','red','amber','blue','primary'].includes(c)).join('/') : null } }")
     return out
 
 @scenario("S8_styles")
