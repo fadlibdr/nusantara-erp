@@ -426,6 +426,39 @@ class PrintRegistryTest extends ErpTestCase
         $this->assertStringContainsString('30 September 2026', $html);
     }
 
+    // ------------------------------------------------------------- prose
+
+    /**
+     * A registry LETTER (T3.7): the `prose` spec's paragraphs print as
+     * paragraphs between the identity block and the tables, handed the same
+     * sheet date the identity resolvers get, and a paragraph the composer
+     * did not write (null, empty, whitespace) is simply not there — a letter
+     * has no ruled blank.
+     */
+    public function test_a_prose_spec_prints_its_paragraphs_before_the_tables_and_drops_the_blank_ones(): void
+    {
+        $this->bindFixtureRegistry();
+
+        $html = $this->forms->html('uji-prosa', ['id' => $this->quotation()->id, 'date' => '2026-08-09']);
+
+        $this->assertSame(2, substr_count($html, '<p class="alinea"'));
+        $this->assertStringContainsString('>Dengan hormat,</p>', $html);
+        $this->assertStringContainsString('>Alinea tentang QTN/2026/VIII/0007 tertanggal 2026-08-09.</p>', $html);
+        $this->assertLessThan(
+            strpos($html, 'BARIS SETELAH PROSA'),
+            strpos($html, 'Dengan hormat,'),
+            'the letter body comes before its table',
+        );
+    }
+
+    /** And a document that declares no prose prints no paragraph at all. */
+    public function test_a_document_without_prose_prints_no_paragraph(): void
+    {
+        $html = $this->forms->html('penawaran', ['id' => $this->quotation()->id]);
+
+        $this->assertStringNotContainsString('class="alinea"', $html);
+    }
+
     /**
      * One identity ROW — the caption and the value together, in the markup that
      * puts them in the same row of the block. Either half on its own says
@@ -604,6 +637,31 @@ class PrintRegistryTest extends ErpTestCase
                         'date' => 'valid_until',
                         'identity' => [
                             'TANGGAL LEMBAR' => fn (Quotation $quotation, Carbon $date): string => $date->toDateString(),
+                        ],
+                    ],
+                    // A LETTER (T3.7): prose paragraphs before the tables,
+                    // handed the record and the sheet's date; blanks dropped.
+                    'uji-prosa' => [
+                        'resource' => 'crm/quotations',
+                        'model' => Quotation::class,
+                        'permission' => 'crm.view',
+                        'label' => 'Uji Prosa',
+                        'formTitle' => 'UJI PROSA',
+                        'header' => ['kind' => 'customer', 'source' => 'customer'],
+                        'identity' => ['NO. DOKUMEN' => 'code'],
+                        'prose' => fn (Quotation $quotation, Carbon $date): array => [
+                            'Dengan hormat,',
+                            "Alinea tentang {$quotation->code} tertanggal {$date->toDateString()}.",
+                            '',
+                            null,
+                            '   ',
+                        ],
+                        'body' => [
+                            [
+                                'id' => 'uji-setelah-prosa',
+                                'rows' => fn (): array => [['nama' => 'BARIS SETELAH PROSA']],
+                                'columns' => [['label' => 'NAMA', 'value' => 'nama']],
+                            ],
                         ],
                     ],
                 ];

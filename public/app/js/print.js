@@ -88,11 +88,27 @@ export async function downloadPdf(path, filename, trigger) {
 export async function openPrintable(path, trigger) {
   // Before the first await — the click is still on the stack here, and this is
   // the only line in the function for which that is true.
+  const tab = openPrintTab();
+
+  if (!tab) return;
+
+  await showPrintable(tab, path, trigger);
+}
+
+/*
+ * The synchronous half of openPrintable(), on its own for an action that has
+ * to POST before it can print — "Cetak surat penagihan ke-N" (T3.7, actions.js
+ * printForm): the level moves on the server first, and the sheet for that
+ * level only renders afterwards, so the tab is opened on the click and
+ * navigated once BOTH the POST and the fetch have landed. Null when the
+ * browser blocked it; the toast has already said so.
+ */
+export function openPrintTab() {
   const tab = window.open('', '_blank');
 
   if (!tab) {
     toast('Popup diblokir browser. Izinkan popup untuk situs ini, lalu cetak lagi.', { tone: 'err' });
-    return;
+    return null;
   }
 
   // A blank white tab for the second the fetch takes reads as a broken button.
@@ -100,6 +116,12 @@ export async function openPrintable(path, trigger) {
     + '<body style="font:14px system-ui,sans-serif;padding:24px;color:#455">Menyiapkan formulir…</body>');
   tab.document.close();
 
+  return tab;
+}
+
+/* The asynchronous half: fetch the sheet with the session header into a tab
+   openPrintTab() already holds, and print it once it has laid out. */
+export async function showPrintable(tab, path, trigger) {
   const run = async () => {
     const fetched = await api.blob(path);
     // Re-typed rather than trusted: a blob's own type is what decides whether

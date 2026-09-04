@@ -12,7 +12,7 @@ import { navigate } from '../router.js';
 import { MONTHS, rupiah } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
 import { downloadPdf, openPrintable, xlsxName } from '../print.js';
-import { loadPrintForms, printButtonsFor, printablePath, xlsxPath } from '../printcatalog.js';
+import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
 
 const state = new Map(); // per-resource UI state, kept across navigations
 
@@ -586,7 +586,7 @@ export async function renderList(host, { key, def }) {
     if (!def.noDetail) return [];
 
     return printButtonsFor(def, key)
-      .filter((form) => row[form.idField || 'id'])
+      .filter((form) => printableFor(form, row))
       .flatMap((form) => [
         labelled(button('', {
           size: 'sm',

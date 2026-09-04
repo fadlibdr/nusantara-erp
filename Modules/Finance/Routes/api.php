@@ -67,6 +67,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('ar-invoices/{arInvoice}/approve', [ArInvoiceController::class, 'approve'])->middleware('permission:fin.approve');
     Route::post('ar-invoices/{arInvoice}/reject', [ArInvoiceController::class, 'reject'])->middleware('permission:fin.approve');
     Route::post('ar-invoices/{arInvoice}/faktur', [ArInvoiceController::class, 'faktur'])->middleware('permission:fin.update');
+    // Surat penagihan ke-1/2/3 (T3.7) — fin.update seperti faktur di atasnya:
+    // mengeskalasi penagihan invoice yang sudah disetujui adalah pekerjaan
+    // staf penagihan, bukan keputusan penyetuju. Mencetak ulang lembarnya
+    // tetap fin.view lewat core/print/forms/surat-penagihan-N/{id}.
+    Route::post('ar-invoices/{arInvoice}/dunning', [ArInvoiceController::class, 'dunning'])->middleware('permission:fin.update');
     // Membatalkan dokumen yang sudah berjurnal adalah fin.post, bukan
     // fin.approve: yang dilakukan adalah memposting jurnal pembalik.
     Route::post('ar-invoices/{arInvoice}/cancel', [ArInvoiceController::class, 'cancel'])->middleware('permission:fin.post');

@@ -6,6 +6,7 @@ import { invalidateByPath } from '../lookup.js';
 import { promptFields, buildInput, openForm } from './form.js';
 import { navigate } from '../router.js';
 import { RESOURCES } from '../schema.js';
+import { openPrintTab, showPrintable } from '../print.js';
 
 const PAST = {
   submit: 'diajukan · menunggu persetujuan', approve: 'disetujui', reject: 'ditolak', post: 'diposting',
@@ -95,7 +96,10 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
   } else if (action.confirm) {
     const ok = await confirmDialog({
       title: action.label,
-      message: action.confirm,
+      // Kalimat konfirmasi boleh fungsi baris, supaya ia menyebut NOMOR
+      // dokumennya dan akibatnya (aturan salinan 2 & 4): "Surat penagihan
+      // ke-2 INV/… akan dicetak dan tingkat penagihannya naik ke 2" (T3.7).
+      message: typeof action.confirm === 'function' ? action.confirm(row) : action.confirm,
       confirmLabel: action.label,
       tone: action.variant === 'danger' ? 'danger' : 'primary',
     });
@@ -104,14 +108,36 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
 
   if (inline) Object.assign(payload, inline());
 
+  /*
+   * printForm: aksi yang MENCETAK formulir rumah setelah server mencatatnya —
+   * "Cetak surat penagihan ke-N" (T3.7): POST {id}/dunning menaikkan tingkat
+   * penagihan invoice, dan lembar surat-penagihan-N baru bisa dirender
+   * setelah itu (server menolak tingkat yang belum diterbitkan). Tab-nya
+   * dibuka DI SINI, selagi klik tombol konfirmasi masih di tumpukan —
+   * window.open() setelah await diblokir sebagai popup (print.js) — lalu
+   * diisi begitu POST dan lembarnya mendarat; ditutup bila server menolak
+   * atau orangnya membatalkan, supaya tidak ada tab "Menyiapkan formulir…"
+   * yang terlantar. Popup diblokir = tidak ada POST: tingkat penagihan tidak
+   * boleh naik tanpa lembar yang bisa dipegang.
+   */
+  const printTab = action.printForm && row ? openPrintTab() : null;
+  if (action.printForm && row && !printTab) return;
+  let printed = false;
+
   const call = async () => {
     const result = await api[action.method === 'PUT' ? 'put' : 'post'](path, payload);
     invalidateByPath(def.api);
     /* Nomor dokumen sebagai subjek kalimat, bukan "Ajukan berhasil.": toast
-       adalah satu-satunya jejak yang dilihat orang setelah tombolnya hilang. */
+       adalah satu-satunya jejak yang dilihat orang setelah tombolnya hilang.
+       `toast` pada aksi = kalimatnya sendiri (kode, hasil), untuk aksi yang
+       subjeknya bukan dokumennya melainkan suratnya (T3.7). */
     const code = (result && result.code) || (row && row.code) || '';
     const said = PAST[action.key];
-    toast(code && said ? `${code} ${said}.` : `${action.label} berhasil.`);
+    toast(action.toast ? action.toast(code, result) : (code && said ? `${code} ${said}.` : `${action.label} berhasil.`));
+    if (printTab) {
+      printed = true;
+      showPrintable(printTab, `core/print/forms/${action.printForm}/${(result && result.id) || row.id}`);
+    }
     if (['approve', 'reject'].includes(action.key)) offerNext(code);
 
     if (action.navigateTo && result && result.id) {
@@ -179,6 +205,9 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
   } catch (error) {
     toastError(error);
   }
+  // Dibuka untuk lembar yang tidak jadi dicetak (ditolak server, atau
+  // dialog lanjutannya dibatalkan): tutup, jangan tinggalkan.
+  if (printTab && !printed && !printTab.closed) printTab.close();
 }
 
 function keyOf(def) {

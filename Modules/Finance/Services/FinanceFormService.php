@@ -4,6 +4,8 @@ namespace Modules\Finance\Services;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Modules\Core\Services\FormPrintService;
+use Modules\Core\Support\Money;
 use Modules\Core\Support\Terbilang;
 use Modules\Finance\Models\Account;
 use Modules\Finance\Models\ApBill;
@@ -440,6 +442,177 @@ class FinanceFormService
         return $this->taxRegister($anchor)
             ->filter(static fn (TaxObligation $row): bool => $row->status() === 'belum')
             ->count();
+    }
+
+    // ------------------------------------------------------- surat penagihan
+
+    /**
+     * The three letters, by level — and the third is the LAST one. Ke-4 is
+     * not a letter; it is whatever the contract says (ArInvoice::DUNNING_LEVELS).
+     */
+    public const DUNNING_TITLES = [
+        1 => 'SURAT PENAGIHAN PERTAMA',
+        2 => 'SURAT PENAGIHAN KEDUA',
+        3 => 'SURAT PENAGIHAN KETIGA (TERAKHIR)',
+    ];
+
+    /**
+     * The date printed on Surat Penagihan ke-$level of this invoice — and the
+     * gate that decides whether that sheet may exist at all.
+     *
+     * Only the letter of the CURRENT level is printable. A level above it has
+     * not been issued: the button "Cetak surat penagihan ke-N" goes through
+     * ArInvoiceService::issueDunningLetter first, so a sheet that rendered
+     * before the level moved would be a letter with no record of having gone
+     * out. A level BELOW it went out on a day the ERP no longer holds —
+     * fin_ar_invoices keeps one last_dunning_at, not one per letter — and the
+     * sheet's date drives the "<kota>, <tanggal>" line and every "N hari"
+     * on the page; re-dating a letter that already went out to the customer
+     * is exactly what the penawaran entry's own docblock refuses. Refused by
+     * name, so the person is told which letter they CAN print.
+     *
+     * @throws \InvalidArgumentException the sentence FormPrintController serves as a 422
+     */
+    public function dunningLetterDate(ArInvoice $invoice, int $level): Carbon
+    {
+        $current = (int) $invoice->dunning_level;
+
+        if ($current < $level) {
+            $hint = $current === 0
+                ? 'belum ada surat penagihan yang diterbitkan'
+                : "tingkat penagihannya masih ke-{$current}";
+
+            throw new \InvalidArgumentException(
+                "Surat penagihan ke-{$level} {$invoice->code} belum diterbitkan — {$hint}. "
+                .'Terbitkan lewat tombol "Cetak surat penagihan ke-'.($current + 1).'" pada invoice itu.'
+            );
+        }
+
+        if ($current > $level) {
+            throw new \InvalidArgumentException(
+                "Surat penagihan ke-{$level} {$invoice->code} sudah digantikan surat ke-{$current}; "
+                .'tanggal terbitnya tidak tersimpan, sehingga tidak dicetak ulang dengan tanggal lain — '
+                ."cetak surat ke-{$current}."
+            );
+        }
+
+        if ($invoice->last_dunning_at === null) {
+            throw new \InvalidArgumentException(
+                "Surat penagihan ke-{$level} {$invoice->code} tidak menyimpan tanggal terbitnya; "
+                .'lembar tanpa tanggal tidak dicetak.'
+            );
+        }
+
+        return Carbon::instance($invoice->last_dunning_at)->startOfDay();
+    }
+
+    /**
+     * "18 hari" — how long past due the invoice is ON THE SHEET'S DATE, which is
+     * the letter's own date (dunningLetterDate), never the day of the reprint.
+     */
+    public function dunningDaysLate(ArInvoice $invoice, Carbon $sheetDate): ?string
+    {
+        if ($invoice->due_date === null) {
+            return null;
+        }
+
+        $days = (int) Carbon::instance($invoice->due_date)->startOfDay()->diffInDays($sheetDate->copy()->startOfDay(), false);
+
+        return max(0, $days).' hari';
+    }
+
+    /**
+     * The one row of the RINCIAN TAGIHAN table — every figure a stored column
+     * or ArInvoice::outstanding(), never a subtraction written again here.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function dunningRows(ArInvoice $invoice): array
+    {
+        return [[
+            'code' => $invoice->code,
+            'invoice_date' => $invoice->invoice_date,
+            'due_date' => $invoice->due_date,
+            'total' => (float) $invoice->total,
+            'diterima' => (float) $invoice->amount_paid,
+            'sisa' => $invoice->outstanding(),
+        ]];
+    }
+
+    /**
+     * The body of Surat Penagihan ke-$level — paragraphs that ESCALATE, with
+     * the invoice number as the subject of every sentence.
+     *
+     * Three registers, one per letter, the way the letters this company
+     * already posts read: ke-1 reminds ("mengingatkan … mohon berkenan"),
+     * ke-2 demands by a date ("meminta … selambat-lambatnya"), ke-3 says it
+     * is the last and names what follows ("terakhir … sesuai ketentuan
+     * kontrak"). What the letters do NOT say, and why:
+     *
+     *   - no payment deadline of our own invention. A "7 hari kerja" nobody
+     *     agreed would be a term stated under the letterhead; ke-2 and ke-3
+     *     point at the BATAS PEMBAYARAN identity line instead, which is RULED
+     *     for the pen, exactly as the owner's paper does for a cell the ERP
+     *     cannot answer;
+     *   - no penalty, interest or suspension threatened: fin_ar_invoices holds
+     *     no such clause, and the contract that may is named, not paraphrased;
+     *   - no bank account: the invoice itself carries the transfer
+     *     instruction (documents/ar-invoice.blade) and the letter asks for the
+     *     invoice number on the transfer note, as that document does.
+     *
+     * Every amount is the stored column through Money::format, every date the
+     * house spelling (FormPrintService::dateText), the days late counted to
+     * the letter's own date — so a reprint says what the letter said.
+     *
+     * @return list<string>
+     */
+    public function dunningParagraphs(ArInvoice $invoice, int $level, Carbon $sheetDate): array
+    {
+        $code = $invoice->code;
+        $total = Money::format((float) $invoice->total);
+        $paid = Money::format((float) $invoice->amount_paid);
+        $sisa = Money::format($invoice->outstanding());
+        $invoiceDate = FormPrintService::dateText($invoice->invoice_date);
+        $dueDate = FormPrintService::dateText($invoice->due_date);
+        $late = $this->dunningDaysLate($invoice, $sheetDate);
+        $contract = $invoice->contract?->code;
+        $atas = $contract ? " atas kontrak {$contract}" : '';
+
+        return match ($level) {
+            1 => [
+                'Dengan hormat,',
+                "Bersama surat ini kami mengingatkan bahwa invoice {$code} tertanggal {$invoiceDate} senilai {$total}{$atas} "
+                    ."telah jatuh tempo pada {$dueDate}. Hingga tanggal surat ini pembayaran yang kami terima atas invoice tersebut "
+                    ."sebesar {$paid}, sehingga sisa tagihan yang belum kami terima sebesar {$sisa}.",
+                "Kami mohon Bapak/Ibu berkenan menyelesaikan pembayaran sisa tagihan tersebut dengan mencantumkan nomor invoice {$code} "
+                    .'pada berita transfer, agar penerimaannya dapat kami cocokkan.',
+                'Apabila pembayaran telah dilakukan sebelum surat ini diterima, mohon abaikan surat ini dan sampaikan bukti transfernya kepada kami.',
+                'Atas perhatian dan kerja sama Bapak/Ibu kami ucapkan terima kasih.',
+            ],
+            2 => [
+                'Dengan hormat,',
+                "Merujuk Surat Penagihan Pertama kami atas invoice {$code} tertanggal {$invoiceDate}{$atas}, hingga tanggal surat ini "
+                    ."sisa tagihan sebesar {$sisa} belum juga kami terima. Invoice tersebut telah melewati jatuh tempo {$dueDate}"
+                    .($late ? " selama {$late}" : '').'.',
+                'Kami meminta Bapak/Ibu menyelesaikan pembayaran sisa tagihan tersebut selambat-lambatnya pada tanggal yang tercantum '
+                    ."pada baris BATAS PEMBAYARAN di atas, dengan mencantumkan nomor invoice {$code} pada berita transfer.",
+                "Apabila terdapat keberatan atau perbedaan pencatatan atas invoice {$code}, mohon disampaikan kepada kami secara tertulis "
+                    .'sebelum batas tersebut agar dapat kami selesaikan bersama.',
+                'Atas perhatian dan kerja sama Bapak/Ibu kami ucapkan terima kasih.',
+            ],
+            3 => [
+                'Dengan hormat,',
+                "Surat ini merupakan surat penagihan ketiga dan terakhir atas invoice {$code} tertanggal {$invoiceDate}{$atas}. "
+                    ."Dua surat penagihan sebelumnya belum berbuah pembayaran: sisa tagihan sebesar {$sisa} telah melewati jatuh tempo "
+                    ."{$dueDate}".($late ? " selama {$late}" : '').'.',
+                'Kami meminta pembayaran sisa tagihan tersebut diselesaikan selambat-lambatnya pada tanggal yang tercantum pada baris '
+                    ."BATAS PEMBAYARAN di atas, dengan mencantumkan nomor invoice {$code} pada berita transfer.",
+                'Apabila sampai batas tersebut pembayaran belum kami terima, penyelesaian selanjutnya akan kami tempuh sesuai ketentuan '
+                    .($contract ? "kontrak {$contract}" : 'perjanjian yang mendasari invoice ini').' yang telah disepakati bersama.',
+                'Kami berharap hal itu tidak perlu ditempuh. Atas perhatian Bapak/Ibu kami ucapkan terima kasih.',
+            ],
+            default => throw new \InvalidArgumentException("Surat penagihan ke-{$level} tidak ada; tingkat yang dikenal 1 sampai ".ArInvoice::DUNNING_LEVELS.'.'),
+        };
     }
 
     // ------------------------------------------------------------- internals

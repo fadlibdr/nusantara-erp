@@ -74,6 +74,34 @@ class AuditService
     }
 
     /**
+     * A named event on a record that is NOT observed — written by the service
+     * that performed it, with the changes it made.
+     *
+     * Documents are absent from AuditedModels on purpose: their lifecycle is
+     * core_approvals and their edits stop at draft. A surat penagihan (T3.7)
+     * is neither — it is a step taken against an APPROVED invoice, outside the
+     * approval trail, and INV/2026/VIII/0004 (Rp 15,42 M, production 4 Sep
+     * 2026) would otherwise carry no record of who escalated it and when. The
+     * shape is the observer's own ('changes' as from/to pairs) so the audit
+     * screen reads it without a second renderer; $label stands in for the
+     * AuditedModels attribute the model does not declare.
+     *
+     * @param  array<string, array{from: mixed, to: mixed}>  $changes
+     */
+    public function event(Model $model, string $event, array $changes, ?string $label = null): void
+    {
+        $this->guard(function () use ($model, $event, $changes, $label): void {
+            $scalar = [];
+
+            foreach ($changes as $attribute => $pair) {
+                $scalar[$attribute] = ['from' => $this->scalar($pair['from'] ?? null), 'to' => $this->scalar($pair['to'] ?? null)];
+            }
+
+            $this->write($model, $event, $scalar, $label);
+        });
+    }
+
+    /**
      * The change history of one record, newest first.
      */
     public function historyFor(string $type, int $id, int $limit = 100)
@@ -86,7 +114,7 @@ class AuditService
             ->get();
     }
 
-    private function write(Model $model, string $event, array $changes): void
+    private function write(Model $model, string $event, array $changes, ?string $label = null): void
     {
         $user = Auth::user();
 
@@ -98,7 +126,7 @@ class AuditService
             'event' => $event,
             'auditable_type' => $model::class,
             'auditable_id' => (int) $model->getKey(),
-            'auditable_label' => AuditedModels::labelFor($model),
+            'auditable_label' => $label ?? AuditedModels::labelFor($model),
             'changes' => json_encode($changes, JSON_UNESCAPED_UNICODE),
             'ip' => $this->clientIp(),
             'created_at' => now(),

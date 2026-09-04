@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Services\AuditService;
 use Modules\Core\Support\Erp;
 use Modules\Core\Support\Money;
 use Modules\Core\Support\Terbilang;
@@ -639,6 +640,60 @@ class ArInvoiceService
 
             $this->recalc($invoice);
             $invoice->save();
+
+            return $invoice->refresh();
+        });
+    }
+
+    /**
+     * Surat penagihan berikutnya — naikkan tingkatnya, catat tanggalnya,
+     * tulis jejak auditnya (T3.7).
+     *
+     * Produksi 4 Sep 2026 (ANALISIS-PROSES §2 baris Q2C, celah A2):
+     * INV/2026/VIII/0004 Rp 15,42 M disetujui, jatuh tempo 22 Sep — pengawas
+     * ar_invoice_due akan menyebutnya keesokan paginya, lalu berhenti di
+     * situ: "diawasi tetapi tanpa tindakan", karena surat penagihan tidak
+     * ada di sistem. Kini surat ke-1/2/3 adalah formulir rumah, dan tombol
+     * "Cetak surat penagihan ke-N" melewati metode ini SEBELUM lembarnya
+     * dicetak: lembar ke-N hanya bisa dirender bila dunning_level sudah N
+     * (FinanceFormService::dunningLetterDate), jadi mencetak dan mencatat
+     * tidak pernah terpisah.
+     *
+     * Yang boleh dan tidak ditentukan SATU kali di ArInvoice::dunningRefusal
+     * (status, lunas, belum jatuh tempo, sudah surat terakhir) — tombol
+     * membaca jawabannya lewat dunning_next_level, dan pemanggil curl
+     * mendapat kalimat yang sama sebagai 422. Kunci baris seperti update():
+     * dua orang menekan tombol bersamaan tidak boleh melompat dari ke-1 ke
+     * ke-3 tanpa pernah mencetak ke-2.
+     *
+     * Jejak audit ditulis EKSPLISIT (AuditService::event): fin_ar_invoices
+     * tidak diamati observer — dokumen sengaja absen dari AuditedModels —
+     * dan sebuah surat penagihan bukan transisi persetujuan, jadi tanpa baris
+     * ini tidak ada yang mencatat siapa yang mengeskalasi invoice dan kapan.
+     */
+    public function issueDunningLetter(ArInvoice $invoice): ArInvoice
+    {
+        return DB::transaction(function () use ($invoice): ArInvoice {
+            /** @var ArInvoice $invoice */
+            $invoice = ArInvoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+
+            $refusal = $invoice->dunningRefusal();
+
+            if ($refusal !== null) {
+                throw new LogicException($refusal);
+            }
+
+            $from = ['dunning_level' => (int) $invoice->dunning_level, 'last_dunning_at' => $invoice->last_dunning_at];
+
+            $invoice->forceFill([
+                'dunning_level' => (int) $invoice->dunning_level + 1,
+                'last_dunning_at' => Carbon::now(),
+            ])->save();
+
+            app(AuditService::class)->event($invoice, 'dunning', [
+                'dunning_level' => ['from' => $from['dunning_level'], 'to' => (int) $invoice->dunning_level],
+                'last_dunning_at' => ['from' => $from['last_dunning_at'], 'to' => $invoice->last_dunning_at],
+            ], $invoice->code);
 
             return $invoice->refresh();
         });

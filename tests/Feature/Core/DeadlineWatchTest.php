@@ -21,6 +21,7 @@ use Modules\Crm\Models\Guarantee;
 use Modules\Crm\Models\Quotation;
 use Modules\Finance\Models\Account;
 use Modules\Finance\Models\ApBill;
+use Modules\Finance\Models\ArInvoice;
 use Modules\Finance\Models\BankAccount;
 use Modules\Finance\Models\Payment;
 use Modules\Finance\Services\ReportService;
@@ -222,6 +223,27 @@ class DeadlineWatchTest extends ErpTestCase
         }
 
         return $payment;
+    }
+
+    /**
+     * INV/2026/VIII/0004's live shape (production 4 Sep 2026): approved,
+     * Rp 15,42 M, nothing received — due 22 Jul here, so 10 days past on TODAY.
+     */
+    private function arInvoice(array $overrides = []): ArInvoice
+    {
+        return ArInvoice::query()->create(array_merge([
+            'code' => 'INV/2026/VII/0004',
+            'customer_id' => $this->customer()->id,
+            'contract_id' => $this->approvedContract()->id,
+            'invoice_date' => '2026-06-22',
+            'due_date' => '2026-07-22',
+            'description' => 'Penagihan termin 2 — Gedung Kantor Graha Sentosa',
+            'dpp' => 15_420_000_000,
+            'total' => 15_420_000_000,
+            'amount_paid' => 0,
+            'terbilang' => 'Lima belas miliar empat ratus dua puluh juta rupiah',
+            'status' => 'approved',
+        ], $overrides));
     }
 
     private function serviceContract(array $overrides = []): ServiceContract
@@ -605,6 +627,79 @@ class DeadlineWatchTest extends ErpTestCase
      * carried the same flag since the 2 Sep patch. Reading what the 08:30 run
      * WOULD send must not itself send it.
      */
+    // --------------------------------- customer invoices and their letters
+
+    /**
+     * T3.7: the alarm says how far the dunning has gone. Production 4 Sep
+     * 2026: INV/2026/VIII/0004 "diawasi tetapi tanpa tindakan" — the alarm
+     * named it and never said whether a surat penagihan had been printed.
+     */
+    public function test_an_approved_unpaid_invoice_past_its_due_date_alarms_finance_and_says_no_letter_went_out(): void
+    {
+        $finance = $this->userWith('fin.create');
+        $this->userWith('crm.update');
+        $invoice = $this->arInvoice();
+
+        $this->watch();
+
+        $alarm = $this->alarms('Invoice pelanggan lewat jatuh tempo')->sole();
+        $this->assertStringContainsString(
+            "{$invoice->code} senilai Rp 15,4 M jatuh tempo 22 Jul 2026 — 10 hari lalu; belum ada surat penagihan.",
+            $alarm->body,
+        );
+        $this->assertSame('r/finance/ar-invoices', $alarm->link);
+        $this->assertSame([$finance->id], $this->alarms('Invoice pelanggan lewat jatuh tempo')->pluck('user_id')->all());
+    }
+
+    public function test_the_invoice_alarm_names_the_letter_level_and_the_day_it_was_printed(): void
+    {
+        $this->userWith('fin.create');
+        $this->arInvoice(['dunning_level' => 2, 'last_dunning_at' => '2026-07-25 10:15:00']);
+
+        $this->watch();
+
+        $this->assertStringContainsString(
+            'jatuh tempo 22 Jul 2026 — 10 hari lalu; surat penagihan ke-2 dicetak 25 Jul 2026.',
+            $this->alarms('Invoice pelanggan lewat jatuh tempo')->sole()->body,
+        );
+    }
+
+    public function test_a_paid_cancelled_or_draft_invoice_stays_silent(): void
+    {
+        $this->userWith('fin.create');
+        $this->arInvoice(['code' => 'INV/2026/VII/0001', 'amount_paid' => 15_420_000_000, 'paid_at' => '2026-07-30']);
+        $this->arInvoice(['code' => 'INV/2026/VII/0002', 'status' => 'cancelled', 'cancelled_at' => '2026-07-30 09:00:00']);
+        $this->arInvoice(['code' => 'INV/2026/VII/0003', 'status' => 'draft']);
+
+        $this->watch();
+
+        $this->assertCount(0, $this->alarms('Invoice pelanggan lewat jatuh tempo'));
+    }
+
+    /**
+     * The letter clause is an embellishment, never the alarm's reason: a
+     * fin_ar_invoices that predates the T3.7 migration still raises its
+     * overdue alarm — the sentence just ends at its age, and the entry is
+     * NOT a SKIP line the way a missing scope column would be.
+     */
+    public function test_the_invoice_alarm_survives_the_dunning_columns_not_being_there_yet(): void
+    {
+        $this->userWith('fin.create');
+        $invoice = $this->arInvoice();
+        Schema::table('fin_ar_invoices', function (Blueprint $table): void {
+            $table->dropColumn(['dunning_level', 'last_dunning_at']);
+        });
+        WatchedDeadlines::flushSchemaMemo();
+
+        $this->artisan('erp:deadline-watch')
+            ->doesntExpectOutputToContain('SKIP ar_invoice_due')
+            ->assertExitCode(0);
+
+        $body = $this->alarms('Invoice pelanggan lewat jatuh tempo')->sole()->body;
+        $this->assertStringContainsString("{$invoice->code} senilai Rp 15,4 M jatuh tempo 22 Jul 2026 — 10 hari lalu.", $body);
+        $this->assertStringNotContainsString('surat penagihan', $body);
+    }
+
     public function test_a_dry_run_prints_the_findings_and_writes_no_notification(): void
     {
         $this->adminUser();

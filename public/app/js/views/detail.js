@@ -11,7 +11,7 @@ import { openForm } from './form.js';
 import { RESOURCES } from '../schema.js';
 import { actionButtons } from './actions.js';
 import { downloadPdf, openPrintable, pdfName, xlsxName } from '../print.js';
-import { loadPrintForms, printButtonsFor, printablePath, xlsxPath } from '../printcatalog.js';
+import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
 import { navigate, back } from '../router.js';
 
 const HIDDEN_KEYS = new Set([
@@ -30,6 +30,9 @@ const HIDDEN_KEYS = new Set([
   // T3.6: bendera untuk tombol "Lengkapi kontrak" pada penawaran (cangkang
   // Tandai Menang tanpa jadwal) — keadaan tombol, bukan data dokumen.
   'contract_needs_schedule',
+  // T3.7: surat penagihan yang boleh dicetak berikutnya — keadaan tombol
+  // "Cetak surat penagihan ke-N"; tingkatnya sendiri (dunning_level) tampil.
+  'dunning_next_level',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -57,6 +60,10 @@ const WHEN_SET_KEYS = new Set([
   // alasan yang HILANG, di sini server menolak alasan yang hilang, jadi
   // null selalu berarti "nilainya sama dengan penawaran" — barisnya diam.
   'value_change_reason',
+  // T3.7: tanggal surat penagihan terakhir — kosong sampai surat pertama
+  // dicetak; "Surat penagihan terakhir: —" di samping "Tingkat penagihan: 0"
+  // adalah satu ketiadaan yang disebut dua kali.
+  'last_dunning_at',
 ]);
 
 /*
@@ -294,6 +301,9 @@ const LABELS = {
   qualification_override_reason: 'Alasan override kualifikasi',
   // T3.8: jejak PO tanpa PR, ditampilkan seperti alasan override di atasnya.
   pr_bypass_reason: 'Alasan tanpa PR',
+  // T3.7: surat penagihan ke-1/2/3 pada invoice pelanggan — 0 berarti belum
+  // ada surat, dan itu fakta kolom yang layak dibaca, bukan baris kosong.
+  dunning_level: 'Tingkat penagihan', last_dunning_at: 'Surat penagihan terakhir',
   goods_receipt_id: 'Penerimaan barang', field_report_id: 'Laporan lapangan',
   issue_id: 'Pengeluaran barang', wbs_task_id: 'Tugas WBS', boq_item_id: 'Item BOQ',
   // P4 — SP3 mandor & opname mandor; tanpa entri ini titleize() jatuh ke
@@ -634,7 +644,9 @@ export function approvalTimeline(approvals) {
  */
 export function formMenuItems(forms, record) {
   return (forms || [])
-    .filter((form) => record[form.idField || 'id'])
+    // The id the form anchors on, and the row state a form declared onlyWhen
+    // asks for (T3.7: surat penagihan ke-N only at dunning_level N).
+    .filter((form) => printableFor(form, record))
     .flatMap((form) => [
       {
         label: `Cetak ${form.label}`,

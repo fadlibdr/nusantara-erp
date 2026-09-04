@@ -95,6 +95,16 @@ class WatchedDeadlines
      *                        ON its end day, so that day reports as MENIPIS
      *                        ("hari ini") and LEWAT starts the day after. Needs
      *                        lead_days > 0, or the end day would land in no tier.
+     *  detail              — ['columns' => [...], 'text' => fn (object $row): ?string]:
+     *                        extra columns of the entry's own table read per
+     *                        row and turned into a clause appended to its
+     *                        sentence ("…; surat penagihan ke-2 dicetak 25 Jul
+     *                        2026"). NOT in 'columns' on purpose: those gate
+     *                        the whole entry, and the clause is an
+     *                        embellishment of the alarm, never its reason —
+     *                        an fin_ar_invoices not yet migrated for T3.7 still
+     *                        raises its overdue alarm, only without the
+     *                        clause (finding() checks the columns itself).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -429,6 +439,33 @@ class WatchedDeadlines
                     ->whereNull('paid_at')
                     ->whereNull('cancelled_at')
                     ->whereNull('deleted_at'),
+                /*
+                 * Sejauh mana invoice itu SUDAH disurati (T3.7). Produksi
+                 * 4 Sep 2026: INV/2026/VIII/0004 Rp 15,42 M "diawasi tetapi
+                 * tanpa tindakan" (ANALISIS-PROSES §3, celah A2) — alarm ini
+                 * menyebutnya tiap tiga pagi tanpa pernah mengatakan apakah
+                 * surat penagihan sudah dicetak, sehingga pembacanya membuka
+                 * invoicenya hanya untuk memeriksa itu. Kolomnya ditulis
+                 * ArInvoiceService::issueDunningLetter; 0 = belum ada surat
+                 * (fakta kolom, bukan tebakan), dan tanggal cetaknya
+                 * last_dunning_at (datetime — dipotong ke tanggalnya).
+                 */
+                'detail' => [
+                    'columns' => ['dunning_level', 'last_dunning_at'],
+                    'text' => static function (object $row): string {
+                        $level = (int) ($row->dunning_level ?? 0);
+
+                        if ($level === 0) {
+                            return 'belum ada surat penagihan';
+                        }
+
+                        $printed = $row->last_dunning_at === null
+                            ? ''
+                            : ' dicetak '.self::tanggal(substr((string) $row->last_dunning_at, 0, 10));
+
+                        return "surat penagihan ke-{$level}{$printed}";
+                    },
+                ],
             ],
             [
                 /*
@@ -916,10 +953,17 @@ class WatchedDeadlines
             return null;
         }
 
+        // The 'detail' clause reads columns that gate NOTHING: present, they
+        // ride the same SELECT; absent (a sibling lane mid-migration), the
+        // sentence simply ends at its age — see the key's docblock.
+        $detail = $entry['detail'] ?? null;
+        $detailReady = $detail !== null && array_diff($detail['columns'], self::tableColumns($entry['table']) ?? []) === [];
+
         $columns = array_values(array_unique(array_filter([
             $entry['display'],
             $entry['date'],
             $entry['value'] ?? null,
+            ...($detailReady ? $detail['columns'] : []),
         ])));
 
         $rows = $constrain(self::scoped($entry))
@@ -927,7 +971,7 @@ class WatchedDeadlines
             ->limit(self::MAX_ITEMS)
             ->get($columns);
 
-        $items = $rows->map(static function (object $row) use ($entry, $today): array {
+        $items = $rows->map(static function (object $row) use ($entry, $today, $detail, $detailReady): array {
             $raw = $row->{$entry['date']} ?? null;
             $date = $raw === null ? null : substr((string) $raw, 0, 10);
 
@@ -937,6 +981,7 @@ class WatchedDeadlines
                 // Signed: positive = days remaining, negative = days past.
                 'days' => $date === null ? null : (int) $today->diffInDays(CarbonImmutable::parse($date)),
                 'value' => isset($entry['value']) ? (float) $row->{$entry['value']} : null,
+                'detail' => $detailReady ? ($detail['text'])($row) : null,
             ];
         })->all();
 
@@ -1104,7 +1149,10 @@ class WatchedDeadlines
             default => "{$days} hari lagi",
         };
 
-        return "{$item['code']}{$value} {$entry['date_word']} ".self::tanggal($item['date'])." — {$age}.";
+        // The entry's 'detail' clause, when its columns were there to read.
+        $detail = ($item['detail'] ?? null) !== null && $item['detail'] !== '' ? "; {$item['detail']}" : '';
+
+        return "{$item['code']}{$value} {$entry['date_word']} ".self::tanggal($item['date'])." — {$age}{$detail}.";
     }
 
     /** '2026-03-01' → '1 Mar 2026'. */

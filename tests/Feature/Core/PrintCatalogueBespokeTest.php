@@ -39,7 +39,10 @@ class PrintCatalogueBespokeTest extends ErpTestCase
         // dukungan-alat (F/DA). Lembar TKDN SENGAJA tidak menambah entri: ia
         // adalah formulir Kemenperin, bukan formulir rumah — mencetaknya di kop
         // empat pihak akan menyamarkan lembar sertifikasi sebagai lembar proyek.
-        $this->assertCount(61, $rows, 'katalog = 54 registri + 7 formulir rumah proyek');
+        // T3.7 menambah tiga: surat-penagihan-1/2/3 (F/SP-1..3) — satu
+        // resource, satu tingkat masing-masing; katalog menyatakan onlyWhen
+        // supaya hanya surat tingkat invoice itu yang digambar (DunningLetterTest).
+        $this->assertCount(64, $rows, 'katalog = 57 registri + 7 formulir rumah proyek');
 
         $slugs = array_column($rows, 'slug');
         foreach (self::BESPOKE as $slug) {

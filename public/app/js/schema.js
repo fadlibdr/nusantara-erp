@@ -3973,6 +3973,30 @@ export const RESOURCES = {
         perm: 'fin.update', when: (row) => row.status === 'approved',
         fields: [{ key: 'faktur_pajak_no', label: 'Nomor faktur pajak', type: 'text', required: true, help: 'mis. 010.000-26.00000001' }],
       },
+      /*
+       * Surat penagihan ke-1/2/3 (T3.7). Produksi 4 Sep 2026: INV/2026/VIII/0004
+       * Rp 15,42 M disetujui, jatuh tempo 22 Sep, "diawasi tetapi tanpa
+       * tindakan" (ANALISIS-PROSES §3, celah A2) — pengawas jatuh tempo
+       * menyebutnya, dan tidak ada surat penagihan di sistem. Tiga aksi, satu
+       * per tingkat, yang tampil HANYA untuk tingkat berikutnya: `when`
+       * membaca dunning_next_level dari server (satu definisi di
+       * ArInvoice::dunningRefusal — belum disetujui, lunas, belum jatuh
+       * tempo, sudah surat terakhir → null), bukan menyalin aturannya. POST
+       * {id}/dunning menaikkan tingkatnya (tercatat di jejak audit), lalu
+       * `printForm` mencetak lembar surat-penagihan-N yang baru terbuka
+       * (actions.js). Cetak ULANG surat yang sudah terbit ada di menu
+       * Cetak ▾ (katalog, onlyWhen dunning_level = N) — tanpa POST.
+       */
+      ...[1, 2, 3].map((level) => ({
+        key: `dunning-${level}`, label: `Cetak surat penagihan ke-${level}`, path: '{id}/dunning', method: 'POST',
+        perm: 'fin.update', when: (row) => row.dunning_next_level === level,
+        confirm: (row) => `Surat penagihan ke-${level} ${row.code} akan dicetak dan tingkat penagihan invoice ini naik ke ${level} — `
+          + 'tercatat di jejak audit dan disebut pengawas jatuh tempo.'
+          + (level > 1 ? ` Surat ke-${level - 1} tidak dapat dicetak ulang setelahnya.` : '')
+          + (level === 3 ? ' Ini surat penagihan terakhir.' : ''),
+        printForm: `surat-penagihan-${level}`,
+        toast: (code) => `Surat penagihan ke-${level} ${code} diterbitkan.`,
+      })),
       {
         // Salah tagih adalah kejadian rutin. Sebelum ini dokumen yang terlanjur
         // disetujui tidak bisa ditarik sama sekali: piutang/hutang fiktif

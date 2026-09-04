@@ -5,8 +5,10 @@ namespace Modules\Finance\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\BaseModel;
+use Modules\Core\Services\FormPrintService;
 use Modules\Core\Traits\Approvable;
 use Modules\Core\Traits\HasDocumentNumber;
 use Modules\Crm\Models\Contract;
@@ -41,9 +43,65 @@ class ArInvoice extends BaseModel
             'total' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'paid_at' => 'date',
+            // T3.7 — surat penagihan ke-1/2/3: the highest letter issued and when.
+            'dunning_level' => 'integer',
+            'last_dunning_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'status' => DocumentStatus::class,
         ];
+    }
+
+    /**
+     * Surat penagihan ke-1, ke-2, ke-3 — dan berhenti di situ. Surat ketiga
+     * adalah surat TERAKHIR (FinanceFormService::DUNNING_TITLES); langkah
+     * setelahnya bukan surat lagi, melainkan ketentuan kontraknya.
+     */
+    public const DUNNING_LEVELS = 3;
+
+    /**
+     * Mengapa surat penagihan berikutnya TIDAK boleh diterbitkan sekarang,
+     * atau null bila boleh. Satu definisi untuk tombol (ArInvoiceResource::
+     * dunning_next_level), untuk layanan yang menaikkan tingkatnya, dan untuk
+     * lembar cetaknya — aturan yang disalin ke tiga tempat adalah aturan yang
+     * akan berbeda di salah satunya.
+     *
+     * "Sudah jatuh tempo" dibaca due_date <= hari ini: tier LEWAT pengawas
+     * ar_invoice_due (WatchedDeadlines, lead 0) menyebut invoice pada hari
+     * jatuh temponya, dan surat pertama boleh dicetak pagi yang sama —
+     * badan suratnya menyatakan "telah jatuh tempo pada <tanggal>", yang
+     * sebelum tanggal itu adalah klaim palsu di atas kop perusahaan. Hari
+     * ini = Carbon::today() zona aplikasi (Asia/Jakarta), jam yang sama
+     * dengan DeadlineWatchCommand.
+     */
+    public function dunningRefusal(): ?string
+    {
+        if ($this->isCancelled()) {
+            return "Invoice {$this->code} sudah dibatalkan; tidak ada tagihan yang perlu disurati.";
+        }
+
+        if ($this->status !== DocumentStatus::Approved) {
+            return "Invoice {$this->code} belum disetujui ({$this->status->label()}); surat penagihan hanya untuk invoice yang sudah disetujui.";
+        }
+
+        if ($this->isFullyPaid()) {
+            return "Invoice {$this->code} sudah lunas; tidak ada sisa tagihan yang perlu disurati.";
+        }
+
+        if ($this->due_date !== null && $this->due_date->gt(Carbon::today())) {
+            return "Invoice {$this->code} belum jatuh tempo (".FormPrintService::dateText($this->due_date).'); surat penagihan dicetak setelah tanggal jatuh temponya.';
+        }
+
+        if ((int) $this->dunning_level >= self::DUNNING_LEVELS) {
+            return "Invoice {$this->code} sudah pada surat penagihan ke-".self::DUNNING_LEVELS.' (terakhir); penyelesaian selanjutnya mengikuti ketentuan kontrak, bukan surat lagi.';
+        }
+
+        return null;
+    }
+
+    /** Surat penagihan yang boleh dicetak berikutnya (1..3), atau null. */
+    public function dunningNextLevel(): ?int
+    {
+        return $this->dunningRefusal() === null ? (int) $this->dunning_level + 1 : null;
     }
 
     public function isCancelled(): bool

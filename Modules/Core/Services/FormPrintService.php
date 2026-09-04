@@ -1443,10 +1443,43 @@ class FormPrintService
             'formTitle' => $this->caption($definition['formTitle'], $record),
             'formCode' => $definition['formCode'],
             'orientation' => $definition['orientation'] === 'landscape' ? 'landscape' : 'portrait',
+            // A letter's paragraphs (T3.7), counted to the sheet's own date —
+            // registryHeader hands it back for exactly this.
+            'prose' => $this->registryProse($definition, $record, $header['date']),
             'tables' => $this->registryTables($definition, $record),
             'notes' => $this->registryNotes($definition, $record),
             'docControl' => $this->registryDocControl($definition, $record, $header),
         ]);
+    }
+
+    /**
+     * The paragraphs of a registry LETTER — see the `prose` key in
+     * PrintableDocuments. One spec, resolved once with the record and the
+     * sheet's date; whatever it answers is trimmed to strings and the empty
+     * ones dropped. No cast and no ruling: a sentence is printed as the
+     * composer wrote it or not at all.
+     *
+     * @return list<string>
+     */
+    private function registryProse(array $definition, object $record, Carbon $date): array
+    {
+        $paragraphs = $this->resolve($definition['prose'] ?? null, $record, [$date]);
+
+        if ($paragraphs === null) {
+            return [];
+        }
+
+        $prose = [];
+
+        foreach ((is_iterable($paragraphs) ? $paragraphs : [$paragraphs]) as $paragraph) {
+            $text = $this->text($paragraph);
+
+            if ($text !== '') {
+                $prose[] = $text;
+            }
+        }
+
+        return $prose;
     }
 
     /**
@@ -1539,6 +1572,11 @@ class FormPrintService
         if (($definition['title'] ?? null) !== null) {
             $header['projectTitle'] = mb_strtoupper((string) $this->printed($definition['title'], $record));
         }
+
+        // The composed date itself, beside its printed label: the prose of a
+        // letter (registryProse) counts its "N hari" to it, and re-deriving
+        // it there would be a second answer to "what day is this sheet".
+        $header['date'] = $date;
 
         return [$header, $project instanceof Project ? $project : null];
     }

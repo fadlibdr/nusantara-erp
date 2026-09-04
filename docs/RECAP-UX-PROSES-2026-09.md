@@ -282,6 +282,19 @@ seeded contracts each use a different shape, incl. calendar termins with
 `crm.default_termins_<scope>` setting + prefill in `CONTRACT_FROM_QUOTATION`);
 the endpoint and the value-change rule do not wait on it.
 
+**OQ-3 (T3.7) — what the house dunning letters may promise.** Surat
+Penagihan ke-2 and ke-3 demand payment "selambat-lambatnya pada tanggal yang
+tercantum pada baris BATAS PEMBAYARAN" — an identity line RULED for the pen,
+because a "7 hari kerja" nobody agreed would be a term stated under the
+letterhead; and ke-3 names what follows only as "sesuai ketentuan kontrak
+CTR/…", because `fin_ar_invoices` holds no penalty, interest or suspension
+clause. Should the letters print a standard house deadline (N days from the
+letter date, per level) and a standard next step (e.g. "penghentian sementara
+layanan/pekerjaan")? Answering this unblocks a small follow-up (two
+`fin.dunning_*` settings read by `FinanceFormService::dunningParagraphs` and
+the BATAS PEMBAYARAN line); the three letters, the action and the watcher
+clause do not wait on it.
+
 ---
 
 ## Not for Claude Code — needs people
