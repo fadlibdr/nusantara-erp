@@ -62,6 +62,16 @@ def scenario(name):
         return wrapper
     return deco
 
+# Panel catatan persetujuan inline (T2.3): <details class="action-note"> di dalam .page-head .actions,
+# summary = pelipatnya, textarea baru terlihat setelah dibuka. null bila build ini belum memilikinya.
+# checkVisibility(), bukan offsetParent: isi <details> tertutup dirender Chromium dengan
+# content-visibility: hidden, jadi offsetParent-nya tetap ada (terukur 4 Sep 2026: lebar 22 px).
+NOTE_PANEL = """() => { const d=document.querySelector('.page-head .actions details.action-note'); if (!d) return null;
+    const t=d.querySelector('textarea'); return { toggle: d.querySelector('summary').innerText.trim(), open: d.open,
+    textarea_visible: !!(t && t.checkVisibility()), label: (d.querySelector('.field > label')||{}).innerText || null,
+    help: (d.querySelector('.field .help')||{}).innerText || null, width: t ? Math.round(t.getBoundingClientRect().width) : null,
+    focused: !!t && document.activeElement === t } }"""
+
 # --------------------------------------------------------------- scenarios
 
 @scenario("S1_inbox_truth")
@@ -110,12 +120,22 @@ def s2(pg):
     status_text = pg.evaluate("() => (document.querySelector('.page-head .badge')||{}).innerText")
     explain = pg.evaluate("() => { const h=document.querySelector('.page-head'); const n=h.nextElementSibling; return n ? n.innerText.slice(0,200) : null }")
     pg.screenshot(path=f"{OUT}/s2-detail.png")
+    # T2.3: catatan persetujuan dilipat di bilah aksi (details/summary), bukan modal. Dibaca
+    # SEBELUM Setujui — sesudahnya halaman dimuat ulang dan panelnya hilang bersama tombolnya.
+    note_inline = pg.evaluate(NOTE_PANEL)
     click(pg, ".page-head .actions button:has-text('Setujui')")
-    pg.wait_for_selector(".modal", timeout=10000)
-    modal_fields = pg.evaluate("() => [...document.querySelectorAll('.modal .field > label')].map(l => l.innerText.trim())")
-    modal_buttons = pg.evaluate("() => [...document.querySelectorAll('.modal .modal-foot button')].map(b => b.innerText.trim())")
-    pg.screenshot(path=f"{OUT}/s2-modal.png")
-    click(pg, ".modal .modal-foot button:has-text('Setujui')")
+    # Setujui memutus langsung sejak T2.3; modal catatan hanya ada pada build lama. Tunggu mana
+    # yang datang lebih dulu — modal, atau toast keputusan — dan klik Setujui di modal HANYA bila
+    # modalnya benar-benar muncul, supaya hitungan klik jujur pada kedua build (2 Sep 2026: 3 klik
+    # per dokumen, satu di antaranya Setujui kedua di modal itu).
+    pg.wait_for_selector(".modal, .toast:has-text('disetujui'), .toast.err", timeout=10000)
+    modal_opened = bool(pg.locator(".modal").count())
+    modal_fields = modal_buttons = None
+    if modal_opened:
+        modal_fields = pg.evaluate("() => [...document.querySelectorAll('.modal .field > label')].map(l => l.innerText.trim())")
+        modal_buttons = pg.evaluate("() => [...document.querySelectorAll('.modal .modal-foot button')].map(b => b.innerText.trim())")
+        pg.screenshot(path=f"{OUT}/s2-modal.png")
+        click(pg, ".modal .modal-foot button:has-text('Setujui')")
     pg.wait_for_selector(".toast", timeout=15000)
     pg.wait_for_timeout(600)
     t_done = int((time.time() - t0) * 1000)
@@ -128,8 +148,9 @@ def s2(pg):
     click(pg, ".page-head .actions button[title='Kembali']")
     pg.wait_for_timeout(2500)
     return {"detail_ms": t_detail, "approve_total_ms": t_done, "action_bar": bar, "ubah_visible_on_submitted": has_ubah,
-            "status_badge": status_text, "explanation_under_title": explain, "approve_modal_fields": modal_fields,
-            "approve_modal_buttons": modal_buttons, "toast": toast, "after": after,
+            "status_badge": status_text, "explanation_under_title": explain, "approve_modal_opened": modal_opened,
+            "approve_modal_fields": modal_fields, "approve_modal_buttons": modal_buttons, "approve_note_inline": note_inline,
+            "toast": toast, "after": after,
             "api_calls_detail_to_back": len(reqs), "api_calls_sample": reqs[:40]}
 
 @scenario("S3_create_po")
@@ -506,6 +527,41 @@ def s12(pg):
         con = sqlite3.connect(DB); con.execute("UPDATE prc_vendors SET status='active' WHERE id=?", (vendor["id"],)); con.commit(); con.close()
     return out
 
+@scenario("S13_approve_with_note")
+def s13(pg):
+    """T2.3, jalur DENGAN catatan: buka 'Tambah catatan', ketik, Setujui — tanpa modal — lalu baca
+    core_approvals langsung dari sqlite: catatan yang diketik harus tiba di baris 'approved' terbaru.
+    Klik dihitung sampai keputusan (baris + pelipat + Setujui); S2 mengukur jalur tanpa catatan."""
+    NOTE = "UJI-UX — catatan persetujuan inline"
+    login(pg, "direktur@nusantara.test")
+    pg.wait_for_timeout(1500)
+    code = pg.evaluate("() => { const c=[...document.querySelectorAll('.card')].find(c=>/Menunggu persetujuan/.test(c.innerText)); const r=c&&c.querySelector('tbody tr'); return r ? r.innerText.split('\\n')[0] : null }")
+    if not code:
+        return {"inbox_empty": True}
+    click(pg, f"tr.clickable:has-text('{code}')")
+    pg.wait_for_selector(f".page-head h1:has-text('{code}')", timeout=15000); pg.wait_for_timeout(800)
+    out = {"code": code, "before": pg.evaluate(NOTE_PANEL)}
+    if not out["before"]:
+        return out  # build lama: tidak ada panel inline — jalur modalnya sudah terukur di S2
+    click(pg, ".page-head .actions details.action-note > summary"); pg.wait_for_timeout(250)
+    out["after_toggle"] = pg.evaluate(NOTE_PANEL)
+    pg.screenshot(path=f"{OUT}/s13-note-open.png")
+    pg.fill(".page-head .actions details.action-note textarea", NOTE)
+    bodies = []
+    pg.on("request", lambda r: bodies.append(r.post_data) if r.url.endswith("/approve") else None)
+    click(pg, ".page-head .actions button:has-text('Setujui')")
+    pg.wait_for_selector(".toast:has-text('disetujui'), .toast.err", timeout=15000); pg.wait_for_timeout(500)
+    out["approve_payload"] = bodies[-1] if bodies else None  # kontrak API: { note } seperti sebelum T2.3
+    out["modal_opened"] = bool(pg.locator(".modal").count())
+    out["toast"] = toasts(pg)
+    out["clicks_to_decide"] = CLICKS[0]
+    con = sqlite3.connect(DB)
+    row = con.execute("SELECT note FROM core_approvals WHERE action='approved' ORDER BY id DESC LIMIT 1").fetchone()
+    con.close()
+    out["stored_note"] = row[0] if row else None
+    out["note_stored"] = out["stored_note"] == NOTE
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -516,7 +572,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

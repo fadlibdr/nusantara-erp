@@ -696,7 +696,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     tool's own wrapper shell); `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
 
 ### T2.4 — Ajukan PO: alasan override prakualifikasi lewat confirm-resubmit, bukan modal pada setiap pengajuan
-- Commit: (this commit)
+- Commit: 7856e4a
 - Files: `public/app/js/schema.js` (PO `submit` action: `fields` removed, first `confirmResubmit`
   rule with `promptField`), `public/app/js/views/actions.js` (`confirmResubmit` engine: `promptField`
   next to `flag`), `public/app/js/views/form.js` (`promptFields` gains a `message` option),
@@ -769,5 +769,93 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     before-run with the five app/test files stashed:
     `ERP_DB=<scratch>/ux/t24.sqlite UXTEST_OUT=<scratch>/ux/out-t24-before /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S3 S12`;
     after-run `… UXTEST_OUT=<scratch>/ux/out-t24 … S3 S12 S2`. Server stopped by PID
+    (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
+    no `-wal`/`-shm`).
+
+### T2.3 — Catatan persetujuan inline di bilah aksi, bukan modal; Setujui memutus langsung
+- Commit: (this commit)
+- Files: `public/app/js/schema.js` (`approvalActions` approve: `fields` → `inlineNote`, header
+  comment of the action shape; the CCO in-file copy of the same shape converted too),
+  `public/app/js/views/actions.js` (`inlineNote()` — `<details>/<summary>` panel; `runAction`
+  gains `inline`; `actionButtons` returns the panel after all buttons), `public/app/app.css`
+  (`.action-note` rules after `.page-head .actions`), `docs/bukti-uji/harness-playwright.py`
+  (S2: modal step conditional + `approve_modal_opened` / `approve_note_inline`; new
+  `S13_approve_with_note`; shared `NOTE_PANEL` reader), `docs/bukti-uji/s13-catatan-inline-t2.3.png`
+- Acceptance:
+  - **Harness S2 clicks per approval = 2** (Setujui, Buka berikutnya): `S2_approve_loop`
+    `_clicks` **4** (baris → Setujui → Buka → Kembali; gate / T2.4: 5, the fifth being Setujui
+    again inside the note modal), `approve_modal_opened` **false**, `approve_modal_fields` /
+    `approve_modal_buttons` null, `approve_note_inline` `{toggle: 'Tambah catatan', open: false,
+    textarea_visible: false}`, toast `RAP/2026/0001 disetujui.` + `Berikutnya menunggu Anda (3)
+    PR/2026/III/0002 …`, `opened_next` `PR/2026/III/0002`, `action_bar`
+    `['Kembali', 'Cetak halaman', 'Setujui', 'Tolak']` (unchanged — the toggle is a `summary`,
+    not a button), `api_calls_detail_to_back` 16 (unchanged), `approve_total_ms` 2 038
+    (gate 2 577), 10 026 ms, 0 ERROR.
+    Before, same adapted harness on 7856e4a: `_clicks` **5**, `approve_modal_opened` **true**,
+    fields `['Catatan persetujuan']`, buttons `['Batal', 'Setujui']` — the conditional modal
+    step fires on the old build, so the count is not obtained by deleting the click.
+  - **With a note (new S13)**: `_clicks` **3** (baris → Tambah catatan → Setujui) — the same 3 the
+    modal path cost with OR without a note; `after_toggle` `{toggle: 'Batalkan catatan', open:
+    true, label: 'Catatan persetujuan', help: 'Opsional. Ikut tersimpan pada riwayat persetujuan
+    PR/2026/III/0002.', width: 440, focused: true}`; `approve_payload`
+    `{"note":"UJI-UX — catatan persetujuan inline"}`; `modal_opened` false; toast
+    `PR/2026/III/0002 disetujui.`; sqlite `core_approvals` latest `approved` row `note` equals the
+    typed text → `note_stored` **true**; 6 131 ms. Before (7856e4a): `before` null, stops at 1 click.
+  - **API contract unchanged**: `POST {id}/approve` still carries `{ note }` when typed and `{}`
+    when blank — scratch probe (`<scratchpad>/ux/t23-probe.py`, approve request intercepted and
+    aborted so the scratch state stays put): blank `"   "` → payload `{}`; typed → `{"note":"isi
+    sungguhan"}`. No PHP touched, so no PHPUnit / pint run for this task.
+  - **Layout / keyboard probe** (same script; 1440×900, 800×900, 390×844 touch): closed, the panel
+    is exactly the width of the button row (226 px) and Tolak ends flush at the `.actions` right
+    edge in both states; open, `.actions` grows to 440 / 440 / 362 (full width on the phone) and
+    the textarea fills it; Tab from Tolak lands on `summary "Tambah catatan"`, Enter opens it and
+    focuses the textarea; "Batalkan catatan" closes it with `value ''`; 0 `pageerror` at all
+    three widths.
+  - Regressions: **S1** 4 / 4 (card `Menunggu persetujuan Anda (4)`), **S11** h1 `Tugas Saya`,
+    leave-request bar `['Kembali', 'Cetak halaman', 'Setujui', 'Tolak']`, **S3** 11 klik,
+    `PO/2026/IX/0003` `Diajukan`, `toast_on_422` `['Periksa isian yang ditandai.']`.
+- Notes:
+  - `<details>/<summary>`, not a button, for the toggle: the browser's own disclosure — keyboard
+    reachable (Enter/Space), exposes expanded/collapsed itself — and `.page-head .actions button`
+    stays at 4, which is what T2.6's gate (`action_bar` ≤ 4) counts. Closing the panel EMPTIES
+    the textarea (hidden text must never ride along silently) and the open-state label says so:
+    `Batalkan catatan`. Blank/whitespace notes never reach the server: the textarea is
+    `buildInput`'s, whose `read()` returns null for those.
+  - Two layout facts measured on the way, both now in the CSS comments: (1) a `<details>` renders
+    its non-summary children inside an internal slot box (`::details-content`); as a flex item of
+    the panel that box shrink-wrapped to the help text — textarea 355 px inside a 440 px panel —
+    so the panel is block-level and the summary is right-aligned with `width: fit-content;
+    margin-left: auto`. (2) `contain: inline-size` keeps label/help/textarea from widening
+    `.actions`, but the wrapped panel still contributes one flex `gap` (8 px) to the container's
+    max-content width, so the buttons stopped 8 px short of the right edge; `.actions:has(.action-
+    note)` is right-justified for as long as the panel exists. Browsers without `:has()` lose only
+    those two tidy-ups.
+  - Harness: `textarea_visible` reads `checkVisibility()`, not `offsetParent` — Chromium renders a
+    closed `<details>`' content with `content-visibility: hidden`, so `offsetParent` is non-null
+    and the first run reported the hidden textarea as visible (22 px wide). S2's modal step is
+    conditional on `.modal` actually appearing (waits for the modal OR the decision toast — no
+    fixed sleep, so `approve_total_ms` stays honest); the click counter increments only when it
+    clicks. S13 is appended to the run order (after S12); it approves whichever document heads the
+    inbox at that point, so on a full run it takes the document S2's "Berikutnya" pointed at.
+  - Scope kept to `approvalActions` plus the CCO action that its own comment declares an exact
+    mirror of it. Deliberately still on the modal: BAST approve (`schema.js` ~1618 — a second
+    field, `override_reason`, that must stay reachable and would not be guessed under "Tambah
+    catatan"), award-decision approve (~2412 — its note carries the levelled-approval help that
+    should be read before pressing Setujui), and the payment `decide()` dialog in `custom.js`
+    (~799, its own `promptFields`). Each is a one-line conversion once someone decides where that
+    help belongs; not this entry's Steps.
+  - `actionButtons` returns the panel after ALL buttons (flex-basis 100% makes it its own row);
+    in `custom.js` bars that append buttons after `actionButtons()` (SPK's `Bayar Retensi`, the
+    asset `Ubah`) those buttons would follow the panel — only reachable on approved/non-approvable
+    rows, so never next to a Setujui panel today.
+  - T2.4's PROGRESS placeholder now reads 7856e4a.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t23.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t23.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t23.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    before-run (harness edited, app untouched):
+    `ERP_DB=<scratch>/ux/t23.sqlite UXTEST_OUT=<scratch>/ux/out-t23-before /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S2 S13`;
+    re-seed, then the final run `… UXTEST_OUT=<scratch>/ux/out-t23-final … S1 S2 S13 S11 S3`
+    (the harness runs them in its own fixed order: S1, S2, S3, S11, S13). Server stopped by PID
     (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
     no `-wal`/`-shm`).

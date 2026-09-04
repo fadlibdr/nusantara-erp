@@ -1,9 +1,9 @@
 /* Lifecycle actions (submit / approve / post / assign / …) declared in schema.js. */
 
 import { api, session } from '../api.js';
-import { el, button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
+import { el, icon, field, button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
 import { invalidateByPath } from '../lookup.js';
-import { promptFields } from './form.js';
+import { promptFields, buildInput } from './form.js';
 import { navigate } from '../router.js';
 
 const PAST = {
@@ -31,8 +31,56 @@ async function offerNext(justDecided) {
   } catch { /* tawaran, bukan kewajiban */ }
 }
 
-/** Run one action against a row (or the collection when `row` is null). */
-export async function runAction(action, row, def, { trigger, onDone } = {}) {
+/*
+ * Catatan persetujuan INLINE di bilah aksi, bukan modal. Diukur 2 Sep 2026
+ * (HASIL-UJI §1, S2): satu persetujuan = Setujui → modal "Catatan persetujuan"
+ * → Setujui lagi → Buka, 3 klik per dokumen, dan modal itu ada untuk isian
+ * yang boleh kosong — penyetuju 15 dokumen sehari menutup 15 modal kosong.
+ * Kini Setujui langsung memutus (2 klik); yang ingin menulis catatan membuka
+ * "Tambah catatan" lebih dulu (3 klik — sama dengan jalur modal dulu, tanpa
+ * modal). <details>/<summary>, bukan tombol: pelipat bawaan peramban yang
+ * dijangkau keyboard (Enter/Spasi) dan menyatakan terbuka/tertutupnya
+ * sendiri, dan bilah aksi tidak bertambah satu tombol lagi. Menutupnya
+ * MENGOSONGKAN isian — teks tersembunyi tidak boleh ikut terkirim
+ * diam-diam, dan label "Batalkan catatan" mengatakan akibatnya. Tolak tetap
+ * lewat modal: alasannya wajib, promptFields yang menahannya ("Wajib
+ * diisi."). Payload ke server persis seperti dulu: { note } bila terisi.
+ */
+const NOTE_OPEN = 'Tambah catatan';
+const NOTE_CLOSE = 'Batalkan catatan';
+
+function inlineNote(action, row) {
+  const spec = action.inlineNote;
+  // Textarea yang sama dengan form/modal: read() memulangkan null untuk isian
+  // kosong atau spasi saja, jadi catatan "   " tidak pernah sampai ke server.
+  const control = buildInput({ ...spec, type: 'textarea', rows: 2 }, undefined);
+  const caption = el('span', { text: NOTE_OPEN });
+  const summary = el('summary', [icon('plus', 13), caption]);
+  const panel = el('details.action-note', [
+    summary,
+    field(spec.label, control.node, { help: `Opsional. Ikut tersimpan pada riwayat persetujuan ${row.code || 'dokumen ini'}.` }),
+  ]);
+  panel.addEventListener('toggle', () => {
+    summary.replaceChild(icon(panel.open ? 'close' : 'plus', 13), summary.firstChild);
+    caption.textContent = panel.open ? NOTE_CLOSE : NOTE_OPEN;
+    if (panel.open) control.node.focus();
+    else control.node.value = '';
+  });
+  return {
+    node: panel,
+    read: () => {
+      const value = control.read();
+      return value === null ? {} : { [spec.key]: value };
+    },
+  };
+}
+
+/**
+ * Run one action against a row (or the collection when `row` is null).
+ * `inline` — jawaban yang sudah ada di layar (catatan persetujuan inline),
+ * dipanggil saat tombol ditekan dan digabung ke payload tanpa dialog.
+ */
+export async function runAction(action, row, def, { trigger, onDone, inline } = {}) {
   const path = row
     ? `${def.api}/${String(action.path).replace('{id}', row.id)}`
     : `${def.api}/${action.path}`;
@@ -52,6 +100,8 @@ export async function runAction(action, row, def, { trigger, onDone } = {}) {
     });
     if (!ok) return;
   }
+
+  if (inline) Object.assign(payload, inline());
 
   const call = async () => {
     const result = await api[action.method === 'PUT' ? 'put' : 'post'](path, payload);
@@ -134,14 +184,24 @@ function keyOf(def) {
   return def.api;
 }
 
-/** Buttons for every action available on this row, permission- and state-gated. */
+/**
+ * Buttons for every action available on this row, permission- and state-gated.
+ * Panel catatan inline (inlineNote) ikut dipulangkan DI BELAKANG semua tombol:
+ * app.css memberinya flex-basis 100%, jadi ia menjadi baris sendiri di bawah
+ * bilah — diselipkan di posisi aksinya, Tolak akan terlempar ke bawah panel.
+ */
 export function actionButtons(def, row, onDone) {
-  return (def.actions || [])
+  const panels = [];
+  const buttons = (def.actions || [])
     .filter((action) => session.can(action.perm))
     .filter((action) => !action.when || action.when(row))
-    .map((action) =>
-      button(action.label, {
+    .map((action) => {
+      const note = action.inlineNote ? inlineNote(action, row) : null;
+      if (note) panels.push(note.node);
+      return button(action.label, {
         variant: action.variant || '',
-        onClick: (event) => runAction(action, row, def, { trigger: event.currentTarget, onDone }),
-      }));
+        onClick: (event) => runAction(action, row, def, { trigger: event.currentTarget, onDone, inline: note ? note.read : null }),
+      });
+    });
+  return [...buttons, ...panels];
 }

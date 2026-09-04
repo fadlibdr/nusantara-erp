@@ -9,7 +9,11 @@
            prefill MENGGANTI seluruh baris dari dokumen sumber tanpa bertanya;
            importPick membuka dialog centang lalu MENAMBAHKAN baris terpilih —
            lihat buildLines di views/form.js untuk kedua bentuknya.
-   action  { key, label, path, method, variant, perm, when, confirm, fields[] }
+   action  { key, label, path, method, variant, perm, when, confirm, fields[],
+             inlineNote }
+           fields membuka modal sebelum aksi; inlineNote { key, label } adalah
+           satu textarea opsional yang dilipat di bilah aksi (actions.js
+           inlineNote) dan ikut terkirim tanpa dialog.
 
    types — text | code | textarea | number | currency | qty | percent | date |
            datetime | time | bool | select | lookup | status | enum | rel |
@@ -32,7 +36,12 @@ function approvalActions(module, { submitPerm, approvePerm } = {}) {
     {
       key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
       perm: approvePerm || `${module}.approve`, when: IS_SUBMITTED, variant: 'success',
-      fields: [{ key: 'note', label: 'Catatan persetujuan', type: 'textarea' }],
+      /* Catatan persetujuan dilipat di bilah aksi, bukan `fields` yang membuka
+         modal pada SETIAP persetujuan: diukur 2 Sep 2026 (HASIL-UJI §1, S2)
+         3 klik per dokumen — Setujui, Setujui lagi di modal catatan, Buka —
+         untuk isian yang boleh kosong. Kini 2 tanpa catatan. Tolak tetap
+         lewat modal: alasannya wajib. Payload ke server tetap { note }. */
+      inlineNote: { key: 'note', label: 'Catatan persetujuan' },
     },
     {
       key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
@@ -353,7 +362,8 @@ export const RESOURCES = {
       {
         key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
         perm: 'crm.approve', variant: 'success', when: (r) => r.status === 'submitted',
-        fields: [{ key: 'note', label: 'Catatan persetujuan', type: 'textarea' }],
+        // Sama dengan approvalActions(): catatan inline, bukan modal (T2.3).
+        inlineNote: { key: 'note', label: 'Catatan persetujuan' },
       },
       {
         key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
