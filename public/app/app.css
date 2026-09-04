@@ -210,6 +210,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .login-hint code:hover { background: var(--primary-soft); color: var(--primary); }
 
+/* Lupa kata sandi (T2.7): satu baris di bawah tombol Masuk — tautan bila server
+   mengaku suratnya sampai, nama administrator bila tidak. .link-btn adalah
+   tombol yang tampak seperti tautan: <a href="#"> akan menggeser hash dan
+   membangunkan router di halaman yang belum punya shell. */
+.login .password-help { margin-top: 14px; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.6; }
+.login .password-help:empty { display: none; }
+.link-btn {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: var(--primary); text-decoration: underline; cursor: pointer;
+}
+.link-btn:hover { color: var(--primary-hover); }
+
 /* ----------------------------------------------------------------- shell */
 .shell {
   display: grid;

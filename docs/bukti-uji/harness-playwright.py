@@ -383,12 +383,38 @@ def s8(pg):
 
 @scenario("S9_account_menu")
 def s9(pg):
+    # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
+    # (GET iam/auth/password-help), bukan tebakan SPA. Diukur 2 Sep 2026: menu
+    # akun hanya Tutup · Keluar, tidak ada ganti sandi mandiri.
+    pg.goto(BASE); pg.wait_for_selector("input[type=email]", timeout=15000); pg.wait_for_timeout(900)
+    help_line = pg.evaluate("() => (document.querySelector('.login .password-help')||{}).innerText || null")
     login(pg, "finance@nusantara.test")
     click(pg, ".userchip")
     pg.wait_for_timeout(700)
     items = pg.evaluate("() => [...document.querySelectorAll('.modal button, .modal a, .menu button, [role=menu] *')].map(e=>e.innerText.trim()).filter(Boolean)")
     pg.screenshot(path=f"{OUT}/s9-account.png")
-    return {"account_menu_items": items}
+    out = {"login_password_help": help_line, "account_menu_items": items}
+    if pg.locator(".modal button:has-text('Ganti kata sandi')").count():
+        click(pg, ".modal button:has-text('Ganti kata sandi')"); pg.wait_for_timeout(600)
+        out["change_password_modal"] = pg.evaluate("() => ({ title: (document.querySelector('.modal-head h2')||{}).innerText, labels: [...document.querySelectorAll('.modal .field > label')].map(l=>l.innerText.trim()), buttons: [...document.querySelectorAll('.modal .modal-foot button')].map(b=>b.innerText.trim()), help: [...document.querySelectorAll('.modal .help')].map(h=>h.innerText.trim()) })")
+        inputs = pg.locator(".modal input[type=password]")
+        # sandi lama salah → 422 pada `current`, dilukis di bawah field, dialog tetap terbuka
+        inputs.nth(0).fill("bukan-sandi-saya"); inputs.nth(1).fill("password"); inputs.nth(2).fill("password")
+        # Tunggu jawabannya, bukan 1,5 s tetap: di Chromium 422-nya tiba 1,9 s setelah
+        # klik lewat php -S (curl langsung 0,24 s) dan pengukuran pertama membaca modal
+        # yang masih menunggu — errors [] (4 Sep 2026).
+        with pg.expect_response(lambda r: "me/password" in r.url, timeout=20000):
+            click(pg, ".modal .modal-foot button:has-text('Simpan kata sandi')")
+        pg.wait_for_timeout(400)
+        out["wrong_current"] = pg.evaluate("() => ({ errors: [...document.querySelectorAll('.modal .field.invalid .err')].map(e=>e.innerText.trim()), modalOpen: !!document.querySelector('.modal'), toasts: [...document.querySelectorAll('.toast')].map(t=>t.innerText.trim()) })")
+        pg.screenshot(path=f"{OUT}/s9-change-password-wrong-current.png")
+        # sandi lama benar → diganti ke nilai yang sama ("password"), supaya skenario lain tetap bisa masuk
+        inputs.nth(0).fill("password")
+        with pg.expect_response(lambda r: "me/password" in r.url, timeout=20000):
+            click(pg, ".modal .modal-foot button:has-text('Simpan kata sandi')")
+        pg.wait_for_timeout(400)
+        out["after_change"] = pg.evaluate("() => ({ modalOpen: !!document.querySelector('.modal'), toasts: [...document.querySelectorAll('.toast')].map(t=>t.innerText.trim()) })")
+    return out
 
 @scenario("S10_api_422_language")
 def s10(pg):

@@ -521,7 +521,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `-wal`/`-shm`).
 
 ### T2.10 — Sisa aksesibilitas: `aria-description` per tbody, lantai 11 px, label ikon aksi baris di layar sentuh
-- Commit: (this commit)
+- Commit: 5950ac0 (placeholder `(this commit)` replaced in the T2.7 commit — one task, one commit)
 - Files: `public/app/js/ui.js` (`installRowKeys` → `stampRows`: `aria-description="Tekan Enter
   untuk membuka"` once per tbody that holds `tr.clickable`), `public/app/app.css`
   (`.brand-text span` 10.5 → 11 px, `.userchip .who span` 10.5 → 11 px, `.bell-count` 10 →
@@ -568,3 +568,129 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     scratch scripts `<scratchpad>/ux/fonts.py`, `coarse.py`, `coarse2.py`. Server stopped
     after the run (kill by PID — `pkill -f 'php -S …'` also matches the tool's own shell);
     `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
+
+### T2.7 — Layanan mandiri kata sandi: `PUT iam/me/password`, menu "Ganti kata sandi", "Lupa kata sandi" hanya bila surat sampai
+- Commit: (this commit)
+- Files: `Modules/Iam/Http/Controllers/AuthController.php` (`changePassword`, `passwordHelp`,
+  `forgotPassword`, `resetPassword`), `Modules/Iam/Http/Requests/ChangePasswordRequest.php`,
+  `ForgotPasswordRequest.php`, `ResetPasswordRequest.php` (new), `Modules/Iam/Support/PasswordHelp.php`
+  (new: `resetByEmail()`, `administratorName()`, `askAdministrator()`, `resetUrl()`),
+  `Modules/Iam/Routes/api.php` (`GET auth/password-help`, `POST auth/forgot-password`,
+  `POST auth/reset-password` public — the last two `throttle:10,1` like login; `PUT me/password`
+  under `auth:sanctum`), `Modules/Iam/Providers/IamServiceProvider.php`
+  (`ResetPassword::createUrlUsing` → `#/reset-password?token=…&email=…`; `toMailUsing` → surat
+  Indonesia), `lang/id/validation.php` (rule `current_password`; attributes `current`,
+  `password_confirmation`, `token`), `lang/id.json` (new: the mail template's one subcopy
+  string), `public/app/js/app.js` (login page `.password-help` line from the server; `openChangePassword()`,
+  `openForgotPassword()`, `renderResetPassword()`, `resetLinkParams()` read in `init()` before the
+  session check; account menu button), `public/app/app.css` (`.login .password-help`, `.link-btn`),
+  `docs/bukti-uji/harness-playwright.py` (S9 also records the login line and drives the dialog),
+  `docs/bukti-uji/s9-ganti-kata-sandi-t2.7.png` (new), `docs/PANDUAN-PENGGUNA.md` (§0 kalimat 5,
+  §14.1 two rows), `docs/PANDUAN-ADMINISTRATOR.md` (Iam module paragraph, the "Tidak ada layanan
+  mandiri" bullet), `tests/Feature/Iam/SelfServicePasswordTest.php` (new, 13 tests),
+  `docs/PROGRESS-UX-PROSES.md`
+- Acceptance:
+  - `vendor/bin/phpunit --no-progress tests/Feature/Iam/SelfServicePasswordTest.php` → OK
+    (**13 tests, 69 assertions**); red first: 13/13 failed with 404 before the routes existed.
+    Wrong current → **422**, `errors.current.0` = `message` = **`Kata sandi saat ini salah.`**,
+    old password still logs in (200), new never stored (401). Success → 200
+    `Kata sandi Anda diperbarui.`, then `auth/login` old → **401**, new → **200**; the token that
+    made the change still answers `auth/me` 200. Also pinned: `Konfirmasi Kata sandi tidak cocok.`,
+    `Kata sandi minimal 8 karakter.`, `Kata sandi saat ini wajib diisi.`, 401 without a session;
+    `password-help` → `reset_by_email` false on `log` (and `PasswordHelp::resetByEmail()` false on
+    `array`/`null`), true on `smtp`, `administrator` = first ACTIVE admin-role user by id (an
+    inactive earlier admin skipped), null when there is none; forgot-password → **409** on `log`
+    naming the administrator, nothing sent; on `smtp` + `Notification::fake` → 200 with the neutral
+    sentence, `ResetPassword` sent, subject `Atur ulang kata sandi Nusantara ERP`, action URL
+    `url('/')#/reset-password?token=…&email=…`, rendered mail contains `Halo Rina Kartika`,
+    `60 menit`, `salin dan tempel`, no `Regards`/`Hello!`; unknown and inactive addresses get the
+    SAME 200 sentence and nothing is sent; second link within a minute → **429**; a valid token
+    resets once (old 401 / new 200) and its replay → 422 `errors.token`; a bogus token or an
+    inactive account cannot reset.
+  - `tests/Feature/Iam` (whole directory) → OK (**45 tests, 215 assertions**; 32 / 146 before).
+    `tests/Feature/Core` → OK (**567 tests, 3445 assertions**, 1 min 45 s) — insurance for the
+    shared `lang/id/validation.php` (no other FormRequest has a field named `current`/`token`).
+  - Harness **S9** (finance, fresh scratch seed): `login_password_help`
+    **`Lupa kata sandi? Minta Administrator Sistem (administrator) mengatur ulang kata sandi Anda.`**
+    (`MAIL_MAILER=log`); `account_menu_items` **`Tutup · Ganti kata sandi · Keluar`** (Sesudah 2 Sep
+    and gate 4 Sep: `Tutup · Keluar`); dialog `Ganti kata sandi` with labels `Kata sandi saat ini*`,
+    `Kata sandi baru*`, `Ulangi kata sandi baru*`, buttons `Batal · Simpan kata sandi`, help
+    `Minimal 8 karakter.` + `Berlaku untuk masuk berikutnya. Sesi yang sedang terbuka di perangkat
+    lain tetap berjalan.`; wrong current → `.err` **`Kata sandi saat ini salah.`**, dialog still
+    open, no toast; correct current → dialog closed, toast **`Kata sandi Anda diperbarui.`**;
+    **4 klik**, 12 517 ms. Screenshot `docs/bukti-uji/s9-ganti-kata-sandi-t2.7.png`.
+    `curl` PUT with the wrong current → 422 in 0.24 s; in Chromium the same 422 arrived 1.92 s after
+    the click through `php -S`, so S9 waits for the response (first measurement with a fixed 1.5 s
+    read `errors []` — the harness's fault, not the code's).
+  - Reset link in Chromium (scratch script, token minted with `Password::broker()->createToken()`
+    via `php artisan tinker` on the scratch DB): `#/reset-password?token=…&email=finance%40…` renders
+    h1 `Atur ulang kata sandi`, email prefilled, focus on the password; mismatch caught before the
+    request (`Konfirmasi kata sandi tidak cocok.`); submit → **200**, hash cleared, login page with
+    banner **`Kata sandi diperbarui. Masuk dengan kata sandi baru Anda.`**; the new password signs
+    in (nav visible); the same link again → **422**, `.alert.error`
+    `Tautan pengaturan ulang tidak berlaku lagi (berlaku 60 menit, sekali pakai). Minta tautan baru
+    dari halaman masuk.`; API: old password 401, new 200; then restored to `password` through
+    `PUT iam/me/password` (200, old 200 again) so the scratch seed stays usable. 0 page errors.
+  - `MAIL_MAILER=smtp` branch (server restarted with that env, nothing sent): `password-help`
+    `reset_by_email` **true**; login line **`Lupa kata sandi? Kirim tautan pengaturan ulang`**
+    (a `.link-btn`); click → dialog `Kirim tautan pengaturan ulang`, `Email akun Anda*` prefilled
+    from the login field, help `Tautan berlaku 60 menit dan hanya sekali pakai.`, buttons
+    `Batal · Kirim tautan`; empty email → `Wajib diisi.` before any request; Batal → 0 modals.
+  - Regression **S4** (login page changed): banner `Sesi Anda berakhir. Isian PO …`, modalVisible
+    **false**, loginVisible **true**, Masuk `reachable`, recoveryOffer true, restored **13 field /
+    3 baris**, 8 klik, 14 715 ms — as the gate.
+  - `vendor/bin/pint --test` on the seven PHP files + the test → passed.
+- Notes:
+  - **"Lupa kata sandi" does its verb.** The entry says the link shows only when
+    `MAIL_MAILER !== 'log'`; a link that shows must send something, so the email path is Laravel's
+    own broker (`password_reset_tokens` from the initial migration, 60 min / 1 per minute from
+    `config/auth.php`) behind two public routes and one SPA screen — the smallest thing that makes
+    the sentence true. It is dormant on erp1 (`MAIL_MAILER=log` in `.env.example`): the server
+    refuses `forgot-password` with **409** in that state so an API client gets the same answer as
+    the login page, and the login page names the administrator instead. Enabling it is a deploy
+    step (`MAIL_*` in the box's `.env`), not a policy decision — no `## Open questions` entry.
+  - **`array` and `null` count as "not delivered"**, not only `log`: "sent" to the testing array
+    or the null transport reaches nobody either (copy rule 1 — never state what you don't know).
+    Written at `PasswordHelp::UNDELIVERED`, tested.
+  - **The administrator is the first active admin-role user, name only.** The entry wants a line
+    "naming the administrator"; the seed's is `Administrator Sistem`, erp1's is whatever
+    `ERP_ADMIN_NAME` was. `password-help` is public, so it gives the NAME and never the email
+    (colleagues know how to reach the person; a public endpoint should not hand out addresses).
+    Deactivated admins are skipped; with none the line reads `administrator sistem` — nothing invented.
+  - **Tokens are not revoked** on a self-service change — neither the caller's (the person is at
+    the keyboard) nor other devices' — the same rule the admin path documents
+    (PANDUAN-ADMINISTRATOR §3.4: token Sanctum bertahan melewati penggantian sandi) and the dialog
+    says so in one sentence (copy rule 2). An opt-in "keluarkan sesi di perangkat lain" (OWASP ASVS
+    3.3.3 wording: *the option*) is a candidate for a later entry, not this one's Steps. A reset via
+    email in a tab that still holds a session does call `logout()` first — that person is being
+    told to sign in with the new password and must not slide back into the old session on reload.
+  - Messages come from `lang/id/validation.php` through the attribute map, as the entry says:
+    `current_password` rule + `current` attribute give `Kata sandi saat ini salah.`; the shared
+    `password` attribute (`Kata sandi`) gives `Konfirmasi Kata sandi tidak cocok.` with the
+    capital K mid-sentence — the file's existing pattern for every `confirmed`/`different` rule,
+    left alone. The SPA catches the mismatch client-side first with `Konfirmasi kata sandi tidak
+    cocok.`, and the server's sentence lands under `Kata sandi baru` when it does arrive (Laravel
+    pins `confirmed` to the source field).
+  - `lang/id.json` is new: the notification mail template's subcopy ("If you're having trouble
+    clicking…") is a JSON-string translation, and greeting/salutation are set on the message. No
+    other `__()` key in the codebase matches it.
+  - **Docs corrected, deliberately outside the entry's file list:** PANDUAN-PENGGUNA §0 kalimat 5
+    ("Anda tidak bisa mengganti kata sandi sendiri") and the two §14.1 rows, plus two
+    PANDUAN-ADMINISTRATOR passages ("Tidak ada layanan mandiri kata sandi"), would state a falsehood
+    after this commit. Minimal rewrites; §3.4 and §3.7's route table untouched (`password-help` is
+    unauthenticated, not "terbuka bagi setiap akun yang sudah masuk").
+  - `.link-btn` is a button styled as a link on purpose: `<a href="#">` moves the hash and wakes the
+    router on a page that has no shell yet (after a logout the router is registered). The reset
+    screen clears the hash with `history.replaceState` for the same reason.
+  - `password-help` in the SPA: no answer → no line (like demo-accounts), never a guess.
+  - No node on the box: the harness runs (login, dashboard, both dialogs, the reset screen) are the
+    syntax check for `app.js`; 0 `pageerror` in every scratch run.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t27.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t27.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t27.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`
+    (and once more with `MAIL_MAILER=smtp` for the link branch); harness
+    `ERP_DB=<scratch>/ux/t27.sqlite UXTEST_OUT=<scratch>/ux/out-t27 /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S9 S4`;
+    scratch scripts `<scratchpad>/ux/t27-reset.py`, `t27-smtp.py`, `t27-console2.py`. Server stopped
+    after each run (kill by PID from `pgrep -f '^php -S 127.0.0.1:8000'` — the `^` anchor skips the
+    tool's own wrapper shell); `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).

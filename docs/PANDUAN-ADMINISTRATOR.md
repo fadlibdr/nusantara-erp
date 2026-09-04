@@ -202,8 +202,11 @@ revisi menerbitkan baris `version + 1` dan menstempel `superseded_by_id` pada
 pendahulunya (pola revisi submittal P1-ENG), dan `QuotationService` menolak penawaran
 baru yang mengutip versi yang sudah digantikan.
 
-**Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Tiga rute
-otentikasi saja: masuk, keluar, "siapa saya". Tidak ada layanan mandiri kata sandi.
+**Iam (`iam`) — Pengguna & Akses.** Pengguna, peran, izin, login. Rute
+otentikasi: masuk, keluar, "siapa saya", ganti sandi sendiri (`PUT iam/me/password`,
+sandi lama wajib), dan alur lupa sandi (`auth/password-help`, `auth/forgot-password`,
+`auth/reset-password`) yang hanya aktif bila `MAIL_MAILER` bukan `log`/`array`/`null` —
+selama surat hanya masuk log, halaman masuk menyebut nama admin aktif pertama.
 
 **Crm (`crm`) — Penjualan.** Pelanggan, prospek, penawaran, kontrak beserta jadwal
 termin, pekerjaan tambah-kurang (CCO), jaminan & asuransi, analitik win-rate. Tidak
@@ -821,9 +824,11 @@ penonaktifan (`is_active` true→false).
   > Pada salinan pohon sumber per 10 Agustus 2026, `core_audit_log` berisi **2 baris**.
   > Angka di produksi harus dibaca di sana.
 
-- **Tidak ada layanan mandiri kata sandi**: tidak ada "ganti sandi saya", tidak ada
-  alur lupa-sandi, tidak ada email reset. Setiap penggantian sandi harus lewat
-  pemegang `iam.update` — pada instalasi baku, akun admin.
+- **Layanan mandiri kata sandi terbatas pada dua pintu**: "Ganti kata sandi" di menu
+  akun (sandi lama wajib, token yang ada tetap hidup — sama seperti §3.4) dan tautan
+  lupa-sandi lewat email yang hanya muncul bila `MAIL_MAILER` bukan `log`/`array`/`null`
+  (broker Laravel, 60 menit, sekali pakai). Dengan `MAIL_MAILER=log` — bawaan
+  `.env.example` — penggantian karena lupa tetap lewat pemegang `iam.update`.
 - **Tidak ada layar "Profil Saya"**. Pengguna tidak dapat mengubah nama, email, maupun
   sandinya sendiri.
 - **Tidak ada cara memberikan satu izin langsung kepada satu pengguna.** Peran adalah

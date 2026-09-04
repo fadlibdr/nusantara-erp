@@ -79,8 +79,10 @@ panduan ini milik orang lain.
    kerusakan; pesan penolakannya menyebut nama orang yang harus Anda datangi.
 4. **Tidak ada tombol batal untuk apa pun yang sudah diposting.** Yang ada hanyalah
    pembalikan, dan pembalikan meninggalkan dua jurnal berdampingan selamanya.
-5. **Anda tidak bisa mengganti kata sandi sendiri.** Tidak ada layar untuk itu dan
-   tidak ada tautan "lupa kata sandi". Minta administrator (bab 14).
+5. **Kata sandi Anda ganti sendiri dari menu akun** (chip nama di kanan atas ›
+   *Ganti kata sandi*; sandi lama wajib). "Lupa kata sandi" lewat email hanya ada
+   bila server memang mengirim surat — kalau tidak, halaman masuk menyebut nama
+   administrator yang harus Anda mintai (bab 14).
 6. **Sesi Anda berumur 12 jam.** Bila habis di tengah formulir, seluruh isian hilang
    tanpa bisa dipulihkan. Dokumen panjang disimpan bertahap.
 
@@ -7282,8 +7284,8 @@ Bab ini ada supaya Anda berhenti mencari tombol yang memang tidak ada.
 
 | Yang Anda butuhkan | Kenapa tidak bisa sendiri | Minta ke |
 |---|---|---|
-| Mengganti kata sandi Anda | Tidak ada layar untuk itu; satu-satunya kolom sandi ada di `Sistem › Pengguna` | administrator |
-| Kata sandi baru karena lupa | Tidak ada tautan "lupa kata sandi" dan tidak ada email reset | administrator |
+| Mengganti kata sandi Anda | **Bisa sendiri**: chip nama di kanan atas › *Ganti kata sandi* (sandi lama wajib; sesi di perangkat lain tetap berjalan) | — |
+| Kata sandi baru karena lupa | Tautan lewat email hanya bila server mengirim surat (`MAIL_MAILER` bukan `log`); kalau tidak, halaman masuk menyebut nama administrator | administrator, bila halaman masuk menyebutnya |
 | Mengganti nama atau email Anda | Tidak ada layar profil sendiri | administrator |
 | Melihat daftar izin Anda | Dialog Akun hanya menampilkan **jumlahnya** | administrator |
 | Menambah izin atau peran | Peran diatur di `Sistem › Peran & Hak Akses` | administrator |

@@ -126,6 +126,7 @@ function renderLogin({ message } = {}) {
     passwordInput.value = 'password';
     passwordInput.focus();
   };
+  const passwordHelp = el('.password-help');
   const hint = el('.login-hint');
 
   root.appendChild(el('.login', el('.login-card', [
@@ -137,8 +138,30 @@ function renderLogin({ message } = {}) {
     el('.sub', { text: 'Gunakan email dan kata sandi yang diberikan administrator.' }),
     message ? el('.alert.info', { style: { marginBottom: '14px' } }, message) : null,
     form,
+    passwordHelp,
     hint,
   ])));
+
+  /* Lupa kata sandi (T2.7): server yang tahu apakah tautan email sungguh
+     sampai ke orang. Dengan MAIL_MAILER=log (bawaan .env.example dan erp1)
+     suratnya mendarat di storage/logs — tombol "Lupa kata sandi" di keadaan
+     itu berbohong. GET iam/auth/password-help (saudara demo-accounts)
+     menjawab dua hal: tautan sampai atau tidak, dan siapa administratornya.
+     Tidak ada jawaban → tidak ada baris; halaman ini tidak menebak. */
+  api.get('iam/auth/password-help').then((help) => {
+    if (!help || typeof help !== 'object') return;
+    if (help.reset_by_email) {
+      passwordHelp.append('Lupa kata sandi? ', el('button.link-btn', {
+        type: 'button',
+        text: 'Kirim tautan pengaturan ulang',
+        onclick: () => openForgotPassword(emailInput.value.trim()),
+      }));
+    } else {
+      passwordHelp.textContent = `Lupa kata sandi? ${help.administrator
+        ? `Minta ${help.administrator} (administrator)`
+        : 'Minta administrator sistem'} mengatur ulang kata sandi Anda.`;
+    }
+  }).catch(() => {});
 
   // Akun demo hanya bila server mengaku bukan produksi (GET iam/auth/demo-accounts).
   // Dulu daftar email peran internal ini tercetak di halaman masuk publik tanpa
@@ -153,6 +176,221 @@ function renderLogin({ message } = {}) {
   }).catch(() => {});
 
   emailInput.focus();
+}
+
+/* ------------------------------------------------------------- kata sandi */
+/*
+ * Layanan mandiri kata sandi (T2.7). Sampai 2 Sep 2026 menu akun hanya
+ * "Tutup · Keluar" (HASIL-UJI §1, S9) dan setiap penggantian sandi lewat
+ * administrator — PANDUAN-PENGGUNA §0 kalimat 5 bahkan menyuruh orang berhenti
+ * mencarinya. Tiga pintu di bawah: ganti sandi dari menu akun (sandi lama
+ * wajib), kirim tautan dari halaman masuk, dan layar #/reset-password yang
+ * dibuka tautan itu.
+ */
+
+/* Satu kalimat, sama persis dengan AuthController::LINK_SENT_MESSAGE — sengaja
+   tidak menyebut "terkirim": halaman masuk tidak tahu apakah alamat itu ada. */
+const LINK_SENT_MESSAGE = 'Jika email itu terdaftar dan aktif, tautan pengaturan ulang dikirim ke sana dan berlaku 60 menit.';
+
+function passwordField(autocomplete) {
+  return el('input', { type: 'password', autocomplete, required: true, placeholder: '••••••••' });
+}
+
+/* Galat 422 dilukis di bawah field yang bersangkutan; mengembalikan apakah ada
+   yang terlukis supaya pemanggil tahu kapan toast masih perlu. Kunci `password`
+   juga menampung galat konfirmasi (aturan `confirmed` Laravel menempel pada
+   field asalnya, bukan pada password_confirmation). */
+function paintPasswordErrors(error, controls) {
+  const errors = (error && error.errors) || {};
+  let painted = false;
+  Object.entries(controls).forEach(([key, input]) => {
+    const text = errors[key] ? [].concat(errors[key])[0] : '';
+    setFieldError(input, text);
+    if (text) painted = true;
+  });
+  return painted;
+}
+
+/* Isian kosong dan konfirmasi yang tidak sama ditangkap di sini, sebelum
+   permintaan — kalimatnya sama dengan yang akan dikirim server. */
+function passwordFormValid(controls, password, confirmation) {
+  Object.values(controls).forEach((input) => setFieldError(input, ''));
+  const empty = Object.values(controls).filter((input) => !input.value.trim());
+  if (empty.length) {
+    empty.forEach((input) => setFieldError(input, 'Wajib diisi.'));
+    empty[0].focus();
+    return false;
+  }
+  if (password.value !== confirmation.value) {
+    setFieldError(confirmation, 'Konfirmasi kata sandi tidak cocok.');
+    confirmation.focus();
+    return false;
+  }
+  return true;
+}
+
+/** Menu akun › Ganti kata sandi. */
+function openChangePassword() {
+  const current = passwordField('current-password');
+  const password = passwordField('new-password');
+  const confirmation = passwordField('new-password');
+  const controls = { current, password, password_confirmation: confirmation };
+
+  const form = el('form', { novalidate: true }, [
+    field('Kata sandi saat ini', current, { required: true }),
+    field('Kata sandi baru', password, { required: true, help: 'Minimal 8 karakter.' }),
+    field('Ulangi kata sandi baru', confirmation, { required: true }),
+    /* Konsekuensinya disebut, bukan disembunyikan: token Sanctum bertahan
+       melewati penggantian sandi, sama seperti lewat Sistem › Pengguna
+       (PANDUAN-ADMINISTRATOR §3.4). */
+    el('.help.muted', {
+      text: 'Berlaku untuk masuk berikutnya. Sesi yang sedang terbuka di perangkat lain tetap berjalan.',
+      style: { fontSize: '12px', lineHeight: '1.5' }, // .field .help hanya berlaku di dalam .field
+    }),
+  ]);
+  const submit = button('Simpan kata sandi', { variant: 'primary', onClick: () => form.requestSubmit() });
+  const dialog = modal({
+    title: 'Ganti kata sandi',
+    width: 'narrow',
+    body: form,
+    footer: [button('Batal', { onClick: () => dialog.close() }), submit],
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!passwordFormValid(controls, password, confirmation)) return;
+    await withBusy(submit, async () => {
+      try {
+        await api.put('iam/me/password', {
+          current: current.value,
+          password: password.value,
+          password_confirmation: confirmation.value,
+        });
+        dialog.close();
+        toast('Kata sandi Anda diperbarui.');
+      } catch (error) {
+        // Sandi lama yang salah datang sebagai 422 pada `current` dengan
+        // kalimat Indonesia dari lang/id/validation.php; dialog tetap terbuka.
+        if (!paintPasswordErrors(error, controls)) toastError(error);
+      }
+    });
+  });
+}
+
+/** Halaman masuk › Kirim tautan pengaturan ulang (hanya bila server mengaku suratnya sampai). */
+function openForgotPassword(prefill) {
+  const emailInput = el('input', { type: 'email', autocomplete: 'username', required: true, placeholder: 'nama@nusantara.test', value: prefill || '' });
+  const form = el('form', { novalidate: true }, [
+    field('Email akun Anda', emailInput, { required: true, help: 'Tautan berlaku 60 menit dan hanya sekali pakai.' }),
+  ]);
+  const submit = button('Kirim tautan', { variant: 'primary', onClick: () => form.requestSubmit() });
+  const dialog = modal({
+    title: 'Kirim tautan pengaturan ulang',
+    width: 'narrow',
+    body: form,
+    footer: [button('Batal', { onClick: () => dialog.close() }), submit],
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setFieldError(emailInput, '');
+    if (!emailInput.value.trim()) { setFieldError(emailInput, 'Wajib diisi.'); return; }
+    await withBusy(submit, async () => {
+      try {
+        await api.post('iam/auth/forgot-password', { email: emailInput.value.trim() });
+        dialog.close();
+        // Bertahan sampai ditutup: orang ini akan berpindah ke kotak masuknya.
+        toast(LINK_SENT_MESSAGE, { tone: 'info', timeout: 0 });
+      } catch (error) {
+        // 429 (satu tautan per menit) dan 409 (surat hanya ke log) datang
+        // dengan kalimat server; galat email dilukis di bawah field.
+        if (!paintPasswordErrors(error, { email: emailInput })) toastError(error);
+      }
+    });
+  });
+}
+
+/* Tautan dari surat: #/reset-password?token=…&email=…, dibaca di init()
+   SEBELUM sesi diperiksa — orang yang lupa sandinya tidak punya sesi. */
+function resetLinkParams() {
+  const hash = location.hash || '';
+  if (!/^#\/?reset-password(\?|$)/.test(hash)) return null;
+  const cut = hash.indexOf('?');
+  const query = new URLSearchParams(cut === -1 ? '' : hash.slice(cut + 1));
+  return { token: query.get('token') || '', email: query.get('email') || '' };
+}
+
+function renderResetPassword({ token, email }) {
+  clear(root);
+  root.className = '';
+
+  const emailInput = el('input', { type: 'email', autocomplete: 'username', required: true, value: email });
+  const password = passwordField('new-password');
+  const confirmation = passwordField('new-password');
+  const controls = { email: emailInput, password, password_confirmation: confirmation };
+  const refusal = el('.alert.error', { style: { marginBottom: '14px' } });
+  refusal.hidden = true;
+  const submit = button('Simpan kata sandi baru', { variant: 'primary', type: 'submit' });
+
+  const form = el('form', { novalidate: true }, [
+    field('Email', emailInput, { required: true }),
+    field('Kata sandi baru', password, { required: true, help: 'Minimal 8 karakter.' }),
+    field('Ulangi kata sandi baru', confirmation, { required: true }),
+    submit,
+  ]);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    refusal.hidden = true;
+    if (!passwordFormValid(controls, password, confirmation)) return;
+    await withBusy(submit, async () => {
+      try {
+        await api.post('iam/auth/reset-password', {
+          token,
+          email: emailInput.value.trim(),
+          password: password.value,
+          password_confirmation: confirmation.value,
+        });
+        /* Sesi yang kebetulan masih ada di tab ini ditutup: orang yang baru
+           mengatur ulang sandinya diminta masuk dengan sandi itu, dan tidak
+           tergelincir kembali ke sesi lama saat halaman dimuat ulang. */
+        if (session.token) await logout();
+        // replaceState, bukan location.hash = '': tidak memicu hashchange ke
+        // router yang belum punya shell untuk digambari.
+        history.replaceState(null, '', location.pathname + location.search);
+        renderLogin({ message: 'Kata sandi diperbarui. Masuk dengan kata sandi baru Anda.' });
+      } catch (error) {
+        const painted = paintPasswordErrors(error, controls);
+        const tokenError = error && error.errors && error.errors.token;
+        if (tokenError) {
+          // Tautan kedaluwarsa/terpakai: tidak ada field untuk dilukis —
+          // kalimat server (menyebut jalan keluarnya) tampil di atas formulir.
+          refusal.textContent = [].concat(tokenError)[0];
+          refusal.hidden = false;
+        } else if (!painted) {
+          toastError(error);
+        }
+      }
+    });
+  });
+
+  root.appendChild(el('.login', el('.login-card', [
+    el('.login-brand', [
+      el('img', { src: 'favicon.svg', alt: '', width: 38, height: 38 }),
+      el('div', [el('strong', { text: 'Nusantara ERP' }), el('span', { text: 'Konstruksi & Integrasi Sistem' })]),
+    ]),
+    el('h1', { text: 'Atur ulang kata sandi' }),
+    el('.sub', { text: 'Tautan dari surat "lupa kata sandi" berlaku 60 menit dan sekali pakai.' }),
+    refusal,
+    form,
+    el('.password-help', [el('button.link-btn', {
+      type: 'button',
+      text: 'Kembali ke halaman masuk',
+      onclick: () => { history.replaceState(null, '', location.pathname + location.search); renderLogin(); },
+    })]),
+  ])));
+
+  (email ? password : emailInput).focus();
 }
 
 /* ------------------------------------------------------------------ shell */
@@ -292,6 +530,8 @@ function openUserMenu(user) {
     ]),
     footer: [
       button('Tutup', { onClick: () => dialog.close() }),
+      // Menu akun hanya "Tutup · Keluar" sampai 2 Sep 2026 (HASIL-UJI §1, S9).
+      button('Ganti kata sandi', { onClick: () => { dialog.close(); openChangePassword(); } }),
       button('Keluar', {
         variant: 'danger', iconName: 'logout',
         onClick: async (event) => {
@@ -863,6 +1103,13 @@ window.addEventListener('error', (event) => {
 });
 
 async function init() {
+  // Tautan "lupa kata sandi" dibuka tanpa sesi — diperiksa sebelum apa pun.
+  const reset = resetLinkParams();
+  if (reset) {
+    renderResetPassword(reset);
+    return;
+  }
+
   if (!session.token) {
     renderLogin();
     return;
