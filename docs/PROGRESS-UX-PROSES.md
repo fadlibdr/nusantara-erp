@@ -1422,7 +1422,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
 ## Phase 3
 
 ### T3.3 — Jejak persetujuan tampil di setiap dokumen Approvable: `approvals.user` di 23 `show()`, kunci `approvals` bentuk PaymentResource di 23 Resource
-- Commit: (this commit) — also turns the Gate Phase 2 placeholder above into 2649f55.
+- Commit: 6d247ee — also turns the Gate Phase 2 placeholder above into 2649f55.
 - Files: controllers (`show()` loads `approvals.user`; the WHY comment at every site, the measured
   paragraph on the PR controller the evidence names) — `Crm/QuotationController`,
   `Engineering/IppController` (DETAIL const), `Estimation/BoqController`, `Estimation/CostBudgetController`,
@@ -1515,7 +1515,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     PO clicks 12 — T4.x / unassigned.
 
 ### T3.1 — Pengawas jatuh tempo tagihan vendor (`ap_due`), `erp:deadline-watch --dry-run`, tombol "Buat pembayaran" pada tagihan yang disetujui
-- Commit: (this commit)
+- Commit: 3804085
 - Files: `Modules/Core/Support/WatchedDeadlines.php` (one entry, `ap_due`, placed after `ar_invoice_due`;
   the formula is in its comment), `Modules/Core/Console/Commands/DeadlineWatchCommand.php` (`--dry-run`),
   `public/app/js/schema.js` (`finance/ap-bills` action `create-payment` "Buat pembayaran"),
@@ -1596,7 +1596,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - No "## Open questions" entry needed.
 
 ### T3.2 — Pengawas SLA tiket layanan (`ticket_sla`) pada `svc_tickets.resolution_due_at`
-- Commit: (this commit) — T3.1 above is 3804085.
+- Commit: f0dd7ba — T3.1 above is 3804085.
 - Files: `Modules/Core/Support/WatchedDeadlines.php` (one entry, `ticket_sla`, after `svc_contract_period_end`),
   `tests/Feature/Core/DeadlineWatchTest.php` (fixtures `serviceContract()`, `ticket()`; 5 new tests), this block.
   **No migration, no Resource change, no backfill** — see Notes.
@@ -1656,7 +1656,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     nothing in the SPA changed.
 
 ### T3.5 — Tanggal wajib yang menggerakkan pengawas: `expected_date` PO wajib (store + update), `needed_date` PR dan SLA tiket dipin uji
-- Commit: (this commit) — T3.2 above is f0dd7ba.
+- Commit: 51dceab — T3.2 above is f0dd7ba.
 - Files: `Modules/Procurement/Http/Requests/PurchaseOrderStoreRequest.php` (`expected_date` nullable → `required|date|after_or_equal:order_date`),
   `Modules/Procurement/Http/Requests/PurchaseOrderUpdateRequest.php` (`nullable` → `sometimes|required|date`),
   `public/app/js/schema.js` (PO form: `Perkiraan kirim` `required: true`, komentar alasan terukur),
@@ -1713,7 +1713,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `ERP_DB=<scratch>/t35b.sqlite UXTEST_OUT=<scratch>/out-t35b /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S10 S2 S3 S4 S12`.
 
 ### T3.4 — Maker-checker untuk dokumen tanpa jejak pengajuan: fallback kolom pemilik di `SegregationOfDuties`, baris `submitted` dari mesin impor dan seeder
-- Commit: (this commit) — T3.5 above is 51dceab.
+- Commit: 1707755 — T3.5 above is 51dceab.
 - Files: `Modules/Core/Support/SegregationOfDuties.php` (`makerIdOf()`, `ownerIdOf()`, `hasRecordedSubmission()`; `assertNotSubmitter` reads `makerIdOf`; header rewritten for the measured case),
   `Modules/Core/Services/DocumentImportService.php` (`commit(…, ?User $by = null)` + `recordSubmission()` inside the per-document transaction),
   `Modules/Core/Http/Controllers/DocumentImportController.php` (passes `$request->user()`),
@@ -1740,7 +1740,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Environment: `php artisan config:clear`; fresh seed `<scratchpad>/ux/t34.sqlite` (HTTP replay, mutated) and its copy `t34h.sqlite` (harness); server `cd public && DB_DATABASE=<scratch> APP_ENV=local nohup php -S 127.0.0.1:8000 …/server.php` as its own statement, killed by pid after each run (:8000 free); harness one-liner `ERP_DB=<scratch>/t34h.sqlite UXTEST_OUT=<scratch>/out-t34h /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S1 S2`; `database/database.sqlite` untouched (mtime 2026-09-04 13:10:55, no `-wal`/`-shm`). No "## Open questions" entry needed.
 
 ### T3.8 — PO tanpa PR wajib beralasan: `pr_bypass_reason` ujung ke ujung (migrasi, `required_without`, PoService, Resource, formulir, detail, formulir cetak)
-- Commit: (this commit) — T3.4 above is 1707755.
+- Commit: 5253729 — T3.4 above is 1707755.
 - Files: `Modules/Procurement/Database/Migrations/2026_09_04_000870_add_pr_bypass_reason_to_prc_purchase_orders.php` (new — `hasColumn` guard, `string(500)` nullable after `qualification_override_reason`, rollback drops it; the 2026_08_08_000853 pattern),
   `Modules/Procurement/Http/Requests/PurchaseOrderStoreRequest.php` (`pr_bypass_reason` → `required_without:purchase_requisition_id|nullable|string|max:500`),
   `Modules/Procurement/Http/Requests/PurchaseOrderUpdateRequest.php` (`Rule::when($this->has('purchase_requisition_id'), ['required_without:purchase_requisition_id'])|nullable|string|max:500`),
@@ -1773,7 +1773,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Environment: `php artisan config:clear`; fresh scratch seeds `<scratchpad>/ux/t38.sqlite` (curl replay, mutated) and `t38h.sqlite` (harness, then the probe); server `cd public && DB_DATABASE=<scratch> APP_ENV=local nohup php -S 127.0.0.1:8000 …/server.php` as its own statement, killed by pid after each run (:8000 free); `database/database.sqlite` untouched (mtime 2026-09-04 13:10:55, no `-wal`/`-shm`). Harness one-liner: `ERP_DB=<scratch>/t38h.sqlite UXTEST_OUT=<scratch>/out-t38h /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S10 S2 S3 S4 S12`.
 
 ### T3.6 — Kontrak dari penawaran yang menang: `POST quotations/{q}/create-contract`, alasan selisih nilai (`value_change_reason`), tombol Buat/Lengkapi kontrak, "Dari penawaran" pada detail kontrak
-- Commit: (this commit) — T3.8 above is 5253729.
+- Commit: 04a8f75 — T3.8 above is 5253729.
 - Files: `Modules/Crm/Database/Migrations/2026_09_04_000394_add_value_change_reason_to_crm_contracts_table.php` (new — `hasColumn` guard, `string(500)` nullable after `total_with_ppn`, rollback drops it; the 000870 pattern. **No `quotation_id` migration**: the column has existed since 000340 with `Contract::quotation()`, as the orchestrator established),
   `Modules/Crm/Services/ContractService.php` (`createFromQuotation()`, `isUnfilledShell()`, `applyValueChangeReason()` called from `create()` and `update()`; the reason pulled out of mass-assignment),
   `Modules/Crm/Http/Requests/ContractFromQuotationRequest.php` (new — no `customer_id`/`quotation_id`: those are the quotation's), `ContractStoreRequest.php` + `ContractUpdateRequest.php` (`value_change_reason` nullable string max 500),
@@ -1800,7 +1800,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Environment: `php artisan config:clear`; fresh scratch seed `<scratchpad>/ux/t36.sqlite` (`DB_DATABASE=<scratch> php artisan migrate:fresh --seed --force`, column verified with sqlite3 `pragma table_info`); server started by `<scratchpad>/ux/run-s17.sh` as its own statement (`cd public; DB_DATABASE=<scratch>/t36.sqlite APP_ENV=local nohup php -S 127.0.0.1:8000 …/server.php &`, pid file, `/up` polled, killed by pid after the run — :8000 free); harness one-liner `ERP_DB=<scratch>/t36.sqlite UXTEST_OUT=<scratch>/out-t36 /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S17`; `database/database.sqlite` untouched (mtime 2026-09-04 13:10:55, no `-wal`/`-shm`).
 
 ### T3.7 — Surat penagihan ke-1/2/3 sebagai formulir rumah: tiga entri registri (kunci baru `prose` + `onlyWhen`), `fin_ar_invoices.dunning_level` + `last_dunning_at`, aksi "Cetak surat penagihan ke-N" (POST `{id}/dunning` → cetak), jejak audit, badan pengawas `ar_invoice_due` menyebut tingkatnya
-- Commit: (this commit) — T3.6 above is 04a8f75.
+- Commit: 89d544c — T3.6 above is 04a8f75.
 - Files: `Modules/Finance/Database/Migrations/2026_09_04_000395_add_dunning_to_fin_ar_invoices_table.php` (new — `dunning_level` unsignedTinyInteger default 0 + `last_dunning_at` datetime nullable after `paid_at`; `hasColumn` guard, rollback; the 000394/000870 pattern, forward-only: 0 is the truth for every existing invoice),
   `Modules/Finance/Models/ArInvoice.php` (casts; `DUNNING_LEVELS = 3`; **`dunningRefusal()`** — the ONE definition of when the next letter may be issued: cancelled / not approved / fully paid / `due_date > today` / already ke-3 → an Indonesian sentence, else null; `dunningNextLevel()`),
   `Modules/Finance/Services/ArInvoiceService.php` (`issueDunningLetter()` — `lockForUpdate`, refusal → `LogicException` (422), level +1, `last_dunning_at = now`, **`AuditService::event(…, 'dunning', …)`**),
@@ -1831,7 +1831,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Environment: `php artisan config:clear`; fresh scratch seed `DB_DATABASE=<scratch>/ux/t37.sqlite php artisan migrate:fresh --seed --force` (column verified with sqlite3 `pragma table_info`); the invoice planted with `DB_DATABASE=… php artisan tinker --execute=…` on the scratch file only; server as its own statement `cd public; DB_DATABASE=<scratch>/ux/t37.sqlite APP_ENV=local nohup php -S 127.0.0.1:8000 …/server.php > <scratch>/ux/server-t37.log 2>&1 &` (pid 34506 in a pid file, `/up` polled, killed by pid after — `:8000` free); probe `ERP_DB=<scratch>/ux/t37.sqlite UXTEST_OUT=<scratch>/ux/out-t37 /root/.venv-playwright/bin/python <scratch>/ux/probe-t37.py 2 2`; `database/database.sqlite` untouched (mtime 2026-09-04 13:10:55, no `-wal`/`-shm`).
 
 ### T3.9 — Ambang nilai persetujuan per jenis dokumen: DILEWATI — angkanya keputusan direksi, ditulis sebagai OQ-4
-- Commit: (this commit) — T3.7 above is 89d544c.
+- Commit: f99a81f — T3.7 above is 89d544c.
 - Files: `docs/RECAP-UX-PROSES-2026-09.md` (§ Open questions: **OQ-4** for T3.9 and **OQ-5** for T3.10 — appended to the section T3.5 opened, not a second section), this block and the T3.10 block below. No code, no migration, no test, no harness change.
 - Acceptance: **not run — the entry's acceptance cannot be met within its scope.** "PO ≤ threshold single level; > director threshold requires `fin.approve` as the last level" needs numbers that exist nowhere in the uploads: the RECAP's "## Open questions" (OQ-1 … OQ-3 on 5 Sep 2026) carries no threshold, § Not for Claude Code lists "approval value thresholds (T3.9)" as a director decision, ANALISIS-PROSES §5 says "Angka ambangnya keputusan direksi … Bangun setelah angkanya ditetapkan", and Prompt A (T3.9 line) says skip unless the numbers are under Open questions. Prompt A rule 9 → stopped, the question written, no partial change committed.
 - Notes:
@@ -1841,7 +1841,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Estimate unchanged (1–2 d) once OQ-4's four answers are written in the RECAP.
 
 ### T3.10 — Pelimpahan persetujuan saat cuti: DILEWATI — kebijakannya keputusan direksi, ditulis sebagai OQ-5
-- Commit: (this commit) — same commit as T3.9 (both are documentation of a skip; one commit, as instructed).
+- Commit: f99a81f — same commit as T3.9 (both are documentation of a skip; one commit, as instructed).
 - Files: `docs/RECAP-UX-PROSES-2026-09.md` (OQ-5), this block.
 - Acceptance: **not run — the entry's acceptance cannot be met within its scope.** "Delegate sees the delegator's queue and can approve; trail records 'atas nama'" needs a policy (who may delegate, to whom, for how long, what the record says) that no upload contains: § Not for Claude Code lists "delegation policy (T3.10)", ANALISIS-PROSES §5 says "Butuh keputusan siapa boleh melimpahkan ke siapa — kebijakan sebelum kode", Prompt A rule 9 → stopped, question written, nothing committed but the question.
 - Notes:
@@ -1851,7 +1851,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Estimate unchanged (2–3 d) once OQ-5's five answers are written in the RECAP.
 
 ### Gate Phase 3
-- Commit: (this commit) — `docs/bukti-uji/results-phase-3.json` (the run's `results.json`, verbatim),
+- Commit: 3ae5660 — `docs/bukti-uji/results-phase-3.json` (the run's `results.json`, verbatim),
   RECAP § Verification column "After phase 3 (5 Sep WIB)" (+ the intro sentence naming the run), this block;
   T3.9/T3.10 skip → f99a81f. No code changed in this pass.
 - Acceptance: `harness-playwright.py` **S10 S1 S2 S3 S4 S5 S8 S11** on a fresh scratch seed
@@ -1982,3 +1982,15 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
 | S11 · h1 / baris / strip cuti | `Tugas Saya` / 4 / `Diajukan · menunggu persetujuan.` | `Tugas Saya` / 4 / **`Diajukan 04 Sep 2026 oleh Andi Kurniawan · …`** |
 | `erp:deadline-watch --dry-run` (seed segar) | — | 7 grup; `ticket_sla` 2 tiket (T3.2), `po_expected` 2, `pr_needed` 1 |
 | `erp:approval-watch --dry-run` (seed segar / salinan dimundurkan) | — | 0 ≥ 5 hari / `[ESKALASI]` SPK 40 hari, PR 33 hari |
+### B4 — pasca-verifikasi fase 3 (rapi-rapi, tanpa perubahan perilaku)
+- Commit: 38d0dc7 (di-amend sebelum push; lihat `git log -1 -- docs/PROGRESS-UX-PROSES.md`)
+- Files: docs/PROGRESS-UX-PROSES.md, docs/bukti-uji/harness-playwright.py,
+  Modules/Procurement/Http/Controllers/PurchaseRequisitionController.php
+- Acceptance: tidak ada lagi baris `Commit:` berisi placeholder di luar kalimat ini (setiap blok
+  kini menyebut sha commit yang memperkenalkannya, dipetakan lewat `git log -S`); harness
+  membuat OUT sebelum menulis results.json; pesan sukses approve/reject/submit PR berbahasa
+  Indonesia (S10 hanya mengukur badan 422, jadi ini di luar metrik).
+- Notes: commit gate fase (T2.11, T3.8) meminjam nomor tugas karena Prompt B4 tidak memberi
+  nomor; commit verifikasi ini diberi label (B4) agar tidak menyamar sebagai tugas. Temuan
+  S5 `cards` kosong pada run pertama adalah kedip pengukuran (dua run berturut berbeda pada
+  pohon yang sama), dicatat, tidak diubah.

@@ -97,7 +97,7 @@ class PurchaseRequisitionController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR submitted.');
+        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR diajukan.');
     }
 
     public function approve(Request $request, PurchaseRequisition $purchaseRequisition): JsonResponse
@@ -108,7 +108,7 @@ class PurchaseRequisitionController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR approved.');
+        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR disetujui.');
     }
 
     public function reject(Request $request, PurchaseRequisition $purchaseRequisition): JsonResponse
@@ -119,7 +119,7 @@ class PurchaseRequisitionController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR rejected.');
+        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR ditolak.');
     }
 
     public function createPo(PurchaseOrderFromPrRequest $request, PurchaseRequisition $purchaseRequisition): JsonResponse

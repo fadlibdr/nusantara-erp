@@ -926,5 +926,6 @@ with sync_playwright() as p:
         fn(b if arg == "b" else fresh())
     b.close()
 
+import os; os.makedirs(OUT, exist_ok=True)  # verifikasi B4 fase 3: OUT yang belum ada menjatuhkan run di akhir, hasil hilang
 json.dump(R, open(f"{OUT}/results.json", "w"), ensure_ascii=False, indent=1)
 print("saved results.json")
