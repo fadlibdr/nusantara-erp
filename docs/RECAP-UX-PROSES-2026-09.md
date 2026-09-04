@@ -250,6 +250,26 @@ Production was not measured in that pass. The last two rows were added 4 Sep for
 
 ---
 
+## Open questions
+
+Business decisions Claude Code cannot take (Prompt A rule 9). Each entry names
+the task that raised it and what the answer unblocks. T3.9 / T3.10 stay skipped
+until their numbers / policy are written here by the owner.
+
+**OQ-1 (T3.5) — SLA for tickets without a maintenance contract.** The tree
+computes `svc_tickets.resolution_due_at` from the *contract's* `sla_response_hours`
+/ `sla_resolution_hours` (priority only picks 24/7 vs business hours,
+`SlaService`); there is no ServiceDesk setting for SLA hours, and a ticket
+created without a contract has no deadline by design — so it is outside the
+`ticket_sla` watcher (T3.2), the same blindness D1 describes for a PO without
+`expected_date`. Should contract-less tickets get a default SLA, and with what
+hours per priority (low / medium / high / critical, response and resolution)?
+Answering this unblocks a small follow-up (a `svc.sla_default_*` setting +
+`SlaService` fallback + test); until then `TicketSlaOnCreateTest` pins the
+current behaviour (`resolution_due_at` null without a contract).
+
+---
+
 ## Not for Claude Code — needs people
 
 - Research plan (ASESMEN-UX §6): 7-day route log, 8 interviews, card sort, 6 timed tasks, SUS. T4.x waits on H1/H2.

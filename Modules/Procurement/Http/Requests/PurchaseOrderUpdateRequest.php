@@ -20,7 +20,11 @@ class PurchaseOrderUpdateRequest extends FormRequest
             'project_id' => ['nullable', 'integer'],
             'warehouse_id' => ['nullable', 'integer'],
             'order_date' => ['sometimes', 'date'],
-            'expected_date' => ['nullable', 'date'],
+            // Ubah memakai formulir yang sama dengan tanda wajib yang sama;
+            // draf yang diedit sampai tanggalnya kosong akan lepas lagi dari
+            // pengawas `po_expected` (ANALISIS-PROSES D1, T3.5). `sometimes`:
+            // PUT tanpa kunci ini (edit baris saja) tetap boleh.
+            'expected_date' => ['sometimes', 'required', 'date'],
             'payment_term_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'delivery_address' => ['nullable', 'string'],

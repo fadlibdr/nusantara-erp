@@ -1654,3 +1654,60 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - Environment: dry-run on `<scratchpad>/ux/t31.sqlite` (read-only for the scan), the real run on a copy
     `t32.sqlite`; `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`). No server needed —
     nothing in the SPA changed.
+
+### T3.5 — Tanggal wajib yang menggerakkan pengawas: `expected_date` PO wajib (store + update), `needed_date` PR dan SLA tiket dipin uji
+- Commit: (this commit) — T3.2 above is f0dd7ba.
+- Files: `Modules/Procurement/Http/Requests/PurchaseOrderStoreRequest.php` (`expected_date` nullable → `required|date|after_or_equal:order_date`),
+  `Modules/Procurement/Http/Requests/PurchaseOrderUpdateRequest.php` (`nullable` → `sometimes|required|date`),
+  `public/app/js/schema.js` (PO form: `Perkiraan kirim` `required: true`, komentar alasan terukur),
+  `tests/Feature/Procurement/RequiredWatchDatesTest.php` (new, 5 tests), `tests/Feature/ServiceDesk/TicketSlaOnCreateTest.php` (new, 2 tests),
+  fixtures: `tests/Feature/Procurement/PoQualificationOverrideAuditTest.php` (2 call sites), `PoBoqLinkTest.php` (1), `AwardDecisionApprovalTest.php` (1),
+  `docs/bukti-uji/harness-playwright.py` (4 spots: `po_action_bar` + `draft_po` API fixtures, S3 and S4 form fills), `docs/RECAP-UX-PROSES-2026-09.md` (new `## Open questions`, OQ-1), this block.
+  **No lang change** — `lang/id/validation.php:311` already maps `expected_date` → `Perkiraan kirim` (and `:426` `needed_date` → `Dibutuhkan`), so `:attribute wajib diisi.` yields the sentence verbatim.
+- Acceptance:
+  - **POST PO without expected_date → 422 "Perkiraan kirim wajib diisi."** — three ways. (1) `RequiredWatchDatesTest`, red first on the
+    unpatched tree: `test_a_po_without_expected_date…` **201 instead of 422**, `test_an_ubah_cannot_blank…` **200 instead of 422**
+    (plus one assertion of mine corrected: sqlite stores the date cast as `2026-08-22 00:00:00`, now read back through the model);
+    after: **OK (5 tests)**. (2) curl on the scratch server as procurement: `HTTP 422 {"message":"Perkiraan kirim wajib diisi.","errors":{"expected_date":["Perkiraan kirim wajib diisi."]}}`.
+    (3) Harness **S10** `po_422` = `{vendor_id: "Vendor wajib diisi.", order_date: "Tanggal PO wajib diisi.", expected_date: "Perkiraan kirim wajib diisi.", items.0.qty: "Kuantitas minimal 0.001.", items.0.unit_price: "Harga satuan wajib diisi."}` — the four prior keys byte-identical to Sesudah, one key added; `customer_422` / `apbill_422` unchanged.
+  - **PR needed_date already required on both sides** (`PurchaseRequisitionStoreRequest:20`, `schema.js:2095`) — verified, not re-added: POST PR without it → 422 `Dibutuhkan wajib diisi.` (green on both trees by design).
+  - **A new ticket has its SLA deadline** — under its real name `svc_tickets.resolution_due_at` (T3.2's finding; the RECAP's `sla_due_at` never existed): `TicketSlaOnCreateTest` POST `servicedesk/tickets` (contract SLA 4 h / 24 h, priority low, reported Sun 5 Jul 2026 06:00) → `response_due_at 2026-07-06T12:00:00+07:00`, `resolution_due_at 2026-07-08T14:00:00+07:00`, DB `2026-07-08 14:00:00` — TKT-202607-0003's shape; green on both trees (the pin the task asked for). Contract-less ticket → `resolution_due_at null` by design, pinned and raised as OQ-1.
+  - PHPUnit per directory, final tree: **Procurement OK (174 tests, 688 assertions)** (169 + 5), **ServiceDesk OK (46, 202)** (44 + 2), **Core OK (597, 3 657)** (unchanged — nothing in Core posts a PO); `vendor/bin/pint --test --dirty` passed.
+  - Harness on a fresh scratch seed (`t35b.sqlite`), `S10 S2 S3 S4 S12` → **5 ok, 0 ERROR**:
+    **S3 12 klik** (fresh profile, `nav_group_opened` true — unchanged from the Phase 2 gate; a date fill is not a click), form fields now
+    `Vendor* · Dari PR · Proyek · Gudang tujuan · Tanggal PO* · Perkiraan kirim* · …`, empty-Simpan `client_errors` **4** (was 3: + Perkiraan kirim),
+    `server_errors_rendered` = `["Kuantitas minimal 0.001."]` only, `toast_on_422` `Periksa isian yang ditandai.`, saved → `#/d/procurement/purchase-orders/4`
+    **PO/2026/IX/0004**, toast `PO/2026/IX/0004 diajukan · menunggu persetujuan.`, status **Diajukan**; the row: `order_date 2026-09-04`, `expected_date 2026-09-18` (today + 14).
+    **S4** `fields_typed_before_expiry` **14** (was 13: + Perkiraan kirim), `restored.filled` **14** / 3 baris, `modalVisible` **false**, `loginVisible` **true**, banner
+    `Sesi Anda berakhir. Isian PO yang sedang Anda buat tersimpan di peramban ini — masuk kembali untuk memulihkannya.`, Masuk `reachable`, `recoveryOffer` true — 0 lost.
+    **S2** 4 klik, `action_bar` `[Kembali, Cetak, Setujui, Tolak]`, `approve_modal_opened` false, `po_bar` present (the `po_action_bar` API fixture creates its PO); `api_calls_detail_to_back` 16 (SPK at the head of this seed — the queue tie-break the Phase 0 gate documented).
+    **S12** healthy vendor `PO/2026/IX/0005` 1 klik no modal; blocked vendor prompt → `PO/2026/IX/0006` 3 klik, reason stored (the `draft_po` fixture creates both POs).
+- Notes:
+  - **Fixtures that went red and how they were fixed — never the rule.** Server tests: 4 `postJson('/api/procurement/purchase-orders')` call sites
+    in 3 files (`PoQualificationOverrideAuditTest` ×2, `PoBoqLinkTest` ×1, `AwardDecisionApprovalTest` ×1) got `'expected_date' => '2026-08-22'`
+    (order_date 2026-08-08 + 14). Every other Procurement/Core test builds POs through `PoService`/the model and never met the FormRequest.
+    Harness (the JS-side test — node is not installed): `po_action_bar` (S2 helper) and `draft_po` (S12) API fixtures got `expected_date 2026-09-16`;
+    S3 and S4 fill `Perkiraan kirim` in the form. **First S3 run failed honestly**: the fixed `2026-09-02` the harness uses for every date is
+    before `Tanggal PO` (defaultToday = 4 Sep), and the store rule's `after_or_equal:order_date` — inert while the field was nullable — now
+    answered `Perkiraan kirim harus pada atau setelah Tanggal PO.` (saved false, 11 klik). The fill is `today + 14 d`, computed, so the
+    scenario does not rot with the calendar; S4 the same for consistency (it never reaches the server — 401 first — but the restored draft should be savable).
+  - **Update request too, with `sometimes`.** Ubah renders the same form with the same `required` mark, so the server matches it: a PUT
+    carrying `expected_date: ''` is refused with the same sentence; a PUT without the key (PoBoqLinkTest's line-only edit) still passes and
+    keeps the stored date — both pinned. `after_or_equal` was never on the update request and was not added (no refactor of neighbours).
+  - **`PurchaseOrderFromPrRequest` stays nullable on purpose:** "Buat PO" from an approved PR inherits the PR's `needed_date`
+    (`PoService::createFromPr:134`), and `needed_date` is itself required — pinned (`test_a_po_created_from_a_pr_inherits_the_pr_needed_date`).
+    The PR-side action modal (`schema.js:2135`) keeps the field optional for the same reason.
+  - **Carry-overs, not in this entry's Steps (forms + FormRequests):** `RfqService::createPo:289` still writes `expected_date ?? null`
+    (`POST rfqs/{rfq}/create-po` with `vendor_id` only → a date-less PO, RfqTest:300/304 do exactly that); `DocumentImportService` and the
+    seeders bypass FormRequests. Both are creation paths that can still produce a PO invisible to `po_expected`. Neither is a business
+    decision — a follow-up task, not an open question. Unchanged.
+  - **Ticket: nothing to build, one thing to ask.** The RECAP assumed "`sla_due_at` computed from priority (ServiceDesk settings for SLA hours)";
+    the tree computes the deadline from the CONTRACT's SLA hours (priority only picks clock vs business hours), there is no SLA setting, and a
+    ticket without a maintenance contract carries no deadline by design (`SlaService`), hence sits outside `ticket_sla` — the D1 blindness in
+    another shape. Whether such tickets should get a default SLA and with what hours per priority is a director/ops decision → recorded as
+    **OQ-1** under the new `## Open questions` in the RECAP (rule 9). It does not unblock T3.9/T3.10.
+  - **RECAP § Verification row "Fields lost on session expiry (13 typed)"** now types 14 (still 0 lost) — the phase-end pass (Prompt B4) fills that column; the table itself was not edited here.
+  - Environment: fresh scratch seeds `<scratchpad>/ux/t35.sqlite` (first run, S3 saved false — kept as the failing evidence) and `t35b.sqlite`
+    (clean re-run above); server `cd public && DB_DATABASE=<scratch> APP_ENV=local nohup php -S 127.0.0.1:8000 …/server.php`, killed by pid
+    after each run (:8000 free); `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`). Harness one-liner:
+    `ERP_DB=<scratch>/t35b.sqlite UXTEST_OUT=<scratch>/out-t35b /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S10 S2 S3 S4 S12`.

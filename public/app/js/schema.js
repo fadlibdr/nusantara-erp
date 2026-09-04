@@ -2211,7 +2211,12 @@ export const RESOURCES = {
           { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },
-          { key: 'expected_date', label: 'Perkiraan kirim', type: 'date' },
+          // Wajib sejak T3.5: kolom inilah yang dibaca pengawas tenggat
+          // `po_expected`. Diukur 4 Sep 2026 di produksi (ANALISIS-PROSES D1):
+          // PO/2026/III/0002 Rp 128 jt disetujui 40 hari tanpa GRN dan tak
+          // pernah disebut pengawas — tanggalnya kosong karena formulir tidak
+          // memintanya. Server menolak 422 "Perkiraan kirim wajib diisi.".
+          { key: 'expected_date', label: 'Perkiraan kirim', type: 'date', required: true },
           { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
           { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
           { key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea', span: 2 },

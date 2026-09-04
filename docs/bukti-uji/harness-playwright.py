@@ -253,6 +253,7 @@ def po_action_bar(pg):
     s, d = api("procurement/vendors?status=active&per_page=20", tok)
     vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
     s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+               "expected_date": "2026-09-16",  # wajib sejak T3.5
                "items": [{"description": "UJI-UX bilah aksi", "qty": 1, "unit": "unit", "unit_price": 2500000}]})
     po_id, po_code = d["data"]["id"], d["data"]["code"]
     out = {"po": po_code}
@@ -319,6 +320,11 @@ def s3(pg):
             d = loc.first.locator("input[type=date]")
             if d.count() and not d.first.input_value():
                 d.first.fill("2026-09-02")
+    # "Perkiraan kirim" wajib sejak T3.5 (ANALISIS-PROSES D1) — tanpa isian ini Simpan berhenti di klien. Diisi
+    # 14 hari dari hari ini, bukan 2026-09-02: Tanggal PO defaultToday dan server memeriksa after_or_equal begitu
+    # tanggalnya ada (4 Sep 2026: "Perkiraan kirim harus pada atau setelah Tanggal PO." dengan tanggal tetap).
+    pg.locator(".modal .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").first.fill(
+        time.strftime("%Y-%m-%d", time.localtime(time.time() + 14 * 86400)))
     # lines: add 2 rows
     rows = pg.locator(".modal table.lines tbody tr")
     while rows.count() < 2:
@@ -410,6 +416,9 @@ def s4(pg):
     rows = pg.locator(".modal table.lines tbody tr")
     while rows.count() < 3:
         click(pg, ".modal button:has-text('Tambah baris')"); pg.wait_for_timeout(150)
+    # Perkiraan kirim wajib sejak T3.5: tanpa isian ini Simpan berhenti di klien dan 401-nya tidak pernah terjadi.
+    pg.locator(".modal .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").first.fill(
+        time.strftime("%Y-%m-%d", time.localtime(time.time() + 14 * 86400)))
     for i in range(3):
         r = rows.nth(i)
         r.locator("td:nth-child(2) input").first.fill(f"UJI-UX baris {i+1}")
@@ -598,6 +607,7 @@ def s12(pg):
     BADGE = "() => (document.querySelector('.page-head .badge')||{}).innerText"
     def draft_po(tag):
         s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+                   "expected_date": "2026-09-16",  # wajib sejak T3.5
                    "items": [{"description": f"UJI-UX {tag}", "qty": 1, "unit": "unit", "unit_price": 1500000}]})
         return d["data"]["id"], d["data"]["code"]
     def open_po(po_id):

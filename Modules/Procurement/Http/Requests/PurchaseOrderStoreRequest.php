@@ -20,7 +20,12 @@ class PurchaseOrderStoreRequest extends FormRequest
             'project_id' => ['nullable', 'integer'],
             'warehouse_id' => ['nullable', 'integer'],
             'order_date' => ['required', 'date'],
-            'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
+            // Wajib, bukan nullable: expected_date adalah kolom yang dibaca
+            // pengawas tenggat `po_expected` (WatchedDeadlines). Diukur 4 Sep
+            // 2026 di produksi (ANALISIS-PROSES D1): PO/2026/III/0002 Rp 128 jt
+            // disetujui 40 hari, 0 GRN, dan tidak pernah disebut pengawas —
+            // tanggalnya NULL karena formulir tidak pernah memintanya (T3.5).
+            'expected_date' => ['required', 'date', 'after_or_equal:order_date'],
             'payment_term_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'delivery_address' => ['nullable', 'string'],
