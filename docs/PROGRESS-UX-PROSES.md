@@ -1131,7 +1131,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     no `-wal`/`-shm`).
 
 ### T2.9 — Lapangan: bilah kemajuan per foto (XHR `upload.onprogress`) + antrean kirim ulang di localStorage
-- Commit: (this commit)
+- Commit: 6fa94e6 (placeholder `(this commit)` replaced in the T2.11 commit — one task, one commit)
 - Files: `public/app/js/api.js` (`settle()` — the response half of `request()`, moved verbatim so
   the two transports read a 204 / 401 / 422 in one place; `requestWithProgress()` — the ONE
   `XMLHttpRequest` in the client, same headers, `upload.progress` → `onProgress({ loaded, total })`,
@@ -1246,3 +1246,87 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `… out-t29-reg … S10 S1 S4 S6`, `… out-t29-final … S15`. Server stopped by PID
     (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
     no `-wal`/`-shm`).
+
+### T2.11 — Kartu "Menunggu persetujuan Anda" dan tautan Tugas Saya hanya bagi pemegang izin `.approve` (bagian minimal)
+- Commit: (this commit)
+- Files: `public/app/js/schema.js` (`ANY_APPROVE` — `(held) => held.some((one) => one.endsWith('.approve'))`,
+  exported above `NAV`; the `Tugas Saya` item carries `perm: ANY_APPROVE`, so `visibleNav()` hides it
+  for both consumers — the sidebar in app.js and the "Layar" source in search.js — without touching
+  either), `public/app/js/api.js` (`session.can()` accepts a function and asks it with the list held;
+  arrays and strings unchanged), `public/app/js/views/dashboard.js` (the `core/inbox` request and the
+  approvals card — with its `Tugas Saya` / `Lihat semua` buttons — both behind
+  `session.can(ANY_APPROVE)`; the card block re-indented, `git diff -w` shows the four real changes),
+  `tests/Feature/Core/ApprovalInboxGateTest.php` (new, 3 tests — the server truth the predicate rests
+  on, and the served-JS pins), `docs/bukti-uji/harness-playwright.py` (S1 gains the warehouse half:
+  `approvals_card`, `tugas_link`, `cards`, `approve_perms` read from the page's own localStorage, and
+  `dashboard_api_calls` per open for both logins — `CARD_AND_LINK`, `after_login()`),
+  `docs/bukti-uji/s1-warehouse-dasbor-t2.11.png`, `docs/PROGRESS-UX-PROSES.md` (T2.9 placeholder →
+  6fa94e6).
+- Acceptance:
+  - **Harness S1** (`<scratchpad>/ux/out-t211`, fresh seed `t211.sqlite`): **warehouse** —
+    `approve_perms` `[]`, **`approvals_card` false, `tugas_link` false**, `cards` `['Kalender Acara',
+    'Progres proyek']`, **`dashboard_api_calls` 6** (`core/notifications/unread-count`, `iam/auth/me`,
+    `projects?per_page=100`, `inventory/stock/low-stock`, `core/calendar`, `core/dashboard/summary` —
+    no `core/inbox`); **direktur** — `approvals_card` **true**, `tugas_link` **true**, card
+    `Menunggu persetujuan Anda (4)` with 4 rows (`CTI/2026/VIII/0002`, `RAP/2026/0001`,
+    `PR/2026/III/0002`, `SPK/2026/III/0002`) against 4 server types (`estimation/cost-budgets`,
+    `procurement/purchase-requisitions`, `subcontract/subcontracts`, `hr/leave-requests`, 1 each),
+    14 `.approve` permissions, `dashboard_api_calls` **11** (the 2 Sep "After patch" figure); 0 klik,
+    9 859 ms, 0 `ERROR`. **Before** (same harness on 6fa94e6, `out-t211-before`): warehouse
+    `approvals_card` **true**, `tugas_link` **true**, `approve_perms` `[]`, cards
+    `['Menunggu persetujuan Anda', 'Kalender Acara', 'Progres proyek']`, `dashboard_api_calls` **7**
+    (`core/inbox` among them); direktur identical to after.
+  - Same-predicate probe (`<scratchpad>/ux/t211-probe.py`, not committed): warehouse — Ringkasan links
+    `Dasbor · Tenggat · Kalender · Lokasi Tapak`, Ctrl+K "tugas" → `Tidak ada hasil untuk "tugas".`,
+    direct `#/tugas` → h1 `Tugas Saya`, 0 rows, empty state `Kotak masuk kosong — Tidak ada dokumen
+    yang menunggu keputusan Anda.`; direktur — `Dasbor · Tugas Saya · Tenggat · Kalender`, Ctrl+K
+    "tugas" → `LAYAR Tugas Saya · Ringkasan`, direct `#/tugas` 4 rows; **0 pageerror** for both.
+  - Regressions (`out-t211-reg`, S11 run first because CTI heads this seed's inbox and S2 approves the
+    head): **S11** h1 `Tugas Saya`, 4 rows, `leave_detail_bar` `['Kembali','Cetak','Setujui','Tolak']`,
+    2 klik, 4 376 ms; **S2** 4 klik, `action_bar` `['Kembali','Cetak','Setujui','Tolak']`,
+    `approve_modal_opened` false, `api_calls_detail_to_back` 14 (CTI-first count, as in Gate Phase 0),
+    `approve_total_ms` 2 290, `detail_ms` 1 267; **S14** "opname" → 5 Layar hits, Enter opens
+    `#/r/projects/progress-measurements` `Opname Owner (OPN)`.
+  - PHPUnit: `ApprovalInboxGateTest` **OK (3 tests, 12 assertions)** — a user with warehouse's bundle
+    (`inv.*` + `prj.view`) gets `core/inbox` `meta.total 0`, `data []` while the same submitted PR is
+    listed for a `prc.approve` holder; `prc.approve-director` alone gets `total 0`; schema.js /
+    dashboard.js / api.js carry the predicate. Red first on 6fa94e6 (the three JS files stashed, test kept): the served-JS pin fails, the two
+    server tests pass — the server was already right, the client was not. `tests/Feature/Core` **OK (579 tests, 3 547 assertions)** (T2.9: 576 / 3 535).
+    `pint --test` on the new file passed (no other PHP touched).
+- Notes:
+  - **Minimal by design.** The RECAP marks the full T2.11 (tiles per role) P2, gated on research H1;
+    this commit does exactly the two sentences under "Minimal now". Nothing replaces the card for
+    procurement / hr — their dashboard is now Kalender Acara alone, which is what T4.1 is for.
+  - **Why `.endsWith('.approve')` and not the director signature.** `ApprovalQueue::pending`
+    (`ApprovalQueue.php:52-53`) keeps a document type only when the caller holds
+    `<awalan>.approve`; `prc.approve-director` / `scm.approve-director` are the second-level ladder
+    checked inside `Approvable::approve`, never by the inbox filter — a holder of the director
+    permission without `.approve` gets an empty inbox (pinned by the second test). Counting it would
+    show a card that is empty forever, the very thing the task removes. Of the 12 seeded roles, 8
+    hold no `.approve` (site-manager, estimator, procurement, warehouse, finance, hr, sales,
+    teknisi); on 2 Sep (S5 › cards) all 11 demo logins saw the card.
+  - **One predicate, three places.** `session.can()` now accepts a function — the smallest contract
+    extension that lets a NAV item be gated by the *shape* of a permission through the existing
+    `visibleNav(can)` path, so the sidebar, the Ctrl+K "Layar" source and the dashboard all read
+    `ANY_APPROVE`; no list of 14 module prefixes is mirrored into the SPA.
+  - **The request goes too.** With the card gone the `core/inbox` call would have been a wasted
+    request; it sits behind the same predicate (warehouse 7 → 6 per dashboard open). For approvers
+    nothing changes (direktur 11 before and after).
+  - **`#/tugas` by URL is not gated.** The entry names the card and the link; the screen answers a
+    URL-typing warehouse user honestly (`Kotak masuk kosong`, 0 rows) and there is no `accessDenied`
+    variant for a shape-of-permission gate — adding one is outside the entry's steps.
+  - **Harness login budget.** S1's warehouse half reads permissions from `localStorage
+    nusantara_erp_user` instead of a second `token_for()`: `iam/auth/login` is `throttle:10,1`, and
+    S10 + S1 + S2 + S3 + S4 already spend 9 logins in the first minute of a full run; the warehouse
+    browser login makes it 10, the maximum — S4's re-login is a manual fill + click with no 429
+    retry, so an eleventh would break S4.
+  - `dashboard_api_calls` is the number the RECAP row "Dashboard API calls per open" never had a
+    scenario for; it counts every `/api/` request after the last `iam/auth/login` POST (the
+    `iam/auth/me` refresh and the bell count included), which reproduces the 2 Sep figure (11).
+  - Environment: fresh scratch seed `<scratchpad>/ux/t211.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t211.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t211.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    runs `ERP_DB=<scratch>/ux/t211.sqlite UXTEST_OUT=<scratch>/ux/out-t211-before … S1` (app at
+    6fa94e6), `… out-t211 … S1`, `… out-t211-reg … S11` then `… S2 S14`. `database/database.sqlite`
+    untouched (mtime 13:10:55, no `-wal`/`-shm`).

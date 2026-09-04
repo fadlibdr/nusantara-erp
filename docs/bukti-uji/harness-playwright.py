@@ -97,9 +97,27 @@ NOTE_PANEL = """() => { const d=document.querySelector('.page-head .actions deta
 
 # --------------------------------------------------------------- scenarios
 
+# Kartu "Menunggu persetujuan Anda" + tautan Tugas Saya + izin `.approve` yang dipegang, dibaca dari
+# sesi peramban sendiri (localStorage nusantara_erp_user) — bukan lewat token_for(): iam/auth/login
+# dibatasi 10 kali per menit per IP, dan S10 + S1 + S2 + S3 + S4 sudah memakai 9 di menit pertama;
+# masuk ke-11 (masuk ulang S4, tanpa ulang otomatis) akan kena 429.
+CARD_AND_LINK = """() => ({ approvals_card: [...document.querySelectorAll('.card')].some(c => /Menunggu persetujuan/.test(c.innerText)),
+    tugas_link: !!document.querySelector("nav.nav a[href='#/tugas']"),
+    cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText.replace(/\\s*\\(\\d+\\)/, '')),
+    approve_perms: (JSON.parse(localStorage.getItem('nusantara_erp_user') || '{}').permissions || []).filter(p => p.endsWith('.approve')).sort() })"""
+
+def after_login(reqs):
+    """Permintaan /api/ sesudah POST iam/auth/login terakhir = satu kali buka dasbor (iam/auth/me
+    penyegaran izin ikut dihitung; halaman masuk sendiri hanya memanggil demo-accounts sebelumnya)."""
+    i = max((k for k, r in enumerate(reqs) if r == "iam/auth/login"), default=-1)
+    return reqs[i + 1:]
+
 @scenario("S1_inbox_truth")
 def s1(pg):
-    """Dashboard approval card vs. server truth for the direktur."""
+    """Dashboard approval card vs. server truth for the direktur — then the same dashboard for a role
+    that approves nothing (T2.11)."""
+    reqs = []
+    pg.on("request", lambda r: reqs.append(r.url.split("/api/")[-1]) if "/api/" in r.url else None)
     tok = token_for("direktur@nusantara.test")
     s, me = api("iam/auth/me", tok)
     perms = set(me.get("data", {}).get("permissions", []))
@@ -121,8 +139,22 @@ def s1(pg):
         return { title: c.querySelector('h2').innerText, rows: [...c.querySelectorAll('tbody tr')].map(r => r.innerText.split('\\n')[0]),
                  width: c.getBoundingClientRect().width, height: c.getBoundingClientRect().height,
                  seeAll: !!c.querySelector('.card-foot'), rowHeights: [...c.querySelectorAll('tbody tr')].map(r=>Math.round(r.getBoundingClientRect().height)) }; }""")
-    return {"direktur_approve_perms": sorted(p for p in perms if p.endswith(".approve")),
-            "server_submitted_visible_to_direktur": server, "dashboard_card": card}
+    out = {"direktur_approve_perms": sorted(p for p in perms if p.endswith(".approve")),
+           "server_submitted_visible_to_direktur": server, "dashboard_card": card}
+    calls = after_login(reqs)
+    out["direktur"] = {**pg.evaluate(CARD_AND_LINK), "dashboard_api_calls": len(calls), "dashboard_api_sample": calls[:24]}
+    # T2.11 — peran tanpa satu pun izin `.approve`: GET core/inbox menyaring per `<awalan>.approve`
+    # (ApprovalQueue::pending), jadi kotaknya SELALU kosong. Diukur 2 Sep 2026 (S5 › cards): kartu
+    # tergambar untuk 11/11 peran demo, 8 di antaranya tidak menyetujui apa pun. warehouse dipilih
+    # karena izinnya inv.* tanpa approve (RoleSeeder) dan tidak dipakai skenario lain.
+    reqs.clear()
+    pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+    login(pg, "warehouse@nusantara.test")
+    pg.wait_for_timeout(1500)
+    calls = after_login(reqs)
+    out["warehouse"] = {**pg.evaluate(CARD_AND_LINK), "dashboard_api_calls": len(calls), "dashboard_api_sample": calls[:24]}
+    pg.screenshot(path=f"{OUT}/s1-warehouse-dashboard.png")
+    return out
 
 @scenario("S2_approve_loop")
 def s2(pg):

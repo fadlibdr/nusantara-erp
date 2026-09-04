@@ -42,12 +42,16 @@ export const session = {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   },
-  /** An array means "any of these" — a screen several modules can reach. */
+  /** An array means "any of these" — a screen several modules can reach.
+      A function is asked with the list held — a screen gated by the SHAPE of
+      a permission rather than a name (Tugas Saya and the approvals card: any
+      `<module>.approve`, schema.js ANY_APPROVE, T2.11). */
   can(permission) {
     if (!permission) return true;
     const user = this.user;
     if (!user) return false;
     const held = user.permissions || [];
+    if (typeof permission === 'function') return permission(held);
     return Array.isArray(permission)
       ? permission.some((one) => held.includes(one))
       : held.includes(permission);

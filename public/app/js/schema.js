@@ -5555,11 +5555,29 @@ export const RESOURCES = {
   },
 };
 
+/*
+ * Izin persetujuan APA PUN — gerbang tautan Tugas Saya (NAV di bawah) dan
+ * kartu "Menunggu persetujuan Anda" di dasbor (T2.11). Bentuk izin, bukan
+ * nama: GET core/inbox hanya memuat jenis yang `<awalan>.approve`-nya
+ * dipegang pemanggil (ApprovalQueue::pending), jadi tanpa satu pun izin itu
+ * kotaknya selalu kosong. Diukur 2 Sep 2026 (HASIL-UJI §1, S5 › cards): kartu
+ * tergambar untuk 11 dari 11 peran demo, padahal 8 di antaranya (site-manager,
+ * estimator, procurement, warehouse, finance, hr, sales, teknisi) tidak
+ * menyetujui apa pun — bagi procurement dan hr, yang tak punya satu ubin pun,
+ * kartu kosong itu adalah separuh dasbornya. `.approve-director` sengaja tidak
+ * dihitung: tanda tangan tingkat kedua itu diperiksa di Approvable::approve,
+ * bukan oleh penyaring kotak masuk, jadi pemegangnya tanpa `.approve` tetap
+ * mendapat kotak kosong. Dipakai lewat session.can(ANY_APPROVE), yang
+ * memanggil fungsi ini dengan daftar izin yang dipegang; satu predikat untuk
+ * sidebar, sumber "Layar" di Ctrl+K, dan dasbor.
+ */
+export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve'));
+
 /** Sidebar structure. Each entry is gated by the module's `.view` permission. */
 export const NAV = [
   {
     label: 'Ringkasan', perm: null,
-    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view',

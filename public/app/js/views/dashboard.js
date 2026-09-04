@@ -8,6 +8,7 @@ import { api, session } from '../api.js';
 import { el, clear, button, badge, icon, progressBar, emptyState, errorState } from '../ui.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
+import { ANY_APPROVE } from '../schema.js';
 
 /* #80 'Proyek saya': status sakelar dasbor, bertahan antar kunjungan. Hanya
    berarti bagi akun yang tertaut karyawan (users.employee_id →
@@ -238,10 +239,16 @@ export async function renderDashboard(host) {
     // ApprovableDocuments (InboxController), menggantikan 11 permintaan per
     // jenis yang tidak pernah mencakup 17 jenis lainnya — diukur 2 Sep 2026:
     // pengajuan cuti yang menunggu tak terlihat direktur ber-hr.approve.
-    api.list('core/inbox').catch((error) => {
-      console.error('Dasbor: core/inbox gagal dimuat', error);
-      return { loadFailure: error };
-    }),
+    // Hanya bagi pemegang izin `.approve` mana pun (T2.11): bagi yang lain
+    // server menyaring semuanya dan kartunya di bawah tidak digambar, jadi
+    // permintaannya ikut hilang (warehouse: 7 → 6 permintaan per buka dasbor,
+    // diukur 4 Sep 2026).
+    session.can(ANY_APPROVE)
+      ? api.list('core/inbox').catch((error) => {
+        console.error('Dasbor: core/inbox gagal dimuat', error);
+        return { loadFailure: error };
+      })
+      : [],
   ]);
 
   /* ------------------------------------------------------------- tiles */
@@ -334,55 +341,66 @@ export async function renderDashboard(host) {
   }
 
   /* -------------------------------------------------------- approvals */
-  const inboxRows = failure(inboxPayload) ? [] : (inboxPayload.data || []);
-  const inboxMeta = failure(inboxPayload) ? {} : (inboxPayload.meta || {});
-  const inboxFailed = failure(inboxPayload) ? ['kotak masuk'] : (inboxMeta.failed || []);
-  const inboxTotal = failure(inboxPayload) ? 0 : (inboxMeta.total ?? inboxRows.length);
-  const INBOX_PREVIEW = 5;
+  // Hanya digambar bagi pemegang izin `.approve` mana pun (schema.js
+  // ANY_APPROVE — predikat yang sama dengan tautan Tugas Saya di sidebar dan
+  // di Ctrl+K): kotak masuk menyaring per `<awalan>.approve`, jadi bagi peran
+  // lain kartu ini selamanya "Tidak ada dokumen yang menunggu persetujuan."
+  // Diukur 2 Sep 2026 (HASIL-UJI §1, S5): tergambar untuk 11 dari 11 peran
+  // demo, 8 di antaranya tak menyetujui apa pun — termasuk procurement dan hr
+  // yang tak punya satu ubin pun. Kalimat kosong yang benar untuk selamanya
+  // bukan informasi; menyembunyikan kartunya lebih jujur daripada
+  // menampilkannya. Tombol Tugas Saya dan Lihat semua ikut kartu ini.
+  if (session.can(ANY_APPROVE)) {
+    const inboxRows = failure(inboxPayload) ? [] : (inboxPayload.data || []);
+    const inboxMeta = failure(inboxPayload) ? {} : (inboxPayload.meta || {});
+    const inboxFailed = failure(inboxPayload) ? ['kotak masuk'] : (inboxMeta.failed || []);
+    const inboxTotal = failure(inboxPayload) ? 0 : (inboxMeta.total ?? inboxRows.length);
+    const INBOX_PREVIEW = 5;
 
-  grid.appendChild(card(
-    `Menunggu persetujuan Anda${inboxTotal ? ` (${inboxTotal})` : ''}`,
-    el('div', [
-      inboxRows.length
-        ? miniTable(
-          [
-            { label: 'Dokumen', render: (r) => el('span', [el('span.cell-main.mono', { text: r.code }), el('span.cell-sub', { text: r.label })]) },
-            {
-              label: 'Keterangan',
-              // Satu baris, dipotong: uraian PR yang dibiarkan membungkus memakan
-              // 8 baris per dokumen (2 Sep 2026). Pengaju dan umur antrean di
-              // baris kedua, bukan kolom sendiri — tiga kolom muat di 565 px,
-              // empat kolom menggulung mendatar dan memotong angka nilainya.
-              render: (r) => el('span', [
-                el('span.cell-main', { text: r.title || '—', title: r.title || '', style: { display: 'block', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '400' } }),
-                el('span.cell-sub', { text: [r.submitted_by ? `oleh ${r.submitted_by}` : null, r.days_waiting === null || r.days_waiting === undefined ? null : (r.days_waiting >= 7 ? `menunggu ${r.days_waiting} hari` : `${r.days_waiting} hari`)].filter(Boolean).join(' · ') || '—' }),
-              ]),
-            },
-            { label: 'Nilai', align: 'right', render: (r) => el('span.num', { text: r.amount === null || r.amount === undefined ? '—' : fmt.rupiah(r.amount) }) },
-          ],
-          inboxRows.slice(0, INBOX_PREVIEW),
-          (r) => navigate(r.link.replace(/^#\//, '')),
-        )
-        : el('.card-body', el('p.muted', {
-          // "Tidak ada yang menunggu" adalah pernyataan tentang dunia; bila
-          // sumbernya gagal, yang bisa dikatakan hanya bahwa tidak ada yang
-          // dapat ditampilkan.
-          text: inboxFailed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu persetujuan.',
-          style: { margin: 0, fontSize: '13px' },
-        })),
-      inboxTotal > INBOX_PREVIEW
-        ? el('.card-foot', button(`Lihat semua (${inboxTotal})`, { size: 'sm', onClick: () => navigate('tugas') }))
-        : null,
-      inboxFailed.length
-        ? el('.card-body', { style: { borderTop: '1px solid var(--border)', padding: '10px 16px' } },
-          el('.alert.warn', { style: { margin: 0 } }, [
-            icon('warn', 16),
-            el('div', { text: `Gagal dimuat: ${inboxFailed.join(', ')}. Daftar ini belum lengkap.` }),
-          ]))
-        : null,
-    ]),
-    { action: button('Tugas Saya', { size: 'sm', variant: 'ghost', onClick: () => navigate('tugas') }) },
-  ));
+    grid.appendChild(card(
+      `Menunggu persetujuan Anda${inboxTotal ? ` (${inboxTotal})` : ''}`,
+      el('div', [
+        inboxRows.length
+          ? miniTable(
+            [
+              { label: 'Dokumen', render: (r) => el('span', [el('span.cell-main.mono', { text: r.code }), el('span.cell-sub', { text: r.label })]) },
+              {
+                label: 'Keterangan',
+                // Satu baris, dipotong: uraian PR yang dibiarkan membungkus memakan
+                // 8 baris per dokumen (2 Sep 2026). Pengaju dan umur antrean di
+                // baris kedua, bukan kolom sendiri — tiga kolom muat di 565 px,
+                // empat kolom menggulung mendatar dan memotong angka nilainya.
+                render: (r) => el('span', [
+                  el('span.cell-main', { text: r.title || '—', title: r.title || '', style: { display: 'block', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '400' } }),
+                  el('span.cell-sub', { text: [r.submitted_by ? `oleh ${r.submitted_by}` : null, r.days_waiting === null || r.days_waiting === undefined ? null : (r.days_waiting >= 7 ? `menunggu ${r.days_waiting} hari` : `${r.days_waiting} hari`)].filter(Boolean).join(' · ') || '—' }),
+                ]),
+              },
+              { label: 'Nilai', align: 'right', render: (r) => el('span.num', { text: r.amount === null || r.amount === undefined ? '—' : fmt.rupiah(r.amount) }) },
+            ],
+            inboxRows.slice(0, INBOX_PREVIEW),
+            (r) => navigate(r.link.replace(/^#\//, '')),
+          )
+          : el('.card-body', el('p.muted', {
+            // "Tidak ada yang menunggu" adalah pernyataan tentang dunia; bila
+            // sumbernya gagal, yang bisa dikatakan hanya bahwa tidak ada yang
+            // dapat ditampilkan.
+            text: inboxFailed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu persetujuan.',
+            style: { margin: 0, fontSize: '13px' },
+          })),
+        inboxTotal > INBOX_PREVIEW
+          ? el('.card-foot', button(`Lihat semua (${inboxTotal})`, { size: 'sm', onClick: () => navigate('tugas') }))
+          : null,
+        inboxFailed.length
+          ? el('.card-body', { style: { borderTop: '1px solid var(--border)', padding: '10px 16px' } },
+            el('.alert.warn', { style: { margin: 0 } }, [
+              icon('warn', 16),
+              el('div', { text: `Gagal dimuat: ${inboxFailed.join(', ')}. Daftar ini belum lengkap.` }),
+            ]))
+          : null,
+      ]),
+      { action: button('Tugas Saya', { size: 'sm', variant: 'ghost', onClick: () => navigate('tugas') }) },
+    ));
+  }
 
   /* --------------------------------------------------------- kalender */
   // "Apa yang terjadi KAPAN" — saudara layar Tenggat ("apa yang lewat").
