@@ -1,10 +1,19 @@
-import json, time, sqlite3, traceback, urllib.request
+import json, os, time, sqlite3, traceback, urllib.request
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:8000/app/"
-API = "http://127.0.0.1:8000/api/"
-DB = "/home/claude/nusantara-erp/database/database.sqlite"
-OUT = "/home/claude/uxtest"
+# Jalur dibaca dari env dengan literal asli sebagai bawaan: harness ini ditulis di
+# sandbox /home/claude (2 Sep 2026) dan harus tetap jalan tanpa ubahan di sana,
+# sedangkan di mesin lain aplikasi dilayani dari basis data coretan (S4 menghapus
+# token langsung di berkas sqlite, jadi DB harus berkas yang sama dengan yang
+# dilayani php -S — bukan database/database.sqlite berisi data demo hidup).
+#   ERP_BASE   asal server, tanpa garis miring akhir (bawaan http://127.0.0.1:8000)
+#   ERP_DB     berkas sqlite yang dilayani server itu
+#   UXTEST_OUT folder results.json + tangkapan layar
+ORIGIN = os.environ.get("ERP_BASE", "http://127.0.0.1:8000").rstrip("/")
+BASE = ORIGIN + "/app/"
+API = ORIGIN + "/api/"
+DB = os.environ.get("ERP_DB", "/home/claude/nusantara-erp/database/database.sqlite")
+OUT = os.environ.get("UXTEST_OUT", "/home/claude/uxtest")
 R = {}          # results
 CLICKS = [0]    # click counter for the current scenario
 
