@@ -113,6 +113,7 @@ class PoQualificationOverrideAuditTest extends ErpTestCase
             'vendor_id' => $vendor->id,
             'order_date' => '2026-08-08',
             'expected_date' => '2026-08-22',
+            'pr_bypass_reason' => 'Fixture uji: pembelian langsung tanpa PR', // wajib sejak T3.8
             'qualification_override_reason' => 'Salah paham formulir — vendor ini sehat',
             'items' => [
                 ['description' => 'Semen 50kg', 'qty' => 10, 'unit' => 'sak', 'unit_price' => 75_000],
@@ -134,6 +135,7 @@ class PoQualificationOverrideAuditTest extends ErpTestCase
             'vendor_id' => $vendor->id,
             'order_date' => '2026-08-08',
             'expected_date' => '2026-08-22',
+            'pr_bypass_reason' => 'Fixture uji: pembelian langsung tanpa PR', // wajib sejak T3.8
             'qualification_override_reason' => 'Pembelian darurat — vendor tunggal pemegang lisensi',
             'items' => [
                 ['description' => 'Semen 50kg', 'qty' => 10, 'unit' => 'sak', 'unit_price' => 75_000],

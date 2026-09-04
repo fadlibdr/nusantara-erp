@@ -495,6 +495,7 @@ return [
         'pph_tax_id' => 'Jenis pph dipotong',
         'ppn_amount' => 'Ppn masukan',
         'ppn_rate' => 'Tarif ppn',
+        'pr_bypass_reason' => 'Alasan tanpa PR',
         'present_days' => 'Hadir',
         'prev_progress_pct' => 'Progres lalu',
         'preventive_action' => 'Tindakan pencegahan',

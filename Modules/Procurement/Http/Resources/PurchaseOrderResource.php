@@ -35,6 +35,9 @@ class PurchaseOrderResource extends JsonResource
             // Jejak override prakualifikasi: terisi hanya bila PO ini diajukan
             // menembus blokir vendor (nonaktif / dokumen wajib kedaluwarsa).
             'qualification_override_reason' => $this->qualification_override_reason,
+            // Jejak PO tanpa PR (T3.8): terisi hanya bila PO ini lahir tanpa
+            // permintaan pembelian — mengapa pembelian langsung dilakukan.
+            'pr_bypass_reason' => $this->pr_bypass_reason,
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
             'closed_at' => $this->closed_at?->toIso8601String(),

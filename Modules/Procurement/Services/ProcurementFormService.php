@@ -168,8 +168,9 @@ class ProcurementFormService
     // ------------------------------------------------------ order pembelian
 
     /**
-     * The PO's notes block: what was written on the order, and the reason the
-     * prakualifikasi gate was overridden when it was (temuan #35).
+     * The PO's notes block: what was written on the order, the reason the
+     * prakualifikasi gate was overridden when it was (temuan #35), and the
+     * reason the order was placed without a PR when it was (T3.8).
      *
      * In the NOTES rather than in an identity line, and that is the point: an
      * identity line prints its label whether or not it has a value, so a clean
@@ -182,6 +183,7 @@ class ProcurementFormService
         return $this->paragraphs([
             $order->notes,
             $this->labelled('Override prakualifikasi vendor', $order->qualification_override_reason),
+            $this->labelled('Alasan tanpa PR', $order->pr_bypass_reason),
         ]);
     }
 

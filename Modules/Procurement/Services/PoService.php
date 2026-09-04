@@ -57,12 +57,19 @@ class PoService
             $overridden = app(VendorQualificationService::class)
                 ->assertQualified($vendor, $reason === '' ? null : $reason);
 
+            // Alasan PO tanpa PR (T3.8, ANALISIS-PROSES E3) — kontrak yang
+            // sama dengan override di bawah: tercatat hanya bila PO memang
+            // lahir tanpa purchase_requisition_id. Alasan yang terlanjur
+            // diketik untuk PO yang punya PR bukan jejak pembelian langsung.
+            $prBypassReason = trim((string) Arr::pull($data, 'pr_bypass_reason', ''));
+
             $po = new PurchaseOrder(Arr::except($data, ['code', 'status']));
             // BUKAN mass-assignment: alasan hanya tercatat saat gate
             // benar-benar mengembalikan blokir yang dilewati. Dulu alasan
             // yang diketik untuk vendor SEHAT ikut tersimpan — jejak audit
             // yang menuduh vendor sehat bermasalah.
             $po->qualification_override_reason = $overridden !== [] ? $reason : null;
+            $po->pr_bypass_reason = $po->purchase_requisition_id === null && $prBypassReason !== '' ? $prBypassReason : null;
             $po->status = DocumentStatus::Draft;
             $po->payment_term_days = $data['payment_term_days'] ?? $vendor->payment_term_days;
             $po->save(); // HasDocumentNumber fills the PO code
@@ -85,7 +92,20 @@ class PoService
             // hanya boleh dicap oleh gate prakualifikasi (create/submit),
             // bukan lewat edit — edit bebas berarti jejak override bisa
             // ditulis tanpa satu pun blokir yang dilewati.
-            $po->fill(Arr::except($data, ['code', 'status', 'closed_at', 'needs_director_approval', 'qualification_override_reason']));
+            $po->fill(Arr::except($data, ['code', 'status', 'closed_at', 'needs_director_approval', 'qualification_override_reason', 'pr_bypass_reason']));
+
+            // pr_bypass_reason mengikuti keadaan PO SESUDAH edit, bukan
+            // payload mentah: PO yang kini bertaut ke PR bukan lagi pembelian
+            // langsung, jadi alasannya gugur; PO yang tetap tanpa PR memakai
+            // alasan yang dikirim (formulir Ubah selalu mengirimnya) atau
+            // mempertahankan yang tersimpan bila kuncinya tidak dibawa (T3.8).
+            if ($po->purchase_requisition_id !== null) {
+                $po->pr_bypass_reason = null;
+            } elseif (array_key_exists('pr_bypass_reason', $data)) {
+                $prBypassReason = trim((string) ($data['pr_bypass_reason'] ?? ''));
+                $po->pr_bypass_reason = $prBypassReason === '' ? null : $prBypassReason;
+            }
+
             $po->save();
 
             // vendor_id may have changed; drop any loaded relation so the

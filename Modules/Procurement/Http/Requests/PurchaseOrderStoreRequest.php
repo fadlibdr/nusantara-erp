@@ -33,6 +33,13 @@ class PurchaseOrderStoreRequest extends FormRequest
             // Alasan menembus gate prakualifikasi vendor; ikut tersimpan di PO
             // sebagai jejak audit (temuan #35).
             'qualification_override_reason' => ['nullable', 'string', 'max:500'],
+            // PO tanpa PR boleh (darurat lapangan), tetapi harus beralasan —
+            // pola yang sama dengan override prakualifikasi di atas. Diukur
+            // 4 Sep 2026 di produksi (ANALISIS-PROSES E3): PO/2026/III/0002
+            // Rp 128 jt ber-purchase_requisition_id NULL tanpa alasan tercatat
+            // di mana pun selain komentar seeder. Kalimat 422-nya dari lang:
+            // "Alasan tanpa PR wajib diisi bila PR kosong." (T3.8).
+            'pr_bypass_reason' => ['required_without:purchase_requisition_id', 'nullable', 'string', 'max:500'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', 'integer'],
             'items.*.boq_item_id' => ['nullable', 'integer'],

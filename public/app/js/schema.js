@@ -106,6 +106,15 @@ function revisableActions(module, actions) {
 const ASSET_OWNED = (values, record) => (values.ownership ?? (record && record.ownership) ?? 'owned') === 'owned';
 const ASSET_RENTED = (values, record) => (values.ownership ?? (record && record.ownership) ?? 'owned') === 'rented';
 
+/* T3.8 — PO tanpa PR harus beralasan. Field alasannya ikut nilai HIDUP lookup
+   "Dari PR" (combobox mengembalikan null saat kosong): tampil dan wajib begitu
+   PR dikosongkan, hilang dari layar DAN dari payload begitu PR dipilih —
+   server (PurchaseOrderStoreRequest required_without) hanya menuntutnya bila
+   purchase_requisition_id kosong, jadi tidak ada 422 untuk field yang tidak
+   tampil. Diukur 4 Sep 2026 di produksi (ANALISIS-PROSES E3): PO/2026/III/0002
+   Rp 128 jt tanpa PR dan tanpa alasan tercatat. */
+const PO_WITHOUT_PR = (values) => values.purchase_requisition_id === null || values.purchase_requisition_id === undefined || values.purchase_requisition_id === '';
+
 export const RESOURCES = {
   /* ============================================================== CRM === */
   'crm/customers': {
@@ -2208,6 +2217,10 @@ export const RESOURCES = {
         fields: [
           { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
           { key: 'purchase_requisition_id', label: 'Dari PR', type: 'lookup', lookup: 'purchaseRequisitions' },
+          // Tersimpan di PO sebagai jejak audit, tampil di detail dan di
+          // formulir cetak — sama seperti alasan override prakualifikasi (T3.8).
+          { key: 'pr_bypass_reason', label: 'Alasan tanpa PR', type: 'textarea', span: 2, required: true, visibleWhen: PO_WITHOUT_PR,
+            help: 'PO ini dibuat tanpa permintaan pembelian (PR). Sebutkan mengapa pembelian langsung dilakukan (mis. kebutuhan darurat di lapangan).' },
           { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },

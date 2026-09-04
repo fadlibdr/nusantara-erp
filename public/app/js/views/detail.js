@@ -279,6 +279,8 @@ const LABELS = {
   rfq_id: 'RFQ', is_winner: 'Pemenang', vendor_ids: 'Vendor diundang',
   qty_received: 'Qty diterima', qty_returned: 'Qty diretur', qty_used: 'Qty terpakai',
   qualification_override_reason: 'Alasan override kualifikasi',
+  // T3.8: jejak PO tanpa PR, ditampilkan seperti alasan override di atasnya.
+  pr_bypass_reason: 'Alasan tanpa PR',
   goods_receipt_id: 'Penerimaan barang', field_report_id: 'Laporan lapangan',
   issue_id: 'Pengeluaran barang', wbs_task_id: 'Tugas WBS', boq_item_id: 'Item BOQ',
   // P4 — SP3 mandor & opname mandor; tanpa entri ini titleize() jatuh ke

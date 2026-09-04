@@ -64,6 +64,9 @@ class RequiredWatchDatesTest extends ErpTestCase
         return array_merge([
             'vendor_id' => $this->vendor()->id,
             'order_date' => '2026-08-08',
+            // PO tanpa PR wajib beralasan sejak T3.8; fixture-nya diberi alasan,
+            // aturannya tidak dilonggarkan.
+            'pr_bypass_reason' => 'Fixture uji: pembelian langsung tanpa PR',
             'items' => [
                 ['description' => 'Kabel NYY 4x10', 'qty' => 50, 'unit' => 'm', 'unit_price' => 125_000],
             ],
