@@ -8,7 +8,6 @@ use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Modules\Iam\Database\Seeders\RoleSeeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Penyimpangan izin — basis data hidup dibandingkan dengan niat seeder.
@@ -47,10 +46,16 @@ class PermissionCheckCommand extends Command
             return self::FAILURE;
         }
 
-        // Cache Spatie bisa lebih tua dari tabelnya (migrasi baru saja
-        // memberi grant); baca dari tabel, bukan dari cache.
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
+        // Baca dari TABEL, bukan dari cache Spatie — dan tanpa membuang cache
+        // itu. Permission::query() dan $role->permissions()->pluck() adalah
+        // kueri relasi langsung ke permissions / role_has_permissions; cache
+        // Spatie hanya melayani hasPermissionTo()/getAllPermissions(), yang
+        // tidak dipakai di sini. Versi pertama perintah ini memanggil
+        // forgetCachedPermissions() "supaya segar", dan dengan
+        // CACHE_STORE=database itu adalah DELETE pada tabel cache basis data
+        // HIDUP — sebuah pemeriksaan yang menulis (terukur 4 Sep 2026: mtime
+        // database.sqlite bergeser saat --check dijalankan). Pemeriksaan
+        // harus baca-saja.
         $report = $this->report();
 
         if ($this->option('json')) {

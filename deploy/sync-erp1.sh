@@ -47,6 +47,12 @@ rsync -a --delete \
   --exclude='.git' \
   --exclude='node_modules' \
   --exclude='database/database.sqlite' \
+  # The WAL side files (-wal, -shm) belong to whichever process has the site's
+  # database open — php-fpm, during a deploy. `--delete` used to remove them
+  # (rsync -an --delete printed `deleting database/database.sqlite-shm`) and a
+  # stale local -wal left by a killed `php -S` could be pushed over the live
+  # one. Found by the Phase 1 verifier, 4 Sep 2026 (T1.1 addendum).
+  --exclude='database/database.sqlite-*' \
   --exclude='storage/logs/*' \
   `# Uploaded attachments are LIVE DATA, like the database. Without these two` \
   `# the --delete above wipes every file anyone has ever attached, on every` \

@@ -42,7 +42,7 @@ Bahasa Indonesia** and follow the repo's own copy rules (§ Conventions).
 **T0.1 Apply the patch**
 ```
 git checkout -b ux/p0-measured
-git am ux-p0-and-process.patch      # 2 commits, 22 files
+git am docs/patches/ux-p0-and-process.patch   # 2 commits, 22 files (uploads were moved under docs/patches/, T0.0)
 php artisan config:clear
 vendor/bin/phpunit --no-progress tests/Feature/Core tests/Feature/Procurement tests/Feature/Iam
 ```

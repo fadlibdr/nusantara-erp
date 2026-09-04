@@ -128,7 +128,7 @@ disebutkan supaya Anda bisa memeriksanya atau menyerahkannya kepada pengembang.
 
 | Kalau Anda mencari | Bukalah |
 |---|---|
-| Membangun server, nginx, TLS, skrip deploy, cadangan tingkat mesin, urutan menurunkan gerbang demo erp1 | [`DEPLOYMENT.md`](DEPLOYMENT.md) — berbahasa Inggris, 437 baris. §3 pemasangan pertama, §4 rilis rutin, §5 cadangan, §7.1 gerbang demo |
+| Membangun server, nginx, TLS, skrip deploy, cadangan tingkat mesin, urutan menurunkan gerbang demo erp1 | [`DEPLOYMENT.md`](DEPLOYMENT.md) — berbahasa Inggris, 644 baris. §3 pemasangan pertama, §4 rilis rutin, §5 cadangan, §7.1 gerbang demo |
 | Kebijakan pengakuan pendapatan PSAK 115 — persentase penyelesaian, basis biaya, liabilitas kontrak | [`KEBIJAKAN-PENDAPATAN.md`](KEBIJAKAN-PENDAPATAN.md) |
 | Aturan penulisan kode, konvensi modul, struktur front-end | [`CONVENTIONS.md`](CONVENTIONS.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`FRONTEND.md`](FRONTEND.md) — untuk pengembang, bukan untuk pembaca ini |
 | Riwayat audit, temuan, dan apa yang sengaja tidak dibangun | [`ASSESSMENT-LANJUTAN.md`](ASSESSMENT-LANJUTAN.md), [`LAPORAN-DEVIASI.md`](LAPORAN-DEVIASI.md) |
