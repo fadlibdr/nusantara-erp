@@ -363,7 +363,11 @@ export const RESOURCES = {
       sections: [{
         title: 'Perubahan pekerjaan',
         fields: [
-          { key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts', required: true },
+          /* createOnly: validated() di ContractChangeOrderController menandai
+             contract_id 'prohibited' saat update, jadi mengirim ulang field ini
+             membuat setiap Ubah gagal 422 (pola sama dengan subcontract_id di
+             subcontract/addenda). */
+          { key: 'contract_id', label: 'Kontrak', type: 'lookup', lookup: 'contracts', required: true, createOnly: true },
           { key: 'change_date', label: 'Tanggal', type: 'date', required: true },
           { key: 'title', label: 'Judul', type: 'text', required: true, span: 2 },
           {

@@ -1391,7 +1391,8 @@ tidak menyentuh rupiah** — waktu dan nilai tidak pernah bergerak di satu lemba
 **Mencatat pekerjaan tambah-kurang:**
 
 1. **`Tambah Pekerjaan Tambah-Kurang`**.
-2. Isi **Kontrak** (wajib), **Tanggal** (wajib), **Judul** (wajib), **Jenis perubahan**
+2. Isi **Kontrak** (wajib, **hanya saat membuat** — tombol Ubah tidak menyentuhnya lagi),
+   **Tanggal** (wajib), **Judul** (wajib), **Jenis perubahan**
    (bantuan: *"Pilih 'Eskalasi Harga' untuk penyesuaian indeks kontrak multi-tahun;
    'Addendum Waktu' (P0-B) menggeser tanggal selesai, bukan nilai."*), **Perubahan
    nilai** (wajib; **tidak boleh 0** pada CCO nilai, **wajib 0** pada Addendum Waktu;
