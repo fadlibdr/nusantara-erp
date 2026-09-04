@@ -21,13 +21,16 @@ class HrPayrollDatabaseSeeder extends Seeder
         $this->seedAttendanceRecaps();
         $this->seedThrRun();
         $this->seedRegularRun();
+
+        // Iam's UserSeeder runs before HrPayroll, so its hr_employees lookups
+        // stored null; repair the links now that the canon employees exist —
+        // and before the leave register, whose `submitted` trail row names
+        // the employee's own login (seedLeaveRequests).
+        $this->backfillUserEmployeeLinks();
+
         $this->seedLeaveRequests();
         $this->seedAttendances();
         $this->syncNumberSequences();
-
-        // Iam's UserSeeder runs before HrPayroll, so its hr_employees lookups
-        // stored null; repair the links now that the canon employees exist.
-        $this->backfillUserEmployeeLinks();
     }
 
     /**
@@ -367,7 +370,7 @@ class HrPayrollDatabaseSeeder extends Seeder
                 continue;
             }
 
-            LeaveRequest::withTrashed()->updateOrCreate(
+            $request = LeaveRequest::withTrashed()->updateOrCreate(
                 ['code' => $row['code']],
                 [
                     'employee_id' => $employee->id,
@@ -380,6 +383,28 @@ class HrPayrollDatabaseSeeder extends Seeder
                     'deleted_at' => null,
                 ],
             );
+
+            if ($row['status'] !== 'submitted') {
+                continue;
+            }
+
+            // Planted straight to `submitted`, so nobody clicked Ajukan — and
+            // until 4 Sep 2026 nothing recorded that: SegregationOfDuties reads
+            // the `submitted` row, and a document without one was approvable
+            // by its own maker (PR/2026/III/0002 on production, HASIL-UJI §6
+            // P-3). The row names the employee's own login, which is what
+            // LeaveService::submit would have written had the employee filed
+            // it — the seed admin only when the employee has no login.
+            // Rebuilt, not appended: a re-seed must not stack rows.
+            $submitterId = DB::table('users')->where('employee_id', $employee->id)->orderBy('id')->value('id')
+                ?? DB::table('users')->orderBy('id')->value('id');
+
+            $request->approvals()->delete();
+            $request->approvals()->create([
+                'action' => 'submitted',
+                'user_id' => $submitterId,
+                'note' => null,
+            ]);
         }
     }
 

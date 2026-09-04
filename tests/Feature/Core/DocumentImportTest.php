@@ -7,8 +7,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Exceptions\SelfApprovalException;
 use Modules\Core\Services\DocumentImportService;
 use Modules\Core\Support\ImportableDocuments;
+use Modules\Core\Support\SegregationOfDuties;
 use Modules\Core\Support\SpreadsheetReader;
 use Modules\Crm\Http\Requests\QuotationStoreRequest;
 use Modules\Crm\Models\Customer;
@@ -1209,6 +1211,85 @@ class DocumentImportTest extends ErpTestCase
             ->assertForbidden();
     }
 
+    // ---------------------------------------------- maker-checker on import
+
+    /**
+     * Measured on production 4 Sep 2026 (HASIL-UJI §6 P-3): a PR that reached
+     * `submitted` without submit() carried no `submitted` row, so maker-checker
+     * saw no maker and its own requester approved it. A file is that path in
+     * another coat — the module's service is handed the payload and may leave
+     * the document submitted with nobody having clicked Ajukan. The engine
+     * knows who uploaded the file, so the row names the importer, and the
+     * guard refuses the importer one screen later.
+     */
+    public function test_a_document_landed_as_submitted_names_the_importer_as_its_maker(): void
+    {
+        $this->customer('CUST-1');
+        $importer = $this->adminUser();
+        $other = $this->userWithOnly(['crm.approve']);
+
+        $result = $this->imports->commit('penawaran-diajukan-uji', 'penawaran.csv', $this->quotationFile(
+            'dokumen,PNW-A,CUST-1,Diajukan lewat berkas,konstruksi,11,,,,,',
+            'item,PNW-A,,,,,Pekerjaan persiapan,1,ls,1000,1000',
+        ), $importer);
+
+        $this->assertSame(1, $result['created']);
+
+        $quotation = Quotation::query()->sole();
+        $this->assertSame(DocumentStatus::Submitted, $quotation->status);
+        $this->assertSame(
+            [['submitted', $importer->id]],
+            $quotation->approvals()->get()->map(fn ($row) => [$row->action, (int) $row->user_id])->all(),
+        );
+        $this->assertSame($importer->id, SegregationOfDuties::submitterIdOf($quotation));
+
+        try {
+            $quotation->approve($importer);
+            $this->fail('The importer asserted the document and must not approve it.');
+        } catch (SelfApprovalException $e) {
+            $this->assertStringContainsString($importer->name, $e->getMessage());
+        }
+
+        $quotation->approve($other);
+        $this->assertSame(DocumentStatus::Approved, $quotation->fresh()->status);
+    }
+
+    /** A draft asserts nothing, so nothing is recorded — the pre-existing path, pinned. */
+    public function test_a_document_landed_as_a_draft_records_no_submission(): void
+    {
+        $this->customer('CUST-1');
+        $importer = $this->adminUser();
+
+        $this->imports->commit('penawaran-uji', 'penawaran.csv', $this->quotationFile(
+            'dokumen,PNW-A,CUST-1,Masih draf,konstruksi,11,,,,,',
+            'item,PNW-A,,,,,Pekerjaan persiapan,1,ls,1000,1000',
+        ), $importer);
+
+        $quotation = Quotation::query()->sole();
+        $this->assertSame(DocumentStatus::Draft, $quotation->status);
+        $this->assertSame(0, $quotation->approvals()->count());
+    }
+
+    /** The endpoint hands the logged-in user to the engine — the row is the importer's, not nobody's. */
+    public function test_the_endpoint_names_the_logged_in_user_as_the_importer(): void
+    {
+        $this->customer('CUST-1');
+        $admin = $this->adminUser();
+
+        $this->actingAs($admin)->postJson('/api/core/document-import/penawaran-diajukan-uji/import', [
+            'filename' => 'penawaran.csv',
+            'content' => $this->quotationFile(
+                'dokumen,PNW-A,CUST-1,Lewat API langsung diajukan,konstruksi,11,,,,,',
+                'item,PNW-A,,,,,Pekerjaan persiapan,1,ls,1000,1000',
+            ),
+        ])->assertOk()->assertJsonPath('data.created', 1);
+
+        $this->assertSame(
+            (int) $admin->id,
+            (int) Quotation::query()->sole()->approvals()->where('action', 'submitted')->sole()->user_id,
+        );
+    }
+
     // ------------------------------------------- what an empty cell may write
 
     /**
@@ -1998,7 +2079,7 @@ class DocumentImportTest extends ErpTestCase
         {
             public function all(): array
             {
-                return [
+                $definitions = [
                     'penawaran-uji' => [
                         'label' => 'Penawaran (fixture mesin impor)',
                         'module' => 'Crm',
@@ -2156,6 +2237,23 @@ class DocumentImportTest extends ErpTestCase
                         'update' => fn (object $target, array $payload) => app(AhspService::class)->update($target, $payload),
                     ],
                 ];
+
+                // The penawaran shape again, but landed as `submitted` by its
+                // own create — the seeded-PR shape of 4 Sep 2026 (a status
+                // written with no Ajukan behind it) arriving through a file.
+                // No shipped definition does this today; the fixture exists so
+                // the engine's maker-checker row is pinned before one does.
+                $definitions['penawaran-diajukan-uji'] = array_merge($definitions['penawaran-uji'], [
+                    'label' => 'Penawaran langsung diajukan (fixture mesin impor)',
+                    'create' => function (array $payload) {
+                        $quotation = app(QuotationService::class)->create($payload);
+                        $quotation->forceFill(['status' => DocumentStatus::Submitted])->save();
+
+                        return $quotation;
+                    },
+                ]);
+
+                return $definitions;
             }
         };
     }

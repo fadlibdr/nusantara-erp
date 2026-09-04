@@ -2,6 +2,7 @@
 
 namespace Modules\Estimation\Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -338,6 +339,22 @@ class EstimationDatabaseSeeder extends Seeder
         $rapService->generateFromBoq($rap);
 
         $rap->forceFill(['status' => DocumentStatus::Submitted])->save();
+
+        // Written straight to `submitted`, so nobody clicked Ajukan — and until
+        // 4 Sep 2026 nothing recorded that. The same shape in Procurement
+        // (PR/2026/III/0002, no core_approvals row) was approved by its own
+        // requester on production that day (HASIL-UJI §6 P-3); this RAP was
+        // the other document SegregationOfDuties listed as being in that
+        // state. The seed admin is named as the maker, as every other seeder's
+        // trail does, so the guard has somebody to refuse and the detail page
+        // has a "Diajukan" line. Rebuilt, not appended: a re-seed must not
+        // stack rows.
+        $rap->approvals()->delete();
+        $rap->approvals()->create([
+            'action' => 'submitted',
+            'user_id' => User::query()->orderBy('id')->value('id'),
+            'note' => null,
+        ]);
     }
 
     /**

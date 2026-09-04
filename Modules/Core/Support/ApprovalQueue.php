@@ -19,13 +19,15 @@ use Throwable;
  * persetujuan". Kelas ini menutup keduanya.
  *
  * "MILIK SENDIRI". Maker-checker (SegregationOfDuties) membaca baris
- * `submitted` di core_approvals dan MELEWATKAN dokumen tanpa jejak pengajuan
- * — by design, untuk dokumen yang dicetak mesin. Tetapi kotak masuk tidak boleh
- * MENAWARKAN dokumen yang jelas milik pembacanya: PR/2026/III/0002 "Diminta
- * oleh admin" tampil sebagai "menunggu persetujuan Anda" untuk admin, dan satu
- * klik menyetujuinya (4 Sep 2026, produksi). Jadi bila jejak pengajuan tidak
- * ada, kolom kepemilikan yang ada di tabel (requested_by, created_by,
- * submitted_by, employee_id → users.employee_id) dipakai sebagai pengganti.
+ * `submitted` di core_approvals dan MELEWATKAN dokumen yang diajukan tanpa
+ * aktor — by design, untuk dokumen yang dicetak mesin. Tetapi kotak masuk
+ * tidak boleh MENAWARKAN dokumen yang jelas milik pembacanya: PR/2026/III/0002
+ * "Diminta oleh admin" tampil sebagai "menunggu persetujuan Anda" untuk admin,
+ * dan satu klik menyetujuinya (4 Sep 2026, produksi). Jadi bila jejak
+ * pengajuan tidak ada, kolom kepemilikan yang ada di tabel (requested_by,
+ * created_by, submitted_by, employee_id → users.employee_id) dipakai sebagai
+ * pengganti — dan sejak T3.4 penjaga memakai kolom yang sama untuk MENOLAK,
+ * sehingga dokumen yang tidak ditawarkan di sini juga tidak lolos di sana.
  */
 class ApprovalQueue
 {

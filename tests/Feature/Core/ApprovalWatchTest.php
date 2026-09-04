@@ -23,8 +23,8 @@ use Tests\ErpTestCase;
  * approve-permission holder except the submitter is reminded; at twice the
  * threshold fin.approve (direktur) is pulled in; and the queue itself never
  * offers a document to the person who requested it, even when the seed wrote
- * no `submitted` row (the maker-checker guard passes that case by design —
- * the inbox must not).
+ * no `submitted` row (since T3.4 the maker-checker guard refuses that case
+ * through the same owner column — the inbox must not offer it either).
  */
 class ApprovalWatchTest extends ErpTestCase
 {
