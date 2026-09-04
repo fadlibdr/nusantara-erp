@@ -1248,7 +1248,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     no `-wal`/`-shm`).
 
 ### T2.11 — Kartu "Menunggu persetujuan Anda" dan tautan Tugas Saya hanya bagi pemegang izin `.approve` (bagian minimal)
-- Commit: (this commit)
+- Commit: 91376e3 (placeholder `(this commit)` replaced in the Gate Phase 2 commit — one task, one commit)
 - Files: `public/app/js/schema.js` (`ANY_APPROVE` — `(held) => held.some((one) => one.endsWith('.approve'))`,
   exported above `NAV`; the `Tugas Saya` item carries `perm: ANY_APPROVE`, so `visibleNav()` hides it
   for both consumers — the sidebar in app.js and the "Layar" source in search.js — without touching
@@ -1330,3 +1330,88 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     runs `ERP_DB=<scratch>/ux/t211.sqlite UXTEST_OUT=<scratch>/ux/out-t211-before … S1` (app at
     6fa94e6), `… out-t211 … S1`, `… out-t211-reg … S11` then `… S2 S14`. `database/database.sqlite`
     untouched (mtime 13:10:55, no `-wal`/`-shm`).
+
+### Gate Phase 2
+- Commit: (this commit) — `docs/bukti-uji/results-phase-2.json` (the run's `results.json`, verbatim),
+  RECAP § Verification column "After phase 2 (4 Sep)" (+ two rows for T2.10 / T2.11), this block;
+  T2.11 placeholder → 91376e3. No code changed in this pass.
+- Acceptance: `harness-playwright.py` **S10 S1 S2 S3 S4 S5 S8 S11** on a fresh scratch seed
+  (`<scratchpad>/ux/t211g.sqlite`, tree 91376e3) → **8 scenarios `ok`, 0 `ERROR`**, 98 s of
+  scenario time. Two invocations into one `results.json` (the harness merges): **`S10 S1 S11`** first,
+  then **`S2 S3 S4 S5 S8`** after the login-throttle window — because on this seed
+  `CTI/2026/VIII/0002` heads the inbox (`ApprovalQueue` sorts by `submitted_at` ascending; RAP and
+  CTI have no submit row and the HR seeder wrote its row a second before Estimation's, so the
+  head is decided by a second boundary — Gate Phase 0 note 1), S2 approves the head, and S11's
+  `tr:has-text('CTI/')` would find nothing after it. S11 measured before any approval is the same
+  reading `results-sesudah.json` carries (its S11 still listed RAP). Headline numbers:
+  - **S2** 4 klik for two approvals = **2 per document** (baris → Setujui, Buka → Kembali),
+    `approve_modal_opened` false, toast `CTI/2026/VIII/0002 disetujui.` + `Berikutnya menunggu Anda
+    (3) RAP/2026/0001 …`, `action_bar` `['Kembali','Cetak','Setujui','Tolak']`,
+    `api_calls_detail_to_back` **14** (leave-request detail; 16 on a subcontract), `approve_total_ms`
+    2 039, `detail_ms` 1 150; **po_bar** as direktur on a submitted PO: 4 buttons, zones
+    `[['Kembali'],['Cetak'],['Setujui','Tolak']]`, menu `Cetak halaman · Unduh PDF · Cetak Pesanan
+    Pembelian (Formulir Rumah) · Unduh … (XLSX)`, Escape → menu closed, focus back on the trigger.
+  - **S5** admin `navContentPx` **606 = 0,7 viewport** (`viewportsTall` 1.4 = grid floor 1 233 px),
+    14 groups / 122 links; direktur 606 / 120; PM 451 / 63; site-manager 357 / 44; estimator 357 /
+    47; procurement 326 / 35; warehouse 326 / 35; finance 357 / 67; hr 233 / 14; sales 357 / 43;
+    teknisi 233 / 16 (each non-approving role one link fewer than at T2.5: Tugas Saya). **`cards`:
+    "Menunggu persetujuan Anda" for admin, direktur, project-manager only — 3 of 11**; 2 Sep: 11 of
+    11 (`results-sesudah.json`). One `429` on estimator's login, absorbed by the harness's
+    Retry-After wait (2 s).
+  - **S3** **12 klik** on a fresh profile (`nav_group_opened` true — T2.5's collapsed Pengadaan
+    group; 11 once the preference is saved), `toast_on_422` `['Periksa isian yang ditandai.']`,
+    cell `Kuantitas minimal 0.001.`, `PO/2026/IX/0004` (S2's po_bar created 0003), `Diajukan`,
+    toasts `PO dibuat.` / `PO/2026/IX/0004 diajukan · menunggu persetujuan.`, `detail_action_bar`
+    `['Kembali','Cetak','Ubah','Ajukan']`, 18 API calls, 15 281 ms.
+  - **S4** 13 field typed, banner `Sesi Anda berakhir. Isian PO yang sedang Anda buat tersimpan di
+    peramban ini — masuk kembali untuk memulihkannya.`, `modalVisible` false, `loginVisible` true,
+    Masuk `reachable`, `recoveryOffer` true, restored **13 field / 3 baris** (vendor `VND-0003 — PT
+    Elektrindo Supply`, textarea intact), 8 klik.
+  - **S1** direktur card `Menunggu persetujuan Anda (4)` = 4 server types (RAP, PR, SPK, CTI),
+    `tugas_link` true, 11 dashboard requests; **warehouse `approvals_card` false, `tugas_link`
+    false**, cards `Kalender Acara · Progres proyek`, 6 requests.
+  - **S10** `Vendor wajib diisi.` / `Tanggal PO wajib diisi.` / `Kuantitas minimal 0.001.` /
+    `Harga satuan wajib diisi.`; `Nama wajib diisi.`; AP bill `… wajib diisi bila tidak ada satu pun
+    dari PO / GRN / …` — 0 English strings.
+  - **S11** h1 `Tugas Saya`, 4 rows (CTI, RAP, PR, SPK), `leave_detail_bar`
+    `['Kembali','Cetak','Setujui','Tolak']`, 2 klik.
+  - **S8** `--muted #5e6874`, contrast **5.23 / 5.47 / 5.29**, `th_font` 11px, `smallest_font_px`
+    **11**.
+  - PHPUnit on the final tree (per directory, every module touched in phase 2): `tests/Feature/Core`
+    **OK (579 tests, 3 547 assertions)**; `tests/Feature/Iam` **OK (45 tests, 215 assertions)**; `tests/Feature/Procurement`
+    **OK (165 tests, 651 assertions)**; `tests/Feature/Crm` **OK (214 tests, 773 assertions)**.
+- Notes:
+  - **Missed targets and who closes them:** *API calls per approval round-trip* 14–16 vs ≤ 12 — the
+    count is the detail page's own loads (a leave request 3, a subcontract 5, plus print catalogue,
+    attachments, lookups); T3.3 (approvals in `show()`) removes nothing here, so this needs a detail
+    page that stops loading lookups it does not render — not in the backlog yet, note for T4.x.
+    *Dashboard API calls per open* 11 vs ≤ 10 for approvers (non-approvers are at 6 since T2.11) —
+    the eleventh is `iam/auth/me` permission refresh + `core/notifications/unread-count`; folding
+    the bell count into `core/dashboard/summary` would do it, not assigned. *Create→submit PO* 12 vs
+    ≤ 10 — T4.2 (full-page lines form), gated on research. Everything else meets its target;
+    production rows were not measured (this pass never touches production).
+  - The per-role link drop (−1 for eight roles) is T2.11's Tugas Saya gate, expected; admin,
+    direktur and PM keep 122 / 120 / 63.
+  - Environment: `DB_DATABASE=<scratch>/ux/t211g.sqlite php artisan migrate:fresh --seed --force`
+    (config not cached); `cd public && DB_DATABASE=<scratch>/ux/t211g.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    `ERP_DB=<scratch>/ux/t211g.sqlite UXTEST_OUT=<scratch>/ux/out-phase-2 /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S10 S1 S11`,
+    then (≥ 66 s after the first login) `… S2 S3 S4 S5 S8`. Server stopped by PID afterwards;
+    `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
+
+| Ukuran | Sesudah (2 Sep) | Fase 0 (4 Sep) | Fase 2 (4 Sep) |
+|---|---|---|---|
+| S10 · PO 422 `vendor_id` / `items.0.qty` | `Vendor wajib diisi.` / `Kuantitas minimal 0.001.` | sama | sama |
+| S1 · judul kartu direktur / baris / jenis di server | `(4)` / 4 / 4 | `(4)` / 4 / 4 | `(4)` / 4 / 4 |
+| S1 · warehouse: kartu persetujuan / tautan Tugas Saya / permintaan dasbor | (tidak diukur) | (tidak diukur) | **false / false / 6** |
+| S2 · klik per dokumen | 3 | 3 | **2** |
+| S2 · modal catatan | ya | ya | **tidak** (inline) |
+| S2 · tombol bilah aksi (PO diajukan, direktur) | 5 | 5 | **4** |
+| S2 · permintaan API detail → kembali | 16 | 14 | 14 |
+| S3 · klik buat → ajukan PO 2 baris | 12 | 12 | 12 (11 dengan preferensi sidebar tersimpan) |
+| S3 · toast saat 422 | `Periksa isian yang ditandai. · items.0.qty: …` | `items.0.qty: …` | **`Periksa isian yang ditandai.`** |
+| S3 · modal "Alasan override" saat Ajukan | ya | ya | **tidak** (confirm-resubmit) |
+| S4 · modal masih terbuka / halaman masuk / dipulihkan | false / true / 13 · 3 | false / true / 13 · 3 | false / true / 13 · 3 |
+| S5 · admin: tinggi isi sidebar / viewport | 4 447 px / 4,9 | (tidak diukur) | **606 px / 0,7** |
+| S5 · peran dengan kartu persetujuan (dari 11) | 11 | (tidak diukur) | **3** |
+| S8 · kontras `--muted`/`--bg` · font terkecil | 5,23 · 10 | 5,23 · 10 | 5,23 · **11** |
+| S11 · h1 / baris / bilah detail cuti | `Tugas Saya` / 5 / `Kembali · Cetak halaman · Setujui · Tolak` | `Tugas Saya` / 4 / sama | `Tugas Saya` / 4 / `Kembali · Cetak · Setujui · Tolak` |
