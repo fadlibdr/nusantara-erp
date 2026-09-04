@@ -1,7 +1,7 @@
 /* Generic document detail: header, key/value panel, line tables, approvals. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast } from '../ui.js';
+import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast, menuButton } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
@@ -609,33 +609,101 @@ export function approvalTimeline(approvals) {
  *   params  query string, param name => record field. A field the record does
  *           not carry is left out rather than sent empty — the endpoint's
  *           defaults are better than a blank.
+ *
+ * Satu daftar entri untuk dua bentuk: item menu "Cetak ▾" pada layar detail
+ * generik (printMenu, T2.6) dan tombol lepas pada layar custom yang merakit
+ * bilahnya sendiri (formButtons — rfq.js, tender.js, custom.js). `trigger`
+ * pada onClick adalah simpul yang memutar spinner withBusy: tombolnya sendiri
+ * untuk tombol lepas, tombol menunya untuk item menu (itemnya sudah dibuang
+ * begitu dipilih — lihat ui.js menuButton).
  */
-export function formButtons(forms, record) {
+export function formMenuItems(forms, record) {
   return (forms || [])
     .filter((form) => record[form.idField || 'id'])
     .flatMap((form) => [
-      button(`Cetak ${form.label}`, {
+      {
+        label: `Cetak ${form.label}`,
         iconName: 'print',
         title: `Cetak ${form.label} dalam format formulir perusahaan`,
-        onClick: (event) => openPrintable(printablePath(form, record), event.currentTarget),
-      }),
+        onClick: (event, trigger) => openPrintable(printablePath(form, record), trigger),
+      },
       /* P8 — the same composition as the print sheet, as a spreadsheet. Drawn
          ONLY when the catalogue flags the slug (form.xlsx — satu pemilik di
          PHP), and downloaded like a PDF: fetched as a blob so the session
-         token rides along. */
+         token rides along. Di menu, kata kerjanya ikut ("Unduh … (XLSX)");
+         sebagai tombol lepas tetap "XLSX" seperti sebelumnya (short). */
       form.xlsx
-        ? button('XLSX', {
+        ? {
+          label: `Unduh ${form.label} (XLSX)`,
+          short: 'XLSX',
           iconName: 'download',
           title: `Unduh ${form.label} sebagai XLSX — sel yang di kertas bergaris adalah sel kosong, bukan 0`,
-          onClick: (event) => downloadPdf(
+          onClick: (event, trigger) => downloadPdf(
             xlsxPath(form, record),
             xlsxName(form.form, record.code || record[form.idField || 'id']),
-            event.currentTarget,
+            trigger,
           ),
-        })
+        }
         : null,
     ])
     .filter(Boolean);
+}
+
+export function formButtons(forms, record) {
+  return formMenuItems(forms, record).map((item) => button(item.short || item.label, {
+    iconName: item.iconName,
+    title: item.title,
+    onClick: (event) => item.onClick(event, event.currentTarget),
+  }));
+}
+
+/*
+ * "Cetak ▾" — every output of the document behind ONE button (T2.6).
+ *
+ * Diukur 4 Sep 2026 (harness S2 › po_bar, katalog cetak sudah diperbaiki —
+ * lihat printcatalog.js loadPrintForms): PO draf memajang Kembali · Cetak
+ * halaman · PDF · Cetak Pesanan Pembelian · XLSX · Ubah · Ajukan — 7 tombol
+ * setara di satu baris, keputusan bernilai ratusan juta di sebelah "Cetak
+ * halaman" (ASESMEN-UX §1.2). Tiga keluaran plus XLSX-nya kini satu menu:
+ * Cetak halaman, Unduh PDF, Cetak <formulir>, Unduh <formulir> (XLSX).
+ *
+ * Menu berisi SATU perintah adalah satu klik ekstra tanpa pilihan, jadi layar
+ * tanpa PDF dan tanpa formulir rumah yang boleh dicetak pemanggil (pengajuan
+ * cuti bagi direktur, tiket) tetap memakai tombol Cetak halaman langsung —
+ * bilahnya tidak berubah dari 2 Sep 2026.
+ */
+export function printMenu(def, key, record) {
+  const printPage = {
+    label: 'Cetak halaman',
+    iconName: 'print',
+    title: 'Cetak tampilan layar ini lewat peramban',
+    onClick: () => window.print(),
+  };
+  const items = [
+    printPage,
+    // A proper document with a letterhead and somewhere to sign, as opposed
+    // to the browser printing this screen.
+    def.printable
+      ? {
+        label: 'Unduh PDF',
+        iconName: 'download',
+        title: `Unduh ${def.labelOne} sebagai PDF`,
+        onClick: (event, trigger) => downloadPdf(
+          def.printable.path.replace('{id}', record.id),
+          pdfName(def.printable.prefix, record.code || record.id),
+          trigger,
+        ),
+      }
+      : null,
+    // Formulir rumah — the company's own construction forms, printed by the
+    // browser rather than saved as a PDF. One entry per form this caller may
+    // print: def.printForms plus the server catalogue for this resource,
+    // merged by printButtonsFor(); see formMenuItems() above for the shape.
+    ...formMenuItems(printButtonsFor(def, key), record),
+  ].filter(Boolean);
+
+  if (items.length === 1) return button('', { iconName: 'print', title: 'Cetak halaman', onClick: printPage.onClick });
+  return menuButton('Cetak', items, { iconName: 'print', title: 'Cetak atau unduh dokumen ini' });
 }
 
 export async function renderDetail(host, { key, def, id }) {
@@ -689,6 +757,27 @@ export async function renderDetail(host, { key, def, id }) {
 
   clear(host);
 
+  /*
+   * Bilah aksi tiga zona (T2.6): kiri navigasi (Kembali), tengah keluaran
+   * (satu "Cetak ▾" — printMenu), kanan keputusan (Ubah, lalu aksi siklus
+   * hidup). Diukur 4 Sep 2026 (harness S2 › po_bar): PO draf 7 tombol setara
+   * di satu baris, kini 4. Hanya keputusan utama yang .primary: schema.js
+   * memberi variant 'primary' pada lebih dari satu aksi yang bisa tampil
+   * bersamaan (dua aksi aset tanpa `when`, misalnya); yang pertama dalam
+   * urutan skema — urutan siklus hidupnya — yang memegangnya.
+   *
+   * Panel catatan inline (details.action-note, T2.3) tetap anak langsung
+   * .actions dan paling akhir, BUKAN di zona keputusan: app.css mengukurnya
+   * di sana (flex-basis 100%, :has(.action-note)).
+   */
+  const lifecycle = actionButtons(def, record, reload);
+  const notePanels = lifecycle.filter((node) => node.matches('details.action-note'));
+  const decisions = [
+    canEdit ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key, row: record, onSaved: reload }) }) : null,
+    ...lifecycle.filter((node) => !notePanels.includes(node)),
+  ].filter(Boolean);
+  decisions.filter((node) => node.classList.contains('primary')).slice(1).forEach((node) => node.classList.remove('primary'));
+
   host.appendChild(el('.page-head', [
     el('div', [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
@@ -698,28 +787,10 @@ export async function renderDetail(host, { key, def, id }) {
       subtitle ? el('.desc', { text: subtitle }) : null,
     ]),
     el('.actions', [
-      button('', { iconName: 'back', title: 'Kembali', onClick: () => back() }),
-      button('', { iconName: 'print', title: 'Cetak halaman', onClick: () => window.print() }),
-      // A proper document with a letterhead and somewhere to sign, as opposed
-      // to the browser printing this screen.
-      def.printable
-        ? button('PDF', {
-          iconName: 'download',
-          title: `Unduh ${def.labelOne} sebagai PDF`,
-          onClick: (event) => downloadPdf(
-            def.printable.path.replace('{id}', record.id),
-            pdfName(def.printable.prefix, record.code || record.id),
-            event.currentTarget,
-          ),
-        })
-        : null,
-      // Formulir rumah — the company's own construction forms, printed by the
-      // browser rather than saved as a PDF. One button per form this caller
-      // may print: def.printForms plus the server catalogue for this resource,
-      // merged by printButtonsFor(); see formButtons() above for the shape.
-      ...formButtons(printButtonsFor(def, key), record),
-      canEdit ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key, row: record, onSaved: reload }) }) : null,
-      ...actionButtons(def, record, reload),
+      el('.zone.navigasi', [button('', { iconName: 'back', title: 'Kembali', onClick: () => back() })]),
+      el('.zone.keluaran', [printMenu(def, key, record)]),
+      decisions.length ? el('.zone.keputusan', decisions) : null,
+      ...notePanels,
     ]),
   ]));
 

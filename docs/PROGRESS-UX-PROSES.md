@@ -773,7 +773,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     no `-wal`/`-shm`).
 
 ### T2.3 — Catatan persetujuan inline di bilah aksi, bukan modal; Setujui memutus langsung
-- Commit: (this commit)
+- Commit: ffa87b3
 - Files: `public/app/js/schema.js` (`approvalActions` approve: `fields` → `inlineNote`, header
   comment of the action shape; the CCO in-file copy of the same shape converted too),
   `public/app/js/views/actions.js` (`inlineNote()` — `<details>/<summary>` panel; `runAction`
@@ -859,3 +859,134 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     (the harness runs them in its own fixed order: S1, S2, S3, S11, S13). Server stopped by PID
     (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
     no `-wal`/`-shm`).
+
+### T2.6 — Bilah aksi tiga zona + menu "Cetak ▾" (halaman · PDF · formulir rumah · XLSX)
+- Commit: (this commit)
+- Files: `public/app/js/ui.js` (`menuButton()` — the menu primitive, after `withBusy`),
+  `public/app/js/views/detail.js` (`formMenuItems()` as the one entry list, `formButtons()` now
+  derived from it — same labels, same behaviour for the custom screens; new `printMenu()`; the
+  page head split into `.zone.navigasi` · `.zone.keluaran` · `.zone.keputusan` with one `.primary`),
+  `public/app/js/printcatalog.js` (`loadPrintForms()` reads the array `api.get()` already
+  unwrapped — see Notes, the catalogue was empty on every session), `public/app/app.css`
+  (`.zone` rules after the T2.3 `.action-note` block, `.menu-wrap` / `.menu-pop` / `.menu-item`),
+  `docs/bukti-uji/harness-playwright.py` (S2 gains `po_bar` via `po_action_bar()` /
+  `read_action_bar()`; shared `BAR` expression), `docs/bukti-uji/s2-cetak-menu-t2.6.png`
+- Acceptance:
+  - **Gate — harness S2 `action_bar` length ≤ 4 on a PO with 2 house forms**: `S2 › po_bar`
+    (new): PO/2026/IX/0003 **as procurement, draft** `action_bar`
+    `['Kembali', 'Cetak', 'Ubah', 'Ajukan']` = **4** (before, same harness, code at ffa87b3 with only
+    the catalogue fix applied: `['Kembali', 'Cetak halaman', 'PDF', 'Cetak Pesanan Pembelian
+    (Formulir Rumah)', 'XLSX', 'Ubah', 'Ajukan']` = **7**; at ffa87b3 as shipped: 5 — see Notes);
+    **as direktur, submitted** `['Kembali', 'Cetak', 'Setujui', 'Tolak']` = **4** (before 7 / 5).
+    `zones` `[['Kembali'], ['Cetak'], ['Ubah', 'Ajukan']]` and `[['Kembali'], ['Cetak'], ['Setujui',
+    'Tolak']]`; `primary` `['Ajukan']` / `[]`; menu `items` `['Cetak halaman', 'Unduh PDF', 'Cetak
+    Pesanan Pembelian (Formulir Rumah)', 'Unduh Pesanan Pembelian (Formulir Rumah) (XLSX)']`,
+    `focused_first` true, `aria-expanded` "true"; `after_escape` `{menu_open: false,
+    focus_on_trigger: true, bar_buttons: 4}` in both views; 1 click each to open (counted in
+    `po_bar.clicks`, not in `_clicks`).
+    S2's own document (the inbox head): `action_bar` `['Kembali', 'Cetak', 'Setujui', 'Tolak']`
+    (T2.3: `['Kembali', 'Cetak halaman', 'Setujui', 'Tolak']` — the RAP house form now rides in the
+    menu), `_clicks` **4** (unchanged), `approve_total_ms` 2 062 / 2 050, `detail_ms` 1 145 / 1 139,
+    `api_calls_detail_to_back` 16 / 14 (the 14 is the CTI-first tie-break documented in the Phase 0
+    gate), toast `RAP/2026/0001 disetujui.` + `Berikutnya menunggu Anda (3) PR/2026/III/0002 …`,
+    `approve_note_inline` `{toggle: 'Tambah catatan', open: false, textarea_visible: false, width:
+    338}` (T2.3: 226 — the closed panel now spans the wider three-zone row), 0 ERROR.
+  - **Probe** (`<scratchpad>/ux/t26-probe.py`, not committed; procurement draft PO at 1440 / 800 /
+    390 px touch, direktur on five screens): `.actions` and all three zones **34 px** tall at every
+    width (the first cut measured 72 px: `.zone.nav` collided with the sidebar's `.nav` rules —
+    padding 10 px — hence the Indonesian zone names); dividers `1px solid` + `padding-left 12px`
+    on zones 2 and 3, none on the first; closed menu = **0** `[role=menu]`/`.menu-item` nodes in
+    the DOM. Keyboard: ArrowDown on the trigger opens with `Cetak halaman` focused, then Unduh PDF
+    → Cetak Pesanan → Unduh (XLSX) → wraps to Cetak halaman; ArrowUp wraps back; End / Home;
+    **Tab** closes and lands on `Ubah` (the next button), Shift+Tab from the closed trigger lands
+    on `Kembali`; ArrowUp on the trigger opens with the LAST item focused; **Escape** closes,
+    focus back on `Cetak`, `aria-expanded` "false"; Enter on the trigger opens (4 items), Enter on
+    an item activates and closes. Mouse: outside click closes, second click on the trigger
+    closes. Actions: `Cetak halaman` → `window.print` called once, menu closed, focus on the
+    trigger; `Unduh PDF` → download `po-PO-2026-IX-0005.pdf`, trigger `disabled` + `.spin` during
+    the fetch, label + chevron restored after; `Cetak Pesanan Pembelian` → new tab `blob:…` titled
+    `SURAT PESANAN PEMBELIAN (PURCHASE ORDER)`; `Unduh … (XLSX)` → `order-pembelian-PO-2026-IX-0005.xlsx`.
+    Route change with the menu open → 0 menu nodes left, ArrowDown afterwards harmless. 390 px
+    touch: popup at left **8** / right 366 of 390 (first cut: left **−162** — hence the shove in
+    `open()`), item heights **42** px (`pointer: coarse`), bar still one row of 4. 800 px: popup
+    238–598, items 32 px. **0 `pageerror`** in every context.
+  - **Custom heads left as they were** (same probe, direktur): RFQ/2026/IX/0001 (`rfq.js`)
+    `['Muat ulang', 'Cetak Tabulasi Banding Penawaran']`; project (`project.js`) `['Kembali',
+    'Cetak', 'Galeri Foto', 'Cetak Data Proyek', 'Tutup proyek']`; PYR/2026/03/001 (`custom.js`
+    `pageHead`) `['Kembali', 'Cetak', 'Cetak Rekap Gaji']` — none carries a menu, all render, 0
+    errors. Generic screens: PR/2026/III/0002 `['Kembali', 'Cetak', 'Setujui', 'Tolak']`,
+    RAP/2026/0001 (approved) `['Kembali', 'Cetak']`, CTI leave request for direktur `['Kembali',
+    'Cetak', 'Setujui', 'Tolak']` with `details.action-note` still the LAST child of `.actions` and
+    the status strip still `.page-head`'s next sibling.
+  - Regressions (full run `S1 S2 S3 S4 S8 S11 S12 S13` on a fresh seed): **S1** 4 / 4; **S3** 11
+    klik, `toast_on_422` `['Periksa isian yang ditandai.']`, landing `#/d/procurement/purchase-orders/4`,
+    `PO/2026/IX/0004` (S2's probe PO takes 0003 now — the same number the Sesudah column had),
+    `detail_action_bar` `['Kembali', 'Cetak', 'Ubah', 'Ajukan']` (Sesudah 2 Sep: `['Kembali', 'Cetak
+    halaman', 'PDF', 'Ubah', 'Ajukan']`), `bar_after_submit` `['Kembali', 'Cetak']`, `Diajukan`,
+    15 665 ms; **S4** banner `Sesi Anda berakhir. Isian PO …`, modalVisible false, loginVisible
+    true, recoveryOffer true, 13 field / 3 baris restored, 8 klik; **S8** 5.23 / 5.47 / 5.29,
+    `smallest_font_px` 11; **S12** healthy 1 click no modal, blocked prompt + `Wajib diisi.` +
+    stored `qualification_override_reason`, 3 klik; **S13** 3 klik, payload `{"note": …}`,
+    `note_stored` true. **S11** failed inside that run (`tr:has-text('CTI/')` timeout) because
+    S2 had approved CTI/2026/VIII/0002 — the seed's queue tie-break put CTI first this time, as the
+    Phase 0 gate block documents — so it was re-run alone on a fresh seed: h1 `Tugas Saya`, 4 rows,
+    `leave_detail_bar` `['Kembali', 'Cetak', 'Setujui', 'Tolak']` (T2.3: `'Cetak halaman'` — the
+    leave-request house form now rides in the menu), status strip unchanged; **S7** on the same
+    seed unchanged (`Ditutup → green`, `Investigasi → amber`, …).
+  - No PHP touched → no PHPUnit / pint run for this task.
+- Notes:
+  - **The print catalogue was empty on every session since the initial commit (3b933f1).**
+    `api.js request()` unwraps `{ data }` and returns the array; `printcatalog.js loadPrintForms()`
+    then read `payload.data` on that array → `undefined` → `[]`. Measured 4 Sep 2026: `GET
+    core/print/forms` answers 23 entries for procurement, `loadPrintForms()` resolved to 0; the PO
+    bar showed `PDF` but never `Cetak Pesanan Pembelian` / `XLSX` — and the Sesudah column of
+    2 Sep (`S3 › detail_action_bar`) shows the same 5 buttons, so ASESMEN-UX §1.2's "8 tombol" was
+    read from the code, not seen. Fixed in this commit because T2.6's menu must contain "every
+    house form" and would otherwise contain none. Side effect, all honest: the catalogue's forms
+    now appear for the first time on every screen that asked for them — `Cetak RAP` on the RAP
+    detail, the leave-request form for direktur, `Cetak Rekap Gaji` on the payroll run,
+    `Cetak Tabulasi Banding Penawaran` on the RFQ, the row buttons on `noDetail` lists
+    (`list.js printRowButtons`). The seven schema-declared `printForms` were never affected.
+  - **A menu of one is a button**: `printMenu()` returns the old icon-only `Cetak halaman` button
+    when the document has no PDF and no house form the caller may print (tickets, and leave
+    requests for roles without `hr.view`) — a one-item menu is one extra click for no choice.
+    Everywhere else the trigger reads `Cetak` (innerText; the caret is an `aria-hidden` SVG, so
+    the harness sees `'Cetak'`, not `'Cetak ▾'`).
+  - **Only the first `.primary` survives** in the decision zone: schema.js gives `variant:
+    'primary'` to 26 actions and a few can show together (two asset actions without `when`);
+    schema order is lifecycle order, so the first keeps it. `Ubah` is never primary.
+  - **T2.3's panel stays a direct child of `.actions`, last** — `actionButtons()` still returns
+    `[...buttons, ...panels]`; `renderDetail` partitions by `details.action-note` so the
+    `flex-basis: 100%` / `:has(.action-note)` rules keep measuring what T2.3 measured, and the
+    harness's `explanation_under_title` (`.page-head`'s next sibling) is untouched. `.zone`
+    wrappers are the flex items of `.actions`, so every existing selector (`.page-head .actions
+    button:has-text(…)`, `[title='Kembali']`, `details.action-note > summary`) resolves as before.
+  - **Popup built on open, removed on close** — `.page-head .actions button` counts what can be
+    pressed, which is what the gate counts; one menu open app-wide (module-level `openMenu`, the
+    combobox.js pattern); `withBusy` spins on the TRIGGER because the chosen item is gone with the
+    popup; `item.onClick` runs before the close and without `await` so `openPrintable`'s
+    `window.open` still sits on the click.
+  - Copy: menu items carry their verb (`Cetak halaman`, `Unduh PDF`, `Cetak <formulir>`, `Unduh
+    <formulir> (XLSX)`); the stand-alone XLSX button on custom screens keeps its `XLSX` label
+    (`short`) so those bars are byte-identical to before.
+  - Deliberately not touched: `rfq.js`, `project.js`, `custom.js pageHead`, `tender.js`, `k3.js`,
+    `defect.js` — each composes its own head, each still works (probe above); their conversion to
+    `printMenu()` is a one-liner each once someone decides whether `Muat ulang` belongs in the
+    navigation zone. `printcatalog.js printButtonsFor/printablePath/xlsxPath` unchanged.
+  - Harness: S2's `po_bar` creates one draft PO via the API and submits it AFTER the approval
+    loop (so `_clicks`, `api_calls_detail_to_back` and `approve_total_ms` stay the T2.3 numbers),
+    reads it as procurement in a separate browser context (the direktur session in `pg` is not
+    disturbed), then as direktur. Consequences on a full run: S3's PO number shifts by one (0003 →
+    0004), the inbox grows by one (the newest submit — S13 still takes the document S2's
+    "Berikutnya" pointed at), S11 shows 5 rows.
+  - T2.3's PROGRESS placeholder now reads ffa87b3.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t26.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t26.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t26.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    before-runs `ERP_DB=<scratch>/ux/t26.sqlite UXTEST_OUT=<scratch>/ux/out-t26-before … S2`
+    (ffa87b3 as shipped) and `… out-t26-before2 … S2` (ffa87b3 + the catalogue fix only, re-seeded);
+    after: `… out-t26 … S2`, probe `UXTEST_OUT=<scratch>/ux/out-t26-probe2 python t26-probe.py`,
+    full run `… out-t26-full … S1 S2 S3 S4 S8 S11 S12 S13` (re-seeded), then `… out-t26-s11 … S11 S7`
+    (re-seeded). Server stopped by PID (`pgrep -f '^php -S 127.0.0.1:8000'`);
+    `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).

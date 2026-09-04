@@ -147,11 +147,75 @@ def s2(pg):
     pg.screenshot(path=f"{OUT}/s2-after.png")
     click(pg, ".page-head .actions button[title='Kembali']")
     pg.wait_for_timeout(2500)
+    api_calls = len(reqs)
+    # T2.6 — bilah aksi pada PO: dokumen dengan keluaran terbanyak (PDF dompdf + formulir rumah
+    # Pesanan Pembelian + XLSX-nya). Diukur SESUDAH putaran persetujuan di atas dan dengan klik yang
+    # dihitung terpisah (po_bar.clicks), supaya _clicks dan api_calls_detail_to_back tetap angka
+    # putaran itu (T2.3: 2 klik per dokumen).
+    po_bar = po_action_bar(pg)
     return {"detail_ms": t_detail, "approve_total_ms": t_done, "action_bar": bar, "ubah_visible_on_submitted": has_ubah,
             "status_badge": status_text, "explanation_under_title": explain, "approve_modal_opened": modal_opened,
             "approve_modal_fields": modal_fields, "approve_modal_buttons": modal_buttons, "approve_note_inline": note_inline,
             "toast": toast, "after": after,
-            "api_calls_detail_to_back": len(reqs), "api_calls_sample": reqs[:40]}
+            "api_calls_detail_to_back": api_calls, "api_calls_sample": reqs[:40], "po_bar": po_bar}
+
+BAR = "() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))"
+
+def read_action_bar(page, shot):
+    """Tombol di .page-head .actions (rumus yang sama dengan action_bar S2), tombol .primary, isi tiap
+    zona bila bilahnya berzona, lalu menu Cetak bila ada: dibuka dengan satu klik (dihitung di
+    `clicks`), isinya dibaca, Escape harus menutupnya dan mengembalikan fokus ke tombolnya."""
+    out = {"action_bar": page.evaluate(BAR),
+           "primary": page.evaluate("() => [...document.querySelectorAll('.page-head .actions button.primary')].map(b => b.innerText.trim() || b.title)"),
+           "zones": page.evaluate("() => [...document.querySelectorAll('.page-head .actions .zone')].map(z => [...z.querySelectorAll('button')].map(b => b.innerText.trim() || b.title))"),
+           "clicks": 0}
+    page.screenshot(path=f"{OUT}/{shot}.png")
+    trigger = ".page-head .actions button[aria-haspopup='menu']"
+    if page.locator(trigger).count():
+        page.click(trigger); out["clicks"] += 1; page.wait_for_timeout(250)
+        out["menu"] = page.evaluate("""() => { const m=document.querySelector('[role=menu]'); if (!m) return null;
+            const items=[...m.querySelectorAll('[role=menuitem]')];
+            return { items: items.map(b => b.innerText.trim()), focused_first: document.activeElement === items[0],
+                     expanded: document.querySelector(".page-head .actions button[aria-haspopup='menu']").getAttribute('aria-expanded') } }""")
+        page.screenshot(path=f"{OUT}/{shot}-menu.png")
+        page.keyboard.press("Escape"); page.wait_for_timeout(150)
+        out["after_escape"] = page.evaluate("""() => ({ menu_open: !!document.querySelector('[role=menu]'),
+            focus_on_trigger: document.activeElement === document.querySelector(".page-head .actions button[aria-haspopup='menu']"),
+            bar_buttons: document.querySelectorAll('.page-head .actions button').length })""")
+    return out
+
+def po_action_bar(pg):
+    """T2.6: PO dibuat lewat API sebagai procurement, lalu dibaca DUA kali. (a) Sebagai procurement pada
+    drafnya, di konteks peramban terpisah supaya sesi direktur di `pg` tidak tersentuh: bilah terpenuh —
+    2 Sep 2026: Kembali · Cetak halaman · PDF · Cetak Pesanan Pembelian · XLSX · Ubah · Ajukan = 7
+    tombol setara. (b) Diajukan lewat API (mendarat paling akhir di antrean — pengajuan terbaru — jadi
+    tidak menggeser dokumen yang diambil S2/S13) dan dibuka sebagai direktur yang masih masuk — prc.view
+    ada padanya, jadi formulir rumahnya ikut: Kembali · Cetak halaman · PDF · Cetak Pesanan Pembelian ·
+    XLSX · Setujui · Tolak, 7 lagi. Catatan: sebelum katalog cetak diperbaiki (T2.6, printcatalog.js
+    membaca .data pada array yang sudah dibuka api.get) kedua bilah itu 5 — tombol formulir rumah dan
+    XLSX tidak pernah tergambar, kolom "Sesudah" 2 Sep 2026 pun tanpa keduanya."""
+    tok = token_for("procurement@nusantara.test")
+    s, d = api("procurement/vendors?status=active&per_page=20", tok)
+    vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
+    s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+               "items": [{"description": "UJI-UX bilah aksi", "qty": 1, "unit": "unit", "unit_price": 2500000}]})
+    po_id, po_code = d["data"]["id"], d["data"]["code"]
+    out = {"po": po_code}
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        p2 = ctx.new_page()
+        login(p2, "procurement@nusantara.test")
+        p2.goto(BASE + f"#/d/procurement/purchase-orders/{po_id}")
+        p2.wait_for_selector(f".page-head h1:has-text('{po_code}')", timeout=15000); p2.wait_for_timeout(800)
+        out["as_procurement_draft"] = read_action_bar(p2, "s2-po-bar-procurement")
+    finally:
+        ctx.close()
+    s, d = api(f"procurement/purchase-orders/{po_id}/submit", tok, "POST", {})
+    out["submit_http"] = s
+    pg.goto(BASE + f"#/d/procurement/purchase-orders/{po_id}")
+    pg.wait_for_selector(f".page-head h1:has-text('{po_code}')", timeout=15000); pg.wait_for_timeout(800)
+    out["as_direktur_submitted"] = read_action_bar(pg, "s2-po-bar-direktur")
+    return out
 
 @scenario("S3_create_po")
 def s3(pg):

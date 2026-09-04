@@ -53,7 +53,18 @@ export function loadPrintForms() {
 
   inflight = api.get('core/print/forms')
     .then((payload) => {
-      const answer = (payload && payload.data) || [];
+      /*
+       * api.get() sudah membuka amplop { data } (api.js request()), jadi yang
+       * tiba di sini adalah ARRAY-nya — `payload.data` pada array adalah
+       * undefined, dan katalog ini kosong pada setiap sesi sejak berkas ini
+       * lahir: tidak satu pun tombol formulir rumah dari katalog pernah
+       * tergambar. Diukur 4 Sep 2026: GET core/print/forms menjawab 23 entri
+       * untuk procurement, loadPrintForms() memulangkan 0; bilah PO memuat
+       * PDF tanpa Pesanan Pembelian, dan kolom "Sesudah" 2 Sep 2026 (S3
+       * detail_action_bar) sama. Bentuk lama tetap diterima untuk jawaban
+       * yang belum dibuka.
+       */
+      const answer = Array.isArray(payload) ? payload : ((payload && payload.data) || []);
 
       /*
        * Berangkat pada sesi lain: jawabannya dibuang, bukan dipasang.

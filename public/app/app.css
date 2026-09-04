@@ -372,6 +372,42 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .page-head .actions:has(.action-note[open]) { min-width: min(100%, 440px); }
 @media (pointer: coarse) { .action-note > summary { min-height: 36px; } }
 
+/* Zonasi bilah aksi dokumen (detail.js renderDetail, T2.6): kiri navigasi
+   (Kembali), tengah keluaran (satu "Cetak ▾"), kanan keputusan (Ubah ·
+   Ajukan/Setujui/Tolak). Diukur 4 Sep 2026: PO draf 7 tombol setara di satu
+   baris, keputusan di sebelah "Cetak halaman"; kini 4 dengan sekat tipis di
+   antara zona. Zona kosong tidak digambar, jadi tidak ada sekat menggantung;
+   .actions tetap flex, jadi panel catatan (di atas) dan pembungkus baris
+   tetap bekerja. */
+.page-head .actions .zone { display: flex; gap: 8px; flex-wrap: wrap; }
+.page-head .actions .zone + .zone { padding-left: 12px; border-left: 1px solid var(--border-strong); }
+
+/* Tombol bermenu (ui.js menuButton) — "Cetak ▾" di bilah aksi dokumen (T2.6).
+   Popup absolut di bawah tombolnya, rapat kanan: bilah aksi berlabuh kanan
+   (margin-left: auto), jadi ruang kosongnya ada di kiri. Popup hanya ada di
+   DOM selagi terbuka — tidak ada aturan [hidden] di sini, sengaja. z-index di
+   atas th sticky (1), di bawah overlay (60). */
+.menu-wrap { position: relative; display: inline-flex; }
+.menu-trigger svg:last-child { margin-left: -2px; opacity: .7; }
+.menu-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 25;
+  min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+}
+.menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text);
+  font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--surface-3); }
+.menu-item:focus-visible { outline-offset: -2px; }
+.menu-item:disabled { opacity: .5; cursor: not-allowed; }
+.menu-item svg { flex: none; color: var(--muted); }
+/* Sasaran jempol, seperti .combo-opt dan .btn.sm di bawah. */
+@media (pointer: coarse) { .menu-item { min-height: 42px; } }
+
 /* --------------------------------------------------------------- buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
