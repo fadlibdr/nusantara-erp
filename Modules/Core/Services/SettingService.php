@@ -316,6 +316,16 @@ class SettingService
                         'type' => 'currency',
                     ],
                     [
+                        'key' => 'approvals.aging_days',
+                        'label' => 'Ingatkan penyetuju setelah (hari)',
+                        'type' => 'integer',
+                        'min' => 1,
+                        'max' => 60,
+                        'help' => 'Dokumen yang menunggu persetujuan selama ini diingatkan lagi ke semua pemegang izin '
+                            .'approve-nya (erp:approval-watch, tiap pagi); dua kali lipatnya, direktur ikut diberi tahu. '
+                            .'Diukur 4 Sep 2026: pembayaran keluar menunggu 33 hari tanpa pengingat.',
+                    ],
+                    [
                         'key' => 'approvals.segregation_of_duties',
                         'label' => 'Wajib pemisahan tugas (maker-checker)',
                         'type' => 'boolean',

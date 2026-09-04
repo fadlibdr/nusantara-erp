@@ -6,6 +6,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Core\Console\Commands\ApprovalWatchCommand;
 use Modules\Core\Console\Commands\BackupWatchCommand;
 use Modules\Core\Console\Commands\DeadlineWatchCommand;
 use Modules\Core\Console\Commands\HardenDemoLoginsCommand;
@@ -94,7 +95,7 @@ class CoreServiceProvider extends ServiceProvider
 
         Event::listen(DocumentTransitioned::class, SendApprovalNotifications::class);
 
-        $this->commands([BackupWatchCommand::class, DeadlineWatchCommand::class, HardenDemoLoginsCommand::class]);
+        $this->commands([BackupWatchCommand::class, DeadlineWatchCommand::class, ApprovalWatchCommand::class, HardenDemoLoginsCommand::class]);
 
         // After the 02:15 backup and before the workday: whoever opens the ERP
         // at nine sees "offsite backup stale" the same morning it went stale.
@@ -106,6 +107,9 @@ class CoreServiceProvider extends ServiceProvider
             // date that can slide. /etc/cron.d/erp1 already runs schedule:run
             // every minute; no cron change is needed for this line to fire.
             $schedule->command('erp:deadline-watch')->dailyAt('08:30')->timezone('Asia/Jakarta');
+            // 08:45: antrean persetujuan yang menua — tanggal yang tidak
+            // punya kolom, jadi tidak bisa hidup di WatchedDeadlines.
+            $schedule->command('erp:approval-watch')->dailyAt('08:45')->timezone('Asia/Jakarta');
         });
 
         $this->registerAuditObservers();
