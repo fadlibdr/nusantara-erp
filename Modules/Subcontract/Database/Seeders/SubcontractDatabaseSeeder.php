@@ -66,14 +66,18 @@ class SubcontractDatabaseSeeder extends Seeder
             ['line_no' => 2, 'wbs_code' => 'A.2', 'description' => 'Plesteran + acian dinding', 'qty' => 4800, 'unit' => 'm2', 'unit_rate' => 32000],
         ];
 
-        $contract->items()->delete();
-
+        // TIDAK hapus-bangun seperti kembaran SPK-nya: begitu OPM/2026/III/0001
+        // ada, baris ini dirujuk scm_labor_claim_items.labor_contract_item_id
+        // (FK, tanpa cascade) — menghapusnya memicu 23000 pada `db:seed` kedua,
+        // dan id baru berarti roll-forward opname menunjuk baris mati (migrasi
+        // scm_labor_contracts menjelaskan mengapa kunci id baris andalannya).
+        // Konvergen di tempat, dikunci pada line_no.
         $value = 0.0;
 
         foreach ($lines as $line) {
             $line['amount'] = round($line['qty'] * $line['unit_rate'], 2);
             $value = round($value + $line['amount'], 2);
-            $contract->items()->create($line);
+            $contract->items()->updateOrCreate(['line_no' => $line['line_no']], $line);
         }
 
         // 2400x45.000 + 4800x32.000 = 108.000.000 + 153.600.000 = 261.600.000
@@ -145,10 +149,13 @@ class SubcontractDatabaseSeeder extends Seeder
             ],
         );
 
-        $claim->items()->delete();
-
+        // Baris opname APPROVED tidak pernah dihapus (aturan yang sama dengan
+        // rekeyMeasurementLines): konvergen per baris kontrak, id-nya tetap.
         foreach ($lines as $line) {
-            $claim->items()->create($line);
+            $claim->items()->updateOrCreate(
+                ['labor_contract_item_id' => $line['labor_contract_item_id']],
+                $line,
+            );
         }
 
         $this->writeApprovalTrail($claim, [
