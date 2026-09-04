@@ -75,14 +75,23 @@ export async function runAction(action, row, def, { trigger, onDone } = {}) {
   /*
    * Alur konfirmasi-lanjut untuk AKSI — cermin def.form.confirmResubmit di
    * form.js (GRN harga 0, temuan #72): server menolak 422 pada kunci galat
-   * yang cocok `test` sampai payload membawa `flag`. Ajukan PO memakai DUA
-   * aturan (kendali harga #34: items.N.unit_price, lalu gate anggaran #33:
-   * budget) yang bisa muncul BERURUTAN, jadi mesinnya berputar — satu putaran
-   * mengonfirmasi satu jenis peringatan, lalu mencoba lagi. Hanya berjalan
-   * bila SEMUA kunci galat cocok satu aturan: galat campuran berarti ada yang
-   * tetap ditolak walau dikonfirmasi, jadi ditampilkan biasa saja.
+   * yang cocok `test` sampai payload membawa jawabannya. Dua bentuk jawaban:
+   * `flag` (boolean — dialog Ya/Batal) dan `promptField` (satu isian wajib,
+   * dikirim di bawah kuncinya sendiri). Bentuk kedua lahir untuk alasan
+   * override prakualifikasi PO (#35): sebelumnya Ajukan membawa `fields` dan
+   * membuka modal alasan pada SETIAP pengajuan, padahal alasannya hanya
+   * berarti bila server menolak — diukur 2 Sep 2026 (HASIL-UJI §1, S3):
+   * 12 klik buat→ajukan, dua di antaranya modal yang dikosongkan untuk
+   * vendor sehat. Ajukan PO kini memakai TIGA aturan (prakualifikasi #35:
+   * qualification_override_reason, kendali harga #34: items.N.unit_price,
+   * gate anggaran #33: budget) yang bisa muncul BERURUTAN, jadi mesinnya
+   * berputar — satu putaran menjawab satu jenis penolakan, lalu mencoba
+   * lagi. Hanya berjalan bila SEMUA kunci galat cocok satu aturan: galat
+   * campuran berarti ada yang tetap ditolak walau dijawab, jadi ditampilkan
+   * biasa saja.
    */
   const rules = [].concat(action.confirmResubmit || []);
+  const answerKey = (rule) => (rule.promptField ? rule.promptField.key : rule.flag);
 
   const run = async () => {
     for (let attempt = 0; attempt <= rules.length; attempt += 1) {
@@ -90,17 +99,25 @@ export async function runAction(action, row, def, { trigger, onDone } = {}) {
         return await call();
       } catch (error) {
         const keys = error.errors ? Object.keys(error.errors) : [];
-        const rule = rules.find((candidate) => !payload[candidate.flag]
+        const rule = rules.find((candidate) => payload[answerKey(candidate)] === undefined
           && keys.length && keys.every((key) => candidate.test.test(key)));
         if (!rule) throw error;
 
-        const ok = await confirmDialog({
-          title: rule.title,
-          message: keys.map((key) => [].concat(error.errors[key])[0]).join(' '),
-          confirmLabel: rule.confirmLabel,
-        });
-        if (!ok) return;
-        payload[rule.flag] = true;
+        // Pesan server apa adanya: dialah yang menyebut vendor dan penyebab
+        // blokirnya, atau angka harga/anggaran yang diminta dikonfirmasi.
+        const message = keys.map((key) => [].concat(error.errors[key])[0]).join(' ');
+
+        if (rule.promptField) {
+          const values = await promptFields(rule.title, [rule.promptField], {
+            submitLabel: rule.confirmLabel, message,
+          });
+          if (values === null) return;
+          payload[rule.promptField.key] = values[rule.promptField.key];
+        } else {
+          const ok = await confirmDialog({ title: rule.title, message, confirmLabel: rule.confirmLabel });
+          if (!ok) return;
+          payload[rule.flag] = true;
+        }
       }
     }
   };

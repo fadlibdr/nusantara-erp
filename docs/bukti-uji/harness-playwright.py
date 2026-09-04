@@ -440,6 +440,72 @@ def s11(pg):
     pg.screenshot(path=f"{OUT}/s11-leave-detail.png")
     return out
 
+@scenario("S12_po_override")
+def s12(pg):
+    """Ajukan PO (T2.4): vendor sehat = berapa klik tanpa modal; vendor yang TERBLOKIR di antara draf dan
+    pengajuan (dinonaktifkan langsung di sqlite, seperti S4 mencabut token) — apa yang tampil dari 422 server,
+    apakah isian kosong ditahan, dan apakah alasannya tersimpan di PO."""
+    tok = token_for("procurement@nusantara.test")
+    s, d = api("procurement/vendors?status=active&per_page=20", tok)
+    # Pemasok biasa: subkon/mandor tunduk klausul K3L/pakta (P0-E) — bukan yang diukur di sini.
+    vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
+    BADGE = "() => (document.querySelector('.page-head .badge')||{}).innerText"
+    def draft_po(tag):
+        s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+                   "items": [{"description": f"UJI-UX {tag}", "qty": 1, "unit": "unit", "unit_price": 1500000}]})
+        return d["data"]["id"], d["data"]["code"]
+    def open_po(po_id):
+        pg.goto(BASE + f"#/d/procurement/purchase-orders/{po_id}")
+        pg.wait_for_selector(".page-head .actions button:has-text('Ajukan')", timeout=15000); pg.wait_for_timeout(800)
+    out = {"vendor": vendor.get("code")}
+    login(pg, "procurement@nusantara.test")
+    # 1) vendor sehat: Ajukan — modal atau langsung?
+    healthy_id, healthy_code = draft_po("vendor sehat")
+    open_po(healthy_id); CLICKS[0] = 0
+    click(pg, ".page-head .actions button:has-text('Ajukan')")
+    pg.wait_for_timeout(1200)
+    modal_opened = bool(pg.locator(".modal").count())
+    if modal_opened:
+        click(pg, ".modal .modal-foot button.primary")
+    pg.wait_for_selector(".toast", timeout=15000); pg.wait_for_timeout(600)
+    out["healthy"] = {"po": healthy_code, "modal_opened": modal_opened, "submit_clicks": CLICKS[0],
+                      "toast": toasts(pg), "status": pg.evaluate(BADGE)}
+    # 2) vendor terblokir SETELAH draf dibuat (gate berdiri saat mengajukan, bukan saat draf)
+    blocked_id, blocked_code = draft_po("vendor terblokir")
+    con = sqlite3.connect(DB); con.execute("UPDATE prc_vendors SET status='inactive' WHERE id=?", (vendor["id"],)); con.commit(); con.close()
+    try:
+        open_po(blocked_id); CLICKS[0] = 0
+        click(pg, ".page-head .actions button:has-text('Ajukan')")
+        pg.wait_for_selector(".modal", timeout=10000); pg.wait_for_timeout(500)
+        out["prompt"] = pg.evaluate("""() => { const m=document.querySelector('.modal'); return {
+            title: (m.querySelector('.modal-head h2')||{}).innerText || null,
+            message: (m.querySelector('.modal-body p')||{}).innerText || null,
+            fields: [...m.querySelectorAll('.field > label')].map(l=>l.innerText.trim()),
+            help: [...m.querySelectorAll('.field .help')].map(h=>h.innerText.trim()),
+            buttons: [...m.querySelectorAll('.modal-foot button')].map(b=>b.innerText.trim()) } }""")
+        pg.screenshot(path=f"{OUT}/s12-prompt.png")
+        # kosong -> ditahan di klien (Wajib diisi.), modal tetap terbuka, tidak ada permintaan
+        click(pg, ".modal .modal-foot button.primary"); pg.wait_for_timeout(600)
+        out["empty_reason"] = {"errors": pg.evaluate("() => [...document.querySelectorAll('.modal .field .err')].map(e=>e.innerText.trim())"),
+                               "modal_open": bool(pg.locator(".modal").count()), "toasts": toasts(pg)}
+        pg.fill(".modal textarea", "UJI-UX — pembelian darurat, vendor tunggal pemegang lisensi")
+        click(pg, ".modal .modal-foot button.primary")
+        pg.wait_for_selector(".toast", timeout=15000); pg.wait_for_timeout(800)
+        out["blocked"] = {"po": blocked_code, "submit_clicks": CLICKS[0], "toast": toasts(pg), "status": pg.evaluate(BADGE),
+                          "modal_open": bool(pg.locator(".modal").count())}
+        pg.screenshot(path=f"{OUT}/s12-after-override.png")
+        s, fresh = api(f"procurement/purchase-orders/{blocked_id}", tok)
+        out["stored"] = {"status": fresh["data"].get("status"), "qualification_override_reason": fresh["data"].get("qualification_override_reason")}
+    except Exception as e:
+        # Alur lama (modal opsional yang tertutup saat dikirim kosong) berhenti di sini; catat
+        # apa yang terlihat alih-alih membuang seluruh hasil skenario.
+        out["blocked"] = {"ERROR": str(e).split("\n")[0][:160], "submit_clicks": CLICKS[0], "toasts": toasts(pg),
+                          "modal_open": bool(pg.locator(".modal").count()), "status": pg.evaluate(BADGE)}
+        pg.screenshot(path=f"{OUT}/s12-blocked-failed.png")
+    finally:
+        con = sqlite3.connect(DB); con.execute("UPDATE prc_vendors SET status='active' WHERE id=?", (vendor["id"],)); con.commit(); con.close()
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -450,7 +516,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

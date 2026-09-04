@@ -2238,28 +2238,42 @@ export const RESOURCES = {
       }],
     },
     actions: [
-      // Ajukan milik PO membawa satu field opsional: alasan override
-      // prakualifikasi. Server menolak 422 bila vendor terblokir (nonaktif /
-      // dokumen wajib kedaluwarsa) dan alasannya kosong; alasan yang terpakai
-      // tersimpan di qualification_override_reason PO sebagai jejak audit.
+      // Ajukan milik PO tidak membawa field: alasan override prakualifikasi
+      // diminta SESUDAH server menolak (aturan pertama di bawah), bukan di
+      // modal pada setiap pengajuan. Dulu Ajukan selalu membuka modal
+      // "Alasan override prakualifikasi" yang opsional — diukur 2 Sep 2026
+      // (HASIL-UJI §1, S3): 12 klik buat→ajukan PO 2 baris, dua di antaranya
+      // Ajukan + Ajukan di modal yang dikosongkan karena vendornya sehat.
+      // Alasan yang terpakai tetap tersimpan di qualification_override_reason
+      // PO sebagai jejak audit (PoQualificationOverrideAuditTest).
       ...approvalActions('prc').filter((action) => action.key !== 'submit'),
       {
         key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
         perm: 'prc.update', when: DRAFT_OR_REJECTED, variant: 'primary',
-        fields: [{
-          key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
-          type: 'textarea',
-          help: 'Kosongkan bila vendor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap harus jalan (mis. pembelian darurat ke pemegang lisensi tunggal).',
-        }],
         /*
-         * Dua peringatan pola confirm-resubmit (temuan #72) bisa muncul saat
-         * mengajukan, BERURUTAN: kendali harga #34 (items.N.unit_price) lalu
-         * gate anggaran #33 (budget). actions.js mengonfirmasi satu jenis per
-         * putaran dan mengulang panggilannya dengan flag terkait; pesan dialog
-         * adalah pesan server apa adanya — pesan itulah yang menyebut angka
-         * harga/anggaran yang dikonfirmasi.
+         * Tiga penolakan pola confirm-resubmit (temuan #72) bisa muncul saat
+         * mengajukan, BERURUTAN dalam urutan server: gate prakualifikasi #35
+         * (qualification_override_reason — vendor nonaktif / dokumen wajib
+         * kedaluwarsa DI ANTARA draf dan pengajuan; PO ke vendor terblokir
+         * tidak pernah lahir sebagai draf), lalu kendali harga #34
+         * (items.N.unit_price), lalu gate anggaran #33 (budget). actions.js
+         * menjawab satu jenis per putaran dan mengulang panggilannya dengan
+         * jawabannya — flag untuk dua yang terakhir, isian wajib
+         * (promptField) untuk yang pertama; pesan dialog adalah pesan server
+         * apa adanya — pesan itulah yang menyebut vendor dan penyebab
+         * blokirnya, atau angka harga/anggaran yang dikonfirmasi.
          */
         confirmResubmit: [
+          {
+            promptField: {
+              key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
+              type: 'textarea', required: true,
+              help: 'Tersimpan di PO sebagai jejak audit. Sebutkan mengapa PO tetap harus jalan (mis. pembelian darurat ke pemegang lisensi tunggal).',
+            },
+            test: /^qualification_override_reason$/,
+            title: 'Vendor belum lolos prakualifikasi — tetap ajukan?',
+            confirmLabel: 'Ajukan dengan alasan ini',
+          },
           {
             flag: 'confirm_price_deviation',
             test: /^items\.\d+\.unit_price$/,

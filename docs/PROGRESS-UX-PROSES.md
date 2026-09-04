@@ -570,7 +570,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
 
 ### T2.7 — Layanan mandiri kata sandi: `PUT iam/me/password`, menu "Ganti kata sandi", "Lupa kata sandi" hanya bila surat sampai
-- Commit: (this commit)
+- Commit: 7668fc4 (placeholder `(this commit)` replaced in the T2.4 commit — one task, one commit)
 - Files: `Modules/Iam/Http/Controllers/AuthController.php` (`changePassword`, `passwordHelp`,
   `forgotPassword`, `resetPassword`), `Modules/Iam/Http/Requests/ChangePasswordRequest.php`,
   `ForgotPasswordRequest.php`, `ResetPasswordRequest.php` (new), `Modules/Iam/Support/PasswordHelp.php`
@@ -694,3 +694,80 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     scratch scripts `<scratchpad>/ux/t27-reset.py`, `t27-smtp.py`, `t27-console2.py`. Server stopped
     after each run (kill by PID from `pgrep -f '^php -S 127.0.0.1:8000'` — the `^` anchor skips the
     tool's own wrapper shell); `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
+
+### T2.4 — Ajukan PO: alasan override prakualifikasi lewat confirm-resubmit, bukan modal pada setiap pengajuan
+- Commit: (this commit)
+- Files: `public/app/js/schema.js` (PO `submit` action: `fields` removed, first `confirmResubmit`
+  rule with `promptField`), `public/app/js/views/actions.js` (`confirmResubmit` engine: `promptField`
+  next to `flag`), `public/app/js/views/form.js` (`promptFields` gains a `message` option),
+  `Modules/Procurement/Http/Controllers/PurchaseOrderController.php` (`submit()`: the
+  prequalification 422 now carries `errors.qualification_override_reason`, message unchanged),
+  `tests/Feature/Procurement/VendorQualificationTest.php` (+2 tests),
+  `docs/bukti-uji/harness-playwright.py` (new scenario `S12_po_override`),
+  `docs/bukti-uji/s12-override-prompt-t2.4.png`
+- Acceptance:
+  - Healthy vendor = **1 click**: harness **S12** `healthy.submit_clicks` **1**, `modal_opened`
+    **false**, toast `PO/2026/IX/0009 diajukan · menunggu persetujuan.`, badge `Diajukan`
+    (before, same harness on 7668fc4: **2** clicks, `modal_opened` true, modal titled `Ajukan`
+    with the optional field and no server sentence). Harness **S3** create→submit PO 2 lines:
+    **11 klik** (gate / T2.2: 12; Sebelum 2 Sep: 13), `submit_modal_fields` **absent** (was
+    `['Alasan override prakualifikasi']`), `PO/2026/IX/0008`, `Diajukan`, `toast_on_422`
+    `['Periksa isian yang ditandai.']`, landing `#/d/procurement/purchase-orders/8`, 15 678 ms.
+  - Blocked vendor → prompt with the server message → resubmit succeeds: **S12** (VND-0001 set
+    `inactive` in sqlite AFTER the draft was created — the gate stands at submit, a PO to a blocked
+    vendor is never born as a draft): prompt title `Vendor belum lolos prakualifikasi — tetap
+    ajukan?`, message = the server's 422 sentence verbatim (`Vendor VND-0001 (PT Semen Distribusi
+    Utama) belum lolos prakualifikasi: vendor berstatus nonaktif. …`), field
+    `Alasan override prakualifikasi*`, help `Tersimpan di PO sebagai jejak audit. …`, buttons
+    `Batal · Ajukan dengan alasan ini`; empty reason → `Wajib diisi.` with the dialog still open
+    and no request; typed reason → toast `PO/2026/IX/0010 diajukan · menunggu persetujuan.`,
+    badge `Diajukan`, `GET` shows `status: submitted` and
+    `qualification_override_reason: "UJI-UX — pembelian darurat, vendor tunggal pemegang lisensi"`;
+    3 clicks including the deliberate empty attempt (2 without it). Before (7668fc4): the optional
+    modal closed on an empty submit, the refusal flashed as a toast, PO stayed `Draf`, and the
+    harness could not find a field to type the reason into (`Page.fill: Timeout`).
+  - `vendor/bin/phpunit --no-progress tests/Feature/Procurement` → **OK (165 tests, 651
+    assertions)** (was 163 / 643 without the two new tests); `PoQualificationOverrideAuditTest` green, server tests unchanged.
+    The new key test was red first (`errors.qualification_override_reason` null on 7668fc4).
+  - Regression **S2** (`promptFields` is shared with the approve dialog): 5 klik, modal fields
+    `['Catatan persetujuan']`, buttons `['Batal', 'Setujui']`, toast `RAP/2026/0001 disetujui.`,
+    Berikutnya opened `PR/2026/III/0002` — as the gate.
+  - `vendor/bin/pint --test --dirty` → passed.
+- Notes:
+  - **The key the entry names was not on the wire.** `submit()` answered the prequalification
+    refusal with `catch (LogicException) → error($message)`: a bare `{message}`, no `errors` map —
+    the confirm-resubmit engine matches on `errors` keys, and matching the sentence's prose instead
+    would leave NO way to enter a reason the day someone rewords it (the `fields` modal is gone).
+    So the entry's file list gained the controller: one `catch (VendorNotQualifiedException)` ahead
+    of the generic catch, answering the same message plus
+    `errors: {qualification_override_reason: [message]}`. Additive — `message` is unchanged, so
+    every existing assertion and API client reads what it read before; the pair of tests pins that
+    the key appears for the prequalification refusal and for NO other submit refusal (a status
+    refusal would otherwise be answered with an override prompt for something that cannot be
+    overridden).
+  - `promptField` reuses `promptFields()` (one dialog primitive, `Wajib diisi.` and whitespace
+    handling included — the textarea `read()` returns null for blanks, so a reason of spaces never
+    reaches the server) with a new `message` option that renders the server sentence above the
+    field in confirmDialog's paragraph style; the engine's "already answered" guard is
+    `payload[key] === undefined` for both shapes, same semantics as the old `!payload[flag]`.
+  - The server sentence still ends with `Sertakan alasan override (qualification_override_reason)
+    bila tetap harus diajukan.` and the dialog shows it verbatim — the entry's principle for the
+    two existing rules ("pesan dialog adalah pesan server apa adanya"). The raw-key trailer exists
+    for API clients (VendorNotQualifiedException docblock); now that the key is structured it is
+    redundant on screen — a copy tidy-up candidate, not this entry's Steps.
+  - The same modal-on-every-submit pattern remains on SPK (`schema.js` work-orders `submit`,
+    `WorkOrderController::submit`), subcontracts and labor contracts (`fields` with
+    `qualification_override_reason`). The entry says PO; those would need the same one-line
+    server key each — noted, not done.
+  - Harness: S12 flips the vendor in the served sqlite (the S4 pattern) and restores it in
+    `finally`, so later scenarios are unaffected; on the old flow it records the failure inside
+    its own result instead of losing the healthy-path numbers. It creates two POs per run.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t24.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t24.sqlite php artisan migrate:fresh --seed --force`; config not
+    cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t24.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    before-run with the five app/test files stashed:
+    `ERP_DB=<scratch>/ux/t24.sqlite UXTEST_OUT=<scratch>/ux/out-t24-before /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S3 S12`;
+    after-run `… UXTEST_OUT=<scratch>/ux/out-t24 … S3 S12 S2`. Server stopped by PID
+    (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
+    no `-wal`/`-shm`).

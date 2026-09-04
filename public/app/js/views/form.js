@@ -1088,13 +1088,26 @@ function pickRowsDialog({ title, rows, columns, note, hint, confirmLabel = 'Tamb
   });
 }
 
-/** Ad-hoc modal form for lifecycle actions (approve note, assign, faktur…). */
-export async function promptFields(title, fields, { submitLabel = 'Kirim' } = {}) {
+/**
+ * Ad-hoc modal form for lifecycle actions (approve note, assign, faktur…).
+ *
+ * `message` is the sentence the fields answer, shown above them — the
+ * confirm-resubmit engine in actions.js passes the server's 422 text here
+ * (which vendor, which mandatory document expired since when) so the operator
+ * reads the refusal in the same dialog that asks for the override reason,
+ * instead of typing a reason for a refusal that only flashed by as a toast.
+ */
+export async function promptFields(title, fields, { submitLabel = 'Kirim', message } = {}) {
   await preload(fields.map((spec) => spec.lookup));
 
   return new Promise((resolve) => {
     const controls = {};
     const grid = el('.form-grid');
+    // Same paragraph style as confirmDialog's body, so the two dialogs of one
+    // Ajukan round (a Ya/Batal warning, then a prompt) read as one voice.
+    const body = message
+      ? el('div', [el('p', { text: message, style: { margin: '0 0 12px', color: 'var(--text-2)' } }), grid])
+      : grid;
 
     for (const spec of fields) {
       const control = buildInput(spec, undefined);
@@ -1110,7 +1123,7 @@ export async function promptFields(title, fields, { submitLabel = 'Kirim' } = {}
     const dialog = modal({
       title,
       width: 'narrow',
-      body: grid,
+      body,
       footer: [button('Batal', {
         // Resolve BEFORE closing, the same order as confirmDialog's cancel
         // button in ui.js, and do not "tidy" it back. close() fires onClose,

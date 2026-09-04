@@ -160,6 +160,56 @@ class VendorQualificationTest extends ErpTestCase
         $this->assertSame(DocumentStatus::Draft, $po->fresh()->status);
     }
 
+    /**
+     * Penolakan prakualifikasi saat Ajukan membawa KUNCI galat, bukan hanya
+     * kalimat. Mesin confirm-resubmit SPA (actions.js) mengenali penolakan
+     * dari kunci `errors` — items.N.unit_price (#34), budget (#33) — dan
+     * baru bertanya sesudah server menolak. Tanpa kunci ini tombol Ajukan PO
+     * harus membuka modal alasan pada SETIAP pengajuan, juga untuk vendor
+     * sehat: diukur 2 Sep 2026 (HASIL-UJI §1, S3) 12 klik buat→ajukan, dua
+     * di antaranya modal "Alasan override prakualifikasi" yang dikosongkan.
+     */
+    public function test_penolakan_prakualifikasi_saat_submit_membawa_kunci_alasan_override(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $vendor = $this->vendor(['status' => 'inactive']);
+        $po = $this->draftPo($vendor);
+
+        $response = $this->postJson("/api/procurement/purchase-orders/{$po->id}/submit")
+            ->assertUnprocessable();
+
+        $message = (string) $response->json('message');
+        $this->assertStringContainsString('nonaktif', $message);
+        // Kalimat yang sama di kedua tempat: `message` untuk klien API lama,
+        // `errors` untuk aturan SPA — dialognya menampilkan pesan server apa
+        // adanya, seperti dua aturan Ajukan PO yang sudah ada.
+        $this->assertSame([$message], $response->json('errors.qualification_override_reason'));
+        $this->assertSame(['qualification_override_reason'], array_keys($response->json('errors')));
+
+        $this->assertSame(DocumentStatus::Draft, $po->fresh()->status);
+    }
+
+    /**
+     * Kunci itu HANYA milik penolakan prakualifikasi. Penolakan lain saat
+     * Ajukan (status dokumen, harga, anggaran) tidak boleh memakainya —
+     * aturan SPA yang cocok akan meminta alasan override untuk penolakan
+     * yang tidak bisa di-override.
+     */
+    public function test_penolakan_status_saat_submit_tidak_membawa_kunci_alasan_override(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $po = $this->draftPo($this->vendor());
+        $po->forceFill(['status' => DocumentStatus::Submitted])->save();
+
+        $response = $this->postJson("/api/procurement/purchase-orders/{$po->id}/submit")
+            ->assertUnprocessable();
+
+        $this->assertStringContainsString('Cannot submit', (string) $response->json('message'));
+        $this->assertNull($response->json('errors'));
+    }
+
     public function test_submit_po_dengan_override_lolos_dan_alasannya_tercatat(): void
     {
         Sanctum::actingAs($this->adminUser());
