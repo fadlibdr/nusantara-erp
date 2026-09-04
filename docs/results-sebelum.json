@@ -1,0 +1,595 @@
+{
+ "S10_api_422_language": {
+  "po_422": {
+   "vendor_id": "The vendor id field is required.",
+   "order_date": "The order date field is required.",
+   "items.0.qty": "The items.0.qty field must be at least 0.001.",
+   "items.0.unit_price": "The items.0.unit_price field is required."
+  },
+  "customer_422": {
+   "name": "The name field is required."
+  },
+  "apbill_422": {
+   "vendor_id": "The vendor id field is required when none of purchase order id / goods receipt id / subcontract claim id / labor claim id / work order billing id are present.",
+   "description": "The description field is required when none of purchase order id / goods receipt id / subcontract claim id / labor claim id / work order billing id are present.",
+   "dpp": "The dpp field is required when none of purchase order id / goods receipt id / subcontract claim id / labor claim id / work order billing id are present.",
+   "vendor_invoice_no": "The vendor invoice no field is required."
+  },
+  "_ms": 1209,
+  "_clicks": 0
+ },
+ "S1_inbox_truth": {
+  "direktur_approve_perms": [
+   "ast.approve",
+   "core.approve",
+   "crm.approve",
+   "eng.approve",
+   "est.approve",
+   "fin.approve",
+   "hr.approve",
+   "iam.approve",
+   "inv.approve",
+   "prc.approve",
+   "prj.approve",
+   "qc.approve",
+   "scm.approve",
+   "svc.approve"
+  ],
+  "server_submitted_visible_to_direktur": {
+   "estimation/cost-budgets": 1,
+   "procurement/purchase-requisitions": 1,
+   "subcontract/subcontracts": 1,
+   "hr/leave-requests": 1
+  },
+  "dashboard_card": {
+   "title": "Menunggu persetujuan Anda (3)",
+   "rows": [
+    "RAP/2026/0001",
+    "PR/2026/III/0002",
+    "SPK/2026/III/0002"
+   ],
+   "width": 371.328125,
+   "height": 602.046875,
+   "seeAll": false
+  },
+  "_ms": 5581,
+  "_clicks": 0
+ },
+ "S2_approve_loop": {
+  "detail_ms": 1655,
+  "approve_total_ms": 2999,
+  "action_bar": [
+   "Kembali",
+   "Cetak halaman",
+   "Setujui",
+   "Tolak"
+  ],
+  "ubah_visible_on_submitted": false,
+  "status_badge": "Diajukan",
+  "explanation_under_title": "Informasi\nProyek\nPRJ-2026-002 — Instalasi ELV & Data Center Bank Artha Nusantara\nGudang\nWH-PRJ-2026-002 — Gudang Site Bank Artha Nusantara\nDiminta oleh\nadmin@nusantara.test — Administrator Sistem\nDimi",
+  "approve_modal_fields": [
+   "Catatan persetujuan"
+  ],
+  "approve_modal_buttons": [
+   "Batal",
+   "Setujui"
+  ],
+  "toast": [
+   "Setujui berhasil."
+  ],
+  "after": {
+   "url": "#/d/procurement/purchase-requisitions/2",
+   "status": "Disetujui",
+   "next": false
+  },
+  "api_calls_detail_to_back": 28,
+  "api_calls_sample": [
+   "procurement/purchase-requisitions/2",
+   "projects?per_page=500&page=1",
+   "inventory/warehouses?per_page=500&page=1",
+   "inventory/items?per_page=500&page=1",
+   "iam/users?per_page=500&page=1",
+   "core/print/forms",
+   "core/attachments?document_type=procurement%2Fpurchase-requisitions&document_id=2",
+   "procurement/purchase-requisitions/2/approve",
+   "procurement/purchase-requisitions/2",
+   "core/attachments?document_type=procurement%2Fpurchase-requisitions&document_id=2",
+   "projects?per_page=100",
+   "finance/ar-invoices?per_page=100",
+   "finance/ap-bills?per_page=100",
+   "servicedesk/tickets?per_page=100",
+   "procurement/purchase-orders?per_page=100",
+   "inventory/stock/low-stock",
+   "crm/quotations?per_page=100",
+   "subcontract/progress-claims?per_page=100",
+   "procurement/purchase-requisitions?status=submitted&per_page=50",
+   "subcontract/subcontracts?status=submitted&per_page=50",
+   "estimation/boqs?status=submitted&per_page=50",
+   "estimation/cost-budgets?status=submitted&per_page=50",
+   "inventory/stock-adjustments?status=submitted&per_page=50",
+   "hr/payroll-runs?status=submitted&per_page=50",
+   "crm/contract-termins/billing-ready",
+   "finance/reports/bank-balances",
+   "core/calendar",
+   "core/dashboard/summary"
+  ],
+  "_ms": 9902,
+  "_clicks": 4
+ },
+ "S3_create_po": {
+  "form": {
+   "fields": [
+    "Vendor*",
+    "Dari PR",
+    "Proyek",
+    "Gudang tujuan",
+    "Tanggal PO*",
+    "Perkiraan kirim",
+    "Termin bayar (hari)",
+    "Diskon",
+    "Alamat pengiriman",
+    "Catatan",
+    "Alasan override prakualifikasi"
+   ],
+   "lineCols": [
+    "ITEM",
+    "URAIAN",
+    "QTY",
+    "SATUAN",
+    "HARGA SATUAN",
+    "JUMLAH",
+    ""
+   ],
+   "width": 960,
+   "bodyScroll": 882,
+   "bodyClient": 740,
+   "linesTop": 842.765625,
+   "foot": [
+    "Batal",
+    "Simpan"
+   ]
+  },
+  "client_errors": [
+   "Wajib diisi.",
+   "Wajib diisi.",
+   "Wajib diisi."
+  ],
+  "line_inputs_row1": [
+   "combo-input:text",
+   "INPUT:text",
+   "INPUT:number",
+   "INPUT:text",
+   "INPUT:text",
+   "na",
+   "na"
+  ],
+  "server_errors_rendered": [
+   "The items.0.qty field must be at least 0.001."
+  ],
+  "toast_on_422": [
+   "Periksa isian yang ditandai.",
+   "The items.0.qty field must be at least 0.001.\nitems.0.qty: The items.0.qty field must be at least 0.001."
+  ],
+  "saved": true,
+  "toast_after_save": [
+   "PO dibuat."
+  ],
+  "landing_after_save": {
+   "hash": "#/r/procurement/purchase-orders",
+   "h1": "Pesanan Pembelian (PO)"
+  },
+  "create_ms": 14310,
+  "api_calls": 16,
+  "submit_modal_fields": [
+   "Alasan override prakualifikasi"
+  ],
+  "toast_after_submit": [
+   "PO dibuat.",
+   "Ajukan berhasil."
+  ],
+  "status_after_submit": "Diajukan",
+  "bar_after_submit": [
+   "Kembali",
+   "Cetak halaman",
+   "PDF"
+  ],
+  "po_code": "PO/2026/IX/0003",
+  "detail_action_bar": [
+   "Kembali",
+   "Cetak halaman",
+   "PDF",
+   "Ubah",
+   "Ajukan"
+  ],
+  "total_ms_create_to_submit": 17240,
+  "_ms": 21107,
+  "_clicks": 13
+ },
+ "S4_session_loss": {
+  "tokens_revoked": 2,
+  "loginVisible": true,
+  "modalVisible": true,
+  "banner": "Sesi Anda berakhir. Silakan masuk kembali.",
+  "toasts": [
+   "Unauthenticated."
+  ],
+  "localStorageKeys": [],
+  "login_form_behind_overlay": "blocked by overlay",
+  "after_escape": {
+   "modals": 2,
+   "dialogText": [
+    "Tambah PO\nVendor*\nDari PR\nProyek\nGudang tujuan\nTanggal PO*\nPerkiraan kirim\nTermin bayar (hari)\nKosongkan untuk memakai termin vendor.\nDiskon\nRp\nAlamat pengirima",
+    "Tutup tanpa menyimpan?\n\nFormulir ini punya isian yang belum tersimpan — termasuk baris yang sudah diketik. Kalau ditutup sekarang, semuanya hilang.\n\nKembali men"
+   ]
+  },
+  "dirty_prompt_buttons": [
+   "Batal",
+   "Simpan",
+   "Kembali mengisi",
+   "Buang isian"
+  ],
+  "modal_after_discard": 0,
+  "after_relogin": {
+   "hash": "#/r/procurement/purchase-orders",
+   "modal": false,
+   "recoveryOffer": false
+  },
+  "fields_typed_before_expiry": 13,
+  "_ms": 11548,
+  "_clicks": 7
+ },
+ "S5_nav_per_role": {
+  "admin": {
+   "groups": 14,
+   "links": 121,
+   "navHeightPx": 4447,
+   "viewportsTall": 4.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "KEUANGAN",
+     20
+    ],
+    [
+     "PENGADAAN",
+     13
+    ]
+   ],
+   "stats": 6,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek",
+    "Piutang jatuh tempo terdekat",
+    "Tiket layanan aktif"
+   ]
+  },
+  "direktur": {
+   "groups": 14,
+   "links": 119,
+   "navHeightPx": 4384,
+   "viewportsTall": 4.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "KEUANGAN",
+     20
+    ],
+    [
+     "PENGADAAN",
+     13
+    ]
+   ],
+   "stats": 6,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek",
+    "Piutang jatuh tempo terdekat",
+    "Tiket layanan aktif"
+   ]
+  },
+  "project-manager": {
+   "groups": 9,
+   "links": 62,
+   "navHeightPx": 2381,
+   "viewportsTall": 2.6,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "ASET",
+     8
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "site-manager": {
+   "groups": 7,
+   "links": 44,
+   "navHeightPx": 1731,
+   "viewportsTall": 1.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "ENGINEERING",
+     6
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "estimator": {
+   "groups": 7,
+   "links": 47,
+   "navHeightPx": 1826,
+   "viewportsTall": 2,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PENJUALAN",
+     11
+    ],
+    [
+     "ENGINEERING",
+     6
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "procurement": {
+   "groups": 6,
+   "links": 35,
+   "navHeightPx": 1387,
+   "viewportsTall": 1.5,
+   "biggest": [
+    [
+     "PENGADAAN",
+     13
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "ESTIMASI",
+     5
+    ]
+   ],
+   "stats": 0,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara"
+   ]
+  },
+  "warehouse": {
+   "groups": 6,
+   "links": 35,
+   "navHeightPx": 1406,
+   "viewportsTall": 1.6,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "RINGKASAN",
+     3
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "finance": {
+   "groups": 7,
+   "links": 67,
+   "navHeightPx": 2436,
+   "viewportsTall": 2.7,
+   "biggest": [
+    [
+     "KEUANGAN",
+     20
+    ],
+    [
+     "PENGADAAN",
+     13
+    ],
+    [
+     "PENJUALAN",
+     11
+    ]
+   ],
+   "stats": 4,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Piutang jatuh tempo terdekat"
+   ]
+  },
+  "hr": {
+   "groups": 3,
+   "links": 14,
+   "navHeightPx": 844,
+   "viewportsTall": 0.9,
+   "biggest": [
+    [
+     "SDM & PAYROLL",
+     6
+    ],
+    [
+     "SISTEM",
+     5
+    ],
+    [
+     "RINGKASAN",
+     3
+    ]
+   ],
+   "stats": 0,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara"
+   ]
+  },
+  "sales": {
+   "groups": 7,
+   "links": 43,
+   "navHeightPx": 1700,
+   "viewportsTall": 1.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PENJUALAN",
+     11
+    ],
+    [
+     "LAYANAN",
+     5
+    ]
+   ],
+   "stats": 2,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek",
+    "Tiket layanan aktif"
+   ]
+  },
+  "teknisi": {
+   "groups": 3,
+   "links": 16,
+   "navHeightPx": 844,
+   "viewportsTall": 0.9,
+   "biggest": [
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "LAYANAN",
+     5
+    ],
+    [
+     "RINGKASAN",
+     3
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Tiket layanan aktif"
+   ]
+  },
+  "_ms": 31265,
+  "_clicks": 0
+ },
+ "S6_mobile_lapangan": {
+  "taps_to_lapangan": 2,
+  "ms": 2297,
+  "links": 44,
+  "drawerHeight": 1712,
+  "lapanganTop": 528,
+  "visibleWithoutScroll": true,
+  "groupsAbove": 2,
+  "lapangan": {
+   "hash": "#/lapangan",
+   "h1": "Lapangan",
+   "bigButtons": 1,
+   "text": "Lapangan\nLayar untuk di lokasi: buat laporan harian dan kirim foto ber-GPS langsung dari ponsel.\nLaporan Harian\nProyek\nPRJ-2026-002 — Instalasi ELV & Data Center Bank Artha Nusantara\nPRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)\nTanggal\nBelum ada laporan untuk tanggal ini\nTenaga "
+  },
+  "_ms": 5939,
+  "_clicks": 2
+ },
+ "S7_status_colors": {
+  "ncr": [],
+  "k3": [
+   "Ya → red",
+   "— → "
+  ],
+  "defects": [],
+  "tickets": [
+   "Sedang → blue",
+   "Ditugaskan → blue",
+   "Rendah → ",
+   "Kritis → red",
+   "Terselesaikan → green",
+   "Ditutup → "
+  ],
+  "_ms": 9822,
+  "_clicks": 0
+ },
+ "S8_styles": {
+  "th_font": "11px",
+  "th_color": "rgb(107, 118, 132)",
+  "muted_token": "#6b7684",
+  "bg": "#f4f6f8",
+  "surface2": "#fafbfc",
+  "contrast_muted_on_bg": 4.26,
+  "contrast_muted_on_surface2": 4.46,
+  "contrast_success_badge": 4.42,
+  "btn_sm_height": 0,
+  "smallest_font_px": 10,
+  "page_head_buttons": [
+   "Muat ulang",
+   "Tambah PO"
+  ],
+  "_ms": 4387,
+  "_clicks": 0
+ },
+ "S9_account_menu": {
+  "account_menu_items": [
+   "Tutup",
+   "Keluar"
+  ],
+  "_ms": 3630,
+  "_clicks": 1
+ }
+}

@@ -1,0 +1,1932 @@
+From a5e70e6d589578d685ee66948e00fcd38c3c09cf Mon Sep 17 00:00:00 2001
+From: "Claude (UX test bed)" <claude@sandbox.local>
+Date: Wed, 2 Sep 2026 15:20:43 +0000
+Subject: [PATCH] =?UTF-8?q?ux/p0:=20hasil=20uji=20terukur=202=20Sep=202026?=
+ =?UTF-8?q?=20=E2=80=94=20validasi=20Indonesia,=20kotak=20masuk=20core/inb?=
+ =?UTF-8?q?ox=20+=20Tugas=20Saya,=20draf=20formulir=20lokal=20+=20jalur=20?=
+ =?UTF-8?q?401,=20mendarat=20di=20dokumen=20baru,=20toast=20bernomor=20+?=
+ =?UTF-8?q?=20Berikutnya,=20strip=20status,=20token=20kontras?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../Core/Http/Controllers/InboxController.php | 106 +++
+ Modules/Core/Routes/api.php                   |   7 +
+ Modules/Iam/Routes/api.php                    |   8 +
+ lang/id/validation.php                        | 878 ++++++++++++++++++
+ public/app/app.css                            |  13 +-
+ public/app/js/app.js                          |  80 +-
+ public/app/js/drafts.js                       |  84 ++
+ public/app/js/schema.js                       |   2 +-
+ public/app/js/ui.js                           |  20 +-
+ public/app/js/views/actions.js                |  34 +-
+ public/app/js/views/dashboard.js              | 114 +--
+ public/app/js/views/detail.js                 |  51 +
+ public/app/js/views/form.js                   |  53 ++
+ public/app/js/views/list.js                   |  14 +-
+ public/app/js/views/tugas.js                  |  96 ++
+ 15 files changed, 1472 insertions(+), 88 deletions(-)
+ create mode 100644 Modules/Core/Http/Controllers/InboxController.php
+ create mode 100644 lang/id/validation.php
+ create mode 100644 public/app/js/drafts.js
+ create mode 100644 public/app/js/views/tugas.js
+
+diff --git a/Modules/Core/Http/Controllers/InboxController.php b/Modules/Core/Http/Controllers/InboxController.php
+new file mode 100644
+index 0000000..65f5cb3
+--- /dev/null
++++ b/Modules/Core/Http/Controllers/InboxController.php
+@@ -0,0 +1,106 @@
++<?php
++
++namespace Modules\Core\Http\Controllers;
++
++use Illuminate\Http\JsonResponse;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\DB;
++use Modules\Core\Http\ApiController;
++use Modules\Core\Support\ApprovableDocuments;
++use Throwable;
++
++/**
++ * Kotak masuk persetujuan pemanggil — SEMUA jenis dokumen di
++ * ApprovableDocuments yang (a) berstatus submitted, (b) boleh disetujui
++ * pemanggil, dan (c) bukan diajukan pemanggil sendiri (maker-checker akan
++ * menolaknya, jadi tidak perlu ditawarkan).
++ *
++ * Diukur 2 Sep 2026: kartu dasbor lama menarik 11 jenis dokumen lewat 11
++ * permintaan dan tidak pernah menampilkan 17 jenis lainnya — direktur dengan
++ * hr.approve tidak melihat pengajuan cuti yang menunggu. Satu permintaan ini
++ * menggantikannya dan berjalan atas registri yang sama dengan notifikasi,
++ * jadi jenis dokumen baru ikut otomatis.
++ *
++ * Satu jenis yang gagal (tabel hilang, kolom berbeda) tidak menggelapkan
++ * seluruh kotak: ia dilaporkan di `meta.failed` supaya daftar yang pendek
++ * tidak terbaca sebagai daftar yang bersih — prinsip yang sama dengan
++ * dasbor.
++ */
++class InboxController extends ApiController
++{
++    private const AMOUNT_KEYS = ['total', 'total_payable', 'net_payable', 'grand_total', 'value', 'total_budget', 'total_net', 'amount', 'total_amount'];
++    private const TITLE_KEYS = ['title', 'name', 'description', 'purpose', 'reason', 'notes', 'subject'];
++
++    public function __invoke(Request $request): JsonResponse
++    {
++        $user = $request->user();
++        $rows = [];
++        $failed = [];
++        $now = now();
++
++        foreach (ApprovableDocuments::all() as $class => $entry) {
++            $permission = "{$entry['prefix']}.approve";
++            if (!$user->can($permission)) {
++                continue;
++            }
++
++            try {
++                $docs = $class::query()->where('status', 'submitted')->get();
++                if ($docs->isEmpty()) {
++                    continue;
++                }
++
++                // Siapa mengajukan yang mana — satu kueri per jenis, bukan per dokumen.
++                $submissions = DB::table('core_approvals')
++                    ->select('approvable_id', 'user_id', 'created_at')
++                    ->where('approvable_type', (new $class)->getMorphClass())
++                    ->where('action', 'submitted')
++                    ->whereIn('approvable_id', $docs->modelKeys())
++                    ->orderBy('created_at')
++                    ->get()
++                    ->keyBy('approvable_id'); // keyBy keeps the LAST row per id = latest submission
++
++                $names = DB::table('users')->whereIn('id', $submissions->pluck('user_id')->unique())->pluck('name', 'id');
++
++                foreach ($docs as $doc) {
++                    $sub = $submissions->get($doc->getKey());
++                    if ($sub && (int) $sub->user_id === (int) $user->getKey()) {
++                        continue; // maker-checker: not yours to approve
++                    }
++                    $attrs = $doc->getAttributes();
++                    $amount = null;
++                    foreach (self::AMOUNT_KEYS as $key) {
++                        if (isset($attrs[$key]) && is_numeric($attrs[$key])) { $amount = (float) $attrs[$key]; break; }
++                    }
++                    $title = null;
++                    foreach (self::TITLE_KEYS as $key) {
++                        if (!empty($attrs[$key]) && is_string($attrs[$key])) { $title = $attrs[$key]; break; }
++                    }
++                    $submittedAt = $sub->created_at ?? ($attrs['updated_at'] ?? null);
++
++                    $rows[] = [
++                        'id' => $doc->getKey(),
++                        'code' => $attrs['code'] ?? ('#'.$doc->getKey()),
++                        'label' => $entry['label'],
++                        'resource' => $entry['resource'],
++                        'permission' => $permission,
++                        'title' => $title,
++                        'amount' => $amount,
++                        'submitted_at' => $submittedAt,
++                        'submitted_by' => $sub ? ($names[$sub->user_id] ?? null) : null,
++                        'days_waiting' => $submittedAt ? (int) floor(abs(\Illuminate\Support\Carbon::parse($submittedAt)->diffInDays($now))) : null,
++                        'link' => "#/d/{$entry['resource']}/{$doc->getKey()}",
++                    ];
++                }
++            } catch (Throwable $e) {
++                report($e);
++                $failed[] = $entry['label'];
++            }
++        }
++
++        // Yang paling lama menunggu di atas: kotak masuk adalah antrean, bukan berita.
++        usort($rows, fn ($a, $b) => strcmp((string) $a['submitted_at'], (string) $b['submitted_at']));
++
++        return $this->ok($rows, null, ['total' => count($rows), 'failed' => $failed, 'as_of' => $now->toDateTimeString()]);
++    }
++}
+diff --git a/Modules/Core/Routes/api.php b/Modules/Core/Routes/api.php
+index 694b7b5..c69cb4c 100644
+--- a/Modules/Core/Routes/api.php
++++ b/Modules/Core/Routes/api.php
+@@ -14,6 +14,7 @@ use Modules\Core\Http\Controllers\FormPrintController;
+ use Modules\Core\Http\Controllers\LocationController;
+ use Modules\Core\Http\Controllers\MasterDataController;
+ use Modules\Core\Http\Controllers\MethodLibraryController;
++use Modules\Core\Http\Controllers\InboxController;
+ use Modules\Core\Http\Controllers\NotificationController;
+ use Modules\Core\Http\Controllers\ProjectPhotoController;
+ use Modules\Core\Http\Controllers\RateHistoryController;
+@@ -53,6 +54,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
+     // The caller's own inbox. Scoped to $request->user() in the service, so no
+     // permission gate applies — and none could help: there is no parameter that
+     // would let one user read another's.
++    // Kotak masuk persetujuan: semua jenis dokumen submitted yang boleh
++    // disetujui pemanggil, minus yang ia ajukan sendiri. Tanpa gerbang izin —
++    // penyaringannya per {modul}.approve di dalam controller, dan yang tidak
++    // punya satu pun mendapat daftar kosong yang jujur.
++    Route::get('inbox', InboxController::class);
++
+     Route::get('notifications', [NotificationController::class, 'index']);
+     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+     Route::post('notifications/read', [NotificationController::class, 'markRead']);
+diff --git a/Modules/Iam/Routes/api.php b/Modules/Iam/Routes/api.php
+index 1fcdf66..29e4c78 100644
+--- a/Modules/Iam/Routes/api.php
++++ b/Modules/Iam/Routes/api.php
+@@ -7,6 +7,14 @@ use Modules\Iam\Http\Controllers\RoleController;
+ use Modules\Iam\Http\Controllers\UserController;
+ 
+ // Public (unauthenticated) — brute-force protected.
++// Akun demo untuk halaman masuk — HANYA di luar produksi. Sebelum ini
++// app.js menuliskan daftar email peran internal di halaman masuk publik
++// tanpa memeriksa lingkungan (asesmen UX 2 Sep 2026).
++Route::get('auth/demo-accounts', fn () => response()->json([
++    'data' => app()->environment('production')
++        ? []
++        : ['admin@nusantara.test', 'direktur@nusantara.test', 'finance@nusantara.test', 'project-manager@nusantara.test'],
++]));
+ Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+ 
+ Route::middleware('auth:sanctum')->group(function (): void {
+diff --git a/lang/id/validation.php b/lang/id/validation.php
+new file mode 100644
+index 0000000..7f50c8e
+--- /dev/null
++++ b/lang/id/validation.php
+@@ -0,0 +1,878 @@
++<?php
++
++/*
++ * Pesan validasi bahasa Indonesia. Sebelum berkas ini ada, APP_LOCALE=id tidak
++ * berpengaruh: tanpa lang/id/ Laravel jatuh ke bahasa Inggris bawaan, dan 178
++ * dari 216 FormRequest tanpa messages() mengirim "The vendor id field is
++ * required." ke layar yang seluruhnya berbahasa Indonesia (asesmen UX 2 Sep 2026,
++ * diukur di formulir PO sungguhan).
++ *
++ * Kunci yang tidak ada di sini tetap jatuh ke bahasa Inggris bawaan — itu lebih
++ * jujur daripada terjemahan yang salah. Nama atribut di bagian bawah diturunkan
++ * dari LABEL yang tertulis di schema.js supaya kalimat galat memakai kata yang
++ * sama dengan yang dilihat pengguna di layar; kunci `items.*.qty` dan sejenisnya
++ * cocok dengan `items.3.qty` lewat pencocokan wildcard Laravel sendiri.
++ */
++
++return [
++    'accepted' => ':attribute harus disetujui.',
++    'active_url' => ':attribute bukan URL yang valid.',
++    'after' => ':attribute harus setelah :date.',
++    'after_or_equal' => ':attribute harus pada atau setelah :date.',
++    'alpha' => ':attribute hanya boleh berisi huruf.',
++    'alpha_dash' => ':attribute hanya boleh berisi huruf, angka, strip, dan garis bawah.',
++    'alpha_num' => ':attribute hanya boleh berisi huruf dan angka.',
++    'array' => ':attribute harus berupa daftar.',
++    'before' => ':attribute harus sebelum :date.',
++    'before_or_equal' => ':attribute harus pada atau sebelum :date.',
++    'between' => [
++        'array' => ':attribute harus berisi :min sampai :max baris.',
++        'file' => ':attribute harus antara :min dan :max kilobyte.',
++        'numeric' => ':attribute harus antara :min dan :max.',
++        'string' => ':attribute harus antara :min dan :max karakter.',
++    ],
++    'boolean' => ':attribute harus ya atau tidak.',
++    'confirmed' => 'Konfirmasi :attribute tidak cocok.',
++    'date' => ':attribute bukan tanggal yang valid.',
++    'date_equals' => ':attribute harus tanggal :date.',
++    'date_format' => ':attribute tidak cocok dengan format :format.',
++    'decimal' => ':attribute harus memiliki :decimal angka di belakang koma.',
++    'declined' => ':attribute harus ditolak.',
++    'different' => ':attribute dan :other harus berbeda.',
++    'digits' => ':attribute harus :digits digit.',
++    'digits_between' => ':attribute harus antara :min dan :max digit.',
++    'distinct' => ':attribute memiliki nilai yang berulang.',
++    'email' => ':attribute harus berupa alamat email yang valid.',
++    'ends_with' => ':attribute harus diakhiri salah satu dari: :values.',
++    'exists' => ':attribute yang dipilih tidak ada.',
++    'file' => ':attribute harus berupa berkas.',
++    'filled' => ':attribute harus diisi.',
++    'gt' => [
++        'array' => ':attribute harus berisi lebih dari :value baris.',
++        'file' => ':attribute harus lebih besar dari :value kilobyte.',
++        'numeric' => ':attribute harus lebih besar dari :value.',
++        'string' => ':attribute harus lebih dari :value karakter.',
++    ],
++    'gte' => [
++        'array' => ':attribute harus berisi :value baris atau lebih.',
++        'file' => ':attribute harus :value kilobyte atau lebih.',
++        'numeric' => ':attribute harus :value atau lebih.',
++        'string' => ':attribute harus :value karakter atau lebih.',
++    ],
++    'in' => ':attribute yang dipilih tidak termasuk pilihan yang tersedia.',
++    'in_array' => ':attribute harus ada di :other.',
++    'integer' => ':attribute harus berupa bilangan bulat.',
++    'json' => ':attribute harus berupa JSON yang valid.',
++    'lt' => [
++        'array' => ':attribute harus berisi kurang dari :value baris.',
++        'file' => ':attribute harus kurang dari :value kilobyte.',
++        'numeric' => ':attribute harus kurang dari :value.',
++        'string' => ':attribute harus kurang dari :value karakter.',
++    ],
++    'lte' => [
++        'array' => ':attribute tidak boleh lebih dari :value baris.',
++        'file' => ':attribute harus :value kilobyte atau kurang.',
++        'numeric' => ':attribute harus :value atau kurang.',
++        'string' => ':attribute harus :value karakter atau kurang.',
++    ],
++    'max' => [
++        'array' => ':attribute tidak boleh lebih dari :max baris.',
++        'file' => ':attribute tidak boleh lebih dari :max kilobyte.',
++        'numeric' => ':attribute tidak boleh lebih dari :max.',
++        'string' => ':attribute tidak boleh lebih dari :max karakter.',
++    ],
++    'mimes' => ':attribute harus berkas bertipe: :values.',
++    'mimetypes' => ':attribute harus berkas bertipe: :values.',
++    'min' => [
++        'array' => ':attribute harus berisi minimal :min baris.',
++        'file' => ':attribute minimal :min kilobyte.',
++        'numeric' => ':attribute minimal :min.',
++        'string' => ':attribute minimal :min karakter.',
++    ],
++    'missing' => ':attribute tidak boleh ada.',
++    'not_in' => ':attribute yang dipilih tidak valid.',
++    'not_regex' => 'Format :attribute tidak valid.',
++    'numeric' => ':attribute harus berupa angka.',
++    'present' => ':attribute harus ada.',
++    'prohibited' => ':attribute tidak boleh diisi.',
++    'prohibited_if' => ':attribute tidak boleh diisi bila :other adalah :value.',
++    'prohibited_unless' => ':attribute tidak boleh diisi kecuali :other termasuk :values.',
++    'prohibits' => ':attribute tidak boleh diisi bersama :other.',
++    'regex' => 'Format :attribute tidak valid.',
++    'required' => ':attribute wajib diisi.',
++    'required_array_keys' => ':attribute harus memuat: :values.',
++    'required_if' => ':attribute wajib diisi bila :other adalah :value.',
++    'required_if_accepted' => ':attribute wajib diisi bila :other dicentang.',
++    'required_unless' => ':attribute wajib diisi kecuali :other termasuk :values.',
++    'required_with' => ':attribute wajib diisi bila :values diisi.',
++    'required_with_all' => ':attribute wajib diisi bila :values diisi.',
++    'required_without' => ':attribute wajib diisi bila :values kosong.',
++    'required_without_all' => ':attribute wajib diisi bila tidak ada satu pun dari :values.',
++    'same' => ':attribute dan :other harus sama.',
++    'size' => [
++        'array' => ':attribute harus berisi :size baris.',
++        'file' => ':attribute harus :size kilobyte.',
++        'numeric' => ':attribute harus :size.',
++        'string' => ':attribute harus :size karakter.',
++    ],
++    'starts_with' => ':attribute harus diawali salah satu dari: :values.',
++    'string' => ':attribute harus berupa teks.',
++    'timezone' => ':attribute harus zona waktu yang valid.',
++    'unique' => ':attribute sudah dipakai.',
++    'uploaded' => ':attribute gagal diunggah.',
++    'url' => ':attribute harus berupa URL yang valid.',
++    'uuid' => ':attribute harus berupa UUID yang valid.',
++
++    'custom' => [],
++
++    'attributes' => [
++        'aanwijzing_date' => 'Aanwijzing',
++        'aanwijzing_notes' => 'Catatan berita acara aanwijzing',
++        'acceptance' => 'Kriteria keberterimaan',
++        'account_id' => 'Akun',
++        'account_name' => 'Atas nama',
++        'account_no' => 'No. rekening',
++        'account_type' => 'Tipe akun',
++        'accum_account_hint' => 'Akun akumulasi',
++        'achieved_date' => 'Tercapai',
++        'acknowledge' => 'Sahkan pelanggan',
++        'acquisition_cost' => 'Harga perolehan',
++        'acquisition_date' => 'Tanggal perolehan',
++        'actions_taken' => 'Tindakan',
++        'activate' => 'Aktifkan kontrak',
++        'activities' => 'Kegiatan',
++        'activity' => 'Aktivitas',
++        'activity_lines' => 'Uraian pekerjaan',
++        'activity_type' => 'Jenis aktivitas',
++        'actual_end_date' => 'Aktual selesai',
++        'actual_pct' => 'Aktual',
++        'actual_pct_source' => 'Sumber aktual',
++        'actual_progress_pct' => 'Progres',
++        'actual_start_date' => 'Aktual mulai',
++        'addendum_date' => 'Tanggal',
++        'addendum_no' => 'Addendum ke',
++        'address' => 'Alamat',
++        'adjustment_date' => 'Tanggal',
++        'age_days' => 'Umur',
++        'alpha_days' => 'Alpa',
++        'amount' => 'Jumlah',
++        'apd' => 'Pemakaian apd per kategori',
++        'approve' => 'Setujui',
++        'asset_account_hint' => 'Akun harga perolehan',
++        'asset_id' => 'Aset',
++        'assign' => 'Tugaskan',
++        'assigned_from' => 'Dari',
++        'assigned_to' => 'Teknisi',
++        'assigned_until' => 'Sampai',
++        'avg_cost' => 'Hpp rata-rata',
++        'awarded_amount' => 'Nilai',
++        'bac' => 'BAC',
++        'bank_account_id' => 'Rekening bank',
++        'bank_account_name' => 'Atas nama',
++        'bank_account_no' => 'No. rekening',
++        'bank_name' => 'Bank',
++        'barcode' => 'Barcode',
++        'base_salary' => 'Gaji pokok',
++        'bast_type' => 'Jenis',
++        'bill_date' => 'Tgl tagihan',
++        'billed_at' => 'Ditagih',
++        'billing_address' => 'Alamat penagihan',
++        'billing_condition' => 'Syarat penagihan',
++        'billing_cycle' => 'Siklus penagihan',
++        'billings' => 'Tagihan periode yang sudah dibuat',
++        'birth_date' => 'Tanggal lahir',
++        'body' => 'Isi',
++        'book_value' => 'Nilai buku',
++        'book_value_after' => 'Nilai buku setelah',
++        'boq_code' => 'Dari boq',
++        'boq_description' => 'Item boq',
++        'boq_id' => 'Boq / rab',
++        'boq_item_id' => 'Id item boq',
++        'boq_wbs_code' => 'WBS',
++        'bpjs_kesehatan_no' => 'No. bpjs kesehatan',
++        'bpjs_tk_no' => 'No. bpjs ketenagakerjaan',
++        'brand' => 'Merek',
++        'calculate' => 'Hitung payroll',
++        'cancel' => 'Batalkan dokumen',
++        'category' => 'Kategori',
++        'category_id' => 'Kategori',
++        'certificate_type' => 'Jenis',
++        'certified_at' => 'Tanggal',
++        'certified_by_name' => 'Nama pemeriksa',
++        'certified_by_party' => 'Pihak pemeriksa',
++        'certified_by_party_label' => 'Diperiksa oleh',
++        'change_date' => 'Tanggal',
++        'change_order_code' => 'CCO',
++        'change_order_id' => 'CCO',
++        'change_order_status' => 'Status cco',
++        'change_type' => 'Jenis',
++        'channel' => 'Kanal',
++        'chapter' => 'Bab / bagian',
++        'check_text' => 'Butir diperiksa',
++        'checked_at' => 'Diperiksa',
++        'checklist' => 'Checklist',
++        'children_count' => 'Sub-lokasi',
++        'city' => 'Kota',
++        'claim_no' => 'Opname ke-',
++        'classification' => 'Klasifikasi',
++        'close' => 'Tutup insiden',
++        'closed_at' => 'Tanggal penutupan',
++        'coa_account_id' => 'Akun coa',
++        'code' => 'Kode',
++        'coefficient' => 'Koefisien',
++        'company_name' => 'Perusahaan',
++        'component_type' => 'Jenis',
++        'components' => 'Komponen',
++        'consultant_name' => 'Konsultan mk / pengawas',
++        'consultant_role' => 'Sebutan konsultan',
++        'contract_id' => 'Kontrak',
++        'contract_number_customer' => 'No. kontrak pelanggan',
++        'contract_value' => 'Nilai kontrak',
++        'controls' => 'Pengendalian',
++        'corrective_action' => 'Tindakan korektif',
++        'cost' => 'Biaya',
++        'cost_category' => 'Kategori',
++        'cost_date' => 'Tanggal',
++        'counted_qty' => 'Qty terhitung',
++        'counterparty' => 'Asal/tujuan',
++        'coverage' => 'Cakupan layanan',
++        'credit' => 'Kredit',
++        'cumulative_amount' => 'Nilai kumulatif',
++        'current_progress_pct' => 'Progres kumulatif',
++        'current_project_id' => 'Proyek',
++        'current_submittal_code' => 'Sds berlaku',
++        'custodian_employee_id' => 'Penanggung jawab',
++        'customer_id' => 'Pelanggan',
++        'customer_ref' => 'No. cco pelanggan',
++        'customer_representative' => 'Wakil pelanggan',
++        'customer_sign_name' => 'Ttd pelanggan',
++        'daily_rate_internal' => 'Tarif internal per hari',
++        'daily_report_code' => 'Laporan harian',
++        'date' => 'Tanggal',
++        'date_from' => 'Dari',
++        'date_to' => 'Sampai',
++        'day_count' => 'Hari',
++        'days_change' => 'Perubahan waktu',
++        'debit' => 'Debit',
++        'decided_at' => 'Tanggal stempel',
++        'decision' => 'Catat keputusan mk',
++        'decision_label' => 'Keputusan mk',
++        'defect_liability_until' => 'Masa pemeliharaan s/d',
++        'delivery_address' => 'Alamat pengiriman',
++        'delivery_note_no' => 'No. surat jalan',
++        'delivery_score' => 'Pengiriman',
++        'department' => 'Departemen',
++        'deploy' => 'Mobilisasi ke proyek',
++        'deployed_from' => 'Mulai',
++        'deployment_id' => 'Mobilisasi',
++        'depreciation_account_hint' => 'Akun beban',
++        'depreciation_start_date' => 'Mulai disusutkan',
++        'description' => 'Uraian',
++        'deviation_amount' => 'Deviasi vs rab',
++        'deviation_pct' => 'Deviasi',
++        'deviation_reason' => 'Alasan deviasi',
++        'diff_qty' => 'Selisih',
++        'direction' => 'Arah',
++        'discipline' => 'Disiplin',
++        'discount_amount' => 'Diskon',
++        'display_name' => 'Nama',
++        'disposal_date' => 'Tanggal pelepasan',
++        'disposal_value' => 'Nilai pelepasan',
++        'dispose' => 'Hapus buku / jual',
++        'doc_type' => 'Jenis',
++        'document_code' => 'No. dokumen',
++        'document_id' => 'Id dokumen',
++        'document_location' => 'Lokasi dokumen fisik',
++        'documents' => 'Register dokumen lelang',
++        'dpp' => 'DPP',
++        'drawing_id' => 'Gambar',
++        'drawing_number' => 'No. gambar',
++        'drawing_submittal_id' => 'SDS',
++        'drawings' => 'Gambar rujukan',
++        'driver_name' => 'Nama pengemudi',
++        'due_date' => 'Jatuh tempo',
++        'duration_days' => 'Durasi',
++        'effective_date' => 'Berlaku sejak',
++        'email' => 'Email',
++        'employee_id' => 'Karyawan',
++        'employment_type' => 'Status kerja',
++        'end_date' => 'Selesai',
++        'end_time' => 'Selesai',
++        'entries' => 'Rincian penyusutan',
++        'entries_count' => 'Jml aset',
++        'equipment' => 'Alat-alat',
++        'equipment_logs' => 'Log bbm & jam alat',
++        'estimated_amount' => 'Perkiraan nilai',
++        'estimated_price' => 'Estimasi harga',
++        'estimated_value' => 'Estimasi nilai',
++        'evaluated_by' => 'Dievaluasi oleh',
++        'expected_date' => 'Perkiraan kirim',
++        'expired' => 'Kedaluwarsa',
++        'expiry_date' => 'Kedaluwarsa',
++        'faktur' => 'Catat faktur pajak',
++        'faktur_pajak_no' => 'Nomor faktur pajak',
++        'finding' => 'Temuan',
++        'findings' => 'Temuan & tindak lanjut',
++        'findings_count' => 'Temuan',
++        'fixed' => 'Selesai diperbaiki',
++        'fixed_allowances' => 'Tunjangan tetap',
++        'fixed_at' => 'Tanggal perbaikan selesai',
++        'flat_items' => 'Seluruh item',
++        'follow_up' => 'Tindak lanjut',
++        'frequency' => 'Frekuensi',
++        'from_warehouse_id' => 'Gudang asal',
++        'fuel_liters' => 'BBM',
++        'gender' => 'Jenis kelamin',
++        'goods_receipt_id' => 'GRN',
++        'goods_receipt_ids' => 'Tagihan parsial: grn yang ditagih',
++        'grade' => 'Mutu',
++        'grn_code' => 'GRN',
++        'gross_amount' => 'Bruto',
++        'guarantee_type' => 'Jenis',
++        'handed_over_by' => 'Menyerahkan',
++        'handover_date' => 'Tanggal serah terima',
++        'handover_type' => 'Jenis',
++        'harga_awal' => 'Harga awal',
++        'harga_nego' => 'Harga nego',
++        'hazard' => 'Bahaya',
++        'hazard_notes' => 'Potensi bahaya',
++        'headcount' => 'Jumlah orang',
++        'hour_meter' => 'Hour meter',
++        'hours' => 'Jam operasi',
++        'id' => 'ID',
++        'immediate_action' => 'Tindakan segera di lokasi',
++        'impact' => 'Dampak / tipe kecelakaan',
++        'initial_level' => 'Tingkat',
++        'initial_score' => 'F×A',
++        'inspected_at' => 'Tgl inspeksi',
++        'inspection_id' => 'Inspeksi asal',
++        'inspector_employee_id' => 'Inspektor',
++        'invoice_date' => 'Tgl invoice',
++        'ipp_id' => 'IPP',
++        'is_achieved' => 'Status',
++        'is_active' => 'Aktif',
++        'is_advance' => 'UM',
++        'is_current' => 'Revisi',
++        'is_current_today' => 'Di lokasi hari ini',
++        'is_expired' => 'Kedaluwarsa',
++        'is_mandatory' => 'Wajib',
++        'is_overdue' => 'Terlambat',
++        'is_pkp' => 'PKP',
++        'is_postable' => 'Dapat diposting',
++        'is_retention' => 'Retensi',
++        'is_site_warehouse' => 'Gudang site',
++        'issue_date' => 'Tanggal',
++        'issue_id' => 'Bon pengeluaran asal',
++        'issued_date' => 'Terbit',
++        'issuer' => 'Penerbit',
++        'item_id' => 'Item',
++        'item_type' => 'Jenis',
++        'items' => 'Item pesanan',
++        'jenis' => 'Jenis',
++        'join_date' => 'Tanggal masuk',
++        'journal_date' => 'Tanggal',
++        'kasbon_deduction_amount' => 'Potongan kasbon',
++        'kasbon_id' => 'Id kasbon dipotong',
++        'keeper_employee_id' => 'Penjaga',
++        'kind' => 'Jenjang',
++        'lab' => 'Laboratorium',
++        'labor_claim_id' => 'Opname mandor',
++        'labor_contract_id' => 'SP3',
++        'labor_contract_item_id' => 'Id baris sp3',
++        'last_addendum_no' => 'Addendum ke',
++        'last_price' => 'Harga beli terakhir',
++        'latitude' => 'Lintang',
++        'lead_id' => 'Prospek',
++        'leave_days' => 'Cuti',
++        'leave_type' => 'Jenis',
++        'legal_name' => 'Nama badan hukum',
++        'likelihood' => 'Kemungkinan',
++        'line_no' => '#',
++        'lines' => 'Baris',
++        'lines_count' => 'Kontrak',
++        'location' => 'Lokasi',
++        'location_id' => 'Lokasi',
++        'location_path' => 'Lokasi',
++        'log_date' => 'Tanggal',
++        'logged_by_name' => 'Dicatat oleh',
++        'longitude' => 'Bujur',
++        'lost_days' => 'Hari hilang',
++        'lost_hours_reason' => 'Alasan jam kerja hilang',
++        'lost_reason' => 'Alasan kalah',
++        'maintenance_date' => 'Tanggal',
++        'maintenance_type' => 'Jenis',
++        'manpower' => 'Tenaga kerja per jabatan',
++        'manpower_count' => 'Tenaga kerja',
++        'material_approvals' => 'Persetujuan material',
++        'material_name' => 'Material',
++        'material_submittal_id' => 'SMS',
++        'materials' => 'Pemakaian material',
++        'measurement_id' => 'Opname ke pemilik',
++        'measurement_no' => 'Opname ke-',
++        'meeting_date' => 'Tanggal',
++        'meter_end' => 'Meter akhir',
++        'meter_start' => 'Meter awal',
++        'method' => 'Metode',
++        'method_library_id' => 'Metode pelaksanaan',
++        'min_stock' => 'Stok min.',
++        'mine' => 'Proyek saya',
++        'minutes_spent' => 'Waktu',
++        'model' => 'Model',
++        'month' => 'Bulan',
++        'name' => 'Nama',
++        'need_summary' => 'Ringkasan kebutuhan',
++        'needed_date' => 'Dibutuhkan',
++        'net_payable' => 'Netto dibayar',
++        'new_end_date' => 'Selesai baru',
++        'next_due_date' => 'Jatuh tempo',
++        'next_follow_up_at' => 'Follow-up',
++        'nik_ktp' => 'NIK KTP',
++        'normal_balance' => 'Saldo normal',
++        'note' => 'Catatan persetujuan',
++        'notes' => 'Catatan',
++        'npwp' => 'NPWP',
++        'number' => 'Nomor',
++        'object_code' => 'Kode objek',
++        'obstacle' => 'Hambatan',
++        'obstacles' => 'Kendala',
++        'occurred_at' => 'Waktu kejadian',
++        'order_date' => 'Tanggal PO',
++        'outstanding' => 'Sisa',
++        'overhead_pct' => 'Overhead',
++        'override_reason' => 'Alasan melewati prasyarat',
++        'overtime_date' => 'Tanggal',
++        'overtime_hours' => 'Lembur',
++        'owner_name' => 'Sales',
++        'ownership' => 'Kepemilikan',
++        'package' => 'Paket',
++        'parent_id' => 'Kategori induk',
++        'parent_name' => 'Induk',
++        'parts' => 'Sparepart terpakai',
++        'pass' => 'Memenuhi',
++        'pass_date' => 'Tanggal',
++        'passed' => 'Lulus',
++        'password' => 'Kata sandi',
++        'payment_date' => 'Tanggal',
++        'payment_term_days' => 'Termin bayar',
++        'penalty_amount' => 'Denda / potongan',
++        'penalty_reason' => 'Alasan denda',
++        'people_involved' => 'Jumlah orang terlibat',
++        'percent' => 'Persen',
++        'periksa' => 'Periksa di gerbang',
++        'period' => 'Periode',
++        'period_amount' => 'Nilai periode',
++        'period_end' => 'Periode selesai',
++        'period_month' => 'Bulan',
++        'period_progress_pct' => 'Periode ini',
++        'period_start' => 'Periode mulai',
++        'period_year' => 'Tahun',
++        'permissions' => 'Hak akses',
++        'permit_date' => 'Tanggal',
++        'phone' => 'Telepon',
++        'pic' => 'PIC',
++        'pic_name' => 'PIC',
++        'pic_phone' => 'Telepon pic',
++        'pkwt_basis' => 'Dasar pkwt',
++        'pkwt_end_date' => 'Akhir pkwt',
++        'planned_finish' => 'Rencana selesai',
++        'planned_pct' => 'Rencana',
++        'planned_start' => 'Rencana mulai',
++        'planned_submit_date' => 'Rencana ajuan',
++        'planned_until' => 'Rencana sampai',
++        'po_item_id' => 'Baris po',
++        'policy' => 'Kebijakan keselamatan konstruksi',
++        'position' => 'Jabatan',
++        'post' => 'Posting ke stok',
++        'posted_at' => 'Diposting',
++        'pour_date' => 'Tgl cor',
++        'ppe_required' => 'Apd wajib',
++        'pph_amount' => 'Pph dipotong',
++        'pph_rate' => 'Pph final',
++        'pph_scheme' => 'Skema pph final konstruksi',
++        'pph_tax_id' => 'Jenis pph dipotong',
++        'ppn_amount' => 'Ppn masukan',
++        'ppn_rate' => 'Tarif ppn',
++        'present_days' => 'Hadir',
++        'prev_progress_pct' => 'Progres lalu',
++        'preventive_action' => 'Tindakan pencegahan',
++        'price_score' => 'Harga',
++        'priority' => 'Prioritas',
++        'program' => 'Program & sasaran keselamatan konstruksi',
++        'progress_note' => 'Progress',
++        'project_code' => 'Proyek',
++        'project_id' => 'Proyek',
++        'project_manager_id' => 'Project manager',
++        'province' => 'Provinsi',
++        'ptkp_status' => 'PTKP',
++        'purchase_order_id' => 'PO',
++        'purchase_request_id' => 'PR',
++        'purchase_requisition_id' => 'PR',
++        'purpose' => 'Keperluan',
++        'qty' => 'Kuantitas',
++        'qty_change' => 'Perubahan volume',
++        'qty_cum' => 'Kumulatif',
++        'qty_periods' => 'Plafon kuantitas',
++        'qty_prev' => 'Volume lalu',
++        'qty_received' => 'Diterima',
++        'qty_rejected' => 'Ditolak',
++        'qty_returned' => 'Diretur',
++        'qty_this' => 'Volume periode ini',
++        'qty_used' => 'Qty dipakai',
++        'qualification_override_reason' => 'Alasan override prakualifikasi',
++        'quality_score' => 'Kualitas',
++        'quantity' => 'Kuantitas',
++        'quotation_id' => 'Penawaran',
++        'rab_amount' => 'Nilai rab',
++        'rate' => 'Tarif',
++        'rate_basis' => 'Basis tarif',
++        'rate_basis_label' => 'Basis',
++        'rating' => 'Rating',
++        'reason' => 'Alasan',
++        'receipt_date' => 'Tanggal',
++        'receipts' => 'Material masuk',
++        'receive' => 'Terima',
++        'received_at' => 'Tanggal terima',
++        'received_by' => 'Menerima',
++        'recommendations' => 'Rekomendasi',
++        'reference' => 'Referensi',
++        'reference_id' => 'Id referensi',
++        'reference_type' => 'Referensi',
++        'registered_at' => 'Tanggal pendaftaran',
++        'reject' => 'Tolak',
++        'rejection_reason' => 'Alasan ditolak',
++        'remark' => 'Catatan',
++        'remarks' => 'Keterangan',
++        'rental_end' => 'Selesai sewa',
++        'rental_rate' => 'Tarif sewa',
++        'rental_start' => 'Mulai sewa',
++        'reopen' => 'Buka kembali',
++        'report_date' => 'Tanggal',
++        'reported_at' => 'Dilaporkan',
++        'reported_by_name' => 'Dilaporkan oleh',
++        'reported_on' => 'Tanggal temuan',
++        'reported_to_authority_at' => 'Tanggal dilaporkan',
++        'requested_by' => 'Pemohon',
++        'requested_by_name' => 'Pemohon',
++        'residual_level' => 'Tingkat sisa',
++        'residual_likelihood' => 'Kemungkinan sisa',
++        'residual_score' => 'Sisa',
++        'residual_severity' => 'Keparahan sisa',
++        'resign_date' => 'Tanggal resign',
++        'resolution_due_at' => 'Sla selesai',
++        'resolution_notes' => 'Catatan penyelesaian',
++        'resolve' => 'Selesaikan',
++        'responsible_employee_id' => 'Penanggung jawab',
++        'result' => 'Hasil',
++        'results' => 'Butir hasil pemeriksaan',
++        'retention_pct' => 'Retensi',
++        'retention_release_due' => 'Retensi jatuh tempo',
++        'retention_withheld' => 'Retensi ditahan',
++        'return' => 'Buat retur',
++        'return_date' => 'Tanggal',
++        'returned_at' => 'Tanggal kembali',
++        'reviewer_party' => 'Pemeriksa',
++        'reviewer_party_label' => 'Pemeriksa',
++        'revise' => 'Buat revisi',
++        'revision' => 'Rev',
++        'revision_no' => 'Revisi',
++        'rfq_date' => 'Tanggal',
++        'rfq_id' => 'RFQ',
++        'role' => 'Peran',
++        'role_key' => 'Jabatan',
++        'role_label' => 'Jabatan',
++        'role_on_project' => 'Peran',
++        'roles' => 'Peran',
++        'root_cause' => 'Penyebab dasar',
++        'run_type' => 'Jenis',
++        'safety_notes' => 'Catatan k3',
++        'safety_officer_id' => 'Petugas k3',
++        'salvage_value' => 'Nilai residu',
++        'sample_attached' => 'Sampel disertakan',
++        'sample_count' => 'Jml',
++        'scope' => 'Lingkup pekerjaan',
++        'scope_label' => 'Lingkup',
++        'scope_notes' => 'Lingkup yang diserahterimakan',
++        'scope_type' => 'Lingkup',
++        'sections' => 'Bagian & item pekerjaan',
++        'send' => 'Kirim',
++        'serial_no' => 'No. seri',
++        'service_contract_id' => 'Kontrak',
++        'service_score' => 'Layanan',
++        'severity' => 'Keparahan',
++        'shift' => 'Shift',
++        'sick_days' => 'Sakit',
++        'sign_date' => 'Tgl ttd',
++        'site_id' => 'Id lokasi',
++        'site_manager_id' => 'Site manager',
++        'site_name' => 'Nama lokasi',
++        'sites' => 'Lokasi layanan',
++        'sla_resolution_hours' => 'Sla penyelesaian',
++        'sla_response_hours' => 'Sla respons',
++        'slump_cm' => 'Slump',
++        'smkk_total' => 'Biaya smkk',
++        'sort_order' => 'Urutan',
++        'source' => 'Sumber',
++        'spec_reference' => 'Rujukan spesifikasi',
++        'sppkp_number' => 'No. sppkp',
++        'stage' => 'Tahap',
++        'start_date' => 'Mulai',
++        'start_time' => 'Mulai',
++        'state_label' => 'Keputusan',
++        'status' => 'Status',
++        'strength_mpa' => 'Kekuatan',
++        'subcontract_claim_id' => 'Opname subkon',
++        'subcontract_code' => 'SPK',
++        'subcontract_id' => 'SPK subkon',
++        'subcontract_item_id' => 'Id baris spk',
++        'submission_deadline' => 'Batas pemasukan',
++        'submit' => 'Ajukan',
++        'submittal_code' => 'No. sds',
++        'submitted_at' => 'Diajukan',
++        'summary' => 'Ringkasan',
++        'system_qty' => 'Qty sistem',
++        'target_at_age_mpa' => 'Target umur itu',
++        'target_contract_date' => 'Target kontrak',
++        'target_margin_pct' => 'Target margin',
++        'target_note' => 'Target',
++        'tax_type' => 'Jenis',
++        'technician_employee_id' => 'Teknisi',
++        'technician_name' => 'Teknisi',
++        'template_id' => 'Template checklist',
++        'tender_number' => 'No. lelang',
++        'tender_package_id' => 'Paket tender',
++        'terima' => 'Catat tanda terima',
++        'termin_id' => 'Id termin terkait',
++        'termin_no' => '#',
++        'termins' => 'Jadwal termin',
++        'tested_at' => 'Tanggal uji',
++        'tests' => 'Hasil uji tekan',
++        'ticket_code' => 'Tiket',
++        'ticket_id' => 'Tiket',
++        'title' => 'Judul',
++        'to_party' => 'Kepada',
++        'to_warehouse_id' => 'Gudang tujuan',
++        'tolerance' => 'Toleransi',
++        'toolbox_attendees' => 'Peserta toolbox',
++        'toolbox_topic' => 'Topik toolbox',
++        'total' => 'Total',
++        'total_adjustment' => 'Penyesuaian run',
++        'total_amount' => 'Nilai',
++        'total_budget' => 'Total anggaran',
++        'total_deductions' => 'Potongan',
++        'total_gross' => 'Bruto',
++        'total_hours' => 'Total jam',
++        'total_net' => 'Netto',
++        'total_payable' => 'Total bayar',
++        'total_score' => 'Skor',
++        'transfer_date' => 'Tanggal',
++        'transmittal_date' => 'Tanggal',
++        'truck_no' => 'No. truk',
++        'type' => 'Jenis',
++        'unit' => 'Satuan',
++        'unit_cost' => 'Hpp satuan',
++        'unit_price' => 'Harga satuan',
++        'unit_rate' => 'Tarif upah',
++        'useful_life_months' => 'Umur manfaat',
++        'useful_life_months_default' => 'Umur manfaat default',
++        'user_id' => 'Pengguna',
++        'users_count' => 'Jumlah pengguna',
++        'valid_from' => 'Berlaku mulai',
++        'valid_until' => 'Berlaku s/d',
++        'value' => 'Nilai',
++        'value_change' => 'Perubahan nilai',
++        'vehicle_no' => 'No. polisi',
++        'vendor_id' => 'Vendor',
++        'vendor_ids' => 'Vendor diundang',
++        'vendor_invoice_no' => 'Nomor faktur vendor',
++        'vendor_name' => 'Vendor',
++        'vendor_type' => 'Jenis vendor',
++        'verified_at' => 'Tanggal diterima',
++        'verify' => 'Verifikasi selesai',
++        'version' => 'Versi',
++        'volume_m3' => 'Volume',
++        'waive' => 'Dispensasi pelanggan',
++        'waived_at' => 'Tanggal dispensasi',
++        'warehouse_id' => 'Gudang',
++        'warranty_months' => 'Masa pemeliharaan',
++        'wbs_code' => 'Kode wbs',
++        'wbs_task_id' => 'Paket wbs',
++        'weather_am' => 'Cuaca pagi',
++        'weather_pm' => 'Cuaca siang',
++        'week_no' => 'Minggu',
++        'withhold_retention' => 'Tahan retensi sesuai kontrak',
++        'witness_party' => 'Disaksikan',
++        'work_days' => 'Hari kerja',
++        'work_description' => 'Pekerjaan',
++        'work_end' => 'Jam selesai kerja',
++        'work_order_billing_id' => 'Tagihan ppk',
++        'work_order_code' => 'PPK',
++        'work_order_id' => 'PPK',
++        'work_package' => 'Paket pekerjaan',
++        'work_start' => 'Jam mulai kerja',
++        'worker_name' => 'Nama non-karyawan',
++        'workers' => 'Daftar pekerja lembur',
++        'year' => 'Tahun',
++        'activity_lines.*.description' => 'Uraian',
++        'activity_lines.*.obstacle' => 'Hambatan',
++        'activity_lines.*.progress_note' => 'Progress',
++        'activity_lines.*.target_note' => 'Target',
++        'activity_lines.*.wbs_task_id' => 'Paket wbs',
++        'amount.*.amount' => 'Jumlah',
++        'amount.*.description' => 'Uraian',
++        'amount.*.qty' => 'Kuantitas',
++        'amount.*.unit' => 'Satuan',
++        'amount.*.unit_price' => 'Harga satuan',
++        'amount.*.wbs_code' => 'Kode wbs',
++        'apd.*.category' => 'Kategori',
++        'apd.*.qty' => 'Kuantitas',
++        'billings.*.code' => 'Kode',
++        'billings.*.period_end' => 'Periode selesai',
++        'billings.*.period_start' => 'Periode mulai',
++        'billings.*.total_amount' => 'Nilai',
++        'components.*.amount' => 'Jumlah',
++        'components.*.coefficient' => 'Koefisien',
++        'components.*.component_type' => 'Jenis',
++        'components.*.item_id' => 'Item',
++        'components.*.name' => 'Nama',
++        'components.*.unit' => 'Satuan',
++        'components.*.unit_price' => 'Harga satuan',
++        'documents.*.addendum_no' => 'Addendum ke',
++        'documents.*.chapter' => 'Bab / bagian',
++        'documents.*.issued_date' => 'Terbit',
++        'documents.*.notes' => 'Catatan',
++        'documents.*.title' => 'Judul',
++        'drawings.*.decision_label' => 'Keputusan mk',
++        'drawings.*.drawing_number' => 'No. gambar',
++        'drawings.*.drawing_submittal_id' => 'SDS',
++        'drawings.*.revision' => 'Rev',
++        'drawings.*.submittal_code' => 'No. sds',
++        'entries.*.amount' => 'Jumlah',
++        'entries.*.book_value_after' => 'Nilai buku setelah',
++        'equipment.*.asset_id' => 'Aset',
++        'equipment.*.description' => 'Uraian',
++        'equipment.*.hours' => 'Jam operasi',
++        'equipment.*.notes' => 'Catatan',
++        'equipment.*.qty' => 'Kuantitas',
++        'equipment_logs.*.fuel_liters' => 'BBM',
++        'equipment_logs.*.hour_meter' => 'Hour meter',
++        'equipment_logs.*.log_date' => 'Tanggal',
++        'equipment_logs.*.logged_by_name' => 'Dicatat oleh',
++        'equipment_logs.*.notes' => 'Catatan',
++        'findings.*.finding' => 'Temuan',
++        'findings.*.follow_up' => 'Tindak lanjut',
++        'flat_items.*.amount' => 'Jumlah',
++        'flat_items.*.description' => 'Uraian',
++        'flat_items.*.qty' => 'Kuantitas',
++        'flat_items.*.unit' => 'Satuan',
++        'flat_items.*.unit_price' => 'Harga satuan',
++        'flat_items.*.wbs_code' => 'Kode wbs',
++        'items.*.acceptance' => 'Kriteria keberterimaan',
++        'items.*.amount' => 'Jumlah',
++        'items.*.asset_id' => 'Aset',
++        'items.*.boq_item_id' => 'Id item boq',
++        'items.*.check_text' => 'Butir diperiksa',
++        'items.*.cost_category' => 'Kategori',
++        'items.*.counted_qty' => 'Qty terhitung',
++        'items.*.current_progress_pct' => 'Progres kumulatif',
++        'items.*.description' => 'Uraian',
++        'items.*.diff_qty' => 'Selisih',
++        'items.*.estimated_amount' => 'Perkiraan nilai',
++        'items.*.estimated_price' => 'Estimasi harga',
++        'items.*.harga_awal' => 'Harga awal',
++        'items.*.harga_nego' => 'Harga nego',
++        'items.*.id' => 'ID',
++        'items.*.item_id' => 'Item',
++        'items.*.labor_contract_item_id' => 'Id baris sp3',
++        'items.*.line_no' => '#',
++        'items.*.location_path' => 'Lokasi',
++        'items.*.method' => 'Metode',
++        'items.*.notes' => 'Catatan',
++        'items.*.package' => 'Paket',
++        'items.*.period_progress_pct' => 'Periode ini',
++        'items.*.pic' => 'PIC',
++        'items.*.po_item_id' => 'Baris po',
++        'items.*.prev_progress_pct' => 'Progres lalu',
++        'items.*.qty' => 'Kuantitas',
++        'items.*.qty_cum' => 'Kumulatif',
++        'items.*.qty_periods' => 'Plafon kuantitas',
++        'items.*.qty_prev' => 'Volume lalu',
++        'items.*.qty_received' => 'Diterima',
++        'items.*.qty_returned' => 'Diretur',
++        'items.*.qty_this' => 'Volume periode ini',
++        'items.*.rate' => 'Tarif',
++        'items.*.rate_basis' => 'Basis tarif',
++        'items.*.rate_basis_label' => 'Basis',
++        'items.*.subcontract_item_id' => 'Id baris spk',
++        'items.*.system_qty' => 'Qty sistem',
++        'items.*.target_contract_date' => 'Target kontrak',
++        'items.*.tolerance' => 'Toleransi',
++        'items.*.unit' => 'Satuan',
++        'items.*.unit_cost' => 'Hpp satuan',
++        'items.*.unit_price' => 'Harga satuan',
++        'items.*.unit_rate' => 'Tarif upah',
++        'items.*.wbs_code' => 'Kode wbs',
++        'items.*.wbs_task_id' => 'Paket wbs',
++        'lines.*.account_id' => 'Akun',
++        'lines.*.amount' => 'Jumlah',
++        'lines.*.credit' => 'Kredit',
++        'lines.*.debit' => 'Debit',
++        'lines.*.description' => 'Uraian',
++        'lines.*.document_code' => 'No. dokumen',
++        'lines.*.document_id' => 'Id dokumen',
++        'lines.*.kind' => 'Jenjang',
++        'lines.*.meter_end' => 'Meter akhir',
++        'lines.*.meter_start' => 'Meter awal',
++        'lines.*.project_id' => 'Proyek',
++        'lines.*.qty' => 'Kuantitas',
++        'lines.*.rate_basis' => 'Basis tarif',
++        'lines.*.remarks' => 'Keterangan',
++        'manpower.*.headcount' => 'Jumlah orang',
++        'manpower.*.notes' => 'Catatan',
++        'manpower.*.role_key' => 'Jabatan',
++        'manpower.*.role_label' => 'Jabatan',
++        'material_approvals.*.decision_label' => 'Keputusan mk',
++        'material_approvals.*.material_name' => 'Material',
++        'material_approvals.*.material_submittal_id' => 'SMS',
++        'material_approvals.*.submittal_code' => 'No. sds',
++        'materials.*.description' => 'Uraian',
++        'materials.*.item_id' => 'Item',
++        'materials.*.qty' => 'Kuantitas',
++        'materials.*.qty_used' => 'Qty dipakai',
++        'materials.*.unit' => 'Satuan',
++        'parts.*.item_id' => 'Item',
++        'parts.*.notes' => 'Catatan',
++        'parts.*.qty' => 'Kuantitas',
++        'receipts.*.description' => 'Uraian',
++        'receipts.*.goods_receipt_id' => 'GRN',
++        'receipts.*.item_id' => 'Item',
++        'receipts.*.qty_received' => 'Diterima',
++        'receipts.*.qty_rejected' => 'Ditolak',
++        'receipts.*.rejection_reason' => 'Alasan ditolak',
++        'receipts.*.unit' => 'Satuan',
++        'results.*.acceptance' => 'Kriteria keberterimaan',
++        'results.*.check_text' => 'Butir diperiksa',
++        'results.*.remark' => 'Catatan',
++        'results.*.result' => 'Hasil',
++        'results.*.tolerance' => 'Toleransi',
++        'sites.*.address' => 'Alamat',
++        'sites.*.city' => 'Kota',
++        'sites.*.pic_name' => 'PIC',
++        'sites.*.pic_phone' => 'Telepon pic',
++        'sites.*.site_name' => 'Nama lokasi',
++        'termins.*.billing_condition' => 'Syarat penagihan',
++        'termins.*.due_date' => 'Jatuh tempo',
++        'termins.*.is_retention' => 'Retensi',
++        'termins.*.name' => 'Nama',
++        'termins.*.percent' => 'Persen',
++        'tests.*.age_days' => 'Umur',
++        'tests.*.lab' => 'Laboratorium',
++        'tests.*.pass' => 'Memenuhi',
++        'tests.*.strength_mpa' => 'Kekuatan',
++        'tests.*.target_at_age_mpa' => 'Target umur itu',
++        'tests.*.tested_at' => 'Tanggal uji',
++        'workers.*.display_name' => 'Nama',
++        'workers.*.employee_id' => 'Karyawan',
++        'workers.*.hours' => 'Jam operasi',
++        'workers.*.worker_name' => 'Nama non-karyawan',
++    ],
++];
+diff --git a/public/app/app.css b/public/app/app.css
+index 3761c90..f89db1a 100644
+--- a/public/app/app.css
++++ b/public/app/app.css
+@@ -12,14 +12,14 @@
+   --border-strong: #cbd2da;
+   --text: #14181d;
+   --text-2: #47505b;
+-  --muted: #6b7684;
++  --muted: #5e6874; /* dulu #6b7684 = 4,26:1 di atas --bg pada teks 11 px — di bawah AA (2 Sep 2026) */
+   --primary: #1a56db;
+   --primary-hover: #1745b0;
+   --primary-soft: #e8effc;
+   --primary-fg: #ffffff;
+   --danger: #c62828;
+   --danger-soft: #fdecec;
+-  --success: #1b7f4d;
++  --success: #17714a; /* dulu #1b7f4d = 4,42:1 di atas --success-soft pada badge 11,5 px */
+   --success-soft: #e6f4ec;
+   --warning: #96601a;
+   --warning-soft: #fdf1dd;
+@@ -73,8 +73,8 @@
+   color-scheme: light;
+   --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
+   --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
+-  --muted: #6b7684; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
+-  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #1b7f4d;
++  --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
++  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
+   --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
+   --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
+   --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+@@ -754,7 +754,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
+ .chart { width: 100%; height: auto; display: block; overflow: visible; }
+ .chart .grid { stroke: var(--border); stroke-width: 1; }
+ .chart .axis { stroke: var(--border-strong); stroke-width: 1; }
+-.chart text { fill: var(--muted); font-size: 10px; font-family: var(--font); }
++.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
+ .chart .plan { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 3; }
+ .chart .act { fill: none; stroke: var(--primary); stroke-width: 2.5; }
+ .chart .act-fill { fill: var(--primary); opacity: .08; }
+@@ -1091,6 +1091,9 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
+ @media (pointer: coarse) {
+   .combo-opt { min-height: 42px; display: flex; align-items: center; }
+   .combo-pop { max-height: 50vh; }
++  /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
++  .btn.sm { height: 36px; }
++  .btn.sm.icon { width: 36px; }
+ }
+ 
+ /* Print is the only way a financial report leaves this app; an open picker
+diff --git a/public/app/js/app.js b/public/app/js/app.js
+index a771cf7..ce36fe8 100644
+--- a/public/app/js/app.js
++++ b/public/app/js/app.js
+@@ -2,7 +2,7 @@
+ 
+ import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
+ import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
+-import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal } from './ui.js';
++import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
+ import { initials } from './format.js';
+ import { NAV, RESOURCES } from './schema.js';
+ import { route, fallback, navigate, start, currentPath } from './router.js';
+@@ -47,6 +47,9 @@ import { renderEkualisasi } from './views/ekualisasi.js';
+ import { renderGaleriProyek } from './views/galeriproyek.js';
+ import { renderPipeline } from './views/pipeline.js';
+ import { renderRfq } from './views/rfq.js';
++import { renderTugas } from './views/tugas.js';
++import { openForm } from './views/form.js';
++import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
+ 
+ const root = document.getElementById('root');
+ const THEME_KEY = 'nusantara_erp_theme';
+@@ -123,6 +126,7 @@ function renderLogin({ message } = {}) {
+     passwordInput.value = 'password';
+     passwordInput.focus();
+   };
++  const hint = el('.login-hint');
+ 
+   root.appendChild(el('.login', el('.login-card', [
+     el('.login-brand', [
+@@ -133,17 +137,21 @@ function renderLogin({ message } = {}) {
+     el('.sub', { text: 'Gunakan email dan kata sandi yang diberikan administrator.' }),
+     message ? el('.alert.info', { style: { marginBottom: '14px' } }, message) : null,
+     form,
+-    el('.login-hint', [
+-      el('div', { text: 'Akun demo (kata sandi: password):' }),
+-      el('div', [
+-        el('code', { text: 'admin@nusantara.test', onclick: () => fill('admin@nusantara.test') }), ' · ',
+-        el('code', { text: 'direktur@nusantara.test', onclick: () => fill('direktur@nusantara.test') }), ' · ',
+-        el('code', { text: 'finance@nusantara.test', onclick: () => fill('finance@nusantara.test') }), ' · ',
+-        el('code', { text: 'project-manager@nusantara.test', onclick: () => fill('project-manager@nusantara.test') }),
+-      ]),
+-    ]),
++    hint,
+   ])));
+ 
++  // Akun demo hanya bila server mengaku bukan produksi (GET iam/auth/demo-accounts).
++  // Dulu daftar email peran internal ini tercetak di halaman masuk publik tanpa
++  // memeriksa lingkungan apa pun.
++  api.get('iam/auth/demo-accounts').then((accounts) => {
++    if (!Array.isArray(accounts) || !accounts.length) return;
++    hint.appendChild(el('div', { text: 'Akun demo (kata sandi: password):' }));
++    hint.appendChild(el('div', accounts.flatMap((email, index) => [
++      index ? ' · ' : null,
++      el('code', { text: email, onclick: () => fill(email) }),
++    ])));
++  }).catch(() => {});
++
+   emailInput.focus();
+ }
+ 
+@@ -590,6 +598,14 @@ function registerRoutes() {
+     return guard(host, () => renderRetensi(host));
+   });
+ 
++  route('tugas', () => {
++    setCrumbs(['Ringkasan', 'Tugas Saya']);
++    setActiveNav('tugas');
++    const host = view();
++    // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
++    return guard(host, () => renderTugas(host));
++  });
++
+   route('tenggat', () => {
+     setCrumbs(['Ringkasan', 'Tenggat']);
+     setActiveNav('tenggat');
+@@ -786,12 +802,54 @@ async function boot() {
+ 
+   // Refresh permissions in the background — roles may have changed since login.
+   refreshMe().catch(() => {});
++  offerDrafts();
+ }
+ 
++/*
++ * Sesi berakhir di tengah pekerjaan. Urutannya penting: (1) simpan draf
++ * formulir yang sedang terbuka, (2) tutup paksa semua overlay TANPA membuang
++ * draf itu, (3) baru gambar halaman masuk — yang dulu digambar DI BAWAH modal
++ * yang masih terbuka, sehingga tombol Masuk tertutup backdrop dan jalan keluar
++ * satu-satunya adalah Esc → "Buang isian" (diukur 2 Sep 2026).
++ */
+ setUnauthorizedHandler(() => {
+-  renderLogin({ message: 'Sesi Anda berakhir. Silakan masuk kembali.' });
++  flushAll();
++  suspendDraftRemoval(true);
++  try { closeAllModals(); } finally { suspendDraftRemoval(false); }
++  const drafts = listDrafts();
++  renderLogin({
++    message: drafts.length
++      ? `Sesi Anda berakhir. Isian ${drafts[0].label} yang sedang Anda buat tersimpan di peramban ini — masuk kembali untuk memulihkannya.`
++      : 'Sesi Anda berakhir. Silakan masuk kembali.',
++  });
+ });
+ 
++/* Setelah masuk: tawarkan draf yang tertinggal, sekali, dengan jalan langsung
++   ke formulirnya. Toast bertahan sampai ditutup — orang yang baru saja
++   kehilangan sesi tidak boleh kehilangan tawarannya dalam lima detik. */
++function offerDrafts() {
++  const drafts = listDrafts().filter((d) => RESOURCES[d.resourceKey]);
++  if (!drafts.length) return;
++  const d = drafts[0];
++  const node = toast(`Ada isian ${d.label} yang belum tersimpan (${relativeAge(d.savedAt)}).`, {
++    tone: 'info', timeout: 0, title: 'Draf tersimpan di peramban ini',
++  });
++  node.querySelector('.msg').appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
++    button('Pulihkan', {
++      size: 'sm', variant: 'primary',
++      onClick: () => {
++        node.remove();
++        const key = d.resourceKey;
++        openForm({
++          def: RESOURCES[key], key, row: d.rowId ? { id: d.rowId } : null,
++          onSaved: (saved) => navigate(saved && saved.id && !RESOURCES[key].noDetail ? `d/${key}/${saved.id}` : `r/${key}`),
++        });
++      },
++    }),
++    button('Buang', { size: 'sm', variant: 'ghost', onClick: () => { removeDraft(d.resourceKey, d.rowId); node.remove(); } }),
++  ]));
++}
++
+ // A view that blows up must say so rather than leaving a blank page behind.
+ window.addEventListener('unhandledrejection', (event) => {
+   const reason = event.reason || {};
+diff --git a/public/app/js/drafts.js b/public/app/js/drafts.js
+new file mode 100644
+index 0000000..6f23b85
+--- /dev/null
++++ b/public/app/js/drafts.js
+@@ -0,0 +1,84 @@
++/* Draf formulir di peramban.
++ *
++ * Sesi berumur 12 jam dan tidak ada draf di server; sebelum modul ini, isian
++ * yang sedang diketik saat token berakhir hilang tanpa pemulihan, dan panduan
++ * pengguna menyuruh orang "Simpan tiap bagian" sebagai gantinya. Diukur 2 Sep
++ * 2026: 13 field PO hilang lewat 7 klik.
++ *
++ * Yang disimpan hanyalah apa yang diketik pengguna (nilai read() setiap
++ * kontrol, per resource + id), bukan token dan bukan data server — jadi draf
++ * boleh hidup lebih lama daripada sesinya. Kadaluwarsa tujuh hari: draf PO
++ * dari bulan lalu adalah kebingungan, bukan pertolongan.
++ */
++
++const PREFIX = 'nusantara_erp_draft:';
++const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
++
++const flushers = new Set();
++let suspended = false;
++
++/* app.js menyalakannya selama penutupan paksa 401, supaya onClose formulir
++   tidak membuang draf yang justru sedang diselamatkan. */
++export function suspendDraftRemoval(on) { suspended = Boolean(on); }
++export function draftRemovalSuspended() { return suspended; }
++
++export function draftKey(resourceKey, rowId) {
++  return `${PREFIX}${resourceKey}:${rowId || 'new'}`;
++}
++
++export function saveDraft(resourceKey, rowId, data) {
++  try {
++    localStorage.setItem(draftKey(resourceKey, rowId), JSON.stringify({ ...data, savedAt: Date.now() }));
++  } catch { /* kuota penuh atau mode privat — draf adalah bonus, bukan syarat */ }
++}
++
++export function loadDraft(resourceKey, rowId) {
++  try {
++    const raw = localStorage.getItem(draftKey(resourceKey, rowId));
++    if (!raw) return null;
++    const draft = JSON.parse(raw);
++    if (!draft || Date.now() - draft.savedAt > MAX_AGE_MS) { removeDraft(resourceKey, rowId); return null; }
++    return draft;
++  } catch { return null; }
++}
++
++export function removeDraft(resourceKey, rowId) {
++  localStorage.removeItem(draftKey(resourceKey, rowId));
++}
++
++/** Semua draf yang tersimpan, terbaru dulu — untuk tawaran "Pulihkan" setelah masuk kembali. */
++export function listDrafts() {
++  const out = [];
++  for (let i = 0; i < localStorage.length; i += 1) {
++    const k = localStorage.key(i);
++    if (!k || !k.startsWith(PREFIX)) continue;
++    try {
++      const d = JSON.parse(localStorage.getItem(k));
++      if (!d || Date.now() - d.savedAt > MAX_AGE_MS) continue;
++      const [resourceKey, rowId] = k.slice(PREFIX.length).split(/:(?=[^:]*$)/);
++      out.push({ ...d, resourceKey, rowId: rowId === 'new' ? null : rowId });
++    } catch { /* abaikan */ }
++  }
++  return out.sort((a, b) => b.savedAt - a.savedAt);
++}
++
++/* Formulir yang terbuka mendaftarkan flush-nya di sini; app.js memanggil
++   flushAll() tepat sebelum menutup paksa overlay pada 401, supaya ketikan
++   sedetik terakhir (yang masih menunggu debounce) ikut tersimpan. */
++export function registerDraftFlush(fn) {
++  flushers.add(fn);
++  return () => flushers.delete(fn);
++}
++
++export function flushAll() {
++  flushers.forEach((fn) => { try { fn(); } catch { /* satu form rusak tidak boleh menahan yang lain */ } });
++}
++
++export function relativeAge(savedAt) {
++  const minutes = Math.round((Date.now() - savedAt) / 60000);
++  if (minutes < 1) return 'baru saja';
++  if (minutes < 60) return `${minutes} menit lalu`;
++  const hours = Math.round(minutes / 60);
++  if (hours < 24) return `${hours} jam lalu`;
++  return `${Math.round(hours / 24)} hari lalu`;
++}
+diff --git a/public/app/js/schema.js b/public/app/js/schema.js
+index 0b2f5f2..d6ea73e 100644
+--- a/public/app/js/schema.js
++++ b/public/app/js/schema.js
+@@ -5529,7 +5529,7 @@ export const RESOURCES = {
+ export const NAV = [
+   {
+     label: 'Ringkasan', perm: null,
+-    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
++    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+   },
+   {
+     label: 'Penjualan', perm: 'crm.view',
+diff --git a/public/app/js/ui.js b/public/app/js/ui.js
+index 2789b66..eb019d1 100644
+--- a/public/app/js/ui.js
++++ b/public/app/js/ui.js
+@@ -137,9 +137,14 @@ export function toast(message, { tone = 'ok', title, timeout = 5200 } = {}) {
+ export function toastError(error) {
+   const details = error && error.details ? error.details : [];
+   const message = details.length ? details.slice(0, 4).join('\n') : error.message || String(error);
++  /* Laravel menaruh galat pertama sebagai `message` DAN sebagai baris pertama
++     `errors`, jadi toast 422 dulu membaca kalimat yang sama dua kali — sekali
++     sebagai judul, sekali sebagai rincian (diukur 2 Sep 2026 pada PO). Judul
++     hanya dipakai bila ia memang kalimat lain. */
++  const firstDetail = details.length ? details[0].replace(/^[^:]+:\s*/, '') : null;
+   toast(message, {
+     tone: 'err',
+-    title: details.length ? error.message : undefined,
++    title: details.length && firstDetail !== error.message ? error.message : undefined,
+     /* A long refusal stays until dismissed. The maker-checker message is ~40
+        words ending with the way out ("… matikan di Pengaturan"); at 200 wpm it
+        needs ~12 detik, and the 8-second timer ate exactly the clause that told
+@@ -413,6 +418,19 @@ export function closeModal() {
+   if (top) top.close();
+ }
+ 
++/*
++ * Menutup SEMUA lapisan tanpa bertanya. Satu-satunya pemanggilnya adalah jalur
++ * 401: sesi yang berakhir di tengah formulir dulu menggambar halaman masuk DI
++ * BAWAH overlay yang masih terbuka — tombol Masuk tertutup backdrop, dan satu-
++ * satunya jalan adalah Esc → "Buang isian" (diukur 2 Sep 2026). Isian tidak
++ * hilang karena penutupan ini: form.js sudah menyimpan drafnya ke localStorage
++ * pada setiap ketikan, dan app.js meminta flush sekali lagi sebelum memanggil
++ * ini.
++ */
++export function closeAllModals() {
++  while (stack.length) stack[stack.length - 1].close();
++}
++
+ /*
+  * How many layers are open, for the handlers `inert` cannot reach. A key
+  * shortcut bound to document keeps firing while #root is inert, so search.js
+diff --git a/public/app/js/views/actions.js b/public/app/js/views/actions.js
+index 560c4e6..2516376 100644
+--- a/public/app/js/views/actions.js
++++ b/public/app/js/views/actions.js
+@@ -1,11 +1,36 @@
+ /* Lifecycle actions (submit / approve / post / assign / …) declared in schema.js. */
+ 
+ import { api, session } from '../api.js';
+-import { button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
++import { el, button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
+ import { invalidateByPath } from '../lookup.js';
+ import { promptFields } from './form.js';
+ import { navigate } from '../router.js';
+ 
++const PAST = {
++  submit: 'diajukan · menunggu persetujuan', approve: 'disetujui', reject: 'ditolak', post: 'diposting',
++  close: 'ditutup', cancel: 'dibatalkan', activate: 'diaktifkan', reopen: 'dibuka kembali',
++};
++
++/*
++ * Setelah memutus satu dokumen, tunjukkan yang berikutnya di antrean — tanpa
++ * kembali ke dasbor (18 permintaan) dan mencari barisnya lagi. Satu permintaan
++ * ke core/inbox; gagal = tidak ada tawaran, bukan galat.
++ */
++async function offerNext(justDecided) {
++  try {
++    const rows = (await api.get('core/inbox')) || [];
++    const next = rows.find((r) => r.code !== justDecided);
++    if (!next) { toast('Kotak masuk persetujuan Anda kosong.', { tone: 'info', timeout: 4000 }); return; }
++    const node = toast(`${next.code} · ${next.label}${next.amount ? ` · Rp ${Number(next.amount).toLocaleString('id-ID')}` : ''}`, {
++      tone: 'info', title: `Berikutnya menunggu Anda (${rows.length})`, timeout: 12000,
++    });
++    node.querySelector('.msg').appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
++      button('Buka', { size: 'sm', variant: 'primary', onClick: () => { node.remove(); navigate(next.link.replace(/^#\//, '')); } }),
++      rows.length > 1 ? button('Semua tugas', { size: 'sm', variant: 'ghost', onClick: () => { node.remove(); navigate('tugas'); } }) : null,
++    ]));
++  } catch { /* tawaran, bukan kewajiban */ }
++}
++
+ /** Run one action against a row (or the collection when `row` is null). */
+ export async function runAction(action, row, def, { trigger, onDone } = {}) {
+   const path = row
+@@ -31,7 +56,12 @@ export async function runAction(action, row, def, { trigger, onDone } = {}) {
+   const call = async () => {
+     const result = await api[action.method === 'PUT' ? 'put' : 'post'](path, payload);
+     invalidateByPath(def.api);
+-    toast(`${action.label} berhasil.`);
++    /* Nomor dokumen sebagai subjek kalimat, bukan "Ajukan berhasil.": toast
++       adalah satu-satunya jejak yang dilihat orang setelah tombolnya hilang. */
++    const code = (result && result.code) || (row && row.code) || '';
++    const said = PAST[action.key];
++    toast(code && said ? `${code} ${said}.` : `${action.label} berhasil.`);
++    if (['approve', 'reject'].includes(action.key)) offerNext(code);
+ 
+     if (action.navigateTo && result && result.id) {
+       navigate(`d/${action.navigateTo}/${result.id}`);
+diff --git a/public/app/js/views/dashboard.js b/public/app/js/views/dashboard.js
+index a532603..44b5c9d 100644
+--- a/public/app/js/views/dashboard.js
++++ b/public/app/js/views/dashboard.js
+@@ -183,7 +183,7 @@ export async function renderDashboard(host) {
+   ]));
+ 
+   const statRow = el('.stat-row');
+-  const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))', gap: '16px' } });
++  const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '16px' } });
+   host.append(statRow, grid);
+ 
+   statRow.append(...Array.from({ length: 4 }, () => el('.stat', el('.skeleton', { style: { height: '40px' } }))));
+@@ -191,22 +191,22 @@ export async function renderDashboard(host) {
+   const [
+     projects, arInvoices, apBills, tickets, purchaseOrders, lowStock, quotations, claims,
+     requisitions, subcontracts, boqs, costBudgets, adjustments, payrollRuns, billingReady,
+-    bankBalances, agenda, summary,
++    bankBalances, agenda, summary, inboxPayload,
+   ] = await Promise.all([
+     session.can('prj.view') ? safe('projects', { per_page: 100, mine: mineOnly ? 1 : undefined }) : [],
+     session.can('fin.view') ? safe('finance/ar-invoices', { per_page: 100 }) : [],
+-    session.can('fin.view') ? safe('finance/ap-bills', { per_page: 100 }) : [],
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+     session.can('svc.view') ? safe('servicedesk/tickets', { per_page: 100 }) : [],
+-    session.can('prc.view') ? safe('procurement/purchase-orders', { per_page: 100 }) : [],
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+     session.can('inv.view') ? safe('inventory/stock/low-stock') : [],
+-    session.can('crm.view') ? safe('crm/quotations', { per_page: 100 }) : [],
+-    session.can('scm.view') ? safe('subcontract/progress-claims', { per_page: 100 }) : [],
+-    session.can('prc.approve') ? safe('procurement/purchase-requisitions', { status: 'submitted', per_page: 50 }) : [],
+-    session.can('scm.approve') ? safe('subcontract/subcontracts', { status: 'submitted', per_page: 50 }) : [],
+-    session.can('est.approve') ? safe('estimation/boqs', { status: 'submitted', per_page: 50 }) : [],
+-    session.can('est.approve') ? safe('estimation/cost-budgets', { status: 'submitted', per_page: 50 }) : [],
+-    session.can('inv.approve') ? safe('inventory/stock-adjustments', { status: 'submitted', per_page: 50 }) : [],
+-    session.can('hr.approve') ? safe('hr/payroll-runs', { status: 'submitted', per_page: 50 }) : [],
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
++    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+     // Pekerjaan yang sudah berhak ditagih dan belum ditagih — di data nyata
+     // angka ini pernah diam empat bulan pada Rp 14,55 miliar karena tidak ada
+     // satu pun layar yang menyebutkannya.
+@@ -234,6 +234,14 @@ export async function renderDashboard(host) {
+     session.can('prj.view') || session.can('fin.view')
+       ? safe('core/dashboard/summary', { mine: mineOnly ? 1 : undefined })
+       : [],
++    // Kotak persetujuan: SATU permintaan untuk semua jenis dokumen di
++    // ApprovableDocuments (InboxController), menggantikan 11 permintaan per
++    // jenis yang tidak pernah mencakup 17 jenis lainnya — diukur 2 Sep 2026:
++    // pengajuan cuti yang menunggu tak terlihat direktur ber-hr.approve.
++    api.list('core/inbox').catch((error) => {
++      console.error('Dasbor: core/inbox gagal dimuat', error);
++      return { loadFailure: error };
++    }),
+   ]);
+ 
+   /* ------------------------------------------------------------- tiles */
+@@ -326,72 +334,45 @@ export async function renderDashboard(host) {
+   }
+ 
+   /* -------------------------------------------------------- approvals */
+-  const submitted = (rows) => rows.filter((row) => row.status === 'submitted');
+-  const inbox = (rows, label, key, perm) => submitted(rows).map((row) => ({ row, label, key, perm }));
+-
+-  /* Satu daftar sumber, dipakai dua kali: sekali untuk menyusun antrean, sekali
+-     untuk menyebut sumber yang gagal. Sebelumnya daftar ini hanya ada sebagai
+-     spread di dalam `pending`, sehingga kegagalan satu sumber cuma mengurangi
+-     barisnya — kotak masuk yang bilang "tidak ada dokumen yang menunggu
+-     persetujuan" padahal PO senilai ratusan juta sedang menunggu adalah
+-     kesalahan yang paling mahal di layar ini, karena orang berhenti mencari. */
+-  const inboxSources = [
+-    [quotations, 'Penawaran', 'crm/quotations', 'crm.approve'],
+-    [boqs, 'BOQ / RAB', 'estimation/boqs', 'est.approve'],
+-    [costBudgets, 'RAP', 'estimation/cost-budgets', 'est.approve'],
+-    [requisitions, 'Permintaan (PR)', 'procurement/purchase-requisitions', 'prc.approve'],
+-    [purchaseOrders, 'Pesanan (PO)', 'procurement/purchase-orders', 'prc.approve'],
+-    [subcontracts, 'SPK subkon', 'subcontract/subcontracts', 'scm.approve'],
+-    [claims, 'Opname subkon', 'subcontract/progress-claims', 'scm.approve'],
+-    [adjustments, 'Opname stok', 'inventory/stock-adjustments', 'inv.approve'],
+-    [arInvoices, 'Invoice termin', 'finance/ar-invoices', 'fin.approve'],
+-    [apBills, 'Tagihan vendor', 'finance/ap-bills', 'fin.approve'],
+-    [payrollRuns, 'Payroll', 'hr/payroll-runs', 'hr.approve'],
+-  ];
+-
+-  const pending = inboxSources
+-    .flatMap(([rows, label, key, perm]) => inbox(rows, label, key, perm))
+-    .filter((entry) => session.can(entry.perm));
+-
+-  // Hanya sumber yang BOLEH dilihat pemakai ini: sumber tanpa izin bukan `[]`
+-  // bertanda, jadi tidak pernah ikut terhitung gagal.
+-  const inboxFailed = inboxSources
+-    .filter(([rows, , , perm]) => session.can(perm) && failure(rows))
+-    .map(([, label]) => label);
++  const inboxRows = failure(inboxPayload) ? [] : (inboxPayload.data || []);
++  const inboxMeta = failure(inboxPayload) ? {} : (inboxPayload.meta || {});
++  const inboxFailed = failure(inboxPayload) ? ['kotak masuk'] : (inboxMeta.failed || []);
++  const inboxTotal = failure(inboxPayload) ? 0 : (inboxMeta.total ?? inboxRows.length);
++  const INBOX_PREVIEW = 5;
+ 
+   grid.appendChild(card(
+-    `Menunggu persetujuan Anda${pending.length ? ` (${pending.length})` : ''}`,
++    `Menunggu persetujuan Anda${inboxTotal ? ` (${inboxTotal})` : ''}`,
+     el('div', [
+-      pending.length
++      inboxRows.length
+         ? miniTable(
+           [
+-            { label: 'Dokumen', render: (entry) => el('span', [el('span.cell-main.mono', { text: entry.row.code }), el('span.cell-sub', { text: entry.label })]) },
+-            { label: 'Keterangan', render: (entry) => el('span', { text: entry.row.title || entry.row.description || entry.row.purpose || entry.row.notes || '—' }) },
++            { label: 'Dokumen', render: (r) => el('span', [el('span.cell-main.mono', { text: r.code }), el('span.cell-sub', { text: r.label })]) },
+             {
+-              label: 'Nilai', align: 'right',
+-              render: (entry) => {
+-                const amount = entry.row.total ?? entry.row.total_payable ?? entry.row.net_payable
+-                  ?? entry.row.value ?? entry.row.total_budget ?? entry.row.total_net;
+-                return el('span.num', { text: amount === undefined ? '—' : fmt.rupiah(amount) });
+-              },
++              label: 'Keterangan',
++              // Satu baris, dipotong: uraian PR yang dibiarkan membungkus memakan
++              // 8 baris per dokumen (2 Sep 2026). Pengaju dan umur antrean di
++              // baris kedua, bukan kolom sendiri — tiga kolom muat di 565 px,
++              // empat kolom menggulung mendatar dan memotong angka nilainya.
++              render: (r) => el('span', [
++                el('span.cell-main', { text: r.title || '—', title: r.title || '', style: { display: 'block', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '400' } }),
++                el('span.cell-sub', { text: [r.submitted_by ? `oleh ${r.submitted_by}` : null, r.days_waiting === null || r.days_waiting === undefined ? null : (r.days_waiting >= 7 ? `menunggu ${r.days_waiting} hari` : `${r.days_waiting} hari`)].filter(Boolean).join(' · ') || '—' }),
++              ]),
+             },
++            { label: 'Nilai', align: 'right', render: (r) => el('span.num', { text: r.amount === null || r.amount === undefined ? '—' : fmt.rupiah(r.amount) }) },
+           ],
+-          pending.slice(0, 10),
+-          (entry) => navigate(`d/${entry.key}/${entry.row.id}`),
++          inboxRows.slice(0, INBOX_PREVIEW),
++          (r) => navigate(r.link.replace(/^#\//, '')),
+         )
+         : el('.card-body', el('p.muted', {
+-          // Kalimat lamanya, "Tidak ada dokumen yang menunggu persetujuan",
+-          // adalah pernyataan tentang dunia. Kalau ada sumber yang gagal,
+-          // pernyataan itu tidak bisa dibuat — yang bisa dikatakan hanya
+-          // bahwa tidak ada yang dapat ditampilkan.
+-          text: inboxFailed.length
+-            ? 'Tidak ada dokumen yang dapat ditampilkan.'
+-            : 'Tidak ada dokumen yang menunggu persetujuan.',
++          // "Tidak ada yang menunggu" adalah pernyataan tentang dunia; bila
++          // sumbernya gagal, yang bisa dikatakan hanya bahwa tidak ada yang
++          // dapat ditampilkan.
++          text: inboxFailed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu persetujuan.',
+           style: { margin: 0, fontSize: '13px' },
+         })),
+-      // Antrean yang tidak lengkap harus mengaku tidak lengkap: baris ini
+-      // menyebut jenis dokumen yang sumbernya gagal, supaya daftar yang pendek
+-      // tidak pernah terbaca sebagai daftar yang sudah bersih.
++      inboxTotal > INBOX_PREVIEW
++        ? el('.card-foot', button(`Lihat semua (${inboxTotal})`, { size: 'sm', onClick: () => navigate('tugas') }))
++        : null,
+       inboxFailed.length
+         ? el('.card-body', { style: { borderTop: '1px solid var(--border)', padding: '10px 16px' } },
+           el('.alert.warn', { style: { margin: 0 } }, [
+@@ -400,6 +381,7 @@ export async function renderDashboard(host) {
+           ]))
+         : null,
+     ]),
++    { action: button('Tugas Saya', { size: 'sm', variant: 'ghost', onClick: () => navigate('tugas') }) },
+   ));
+ 
+   /* --------------------------------------------------------- kalender */
+diff --git a/public/app/js/views/detail.js b/public/app/js/views/detail.js
+index 7007e54..5d99ce4 100644
+--- a/public/app/js/views/detail.js
++++ b/public/app/js/views/detail.js
+@@ -530,6 +530,47 @@ function nestedTable(sections, table) {
+   ]));
+ }
+ 
++/** Kalimat keadaan dokumen di bawah judul, atau null bila statusnya tidak dikenal. */
++function statusStrip(def, record, canEdit) {
++  const status = String(record.status || '');
++  const approvals = Array.isArray(record.approvals) ? record.approvals : [];
++  const last = (action) => [...approvals].reverse().find((a) => a.action === action);
++  const who = (entry) => (entry && entry.user ? entry.user.name : 'Sistem');
++  const when = (entry) => (entry ? fmt.date(entry.created_at) : '');
++  const label = (def.labelOne || 'Dokumen');
++
++  let tone = 'info';
++  let text = null;
++  let sub = null;
++
++  if (status === 'draft') {
++    text = `${label} ini masih draf — belum masuk antrean siapa pun.`;
++    sub = canEdit ? 'Ubah dan Hapus tersedia sampai diajukan. Tekan Ajukan bila sudah lengkap.' : null;
++  } else if (status === 'submitted') {
++    const s = last('submitted');
++    const given = approvals.filter((a) => a.action === 'approved').length;
++    const need = Number(record.required_levels || 0);
++    text = `${s ? `Diajukan ${when(s)} oleh ${who(s)}` : 'Diajukan'} · menunggu persetujuan${need > 1 ? ` (${given} dari ${need} tingkat)` : ''}.`;
++    sub = 'Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.';
++    tone = 'warn';
++  } else if (status === 'rejected') {
++    const r = last('rejected');
++    text = `Ditolak ${when(r)} oleh ${who(r)}${r && r.note ? `: "${r.note}"` : '.'}`;
++    sub = 'Perbaiki lalu ajukan lagi; riwayat penolakan tetap tersimpan.';
++    tone = 'error';
++  } else if (['approved', 'posted', 'active', 'closed'].includes(status)) {
++    const a = last('approved');
++    text = a ? `Disetujui ${when(a)} oleh ${who(a)} · dokumen terkunci.` : `${label} ini terkunci (${record.status_label || status}).`;
++    sub = 'Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.';
++  }
++
++  if (!text) return el('span', { hidden: true });
++  return el(`.alert.${tone}`, { style: { marginBottom: '14px' } }, [
++    icon(tone === 'info' ? 'inbox' : 'warn', 15),
++    el('div', { style: { flex: '1' } }, [el('div', { text }), sub ? el('.cell-sub', { text: sub }) : null]),
++  ]);
++}
++
+ export function approvalTimeline(approvals) {
+   if (!approvals || !approvals.length) {
+     return el('p.muted', { text: 'Belum ada riwayat persetujuan.', style: { margin: 0, fontSize: '13px' } });
+@@ -678,6 +719,16 @@ export async function renderDetail(host, { key, def, id }) {
+     ]),
+   ]));
+ 
++  /*
++   * Strip status: satu kalimat tentang di mana dokumen ini berada dan apa yang
++   * bisa dilakukan sekarang. Ini jawaban di layar untuk tiga dari "enam kalimat
++   * untuk semua orang" di panduan pengguna — Ubah yang menghilang tanpa pesan,
++   * maker-checker, dan tidak ada batal setelah posting — yang dulu hanya bisa
++   * dibaca di dokumen, bukan di tempat orang bertanya (asesmen 2 Sep 2026).
++   * Datanya sudah ada di record.approvals; tidak ada permintaan tambahan.
++   */
++  host.appendChild(statusStrip(def, record, canEdit));
++
+   /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
+      words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.
+      Gated on def.revisable, not on the data alone: baselines and the method
+diff --git a/public/app/js/views/form.js b/public/app/js/views/form.js
+index f1bdfd9..8bf41ff 100644
+--- a/public/app/js/views/form.js
++++ b/public/app/js/views/form.js
+@@ -9,6 +9,7 @@ import { combobox } from '../combobox.js';
+ import { moneyInput } from '../money.js';
+ import { MONTHS, rupiah, toDateInput, toDateTimeInput, today } from '../format.js';
+ import { navigate } from '../router.js';
++import { saveDraft, loadDraft, removeDraft, registerDraftFlush, relativeAge, draftRemovalSuspended } from '../drafts.js';
+ 
+ /* ------------------------------------------------------ lookup field glue */
+ 
+@@ -620,6 +621,30 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
+     ...lineDefs.flatMap((line) => line.columns.map((c) => c.lookup)),
+   ]);
+ 
++  /*
++   * Draf di peramban (drafts.js). Bila formulir yang sama (resource + id) pernah
++   * ditinggalkan dengan isian — sesi berakhir, tab tertutup, laptop mati — isian
++   * itu ditawarkan kembali SEBELUM kontrol dibangun, supaya nilai header masuk
++   * lewat jalur `record` yang sama dengan Ubah, dan baris lewat initialRows yang
++   * sama dengan salin-dari-PO. Menolak = draf dibuang; tidak ada tawaran kedua.
++   */
++  const draftRowId = isEdit ? row.id : null;
++  const draft = loadDraft(key, draftRowId);
++  if (draft && (draft.header || draft.lines)) {
++    const restore = await confirmDialog({
++      title: 'Pulihkan isian yang belum tersimpan?',
++      message: `${def.labelOne} ini pernah diisi ${relativeAge(draft.savedAt)} dan belum disimpan — sesi berakhir atau tab tertutup. Pulihkan isiannya?`,
++      confirmLabel: 'Pulihkan',
++      cancelLabel: 'Mulai kosong',
++      tone: 'primary',
++    });
++    if (restore) {
++      record = { ...(record || {}), ...(draft.header || {}), ...(draft.lines || {}) };
++    } else {
++      removeDraft(key, draftRowId);
++    }
++  }
++
+   const controls = {};
+   const fieldControls = []; // [{ spec, control }] urut tampil — untuk validasi wajib-isi
+   /*
+@@ -749,6 +774,28 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
+   ]);
+   const pristine = snapshot();
+ 
++  /*
++   * Draf otomatis: setiap ketikan menjadwalkan simpanan ke localStorage 1,2
++   * detik kemudian; app.js meminta flush langsung saat 401. Formulir yang
++   * kembali bersih (isian dihapus lagi) mencabut drafnya, dan draf hilang saat
++   * Simpan berhasil atau pengguna sendiri memilih "Buang isian" — tetapi TIDAK
++   * saat overlay ditutup paksa oleh sesi yang berakhir (draftRemovalSuspended).
++   */
++  let draftTimer = null;
++  const persistDraft = () => {
++    clearTimeout(draftTimer);
++    if (snapshot() === pristine) { removeDraft(key, draftRowId); return; }
++    saveDraft(key, draftRowId, {
++      label: def.labelOne,
++      header: Object.fromEntries(Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()])),
++      lines: Object.fromEntries(lineControls.map(({ def: lineDef, control }) => [lineDef.key, control.read()])),
++    });
++  };
++  const scheduleDraft = () => { clearTimeout(draftTimer); draftTimer = setTimeout(persistDraft, 1200); };
++  body.addEventListener('input', scheduleDraft, true);
++  body.addEventListener('change', scheduleDraft, true);
++  const unregisterFlush = registerDraftFlush(persistDraft);
++
+   const dialog = modal({
+     title: `${isEdit ? 'Ubah' : 'Tambah'} ${def.labelOne}`,
+     width: lineDefs.length ? 'wide' : '',
+@@ -757,6 +804,11 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
+     // loses the same 15 lines a mis-aimed Escape does.
+     footer: [button('Batal', { onClick: () => dialog.requestClose() }), save],
+     dirty: () => snapshot() !== pristine,
++    onClose: () => {
++      clearTimeout(draftTimer);
++      unregisterFlush();
++      if (!draftRemovalSuspended()) removeDraft(key, draftRowId);
++    },
+   });
+ 
+   /*
+@@ -852,6 +904,7 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
+ 
+       const finish = (saved) => {
+         invalidateByPath(def.api);
++        removeDraft(key, draftRowId);
+         toast(`${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
+         dialog.close();
+         if (onSaved) onSaved(saved);
+diff --git a/public/app/js/views/list.js b/public/app/js/views/list.js
+index 2fe0eea..1dec26a 100644
+--- a/public/app/js/views/list.js
++++ b/public/app/js/views/list.js
+@@ -120,7 +120,7 @@ export async function renderList(host, { key, def }) {
+       canCreate
+         ? button(`Tambah ${def.labelOne}`, {
+           variant: 'primary', iconName: 'plus',
+-          onClick: () => openForm({ def, key, onSaved: () => load() }),
++          onClick: () => openForm({ def, key, onSaved: afterCreate }),
+         })
+         : null,
+     ]),
+@@ -617,6 +617,16 @@ export async function renderList(host, { key, def }) {
+       .filter(Boolean);
+   }
+ 
++  /* Dokumen yang baru dibuat dibuka, bukan dikembalikan ke daftar: langkah
++     berikutnya hampir selalu ada di halamannya (Ajukan, lampiran, cetak), dan
++     mendarat di daftar berarti mencari barisnya dulu — satu klik ekstra pada
++     setiap dokumen (diukur 2 Sep 2026: 13 klik PO 2 baris, 1 di antaranya ini).
++     Layar tanpa halaman detail tetap memuat ulang daftarnya. */
++  function afterCreate(saved) {
++    if (saved && saved.id && !def.noDetail) navigate(`d/${key}/${saved.id}`);
++    else load();
++  }
++
+   function rowActions(row) {
+     const wrap = el('div', { style: { display: 'flex', gap: '4px', justifyContent: 'flex-end' } });
+ 
+@@ -693,7 +703,7 @@ export async function renderList(host, { key, def }) {
+           : `Belum ada ${def.label.toLowerCase()} yang tercatat.`,
+         {
+           action: canCreate && !ui.q
+-            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: () => load() }) })
++            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: afterCreate }) })
+             : null,
+         },
+       ));
+diff --git a/public/app/js/views/tugas.js b/public/app/js/views/tugas.js
+new file mode 100644
+index 0000000..6af007f
+--- /dev/null
++++ b/public/app/js/views/tugas.js
+@@ -0,0 +1,96 @@
++/* Tugas Saya — kotak masuk persetujuan lengkap.
++ *
++ * Kartu dasbor hanya cuplikan lima baris; layar ini adalah antreannya: semua
++ * jenis dokumen di ApprovableDocuments yang boleh disetujui pemanggil, yang
++ * paling lama menunggu di atas, dengan saringan per jenis. Satu permintaan
++ * (GET core/inbox); tidak ada logika per modul di sini — jenis dokumen baru
++ * ikut otomatis begitu terdaftar di server.
++ *
++ * Dulu pekerjaan sampai lewat tiga pintu yang harus diperiksa bergantian
++ * (kartu dasbor 11 jenis, lonceng yang basi, Tenggat untuk yang lewat).
++ * Layar ini menjawab satu pertanyaan saja: "apa yang menunggu keputusan
++ * saya sekarang" — dan menjawabnya lengkap. */
++import { api } from '../api.js';
++import { el, clear, button, badge, emptyState, errorState, skeletonTable } from '../ui.js';
++import * as fmt from '../format.js';
++import { navigate } from '../router.js';
++
++export async function renderTugas(host) {
++  clear(host);
++  host.appendChild(el('.page-head', [
++    el('div', [
++      el('h1', { text: 'Tugas Saya' }),
++      el('.desc', { text: 'Dokumen yang menunggu keputusan Anda, yang paling lama menunggu di atas.' }),
++    ]),
++    el('.actions', [button('Muat ulang', { iconName: 'refresh', onClick: () => renderTugas(host) })]),
++  ]));
++
++  const card = el('.card');
++  host.appendChild(card);
++  card.appendChild(skeletonTable(5, 5));
++
++  let payload;
++  try {
++    payload = await api.list('core/inbox');
++  } catch (error) {
++    clear(card).appendChild(el('.card-body', errorState(error, () => renderTugas(host))));
++    return;
++  }
++
++  const rows = payload.data || [];
++  const meta = payload.meta || {};
++  const types = [...new Set(rows.map((r) => r.label))].sort();
++  let filter = '';
++
++  const select = el('select.filter-w', [
++    el('option', { value: '', text: `Semua jenis (${rows.length})` }),
++    ...types.map((t) => el('option', { value: t, text: `${t} (${rows.filter((r) => r.label === t).length})` })),
++  ]);
++  select.addEventListener('change', () => { filter = select.value; paint(); });
++
++  const body = el('div');
++  clear(card);
++  card.appendChild(el('.filters', [el('span.muted', { text: 'Jenis dokumen' }), select]));
++  card.appendChild(body);
++
++  function paint() {
++    clear(body);
++    const shown = filter ? rows.filter((r) => r.label === filter) : rows;
++
++    if (meta.failed && meta.failed.length) {
++      body.appendChild(el('.alert.warn', { style: { margin: '12px 16px 0' } },
++        `Gagal dimuat: ${meta.failed.join(', ')}. Daftar ini belum lengkap.`));
++    }
++
++    if (!shown.length) {
++      body.appendChild(emptyState(
++        meta.failed && meta.failed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu keputusan Anda.',
++        { title: 'Kotak masuk kosong' },
++      ));
++      return;
++    }
++
++    body.appendChild(el('.table-wrap', el('table.data', [
++      el('thead', el('tr', [
++        el('th', { text: 'Dokumen' }), el('th', { text: 'Keterangan' }), el('th', { text: 'Diajukan oleh' }),
++        el('th', { text: 'Menunggu' }), el('th.right', { text: 'Nilai' }),
++      ])),
++      el('tbody', shown.map((r) => {
++        const tr = el('tr.clickable', [
++          el('td', [el('span.cell-main.mono', { text: r.code }), el('span.cell-sub', { text: r.label })]),
++          el('td', { text: r.title || '—', style: { maxWidth: '420px' } }),
++          el('td', { text: r.submitted_by || '—' }),
++          el('td', r.days_waiting === null || r.days_waiting === undefined
++            ? '—'
++            // 7 hari ke atas berwarna: antrean yang menua adalah temuan, bukan angka.
++            : badge(`${r.days_waiting} hari`, r.days_waiting >= 14 ? 'red' : r.days_waiting >= 7 ? 'amber' : '')),
++          el('td.right.num', { text: r.amount === null || r.amount === undefined ? '—' : fmt.rupiah(r.amount) }),
++        ]);
++        tr.addEventListener('click', () => navigate(r.link.replace(/^#\//, '')));
++        return tr;
++      })),
++    ])));
++  }
++
++  paint();
++}
+-- 
+2.43.0
+

@@ -1,0 +1,628 @@
+{
+ "S10_api_422_language": {
+  "po_422": {
+   "vendor_id": "Vendor wajib diisi.",
+   "order_date": "Tanggal PO wajib diisi.",
+   "items.0.qty": "Kuantitas minimal 0.001.",
+   "items.0.unit_price": "Harga satuan wajib diisi."
+  },
+  "customer_422": {
+   "name": "Nama wajib diisi."
+  },
+  "apbill_422": {
+   "vendor_id": "Vendor wajib diisi bila tidak ada satu pun dari PO / GRN / Opname subkon / Opname mandor / Tagihan ppk.",
+   "description": "Uraian wajib diisi bila tidak ada satu pun dari PO / GRN / Opname subkon / Opname mandor / Tagihan ppk.",
+   "dpp": "DPP wajib diisi bila tidak ada satu pun dari PO / GRN / Opname subkon / Opname mandor / Tagihan ppk.",
+   "vendor_invoice_no": "Nomor faktur vendor wajib diisi."
+  },
+  "_ms": 1353,
+  "_clicks": 0
+ },
+ "S1_inbox_truth": {
+  "direktur_approve_perms": [
+   "ast.approve",
+   "core.approve",
+   "crm.approve",
+   "eng.approve",
+   "est.approve",
+   "fin.approve",
+   "hr.approve",
+   "iam.approve",
+   "inv.approve",
+   "prc.approve",
+   "prj.approve",
+   "qc.approve",
+   "scm.approve",
+   "svc.approve"
+  ],
+  "server_submitted_visible_to_direktur": {
+   "estimation/cost-budgets": 1,
+   "procurement/purchase-orders": 1,
+   "subcontract/subcontracts": 1,
+   "hr/leave-requests": 1
+  },
+  "dashboard_card": {
+   "title": "Menunggu persetujuan Anda (4)",
+   "rows": [
+    "RAP/2026/0001",
+    "SPK/2026/III/0002",
+    "CTI/2026/VIII/0002",
+    "PO/2026/IX/0003"
+   ],
+   "width": 565,
+   "height": 543.546875,
+   "seeAll": false,
+   "rowHeights": [
+    58,
+    73,
+    54,
+    73
+   ]
+  },
+  "_ms": 5178,
+  "_clicks": 0
+ },
+ "S2_approve_loop": {
+  "detail_ms": 1142,
+  "approve_total_ms": 2517,
+  "action_bar": [
+   "Kembali",
+   "Cetak halaman",
+   "Setujui",
+   "Tolak"
+  ],
+  "ubah_visible_on_submitted": false,
+  "status_badge": "Diajukan",
+  "explanation_under_title": "Diajukan · menunggu persetujuan.\nUbah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+  "approve_modal_fields": [
+   "Catatan persetujuan"
+  ],
+  "approve_modal_buttons": [
+   "Batal",
+   "Setujui"
+  ],
+  "toast": [
+   "RAP/2026/0001 disetujui.",
+   "Berikutnya menunggu Anda (4)\nSPK/2026/III/0002 · SPK subkontraktor · Rp 2.100.000.000\nBuka\nSemua tugas"
+  ],
+  "after": {
+   "url": "#/d/estimation/cost-budgets/1",
+   "status": "Disetujui",
+   "nextOffer": [
+    "RAP/2026/0001 disetujui.",
+    "Berikutnya menunggu Anda (4)\nSPK/2026/III/0002 · SPK subkontraktor · Rp 2.100.000.000\nBuka\nSemua tugas"
+   ],
+   "strip": "RAP ini terkunci (Disetujui).\nIsi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+   "opened_next": "SPK/2026/III/0002"
+  },
+  "api_calls_detail_to_back": 16,
+  "api_calls_sample": [
+   "estimation/cost-budgets/1",
+   "projects?per_page=500&page=1",
+   "estimation/boqs?per_page=500&page=1",
+   "core/print/forms",
+   "core/attachments?document_type=estimation%2Fcost-budgets&document_id=1",
+   "estimation/cost-budgets/1/approve",
+   "core/inbox",
+   "estimation/cost-budgets/1",
+   "core/attachments?document_type=estimation%2Fcost-budgets&document_id=1",
+   "subcontract/subcontracts/2",
+   "subcontract/subcontracts/2/retention",
+   "subcontract/subcontracts/2/advance",
+   "subcontract/progress-claims?subcontract_id=2&per_page=50",
+   "procurement/vendors?per_page=500&page=1",
+   "estimation/cost-budgets/1",
+   "core/attachments?document_type=estimation%2Fcost-budgets&document_id=1"
+  ],
+  "_ms": 11106,
+  "_clicks": 5
+ },
+ "S3_create_po": {
+  "form": {
+   "fields": [
+    "Vendor*",
+    "Dari PR",
+    "Proyek",
+    "Gudang tujuan",
+    "Tanggal PO*",
+    "Perkiraan kirim",
+    "Termin bayar (hari)",
+    "Diskon",
+    "Alamat pengiriman",
+    "Catatan",
+    "Alasan override prakualifikasi"
+   ],
+   "lineCols": [
+    "ITEM",
+    "URAIAN",
+    "QTY",
+    "SATUAN",
+    "HARGA SATUAN",
+    "JUMLAH",
+    ""
+   ],
+   "width": 960,
+   "bodyScroll": 882,
+   "bodyClient": 740,
+   "linesTop": 842.765625,
+   "foot": [
+    "Batal",
+    "Simpan"
+   ]
+  },
+  "client_errors": [
+   "Wajib diisi.",
+   "Wajib diisi.",
+   "Wajib diisi."
+  ],
+  "line_inputs_row1": [
+   "combo-input:text",
+   "INPUT:text",
+   "INPUT:number",
+   "INPUT:text",
+   "INPUT:text",
+   "na",
+   "na"
+  ],
+  "server_errors_rendered": [
+   "Kuantitas minimal 0.001."
+  ],
+  "toast_on_422": [
+   "Periksa isian yang ditandai.",
+   "items.0.qty: Kuantitas minimal 0.001."
+  ],
+  "saved": true,
+  "toast_after_save": [
+   "items.0.qty: Kuantitas minimal 0.001.",
+   "PO dibuat."
+  ],
+  "landing_after_save": {
+   "hash": "#/d/procurement/purchase-orders/4",
+   "h1": "PO/2026/IX/0004"
+  },
+  "create_ms": 7572,
+  "api_calls": 18,
+  "submit_modal_fields": [
+   "Alasan override prakualifikasi"
+  ],
+  "toast_after_submit": [
+   "items.0.qty: Kuantitas minimal 0.001.",
+   "PO dibuat.",
+   "PO/2026/IX/0004 diajukan · menunggu persetujuan."
+  ],
+  "status_after_submit": "Diajukan",
+  "bar_after_submit": [
+   "Kembali",
+   "Cetak halaman",
+   "PDF"
+  ],
+  "po_code": "PO/2026/IX/0004",
+  "detail_action_bar": [
+   "Kembali",
+   "Cetak halaman",
+   "PDF",
+   "Ubah",
+   "Ajukan"
+  ],
+  "total_ms_create_to_submit": 9635,
+  "_ms": 13578,
+  "_clicks": 12
+ },
+ "S4_session_loss": {
+  "tokens_revoked": 5,
+  "loginVisible": true,
+  "modalVisible": false,
+  "banner": "Sesi Anda berakhir. Isian PO yang sedang Anda buat tersimpan di peramban ini — masuk kembali untuk memulihkannya.",
+  "toasts": [
+   "Unauthenticated."
+  ],
+  "localStorageKeys": [
+   "nusantara_erp_draft:procurement/purchase-orders:new"
+  ],
+  "login_form_behind_overlay": "reachable",
+  "after_escape": {
+   "modals": 0,
+   "dialogText": []
+  },
+  "modal_after_discard": 0,
+  "after_relogin": {
+   "hash": "#/r/procurement/purchase-orders",
+   "modal": false,
+   "recoveryOffer": true,
+   "toast": [
+    "Unauthenticated.",
+    "Draf tersimpan di peramban ini\nAda isian PO yang belum tersimpan (baru saja).\nPulihkan\nBuang"
+   ]
+  },
+  "restored": {
+   "title": "Tambah PO",
+   "filled": 13,
+   "lines": 3,
+   "vendor": "VND-0003 — PT Elektrindo Supply",
+   "textarea": "UJI-UX — isian yang akan hilang bila sesi berakhir."
+  },
+  "fields_typed_before_expiry": 13,
+  "_ms": 13090,
+  "_clicks": 8
+ },
+ "S5_nav_per_role": {
+  "admin": {
+   "groups": 14,
+   "links": 121,
+   "navHeightPx": 4447,
+   "viewportsTall": 4.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "KEUANGAN",
+     20
+    ],
+    [
+     "PENGADAAN",
+     13
+    ]
+   ],
+   "stats": 6,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek",
+    "Piutang jatuh tempo terdekat",
+    "Tiket layanan aktif"
+   ]
+  },
+  "direktur": {
+   "groups": 14,
+   "links": 119,
+   "navHeightPx": 4384,
+   "viewportsTall": 4.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "KEUANGAN",
+     20
+    ],
+    [
+     "PENGADAAN",
+     13
+    ]
+   ],
+   "stats": 6,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek",
+    "Piutang jatuh tempo terdekat",
+    "Tiket layanan aktif"
+   ]
+  },
+  "project-manager": {
+   "groups": 9,
+   "links": 62,
+   "navHeightPx": 2381,
+   "viewportsTall": 2.6,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "ASET",
+     8
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "site-manager": {
+   "groups": 7,
+   "links": 44,
+   "navHeightPx": 1731,
+   "viewportsTall": 1.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "ENGINEERING",
+     6
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "estimator": {
+   "groups": 7,
+   "links": 47,
+   "navHeightPx": 1826,
+   "viewportsTall": 2,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PENJUALAN",
+     11
+    ],
+    [
+     "ENGINEERING",
+     6
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "procurement": {
+   "groups": 6,
+   "links": 35,
+   "navHeightPx": 1387,
+   "viewportsTall": 1.5,
+   "biggest": [
+    [
+     "PENGADAAN",
+     13
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "ESTIMASI",
+     5
+    ]
+   ],
+   "stats": 0,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara"
+   ]
+  },
+  "warehouse": {
+   "groups": 6,
+   "links": 35,
+   "navHeightPx": 1406,
+   "viewportsTall": 1.6,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "RINGKASAN",
+     3
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek"
+   ]
+  },
+  "finance": {
+   "groups": 7,
+   "links": 67,
+   "navHeightPx": 2436,
+   "viewportsTall": 2.7,
+   "biggest": [
+    [
+     "KEUANGAN",
+     20
+    ],
+    [
+     "PENGADAAN",
+     13
+    ],
+    [
+     "PENJUALAN",
+     11
+    ]
+   ],
+   "stats": 4,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Piutang jatuh tempo terdekat"
+   ]
+  },
+  "hr": {
+   "groups": 3,
+   "links": 14,
+   "navHeightPx": 844,
+   "viewportsTall": 0.9,
+   "biggest": [
+    [
+     "SDM & PAYROLL",
+     6
+    ],
+    [
+     "SISTEM",
+     5
+    ],
+    [
+     "RINGKASAN",
+     3
+    ]
+   ],
+   "stats": 0,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara"
+   ]
+  },
+  "sales": {
+   "groups": 7,
+   "links": 43,
+   "navHeightPx": 1700,
+   "viewportsTall": 1.9,
+   "biggest": [
+    [
+     "PROYEK",
+     20
+    ],
+    [
+     "PENJUALAN",
+     11
+    ],
+    [
+     "LAYANAN",
+     5
+    ]
+   ],
+   "stats": 2,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Progres proyek",
+    "Tiket layanan aktif"
+   ]
+  },
+  "teknisi": {
+   "groups": 3,
+   "links": 16,
+   "navHeightPx": 844,
+   "viewportsTall": 0.9,
+   "biggest": [
+    [
+     "PERSEDIAAN",
+     8
+    ],
+    [
+     "LAYANAN",
+     5
+    ],
+    [
+     "RINGKASAN",
+     3
+    ]
+   ],
+   "stats": 1,
+   "cards": [
+    "Menunggu persetujuan Anda",
+    "Kalender Acara",
+    "Tiket layanan aktif"
+   ]
+  },
+  "_ms": 31265,
+  "_clicks": 0
+ },
+ "S6_mobile_lapangan": {
+  "taps_to_lapangan": 2,
+  "ms": 2297,
+  "links": 44,
+  "drawerHeight": 1712,
+  "lapanganTop": 528,
+  "visibleWithoutScroll": true,
+  "groupsAbove": 2,
+  "lapangan": {
+   "hash": "#/lapangan",
+   "h1": "Lapangan",
+   "bigButtons": 1,
+   "text": "Lapangan\nLayar untuk di lokasi: buat laporan harian dan kirim foto ber-GPS langsung dari ponsel.\nLaporan Harian\nProyek\nPRJ-2026-002 — Instalasi ELV & Data Center Bank Artha Nusantara\nPRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)\nTanggal\nBelum ada laporan untuk tanggal ini\nTenaga "
+  },
+  "_ms": 5939,
+  "_clicks": 2
+ },
+ "S7_status_colors": {
+  "ncr": [],
+  "k3": [
+   "Ya → red",
+   "— → "
+  ],
+  "defects": [],
+  "tickets": [
+   "Sedang → blue",
+   "Ditugaskan → blue",
+   "Rendah → ",
+   "Kritis → red",
+   "Terselesaikan → green",
+   "Ditutup → "
+  ],
+  "_ms": 9822,
+  "_clicks": 0
+ },
+ "S8_styles": {
+  "th_font": "11px",
+  "th_color": "rgb(94, 104, 116)",
+  "muted_token": "#5e6874",
+  "bg": "#f4f6f8",
+  "surface2": "#fafbfc",
+  "contrast_muted_on_bg": 5.23,
+  "contrast_muted_on_surface2": 5.47,
+  "contrast_success_badge": 5.29,
+  "btn_sm_height": 0,
+  "smallest_font_px": 10,
+  "page_head_buttons": [
+   "Muat ulang",
+   "Tambah PO"
+  ],
+  "_ms": 4392,
+  "_clicks": 0
+ },
+ "S9_account_menu": {
+  "account_menu_items": [
+   "Tutup",
+   "Keluar"
+  ],
+  "_ms": 3630,
+  "_clicks": 1
+ },
+ "S11_tugas": {
+  "h1": "Tugas Saya",
+  "rows": [
+   "RAP/2026/0001",
+   "SPK/2026/III/0002",
+   "CTI/2026/VIII/0002",
+   "PO/2026/IX/0003",
+   "PO/2026/IX/0004"
+  ],
+  "types": [
+   "Semua jenis (5)",
+   "Pengajuan cuti (1)",
+   "Pesanan pembelian (2)",
+   "RAP (1)",
+   "SPK subkontraktor (1)"
+  ],
+  "leave_detail_bar": [
+   "Kembali",
+   "Cetak halaman",
+   "Setujui",
+   "Tolak"
+  ],
+  "status_strip": "Diajukan oleh Sistem · menunggu persetujuan.\nUbah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+  "_ms": 4578,
+  "_clicks": 2
+ }
+}
