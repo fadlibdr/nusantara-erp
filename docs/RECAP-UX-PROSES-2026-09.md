@@ -230,23 +230,27 @@ Re-run `bukti-uji/harness-playwright.py` after each phase; production numbers vi
 "After phase 2" was measured 4 Sep 2026 on a fresh scratch seed (`S10 S1 S11` then `S2 S3 S4 S5 S8`, one merged
 `bukti-uji/results-phase-2.json`; method and per-scenario numbers in `PROGRESS-UX-PROSES.md` § Gate Phase 2).
 Production was not measured in that pass. The last two rows were added 4 Sep for T2.10 / T2.11.
+"After phase 3" was measured on a fresh scratch seed (`S10 S1 S11` then `S2 S3 S4 S5 S8`, one merged
+`bukti-uji/results-phase-3.json`; method, dry-run lists and per-scenario numbers in `PROGRESS-UX-PROSES.md`
+§ Gate Phase 3) at 4 Sep 20:22 UTC = 5 Sep 03:22 WIB — the watchers' "today" is WIB, the browser's is UTC.
+Production was not measured in that pass either.
 
-| Metric | Baseline (2 Sep) | After patch (2 Sep) | After phase 2 (4 Sep) | Target |
-|---|---|---|---|---|
-| Fields lost on session expiry (13 typed) | 13 | 0 | 0 (13 field + 3 baris dipulihkan, S4) | 0 |
-| Approval clicks per document | 4 + search | 3 | 2 (S2: baris → Setujui; Buka → Kembali) | 2 (T2.3) |
-| API calls per approval round-trip | 28 | 16 | 14 on a leave-request detail (16 on a subcontract detail — the count is the detail page's, not the approval's) | ≤ 12 (T2.3 + inbox) |
-| Dashboard API calls per open | 21 | 11 | 11 direktur · 6 warehouse (S1; `core/inbox` skipped without `.approve`) | ≤ 10 |
-| Inbox coverage (types shown / awaiting) | 11/28, 3 of 4 docs | 28/28, 4 of 4 | 28/28, 4 of 4 (S1) | 28/28 |
-| Create→submit PO (2 lines) clicks | 13 | 12 | 12 on a fresh profile (T2.4 −1, T2.5's collapsed group +1); 11 once the sidebar preference is saved | ≤ 10 (T2.4, T4.2) |
-| English validation strings on 422 | 178/216 requests | 0 | 0 (S10, 3 requests) | 0 |
-| Contrast `--muted` on `--bg` | 4.26 | 5.23 | 5.23 (S8; 5.47 on `--surface-2`, 5.29 success badge) | ≥ 4.5 |
-| Admin sidebar height (viewports) | 4.9 | 4.9 | 0.7 (606 px of sidebar content; `scrollHeight` reads 1.4 = the grid row's floor, S5) | ≤ 2.0 (T2.5) |
-| Documents awaiting approval > 10 days (production) | 2 (33 d, 40 d) | reminders + escalation daily | — (production not measured) | 0 |
-| Approved AP bills past due (production) | 1 (69 d) | — | — (production not measured) | 0 (T3.1) |
-| Admin permissions on production | 74/86 | — | — (production not measured; `erp:permission-check` ready since T1.1) | 86/86 (T1.1) |
-| Demo logins shown an approvals card they cannot act on (of 11) | 8 | 8 | 0 (S5 › cards: admin, direktur, project-manager only) | 0 (T2.11) |
-| Smallest font on the PO list (px) | 10 | 10 | 11 (S8) | ≥ 11 (T2.10) |
+| Metric | Baseline (2 Sep) | After patch (2 Sep) | After phase 2 (4 Sep) | After phase 3 (5 Sep WIB) | Target |
+|---|---|---|---|---|---|
+| Fields lost on session expiry (13 typed) | 13 | 0 | 0 (13 field + 3 baris dipulihkan, S4) | 0 (14 field + 3 baris dipulihkan, S4 — 14 typed since T3.5/T3.8 made `Perkiraan kirim` and `Alasan tanpa PR` required) | 0 |
+| Approval clicks per document | 4 + search | 3 | 2 (S2: baris → Setujui; Buka → Kembali) | 2 (S2: 4 klik for two documents) | 2 (T2.3) |
+| API calls per approval round-trip | 28 | 16 | 14 on a leave-request detail (16 on a subcontract detail — the count is the detail page's, not the approval's) | 14 on a leave-request detail (S2; T3.3 added no request — `approvals.user` rides the existing `show()`) | ≤ 12 (T2.3 + inbox) |
+| Dashboard API calls per open | 21 | 11 | 11 direktur · 6 warehouse (S1; `core/inbox` skipped without `.approve`) | 11 direktur · 6 warehouse (S1) | ≤ 10 |
+| Inbox coverage (types shown / awaiting) | 11/28, 3 of 4 docs | 28/28, 4 of 4 | 28/28, 4 of 4 (S1) | 28/28, 4 of 4 (S1; S11 lists the same 4) | 28/28 |
+| Create→submit PO (2 lines) clicks | 13 | 12 | 12 on a fresh profile (T2.4 −1, T2.5's collapsed group +1); 11 once the sidebar preference is saved | 12 on a fresh profile (S3; the two fields T3.5/T3.8 made required are fills, not clicks) | ≤ 10 (T2.4, T4.2) |
+| English validation strings on 422 | 178/216 requests | 0 | 0 (S10, 3 requests) | 0 (S10, 3 requests; the PO 422 now carries 6 keys, all Indonesian) | 0 |
+| Contrast `--muted` on `--bg` | 4.26 | 5.23 | 5.23 (S8; 5.47 on `--surface-2`, 5.29 success badge) | 5.23 (S8; 5.47 / 5.29) | ≥ 4.5 |
+| Admin sidebar height (viewports) | 4.9 | 4.9 | 0.7 (606 px of sidebar content; `scrollHeight` reads 1.4 = the grid row's floor, S5) | 0.7 (606 px, S5) | ≤ 2.0 (T2.5) |
+| Documents awaiting approval > 10 days (production) | 2 (33 d, 40 d) | reminders + escalation daily | — (production not measured) | — (production not measured; `erp:approval-watch --dry-run` on the fresh seed: none ≥ 5 d, its rows are minutes old; on a copy back-dated to the production shape: `[ESKALASI] SPK/2026/III/0002 40 hari`, `PR/2026/III/0002 33 hari`) | 0 |
+| Approved AP bills past due (production) | 1 (69 d) | — | — (production not measured) | — (production not measured; `ap_due` watches since T3.1 — the seed's only bill is paid, so the dry-run lists none; the planted case was listed in T3.1) | 0 (T3.1) |
+| Admin permissions on production | 74/86 | — | — (production not measured; `erp:permission-check` ready since T1.1) | — (production not measured) | 86/86 (T1.1) |
+| Demo logins shown an approvals card they cannot act on (of 11) | 8 | 8 | 0 (S5 › cards: admin, direktur, project-manager only) | 0 (S5: admin, direktur, project-manager only) | 0 (T2.11) |
+| Smallest font on the PO list (px) | 10 | 10 | 11 (S8) | 11 (S8) | ≥ 11 (T2.10) |
 
 ---
 

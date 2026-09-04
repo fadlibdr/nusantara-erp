@@ -1849,3 +1849,136 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - OQ-5 asks five things: who may delegate (and whether `.approve-director` is delegable); to whom (same-permission hand-over vs temporary grant; re-delegation; maker-checker for the delegate incl. documents the DELEGATOR submitted); the window (free range vs approved leave, max days, whether the delegator may still approve); the record ("atas nama" in `note` vs a new column, and which name the house forms print); notifications and revocation.
   - The `core_approval_delegations` migration named by the entry was NOT scaffolded: its `prefixes` column and the maker-checker rule for the delegate are policy, and an unused table on production would be a schema promise nobody made.
   - Estimate unchanged (2–3 d) once OQ-5's five answers are written in the RECAP.
+
+### Gate Phase 3
+- Commit: (this commit) — `docs/bukti-uji/results-phase-3.json` (the run's `results.json`, verbatim),
+  RECAP § Verification column "After phase 3 (5 Sep WIB)" (+ the intro sentence naming the run), this block;
+  T3.9/T3.10 skip → f99a81f. No code changed in this pass.
+- Acceptance: `harness-playwright.py` **S10 S1 S2 S3 S4 S5 S8 S11** on a fresh scratch seed
+  (`<scratchpad>/ux/t39g.sqlite`, tree f99a81f) → **8 scenarios `ok`, 0 `ERROR`**, 101 s of scenario time
+  (933 + 9 109 + 4 347 + 16 238 + 16 238 + 13 402 + 35 932 + 5 135 ms). Two invocations into one
+  `results.json` (the harness merges): **`S10 S1 S11`** (15 s) then **`S2 S3 S4 S5 S8`** started 70 s after
+  the first login (160 s wall) — the Gate Phase 2 sequencing (S2 approves the queue head; S11 clicks the
+  `CTI/` row; the login throttle is 10/min per IP). The three Phase 3 gate criteria Prompt A names:
+  - **S2 `explanation_under_title` carries an approver name and date (T3.3):**
+    `Diajukan 04 Sep 2026 oleh Andi Kurniawan · menunggu persetujuan.` on `CTI/2026/VIII/0002` (the head
+    on this seed; the `submitted` row is the one T3.4's seeder writes — procurement@ = EMP-0005), after
+    Setujui `Disetujui 04 Sep 2026 oleh Budi Santoso · dokumen terkunci.`; toast
+    `CTI/2026/VIII/0002 disetujui.` + `Berikutnya menunggu Anda (3) RAP/2026/0001 · RAP · Rp
+    42.173.913.043,47`, `opened_next` RAP/2026/0001; **4 klik = 2 per document**, `approve_modal_opened`
+    false, `action_bar ['Kembali','Cetak','Setujui','Tolak']`, `api_calls_detail_to_back` **14**
+    (leave-request detail — unchanged, T3.3 added no request); `po_bar` PO/2026/IX/0003 draft
+    `[Kembali, Cetak, Ubah, Ajukan]` / direktur `[Kembali, Cetak, Setujui, Tolak]`, `submit_http` 200.
+    **S11**'s strip on the same leave request now reads the same sentence — Phase 0 and Phase 2 read
+    `Diajukan · menunggu persetujuan.` there (Gate Phase 0 note 4: no seeded `submitted` row for
+    CTI); T3.4's seeder row closed that.
+  - **`erp:deadline-watch --dry-run` and `erp:approval-watch --dry-run` list the seeded cases** — both run
+    on the fresh seed BEFORE the harness touched it (`DB_DATABASE=<scratchpad>/ux/t39g.sqlite php artisan …`):
+    ```
+    BLIND vendor_document_valid_until: 3 row(s) in scope but every prc_vendor_documents.valid_until is NULL — this watcher sees nothing until the dates are entered; silence here is missing data, not all clear.
+    tender_submission_deadline [lewat]: 1 row(s) -> crm.create
+      TND/2026/VIII/0001 batas pemasukan 4 Sep 2026 — 1 hari lalu.
+    termin_due [lewat]: 1 row(s) -> fin.create
+      Triwulan II 25% senilai Rp 120 jt rencana tagih 1 Jul 2026 — 66 hari lalu.
+    safety_incident_due [lewat]: 1 row(s) -> prj.update
+      K3/2026/IV/002 batas waktu 30 Apr 2026 — 128 hari lalu.
+    po_expected [lewat]: 2 row(s) -> prc.update
+      PO/2026/II/0001 senilai Rp 232,5 jt dijanjikan 1 Mar 2026 — 188 hari lalu. PO/2026/III/0002 senilai Rp 128,3 jt dijanjikan 23 Mar 2026 — 166 hari lalu. Total 2 PO.
+    pr_needed [lewat]: 1 row(s) -> prc.create
+      PR/2026/III/0002 dibutuhkan 1 Apr 2026 — 157 hari lalu.
+    ticket_sla [lewat]: 2 row(s) -> svc.update
+      TKT-202607-0003 batas penyelesaian 8 Jul 2026 — 59 hari lalu. TKT-202607-0004 batas penyelesaian 29 Jul 2026 — 38 hari lalu. Total 2 tiket.
+    pkwt_end [tanpa_tanggal]: 2 row(s) -> hr.update
+      Joko Susilo berstatus kontrak tanpa tanggal akhir PKWT tercatat. Made Wirawan berstatus kontrak tanpa tanggal akhir PKWT tercatat. Total 2 karyawan.
+    Checked 21 watcher(s), skipped 0, blind 1, raised 7 alarm group(s). Dry-run: tidak ada notifikasi dikirim.
+    ```
+    The Phase 3 entries read against the seed: **`ticket_sla`** (T3.2) names TKT-202607-0003 (59 hari) and
+    0004 (38 hari), resolved/closed silent; **`po_expected` / `pr_needed`** name the seed's dated PO and PR
+    (T3.5 makes `expected_date` mandatory on every new PO, so the watcher can no longer be blind to one);
+    **`ap_due`** (T3.1) raises nothing here because the seed's only bill BIL/2026/III/0001 is paid — the
+    T3.1 block lists the planted production-shaped case; **`ar_invoice_due`** (T3.7's dunning clause)
+    raises nothing because INV/2026/II/0001 is paid — the T3.7 block lists its planted case. "1 hari lalu"
+    for a 4 Sep deadline: the command's "today" is 5 Sep WIB (run 03:2x WIB).
+    `erp:approval-watch --dry-run` on the same fresh seed: **`Tidak ada dokumen menunggu ≥ 5 hari.`** —
+    honest: every `submitted` row was written by the seeder minutes earlier (created_at 03:21:45–46 WIB),
+    so nothing is 5 days old. To show the command lists the production shape ANALISIS §4.2 names, a COPY
+    (`t39g-aged.sqlite`, never served, not committed) had the SPK and PR `submitted` rows back-dated 40 / 33
+    days (`core_approvals.created_at`/`updated_at`, 2 + 2 rows): 
+    ```
+    [ESKALASI] SPK/2026/III/0002 SPK subkontraktor 40 hari
+    [ESKALASI] PR/2026/III/0002 Permintaan pembelian 33 hari
+    2 dokumen menunggu ≥ 5 hari.
+    ```
+  - **DeadlineWatchTest works/refused pairs for T3.1 and T3.2** — part of the Core suite below (T3.1 +4,
+    T3.2 +3 tests, per their blocks); the suite is green on the gate tree.
+  - Other headline numbers on this run: **S3** 12 klik on a fresh profile (`nav_group_opened` true) →
+    `PO/2026/IX/0004`, `Diajukan`, form fields `Vendor* · Dari PR · Alasan tanpa PR* · Proyek · Gudang
+    tujuan · Tanggal PO* · Perkiraan kirim* · …` (12), `client_errors` 5, cell `Kuantitas minimal 0.001.`,
+    `toast_on_422 ['Periksa isian yang ditandai.']`, toasts `PO dibuat.` / `PO/2026/IX/0004 diajukan ·
+    menunggu persetujuan.`, 18 API calls, 12 403 ms create→submit. **S4** 14 field typed (13 + `Alasan
+    tanpa PR`, T3.8), banner `Sesi Anda berakhir. Isian PO yang sedang Anda buat tersimpan di peramban
+    ini — masuk kembali untuk memulihkannya.`, `modalVisible` false, `loginVisible` true, Masuk
+    `reachable`, `recoveryOffer` true, restored **14 field / 3 baris** (vendor `VND-0003 — PT Elektrindo
+    Supply`, textarea `UJI-UX — pembelian langsung tanpa PR`), 8 klik. **S1** direktur card `Menunggu
+    persetujuan Anda (4)` = 4 server types (RAP, PR, SPK, CTI), rows `[CTI/2026/VIII/0002, RAP/2026/0001,
+    PR/2026/III/0002, SPK/2026/III/0002]`, 11 dashboard requests; warehouse `approvals_card` false,
+    `tugas_link` false, 6 requests. **S10** PO 422 = `vendor_id` `Vendor wajib diisi.` · `order_date`
+    `Tanggal PO wajib diisi.` · `expected_date` `Perkiraan kirim wajib diisi.` (T3.5) · `pr_bypass_reason`
+    `Alasan tanpa PR wajib diisi bila PR kosong.` (T3.8) · `items.0.qty` `Kuantitas minimal 0.001.` ·
+    `items.0.unit_price` `Harga satuan wajib diisi.`; customer `Nama wajib diisi.`; AP bill `… wajib
+    diisi bila tidak ada satu pun dari PO / GRN / …` — 0 English strings. **S11** h1 `Tugas Saya`, 4 rows,
+    `Semua jenis (4)`, `leave_detail_bar ['Kembali','Cetak','Setujui','Tolak']`, 2 klik. **S5** admin
+    `navContentPx` **606 = 0,7 viewport**, 14 groups / 122 links; direktur 606 / 120; PM 451 / 63;
+    site-manager 357 / 44; estimator 357 / 47; procurement 326 / 35; warehouse 326 / 35; finance 357 /
+    67; hr 233 / 14; sales 357 / 43; teknisi 233 / 16; approvals card for admin, direktur, project-manager
+    only — **3 of 11**; no 429 this run. **S8** `--muted #5e6874`, contrast **5.23 / 5.47 / 5.29**, `th_font`
+    11px, `smallest_font_px` **11**.
+  - PHPUnit on the gate tree (per directory, every module with a file changed since Gate Phase 2 —
+    Core, Crm, Engineering, Estimation, Finance, HrPayroll, Procurement, Projects, Quality, ServiceDesk,
+    Subcontract): **Core OK (613 tests, 3 715 assertions)** · **Crm OK (226, 856)** · **Engineering OK (44, 245)** · **Estimation OK (77, 373)** · **Finance OK (831, 4 047)** · **HrPayroll OK (143, 527)** · **Procurement OK (181, 720)** · **Projects OK (345, 1 823)** · **Quality OK (51, 209)** · **ServiceDesk OK (46, 202)** · **Subcontract OK (134, 473)** — **2 691 tests, 13 190 assertions, 0 failures**, 6 min 35 s wall (20:25:24 → 20:31:59 UTC), run AFTER the harness so the `_ms` readings were not contended. Iam (45) and Inventory/Assets have no file changed since Gate Phase 2 and were not re-run.
+- Notes:
+  - **Missed targets and who closes them:** *API calls per approval round-trip* 14 vs ≤ 12 — unchanged
+    since Gate Phase 2 and for the same reason (the detail page's own loads; T3.3 rides the existing
+    `show()`), T4.x / unassigned. *Dashboard API calls per open* 11 vs ≤ 10 for approvers — the eleventh
+    is `iam/auth/me` + `core/notifications/unread-count`; folding the bell count into
+    `core/dashboard/summary` would do it, unassigned. *Create→submit PO* 12 vs ≤ 10 — T4.2, gated on
+    research; T3.5/T3.8 added two required fields and no click. The three **production** rows are not
+    measured (this pass never touches production) — their instruments now exist (`erp:approval-watch`,
+    `ap_due`, `erp:permission-check`) and the numbers are the owner's to read on the box after the T1.1
+    server-side step. Everything else meets its target.
+  - **The queue head is seed-order dependent** (Gate Phase 0 note 1): CTI here (HR seeder's row at
+    :45, Estimation's at :46), RAP on t34h/t38h, SPK on t35b, PR on t33b — the T3.3 strings held on
+    every head Phase 3 saw, and the gate criterion (name + date) is met on the leave request, the one
+    document type whose strip read "Diajukan oleh Sistem" / "Diajukan" before.
+  - **Dates:** the browser's `04 Sep 2026` is Chromium-in-UTC rendering `2026-09-05T03:21+07:00`
+    (T3.3 note — display, not data); the watchers' "today" is 5 Sep WIB. The RECAP column is labelled
+    "5 Sep WIB" for that reason; every earlier column was labelled by the UTC run day.
+  - Environment: `php artisan config:clear`; `DB_DATABASE=<scratchpad>/ux/t39g.sqlite php artisan
+    migrate:fresh --seed --force`; both dry-runs with the same `DB_DATABASE=`; server as its own statement
+    `cd public; DB_DATABASE=<scratchpad>/ux/t39g.sqlite APP_ENV=local nohup php -S 127.0.0.1:8000
+    ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php > <scratchpad>/ux/server-t39g.log 2>&1 &`
+    (pid 35089 in a pid file, `/up` polled 200 after 2 s);
+    `ERP_DB=<scratchpad>/ux/t39g.sqlite UXTEST_OUT=<scratchpad>/ux/out-phase-3 /root/.venv-playwright/bin/python docs/bukti-uji/harness-playwright.py S10 S1 S11`,
+    then (70 s after the first login) `… S2 S3 S4 S5 S8`; server killed by pid, `:8000` free;
+    `database/database.sqlite` untouched (mtime 2026-09-04 13:10:55, no `-wal`/`-shm`). The 19
+    screenshots stay in `<scratchpad>/ux/out-phase-3/` (as in Gate Phase 2, only `results.json` is committed).
+
+| Ukuran | Fase 2 (4 Sep) | Fase 3 (5 Sep WIB) |
+|---|---|---|
+| S10 · PO 422 kunci | 4 (`vendor_id`, `order_date`, `items.0.qty`, `items.0.unit_price`) | **6** (+ `expected_date` T3.5, + `pr_bypass_reason` T3.8), semua Indonesia |
+| S1 · judul kartu direktur / baris / jenis di server | `(4)` / 4 / 4 | `(4)` / 4 / 4 |
+| S1 · warehouse: kartu persetujuan / tautan Tugas Saya / permintaan dasbor | false / false / 6 | false / false / 6 |
+| S2 · klik per dokumen | 2 | 2 |
+| S2 · strip di bawah judul (dokumen kepala) | `Diajukan · menunggu persetujuan.` | **`Diajukan 04 Sep 2026 oleh Andi Kurniawan · menunggu persetujuan.`** |
+| S2 · strip setelah Setujui | `… terkunci (Disetujui).` | **`Disetujui 04 Sep 2026 oleh Budi Santoso · dokumen terkunci.`** |
+| S2 · tombol bilah aksi (PO diajukan, direktur) | 4 | 4 |
+| S2 · permintaan API detail → kembali | 14 | 14 |
+| S3 · klik buat → ajukan PO 2 baris | 12 | 12 |
+| S3 · field wajib pada formulir PO | 3 (`Vendor`, `Tanggal PO`, baris) | **5** (+ `Perkiraan kirim`, `Alasan tanpa PR`) |
+| S4 · modal masih terbuka / halaman masuk / dipulihkan | false / true / 13 · 3 | false / true / **14** · 3 |
+| S5 · admin: tinggi isi sidebar / viewport | 606 px / 0,7 | 606 px / 0,7 |
+| S5 · peran dengan kartu persetujuan (dari 11) | 3 | 3 |
+| S8 · kontras `--muted`/`--bg` · font terkecil | 5,23 · 11 | 5,23 · 11 |
+| S11 · h1 / baris / strip cuti | `Tugas Saya` / 4 / `Diajukan · menunggu persetujuan.` | `Tugas Saya` / 4 / **`Diajukan 04 Sep 2026 oleh Andi Kurniawan · …`** |
+| `erp:deadline-watch --dry-run` (seed segar) | — | 7 grup; `ticket_sla` 2 tiket (T3.2), `po_expected` 2, `pr_needed` 1 |
+| `erp:approval-watch --dry-run` (seed segar / salinan dimundurkan) | — | 0 ≥ 5 hari / `[ESKALASI]` SPK 40 hari, PR 33 hari |
