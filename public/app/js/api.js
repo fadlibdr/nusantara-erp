@@ -105,9 +105,17 @@ async function request(method, path, { body, params, raw = false } = {}) {
     throw new ApiError(0, 'Tidak dapat terhubung ke server.');
   }
 
-  if (response.status === 204) return null;
+  return settle(response.status, await response.text(), raw);
+}
 
-  const text = await response.text();
+/**
+ * The response half of request(), shared with the one XHR path below so the
+ * two transports can never disagree about what a 204, a 401 or a 422 means:
+ * one place clears the session, one place picks the Indonesian fallback.
+ */
+function settle(status, text, raw = false) {
+  if (status === 204) return null;
+
   let payload = null;
   if (text) {
     try {
@@ -117,20 +125,69 @@ async function request(method, path, { body, params, raw = false } = {}) {
     }
   }
 
-  if (!response.ok) {
-    if (response.status === 401) {
+  if (status < 200 || status >= 300) {
+    if (status === 401) {
       session.clear();
       onUnauthorized();
     }
     const message =
       (payload && payload.message) ||
-      { 403: 'Anda tidak punya akses untuk tindakan ini.', 404: 'Data tidak ditemukan.', 429: 'Terlalu banyak permintaan — coba lagi sebentar lagi.' }[response.status] ||
-      `Terjadi kesalahan (HTTP ${response.status}).`;
-    throw new ApiError(response.status, message, payload && payload.errors);
+      { 403: 'Anda tidak punya akses untuk tindakan ini.', 404: 'Data tidak ditemukan.', 429: 'Terlalu banyak permintaan — coba lagi sebentar lagi.' }[status] ||
+      `Terjadi kesalahan (HTTP ${status}).`;
+    throw new ApiError(status, message, payload && payload.errors);
   }
 
   if (raw) return payload;
   return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+}
+
+/*
+ * The one XMLHttpRequest in this client — because fetch() cannot report upload
+ * progress, and a site photo is the one request whose body is the slow part.
+ * It travels as base64 JSON (POST core/attachments: 5 MB raw is ~7 M
+ * characters), and on the 4G a slab has that is tens of seconds during which,
+ * until T2.9, the screen showed a spinning button and nothing else
+ * (ASESMEN-UX §4.3). Measured 4 Sep 2026 (harness S15, Chromium upload
+ * throttled to 200 kB/s): a 1 MB photo raises 70 upload.progress events over
+ * 7 s on this path; on loopback the same body raises one, at 100 %.
+ *
+ * Everything else stays on fetch. Same headers as request(), same settle(), so
+ * the only difference between the two transports is the progress callback —
+ * { loaded, total } in bytes, total null when the browser cannot know it.
+ */
+function requestWithProgress(method, path, body, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, buildUrl(path));
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (session.token) xhr.setRequestHeader('X-Api-Token', session.token);
+
+    const multipart = body instanceof FormData;
+    if (!multipart) xhr.setRequestHeader('Content-Type', 'application/json');
+
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (event) => {
+        onProgress({ loaded: event.loaded, total: event.lengthComputable ? event.total : null });
+      });
+    }
+
+    // A dropped connection, an aborted request and a timeout all land here
+    // with status 0 — the same "Tidak dapat terhubung" that fetch() throws.
+    const failed = () => reject(new ApiError(0, 'Tidak dapat terhubung ke server.'));
+    xhr.addEventListener('error', failed);
+    xhr.addEventListener('abort', failed);
+    xhr.addEventListener('timeout', failed);
+
+    xhr.addEventListener('load', () => {
+      try {
+        resolve(settle(xhr.status, xhr.responseText));
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    xhr.send(multipart ? body : JSON.stringify(body));
+  });
 }
 
 /**
@@ -230,6 +287,8 @@ export const api = {
   put: (path, body) => request('PUT', path, { body }),
   del: (path) => request('DELETE', path),
   uploadFile,
+  /** POST with upload progress — the XHR path; onProgress({ loaded, total }). */
+  upload: (path, body, onProgress) => requestWithProgress('POST', path, body, onProgress),
 };
 
 export async function login(email, password) {

@@ -992,7 +992,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
 
 ### T2.5 — Sidebar: grup tertutup bawaan, pemisah, Favorit / Terakhir dibuka, sumber "Layar" di Ctrl+K
-- Commit: (this commit)
+- Commit: a5b614f (placeholder `(this commit)` replaced in the T2.9 commit — one task, one commit)
 - Files: `public/app/js/schema.js` (`{ divider }` entries — Proyek: Pelaksanaan · Serah terima ·
   Izin & K3 · Register, items in their old order; Keuangan: AR/AP · Kas · Pelaporan · Pajak ·
   Master, rows regrouped under the captions, no route renamed; `export function visibleNav(can)`
@@ -1127,5 +1127,122 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     runs `ERP_DB=<scratch>/ux/t25.sqlite UXTEST_OUT=<scratch>/ux/out-t25 … S3 S5 S6 S8 S11 S14`
     (first cut), `… out-t25b … S5 S14`, `… out-t25-final … S3 S4 S5 S6 S8 S11 S14` (re-seeded),
     `… out-t25-s5 … S5`, `… out-t25-s5b … S5` (throttle-aware `login()`). Server stopped by PID
+    (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
+    no `-wal`/`-shm`).
+
+### T2.9 — Lapangan: bilah kemajuan per foto (XHR `upload.onprogress`) + antrean kirim ulang di localStorage
+- Commit: (this commit)
+- Files: `public/app/js/api.js` (`settle()` — the response half of `request()`, moved verbatim so
+  the two transports read a 204 / 401 / 422 in one place; `requestWithProgress()` — the ONE
+  `XMLHttpRequest` in the client, same headers, `upload.progress` → `onProgress({ loaded, total })`,
+  error/abort/timeout → the same `ApiError(0, 'Tidak dapat terhubung ke server.')`; `api.upload(path,
+  body, onProgress)`; everything else stays fetch), `public/app/js/views/lapangan.js` (queue section
+  — `QUEUE_PREFIX = 'nusantara_erp_upload:'`, per-user key `<prefix><userId>:<key>`, `readQueue()`
+  once per user from localStorage, `persist()` best-effort with `item.persisted`, `forget()`,
+  `listen()`/`notify()` with `change · progress · sent · mounted` events, `enqueue()` / `retry()` /
+  `pump()` sending one photo at a time, `stateLine()` `Menunggu posisi GPS… · Menunggu giliran. ·
+  Mengirim… N % · Menunggu jawaban server… · Belum terkirim — <sebab>`, `queueRow()` with
+  `role=progressbar` + `aria-valuenow`, "Kirim ulang" / "Buang" (confirmDialog naming the
+  consequence), `queueRows()` self-repainting, `pendingCard()` "Foto belum terkirim" for documents not
+  on screen; `captureCard(slug, id, label)` keeps one queue node across `load()` and re-fetches on
+  `sent`; the shoot button no longer goes busy; `renderHarian` / `renderTiket` pass the document
+  code and `notify('mounted')`; `renderLapangan` mounts `pendingCard()` above the tabs, hidden while
+  empty), `public/app/app.css` (`.upload-queue`, `.upload-item`, `.upload-warn`, `.upload-pending`,
+  ≤ 480 px: actions wrap under the name), `tests/Feature/Core/LapanganUploadQueueTest.php` (new,
+  4 tests — exactly one `new XMLHttpRequest(` in api.js and it is the upload path, two `await fetch(`;
+  lapangan.js posts through `api.upload(` and never `api.post('core/attachments'`; queue prefix and
+  drafts prefix never prefix each other; lapangan `MAX_BYTES` = `AttachmentService::MAX_BYTES`),
+  `docs/bukti-uji/harness-playwright.py` (`JPEG_SEED` — a 691-byte 8×8 GD JPEG — and
+  `padded_jpeg()` growing it with COM segments; new **S15_lapangan_upload**),
+  `docs/bukti-uji/s15-unggah-kemajuan-t2.9.png`, `docs/bukti-uji/s15-kirim-ulang-t2.9.png`,
+  `docs/PROGRESS-UX-PROSES.md` (T2.5 placeholder → a5b614f).
+- Acceptance:
+  - **Harness S15** (site-manager, 390 × 844 touch, context position −6.2 / 106.8 ± 12 m; run
+    `<scratchpad>/ux/out-t29-final`, fresh seed): `report_created` true (the day's first
+    "Buat laporan hari ini", Kegiatan typed — the server's `Kegiatan wajib diisi.` rule);
+    **throttled upload** (CDP `uploadThroughput` 200 kB/s + `context.route` holding the POST 1,5 s
+    before `continue_()`), 1 MB JPEG: **68 samples, 68 distinct percentages, first 0 → last 100**,
+    texts `1.0 MB · Mengirim… N %` then `1.0 MB · Menunggu jawaban server…`, 9 784 ms, toast
+    `Foto uji-1mb.jpg terkirim dengan lokasi.`, `photos_after` 1, `queue_rows` 0, `stored_keys` 0
+    (screenshot `s15-unggah-kemajuan-t2.9.png`: bar at 26 %); **network dropped**
+    (`route.abort('connectionfailed')`): row `state failed`, `1.0 MB · Belum terkirim — Tidak dapat
+    terhubung ke server.`, buttons `['Kirim ulang', 'Buang']`, `stored_keys` **1**, no toast
+    (`s15-kirim-ulang-t2.9.png`); **after `page.reload()`**: the same row, same text, same buttons
+    (localStorage); **retry** (route removed, click Kirim ulang): toast `Foto uji-putus.jpg
+    terkirim dengan lokasi.`, `queue_rows` 0, `photos_after` **2**, `stored_keys` 0, newest photo
+    `uji-putus.jpg · lokasi dari perangkat · ±12 m · hari ini · 2.8 km dari lokasi`; **0
+    pageerror**, **4 klik** (Buat laporan · Ambil foto · Ambil foto · Kirim ulang), 23 249 ms. First
+    full run (`out-t29`) identical apart from timing: 68 samples / 67 distinct / 10 326 ms.
+  - Transport probe that shaped S15 (`<scratchpad>/ux/t29-probe.py`, raw XHR of a 1,4 M-char body
+    from the logged-in page): loopback → **1** progress event, at 100 %, 409 ms; `context.route`
+    delay 3 s alone → still 1 event, fired at 3 364 ms, i.e. only after `continue_()` (Chromium
+    counts the body after the interception resumes); CDP throttle 200 kB/s → **70 events / 7 123
+    ms**; both → 71 events, first at 3 498 ms; `route.abort` → `onerror`, status 0, no event; 503 →
+    status 503 with the JSON body; `set_offline` → status 0. localStorage quota on this Chromium:
+    **5 234 375** ASCII chars. Server accepts the COM-padded JPEG: 201, `image/jpeg`, `geo_source`
+    device.
+  - Probe of what S15 does not measure (`t29-probe2.py`, mobile 390 and desktop 1440, not
+    committed): pending card `hidden` at start; failed row on 390 px: main 328 px wide, `Kirim
+    ulang` **108 × 36**, `Buang` 75 × 36, wrapped under the text; on 1440: 28 px tall inline, main
+    913 of 1 112 px. Date switched to 3 Sep (no report): **"Foto belum terkirim" shown** with
+    `DRP/2026/09/0004 · 300 KB · Belum terkirim — Tidak dapat terhubung ke server.` + Kirim ulang ·
+    Buang, document rows 0; Kirim ulang from there → toast, card hidden again, 0 keys; back to
+    today → `gagal-A.jpg` listed on the report. Buang → dialog `Buang foto ini?` / `gagal-B.jpg
+    dibuang dari antrean dan tidak dapat dikirim lagi dari sini.` / `Batal · Buang`, focus on Batal;
+    confirmed → 0 rows, 0 keys, 0 modals. 4 MB photo (5,6 M chars > quota): row `4.0 MB · Menunggu
+    jawaban server…` + `Tidak muat disimpan di peramban: bila halaman ini ditutup sebelum
+    terkirim, foto harus diambil lagi.`, `stored` 0, and it still lands (toast, 0 rows). Token
+    revoked in sqlite mid-run (S4's move) then a photo: login screen with `Sesi Anda berakhir.
+    Silakan masuk kembali.`, key still stored (1); after re-login the row reads `Belum terkirim —
+    Sesi berakhir — masuk lagi, lalu kirim ulang.` → Kirim ulang → sent, 0 rows / 0 keys. **0
+    pageerror** in both contexts.
+  - Regressions on the refactored `settle()` (`out-t29-reg`, `S10 S1 S4 S6`): **S10** `po_422`
+    `Vendor wajib diisi.` / `Tanggal PO wajib diisi.` / `Kuantitas minimal 0.001.` / `Harga satuan
+    wajib diisi.` (Indonesian, unchanged); **S1** card `Menunggu persetujuan Anda (4)`, 4 types
+    visible; **S4** banner `Sesi Anda berakhir. Isian PO yang sedang Anda buat tersimpan …`,
+    `modalVisible` false, `loginVisible` true, 13 field / 3 baris restored, 8 klik, 15 357 ms;
+    **S6** `taps_to_lapangan` 3 (`group_opened` true, as since T2.5), h1 `Lapangan`, 1 big button.
+  - PHPUnit: `LapanganUploadQueueTest` red first on a5b614f (**3 of 4 fail**: no XHR, `api.post`,
+    no `QUEUE_PREFIX`; the `MAX_BYTES` mirror already held), green on the tree (4 / 14);
+    `tests/Feature/Core` **OK (576 tests, 3 535 assertions)** (T2.5: 572 / 3 521).
+    `pint --test --dirty` passed. Module syntax checked by importing `api.js`, `views/lapangan.js`,
+    `drafts.js` in Chromium (`t29-syntax.py`): 0 pageerror.
+- Notes:
+  - **S15, not S12.** The task text names the scenario "S12"; S12–S14 were taken by T2.4 / T2.3 /
+    T2.5, so the harness gains **S15** (registered with the mobile-context signature of S6).
+  - **Why CDP throttling and not only `context.route` delay.** Measured above: under Playwright
+    interception Chromium raises `upload.progress` only after `continue_()`, in one jump to 100 %
+    — a route delay alone shows a bar stuck at 0 % and then the "Menunggu jawaban server…" state,
+    never a moving bar. S15 keeps the RECAP's route delay for the held-response state and adds
+    `Network.emulateNetworkConditions` for the movement; both numbers are in the result.
+  - **Photo listed before the GPS fix.** The old flow awaited `readAsBase64` and `devicePosition()`
+    together under `withBusy` — up to 12 s (`GEO_TIMEOUT_MS`) of spinner. Now the row appears as
+    soon as the file is read (`state 'locating'`, "Menunggu posisi GPS…") and is released to the
+    queue when the position resolves; the stored position is the capture-time one, which is what
+    `AttachmentService::geotag()` asks. S15 never shows this state because the context position
+    resolves instantly.
+  - **No automatic resend on load** — after a page closed mid-send the server may or may not have
+    the photo; a silent resend would duplicate it. The row says what happened (`Terputus sebelum
+    jawaban server tiba.` / `Halaman ditutup sebelum foto dikirim.`) and the person taps Kirim ulang.
+    Sends are sequential (one XHR at a time): the uplink is shared and one moving bar is honest.
+  - **No toast on failure.** The row is the feedback and it stays; the old toast vanished with the
+    photo. The 401 row names the way out instead of the server's `Unauthenticated.`.
+  - **localStorage is the ceiling.** 5,2 M characters on Chromium (measured), so one photo up to
+    ~3,7 MB persists, or a few small ones; a bigger one still uploads (the JSON route takes 7 M
+    chars) but the row carries the warning. IndexedDB would lift this; the RECAP names
+    localStorage and the drafts idiom, so this stays a documented limit, not a decision.
+  - **Per-user keys** (`<prefix><userId>:<key>`), like T2.5's Favorit: the site-office tablet is
+    shared and a resend by another person would carry the wrong `uploaded_by`.
+  - **`settle()` extraction** is the only change to `request()`: the same lines moved so the XHR path
+    cannot drift from fetch on 401 handling or the Indonesian fallbacks (S10 / S4 above).
+  - Observed, not touched: `newReportCard` reports a 422 through `toastError` directly, so its toast
+    still shows the raw key (`activities: Kegiatan wajib diisi.`) — T2.1 mapped the form.js path
+    only; Kegiatan also carries no `*`. Outside T2.9.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t29.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t29.sqlite php artisan migrate:fresh --seed --force`, re-seeded
+    before `out-t29` and `out-t29-final`; config not cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t29.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    runs `ERP_DB=<scratch>/ux/t29.sqlite UXTEST_OUT=<scratch>/ux/out-t29 … S15`,
+    `… out-t29-reg … S10 S1 S4 S6`, `… out-t29-final … S15`. Server stopped by PID
     (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
     no `-wal`/`-shm`).

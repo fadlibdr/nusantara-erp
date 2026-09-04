@@ -1007,6 +1007,30 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .field-select { width: 100%; }
 .btn.lg { padding: 12px 18px; font-size: 15px; width: 100%; justify-content: center; }
 
+/* T2.9 — antrean kirim foto: satu baris per foto tepat di bawah tombol kamera,
+   bilah kemajuan (.progress, ui.js progressBar) di bawah namanya; yang gagal
+   membawa "Kirim ulang · Buang". Kosong = tidak memakan tempat. Di lebar
+   ponsel tombolnya turun ke baris sendiri: dua tombol 36 px di samping nama
+   berkas IMG_20260904_101500.jpg menyisakan ~150 px untuk namanya. */
+.upload-queue { margin-top: 12px; }
+.upload-queue:empty { display: none; }
+.upload-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.upload-item:last-child { border-bottom: 0; }
+.upload-item-main { flex: 1; min-width: 0; }
+.upload-item .progress { margin-top: 6px; }
+.upload-item[data-state="failed"] > .upload-item-main > .cell-sub:first-of-type { color: var(--danger); }
+.upload-item .upload-warn { color: var(--warning); margin-top: 3px; }
+.upload-item .row-actions { flex: none; flex-wrap: nowrap; }
+.upload-pending .card-body > .cell-sub { margin: 0 0 4px; }
+@media (max-width: 480px) {
+  .upload-item { flex-wrap: wrap; }
+  .upload-item .row-actions { width: 100%; justify-content: flex-end; }
+}
+
 .field-photos { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
 .field-photo {
   display: flex; align-items: center; gap: 10px;

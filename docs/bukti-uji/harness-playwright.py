@@ -1,4 +1,4 @@
-import json, os, time, sqlite3, traceback, urllib.request
+import json, os, re, time, sqlite3, struct, base64, traceback, urllib.request
 from playwright.sync_api import sync_playwright
 
 # Jalur dibaca dari env dengan literal asli sebagai bawaan: harness ini ditulis di
@@ -674,6 +674,114 @@ def s14(pg):
     return {"groups": out, "layar": layar["hits"] if layar else None, "layar_count": len(layar["hits"]) if layar else 0,
             "enter_opened": pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText || null, modal: !!document.querySelector('.modal') })")}
 
+# JPEG 8×8 abu-abu dari GD (php -r 'imagejpeg(imagecreatetruecolor(8,8), ...)'), 691 byte, tanpa EXIF.
+# padded_jpeg() melebarkannya dengan segmen COM (FF FE, maks 65 533 byte per segmen) sampai ukuran yang
+# diminta: tetap JPEG sah bagi finfo dan exif_read_data, tanpa PIL di harness. Diterima server 4 Sep
+# 2026 (201, mime image/jpeg, geo_source device — posisi konteks dipakai karena tak ada GPS EXIF).
+JPEG_SEED = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2ODApLCBxdWFsaXR5ID0gNDAK"
+    "/9sAQwAUDg8SDw0UEhASFxUUGB4yIR4cHB49LC4kMklATEtHQEZFUFpzYlBVbVZFRmSIZW13e4GCgU5gjZeMfZZzfoF8/9sAQwEVFxceGh47"
+    "ISE7fFNGU3x8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8/8AAEQgACAAIAwEiAAIRAQMRAf/EAB8A"
+    "AAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHw"
+    "JDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeo"
+    "qaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkK"
+    "C//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpD"
+    "REVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW"
+    "19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8AKKKKsk//2Q==")
+
+def padded_jpeg(size):
+    body, tail = JPEG_SEED[2:-2], JPEG_SEED[-2:]
+    out = bytearray(b"\xff\xd8"); need = size - len(JPEG_SEED)
+    while need > 4:
+        n = min(65533, need - 2)
+        out += b"\xff\xfe" + struct.pack(">H", n) + b"x" * (n - 2); need -= n + 2
+    return bytes(out + body + tail)
+
+@scenario("S15_lapangan_upload")
+def s15(browser):
+    """T2.9 — foto dari layar Lapangan di ponsel (site-manager, 390×844, posisi konteks Jakarta). Tiga ukuran:
+    (1) bilah kemajuan per foto saat unggahan dicekik — CDP uploadThroughput 200 kB/s, dan context.route
+    menahan jawaban 1,5 s (di Chromium route saja TIDAK menggerakkan upload.onprogress: byte baru dihitung
+    setelah continue_(), diukur 4 Sep 2026 — jadi cekikan CDP yang menggerakkan bilah, route yang
+    memperlihatkan keadaan "Menunggu jawaban server…"); (2) jaringan putus (route.abort) — foto tetap
+    terdaftar dengan "Kirim ulang" dan bertahan lewat muat-ulang halaman (localStorage); (3) kirim ulang
+    berhasil setelah jaringan kembali. Klik dihitung: Buat laporan (bila hari ini belum ada), Ambil foto ×2,
+    Kirim ulang."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                              geolocation={"latitude": -6.2, "longitude": 106.8, "accuracy": 12}, permissions=["geolocation"])
+    pg = ctx.new_page()
+    errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
+    login(pg, "site-manager@nusantara.test")
+    pg.goto(BASE + "#/lapangan")
+    pg.wait_for_selector("button:has-text('Ambil foto'), button:has-text('Buat laporan hari ini')", timeout=15000)
+    out = {"report_created": False}
+    if pg.locator("button:has-text('Buat laporan hari ini')").count():
+        # Langkah pertama site manager pagi itu; dihitung karena memang ditekan orang. Kegiatan wajib
+        # diisi (422 "Kegiatan wajib diisi." tanpa isian — aturan server yang sudah ada, bukan T2.9).
+        pg.fill("textarea", "UJI-UX — foto progres lantai 3")
+        click(pg, "button:has-text('Buat laporan hari ini')")
+        pg.wait_for_selector("button:has-text('Ambil foto')", timeout=15000); out["report_created"] = True
+    pg.wait_for_timeout(600)
+    ROW = """() => { const r=document.querySelector('.upload-item'); if(!r) return null; const p=r.querySelector('.progress');
+        return { state: r.dataset.state, text: r.querySelector('.cell-sub').innerText, pct: p ? Number(p.getAttribute('aria-valuenow')) : null,
+                 bar_width: p ? p.firstChild.style.width : null, buttons: [...r.querySelectorAll('button')].map(b=>b.innerText.trim()) } }"""
+    PHOTOS = "() => document.querySelectorAll('.field-photo').length"
+    ROWS = "() => document.querySelectorAll('.upload-item').length"
+    STORED = "() => Object.keys(localStorage).filter(k => k.startsWith('nusantara_erp_upload:')).length"
+    out["photos_before"] = pg.evaluate(PHOTOS)
+    photo = padded_jpeg(1024 * 1024)
+
+    def shoot(name):
+        with pg.expect_file_chooser() as chooser:
+            click(pg, "button:has-text('Ambil foto')")
+        chooser.value.set_files({"name": name, "mimeType": "image/jpeg", "buffer": photo})
+
+    # (1) unggahan dicekik: bilah harus bergerak, lalu "Menunggu jawaban server…" selama route menahan
+    cdp = ctx.new_cdp_session(pg); cdp.send("Network.enable")
+    cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 40, "downloadThroughput": 5_000_000, "uploadThroughput": 200_000})
+    def hold(route):
+        if route.request.method != "POST": return route.continue_()
+        time.sleep(1.5); route.continue_()
+    ctx.route("**/api/core/attachments", hold)
+    t0 = time.time(); shoot("uji-1mb.jpg")
+    samples = []; shot = False
+    while time.time() - t0 < 30:
+        s = pg.evaluate(ROW)
+        if s: samples.append((round(time.time() - t0, 2), s["state"], s["pct"], s["text"]))
+        elif samples: break
+        if s and not shot and s["pct"] and 25 <= s["pct"] <= 75:
+            pg.screenshot(path=f"{OUT}/s15-progress.png"); shot = True
+        pg.wait_for_timeout(100)
+    pg.wait_for_selector(".toast", timeout=15000); pg.wait_for_timeout(400)
+    pcts = sorted(set(s[2] for s in samples if s[2] is not None))
+    out["throttled"] = {"ms": int((time.time() - t0) * 1000), "samples": len(samples), "distinct_pct": len(pcts),
+                        "pct_first_last": [pcts[0], pcts[-1]] if pcts else None, "states": list(dict.fromkeys(s[1] for s in samples)),
+                        "texts": list(dict.fromkeys(re.sub(r"\d+ %", "N %", s[3]) for s in samples)),
+                        "toast": toasts(pg), "photos_after": pg.evaluate(PHOTOS), "queue_rows": pg.evaluate(ROWS), "stored_keys": pg.evaluate(STORED)}
+    cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 0, "downloadThroughput": -1, "uploadThroughput": -1})
+    ctx.unroute("**/api/core/attachments")
+    pg.wait_for_timeout(5500)  # toast pertama lenyap dulu, supaya toast berikutnya terbaca sendiri
+
+    # (2) jaringan putus saat mengirim: barisnya tetap ada, dengan Kirim ulang, dan selamat dari muat ulang
+    ctx.route("**/api/core/attachments", lambda route: route.abort("connectionfailed") if route.request.method == "POST" else route.continue_())
+    shoot("uji-putus.jpg")
+    pg.wait_for_selector(".upload-item[data-state='failed']", timeout=20000); pg.wait_for_timeout(400)
+    out["failed"] = {**pg.evaluate(ROW), "stored_keys": pg.evaluate(STORED), "toasts": toasts(pg)}
+    pg.screenshot(path=f"{OUT}/s15-failed.png")
+    pg.reload(); pg.wait_for_selector("button:has-text('Ambil foto')", timeout=20000); pg.wait_for_timeout(800)
+    out["after_reload"] = pg.evaluate(ROW)
+
+    # (3) jaringan kembali: Kirim ulang
+    ctx.unroute("**/api/core/attachments")
+    click(pg, ".upload-item button:has-text('Kirim ulang')")
+    pg.wait_for_selector(".toast:has-text('terkirim')", timeout=20000); pg.wait_for_timeout(900)
+    out["retry"] = {"toast": toasts(pg), "queue_rows": pg.evaluate(ROWS), "photos_after": pg.evaluate(PHOTOS), "stored_keys": pg.evaluate(STORED),
+                    "last_photo": pg.evaluate("() => { const p=document.querySelector('.field-photo'); return p ? p.innerText.replace(/\\n/g,' · ') : null }")}
+    pg.screenshot(path=f"{OUT}/s15-after-retry.png")
+    out["pageerrors"] = errors
+    ctx.close()
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -684,7 +792,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
