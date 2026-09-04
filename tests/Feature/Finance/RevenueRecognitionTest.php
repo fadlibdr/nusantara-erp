@@ -733,9 +733,20 @@ class RevenueRecognitionTest extends ErpTestCase
         $this->assertEqualsWithDelta(0, (float) $line->revenue_adjustment, 0.01);
     }
 
-    /** Dan catch-up-nya mendarat di bulan pembalikan, bersebelahan dengan jurnalnya. */
+    /**
+     * Dan catch-up-nya mendarat di bulan pembalikan, bersebelahan dengan jurnalnya.
+     *
+     * Jam dibekukan SEBELUM cancel(): reversalDate() menanggalkan pembalikan
+     * pada "hari ini" karena Maret sudah terukur, dan tes ini lalu menghitung
+     * Agustus. Ditulis pada Agustus 2026 tes ini kebetulan lulus; diukur 2 Sep
+     * 2026 (HASIL-UJI-UX-2026-09 §2.1) ia merah karena pembalikan mendarat di
+     * September sementara asersinya membaca Agustus. Bulan yang diuji adalah
+     * bagian dari skenario, bukan tanggal kalender pelari tesnya.
+     */
     public function test_the_catch_up_lands_in_the_month_the_reversal_was_posted(): void
     {
+        $this->travelTo('2026-08-20');
+
         [$contract, $project] = $this->contractWithProject();
         $this->makeRap($project, 800_000_000);
         $this->addCost($project, '2026-03-10', 200_000_000);
@@ -743,6 +754,7 @@ class RevenueRecognitionTest extends ErpTestCase
 
         $this->service->post($this->service->calculate(2026, 3, $this->financeUser()), $this->financeUser());
         $this->arInvoices()->cancel($invoice->refresh(), $this->financeApprover(), 'Termin salah tagih');
+        $this->assertSame('2026-08-20', $this->cancellationDate());
 
         // Run Agustus baru dapat dihitung setelah Agustus berakhir.
         $this->travelTo('2026-09-05');
