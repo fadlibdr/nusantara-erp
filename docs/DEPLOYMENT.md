@@ -397,6 +397,18 @@ real — an untested backup is a hope, not a plan.
 
 ### 7.1 Taking the erp1 demo gate down (ordered, and the order matters)
 
+> **Status 5 Sep 2026 — the gate is DOWN.** Removed at the owner's instruction
+> ("remove demo authentication") **without step 3 (rotation)**: all eleven seeded
+> accounts remain on the seeded password (owner decision, 31 Aug 2026), and the
+> `main` login page still lists four of them. The two `auth_basic` lines are
+> commented out in `/etc/nginx/sites-available/erp1.pi2.co.id`;
+> `/etc/nginx/.htpasswd-erp1` is untouched. **Rollback = uncomment those two
+> lines, then `nginx -t && systemctl reload nginx`.** The `.bak-gate-20260904-210857`
+> copy beside it was taken *after* the lines were already commented, so it is not
+> a pre-change snapshot. `/up`, `/` and `/app/` answer with
+> `X-Robots-Tag: noindex, nofollow`; login stays throttled `10,1`. What is public
+> now: a writable ERP whose seeded credentials are documented in this file.
+
 `erp1.pi2.co.id` sits behind an nginx Basic-auth gate that is **not** the ERP
 login. The nginx config says why in its own comment: the demo carries the eleven
 seeded accounts and their password is literally `password`, `admin@nusantara.test`
