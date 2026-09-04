@@ -50,6 +50,10 @@ teknisi.
 
 ## 0. Rujukan cepat per peran
 
+> **Baru bergabung?** Mulai dari panduan onboarding minggu pertama untuk peran Anda di
+> [`docs/ONBOARDING/`](ONBOARDING/README.md) — tujuh bagian pendek, lalu kembali ke bab yang
+> disebut tabel di bawah.
+
 Cari baris pekerjaan Anda. Baca bab yang disebut, dan berhentilah di situ — sisa
 panduan ini milik orang lain.
 
