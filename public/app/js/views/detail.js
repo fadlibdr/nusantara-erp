@@ -27,6 +27,9 @@ const HIDDEN_KEYS = new Set([
   // Empat tabel baris IPP (P1-ENG) — 'materials'/'equipment' sudah di atas;
   // dua sisanya dirender detail.tables juga, bukan badge JSON.
   'drawings', 'material_approvals',
+  // T3.6: bendera untuk tombol "Lengkapi kontrak" pada penawaran (cangkang
+  // Tandai Menang tanpa jadwal) — keadaan tombol, bukan data dokumen.
+  'contract_needs_schedule',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -49,6 +52,11 @@ const WHEN_SET_KEYS = new Set([
   // yang memang tidak mengutip metode tidak perlu dua baris "—" untuk satu
   // ketiadaan yang sama.
   'method_library_code',
+  // T3.6: alasan selisih nilai kontrak terhadap DPP penawarannya. Berbeda
+  // dari pr_bypass_reason (T3.8) yang sengaja tampil "—" untuk membuka
+  // alasan yang HILANG, di sini server menolak alasan yang hilang, jadi
+  // null selalu berarti "nilainya sama dengan penawaran" — barisnya diam.
+  'value_change_reason',
 ]);
 
 /*
@@ -222,7 +230,12 @@ const LABELS = {
   active_deployment: 'Penempatan aktif',
   account_code: 'Kode akun', account_name: 'Atas nama', account_no: 'No. rekening',
   account_type: 'Jenis akun', normal_balance: 'Saldo normal',
-  project_code: 'Kode proyek', contract_code: 'No. kontrak', quotation_code: 'No. penawaran',
+  // quotation_code "Dari penawaran", bukan "No. penawaran": label yang sama
+  // dengan pemilihnya di formulir kontrak, dan kalimat yang dibaca pada
+  // kontrak — CTR/2026/VIII/0004 di produksi (4 Sep 2026) tidak menyebut
+  // penawaran Rp 2,04 M asalnya sama sekali (T3.6).
+  project_code: 'Kode proyek', contract_code: 'No. kontrak', quotation_code: 'Dari penawaran',
+  value_change_reason: 'Alasan perubahan nilai',
   boq_code: 'Kode BOQ', cost_budget_code: 'Kode RAP', cost_budget_status: 'Status RAP',
   cost_budget_id: 'RAP', boq_total: 'Total BOQ', boq_wbs_code: 'Kode WBS BOQ',
   issue_code: 'No. pengeluaran barang', ticket_code: 'No. tiket', invoice_code: 'No. invoice',

@@ -206,13 +206,27 @@ export function actionButtons(def, row, onDone) {
        * barunya, seperti navigateTo pada aksi POST.
        */
       if (action.opens) {
+        /*
+         * submitTo: formulir resource lain, tetapi Simpan-nya ke titik akhir
+         * DOKUMEN INI — `{id}/create-contract` pada penawaran (T3.6): server
+         * yang menyalin pelanggan/nilai dan yang memutuskan apakah cangkang
+         * Tandai Menang dilengkapi atau kontrak baru dicetak, bukan POST
+         * crm/contracts yang akan mencetak nomor CTR kedua untuk penawaran
+         * yang sama (CTR/2026/VIII/0005 di produksi adalah cangkang itu).
+         * Cache dokumen sumber ikut dibatalkan: penawarannya kini punya kontrak.
+         */
+        const endpoint = action.submitTo ? `${def.api}/${String(action.submitTo).replace('{id}', row.id)}` : null;
         return button(action.label, {
           variant: action.variant || '',
           onClick: () => openForm({
             def: RESOURCES[action.opens],
             key: action.opens,
             prefill: action.prefill ? action.prefill(row) : null,
-            onSaved: (saved) => (saved && saved.id ? navigate(`d/${action.opens}/${saved.id}`) : onDone && onDone(saved)),
+            endpoint,
+            onSaved: (saved) => {
+              if (endpoint) invalidateByPath(def.api);
+              return saved && saved.id ? navigate(`d/${action.opens}/${saved.id}`) : onDone && onDone(saved);
+            },
           }),
         });
       }

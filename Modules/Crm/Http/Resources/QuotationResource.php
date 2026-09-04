@@ -4,6 +4,7 @@ namespace Modules\Crm\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Crm\Services\ContractService;
 
 class QuotationResource extends JsonResource
 {
@@ -49,6 +50,20 @@ class QuotationResource extends JsonResource
             'lost_at' => $this->lost_at?->toIso8601String(),
             'lost_reason' => $this->lost_reason,
             'notes' => $this->notes,
+            /*
+             * T3.6 — kontrak penawaran ini, hanya bila show() memuat relasinya.
+             * contract_needs_schedule: kontrak itu masih cangkang Tandai Menang
+             * (draf tanpa satu termin pun — CTR/2026/VIII/0005 di produksi, 13
+             * hari draf setelah QTN/2026/VII/0004 menang, 4 Sep 2026). Tombol
+             * "Buat kontrak" tampil bila belum ada kontrak, "Lengkapi kontrak"
+             * bila yang ada masih cangkang; definisi cangkangnya satu, di
+             * ContractService::isUnfilledShell — bukan tiruan di peramban.
+             */
+            'contract_code' => $this->whenLoaded('contract', fn () => $this->contract?->code),
+            // when(relationLoaded), bukan whenLoaded: relasi termuat yang null
+            // dijawab whenLoaded dengan null, sedangkan ini pertanyaan ya/tidak.
+            'contract_needs_schedule' => $this->when($this->resource->relationLoaded('contract'), fn () => $this->contract !== null
+                && app(ContractService::class)->isUnfilledShell($this->contract)),
             'items' => QuotationItemResource::collection($this->whenLoaded('items')),
             // Jejak persetujuan, bentuk PaymentResource — satu perender di SPA
             // (approvalTimeline) untuk semua dokumen; hanya bila show() memuatnya (T3.3).

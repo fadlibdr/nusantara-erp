@@ -625,8 +625,11 @@ function clearCellError(cell) {
 /**
  * Open a create/edit modal for a resource.
  * `row` present => edit (PUT), absent => create (POST).
+ * `endpoint` (create only): POST ke jalur ini, bukan def.api — formulir
+ * kontrak yang disimpan ke crm/quotations/{id}/create-contract (T3.6);
+ * lihat `submitTo` di actions.js.
  */
-export async function openForm({ def, key, row, prefill, onSaved }) {
+export async function openForm({ def, key, row, prefill, onSaved, endpoint = null }) {
   const isEdit = Boolean(row);
   const sections = def.form.sections || [];
   const lineDefs = def.form.lines || [];
@@ -933,12 +936,17 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     await withBusy(save, async () => {
       const submit = () => (isEdit
         ? api.put(`${def.api}/${record.id}`, payload)
-        : api.post(def.api, payload));
+        : api.post(endpoint || def.api, payload));
 
       const finish = (saved) => {
         invalidateByPath(def.api);
         removeDraft(key, draftRowId);
-        toast(`${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
+        // Lewat endpoint lain, dokumennya bisa dibuat ATAU dilengkapi (cangkang
+        // Tandai Menang, T3.6) — "dibuat" akan berbohong pada separuh kasus;
+        // nomor dokumennya yang jadi subjek, dan "tersimpan" benar di keduanya.
+        toast(endpoint && saved && saved.code
+          ? `${saved.code} tersimpan.`
+          : `${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
         dialog.close();
         if (onSaved) onSaved(saved);
       };

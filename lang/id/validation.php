@@ -685,6 +685,7 @@ return [
         'valid_until' => 'Berlaku s/d',
         'value' => 'Nilai',
         'value_change' => 'Perubahan nilai',
+        'value_change_reason' => 'Alasan perubahan nilai',
         'vehicle_no' => 'No. polisi',
         'vendor_id' => 'Vendor',
         'vendor_ids' => 'Vendor diundang',

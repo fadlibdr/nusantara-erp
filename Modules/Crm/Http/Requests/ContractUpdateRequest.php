@@ -22,6 +22,9 @@ class ContractUpdateRequest extends FormRequest
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'scope_type' => ['sometimes', 'required', Rule::enum(ScopeType::class)],
             'value' => ['sometimes', 'required', 'numeric', 'min:0'],
+            // Same rule as on store (T3.6): judged by ContractService against
+            // the quotation's DPP; an absent key keeps the stored reason.
+            'value_change_reason' => ['nullable', 'string', 'max:500'],
             'ppn_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'sign_date' => ['nullable', 'date'],
             'start_date' => ['nullable', 'date'],

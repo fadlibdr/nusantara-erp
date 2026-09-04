@@ -268,6 +268,20 @@ Answering this unblocks a small follow-up (a `svc.sla_default_*` setting +
 `SlaService` fallback + test); until then `TicketSlaOnCreateTest` pins the
 current behaviour (`resolution_due_at` null without a contract).
 
+**OQ-2 (T3.6) — default termin schedule proposed for a contract built from a
+won quotation.** The entry's "copy … proposed termins" has no source in the
+data: a quotation carries no termins (only lines), and a contract carries no
+lines (only termins). `POST quotations/{q}/create-contract` therefore copies
+customer, title, scope, PPN rate and value (= DPP) and takes the schedule from
+the caller; the prefilled form leaves "Jadwal termin" to the person, because
+inventing "DP 20% / Progress / BAST / Retensi 5%" in code would state an
+agreement nobody made. Should the form PROPOSE a house schedule, and which one
+per `scope_type` (construction / system_integration / maintenance — the three
+seeded contracts each use a different shape, incl. calendar termins with
+`due_date` for maintenance)? Answering this unblocks a small follow-up (a
+`crm.default_termins_<scope>` setting + prefill in `CONTRACT_FROM_QUOTATION`);
+the endpoint and the value-change rule do not wait on it.
+
 ---
 
 ## Not for Claude Code — needs people

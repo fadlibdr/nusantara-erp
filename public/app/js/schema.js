@@ -115,6 +115,28 @@ const ASSET_RENTED = (values, record) => (values.ownership ?? (record && record.
    Rp 128 jt tanpa PR dan tanpa alasan tercatat. */
 const PO_WITHOUT_PR = (values) => values.purchase_requisition_id === null || values.purchase_requisition_id === undefined || values.purchase_requisition_id === '';
 
+/*
+ * T3.6 — isian formulir kontrak dari penawaran yang menang. Yang disalin
+ * adalah yang penawaran tahu: pelanggan, judul, lingkup, tarif PPN, dan
+ * nilai = DPP (sebelum PPN — crm_contracts.value memang DPP). Jadwal termin
+ * TIDAK diusulkan: penawaran tidak membawa termin dan kontrak tidak membawa
+ * baris rincian, jadi mengarang "DP 20% / BAST 80%" di sini berarti
+ * menyatakan kesepakatan yang tidak ada. Diukur 4 Sep 2026 di produksi:
+ * QTN/2026/VIII/0008 Rp 2,04 M diketik ulang menjadi CTR/2026/VIII/0004
+ * Rp 1,84 M tanpa tautan dan tanpa alasan (ANALISIS-PROSES A1). Server
+ * (create-contract) menyalin ulang pelanggan dan quotation_id apa pun yang
+ * dikirim — isian di sini supaya orangnya MELIHAT apa yang disalin sebelum
+ * Simpan, dan nilai yang ia ubah ditanyai alasannya oleh server.
+ */
+const CONTRACT_FROM_QUOTATION = (row) => ({
+  customer_id: row.customer_id,
+  quotation_id: row.id,
+  title: row.title,
+  scope_type: row.scope_type,
+  value: Number(row.dpp || 0),
+  ppn_rate: Number(row.ppn_rate || 0),
+});
+
 export const RESOURCES = {
   /* ============================================================== CRM === */
   'crm/customers': {
@@ -277,6 +299,29 @@ export const RESOURCES = {
         when: (row) => row.status === 'approved' && !row.won_at && !row.lost_at,
         confirm: 'Tandai penawaran ini sebagai dimenangkan?',
       },
+      /*
+       * T3.6 — dari penawaran menang ke kontraknya: formulir kontrak yang
+       * sudah terisi (CONTRACT_FROM_QUOTATION), disimpan ke
+       * {id}/create-contract (submitTo, actions.js). Dua tombol untuk dua
+       * keadaan yang SERVER bedakan (contract_code / contract_needs_schedule
+       * dari QuotationResource): belum ada kontrak → "Buat kontrak"; yang ada
+       * masih cangkang Tandai Menang (draf tanpa jadwal — CTR/2026/VIII/0005
+       * di produksi, 13 hari draf setelah QTN/2026/VII/0004 menang, 4 Sep
+       * 2026) → "Lengkapi kontrak", nomornya tetap. Kontrak yang sudah
+       * berjadwal: tanpa tombol — baris "No. kontrak" di Informasi menunjuknya.
+       * `=== null` / `=== true`: kedua kunci hanya ada bila show() memuat
+       * relasinya; baris daftar tidak membawanya dan tidak boleh menebak.
+       */
+      {
+        key: 'create-contract', label: 'Buat kontrak', perm: 'crm.create', variant: 'primary',
+        opens: 'crm/contracts', submitTo: '{id}/create-contract', prefill: CONTRACT_FROM_QUOTATION,
+        when: (row) => Boolean(row.won_at) && row.contract_code === null,
+      },
+      {
+        key: 'complete-contract', label: 'Lengkapi kontrak', perm: 'crm.create', variant: 'primary',
+        opens: 'crm/contracts', submitTo: '{id}/create-contract', prefill: CONTRACT_FROM_QUOTATION,
+        when: (row) => Boolean(row.won_at) && row.contract_needs_schedule === true,
+      },
       {
         key: 'mark-lost', label: 'Tandai Kalah', path: '{id}/mark-lost', method: 'POST',
         perm: 'crm.update', when: (row) => !row.won_at && !row.lost_at,
@@ -432,6 +477,16 @@ export const RESOURCES = {
           { key: 'contract_number_customer', label: 'No. kontrak pelanggan', type: 'text' },
           { key: 'scope_type', label: 'Lingkup', type: 'select', enum: 'scopeType', required: true },
           { key: 'value', label: 'Nilai kontrak (DPP)', type: 'currency', required: true },
+          {
+            // T3.6: hanya tampil bila kontrak merujuk penawaran. Server yang
+            // mewajibkannya — bila nilai berbeda dari DPP penawaran, 422-nya
+            // menyebut kedua angka dan dilukis di field ini; nilai yang sama
+            // menyimpan null walau diisi. Di bawah "Nilai kontrak" karena
+            // itulah angka yang dijelaskannya.
+            key: 'value_change_reason', label: 'Alasan perubahan nilai', type: 'textarea', span: 2,
+            visibleWhen: (values) => Boolean(values.quotation_id),
+            help: 'Wajib bila nilai kontrak berbeda dari nilai penawaran (DPP) yang dirujuk.',
+          },
           { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
           { key: 'sign_date', label: 'Tanggal tanda tangan', type: 'date' },
           { key: 'start_date', label: 'Mulai', type: 'date' },

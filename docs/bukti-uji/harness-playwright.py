@@ -857,6 +857,60 @@ def s16(pg):
     out["modal_closed_on_escape"] = pg.locator(".modal").count() == 0
     return out
 
+@scenario("S17_contract_from_quotation")
+def s17(pg):
+    """T3.6 — kontrak dari penawaran yang menang (produksi 4 Sep 2026: QTN/2026/VIII/0008 Rp 2,04 M
+    diketik ulang menjadi CTR/2026/VIII/0004 Rp 1,84 M tanpa tautan, ANALISIS-PROSES A1). Fixture lewat
+    API: penawaran baru diajukan sales, disetujui direktur, Tandai Menang oleh sales — server mencetak
+    cangkang CTR tanpa jadwal (QuotationService::markWon). Lalu di peramban sebagai sales: detail
+    penawaran menawarkan "Lengkapi kontrak"; formulir kontraknya terisi dari penawaran; Simpan dengan
+    nilai lain ditolak 422 yang menyebut kedua angka pada field "Alasan perubahan nilai"; diisi
+    alasannya, tersimpan dan mendarat di kontrak yang NOMORNYA SAMA dengan cangkang, dengan baris
+    "Dari penawaran QTN/…". Pemakai token API: sales (crm.create/update) dan direktur (crm.approve)."""
+    sales = token_for("sales@nusantara.test"); direktur = token_for("direktur@nusantara.test")
+    customer_id = api("crm/customers?per_page=1", sales)[1]["data"][0]["id"]
+    s, q = api("crm/quotations", sales, "POST", {"customer_id": customer_id, "title": "UJI-UX — Instalasi CCTV & Akses Kontrol Gedung Parkir",
+        "scope_type": "system_integration", "items": [{"description": "Instalasi CCTV 120 titik", "qty": 1, "unit": "ls", "unit_price": 1540000000},
+        {"description": "Akses kontrol 24 pintu", "qty": 1, "unit": "ls", "unit_price": 500000000}]})
+    qid, qcode = q["data"]["id"], q["data"]["code"]
+    api(f"crm/quotations/{qid}/submit", sales, "POST", {}); api(f"crm/quotations/{qid}/approve", direktur, "POST", {})
+    s, shell = api(f"crm/quotations/{qid}/mark-won", sales, "POST", {})
+    out = {"quotation": qcode, "dpp": q["data"]["dpp"], "mark_won_status": s, "shell": shell["data"]["code"]}
+    login(pg, "sales@nusantara.test")
+    pg.goto(BASE + f"#/d/crm/quotations/{qid}")
+    pg.wait_for_selector(f".page-head h1:has-text('{qcode}')", timeout=15000); pg.wait_for_timeout(800)
+    KV = """(labels) => Object.fromEntries([...document.querySelectorAll('dl.kv dt')].filter(d => labels.includes(d.innerText.trim())).map(d => [d.innerText.trim(), d.nextElementSibling.innerText.trim()]))"""
+    out.update(read_action_bar(pg, "s17-quotation-bar"))
+    out["quotation_info"] = pg.evaluate(KV, ["No. kontrak"])
+    click(pg, ".page-head .actions button:has-text('Lengkapi kontrak')")
+    pg.wait_for_selector(".modal .field", timeout=10000); pg.wait_for_timeout(500)
+    out["form_prefilled"] = pg.evaluate("""() => [...document.querySelectorAll('.modal .field')].filter(f => f.offsetParent !== null)
+        .map(f => ({ label: (f.querySelector('label')||{}).innerText, value: (f.querySelector('input,select,textarea')||{}).value }))""")
+    pg.screenshot(path=f"{OUT}/s17-contract-form.png")
+    row = pg.locator(".modal table.lines tbody tr").first
+    row.locator("td:nth-child(1) input").first.fill("Pelunasan 100%"); row.locator("td:nth-child(2) input").first.fill("100")
+    # nilai lain dari DPP penawaran, tanpa alasan → 422 yang menyebut kedua angka, dilukis di field alasannya
+    pg.locator(".modal .field", has=pg.locator("label", has_text="Nilai kontrak")).first.locator("input").first.fill("1840000000")
+    click(pg, ".modal .modal-foot button:has-text('Simpan')"); pg.wait_for_timeout(1500)
+    out["refused"] = {"errors": pg.evaluate("() => [...document.querySelectorAll('.modal .field .err, .modal td .err')].map(e=>e.innerText.trim())"),
+                      "toasts": toasts(pg), "modal_open": pg.locator(".modal").count() > 0}
+    pg.screenshot(path=f"{OUT}/s17-value-refused.png")
+    pg.locator(".modal .field", has=pg.locator("label", has_text="Alasan perubahan nilai")).first.locator("textarea").first.fill(
+        "UJI-UX — negosiasi akhir, lingkup akses kontrol dikurangi 8 pintu")
+    click(pg, ".modal .modal-foot button:has-text('Simpan')")
+    pg.wait_for_selector(".modal", state="detached", timeout=15000); pg.wait_for_timeout(1200)
+    out["saved"] = {"hash": pg.evaluate("() => location.hash"), "h1": pg.evaluate("() => document.querySelector('.page-head h1').innerText"), "toasts": toasts(pg)}
+    out["contract_info"] = pg.evaluate(KV, ["Dari penawaran", "Alasan perubahan nilai", "Penawaran"])
+    out["dari_penawaran_text"] = pg.evaluate("() => (document.body.innerText.match(/Dari penawaran\\s*\\n?\\s*QTN\\/[\\w\\/]+/) || [null])[0]")
+    pg.screenshot(path=f"{OUT}/s17-contract-detail.png")
+    s, c = api(f"crm/contracts/{out['saved']['hash'].split('/')[-1]}", sales)
+    out["api"] = {"code": c["data"]["code"], "quotation_code": c["data"]["quotation_code"], "value": c["data"]["value"],
+                  "value_change_reason": c["data"]["value_change_reason"], "termins": len(c["data"]["termins"]), "status": c["data"]["status"]}
+    out["contracts_for_quotation"] = sum(1 for r in api("crm/contracts?per_page=100", sales)[1]["data"] if r.get("quotation_id") == qid)
+    pg.goto(BASE + f"#/d/crm/quotations/{qid}"); pg.wait_for_selector(f".page-head h1:has-text('{qcode}')", timeout=15000); pg.wait_for_timeout(800)
+    out["quotation_after"] = {"action_bar": pg.evaluate(BAR), **pg.evaluate(KV, ["No. kontrak"])}
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -867,7 +921,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
