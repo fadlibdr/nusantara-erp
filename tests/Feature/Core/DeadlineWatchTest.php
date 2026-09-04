@@ -33,6 +33,8 @@ use Modules\Procurement\Models\Vendor;
 use Modules\Projects\Models\Milestone;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\SafetyIncident;
+use Modules\ServiceDesk\Models\ServiceContract;
+use Modules\ServiceDesk\Models\Ticket;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -220,6 +222,44 @@ class DeadlineWatchTest extends ErpTestCase
         }
 
         return $payment;
+    }
+
+    private function serviceContract(array $overrides = []): ServiceContract
+    {
+        return ServiceContract::query()->create(array_merge([
+            'customer_id' => $this->customer()->id,
+            'name' => 'Kontrak Pemeliharaan CCTV & Akses Kontrol RS Medika Husada',
+            'period_start' => '2026-04-01',
+            'period_end' => '2027-03-31',
+            'contract_value' => 480_000_000,
+            'sla_response_hours' => 4,
+            'sla_resolution_hours' => 24,
+            'status' => 'active',
+        ], $overrides));
+    }
+
+    /**
+     * TKT-202607-0003's seeded shape: the PM ticket assigned 5 Jul 2026,
+     * resolution due 8 Jul 14:00 (business hours, SlaService), never
+     * resolved — 24 days past on TODAY. The due moments are stored exactly
+     * as TicketService::applySlaDueDates writes them.
+     */
+    private function ticket(array $overrides = []): Ticket
+    {
+        $contract = $this->serviceContract();
+
+        return Ticket::query()->create(array_merge([
+            'service_contract_id' => $contract->id,
+            'customer_id' => $contract->customer_id,
+            'title' => 'PM CCTV Bulanan — 05/07/2026',
+            'category' => 'preventive',
+            'priority' => 'low',
+            'status' => 'assigned',
+            'channel' => 'system',
+            'reported_at' => '2026-07-05 06:00:00',
+            'response_due_at' => '2026-07-06 12:00:00',
+            'resolution_due_at' => '2026-07-08 14:00:00',
+        ], $overrides));
     }
 
     private function employee(array $overrides = []): Employee
@@ -576,6 +616,114 @@ class DeadlineWatchTest extends ErpTestCase
             ->assertExitCode(0);
 
         $this->assertCount(0, $this->alarms());
+    }
+
+    // ------------------------------------------------ tiket layanan (lead 0)
+
+    /**
+     * Production dashboard, 4 Sep 2026: "4 melewati SLA" — four of six
+     * tickets assigned 23–40 days without a resolution and no escalation
+     * anywhere (ANALISIS-PROSES-BISNIS-2026-09 §2, celah D2). The deadline
+     * was always stored (svc_tickets.resolution_due_at, written by
+     * TicketService); nobody watched it. svc.update is the technician lane.
+     */
+    public function test_an_assigned_ticket_past_its_resolution_deadline_alarms_the_technicians(): void
+    {
+        $technicians = $this->userWith('svc.update');
+        $this->userWith('crm.update');
+        $ticket = $this->ticket(); // due 8 Jul 2026 14:00: 24 days past on TODAY
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tiket layanan lewat batas SLA')->sole();
+        $this->assertStringContainsString($ticket->code, $alarm->body);
+        $this->assertStringContainsString('batas penyelesaian 8 Jul 2026', $alarm->body);
+        $this->assertStringContainsString('24 hari lalu', $alarm->body);
+        $this->assertSame('r/servicedesk/tickets', $alarm->link);
+        $this->assertSame([$technicians->id], $this->alarms('Tiket layanan lewat batas SLA')->pluck('user_id')->all());
+    }
+
+    public function test_a_resolved_closed_or_cancelled_ticket_past_its_deadline_stays_silent(): void
+    {
+        $this->adminUser();
+        $this->ticket([
+            'status' => 'resolved',
+            'first_response_at' => '2026-07-06 09:00:00',
+            'resolved_at' => '2026-07-20 10:00:00', // late, but resolved — history, not a breach
+            'resolution_notes' => 'PM selesai, seluruh kamera normal.',
+        ]);
+        $this->ticket(['status' => 'closed', 'resolved_at' => '2026-07-20 10:00:00', 'closed_at' => '2026-07-21 08:00:00']);
+        $this->ticket(['status' => 'cancelled']);
+
+        $this->watch();
+
+        $this->assertCount(0, $this->alarms('Tiket layanan lewat batas SLA'));
+    }
+
+    /**
+     * Status strings pinned against Modules\ServiceDesk\Enums\TicketStatus:
+     * open and in_progress are as unresolved as assigned. pending_customer
+     * is out on purpose — the clock is the customer's and no technician
+     * action is left, the "an alarm always has an action left" rule.
+     */
+    public function test_open_and_in_progress_tickets_alarm_too_while_pending_customer_does_not(): void
+    {
+        $this->adminUser();
+        $open = $this->ticket(['status' => 'open']);
+        $inProgress = $this->ticket(['status' => 'in_progress', 'first_response_at' => '2026-07-06 09:00:00']);
+        $pending = $this->ticket(['status' => 'pending_customer', 'first_response_at' => '2026-07-06 09:00:00']);
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tiket layanan lewat batas SLA')->sole();
+        $this->assertStringContainsString($open->code, $alarm->body);
+        $this->assertStringContainsString($inProgress->code, $alarm->body);
+        $this->assertStringNotContainsString($pending->code, $alarm->body);
+        $this->assertStringContainsString('Total 2 tiket.', $alarm->body);
+    }
+
+    /**
+     * lead 0, and the watcher is day-granular: a deadline later TODAY reads
+     * "hari ini" under the overdue title at the 08:30 run — the reading
+     * po_expected gives a PO promised today; the hour-exact list is the
+     * Tiket Lewat SLA screen. A deadline inside its SLA says nothing.
+     */
+    public function test_a_ticket_inside_its_sla_stays_silent_and_one_due_later_today_reads_hari_ini(): void
+    {
+        $this->adminUser();
+        $inside = $this->ticket(['reported_at' => '2026-07-31 09:00:00', 'resolution_due_at' => '2026-08-03 14:00:00']);
+        $today = $this->ticket(['reported_at' => '2026-07-30 15:30:00', 'resolution_due_at' => self::TODAY.' 16:30:00']);
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tiket layanan lewat batas SLA')->sole();
+        $this->assertStringNotContainsString($inside->code, $alarm->body);
+        $this->assertStringContainsString($today->code, $alarm->body);
+        $this->assertStringContainsString('hari ini', $alarm->body);
+    }
+
+    /**
+     * A ticket without a maintenance contract carries no SLA by design
+     * (SlaService::computeDueDates), so its NULL deadline is not missing
+     * data: it stays out of scope and must not raise the BLIND line that
+     * termins with forgotten due dates raise.
+     */
+    public function test_a_ticket_without_a_maintenance_contract_has_no_sla_and_is_not_blind(): void
+    {
+        $this->adminUser();
+        Ticket::query()->create([
+            'customer_id' => $this->customer()->id,
+            'title' => 'Permintaan penawaran kamera tambahan (tanpa kontrak)',
+            'priority' => 'medium',
+            'status' => 'open',
+            'reported_at' => '2026-06-01 10:00:00',
+        ]);
+
+        $this->artisan('erp:deadline-watch')
+            ->doesntExpectOutputToContain('BLIND ticket_sla')
+            ->assertExitCode(0);
+
+        $this->assertCount(0, $this->alarms('Tiket layanan lewat batas SLA'));
     }
 
     // ------------------------------------------------- PKWT (register baru)

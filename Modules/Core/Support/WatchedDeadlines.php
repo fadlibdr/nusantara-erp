@@ -593,6 +593,55 @@ class WatchedDeadlines
                     ->whereNull('deleted_at'),
             ],
             [
+                /*
+                 * Dasbor produksi 4 Sep 2026: "4 melewati SLA" — 4 dari 6
+                 * tiket berstatus assigned tanpa penyelesaian 23–40 hari, dan
+                 * tidak satu pun eskalasi (ANALISIS-PROSES-BISNIS-2026-09 §2,
+                 * celah D2). Tenggatnya SUDAH tersimpan sejak hari pertama:
+                 * svc_tickets.resolution_due_at (migrasi 001220) diisi
+                 * TicketService::applySlaDueDates saat tiket dibuat dan setiap
+                 * kontrak/prioritas/reported_at berubah, dari SlaService (jam
+                 * kerja, atau 24/7 untuk prioritas kritis). RECAP menyebut
+                 * kolom "sla_due_at" — nama yang tidak pernah ada; yang diawasi
+                 * kolom yang benar-benar dihitung itu, bukan kolom kedua yang
+                 * harus disinkronkan dengannya. Batas PENYELESAIAN, bukan batas
+                 * respons: itulah yang dihitung dasbor sebagai "melewati SLA"
+                 * (TicketService::slaBreaches) dan yang dibaca layar Tiket
+                 * Lewat SLA.
+                 *
+                 * lead 0 — tiket di dalam SLA-nya bukan berita. Pengawas ini
+                 * berbutir HARI: batas 16:30 hari ini terbaca "hari ini" pada
+                 * jalan 08:30, pembacaan yang sama dengan po_expected untuk PO
+                 * yang dijanjikan hari ini; jam-menitnya ada di layar Tiket
+                 * Lewat SLA. Cakupan open/assigned/in_progress (TicketStatus,
+                 * dipin DeadlineWatchTest): pending_customer sengaja di luar —
+                 * jamnya milik pelanggan, tidak ada tindakan teknisi yang
+                 * tersisa (aturan "alarm selalu punya tindakan" di kepala
+                 * berkas); resolved/closed/cancelled sudah selesai. Hanya tiket
+                 * BERKONTRAK: tanpa kontrak pemeliharaan memang tidak ada SLA
+                 * (SlaService::computeDueDates), jadi NULL di sana bukan data
+                 * yang hilang dan tidak boleh melahirkan baris BLIND. svc.update
+                 * = teknisi/koordinator yang mengerjakan tiketnya.
+                 */
+                'key' => 'ticket_sla',
+                'table' => 'svc_tickets',
+                'date' => 'resolution_due_at',
+                'display' => 'code',
+                'label' => 'Tiket layanan',
+                'unit' => 'tiket',
+                'date_word' => 'batas penyelesaian',
+                'lead_days' => 0,
+                'permission' => 'svc.update',
+                'link' => 'r/servicedesk/tickets',
+                'title_upcoming' => null,
+                'title_overdue' => 'Tiket layanan lewat batas SLA',
+                'columns' => ['status', 'service_contract_id', 'deleted_at'],
+                'scope' => static fn (Builder $query): Builder => $query
+                    ->whereIn('status', ['open', 'assigned', 'in_progress'])
+                    ->whereNotNull('service_contract_id')
+                    ->whereNull('deleted_at'),
+            ],
+            [
                 // PP 35/2021: a PKWT worked past its end date becomes PKWTT
                 // demi hukum. The missing-date flag is the enforcement the
                 // nullable column deliberately lacks — EMP-0007 and EMP-0008

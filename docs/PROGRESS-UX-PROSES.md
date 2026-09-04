@@ -1594,3 +1594,63 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     tinker plant, the dry-run and `php -S`; `ERP_DB`/`UXTEST_OUT` for the harness); server stopped by PID;
     `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
   - No "## Open questions" entry needed.
+
+### T3.2 — Pengawas SLA tiket layanan (`ticket_sla`) pada `svc_tickets.resolution_due_at`
+- Commit: (this commit) — T3.1 above is 3804085.
+- Files: `Modules/Core/Support/WatchedDeadlines.php` (one entry, `ticket_sla`, after `svc_contract_period_end`),
+  `tests/Feature/Core/DeadlineWatchTest.php` (fixtures `serviceContract()`, `ticket()`; 5 new tests), this block.
+  **No migration, no Resource change, no backfill** — see Notes.
+- Acceptance:
+  - Works/refused pair, red first on the tree without the entry (`--filter ticket`: **3 errors**, `ItemNotFoundException`
+    on `->sole()`; the two "silent"/"not blind" pins green on both trees by design). After: `DeadlineWatchTest` +
+    `DeadlineApiTest` + `CalendarApiTest` **OK (79 tests, 280 assertions)** (DeadlineWatchTest 51 → 56). Works =
+    assigned ticket, resolution due 8 Jul 2026 14:00 (TKT-202607-0003's seeded shape) → title
+    `Tiket layanan lewat batas SLA`, body `TKT-… batas penyelesaian 8 Jul 2026 — 24 hari lalu.`, link
+    `r/servicedesk/tickets`, delivered to the `svc.update` holder only (a `crm.update` holder gets nothing); open and
+    in_progress alarm too (`Total 2 tiket.`), pending_customer does not; refused = resolved (late but resolved), closed,
+    cancelled all silent; a ticket due 3 Agu silent, one due today 16:30 reads `hari ini`; a contract-less ticket (no
+    SLA by design) raises neither an alarm nor a `BLIND ticket_sla` line. `tests/Feature/ServiceDesk`
+    **OK (44 tests, 196 assertions)**; `tests/Feature/Core` **OK (597 tests, 3 657 assertions)** (592 + 5);
+    `vendor/bin/pint --test --dirty` passed.
+  - **The watch fires for an assigned ticket past its deadline and stays silent for a resolved one**, on the seed
+    itself — no planting needed: `php artisan erp:deadline-watch --dry-run` on the T3.1 scratch seed →
+    `ticket_sla [lewat]: 2 row(s) -> svc.update` / `  TKT-202607-0003 batas penyelesaian 8 Jul 2026 — 59 hari lalu.
+    TKT-202607-0004 batas penyelesaian 29 Jul 2026 — 38 hari lalu. Total 2 tiket.` / `Checked 21 watcher(s), skipped 0,
+    blind 1, raised 8 alarm group(s). Dry-run: tidak ada notifikasi dikirim.` The seed's other two tickets —
+    `TKT-202606-0002` (resolved 10 Jun, due 11 Jun) and `TKT-202606-0001` (closed) — are not named. A real run on a
+    scratch COPY (`t32.sqlite`) wrote **2 `core_notifications` rows**, one per `svc.update` holder
+    (`admin@nusantara.test`, `teknisi@nusantara.test`), same body, link `r/servicedesk/tickets`.
+- Notes:
+  - **The column already existed; the RECAP's `sla_due_at` never did.** The orchestrator's brief said the SLA
+    was computed on the fly and asked for a new nullable `sla_due_at` column, a forward-only migration, service
+    writes and a backfill. The tree says otherwise, and the evidence is exact: migration
+    `2026_07_25_001220_create_svc_tickets_table.php:26-27` creates `response_due_at` and `resolution_due_at`
+    (dateTime, nullable, indexed); `TicketService::applySlaDueDates` (lines 215-220) writes both from
+    `SlaService::computeDueDates` on `create()` (line 38) and on `update()` whenever `service_contract_id`,
+    `priority` or `reported_at` changes (line 65); `ServiceDeskDatabaseSeeder::seedTickets` seeds both per ticket
+    (lines 170-248); `TicketResource` already exposes `resolution_due_at` + `resolution_breached` (lines 33-40);
+    the SPA shows it as the `SLA selesai` column (`schema.js:4359`), the `SLA penyelesaian` card
+    (`custom.js:394`), the `Tiket Lewat SLA` screen (`slabreaches.js`, hour-exact) and the dashboard's
+    `N melewati SLA` (`dashboard.js:334`, from `TicketService::slaBreaches`). A second column equal to
+    `resolution_due_at` would be a duplicate every write path has to keep in sync — the drift the registry's
+    header warns against — and a backfill would recompute a value the rows already carry. So the entry watches
+    `resolution_due_at` directly; "expose `sla_due_at` in the resource" is satisfied by the field that is there,
+    under its real name, and no key was added. Resolution deadline, not response: that is what the dashboard
+    count and the breaches screen use, and what ANALISIS D2 counted (the four `assigned` tickets "tanpa
+    penyelesaian"). This is a technical finding, not a business decision, so no "## Open questions" entry.
+  - **Scope = open / assigned / in_progress, contract-bearing, undeleted** — the RECAP's three statuses,
+    pinned as literals of `TicketStatus`. `pending_customer` is deliberately out (the file's "an alarm always
+    has an action left" rule; `slaBreaches()` still counts it, so the dashboard number can exceed the watcher's
+    by those tickets — stated in the entry comment). `whereNotNull('service_contract_id')`: a ticket without a
+    maintenance contract carries no SLA by design (`SlaService`), so its NULL must not trip the BLIND line that
+    exists for forgotten dates.
+  - **Day-granular by construction, like every entry.** `scan()` compares date strings; a datetime
+    `"2026-08-01 16:30:00"` sorts before `"2026-08-02"`, so a deadline later today reads `hari ini` under the
+    overdue title at 08:30 — the po_expected reading, pinned by a test rather than hidden. `lead_days` 0 as the
+    RECAP says; the alternative that would make the due day MENIPIS (`valid_through_end`) requires a lead window
+    and would contradict the entry.
+  - The calendar (`CalendarEvents::sources`) picks the entry up automatically as `Tiket layanan batas
+    penyelesaian` under Layanan / `svc.view`; `CalendarApiTest` green.
+  - Environment: dry-run on `<scratchpad>/ux/t31.sqlite` (read-only for the scan), the real run on a copy
+    `t32.sqlite`; `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`). No server needed —
+    nothing in the SPA changed.
