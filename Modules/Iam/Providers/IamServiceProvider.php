@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
+use Modules\Iam\Console\Commands\PermissionCheckCommand;
 
 class IamServiceProvider extends ServiceProvider
 {
@@ -17,6 +18,10 @@ class IamServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+
+        // erp:permission-check — dijalankan deploy/sync-erp1.sh setelah migrate;
+        // admin erp1 memegang 74/86 izin pada 4 Sep 2026 tanpa ada yang tahu.
+        $this->commands([PermissionCheckCommand::class]);
 
         /*
          * Accept the API token from X-Api-Token as well as the standard

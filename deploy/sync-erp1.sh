@@ -12,11 +12,26 @@
 #   database/database.sqlite   live data
 #   storage/, bootstrap/cache/ runtime state
 #
-# Usage:  sudo bash deploy/sync-erp1.sh
+# Usage:  sudo bash deploy/sync-erp1.sh          deploy
+#         bash deploy/sync-erp1.sh --check        only the permission-drift check,
+#                                                 against THIS checkout's database;
+#                                                 no rsync, no migrate, no prod
 set -euo pipefail
 
 SRC=/root/construction-erp
 SITE=/var/www/erp1.pi2.co.id
+
+# --check: the drift check on its own, exit code passed through. Measured on
+# erp1 on 4 Sep 2026: admin held 74 of 86 permissions because eng.*/qc.* were
+# added to PermissionSeeder::PREFIXES and nothing re-ran the seeders on the
+# live database (HASIL-UJI §6.2 P-1). Runs before the site-directory guard on
+# purpose: a developer box has no /var/www/erp1.pi2.co.id and must still be
+# able to ask the question.
+if [[ "${1:-}" == "--check" ]]; then
+  cd "$SRC"
+  exec php artisan erp:permission-check
+fi
+[[ $# -eq 0 ]] || { echo "usage: $0 [--check]" >&2; exit 2; }
 
 [[ -d "$SRC" && -d "$SITE" ]] || { echo "source or site directory missing" >&2; exit 1; }
 
@@ -105,6 +120,18 @@ elif [[ "$code" == "200" ]]; then
   echo "    /up -> 200 — NOTE: the access gate is NOT in front of the site."
 else
   echo "    /up -> $code — check https://erp1.pi2.co.id and /var/log/nginx/erp1.error.log" >&2
+  exit 1
+fi
+
+# Last, not right after migrate: a check that fails there would leave the box
+# with new code, a cleared config cache and an un-reloaded php-fpm — a worse
+# state than a fully deployed site whose roles need a re-seed. By here the
+# deploy is complete and consistent; drift is reported on top of it, loudly,
+# and the exit code says the deploy is NOT done until the roles match.
+echo "==> Permission drift check (seeders vs live roles)"
+if ! sudo -u www-data php artisan erp:permission-check; then
+  # Not "--check": that mode reads the CHECKOUT's database, not the live one.
+  echo "PERMISSION DRIFT — code and migrations are live, but the live roles do not match the seeders. Run the re-seed printed above in $SITE, then: cd $SITE && sudo -u www-data php artisan erp:permission-check" >&2
   exit 1
 fi
 
