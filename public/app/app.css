@@ -231,7 +231,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand img { width: 28px; height: 28px; flex: none; }
 .brand-text { min-width: 0; }
 .brand-text strong { display: block; font-size: 13.5px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.brand-text span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+/* 11 px adalah lantai ukuran huruf seluruh aplikasi (diukur 4 Sep 2026: S8
+   smallest_font_px 10,5 dari baris ini dan .userchip .who span; 10 dari
+   .bell-count). Teks 10 px yang tersisa ada di bawah, bukan di sini lagi. */
+.brand-text span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
 
 .header {
   grid-area: header;
@@ -268,7 +271,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .userchip .who { text-align: left; line-height: 1.25; }
 .userchip .who b { display: block; font-size: 12.5px; font-weight: 600; }
-.userchip .who span { display: block; font-size: 10.5px; color: var(--muted); }
+.userchip .who span { display: block; font-size: 11px; color: var(--muted); }
 
 /* ------------------------------------------------------------------- nav */
 .nav {
@@ -860,7 +863,8 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   min-width: 15px; height: 15px; padding: 0 4px;
   border-radius: 8px;
   background: var(--danger); color: #fff;
-  font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+  /* 11 px, lantai aplikasi — teks 10 px terakhir (S8 4 Sep 2026). */
+  font-size: 11px; font-weight: 700; line-height: 15px; text-align: center;
   pointer-events: none;
 }
 
@@ -1094,6 +1098,11 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
   /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
   .btn.sm { height: 36px; }
   .btn.sm.icon { width: 36px; }
+  /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
+     sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
+     samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */
+  table.data td .btn.icon[data-label] { width: auto; padding: 0 12px; }
+  table.data td .btn.icon[data-label]::after { content: attr(data-label); }
 }
 
 /* Print is the only way a financial report leaves this app; an open picker

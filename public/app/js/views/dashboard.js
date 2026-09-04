@@ -419,7 +419,8 @@ export async function renderDashboard(host) {
 
     const cellStyle = { textAlign: 'center', padding: '3px 0 4px', borderRadius: '6px' };
     const cells = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((name) =>
-      el('div.muted', { text: name, style: { ...cellStyle, fontSize: '10.5px' } }));
+      // 11 px: lantai ukuran huruf aplikasi (T2.10, S8 4 Sep 2026).
+      el('div.muted', { text: name, style: { ...cellStyle, fontSize: '11px' } }));
     for (let i = 0; i < lead; i += 1) cells.push(el('div'));
 
     for (let day = 1; day <= daysInMonth; day += 1) {

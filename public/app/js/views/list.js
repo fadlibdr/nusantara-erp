@@ -588,7 +588,7 @@ export async function renderList(host, { key, def }) {
     return printButtonsFor(def, key)
       .filter((form) => row[form.idField || 'id'])
       .flatMap((form) => [
-        button('', {
+        labelled(button('', {
           size: 'sm',
           variant: 'ghost',
           iconName: 'print',
@@ -597,12 +597,12 @@ export async function renderList(host, { key, def }) {
             event.stopPropagation();
             openPrintable(printablePath(form, row), event.currentTarget);
           },
-        }),
+        }), 'Cetak'),
         /* P8 — pendamping ekspornya, hanya bila katalog menandai slug-nya
            (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah tombol untuk
            layar noDetail, jadi ekspor harus ikut duduk di sini. */
         form.xlsx
-          ? button('', {
+          ? labelled(button('', {
             size: 'sm',
             variant: 'ghost',
             iconName: 'download',
@@ -611,7 +611,7 @@ export async function renderList(host, { key, def }) {
               event.stopPropagation();
               downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), event.currentTarget);
             },
-          })
+          }), 'Unduh')
           : null,
       ])
       .filter(Boolean);
@@ -627,6 +627,14 @@ export async function renderList(host, { key, def }) {
     else load();
   }
 
+  /* Kata kerja untuk layar sentuh: app.css menulis data-label di samping ikon
+     pada pointer: coarse, karena title tidak pernah tampil tanpa hover
+     (ASESMEN-UX §1.5). Di layar biasa tombolnya tetap ikon saja. */
+  function labelled(btn, label) {
+    btn.dataset.label = label;
+    return btn;
+  }
+
   function rowActions(row) {
     const wrap = el('div', { style: { display: 'flex', gap: '4px', justifyContent: 'flex-end' } });
 
@@ -638,17 +646,17 @@ export async function renderList(host, { key, def }) {
       (!def.deletableWhen || def.deletableWhen(row));
 
     if (canEdit) {
-      wrap.appendChild(button('', {
+      wrap.appendChild(labelled(button('', {
         size: 'sm', variant: 'ghost', iconName: 'edit', title: 'Ubah',
         onClick: (event) => {
           event.stopPropagation();
           openForm({ def, key, row, onSaved: () => load() });
         },
-      }));
+      }), 'Ubah'));
     }
 
     if (canDelete) {
-      wrap.appendChild(button('', {
+      wrap.appendChild(labelled(button('', {
         size: 'sm', variant: 'ghost', iconName: 'trash', title: def.deleteLabel || 'Hapus',
         onClick: async (event) => {
           event.stopPropagation();
@@ -664,7 +672,7 @@ export async function renderList(host, { key, def }) {
             },
           });
         },
-      }));
+      }), def.deleteLabel || 'Hapus'));
     }
 
     return wrap.childElementCount ? wrap : null;

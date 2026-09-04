@@ -453,7 +453,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `database/database.sqlite` untouched throughout.
 
 ### T2.8 — Warna lencana status per enum: `open` merah untuk NCR/K3/defect
-- Commit: (this commit)
+- Commit: 4cfdd8e (placeholder `(this commit)` replaced in the T2.10 commit — one task, one commit)
 - Files: `public/app/js/enums.js` (`opts` takes an optional third element `tone`; tones on
   `ncrStatus`, `incidentStatus`, `defectStatus`; new `enumTone()` beside `enumLabel()`),
   `public/app/js/format.js` (`statusTone(value, enumName)` prefers the enum's own tone, `''`
@@ -519,3 +519,52 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     `… UXTEST_OUT=<scratch>/ux/out-t28b … S7 S2` (after). `UXTEST_OUT` must exist beforehand
     (the harness does not `mkdir`). `database/database.sqlite` untouched (mtime 13:10:55, no
     `-wal`/`-shm`).
+
+### T2.10 — Sisa aksesibilitas: `aria-description` per tbody, lantai 11 px, label ikon aksi baris di layar sentuh
+- Commit: (this commit)
+- Files: `public/app/js/ui.js` (`installRowKeys` → `stampRows`: `aria-description="Tekan Enter
+  untuk membuka"` once per tbody that holds `tr.clickable`), `public/app/app.css`
+  (`.brand-text span` 10.5 → 11 px, `.userchip .who span` 10.5 → 11 px, `.bell-count` 10 →
+  11 px; `@media (pointer: coarse)`: `table.data td .btn.icon[data-label]` grows to its content
+  and `::after { content: attr(data-label) }` writes the verb beside the icon),
+  `public/app/js/views/list.js` (`labelled()` stamps `data-label` on the four row-action icon
+  buttons: `Cetak`, `Unduh`, `Ubah`, `def.deleteLabel || 'Hapus'`),
+  `public/app/js/views/dashboard.js` (calendar weekday names 10.5 → 11 px),
+  `docs/PROGRESS-UX-PROSES.md`
+- Acceptance: harness **S8** → `smallest_font_px` **11** (before, same DB and harness: **10.5**;
+  the gate measured **10** with a `.bell-count` on screen). Same run: `th_font` 11px,
+  contrast 5.23 / 5.47 / 5.29 unchanged, `page_head_buttons` `Muat ulang · Tambah PO`.
+  Enumerating every `body *` on the PO list after the change: the smallest computed sizes are
+  11 px (`.brand-text span` "Konstruksi & SI", `.userchip .who span` "admin", `.avatar`, the
+  11 px nav-group buttons); nothing below.
+  Extra evidence (scratch Playwright, not the harness):
+  - Desktop context, `#/r/crm/customers`: one `table.data tbody`, `aria-description`
+    `["Tekan Enter untuk membuka"]`, `tr[aria-description]` **0**; the Ubah button is still
+    icon-only, 28 × 28 px, `::after` `none`. `#/r/projects/weekly-progress` (noDetail, rows not
+    clickable): `[null]` — the sentence is only written where Enter does open something.
+  - Touch context (390 × 844, `has_touch`, `is_mobile` — `matchMedia('(pointer: coarse)')`
+    **true**): the same buttons read `::after` **`"Ubah"`** / **`"Cetak"`**, 74.9 × 36 px and
+    77.7 × 36 px; `data-label` seen: `Ubah`, `Hapus` (customers), `Cetak` (weekly progress).
+    Screenshot `<scratchpad>/ux/out-t210/coarse-customers-actions.png`.
+  - `.bell-count` was not on screen (admin has no unread notification on this seed), so a
+    throw-away `span.bell-count` was appended to the bell button and read back:
+    `font-size` **11px**; removed again.
+- Notes:
+  - `.chart text` (RECAP's `app.css ~757`) was already 11 px — the Phase 0 patch raised it
+    ("teks grafik 11 px", HASIL-UJI §1 patch table); nothing to do there. `.badge` (RECAP's
+    "~863 badge/bell-count") is 11.5 px; only `.bell-count` at that line was 10 px.
+  - The text-label option was chosen over the "⋯" menu: it needs no menu primitive (T2.6
+    introduces one later) and no JS beyond a data attribute. On fine pointers nothing changes
+    (icon-only, `title` tooltip); on coarse pointers the verb is CSS-generated from
+    `data-label`, so the long print titles ("Cetak Detail Schedule dalam format formulir
+    perusahaan") stay as tooltips and the button says `Cetak`. Generated content is part of
+    the accessible name in current browsers, and it matches the `title` verb anyway.
+  - Scope kept to `table.data td` icon buttons built by `list.js` — not the `table.lines`
+    row-delete buttons in forms, not `.row-actions` in notifications/EVM/kas kecil.
+  - No server change → no Feature test (rule 3). The harness runs are the syntax check for
+    `ui.js`, `list.js`, `dashboard.js` (login, dashboard and the lists rendered, 0 `ERROR`).
+  - Environment: same server and scratch DB as T2.8 (`t28.sqlite`, with the S2 approval and
+    the planted rows), harness `ERP_DB=<scratch>/ux/t28.sqlite UXTEST_OUT=<scratch>/ux/out-t210 … S8`;
+    scratch scripts `<scratchpad>/ux/fonts.py`, `coarse.py`, `coarse2.py`. Server stopped
+    after the run (kill by PID — `pkill -f 'php -S …'` also matches the tool's own shell);
+    `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).

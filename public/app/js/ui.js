@@ -531,11 +531,16 @@ function installRowKeys() {
       bodies.get(row.parentElement).push(row);
     });
 
-    for (const rows of bodies.values()) {
+    for (const [body, rows] of bodies) {
       // Whichever row has focus keeps the stop: a repaint of one cell must not
       // drag the tab stop back to row 1 while the user is standing on row 12.
       const home = rows.find((row) => row === document.activeElement) || rows[0];
       rows.forEach((row) => { row.tabIndex = row === home ? 0 : -1; });
+
+      // Pembaca layar membacakan isi sel, tetapi tidak pernah menyebut bahwa
+      // Enter membuka dokumennya (ASESMEN-UX §1.5, 2 Sep 2026). SEKALI di tbody,
+      // bukan per baris: 20 baris × satu kalimat yang sama adalah kebisingan.
+      if (!body.hasAttribute('aria-description')) body.setAttribute('aria-description', 'Tekan Enter untuk membuka');
     }
   };
 
