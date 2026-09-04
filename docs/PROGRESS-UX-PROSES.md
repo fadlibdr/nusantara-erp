@@ -375,7 +375,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
 ## Phase 2
 
 ### T2.1 — Toast 422 tanpa kunci mentah bila field sudah dilukis
-- Commit: (this commit)
+- Commit: 1773843 (placeholder `(this commit)` replaced in the T2.2 commit — one task, one commit)
 - Files: `public/app/js/views/form.js` (`paintErrors` in `openForm`), `docs/PROGRESS-UX-PROSES.md`
 - Acceptance: harness `S3 › toast_on_422` → **`["Periksa isian yang ditandai."]`** — no `items.N.`
   prefix (gate Phase 0 measured `["items.0.qty: Kuantitas minimal 0.001."]`). Same run:
@@ -408,3 +408,46 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     (mtime 13:10:55 before and after, no `-wal`/`-shm` beside it). Screenshots in
     `<scratchpad>/ux/out-t2/s3-server-errors.png` (toast bottom-right reads only
     `Periksa isian yang ditandai.`, qty cell still red).
+
+### T2.2 — Petunjuk tanggal id-ID di bawah input date
+- Commit: (this commit)
+- Files: `public/app/js/views/form.js` (`buildInput` `case 'date'`; import `date as fmtDate`
+  from `format.js`; module-level `dateHintSeq`), `docs/bukti-uji/s3-tanggal-po-petunjuk-t2.2.png`
+  (new — the acceptance screenshot, verbatim copy of the harness's `s3-form-empty.png`),
+  `docs/PROGRESS-UX-PROSES.md`
+- Acceptance: harness S3 screenshot shows the helper under `Tanggal PO` —
+  `<scratchpad>/ux/out-t22/s3-form-empty.png` and `s3-form-filled.png`: the native input still
+  draws `09/04/2026` (Chromium headless, en-US) and directly beneath it a `.help` line reads
+  **`= 04 Sep 2026`**; the empty `Perkiraan kirim` beside it shows no line. Committed copy:
+  `docs/bukti-uji/s3-tanggal-po-petunjuk-t2.2.png`. Same S3 run: `ok`, **12 klik**,
+  `toast_on_422` `["Periksa isian yang ditandai."]`, `server_errors_rendered`
+  `["Kuantitas minimal 0.001."]`, `saved` true, `PO/2026/IX/0004` (second PO on the same scratch
+  DB), `Diajukan`, 16 772 ms. Regression on the new wrapper node: **S4** → banner
+  `Sesi Anda berakhir. Isian PO …`, modalVisible **false**, loginVisible **true**, Masuk
+  `reachable`, recoveryOffer true, restored **13 field / 3 baris**, 8 klik, 14 192 ms —
+  identical to the gate.
+- Notes:
+  - The line is `fmt.date`'s output — `= 04 Sep 2026`, zero-padded day — not the RECAP's
+    illustrative `= 2 Sep 2026`: the entry says "via `fmt.date`", and that is the format every
+    list/detail date column already uses (`cells.js`), so the helper reads exactly as the row
+    will after save. `dateLong` (`4 September 2026`) deliberately not used.
+  - Native input kept. The `.help` line sits inside the control, is `hidden` while the value is
+    empty (money.js's hint toggle — no 4 px ghost margin), and is refreshed on `input` and
+    `change` (Playwright's `fill()` and the native picker both fire them; typing a date segment
+    by segment leaves `value` `''` until the date is complete, so nothing half-typed is read).
+    `aria-hidden` + `aria-describedby` copied from money.js: plain text inside `<label>` would
+    otherwise be folded into the field's accessible NAME.
+  - The control now returns `{ node: div[input, help], input, read }` — the shape `percent`,
+    `bool` and `currency` already return from `buildInput`; `field()` finds the input by
+    `querySelector` for `aria-labelledby`, and every consumer uses `control.input || control.node`.
+    External callers checked: `settings.js` builds only percent/currency/integer/boolean/select
+    through `buildInput` (its `control.node.value =` writes never meet a date); `custom.js` uses
+    `control.input || control.node` and `querySelectorAll`. Drafts restore through `record` →
+    `buildInput` initial value, not `node.value` (S4 above proves it).
+  - Compact (line-table cells) still returns the bare input: `compact` is the flag `buildLines`
+    already passes, and a second line does not fit a 31 px `<td>` (money.js's own reason).
+  - No server change → no Feature test; the entry's acceptance is the S3 screenshot. No CSS
+    change: `.field .help` already styles the line.
+  - Environment as T2.1 (same server on `t2.sqlite`; harness `… S3` into `out-t22`, then `… S4`
+    for the regression). Server stopped after the run (`pkill -f 'php -S 127.0.0.1:8000'`);
+    `database/database.sqlite` untouched throughout.

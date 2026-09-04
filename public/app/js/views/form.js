@@ -7,7 +7,7 @@ import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
 import { moneyInput } from '../money.js';
-import { MONTHS, rupiah, toDateInput, toDateTimeInput, today } from '../format.js';
+import { MONTHS, rupiah, toDateInput, toDateTimeInput, today, date as fmtDate } from '../format.js';
 import { navigate } from '../router.js';
 import { saveDraft, loadDraft, removeDraft, registerDraftFlush, relativeAge, draftRemovalSuspended } from '../drafts.js';
 
@@ -55,6 +55,8 @@ function lookupLabel(value, options, state) {
   // Only a successful load proves the row is really gone from the source.
   return state.status === 'ok' ? `#${value} (tidak ada di daftar)` : `#${value}`;
 }
+
+let dateHintSeq = 0;
 
 /**
  * Build one input for a field descriptor; returns { node, read, write }.
@@ -119,10 +121,41 @@ export function buildInput(spec, initial, { compact = false } = {}) {
       return { node, read: () => (node.value === '' ? null : Number(node.value)) };
     }
 
+    /*
+     * Petunjuk tanggal id-ID di bawah <input type=date>. Input natif
+     * menggambar mm/dd/yyyy pada Chromium en-US — terlihat 2 Sep 2026
+     * (HASIL-UJI §1 "Tanggal native"), dan urutan itu milik locale OS
+     * pemakai, bukan aplikasi: 09/04/2026 terbaca 9 April oleh siapa pun yang
+     * terbiasa dd/mm. Inputnya dipertahankan (pemilih tanggal, keyboard,
+     * validasi format gratis); yang ditambah hanya pembacaan ulang
+     * "= 04 Sep 2026" lewat fmt.date — format yang sama dengan kolom tanggal
+     * di daftar dan detail, jadi angka yang diketik dan angka yang nanti
+     * tampil tidak pernah berbeda urutan. Kosong bila belum ada nilai:
+     * Chromium memancarkan 'input' per segmen dengan value '' selama tanggal
+     * belum lengkap, jadi tidak ada tanggal setengah jadi yang dibaca.
+     * Sel tabel baris (compact) tidak memuatnya — seperti hint money.js,
+     * <td> 31px tidak punya tempat untuk baris kedua. aria-hidden +
+     * aria-describedby juga mengikuti money.js: teks polos di dalam <label>
+     * dilebur jadi NAMA field oleh screen reader.
+     */
     case 'date': {
       const node = el('input', { type: 'date' });
       node.value = value ? toDateInput(value) : (spec.defaultToday ? today() : '');
-      return { node, read: () => node.value || null };
+      const read = () => node.value || null;
+      if (compact) return { node, read };
+
+      const help = el('.help.date-hint', { id: `date-hint-${++dateHintSeq}`, 'aria-hidden': 'true' });
+      const syncHelp = () => {
+        const text = node.value ? `= ${fmtDate(node.value)}` : '';
+        help.textContent = text;
+        help.hidden = text === '';
+        if (text) node.setAttribute('aria-describedby', help.id);
+        else node.removeAttribute('aria-describedby');
+      };
+      node.addEventListener('input', syncHelp);
+      node.addEventListener('change', syncHelp);
+      syncHelp();
+      return { node: el('div', [node, help]), input: node, read };
     }
 
     case 'datetime': {
