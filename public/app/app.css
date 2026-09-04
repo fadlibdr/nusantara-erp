@@ -331,6 +331,38 @@ button, input, select, textarea { font: inherit; color: inherit; }
   margin-left: -14px; margin-right: 4px;
 }
 .nav-items a.active .tick { opacity: 1; }
+.nav-items a .lbl { min-width: 0; }
+
+/* Sidebar T2.5 — diukur 2 Sep 2026: admin 121 tautan / 4,9 viewport, Proyek
+   dan Keuangan 20 tautan rata. Pemisah = keterangan kecil di dalam grup
+   (11 px = lantai huruf T2.10, --muted di atas --surface lulus AA); baris
+   menu = tautan + bintang favorit, bintang tampil saat hover/fokus atau
+   selalu bila sudah aktif. Layar sentuh tidak punya hover, jadi di sana
+   bintang tampil redup terus dan sasaran sentuhnya dilebarkan. */
+.nav-divider {
+  margin: 7px 0 2px; padding: 0 10px 0 28px;
+  font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted);
+}
+.nav-divider:first-child { margin-top: 2px; }
+
+.nav-item { display: flex; align-items: center; gap: 2px; }
+.nav-item > a { flex: 1; min-width: 0; }
+.nav-item.shortcut .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-item .star {
+  flex: none; width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--muted); cursor: pointer;
+  opacity: 0;
+}
+.nav-item:hover .star, .nav-item:focus-within .star, .nav-item .star.on { opacity: 1; }
+.nav-item .star:hover, .nav-item .star:focus-visible { background: var(--surface-3); color: var(--text); }
+.nav-item .star.on { color: var(--primary); }
+.nav-item .star.on svg path { fill: currentColor; }
+@media (pointer: coarse) {
+  .nav-item .star { opacity: .45; width: 34px; height: 32px; }
+}
 
 /* ------------------------------------------------------------------ main */
 .main { grid-area: main; overflow-y: auto; padding: 20px 22px 60px; }
@@ -1011,6 +1043,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 }
 .search-hit:hover, .search-hit:focus-visible { background: var(--surface-2); }
 .search-hit .cell-sub { color: var(--muted); font-size: 12px; }
+.search-hit.screen .cell-main { font-weight: 600; }
 
 /* ------------------------------------------------------- stacked overlays */
 /* A dialog opened over a form gets its own backdrop. Two full-strength ones

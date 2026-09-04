@@ -40,12 +40,35 @@ def login(page, email):
     page.wait_for_selector("input[type=email]", timeout=15000)
     page.fill("input[type=email]", email)
     page.fill("input[type=password]", "password")
-    page.click("button[type=submit]")
+    # iam/auth/login dibatasi throttle per IP; S5 memasukkan 11 peran dalam ~30 s dan satu di antaranya
+    # kena 429 (diamati 4 Sep 2026: teknisi/sales/finance bergantian, POST-nya tidak pernah sampai ke
+    # log php -S, toast-nya sudah lenyap saat 15 s habis). Ditunggu sesuai Retry-After lalu diklik
+    # lagi — yang dilakukan orang juga; tidak masuk hitungan klik skenario.
+    for _ in range(3):
+        with page.expect_response(lambda r: "iam/auth/login" in r.url, timeout=15000) as info:
+            page.click("button[type=submit]")
+        if info.value.status != 429:
+            break
+        wait = int(info.value.headers.get("retry-after", "60")) + 1
+        print(f"  login {email}: 429 throttle, menunggu {wait} s")
+        page.wait_for_timeout(wait * 1000)
     page.wait_for_selector("nav.nav", timeout=15000)
     page.wait_for_timeout(1200)
 
 def toasts(page):
     return page.evaluate("() => [...document.querySelectorAll('.toast')].map(t => t.innerText.trim())")
+
+def nav_click(page, href):
+    """Klik tautan sidebar. Sejak T2.5 grup tertutup bawaan (kecuali Ringkasan dan grup rute aktif),
+    jadi pada profil baru grupnya dibuka dulu — dan klik itu DIHITUNG: itulah yang dilakukan orang
+    yang pertama kali masuk. Setelah preferensinya tersimpan (localStorage) klik ini hilang.
+    Grup pintasan (Favorit/Terakhir dibuka, data-kind) dilewati: pada profil baru keduanya kosong."""
+    group = f"nav.nav .nav-group:not([data-kind]):has(a[href='{href}'])"
+    opened = False
+    if page.locator(group).count() and page.locator(group).first.get_attribute("data-open") == "false":
+        click(page, f"{group} > button"); page.wait_for_timeout(150); opened = True
+    click(page, f"nav.nav a[href='{href}']")
+    return opened
 
 def scenario(name):
     def deco(fn):
@@ -223,7 +246,7 @@ def s3(pg):
     reqs = []
     pg.on("request", lambda r: reqs.append(r.url.split("/api/")[-1]) if "/api/" in r.url else None)
     login(pg, "procurement@nusantara.test")
-    click(pg, "nav.nav a[href='#/r/procurement/purchase-orders']")
+    nav_group_opened = nav_click(pg, "#/r/procurement/purchase-orders")
     pg.wait_for_selector(".page-head h1", timeout=15000)
     pg.wait_for_timeout(1200)
     t0 = time.time()
@@ -308,7 +331,8 @@ def s3(pg):
     where = pg.evaluate("() => ({hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText})")
     result = {"form": form, "client_errors": client_errors, "line_inputs_row1": line_inputs,
               "server_errors_rendered": server_errors, "toast_on_422": toast_422, "saved": saved,
-              "toast_after_save": toast_save, "landing_after_save": where, "create_ms": t_saved, "api_calls": len(reqs)}
+              "toast_after_save": toast_save, "landing_after_save": where, "create_ms": t_saved, "api_calls": len(reqs),
+              "nav_group_opened": nav_group_opened}
     if not saved:
         return result
     # 5) Submit (Ajukan) from wherever we landed
@@ -409,6 +433,12 @@ def s5(pg):
         out[u] = pg.evaluate("""() => { const nav=document.querySelector('nav.nav'); const groups=[...nav.querySelectorAll('.nav-group')];
             return { groups: groups.length, links: nav.querySelectorAll('.nav-items a').length, navHeightPx: nav.scrollHeight,
                      viewportsTall: +(nav.scrollHeight / innerHeight).toFixed(1),
+                     // scrollHeight punya lantai = tinggi kolom grid (.shell min-height + isi dasbor, 1289 px untuk
+                     // admin 4 Sep 2026); tinggi ISI sidebar sendiri dijumlahkan di sini supaya angka di bawah lantai itu terbaca.
+                     navContentPx: [...nav.children].reduce((sum, node) => sum + node.offsetHeight, 0) + 38,
+                     open_groups: groups.filter(g => g.dataset.open === 'true').map(g => g.querySelector('button').innerText.trim()),
+                     shortcut_groups: nav.querySelectorAll('.nav-group[data-kind]').length,
+                     dividers: [...nav.querySelectorAll('.nav-divider')].map(d => d.innerText.trim()),
                      biggest: groups.map(g => [g.querySelector('button').innerText.trim(), g.querySelectorAll('a').length]).sort((a,b)=>b[1]-a[1]).slice(0,3),
                      stats: document.querySelectorAll('.stat').length, cards: [...document.querySelectorAll('.card h2')].map(h=>h.innerText.replace(/\\s*\\(\\d+\\)/,'')) } }""")
     return out
@@ -424,11 +454,10 @@ def s6(browser):
     click(pg, ".header .menu-toggle")
     pg.wait_for_timeout(500)
     drawer = pg.evaluate("""() => { const nav=document.querySelector('nav.nav'); const a=nav.querySelector("a[href='#/lapangan']");
-        const r=a.getBoundingClientRect(); return { links: nav.querySelectorAll('.nav-items a').length, drawerHeight: nav.scrollHeight,
-        lapanganTop: r.top, visibleWithoutScroll: r.top >= 0 && r.bottom <= innerHeight, groupsAbove: [...nav.querySelectorAll('.nav-group')].findIndex(g=>g.contains(a)) } }""")
+        const r=a.getBoundingClientRect(); const shown=a.checkVisibility(); return { links: nav.querySelectorAll('.nav-items a').length, drawerHeight: nav.scrollHeight,
+        lapanganTop: shown ? r.top : null, linkVisible: shown, visibleWithoutScroll: shown && r.top >= 0 && r.bottom <= innerHeight, groupsAbove: [...nav.querySelectorAll('.nav-group')].findIndex(g=>g.contains(a)) } }""")
     pg.screenshot(path=f"{OUT}/s6-mobile-drawer.png")
-    pg.locator("nav.nav a[href='#/lapangan']").scroll_into_view_if_needed()
-    click(pg, "nav.nav a[href='#/lapangan']")
+    drawer["group_opened"] = nav_click(pg, "#/lapangan")
     pg.wait_for_timeout(1500)
     lap = pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText, bigButtons: document.querySelectorAll('.btn.lg').length, text: document.querySelector('main').innerText.slice(0,300) })")
     pg.screenshot(path=f"{OUT}/s6-mobile-lapangan.png")
@@ -514,7 +543,7 @@ def s10(pg):
 @scenario("S11_tugas")
 def s11(pg):
     login(pg, "direktur@nusantara.test")
-    click(pg, "nav.nav a[href='#/tugas']")
+    nav_click(pg, "#/tugas")
     pg.wait_for_selector("table.data, .empty", timeout=15000); pg.wait_for_timeout(800)
     out = pg.evaluate("() => ({ h1: document.querySelector('.page-head h1').innerText, rows: [...document.querySelectorAll('table.data tbody tr')].map(r=>r.innerText.split('\\n')[0]), types: [...document.querySelectorAll('.filters option')].map(o=>o.innerText) })")
     pg.screenshot(path=f"{OUT}/s11-tugas.png")
@@ -626,6 +655,25 @@ def s13(pg):
     out["note_stored"] = out["stored_note"] == NOTE
     return out
 
+@scenario("S14_search_screens")
+def s14(pg):
+    """Ctrl+K "opname" as admin (T2.5): the client-side "Layar" group, in the order shown, then Enter."""
+    login(pg, "admin@nusantara.test")
+    pg.keyboard.press("Control+k")
+    pg.wait_for_selector(".modal .search-input", timeout=5000)
+    # Ketik ke kotaknya, bukan ke halaman: openSearch() memfokuskan input 30 ms setelah modal tampil,
+    # dan ketikan yang mendahului fokus itu jatuh ke <body> (terjadi pada run pertama 4 Sep 2026).
+    pg.locator(".modal .search-input").press_sequentially("opname")
+    pg.wait_for_timeout(1200)  # debounce 220 ms + the server round-trip
+    out = pg.evaluate("""() => [...document.querySelectorAll('.search-group')].map(g => ({
+        label: g.querySelector('.search-group-label').innerText.trim(),
+        hits: [...g.querySelectorAll('.search-hit')].map(h => h.innerText.trim().replace(/\\n/g, ' · ')) }))""")
+    pg.screenshot(path=f"{OUT}/s14-ctrl-k-opname.png")
+    pg.keyboard.press("Enter"); pg.wait_for_timeout(800)
+    layar = next((g for g in out if g["label"].lower() == "layar"), None)  # innerText ikut text-transform: "LAYAR"
+    return {"groups": out, "layar": layar["hits"] if layar else None, "layar_count": len(layar["hits"]) if layar else 0,
+            "enter_opened": pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText || null, modal: !!document.querySelector('.modal') })")}
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -636,7 +684,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

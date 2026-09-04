@@ -4,11 +4,15 @@
    the sidebar and nothing else, so finding PO/2026/VII/0042 meant knowing it was
    a purchase order first. */
 
-import { api } from './api.js';
+import { api, session } from './api.js';
 import { el, clear, modal, closeModal, modalDepth, toast } from './ui.js';
+import { visibleNav } from './schema.js';
 
 const MIN_LENGTH = 2;
 const DEBOUNCE_MS = 220;
+
+/* Layar per pencarian. Di atas ini jawabannya adalah sidebar. */
+const SCREEN_MAX = 8;
 
 /**
  * Guards against an out-of-order response overwriting a newer one.
@@ -25,9 +29,40 @@ let palette = null;
 /* The "close the modal first" banner, so a held Ctrl+K raises one, not thirty. */
 let refusal = null;
 
+/*
+ * Sumber "Layar" (T2.5): baris NAV yang boleh dilihat pemanggil, dicocokkan
+ * pada awal kata label. Ctrl+K sampai 2 Sep 2026 hanya mencari dokumen, jadi
+ * sampai ke layar Opname berarti membaca 121 tautan sidebar (HASIL-UJI §1,
+ * S5) — padahal palet ini sudah ada di bawah setiap tangan.
+ *
+ * Awal kata, bukan substring: "po" harus menemukan "Pesanan (PO)" dan "Baris
+ * PO Terbuka", bukan "La-po-ran Harian" — dan Enter membuka hasil pertama,
+ * jadi derau di sini berarti orang yang mengetik kode dokumen mendarat di
+ * layar yang salah. Kode dokumen lengkap ("PO/2026/IX/0004") tidak pernah
+ * cocok dengan awal kata label mana pun, sehingga baris pertamanya tetap
+ * dokumen itu. Disaring lewat visibleNav() yang sama dengan sidebar, supaya
+ * palet tidak menawarkan layar yang barisnya disembunyikan dari menu.
+ */
+function screenHits(term) {
+  const needle = term.toLowerCase();
+  const hits = [];
+
+  for (const group of visibleNav((perm) => session.can(perm))) {
+    for (const item of group.items) {
+      if (!item.route) continue;
+      const words = item.label.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+      const rank = words.join(' ').startsWith(needle) ? 0 : words.some((word) => word.startsWith(needle)) ? 1 : null;
+      if (rank === null) continue;
+      hits.push({ rank, code: item.label, title: group.label, link: `#/${item.route}`, screen: true });
+    }
+  }
+
+  return hits.sort((a, b) => a.rank - b.rank).slice(0, SCREEN_MAX);
+}
+
 function resultRow(hit, onPick) {
-  const node = el('button.search-hit', { type: 'button' }, [
-    el('span.cell-main.mono', { text: hit.code || `#${hit.id}` }),
+  const node = el(`button.search-hit${hit.screen ? '.screen' : ''}`, { type: 'button' }, [
+    el(`span.cell-main${hit.screen ? '' : '.mono'}`, { text: hit.code || `#${hit.id}` }),
     hit.title ? el('span.cell-sub', { text: hit.title }) : null,
   ]);
 
@@ -35,30 +70,41 @@ function resultRow(hit, onPick) {
   return node;
 }
 
-function render(body, payload, onPick) {
+function groupNode(group, onPick) {
+  return el('.search-group', [
+    el('.search-group-label', { text: group.label }),
+    ...group.results.map((hit) => resultRow(hit, onPick)),
+  ]);
+}
+
+/* Layar di atas dokumen, dan sudah tergambar selagi server masih mencari:
+   hasilnya ada di memori, dan orang yang mengetik "opname" mencari layar. */
+function render(body, payload, onPick, screens = []) {
   clear(body);
 
   if (payload === null) {
-    body.appendChild(el('p.muted', { text: `Ketik minimal ${MIN_LENGTH} huruf — kode dokumen, nama, atau nomor.` }));
+    body.appendChild(el('p.muted', { text: `Ketik minimal ${MIN_LENGTH} huruf — kode dokumen, nama, atau layar.` }));
     return;
   }
+
+  if (screens.length) body.appendChild(groupNode({ label: 'Layar', results: screens }, onPick));
 
   if (payload === 'loading') {
-    body.appendChild(el('p.muted', { text: 'Mencari…' }));
+    body.appendChild(el('p.muted', { text: 'Mencari dokumen…' }));
     return;
   }
 
-  if (!payload.groups.length) {
+  if (payload === 'failed') {
+    body.appendChild(el('p.muted', { text: 'Pencarian dokumen gagal. Coba lagi.' }));
+    return;
+  }
+
+  if (!payload.groups.length && !screens.length) {
     body.appendChild(el('p.muted', { text: `Tidak ada hasil untuk "${payload.term}".` }));
     return;
   }
 
-  for (const group of payload.groups) {
-    body.appendChild(el('.search-group', [
-      el('.search-group-label', { text: group.label }),
-      ...group.results.map((hit) => resultRow(hit, onPick)),
-    ]));
-  }
+  for (const group of payload.groups) body.appendChild(groupNode(group, onPick));
 }
 
 export function openSearch() {
@@ -86,15 +132,14 @@ export function openSearch() {
     }
 
     const mine = ++sequence;
-    render(body, 'loading', pick);
+    const screens = screenHits(term);
+    render(body, 'loading', pick, screens);
 
     try {
       const payload = await api.get('core/search', { q: term });
-      if (mine === sequence) render(body, payload, pick);
+      if (mine === sequence) render(body, payload, pick, screens);
     } catch {
-      if (mine === sequence) {
-        clear(body).appendChild(el('p.muted', { text: 'Pencarian gagal. Coba lagi.' }));
-      }
+      if (mine === sequence) render(body, 'failed', pick, screens);
     }
   };
 

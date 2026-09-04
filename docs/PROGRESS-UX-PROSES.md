@@ -861,7 +861,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     no `-wal`/`-shm`).
 
 ### T2.6 — Bilah aksi tiga zona + menu "Cetak ▾" (halaman · PDF · formulir rumah · XLSX)
-- Commit: (this commit)
+- Commit: 424acb0
 - Files: `public/app/js/ui.js` (`menuButton()` — the menu primitive, after `withBusy`),
   `public/app/js/views/detail.js` (`formMenuItems()` as the one entry list, `formButtons()` now
   derived from it — same labels, same behaviour for the custom screens; new `printMenu()`; the
@@ -990,3 +990,142 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     full run `… out-t26-full … S1 S2 S3 S4 S8 S11 S12 S13` (re-seeded), then `… out-t26-s11 … S11 S7`
     (re-seeded). Server stopped by PID (`pgrep -f '^php -S 127.0.0.1:8000'`);
     `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
+
+### T2.5 — Sidebar: grup tertutup bawaan, pemisah, Favorit / Terakhir dibuka, sumber "Layar" di Ctrl+K
+- Commit: (this commit)
+- Files: `public/app/js/schema.js` (`{ divider }` entries — Proyek: Pelaksanaan · Serah terima ·
+  Izin & K3 · Register, items in their old order; Keuangan: AR/AP · Kas · Pelaporan · Pajak ·
+  Master, rows regrouped under the captions, no route renamed; `export function visibleNav(can)`
+  right after `NAV` — the permission filter that used to live in app.js, now shared with search.js,
+  dividers dropped when their block is empty), `public/app/js/app.js` (`renderNav()` /
+  `navGroupNode()` / `navItemNode()` / `starButton()` / `shortcutGroups()` / `toggleFavorite()` /
+  `rememberRecent()` / `refreshNav()`; `storedOpenGroups()` + `groupOpenByDefault()` — `null` =
+  no preference = collapsed except Ringkasan and the two shortcut groups; `setActiveNav()` no
+  longer forces a shortcut group open; the `d/*` route records the document after its
+  `.page-head` is drawn), `public/app/js/search.js` (`screenHits()`, the "Layar" group rendered
+  first and already during `Mencari dokumen…`, `render()` takes the client hits), `public/app/js/ui.js`
+  (`star` icon path), `public/app/app.css` (`.nav-divider`, `.nav-item`, `.star`, coarse-pointer
+  rule, `.search-hit.screen`), `public/app/js/views/project.js`, `views/rfq.js`, `views/tender.js`
+  (fill the breadcrumb with the code, like detail.js/custom.js do — see Notes),
+  `tests/Feature/Core/SidebarNavWiringTest.php` (new, 5 tests), `docs/bukti-uji/harness-playwright.py`
+  (`nav_click()` helper used by S3/S6/S11; S5 reports `navContentPx`, `open_groups`,
+  `shortcut_groups`, `dividers`; S6 reports `linkVisible` / `group_opened`; new **S14** Ctrl+K
+  probe; `login()` honours `Retry-After` on 429), `docs/bukti-uji/s5-sidebar-admin-t2.5.png`,
+  `docs/bukti-uji/s14-ctrl-k-opname-t2.5.png`, `docs/PROGRESS-UX-PROSES.md` (T2.6 placeholder →
+  424acb0).
+- Acceptance:
+  - **Gate — harness S5 `viewportsTall` for admin ≤ 2.0 with default preferences** (fresh
+    context, `localStorage.clear()` before login, run `<scratchpad>/ux/out-t25-s5b`, 11 / 11 roles,
+    0 ERROR): **admin 1.4** (`navHeightPx` 1289, `navContentPx` **606** = 0.67 viewport, 14 groups /
+    122 links, `open_groups` `['RINGKASAN']`, `shortcut_groups` 0, `dividers` `['Pelaksanaan',
+    'Serah terima', 'Izin & K3', 'Register', 'AR/AP', 'Kas', 'Pelaporan', 'Pajak', 'Master']`);
+    direktur 1.4 (606 px, 120 links); project-manager 1.0 (451 px, 63); site-manager 1.0 (389 px,
+    45); estimator 1.0 (389, 48); procurement 0.9 (358, 36); warehouse 1.0 (358, 36); finance 1.0
+    (389, 68); hr 0.9 (265, 15); sales 1.0 (389, 44); teknisi 1.0 (265, 17). Baseline 2 Sep
+    (HASIL-UJI §1): admin **4,9** (4 447 px), direktur 4,9, finance 2,7, PM 2,6. `viewportsTall`
+    has a floor: `nav.scrollHeight` is at least the grid row's height, which `.shell`
+    (`min-height: 100dvh`, `minmax(0, 1fr)` rows) lets the dashboard stretch to 1 289 px for
+    admin — hence the new `navContentPx` (sum of the groups' `offsetHeight` + padding), which is
+    the sidebar itself.
+  - **Ctrl+K "opname" (S14, admin, `out-t25-final`)**: group `Layar` first, **5** screens —
+    `Opname Owner (OPN) · Proyek`, `Opname · Persediaan`, `Opname Subkon · Subkontrak`, `Opname
+    Mandor · Subkontrak`, `Variasi Kontrak (Plafon Opname) · Proyek`; Enter → `#/r/projects/progress-measurements`,
+    h1 `Opname Owner (OPN)`, modal closed. The RECAP says "3 screens": NAV holds five labels with
+    the word *Opname* (four begin with it), all five are real screens the admin may open, and
+    hiding two to reach a number would be the wrong fix — the "3" is ASESMEN-UX §2.3's prose
+    ("tiga layar bernama Opname"), written before counting. Same probe (`t25-probe.py`):
+    `po` → Layar `Pesanan (PO) · Pengadaan`, `Baris PO Terbuka · Pengadaan`, then the server groups
+    (Pesanan Pembelian, Item, Tiket Layanan) — word-start matching, so `La-po-ran Harian` does
+    not surface; `PO/2026` (typed key by key) → no screen, `PESANAN PEMBELIAN: PO/2026/III/0002 |
+    PO/2026/II/0001`, so Enter still opens the document; `laporan` → 3 screens; `zz` → `Tidak ada
+    hasil untuk "zz".`.
+  - **Probe** (`<scratchpad>/ux/t25-probe.py`, `t25-recent3.py`, `t25-final-probe.py`; not
+    committed; admin 1440 × 900, site-manager 1440 and 390 × 844 touch): fresh admin `stored_nav`
+    null, all 14 groups `data-open=false` except Ringkasan, 122 stars (one per row), 0 on;
+    `.nav-divider` computed font-size **11 px** (T2.10 floor). Click Proyek header → stored
+    `["Ringkasan","Proyek"]`. Hover `Opname Owner (OPN)` → star opacity 1, `aria-label` `Tandai
+    sebagai Favorit`, `aria-pressed` false, 26 px; click → group **Favorit** appears first with 1
+    link, stored `["Ringkasan","Proyek","Favorit"]` (`ensureGroupOpen`), `nusantara_erp_fav:1`
+    `["r/projects/progress-measurements"]`, 2 stars on (Favorit row + Proyek row), focus on the
+    Proyek row's star (`.star.on`); un-star from the Favorit group → group gone, 0 on. Open
+    `#/d/procurement/purchase-orders/1` → **Terakhir dibuka** appears above Ringkasan with
+    `PO/2026/II/0001` (title attr `PO`), `.active`; after project → customer → PO the group reads
+    `PO/2026/II/0001`, `CUST-0001`, `PRJ-2026-001`; seven documents in a row keep the newest
+    **5** (`RECENT_MAX`), a 404 (`procurement/rfqs/1`) is **not** recorded; custom screens now
+    give `RKK/2026/VIII/0001`, `TKD/2026/VIII/0001`, `PYR/2026/03/001`, ticket title (custom.js
+    `pageHead` uses the title). Reload → Favorit 1 / Terakhir dibuka 3 / Ringkasan / Proyek /
+    Pengadaan open, the rest collapsed. Mobile drawer (390 px, `pointer: coarse`): star opacity
+    .45, **34 × 32** px, drawer 788 px, `data-label` rows of T2.10 unaffected. Site-manager fresh:
+    7 groups / 45 links, 1.0. **0 `pageerror`** in every context.
+  - Regressions (`out-t25-final`, fresh seed, `S3 S4 S5 S6 S8 S11 S14`): **S3 12 klik** with
+    `nav_group_opened` **true** — on a fresh profile Pengadaan is collapsed, so the first click
+    opens it (T2.6: 11; see Notes), `toast_on_422` `['Periksa isian yang ditandai.', …]`, landing
+    `#/d/procurement/purchase-orders/3`, `PO/2026/IX/0003`, `Diajukan`, `detail_action_bar`
+    `['Kembali', 'Cetak', 'Ubah', 'Ajukan']`, `bar_after_submit` `['Kembali', 'Cetak']`, 15 162 ms;
+    **S4** modalVisible false, loginVisible true, recoveryOffer true, 13 field / 3 baris restored,
+    8 klik; **S6** `taps_to_lapangan` **3** (`group_opened` true; HASIL-UJI: 2 — Proyek is
+    collapsed in a fresh drawer, `linkVisible` false before the tap; after the preference persists
+    it is 2 again), h1 `Lapangan`, 1 big button; **S8** 5.23 / 5.47 / 5.29, `smallest_font_px` 11,
+    `th_font` 11px; **S11** h1 `Tugas Saya`, **2 klik** (Ringkasan is open by default, no group
+    click), 5 rows, `leave_detail_bar` `['Kembali', 'Cetak', 'Setujui', 'Tolak']`; S5 in that
+    run 10 / 11 (finance hit the login throttle — Notes), the S5-only re-run above is 11 / 11.
+  - PHPUnit: `tests/Feature/Core` **OK (572 tests, 3 521 assertions)** (T2.7: 567 / 3 445 — the 5
+    new `SidebarNavWiringTest` tests: captions in order per group, no caption over an empty
+    block, the 20 + 20 routes of Proyek/Keuangan unchanged, one shared `visibleNav` import in
+    app.js and search.js, and the refused half); `tests/Feature/Crm` OK (214 / 773);
+    `NavRouteRegistryTest` + `CrossModuleSpaWiringTest` + `PrintFormReachabilityTest` +
+    `TenderSpaWiringTest` + the new file: OK (24 / 470, 21 / 398 after the tender.js fix).
+    `pint --test --dirty` passed.
+- Notes:
+  - **One extra click on a fresh profile, by design of (b).** Collapsed-by-default means the
+    first visit to a screen outside Ringkasan costs a group click (S3 11 → 12, S6 2 → 3 taps);
+    the preference persists (`NAV_STATE_KEY`) so the second visit costs what it did, and the
+    star turns any daily screen into a one-click link above the fold. The harness counts that
+    click (`nav_click()` reports `nav_group_opened`) rather than opening the group silently — the
+    Verification table's "Create→submit PO" row should read 12 on a fresh profile / 11 with a
+    saved preference, and the metric that this task targets (sidebar height) is the one that moved.
+  - **`null` vs `[]` in `NAV_STATE_KEY`.** Before, `[]` (every group closed by hand) reloaded as
+    "everything open" (`openGroups.size ? … : true`); now `null` alone means "no preference" and
+    `[]` means exactly what was done. A stored list wins as before; a shortcut group that gains
+    its first item is added to a stored list (`ensureGroupOpen`) so a first star never lands in a
+    collapsed Favorit.
+  - **Favorit / Terakhir dibuka are keyed per user id** (`nusantara_erp_fav:<id>`,
+    `nusantara_erp_recent:<id>`), unlike `NAV_STATE_KEY`: the site-office tablet is shared.
+    Favorites are stored as routes and resolved against `visibleNav()` at render, so a starred
+    screen whose permission is revoked disappears without editing the list; recents are filtered
+    by the resource's read permission the way the `d/*` route is. Both groups render only when
+    non-empty — an empty "Favorit" would be one more heading for the new user whose "banyak
+    sekali" is the measured problem; the star on every row is the discovery.
+  - **Recents label = breadcrumb.** `project.js`, `rfq.js` and `tender.js` never replaced the
+    router's `#id` crumb (detail.js, custom.js and kaskecil.js do) — so the first cut recorded
+    `Proyek #1`, `RKK #1`, `Lembar TKDN #1`. Each now fills the crumb with its code in one line
+    (a breadcrumb that reads `PRJ-2026-001` instead of `#1` is the same fix for the user); no
+    other change in those screens. A screen that never drew its `.page-head` (404, error) is not
+    recorded.
+  - **`visibleNav(can)` moved to schema.js**, not duplicated: search.js needs the same
+    group/item permission rule and a second copy would drift (the test pins that neither file
+    maps NAV on its own). The function contains no `route: '` literal — `NavRouteRegistryTest`
+    and the two SPA wiring tests scan everything after `export const NAV = [`.
+  - **Layar matching is word-start**, ranked label-start first, capped at 8: Enter opens the
+    first hit, so substring noise (`po` → `Laporan`) would send a typed document code to the
+    wrong screen. A full code never word-matches a label, so the document stays first.
+  - **S5 / the login throttle.** `iam/auth/login` is `throttle:10,1`; S5 logs 11 roles in ~30 s
+    and one of them (teknisi, sales, finance — whichever falls 11th inside the window) got a 429
+    whose toast expired before the 15 s wait ended, the POST never reaching the php -S log.
+    S5 never ran on this box before (the Phase 0 gate was `S10 S1 S2 S3 S4 S11 S8`).
+    `login()` now waits `Retry-After` + 1 s and clicks again (once: 37 s in the S5-only run,
+    64 s total); no scenario's `_clicks` includes it.
+  - **S14 typed before focus** on its first run: `openSearch()` focuses the input 30 ms after the
+    modal appears and `keyboard.type` had already fired — `press_sequentially` on the input now.
+  - Harness S6 read a zero rect for the hidden Lapangan link (`visibleWithoutScroll` true by
+    accident); it now reports `linkVisible` and uses `nav_click()`.
+  - T2.6's PROGRESS placeholder now reads 424acb0.
+  - Environment: fresh scratch seed `<scratchpad>/ux/t25.sqlite`
+    (`DB_DATABASE=<scratch>/ux/t25.sqlite php artisan migrate:fresh --seed --force`, re-seeded once
+    before the final run; config not cached), served with
+    `cd public && DB_DATABASE=<scratch>/ux/t25.sqlite APP_ENV=local php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`;
+    runs `ERP_DB=<scratch>/ux/t25.sqlite UXTEST_OUT=<scratch>/ux/out-t25 … S3 S5 S6 S8 S11 S14`
+    (first cut), `… out-t25b … S5 S14`, `… out-t25-final … S3 S4 S5 S6 S8 S11 S14` (re-seeded),
+    `… out-t25-s5 … S5`, `… out-t25-s5b … S5` (throttle-aware `login()`). Server stopped by PID
+    (`pgrep -f '^php -S 127.0.0.1:8000'`); `database/database.sqlite` untouched (mtime 13:10:55,
+    no `-wal`/`-shm`).

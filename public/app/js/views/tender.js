@@ -78,6 +78,13 @@ const money = (value) => (value === null || value === undefined ? RULED : fmt.ru
 const pct = (value) => (value === null || value === undefined ? RULED : `${fmt.num(value, 2)}%`);
 const textOr = (value) => (value === null || value === undefined || value === '' ? RULED : String(value));
 
+/* Remah roti "#id" dari router diganti kodenya, seperti detail.js/custom.js;
+   Terakhir dibuka (T2.5) membaca judulnya dari sini. */
+function fillCrumb(title) {
+  const crumb = document.querySelector('#crumbs b');
+  if (crumb) crumb.textContent = title;
+}
+
 function skeleton(host) {
   return clear(host).appendChild(el('.card', el('.card-body', el('.skeleton', { style: { height: '18px', width: '40%' } }))));
 }
@@ -437,6 +444,8 @@ export async function renderTkdnWorksheet(host, { id }) {
 
   clear(host);
 
+  fillCrumb(worksheet.code || `Lembar TKDN #${worksheet.id}`);
+
   host.appendChild(el('.page-head', [
     el('div', [
       el('h1', { text: worksheet.code || `Lembar TKDN #${worksheet.id}` }),
@@ -719,6 +728,8 @@ export async function renderRkkDocument(host, { id }) {
   const smkkRows = rkk.smkk_rows || [];
 
   clear(host);
+
+  fillCrumb(rkk.code || `RKK #${rkk.id}`);
 
   host.appendChild(el('.page-head', [
     el('div', [

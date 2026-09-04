@@ -331,6 +331,12 @@ export async function renderProject(host, { id }) {
 
   clear(host);
 
+  // Remah roti digambar router dengan "#id" sebelum rekaman tiba; diisi kode
+  // di sini seperti detail.js/custom.js — Terakhir dibuka (T2.5) membaca
+  // judulnya dari sini, dan tanpa baris ini tercatat sebagai "Proyek #1".
+  const crumb = document.querySelector('#crumbs b');
+  if (crumb) crumb.textContent = project.code || project.name;
+
   host.appendChild(el('.page-head', [
     el('div', [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [

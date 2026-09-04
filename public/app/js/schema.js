@@ -5623,7 +5623,16 @@ export const NAV = [
   },
   {
     label: 'Proyek', perm: 'prj.view',
+    /* Pemisah { divider } (T2.5): grup ini dan Keuangan masing-masing 20
+       tautan rata, sidebar admin 121 tautan setinggi 4,9 viewport — diukur
+       2 Sep 2026 (HASIL-UJI §1, S5). Struktur datanya tetap datar: hanya
+       renderer sidebar (app.js) yang menggambar pemisah sebagai keterangan
+       kecil; visibleNav() di bawah membuang pemisah yang bloknya kosong,
+       dan sumber "Layar" di Ctrl+K melewatinya. Bukan grup baru — grup baru
+       berarti satu judul lagi untuk dibuka, padahal masalahnya justru
+       terlalu banyak yang harus dibaca. */
     items: [
+      { divider: 'Pelaksanaan' },
       { label: 'Daftar Proyek', route: 'r/projects' },
       { label: 'Laporan Harian', route: 'r/projects/daily-reports' },
       { label: 'Lapangan (mobile)', route: 'lapangan' },
@@ -5636,10 +5645,12 @@ export const NAV = [
       { label: 'Variasi Kontrak (Plafon Opname)', route: 'r/projects/contract-variations' },
       { label: 'EVM & Baseline', route: 'evm' },
       { label: 'Milestone', route: 'r/projects/milestones' },
+      { divider: 'Serah terima' },
       // P3 — BAPP per zona, di atas BAST karena urutannya memang begitu: zona
       // diperiksa satu per satu, lalu proyeknya diserahterimakan.
       { label: 'BAPP per Zona', route: 'r/projects/zone-certificates' },
       { label: 'BAST', route: 'r/projects/bast' },
+      { divider: 'Izin & K3' },
       // P0-C — tiga izin lapangan: dokumen sungguhan, bukan pad cetak kosong.
       { label: 'Izin Kerja (IKL)', route: 'r/projects/work-permits' },
       { label: 'Izin Lembur (ILB)', route: 'r/projects/overtime-permits' },
@@ -5650,6 +5661,7 @@ export const NAV = [
       { label: 'Formulir K3 Harian', route: 'r/projects/hse-daily' },
       { label: 'Register IBPRP', route: 'r/projects/risk-register' },
       { label: 'Laporan K3', route: 'k3' },
+      { divider: 'Register' },
       { label: 'Register Defect (Punch List)', route: 'defects' },
       { label: 'Varian Material', route: 'varian' },
       { label: 'Penugasan Personel', route: 'r/projects/manpower-assignments' },
@@ -5721,16 +5733,23 @@ export const NAV = [
   },
   {
     label: 'Keuangan', perm: 'fin.view',
+    /* Lima pemisah (T2.5) — lihat catatan di grup Proyek. Urutan baris
+       digeser supaya tiap baris duduk di bawah keterangannya; rutenya tidak
+       ada yang berubah. */
     items: [
+      { divider: 'AR/AP' },
       { label: 'Invoice Termin (AR)', route: 'r/finance/ar-invoices' },
       { label: 'Tagihan Vendor (AP)', route: 'r/finance/ap-bills' },
       { label: 'Pembayaran', route: 'r/finance/payments' },
-      { label: 'Kasir Kas Kecil', route: 'kas-kecil' },
-      { label: 'Kas Kecil & Kasbon', route: 'r/finance/petty-cash-funds' },
-      { label: 'Jurnal', route: 'r/finance/journals' },
-      { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
       { label: 'Termin Siap Ditagih', route: 'siap-tagih' },
       { label: 'Piutang Retensi', route: 'retensi' },
+      { divider: 'Kas' },
+      { label: 'Kasir Kas Kecil', route: 'kas-kecil' },
+      { label: 'Kas Kecil & Kasbon', route: 'r/finance/petty-cash-funds' },
+      { label: 'Rekonsiliasi Bank', route: 'bank-recon' },
+      { divider: 'Pelaporan' },
+      { label: 'Jurnal', route: 'r/finance/journals' },
+      { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
       { label: 'Pengakuan Pendapatan', route: 'r/finance/revenue-recognition' },
       { label: 'Periode Fiskal', route: 'periods' },
       { label: 'Laporan Keuangan', route: 'reports' },
@@ -5739,12 +5758,13 @@ export const NAV = [
       // baris 1-1400 Rp 332.510.000 mencarinya di sini. Tanpa baris ini layar
       // hanya bisa dicapai dengan mengetik #/buku-besar sendiri.
       { label: 'Buku Besar', route: 'buku-besar' },
+      { divider: 'Pajak' },
       { label: 'Ekspor Pajak', route: 'tax-exports' },
       { label: 'Kalender Pajak', route: 'kalender-pajak' },
       // Tepat di bawah Kalender Pajak: lembar cetaknya menjangkar pada baris
       // masa kalender itu, jadi keduanya bertetangga di menu maupun di data.
       { label: 'Ekualisasi Pajak', route: 'ekualisasi-pajak' },
-      { label: 'Rekonsiliasi Bank', route: 'bank-recon' },
+      { divider: 'Master' },
       { label: 'Bagan Akun', route: 'r/finance/accounts' },
       { label: 'Pajak', route: 'r/finance/taxes' },
       { label: 'Rekening Bank', route: 'r/finance/bank-accounts' },
@@ -5818,6 +5838,38 @@ export const NAV = [
     ],
   },
 ];
+
+/**
+ * NAV yang boleh dilihat pemegang izin `can` — satu penyaring untuk sidebar
+ * (app.js) dan sumber "Layar" di Ctrl+K (search.js, T2.5), supaya palet tidak
+ * pernah menawarkan layar yang barisnya sendiri disembunyikan dari menu.
+ *
+ * Grup digerbangi izinnya sendiri; sebuah baris boleh membawa izin sendiri.
+ * Grup yang izinnya gagal tetap tampil bila salah satu barisnya lolos sendiri
+ * — begitulah "Impor Data Master" sampai ke petugas gudang yang memegang
+ * inv.create tanpa urusan dengan sisa grup Sistem. Baris berizin sendiri sudah
+ * diperiksa; izin grup hanya menggerbangi baris yang tidak menyatakan izin.
+ *
+ * Pemisah ikut lolos hanya bila bloknya (sampai pemisah berikutnya) masih
+ * berisi baris; keterangan di atas ruang kosong terbaca sebagai baris hilang.
+ */
+export function visibleNav(can) {
+  return NAV
+    .map((group) => {
+      const gated = Boolean(group.perm) && !can(group.perm);
+      const items = group.items.filter((item) => item.divider || (item.perm ? can(item.perm) : !gated));
+      return { ...group, items: withoutEmptyDividers(items) };
+    })
+    .filter((group) => group.items.some((item) => item.route));
+}
+
+function withoutEmptyDividers(items) {
+  return items.filter((item, index) => {
+    if (!item.divider) return true;
+    const next = items.slice(index + 1).find((one) => one.divider || one.route);
+    return Boolean(next && next.route);
+  });
+}
 
 export function resource(key) {
   return RESOURCES[key] || null;
