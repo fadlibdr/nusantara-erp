@@ -295,6 +295,108 @@ layanan/pekerjaan")? Answering this unblocks a small follow-up (two
 the BATAS PEMBAYARAN line); the three letters, the action and the watcher
 clause do not wait on it.
 
+**OQ-4 (T3.9) — approval value thresholds: the numbers, and what "director
+level" means per document type.** BLOCKING for T3.9 (skipped 5 Sep 2026,
+Prompt A rule 9). Asked against what the tree already does, not against the
+entry's assumed keys:
+
+- *PO and SPK already have a director threshold* — `approvals.purchase_order
+  .threshold_two_level` Rp 100 juta and `approvals.subcontract
+  .threshold_two_level` Rp 200 juta, operator-editable in Pengaturan › Proyek &
+  Persetujuan ("PO/SPK wajib persetujuan direktur di atas"), stamped as
+  `needs_director_approval` on submit and enforced by
+  `Procurement\Support\DirectorApproval`: at/above the line the ONE approval
+  must come from a `prc.approve-director` / `scm.approve-director` holder
+  (direktur, admin) — still a single approval. ANALISIS E2's "semua PO satu
+  tingkat" is true in that sense; its "≤ Rp 25 jt satu tingkat, > Rp 250 jt
+  direktur" is the analyst's illustration, not a decision.
+- *Award decisions use a three-bracket ladder* in `config/erp.php`
+  (`< Rp 100 jt` 1 · `Rp 100 jt – 1 M` 2 · `≥ Rp 1 M` 3 DISTINCT approvers,
+  the 2nd and 3rd from `prc.approve-director`; `Approvable::requiredApprovalLevels()`,
+  `ApprovalLevels`, `required_levels` on `AwardDecisionResource`). The ladder is
+  config-only on purpose (`ApprovalLevels::ladder()`: "an operator who can weaken
+  a control from a web form will").
+- *The other 25 Approvable types have no threshold at all* — PR, RAP, BOQ,
+  invoice termin, tagihan vendor, pembayaran keluar, payroll, opname subkon,
+  addendum SPK, …: one holder of `<prefix>.approve`, any value. Only
+  `prc`/`scm` have an `.approve-director` permission (`PermissionSeeder::
+  DIRECTOR_APPROVALS`, the 2 in 14 × 6 + 2 = 86); `fin.approve-director` does
+  not exist, and the entry's acceptance "> director threshold requires
+  `fin.approve` as the last level" names the ORDINARY finance approval (held by
+  finance-manager as well as direktur, and already the escalation audience of
+  `erp:approval-watch`) — so the acceptance itself needs the decision below.
+
+Questions for the director:
+1. **The numbers, per type.** Keep PO Rp 100 jt / SPK Rp 200 jt? Which of the
+   25 unthresholded types get a director line, and at what value (PR, tagihan
+   vendor, pembayaran keluar, invoice termin, RAP, payroll, opname subkon,
+   addendum; keputusan pemenang keeps its ladder)? And which column is "the
+   value" — PO compares `total` (with PPN) today; the types carry `total` /
+   `total_payable` / `net_payable` / `grand_total` / `value` / `total_budget`
+   / `amount` (`ApprovalQueue::AMOUNT_KEYS`) — DPP or including PPN?
+2. **What "director" means.** (a) PO/SPK style — one approval, but it must be
+   a director's; or (b) ladder style — a SECOND distinct approval on top of
+   the ordinary one (`required_levels` 2, two people sign). Is a third tier
+   wanted anywhere beyond award decisions?
+3. **Is there a lower band at all** (the entry's `threshold_single`)? Below
+   the director line everything is already one ordinary approval, so
+   `threshold_single` only means something if a tier sits BELOW it — e.g. the
+   batch-approve cap T4.3 proposes (`approvals.batch_cap`, ASESMEN P2-3
+   "≤ Rp 25 jt"). Are `threshold_single` and `batch_cap` the same number?
+4. **Where the numbers live and who holds the new rights.** Pengaturan
+   (operator-editable, as PO/SPK) or config (install-time, as the ladder)? Each
+   new `<prefix>.approve-director` (fin, est, hr, crm, prj, …) changes
+   `PermissionSeeder::expected()` — the T1.1 drift check derives its count, but
+   the production re-seed (T1.1 server side) must follow — and needs a role in
+   `RoleSeeder::intended()`.
+
+Answering this unblocks: registry rows (or ladders) per prefix, the per-model
+opt-in (`approvalLadderKey()` / `approvalAmount()`), the `required_levels`
+badge in `schema.js`, PermissionSeeder/RoleSeeder for the new director rights,
+and a Feature test per type — the T3.9 estimate (1–2 d) holds once the four
+answers are written here.
+
+**OQ-5 (T3.10) — approval delegation during leave: the policy.** BLOCKING for
+T3.10 (skipped 5 Sep 2026, Prompt A rule 9). Nothing in the tree delegates:
+`NotificationService::approvers()` = every active holder of the permission
+minus the actor; `ApprovalQueue::pending($user)` = permission + not the owner;
+`SegregationOfDuties` refuses the submitter; a `core_approvals` row carries
+`action · user_id · note` only (no "on behalf of"), and the house forms print
+the approver's name from that row. What the tree DOES have: `hr_leave_requests`
+(`employee_id · start_date · end_date · status`) and `users.employee_id`, so an
+APPROVED leave could open a delegation window by itself (ANALISIS E1: "modul
+cuti ada, belum dipakai"). The cost of an absent approver is measured —
+PAY/2026/VIII/0002 33 hari and SPK/2026/III/0002 40 hari on production 4 Sep
+2026 (`erp:approval-watch` escalations) — whether absence was the cause is not
+recorded, so not claimed.
+
+Questions for the director:
+1. **Who may delegate** — only the approver, for their own rights; an
+   administrator on their behalf; or both? Must the delegator hold the right
+   at the time? May `<prefix>.approve-director` (the value gate above) be
+   delegated at all, or does a director's absence simply wait?
+2. **To whom** — only someone who already holds the same `<prefix>.approve`
+   (a queue + notification hand-over), or anyone (a temporary GRANT of a
+   permission the person was never seeded with)? A fixed deputy per person or
+   free choice? May the delegate re-delegate? Maker-checker for the delegate:
+   they may not approve what THEY submitted (today's rule) — may they approve
+   what the DELEGATOR submitted?
+3. **The window** — a free date range, or tied to an approved leave request
+   (opens at `start_date`, closes at `end_date`, only while
+   `status = approved`)? Maximum days? During the window may the delegator
+   still approve (both), or only the delegate?
+4. **The record** — should the trail read "atas nama": in `core_approvals.note`,
+   or a new `on_behalf_of_user_id` column? Which name goes on the printed house
+   forms' "Disetujui oleh" — the delegate, the delegator, or "X a.n. Y"?
+5. **Notifications and revocation** — reminders/escalations to the delegate
+   only, or to both? Is revocation immediate, and is it audited?
+
+Answering this unblocks `core_approval_delegations` (from_user, to_user,
+from_date, to_date, prefixes), the two seams above, the maker-checker rule for
+the delegate, the trail + signature block, the Pengaturan screen and the
+tests — the T3.10 estimate (2–3 d) holds once the five answers are written
+here.
+
 ---
 
 ## Not for Claude Code — needs people
