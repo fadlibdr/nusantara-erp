@@ -3986,6 +3986,26 @@ export const RESOURCES = {
     actions: [
       ...approvalActions('fin'),
       {
+        /* Tagihan yang disetujui tidak punya pemilik untuk langkah "buat
+           pembayaran" — ia menunggu seseorang ingat: BIL/2026/VII/0002
+           (Rp 48,5 jt) di produksi 69 hari lewat jatuh tempo pada 4 Sep 2026
+           (ANALISIS-PROSES-BISNIS-2026-09 §3, celah B1; pengawas tenggatnya
+           entri ap_due). Tombol ini membuka formulir pembayaran keluar yang
+           sudah terisi sisa tagihannya dan tersimpan langsung membuka PAY
+           barunya. Alokasi ke tagihan ini dipilih di layar pembayaran itu saat
+           mengajukan (kartu Tagihan AP) — formulir pembayaran memang tidak
+           membawa alokasi, dan menyalin id tagihan ke sana tanpa tahu apakah
+           ada potongan pajak bukan hal yang boleh dilakukan tombol. */
+        key: 'create-payment', label: 'Buat pembayaran', perm: 'fin.create', variant: 'primary',
+        when: (row) => row.status === 'approved' && Number(row.outstanding || 0) > 0,
+        opens: 'finance/payments',
+        prefill: (row) => ({
+          direction: 'out',
+          amount: Number(row.outstanding || 0),
+          notes: `Pembayaran ${row.code}${row.vendor?.name ? ` — ${row.vendor.name}` : ''}`,
+        }),
+      },
+      {
         // Salah tagih adalah kejadian rutin. Sebelum ini dokumen yang terlanjur
         // disetujui tidak bisa ditarik sama sekali: piutang/hutang fiktif
         // menggantung selamanya dan termin terkunci "sudah ditagih" sehingga

@@ -1513,3 +1513,84 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     stopped by PID after each run; `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
   - Phase 2 carry-overs not re-opened: per-approval API calls (14–18, detail-page loads), dashboard 11,
     PO clicks 12 — T4.x / unassigned.
+
+### T3.1 — Pengawas jatuh tempo tagihan vendor (`ap_due`), `erp:deadline-watch --dry-run`, tombol "Buat pembayaran" pada tagihan yang disetujui
+- Commit: (this commit)
+- Files: `Modules/Core/Support/WatchedDeadlines.php` (one entry, `ap_due`, placed after `ar_invoice_due`;
+  the formula is in its comment), `Modules/Core/Console/Commands/DeadlineWatchCommand.php` (`--dry-run`),
+  `public/app/js/schema.js` (`finance/ap-bills` action `create-payment` "Buat pembayaran"),
+  `public/app/js/views/actions.js` (`opens` + `prefill` on a header action — the rowAction shape lifted
+  into `actionButtons`), `tests/Feature/Core/DeadlineWatchTest.php` (fixtures `vendor()`, `apBill()`,
+  `settleBill()`; 5 new tests), `tests/Feature/Finance/ApBillPaymentButtonTest.php` (new, served-JS pin),
+  `docs/bukti-uji/harness-playwright.py` (scenario **S16** `ap_bill_payment_button`, 20 lines),
+  `docs/bukti-uji/s16-buat-pembayaran-t3.1.png`, this block.
+- Acceptance:
+  - Works/refused pair in `DeadlineWatchTest`, red first on the unpatched tree (`--filter 'ap_bill|dry_run|the_aging'`:
+    **4 errors** — three `ItemNotFoundException` on `->sole()` (no alarm), one `The "--dry-run" option does not exist`;
+    the "silent" test is green on both trees by design) and `ApBillPaymentButtonTest` **1 failure** (no
+    `create-payment` in the ap-bills block). After: `DeadlineWatchTest` + `DeadlineApiTest` + `CalendarApiTest`
+    **OK (74 tests, 260 assertions)** (DeadlineWatchTest 46 → 51); works = approved bill due 27 Jun 2026 → title
+    `Tagihan vendor lewat jatuh tempo`, body `… senilai Rp 48,5 jt jatuh tempo 27 Jun 2026 — 35 hari lalu.`, link
+    `r/finance/ap-bills`, delivered to the `fin.create` holder only (a `prc.update` holder gets nothing); lead 7 =
+    due 5 Agu → `Tagihan vendor mendekati jatuh tempo` "4 hari lagi", due 9 Agu silent; refused = fully paid by a
+    posted payment dated 1 Jul silent, while a partly paid bill, a bill settled by a POSTED giro dated 15 Agu
+    (post-dated) and a bill "settled" by a DRAFT payment all alarm (`Total 3 tagihan.`) — and
+    `ReportService::agingReport('ap')` run in the same test lists exactly those three codes; draft / submitted /
+    cancelled (`cancelled_at`) / soft-deleted bills silent; `--dry-run` prints
+    `ap_due [lewat]: 1 row(s) -> fin.create` + the body line and writes **0** `core_notifications`.
+    `tests/Feature/Core` **OK (592 tests, 3 637 assertions)** (587 + 5); `tests/Feature/Finance`
+    **OK (819 tests, 3 895 assertions)** (818 + 1); `vendor/bin/pint --test --dirty` passed.
+  - `php artisan erp:deadline-watch --dry-run` on a fresh scratch seed (`<scratchpad>/ux/t31.sqlite`,
+    `migrate:fresh --seed --force`): **before planting** `Checked 20 watcher(s), skipped 0, blind 1, raised 6 alarm
+    group(s). Dry-run: tidak ada notifikasi dikirim.` and **no `ap_due` line** — the seed's only vendor bill
+    `BIL/2026/III/0001` (Rp 232.545.000) is fully settled by `PAY/2026/IV/0001` on 2 Apr, so there is nothing an
+    honest watcher could list. **Planted one bill in the shape of the production case** (tinker on the scratch
+    file only): `BIL/2026/VII/0002`, vendor CV Baja Mandiri, approved, total Rp 48.500.000, bill date 28 Mei, due
+    27 Jun 2026, nothing paid. **After planting**: `ap_due [lewat]: 1 row(s) -> fin.create` /
+    `  BIL/2026/VII/0002 senilai Rp 48,5 jt jatuh tempo 27 Jun 2026 — 70 hari lalu.` / `… raised 7 alarm group(s).
+    Dry-run: tidak ada notifikasi dikirim.` (70, not the RECAP's 69: the command's "today" is Asia/Jakarta and the
+    run happened after 00:00 WIB on 5 Sep.)
+  - Harness **S16** on the same scratch server (finance login, `#/d/finance/ap-bills/2`): `action_bar`
+    **`[Kembali, Cetak, Buat pembayaran, Batalkan Dokumen]`**, `primary` `[Buat pembayaran]`, zones
+    `[Kembali] · [Cetak] · [Buat pembayaran, Batalkan Dokumen]`; **1 klik** → modal `Tambah Pembayaran` with
+    Arah **`out`** (Pengeluaran (PAY)), Tanggal `2026-09-04`, Jumlah **`48.500.000`** (= `outstanding`), Catatan
+    `Pembayaran BIL/2026/VII/0002 — CV Baja Mandiri`, buttons `Batal · Simpan`; Escape closes it
+    (`modal_closed_on_escape` true); 8 014 ms, 0 `ERROR`. The Cetak menu (`Cetak halaman · Cetak Lembar
+    Verifikasi Tagihan`) still opens/closes as T2.6 measured. Screenshot `s16-buat-pembayaran-t3.1.png`.
+- Notes:
+  - **"Belum lunas" = the AP aging's definition, written out.** `ReportService::agingReport('ap')` derives the
+    remainder from `OutstandingAsOf::settled` — allocations of POSTED, undeleted payments dated on or before the
+    as-of day — and refuses `amount_paid` because it is a lifetime figure (a posted giro dated 15 Sep moved Rp 300 jt
+    off the AR aging six weeks early on the demo, `OutstandingAsOf` header). The entry's scope is that same
+    formula as one correlated subquery on `DB::table` (literals `'ap_bill'` = `PaymentAllocation::TYPE_AP_BILL`,
+    `'posted'` = `PaymentStatus::Posted`, pinned by the test, never imported — rule 2): `total_payable >
+    COALESCE(SUM(allocations of posted payments with payment_date ≤ today), 0)`. `ar_invoice_due` above it still
+    reads `paid_at`; the RECAP asked for the aging's column for AP specifically, and the test runs both surfaces
+    over the same four bills so they cannot drift. `whereDate` on `payment_date`, not a string `<=`: the column is a
+    `date` cast stored `"… 00:00:00"`, the footgun the file's header describes.
+  - **"Today" inside the scope.** Scope closures receive only the `Builder`; the as-of bound is
+    `CarbonImmutable::today()`, the same clock `DeadlineWatchCommand` hands `scan()` (and `Carbon::setTestNow`
+    drives it in tests). Changing every entry's closure signature to pass `$today` through would have been the
+    refactor the prompt forbids.
+  - **`--dry-run` is not in the entry's Files, but it is in its Acceptance** ("production dry-run lists
+    BIL/2026/VII/0002") and in the Phase 3 gate; `erp:deadline-watch` had no such option (`erp:approval-watch` has
+    had one since the 2 Sep patch). Added in the same shape: the per-finding line is printed in both modes, the
+    dry-run adds the body (which rows) and skips `NotificationService::system`; the closing line is unchanged in
+    normal mode and gains `Dry-run: tidak ada notifikasi dikirim.` otherwise. Pinned by the fifth test.
+  - **The button opens a form, it does not POST.** `def.actions` in the header bar only knew POST actions; the
+    "open another resource's create form with values I already know" shape existed solely as `rowAction` on
+    detail tables ("Tagih termin ini"). `actionButtons` now honours `opens` + `prefill` with the same `openForm`
+    call and navigates to the saved document, as `navigateTo` does for POST actions. The prefill is `direction
+    'out'`, `amount = outstanding`, `notes` naming the bill and vendor — not the bill id: the payment form carries
+    no allocations by design; the allocation (and any PPh withholding) is chosen on the payment screen at submit,
+    where the approved bills are listed (`custom.js` openDocs). Copying an id the form cannot show would be the
+    "typed id from memory" the termin rowAction was built to remove. `when` = approved and `outstanding > 0`
+    (`ApBillResource` always carries `outstanding`), so a settled bill never offers a second payment.
+  - **`value` quotes the bill total**, not the remainder (the body can only quote one column; the remainder is
+    on the aging screen). A partly paid bill therefore reads "senilai Rp 48,5 jt" — the bill's value, true.
+  - **Comment count in `scoped()`'s docblock** still says "eighteen scopes"; it was already stale (19 before this
+    task, 20 now) and is outside the entry's scope — left as is.
+  - Environment: scratch only (`DB_DATABASE=<scratchpad>/ux/t31.sqlite` for `migrate:fresh --seed --force`, the
+    tinker plant, the dry-run and `php -S`; `ERP_DB`/`UXTEST_OUT` for the harness); server stopped by PID;
+    `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
+  - No "## Open questions" entry needed.

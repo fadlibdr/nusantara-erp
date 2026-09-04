@@ -814,6 +814,30 @@ def s15(browser):
     ctx.close()
     return out
 
+@scenario("S16_ap_bill_payment_button")
+def s16(pg):
+    """T3.1 — "Buat pembayaran" pada tagihan vendor yang disetujui dan masih bersisa (BIL/2026/VII/0002
+    di produksi: 69 hari lewat jatuh tempo tanpa PAY, 4 Sep 2026). Dibuka sebagai finance (fin.create),
+    tombolnya diklik: yang harus muncul formulir Pembayaran (bukan POST) dengan arah keluar dan jumlah =
+    sisa tagihan; tersimpan tidak diuji di sini — itu formulir pembayaran biasa."""
+    tok = token_for("finance@nusantara.test")
+    s, d = api("finance/ap-bills?status=approved&per_page=50", tok)
+    bill = next(b for b in d["data"] if float(b.get("outstanding") or 0) > 0)
+    login(pg, "finance@nusantara.test")
+    pg.goto(BASE + f"#/d/finance/ap-bills/{bill['id']}")
+    pg.wait_for_selector(f".page-head h1:has-text('{bill['code']}')", timeout=15000); pg.wait_for_timeout(800)
+    out = {"bill": bill["code"], "outstanding": bill["outstanding"], **read_action_bar(pg, "s16-ap-bill-bar")}
+    click(pg, ".page-head .actions button:has-text('Buat pembayaran')")
+    pg.wait_for_selector(".modal .field", timeout=10000); pg.wait_for_timeout(300)
+    out["modal"] = pg.evaluate("""() => ({ title: (document.querySelector('.modal h2, .modal .modal-head')||{}).innerText,
+        fields: [...document.querySelectorAll('.modal .field')].map(f => ({ label: (f.querySelector('label')||{}).innerText,
+            value: (f.querySelector('input,select,textarea')||{}).value })),
+        buttons: [...document.querySelectorAll('.modal .modal-foot button')].map(b => b.innerText.trim()) })""")
+    pg.screenshot(path=f"{OUT}/s16-payment-form.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    out["modal_closed_on_escape"] = pg.locator(".modal").count() == 0
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -824,7 +848,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

@@ -3,8 +3,9 @@
 import { api, session } from '../api.js';
 import { el, icon, field, button, toast, toastError, confirmDialog, withBusy } from '../ui.js';
 import { invalidateByPath } from '../lookup.js';
-import { promptFields, buildInput } from './form.js';
+import { promptFields, buildInput, openForm } from './form.js';
 import { navigate } from '../router.js';
+import { RESOURCES } from '../schema.js';
 
 const PAST = {
   submit: 'diajukan · menunggu persetujuan', approve: 'disetujui', reject: 'ditolak', post: 'diposting',
@@ -196,6 +197,25 @@ export function actionButtons(def, row, onDone) {
     .filter((action) => session.can(action.perm))
     .filter((action) => !action.when || action.when(row))
     .map((action) => {
+      /*
+       * `opens`: aksi yang MEMBUKA formulir buat resource lain dengan isian
+       * dari dokumen ini, bukan POST ke server — bentuk rowAction "Tagih
+       * termin ini" (detail.js) diangkat ke bilah aksi untuk "Buat
+       * pembayaran" pada tagihan vendor yang disetujui (T3.1: BIL/2026/VII/0002
+       * 69 hari lewat jatuh tempo tanpa PAY). Tersimpan = pindah ke dokumen
+       * barunya, seperti navigateTo pada aksi POST.
+       */
+      if (action.opens) {
+        return button(action.label, {
+          variant: action.variant || '',
+          onClick: () => openForm({
+            def: RESOURCES[action.opens],
+            key: action.opens,
+            prefill: action.prefill ? action.prefill(row) : null,
+            onSaved: (saved) => (saved && saved.id ? navigate(`d/${action.opens}/${saved.id}`) : onDone && onDone(saved)),
+          }),
+        });
+      }
       const note = action.inlineNote ? inlineNote(action, row) : null;
       if (note) panels.push(note.node);
       return button(action.label, {

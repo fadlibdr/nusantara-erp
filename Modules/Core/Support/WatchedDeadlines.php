@@ -431,6 +431,83 @@ class WatchedDeadlines
                     ->whereNull('deleted_at'),
             ],
             [
+                /*
+                 * Tagihan vendor yang sudah disetujui tidak punya pemilik untuk
+                 * langkah "buat pembayaran" — ia menunggu seseorang ingat.
+                 * BIL/2026/VII/0002 (Rp 48,5 jt) di produksi: disetujui, jatuh
+                 * tempo 27 Jun 2026, dan pada 4 Sep 2026 sudah 69 hari lewat
+                 * tanpa dibayar dan tanpa satu layar pun menyebutnya
+                 * (ANALISIS-PROSES-BISNIS-2026-09 §2, celah B1). lead 7: satu
+                 * PAY masih harus dibuat, diajukan, disetujui, lalu diposting,
+                 * dan fin.create-lah yang menyiapkannya — bukan penyetujunya.
+                 *
+                 * "Belum lunas" memakai definisi UMUR HUTANG (ReportService::
+                 * agingReport lewat OutstandingAsOf::settled), bukan kolom
+                 * amount_paid/paid_at seperti ar_invoice_due di atasnya:
+                 *
+                 *   sisa = total_payable
+                 *        − Σ fin_payment_allocations.amount
+                 *            untuk payable_type 'ap_bill'
+                 *            pada fin_payments berstatus 'posted', tidak
+                 *            terhapus, payment_date ≤ hari ini;
+                 *   dalam cakupan bila sisa > 0.
+                 *
+                 * amount_paid adalah angka SEUMUR HIDUP yang bergerak begitu
+                 * pembayaran diposting, apa pun tanggalnya: giro mundur
+                 * Rp 300 jt tertanggal 15 Sep dan diposting 3 Agu menghapus
+                 * dokumennya dari setiap laporan berbasis amount_paid enam
+                 * minggu sebelum uangnya keluar (terukur di data demo,
+                 * OutstandingAsOf). Pengawas yang membacanya akan diam persis
+                 * pada tagihan yang masih tercantum di umur hutang pagi yang
+                 * sama; dengan rumus di atas keduanya menyebut baris yang sama
+                 * (DeadlineWatchTest menjalankan keduanya atas empat tagihan
+                 * yang sama). Batas "hari ini" dibaca dari jam sistem — jam
+                 * yang sama dengan $today milik scan() (CarbonImmutable::today()
+                 * di DeadlineWatchCommand). 'value' = total tagihan, bukan
+                 * sisanya: badan pesan hanya mengutip satu kolom, dan sisanya
+                 * ada di layar umur hutang. Literal 'ap_bill' dan 'posted'
+                 * adalah PaymentAllocation::TYPE_AP_BILL dan
+                 * PaymentStatus::Posted — dipin oleh tes, tidak diimpor.
+                 */
+                'key' => 'ap_due',
+                'table' => 'fin_ap_bills',
+                'date' => 'due_date',
+                'display' => 'code',
+                'value' => 'total_payable',
+                'label' => 'Tagihan vendor',
+                'unit' => 'tagihan',
+                'date_word' => 'jatuh tempo',
+                'lead_days' => 7,
+                'permission' => 'fin.create',
+                'link' => 'r/finance/ap-bills',
+                'title_upcoming' => 'Tagihan vendor mendekati jatuh tempo',
+                'title_overdue' => 'Tagihan vendor lewat jatuh tempo',
+                'requires' => ['fin_payment_allocations', 'fin_payments'],
+                'columns' => [
+                    'status', 'cancelled_at', 'deleted_at',
+                    'fin_payment_allocations.payable_type', 'fin_payment_allocations.payable_id',
+                    'fin_payment_allocations.payment_id', 'fin_payment_allocations.amount',
+                    'fin_payments.status', 'fin_payments.deleted_at', 'fin_payments.payment_date',
+                ],
+                'scope' => static fn (Builder $query): Builder => $query
+                    ->where('status', DocumentStatus::Approved->value)
+                    ->whereNull('cancelled_at')
+                    ->whereNull('deleted_at')
+                    ->where('total_payable', '>', static fn (Builder $settled) => $settled
+                        ->selectRaw('COALESCE(SUM(fin_payment_allocations.amount), 0)')
+                        ->from('fin_payment_allocations')
+                        ->join('fin_payments', 'fin_payments.id', '=', 'fin_payment_allocations.payment_id')
+                        ->where('fin_payment_allocations.payable_type', 'ap_bill')
+                        ->whereColumn('fin_payment_allocations.payable_id', 'fin_ap_bills.id')
+                        ->where('fin_payments.status', 'posted')
+                        ->whereNull('fin_payments.deleted_at')
+                        // whereDate, bukan '<=' string: payment_date bertipe
+                        // cast date ("…-08-01 00:00:00"), yang sebagai string
+                        // jatuh SETELAH "…-08-01" — pembayaran hari ini
+                        // sendiri akan luput (aturan OutstandingAsOf).
+                        ->whereDate('fin_payments.payment_date', '<=', CarbonImmutable::today()->toDateString())),
+            ],
+            [
                 // next_due_date is pure manual entry — nothing in the codebase
                 // rolls it forward. Only the NEWEST maintenance row per asset
                 // carries a live reminder (latest_per_group): recording the
