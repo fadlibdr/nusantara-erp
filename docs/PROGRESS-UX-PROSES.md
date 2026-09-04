@@ -282,3 +282,90 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
   - `docs/DEPLOYMENT.md` deliberately untouched (T1.2 owns it in this run; a later docs pass
     may add one line about `--check`). No SPA/API contract touched. The PROGRESS block is a
     separate docs commit, as in Phase 0, because it must carry the task commit's sha.
+
+### T1.2 — SQLite WAL + `busy_timeout` on connect: the proof and `DEPLOYMENT.md`
+- Commit: 610537d
+- Files: `tests/Feature/Core/SqlitePragmaTest.php` (new, 3 tests / 10 assertions),
+  `docs/DEPLOYMENT.md` (new § 9 "SQLite: WAL, busy_timeout, synchronous (bare-metal erp1)",
+  9.1–9.4; one pointer paragraph in the § 5.1 erp1 note; one troubleshooting row in § 8).
+  `config/database.php` untouched.
+- Acceptance:
+  - `vendor/bin/phpunit --no-progress tests/Feature/Core/SqlitePragmaTest.php` → OK
+    (**3 tests, 10 assertions**): a file-backed probe connected through Laravel's
+    `SQLiteConnector` reads back `busy_timeout` **5000**, `journal_mode` **wal**,
+    `synchronous` **1** (NORMAL); the suite's `:memory:` connection reads back 5000 / 1 /
+    **memory**; a row committed through the probe is absent from a `cp` of the main file and
+    present in a `VACUUM INTO` snapshot, with `-wal`/`-shm` present beside the file.
+  - Red first, both ways: (a) probe built from a config copy without the three keys →
+    **2 failures** ("Failed asserting that 60000 is identical to 5000"; `-wal` file does not
+    exist), the `:memory:` test still green because the default connection kept its keys;
+    (b) `DB_BUSY_TIMEOUT=null DB_JOURNAL_MODE=null DB_SYNCHRONOUS=null` in the environment
+    (Laravel's `env()` maps the string `null` to PHP null; the connector then sends nothing)
+    → **3 failures**.
+  - `tests/Feature/Core` → OK (**567 tests, 3445 assertions**), 1 min 42 s
+    (564 / 3435 before + 3 / 10).
+  - `vendor/bin/pint --test tests/Feature/Core/SqlitePragmaTest.php` → passed.
+  - The § 9.2 blockquote diffed against `config/database.php:46-64` after prefix
+    normalisation → identical (19 lines).
+- Notes:
+  - **The configuration predated the task.** `busy_timeout 5000` / `journal_mode WAL` /
+    `synchronous NORMAL` have been in `config/database.php` since the initial commit 3b933f1
+    (22 Aug 2026), WHY comment included, and Laravel 12's `SQLiteConnector`
+    (`vendor/laravel/framework/src/Illuminate/Database/Connectors/SQLiteConnector.php:111-145`)
+    sends each as a PRAGMA on every connect. What was missing was the proof (no test read them
+    back) and the documentation (`DEPLOYMENT.md` had no mention of WAL or `busy_timeout`).
+    RECAP T1.2's "verify/set" resolved to "verify"; nothing in the config changed.
+  - **Why a file probe.** phpunit.xml pins `DB_DATABASE=:memory:`, and SQLite answers
+    `memory` to `pragma journal_mode = WAL` on an in-memory database — a `journal_mode`
+    assertion on the test connection would pass vacuously or fail for the wrong reason. The
+    test copies `config('database.connections.sqlite')` into a second connection
+    (`pragma_probe`) pointing at a `tempnam()` file, connects via `DB::connection()`, and
+    purges + unlinks (`-wal`, `-shm` too) in `tearDown`. The lane spec said "under the
+    scratchpad"; a committed test cannot hard-code a session path, so it uses
+    `sys_get_temp_dir()` (honours `TMPDIR`) and every run here set
+    `TMPDIR=<scratchpad>/t12/tmp`. No `pragma_probe_*` file was left behind after any run
+    (the `erpimp_*` / `test_*` / `xlsx_export_*` files seen there are other Core tests'
+    `tempnam` litter — DocumentImport / MasterDataImport / FormXlsxExport — not this task).
+  - **Measured refinement, documented rather than re-arguing the comment:** with PHP 8.3.6 /
+    SQLite 3.45.1 a PDO handle that receives no pragma reports `busy_timeout = 60000`
+    (pdo_sqlite's own `PDO::ATTR_TIMEOUT` default), `synchronous = 2`, and
+    `journal_mode = delete` on a fresh file — so the comment's "fails IMMEDIATELY" is not what
+    happens on this stack; 5000 is a ceiling on how long a php-fpm worker waits, which is the
+    more relevant reading for the 503s in HASIL-UJI §6.4 (workers waiting 60 s exhaust
+    `pm.max_children` faster than workers waiting 5 s). Written into § 9.2; the comment in
+    `config/database.php` left as is (not one of this lane's files; a later pass may want to
+    soften that one sentence). `journal_mode` persists in the file, the other two are per
+    connection — also documented, because it decides what the `sqlite3` CLI can verify.
+  - **Verify-on-the-box commands** in § 9.3 were not run on erp1 (no production access in
+    this lane). The `php artisan tinker --execute` one-liner was verified locally against the
+    scratch copy of the seed (`5000 wal 1`; a bare `new PDO` on the same file: `60000 wal 2`),
+    with `env HOME=/tmp` from the memory note on psysh under www-data. § 9.3 insists on
+    `sudo -u www-data` for every command because a root-created `-shm` is unwritable for
+    php-fpm (SQLite documentation, not measured here).
+  - **Finding for a T1.1 addendum (`deploy/`, not touched in this lane):**
+    `deploy/sync-erp1.sh`'s `rsync -a --delete` excludes `database/database.sqlite` but not
+    `database.sqlite-wal` / `-shm`. Dry run over the same exclude set on scratch directories,
+    4 Sep 2026: a live `-wal`/`-shm` on the site is **deleted**
+    ("deleting database/database.sqlite-wal"), and a stray `-wal` in the source checkout is
+    **pushed** to the site; `--exclude='database/database.sqlite-*'` closes both (dry run
+    lists nothing). Documented as the rule in § 9.4 (3) with the interim precaution (deploy
+    only when idle, one file on each side); the one-line script change is the T1.1 owner's
+    call under rule 7. The first half is a race (php-fpm closes the file per request and the
+    last close removes the side files, so it needs a request in flight during the rsync); the
+    second half (a local `-wal` from a killed `php -S` landing on prod) needs no race.
+  - `docs/DEPLOYMENT.md` section numbers are referenced from `PANDUAN-ADMINISTRATOR.md`
+    (§3, §4, §5.1, §5.2, §7.1), so the new material is § 9 at the end; nothing renumbered.
+    `PANDUAN-ADMINISTRATOR.md:131` still says "437 baris" for DEPLOYMENT.md (now 644) —
+    cosmetic, left for a docs pass.
+  - No `## Open questions` needed: no business decision arose. RECAP § Phase 0 still says
+    `git am ux-p0-and-process.patch` from `docs/` (file is `docs/patches/…`) — unchanged,
+    still pending for a docs pass.
+
+### Gate Phase 1
+- `tests/Feature/Core` → OK (**567 tests, 3445 assertions**).
+- `bash deploy/sync-erp1.sh --check` locally (checkout DB, read-only) → exit **0**:
+  "Izin: 86 diharapkan (14 awalan × 6 aksi + 2 persetujuan direktur), 86 di basis data." —
+  12 roles all `sesuai`; "Tidak ada penyimpangan izin: 86 izin dan 12 peran sesuai seeder."
+  `database/database.sqlite` only read; no `-wal`/`-shm` left beside it after the command's
+  connection closed.
+- Production untouched; the deploy path was never executed.
