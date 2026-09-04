@@ -1087,7 +1087,7 @@ export async function renderKualifikasi(host) {
             el('.cell-sub.mono', { text: textOr(row.employee_code) }),
           ]),
           el('td', { text: textOr(row.position) }),
-          el('td', { text: textOr(row.certificate_type) }),
+          el('td', { text: textOr(row.certificate_type_label || row.certificate_type) }),
           el('td', { text: textOr(row.certificate_name) }),
           el('td.mono', { text: textOr(row.number) }),
           el('td', { text: textOr(row.issuer) }),
@@ -1120,7 +1120,7 @@ export async function renderKualifikasi(host) {
         ])),
         el('tbody', kedaluwarsa.map((row) => el('tr', { style: { color: 'var(--warning)' } }, [
           el('td', { text: textOr(row.employee_name) }),
-          el('td', { text: textOr(row.certificate_type) }),
+          el('td', { text: textOr(row.certificate_type_label || row.certificate_type) }),
           el('td', { text: textOr(row.certificate_name) }),
           el('td.mono', { text: textOr(row.number) }),
           el('td', { text: row.expiry_date ? fmt.date(row.expiry_date) : RULED }),
