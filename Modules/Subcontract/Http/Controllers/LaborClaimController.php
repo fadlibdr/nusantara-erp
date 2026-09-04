@@ -49,8 +49,11 @@ class LaborClaimController extends ApiController
 
     public function show(LaborClaim $laborClaim): JsonResponse
     {
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
         return $this->ok(LaborClaimResource::make(
-            $laborClaim->load('items.laborContractItem', 'laborContract', 'kasbon')
+            $laborClaim->load('items.laborContractItem', 'laborContract', 'kasbon', 'approvals.user')
         ));
     }
 

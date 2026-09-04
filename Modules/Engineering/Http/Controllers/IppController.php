@@ -30,6 +30,9 @@ class IppController extends ApiController
         'supersededBy',
         'materials', 'equipment',
         'drawings.drawingSubmittal.drawing', 'materialApprovals.materialSubmittal',
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya (HASIL-UJI P-4, T3.3).
+        'approvals.user',
     ];
 
     public function index(Request $request): JsonResponse

@@ -51,8 +51,11 @@ class QuotationController extends ApiController
         // methodLibraryEntry ikut dimuat: Resource meratakan kode dan judulnya,
         // dan relasi yang tidak disebut di sini membuat kunci ratanya hilang
         // dari justru satu-satunya endpoint yang menyemai form edit.
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
         return $this->ok(QuotationResource::make(
-            $quotation->load('items', 'customer', 'lead', 'contract', 'methodLibraryEntry')
+            $quotation->load('items', 'customer', 'lead', 'contract', 'methodLibraryEntry', 'approvals.user')
         ));
     }
 

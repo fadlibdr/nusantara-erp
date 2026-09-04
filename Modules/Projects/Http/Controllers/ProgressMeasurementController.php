@@ -114,6 +114,8 @@ class ProgressMeasurementController extends ApiController
 
     private function loaded(ProgressMeasurement $measurement): ProgressMeasurement
     {
-        return $measurement->load(['project', 'contract', 'items.boqItem', 'items.location']);
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya (HASIL-UJI P-4, T3.3).
+        return $measurement->load(['project', 'contract', 'items.boqItem', 'items.location', 'approvals.user']);
     }
 }

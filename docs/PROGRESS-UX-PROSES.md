@@ -1332,7 +1332,7 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
     untouched (mtime 13:10:55, no `-wal`/`-shm`).
 
 ### Gate Phase 2
-- Commit: (this commit) — `docs/bukti-uji/results-phase-2.json` (the run's `results.json`, verbatim),
+- Commit: 2649f55 — `docs/bukti-uji/results-phase-2.json` (the run's `results.json`, verbatim),
   RECAP § Verification column "After phase 2 (4 Sep)" (+ two rows for T2.10 / T2.11), this block;
   T2.11 placeholder → 91376e3. No code changed in this pass.
 - Acceptance: `harness-playwright.py` **S10 S1 S2 S3 S4 S5 S8 S11** on a fresh scratch seed
@@ -1415,3 +1415,101 @@ suite. Dates are the run date; "today" in the T0.2 block is 4 Sep 2026.
 | S5 · peran dengan kartu persetujuan (dari 11) | 11 | (tidak diukur) | **3** |
 | S8 · kontras `--muted`/`--bg` · font terkecil | 5,23 · 10 | 5,23 · 10 | 5,23 · **11** |
 | S11 · h1 / baris / bilah detail cuti | `Tugas Saya` / 5 / `Kembali · Cetak halaman · Setujui · Tolak` | `Tugas Saya` / 4 / sama | `Tugas Saya` / 4 / `Kembali · Cetak · Setujui · Tolak` |
+
+
+---
+
+## Phase 3
+
+### T3.3 — Jejak persetujuan tampil di setiap dokumen Approvable: `approvals.user` di 23 `show()`, kunci `approvals` bentuk PaymentResource di 23 Resource
+- Commit: (this commit) — also turns the Gate Phase 2 placeholder above into 2649f55.
+- Files: controllers (`show()` loads `approvals.user`; the WHY comment at every site, the measured
+  paragraph on the PR controller the evidence names) — `Crm/QuotationController`,
+  `Engineering/IppController` (DETAIL const), `Estimation/BoqController`, `Estimation/CostBudgetController`,
+  `Finance/ApBillController`, `Finance/ArInvoiceController`, `HrPayroll/PayrollRunController`,
+  `Procurement/AwardDecisionController`, `Procurement/PurchaseOrderController`,
+  `Procurement/PurchaseRequisitionController`, `Procurement/WorkOrderController`, `Projects/BaselineController`,
+  `Projects/BastController`, `Projects/GatePassController`, `Projects/OvertimePermitController`,
+  `Projects/ProgressMeasurementController` (`loaded()` helper), `Projects/WorkPermitController`,
+  `Quality/InspectionController` (DETAIL const), `Subcontract/HandoverController`, `Subcontract/LaborClaimController`,
+  `Subcontract/LaborContractController`, `Subcontract/ProgressClaimController`, `Subcontract/SubcontractController`;
+  the 23 matching `Http/Resources/*Resource.php` (`'approvals' => $this->whenLoaded('approvals', …)` in
+  exactly the `PaymentResource.php:90` shape — id, action, note, created_at ISO-8601, user {id, name} or
+  null — inserted before `created_at`, where PaymentResource keeps it);
+  `tests/Feature/Procurement/PurchaseRequisitionApprovalTrailTest.php` (new, 4 tests),
+  `tests/Feature/Core/ApprovalTrailOnShowTest.php` (new, 8 tests — one document per module that gained
+  the key); `docs/bukti-uji/s2-jejak-persetujuan-sebelum-t3.3.png`, `…-sesudah-t3.3.png`; this block.
+- Acceptance:
+  - `GET procurement/purchase-requisitions/{id}` → `approvals[]` with `action`, `user.name`, `note`,
+    `created_at`: **`PurchaseRequisitionApprovalTrailTest` OK (4 tests, 22 assertions)** — red on the
+    unpatched tree first (2 errors + 1 failure: `data.approvals` null; the fourth test, "index carries no
+    trail", is green on both trees by design). Pins the submit row (name, null note, `2026-09-01T10:00:00+07:00`),
+    the approve row (name, `Harga sesuai RAB.`, `2026-09-04T09:15:00+07:00`), the exact key order
+    `id, action, note, created_at, user`, `user: null` for the seeded submit-as-nobody path, `approvals: []`
+    for a draft (a card that says "Belum ada riwayat persetujuan." is the truth for a draft; a missing card
+    is not), and `assertJsonMissingPath('data.0.approvals')` on the list (whenLoaded — no query per row).
+  - One document per module: **`ApprovalTrailOnShowTest` OK (8 tests, 64 assertions)** — Crm quotation,
+    Engineering IPP, Estimation BOQ, Finance AP bill, HR payroll run, Projects BAST, Quality inspection,
+    Subcontract SPK, each answering the PaymentResource shape with the actor's name and the frozen date.
+  - **Harness S2** on `PR/2026/III/0002` at the head of direktur's queue, same seed state on both trees:
+    - before (tree 2649f55): `explanation_under_title` = **`Diajukan · menunggu persetujuan.`**; after
+      Setujui, strip = **`PR ini terkunci (Disetujui).`** — no name, no date, no Riwayat Persetujuan card,
+      although the `submitted` row (Administrator Sistem) and the `approved` row (Budi Santoso) sit in
+      `core_approvals`.
+    - after (this tree): `explanation_under_title` = **`Diajukan 04 Sep 2026 oleh Administrator Sistem ·
+      menunggu persetujuan.`** (+ the same second sentence), `after.strip` = **`Disetujui 04 Sep 2026 oleh
+      Budi Santoso · dokumen terkunci.`**, card **Riwayat Persetujuan** with `Diajukan — Administrator
+      Sistem · 04 Sep 2026 17.37` (screenshot pair in `bukti-uji/`). Unchanged around it: **4 klik** for two
+      documents (2 per document, T2.3), `approve_modal_opened` false, `action_bar`
+      `['Kembali','Cetak','Setujui','Tolak']`, toast `PR/2026/III/0002 disetujui.` + `Berikutnya menunggu
+      Anda (1) SPK/2026/III/0002 …`, `opened_next` `SPK/2026/III/0002`, **`api_calls_detail_to_back` 18 on
+      both trees** — the trail rides on `show()`, no request was added (18 is the PR detail's own count; the
+      Phase 2 figure 14 was a leave-request detail).
+  - Suites on the final tree (per directory, every module touched, one core, sequential):
+    `tests/Feature/Procurement` **OK (169 tests, 673 assertions)** (165 + 4 new); `tests/Feature/Core`
+    **OK (587 tests, 3 611 assertions)** (579 + 8 new); `tests/Feature/Finance` **OK (818, 3 888)**;
+    `tests/Feature/Subcontract` **OK (134, 473)**; `tests/Feature/Projects` **OK (345, 1 823)**;
+    `tests/Feature/Crm` **OK (214, 773)**; `tests/Feature/Estimation` **OK (77, 373)**;
+    `tests/Feature/HrPayroll` **OK (143, 527)**; `tests/Feature/Quality` **OK (51, 209)**;
+    `tests/Feature/Engineering` **OK (44, 245)** — 2 582 tests, 0 failures.
+  - `vendor/bin/pint --test --dirty` → passed.
+- Notes:
+  - **The RECAP grep is over-inclusive, and that changes the count.** `grep -l "Approvable" Modules/*/Models/*.php`
+    yields 38 models / 31 controllers today, but 10 of those models match on a header comment that says
+    the opposite — `TenderPackage`, `DrawingSubmittal` ("NOT Approvable, on a written decision"),
+    `NegotiationMinute` ("SENGAJA TANPA Approvable"), `ProcurementPlan`, `Rfq`, `Defect`, `Ncr`, `HseDaily`,
+    `SafetyIncident`, `ZoneCertificate` — none has an `approvals()` relation, so `load('approvals.user')`
+    there throws. Proven, not assumed: the first draft of `ApprovalTrailOnShowTest` used SafetyIncident and
+    NCR and errored with `Call to undefined method …::approvals()`. Those 20 files were reverted before the
+    commit; the test walks BAST and an inspection instead. What remains is 21 from the grep + 2 the grep
+    cannot see because their file names break the Model→Controller convention it assumes:
+    `IppController` (`WorkPermitIpp` carries the trait) and `BaselineController` (`ProjectBaseline` keeps
+    its own `approvals()` morphMany on `core_approvals`, like `Payment`, and has submit/approve/reject
+    routes) — **23**, the number the RECAP wrote, and with the 5 that already loaded the trail exactly the
+    28 of `ApprovableDocuments::all()`. The RECAP's `grep -L … intersected with ApprovableDocuments::all()`
+    is the honest form; the bare grep in the prompt is not.
+  - `InspectionController::DETAIL`, `IppController::DETAIL` and `ProgressMeasurementController::loaded()`
+    are read by store/update/decision responses as well as by `show()`, so those payloads carry the key
+    too — the same thing `PaymentController` does at every return. No other action's payload changed.
+  - Resources already exposing approvals in another shape: none among the 23. `AwardDecisionResource`
+    keeps `approvals_given` (the ladder's distinct-approver count) next to the new `approvals`;
+    `IppResource.material_approvals` is material submittals, untouched. Rule 6: no test asserts the key's
+    absence (`assertExactJson` / `assertJsonMissing` over `tests/Feature` — one hit, on `core/deadlines`,
+    unrelated); every SPA reader — `detail.js` `statusStrip()` / `approvalTimeline()`, and the payroll-run
+    and SPK cards in `custom.js`, whose comments already say "kartunya kembali sendiri begitu resource
+    mengirim" — reads the PaymentResource shape.
+  - Browser date on the strip: the harness's Chromium runs in UTC, so `04 Sep 2026` there is
+    `2026-09-05T00:37:39+07:00` in the payload (`fmt.date` formats in the viewer's zone) — a display
+    fact of the sandbox, not a data one; the Feature tests pin the `+07:00` ISO strings.
+  - Environment, as Gate Phase 2: fresh scratch seed per run (`<scratchpad>/ux/t33a.sqlite` before,
+    `t33b.sqlite` after; `DB_DATABASE=<scratch> php artisan migrate:fresh --seed --force`, config not
+    cached), served with `cd public && DB_DATABASE=<scratch> APP_ENV=local php -S 127.0.0.1:8000 …/server.php`,
+    harness `ERP_DB=<scratch> UXTEST_OUT=<scratch>/out-t33-{before,after} /root/.venv-playwright/bin/python
+    docs/bukti-uji/harness-playwright.py S2`. Precondition replayed on both seeds before S2, the way Gate
+    Phase 0 did: `POST hr/leave-requests/2/approve` and `POST estimation/cost-budgets/1/approve` as
+    direktur (both 200), so that `PR/2026/III/0002` — the document HASIL-UJI P-4 names — heads the inbox
+    (on a bare seed the head is `CTI/2026/VIII/0002`, whose controller loaded the trail already and whose
+    seed wrote no submit row, Gate Phase 0 note 4 — S2 there measures nothing this task changed). Server
+    stopped by PID after each run; `database/database.sqlite` untouched (mtime 13:10:55, no `-wal`/`-shm`).
+  - Phase 2 carry-overs not re-opened: per-approval API calls (14–18, detail-page loads), dashboard 11,
+    PO clicks 12 — T4.x / unassigned.

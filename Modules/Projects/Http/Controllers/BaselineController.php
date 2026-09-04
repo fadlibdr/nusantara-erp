@@ -46,8 +46,11 @@ class BaselineController extends ApiController
 
     public function show(ProjectBaseline $baseline): JsonResponse
     {
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
         return $this->ok(ProjectBaselineResource::make(
-            $baseline->load(['project', 'points', 'tasks.liveTask'])
+            $baseline->load(['project', 'points', 'tasks.liveTask', 'approvals.user'])
         ));
     }
 

@@ -55,7 +55,10 @@ class BastController extends ApiController
 
     public function show(Bast $bast): JsonResponse
     {
-        return $this->ok(BastResource::make($bast->load('project')));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(BastResource::make($bast->load('project', 'approvals.user')));
     }
 
     public function update(BastUpdateRequest $request, Bast $bast): JsonResponse

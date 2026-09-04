@@ -25,6 +25,9 @@ class InspectionController extends ApiController
         // supersededBy: P8 (D9) — superseded_by_code pada Resource hanya
         // terisi bila relasi ini termuat; banner SPA menyebut penggantinya.
         'project', 'ipp', 'location', 'template', 'inspector', 'supersededBy', 'results.templateItem',
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya (HASIL-UJI P-4, T3.3).
+        'approvals.user',
     ];
 
     public function index(Request $request): JsonResponse

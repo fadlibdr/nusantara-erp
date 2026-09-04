@@ -51,7 +51,10 @@ class GatePassController extends ApiController
 
     public function show(GatePass $gatePass): JsonResponse
     {
-        return $this->ok(GatePassResource::make($gatePass->load(['project', 'vendor', 'items', 'checkedBy'])));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(GatePassResource::make($gatePass->load(['project', 'vendor', 'items', 'checkedBy', 'approvals.user'])));
     }
 
     public function update(GatePassUpdateRequest $request, GatePass $gatePass): JsonResponse

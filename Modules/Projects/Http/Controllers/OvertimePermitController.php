@@ -48,7 +48,10 @@ class OvertimePermitController extends ApiController
 
     public function show(OvertimePermit $overtimePermit): JsonResponse
     {
-        return $this->ok(OvertimePermitResource::make($overtimePermit->load(['project', 'workers.employee'])));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(OvertimePermitResource::make($overtimePermit->load(['project', 'workers.employee', 'approvals.user'])));
     }
 
     public function update(OvertimePermitUpdateRequest $request, OvertimePermit $overtimePermit): JsonResponse
