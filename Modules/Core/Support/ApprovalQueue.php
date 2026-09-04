@@ -2,9 +2,9 @@
 
 namespace Modules\Core\Support;
 
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Models\User;
 use Throwable;
 
 /**
@@ -30,13 +30,16 @@ use Throwable;
 class ApprovalQueue
 {
     private const AMOUNT_KEYS = ['total', 'total_payable', 'net_payable', 'grand_total', 'value', 'total_budget', 'total_net', 'amount', 'total_amount'];
+
     private const TITLE_KEYS = ['title', 'name', 'description', 'purpose', 'reason', 'notes', 'subject'];
+
     private const OWNER_KEYS = ['requested_by', 'created_by', 'submitted_by', 'requester_id', 'user_id'];
 
     /**
+     * $forUser = null → seluruh antrean (untuk pengawasan); selain itu hanya
+     * yang boleh disetujui pengguna itu dan bukan miliknya sendiri.
+     *
      * @return array{rows: list<array<string, mixed>>, failed: list<string>}
-     *   $forUser = null → seluruh antrean (untuk pengawasan); selain itu hanya
-     *   yang boleh disetujui pengguna itu dan bukan miliknya sendiri.
      */
     public static function pending(?User $forUser = null, ?Carbon $now = null): array
     {
@@ -47,7 +50,7 @@ class ApprovalQueue
 
         foreach (ApprovableDocuments::all() as $class => $entry) {
             $permission = "{$entry['prefix']}.approve";
-            if ($forUser !== null && !$forUser->can($permission)) {
+            if ($forUser !== null && ! $forUser->can($permission)) {
                 continue;
             }
 
@@ -75,10 +78,13 @@ class ApprovalQueue
                     $ownerId = $sub->user_id ?? null;
                     if ($ownerId === null) {
                         foreach (self::OWNER_KEYS as $key) {
-                            if (!empty($attrs[$key])) { $ownerId = (int) $attrs[$key]; break; }
+                            if (! empty($attrs[$key])) {
+                                $ownerId = (int) $attrs[$key];
+                                break;
+                            }
                         }
                     }
-                    $ownEmployee = $employeeId !== null && !empty($attrs['employee_id']) && (int) $attrs['employee_id'] === (int) $employeeId;
+                    $ownEmployee = $employeeId !== null && ! empty($attrs['employee_id']) && (int) $attrs['employee_id'] === (int) $employeeId;
 
                     if ($forUser !== null && (($ownerId !== null && $ownerId === (int) $forUser->getKey()) || $ownEmployee)) {
                         continue; // maker-checker: not yours to approve
@@ -86,11 +92,17 @@ class ApprovalQueue
 
                     $amount = null;
                     foreach (self::AMOUNT_KEYS as $key) {
-                        if (isset($attrs[$key]) && is_numeric($attrs[$key])) { $amount = (float) $attrs[$key]; break; }
+                        if (isset($attrs[$key]) && is_numeric($attrs[$key])) {
+                            $amount = (float) $attrs[$key];
+                            break;
+                        }
                     }
                     $title = null;
                     foreach (self::TITLE_KEYS as $key) {
-                        if (!empty($attrs[$key]) && is_string($attrs[$key])) { $title = $attrs[$key]; break; }
+                        if (! empty($attrs[$key]) && is_string($attrs[$key])) {
+                            $title = $attrs[$key];
+                            break;
+                        }
                     }
                     $submittedAt = $sub->created_at ?? ($attrs['updated_at'] ?? null);
 

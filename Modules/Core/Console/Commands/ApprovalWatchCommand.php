@@ -38,7 +38,7 @@ class ApprovalWatchCommand extends Command
         foreach ($queue['failed'] as $label) {
             $this->warn("Dilewati: {$label} (gagal dibaca)");
         }
-        if (!$stale) {
+        if (! $stale) {
             $this->info("Tidak ada dokumen menunggu ≥ {$agingDays} hari.");
 
             return self::SUCCESS;
