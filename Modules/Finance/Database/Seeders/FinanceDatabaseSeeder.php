@@ -129,6 +129,11 @@ class FinanceDatabaseSeeder extends Seeder
                 'faktur_pajak_no' => '010.000-26.00000001',
                 'terbilang' => Terbilang::rupiah($total),
                 'paid_at' => null,
+                // T3.7 — no surat penagihan: this invoice is settled by
+                // seedPayments() (RCV/2026/II/0001), so 0 is the truth, and
+                // an explicit 0 keeps a future edit honest about it.
+                'dunning_level' => 0,
+                'last_dunning_at' => null,
                 'status' => 'approved',
             ],
         );

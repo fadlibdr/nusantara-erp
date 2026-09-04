@@ -39,7 +39,15 @@ use Modules\Core\Support\WatchedDeadlines;
  */
 class DeadlineWatchCommand extends Command
 {
-    protected $signature = 'erp:deadline-watch';
+    /*
+     * --dry-run: cetak yang AKAN dikirim, tanpa mengirim — bentuk yang sama
+     * dengan erp:approval-watch sejak patch 2 Sep 2026. Ada karena penerimaan
+     * T3.1 (RECAP-UX-PROSES-2026-09) berbunyi "dry-run produksi menyebut
+     * BIL/2026/VII/0002": membaca temuan pagi ini di produksi tidak boleh
+     * bergantung pada dedupe jadwal 08:30, dan tidak boleh menulis
+     * core_notifications hanya untuk dibaca.
+     */
+    protected $signature = 'erp:deadline-watch {--dry-run : Tampilkan saja, jangan kirim notifikasi}';
 
     protected $description = 'Notify whoever can act when a watched date is approaching or already past';
 
@@ -66,7 +74,20 @@ class DeadlineWatchCommand extends Command
             $this->warn("BLIND {$blind['key']}: {$blind['count']} row(s) in scope but every {$blind['table']}.{$blind['column']} is NULL — this watcher sees nothing until the dates are entered; silence here is missing data, not all clear.");
         }
 
+        $dryRun = (bool) $this->option('dry-run');
+
         foreach ($scan['findings'] as $finding) {
+            $this->warn("{$finding['key']} [{$finding['tier']}]: {$finding['count']} row(s) -> {$finding['permission']}");
+
+            if ($dryRun) {
+                // The body, not only the count: a dry-run is read to learn
+                // WHICH rows the morning would name, the way
+                // erp:approval-watch --dry-run prints its document codes.
+                $this->line('  '.WatchedDeadlines::body($finding));
+
+                continue;
+            }
+
             $notifications->system(
                 $finding['permission'],
                 $finding['title'],
@@ -75,16 +96,15 @@ class DeadlineWatchCommand extends Command
                 self::RENAG_DAYS[$finding['tier']],
                 WatchedDeadlines::signature($finding),
             );
-
-            $this->warn("{$finding['key']} [{$finding['tier']}]: {$finding['count']} row(s) -> {$finding['permission']}");
         }
 
         $this->info(sprintf(
-            'Checked %d watcher(s), skipped %d, blind %d, raised %d alarm group(s).',
+            'Checked %d watcher(s), skipped %d, blind %d, raised %d alarm group(s).%s',
             $scan['checked'],
             count($scan['skipped']),
             count($scan['undated']),
             count($scan['findings']),
+            $dryRun ? ' Dry-run: tidak ada notifikasi dikirim.' : '',
         ));
 
         return self::SUCCESS;

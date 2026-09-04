@@ -8,6 +8,7 @@ import { api, session } from '../api.js';
 import { el, clear, button, badge, icon, progressBar, emptyState, errorState } from '../ui.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
+import { ANY_APPROVE } from '../schema.js';
 
 /* #80 'Proyek saya': status sakelar dasbor, bertahan antar kunjungan. Hanya
    berarti bagi akun yang tertaut karyawan (users.employee_id →
@@ -183,7 +184,7 @@ export async function renderDashboard(host) {
   ]));
 
   const statRow = el('.stat-row');
-  const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))', gap: '16px' } });
+  const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '16px' } });
   host.append(statRow, grid);
 
   statRow.append(...Array.from({ length: 4 }, () => el('.stat', el('.skeleton', { style: { height: '40px' } }))));
@@ -191,22 +192,22 @@ export async function renderDashboard(host) {
   const [
     projects, arInvoices, apBills, tickets, purchaseOrders, lowStock, quotations, claims,
     requisitions, subcontracts, boqs, costBudgets, adjustments, payrollRuns, billingReady,
-    bankBalances, agenda, summary,
+    bankBalances, agenda, summary, inboxPayload,
   ] = await Promise.all([
     session.can('prj.view') ? safe('projects', { per_page: 100, mine: mineOnly ? 1 : undefined }) : [],
     session.can('fin.view') ? safe('finance/ar-invoices', { per_page: 100 }) : [],
-    session.can('fin.view') ? safe('finance/ap-bills', { per_page: 100 }) : [],
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
     session.can('svc.view') ? safe('servicedesk/tickets', { per_page: 100 }) : [],
-    session.can('prc.view') ? safe('procurement/purchase-orders', { per_page: 100 }) : [],
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
     session.can('inv.view') ? safe('inventory/stock/low-stock') : [],
-    session.can('crm.view') ? safe('crm/quotations', { per_page: 100 }) : [],
-    session.can('scm.view') ? safe('subcontract/progress-claims', { per_page: 100 }) : [],
-    session.can('prc.approve') ? safe('procurement/purchase-requisitions', { status: 'submitted', per_page: 50 }) : [],
-    session.can('scm.approve') ? safe('subcontract/subcontracts', { status: 'submitted', per_page: 50 }) : [],
-    session.can('est.approve') ? safe('estimation/boqs', { status: 'submitted', per_page: 50 }) : [],
-    session.can('est.approve') ? safe('estimation/cost-budgets', { status: 'submitted', per_page: 50 }) : [],
-    session.can('inv.approve') ? safe('inventory/stock-adjustments', { status: 'submitted', per_page: 50 }) : [],
-    session.can('hr.approve') ? safe('hr/payroll-runs', { status: 'submitted', per_page: 50 }) : [],
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
+    [], // dulu sumber kotak persetujuan per jenis — kini GET core/inbox di bawah
     // Pekerjaan yang sudah berhak ditagih dan belum ditagih — di data nyata
     // angka ini pernah diam empat bulan pada Rp 14,55 miliar karena tidak ada
     // satu pun layar yang menyebutkannya.
@@ -233,6 +234,20 @@ export async function renderDashboard(host) {
     // dan kartunya selalu bercerita tentang himpunan yang sama.
     session.can('prj.view') || session.can('fin.view')
       ? safe('core/dashboard/summary', { mine: mineOnly ? 1 : undefined })
+      : [],
+    // Kotak persetujuan: SATU permintaan untuk semua jenis dokumen di
+    // ApprovableDocuments (InboxController), menggantikan 11 permintaan per
+    // jenis yang tidak pernah mencakup 17 jenis lainnya — diukur 2 Sep 2026:
+    // pengajuan cuti yang menunggu tak terlihat direktur ber-hr.approve.
+    // Hanya bagi pemegang izin `.approve` mana pun (T2.11): bagi yang lain
+    // server menyaring semuanya dan kartunya di bawah tidak digambar, jadi
+    // permintaannya ikut hilang (warehouse: 7 → 6 permintaan per buka dasbor,
+    // diukur 4 Sep 2026).
+    session.can(ANY_APPROVE)
+      ? api.list('core/inbox').catch((error) => {
+        console.error('Dasbor: core/inbox gagal dimuat', error);
+        return { loadFailure: error };
+      })
       : [],
   ]);
 
@@ -326,81 +341,66 @@ export async function renderDashboard(host) {
   }
 
   /* -------------------------------------------------------- approvals */
-  const submitted = (rows) => rows.filter((row) => row.status === 'submitted');
-  const inbox = (rows, label, key, perm) => submitted(rows).map((row) => ({ row, label, key, perm }));
+  // Hanya digambar bagi pemegang izin `.approve` mana pun (schema.js
+  // ANY_APPROVE — predikat yang sama dengan tautan Tugas Saya di sidebar dan
+  // di Ctrl+K): kotak masuk menyaring per `<awalan>.approve`, jadi bagi peran
+  // lain kartu ini selamanya "Tidak ada dokumen yang menunggu persetujuan."
+  // Diukur 2 Sep 2026 (HASIL-UJI §1, S5): tergambar untuk 11 dari 11 peran
+  // demo, 8 di antaranya tak menyetujui apa pun — termasuk procurement dan hr
+  // yang tak punya satu ubin pun. Kalimat kosong yang benar untuk selamanya
+  // bukan informasi; menyembunyikan kartunya lebih jujur daripada
+  // menampilkannya. Tombol Tugas Saya dan Lihat semua ikut kartu ini.
+  if (session.can(ANY_APPROVE)) {
+    const inboxRows = failure(inboxPayload) ? [] : (inboxPayload.data || []);
+    const inboxMeta = failure(inboxPayload) ? {} : (inboxPayload.meta || {});
+    const inboxFailed = failure(inboxPayload) ? ['kotak masuk'] : (inboxMeta.failed || []);
+    const inboxTotal = failure(inboxPayload) ? 0 : (inboxMeta.total ?? inboxRows.length);
+    const INBOX_PREVIEW = 5;
 
-  /* Satu daftar sumber, dipakai dua kali: sekali untuk menyusun antrean, sekali
-     untuk menyebut sumber yang gagal. Sebelumnya daftar ini hanya ada sebagai
-     spread di dalam `pending`, sehingga kegagalan satu sumber cuma mengurangi
-     barisnya — kotak masuk yang bilang "tidak ada dokumen yang menunggu
-     persetujuan" padahal PO senilai ratusan juta sedang menunggu adalah
-     kesalahan yang paling mahal di layar ini, karena orang berhenti mencari. */
-  const inboxSources = [
-    [quotations, 'Penawaran', 'crm/quotations', 'crm.approve'],
-    [boqs, 'BOQ / RAB', 'estimation/boqs', 'est.approve'],
-    [costBudgets, 'RAP', 'estimation/cost-budgets', 'est.approve'],
-    [requisitions, 'Permintaan (PR)', 'procurement/purchase-requisitions', 'prc.approve'],
-    [purchaseOrders, 'Pesanan (PO)', 'procurement/purchase-orders', 'prc.approve'],
-    [subcontracts, 'SPK subkon', 'subcontract/subcontracts', 'scm.approve'],
-    [claims, 'Opname subkon', 'subcontract/progress-claims', 'scm.approve'],
-    [adjustments, 'Opname stok', 'inventory/stock-adjustments', 'inv.approve'],
-    [arInvoices, 'Invoice termin', 'finance/ar-invoices', 'fin.approve'],
-    [apBills, 'Tagihan vendor', 'finance/ap-bills', 'fin.approve'],
-    [payrollRuns, 'Payroll', 'hr/payroll-runs', 'hr.approve'],
-  ];
-
-  const pending = inboxSources
-    .flatMap(([rows, label, key, perm]) => inbox(rows, label, key, perm))
-    .filter((entry) => session.can(entry.perm));
-
-  // Hanya sumber yang BOLEH dilihat pemakai ini: sumber tanpa izin bukan `[]`
-  // bertanda, jadi tidak pernah ikut terhitung gagal.
-  const inboxFailed = inboxSources
-    .filter(([rows, , , perm]) => session.can(perm) && failure(rows))
-    .map(([, label]) => label);
-
-  grid.appendChild(card(
-    `Menunggu persetujuan Anda${pending.length ? ` (${pending.length})` : ''}`,
-    el('div', [
-      pending.length
-        ? miniTable(
-          [
-            { label: 'Dokumen', render: (entry) => el('span', [el('span.cell-main.mono', { text: entry.row.code }), el('span.cell-sub', { text: entry.label })]) },
-            { label: 'Keterangan', render: (entry) => el('span', { text: entry.row.title || entry.row.description || entry.row.purpose || entry.row.notes || '—' }) },
-            {
-              label: 'Nilai', align: 'right',
-              render: (entry) => {
-                const amount = entry.row.total ?? entry.row.total_payable ?? entry.row.net_payable
-                  ?? entry.row.value ?? entry.row.total_budget ?? entry.row.total_net;
-                return el('span.num', { text: amount === undefined ? '—' : fmt.rupiah(amount) });
+    grid.appendChild(card(
+      `Menunggu persetujuan Anda${inboxTotal ? ` (${inboxTotal})` : ''}`,
+      el('div', [
+        inboxRows.length
+          ? miniTable(
+            [
+              { label: 'Dokumen', render: (r) => el('span', [el('span.cell-main.mono', { text: r.code }), el('span.cell-sub', { text: r.label })]) },
+              {
+                label: 'Keterangan',
+                // Satu baris, dipotong: uraian PR yang dibiarkan membungkus memakan
+                // 8 baris per dokumen (2 Sep 2026). Pengaju dan umur antrean di
+                // baris kedua, bukan kolom sendiri — tiga kolom muat di 565 px,
+                // empat kolom menggulung mendatar dan memotong angka nilainya.
+                render: (r) => el('span', [
+                  el('span.cell-main', { text: r.title || '—', title: r.title || '', style: { display: 'block', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '400' } }),
+                  el('span.cell-sub', { text: [r.submitted_by ? `oleh ${r.submitted_by}` : null, r.days_waiting === null || r.days_waiting === undefined ? null : (r.days_waiting >= 7 ? `menunggu ${r.days_waiting} hari` : `${r.days_waiting} hari`)].filter(Boolean).join(' · ') || '—' }),
+                ]),
               },
-            },
-          ],
-          pending.slice(0, 10),
-          (entry) => navigate(`d/${entry.key}/${entry.row.id}`),
-        )
-        : el('.card-body', el('p.muted', {
-          // Kalimat lamanya, "Tidak ada dokumen yang menunggu persetujuan",
-          // adalah pernyataan tentang dunia. Kalau ada sumber yang gagal,
-          // pernyataan itu tidak bisa dibuat — yang bisa dikatakan hanya
-          // bahwa tidak ada yang dapat ditampilkan.
-          text: inboxFailed.length
-            ? 'Tidak ada dokumen yang dapat ditampilkan.'
-            : 'Tidak ada dokumen yang menunggu persetujuan.',
-          style: { margin: 0, fontSize: '13px' },
-        })),
-      // Antrean yang tidak lengkap harus mengaku tidak lengkap: baris ini
-      // menyebut jenis dokumen yang sumbernya gagal, supaya daftar yang pendek
-      // tidak pernah terbaca sebagai daftar yang sudah bersih.
-      inboxFailed.length
-        ? el('.card-body', { style: { borderTop: '1px solid var(--border)', padding: '10px 16px' } },
-          el('.alert.warn', { style: { margin: 0 } }, [
-            icon('warn', 16),
-            el('div', { text: `Gagal dimuat: ${inboxFailed.join(', ')}. Daftar ini belum lengkap.` }),
-          ]))
-        : null,
-    ]),
-  ));
+              { label: 'Nilai', align: 'right', render: (r) => el('span.num', { text: r.amount === null || r.amount === undefined ? '—' : fmt.rupiah(r.amount) }) },
+            ],
+            inboxRows.slice(0, INBOX_PREVIEW),
+            (r) => navigate(r.link.replace(/^#\//, '')),
+          )
+          : el('.card-body', el('p.muted', {
+            // "Tidak ada yang menunggu" adalah pernyataan tentang dunia; bila
+            // sumbernya gagal, yang bisa dikatakan hanya bahwa tidak ada yang
+            // dapat ditampilkan.
+            text: inboxFailed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu persetujuan.',
+            style: { margin: 0, fontSize: '13px' },
+          })),
+        inboxTotal > INBOX_PREVIEW
+          ? el('.card-foot', button(`Lihat semua (${inboxTotal})`, { size: 'sm', onClick: () => navigate('tugas') }))
+          : null,
+        inboxFailed.length
+          ? el('.card-body', { style: { borderTop: '1px solid var(--border)', padding: '10px 16px' } },
+            el('.alert.warn', { style: { margin: 0 } }, [
+              icon('warn', 16),
+              el('div', { text: `Gagal dimuat: ${inboxFailed.join(', ')}. Daftar ini belum lengkap.` }),
+            ]))
+          : null,
+      ]),
+      { action: button('Tugas Saya', { size: 'sm', variant: 'ghost', onClick: () => navigate('tugas') }) },
+    ));
+  }
 
   /* --------------------------------------------------------- kalender */
   // "Apa yang terjadi KAPAN" — saudara layar Tenggat ("apa yang lewat").
@@ -437,7 +437,8 @@ export async function renderDashboard(host) {
 
     const cellStyle = { textAlign: 'center', padding: '3px 0 4px', borderRadius: '6px' };
     const cells = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((name) =>
-      el('div.muted', { text: name, style: { ...cellStyle, fontSize: '10.5px' } }));
+      // 11 px: lantai ukuran huruf aplikasi (T2.10, S8 4 Sep 2026).
+      el('div.muted', { text: name, style: { ...cellStyle, fontSize: '11px' } }));
     for (let i = 0; i < lead; i += 1) cells.push(el('div'));
 
     for (let day = 1; day <= daysInMonth; day += 1) {

@@ -50,7 +50,10 @@ class HandoverController extends ApiController
 
     public function show(Handover $handover): JsonResponse
     {
-        return $this->ok(HandoverResource::make($handover->load('subcontract')));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(HandoverResource::make($handover->load('subcontract', 'approvals.user')));
     }
 
     public function update(HandoverUpdateRequest $request, Handover $handover): JsonResponse

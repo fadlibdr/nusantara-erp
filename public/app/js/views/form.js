@@ -7,8 +7,9 @@ import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
 import { moneyInput } from '../money.js';
-import { MONTHS, rupiah, toDateInput, toDateTimeInput, today } from '../format.js';
+import { MONTHS, rupiah, toDateInput, toDateTimeInput, today, date as fmtDate } from '../format.js';
 import { navigate } from '../router.js';
+import { saveDraft, loadDraft, removeDraft, registerDraftFlush, relativeAge, draftRemovalSuspended } from '../drafts.js';
 
 /* ------------------------------------------------------ lookup field glue */
 
@@ -54,6 +55,8 @@ function lookupLabel(value, options, state) {
   // Only a successful load proves the row is really gone from the source.
   return state.status === 'ok' ? `#${value} (tidak ada di daftar)` : `#${value}`;
 }
+
+let dateHintSeq = 0;
 
 /**
  * Build one input for a field descriptor; returns { node, read, write }.
@@ -118,10 +121,41 @@ export function buildInput(spec, initial, { compact = false } = {}) {
       return { node, read: () => (node.value === '' ? null : Number(node.value)) };
     }
 
+    /*
+     * Petunjuk tanggal id-ID di bawah <input type=date>. Input natif
+     * menggambar mm/dd/yyyy pada Chromium en-US — terlihat 2 Sep 2026
+     * (HASIL-UJI §1 "Tanggal native"), dan urutan itu milik locale OS
+     * pemakai, bukan aplikasi: 09/04/2026 terbaca 9 April oleh siapa pun yang
+     * terbiasa dd/mm. Inputnya dipertahankan (pemilih tanggal, keyboard,
+     * validasi format gratis); yang ditambah hanya pembacaan ulang
+     * "= 04 Sep 2026" lewat fmt.date — format yang sama dengan kolom tanggal
+     * di daftar dan detail, jadi angka yang diketik dan angka yang nanti
+     * tampil tidak pernah berbeda urutan. Kosong bila belum ada nilai:
+     * Chromium memancarkan 'input' per segmen dengan value '' selama tanggal
+     * belum lengkap, jadi tidak ada tanggal setengah jadi yang dibaca.
+     * Sel tabel baris (compact) tidak memuatnya — seperti hint money.js,
+     * <td> 31px tidak punya tempat untuk baris kedua. aria-hidden +
+     * aria-describedby juga mengikuti money.js: teks polos di dalam <label>
+     * dilebur jadi NAMA field oleh screen reader.
+     */
     case 'date': {
       const node = el('input', { type: 'date' });
       node.value = value ? toDateInput(value) : (spec.defaultToday ? today() : '');
-      return { node, read: () => node.value || null };
+      const read = () => node.value || null;
+      if (compact) return { node, read };
+
+      const help = el('.help.date-hint', { id: `date-hint-${++dateHintSeq}`, 'aria-hidden': 'true' });
+      const syncHelp = () => {
+        const text = node.value ? `= ${fmtDate(node.value)}` : '';
+        help.textContent = text;
+        help.hidden = text === '';
+        if (text) node.setAttribute('aria-describedby', help.id);
+        else node.removeAttribute('aria-describedby');
+      };
+      node.addEventListener('input', syncHelp);
+      node.addEventListener('change', syncHelp);
+      syncHelp();
+      return { node: el('div', [node, help]), input: node, read };
     }
 
     case 'datetime': {
@@ -591,8 +625,11 @@ function clearCellError(cell) {
 /**
  * Open a create/edit modal for a resource.
  * `row` present => edit (PUT), absent => create (POST).
+ * `endpoint` (create only): POST ke jalur ini, bukan def.api — formulir
+ * kontrak yang disimpan ke crm/quotations/{id}/create-contract (T3.6);
+ * lihat `submitTo` di actions.js.
  */
-export async function openForm({ def, key, row, prefill, onSaved }) {
+export async function openForm({ def, key, row, prefill, onSaved, endpoint = null }) {
   const isEdit = Boolean(row);
   const sections = def.form.sections || [];
   const lineDefs = def.form.lines || [];
@@ -619,6 +656,30 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     ...sections.flatMap((section) => section.fields.map((f) => f.lookup)),
     ...lineDefs.flatMap((line) => line.columns.map((c) => c.lookup)),
   ]);
+
+  /*
+   * Draf di peramban (drafts.js). Bila formulir yang sama (resource + id) pernah
+   * ditinggalkan dengan isian — sesi berakhir, tab tertutup, laptop mati — isian
+   * itu ditawarkan kembali SEBELUM kontrol dibangun, supaya nilai header masuk
+   * lewat jalur `record` yang sama dengan Ubah, dan baris lewat initialRows yang
+   * sama dengan salin-dari-PO. Menolak = draf dibuang; tidak ada tawaran kedua.
+   */
+  const draftRowId = isEdit ? row.id : null;
+  const draft = loadDraft(key, draftRowId);
+  if (draft && (draft.header || draft.lines)) {
+    const restore = await confirmDialog({
+      title: 'Pulihkan isian yang belum tersimpan?',
+      message: `${def.labelOne} ini pernah diisi ${relativeAge(draft.savedAt)} dan belum disimpan — sesi berakhir atau tab tertutup. Pulihkan isiannya?`,
+      confirmLabel: 'Pulihkan',
+      cancelLabel: 'Mulai kosong',
+      tone: 'primary',
+    });
+    if (restore) {
+      record = { ...(record || {}), ...(draft.header || {}), ...(draft.lines || {}) };
+    } else {
+      removeDraft(key, draftRowId);
+    }
+  }
 
   const controls = {};
   const fieldControls = []; // [{ spec, control }] urut tampil — untuk validasi wajib-isi
@@ -749,6 +810,28 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
   ]);
   const pristine = snapshot();
 
+  /*
+   * Draf otomatis: setiap ketikan menjadwalkan simpanan ke localStorage 1,2
+   * detik kemudian; app.js meminta flush langsung saat 401. Formulir yang
+   * kembali bersih (isian dihapus lagi) mencabut drafnya, dan draf hilang saat
+   * Simpan berhasil atau pengguna sendiri memilih "Buang isian" — tetapi TIDAK
+   * saat overlay ditutup paksa oleh sesi yang berakhir (draftRemovalSuspended).
+   */
+  let draftTimer = null;
+  const persistDraft = () => {
+    clearTimeout(draftTimer);
+    if (snapshot() === pristine) { removeDraft(key, draftRowId); return; }
+    saveDraft(key, draftRowId, {
+      label: def.labelOne,
+      header: Object.fromEntries(Object.entries(controls).map(([fieldKey, control]) => [fieldKey, control.read()])),
+      lines: Object.fromEntries(lineControls.map(({ def: lineDef, control }) => [lineDef.key, control.read()])),
+    });
+  };
+  const scheduleDraft = () => { clearTimeout(draftTimer); draftTimer = setTimeout(persistDraft, 1200); };
+  body.addEventListener('input', scheduleDraft, true);
+  body.addEventListener('change', scheduleDraft, true);
+  const unregisterFlush = registerDraftFlush(persistDraft);
+
   const dialog = modal({
     title: `${isEdit ? 'Ubah' : 'Tambah'} ${def.labelOne}`,
     width: lineDefs.length ? 'wide' : '',
@@ -757,6 +840,11 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     // loses the same 15 lines a mis-aimed Escape does.
     footer: [button('Batal', { onClick: () => dialog.requestClose() }), save],
     dirty: () => snapshot() !== pristine,
+    onClose: () => {
+      clearTimeout(draftTimer);
+      unregisterFlush();
+      if (!draftRemovalSuspended()) removeDraft(key, draftRowId);
+    },
   });
 
   /*
@@ -848,26 +936,59 @@ export async function openForm({ def, key, row, prefill, onSaved }) {
     await withBusy(save, async () => {
       const submit = () => (isEdit
         ? api.put(`${def.api}/${record.id}`, payload)
-        : api.post(def.api, payload));
+        : api.post(endpoint || def.api, payload));
 
       const finish = (saved) => {
         invalidateByPath(def.api);
-        toast(`${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
+        removeDraft(key, draftRowId);
+        // Lewat endpoint lain, dokumennya bisa dibuat ATAU dilengkapi (cangkang
+        // Tandai Menang, T3.6) — "dibuat" akan berbohong pada separuh kasus;
+        // nomor dokumennya yang jadi subjek, dan "tersimpan" benar di keduanya.
+        toast(endpoint && saved && saved.code
+          ? `${saved.code} tersimpan.`
+          : `${def.labelOne} ${isEdit ? 'diperbarui' : 'dibuat'}.`);
         dialog.close();
         if (onSaved) onSaved(saved);
       };
 
+      /*
+       * Toast 422 hanya menyebut kunci yang TIDAK terpetakan ke kontrol.
+       * Diukur 2 Sep 2026 pada PO (HASIL-UJI §2.4, harness S3): sel qty
+       * sudah merah "Kuantitas minimal 0.001." dan toast masih membaca
+       * `items.0.qty: Kuantitas minimal 0.001.` — awalan mentah itu hanya
+       * berguna untuk kunci yang tidak punya kontrol di layar (kolom yang
+       * tidak ada di formulir, field yang sedang disembunyikan visibleWhen —
+       * penanda di pembungkus display:none bukan penanda yang tampak). Bila
+       * semua kunci berhasil dilukis, toastnya kalimat yang sama dengan
+       * pemeriksaan wajib-isi di atas; bila hanya sebagian, kalimat itu jadi
+       * judul dan sisanya tetap disebut dengan kuncinya; bila tidak ada satu
+       * pun yang dilukis, jalur lama utuh — jangan bilang "ditandai" untuk
+       * galat yang tidak ditandai.
+       */
       const paintErrors = (error) => {
-        if (error.errors) {
-          const scrolled = { done: false };
-          for (const [fieldKey, messages] of Object.entries(error.errors)) {
-            const message = [].concat(messages)[0];
-            if (applyLineError(fieldKey, message, scrolled)) continue;
-            const control = controls[fieldKey.split('.')[0]];
-            if (control) setFieldError(control.input || control.node, message);
-          }
+        if (!error.errors) {
+          toastError(error);
+          return;
         }
-        toastError(error);
+        const scrolled = { done: false };
+        const unmapped = [];
+        for (const [fieldKey, messages] of Object.entries(error.errors)) {
+          const message = [].concat(messages)[0];
+          if (applyLineError(fieldKey, message, scrolled)) continue;
+          const headKey = fieldKey.split('.')[0];
+          const control = controls[headKey];
+          if (control && !hiddenKeys.has(headKey)) {
+            setFieldError(control.input || control.node, message);
+            continue;
+          }
+          unmapped.push(`${fieldKey}: ${message}`);
+        }
+        if (!unmapped.length) {
+          toast('Periksa isian yang ditandai.', { tone: 'err' });
+          return;
+        }
+        const painted = unmapped.length < Object.keys(error.errors).length;
+        toastError({ message: painted ? 'Periksa isian yang ditandai.' : error.message, details: unmapped });
       };
 
       try {
@@ -975,13 +1096,26 @@ function pickRowsDialog({ title, rows, columns, note, hint, confirmLabel = 'Tamb
   });
 }
 
-/** Ad-hoc modal form for lifecycle actions (approve note, assign, faktur…). */
-export async function promptFields(title, fields, { submitLabel = 'Kirim' } = {}) {
+/**
+ * Ad-hoc modal form for lifecycle actions (approve note, assign, faktur…).
+ *
+ * `message` is the sentence the fields answer, shown above them — the
+ * confirm-resubmit engine in actions.js passes the server's 422 text here
+ * (which vendor, which mandatory document expired since when) so the operator
+ * reads the refusal in the same dialog that asks for the override reason,
+ * instead of typing a reason for a refusal that only flashed by as a toast.
+ */
+export async function promptFields(title, fields, { submitLabel = 'Kirim', message } = {}) {
   await preload(fields.map((spec) => spec.lookup));
 
   return new Promise((resolve) => {
     const controls = {};
     const grid = el('.form-grid');
+    // Same paragraph style as confirmDialog's body, so the two dialogs of one
+    // Ajukan round (a Ya/Batal warning, then a prompt) read as one voice.
+    const body = message
+      ? el('div', [el('p', { text: message, style: { margin: '0 0 12px', color: 'var(--text-2)' } }), grid])
+      : grid;
 
     for (const spec of fields) {
       const control = buildInput(spec, undefined);
@@ -997,7 +1131,7 @@ export async function promptFields(title, fields, { submitLabel = 'Kirim' } = {}
     const dialog = modal({
       title,
       width: 'narrow',
-      body: grid,
+      body,
       footer: [button('Batal', {
         // Resolve BEFORE closing, the same order as confirmDialog's cancel
         // button in ui.js, and do not "tidy" it back. close() fires onClose,

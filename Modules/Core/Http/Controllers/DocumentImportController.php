@@ -133,7 +133,9 @@ class DocumentImportController extends ApiController
             $data = $this->validateUpload($request);
 
             try {
-                $result = $this->imports->commit($resource, $data['filename'], $data['content']);
+                // The engine names the importer as the maker of any document a
+                // definition lands as `submitted` (maker-checker, T3.4).
+                $result = $this->imports->commit($resource, $data['filename'], $data['content'], $request->user());
             } catch (LogicException $e) {
                 return $this->error($e->getMessage());
             }

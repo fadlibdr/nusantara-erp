@@ -49,7 +49,10 @@ class PayrollRunController extends ApiController
 
     public function show(PayrollRun $payrollRun): JsonResponse
     {
-        return $this->ok(PayrollRunResource::make($payrollRun->load('payslips.employee')));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(PayrollRunResource::make($payrollRun->load('payslips.employee', 'approvals.user')));
     }
 
     public function update(PayrollRunUpdateRequest $request, PayrollRun $payrollRun): JsonResponse

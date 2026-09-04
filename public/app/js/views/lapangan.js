@@ -12,7 +12,7 @@
  * screen keeps working — a photo with no position is worth more than no photo. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, errorState, toast, toastError, withBusy, field } from '../ui.js';
+import { el, clear, button, badge, icon, errorState, toast, toastError, withBusy, field, progressBar, confirmDialog } from '../ui.js';
 import { ENUMS } from '../enums.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
@@ -69,6 +69,296 @@ function readAsBase64(file) {
   });
 }
 
+/* ------------------------------------------------------------ upload queue */
+/*
+ * Antrean kirim foto — di memori dan, sebisanya, di localStorage.
+ *
+ * Sebelum T2.9 satu foto adalah satu api.post() di balik withBusy(): tombol
+ * berputar, lalu toast — dan bila jaringan lokasi putus, toast merah dan
+ * fotonya lenyap bersama posisi GPS yang sudah diminta (ASESMEN-UX §4.3: 5 MB
+ * base64 di jaringan seluler lokasi 20–40 detik tanpa tanda hidup). Kini tiap
+ * foto menjadi butir antrean: bilah kemajuan per foto dari XHR
+ * upload.onprogress (api.upload — satu-satunya jalur XHR di api.js; diukur
+ * 4 Sep 2026, harness S15, unggahan dicekik 200 kB/s: 70 peristiwa kemajuan
+ * untuk foto 1 MB), yang gagal tetap terdaftar dengan "Kirim ulang", dan
+ * antreannya ditulis ke localStorage dengan idiom drafts.js — awalan sendiri
+ * supaya listDrafts() tidak menawarkan 1,4 juta karakter base64 sebagai
+ * "Pulihkan" — sehingga hidup melewati muat-ulang halaman dan sesi yang
+ * berakhir. Dikirim satu per satu: uplink ponsel dibagi rata, dan satu bilah
+ * yang bergerak lebih jujur daripada tiga yang merayap.
+ *
+ * Per pengguna, seperti Favorit (T2.5): tablet kantor lapangan dipakai
+ * bergantian, dan foto yang terkirim atas nama orang lain adalah jejak audit
+ * (uploaded_by) yang salah.
+ *
+ * Batasnya jujur: localStorage Chromium memuat ~5,2 juta karakter (diukur
+ * 4 Sep 2026: 5 234 375), yakni satu foto ≤ ~3,7 MB atau beberapa foto kecil;
+ * foto yang tidak muat tetap di antrean memori dan barisnya berkata begitu.
+ * Posisi yang tersimpan adalah posisi saat memotret, bukan saat mengirim
+ * ulang — itulah yang ditanya AttachmentService::geotag().
+ */
+const QUEUE_PREFIX = 'nusantara_erp_upload:';
+
+let queueCache = { userId: null, items: null };
+let sending = false;
+const listeners = new Set();
+
+function queueKey(item) {
+  return `${QUEUE_PREFIX}${item.userId}:${item.key}`;
+}
+
+/** Butir antrean pengguna yang masuk, terlama dulu. Dibaca dari localStorage sekali per pengguna. */
+function readQueue() {
+  const userId = (session.user || {}).id || 0;
+  if (queueCache.items && queueCache.userId === userId) return queueCache.items;
+
+  const items = [];
+  const mine = `${QUEUE_PREFIX}${userId}:`;
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(mine)) continue;
+    try {
+      const item = JSON.parse(localStorage.getItem(key));
+      if (!item || !item.content) continue;
+      // Halaman ditutup sebelum jawabannya sampai: yang tersisa hanya fotonya,
+      // dan itu cukup untuk dikirim ulang.
+      if (item.state === 'sending') { item.state = 'failed'; item.error = 'Terputus sebelum jawaban server tiba.'; }
+      if (item.state !== 'failed') { item.state = 'failed'; item.error = 'Halaman ditutup sebelum foto dikirim.'; }
+      items.push({ ...item, loaded: 0, total: null, persisted: true });
+    } catch { /* butir rusak diabaikan */ }
+  }
+  items.sort((a, b) => a.savedAt - b.savedAt);
+  queueCache = { userId, items };
+  return items;
+}
+
+function persist(item) {
+  const { persisted, loaded, total, ...stored } = item;
+  try {
+    localStorage.setItem(queueKey(item), JSON.stringify(stored));
+    item.persisted = true;
+  } catch {
+    // Kuota penuh atau mode privat: butir tetap di memori, barisnya berkata begitu.
+    item.persisted = false;
+  }
+}
+
+function forget(item) {
+  localStorage.removeItem(queueKey(item));
+  const items = readQueue();
+  const at = items.indexOf(item);
+  if (at >= 0) items.splice(at, 1);
+}
+
+/* Pendengar: 'change' (butir masuk/berubah keadaan/dibuang), 'progress' (byte
+   terkirim), 'sent' (sampai di server), 'mounted' (kartu dokumen dipasang atau
+   dilepas — kartu "belum terkirim" menghitung ulang miliknya). Dilepas sendiri
+   begitu simpulnya keluar dari dokumen. */
+function listen(node, fn) {
+  const wrapped = (event, item) => {
+    if (!node.isConnected) { listeners.delete(wrapped); return; }
+    fn(event, item);
+  };
+  listeners.add(wrapped);
+}
+
+function notify(event, item) {
+  [...listeners].forEach((fn) => {
+    try { fn(event, item); } catch { /* satu pendengar rusak tidak menahan yang lain */ }
+  });
+}
+
+function enqueue(fields) {
+  const item = {
+    key: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    userId: (session.user || {}).id || 0,
+    state: 'queued',
+    error: null,
+    attempts: 0,
+    savedAt: Date.now(),
+    loaded: 0,
+    total: null,
+    ...fields,
+  };
+  readQueue().push(item);
+  persist(item);
+  notify('change', item);
+  pump();
+  return item;
+}
+
+function retry(item) {
+  item.state = 'queued';
+  item.error = null;
+  item.loaded = 0;
+  persist(item);
+  notify('change', item);
+  pump();
+}
+
+async function pump() {
+  if (sending) return;
+  const item = readQueue().find((one) => one.state === 'queued');
+  if (!item) return;
+
+  sending = true;
+  item.state = 'sending';
+  item.loaded = 0;
+  item.total = null;
+  item.attempts += 1;
+  persist(item);
+  notify('change', item);
+
+  try {
+    await api.upload('core/attachments', {
+      document_type: item.slug,
+      document_id: item.id,
+      filename: item.filename,
+      content: item.content,
+      ...(item.position || {}),
+    }, ({ loaded, total }) => {
+      item.loaded = loaded;
+      item.total = total;
+      notify('progress', item);
+    });
+
+    forget(item);
+    toast(item.position ? `Foto ${item.filename} terkirim dengan lokasi.` : `Foto ${item.filename} terkirim (tanpa lokasi).`);
+    notify('sent', item);
+  } catch (error) {
+    item.state = 'failed';
+    // 401 sudah memaksa layar masuk (app.js); barisnya menyebut jalan keluarnya,
+    // bukan "Unauthenticated." milik server.
+    item.error = error.status === 401 ? 'Sesi berakhir — masuk lagi, lalu kirim ulang.' : (error.message || String(error));
+    persist(item);
+    notify('change', item);
+  } finally {
+    sending = false;
+  }
+
+  pump();
+}
+
+function sizeLabel(bytes) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function percentOf(item) {
+  return item.total ? Math.min(100, Math.floor((item.loaded / item.total) * 100)) : 0;
+}
+
+function stateLine(item) {
+  if (item.state === 'locating') return 'Menunggu posisi GPS…';
+  if (item.state === 'queued') return 'Menunggu giliran.';
+  if (item.state === 'sending') {
+    return item.total && item.loaded >= item.total ? 'Menunggu jawaban server…' : `Mengirim… ${percentOf(item)} %`;
+  }
+  return `Belum terkirim — ${item.error}`;
+}
+
+function subLine(item, withDocument) {
+  return [withDocument ? item.label : null, sizeLabel(item.size), stateLine(item)].filter(Boolean).join(' · ');
+}
+
+function refreshRow(row, item, withDocument) {
+  row.dataset.state = item.state;
+  const sub = row.querySelector('.cell-sub');
+  if (sub) sub.textContent = subLine(item, withDocument);
+  const bar = row.querySelector('.progress');
+  if (bar) {
+    bar.firstChild.style.width = `${percentOf(item)}%`;
+    bar.setAttribute('aria-valuenow', percentOf(item));
+  }
+}
+
+function queueRow(item, withDocument) {
+  const main = el('.upload-item-main', [
+    el('.attachment-name', { text: item.filename }),
+    el('.cell-sub', { text: subLine(item, withDocument) }),
+  ]);
+
+  if (item.state === 'sending') {
+    const bar = progressBar(percentOf(item));
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-label', `Kemajuan kirim ${item.filename}`);
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', '100');
+    bar.setAttribute('aria-valuenow', percentOf(item));
+    main.appendChild(bar);
+  }
+
+  if (item.persisted === false) {
+    main.appendChild(el('.cell-sub.upload-warn', {
+      text: 'Tidak muat disimpan di peramban: bila halaman ini ditutup sebelum terkirim, foto harus diambil lagi.',
+    }));
+  }
+
+  const actions = item.state === 'failed' ? el('.row-actions', [
+    button('Kirim ulang', { variant: 'primary', size: 'sm', iconName: 'refresh', onClick: () => retry(item) }),
+    button('Buang', {
+      size: 'sm',
+      iconName: 'trash',
+      onClick: () => confirmDialog({
+        title: 'Buang foto ini?',
+        message: `${item.filename} dibuang dari antrean dan tidak dapat dikirim lagi dari sini.`,
+        confirmLabel: 'Buang',
+        onConfirm: () => { forget(item); notify('change', item); },
+      }),
+    }),
+  ]) : null;
+
+  return el('.upload-item', { dataset: { state: item.state, key: item.key } }, [main, actions]);
+}
+
+/**
+ * Daftar butir antrean yang lolos `filter`, dilukis ulang sendiri. `doc`
+ * menandai daftar milik satu dokumen (slug:id) sehingga kartu "belum terkirim"
+ * tahu butir mana yang sudah tampil di tempat lain.
+ */
+function queueRows(filter, { doc = null, withDocument = false } = {}) {
+  const host = el('.upload-queue', { dataset: doc ? { doc } : null });
+
+  const paint = () => {
+    clear(host);
+    readQueue().filter(filter).forEach((item) => host.appendChild(queueRow(item, withDocument)));
+  };
+
+  paint();
+  listen(host, (event, item) => {
+    if (event === 'progress') {
+      const row = host.querySelector(`.upload-item[data-key="${item.key}"]`);
+      if (row) refreshRow(row, item, withDocument);
+      return;
+    }
+    paint();
+  });
+  return host;
+}
+
+/**
+ * Foto yang belum terkirim untuk dokumen yang TIDAK sedang tampil — laporan
+ * kemarin, tiket lain. Tanpa kartu ini butir yang tersimpan dari tanggal lain
+ * tak pernah terlihat lagi, apalagi terkirim.
+ */
+function pendingCard() {
+  const shownElsewhere = (item) => Boolean(document.querySelector(`.upload-queue[data-doc="${item.slug}:${item.id}"]`));
+  const list = queueRows((item) => !shownElsewhere(item), { withDocument: true });
+
+  const card = el('.card.upload-pending', [
+    el('.card-head', [el('h2', { text: 'Foto belum terkirim' }), el('.spacer')]),
+    el('.card-body', [
+      el('p.cell-sub', { text: 'Dari laporan atau tiket lain. Setelah terkirim, foto tampil di dokumennya.' }),
+      list,
+    ]),
+  ]);
+
+  const sync = () => { card.hidden = !list.childElementCount; };
+  sync();
+  // Terdaftar SETELAH pendengar daftarnya, jadi menghitung anak yang sudah dilukis ulang.
+  listen(card, sync);
+  return card;
+}
+
 function distanceBadge(attachment) {
   if (attachment.distance_from_site_m === null || attachment.distance_from_site_m === undefined) {
     return badge(attachment.geo_source ? 'Lokasi proyek belum diisi' : 'Tanpa lokasi', '');
@@ -102,8 +392,12 @@ function photoStrip(attachments, onChanged) {
   ])));
 }
 
-/** The camera button plus the list of what has already been filed. */
-function captureCard(slug, id, onChanged) {
+/**
+ * The camera button, this document's upload queue, and the list of what has
+ * already been filed. `label` is the document number the queue shows when the
+ * photo outlives this screen (pendingCard).
+ */
+function captureCard(slug, id, label, onChanged) {
   const body = el('.card-body');
   const card = el('.card', [
     el('.card-head', [el('h2', { text: 'Foto lapangan' }), el('.spacer')]),
@@ -118,6 +412,12 @@ function captureCard(slug, id, onChanged) {
     style: { display: 'none' },
   });
 
+  // Built once and kept across load(): it is the node pendingCard looks for,
+  // and the one whose progress listener must survive the list being refetched.
+  const queueNode = queueRows((item) => item.slug === slug && item.id === id, { doc: `${slug}:${id}` });
+
+  // The button stays live while a photo uploads: the next shot is taken while
+  // the previous one travels, and the row under the button is where it shows.
   const shoot = button('Ambil foto', { variant: 'primary', size: 'lg', iconName: 'plus', onClick: () => input.click() });
 
   input.addEventListener('change', async () => {
@@ -133,43 +433,47 @@ function captureCard(slug, id, onChanged) {
       return;
     }
 
-    await withBusy(shoot, async () => {
-      try {
-        // Ask for the position and read the file at the same time — the GPS fix
-        // is the slow half and there is no reason to wait for it serially.
-        const [content, position] = await Promise.all([readAsBase64(file), devicePosition()]);
+    // Ask for the position and read the file at the same time — the GPS fix
+    // is the slow half (up to GEO_TIMEOUT_MS) — but the photo is listed as
+    // soon as it is read: a row saying "Menunggu posisi GPS…" is the sign of
+    // life that a spinning button never was.
+    const positioning = devicePosition();
+    let item = null;
+    try {
+      const content = await readAsBase64(file);
+      item = enqueue({ slug, id, label, filename: file.name || `foto-${Date.now()}.jpg`, content, position: null, size: file.size, state: 'locating' });
+    } catch (error) {
+      toastError(error);
+    } finally {
+      input.value = '';
+    }
+    if (!item) return;
 
-        await api.post('core/attachments', {
-          document_type: slug,
-          document_id: id,
-          filename: file.name || `foto-${Date.now()}.jpg`,
-          content,
-          ...(position || {}),
-        });
+    item.position = await positioning;
+    // A photo dropped from the queue while the GPS was still fixing must not
+    // come back as "queued".
+    if (!readQueue().includes(item)) return;
+    retry(item);
+  });
 
-        toast(position ? 'Foto terkirim dengan lokasi.' : 'Foto terkirim (tanpa lokasi).');
-        load();
-      } catch (error) {
-        toastError(error);
-      } finally {
-        input.value = '';
-      }
-    });
+  listen(card, (event, item) => {
+    if (event === 'sent' && item.slug === slug && item.id === id) load();
   });
 
   async function load() {
-    clear(body).appendChild(el('p.muted', { text: 'Memuat…', style: { margin: 0 } }));
+    const loading = el('p.muted', { text: 'Memuat…', style: { margin: '10px 0 0' } });
+    // Detached and re-attached in one statement: no event can fire in between,
+    // so queueNode's listener never sees itself disconnected.
+    clear(body).append(shoot, input, queueNode, loading);
 
     try {
       const list = rows(await api.get('core/attachments', { document_type: slug, document_id: id }));
-      clear(body);
-      body.append(shoot, input, photoStrip(list, load));
+      loading.replaceWith(photoStrip(list, load));
       if (onChanged) onChanged();
     } catch (error) {
       // Keep the camera: a failed list must not remove the only control on the
       // screen, which on site means the photo cannot be filed at all.
-      clear(body);
-      body.append(shoot, input, errorState(error, load));
+      loading.replaceWith(errorState(error, load));
     }
   }
 
@@ -230,11 +534,13 @@ async function renderHarian(host) {
             el('dt', { text: 'Kegiatan' }), el('dd', { text: report.activities || '—' }),
           ])),
         ]));
-        slot.appendChild(captureCard('projects/daily-reports', report.id));
+        slot.appendChild(captureCard('projects/daily-reports', report.id, report.code));
+        notify('mounted');
         return;
       }
 
       slot.appendChild(newReportCard(paint));
+      notify('mounted');
     } catch (error) {
       clear(slot).appendChild(el('.alert.error', { text: error.message || 'Gagal memuat laporan.' }));
     }
@@ -386,7 +692,8 @@ async function renderTiket(host) {
       ])),
     ]));
 
-    slot.appendChild(captureCard('servicedesk/tickets', state.ticketId));
+    slot.appendChild(captureCard('servicedesk/tickets', state.ticketId, ticket.code));
+    notify('mounted');
   }
 
   paint();
@@ -406,7 +713,9 @@ export async function renderLapangan(host) {
 
   const tabs = el('.tabs');
   const body = el('div');
-  host.append(tabs, body);
+  // Above the tabs, hidden while empty: photos of a report or ticket that is
+  // not on screen would otherwise stay in localStorage unseen and unsent.
+  host.append(pendingCard(), tabs, body);
 
   const allowed = MODES.filter((mode) => session.can(`${mode.module}.view`));
 

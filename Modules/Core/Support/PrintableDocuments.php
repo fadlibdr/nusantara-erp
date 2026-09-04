@@ -34,6 +34,7 @@ use Modules\Estimation\Models\CostBudget;
 use Modules\Estimation\Services\EstimationFormService;
 use Modules\Finance\Enums\PaymentDirection;
 use Modules\Finance\Models\ApBill;
+use Modules\Finance\Models\ArInvoice;
 use Modules\Finance\Models\Journal;
 use Modules\Finance\Models\Payment;
 use Modules\Finance\Models\TaxObligation;
@@ -253,6 +254,26 @@ use Modules\Subcontract\Services\SubcontractFormService;
  *   identityHouse  true prepends the ten contract lines (NO. SPK … SISA HARI);
  *                false suppresses them. Default: true when the header resolves
  *                a Project, false otherwise.
+ *   prose        One VALUE SPEC resolving to a LIST OF PARAGRAPHS, printed
+ *                between the identity block and the body tables — the body
+ *                of a LETTER (surat penagihan, T3.7), which the grid-only
+ *                sheet had no honest place for: a letter typed into a
+ *                one-column table titled ISI SURAT is not a letter on the
+ *                customer's desk. The closure is handed the record and the
+ *                sheet's DATE, like an identity value, because a letter's
+ *                "N hari" counts to the date printed on it. Null or empty =
+ *                nothing printed; a paragraph is a string the composer proved
+ *                — there is no blank-ruling for prose, a sentence the ERP
+ *                cannot make is a sentence left out.
+ *   onlyWhen     ['field' => <SPA row field>, 'equals' => <value>] — the
+ *                catalogue button is drawn only on a row whose field holds
+ *                that value. Data, not a predicate, so it crosses the wire:
+ *                the three surat penagihan share one resource and only the
+ *                letter of the invoice's CURRENT dunning_level can be printed
+ *                (FinanceFormService::dunningLetterDate refuses the others by
+ *                name), and a "Cetak ▾" menu offering two dead items on every
+ *                invoice is the 403-button the catalogue exists to prevent.
+ *                Absent = drawn on every row of the resource, as before.
  *   body         Zero or more TABLES. See BODY below.
  *   notes        The "Catatan :" block. ['text' => VALUE SPEC, 'lines' => int,
  *                'weather' => …, 'hours' => bool]; null omits the block
@@ -5699,7 +5720,151 @@ class PrintableDocuments
                     ],
                 ],
             ],
+            /*
+             * SURAT PENAGIHAN ke-1 / ke-2 / ke-3 — the letters that used to
+             * not exist (T3.7).
+             *
+             * Production, 4 Sep 2026 (ANALISIS-PROSES §2 row Q2C, §3 gap A2):
+             * INV/2026/VIII/0004 Rp 15,42 M approved, due 22 Sep, "18 hari
+             * lagi; tidak ada jadwal penagihan" — the ar_invoice_due watcher
+             * names an overdue invoice every third morning and nothing in the
+             * system turns that into the letter a customer's finance
+             * department actually acts on. Three slugs, one shape, because the
+             * three ARE one document at three temperatures; the level is the
+             * only thing that differs and it is baked into each entry below.
+             * Printed, not e-mailed: MAIL_MAILER=log on production, and a
+             * surat penagihan here is signed and posted (§5 of the analysis).
+             */
+            'surat-penagihan-1' => $this->suratPenagihan(1),
+            'surat-penagihan-2' => $this->suratPenagihan(2),
+            'surat-penagihan-3' => $this->suratPenagihan(3),
             // PRINTABLE REGISTRY (Finance) — tambahkan dokumen baru di sini.
+        ];
+    }
+
+    /**
+     * One surat penagihan, at one level — see the entries above.
+     *
+     * The gate is the DATE: dunningLetterDate refuses a level the invoice has
+     * not reached (the letter was never issued — the button goes through
+     * ArInvoiceService::issueDunningLetter first) and a level it has passed
+     * (that letter's date is no longer on file, and a reprint re-dated to
+     * today would be a different document from the one the customer holds).
+     * Everything on the sheet then counts to that date: "N hari" past due on
+     * the letter of 10 Oktober says 18 on every reprint, not 18 + however
+     * long ago somebody pressed print.
+     *
+     * @return array<string, mixed>
+     */
+    private function suratPenagihan(int $level): array
+    {
+        $letterDate = fn (ArInvoice $invoice): Carbon => app(FinanceFormService::class)->dunningLetterDate($invoice, $level);
+
+        return [
+            'resource' => 'finance/ar-invoices',
+            'model' => ArInvoice::class,
+            'permission' => 'fin.view',
+            'label' => "Surat Penagihan ke-{$level}",
+            'formTitle' => FinanceFormService::DUNNING_TITLES[$level],
+            'formCode' => "Form F/SP-{$level}",
+            // withTrashed on every parent — see the class docblock. A letter
+            // for Rp 15 miliar addressed to a ruled KEPADA line because the
+            // customer master was archived is the penawaran case again.
+            'with' => [
+                'customer' => fn ($query) => $query->withTrashed(),
+                'contract' => fn ($query) => $query->withTrashed(),
+                'project' => fn ($query) => $query->withTrashed(),
+            ],
+            'header' => ['kind' => 'customer', 'source' => 'customer', 'project' => 'project'],
+            'date' => $letterDate,
+            'pekerjaan' => 'description',
+            'identityHouse' => false,
+            'identity' => [
+                'NO. INVOICE' => 'code',
+                'TANGGAL INVOICE' => ['value' => 'invoice_date', 'cast' => 'date'],
+                'JATUH TEMPO' => ['value' => 'due_date', 'cast' => 'date'],
+                // Counted to the LETTER's date (the second argument), so the
+                // sheet says on every reprint what it said when it went out.
+                'LEWAT JATUH TEMPO' => fn (ArInvoice $invoice, Carbon $date): ?string => app(FinanceFormService::class)
+                    ->dunningDaysLate($invoice, $date),
+                'KEPADA' => 'customer.name',
+                'ALAMAT' => 'customer.billing_address',
+                'NO. KONTRAK' => 'contract.code',
+                'NILAI INVOICE' => ['value' => 'total', 'cast' => 'rupiah'],
+                'SUDAH DITERIMA' => ['value' => 'amount_paid', 'cast' => 'rupiah'],
+                // ArInvoice::outstanding(), never a subtraction written here.
+                'SISA TAGIHAN' => [
+                    'value' => fn (ArInvoice $invoice): float => $invoice->outstanding(),
+                    'cast' => 'rupiah',
+                ],
+                // RULED on the demanding letters, and that is the point: the
+                // deadline is the collector's decision, written with a pen —
+                // not a "7 hari kerja" invented here and printed under the
+                // letterhead (see FinanceFormService::dunningParagraphs).
+                ...($level >= 2 ? ['BATAS PEMBAYARAN' => null] : []),
+            ],
+            'prose' => fn (ArInvoice $invoice, Carbon $date): array => app(FinanceFormService::class)
+                ->dunningParagraphs($invoice, $level, $date),
+            'body' => [
+                [
+                    'id' => 'rincian-penagihan',
+                    'title' => 'RINCIAN TAGIHAN',
+                    'rows' => fn (ArInvoice $invoice): array => app(FinanceFormService::class)->dunningRows($invoice),
+                    'columns' => [
+                        ['label' => 'NO. INVOICE', 'width' => '34mm', 'value' => 'code'],
+                        ['label' => 'TANGGAL', 'align' => 'center', 'width' => '26mm', 'value' => 'invoice_date', 'cast' => 'date'],
+                        ['label' => 'JATUH TEMPO', 'align' => 'center', 'width' => '26mm', 'value' => 'due_date', 'cast' => 'date'],
+                        ['label' => 'NILAI INVOICE (Rp)', 'align' => 'right', 'value' => 'total', 'cast' => 'money'],
+                        ['label' => 'SUDAH DITERIMA (Rp)', 'align' => 'right', 'value' => 'diterima', 'cast' => 'money'],
+                        ['label' => 'SISA TAGIHAN (Rp)', 'align' => 'right', 'value' => 'sisa', 'cast' => 'money'],
+                    ],
+                ],
+                // TERBILANG of the SISA, not of the invoice: the sisa is what
+                // the letter asks for, and a letter whose spelled amount is a
+                // different number from its demanded one is the clerk's-error
+                // case the penawaran entry describes.
+                [
+                    'id' => 'terbilang-penagihan',
+                    'rows' => fn (ArInvoice $invoice): array => [
+                        ['kata' => Terbilang::rupiah($invoice->outstanding())],
+                    ],
+                    'columns' => [
+                        ['label' => 'TERBILANG (SISA TAGIHAN)', 'value' => 'kata'],
+                    ],
+                ],
+            ],
+            // No Catatan box: a letter ends with its signature.
+            'notes' => null,
+            /*
+             * The customer's own receipt column, unnamed — nothing here
+             * records who at the customer takes delivery of a letter — then
+             * the collector, then "<kota>, <tanggal>" + Hormat kami over the
+             * director's rule, the penawaran's own closing.
+             */
+            'signatures' => [
+                [
+                    'heading' => 'Diterima oleh,',
+                    'subheading' => 'Pelanggan',
+                    'party' => 'customer.name',
+                    'name' => null,
+                    'role' => 'Nama, tanggal & tanda tangan',
+                ],
+                [
+                    'heading' => 'Disiapkan,',
+                    'subheading' => null,
+                    'party' => null,
+                    'name' => null,
+                    'role' => 'Staf Keuangan / Penagihan',
+                ],
+                [
+                    'heading' => null,
+                    'subheading' => 'Hormat kami,',
+                    'party' => null,
+                    'name' => null,
+                    'role' => 'Direktur',
+                ],
+            ],
+            'onlyWhen' => ['field' => 'dunning_level', 'equals' => $level],
         ];
     }
 
@@ -7429,6 +7594,8 @@ class PrintableDocuments
             'pekerjaan' => null,
             'identity' => [],
             'identityHouse' => null,
+            'prose' => null,
+            'onlyWhen' => null,
             'body' => [],
             'notes' => ['text' => null, 'lines' => 3, 'weather' => null, 'hours' => false],
             'signatures' => 'house',
@@ -7471,6 +7638,7 @@ class PrintableDocuments
                 // its button with no front-end change — the catalogue's own
                 // argument, applied to the second format.
                 'xlsx' => in_array($row['slug'], FormXlsxExportService::FORMS, true),
+                'onlyWhen' => null,
             ];
         }
 
@@ -7488,6 +7656,9 @@ class PrintableDocuments
                 'idField' => $definition['idField'],
                 'params' => $definition['params'],
                 'xlsx' => in_array($slug, FormXlsxExportService::FORMS, true),
+                // T3.7: which rows of the resource get this button — see the
+                // onlyWhen key in the class docblock. Null = every row.
+                'onlyWhen' => $definition['onlyWhen'],
             ];
         }
 

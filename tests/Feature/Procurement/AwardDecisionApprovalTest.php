@@ -271,7 +271,8 @@ class AwardDecisionApprovalTest extends ErpTestCase
         $vendor = $this->vendor();
 
         $poId = (int) $this->actingAs($staff)->postJson('/api/procurement/purchase-orders', [
-            'vendor_id' => $vendor->id, 'order_date' => '2026-08-08', 'payment_term_days' => 30,
+            'vendor_id' => $vendor->id, 'order_date' => '2026-08-08', 'expected_date' => '2026-08-22', 'payment_term_days' => 30,
+            'pr_bypass_reason' => 'Fixture uji: pembelian langsung tanpa PR', // wajib sejak T3.8
             'items' => [['description' => 'Pasir', 'qty' => 10, 'unit' => 'm3', 'unit_price' => 200_000]],
         ])->assertStatus(201)->json('data.id');
 

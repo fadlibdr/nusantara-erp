@@ -1,5 +1,7 @@
 /* Display formatting — Indonesian locale throughout (id-ID, IDR, WIB). */
 
+import { enumTone } from './enums.js';
+
 const money0 = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const money2 = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyFmt = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
@@ -125,8 +127,23 @@ export function initials(name) {
     .join('');
 }
 
-/** Status value -> badge colour. Shared by every module's lifecycle enums. */
-export function statusTone(value) {
+/**
+ * Status value -> badge colour. Shared by every module's lifecycle enums.
+ *
+ * Peta kata di bawah tidak tahu modul: 'open' hijau karena tiket layanan yang
+ * baru dibuka memang keadaan normal. Kata yang sama pada NCR, insiden K3 dan
+ * defect berarti kebalikannya — pekerjaan yang menahan BAST — dan lencananya
+ * ikut hijau (diukur 4 Sep 2026: NCR/2026/IX/0002, K3/2026/IX/003 dan
+ * DEF/2026/IX/0001 semua "Terbuka → green" di kepala halaman detail). Maka
+ * pemanggil yang tahu enumnya menyebut namanya; enum yang menetapkan tone-nya
+ * sendiri (enums.js) menang atas peta kata, termasuk '' untuk netral.
+ */
+export function statusTone(value, enumName) {
+  if (enumName) {
+    const own = enumTone(enumName, String(value));
+    if (own !== undefined) return own;
+  }
+
   switch (String(value)) {
     case 'approved':
     case 'active':

@@ -53,7 +53,18 @@ export function loadPrintForms() {
 
   inflight = api.get('core/print/forms')
     .then((payload) => {
-      const answer = (payload && payload.data) || [];
+      /*
+       * api.get() sudah membuka amplop { data } (api.js request()), jadi yang
+       * tiba di sini adalah ARRAY-nya — `payload.data` pada array adalah
+       * undefined, dan katalog ini kosong pada setiap sesi sejak berkas ini
+       * lahir: tidak satu pun tombol formulir rumah dari katalog pernah
+       * tergambar. Diukur 4 Sep 2026: GET core/print/forms menjawab 23 entri
+       * untuk procurement, loadPrintForms() memulangkan 0; bilah PO memuat
+       * PDF tanpa Pesanan Pembelian, dan kolom "Sesudah" 2 Sep 2026 (S3
+       * detail_action_bar) sama. Bentuk lama tetap diterima untuk jawaban
+       * yang belum dibuka.
+       */
+      const answer = Array.isArray(payload) ? payload : ((payload && payload.data) || []);
 
       /*
        * Berangkat pada sesi lain: jawabannya dibuang, bukan dipasang.
@@ -107,7 +118,24 @@ export function printFormsFor(resource) {
          front-end. Ketat `=== true` supaya katalog lama tanpa kunci ini
          berarti "tidak ada tombol", bukan undefined yang truthy-diragukan. */
       xlsx: entry.xlsx === true,
+      /* T3.7 — which ROWS of the resource get this button: {field, equals}
+         from the registry's onlyWhen, or null for every row. Data, not a
+         predicate, so the three surat penagihan (one resource, one level
+         each) do not draw two dead menu items on every invoice. */
+      onlyWhen: entry.onlyWhen || null,
     }));
+}
+
+/**
+ * Whether one button belongs on one row: the row must carry the id the form
+ * anchors on, and — for a form declared onlyWhen — the field must hold the
+ * value. Compared as strings: the catalogue's `equals` arrives as JSON and
+ * the row's field may be a number or a string depending on the Resource.
+ */
+export function printableFor(form, row) {
+  if (!row || !row[form.idField || 'id']) return false;
+  if (!form.onlyWhen) return true;
+  return String(row[form.onlyWhen.field]) === String(form.onlyWhen.equals);
 }
 
 /**

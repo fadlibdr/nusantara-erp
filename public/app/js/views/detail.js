@@ -1,7 +1,7 @@
 /* Generic document detail: header, key/value panel, line tables, approvals. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast } from '../ui.js';
+import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast, menuButton } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
@@ -11,7 +11,7 @@ import { openForm } from './form.js';
 import { RESOURCES } from '../schema.js';
 import { actionButtons } from './actions.js';
 import { downloadPdf, openPrintable, pdfName, xlsxName } from '../print.js';
-import { loadPrintForms, printButtonsFor, printablePath, xlsxPath } from '../printcatalog.js';
+import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
 import { navigate, back } from '../router.js';
 
 const HIDDEN_KEYS = new Set([
@@ -27,6 +27,12 @@ const HIDDEN_KEYS = new Set([
   // Empat tabel baris IPP (P1-ENG) — 'materials'/'equipment' sudah di atas;
   // dua sisanya dirender detail.tables juga, bukan badge JSON.
   'drawings', 'material_approvals',
+  // T3.6: bendera untuk tombol "Lengkapi kontrak" pada penawaran (cangkang
+  // Tandai Menang tanpa jadwal) — keadaan tombol, bukan data dokumen.
+  'contract_needs_schedule',
+  // T3.7: surat penagihan yang boleh dicetak berikutnya — keadaan tombol
+  // "Cetak surat penagihan ke-N"; tingkatnya sendiri (dunning_level) tampil.
+  'dunning_next_level',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -49,6 +55,15 @@ const WHEN_SET_KEYS = new Set([
   // yang memang tidak mengutip metode tidak perlu dua baris "—" untuk satu
   // ketiadaan yang sama.
   'method_library_code',
+  // T3.6: alasan selisih nilai kontrak terhadap DPP penawarannya. Berbeda
+  // dari pr_bypass_reason (T3.8) yang sengaja tampil "—" untuk membuka
+  // alasan yang HILANG, di sini server menolak alasan yang hilang, jadi
+  // null selalu berarti "nilainya sama dengan penawaran" — barisnya diam.
+  'value_change_reason',
+  // T3.7: tanggal surat penagihan terakhir — kosong sampai surat pertama
+  // dicetak; "Surat penagihan terakhir: —" di samping "Tingkat penagihan: 0"
+  // adalah satu ketiadaan yang disebut dua kali.
+  'last_dunning_at',
 ]);
 
 /*
@@ -222,7 +237,12 @@ const LABELS = {
   active_deployment: 'Penempatan aktif',
   account_code: 'Kode akun', account_name: 'Atas nama', account_no: 'No. rekening',
   account_type: 'Jenis akun', normal_balance: 'Saldo normal',
-  project_code: 'Kode proyek', contract_code: 'No. kontrak', quotation_code: 'No. penawaran',
+  // quotation_code "Dari penawaran", bukan "No. penawaran": label yang sama
+  // dengan pemilihnya di formulir kontrak, dan kalimat yang dibaca pada
+  // kontrak — CTR/2026/VIII/0004 di produksi (4 Sep 2026) tidak menyebut
+  // penawaran Rp 2,04 M asalnya sama sekali (T3.6).
+  project_code: 'Kode proyek', contract_code: 'No. kontrak', quotation_code: 'Dari penawaran',
+  value_change_reason: 'Alasan perubahan nilai',
   boq_code: 'Kode BOQ', cost_budget_code: 'Kode RAP', cost_budget_status: 'Status RAP',
   cost_budget_id: 'RAP', boq_total: 'Total BOQ', boq_wbs_code: 'Kode WBS BOQ',
   issue_code: 'No. pengeluaran barang', ticket_code: 'No. tiket', invoice_code: 'No. invoice',
@@ -279,6 +299,11 @@ const LABELS = {
   rfq_id: 'RFQ', is_winner: 'Pemenang', vendor_ids: 'Vendor diundang',
   qty_received: 'Qty diterima', qty_returned: 'Qty diretur', qty_used: 'Qty terpakai',
   qualification_override_reason: 'Alasan override kualifikasi',
+  // T3.8: jejak PO tanpa PR, ditampilkan seperti alasan override di atasnya.
+  pr_bypass_reason: 'Alasan tanpa PR',
+  // T3.7: surat penagihan ke-1/2/3 pada invoice pelanggan — 0 berarti belum
+  // ada surat, dan itu fakta kolom yang layak dibaca, bukan baris kosong.
+  dunning_level: 'Tingkat penagihan', last_dunning_at: 'Surat penagihan terakhir',
   goods_receipt_id: 'Penerimaan barang', field_report_id: 'Laporan lapangan',
   issue_id: 'Pengeluaran barang', wbs_task_id: 'Tugas WBS', boq_item_id: 'Item BOQ',
   // P4 — SP3 mandor & opname mandor; tanpa entri ini titleize() jatuh ke
@@ -530,6 +555,47 @@ function nestedTable(sections, table) {
   ]));
 }
 
+/** Kalimat keadaan dokumen di bawah judul, atau null bila statusnya tidak dikenal. */
+function statusStrip(def, record, canEdit) {
+  const status = String(record.status || '');
+  const approvals = Array.isArray(record.approvals) ? record.approvals : [];
+  const last = (action) => [...approvals].reverse().find((a) => a.action === action);
+  const who = (entry) => (entry && entry.user ? entry.user.name : 'Sistem');
+  const when = (entry) => (entry ? fmt.date(entry.created_at) : '');
+  const label = (def.labelOne || 'Dokumen');
+
+  let tone = 'info';
+  let text = null;
+  let sub = null;
+
+  if (status === 'draft') {
+    text = `${label} ini masih draf — belum masuk antrean siapa pun.`;
+    sub = canEdit ? 'Ubah dan Hapus tersedia sampai diajukan. Tekan Ajukan bila sudah lengkap.' : null;
+  } else if (status === 'submitted') {
+    const s = last('submitted');
+    const given = approvals.filter((a) => a.action === 'approved').length;
+    const need = Number(record.required_levels || 0);
+    text = `${s ? `Diajukan ${when(s)} oleh ${who(s)}` : 'Diajukan'} · menunggu persetujuan${need > 1 ? ` (${given} dari ${need} tingkat)` : ''}.`;
+    sub = 'Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.';
+    tone = 'warn';
+  } else if (status === 'rejected') {
+    const r = last('rejected');
+    text = `Ditolak ${when(r)} oleh ${who(r)}${r && r.note ? `: "${r.note}"` : '.'}`;
+    sub = 'Perbaiki lalu ajukan lagi; riwayat penolakan tetap tersimpan.';
+    tone = 'error';
+  } else if (['approved', 'posted', 'active', 'closed'].includes(status)) {
+    const a = last('approved');
+    text = a ? `Disetujui ${when(a)} oleh ${who(a)} · dokumen terkunci.` : `${label} ini terkunci (${record.status_label || status}).`;
+    sub = 'Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.';
+  }
+
+  if (!text) return el('span', { hidden: true });
+  return el(`.alert.${tone}`, { style: { marginBottom: '14px' } }, [
+    icon(tone === 'info' ? 'inbox' : 'warn', 15),
+    el('div', { style: { flex: '1' } }, [el('div', { text }), sub ? el('.cell-sub', { text: sub }) : null]),
+  ]);
+}
+
 export function approvalTimeline(approvals) {
   if (!approvals || !approvals.length) {
     return el('p.muted', { text: 'Belum ada riwayat persetujuan.', style: { margin: 0, fontSize: '13px' } });
@@ -568,33 +634,103 @@ export function approvalTimeline(approvals) {
  *   params  query string, param name => record field. A field the record does
  *           not carry is left out rather than sent empty — the endpoint's
  *           defaults are better than a blank.
+ *
+ * Satu daftar entri untuk dua bentuk: item menu "Cetak ▾" pada layar detail
+ * generik (printMenu, T2.6) dan tombol lepas pada layar custom yang merakit
+ * bilahnya sendiri (formButtons — rfq.js, tender.js, custom.js). `trigger`
+ * pada onClick adalah simpul yang memutar spinner withBusy: tombolnya sendiri
+ * untuk tombol lepas, tombol menunya untuk item menu (itemnya sudah dibuang
+ * begitu dipilih — lihat ui.js menuButton).
  */
-export function formButtons(forms, record) {
+export function formMenuItems(forms, record) {
   return (forms || [])
-    .filter((form) => record[form.idField || 'id'])
+    // The id the form anchors on, and the row state a form declared onlyWhen
+    // asks for (T3.7: surat penagihan ke-N only at dunning_level N).
+    .filter((form) => printableFor(form, record))
     .flatMap((form) => [
-      button(`Cetak ${form.label}`, {
+      {
+        label: `Cetak ${form.label}`,
         iconName: 'print',
         title: `Cetak ${form.label} dalam format formulir perusahaan`,
-        onClick: (event) => openPrintable(printablePath(form, record), event.currentTarget),
-      }),
+        onClick: (event, trigger) => openPrintable(printablePath(form, record), trigger),
+      },
       /* P8 — the same composition as the print sheet, as a spreadsheet. Drawn
          ONLY when the catalogue flags the slug (form.xlsx — satu pemilik di
          PHP), and downloaded like a PDF: fetched as a blob so the session
-         token rides along. */
+         token rides along. Di menu, kata kerjanya ikut ("Unduh … (XLSX)");
+         sebagai tombol lepas tetap "XLSX" seperti sebelumnya (short). */
       form.xlsx
-        ? button('XLSX', {
+        ? {
+          label: `Unduh ${form.label} (XLSX)`,
+          short: 'XLSX',
           iconName: 'download',
           title: `Unduh ${form.label} sebagai XLSX — sel yang di kertas bergaris adalah sel kosong, bukan 0`,
-          onClick: (event) => downloadPdf(
+          onClick: (event, trigger) => downloadPdf(
             xlsxPath(form, record),
             xlsxName(form.form, record.code || record[form.idField || 'id']),
-            event.currentTarget,
+            trigger,
           ),
-        })
+        }
         : null,
     ])
     .filter(Boolean);
+}
+
+export function formButtons(forms, record) {
+  return formMenuItems(forms, record).map((item) => button(item.short || item.label, {
+    iconName: item.iconName,
+    title: item.title,
+    onClick: (event) => item.onClick(event, event.currentTarget),
+  }));
+}
+
+/*
+ * "Cetak ▾" — every output of the document behind ONE button (T2.6).
+ *
+ * Diukur 4 Sep 2026 (harness S2 › po_bar, katalog cetak sudah diperbaiki —
+ * lihat printcatalog.js loadPrintForms): PO draf memajang Kembali · Cetak
+ * halaman · PDF · Cetak Pesanan Pembelian · XLSX · Ubah · Ajukan — 7 tombol
+ * setara di satu baris, keputusan bernilai ratusan juta di sebelah "Cetak
+ * halaman" (ASESMEN-UX §1.2). Tiga keluaran plus XLSX-nya kini satu menu:
+ * Cetak halaman, Unduh PDF, Cetak <formulir>, Unduh <formulir> (XLSX).
+ *
+ * Menu berisi SATU perintah adalah satu klik ekstra tanpa pilihan, jadi layar
+ * tanpa PDF dan tanpa formulir rumah yang boleh dicetak pemanggil (pengajuan
+ * cuti bagi direktur, tiket) tetap memakai tombol Cetak halaman langsung —
+ * bilahnya tidak berubah dari 2 Sep 2026.
+ */
+export function printMenu(def, key, record) {
+  const printPage = {
+    label: 'Cetak halaman',
+    iconName: 'print',
+    title: 'Cetak tampilan layar ini lewat peramban',
+    onClick: () => window.print(),
+  };
+  const items = [
+    printPage,
+    // A proper document with a letterhead and somewhere to sign, as opposed
+    // to the browser printing this screen.
+    def.printable
+      ? {
+        label: 'Unduh PDF',
+        iconName: 'download',
+        title: `Unduh ${def.labelOne} sebagai PDF`,
+        onClick: (event, trigger) => downloadPdf(
+          def.printable.path.replace('{id}', record.id),
+          pdfName(def.printable.prefix, record.code || record.id),
+          trigger,
+        ),
+      }
+      : null,
+    // Formulir rumah — the company's own construction forms, printed by the
+    // browser rather than saved as a PDF. One entry per form this caller may
+    // print: def.printForms plus the server catalogue for this resource,
+    // merged by printButtonsFor(); see formMenuItems() above for the shape.
+    ...formMenuItems(printButtonsFor(def, key), record),
+  ].filter(Boolean);
+
+  if (items.length === 1) return button('', { iconName: 'print', title: 'Cetak halaman', onClick: printPage.onClick });
+  return menuButton('Cetak', items, { iconName: 'print', title: 'Cetak atau unduh dokumen ini' });
 }
 
 export async function renderDetail(host, { key, def, id }) {
@@ -637,6 +773,10 @@ export async function renderDetail(host, { key, def, id }) {
   const title = record.code || record.name || record.title || `${def.labelOne} #${record.id}`;
   const subtitle = record.code ? (record.title || record.name || '') : '';
   document.title = `${title} · Nusantara ERP`;
+  // Enum kolom status di schema.js (ncrStatus, incidentStatus, defectStatus)
+  // menentukan warna lencananya; tanpa enum, peta kata bersama statusTone.
+  // Diukur 4 Sep 2026: NCR/2026/IX/0002 "Terbuka → green" di sini.
+  const statusEnum = (def.columns.find((column) => column.key === 'status') || {}).enum;
 
   // The breadcrumb was drawn with a placeholder id before the record loaded.
   const crumb = document.querySelector('#crumbs b');
@@ -644,39 +784,52 @@ export async function renderDetail(host, { key, def, id }) {
 
   clear(host);
 
+  /*
+   * Bilah aksi tiga zona (T2.6): kiri navigasi (Kembali), tengah keluaran
+   * (satu "Cetak ▾" — printMenu), kanan keputusan (Ubah, lalu aksi siklus
+   * hidup). Diukur 4 Sep 2026 (harness S2 › po_bar): PO draf 7 tombol setara
+   * di satu baris, kini 4. Hanya keputusan utama yang .primary: schema.js
+   * memberi variant 'primary' pada lebih dari satu aksi yang bisa tampil
+   * bersamaan (dua aksi aset tanpa `when`, misalnya); yang pertama dalam
+   * urutan skema — urutan siklus hidupnya — yang memegangnya.
+   *
+   * Panel catatan inline (details.action-note, T2.3) tetap anak langsung
+   * .actions dan paling akhir, BUKAN di zona keputusan: app.css mengukurnya
+   * di sana (flex-basis 100%, :has(.action-note)).
+   */
+  const lifecycle = actionButtons(def, record, reload);
+  const notePanels = lifecycle.filter((node) => node.matches('details.action-note'));
+  const decisions = [
+    canEdit ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key, row: record, onSaved: reload }) }) : null,
+    ...lifecycle.filter((node) => !notePanels.includes(node)),
+  ].filter(Boolean);
+  decisions.filter((node) => node.classList.contains('primary')).slice(1).forEach((node) => node.classList.remove('primary'));
+
   host.appendChild(el('.page-head', [
     el('div', [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
         el('h1', { text: title }),
-        record.status ? badge(record.status_label || record.status, fmt.statusTone(record.status)) : null,
+        record.status ? badge(record.status_label || record.status, fmt.statusTone(record.status, statusEnum)) : null,
       ]),
       subtitle ? el('.desc', { text: subtitle }) : null,
     ]),
     el('.actions', [
-      button('', { iconName: 'back', title: 'Kembali', onClick: () => back() }),
-      button('', { iconName: 'print', title: 'Cetak halaman', onClick: () => window.print() }),
-      // A proper document with a letterhead and somewhere to sign, as opposed
-      // to the browser printing this screen.
-      def.printable
-        ? button('PDF', {
-          iconName: 'download',
-          title: `Unduh ${def.labelOne} sebagai PDF`,
-          onClick: (event) => downloadPdf(
-            def.printable.path.replace('{id}', record.id),
-            pdfName(def.printable.prefix, record.code || record.id),
-            event.currentTarget,
-          ),
-        })
-        : null,
-      // Formulir rumah — the company's own construction forms, printed by the
-      // browser rather than saved as a PDF. One button per form this caller
-      // may print: def.printForms plus the server catalogue for this resource,
-      // merged by printButtonsFor(); see formButtons() above for the shape.
-      ...formButtons(printButtonsFor(def, key), record),
-      canEdit ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key, row: record, onSaved: reload }) }) : null,
-      ...actionButtons(def, record, reload),
+      el('.zone.navigasi', [button('', { iconName: 'back', title: 'Kembali', onClick: () => back() })]),
+      el('.zone.keluaran', [printMenu(def, key, record)]),
+      decisions.length ? el('.zone.keputusan', decisions) : null,
+      ...notePanels,
     ]),
   ]));
+
+  /*
+   * Strip status: satu kalimat tentang di mana dokumen ini berada dan apa yang
+   * bisa dilakukan sekarang. Ini jawaban di layar untuk tiga dari "enam kalimat
+   * untuk semua orang" di panduan pengguna — Ubah yang menghilang tanpa pesan,
+   * maker-checker, dan tidak ada batal setelah posting — yang dulu hanya bisa
+   * dibaca di dokumen, bukan di tempat orang bertanya (asesmen 2 Sep 2026).
+   * Datanya sudah ada di record.approvals; tidak ada permintaan tambahan.
+   */
+  host.appendChild(statusStrip(def, record, canEdit));
 
   /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
      words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.

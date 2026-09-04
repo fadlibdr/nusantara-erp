@@ -12,7 +12,7 @@ import { navigate } from '../router.js';
 import { MONTHS, rupiah } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
 import { downloadPdf, openPrintable, xlsxName } from '../print.js';
-import { loadPrintForms, printButtonsFor, printablePath, xlsxPath } from '../printcatalog.js';
+import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
 
 const state = new Map(); // per-resource UI state, kept across navigations
 
@@ -120,7 +120,7 @@ export async function renderList(host, { key, def }) {
       canCreate
         ? button(`Tambah ${def.labelOne}`, {
           variant: 'primary', iconName: 'plus',
-          onClick: () => openForm({ def, key, onSaved: () => load() }),
+          onClick: () => openForm({ def, key, onSaved: afterCreate }),
         })
         : null,
     ]),
@@ -586,9 +586,9 @@ export async function renderList(host, { key, def }) {
     if (!def.noDetail) return [];
 
     return printButtonsFor(def, key)
-      .filter((form) => row[form.idField || 'id'])
+      .filter((form) => printableFor(form, row))
       .flatMap((form) => [
-        button('', {
+        labelled(button('', {
           size: 'sm',
           variant: 'ghost',
           iconName: 'print',
@@ -597,12 +597,12 @@ export async function renderList(host, { key, def }) {
             event.stopPropagation();
             openPrintable(printablePath(form, row), event.currentTarget);
           },
-        }),
+        }), 'Cetak'),
         /* P8 — pendamping ekspornya, hanya bila katalog menandai slug-nya
            (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah tombol untuk
            layar noDetail, jadi ekspor harus ikut duduk di sini. */
         form.xlsx
-          ? button('', {
+          ? labelled(button('', {
             size: 'sm',
             variant: 'ghost',
             iconName: 'download',
@@ -611,10 +611,28 @@ export async function renderList(host, { key, def }) {
               event.stopPropagation();
               downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), event.currentTarget);
             },
-          })
+          }), 'Unduh')
           : null,
       ])
       .filter(Boolean);
+  }
+
+  /* Dokumen yang baru dibuat dibuka, bukan dikembalikan ke daftar: langkah
+     berikutnya hampir selalu ada di halamannya (Ajukan, lampiran, cetak), dan
+     mendarat di daftar berarti mencari barisnya dulu — satu klik ekstra pada
+     setiap dokumen (diukur 2 Sep 2026: 13 klik PO 2 baris, 1 di antaranya ini).
+     Layar tanpa halaman detail tetap memuat ulang daftarnya. */
+  function afterCreate(saved) {
+    if (saved && saved.id && !def.noDetail) navigate(`d/${key}/${saved.id}`);
+    else load();
+  }
+
+  /* Kata kerja untuk layar sentuh: app.css menulis data-label di samping ikon
+     pada pointer: coarse, karena title tidak pernah tampil tanpa hover
+     (ASESMEN-UX §1.5). Di layar biasa tombolnya tetap ikon saja. */
+  function labelled(btn, label) {
+    btn.dataset.label = label;
+    return btn;
   }
 
   function rowActions(row) {
@@ -628,17 +646,17 @@ export async function renderList(host, { key, def }) {
       (!def.deletableWhen || def.deletableWhen(row));
 
     if (canEdit) {
-      wrap.appendChild(button('', {
+      wrap.appendChild(labelled(button('', {
         size: 'sm', variant: 'ghost', iconName: 'edit', title: 'Ubah',
         onClick: (event) => {
           event.stopPropagation();
           openForm({ def, key, row, onSaved: () => load() });
         },
-      }));
+      }), 'Ubah'));
     }
 
     if (canDelete) {
-      wrap.appendChild(button('', {
+      wrap.appendChild(labelled(button('', {
         size: 'sm', variant: 'ghost', iconName: 'trash', title: def.deleteLabel || 'Hapus',
         onClick: async (event) => {
           event.stopPropagation();
@@ -654,7 +672,7 @@ export async function renderList(host, { key, def }) {
             },
           });
         },
-      }));
+      }), def.deleteLabel || 'Hapus'));
     }
 
     return wrap.childElementCount ? wrap : null;
@@ -693,7 +711,7 @@ export async function renderList(host, { key, def }) {
           : `Belum ada ${def.label.toLowerCase()} yang tercatat.`,
         {
           action: canCreate && !ui.q
-            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: () => load() }) })
+            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: afterCreate }) })
             : null,
         },
       ));

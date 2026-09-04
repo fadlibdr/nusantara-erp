@@ -610,6 +610,9 @@ return [
          * the submitted and the approved row, so a self-approval stays findable
          * afterwards with a single self-join whichever way this is set.
          */
+        // Umur antrean persetujuan sebelum erp:approval-watch mengingatkan lagi
+        // (hari); dua kalinya = eskalasi ke direktur. Lihat SettingService.
+        'aging_days' => 5,
         'segregation_of_duties' => true,
     ],
 ];

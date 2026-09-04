@@ -2,9 +2,9 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal } from './ui.js';
+import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
-import { NAV, RESOURCES } from './schema.js';
+import { NAV, RESOURCES, visibleNav } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
@@ -47,10 +47,23 @@ import { renderEkualisasi } from './views/ekualisasi.js';
 import { renderGaleriProyek } from './views/galeriproyek.js';
 import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
+import { renderTugas } from './views/tugas.js';
+import { openForm } from './views/form.js';
+import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
 const root = document.getElementById('root');
 const THEME_KEY = 'nusantara_erp_theme';
 const NAV_STATE_KEY = 'nusantara_erp_nav';
+/*
+ * Favorit dan Terakhir dibuka (T2.5) berkunci per id pengguna, tidak seperti
+ * NAV_STATE_KEY: tablet kantor lapangan dipakai bergantian, dan lima dokumen
+ * terakhir seorang pengawas bukan urusan kasir yang masuk sesudahnya.
+ */
+const FAVORITES_KEY = 'nusantara_erp_fav';
+const RECENT_KEY = 'nusantara_erp_recent';
+const RECENT_MAX = 5;
+const FAVORITES_LABEL = 'Favorit';
+const RECENT_LABEL = 'Terakhir dibuka';
 
 /* ------------------------------------------------------------------ theme */
 function applyTheme(theme) {
@@ -123,6 +136,8 @@ function renderLogin({ message } = {}) {
     passwordInput.value = 'password';
     passwordInput.focus();
   };
+  const passwordHelp = el('.password-help');
+  const hint = el('.login-hint');
 
   root.appendChild(el('.login', el('.login-card', [
     el('.login-brand', [
@@ -133,43 +148,421 @@ function renderLogin({ message } = {}) {
     el('.sub', { text: 'Gunakan email dan kata sandi yang diberikan administrator.' }),
     message ? el('.alert.info', { style: { marginBottom: '14px' } }, message) : null,
     form,
-    el('.login-hint', [
-      el('div', { text: 'Akun demo (kata sandi: password):' }),
-      el('div', [
-        el('code', { text: 'admin@nusantara.test', onclick: () => fill('admin@nusantara.test') }), ' · ',
-        el('code', { text: 'direktur@nusantara.test', onclick: () => fill('direktur@nusantara.test') }), ' · ',
-        el('code', { text: 'finance@nusantara.test', onclick: () => fill('finance@nusantara.test') }), ' · ',
-        el('code', { text: 'project-manager@nusantara.test', onclick: () => fill('project-manager@nusantara.test') }),
-      ]),
-    ]),
+    passwordHelp,
+    hint,
   ])));
+
+  /* Lupa kata sandi (T2.7): server yang tahu apakah tautan email sungguh
+     sampai ke orang. Dengan MAIL_MAILER=log (bawaan .env.example dan erp1)
+     suratnya mendarat di storage/logs — tombol "Lupa kata sandi" di keadaan
+     itu berbohong. GET iam/auth/password-help (saudara demo-accounts)
+     menjawab dua hal: tautan sampai atau tidak, dan siapa administratornya.
+     Tidak ada jawaban → tidak ada baris; halaman ini tidak menebak. */
+  api.get('iam/auth/password-help').then((help) => {
+    if (!help || typeof help !== 'object') return;
+    if (help.reset_by_email) {
+      passwordHelp.append('Lupa kata sandi? ', el('button.link-btn', {
+        type: 'button',
+        text: 'Kirim tautan pengaturan ulang',
+        onclick: () => openForgotPassword(emailInput.value.trim()),
+      }));
+    } else {
+      passwordHelp.textContent = `Lupa kata sandi? ${help.administrator
+        ? `Minta ${help.administrator} (administrator)`
+        : 'Minta administrator sistem'} mengatur ulang kata sandi Anda.`;
+    }
+  }).catch(() => {});
+
+  // Akun demo hanya bila server mengaku bukan produksi (GET iam/auth/demo-accounts).
+  // Dulu daftar email peran internal ini tercetak di halaman masuk publik tanpa
+  // memeriksa lingkungan apa pun.
+  api.get('iam/auth/demo-accounts').then((accounts) => {
+    if (!Array.isArray(accounts) || !accounts.length) return;
+    hint.appendChild(el('div', { text: 'Akun demo (kata sandi: password):' }));
+    hint.appendChild(el('div', accounts.flatMap((email, index) => [
+      index ? ' · ' : null,
+      el('code', { text: email, onclick: () => fill(email) }),
+    ])));
+  }).catch(() => {});
 
   emailInput.focus();
 }
 
-/* ------------------------------------------------------------------ shell */
-/**
- * Groups are gated by their own permission; an item may carry one too.
- *
- * A group whose own permission fails is still shown when one of its items is
- * individually permitted — which is how "Impor Data Master" reaches a warehouse
- * officer who has inv.create but no business with the rest of Sistem.
+/* ------------------------------------------------------------- kata sandi */
+/*
+ * Layanan mandiri kata sandi (T2.7). Sampai 2 Sep 2026 menu akun hanya
+ * "Tutup · Keluar" (HASIL-UJI §1, S9) dan setiap penggantian sandi lewat
+ * administrator — PANDUAN-PENGGUNA §0 kalimat 5 bahkan menyuruh orang berhenti
+ * mencarinya. Tiga pintu di bawah: ganti sandi dari menu akun (sandi lama
+ * wajib), kirim tautan dari halaman masuk, dan layar #/reset-password yang
+ * dibuka tautan itu.
  */
-function visibleNav() {
-  return NAV
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => !item.perm || session.can(item.perm)),
-    }))
-    .map((group) => ({
-      ...group,
-      // An item with its own permission has already been checked; the group
-      // permission only gates the items that do not declare one.
-      items: group.perm && !session.can(group.perm)
-        ? group.items.filter((item) => item.perm)
-        : group.items,
-    }))
-    .filter((group) => group.items.length > 0);
+
+/* Satu kalimat, sama persis dengan AuthController::LINK_SENT_MESSAGE — sengaja
+   tidak menyebut "terkirim": halaman masuk tidak tahu apakah alamat itu ada. */
+const LINK_SENT_MESSAGE = 'Jika email itu terdaftar dan aktif, tautan pengaturan ulang dikirim ke sana dan berlaku 60 menit.';
+
+function passwordField(autocomplete) {
+  return el('input', { type: 'password', autocomplete, required: true, placeholder: '••••••••' });
+}
+
+/* Galat 422 dilukis di bawah field yang bersangkutan; mengembalikan apakah ada
+   yang terlukis supaya pemanggil tahu kapan toast masih perlu. Kunci `password`
+   juga menampung galat konfirmasi (aturan `confirmed` Laravel menempel pada
+   field asalnya, bukan pada password_confirmation). */
+function paintPasswordErrors(error, controls) {
+  const errors = (error && error.errors) || {};
+  let painted = false;
+  Object.entries(controls).forEach(([key, input]) => {
+    const text = errors[key] ? [].concat(errors[key])[0] : '';
+    setFieldError(input, text);
+    if (text) painted = true;
+  });
+  return painted;
+}
+
+/* Isian kosong dan konfirmasi yang tidak sama ditangkap di sini, sebelum
+   permintaan — kalimatnya sama dengan yang akan dikirim server. */
+function passwordFormValid(controls, password, confirmation) {
+  Object.values(controls).forEach((input) => setFieldError(input, ''));
+  const empty = Object.values(controls).filter((input) => !input.value.trim());
+  if (empty.length) {
+    empty.forEach((input) => setFieldError(input, 'Wajib diisi.'));
+    empty[0].focus();
+    return false;
+  }
+  if (password.value !== confirmation.value) {
+    setFieldError(confirmation, 'Konfirmasi kata sandi tidak cocok.');
+    confirmation.focus();
+    return false;
+  }
+  return true;
+}
+
+/** Menu akun › Ganti kata sandi. */
+function openChangePassword() {
+  const current = passwordField('current-password');
+  const password = passwordField('new-password');
+  const confirmation = passwordField('new-password');
+  const controls = { current, password, password_confirmation: confirmation };
+
+  const form = el('form', { novalidate: true }, [
+    field('Kata sandi saat ini', current, { required: true }),
+    field('Kata sandi baru', password, { required: true, help: 'Minimal 8 karakter.' }),
+    field('Ulangi kata sandi baru', confirmation, { required: true }),
+    /* Konsekuensinya disebut, bukan disembunyikan: token Sanctum bertahan
+       melewati penggantian sandi, sama seperti lewat Sistem › Pengguna
+       (PANDUAN-ADMINISTRATOR §3.4). */
+    el('.help.muted', {
+      text: 'Berlaku untuk masuk berikutnya. Sesi yang sedang terbuka di perangkat lain tetap berjalan.',
+      style: { fontSize: '12px', lineHeight: '1.5' }, // .field .help hanya berlaku di dalam .field
+    }),
+  ]);
+  const submit = button('Simpan kata sandi', { variant: 'primary', onClick: () => form.requestSubmit() });
+  const dialog = modal({
+    title: 'Ganti kata sandi',
+    width: 'narrow',
+    body: form,
+    footer: [button('Batal', { onClick: () => dialog.close() }), submit],
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!passwordFormValid(controls, password, confirmation)) return;
+    await withBusy(submit, async () => {
+      try {
+        await api.put('iam/me/password', {
+          current: current.value,
+          password: password.value,
+          password_confirmation: confirmation.value,
+        });
+        dialog.close();
+        toast('Kata sandi Anda diperbarui.');
+      } catch (error) {
+        // Sandi lama yang salah datang sebagai 422 pada `current` dengan
+        // kalimat Indonesia dari lang/id/validation.php; dialog tetap terbuka.
+        if (!paintPasswordErrors(error, controls)) toastError(error);
+      }
+    });
+  });
+}
+
+/** Halaman masuk › Kirim tautan pengaturan ulang (hanya bila server mengaku suratnya sampai). */
+function openForgotPassword(prefill) {
+  const emailInput = el('input', { type: 'email', autocomplete: 'username', required: true, placeholder: 'nama@nusantara.test', value: prefill || '' });
+  const form = el('form', { novalidate: true }, [
+    field('Email akun Anda', emailInput, { required: true, help: 'Tautan berlaku 60 menit dan hanya sekali pakai.' }),
+  ]);
+  const submit = button('Kirim tautan', { variant: 'primary', onClick: () => form.requestSubmit() });
+  const dialog = modal({
+    title: 'Kirim tautan pengaturan ulang',
+    width: 'narrow',
+    body: form,
+    footer: [button('Batal', { onClick: () => dialog.close() }), submit],
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setFieldError(emailInput, '');
+    if (!emailInput.value.trim()) { setFieldError(emailInput, 'Wajib diisi.'); return; }
+    await withBusy(submit, async () => {
+      try {
+        await api.post('iam/auth/forgot-password', { email: emailInput.value.trim() });
+        dialog.close();
+        // Bertahan sampai ditutup: orang ini akan berpindah ke kotak masuknya.
+        toast(LINK_SENT_MESSAGE, { tone: 'info', timeout: 0 });
+      } catch (error) {
+        // 429 (satu tautan per menit) dan 409 (surat hanya ke log) datang
+        // dengan kalimat server; galat email dilukis di bawah field.
+        if (!paintPasswordErrors(error, { email: emailInput })) toastError(error);
+      }
+    });
+  });
+}
+
+/* Tautan dari surat: #/reset-password?token=…&email=…, dibaca di init()
+   SEBELUM sesi diperiksa — orang yang lupa sandinya tidak punya sesi. */
+function resetLinkParams() {
+  const hash = location.hash || '';
+  if (!/^#\/?reset-password(\?|$)/.test(hash)) return null;
+  const cut = hash.indexOf('?');
+  const query = new URLSearchParams(cut === -1 ? '' : hash.slice(cut + 1));
+  return { token: query.get('token') || '', email: query.get('email') || '' };
+}
+
+function renderResetPassword({ token, email }) {
+  clear(root);
+  root.className = '';
+
+  const emailInput = el('input', { type: 'email', autocomplete: 'username', required: true, value: email });
+  const password = passwordField('new-password');
+  const confirmation = passwordField('new-password');
+  const controls = { email: emailInput, password, password_confirmation: confirmation };
+  const refusal = el('.alert.error', { style: { marginBottom: '14px' } });
+  refusal.hidden = true;
+  const submit = button('Simpan kata sandi baru', { variant: 'primary', type: 'submit' });
+
+  const form = el('form', { novalidate: true }, [
+    field('Email', emailInput, { required: true }),
+    field('Kata sandi baru', password, { required: true, help: 'Minimal 8 karakter.' }),
+    field('Ulangi kata sandi baru', confirmation, { required: true }),
+    submit,
+  ]);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    refusal.hidden = true;
+    if (!passwordFormValid(controls, password, confirmation)) return;
+    await withBusy(submit, async () => {
+      try {
+        await api.post('iam/auth/reset-password', {
+          token,
+          email: emailInput.value.trim(),
+          password: password.value,
+          password_confirmation: confirmation.value,
+        });
+        /* Sesi yang kebetulan masih ada di tab ini ditutup: orang yang baru
+           mengatur ulang sandinya diminta masuk dengan sandi itu, dan tidak
+           tergelincir kembali ke sesi lama saat halaman dimuat ulang. */
+        if (session.token) await logout();
+        // replaceState, bukan location.hash = '': tidak memicu hashchange ke
+        // router yang belum punya shell untuk digambari.
+        history.replaceState(null, '', location.pathname + location.search);
+        renderLogin({ message: 'Kata sandi diperbarui. Masuk dengan kata sandi baru Anda.' });
+      } catch (error) {
+        const painted = paintPasswordErrors(error, controls);
+        const tokenError = error && error.errors && error.errors.token;
+        if (tokenError) {
+          // Tautan kedaluwarsa/terpakai: tidak ada field untuk dilukis —
+          // kalimat server (menyebut jalan keluarnya) tampil di atas formulir.
+          refusal.textContent = [].concat(tokenError)[0];
+          refusal.hidden = false;
+        } else if (!painted) {
+          toastError(error);
+        }
+      }
+    });
+  });
+
+  root.appendChild(el('.login', el('.login-card', [
+    el('.login-brand', [
+      el('img', { src: 'favicon.svg', alt: '', width: 38, height: 38 }),
+      el('div', [el('strong', { text: 'Nusantara ERP' }), el('span', { text: 'Konstruksi & Integrasi Sistem' })]),
+    ]),
+    el('h1', { text: 'Atur ulang kata sandi' }),
+    el('.sub', { text: 'Tautan dari surat "lupa kata sandi" berlaku 60 menit dan sekali pakai.' }),
+    refusal,
+    form,
+    el('.password-help', [el('button.link-btn', {
+      type: 'button',
+      text: 'Kembali ke halaman masuk',
+      onclick: () => { history.replaceState(null, '', location.pathname + location.search); renderLogin(); },
+    })]),
+  ])));
+
+  (email ? password : emailInput).focus();
+}
+
+/* ------------------------------------------------------------------ shell */
+/*
+ * Sidebar (T2.5). Diukur 2 Sep 2026 (HASIL-UJI §1, S5): admin 14 grup / 121
+ * tautan setinggi 4,9 viewport, direktur 4,9, finance 2,7, PM 2,6 — semua
+ * grup terbuka bawaan, Proyek dan Keuangan 20 tautan rata. Empat hal di sini:
+ * grup tertutup bawaan kecuali Ringkasan dan grup rute aktif; pemisah di
+ * dalam grup panjang; grup Favorit (bintang di tiap baris) dan Terakhir
+ * dibuka (lima dokumen terakhir) di atas Ringkasan. Penyaring izinnya
+ * visibleNav() di schema.js, dipakai juga oleh sumber "Layar" di Ctrl+K.
+ */
+const navForSession = () => visibleNav((perm) => session.can(perm));
+
+function personalKey(base) {
+  return `${base}:${(session.user || {}).id ?? 'anon'}`;
+}
+
+function readList(key) {
+  const list = JSON.parse(localStorage.getItem(key) || '[]');
+  return Array.isArray(list) ? list : [];
+}
+
+/*
+ * null = belum pernah menyentuh grup mana pun, dan itulah yang membedakan
+ * bawaan baru (tertutup) dari preferensi tersimpan (menang, seperti dulu).
+ * Dulu daftar kosong pun berarti "semua terbuka"; kini daftar kosong berarti
+ * persis itu: semuanya ditutup sendiri oleh pemakainya.
+ */
+function storedOpenGroups() {
+  const raw = localStorage.getItem(NAV_STATE_KEY);
+  return raw === null ? null : new Set(JSON.parse(raw));
+}
+
+function groupOpenByDefault(group, stored) {
+  if (stored) return stored.has(group.label);
+  return group.kind === 'shortcut' || group.label === 'Ringkasan';
+}
+
+/*
+ * Grup yang baru mendapat isi pertamanya membuka diri walau preferensi lama
+ * (tersimpan sebelum grup itu ada) tidak menyebutnya — bintang pertama yang
+ * melahirkan grup Favorit dalam keadaan terlipat terbaca sebagai bintang
+ * yang tidak bekerja.
+ */
+function ensureGroupOpen(label) {
+  const stored = storedOpenGroups();
+  if (!stored || stored.has(label)) return;
+  stored.add(label);
+  localStorage.setItem(NAV_STATE_KEY, JSON.stringify([...stored]));
+}
+
+function toggleFavorite(route) {
+  const key = personalKey(FAVORITES_KEY);
+  const list = readList(key);
+  const next = list.includes(route) ? list.filter((one) => one !== route) : [...list, route];
+  localStorage.setItem(key, JSON.stringify(next));
+  if (!list.length && next.length) ensureGroupOpen(FAVORITES_LABEL);
+  refreshNav();
+  // Fokus kembali ke bintang baris yang sama di grup asalnya: barisan
+  // Favorit baru saja dibangun ulang (atau barisnya hilang), dan pengguna
+  // papan ketik tidak boleh terlempar ke awal dokumen.
+  const star = document.querySelector(`nav.nav .nav-group:not([data-kind]) .nav-item[data-route="${CSS.escape(route)}"] .star`);
+  if (star) star.focus();
+}
+
+function rememberRecent(route, label, sub) {
+  const key = personalKey(RECENT_KEY);
+  const list = readList(key);
+  const next = [{ route, label, sub }, ...list.filter((one) => one.route !== route)].slice(0, RECENT_MAX);
+  localStorage.setItem(key, JSON.stringify(next));
+  if (!list.length) ensureGroupOpen(RECENT_LABEL);
+  refreshNav();
+}
+
+/* Favorit dirujuk lewat rute ke NAV yang sedang terlihat: bintang pada layar
+   yang izinnya dicabut ikut lenyap, dan kembali bila izinnya kembali (daftar
+   tersimpan tidak disunting). Terakhir dibuka disaring izin bacanya seperti
+   rute d/* sendiri, jadi tidak ada tautan ke halaman "akses ditolak". */
+function shortcutGroups(groups) {
+  const flat = groups.flatMap((group) => group.items.filter((item) => item.route));
+  const favorites = readList(personalKey(FAVORITES_KEY))
+    .map((route) => flat.find((item) => item.route === route))
+    .filter(Boolean);
+  const recent = readList(personalKey(RECENT_KEY))
+    .filter((one) => {
+      const def = RESOURCES[String(one.route).replace(/^d\//, '').replace(/\/[^/]+$/, '')];
+      return Boolean(def) && session.can(def.viewPerm || `${def.module}.view`);
+    })
+    .map((one) => ({ ...one, starrable: false, shortcut: true }));
+  return [
+    favorites.length ? { label: FAVORITES_LABEL, kind: 'shortcut', items: favorites } : null,
+    recent.length ? { label: RECENT_LABEL, kind: 'shortcut', items: recent } : null,
+  ].filter(Boolean);
+}
+
+function starButton(route, on) {
+  const verb = on ? 'Hapus dari Favorit' : 'Tandai sebagai Favorit';
+  const star = el('button.star', { type: 'button', 'aria-pressed': String(on), 'aria-label': verb, title: verb }, icon('star', 13));
+  if (on) star.classList.add('on');
+  star.addEventListener('click', () => toggleFavorite(route));
+  return star;
+}
+
+function navItemNode(item, favorites) {
+  const link = el('a', { href: `#/${item.route}`, dataset: { route: item.route }, title: item.sub || null }, [
+    el('span.tick'),
+    el('span.lbl', { text: item.label }),
+  ]);
+  const node = el(`.nav-item${item.shortcut ? '.shortcut' : ''}`, { dataset: { route: item.route } }, [link]);
+  if (item.starrable !== false) node.appendChild(starButton(item.route, favorites.includes(item.route)));
+  return node;
+}
+
+function navGroupNode(nav, group, favorites, stored) {
+  const items = el('.nav-items', group.items.map((item) => (item.divider
+    ? el('.nav-divider', { text: item.divider })
+    : navItemNode(item, favorites))));
+
+  // Class 'chev' dipasang di sini, bukan di icon(): selector rotasi
+  // `.nav-group[data-open="false"] > button .chev` di app.css tidak pernah
+  // menemukan sasarannya karena icon() merender svg polos — chevron diam
+  // saat grup ditutup dan satu-satunya penanda buka/tutup adalah
+  // muncul-hilangnya item.
+  const chev = icon('chevron', 13);
+  chev.classList.add('chev');
+  const groupNode = el('.nav-group', { dataset: { open: String(groupOpenByDefault(group, stored)) } }, [
+    el('button', { type: 'button' }, [group.label, chev]),
+    items,
+  ]);
+  if (group.kind) groupNode.dataset.kind = group.kind;
+
+  groupNode.querySelector('button').addEventListener('click', () => {
+    const next = groupNode.dataset.open !== 'true';
+    groupNode.dataset.open = String(next);
+    const open = [...nav.querySelectorAll('.nav-group')]
+      .filter((node) => node.dataset.open === 'true')
+      .map((node) => node.querySelector('button').textContent.trim());
+    localStorage.setItem(NAV_STATE_KEY, JSON.stringify(open));
+  });
+
+  return groupNode;
+}
+
+function renderNav(nav) {
+  clear(nav);
+  const groups = navForSession();
+  const favorites = readList(personalKey(FAVORITES_KEY));
+  const stored = storedOpenGroups();
+  for (const group of [...shortcutGroups(groups), ...groups]) {
+    nav.appendChild(navGroupNode(nav, group, favorites, stored));
+  }
+}
+
+/* Bangun ulang seluruh sidebar (121 tautan, sekali gambar) alih-alih menambal
+   satu grup: satu jalur kode untuk bintang, dokumen terakhir, dan izin yang
+   berubah. Status aktif dipasang lagi karena ia tidak pernah disimpan. */
+function refreshNav() {
+  const nav = document.querySelector('nav.nav');
+  if (!nav) return;
+  renderNav(nav);
+  setActiveNav(currentPath().split('?')[0]);
 }
 
 function buildShell() {
@@ -179,37 +572,8 @@ function buildShell() {
   const user = session.user || {};
   const main = el('main.main', { id: 'view' });
 
-  const openGroups = new Set(JSON.parse(localStorage.getItem(NAV_STATE_KEY) || '[]'));
   const nav = el('nav.nav', { 'aria-label': 'Navigasi utama' });
-
-  for (const group of visibleNav()) {
-    const isOpen = openGroups.size ? openGroups.has(group.label) : true;
-    const items = el('.nav-items', group.items.map((item) =>
-      el('a', { href: `#/${item.route}`, dataset: { route: item.route } }, [el('span.tick'), item.label])));
-
-    // Class 'chev' dipasang di sini, bukan di icon(): selector rotasi
-    // `.nav-group[data-open="false"] > button .chev` di app.css tidak pernah
-    // menemukan sasarannya karena icon() merender svg polos — chevron diam
-    // saat grup ditutup dan satu-satunya penanda buka/tutup adalah
-    // muncul-hilangnya item.
-    const chev = icon('chevron', 13);
-    chev.classList.add('chev');
-    const groupNode = el('.nav-group', { dataset: { open: String(isOpen) } }, [
-      el('button', { type: 'button' }, [group.label, chev]),
-      items,
-    ]);
-
-    groupNode.querySelector('button').addEventListener('click', () => {
-      const next = groupNode.dataset.open !== 'true';
-      groupNode.dataset.open = String(next);
-      const open = [...nav.querySelectorAll('.nav-group')]
-        .filter((node) => node.dataset.open === 'true')
-        .map((node) => node.querySelector('button').textContent.trim());
-      localStorage.setItem(NAV_STATE_KEY, JSON.stringify(open));
-    });
-
-    nav.appendChild(groupNode);
-  }
+  renderNav(nav);
 
   const userButton = el('button.userchip', { type: 'button' }, [
     el('.avatar', { text: initials(user.name) }),
@@ -284,6 +648,8 @@ function openUserMenu(user) {
     ]),
     footer: [
       button('Tutup', { onClick: () => dialog.close() }),
+      // Menu akun hanya "Tutup · Keluar" sampai 2 Sep 2026 (HASIL-UJI §1, S9).
+      button('Ganti kata sandi', { onClick: () => { dialog.close(); openChangePassword(); } }),
       button('Keluar', {
         variant: 'danger', iconName: 'logout',
         onClick: async (event) => {
@@ -315,7 +681,10 @@ function setActiveNav(path) {
     link.classList.toggle('active', active);
     if (active) {
       const group = link.closest('.nav-group');
-      if (group) group.dataset.open = 'true';
+      // Grup rute aktif dibuka (tidak disimpan) — inilah pengecualian bawaan
+      // tertutup. Favorit/Terakhir dibuka yang memuat rute yang sama tidak
+      // dipaksa: yang dilipat sendiri oleh pemakainya tetap terlipat.
+      if (group && !group.dataset.kind) group.dataset.open = 'true';
     }
   });
 }
@@ -590,6 +959,14 @@ function registerRoutes() {
     return guard(host, () => renderRetensi(host));
   });
 
+  route('tugas', () => {
+    setCrumbs(['Ringkasan', 'Tugas Saya']);
+    setActiveNav('tugas');
+    const host = view();
+    // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
+    return guard(host, () => renderTugas(host));
+  });
+
   route('tenggat', () => {
     setCrumbs(['Ringkasan', 'Tenggat']);
     setActiveNav('tenggat');
@@ -716,12 +1093,13 @@ function registerRoutes() {
     if (!session.can(def.viewPerm || `${def.module}.view`)) return accessDenied(host, def.module);
 
     const custom = def.customDetail && CUSTOM_DETAILS[def.customDetail];
+    const route = `d/${key}/${id}`;
 
     // The custom screens build their own action row in one pass, so the house-
     // form catalogue has to be in hand BEFORE they render — renderDetail awaits
     // it itself. Cached for the session, so this costs one request in total.
-    if (custom) {
-      return guard(host, async () => {
+    const shown = custom
+      ? guard(host, async () => {
         /* Kerangka dipasang SEBELUM menunggu, dan itulah seluruh maksud baris
            ini. view() di atas sudah mengosongkan #view, sementara layar custom
            baru menggambar kerangkanya sendiri SETELAH await di bawah selesai —
@@ -734,10 +1112,24 @@ function registerRoutes() {
         host.appendChild(el('.card', el('.card-body', el('.skeleton', { style: { height: '18px', width: '40%' } }))));
         await loadPrintForms();
         return custom(host, { id });
-      });
-    }
+      })
+      : guard(host, () => renderDetail(host, { key, def, id }));
 
-    return guard(host, () => renderDetail(host, { key, def, id }));
+    // Terakhir dibuka (T2.5) dicatat SETELAH layar tergambar: judulnya dibaca
+    // dari remah roti, yang layar detail timpa dengan kode dokumen begitu
+    // rekamannya tiba. Layar yang tidak pernah menggambar kepalanya (404,
+    // galat — guard menggambar .alert.error saja) tidak dicatat: tautan ke
+    // halaman galat bukan "terakhir dibuka". Bila halaman sudah berganti
+    // sebelum selesai, atau kepalanya tidak mengisi remah roti, labelnya
+    // nama sumber daya + id, bukan dibiarkan kosong.
+    shown.then(() => {
+      if (currentPath().split('?')[0] !== route || !host.querySelector('.page-head')) return;
+      const crumb = document.querySelector('#crumbs b');
+      const title = crumb && crumb.textContent.trim() !== `#${id}` ? crumb.textContent.trim() : '';
+      rememberRecent(route, title || `${def.labelOne || def.label} #${id}`, def.labelOne || def.label);
+    });
+
+    return shown;
   });
 
   fallback((path) => {
@@ -786,11 +1178,53 @@ async function boot() {
 
   // Refresh permissions in the background — roles may have changed since login.
   refreshMe().catch(() => {});
+  offerDrafts();
 }
 
+/*
+ * Sesi berakhir di tengah pekerjaan. Urutannya penting: (1) simpan draf
+ * formulir yang sedang terbuka, (2) tutup paksa semua overlay TANPA membuang
+ * draf itu, (3) baru gambar halaman masuk — yang dulu digambar DI BAWAH modal
+ * yang masih terbuka, sehingga tombol Masuk tertutup backdrop dan jalan keluar
+ * satu-satunya adalah Esc → "Buang isian" (diukur 2 Sep 2026).
+ */
 setUnauthorizedHandler(() => {
-  renderLogin({ message: 'Sesi Anda berakhir. Silakan masuk kembali.' });
+  flushAll();
+  suspendDraftRemoval(true);
+  try { closeAllModals(); } finally { suspendDraftRemoval(false); }
+  const drafts = listDrafts();
+  renderLogin({
+    message: drafts.length
+      ? `Sesi Anda berakhir. Isian ${drafts[0].label} yang sedang Anda buat tersimpan di peramban ini — masuk kembali untuk memulihkannya.`
+      : 'Sesi Anda berakhir. Silakan masuk kembali.',
+  });
 });
+
+/* Setelah masuk: tawarkan draf yang tertinggal, sekali, dengan jalan langsung
+   ke formulirnya. Toast bertahan sampai ditutup — orang yang baru saja
+   kehilangan sesi tidak boleh kehilangan tawarannya dalam lima detik. */
+function offerDrafts() {
+  const drafts = listDrafts().filter((d) => RESOURCES[d.resourceKey]);
+  if (!drafts.length) return;
+  const d = drafts[0];
+  const node = toast(`Ada isian ${d.label} yang belum tersimpan (${relativeAge(d.savedAt)}).`, {
+    tone: 'info', timeout: 0, title: 'Draf tersimpan di peramban ini',
+  });
+  node.querySelector('.msg').appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
+    button('Pulihkan', {
+      size: 'sm', variant: 'primary',
+      onClick: () => {
+        node.remove();
+        const key = d.resourceKey;
+        openForm({
+          def: RESOURCES[key], key, row: d.rowId ? { id: d.rowId } : null,
+          onSaved: (saved) => navigate(saved && saved.id && !RESOURCES[key].noDetail ? `d/${key}/${saved.id}` : `r/${key}`),
+        });
+      },
+    }),
+    button('Buang', { size: 'sm', variant: 'ghost', onClick: () => { removeDraft(d.resourceKey, d.rowId); node.remove(); } }),
+  ]));
+}
 
 // A view that blows up must say so rather than leaving a blank page behind.
 window.addEventListener('unhandledrejection', (event) => {
@@ -805,6 +1239,13 @@ window.addEventListener('error', (event) => {
 });
 
 async function init() {
+  // Tautan "lupa kata sandi" dibuka tanpa sesi — diperiksa sebelum apa pun.
+  const reset = resetLinkParams();
+  if (reset) {
+    renderResetPassword(reset);
+    return;
+  }
+
   if (!session.token) {
     renderLogin();
     return;

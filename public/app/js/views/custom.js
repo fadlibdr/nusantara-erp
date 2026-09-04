@@ -372,7 +372,7 @@ export async function renderTicket(host, { id }) {
       session.can('svc.update') ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key: 'servicedesk/tickets', row: ticket, onSaved: reload }) }) : null,
       ...actionButtons(def, ticket, reload),
     ],
-    badge(ticket.status_label || ticket.status, fmt.statusTone(ticket.status)),
+    badge(ticket.status_label || ticket.status, fmt.statusTone(ticket.status, 'ticketStatus')),
   ));
 
   const slaCard = (label, dueAt, doneAt, breached) => el('.stat', [

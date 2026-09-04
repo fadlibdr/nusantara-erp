@@ -6,11 +6,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use LogicException;
 use Modules\Core\Http\ApiController;
+use Modules\Crm\Http\Requests\ContractFromQuotationRequest;
 use Modules\Crm\Http\Requests\QuotationStoreRequest;
 use Modules\Crm\Http\Requests\QuotationUpdateRequest;
 use Modules\Crm\Http\Resources\ContractResource;
 use Modules\Crm\Http\Resources\QuotationResource;
 use Modules\Crm\Models\Quotation;
+use Modules\Crm\Services\ContractService;
 use Modules\Crm\Services\QuotationService;
 
 class QuotationController extends ApiController
@@ -51,8 +53,11 @@ class QuotationController extends ApiController
         // methodLibraryEntry ikut dimuat: Resource meratakan kode dan judulnya,
         // dan relasi yang tidak disebut di sini membuat kunci ratanya hilang
         // dari justru satu-satunya endpoint yang menyemai form edit.
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
         return $this->ok(QuotationResource::make(
-            $quotation->load('items', 'customer', 'lead', 'contract', 'methodLibraryEntry')
+            $quotation->load('items', 'customer', 'lead', 'contract', 'methodLibraryEntry', 'approvals.user')
         ));
     }
 
@@ -120,6 +125,30 @@ class QuotationController extends ApiController
         }
 
         return $this->created(ContractResource::make($contract), 'Quotation won; draft contract created.');
+    }
+
+    /**
+     * "Buat kontrak" / "Lengkapi kontrak" from a won quotation (T3.6).
+     *
+     * 201 when a contract is minted, 200 when the shell Tandai Menang left
+     * behind is completed under its own number — the SPA lands on the
+     * contract either way; the status tells an API caller which happened.
+     * The message names both documents: the contract is the subject, the
+     * quotation is where it came from.
+     */
+    public function createContract(ContractFromQuotationRequest $request, Quotation $quotation, ContractService $contracts): JsonResponse
+    {
+        try {
+            $contract = $contracts->createFromQuotation($quotation, $request->validated());
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage());
+        }
+
+        $contract->load('termins', 'customer', 'quotation');
+
+        return $contract->wasRecentlyCreated
+            ? $this->created(ContractResource::make($contract), "Kontrak {$contract->code} dibuat dari penawaran {$quotation->code}.")
+            : $this->ok(ContractResource::make($contract), "Kontrak {$contract->code} dilengkapi dari penawaran {$quotation->code}.");
     }
 
     public function markLost(Request $request, Quotation $quotation): JsonResponse

@@ -83,7 +83,12 @@ export function renderCell(row, column) {
       );
 
     case 'status':
-      return badge(row[`${column.key}_label`] || raw || '—', fmt.statusTone(raw));
+      // `column.enum` (bila ada) memberi statusTone enum-nya: 'open' merah untuk
+      // NCR/K3/defect, hijau untuk tiket — lihat enums.js dan format.js.
+      return badge(
+        row[`${column.key}_label`] || (column.enum ? enumLabel(column.enum, raw) : raw) || '—',
+        fmt.statusTone(raw, column.enum),
+      );
 
     case 'priority': {
       const tone = { critical: 'red', high: 'amber', medium: 'blue', low: '' }[raw] || '';

@@ -19,6 +19,12 @@ use Modules\Crm\Models\ContractTermin;
 use Modules\Crm\Models\Customer;
 use Modules\Crm\Models\Guarantee;
 use Modules\Crm\Models\Quotation;
+use Modules\Finance\Models\Account;
+use Modules\Finance\Models\ApBill;
+use Modules\Finance\Models\ArInvoice;
+use Modules\Finance\Models\BankAccount;
+use Modules\Finance\Models\Payment;
+use Modules\Finance\Services\ReportService;
 use Modules\HrPayroll\Models\Certificate;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
@@ -28,6 +34,8 @@ use Modules\Procurement\Models\Vendor;
 use Modules\Projects\Models\Milestone;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\SafetyIncident;
+use Modules\ServiceDesk\Models\ServiceContract;
+use Modules\ServiceDesk\Models\Ticket;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -139,6 +147,140 @@ class DeadlineWatchTest extends ErpTestCase
             'expected_date' => '2026-03-01',
             'total' => 232_500_000,
             'status' => 'approved',
+        ], $overrides));
+    }
+
+    private function vendor(): Vendor
+    {
+        return Vendor::query()->firstOr(fn () => Vendor::query()->create([
+            'name' => 'PT Sumber Makmur Elektrindo',
+            'is_subcontractor' => false,
+            'classification' => 'material',
+            'status' => 'active',
+        ]));
+    }
+
+    /** BIL/2026/VII/0002's live shape: approved, Rp 48,5 jt, due 27 Jun 2026, nothing paid. */
+    private function apBill(array $overrides = []): ApBill
+    {
+        return ApBill::query()->create(array_merge([
+            'vendor_id' => $this->vendor()->id,
+            'bill_date' => '2026-05-28',
+            'due_date' => '2026-06-27',
+            'description' => 'Tagihan kamera & NVR paket 2',
+            'vendor_invoice_no' => 'INV-VND-0002',
+            'dpp' => 48_500_000,
+            'total_payable' => 48_500_000,
+            'amount_paid' => 0,
+            'status' => 'approved',
+        ], $overrides));
+    }
+
+    /**
+     * A payment settling $amount of the bill in the shape
+     * PaymentService::settleBill really writes — allocation and lifetime
+     * amount_paid together, the AgingReportTest fixture — so the watcher is
+     * tested against a state the application can produce. Only a POSTED
+     * payment moves amount_paid, as in the service.
+     */
+    private function settleBill(ApBill $bill, float $amount, string $paymentDate, string $status = 'posted'): Payment
+    {
+        $bank = BankAccount::query()->firstOr(function (): BankAccount {
+            $account = Account::query()->create([
+                'code' => '1-1210',
+                'name' => 'Bank BCA Operasional',
+                'account_type' => 'asset',
+                'normal_balance' => 'debit',
+            ]);
+
+            return BankAccount::query()->create([
+                'code' => 'BANK-BCA-OPS',
+                'name' => 'BCA Operasional',
+                'bank_name' => 'Bank Central Asia',
+                'account_no' => '1234567890',
+                'account_name' => 'PT Nusantara Karya Integrasi',
+                'coa_account_id' => $account->id,
+                'is_active' => true,
+            ]);
+        });
+
+        $payment = Payment::query()->create([
+            'direction' => 'out',
+            'payment_date' => $paymentDate,
+            'bank_account_id' => $bank->id,
+            'amount' => $amount,
+            'reference' => 'TRF '.$paymentDate,
+            'status' => $status,
+        ]);
+        $payment->allocations()->create([
+            'payable_type' => 'ap_bill', // PaymentAllocation::TYPE_AP_BILL
+            'payable_id' => $bill->id,
+            'amount' => $amount,
+        ]);
+
+        if ($status === 'posted') {
+            $bill->forceFill(['amount_paid' => round((float) $bill->amount_paid + $amount, 2)])->save();
+        }
+
+        return $payment;
+    }
+
+    /**
+     * INV/2026/VIII/0004's live shape (production 4 Sep 2026): approved,
+     * Rp 15,42 M, nothing received — due 22 Jul here, so 10 days past on TODAY.
+     */
+    private function arInvoice(array $overrides = []): ArInvoice
+    {
+        return ArInvoice::query()->create(array_merge([
+            'code' => 'INV/2026/VII/0004',
+            'customer_id' => $this->customer()->id,
+            'contract_id' => $this->approvedContract()->id,
+            'invoice_date' => '2026-06-22',
+            'due_date' => '2026-07-22',
+            'description' => 'Penagihan termin 2 — Gedung Kantor Graha Sentosa',
+            'dpp' => 15_420_000_000,
+            'total' => 15_420_000_000,
+            'amount_paid' => 0,
+            'terbilang' => 'Lima belas miliar empat ratus dua puluh juta rupiah',
+            'status' => 'approved',
+        ], $overrides));
+    }
+
+    private function serviceContract(array $overrides = []): ServiceContract
+    {
+        return ServiceContract::query()->create(array_merge([
+            'customer_id' => $this->customer()->id,
+            'name' => 'Kontrak Pemeliharaan CCTV & Akses Kontrol RS Medika Husada',
+            'period_start' => '2026-04-01',
+            'period_end' => '2027-03-31',
+            'contract_value' => 480_000_000,
+            'sla_response_hours' => 4,
+            'sla_resolution_hours' => 24,
+            'status' => 'active',
+        ], $overrides));
+    }
+
+    /**
+     * TKT-202607-0003's seeded shape: the PM ticket assigned 5 Jul 2026,
+     * resolution due 8 Jul 14:00 (business hours, SlaService), never
+     * resolved — 24 days past on TODAY. The due moments are stored exactly
+     * as TicketService::applySlaDueDates writes them.
+     */
+    private function ticket(array $overrides = []): Ticket
+    {
+        $contract = $this->serviceContract();
+
+        return Ticket::query()->create(array_merge([
+            'service_contract_id' => $contract->id,
+            'customer_id' => $contract->customer_id,
+            'title' => 'PM CCTV Bulanan — 05/07/2026',
+            'category' => 'preventive',
+            'priority' => 'low',
+            'status' => 'assigned',
+            'channel' => 'system',
+            'reported_at' => '2026-07-05 06:00:00',
+            'response_due_at' => '2026-07-06 12:00:00',
+            'resolution_due_at' => '2026-07-08 14:00:00',
         ], $overrides));
     }
 
@@ -380,6 +522,303 @@ class DeadlineWatchTest extends ErpTestCase
         $this->watch();
 
         $this->assertCount(0, $this->alarms('Permintaan pembelian lewat tanggal dibutuhkan'));
+    }
+
+    // ------------------------------------------ tagihan vendor (AP, lead 7)
+
+    /**
+     * BIL/2026/VII/0002 (Rp 48,5 jt) on production: approved, due 27 Jun
+     * 2026, nothing paid, 69 days past due on 4 Sep 2026 and no screen said
+     * so (ANALISIS-PROSES-BISNIS-2026-09 §2, celah B1). An approved bill has
+     * no owner for the "buat pembayaran" step — this alarm is that owner, and
+     * it reaches fin.create (who prepares the PAY), not the approver.
+     */
+    public function test_an_approved_unpaid_ap_bill_past_its_due_date_alarms_finance(): void
+    {
+        $finance = $this->userWith('fin.create');
+        $this->userWith('prc.update');
+        $bill = $this->apBill(); // due 27 Jun 2026: 35 days past on TODAY
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tagihan vendor lewat jatuh tempo')->sole();
+        $this->assertStringContainsString($bill->code, $alarm->body);
+        $this->assertStringContainsString('senilai Rp 48,5 jt', $alarm->body);
+        $this->assertStringContainsString('jatuh tempo 27 Jun 2026', $alarm->body);
+        $this->assertStringContainsString('35 hari lalu', $alarm->body);
+        $this->assertSame('r/finance/ap-bills', $alarm->link);
+        $this->assertSame([$finance->id], $this->alarms('Tagihan vendor lewat jatuh tempo')->pluck('user_id')->all());
+    }
+
+    public function test_an_ap_bill_inside_its_seven_day_lead_window_alarms_as_menipis(): void
+    {
+        $this->adminUser();
+        $bill = $this->apBill(['due_date' => '2026-08-05']); // 4 of 7 lead days
+        $this->apBill(['due_date' => '2026-08-09']); // day 8: outside the window
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tagihan vendor mendekati jatuh tempo')->sole();
+        $this->assertStringContainsString($bill->code, $alarm->body);
+        $this->assertStringContainsString('4 hari lagi', $alarm->body);
+        $this->assertStringNotContainsString('Total', $alarm->body);
+        $this->assertCount(0, $this->alarms('Tagihan vendor lewat jatuh tempo'));
+    }
+
+    /**
+     * "Not fully paid" is the AP aging's definition, not the model's:
+     * total_payable minus allocations of POSTED payments dated on or before
+     * today (OutstandingAsOf::settled). fin_ap_bills.amount_paid is a lifetime
+     * figure a post-dated giro moves weeks before the money leaves — the aging
+     * refused it for that reason (ReportService::agingReport), and a watcher
+     * that read it would fall silent on a bill the same morning's aging still
+     * lists. Pinned by running both against the same four bills.
+     */
+    public function test_only_posted_payments_dated_by_today_settle_a_bill_the_way_the_aging_does(): void
+    {
+        $this->adminUser();
+        $paid = $this->apBill(['vendor_invoice_no' => 'INV-PAID']);
+        $this->settleBill($paid, 48_500_000, '2026-07-01');
+        $partly = $this->apBill(['vendor_invoice_no' => 'INV-PARTLY']);
+        $this->settleBill($partly, 20_000_000, '2026-07-01');
+        $postDated = $this->apBill(['vendor_invoice_no' => 'INV-GIRO']);
+        $this->settleBill($postDated, 48_500_000, '2026-08-15'); // giro dated two weeks ahead, already posted
+        $unposted = $this->apBill(['vendor_invoice_no' => 'INV-DRAFT-PAY']);
+        $this->settleBill($unposted, 48_500_000, '2026-07-01', 'draft');
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tagihan vendor lewat jatuh tempo')->sole();
+        $this->assertStringNotContainsString($paid->code, $alarm->body);
+        $this->assertStringContainsString($partly->code, $alarm->body);
+        $this->assertStringContainsString($postDated->code, $alarm->body);
+        $this->assertStringContainsString($unposted->code, $alarm->body);
+        $this->assertStringContainsString('Total 3 tagihan.', $alarm->body);
+
+        $aging = array_column(app(ReportService::class)->agingReport('ap')['rows'], 'code');
+        $expected = [$partly->code, $postDated->code, $unposted->code];
+        sort($aging);
+        sort($expected);
+        $this->assertSame($expected, $aging);
+    }
+
+    public function test_a_draft_submitted_cancelled_or_deleted_ap_bill_stays_silent(): void
+    {
+        $this->adminUser();
+        $this->apBill(['status' => 'draft']);
+        $this->apBill(['status' => 'submitted']);
+        $this->apBill([
+            'status' => 'cancelled',
+            'cancelled_at' => '2026-07-10 09:00:00',
+            'cancellation_reason' => 'Salah tagih, diganti tagihan baru.',
+        ]);
+        $this->apBill()->delete();
+
+        $this->watch();
+
+        $this->assertCount(0, $this->alarms('Tagihan vendor lewat jatuh tempo'));
+        $this->assertCount(0, $this->alarms('Tagihan vendor mendekati jatuh tempo'));
+    }
+
+    /**
+     * --dry-run: the scan, printed with the rows it would name, nothing
+     * written. The RECAP's T3.1 acceptance ("production dry-run lists
+     * BIL/2026/VII/0002") and the Phase 3 gate name it; erp:approval-watch has
+     * carried the same flag since the 2 Sep patch. Reading what the 08:30 run
+     * WOULD send must not itself send it.
+     */
+    // --------------------------------- customer invoices and their letters
+
+    /**
+     * T3.7: the alarm says how far the dunning has gone. Production 4 Sep
+     * 2026: INV/2026/VIII/0004 "diawasi tetapi tanpa tindakan" — the alarm
+     * named it and never said whether a surat penagihan had been printed.
+     */
+    public function test_an_approved_unpaid_invoice_past_its_due_date_alarms_finance_and_says_no_letter_went_out(): void
+    {
+        $finance = $this->userWith('fin.create');
+        $this->userWith('crm.update');
+        $invoice = $this->arInvoice();
+
+        $this->watch();
+
+        $alarm = $this->alarms('Invoice pelanggan lewat jatuh tempo')->sole();
+        $this->assertStringContainsString(
+            "{$invoice->code} senilai Rp 15,4 M jatuh tempo 22 Jul 2026 — 10 hari lalu; belum ada surat penagihan.",
+            $alarm->body,
+        );
+        $this->assertSame('r/finance/ar-invoices', $alarm->link);
+        $this->assertSame([$finance->id], $this->alarms('Invoice pelanggan lewat jatuh tempo')->pluck('user_id')->all());
+    }
+
+    public function test_the_invoice_alarm_names_the_letter_level_and_the_day_it_was_printed(): void
+    {
+        $this->userWith('fin.create');
+        $this->arInvoice(['dunning_level' => 2, 'last_dunning_at' => '2026-07-25 10:15:00']);
+
+        $this->watch();
+
+        $this->assertStringContainsString(
+            'jatuh tempo 22 Jul 2026 — 10 hari lalu; surat penagihan ke-2 dicetak 25 Jul 2026.',
+            $this->alarms('Invoice pelanggan lewat jatuh tempo')->sole()->body,
+        );
+    }
+
+    public function test_a_paid_cancelled_or_draft_invoice_stays_silent(): void
+    {
+        $this->userWith('fin.create');
+        $this->arInvoice(['code' => 'INV/2026/VII/0001', 'amount_paid' => 15_420_000_000, 'paid_at' => '2026-07-30']);
+        $this->arInvoice(['code' => 'INV/2026/VII/0002', 'status' => 'cancelled', 'cancelled_at' => '2026-07-30 09:00:00']);
+        $this->arInvoice(['code' => 'INV/2026/VII/0003', 'status' => 'draft']);
+
+        $this->watch();
+
+        $this->assertCount(0, $this->alarms('Invoice pelanggan lewat jatuh tempo'));
+    }
+
+    /**
+     * The letter clause is an embellishment, never the alarm's reason: a
+     * fin_ar_invoices that predates the T3.7 migration still raises its
+     * overdue alarm — the sentence just ends at its age, and the entry is
+     * NOT a SKIP line the way a missing scope column would be.
+     */
+    public function test_the_invoice_alarm_survives_the_dunning_columns_not_being_there_yet(): void
+    {
+        $this->userWith('fin.create');
+        $invoice = $this->arInvoice();
+        Schema::table('fin_ar_invoices', function (Blueprint $table): void {
+            $table->dropColumn(['dunning_level', 'last_dunning_at']);
+        });
+        WatchedDeadlines::flushSchemaMemo();
+
+        $this->artisan('erp:deadline-watch')
+            ->doesntExpectOutputToContain('SKIP ar_invoice_due')
+            ->assertExitCode(0);
+
+        $body = $this->alarms('Invoice pelanggan lewat jatuh tempo')->sole()->body;
+        $this->assertStringContainsString("{$invoice->code} senilai Rp 15,4 M jatuh tempo 22 Jul 2026 — 10 hari lalu.", $body);
+        $this->assertStringNotContainsString('surat penagihan', $body);
+    }
+
+    public function test_a_dry_run_prints_the_findings_and_writes_no_notification(): void
+    {
+        $this->adminUser();
+        $bill = $this->apBill();
+
+        $this->artisan('erp:deadline-watch --dry-run')
+            ->expectsOutputToContain('ap_due [lewat]: 1 row(s) -> fin.create')
+            ->expectsOutputToContain($bill->code.' senilai Rp 48,5 jt jatuh tempo 27 Jun 2026 — 35 hari lalu.')
+            ->assertExitCode(0);
+
+        $this->assertCount(0, $this->alarms());
+    }
+
+    // ------------------------------------------------ tiket layanan (lead 0)
+
+    /**
+     * Production dashboard, 4 Sep 2026: "4 melewati SLA" — four of six
+     * tickets assigned 23–40 days without a resolution and no escalation
+     * anywhere (ANALISIS-PROSES-BISNIS-2026-09 §2, celah D2). The deadline
+     * was always stored (svc_tickets.resolution_due_at, written by
+     * TicketService); nobody watched it. svc.update is the technician lane.
+     */
+    public function test_an_assigned_ticket_past_its_resolution_deadline_alarms_the_technicians(): void
+    {
+        $technicians = $this->userWith('svc.update');
+        $this->userWith('crm.update');
+        $ticket = $this->ticket(); // due 8 Jul 2026 14:00: 24 days past on TODAY
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tiket layanan lewat batas SLA')->sole();
+        $this->assertStringContainsString($ticket->code, $alarm->body);
+        $this->assertStringContainsString('batas penyelesaian 8 Jul 2026', $alarm->body);
+        $this->assertStringContainsString('24 hari lalu', $alarm->body);
+        $this->assertSame('r/servicedesk/tickets', $alarm->link);
+        $this->assertSame([$technicians->id], $this->alarms('Tiket layanan lewat batas SLA')->pluck('user_id')->all());
+    }
+
+    public function test_a_resolved_closed_or_cancelled_ticket_past_its_deadline_stays_silent(): void
+    {
+        $this->adminUser();
+        $this->ticket([
+            'status' => 'resolved',
+            'first_response_at' => '2026-07-06 09:00:00',
+            'resolved_at' => '2026-07-20 10:00:00', // late, but resolved — history, not a breach
+            'resolution_notes' => 'PM selesai, seluruh kamera normal.',
+        ]);
+        $this->ticket(['status' => 'closed', 'resolved_at' => '2026-07-20 10:00:00', 'closed_at' => '2026-07-21 08:00:00']);
+        $this->ticket(['status' => 'cancelled']);
+
+        $this->watch();
+
+        $this->assertCount(0, $this->alarms('Tiket layanan lewat batas SLA'));
+    }
+
+    /**
+     * Status strings pinned against Modules\ServiceDesk\Enums\TicketStatus:
+     * open and in_progress are as unresolved as assigned. pending_customer
+     * is out on purpose — the clock is the customer's and no technician
+     * action is left, the "an alarm always has an action left" rule.
+     */
+    public function test_open_and_in_progress_tickets_alarm_too_while_pending_customer_does_not(): void
+    {
+        $this->adminUser();
+        $open = $this->ticket(['status' => 'open']);
+        $inProgress = $this->ticket(['status' => 'in_progress', 'first_response_at' => '2026-07-06 09:00:00']);
+        $pending = $this->ticket(['status' => 'pending_customer', 'first_response_at' => '2026-07-06 09:00:00']);
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tiket layanan lewat batas SLA')->sole();
+        $this->assertStringContainsString($open->code, $alarm->body);
+        $this->assertStringContainsString($inProgress->code, $alarm->body);
+        $this->assertStringNotContainsString($pending->code, $alarm->body);
+        $this->assertStringContainsString('Total 2 tiket.', $alarm->body);
+    }
+
+    /**
+     * lead 0, and the watcher is day-granular: a deadline later TODAY reads
+     * "hari ini" under the overdue title at the 08:30 run — the reading
+     * po_expected gives a PO promised today; the hour-exact list is the
+     * Tiket Lewat SLA screen. A deadline inside its SLA says nothing.
+     */
+    public function test_a_ticket_inside_its_sla_stays_silent_and_one_due_later_today_reads_hari_ini(): void
+    {
+        $this->adminUser();
+        $inside = $this->ticket(['reported_at' => '2026-07-31 09:00:00', 'resolution_due_at' => '2026-08-03 14:00:00']);
+        $today = $this->ticket(['reported_at' => '2026-07-30 15:30:00', 'resolution_due_at' => self::TODAY.' 16:30:00']);
+
+        $this->watch();
+
+        $alarm = $this->alarms('Tiket layanan lewat batas SLA')->sole();
+        $this->assertStringNotContainsString($inside->code, $alarm->body);
+        $this->assertStringContainsString($today->code, $alarm->body);
+        $this->assertStringContainsString('hari ini', $alarm->body);
+    }
+
+    /**
+     * A ticket without a maintenance contract carries no SLA by design
+     * (SlaService::computeDueDates), so its NULL deadline is not missing
+     * data: it stays out of scope and must not raise the BLIND line that
+     * termins with forgotten due dates raise.
+     */
+    public function test_a_ticket_without_a_maintenance_contract_has_no_sla_and_is_not_blind(): void
+    {
+        $this->adminUser();
+        Ticket::query()->create([
+            'customer_id' => $this->customer()->id,
+            'title' => 'Permintaan penawaran kamera tambahan (tanpa kontrak)',
+            'priority' => 'medium',
+            'status' => 'open',
+            'reported_at' => '2026-06-01 10:00:00',
+        ]);
+
+        $this->artisan('erp:deadline-watch')
+            ->doesntExpectOutputToContain('BLIND ticket_sla')
+            ->assertExitCode(0);
+
+        $this->assertCount(0, $this->alarms('Tiket layanan lewat batas SLA'));
     }
 
     // ------------------------------------------------- PKWT (register baru)

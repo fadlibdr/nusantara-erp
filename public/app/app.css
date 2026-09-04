@@ -12,14 +12,14 @@
   --border-strong: #cbd2da;
   --text: #14181d;
   --text-2: #47505b;
-  --muted: #6b7684;
+  --muted: #5e6874; /* dulu #6b7684 = 4,26:1 di atas --bg pada teks 11 px — di bawah AA (2 Sep 2026) */
   --primary: #1a56db;
   --primary-hover: #1745b0;
   --primary-soft: #e8effc;
   --primary-fg: #ffffff;
   --danger: #c62828;
   --danger-soft: #fdecec;
-  --success: #1b7f4d;
+  --success: #17714a; /* dulu #1b7f4d = 4,42:1 di atas --success-soft pada badge 11,5 px */
   --success-soft: #e6f4ec;
   --warning: #96601a;
   --warning-soft: #fdf1dd;
@@ -73,8 +73,8 @@
   color-scheme: light;
   --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
   --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
-  --muted: #6b7684; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
-  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #1b7f4d;
+  --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
+  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
   --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
   --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
   --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
@@ -210,6 +210,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .login-hint code:hover { background: var(--primary-soft); color: var(--primary); }
 
+/* Lupa kata sandi (T2.7): satu baris di bawah tombol Masuk — tautan bila server
+   mengaku suratnya sampai, nama administrator bila tidak. .link-btn adalah
+   tombol yang tampak seperti tautan: <a href="#"> akan menggeser hash dan
+   membangunkan router di halaman yang belum punya shell. */
+.login .password-help { margin-top: 14px; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.6; }
+.login .password-help:empty { display: none; }
+.link-btn {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: var(--primary); text-decoration: underline; cursor: pointer;
+}
+.link-btn:hover { color: var(--primary-hover); }
+
 /* ----------------------------------------------------------------- shell */
 .shell {
   display: grid;
@@ -231,7 +243,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand img { width: 28px; height: 28px; flex: none; }
 .brand-text { min-width: 0; }
 .brand-text strong { display: block; font-size: 13.5px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.brand-text span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+/* 11 px adalah lantai ukuran huruf seluruh aplikasi (diukur 4 Sep 2026: S8
+   smallest_font_px 10,5 dari baris ini dan .userchip .who span; 10 dari
+   .bell-count). Teks 10 px yang tersisa ada di bawah, bukan di sini lagi. */
+.brand-text span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
 
 .header {
   grid-area: header;
@@ -268,7 +283,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .userchip .who { text-align: left; line-height: 1.25; }
 .userchip .who b { display: block; font-size: 12.5px; font-weight: 600; }
-.userchip .who span { display: block; font-size: 10.5px; color: var(--muted); }
+.userchip .who span { display: block; font-size: 11px; color: var(--muted); }
 
 /* ------------------------------------------------------------------- nav */
 .nav {
@@ -316,6 +331,38 @@ button, input, select, textarea { font: inherit; color: inherit; }
   margin-left: -14px; margin-right: 4px;
 }
 .nav-items a.active .tick { opacity: 1; }
+.nav-items a .lbl { min-width: 0; }
+
+/* Sidebar T2.5 — diukur 2 Sep 2026: admin 121 tautan / 4,9 viewport, Proyek
+   dan Keuangan 20 tautan rata. Pemisah = keterangan kecil di dalam grup
+   (11 px = lantai huruf T2.10, --muted di atas --surface lulus AA); baris
+   menu = tautan + bintang favorit, bintang tampil saat hover/fokus atau
+   selalu bila sudah aktif. Layar sentuh tidak punya hover, jadi di sana
+   bintang tampil redup terus dan sasaran sentuhnya dilebarkan. */
+.nav-divider {
+  margin: 7px 0 2px; padding: 0 10px 0 28px;
+  font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted);
+}
+.nav-divider:first-child { margin-top: 2px; }
+
+.nav-item { display: flex; align-items: center; gap: 2px; }
+.nav-item > a { flex: 1; min-width: 0; }
+.nav-item.shortcut .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-item .star {
+  flex: none; width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--muted); cursor: pointer;
+  opacity: 0;
+}
+.nav-item:hover .star, .nav-item:focus-within .star, .nav-item .star.on { opacity: 1; }
+.nav-item .star:hover, .nav-item .star:focus-visible { background: var(--surface-3); color: var(--text); }
+.nav-item .star.on { color: var(--primary); }
+.nav-item .star.on svg path { fill: currentColor; }
+@media (pointer: coarse) {
+  .nav-item .star { opacity: .45; width: 34px; height: 32px; }
+}
 
 /* ------------------------------------------------------------------ main */
 .main { grid-area: main; overflow-y: auto; padding: 20px 22px 60px; }
@@ -327,6 +374,71 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .page-head h1 { font-size: 20px; letter-spacing: -.015em; }
 .page-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
 .page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Catatan persetujuan inline (actions.js inlineNote) — diukur 2 Sep 2026: modal
+   catatan = 1 klik ekstra per persetujuan. Baris sendiri di bawah tombol
+   (flex-basis 100%); contain: inline-size supaya label, help, dan textarea
+   tidak ikut melebarkan .actions — lebarnya tetap mengikuti tombol, dan bilah
+   tetap berlabuh kanan lewat margin-left: auto di atas. */
+.page-head .actions .action-note { flex: 1 1 100%; contain: inline-size; }
+/* Pelipat rapat kanan lewat fit-content + margin-left: auto, BUKAN flex pada
+   <details>-nya: isi selain summary dirender di kotak slot internal
+   (::details-content), dan sebagai flex item kotak itu menciut ke lebar
+   teks help — terukur 4 Sep 2026: textarea 355 px di dalam panel 440 px. */
+.action-note > summary {
+  display: flex; align-items: center; gap: 5px; width: fit-content; margin-left: auto;
+  min-height: 28px; padding: 0 7px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 500; color: var(--primary);
+  cursor: pointer; user-select: none; list-style: none;
+}
+.action-note > summary::-webkit-details-marker { display: none; }
+.action-note > summary:hover { background: var(--surface-3); }
+.action-note[open] > summary { margin-bottom: 6px; }
+.action-note textarea { width: 100%; min-height: 56px; }
+/* Tombol rapat kanan selama panelnya ada: sebagai item yang membungkus,
+   panel tetap menyumbang satu `gap` (8 px) ke lebar max-content .actions —
+   terukur 4 Sep 2026: tombol berhenti 8 px sebelum tepi kanan. Sekali dibuka,
+   .actions perlu lebar untuk kotak catatannya. Peramban tanpa :has() hanya
+   kehilangan dua rapian ini. */
+.page-head .actions:has(.action-note) { justify-content: flex-end; }
+.page-head .actions:has(.action-note[open]) { min-width: min(100%, 440px); }
+@media (pointer: coarse) { .action-note > summary { min-height: 36px; } }
+
+/* Zonasi bilah aksi dokumen (detail.js renderDetail, T2.6): kiri navigasi
+   (Kembali), tengah keluaran (satu "Cetak ▾"), kanan keputusan (Ubah ·
+   Ajukan/Setujui/Tolak). Diukur 4 Sep 2026: PO draf 7 tombol setara di satu
+   baris, keputusan di sebelah "Cetak halaman"; kini 4 dengan sekat tipis di
+   antara zona. Zona kosong tidak digambar, jadi tidak ada sekat menggantung;
+   .actions tetap flex, jadi panel catatan (di atas) dan pembungkus baris
+   tetap bekerja. */
+.page-head .actions .zone { display: flex; gap: 8px; flex-wrap: wrap; }
+.page-head .actions .zone + .zone { padding-left: 12px; border-left: 1px solid var(--border-strong); }
+
+/* Tombol bermenu (ui.js menuButton) — "Cetak ▾" di bilah aksi dokumen (T2.6).
+   Popup absolut di bawah tombolnya, rapat kanan: bilah aksi berlabuh kanan
+   (margin-left: auto), jadi ruang kosongnya ada di kiri. Popup hanya ada di
+   DOM selagi terbuka — tidak ada aturan [hidden] di sini, sengaja. z-index di
+   atas th sticky (1), di bawah overlay (60). */
+.menu-wrap { position: relative; display: inline-flex; }
+.menu-trigger svg:last-child { margin-left: -2px; opacity: .7; }
+.menu-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 25;
+  min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+}
+.menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text);
+  font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--surface-3); }
+.menu-item:focus-visible { outline-offset: -2px; }
+.menu-item:disabled { opacity: .5; cursor: not-allowed; }
+.menu-item svg { flex: none; color: var(--muted); }
+/* Sasaran jempol, seperti .combo-opt dan .btn.sm di bawah. */
+@media (pointer: coarse) { .menu-item { min-height: 42px; } }
 
 /* --------------------------------------------------------------- buttons */
 .btn {
@@ -754,7 +866,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
 .chart .grid { stroke: var(--border); stroke-width: 1; }
 .chart .axis { stroke: var(--border-strong); stroke-width: 1; }
-.chart text { fill: var(--muted); font-size: 10px; font-family: var(--font); }
+.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
 .chart .plan { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 3; }
 .chart .act { fill: none; stroke: var(--primary); stroke-width: 2.5; }
 .chart .act-fill { fill: var(--primary); opacity: .08; }
@@ -860,7 +972,8 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   min-width: 15px; height: 15px; padding: 0 4px;
   border-radius: 8px;
   background: var(--danger); color: #fff;
-  font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+  /* 11 px, lantai aplikasi — teks 10 px terakhir (S8 4 Sep 2026). */
+  font-size: 11px; font-weight: 700; line-height: 15px; text-align: center;
   pointer-events: none;
 }
 
@@ -893,6 +1006,30 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    was designed on a desktop. */
 .field-select { width: 100%; }
 .btn.lg { padding: 12px 18px; font-size: 15px; width: 100%; justify-content: center; }
+
+/* T2.9 — antrean kirim foto: satu baris per foto tepat di bawah tombol kamera,
+   bilah kemajuan (.progress, ui.js progressBar) di bawah namanya; yang gagal
+   membawa "Kirim ulang · Buang". Kosong = tidak memakan tempat. Di lebar
+   ponsel tombolnya turun ke baris sendiri: dua tombol 36 px di samping nama
+   berkas IMG_20260904_101500.jpg menyisakan ~150 px untuk namanya. */
+.upload-queue { margin-top: 12px; }
+.upload-queue:empty { display: none; }
+.upload-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.upload-item:last-child { border-bottom: 0; }
+.upload-item-main { flex: 1; min-width: 0; }
+.upload-item .progress { margin-top: 6px; }
+.upload-item[data-state="failed"] > .upload-item-main > .cell-sub:first-of-type { color: var(--danger); }
+.upload-item .upload-warn { color: var(--warning); margin-top: 3px; }
+.upload-item .row-actions { flex: none; flex-wrap: nowrap; }
+.upload-pending .card-body > .cell-sub { margin: 0 0 4px; }
+@media (max-width: 480px) {
+  .upload-item { flex-wrap: wrap; }
+  .upload-item .row-actions { width: 100%; justify-content: flex-end; }
+}
 
 .field-photos { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
 .field-photo {
@@ -930,6 +1067,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 }
 .search-hit:hover, .search-hit:focus-visible { background: var(--surface-2); }
 .search-hit .cell-sub { color: var(--muted); font-size: 12px; }
+.search-hit.screen .cell-main { font-weight: 600; }
 
 /* ------------------------------------------------------- stacked overlays */
 /* A dialog opened over a form gets its own backdrop. Two full-strength ones
@@ -1091,6 +1229,14 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
 @media (pointer: coarse) {
   .combo-opt { min-height: 42px; display: flex; align-items: center; }
   .combo-pop { max-height: 50vh; }
+  /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
+  .btn.sm { height: 36px; }
+  .btn.sm.icon { width: 36px; }
+  /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
+     sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
+     samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */
+  table.data td .btn.icon[data-label] { width: auto; padding: 0 12px; }
+  table.data td .btn.icon[data-label]::after { content: attr(data-label); }
 }
 
 /* Print is the only way a financial report leaves this app; an open picker

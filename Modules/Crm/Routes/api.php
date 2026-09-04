@@ -44,6 +44,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('quotations/{quotation}/mark-won', [QuotationController::class, 'markWon'])->middleware('permission:crm.update');
     Route::post('quotations/{quotation}/mark-lost', [QuotationController::class, 'markLost'])->middleware('permission:crm.update');
     Route::post('quotations/{quotation}/revise', [QuotationController::class, 'revise'])->middleware('permission:crm.update');
+    // Kontrak dari penawaran yang menang (T3.6, ANALISIS-PROSES A1). Sampai
+    // 4 Sep 2026 rute ini tidak ada dan kontrak diketik ulang dari nol:
+    // QTN/2026/VIII/0008 Rp 2,04 M menjadi CTR/2026/VIII/0004 Rp 1,84 M tanpa
+    // quotation_id dan tanpa alasan selisihnya. crm.create, seperti
+    // convert-to-customer: yang dibuat adalah dokumen baru — kontrak.
+    Route::post('quotations/{quotation}/create-contract', [QuotationController::class, 'createContract'])->middleware('permission:crm.create');
 
     // Analitik win-rate (temuan #78): agregasi won_at/lost_at/lost_reason yang
     // sudah dicatat Tandai Menang/Kalah — win-rate per kuartal keputusan dan

@@ -9,7 +9,11 @@
            prefill MENGGANTI seluruh baris dari dokumen sumber tanpa bertanya;
            importPick membuka dialog centang lalu MENAMBAHKAN baris terpilih —
            lihat buildLines di views/form.js untuk kedua bentuknya.
-   action  { key, label, path, method, variant, perm, when, confirm, fields[] }
+   action  { key, label, path, method, variant, perm, when, confirm, fields[],
+             inlineNote }
+           fields membuka modal sebelum aksi; inlineNote { key, label } adalah
+           satu textarea opsional yang dilipat di bilah aksi (actions.js
+           inlineNote) dan ikut terkirim tanpa dialog.
 
    types — text | code | textarea | number | currency | qty | percent | date |
            datetime | time | bool | select | lookup | status | enum | rel |
@@ -32,7 +36,12 @@ function approvalActions(module, { submitPerm, approvePerm } = {}) {
     {
       key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
       perm: approvePerm || `${module}.approve`, when: IS_SUBMITTED, variant: 'success',
-      fields: [{ key: 'note', label: 'Catatan persetujuan', type: 'textarea' }],
+      /* Catatan persetujuan dilipat di bilah aksi, bukan `fields` yang membuka
+         modal pada SETIAP persetujuan: diukur 2 Sep 2026 (HASIL-UJI §1, S2)
+         3 klik per dokumen — Setujui, Setujui lagi di modal catatan, Buka —
+         untuk isian yang boleh kosong. Kini 2 tanpa catatan. Tolak tetap
+         lewat modal: alasannya wajib. Payload ke server tetap { note }. */
+      inlineNote: { key: 'note', label: 'Catatan persetujuan' },
     },
     {
       key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
@@ -96,6 +105,37 @@ function revisableActions(module, actions) {
    (form.js visibleWhen menahannya dari payload). */
 const ASSET_OWNED = (values, record) => (values.ownership ?? (record && record.ownership) ?? 'owned') === 'owned';
 const ASSET_RENTED = (values, record) => (values.ownership ?? (record && record.ownership) ?? 'owned') === 'rented';
+
+/* T3.8 — PO tanpa PR harus beralasan. Field alasannya ikut nilai HIDUP lookup
+   "Dari PR" (combobox mengembalikan null saat kosong): tampil dan wajib begitu
+   PR dikosongkan, hilang dari layar DAN dari payload begitu PR dipilih —
+   server (PurchaseOrderStoreRequest required_without) hanya menuntutnya bila
+   purchase_requisition_id kosong, jadi tidak ada 422 untuk field yang tidak
+   tampil. Diukur 4 Sep 2026 di produksi (ANALISIS-PROSES E3): PO/2026/III/0002
+   Rp 128 jt tanpa PR dan tanpa alasan tercatat. */
+const PO_WITHOUT_PR = (values) => values.purchase_requisition_id === null || values.purchase_requisition_id === undefined || values.purchase_requisition_id === '';
+
+/*
+ * T3.6 — isian formulir kontrak dari penawaran yang menang. Yang disalin
+ * adalah yang penawaran tahu: pelanggan, judul, lingkup, tarif PPN, dan
+ * nilai = DPP (sebelum PPN — crm_contracts.value memang DPP). Jadwal termin
+ * TIDAK diusulkan: penawaran tidak membawa termin dan kontrak tidak membawa
+ * baris rincian, jadi mengarang "DP 20% / BAST 80%" di sini berarti
+ * menyatakan kesepakatan yang tidak ada. Diukur 4 Sep 2026 di produksi:
+ * QTN/2026/VIII/0008 Rp 2,04 M diketik ulang menjadi CTR/2026/VIII/0004
+ * Rp 1,84 M tanpa tautan dan tanpa alasan (ANALISIS-PROSES A1). Server
+ * (create-contract) menyalin ulang pelanggan dan quotation_id apa pun yang
+ * dikirim — isian di sini supaya orangnya MELIHAT apa yang disalin sebelum
+ * Simpan, dan nilai yang ia ubah ditanyai alasannya oleh server.
+ */
+const CONTRACT_FROM_QUOTATION = (row) => ({
+  customer_id: row.customer_id,
+  quotation_id: row.id,
+  title: row.title,
+  scope_type: row.scope_type,
+  value: Number(row.dpp || 0),
+  ppn_rate: Number(row.ppn_rate || 0),
+});
 
 export const RESOURCES = {
   /* ============================================================== CRM === */
@@ -259,6 +299,29 @@ export const RESOURCES = {
         when: (row) => row.status === 'approved' && !row.won_at && !row.lost_at,
         confirm: 'Tandai penawaran ini sebagai dimenangkan?',
       },
+      /*
+       * T3.6 — dari penawaran menang ke kontraknya: formulir kontrak yang
+       * sudah terisi (CONTRACT_FROM_QUOTATION), disimpan ke
+       * {id}/create-contract (submitTo, actions.js). Dua tombol untuk dua
+       * keadaan yang SERVER bedakan (contract_code / contract_needs_schedule
+       * dari QuotationResource): belum ada kontrak → "Buat kontrak"; yang ada
+       * masih cangkang Tandai Menang (draf tanpa jadwal — CTR/2026/VIII/0005
+       * di produksi, 13 hari draf setelah QTN/2026/VII/0004 menang, 4 Sep
+       * 2026) → "Lengkapi kontrak", nomornya tetap. Kontrak yang sudah
+       * berjadwal: tanpa tombol — baris "No. kontrak" di Informasi menunjuknya.
+       * `=== null` / `=== true`: kedua kunci hanya ada bila show() memuat
+       * relasinya; baris daftar tidak membawanya dan tidak boleh menebak.
+       */
+      {
+        key: 'create-contract', label: 'Buat kontrak', perm: 'crm.create', variant: 'primary',
+        opens: 'crm/contracts', submitTo: '{id}/create-contract', prefill: CONTRACT_FROM_QUOTATION,
+        when: (row) => Boolean(row.won_at) && row.contract_code === null,
+      },
+      {
+        key: 'complete-contract', label: 'Lengkapi kontrak', perm: 'crm.create', variant: 'primary',
+        opens: 'crm/contracts', submitTo: '{id}/create-contract', prefill: CONTRACT_FROM_QUOTATION,
+        when: (row) => Boolean(row.won_at) && row.contract_needs_schedule === true,
+      },
       {
         key: 'mark-lost', label: 'Tandai Kalah', path: '{id}/mark-lost', method: 'POST',
         perm: 'crm.update', when: (row) => !row.won_at && !row.lost_at,
@@ -353,7 +416,8 @@ export const RESOURCES = {
       {
         key: 'approve', label: 'Setujui', path: '{id}/approve', method: 'POST',
         perm: 'crm.approve', variant: 'success', when: (r) => r.status === 'submitted',
-        fields: [{ key: 'note', label: 'Catatan persetujuan', type: 'textarea' }],
+        // Sama dengan approvalActions(): catatan inline, bukan modal (T2.3).
+        inlineNote: { key: 'note', label: 'Catatan persetujuan' },
       },
       {
         key: 'reject', label: 'Tolak', path: '{id}/reject', method: 'POST',
@@ -413,6 +477,16 @@ export const RESOURCES = {
           { key: 'contract_number_customer', label: 'No. kontrak pelanggan', type: 'text' },
           { key: 'scope_type', label: 'Lingkup', type: 'select', enum: 'scopeType', required: true },
           { key: 'value', label: 'Nilai kontrak (DPP)', type: 'currency', required: true },
+          {
+            // T3.6: hanya tampil bila kontrak merujuk penawaran. Server yang
+            // mewajibkannya — bila nilai berbeda dari DPP penawaran, 422-nya
+            // menyebut kedua angka dan dilukis di field ini; nilai yang sama
+            // menyimpan null walau diisi. Di bawah "Nilai kontrak" karena
+            // itulah angka yang dijelaskannya.
+            key: 'value_change_reason', label: 'Alasan perubahan nilai', type: 'textarea', span: 2,
+            visibleWhen: (values) => Boolean(values.quotation_id),
+            help: 'Wajib bila nilai kontrak berbeda dari nilai penawaran (DPP) yang dirujuk.',
+          },
           { key: 'ppn_rate', label: 'Tarif PPN (%)', type: 'percent', default: 11 },
           { key: 'sign_date', label: 'Tanggal tanda tangan', type: 'date' },
           { key: 'start_date', label: 'Mulai', type: 'date' },
@@ -1678,7 +1752,9 @@ export const RESOURCES = {
       // Merah, bukan hijau bawaan: temuan yang lewat target adalah hal pertama
       // yang ditanyakan pelanggan di meja serah terima.
       { key: 'is_overdue', label: 'Lewat target', type: 'flag', trueLabel: 'Ya', trueTone: 'red', falseLabel: '—' },
-      { key: 'status', label: 'Status', type: 'enum', enum: 'defectStatus', width: '1%' },
+      // Lencana, bukan teks polos: warnanya kini milik enumnya (open merah),
+      // sama seperti halaman detail dan register punch list.
+      { key: 'status', label: 'Status', type: 'status', enum: 'defectStatus', width: '1%' },
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
@@ -1754,7 +1830,9 @@ export const RESOURCES = {
       // Red, not the default green: an overdue corrective action is the one
       // thing a site manager gets asked about on a safety walk.
       { key: 'is_overdue', label: 'Tindakan telat', type: 'flag', trueLabel: 'Ya', trueTone: 'red', falseLabel: '—' },
-      { key: 'status', label: 'Status', type: 'enum', enum: 'incidentStatus', width: '1%' },
+      // Lencana, bukan teks polos: warnanya kini milik enumnya (open merah).
+      // Diukur 4 Sep 2026: daftar K3 tanpa lencana status, detailnya hijau.
+      { key: 'status', label: 'Status', type: 'status', enum: 'incidentStatus', width: '1%' },
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
@@ -2194,10 +2272,19 @@ export const RESOURCES = {
         fields: [
           { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
           { key: 'purchase_requisition_id', label: 'Dari PR', type: 'lookup', lookup: 'purchaseRequisitions' },
+          // Tersimpan di PO sebagai jejak audit, tampil di detail dan di
+          // formulir cetak — sama seperti alasan override prakualifikasi (T3.8).
+          { key: 'pr_bypass_reason', label: 'Alasan tanpa PR', type: 'textarea', span: 2, required: true, visibleWhen: PO_WITHOUT_PR,
+            help: 'PO ini dibuat tanpa permintaan pembelian (PR). Sebutkan mengapa pembelian langsung dilakukan (mis. kebutuhan darurat di lapangan).' },
           { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },
-          { key: 'expected_date', label: 'Perkiraan kirim', type: 'date' },
+          // Wajib sejak T3.5: kolom inilah yang dibaca pengawas tenggat
+          // `po_expected`. Diukur 4 Sep 2026 di produksi (ANALISIS-PROSES D1):
+          // PO/2026/III/0002 Rp 128 jt disetujui 40 hari tanpa GRN dan tak
+          // pernah disebut pengawas — tanggalnya kosong karena formulir tidak
+          // memintanya. Server menolak 422 "Perkiraan kirim wajib diisi.".
+          { key: 'expected_date', label: 'Perkiraan kirim', type: 'date', required: true },
           { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
           { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
           { key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea', span: 2 },
@@ -2234,28 +2321,42 @@ export const RESOURCES = {
       }],
     },
     actions: [
-      // Ajukan milik PO membawa satu field opsional: alasan override
-      // prakualifikasi. Server menolak 422 bila vendor terblokir (nonaktif /
-      // dokumen wajib kedaluwarsa) dan alasannya kosong; alasan yang terpakai
-      // tersimpan di qualification_override_reason PO sebagai jejak audit.
+      // Ajukan milik PO tidak membawa field: alasan override prakualifikasi
+      // diminta SESUDAH server menolak (aturan pertama di bawah), bukan di
+      // modal pada setiap pengajuan. Dulu Ajukan selalu membuka modal
+      // "Alasan override prakualifikasi" yang opsional — diukur 2 Sep 2026
+      // (HASIL-UJI §1, S3): 12 klik buat→ajukan PO 2 baris, dua di antaranya
+      // Ajukan + Ajukan di modal yang dikosongkan karena vendornya sehat.
+      // Alasan yang terpakai tetap tersimpan di qualification_override_reason
+      // PO sebagai jejak audit (PoQualificationOverrideAuditTest).
       ...approvalActions('prc').filter((action) => action.key !== 'submit'),
       {
         key: 'submit', label: 'Ajukan', path: '{id}/submit', method: 'POST',
         perm: 'prc.update', when: DRAFT_OR_REJECTED, variant: 'primary',
-        fields: [{
-          key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
-          type: 'textarea',
-          help: 'Kosongkan bila vendor sehat. Isi hanya bila pengajuan ditolak gate prakualifikasi dan tetap harus jalan (mis. pembelian darurat ke pemegang lisensi tunggal).',
-        }],
         /*
-         * Dua peringatan pola confirm-resubmit (temuan #72) bisa muncul saat
-         * mengajukan, BERURUTAN: kendali harga #34 (items.N.unit_price) lalu
-         * gate anggaran #33 (budget). actions.js mengonfirmasi satu jenis per
-         * putaran dan mengulang panggilannya dengan flag terkait; pesan dialog
-         * adalah pesan server apa adanya — pesan itulah yang menyebut angka
-         * harga/anggaran yang dikonfirmasi.
+         * Tiga penolakan pola confirm-resubmit (temuan #72) bisa muncul saat
+         * mengajukan, BERURUTAN dalam urutan server: gate prakualifikasi #35
+         * (qualification_override_reason — vendor nonaktif / dokumen wajib
+         * kedaluwarsa DI ANTARA draf dan pengajuan; PO ke vendor terblokir
+         * tidak pernah lahir sebagai draf), lalu kendali harga #34
+         * (items.N.unit_price), lalu gate anggaran #33 (budget). actions.js
+         * menjawab satu jenis per putaran dan mengulang panggilannya dengan
+         * jawabannya — flag untuk dua yang terakhir, isian wajib
+         * (promptField) untuk yang pertama; pesan dialog adalah pesan server
+         * apa adanya — pesan itulah yang menyebut vendor dan penyebab
+         * blokirnya, atau angka harga/anggaran yang dikonfirmasi.
          */
         confirmResubmit: [
+          {
+            promptField: {
+              key: 'qualification_override_reason', label: 'Alasan override prakualifikasi',
+              type: 'textarea', required: true,
+              help: 'Tersimpan di PO sebagai jejak audit. Sebutkan mengapa PO tetap harus jalan (mis. pembelian darurat ke pemegang lisensi tunggal).',
+            },
+            test: /^qualification_override_reason$/,
+            title: 'Vendor belum lolos prakualifikasi — tetap ajukan?',
+            confirmLabel: 'Ajukan dengan alasan ini',
+          },
           {
             flag: 'confirm_price_deviation',
             test: /^items\.\d+\.unit_price$/,
@@ -3872,6 +3973,30 @@ export const RESOURCES = {
         perm: 'fin.update', when: (row) => row.status === 'approved',
         fields: [{ key: 'faktur_pajak_no', label: 'Nomor faktur pajak', type: 'text', required: true, help: 'mis. 010.000-26.00000001' }],
       },
+      /*
+       * Surat penagihan ke-1/2/3 (T3.7). Produksi 4 Sep 2026: INV/2026/VIII/0004
+       * Rp 15,42 M disetujui, jatuh tempo 22 Sep, "diawasi tetapi tanpa
+       * tindakan" (ANALISIS-PROSES §3, celah A2) — pengawas jatuh tempo
+       * menyebutnya, dan tidak ada surat penagihan di sistem. Tiga aksi, satu
+       * per tingkat, yang tampil HANYA untuk tingkat berikutnya: `when`
+       * membaca dunning_next_level dari server (satu definisi di
+       * ArInvoice::dunningRefusal — belum disetujui, lunas, belum jatuh
+       * tempo, sudah surat terakhir → null), bukan menyalin aturannya. POST
+       * {id}/dunning menaikkan tingkatnya (tercatat di jejak audit), lalu
+       * `printForm` mencetak lembar surat-penagihan-N yang baru terbuka
+       * (actions.js). Cetak ULANG surat yang sudah terbit ada di menu
+       * Cetak ▾ (katalog, onlyWhen dunning_level = N) — tanpa POST.
+       */
+      ...[1, 2, 3].map((level) => ({
+        key: `dunning-${level}`, label: `Cetak surat penagihan ke-${level}`, path: '{id}/dunning', method: 'POST',
+        perm: 'fin.update', when: (row) => row.dunning_next_level === level,
+        confirm: (row) => `Surat penagihan ke-${level} ${row.code} akan dicetak dan tingkat penagihan invoice ini naik ke ${level} — `
+          + 'tercatat di jejak audit dan disebut pengawas jatuh tempo.'
+          + (level > 1 ? ` Surat ke-${level - 1} tidak dapat dicetak ulang setelahnya.` : '')
+          + (level === 3 ? ' Ini surat penagihan terakhir.' : ''),
+        printForm: `surat-penagihan-${level}`,
+        toast: (code) => `Surat penagihan ke-${level} ${code} diterbitkan.`,
+      })),
       {
         // Salah tagih adalah kejadian rutin. Sebelum ini dokumen yang terlanjur
         // disetujui tidak bisa ditarik sama sekali: piutang/hutang fiktif
@@ -3957,6 +4082,26 @@ export const RESOURCES = {
     detail: { summary: ['dpp', 'ppn_amount', 'pph_amount', 'total_payable', 'amount_paid', 'outstanding'] },
     actions: [
       ...approvalActions('fin'),
+      {
+        /* Tagihan yang disetujui tidak punya pemilik untuk langkah "buat
+           pembayaran" — ia menunggu seseorang ingat: BIL/2026/VII/0002
+           (Rp 48,5 jt) di produksi 69 hari lewat jatuh tempo pada 4 Sep 2026
+           (ANALISIS-PROSES-BISNIS-2026-09 §3, celah B1; pengawas tenggatnya
+           entri ap_due). Tombol ini membuka formulir pembayaran keluar yang
+           sudah terisi sisa tagihannya dan tersimpan langsung membuka PAY
+           barunya. Alokasi ke tagihan ini dipilih di layar pembayaran itu saat
+           mengajukan (kartu Tagihan AP) — formulir pembayaran memang tidak
+           membawa alokasi, dan menyalin id tagihan ke sana tanpa tahu apakah
+           ada potongan pajak bukan hal yang boleh dilakukan tombol. */
+        key: 'create-payment', label: 'Buat pembayaran', perm: 'fin.create', variant: 'primary',
+        when: (row) => row.status === 'approved' && Number(row.outstanding || 0) > 0,
+        opens: 'finance/payments',
+        prefill: (row) => ({
+          direction: 'out',
+          amount: Number(row.outstanding || 0),
+          notes: `Pembayaran ${row.code}${row.vendor?.name ? ` — ${row.vendor.name}` : ''}`,
+        }),
+      },
       {
         // Salah tagih adalah kejadian rutin. Sebelum ini dokumen yang terlanjur
         // disetujui tidak bisa ditarik sama sekali: piutang/hutang fiktif
@@ -5361,7 +5506,9 @@ export const RESOURCES = {
       { key: 'stage', label: 'Tahap', type: 'enum', enum: 'inspectionStage', width: '1%' },
       { key: 'description', label: 'Uraian', type: 'text' },
       { key: 'due_date', label: 'Batas Waktu', type: 'date' },
-      { key: 'status', label: 'Status', type: 'enum', enum: 'ncrStatus', width: '1%' },
+      // Lencana, bukan teks polos: warnanya kini milik enumnya (open merah).
+      // Diukur 4 Sep 2026: daftar NCR tanpa lencana (S7 ncr → []), detailnya hijau.
+      { key: 'status', label: 'Status', type: 'status', enum: 'ncrStatus', width: '1%' },
     ],
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
@@ -5525,11 +5672,29 @@ export const RESOURCES = {
   },
 };
 
+/*
+ * Izin persetujuan APA PUN — gerbang tautan Tugas Saya (NAV di bawah) dan
+ * kartu "Menunggu persetujuan Anda" di dasbor (T2.11). Bentuk izin, bukan
+ * nama: GET core/inbox hanya memuat jenis yang `<awalan>.approve`-nya
+ * dipegang pemanggil (ApprovalQueue::pending), jadi tanpa satu pun izin itu
+ * kotaknya selalu kosong. Diukur 2 Sep 2026 (HASIL-UJI §1, S5 › cards): kartu
+ * tergambar untuk 11 dari 11 peran demo, padahal 8 di antaranya (site-manager,
+ * estimator, procurement, warehouse, finance, hr, sales, teknisi) tidak
+ * menyetujui apa pun — bagi procurement dan hr, yang tak punya satu ubin pun,
+ * kartu kosong itu adalah separuh dasbornya. `.approve-director` sengaja tidak
+ * dihitung: tanda tangan tingkat kedua itu diperiksa di Approvable::approve,
+ * bukan oleh penyaring kotak masuk, jadi pemegangnya tanpa `.approve` tetap
+ * mendapat kotak kosong. Dipakai lewat session.can(ANY_APPROVE), yang
+ * memanggil fungsi ini dengan daftar izin yang dipegang; satu predikat untuk
+ * sidebar, sumber "Layar" di Ctrl+K, dan dasbor.
+ */
+export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve'));
+
 /** Sidebar structure. Each entry is gated by the module's `.view` permission. */
 export const NAV = [
   {
     label: 'Ringkasan', perm: null,
-    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view',
@@ -5593,7 +5758,16 @@ export const NAV = [
   },
   {
     label: 'Proyek', perm: 'prj.view',
+    /* Pemisah { divider } (T2.5): grup ini dan Keuangan masing-masing 20
+       tautan rata, sidebar admin 121 tautan setinggi 4,9 viewport — diukur
+       2 Sep 2026 (HASIL-UJI §1, S5). Struktur datanya tetap datar: hanya
+       renderer sidebar (app.js) yang menggambar pemisah sebagai keterangan
+       kecil; visibleNav() di bawah membuang pemisah yang bloknya kosong,
+       dan sumber "Layar" di Ctrl+K melewatinya. Bukan grup baru — grup baru
+       berarti satu judul lagi untuk dibuka, padahal masalahnya justru
+       terlalu banyak yang harus dibaca. */
     items: [
+      { divider: 'Pelaksanaan' },
       { label: 'Daftar Proyek', route: 'r/projects' },
       { label: 'Laporan Harian', route: 'r/projects/daily-reports' },
       { label: 'Lapangan (mobile)', route: 'lapangan' },
@@ -5606,10 +5780,12 @@ export const NAV = [
       { label: 'Variasi Kontrak (Plafon Opname)', route: 'r/projects/contract-variations' },
       { label: 'EVM & Baseline', route: 'evm' },
       { label: 'Milestone', route: 'r/projects/milestones' },
+      { divider: 'Serah terima' },
       // P3 — BAPP per zona, di atas BAST karena urutannya memang begitu: zona
       // diperiksa satu per satu, lalu proyeknya diserahterimakan.
       { label: 'BAPP per Zona', route: 'r/projects/zone-certificates' },
       { label: 'BAST', route: 'r/projects/bast' },
+      { divider: 'Izin & K3' },
       // P0-C — tiga izin lapangan: dokumen sungguhan, bukan pad cetak kosong.
       { label: 'Izin Kerja (IKL)', route: 'r/projects/work-permits' },
       { label: 'Izin Lembur (ILB)', route: 'r/projects/overtime-permits' },
@@ -5620,6 +5796,7 @@ export const NAV = [
       { label: 'Formulir K3 Harian', route: 'r/projects/hse-daily' },
       { label: 'Register IBPRP', route: 'r/projects/risk-register' },
       { label: 'Laporan K3', route: 'k3' },
+      { divider: 'Register' },
       { label: 'Register Defect (Punch List)', route: 'defects' },
       { label: 'Varian Material', route: 'varian' },
       { label: 'Penugasan Personel', route: 'r/projects/manpower-assignments' },
@@ -5691,16 +5868,23 @@ export const NAV = [
   },
   {
     label: 'Keuangan', perm: 'fin.view',
+    /* Lima pemisah (T2.5) — lihat catatan di grup Proyek. Urutan baris
+       digeser supaya tiap baris duduk di bawah keterangannya; rutenya tidak
+       ada yang berubah. */
     items: [
+      { divider: 'AR/AP' },
       { label: 'Invoice Termin (AR)', route: 'r/finance/ar-invoices' },
       { label: 'Tagihan Vendor (AP)', route: 'r/finance/ap-bills' },
       { label: 'Pembayaran', route: 'r/finance/payments' },
-      { label: 'Kasir Kas Kecil', route: 'kas-kecil' },
-      { label: 'Kas Kecil & Kasbon', route: 'r/finance/petty-cash-funds' },
-      { label: 'Jurnal', route: 'r/finance/journals' },
-      { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
       { label: 'Termin Siap Ditagih', route: 'siap-tagih' },
       { label: 'Piutang Retensi', route: 'retensi' },
+      { divider: 'Kas' },
+      { label: 'Kasir Kas Kecil', route: 'kas-kecil' },
+      { label: 'Kas Kecil & Kasbon', route: 'r/finance/petty-cash-funds' },
+      { label: 'Rekonsiliasi Bank', route: 'bank-recon' },
+      { divider: 'Pelaporan' },
+      { label: 'Jurnal', route: 'r/finance/journals' },
+      { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
       { label: 'Pengakuan Pendapatan', route: 'r/finance/revenue-recognition' },
       { label: 'Periode Fiskal', route: 'periods' },
       { label: 'Laporan Keuangan', route: 'reports' },
@@ -5709,12 +5893,13 @@ export const NAV = [
       // baris 1-1400 Rp 332.510.000 mencarinya di sini. Tanpa baris ini layar
       // hanya bisa dicapai dengan mengetik #/buku-besar sendiri.
       { label: 'Buku Besar', route: 'buku-besar' },
+      { divider: 'Pajak' },
       { label: 'Ekspor Pajak', route: 'tax-exports' },
       { label: 'Kalender Pajak', route: 'kalender-pajak' },
       // Tepat di bawah Kalender Pajak: lembar cetaknya menjangkar pada baris
       // masa kalender itu, jadi keduanya bertetangga di menu maupun di data.
       { label: 'Ekualisasi Pajak', route: 'ekualisasi-pajak' },
-      { label: 'Rekonsiliasi Bank', route: 'bank-recon' },
+      { divider: 'Master' },
       { label: 'Bagan Akun', route: 'r/finance/accounts' },
       { label: 'Pajak', route: 'r/finance/taxes' },
       { label: 'Rekening Bank', route: 'r/finance/bank-accounts' },
@@ -5788,6 +5973,38 @@ export const NAV = [
     ],
   },
 ];
+
+/**
+ * NAV yang boleh dilihat pemegang izin `can` — satu penyaring untuk sidebar
+ * (app.js) dan sumber "Layar" di Ctrl+K (search.js, T2.5), supaya palet tidak
+ * pernah menawarkan layar yang barisnya sendiri disembunyikan dari menu.
+ *
+ * Grup digerbangi izinnya sendiri; sebuah baris boleh membawa izin sendiri.
+ * Grup yang izinnya gagal tetap tampil bila salah satu barisnya lolos sendiri
+ * — begitulah "Impor Data Master" sampai ke petugas gudang yang memegang
+ * inv.create tanpa urusan dengan sisa grup Sistem. Baris berizin sendiri sudah
+ * diperiksa; izin grup hanya menggerbangi baris yang tidak menyatakan izin.
+ *
+ * Pemisah ikut lolos hanya bila bloknya (sampai pemisah berikutnya) masih
+ * berisi baris; keterangan di atas ruang kosong terbaca sebagai baris hilang.
+ */
+export function visibleNav(can) {
+  return NAV
+    .map((group) => {
+      const gated = Boolean(group.perm) && !can(group.perm);
+      const items = group.items.filter((item) => item.divider || (item.perm ? can(item.perm) : !gated));
+      return { ...group, items: withoutEmptyDividers(items) };
+    })
+    .filter((group) => group.items.some((item) => item.route));
+}
+
+function withoutEmptyDividers(items) {
+  return items.filter((item, index) => {
+    if (!item.divider) return true;
+    const next = items.slice(index + 1).find((one) => one.divider || one.route);
+    return Boolean(next && next.route);
+  });
+}
 
 export function resource(key) {
   return RESOURCES[key] || null;

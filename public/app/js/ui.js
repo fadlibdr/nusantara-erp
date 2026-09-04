@@ -70,6 +70,7 @@ const PATHS = {
   print: 'M4.5 6V2.5h7V6M4.5 12H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1.5M4.5 9.5h7v4h-7z',
   sun: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 1v1.5M8 13.5V15M15 8h-1.5M2.5 8H1M12.9 3.1l-1 1M4.1 11.9l-1 1M12.9 12.9l-1-1M4.1 4.1l-1-1',
   moon: 'M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1Z',
+  star: 'M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z',
 };
 
 export function icon(name, size = 16) {
@@ -119,6 +120,139 @@ export async function withBusy(node, fn) {
   }
 }
 
+/* ------------------------------------------------------------------- menu */
+/*
+ * Tombol yang membuka daftar perintah — pola WAI-ARIA "menu button".
+ *
+ * Pemakai pertamanya "Cetak ▾" di bilah aksi dokumen (detail.js printMenu,
+ * T2.6). Diukur 4 Sep 2026 (harness S2 › po_bar): PO draf memajang 7 tombol
+ * setara di satu baris — Kembali · Cetak halaman · PDF · Cetak Pesanan
+ * Pembelian · XLSX · Ubah · Ajukan — dan keputusan bernilai ratusan juta duduk
+ * di sebelah "Cetak halaman" (ASESMEN-UX §1.2). Empat keluaran itu kini satu
+ * tombol.
+ *
+ * Popup-nya BARU dibangun saat dibuka dan dibuang saat ditutup: yang ada di
+ * DOM adalah tombol yang bisa ditekan sekarang, bukan empat tombol yang
+ * disembunyikan CSS — `.page-head .actions button` menghitung apa adanya.
+ * Satu menu terbuka pada satu waktu, seperti popup combobox.js. Escape
+ * menutup dan mengembalikan fokus ke tombolnya; Tab menutup lalu berjalan
+ * dari tombolnya (item yang dibuang tidak punya "berikutnya"); klik di luar
+ * dan pergantian rute menutup tanpa memindah fokus. Panah atas/bawah
+ * berpindah item, Home/End ke ujung, panah pada tombolnya membuka.
+ *
+ * items: [{ label, iconName, title, onClick(event, trigger) }] — trigger
+ * adalah tombol menunya, untuk withBusy: item yang dipilih sudah dibuang
+ * bersama popup-nya, jadi spinner harus duduk di tombol yang masih terlihat.
+ * onClick dipanggil SEBELUM popup ditutup dan tanpa await: openPrintable
+ * (print.js) membuka tab pada klik yang masih di tumpukan.
+ */
+let openMenu = null;
+let menuSeq = 0;
+
+export function menuButton(label, items, { iconName, title, variant = '', size = '' } = {}) {
+  const id = `menu-${++menuSeq}`;
+  const trigger = button(label, { iconName, title, variant, size });
+  trigger.id = `${id}-trigger`;
+  trigger.classList.add('menu-trigger');
+  trigger.appendChild(icon('chevron', 12));
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-expanded', 'false');
+  const wrap = el('span.menu-wrap', [trigger]);
+  let pop = null;
+
+  const itemsIn = () => (pop ? [...pop.querySelectorAll('.menu-item:not(:disabled)')] : []);
+
+  function close({ refocus = false } = {}) {
+    if (!pop) return;
+    const held = pop.contains(document.activeElement);
+    pop.remove();
+    pop = null;
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.removeAttribute('aria-controls');
+    document.removeEventListener('pointerdown', onOutside, true);
+    document.removeEventListener('keydown', onKey);
+    window.removeEventListener('hashchange', onRoute);
+    if (openMenu === handle) openMenu = null;
+    if (refocus || held) trigger.focus();
+  }
+
+  function onOutside(event) {
+    if (!wrap.contains(event.target)) close();
+  }
+
+  function onRoute() {
+    close();
+  }
+
+  function onKey(event) {
+    const list = itemsIn();
+    if (!list.length) return;
+    const at = list.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close({ refocus: true });
+    } else if (event.key === 'Tab') {
+      close({ refocus: true });
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      (list[at + 1] || list[0]).focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      (at > 0 ? list[at - 1] : list[list.length - 1]).focus();
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      list[0].focus();
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      list[list.length - 1].focus();
+    }
+  }
+
+  function open({ focusLast = false } = {}) {
+    if (pop) return;
+    if (openMenu) openMenu.close();
+    pop = el('.menu-pop', { id, role: 'menu', 'aria-labelledby': trigger.id });
+    items.filter(Boolean).forEach((item) => {
+      const node = el('button.menu-item', {
+        type: 'button', role: 'menuitem', tabindex: '-1', title: item.title, disabled: item.disabled || undefined,
+      }, [item.iconName ? icon(item.iconName, 14) : null, el('span', { text: item.label })]);
+      node.addEventListener('click', (event) => {
+        item.onClick(event, trigger);
+        close({ refocus: true });
+      });
+      pop.appendChild(node);
+    });
+    wrap.appendChild(pop);
+    /* Rapat kanan pada tombolnya (app.css .menu-pop). Bila tepi kirinya keluar
+       layar — ponsel 390 px: bilah aksi di 84–376 px, popup 358 px, terukur
+       4 Sep 2026 left −162 — geser ke kanan secukupnya, tidak lebih dari sisa
+       ruang di kanan; max-width popup < lebar layar, jadi selalu muat. */
+    const box = pop.getBoundingClientRect();
+    const shove = Math.min(Math.max(0, 8 - box.left), Math.max(0, window.innerWidth - 8 - box.right));
+    if (shove) pop.style.right = `${-shove}px`;
+    trigger.setAttribute('aria-expanded', 'true');
+    trigger.setAttribute('aria-controls', id);
+    document.addEventListener('pointerdown', onOutside, true);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('hashchange', onRoute);
+    openMenu = handle;
+    const list = itemsIn();
+    if (list.length) (focusLast ? list[list.length - 1] : list[0]).focus();
+  }
+
+  const handle = { close };
+
+  trigger.addEventListener('click', () => (pop ? close() : open()));
+  trigger.addEventListener('keydown', (event) => {
+    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !pop) {
+      event.preventDefault();
+      open({ focusLast: event.key === 'ArrowUp' });
+    }
+  });
+
+  return wrap;
+}
+
 /* ----------------------------------------------------------------- toasts */
 export function toast(message, { tone = 'ok', title, timeout = 5200 } = {}) {
   const host = document.getElementById('toasts');
@@ -137,9 +271,14 @@ export function toast(message, { tone = 'ok', title, timeout = 5200 } = {}) {
 export function toastError(error) {
   const details = error && error.details ? error.details : [];
   const message = details.length ? details.slice(0, 4).join('\n') : error.message || String(error);
+  /* Laravel menaruh galat pertama sebagai `message` DAN sebagai baris pertama
+     `errors`, jadi toast 422 dulu membaca kalimat yang sama dua kali — sekali
+     sebagai judul, sekali sebagai rincian (diukur 2 Sep 2026 pada PO). Judul
+     hanya dipakai bila ia memang kalimat lain. */
+  const firstDetail = details.length ? details[0].replace(/^[^:]+:\s*/, '') : null;
   toast(message, {
     tone: 'err',
-    title: details.length ? error.message : undefined,
+    title: details.length && firstDetail !== error.message ? error.message : undefined,
     /* A long refusal stays until dismissed. The maker-checker message is ~40
        words ending with the way out ("… matikan di Pengaturan"); at 200 wpm it
        needs ~12 detik, and the 8-second timer ate exactly the clause that told
@@ -414,6 +553,19 @@ export function closeModal() {
 }
 
 /*
+ * Menutup SEMUA lapisan tanpa bertanya. Satu-satunya pemanggilnya adalah jalur
+ * 401: sesi yang berakhir di tengah formulir dulu menggambar halaman masuk DI
+ * BAWAH overlay yang masih terbuka — tombol Masuk tertutup backdrop, dan satu-
+ * satunya jalan adalah Esc → "Buang isian" (diukur 2 Sep 2026). Isian tidak
+ * hilang karena penutupan ini: form.js sudah menyimpan drafnya ke localStorage
+ * pada setiap ketikan, dan app.js meminta flush sekali lagi sebelum memanggil
+ * ini.
+ */
+export function closeAllModals() {
+  while (stack.length) stack[stack.length - 1].close();
+}
+
+/*
  * How many layers are open, for the handlers `inert` cannot reach. A key
  * shortcut bound to document keeps firing while #root is inert, so search.js
  * asks this before opening the palette: stacking it over a half-typed purchase
@@ -513,11 +665,16 @@ function installRowKeys() {
       bodies.get(row.parentElement).push(row);
     });
 
-    for (const rows of bodies.values()) {
+    for (const [body, rows] of bodies) {
       // Whichever row has focus keeps the stop: a repaint of one cell must not
       // drag the tab stop back to row 1 while the user is standing on row 12.
       const home = rows.find((row) => row === document.activeElement) || rows[0];
       rows.forEach((row) => { row.tabIndex = row === home ? 0 : -1; });
+
+      // Pembaca layar membacakan isi sel, tetapi tidak pernah menyebut bahwa
+      // Enter membuka dokumennya (ASESMEN-UX §1.5, 2 Sep 2026). SEKALI di tbody,
+      // bukan per baris: 20 baris × satu kalimat yang sama adalah kebisingan.
+      if (!body.hasAttribute('aria-description')) body.setAttribute('aria-description', 'Tekan Enter untuk membuka');
     }
   };
 

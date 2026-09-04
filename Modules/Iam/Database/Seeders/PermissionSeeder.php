@@ -48,17 +48,37 @@ class PermissionSeeder extends Seeder
      * permission only narrows the route gate.
      */
 
+    /**
+     * Every permission name this seeder mints — PREFIXES × ACTIONS plus
+     * DIRECTOR_APPROVALS — derived, never counted by hand.
+     *
+     * The one list run() and erp:permission-check both read. Production admin
+     * held 74 of these on 4 Sep 2026 (HASIL-UJI §6.2 P-1): eng.* and qc.*
+     * were added to PREFIXES for P1-ENG/P1-QC and nothing re-ran this seeder
+     * against the live database, so two shipped packages were unreachable by
+     * anyone. A check that carried its own "86" would have drifted the same
+     * way the next time a prefix is added; reading the constants cannot.
+     *
+     * @return list<string>
+     */
+    public static function expected(): array
+    {
+        $names = [];
+
+        foreach (self::PREFIXES as $prefix) {
+            foreach (self::ACTIONS as $action) {
+                $names[] = "{$prefix}.{$action}";
+            }
+        }
+
+        return array_merge($names, self::DIRECTOR_APPROVALS);
+    }
+
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (self::PREFIXES as $prefix) {
-            foreach (self::ACTIONS as $action) {
-                Permission::findOrCreate("{$prefix}.{$action}", 'web');
-            }
-        }
-
-        foreach (self::DIRECTOR_APPROVALS as $name) {
+        foreach (self::expected() as $name) {
             Permission::findOrCreate($name, 'web');
         }
     }

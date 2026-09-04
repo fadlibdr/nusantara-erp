@@ -44,7 +44,10 @@ class BoqController extends ApiController
 
     public function show(Boq $boq): JsonResponse
     {
-        return $this->ok(new BoqResource($boq->load('sections.items')));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(new BoqResource($boq->load('sections.items', 'approvals.user')));
     }
 
     /**

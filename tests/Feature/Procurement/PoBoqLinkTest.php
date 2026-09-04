@@ -108,6 +108,8 @@ class PoBoqLinkTest extends ErpTestCase
         $response = $this->postJson('/api/procurement/purchase-orders', [
             'vendor_id' => $this->vendor()->id,
             'order_date' => '2026-08-08',
+            'expected_date' => '2026-08-22',
+            'pr_bypass_reason' => 'Fixture uji: pembelian langsung tanpa PR', // wajib sejak T3.8
             'items' => [[
                 'description' => 'Kabel NYY 4x10',
                 'qty' => 50,

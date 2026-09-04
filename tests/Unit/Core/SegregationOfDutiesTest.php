@@ -273,4 +273,23 @@ class SegregationOfDutiesTest extends ErpTestCase
     {
         $this->assertNull(SegregationOfDuties::submitterIdOf($this->makeDocument()));
     }
+
+    /**
+     * The owner-column fallback (T3.4) needs a column to read. This fixture
+     * table has none, so a document written straight to `submitted` — the
+     * seeded PR/2026/III/0002 shape of 4 Sep 2026 — has no maker here and
+     * stays approvable by anyone, exactly as before the fallback existed.
+     * MakerCheckerOwnerFallbackTest pins the tables that DO carry one.
+     */
+    public function test_without_an_owner_column_a_document_with_no_submission_has_no_maker(): void
+    {
+        $document = $this->makeDocument();
+        $document->forceFill(['status' => DocumentStatus::Submitted])->save();
+
+        $this->assertNull(SegregationOfDuties::makerIdOf($document));
+
+        $document->approve($this->makeUser('Andi Kurniawan'));
+
+        $this->assertSame(DocumentStatus::Approved, $document->fresh()->status);
+    }
 }

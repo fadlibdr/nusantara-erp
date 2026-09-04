@@ -95,6 +95,16 @@ class WatchedDeadlines
      *                        ON its end day, so that day reports as MENIPIS
      *                        ("hari ini") and LEWAT starts the day after. Needs
      *                        lead_days > 0, or the end day would land in no tier.
+     *  detail              — ['columns' => [...], 'text' => fn (object $row): ?string]:
+     *                        extra columns of the entry's own table read per
+     *                        row and turned into a clause appended to its
+     *                        sentence ("…; surat penagihan ke-2 dicetak 25 Jul
+     *                        2026"). NOT in 'columns' on purpose: those gate
+     *                        the whole entry, and the clause is an
+     *                        embellishment of the alarm, never its reason —
+     *                        an fin_ar_invoices not yet migrated for T3.7 still
+     *                        raises its overdue alarm, only without the
+     *                        clause (finding() checks the columns itself).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -429,6 +439,110 @@ class WatchedDeadlines
                     ->whereNull('paid_at')
                     ->whereNull('cancelled_at')
                     ->whereNull('deleted_at'),
+                /*
+                 * Sejauh mana invoice itu SUDAH disurati (T3.7). Produksi
+                 * 4 Sep 2026: INV/2026/VIII/0004 Rp 15,42 M "diawasi tetapi
+                 * tanpa tindakan" (ANALISIS-PROSES §3, celah A2) — alarm ini
+                 * menyebutnya tiap tiga pagi tanpa pernah mengatakan apakah
+                 * surat penagihan sudah dicetak, sehingga pembacanya membuka
+                 * invoicenya hanya untuk memeriksa itu. Kolomnya ditulis
+                 * ArInvoiceService::issueDunningLetter; 0 = belum ada surat
+                 * (fakta kolom, bukan tebakan), dan tanggal cetaknya
+                 * last_dunning_at (datetime — dipotong ke tanggalnya).
+                 */
+                'detail' => [
+                    'columns' => ['dunning_level', 'last_dunning_at'],
+                    'text' => static function (object $row): string {
+                        $level = (int) ($row->dunning_level ?? 0);
+
+                        if ($level === 0) {
+                            return 'belum ada surat penagihan';
+                        }
+
+                        $printed = $row->last_dunning_at === null
+                            ? ''
+                            : ' dicetak '.self::tanggal(substr((string) $row->last_dunning_at, 0, 10));
+
+                        return "surat penagihan ke-{$level}{$printed}";
+                    },
+                ],
+            ],
+            [
+                /*
+                 * Tagihan vendor yang sudah disetujui tidak punya pemilik untuk
+                 * langkah "buat pembayaran" — ia menunggu seseorang ingat.
+                 * BIL/2026/VII/0002 (Rp 48,5 jt) di produksi: disetujui, jatuh
+                 * tempo 27 Jun 2026, dan pada 4 Sep 2026 sudah 69 hari lewat
+                 * tanpa dibayar dan tanpa satu layar pun menyebutnya
+                 * (ANALISIS-PROSES-BISNIS-2026-09 §2, celah B1). lead 7: satu
+                 * PAY masih harus dibuat, diajukan, disetujui, lalu diposting,
+                 * dan fin.create-lah yang menyiapkannya — bukan penyetujunya.
+                 *
+                 * "Belum lunas" memakai definisi UMUR HUTANG (ReportService::
+                 * agingReport lewat OutstandingAsOf::settled), bukan kolom
+                 * amount_paid/paid_at seperti ar_invoice_due di atasnya:
+                 *
+                 *   sisa = total_payable
+                 *        − Σ fin_payment_allocations.amount
+                 *            untuk payable_type 'ap_bill'
+                 *            pada fin_payments berstatus 'posted', tidak
+                 *            terhapus, payment_date ≤ hari ini;
+                 *   dalam cakupan bila sisa > 0.
+                 *
+                 * amount_paid adalah angka SEUMUR HIDUP yang bergerak begitu
+                 * pembayaran diposting, apa pun tanggalnya: giro mundur
+                 * Rp 300 jt tertanggal 15 Sep dan diposting 3 Agu menghapus
+                 * dokumennya dari setiap laporan berbasis amount_paid enam
+                 * minggu sebelum uangnya keluar (terukur di data demo,
+                 * OutstandingAsOf). Pengawas yang membacanya akan diam persis
+                 * pada tagihan yang masih tercantum di umur hutang pagi yang
+                 * sama; dengan rumus di atas keduanya menyebut baris yang sama
+                 * (DeadlineWatchTest menjalankan keduanya atas empat tagihan
+                 * yang sama). Batas "hari ini" dibaca dari jam sistem — jam
+                 * yang sama dengan $today milik scan() (CarbonImmutable::today()
+                 * di DeadlineWatchCommand). 'value' = total tagihan, bukan
+                 * sisanya: badan pesan hanya mengutip satu kolom, dan sisanya
+                 * ada di layar umur hutang. Literal 'ap_bill' dan 'posted'
+                 * adalah PaymentAllocation::TYPE_AP_BILL dan
+                 * PaymentStatus::Posted — dipin oleh tes, tidak diimpor.
+                 */
+                'key' => 'ap_due',
+                'table' => 'fin_ap_bills',
+                'date' => 'due_date',
+                'display' => 'code',
+                'value' => 'total_payable',
+                'label' => 'Tagihan vendor',
+                'unit' => 'tagihan',
+                'date_word' => 'jatuh tempo',
+                'lead_days' => 7,
+                'permission' => 'fin.create',
+                'link' => 'r/finance/ap-bills',
+                'title_upcoming' => 'Tagihan vendor mendekati jatuh tempo',
+                'title_overdue' => 'Tagihan vendor lewat jatuh tempo',
+                'requires' => ['fin_payment_allocations', 'fin_payments'],
+                'columns' => [
+                    'status', 'cancelled_at', 'deleted_at',
+                    'fin_payment_allocations.payable_type', 'fin_payment_allocations.payable_id',
+                    'fin_payment_allocations.payment_id', 'fin_payment_allocations.amount',
+                    'fin_payments.status', 'fin_payments.deleted_at', 'fin_payments.payment_date',
+                ],
+                'scope' => static fn (Builder $query): Builder => $query
+                    ->where('status', DocumentStatus::Approved->value)
+                    ->whereNull('cancelled_at')
+                    ->whereNull('deleted_at')
+                    ->where('total_payable', '>', static fn (Builder $settled) => $settled
+                        ->selectRaw('COALESCE(SUM(fin_payment_allocations.amount), 0)')
+                        ->from('fin_payment_allocations')
+                        ->join('fin_payments', 'fin_payments.id', '=', 'fin_payment_allocations.payment_id')
+                        ->where('fin_payment_allocations.payable_type', 'ap_bill')
+                        ->whereColumn('fin_payment_allocations.payable_id', 'fin_ap_bills.id')
+                        ->where('fin_payments.status', 'posted')
+                        ->whereNull('fin_payments.deleted_at')
+                        // whereDate, bukan '<=' string: payment_date bertipe
+                        // cast date ("…-08-01 00:00:00"), yang sebagai string
+                        // jatuh SETELAH "…-08-01" — pembayaran hari ini
+                        // sendiri akan luput (aturan OutstandingAsOf).
+                        ->whereDate('fin_payments.payment_date', '<=', CarbonImmutable::today()->toDateString())),
             ],
             [
                 // next_due_date is pure manual entry — nothing in the codebase
@@ -513,6 +627,55 @@ class WatchedDeadlines
                 'columns' => ['status', 'deleted_at'],
                 'scope' => static fn (Builder $query): Builder => $query
                     ->where('status', 'active') // ServiceDesk ContractStatus::Active
+                    ->whereNull('deleted_at'),
+            ],
+            [
+                /*
+                 * Dasbor produksi 4 Sep 2026: "4 melewati SLA" — 4 dari 6
+                 * tiket berstatus assigned tanpa penyelesaian 23–40 hari, dan
+                 * tidak satu pun eskalasi (ANALISIS-PROSES-BISNIS-2026-09 §2,
+                 * celah D2). Tenggatnya SUDAH tersimpan sejak hari pertama:
+                 * svc_tickets.resolution_due_at (migrasi 001220) diisi
+                 * TicketService::applySlaDueDates saat tiket dibuat dan setiap
+                 * kontrak/prioritas/reported_at berubah, dari SlaService (jam
+                 * kerja, atau 24/7 untuk prioritas kritis). RECAP menyebut
+                 * kolom "sla_due_at" — nama yang tidak pernah ada; yang diawasi
+                 * kolom yang benar-benar dihitung itu, bukan kolom kedua yang
+                 * harus disinkronkan dengannya. Batas PENYELESAIAN, bukan batas
+                 * respons: itulah yang dihitung dasbor sebagai "melewati SLA"
+                 * (TicketService::slaBreaches) dan yang dibaca layar Tiket
+                 * Lewat SLA.
+                 *
+                 * lead 0 — tiket di dalam SLA-nya bukan berita. Pengawas ini
+                 * berbutir HARI: batas 16:30 hari ini terbaca "hari ini" pada
+                 * jalan 08:30, pembacaan yang sama dengan po_expected untuk PO
+                 * yang dijanjikan hari ini; jam-menitnya ada di layar Tiket
+                 * Lewat SLA. Cakupan open/assigned/in_progress (TicketStatus,
+                 * dipin DeadlineWatchTest): pending_customer sengaja di luar —
+                 * jamnya milik pelanggan, tidak ada tindakan teknisi yang
+                 * tersisa (aturan "alarm selalu punya tindakan" di kepala
+                 * berkas); resolved/closed/cancelled sudah selesai. Hanya tiket
+                 * BERKONTRAK: tanpa kontrak pemeliharaan memang tidak ada SLA
+                 * (SlaService::computeDueDates), jadi NULL di sana bukan data
+                 * yang hilang dan tidak boleh melahirkan baris BLIND. svc.update
+                 * = teknisi/koordinator yang mengerjakan tiketnya.
+                 */
+                'key' => 'ticket_sla',
+                'table' => 'svc_tickets',
+                'date' => 'resolution_due_at',
+                'display' => 'code',
+                'label' => 'Tiket layanan',
+                'unit' => 'tiket',
+                'date_word' => 'batas penyelesaian',
+                'lead_days' => 0,
+                'permission' => 'svc.update',
+                'link' => 'r/servicedesk/tickets',
+                'title_upcoming' => null,
+                'title_overdue' => 'Tiket layanan lewat batas SLA',
+                'columns' => ['status', 'service_contract_id', 'deleted_at'],
+                'scope' => static fn (Builder $query): Builder => $query
+                    ->whereIn('status', ['open', 'assigned', 'in_progress'])
+                    ->whereNotNull('service_contract_id')
                     ->whereNull('deleted_at'),
             ],
             [
@@ -790,10 +953,17 @@ class WatchedDeadlines
             return null;
         }
 
+        // The 'detail' clause reads columns that gate NOTHING: present, they
+        // ride the same SELECT; absent (a sibling lane mid-migration), the
+        // sentence simply ends at its age — see the key's docblock.
+        $detail = $entry['detail'] ?? null;
+        $detailReady = $detail !== null && array_diff($detail['columns'], self::tableColumns($entry['table']) ?? []) === [];
+
         $columns = array_values(array_unique(array_filter([
             $entry['display'],
             $entry['date'],
             $entry['value'] ?? null,
+            ...($detailReady ? $detail['columns'] : []),
         ])));
 
         $rows = $constrain(self::scoped($entry))
@@ -801,7 +971,7 @@ class WatchedDeadlines
             ->limit(self::MAX_ITEMS)
             ->get($columns);
 
-        $items = $rows->map(static function (object $row) use ($entry, $today): array {
+        $items = $rows->map(static function (object $row) use ($entry, $today, $detail, $detailReady): array {
             $raw = $row->{$entry['date']} ?? null;
             $date = $raw === null ? null : substr((string) $raw, 0, 10);
 
@@ -811,6 +981,7 @@ class WatchedDeadlines
                 // Signed: positive = days remaining, negative = days past.
                 'days' => $date === null ? null : (int) $today->diffInDays(CarbonImmutable::parse($date)),
                 'value' => isset($entry['value']) ? (float) $row->{$entry['value']} : null,
+                'detail' => $detailReady ? ($detail['text'])($row) : null,
             ];
         })->all();
 
@@ -978,7 +1149,10 @@ class WatchedDeadlines
             default => "{$days} hari lagi",
         };
 
-        return "{$item['code']}{$value} {$entry['date_word']} ".self::tanggal($item['date'])." — {$age}.";
+        // The entry's 'detail' clause, when its columns were there to read.
+        $detail = ($item['detail'] ?? null) !== null && $item['detail'] !== '' ? "; {$item['detail']}" : '';
+
+        return "{$item['code']}{$value} {$entry['date_word']} ".self::tanggal($item['date'])." — {$age}{$detail}.";
     }
 
     /** '2026-03-01' → '1 Mar 2026'. */

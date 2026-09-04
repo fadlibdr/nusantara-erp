@@ -63,8 +63,11 @@ class ArInvoiceController extends ApiController
 
     public function show(ArInvoice $arInvoice): JsonResponse
     {
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
         return $this->ok(ArInvoiceResource::make(
-            $arInvoice->load(['customer', 'contract', 'termin', 'retentions'])
+            $arInvoice->load(['customer', 'contract', 'termin', 'retentions', 'approvals.user'])
         ));
     }
 
@@ -141,6 +144,26 @@ class ArInvoiceController extends ApiController
         return $this->ok(
             ArInvoiceResource::make($invoice->load(['customer', 'contract', 'termin'])),
             "Invoice {$invoice->code} dibatalkan; jurnal pembalik sudah diposting."
+        );
+    }
+
+    /**
+     * "Cetak surat penagihan ke-N" (T3.7): naikkan tingkat penagihan, lalu
+     * SPA mencetak lembar ke-N yang baru saja dibuka olehnya. Tanpa body —
+     * tingkat berikutnya dibaca dari invoice, bukan dari pemanggil, jadi
+     * dua klik tidak pernah menerbitkan dua surat bernomor sama.
+     */
+    public function dunning(ArInvoice $arInvoice): JsonResponse
+    {
+        try {
+            $invoice = $this->service->issueDunningLetter($arInvoice);
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage());
+        }
+
+        return $this->ok(
+            ArInvoiceResource::make($invoice->load(['customer', 'contract', 'termin'])),
+            "Surat penagihan ke-{$invoice->dunning_level} {$invoice->code} diterbitkan."
         );
     }
 

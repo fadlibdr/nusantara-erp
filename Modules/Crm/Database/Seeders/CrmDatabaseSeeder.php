@@ -714,6 +714,10 @@ class CrmDatabaseSeeder extends Seeder
                     'ppn_rate' => $ppnRate,
                     'ppn_amount' => $ppnAmount,
                     'total_with_ppn' => round($value + $ppnAmount, 2),
+                    // T3.6: all three seeded contracts are worth exactly their
+                    // quotation's DPP (48,5 M / 9,8 M / 480 jt = the summed
+                    // lines above), so there is no difference to explain.
+                    'value_change_reason' => null,
                     'sign_date' => $data['sign_date'],
                     'start_date' => $data['start_date'],
                     'end_date' => $data['end_date'],

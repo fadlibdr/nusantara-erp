@@ -25,6 +25,9 @@ class ContractResource extends JsonResource
             'ppn_rate' => $this->ppn_rate,
             'ppn_amount' => $this->ppn_amount,
             'total_with_ppn' => $this->total_with_ppn,
+            // T3.6: why value differs from the linked quotation's DPP; null
+            // when it does not (or there is no quotation) — never "unasked".
+            'value_change_reason' => $this->value_change_reason,
             'total_terbilang' => Terbilang::rupiah((float) $this->total_with_ppn),
             'sign_date' => $this->sign_date?->toDateString(),
             'start_date' => $this->start_date?->toDateString(),

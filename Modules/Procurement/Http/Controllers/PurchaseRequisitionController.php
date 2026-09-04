@@ -55,8 +55,15 @@ class PurchaseRequisitionController extends ApiController
 
     public function show(PurchaseRequisition $purchaseRequisition): JsonResponse
     {
+        // approvals.user — jejak persetujuan. Diukur 4 Sep 2026 (HASIL-UJI P-4):
+        // hanya 5 dari 28 show() dokumen Approvable memuat approvals; halaman PR
+        // menggambar Informasi · Item · Lampiran · Metadata tanpa kartu Riwayat
+        // Persetujuan, dan strip status jatuh ke "Diajukan · menunggu persetujuan."
+        // tanpa nama pengaju dan tanggalnya — padahal barisnya ada di core_approvals.
+        // Resource-nya memancarkan bentuk PaymentResource; whenLoaded() menjaga
+        // index() tetap tanpa kueri tambahan (T3.3).
         return $this->ok(PurchaseRequisitionResource::make(
-            $purchaseRequisition->load('items', 'requester', 'purchaseOrders')
+            $purchaseRequisition->load('items', 'requester', 'purchaseOrders', 'approvals.user')
         ));
     }
 
@@ -90,7 +97,7 @@ class PurchaseRequisitionController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR submitted.');
+        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR diajukan.');
     }
 
     public function approve(Request $request, PurchaseRequisition $purchaseRequisition): JsonResponse
@@ -101,7 +108,7 @@ class PurchaseRequisitionController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR approved.');
+        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR disetujui.');
     }
 
     public function reject(Request $request, PurchaseRequisition $purchaseRequisition): JsonResponse
@@ -112,7 +119,7 @@ class PurchaseRequisitionController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR rejected.');
+        return $this->ok(PurchaseRequisitionResource::make($purchaseRequisition), 'PR ditolak.');
     }
 
     public function createPo(PurchaseOrderFromPrRequest $request, PurchaseRequisition $purchaseRequisition): JsonResponse

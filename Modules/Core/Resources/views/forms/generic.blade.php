@@ -10,6 +10,19 @@
 
     What arrives here, already resolved by FormPrintService::registryDocument():
 
+      $prose  — a list of paragraphs printed BEFORE the tables: the body of a
+                letter (surat penagihan, T3.7). Strings the composer proved,
+                nothing else — a letter has no ruled blank, a sentence the
+                ERP cannot make is simply not there. Its @foreach below is
+                FLUSH-LEFT and byte-preserving on purpose (a `?>` swallows the
+                newline after it, and a Blade comment in between would leave
+                one behind): a document without prose contributes NOTHING to
+                the sheet, so the golden fixture of berita-acara-cco
+                (CrmFormPrintTest, byte-identical to the pre-P0-B renderer)
+                still matches. The paragraph style rides inline for the same
+                reason — a rule added to layout.blade would move every
+                sheet's bytes.
+
       $tables — a list of body tables. Two declared tables are two entries and
                 render as two bordered tables, never one table with a second
                 heading row: the borders are what a signed form is read by, and
@@ -32,6 +45,9 @@
 @extends('coredoc::forms.layout')
 
 @section('content')
+@foreach ($prose ?? [] as $alinea)
+        <p class="alinea" style="margin:0 0 2mm;font-size:9pt;line-height:1.4;text-align:justify">{{ $alinea }}</p>
+@endforeach
     @foreach ($tables as $table)
         <table class="grid" @if (! empty($table['id'])) id="{{ $table['id'] }}" @endif>
             <thead>

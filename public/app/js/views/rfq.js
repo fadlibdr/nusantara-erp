@@ -67,6 +67,11 @@ export async function renderRfq(host, { id }) {
 
   /* ------------------------------------------------------------- kepala */
 
+  // Remah roti "#id" dari router diganti kodenya, seperti detail.js/custom.js;
+  // Terakhir dibuka (T2.5) membaca judulnya dari sini.
+  const crumb = document.querySelector('#crumbs b');
+  if (crumb) crumb.textContent = rfq.code;
+
   host.appendChild(el('.page-head', [
     el('div', [
       el('h1', [rfq.code, ' ', badge(rfq.status_label || rfq.status, rfq.status === 'draft' ? 'warn' : '')]),

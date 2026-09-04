@@ -42,7 +42,7 @@ Bahasa Indonesia** and follow the repo's own copy rules (§ Conventions).
 **T0.1 Apply the patch**
 ```
 git checkout -b ux/p0-measured
-git am ux-p0-and-process.patch      # 2 commits, 22 files
+git am docs/patches/ux-p0-and-process.patch   # 2 commits, 22 files (uploads were moved under docs/patches/, T0.0)
 php artisan config:clear
 vendor/bin/phpunit --no-progress tests/Feature/Core tests/Feature/Procurement tests/Feature/Iam
 ```
@@ -227,21 +227,179 @@ Acceptance: delegate sees the delegator's queue and can approve; trail records "
 ## Verification — targets for the whole backlog
 
 Re-run `bukti-uji/harness-playwright.py` after each phase; production numbers via the app's own screens, sequentially.
+"After phase 2" was measured 4 Sep 2026 on a fresh scratch seed (`S10 S1 S11` then `S2 S3 S4 S5 S8`, one merged
+`bukti-uji/results-phase-2.json`; method and per-scenario numbers in `PROGRESS-UX-PROSES.md` § Gate Phase 2).
+Production was not measured in that pass. The last two rows were added 4 Sep for T2.10 / T2.11.
+"After phase 3" was measured on a fresh scratch seed (`S10 S1 S11` then `S2 S3 S4 S5 S8`, one merged
+`bukti-uji/results-phase-3.json`; method, dry-run lists and per-scenario numbers in `PROGRESS-UX-PROSES.md`
+§ Gate Phase 3) at 4 Sep 20:22 UTC = 5 Sep 03:22 WIB — the watchers' "today" is WIB, the browser's is UTC.
+Production was not measured in that pass either.
 
-| Metric | Baseline (2 Sep) | After patch (2 Sep) | Target |
-|---|---|---|---|
-| Fields lost on session expiry (13 typed) | 13 | 0 | 0 |
-| Approval clicks per document | 4 + search | 3 | 2 (T2.3) |
-| API calls per approval round-trip | 28 | 16 | ≤ 12 (T2.3 + inbox) |
-| Dashboard API calls per open | 21 | 11 | ≤ 10 |
-| Inbox coverage (types shown / awaiting) | 11/28, 3 of 4 docs | 28/28, 4 of 4 | 28/28 |
-| Create→submit PO (2 lines) clicks | 13 | 12 | ≤ 10 (T2.4, T4.2) |
-| English validation strings on 422 | 178/216 requests | 0 | 0 |
-| Contrast `--muted` on `--bg` | 4.26 | 5.23 | ≥ 4.5 |
-| Admin sidebar height (viewports) | 4.9 | 4.9 | ≤ 2.0 (T2.5) |
-| Documents awaiting approval > 10 days (production) | 2 (33 d, 40 d) | reminders + escalation daily | 0 |
-| Approved AP bills past due (production) | 1 (69 d) | — | 0 (T3.1) |
-| Admin permissions on production | 74/86 | — | 86/86 (T1.1) |
+| Metric | Baseline (2 Sep) | After patch (2 Sep) | After phase 2 (4 Sep) | After phase 3 (5 Sep WIB) | Target |
+|---|---|---|---|---|---|
+| Fields lost on session expiry (13 typed) | 13 | 0 | 0 (13 field + 3 baris dipulihkan, S4) | 0 (14 field + 3 baris dipulihkan, S4 — 14 typed since T3.5/T3.8 made `Perkiraan kirim` and `Alasan tanpa PR` required) | 0 |
+| Approval clicks per document | 4 + search | 3 | 2 (S2: baris → Setujui; Buka → Kembali) | 2 (S2: 4 klik for two documents) | 2 (T2.3) |
+| API calls per approval round-trip | 28 | 16 | 14 on a leave-request detail (16 on a subcontract detail — the count is the detail page's, not the approval's) | 14 on a leave-request detail (S2; T3.3 added no request — `approvals.user` rides the existing `show()`) | ≤ 12 (T2.3 + inbox) |
+| Dashboard API calls per open | 21 | 11 | 11 direktur · 6 warehouse (S1; `core/inbox` skipped without `.approve`) | 11 direktur · 6 warehouse (S1) | ≤ 10 |
+| Inbox coverage (types shown / awaiting) | 11/28, 3 of 4 docs | 28/28, 4 of 4 | 28/28, 4 of 4 (S1) | 28/28, 4 of 4 (S1; S11 lists the same 4) | 28/28 |
+| Create→submit PO (2 lines) clicks | 13 | 12 | 12 on a fresh profile (T2.4 −1, T2.5's collapsed group +1); 11 once the sidebar preference is saved | 12 on a fresh profile (S3; the two fields T3.5/T3.8 made required are fills, not clicks) | ≤ 10 (T2.4, T4.2) |
+| English validation strings on 422 | 178/216 requests | 0 | 0 (S10, 3 requests) | 0 (S10, 3 requests; the PO 422 now carries 6 keys, all Indonesian) | 0 |
+| Contrast `--muted` on `--bg` | 4.26 | 5.23 | 5.23 (S8; 5.47 on `--surface-2`, 5.29 success badge) | 5.23 (S8; 5.47 / 5.29) | ≥ 4.5 |
+| Admin sidebar height (viewports) | 4.9 | 4.9 | 0.7 (606 px of sidebar content; `scrollHeight` reads 1.4 = the grid row's floor, S5) | 0.7 (606 px, S5) | ≤ 2.0 (T2.5) |
+| Documents awaiting approval > 10 days (production) | 2 (33 d, 40 d) | reminders + escalation daily | — (production not measured) | — (production not measured; `erp:approval-watch --dry-run` on the fresh seed: none ≥ 5 d, its rows are minutes old; on a copy back-dated to the production shape: `[ESKALASI] SPK/2026/III/0002 40 hari`, `PR/2026/III/0002 33 hari`) | 0 |
+| Approved AP bills past due (production) | 1 (69 d) | — | — (production not measured) | — (production not measured; `ap_due` watches since T3.1 — the seed's only bill is paid, so the dry-run lists none; the planted case was listed in T3.1) | 0 (T3.1) |
+| Admin permissions on production | 74/86 | — | — (production not measured; `erp:permission-check` ready since T1.1) | — (production not measured) | 86/86 (T1.1) |
+| Demo logins shown an approvals card they cannot act on (of 11) | 8 | 8 | 0 (S5 › cards: admin, direktur, project-manager only) | 0 (S5: admin, direktur, project-manager only) | 0 (T2.11) |
+| Smallest font on the PO list (px) | 10 | 10 | 11 (S8) | 11 (S8) | ≥ 11 (T2.10) |
+
+---
+
+## Open questions
+
+Business decisions Claude Code cannot take (Prompt A rule 9). Each entry names
+the task that raised it and what the answer unblocks. T3.9 / T3.10 stay skipped
+until their numbers / policy are written here by the owner.
+
+**OQ-1 (T3.5) — SLA for tickets without a maintenance contract.** The tree
+computes `svc_tickets.resolution_due_at` from the *contract's* `sla_response_hours`
+/ `sla_resolution_hours` (priority only picks 24/7 vs business hours,
+`SlaService`); there is no ServiceDesk setting for SLA hours, and a ticket
+created without a contract has no deadline by design — so it is outside the
+`ticket_sla` watcher (T3.2), the same blindness D1 describes for a PO without
+`expected_date`. Should contract-less tickets get a default SLA, and with what
+hours per priority (low / medium / high / critical, response and resolution)?
+Answering this unblocks a small follow-up (a `svc.sla_default_*` setting +
+`SlaService` fallback + test); until then `TicketSlaOnCreateTest` pins the
+current behaviour (`resolution_due_at` null without a contract).
+
+**OQ-2 (T3.6) — default termin schedule proposed for a contract built from a
+won quotation.** The entry's "copy … proposed termins" has no source in the
+data: a quotation carries no termins (only lines), and a contract carries no
+lines (only termins). `POST quotations/{q}/create-contract` therefore copies
+customer, title, scope, PPN rate and value (= DPP) and takes the schedule from
+the caller; the prefilled form leaves "Jadwal termin" to the person, because
+inventing "DP 20% / Progress / BAST / Retensi 5%" in code would state an
+agreement nobody made. Should the form PROPOSE a house schedule, and which one
+per `scope_type` (construction / system_integration / maintenance — the three
+seeded contracts each use a different shape, incl. calendar termins with
+`due_date` for maintenance)? Answering this unblocks a small follow-up (a
+`crm.default_termins_<scope>` setting + prefill in `CONTRACT_FROM_QUOTATION`);
+the endpoint and the value-change rule do not wait on it.
+
+**OQ-3 (T3.7) — what the house dunning letters may promise.** Surat
+Penagihan ke-2 and ke-3 demand payment "selambat-lambatnya pada tanggal yang
+tercantum pada baris BATAS PEMBAYARAN" — an identity line RULED for the pen,
+because a "7 hari kerja" nobody agreed would be a term stated under the
+letterhead; and ke-3 names what follows only as "sesuai ketentuan kontrak
+CTR/…", because `fin_ar_invoices` holds no penalty, interest or suspension
+clause. Should the letters print a standard house deadline (N days from the
+letter date, per level) and a standard next step (e.g. "penghentian sementara
+layanan/pekerjaan")? Answering this unblocks a small follow-up (two
+`fin.dunning_*` settings read by `FinanceFormService::dunningParagraphs` and
+the BATAS PEMBAYARAN line); the three letters, the action and the watcher
+clause do not wait on it.
+
+**OQ-4 (T3.9) — approval value thresholds: the numbers, and what "director
+level" means per document type.** BLOCKING for T3.9 (skipped 5 Sep 2026,
+Prompt A rule 9). Asked against what the tree already does, not against the
+entry's assumed keys:
+
+- *PO and SPK already have a director threshold* — `approvals.purchase_order
+  .threshold_two_level` Rp 100 juta and `approvals.subcontract
+  .threshold_two_level` Rp 200 juta, operator-editable in Pengaturan › Proyek &
+  Persetujuan ("PO/SPK wajib persetujuan direktur di atas"), stamped as
+  `needs_director_approval` on submit and enforced by
+  `Procurement\Support\DirectorApproval`: at/above the line the ONE approval
+  must come from a `prc.approve-director` / `scm.approve-director` holder
+  (direktur, admin) — still a single approval. ANALISIS E2's "semua PO satu
+  tingkat" is true in that sense; its "≤ Rp 25 jt satu tingkat, > Rp 250 jt
+  direktur" is the analyst's illustration, not a decision.
+- *Award decisions use a three-bracket ladder* in `config/erp.php`
+  (`< Rp 100 jt` 1 · `Rp 100 jt – 1 M` 2 · `≥ Rp 1 M` 3 DISTINCT approvers,
+  the 2nd and 3rd from `prc.approve-director`; `Approvable::requiredApprovalLevels()`,
+  `ApprovalLevels`, `required_levels` on `AwardDecisionResource`). The ladder is
+  config-only on purpose (`ApprovalLevels::ladder()`: "an operator who can weaken
+  a control from a web form will").
+- *The other 25 Approvable types have no threshold at all* — PR, RAP, BOQ,
+  invoice termin, tagihan vendor, pembayaran keluar, payroll, opname subkon,
+  addendum SPK, …: one holder of `<prefix>.approve`, any value. Only
+  `prc`/`scm` have an `.approve-director` permission (`PermissionSeeder::
+  DIRECTOR_APPROVALS`, the 2 in 14 × 6 + 2 = 86); `fin.approve-director` does
+  not exist, and the entry's acceptance "> director threshold requires
+  `fin.approve` as the last level" names the ORDINARY finance approval (held by
+  finance-manager as well as direktur, and already the escalation audience of
+  `erp:approval-watch`) — so the acceptance itself needs the decision below.
+
+Questions for the director:
+1. **The numbers, per type.** Keep PO Rp 100 jt / SPK Rp 200 jt? Which of the
+   25 unthresholded types get a director line, and at what value (PR, tagihan
+   vendor, pembayaran keluar, invoice termin, RAP, payroll, opname subkon,
+   addendum; keputusan pemenang keeps its ladder)? And which column is "the
+   value" — PO compares `total` (with PPN) today; the types carry `total` /
+   `total_payable` / `net_payable` / `grand_total` / `value` / `total_budget`
+   / `amount` (`ApprovalQueue::AMOUNT_KEYS`) — DPP or including PPN?
+2. **What "director" means.** (a) PO/SPK style — one approval, but it must be
+   a director's; or (b) ladder style — a SECOND distinct approval on top of
+   the ordinary one (`required_levels` 2, two people sign). Is a third tier
+   wanted anywhere beyond award decisions?
+3. **Is there a lower band at all** (the entry's `threshold_single`)? Below
+   the director line everything is already one ordinary approval, so
+   `threshold_single` only means something if a tier sits BELOW it — e.g. the
+   batch-approve cap T4.3 proposes (`approvals.batch_cap`, ASESMEN P2-3
+   "≤ Rp 25 jt"). Are `threshold_single` and `batch_cap` the same number?
+4. **Where the numbers live and who holds the new rights.** Pengaturan
+   (operator-editable, as PO/SPK) or config (install-time, as the ladder)? Each
+   new `<prefix>.approve-director` (fin, est, hr, crm, prj, …) changes
+   `PermissionSeeder::expected()` — the T1.1 drift check derives its count, but
+   the production re-seed (T1.1 server side) must follow — and needs a role in
+   `RoleSeeder::intended()`.
+
+Answering this unblocks: registry rows (or ladders) per prefix, the per-model
+opt-in (`approvalLadderKey()` / `approvalAmount()`), the `required_levels`
+badge in `schema.js`, PermissionSeeder/RoleSeeder for the new director rights,
+and a Feature test per type — the T3.9 estimate (1–2 d) holds once the four
+answers are written here.
+
+**OQ-5 (T3.10) — approval delegation during leave: the policy.** BLOCKING for
+T3.10 (skipped 5 Sep 2026, Prompt A rule 9). Nothing in the tree delegates:
+`NotificationService::approvers()` = every active holder of the permission
+minus the actor; `ApprovalQueue::pending($user)` = permission + not the owner;
+`SegregationOfDuties` refuses the submitter; a `core_approvals` row carries
+`action · user_id · note` only (no "on behalf of"), and the house forms print
+the approver's name from that row. What the tree DOES have: `hr_leave_requests`
+(`employee_id · start_date · end_date · status`) and `users.employee_id`, so an
+APPROVED leave could open a delegation window by itself (ANALISIS E1: "modul
+cuti ada, belum dipakai"). The cost of an absent approver is measured —
+PAY/2026/VIII/0002 33 hari and SPK/2026/III/0002 40 hari on production 4 Sep
+2026 (`erp:approval-watch` escalations) — whether absence was the cause is not
+recorded, so not claimed.
+
+Questions for the director:
+1. **Who may delegate** — only the approver, for their own rights; an
+   administrator on their behalf; or both? Must the delegator hold the right
+   at the time? May `<prefix>.approve-director` (the value gate above) be
+   delegated at all, or does a director's absence simply wait?
+2. **To whom** — only someone who already holds the same `<prefix>.approve`
+   (a queue + notification hand-over), or anyone (a temporary GRANT of a
+   permission the person was never seeded with)? A fixed deputy per person or
+   free choice? May the delegate re-delegate? Maker-checker for the delegate:
+   they may not approve what THEY submitted (today's rule) — may they approve
+   what the DELEGATOR submitted?
+3. **The window** — a free date range, or tied to an approved leave request
+   (opens at `start_date`, closes at `end_date`, only while
+   `status = approved`)? Maximum days? During the window may the delegator
+   still approve (both), or only the delegate?
+4. **The record** — should the trail read "atas nama": in `core_approvals.note`,
+   or a new `on_behalf_of_user_id` column? Which name goes on the printed house
+   forms' "Disetujui oleh" — the delegate, the delegator, or "X a.n. Y"?
+5. **Notifications and revocation** — reminders/escalations to the delegate
+   only, or to both? Is revocation immediate, and is it audited?
+
+Answering this unblocks `core_approval_delegations` (from_user, to_user,
+from_date, to_date, prefixes), the two seams above, the maker-checker rule for
+the delegate, the trail + signature block, the Pengaturan screen and the
+tests — the T3.10 estimate (2–3 d) holds once the five answers are written
+here.
 
 ---
 

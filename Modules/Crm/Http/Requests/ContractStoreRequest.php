@@ -22,6 +22,9 @@ class ContractStoreRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'scope_type' => ['required', Rule::enum(ScopeType::class)],
             'value' => ['required', 'numeric', 'min:0'],
+            // Required only when value differs from the linked quotation's DPP
+            // — decided in ContractService, which knows that amount (T3.6).
+            'value_change_reason' => ['nullable', 'string', 'max:500'],
             'ppn_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'sign_date' => ['nullable', 'date'],
             'start_date' => ['nullable', 'date'],

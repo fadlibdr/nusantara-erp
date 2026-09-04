@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Modules\Core\Http\ApiController;
+use Modules\Procurement\Exceptions\VendorNotQualifiedException;
 use Modules\Procurement\Http\Requests\PurchaseOrderStoreRequest;
 use Modules\Procurement\Http\Requests\PurchaseOrderUpdateRequest;
 use Modules\Procurement\Http\Resources\PurchaseOrderResource;
@@ -63,8 +64,11 @@ class PurchaseOrderController extends ApiController
 
     public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
         return $this->ok(PurchaseOrderResource::make(
-            $purchaseOrder->load('items', 'vendor', 'purchaseRequisition')
+            $purchaseOrder->load('items', 'vendor', 'purchaseRequisition', 'approvals.user')
         ));
     }
 
@@ -140,6 +144,19 @@ class PurchaseOrderController extends ApiController
 
                 return $po;
             });
+        } catch (VendorNotQualifiedException $e) {
+            // Penolakan prakualifikasi membawa KUNCI galat, bukan hanya
+            // kalimat: mesin confirm-resubmit SPA (actions.js) mengenali
+            // penolakan dari kunci `errors` — items.N.unit_price (#34),
+            // budget (#33) — dan baru bertanya SESUDAH server menolak. Tanpa
+            // kunci ini Ajukan PO harus membuka modal alasan pada setiap
+            // pengajuan, juga untuk vendor sehat: diukur 2 Sep 2026
+            // (HASIL-UJI §1, S3) 12 klik buat→ajukan, dua di antaranya modal
+            // "Alasan override prakualifikasi" yang dikosongkan. `message`
+            // tetap kalimat yang sama, jadi klien API lama tidak berubah.
+            return $this->error($e->getMessage(), 422, [
+                'qualification_override_reason' => [$e->getMessage()],
+            ]);
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }

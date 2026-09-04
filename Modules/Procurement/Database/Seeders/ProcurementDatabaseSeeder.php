@@ -322,6 +322,9 @@ class ProcurementDatabaseSeeder extends Seeder
                 'code' => 'PO/2026/III/0002',
                 'vendor_code' => 'VND-0003',
                 'pr_code' => null, // direct PO (PR ICT masih submitted)
+                // T3.8: alasannya dulu hanya komentar di baris atas — kini data,
+                // supaya PO langsung yang di-seed pun membawa jejaknya.
+                'pr_bypass_reason' => 'PR ICT masih menunggu persetujuan; material tahap 1 dipesan langsung agar 4 cabang pertama tidak mundur dari jadwal.',
                 'project_code' => 'PRJ-2026-002',
                 'warehouse_code' => 'WH-PRJ-2026-002',
                 'order_date' => '2026-03-09',
@@ -393,6 +396,7 @@ class ProcurementDatabaseSeeder extends Seeder
                     'needs_director_approval' => $total >= $threshold,
                     'delivery_address' => $data['delivery_address'],
                     'notes' => $data['notes'],
+                    'pr_bypass_reason' => $data['pr_bypass_reason'] ?? null,
                     'status' => $data['status'],
                     'closed_at' => null,
                 ],

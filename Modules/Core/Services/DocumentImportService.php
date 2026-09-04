@@ -2,6 +2,7 @@
 
 namespace Modules\Core\Services;
 
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -181,7 +182,7 @@ class DocumentImportService
     /**
      * Write every document that passes; report every document that does not.
      */
-    public function commit(string $resource, string $filename, string $content): array
+    public function commit(string $resource, string $filename, string $content, ?User $by = null): array
     {
         $definition = $this->registry->definition($resource);
         $result = $this->analyse($resource, $filename, $content);
@@ -210,7 +211,7 @@ class DocumentImportService
                 // One transaction per DOCUMENT: a line that only the database can
                 // refuse rolls back its own document whole, and leaves the others
                 // already committed beside it.
-                $record = DB::transaction(function () use ($definition, $document, $filename) {
+                $record = DB::transaction(function () use ($definition, $document, $filename, $by) {
                     $record = $document['action'] === 'update'
                         ? ($definition['update'])($document['target_model'], $document['payload'])
                         : ($definition['create'])($document['payload']);
@@ -231,6 +232,8 @@ class DocumentImportService
                             $definition['source_column'] => mb_substr($filename, 0, 160),
                         ])->saveQuietly();
                     }
+
+                    $this->recordSubmission($record, $by);
 
                     return $record;
                 });
@@ -1627,6 +1630,48 @@ class DocumentImportService
             'lines_read' => array_sum(array_column(array_column($documents, 'totals'), 'lines')),
             'lines_refused' => array_sum(array_column(array_column($documents, 'totals'), 'refused')),
         ];
+    }
+
+    /**
+     * Maker-checker for a document a definition lands as `submitted`.
+     *
+     * Measured on production 4 Sep 2026 (HASIL-UJI §6 P-3, ANALISIS-PROSES §3
+     * C3): a PR that reached `submitted` without submit() carried no
+     * `submitted` row in core_approvals, so SegregationOfDuties saw no maker
+     * and its own requester approved it. A file is that path in another coat
+     * — the module's service is handed the payload and may leave the document
+     * submitted, and then nobody has clicked Ajukan. The engine's own fact,
+     * written by the engine, exactly like the provenance stamp above: the
+     * person who uploaded the file asserted the document, so the row names
+     * them and the guard refuses them one screen later. Inside the document's
+     * transaction for the same reason the stamp is.
+     *
+     * Nothing is written for a draft (nothing was asserted), for a document
+     * whose service already recorded its submission (submit() writes its own
+     * row), or when there is no importer to name — an unnamed row would
+     * SILENCE the guard where its owner-column fallback could still speak.
+     */
+    private function recordSubmission(object $record, ?User $by): void
+    {
+        if ($by === null || ! method_exists($record, 'approvals')) {
+            return;
+        }
+
+        $status = $record->status ?? null;
+
+        if (! ($status instanceof DocumentStatus) || $status !== DocumentStatus::Submitted) {
+            return;
+        }
+
+        if ($record->approvals()->where('action', 'submitted')->exists()) {
+            return;
+        }
+
+        $record->approvals()->create([
+            'action' => 'submitted',
+            'user_id' => $by->getKey(),
+            'note' => null,
+        ]);
     }
 
     /**

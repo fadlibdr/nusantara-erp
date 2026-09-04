@@ -40,7 +40,10 @@ class CostBudgetController extends ApiController
 
     public function show(CostBudget $costBudget): JsonResponse
     {
-        return $this->ok(new CostBudgetResource($costBudget->load(['boq', 'items.boqItem'])));
+        // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
+        // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
+        // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
+        return $this->ok(new CostBudgetResource($costBudget->load(['boq', 'items.boqItem', 'approvals.user'])));
     }
 
     /**

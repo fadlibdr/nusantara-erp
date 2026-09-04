@@ -29,6 +29,17 @@ class BastResource extends JsonResource
             'prerequisite_snapshot' => $this->prerequisite_snapshot,
             'status' => $this->status?->value,
             'status_label' => $this->status?->label(),
+            // Jejak persetujuan, bentuk PaymentResource — satu perender di SPA
+            // (approvalTimeline) untuk semua dokumen; hanya bila show() memuatnya (T3.3).
+            'approvals' => $this->whenLoaded('approvals', fn () => $this->approvals->map(fn ($approval): array => [
+                'id' => $approval->id,
+                'action' => $approval->action,
+                'note' => $approval->note,
+                'created_at' => $approval->created_at?->toIso8601String(),
+                'user' => $approval->relationLoaded('user') && $approval->user !== null
+                    ? ['id' => $approval->user->id, 'name' => $approval->user->name]
+                    : null,
+            ])->values()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
