@@ -1,0 +1,26 @@
+# Log host ERP erp1.pi2.co.id (Fase 0 / P-0b). Menggantikan /etc/logrotate.d/erp1
+# lama yang hanya mengenal erp1-backup.log dan erp1-schedule.log.
+#
+# copytruncate: unit systemd membuka log dengan StandardOutput=append: dan
+# TIDAK membuka ulang berkasnya saat dirotasi; tanpa copytruncate, proses
+# terus menulis ke inode lama yang sudah dipindahkan dan berkas baru tetap
+# kosong. Pasang: cp deploy/logrotate/erp1 /etc/logrotate.d/erp1
+/var/log/erp1/queue.log /var/log/erp1/scheduler.log /var/log/erp1/watchdog.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+
+# Log cron yang tetap ada (backup, root) dan log schedule:run lama — berkas
+# lama dibiarkan sampai kosong (missingok), tidak dihapus tangan.
+/var/log/erp1-backup.log /var/log/erp1-schedule.log {
+    monthly
+    rotate 6
+    compress
+    missingok
+    notifempty
+}

@@ -159,6 +159,25 @@ run_sh_masked() { printf '    $ %s\n' "$2"; [ "$DRY" = 1 ] || bash -o pipefail -
 
 mysql_app() { mysql --defaults-extra-file="$WORK/.cred.cnf" --batch --skip-column-names "$@"; }
 
+# Unit systemd P-0b (deploy/systemd/README.md). Dijaga is-enabled: sebelum unit
+# dipasang, cut-over berjalan persis seperti sebelumnya (hanya cron yang
+# diparkir). Sesudahnya, pekerja antrean yang masih menulis ke SQLite yang
+# sedang dipindahkan adalah kehilangan data — jadi keduanya dihentikan di
+# `down` SEBELUM berkas dibekukan, dan dinyalakan lagi di `up` / `rollback`.
+ERP_UNITS=(erp1-queue erp1-scheduler)
+units_stop() {
+    local u
+    for u in "${ERP_UNITS[@]}"; do
+        if systemctl is-enabled --quiet "$u" 2>/dev/null; then run systemctl stop "$u"; else say "    $u tidak enabled — dilewati"; fi
+    done
+}
+units_start() {
+    local u
+    for u in "${ERP_UNITS[@]}"; do
+        if systemctl is-enabled --quiet "$u" 2>/dev/null; then run systemctl start "$u"; else say "    $u tidak enabled — dilewati"; fi
+    done
+}
+
 # ------------------------------------------------------------------ steps
 
 step_pra() {
@@ -233,6 +252,7 @@ step_down() {
 
     akan "menyimpan rahasia bypass di $WORK/down-secret (mode 600) untuk langkah smoke"
     akan "php artisan down --secret=… --retry=60 (pengguna melihat halaman pemeliharaan; API menjawab 503)"
+    akan "menghentikan unit systemd ${ERP_UNITS[*]} bila enabled (pekerja antrean tidak boleh menulis ke SQLite yang dibekukan)"
     akan "memarkir $CRON_FILE → $CRON_PARKED (scheduler & backup cron berhenti), menunggu schedule:run yang sedang berjalan"
     akan "menunggu 10 detik agar permintaan yang sedang berjalan selesai, lalu PRAGMA wal_checkpoint(TRUNCATE) dan sha256 berkas SQLite → $WORK/sqlite-frozen.sha256"
 
@@ -242,6 +262,7 @@ step_down() {
     fi
 
     artisan down --secret="$secret" --retry=60
+    units_stop
     [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "for i in \$(seq 1 60); do pgrep -u www-data -f 'artisan schedule:run' >/dev/null || break; sleep 2; done; ! pgrep -u www-data -f 'artisan schedule:run' >/dev/null"
     run sleep 10
@@ -422,7 +443,7 @@ step_up() {
     require_root; require_done smoke; require_not_done
     load_cred
 
-    akan "php artisan up; $CRON_PARKED → $CRON_FILE"
+    akan "php artisan up; $CRON_PARKED → $CRON_FILE; systemctl start ${ERP_UNITS[*]} bila enabled"
     akan "memasang $MYSQL_CNF (mode 600) dan menambah BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=$DB_NAME ke $BACKUP_CONF"
     akan "backup-erp1.sh --local-only lalu --restore-drill --source=local (mysqldump → erp_restore_check → verify) sebagai bukti"
     akan "menghapus salinan kredensial sementara $WORK/.cred.cnf dan mencetak jendela rollback 24 jam"
@@ -430,6 +451,7 @@ step_up() {
     artisan up
     # Guarded so a re-run after a failed drill does not die here (verifier 5 Sep 2026).
     [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
+    units_start
 
     if [ "$DRY" != 1 ]; then
         [ -f "$MYSQL_CNF" ] || ( umask 077; printf '[client]\nuser=%s\npassword=%s\nhost=127.0.0.1\nport=3306\n' "$DB_USERNAME" "$DB_PASSWORD" > "$MYSQL_CNF" )
@@ -467,6 +489,7 @@ step_rollback() {
     fi
 
     artisan down --retry=60
+    units_stop
     [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "sha256sum -c '$WORK/sqlite-frozen.sha256'"
     run_sh "cp -p '$WORK/env.sqlite-latest' '$ENV_FILE' && chown root:www-data '$ENV_FILE' && chmod 640 '$ENV_FILE'"
@@ -480,6 +503,7 @@ step_rollback() {
     run_sh "sed -i 's/^BACKUP_ENGINE=mysql/#BACKUP_ENGINE=mysql/' '$BACKUP_CONF'"
     artisan up
     [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
+    units_start
 
     [ "$DRY" = 1 ] || printf 'rollback %s\n' "$(date -Is)" >> "$STATE"
     say "Kembali ke SQLite. Basis data MySQL $DB_NAME dibiarkan apa adanya untuk diperiksa; jangan dihapus sebelum penyebabnya dipahami."

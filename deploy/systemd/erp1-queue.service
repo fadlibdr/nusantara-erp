@@ -1,0 +1,47 @@
+# Nusantara ERP — pekerja antrean (Fase 0 / P-0b, T0b.1).
+#
+# Sebelum unit ini ada: QUEUE_CONNECTION=database dengan tabel jobs terisi
+# tetapi TIDAK ADA proses yang mengambilnya — setiap job yang di-dispatch
+# (mulai T0b.3: DeliverNotification) akan duduk di tabel selamanya, tanpa
+# galat, tanpa alarm. Unit ini yang menjalankannya.
+#
+# Pasang: lihat deploy/systemd/README.md (mkdir /var/log/erp1, cp, daemon-reload,
+# enable --now). Setelah deploy kode: `systemctl restart erp1-queue` — pekerja
+# memuat kode lama sampai dimulai ulang (deploy/sync-erp1.sh melakukannya).
+#
+# --max-time=3600 : proses keluar bersih tiap jam dan systemd memulainya lagi
+#                   (Restart=always) — kebocoran memori PHP yang berjam-jam
+#                   tidak sempat menumpuk, dan kode baru terambil paling lambat
+#                   satu jam setelah deploy walau restart eksplisit terlewat.
+# --tries=5       : batas percobaan untuk job yang tidak menyatakan $tries;
+#                   DeliverNotification menyatakan 5 dan backoff 60/300/900/3600 s.
+# --backoff=60    : jeda percobaan ulang untuk job yang tidak menyatakan backoff.
+# --sleep=3       : jeda saat antrean kosong (3 SELECT per menit, bukan 60).
+[Unit]
+Description=Nusantara ERP queue worker (erp1.pi2.co.id)
+Documentation=file:/var/www/erp1.pi2.co.id/deploy/systemd/README.md
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/erp1.pi2.co.id
+# HOME: psysh/composer di bawah www-data menulis ke ~/.config; tanpa HOME
+# yang bisa ditulis, beberapa perintah artisan berhenti dengan
+# "Writing to directory /var/www/.config is not allowed".
+Environment=HOME=/tmp
+ExecStart=/usr/bin/php artisan queue:work database --tries=5 --backoff=60 --max-time=3600 --sleep=3 --queue=default
+Restart=always
+RestartSec=5
+# SIGTERM = selesaikan job yang sedang berjalan, lalu keluar (Laravel Worker
+# menangkap pcntl). 90 s = retry_after antrean database; lebih lama dari itu
+# job yang sama akan diambil pekerja baru sementara yang lama masih memegangnya.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+StandardOutput=append:/var/log/erp1/queue.log
+StandardError=append:/var/log/erp1/queue.log
+
+[Install]
+WantedBy=multi-user.target

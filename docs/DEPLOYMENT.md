@@ -333,42 +333,68 @@ Log in and spot-check a few documents (invoice terakhir, stok, payroll run).
 **Do a restore drill on a scratch VM at least once** before you need it for
 real — an untested backup is a hope, not a plan.
 
-## 6. Monitoring
+## 6. Monitoring (erp1 bare-metal: systemd, bukan Docker)
 
-- **Health endpoint** — Laravel's `/up` (also used by uptime monitors;
-  point yours at `https://erp.example.co.id/up`):
+Sejak Fase 0 / P-0b antrean dan penjadwal adalah **layanan systemd**, bukan
+baris cron. Berkas unit, langkah pasang, dan cara membaca kegagalannya ada di
+`deploy/systemd/README.md`; ringkasannya:
 
-  ```bash
-  curl -fsS http://127.0.0.1:8080/up
-  ```
+| Apa | Bagaimana | Log |
+|---|---|---|
+| Pekerja antrean | `systemctl status erp1-queue` (`queue:work database --tries=5 --max-time=3600`) | `/var/log/erp1/queue.log` |
+| Penjadwal | `systemctl status erp1-scheduler` (`schedule:work`) | `/var/log/erp1/scheduler.log` |
+| Pengawas penjadwal | `/etc/cron.d/erp1-watchdog` (root, tiap 15 menit) → `deploy/erp1-watchdog.sh` | `/var/log/erp1/watchdog.log` |
+| Cadangan | tetap cron root di `/etc/cron.d/erp1` (§5.1) | `/var/log/erp1-backup.log` |
 
-- **Container status** — all services should be `Up`, mysql/redis `healthy`:
-
-  ```bash
-  docker compose -f docker-compose.prod.yml ps
-  ```
-
-- **Queue backlog** — alert if pending jobs exceed the threshold:
-
-  ```bash
-  docker compose -f docker-compose.prod.yml exec app php artisan queue:monitor redis:default --max=100
-  ```
-
-- **Logs** — the app logs to stderr (`LOG_CHANNEL=stderr`,
-  `LOG_LEVEL=warning`), so everything is in Docker's log stream:
+- **Health endpoint untuk uptime monitor** — Laravel `/up` (tanpa autentikasi;
+  hanya membuktikan php-fpm menjawab):
 
   ```bash
-  docker compose -f docker-compose.prod.yml logs -f --tail=100 app queue scheduler
-  docker compose -f docker-compose.prod.yml logs -f nginx mysql redis
+  curl -fsS https://erp1.pi2.co.id/up
   ```
 
-  To ship logs off-box, point a drain (promtail/vector/journald forwarding)
-  at the Docker json-file logs, and set log rotation in
-  `/etc/docker/daemon.json` (`"log-opts": {"max-size": "50m", "max-file": "5"}`).
+- **Health endpoint untuk operator** — `GET /api/core/health` (token API
+  pemegang `core.view`). Setiap angka yang tidak bisa dihitung dijawab `null`
+  dan SPA menampilkannya sebagai `?` — bukan `0`, bukan "ok":
 
-- **Disk** — MySQL data and `/backups` grow; watch `df -h` and
-  `docker system df`. Prune old images after deploys:
-  `docker image prune -f`.
+  ```bash
+  curl -fsS -H "X-Api-Token: $TOKEN" https://erp1.pi2.co.id/api/core/health
+  # {"data":{"scheduler_status":"ok","scheduler_heartbeat_at":"…","scheduler_heartbeat_age_s":112,
+  #          "queue_pending_count":0,"queue_oldest_pending_age_s":0,"failed_jobs_count":0,
+  #          "queued_deliveries_older_than_1h":0,"checked_at":"…"}}
+  ```
+
+  `scheduler_status` = `ok` (detak jantung `erp:heartbeat` < 20 menit), `stale`
+  (lebih tua — pengawas sudah/akan memulai ulang unit dan menaikkan alarm ke
+  pemegang `core.update`, dasbor mereka menampilkan spanduk "Penjadwal tidak
+  berjalan sejak …"), atau `unknown` (belum pernah ada detak: unit belum
+  pernah berjalan sejak dipasang, atau tabel pengaturan tidak terbaca).
+
+- **Antrean macet** — `queue_oldest_pending_age_s` yang terus naik berarti
+  tidak ada pekerja yang mengambil job: `systemctl status erp1-queue`, lalu
+  `/var/log/erp1/queue.log`. `failed_jobs_count` > 0 → Sistem › Antrean Gagal
+  di aplikasi (kirim ulang / hapus) atau `php artisan queue:failed`.
+
+- **Pengiriman e-mail yang gagal** terlihat di Sistem › Pengiriman Notifikasi
+  (`core_notification_deliveries`: `queued|sent|failed|skipped`, pesan galat
+  penyedia, tombol Kirim ulang). Pengiriman yang tidak pernah diambil pekerja
+  tinggal `queued` — tidak pernah dicatat sebagai terkirim.
+
+- **Setelah deploy kode** — `deploy/sync-erp1.sh` memulai ulang kedua unit bila
+  `is-enabled`; pekerja antrean memegang kode lama sampai dimulai ulang.
+
+- **Log aplikasi** — `storage/logs/laravel.log` di `/var/www/erp1.pi2.co.id`
+  (`LOG_CHANNEL` di `.env`); rotasi log host oleh `/etc/logrotate.d/erp1`
+  (sumber: `deploy/logrotate/erp1`, `copytruncate` karena unit menulis dengan
+  `append:` dan tidak membuka ulang berkas).
+
+- **Disk** — `df -h`; MySQL data di `/var/lib/mysql`, arsip cadangan di
+  `/var/backups/erp1` (§5.1, dipangkas oleh `backup-erp1.sh`).
+
+> **Docker (`docker-compose.prod.yml`)** — jalur ini tidak dipakai erp1. Bila
+> dipakai di tempat lain: `docker compose -f docker-compose.prod.yml ps`
+> (semua `Up`), `… logs -f --tail=100 app queue scheduler`, dan
+> `… exec app php artisan queue:monitor redis:default --max=100`.
 
 ## 7. Security checklist
 
