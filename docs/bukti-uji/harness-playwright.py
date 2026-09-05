@@ -528,21 +528,30 @@ def s7(pg):
             out[key + "_detail"] = pg.evaluate("() => { const b=document.querySelector('.page-head .badge'); return { h1: (document.querySelector('.page-head h1')||{}).innerText, badge: b ? b.innerText.trim()+' → '+[...b.classList].filter(c=>['green','red','amber','blue','primary'].includes(c)).join('/') : null } }")
     return out
 
-@scenario("S8_styles")
-def s8(pg):
-    login(pg, "admin@nusantara.test")
-    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
-    return pg.evaluate("""() => { const cs=(s)=>getComputedStyle(document.querySelector(s)); const th=cs('table.data th'); const sm=document.querySelector('.btn.sm');
+S8_MEASURE = """() => { const cs=(s)=>getComputedStyle(document.querySelector(s)); const th=cs('table.data th'); const sm=document.querySelector('.btn.sm');
         const root=getComputedStyle(document.documentElement);
         const lum=(hex)=>{const c=hex.match(/\\w\\w/g).map(x=>parseInt(x,16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2]};
         const cr=(a,b)=>{const l1=lum(a),l2=lum(b);return +(((Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05)).toFixed(2))};
         const v=(n)=>root.getPropertyValue(n).trim();
-        return { th_font: th.fontSize, th_color: th.color, muted_token: v('--muted'), bg: v('--bg'), surface2: v('--surface-2'),
+        return { theme: document.documentElement.dataset.theme || 'system', th_font: th.fontSize, th_color: th.color, muted_token: v('--muted'), bg: v('--bg'), surface2: v('--surface-2'),
                  contrast_muted_on_bg: cr(v('--muted'), v('--bg')), contrast_muted_on_surface2: cr(v('--muted'), v('--surface-2')),
                  contrast_success_badge: cr(v('--success'), v('--success-soft')),
                  btn_sm_height: sm ? sm.getBoundingClientRect().height : null,
                  smallest_font_px: Math.min(...[...document.querySelectorAll('body *')].map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Boolean)),
-                 page_head_buttons: [...document.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()||b.title) } }""")
+                 page_head_buttons: [...document.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()||b.title) } }"""
+
+@scenario("S8_styles")
+def s8(pg):
+    # P1-B: dijalankan di DUA tema. Kunci datar = tema terang (bentuk lama, pembaca lama tetap
+    # jalan); `dark` = pengukuran yang sama di tema gelap (data-theme di <html>, mekanisme S20).
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
+    pg.evaluate("() => { document.documentElement.dataset.theme = 'light'; }"); pg.wait_for_timeout(150)
+    out = pg.evaluate(S8_MEASURE)
+    pg.evaluate("() => { document.documentElement.dataset.theme = 'dark'; }"); pg.wait_for_timeout(150)
+    out["dark"] = pg.evaluate(S8_MEASURE)
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+    return out
 
 @scenario("S9_account_menu")
 def s9(pg):
@@ -1417,6 +1426,299 @@ def s20m(browser):
     finally:
         ctx.close()
 
+# ------------------------------------------------------------ S21 (P1-B)
+# Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
+# 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
+# dicatat adalah nilai terukur: token --accent-1..8 (+ -soft, -fg) yang hidup di halaman,
+# ΔE2000 antar slot (dihitung di sini, di Lab — rumus yang sama dengan skrip turunan palet) dan
+# kontras WCAG (aksen di --surface, -fg di aksen, aksen di -soft); warna terkomputasi penanda grup
+# aktif dan remah modul dibandingkan dengan token slot modul itu; href remah = #/m/<prefix> dan
+# klik benar-benar berpindah; beranda modul memuat PERSIS tautan grup sidebar (admin: semua grup;
+# warehouse@: grupnya sendiri, dan grup yang tidak ia pegang berakhir di keadaan kosong); kontrol
+# Kepadatan mengubah tinggi baris satu-baris menjadi 32/38,5/48 dan bertahan setelah muat ulang;
+# lima jenis ilustrasi keadaan kosong punya stroke yang resolve ke token; daftar tersaring habis
+# menampilkan "Hapus filter" yang bekerja.
+
+def _lin(c):
+    return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+def _rgb(hexs):
+    h = hexs.lstrip("#"); return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+def wcag(a, b):
+    la = 0.2126 * _lin(_rgb(a)[0]) + 0.7152 * _lin(_rgb(a)[1]) + 0.0722 * _lin(_rgb(a)[2])
+    lb = 0.2126 * _lin(_rgb(b)[0]) + 0.7152 * _lin(_rgb(b)[1]) + 0.0722 * _lin(_rgb(b)[2])
+    return round((max(la, lb) + 0.05) / (min(la, lb) + 0.05), 2)
+
+def _lab(hexs):
+    import math
+    r, g, b = [_lin(c) * 100 for c in _rgb(hexs)]
+    x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 95.047; y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 100.0; z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 108.883
+    f = lambda t: t ** (1 / 3) if t > 0.008856 else (7.787 * t) + 16 / 116
+    return 116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))
+
+def de2000(h1, h2):
+    import math
+    L1, a1, b1 = _lab(h1); L2, a2, b2 = _lab(h2)
+    C1 = math.hypot(a1, b1); C2 = math.hypot(a2, b2); Cb = (C1 + C2) / 2
+    G = 0.5 * (1 - math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)))
+    a1p, a2p = (1 + G) * a1, (1 + G) * a2
+    C1p, C2p = math.hypot(a1p, b1), math.hypot(a2p, b2)
+    hp = lambda a, b: 0 if a == 0 and b == 0 else (math.degrees(math.atan2(b, a)) % 360)
+    h1p, h2p = hp(a1p, b1), hp(a2p, b2)
+    dLp, dCp = L2 - L1, C2p - C1p
+    if C1p * C2p == 0: dhp = 0
+    elif abs(h2p - h1p) <= 180: dhp = h2p - h1p
+    elif h2p - h1p > 180: dhp = h2p - h1p - 360
+    else: dhp = h2p - h1p + 360
+    dHp = 2 * math.sqrt(C1p * C2p) * math.sin(math.radians(dhp / 2))
+    Lbp, Cbp = (L1 + L2) / 2, (C1p + C2p) / 2
+    if C1p * C2p == 0: hbp = h1p + h2p
+    elif abs(h1p - h2p) <= 180: hbp = (h1p + h2p) / 2
+    elif h1p + h2p < 360: hbp = (h1p + h2p + 360) / 2
+    else: hbp = (h1p + h2p - 360) / 2
+    T = 1 - 0.17 * math.cos(math.radians(hbp - 30)) + 0.24 * math.cos(math.radians(2 * hbp)) + 0.32 * math.cos(math.radians(3 * hbp + 6)) - 0.20 * math.cos(math.radians(4 * hbp - 63))
+    dth = 30 * math.exp(-((hbp - 275) / 25) ** 2)
+    RC = 2 * math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7))
+    SL = 1 + (0.015 * (Lbp - 50) ** 2) / math.sqrt(20 + (Lbp - 50) ** 2)
+    SC = 1 + 0.045 * Cbp; SH = 1 + 0.015 * Cbp * T
+    RT = -math.sin(math.radians(2 * dth)) * RC
+    return round(math.sqrt((dLp / SL) ** 2 + (dCp / SC) ** 2 + (dHp / SH) ** 2 + RT * (dCp / SC) * (dHp / SH)), 1)
+
+def rgb_to_hex(css):
+    m = re.findall(r"\d+", css or "")
+    return "#%02x%02x%02x" % tuple(int(x) for x in m[:3]) if len(m) >= 3 else None
+
+ACCENT_TOKENS = """() => { const r=getComputedStyle(document.documentElement); const v=(n)=>r.getPropertyValue(n).trim();
+    const out={ theme: document.documentElement.dataset.theme || 'system', surface: v('--surface'), tokens: {} };
+    for (let n=1;n<=8;n++) out.tokens[n] = { accent: v('--accent-'+n), soft: v('--accent-'+n+'-soft'), fg: v('--accent-'+n+'-fg') };
+    return out }"""
+
+ACTIVE_MARKER = """() => { const g=document.querySelector('nav.nav .nav-group.has-active'); const b=g&&g.querySelector('button');
+    const a=document.querySelector('#crumbs a.crumb-module'); const rect=a&&a.getBoundingClientRect();
+    return { group: g ? { label: b.innerText.trim(), prefix: g.dataset.prefix, accent: g.dataset.accent, color: getComputedStyle(b).color,
+                          box_shadow: getComputedStyle(b).boxShadow, open: g.dataset.open } : null,
+             crumb: a ? { href: a.getAttribute('href'), text: a.innerText.trim(), accent: a.dataset.accent, color: getComputedStyle(a).color,
+                          width: Math.round(rect.width), visible: a.checkVisibility() } : null,
+             crumbs_text: (document.getElementById('crumbs')||{}).innerText,
+             has_active_count: document.querySelectorAll('nav.nav .nav-group.has-active').length } }"""
+
+MODULE_HOME = """() => { const head=document.querySelector('.module-head'); const grid=document.querySelector('.module-grid'); const e=document.querySelector('#view .empty');
+    const prefix = head && head.dataset.prefix;
+    return { hash: location.hash, head: head ? { prefix, accent: head.dataset.accent, h1: head.querySelector('h1').innerText, desc: head.querySelector('.desc').innerText,
+                 border_left: getComputedStyle(head).borderLeftColor, eyebrow_color: getComputedStyle(head.querySelector('.eyebrow')).color,
+                 icon_bg: getComputedStyle(head.querySelector('.module-icon')).backgroundColor } : null,
+             cards: [...document.querySelectorAll('.module-card')].map(a => a.getAttribute('href')),
+             sections: [...document.querySelectorAll('.module-section')].map(s => s.innerText.trim()),
+             hints: document.querySelectorAll('.module-card .hint').length,
+             columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a`)].map(a => a.getAttribute('href')) : [],
+             sidebar_open: prefix ? (document.querySelector(`nav.nav .nav-group[data-prefix="${prefix}"]`)||{}).dataset?.open : null,
+             empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
+             smallest_font_px: Math.min(...[...document.querySelectorAll('#view *')].map(el=>parseFloat(getComputedStyle(el).fontSize)).filter(Boolean)) } }"""
+
+# Tinggi baris satu-baris (tanpa .cell-sub) per JENIS baris: teks polos, berlencana, bertombol aksi.
+ROWS = """() => { const h=(e)=>+e.getBoundingClientRect().height.toFixed(2);
+    // Baris tanpa .cell-sub; halaman uji dipilih yang namanya tidak membungkus (Kategori Item), jadi
+    // `all` yang lebih dari satu nilai berarti ada baris yang membungkus — dicatat, bukan disembunyikan.
+    const rows=[...document.querySelectorAll('table.data tbody tr')].filter(r => !r.querySelector('.cell-sub'));
+    const kind=(r)=> r.querySelector('.btn') ? 'button' : r.querySelector('.badge') ? 'badge' : 'text';
+    const by={}; for (const r of rows) { (by[kind(r)] ||= []).push(h(r)); }
+    const uniq=(a)=>[...new Set(a)].sort((x,y)=>x-y);
+    return { density: document.documentElement.dataset.density, row_h_token: getComputedStyle(document.documentElement).getPropertyValue('--row-h').trim(),
+             pointer: matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine', total_rows: document.querySelectorAll('table.data tbody tr').length,
+             single_line_rows: rows.length, by_kind: Object.fromEntries(Object.entries(by).map(([k,v]) => [k, uniq(v)])),
+             min_by_kind: Object.fromEntries(Object.entries(by).map(([k,v]) => [k, Math.min(...v)])),
+             all: uniq(rows.map(h)), th: h(document.querySelector('table.data th')), nav_link: h(document.querySelector('.nav-items a')),
+             btn_sm: (b => b ? h(b) : null)(document.querySelector('table.data .btn.sm')),
+             stored: Object.keys(localStorage).filter(k => k.startsWith('nusantara_erp_density')) } }"""
+
+EMPTY_KINDS = """async () => { const ui = await import('/app/js/ui.js'); const host=document.createElement('div'); host.id='s21e';
+    host.style.cssText='position:absolute;top:0;left:0;right:0;z-index:999;background:var(--surface);color:var(--text);display:grid;grid-template-columns:repeat(5,1fr)';
+    for (const kind of ['inbox','search','filter','error','done']) host.appendChild(ui.emptyState('Contoh ' + kind, { kind, title: kind }));
+    host.appendChild(ui.emptyState('Ringkas', { kind: 'done', compact: true, title: null }));
+    document.body.appendChild(host); return true }"""
+
+EMPTY_MEASURE = """() => { const r=getComputedStyle(document.documentElement); const v=(n)=>r.getPropertyValue(n).trim();
+    const tok={ '--border-strong': v('--border-strong'), '--primary': v('--primary'), '--danger': v('--danger'), '--success': v('--success'), '--surface-3': v('--surface-3'), '--primary-soft': v('--primary-soft'), '--danger-soft': v('--danger-soft'), '--success-soft': v('--success-soft') };
+    const out={ tokens: tok, kinds: {} };
+    for (const svg of document.querySelectorAll('#s21e .illus')) { const k=svg.dataset.kind; const cs=(sel)=>{ const n=svg.querySelector(sel); return n ? getComputedStyle(n) : {}; };
+      const box=svg.getBoundingClientRect(); const compact = svg.closest('.empty').classList.contains('compact');
+      out.kinds[k + (compact ? '_compact' : '')] = { width: Math.round(box.width), height: Math.round(box.height), bytes: svg.outerHTML.length,
+        ln_stroke: cs('.ln').stroke, ac_stroke: cs('.ac').stroke, fl_fill: cs('.fl').fill, fa_fill: cs('.fa').fill, opacity: getComputedStyle(svg).opacity,
+        hex_literals: (svg.outerHTML.match(/#[0-9a-fA-F]{3,6}\\b/g) || []).length, has_title: !!svg.closest('.empty').querySelector('h3') } }
+    return out }"""
+
+LIST_EMPTY = """() => { const e=document.querySelector('#view .empty'); if (!e) return null; const ln=e.querySelector('.illus .ln');
+    return { title: (e.querySelector('h3')||{}).innerText, text: (e.querySelector('p')||{}).innerText, kind: (e.querySelector('.illus')||{}).dataset?.kind,
+             ln_stroke: ln ? getComputedStyle(ln).stroke : null, buttons: [...e.querySelectorAll('button')].map(b => b.innerText.trim()) } }"""
+
+def set_theme(pg, theme):
+    pg.evaluate("(t) => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }", theme)
+    pg.wait_for_timeout(150)
+
+def accent_matrix(tokens_out):
+    t = tokens_out["tokens"]; surface = tokens_out["surface"]
+    pairs = {f"{i}-{j}": de2000(t[str(i)]["accent"], t[str(j)]["accent"]) for i in range(1, 9) for j in range(i + 1, 9)}
+    contrast = {n: {"on_surface": wcag(t[n]["accent"], surface), "fg_on_accent": wcag(t[n]["fg"], t[n]["accent"]), "on_soft": wcag(t[n]["accent"], t[n]["soft"])} for n in t}
+    return {"theme": tokens_out["theme"], "surface": surface, "tokens": t, "pairs": pairs, "min_pair_de": min(pairs.values()),
+            "min_pair": min(pairs, key=pairs.get), "contrast": contrast,
+            "min_on_surface": min(c["on_surface"] for c in contrast.values()), "min_fg_on_accent": min(c["fg_on_accent"] for c in contrast.values()),
+            "min_on_soft": min(c["on_soft"] for c in contrast.values()),
+            "all_pairs_ge_20": all(v >= 20 for v in pairs.values()),
+            "all_on_surface_ge_3": all(c["on_surface"] >= 3 for c in contrast.values()),
+            "all_fg_ge_4_5": all(c["fg_on_accent"] >= 4.5 for c in contrast.values()),
+            "all_on_soft_ge_4_5": all(c["on_soft"] >= 4.5 for c in contrast.values())}
+
+def set_density(pg, value):
+    click(pg, ".userchip"); pg.wait_for_timeout(500)
+    click(pg, f".density-pick input[value={value}]"); pg.wait_for_timeout(250)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+
+def module_vs_sidebar(pg, prefixes):
+    out = {}
+    for prefix in prefixes:
+        pg.goto(BASE + f"#/m/{prefix}"); pg.wait_for_timeout(900)
+        m = pg.evaluate(MODULE_HOME)
+        out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": m["cards"] == m["sidebar"], "head": bool(m["head"]),
+                       "sections": m["sections"], "hints": m["hints"], "empty": m["empty"], "columns": m["columns"], "smallest_font_px": m["smallest_font_px"],
+                       "only_in_cards": sorted(set(m["cards"]) - set(m["sidebar"])), "only_in_sidebar": sorted(set(m["sidebar"]) - set(m["cards"]))}
+    return out
+
+def module_accents(pg, tag):
+    errors = []; console_errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+    login(pg, "admin@nusantara.test")
+    if pg.locator(".onboarding-dock .dock-foot button:has-text('Lewati')").count():
+        pg.click(".onboarding-dock .dock-foot button:has-text('Lewati')"); pg.wait_for_timeout(600)
+    out = {"viewport": pg.viewport_size}
+    prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
+    out["sidebar_prefixes"] = prefixes
+
+    for theme in ("light", "dark"):
+        set_theme(pg, theme)
+        res = {"accent": accent_matrix(pg.evaluate(ACCENT_TOKENS))}
+        tok = res["accent"]["tokens"]
+        # Penanda grup aktif + remah modul di layar Keuangan (slot 2), lalu klik remahnya.
+        pg.goto(BASE + "#/r/finance/ar-invoices"); pg.wait_for_timeout(1500)
+        set_theme(pg, theme)
+        marker = pg.evaluate(ACTIVE_MARKER)
+        slot = marker["group"] and marker["group"]["accent"]
+        marker["marker_color_hex"] = rgb_to_hex(marker["group"]["color"]) if marker["group"] else None
+        marker["crumb_color_hex"] = rgb_to_hex(marker["crumb"]["color"]) if marker["crumb"] else None
+        marker["slot_token"] = tok[slot]["accent"] if slot else None
+        marker["marker_matches_token"] = bool(slot) and marker["marker_color_hex"] == tok[slot]["accent"]
+        marker["shadow_matches_token"] = bool(slot) and rgb_to_hex(marker["group"]["box_shadow"]) == tok[slot]["accent"]
+        marker["crumb_matches_token"] = bool(slot) and marker["crumb_color_hex"] == tok[slot]["accent"]
+        marker["crumb_href_ok"] = bool(marker["crumb"]) and marker["crumb"]["href"] == "#/m/fin"
+        res["active_marker"] = marker
+        pg.screenshot(path=f"{OUT}/s21-crumb-{theme}{tag}.png", clip={"x": 0, "y": 0, "width": pg.viewport_size["width"], "height": 120})
+        # Klik remah modul — di ponsel remah bisa terjepit (lebar dicatat di atas), jadi klik lewat DOM.
+        pg.evaluate("() => document.querySelector('#crumbs a.crumb-module').click()"); pg.wait_for_timeout(1000)
+        home = pg.evaluate(MODULE_HOME)
+        home["navigated"] = home["hash"] == "#/m/fin"
+        home["head_border_hex"] = rgb_to_hex(home["head"]["border_left"]) if home["head"] else None
+        home["head_matches_token"] = bool(home["head"]) and home["head_border_hex"] == tok[home["head"]["accent"]]["accent"]
+        home["icon_bg_matches_soft"] = bool(home["head"]) and rgb_to_hex(home["head"]["icon_bg"]) == tok[home["head"]["accent"]]["soft"]
+        home["cards_equal_sidebar"] = home["cards"] == home["sidebar"]
+        home["marker_after"] = pg.evaluate(ACTIVE_MARKER)["group"]
+        res["module_home_fin"] = home
+        pg.screenshot(path=f"{OUT}/s21-module-home-{theme}{tag}.png", full_page=False)
+        # Lima jenis ilustrasi keadaan kosong, stroke/fill terkomputasi vs token.
+        pg.evaluate(EMPTY_KINDS); pg.wait_for_timeout(200)
+        em = pg.evaluate(EMPTY_MEASURE)
+        t = em["tokens"]
+        em["checks"] = {k: {"ln_is_border_strong": rgb_to_hex(v["ln_stroke"]) == t["--border-strong"],
+                            "ac_is_token": rgb_to_hex(v["ac_stroke"]) == t[{"error": "--danger", "done": "--success"}.get(k.replace("_compact", ""), "--primary")],
+                            "fl_is_surface3": rgb_to_hex(v["fl_fill"]) == t["--surface-3"],
+                            # inbox tidak punya bidang aksen (.fa); jenis lain harus memakai token -soft yang benar.
+                            "fa_is_soft_token": v["fa_fill"] is None or rgb_to_hex(v["fa_fill"]) == t[{"error": "--danger-soft", "done": "--success-soft"}.get(k.replace("_compact", ""), "--primary-soft")],
+                            "bytes_le_1536": v["bytes"] <= 1536, "no_hex_literals": v["hex_literals"] == 0} for k, v in em["kinds"].items()}
+        em["all_ok"] = all(all(c.values()) for c in em["checks"].values())
+        res["empty_kinds"] = em
+        pg.locator("#s21e").screenshot(path=f"{OUT}/s21-empty-kinds-{theme}{tag}.png")
+        pg.evaluate("() => document.getElementById('s21e').remove()")
+        out[theme] = res
+    set_theme(pg, None)
+
+    # Beranda modul vs sidebar, admin: setiap grup.
+    out["admin_modules"] = module_vs_sidebar(pg, prefixes)
+    out["admin_all_match"] = all(m["match"] for m in out["admin_modules"].values())
+    out["unknown_prefix"] = (pg.goto(BASE + "#/m/tidak-ada") or pg.wait_for_timeout(600) or pg.evaluate("() => document.querySelector('#view').innerText.trim().slice(0, 80)"))
+
+    # Kepadatan: tiga profil pada satu daftar bertombol aksi (Kategori Item: nama pendek, tidak
+    # membungkus), lalu muat ulang. Harapan per penunjuk: pointer fine → 32/48 untuk SEMUA baris
+    # satu-baris; pointer coarse (ponsel) → sasaran jempol 36 px menang atas tombol 24 px, jadi baris
+    # bertombol 43 (rapat) / 55 (lega) — app.css § kepadatan. Bagan Akun ikut diukur per jenis baris.
+    def rows_on(route):
+        pg.goto(BASE + route); pg.wait_for_selector("table.data tbody tr", timeout=15000); pg.wait_for_timeout(600)
+        return pg.evaluate(ROWS)
+    probe = "#/r/inventory/item-categories"
+    dens = {"baseline": rows_on(probe), "baseline_accounts": rows_on("#/r/finance/accounts")}
+    coarse = dens["baseline"]["pointer"] == "coarse"
+    dens["expected"] = {"compact": 43 if coarse else 32, "comfortable": 55 if coarse else 48, "normal": 47 if not coarse else 55}
+    for value in ("compact", "comfortable", "normal"):
+        set_density(pg, value)
+        dens[value] = rows_on(probe)
+        dens[value + "_accounts"] = rows_on("#/r/finance/accounts")
+        if value == "compact":
+            pg.screenshot(path=f"{OUT}/s21-density-compact{tag}.png")
+    set_density(pg, "compact")
+    pg.reload(); pg.wait_for_selector("table.data tbody tr", timeout=20000); pg.wait_for_timeout(600)
+    dens["after_reload"] = pg.evaluate(ROWS)
+    # Toleransi 0,5 px: baris terakhir tabel tanpa border-bottom (tr:last-child td) — di ponsel
+    # lantai tidak mengikat (tombol 36 px), jadi baris itu setengah piksel lebih pendek.
+    near = lambda values, want: bool(values) and all(abs(v - want) <= 0.5 for v in values)
+    dens["compact_ok"] = near(dens["compact"]["all"], dens["expected"]["compact"])
+    dens["comfortable_ok"] = near(dens["comfortable"]["all"], dens["expected"]["comfortable"])
+    dens["normal_equals_baseline"] = dens["normal"]["all"] == dens["baseline"]["all"] and dens["baseline"]["density"] == "normal" and dens["normal_accounts"]["by_kind"] == dens["baseline_accounts"]["by_kind"]
+    # Bagan Akun: baris terpendek per jenis (teks/lencana/tombol) di tiap profil — nama panjang membungkus, jadi min-nya yang satu-baris.
+    dens["accounts_min_by_kind"] = {k: dens[k + "_accounts"]["min_by_kind"] for k in ("baseline", "compact", "comfortable", "normal")}
+    # Muat ulang mendarat di Bagan Akun (nama panjang membungkus): yang dibandingkan baris terpendeknya.
+    dens["persisted"] = dens["after_reload"]["density"] == "compact" and bool(dens["after_reload"]["all"]) and min(dens["after_reload"]["all"]) == dens["expected"]["compact"]
+    set_density(pg, "normal")
+    out["density"] = dens
+
+    # Daftar tersaring habis: pencarian saja → search; filter → filter; "Hapus filter" mengembalikan baris.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq"); pg.wait_for_timeout(1800)
+    le = {"search": pg.evaluate(LIST_EMPTY)}
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq&status=approved"); pg.wait_for_timeout(1800)
+    le["filter"] = pg.evaluate(LIST_EMPTY)
+    click(pg, "#view .empty button:has-text('Hapus filter')"); pg.wait_for_timeout(1500)
+    le["after_clear"] = pg.evaluate("() => ({ rows: document.querySelectorAll('table.data tbody tr').length, hash: location.hash, empty: !!document.querySelector('#view .empty') })")
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq"); pg.wait_for_timeout(1500)
+    pg.screenshot(path=f"{OUT}/s21-empty-filter{tag}.png")
+    out["list_empty"] = le
+
+    # Peran sempit: warehouse@ — beranda tiap grupnya = sidebarnya; #/m/fin = keadaan kosong.
+    pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+    login(pg, "warehouse@nusantara.test")
+    wh_prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
+    out["warehouse"] = {"prefixes": wh_prefixes, "modules": module_vs_sidebar(pg, wh_prefixes)}
+    out["warehouse"]["all_match"] = all(m["match"] for m in out["warehouse"]["modules"].values())
+    pg.goto(BASE + "#/m/fin"); pg.wait_for_timeout(900)
+    out["warehouse"]["fin_home"] = pg.evaluate(MODULE_HOME)
+    out["warehouse"]["fin_is_empty_state"] = bool(out["warehouse"]["fin_home"]["empty"]) and not out["warehouse"]["fin_home"]["cards"]
+    pg.screenshot(path=f"{OUT}/s21-module-empty-warehouse{tag}.png")
+
+    out["pageerrors"] = errors
+    out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
+    return out
+
+@scenario("S21_module_accents_breadcrumb")
+def s21(pg):
+    return module_accents(pg, "")
+
+@scenario("S21_module_accents_breadcrumb_mobile")
+def s21m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return module_accents(pg, "-mobile")
+    finally:
+        ctx.close()
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -1427,7 +1729,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
