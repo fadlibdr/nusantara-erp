@@ -390,6 +390,12 @@ export function barChart({
   const band = (horizontal ? plotH : plotW) / n;
   const groupW = band * (stacked ? 0.6 : 0.72);
   const barW = stacked ? groupW : groupW / m;
+  /* Celah antarbatang 1 px hanya bila batangnya cukup lebar; di bawah ±5 px celahnya
+     menyusut dan batang tipis tetap ≥ 0,5 px — `barW - 1` tanpa lantai menghasilkan
+     lebar NEGATIF begitu n×m batang melewati ±0,72·plotW (200 kategori × 3 seri →
+     width="-0.2": Chromium menolak atribut itu dan tidak menggambar satu batang pun,
+     sementara 600 <title> tetap ada di DOM — diukur 5 Sep 2026). */
+  const thick = Math.max(0.5, barW - Math.min(1, barW * 0.2));
   const labelIdx = new Set(horizontal ? cats.map((_, i) => i) : thin(n, plotW, Math.max(48, band)));
 
   cats.forEach((cat, j) => {
@@ -416,8 +422,8 @@ export function barChart({
       const b = value(Math.max(lo, Math.min(hi, to)));
       const along = bandStart + (band - groupW) / 2 + (stacked ? 0 : i * barW);
       const attrs = horizontal
-        ? { x: Math.min(a, b), y: along, width: Math.max(1, Math.abs(b - a)), height: barW - 1 }
-        : { x: along, y: Math.min(a, b), width: barW - 1, height: Math.max(1, Math.abs(b - a)) };
+        ? { x: Math.min(a, b), y: along, width: Math.max(1, Math.abs(b - a)), height: thick }
+        : { x: along, y: Math.min(a, b), width: thick, height: Math.max(1, Math.abs(b - a)) };
       const rect = make('rect', { class: 'series-bar', rx: 1.5, 'data-series': s.index, ...attrs });
       svg.appendChild(mark(paint(rect, 'fill', s.token), m > 1 ? `${s.label} — ${cat}: ${fy(v)}` : `${cat}: ${fy(v)}`));
     });

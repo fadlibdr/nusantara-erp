@@ -1098,6 +1098,9 @@ CHART_RENDER = """async () => {
   t('bar_stacked', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Material', values: [3,2,1] },{ label: 'Upah', values: [1,4,2] },{ label: 'Alat', values: [-1,1,0] }], stacked: true, ariaLabel: 'tumpuk' }));
   t('bar_horizontal', () => m.barChart({ categories: ['Gudang Utama Jakarta Selatan','Gudang 2','Gudang 3'], series: [{ label: 'Stok', values: [30,12,0] }], horizontal: true, ariaLabel: 'mendatar' }));
   t('bar_empty', () => m.barChart({ categories: [], series: [], ariaLabel: 'kosong' }));
+  // 100 kategori × 6 seri = 600 batang pada lebar 720: barW < 1 px — sebelum verifikasi P1-A
+  // width="-0.2" (Chromium menolak, 0 batang tergambar, 600 <title> tetap ada).
+  t('bar_dense', () => m.barChart({ categories: Array.from({length: 100}, (_, i) => 'K' + (i + 1)), series: Array.from({length: 6}, (_, i) => ({ label: 'S' + (i + 1), values: Array.from({length: 100}, (_, j) => (j * 7919 + i) % 97) })), ariaLabel: 'batang rapat 600' }));
   t('donut', () => m.donutChart({ slices: [{label:'Disetujui',value:60},{label:'Menunggu',value:30},{label:'Ditolak',value:10},{label:'Draf',value:0}], centerLabel: '100', centerSub: 'dokumen', ariaLabel: 'donat' }));
   t('donut_one', () => m.donutChart({ slices: [{label:'Semua',value:5}], ariaLabel: 'satu irisan' }));
   t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
@@ -1146,11 +1149,12 @@ CHART_MEASURE = """(theme) => {
     const numeric = [...new Set(texts.map(t => getComputedStyle(t).fontVariantNumeric))];
     const box = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
     const scale = vb.width ? box.width / vb.width : 1;
-    const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length,
+    const negDims = [...svg.querySelectorAll('rect, circle')].filter(e => ['width', 'height', 'r'].some(a => e.hasAttribute(a) && parseFloat(e.getAttribute(a)) < 0)).length;
+    const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, neg_dims: negDims,
       texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
       width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
     if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length; }
-    if (name.startsWith('bar')) c.zero_line = svg.querySelectorAll('.chart-zero').length;
+    if (name.startsWith('bar')) { c.zero_line = svg.querySelectorAll('.chart-zero').length; const bars = [...svg.querySelectorAll('rect.series-bar')]; c.bars = bars.length; c.bar_min_thickness = bars.length ? Math.min(...bars.map(r => +r.getAttribute(name.includes('horizontal') ? 'height' : 'width'))) : null; }
     if (name.startsWith('donut')) c.full_ring = svg.querySelectorAll('circle.mark').length;
     if (name.startsWith('gantt')) {
       c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
@@ -1168,13 +1172,17 @@ CHART_MEASURE = """(theme) => {
   return { theme, tokens, surface, contrast, charts,
     summary: { charts: total.length, painted: total.reduce((a, c) => a + c.painted, 0), mismatches: total.reduce((a, c) => a + c.mismatch.length, 0),
       marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), titles_equal_marks: total.every(c => c.marks === c.titles),
+      neg_dims: total.reduce((a, c) => a + c.neg_dims, 0),
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
       empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length, min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 
 def chart_tokens(pg, tag):
     errors = []
+    console_errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    # Atribut SVG yang ditolak Chromium (width negatif dsb.) tidak melempar — hanya console.error.
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
     login(pg, "admin@nusantara.test")
     out = {"render": pg.evaluate(CHART_RENDER)}
     for theme in ("light", "dark"):
@@ -1183,6 +1191,7 @@ def chart_tokens(pg, tag):
         pg.locator("#s20").screenshot(path=f"{OUT}/s20-chart-tokens-{theme}{tag}.png")
     pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
     out["pageerrors"] = errors
+    out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
     out["viewport"] = pg.viewport_size
     return out
 
