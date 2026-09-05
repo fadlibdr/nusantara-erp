@@ -38,6 +38,16 @@
 # Where the encryption key lives, if not the default.
 #OFFSITE_KEY=/etc/erp1/backup.key
 
+# --- database engine (Fase 0, set by the MySQL cut-over runbook) -------------
+# sqlite (default): VACUUM INTO snapshot of database/database.sqlite.
+# mysql: mysqldump --single-transaction of MYSQL_DATABASE, credential from the
+# my.cnf-style file below (see erp1-mysql-backup.cnf.example, mode 600). One
+# key here switches every cron line AND sync-erp1.sh's pre-migration snapshot;
+# `--engine` on the command line overrides it for a single run.
+#BACKUP_ENGINE=mysql
+#MYSQL_DEFAULTS_FILE=/etc/erp1/mysql-backup.cnf
+#MYSQL_DATABASE=erp
+
 # After configuring, prove the whole path end to end:
 #   /var/www/erp1.pi2.co.id/deploy/backup-erp1.sh --offsite-only   -> "offsite ok"
 #   /var/www/erp1.pi2.co.id/deploy/backup-erp1.sh --restore-drill  -> "RESTORE DRILL PASSED"

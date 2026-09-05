@@ -757,11 +757,14 @@ MYSQL_PWD="$DB_PASSWORD" mysql -u erp -h 127.0.0.1 -e "SELECT CURRENT_USER(); SH
 
 - `/var/www/erp1.pi2.co.id/.env` — still `DB_CONNECTION=sqlite`.
 - `/etc/cron.d/erp1`, nginx, php-fpm — untouched.
-- `deploy/backup-erp1.sh` — still snapshots the SQLite file; the MySQL branch
-  (`mysqldump --single-transaction` + restore drill) is T0.6.
-- The application code — the two SQLite-only partial unique indexes and the
-  preflight audit are T0.1/T0.2, in this same phase, and the cut-over itself
-  is a separate, ordered runbook.
+- `deploy/backup-erp1.sh` — still snapshots the SQLite file. Its MySQL
+  engine (§10.8) exists since T0.6 but is off until `BACKUP_ENGINE=mysql`
+  is written to `/etc/erp1/backup.conf`, which the cut-over runbook's last
+  step does.
+- The application code — the preflight audit (T0.1), the partial-index
+  replacement (T0.2), the data-move and verify commands (T0.5, §10.7) all
+  ship in the same release and do nothing on their own; the cut-over itself
+  is the separate, ordered runbook in §10.9, run by hand.
 
 ### 10.5 Running the test suite on MySQL (T0.3)
 
@@ -834,3 +837,215 @@ the duplicate-day catch in `DailyReportService` / `HseDailyService`), never by
 a retry. The p95 the harness prints is client-observed latency including the
 queue behind 8 CLI workers on one vCPU; the T0.7 targets are measured on the
 php-fpm/nginx stack, not here.
+
+### 10.7 Moving the data: `erp:sqlite-to-mysql` and `erp:migration-verify` (T0.5)
+
+Two commands, both reading the old file through a dedicated connection —
+`sqlite_legacy` in `config/database.php`, path from `SQLITE_LEGACY_PATH`
+(default `database/database.sqlite`) — so the verification can be repeated
+days after the cut-over without touching `DB_CONNECTION`.
+
+```
+# target: a MySQL schema that has just been migrated and holds no rows
+DB_CONNECTION=mysql DB_DATABASE=erp php artisan migrate:fresh --force
+DB_CONNECTION=mysql DB_DATABASE=erp SQLITE_LEGACY_PATH=/path/database.sqlite \
+    php artisan erp:sqlite-to-mysql --from=/path/database.sqlite --to=mysql
+DB_CONNECTION=mysql DB_DATABASE=erp SQLITE_LEGACY_PATH=/path/database.sqlite \
+    php artisan erp:migration-verify --from=sqlite_legacy --to=mysql
+```
+
+`erp:sqlite-to-mysql` refuses rather than guesses: the target must be a
+`mysql` connection **and empty** (every table except `migrations` at zero
+rows — the tool never appends, so it can never duplicate); both migration
+ledgers must name the same set (a source that has not run `000746` is told
+to run `php artisan migrate --database=sqlite_legacy --force` first — deploy
+does that on the live file); a source table or column the target lacks is
+data that would be lost, so it stops. Then: `SET FOREIGN_KEY_CHECKS=0`, one
+transaction for all tables (a failure at table 140 leaves the target as
+empty as it found it), tables in name order from
+`Schema::getTableListing(currentSchema)` (never the bare `getTables()`, which
+on MySQL lists every schema the account can see), 1 000 rows per INSERT
+(narrowed automatically to stay under MySQL's 65 535 placeholders), ids
+preserved, generated columns (`live_key`) never sent, JSON re-encoded to its
+canonical text (undecodable → stop, with the row id), DATE columns given the
+date only (SQLite stored `2026-03-25 00:00:00`; a non-midnight time is
+information lost and is reported), and off-scale decimals rounded to the
+column's scale with **every rounding listed** (table, column, id, from, to).
+Values already on scale pass through as text and never touch a float; a
+SQLite REAL is read as its shortest round-trip form (what `json_encode`
+prints), because `21048283043.470001220703` is the float's representation,
+not the value. After commit the tool reads each table's `AUTO_INCREMENT`
+with `information_schema_stats_expiry = 0` (the default 24-hour cache says
+`1` for a table whose max id is 11) and sends `ALTER TABLE … AUTO_INCREMENT`
+only where InnoDB has not already advanced it — on the normal path that is
+zero ALTERs, so the run is DDL-free.
+
+`erp:migration-verify --from=<connection> --to=<connection> [--ignore=a,b]
+[--report=path]` compares any two connections, per table: row count;
+`SUM(ROUND(col, scale))` for every decimal column, computed as an exact
+scaled integer (`SUM(ROUND(col × 10^s))` — DECIMAL arithmetic on MySQL,
+INTEGER on SQLite, re-scaled as text, never through a float — because a
+SQLite float SUM can print `1234.5600000001` for identical data); and an
+order-independent md5 over five key columns (`id`, then schema order,
+skipping generated, decimal/float and JSON columns; DATE/DATETIME
+normalised; `migrations` compared by name only since a fresh target's ids
+and batches legitimately differ). A table on one side only is a difference;
+a number that could not be computed is `?` and a difference; any difference
+is exit 1. The Markdown report lands in `storage/app/migration-report-<ts>.md`
+unless `--report` says otherwise.
+
+Rehearsed 5 Sep 2026 on a copy of the production file →
+`erp_dryrun` (`docs/bukti-uji/migration-verify-dryrun-2026-09-05.md`): 189
+tables / 1 240 rows moved, 5 JSON values re-encoded, 367 DATE values
+trimmed, **0 value changes**; verify: 190 tables, 1 468 / 1 468 rows, 264
+decimal columns, **0 differences**. Tests: `MigrationVerifyCommandTest`
+(both drivers) and `SqliteToMysqlCommandTest` (the move itself on
+`phpunit.mysql.xml`, into `erp_test`, then verified identical).
+
+### 10.8 MySQL backups and the restore drill (T0.6)
+
+`deploy/backup-erp1.sh` has one new dimension, the engine: `--engine
+sqlite|mysql` on the command line, else `ERP_BACKUP_ENGINE`, else
+`BACKUP_ENGINE=` in `/etc/erp1/backup.conf`, else `sqlite`. The conf key is
+the one to use in production: it switches all four cron lines **and**
+`sync-erp1.sh`'s pre-migration `--local-only` snapshot at once, with no cron
+edit. Two more conf keys name the credential and the schema:
+
+```
+BACKUP_ENGINE=mysql
+MYSQL_DEFAULTS_FILE=/etc/erp1/mysql-backup.cnf     # my.cnf [client] user/password/host, mode 600
+MYSQL_DATABASE=erp
+```
+
+(`deploy/erp1-backup.conf.example`, `deploy/erp1-mysql-backup.cnf.example`.)
+The password reaches `mysqldump` and `mysql` only through
+`--defaults-extra-file` — never argv, never `MYSQL_PWD`, both of which
+`/proc` shows to every local user. The file is validated like the rest of
+the conf (plain `KEY=value`, known keys only) before it is sourced.
+
+**Backup.** `mysqldump --single-transaction --routines --triggers
+--set-gtid-purged=OFF --no-tablespaces --hex-blob
+--default-character-set=utf8mb4 --quick erp` → `erp1-db-<ts>.sql` — one
+consistent InnoDB snapshot with writers running; GTID off because
+`erp1.cnf` disables the binary log (no replica, no point-in-time recovery:
+an owner decision, §10.2); `--no-tablespaces` so the `erp` account needs no
+global `PROCESS` privilege. The dump counts as a backup only when its
+`-- Dump completed` trailer is present (a mysqldump killed by OOM or a
+timeout writes none), it has a `users` table and at least one `users` row —
+the SQLite path's "no users, not a backup" rule. Then the same path as
+before: gzip, `.part` → container check → rename, GPG AES-256 with
+`/etc/erp1/backup.key`, sync, read-back sha256, remote pruning (both
+`.sqlite.gz.gpg` and `.sql.gz.gpg` stay eligible for counting and ageing —
+after the cut-over the remote holds both kinds for 30 days). The status
+file gains `"engine"`.
+
+**Drill** (`--restore-drill`, monthly cron unchanged): fetch the newest
+offsite `.sql.gz.gpg`, decrypt, gunzip, check the trailer, **drop every
+table in `erp_restore_check`** (the one schema the drill may write —
+hard-coded, not a conf key, so a typo cannot aim a restore at production),
+load the dump, count users and journals, then run `erp:migration-verify
+--from=mysql --to=mysql_restore_check --ignore=sessions,cache,cache_locks,
+jobs,job_batches,failed_jobs,password_reset_tokens` as www-data. Three
+outcomes: `passed` (0 differing tables), `drift` (the live database moved
+since the dump — expected on a working day, not at 03:30 WIB 75 minutes
+after the 02:15 backup; the log names the count and the report), `failed`
+(fetch, key, load, or the verify itself). `erp:backup-watch` alarms only on
+`failed`. `--source=local` drills from the newest **local** artifact without
+GPG or offsite — the mode the cut-over runbook uses while the production
+offsite destination is still unconfigured — and writes nothing to the status
+file, because the status is about the offsite copy.
+
+Rehearsed 5 Sep 2026 against `erp_dryrun` with a scratch conf, key and
+`rsync:root@localhost` destination
+(`docs/bukti-uji/restore-drill-mysql-2026-09-05.md`): dump 190 tables (72 KB
+gz) → offsite → drill restore 13 s → verify 183 tables (7 skipped), 1 421 /
+1 421 rows, 264 decimal columns, 0 differences, `last_drill_result: passed`;
+one edited `users.name` in the live copy → `drift` with 1 table named; the
+local-source drill passes; the SQLite engine still snapshots and drills.
+
+### 10.9 Cut-over runbook (T0.6) — `deploy/cutover-erp1.sh`, one step per call
+
+Run by the owner/orchestrator by hand, on erp1, as root, on a Saturday
+morning (owner decision #6), after the Fase 0 release has been deployed with
+`deploy/sync-erp1.sh` (which runs the SQLite-side migrations, including the
+no-op `000746` that the ledger check in §10.7 wants to see). Each step prints
+what it will do, refuses to run before its predecessor is recorded in
+`/var/backups/erp1/cutover/state`, stops on the first error, and records
+itself only when its checks pass. `--dry-run` prints every command without
+running or recording anything.
+
+```
+export CUTOVER_CRED=/path/mysql-erp.cred          # DB_USERNAME= / DB_PASSWORD=, mode 600 (§10.3)
+export SMOKE_EMAIL=… SMOKE_PASSWORD=…             # a real account with prc.view + prj.create
+S=/var/www/erp1.pi2.co.id/deploy/cutover-erp1.sh
+bash $S pra          # 0. mysql active, new code deployed, .env still sqlite, no pending migrations,
+                     #    credential + GRANT ok, erp:mysql-preflight on the LIVE file → verdict ok
+                     #    (diff against docs/bukti-uji/mysql-preflight-erp1-2026-09-05.json:
+                     #    only generated_at and guarded flags may differ), disk space
+bash $S basisdata    # 1. CREATE DATABASE erp (root, auth_socket) + migrate:fresh → 190 tables, 0 rows
+bash $S down         # 2. php artisan down --secret=<random> --retry=60; park /etc/cron.d/erp1
+                     #    (→ erp1.cutover-parked: a dot in the name, cron ignores it); wait for a
+                     #    running schedule:run; 10 s for in-flight requests; PRAGMA
+                     #    wal_checkpoint(TRUNCATE); sha256 of the frozen file
+bash $S snapshot     # 3. backup-erp1.sh --engine sqlite --local-only, copy to
+                     #    cutover/erp1-sqlite-final-<ts>.sqlite.gz + .gpg, sha256 — kept 30 days
+bash $S salin        # 4. sha256 re-check, then erp:sqlite-to-mysql --from=<live file> --to=mysql;
+                     #    "Perubahan nilai: 0" required (any listed rounding = stop and decide)
+bash $S verifikasi   # 5. erp:migration-verify --from=sqlite_legacy --to=mysql → report in
+                     #    cutover/migration-verify-<ts>.md, exit 1 stops here. Save it to docs/bukti-uji/
+bash $S env          # 6. .env copied to cutover/env.sqlite-<ts>; DB_CONNECTION=mysql, DB_HOST,
+                     #    DB_PORT, DB_DATABASE=erp, DB_USERNAME, DB_PASSWORD, SQLITE_LEGACY_PATH=<file>;
+                     #    config:clear; migrate --pretend MUST say "Nothing to migrate";
+                     #    config:cache route:cache event:cache; reload php8.3-fpm; verify again
+                     #    through .env (proves .env, not the environment, is what works)
+bash $S smoke        # 7. through nginx with the down secret's bypass cookie: /up → 200; POST
+                     #    /api/iam/auth/login → token; GET /api/procurement/purchase-orders → 200;
+                     #    POST /api/projects/daily-reports for an EXISTING (project, date) → 422
+                     #    naming report_date and the row count unchanged; erp:permission-check → 0
+bash $S up           # 8. php artisan up; cron back; /etc/erp1/mysql-backup.cnf (600) +
+                     #    BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=erp appended to
+                     #    backup.conf; backup-erp1.sh --local-only; --restore-drill --source=local
+                     #    must print RESTORE DRILL PASSED; prints the 24-hour rollback deadline
+```
+
+**Rollback** — `bash $S rollback`, within 24 hours of `up`: `down`, park
+cron, sha256 of the SQLite file must still equal the frozen one (the file
+was never written after step 2 — the tools only read it), `.env` restored
+from `cutover/env.sqlite-latest`, `config:clear` + caches, php-fpm reload,
+`migrate:status` proves SQLite answers, `BACKUP_ENGINE=mysql` commented out,
+`up`, cron back. **Whatever users wrote to MySQL between `up` and `rollback`
+does not come back** — that is why the window is 24 hours and the day is
+Saturday. After the window, `ROLLBACK_FORCE=1` is required and the MySQL
+schema is left in place for inspection. The SQLite file and its GPG archive
+are kept 30 days (owner decision #6), then the owner decides.
+
+What the runbook never does: it does not edit nginx or php-fpm config, does
+not rotate the `erp` password, does not touch `/etc/erp1/backup.key`, does
+not delete the SQLite file, and does not run the deploy script.
+
+### 10.10 Measuring T0.7 — 40 and 80 parallel list requests, 0 × 503
+
+The roadmap's Fase 0 metric is measured on the real stack (nginx → php-fpm →
+MySQL), not on the PHP CLI server §10.6 used, and with **read-only list
+requests** so it can run against the production schema after the cut-over
+without creating a row: `tests/harness/list-burst.py` (Python 3 standard
+library) logs in once, fires P simultaneous `GET /api/procurement/purchase-
+orders` (a `threading.Barrier` releases them together), and reports 2xx /
+429 / 503 / 5xx counts and p50 / p95 / max. One wave of 40 and one of 80
+each stay under the 120-per-minute per-user API limit; the 65-second pause
+between waves keeps the limiter out of the measurement.
+
+```
+# BEFORE (SQLite, for the baseline) and AFTER (MySQL) the cut-over, same command:
+python3 tests/harness/list-burst.py --base https://erp1.pi2.co.id \
+    --email <akun> --password <sandi> --parallel 40,80 --pause 65 \
+    --out docs/bukti-uji/t07-list-burst-<sebelum|sesudah>-<tanggal>.json
+```
+
+Pass = `503 == 0` and `5xx == 0` in both waves, p95 ≤ 1 500 ms at P = 40 and
+≤ 3 000 ms at P = 80 (`"all_pass": true` in the JSON; exit 0). Run it when
+nobody is working (the same Saturday morning, right after `up`), from a
+machine other than erp1 if one is available so the client's own CPU is not
+in the number; from erp1 itself the figures include the client and are
+conservative. The write-path burst of §10.6 (`burst.py`) stays where it is:
+against `erp_scratch`, never against `erp`.

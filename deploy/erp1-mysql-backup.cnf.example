@@ -1,0 +1,16 @@
+# Credential for deploy/backup-erp1.sh --engine mysql (mysqldump and the
+# restore drill). my.cnf syntax, read through --defaults-extra-file so the
+# password is never on a command line or in the environment.
+#
+# Install:  cp erp1-mysql-backup.cnf.example /etc/erp1/mysql-backup.cnf
+#           chmod 600 /etc/erp1/mysql-backup.cnf
+#           (then name it in /etc/erp1/backup.conf: MYSQL_DEFAULTS_FILE=...)
+#
+# The same account the application uses ('erp'@'localhost', §10.3): it holds
+# ALL on erp (the dump source) and on erp_restore_check (the drill target),
+# and nothing else — a leaked backup credential cannot reach another schema.
+[client]
+user=erp
+password=GANTI-DENGAN-DB_PASSWORD-DARI-.env
+host=127.0.0.1
+port=3306
