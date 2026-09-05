@@ -149,6 +149,89 @@ class DeployUnitsTest extends TestCase
             $this->assertNotFalse($start);
             $this->assertGreaterThan($start, $restore, "{$step}: pengawas kembali SESUDAH unit dinyalakan.");
         }
+
+        // Dan SESUDAH detak jantung segar: unit berhenti berjam-jam sepanjang
+        // cut-over, detak tersimpan jauh lebih tua dari ambang, dan tick */15
+        // yang mendarat sebelum detak */5 pertama memulai ulang penjadwal yang
+        // baru menyala + alarm palsu (verifikasi P-0b, 5 Sep 2026). Tunggunya
+        // terbatas (24 × 15 s) dan pengawas TETAP kembali setelah habis.
+        $restore = $this->functionBody($cutover, 'watchdog_restore');
+        $wait = strpos($restore, 'heartbeat_wait');
+        $mv = strpos($restore, 'run mv "$WATCHDOG_PARKED" "$WATCHDOG_CRON"');
+        $this->assertNotFalse($wait, 'watchdog_restore harus menunggu detak jantung.');
+        $this->assertNotFalse($mv);
+        $this->assertLessThan($mv, $wait, 'Detak segar dulu, baru berkas cron pengawas kembali.');
+
+        $loop = $this->functionBody($cutover, 'heartbeat_wait');
+        $this->assertStringContainsString('erp:heartbeat --age', $loop);
+        $this->assertStringContainsString('seq 1 24', $loop);
+        $this->assertStringContainsString('sleep 15', $loop);
+        $this->assertStringContainsString('PERINGATAN', $loop);
+        $this->assertGreaterThan(strrpos($loop, 'done'), strpos($loop, 'PERINGATAN'), 'Peringatan sesudah loop, bukan berhenti: pengawas tetap kembali.');
+        $this->assertStringNotContainsString('fail ', $loop, 'Habis menunggu bukan alasan menghentikan cut-over.');
+
+        $this->assertMatchesRegularExpression(
+            '/^HEARTBEAT_MAX_AGE='.(int) config('erp.scheduler.heartbeat_max_age_s').'$/m',
+            $cutover,
+            'Ambang tunggu = ambang pengawas (config/erp.php scheduler.heartbeat_max_age_s).',
+        );
+    }
+
+    /**
+     * Dijalankan sungguhan (--dry-run) atas state coretan dengan systemctl
+     * palsu: transkrip `up` dan `rollback` harus menunggu erp:heartbeat --age
+     * SESUDAH unit dinyalakan dan SEBELUM berkas cron pengawas dikembalikan.
+     * Skrip menuntut root, jadi dilewati di host lain; dry-run tidak menulis
+     * apa pun — direktori kerja tetap berisi satu berkas state.
+     */
+    public function test_the_cutover_dry_run_waits_for_a_fresh_heartbeat_before_restoring_the_watchdog(): void
+    {
+        $bash = (new ExecutableFinder)->find('bash');
+
+        if ($bash === null || ! function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+            $this->markTestSkipped('cutover-erp1.sh menuntut root; dry-run hanya bisa diuji sebagai root.');
+        }
+
+        $dir = sys_get_temp_dir().'/erp1-cutover-'.uniqid();
+        mkdir($dir.'/work', 0700, true);
+        mkdir($dir.'/site', 0755, true);
+        mkdir($dir.'/bin', 0755, true);
+        file_put_contents($dir.'/work/state', "pra x\nbasisdata x\ndown x\nsnapshot x\nsalin x\nverifikasi x\nenv x\nsmoke x\n");
+        file_put_contents($dir.'/cred', "DB_USERNAME=uji\nDB_PASSWORD=uji\n");
+        chmod($dir.'/cred', 0600);
+        // Setiap unit "tidak enabled"; apa pun selain is-enabled ditolak keras.
+        file_put_contents($dir.'/bin/systemctl', "#!/usr/bin/env bash\ncase \"\$1\" in is-enabled) exit 1 ;; *) echo \"systemctl palsu menolak: \$*\" >&2; exit 99 ;; esac\n");
+        chmod($dir.'/bin/systemctl', 0755);
+
+        $env = [
+            'PATH' => $dir.'/bin:'.getenv('PATH'),
+            'ERP_SITE' => $dir.'/site',
+            'CUTOVER_DIR' => $dir.'/work',
+            'CUTOVER_CRED' => $dir.'/cred',
+        ];
+
+        try {
+            foreach (['up', 'rollback'] as $step) {
+                $process = new Process([$bash, base_path('deploy/cutover-erp1.sh'), '--dry-run', $step], null, $env);
+                $process->run();
+                $out = $process->getOutput();
+                $this->assertSame(0, $process->getExitCode(), $out.$process->getErrorOutput());
+
+                // units_start = kemunculan TERAKHIR baris unit (rollback juga menghentikannya lebih dulu).
+                $start = strrpos($out, 'erp1-scheduler tidak enabled — dilewati');
+                $wait = strpos($out, 'php artisan erp:heartbeat --age');
+                $mv = strpos($out, 'mv /etc/cron.d/erp1-watchdog.cutover-parked /etc/cron.d/erp1-watchdog');
+                $this->assertNotFalse($start, "{$step}: unit tidak dinyalakan.\n{$out}");
+                $this->assertNotFalse($wait, "{$step}: tidak menunggu detak.\n{$out}");
+                $this->assertNotFalse($mv, "{$step}: pengawas tidak dikembalikan.\n{$out}");
+                $this->assertLessThan($wait, $start, "{$step}: menunggu detak SESUDAH unit dinyalakan.");
+                $this->assertLessThan($mv, $wait, "{$step}: pengawas kembali SESUDAH detak segar.");
+            }
+
+            $this->assertSame(['state'], array_values(array_diff(scandir($dir.'/work'), ['.', '..'])), 'dry-run tidak boleh menulis apa pun.');
+        } finally {
+            (new Filesystem)->deleteDirectory($dir);
+        }
     }
 
     /**

@@ -1038,7 +1038,12 @@ bash $S smoke        # 7. through nginx with the down secret's bypass cookie: /u
                      #    POST /api/projects/daily-reports for an EXISTING (project, date) → 422
                      #    naming report_date and the row count unchanged; erp:permission-check → 0
 bash $S up           # 8. php artisan up; cron back; systemctl start the two units when enabled;
-                     #    watchdog cron back;
+                     #    wait for a FRESH heartbeat (erp:heartbeat --age < 1200 s, at most
+                     #    24 × 15 s = 6 min — the stored beat is hours old after the stop, and a
+                     #    */15 watchdog tick before the first */5 beat would restart the
+                     #    just-started scheduler and raise a false "Penjadwal tidak berjalan"
+                     #    alarm that nothing retracts; after 6 min: loud warning, watchdog
+                     #    restored anyway) and only then the watchdog cron back;
                      #    /etc/erp1/mysql-backup.cnf (600) +
                      #    BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=erp appended to
                      #    backup.conf; backup-erp1.sh --local-only; --restore-drill --source=local
@@ -1051,7 +1056,8 @@ still equal the frozen one (the file
 was never written after step 2 — the tools only read it), `.env` restored
 from `cutover/env.sqlite-latest`, `config:clear` + caches, php-fpm reload,
 `migrate:status` proves SQLite answers, `BACKUP_ENGINE=mysql` commented out,
-`up`, cron, units and watchdog back. **Whatever users wrote to MySQL between `up` and `rollback`
+`up`, cron, units back, then the watchdog back after the same fresh-heartbeat
+wait as step 8. **Whatever users wrote to MySQL between `up` and `rollback`
 does not come back** — that is why the window is 24 hours and the day is
 Saturday. After the window, `ROLLBACK_FORCE=1` is required and the MySQL
 schema is left in place for inspection. The SQLite file and its GPG archive
