@@ -209,8 +209,9 @@ masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik di
 sha256 tarball, lisensi, gzip terukur, untuk apa, cara memperbarui (perintah persis); per berkas:
 sha256. Uji `tests/Feature/Core/VendorManifestTest` memaku semuanya: setiap berkas vendor ada di
 manifest dengan sha yang sama dan sebaliknya; tidak ada `<script src>`, `<link href>`, `import`,
-`import()`, `new URL`, `fetch`, `url()`, `@import` yang menunjuk `http(s)://` di mana pun di bawah
-`public/app`; literal http(s) yang bukan pemuat hanya boleh namespace W3C, tautan `<a>`/`href:`,
+`import()`, `new URL`, `fetch`, `url()`, `@import` yang menunjuk `http(s)://` atau `//host` di mana
+pun di bawah `public/app` — `srcset`/`imagesrcset` diperiksa per kandidat, bukan hanya kandidat
+pertamanya; literal http(s) yang bukan pemuat hanya boleh namespace W3C, tautan `<a>`/`href:`,
 atau komentar (aturan tertulis di uji — tambah aturan, bukan allowlist); jumlah gzip ≤ 60 KB
 (dicetak saat uji); sprite XML sah dengan `<symbol id="lucide-…" viewBox>`; `Sortable.min.js`
 identik dengan sha manifest.

@@ -26,6 +26,10 @@ use Tests\TestCase;
  *      import, import(), new URL, fetch, url(), @import, "src": di manifest) yang
  *      menunjuk http(s):// atau //host di *.html *.htm *.xhtml *.js *.mjs *.css
  *      *.svg *.webmanifest *.json mana pun di bawah public/app — tanpa allowlist.
+ *      Atribut berisi DAFTAR kandidat (srcset, imagesrcset) dibaca utuh — juga bila
+ *      nilainya melintasi baris — dan SETIAP kandidatnya diperiksa (srcsetCandidates),
+ *      bukan hanya yang pertama: "x.png 1x, //evil.example/x.png 2x" memuat kandidat
+ *      kedua di layar 2× (verifikasi P1-A putaran 2, mutasi y5b).
  *      Literal http(s) yang BUKAN pemuat harus lolos aturan data yang tepat di
  *      isDataLiteral(); literal //host di dalam tanda kutip/backtick diperlakukan
  *      sama (`s.src = '//cdn…'` adalah alamat, bukan komentar) — hanya //host tanpa
@@ -99,6 +103,21 @@ class VendorManifestTest extends TestCase
         .'|@import\s*(?:url\s*\(\s*)?["\']?'         // @import '…
         .')$~i';
 
+    /**
+     * Nilai atribut DAFTAR URL — srcset (<img>, <source>) dan imagesrcset (<link rel=preload
+     * as=image>) — dalam empat bentuk penulisan: atribut HTML `srcset="…"` (kutip ganda/
+     * tunggal, atau tanpa kutip sampai spasi/>), properti JS `img.srcset = '…'`, kunci
+     * el('img', { srcset: '…' }) (ui.js el() memanggil setAttribute), dan
+     * setAttribute('srcset', '…'). Nilai berkutip boleh melintasi baris. Dicocokkan atas
+     * ISI BERKAS utuh, bukan per baris: pindaian per baris hanya melihat konteks tepat
+     * sebelum sebuah URL, sehingga kandidat ke-2+ (didahului ', ') lolos sebagai "komentar".
+     * Grup: 1 nama atribut, 2–5 nilai (salah satu terisi).
+     */
+    private const LIST_ATTRIBUTE_VALUE = '~\b(srcset|imagesrcset)\b["\']?\s*[=:,]\s*(?:"([^"]*)"|\'([^\']*)\'|`([^`]*)`|([^\s>"\'`]+))~i';
+
+    /** Kandidat srcset yang diambil dari luar: berskema http(s) atau relatif-protokol ke host bertitik. */
+    private const EXTERNAL_CANDIDATE = '~^(?:https?://|//[a-z0-9-]+(?:\.[a-z0-9-]+)+)~i';
+
     /* --------------------------------------------------------------- (a) */
 
     public function test_every_vendored_file_is_in_the_manifest_with_its_current_sha256(): void
@@ -133,11 +152,36 @@ class VendorManifestTest extends TestCase
         foreach ($this->scannedFiles() as $path) {
             $scanned++;
             $relative = substr($path, strlen($this->appRoot()) + 1);
+            $content = (string) file_get_contents($path);
+
+            /* Atribut daftar dulu, atas isi berkas utuh: setiap kandidat diputuskan di sini,
+               dan rentang nilainya dilewati pindaian per baris di bawah supaya kandidat pertama
+               tidak dilaporkan dua kali (sekali sebagai pemuat, sekali sebagai kandidat). */
+            $handled = [];
+            foreach ($this->listAttributeValues($content) as [$attribute, $value, $start]) {
+                $handled[] = [$start, $start + strlen($value)];
+                if ($this->isCommentLine($this->lineContaining($content, $start))) {
+                    continue; // aturan 3 isDataLiteral(): docblock yang mengutip srcset bukan pemuat
+                }
+                foreach ($this->srcsetCandidates($value) as $index => [$candidate, $at]) {
+                    if (preg_match(self::EXTERNAL_CANDIDATE, $candidate)) {
+                        $violations[] = sprintf('%s:%d memuat %s dari luar (pemuat: %s, kandidat ke-%d dari %d)', $relative, substr_count($content, "\n", 0, $start + $at) + 1, $candidate, $attribute, $index + 1, count($this->srcsetCandidates($value)));
+                    }
+                }
+            }
+
+            $lineStart = 0;
             foreach (file($path) as $number => $line) {
+                $lineOffset = $lineStart;
+                $lineStart += strlen($line);
                 if (! preg_match_all(self::URL_PATTERN, $line, $matches, PREG_OFFSET_CAPTURE)) {
                     continue;
                 }
                 foreach ($matches[0] as [$url, $offset]) {
+                    $absolute = $lineOffset + $offset;
+                    if (array_filter($handled, fn ($range) => $absolute >= $range[0] && $absolute < $range[1]) !== []) {
+                        continue; // di dalam nilai srcset/imagesrcset: sudah diputuskan per kandidat di atas
+                    }
                     $before = substr($line, 0, $offset);
                     $loader = (bool) preg_match(self::LOADER_BEFORE_URL, $before);
                     if ($loader) {
@@ -182,7 +226,83 @@ class VendorManifestTest extends TestCase
             return true;
         }
 
+        return $this->isCommentLine($line);
+    }
+
+    private function isCommentLine(string $line): bool
+    {
         return (bool) preg_match('~^\s*(?://|\*|/\*)~', $line);
+    }
+
+    /** Baris (tanpa \n) yang memuat offset $at di $content. */
+    private function lineContaining(string $content, int $at): string
+    {
+        $from = strrpos(substr($content, 0, $at), "\n");
+        $from = $from === false ? 0 : $from + 1;
+        $to = strpos($content, "\n", $at);
+
+        return substr($content, $from, $to === false ? null : $to - $from);
+    }
+
+    /**
+     * Semua nilai atribut daftar (LIST_ATTRIBUTE_VALUE) di sebuah berkas.
+     *
+     * @return list<array{string, string, int}> [nama atribut (huruf kecil), nilai, offset nilai dalam $content]
+     */
+    private function listAttributeValues(string $content): array
+    {
+        preg_match_all(self::LIST_ATTRIBUTE_VALUE, $content, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL);
+
+        $values = [];
+        foreach ($matches as $match) {
+            foreach ([2, 3, 4, 5] as $group) {
+                if (isset($match[$group]) && $match[$group][0] !== null) {
+                    $values[] = [strtolower($match[1][0]), $match[$group][0], $match[$group][1]];
+                    break;
+                }
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Pecah nilai srcset menjadi kandidat URL-nya seperti peramban (HTML § parse a srcset
+     * attribute, disederhanakan): lewati spasi dan koma; URL = deretan tanpa spasi; bila URL
+     * berakhir koma, koma itu pemisah (tanpa deskriptor); selain itu deskriptor ("1x",
+     * "800w") berlanjut sampai koma berikutnya. Jadi "x.png 1x,//h/x 2x", "x.png 1x, //h/x 2x"
+     * dan URL data: berisi koma (tanpa spasi) semuanya dibaca benar.
+     *
+     * @return list<array{string, int}> [URL kandidat, offset dalam $value]
+     */
+    private function srcsetCandidates(string $value): array
+    {
+        $candidates = [];
+        $length = strlen($value);
+        $position = 0;
+        while ($position < $length) {
+            while ($position < $length && (ctype_space($value[$position]) || $value[$position] === ',')) {
+                $position++;
+            }
+            if ($position >= $length) {
+                break;
+            }
+            $start = $position;
+            while ($position < $length && ! ctype_space($value[$position])) {
+                $position++;
+            }
+            $token = substr($value, $start, $position - $start);
+            $url = rtrim($token, ',');
+            if ($url === $token) {
+                $comma = strpos($value, ',', $position);
+                $position = $comma === false ? $length : $comma + 1;
+            }
+            if ($url !== '') {
+                $candidates[] = [$url, $start];
+            }
+        }
+
+        return $candidates;
     }
 
     /* --------------------------------------------------------------- (c) */
