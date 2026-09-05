@@ -872,7 +872,10 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   text-align: center;
   color: var(--muted);
 }
-.empty svg { opacity: .3; margin-bottom: 10px; }
+/* Aturan lama `.empty svg { opacity: .3; margin-bottom: 10px }` dihapus (verifikasi
+   P1-B 5 Sep 2026): sasarannya ikon inbox 34 px yang sudah diganti .illus, tetapi
+   ia ikut memudarkan ikon × / + di tombol "Hapus filter" / "Tambah …" (0,3, terangkat
+   5 px dari tengah tombol). Ilustrasi mengatur ukuran/jaraknya sendiri di .illus. */
 .empty h3 { font-size: 14px; color: var(--text-2); margin-bottom: 4px; }
 .empty p { margin: 0 0 14px; font-size: 13px; }
 .empty p:last-child { margin-bottom: 0; }

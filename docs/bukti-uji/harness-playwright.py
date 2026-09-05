@@ -1602,8 +1602,12 @@ EMPTY_MEASURE = """() => { const r=getComputedStyle(document.documentElement); c
     return out }"""
 
 LIST_EMPTY = """() => { const e=document.querySelector('#view .empty'); if (!e) return null; const ln=e.querySelector('.illus .ln');
+    // Ikon di tombol keadaan kosong (verifikasi P1-B 5 Sep 2026: aturan lama .empty svg memudarkannya 0,3 dan
+    // mengangkatnya 5 px dari tengah tombol) — keburaman 1, tanpa margin, tengah ikon ≤ 1 px dari tengah tombol.
+    const btn=e.querySelector('button'); const svg=btn && btn.querySelector('svg'); const mid=(n)=>{ const r=n.getBoundingClientRect(); return r.top + r.height/2; };
     return { title: (e.querySelector('h3')||{}).innerText, text: (e.querySelector('p')||{}).innerText, kind: (e.querySelector('.illus')||{}).dataset?.kind,
-             ln_stroke: ln ? getComputedStyle(ln).stroke : null, buttons: [...e.querySelectorAll('button')].map(b => b.innerText.trim()) } }"""
+             ln_stroke: ln ? getComputedStyle(ln).stroke : null, buttons: [...e.querySelectorAll('button')].map(b => b.innerText.trim()),
+             button_icon: svg ? { opacity: getComputedStyle(svg).opacity, margin_bottom: getComputedStyle(svg).marginBottom, dy: +(mid(svg) - mid(btn)).toFixed(1) } : null } }"""
 
 def set_theme(pg, theme):
     pg.evaluate("(t) => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }", theme)
@@ -1795,6 +1799,7 @@ def module_accents(pg, tag):
     le["filter"] = pg.evaluate(LIST_EMPTY)
     click(pg, "#view .empty button:has-text('Hapus filter')"); pg.wait_for_timeout(1500)
     le["after_clear"] = pg.evaluate("() => ({ rows: document.querySelectorAll('table.data tbody tr').length, hash: location.hash, empty: !!document.querySelector('#view .empty') })")
+    le["button_icon_ok"] = all(bool(le[k]) and bool(le[k]["button_icon"]) and le[k]["button_icon"]["opacity"] == "1" and le[k]["button_icon"]["margin_bottom"] == "0px" and abs(le[k]["button_icon"]["dy"]) <= 1 for k in ("search", "filter"))
     pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq"); pg.wait_for_timeout(1500)
     pg.screenshot(path=f"{OUT}/s21-empty-filter{tag}.png")
     out["list_empty"] = le
