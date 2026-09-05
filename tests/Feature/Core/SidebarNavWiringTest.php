@@ -126,8 +126,10 @@ class SidebarNavWiringTest extends ErpTestCase
      * step: every MODULES entry names a slot 1..8, and app.css defines
      * --accent-<n>, --accent-<n>-soft and --accent-<n>-fg for each slot in all
      * four theme blocks (light root, dark media, data-theme light, data-theme
-     * dark) — a slot missing from one block is an accent that silently falls
-     * back to nothing in that theme. The mapping table itself (which group is
+     * dark) PLUS the @media print token block (verifikasi P1-B 5 Sep 2026: a
+     * dark-theme user printed --accent-7 #fbcd1a on white paper, 1,52:1) — a
+     * slot missing from one block is an accent that silently falls back to
+     * nothing in that theme or on paper. The mapping table itself (which group is
      * in which slot) lives in CONVENTIONS § Aksen modul and the app.css token
      * comment; the numbers there are measured by harness S21, not pinned here.
      */
@@ -152,8 +154,8 @@ class SidebarNavWiringTest extends ErpTestCase
 
         foreach (range(1, 8) as $slot) {
             foreach (["--accent-{$slot}:", "--accent-{$slot}-soft:", "--accent-{$slot}-fg:"] as $token) {
-                $this->assertSame(4, preg_match_all('/'.preg_quote($token, '/').'\s*#[0-9a-f]{6};/', $css),
-                    "app.css must define {$token} exactly once in each of the four theme blocks.");
+                $this->assertSame(5, preg_match_all('/'.preg_quote($token, '/').'\s*#[0-9a-f]{6};/', $css),
+                    "app.css must define {$token} exactly once in each of the four theme blocks and once in the @media print block.");
             }
             $this->assertStringContainsString("[data-accent=\"{$slot}\"] { --module-accent: var(--accent-{$slot});", $css,
                 "app.css has no [data-accent=\"{$slot}\"] rule; the sidebar marker and crumb for slot {$slot} carry no colour.");
