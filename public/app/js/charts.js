@@ -72,8 +72,11 @@
  *     "di luar rentang (…)" — baris terbuka menyebut hanya ujung yang ada: "selesai …, sebelum
  *     rentang (mulai belum ditetapkan)" / "mulai …, setelah rentang (selesai belum ditetapkan)",
  *     batas from/to tidak pernah dikutip seolah tanggal tugas; progress di luar 0..1 → lapisan progres dijepit tetapi <title>
- *     menyebut angka aslinya "(di luar 0–100 %)", baseline terbalik → tidak digambar + catatan
- *     di <title> bar. Ketergantungan (dependency) TIDAK digambar — ditunda ke Fase 2
+ *     menyebut angka aslinya "(di luar 0–100 %)", baseline terbalik/tidak valid → tidak digambar
+ *     + catatan "· baseline tidak valid …" di <title> bar DAN di teks baris yang tanpa bar.
+ *     Baris berteks yang punya baseline sah tetap menggambar baseline-nya, teksnya di atas bar
+ *     itu; legenda 'Baseline' hanya bila ada baseline yang tergambar di dalam rentang.
+ *     Ketergantungan (dependency) TIDAK digambar — ditunda ke Fase 2
  *     (kolomnya tidak ada).
  *     Lebar alami labelWidth+timelineWidth (900); viewBox tetap responsif, tetapi svg diberi
  *     min-width 80 % lebar alami supaya teks 11 px tidak menyusut di bawah ±9 px — bungkus
@@ -808,7 +811,10 @@ export function ganttChart({
      "Baseline" tanpa satu pun baseline adalah legenda yang berbohong. */
   const legendItems = [{ label: 'Aktual', token: '--chart-1', kind: 'box', opacity: 0.35 }];
   if (tasks.some((t) => t.progress !== null && t.progress > 0)) legendItems.push({ label: 'Progres', token: '--chart-1', kind: 'box' });
-  if (tasks.some((t) => t.hasBaseline)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
+  /* Baseline dihitung "digambar" hanya bila menyentuh rentang: baseline di luar from..to tidak
+     punya rect, dan legenda 'Baseline' untuknya adalah legenda yang berbohong. */
+  const baselineDrawn = (t) => t.hasBaseline && t.bEnd + DAY > fromMs && t.bStart <= toMs;
+  if (tasks.some(baselineDrawn)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
   if (showToday) legendItems.push({ label: 'Hari ini', token: '--chart-today', kind: 'line' });
   const legendLayout = legendRows(legendItems, W, 8);
   const legendH = legendLayout.length * 16;
@@ -896,17 +902,26 @@ export function ganttChart({
     if (shown !== t.label) text.appendChild(make('title', {}, t.label));
     svg.appendChild(text);
 
-    if (t.hasBaseline && t.bEnd + DAY > fromMs && t.bStart <= toMs) {
+    const withBaseline = baselineDrawn(t);
+    if (withBaseline) {
       const a = clampX(x(t.bStart));
       const b = clampX(x(t.bEnd + DAY));
       const base = make('rect', { class: 'gantt-baseline', x: a, y: mid + 1, width: Math.max(1, b - a), height: 7, rx: 1.5 });
       svg.appendChild(mark(paint(base, 'fill', '--chart-baseline'), `${t.label} — baseline: ${range(t.bStart, t.bEnd)}`));
     }
 
-    const rowNote = (cls, text) => svg.appendChild(make('text', { class: `${cls} chart-tick`, x: labelWidth + 6, y: mid + 4 }, text));
-    if (t.invalidDates) { rowNote('gantt-invalid', `tanggal tidak valid: ${t.invalid.join(', ')}`); return; }
-    if (t.inverted) { rowNote('gantt-invalid', `tanggal selesai sebelum mulai (${range(t.start, t.end)})`); return; }
-    if (t.start === null && t.end === null) { rowNote('gantt-nodate', 'tanpa tanggal'); return; }
+    /* Baseline yang bermasalah disebut di catatan baris DAN di <title> bar — dulu hanya di
+       <title>, sehingga baris "tanpa tanggal" dengan baseline terbalik tidak berkata apa-apa. */
+    const invalidBaseline = t.invalid.filter((k) => k.startsWith('baseline'));
+    const baselineNote = t.bInverted ? ' · baseline tidak valid (selesai sebelum mulai)' : invalidBaseline.length ? ` · baseline tidak valid: ${invalidBaseline.join(', ')}` : '';
+    /* Catatan baris (tanggal tidak valid / terbalik / tanpa tanggal / di luar rentang) tetap
+       digambar bersama bar baseline-nya — baseline adalah data yang ada — tetapi DI ATAS bar itu
+       (y mid − 3; bar baseline menempati mid + 1..8), bukan menimpanya seperti dulu (teks di
+       mid + 4 di atas rect 240 px; verifikasi P1-A putaran 2). */
+    const rowNote = (cls, text) => svg.appendChild(make('text', { class: `${cls} chart-tick`, x: labelWidth + 6, y: withBaseline ? mid - 3 : mid + 4, 'data-above-baseline': withBaseline ? 'true' : null }, text));
+    if (t.invalidDates) { rowNote('gantt-invalid', `tanggal tidak valid: ${t.invalid.join(', ')}${t.bInverted ? ' · baseline tidak valid (selesai sebelum mulai)' : ''}`); return; }
+    if (t.inverted) { rowNote('gantt-invalid', `tanggal selesai sebelum mulai (${range(t.start, t.end)})${baselineNote}`); return; }
+    if (t.start === null && t.end === null) { rowNote('gantt-nodate', `tanpa tanggal${baselineNote}`); return; }
     const openStart = t.start === null;
     const openEnd = t.end === null;
     const s = openStart ? fromMs : t.start;
@@ -917,9 +932,9 @@ export function ganttChart({
          'di luar rentang (01 Sep 2026 – 10 Jan 2026)' untuk {start:null, end:'2026-01-10'}
          (verifikasi P1-A putaran 2). Baris terbuka hanya bisa berada di satu sisi: ujung yang
          kosong menyentuh rentang. */
-      rowNote('gantt-outside', openStart ? `selesai ${fullDate.format(new Date(t.end))}, sebelum rentang (mulai belum ditetapkan)`
+      rowNote('gantt-outside', (openStart ? `selesai ${fullDate.format(new Date(t.end))}, sebelum rentang (mulai belum ditetapkan)`
         : openEnd ? `mulai ${fullDate.format(new Date(t.start))}, setelah rentang (selesai belum ditetapkan)`
-          : `di luar rentang (${range(s, e)})`);
+          : `di luar rentang (${range(s, e)})`) + baselineNote);
       return;
     }
     const a = clampX(x(s));
@@ -927,7 +942,6 @@ export function ganttChart({
     const pctText = t.rawProgress === null ? ''
       : t.rawProgress !== t.progress ? ` · progres ${percentFormat.format(t.rawProgress * 100)} % (di luar 0–100 %)`
         : ` · ${percentFormat.format(t.progress * 100)} %`;
-    const baselineNote = t.bInverted ? ' · baseline tidak valid (selesai sebelum mulai)' : t.invalid.length ? ` · baseline tidak valid: ${t.invalid.join(', ')}` : '';
     const title = (openEnd
       ? `${t.label}: mulai ${fullDate.format(new Date(t.start))}, tanggal selesai belum ditetapkan (bar terbuka)`
       : openStart

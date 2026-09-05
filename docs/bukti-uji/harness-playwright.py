@@ -1195,9 +1195,17 @@ CHART_RENDER = """async () => {
       // Baris terbuka di luar rentang: dulu batas rentang (01 Sep / 30 Sep 2026) dicetak sebagai tanggal tugas.
       { label: 'Buka-awal lampau', start: null, end: '2026-01-10' },
       { label: 'Buka-akhir mendatang', start: '2027-01-01', end: null },
+      // Baris berteks + baseline: dulu rect baseline 240 px digambar DI BAWAH teks catatan (tak terbaca), dan
+      // baris 'tanpa tanggal' dengan baseline terbalik diam saja (catatannya hanya ada di <title> bar yang tidak ada).
+      { label: 'Rusak + baseline', start: 'abc', end: '2026-13-45', baselineStart: '2026-09-03', baselineEnd: '2026-09-12' },
+      { label: 'Tanpa tanggal + baseline', baselineStart: '2026-09-03', baselineEnd: '2026-09-12' },
+      { label: 'Tanpa tanggal, baseline terbalik', baselineStart: '2026-09-20', baselineEnd: '2026-09-01' },
+      { label: 'Baseline di luar rentang', start: '2026-09-02', end: '2026-09-10', baselineStart: '2026-01-03', baselineEnd: '2026-01-12' },
       { label: 'Baseline terbalik', start: '2026-09-03', end: '2026-09-12', baselineStart: '2026-09-20', baselineEnd: '2026-09-01' },
       { label: 'Benar', start: '2026-09-02', end: '2026-09-10', progress: 0.5 }],
     from: '2026-09-01', to: '2026-09-30', today: '2026-09-05', ariaLabel: 'gantt data tidak konsisten' }));
+  // Satu-satunya baseline di luar rentang: tidak ada rect baseline, jadi legenda tidak boleh menyebut 'Baseline'.
+  t('gantt_baseline_outside', () => m.ganttChart({ rows: [{ label: 'Benar, baseline Januari', start: '2026-09-02', end: '2026-09-10', baselineStart: '2026-01-03', baselineEnd: '2026-01-12' }], from: '2026-09-01', to: '2026-09-30', today: '2026-09-05', ariaLabel: 'baseline di luar rentang' }));
   return { errors, charts: host.querySelectorAll('svg').length, exports: Object.keys(m).sort() };
 }"""
 
@@ -1278,11 +1286,16 @@ CHART_MEASURE = """(theme) => {
       c.rows = svg.querySelectorAll('.gantt-label').length; c.bars = svg.querySelectorAll('.gantt-bar').length; c.baselines = svg.querySelectorAll('.gantt-baseline').length;
       c.truncated_labels = svg.querySelectorAll('.gantt-label[data-truncated]').length; c.truncated_with_full_title = [...svg.querySelectorAll('.gantt-label[data-truncated]')].filter(t => t.querySelector('title') && t.querySelector('title').textContent === t.dataset.full).length;
       c.open_titles = [...svg.querySelectorAll('.gantt-bar[data-open] title')].map(t => t.textContent);
-      c.row_notes = [...svg.querySelectorAll('.gantt-nodate, .gantt-invalid, .gantt-outside')].map(t => t.getAttribute('class').split(' ')[0] + ': ' + t.textContent);
+      const noteEls = [...svg.querySelectorAll('.gantt-nodate, .gantt-invalid, .gantt-outside')]; c.row_notes = noteEls.map(t => t.getAttribute('class').split(' ')[0] + ': ' + t.textContent);
+      // Catatan baris vs bar baseline: kotak teks yang beririsan dengan rect baseline (getBBox) — teks di atas rect tak terbaca.
+      const baseEls = [...svg.querySelectorAll('.gantt-baseline')]; const inter = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      c.note_over_baseline = noteEls.filter(n => baseEls.some(b => inter(n.getBBox(), b.getBBox()))).length; c.baseline_notes = noteEls.filter(n => /baseline/.test(n.textContent)).length;
       c.bar_titles = [...svg.querySelectorAll('.gantt-bar title')].map(t => t.textContent); c.fabricated_dates = c.bar_titles.filter(t => /2027/.test(t)).length;
       // Catatan 'di luar rentang' yang mengutip batas rentang fixture (01 Sep / 30 Sep 2026) sebagai tanggal tugas — baris terbuka tidak punya tanggal itu.
       c.outside_notes = [...svg.querySelectorAll('.gantt-outside')].map(t => t.textContent); c.outside_notes_quoting_window = c.outside_notes.filter(t => /01 Sep 2026|30 Sep 2026/.test(t)).length;
       c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent);
+      // Legenda 'Baseline' hanya bila ada rect baseline yang tergambar (baseline di luar rentang tidak punya rect).
+      c.baseline_legend_dishonest = c.legend_items.includes('Baseline') !== (c.baselines > 0) ? 1 : 0;
       c.baseline_before_actual = [...svg.querySelectorAll('.gantt-baseline')].every(b => { const bar = b.nextElementSibling; return bar && bar.classList.contains('gantt-bar') && !!(b.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING); });
       // Label baris vs jadwal: label yang menembus kolom jadwal (bbox kanan > x sumbu = labelWidth) —
       // pemeriksaan lama membandingkan baris yang berjarak rowHeight secara konstruksi (selalu 0).
@@ -1319,6 +1332,7 @@ CHART_MEASURE = """(theme) => {
       line_bar_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => (n.startsWith('line') || n.startsWith('bar')) && !c.empty).map(([, c]) => c.rendered_font_px)),
       label_into_timeline: total.reduce((a, c) => a + (c.label_into_timeline || 0), 0),
       outside_notes_quoting_window: total.reduce((a, c) => a + (c.outside_notes_quoting_window || 0), 0),
+      note_over_baseline: total.reduce((a, c) => a + (c.note_over_baseline || 0), 0), baseline_legend_dishonest: total.reduce((a, c) => a + (c.baseline_legend_dishonest || 0), 0),
       dots_r_not_positive: total.reduce((a, c) => a + (c.dots_r_not_positive || 0), 0), undefined_tokens: total.reduce((a, c) => a + (c.undefined_tokens || 0), 0), line_stroke_none: total.reduce((a, c) => a + (c.line_stroke_none || 0), 0),
       min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
