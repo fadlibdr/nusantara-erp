@@ -41,7 +41,12 @@ systemctl daemon-reload
 #    ast:accrue-plant, svc:generate-pm, fin:ensure-calendar, tiga pengawas) —
 #    satu menit tanpa penjadwal tepat pada menit dailyAt() berarti perintah
 #    itu terlewat hari ini.
-sed -i '/artisan schedule:run/d' /etc/cron.d/erp1
+#    Yang dihapus adalah barisnya BESERTA tiga baris komentarnya ("Without
+#    this, svc:generate-pm never runs…") — komentar yang ditinggalkan sendirian
+#    adalah undangan untuk menambahkan barisnya kembali dan mendapat dua
+#    penjadwal. Diuji pada salinan berkas produksi 5 Sep 2026: hanya empat
+#    baris itu yang berubah, baris cadangan utuh.
+sed -i "/^# Laravel's scheduler\. Without this/,/artisan schedule:run/c\\# Penjadwal: unit systemd erp1-scheduler (deploy/systemd/README.md), bukan cron." /etc/cron.d/erp1
 grep -c 'schedule:run' /etc/cron.d/erp1   # harus 0
 
 # 4. Nyalakan dan periksa.
@@ -93,8 +98,15 @@ pun aman.
 ```bash
 systemctl disable --now erp1-queue erp1-scheduler
 rm /etc/cron.d/erp1-watchdog
-# kembalikan baris ke /etc/cron.d/erp1:
-echo '* * * * * www-data cd /var/www/erp1.pi2.co.id && php artisan schedule:run >> /var/log/erp1-schedule.log 2>&1' >> /etc/cron.d/erp1
+# kembalikan baris (dan komentarnya) ke /etc/cron.d/erp1:
+sed -i '/^# Penjadwal: unit systemd erp1-scheduler/d' /etc/cron.d/erp1
+printf '%s\n' \
+  "# Laravel's scheduler. Without this, svc:generate-pm never runs and preventive" \
+  "# maintenance visits go past due silently — and erp:backup-watch (08:00 WIB)" \
+  "# never raises its backup alarms." \
+  '* * * * * www-data cd /var/www/erp1.pi2.co.id && php artisan schedule:run >> /var/log/erp1-schedule.log 2>&1' \
+  >> /etc/cron.d/erp1
+grep -c 'schedule:run' /etc/cron.d/erp1   # harus 1
 ```
 
 Tanpa pekerja antrean, pengiriman e-mail (T0b.3) tinggal `queued` di tabel
