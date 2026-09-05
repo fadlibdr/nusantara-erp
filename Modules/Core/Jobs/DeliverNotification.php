@@ -68,14 +68,20 @@ class DeliverNotification implements ShouldQueueAfterCommit
         try {
             $providerId = DeliveryChannels::for($delivery->channel)->send($delivery, $delivery->notification);
         } catch (Throwable $e) {
-            // Percobaan ke-n gagal: catat, jadwalkan, lempar ulang. Indeks
-            // backoff = percobaan yang baru gagal - 1; melewati daftar berarti
-            // percobaan terakhir, next_attempt_at kosong.
-            $delay = self::BACKOFF[$delivery->attempts - 1] ?? null;
+            // Percobaan ke-n gagal: catat, jadwalkan, lempar ulang. Yang
+            // menentukan jadwal adalah hitungan PEKERJA untuk job ini
+            // ($this->attempts(), 1..$tries) — bukan attempts baris, yang
+            // adalah riwayat kumulatif dan berlanjut setelah Kirim ulang (baris
+            // gagal mulai di 5: BACKOFF[5] tidak ada → next_attempt_at kosong
+            // padahal pekerja masih menjadwalkan empat percobaan lagi —
+            // verifikasi P-0b, 5 Sep 2026). Indeks backoff = percobaan pekerja
+            // yang baru gagal - 1; percobaan terakhir = next_attempt_at kosong.
+            $attempt = $this->attempts();
+            $delay = self::BACKOFF[$attempt - 1] ?? null;
 
             $delivery->forceFill([
                 'error' => self::message($e),
-                'next_attempt_at' => $delay === null || $delivery->attempts >= $this->tries ? null : now()->addSeconds($delay),
+                'next_attempt_at' => $delay === null || $attempt >= $this->tries ? null : now()->addSeconds($delay),
             ])->save();
 
             throw $e;

@@ -431,6 +431,36 @@ class NotificationDeliveryTest extends ErpTestCase
         Queue::assertPushed(DeliverNotification::class, fn (DeliverNotification $job) => $job->deliveryId === $row->id);
     }
 
+    /**
+     * Setelah Kirim ulang, attempts baris berlanjut dari 5 (riwayat) sementara
+     * pekerja menghitung dari 1: jadwal percobaan berikutnya harus mengikuti
+     * hitungan pekerja. Sebelum ini next_attempt_at kosong (BACKOFF[5] tidak
+     * ada) padahal job-nya dilepas kembali ke antrean (verifikasi P-0b, 5 Sep
+     * 2026).
+     */
+    public function test_after_a_manual_retry_the_next_attempt_follows_the_workers_count(): void
+    {
+        $this->emailOn();
+        $this->bindRefusingMailChannel('SMTP 421 4.7.0 try again later');
+        config(['queue.default' => 'database']);
+        $admin = $this->adminUser();
+        $row = $this->delivery($this->userWith('fin.approve', 'Direktur'), NotificationDelivery::FAILED);
+
+        $this->actingAs($admin, 'sanctum');
+        $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertOk();
+
+        DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status);
+        $this->assertSame(6, $row->attempts, 'Riwayat berlanjut.');
+        $this->assertSame(1, DB::table('jobs')->count(), 'Job dilepas kembali: masih ada percobaan.');
+        $this->assertNotNull($row->next_attempt_at, 'Job masih dijadwalkan pekerja, jadi barisnya harus berkata begitu.');
+        $this->assertEqualsWithDelta(60, $row->next_attempt_at->diffInSeconds(now(), true), 5, 'Percobaan pertama pekerja: backoff 60 s.');
+        $this->assertStringContainsString('SMTP 421', (string) $row->error);
+    }
+
     public function test_retry_refuses_a_sent_row_and_a_disabled_email_channel(): void
     {
         Queue::fake();
