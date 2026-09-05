@@ -156,7 +156,7 @@ Anda buka (kartunya persis daftar sidebar; modul yang izinnya tidak Anda pegang 
 menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman dokumen,
 remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
 (judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
-Akun: *Rapat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
+Akun: *Padat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
 seketika, diingat di peramban ini untuk akun Anda. Di layar sentuh tombol baris memegang
 sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 / 55 px
 (Lega = Normal untuk baris bertombol).
@@ -199,7 +199,7 @@ mulai dari bawaan lagi.
 
 **Dialog Akun** (klik kotak nama): memperlihatkan nama, email, **Peran**, dan
 **Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Kepadatan**
-(Rapat · Normal · Lega). Daftar izinnya tidak diperlihatkan di mana pun. Tombolnya
+(Padat · Normal · Lega). Daftar izinnya tidak diperlihatkan di mana pun. Tombolnya
 **`Tutup`**, **`Ganti kata sandi`**, **`Panduan onboarding`**, dan **`Keluar`** — tidak ada
 ganti email, foto, atau pengaturan pemberitahuan.
 
@@ -374,9 +374,10 @@ tetapi lima layar mengabaikannya — mengetik di sana tidak menyaring apa pun:
 **Pengakuan Pendapatan**. Pakai saringan atau rentang tanggalnya.
 
 **Keadaan kosong.** Belum ada apa-apa → *"Belum ada <label> yang tercatat."* (gambar
-nampan) dengan tombol Tambah bila Anda boleh membuat. Tersaring habis → *"Tidak ada hasil
-untuk filter ini"* (gambar corong, atau kaca pembesar bila hanya kotak cari yang terisi)
-dengan tombol **`Hapus filter`** — sama dengan **`Reset`** di bilah filter.
+nampan) dengan tombol Tambah bila Anda boleh membuat. Tersaring habis → *"Tidak ada <label>
+yang lolos filter yang dipasang."* (gambar corong) dengan tombol **`Hapus filter`**, atau — bila
+hanya kotak cari yang terisi — *"Tidak ada <label> yang cocok dengan \"<kata>\"."* (gambar kaca
+pembesar) dengan **`Hapus pencarian`**; keduanya sama dengan **`Reset`** di bilah filter.
 
 ### 2.2 Ekspor CSV
 

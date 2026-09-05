@@ -44,8 +44,9 @@ export function renderModuleHome(host, { prefix }) {
   ]));
 
   if (!items.some((item) => item.route)) {
+    // Tidak ada yang dicari di sini — gambar nampan (inbox), bukan kaca pembesar.
     host.appendChild(el('.card', emptyState('Tidak ada layar yang bisa Anda buka di modul ini', {
-      title: 'Tidak ada layar', kind: 'search',
+      title: 'Tidak ada layar', kind: 'inbox',
     })));
     return;
   }

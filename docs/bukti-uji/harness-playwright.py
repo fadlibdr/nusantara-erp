@@ -1799,6 +1799,10 @@ def module_accents(pg, tag):
     le["filter"] = pg.evaluate(LIST_EMPTY)
     click(pg, "#view .empty button:has-text('Hapus filter')"); pg.wait_for_timeout(1500)
     le["after_clear"] = pg.evaluate("() => ({ rows: document.querySelectorAll('table.data tbody tr').length, hash: location.hash, empty: !!document.querySelector('#view .empty') })")
+    # Kalimat menyebut penyaringnya (verifikasi P1-B 5 Sep 2026): pencarian saja → "cocok dengan" + Hapus pencarian;
+    # filter → "lolos filter" + Hapus filter; judul tidak mengulang kalimat.
+    le["copy_ok"] = (bool(le["search"]) and "cocok dengan" in le["search"]["text"] and le["search"]["buttons"] == ["Hapus pencarian"] and le["search"]["title"] != le["search"]["text"]
+                     and bool(le["filter"]) and "lolos filter" in le["filter"]["text"] and le["filter"]["buttons"] == ["Hapus filter"] and le["filter"]["title"] != le["filter"]["text"])
     le["button_icon_ok"] = all(bool(le[k]) and bool(le[k]["button_icon"]) and le[k]["button_icon"]["opacity"] == "1" and le[k]["button_icon"]["margin_bottom"] == "0px" and abs(le[k]["button_icon"]["dy"]) <= 1 for k in ("search", "filter"))
     pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq"); pg.wait_for_timeout(1500)
     pg.screenshot(path=f"{OUT}/s21-empty-filter{tag}.png")

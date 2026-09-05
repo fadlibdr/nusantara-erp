@@ -224,7 +224,7 @@ export async function renderStock(host) {
           el('td.right.num', { text: fmt.qty(row.min_stock) }),
           el('td.right.num', { text: fmt.qty(row.shortage_qty), style: { color: 'var(--danger)' } }),
         ]))),
-      ])) : emptyState('Semua item berada di atas stok minimum.', { title: 'Stok aman' })));
+      ])) : emptyState('Semua item berada di atas stok minimum.', { title: 'Stok aman', kind: 'done' })));
     } catch (error) {
       clear(body).appendChild(errorState(error, load));
     }

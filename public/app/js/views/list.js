@@ -717,11 +717,15 @@ export async function renderList(host, { key, def }) {
        Keduanya dulu satu kalimat dengan gambar yang sama. */
     if (!rows.length) {
       const onlySearch = Boolean(ui.q) && !ui.dateFrom && !ui.dateTo && !Object.values(ui.filters).some(Boolean);
+      // Kalimatnya menyebut apa yang disaring (verifikasi P1-B 5 Sep 2026: kotak cari saja
+      // dulu berbunyi "untuk filter ini", dan judul mengulang kalimatnya).
       body.appendChild(isFiltered()
-        ? emptyState('Tidak ada hasil untuk filter ini', {
-          title: 'Tidak ada hasil',
+        ? emptyState(onlySearch
+          ? `Tidak ada ${def.label.toLowerCase()} yang cocok dengan "${ui.q}".`
+          : `Tidak ada ${def.label.toLowerCase()} yang lolos filter yang dipasang.`, {
+          title: onlySearch ? 'Tidak ada hasil pencarian' : 'Tidak ada hasil',
           kind: onlySearch ? 'search' : 'filter',
-          action: button('Hapus filter', { iconName: 'close', onClick: resetFilters }),
+          action: button(onlySearch ? 'Hapus pencarian' : 'Hapus filter', { iconName: 'close', onClick: resetFilters }),
         })
         : emptyState(`Belum ada ${def.label.toLowerCase()} yang tercatat.`, {
           kind: 'inbox',

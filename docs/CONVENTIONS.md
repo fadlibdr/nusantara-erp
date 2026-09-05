@@ -307,7 +307,8 @@ kedua profil itu **semua** baris satu-baris tepat 32/48 (S21 `density.compact_al
 `comfortable_all_48`). Token turunan: `--cell-py/--cell-px` (td, th), `--foot-py` (tfoot: 10 px normal —
 angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (baris sidebar), `--form-gap`
 (`.form-grid`), `--kv-gap` (`.kv`). Kontrol: dialog Akun › **Kepadatan**
-(tiga radio: Rapat · Normal · Lega), berlaku seketika. Simpanan: `localStorage`
+(tiga radio: Padat · Normal · Lega — "Padat", bukan "Rapat", yang di ERP terbaca sebagai
+pertemuan), berlaku seketika. Simpanan: `localStorage`
 `nusantara_erp_density:<id pengguna>` (`personalKey`, seperti favorit) dengan nilai
 `compact|normal|comfortable`, dipasang saat evaluasi modul app.js dan lagi di `boot()` — sebelum
 shell digambar, tanpa kedipan. P1-C memindahkannya ke `core/me/preferences`: baca kunci ini sekali,
@@ -320,16 +321,18 @@ action }`) tetap sah — bawaan `kind: 'inbox'`. Lima jenis di `js/illustrations
 
 | kind | Arti | Pemakai |
 |---|---|---|
-| `inbox` | belum ada yang tercatat | daftar tanpa baris (+ Tambah), pemberitahuan, kalender |
-| `search` | pencarian tanpa hasil | daftar dengan `q` saja |
-| `filter` | filter menyaring semuanya | daftar tersaring (+ tombol **Hapus filter**), beranda modul tanpa layar memakai `search` |
+| `inbox` | belum ada yang tercatat | daftar tanpa baris (+ Tambah), pemberitahuan, kalender, beranda modul tanpa layar yang boleh dibuka |
+| `search` | pencarian tanpa hasil | daftar dengan `q` saja (`Tidak ada <label> yang cocok dengan "<q>".` + **Hapus pencarian**) |
+| `filter` | filter menyaring semuanya | daftar tersaring (`Tidak ada <label> yang lolos filter yang dipasang.` + **Hapus filter**) |
 | `error` | sumbernya gagal, bukan kosong | kotak masuk/Tugas Saya saat `meta.failed` — jangan pernah `inbox`/`done` untuk kegagalan |
-| `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda |
+| `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda, "Stok aman" (Saldo Stok), "Laci bersih" (Kasir Kas Kecil) |
 
 Aturan gambar: SVG garis (stroke) 120 × 120, dibaca di 96–120 px (ubin `compact` 72 px), **tanpa
 satu pun literal warna** — bentuk hanya membawa kelas `.ln/.ac/.fl/.fa` dan app.css memberi token
 (`--border-strong`, `--primary`, `--surface-3`, `--primary-soft`; `error` → `--danger`, `done` →
 `--success`), sehingga tema gelap otomatis dan S21 mengukur stroke terkomputasinya (`empty_kinds`);
 ≤ 1,5 KB per gambar (terukur 402–521 B). `list.js` membedakan "belum ada baris" dari "tersaring
-habis" (`Tidak ada hasil untuk filter ini` + Hapus filter) — dua kalimat, dua gambar. Ilustrasi
+habis", dan yang tersaring habis menyebut penyaringnya: pencarian (`… yang cocok dengan "<q>".` +
+Hapus pencarian) atau filter (`… yang lolos filter yang dipasang.` + Hapus filter) — tiga kalimat,
+tiga gambar; judul tidak mengulang kalimatnya. Ilustrasi
 baru = entri di `ILLUSTRATIONS` + baris di tabel ini.

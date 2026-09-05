@@ -911,7 +911,7 @@ export async function renderKasKecil(host) {
     }
 
     if (!drafts.length && !pile.length) {
-      body.appendChild(emptyState('Laci bersih — tidak ada draf maupun bon yang menunggu penggantian.'));
+      body.appendChild(emptyState('Tidak ada draf maupun bon yang menunggu penggantian.', { title: 'Laci bersih', kind: 'done' }));
       return;
     }
 

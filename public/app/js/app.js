@@ -76,7 +76,8 @@ const RECENT_LABEL = 'Terakhir dibuka';
  * (evaluasi modul + boot()), jadi tidak ada kedipan dari normal ke rapat.
  */
 const DENSITY_KEY = 'nusantara_erp_density';
-const DENSITIES = { compact: 'Rapat', normal: 'Normal', comfortable: 'Lega' };
+// 'Padat', bukan 'Rapat': di ERP "rapat" terbaca lebih dulu sebagai pertemuan (verifikasi P1-B 5 Sep 2026).
+const DENSITIES = { compact: 'Padat', normal: 'Normal', comfortable: 'Lega' };
 
 /* ------------------------------------------------------------------ theme */
 function applyTheme(theme) {
