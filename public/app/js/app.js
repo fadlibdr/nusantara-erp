@@ -66,6 +66,17 @@ const RECENT_KEY = 'nusantara_erp_recent';
 const RECENT_MAX = 5;
 const FAVORITES_LABEL = 'Favorit';
 const RECENT_LABEL = 'Terakhir dibuka';
+/*
+ * Kepadatan (P1-B): rapat 32 / normal 38,5 / lega 48 px per baris satu-baris
+ * (angka diukur, blok token app.css). Per pengguna lewat personalKey seperti
+ * favorit — kunci localStorage `nusantara_erp_density:<id pengguna>`, nilai
+ * 'compact' | 'normal' | 'comfortable'. P1-C memindahkannya ke server
+ * (core/me/preferences) bersama favorit/recent: baca kunci ini sekali lalu
+ * hapus. Dipasang sebagai data-density di <html> SEBELUM shell digambar
+ * (evaluasi modul + boot()), jadi tidak ada kedipan dari normal ke rapat.
+ */
+const DENSITY_KEY = 'nusantara_erp_density';
+const DENSITIES = { compact: 'Rapat', normal: 'Normal', comfortable: 'Lega' };
 
 /* ------------------------------------------------------------------ theme */
 function applyTheme(theme) {
@@ -83,6 +94,23 @@ function cycleTheme() {
 }
 
 applyTheme(localStorage.getItem(THEME_KEY) || 'system');
+
+/* ---------------------------------------------------------------- density */
+function readDensity() {
+  const stored = localStorage.getItem(personalKey(DENSITY_KEY));
+  return DENSITIES[stored] ? stored : 'normal';
+}
+
+function applyDensity(density) {
+  document.documentElement.dataset.density = DENSITIES[density] ? density : 'normal';
+}
+
+function setDensity(density) {
+  localStorage.setItem(personalKey(DENSITY_KEY), density);
+  applyDensity(density);
+}
+
+applyDensity(readDensity());
 
 /* ------------------------------------------------------------------ login */
 function renderLogin({ message } = {}) {
@@ -658,6 +686,7 @@ function openUserMenu(user) {
         el('dt', { text: 'Hak akses' }),
         el('dd', { text: `${(user.permissions || []).length} izin` }),
       ]),
+      densityControl(),
     ]),
     footer: [
       button('Tutup', { onClick: () => dialog.close() }),
@@ -686,6 +715,26 @@ function openUserMenu(user) {
       }),
     ],
   });
+}
+
+/*
+ * Kontrol "Kepadatan" di dialog Akun (P1-B): tiga radio, berlaku seketika
+ * (tanpa muat ulang) dan diingat per pengguna di peramban ini — sama seperti
+ * favorit, dan sama seperti tema, ini preferensi peramban sampai P1-C
+ * memindahkannya ke server.
+ */
+function densityControl() {
+  const current = readDensity();
+  const hints = { compact: '32 px per baris', normal: '38,5 px per baris', comfortable: '48 px per baris' };
+  return el('fieldset.density-pick', [
+    el('legend', { text: 'Kepadatan' }),
+    ...Object.entries(DENSITIES).map(([value, label]) => {
+      const input = el('input', { type: 'radio', name: 'density', value });
+      input.checked = value === current;
+      input.addEventListener('change', () => { if (input.checked) setDensity(value); });
+      return el('label.check-row', [input, el('span', { text: label }), el('span.muted', { text: hints[value] })]);
+    }),
+  ]);
 }
 
 function setActiveNav(path) {
@@ -1225,6 +1274,10 @@ function groupLabelFor(key) {
 let routesRegistered = false;
 
 async function boot() {
+  // Sesudah masuk id pengguna sudah ada: kepadatan MILIKNYA dipasang sebelum
+  // shell digambar (evaluasi modul di atas membaca kunci pengguna sebelumnya
+  // atau 'anon').
+  applyDensity(readDensity());
   startNotificationPolling();
   buildShell();
 
