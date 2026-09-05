@@ -300,7 +300,9 @@ per baris satu-baris `table.data`. **`normal` = angka yang diukur sebelum token 
 2 × 9 padding + 1 border = 38,5; berlencana 41,13; bertombol aksi 47) sehingga tanpa pilihan
 tidak ada yang bergeser — lantai 38,5 tidak pernah mengikat. `compact` menurunkan padding ke 3 px
 dan tombol aksi baris ke 24 px (hanya `pointer: fine` — di layar sentuh sasaran jempol 36 px
-menang, baris rapat bertombol 43 px), `comfortable` menahan padding dan menaikkan lantai; di
+menang, baris rapat bertombol 43 px dan baris bertombol `normal` maupun `comfortable` 55 px;
+tautan sidebar di layar sentuh ≥ 36 px di semua profil, baris radio dialog ≥ 40 px, dan petunjuk
+dialog di sana menyebut dua angka "teks · bertombol"), `comfortable` menahan padding dan menaikkan lantai; di
 kedua profil itu **semua** baris satu-baris tepat 32/48 (S21 `density.compact_all_32` /
 `comfortable_all_48`). Token turunan: `--cell-py/--cell-px` (td, th), `--foot-py` (tfoot: 10 px normal —
 angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (baris sidebar), `--form-gap`

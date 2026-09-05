@@ -157,7 +157,9 @@ menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman doku
 remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
 (judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
 Akun: *Rapat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
-seketika, diingat di peramban ini untuk akun Anda.
+seketika, diingat di peramban ini untuk akun Anda. Di layar sentuh tombol baris memegang
+sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 / 55 px
+(Lega = Normal untuk baris bertombol).
 
 **Sidebar** berisi empat belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
 isinya, dan keadaan lipatan itu diingat peramban Anda.

@@ -750,7 +750,8 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
 .density-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .density-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .density-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
-.density-pick .check-row .muted { font-size: 12px; margin-left: auto; }
+.density-pick .check-row .muted { font-size: 12px; margin-left: auto; text-align: right; }
+.density-pick .density-note { margin: 4px 0 6px; font-size: 12px; line-height: 1.4; }
 
 .form-grid {
   display: grid;
@@ -1612,6 +1613,14 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
   /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
   .btn.sm { height: 36px; }
   .btn.sm.icon { width: 36px; }
+  /* Kepadatan di layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer profil
+     rapat 27,5 px dan baris radio dialog Kepadatan 30 px berada di bawah sasaran
+     jempol 36 px yang dipakai aturan ini. Lantai 36 px untuk tautan sidebar di
+     SEMUA profil (normal 31,5 → 36 di layar sentuh, terukur; desktop tetap
+     27,5/31,5/35,5) dan baris radio ≥ 40 px dengan radio 18 px. */
+  .nav-items a { min-height: 36px; }
+  .density-pick .check-row { height: auto; min-height: 40px; }
+  .density-pick input[type="radio"] { width: 18px; height: 18px; }
   /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
      sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
      samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */

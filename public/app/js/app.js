@@ -730,7 +730,15 @@ function openUserMenu(user) {
  */
 function densityControl() {
   const current = readDensity();
-  const hints = { compact: '32 px per baris', normal: '38,5 px per baris', comfortable: '48 px per baris' };
+  // Petunjuk mengikuti perangkatnya (verifikasi P1-B 5 Sep 2026): di layar sentuh
+  // tombol baris memegang sasaran jempol 36 px (app.css pointer: coarse), jadi baris
+  // bertombol 43 (rapat) / 55 (normal DAN lega) — "48 px" akan berbohong di sana, dan
+  // baris teks di ponsel hampir selalu membungkus (terukur: 0 baris teks satu-baris di
+  // jurnal/item/proyek 390 px), jadi hanya angka bertombol yang disebut.
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const hints = coarse
+    ? { compact: 'baris bertombol 43 px', normal: 'baris bertombol 55 px', comfortable: 'baris bertombol 55 px (= Normal)' }
+    : { compact: '32 px per baris', normal: '38,5 px per baris', comfortable: '48 px per baris' };
   return el('fieldset.density-pick', [
     el('legend', { text: 'Kepadatan' }),
     ...Object.entries(DENSITIES).map(([value, label]) => {
@@ -739,6 +747,7 @@ function densityControl() {
       input.addEventListener('change', () => { if (input.checked) setDensity(value); });
       return el('label.check-row', [input, el('span', { text: label }), el('span.muted', { text: hints[value] })]);
     }),
+    coarse ? el('p.density-note.muted', { text: 'Di layar sentuh tombol baris memegang sasaran jempol 36 px; baris teks yang membungkus mengikuti isinya.' }) : null,
   ]);
 }
 

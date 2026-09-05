@@ -1627,10 +1627,19 @@ def accent_matrix(tokens_out):
             "all_fg_ge_4_5": all(c["fg_on_accent"] >= 4.5 for c in contrast.values()),
             "all_on_soft_ge_4_5": all(c["on_soft"] >= 4.5 for c in contrast.values())}
 
+# Dialog Kepadatan: tinggi baris radio (≥ 40 px di layar sentuh — verifikasi P1-B 5 Sep 2026: 30 px) dan
+# petunjuknya (di layar sentuh menyebut teks · bertombol, karena baris bertombol 43/55/55 di sana).
+DENSITY_DIALOG = """() => { const f=document.querySelector('.density-pick'); if (!f) return null;
+    return { rows: [...f.querySelectorAll('label.check-row')].map(l => ({ label: l.querySelector('span').innerText, hint: l.querySelector('.muted').innerText,
+             h: +l.getBoundingClientRect().height.toFixed(1), radio: +l.querySelector('input').getBoundingClientRect().height.toFixed(1) })),
+             note: (n => n ? n.innerText : null)(f.querySelector('.density-note')), pointer: matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine' } }"""
+
 def set_density(pg, value):
     click(pg, ".userchip"); pg.wait_for_timeout(500)
+    dialog = pg.evaluate(DENSITY_DIALOG)
     click(pg, f".density-pick input[value={value}]"); pg.wait_for_timeout(250)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    return dialog
 
 def module_vs_sidebar(pg, prefixes):
     out = {}
@@ -1741,7 +1750,7 @@ def module_accents(pg, tag):
     coarse = dens["baseline"]["pointer"] == "coarse"
     dens["expected"] = {"compact": 43 if coarse else 32, "comfortable": 55 if coarse else 48, "normal": 47 if not coarse else 55}
     for value in ("compact", "comfortable", "normal"):
-        set_density(pg, value)
+        dens["dialog_before_" + value] = set_density(pg, value)
         dens[value] = rows_on(probe)
         dens[value + "_po"] = rows_on(po_list)
         # Bagan Akun terakhir: muat ulang di bawah mendarat di halaman ini (baris PO semuanya dua-baris, `all`-nya kosong).
@@ -1769,6 +1778,13 @@ def module_accents(pg, tag):
     dens["accounts_min_by_kind"] = {k: dens[k + "_accounts"]["min_by_kind"] for k in ("baseline", "compact", "comfortable", "normal")}
     # Muat ulang mendarat di Bagan Akun (nama panjang membungkus): yang dibandingkan baris terpendeknya.
     dens["persisted"] = dens["after_reload"]["density"] == "compact" and bool(dens["after_reload"]["all"]) and min(dens["after_reload"]["all"]) == dens["expected"]["compact"]
+    # Layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer ≥ 36 px di semua profil (rapat dulu 27,5), baris radio ≥ 40 px,
+    # petunjuk menyebut angka bertombol. Di penunjuk halus hanya dicatat (27,5/31,5/35,5).
+    dens["nav_link_by_density"] = {k: dens[k]["nav_link"] for k in ("baseline", "compact", "comfortable", "normal")}
+    dens["nav_link_ge_36_on_coarse"] = all(v >= 36 for v in dens["nav_link_by_density"].values()) if coarse else None
+    dialog = dens["dialog_before_normal"] or {"rows": []}
+    dens["dialog_rows_ge_40_on_coarse"] = (bool(dialog["rows"]) and all(r["h"] >= 40 for r in dialog["rows"])) if coarse else None
+    dens["dialog_hints_name_button_rows_on_coarse"] = (bool(dialog["rows"]) and all("bertombol" in r["hint"] for r in dialog["rows"]) and bool(dialog.get("note"))) if coarse else None
     set_density(pg, "normal")
     out["density"] = dens
 
