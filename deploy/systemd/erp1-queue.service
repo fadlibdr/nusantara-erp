@@ -16,6 +16,11 @@
 # --tries=5       : batas percobaan untuk job yang tidak menyatakan $tries;
 #                   DeliverNotification menyatakan 5 dan backoff 60/300/900/3600 s.
 # --backoff=60    : jeda percobaan ulang untuk job yang tidak menyatakan backoff.
+# --timeout=60    : batas detik satu job sebelum pcntl membunuh proses (bawaan
+#                   Laravel, ditulis eksplisit); WAJIB < retry_after=90 antrean
+#                   database, dan config/mail.php smtp.timeout=30 ada di bawahnya
+#                   supaya SMTP yang bisu gagal sebagai pesan penyedia, bukan
+#                   sebagai pekerja yang dibunuh.
 # --sleep=3       : jeda saat antrean kosong (3 SELECT per menit, bukan 60).
 [Unit]
 Description=Nusantara ERP queue worker (erp1.pi2.co.id)
@@ -32,7 +37,7 @@ WorkingDirectory=/var/www/erp1.pi2.co.id
 # yang bisa ditulis, beberapa perintah artisan berhenti dengan
 # "Writing to directory /var/www/.config is not allowed".
 Environment=HOME=/tmp
-ExecStart=/usr/bin/php artisan queue:work database --tries=5 --backoff=60 --max-time=3600 --sleep=3 --queue=default
+ExecStart=/usr/bin/php artisan queue:work database --tries=5 --backoff=60 --timeout=60 --max-time=3600 --sleep=3 --queue=default
 Restart=always
 RestartSec=5
 # SIGTERM = selesaikan job yang sedang berjalan, lalu keluar (Laravel Worker

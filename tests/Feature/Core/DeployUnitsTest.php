@@ -124,6 +124,16 @@ class DeployUnitsTest extends TestCase
         );
         $this->assertMatchesRegularExpression('/^ExecStart=\S+php artisan schedule:work$/m', $scheduler);
 
+        // Batas waktu pekerja eksplisit, di bawah retry_after antrean database
+        // (job yang sama diambil pekerja lain sementara yang lama masih
+        // memegangnya), dan batas soket SMTP di bawah batas pekerja: host SMTP
+        // yang bisu harus gagal sebagai pesan penyedia di baris pengiriman,
+        // bukan sebagai pekerja yang dibunuh pcntl tanpa mencatat apa pun.
+        $this->assertSame(1, preg_match('/^ExecStart=.*--timeout=(\d+)\b/m', $queue, $timeout), 'erp1-queue harus menyatakan --timeout.');
+        $this->assertLessThan((int) config('queue.connections.database.retry_after'), (int) $timeout[1]);
+        $this->assertIsInt(config('mail.mailers.smtp.timeout'), 'smtp.timeout harus angka, bukan null (= default_socket_timeout).');
+        $this->assertLessThan((int) $timeout[1], config('mail.mailers.smtp.timeout'));
+
         // Deploy memulai ulang keduanya agar pekerja memuat kode baru — dan
         // hanya bila unitnya sudah dipasang (is-enabled), supaya host yang
         // masih di cron tidak gagal deploy.

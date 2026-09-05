@@ -4,6 +4,8 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Queue\MaxAttemptsExceededException;
+use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -299,6 +301,69 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->assertNull($row->sent_at);
         $this->assertSame(0, DB::table('jobs')->count());
         $this->assertSame(1, DB::table('failed_jobs')->count(), 'Percobaan terakhir harus mendarat di failed_jobs (layar T0b.4).');
+    }
+
+    /**
+     * Pekerja yang dibunuh pcntl pada --timeout (SMTP bisu) tidak pernah sampai
+     * ke blok catch: attempts harus sudah tersimpan SEBELUM mengirim, supaya
+     * lima kali dibunuh tidak terbaca sebagai attempts=0 (verifikasi P-0b,
+     * 5 Sep 2026).
+     */
+    public function test_attempts_are_persisted_before_the_send_so_a_killed_worker_leaves_a_trace(): void
+    {
+        $this->emailOn();
+        $row = $this->delivery($this->userWith('fin.approve', 'Direktur'), NotificationDelivery::QUEUED);
+
+        $seen = null;
+        app()->instance(MailChannel::class, new class($seen) implements DeliveryChannel
+        {
+            public function __construct(public ?int &$seen) {}
+
+            public function name(): string
+            {
+                return NotificationDelivery::CHANNEL_EMAIL;
+            }
+
+            public function send(NotificationDelivery $delivery, Notification $notification): ?string
+            {
+                // Dibaca segar dari basis data: yang sudah TERSIMPAN saat pengiriman berjalan.
+                $this->seen = NotificationDelivery::query()->whereKey($delivery->id)->value('attempts');
+
+                return null;
+            }
+        });
+
+        (new DeliverNotification($row->id))->handle();
+
+        $this->assertSame(1, $seen, 'attempts=1 harus sudah tersimpan sebelum penyedia dipanggil.');
+        $this->assertSame(NotificationDelivery::SENT, $row->refresh()->status);
+    }
+
+    /**
+     * Kehabisan waktu dan percobaan habis adalah pengecualian PEKERJA; kalimat
+     * Inggrisnya bukan pesan penyedia. Ditulis dalam kalimat kita, membawa pesan
+     * penyedia terakhir yang sempat tersimpan.
+     */
+    public function test_a_worker_timeout_or_exhausted_attempts_end_as_failed_in_our_words_keeping_the_provider_message(): void
+    {
+        $approver = $this->userWith('fin.approve', 'Direktur');
+
+        $timedOut = $this->delivery($approver, NotificationDelivery::QUEUED, ['attempts' => 5, 'error' => 'SMTP 421 4.7.0 try again later']);
+        (new DeliverNotification($timedOut->id))->failed(new TimeoutExceededException(DeliverNotification::class.' has timed out.'));
+        $timedOut->refresh();
+        $this->assertSame(NotificationDelivery::FAILED, $timedOut->status);
+        $this->assertStringContainsString('kehabisan waktu', (string) $timedOut->error);
+        $this->assertStringContainsString('SMTP 421 4.7.0 try again later', (string) $timedOut->error);
+        $this->assertStringNotContainsString('has timed out', (string) $timedOut->error);
+
+        $exhausted = $this->delivery($approver, NotificationDelivery::QUEUED, ['attempts' => 5]);
+        (new DeliverNotification($exhausted->id))->failed(new MaxAttemptsExceededException(DeliverNotification::class.' has been attempted too many times.'));
+        $this->assertSame('Percobaan habis sebelum penyedia menjawab.', $exhausted->refresh()->error);
+
+        // Pesan penyedia sungguhan tetap apa adanya.
+        $refused = $this->delivery($approver, NotificationDelivery::QUEUED, ['attempts' => 5]);
+        (new DeliverNotification($refused->id))->failed(new RuntimeException('SMTP 550 5.1.1 mailbox unavailable'));
+        $this->assertSame('SMTP 550 5.1.1 mailbox unavailable', $refused->refresh()->error);
     }
 
     /** Baris yang sudah `sent` tidak dikirim lagi walau job-nya dijalankan dua kali. */

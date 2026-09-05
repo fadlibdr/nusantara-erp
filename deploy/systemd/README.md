@@ -6,7 +6,7 @@ pekerja yang mengambil job dari tabel `jobs`.
 
 | Unit | Perintah | Log |
 |---|---|---|
-| `erp1-queue.service` | `php artisan queue:work database --tries=5 --backoff=60 --max-time=3600 --sleep=3 --queue=default` | `/var/log/erp1/queue.log` |
+| `erp1-queue.service` | `php artisan queue:work database --tries=5 --backoff=60 --timeout=60 --max-time=3600 --sleep=3 --queue=default` | `/var/log/erp1/queue.log` |
 | `erp1-scheduler.service` | `php artisan schedule:work` | `/var/log/erp1/scheduler.log` |
 
 Keduanya berjalan sebagai `www-data` dari `/var/www/erp1.pi2.co.id`,

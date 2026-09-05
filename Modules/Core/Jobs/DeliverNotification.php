@@ -6,6 +6,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\MaxAttemptsExceededException;
+use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Str;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\DeliveryChannels;
@@ -63,7 +65,11 @@ class DeliverNotification implements ShouldQueueAfterCommit
             return;
         }
 
-        $delivery->attempts += 1;
+        // attempts disimpan SEBELUM mengirim: pekerja yang dibunuh pcntl pada
+        // batas --timeout (SMTP yang bisu) tidak pernah sampai ke blok catch,
+        // dan tanpa ini baris tetap attempts=0 setelah lima kali dibunuh
+        // (verifikasi P-0b, 5 Sep 2026).
+        $delivery->forceFill(['attempts' => $delivery->attempts + 1])->save();
 
         try {
             $providerId = DeliveryChannels::for($delivery->channel)->send($delivery, $delivery->notification);
@@ -96,7 +102,16 @@ class DeliverNotification implements ShouldQueueAfterCommit
         ])->save();
     }
 
-    /** Dipanggil pekerja setelah percobaan terakhir (atau job kedaluwarsa). */
+    /**
+     * Dipanggil pekerja setelah percobaan terakhir (atau job kedaluwarsa).
+     *
+     * Dua pengecualian datang dari PEKERJA, bukan penyedia, dan kalimat
+     * Inggrisnya ("… has timed out.", "… has been attempted too many times.")
+     * bukan pesan penyedia yang dijanjikan kolom error: kehabisan waktu
+     * (pcntl membunuh proses pada --timeout) dan percobaan yang habis tanpa
+     * sempat melempar. Keduanya ditulis dalam kalimat kita, dengan pesan
+     * penyedia terakhir yang masih tersimpan ikut dibawa.
+     */
     public function failed(?Throwable $e): void
     {
         $delivery = NotificationDelivery::query()->find($this->deliveryId);
@@ -105,9 +120,19 @@ class DeliverNotification implements ShouldQueueAfterCommit
             return;
         }
 
+        $last = trim((string) $delivery->error);
+        $suffix = $last === '' ? '' : " Pesan penyedia terakhir: {$last}";
+
+        $error = match (true) {
+            $e === null => $last === '' ? 'Gagal tanpa pesan.' : $last,
+            $e instanceof TimeoutExceededException => 'Pekerja antrean kehabisan waktu saat mengirim — penyedia tidak menjawab dalam batas waktu pekerja.'.$suffix,
+            $e instanceof MaxAttemptsExceededException => 'Percobaan habis sebelum penyedia menjawab.'.$suffix,
+            default => self::message($e),
+        };
+
         $delivery->forceFill([
             'status' => NotificationDelivery::FAILED,
-            'error' => $e === null ? ($delivery->error ?? 'Gagal tanpa pesan.') : self::message($e),
+            'error' => Str::limit($error, 480),
             'next_attempt_at' => null,
         ])->save();
     }
