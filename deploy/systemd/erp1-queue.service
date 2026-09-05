@@ -21,7 +21,9 @@
 #                   database, dan config/mail.php smtp.timeout=30 ada di bawahnya
 #                   supaya SMTP yang bisu gagal sebagai pesan penyedia, bukan
 #                   sebagai pekerja yang dibunuh.
-# --sleep=3       : jeda saat antrean kosong (3 SELECT per menit, bukan 60).
+# --sleep=3       : jeda 3 detik saat antrean kosong (≈20 SELECT ringan per
+#                   menit); nilai bawaan Laravel, ditulis eksplisit agar terbaca
+#                   di unit.
 [Unit]
 Description=Nusantara ERP queue worker (erp1.pi2.co.id)
 Documentation=file:/var/www/erp1.pi2.co.id/deploy/systemd/README.md
