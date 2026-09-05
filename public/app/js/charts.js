@@ -84,8 +84,12 @@
 const NS = 'http://www.w3.org/2000/svg';
 const DAY = 86400000;
 /* Lebar rata-rata glyph pada 11 px --font, untuk memperkirakan lebar label (tanpa
-   layout DOM — fungsi ini murni dan bisa dipanggil sebelum svg ditempel). */
-const CHAR_W = 6.3;
+   layout DOM — fungsi ini murni dan bisa dipanggil sebelum svg ditempel). Diukur
+   getBBox di Chromium 151 dengan tumpukan --font (5 Sep 2026): teks legenda 4,99,
+   'Februari' 5,12, 'September' 6,0 → 54 px, 'Rp 20.000.000.000' 5,51 px/glyph; 5,6 =
+   batas atas terukur. Nilai lama 6,3 memotong 'Februari' jadi 'Februa…' pada pita
+   55,7 px padahal teks aslinya 41 px. */
+const CHAR_W = 5.6;
 const FONT = 11;
 const SERIES_TOKENS = 8;
 const EMPTY_TEXT = 'Belum ada data';
@@ -157,6 +161,15 @@ function truncate(text, maxChars) {
 
 function textWidth(text) {
   return String(text ?? '').length * CHAR_W;
+}
+
+/** Label sumbu-x berjangkar tengah, kecuali label yang akan keluar dari tepi svg: yang
+    terakhir ditambatkan ke ujung kanan ('10 Jun 2026' berpusat di x = width − 16 dulu
+    terpotong ±12 px), yang pertama ke ujung kiri. */
+function xTickLabel(svg, cx, y, label, width, extraClass = '') {
+  const half = textWidth(label) / 2;
+  const anchor = cx + half > width - 1 ? 'end' : cx - half < 1 ? 'start' : 'middle';
+  svg.appendChild(make('text', { class: `chart-tick${extraClass ? ` ${extraClass}` : ''}`, x: cx, y, 'text-anchor': anchor }, label));
 }
 
 function frame(kind, width, height, ariaLabel) {
@@ -341,9 +354,7 @@ export function lineChart({
   });
   svg.appendChild(paint(make('line', { class: 'chart-axis', x1: PAD.left, x2: PAD.left, y1: PAD.top, y2: PAD.top + plotH }), 'stroke', '--chart-axis'));
   if (lo < 0 && hi > 0) svg.appendChild(paint(make('line', { class: 'chart-zero', x1: PAD.left, x2: width - PAD.right, y1: y(0), y2: y(0) }), 'stroke', '--chart-axis'));
-  thin(xs.length, plotW).forEach((i) => {
-    svg.appendChild(make('text', { class: 'chart-tick', x: x(xs[i]), y: PAD.top + plotH + 19, 'text-anchor': 'middle' }, labelX(xs[i])));
-  });
+  thin(xs.length, plotW).forEach((i) => xTickLabel(svg, x(xs[i]), PAD.top + plotH + 19, labelX(xs[i]), width));
 
   const base = y(Math.min(Math.max(0, lo), hi));
   rows.forEach((s) => {
@@ -433,7 +444,7 @@ export function barChart({
   ticks.forEach((t) => {
     if (horizontal) {
       svg.appendChild(paint(make('line', { class: 'chart-grid', x1: value(t), x2: value(t), y1: PAD.top, y2: PAD.top + plotH }), 'stroke', '--chart-grid'));
-      svg.appendChild(make('text', { class: 'chart-tick', x: value(t), y: PAD.top + plotH + 19, 'text-anchor': 'middle' }, fy(t)));
+      xTickLabel(svg, value(t), PAD.top + plotH + 19, fy(t), width);
     } else {
       svg.appendChild(paint(make('line', { class: 'chart-grid', x1: PAD.left, x2: width - PAD.right, y1: value(t), y2: value(t) }), 'stroke', '--chart-grid'));
       svg.appendChild(make('text', { class: 'chart-tick', x: PAD.left - 7, y: value(t) + 3.5, 'text-anchor': 'end' }, fy(t)));
@@ -465,7 +476,7 @@ export function barChart({
       if (horizontal) {
         svg.appendChild(make('text', { class: 'chart-tick', x: PAD.left - 7, y: bandStart + band / 2 + 3.5, 'text-anchor': 'end' }, truncate(cat, Math.floor((PAD.left - 10) / CHAR_W))));
       } else {
-        svg.appendChild(make('text', { class: 'chart-tick', x: bandStart + band / 2, y: PAD.top + plotH + 19, 'text-anchor': 'middle' }, truncate(cat, Math.max(3, Math.floor(band / CHAR_W) - 1))));
+        xTickLabel(svg, bandStart + band / 2, PAD.top + plotH + 19, truncate(cat, Math.max(3, Math.floor((band - 4) / CHAR_W))), width);
       }
     }
     let up = 0;
@@ -725,7 +736,8 @@ export function ganttChart({
     svg.appendChild(paint(make('line', { class: 'gantt-tick', x1: x(t.at), x2: x(t.at), y1: headerH - 16, y2: rowsTop + rowsH }), 'stroke', '--chart-grid'));
     /* Label tick mengalah pada label "Hari ini" yang berbagi baris dengannya. */
     const nearToday = todayX !== null && x(t.at) + 3 < todayX + 4 + textWidth('Hari ini') && x(t.at) + 3 + textWidth(t.label) > todayX;
-    if (i % every === 0 && !nearToday) svg.appendChild(make('text', { class: 'gantt-tick-label chart-tick', x: x(t.at) + 3, y: headerH - 5 }, t.label));
+    const fits = x(t.at) + 3 + textWidth(t.label) <= W; // label tick terakhir tidak boleh keluar tepi kanan
+    if (i % every === 0 && !nearToday && fits) svg.appendChild(make('text', { class: 'gantt-tick-label chart-tick', x: x(t.at) + 3, y: headerH - 5 }, t.label));
   });
 
   const groups = [];
