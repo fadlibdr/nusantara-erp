@@ -107,16 +107,21 @@
   --row-h: 38.5px;
   --cell-py: 9px;
   --cell-px: 12px;
+  /* Kaki tabel (tfoot "Total") punya padding sendiri: sebelum token ada ia 10 px,
+     bukan 9 px seperti td — verifikasi P1-B 5 Sep 2026 mengukur baris total
+     41 → 39 px di PO, detail PO, Saldo Stok, dan Laporan begitu tfoot ikut
+     --cell-py. Normal = 10 px persis (41 px lagi); rapat 4; lega 10. */
+  --foot-py: 10px;
   --nav-py: 6px;
   --form-gap: 13px 16px;
   --kv-gap: 9px 14px;
 }
 
 :root[data-density="compact"] {
-  --row-h: 32px; --cell-py: 3px; --cell-px: 10px; --nav-py: 4px; --form-gap: 9px 14px; --kv-gap: 5px 12px;
+  --row-h: 32px; --cell-py: 3px; --cell-px: 10px; --foot-py: 4px; --nav-py: 4px; --form-gap: 9px 14px; --kv-gap: 5px 12px;
 }
 :root[data-density="comfortable"] {
-  --row-h: 48px; --cell-py: 9px; --cell-px: 14px; --nav-py: 8px; --form-gap: 16px 18px; --kv-gap: 12px 16px;
+  --row-h: 48px; --cell-py: 9px; --cell-px: 14px; --foot-py: 10px; --nav-py: 8px; --form-gap: 16px 18px; --kv-gap: 12px 16px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -816,7 +821,7 @@ table.data th.center, table.data td.center { text-align: center; }
 table.data td.code { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
 table.data td.strong { font-weight: 600; }
 table.data tfoot td {
-  padding: var(--cell-py) var(--cell-px);
+  padding: var(--foot-py) var(--cell-px);
   border-top: 2px solid var(--border-strong);
   font-weight: 700;
   background: var(--surface-2);

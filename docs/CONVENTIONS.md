@@ -301,8 +301,9 @@ tidak ada yang bergeser — lantai 38,5 tidak pernah mengikat. `compact` menurun
 dan tombol aksi baris ke 24 px (hanya `pointer: fine` — di layar sentuh sasaran jempol 36 px
 menang, baris rapat bertombol 43 px), `comfortable` menahan padding dan menaikkan lantai; di
 kedua profil itu **semua** baris satu-baris tepat 32/48 (S21 `density.compact_all_32` /
-`comfortable_all_48`). Token turunan: `--cell-py/--cell-px` (td, th, tfoot), `--nav-py` (baris
-sidebar), `--form-gap` (`.form-grid`), `--kv-gap` (`.kv`). Kontrol: dialog Akun › **Kepadatan**
+`comfortable_all_48`). Token turunan: `--cell-py/--cell-px` (td, th), `--foot-py` (tfoot: 10 px normal —
+angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (baris sidebar), `--form-gap`
+(`.form-grid`), `--kv-gap` (`.kv`). Kontrol: dialog Akun › **Kepadatan**
 (tiga radio: Rapat · Normal · Lega), berlaku seketika. Simpanan: `localStorage`
 `nusantara_erp_density:<id pengguna>` (`personalKey`, seperti favorit) dengan nilai
 `compact|normal|comfortable`, dipasang saat evaluasi modul app.js dan lagi di `boot()` — sebelum

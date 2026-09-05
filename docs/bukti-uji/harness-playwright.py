@@ -1530,6 +1530,10 @@ ROWS = """() => { const h=(e)=>+e.getBoundingClientRect().height.toFixed(2);
              single_line_rows: rows.length, by_kind: Object.fromEntries(Object.entries(by).map(([k,v]) => [k, uniq(v)])),
              min_by_kind: Object.fromEntries(Object.entries(by).map(([k,v]) => [k, Math.min(...v)])),
              all: uniq(rows.map(h)), th: h(document.querySelector('table.data th')), nav_link: h(document.querySelector('.nav-items a')),
+             // Baris kaki (tfoot "Total …") ikut disidik: verifikasi P1-B 5 Sep 2026 menemukan
+             // baris total menciut 41 → 39 px pada profil normal karena sidik jari ini dulu
+             // hanya membaca tbody.
+             tfoot: uniq([...document.querySelectorAll('table.data tfoot tr')].map(h)),
              btn_sm: (b => b ? h(b) : null)(document.querySelector('table.data .btn.sm')),
              stored: Object.keys(localStorage).filter(k => k.startsWith('nusantara_erp_density')) } }"""
 
@@ -1655,13 +1659,16 @@ def module_accents(pg, tag):
         pg.goto(BASE + route); pg.wait_for_selector("table.data tbody tr", timeout=15000); pg.wait_for_timeout(600)
         return pg.evaluate(ROWS)
     probe = "#/r/inventory/item-categories"
-    dens = {"baseline": rows_on(probe), "baseline_accounts": rows_on("#/r/finance/accounts")}
+    # Daftar PO ikut: satu-satunya dari ketiga halaman yang punya tfoot ("Total halaman ini").
+    po_list = "#/r/procurement/purchase-orders"
+    dens = {"baseline": rows_on(probe), "baseline_accounts": rows_on("#/r/finance/accounts"), "baseline_po": rows_on(po_list)}
     coarse = dens["baseline"]["pointer"] == "coarse"
     dens["expected"] = {"compact": 43 if coarse else 32, "comfortable": 55 if coarse else 48, "normal": 47 if not coarse else 55}
     for value in ("compact", "comfortable", "normal"):
         set_density(pg, value)
         dens[value] = rows_on(probe)
         dens[value + "_accounts"] = rows_on("#/r/finance/accounts")
+        dens[value + "_po"] = rows_on(po_list)
         if value == "compact":
             pg.screenshot(path=f"{OUT}/s21-density-compact{tag}.png")
     set_density(pg, "compact")
@@ -1672,7 +1679,13 @@ def module_accents(pg, tag):
     near = lambda values, want: bool(values) and all(abs(v - want) <= 0.5 for v in values)
     dens["compact_ok"] = near(dens["compact"]["all"], dens["expected"]["compact"])
     dens["comfortable_ok"] = near(dens["comfortable"]["all"], dens["expected"]["comfortable"])
-    dens["normal_equals_baseline"] = dens["normal"]["all"] == dens["baseline"]["all"] and dens["baseline"]["density"] == "normal" and dens["normal_accounts"]["by_kind"] == dens["baseline_accounts"]["by_kind"]
+    dens["normal_equals_baseline"] = (dens["normal"]["all"] == dens["baseline"]["all"] and dens["baseline"]["density"] == "normal"
+                                      and dens["normal_accounts"]["by_kind"] == dens["baseline_accounts"]["by_kind"]
+                                      and dens["normal_po"]["by_kind"] == dens["baseline_po"]["by_kind"]
+                                      and dens["normal_po"]["tfoot"] == dens["baseline_po"]["tfoot"])
+    # Kaki tabel PO per profil (normal harus 41 = tinggi sebelum token, --foot-py 10 px; rapat 4 px; lega 10 px).
+    dens["tfoot_po"] = {k: dens[k + "_po"]["tfoot"] for k in ("baseline", "compact", "comfortable", "normal")}
+    dens["tfoot_normal_41"] = bool(dens["normal_po"]["tfoot"]) and all(abs(v - 41) <= 0.5 for v in dens["normal_po"]["tfoot"])
     # Bagan Akun: baris terpendek per jenis (teks/lencana/tombol) di tiap profil — nama panjang membungkus, jadi min-nya yang satu-baris.
     dens["accounts_min_by_kind"] = {k: dens[k + "_accounts"]["min_by_kind"] for k in ("baseline", "compact", "comfortable", "normal")}
     # Muat ulang mendarat di Bagan Akun (nama panjang membungkus): yang dibandingkan baris terpendeknya.
