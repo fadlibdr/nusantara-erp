@@ -181,7 +181,11 @@ class ApprovalNotificationTest extends ErpTestCase
         $this->userWith('fin.approve', 'Direktur');
         $submitter = $this->userWith('fin.create', 'Staf');
 
-        // Make the insert fail the way a schema drift or a full disk would.
+        // Make the insert fail the way a schema drift or a full disk would. The
+        // delivery outbox references core_notifications (a real FK on MySQL:
+        // error 3730 "Cannot drop table … referenced by a foreign key", MySQL
+        // full run 5 Sep 2026), so the child table goes first.
+        DB::statement('DROP TABLE core_notification_deliveries');
         DB::statement('DROP TABLE core_notifications');
 
         $bill = $this->bill();
