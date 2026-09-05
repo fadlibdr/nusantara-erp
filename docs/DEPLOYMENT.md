@@ -654,3 +654,111 @@ a busy one they are always there. Three consequences:
    (`ls /var/www/erp1.pi2.co.id/database/database.sqlite*` shows one file)
    and after confirming `ls /root/construction-erp/database/database.sqlite*`
    shows one file too.
+
+## 10. MySQL on erp1 (Fase 0 — T0.0)
+
+Roadmap HashMicro Fase 0 moves erp1 off the single SQLite file: measured 2–4
+Sep 2026 (HASIL-UJI §6.4, section 9 above), a ~40-request harness burst left
+php-fpm workers waiting on the SQLite write lock and nginx answered `503`.
+MySQL 8 runs on the same host as a plain systemd service — no Docker (that path
+changes too many variables at once), no Redis (queue stays `database`). This
+section records what was installed, how it is configured, and where the
+credential lives. **Until the T0.6 cut-over runbook has been executed,
+production still reads `DB_CONNECTION=sqlite`** — installing the server changes
+nothing the application sees. (Hanya catatan instalasi; produksi masih SQLite
+sampai cut-over.)
+
+### 10.1 What was installed (5 Sep 2026)
+
+```
+apt-get install -y mysql-server
+```
+
+| Package | Version |
+|---|---|
+| `mysql-server`, `mysql-server-8.0`, `mysql-server-core-8.0`, `mysql-client-8.0` | `8.0.46-0ubuntu0.24.04.4` |
+| `mysql-common` | `5.8+1.1.0build1` |
+
+Ubuntu's package enables and starts the unit on install; `systemctl is-active
+mysql` → `active`, `systemctl is-enabled mysql` → `enabled`. The root account
+uses `auth_socket` (only a root shell can open it, no password exists). PHP
+8.3.6 on the box already ships `pdo_mysql` and `mysqli`.
+
+### 10.2 Configuration: `deploy/mysql/erp1.cnf`
+
+The tuning lives in the repository as `deploy/mysql/erp1.cnf` and is installed
+verbatim:
+
+```
+cp deploy/mysql/erp1.cnf /etc/mysql/mysql.conf.d/erp1.cnf
+chmod 644 /etc/mysql/mysql.conf.d/erp1.cnf
+systemctl restart mysql
+```
+
+`erp1.cnf` sorts after the distribution's `mysqld.cnf`, so its keys win. Every
+value carries its reason in the file itself; the short table:
+
+| Key | Value | Why |
+|---|---|---|
+| `bind-address` | `127.0.0.1` | ERP and MySQL share the host; port 3306 is never reachable from outside |
+| `mysqlx` | `0` | X-protocol listener (33060) unused |
+| `character-set-server` / `collation-server` | `utf8mb4` / `utf8mb4_unicode_ci` | same pair as `config/database.php` (`DB_COLLATION` default) |
+| `sql_mode` | `STRICT_TRANS_TABLES,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO` | server floor for non-Laravel clients (CLI, `mysqldump` restore); Laravel sets a stricter session mode itself |
+| `max_connections` | `60` | php-fpm has few workers; 151 only lets a runaway burst hold more RAM |
+| `innodb_buffer_pool_size` | `384M` | whole ERP is ~3 MB; leaves ~2 GB for php-fpm; no swap on this host |
+| `innodb_lock_wait_timeout` | `10` | `lockForUpdate()` is real on MySQL (141 sites): fail a waiter in 10 s, not 50 |
+| `disable_log_bin` | — | no replica, no PITR; backups are `mysqldump --single-transaction`; binlog would double every write |
+| `slow_query_log` / `long_query_time` | `1` / `2` s → `/var/log/mysql/slow.log` | SQLite era had no per-query timing |
+
+Read back on 5 Sep 2026 after the restart (`mysql -e "SELECT @@sql_mode,
+@@max_connections, @@innodb_buffer_pool_size/1024/1024, @@collation_server,
+@@log_bin, @@slow_query_log, @@innodb_lock_wait_timeout, @@bind_address\G"`):
+every value above, `ss -ltnp` shows one `mysqld` listener, `127.0.0.1:3306`.
+Memory measured with `free -m`: 1 379 MB used before the install, 1 707 MB
+used with the server idle after it (`mysqld` RSS 408 MB), 2 207 MB still
+available — inside the roadmap's "+≥1 GB" allowance.
+
+### 10.3 Users, databases, and where the credential lives
+
+One application account, `'erp'@'localhost'` (`caching_sha2_password`, the 8.0
+default — `pdo_mysql` on PHP 8.3 speaks it). It holds `ALL PRIVILEGES` on
+exactly five schemas and nothing else:
+
+| Schema | Purpose |
+|---|---|
+| `erp` | **production** — created by the cut-over runbook (T0.6), not before |
+| `erp_scratch` | seeded demo for the burst harness and smoke tests (T0.4, T0.7) |
+| `erp_test` | phpunit on MySQL (`phpunit.mysql.xml`, T0.3) |
+| `erp_dryrun` | SQLite → MySQL rehearsal target (`erp:sqlite-to-mysql`, T0.5) |
+| `erp_restore_check` | restore drill target (T0.6) |
+
+The four working schemas exist (created `CHARACTER SET utf8mb4 COLLATE
+utf8mb4_unicode_ci`); `erp` does not yet. A `GRANT` on a schema that does not
+exist is legal in MySQL, so the account is ready for the cut-over without a
+second grant.
+
+**The password is 32 random characters and is written in exactly one place:**
+`mysql-erp.cred` (`chmod 600`, `DB_USERNAME=` / `DB_PASSWORD=` lines) in the
+Fase 0 scratch directory of the session that created the account. It is not
+in this repository, not in any commit message, not in a log, and this document
+does not contain it. At cut-over the operator copies the two lines into
+`/var/www/erp1.pi2.co.id/.env` and deletes the scratch file. Lost it? Do not
+hunt for it — set a new one from a root shell (`ALTER USER 'erp'@'localhost'
+IDENTIFIED BY '…'`) and update `.env`; nothing else holds it.
+
+To confirm the account without printing the secret:
+
+```
+set -a; . /path/to/mysql-erp.cred; set +a
+MYSQL_PWD="$DB_PASSWORD" mysql -u erp -h 127.0.0.1 -e "SELECT CURRENT_USER(); SHOW DATABASES;"
+```
+
+### 10.4 What this does NOT change (yet)
+
+- `/var/www/erp1.pi2.co.id/.env` — still `DB_CONNECTION=sqlite`.
+- `/etc/cron.d/erp1`, nginx, php-fpm — untouched.
+- `deploy/backup-erp1.sh` — still snapshots the SQLite file; the MySQL branch
+  (`mysqldump --single-transaction` + restore drill) is T0.6.
+- The application code — the two SQLite-only partial unique indexes and the
+  preflight audit are T0.1/T0.2, in this same phase, and the cut-over itself
+  is a separate, ordered runbook.
