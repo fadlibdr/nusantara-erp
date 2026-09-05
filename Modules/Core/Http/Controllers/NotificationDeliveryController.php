@@ -5,7 +5,7 @@ namespace Modules\Core\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use InvalidArgumentException;
+use Modules\Core\Exceptions\DeliveryRetryRefusedException;
 use Modules\Core\Http\ApiController;
 use Modules\Core\Http\Resources\NotificationDeliveryResource;
 use Modules\Core\Models\NotificationDelivery;
@@ -63,11 +63,13 @@ class NotificationDeliveryController extends ApiController
     {
         try {
             $delivery = $this->notifications->retry($notificationDelivery);
-        } catch (InvalidArgumentException $e) {
+        } catch (DeliveryRetryRefusedException $e) {
             return $this->error($e->getMessage(), 422);
         } catch (Throwable $e) {
-            // Antrean menolak dispatch. Barisnya sudah `queued` (jujur: menunggu),
-            // dan orangnya harus tahu kenapa tombolnya tidak menghasilkan apa-apa.
+            // Antrean menolak dispatch — termasuk InvalidArgumentException-nya
+            // sendiri untuk koneksi yang tidak terkonfigurasi, yang bukan 422.
+            // Barisnya sudah `queued` (jujur: menunggu), dan orangnya harus
+            // tahu kenapa tombolnya tidak menghasilkan apa-apa.
             return $this->error('Antrean tidak dapat menerima job: '.$e->getMessage().' Baris tetap berstatus antre.', 503);
         }
 

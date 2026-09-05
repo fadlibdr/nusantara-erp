@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Core\Console\Commands\WatchdogAlarmCommand;
 use Modules\Core\Models\Notification;
 use Modules\Core\Services\HealthService;
@@ -135,6 +136,40 @@ class SchedulerHeartbeatTest extends ErpTestCase
         $this->assertSame(1, $busy['failed_jobs_count']);
     }
 
+    /**
+     * Tabel yang belum ada (migrasi belum jalan, atau blok migrasi terlewat
+     * saat deploy — 'deploy migration race'): setiap angkanya null, bukan 0.
+     * Hanya di SQLite: DDL di dalam uji meng-commit transaksi pembungkus di
+     * MySQL dan memaksa migrate:fresh berikutnya; cabangnya sendiri tidak
+     * bergantung pada driver (Schema::hasTable).
+     */
+    public function test_a_missing_table_makes_its_metric_null_not_zero(): void
+    {
+        if (DB::getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('DDL di dalam uji meng-commit transaksi di MySQL; cabang null diuji di SQLite.');
+        }
+
+        $admin = $this->adminUser();
+        $this->actingAs($admin, 'sanctum');
+
+        $before = $this->getJson('/api/core/health')->assertOk()->json('data');
+        $this->assertSame(0, $before['queue_pending_count']);
+        $this->assertSame(0, $before['failed_jobs_count']);
+        $this->assertSame(0, $before['queued_deliveries_older_than_1h']);
+
+        Schema::drop('jobs');
+        Schema::drop('failed_jobs');
+        Schema::drop('core_notification_deliveries');
+
+        $after = $this->getJson('/api/core/health')->assertOk()->json('data');
+        $this->assertNull($after['queue_pending_count']);
+        $this->assertNull($after['queue_oldest_pending_age_s']);
+        $this->assertNull($after['failed_jobs_count']);
+        $this->assertNull($after['queued_deliveries_older_than_1h']);
+        // Detaknya sendiri tidak ikut hilang: tabel pengaturan masih ada.
+        $this->assertSame('unknown', $after['scheduler_status']);
+    }
+
     // ----------------------------------------------------------------- gate
 
     public function test_health_needs_core_view(): void
@@ -234,8 +269,15 @@ class SchedulerHeartbeatTest extends ErpTestCase
         $this->assertSame(2, Notification::query()->where('user_id', $admin->id)->count());
     }
 
+    /**
+     * Cadence-nya yang dipaku, bukan sekadar namanya: ambang 20 menit pengawas
+     * mengandaikan detak tiap 5 menit — everyFiveMinutes() yang berubah menjadi
+     * hourly() masih lolos expectsOutputToContain('erp:heartbeat').
+     */
     public function test_the_heartbeat_is_scheduled_every_five_minutes(): void
     {
-        $this->artisan('schedule:list')->expectsOutputToContain('erp:heartbeat')->assertExitCode(0);
+        $this->artisan('schedule:list')
+            ->expectsOutputToContain('*/5 * * * *  php artisan erp:heartbeat')
+            ->assertExitCode(0);
     }
 }

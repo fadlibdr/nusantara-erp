@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use InvalidArgumentException;
+use Modules\Core\Exceptions\DeliveryRetryRefusedException;
 use Modules\Core\Jobs\DeliverNotification;
 use Modules\Core\Models\FailedJob;
 use Modules\Core\Models\Notification;
@@ -361,23 +361,23 @@ class NotificationService
      * ditangani. Antrean Gagal sendiri menolak mengembalikan job pengiriman
      * (QueueFailedJobController) — satu tombol Kirim ulang, di sini.
      *
-     * @throws InvalidArgumentException bila tidak bisa dikirim ulang
+     * @throws DeliveryRetryRefusedException bila tidak bisa dikirim ulang
      */
     public function retry(NotificationDelivery $delivery): NotificationDelivery
     {
         if ($delivery->status === NotificationDelivery::SENT) {
-            throw new InvalidArgumentException('Pengiriman ini sudah diterima penyedia; tidak ada yang perlu dikirim ulang.');
+            throw new DeliveryRetryRefusedException('Pengiriman ini sudah diterima penyedia; tidak ada yang perlu dikirim ulang.');
         }
 
         if ($delivery->channel === NotificationDelivery::CHANNEL_EMAIL) {
             if (! $this->emailEnabled()) {
-                throw new InvalidArgumentException('E-mail masih dinonaktifkan di Pengaturan — nyalakan dulu, lalu kirim ulang.');
+                throw new DeliveryRetryRefusedException('E-mail masih dinonaktifkan di Pengaturan — nyalakan dulu, lalu kirim ulang.');
             }
 
             $address = trim((string) $delivery->notification?->user?->email);
 
             if ($address === '') {
-                throw new InvalidArgumentException('Penerima tidak punya alamat e-mail; lengkapi alamatnya di Sistem › Pengguna, lalu kirim ulang.');
+                throw new DeliveryRetryRefusedException('Penerima tidak punya alamat e-mail; lengkapi alamatnya di Sistem › Pengguna, lalu kirim ulang.');
             }
 
             $delivery->recipient = $address;

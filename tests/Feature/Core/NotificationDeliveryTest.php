@@ -240,6 +240,40 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->assertSame(1, NotificationDelivery::query()->count());
     }
 
+    /**
+     * ShouldQueueAfterCommit: dispatch dari dalam transaksi ditunda sampai
+     * commit — pekerja lain tidak boleh mengambil job untuk baris pengiriman
+     * yang belum ter-commit — dan transaksi yang dibatalkan tidak meninggalkan
+     * job untuk baris yang tidak pernah ada.
+     */
+    public function test_the_job_is_pushed_only_after_the_surrounding_transaction_commits(): void
+    {
+        $this->emailOn();
+        $this->adminUser();
+        config(['queue.default' => 'database']);
+        $service = app(NotificationService::class);
+
+        $inside = null;
+        DB::transaction(function () use ($service, &$inside): void {
+            $service->system('core.update', 'Cadangan basi', 'Isi.');
+            $inside = DB::table('jobs')->count();
+        });
+
+        $this->assertSame(0, $inside, 'Di dalam transaksi job belum boleh ada di tabel.');
+        $this->assertSame(1, DB::table('jobs')->count(), 'Setelah commit job-nya ada.');
+
+        try {
+            DB::transaction(function () use ($service): void {
+                $service->system('core.update', 'Cadangan basi dua', 'Isi.');
+                throw new RuntimeException('dibatalkan');
+            });
+        } catch (RuntimeException) {
+        }
+
+        $this->assertSame(1, DB::table('jobs')->count(), 'Transaksi yang dibatalkan tidak menyisakan job.');
+        $this->assertSame(1, NotificationDelivery::query()->count(), 'Dan tidak menyisakan baris pengiriman.');
+    }
+
     // ------------------------------------------------------------------ job
 
     public function test_the_job_sends_the_mail_and_marks_the_row_sent(): void
@@ -524,6 +558,26 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->assertNotNull($row->next_attempt_at, 'Job masih dijadwalkan pekerja, jadi barisnya harus berkata begitu.');
         $this->assertEqualsWithDelta(60, $row->next_attempt_at->diffInSeconds(now(), true), 5, 'Percobaan pertama pekerja: backoff 60 s.');
         $this->assertStringContainsString('SMTP 421', (string) $row->error);
+    }
+
+    /**
+     * Antrean yang menolak saat Kirim ulang sampai ke orangnya sebagai 503
+     * dengan sebabnya — bukan sebagai baris `queued` yang diam. Barisnya tetap
+     * `queued`: jujur, ia memang menunggu.
+     */
+    public function test_retry_reports_a_refusing_queue_as_503_and_leaves_the_row_queued(): void
+    {
+        $this->emailOn();
+        $admin = $this->adminUser();
+        $row = $this->delivery($this->userWith('fin.approve', 'Direktur'), NotificationDelivery::FAILED);
+        config(['queue.default' => 'koneksi-yang-tidak-ada']);
+
+        $this->actingAs($admin, 'sanctum');
+        $response = $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertStatus(503);
+
+        $this->assertStringStartsWith('Antrean tidak dapat menerima job:', $response->json('message'));
+        $this->assertStringContainsString('Baris tetap berstatus antre.', $response->json('message'));
+        $this->assertSame(NotificationDelivery::QUEUED, $row->refresh()->status);
     }
 
     public function test_retry_refuses_a_sent_row_and_a_disabled_email_channel(): void
