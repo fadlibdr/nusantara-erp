@@ -65,9 +65,9 @@
  *     angka tabular (kelas .chart-lib di app.css).
  *   • Legenda di dalam svg (swatch = token seri; garis putus-putus ikut ditampilkan) dan
  *     catatan sumber opsional (sourceNote) di bawahnya — seperti grafik tangan yang ada.
- *   • Kosong = jujur: svg berisi teks "Belum ada data", data-empty="true", kelas is-empty
- *     (pemanggil boleh menukarnya dengan ui.emptyState()). Tidak pernah sumbu kosong yang
- *     berpura-pura nol.
+ *   • Kosong = jujur: svg RINGKAS 360×64 berisi teks "Belum ada data", data-empty="true",
+ *     kelas is-empty (pemanggil boleh menukarnya dengan ui.emptyState()); sparkline kosong
+ *     tetap seukuran sparkline. Tidak pernah sumbu kosong yang berpura-pura nol.
  *   • Cetak: blok @media print app.css menukar token ke abu-abu dan memberi seri 2..8 pola
  *     putus-putus/garis tepi — pembeda bentuk, bukan warna saja.
  */
@@ -153,10 +153,15 @@ function frame(kind, width, height, ariaLabel) {
   return svg;
 }
 
-function placeholder(kind, width, height, ariaLabel, message = EMPTY_TEXT) {
+/** Placeholder "Belum ada data" berukuran RINGKAS (360×64, max-width 360 px) untuk semua
+    jenis kecuali sparkline (yang berukuran intrinsik): viewBox selebar grafik penuh (720/900)
+    menyusutkan teks 13 px jadi 7 px (garis/batang) atau 4,4 px (gantt) di ponsel 390 px, dan
+    di desktop menyisakan kartu kosong 290–300 px untuk satu baris teks (diukur 5 Sep 2026). */
+function placeholder(kind, ariaLabel, { width = 360, height = 64, fit = true, message = EMPTY_TEXT } = {}) {
   const svg = frame(kind, width, height, ariaLabel);
   svg.classList.add('is-empty');
   svg.dataset.empty = 'true';
+  if (fit) svg.style.maxWidth = `${width}px`;
   svg.appendChild(make('text', { class: 'chart-empty', x: width / 2, y: height / 2 + FONT / 3, 'text-anchor': 'middle' }, message));
   return svg;
 }
@@ -283,7 +288,7 @@ export function lineChart({
   const legendH = legend && items.length ? legendRows(items, width).length * 16 : 0;
   const noteH = sourceNote ? 16 : 0;
   const H = height + legendH + noteH;
-  if (!ys.length) return placeholder('line', width, H, ariaLabel);
+  if (!ys.length) return placeholder('line', ariaLabel);
 
   const { lo, hi, ticks } = domain(ys, yMin, yMax);
   const labelX = (x) => (typeof xFormat === 'function' ? xFormat(x)
@@ -369,7 +374,7 @@ export function barChart({
   const plotHeight = horizontal ? (height ?? Math.max(60, n * rowH)) : (height ?? 260);
   const present = rows.flatMap((s) => s.values.filter((v) => v !== null));
 
-  if (!n || !m || !present.length) return placeholder('bar', width, plotHeight + legendH + noteH + 28, ariaLabel);
+  if (!n || !m || !present.length) return placeholder('bar', ariaLabel);
 
   /* Domain: tumpukan diukur per kategori (jumlah positif dan jumlah negatif terpisah). */
   const extents = stacked
@@ -473,7 +478,7 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   const W = Math.min(560, Math.max(360, legendX + Math.max(0, ...listed.map((s) => textWidth(`${s.label} — ${fv(s.value)} (100 %)`))) + 34));
   const noteH = sourceNote ? 18 : 0;
   const H = Math.max(200, rowsH + 24) + noteH;
-  if (!drawn.length) return placeholder('donut', W, H, ariaLabel);
+  if (!drawn.length) return placeholder('donut', ariaLabel);
 
   const svg = frame('donut', W, H, ariaLabel);
   const cx = 100;
@@ -532,7 +537,7 @@ export function sparkline({ points = [], width = 120, height = 32, ariaLabel = '
   /* Sparkline berukuran intrinsik (atribut width/height + .chart-spark { width:auto }):
      ia duduk di sel tabel atau ubin angka, bukan selebar kartu seperti grafik lain. */
   const sized = (svg) => { svg.setAttribute('width', width); svg.setAttribute('height', height); return svg; };
-  if (!idx.length) return sized(placeholder('spark', width, height, ariaLabel));
+  if (!idx.length) return sized(placeholder('spark', ariaLabel, { width, height, fit: false }));
 
   const svg = sized(frame('spark', width, height, ariaLabel));
   const present = idx.map((i) => vals[i]);
@@ -594,13 +599,7 @@ export function ganttChart({
   const W = labelWidth + timelineWidth;
   const headerH = 36;
   const noteH = sourceNote ? 16 : 0;
-  if (!tasks.length || (!dates.length && parseDay(from) === null)) {
-    /* Placeholder gantt berukuran ringkas (bukan 900 lebar): di ponsel viewBox
-       selebar jadwal menyusutkan "Belum ada data" jadi ±4 px (diukur S20). */
-    const empty = placeholder('gantt', 360, 64, ariaLabel);
-    empty.style.maxWidth = '360px';
-    return empty;
-  }
+  if (!tasks.length || (!dates.length && parseDay(from) === null)) return placeholder('gantt', ariaLabel);
 
   const fromMs = parseDay(from) ?? Math.min(...dates);
   let toMs = parseDay(to) ?? Math.max(...dates);

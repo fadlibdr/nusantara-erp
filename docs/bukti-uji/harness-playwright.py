@@ -1158,6 +1158,7 @@ CHART_MEASURE = """(theme) => {
     const negDims = [...svg.querySelectorAll('rect, circle')].filter(e => ['width', 'height', 'r'].some(a => e.hasAttribute(a) && parseFloat(e.getAttribute(a)) < 0)).length;
     const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, neg_dims: negDims,
       texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
+      empty_font_px: svg.dataset.empty === 'true' ? +(parseFloat(getComputedStyle(svg.querySelector('.chart-empty')).fontSize) * scale).toFixed(1) : null,
       width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
     // Geometri di luar viewBox (getBBox dalam koordinat svg): legenda/catatan yang melampaui tinggi,
     // label tick yang keluar tepi kanan, titik di luar plot — .chart { overflow: visible } melukisnya
@@ -1190,7 +1191,9 @@ CHART_MEASURE = """(theme) => {
       neg_dims: total.reduce((a, c) => a + c.neg_dims, 0), outside_viewbox: total.reduce((a, c) => a + c.outside_viewbox, 0),
       dots_outside_plot: total.reduce((a, c) => a + (c.dots_outside_plot || 0), 0), unclipped_paths: total.reduce((a, c) => a + (c.unclipped_paths || 0), 0),
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
-      empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length, min_series_contrast: Math.min(...Object.values(contrast)) } };
+      empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length,
+      // Placeholder harus tetap terbaca di ponsel: viewBox 720/900 menyusutkan teksnya ke 5,5/4,4 px (diukur 5 Sep 2026).
+      empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)), min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 
 def chart_tokens(pg, tag):
