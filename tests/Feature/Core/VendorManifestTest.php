@@ -22,10 +22,12 @@ use Tests\TestCase;
  *  (a) setiap berkas di public/app/vendor (kecuali VENDOR.md) ada di tabel Berkas
  *      VENDOR.md dengan sha256 yang sama, dan tidak ada baris tabel yang
  *      menunjuk berkas yang hilang;
- *  (b) tidak ada pemuat (script src, link href, import, import(), new URL,
- *      fetch, url(), @import) yang menunjuk http(s):// di *.html *.js *.css
- *      mana pun di bawah public/app — tanpa allowlist. Literal http(s) yang
- *      BUKAN pemuat harus lolos aturan data yang tepat di isDataLiteral();
+ *  (b) tidak ada pemuat (script src, link href, use/image/img/iframe/… href|src,
+ *      import, import(), new URL, fetch, url(), @import, "src": di manifest) yang
+ *      menunjuk http(s):// atau //host di *.html *.js *.mjs *.css *.svg
+ *      *.webmanifest *.json mana pun di bawah public/app — tanpa allowlist.
+ *      Literal http(s) yang BUKAN pemuat harus lolos aturan data yang tepat di
+ *      isDataLiteral();
  *  (c) jumlah gzip -9 seluruh public/app/vendor ≤ 60 KB (angkanya dicetak);
  *  (d) sprite Lucide adalah XML sah, setiap <symbol> ber-id "lucide-…" + viewBox,
  *      tanpa <script> dan tanpa URL selain xmlns;
@@ -39,7 +41,14 @@ class VendorManifestTest extends TestCase
 {
     private const GZIP_CEILING_BYTES = 60 * 1024;
 
-    private const SCANNED_EXTENSIONS = ['html', 'js', 'css'];
+    /**
+     * Semua jenis berkas yang bisa memuat sumber daya: modul .mjs, .svg (<script
+     * href>, <image href>, <use href>), manifest PWA (.webmanifest/.json — P1-I;
+     * ikon "src" eksternal). Verifikasi P1-A: hanya html/js/css yang dipindai, jadi
+     * js/x.mjs berisi import('https://cdn…') dan favicon.svg berisi <script href>
+     * lolos (mutasi m27/m28).
+     */
+    private const SCANNED_EXTENSIONS = ['html', 'js', 'mjs', 'css', 'svg', 'webmanifest', 'json'];
 
     /**
      * Pengenal namespace W3C yang diserahkan ke createElementNS()/xmlns: URL
@@ -68,6 +77,9 @@ class VendorManifestTest extends TestCase
     private const LOADER_BEFORE_URL = '~(?:'
         .'<script\b[^>]*\bsrc\s*=\s*["\']?'          // <script src="…
         .'|<link\b[^>]*\bhref\s*=\s*["\']?'         // <link href="…
+        // elemen HTML/SVG lain yang mengambil sumber daya lewat src/href/xlink:href/data
+        .'|<(?:script|use|image|img|iframe|source|embed|object|video|audio|track|base)\b[^>]*\b(?:src|href|xlink:href|data)\s*=\s*["\']?'
+        .'|"(?:src|href|url)"\s*:\s*"'                // "src": "…  (manifest PWA / JSON)
         .'|\bimport\s*\(\s*["\']'                    // import('…
         .'|\bimport\b[^;]*\bfrom\s*["\']'           // import x from '…
         .'|\bimport\s*["\']'                         // import '…  (efek samping)
@@ -275,7 +287,7 @@ class VendorManifestTest extends TestCase
         return $files;
     }
 
-    /** @return list<string> jalur absolut *.html *.js *.css di bawah public/app (termasuk vendor/) */
+    /** @return list<string> jalur absolut berkas SCANNED_EXTENSIONS di bawah public/app (termasuk vendor/) */
     private function scannedFiles(): array
     {
         $files = [];
