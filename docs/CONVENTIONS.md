@@ -241,8 +241,9 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
   (`fmt.rupiahShort`, `fmt.percent`, `fmt.date`) supaya sumbu, `<title>`, dan tabel di bawahnya
   memakai format yang sama.
 - Setiap mark membawa `<title>`; harness S20 (`docs/bukti-uji/harness-playwright.py`) menghitung
-  `<title>` == `.mark`, warna terkomputasi == token di tema terang & gelap, dan placeholder — jangan
-  menambah `<title>` di luar mark (legenda, label) karena hitungannya akan pecah.
+  `.mark > title` == `.mark`, warna terkomputasi == token di tema terang & gelap, dan placeholder — jangan
+  menambah `<title>` di luar mark (legenda, label) karena hitungan `<title>` liar akan pecah. Satu
+  pengecualian yang disengaja: label gantt yang dipotong (`data-truncated`) membawa nama lengkapnya.
 - Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
   langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
   `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.

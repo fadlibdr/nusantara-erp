@@ -1136,7 +1136,7 @@ CHART_RENDER = """async () => {
     { label: 'Urugan', start: '2026-09-08', end: '2026-09-18', progress: 0.1, level: 1 },
     { label: 'Struktur bawah', start: '2026-09-14', end: null, progress: 0, baselineStart: '2026-09-12', baselineEnd: '2026-10-02', level: 0 },
     { label: 'Pengadaan besi', start: null, end: '2026-09-20', level: 1 },
-    { label: 'Belum dijadwalkan', level: 1 },
+    { label: 'Belum dijadwalkan: pengadaan material finishing tahap kedua', level: 1 },
     { label: 'Struktur atas', start: '2026-10-01', end: '2026-10-30', progress: 0, level: 0 },
     { label: 'Finishing', start: '2026-10-20', end: '2026-11-30', level: 0 },
   ];
@@ -1182,7 +1182,9 @@ CHART_MEASURE = """(theme) => {
     const box = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
     const scale = vb.width ? box.width / vb.width : 1;
     const negDims = [...svg.querySelectorAll('rect, circle')].filter(e => ['width', 'height', 'r'].some(a => e.hasAttribute(a) && parseFloat(e.getAttribute(a)) < 0)).length;
-    const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, neg_dims: negDims,
+    // <title> yang sah: tepat satu per .mark, plus nama lengkap pada label gantt yang dipotong (data-truncated).
+    const strayTitles = [...svg.querySelectorAll('title')].filter(t => !t.parentElement.classList.contains('mark') && !(t.parentElement.classList.contains('gantt-label') && t.parentElement.dataset.truncated)).length;
+    const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, mark_titles: svg.querySelectorAll('.mark > title').length, stray_titles: strayTitles, neg_dims: negDims,
       texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
       empty_font_px: svg.dataset.empty === 'true' ? +(parseFloat(getComputedStyle(svg.querySelector('.chart-empty')).fontSize) * scale).toFixed(1) : null,
       width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
@@ -1209,6 +1211,7 @@ CHART_MEASURE = """(theme) => {
       c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
       c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;
       c.rows = svg.querySelectorAll('.gantt-label').length; c.bars = svg.querySelectorAll('.gantt-bar').length; c.baselines = svg.querySelectorAll('.gantt-baseline').length;
+      c.truncated_labels = svg.querySelectorAll('.gantt-label[data-truncated]').length; c.truncated_with_full_title = [...svg.querySelectorAll('.gantt-label[data-truncated]')].filter(t => t.querySelector('title') && t.querySelector('title').textContent === t.dataset.full).length;
       c.open_titles = [...svg.querySelectorAll('.gantt-bar[data-open] title')].map(t => t.textContent);
       c.row_notes = [...svg.querySelectorAll('.gantt-nodate, .gantt-invalid, .gantt-outside')].map(t => t.getAttribute('class').split(' ')[0] + ': ' + t.textContent);
       c.bar_titles = [...svg.querySelectorAll('.gantt-bar title')].map(t => t.textContent); c.fabricated_dates = c.bar_titles.filter(t => /2027/.test(t)).length;
@@ -1223,7 +1226,7 @@ CHART_MEASURE = """(theme) => {
   const total = Object.values(charts);
   return { theme, tokens, surface, contrast, charts,
     summary: { charts: total.length, painted: total.reduce((a, c) => a + c.painted, 0), mismatches: total.reduce((a, c) => a + c.mismatch.length, 0),
-      marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), titles_equal_marks: total.every(c => c.marks === c.titles),
+      marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), mark_titles: total.reduce((a, c) => a + c.mark_titles, 0), titles_equal_marks: total.every(c => c.marks === c.mark_titles), stray_titles: total.reduce((a, c) => a + c.stray_titles, 0),
       neg_dims: total.reduce((a, c) => a + c.neg_dims, 0), outside_viewbox: total.reduce((a, c) => a + c.outside_viewbox, 0),
       dots_outside_plot: total.reduce((a, c) => a + (c.dots_outside_plot || 0), 0), unclipped_paths: total.reduce((a, c) => a + (c.unclipped_paths || 0), 0),
       legend_overflow_max_px: Math.max(...total.map(c => c.legend_overflow_px ?? -999)),

@@ -69,7 +69,8 @@
  *     itulah yang diukur harness S20 (nilai terkomputasi == nilai token).
  *   • Setiap MARK (titik, batang, irisan, bar gantt, garis sparkline) berkelas .mark dan
  *     membawa tepat satu <title> berisi nilai berformat — untuk pembaca layar dan harness
- *     (jumlah <title> == jumlah .mark). Elemen lain tidak memakai <title>.
+ *     (jumlah `.mark > title` == jumlah .mark). Satu-satunya <title> lain: label gantt yang
+ *     dipotong (data-truncated="true") membawa nama lengkapnya.
  *   • Responsif: viewBox + width:100 % (kelas .chart). Teks memakai var(--font) 11 px dengan
  *     angka tabular (kelas .chart-lib di app.css).
  *   • Legenda di dalam svg (swatch = token seri; garis putus-putus ikut ditampilkan) dan
@@ -763,7 +764,12 @@ export function ganttChart({
     const mid = top + rowHeight / 2;
     svg.appendChild(paint(make('line', { class: 'gantt-row-line', x1: 0, x2: W, y1: top + rowHeight, y2: top + rowHeight }), 'stroke', '--chart-grid'));
     const indent = t.level * 12;
-    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'font-weight': t.level === 0 ? 600 : null }, truncate(t.label, Math.floor((labelWidth - 14 - indent) / CHAR_W)));
+    const shown = truncate(t.label, Math.floor((labelWidth - 14 - indent) / CHAR_W));
+    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'data-truncated': shown !== t.label ? 'true' : null, 'font-weight': t.level === 0 ? 600 : null }, shown);
+    /* Label yang dipotong membawa nama lengkapnya di <title> — satu-satunya <title> di
+       luar .mark (nama WBS lazim > 29 huruf, dan baris "tanpa tanggal" tidak punya bar
+       yang <title>-nya mengulang nama itu). Harness S20 menghitung .mark > title. */
+    if (shown !== t.label) text.appendChild(make('title', {}, t.label));
     svg.appendChild(text);
 
     if (t.hasBaseline && t.bEnd + DAY > fromMs && t.bStart <= toMs) {
