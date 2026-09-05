@@ -1112,6 +1112,8 @@ CHART_RENDER = """async () => {
   t('bar_dense', () => m.barChart({ categories: Array.from({length: 100}, (_, i) => 'K' + (i + 1)), series: Array.from({length: 6}, (_, i) => ({ label: 'S' + (i + 1), values: Array.from({length: 100}, (_, j) => (j * 7919 + i) % 97) })), ariaLabel: 'batang rapat 600' }));
   t('donut', () => m.donutChart({ slices: [{label:'Disetujui',value:60},{label:'Menunggu',value:30},{label:'Ditolak',value:10},{label:'Draf',value:0}], centerLabel: '100', centerSub: 'dokumen', ariaLabel: 'donat' }));
   t('donut_one', () => m.donutChart({ slices: [{label:'Semua',value:5}], ariaLabel: 'satu irisan' }));
+  // Nilai negatif / tak terukur tidak digambar, tetapi harus tetap disebut legenda (dulu hilang tanpa jejak).
+  t('donut_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Disetujui',value:5},{label:'Tak terukur',value:NaN}], ariaLabel: 'irisan dikecualikan' }));
   t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
   // Irisan 99,9999 %: busur ≥ 359,99° yang ujungnya berimpit setelah pembulatan hilang dari
   // path (cakram tanpa lubang / tidak tergambar) — diukur getTotalLength cincin ≈ 2π(84+56) = 880.
@@ -1190,7 +1192,7 @@ CHART_MEASURE = """(theme) => {
       const dots = [...svg.querySelectorAll('circle.series-point')]; c.dots_outside_plot = dots.filter(d => +d.getAttribute('cy') < top - 0.5 || +d.getAttribute('cy') > bottom + 0.5).length;
       c.dots_marked_outside = dots.filter(d => d.dataset.outside).length; c.outside_titles = [...svg.querySelectorAll('circle[data-outside] title')].map(t => t.textContent); }
     if (name.startsWith('bar')) { c.zero_line = svg.querySelectorAll('.chart-zero').length; const bars = [...svg.querySelectorAll('rect.series-bar')]; c.bars = bars.length; c.bar_min_thickness = bars.length ? Math.min(...bars.map(r => +r.getAttribute(name.includes('horizontal') ? 'height' : 'width'))) : null; }
-    if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
+    if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent); c.legend_excluded = svg.querySelectorAll('text.chart-legend[data-excluded]').length; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
     if (name.startsWith('gantt')) {
       c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
       c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;

@@ -32,7 +32,9 @@
  *
  *   donutChart({ slices, centerLabel?, centerSub?, valueFormat?, ariaLabel, sourceNote? })
  *     slices: [{ label, value }]; hanya value > 0 yang digambar (yang 0 tetap di legenda
- *     sebagai 0 %); satu irisan → cincin penuh; tak ada → placeholder.
+ *     sebagai 0 %); value null/NaN/teks → baris legenda "? (tidak dihitung)", negatif →
+ *     "(bukan bagian dari keseluruhan)" — keduanya tanpa swatch, tidak pernah disembunyikan;
+ *     satu irisan → cincin penuh; tak ada yang > 0 → placeholder.
  *
  *   sparkline({ points, width?, height?, ariaLabel, format? })
  *     points: [angka|null,…] (null = celah). 120×32 bawaan, tanpa sumbu; <title> di garis
@@ -484,10 +486,17 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   const rows = (Array.isArray(slices) ? slices : []).map((s, i) => ({ label: s?.label ?? `Bagian ${i + 1}`, value: finite(s?.value), token: seriesToken(i), index: i + 1 }));
   const drawn = rows.filter((s) => s.value !== null && s.value > 0);
   const total = drawn.reduce((a, s) => a + s.value, 0);
-  const listed = rows.filter((s) => s.value !== null && s.value >= 0); // negatif bukan bagian dari keseluruhan
+  /* Setiap baris masuk legenda — yang tidak digambar mengatakan mengapa (tanpa swatch):
+     nilai tak terukur (null/NaN/teks) → "? (tidak dihitung)", negatif → "bukan bagian
+     dari keseluruhan". Menyembunyikannya membuat "b — 5 (100 %)" tampak lengkap padahal
+     ada baris yang hilang (aturan kejujuran CONVENTIONS §6/§11). */
+  const legendText = (s) => (s.value === null ? `${s.label} — ? (tidak dihitung)`
+    : s.value < 0 ? `${s.label} — ${fv(s.value)} (bukan bagian dari keseluruhan)`
+      : `${s.label} — ${fv(s.value)} (${s.value > 0 ? `${percentFormat.format((s.value / total) * 100)} %` : '0 %'})`);
+  const listed = rows;
   const legendX = 212;
   const rowsH = listed.length * 18;
-  const W = Math.min(560, Math.max(360, legendX + Math.max(0, ...listed.map((s) => textWidth(`${s.label} — ${fv(s.value)} (100 %)`))) + 34));
+  const W = Math.min(560, Math.max(360, legendX + Math.max(0, ...listed.map((s) => textWidth(legendText(s)))) + 34));
   const noteH = sourceNote ? 18 : 0;
   const H = Math.max(200, rowsH + 24) + noteH;
   if (!drawn.length) return placeholder('donut', ariaLabel);
@@ -533,8 +542,8 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   const y0 = Math.max(16, (H - noteH) / 2 - rowsH / 2 + 12);
   listed.forEach((s, i) => {
     const y = y0 + i * 18;
-    svg.appendChild(paint(make('rect', { class: 'legend-swatch', x: legendX, y: y - 9, width: 12, height: 10, rx: 2, 'data-series': s.index }), 'fill', s.token));
-    svg.appendChild(make('text', { class: 'chart-legend', x: legendX + 20, y }, `${s.label} — ${fv(s.value)} (${s.value > 0 ? pct(s.value) : '0 %'})`));
+    if (s.value !== null && s.value >= 0) svg.appendChild(paint(make('rect', { class: 'legend-swatch', x: legendX, y: y - 9, width: 12, height: 10, rx: 2, 'data-series': s.index }), 'fill', s.token));
+    svg.appendChild(make('text', { class: 'chart-legend', x: legendX + 20, y, 'data-excluded': s.value === null ? 'unknown' : s.value < 0 ? 'negative' : null }, legendText(s)));
   });
   noteLine(svg, sourceNote, 8, H - 5);
   return svg;
