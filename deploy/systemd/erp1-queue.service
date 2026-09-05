@@ -5,7 +5,7 @@
 # (mulai T0b.3: DeliverNotification) akan duduk di tabel selamanya, tanpa
 # galat, tanpa alarm. Unit ini yang menjalankannya.
 #
-# Pasang: lihat deploy/systemd/README.md (mkdir /var/log/erp1, cp, daemon-reload,
+# Pasang: lihat deploy/systemd/README.md (mkdir /var/log/erp1, install -m 0644, daemon-reload,
 # enable --now). Setelah deploy kode: `systemctl restart erp1-queue` — pekerja
 # memuat kode lama sampai dimulai ulang (deploy/sync-erp1.sh melakukannya).
 #

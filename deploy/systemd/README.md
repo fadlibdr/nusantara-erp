@@ -30,10 +30,11 @@ SITE=/var/www/erp1.pi2.co.id
 #    sebagai root) — itulah mengapa blok logrotate tidak memakai `su www-data`.
 install -d -o www-data -g www-data -m 0755 /var/log/erp1
 
-# 2. Unit + logrotate.
-cp $SITE/deploy/systemd/erp1-queue.service     /etc/systemd/system/erp1-queue.service
-cp $SITE/deploy/systemd/erp1-scheduler.service /etc/systemd/system/erp1-scheduler.service
-cp $SITE/deploy/logrotate/erp1                 /etc/logrotate.d/erp1
+# 2. Unit + logrotate. `install -m 0644`, bukan `cp`: deploy/sync-erp1.sh
+#    memberi setiap berkas di deploy/ mode 0640 dan cp membawanya ke /etc.
+install -m 0644 $SITE/deploy/systemd/erp1-queue.service     /etc/systemd/system/erp1-queue.service
+install -m 0644 $SITE/deploy/systemd/erp1-scheduler.service /etc/systemd/system/erp1-scheduler.service
+install -m 0644 $SITE/deploy/logrotate/erp1                 /etc/logrotate.d/erp1
 systemctl daemon-reload
 
 # 3. HAPUS baris schedule:run dari /etc/cron.d/erp1 SEBELUM unit dinyalakan —

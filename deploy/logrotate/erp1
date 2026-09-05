@@ -4,7 +4,7 @@
 # copytruncate: unit systemd membuka log dengan StandardOutput=append: dan
 # TIDAK membuka ulang berkasnya saat dirotasi; tanpa copytruncate, proses
 # terus menulis ke inode lama yang sudah dipindahkan dan berkas baru tetap
-# kosong. Pasang: cp deploy/logrotate/erp1 /etc/logrotate.d/erp1
+# kosong. Pasang: install -m 0644 deploy/logrotate/erp1 /etc/logrotate.d/erp1
 /var/log/erp1/queue.log /var/log/erp1/scheduler.log /var/log/erp1/watchdog.log {
     # TANPA `su www-data`: berkas-berkas ini milik root — systemd membuka
     # StandardOutput=append: sebelum melepas hak ke User=www-data, dan
