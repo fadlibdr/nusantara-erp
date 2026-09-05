@@ -325,6 +325,13 @@ class NotificationService
      * kali. attempts TIDAK direset: ia riwayat, dan pekerja menghitung
      * percobaannya sendiri.
      *
+     * Alamatnya dibaca ULANG dari penggunanya, bukan dari `recipient` yang
+     * dibekukan saat baris ditulis: baris `skipped` karena alamat kosong
+     * menyuruh operator melengkapi alamat di Sistem › Pengguna lalu kirim ulang,
+     * dan perintah itu hanya bisa dipenuhi bila yang dibaca adalah alamat yang
+     * baru (verifikasi P-0b, 5 Sep 2026: dengan alamat beku, 422 selamanya).
+     * `recipient` diperbarui ke alamat yang benar-benar dituju job baru.
+     *
      * Dispatch di sini TIDAK dijaga: orangnya baru saja menekan tombol, dan
      * antrean yang menolak harus sampai ke dia sebagai galat, bukan sebagai
      * baris `queued` yang diam.
@@ -348,9 +355,13 @@ class NotificationService
                 throw new InvalidArgumentException('E-mail masih dinonaktifkan di Pengaturan — nyalakan dulu, lalu kirim ulang.');
             }
 
-            if (trim((string) $delivery->recipient) === '') {
+            $address = trim((string) $delivery->notification?->user?->email);
+
+            if ($address === '') {
                 throw new InvalidArgumentException('Penerima tidak punya alamat e-mail; lengkapi alamatnya di Sistem › Pengguna, lalu kirim ulang.');
             }
+
+            $delivery->recipient = $address;
         }
 
         $delivery->forceFill([

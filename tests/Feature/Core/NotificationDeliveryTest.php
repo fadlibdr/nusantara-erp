@@ -341,6 +341,39 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->assertSame(0, DB::table('jobs')->count());
     }
 
+    /**
+     * Baris `skipped` karena alamat kosong: pesannya menyuruh melengkapi alamat
+     * lalu kirim ulang — maka kirim ulang harus membaca alamat yang BARU, bukan
+     * `recipient` kosong yang dibekukan saat baris ditulis (dengan alamat beku:
+     * 422 selamanya, verifikasi P-0b 5 Sep 2026).
+     */
+    public function test_retry_re_reads_the_recipient_address_so_a_fixed_address_can_be_delivered(): void
+    {
+        Queue::fake();
+        $this->emailOn();
+        $approver = $this->userWith('fin.approve', 'Tanpa Alamat', '');
+        $this->bill()->submit($this->userWith('fin.create', 'Staf'));
+        $admin = $this->adminUser();
+
+        $row = NotificationDelivery::query()->where('recipient', '')->sole();
+        $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
+
+        $this->actingAs($admin, 'sanctum');
+        // Alamat masih kosong: ditolak dengan perintahnya.
+        $response = $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertStatus(422);
+        $this->assertStringContainsString('lengkapi alamatnya di Sistem › Pengguna', $response->json('message'));
+        Queue::assertNothingPushed();
+
+        // Perintahnya dipenuhi.
+        $approver->forceFill(['email' => 'direktur@nusantara.test'])->save();
+
+        $response = $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertOk();
+        $this->assertSame(NotificationDelivery::QUEUED, $response->json('data.status'));
+        $this->assertSame('direktur@nusantara.test', $response->json('data.recipient'));
+        $this->assertNull($response->json('data.error'));
+        Queue::assertPushed(DeliverNotification::class, fn (DeliverNotification $job) => $job->deliveryId === $row->id);
+    }
+
     public function test_retry_refuses_a_sent_row_and_a_disabled_email_channel(): void
     {
         Queue::fake();
