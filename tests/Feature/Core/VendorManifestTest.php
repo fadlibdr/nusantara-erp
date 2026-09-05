@@ -22,12 +22,14 @@ use Tests\TestCase;
  *  (a) setiap berkas di public/app/vendor (kecuali VENDOR.md) ada di tabel Berkas
  *      VENDOR.md dengan sha256 yang sama, dan tidak ada baris tabel yang
  *      menunjuk berkas yang hilang;
- *  (b) tidak ada pemuat (script src, link href, use/image/img/iframe/… href|src,
+ *  (b) tidak ada pemuat (script src, link href, use/image/img/iframe/… href|src|srcset,
  *      import, import(), new URL, fetch, url(), @import, "src": di manifest) yang
  *      menunjuk http(s):// atau //host di *.html *.js *.mjs *.css *.svg
  *      *.webmanifest *.json mana pun di bawah public/app — tanpa allowlist.
  *      Literal http(s) yang BUKAN pemuat harus lolos aturan data yang tepat di
- *      isDataLiteral();
+ *      isDataLiteral(); literal //host di dalam tanda kutip/backtick diperlakukan
+ *      sama (`s.src = '//cdn…'` adalah alamat, bukan komentar) — hanya //host tanpa
+ *      kutip yang dianggap komentar JS/pembagian;
  *  (c) jumlah gzip -9 seluruh public/app/vendor ≤ 60 KB (angkanya dicetak);
  *  (d) sprite Lucide adalah XML sah, setiap <symbol> ber-id "lucide-…" + viewBox,
  *      tanpa <script> dan tanpa URL selain xmlns;
@@ -64,9 +66,12 @@ class VendorManifestTest extends TestCase
      * Rujukan http(s) di sebuah baris: bentuk berskema `https://…` (huruf besar
      * ikut — `HTTPS://cdn…` sama saja bagi peramban) DAN bentuk relatif-protokol
      * `//cdn.jsdelivr.net/…` — persis potongan salin-tempel yang uji ini ada untuk
-     * menangkapnya; bentuk kedua hanya dihitung bila didahului pemuat (LOADER_BEFORE_URL),
-     * karena `//` juga awalan komentar JS. Verifikasi P1-A (5 Sep 2026): pola lama
-     * `https?://` tanpa /i meloloskan keduanya.
+     * menangkapnya; bentuk kedua hanya dihitung bila didahului pemuat (LOADER_BEFORE_URL)
+     * ATAU tanda kutip/backtick (literal string — lalu tunduk pada aturan data seperti
+     * kembarannya yang ber-https), karena `//` tanpa kutip adalah awalan komentar JS
+     * atau pembagian. Verifikasi P1-A (5 Sep 2026): pola lama `https?://` tanpa /i
+     * meloloskan keduanya; putaran 2: `s.src = '//cdn…'`, import(`//cdn…`) dan
+     * srcset="//…" lolos karena semua //host tanpa pemuat dilewati.
      */
     private const URL_PATTERN = '~(?:https?://[^\s\'"`)<>]+|//[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[:/?#][^\s\'"`)<>]*)?)~i';
 
@@ -80,13 +85,14 @@ class VendorManifestTest extends TestCase
         .'<script\b[^>]*\bsrc\s*=\s*["\']?'          // <script src="…
         .'|<link\b[^>]*\bhref\s*=\s*["\']?'         // <link href="…
         // elemen HTML/SVG lain yang mengambil sumber daya lewat src/href/xlink:href/data
-        .'|<(?:script|use|image|img|iframe|source|embed|object|video|audio|track|base)\b[^>]*\b(?:src|href|xlink:href|data)\s*=\s*["\']?'
+        .'|<(?:script|use|image|img|iframe|source|embed|object|video|audio|track|base)\b[^>]*\b(?:src|srcset|href|xlink:href|data)\s*=\s*["\']?'
         .'|"(?:src|href|url)"\s*:\s*"'                // "src": "…  (manifest PWA / JSON)
-        .'|\bimport\s*\(\s*["\']'                    // import('…
-        .'|\bimport\b[^;]*\bfrom\s*["\']'           // import x from '…
-        .'|\bimport\s*["\']'                         // import '…  (efek samping)
-        .'|\bnew\s+URL\s*\(\s*["\']'                 // new URL('…
-        .'|\bfetch\s*\(\s*["\']'                     // fetch('…
+        // pemuat JS menerima backtick juga: import(`//cdn…`) sama hidupnya dengan import('…')
+        .'|\bimport\s*\(\s*["\'`]'                   // import('…
+        .'|\bimport\b[^;]*\bfrom\s*["\'`]'          // import x from '…
+        .'|\bimport\s*["\'`]'                        // import '…  (efek samping)
+        .'|\bnew\s+URL\s*\(\s*["\'`]'                // new URL('…
+        .'|\bfetch\s*\(\s*["\'`]'                    // fetch('…
         .'|\burl\s*\(\s*["\']?'                      // url(… (CSS)
         .'|@import\s*(?:url\s*\(\s*)?["\']?'         // @import '…
         .')$~i';
@@ -134,8 +140,8 @@ class VendorManifestTest extends TestCase
                     $loader = (bool) preg_match(self::LOADER_BEFORE_URL, $before);
                     if ($loader) {
                         $violations[] = sprintf('%s:%d memuat %s dari luar (pemuat: %s)', $relative, $number + 1, $url, trim(substr($before, -40)));
-                    } elseif (str_starts_with($url, '//')) {
-                        continue; // relatif-protokol tanpa pemuat: `//` komentar JS atau pembagian, bukan alamat
+                    } elseif (str_starts_with($url, '//') && ! preg_match('~["\'`]$~', $before)) {
+                        continue; // relatif-protokol tanpa pemuat DAN tanpa kutip: `//` komentar JS atau pembagian, bukan alamat
                     } elseif (! $this->isDataLiteral($url, $before, $line)) {
                         $violations[] = sprintf('%s:%d literal %s tidak dikenal aturan data isDataLiteral() — bukan pemuat, tetapi bukan pula namespace W3C, tautan <a>/href:, atau komentar; tambahkan aturan yang tepat bila memang data', $relative, $number + 1, $url);
                     }
