@@ -104,15 +104,20 @@ class SqliteToMysqlCommandTest extends ErpTestCase
         $date = DB::table('prj_daily_reports')->orderBy('id')->value('report_date');
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string) $date);
 
-        // Ids preserved, and the next insert lands past them — the counter
-        // was advanced, not left at 1.
+        // Ids preserved, and the next insert lands PAST them — the counter was
+        // advanced, not left at 1. "Past", not "exactly max+1": InnoDB's
+        // AUTO_INCREMENT counter is not rolled back by the per-test transaction,
+        // so in a full-suite run earlier tests have already pushed it past the
+        // demo seed (verifier 5 Sep 2026: 239 vs 13 when run after 636 other
+        // tests, green when run alone). The tool's contract is "never below
+        // max(id)+1", and that is what the cut-over needs.
         $maxId = (int) DB::table('users')->max('id');
         $this->assertSame((int) $legacy->table('users')->max('id'), $maxId);
         $nextId = DB::table('users')->insertGetId([
             'name' => 'Sesudah pindah', 'email' => 'sesudah@pindah.test', 'password' => 'x',
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->assertSame($maxId + 1, $nextId);
+        $this->assertGreaterThanOrEqual($maxId + 1, $nextId);
         DB::table('users')->where('id', $nextId)->delete();
 
         $report = storage_path('framework/testing/legacy-sqlite/move-report-'.getmypid().'.md');

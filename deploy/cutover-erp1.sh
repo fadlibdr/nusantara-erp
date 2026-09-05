@@ -29,6 +29,8 @@
 #
 #   --dry-run    cetak perintahnya saja, tidak menjalankan apa pun, tidak
 #                mencatat apa pun. Aman dijalankan kapan saja.
+#   --yes        WAJIB untuk benar-benar menjalankan langkah apa pun selain
+#                `status` — tanpa --yes skrip hanya mencetak rencana (= --dry-run).
 #
 # Lingkungan yang dibutuhkan:
 #   CUTOVER_CRED=/path/mysql-erp.cred   berkas mode 600 berisi DB_USERNAME= dan
@@ -63,18 +65,27 @@ MYSQL_CNF=/etc/erp1/mysql-backup.cnf
 PHP_FPM="${ERP_PHP_FPM:-php8.3-fpm}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 DRY=0
+YES=0
 STEPS=(pra basisdata down snapshot salin verifikasi env smoke up)
 STEP=""
 
 for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY=1 ;;
+        --yes) YES=1 ;;
         pra|basisdata|down|snapshot|salin|verifikasi|env|smoke|up|rollback|status) STEP="$arg" ;;
         *) printf 'opsi tidak dikenal: %s\n' "$arg" >&2; exit 2 ;;
     esac
 done
 
 [ -n "$STEP" ] || { sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+
+# Without an explicit --yes nothing is executed or recorded: the plan is
+# printed as a dry-run. `status` is read-only and needs no confirmation.
+if [ "$YES" != 1 ] && [ "$STEP" != status ] && [ "$DRY" != 1 ]; then
+    printf 'Tanpa --yes: hanya mencetak rencana langkah %s (tambahkan --yes untuk menjalankan).\n' "$STEP"
+    DRY=1
+fi
 
 # ------------------------------------------------------------------ helpers
 
@@ -136,10 +147,15 @@ artisan_mysql() {
 
 # artisan as the site is configured (.env) — after `env`, that is MySQL.
 artisan() {
-    printf '    $ (cd %s && sudo -u www-data php artisan %s)\n' "$SITE" "$*"
+    # The maintenance bypass secret never reaches the transcript: any
+    # --secret=… argument is printed masked (verifier 5 Sep 2026).
+    local shown; shown="$(printf '%s ' "$@" | sed -E 's/--secret=[^ ]*/--secret=<rahasia>/g')"
+    printf '    $ (cd %s && sudo -u www-data php artisan %s)\n' "$SITE" "${shown% }"
     [ "$DRY" = 1 ] && return 0
     (cd "$SITE" && sudo -u www-data php artisan "$@")
 }
+# Like run_sh, but prints a masked rendering instead of the command itself.
+run_sh_masked() { printf '    $ %s\n' "$2"; [ "$DRY" = 1 ] || bash -o pipefail -ec "$1"; }
 
 mysql_app() { mysql --defaults-extra-file="$WORK/.cred.cnf" --batch --skip-column-names "$@"; }
 
@@ -226,7 +242,7 @@ step_down() {
     fi
 
     artisan down --secret="$secret" --retry=60
-    run mv "$CRON_FILE" "$CRON_PARKED"
+    [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "for i in \$(seq 1 60); do pgrep -u www-data -f 'artisan schedule:run' >/dev/null || break; sleep 2; done; ! pgrep -u www-data -f 'artisan schedule:run' >/dev/null"
     run sleep 10
     run_sh "cd '$SITE' && sudo -u www-data php -r '\$p = new PDO(\"sqlite:$SQLITE\"); \$r = \$p->query(\"PRAGMA wal_checkpoint(TRUNCATE)\")->fetch(PDO::FETCH_NUM); echo \"checkpoint: busy={\$r[0]} log={\$r[1]} ckpt={\$r[2]}\\n\"; if ((int) \$r[0] !== 0) exit(1);'"
@@ -360,7 +376,7 @@ step_smoke() {
     akan "POST /api/projects/daily-reports untuk (proyek, tanggal) yang SUDAH ADA → 422 dan jumlah baris tidak bertambah"
     akan "erp:permission-check → exit 0"
 
-    run_sh "curl -sS -o /dev/null -c '$jar' -w '    bypass: %{http_code}\\n' '$BASE_URL/$secret'"
+    run_sh_masked "curl -sS -o /dev/null -c '$jar' -w '    bypass: %{http_code}\\n' '$BASE_URL/$secret'" "curl -sS -o /dev/null -c '$jar' -w '    bypass: %{http_code}\\n' '$BASE_URL/<rahasia>'"
     run_sh "curl -sS -o /dev/null -b '$jar' -w '%{http_code}' '$BASE_URL/up' | grep -qx 200"
 
     if [ "$DRY" != 1 ]; then
@@ -412,7 +428,8 @@ step_up() {
     akan "menghapus salinan kredensial sementara $WORK/.cred.cnf dan mencetak jendela rollback 24 jam"
 
     artisan up
-    run mv "$CRON_PARKED" "$CRON_FILE"
+    # Guarded so a re-run after a failed drill does not die here (verifier 5 Sep 2026).
+    [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
 
     if [ "$DRY" != 1 ]; then
         [ -f "$MYSQL_CNF" ] || ( umask 077; printf '[client]\nuser=%s\npassword=%s\nhost=127.0.0.1\nport=3306\n' "$DB_USERNAME" "$DB_PASSWORD" > "$MYSQL_CNF" )
