@@ -1480,6 +1480,8 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
   animation: spotlight-pulse 1.6s ease-in-out infinite;
 }
 .spotlight[hidden] { display: none; }
+.spotlight.label-right .spotlight-label { top: 50%; left: 100%; transform: translateY(-50%); margin: 0 0 0 8px; }
+.spotlight.label-above .spotlight-label { top: auto; bottom: 100%; margin: 0 0 7px 0; }
 .spotlight-label {
   position: absolute; top: 100%; left: 0; margin-top: 7px;
   padding: 3px 9px; border-radius: 999px;

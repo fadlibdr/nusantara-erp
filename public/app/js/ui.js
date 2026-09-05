@@ -146,6 +146,22 @@ function placeSpotlight(entry) {
   entry.ring.style.transform = `translate(${Math.round(rect.left - entry.pad)}px, ${Math.round(rect.top - entry.pad)}px)`;
   entry.ring.style.width = `${Math.round(rect.width + entry.pad * 2)}px`;
   entry.ring.style.height = `${Math.round(rect.height + entry.pad * 2)}px`;
+
+  /* Letak pil label. Di bawah cincin — letak pertama — pil menutupi baris
+     sidebar BERIKUTNYA ("Anda di sini" menelan "Dokumen Vendor") dan, di
+     ponsel, tombol muat-ulang di sebelah judul (verifikasi v2, 5 Sep 2026).
+     Urutan pilihan: di KANAN cincin bila muat di viewport (keluar dari
+     sidebar, ke atas halaman yang kosong di sebelahnya), lalu di ATAS bila ada
+     ruang, baru di bawah sebagai jalan terakhir. */
+  const pill = entry.ring.querySelector('.spotlight-label');
+  if (pill) {
+    const w = pill.offsetWidth || 0;
+    const h = pill.offsetHeight || 0;
+    const fitsRight = rect.right + entry.pad + 8 + w + 8 <= window.innerWidth;
+    const fitsAbove = rect.top - entry.pad - 7 - h >= 4;
+    entry.ring.classList.toggle('label-right', fitsRight);
+    entry.ring.classList.toggle('label-above', !fitsRight && fitsAbove);
+  }
 }
 
 function scheduleSpotlights() {
