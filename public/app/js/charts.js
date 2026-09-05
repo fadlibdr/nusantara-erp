@@ -11,6 +11,8 @@
  *     series : [{ label, points: [{ x?, y }], dashed?, area? }]
  *              x = angka (indeks/skala apa pun) ATAU string tanggal ISO (jadi sumbu tanggal);
  *              x kosong = indeks titik. y null/NaN/undefined = CELAH (garis putus), bukan nol.
+ *              Campuran: begitu ada x tanggal, titik yang x-nya bukan tanggal DIBUANG sebagai
+ *              celah (svg data-dropped-x = jumlahnya) — tidak diformat jadi "01 Jan 70".
  *     xLabels: label per indeks x (['M1','M2',…]); xFormat(x) menang bila ada; bawaan:
  *              tanggal → "05 Sep 26", angka → id-ID.
  *     yFormat: (angka) → teks; dipakai di sumbu DAN <title> tiap titik (bawaan id-ID, 2 desimal).
@@ -285,10 +287,21 @@ export function lineChart({
     const points = (Array.isArray(s?.points) ? s.points : []).map((p, index) => {
       const { x, date } = xValue(p, index);
       anyDate = anyDate || date;
-      return { x, y: finite(p && typeof p === 'object' ? p.y : p) };
+      return { x, date, y: finite(p && typeof p === 'object' ? p.y : p) };
     }).sort((a, b) => a.x - b.x);
     return { label: s?.label ?? `Seri ${i + 1}`, dashed: !!s?.dashed, area: !!s?.area, token: seriesToken(i), index: i + 1, points };
   });
+  /* Skala campuran adalah kesalahan pemanggil, tetapi keluarannya tidak boleh mengarang:
+     begitu satu x adalah tanggal, x yang bukan tanggal (angka, 'abc') dibuang sebagai
+     celah — dulu indeksnya ikut diformat sebagai tanggal dan tampil "01 Jan 70". */
+  let droppedX = 0;
+  if (anyDate) {
+    rows.forEach((s) => {
+      const kept = s.points.filter((p) => p.date);
+      droppedX += s.points.length - kept.length;
+      s.points = kept;
+    });
+  }
 
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
   if (!ys.length) return placeholder('line', ariaLabel);
@@ -317,6 +330,7 @@ export function lineChart({
   const y = (v) => PAD.top + plotH - ((v - lo) / (hi - lo)) * plotH;
 
   const svg = frame('line', width, H, ariaLabel);
+  if (droppedX) svg.dataset.droppedX = String(droppedX);
   const clip = plotClip(svg, PAD.left, PAD.top, plotW, plotH);
   ticks.forEach((t) => {
     svg.appendChild(paint(make('line', { class: 'chart-grid', x1: PAD.left, x2: width - PAD.right, y1: y(t), y2: y(t) }), 'stroke', '--chart-grid'));
