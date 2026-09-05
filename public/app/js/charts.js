@@ -24,7 +24,8 @@
  *              x = angka (indeks/skala apa pun) ATAU string tanggal ISO (jadi sumbu tanggal);
  *              x kosong = indeks titik. y null/NaN/undefined = CELAH (garis putus), bukan nol.
  *              Campuran: begitu ada x tanggal, titik yang x-nya bukan tanggal DIBUANG sebagai
- *              celah (svg data-dropped-x = jumlahnya) — tidak diformat jadi "01 Jan 70".
+ *              celah (svg data-dropped-x = jumlahnya) — tidak diformat jadi "01 Jan 70". Seri
+ *              tanpa satu pun titik tergambar tetap di legenda sebagai "label (tanpa data)".
  *     xLabels: label per indeks x (['M1','M2',…]); xFormat(x) menang bila ada; bawaan:
  *              tanggal → "05 Sep 2026" (bentuk fmt.date format.js), angka → id-ID.
  *     yFormat: (angka) → teks; dipakai di sumbu DAN <title> tiap titik (bawaan id-ID, 2 desimal).
@@ -293,7 +294,7 @@ function drawLegend(svg, rows, y0) {
         const box = make('rect', { class: 'legend-swatch', x: item.x, y: y - 9, width: 12, height: 10, rx: 2, 'fill-opacity': item.opacity, 'data-series': item.series });
         svg.appendChild(paint(box, 'fill', item.token));
       }
-      svg.appendChild(make('text', { class: 'chart-legend', x: item.x + 22, y }, item.label));
+      svg.appendChild(make('text', { class: 'chart-legend', x: item.x + 22, y, 'data-nodata': item.nodata ? 'true' : null }, item.label));
     });
   });
   return rows.length * 16;
@@ -404,6 +405,10 @@ export function lineChart({
     });
   }
 
+  /* Seri yang tidak punya satu pun titik tergambar (semua y null, atau semua x-nya dibuang
+     pada sumbu tanggal) tetap di legenda tetapi MENGATAKANNYA: 'indeks (tanpa data)' — swatch
+     tanpa garis dulu tampak seperti seri yang kebetulan tidak terlihat. */
+  rows.forEach((s) => { s.hasData = s.points.some((p) => p.y !== null); });
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
   if (!ys.length) return placeholder('line', ariaLabel);
 
@@ -419,7 +424,7 @@ export function lineChart({
      tingginya dari x0 = 0 memberi baris lebih sedikit daripada yang tergambar (sumbu Rp →
      PAD.left 120, 8 seri berlabel 26–31 huruf: 3 baris dihitung, 4 digambar, catatan sumber
      16 px di luar viewBox — menimpa kepala kartu berikutnya; diukur 5 Sep 2026). */
-  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'line', dash: s.dash, series: s.index }));
+  const items = rows.map((s) => ({ label: s.hasData ? s.label : `${s.label} (tanpa data)`, token: s.token, kind: 'line', dash: s.dash, series: s.index, nodata: !s.hasData }));
   const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
   const legendH = legendLayout.length * 16;
   const noteH = sourceNote ? 16 : 0;

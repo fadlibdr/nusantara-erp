@@ -159,7 +159,8 @@ class VendorManifestTest extends TestCase
      * Aturan data: sebuah literal http(s) yang bukan pemuat boleh ada HANYA bila
      *  1. ia namespace W3C (NAMESPACE_IRIS) sebagai string utuh — pengenal, bukan alamat;
      *  2. ia tujuan tautan yang diklik orang: HTML `<a … href="…"` atau properti
-     *     `href:` di el('a', { href }) PADA BARIS YANG SAMA — `href:` polos meloloskan
+     *     `href:` di el('a', { href }) PADA BARIS YANG SAMA dan di dalam pemanggilan
+     *     el('a' itu (tidak melewati ')') — `href:` polos meloloskan
      *     el('link', { rel: 'stylesheet', href }) yang, karena ui.js el() memanggil
      *     setAttribute, adalah pemuat stylesheet sungguhan (verifikasi P1-A, mutasi m12);
      *     `<link href` HTML ditangkap LOADER_BEFORE_URL lebih dulu; atau
@@ -175,7 +176,9 @@ class VendorManifestTest extends TestCase
         if (preg_match('~xmlns(?::\w+)?\s*=\s*["\']$~', $before) && in_array($url, self::NAMESPACE_IRIS, true)) {
             return true;
         }
-        if (preg_match('~(?:<a\b[^>]*\bhref\s*=\s*["\']|\bel\(\s*["\']a(?:[.#][^"\']*)?["\'][^;]*\bhref\s*:\s*["\'`])$~i', $before)) {
+        // [^;)]* — tidak boleh melewati penutup ')' el('a', …): `[el('a', {href:'#'}), el('link', { href: 'https://cdn…' })]`
+        // pada satu pernyataan dulu lolos karena [^;]* merentang dari el('a' sampai href: milik el('link') (mutasi x6).
+        if (preg_match('~(?:<a\b[^>]*\bhref\s*=\s*["\']|\bel\(\s*["\']a(?:[.#][^"\']*)?["\'][^;)]*\bhref\s*:\s*["\'`])$~i', $before)) {
             return true;
         }
 

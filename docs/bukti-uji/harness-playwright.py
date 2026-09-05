@@ -1116,6 +1116,8 @@ CHART_RENDER = """async () => {
   // Sumbu tanggal tanpa xFormat: label bawaan harus berbentuk fmt.date ("05 Sep 2026"), bukan "05 Sep 26".
   t('line_dates', () => m.lineChart({ series: [{ label: 'Harga PO', points: [{x:'2026-01-05',y:12500},{x:'2026-03-02',y:13000},{x:'2026-06-10',y:13750}] }], yMin: 12000, yMax: 14000, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'sumbu tanggal' }));
   t('line_mixed_x', () => m.lineChart({ series: [{ label: 'campur', points: [{x:'2026-01-01',y:1},{x:5,y:3},{x:'abc',y:2},{x:'2026-02-01',y:4}] }], ariaLabel: 'x campuran' }));
+  // Seri yang semua x-nya dibuang (indeks pada sumbu tanggal) atau semua y-nya null: legenda harus mengatakannya '(tanpa data)'.
+  t('line_series_nodata', () => m.lineChart({ series: [{ label: 'tanggal', points: [{x:'2026-01-01',y:1},{x:'2026-02-01',y:3}] }, { label: 'indeks', points: [{x:0,y:2},{x:1,y:4}] }, { label: 'kosong', points: [{x:'2026-01-01',y:null},{x:'2026-02-01',y:NaN}] }], ariaLabel: 'seri tanpa data' }));
   // Sumbu tanggal padat (P1-E: tren harga harian, kurva-S 52 minggu, EVM bulanan): label terakhir
   // ditambatkan ke ujung kanan dan bergeser ±30 px — verifikasi P1-A putaran 2 mengukur dua label
   // terakhir bertumpuk 17–54 px pada setiap sumbu tanggal ≥ 10 titik (line_dates hanya 3 titik).
@@ -1274,6 +1276,10 @@ CHART_MEASURE = """(theme) => {
       c.series_dash = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + (p.getAttribute('stroke-dasharray') || 'solid'));
       c.dots_by_series = dots.reduce((a, d) => { a[d.dataset.series] = (a[d.dataset.series] || 0) + 1; return a; }, {});
       c.dot_tokens = [...new Set(dots.map(d => d.dataset.token))]; c.dot_radii = [...new Set(dots.map(d => +d.getAttribute('r')))];
+      // Seri di legenda tanpa satu pun path/titik yang tidak mengatakan '(tanpa data)'.
+      const drawnSeries = new Set([...svg.querySelectorAll('path.series-line, circle.series-point')].map(e => e.dataset.series));
+      c.legend_series_silent_nodata = [...svg.querySelectorAll('text.chart-legend')].filter(t => { const sw = t.previousElementSibling; return sw && sw.dataset.series && !drawnSeries.has(sw.dataset.series) && !t.dataset.nodata; }).length;
+      c.legend_nodata = svg.querySelectorAll('text.chart-legend[data-nodata]').length;
       c.dots_r_not_positive = dots.filter(d => !(+d.getAttribute('r') > 0)).length; c.undefined_tokens = [...svg.querySelectorAll('[data-token]')].filter(e => !v(e.dataset.token)).length;
       c.line_stroke_none = [...svg.querySelectorAll('path.series-line')].filter(p => getComputedStyle(p).stroke === 'none').length;
       c.line_tokens = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + p.dataset.token); c.custom_titles = [...svg.querySelectorAll('circle.series-point title')].map(t => t.textContent).filter(t => /^Minggu/.test(t)).length; c.fabricated_1970 = [...svg.querySelectorAll('text, title')].filter(t => /\b70\b|1970/.test(t.textContent)).length; }
@@ -1341,7 +1347,7 @@ CHART_MEASURE = """(theme) => {
       label_into_timeline: total.reduce((a, c) => a + (c.label_into_timeline || 0), 0),
       outside_notes_quoting_window: total.reduce((a, c) => a + (c.outside_notes_quoting_window || 0), 0),
       note_over_baseline: total.reduce((a, c) => a + (c.note_over_baseline || 0), 0), baseline_legend_dishonest: total.reduce((a, c) => a + (c.baseline_legend_dishonest || 0), 0),
-      dots_r_not_positive: total.reduce((a, c) => a + (c.dots_r_not_positive || 0), 0), undefined_tokens: total.reduce((a, c) => a + (c.undefined_tokens || 0), 0), line_stroke_none: total.reduce((a, c) => a + (c.line_stroke_none || 0), 0),
+      legend_series_silent_nodata: total.reduce((a, c) => a + (c.legend_series_silent_nodata || 0), 0), dots_r_not_positive: total.reduce((a, c) => a + (c.dots_r_not_positive || 0), 0), undefined_tokens: total.reduce((a, c) => a + (c.undefined_tokens || 0), 0), line_stroke_none: total.reduce((a, c) => a + (c.line_stroke_none || 0), 0),
       min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 
