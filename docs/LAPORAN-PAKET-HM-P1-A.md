@@ -64,7 +64,7 @@ Tidak ada migrasi, tidak ada endpoint, tidak ada perubahan permission.
   salinan coretan). `tests/Feature/Core`: 694 uji / 4.475 asersi hijau (11 dilewati — MySQL/deploy).
 - harness: S20 desktop + mobile, S8 dijalankan ulang identik (th 11 px, muted 5,23:1, badge 5,29:1);
   bukti di `docs/bukti-uji/results-phase-1.json` dan `s20-chart-tokens-{light,dark,mobile}-p1a.png`.
-- **suite penuh di commit rilis `7eb92a5`** (worktree terpisah): SQLite — (diisi); MySQL — (diisi).
+- **suite penuh di commit rilis `7eb92a5`** (worktree terpisah): SQLite **3.854 uji / 18.590 asersi, 11 dilewati, hijau** (9 mnt 14 dtk); MySQL 8.0.46 **3.854 uji / 18.610 asersi, 4 dilewati, hijau** (21 mnt 36 dtk).
 
 ## Dokumentasi yang diperbarui
 
