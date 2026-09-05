@@ -14,13 +14,13 @@
    "Muat ulang",
    "Tambah PO"
   ],
-  "_ms": 4237,
+  "_ms": 4233,
   "_clicks": 0
  },
  "S20_chart_tokens": {
   "render": {
    "errors": [],
-   "charts": 30,
+   "charts": 40,
    "exports": [
     "barChart",
     "donutChart",
@@ -80,6 +80,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 308,
      "viewbox_w": 720,
@@ -91,6 +93,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
      "legend_rows": 1,
      "legend_overflow_px": 0,
      "series_line_paths": 4,
@@ -110,6 +113,11 @@
       "M6"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "-20 %",
@@ -138,6 +146,11 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "1:--chart-1",
@@ -167,6 +180,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -176,8 +191,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -190,6 +206,11 @@
       "0"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -208,6 +229,11 @@
      "dot_radii": [
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -232,6 +258,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -243,8 +271,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 3,
      "series1_segments": 1,
      "zero_line": 0,
@@ -260,6 +289,11 @@
       "3"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -286,12 +320,108 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-8",
       "2:--chart-2",
       "3:--chart-3"
      ],
      "custom_titles": 3,
+     "fabricated_1970": 0
+    },
+    "line_r_edge": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "mark_titles": 7,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 2,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 2,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "2",
+      "4",
+      "6"
+     ],
+     "series_dash": [
+      "1:solid",
+      "2:solid"
+     ],
+     "dots_by_series": {
+      "1": 5,
+      "2": 2
+     },
+     "dot_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3,
+      2.5
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2"
+     ],
+     "custom_titles": 0,
      "fabricated_1970": 0
     },
     "line_dates": {
@@ -314,6 +444,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -323,8 +455,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.64,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -339,6 +472,12 @@
       "10 Jun 2026"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 12.000",
@@ -359,6 +498,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -385,6 +529,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -394,8 +540,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.62,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -409,6 +556,12 @@
       "01 Feb 2026"
      ],
      "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -429,6 +582,455 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_series_nodata": {
+     "painted": 11,
+     "painted_ok": 11,
+     "mismatch": [],
+     "marks": 2,
+     "titles": 2,
+     "mark_titles": 2,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 9,
+     "text_ok": 9,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.62,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Jan 2026",
+      "01 Feb 2026"
+     ],
+     "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "1",
+      "2",
+      "3"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 2
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 2,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_daily_31": {
+     "painted": 38,
+     "painted_ok": 38,
+     "mismatch": [],
+     "marks": 31,
+     "titles": 31,
+     "mark_titles": 31,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "05 Sep 2026",
+      "09 Sep 2026",
+      "13 Sep 2026",
+      "17 Sep 2026",
+      "21 Sep 2026",
+      "25 Sep 2026",
+      "01 Okt 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 31
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_weekly_52": {
+     "painted": 15,
+     "painted_ok": 15,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 17,
+     "text_ok": 17,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 3,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 4,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "20 Okt 2026",
+      "08 Des 2026",
+      "26 Jan 2027",
+      "16 Mar 2027",
+      "04 Mei 2027",
+      "22 Jun 2027",
+      "24 Agu 2027"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0 %",
+      "25 %",
+      "50 %",
+      "75 %",
+      "100 %",
+      "125 %"
+     ],
+     "series_dash": [
+      "1:5 3",
+      "2:solid",
+      "3:2 4"
+     ],
+     "dots_by_series": {
+      "2": 1
+     },
+     "dot_tokens": [
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2",
+      "3:--chart-3"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_monthly_24": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 24,
+     "titles": 24,
+     "mark_titles": 24,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "30 Nov 2026",
+      "28 Feb 2027",
+      "29 Mei 2027",
+      "27 Agu 2027",
+      "25 Nov 2027",
+      "23 Feb 2028",
+      "22 Jul 2028"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 2.000.000.000",
+      "Rp 4.000.000.000",
+      "Rp 6.000.000.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 24
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_w358": {
+     "painted": 37,
+     "painted_ok": 37,
+     "mismatch": [],
+     "marks": 30,
+     "titles": 30,
+     "mark_titles": 30,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 8,
+     "text_ok": 8,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 586,
+     "viewbox_w": 358,
+     "rendered_font_px": 23.4,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -1.6,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "11 Sep 2026",
+      "30 Sep 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 30
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -455,6 +1057,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -464,8 +1068,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -485,6 +1090,11 @@
       "4"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -505,6 +1115,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -531,6 +1146,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -538,6 +1155,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -548,12 +1166,20 @@
      "outside_titles": [],
      "x_labels": [],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [],
      "two_digit_year_labels": 0,
      "y_ticks": [],
      "series_dash": [],
      "dots_by_series": {},
      "dot_tokens": [],
      "dot_radii": [],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -578,6 +1204,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 342,
      "viewbox_w": 720,
@@ -594,6 +1222,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
      "legend_rows": 3,
      "legend_overflow_px": 0,
      "series_line_paths": 8,
@@ -609,6 +1238,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 0",
@@ -650,6 +1284,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -683,6 +1322,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 386,
      "viewbox_w": 720,
@@ -699,6 +1340,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
      "legend_rows": 3,
      "legend_overflow_px": -4,
      "zero_line": 0,
@@ -710,7 +1352,14 @@
       "C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "A",
+      "B",
+      "C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar": {
      "painted": 16,
@@ -732,6 +1381,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 336,
      "viewbox_w": 720,
@@ -742,8 +1393,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.36,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6.1,
      "zero_line": 1,
      "bars": 7,
      "bar_min_thickness": 58.58,
@@ -754,7 +1406,15 @@
       "Apr"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_stacked": {
      "painted": 20,
@@ -776,6 +1436,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 336,
      "viewbox_w": 720,
@@ -787,8 +1449,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6.1,
      "zero_line": 1,
      "bars": 9,
      "bar_min_thickness": 132.6,
@@ -798,7 +1461,14 @@
       "Proyek C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_horizontal": {
      "painted": 8,
@@ -820,6 +1490,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 120,
      "viewbox_w": 720,
@@ -829,17 +1501,76 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.04,
      "zero_line": 0,
      "bars": 3,
      "bar_min_thickness": 17.72,
      "category_labels": [
+      "Gudang Utama Jakarta Selatan",
+      "Gudang 2",
+      "Gudang 3"
+     ],
+     "truncated_labels": 0,
+     "x_labels": [
       "0",
       "10",
       "20",
       "30"
      ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
+    },
+    "bar_horizontal_rp": {
+     "painted": 9,
+     "painted_ok": 9,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 120,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
+     "zero_line": 0,
+     "bars": 3,
+     "bar_min_thickness": 17.72,
+     "category_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Rp 0,00",
+      "Rp 500.000.000,00",
+      "Rp 1.000.000.000,00",
+      "Rp 2.000.000.000,00"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_empty": {
      "painted": 0,
@@ -861,6 +1592,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -868,12 +1601,16 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "zero_line": 0,
      "bars": 0,
      "bar_min_thickness": null,
      "category_labels": [],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_months": {
      "painted": 17,
@@ -884,8 +1621,8 @@
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 16,
-     "text_ok": 16,
+     "texts": 11,
+     "text_ok": 11,
      "fonts": [
       "-apple-system"
      ],
@@ -895,6 +1632,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 319,
      "viewbox_w": 720,
@@ -904,25 +1643,32 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.36,
      "zero_line": 0,
      "bars": 12,
      "bar_min_thickness": 39.08,
      "category_labels": [
       "Januari",
-      "Februari",
       "Maret",
-      "April",
       "Mei",
-      "Juni",
       "Juli",
-      "Agustus",
       "September",
-      "Oktober",
       "November",
       "Desember"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Januari",
+      "Maret",
+      "Mei",
+      "Juli",
+      "September",
+      "November",
+      "Desember"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_dense": {
      "painted": 612,
@@ -944,6 +1690,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 336,
      "viewbox_w": 720,
@@ -958,8 +1706,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 8.15,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6.1,
      "zero_line": 0,
      "bars": 600,
      "bar_min_thickness": 0.64,
@@ -979,7 +1728,24 @@
       "K1…"
      ],
      "truncated_labels": 1,
-     "label_overlaps": 0
+     "x_labels": [
+      "K1",
+      "K9",
+      "K17",
+      "K25",
+      "K33",
+      "K41",
+      "K49",
+      "K57",
+      "K65",
+      "K73",
+      "K81",
+      "K89",
+      "K1…"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "donut": {
      "painted": 7,
@@ -1001,9 +1767,11 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 364,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 363.6000061035156,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-1",
@@ -1013,8 +1781,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 4,
-     "legend_overflow_px": -66,
+     "legend_overflow_px": -68,
      "full_ring": 0,
      "legend_items": [
       "Disetujui — 60 (60 %)",
@@ -1023,6 +1792,8 @@
       "Draf — 0 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 348.8,
      "slice_lengths": [
       583.8,
       319.9,
@@ -1050,6 +1821,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 200,
      "viewbox_w": 360,
@@ -1059,13 +1832,16 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": -93,
+     "legend_overflow_px": -95,
      "full_ring": 1,
      "legend_items": [
       "Semua — 5 (100 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 331.7,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -1089,17 +1865,20 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 481,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 481.20001220703125,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-2"
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 3,
-     "legend_overflow_px": -75,
+     "legend_overflow_px": -56,
      "full_ring": 1,
      "legend_items": [
       "Retur — -5 (bukan bagian dari keseluruhan)",
@@ -1107,6 +1886,8 @@
       "Tak terukur — ? (tidak dihitung)"
      ],
      "legend_excluded": 2,
+     "legend_lines_max": 3,
+     "legend_right_px": 339,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -1130,6 +1911,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -1137,11 +1920,104 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "full_ring": 0,
      "legend_items": [],
      "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
+    },
+    "donut_all_excluded": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "mark_titles": 0,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 2,
+     "text_ok": 2,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data yang bisa dihitung",
+     "empty_font_px": 13,
+     "empty_sub": "4 baris tidak digambar: 1 bernilai 0, 1 negatif, 2 tak terukur",
+     "excluded_rows": 4,
+     "width": 360,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 4.58,
+     "full_ring": 0,
+     "legend_items": [],
+     "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
+     "slice_lengths": [],
+     "biggest_slice_is_ring": null
+    },
+    "donut_long": {
+     "painted": 6,
+     "painted_ok": 6,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 3,
+     "text_ok": 3,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
+     "height": 200,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 3,
+     "legend_overflow_px": -42,
+     "full_ring": 0,
+     "legend_items": [
+      "Kategori dengan nama yang sangat panjang sekali sekali — 1 (0 %)",
+      "B — 2 (0 %)",
+      "Rp 10 M — 10.000.000.000 (100 %)"
+     ],
+     "legend_excluded": 0,
+     "legend_lines_max": 4,
+     "legend_right_px": 344.2,
+     "slice_lengths": [
+      56,
+      56,
+      935.8
+     ],
+     "biggest_slice_is_ring": true
     },
     "donut_9": {
      "painted": 18,
@@ -1163,9 +2039,11 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 364,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 363.6000061035156,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-1",
@@ -1179,8 +2057,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 9,
-     "legend_overflow_px": -21,
+     "legend_overflow_px": -23,
      "full_ring": 0,
      "legend_items": [
       "Bagian 1 — 1 (2,2 %)",
@@ -1194,6 +2073,8 @@
       "Bagian 9 — 9 (20 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 343.3,
      "slice_lengths": [
       75.5,
       95.1,
@@ -1227,6 +2108,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -1243,8 +2126,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.1,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 9,
      "series1_segments": 1,
      "zero_line": 0,
@@ -1258,6 +2142,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -1301,6 +2190,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -1335,9 +2229,11 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 425,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 425.20001220703125,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-1",
@@ -1345,14 +2241,17 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 2,
-     "legend_overflow_px": -84,
+     "legend_overflow_px": -65,
      "full_ring": 0,
      "legend_items": [
       "Rp 10 M — 10.000.000.000 (100 %)",
       "Rp 100 rb — 100.000 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 3,
+     "legend_right_px": 337.2,
      "slice_lengths": [
       935.8,
       56
@@ -1375,6 +2274,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -1383,7 +2284,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_single": {
      "painted": 1,
@@ -1401,6 +2303,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -1409,7 +2313,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_empty": {
      "painted": 0,
@@ -1431,13 +2336,16 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 11,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
      "rendered_font_px": 11,
      "series_tokens": [],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "gantt_week": {
      "painted": 52,
@@ -1459,6 +2367,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 302,
      "viewbox_w": 900,
@@ -1468,6 +2378,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.88,
      "legend_rows": 1,
      "legend_overflow_px": -4,
      "today_lines": 1,
@@ -1488,6 +2399,8 @@
       "gantt-nodate: tanpa tanggal",
       "gantt-outside: di luar rentang (20 Okt 2026 – 30 Nov 2026)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -1499,12 +2412,17 @@
       "Struktur atas: 01 Okt 2026 – 30 Okt 2026 · 0 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (20 Okt 2026 – 30 Nov 2026)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -1532,6 +2450,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 289,
      "viewbox_w": 900,
@@ -1541,8 +2461,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.65,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.6,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -1560,6 +2481,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -1572,12 +2495,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -1605,6 +2531,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 289,
      "viewbox_w": 900,
@@ -1614,8 +2542,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.87,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.6,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -1633,6 +2562,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -1645,12 +2576,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -1678,6 +2612,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -1685,6 +2621,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "today_lines": 0,
      "today_label": null,
      "weekend_rects": 0,
@@ -1697,9 +2634,14 @@
      "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -1708,16 +2650,16 @@
      "min_width": ""
     },
     "gantt_invalid": {
-     "painted": 28,
-     "painted_ok": 28,
+     "painted": 38,
+     "painted_ok": 38,
      "mismatch": [],
-     "marks": 4,
-     "titles": 4,
-     "mark_titles": 4,
+     "marks": 7,
+     "titles": 8,
+     "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 17,
-     "text_ok": 17,
+     "texts": 29,
+     "text_ok": 29,
      "fonts": [
       "-apple-system"
      ],
@@ -1727,8 +2669,10 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
-     "height": 218,
+     "height": 360,
      "viewbox_w": 900,
      "rendered_font_px": 9.3,
      "series_tokens": [
@@ -1736,36 +2680,119 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.88,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.6,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 4,
      "ticks": 4,
      "tick_labels": 3,
-     "rows": 7,
-     "bars": 4,
-     "baselines": 0,
-     "truncated_labels": 0,
-     "truncated_with_full_title": 0,
+     "rows": 13,
+     "bars": 5,
+     "baselines": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
       "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
-      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)"
+      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "gantt-outside: selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "gantt-outside: mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)",
+      "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
+      "gantt-nodate: tanpa tanggal",
+      "gantt-nodate: tanpa tanggal · baseline tidak valid (selesai sebelum mulai)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 1,
      "bar_titles": [
       "Progres 700 %: 01 Sep 2026 – 20 Sep 2026 · progres 700 % (di luar 0–100 %)",
       "Progres negatif: 01 Sep 2026 – 20 Sep 2026 · progres -100 % (di luar 0–100 %)",
+      "Baseline di luar rentang: 02 Sep 2026 – 10 Sep 2026",
       "Baseline terbalik: 03 Sep 2026 – 12 Sep 2026 · baseline tidak valid (selesai sebelum mulai)",
       "Benar: 02 Sep 2026 – 10 Sep 2026 · 50 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
+      "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
+     "baseline_before_actual": false,
+     "label_into_timeline": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_baseline_outside": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 76,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.87,
+     "legend_rows": 1,
+     "legend_overflow_px": -5.6,
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 4,
+     "ticks": 4,
+     "tick_labels": 3,
+     "rows": 1,
+     "bars": 1,
+     "baselines": 0,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
+     "open_titles": [],
+     "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
+     "bar_titles": [
+      "Benar, baseline Januari: 02 Sep 2026 – 10 Sep 2026"
+     ],
+     "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
+     "legend_items": [
+      "Aktual",
+      "Hari ini"
+     ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -1775,12 +2802,12 @@
     }
    },
    "summary": {
-    "charts": 30,
-    "painted": 1178,
+    "charts": 40,
+    "painted": 1367,
     "mismatches": 0,
-    "marks": 779,
-    "titles": 785,
-    "mark_titles": 779,
+    "marks": 884,
+    "titles": 891,
+    "mark_titles": 884,
     "titles_equal_marks": true,
     "stray_titles": 0,
     "neg_dims": 0,
@@ -1788,21 +2815,40 @@
     "dots_outside_plot": 0,
     "unclipped_paths": 0,
     "legend_overflow_max_px": 0,
-    "texts": 309,
-    "text_ok": 309,
-    "empty_charts": 5,
-    "empty_with_text": 5,
+    "x_label_overlaps": 0,
+    "x_label_max_overlap_px": 0,
+    "x_label_charts": 23,
+    "tick_glyph_px_max": 8.15,
+    "texts": 406,
+    "text_ok": 406,
+    "empty_charts": 6,
+    "empty_with_text": 6,
+    "excluded_placeholders_silent": 0,
     "empty_min_font_px": 11,
     "donut_font_px": {
      "donut": 11,
      "donut_one": 11,
      "donut_excluded": 11,
+     "donut_long": 11,
      "donut_9": 11,
      "donut_tiny": 11
     },
+    "donut_font_min_px": 11,
+    "donut_viewbox_widths": [
+     360
+    ],
+    "donut_legend_lines_max": 4,
+    "donut_legend_right_max_px": 348.8,
     "gantt_min_font_px": 9.3,
     "line_bar_min_font_px": 11.6,
     "label_into_timeline": 0,
+    "outside_notes_quoting_window": 0,
+    "note_over_baseline": 0,
+    "baseline_legend_dishonest": 0,
+    "legend_series_silent_nodata": 0,
+    "dots_r_not_positive": 0,
+    "undefined_tokens": 0,
+    "line_stroke_none": 0,
     "min_series_contrast": 4.92
    }
   },
@@ -1857,6 +2903,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 308,
      "viewbox_w": 720,
@@ -1868,6 +2916,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
      "legend_rows": 1,
      "legend_overflow_px": 0,
      "series_line_paths": 4,
@@ -1887,6 +2936,11 @@
       "M6"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "-20 %",
@@ -1915,6 +2969,11 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "1:--chart-1",
@@ -1944,6 +3003,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -1953,8 +3014,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -1967,6 +3029,11 @@
       "0"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -1985,6 +3052,11 @@
      "dot_radii": [
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -2009,6 +3081,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -2020,8 +3094,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 3,
      "series1_segments": 1,
      "zero_line": 0,
@@ -2037,6 +3112,11 @@
       "3"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -2063,12 +3143,108 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-8",
       "2:--chart-2",
       "3:--chart-3"
      ],
      "custom_titles": 3,
+     "fabricated_1970": 0
+    },
+    "line_r_edge": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "mark_titles": 7,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 2,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 2,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "2",
+      "4",
+      "6"
+     ],
+     "series_dash": [
+      "1:solid",
+      "2:solid"
+     ],
+     "dots_by_series": {
+      "1": 5,
+      "2": 2
+     },
+     "dot_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3,
+      2.5
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2"
+     ],
+     "custom_titles": 0,
      "fabricated_1970": 0
     },
     "line_dates": {
@@ -2091,6 +3267,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -2100,8 +3278,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.64,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -2116,6 +3295,12 @@
       "10 Jun 2026"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 12.000",
@@ -2136,6 +3321,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -2162,6 +3352,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -2171,8 +3363,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.62,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -2186,6 +3379,12 @@
       "01 Feb 2026"
      ],
      "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -2206,6 +3405,455 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_series_nodata": {
+     "painted": 11,
+     "painted_ok": 11,
+     "mismatch": [],
+     "marks": 2,
+     "titles": 2,
+     "mark_titles": 2,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 9,
+     "text_ok": 9,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.62,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Jan 2026",
+      "01 Feb 2026"
+     ],
+     "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "1",
+      "2",
+      "3"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 2
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 2,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_daily_31": {
+     "painted": 38,
+     "painted_ok": 38,
+     "mismatch": [],
+     "marks": 31,
+     "titles": 31,
+     "mark_titles": 31,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "05 Sep 2026",
+      "09 Sep 2026",
+      "13 Sep 2026",
+      "17 Sep 2026",
+      "21 Sep 2026",
+      "25 Sep 2026",
+      "01 Okt 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 31
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_weekly_52": {
+     "painted": 15,
+     "painted_ok": 15,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 17,
+     "text_ok": 17,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 3,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 4,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "20 Okt 2026",
+      "08 Des 2026",
+      "26 Jan 2027",
+      "16 Mar 2027",
+      "04 Mei 2027",
+      "22 Jun 2027",
+      "24 Agu 2027"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0 %",
+      "25 %",
+      "50 %",
+      "75 %",
+      "100 %",
+      "125 %"
+     ],
+     "series_dash": [
+      "1:5 3",
+      "2:solid",
+      "3:2 4"
+     ],
+     "dots_by_series": {
+      "2": 1
+     },
+     "dot_tokens": [
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2",
+      "3:--chart-3"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_monthly_24": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 24,
+     "titles": 24,
+     "mark_titles": 24,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -2.1,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "30 Nov 2026",
+      "28 Feb 2027",
+      "29 Mei 2027",
+      "27 Agu 2027",
+      "25 Nov 2027",
+      "23 Feb 2028",
+      "22 Jul 2028"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 2.000.000.000",
+      "Rp 4.000.000.000",
+      "Rp 6.000.000.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 24
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_w358": {
+     "painted": 37,
+     "painted_ok": 37,
+     "mismatch": [],
+     "marks": 30,
+     "titles": 30,
+     "mark_titles": 30,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 8,
+     "text_ok": 8,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 586,
+     "viewbox_w": 358,
+     "rendered_font_px": 23.4,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -1.6,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "11 Sep 2026",
+      "30 Sep 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 30
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -2232,6 +3880,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -2241,8 +3891,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.32,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -2262,6 +3913,11 @@
       "4"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -2282,6 +3938,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -2308,6 +3969,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -2315,6 +3978,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -2325,12 +3989,20 @@
      "outside_titles": [],
      "x_labels": [],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [],
      "two_digit_year_labels": 0,
      "y_ticks": [],
      "series_dash": [],
      "dots_by_series": {},
      "dot_tokens": [],
      "dot_radii": [],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -2355,6 +4027,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 342,
      "viewbox_w": 720,
@@ -2371,6 +4045,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
      "legend_rows": 3,
      "legend_overflow_px": 0,
      "series_line_paths": 8,
@@ -2386,6 +4061,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 0",
@@ -2427,6 +4107,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -2460,6 +4145,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 386,
      "viewbox_w": 720,
@@ -2476,6 +4163,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
      "legend_rows": 3,
      "legend_overflow_px": -4,
      "zero_line": 0,
@@ -2487,7 +4175,14 @@
       "C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "A",
+      "B",
+      "C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar": {
      "painted": 16,
@@ -2509,6 +4204,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 336,
      "viewbox_w": 720,
@@ -2519,8 +4216,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.36,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6.1,
      "zero_line": 1,
      "bars": 7,
      "bar_min_thickness": 58.58,
@@ -2531,7 +4229,15 @@
       "Apr"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_stacked": {
      "painted": 20,
@@ -2553,6 +4259,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 336,
      "viewbox_w": 720,
@@ -2564,8 +4272,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6.1,
      "zero_line": 1,
      "bars": 9,
      "bar_min_thickness": 132.6,
@@ -2575,7 +4284,14 @@
       "Proyek C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_horizontal": {
      "painted": 8,
@@ -2597,6 +4313,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 120,
      "viewbox_w": 720,
@@ -2606,17 +4324,76 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.04,
      "zero_line": 0,
      "bars": 3,
      "bar_min_thickness": 17.72,
      "category_labels": [
+      "Gudang Utama Jakarta Selatan",
+      "Gudang 2",
+      "Gudang 3"
+     ],
+     "truncated_labels": 0,
+     "x_labels": [
       "0",
       "10",
       "20",
       "30"
      ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
+    },
+    "bar_horizontal_rp": {
+     "painted": 9,
+     "painted_ok": 9,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 120,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
+     "zero_line": 0,
+     "bars": 3,
+     "bar_min_thickness": 17.72,
+     "category_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Rp 0,00",
+      "Rp 500.000.000,00",
+      "Rp 1.000.000.000,00",
+      "Rp 2.000.000.000,00"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_empty": {
      "painted": 0,
@@ -2638,6 +4415,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -2645,12 +4424,16 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "zero_line": 0,
      "bars": 0,
      "bar_min_thickness": null,
      "category_labels": [],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_months": {
      "painted": 17,
@@ -2661,8 +4444,8 @@
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 16,
-     "text_ok": 16,
+     "texts": 11,
+     "text_ok": 11,
      "fonts": [
       "-apple-system"
      ],
@@ -2672,6 +4455,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 319,
      "viewbox_w": 720,
@@ -2681,25 +4466,32 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.36,
      "zero_line": 0,
      "bars": 12,
      "bar_min_thickness": 39.08,
      "category_labels": [
       "Januari",
-      "Februari",
       "Maret",
-      "April",
       "Mei",
-      "Juni",
       "Juli",
-      "Agustus",
       "September",
-      "Oktober",
       "November",
       "Desember"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Januari",
+      "Maret",
+      "Mei",
+      "Juli",
+      "September",
+      "November",
+      "Desember"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_dense": {
      "painted": 612,
@@ -2721,6 +4513,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 336,
      "viewbox_w": 720,
@@ -2735,8 +4529,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 8.15,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6.1,
      "zero_line": 0,
      "bars": 600,
      "bar_min_thickness": 0.64,
@@ -2756,7 +4551,24 @@
       "K1…"
      ],
      "truncated_labels": 1,
-     "label_overlaps": 0
+     "x_labels": [
+      "K1",
+      "K9",
+      "K17",
+      "K25",
+      "K33",
+      "K41",
+      "K49",
+      "K57",
+      "K65",
+      "K73",
+      "K81",
+      "K89",
+      "K1…"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "donut": {
      "painted": 7,
@@ -2778,9 +4590,11 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 364,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 363.6000061035156,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-1",
@@ -2790,8 +4604,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 4,
-     "legend_overflow_px": -66,
+     "legend_overflow_px": -68,
      "full_ring": 0,
      "legend_items": [
       "Disetujui — 60 (60 %)",
@@ -2800,6 +4615,8 @@
       "Draf — 0 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 348.8,
      "slice_lengths": [
       583.8,
       319.9,
@@ -2827,6 +4644,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 200,
      "viewbox_w": 360,
@@ -2836,13 +4655,16 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": -93,
+     "legend_overflow_px": -95,
      "full_ring": 1,
      "legend_items": [
       "Semua — 5 (100 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 331.7,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -2866,17 +4688,20 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 481,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 481.20001220703125,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-2"
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 3,
-     "legend_overflow_px": -75,
+     "legend_overflow_px": -56,
      "full_ring": 1,
      "legend_items": [
       "Retur — -5 (bukan bagian dari keseluruhan)",
@@ -2884,6 +4709,8 @@
       "Tak terukur — ? (tidak dihitung)"
      ],
      "legend_excluded": 2,
+     "legend_lines_max": 3,
+     "legend_right_px": 339,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -2907,6 +4734,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -2914,11 +4743,104 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "full_ring": 0,
      "legend_items": [],
      "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
+    },
+    "donut_all_excluded": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "mark_titles": 0,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 2,
+     "text_ok": 2,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data yang bisa dihitung",
+     "empty_font_px": 13,
+     "empty_sub": "4 baris tidak digambar: 1 bernilai 0, 1 negatif, 2 tak terukur",
+     "excluded_rows": 4,
+     "width": 360,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 4.58,
+     "full_ring": 0,
+     "legend_items": [],
+     "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
+     "slice_lengths": [],
+     "biggest_slice_is_ring": null
+    },
+    "donut_long": {
+     "painted": 6,
+     "painted_ok": 6,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 3,
+     "text_ok": 3,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
+     "height": 200,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 3,
+     "legend_overflow_px": -42,
+     "full_ring": 0,
+     "legend_items": [
+      "Kategori dengan nama yang sangat panjang sekali sekali — 1 (0 %)",
+      "B — 2 (0 %)",
+      "Rp 10 M — 10.000.000.000 (100 %)"
+     ],
+     "legend_excluded": 0,
+     "legend_lines_max": 4,
+     "legend_right_px": 344.2,
+     "slice_lengths": [
+      56,
+      56,
+      935.8
+     ],
+     "biggest_slice_is_ring": true
     },
     "donut_9": {
      "painted": 18,
@@ -2940,9 +4862,11 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 364,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 363.6000061035156,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-1",
@@ -2956,8 +4880,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 9,
-     "legend_overflow_px": -21,
+     "legend_overflow_px": -23,
      "full_ring": 0,
      "legend_items": [
       "Bagian 1 — 1 (2,2 %)",
@@ -2971,6 +4896,8 @@
       "Bagian 9 — 9 (20 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 343.3,
      "slice_lengths": [
       75.5,
       95.1,
@@ -3004,6 +4931,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 291,
      "viewbox_w": 720,
@@ -3020,8 +4949,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.1,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2.1,
      "series_line_paths": 9,
      "series1_segments": 1,
      "zero_line": 0,
@@ -3035,6 +4965,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -3078,6 +5013,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -3112,9 +5052,11 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
-     "width": 425,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 360,
      "height": 200,
-     "viewbox_w": 425.20001220703125,
+     "viewbox_w": 360,
      "rendered_font_px": 11,
      "series_tokens": [
       "--chart-1",
@@ -3122,14 +5064,17 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 2,
-     "legend_overflow_px": -84,
+     "legend_overflow_px": -65,
      "full_ring": 0,
      "legend_items": [
       "Rp 10 M — 10.000.000.000 (100 %)",
       "Rp 100 rb — 100.000 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 3,
+     "legend_right_px": 337.2,
      "slice_lengths": [
       935.8,
       56
@@ -3152,6 +5097,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -3160,7 +5107,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_single": {
      "painted": 1,
@@ -3178,6 +5126,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -3186,7 +5136,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_empty": {
      "painted": 0,
@@ -3208,13 +5159,16 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 11,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
      "rendered_font_px": 11,
      "series_tokens": [],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "gantt_week": {
      "painted": 52,
@@ -3236,6 +5190,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 302,
      "viewbox_w": 900,
@@ -3245,6 +5201,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.88,
      "legend_rows": 1,
      "legend_overflow_px": -4,
      "today_lines": 1,
@@ -3265,6 +5222,8 @@
       "gantt-nodate: tanpa tanggal",
       "gantt-outside: di luar rentang (20 Okt 2026 – 30 Nov 2026)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -3276,12 +5235,17 @@
       "Struktur atas: 01 Okt 2026 – 30 Okt 2026 · 0 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (20 Okt 2026 – 30 Nov 2026)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -3309,6 +5273,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 289,
      "viewbox_w": 900,
@@ -3318,8 +5284,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.65,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.6,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -3337,6 +5304,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -3349,12 +5318,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -3382,6 +5354,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
      "height": 289,
      "viewbox_w": 900,
@@ -3391,8 +5365,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.87,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.6,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -3410,6 +5385,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -3422,12 +5399,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -3455,6 +5435,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -3462,6 +5444,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "today_lines": 0,
      "today_label": null,
      "weekend_rects": 0,
@@ -3474,9 +5457,14 @@
      "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -3485,16 +5473,16 @@
      "min_width": ""
     },
     "gantt_invalid": {
-     "painted": 28,
-     "painted_ok": 28,
+     "painted": 38,
+     "painted_ok": 38,
      "mismatch": [],
-     "marks": 4,
-     "titles": 4,
-     "mark_titles": 4,
+     "marks": 7,
+     "titles": 8,
+     "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 17,
-     "text_ok": 17,
+     "texts": 29,
+     "text_ok": 29,
      "fonts": [
       "-apple-system"
      ],
@@ -3504,8 +5492,10 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 760,
-     "height": 218,
+     "height": 360,
      "viewbox_w": 900,
      "rendered_font_px": 9.3,
      "series_tokens": [
@@ -3513,36 +5503,119 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.88,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.6,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 4,
      "ticks": 4,
      "tick_labels": 3,
-     "rows": 7,
-     "bars": 4,
-     "baselines": 0,
-     "truncated_labels": 0,
-     "truncated_with_full_title": 0,
+     "rows": 13,
+     "bars": 5,
+     "baselines": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
       "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
-      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)"
+      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "gantt-outside: selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "gantt-outside: mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)",
+      "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
+      "gantt-nodate: tanpa tanggal",
+      "gantt-nodate: tanpa tanggal · baseline tidak valid (selesai sebelum mulai)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 1,
      "bar_titles": [
       "Progres 700 %: 01 Sep 2026 – 20 Sep 2026 · progres 700 % (di luar 0–100 %)",
       "Progres negatif: 01 Sep 2026 – 20 Sep 2026 · progres -100 % (di luar 0–100 %)",
+      "Baseline di luar rentang: 02 Sep 2026 – 10 Sep 2026",
       "Baseline terbalik: 03 Sep 2026 – 12 Sep 2026 · baseline tidak valid (selesai sebelum mulai)",
       "Benar: 02 Sep 2026 – 10 Sep 2026 · 50 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
+      "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
+     "baseline_before_actual": false,
+     "label_into_timeline": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_baseline_outside": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 760,
+     "height": 76,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.87,
+     "legend_rows": 1,
+     "legend_overflow_px": -5.6,
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 4,
+     "ticks": 4,
+     "tick_labels": 3,
+     "rows": 1,
+     "bars": 1,
+     "baselines": 0,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
+     "open_titles": [],
+     "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
+     "bar_titles": [
+      "Benar, baseline Januari: 02 Sep 2026 – 10 Sep 2026"
+     ],
+     "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
+     "legend_items": [
+      "Aktual",
+      "Hari ini"
+     ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 760,
@@ -3552,12 +5625,12 @@
     }
    },
    "summary": {
-    "charts": 30,
-    "painted": 1178,
+    "charts": 40,
+    "painted": 1367,
     "mismatches": 0,
-    "marks": 779,
-    "titles": 785,
-    "mark_titles": 779,
+    "marks": 884,
+    "titles": 891,
+    "mark_titles": 884,
     "titles_equal_marks": true,
     "stray_titles": 0,
     "neg_dims": 0,
@@ -3565,21 +5638,40 @@
     "dots_outside_plot": 0,
     "unclipped_paths": 0,
     "legend_overflow_max_px": 0,
-    "texts": 309,
-    "text_ok": 309,
-    "empty_charts": 5,
-    "empty_with_text": 5,
+    "x_label_overlaps": 0,
+    "x_label_max_overlap_px": 0,
+    "x_label_charts": 23,
+    "tick_glyph_px_max": 8.15,
+    "texts": 406,
+    "text_ok": 406,
+    "empty_charts": 6,
+    "empty_with_text": 6,
+    "excluded_placeholders_silent": 0,
     "empty_min_font_px": 11,
     "donut_font_px": {
      "donut": 11,
      "donut_one": 11,
      "donut_excluded": 11,
+     "donut_long": 11,
      "donut_9": 11,
      "donut_tiny": 11
     },
+    "donut_font_min_px": 11,
+    "donut_viewbox_widths": [
+     360
+    ],
+    "donut_legend_lines_max": 4,
+    "donut_legend_right_max_px": 348.8,
     "gantt_min_font_px": 9.3,
     "line_bar_min_font_px": 11.6,
     "label_into_timeline": 0,
+    "outside_notes_quoting_window": 0,
+    "note_over_baseline": 0,
+    "baseline_legend_dishonest": 0,
+    "legend_series_silent_nodata": 0,
+    "dots_r_not_positive": 0,
+    "undefined_tokens": 0,
+    "line_stroke_none": 0,
     "min_series_contrast": 5.41
    }
   },
@@ -3678,13 +5770,13 @@
    "width": 1440,
    "height": 900
   },
-  "_ms": 4442,
+  "_ms": 7596,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
   "render": {
    "errors": [],
-   "charts": 30,
+   "charts": 40,
    "exports": [
     "barChart",
     "donutChart",
@@ -3744,6 +5836,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 145,
      "viewbox_w": 720,
@@ -3755,6 +5849,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
      "legend_rows": 1,
      "legend_overflow_px": 0,
      "series_line_paths": 4,
@@ -3774,6 +5869,11 @@
       "M6"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "-20 %",
@@ -3802,6 +5902,11 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "1:--chart-1",
@@ -3831,6 +5936,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -3840,8 +5947,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -3854,6 +5962,11 @@
       "0"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -3872,6 +5985,11 @@
      "dot_radii": [
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -3896,6 +6014,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -3907,8 +6027,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 3,
      "series1_segments": 1,
      "zero_line": 0,
@@ -3924,6 +6045,11 @@
       "3"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -3950,12 +6076,108 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-8",
       "2:--chart-2",
       "3:--chart-3"
      ],
      "custom_titles": 3,
+     "fabricated_1970": 0
+    },
+    "line_r_edge": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "mark_titles": 7,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 2,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 2,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "2",
+      "4",
+      "6"
+     ],
+     "series_dash": [
+      "1:solid",
+      "2:solid"
+     ],
+     "dots_by_series": {
+      "1": 5,
+      "2": 2
+     },
+     "dot_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3,
+      2.5
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2"
+     ],
+     "custom_titles": 0,
      "fabricated_1970": 0
     },
     "line_dates": {
@@ -3978,6 +6200,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -3987,8 +6211,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.63,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -4003,6 +6228,12 @@
       "10 Jun 2026"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 12.000",
@@ -4023,6 +6254,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -4049,6 +6285,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -4058,8 +6296,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.6,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -4073,6 +6312,12 @@
       "01 Feb 2026"
      ],
      "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -4093,6 +6338,455 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_series_nodata": {
+     "painted": 11,
+     "painted_ok": 11,
+     "mismatch": [],
+     "marks": 2,
+     "titles": 2,
+     "mark_titles": 2,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 9,
+     "text_ok": 9,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.6,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Jan 2026",
+      "01 Feb 2026"
+     ],
+     "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "1",
+      "2",
+      "3"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 2
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 2,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_daily_31": {
+     "painted": 38,
+     "painted_ok": 38,
+     "mismatch": [],
+     "marks": 31,
+     "titles": 31,
+     "mark_titles": 31,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "05 Sep 2026",
+      "09 Sep 2026",
+      "13 Sep 2026",
+      "17 Sep 2026",
+      "21 Sep 2026",
+      "25 Sep 2026",
+      "01 Okt 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 31
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_weekly_52": {
+     "painted": 15,
+     "painted_ok": 15,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 17,
+     "text_ok": 17,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 3,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 4,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "20 Okt 2026",
+      "08 Des 2026",
+      "26 Jan 2027",
+      "16 Mar 2027",
+      "04 Mei 2027",
+      "22 Jun 2027",
+      "24 Agu 2027"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0 %",
+      "25 %",
+      "50 %",
+      "75 %",
+      "100 %",
+      "125 %"
+     ],
+     "series_dash": [
+      "1:5 3",
+      "2:solid",
+      "3:2 4"
+     ],
+     "dots_by_series": {
+      "2": 1
+     },
+     "dot_tokens": [
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2",
+      "3:--chart-3"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_monthly_24": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 24,
+     "titles": 24,
+     "mark_titles": 24,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "30 Nov 2026",
+      "28 Feb 2027",
+      "29 Mei 2027",
+      "27 Agu 2027",
+      "25 Nov 2027",
+      "23 Feb 2028",
+      "22 Jul 2028"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 2.000.000.000",
+      "Rp 4.000.000.000",
+      "Rp 6.000.000.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 24
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_w358": {
+     "painted": 37,
+     "painted_ok": 37,
+     "mismatch": [],
+     "marks": 30,
+     "titles": 30,
+     "mark_titles": 30,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 8,
+     "text_ok": 8,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 276,
+     "viewbox_w": 358,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "11 Sep 2026",
+      "30 Sep 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 30
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -4119,6 +6813,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -4128,8 +6824,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -4149,6 +6846,11 @@
       "4"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -4169,6 +6871,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -4195,6 +6902,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 12.9,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 64,
      "viewbox_w": 360,
@@ -4202,6 +6911,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -4212,12 +6922,20 @@
      "outside_titles": [],
      "x_labels": [],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [],
      "two_digit_year_labels": 0,
      "y_ticks": [],
      "series_dash": [],
      "dots_by_series": {},
      "dot_tokens": [],
      "dot_radii": [],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -4242,6 +6960,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 161,
      "viewbox_w": 720,
@@ -4258,6 +6978,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
      "legend_rows": 3,
      "legend_overflow_px": 0,
      "series_line_paths": 8,
@@ -4273,6 +6994,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 0",
@@ -4314,6 +7040,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -4347,6 +7078,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 182,
      "viewbox_w": 720,
@@ -4363,6 +7096,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
      "legend_rows": 3,
      "legend_overflow_px": -4,
      "zero_line": 0,
@@ -4374,7 +7108,14 @@
       "C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "A",
+      "B",
+      "C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar": {
      "painted": 16,
@@ -4396,6 +7137,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 158,
      "viewbox_w": 720,
@@ -4406,8 +7149,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.42,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6,
      "zero_line": 1,
      "bars": 7,
      "bar_min_thickness": 58.58,
@@ -4418,7 +7162,15 @@
       "Apr"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_stacked": {
      "painted": 20,
@@ -4440,6 +7192,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 158,
      "viewbox_w": 720,
@@ -4451,8 +7205,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6,
      "zero_line": 1,
      "bars": 9,
      "bar_min_thickness": 132.6,
@@ -4462,7 +7217,14 @@
       "Proyek C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_horizontal": {
      "painted": 8,
@@ -4484,6 +7246,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 57,
      "viewbox_w": 720,
@@ -4493,17 +7257,76 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.03,
      "zero_line": 0,
      "bars": 3,
      "bar_min_thickness": 17.72,
      "category_labels": [
+      "Gudang Utama Jakarta Selatan",
+      "Gudang 2",
+      "Gudang 3"
+     ],
+     "truncated_labels": 0,
+     "x_labels": [
       "0",
       "10",
       "20",
       "30"
      ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
+    },
+    "bar_horizontal_rp": {
+     "painted": 9,
+     "painted_ok": 9,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 57,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
+     "zero_line": 0,
+     "bars": 3,
+     "bar_min_thickness": 17.72,
+     "category_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Rp 0,00",
+      "Rp 500.000.000,00",
+      "Rp 1.000.000.000,00",
+      "Rp 2.000.000.000,00"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_empty": {
      "painted": 0,
@@ -4525,6 +7348,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 12.9,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 64,
      "viewbox_w": 360,
@@ -4532,12 +7357,16 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "zero_line": 0,
      "bars": 0,
      "bar_min_thickness": null,
      "category_labels": [],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_months": {
      "painted": 17,
@@ -4548,8 +7377,8 @@
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 16,
-     "text_ok": 16,
+     "texts": 11,
+     "text_ok": 11,
      "fonts": [
       "-apple-system"
      ],
@@ -4559,6 +7388,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 150,
      "viewbox_w": 720,
@@ -4568,25 +7399,32 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.37,
      "zero_line": 0,
      "bars": 12,
      "bar_min_thickness": 39.08,
      "category_labels": [
       "Januari",
-      "Februari",
       "Maret",
-      "April",
       "Mei",
-      "Juni",
       "Juli",
-      "Agustus",
       "September",
-      "Oktober",
       "November",
       "Desember"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Januari",
+      "Maret",
+      "Mei",
+      "Juli",
+      "September",
+      "November",
+      "Desember"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_dense": {
      "painted": 612,
@@ -4608,6 +7446,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 158,
      "viewbox_w": 720,
@@ -4622,8 +7462,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 8.13,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6,
      "zero_line": 0,
      "bars": 600,
      "bar_min_thickness": 0.64,
@@ -4643,7 +7484,24 @@
       "K1…"
      ],
      "truncated_labels": 1,
-     "label_overlaps": 0
+     "x_labels": [
+      "K1",
+      "K9",
+      "K17",
+      "K25",
+      "K33",
+      "K41",
+      "K49",
+      "K57",
+      "K65",
+      "K73",
+      "K81",
+      "K89",
+      "K1…"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "donut": {
      "painted": 7,
@@ -4665,10 +7523,12 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 197,
-     "viewbox_w": 363.6000061035156,
-     "rendered_font_px": 10.8,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-1",
       "--chart-2",
@@ -4677,8 +7537,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 4,
-     "legend_overflow_px": -66,
+     "legend_overflow_px": -68,
      "full_ring": 0,
      "legend_items": [
       "Disetujui — 60 (60 %)",
@@ -4687,6 +7548,8 @@
       "Draf — 0 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 348.6,
      "slice_lengths": [
       583.8,
       319.9,
@@ -4714,6 +7577,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 199,
      "viewbox_w": 360,
@@ -4723,13 +7588,16 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": -93,
+     "legend_overflow_px": -95,
      "full_ring": 1,
      "legend_items": [
       "Semua — 5 (100 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 331.5,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -4753,17 +7621,20 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 149,
-     "viewbox_w": 481.20001220703125,
-     "rendered_font_px": 8.2,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-2"
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 3,
-     "legend_overflow_px": -75,
+     "legend_overflow_px": -56,
      "full_ring": 1,
      "legend_items": [
       "Retur — -5 (bukan bagian dari keseluruhan)",
@@ -4771,6 +7642,8 @@
       "Tak terukur — ? (tidak dihitung)"
      ],
      "legend_excluded": 2,
+     "legend_lines_max": 3,
+     "legend_right_px": 338.8,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -4794,6 +7667,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -4801,11 +7676,104 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "full_ring": 0,
      "legend_items": [],
      "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
+    },
+    "donut_all_excluded": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "mark_titles": 0,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 2,
+     "text_ok": 2,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data yang bisa dihitung",
+     "empty_font_px": 13,
+     "empty_sub": "4 baris tidak digambar: 1 bernilai 0, 1 negatif, 2 tak terukur",
+     "excluded_rows": 4,
+     "width": 360,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 4.58,
+     "full_ring": 0,
+     "legend_items": [],
+     "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
+     "slice_lengths": [],
+     "biggest_slice_is_ring": null
+    },
+    "donut_long": {
+     "painted": 6,
+     "painted_ok": 6,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 3,
+     "text_ok": 3,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 3,
+     "legend_overflow_px": -42,
+     "full_ring": 0,
+     "legend_items": [
+      "Kategori dengan nama yang sangat panjang sekali sekali — 1 (0 %)",
+      "B — 2 (0 %)",
+      "Rp 10 M — 10.000.000.000 (100 %)"
+     ],
+     "legend_excluded": 0,
+     "legend_lines_max": 4,
+     "legend_right_px": 344.1,
+     "slice_lengths": [
+      56,
+      56,
+      935.8
+     ],
+     "biggest_slice_is_ring": true
     },
     "donut_9": {
      "painted": 18,
@@ -4827,10 +7795,12 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 197,
-     "viewbox_w": 363.6000061035156,
-     "rendered_font_px": 10.8,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-1",
       "--chart-2",
@@ -4843,8 +7813,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 9,
-     "legend_overflow_px": -21,
+     "legend_overflow_px": -23,
      "full_ring": 0,
      "legend_items": [
       "Bagian 1 — 1 (2,2 %)",
@@ -4858,6 +7829,8 @@
       "Bagian 9 — 9 (20 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 343.1,
      "slice_lengths": [
       75.5,
       95.1,
@@ -4891,6 +7864,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -4907,8 +7882,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.09,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 9,
      "series1_segments": 1,
      "zero_line": 0,
@@ -4922,6 +7898,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -4965,6 +7946,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -4999,24 +7985,29 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 168,
-     "viewbox_w": 425.20001220703125,
-     "rendered_font_px": 9.3,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-1",
       "--chart-2"
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 2,
-     "legend_overflow_px": -84,
+     "legend_overflow_px": -65,
      "full_ring": 0,
      "legend_items": [
       "Rp 10 M — 10.000.000.000 (100 %)",
       "Rp 100 rb — 100.000 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 3,
+     "legend_right_px": 337,
      "slice_lengths": [
       935.8,
       56
@@ -5039,6 +8030,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -5047,7 +8040,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_single": {
      "painted": 1,
@@ -5065,6 +8059,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -5073,7 +8069,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_empty": {
      "painted": 0,
@@ -5095,13 +8092,16 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 11,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
      "rendered_font_px": 11,
      "series_tokens": [],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "gantt_week": {
      "painted": 52,
@@ -5123,6 +8123,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
      "height": 286,
      "viewbox_w": 900,
@@ -5132,6 +8134,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.89,
      "legend_rows": 1,
      "legend_overflow_px": -4,
      "today_lines": 1,
@@ -5152,6 +8155,8 @@
       "gantt-nodate: tanpa tanggal",
       "gantt-outside: di luar rentang (20 Okt 2026 – 30 Nov 2026)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -5163,12 +8168,17 @@
       "Struktur atas: 01 Okt 2026 – 30 Okt 2026 · 0 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (20 Okt 2026 – 30 Nov 2026)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -5196,6 +8206,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
      "height": 274,
      "viewbox_w": 900,
@@ -5205,8 +8217,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.76,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.5,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -5224,6 +8237,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -5236,12 +8251,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -5269,6 +8287,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
      "height": 274,
      "viewbox_w": 900,
@@ -5278,8 +8298,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.92,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.5,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -5297,6 +8318,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -5309,12 +8332,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -5342,6 +8368,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 12.9,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 64,
      "viewbox_w": 360,
@@ -5349,6 +8377,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "today_lines": 0,
      "today_label": null,
      "weekend_rects": 0,
@@ -5361,9 +8390,14 @@
      "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 358,
@@ -5372,16 +8406,16 @@
      "min_width": ""
     },
     "gantt_invalid": {
-     "painted": 28,
-     "painted_ok": 28,
+     "painted": 38,
+     "painted_ok": 38,
      "mismatch": [],
-     "marks": 4,
-     "titles": 4,
-     "mark_titles": 4,
+     "marks": 7,
+     "titles": 8,
+     "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 17,
-     "text_ok": 17,
+     "texts": 29,
+     "text_ok": 29,
      "fonts": [
       "-apple-system"
      ],
@@ -5391,8 +8425,10 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
-     "height": 206,
+     "height": 341,
      "viewbox_w": 900,
      "rendered_font_px": 8.8,
      "series_tokens": [
@@ -5400,36 +8436,119 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.89,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.5,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 4,
      "ticks": 4,
      "tick_labels": 3,
-     "rows": 7,
-     "bars": 4,
-     "baselines": 0,
-     "truncated_labels": 0,
-     "truncated_with_full_title": 0,
+     "rows": 13,
+     "bars": 5,
+     "baselines": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
       "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
-      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)"
+      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "gantt-outside: selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "gantt-outside: mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)",
+      "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
+      "gantt-nodate: tanpa tanggal",
+      "gantt-nodate: tanpa tanggal · baseline tidak valid (selesai sebelum mulai)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 1,
      "bar_titles": [
       "Progres 700 %: 01 Sep 2026 – 20 Sep 2026 · progres 700 % (di luar 0–100 %)",
       "Progres negatif: 01 Sep 2026 – 20 Sep 2026 · progres -100 % (di luar 0–100 %)",
+      "Baseline di luar rentang: 02 Sep 2026 – 10 Sep 2026",
       "Baseline terbalik: 03 Sep 2026 – 12 Sep 2026 · baseline tidak valid (selesai sebelum mulai)",
       "Benar: 02 Sep 2026 – 10 Sep 2026 · 50 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
+      "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
+     "baseline_before_actual": false,
+     "label_into_timeline": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_baseline_outside": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 720,
+     "height": 72,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.9,
+     "legend_rows": 1,
+     "legend_overflow_px": -5.5,
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 4,
+     "ticks": 4,
+     "tick_labels": 3,
+     "rows": 1,
+     "bars": 1,
+     "baselines": 0,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
+     "open_titles": [],
+     "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
+     "bar_titles": [
+      "Benar, baseline Januari: 02 Sep 2026 – 10 Sep 2026"
+     ],
+     "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
+     "legend_items": [
+      "Aktual",
+      "Hari ini"
+     ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -5439,12 +8558,12 @@
     }
    },
    "summary": {
-    "charts": 30,
-    "painted": 1178,
+    "charts": 40,
+    "painted": 1367,
     "mismatches": 0,
-    "marks": 779,
-    "titles": 785,
-    "mark_titles": 779,
+    "marks": 884,
+    "titles": 891,
+    "mark_titles": 884,
     "titles_equal_marks": true,
     "stray_titles": 0,
     "neg_dims": 0,
@@ -5452,21 +8571,40 @@
     "dots_outside_plot": 0,
     "unclipped_paths": 0,
     "legend_overflow_max_px": 0,
-    "texts": 309,
-    "text_ok": 309,
-    "empty_charts": 5,
-    "empty_with_text": 5,
+    "x_label_overlaps": 0,
+    "x_label_max_overlap_px": 0,
+    "x_label_charts": 23,
+    "tick_glyph_px_max": 8.13,
+    "texts": 406,
+    "text_ok": 406,
+    "empty_charts": 6,
+    "empty_with_text": 6,
+    "excluded_placeholders_silent": 0,
     "empty_min_font_px": 11,
     "donut_font_px": {
-     "donut": 10.8,
+     "donut": 10.9,
      "donut_one": 10.9,
-     "donut_excluded": 8.2,
-     "donut_9": 10.8,
-     "donut_tiny": 9.3
+     "donut_excluded": 10.9,
+     "donut_long": 10.9,
+     "donut_9": 10.9,
+     "donut_tiny": 10.9
     },
+    "donut_font_min_px": 10.9,
+    "donut_viewbox_widths": [
+     360
+    ],
+    "donut_legend_lines_max": 4,
+    "donut_legend_right_max_px": 348.6,
     "gantt_min_font_px": 8.8,
     "line_bar_min_font_px": 5.5,
     "label_into_timeline": 0,
+    "outside_notes_quoting_window": 0,
+    "note_over_baseline": 0,
+    "baseline_legend_dishonest": 0,
+    "legend_series_silent_nodata": 0,
+    "dots_r_not_positive": 0,
+    "undefined_tokens": 0,
+    "line_stroke_none": 0,
     "min_series_contrast": 4.92
    }
   },
@@ -5521,6 +8659,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 145,
      "viewbox_w": 720,
@@ -5532,6 +8672,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
      "legend_rows": 1,
      "legend_overflow_px": 0,
      "series_line_paths": 4,
@@ -5551,6 +8692,11 @@
       "M6"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "-20 %",
@@ -5579,6 +8725,11 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "1:--chart-1",
@@ -5608,6 +8759,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -5617,8 +8770,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -5631,6 +8785,11 @@
       "0"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -5649,6 +8808,11 @@
      "dot_radii": [
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -5673,6 +8837,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -5684,8 +8850,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 3,
      "series1_segments": 1,
      "zero_line": 0,
@@ -5701,6 +8868,11 @@
       "3"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -5727,12 +8899,108 @@
       3,
       4
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-8",
       "2:--chart-2",
       "3:--chart-3"
      ],
      "custom_titles": 3,
+     "fabricated_1970": 0
+    },
+    "line_r_edge": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "mark_titles": 7,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 2,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 2,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "2",
+      "4",
+      "6"
+     ],
+     "series_dash": [
+      "1:solid",
+      "2:solid"
+     ],
+     "dots_by_series": {
+      "1": 5,
+      "2": 2
+     },
+     "dot_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3,
+      2.5
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2"
+     ],
+     "custom_titles": 0,
      "fabricated_1970": 0
     },
     "line_dates": {
@@ -5755,6 +9023,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -5764,8 +9034,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.63,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -5780,6 +9051,12 @@
       "10 Jun 2026"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 12.000",
@@ -5800,6 +9077,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -5826,6 +9108,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -5835,8 +9119,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.6,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -5850,6 +9135,12 @@
       "01 Feb 2026"
      ],
      "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -5870,6 +9161,455 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_series_nodata": {
+     "painted": 11,
+     "painted_ok": 11,
+     "mismatch": [],
+     "marks": 2,
+     "titles": 2,
+     "mark_titles": 2,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 9,
+     "text_ok": 9,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.6,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Jan 2026",
+      "01 Feb 2026"
+     ],
+     "dropped_x": 2,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0",
+      "1",
+      "2",
+      "3"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 2
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 2,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_daily_31": {
+     "painted": 38,
+     "painted_ok": 38,
+     "mismatch": [],
+     "marks": 31,
+     "titles": 31,
+     "mark_titles": 31,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "05 Sep 2026",
+      "09 Sep 2026",
+      "13 Sep 2026",
+      "17 Sep 2026",
+      "21 Sep 2026",
+      "25 Sep 2026",
+      "01 Okt 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 31
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_weekly_52": {
+     "painted": 15,
+     "painted_ok": 15,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 17,
+     "text_ok": 17,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 3,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 4,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "20 Okt 2026",
+      "08 Des 2026",
+      "26 Jan 2027",
+      "16 Mar 2027",
+      "04 Mei 2027",
+      "22 Jun 2027",
+      "24 Agu 2027"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "0 %",
+      "25 %",
+      "50 %",
+      "75 %",
+      "100 %",
+      "125 %"
+     ],
+     "series_dash": [
+      "1:5 3",
+      "2:solid",
+      "3:2 4"
+     ],
+     "dots_by_series": {
+      "2": 1
+     },
+     "dot_tokens": [
+      "--chart-2"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1",
+      "2:--chart-2",
+      "3:--chart-3"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_monthly_24": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 24,
+     "titles": 24,
+     "mark_titles": 24,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 13,
+     "text_ok": 13,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "30 Nov 2026",
+      "28 Feb 2027",
+      "29 Mei 2027",
+      "27 Agu 2027",
+      "25 Nov 2027",
+      "23 Feb 2028",
+      "22 Jul 2028"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 2.000.000.000",
+      "Rp 4.000.000.000",
+      "Rp 6.000.000.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 24
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
+     "line_tokens": [
+      "1:--chart-1"
+     ],
+     "custom_titles": 0,
+     "fabricated_1970": 0
+    },
+    "line_dates_w358": {
+     "painted": 37,
+     "painted_ok": 37,
+     "mismatch": [],
+     "marks": 30,
+     "titles": 30,
+     "mark_titles": 30,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 8,
+     "text_ok": 8,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 276,
+     "viewbox_w": 358,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.81,
+     "legend_rows": 1,
+     "legend_overflow_px": -2,
+     "series_line_paths": 1,
+     "series1_segments": 1,
+     "zero_line": 0,
+     "clipped_paths": 1,
+     "unclipped_paths": 0,
+     "dots_outside_plot": 0,
+     "dots_marked_outside": 0,
+     "outside_titles": [],
+     "x_labels": [
+      "01 Sep 2026",
+      "11 Sep 2026",
+      "30 Sep 2026"
+     ],
+     "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle",
+      "end"
+     ],
+     "two_digit_year_labels": 0,
+     "y_ticks": [
+      "Rp 0",
+      "Rp 5.000",
+      "Rp 10.000",
+      "Rp 15.000"
+     ],
+     "series_dash": [
+      "1:solid"
+     ],
+     "dots_by_series": {
+      "1": 30
+     },
+     "dot_tokens": [
+      "--chart-1"
+     ],
+     "dot_radii": [
+      3
+     ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -5896,6 +9636,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -5905,8 +9647,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.4,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 1,
      "series1_segments": 1,
      "zero_line": 0,
@@ -5926,6 +9669,11 @@
       "4"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0 %",
@@ -5946,6 +9694,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1"
      ],
@@ -5972,6 +9725,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 12.9,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 64,
      "viewbox_w": 360,
@@ -5979,6 +9734,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "series_line_paths": 0,
      "series1_segments": 0,
      "zero_line": 0,
@@ -5989,12 +9745,20 @@
      "outside_titles": [],
      "x_labels": [],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [],
      "two_digit_year_labels": 0,
      "y_ticks": [],
      "series_dash": [],
      "dots_by_series": {},
      "dot_tokens": [],
      "dot_radii": [],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [],
      "custom_titles": 0,
      "fabricated_1970": 0
@@ -6019,6 +9783,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 161,
      "viewbox_w": 720,
@@ -6035,6 +9801,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
      "legend_rows": 3,
      "legend_overflow_px": 0,
      "series_line_paths": 8,
@@ -6050,6 +9817,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "Rp 0",
@@ -6091,6 +9863,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -6124,6 +9901,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 182,
      "viewbox_w": 720,
@@ -6140,6 +9919,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.8,
      "legend_rows": 3,
      "legend_overflow_px": -4,
      "zero_line": 0,
@@ -6151,7 +9931,14 @@
       "C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "A",
+      "B",
+      "C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar": {
      "painted": 16,
@@ -6173,6 +9960,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 158,
      "viewbox_w": 720,
@@ -6183,8 +9972,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.42,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6,
      "zero_line": 1,
      "bars": 7,
      "bar_min_thickness": 58.58,
@@ -6195,7 +9985,15 @@
       "Apr"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_stacked": {
      "painted": 20,
@@ -6217,6 +10015,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 158,
      "viewbox_w": 720,
@@ -6228,8 +10028,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6,
      "zero_line": 1,
      "bars": 9,
      "bar_min_thickness": 132.6,
@@ -6239,7 +10040,14 @@
       "Proyek C"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_horizontal": {
      "painted": 8,
@@ -6261,6 +10069,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 57,
      "viewbox_w": 720,
@@ -6270,17 +10080,76 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.03,
      "zero_line": 0,
      "bars": 3,
      "bar_min_thickness": 17.72,
      "category_labels": [
+      "Gudang Utama Jakarta Selatan",
+      "Gudang 2",
+      "Gudang 3"
+     ],
+     "truncated_labels": 0,
+     "x_labels": [
       "0",
       "10",
       "20",
       "30"
      ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
+    },
+    "bar_horizontal_rp": {
+     "painted": 9,
+     "painted_ok": 9,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 57,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.65,
+     "zero_line": 0,
+     "bars": 3,
+     "bar_min_thickness": 17.72,
+     "category_labels": [
+      "Proyek A",
+      "Proyek B",
+      "Proyek C"
+     ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Rp 0,00",
+      "Rp 500.000.000,00",
+      "Rp 1.000.000.000,00",
+      "Rp 2.000.000.000,00"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_empty": {
      "painted": 0,
@@ -6302,6 +10171,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 12.9,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 64,
      "viewbox_w": 360,
@@ -6309,12 +10180,16 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "zero_line": 0,
      "bars": 0,
      "bar_min_thickness": null,
      "category_labels": [],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_months": {
      "painted": 17,
@@ -6325,8 +10200,8 @@
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 16,
-     "text_ok": 16,
+     "texts": 11,
+     "text_ok": 11,
      "fonts": [
       "-apple-system"
      ],
@@ -6336,6 +10211,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 150,
      "viewbox_w": 720,
@@ -6345,25 +10222,32 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.37,
      "zero_line": 0,
      "bars": 12,
      "bar_min_thickness": 39.08,
      "category_labels": [
       "Januari",
-      "Februari",
       "Maret",
-      "April",
       "Mei",
-      "Juni",
       "Juli",
-      "Agustus",
       "September",
-      "Oktober",
       "November",
       "Desember"
      ],
      "truncated_labels": 0,
-     "label_overlaps": 0
+     "x_labels": [
+      "Januari",
+      "Maret",
+      "Mei",
+      "Juli",
+      "September",
+      "November",
+      "Desember"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "bar_dense": {
      "painted": 612,
@@ -6385,6 +10269,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 158,
      "viewbox_w": 720,
@@ -6399,8 +10285,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 8.13,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -6,
      "zero_line": 0,
      "bars": 600,
      "bar_min_thickness": 0.64,
@@ -6420,7 +10307,24 @@
       "K1…"
      ],
      "truncated_labels": 1,
-     "label_overlaps": 0
+     "x_labels": [
+      "K1",
+      "K9",
+      "K17",
+      "K25",
+      "K33",
+      "K41",
+      "K49",
+      "K57",
+      "K65",
+      "K73",
+      "K81",
+      "K89",
+      "K1…"
+     ],
+     "label_overlaps": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0
     },
     "donut": {
      "painted": 7,
@@ -6442,10 +10346,12 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 197,
-     "viewbox_w": 363.6000061035156,
-     "rendered_font_px": 10.8,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-1",
       "--chart-2",
@@ -6454,8 +10360,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 4,
-     "legend_overflow_px": -66,
+     "legend_overflow_px": -68,
      "full_ring": 0,
      "legend_items": [
       "Disetujui — 60 (60 %)",
@@ -6464,6 +10371,8 @@
       "Draf — 0 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 348.6,
      "slice_lengths": [
       583.8,
       319.9,
@@ -6491,6 +10400,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 199,
      "viewbox_w": 360,
@@ -6500,13 +10411,16 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 1,
-     "legend_overflow_px": -93,
+     "legend_overflow_px": -95,
      "full_ring": 1,
      "legend_items": [
       "Semua — 5 (100 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 331.5,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -6530,17 +10444,20 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 149,
-     "viewbox_w": 481.20001220703125,
-     "rendered_font_px": 8.2,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-2"
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 3,
-     "legend_overflow_px": -75,
+     "legend_overflow_px": -56,
      "full_ring": 1,
      "legend_items": [
       "Retur — -5 (bukan bagian dari keseluruhan)",
@@ -6548,6 +10465,8 @@
       "Tak terukur — ? (tidak dihitung)"
      ],
      "legend_excluded": 2,
+     "legend_lines_max": 3,
+     "legend_right_px": 338.8,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
     },
@@ -6571,6 +10490,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 13,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 360,
      "height": 64,
      "viewbox_w": 360,
@@ -6578,11 +10499,104 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "full_ring": 0,
      "legend_items": [],
      "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
      "slice_lengths": [],
      "biggest_slice_is_ring": null
+    },
+    "donut_all_excluded": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "mark_titles": 0,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 2,
+     "text_ok": 2,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data yang bisa dihitung",
+     "empty_font_px": 13,
+     "empty_sub": "4 baris tidak digambar: 1 bernilai 0, 1 negatif, 2 tak terukur",
+     "excluded_rows": 4,
+     "width": 360,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 4.58,
+     "full_ring": 0,
+     "legend_items": [],
+     "legend_excluded": 0,
+     "legend_lines_max": 0,
+     "legend_right_px": 0,
+     "slice_lengths": [],
+     "biggest_slice_is_ring": null
+    },
+    "donut_long": {
+     "painted": 6,
+     "painted_ok": 6,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "mark_titles": 3,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 3,
+     "text_ok": 3,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 358,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
+     "legend_rows": 3,
+     "legend_overflow_px": -42,
+     "full_ring": 0,
+     "legend_items": [
+      "Kategori dengan nama yang sangat panjang sekali sekali — 1 (0 %)",
+      "B — 2 (0 %)",
+      "Rp 10 M — 10.000.000.000 (100 %)"
+     ],
+     "legend_excluded": 0,
+     "legend_lines_max": 4,
+     "legend_right_px": 344.1,
+     "slice_lengths": [
+      56,
+      56,
+      935.8
+     ],
+     "biggest_slice_is_ring": true
     },
     "donut_9": {
      "painted": 18,
@@ -6604,10 +10618,12 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 197,
-     "viewbox_w": 363.6000061035156,
-     "rendered_font_px": 10.8,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-1",
       "--chart-2",
@@ -6620,8 +10636,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 9,
-     "legend_overflow_px": -21,
+     "legend_overflow_px": -23,
      "full_ring": 0,
      "legend_items": [
       "Bagian 1 — 1 (2,2 %)",
@@ -6635,6 +10652,8 @@
       "Bagian 9 — 9 (20 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 1,
+     "legend_right_px": 343.1,
      "slice_lengths": [
       75.5,
       95.1,
@@ -6668,6 +10687,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 137,
      "viewbox_w": 720,
@@ -6684,8 +10705,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.09,
      "legend_rows": 1,
-     "legend_overflow_px": 0,
+     "legend_overflow_px": -2,
      "series_line_paths": 9,
      "series1_segments": 1,
      "zero_line": 0,
@@ -6699,6 +10721,11 @@
       "1"
      ],
      "dropped_x": 0,
+     "x_label_overlaps": 0,
+     "x_label_max_overlap_px": 0,
+     "x_label_anchors": [
+      "middle"
+     ],
      "two_digit_year_labels": 0,
      "y_ticks": [
       "0",
@@ -6742,6 +10769,11 @@
      "dot_radii": [
       3
      ],
+     "legend_series_silent_nodata": 0,
+     "legend_nodata": 0,
+     "dots_r_not_positive": 0,
+     "undefined_tokens": 0,
+     "line_stroke_none": 0,
      "line_tokens": [
       "1:--chart-1",
       "2:--chart-2",
@@ -6776,24 +10808,29 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
-     "height": 168,
-     "viewbox_w": 425.20001220703125,
-     "rendered_font_px": 9.3,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
      "series_tokens": [
       "--chart-1",
       "--chart-2"
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "legend_rows": 2,
-     "legend_overflow_px": -84,
+     "legend_overflow_px": -65,
      "full_ring": 0,
      "legend_items": [
       "Rp 10 M — 10.000.000.000 (100 %)",
       "Rp 100 rb — 100.000 (0 %)"
      ],
      "legend_excluded": 0,
+     "legend_lines_max": 3,
+     "legend_right_px": 337,
      "slice_lengths": [
       935.8,
       56
@@ -6816,6 +10853,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -6824,7 +10863,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_single": {
      "painted": 1,
@@ -6842,6 +10882,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
@@ -6850,7 +10892,8 @@
       "--chart-1"
      ],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "spark_empty": {
      "painted": 0,
@@ -6872,13 +10915,16 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 11,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 120,
      "height": 32,
      "viewbox_w": 120,
      "rendered_font_px": 11,
      "series_tokens": [],
      "outside_viewbox": 0,
-     "outside_viewbox_sample": []
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null
     },
     "gantt_week": {
      "painted": 52,
@@ -6900,6 +10946,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
      "height": 286,
      "viewbox_w": 900,
@@ -6909,6 +10957,7 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.89,
      "legend_rows": 1,
      "legend_overflow_px": -4,
      "today_lines": 1,
@@ -6929,6 +10978,8 @@
       "gantt-nodate: tanpa tanggal",
       "gantt-outside: di luar rentang (20 Okt 2026 – 30 Nov 2026)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -6940,12 +10991,17 @@
       "Struktur atas: 01 Okt 2026 – 30 Okt 2026 · 0 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (20 Okt 2026 – 30 Nov 2026)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -6973,6 +11029,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
      "height": 274,
      "viewbox_w": 900,
@@ -6982,8 +11040,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 6.76,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.5,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -7001,6 +11060,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -7013,12 +11074,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -7046,6 +11110,8 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
      "height": 274,
      "viewbox_w": 900,
@@ -7055,8 +11121,9 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.92,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.5,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 30,
@@ -7074,6 +11141,8 @@
      "row_notes": [
       "gantt-nodate: tanpa tanggal"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [
       "Persiapan: 24 Agu 2026 – 04 Sep 2026 · 100 %",
       "Mobilisasi alat: 26 Agu 2026 – 01 Sep 2026 · 100 %",
@@ -7086,12 +11155,15 @@
       "Finishing: 20 Okt 2026 – 30 Nov 2026"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
       "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -7119,6 +11191,8 @@
      "empty": true,
      "empty_text": "Belum ada data",
      "empty_font_px": 12.9,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 358,
      "height": 64,
      "viewbox_w": 360,
@@ -7126,6 +11200,7 @@
      "series_tokens": [],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": null,
      "today_lines": 0,
      "today_label": null,
      "weekend_rects": 0,
@@ -7138,9 +11213,14 @@
      "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
      "bar_titles": [],
      "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
      "legend_items": [],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 358,
@@ -7149,16 +11229,16 @@
      "min_width": ""
     },
     "gantt_invalid": {
-     "painted": 28,
-     "painted_ok": 28,
+     "painted": 38,
+     "painted_ok": 38,
      "mismatch": [],
-     "marks": 4,
-     "titles": 4,
-     "mark_titles": 4,
+     "marks": 7,
+     "titles": 8,
+     "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 17,
-     "text_ok": 17,
+     "texts": 29,
+     "text_ok": 29,
      "fonts": [
       "-apple-system"
      ],
@@ -7168,8 +11248,10 @@
      "empty": false,
      "empty_text": null,
      "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
      "width": 720,
-     "height": 206,
+     "height": 341,
      "viewbox_w": 900,
      "rendered_font_px": 8.8,
      "series_tokens": [
@@ -7177,36 +11259,119 @@
      ],
      "outside_viewbox": 0,
      "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.89,
      "legend_rows": 1,
-     "legend_overflow_px": -4,
+     "legend_overflow_px": -5.5,
      "today_lines": 1,
      "today_label": "Hari ini",
      "weekend_rects": 4,
      "ticks": 4,
      "tick_labels": 3,
-     "rows": 7,
-     "bars": 4,
-     "baselines": 0,
-     "truncated_labels": 0,
-     "truncated_with_full_title": 0,
+     "rows": 13,
+     "bars": 5,
+     "baselines": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
       "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
-      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)"
+      "gantt-outside: di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "gantt-outside: selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "gantt-outside: mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)",
+      "gantt-invalid: tanggal tidak valid: start \"abc\", end \"2026-13-45\"",
+      "gantt-nodate: tanpa tanggal",
+      "gantt-nodate: tanpa tanggal · baseline tidak valid (selesai sebelum mulai)"
      ],
+     "note_over_baseline": 0,
+     "baseline_notes": 1,
      "bar_titles": [
       "Progres 700 %: 01 Sep 2026 – 20 Sep 2026 · progres 700 % (di luar 0–100 %)",
       "Progres negatif: 01 Sep 2026 – 20 Sep 2026 · progres -100 % (di luar 0–100 %)",
+      "Baseline di luar rentang: 02 Sep 2026 – 10 Sep 2026",
       "Baseline terbalik: 03 Sep 2026 – 12 Sep 2026 · baseline tidak valid (selesai sebelum mulai)",
       "Benar: 02 Sep 2026 – 10 Sep 2026 · 50 %"
      ],
      "fabricated_dates": 0,
+     "outside_notes": [
+      "di luar rentang (01 Jan 2026 – 10 Jan 2026)",
+      "selesai 10 Jan 2026, sebelum rentang (mulai belum ditetapkan)",
+      "mulai 01 Jan 2027, setelah rentang (selesai belum ditetapkan)"
+     ],
+     "outside_notes_quoting_window": 0,
      "legend_items": [
       "Aktual",
       "Progres",
+      "Baseline",
       "Hari ini"
      ],
+     "baseline_legend_dishonest": 0,
+     "baseline_before_actual": false,
+     "label_into_timeline": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_baseline_outside": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "mark_titles": 1,
+     "stray_titles": 0,
+     "neg_dims": 0,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "empty_font_px": null,
+     "empty_sub": null,
+     "excluded_rows": null,
+     "width": 720,
+     "height": 72,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "outside_viewbox": 0,
+     "outside_viewbox_sample": [],
+     "tick_glyph_px_max": 5.9,
+     "legend_rows": 1,
+     "legend_overflow_px": -5.5,
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 4,
+     "ticks": 4,
+     "tick_labels": 3,
+     "rows": 1,
+     "bars": 1,
+     "baselines": 0,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
+     "open_titles": [],
+     "row_notes": [],
+     "note_over_baseline": 0,
+     "baseline_notes": 0,
+     "bar_titles": [
+      "Benar, baseline Januari: 02 Sep 2026 – 10 Sep 2026"
+     ],
+     "fabricated_dates": 0,
+     "outside_notes": [],
+     "outside_notes_quoting_window": 0,
+     "legend_items": [
+      "Aktual",
+      "Hari ini"
+     ],
+     "baseline_legend_dishonest": 0,
      "baseline_before_actual": true,
      "label_into_timeline": 0,
      "scroll_width": 720,
@@ -7216,12 +11381,12 @@
     }
    },
    "summary": {
-    "charts": 30,
-    "painted": 1178,
+    "charts": 40,
+    "painted": 1367,
     "mismatches": 0,
-    "marks": 779,
-    "titles": 785,
-    "mark_titles": 779,
+    "marks": 884,
+    "titles": 891,
+    "mark_titles": 884,
     "titles_equal_marks": true,
     "stray_titles": 0,
     "neg_dims": 0,
@@ -7229,21 +11394,40 @@
     "dots_outside_plot": 0,
     "unclipped_paths": 0,
     "legend_overflow_max_px": 0,
-    "texts": 309,
-    "text_ok": 309,
-    "empty_charts": 5,
-    "empty_with_text": 5,
+    "x_label_overlaps": 0,
+    "x_label_max_overlap_px": 0,
+    "x_label_charts": 23,
+    "tick_glyph_px_max": 8.13,
+    "texts": 406,
+    "text_ok": 406,
+    "empty_charts": 6,
+    "empty_with_text": 6,
+    "excluded_placeholders_silent": 0,
     "empty_min_font_px": 11,
     "donut_font_px": {
-     "donut": 10.8,
+     "donut": 10.9,
      "donut_one": 10.9,
-     "donut_excluded": 8.2,
-     "donut_9": 10.8,
-     "donut_tiny": 9.3
+     "donut_excluded": 10.9,
+     "donut_long": 10.9,
+     "donut_9": 10.9,
+     "donut_tiny": 10.9
     },
+    "donut_font_min_px": 10.9,
+    "donut_viewbox_widths": [
+     360
+    ],
+    "donut_legend_lines_max": 4,
+    "donut_legend_right_max_px": 348.6,
     "gantt_min_font_px": 8.8,
     "line_bar_min_font_px": 5.5,
     "label_into_timeline": 0,
+    "outside_notes_quoting_window": 0,
+    "note_over_baseline": 0,
+    "baseline_legend_dishonest": 0,
+    "legend_series_silent_nodata": 0,
+    "dots_r_not_positive": 0,
+    "undefined_tokens": 0,
+    "line_stroke_none": 0,
     "min_series_contrast": 5.41
    }
   },
@@ -7342,7 +11526,7 @@
    "width": 390,
    "height": 844
   },
-  "_ms": 4044,
+  "_ms": 4467,
   "_clicks": 0
  }
 }
