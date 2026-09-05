@@ -5404,6 +5404,32 @@ export const RESOURCES = {
     ],
   },
 
+  /* P-0b — tabel failed_jobs Laravel dari layar. Baca-saja + dua kata kerja:
+     Kirim ulang (queue:retry di server) dan Hapus (tombol generik daftar,
+     core.delete — cermin rutenya). Kunci dengan dua garis miring sengaja:
+     r/core/queue/failed → RESOURCES['core/queue/failed'], api core/queue/failed. */
+  'core/queue/failed': {
+    module: 'core', api: 'core/queue/failed', label: 'Antrean Gagal', labelOne: 'Job gagal',
+    viewPerm: 'core.update',
+    canCreate: false, canEdit: false,
+    deleteLabel: 'Hapus catatan',
+    deleteConfirm: 'Hapus catatan job gagal ini? Job-nya TIDAK dijalankan ulang — pakai "Kirim ulang" bila pekerjaannya masih harus terjadi.',
+    columns: [
+      { key: 'failed_at', label: 'Gagal pada', type: 'datetime', width: '1%' },
+      { key: 'job', label: 'Job', type: 'text', sub: 'queue' },
+      { key: 'exception_excerpt', label: 'Pengecualian (baris pertama)', type: 'text' },
+      { key: 'uuid', label: 'UUID', type: 'code', width: '1%', hideOnNarrow: true },
+    ],
+    actions: [
+      {
+        key: 'retry', label: 'Kirim ulang', path: '{id}/retry', method: 'POST', variant: 'primary',
+        perm: 'core.update',
+        confirm: (row) => `Kembalikan job ${row.job || row.uuid} ke antrean? Pekerja akan mencobanya lagi dari awal; catatan gagal ini dihapus.`,
+        toast: () => 'Job dikembalikan ke antrean; pekerja akan mencobanya lagi.',
+      },
+    ],
+  },
+
   'core/method-library': {
     module: 'est', api: 'core/method-library',
     label: 'Pustaka Metode Kerja', labelOne: 'Metode Kerja',
@@ -6013,6 +6039,7 @@ export const NAV = [
       // P-0b: kotak keluar e-mail — pasangan sakelar "Kirim juga lewat email"
       // di Pengaturan, jadi bergerbang orang yang sama (core.update).
       { label: 'Pengiriman Notifikasi', route: 'r/core/notification-deliveries', perm: 'core.update' },
+      { label: 'Antrean Gagal', route: 'r/core/queue/failed', perm: 'core.update' },
     ],
   },
 ];

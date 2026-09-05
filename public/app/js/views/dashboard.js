@@ -60,26 +60,47 @@ function miniTable(columns, rows, onRowClick) {
    ini tidak menahan kartu lain: slot kosong dulu, spanduk menyusul. */
 function schedulerBanner() {
   const slot = el('div');
-  const show = (text) => {
-    slot.appendChild(el('.alert.warn', { style: { marginBottom: '14px' } }, [
+  const show = (text, { tone = 'warn', links = [] } = {}) => {
+    slot.appendChild(el(`.alert.${tone}`, { style: { marginBottom: '14px' } }, [
       icon('warn', 16),
-      el('div', { text }),
+      el('div', [
+        el('span', { text }),
+        ...links.map(({ label, route }) => button(label, {
+          size: 'sm', variant: 'ghost', onClick: () => navigate(route),
+        })),
+      ]),
     ]));
   };
+  // null = tidak diketahui → `?`, tidak pernah 0.
+  const count = (value) => (value === null || value === undefined ? '?' : String(value));
 
   api.get('core/health').then((health) => {
     const status = health ? health.scheduler_status : null;
-    if (status === 'ok') return;
     if (status === 'stale') {
       show(`Penjadwal tidak berjalan sejak ${fmt.dateTime(health.scheduler_heartbeat_at)} — akrual alat, jadwal PM, `
         + 'pengawas tenggat dan alarm cadangan berhenti. Periksa "systemctl status erp1-scheduler" di server.');
-      return;
+    } else if (status !== 'ok') {
+      show('Penjadwal belum pernah melapor (detak jantung: ?) — tidak dapat dipastikan ia berjalan. '
+        + 'Periksa "systemctl status erp1-scheduler" di server.');
     }
-    show('Penjadwal belum pernah melapor (detak jantung: ?) — tidak dapat dipastikan ia berjalan. '
-      + 'Periksa "systemctl status erp1-scheduler" di server.');
+
+    /* Antrean (T0b.3/T0b.4): job gagal dan pengiriman yang > 1 jam masih antre
+       menunjuk ke layarnya. Bukan spanduk peringatan — keadaan yang bisa
+       diselesaikan dari aplikasi, dan tautannya ada di kalimatnya. */
+    const failed = health ? health.failed_jobs_count : null;
+    const stuck = health ? health.queued_deliveries_older_than_1h : null;
+    if ((failed ?? 0) > 0 || (stuck ?? 0) > 0 || failed === null || stuck === null) {
+      show(`Antrean: ${count(failed)} job gagal · ${count(stuck)} pengiriman notifikasi antre lebih dari 1 jam.`, {
+        tone: 'info',
+        links: [
+          { label: 'Antrean Gagal', route: 'r/core/queue/failed' },
+          { label: 'Pengiriman Notifikasi', route: 'r/core/notification-deliveries' },
+        ],
+      });
+    }
   }).catch((error) => {
     console.error('Dasbor: core/health gagal dimuat', error);
-    show('Status penjadwal tidak dapat diperiksa (?) — GET core/health gagal.');
+    show('Status penjadwal dan antrean tidak dapat diperiksa (?) — GET core/health gagal.');
   });
 
   return slot;

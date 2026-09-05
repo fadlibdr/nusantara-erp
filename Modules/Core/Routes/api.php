@@ -19,6 +19,7 @@ use Modules\Core\Http\Controllers\MethodLibraryController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
+use Modules\Core\Http\Controllers\QueueFailedJobController;
 use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
@@ -77,6 +78,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('notification-deliveries', [NotificationDeliveryController::class, 'index'])->middleware('permission:core.update');
     Route::get('notification-deliveries/{notificationDelivery}', [NotificationDeliveryController::class, 'show'])->middleware('permission:core.update');
     Route::post('notification-deliveries/{notificationDelivery}/retry', [NotificationDeliveryController::class, 'retry'])->middleware('permission:core.update');
+
+    // P-0b: tabel failed_jobs dari layar (Sistem › Antrean Gagal). Hapus
+    // bergerbang core.delete, cermin tombol hapus generik daftar SPA.
+    Route::get('queue/failed', [QueueFailedJobController::class, 'index'])->middleware('permission:core.update');
+    Route::get('queue/failed/{failedJob}', [QueueFailedJobController::class, 'show'])->middleware('permission:core.update');
+    Route::post('queue/failed/{failedJob}/retry', [QueueFailedJobController::class, 'retry'])->middleware('permission:core.update');
+    Route::delete('queue/failed/{failedJob}', [QueueFailedJobController::class, 'destroy'])->middleware('permission:core.delete');
 
     // Attachments. No route-level permission: the required one depends on which
     // document the file hangs off, so the controller derives it per request.
