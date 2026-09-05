@@ -69,7 +69,8 @@
        7 Layanan (svc)                                   — tiket & kontrak layanan
        8 Sistem (iam) · Mutu (qc) · Engineering (eng) · Ringkasan — fungsi penunjang, slot netral
      Hubungan dengan grafik: --accent-n memakai SUDUT HUE Lab yang sama dengan --chart-n
-     (toleransi ±12°; slot 1 = --primary = --chart-1 persis), hanya L dan C yang digeser sampai
+     (toleransi ±12° — terukur maks 11,8° slot 6 terang, 7,3° slot 8 gelap, S21 hue_delta; slot 1 =
+     --primary = --chart-1 persis), hanya L dan C yang digeser sampai
      setiap pasangan slot berjarak ≥ 20 ΔE2000 — palet grafik apa adanya gagal (terang 2–6 = 10,2;
      gelap 1–8 = 13,8). Dihitung 5 Sep 2026 (CIEDE2000 di Lab, luminansi relatif WCAG; skrip
      optimize2.py/finalize.py di scratch P1-B; harness S21 mengukur nilai terkomputasi yang hidup).
@@ -171,19 +172,21 @@
     --chart-weekend: #212832;
     --chart-baseline: #4b5563;
     /* Aksen modul, tema GELAP — hue sama dengan --chart-n gelap (slot 1 = --primary gelap persis).
-       ΔE2000 antar slot, minimum 20,5 (1–8 dan 4–8):
+       Slot 8 gelap digeser 5 Sep 2026 (verifikasi P1-B): #a4a8b7 berjarak hue 14,3°
+       dari --chart-8 gelap, melanggar toleransi ±12° yang diklaim; #afb3bc = 7,3° (L 72,9,
+       C 5,1), dan minimum matriks naik dari 20,5 ke 20,9. ΔE2000 antar slot, minimum 20,9 (1–4):
               1     2     3     4     5     6     7     8
-         1    —  50,5  53,2  20,9  28,7  40,9  62,7  20,5
-         2 50,5     —  53,3  50,5  50,2  23,4  24,2  33,0
-         3 53,2  53,3     —  54,1  35,6  71,4  34,7  34,5
-         4 20,9  50,5  54,1     —  40,8  32,5  69,8  20,5
-         5 28,7  50,2  35,6  40,8     —  70,0  48,9  25,5
+         1    —  50,5  53,2  20,9  28,7  40,9  62,7  22,5
+         2 50,5     —  53,3  50,5  50,2  23,4  24,2  31,1
+         3 53,2  53,3     —  54,1  35,6  71,4  34,7  31,6
+         4 20,9  50,5  54,1     —  40,8  32,5  69,8  21,7
+         5 28,7  50,2  35,6  40,8     —  70,0  48,9  23,5
          6 40,9  23,4  71,4  32,5  70,0     —  45,9  29,0
-         7 62,7  24,2  34,7  69,8  48,9  45,9     —  38,8
-         8 20,5  33,0  34,5  20,5  25,5  29,0  38,8     —
+         7 62,7  24,2  34,7  69,8  48,9  45,9     —  35,0
+         8 22,5  31,1  31,6  21,7  23,5  29,0  35,0     —
        Kontras (aksen di --surface #151a21 / -fg #0d1117 di aksen / aksen di -soft):
          1 5,41/5,86/4,82 · 2 7,61/8,24/6,71 · 3 10,29/11,15/9,19 · 4 6,29/6,81/5,62 ·
-         5 9,74/10,54/8,59 · 6 6,27/6,79/5,56 · 7 11,53/12,48/10,20 · 8 7,38/7,99/6,58 */
+         5 9,74/10,54/8,59 · 6 6,27/6,79/5,56 · 7 11,53/12,48/10,20 · 8 8,32/9,01/7,42 */
     --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117;
     --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
     --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117;
@@ -191,7 +194,7 @@
     --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117;
     --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
     --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117;
-    --accent-8: #a4a8b7; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
+    --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
   }
 }
 
@@ -234,7 +237,7 @@
   --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117; --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
   --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117; --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
   --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117; --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
-  --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117; --accent-8: #a4a8b7; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
+  --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117; --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
 }
 
 /* ------------------------------------------------------------------ base */

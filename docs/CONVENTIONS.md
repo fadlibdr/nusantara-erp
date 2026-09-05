@@ -277,7 +277,8 @@ NAV (bukan grup baru):
 (toleransi ±12°), hanya L dan C yang digeser sampai semua pasangan slot berjarak **≥ 20 ΔE2000**
 — palet grafik apa adanya gagal (terang 2–6 = 10,2; gelap 1–8 = 13,8). Terukur 5 Sep 2026
 (CIEDE2000 di Lab; skrip turunan di scratch P1-B, matriks lengkap di komentar token app.css):
-minimum antar slot **20,1 terang / 20,5 gelap**; kontras WCAG aksen di `--surface` ≥ **5,20** terang /
+minimum antar slot **20,1 terang / 20,9 gelap** (hue vs `--chart-n` maks 11,8° terang / 7,3° gelap);
+kontras WCAG aksen di `--surface` ≥ **5,20** terang /
 **5,41** gelap (batas 3:1, dipasang ≥ 4,5 karena aksen dipakai sebagai teks remah), `-fg` di aksen
 ≥ 5,20 / 5,86, aksen di `-soft` ≥ 4,62 / 4,82. Harness **S21** mengukur nilai yang hidup di
 halaman (kedua tema, desktop + ponsel) dan menulisnya ke `results-phase-1.json`; uji

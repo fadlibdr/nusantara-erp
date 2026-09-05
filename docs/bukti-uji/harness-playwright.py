@@ -1491,7 +1491,7 @@ def rgb_to_hex(css):
 
 ACCENT_TOKENS = """() => { const r=getComputedStyle(document.documentElement); const v=(n)=>r.getPropertyValue(n).trim();
     const out={ theme: document.documentElement.dataset.theme || 'system', surface: v('--surface'), tokens: {} };
-    for (let n=1;n<=8;n++) out.tokens[n] = { accent: v('--accent-'+n), soft: v('--accent-'+n+'-soft'), fg: v('--accent-'+n+'-fg') };
+    for (let n=1;n<=8;n++) out.tokens[n] = { accent: v('--accent-'+n), soft: v('--accent-'+n+'-soft'), fg: v('--accent-'+n+'-fg'), chart: v('--chart-'+n) };
     return out }"""
 
 ACTIVE_MARKER = """() => { const g=document.querySelector('nav.nav .nav-group.has-active'); const b=g&&g.querySelector('button');
@@ -1565,8 +1565,13 @@ def accent_matrix(tokens_out):
     t = tokens_out["tokens"]; surface = tokens_out["surface"]
     pairs = {f"{i}-{j}": de2000(t[str(i)]["accent"], t[str(j)]["accent"]) for i in range(1, 9) for j in range(i + 1, 9)}
     contrast = {n: {"on_surface": wcag(t[n]["accent"], surface), "fg_on_accent": wcag(t[n]["fg"], t[n]["accent"]), "on_soft": wcag(t[n]["accent"], t[n]["soft"])} for n in t}
+    # Sudut hue Lab aksen vs --chart-n yang hidup — klaim app.css "±12°" diukur, bukan dipercaya
+    # (verifikasi P1-B 5 Sep 2026: slot 8 gelap 14,3° sebelum digeser).
+    hue = lambda h: (lambda L, a, b: __import__("math").degrees(__import__("math").atan2(b, a)) % 360)(*_lab(h))
+    hue_delta = {n: round(min(abs(hue(t[n]["accent"]) - hue(t[n]["chart"])) % 360, 360 - abs(hue(t[n]["accent"]) - hue(t[n]["chart"])) % 360), 1) for n in t}
     return {"theme": tokens_out["theme"], "surface": surface, "tokens": t, "pairs": pairs, "min_pair_de": min(pairs.values()),
             "min_pair": min(pairs, key=pairs.get), "contrast": contrast,
+            "hue_delta": hue_delta, "max_hue_delta": max(hue_delta.values()), "all_hue_within_12": all(v <= 12 for v in hue_delta.values()),
             "min_on_surface": min(c["on_surface"] for c in contrast.values()), "min_fg_on_accent": min(c["fg_on_accent"] for c in contrast.values()),
             "min_on_soft": min(c["on_soft"] for c in contrast.values()),
             "all_pairs_ge_20": all(v >= 20 for v in pairs.values()),
