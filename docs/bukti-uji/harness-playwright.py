@@ -1233,7 +1233,10 @@ CHART_MEASURE = """(theme) => {
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
       empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length,
       // Placeholder harus tetap terbaca di ponsel: viewBox 720/900 menyusutkan teksnya ke 5,5/4,4 px (diukur 5 Sep 2026).
-      empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)), min_series_contrast: Math.min(...Object.values(contrast)) } };
+      empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)),
+      // Donat: ukuran huruf tidak boleh bergantung pada panjang label (donut 4 irisan vs donut_one vs donut_tiny).
+      donut_font_px: Object.fromEntries(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([n, c]) => [n, c.rendered_font_px])),
+      min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 
 def chart_tokens(pg, tag):

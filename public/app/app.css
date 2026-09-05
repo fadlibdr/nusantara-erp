@@ -950,9 +950,11 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .chart-lib .chart-center { font-size: 18px; font-weight: 600; }
 .chart-lib .gantt-label { font-size: 11.5px; }
 .chart-lib .mark { cursor: default; }
-/* Donat tidak perlu selebar kartu: 100 % dari 560 px viewBox sudah cincin
-   sebesar piring. */
-.chart-donut { max-width: 560px; }
+/* Donat berukuran intrinsik (atribut width/height dari charts.js, 360–560 px):
+   tipografinya 11 px apa pun panjang labelnya, dan hanya menyusut bila wadahnya
+   lebih sempit (ponsel). Sebelumnya viewBox 360 direntang ke max-width 560 px
+   → teks 17 px / angka tengah 28 px untuk label pendek (diukur 5 Sep 2026). */
+.chart-donut { width: auto; height: auto; max-width: 100%; }
 /* Sparkline: ukuran dari atribut width/height-nya (120×32 bawaan), sebaris
    dengan angka di sel/ubin — bukan 100 % lebar seperti .chart. */
 .chart-spark { width: auto; height: auto; display: inline-block; vertical-align: middle; }

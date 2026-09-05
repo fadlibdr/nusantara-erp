@@ -187,7 +187,7 @@ function placeholder(kind, ariaLabel, { width = 360, height = 64, fit = true, me
   const svg = frame(kind, width, height, ariaLabel);
   svg.classList.add('is-empty');
   svg.dataset.empty = 'true';
-  if (fit) svg.style.maxWidth = `${width}px`;
+  if (fit) { svg.setAttribute('width', width); svg.setAttribute('height', height); svg.style.maxWidth = `${width}px`; }
   svg.appendChild(make('text', { class: 'chart-empty', x: width / 2, y: height / 2 + FONT / 3, 'text-anchor': 'middle' }, message));
   return svg;
 }
@@ -531,6 +531,12 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   if (!drawn.length) return placeholder('donut', ariaLabel);
 
   const svg = frame('donut', W, H, ariaLabel);
+  /* Ukuran intrinsik (atribut width/height + .chart-donut { width: auto; max-width: 100% }):
+     viewBox 360 yang direntang ke 560 px membuat teks 11 px jadi 17 px dan angka tengah 28 px
+     hanya karena labelnya pendek — dua donat di satu dasbor berbeda ukuran huruf (diukur
+     5 Sep 2026). Kini 1 viewBox px = 1 px kecuali wadahnya lebih sempit. */
+  svg.setAttribute('width', round(W));
+  svg.setAttribute('height', round(H));
   const cx = 100;
   const cy = Math.max(100, (H - noteH) / 2);
   const R = 84;
