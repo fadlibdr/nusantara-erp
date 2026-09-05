@@ -87,7 +87,7 @@ class MysqlPreflightCommand extends Command
             'database' => [
                 'driver' => DB::getDriverName(),
                 'name' => DB::connection()->getDatabaseName(),
-                'tables' => count(Schema::getTables()),
+                'tables' => count($this->tables()),
             ],
             'decimals' => $decimals,
             'json' => $json,
@@ -122,7 +122,7 @@ class MysqlPreflightCommand extends Command
         $overflowRows = 0;
         $floatColumns = [];
 
-        foreach (Schema::getTables() as $table) {
+        foreach ($this->tables() as $table) {
             $name = $table['name'];
 
             try {
@@ -247,7 +247,7 @@ class MysqlPreflightCommand extends Command
         $columns = 0;
         $invalidRows = 0;
 
-        $tables = collect(Schema::getTables())->pluck('name')->all();
+        $tables = collect($this->tables())->pluck('name')->all();
 
         foreach ($tables as $name) {
             try {
@@ -512,6 +512,20 @@ class MysqlPreflightCommand extends Command
     // ------------------------------------------------------------------
     // output & helpers
     // ------------------------------------------------------------------
+
+    /**
+     * The tables of the CURRENT schema only. Schema::getTables() on MySQL lists
+     * every schema the account can see — with grants on erp, erp_test and
+     * erp_scratch that is three copies of the ERP, and the audit counted 380
+     * tables for a 190-table database (measured 5 Sep 2026). SQLite's current
+     * schema is `main`, so the same call is exact there too.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function tables(): array
+    {
+        return Schema::getTables(Schema::getCurrentSchemaName());
+    }
 
     /**
      * @param  array<string, mixed>  $report

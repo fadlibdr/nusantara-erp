@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\ErpTestCase;
 
 /**
@@ -50,6 +51,13 @@ class MysqlPreflightCommandTest extends ErpTestCase
         // would also report zero findings.
         $this->assertGreaterThan(200, $report['decimals']['columns']);
         $this->assertGreaterThan(10, $report['json']['columns']);
+
+        // The current schema only. On MySQL, Schema::getTables() without a
+        // schema lists every database the account can see — on erp1 that is
+        // erp, erp_test and erp_scratch, and the audit reported 380 tables for
+        // a 190-table database (5 Sep 2026).
+        $this->assertSame(count(Schema::getTables(Schema::getCurrentSchemaName())), $report['database']['tables']);
+        $this->assertSame(count(Schema::getTableListing(Schema::getCurrentSchemaName(), false)), $report['database']['tables']);
     }
 
     public function test_a_third_decimal_an_overflow_and_an_invalid_json_row_are_reported(): void

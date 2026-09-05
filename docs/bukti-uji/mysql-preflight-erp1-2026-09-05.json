@@ -1,5 +1,5 @@
 {
-    "generated_at": "2026-09-05T11:58:49+07:00",
+    "generated_at": "2026-09-05T12:10:25+07:00",
     "database": {
         "driver": "sqlite",
         "name": "/tmp/claude-0/-root-construction-erp/e2856f5d-42c3-434f-acb3-d5d72299d7bd/scratchpad/phase0/prod-copy.sqlite",
@@ -19,42 +19,42 @@
     },
     "sqlite_only_sql": {
         "sites": 5,
-        "unguarded": 5,
-        "guarded": 0,
+        "unguarded": 0,
+        "guarded": 5,
         "details": [
             {
                 "file": "Modules/Projects/Database/Migrations/2026_08_28_000721_scope_daily_report_unique_index_to_live_rows.php",
-                "line": 27,
+                "line": 41,
                 "pattern": "\"-quoted identifier",
-                "guarded": false,
+                "guarded": true,
                 "excerpt": "DROP INDEX IF EXISTS \"prj_daily_reports_project_id_report_date_unique"
             },
             {
                 "file": "Modules/Projects/Database/Migrations/2026_08_28_000721_scope_daily_report_unique_index_to_live_rows.php",
-                "line": 29,
+                "line": 43,
                 "pattern": "\"-quoted identifier",
-                "guarded": false,
+                "guarded": true,
                 "excerpt": "CREATE UNIQUE INDEX \"prj_daily_reports_project_id_report_date_unique\" "
             },
             {
                 "file": "Modules/Projects/Database/Migrations/2026_08_28_000721_scope_daily_report_unique_index_to_live_rows.php",
-                "line": 36,
+                "line": 54,
                 "pattern": "\"-quoted identifier",
-                "guarded": false,
+                "guarded": true,
                 "excerpt": "DROP INDEX IF EXISTS \"prj_daily_reports_project_id_report_date_unique"
             },
             {
                 "file": "Modules/Projects/Database/Migrations/2026_08_28_000721_scope_daily_report_unique_index_to_live_rows.php",
-                "line": 38,
+                "line": 56,
                 "pattern": "\"-quoted identifier",
-                "guarded": false,
+                "guarded": true,
                 "excerpt": "CREATE UNIQUE INDEX \"prj_daily_reports_project_id_report_date_unique\" "
             },
             {
                 "file": "Modules/Projects/Database/Migrations/2026_08_30_000742_create_prj_hse_daily_tables.php",
-                "line": 57,
+                "line": 66,
                 "pattern": "\"-quoted identifier",
-                "guarded": false,
+                "guarded": true,
                 "excerpt": "CREATE UNIQUE INDEX \"prj_hse_daily_project_id_report_date_unique\" "
             }
         ]
