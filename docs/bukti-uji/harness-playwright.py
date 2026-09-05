@@ -1093,6 +1093,14 @@ CHART_RENDER = """async () => {
       { label: 'Biaya', points: [{x:0,y:2},{x:1,y:8},{x:2,y:14},{x:3,y:22},{x:4,y:30},{x:5,y:44}] }],
     xLabels: ['M1','M2','M3','M4','M5','M6'], yFormat: (v) => v + ' %', ariaLabel: 'uji garis', sourceNote: 'Sumber: fixture harness S20' }));
   t('line_single', () => m.lineChart({ series: [{ label: 'Satu', points: [{x:0,y:7}] }], ariaLabel: 'satu titik' }));
+  // Paritas tiga grafik tangan (P1-E): dash per seri ('5 3' rencana vs '2 4' baseline), token
+  // eksplisit, dots:false / 'last', <title> gabungan per titik, jari-jari titik as-of, token per
+  // titik (GRN vs PO pada satu garis), yStep 25 dengan yMax 125 (aturan EVM >100 %).
+  t('line_api', () => m.lineChart({ series: [
+      { label: 'Rencana', points: [{x:0,y:10},{x:1,y:40},{x:2,y:70},{x:3,y:100}], dash: '5 3', token: '--chart-8', dots: false },
+      { label: 'Aktual', points: [{x:0,y:8,title:'Minggu 1 — rencana 10 %, aktual 8 %'},{x:1,y:35,title:'Minggu 2 — rencana 40 %, aktual 35 %'},{x:2,y:60,title:'Minggu 3 — rencana 70 %, aktual 60 %',r:4,token:'--chart-2'}], area: true },
+      { label: 'Baseline', points: [{x:0,y:12},{x:1,y:45},{x:2,y:72},{x:3,y:118}], dash: '2 4', dots: 'last' }],
+    yMin: 0, yMax: 125, yStep: 25, yFormat: (v) => v + ' %', ariaLabel: 'API paritas grafik tangan' }));
   // Skala x campuran (tanggal + angka + 'abc'): yang bukan tanggal dibuang, bukan diformat "01 Jan 70".
   // Sumbu tanggal tanpa xFormat: label bawaan harus berbentuk fmt.date ("05 Sep 2026"), bukan "05 Sep 26".
   t('line_dates', () => m.lineChart({ series: [{ label: 'Harga PO', points: [{x:'2026-01-05',y:12500},{x:'2026-03-02',y:13000},{x:'2026-06-10',y:13750}] }], yMin: 12000, yMax: 14000, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'sumbu tanggal' }));
@@ -1201,7 +1209,12 @@ CHART_MEASURE = """(theme) => {
       const dots = [...svg.querySelectorAll('circle.series-point')]; c.dots_outside_plot = dots.filter(d => +d.getAttribute('cy') < top - 0.5 || +d.getAttribute('cy') > bottom + 0.5).length;
       c.dots_marked_outside = dots.filter(d => d.dataset.outside).length; c.outside_titles = [...svg.querySelectorAll('circle[data-outside] title')].map(t => t.textContent);
       c.x_labels = [...svg.querySelectorAll('text.chart-tick')].filter(t => +t.getAttribute('y') > bottom + 4).map(t => t.textContent); c.dropped_x = +(svg.dataset.droppedX || 0);
-      c.two_digit_year_labels = c.x_labels.filter(l => /^\d{2} \w{3} \d{2}$/.test(l)).length; c.fabricated_1970 = [...svg.querySelectorAll('text, title')].filter(t => /\b70\b|1970/.test(t.textContent)).length; }
+      c.two_digit_year_labels = c.x_labels.filter(l => /^\d{2} \w{3} \d{2}$/.test(l)).length;
+      c.y_ticks = [...svg.querySelectorAll('text.chart-tick[text-anchor="end"]')].filter(t => +t.getAttribute('y') <= bottom + 4).map(t => t.textContent);
+      c.series_dash = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + (p.getAttribute('stroke-dasharray') || 'solid'));
+      c.dots_by_series = dots.reduce((a, d) => { a[d.dataset.series] = (a[d.dataset.series] || 0) + 1; return a; }, {});
+      c.dot_tokens = [...new Set(dots.map(d => d.dataset.token))]; c.dot_radii = [...new Set(dots.map(d => +d.getAttribute('r')))];
+      c.line_tokens = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + p.dataset.token); c.custom_titles = [...svg.querySelectorAll('circle.series-point title')].map(t => t.textContent).filter(t => /^Minggu/.test(t)).length; c.fabricated_1970 = [...svg.querySelectorAll('text, title')].filter(t => /\b70\b|1970/.test(t.textContent)).length; }
     if (name.startsWith('bar')) { c.zero_line = svg.querySelectorAll('.chart-zero').length; const bars = [...svg.querySelectorAll('rect.series-bar')]; c.bars = bars.length; c.bar_min_thickness = bars.length ? Math.min(...bars.map(r => +r.getAttribute(name.includes('horizontal') ? 'height' : 'width'))) : null;
       const catLabels = [...svg.querySelectorAll('text.chart-tick')].filter(t => t.getAttribute('text-anchor') !== 'end'); c.category_labels = catLabels.map(t => t.textContent); c.truncated_labels = catLabels.filter(t => /…$/.test(t.textContent)).length;
       // Label vs lebar sebenarnya: label tick yang tumpang tindih dengan tetangganya (getBBox, koordinat svg).

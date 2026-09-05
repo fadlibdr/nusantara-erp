@@ -7,8 +7,15 @@
  * cetak, dan warnanya bisa diukur harness S20). Pemanggil menyediakan data yang sudah
  * dihitung server; di sini hanya geometri.
  *
- *   lineChart({ series, xLabels?, xFormat?, yFormat?, yMax?, yMin?, width?, height?, ariaLabel, sourceNote?, legend? })
- *     series : [{ label, points: [{ x?, y }], dashed?, area? }]
+ *   lineChart({ series, xLabels?, xFormat?, yFormat?, yMax?, yMin?, yStep?, width?, height?, ariaLabel, sourceNote?, legend? })
+ *     series : [{ label, points: [{ x?, y, title?, r?, token? }], dash?|dashed?, area?, token?, dots? }]
+ *              dash: pola putus-putus seri sebagai string SVG ('5 3' rencana, '2 4' baseline);
+ *              dashed:true = '6 4'. token: token warna eksplisit '--chart-n' (bawaan: posisi seri,
+ *              1..8 berulang) — points[].token menimpanya per titik (GRN vs PO pada SATU garis
+ *              kronologis). dots: true (bawaan) | false (garis saja; run satu titik tetap bertitik)
+ *              | 'last' (hanya titik terakhir). points[].title menggantikan <title> bawaan
+ *              "label — x: y" (kurva-S: "Minggu 12 — rencana 62 %, aktual 48 %"); points[].r =
+ *              jari-jari titik itu (titik as-of EVM 4). Semua murni & lewat token — paritas P1-E.
  *              x = angka (indeks/skala apa pun) ATAU string tanggal ISO (jadi sumbu tanggal);
  *              x kosong = indeks titik. y null/NaN/undefined = CELAH (garis putus), bukan nol.
  *              Campuran: begitu ada x tanggal, titik yang x-nya bukan tanggal DIBUANG sebagai
@@ -18,6 +25,8 @@
  *     yFormat: (angka) → teks; dipakai di sumbu DAN <title> tiap titik (bawaan id-ID, 2 desimal).
  *     yMin/yMax: sumbu dipaksa ke nilai itu (kurva EVM memakai yMax ≥ 100 hasil hitungannya
  *              sendiri — aturan ">100 % dipertahankan" milik pemanggil, bukan grafik).
+ *     yStep  : langkah tick tetap (EVM: yMax 125 + yStep 25 → 0/25/50/75/100/125; tanpa yStep
+ *              langkah rapi otomatis memberi 0/50/100 dan puncak sumbu tak berlabel).
  *              Bawaan: domain data SELALU memuat nol (nilai negatif → sumbu memotong nol);
  *              tren harga yang tidak boleh mulai dari nol memberi yMin sendiri.
  *              Nilai DI LUAR sumbu yang dipaksa: garis dan area dipotong pada tepi plot
@@ -144,6 +153,11 @@ function seriesToken(index) {
   return `--chart-${(index % SERIES_TOKENS) + 1}`;
 }
 
+/** Token eksplisit dari pemanggil hanya bila berbentuk --chart-…; selain itu null. */
+function tokenOf(value) {
+  return typeof value === 'string' && /^--chart-[a-z0-9-]+$/.test(value) ? value : null;
+}
+
 function finite(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = typeof value === 'number' ? value : Number(value);
@@ -212,7 +226,7 @@ function noteLine(svg, text, x, y) {
 
 /* --------------------------------------------------------------- legenda */
 
-/** items: [{ label, token, kind: 'line'|'box', dashed?, opacity?, series? }] — baris-baris
+/** items: [{ label, token, kind: 'line'|'box', dash?, opacity?, series? }] — baris-baris
     yang sudah dibungkus ke lebar `width`; tinggi = jumlah baris × 16. */
 function legendRows(items, width, x0 = 0) {
   const rows = [[]];
@@ -234,7 +248,7 @@ function drawLegend(svg, rows, y0) {
     const y = y0 + r * 16;
     row.forEach((item) => {
       if (item.kind === 'line') {
-        const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': 2.5, 'stroke-dasharray': item.dashed ? '6 4' : null, 'data-series': item.series });
+        const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': 2.5, 'stroke-dasharray': item.dash ?? null, 'data-series': item.series });
         svg.appendChild(paint(line, 'stroke', item.token));
       } else {
         const box = make('rect', { class: 'legend-swatch', x: item.x, y: y - 9, width: 12, height: 10, rx: 2, 'fill-opacity': item.opacity, 'data-series': item.series });
@@ -255,8 +269,9 @@ function niceStep(rough) {
   return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * magnitude;
 }
 
-/** Domain nilai: memuat nol kecuali min/max dipaksa; tepi dibulatkan ke langkah rapi. */
-function domain(values, min, max, tickCount = 4) {
+/** Domain nilai: memuat nol kecuali min/max dipaksa; tepi dibulatkan ke langkah rapi
+    (atau ke `fixedStep` bila pemanggil menetapkannya — yStep). */
+function domain(values, min, max, tickCount = 4, fixedStep) {
   let dataLo = 0;
   let dataHi = 0;
   values.forEach((v) => { if (v < dataLo) dataLo = v; if (v > dataHi) dataHi = v; }); // bukan spread: 10 rb titik aman
@@ -267,7 +282,7 @@ function domain(values, min, max, tickCount = 4) {
     else if (lo > 0) lo = 0;
     else hi = 0;
   }
-  const step = niceStep((hi - lo) / tickCount);
+  const step = finite(fixedStep) > 0 ? finite(fixedStep) : niceStep((hi - lo) / tickCount);
   if (finite(min) === null) lo = Math.floor(lo / step + 1e-9) * step;
   if (finite(max) === null) hi = Math.ceil(hi / step - 1e-9) * step;
   const ticks = [];
@@ -295,7 +310,7 @@ function thin(count, plotW, minGap = 64) {
 /* ------------------------------------------------------------- lineChart */
 
 export function lineChart({
-  series = [], xLabels, xFormat, yFormat, yMax, yMin, width = 720, height = 260,
+  series = [], xLabels, xFormat, yFormat, yMax, yMin, yStep, width = 720, height = 260,
   ariaLabel = 'Grafik garis', sourceNote, legend = true,
 } = {}) {
   const fy = formatter(yFormat);
@@ -304,9 +319,12 @@ export function lineChart({
     const points = (Array.isArray(s?.points) ? s.points : []).map((p, index) => {
       const { x, date } = xValue(p, index);
       anyDate = anyDate || date;
-      return { x, date, y: finite(p && typeof p === 'object' ? p.y : p) };
+      const obj = p && typeof p === 'object' ? p : {};
+      return { x, date, y: finite(p && typeof p === 'object' ? p.y : p), title: typeof obj.title === 'string' && obj.title ? obj.title : null, r: finite(obj.r), token: tokenOf(obj.token) };
     }).sort((a, b) => a.x - b.x);
-    return { label: s?.label ?? `Seri ${i + 1}`, dashed: !!s?.dashed, area: !!s?.area, token: seriesToken(i), index: i + 1, points };
+    const dash = typeof s?.dash === 'string' && s.dash.trim() ? s.dash.trim() : s?.dashed ? '6 4' : null;
+    const dots = s?.dots === false ? 'none' : s?.dots === 'last' ? 'last' : 'all';
+    return { label: s?.label ?? `Seri ${i + 1}`, dash, dots, area: !!s?.area, token: tokenOf(s?.token) ?? seriesToken(i), index: i + 1, points };
   });
   /* Skala campuran adalah kesalahan pemanggil, tetapi keluarannya tidak boleh mengarang:
      begitu satu x adalah tanggal, x yang bukan tanggal (angka, 'abc') dibuang sebagai
@@ -323,7 +341,7 @@ export function lineChart({
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
   if (!ys.length) return placeholder('line', ariaLabel);
 
-  const { lo, hi, ticks } = domain(ys, yMin, yMax);
+  const { lo, hi, ticks } = domain(ys, yMin, yMax, 4, yStep);
   const labelX = (x) => (typeof xFormat === 'function' ? xFormat(x)
     : Array.isArray(xLabels) && Number.isInteger(x) && xLabels[x] !== undefined ? xLabels[x]
       : anyDate ? shortDate.format(new Date(x)) : numberFormat.format(x));
@@ -335,7 +353,7 @@ export function lineChart({
      tingginya dari x0 = 0 memberi baris lebih sedikit daripada yang tergambar (sumbu Rp →
      PAD.left 120, 8 seri berlabel 26–31 huruf: 3 baris dihitung, 4 digambar, catatan sumber
      16 px di luar viewBox — menimpa kepala kartu berikutnya; diukur 5 Sep 2026). */
-  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'line', dashed: s.dashed, series: s.index }));
+  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'line', dash: s.dash, series: s.index }));
   const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
   const legendH = legendLayout.length * 16;
   const noteH = sourceNote ? 16 : 0;
@@ -375,16 +393,21 @@ export function lineChart({
         const area = make('path', { class: 'series-area', d: `${d} L${round(x(pts[pts.length - 1].x))},${round(base)} L${round(x(pts[0].x))},${round(base)} Z`, 'fill-opacity': 0.12, 'data-series': s.index, 'clip-path': clip });
         svg.appendChild(paint(area, 'fill', s.token));
       }
-      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dashed ? '6 4' : null, 'data-series': s.index, 'clip-path': clip });
+      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash, 'data-series': s.index, 'clip-path': clip });
       svg.appendChild(paint(path, 'stroke', s.token));
     });
-    runs.forEach((pts) => pts.forEach((p) => {
+    const lastRun = runs[runs.length - 1];
+    runs.forEach((pts) => pts.forEach((p, k) => {
+      /* dots:false → hanya run satu titik (tanpa garis) yang bertitik; 'last' → titik terakhir
+         seri (+ run satu titik). Kurva-S 52 minggu × 3 seri = 156 titik kalau semua bertitik. */
+      const isLast = pts === lastRun && k === pts.length - 1;
+      if (pts.length > 1 && (s.dots === 'none' || (s.dots === 'last' && !isLast))) return;
       /* Titik di luar sumbu yang dipaksa ditempel di tepi plot dan MENGATAKANNYA: yMax 100
          dengan nilai 140 dulu menggambar titik 73 px di atas svg, menimpa kepala kartu. */
       const outside = p.y > hi ? 'above' : p.y < lo ? 'below' : null;
       const cy = outside === 'above' ? PAD.top : outside === 'below' ? PAD.top + plotH : y(p.y);
-      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: pts.length === 1 ? 4 : 3, 'data-series': s.index, 'data-outside': outside });
-      svg.appendChild(mark(paint(dot, 'fill', s.token), `${s.label} — ${labelX(p.x)}: ${fy(p.y)}${outside ? ' (di luar sumbu)' : ''}`));
+      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: p.r ?? (pts.length === 1 ? 4 : 3), 'data-series': s.index, 'data-outside': outside });
+      svg.appendChild(mark(paint(dot, 'fill', p.token ?? s.token), `${p.title ?? `${s.label} — ${labelX(p.x)}: ${fy(p.y)}`}${outside ? ' (di luar sumbu)' : ''}`));
     }));
   });
 
