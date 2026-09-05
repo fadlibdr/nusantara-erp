@@ -47,7 +47,9 @@
  *     null = tidak ada batang (bukan batang nol); nol = garis rambut di sumbu nol dengan <title>.
  *
  *   donutChart({ slices, centerLabel?, centerSub?, valueFormat?, ariaLabel, sourceNote? })
- *     slices: [{ label, value }]; hanya value > 0 yang digambar (yang 0 tetap di legenda
+ *     Lebar tetap 360 (ukuran intrinsik = viewBox); legenda dibungkus per kata ke kolom 128 px
+ *     (tinggi mengikuti jumlah barisnya), sehingga ukuran huruf tidak bergantung pada panjang
+ *     label di viewport mana pun. slices: [{ label, value }]; hanya value > 0 yang digambar (yang 0 tetap di legenda
  *     sebagai 0 %); value null/NaN/teks → baris legenda "? (tidak dihitung)", negatif →
  *     "(bukan bagian dari keseluruhan)" — keduanya tanpa swatch, tidak pernah disembunyikan;
  *     satu irisan → cincin penuh; tak ada yang > 0 → placeholder.
@@ -586,6 +588,31 @@ export function barChart({
 
 /* ------------------------------------------------------------ donutChart */
 
+/** Bungkus teks legenda per kata ke `maxChars` huruf per baris. `phrases` = potongan yang
+    sebaiknya tidak dipisah ('— 10.000.000.000', '(37,5 %)'): dipindahkan utuh ke baris baru bila
+    muat, dan baru dipecah per kata (lalu per huruf) bila lebih panjang dari satu baris. */
+function wrapPhrases(phrases, maxChars) {
+  const lines = [];
+  let line = '';
+  const place = (word) => {
+    while (word.length > maxChars) {
+      if (line) { lines.push(line); line = ''; }
+      lines.push(word.slice(0, maxChars));
+      word = word.slice(maxChars);
+    }
+    if (!line) line = word;
+    else if (line.length + 1 + word.length <= maxChars) line += ` ${word}`;
+    else { lines.push(line); line = word; }
+  };
+  phrases.forEach((phrase) => {
+    const text = String(phrase ?? '').trim();
+    if (!text) return;
+    if (text.length <= maxChars) place(text); else text.split(/\s+/).forEach(place);
+  });
+  if (line || !lines.length) lines.push(line);
+  return lines;
+}
+
 export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, ariaLabel = 'Grafik donat', sourceNote } = {}) {
   const fv = formatter(valueFormat);
   const rows = (Array.isArray(slices) ? slices : []).map((s, i) => ({ label: s?.label ?? `Bagian ${i + 1}`, value: finite(s?.value), token: seriesToken(i), index: i + 1 }));
@@ -595,22 +622,28 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
      nilai tak terukur (null/NaN/teks) → "? (tidak dihitung)", negatif → "bukan bagian
      dari keseluruhan". Menyembunyikannya membuat "b — 5 (100 %)" tampak lengkap padahal
      ada baris yang hilang (aturan kejujuran CONVENTIONS §6/§11). */
-  const legendText = (s) => (s.value === null ? `${s.label} — ? (tidak dihitung)`
-    : s.value < 0 ? `${s.label} — ${fv(s.value)} (bukan bagian dari keseluruhan)`
-      : `${s.label} — ${fv(s.value)} (${s.value > 0 ? `${percentFormat.format((s.value / total) * 100)} %` : '0 %'})`);
-  const listed = rows;
+  const legendPhrases = (s) => [s.label, ...(s.value === null ? ['— ?', '(tidak dihitung)']
+    : s.value < 0 ? [`— ${fv(s.value)}`, '(bukan bagian dari keseluruhan)']
+      : [`— ${fv(s.value)}`, `(${s.value > 0 ? `${percentFormat.format((s.value / total) * 100)} %` : '0 %'})`])];
+  /* Lebar TETAP 360 (= placeholder), 1 viewBox px = 1 px sampai wadah 360 px: legenda dibungkus
+     per kata ke kolom 128 px, bukan svg yang dilebarkan 360–560 mengikuti label terpanjang lalu
+     menyusut ×0,64 di ponsel 390 (teks legenda 7–8,2 px, di bawah lantai ±11 px jenis lain;
+     verifikasi P1-A putaran 2). Ukuran huruf donat kini tidak bergantung pada panjang label di
+     viewport mana pun, dan dua donat di satu dasbor selalu sama besar. */
+  const W = 360;
   const legendX = 212;
-  const rowsH = listed.length * 18;
-  const W = Math.min(560, Math.max(360, legendX + Math.max(0, ...listed.map((s) => textWidth(legendText(s)))) + 34));
+  const lineChars = Math.floor((W - legendX - 20 - 8) / CHAR_W);
+  const entries = rows.map((s) => ({ ...s, lines: wrapPhrases(legendPhrases(s), lineChars) }));
+  const entryH = (e) => 18 + (e.lines.length - 1) * 14;
+  const rowsH = entries.reduce((a, e) => a + entryH(e), 0);
   const noteH = sourceNote ? 18 : 0;
   const H = Math.max(200, rowsH + 24) + noteH;
   if (!drawn.length) return placeholder('donut', ariaLabel);
 
   const svg = frame('donut', W, H, ariaLabel);
   /* Ukuran intrinsik (atribut width/height + .chart-donut { width: auto; max-width: 100% }):
-     viewBox 360 yang direntang ke 560 px membuat teks 11 px jadi 17 px dan angka tengah 28 px
-     hanya karena labelnya pendek — dua donat di satu dasbor berbeda ukuran huruf (diukur
-     5 Sep 2026). Kini 1 viewBox px = 1 px kecuali wadahnya lebih sempit. */
+     viewBox yang direntang ke lebar kartu membuat teks 11 px jadi 17 px dan angka tengah 28 px
+     (diukur 5 Sep 2026). 1 viewBox px = 1 px kecuali wadahnya lebih sempit dari 360. */
   svg.setAttribute('width', round(W));
   svg.setAttribute('height', round(H));
   const cx = 100;
@@ -650,11 +683,15 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
     if (centerSub) svg.appendChild(make('text', { class: 'chart-center-sub', x: cx, y: cy + 18, 'text-anchor': 'middle' }, centerSub));
   }
 
-  const y0 = Math.max(16, (H - noteH) / 2 - rowsH / 2 + 12);
-  listed.forEach((s, i) => {
-    const y = y0 + i * 18;
+  let y = Math.max(16, (H - noteH) / 2 - rowsH / 2 + 12);
+  entries.forEach((s) => {
     if (s.value !== null && s.value >= 0) svg.appendChild(paint(make('rect', { class: 'legend-swatch', x: legendX, y: y - 9, width: 12, height: 10, rx: 2, 'data-series': s.index }), 'fill', s.token));
-    svg.appendChild(make('text', { class: 'chart-legend', x: legendX + 20, y, 'data-excluded': s.value === null ? 'unknown' : s.value < 0 ? 'negative' : null }, legendText(s)));
+    /* Satu <text> per baris legenda, satu <tspan> per baris teks (dy 14): harness membaca
+       entri lewat tspan-nya, dan getBBox <text> mencakup semua barisnya. */
+    const text = make('text', { class: 'chart-legend', x: legendX + 20, y, 'data-excluded': s.value === null ? 'unknown' : s.value < 0 ? 'negative' : null, 'data-lines': s.lines.length });
+    s.lines.forEach((line, k) => text.appendChild(make('tspan', { x: legendX + 20, dy: k ? 14 : 0 }, line)));
+    svg.appendChild(text);
+    y += entryH(s);
   });
   noteLine(svg, sourceNote, 8, H - 5);
   return svg;

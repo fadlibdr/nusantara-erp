@@ -1156,6 +1156,9 @@ CHART_RENDER = """async () => {
   // Nilai negatif / tak terukur tidak digambar, tetapi harus tetap disebut legenda (dulu hilang tanpa jejak).
   t('donut_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Disetujui',value:5},{label:'Tak terukur',value:NaN}], ariaLabel: 'irisan dikecualikan' }));
   t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
+  // Label 55 huruf: dulu viewBox melebar ke 560 mengikuti label lalu menyusut ×0,64 di ponsel (teks 7 px);
+  // kini lebar tetap 360 dan legenda dibungkus per kata (data-lines > 1) — ukuran huruf sama dengan donat lain.
+  t('donut_long', () => m.donutChart({ slices: [{label:'Kategori dengan nama yang sangat panjang sekali sekali',value:1},{label:'B',value:2},{label:'Rp 10 M',value:1e10}], valueFormat: (v) => new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'label panjang' }));
   // Sembilan seri/irisan: token berulang setelah 8 (seri 9 = --chart-1) dan blok cetak memberi seri 2..8 pola masing-masing.
   t('donut_9', () => m.donutChart({ slices: Array.from({length: 9}, (_, i) => ({ label: 'Bagian ' + (i + 1), value: i + 1 })), ariaLabel: 'sembilan irisan' }));
   t('line_9_series', () => m.lineChart({ series: Array.from({length: 9}, (_, i) => ({ label: 'S' + (i + 1), points: [{x:0,y:i},{x:1,y:i+1}] })), ariaLabel: 'sembilan seri' }));
@@ -1241,8 +1244,11 @@ CHART_MEASURE = """(theme) => {
     // di atas elemen berikutnya. Path yang diklip dikecualikan (getBBox = geometri sebelum klip).
     const outside = [...svg.querySelectorAll('circle, rect, line, text:not([clip-path]), path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
     c.outside_viewbox = outside.length; c.outside_viewbox_sample = outside.slice(0, 3).map(e => e.tagName + '.' + (e.getAttribute('class') || '') + ' ' + (e.textContent || '').slice(0, 20));
-    const legendYs = [...svg.querySelectorAll('text.chart-legend')].map(t => +t.getAttribute('y')); const note = svg.querySelector('text.chart-note');
-    if (legendYs.length) { c.legend_rows = new Set(legendYs).size; c.legend_overflow_px = +(Math.max(...legendYs, note ? +note.getAttribute('y') : 0) + 4 - vb.height).toFixed(1); }
+    const legendEls = [...svg.querySelectorAll('text.chart-legend')]; const legendYs = legendEls.map(t => +t.getAttribute('y')); const note = svg.querySelector('text.chart-note');
+    // Teks entri legenda: donat membungkus per baris ke <tspan> (dy 14) — digabung dengan spasi supaya sama dengan teks satu barisnya.
+    const legendText = (t) => t.querySelector('tspan') ? [...t.querySelectorAll('tspan')].map(sp => sp.textContent).join(' ') : t.textContent;
+    // Tepi bawah legenda dari getBBox (entri donat bisa 2–3 baris; y atribut hanya baris pertamanya), catatan sumber dari y-nya.
+    if (legendEls.length) { c.legend_rows = new Set(legendYs).size; c.legend_overflow_px = +(Math.max(...legendEls.map(t => { const b = t.getBBox(); return b.y + b.height; }), note ? +note.getAttribute('y') + 4 : 0) - vb.height).toFixed(1); }
     if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length;
       const clipRect = svg.querySelector('clipPath rect'); const top = clipRect ? +clipRect.getAttribute('y') + 2 : 14; const bottom = clipRect ? top + +clipRect.getAttribute('height') - 4 : 232;
       c.clipped_paths = svg.querySelectorAll('path.series-line[clip-path], path.series-area[clip-path]').length; c.unclipped_paths = svg.querySelectorAll('path.series-line:not([clip-path]), path.series-area:not([clip-path])').length;
@@ -1264,7 +1270,8 @@ CHART_MEASURE = """(theme) => {
       c.category_labels = catLabels.map(t => t.textContent); c.truncated_labels = catLabels.filter(t => /…$/.test(t.textContent)).length;
       // Label vs lebar sebenarnya: semua label baris bawah (kategori tegak / nilai mendatar) yang tumpang tindih dengan tetangganya (getBBox, koordinat svg).
       c.x_labels = xl.map(t => t.textContent); const xo = overlaps(xl); c.label_overlaps = xo.count; c.x_label_overlaps = xo.count; c.x_label_max_overlap_px = xo.max_px; }
-    if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent); c.legend_excluded = svg.querySelectorAll('text.chart-legend[data-excluded]').length; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
+    if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.legend_items = legendEls.map(legendText); c.legend_excluded = svg.querySelectorAll('text.chart-legend[data-excluded]').length;
+      c.legend_lines_max = Math.max(0, ...legendEls.map(t => +(t.dataset.lines || 1))); c.legend_right_px = +Math.max(0, ...legendEls.map(t => { const b = t.getBBox(); return b.x + b.width; })).toFixed(1); c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
     if (name.startsWith('gantt')) {
       c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
       c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;
@@ -1301,6 +1308,11 @@ CHART_MEASURE = """(theme) => {
       empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)),
       // Donat: ukuran huruf tidak boleh bergantung pada panjang label (donut 4 irisan vs donut_one vs donut_tiny).
       donut_font_px: Object.fromEntries(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([n, c]) => [n, c.rendered_font_px])),
+      // Verifikasi P1-A putaran 2: lebar tetap 360 → ukuran huruf donat sama untuk semua fixture (donut_long 55 huruf dulu 7 px di ponsel), legenda dibungkus (baris maks) dan tetap di dalam viewBox.
+      donut_font_min_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([, c]) => c.rendered_font_px)),
+      donut_viewbox_widths: [...new Set(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([, c]) => c.viewbox_w))],
+      donut_legend_lines_max: Math.max(0, ...Object.entries(charts).filter(([n]) => n.startsWith('donut')).map(([, c]) => c.legend_lines_max || 0)),
+      donut_legend_right_max_px: Math.max(0, ...Object.entries(charts).filter(([n]) => n.startsWith('donut')).map(([, c]) => c.legend_right_px || 0)),
       // Lantai ukuran huruf terender per viewport: gantt punya min-width 80 % (≥ 8,8 px) — garis/batang 720 px
       // di ponsel 390 (5,5 px) adalah pertanyaan terbuka P1-A (lebar per viewport), dicatat, belum dipaku.
       gantt_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('gantt') && !c.empty).map(([, c]) => c.rendered_font_px)),
