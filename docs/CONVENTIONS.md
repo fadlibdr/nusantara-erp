@@ -199,3 +199,26 @@ business math, FormRequests, Resources, thin controllers, routes, and a seeder p
 believable demo dataset that exercises the module (documents in several statuses).
 No TODO stubs for core flows. PHP 8.2+, typed signatures, `declare(strict_types=1);` NOT
 used (match Laravel skeleton style). Tests are optional; correctness of business math is not.
+
+## 10. Pustaka vendor SPA (`public/app/vendor/`)
+
+Aturan (ROADMAP-HASHMICRO §5 keputusan #2): **tanpa CDN, tanpa npm saat runtime, tanpa pustaka
+lain tanpa keputusan pemilik**. Yang di-vendor hanya SortableJS 1.15 dan sprite ikon Lucide subset,
+masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik ditulis sendiri
+(`js/charts.js`, §11). Manifestnya `public/app/vendor/VENDOR.md` — per pustaka: versi, URL sumber,
+sha256 tarball, lisensi, gzip terukur, untuk apa, cara memperbarui (perintah persis); per berkas:
+sha256. Uji `tests/Feature/Core/VendorManifestTest` memaku semuanya: setiap berkas vendor ada di
+manifest dengan sha yang sama dan sebaliknya; tidak ada `<script src>`, `<link href>`, `import`,
+`import()`, `new URL`, `fetch`, `url()`, `@import` yang menunjuk `http(s)://` di mana pun di bawah
+`public/app`; literal http(s) yang bukan pemuat hanya boleh namespace W3C, tautan `<a>`/`href:`,
+atau komentar (aturan tertulis di uji — tambah aturan, bukan allowlist); jumlah gzip ≤ 60 KB
+(dicetak saat uji); sprite XML sah dengan `<symbol id="lucide-…" viewBox>`; `Sortable.min.js`
+identik dengan sha manifest.
+
+Cara memakai: ikon lewat `ui.js svgIcon(nama, { size, label })` → `<svg class="lucide"><use
+href="vendor/lucide@<ver>/sprite.svg#lucide-<nama>">` (nama kanonik Lucide; nama `icon()` lama
+dipetakan). Sortable dimuat malas oleh layar yang memakainya (`<script src="vendor/sortablejs@
+<ver>/Sortable.min.js">` sekali, lalu global `Sortable`) — bukan oleh shell, supaya layar yang
+tidak menyeret apa pun tidak membayarnya. Memperbarui versi = folder baru, ubah rujukan
+(`LUCIDE_SPRITE` di ui.js / pemuat Sortable), hapus folder lama, tabel manifest ditulis ulang
+dari perintah di VENDOR.md, uji hijau.

@@ -646,6 +646,12 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 }
 .pager .spacer { flex: 1; }
 
+/* ------------------------------------------------------ ikon sprite Lucide */
+/* ui.js svgIcon(): <svg class="lucide"><use href="vendor/lucide@<ver>/sprite.svg#…">.
+   Warna = currentColor dari simbolnya sendiri; di sini hanya perilaku kotak,
+   sama seperti svg icon() di tombol (flex: none agar label tidak memampatkannya). */
+.lucide { display: inline-block; flex: none; vertical-align: middle; }
+
 /* --------------------------------------------------------------- badges */
 .badge {
   display: inline-flex; align-items: center; gap: 5px;

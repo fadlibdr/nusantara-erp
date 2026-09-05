@@ -1,0 +1,276 @@
+<?php
+
+namespace Tests\Feature\Core;
+
+use DOMDocument;
+use Tests\TestCase;
+
+/**
+ * Aturan "tanpa CDN, tanpa npm saat runtime" (ROADMAP-HASHMICRO §5 keputusan #2)
+ * sebagai uji, bersama manifest pustaka vendor di public/app/vendor/VENDOR.md.
+ *
+ * SPA ini vanilla ES modules tanpa build step; satu-satunya kode pihak ketiga
+ * adalah berkas statis di public/app/vendor/<lib>@<ver>/ yang tercatat sha256-nya.
+ * Tanpa uji ini, sebuah `<script src="https://cdn…">` yang ditambahkan untuk
+ * "coba cepat" akan lolos review, memuat kode yang tidak ada di repositori,
+ * dan diam-diam mati saat erp1 dipakai tanpa internet keluar. Uji ini adalah
+ * grep — pola yang sama dengan NavRouteRegistryTest dan DashboardTileFailureTest:
+ * tidak ada runtime JS di host ini, dan grep atas berkas yang dibaca reviewer
+ * tidak bisa basi seperti daftar yang dirawat tangan.
+ *
+ * Lima hal yang dipaku:
+ *  (a) setiap berkas di public/app/vendor (kecuali VENDOR.md) ada di tabel Berkas
+ *      VENDOR.md dengan sha256 yang sama, dan tidak ada baris tabel yang
+ *      menunjuk berkas yang hilang;
+ *  (b) tidak ada pemuat (script src, link href, import, import(), new URL,
+ *      fetch, url(), @import) yang menunjuk http(s):// di *.html *.js *.css
+ *      mana pun di bawah public/app — tanpa allowlist. Literal http(s) yang
+ *      BUKAN pemuat harus lolos aturan data yang tepat di isDataLiteral();
+ *  (c) jumlah gzip -9 seluruh public/app/vendor ≤ 60 KB (angkanya dicetak);
+ *  (d) sprite Lucide adalah XML sah, setiap <symbol> ber-id "lucide-…" + viewBox,
+ *      tanpa <script> dan tanpa URL selain xmlns;
+ *  (e) Sortable.min.js identik byte demi byte dengan sha manifestnya.
+ *
+ * SPA_ROOT (env) mengalihkan akar pindaian ke salinan coretan — dipakai untuk
+ * membuktikan uji ini merah dulu (script CDN palsu, byte yang diubah) tanpa
+ * menyentuh pohon kerja.
+ */
+class VendorManifestTest extends TestCase
+{
+    private const GZIP_CEILING_BYTES = 60 * 1024;
+
+    private const SCANNED_EXTENSIONS = ['html', 'js', 'css'];
+
+    /**
+     * Pengenal namespace W3C yang diserahkan ke createElementNS()/xmlns: URL
+     * hanya sebagai nama, tidak pernah diambil oleh peramban.
+     *
+     * @var list<string>
+     */
+    private const NAMESPACE_IRIS = ['http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'];
+
+    /**
+     * Konteks tepat sebelum sebuah URL yang berarti peramban akan MEMUATNYA.
+     * Setiap alternatif berakhir tepat di awal URL (…$), jadi `<a href=` atau
+     * `href:` milik el('a') tidak cocok — itu tautan yang diklik orang, bukan
+     * sumber daya halaman.
+     */
+    private const LOADER_BEFORE_URL = '~(?:'
+        .'<script\b[^>]*\bsrc\s*=\s*["\']?'          // <script src="…
+        .'|<link\b[^>]*\bhref\s*=\s*["\']?'         // <link href="…
+        .'|\bimport\s*\(\s*["\']'                    // import('…
+        .'|\bimport\b[^;]*\bfrom\s*["\']'           // import x from '…
+        .'|\bimport\s*["\']'                         // import '…  (efek samping)
+        .'|\bnew\s+URL\s*\(\s*["\']'                 // new URL('…
+        .'|\bfetch\s*\(\s*["\']'                     // fetch('…
+        .'|\burl\s*\(\s*["\']?'                      // url(… (CSS)
+        .'|@import\s*(?:url\s*\(\s*)?["\']?'         // @import '…
+        .')$~i';
+
+    /* --------------------------------------------------------------- (a) */
+
+    public function test_every_vendored_file_is_in_the_manifest_with_its_current_sha256(): void
+    {
+        $manifest = $this->manifest();
+        $this->assertNotEmpty($manifest, 'VENDOR.md tidak punya baris tabel Berkas yang bisa dibaca.');
+
+        foreach ($this->vendorFiles() as $relative) {
+            $this->assertArrayHasKey($relative, $manifest, "{$relative} ada di public/app/vendor tetapi tidak tercatat di VENDOR.md.");
+            $this->assertSame(
+                $manifest[$relative],
+                hash_file('sha256', $this->vendorRoot().'/'.$relative),
+                "sha256 {$relative} berbeda dari VENDOR.md — berkas vendor diubah tanpa memperbarui manifest.",
+            );
+        }
+    }
+
+    public function test_no_manifest_row_points_at_a_missing_file(): void
+    {
+        foreach (array_keys($this->manifest()) as $relative) {
+            $this->assertFileExists($this->vendorRoot().'/'.$relative, "VENDOR.md mencatat {$relative} tetapi berkasnya tidak ada.");
+        }
+    }
+
+    /* --------------------------------------------------------------- (b) */
+
+    public function test_no_cdn_loader_anywhere_under_app(): void
+    {
+        $violations = [];
+        $scanned = 0;
+
+        foreach ($this->scannedFiles() as $path) {
+            $scanned++;
+            $relative = substr($path, strlen($this->appRoot()) + 1);
+            foreach (file($path) as $number => $line) {
+                if (! preg_match_all('~https?://[^\s\'"`)<>]+~', $line, $matches, PREG_OFFSET_CAPTURE)) {
+                    continue;
+                }
+                foreach ($matches[0] as [$url, $offset]) {
+                    $before = substr($line, 0, $offset);
+                    if (preg_match(self::LOADER_BEFORE_URL, $before)) {
+                        $violations[] = sprintf('%s:%d memuat %s dari luar (pemuat: %s)', $relative, $number + 1, $url, trim(substr($before, -40)));
+                    } elseif (! $this->isDataLiteral($url, $before, $line)) {
+                        $violations[] = sprintf('%s:%d literal %s tidak dikenal aturan data isDataLiteral() — bukan pemuat, tetapi bukan pula namespace W3C, tautan <a>/href:, atau komentar; tambahkan aturan yang tepat bila memang data', $relative, $number + 1, $url);
+                    }
+                }
+            }
+        }
+
+        $this->assertGreaterThan(10, $scanned, 'Pindaian tidak menemukan berkas SPA — akar salah?');
+        $this->assertSame([], $violations, "Rujukan http(s) di public/app:\n - ".implode("\n - ", $violations));
+    }
+
+    /**
+     * Aturan data: sebuah literal http(s) yang bukan pemuat boleh ada HANYA bila
+     *  1. ia namespace W3C (NAMESPACE_IRIS) sebagai string utuh — pengenal, bukan alamat;
+     *  2. ia tujuan tautan yang diklik orang: HTML `<a … href="…"` atau properti
+     *     `href:` di el('a', { href }) — bukan `<link href` (itu pemuat, ditangkap
+     *     LOADER_BEFORE_URL lebih dulu); atau
+     *  3. barisnya komentar JS/CSS (//, *, /*) — docblock yang mengutip alamat.
+     * Selain itu gagal, supaya setiap URL baru di SPA diputuskan sadar.
+     */
+    private function isDataLiteral(string $url, string $before, string $line): bool
+    {
+        $quotedWhole = preg_match('~["\']$~', $before) && preg_match('~^'.preg_quote($url, '~').'["\']~', substr($line, strlen($before)));
+        if ($quotedWhole && in_array($url, self::NAMESPACE_IRIS, true)) {
+            return true;
+        }
+        if (preg_match('~xmlns(?::\w+)?\s*=\s*["\']$~', $before) && in_array($url, self::NAMESPACE_IRIS, true)) {
+            return true;
+        }
+        if (preg_match('~(?:<a\b[^>]*\bhref\s*=\s*["\']|\bhref\s*:\s*["\'`])$~i', $before)) {
+            return true;
+        }
+
+        return (bool) preg_match('~^\s*(?://|\*|/\*)~', $line);
+    }
+
+    /* --------------------------------------------------------------- (c) */
+
+    public function test_vendor_gzip_total_is_within_the_ceiling(): void
+    {
+        $total = 0;
+        $perFile = [];
+        foreach ($this->vendorFiles() as $relative) {
+            $bytes = strlen(gzencode((string) file_get_contents($this->vendorRoot().'/'.$relative), 9));
+            $perFile[] = sprintf('%s %d B', $relative, $bytes);
+            $total += $bytes;
+        }
+
+        fwrite(STDERR, sprintf("\nVendorManifestTest: gzip -9 public/app/vendor = %d byte (plafon %d)\n  %s\n", $total, self::GZIP_CEILING_BYTES, implode("\n  ", $perFile)));
+
+        $this->assertGreaterThan(0, $total, 'Tidak ada berkas vendor terukur.');
+        $this->assertLessThanOrEqual(
+            self::GZIP_CEILING_BYTES,
+            $total,
+            sprintf('gzip public/app/vendor = %d byte, melewati plafon %d byte (ROADMAP-HASHMICRO Fase 1: vendor ≤ 60 KB).', $total, self::GZIP_CEILING_BYTES),
+        );
+    }
+
+    /* --------------------------------------------------------------- (d) */
+
+    public function test_lucide_sprite_is_xml_and_every_symbol_is_a_lucide_id_with_a_viewbox(): void
+    {
+        $sprites = array_values(array_filter($this->vendorFiles(), fn ($f) => preg_match('~^lucide@[^/]+/sprite\.svg$~', $f)));
+        $this->assertCount(1, $sprites, 'Tepat satu sprite Lucide yang diharapkan: '.implode(', ', $sprites));
+
+        $xml = (string) file_get_contents($this->vendorRoot().'/'.$sprites[0]);
+        $previous = libxml_use_internal_errors(true);
+        $document = new DOMDocument;
+        $loaded = $document->loadXML($xml, LIBXML_NONET);
+        $errors = array_map(fn ($e) => trim($e->message), libxml_get_errors());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $this->assertTrue($loaded, 'sprite.svg bukan XML sah: '.implode('; ', $errors));
+
+        $symbols = $document->getElementsByTagName('symbol');
+        $this->assertGreaterThan(0, $symbols->length);
+        $ids = [];
+        foreach ($symbols as $symbol) {
+            $id = $symbol->getAttribute('id');
+            $this->assertMatchesRegularExpression('~^lucide-[a-z0-9-]+$~', $id, "id simbol '{$id}' tidak berawalan lucide-");
+            $this->assertSame('0 0 24 24', $symbol->getAttribute('viewBox'), "simbol {$id} tanpa viewBox 24×24");
+            $this->assertNotContains($id, $ids, "id simbol ganda: {$id}");
+            $ids[] = $id;
+        }
+
+        $this->assertSame(0, $document->getElementsByTagName('script')->length, 'sprite.svg mengandung <script>');
+        preg_match_all('~https?://[^\s\'"`)<>]+~', $xml, $urls);
+        $this->assertSame([], array_values(array_diff(array_unique($urls[0]), self::NAMESPACE_IRIS)), 'sprite.svg merujuk URL selain namespace W3C');
+    }
+
+    /* --------------------------------------------------------------- (e) */
+
+    public function test_sortable_min_js_is_byte_identical_to_its_manifest_sha(): void
+    {
+        $manifest = $this->manifest();
+        $paths = array_values(array_filter(array_keys($manifest), fn ($f) => preg_match('~^sortablejs@[^/]+/Sortable\.min\.js$~', $f)));
+        $this->assertCount(1, $paths, 'Tepat satu Sortable.min.js yang diharapkan di manifest: '.implode(', ', $paths));
+
+        $path = $this->vendorRoot().'/'.$paths[0];
+        $this->assertFileExists($path);
+        $this->assertSame($manifest[$paths[0]], hash('sha256', (string) file_get_contents($path)), 'Sortable.min.js tidak identik dengan sha manifest — bukan berkas yang diverifikasi terhadap tarball registry.');
+        $this->assertStringStartsWith('/*! Sortable ', (string) file_get_contents($path, false, null, 0, 13), 'Sortable.min.js tidak diawali banner rilisnya.');
+    }
+
+    /* ---------------------------------------------------------- pembantu */
+
+    private function appRoot(): string
+    {
+        return rtrim((string) (getenv('SPA_ROOT') ?: public_path('app')), '/');
+    }
+
+    private function vendorRoot(): string
+    {
+        return $this->appRoot().'/vendor';
+    }
+
+    /** @return array<string, string> jalur relatif ke vendor/ => sha256 dari VENDOR.md */
+    private function manifest(): array
+    {
+        $path = $this->vendorRoot().'/VENDOR.md';
+        $this->assertFileExists($path, 'public/app/vendor/VENDOR.md hilang.');
+
+        $rows = [];
+        foreach (file($path) as $line) {
+            if (preg_match('~^\|\s*`([^`]+)`\s*\|\s*`([0-9a-f]{64})`\s*\|~', $line, $m)) {
+                $this->assertArrayNotHasKey($m[1], $rows, "VENDOR.md mencatat {$m[1]} dua kali.");
+                $rows[$m[1]] = $m[2];
+            }
+        }
+
+        return $rows;
+    }
+
+    /** @return list<string> jalur relatif ke vendor/, VENDOR.md dikecualikan */
+    private function vendorFiles(): array
+    {
+        $root = $this->vendorRoot();
+        $this->assertDirectoryExists($root);
+
+        $files = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
+            $relative = substr($file->getPathname(), strlen($root) + 1);
+            if ($relative !== 'VENDOR.md') {
+                $files[] = $relative;
+            }
+        }
+        sort($files);
+
+        return $files;
+    }
+
+    /** @return list<string> jalur absolut *.html *.js *.css di bawah public/app (termasuk vendor/) */
+    private function scannedFiles(): array
+    {
+        $files = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->appRoot(), \FilesystemIterator::SKIP_DOTS)) as $file) {
+            if (in_array(strtolower($file->getExtension()), self::SCANNED_EXTENSIONS, true)) {
+                $files[] = $file->getPathname();
+            }
+        }
+        sort($files);
+
+        return $files;
+    }
+}
