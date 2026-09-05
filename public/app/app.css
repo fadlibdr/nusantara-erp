@@ -961,18 +961,24 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .module-head .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--module-accent); }
 .module-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
+/* Kisi = <ul> berlabel (li per kartu), pemisah NAV = <h2> yang melabeli
+   <section>-nya (verifikasi P1-B 5 Sep 2026: aria-label pada div generic
+   diabaikan, pemisah div bukan judul). li adalah sel kisinya; kartu <a>
+   mengisi sel lewat display: grid pada li, bukan display: contents (yang
+   menghapus semantik daftar di sebagian peramban). */
 .module-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
+  list-style: none; margin: 0; padding: 0;
 }
+.module-grid > li { display: grid; min-width: 0; }
+.module-section-block + .module-section-block, .module-grid + .module-section-block { margin-top: 18px; }
 .module-section {
-  grid-column: 1 / -1;
-  margin: 6px 0 -4px;
+  margin: 0 0 8px;
   font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
 }
-.module-section:first-child { margin-top: 0; }
 .module-card {
   display: flex; align-items: flex-start; gap: 11px;
   padding: 12px 13px;

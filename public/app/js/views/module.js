@@ -13,6 +13,11 @@
  * Keterangan kartu hanya dari yang sudah ada (def.description resource daftar,
  * atau item.sub NAV) — tanpa itu kartu hanya ikon + label; tidak ada kalimat
  * yang dikarang per layar.
+ *
+ * Struktur (verifikasi P1-B 5 Sep 2026): kisi adalah <ul> berlabel dengan
+ * <li> per kartu, pemisah NAV menjadi <h2> yang melabeli <section>-nya —
+ * sebelumnya aria-label dipasang pada <div> polos (peran generic, label
+ * diabaikan pembaca layar) dan pemisah adalah <div> bergaya eyebrow.
  */
 
 import { session } from '../api.js';
@@ -45,11 +50,35 @@ export function renderModuleHome(host, { prefix }) {
     return;
   }
 
-  const grid = el('.module-grid', { 'aria-label': `Layar modul ${module.label}` }, items.map((item) => (item.divider
-    ? el('.module-section', { text: item.divider })
-    : screenCard(item))));
-  grid.addEventListener('keydown', arrowNavigation);
-  host.appendChild(grid);
+  const screens = el('.module-screens', sections(items, prefix).map(({ caption, id, screens: list }) => {
+    const grid = el('ul.module-grid', caption ? { 'aria-labelledby': id } : { 'aria-label': `Layar modul ${module.label}` },
+      list.map((item) => el('li', screenCard(item))));
+    return caption
+      ? el('section.module-section-block', [el('h2.module-section', { id, text: caption }), grid])
+      : grid;
+  }));
+  screens.addEventListener('keydown', arrowNavigation);
+  host.appendChild(screens);
+}
+
+/* Item NAV → blok per pemisah: kartu sebelum pemisah pertama (bila ada) jadi
+   satu kisi tanpa judul, tiap pemisah membuka blok baru berjudul. */
+function sections(items, prefix) {
+  const blocks = [];
+  let current = null;
+  items.forEach((item, index) => {
+    if (item.divider) {
+      current = { caption: item.divider, id: `module-section-${prefix}-${index}`, screens: [] };
+      blocks.push(current);
+      return;
+    }
+    if (!current) {
+      current = { caption: null, id: null, screens: [] };
+      blocks.push(current);
+    }
+    current.screens.push(item);
+  });
+  return blocks;
 }
 
 function screenCard(item) {
@@ -74,7 +103,8 @@ function arrowNavigation(event) {
   const index = cards.indexOf(document.activeElement);
   if (index === -1) return;
 
-  const columns = Math.max(1, getComputedStyle(event.currentTarget).gridTemplateColumns.split(' ').length);
+  const grid = document.activeElement.closest('.module-grid');
+  const columns = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(' ').length);
   const move = moves[event.key];
   let next = index;
   if (move === 'first') next = 0;

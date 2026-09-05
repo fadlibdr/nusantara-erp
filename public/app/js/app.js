@@ -640,7 +640,9 @@ function buildShell() {
     ]),
     el('header.header', [
       menuToggle,
-      el('.crumbs', { id: 'crumbs' }),
+      // <nav> berlabel: dua tautan di dalamnya (modul, layar) butuh landmark supaya
+      // pembaca layar bisa melompat ke remah roti (verifikasi P1-B 5 Sep 2026).
+      el('nav.crumbs', { id: 'crumbs', 'aria-label': 'Remah roti' }),
       el('.spacer'),
       button('Cari', {
         variant: 'ghost',
@@ -792,7 +794,7 @@ function setCrumbs(parts, { screenHref } = {}) {
     } else if (index === 1 && !last && screenHref) {
       host.appendChild(el('a.crumb-screen', { href: screenHref, text: part }));
     } else {
-      host.appendChild(last ? el('b', { text: part }) : el('span', { text: part }));
+      host.appendChild(last ? el('b', { text: part, 'aria-current': 'page' }) : el('span', { text: part }));
     }
   });
   document.title = `${parts[parts.length - 1]} · Nusantara ERP`;

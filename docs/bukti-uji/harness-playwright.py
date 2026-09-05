@@ -1501,6 +1501,9 @@ ACTIVE_MARKER = """() => { const g=document.querySelector('nav.nav .nav-group.ha
              crumb: a ? { href: a.getAttribute('href'), text: a.innerText.trim(), accent: a.dataset.accent, color: getComputedStyle(a).color,
                           width: Math.round(rect.width), visible: a.checkVisibility() } : null,
              crumbs_text: (document.getElementById('crumbs')||{}).innerText,
+             // Struktur aksesibel (verifikasi P1-B 5 Sep 2026): host <nav aria-label>, remah terakhir aria-current="page".
+             host_tag: (document.getElementById('crumbs')||{}).tagName, host_aria_label: (document.getElementById('crumbs')||{}).getAttribute?.('aria-label'),
+             last_aria_current: (document.querySelector('#crumbs b')||{}).getAttribute?.('aria-current'),
              has_active_count: document.querySelectorAll('nav.nav .nav-group.has-active').length } }"""
 
 MODULE_HOME = """() => { const head=document.querySelector('.module-head'); const grid=document.querySelector('.module-grid'); const e=document.querySelector('#view .empty');
@@ -1512,6 +1515,11 @@ MODULE_HOME = """() => { const head=document.querySelector('.module-head'); cons
              sections: [...document.querySelectorAll('.module-section')].map(s => s.innerText.trim()),
              hints: document.querySelectorAll('.module-card .hint').length,
              columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+             // Kisi <ul> berlabel + li per kartu, pemisah <h2> melabeli <section> (verifikasi P1-B 5 Sep 2026).
+             structure: grid ? { grid_tag: grid.tagName, grid_labelled: !!(grid.getAttribute('aria-label') || grid.getAttribute('aria-labelledby')),
+                                 li_per_card: document.querySelectorAll('.module-grid > li > a.module-card').length === document.querySelectorAll('.module-card').length,
+                                 section_tags: [...new Set([...document.querySelectorAll('.module-section')].map(s => s.tagName))],
+                                 sections_label_their_grid: [...document.querySelectorAll('.module-section')].every(s => s.id && document.querySelector(`.module-grid[aria-labelledby="${s.id}"]`)) } : null,
              sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a`)].map(a => a.getAttribute('href')) : [],
              sidebar_open: prefix ? (document.querySelector(`nav.nav .nav-group[data-prefix="${prefix}"]`)||{}).dataset?.open : null,
              empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
@@ -1621,6 +1629,7 @@ def module_accents(pg, tag):
         marker["shadow_matches_token"] = bool(slot) and rgb_to_hex(marker["group"]["box_shadow"]) == tok[slot]["accent"]
         marker["crumb_matches_token"] = bool(slot) and marker["crumb_color_hex"] == tok[slot]["accent"]
         marker["crumb_href_ok"] = bool(marker["crumb"]) and marker["crumb"]["href"] == "#/m/fin"
+        marker["a11y_ok"] = marker["host_tag"] == "NAV" and bool(marker["host_aria_label"]) and marker["last_aria_current"] == "page"
         res["active_marker"] = marker
         pg.screenshot(path=f"{OUT}/s21-crumb-{theme}{tag}.png", clip={"x": 0, "y": 0, "width": pg.viewport_size["width"], "height": 120})
         # Klik remah modul — di ponsel remah bisa terjepit (lebar dicatat di atas), jadi klik lewat DOM.
@@ -1631,6 +1640,8 @@ def module_accents(pg, tag):
         home["head_matches_token"] = bool(home["head"]) and home["head_border_hex"] == tok[home["head"]["accent"]]["accent"]
         home["icon_bg_matches_soft"] = bool(home["head"]) and rgb_to_hex(home["head"]["icon_bg"]) == tok[home["head"]["accent"]]["soft"]
         home["cards_equal_sidebar"] = home["cards"] == home["sidebar"]
+        st = home["structure"] or {}
+        home["structure_ok"] = st.get("grid_tag") == "UL" and st.get("grid_labelled") and st.get("li_per_card") and st.get("section_tags") in (["H2"], []) and st.get("sections_label_their_grid")
         home["marker_after"] = pg.evaluate(ACTIVE_MARKER)["group"]
         res["module_home_fin"] = home
         pg.screenshot(path=f"{OUT}/s21-module-home-{theme}{tag}.png", full_page=False)
