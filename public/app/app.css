@@ -58,6 +58,46 @@
   --chart-today: #c62828;
   --chart-weekend: #f1f3f6;
   --chart-baseline: #94a3b8;
+  /* Aksen modul (P1-B). Delapan slot warna departemen; 14 grup NAV (schema.js MODULES,
+     kunci = prefix izin grup) dipetakan ke slot begini — turunan dari isi NAV, bukan grup baru:
+       1 Proyek (prj)                                    — lapangan
+       2 Keuangan (fin)                                  — keuangan & pajak
+       3 Pengadaan (prc) · Persediaan (inv) · Subkontrak (scm) — rantai pasok; subkon = vendor
+       4 Penjualan (crm) · Estimasi (est)                — komersial; RAB disusun bersama tender
+       5 SDM & Payroll (hr)
+       6 Aset (ast)                                      — peralatan
+       7 Layanan (svc)                                   — tiket & kontrak layanan
+       8 Sistem (iam) · Mutu (qc) · Engineering (eng) · Ringkasan — fungsi penunjang, slot netral
+     Hubungan dengan grafik: --accent-n memakai SUDUT HUE Lab yang sama dengan --chart-n
+     (toleransi ±12°; slot 1 = --primary = --chart-1 persis), hanya L dan C yang digeser sampai
+     setiap pasangan slot berjarak ≥ 20 ΔE2000 — palet grafik apa adanya gagal (terang 2–6 = 10,2;
+     gelap 1–8 = 13,8). Dihitung 5 Sep 2026 (CIEDE2000 di Lab, luminansi relatif WCAG; skrip
+     optimize2.py/finalize.py di scratch P1-B; harness S21 mengukur nilai terkomputasi yang hidup).
+     ΔE2000 antar slot, tema TERANG (minimum 20,1 = 1–8 dan 5–8):
+            1     2     3     4     5     6     7     8
+       1    —  48,9  51,0  20,4  20,3  40,1  56,0  20,1
+       2 48,9     —  58,9  46,3  54,0  20,2  20,7  35,1
+       3 51,0  58,9     —  52,2  33,1  66,7  36,4  31,7
+       4 20,4  46,3  52,2     —  33,1  32,2  59,4  23,6
+       5 20,3  54,0  33,1  33,1     —  56,6  42,8  20,1
+       6 40,1  20,2  66,7  32,2  56,6     —  34,0  29,8
+       7 56,0  20,7  36,4  59,4  42,8  34,0     —  33,0
+       8 20,1  35,1  31,7  23,6  20,1  29,8  33,0     —
+     Kontras WCAG terang (aksen di --surface / -fg di aksen / aksen di -soft), batas 3:1 · 4,5:1 ·
+     4,5:1 — dipasang ≥ 5,2:1 di --surface karena aksen dipakai sebagai TEKS remah roti:
+       1 6,18/6,18/5,47 · 2 5,20/5,20/4,64 · 3 5,25/5,25/4,62 · 4 7,00/7,00/6,15 ·
+       5 5,33/5,33/4,77 · 6 8,71/8,71/7,66 · 7 5,34/5,34/4,79 · 8 8,10/8,10/7,17
+     Catatan jujur: slot 3/6/7 sekeluarga hue dengan --success/--danger/--warning (warisan palet
+     grafik; ΔE 6,7 / 12,5 / 3,8 di tema terang). Aksen tidak pernah dipakai pada lencana atau
+     alert — hanya penanda grup aktif, remah modul, dan kepala beranda modul. */
+  --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff;
+  --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+  --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff;
+  --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+  --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff;
+  --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+  --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff;
+  --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -106,6 +146,28 @@
     --chart-today: #f87171;
     --chart-weekend: #212832;
     --chart-baseline: #4b5563;
+    /* Aksen modul, tema GELAP — hue sama dengan --chart-n gelap (slot 1 = --primary gelap persis).
+       ΔE2000 antar slot, minimum 20,5 (1–8 dan 4–8):
+              1     2     3     4     5     6     7     8
+         1    —  50,5  53,2  20,9  28,7  40,9  62,7  20,5
+         2 50,5     —  53,3  50,5  50,2  23,4  24,2  33,0
+         3 53,2  53,3     —  54,1  35,6  71,4  34,7  34,5
+         4 20,9  50,5  54,1     —  40,8  32,5  69,8  20,5
+         5 28,7  50,2  35,6  40,8     —  70,0  48,9  25,5
+         6 40,9  23,4  71,4  32,5  70,0     —  45,9  29,0
+         7 62,7  24,2  34,7  69,8  48,9  45,9     —  38,8
+         8 20,5  33,0  34,5  20,5  25,5  29,0  38,8     —
+       Kontras (aksen di --surface #151a21 / -fg #0d1117 di aksen / aksen di -soft):
+         1 5,41/5,86/4,82 · 2 7,61/8,24/6,71 · 3 10,29/11,15/9,19 · 4 6,29/6,81/5,62 ·
+         5 9,74/10,54/8,59 · 6 6,27/6,79/5,56 · 7 11,53/12,48/10,20 · 8 7,38/7,99/6,58 */
+    --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117;
+    --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
+    --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117;
+    --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
+    --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117;
+    --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
+    --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117;
+    --accent-8: #a4a8b7; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
   }
 }
 
@@ -124,6 +186,10 @@
   --chart-5: #0e7490; --chart-6: #b91c1c; --chart-7: #a16207; --chart-8: #475569;
   --chart-grid: #e2e6eb; --chart-axis: #cbd2da; --chart-text: #5e6874; --chart-today: #c62828;
   --chart-weekend: #f1f3f6; --chart-baseline: #94a3b8;
+  --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff; --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+  --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+  --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+  --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
 }
 
 :root[data-theme="dark"] {
@@ -141,6 +207,10 @@
   --chart-5: #22d3ee; --chart-6: #f87171; --chart-7: #facc15; --chart-8: #94a3b8;
   --chart-grid: #262d38; --chart-axis: #38414f; --chart-text: #8b95a3; --chart-today: #f87171;
   --chart-weekend: #212832; --chart-baseline: #4b5563;
+  --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117; --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
+  --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117; --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
+  --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117; --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
+  --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117; --accent-8: #a4a8b7; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
 }
 
 /* ------------------------------------------------------------------ base */
@@ -306,6 +376,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .header .crumbs { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); min-width: 0; }
 .header .crumbs b { color: var(--text); font-weight: 600; }
+
+/* ------------------------------------------------------------ aksen modul */
+/* Satu atribut data-accent="1..8" (app.js/module.js) memilih slot; tiga variabel
+   turunan inilah yang dipakai aturan di bawah, jadi tidak ada aturan yang
+   menyebut nomor slot dua kali. Tabel pemetaan grup → slot ada di blok token. */
+[data-accent="1"] { --module-accent: var(--accent-1); --module-accent-soft: var(--accent-1-soft); --module-accent-fg: var(--accent-1-fg); }
+[data-accent="2"] { --module-accent: var(--accent-2); --module-accent-soft: var(--accent-2-soft); --module-accent-fg: var(--accent-2-fg); }
+[data-accent="3"] { --module-accent: var(--accent-3); --module-accent-soft: var(--accent-3-soft); --module-accent-fg: var(--accent-3-fg); }
+[data-accent="4"] { --module-accent: var(--accent-4); --module-accent-soft: var(--accent-4-soft); --module-accent-fg: var(--accent-4-fg); }
+[data-accent="5"] { --module-accent: var(--accent-5); --module-accent-soft: var(--accent-5-soft); --module-accent-fg: var(--accent-5-fg); }
+[data-accent="6"] { --module-accent: var(--accent-6); --module-accent-soft: var(--accent-6-soft); --module-accent-fg: var(--accent-6-fg); }
+[data-accent="7"] { --module-accent: var(--accent-7); --module-accent-soft: var(--accent-7-soft); --module-accent-fg: var(--accent-7-fg); }
+[data-accent="8"] { --module-accent: var(--accent-8); --module-accent-soft: var(--accent-8-soft); --module-accent-fg: var(--accent-8-fg); }
+
 .header .spacer { flex: 1; }
 
 /* .btn sets display: inline-flex further down, so match its specificity here. */
@@ -356,6 +440,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .nav-group > button:hover { background: var(--surface-3); color: var(--text); }
+/* Penanda grup aktif (P1-B): grup yang memuat rute aktif (atau beranda modulnya)
+   memakai aksen modulnya — batang 3 px di kiri judul + judul berwarna aksen.
+   Hanya di sini dan di remah roti; baris tautan aktif tetap --primary-soft. */
+.nav-group.has-active > button { color: var(--module-accent); box-shadow: inset 3px 0 0 var(--module-accent); }
 .nav-group > button .chev { margin-left: auto; transition: transform .16s; opacity: .55; }
 .nav-group[data-open="false"] > button .chev { transform: rotate(-90deg); }
 .nav-group[data-open="false"] .nav-items { display: none; }

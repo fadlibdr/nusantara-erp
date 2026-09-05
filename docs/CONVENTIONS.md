@@ -253,3 +253,41 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
 - Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
   langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
   `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.
+
+## 12. Aksen modul (`--accent-1..8`, P1-B)
+
+Delapan slot warna departemen di `public/app/app.css` — `--accent-<n>`, `--accent-<n>-soft`,
+`--accent-<n>-fg` di **keempat blok tema** (root terang, media gelap, `data-theme` terang/gelap).
+Setiap grup NAV membawa `prefix` (prefix izinnya; Ringkasan = `ringkasan`) dan `schema.js MODULES`
+memetakan prefix → `{ accent, icon, description }`. Pemetaan 14 grup → 8 slot, diturunkan dari isi
+NAV (bukan grup baru):
+
+| Slot | Grup NAV (prefix) | Alasan |
+|---|---|---|
+| 1 | Proyek (`prj`) | lapangan; slot 1 = `--primary` = `--chart-1` persis |
+| 2 | Keuangan (`fin`) | keuangan & pajak |
+| 3 | Pengadaan (`prc`) · Persediaan (`inv`) · Subkontrak (`scm`) | rantai pasok; subkon adalah vendor (`is_subcontractor`) |
+| 4 | Penjualan (`crm`) · Estimasi (`est`) | komersial; RAB disusun bersama tender |
+| 5 | SDM & Payroll (`hr`) | |
+| 6 | Aset (`ast`) | peralatan |
+| 7 | Layanan (`svc`) | tiket & kontrak layanan |
+| 8 | Sistem (`iam`) · Mutu (`qc`) · Engineering (`eng`) · Ringkasan | fungsi penunjang, slot netral (abu kebiruan) |
+
+**Hubungan dengan grafik:** `--accent-n` memakai sudut hue Lab yang sama dengan `--chart-n`
+(toleransi ±12°), hanya L dan C yang digeser sampai semua pasangan slot berjarak **≥ 20 ΔE2000**
+— palet grafik apa adanya gagal (terang 2–6 = 10,2; gelap 1–8 = 13,8). Terukur 5 Sep 2026
+(CIEDE2000 di Lab; skrip turunan di scratch P1-B, matriks lengkap di komentar token app.css):
+minimum antar slot **20,1 terang / 20,5 gelap**; kontras WCAG aksen di `--surface` ≥ **5,20** terang /
+**5,41** gelap (batas 3:1, dipasang ≥ 4,5 karena aksen dipakai sebagai teks remah), `-fg` di aksen
+≥ 5,20 / 5,86, aksen di `-soft` ≥ 4,62 / 4,82. Harness **S21** mengukur nilai yang hidup di
+halaman (kedua tema, desktop + ponsel) dan menulisnya ke `results-phase-1.json`; uji
+`SidebarNavWiringTest` memaku slot 1..8 dan ketiga token di keempat blok.
+
+**Di mana aksen boleh tampil** (dan hanya di sini): penanda grup aktif di sidebar
+(`.nav-group.has-active > button`: batang 3 px + judul), remah modul di bilah atas
+(`#crumbs a.crumb-module`, tautan ke `#/m/<prefix>`), kepala beranda modul (`.module-head`), dan
+tepi kartu launcher (P1-C). Mekanismenya satu atribut `data-accent="n"` yang app.css ubah menjadi
+`--module-accent`/`-soft`/`-fg`; aturan komponen hanya menyebut ketiga variabel itu. **Tidak
+pernah** pada lencana, alert, tombol, atau status — semantik `--success/--warning/--danger` tetap.
+Catatan jujur: slot 3/6/7 sekeluarga hue dengan success/danger/warning (warisan palet grafik);
+itulah sebabnya aksen tidak boleh muncul di bentuk yang sama dengan lencana.

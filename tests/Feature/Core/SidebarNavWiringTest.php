@@ -120,6 +120,43 @@ class SidebarNavWiringTest extends ErpTestCase
             'search.js tidak lagi menggambar grup "Layar"; Ctrl+K kembali hanya mencari dokumen.');
     }
 
+    /**
+     * P1-B: the module accent is one attribute (data-accent="1..8") resolved by
+     * app.css into --accent-<slot>. Three files must agree without a build
+     * step: every MODULES entry names a slot 1..8, and app.css defines
+     * --accent-<n>, --accent-<n>-soft and --accent-<n>-fg for each slot in all
+     * four theme blocks (light root, dark media, data-theme light, data-theme
+     * dark) — a slot missing from one block is an accent that silently falls
+     * back to nothing in that theme. The mapping table itself (which group is
+     * in which slot) lives in CONVENTIONS § Aksen modul and the app.css token
+     * comment; the numbers there are measured by harness S21, not pinned here.
+     */
+    public function test_every_module_accent_slot_has_its_three_tokens_in_all_four_theme_blocks(): void
+    {
+        preg_match_all('/^  [a-z]+: \{ accent: ([1-8]),/m', $this->file('schema.js'), $slots);
+
+        $this->assertGreaterThan(10, count($slots[1]), 'MODULES in schema.js no longer lists accent slots per module.');
+
+        $used = array_values(array_unique(array_map('intval', $slots[1])));
+        sort($used);
+        $this->assertSame(range(1, 8), $used,
+            'Not every accent slot 1..8 is used by a module — a slot nobody uses is a colour nobody validated in context.');
+
+        $css = (string) file_get_contents(public_path('app/app.css'));
+
+        foreach (range(1, 8) as $slot) {
+            foreach (["--accent-{$slot}:", "--accent-{$slot}-soft:", "--accent-{$slot}-fg:"] as $token) {
+                $this->assertSame(4, preg_match_all('/'.preg_quote($token, '/').'\s*#[0-9a-f]{6};/', $css),
+                    "app.css must define {$token} exactly once in each of the four theme blocks.");
+            }
+            $this->assertStringContainsString("[data-accent=\"{$slot}\"] { --module-accent: var(--accent-{$slot});", $css,
+                "app.css has no [data-accent=\"{$slot}\"] rule; the sidebar marker and crumb for slot {$slot} carry no colour.");
+        }
+
+        $this->assertStringContainsString('## 12. Aksen modul', (string) file_get_contents(base_path('docs/CONVENTIONS.md')),
+            'CONVENTIONS.md lost § Aksen modul — the group → slot mapping table has no home.');
+    }
+
     /** The refused half: the readers say no to a caption and a route that do not exist. */
     public function test_the_readers_can_still_say_no(): void
     {

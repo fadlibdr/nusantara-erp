@@ -4,7 +4,7 @@ import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from '
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
 import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
-import { NAV, RESOURCES, visibleNav } from './schema.js';
+import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
@@ -537,6 +537,13 @@ function navGroupNode(nav, group, favorites, stored) {
     items,
   ]);
   if (group.kind) groupNode.dataset.kind = group.kind;
+  // Aksen modul (P1-B): slot warna grup, dipakai penanda grup aktif
+  // (.has-active, dipasang setActiveNav). Grup pintasan tidak beraksen.
+  const module = group.prefix ? moduleFor(group.prefix) : null;
+  if (module) {
+    groupNode.dataset.prefix = module.prefix;
+    groupNode.dataset.accent = String(module.accent);
+  }
 
   groupNode.querySelector('button').addEventListener('click', () => {
     const next = groupNode.dataset.open !== 'true';
@@ -681,6 +688,7 @@ function openUserMenu(user) {
 }
 
 function setActiveNav(path) {
+  document.querySelectorAll('.nav-group.has-active').forEach((group) => group.classList.remove('has-active'));
   document.querySelectorAll('.nav-items a').forEach((link) => {
     const target = link.dataset.route;
     const active = path === target ||
@@ -692,7 +700,11 @@ function setActiveNav(path) {
       // Grup rute aktif dibuka (tidak disimpan) — inilah pengecualian bawaan
       // tertutup. Favorit/Terakhir dibuka yang memuat rute yang sama tidak
       // dipaksa: yang dilipat sendiri oleh pemakainya tetap terlipat.
-      if (group && !group.dataset.kind) group.dataset.open = 'true';
+      // has-active = penanda grup beraksen (P1-B), juga hanya di grup asal.
+      if (group && !group.dataset.kind) {
+        group.dataset.open = 'true';
+        group.classList.add('has-active');
+      }
     }
   });
 }

@@ -5762,13 +5762,58 @@ export const RESOURCES = {
 export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve'));
 
 /** Sidebar structure. Each entry is gated by the module's `.view` permission. */
+/*
+ * Modul (P1-B): satu entri per grup NAV, berkunci `prefix` grup itu — prefix
+ * izinnya (crm, prj, …; Ringkasan bukan modul dan tidak berizin, tetapi ia
+ * butuh beranda supaya remah roti "Ringkasan › Tenggat" punya sasaran).
+ * Label grup TIDAK diulang di sini: moduleFor() membacanya dari NAV, jadi
+ * hanya ada satu tempat nama grup ditulis.
+ *
+ *  - accent: slot warna departemen 1..8 → token --accent-<slot> di app.css.
+ *    Tabel pemetaan 14 grup → 8 slot dan angka ΔE/kontrasnya ada di blok
+ *    token app.css dan CONVENTIONS § Aksen modul; dipaku uji
+ *    SidebarNavWiringTest (slot 1..8, token ada di keempat blok tema).
+ *  - icon: nama kanonik sprite Lucide (ui.js svgIcon; daftar di VENDOR.md).
+ *  - description: satu kalimat kepala beranda #/m/<prefix> (views/module.js)
+ *    — ringkasan ISI grup NAV di bawah, bukan salinan pemasaran.
+ */
+export const MODULES = {
+  ringkasan: { accent: 8, icon: 'layout-dashboard', description: 'Dasbor, tugas persetujuan, tenggat, dan kalender lintas modul.' },
+  crm: { accent: 4, icon: 'handshake', description: 'Pelanggan, prospek, paket tender, penawaran, kontrak, dan jaminan.' },
+  est: { accent: 4, icon: 'calculator', description: 'AHSP, BOQ/RAB, RAP, riwayat harga satuan, dan pustaka metode kerja.' },
+  eng: { accent: 8, icon: 'drafting-compass', description: 'Register gambar, persetujuan gambar dan material, transmittal, IPP, lokasi tapak.' },
+  prj: { accent: 1, icon: 'hard-hat', description: 'Pelaksanaan: laporan harian, progres, opname, serah terima, izin dan K3, register.' },
+  qc: { accent: 8, icon: 'clipboard-check', description: 'Inspeksi mutu, NCR, benda uji beton, dan template inspeksi.' },
+  prc: { accent: 3, icon: 'shopping-cart', description: 'Vendor, permintaan (PR), RFQ, pesanan (PO), PPK alat dan jasa, evaluasi vendor.' },
+  inv: { accent: 3, icon: 'warehouse', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
+  scm: { accent: 3, icon: 'file-signature', description: 'SPK subkon, addendum, opname dan BAST subkon, SP3 dan opname mandor.' },
+  fin: { accent: 2, icon: 'landmark', description: 'AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.' },
+  hr: { accent: 5, icon: 'users', description: 'Karyawan, sertifikat dan PKWT, cuti, absensi, dan payroll.' },
+  svc: { accent: 7, icon: 'headset', description: 'Tiket, SLA, kontrak layanan, jadwal preventif, dan berita acara.' },
+  ast: { accent: 6, icon: 'truck', description: 'Daftar aset, mobilisasi, log BBM dan jam alat, perawatan, penyusutan, utilisasi.' },
+  iam: { accent: 8, icon: 'settings', description: 'Pengguna, peran dan hak akses, profil perusahaan, impor, pengaturan, antrean.' },
+};
+
+/** Modul untuk sebuah prefix: entri MODULES + label dan grup NAV-nya; null bila tidak ada. */
+export function moduleFor(prefix) {
+  const group = NAV.find((one) => one.prefix === prefix);
+  const module = MODULES[prefix];
+  return group && module ? { prefix, label: group.label, group, ...module } : null;
+}
+
+/** Modul dari label grup NAV (remah roti pertama, app.js setCrumbs); null bila label bukan grup. */
+export function moduleForLabel(label) {
+  const group = NAV.find((one) => one.label === label);
+  return group ? moduleFor(group.prefix) : null;
+}
+
 export const NAV = [
   {
-    label: 'Ringkasan', perm: null,
+    label: 'Ringkasan', perm: null, prefix: 'ringkasan',
     items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
   },
   {
-    label: 'Penjualan', perm: 'crm.view',
+    label: 'Penjualan', perm: 'crm.view', prefix: 'crm',
     items: [
       { label: 'Pelanggan', route: 'r/crm/customers' },
       { label: 'Prospek', route: 'r/crm/leads' },
@@ -5792,7 +5837,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Estimasi', perm: 'est.view',
+    label: 'Estimasi', perm: 'est.view', prefix: 'est',
     items: [
       { label: 'AHSP', route: 'r/estimation/ahsp' },
       { label: 'BOQ / RAB', route: 'r/estimation/boqs' },
@@ -5811,7 +5856,7 @@ export const NAV = [
   {
     /* P1-ENG. Di antara Estimasi dan Proyek karena di situlah pekerjaannya
        duduk: gambar & material disetujui MK sebelum lapangan boleh mulai. */
-    label: 'Engineering', perm: 'eng.view',
+    label: 'Engineering', perm: 'eng.view', prefix: 'eng',
     items: [
       { label: 'Register Gambar', route: 'r/engineering/drawings' },
       { label: 'Persetujuan Gambar (SDS)', route: 'r/engineering/drawing-submittals' },
@@ -5828,7 +5873,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Proyek', perm: 'prj.view',
+    label: 'Proyek', perm: 'prj.view', prefix: 'prj',
     /* Pemisah { divider } (T2.5): grup ini dan Keuangan masing-masing 20
        tautan rata, sidebar admin 121 tautan setinggi 4,9 viewport — diukur
        2 Sep 2026 (HASIL-UJI §1, S5). Struktur datanya tetap datar: hanya
@@ -5877,7 +5922,7 @@ export const NAV = [
     /* P1-QC. Setelah Proyek: QA lapangan yang dijalankan tim mutu selama
        pelaksanaan dan menggerbangi BAST I (NCR terbuka menahan serah terima).
        Template inspeksi di paling bawah — pustakanya, bukan transaksi harian. */
-    label: 'Mutu (QA/QC)', perm: 'qc.view',
+    label: 'Mutu (QA/QC)', perm: 'qc.view', prefix: 'qc',
     items: [
       { label: 'Inspeksi Mutu (QCI)', route: 'r/quality/inspections' },
       { label: 'Ketidaksesuaian (NCR)', route: 'r/quality/ncr' },
@@ -5886,7 +5931,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Pengadaan', perm: 'prc.view',
+    label: 'Pengadaan', perm: 'prc.view', prefix: 'prc',
     items: [
       { label: 'Vendor & Subkon', route: 'r/procurement/vendors' },
       { label: 'Dokumen Vendor', route: 'r/procurement/vendor-documents' },
@@ -5909,7 +5954,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Persediaan', perm: 'inv.view',
+    label: 'Persediaan', perm: 'inv.view', prefix: 'inv',
     items: [
       { label: 'Saldo Stok', route: 'stock' },
       { label: 'Item', route: 'r/inventory/items' },
@@ -5922,7 +5967,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Subkontrak', perm: 'scm.view',
+    label: 'Subkontrak', perm: 'scm.view', prefix: 'scm',
     items: [
       { label: 'SPK Subkon', route: 'r/subcontract/subcontracts' },
       { label: 'Addendum SPK', route: 'r/subcontract/addenda' },
@@ -5938,7 +5983,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Keuangan', perm: 'fin.view',
+    label: 'Keuangan', perm: 'fin.view', prefix: 'fin',
     /* Lima pemisah (T2.5) — lihat catatan di grup Proyek. Urutan baris
        digeser supaya tiap baris duduk di bawah keterangannya; rutenya tidak
        ada yang berubah. */
@@ -5977,7 +6022,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'SDM & Payroll', perm: 'hr.view',
+    label: 'SDM & Payroll', perm: 'hr.view', prefix: 'hr',
     items: [
       { label: 'Karyawan', route: 'r/hr/employees' },
       { label: 'Sertifikat & PKWT', route: 'sertifikat' },
@@ -5988,7 +6033,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Layanan', perm: 'svc.view',
+    label: 'Layanan', perm: 'svc.view', prefix: 'svc',
     items: [
       { label: 'Tiket', route: 'r/servicedesk/tickets' },
       { label: 'Tiket Lewat SLA', route: 'sla-breaches' },
@@ -5998,7 +6043,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Aset', perm: 'ast.view',
+    label: 'Aset', perm: 'ast.view', prefix: 'ast',
     items: [
       { label: 'Daftar Aset', route: 'r/assets/assets' },
       { label: 'Kategori Aset', route: 'r/assets/categories' },
@@ -6016,7 +6061,7 @@ export const NAV = [
     ],
   },
   {
-    label: 'Sistem', perm: 'iam.view',
+    label: 'Sistem', perm: 'iam.view', prefix: 'iam',
     items: [
       { label: 'Pengguna', route: 'r/iam/users' },
       { label: 'Peran & Hak Akses', route: 'r/iam/roles' },
