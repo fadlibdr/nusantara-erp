@@ -45,10 +45,13 @@ return new class extends Migration
             // Layar Pengiriman Notifikasi menyaring per status; pekerja/penyapu
             // menanyakan "queued yang sudah waktunya".
             $table->index(['status', 'next_attempt_at']);
-            // foreignId()->constrained() sudah membuat indeks di MySQL; SQLite
-            // tidak — dan daftar per notifikasi memakainya. Nama eksplisit
-            // supaya tidak bentrok dengan indeks FK bawaan MySQL.
-            $table->index('notification_id', 'core_notif_deliveries_notification_idx');
+            // MySQL membuat indeks untuk FK di atas dengan sendirinya; SQLite
+            // tidak, dan cascade delete dari core_notifications mencarinya.
+            // Bercabang per driver (pola T0.2) supaya MySQL tidak memikul indeks
+            // ganda pada kolom yang sama.
+            if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                $table->index('notification_id', 'core_notif_deliveries_notification_idx');
+            }
         });
     }
 
