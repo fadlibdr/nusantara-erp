@@ -379,6 +379,10 @@ baris cron. Berkas unit, langkah pasang, dan cara membaca kegagalannya ada di
   (`core_notification_deliveries`: `queued|sent|failed|skipped`, pesan galat
   penyedia, tombol Kirim ulang). Pengiriman yang tidak pernah diambil pekerja
   tinggal `queued` — tidak pernah dicatat sebagai terkirim.
+  `queued_deliveries_older_than_1h` menghitung baris `queued` yang sudah
+  sejam lebih tidak disentuh pekerja (jadwal percobaannya lewat, atau tidak
+  ada jadwal dan `updated_at` lewat) — baris yang sedang menunggu backoff
+  (60/300/900/3600 s) tidak dihitung.
 
 - **Setelah deploy kode** — `deploy/sync-erp1.sh` memulai ulang kedua unit bila
   `is-enabled`; pekerja antrean memegang kode lama sampai dimulai ulang.

@@ -135,8 +135,18 @@ class HealthService
     }
 
     /**
-     * Pengiriman (T0b.3) yang sudah satu jam lebih berstatus `queued`: pekerja
-     * antrean mati, atau dispatch-nya gagal dan barisnya menunggu Kirim ulang.
+     * Pengiriman (T0b.3) berstatus `queued` yang sudah satu jam lebih TIDAK
+     * disentuh pekerja: pekerja antrean mati, atau dispatch-nya gagal dan
+     * barisnya menunggu Kirim ulang.
+     *
+     * Umurnya diukur dari saat baris ini terakhir seharusnya bergerak, bukan
+     * dari created_at: baris yang menunggu backoff (next_attempt_at di masa
+     * depan — total backoff 60+300+900+3600 s sudah lebih dari sejam) sedang
+     * melakukan persis yang seharusnya, dan baris gagal yang baru ditekan
+     * Kirim ulang baru mulai menunggu sejak ditekan (updated_at), bukan sejak
+     * dibuat kemarin (verifikasi P-0b, 5 Sep 2026: keduanya dihitung macet).
+     * Jadi: next_attempt_at bila ada, kalau tidak updated_at (setiap percobaan
+     * dan setiap Kirim ulang menyentuhnya), harus lewat lebih dari sejam.
      */
     private function queuedDeliveriesOlderThanAnHour(): ?int
     {
@@ -144,9 +154,13 @@ class HealthService
             return null;
         }
 
+        $cutoff = now()->subHour();
+
         return (int) DB::table('core_notification_deliveries')
             ->where('status', 'queued')
-            ->where('created_at', '<', now()->subHour())
+            ->where(fn ($due) => $due
+                ->where(fn ($unscheduled) => $unscheduled->whereNull('next_attempt_at')->where('updated_at', '<', $cutoff))
+                ->orWhere('next_attempt_at', '<', $cutoff))
             ->count();
     }
 }

@@ -84,13 +84,14 @@ function schedulerBanner() {
         + 'Periksa "systemctl status erp1-scheduler" di server.');
     }
 
-    /* Antrean (T0b.3/T0b.4): job gagal dan pengiriman yang > 1 jam masih antre
-       menunjuk ke layarnya. Bukan spanduk peringatan — keadaan yang bisa
-       diselesaikan dari aplikasi, dan tautannya ada di kalimatnya. */
+    /* Antrean (T0b.3/T0b.4): job gagal dan pengiriman yang > 1 jam antre tanpa
+       disentuh pekerja (yang menunggu backoff tidak dihitung) menunjuk ke
+       layarnya. Bukan spanduk peringatan — keadaan yang bisa diselesaikan dari
+       aplikasi, dan tautannya ada di kalimatnya. */
     const failed = health ? health.failed_jobs_count : null;
     const stuck = health ? health.queued_deliveries_older_than_1h : null;
     if ((failed ?? 0) > 0 || (stuck ?? 0) > 0 || failed === null || stuck === null) {
-      show(`Antrean: ${count(failed)} job gagal · ${count(stuck)} pengiriman notifikasi antre lebih dari 1 jam.`, {
+      show(`Antrean: ${count(failed)} job gagal · ${count(stuck)} pengiriman notifikasi antre lebih dari 1 jam tanpa diambil pekerja.`, {
         tone: 'info',
         links: [
           { label: 'Antrean Gagal', route: 'r/core/queue/failed' },

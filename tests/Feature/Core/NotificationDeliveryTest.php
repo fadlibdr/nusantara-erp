@@ -479,16 +479,47 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->getJson('/api/core/notification-deliveries')->assertForbidden();
     }
 
-    public function test_health_counts_queued_deliveries_older_than_an_hour(): void
+    /**
+     * "Antre lebih dari 1 jam" = tidak disentuh pekerja selama sejam, bukan
+     * "dibuat lebih dari sejam lalu": baris yang menunggu backoff dan baris
+     * gagal yang baru ditekan Kirim ulang bukan kemacetan (verifikasi P-0b,
+     * 5 Sep 2026: keduanya dihitung macet).
+     */
+    public function test_health_counts_queued_deliveries_untouched_for_an_hour(): void
     {
         $admin = $this->adminUser();
         $approver = $this->userWith('fin.approve', 'Direktur');
-        $this->delivery($approver, NotificationDelivery::QUEUED);
-        $old = $this->delivery($approver, NotificationDelivery::QUEUED);
-        $old->forceFill(['created_at' => CarbonImmutable::now()->subHours(2)])->save();
+        $twoHoursAgo = CarbonImmutable::now()->subHours(2);
 
+        // Baru dibuat: belum macet.
+        $this->delivery($approver, NotificationDelivery::QUEUED);
+        // Dibuat dua jam lalu, tidak pernah disentuh: MACET.
+        $stale = $this->delivery($approver, NotificationDelivery::QUEUED);
+        DB::table('core_notification_deliveries')->where('id', $stale->id)
+            ->update(['created_at' => $twoHoursAgo, 'updated_at' => $twoHoursAgo]);
+        // Percobaan ke-4 gagal 70 menit lalu, menunggu backoff 3600 s (jatuh 30 menit
+        // lagi): sedang melakukan yang seharusnya, BUKAN macet.
+        $backoff = $this->delivery($approver, NotificationDelivery::QUEUED, ['attempts' => 4, 'error' => 'SMTP 421 try later']);
+        DB::table('core_notification_deliveries')->where('id', $backoff->id)->update([
+            'created_at' => $twoHoursAgo, 'updated_at' => CarbonImmutable::now()->subMinutes(70),
+            'next_attempt_at' => CarbonImmutable::now()->addMinutes(30),
+        ]);
+        // Jadwal percobaannya sudah lewat dua jam dan pekerja tidak mengambilnya: MACET.
+        $missed = $this->delivery($approver, NotificationDelivery::QUEUED, ['attempts' => 2]);
+        DB::table('core_notification_deliveries')->where('id', $missed->id)->update([
+            'created_at' => CarbonImmutable::now()->subHours(3), 'updated_at' => CarbonImmutable::now()->subHours(3),
+            'next_attempt_at' => $twoHoursAgo,
+        ]);
+        // Gagal kemarin, Kirim ulang baru saja ditekan (updated_at sekarang): belum macet.
+        $retried = $this->delivery($approver, NotificationDelivery::FAILED);
+        DB::table('core_notification_deliveries')->where('id', $retried->id)
+            ->update(['created_at' => CarbonImmutable::now()->subDay(), 'updated_at' => CarbonImmutable::now()->subDay()]);
+        $this->emailOn();
         $this->actingAs($admin, 'sanctum');
-        $this->assertSame(1, $this->getJson('/api/core/health')->assertOk()->json('data.queued_deliveries_older_than_1h'));
+        Queue::fake();
+        $this->postJson("/api/core/notification-deliveries/{$retried->id}/retry")->assertOk();
+
+        $this->assertSame(2, $this->getJson('/api/core/health')->assertOk()->json('data.queued_deliveries_older_than_1h'));
     }
 
     // ------------------------------------------------------------------ SPA
