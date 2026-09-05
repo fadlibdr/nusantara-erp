@@ -24,8 +24,8 @@ use Tests\TestCase;
  *      menunjuk berkas yang hilang;
  *  (b) tidak ada pemuat (script src, link href, use/image/img/iframe/… href|src|srcset,
  *      import, import(), new URL, fetch, url(), @import, "src": di manifest) yang
- *      menunjuk http(s):// atau //host di *.html *.js *.mjs *.css *.svg
- *      *.webmanifest *.json mana pun di bawah public/app — tanpa allowlist.
+ *      menunjuk http(s):// atau //host di *.html *.htm *.xhtml *.js *.mjs *.css
+ *      *.svg *.webmanifest *.json mana pun di bawah public/app — tanpa allowlist.
  *      Literal http(s) yang BUKAN pemuat harus lolos aturan data yang tepat di
  *      isDataLiteral(); literal //host di dalam tanda kutip/backtick diperlakukan
  *      sama (`s.src = '//cdn…'` adalah alamat, bukan komentar) — hanya //host tanpa
@@ -48,11 +48,13 @@ class VendorManifestTest extends TestCase
     /**
      * Semua jenis berkas yang bisa memuat sumber daya: modul .mjs, .svg (<script
      * href>, <image href>, <use href>), manifest PWA (.webmanifest/.json — P1-I;
-     * ikon "src" eksternal). Verifikasi P1-A: hanya html/js/css yang dipindai, jadi
+     * ikon "src" eksternal), dan kedua ekstensi halaman lain yang dilayani peramban
+     * sebagai HTML (.htm, .xhtml). Verifikasi P1-A: hanya html/js/css yang dipindai, jadi
      * js/x.mjs berisi import('https://cdn…') dan favicon.svg berisi <script href>
-     * lolos (mutasi m27/m28).
+     * lolos (mutasi m27/m28); putaran 2: extra.htm berisi <script src="https://cdn…">
+     * lolos (mutasi x3).
      */
-    private const SCANNED_EXTENSIONS = ['html', 'js', 'mjs', 'css', 'svg', 'webmanifest', 'json'];
+    private const SCANNED_EXTENSIONS = ['html', 'htm', 'xhtml', 'js', 'mjs', 'css', 'svg', 'webmanifest', 'json'];
 
     /**
      * Pengenal namespace W3C yang diserahkan ke createElementNS()/xmlns: URL
