@@ -55,13 +55,28 @@ systemctl --no-pager status erp1-queue erp1-scheduler
 tail -n 5 /var/log/erp1/queue.log /var/log/erp1/scheduler.log
 
 # 5. Pengawas (root): heartbeat > 20 menit -> restart erp1-scheduler + alarm dalam aplikasi.
+#    TUNGGU detak pertama dulu. erp:heartbeat baru ditulis pada menit kelipatan
+#    5 berikutnya (paling lama ~5 menit setelah langkah 4); pengawas yang
+#    dijalankan sebelum itu membaca `?` = macet, memulai ulang unit yang baru
+#    saja dinyalakan, dan mengirim alarm "Penjadwal tidak berjalan" palsu ke
+#    semua pemegang core.update — alarm yang tidak dicabut siapa pun saat
+#    detaknya datang (gladi 5 Sep 2026, drill.log baris 2–7). Jangan menulis
+#    detaknya dengan tangan: itu memalsukan 20 menit "sehat". Berkas cron-nya
+#    dipasang SETELAH detak ada, supaya tick :00/:15/:30/:45 tidak mendahului.
+bash -n $SITE/deploy/erp1-watchdog.sh
+for i in $(seq 1 24); do   # paling lama 6 menit
+  age=$(cd $SITE && sudo -u www-data env HOME=/tmp php artisan erp:heartbeat --age 2>/dev/null | tail -n 1)
+  [ "$age" != '?' ] && [ -n "$age" ] && break
+  sleep 15
+done
+echo "detak pertama: umur ${age:-?} detik"     # harus angka; masih `?` = periksa systemctl status erp1-scheduler
+bash $SITE/deploy/erp1-watchdog.sh              # harus "sehat: detak terakhir N detik lalu", keluar 0
 install -m 0644 $SITE/deploy/cron.d/erp1-watchdog /etc/cron.d/erp1-watchdog
-bash -n $SITE/deploy/erp1-watchdog.sh && bash $SITE/deploy/erp1-watchdog.sh   # jalan sekali, lihat keluarannya
 ```
 
-Setelah ±5 menit, `GET /api/core/health` (pemegang `core.view`) harus menjawab
+Sesudahnya `GET /api/core/health` (pemegang `core.view`) menjawab
 `scheduler_status: "ok"` dan `scheduler_heartbeat_age_s` < 300; dasbor pemegang
-`core.update` berhenti menampilkan spanduk "Penjadwal tidak berjalan".
+`core.update` tidak menampilkan spanduk "Penjadwal tidak berjalan".
 
 ## Setelah deploy kode
 

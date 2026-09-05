@@ -221,6 +221,18 @@ class DeployUnitsTest extends TestCase
 
         $this->assertStringContainsString('withoutOverlapping', $install);
         $this->assertStringContainsString('05:00', $install, 'Jendela perintah harian disebut.');
+
+        // Pengawas: tunggu detak pertama (erp:heartbeat --age bukan `?`) SEBELUM
+        // menjalankannya sekali dan SEBELUM memasang berkas cron-nya.
+        $wait = strpos($install, 'erp:heartbeat --age');
+        $runOnce = strpos($install, 'bash $SITE/deploy/erp1-watchdog.sh');
+        $cron = strpos($install, 'install -m 0644 $SITE/deploy/cron.d/erp1-watchdog /etc/cron.d/erp1-watchdog');
+        $this->assertNotFalse($wait, 'README harus menunggu detak pertama.');
+        $this->assertNotFalse($runOnce);
+        $this->assertNotFalse($cron);
+        $this->assertGreaterThan($enable, $wait, 'Menunggu detak baru masuk akal setelah unit dinyalakan.');
+        $this->assertLessThan($runOnce, $wait, 'Pengawas dijalankan SETELAH detak pertama ada.');
+        $this->assertLessThan($cron, $wait, 'Berkas cron pengawas dipasang SETELAH detak pertama ada.');
     }
 
     /** Isi satu fungsi bash `name() { … }` — sampai `}` pertama di awal baris. */
