@@ -18,6 +18,10 @@
  *              sendiri — aturan ">100 % dipertahankan" milik pemanggil, bukan grafik).
  *              Bawaan: domain data SELALU memuat nol (nilai negatif → sumbu memotong nol);
  *              tren harga yang tidak boleh mulai dari nol memberi yMin sendiri.
+ *              Nilai DI LUAR sumbu yang dipaksa: garis dan area dipotong pada tepi plot
+ *              (<clipPath>), titiknya ditempel di tepi plot dengan data-outside="above|below"
+ *              dan <title> "… (di luar sumbu)" — tidak pernah digambar keluar kotak svg
+ *              (menimpa kartu di atas/bawahnya), tidak pula dibengkokkan diam-diam ke tepi.
  *     Satu titik → titik saja (tanpa garis). Semua titik kosong → placeholder "Belum ada data".
  *
  *   barChart({ categories, series, stacked?, horizontal?, yFormat?, yMax?, yMin?, width?, height?, ariaLabel, sourceNote?, legend? })
@@ -76,6 +80,10 @@ const CHAR_W = 6.3;
 const FONT = 11;
 const SERIES_TOKENS = 8;
 const EMPTY_TEXT = 'Belum ada data';
+
+/* Satu-satunya state modul: penghitung id <clipPath>, supaya dua grafik pada halaman yang
+   sama tidak berbagi id (url(#…) merujuk id pertama di dokumen). */
+let clipSeq = 0;
 
 const numberFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 });
 const percentFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
@@ -151,6 +159,18 @@ function placeholder(kind, width, height, ariaLabel, message = EMPTY_TEXT) {
   svg.dataset.empty = 'true';
   svg.appendChild(make('text', { class: 'chart-empty', x: width / 2, y: height / 2 + FONT / 3, 'text-anchor': 'middle' }, message));
   return svg;
+}
+
+/** Klip area plot (+2 px untuk tebal garis) untuk garis/area: nilai di luar yMin/yMax yang
+    dipaksa tidak boleh terlukis di luar svg. Mengembalikan nilai atribut clip-path. */
+function plotClip(svg, x, y, w, h) {
+  const id = `chart-clip-${++clipSeq}`;
+  const defs = make('defs');
+  const clip = make('clipPath', { id });
+  clip.appendChild(make('rect', { x: x - 2, y: y - 2, width: w + 4, height: h + 4 }));
+  defs.appendChild(clip);
+  svg.appendChild(defs);
+  return `url(#${id})`;
 }
 
 function noteLine(svg, text, x, y) {
@@ -280,6 +300,7 @@ export function lineChart({
   const y = (v) => PAD.top + plotH - ((v - lo) / (hi - lo)) * plotH;
 
   const svg = frame('line', width, H, ariaLabel);
+  const clip = plotClip(svg, PAD.left, PAD.top, plotW, plotH);
   ticks.forEach((t) => {
     svg.appendChild(paint(make('line', { class: 'chart-grid', x1: PAD.left, x2: width - PAD.right, y1: y(t), y2: y(t) }), 'stroke', '--chart-grid'));
     svg.appendChild(make('text', { class: 'chart-tick', x: PAD.left - 7, y: y(t) + 3.5, 'text-anchor': 'end' }, fy(t)));
@@ -305,15 +326,19 @@ export function lineChart({
       if (pts.length < 2) return;
       const d = pts.map((p, i) => `${i ? 'L' : 'M'}${round(x(p.x))},${round(y(p.y))}`).join(' ');
       if (s.area) {
-        const area = make('path', { class: 'series-area', d: `${d} L${round(x(pts[pts.length - 1].x))},${round(base)} L${round(x(pts[0].x))},${round(base)} Z`, 'fill-opacity': 0.12, 'data-series': s.index });
+        const area = make('path', { class: 'series-area', d: `${d} L${round(x(pts[pts.length - 1].x))},${round(base)} L${round(x(pts[0].x))},${round(base)} Z`, 'fill-opacity': 0.12, 'data-series': s.index, 'clip-path': clip });
         svg.appendChild(paint(area, 'fill', s.token));
       }
-      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dashed ? '6 4' : null, 'data-series': s.index });
+      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dashed ? '6 4' : null, 'data-series': s.index, 'clip-path': clip });
       svg.appendChild(paint(path, 'stroke', s.token));
     });
     runs.forEach((pts) => pts.forEach((p) => {
-      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy: y(p.y), r: pts.length === 1 ? 4 : 3, 'data-series': s.index });
-      svg.appendChild(mark(paint(dot, 'fill', s.token), `${s.label} — ${labelX(p.x)}: ${fy(p.y)}`));
+      /* Titik di luar sumbu yang dipaksa ditempel di tepi plot dan MENGATAKANNYA: yMax 100
+         dengan nilai 140 dulu menggambar titik 73 px di atas svg, menimpa kepala kartu. */
+      const outside = p.y > hi ? 'above' : p.y < lo ? 'below' : null;
+      const cy = outside === 'above' ? PAD.top : outside === 'below' ? PAD.top + plotH : y(p.y);
+      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: pts.length === 1 ? 4 : 3, 'data-series': s.index, 'data-outside': outside });
+      svg.appendChild(mark(paint(dot, 'fill', s.token), `${s.label} — ${labelX(p.x)}: ${fy(p.y)}${outside ? ' (di luar sumbu)' : ''}`));
     }));
   });
 

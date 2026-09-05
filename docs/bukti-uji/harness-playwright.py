@@ -1093,6 +1093,9 @@ CHART_RENDER = """async () => {
       { label: 'Biaya', points: [{x:0,y:2},{x:1,y:8},{x:2,y:14},{x:3,y:22},{x:4,y:30},{x:5,y:44}] }],
     xLabels: ['M1','M2','M3','M4','M5','M6'], yFormat: (v) => v + ' %', ariaLabel: 'uji garis', sourceNote: 'Sumber: fixture harness S20' }));
   t('line_single', () => m.lineChart({ series: [{ label: 'Satu', points: [{x:0,y:7}] }], ariaLabel: 'satu titik' }));
+  // Sumbu dipaksa 0..100 dengan nilai 140 dan −20: dulu titik+garis terlukis 73 px di atas svg
+  // (menimpa kepala kartu) — kini garis diklip dan titiknya ditempel di tepi plot + "(di luar sumbu)".
+  t('line_clip', () => m.lineChart({ series: [{ label: 'Progres', points: [{x:0,y:10},{x:1,y:60},{x:2,y:140},{x:3,y:-20},{x:4,y:50}], area: true }], yMin: 0, yMax: 100, yFormat: (v) => v + ' %', ariaLabel: 'di luar sumbu' }));
   t('line_empty', () => m.lineChart({ series: [{ label: 'Kosong', points: [{x:0,y:null},{x:1,y:NaN}] }], ariaLabel: 'kosong' }));
   t('bar', () => m.barChart({ categories: ['Jan','Feb','Mar','Apr'], series: [{ label: 'RAP', values: [3,-2,5,4] },{ label: 'Realisasi', values: [1,4,null,6] }], yFormat: rp, ariaLabel: 'uji batang' }));
   t('bar_stacked', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Material', values: [3,2,1] },{ label: 'Upah', values: [1,4,2] },{ label: 'Alat', values: [-1,1,0] }], stacked: true, ariaLabel: 'tumpuk' }));
@@ -1156,7 +1159,16 @@ CHART_MEASURE = """(theme) => {
     const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, neg_dims: negDims,
       texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
       width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
-    if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length; }
+    // Geometri di luar viewBox (getBBox dalam koordinat svg): legenda/catatan yang melampaui tinggi,
+    // label tick yang keluar tepi kanan, titik di luar plot — .chart { overflow: visible } melukisnya
+    // di atas elemen berikutnya. Path yang diklip dikecualikan (getBBox = geometri sebelum klip).
+    const outside = [...svg.querySelectorAll('circle, rect, line, text, path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
+    c.outside_viewbox = outside.length; c.outside_viewbox_sample = outside.slice(0, 3).map(e => e.tagName + '.' + (e.getAttribute('class') || '') + ' ' + (e.textContent || '').slice(0, 20));
+    if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length;
+      const clipRect = svg.querySelector('clipPath rect'); const top = clipRect ? +clipRect.getAttribute('y') + 2 : 14; const bottom = clipRect ? top + +clipRect.getAttribute('height') - 4 : 232;
+      c.clipped_paths = svg.querySelectorAll('path.series-line[clip-path], path.series-area[clip-path]').length; c.unclipped_paths = svg.querySelectorAll('path.series-line:not([clip-path]), path.series-area:not([clip-path])').length;
+      const dots = [...svg.querySelectorAll('circle.series-point')]; c.dots_outside_plot = dots.filter(d => +d.getAttribute('cy') < top - 0.5 || +d.getAttribute('cy') > bottom + 0.5).length;
+      c.dots_marked_outside = dots.filter(d => d.dataset.outside).length; c.outside_titles = [...svg.querySelectorAll('circle[data-outside] title')].map(t => t.textContent); }
     if (name.startsWith('bar')) { c.zero_line = svg.querySelectorAll('.chart-zero').length; const bars = [...svg.querySelectorAll('rect.series-bar')]; c.bars = bars.length; c.bar_min_thickness = bars.length ? Math.min(...bars.map(r => +r.getAttribute(name.includes('horizontal') ? 'height' : 'width'))) : null; }
     if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
     if (name.startsWith('gantt')) {
@@ -1175,7 +1187,8 @@ CHART_MEASURE = """(theme) => {
   return { theme, tokens, surface, contrast, charts,
     summary: { charts: total.length, painted: total.reduce((a, c) => a + c.painted, 0), mismatches: total.reduce((a, c) => a + c.mismatch.length, 0),
       marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), titles_equal_marks: total.every(c => c.marks === c.titles),
-      neg_dims: total.reduce((a, c) => a + c.neg_dims, 0),
+      neg_dims: total.reduce((a, c) => a + c.neg_dims, 0), outside_viewbox: total.reduce((a, c) => a + c.outside_viewbox, 0),
+      dots_outside_plot: total.reduce((a, c) => a + (c.dots_outside_plot || 0), 0), unclipped_paths: total.reduce((a, c) => a + (c.unclipped_paths || 0), 0),
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
       empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length, min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
