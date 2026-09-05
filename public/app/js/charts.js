@@ -467,9 +467,17 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
       const a0 = angle;
       const a1 = angle + sweep;
       angle = a1;
-      const large = sweep > Math.PI ? 1 : 0;
       const p = (rad, ang) => `${round(cx + rad * Math.cos(ang))},${round(cy + rad * Math.sin(ang))}`;
-      const d = `M${p(R, a0)} A${R},${R} 0 ${large} 1 ${p(R, a1)} L${p(r, a1)} A${r},${r} 0 ${large} 0 ${p(r, a0)} Z`;
+      /* Busur > 180° dipecah dua: titik awal dan akhir busur ≥ 359,99° jatuh pada
+         koordinat yang sama setelah pembulatan 2 desimal, dan SVG lalu MENGHILANGKAN
+         busurnya — irisan 99,999 % tergambar sebagai cakram tanpa lubang (1e-5) atau
+         tidak sama sekali (1e-6; Rp 10 M vs Rp 100 rb adalah data ERP biasa). Dua
+         busur ≤ 180° selalu punya ujung yang berbeda. */
+      const arc = (rad, from, to, sweepFlag) => {
+        const pieces = Math.abs(to - from) > Math.PI ? 2 : 1;
+        return Array.from({ length: pieces }, (_, k) => `A${rad},${rad} 0 0 ${sweepFlag} ${p(rad, from + ((to - from) * (k + 1)) / pieces)}`).join(' ');
+      };
+      const d = `M${p(R, a0)} ${arc(R, a0, a1, 1)} L${p(r, a1)} ${arc(r, a1, a0, 0)} Z`;
       const path = make('path', { class: 'series-slice', d, 'data-series': s.index });
       svg.appendChild(mark(paint(path, 'fill', s.token), `${s.label}: ${fv(s.value)} (${pct(s.value)})`));
     });
