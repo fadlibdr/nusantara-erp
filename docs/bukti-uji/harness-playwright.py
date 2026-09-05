@@ -1255,6 +1255,8 @@ CHART_MEASURE = """(theme) => {
     // di atas elemen berikutnya. Path yang diklip dikecualikan (getBBox = geometri sebelum klip).
     const outside = [...svg.querySelectorAll('circle, rect, line, text:not([clip-path]), path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
     c.outside_viewbox = outside.length; c.outside_viewbox_sample = outside.slice(0, 3).map(e => e.tagName + '.' + (e.getAttribute('class') || '') + ' ' + (e.textContent || '').slice(0, 20));
+    // px/glyph terukur label tick (getBBox lebar ÷ jumlah huruf) — pembanding untuk taksiran CHAR_W 5,6 charts.js (docblock menyebut 'September' 6,02 dan angka polos 6,12 melampauinya).
+    const glyphs = [...svg.querySelectorAll('text.chart-tick')].filter(t => t.textContent.length >= 3).map(t => t.getBBox().width / t.textContent.length); c.tick_glyph_px_max = glyphs.length ? +Math.max(...glyphs).toFixed(2) : null;
     const legendEls = [...svg.querySelectorAll('text.chart-legend')]; const legendYs = legendEls.map(t => +t.getAttribute('y')); const note = svg.querySelector('text.chart-note');
     // Teks entri legenda: donat membungkus per baris ke <tspan> (dy 14) — digabung dengan spasi supaya sama dengan teks satu barisnya.
     const legendText = (t) => t.querySelector('tspan') ? [...t.querySelectorAll('tspan')].map(sp => sp.textContent).join(' ') : t.textContent;
@@ -1318,6 +1320,7 @@ CHART_MEASURE = """(theme) => {
       // Verifikasi P1-A putaran 2: label sumbu-x yang bertumpuk (getBBox, semua fixture garis+batang) — dulu 17–54 px pada sumbu tanggal ≥ 10 titik.
       x_label_overlaps: total.reduce((a, c) => a + (c.x_label_overlaps || 0), 0), x_label_max_overlap_px: Math.max(0, ...total.map(c => c.x_label_max_overlap_px || 0)),
       x_label_charts: total.filter(c => c.x_label_overlaps !== undefined).length,
+      tick_glyph_px_max: Math.max(...total.map(c => c.tick_glyph_px_max ?? 0)),
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
       empty_with_text: total.filter(c => c.empty && /^Belum ada data/.test(c.empty_text || '')).length,
       // Donat yang semua barisnya dikecualikan: placeholder harus menyebut jumlah baris dan alasannya (data-excluded), bukan 'Belum ada data' polos.

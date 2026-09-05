@@ -107,12 +107,19 @@
 
 const NS = 'http://www.w3.org/2000/svg';
 const DAY = 86400000;
-/* Lebar rata-rata glyph pada 11 px --font, untuk memperkirakan lebar label (tanpa
-   layout DOM — fungsi ini murni dan bisa dipanggil sebelum svg ditempel). Diukur
-   getBBox di Chromium 151 dengan tumpukan --font (5 Sep 2026): teks legenda 4,99,
-   'Februari' 5,12, 'September' 6,0 → 54 px, 'Rp 20.000.000.000' 5,51 px/glyph; 5,6 =
-   batas atas terukur. Nilai lama 6,3 memotong 'Februari' jadi 'Februa…' pada pita
-   55,7 px padahal teks aslinya 41 px. */
+/* Lebar glyph TAKSIRAN pada 11 px --font, untuk memperkirakan lebar label tanpa layout DOM
+   (fungsi ini murni dan bisa dipanggil sebelum svg ditempel). Diukur getBBox di Chromium 151
+   dengan tumpukan --font (5 Sep 2026, px/glyph): teks legenda 4,99–5,12, 'Februari' 5,12,
+   'Rp 20.000.000.000' 5,51, label tanggal '05 Jan 2026'…'29 Sep 2026' 5,45–5,67 (maks 62,4 px),
+   tetapi 'September' 6,02 (54 px), deretan angka polos '0123456789' 6,12, dan label pendek 3
+   huruf ('Mei', 'Jun', 'K1…') 6,4–8,2. 5,6 adalah batas atas teks CAMPURAN (huruf + angka +
+   spasi) sepanjang ≥ 8 huruf, BUKAN batas atas semua teks — kata berglyph lebar, angka polos,
+   dan label pendek melampauinya. Pemakainya tidak bergantung pada taksiran sebagai batas
+   atas: label tepi ditambatkan ke ujung svg (xLabelBox — tidak pernah terpotong berapa pun
+   lebar aslinya), penjarangan menyisakan celah 6 px (thin), label kategori batang dipotong ke
+   pita − 4 px, label gantt diklip pada labelWidth − 8; harness S20 mencatat px/glyph terukur
+   setiap label tick (tick_glyph_px_max). Nilai lama 6,3 memotong 'Februari' jadi 'Februa…'
+   pada pita 55,7 px padahal teks aslinya 41 px. */
 const CHAR_W = 5.6;
 const FONT = 11;
 const SERIES_TOKENS = 8;
