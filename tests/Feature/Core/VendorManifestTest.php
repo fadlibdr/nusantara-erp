@@ -50,6 +50,16 @@ class VendorManifestTest extends TestCase
     private const NAMESPACE_IRIS = ['http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'];
 
     /**
+     * Rujukan http(s) di sebuah baris: bentuk berskema `https://…` (huruf besar
+     * ikut — `HTTPS://cdn…` sama saja bagi peramban) DAN bentuk relatif-protokol
+     * `//cdn.jsdelivr.net/…` — persis potongan salin-tempel yang uji ini ada untuk
+     * menangkapnya; bentuk kedua hanya dihitung bila didahului pemuat (LOADER_BEFORE_URL),
+     * karena `//` juga awalan komentar JS. Verifikasi P1-A (5 Sep 2026): pola lama
+     * `https?://` tanpa /i meloloskan keduanya.
+     */
+    private const URL_PATTERN = '~(?:https?://[^\s\'"`)<>]+|//[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[:/?#][^\s\'"`)<>]*)?)~i';
+
+    /**
      * Konteks tepat sebelum sebuah URL yang berarti peramban akan MEMUATNYA.
      * Setiap alternatif berakhir tepat di awal URL (…$), jadi `<a href=` atau
      * `href:` milik el('a') tidak cocok — itu tautan yang diklik orang, bukan
@@ -102,13 +112,16 @@ class VendorManifestTest extends TestCase
             $scanned++;
             $relative = substr($path, strlen($this->appRoot()) + 1);
             foreach (file($path) as $number => $line) {
-                if (! preg_match_all('~https?://[^\s\'"`)<>]+~', $line, $matches, PREG_OFFSET_CAPTURE)) {
+                if (! preg_match_all(self::URL_PATTERN, $line, $matches, PREG_OFFSET_CAPTURE)) {
                     continue;
                 }
                 foreach ($matches[0] as [$url, $offset]) {
                     $before = substr($line, 0, $offset);
-                    if (preg_match(self::LOADER_BEFORE_URL, $before)) {
+                    $loader = (bool) preg_match(self::LOADER_BEFORE_URL, $before);
+                    if ($loader) {
                         $violations[] = sprintf('%s:%d memuat %s dari luar (pemuat: %s)', $relative, $number + 1, $url, trim(substr($before, -40)));
+                    } elseif (str_starts_with($url, '//')) {
+                        continue; // relatif-protokol tanpa pemuat: `//` komentar JS atau pembagian, bukan alamat
                     } elseif (! $this->isDataLiteral($url, $before, $line)) {
                         $violations[] = sprintf('%s:%d literal %s tidak dikenal aturan data isDataLiteral() — bukan pemuat, tetapi bukan pula namespace W3C, tautan <a>/href:, atau komentar; tambahkan aturan yang tepat bila memang data', $relative, $number + 1, $url);
                     }
@@ -195,8 +208,8 @@ class VendorManifestTest extends TestCase
         }
 
         $this->assertSame(0, $document->getElementsByTagName('script')->length, 'sprite.svg mengandung <script>');
-        preg_match_all('~https?://[^\s\'"`)<>]+~', $xml, $urls);
-        $this->assertSame([], array_values(array_diff(array_unique($urls[0]), self::NAMESPACE_IRIS)), 'sprite.svg merujuk URL selain namespace W3C');
+        preg_match_all(self::URL_PATTERN, $xml, $urls);
+        $this->assertSame([], array_values(array_diff(array_unique($urls[0]), self::NAMESPACE_IRIS)), 'sprite.svg merujuk URL selain namespace W3C (termasuk bentuk //host dan huruf besar)');
     }
 
     /* --------------------------------------------------------------- (e) */
