@@ -5,6 +5,7 @@ namespace Modules\Core\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Modules\Core\Support\MigrationDeclaredColumns;
 use Throwable;
 
 /**
@@ -38,8 +39,9 @@ use Throwable;
  * emits bare `numeric` for decimal columns — Schema::getColumns() reports type
  * "numeric", no (p, s) — so the schema cannot say what scale a value should
  * have. The migrations can: `->decimal('amount', 18, 2)` is the declaration
- * MySQL will enforce. They are scanned once (last declaration of a column
- * wins, so a change() restating the type is honoured), then cross-checked
+ * MySQL will enforce. They are scanned once (MigrationDeclaredColumns — last
+ * declaration of a column wins, so a change() restating the type is
+ * honoured), then cross-checked
  * against the live schema — a declared column that does not exist is skipped,
  * and on MySQL the live decimal(p,s) is preferred over the declaration.
  *
@@ -59,11 +61,6 @@ class MysqlPreflightCommand extends Command
 
     protected $description = 'Audit decimals, JSON columns and SQLite-only SQL before the MySQL cut-over';
 
-    /** Laravel's default when ->decimal() is called without (total, places). */
-    private const DEFAULT_PRECISION = 8;
-
-    private const DEFAULT_SCALE = 2;
-
     /** Directories whose PHP is scanned for SQLite-only SQL (relative to base_path). */
     private const SCAN_DIRS = ['app', 'Modules', 'database', 'routes'];
 
@@ -76,7 +73,7 @@ class MysqlPreflightCommand extends Command
     {
         $idLimit = max(1, (int) $this->option('ids'));
 
-        $declared = $this->declaredColumns();
+        $declared = MigrationDeclaredColumns::scan();
 
         $decimals = $this->auditDecimals($declared['decimal'], $idLimit);
         $json = $this->auditJson($declared['json'], $idLimit);
@@ -311,68 +308,6 @@ class MysqlPreflightCommand extends Command
         }
 
         return ['columns' => $columns, 'invalid_rows' => $invalidRows, 'details' => $details];
-    }
-
-    // ------------------------------------------------------------------
-    // migrations: what the schema was DECLARED to be
-    // ------------------------------------------------------------------
-
-    /**
-     * Scan every migration for ->decimal('col', p, s) and ->json('col'), keyed
-     * by the table of the enclosing Schema::create()/Schema::table() call.
-     * Files are read in name order, so a later change() overrides.
-     *
-     * @return array{decimal: array<string, array<string, array{precision:int, scale:int}>>, json: array<string, array<string, true>>}
-     */
-    private function declaredColumns(): array
-    {
-        $decimal = [];
-        $json = [];
-
-        $files = array_merge(
-            glob(base_path('database/migrations/*.php')) ?: [],
-            glob(base_path('Modules/*/Database/Migrations/*.php')) ?: [],
-        );
-        sort($files);
-
-        $pattern = '/Schema::(?:create|table)\(\s*[\'"]([a-z0-9_]+)[\'"]'
-            .'|->(decimal|unsignedDecimal|json|jsonb)\(\s*[\'"]([a-z0-9_]+)[\'"]\s*(?:,\s*(\d+)\s*(?:,\s*(\d+))?)?\s*\)/';
-
-        foreach ($files as $file) {
-            $source = (string) file_get_contents($file);
-            $table = null;
-
-            if (! preg_match_all($pattern, $source, $matches, PREG_SET_ORDER)) {
-                continue;
-            }
-
-            foreach ($matches as $m) {
-                if ($m[1] !== '') {
-                    $table = $m[1];
-
-                    continue;
-                }
-
-                if ($table === null) {
-                    continue;
-                }
-
-                $column = $m[3];
-
-                if (in_array($m[2], ['json', 'jsonb'], true)) {
-                    $json[$table][$column] = true;
-
-                    continue;
-                }
-
-                $decimal[$table][$column] = [
-                    'precision' => isset($m[4]) && $m[4] !== '' ? (int) $m[4] : self::DEFAULT_PRECISION,
-                    'scale' => isset($m[5]) && $m[5] !== '' ? (int) $m[5] : self::DEFAULT_SCALE,
-                ];
-            }
-        }
-
-        return ['decimal' => $decimal, 'json' => $json];
     }
 
     // ------------------------------------------------------------------

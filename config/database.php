@@ -68,6 +68,24 @@ return [
             'synchronous' => env('DB_SYNCHRONOUS', 'NORMAL'),
         ],
 
+        /*
+         * The SQLite file the application USED to run on, after the MySQL
+         * cut-over (Fase 0, T0.5/T0.6). Read by erp:sqlite-to-mysql (the copy)
+         * and erp:migration-verify (the proof) — both address it by this name
+         * so the file can be verified again days later without touching
+         * DB_CONNECTION. No journal_mode/synchronous pragmas: the frozen file
+         * must be read as it is, never rewritten by the connection that
+         * verifies it. foreign_key_constraints off: this connection only
+         * SELECTs, and a pragma that changes nothing costs a write lock.
+         */
+        'sqlite_legacy' => [
+            'driver' => 'sqlite',
+            'database' => env('SQLITE_LEGACY_PATH', database_path('database.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+            'busy_timeout' => 5000,
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
@@ -86,6 +104,29 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+        ],
+
+        /*
+         * Where deploy/backup-erp1.sh --restore-drill loads a MySQL dump back
+         * (T0.6): same server and account as `mysql`, a schema of its own, so
+         * erp:migration-verify --from=mysql --to=mysql_restore_check can prove
+         * the dump against the live database. The drill never writes anywhere
+         * else, and nothing else ever writes here.
+         */
+        'mysql_restore_check' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_RESTORE_CHECK_DATABASE', 'erp_restore_check'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
         ],
 
         'mariadb' => [
