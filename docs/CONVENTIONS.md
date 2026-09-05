@@ -291,3 +291,41 @@ tepi kartu launcher (P1-C). Mekanismenya satu atribut `data-accent="n"` yang app
 pernah** pada lencana, alert, tombol, atau status — semantik `--success/--warning/--danger` tetap.
 Catatan jujur: slot 3/6/7 sekeluarga hue dengan success/danger/warning (warisan palet grafik);
 itulah sebabnya aksen tidak boleh muncul di bentuk yang sama dengan lencana.
+
+## 13. Kepadatan (`--row-h`, P1-B)
+
+Tiga profil, `data-density` di `<html>`: `compact` 32 px · `normal` 38,5 px · `comfortable` 48 px
+per baris satu-baris `table.data`. **`normal` = angka yang diukur sebelum token ada** (13 px × 1,5 +
+2 × 9 padding + 1 border = 38,5; berlencana 41,13; bertombol aksi 47) sehingga tanpa pilihan
+tidak ada yang bergeser — lantai 38,5 tidak pernah mengikat. `compact` menurunkan padding ke 3 px
+dan tombol aksi baris ke 24 px (hanya `pointer: fine` — di layar sentuh sasaran jempol 36 px
+menang, baris rapat bertombol 43 px), `comfortable` menahan padding dan menaikkan lantai; di
+kedua profil itu **semua** baris satu-baris tepat 32/48 (S21 `density.compact_all_32` /
+`comfortable_all_48`). Token turunan: `--cell-py/--cell-px` (td, th, tfoot), `--nav-py` (baris
+sidebar), `--form-gap` (`.form-grid`), `--kv-gap` (`.kv`). Kontrol: dialog Akun › **Kepadatan**
+(tiga radio: Rapat · Normal · Lega), berlaku seketika. Simpanan: `localStorage`
+`nusantara_erp_density:<id pengguna>` (`personalKey`, seperti favorit) dengan nilai
+`compact|normal|comfortable`, dipasang saat evaluasi modul app.js dan lagi di `boot()` — sebelum
+shell digambar, tanpa kedipan. P1-C memindahkannya ke `core/me/preferences`: baca kunci ini sekali,
+tulis ke server, hapus.
+
+## 14. Keadaan kosong berilustrasi (`ui.emptyState`, P1-B)
+
+`emptyState(message, { title, action, kind, compact })`; tanda tangan lama (`message`, `{ title,
+action }`) tetap sah — bawaan `kind: 'inbox'`. Lima jenis di `js/illustrations.js`:
+
+| kind | Arti | Pemakai |
+|---|---|---|
+| `inbox` | belum ada yang tercatat | daftar tanpa baris (+ Tambah), pemberitahuan, kalender |
+| `search` | pencarian tanpa hasil | daftar dengan `q` saja |
+| `filter` | filter menyaring semuanya | daftar tersaring (+ tombol **Hapus filter**), beranda modul tanpa layar memakai `search` |
+| `error` | sumbernya gagal, bukan kosong | kotak masuk/Tugas Saya saat `meta.failed` — jangan pernah `inbox`/`done` untuk kegagalan |
+| `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda |
+
+Aturan gambar: SVG garis (stroke) 120 × 120, dibaca di 96–120 px (ubin `compact` 72 px), **tanpa
+satu pun literal warna** — bentuk hanya membawa kelas `.ln/.ac/.fl/.fa` dan app.css memberi token
+(`--border-strong`, `--primary`, `--surface-3`, `--primary-soft`; `error` → `--danger`, `done` →
+`--success`), sehingga tema gelap otomatis dan S21 mengukur stroke terkomputasinya (`empty_kinds`);
+≤ 1,5 KB per gambar (terukur 402–521 B). `list.js` membedakan "belum ada baris" dari "tersaring
+habis" (`Tidak ada hasil untuk filter ini` + Hapus filter) — dua kalimat, dua gambar. Ilustrasi
+baru = entri di `ILLUSTRATIONS` + baris di tabel ini.

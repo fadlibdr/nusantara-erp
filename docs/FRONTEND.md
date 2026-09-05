@@ -23,7 +23,8 @@ than written 50 times.
 ```
 public/app/
   index.html            shell: boot spinner, toast host, modal overlay
-  app.css               design tokens (light/dark + chart tokens), layout, components, print
+  app.css               design tokens (light/dark, chart tokens, --accent-1..8 module accents,
+                        --row-h density), layout, components, print
   vendor/               third-party static files, one folder per <lib>@<ver> + LICENSE;
                         VENDOR.md = manifest (sha256, gzip, how to update) pinned by
                         tests/Feature/Core/VendorManifestTest — no CDN, no npm at runtime
@@ -34,19 +35,25 @@ public/app/
     router.js           hash router (works from static hosting, no server rules)
     api.js              fetch wrapper, session storage, error normalisation
     format.js           id-ID money/date/percent formatting
-    ui.js               el() DOM builder, buttons, badges, modal, toast, fields, svgIcon()
+    ui.js               el() DOM builder, buttons, badges, modal, toast, fields, svgIcon(),
+                        emptyState({ kind }) — CONVENTIONS §14
+    illustrations.js    five stroke-only empty-state drawings (inbox/search/filter/error/done),
+                        coloured by app.css tokens — no hex literals
     charts.js           SVG charts (line/bar/donut/sparkline/gantt) — the header docblock is
                         the API reference; colours only via --chart-* tokens (harness S20)
     cells.js            value renderer shared by tables and detail panels
     enums.js            option lists mirrored from the PHP enums
     lookup.js           cached reference data for pickers and id -> name display
-    schema.js           THE RESOURCE CATALOGUE — every screen is an entry here
+    schema.js           THE RESOURCE CATALOGUE — every screen is an entry here; NAV groups carry
+                        `prefix`, MODULES maps prefix → { accent, icon, description } (CONVENTIONS §12)
     views/
       list.js           generic list: search, filters, table, pagination
       form.js           generic create/edit modal incl. repeatable line items
       detail.js         generic document detail: fields, lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…)
       dashboard.js      cross-module dashboard + approval inbox
+      module.js         module home #/m/<prefix>: accent header + cards of the NAV screens the
+                        caller may open (same visibleNav() filter as the sidebar); breadcrumb target
       project.js        project workspace: kurva-S, WBS tree, site activity
       reports.js        finance reports (TB, P&L, BS, aging, project P&L)
       custom.js         stock, payroll, ticket, subcontract, payment, role, …
@@ -109,6 +116,15 @@ reading, in another shape. There is no `print` action anywhere in the permission
 - **Permissions**: navigation groups are gated on `<prefix>.view`; create/edit/delete
   and each lifecycle action are gated on their own permission, so the same build serves
   every role.
+- **Navigation chrome**: the breadcrumb is `Modul › Layar › (Dokumen)` — the module crumb
+  links to `#/m/<prefix>` and carries the module accent (`data-accent`), the same colour as
+  the active sidebar group marker; `setCrumbs(parts, { screenHref })` in `app.js` derives the
+  module from the first crumb's NAV group label. Accents never colour semantic states.
+- **Density**: `data-density` on `<html>` (compact/normal/comfortable) drives `--row-h` and the
+  cell paddings; chosen in the account dialog, stored per user in `localStorage`
+  (`nusantara_erp_density:<userId>`) until P1-C moves it server-side.
+- **Empty states**: always `ui.emptyState()` with the right `kind` — a failed source is
+  `error`, never `inbox`/`done`; a filtered-out list offers "Hapus filter".
 - **Money and dates**: always through `format.js` (`Rp 1.234.567`, `26 Jul 2026`).
 - **Errors**: `api.js` normalises `{ message, errors }` into an `ApiError`; forms map
   `errors` back onto their fields, everything else raises a toast. A view that throws
