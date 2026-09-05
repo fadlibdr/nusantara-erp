@@ -178,7 +178,8 @@ class SettingServiceTest extends ErpTestCase
 
         $selects = array_values(array_filter(
             $queries,
-            fn (string $sql): bool => str_contains($sql, 'from "core_settings"'),
+            // Identifier quotes differ per driver (SQLite ", MySQL `).
+            fn (string $sql): bool => preg_match('/from [`"]core_settings[`"]/', $sql) === 1,
         ));
 
         $this->assertCount(
@@ -578,7 +579,7 @@ class SettingServiceTest extends ErpTestCase
             $queries,
             '60 parameter reads must cost exactly one lookup: '.implode(' | ', $queries),
         );
-        $this->assertStringContainsString('from "cache"', $queries[0]);
+        $this->assertMatchesRegularExpression('/from [`"]cache[`"]/', $queries[0]);
     }
 
     /**
@@ -606,7 +607,7 @@ class SettingServiceTest extends ErpTestCase
         $this->assertCount(4, $queries, 'Cold: '.implode(' | ', $queries));
         $this->assertSame(
             1,
-            count(array_filter($queries, fn (string $sql): bool => str_contains($sql, 'from "core_settings"'))),
+            count(array_filter($queries, fn (string $sql): bool => preg_match('/from [`"]core_settings[`"]/', $sql) === 1)),
         );
     }
 }

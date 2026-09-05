@@ -3,19 +3,22 @@
 namespace Tests\Unit\Core\Fixtures;
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Tests\Support\FixtureSchema;
 
 /**
  * Throwaway table backing the trait fixtures below. The Approvable and
  * HasDocumentNumber traits are generic, so they are exercised against a
  * purpose-built document instead of a real module model — a failure then
  * points at the trait and nothing else.
+ *
+ * Created through FixtureSchema: on MySQL a CREATE TABLE inside the test
+ * transaction would commit it implicitly (see that class).
  */
 trait TestDocumentSchema
 {
     protected function createTestDocumentTable(): void
     {
-        Schema::create('test_documents', function (Blueprint $table): void {
+        FixtureSchema::create('test_documents', function (Blueprint $table): void {
             $table->id();
             $table->string('code', 40)->nullable();
             $table->string('doc_no', 40)->nullable();

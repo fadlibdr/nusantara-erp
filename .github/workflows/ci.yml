@@ -1,10 +1,18 @@
 # CI for the Nusantara Construction ERP.
 #
-#   test   — every push/PR: composer validate, code style (Pint), test suite
-#            on PHP 8.3 with the same extensions as the production Dockerfile
-#            (sqlite :memory: database — no services needed).
-#   docker — on version tags (v*), after test passes: build the production
-#            image and push it to the registry from repo secrets.
+#   test          — every push/PR: composer validate, code style (Pint), test
+#                   suite on PHP 8.3 with the same extensions as the production
+#                   Dockerfile (sqlite :memory: database — no services needed).
+#   phpunit-mysql — nightly (02:00 WIB) and on version tags: the SAME suite on
+#                   MySQL 8.0, the database erp1 runs on since Fase 0 (roadmap
+#                   T0.3). phpunit.mysql.xml; credentials come from the job env,
+#                   never from the file. Skips SqlitePragmaTest, runs
+#                   MysqlModeTest. Not on every push: the MySQL run is ~3x the
+#                   SQLite one (migrate:fresh once per process, then a real
+#                   transaction per test).
+#   docker        — on version tags (v*), after BOTH suites pass: build the
+#                   production image and push it to the registry from repo
+#                   secrets.
 
 name: CI
 
@@ -13,10 +21,16 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  schedule:
+    # 19:00 UTC = 02:00 WIB, every night.
+    - cron: '0 19 * * *'
 
 jobs:
   test:
     name: test
+    # Unchanged trigger set (push main, tags, PRs): the nightly schedule only
+    # drives phpunit-mysql.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,9 +92,89 @@ jobs:
           DB_DATABASE: ':memory:'
         run: php artisan test
 
+  phpunit-mysql:
+    name: phpunit-mysql
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: erp_test
+        ports:
+          - 3306:3306
+        # A service container takes docker-create options only, never mysqld
+        # flags, so sql_mode / lock wait / the auth plugin are applied in the
+        # "Configure MySQL" step below instead of on the command line.
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: erp_test
+      DB_USERNAME: erp
+      DB_PASSWORD: erp-ci-only
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, bcmath, gd, zip, intl, opcache, pcntl, redis, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          if [ -f composer.lock ]; then
+            composer install --no-interaction --no-progress --prefer-dist
+          else
+            composer update --no-interaction --no-progress --prefer-dist
+          fi
+
+      # The same floor deploy/mysql/erp1.cnf gives erp1: strict sql_mode,
+      # innodb_lock_wait_timeout 10 s, utf8mb4_unicode_ci; the erp account
+      # uses mysql_native_password like the production one.
+      - name: Configure MySQL like deploy/mysql/erp1.cnf
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot <<'SQL'
+          SET GLOBAL sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO';
+          SET GLOBAL innodb_lock_wait_timeout = 10;
+          ALTER DATABASE erp_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+          CREATE USER 'erp'@'%' IDENTIFIED WITH mysql_native_password BY 'erp-ci-only';
+          GRANT ALL PRIVILEGES ON erp_test.* TO 'erp'@'%';
+          FLUSH PRIVILEGES;
+          SQL
+          mysql -h 127.0.0.1 -uerp -perp-ci-only -e "SELECT @@GLOBAL.sql_mode, @@GLOBAL.innodb_lock_wait_timeout, VERSION();"
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run tests (MySQL 8.0)
+        run: vendor/bin/phpunit -c phpunit.mysql.xml --no-progress
+
   docker:
     name: docker
-    needs: test
+    needs: [test, phpunit-mysql]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:

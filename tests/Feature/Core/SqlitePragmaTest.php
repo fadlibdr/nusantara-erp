@@ -43,11 +43,18 @@ class SqlitePragmaTest extends ErpTestCase
 {
     private const PROBE = 'pragma_probe';
 
-    private string $file;
+    private ?string $file = null;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // PRAGMA hanya ada di SQLite. Di suite MySQL (phpunit.mysql.xml, Fase 0
+        // T0.3) tiga tes ini dilewati dengan sadar — padanannya di sana adalah
+        // MysqlModeTest (sql_mode ketat, lock wait, kolom live_key).
+        if (DB::getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('PRAGMA busy_timeout/journal_mode/synchronous hanya ada di SQLite; driver aktif: '.DB::getDriverName().'.');
+        }
 
         // tempnam membuat berkas kosong 0 byte; SQLite membukanya sebagai basis
         // data baru. sys_get_temp_dir() menghormati TMPDIR.
@@ -66,11 +73,13 @@ class SqlitePragmaTest extends ErpTestCase
     {
         // Tutup dulu: koneksi terakhir yang ditutup melakukan checkpoint dan
         // menghapus -wal/-shm sendiri; unlink sesudahnya membereskan sisa bila
-        // tesnya mati di tengah.
-        DB::purge(self::PROBE);
+        // tesnya mati di tengah. $file null = setUp berhenti di markTestSkipped.
+        if ($this->file !== null) {
+            DB::purge(self::PROBE);
 
-        foreach (['', '-wal', '-shm'] as $suffix) {
-            @unlink($this->file.$suffix);
+            foreach (['', '-wal', '-shm'] as $suffix) {
+                @unlink($this->file.$suffix);
+            }
         }
 
         parent::tearDown();

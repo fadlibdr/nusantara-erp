@@ -109,13 +109,16 @@ class GlobalSearchService
         $query = DB::table($group['table'])
             ->select(array_values(array_filter(['id', 'code', $titleColumn])))
             // whereRaw with an explicit ESCAPE: without it neither SQLite nor
-            // MySQL honours the backslashes below, and a search for "50%" would
-            // return every row in the table.
+            // MySQL honours the escapes below, and a search for "50%" would
+            // return every row in the table. The escape character is '!', not
+            // the backslash: "ESCAPE '\'" is valid SQLite but an unterminated
+            // string on MySQL, where the backslash escapes the closing quote —
+            // 7 GlobalSearchTest errors on phpunit.mysql.xml, 5 Sep 2026 (T0.3).
             ->where(function ($where) use ($like, $titleColumn): void {
-                $where->whereRaw("code LIKE ? ESCAPE '\\'", [$like]);
+                $where->whereRaw("code LIKE ? ESCAPE '!'", [$like]);
 
                 if ($titleColumn !== null) {
-                    $where->orWhereRaw("{$titleColumn} LIKE ? ESCAPE '\\'", [$like]);
+                    $where->orWhereRaw("{$titleColumn} LIKE ? ESCAPE '!'", [$like]);
                 }
             })
             // Newest first: a code that repeats across years should surface this
@@ -143,7 +146,7 @@ class GlobalSearchService
      */
     private function escapeLike(string $term): string
     {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $term);
+        return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term);
     }
 
     /** @var array<string, bool> */

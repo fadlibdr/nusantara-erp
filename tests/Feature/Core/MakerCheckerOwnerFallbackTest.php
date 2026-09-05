@@ -200,7 +200,15 @@ class MakerCheckerOwnerFallbackTest extends ErpTestCase
      */
     public function test_a_work_permit_owner_is_an_employee_number_resolved_to_its_own_login(): void
     {
-        $employee = Employee::query()->create([
+        // The user comes first and the employee takes ITS id: the fixture is
+        // users.id == hr_employees.id. It used to rely on both tables handing
+        // out the same next number, which SQLite :memory: did and MySQL does
+        // not — auto-increment counters there never rewind between tests
+        // (user #158 vs employee #15 on phpunit.mysql.xml, 5 Sep 2026).
+        $collision = $this->userWith('prj.approve');
+
+        $employee = Employee::query()->forceCreate([
+            'id' => $collision->id,
             'code' => 'EMP-7001',
             'name' => 'Sutrisno Hadi',
             'nik_ktp' => '3216012504780001',
@@ -214,8 +222,6 @@ class MakerCheckerOwnerFallbackTest extends ErpTestCase
             'base_salary' => 7_500_000,
         ]);
 
-        // Created first so its id collides with the employee number.
-        $collision = $this->userWith('prj.approve');
         $this->assertSame((int) $employee->id, (int) $collision->id, 'the fixture needs the collision to mean anything');
 
         $mandorLogin = $this->userWith('prj.approve', 'prj.view');

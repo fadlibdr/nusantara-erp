@@ -762,3 +762,46 @@ MYSQL_PWD="$DB_PASSWORD" mysql -u erp -h 127.0.0.1 -e "SELECT CURRENT_USER(); SH
 - The application code — the two SQLite-only partial unique indexes and the
   preflight audit are T0.1/T0.2, in this same phase, and the cut-over itself
   is a separate, ordered runbook.
+
+### 10.5 Running the test suite on MySQL (T0.3)
+
+`phpunit.mysql.xml` is `phpunit.xml` with `DB_CONNECTION=mysql`,
+`DB_HOST=127.0.0.1`, `DB_DATABASE=erp_test`. It carries **no credential**:
+PHPUnit's `<env>` never overrides a variable that is already set, so the
+account comes from the shell —
+
+```
+set -a; . /path/to/mysql-erp.cred; set +a     # DB_USERNAME, DB_PASSWORD
+vendor/bin/phpunit -c phpunit.mysql.xml
+```
+
+`RefreshDatabase` runs `migrate:fresh` on `erp_test` **once per PHP process**
+(≈27 s) and wraps every test in a real transaction. Two consequences the
+SQLite suite never had:
+
+- **One process per database.** Two phpunit processes on `erp_test` at the
+  same time drop each other's tables (each starts with `migrate:fresh`) and
+  deadlock on the seeders — measured 5 Sep 2026 as a spurious `1213` in
+  `PermissionSeeder`. Run one at a time, or point the second at another
+  schema with `DB_DATABASE=…`.
+- **DDL inside a test commits the transaction.** SQLite rolls `CREATE TABLE`
+  back with the test; MySQL commits it implicitly. Laravel notices (the PDO is
+  no longer in a transaction) and re-runs `migrate:fresh` before the next test
+  — the four schema-degradation tests in `CalendarApiTest` / `DeadlineWatchTest`
+  each cost that. Fixture tables tests create for themselves go through
+  `tests/Support/FixtureSchema.php` (a second connection, table left in place)
+  so they do not.
+
+`SqlitePragmaTest` skips itself on MySQL; `tests/Feature/Core/MysqlModeTest`
+skips itself on SQLite and reads back, on the application connection: the
+session `sql_mode` (`STRICT_TRANS_TABLES`, `ONLY_FULL_GROUP_BY`, `NO_ZERO_DATE`
+— Laravel's `'strict' => true`, stricter than the server floor in `erp1.cnf`),
+`innodb_lock_wait_timeout ≤ 10`, the generated `live_key` columns and their
+unique indexes (T0.2), and that a second connection really waits on
+`lockForUpdate()` (fails with `1205` after its 1-second timeout — on SQLite the
+same call is a no-op).
+
+CI runs this suite nightly at 02:00 WIB and on `v*` tags (job
+`phpunit-mysql`, service container `mysql:8.0` configured like `erp1.cnf` in
+its first step); the SQLite job is unchanged and still gates every push.
+

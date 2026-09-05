@@ -295,7 +295,8 @@ class RkkDocumentTest extends ErpTestCase
         $sweeps = 0;
 
         DB::listen(function (QueryExecuted $query) use (&$sweeps): void {
-            if (str_contains($query->sql, '"est_boq_items"')) {
+            // Identifier quotes differ per driver (SQLite ", MySQL `).
+            if (preg_match('/[`"]est_boq_items[`"]/', $query->sql) === 1) {
                 $sweeps++;
             }
         });

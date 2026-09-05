@@ -202,7 +202,8 @@ class SettingServiceEnforcementTest extends ErpTestCase
             $queries,
             count($keys).' parameter reads must cost exactly one lookup: '.implode(' | ', $queries),
         );
-        $this->assertStringContainsString('from "cache"', $queries[0]);
+        // Identifier quotes differ per driver (SQLite ", MySQL `).
+        $this->assertMatchesRegularExpression('/from [`"]cache[`"]/', $queries[0]);
     }
 
     public function test_a_payroll_sized_run_of_parameter_reads_still_costs_one_lookup(): void

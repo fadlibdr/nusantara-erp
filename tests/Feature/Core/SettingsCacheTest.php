@@ -309,7 +309,8 @@ class SettingsCacheTest extends ErpTestCase
         $this->mapLoads = [];
 
         DB::listen(function (QueryExecuted $query): void {
-            if (str_contains($query->sql, 'from "core_settings"') && ! str_contains($query->sql, 'where')) {
+            // Identifier quotes differ per driver (SQLite ", MySQL `).
+            if (preg_match('/from [`"]core_settings[`"]/', $query->sql) === 1 && ! str_contains($query->sql, 'where')) {
                 $this->mapLoads[] = $query->sql;
             }
         });
