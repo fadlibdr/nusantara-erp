@@ -80,6 +80,32 @@ class DeployUnitsTest extends TestCase
         $this->assertStringContainsString('copytruncate', $rotated);
     }
 
+    /**
+     * Pengawas (T0b.2): cron root menunjuk skrip yang ada; skrip memulai
+     * ulang unit penjadwal dan memanggil erp:watchdog-alarm — dua nama yang
+     * hidup di tiga berkas berbeda dan bisa bergeser sendiri-sendiri.
+     */
+    public function test_the_watchdog_cron_points_at_a_script_that_restarts_the_scheduler(): void
+    {
+        $cron = (string) file_get_contents(base_path('deploy/cron.d/erp1-watchdog'));
+
+        $this->assertMatchesRegularExpression('/^\*\/15 \* \* \* \* root bash (\S+)/m', $cron);
+        preg_match('/^\*\/15 \* \* \* \* root bash (\S+)/m', $cron, $m);
+
+        $this->assertSame(self::SITE.'/deploy/erp1-watchdog.sh', $m[1]);
+        $this->assertFileExists(base_path('deploy/erp1-watchdog.sh'));
+
+        $script = (string) file_get_contents(base_path('deploy/erp1-watchdog.sh'));
+        $this->assertStringContainsString('erp:heartbeat --age', $script);
+        $this->assertStringContainsString('erp:watchdog-alarm', $script);
+        $this->assertStringContainsString('systemctl restart "$UNIT"', $script);
+        $this->assertStringContainsString('erp1-scheduler', $script);
+
+        // Log pengawas ikut dirotasi.
+        $this->assertStringContainsString('/var/log/erp1/watchdog.log', $cron);
+        $this->assertStringContainsString('/var/log/erp1/watchdog.log', (string) file_get_contents(base_path('deploy/logrotate/erp1')));
+    }
+
     public function test_the_units_meet_the_roadmap_contract(): void
     {
         $queue = (string) file_get_contents(base_path('deploy/systemd/erp1-queue.service'));

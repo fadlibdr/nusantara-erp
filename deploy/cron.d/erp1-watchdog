@@ -1,0 +1,11 @@
+# Nusantara ERP — pengawas penjadwal erp1.pi2.co.id (Fase 0 / P-0b).
+# Root, karena harus bisa `systemctl restart erp1-scheduler`. Skripnya
+# menjalankan artisan sebagai www-data sendiri. Pasang:
+#   install -m 0644 deploy/cron.d/erp1-watchdog /etc/cron.d/erp1-watchdog
+# Dipanggil lewat `bash` seperti cron cadangan: deploy yang menjatuhkan exec
+# bit tidak boleh mematikan pengawasnya.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=root
+
+*/15 * * * * root bash /var/www/erp1.pi2.co.id/deploy/erp1-watchdog.sh >> /var/log/erp1/watchdog.log 2>&1

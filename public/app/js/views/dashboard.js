@@ -51,6 +51,40 @@ function miniTable(columns, rows, onRowClick) {
   ]));
 }
 
+/* P-0b — spanduk penjadwal untuk pemegang core.update (orang yang membuka
+   Pengaturan). Sumbernya GET core/health: `scheduler_status` ok | stale |
+   unknown, umur detak jantung erp:heartbeat dalam detik, null = tidak
+   diketahui. Aturan salinan 1: tidak pernah menyatakan penjadwal BERJALAN
+   bila tidak diketahui — `ok` menggambar tidak apa-apa, `stale` menyebut
+   sejak kapan, `unknown` dan permintaan yang gagal menulis `?`. Permintaan
+   ini tidak menahan kartu lain: slot kosong dulu, spanduk menyusul. */
+function schedulerBanner() {
+  const slot = el('div');
+  const show = (text) => {
+    slot.appendChild(el('.alert.warn', { style: { marginBottom: '14px' } }, [
+      icon('warn', 16),
+      el('div', { text }),
+    ]));
+  };
+
+  api.get('core/health').then((health) => {
+    const status = health ? health.scheduler_status : null;
+    if (status === 'ok') return;
+    if (status === 'stale') {
+      show(`Penjadwal tidak berjalan sejak ${fmt.dateTime(health.scheduler_heartbeat_at)} — akrual alat, jadwal PM, `
+        + 'pengawas tenggat dan alarm cadangan berhenti. Periksa "systemctl status erp1-scheduler" di server.');
+      return;
+    }
+    show('Penjadwal belum pernah melapor (detak jantung: ?) — tidak dapat dipastikan ia berjalan. '
+      + 'Periksa "systemctl status erp1-scheduler" di server.');
+  }).catch((error) => {
+    console.error('Dasbor: core/health gagal dimuat', error);
+    show('Status penjadwal tidak dapat diperiksa (?) — GET core/health gagal.');
+  });
+
+  return slot;
+}
+
 /* Fetch yang tidak pernah melempar — satu 403 tidak boleh menggelapkan seluruh
    dasbor. Yang TIDAK boleh ikut hilang adalah kabar kegagalannya: `.catch(() => [])`
    membuat "sumbernya gagal" dan "sumbernya memang kosong" terbaca persis sama,
@@ -182,6 +216,10 @@ export async function renderDashboard(host) {
       button('', { iconName: 'refresh', title: 'Muat ulang', onClick: reload }),
     ]),
   ]));
+
+  // Hanya pemegang core.update: rutenya bergerbang core.view, tetapi yang
+  // bisa berbuat sesuatu tentang penjadwal mati adalah yang memegang server.
+  if (session.can('core.update')) host.appendChild(schedulerBanner());
 
   const statRow = el('.stat-row');
   const grid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '16px' } });

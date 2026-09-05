@@ -11,6 +11,7 @@ use Modules\Core\Http\Controllers\DocumentImportController;
 use Modules\Core\Http\Controllers\DocumentPdfController;
 use Modules\Core\Http\Controllers\ExternalApprovalController;
 use Modules\Core\Http\Controllers\FormPrintController;
+use Modules\Core\Http\Controllers\HealthController;
 use Modules\Core\Http\Controllers\InboxController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
@@ -50,6 +51,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update'])->middleware('permission:core.update');
+
+    // P-0b: umur detak penjadwal, antrean tertua, job gagal, pengiriman yang
+    // menunggu. Bergerbang core.view — /up yang publik hanya membuktikan
+    // php-fpm menjawab. Null = tidak diketahui (SPA menulis `?`).
+    Route::get('health', HealthController::class)->middleware('permission:core.view');
 
     // The caller's own inbox. Scoped to $request->user() in the service, so no
     // permission gate applies — and none could help: there is no parameter that

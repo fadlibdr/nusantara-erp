@@ -559,6 +559,45 @@ class SettingService
     }
 
     /**
+     * Kunci yang ditulis SISTEM, bukan operator (Fase 0 / P-0b, T0b.2).
+     *
+     * scheduler.heartbeat_at ditulis erp:heartbeat tiap 5 menit dan dibaca
+     * HealthService / watchdog. Ia lewat set() supaya satu jalur tulis
+     * core_settings tetap satu (validasi, flush cache) — tetapi TIDAK ada di
+     * definitions(): layar Pengaturan tidak menampilkannya, validationRules()
+     * tidak memberinya aturan, dan UpdateSettingsRequest menolaknya dengan
+     * kalimat yang menyebut siapa penulisnya. Nilai yang bisa "diperbaiki"
+     * dari formulir akan membuat penjadwal yang mati tampak hidup.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public const INTERNAL_KEYS = [
+        'scheduler.heartbeat_at' => [
+            'key' => 'scheduler.heartbeat_at',
+            'label' => 'Detak jantung penjadwal',
+            'type' => 'timestamp',
+            'group' => 'system',
+        ],
+    ];
+
+    public function isInternal(string $key): bool
+    {
+        return array_key_exists($key, self::INTERNAL_KEYS);
+    }
+
+    /**
+     * Definisi untuk set()/assertValid(): kunci yang boleh disunting operator
+     * ATAU kunci internal sistem. overview() dan validationRules() sengaja
+     * hanya membaca editableKeys().
+     *
+     * @return array<string, mixed>|null
+     */
+    private function writableDefinition(string $key): ?array
+    {
+        return $this->editableKeys()[$key] ?? self::INTERNAL_KEYS[$key] ?? null;
+    }
+
+    /**
      * Effective value: the stored override when present, the config/erp.php
      * default otherwise.
      */
@@ -608,7 +647,7 @@ class SettingService
         } else {
             Setting::query()->updateOrCreate(
                 ['key' => $key],
-                ['value' => $value, 'group' => $this->editableKeys()[$key]['group']],
+                ['value' => $value, 'group' => $this->writableDefinition($key)['group']],
             );
         }
 
@@ -656,7 +695,7 @@ class SettingService
      */
     public function assertValid(string $key, mixed $value): void
     {
-        $definition = $this->editableKeys()[$key] ?? null;
+        $definition = $this->writableDefinition($key);
 
         if ($definition === null) {
             throw new InvalidArgumentException("Setting [{$key}] is not editable.");
@@ -718,7 +757,8 @@ class SettingService
             return [];
         }
 
-        $editable = $this->editableKeys();
+        // Kunci internal (detak jantung penjadwal) adalah baris yang sah.
+        $editable = $this->editableKeys() + self::INTERNAL_KEYS;
         $problems = [];
 
         foreach (Setting::query()->orderBy('key')->get() as $row) {
@@ -943,6 +983,8 @@ class SettingService
             // be validated as a string, so "false" would store as truthy text.
             'boolean' => ['nullable', 'boolean'],
             'account' => ['nullable', 'string', 'max:20'],
+            // scheduler.heartbeat_at (INTERNAL_KEYS): stempel waktu ISO-8601.
+            'timestamp' => ['nullable', 'string', 'max:40', 'date'],
             'document_format' => ['nullable', 'string', 'max:60', 'regex:'.self::DOCUMENT_FORMAT_PATTERN],
             default => ['nullable', 'string', 'max:255'],
         };
