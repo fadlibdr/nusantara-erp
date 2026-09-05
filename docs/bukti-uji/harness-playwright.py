@@ -1064,6 +1064,141 @@ def s19(browser):
     ctx.close()
     return out
 
+
+# ------------------------------------------------------------ S20 (P1-A)
+# Token grafik js/charts.js. Modul diimpor di konteks halaman lewat import('/app/js/charts.js')
+# — php -S -t public melayani /app/js/*.js apa adanya, dan hash router tidak mengubah URL
+# dokumen, jadi jalur absolut ini sama di server mana pun yang melayani public/. Setiap
+# jenis grafik dirender dengan fixture (termasuk kasus kosong, celah NaN, satu titik, gantt
+# terbuka) ke #s20 di body, lalu diukur dengan getComputedStyle di tema terang DAN gelap
+# (data-theme di <html>, mekanisme yang sama dengan tombol tema app.js): warna terkomputasi
+# tiap bentuk ber-data-token == nilai token itu, teks == --chart-text, jumlah <title> ==
+# jumlah .mark, placeholder memuat "Belum ada data", gantt punya garis hari ini + rect akhir
+# pekan. Nilai yang dicatat adalah angka terukur (hitungan, rasio kontras, lebar render),
+# bukan boolean saja.
+CHART_RENDER = """async () => {
+  const m = await import('/app/js/charts.js');
+  const host = document.createElement('div'); host.id = 's20';
+  host.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:999;padding:16px;background:var(--surface);color:var(--text)';
+  document.body.appendChild(host);
+  const add = (name, svg) => { const w = document.createElement('div'); w.dataset.name = name; w.style.cssText = 'margin:0 0 12px;max-width:760px';
+    if (name.startsWith('gantt')) { const sc = document.createElement('div'); sc.className = 'chart-scroll'; sc.appendChild(svg); w.appendChild(sc); } else w.appendChild(svg);
+    host.appendChild(w); return svg; };
+  const rp = (v) => new Intl.NumberFormat('id-ID').format(v) + ' jt';
+  const errors = [];
+  const t = (name, fn) => { try { add(name, fn()); } catch (e) { errors.push(name + ': ' + e.message); } };
+  t('line', () => m.lineChart({ series: [
+      { label: 'Rencana', points: [{x:0,y:10},{x:1,y:20},{x:2,y:null},{x:3,y:40},{x:4,y:35},{x:5,y:60}], dashed: true },
+      { label: 'Aktual', points: [{x:0,y:5},{x:1,y:NaN},{x:2,y:25},{x:3,y:30},{x:4,y:-5},{x:5,y:12}], area: true },
+      { label: 'Biaya', points: [{x:0,y:2},{x:1,y:8},{x:2,y:14},{x:3,y:22},{x:4,y:30},{x:5,y:44}] }],
+    xLabels: ['M1','M2','M3','M4','M5','M6'], yFormat: (v) => v + ' %', ariaLabel: 'uji garis', sourceNote: 'Sumber: fixture harness S20' }));
+  t('line_single', () => m.lineChart({ series: [{ label: 'Satu', points: [{x:0,y:7}] }], ariaLabel: 'satu titik' }));
+  t('line_empty', () => m.lineChart({ series: [{ label: 'Kosong', points: [{x:0,y:null},{x:1,y:NaN}] }], ariaLabel: 'kosong' }));
+  t('bar', () => m.barChart({ categories: ['Jan','Feb','Mar','Apr'], series: [{ label: 'RAP', values: [3,-2,5,4] },{ label: 'Realisasi', values: [1,4,null,6] }], yFormat: rp, ariaLabel: 'uji batang' }));
+  t('bar_stacked', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Material', values: [3,2,1] },{ label: 'Upah', values: [1,4,2] },{ label: 'Alat', values: [-1,1,0] }], stacked: true, ariaLabel: 'tumpuk' }));
+  t('bar_horizontal', () => m.barChart({ categories: ['Gudang Utama Jakarta Selatan','Gudang 2','Gudang 3'], series: [{ label: 'Stok', values: [30,12,0] }], horizontal: true, ariaLabel: 'mendatar' }));
+  t('bar_empty', () => m.barChart({ categories: [], series: [], ariaLabel: 'kosong' }));
+  t('donut', () => m.donutChart({ slices: [{label:'Disetujui',value:60},{label:'Menunggu',value:30},{label:'Ditolak',value:10},{label:'Draf',value:0}], centerLabel: '100', centerSub: 'dokumen', ariaLabel: 'donat' }));
+  t('donut_one', () => m.donutChart({ slices: [{label:'Semua',value:5}], ariaLabel: 'satu irisan' }));
+  t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
+  t('spark', () => m.sparkline({ points: [1,3,2,null,5,4,6], ariaLabel: 'spark' }));
+  t('spark_single', () => m.sparkline({ points: [2], ariaLabel: 'spark satu' }));
+  t('spark_empty', () => m.sparkline({ points: [null, NaN], ariaLabel: 'spark kosong' }));
+  const rows = [
+    { label: 'Persiapan', start: '2026-08-24', end: '2026-09-04', progress: 1, baselineStart: '2026-08-24', baselineEnd: '2026-09-02', level: 0 },
+    { label: 'Mobilisasi alat', start: '2026-08-26', end: '2026-09-01', progress: 1, level: 1 },
+    { label: 'Pekerjaan tanah dan galian pondasi', start: '2026-09-01', end: '2026-09-18', progress: 0.4, baselineStart: '2026-08-31', baselineEnd: '2026-09-14', level: 0 },
+    { label: 'Galian', start: '2026-09-01', end: '2026-09-09', progress: 0.8, level: 1 },
+    { label: 'Urugan', start: '2026-09-08', end: '2026-09-18', progress: 0.1, level: 1 },
+    { label: 'Struktur bawah', start: '2026-09-14', end: null, progress: 0, baselineStart: '2026-09-12', baselineEnd: '2026-10-02', level: 0 },
+    { label: 'Pengadaan besi', start: null, end: '2026-09-20', level: 1 },
+    { label: 'Belum dijadwalkan', level: 1 },
+    { label: 'Struktur atas', start: '2026-10-01', end: '2026-10-30', progress: 0, level: 0 },
+    { label: 'Finishing', start: '2026-10-20', end: '2026-11-30', level: 0 },
+  ];
+  t('gantt_week', () => m.ganttChart({ rows, from: '2026-08-24', to: '2026-10-11', zoom: 'week', today: '2026-09-05', ariaLabel: 'gantt minggu', sourceNote: 'Sumber: fixture' }));
+  t('gantt_month', () => m.ganttChart({ rows, from: '2026-06-01', to: '2026-12-31', zoom: 'month', today: '2026-09-05', ariaLabel: 'gantt bulan' }));
+  t('gantt_week_long', () => m.ganttChart({ rows, from: '2026-06-01', to: '2026-12-31', zoom: 'week', today: '2026-09-05', ariaLabel: 'gantt minggu rentang sama' }));
+  t('gantt_empty', () => m.ganttChart({ rows: [], ariaLabel: 'gantt kosong' }));
+  return { errors, charts: host.querySelectorAll('svg').length, exports: Object.keys(m).sort() };
+}"""
+
+CHART_MEASURE = """(theme) => {
+  document.documentElement.dataset.theme = theme;
+  const root = getComputedStyle(document.documentElement);
+  const v = (n) => root.getPropertyValue(n).trim();
+  const rgb = (hex) => { const h = hex.replace('#',''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`; };
+  const lum = (hex) => { const c = hex.match(/\\w\\w/g).map(x => parseInt(x, 16) / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const cr = (a, b) => { const l1 = lum(a), l2 = lum(b); return +(((Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05)).toFixed(2)); };
+  const names = [1,2,3,4,5,6,7,8].map(i => `--chart-${i}`).concat(['grid','axis','text','today','weekend','baseline'].map(k => `--chart-${k}`));
+  const tokens = Object.fromEntries(names.map(n => [n, v(n)]));
+  const surface = v('--surface');
+  const contrast = Object.fromEntries([1,2,3,4,5,6,7,8].map(i => [`--chart-${i}`, cr(tokens[`--chart-${i}`], surface)]));
+  contrast['--chart-text'] = cr(tokens['--chart-text'], surface);
+  const charts = {};
+  document.querySelectorAll('#s20 [data-name]').forEach(w => {
+    const svg = w.querySelector('svg'); const name = w.dataset.name;
+    const painted = [...svg.querySelectorAll('[data-token]')]; const mismatch = [];
+    painted.forEach(el => { const got = getComputedStyle(el)[el.dataset.paint]; const want = rgb(tokens[el.dataset.token] || v(el.dataset.token)); if (got !== want) mismatch.push(`${el.tagName}.${el.getAttribute('class')} ${el.dataset.token}/${el.dataset.paint}: ${got} != ${want}`); });
+    const texts = [...svg.querySelectorAll('text:not([data-token])')];
+    const textOk = texts.filter(t => getComputedStyle(t).fill === rgb(tokens['--chart-text'])).length;
+    const fonts = [...new Set(texts.map(t => getComputedStyle(t).fontFamily.split(',')[0].trim()))];
+    const numeric = [...new Set(texts.map(t => getComputedStyle(t).fontVariantNumeric))];
+    const box = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
+    const scale = vb.width ? box.width / vb.width : 1;
+    const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length,
+      texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
+      width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
+    if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length; }
+    if (name.startsWith('bar')) c.zero_line = svg.querySelectorAll('.chart-zero').length;
+    if (name.startsWith('donut')) c.full_ring = svg.querySelectorAll('circle.mark').length;
+    if (name.startsWith('gantt')) {
+      c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
+      c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;
+      c.rows = svg.querySelectorAll('.gantt-label').length; c.bars = svg.querySelectorAll('.gantt-bar').length; c.baselines = svg.querySelectorAll('.gantt-baseline').length;
+      c.open_titles = [...svg.querySelectorAll('.gantt-bar[data-open] title')].map(t => t.textContent);
+      c.baseline_before_actual = [...svg.querySelectorAll('.gantt-baseline')].every(b => { const bar = b.nextElementSibling; return bar && bar.classList.contains('gantt-bar') && !!(b.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING); });
+      const labels = [...svg.querySelectorAll('.gantt-label')].map(t => t.getBoundingClientRect());
+      c.row_label_overlaps = labels.filter((r, i) => i && r.top < labels[i - 1].bottom - 1).length;
+      const sc = w.querySelector('.chart-scroll'); c.scroll_width = sc.scrollWidth; c.client_width = sc.clientWidth; c.scrolls = sc.scrollWidth > sc.clientWidth + 1; c.min_width = svg.style.minWidth;
+    }
+    charts[name] = c;
+  });
+  const total = Object.values(charts);
+  return { theme, tokens, surface, contrast, charts,
+    summary: { charts: total.length, painted: total.reduce((a, c) => a + c.painted, 0), mismatches: total.reduce((a, c) => a + c.mismatch.length, 0),
+      marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), titles_equal_marks: total.every(c => c.marks === c.titles),
+      texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
+      empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length, min_series_contrast: Math.min(...Object.values(contrast)) } };
+}"""
+
+def chart_tokens(pg, tag):
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+    out = {"render": pg.evaluate(CHART_RENDER)}
+    for theme in ("light", "dark"):
+        out[theme] = pg.evaluate(CHART_MEASURE, theme)
+        pg.wait_for_timeout(150)
+        pg.locator("#s20").screenshot(path=f"{OUT}/s20-chart-tokens-{theme}{tag}.png")
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+    out["pageerrors"] = errors
+    out["viewport"] = pg.viewport_size
+    return out
+
+@scenario("S20_chart_tokens")
+def s20(pg):
+    return chart_tokens(pg, "")
+
+@scenario("S20_chart_tokens_mobile")
+def s20m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return chart_tokens(pg, "-mobile")
+    finally:
+        ctx.close()
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -1074,7 +1209,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

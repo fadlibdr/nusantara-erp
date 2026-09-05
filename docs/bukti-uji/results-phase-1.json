@@ -1,0 +1,2176 @@
+{
+ "S8_styles": {
+  "th_font": "11px",
+  "th_color": "rgb(94, 104, 116)",
+  "muted_token": "#5e6874",
+  "bg": "#f4f6f8",
+  "surface2": "#fafbfc",
+  "contrast_muted_on_bg": 5.23,
+  "contrast_muted_on_surface2": 5.47,
+  "contrast_success_badge": 5.29,
+  "btn_sm_height": 0,
+  "smallest_font_px": 11,
+  "page_head_buttons": [
+   "Muat ulang",
+   "Tambah PO"
+  ],
+  "_ms": 4125,
+  "_clicks": 0
+ },
+ "S20_chart_tokens": {
+  "render": {
+   "errors": [],
+   "charts": 17,
+   "exports": [
+    "barChart",
+    "donutChart",
+    "ganttChart",
+    "lineChart",
+    "sparkline"
+   ]
+  },
+  "light": {
+   "theme": "light",
+   "tokens": {
+    "--chart-1": "#1a56db",
+    "--chart-2": "#c2410c",
+    "--chart-3": "#15803d",
+    "--chart-4": "#7e22ce",
+    "--chart-5": "#0e7490",
+    "--chart-6": "#b91c1c",
+    "--chart-7": "#a16207",
+    "--chart-8": "#475569",
+    "--chart-grid": "#e2e6eb",
+    "--chart-axis": "#cbd2da",
+    "--chart-text": "#5e6874",
+    "--chart-today": "#c62828",
+    "--chart-weekend": "#f1f3f6",
+    "--chart-baseline": "#94a3b8"
+   },
+   "surface": "#ffffff",
+   "contrast": {
+    "--chart-1": 6.18,
+    "--chart-2": 5.18,
+    "--chart-3": 5.02,
+    "--chart-4": 6.98,
+    "--chart-5": 5.36,
+    "--chart-6": 6.47,
+    "--chart-7": 4.92,
+    "--chart-8": 7.58,
+    "--chart-text": 5.66
+   },
+   "charts": {
+    "line": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 16,
+     "titles": 16,
+     "texts": 15,
+     "text_ok": 15,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 308,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "series_line_paths": 4,
+     "series1_segments": 2,
+     "zero_line": 1
+    },
+    "line_single": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "line_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "bar": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 336,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "zero_line": 1
+    },
+    "bar_stacked": {
+     "painted": 20,
+     "painted_ok": 20,
+     "mismatch": [],
+     "marks": 9,
+     "titles": 9,
+     "texts": 12,
+     "text_ok": 12,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 336,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "zero_line": 1
+    },
+    "bar_horizontal": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 120,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "zero_line": 0
+    },
+    "bar_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 760,
+     "height": 304,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [],
+     "zero_line": 0
+    },
+    "donut": {
+     "painted": 7,
+     "painted_ok": 7,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 6,
+     "text_ok": 6,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 560,
+     "height": 291,
+     "viewbox_w": 384.6000061035156,
+     "rendered_font_px": 16,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3",
+      "--chart-4"
+     ],
+     "full_ring": 0
+    },
+    "donut_one": {
+     "painted": 2,
+     "painted_ok": 2,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 560,
+     "height": 311,
+     "viewbox_w": 360,
+     "rendered_font_px": 17.1,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "full_ring": 1
+    },
+    "donut_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 560,
+     "height": 311,
+     "viewbox_w": 360,
+     "rendered_font_px": 17.1,
+     "series_tokens": [],
+     "full_ring": 0
+    },
+    "spark": {
+     "painted": 3,
+     "painted_ok": 3,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_single": {
+     "painted": 1,
+     "painted_ok": 1,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": []
+    },
+    "gantt_week": {
+     "painted": 52,
+     "painted_ok": 52,
+     "mismatch": [],
+     "marks": 11,
+     "titles": 11,
+     "texts": 25,
+     "text_ok": 25,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 302,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 7,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 8,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_month": {
+     "painted": 74,
+     "painted_ok": 74,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 22,
+     "text_ok": 22,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 289,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_week_long": {
+     "painted": 104,
+     "painted_ok": 104,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 37,
+     "text_ok": 37,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 289,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 31,
+     "tick_labels": 15,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 360,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [],
+     "today_lines": 0,
+     "today_label": null,
+     "weekend_rects": 0,
+     "ticks": 0,
+     "tick_labels": 0,
+     "rows": 0,
+     "bars": 0,
+     "baselines": 0,
+     "open_titles": [],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": ""
+    }
+   },
+   "summary": {
+    "charts": 17,
+    "painted": 326,
+    "mismatches": 0,
+    "marks": 79,
+    "titles": 79,
+    "titles_equal_marks": true,
+    "texts": 148,
+    "text_ok": 148,
+    "empty_charts": 5,
+    "empty_with_text": 5,
+    "min_series_contrast": 4.92
+   }
+  },
+  "dark": {
+   "theme": "dark",
+   "tokens": {
+    "--chart-1": "#5b8def",
+    "--chart-2": "#fb923c",
+    "--chart-3": "#4ade80",
+    "--chart-4": "#c084fc",
+    "--chart-5": "#22d3ee",
+    "--chart-6": "#f87171",
+    "--chart-7": "#facc15",
+    "--chart-8": "#94a3b8",
+    "--chart-grid": "#262d38",
+    "--chart-axis": "#38414f",
+    "--chart-text": "#8b95a3",
+    "--chart-today": "#f87171",
+    "--chart-weekend": "#212832",
+    "--chart-baseline": "#4b5563"
+   },
+   "surface": "#151a21",
+   "contrast": {
+    "--chart-1": 5.41,
+    "--chart-2": 7.72,
+    "--chart-3": 10.03,
+    "--chart-4": 6.61,
+    "--chart-5": 9.67,
+    "--chart-6": 6.32,
+    "--chart-7": 11.41,
+    "--chart-8": 6.82,
+    "--chart-text": 5.76
+   },
+   "charts": {
+    "line": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 16,
+     "titles": 16,
+     "texts": 15,
+     "text_ok": 15,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 308,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "series_line_paths": 4,
+     "series1_segments": 2,
+     "zero_line": 1
+    },
+    "line_single": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "line_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 760,
+     "height": 291,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "bar": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 336,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "zero_line": 1
+    },
+    "bar_stacked": {
+     "painted": 20,
+     "painted_ok": 20,
+     "mismatch": [],
+     "marks": 9,
+     "titles": 9,
+     "texts": 12,
+     "text_ok": 12,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 336,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "zero_line": 1
+    },
+    "bar_horizontal": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 120,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "zero_line": 0
+    },
+    "bar_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 760,
+     "height": 304,
+     "viewbox_w": 720,
+     "rendered_font_px": 11.6,
+     "series_tokens": [],
+     "zero_line": 0
+    },
+    "donut": {
+     "painted": 7,
+     "painted_ok": 7,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 6,
+     "text_ok": 6,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 560,
+     "height": 291,
+     "viewbox_w": 384.6000061035156,
+     "rendered_font_px": 16,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3",
+      "--chart-4"
+     ],
+     "full_ring": 0
+    },
+    "donut_one": {
+     "painted": 2,
+     "painted_ok": 2,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 560,
+     "height": 311,
+     "viewbox_w": 360,
+     "rendered_font_px": 17.1,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "full_ring": 1
+    },
+    "donut_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 560,
+     "height": 311,
+     "viewbox_w": 360,
+     "rendered_font_px": 17.1,
+     "series_tokens": [],
+     "full_ring": 0
+    },
+    "spark": {
+     "painted": 3,
+     "painted_ok": 3,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_single": {
+     "painted": 1,
+     "painted_ok": 1,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": []
+    },
+    "gantt_week": {
+     "painted": 52,
+     "painted_ok": 52,
+     "mismatch": [],
+     "marks": 11,
+     "titles": 11,
+     "texts": 25,
+     "text_ok": 25,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 302,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 7,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 8,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_month": {
+     "painted": 74,
+     "painted_ok": 74,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 22,
+     "text_ok": 22,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 289,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_week_long": {
+     "painted": 104,
+     "painted_ok": 104,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 37,
+     "text_ok": 37,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 760,
+     "height": 289,
+     "viewbox_w": 900,
+     "rendered_font_px": 9.3,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 31,
+     "tick_labels": 15,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": "720px"
+    },
+    "gantt_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 360,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 11,
+     "series_tokens": [],
+     "today_lines": 0,
+     "today_label": null,
+     "weekend_rects": 0,
+     "ticks": 0,
+     "tick_labels": 0,
+     "rows": 0,
+     "bars": 0,
+     "baselines": 0,
+     "open_titles": [],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 760,
+     "client_width": 760,
+     "scrolls": false,
+     "min_width": ""
+    }
+   },
+   "summary": {
+    "charts": 17,
+    "painted": 326,
+    "mismatches": 0,
+    "marks": 79,
+    "titles": 79,
+    "titles_equal_marks": true,
+    "texts": 148,
+    "text_ok": 148,
+    "empty_charts": 5,
+    "empty_with_text": 5,
+    "min_series_contrast": 5.41
+   }
+  },
+  "pageerrors": [],
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "_ms": 3881,
+  "_clicks": 0
+ },
+ "S20_chart_tokens_mobile": {
+  "render": {
+   "errors": [],
+   "charts": 17,
+   "exports": [
+    "barChart",
+    "donutChart",
+    "ganttChart",
+    "lineChart",
+    "sparkline"
+   ]
+  },
+  "light": {
+   "theme": "light",
+   "tokens": {
+    "--chart-1": "#1a56db",
+    "--chart-2": "#c2410c",
+    "--chart-3": "#15803d",
+    "--chart-4": "#7e22ce",
+    "--chart-5": "#0e7490",
+    "--chart-6": "#b91c1c",
+    "--chart-7": "#a16207",
+    "--chart-8": "#475569",
+    "--chart-grid": "#e2e6eb",
+    "--chart-axis": "#cbd2da",
+    "--chart-text": "#5e6874",
+    "--chart-today": "#c62828",
+    "--chart-weekend": "#f1f3f6",
+    "--chart-baseline": "#94a3b8"
+   },
+   "surface": "#ffffff",
+   "contrast": {
+    "--chart-1": 6.18,
+    "--chart-2": 5.18,
+    "--chart-3": 5.02,
+    "--chart-4": 6.98,
+    "--chart-5": 5.36,
+    "--chart-6": 6.47,
+    "--chart-7": 4.92,
+    "--chart-8": 7.58,
+    "--chart-text": 5.66
+   },
+   "charts": {
+    "line": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 16,
+     "titles": 16,
+     "texts": 15,
+     "text_ok": 15,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 145,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "series_line_paths": 4,
+     "series1_segments": 2,
+     "zero_line": 1
+    },
+    "line_single": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "line_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "bar": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 158,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "zero_line": 1
+    },
+    "bar_stacked": {
+     "painted": 20,
+     "painted_ok": 20,
+     "mismatch": [],
+     "marks": 9,
+     "titles": 9,
+     "texts": 12,
+     "text_ok": 12,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 158,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "zero_line": 1
+    },
+    "bar_horizontal": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 57,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "zero_line": 0
+    },
+    "bar_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 143,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [],
+     "zero_line": 0
+    },
+    "donut": {
+     "painted": 7,
+     "painted_ok": 7,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 6,
+     "text_ok": 6,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 186,
+     "viewbox_w": 384.6000061035156,
+     "rendered_font_px": 10.2,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3",
+      "--chart-4"
+     ],
+     "full_ring": 0
+    },
+    "donut_one": {
+     "painted": 2,
+     "painted_ok": 2,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "full_ring": 1
+    },
+    "donut_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [],
+     "full_ring": 0
+    },
+    "spark": {
+     "painted": 3,
+     "painted_ok": 3,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_single": {
+     "painted": 1,
+     "painted_ok": 1,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": []
+    },
+    "gantt_week": {
+     "painted": 52,
+     "painted_ok": 52,
+     "mismatch": [],
+     "marks": 11,
+     "titles": 11,
+     "texts": 25,
+     "text_ok": 25,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 720,
+     "height": 286,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 7,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 8,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_month": {
+     "painted": 74,
+     "painted_ok": 74,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 22,
+     "text_ok": 22,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 720,
+     "height": 274,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_week_long": {
+     "painted": 104,
+     "painted_ok": 104,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 37,
+     "text_ok": 37,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 720,
+     "height": 274,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 31,
+     "tick_labels": 15,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [],
+     "today_lines": 0,
+     "today_label": null,
+     "weekend_rects": 0,
+     "ticks": 0,
+     "tick_labels": 0,
+     "rows": 0,
+     "bars": 0,
+     "baselines": 0,
+     "open_titles": [],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 358,
+     "client_width": 358,
+     "scrolls": false,
+     "min_width": ""
+    }
+   },
+   "summary": {
+    "charts": 17,
+    "painted": 326,
+    "mismatches": 0,
+    "marks": 79,
+    "titles": 79,
+    "titles_equal_marks": true,
+    "texts": 148,
+    "text_ok": 148,
+    "empty_charts": 5,
+    "empty_with_text": 5,
+    "min_series_contrast": 4.92
+   }
+  },
+  "dark": {
+   "theme": "dark",
+   "tokens": {
+    "--chart-1": "#5b8def",
+    "--chart-2": "#fb923c",
+    "--chart-3": "#4ade80",
+    "--chart-4": "#c084fc",
+    "--chart-5": "#22d3ee",
+    "--chart-6": "#f87171",
+    "--chart-7": "#facc15",
+    "--chart-8": "#94a3b8",
+    "--chart-grid": "#262d38",
+    "--chart-axis": "#38414f",
+    "--chart-text": "#8b95a3",
+    "--chart-today": "#f87171",
+    "--chart-weekend": "#212832",
+    "--chart-baseline": "#4b5563"
+   },
+   "surface": "#151a21",
+   "contrast": {
+    "--chart-1": 5.41,
+    "--chart-2": 7.72,
+    "--chart-3": 10.03,
+    "--chart-4": 6.61,
+    "--chart-5": 9.67,
+    "--chart-6": 6.32,
+    "--chart-7": 11.41,
+    "--chart-8": 6.82,
+    "--chart-text": 5.76
+   },
+   "charts": {
+    "line": {
+     "painted": 31,
+     "painted_ok": 31,
+     "mismatch": [],
+     "marks": 16,
+     "titles": 16,
+     "texts": 15,
+     "text_ok": 15,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 145,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "series_line_paths": 4,
+     "series1_segments": 2,
+     "zero_line": 1
+    },
+    "line_single": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "line_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 137,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [],
+     "series_line_paths": 0,
+     "series1_segments": 0,
+     "zero_line": 0
+    },
+    "bar": {
+     "painted": 16,
+     "painted_ok": 16,
+     "mismatch": [],
+     "marks": 7,
+     "titles": 7,
+     "texts": 11,
+     "text_ok": 11,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 158,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2"
+     ],
+     "zero_line": 1
+    },
+    "bar_stacked": {
+     "painted": 20,
+     "painted_ok": 20,
+     "mismatch": [],
+     "marks": 9,
+     "titles": 9,
+     "texts": 12,
+     "text_ok": 12,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 158,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3"
+     ],
+     "zero_line": 1
+    },
+    "bar_horizontal": {
+     "painted": 8,
+     "painted_ok": 8,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 7,
+     "text_ok": 7,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 57,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "zero_line": 0
+    },
+    "bar_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 143,
+     "viewbox_w": 720,
+     "rendered_font_px": 5.5,
+     "series_tokens": [],
+     "zero_line": 0
+    },
+    "donut": {
+     "painted": 7,
+     "painted_ok": 7,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 6,
+     "text_ok": 6,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 186,
+     "viewbox_w": 384.6000061035156,
+     "rendered_font_px": 10.2,
+     "series_tokens": [
+      "--chart-1",
+      "--chart-2",
+      "--chart-3",
+      "--chart-4"
+     ],
+     "full_ring": 0
+    },
+    "donut_one": {
+     "painted": 2,
+     "painted_ok": 2,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 358,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "full_ring": 1
+    },
+    "donut_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 199,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [],
+     "full_ring": 0
+    },
+    "spark": {
+     "painted": 3,
+     "painted_ok": 3,
+     "mismatch": [],
+     "marks": 3,
+     "titles": 3,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_single": {
+     "painted": 1,
+     "painted_ok": 1,
+     "mismatch": [],
+     "marks": 1,
+     "titles": 1,
+     "texts": 0,
+     "text_ok": 0,
+     "fonts": [],
+     "font_variant_numeric": [],
+     "empty": false,
+     "empty_text": null,
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": [
+      "--chart-1"
+     ]
+    },
+    "spark_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 120,
+     "height": 32,
+     "viewbox_w": 120,
+     "rendered_font_px": 11,
+     "series_tokens": []
+    },
+    "gantt_week": {
+     "painted": 52,
+     "painted_ok": 52,
+     "mismatch": [],
+     "marks": 11,
+     "titles": 11,
+     "texts": 25,
+     "text_ok": 25,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 720,
+     "height": 286,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 7,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 8,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_month": {
+     "painted": 74,
+     "painted_ok": 74,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 22,
+     "text_ok": 22,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 720,
+     "height": 274,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 7,
+     "tick_labels": 6,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_week_long": {
+     "painted": 104,
+     "painted_ok": 104,
+     "mismatch": [],
+     "marks": 12,
+     "titles": 12,
+     "texts": 37,
+     "text_ok": 37,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": false,
+     "empty_text": null,
+     "width": 720,
+     "height": 274,
+     "viewbox_w": 900,
+     "rendered_font_px": 8.8,
+     "series_tokens": [
+      "--chart-1"
+     ],
+     "today_lines": 1,
+     "today_label": "Hari ini",
+     "weekend_rects": 30,
+     "ticks": 31,
+     "tick_labels": 15,
+     "rows": 10,
+     "bars": 9,
+     "baselines": 3,
+     "open_titles": [
+      "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
+      "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
+     ],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 720,
+     "client_width": 358,
+     "scrolls": true,
+     "min_width": "720px"
+    },
+    "gantt_empty": {
+     "painted": 0,
+     "painted_ok": 0,
+     "mismatch": [],
+     "marks": 0,
+     "titles": 0,
+     "texts": 1,
+     "text_ok": 1,
+     "fonts": [
+      "-apple-system"
+     ],
+     "font_variant_numeric": [
+      "tabular-nums"
+     ],
+     "empty": true,
+     "empty_text": "Belum ada data",
+     "width": 358,
+     "height": 64,
+     "viewbox_w": 360,
+     "rendered_font_px": 10.9,
+     "series_tokens": [],
+     "today_lines": 0,
+     "today_label": null,
+     "weekend_rects": 0,
+     "ticks": 0,
+     "tick_labels": 0,
+     "rows": 0,
+     "bars": 0,
+     "baselines": 0,
+     "open_titles": [],
+     "baseline_before_actual": true,
+     "row_label_overlaps": 0,
+     "scroll_width": 358,
+     "client_width": 358,
+     "scrolls": false,
+     "min_width": ""
+    }
+   },
+   "summary": {
+    "charts": 17,
+    "painted": 326,
+    "mismatches": 0,
+    "marks": 79,
+    "titles": 79,
+    "titles_equal_marks": true,
+    "texts": 148,
+    "text_ok": 148,
+    "empty_charts": 5,
+    "empty_with_text": 5,
+    "min_series_contrast": 5.41
+   }
+  },
+  "pageerrors": [],
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "_ms": 3872,
+  "_clicks": 0
+ }
+}

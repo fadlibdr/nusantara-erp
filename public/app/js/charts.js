@@ -556,7 +556,11 @@ export function ganttChart({
   const headerH = 36;
   const noteH = sourceNote ? 16 : 0;
   if (!tasks.length || (!dates.length && parseDay(from) === null)) {
-    return placeholder('gantt', W, headerH + Math.max(1, tasks.length) * rowHeight + 26 + noteH, ariaLabel);
+    /* Placeholder gantt berukuran ringkas (bukan 900 lebar): di ponsel viewBox
+       selebar jadwal menyusutkan "Belum ada data" jadi ±4 px (diukur S20). */
+    const empty = placeholder('gantt', 360, 64, ariaLabel);
+    empty.style.maxWidth = '360px';
+    return empty;
   }
 
   const fromMs = parseDay(from) ?? Math.min(...dates);
