@@ -279,7 +279,8 @@ NAV (bukan grup baru):
 (CIEDE2000 di Lab; skrip turunan di scratch P1-B, matriks lengkap di komentar token app.css):
 minimum antar slot **20,1 terang / 20,9 gelap** (hue vs `--chart-n` maks 11,8° terang / 7,3° gelap);
 kontras WCAG aksen di `--surface` ≥ **5,20** terang /
-**5,41** gelap (batas 3:1, dipasang ≥ 4,5 karena aksen dipakai sebagai teks remah), `-fg` di aksen
+**5,41** gelap (batas 3:1; dipasang ≥ **5,2** karena aksen dipakai sebagai teks remah — angka yang
+sama dengan komentar blok token app.css), `-fg` di aksen
 ≥ 5,20 / 5,86, aksen di `-soft` ≥ 4,62 / 4,82. Harness **S21** mengukur nilai yang hidup di
 halaman (kedua tema, desktop + ponsel) dan menulisnya ke `results-phase-1.json`; uji
 `SidebarNavWiringTest` memaku slot 1..8 dan ketiga token di keempat blok.
@@ -303,8 +304,9 @@ dan tombol aksi baris ke 24 px (hanya `pointer: fine` — di layar sentuh sasara
 menang, baris rapat bertombol 43 px dan baris bertombol `normal` maupun `comfortable` 55 px;
 tautan sidebar di layar sentuh ≥ 36 px di semua profil, baris radio dialog ≥ 40 px, dan petunjuk
 dialog di sana menyebut dua angka "teks · bertombol"), `comfortable` menahan padding dan menaikkan lantai; di
-kedua profil itu **semua** baris satu-baris tepat 32/48 (S21 `density.compact_all_32` /
-`comfortable_all_48`). Token turunan: `--cell-py/--cell-px` (td, th), `--foot-py` (tfoot: 10 px normal —
+kedua profil itu **semua** baris satu-baris tepat 32/48 (kunci S21 yang benar-benar ditulis harness:
+`density.compact_ok` / `comfortable_ok`, `normal_equals_baseline` — termasuk tfoot daftar PO —
+dan `tfoot_normal_41`). Token turunan: `--cell-py/--cell-px` (td, th), `--foot-py` (tfoot: 10 px normal —
 angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (baris sidebar), `--form-gap`
 (`.form-grid`), `--kv-gap` (`.kv`). Kontrol: dialog Akun › **Kepadatan**
 (tiga radio: Padat · Normal · Lega — "Padat", bukan "Rapat", yang di ERP terbaca sebagai

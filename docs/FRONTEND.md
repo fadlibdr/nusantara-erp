@@ -53,7 +53,9 @@ public/app/
       actions.js        lifecycle actions (submit/approve/post/…)
       dashboard.js      cross-module dashboard + approval inbox
       module.js         module home #/m/<prefix>: accent header + cards of the NAV screens the
-                        caller may open (same visibleNav() filter as the sidebar); breadcrumb target
+                        caller may open (same visibleNav() filter as the sidebar); breadcrumb target.
+                        Grid is auto-fill minmax(220px, 1fr): measured 4 columns at 1440 px, 1 at 390
+                        (S21 admin_modules[*].columns) — not "3 columns"
       project.js        project workspace: kurva-S, WBS tree, site activity
       reports.js        finance reports (TB, P&L, BS, aging, project P&L)
       custom.js         stock, payroll, ticket, subcontract, payment, role, …
