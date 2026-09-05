@@ -172,22 +172,18 @@ class NotificationService
                 return;
             }
 
-            foreach ($recipients as $recipient) {
-                $notification = Notification::query()->create([
-                    'user_id' => $recipient->id,
-                    'event' => Notification::SYSTEM,
-                    'title' => $title,
-                    'body' => $body,
-                    'link' => $link,
-                    'document_type' => null,
-                    'document_id' => null,
-                    'document_code' => $signature,
-                    'actor_id' => null,
-                    'read_at' => null,
-                ]);
-
-                $this->outbox($notification, $recipient);
-            }
+            $this->write($recipients, fn (User $recipient): array => [
+                'user_id' => $recipient->id,
+                'event' => Notification::SYSTEM,
+                'title' => $title,
+                'body' => $body,
+                'link' => $link,
+                'document_type' => null,
+                'document_id' => null,
+                'document_code' => $signature,
+                'actor_id' => null,
+                'read_at' => null,
+            ]);
         });
     }
 
@@ -256,21 +252,44 @@ class NotificationService
 
         $link = ApprovableDocuments::link($document);
 
-        foreach ($recipients as $recipient) {
-            $notification = Notification::query()->create([
-                'user_id' => $recipient->id,
-                'event' => $event,
-                'title' => $title,
-                'body' => $body,
-                'link' => $link,
-                'document_type' => $document::class,
-                'document_id' => $document->getKey(),
-                'document_code' => $document->code ?? null,
-                'actor_id' => $actor?->id,
-                'read_at' => null,
-            ]);
+        $this->write($recipients, fn (User $recipient): array => [
+            'user_id' => $recipient->id,
+            'event' => $event,
+            'title' => $title,
+            'body' => $body,
+            'link' => $link,
+            'document_type' => $document::class,
+            'document_id' => $document->getKey(),
+            'document_code' => $document->code ?? null,
+            'actor_id' => $actor?->id,
+            'read_at' => null,
+        ]);
+    }
 
-            $this->outbox($notification, $recipient);
+    /**
+     * Dua tahap, dalam urutan ini: SEMUA baris dalam aplikasi dulu (kanal
+     * kebenaran), baru kotak keluar per penerima — masing-masing di balik
+     * guard()-nya sendiri. Menyelang keduanya per penerima berarti satu tulisan
+     * kotak keluar yang gagal (tabel belum termigrasi, SQLite terkunci lewat
+     * busy_timeout, alamat > 190 karakter di MySQL ketat) membuat penerima
+     * berikutnya tidak pernah diberi tahu sama sekali — dua penyetuju, satu
+     * baris (verifikasi P-0b, 5 Sep 2026). Tulisan kotak keluar yang gagal
+     * tetap tercatat di log; yang tidak boleh ikut hilang adalah kanal yang
+     * bekerja di setiap instalasi.
+     *
+     * @param  Collection<int, User>  $recipients
+     * @param  callable(User): array<string, mixed>  $attributes
+     */
+    private function write(Collection $recipients, callable $attributes): void
+    {
+        $written = [];
+
+        foreach ($recipients as $recipient) {
+            $written[] = [Notification::query()->create($attributes($recipient)), $recipient];
+        }
+
+        foreach ($written as [$notification, $recipient]) {
+            $this->guard(fn () => $this->outbox($notification, $recipient));
         }
     }
 
@@ -282,12 +301,12 @@ class NotificationService
      * Kotak keluar: satu baris pengiriman per kanal luar untuk notifikasi yang
      * baru ditulis, lalu job-nya. Hari ini satu kanal (e-mail).
      *
-     * Barisnya ditulis DULU dan tanpa guard — kalau tulisan ke tabel sendiri
-     * gagal, tidak ada yang bisa dilaporkan. Yang dijaga hanya dispatch:
-     * antrean yang mati tidak boleh membatalkan persetujuan yang sedang
-     * dilaporkan, dan baris `queued` tanpa job adalah persis yang dilihat
-     * operator di layar (dan yang dihitung core/health sebagai
-     * queued_deliveries_older_than_1h).
+     * Barisnya ditulis DULU — kalau tulisan ke tabel sendiri gagal, tidak ada
+     * yang bisa dilaporkan selain log, dan write() menjaga agar kegagalan itu
+     * berhenti pada penerima ini. Dispatch dijaga sendiri: antrean yang mati
+     * tidak boleh membatalkan persetujuan yang sedang dilaporkan, dan baris
+     * `queued` tanpa job adalah persis yang dilihat operator di layar (dan
+     * yang dihitung core/health sebagai queued_deliveries_older_than_1h).
      */
     private function outbox(Notification $notification, User $recipient): void
     {

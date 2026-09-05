@@ -181,6 +181,63 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->assertSame(0, $row->attempts);
     }
 
+    /**
+     * Kanal kebenaran dulu, kotak keluar belakangan, per penerima di balik
+     * guard-nya sendiri: satu tulisan core_notification_deliveries yang gagal
+     * (tabel belum termigrasi setelah deploy — 'deploy migration race' —,
+     * SQLite terkunci, alamat terlalu panjang di MySQL ketat) tidak boleh
+     * membuat penyetuju berikutnya tidak diberi tahu sama sekali. Sebelum ini:
+     * dua penyetuju, satu baris dalam aplikasi (verifikasi P-0b, 5 Sep 2026).
+     */
+    public function test_a_failed_outbox_write_for_one_recipient_starves_nobody_of_the_in_app_row(): void
+    {
+        Queue::fake();
+        $this->emailOn();
+        $a = $this->userWith('fin.approve', 'Direktur A');
+        $b = $this->userWith('fin.approve', 'Direktur B');
+
+        // Tulisan kotak keluar PERTAMA gagal — apa pun sebabnya, jalurnya sama.
+        $writes = 0;
+        NotificationDelivery::saving(function () use (&$writes): void {
+            if ($writes++ === 0) {
+                throw new RuntimeException('simulasi: tabel core_notification_deliveries tidak terbaca');
+            }
+        });
+
+        $bill = $this->bill();
+        $bill->submit($this->userWith('fin.create', 'Staf'));
+
+        $this->assertSame('submitted', $bill->refresh()->status->value);
+        $inApp = Notification::query()->where('event', Notification::SUBMITTED)->pluck('user_id')->sort()->values()->all();
+        $this->assertSame(collect([$a->id, $b->id])->sort()->values()->all(), $inApp, 'Kedua penyetuju harus punya baris dalam aplikasi.');
+
+        // Penerima yang tulisannya gagal tidak punya baris kotak keluar (hanya
+        // log); penerima berikutnya tetap diproses.
+        $this->assertSame(1, NotificationDelivery::query()->count());
+        Queue::assertPushed(DeliverNotification::class, 1);
+    }
+
+    public function test_a_failed_outbox_write_does_not_starve_system_alarm_recipients_either(): void
+    {
+        Queue::fake();
+        $this->emailOn();
+        $this->adminUser();
+        $second = $this->userWith('core.update', 'Admin Kedua');
+
+        $writes = 0;
+        NotificationDelivery::saving(function () use (&$writes): void {
+            if ($writes++ === 0) {
+                throw new RuntimeException('simulasi');
+            }
+        });
+
+        app(NotificationService::class)->system('core.update', 'Cadangan basi', 'Isi.');
+
+        $this->assertSame(2, Notification::query()->where('event', Notification::SYSTEM)->count());
+        $this->assertSame(1, Notification::query()->where('user_id', $second->id)->count());
+        $this->assertSame(1, NotificationDelivery::query()->count());
+    }
+
     // ------------------------------------------------------------------ job
 
     public function test_the_job_sends_the_mail_and_marks_the_row_sent(): void
