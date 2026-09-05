@@ -137,8 +137,10 @@ class VendorManifestTest extends TestCase
      * Aturan data: sebuah literal http(s) yang bukan pemuat boleh ada HANYA bila
      *  1. ia namespace W3C (NAMESPACE_IRIS) sebagai string utuh — pengenal, bukan alamat;
      *  2. ia tujuan tautan yang diklik orang: HTML `<a … href="…"` atau properti
-     *     `href:` di el('a', { href }) — bukan `<link href` (itu pemuat, ditangkap
-     *     LOADER_BEFORE_URL lebih dulu); atau
+     *     `href:` di el('a', { href }) PADA BARIS YANG SAMA — `href:` polos meloloskan
+     *     el('link', { rel: 'stylesheet', href }) yang, karena ui.js el() memanggil
+     *     setAttribute, adalah pemuat stylesheet sungguhan (verifikasi P1-A, mutasi m12);
+     *     `<link href` HTML ditangkap LOADER_BEFORE_URL lebih dulu; atau
      *  3. barisnya komentar JS/CSS (//, *, /*) — docblock yang mengutip alamat.
      * Selain itu gagal, supaya setiap URL baru di SPA diputuskan sadar.
      */
@@ -151,7 +153,7 @@ class VendorManifestTest extends TestCase
         if (preg_match('~xmlns(?::\w+)?\s*=\s*["\']$~', $before) && in_array($url, self::NAMESPACE_IRIS, true)) {
             return true;
         }
-        if (preg_match('~(?:<a\b[^>]*\bhref\s*=\s*["\']|\bhref\s*:\s*["\'`])$~i', $before)) {
+        if (preg_match('~(?:<a\b[^>]*\bhref\s*=\s*["\']|\bel\(\s*["\']a(?:[.#][^"\']*)?["\'][^;]*\bhref\s*:\s*["\'`])$~i', $before)) {
             return true;
         }
 
