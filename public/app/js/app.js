@@ -49,6 +49,7 @@ import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
 import { renderTugas } from './views/tugas.js';
 import { openForm } from './views/form.js';
+import { openOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
 const root = document.getElementById('root');
@@ -650,6 +651,9 @@ function openUserMenu(user) {
       button('Tutup', { onClick: () => dialog.close() }),
       // Menu akun hanya "Tutup · Keluar" sampai 2 Sep 2026 (HASIL-UJI §1, S9).
       button('Ganti kata sandi', { onClick: () => { dialog.close(); openChangePassword(); } }),
+      /* Jalan kembali ke panduan yang dilewati saat masuk (5 Sep 2026). Dibuka
+         dari sini tidak mencatat apa pun; Lewati/Selesai di dalamnya tetap. */
+      button('Panduan onboarding', { onClick: () => { dialog.close(); openOnboarding({ auto: false }).catch(() => {}); } }),
       button('Keluar', {
         variant: 'danger', iconName: 'logout',
         onClick: async (event) => {
@@ -1177,8 +1181,28 @@ async function boot() {
   }
 
   // Refresh permissions in the background — roles may have changed since login.
-  refreshMe().catch(() => {});
+  // The onboarding decision rides on the same answer, so it waits for it.
+  refreshMe().catch(() => {}).then(() => maybeShowOnboarding());
   offerDrafts();
+}
+
+/*
+ * Panduan onboarding muncul di SETIAP masuk — akun lama maupun baru — sampai
+ * orangnya menekan Lewati atau Selesai, dan tidak pernah lagi sesudahnya
+ * (permintaan pemilik 5 Sep 2026: "on boarding is not working" — panduan
+ * hanya ada sebagai berkas docs, tidak pernah tampil di aplikasi).
+ *
+ * Yang dibaca adalah onboarding_status di auth/me, BUKAN localStorage:
+ * keputusan harus mengikuti orangnya ke tablet lapangan yang dipakai
+ * bergantian, dan tidak boleh diwarisi orang berikutnya di peramban yang
+ * sama. Dipanggil sesudah refreshMe() supaya salinan sesi sudah memuat
+ * keputusan terbaru dari server, termasuk yang dibuat di perangkat lain;
+ * refreshMe() yang gagal (luring) jatuh ke salinan localStorage.
+ */
+function maybeShowOnboarding() {
+  const user = session.user;
+  if (!user || user.onboarding_status) return;
+  openOnboarding({ auto: true }).catch(() => {});
 }
 
 /*

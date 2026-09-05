@@ -21,6 +21,11 @@ class UserResource extends JsonResource
             'is_active' => (bool) $this->is_active,
             'roles' => $this->roles->pluck('name')->values(),
             'permissions' => $this->getAllPermissions()->pluck('name')->sort()->values(),
+            // null = has never decided; the SPA opens the onboarding guide at
+            // login on exactly that value (5 Sep 2026). Carried on auth/me so
+            // the decision follows the person across browsers and devices.
+            'onboarding_status' => $this->onboarding_status,
+            'onboarding_seen_at' => $this->onboarding_seen_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

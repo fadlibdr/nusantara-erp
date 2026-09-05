@@ -31,6 +31,9 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            // Deliberately not fillable: only PUT iam/me/onboarding writes it,
+            // through forceFill, on the caller's own record.
+            'onboarding_seen_at' => 'datetime',
         ];
     }
 }

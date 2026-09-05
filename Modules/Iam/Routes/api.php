@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Iam\Http\Controllers\AuthController;
+use Modules\Iam\Http\Controllers\OnboardingController;
 use Modules\Iam\Http\Controllers\PermissionController;
 use Modules\Iam\Http\Controllers\RoleController;
 use Modules\Iam\Http\Controllers\UserController;
@@ -31,6 +32,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Ganti kata sandi sendiri — sandi lama wajib (ChangePasswordRequest).
     // Menu akun hanya "Tutup · Keluar" sampai 2 Sep 2026 (HASIL-UJI §1, S9).
     Route::put('me/password', [AuthController::class, 'changePassword']);
+    // Panduan onboarding per peran + keputusan Lewati/Selesai yang diingat di
+    // server (permintaan pemilik 5 Sep 2026: "on boarding is not working" —
+    // panduan hanya ada sebagai berkas docs/ONBOARDING, tak pernah tampil di
+    // aplikasi). Rekam milik sendiri, tanpa izin tambahan.
+    Route::get('me/onboarding', [OnboardingController::class, 'show']);
+    Route::put('me/onboarding', [OnboardingController::class, 'update']);
 
     Route::middleware('permission:iam.view')->group(function (): void {
         Route::get('users', [UserController::class, 'index']);
