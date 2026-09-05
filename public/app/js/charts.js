@@ -178,13 +178,20 @@ function textWidth(text) {
   return String(text ?? '').length * CHAR_W;
 }
 
-/** Label sumbu-x berjangkar tengah, kecuali label yang akan keluar dari tepi svg: yang
-    terakhir ditambatkan ke ujung kanan ('10 Jun 2026' berpusat di x = width − 16 dulu
-    terpotong ±12 px), yang pertama ke ujung kiri. */
+/** Kotak label sumbu-x: berjangkar tengah, kecuali label yang akan keluar dari tepi svg — yang
+    terakhir ditambatkan ke ujung kanan ('10 Jun 2026' berpusat di x = width − 16 dulu terpotong
+    ±12 px), yang pertama ke ujung kiri. Mengembalikan jangkar DAN tepi kiri/kanan taksirannya:
+    penjarangan (thin) dan penggambaran (xTickLabel) memakai kotak yang sama — label yang
+    ditambatkan ke ujung bergeser setengah lebarnya (±30 px untuk tanggal) dari pusatnya. */
+function xLabelBox(cx, label, width) {
+  const w = textWidth(label);
+  if (cx + w / 2 > width - 1) return { anchor: 'end', left: cx - w, right: cx };
+  if (cx - w / 2 < 1) return { anchor: 'start', left: cx, right: cx + w };
+  return { anchor: 'middle', left: cx - w / 2, right: cx + w / 2 };
+}
+
 function xTickLabel(svg, cx, y, label, width, extraClass = '') {
-  const half = textWidth(label) / 2;
-  const anchor = cx + half > width - 1 ? 'end' : cx - half < 1 ? 'start' : 'middle';
-  svg.appendChild(make('text', { class: `chart-tick${extraClass ? ` ${extraClass}` : ''}`, x: cx, y, 'text-anchor': anchor }, label));
+  svg.appendChild(make('text', { class: `chart-tick${extraClass ? ` ${extraClass}` : ''}`, x: cx, y, 'text-anchor': xLabelBox(cx, label, width).anchor }, label));
 }
 
 function frame(kind, width, height, ariaLabel) {
@@ -298,12 +305,39 @@ function xValue(point, index) {
   return Number.isFinite(parsed) ? { x: parsed, date: true } : { x: index, date: false };
 }
 
-/** Indeks label sumbu-x yang digambar: paling banyak floor(plotW/minGap), yang terakhir selalu. */
-function thin(count, plotW, minGap = 64) {
-  const step = Math.max(1, Math.ceil(count / Math.max(1, Math.floor(plotW / minGap))));
+/** Indeks label sumbu-x yang digambar. `centers` = pusat tiap label (koordinat svg), `labelAt(i)`
+    = teksnya (dipanggil malas: hanya kandidat yang diformat — 10 rb titik tidak memformat 10 rb
+    tanggal). Irama: paling banyak floor(plotW/minGap) label berlangkah tetap dari kiri, dan label
+    terakhir selalu (tanggal/kategori terbaru adalah yang dicari pembaca); minGap dinaikkan ke
+    lebar label terlebar + 2·gap bila label lebih lebar dari irama bawaan ('05 Sep 2026' 61,6 px
+    taksiran vs 64). Lalu setiap kandidat diuji terhadap KOTAK label tetangga yang sudah terpilih
+    — kotak xLabelBox yang sama dengan yang digambar, termasuk pergeseran jangkar tepi: yang
+    menabrak dibuang, label terakhir menang atas tetangga kirinya. Dulu irama dihitung untuk label
+    berpusat sementara label terakhir ditambatkan ke ujung kanan (bergeser ±30 px ke kiri): dua
+    label terakhir setiap sumbu tanggal ≥ 10 titik bertumpuk 17–54 px (verifikasi P1-A putaran
+    2, 5 Sep 2026). Pemanggil menjamin `centers` terurut naik. */
+function thin(centers, labelAt, width, plotW, minGap = 64, gap = 6) {
+  const count = centers.length;
+  const memo = new Map();
+  const label = (i) => { if (!memo.has(i)) memo.set(i, labelAt(i)); return memo.get(i); };
+  const box = (i) => xLabelBox(centers[i], label(i), width);
+  const candidates = (step) => {
+    const c = [];
+    for (let i = 0; i < count; i += step) c.push(i);
+    if (count && c[c.length - 1] !== count - 1) c.push(count - 1);
+    return c;
+  };
+  const stepFor = (g) => Math.max(1, Math.ceil(count / Math.max(1, Math.floor(plotW / g))));
+  let step = stepFor(minGap);
+  const widest = Math.max(0, ...candidates(step).map((i) => textWidth(label(i))));
+  if (widest + gap * 2 > minGap) step = stepFor(widest + gap * 2);
   const picked = [];
-  for (let i = 0; i < count; i++) if (i % step === 0 || i === count - 1) picked.push(i);
-  if (picked.length >= 2 && (picked[picked.length - 1] - picked[picked.length - 2]) * (plotW / Math.max(1, count - 1)) < minGap * 0.6) picked.splice(picked.length - 2, 1);
+  candidates(step).forEach((i) => {
+    const { left } = box(i);
+    const collides = () => picked.length > 0 && box(picked[picked.length - 1]).right + gap > left;
+    if (i === count - 1) { while (collides()) picked.pop(); } else if (collides()) return;
+    picked.push(i);
+  });
   return picked;
 }
 
@@ -373,7 +407,7 @@ export function lineChart({
   });
   svg.appendChild(paint(make('line', { class: 'chart-axis', x1: PAD.left, x2: PAD.left, y1: PAD.top, y2: PAD.top + plotH }), 'stroke', '--chart-axis'));
   if (lo < 0 && hi > 0) svg.appendChild(paint(make('line', { class: 'chart-zero', x1: PAD.left, x2: width - PAD.right, y1: y(0), y2: y(0) }), 'stroke', '--chart-axis'));
-  thin(xs.length, plotW).forEach((i) => xTickLabel(svg, x(xs[i]), PAD.top + plotH + 19, labelX(xs[i]), width));
+  thin(xs.map(x), (i) => labelX(xs[i]), width, plotW).forEach((i) => xTickLabel(svg, x(xs[i]), PAD.top + plotH + 19, labelX(xs[i]), width));
 
   const base = y(Math.min(Math.max(0, lo), hi));
   rows.forEach((s) => {
@@ -465,10 +499,13 @@ export function barChart({
     : PAD.top + plotH - ((v - lo) / (hi - lo)) * plotH);
   const zero = value(Math.min(Math.max(0, lo), hi));
 
-  ticks.forEach((t) => {
+  /* Label nilai mendatar dijarangkan dengan kotak yang sama seperti sumbu-x garis: 'Rp 1.000.000.000,00'
+     (103 px) pada 6 tick berjarak 117 px menabrak tetangganya begitu yang terakhir ditambatkan ke ujung. */
+  const tickLabelIdx = new Set(horizontal ? thin(ticks.map(value), (i) => fy(ticks[i]), width, plotW, 48) : []);
+  ticks.forEach((t, k) => {
     if (horizontal) {
       svg.appendChild(paint(make('line', { class: 'chart-grid', x1: value(t), x2: value(t), y1: PAD.top, y2: PAD.top + plotH }), 'stroke', '--chart-grid'));
-      xTickLabel(svg, value(t), PAD.top + plotH + 19, fy(t), width);
+      if (tickLabelIdx.has(k)) xTickLabel(svg, value(t), PAD.top + plotH + 19, fy(t), width);
     } else {
       svg.appendChild(paint(make('line', { class: 'chart-grid', x1: PAD.left, x2: width - PAD.right, y1: value(t), y2: value(t) }), 'stroke', '--chart-grid'));
       svg.appendChild(make('text', { class: 'chart-tick', x: PAD.left - 7, y: value(t) + 3.5, 'text-anchor': 'end' }, fy(t)));
@@ -492,7 +529,8 @@ export function barChart({
      width="-0.2": Chromium menolak atribut itu dan tidak menggambar satu batang pun,
      sementara 600 <title> tetap ada di DOM — diukur 5 Sep 2026). */
   const thick = Math.max(0.5, barW - Math.min(1, barW * 0.2));
-  const labelIdx = new Set(horizontal ? cats.map((_, i) => i) : thin(n, plotW, Math.max(48, band)));
+  const catLabel = (j) => truncate(cats[j], Math.max(3, Math.floor((band - 4) / CHAR_W)));
+  const labelIdx = new Set(horizontal ? cats.map((_, i) => i) : thin(cats.map((_, j) => PAD.left + j * band + band / 2), catLabel, width, plotW, Math.max(48, band)));
 
   cats.forEach((cat, j) => {
     const bandStart = (horizontal ? PAD.top : PAD.left) + j * band;
@@ -500,7 +538,7 @@ export function barChart({
       if (horizontal) {
         svg.appendChild(make('text', { class: 'chart-tick', x: PAD.left - 7, y: bandStart + band / 2 + 3.5, 'text-anchor': 'end' }, truncate(cat, Math.floor((PAD.left - 10) / CHAR_W))));
       } else {
-        xTickLabel(svg, bandStart + band / 2, PAD.top + plotH + 19, truncate(cat, Math.max(3, Math.floor((band - 4) / CHAR_W))), width);
+        xTickLabel(svg, bandStart + band / 2, PAD.top + plotH + 19, catLabel(j), width);
       }
     }
     let up = 0;

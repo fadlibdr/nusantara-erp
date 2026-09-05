@@ -1111,6 +1111,19 @@ CHART_RENDER = """async () => {
   // Sumbu tanggal tanpa xFormat: label bawaan harus berbentuk fmt.date ("05 Sep 2026"), bukan "05 Sep 26".
   t('line_dates', () => m.lineChart({ series: [{ label: 'Harga PO', points: [{x:'2026-01-05',y:12500},{x:'2026-03-02',y:13000},{x:'2026-06-10',y:13750}] }], yMin: 12000, yMax: 14000, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'sumbu tanggal' }));
   t('line_mixed_x', () => m.lineChart({ series: [{ label: 'campur', points: [{x:'2026-01-01',y:1},{x:5,y:3},{x:'abc',y:2},{x:'2026-02-01',y:4}] }], ariaLabel: 'x campuran' }));
+  // Sumbu tanggal padat (P1-E: tren harga harian, kurva-S 52 minggu, EVM bulanan): label terakhir
+  // ditambatkan ke ujung kanan dan bergeser ±30 px — verifikasi P1-A putaran 2 mengukur dua label
+  // terakhir bertumpuk 17–54 px pada setiap sumbu tanggal ≥ 10 titik (line_dates hanya 3 titik).
+  // x_label_overlaps (getBBox semua label sumbu-x) harus 0 di desktop DAN pada lebar 358.
+  const dated = (n, stepDays, k = 0) => Array.from({length: n}, (_, i) => ({ x: new Date(Date.UTC(2026, 8, 1 + i * stepDays)).toISOString().slice(0, 10), y: 10 + ((i + k) * 37) % 50 }));
+  t('line_dates_daily_31', () => m.lineChart({ series: [{ label: 'Harga PO', points: dated(31, 1).map(p => ({ x: p.x, y: 12000 + p.y * 40 })) }], yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'tanggal harian 31' }));
+  t('line_dates_weekly_52', () => m.lineChart({ series: [
+      { label: 'Rencana', points: dated(52, 7).map((p, i) => ({ x: p.x, y: Math.round(100 * (1 - Math.cos(Math.PI * i / 51)) / 2) })), dash: '5 3', dots: false },
+      { label: 'Aktual', points: dated(40, 7).map((p, i) => ({ x: p.x, y: Math.round(90 * (1 - Math.cos(Math.PI * i / 51)) / 2) })), area: true, dots: 'last' },
+      { label: 'Baseline', points: dated(52, 7).map((p, i) => ({ x: p.x, y: Math.round(100 * (1 - Math.cos(Math.PI * i / 45)) / 2) })), dash: '2 4', dots: false }],
+    yMin: 0, yMax: 125, yStep: 25, yFormat: (v) => v + ' %', ariaLabel: 'kurva-S 52 minggu' }));
+  t('line_dates_monthly_24', () => m.lineChart({ series: [{ label: 'Biaya', points: dated(24, 30).map(p => ({ x: p.x, y: p.y * 1e8 })) }], yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'tanggal bulanan 24' }));
+  t('line_dates_w358', () => m.lineChart({ series: [{ label: 'Harga PO', points: dated(30, 1).map(p => ({ x: p.x, y: 12000 + p.y * 40 })) }], width: 358, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'tanggal harian lebar 358' }));
   // Sumbu dipaksa 0..100 dengan nilai 140 dan −20: dulu titik+garis terlukis 73 px di atas svg
   // (menimpa kepala kartu) — kini garis diklip dan titiknya ditempel di tepi plot + "(di luar sumbu)".
   t('line_clip', () => m.lineChart({ series: [{ label: 'Progres', points: [{x:0,y:10},{x:1,y:60},{x:2,y:140},{x:3,y:-20},{x:4,y:50}], area: true }], yMin: 0, yMax: 100, yFormat: (v) => v + ' %', ariaLabel: 'di luar sumbu' }));
@@ -1124,6 +1137,8 @@ CHART_RENDER = """async () => {
   t('bar', () => m.barChart({ categories: ['Jan','Feb','Mar','Apr'], series: [{ label: 'RAP', values: [3,-2,5,4] },{ label: 'Realisasi', values: [1,4,null,6] }], yFormat: rp, ariaLabel: 'uji batang' }));
   t('bar_stacked', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Material', values: [3,2,1] },{ label: 'Upah', values: [1,4,2] },{ label: 'Alat', values: [-1,1,0] }], stacked: true, ariaLabel: 'tumpuk' }));
   t('bar_horizontal', () => m.barChart({ categories: ['Gudang Utama Jakarta Selatan','Gudang 2','Gudang 3'], series: [{ label: 'Stok', values: [30,12,0] }], horizontal: true, ariaLabel: 'mendatar' }));
+  // Label nilai mendatar 'Rp 1.000.000.000,00' (103 px) × 5 tick: yang terakhir ditambatkan ke ujung kanan — dijarangkan dengan kotak yang sama.
+  t('bar_horizontal_rp', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Nilai', values: [1e9, 2e9, 5e8] }], horizontal: true, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(v), ariaLabel: 'mendatar rupiah' }));
   t('bar_empty', () => m.barChart({ categories: [], series: [], ariaLabel: 'kosong' }));
   // 12 nama bulan pada lebar 720 (pita 55,7 px): 'Februari' 41 px / 'September' 54 px muat — dulu
   // CHAR_W 6,3 memotongnya jadi 'Februa…', 'Septem…', 'Novemb…', 'Desemb…'.
@@ -1188,6 +1203,12 @@ CHART_MEASURE = """(theme) => {
   const contrast = Object.fromEntries([1,2,3,4,5,6,7,8].map(i => [`--chart-${i}`, cr(tokens[`--chart-${i}`], surface)]));
   contrast['--chart-text'] = cr(tokens['--chart-text'], surface);
   const charts = {};
+  // Label sumbu-x = baris teks di bawah sumbu (y > y2 sumbu + 4); tumpang tindih diukur getBBox
+  // (koordinat svg, bebas skala) atas SEMUA pasangan tetangga — termasuk label terakhir yang
+  // ditambatkan ke ujung, yang dulu luput karena pemeriksaan lama hanya melihat label kategori
+  // bertumpu tengah.
+  const bottomLabels = (svg, bottom) => [...svg.querySelectorAll('text.chart-tick')].filter(t => +t.getAttribute('y') > bottom + 4);
+  const overlaps = (els) => { const b = els.map(t => t.getBBox()).sort((p, q) => p.x - q.x); const ov = b.map((x, i) => i ? b[i - 1].x + b[i - 1].width - x.x : 0); return { count: ov.filter(o => o > 0.5).length, max_px: +Math.max(0, ...ov).toFixed(1) }; };
   document.querySelectorAll('#s20 [data-name]').forEach(w => {
     const svg = w.querySelector('svg'); const name = w.dataset.name;
     const painted = [...svg.querySelectorAll('[data-token]')]; const mismatch = [];
@@ -1219,7 +1240,8 @@ CHART_MEASURE = """(theme) => {
       c.clipped_paths = svg.querySelectorAll('path.series-line[clip-path], path.series-area[clip-path]').length; c.unclipped_paths = svg.querySelectorAll('path.series-line:not([clip-path]), path.series-area:not([clip-path])').length;
       const dots = [...svg.querySelectorAll('circle.series-point')]; c.dots_outside_plot = dots.filter(d => +d.getAttribute('cy') < top - 0.5 || +d.getAttribute('cy') > bottom + 0.5).length;
       c.dots_marked_outside = dots.filter(d => d.dataset.outside).length; c.outside_titles = [...svg.querySelectorAll('circle[data-outside] title')].map(t => t.textContent);
-      c.x_labels = [...svg.querySelectorAll('text.chart-tick')].filter(t => +t.getAttribute('y') > bottom + 4).map(t => t.textContent); c.dropped_x = +(svg.dataset.droppedX || 0);
+      const xl = bottomLabels(svg, bottom); c.x_labels = xl.map(t => t.textContent); c.dropped_x = +(svg.dataset.droppedX || 0);
+      const xo = overlaps(xl); c.x_label_overlaps = xo.count; c.x_label_max_overlap_px = xo.max_px; c.x_label_anchors = [...new Set(xl.map(t => t.getAttribute('text-anchor')))];
       c.two_digit_year_labels = c.x_labels.filter(l => /^\d{2} \w{3} \d{2}$/.test(l)).length;
       c.y_ticks = [...svg.querySelectorAll('text.chart-tick[text-anchor="end"]')].filter(t => +t.getAttribute('y') <= bottom + 4).map(t => t.textContent);
       c.series_dash = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + (p.getAttribute('stroke-dasharray') || 'solid'));
@@ -1227,9 +1249,11 @@ CHART_MEASURE = """(theme) => {
       c.dot_tokens = [...new Set(dots.map(d => d.dataset.token))]; c.dot_radii = [...new Set(dots.map(d => +d.getAttribute('r')))];
       c.line_tokens = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + p.dataset.token); c.custom_titles = [...svg.querySelectorAll('circle.series-point title')].map(t => t.textContent).filter(t => /^Minggu/.test(t)).length; c.fabricated_1970 = [...svg.querySelectorAll('text, title')].filter(t => /\b70\b|1970/.test(t.textContent)).length; }
     if (name.startsWith('bar')) { c.zero_line = svg.querySelectorAll('.chart-zero').length; const bars = [...svg.querySelectorAll('rect.series-bar')]; c.bars = bars.length; c.bar_min_thickness = bars.length ? Math.min(...bars.map(r => +r.getAttribute(name.includes('horizontal') ? 'height' : 'width'))) : null;
-      const catLabels = [...svg.querySelectorAll('text.chart-tick')].filter(t => t.getAttribute('text-anchor') !== 'end'); c.category_labels = catLabels.map(t => t.textContent); c.truncated_labels = catLabels.filter(t => /…$/.test(t.textContent)).length;
-      // Label vs lebar sebenarnya: label tick yang tumpang tindih dengan tetangganya (getBBox, koordinat svg).
-      const boxes = catLabels.map(t => t.getBBox()).sort((a, b) => a.x - b.x); c.label_overlaps = boxes.filter((b, i) => i && b.x < boxes[i - 1].x + boxes[i - 1].width - 0.5).length; }
+      const axisEl = svg.querySelector('.chart-axis'); const xl = axisEl ? bottomLabels(svg, +axisEl.getAttribute('y2')) : [];
+      const catLabels = name.includes('horizontal') ? [...svg.querySelectorAll('text.chart-tick[text-anchor="end"]')].filter(t => !xl.includes(t)) : xl;
+      c.category_labels = catLabels.map(t => t.textContent); c.truncated_labels = catLabels.filter(t => /…$/.test(t.textContent)).length;
+      // Label vs lebar sebenarnya: semua label baris bawah (kategori tegak / nilai mendatar) yang tumpang tindih dengan tetangganya (getBBox, koordinat svg).
+      c.x_labels = xl.map(t => t.textContent); const xo = overlaps(xl); c.label_overlaps = xo.count; c.x_label_overlaps = xo.count; c.x_label_max_overlap_px = xo.max_px; }
     if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent); c.legend_excluded = svg.querySelectorAll('text.chart-legend[data-excluded]').length; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
     if (name.startsWith('gantt')) {
       c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
@@ -1256,6 +1280,9 @@ CHART_MEASURE = """(theme) => {
       neg_dims: total.reduce((a, c) => a + c.neg_dims, 0), outside_viewbox: total.reduce((a, c) => a + c.outside_viewbox, 0),
       dots_outside_plot: total.reduce((a, c) => a + (c.dots_outside_plot || 0), 0), unclipped_paths: total.reduce((a, c) => a + (c.unclipped_paths || 0), 0),
       legend_overflow_max_px: Math.max(...total.map(c => c.legend_overflow_px ?? -999)),
+      // Verifikasi P1-A putaran 2: label sumbu-x yang bertumpuk (getBBox, semua fixture garis+batang) — dulu 17–54 px pada sumbu tanggal ≥ 10 titik.
+      x_label_overlaps: total.reduce((a, c) => a + (c.x_label_overlaps || 0), 0), x_label_max_overlap_px: Math.max(0, ...total.map(c => c.x_label_max_overlap_px || 0)),
+      x_label_charts: total.filter(c => c.x_label_overlaps !== undefined).length,
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
       empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length,
       // Placeholder harus tetap terbaca di ponsel: viewBox 720/900 menyusutkan teksnya ke 5,5/4,4 px (diukur 5 Sep 2026).
