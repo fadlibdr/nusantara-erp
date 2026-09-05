@@ -7,9 +7,10 @@
 # di berkas log (PANDUAN-ADMINISTRATOR §5.2, "tidak ada yang mengawasi
 # penjadwal itu sendiri").
 #
-# DUA penjadwal = jalan dua kali: setelah unit ini aktif, baris schedule:run
-# di /etc/cron.d/erp1 WAJIB dihapus (README.md langkah 5). Baris cron
-# cadangan (root) tetap.
+# DUA penjadwal = jalan dua kali: baris schedule:run di /etc/cron.d/erp1
+# WAJIB dihapus SEBELUM unit ini dinyalakan (README.md langkah 3 — tidak ada
+# perintah terjadwal yang memakai withoutOverlapping). Baris cron cadangan
+# (root) tetap.
 #
 # Pengawas: erp:heartbeat menulis detak jantung tiap 5 menit;
 # deploy/cron.d/erp1-watchdog (root, tiap 15 menit) memulai ulang unit ini dan

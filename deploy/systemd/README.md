@@ -32,19 +32,26 @@ cp $SITE/deploy/systemd/erp1-scheduler.service /etc/systemd/system/erp1-schedule
 cp $SITE/deploy/logrotate/erp1                 /etc/logrotate.d/erp1
 systemctl daemon-reload
 
-# 3. Nyalakan dan periksa.
+# 3. HAPUS baris schedule:run dari /etc/cron.d/erp1 SEBELUM unit dinyalakan —
+#    dua penjadwal = tiap perintah jalan dua kali (akrual ganda, PM ganda), dan
+#    tidak satu pun perintah terjadwal memakai withoutOverlapping. Urutan ini
+#    berharga paling lama satu menit tanpa penjadwal; urutan sebaliknya
+#    berharga satu jalan ganda. Baris cadangan (root) TETAP.
+#    Lakukan langkah 3–4 di LUAR 05:00–09:00 WIB (jendela perintah harian:
+#    ast:accrue-plant, svc:generate-pm, fin:ensure-calendar, tiga pengawas) —
+#    satu menit tanpa penjadwal tepat pada menit dailyAt() berarti perintah
+#    itu terlewat hari ini.
+sed -i '/artisan schedule:run/d' /etc/cron.d/erp1
+grep -c 'schedule:run' /etc/cron.d/erp1   # harus 0
+
+# 4. Nyalakan dan periksa.
 systemctl enable --now erp1-queue erp1-scheduler
 systemctl --no-pager status erp1-queue erp1-scheduler
 tail -n 5 /var/log/erp1/queue.log /var/log/erp1/scheduler.log
 
-# 4. Pengawas (root): heartbeat > 20 menit -> restart erp1-scheduler + alarm dalam aplikasi.
+# 5. Pengawas (root): heartbeat > 20 menit -> restart erp1-scheduler + alarm dalam aplikasi.
 install -m 0644 $SITE/deploy/cron.d/erp1-watchdog /etc/cron.d/erp1-watchdog
 bash -n $SITE/deploy/erp1-watchdog.sh && bash $SITE/deploy/erp1-watchdog.sh   # jalan sekali, lihat keluarannya
-
-# 5. HAPUS baris schedule:run dari /etc/cron.d/erp1 — dua penjadwal = tiap
-#    perintah jalan dua kali (akrual ganda, PM ganda). Baris cadangan (root) TETAP.
-sed -i '/artisan schedule:run/d' /etc/cron.d/erp1
-grep -c 'schedule:run' /etc/cron.d/erp1   # harus 0
 ```
 
 Setelah ±5 menit, `GET /api/core/health` (pemegang `core.view`) harus menjawab

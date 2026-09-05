@@ -198,6 +198,31 @@ class DeployUnitsTest extends TestCase
         }
     }
 
+    /**
+     * Urutan pasang di README adalah bagian dari keselamatan: baris cron
+     * schedule:run dihapus SEBELUM `systemctl enable --now` (dua penjadwal =
+     * setiap perintah harian jalan dua kali, dan tidak ada withoutOverlapping
+     * di jadwal mana pun), dan pengawas baru dijalankan SETELAH detak jantung
+     * pertama ada (sebelumnya `?` = macet → unit yang baru dinyalakan dimulai
+     * ulang dan alarm palsu ke semua pemegang core.update) — verifikasi P-0b,
+     * 5 Sep 2026.
+     */
+    public function test_the_readme_install_order_is_cron_off_then_enable_then_wait_for_the_first_heartbeat(): void
+    {
+        $readme = (string) file_get_contents(base_path('deploy/systemd/README.md'));
+        $this->assertSame(1, preg_match('/## Pasang.*?```bash\n(.*?)```/s', $readme, $m), 'Blok pasang tidak ditemukan.');
+        $install = $m[1];
+
+        $this->assertSame(1, preg_match('/^sed -i .*schedule:run.* \/etc\/cron\.d\/erp1$/m', $install, $sed, PREG_OFFSET_CAPTURE), 'README harus menghapus baris schedule:run dari /etc/cron.d/erp1.');
+        $cronOff = $sed[0][1];
+        $enable = strpos($install, 'systemctl enable --now erp1-queue erp1-scheduler');
+        $this->assertNotFalse($enable);
+        $this->assertLessThan($enable, $cronOff, 'Baris cron dihapus SEBELUM unit dinyalakan.');
+
+        $this->assertStringContainsString('withoutOverlapping', $install);
+        $this->assertStringContainsString('05:00', $install, 'Jendela perintah harian disebut.');
+    }
+
     /** Isi satu fungsi bash `name() { … }` — sampai `}` pertama di awal baris. */
     private function functionBody(string $script, string $name): string
     {
