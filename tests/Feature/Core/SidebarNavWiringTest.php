@@ -135,7 +135,13 @@ class SidebarNavWiringTest extends ErpTestCase
     {
         preg_match_all('/^  [a-z]+: \{ accent: ([1-8]),/m', $this->file('schema.js'), $slots);
 
-        $this->assertGreaterThan(10, count($slots[1]), 'MODULES in schema.js no longer lists accent slots per module.');
+        // One MODULES entry per NAV group — counted against the group headers
+        // themselves (with or without a prefix), not "> 10": verifikasi P1-B
+        // 5 Sep 2026 showed a lower bound lets one group lose its slot unnoticed.
+        preg_match_all("/^    label: '[^']+', perm: [^,]+(?:, prefix: '[a-z]+')?,$/m", $this->navBlock(), $groups);
+        $this->assertGreaterThan(10, count($groups[0]), 'The NAV group header shape has changed; this test no longer reads it.');
+        $this->assertCount(count($groups[0]), $slots[1],
+            sprintf('schema.js MODULES lists %d accent slots for %d NAV groups.', count($slots[1]), count($groups[0])));
 
         $used = array_values(array_unique(array_map('intval', $slots[1])));
         sort($used);

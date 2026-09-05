@@ -72,12 +72,30 @@ class NavRouteRegistryTest extends ErpTestCase
      */
     public function test_every_nav_group_prefix_resolves_to_a_module_home(): void
     {
-        $prefixes = $this->groupPrefixes();
+        $headers = $this->groupHeaders($this->schema());
 
-        $this->assertGreaterThan(10, count($prefixes),
-            'Only '.count($prefixes).' NAV group prefixes were extracted from schema.js; the group header shape '
+        $this->assertGreaterThan(10, count($headers),
+            'Only '.count($headers).' NAV group headers were extracted from schema.js; the group header shape '
             .'has changed and this test is no longer reading it.');
+
+        // Verifikasi P1-B (5 Sep 2026): the old reader only extracted headers
+        // that STILL had a prefix and then asserted "> 10", so one group losing
+        // its prefix (14 → 13) passed while its crumb silently degraded to a
+        // plain <span>. Every header is read now, with or without a prefix,
+        // and the ones without are named.
+        $without = array_column(array_filter($headers, fn (array $header) => $header['prefix'] === null), 'label');
+        $this->assertSame([], $without, 'NAV group(s) without a prefix: '.implode(', ', $without)
+            .' — their module crumb is dead text and the group carries no accent.');
+
+        $prefixes = array_column($headers, 'prefix');
         $this->assertSame(count($prefixes), count(array_unique($prefixes)), 'Two NAV groups share one prefix; their module homes would collide.');
+
+        // MODULES and NAV must be the same set: an extra MODULES key is a module
+        // home nobody can reach, a missing one is a crumb that lands on "Modul tidak dikenal".
+        preg_match_all('/^  ([a-z]+): \{ accent: [1-8],/m', $this->modulesBlock(), $modules);
+        sort($prefixes);
+        sort($modules[1]);
+        $this->assertSame($prefixes, $modules[1], 'schema.js MODULES keys and NAV group prefixes are not the same set.');
 
         $this->assertStringContainsString("route('m/:prefix'", $this->app(),
             "app.js has no route('m/:prefix', ...) — the module crumb points at the not-found fallback.");
@@ -103,6 +121,26 @@ class NavRouteRegistryTest extends ErpTestCase
         $this->assertTrue($this->moduleResolves('ringkasan'));
     }
 
+    /**
+     * The refused half for the header reader: strip one group's prefix from a
+     * copy of schema.js and the reader must still see every header — and name
+     * the one that lost its prefix — instead of quietly reading one group fewer.
+     */
+    public function test_a_nav_group_that_lost_its_prefix_is_reported(): void
+    {
+        $source = $this->schema();
+        $stripped = str_replace("label: 'Aset', perm: 'ast.view', prefix: 'ast',", "label: 'Aset', perm: 'ast.view',", $source, $count);
+
+        $this->assertSame(1, $count, 'The Aset group header no longer has the shape this test simulates on.');
+
+        $before = $this->groupHeaders($source);
+        $after = $this->groupHeaders($stripped);
+
+        $this->assertCount(count($before), $after, 'A header without a prefix dropped out of the reader instead of being reported.');
+        $this->assertSame(['Aset'], array_column(array_filter($after, fn (array $header) => $header['prefix'] === null), 'label'));
+        $this->assertSame([], array_filter($before, fn (array $header) => $header['prefix'] === null));
+    }
+
     private function moduleResolves(string $prefix): bool
     {
         return (bool) preg_match('/^  '.preg_quote($prefix, '/').": \{ accent: [1-8], icon: '[a-z0-9-]+', description: '[^']+' \},$/m", $this->modulesBlock());
@@ -121,17 +159,21 @@ class NavRouteRegistryTest extends ErpTestCase
         return substr($source, $start, $end - $start);
     }
 
-    /** @return list<string> */
-    private function groupPrefixes(): array
+    /**
+     * Every NAV group header line, with its prefix or null when the header has
+     * none — the prefix is optional in the pattern on purpose (see the test).
+     *
+     * @return list<array{label: string, prefix: string|null}>
+     */
+    private function groupHeaders(string $source): array
     {
-        $source = $this->schema();
         $start = strpos($source, 'export const NAV = [');
 
         $this->assertNotFalse($start, 'NAV could not be found in schema.js; this test can no longer check anything.');
 
-        preg_match_all("/^    label: '[^']+', perm: [^,]+, prefix: '([a-z]+)',$/m", substr($source, $start), $matches);
+        preg_match_all("/^    label: '([^']+)', perm: [^,]+(?:, prefix: '([a-z]+)')?,$/m", substr($source, $start), $matches, PREG_SET_ORDER);
 
-        return $matches[1];
+        return array_map(fn (array $match) => ['label' => $match[1], 'prefix' => isset($match[2]) && $match[2] !== '' ? $match[2] : null], $matches);
     }
 
     /**
