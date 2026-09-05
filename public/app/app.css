@@ -36,6 +36,28 @@
   --header-h: 56px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  /* Grafik (js/charts.js, P1-A). Delapan warna seri + enam struktur, didefinisikan di
+     KEDUA tema dan ditukar ke abu-abu di blok cetak (§ grafik charts.js di bawah).
+     Kontras WCAG terhadap --surface #ffffff, dihitung 5 Sep 2026 (rumus luminansi
+     relatif, sama dengan S8): --chart-1 6,18:1 · --chart-2 5,18:1 · --chart-3 5,02:1 ·
+     --chart-4 6,98:1 · --chart-5 5,36:1 · --chart-6 6,47:1 · --chart-7 4,92:1 ·
+     --chart-8 7,58:1 — semua ≥ 3:1 (batas grafik/komponen UI); --chart-text 5,66:1
+     (= --muted). --chart-baseline 2,56:1 SENGAJA di bawah 3:1: ia bidang isi lebar di
+     bawah bar aktual, bukan garis tipis, dan harus lebih sunyi dari aktualnya. */
+  --chart-1: #1a56db;
+  --chart-2: #c2410c;
+  --chart-3: #15803d;
+  --chart-4: #7e22ce;
+  --chart-5: #0e7490;
+  --chart-6: #b91c1c;
+  --chart-7: #a16207;
+  --chart-8: #475569;
+  --chart-grid: #e2e6eb;
+  --chart-axis: #cbd2da;
+  --chart-text: #5e6874;
+  --chart-today: #c62828;
+  --chart-weekend: #f1f3f6;
+  --chart-baseline: #94a3b8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,6 +88,24 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
     --shadow-md: 0 4px 14px rgba(0, 0, 0, .45);
     --shadow-lg: 0 18px 48px rgba(0, 0, 0, .6);
+    /* Kontras terhadap --surface #151a21 (5 Sep 2026): --chart-1 5,41:1 · --chart-2 7,72:1 ·
+       --chart-3 10,03:1 · --chart-4 6,61:1 · --chart-5 9,67:1 · --chart-6 6,32:1 ·
+       --chart-7 11,41:1 · --chart-8 6,82:1; --chart-text 5,76:1; --chart-baseline 2,31:1
+       (bidang sunyi, lihat catatan tema terang). */
+    --chart-1: #5b8def;
+    --chart-2: #fb923c;
+    --chart-3: #4ade80;
+    --chart-4: #c084fc;
+    --chart-5: #22d3ee;
+    --chart-6: #f87171;
+    --chart-7: #facc15;
+    --chart-8: #94a3b8;
+    --chart-grid: #262d38;
+    --chart-axis: #38414f;
+    --chart-text: #8b95a3;
+    --chart-today: #f87171;
+    --chart-weekend: #212832;
+    --chart-baseline: #4b5563;
   }
 }
 
@@ -80,6 +120,10 @@
   --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
   --shadow-md: 0 4px 12px rgba(16,24,40,.1), 0 2px 4px rgba(16,24,40,.06);
   --shadow-lg: 0 18px 48px rgba(16,24,40,.18);
+  --chart-1: #1a56db; --chart-2: #c2410c; --chart-3: #15803d; --chart-4: #7e22ce;
+  --chart-5: #0e7490; --chart-6: #b91c1c; --chart-7: #a16207; --chart-8: #475569;
+  --chart-grid: #e2e6eb; --chart-axis: #cbd2da; --chart-text: #5e6874; --chart-today: #c62828;
+  --chart-weekend: #f1f3f6; --chart-baseline: #94a3b8;
 }
 
 :root[data-theme="dark"] {
@@ -93,6 +137,10 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 4px 14px rgba(0,0,0,.45);
   --shadow-lg: 0 18px 48px rgba(0,0,0,.6);
+  --chart-1: #5b8def; --chart-2: #fb923c; --chart-3: #4ade80; --chart-4: #c084fc;
+  --chart-5: #22d3ee; --chart-6: #f87171; --chart-7: #facc15; --chart-8: #94a3b8;
+  --chart-grid: #262d38; --chart-axis: #38414f; --chart-text: #8b95a3; --chart-today: #f87171;
+  --chart-weekend: #212832; --chart-baseline: #4b5563;
 }
 
 /* ------------------------------------------------------------------ base */
@@ -889,6 +937,58 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .legend i.act { background: var(--primary); }
 .legend i.base { background: var(--text-2); }
 .legend i.ev { background: var(--primary); opacity: .55; }
+
+/* ------------------------------------------------- grafik charts.js (P1-A) */
+/* svg dari js/charts.js: class "chart chart-lib chart-<jenis>". .chart memberi
+   width:100 % + viewBox; di sini tipografi dan warna teks. Warna BENTUK tidak
+   ada di sini — setiap bentuk membawa style="fill|stroke: var(--chart-n)" +
+   data-token sendiri (charts.js), sehingga token yang dipakai terbaca dari DOM
+   dan diukur harness S20 di dua tema. Aturan .chart-lib menang atas .chart text
+   (spesifisitas sama, ditulis belakangan). */
+.chart-lib text { fill: var(--chart-text); font-family: var(--font); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-lib .chart-empty { font-size: 13px; }
+.chart-lib .chart-center { font-size: 18px; font-weight: 600; }
+.chart-lib .gantt-label { font-size: 11.5px; }
+.chart-lib .mark { cursor: default; }
+/* Donat tidak perlu selebar kartu: 100 % dari 560 px viewBox sudah cincin
+   sebesar piring. */
+.chart-donut { max-width: 560px; }
+/* Sparkline: ukuran dari atribut width/height-nya (120×32 bawaan), sebaris
+   dengan angka di sel/ubin — bukan 100 % lebar seperti .chart. */
+.chart-spark { width: auto; height: auto; display: inline-block; vertical-align: middle; }
+.chart-spark .chart-empty { font-size: 11px; }
+/* Gantt punya min-width 80 % lebar alaminya (charts.js) supaya teks tetap
+   terbaca di ponsel; pembungkus inilah yang menggulir, bukan halaman. */
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media print {
+  /* Kertas hitam-putih: token seri jadi abu-abu bertingkat, dan seri 2..8
+     dibedakan BENTUK (pola putus-putus pada garis + legenda-nya, garis tepi
+     pada batang/irisan), bukan warna saja — dua kurva rencana vs aktual harus
+     tetap terbaca dari fotokopi. Tiga selector menyamai spesifisitas blok
+     :root[data-theme] seperti blok cetak token utama. */
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    --chart-1: #111827; --chart-2: #6b7280; --chart-3: #374151; --chart-4: #9ca3af;
+    --chart-5: #1f2937; --chart-6: #4b5563; --chart-7: #d1d5db; --chart-8: #000000;
+    --chart-grid: #d1d5db; --chart-axis: #6b7280; --chart-text: #374151; --chart-today: #000000;
+    --chart-weekend: #f3f4f6; --chart-baseline: #c4c9d0;
+  }
+  /* Seri 2 dimulai dari TITIK-TITIK, bukan garis putus 6 3: seri 1 yang sudah
+     `dashed` dari datanya (rencana vs aktual) memakai 6 4 dan akan kembar. */
+  .chart-lib .series-line[data-series="2"] { stroke-dasharray: 2 3; }
+  .chart-lib .series-line[data-series="3"] { stroke-dasharray: 8 3 2 3; }
+  .chart-lib .series-line[data-series="4"] { stroke-dasharray: 1 2; }
+  .chart-lib .series-line[data-series="5"] { stroke-dasharray: 10 4; }
+  .chart-lib .series-line[data-series="6"] { stroke-dasharray: 4 2 1 2; }
+  .chart-lib .series-line[data-series="7"] { stroke-dasharray: 12 3 3 3; }
+  .chart-lib .series-line[data-series="8"] { stroke-dasharray: 6 3; }
+  .chart-lib rect.mark, .chart-lib path.mark, .chart-lib rect.legend-swatch { stroke: #111827; stroke-width: .75; }
+  .chart-lib rect.mark[data-series="2"], .chart-lib path.mark[data-series="2"], .chart-lib rect.legend-swatch[data-series="2"] { stroke-dasharray: 2 1.5; }
+  .chart-lib rect.mark[data-series="4"], .chart-lib path.mark[data-series="4"], .chart-lib rect.legend-swatch[data-series="4"] { stroke-dasharray: 1 1; }
+  .chart-lib .series-area { fill-opacity: .08; }
+  .chart-scroll { overflow: visible; }
+  .chart-gantt { min-width: 0 !important; }
+}
 
 .bar-row { display: grid; grid-template-columns: minmax(110px, 26%) 1fr minmax(96px, auto); gap: 10px; align-items: center; padding: 6px 0; }
 .bar-row .name { font-size: 12.5px; }

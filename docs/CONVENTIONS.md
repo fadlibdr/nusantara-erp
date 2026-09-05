@@ -222,3 +222,27 @@ dipetakan). Sortable dimuat malas oleh layar yang memakainya (`<script src="vend
 tidak menyeret apa pun tidak membayarnya. Memperbarui versi = folder baru, ubah rujukan
 (`LUCIDE_SPRITE` di ui.js / pemuat Sortable), hapus folder lama, tabel manifest ditulis ulang
 dari perintah di VENDOR.md, uji hijau.
+
+## 11. Grafik (`public/app/js/charts.js`)
+
+Semua grafik baru memakai `js/charts.js` — lima fungsi murni yang mengembalikan `<svg>`:
+`lineChart`, `barChart`, `donutChart`, `sparkline`, `ganttChart`. **Docblock di kepala berkas
+itu adalah referensi API-nya** (parameter, bawaan, perilaku data kosong/celah/satu titik/negatif,
+gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pemanggil:
+
+- Warna hanya lewat token `--chart-1..8` (seri), `--chart-grid/-axis/-text/-today/-weekend/
+  -baseline` (app.css, dua tema + blok cetak; rasio kontras ≥ 3:1 terhadap `--surface` tercatat di
+  komentar tokennya). Tidak ada literal warna di charts.js maupun di pemanggil — kalau butuh warna
+  khusus (mis. GRN vs PO), itu seri sendiri dengan label di legenda.
+- Data kosong/null → grafik memasang placeholder "Belum ada data" (`data-empty="true"`); pemanggil
+  boleh menggantinya dengan `ui.emptyState()`, tetapi tidak boleh mengganti null menjadi 0 sebelum
+  memanggil grafik (aturan kejujuran §6). Nilai yang tak terukur dikirim sebagai `null`.
+- Format angka/tanggal diberikan pemanggil (`yFormat`, `valueFormat`, `xFormat`) dari `format.js`
+  (`fmt.rupiahShort`, `fmt.percent`, `fmt.date`) supaya sumbu, `<title>`, dan tabel di bawahnya
+  memakai format yang sama.
+- Setiap mark membawa `<title>`; harness S20 (`docs/bukti-uji/harness-playwright.py`) menghitung
+  `<title>` == `.mark`, warna terkomputasi == token di tema terang & gelap, dan placeholder — jangan
+  menambah `<title>` di luar mark (legenda, label) karena hitungannya akan pecah.
+- Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
+  langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
+  `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.
