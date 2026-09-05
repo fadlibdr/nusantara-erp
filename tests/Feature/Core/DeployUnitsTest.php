@@ -245,6 +245,37 @@ class DeployUnitsTest extends TestCase
         $this->assertLessThan($cron, $wait, 'Berkas cron pengawas dipasang SETELAH detak pertama ada.');
     }
 
+    /**
+     * Pemeriksaan logrotate di README langkah 4 harus membaca konfigurasi
+     * seperti sistem menjalankannya (/etc/logrotate.conf dengan `su root adm`
+     * global) dan tidak boleh merotasi apa pun. Bentuk lama `logrotate -f …
+     * /etc/logrotate.d/erp1` menjalankan berkas itu sendirian: tanpa su
+     * global blok lama ditolak "insecure permissions" (keluar 1), dan dengan
+     * su ia merotasi paksa dua log bulanan di luar jadwal — 5 Sep 2026 11:30
+     * UTC erp1-schedule.log produksi hilang dan cron schedule:run diam
+     * (verifikasi P-0b, 5 Sep 2026).
+     */
+    public function test_the_readme_logrotate_check_is_debug_mode_on_the_system_config(): void
+    {
+        $readme = (string) file_get_contents(base_path('deploy/systemd/README.md'));
+        $this->assertSame(1, preg_match('/## Pasang.*?```bash\n(.*?)```/s', $readme, $m), 'Blok pasang tidak ditemukan.');
+        $install = $m[1];
+
+        preg_match_all('/^logrotate\b.*$/m', $install, $lines);
+        $this->assertNotEmpty($lines[0], 'README harus memeriksa konfigurasi logrotate.');
+
+        foreach ($lines[0] as $line) {
+            $this->assertMatchesRegularExpression('/\s-d\b/', $line, "Mode debug (-d) wajib: {$line}");
+            $this->assertDoesNotMatchRegularExpression('/\s-f\b|--force\b/', $line, "Rotasi paksa dilarang di README: {$line}");
+            $this->assertStringContainsString('/etc/logrotate.conf', $line, 'Konfigurasi sistem (dengan su global), bukan berkasnya sendirian.');
+            $this->assertStringNotContainsString('/etc/logrotate.d/erp1', $line, 'Berkas erp1 sendirian tidak membawa `su root adm` global.');
+        }
+
+        // Baris "error" logrotate diawali kata itu; grep tanpa jangkar menangkap
+        // /var/log/nginx/erp1.error.log yang ada di host ini.
+        $this->assertStringContainsString("grep -n '^error'", $install);
+    }
+
     /** Isi satu fungsi bash `name() { … }` — sampai `}` pertama di awal baris. */
     private function functionBody(string $script, string $name): string
     {

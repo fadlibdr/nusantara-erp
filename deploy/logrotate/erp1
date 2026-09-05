@@ -12,9 +12,13 @@
     # ke www-data gagal "error opening …: Permission denied" pada ketiganya,
     # keluar 1, tidak ada yang dirotasi (diukur 5 Sep 2026). `su root adm`
     # global di /etc/logrotate.conf merotasinya; direktori www-data 0755
-    # diterima (yang ditolak hanya direktori yang bisa ditulis grup/dunia —
-    # README langkah 1: 0755, bukan 0775). Salinan lama root:root 0644 tetap
-    # terbaca siapa pun.
+    # diterima (pemeriksaan "parent directory has insecure permissions" hanya
+    # berlaku tanpa direktif su — diukur 5 Sep 2026; README langkah 1 tetap
+    # 0755). Berkas ini jangan dijalankan sendirian (`logrotate … /etc/
+    # logrotate.d/erp1`): tanpa su global blok kedua ditolak, dan dengan -f
+    # dua log bulanan itu dirotasi di luar jadwal — README langkah 4 memeriksa
+    # lewat `logrotate -d /etc/logrotate.conf`. Salinan lama root:root 0644
+    # tetap terbaca siapa pun.
     weekly
     rotate 8
     compress
