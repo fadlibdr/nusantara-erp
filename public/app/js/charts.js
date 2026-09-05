@@ -15,7 +15,12 @@
  *              kronologis). dots: true (bawaan) | false (garis saja; run satu titik tetap bertitik)
  *              | 'last' (hanya titik terakhir). points[].title menggantikan <title> bawaan
  *              "label — x: y" (kurva-S: "Minggu 12 — rencana 62 %, aktual 48 %"); points[].r =
- *              jari-jari titik itu (titik as-of EVM 4). Semua murni & lewat token — paritas P1-E.
+ *              jari-jari titik itu (titik as-of EVM 4) — hanya angka > 0 yang dipakai: r ≤ 0 atau
+ *              bukan angka memakai jari-jari bawaan (r negatif adalah atribut yang ditolak Chromium
+ *              tanpa menggambar titiknya, r 0 titik tak terlihat yang masih membawa <title>).
+ *              token yang tidak dikenal (bukan --chart-1..8/grid/axis/text/today/weekend/baseline)
+ *              DIABAIKAN → warna posisi seri, bukan stroke:none diam-diam. Semua murni & lewat
+ *              token — paritas P1-E.
  *              x = angka (indeks/skala apa pun) ATAU string tanggal ISO (jadi sumbu tanggal);
  *              x kosong = indeks titik. y null/NaN/undefined = CELAH (garis putus), bukan nol.
  *              Campuran: begitu ada x tanggal, titik yang x-nya bukan tanggal DIBUANG sebagai
@@ -155,9 +160,17 @@ function seriesToken(index) {
   return `--chart-${(index % SERIES_TOKENS) + 1}`;
 }
 
-/** Token eksplisit dari pemanggil hanya bila berbentuk --chart-…; selain itu null. */
+/** Token eksplisit dari pemanggil hanya bila token grafik yang TERDEFINISI di app.css (dua tema +
+    blok cetak); selain itu null → pemanggil mendapat warna posisi seri. '--chart-nope' dulu lolos
+    dan var() yang tidak terdefinisi menjadi stroke:none — garis hilang tanpa pesan. */
 function tokenOf(value) {
-  return typeof value === 'string' && /^--chart-[a-z0-9-]+$/.test(value) ? value : null;
+  return typeof value === 'string' && /^--chart-(?:[1-8]|grid|axis|text|today|weekend|baseline)$/.test(value) ? value : null;
+}
+
+/** Jari-jari titik dari pemanggil: hanya angka > 0. */
+function radiusOf(value) {
+  const r = finite(value);
+  return r !== null && r > 0 ? r : null;
 }
 
 function finite(value) {
@@ -356,7 +369,7 @@ export function lineChart({
       const { x, date } = xValue(p, index);
       anyDate = anyDate || date;
       const obj = p && typeof p === 'object' ? p : {};
-      return { x, date, y: finite(p && typeof p === 'object' ? p.y : p), title: typeof obj.title === 'string' && obj.title ? obj.title : null, r: finite(obj.r), token: tokenOf(obj.token) };
+      return { x, date, y: finite(p && typeof p === 'object' ? p.y : p), title: typeof obj.title === 'string' && obj.title ? obj.title : null, r: radiusOf(obj.r), token: tokenOf(obj.token) };
     }).sort((a, b) => a.x - b.x);
     const dash = typeof s?.dash === 'string' && s.dash.trim() ? s.dash.trim() : s?.dashed ? '6 4' : null;
     const dots = s?.dots === false ? 'none' : s?.dots === 'last' ? 'last' : 'all';
