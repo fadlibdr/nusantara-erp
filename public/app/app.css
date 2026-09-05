@@ -1267,6 +1267,25 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     background: rgba(12, 17, 23, .45);
   }
   .btn.menu-toggle { display: inline-flex; }
+  /* Remah roti di ponsel (verifikasi P1-B 5 Sep 2026): remah terakhir membungkus
+     tiga baris (58,5 px di header 56 px) dan menimpa tombol Cari — di halaman
+     dokumen main pun sudah menimpa 90 px. Yang tampil hanya remah modul: satu-
+     satunya informasi yang tidak ada di tempat lain di ponsel (sidebar
+     tertutup), dan tautan ke beranda modulnya. Remah layar/dokumen hanya
+     disembunyikan secara VISUAL — judul halaman (h1) sudah memuatnya, pembaca
+     layar tetap mendapat remah aria-current. Halaman beremah tunggal (Dasbor,
+     beranda modul) tetap menampilkannya, dielipsiskan bila perlu. */
+  /* Basis auto, bukan 0: dengan basis 0 remah berbagi ruang bebas sama rata dengan
+     .spacer (terukur: 'Keuangan' terpotong padahal 54 px masih kosong). */
+  .header .crumbs { flex: 0 1 auto; min-width: 0; }
+  .header .crumbs a.crumb-module { min-width: 0; }
+  .header .crumbs a.crumb-module .lbl, .header .crumbs > b:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header .crumbs > svg, .header .crumbs > span, .header .crumbs a.crumb-screen { display: none; }
+  .header .crumbs > b:not(:first-child) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Tombol Cari hanya ikon di ponsel (title + aria-label tetap): berlabel, isi header
+     390 px berjumlah 416 px dan remah modul terpendek pun ikut terpotong. */
+  .header .btn.global-search { width: 34px; padding: 0; }
+  .header .btn.global-search > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .main { padding: 16px 14px 50px; }
   .userchip .who { display: none; }
   .kv { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }

@@ -1506,6 +1506,22 @@ ACTIVE_MARKER = """() => { const g=document.querySelector('nav.nav .nav-group.ha
              last_aria_current: (document.querySelector('#crumbs b')||{}).getAttribute?.('aria-current'),
              has_active_count: document.querySelectorAll('nav.nav .nav-group.has-active').length } }"""
 
+# Remah roti vs kontrol header berikutnya (verifikasi P1-B 5 Sep 2026: di 390 px remah terakhir membungkus
+# tiga baris dan menimpa tombol Cari). Yang dicatat: anak #crumbs yang tampak, tepi kanannya vs tepi kiri
+# kontrol header tampak berikutnya, tinggi remah vs tinggi header, dan apakah pembaca layar masih mendapat
+# remah aria-current (tersembunyi visual, bukan display: none).
+CRUMB_FIT = """() => { const h=document.getElementById('crumbs'); const hdr=document.querySelector('.header'); const kids=[...hdr.children];
+    const next=kids.slice(kids.indexOf(h)+1).find(e => e.getBoundingClientRect().width > 0 && !e.classList.contains('spacer'));
+    const vis=[...h.children].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+    const right=Math.max(...vis.map(e => e.getBoundingClientRect().right), h.getBoundingClientRect().left);
+    const b=h.querySelector('b');
+    return { hash: location.hash, visible: vis.map(e => (e.tagName + (e.className ? '.' + e.className : '')) + ':' + (e.innerText || '').trim().slice(0, 24)),
+             text_visible: vis.map(e => (e.innerText || '').trim()).filter(Boolean).join(' › '), right_edge: Math.round(right), next_left: next ? Math.round(next.getBoundingClientRect().left) : null,
+             overlap_next: !!next && right > next.getBoundingClientRect().left + 0.5,
+             crumbs_h: Math.round(h.getBoundingClientRect().height), header_h: Math.round(hdr.getBoundingClientRect().height),
+             module_lbl_ellipsized: (l => !!l && l.scrollWidth > l.clientWidth + 1)(h.querySelector('a.crumb-module .lbl')),
+             last: b ? { text: b.innerText, aria_current: b.getAttribute('aria-current'), display: getComputedStyle(b).display, visible: b.checkVisibility() && b.getBoundingClientRect().width > 1 } : null } }"""
+
 MODULE_HOME = """() => { const head=document.querySelector('.module-head'); const grid=document.querySelector('.module-grid'); const e=document.querySelector('#view .empty');
     const prefix = head && head.dataset.prefix;
     return { hash: location.hash, head: head ? { prefix, accent: head.dataset.accent, h1: head.querySelector('h1').innerText, desc: head.querySelector('.desc').innerText,
@@ -1646,6 +1662,11 @@ def module_accents(pg, tag):
         marker["crumb_href_ok"] = bool(marker["crumb"]) and marker["crumb"]["href"] == "#/m/fin"
         marker["a11y_ok"] = marker["host_tag"] == "NAV" and bool(marker["host_aria_label"]) and marker["last_aria_current"] == "page"
         res["active_marker"] = marker
+        fit = {"list": pg.evaluate(CRUMB_FIT)}
+        pg.goto(BASE + "#/d/finance/ar-invoices/1"); pg.wait_for_timeout(1500); fit["detail"] = pg.evaluate(CRUMB_FIT)
+        fit["ok"] = all(not f["overlap_next"] and f["crumbs_h"] <= f["header_h"] and f["last"] and f["last"]["aria_current"] == "page" and f["last"]["display"] != "none" for f in (fit["list"], fit["detail"]))
+        res["crumb_fit"] = fit
+        pg.goto(BASE + "#/r/finance/ar-invoices"); pg.wait_for_timeout(1200); set_theme(pg, theme)
         pg.screenshot(path=f"{OUT}/s21-crumb-{theme}{tag}.png", clip={"x": 0, "y": 0, "width": pg.viewport_size["width"], "height": 120})
         # Klik remah modul — di ponsel remah bisa terjepit (lebar dicatat di atas), jadi klik lewat DOM.
         pg.evaluate("() => document.querySelector('#crumbs a.crumb-module').click()"); pg.wait_for_timeout(1000)

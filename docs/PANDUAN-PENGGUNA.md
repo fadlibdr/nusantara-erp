@@ -154,7 +154,8 @@ modul itu (warna yang sama menandai kelompok yang sedang terbuka di sidebar); kl
 membuka **beranda modul** — satu halaman berisi kartu semua layar modul itu yang boleh
 Anda buka (kartunya persis daftar sidebar; modul yang izinnya tidak Anda pegang hanya
 menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman dokumen,
-remah kedua membawa Anda kembali ke daftarnya. **Kepadatan** tampilan diatur dari dialog
+remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
+(judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
 Akun: *Rapat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
 seketika, diingat di peramban ini untuk akun Anda.
 

@@ -644,12 +644,15 @@ function buildShell() {
       // pembaca layar bisa melompat ke remah roti (verifikasi P1-B 5 Sep 2026).
       el('nav.crumbs', { id: 'crumbs', 'aria-label': 'Remah roti' }),
       el('.spacer'),
-      button('Cari', {
+      // Kelas search + aria-label: di ponsel labelnya disembunyikan (app.css ≤ 760 px)
+      // supaya header 390 px tidak melebihi lebarnya — verifikasi P1-B 5 Sep 2026:
+      // dengan label, remah 'Keuangan' pun terpaksa terpotong.
+      Object.assign(button('Cari', {
         variant: 'ghost',
         iconName: 'search',
         title: 'Pencarian global (Ctrl+K)',
         onClick: () => openSearch(),
-      }),
+      }), { className: 'btn ghost global-search' }),
       button('', {
         variant: 'ghost',
         iconName: (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun',
@@ -788,9 +791,10 @@ function setCrumbs(parts, { screenHref } = {}) {
     if (index) host.appendChild(icon('chevronRight', 12));
     const last = index === parts.length - 1;
     if (index === 0 && module) {
+      // Label di <span> sendiri supaya di ponsel bisa dielipsiskan (app.css ≤ 760 px).
       host.appendChild(el('a.crumb-module', {
-        href: `#/m/${module.prefix}`, dataset: { accent: String(module.accent) }, title: `Beranda modul ${part}`, text: part,
-      }));
+        href: `#/m/${module.prefix}`, dataset: { accent: String(module.accent) }, title: `Beranda modul ${part}`,
+      }, el('span.lbl', { text: part })));
     } else if (index === 1 && !last && screenHref) {
       host.appendChild(el('a.crumb-screen', { href: screenHref, text: part }));
     } else {
