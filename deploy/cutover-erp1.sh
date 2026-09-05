@@ -17,13 +17,13 @@
 #
 #   cutover-erp1.sh pra          pemeriksaan pra-terbang (tanpa mengubah apa pun)
 #   cutover-erp1.sh basisdata    CREATE DATABASE erp + migrate:fresh (skema kosong)
-#   cutover-erp1.sh down         php artisan down --secret, parkir cron, bekukan SQLite
+#   cutover-erp1.sh down         php artisan down --secret, parkir pengawas & cron, stop unit, bekukan SQLite
 #   cutover-erp1.sh snapshot     snapshot SQLite terakhir + GPG (arsip 30 hari)
 #   cutover-erp1.sh salin        erp:sqlite-to-mysql
 #   cutover-erp1.sh verifikasi   erp:migration-verify — wajib 0 selisih
 #   cutover-erp1.sh env          .env → mysql; migrate --pretend wajib kosong; config:cache
 #   cutover-erp1.sh smoke        masuk, daftar PO, laporan harian ganda → 422, permission-check
-#   cutover-erp1.sh up           php artisan up, cron kembali, cadangan beralih ke mysqldump
+#   cutover-erp1.sh up           php artisan up, cron/unit/pengawas kembali, cadangan beralih ke mysqldump
 #   cutover-erp1.sh rollback     .env kembali ke SQLite (berkas tidak pernah disentuh) — jendela 24 jam
 #   cutover-erp1.sh status       apa yang sudah tercatat
 #
@@ -57,6 +57,13 @@ CRON_FILE=/etc/cron.d/erp1
 # A dot in the name: cron ignores files in /etc/cron.d whose names contain
 # one, so "parking" the file disables it without editing it.
 CRON_PARKED=/etc/cron.d/erp1.cutover-parked
+# Pengawas penjadwal P-0b (root, tiap 15 menit): diparkir dengan cara yang sama.
+# Tanpa ini, 20 menit setelah `down` ia menemukan detak jantung basi, memulai
+# ulang erp1-scheduler (unit hanya di-stop, masih enabled) dan menulis alarm +
+# detak baru ke SQLite yang sudah dibekukan — sha256 di `salin`/`rollback`
+# lalu gagal (verifikasi P-0b, 5 Sep 2026).
+WATCHDOG_CRON=/etc/cron.d/erp1-watchdog
+WATCHDOG_PARKED=/etc/cron.d/erp1-watchdog.cutover-parked
 ENV_FILE="$SITE/.env"
 SQLITE="$SITE/database/database.sqlite"
 BACKUP_CONF=/etc/erp1/backup.conf
@@ -177,6 +184,16 @@ units_start() {
         if systemctl is-enabled --quiet "$u" 2>/dev/null; then run systemctl start "$u"; else say "    $u tidak enabled — dilewati"; fi
     done
 }
+# Pengawas diparkir SEBELUM unit dihentikan (supaya tidak ada tick di antara
+# keduanya) dan dikembalikan SESUDAH unit dinyalakan. Host yang belum memasang
+# pengawas: tidak ada yang dilakukan.
+watchdog_park() {
+    if [ -f "$WATCHDOG_CRON" ]; then run mv "$WATCHDOG_CRON" "$WATCHDOG_PARKED"; else say "    $WATCHDOG_CRON tidak ada — pengawas belum dipasang, dilewati"; fi
+}
+watchdog_restore() {
+    [ -f "$WATCHDOG_PARKED" ] && run mv "$WATCHDOG_PARKED" "$WATCHDOG_CRON"
+    return 0
+}
 
 # ------------------------------------------------------------------ steps
 
@@ -252,6 +269,7 @@ step_down() {
 
     akan "menyimpan rahasia bypass di $WORK/down-secret (mode 600) untuk langkah smoke"
     akan "php artisan down --secret=… --retry=60 (pengguna melihat halaman pemeliharaan; API menjawab 503)"
+    akan "memarkir pengawas $WATCHDOG_CRON → $WATCHDOG_PARKED (bila ada) — ia akan memulai ulang penjadwal dan menulis alarm ke SQLite beku 20 menit lagi"
     akan "menghentikan unit systemd ${ERP_UNITS[*]} bila enabled (pekerja antrean tidak boleh menulis ke SQLite yang dibekukan)"
     akan "memarkir $CRON_FILE → $CRON_PARKED (scheduler & backup cron berhenti), menunggu schedule:run yang sedang berjalan"
     akan "menunggu 10 detik agar permintaan yang sedang berjalan selesai, lalu PRAGMA wal_checkpoint(TRUNCATE) dan sha256 berkas SQLite → $WORK/sqlite-frozen.sha256"
@@ -262,6 +280,7 @@ step_down() {
     fi
 
     artisan down --secret="$secret" --retry=60
+    watchdog_park
     units_stop
     [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "for i in \$(seq 1 60); do pgrep -u www-data -f 'artisan schedule:run' >/dev/null || break; sleep 2; done; ! pgrep -u www-data -f 'artisan schedule:run' >/dev/null"
@@ -443,7 +462,7 @@ step_up() {
     require_root; require_done smoke; require_not_done
     load_cred
 
-    akan "php artisan up; $CRON_PARKED → $CRON_FILE; systemctl start ${ERP_UNITS[*]} bila enabled"
+    akan "php artisan up; $CRON_PARKED → $CRON_FILE; systemctl start ${ERP_UNITS[*]} bila enabled; pengawas $WATCHDOG_PARKED → $WATCHDOG_CRON"
     akan "memasang $MYSQL_CNF (mode 600) dan menambah BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=$DB_NAME ke $BACKUP_CONF"
     akan "backup-erp1.sh --local-only lalu --restore-drill --source=local (mysqldump → erp_restore_check → verify) sebagai bukti"
     akan "menghapus salinan kredensial sementara $WORK/.cred.cnf dan mencetak jendela rollback 24 jam"
@@ -452,6 +471,7 @@ step_up() {
     # Guarded so a re-run after a failed drill does not die here (verifier 5 Sep 2026).
     [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
     units_start
+    watchdog_restore
 
     if [ "$DRY" != 1 ]; then
         [ -f "$MYSQL_CNF" ] || ( umask 077; printf '[client]\nuser=%s\npassword=%s\nhost=127.0.0.1\nport=3306\n' "$DB_USERNAME" "$DB_PASSWORD" > "$MYSQL_CNF" )
@@ -478,9 +498,9 @@ step_rollback() {
     local upat
     upat="$( { grep '^up ' "$STATE" 2>/dev/null || true; } | tail -1 | cut -d' ' -f2)"
 
-    akan "php artisan down; parkir cron; salin $WORK/env.sqlite-latest → $ENV_FILE; config:clear/cache route/event cache; reload $PHP_FPM"
+    akan "php artisan down; parkir pengawas & cron; hentikan unit; salin $WORK/env.sqlite-latest → $ENV_FILE; config:clear/cache route/event cache; reload $PHP_FPM"
     akan "memastikan sha256 $SQLITE = yang dibekukan (bila berbeda: berkas berubah sesudah down — hentikan dan periksa)"
-    akan "mematikan BACKUP_ENGINE=mysql di $BACKUP_CONF; php artisan up; cron kembali"
+    akan "mematikan BACKUP_ENGINE=mysql di $BACKUP_CONF; php artisan up; cron, unit, dan pengawas kembali"
     if [ -n "$upat" ]; then
         say "    up tercatat $upat — yang ditulis pengguna ke MySQL sejak itu TIDAK ikut kembali."
         if [ "$DRY" != 1 ] && [ "$(( $(date +%s) - $(date -d "$upat" +%s) ))" -gt 86400 ] && [ "${ROLLBACK_FORCE:-0}" != 1 ]; then
@@ -489,6 +509,7 @@ step_rollback() {
     fi
 
     artisan down --retry=60
+    watchdog_park
     units_stop
     [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "sha256sum -c '$WORK/sqlite-frozen.sha256'"
@@ -504,6 +525,7 @@ step_rollback() {
     artisan up
     [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
     units_start
+    watchdog_restore
 
     [ "$DRY" = 1 ] || printf 'rollback %s\n' "$(date -Is)" >> "$STATE"
     say "Kembali ke SQLite. Basis data MySQL $DB_NAME dibiarkan apa adanya untuk diperiksa; jangan dihapus sebelum penyebabnya dipahami."

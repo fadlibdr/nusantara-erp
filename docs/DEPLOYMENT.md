@@ -1013,7 +1013,10 @@ bash $S pra          # 0. mysql active, new code deployed, .env still sqlite, no
                      #    (diff against docs/bukti-uji/mysql-preflight-erp1-2026-09-05.json:
                      #    only generated_at and guarded flags may differ), disk space
 bash $S basisdata    # 1. CREATE DATABASE erp (root, auth_socket) + migrate:fresh → 190 tables, 0 rows
-bash $S down         # 2. php artisan down --secret=<random> --retry=60; systemctl stop erp1-queue
+bash $S down         # 2. php artisan down --secret=<random> --retry=60; park /etc/cron.d/erp1-watchdog
+                     #    (→ erp1-watchdog.cutover-parked — otherwise 20 min later the root watchdog
+                     #    restarts erp1-scheduler and writes an alarm + heartbeat into the FROZEN
+                     #    SQLite, and the sha256 gate in salin/rollback fails); systemctl stop erp1-queue
                      #    erp1-scheduler when enabled (P-0b — a worker still writing to the SQLite
                      #    file being frozen is data loss); park /etc/cron.d/erp1
                      #    (→ erp1.cutover-parked: a dot in the name, cron ignores it); wait for a
@@ -1035,6 +1038,7 @@ bash $S smoke        # 7. through nginx with the down secret's bypass cookie: /u
                      #    POST /api/projects/daily-reports for an EXISTING (project, date) → 422
                      #    naming report_date and the row count unchanged; erp:permission-check → 0
 bash $S up           # 8. php artisan up; cron back; systemctl start the two units when enabled;
+                     #    watchdog cron back;
                      #    /etc/erp1/mysql-backup.cnf (600) +
                      #    BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=erp appended to
                      #    backup.conf; backup-erp1.sh --local-only; --restore-drill --source=local
@@ -1042,11 +1046,12 @@ bash $S up           # 8. php artisan up; cron back; systemctl start the two uni
 ```
 
 **Rollback** — `bash $S rollback`, within 24 hours of `up`: `down`, park
-cron, sha256 of the SQLite file must still equal the frozen one (the file
+the watchdog and the cron, stop the units, sha256 of the SQLite file must
+still equal the frozen one (the file
 was never written after step 2 — the tools only read it), `.env` restored
 from `cutover/env.sqlite-latest`, `config:clear` + caches, php-fpm reload,
 `migrate:status` proves SQLite answers, `BACKUP_ENGINE=mysql` commented out,
-`up`, cron back. **Whatever users wrote to MySQL between `up` and `rollback`
+`up`, cron, units and watchdog back. **Whatever users wrote to MySQL between `up` and `rollback`
 does not come back** — that is why the window is 24 hours and the day is
 Saturday. After the window, `ROLLBACK_FORCE=1` is required and the MySQL
 schema is left in place for inspection. The SQLite file and its GPG archive

@@ -41,6 +41,16 @@ artisan() {
 
 cd "$SITE" 2>/dev/null || { log "GAGAL: direktori $SITE tidak ada"; exit 2; }
 
+# Mode pemeliharaan (php artisan down: cut-over MySQL, atau down tangan):
+# penjadwal SENGAJA dihentikan dan basis datanya mungkin sedang dibekukan —
+# memulai ulang unit dan menulis alarm sekarang justru merusak (verifikasi
+# P-0b, 5 Sep 2026). Diam, catat, keluar 0; cutover-erp1.sh juga memarkir
+# cron ini, ini lapisan kedua untuk `artisan down` tanpa skrip itu.
+if [ -f "$SITE/storage/framework/down" ]; then
+    log "mode pemeliharaan (storage/framework/down ada): pengawas diam, tidak memulai ulang apa pun"
+    exit 0
+fi
+
 # Baris terakhir keluaran = umur dalam detik, atau `?` bila belum pernah ada.
 age="$(artisan erp:heartbeat --age 2>&1 | tail -n 1 | tr -d '[:space:]')"
 

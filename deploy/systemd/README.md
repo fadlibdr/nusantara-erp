@@ -60,10 +60,16 @@ mulai — tanpa restart, job baru dijalankan oleh kode lama sampai `--max-time`
 
 ## Cut-over MySQL (`deploy/cutover-erp1.sh`)
 
-`down` menghentikan kedua unit (bila `enabled`) sebelum membekukan SQLite —
-pekerja antrean yang masih menulis ke basis data yang sedang dipindahkan adalah
-kehilangan data, bukan sekadar risiko. `up` dan `rollback` menyalakannya lagi.
-Cron `/etc/cron.d/erp1` tetap diparkir seperti sebelumnya (baris cadangan).
+`down` memarkir pengawas (`/etc/cron.d/erp1-watchdog` →
+`erp1-watchdog.cutover-parked`) lalu menghentikan kedua unit (bila `enabled`)
+sebelum membekukan SQLite — pekerja antrean yang masih menulis ke basis data
+yang sedang dipindahkan adalah kehilangan data, bukan sekadar risiko, dan
+pengawas yang dibiarkan hidup akan memulai ulang penjadwal 20 menit kemudian
+dan menulis alarm ke berkas yang dibekukan. `up` dan `rollback` menyalakan
+unit dan mengembalikan pengawas. Cron `/etc/cron.d/erp1` tetap diparkir
+seperti sebelumnya (baris cadangan). Lapisan kedua: `erp1-watchdog.sh` diam
+(keluar 0) selama `storage/framework/down` ada — `php artisan down` tangan
+pun aman.
 
 ## Membaca yang salah
 

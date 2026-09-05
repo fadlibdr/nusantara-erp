@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use Illuminate\Filesystem\Filesystem;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -104,6 +105,105 @@ class DeployUnitsTest extends TestCase
         // Log pengawas ikut dirotasi.
         $this->assertStringContainsString('/var/log/erp1/watchdog.log', $cron);
         $this->assertStringContainsString('/var/log/erp1/watchdog.log', (string) file_get_contents(base_path('deploy/logrotate/erp1')));
+    }
+
+    /**
+     * Cut-over MySQL memarkir pengawas di `down`/`rollback` dan mengembalikannya
+     * di `up`/`rollback`: pengawas root yang dibiarkan hidup memulai ulang
+     * erp1-scheduler 20 menit setelah `down` dan menulis alarm + detak ke SQLite
+     * yang dibekukan — gerbang sha256 di `salin`/`rollback` lalu gagal
+     * (verifikasi P-0b, 5 Sep 2026).
+     */
+    public function test_the_cutover_parks_the_watchdog_before_stopping_the_units_and_restores_it_after(): void
+    {
+        $cutover = (string) file_get_contents(base_path('deploy/cutover-erp1.sh'));
+
+        $this->assertStringContainsString('WATCHDOG_CRON=/etc/cron.d/erp1-watchdog', $cutover);
+        // Titik dalam nama: cron mengabaikan berkas /etc/cron.d yang mengandungnya.
+        $this->assertStringContainsString('WATCHDOG_PARKED=/etc/cron.d/erp1-watchdog.cutover-parked', $cutover);
+
+        foreach (['step_down', 'step_rollback'] as $step) {
+            $body = $this->functionBody($cutover, $step);
+            $park = strpos($body, 'watchdog_park');
+            $stop = strpos($body, 'units_stop');
+            $this->assertNotFalse($park, "{$step} harus memarkir pengawas.");
+            $this->assertNotFalse($stop);
+            $this->assertLessThan($stop, $park, "{$step}: pengawas diparkir SEBELUM unit dihentikan.");
+        }
+
+        foreach (['step_up', 'step_rollback'] as $step) {
+            $body = $this->functionBody($cutover, $step);
+            $restore = strpos($body, 'watchdog_restore');
+            $start = strpos($body, 'units_start');
+            $this->assertNotFalse($restore, "{$step} harus mengembalikan pengawas.");
+            $this->assertNotFalse($start);
+            $this->assertGreaterThan($start, $restore, "{$step}: pengawas kembali SESUDAH unit dinyalakan.");
+        }
+    }
+
+    /**
+     * Lapisan kedua: `php artisan down` tangan (tanpa cutover-erp1.sh) — skrip
+     * pengawas diam selama storage/framework/down ada, tanpa memanggil artisan
+     * sama sekali; tanpa berkas itu ia berjalan seperti biasa (detak `?` →
+     * MACET → erp:watchdog-alarm, keluar 1). Dijalankan sungguhan dengan `php`
+     * palsu di PATH yang mencatat setiap panggilannya.
+     */
+    public function test_the_watchdog_script_stands_down_in_maintenance_mode(): void
+    {
+        $bash = (new ExecutableFinder)->find('bash');
+
+        if ($bash === null) {
+            $this->markTestSkipped('bash tidak ditemukan di host ini.');
+        }
+
+        $site = sys_get_temp_dir().'/erp1-watchdog-'.uniqid();
+        $bin = $site.'/bin';
+        mkdir($site.'/storage/framework', 0755, true);
+        mkdir($bin, 0755, true);
+        $calls = $site.'/php-calls.log';
+        file_put_contents($bin.'/php', implode("\n", [
+            '#!/usr/bin/env bash',
+            'printf \'%s\\n\' "$*" >> \''.$calls.'\'',
+            'case "$*" in *--age*) echo \'?\' ;; esac',
+            '',
+        ]));
+        chmod($bin.'/php', 0755);
+
+        $env = [
+            'PATH' => $bin.':'.getenv('PATH'),
+            'ERP1_SITE' => $site,
+            'ERP1_RUN_AS' => trim((string) shell_exec('id -un')),
+            'ERP1_SCHEDULER_UNIT' => 'erp1-scheduler-uji-tidak-ada',
+        ];
+
+        try {
+            // Mode pemeliharaan: diam, keluar 0, php tidak pernah dipanggil.
+            touch($site.'/storage/framework/down');
+            $process = new Process([$bash, base_path('deploy/erp1-watchdog.sh')], null, $env);
+            $process->run();
+            $this->assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
+            $this->assertStringContainsString('mode pemeliharaan', $process->getOutput());
+            $this->assertFileDoesNotExist($calls, 'Dalam mode pemeliharaan artisan tidak boleh dipanggil.');
+
+            // Tanpa berkas down: jalur biasa — detak `?` = macet, alarm dinaikkan.
+            unlink($site.'/storage/framework/down');
+            $process = new Process([$bash, base_path('deploy/erp1-watchdog.sh')], null, $env);
+            $process->run();
+            $this->assertSame(1, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
+            $this->assertStringContainsString('PENJADWAL MACET', $process->getOutput());
+            $this->assertStringContainsString('artisan erp:heartbeat --age', (string) file_get_contents($calls));
+            $this->assertStringContainsString('artisan erp:watchdog-alarm', (string) file_get_contents($calls));
+        } finally {
+            (new Filesystem)->deleteDirectory($site);
+        }
+    }
+
+    /** Isi satu fungsi bash `name() { … }` — sampai `}` pertama di awal baris. */
+    private function functionBody(string $script, string $name): string
+    {
+        $this->assertSame(1, preg_match('/^'.preg_quote($name, '/').'\(\) \{\n(.*?)^\}/ms', $script, $m), "Fungsi {$name} tidak ditemukan.");
+
+        return $m[1];
     }
 
     public function test_the_units_meet_the_roadmap_contract(): void
