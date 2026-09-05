@@ -376,6 +376,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .header .crumbs { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); min-width: 0; }
 .header .crumbs b { color: var(--text); font-weight: 600; }
+.header .crumbs a { color: inherit; }
 
 /* ------------------------------------------------------------ aksen modul */
 /* Satu atribut data-accent="1..8" (app.js/module.js) memilih slot; tiga variabel
@@ -390,6 +391,22 @@ button, input, select, textarea { font: inherit; color: inherit; }
 [data-accent="7"] { --module-accent: var(--accent-7); --module-accent-soft: var(--accent-7-soft); --module-accent-fg: var(--accent-7-fg); }
 [data-accent="8"] { --module-accent: var(--accent-8); --module-accent-soft: var(--accent-8-soft); --module-accent-fg: var(--accent-8-fg); }
 
+/* Remah modul (P1-B): "Modul › Layar › (Dokumen)" — remah pertama adalah tautan
+   ke beranda modul #/m/<prefix> dan membawa aksen modulnya (teks ≥ 5,2:1 di
+   --surface, lihat blok token). Titik di depannya adalah penanda warna yang sama
+   dengan penanda grup aktif di sidebar, supaya keduanya terbaca sebagai satu hal. */
+.header .crumbs a.crumb-module {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--module-accent); font-weight: 600;
+  white-space: nowrap;
+}
+.header .crumbs a.crumb-module::before {
+  content: ""; width: 8px; height: 8px; border-radius: 2px; flex: none;
+  background: var(--module-accent);
+}
+.header .crumbs a.crumb-module:hover { text-decoration: underline; }
+.header .crumbs a.crumb-screen { color: var(--text-2); }
+.header .crumbs a.crumb-screen:hover { color: var(--text); }
 .header .spacer { flex: 1; }
 
 /* .btn sets display: inline-flex further down, so match its specificity here. */
@@ -856,6 +873,60 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   gap: 12px;
   margin-bottom: 16px;
 }
+
+/* ---------------------------------------------------------- beranda modul */
+/* #/m/<prefix> (views/module.js, P1-B): kepala beraksen + kisi kartu layar yang
+   boleh dibuka pemanggil (penyaring visibleNav yang sama dengan sidebar). Kartu
+   adalah <a>, jadi Tab/Enter bekerja tanpa skrip; panah kiri/kanan/atas/bawah
+   memindah fokus di kisi. P1-C menambahkan KPI dan "Terakhir dibuka" di sini. */
+.module-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.module-head .module-icon {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--module-accent-soft); color: var(--module-accent);
+}
+.module-head h1 { font-size: 20px; letter-spacing: -.015em; }
+.module-head .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--module-accent); }
+.module-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.module-section {
+  grid-column: 1 / -1;
+  margin: 6px 0 -4px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.module-section:first-child { margin-top: 0; }
+.module-card {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  min-height: 56px;
+}
+.module-card:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.module-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.module-card .lucide { color: var(--muted); margin-top: 1px; }
+.module-card b { display: block; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.module-card .hint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 .stat {
   background: var(--surface);

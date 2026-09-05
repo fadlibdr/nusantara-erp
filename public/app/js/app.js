@@ -4,8 +4,9 @@ import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from '
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
 import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
-import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
+import { NAV, RESOURCES, visibleNav, moduleFor, moduleForLabel } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
+import { renderModuleHome } from './views/module.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
 import { renderDetail } from './views/detail.js';
@@ -707,15 +708,43 @@ function setActiveNav(path) {
       }
     }
   });
+  // Beranda modul #/m/<prefix> tidak punya baris sendiri di sidebar; grupnya
+  // yang ditandai dan dibuka, supaya orang tahu sedang berada di modul mana.
+  if (path.startsWith('m/')) {
+    const group = document.querySelector(`nav.nav .nav-group[data-prefix="${CSS.escape(path.slice(2))}"]`);
+    if (group) {
+      group.dataset.open = 'true';
+      group.classList.add('has-active');
+    }
+  }
 }
 
-function setCrumbs(parts) {
+/*
+ * Remah roti "Modul › Layar › (Dokumen)" (P1-B). Remah pertama yang berupa
+ * nama grup NAV menjadi tautan ke beranda modul #/m/<prefix> dan membawa
+ * aksen modulnya (data-accent → app.css); remah layar pada halaman detail
+ * menjadi tautan ke daftarnya bila pemanggil memberi screenHref. Remah
+ * terakhir tetap <b> — layar detail menimpanya dengan kode dokumen begitu
+ * rekamannya tiba (detail.js/custom.js membaca '#crumbs b'). Satu remah
+ * (Dasbor, beranda modul sendiri) tidak ditautkan ke mana pun.
+ */
+function setCrumbs(parts, { screenHref } = {}) {
   const host = document.getElementById('crumbs');
   if (!host) return;
   clear(host);
+  const module = parts.length > 1 ? moduleForLabel(parts[0]) : null;
   parts.forEach((part, index) => {
     if (index) host.appendChild(icon('chevronRight', 12));
-    host.appendChild(index === parts.length - 1 ? el('b', { text: part }) : el('span', { text: part }));
+    const last = index === parts.length - 1;
+    if (index === 0 && module) {
+      host.appendChild(el('a.crumb-module', {
+        href: `#/m/${module.prefix}`, dataset: { accent: String(module.accent) }, title: `Beranda modul ${part}`, text: part,
+      }));
+    } else if (index === 1 && !last && screenHref) {
+      host.appendChild(el('a.crumb-screen', { href: screenHref, text: part }));
+    } else {
+      host.appendChild(last ? el('b', { text: part }) : el('span', { text: part }));
+    }
   });
   document.title = `${parts[parts.length - 1]} · Nusantara ERP`;
 }
@@ -1069,6 +1098,24 @@ function registerRoutes() {
     guard(host, () => renderSettings(host));
   });
 
+  /* Beranda modul (P1-B) — sasaran remah modul; minimal: kepala beraksen +
+     kartu layar yang boleh dibuka (views/module.js). Tanpa gerbang izin:
+     grup yang izinnya tidak dipegang berakhir di keadaan kosong beranda itu
+     sendiri, bukan panel akses-ditolak, karena grupnya memang tidak ada bagi
+     orang itu. Prefix yang bukan grup NAV mana pun → alert "tidak dikenal". */
+  route('m/:prefix', ({ prefix }) => {
+    const module = moduleFor(prefix);
+    const host = view();
+    if (!module) {
+      setCrumbs(['Tidak ditemukan']);
+      host.appendChild(el('.alert.error', `Modul "${prefix}" tidak dikenal.`));
+      return;
+    }
+    setCrumbs([module.label]);
+    setActiveNav(`m/${prefix}`);
+    guard(host, () => renderModuleHome(host, { prefix }));
+  });
+
   // r/<resource path> — list screen
   route('r/*', (_, path) => {
     const key = path.slice(2);
@@ -1106,7 +1153,7 @@ function registerRoutes() {
       return;
     }
 
-    setCrumbs([groupLabelFor(key), def.label, `#${id}`]);
+    setCrumbs([groupLabelFor(key), def.label, `#${id}`], { screenHref: `#/r/${key}` });
     setActiveNav(`d/${key}/${id}`);
 
     // Timpaan viewPerm yang sama dengan rute daftar r/* di atas.

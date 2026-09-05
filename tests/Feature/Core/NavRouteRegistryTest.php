@@ -64,6 +64,77 @@ class NavRouteRegistryTest extends ErpTestCase
     }
 
     /**
+     * P1-B: every NAV group carries a `prefix`, and that prefix resolves to a
+     * module home — the breadcrumb's first crumb links to `#/m/<prefix>`, so
+     * a group without one (or with one MODULES does not know) is a crumb that
+     * lands on "Modul tidak dikenal". Same grep discipline as the routes above:
+     * the group header line, the MODULES block, the route and the view file.
+     */
+    public function test_every_nav_group_prefix_resolves_to_a_module_home(): void
+    {
+        $prefixes = $this->groupPrefixes();
+
+        $this->assertGreaterThan(10, count($prefixes),
+            'Only '.count($prefixes).' NAV group prefixes were extracted from schema.js; the group header shape '
+            .'has changed and this test is no longer reading it.');
+        $this->assertSame(count($prefixes), count(array_unique($prefixes)), 'Two NAV groups share one prefix; their module homes would collide.');
+
+        $this->assertStringContainsString("route('m/:prefix'", $this->app(),
+            "app.js has no route('m/:prefix', ...) — the module crumb points at the not-found fallback.");
+        $this->assertFileExists(public_path('app/js/views/module.js'));
+        $this->assertStringContainsString('export function renderModuleHome(', (string) file_get_contents(public_path('app/js/views/module.js')));
+        $this->assertMatchesRegularExpression("/import \{[^}]*\brenderModuleHome\b[^}]*\} from '\.\/views\/module\.js'/", $this->app());
+
+        foreach ($prefixes as $prefix) {
+            $this->assertTrue($this->moduleResolves($prefix), sprintf(
+                'NAV group prefix "%s" has no entry in schema.js MODULES, so #/m/%s renders "Modul tidak dikenal". '
+                .'Add it to MODULES with its accent slot, icon and one-line description.',
+                $prefix,
+                $prefix,
+            ));
+        }
+    }
+
+    /** The refused half for the module-home matcher. */
+    public function test_a_prefix_missing_from_modules_is_reported(): void
+    {
+        $this->assertFalse($this->moduleResolves('modul-yang-tidak-pernah-didaftarkan'));
+        $this->assertTrue($this->moduleResolves('fin'));
+        $this->assertTrue($this->moduleResolves('ringkasan'));
+    }
+
+    private function moduleResolves(string $prefix): bool
+    {
+        return (bool) preg_match('/^  '.preg_quote($prefix, '/').": \{ accent: [1-8], icon: '[a-z0-9-]+', description: '[^']+' \},$/m", $this->modulesBlock());
+    }
+
+    /** The `export const MODULES = {...}` block, so a RESOURCES key never passes for a module. */
+    private function modulesBlock(): string
+    {
+        $source = $this->schema();
+        $start = strpos($source, 'export const MODULES = {');
+
+        $this->assertNotFalse($start, 'MODULES could not be found in schema.js; the module-home check can no longer run.');
+
+        $end = strpos($source, "\n};", $start);
+
+        return substr($source, $start, $end - $start);
+    }
+
+    /** @return list<string> */
+    private function groupPrefixes(): array
+    {
+        $source = $this->schema();
+        $start = strpos($source, 'export const NAV = [');
+
+        $this->assertNotFalse($start, 'NAV could not be found in schema.js; this test can no longer check anything.');
+
+        preg_match_all("/^    label: '[^']+', perm: [^,]+, prefix: '([a-z]+)',$/m", substr($source, $start), $matches);
+
+        return $matches[1];
+    }
+
+    /**
      * A plain key is served by its own route() call in app.js; an `r/<key>` key
      * is served by the generic `r/*` list route, which resolves only if that key
      * exists in a RESOURCES table.
