@@ -3,7 +3,9 @@
 namespace Tests\Feature\Core;
 
 use App\Models\User;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Core\Channels\MailChannel;
 use Modules\Core\Contracts\DeliveryChannel;
 use Modules\Core\Jobs\DeliverNotification;
@@ -176,6 +178,44 @@ class QueueFailedJobsTest extends ErpTestCase
         $schema = (string) file_get_contents(public_path('app/js/schema.js'));
         $this->assertStringContainsString('when: (row) => row.delivery_id == null,', $schema);
         $this->assertStringContainsString("sub: 'retry_hint'", $schema);
+    }
+
+    /**
+     * `php artisan queue:retry` dari shell atas job yang sama: BUKAN jalur
+     * kirim ulang (keputusan pemilik, ROADMAP-HASHMICRO §5 #16) — queue:retry
+     * menghapus catatan gagalnya, pekerja melewati baris `failed` tanpa
+     * memanggil kanal, baris tetap `failed` — tetapi tidak lagi bisu: pekerja
+     * menulis satu peringatan yang menunjuk ke Sistem › Pengiriman Notifikasi.
+     */
+    public function test_queue_retry_from_the_shell_leaves_the_row_failed_and_says_so_in_the_log(): void
+    {
+        $this->adminUser(); // penerima core.update untuk notifikasi sistemnya
+        $deliveryId = $this->failOneDelivery();
+        $uuid = (string) DB::table('failed_jobs')->value('uuid');
+
+        $logged = [];
+        Log::listen(function (MessageLogged $entry) use (&$logged): void {
+            $logged[] = $entry;
+        });
+
+        $this->artisan('queue:retry', ['id' => [$uuid]]);
+        $this->assertSame(0, DB::table('failed_jobs')->count(), 'queue:retry menghapus catatan gagalnya sendiri.');
+        $this->assertSame(1, DB::table('jobs')->count());
+
+        DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+
+        $row = NotificationDelivery::query()->findOrFail($deliveryId);
+        $this->assertSame(NotificationDelivery::FAILED, $row->status, 'Baris tetap failed: job dilewati.');
+        $this->assertSame(5, $row->attempts, 'Kanal tidak dipanggil — tidak ada percobaan baru.');
+        $this->assertSame(0, DB::table('jobs')->count());
+        $this->assertSame(0, DB::table('failed_jobs')->count(), 'Job "berhasil" tanpa mengirim — karena itu harus terlihat di log.');
+
+        $warnings = array_values(array_filter($logged, fn (MessageLogged $e): bool => $e->level === 'warning'
+            && str_contains($e->message, "Pengiriman #{$deliveryId} sudah berstatus failed")));
+        $this->assertCount(1, $warnings, 'Tepat satu peringatan untuk baris ini.');
+        $this->assertStringContainsString('queue:retry', $warnings[0]->message);
+        $this->assertStringContainsString('Sistem › Pengiriman Notifikasi', $warnings[0]->message);
     }
 
     /** Job lain (bukan pengiriman) tidak membawa delivery_id dan tetap bisa dikirim ulang. */

@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Queue\TimeoutExceededException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\DeliveryChannels;
@@ -62,6 +63,18 @@ class DeliverNotification implements ShouldQueueAfterCommit
         // lewat jalur lain: tidak ada yang perlu dikirim, dan mengirim ulang
         // e-mail yang sudah `sent` adalah kesalahan yang lebih buruk.
         if ($delivery === null || $delivery->status !== NotificationDelivery::QUEUED || $delivery->notification === null) {
+            // Baris `failed` yang job-nya kembali lewat `queue:retry` di shell:
+            // tetap dilewati (kebenaran pengiriman adalah barisnya — keputusan
+            // pemilik, ROADMAP-HASHMICRO §5 #16; layar Antrean Gagal menolak
+            // 422), tetapi TERLIHAT — sebelumnya queue:retry "berhasil" tanpa
+            // jejak apa pun (verifikasi P-0b, 5 Sep 2026).
+            if ($delivery !== null && $delivery->status === NotificationDelivery::FAILED) {
+                Log::warning(
+                    "Pengiriman #{$delivery->id} sudah berstatus failed — job DeliverNotification dilewati tanpa mengirim "
+                    .'apa pun (queue:retry dari shell tidak mengirim ulang). Kirim ulang lewat Sistem › Pengiriman Notifikasi.'
+                );
+            }
+
             return;
         }
 

@@ -374,6 +374,13 @@ baris cron. Berkas unit, langkah pasang, dan cara membaca kegagalannya ada di
   tidak ada pekerja yang mengambil job: `systemctl status erp1-queue`, lalu
   `/var/log/erp1/queue.log`. `failed_jobs_count` > 0 → Sistem › Antrean Gagal
   di aplikasi (kirim ulang / hapus) atau `php artisan queue:failed`.
+  **`php artisan queue:retry <uuid>|all` atas job `DeliverNotification` tidak
+  mengirim apa pun**: baris `core_notification_deliveries`-nya sudah `failed`,
+  pekerja melewatinya, catatan gagalnya terhapus, barisnya tetap `failed`;
+  yang tersisa hanya satu peringatan "Pengiriman #N sudah berstatus failed …"
+  di log pekerja. Layar Antrean Gagal menolaknya (422), shell tidak — kirim
+  ulang di Sistem › Pengiriman Notifikasi (keputusan pemilik,
+  `ROADMAP-HASHMICRO.md` §5 #16).
 
 - **Pengiriman e-mail yang gagal** terlihat di Sistem › Pengiriman Notifikasi
   (`core_notification_deliveries`: `queued|sent|failed|skipped`, pesan galat

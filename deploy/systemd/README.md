@@ -145,7 +145,7 @@ Lapisan kedua: `erp1-watchdog.sh` diam (keluar 0) selama
 |---|---|
 | Spanduk "Penjadwal tidak berjalan sejak …" di dasbor | `systemctl status erp1-scheduler`; `journalctl -u erp1-scheduler -n 50`; `/var/log/erp1/scheduler.log`; `/var/log/erp1/watchdog.log` |
 | `GET api/core/health` → `queue_oldest_pending_age_s` terus naik | `systemctl status erp1-queue`; `/var/log/erp1/queue.log` — pekerja mati atau job macet |
-| `failed_jobs_count` > 0 | Sistem › Antrean Gagal di aplikasi (kirim ulang / hapus), atau `php artisan queue:failed` |
+| `failed_jobs_count` > 0 | Sistem › Antrean Gagal di aplikasi (kirim ulang / hapus), atau `php artisan queue:failed`. **`queue:retry` atas job `DeliverNotification` (pengiriman notifikasi) tidak mengirim apa pun**: kebenaran pengiriman itu barisnya, yang sudah `failed`; pekerja melewatinya, job "berhasil", catatan gagalnya terhapus, barisnya tetap `failed` — yang tersisa hanya satu peringatan "Pengiriman #N sudah berstatus failed …" di log pekerja. Layar Antrean Gagal menolaknya (422); shell tidak. Kirim ulang di Sistem › Pengiriman Notifikasi (keputusan pemilik, ROADMAP-HASHMICRO §5 #16) |
 | Pengiriman e-mail `failed` | Sistem › Pengiriman Notifikasi — pesan galat penyedia tersimpan di kolom `error`; tombol Kirim ulang |
 | Unit tidak mau start: "Writing to directory /var/www/.config is not allowed" | `Environment=HOME=/tmp` hilang dari unit |
 
