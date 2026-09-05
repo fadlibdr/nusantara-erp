@@ -276,6 +276,71 @@ class NotificationDeliveryTest extends ErpTestCase
         Queue::assertPushed(DeliverNotification::class, fn (DeliverNotification $job) => $job->deliveryId === $row->id);
     }
 
+    /**
+     * Kirim ulang dari layar ini adalah SATU-SATUNYA jalan kembali untuk
+     * pengiriman yang gagal (Antrean Gagal menolaknya): setelah lima penolakan
+     * penyedia, tombolnya mengantrekan job baru, menghapus catatan failed_jobs
+     * yang ditinggalkan pekerja, dan — penyedia sudah pulih — pekerja
+     * benar-benar mengirim. Bukan "berhasil" tanpa e-mail.
+     */
+    public function test_retry_after_five_refusals_forgets_the_failed_job_record_and_really_sends(): void
+    {
+        $this->emailOn();
+        $this->bindRefusingMailChannel();
+        config(['queue.default' => 'database']);
+        $this->userWith('fin.approve', 'Direktur');
+
+        $this->bill()->submit($this->userWith('fin.create', 'Staf'));
+
+        foreach (range(1, 5) as $attempt) {
+            DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+            $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+        }
+
+        $row = NotificationDelivery::query()->sole();
+        $this->assertSame(NotificationDelivery::FAILED, $row->status);
+        $this->assertSame(1, DB::table('failed_jobs')->count());
+
+        // Admin dibuat SESUDAH pengajuan: ia juga memegang fin.approve, dan
+        // baris pengiriman keduanya bukan yang diuji.
+        $admin = $this->adminUser();
+
+        // Penyedia pulih.
+        $sends = 0;
+        app()->instance(MailChannel::class, new class($sends) implements DeliveryChannel
+        {
+            public function __construct(public int &$sends) {}
+
+            public function name(): string
+            {
+                return NotificationDelivery::CHANNEL_EMAIL;
+            }
+
+            public function send(NotificationDelivery $delivery, Notification $notification): ?string
+            {
+                $this->sends++;
+
+                return 'msg-id-'.$this->sends;
+            }
+        });
+
+        $this->actingAs($admin, 'sanctum');
+        $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertOk();
+
+        $this->assertSame(0, DB::table('failed_jobs')->count(), 'Catatan gagal kerangka kerja ikut dihapus: job baru menggantikannya.');
+        $this->assertSame(1, DB::table('jobs')->count());
+
+        DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+
+        $row->refresh();
+        $this->assertSame(1, $sends, 'Pekerja harus benar-benar mengirim.');
+        $this->assertSame(NotificationDelivery::SENT, $row->status);
+        $this->assertSame('msg-id-1', $row->provider_id);
+        $this->assertSame(6, $row->attempts, 'Riwayat percobaan berlanjut, tidak direset.');
+        $this->assertSame(0, DB::table('jobs')->count());
+    }
+
     public function test_retry_refuses_a_sent_row_and_a_disabled_email_channel(): void
     {
         Queue::fake();

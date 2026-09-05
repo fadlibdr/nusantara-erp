@@ -5407,7 +5407,11 @@ export const RESOURCES = {
   /* P-0b — tabel failed_jobs Laravel dari layar. Baca-saja + dua kata kerja:
      Kirim ulang (queue:retry di server) dan Hapus (tombol generik daftar,
      core.delete — cermin rutenya). Kunci dengan dua garis miring sengaja:
-     r/core/queue/failed → RESOURCES['core/queue/failed'], api core/queue/failed. */
+     r/core/queue/failed → RESOURCES['core/queue/failed'], api core/queue/failed.
+     Job pengiriman notifikasi (delivery_id terisi) TIDAK diberi Kirim ulang
+     di sini: barisnya sudah `failed` dan pekerja melewati job yang
+     dikembalikan begitu saja — server menolak 422; tombolnya ada di Sistem ›
+     Pengiriman Notifikasi (retry_hint di bawah pengecualiannya). */
   'core/queue/failed': {
     module: 'core', api: 'core/queue/failed', label: 'Antrean Gagal', labelOne: 'Job gagal',
     viewPerm: 'core.update',
@@ -5417,13 +5421,14 @@ export const RESOURCES = {
     columns: [
       { key: 'failed_at', label: 'Gagal pada', type: 'datetime', width: '1%' },
       { key: 'job', label: 'Job', type: 'text', sub: 'queue' },
-      { key: 'exception_excerpt', label: 'Pengecualian (baris pertama)', type: 'text' },
+      { key: 'exception_excerpt', label: 'Pengecualian (baris pertama)', type: 'text', sub: 'retry_hint' },
       { key: 'uuid', label: 'UUID', type: 'code', width: '1%', hideOnNarrow: true },
     ],
     actions: [
       {
         key: 'retry', label: 'Kirim ulang', path: '{id}/retry', method: 'POST', variant: 'primary',
         perm: 'core.update',
+        when: (row) => row.delivery_id == null,
         confirm: (row) => `Kembalikan job ${row.job || row.uuid} ke antrean? Pekerja akan mencobanya lagi dari awal; catatan gagal ini dihapus.`,
         toast: () => 'Job dikembalikan ke antrean; pekerja akan mencobanya lagi.',
       },

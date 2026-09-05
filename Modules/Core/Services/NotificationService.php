@@ -5,9 +5,12 @@ namespace Modules\Core\Services;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 use Modules\Core\Jobs\DeliverNotification;
+use Modules\Core\Models\FailedJob;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\ApprovableDocuments;
@@ -326,6 +329,12 @@ class NotificationService
      * antrean yang menolak harus sampai ke dia sebagai galat, bukan sebagai
      * baris `queued` yang diam.
      *
+     * Catatan failed_jobs kerangka kerja untuk baris ini dihapus SETELAH job
+     * baru diantrekan: job baru menggantikannya, dan tanpa ini Sistem › Antrean
+     * Gagal (serta "N job gagal" di dasbor) terus menunjuk kegagalan yang sudah
+     * ditangani. Antrean Gagal sendiri menolak mengembalikan job pengiriman
+     * (QueueFailedJobController) — satu tombol Kirim ulang, di sini.
+     *
      * @throws InvalidArgumentException bila tidak bisa dikirim ulang
      */
     public function retry(NotificationDelivery $delivery): NotificationDelivery
@@ -351,8 +360,22 @@ class NotificationService
         ])->save();
 
         DeliverNotification::dispatch($delivery->id);
+        $this->forgetFailedJobsFor($delivery);
 
         return $delivery->refresh();
+    }
+
+    private function forgetFailedJobsFor(NotificationDelivery $delivery): void
+    {
+        if (! Schema::hasTable('failed_jobs')) {
+            return;
+        }
+
+        $failer = app(FailedJobProviderInterface::class);
+
+        foreach (FailedJob::forDelivery($delivery->id) as $failed) {
+            $failer->forget((string) $failed->uuid);
+        }
     }
 
     private function emailEnabled(): bool

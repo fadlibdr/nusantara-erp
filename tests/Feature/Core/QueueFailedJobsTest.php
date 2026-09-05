@@ -4,7 +4,15 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Channels\MailChannel;
+use Modules\Core\Contracts\DeliveryChannel;
+use Modules\Core\Jobs\DeliverNotification;
+use Modules\Core\Models\Notification;
+use Modules\Core\Models\NotificationDelivery;
+use Modules\Core\Services\NotificationService;
+use Modules\Core\Services\SettingService;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
+use RuntimeException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -59,6 +67,42 @@ class QueueFailedJobsTest extends ErpTestCase
         return (string) DB::table('failed_jobs')->value('uuid');
     }
 
+    /**
+     * Satu job DeliverNotification yang gagal lima kali lewat pekerja sungguhan:
+     * barisnya `failed`, catatannya di failed_jobs — bahan uji penolakan di bawah.
+     */
+    private function failOneDelivery(): int
+    {
+        app(SettingService::class)->set('notifications.email_enabled', true);
+        app()->instance(MailChannel::class, new class implements DeliveryChannel
+        {
+            public function name(): string
+            {
+                return NotificationDelivery::CHANNEL_EMAIL;
+            }
+
+            public function send(NotificationDelivery $delivery, Notification $notification): ?string
+            {
+                throw new RuntimeException('SMTP 550 5.1.1 mailbox unavailable');
+            }
+        });
+
+        app(NotificationService::class)->system('core.update', 'Uji pengiriman', 'Isi.');
+
+        $delivery = NotificationDelivery::query()->sole();
+        $this->assertSame(NotificationDelivery::QUEUED, $delivery->status);
+
+        foreach (range(1, 5) as $attempt) {
+            DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+            $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+        }
+
+        $this->assertSame(NotificationDelivery::FAILED, $delivery->refresh()->status);
+        $this->assertSame(1, DB::table('failed_jobs')->count());
+
+        return $delivery->id;
+    }
+
     public function test_a_failed_job_appears_in_the_list_with_its_first_exception_line(): void
     {
         $admin = $this->adminUser();
@@ -99,6 +143,51 @@ class QueueFailedJobsTest extends ErpTestCase
         // Dan pekerja benar-benar mencobanya lagi (job ini memang selalu gagal).
         $this->artisan('queue:work', ['connection' => 'database', '--once' => true]);
         $this->assertSame(1, DB::table('failed_jobs')->count());
+    }
+
+    /**
+     * Job pengiriman notifikasi (T0b.3) TIDAK boleh dikembalikan dari sini:
+     * barisnya sudah `failed`, handle() melewati baris yang bukan `queued`, jadi
+     * queue:retry "berhasil" tanpa mengirim apa pun sambil menghapus catatan
+     * gagalnya (verifikasi P-0b, 5 Sep 2026). Ditolak 422 dengan penunjuk ke
+     * layar yang benar; catatan gagalnya tetap ada; tidak ada job yang antre.
+     */
+    public function test_retry_of_a_delivery_job_is_refused_and_points_at_the_delivery_screen(): void
+    {
+        $admin = $this->adminUser();
+        $deliveryId = $this->failOneDelivery();
+        $id = (int) DB::table('failed_jobs')->value('id');
+
+        $this->actingAs($admin, 'sanctum');
+        $response = $this->postJson("/api/core/queue/failed/{$id}/retry")->assertStatus(422);
+        $this->assertStringContainsString("pengiriman notifikasi #{$deliveryId}", $response->json('message'));
+        $this->assertStringContainsString('Sistem › Pengiriman Notifikasi', $response->json('message'));
+
+        $this->assertSame(1, DB::table('failed_jobs')->count(), 'Catatan gagal tidak boleh hilang bila tidak ada yang dikirim ulang.');
+        $this->assertSame(0, DB::table('jobs')->count(), 'Tidak ada job yang boleh kembali ke antrean.');
+        $this->assertSame(NotificationDelivery::FAILED, NotificationDelivery::query()->sole()->status);
+
+        // Daftarnya menyebut baris pengirimannya, dan SPA menyembunyikan tombolnya.
+        $row = $this->getJson('/api/core/queue/failed')->assertOk()->json('data.0');
+        $this->assertSame(DeliverNotification::class, $row['job']);
+        $this->assertSame($deliveryId, $row['delivery_id']);
+        $this->assertSame("Pengiriman #{$deliveryId} — kirim ulang dari Pengiriman Notifikasi", $row['retry_hint']);
+
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $this->assertStringContainsString('when: (row) => row.delivery_id == null,', $schema);
+        $this->assertStringContainsString("sub: 'retry_hint'", $schema);
+    }
+
+    /** Job lain (bukan pengiriman) tidak membawa delivery_id dan tetap bisa dikirim ulang. */
+    public function test_a_non_delivery_job_carries_no_delivery_id(): void
+    {
+        $admin = $this->adminUser();
+        $this->failOne();
+
+        $this->actingAs($admin, 'sanctum');
+        $row = $this->getJson('/api/core/queue/failed')->assertOk()->json('data.0');
+        $this->assertNull($row['delivery_id']);
+        $this->assertNull($row['retry_hint']);
     }
 
     public function test_delete_removes_only_the_record(): void

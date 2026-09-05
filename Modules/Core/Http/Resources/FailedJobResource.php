@@ -32,6 +32,10 @@ class FailedJobResource extends JsonResource
             'connection' => $this->connection,
             'queue' => $this->queue,
             'job' => $this->displayName(),
+            // DeliverNotification: barisnya di core_notification_deliveries adalah
+            // kebenaran, dan Kirim ulang-nya ada di layar itu — bukan di sini.
+            'delivery_id' => $deliveryId = $this->deliveryId(),
+            'retry_hint' => $deliveryId === null ? null : "Pengiriman #{$deliveryId} — kirim ulang dari Pengiriman Notifikasi",
             'exception_excerpt' => $this->exceptionExcerpt(),
             'exception' => $this->when($this->withTrace, fn () => mb_substr((string) $this->exception, 0, 8000)),
             'failed_at' => $this->failed_at?->toIso8601String(),

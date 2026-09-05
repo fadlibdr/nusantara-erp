@@ -20,6 +20,14 @@ use Modules\Core\Models\FailedJob;
  * jalur yang sama dengan CLI (attempts direset, retryUntil disegarkan, baris
  * gagal dihapus setelah job kembali ke antrean). Hapus lewat
  * FailedJobProviderInterface::forget — cara kerangka kerja yang sama.
+ *
+ * KECUALI DeliverNotification (T0b.3): kebenaran pengiriman itu adalah baris
+ * core_notification_deliveries, yang sudah `failed` saat job-nya mendarat di
+ * sini, dan handle() melewati baris yang bukan `queued`. queue:retry atas job
+ * itu "berhasil" tanpa mengirim apa pun, menghapus catatan gagalnya, dan
+ * meninggalkan barisnya tetap `failed` (verifikasi P-0b, 5 Sep 2026). Maka
+ * ditolak 422 dengan penunjuk ke Sistem › Pengiriman Notifikasi; Kirim ulang
+ * di sana menghapus catatan gagal ini sendiri (NotificationService::retry).
  */
 class QueueFailedJobController extends ApiController
 {
@@ -57,6 +65,16 @@ class QueueFailedJobController extends ApiController
     public function retry(FailedJob $failedJob): JsonResponse
     {
         $uuid = (string) $failedJob->uuid;
+        $deliveryId = $failedJob->deliveryId();
+
+        if ($deliveryId !== null) {
+            return $this->error(
+                "Job ini adalah pengiriman notifikasi #{$deliveryId}. Mengembalikannya ke antrean tidak mengirim apa pun: "
+                .'baris pengirimannya sudah berstatus gagal dan pekerja melewatinya. Kirim ulang dari Sistem › '
+                .'Pengiriman Notifikasi — catatan gagal ini ikut dihapus di sana.',
+                422,
+            );
+        }
 
         Artisan::call('queue:retry', ['id' => [$uuid]]);
 
