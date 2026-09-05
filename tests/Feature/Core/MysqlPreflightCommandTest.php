@@ -150,6 +150,12 @@ class MysqlPreflightCommandTest extends ErpTestCase
                 ->contains('pattern', '"-quoted identifier'),
         );
 
+        // Since T0.2 both files branch on the driver; the sites stay listed
+        // (a guard is a claim to check) but are marked, and no unguarded
+        // SQLite-only SQL is left anywhere in the tree.
+        $this->assertTrue($sites->every(fn (array $site): bool => $site['guarded']));
+        $this->assertSame(0, $report['sqlite_only_sql']['unguarded']);
+
         // The scanner's own pattern table would otherwise be fourteen false hits.
         $this->assertNotContains('Modules/Core/Console/Commands/MysqlPreflightCommand.php', $files);
 

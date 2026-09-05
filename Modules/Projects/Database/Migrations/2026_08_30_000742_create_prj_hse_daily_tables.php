@@ -30,6 +30,13 @@ use Illuminate\Support\Facades\Schema;
  * Indeks unik (project_id, report_date) PARSIAL — baris hidup saja — pelajaran
  * migrasi 000721: validasi mengabaikan baris terhapus lunak, indeks penuh
  * tidak, dan selisihnya adalah 500 permanen untuk hari yang pernah dihapus.
+ *
+ * CABANG DRIVER (5 Sep 2026, Fase 0 T0.2). Pernyataan indeks parsial di bawah
+ * adalah dialek SQLite (pengenal berkutip-ganda + WHERE pada indeks) dan
+ * tidak pernah dijalankan di MySQL — belum ada MySQL di deployment mana pun
+ * sebelum Fase 0. Di MySQL tabel dibuat TANPA indeks itu dan migrasi 000746
+ * memasang UNIQUE(project_id, report_date, live_key) atas kolom generated.
+ * Cabang ditambahkan, migrasi tidak ditulis ulang.
  */
 return new class extends Migration
 {
@@ -53,10 +60,13 @@ return new class extends Migration
         });
 
         // Satu formulir K3 per proyek per hari — baris HIDUP saja (pola 000721).
-        DB::statement(
-            'CREATE UNIQUE INDEX "prj_hse_daily_project_id_report_date_unique" '
-            .'ON "prj_hse_daily" ("project_id", "report_date") WHERE "deleted_at" IS NULL'
-        );
+        // MySQL: 2026_09_05_000746_add_live_key_unique_for_mysql.
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement(
+                'CREATE UNIQUE INDEX "prj_hse_daily_project_id_report_date_unique" '
+                .'ON "prj_hse_daily" ("project_id", "report_date") WHERE "deleted_at" IS NULL'
+            );
+        }
 
         Schema::create('prj_hse_daily_apd', function (Blueprint $table): void {
             $table->id();
