@@ -1163,6 +1163,10 @@ CHART_RENDER = """async () => {
   // Label 55 huruf: dulu viewBox melebar ke 560 mengikuti label lalu menyusut ×0,64 di ponsel (teks 7 px);
   // kini lebar tetap 360 dan legenda dibungkus per kata (data-lines > 1) — ukuran huruf sama dengan donat lain.
   t('donut_long', () => m.donutChart({ slices: [{label:'Kategori dengan nama yang sangat panjang sekali sekali',value:1},{label:'B',value:2},{label:'Rp 10 M',value:1e10}], valueFormat: (v) => new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'label panjang' }));
+  // Verifikasi P1-A putaran 3: label HURUF BESAR / angka polos (nama proyek yang lazim) — 6,1–8,6 px/glyph, bukan 5,6:
+  // dulu dibungkus 21 huruf × CHAR_W lalu 'PEMBANGUNAN GEDUNG' (137 px) berakhir 9,5 px di luar viewBox 360; kini dibungkus
+  // menurut taksiran per kelas glyph dan grup legenda diklip ke viewBox (legend_texts_past_right harus 0, legend_clipped 1).
+  t('donut_uppercase', () => m.donutChart({ slices: [{label:'PEMBANGUNAN GEDUNG KANTOR PUSAT JAKARTA SELATAN',value:5e9},{label:'PENGADAAN ALAT BERAT 2026',value:3e9},{label:'1234567890 1234567890',value:1e9}], valueFormat: (v) => new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'label huruf besar' }));
   // Sembilan seri/irisan: token berulang setelah 8 (seri 9 = --chart-1) dan blok cetak memberi seri 2..8 pola masing-masing.
   t('donut_9', () => m.donutChart({ slices: Array.from({length: 9}, (_, i) => ({ label: 'Bagian ' + (i + 1), value: i + 1 })), ariaLabel: 'sembilan irisan' }));
   t('line_9_series', () => m.lineChart({ series: Array.from({length: 9}, (_, i) => ({ label: 'S' + (i + 1), points: [{x:0,y:i},{x:1,y:i+1}] })), ariaLabel: 'sembilan seri' }));
@@ -1290,7 +1294,12 @@ CHART_MEASURE = """(theme) => {
       // Label vs lebar sebenarnya: semua label baris bawah (kategori tegak / nilai mendatar) yang tumpang tindih dengan tetangganya (getBBox, koordinat svg).
       c.x_labels = xl.map(t => t.textContent); const xo = overlaps(xl); c.label_overlaps = xo.count; c.x_label_overlaps = xo.count; c.x_label_max_overlap_px = xo.max_px; }
     if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.legend_items = legendEls.map(legendText); c.legend_excluded = svg.querySelectorAll('text.chart-legend[data-excluded]').length;
-      c.legend_lines_max = Math.max(0, ...legendEls.map(t => +(t.dataset.lines || 1))); c.legend_right_px = +Math.max(0, ...legendEls.map(t => { const b = t.getBBox(); return b.x + b.width; })).toFixed(1); c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
+      c.legend_lines_max = Math.max(0, ...legendEls.map(t => +(t.dataset.lines || 1))); c.legend_right_px = +Math.max(0, ...legendEls.map(t => { const b = t.getBBox(); return b.x + b.width; })).toFixed(1);
+      // Teks legenda yang tepi kanannya melewati viewBox (getBBox — geometri, bukan lukisan: klip tidak menyembunyikannya), px/glyph terukur per baris tspan
+      // (pembanding tabel GLYPH_CLASSES charts.js), dan apakah grup legenda diklip ke viewBox (jaring terakhir untuk font klien yang lebih lebar).
+      c.legend_texts_past_right = legendEls.filter(t => { const b = t.getBBox(); return b.x + b.width > vb.width + 0.5; }).length;
+      const spans = legendEls.flatMap(t => [...t.querySelectorAll('tspan')]).filter(sp => sp.textContent.length >= 3); c.legend_glyph_px_max = spans.length ? +Math.max(...spans.map(sp => sp.getBBox().width / sp.textContent.length)).toFixed(2) : null;
+      const group = svg.querySelector('g.chart-legend-group'); c.legend_clipped = group && group.getAttribute('clip-path') && svg.querySelector('clipPath rect') ? 1 : 0; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
     if (name.startsWith('gantt')) {
       c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
       c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;
@@ -1340,6 +1349,10 @@ CHART_MEASURE = """(theme) => {
       donut_viewbox_widths: [...new Set(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([, c]) => c.viewbox_w))],
       donut_legend_lines_max: Math.max(0, ...Object.entries(charts).filter(([n]) => n.startsWith('donut')).map(([, c]) => c.legend_lines_max || 0)),
       donut_legend_right_max_px: Math.max(0, ...Object.entries(charts).filter(([n]) => n.startsWith('donut')).map(([, c]) => c.legend_right_px || 0)),
+      // Verifikasi P1-A putaran 3: teks legenda donat yang melewati tepi kanan viewBox (dulu 2 pada donut_uppercase, 369,5 px), px/glyph terukur maks, dan jumlah donat berlegenda yang grupnya diklip.
+      donut_legend_texts_past_right: total.reduce((a, c) => a + (c.legend_texts_past_right || 0), 0),
+      donut_legend_glyph_px_max: Math.max(0, ...total.map(c => c.legend_glyph_px_max || 0)),
+      donut_legend_clipped: total.filter(c => c.legend_clipped).length + '/' + Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).length,
       // Lantai ukuran huruf terender per viewport: gantt punya min-width 80 % (≥ 8,8 px) — garis/batang 720 px
       // di ponsel 390 (5,5 px) adalah pertanyaan terbuka P1-A (lebar per viewport), dicatat, belum dipaku.
       gantt_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('gantt') && !c.empty).map(([, c]) => c.rendered_font_px)),

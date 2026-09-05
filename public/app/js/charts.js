@@ -120,8 +120,26 @@ const DAY = 86400000;
    lebar aslinya), penjarangan menyisakan celah 6 px (thin), label kategori batang dipotong ke
    pita − 4 px, label gantt diklip pada labelWidth − 8; harness S20 mencatat px/glyph terukur
    setiap label tick (tick_glyph_px_max). Nilai lama 6,3 memotong 'Februari' jadi 'Februa…'
-   pada pita 55,7 px padahal teks aslinya 41 px. */
+   pada pita 55,7 px padahal teks aslinya 41 px. Legenda donat TIDAK memakai CHAR_W: kolomnya
+   120 px tanpa jangkar/pemotongan, jadi ia membungkus menurut taksiran per kelas glyph
+   (glyphWidth) — verifikasi P1-A putaran 2: 'PEMBANGUNAN GEDUNG' 18 huruf lolos 21 huruf/baris
+   tetapi 137 px lebar, keluar 9,5 px dari viewBox 360. */
 const CHAR_W = 5.6;
+/* Lebar glyph per KELAS pada 11 px --font, diukur getBBox 40 glyph berulang di Chromium pada
+   tumpukan --font host ini (5 Sep 2026, desktop 1440 / ponsel 390 sama ±0,05): spasi 3,1;
+   i j l ' 2,4–2,5; f I t . , : ; ! / [ ] 2,9–3,1; r - ( ) " 3,7–3,9; c k s v x y z 5,5;
+   angka + a b d e g h n o p q u + L ? _ + – 6,1; T F Z 6,7; A B E K P S V X Y & 7,3–7,4;
+   C D H N R U w 7,9–8,0; G O Q 8,5; m M 9,2; W % 9,8–10,4; — 11,0. Setiap kelas memakai batas
+   ATAS anggotanya. '1' (5,3 sendiri) dan 'J' (5,5) dihitung 6,2: tabular-nums (.chart-lib)
+   menyamakan advance semua angka, dan 'BAJA' terukur 28,2 = J 6,2 — jumlah per glyph diuji
+   terhadap lebar string utuh 135 sampel (kata proyek huruf kecil/BESAR/Judul/angka/campur +
+   kasus tepi): terukur ÷ taksiran maks 1,004 ('WWWWWWWWWWW' 114,8 vs 114,4; 'bandara' 41,3 vs
+   41,1), 'PEMBANGUNAN GEDUNG' 137,3 vs 138,6, '1234567890 1234567890' 126,0 vs 127,2 — kolom
+   120 px + 8 px sampai tepi svg menampung selisih 6,7 %. Huruf besar di luar tabel (É, Ø) dihitung 8,0,
+   lainnya 6,2. Font klien lain (Segoe UI, SF, Roboto) umumnya lebih sempit; bila lebih lebar,
+   klip legenda (donutChart) menahan sisanya. */
+const GLYPH_CLASSES = [[' ', 3.2], ["ijl'", 2.6], ['fIt.,:;!/[]', 3.1], ['r-()"', 3.9], ['cksvxyz', 5.5], ['TFZ', 6.8], ['ABEKPSVXY&', 7.4], ['CDHNRUw', 8.0], ['GOQ', 8.6], ['mM', 9.2], ['W%', 10.4], ['—', 11.0]];
+const GLYPH_WIDTH = new Map(GLYPH_CLASSES.flatMap(([chars, w]) => [...chars].map((ch) => [ch, w])));
 const FONT = 11;
 const SERIES_TOKENS = 8;
 const EMPTY_TEXT = 'Belum ada data';
@@ -208,6 +226,19 @@ function textWidth(text) {
   return String(text ?? '').length * CHAR_W;
 }
 
+function glyphWidth(ch) {
+  const known = GLYPH_WIDTH.get(ch);
+  if (known !== undefined) return known;
+  return ch !== ch.toLowerCase() ? 8.0 : 6.2;
+}
+
+/** Taksiran lebar teks per kelas glyph (GLYPH_CLASSES) — untuk legenda donat. */
+function estimateWidth(text) {
+  let w = 0;
+  for (const ch of String(text ?? '')) w += glyphWidth(ch);
+  return w;
+}
+
 /** Kotak label sumbu-x: berjangkar tengah, kecuali label yang akan keluar dari tepi svg — yang
     terakhir ditambatkan ke ujung kanan ('10 Jun 2026' berpusat di x = width − 16 dulu terpotong
     ±12 px), yang pertama ke ujung kiri. Mengembalikan jangkar DAN tepi kiri/kanan taksirannya:
@@ -246,13 +277,14 @@ function placeholder(kind, ariaLabel, { width = 360, height = 64, fit = true, me
   return svg;
 }
 
-/** Klip area plot (+2 px untuk tebal garis) untuk garis/area: nilai di luar yMin/yMax yang
-    dipaksa tidak boleh terlukis di luar svg. Mengembalikan nilai atribut clip-path. */
-function plotClip(svg, x, y, w, h) {
+/** Klip area plot (+pad px, bawaan 2 untuk tebal garis) untuk garis/area: nilai di luar
+    yMin/yMax yang dipaksa tidak boleh terlukis di luar svg; pad 0 = klip tepat ke kotaknya
+    (legenda donat ke viewBox). Mengembalikan nilai atribut clip-path. */
+function plotClip(svg, x, y, w, h, pad = 2) {
   const id = `chart-clip-${++clipSeq}`;
   const defs = make('defs');
   const clip = make('clipPath', { id });
-  clip.appendChild(make('rect', { x: x - 2, y: y - 2, width: w + 4, height: h + 4 }));
+  clip.appendChild(make('rect', { x: x - pad, y: y - pad, width: w + 2 * pad, height: h + 2 * pad }));
   defs.appendChild(clip);
   svg.appendChild(defs);
   return `url(#${id})`;
@@ -608,26 +640,32 @@ export function barChart({
 
 /* ------------------------------------------------------------ donutChart */
 
-/** Bungkus teks legenda per kata ke `maxChars` huruf per baris. `phrases` = potongan yang
-    sebaiknya tidak dipisah ('— 10.000.000.000', '(37,5 %)'): dipindahkan utuh ke baris baru bila
-    muat, dan baru dipecah per kata (lalu per huruf) bila lebih panjang dari satu baris. */
-function wrapPhrases(phrases, maxChars) {
+/** Bungkus teks legenda per kata ke baris selebar `maxWidth` px menurut `widthOf` (taksiran per
+    kelas glyph — jumlah huruf bukan ukuran: 'PEMBANGUNAN GEDUNG' 18 huruf = 137 px, 'Kategori
+    dengan nama' 18 huruf = 97 px). `phrases` = potongan yang sebaiknya tidak dipisah
+    ('— 10.000.000.000', '(37,5 %)'): dipindahkan utuh ke baris baru bila muat, dan baru dipecah
+    per kata (lalu per huruf, sebanyak yang muat) bila lebih panjang dari satu baris. */
+function wrapPhrases(phrases, maxWidth, widthOf = estimateWidth) {
   const lines = [];
   let line = '';
+  const fits = (text) => widthOf(text) <= maxWidth;
   const place = (word) => {
-    while (word.length > maxChars) {
+    while (!fits(word)) {
       if (line) { lines.push(line); line = ''; }
-      lines.push(word.slice(0, maxChars));
-      word = word.slice(maxChars);
+      const chars = [...word];
+      let n = 1;
+      while (n < chars.length && fits(chars.slice(0, n + 1).join(''))) n++;
+      lines.push(chars.slice(0, n).join(''));
+      word = chars.slice(n).join('');
     }
     if (!line) line = word;
-    else if (line.length + 1 + word.length <= maxChars) line += ` ${word}`;
+    else if (fits(`${line} ${word}`)) line += ` ${word}`;
     else { lines.push(line); line = word; }
   };
   phrases.forEach((phrase) => {
     const text = String(phrase ?? '').trim();
     if (!text) return;
-    if (text.length <= maxChars) place(text); else text.split(/\s+/).forEach(place);
+    if (fits(text)) place(text); else text.split(/\s+/).forEach(place);
   });
   if (line || !lines.length) lines.push(line);
   return lines;
@@ -652,8 +690,14 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
      viewport mana pun, dan dua donat di satu dasbor selalu sama besar. */
   const W = 360;
   const legendX = 212;
-  const lineChars = Math.floor((W - legendX - 20 - 8) / CHAR_W);
-  const entries = rows.map((s) => ({ ...s, lines: wrapPhrases(legendPhrases(s), lineChars) }));
+  /* Kolom teks legenda 120 px (x 232 … 352): dibungkus menurut taksiran lebar per kelas glyph,
+     bukan 21 huruf × CHAR_W 5,6 — label huruf besar/angka ('PEMBANGUNAN GEDUNG', '1234567890')
+     berukuran 6,1–8,6 px/glyph dan dulu berakhir 2–10 px di luar viewBox (verifikasi P1-A
+     putaran 2). Grup legenda diklip ke viewBox (plotClip pad 0) sebagai jaring terakhir untuk
+     font klien yang lebih lebar dari taksiran: yang tidak muat terpotong, bukan melukis di
+     luar svg di atas elemen berikutnya. */
+  const legendW = W - legendX - 20 - 8; // 120 px; 8 px berikutnya sampai tepi svg menampung selisih taksiran ≤ 6,7 % (terukur maks 2 %)
+  const entries = rows.map((s) => ({ ...s, lines: wrapPhrases(legendPhrases(s), legendW) }));
   const entryH = (e) => 18 + (e.lines.length - 1) * 14;
   const rowsH = entries.reduce((a, e) => a + entryH(e), 0);
   const noteH = sourceNote ? 18 : 0;
@@ -715,13 +759,15 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   }
 
   let y = Math.max(16, (H - noteH) / 2 - rowsH / 2 + 12);
+  const legend = make('g', { class: 'chart-legend-group', 'clip-path': plotClip(svg, 0, 0, W, H, 0) });
+  svg.appendChild(legend);
   entries.forEach((s) => {
-    if (s.value !== null && s.value >= 0) svg.appendChild(paint(make('rect', { class: 'legend-swatch', x: legendX, y: y - 9, width: 12, height: 10, rx: 2, 'data-series': s.index }), 'fill', s.token));
+    if (s.value !== null && s.value >= 0) legend.appendChild(paint(make('rect', { class: 'legend-swatch', x: legendX, y: y - 9, width: 12, height: 10, rx: 2, 'data-series': s.index }), 'fill', s.token));
     /* Satu <text> per baris legenda, satu <tspan> per baris teks (dy 14): harness membaca
        entri lewat tspan-nya, dan getBBox <text> mencakup semua barisnya. */
     const text = make('text', { class: 'chart-legend', x: legendX + 20, y, 'data-excluded': s.value === null ? 'unknown' : s.value < 0 ? 'negative' : null, 'data-lines': s.lines.length });
     s.lines.forEach((line, k) => text.appendChild(make('tspan', { x: legendX + 20, dy: k ? 14 : 0 }, line)));
-    svg.appendChild(text);
+    legend.appendChild(text);
     y += entryH(s);
   });
   noteLine(svg, sourceNote, 8, H - 5);
