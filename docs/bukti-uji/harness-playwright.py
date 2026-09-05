@@ -1130,6 +1130,9 @@ CHART_RENDER = """async () => {
   // Nilai negatif / tak terukur tidak digambar, tetapi harus tetap disebut legenda (dulu hilang tanpa jejak).
   t('donut_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Disetujui',value:5},{label:'Tak terukur',value:NaN}], ariaLabel: 'irisan dikecualikan' }));
   t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
+  // Sembilan seri/irisan: token berulang setelah 8 (seri 9 = --chart-1) dan blok cetak memberi seri 2..8 pola masing-masing.
+  t('donut_9', () => m.donutChart({ slices: Array.from({length: 9}, (_, i) => ({ label: 'Bagian ' + (i + 1), value: i + 1 })), ariaLabel: 'sembilan irisan' }));
+  t('line_9_series', () => m.lineChart({ series: Array.from({length: 9}, (_, i) => ({ label: 'S' + (i + 1), points: [{x:0,y:i},{x:1,y:i+1}] })), ariaLabel: 'sembilan seri' }));
   // Irisan 99,9999 %: busur ≥ 359,99° yang ujungnya berimpit setelah pembulatan hilang dari
   // path (cakram tanpa lubang / tidak tergambar) — diukur getTotalLength cincin ≈ 2π(84+56) = 880.
   t('donut_tiny', () => m.donutChart({ slices: [{label:'Rp 10 M',value:1e10},{label:'Rp 100 rb',value:1e5}], ariaLabel: 'irisan mungil' }));
@@ -1252,6 +1255,24 @@ CHART_MEASURE = """(theme) => {
       min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 
+# Blok cetak: token seri jadi abu-abu — kontras tiap seri vs kertas putih, jarak antar-tetangga,
+# --chart-7 vs --chart-grid, dan pembeda BENTUK (pola putus garis per seri, pola garis tepi
+# batang/irisan/swatch per seri). Diukur dengan emulate_media('print') di atas fixture S20.
+CHART_PRINT = """() => {
+  const root = getComputedStyle(document.documentElement); const v = (n) => root.getPropertyValue(n).trim();
+  const lum = (hex) => { const c = hex.match(/\\w\\w/g).map(x => parseInt(x, 16) / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const cr = (a, b) => { const l1 = lum(a), l2 = lum(b); return +(((Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05)).toFixed(2)); };
+  const paper = v('--surface'); const series = {}; const neighbours = {};
+  for (let i = 1; i <= 8; i++) series['--chart-' + i] = { hex: v('--chart-' + i), vs_paper: cr(v('--chart-' + i), paper) };
+  for (let i = 1; i < 8; i++) neighbours[i + '-' + (i + 1)] = cr(v('--chart-' + i), v('--chart-' + (i + 1)));
+  const dash = (sel) => [...document.querySelectorAll(sel)].reduce((a, e) => { a[e.dataset.series] = getComputedStyle(e).strokeDasharray; return a; }, {});
+  const lineDash = dash('#s20 [data-name="line_9_series"] path.series-line'); const barDash = dash('#s20 [data-name="bar_legend_wrap"] rect.series-bar'); const sliceDash = dash('#s20 [data-name="donut_9"] path.series-slice');
+  const distinct = (o) => new Set(Object.entries(o).filter(([k]) => +k <= 8).map(([, d]) => d)).size;
+  return { print: matchMedia('print').matches, paper, series, neighbours, min_vs_paper: Math.min(...Object.values(series).map(s => s.vs_paper)), min_neighbour: Math.min(...Object.values(neighbours)),
+    chart7_vs_grid: cr(v('--chart-7'), v('--chart-grid')), line_dash: lineDash, bar_outline_dash: barDash, slice_outline_dash: sliceDash,
+    distinct_line_dashes: distinct(lineDash), distinct_bar_outlines: distinct(barDash), distinct_slice_outlines: distinct(sliceDash),
+    bar_outline_width: getComputedStyle(document.querySelector('#s20 [data-name="bar_legend_wrap"] rect.series-bar')).strokeWidth }; }"""
+
 def chart_tokens(pg, tag):
     errors = []
     console_errors = []
@@ -1265,6 +1286,10 @@ def chart_tokens(pg, tag):
         pg.wait_for_timeout(150)
         pg.locator("#s20").screenshot(path=f"{OUT}/s20-chart-tokens-{theme}{tag}.png")
     pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+    pg.emulate_media(media="print")
+    out["print"] = pg.evaluate(CHART_PRINT)
+    pg.locator("#s20 [data-name='bar_legend_wrap']").screenshot(path=f"{OUT}/s20-chart-print-bars{tag}.png")
+    pg.emulate_media(media="screen")
     out["pageerrors"] = errors
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
     out["viewport"] = pg.viewport_size
