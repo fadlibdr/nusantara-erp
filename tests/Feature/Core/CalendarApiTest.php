@@ -146,8 +146,10 @@ class CalendarApiTest extends ErpTestCase
         // The storage footgun this endpoint must survive: the model's date
         // cast stores "2026-08-31 00:00:00", which sorts AFTER the bare string
         // "2026-08-31" — a naive `<= last-day` comparison drops the row.
-        $stored = DB::table('crm_quotations')->where('id', $quotation->id)->value('valid_until');
-        $this->assertSame('2026-08-31 00:00:00', $stored);
+        // On SQLite the text is stored verbatim (that IS the footgun); MySQL
+        // folds it into a DATE and reads back the bare day.
+        $stored = (string) DB::table('crm_quotations')->where('id', $quotation->id)->value('valid_until');
+        $this->assertSame(DB::getDriverName() === 'sqlite' ? '2026-08-31 00:00:00' : '2026-08-31', $stored);
 
         $event = collect($this->events('2026-08'))->firstWhere('kind', 'quotation_valid_until');
         $this->assertNotNull($event);

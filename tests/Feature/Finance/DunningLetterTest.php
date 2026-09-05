@@ -161,8 +161,20 @@ class DunningLetterTest extends ErpTestCase
         $this->assertSame($invoice->id, (int) $log->auditable_id);
         $this->assertSame('INV/2026/VIII/0004', $log->auditable_label);
         $this->assertSame($collector->name, $log->user_name);
-        $this->assertSame(['from' => 0, 'to' => 1], $log->changes['dunning_level']);
-        $this->assertSame(['from' => null, 'to' => '2026-10-10 09:00:00'], $log->changes['last_dunning_at']);
+        // MySQL stores a JSON object in its own key order (shorter keys
+        // first: to, from); SQLite keeps the text as written. Compare the
+        // pair, not the order.
+        $this->assertSame(['from' => 0, 'to' => 1], $this->fromTo($log->changes['dunning_level']));
+        $this->assertSame(['from' => null, 'to' => '2026-10-10 09:00:00'], $this->fromTo($log->changes['last_dunning_at']));
+    }
+
+    /**
+     * @param  array<string, mixed>  $change
+     * @return array{from: mixed, to: mixed}
+     */
+    private function fromTo(array $change): array
+    {
+        return ['from' => $change['from'], 'to' => $change['to']];
     }
 
     public function test_the_level_moves_one_letter_per_press_and_stops_at_the_third(): void

@@ -964,7 +964,8 @@ class FinanceFormPrintTest extends ErpTestCase
 
         DB::listen(function (QueryExecuted $query) use (&$counts): void {
             foreach (['fin_ap_bills', 'prc_vendors'] as $table) {
-                if (str_contains($query->sql, '"'.$table.'"')) {
+                // Identifier quotes differ per driver (SQLite ", MySQL `).
+                if (preg_match('/[`"]'.$table.'[`"]/', $query->sql) === 1) {
                     $counts[$table] = ($counts[$table] ?? 0) + 1;
                 }
             }

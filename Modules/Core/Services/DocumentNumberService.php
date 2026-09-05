@@ -55,16 +55,10 @@ class DocumentNumberService
         }
 
         return DB::transaction(function () use ($type, $format, $year, $month, $scope) {
-            $sequence = NumberSequence::query()->firstOrCreate(
-                ['type' => $type, 'year' => $year, 'scope' => $scope],
-                ['last_number' => 0],
-            );
-
-            // Re-fetch with a row lock so concurrent requests can't share a number.
-            $sequence = NumberSequence::query()
-                ->whereKey($sequence->id)
-                ->lockForUpdate()
-                ->first();
+            // Created-if-missing and row-locked in one go, so concurrent
+            // requests queue on this row and can neither share a number nor
+            // trip over each other creating the bucket (see lockBucket).
+            $sequence = NumberSequence::lockBucket($type, $year, $scope);
 
             $sequence->last_number++;
             $sequence->save();

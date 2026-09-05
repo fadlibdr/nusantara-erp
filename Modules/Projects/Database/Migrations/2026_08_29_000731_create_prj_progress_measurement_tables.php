@@ -78,7 +78,10 @@ return new class extends Migration
             $table->string('notes', 300)->nullable();
             $table->timestamps();
 
-            $table->unique(['progress_measurement_id', 'boq_item_id']);
+            // Nama eksplisit: nama otomatis Laravel untuk pasangan ini 73
+            // karakter, MySQL membatasi pengenal 64 (ditemukan migrate:fresh
+            // di MySQL 5 Sep 2026, Fase 0 T0.2). SQLite tidak peduli namanya.
+            $table->unique(['progress_measurement_id', 'boq_item_id'], 'prj_progress_measurement_items_pm_boq_unique');
             $table->index('boq_item_id');
             $table->index('location_id');
         });

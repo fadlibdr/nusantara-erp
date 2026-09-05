@@ -48,10 +48,14 @@ class DailyReportDateUniquenessTest extends ErpTestCase
         $this->report($project, '2026-03-25');
 
         // Persis bentuk simpanan SQLite yang mengecoh perbandingan string.
-        $this->assertStringContainsString(
-            '00:00:00',
-            (string) DB::table('prj_daily_reports')->value('report_date'),
-        );
+        // MySQL menyimpan kolom DATE sebagai tanggal — tidak ada "00:00:00"
+        // untuk dibuktikan di sana (uji dua driver, Fase 0 T0.2).
+        if (DB::getDriverName() === 'sqlite') {
+            $this->assertStringContainsString(
+                '00:00:00',
+                (string) DB::table('prj_daily_reports')->value('report_date'),
+            );
+        }
 
         $response = $this->actingAs($this->adminUser())->postJson('api/projects/daily-reports', [
             'project_id' => $project->id,

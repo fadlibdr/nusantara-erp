@@ -48,3 +48,6 @@ yarn-error.log
 # Ruang kerja sesi Claude (worktree cabang PR dsb.) — bukan bagian aplikasi,
 # dan `git add -A` pernah menyapunya masuk sebagai gitlink kosong.
 /.claude/
+
+# Python bytecode from the harness (tests/harness/*.py)
+__pycache__/

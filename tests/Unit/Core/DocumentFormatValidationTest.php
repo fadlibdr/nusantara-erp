@@ -2,11 +2,10 @@
 
 namespace Tests\Unit\Core;
 
-use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Validator as ValidatorInstance;
 use InvalidArgumentException;
@@ -16,6 +15,7 @@ use Modules\Core\Services\DocumentNumberService;
 use Modules\Core\Services\SettingService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ErpTestCase;
+use Tests\Support\FixtureSchema;
 
 /**
  * M6 — a document format without {Y} collides every January.
@@ -176,6 +176,18 @@ class DocumentFormatValidationTest extends ErpTestCase
 
     public function test_the_colliding_code_cannot_be_saved_on_a_unique_code_column(): void
     {
+        // Every module document table declares code unique — this stands in for
+        // prc_purchase_orders.code without dragging its fixtures in. Built via
+        // FixtureSchema (on MySQL a CREATE TABLE here would commit the test
+        // transaction implicitly), and built FIRST: InnoDB fixes the
+        // transaction's read view at its first consistent read, and a table
+        // recreated after that answers every later SELECT with 1412 "Table
+        // definition has changed" (measured 5 Sep 2026).
+        FixtureSchema::recreate('document_format_probe', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code', 40)->unique();
+        });
+
         $this->storeLegacyOverride('documents.PO', 'PO-{N4}');
 
         $numbers = app(DocumentNumberService::class);
@@ -186,26 +198,20 @@ class DocumentFormatValidationTest extends ErpTestCase
         Carbon::setTestNow('2027-01-01 00:01:00');
         $firstOf2027 = $numbers->next('PO');
 
-        // Every module document table declares code unique — this stands in for
-        // prc_purchase_orders.code without dragging its fixtures in.
-        Schema::dropIfExists('document_format_probe');
-        Schema::create('document_format_probe', function (Blueprint $table): void {
-            $table->id();
-            $table->string('code', 40)->unique();
-        });
-
         DB::table('document_format_probe')->insert(['code' => $lastOf2026]);
 
         try {
             DB::table('document_format_probe')->insert(['code' => $firstOf2027]);
             $this->fail('Expected the January code to collide with the December one.');
-        } catch (QueryException $e) {
-            $this->assertStringContainsString('UNIQUE constraint failed', $e->getMessage());
+        } catch (UniqueConstraintViolationException $e) {
+            // SQLite says "UNIQUE constraint failed", MySQL "Duplicate entry";
+            // Laravel classifies both as this exception (SQLSTATE 23000).
+            $this->assertSame('23000', (string) $e->getCode());
         }
 
         $this->assertSame(1, DB::table('document_format_probe')->count());
 
-        Schema::dropIfExists('document_format_probe');
+        FixtureSchema::dropAtEnd('document_format_probe');
     }
 
     public function test_the_shipped_format_survives_the_new_year(): void

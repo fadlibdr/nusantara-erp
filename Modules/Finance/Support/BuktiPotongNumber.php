@@ -27,7 +27,9 @@ use Modules\Core\Models\NumberSequence;
  * WHY THE UNIQUE INDEX MATTERS MORE THAN THE LOCK. lockForUpdate() is a no-op
  * on SQLite, so two concurrent approvals could read the same last_number. The
  * unique index on fin_ap_bills.bupot_no is what makes the second one fail to
- * commit rather than quietly issue a duplicate certificate.
+ * commit rather than quietly issue a duplicate certificate. On MySQL (Fase 0)
+ * the lock is real: measured 5 Sep 2026, 80 parallel approvals minted
+ * BP-202609-0001..0080 contiguously (docs/bukti-uji/burst-mysql-2026-09-05.json).
  */
 class BuktiPotongNumber
 {
@@ -39,19 +41,11 @@ class BuktiPotongNumber
     public static function allocate(int $year, int $month): string
     {
         return DB::transaction(function () use ($year, $month): string {
-            $type = self::sequenceType($year, $month);
-
-            $sequence = NumberSequence::query()->firstOrCreate(
-                ['type' => $type, 'year' => $year],
-                ['last_number' => 0],
-            );
-
-            // Re-read under a lock, as DocumentNumberService does, so two
-            // requests cannot share a number on a driver that honours it.
-            $sequence = NumberSequence::query()
-                ->whereKey($sequence->id)
-                ->lockForUpdate()
-                ->first();
+            // Created-if-missing and row-locked in one statement, as
+            // DocumentNumberService does: the first certificate of a new masa
+            // used to be the one moment two approvals could collide creating
+            // this row (NumberSequence::lockBucket explains the MySQL race).
+            $sequence = NumberSequence::lockBucket(self::sequenceType($year, $month), $year);
 
             $sequence->last_number++;
             $sequence->save();

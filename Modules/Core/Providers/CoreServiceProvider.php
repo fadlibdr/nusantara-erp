@@ -10,6 +10,9 @@ use Modules\Core\Console\Commands\ApprovalWatchCommand;
 use Modules\Core\Console\Commands\BackupWatchCommand;
 use Modules\Core\Console\Commands\DeadlineWatchCommand;
 use Modules\Core\Console\Commands\HardenDemoLoginsCommand;
+use Modules\Core\Console\Commands\MigrationVerifyCommand;
+use Modules\Core\Console\Commands\MysqlPreflightCommand;
+use Modules\Core\Console\Commands\SqliteToMysqlCommand;
 use Modules\Core\Events\DocumentTransitioned;
 use Modules\Core\Listeners\SendApprovalNotifications;
 use Modules\Core\Services\AuditService;
@@ -95,7 +98,10 @@ class CoreServiceProvider extends ServiceProvider
 
         Event::listen(DocumentTransitioned::class, SendApprovalNotifications::class);
 
-        $this->commands([BackupWatchCommand::class, DeadlineWatchCommand::class, ApprovalWatchCommand::class, HardenDemoLoginsCommand::class]);
+        $this->commands([
+            BackupWatchCommand::class, DeadlineWatchCommand::class, ApprovalWatchCommand::class, HardenDemoLoginsCommand::class,
+            MysqlPreflightCommand::class, SqliteToMysqlCommand::class, MigrationVerifyCommand::class,
+        ]);
 
         // After the 02:15 backup and before the workday: whoever opens the ERP
         // at nine sees "offsite backup stale" the same morning it went stale.
