@@ -1135,6 +1135,17 @@ CHART_RENDER = """async () => {
   t('gantt_month', () => m.ganttChart({ rows, from: '2026-06-01', to: '2026-12-31', zoom: 'month', today: '2026-09-05', ariaLabel: 'gantt bulan' }));
   t('gantt_week_long', () => m.ganttChart({ rows, from: '2026-06-01', to: '2026-12-31', zoom: 'week', today: '2026-09-05', ariaLabel: 'gantt minggu rentang sama' }));
   t('gantt_empty', () => m.ganttChart({ rows: [], ariaLabel: 'gantt kosong' }));
+  // Data tidak konsisten: dulu end<start jadi bar 1 px bertitle terbalik, '2026-13-45' jadi
+  // "14 Feb 2027", progress 7 jadi "100 %", baris di luar rentang tanpa keterangan apa pun.
+  t('gantt_invalid', () => m.ganttChart({ rows: [
+      { label: 'Terbalik', start: '2026-09-10', end: '2026-09-02' },
+      { label: 'Tanggal rusak', start: 'abc', end: '2026-13-45' },
+      { label: 'Progres 700 %', start: '2026-09-01', end: '2026-09-20', progress: 7 },
+      { label: 'Progres negatif', start: '2026-09-01', end: '2026-09-20', progress: -1 },
+      { label: 'Sebelum rentang', start: '2026-01-01', end: '2026-01-10' },
+      { label: 'Baseline terbalik', start: '2026-09-03', end: '2026-09-12', baselineStart: '2026-09-20', baselineEnd: '2026-09-01' },
+      { label: 'Benar', start: '2026-09-02', end: '2026-09-10', progress: 0.5 }],
+    from: '2026-09-01', to: '2026-09-30', today: '2026-09-05', ariaLabel: 'gantt data tidak konsisten' }));
   return { errors, charts: host.querySelectorAll('svg').length, exports: Object.keys(m).sort() };
 }"""
 
@@ -1185,6 +1196,9 @@ CHART_MEASURE = """(theme) => {
       c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;
       c.rows = svg.querySelectorAll('.gantt-label').length; c.bars = svg.querySelectorAll('.gantt-bar').length; c.baselines = svg.querySelectorAll('.gantt-baseline').length;
       c.open_titles = [...svg.querySelectorAll('.gantt-bar[data-open] title')].map(t => t.textContent);
+      c.row_notes = [...svg.querySelectorAll('.gantt-nodate, .gantt-invalid, .gantt-outside')].map(t => t.getAttribute('class').split(' ')[0] + ': ' + t.textContent);
+      c.bar_titles = [...svg.querySelectorAll('.gantt-bar title')].map(t => t.textContent); c.fabricated_dates = c.bar_titles.filter(t => /2027/.test(t)).length;
+      c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent);
       c.baseline_before_actual = [...svg.querySelectorAll('.gantt-baseline')].every(b => { const bar = b.nextElementSibling; return bar && bar.classList.contains('gantt-bar') && !!(b.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING); });
       const labels = [...svg.querySelectorAll('.gantt-label')].map(t => t.getBoundingClientRect());
       c.row_label_overlaps = labels.filter((r, i) => i && r.top < labels[i - 1].bottom - 1).length;

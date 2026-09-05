@@ -46,8 +46,13 @@
  *     Sabtu–Minggu. Bar baseline digambar DI BAWAH bar aktual (DOM lebih dulu, sedikit lebih
  *     rendah supaya selisihnya terlihat). end kosong → bar terbuka sampai tepi kanan dengan
  *     tepi putus-putus dan <title> yang mengatakannya; start kosong → terbuka di kiri; dua-
- *     duanya kosong → teks "tanpa tanggal". Ketergantungan (dependency) TIDAK digambar —
- *     ditunda ke Fase 2 (kolomnya tidak ada).
+ *     duanya kosong → teks "tanpa tanggal". Data yang tidak konsisten tidak dinormalkan:
+ *     tanggal tidak valid ('2026-13-45') → teks "tanggal tidak valid: …" (bukan 14 Feb 2027),
+ *     end < start → teks "tanggal selesai sebelum mulai (…)", baris di luar from..to → teks
+ *     "di luar rentang (…)", progress di luar 0..1 → lapisan progres dijepit tetapi <title>
+ *     menyebut angka aslinya "(di luar 0–100 %)", baseline terbalik → tidak digambar + catatan
+ *     di <title> bar. Ketergantungan (dependency) TIDAK digambar — ditunda ke Fase 2
+ *     (kolomnya tidak ada).
  *     Lebar alami labelWidth+timelineWidth (900); viewBox tetap responsif, tetapi svg diberi
  *     min-width 80 % lebar alami supaya teks 11 px tidak menyusut di bawah ±9 px — bungkus
  *     dengan <div class="chart-scroll"> agar menggulir mendatar di ponsel.
@@ -575,12 +580,26 @@ export function sparkline({ points = [], width = 120, height = 32, ariaLabel = '
 
 /* ------------------------------------------------------------ ganttChart */
 
+/** 'YYYY-MM-DD' (atau string tanggal lain yang bisa di-parse) → hari UTC dalam ms.
+    Kosong → null ("belum ditetapkan"); TIDAK VALID → NaN ('2026-13-45', '2026-02-30', 'abc'):
+    Date.UTC menggulung bulan 13 tanggal 45 jadi 14 Feb 2027 — tanggal yang tidak ada di data
+    dan dulu tampil di <title> bar (aturan kejujuran: tak diketahui → null, bukan dikarang). */
 function parseDay(value) {
   if (value === null || value === undefined || value === '') return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
-  if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  if (m) {
+    const ms = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    const d = new Date(ms);
+    return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? ms : NaN;
+  }
   const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? Math.floor(parsed / DAY) * DAY : null;
+  return Number.isFinite(parsed) ? Math.floor(parsed / DAY) * DAY : NaN;
+}
+
+/** parseDay tanpa NaN: tidak valid diperlakukan seperti kosong (untuk from/to/today). */
+function dayOrNull(value) {
+  const d = parseDay(value);
+  return Number.isNaN(d) ? null : d;
 }
 
 function localToday() {
@@ -592,33 +611,47 @@ export function ganttChart({
   rows = [], from, to, zoom = 'week', today, weekends = true, ariaLabel = 'Gantt',
   sourceNote, labelWidth = 180, timelineWidth = 720, rowHeight = 28,
 } = {}) {
+  /* Data yang tidak konsisten TIDAK dinormalkan diam-diam: tanggal tidak valid, selesai
+     sebelum mulai, progres di luar 0..1 — semuanya tetap terlihat sebagai apa adanya
+     (teks di baris / keterangan di <title>), bukan bar 1 px bertitle terbalik atau "100 %". */
   const tasks = (Array.isArray(rows) ? rows : []).map((r, i) => {
-    const progress = finite(r?.progress);
-    return {
+    const rawProgress = finite(r?.progress);
+    const parsed = Object.fromEntries(['start', 'end', 'baselineStart', 'baselineEnd'].map((k) => [k, parseDay(r?.[k])]));
+    const invalid = Object.keys(parsed).filter((k) => Number.isNaN(parsed[k]));
+    const valid = (k) => (Number.isNaN(parsed[k]) ? null : parsed[k]);
+    const t = {
       label: String(r?.label ?? `Baris ${i + 1}`),
-      start: parseDay(r?.start), end: parseDay(r?.end),
-      bStart: parseDay(r?.baselineStart), bEnd: parseDay(r?.baselineEnd),
-      progress: progress === null ? null : Math.max(0, Math.min(1, progress)),
+      start: valid('start'), end: valid('end'),
+      bStart: valid('baselineStart'), bEnd: valid('baselineEnd'),
+      invalid: invalid.map((k) => `${k} "${truncate(r[k], 24)}"`),
+      invalidDates: invalid.some((k) => k === 'start' || k === 'end'),
+      rawProgress,
+      progress: rawProgress === null ? null : Math.max(0, Math.min(1, rawProgress)),
       level: Math.max(0, Math.floor(finite(r?.level) ?? 0)),
     };
+    t.inverted = t.start !== null && t.end !== null && t.end < t.start;
+    t.bInverted = t.bStart !== null && t.bEnd !== null && t.bEnd < t.bStart;
+    t.hasBaseline = t.bStart !== null && t.bEnd !== null && !t.bInverted;
+    return t;
   });
   const dates = tasks.flatMap((t) => [t.start, t.end, t.bStart, t.bEnd]).filter((d) => d !== null);
   const W = labelWidth + timelineWidth;
   const headerH = 36;
   const noteH = sourceNote ? 16 : 0;
-  if (!tasks.length || (!dates.length && parseDay(from) === null)) return placeholder('gantt', ariaLabel);
+  if (!tasks.length || (!dates.length && dayOrNull(from) === null)) return placeholder('gantt', ariaLabel);
 
-  const fromMs = parseDay(from) ?? Math.min(...dates);
-  let toMs = parseDay(to) ?? Math.max(...dates);
+  const fromMs = dayOrNull(from) ?? Math.min(...dates);
+  let toMs = dayOrNull(to) ?? Math.max(...dates);
   if (!(toMs > fromMs)) toMs = fromMs + 6 * DAY;
-  const todayMs = parseDay(today) ?? localToday();
+  const todayMs = dayOrNull(today) ?? localToday();
   const showToday = todayMs >= fromMs && todayMs <= toMs;
+  const range = (a, b) => `${fullDate.format(new Date(a))} – ${fullDate.format(new Date(b))}`;
 
   /* Legenda hanya menyebut yang memang digambar: "Hari ini" tanpa garisnya atau
      "Baseline" tanpa satu pun baseline adalah legenda yang berbohong. */
   const legendItems = [{ label: 'Aktual', token: '--chart-1', kind: 'box', opacity: 0.35 }];
   if (tasks.some((t) => t.progress !== null && t.progress > 0)) legendItems.push({ label: 'Progres', token: '--chart-1', kind: 'box' });
-  if (tasks.some((t) => t.bStart !== null && t.bEnd !== null)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
+  if (tasks.some((t) => t.hasBaseline)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
   if (showToday) legendItems.push({ label: 'Hari ini', token: '--chart-today', kind: 'line' });
   const legendLayout = legendRows(legendItems, W, 8);
   const legendH = legendLayout.length * 16;
@@ -695,30 +728,33 @@ export function ganttChart({
     const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'font-weight': t.level === 0 ? 600 : null }, truncate(t.label, Math.floor((labelWidth - 14 - indent) / CHAR_W)));
     svg.appendChild(text);
 
-    if (t.bStart !== null && t.bEnd !== null && t.bEnd + DAY > fromMs && t.bStart <= toMs) {
+    if (t.hasBaseline && t.bEnd + DAY > fromMs && t.bStart <= toMs) {
       const a = clampX(x(t.bStart));
       const b = clampX(x(t.bEnd + DAY));
       const base = make('rect', { class: 'gantt-baseline', x: a, y: mid + 1, width: Math.max(1, b - a), height: 7, rx: 1.5 });
-      svg.appendChild(mark(paint(base, 'fill', '--chart-baseline'), `${t.label} — baseline: ${fullDate.format(new Date(t.bStart))} – ${fullDate.format(new Date(t.bEnd))}`));
+      svg.appendChild(mark(paint(base, 'fill', '--chart-baseline'), `${t.label} — baseline: ${range(t.bStart, t.bEnd)}`));
     }
 
-    if (t.start === null && t.end === null) {
-      svg.appendChild(make('text', { class: 'gantt-nodate chart-tick', x: labelWidth + 6, y: mid + 4 }, 'tanpa tanggal'));
-      return;
-    }
+    const rowNote = (cls, text) => svg.appendChild(make('text', { class: `${cls} chart-tick`, x: labelWidth + 6, y: mid + 4 }, text));
+    if (t.invalidDates) { rowNote('gantt-invalid', `tanggal tidak valid: ${t.invalid.join(', ')}`); return; }
+    if (t.inverted) { rowNote('gantt-invalid', `tanggal selesai sebelum mulai (${range(t.start, t.end)})`); return; }
+    if (t.start === null && t.end === null) { rowNote('gantt-nodate', 'tanpa tanggal'); return; }
     const openStart = t.start === null;
     const openEnd = t.end === null;
     const s = openStart ? fromMs : t.start;
     const e = openEnd ? toMs : t.end;
-    if (e + DAY <= fromMs || s > toMs) return; // di luar jendela
+    if (e + DAY <= fromMs || s > toMs) { rowNote('gantt-outside', `di luar rentang (${range(s, e)})`); return; }
     const a = clampX(x(s));
     const b = clampX(x(e + DAY));
-    const pctText = t.progress === null ? '' : ` · ${percentFormat.format(t.progress * 100)} %`;
-    const title = openEnd
-      ? `${t.label}: mulai ${fullDate.format(new Date(t.start))}, tanggal selesai belum ditetapkan (bar terbuka)${pctText}`
+    const pctText = t.rawProgress === null ? ''
+      : t.rawProgress !== t.progress ? ` · progres ${percentFormat.format(t.rawProgress * 100)} % (di luar 0–100 %)`
+        : ` · ${percentFormat.format(t.progress * 100)} %`;
+    const baselineNote = t.bInverted ? ' · baseline tidak valid (selesai sebelum mulai)' : t.invalid.length ? ` · baseline tidak valid: ${t.invalid.join(', ')}` : '';
+    const title = (openEnd
+      ? `${t.label}: mulai ${fullDate.format(new Date(t.start))}, tanggal selesai belum ditetapkan (bar terbuka)`
       : openStart
-        ? `${t.label}: tanggal mulai belum ditetapkan, selesai ${fullDate.format(new Date(t.end))} (bar terbuka)${pctText}`
-        : `${t.label}: ${fullDate.format(new Date(t.start))} – ${fullDate.format(new Date(t.end))}${pctText}`;
+        ? `${t.label}: tanggal mulai belum ditetapkan, selesai ${fullDate.format(new Date(t.end))} (bar terbuka)`
+        : `${t.label}: ${range(t.start, t.end)}`) + pctText + baselineNote;
     const bar = make('rect', { class: 'gantt-bar', x: a, y: mid - 9, width: Math.max(1, b - a), height: 14, rx: 2, 'fill-opacity': 0.35, 'data-open': openEnd ? 'end' : openStart ? 'start' : null, 'data-level': t.level });
     svg.appendChild(mark(paint(bar, 'fill', '--chart-1'), title));
     if (t.progress !== null && t.progress > 0) {
