@@ -1184,6 +1184,9 @@ CHART_RENDER = """async () => {
       { label: 'Progres 700 %', start: '2026-09-01', end: '2026-09-20', progress: 7 },
       { label: 'Progres negatif', start: '2026-09-01', end: '2026-09-20', progress: -1 },
       { label: 'Sebelum rentang', start: '2026-01-01', end: '2026-01-10' },
+      // Baris terbuka di luar rentang: dulu batas rentang (01 Sep / 30 Sep 2026) dicetak sebagai tanggal tugas.
+      { label: 'Buka-awal lampau', start: null, end: '2026-01-10' },
+      { label: 'Buka-akhir mendatang', start: '2027-01-01', end: null },
       { label: 'Baseline terbalik', start: '2026-09-03', end: '2026-09-12', baselineStart: '2026-09-20', baselineEnd: '2026-09-01' },
       { label: 'Benar', start: '2026-09-02', end: '2026-09-10', progress: 0.5 }],
     from: '2026-09-01', to: '2026-09-30', today: '2026-09-05', ariaLabel: 'gantt data tidak konsisten' }));
@@ -1263,6 +1266,8 @@ CHART_MEASURE = """(theme) => {
       c.open_titles = [...svg.querySelectorAll('.gantt-bar[data-open] title')].map(t => t.textContent);
       c.row_notes = [...svg.querySelectorAll('.gantt-nodate, .gantt-invalid, .gantt-outside')].map(t => t.getAttribute('class').split(' ')[0] + ': ' + t.textContent);
       c.bar_titles = [...svg.querySelectorAll('.gantt-bar title')].map(t => t.textContent); c.fabricated_dates = c.bar_titles.filter(t => /2027/.test(t)).length;
+      // Catatan 'di luar rentang' yang mengutip batas rentang fixture (01 Sep / 30 Sep 2026) sebagai tanggal tugas — baris terbuka tidak punya tanggal itu.
+      c.outside_notes = [...svg.querySelectorAll('.gantt-outside')].map(t => t.textContent); c.outside_notes_quoting_window = c.outside_notes.filter(t => /01 Sep 2026|30 Sep 2026/.test(t)).length;
       c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent);
       c.baseline_before_actual = [...svg.querySelectorAll('.gantt-baseline')].every(b => { const bar = b.nextElementSibling; return bar && bar.classList.contains('gantt-bar') && !!(b.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING); });
       // Label baris vs jadwal: label yang menembus kolom jadwal (bbox kanan > x sumbu = labelWidth) —
@@ -1294,6 +1299,7 @@ CHART_MEASURE = """(theme) => {
       gantt_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('gantt') && !c.empty).map(([, c]) => c.rendered_font_px)),
       line_bar_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => (n.startsWith('line') || n.startsWith('bar')) && !c.empty).map(([, c]) => c.rendered_font_px)),
       label_into_timeline: total.reduce((a, c) => a + (c.label_into_timeline || 0), 0),
+      outside_notes_quoting_window: total.reduce((a, c) => a + (c.outside_notes_quoting_window || 0), 0),
       min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 

@@ -62,7 +62,9 @@
  *     duanya kosong → teks "tanpa tanggal". Data yang tidak konsisten tidak dinormalkan:
  *     tanggal tidak valid ('2026-13-45') → teks "tanggal tidak valid: …" (bukan 14 Feb 2027),
  *     end < start → teks "tanggal selesai sebelum mulai (…)", baris di luar from..to → teks
- *     "di luar rentang (…)", progress di luar 0..1 → lapisan progres dijepit tetapi <title>
+ *     "di luar rentang (…)" — baris terbuka menyebut hanya ujung yang ada: "selesai …, sebelum
+ *     rentang (mulai belum ditetapkan)" / "mulai …, setelah rentang (selesai belum ditetapkan)",
+ *     batas from/to tidak pernah dikutip seolah tanggal tugas; progress di luar 0..1 → lapisan progres dijepit tetapi <title>
  *     menyebut angka aslinya "(di luar 0–100 %)", baseline terbalik → tidak digambar + catatan
  *     di <title> bar. Ketergantungan (dependency) TIDAK digambar — ditunda ke Fase 2
  *     (kolomnya tidak ada).
@@ -859,7 +861,17 @@ export function ganttChart({
     const openEnd = t.end === null;
     const s = openStart ? fromMs : t.start;
     const e = openEnd ? toMs : t.end;
-    if (e + DAY <= fromMs || s > toMs) { rowNote('gantt-outside', `di luar rentang (${range(s, e)})`); return; }
+    if (e + DAY <= fromMs || s > toMs) {
+      /* Baris terbuka di luar rentang menyebut HANYA tanggal yang ada: batas rentang (from/to)
+         yang disubstitusikan untuk ujung yang kosong dulu ikut dicetak sebagai tanggal tugas —
+         'di luar rentang (01 Sep 2026 – 10 Jan 2026)' untuk {start:null, end:'2026-01-10'}
+         (verifikasi P1-A putaran 2). Baris terbuka hanya bisa berada di satu sisi: ujung yang
+         kosong menyentuh rentang. */
+      rowNote('gantt-outside', openStart ? `selesai ${fullDate.format(new Date(t.end))}, sebelum rentang (mulai belum ditetapkan)`
+        : openEnd ? `mulai ${fullDate.format(new Date(t.start))}, setelah rentang (selesai belum ditetapkan)`
+          : `di luar rentang (${range(s, e)})`);
+      return;
+    }
     const a = clampX(x(s));
     const b = clampX(x(e + DAY));
     const pctText = t.rawProgress === null ? ''
