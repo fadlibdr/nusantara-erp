@@ -1075,7 +1075,13 @@ def s19(browser):
 # tiap bentuk ber-data-token == nilai token itu, teks == --chart-text, jumlah <title> ==
 # jumlah .mark, placeholder memuat "Belum ada data", gantt punya garis hari ini + rect akhir
 # pekan. Nilai yang dicatat adalah angka terukur (hitungan, rasio kontras, lebar render),
-# bukan boolean saja.
+# bukan boolean saja. Verifikasi P1-A (5 Sep 2026) menambah: neg_dims (atribut negatif yang
+# ditolak Chromium) + console.error, geometri di luar viewBox (getBBox; legenda/catatan/label
+# tick yang melampaui svg), klip garis & titik di luar sumbu paksa, tinggi legenda vs baris
+# tergambar, ukuran huruf placeholder/donat/gantt terender per viewport, cincin donat irisan
+# mungil, legenda irisan yang dikecualikan, gantt data tidak konsisten, label gantt terpotong
+# ber-<title> (satu-satunya <title> di luar .mark), label baris vs kolom jadwal, teks yang
+# HANYA cocok aturan .chart-lib (tabular-nums), dan pass cetak (abu-abu, pola garis/tepi).
 CHART_RENDER = """async () => {
   const m = await import('/app/js/charts.js');
   const host = document.createElement('div'); host.id = 's20';
@@ -1187,7 +1193,9 @@ CHART_MEASURE = """(theme) => {
     const painted = [...svg.querySelectorAll('[data-token]')]; const mismatch = [];
     painted.forEach(el => { const got = getComputedStyle(el)[el.dataset.paint]; const want = rgb(tokens[el.dataset.token] || v(el.dataset.token)); if (got !== want) mismatch.push(`${el.tagName}.${el.getAttribute('class')} ${el.dataset.token}/${el.dataset.paint}: ${got} != ${want}`); });
     const texts = [...svg.querySelectorAll('text:not([data-token])')];
-    const textOk = texts.filter(t => getComputedStyle(t).fill === rgb(tokens['--chart-text'])).length;
+    // Pembeda: --chart-text == --muted di kedua tema, jadi fill saja tidak membedakan aturan
+    // .chart-lib text dari .chart text (yang juga cocok). tabular-nums hanya diberi .chart-lib.
+    const textOk = texts.filter(t => { const cs = getComputedStyle(t); return cs.fill === rgb(tokens['--chart-text']) && cs.fontVariantNumeric === 'tabular-nums'; }).length;
     const fonts = [...new Set(texts.map(t => getComputedStyle(t).fontFamily.split(',')[0].trim()))];
     const numeric = [...new Set(texts.map(t => getComputedStyle(t).fontVariantNumeric))];
     const box = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
@@ -1202,7 +1210,7 @@ CHART_MEASURE = """(theme) => {
     // Geometri di luar viewBox (getBBox dalam koordinat svg): legenda/catatan yang melampaui tinggi,
     // label tick yang keluar tepi kanan, titik di luar plot — .chart { overflow: visible } melukisnya
     // di atas elemen berikutnya. Path yang diklip dikecualikan (getBBox = geometri sebelum klip).
-    const outside = [...svg.querySelectorAll('circle, rect, line, text, path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
+    const outside = [...svg.querySelectorAll('circle, rect, line, text:not([clip-path]), path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
     c.outside_viewbox = outside.length; c.outside_viewbox_sample = outside.slice(0, 3).map(e => e.tagName + '.' + (e.getAttribute('class') || '') + ' ' + (e.textContent || '').slice(0, 20));
     const legendYs = [...svg.querySelectorAll('text.chart-legend')].map(t => +t.getAttribute('y')); const note = svg.querySelector('text.chart-note');
     if (legendYs.length) { c.legend_rows = new Set(legendYs).size; c.legend_overflow_px = +(Math.max(...legendYs, note ? +note.getAttribute('y') : 0) + 4 - vb.height).toFixed(1); }
@@ -1233,8 +1241,10 @@ CHART_MEASURE = """(theme) => {
       c.bar_titles = [...svg.querySelectorAll('.gantt-bar title')].map(t => t.textContent); c.fabricated_dates = c.bar_titles.filter(t => /2027/.test(t)).length;
       c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent);
       c.baseline_before_actual = [...svg.querySelectorAll('.gantt-baseline')].every(b => { const bar = b.nextElementSibling; return bar && bar.classList.contains('gantt-bar') && !!(b.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING); });
-      const labels = [...svg.querySelectorAll('.gantt-label')].map(t => t.getBoundingClientRect());
-      c.row_label_overlaps = labels.filter((r, i) => i && r.top < labels[i - 1].bottom - 1).length;
+      // Label baris vs jadwal: label yang menembus kolom jadwal (bbox kanan > x sumbu = labelWidth) —
+      // pemeriksaan lama membandingkan baris yang berjarak rowHeight secara konstruksi (selalu 0).
+      const axis = svg.querySelector('.chart-axis'); const axisX = axis ? +axis.getAttribute('x1') : null; // placeholder gantt tidak punya sumbu
+      c.label_into_timeline = axisX === null ? 0 : [...svg.querySelectorAll('.gantt-label')].filter(t => { const b = t.getBBox(); return b.x + b.width > axisX - 2; }).length;
       const sc = w.querySelector('.chart-scroll'); c.scroll_width = sc.scrollWidth; c.client_width = sc.clientWidth; c.scrolls = sc.scrollWidth > sc.clientWidth + 1; c.min_width = svg.style.minWidth;
     }
     charts[name] = c;
@@ -1252,6 +1262,11 @@ CHART_MEASURE = """(theme) => {
       empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)),
       // Donat: ukuran huruf tidak boleh bergantung pada panjang label (donut 4 irisan vs donut_one vs donut_tiny).
       donut_font_px: Object.fromEntries(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([n, c]) => [n, c.rendered_font_px])),
+      // Lantai ukuran huruf terender per viewport: gantt punya min-width 80 % (≥ 8,8 px) — garis/batang 720 px
+      // di ponsel 390 (5,5 px) adalah pertanyaan terbuka P1-A (lebar per viewport), dicatat, belum dipaku.
+      gantt_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('gantt') && !c.empty).map(([, c]) => c.rendered_font_px)),
+      line_bar_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => (n.startsWith('line') || n.startsWith('bar')) && !c.empty).map(([, c]) => c.rendered_font_px)),
+      label_into_timeline: total.reduce((a, c) => a + (c.label_into_timeline || 0), 0),
       min_series_contrast: Math.min(...Object.values(contrast)) } };
 }"""
 

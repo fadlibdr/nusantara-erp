@@ -732,6 +732,11 @@ export function ganttChart({
 
   const svg = frame('gantt', W, H, ariaLabel);
   svg.style.minWidth = `${Math.round(W * 0.8)}px`;
+  /* Label baris 11,5 px (level 0 tebal): 5,6–5,9 px/glyph normal, 5,9–6,1 tebal (diukur 5 Sep
+     2026) — pemotongan memakai faktor itu, dan kolom label diklip pada labelWidth − 6 supaya
+     label berglyph lebar ('WWW…', 10,9 px/glyph) pun tidak pernah menembus kolom jadwal. */
+  const labelChars = (level) => Math.floor((labelWidth - 14 - level * 12) / (CHAR_W * (11.5 / 11) * (level === 0 ? 1.06 : 1)));
+  const labelClip = plotClip(svg, 0, 0, labelWidth - 8, H);
 
   /* Bayangan akhir pekan: Sabtu+Minggu digabung jadi satu rect. */
   if (weekends) {
@@ -793,8 +798,8 @@ export function ganttChart({
     const mid = top + rowHeight / 2;
     svg.appendChild(paint(make('line', { class: 'gantt-row-line', x1: 0, x2: W, y1: top + rowHeight, y2: top + rowHeight }), 'stroke', '--chart-grid'));
     const indent = t.level * 12;
-    const shown = truncate(t.label, Math.floor((labelWidth - 14 - indent) / CHAR_W));
-    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'data-truncated': shown !== t.label ? 'true' : null, 'font-weight': t.level === 0 ? 600 : null }, shown);
+    const shown = truncate(t.label, labelChars(t.level));
+    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'data-truncated': shown !== t.label ? 'true' : null, 'font-weight': t.level === 0 ? 600 : null, 'clip-path': labelClip }, shown);
     /* Label yang dipotong membawa nama lengkapnya di <title> — satu-satunya <title> di
        luar .mark (nama WBS lazim > 29 huruf, dan baris "tanpa tanggal" tidak punya bar
        yang <title>-nya mengulang nama itu). Harness S20 menghitung .mark > title. */
