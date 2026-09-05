@@ -1009,7 +1009,9 @@ bash $S pra          # 0. mysql active, new code deployed, .env still sqlite, no
                      #    (diff against docs/bukti-uji/mysql-preflight-erp1-2026-09-05.json:
                      #    only generated_at and guarded flags may differ), disk space
 bash $S basisdata    # 1. CREATE DATABASE erp (root, auth_socket) + migrate:fresh → 190 tables, 0 rows
-bash $S down         # 2. php artisan down --secret=<random> --retry=60; park /etc/cron.d/erp1
+bash $S down         # 2. php artisan down --secret=<random> --retry=60; systemctl stop erp1-queue
+                     #    erp1-scheduler when enabled (P-0b — a worker still writing to the SQLite
+                     #    file being frozen is data loss); park /etc/cron.d/erp1
                      #    (→ erp1.cutover-parked: a dot in the name, cron ignores it); wait for a
                      #    running schedule:run; 10 s for in-flight requests; PRAGMA
                      #    wal_checkpoint(TRUNCATE); sha256 of the frozen file
@@ -1028,7 +1030,8 @@ bash $S smoke        # 7. through nginx with the down secret's bypass cookie: /u
                      #    /api/iam/auth/login → token; GET /api/procurement/purchase-orders → 200;
                      #    POST /api/projects/daily-reports for an EXISTING (project, date) → 422
                      #    naming report_date and the row count unchanged; erp:permission-check → 0
-bash $S up           # 8. php artisan up; cron back; /etc/erp1/mysql-backup.cnf (600) +
+bash $S up           # 8. php artisan up; cron back; systemctl start the two units when enabled;
+                     #    /etc/erp1/mysql-backup.cnf (600) +
                      #    BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=erp appended to
                      #    backup.conf; backup-erp1.sh --local-only; --restore-drill --source=local
                      #    must print RESTORE DRILL PASSED; prints the 24-hour rollback deadline
