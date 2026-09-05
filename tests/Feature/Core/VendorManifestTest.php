@@ -31,7 +31,9 @@ use Tests\TestCase;
  *  (c) jumlah gzip -9 seluruh public/app/vendor ≤ 60 KB (angkanya dicetak);
  *  (d) sprite Lucide adalah XML sah, setiap <symbol> ber-id "lucide-…" + viewBox,
  *      tanpa <script> dan tanpa URL selain xmlns;
- *  (e) Sortable.min.js identik byte demi byte dengan sha manifestnya.
+ *  (e) Sortable.min.js identik byte demi byte dengan sha manifestnya dan diawali
+ *      banner rilisnya — bukan bukti kecocokan dengan registry (itu langkah tangan
+ *      di VENDOR.md).
  *
  * SPA_ROOT (env) mengalihkan akar pindaian ke salinan coretan — dipakai untuk
  * membuktikan uji ini merah dulu (script CDN palsu, byte yang diubah) tanpa
@@ -236,7 +238,11 @@ class VendorManifestTest extends TestCase
 
         $path = $this->vendorRoot().'/'.$paths[0];
         $this->assertFileExists($path);
-        $this->assertSame($manifest[$paths[0]], hash('sha256', (string) file_get_contents($path)), 'Sortable.min.js tidak identik dengan sha manifest — bukan berkas yang diverifikasi terhadap tarball registry.');
+        /* Uji ini hanya membandingkan berkas dengan sha di VENDOR.md (dan banner rilisnya);
+           ia TIDAK melihat registry — 1 byte diubah + sha manifest ikut diperbarui tetap hijau
+           (verifikasi P1-A, mutasi m29). Verifikasi terhadap tarball registry adalah langkah
+           tangan di VENDOR.md § Cara memperbarui. */
+        $this->assertSame($manifest[$paths[0]], hash('sha256', (string) file_get_contents($path)), 'Sortable.min.js berbeda dari sha manifest — perbarui manifest hanya dari tarball yang diverifikasi terhadap registry (VENDOR.md § Cara memperbarui); uji ini tidak memeriksa registry.');
         $this->assertStringStartsWith('/*! Sortable ', (string) file_get_contents($path, false, null, 0, 13), 'Sortable.min.js tidak diawali banner rilisnya.');
     }
 
