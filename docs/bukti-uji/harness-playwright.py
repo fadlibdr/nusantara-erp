@@ -1097,6 +1097,12 @@ CHART_RENDER = """async () => {
   // (menimpa kepala kartu) — kini garis diklip dan titiknya ditempel di tepi plot + "(di luar sumbu)".
   t('line_clip', () => m.lineChart({ series: [{ label: 'Progres', points: [{x:0,y:10},{x:1,y:60},{x:2,y:140},{x:3,y:-20},{x:4,y:50}], area: true }], yMin: 0, yMax: 100, yFormat: (v) => v + ' %', ariaLabel: 'di luar sumbu' }));
   t('line_empty', () => m.lineChart({ series: [{ label: 'Kosong', points: [{x:0,y:null},{x:1,y:NaN}] }], ariaLabel: 'kosong' }));
+  // 8 seri berlabel 28 huruf + sumbu Rp (PAD.left 120) + catatan sumber: legenda membungkus 4 baris —
+  // tinggi viewBox harus dihitung dari tata letak yang sama (dulu 3 baris, catatan 16 px di luar svg).
+  const longLabel = (i) => ('Seri ' + i + ' ' + 'x'.repeat(40)).slice(0, 28);
+  const rpAxis = (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v);
+  t('line_legend_wrap', () => m.lineChart({ series: [1,2,3,4,5,6,7,8].map(i => ({ label: longLabel(i), points: [{x:0,y:1e9*i},{x:1,y:2e9*i}] })), yFormat: rpAxis, sourceNote: 'Sumber: fixture legenda 8 seri', ariaLabel: 'legenda membungkus' }));
+  t('bar_legend_wrap', () => m.barChart({ categories: ['A','B','C'], series: [1,2,3,4,5,6,7,8].map(i => ({ label: longLabel(i), values: [1e9*i, 2e9*i, 1.5e9*i] })), yFormat: rpAxis, sourceNote: 'Sumber: fixture', ariaLabel: 'legenda batang membungkus' }));
   t('bar', () => m.barChart({ categories: ['Jan','Feb','Mar','Apr'], series: [{ label: 'RAP', values: [3,-2,5,4] },{ label: 'Realisasi', values: [1,4,null,6] }], yFormat: rp, ariaLabel: 'uji batang' }));
   t('bar_stacked', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Material', values: [3,2,1] },{ label: 'Upah', values: [1,4,2] },{ label: 'Alat', values: [-1,1,0] }], stacked: true, ariaLabel: 'tumpuk' }));
   t('bar_horizontal', () => m.barChart({ categories: ['Gudang Utama Jakarta Selatan','Gudang 2','Gudang 3'], series: [{ label: 'Stok', values: [30,12,0] }], horizontal: true, ariaLabel: 'mendatar' }));
@@ -1165,6 +1171,8 @@ CHART_MEASURE = """(theme) => {
     // di atas elemen berikutnya. Path yang diklip dikecualikan (getBBox = geometri sebelum klip).
     const outside = [...svg.querySelectorAll('circle, rect, line, text, path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
     c.outside_viewbox = outside.length; c.outside_viewbox_sample = outside.slice(0, 3).map(e => e.tagName + '.' + (e.getAttribute('class') || '') + ' ' + (e.textContent || '').slice(0, 20));
+    const legendYs = [...svg.querySelectorAll('text.chart-legend')].map(t => +t.getAttribute('y')); const note = svg.querySelector('text.chart-note');
+    if (legendYs.length) { c.legend_rows = new Set(legendYs).size; c.legend_overflow_px = +(Math.max(...legendYs, note ? +note.getAttribute('y') : 0) + 4 - vb.height).toFixed(1); }
     if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length;
       const clipRect = svg.querySelector('clipPath rect'); const top = clipRect ? +clipRect.getAttribute('y') + 2 : 14; const bottom = clipRect ? top + +clipRect.getAttribute('height') - 4 : 232;
       c.clipped_paths = svg.querySelectorAll('path.series-line[clip-path], path.series-area[clip-path]').length; c.unclipped_paths = svg.querySelectorAll('path.series-line:not([clip-path]), path.series-area:not([clip-path])').length;
@@ -1190,6 +1198,7 @@ CHART_MEASURE = """(theme) => {
       marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), titles_equal_marks: total.every(c => c.marks === c.titles),
       neg_dims: total.reduce((a, c) => a + c.neg_dims, 0), outside_viewbox: total.reduce((a, c) => a + c.outside_viewbox, 0),
       dots_outside_plot: total.reduce((a, c) => a + (c.dots_outside_plot || 0), 0), unclipped_paths: total.reduce((a, c) => a + (c.unclipped_paths || 0), 0),
+      legend_overflow_max_px: Math.max(...total.map(c => c.legend_overflow_px ?? -999)),
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
       empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length,
       // Placeholder harus tetap terbaca di ponsel: viewBox 720/900 menyusutkan teksnya ke 5,5/4,4 px (diukur 5 Sep 2026).

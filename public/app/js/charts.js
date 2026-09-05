@@ -284,10 +284,6 @@ export function lineChart({
   });
 
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
-  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'line', dashed: s.dashed, series: s.index }));
-  const legendH = legend && items.length ? legendRows(items, width).length * 16 : 0;
-  const noteH = sourceNote ? 16 : 0;
-  const H = height + legendH + noteH;
   if (!ys.length) return placeholder('line', ariaLabel);
 
   const { lo, hi, ticks } = domain(ys, yMin, yMax);
@@ -298,6 +294,15 @@ export function lineChart({
   const PAD = { top: 14, right: 16, bottom: 28, left: Math.min(120, Math.max(36, Math.max(...ticks.map((t) => textWidth(fy(t)))) + 14)) };
   const plotW = width - PAD.left - PAD.right;
   const plotH = height - PAD.top - PAD.bottom;
+  /* Legenda ditata SEKALI dari x0 = PAD.left dan baris-baris itulah yang digambar: menghitung
+     tingginya dari x0 = 0 memberi baris lebih sedikit daripada yang tergambar (sumbu Rp →
+     PAD.left 120, 8 seri berlabel 26–31 huruf: 3 baris dihitung, 4 digambar, catatan sumber
+     16 px di luar viewBox — menimpa kepala kartu berikutnya; diukur 5 Sep 2026). */
+  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'line', dashed: s.dashed, series: s.index }));
+  const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
+  const legendH = legendLayout.length * 16;
+  const noteH = sourceNote ? 16 : 0;
+  const H = height + legendH + noteH;
   const xs = [...new Set(rows.flatMap((s) => s.points.map((p) => p.x)))].sort((a, b) => a - b);
   const x0 = xs[0];
   const x1 = xs[xs.length - 1];
@@ -348,7 +353,7 @@ export function lineChart({
   });
 
   let cursor = height + 12;
-  if (legendH) cursor += drawLegend(svg, legendRows(items, width, PAD.left), cursor);
+  if (legendH) cursor += drawLegend(svg, legendLayout, cursor);
   noteLine(svg, sourceNote, PAD.left, cursor);
   return svg;
 }
@@ -365,8 +370,6 @@ export function barChart({
     label: s?.label ?? `Seri ${i + 1}`, token: seriesToken(i), index: i + 1,
     values: cats.map((_, j) => finite(Array.isArray(s?.values) ? s.values[j] : null)),
   }));
-  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'box', series: s.index }));
-  const legendH = legend && items.length > 1 ? legendRows(items, width).length * 16 : 0;
   const noteH = sourceNote ? 16 : 0;
   const n = cats.length;
   const m = rows.length;
@@ -389,6 +392,10 @@ export function barChart({
   const PAD = horizontal
     ? { top: 8, right: 16, bottom: 28, left: Math.max(40, catLabelW) }
     : { top: 14, right: 16, bottom: 28, left: Math.min(120, Math.max(36, Math.max(...ticks.map((t) => textWidth(fy(t)))) + 14)) };
+  /* Legenda ditata sekali dari PAD.left (lihat catatan di lineChart). */
+  const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'box', series: s.index }));
+  const legendLayout = legend && items.length > 1 ? legendRows(items, width, PAD.left) : [];
+  const legendH = legendLayout.length * 16;
   const H = PAD.top + plotHeight + PAD.bottom + legendH + noteH;
   const plotW = width - PAD.left - PAD.right;
   const plotH = plotHeight;
@@ -460,7 +467,7 @@ export function barChart({
   });
 
   let cursor = PAD.top + plotH + PAD.bottom + 8;
-  if (legendH) cursor += drawLegend(svg, legendRows(items, width, PAD.left), cursor);
+  if (legendH) cursor += drawLegend(svg, legendLayout, cursor);
   noteLine(svg, sourceNote, PAD.left, cursor);
   return svg;
 }
@@ -613,7 +620,8 @@ export function ganttChart({
   if (tasks.some((t) => t.progress !== null && t.progress > 0)) legendItems.push({ label: 'Progres', token: '--chart-1', kind: 'box' });
   if (tasks.some((t) => t.bStart !== null && t.bEnd !== null)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
   if (showToday) legendItems.push({ label: 'Hari ini', token: '--chart-today', kind: 'line' });
-  const legendH = legendRows(legendItems, W).length * 16;
+  const legendLayout = legendRows(legendItems, W, 8);
+  const legendH = legendLayout.length * 16;
   const H = headerH + tasks.length * rowHeight + 10 + legendH + noteH;
   const days = Math.round((toMs - fromMs) / DAY) + 1; // `to` inklusif
   const dayW = timelineWidth / days;
@@ -728,7 +736,7 @@ export function ganttChart({
   }
 
   let cursor = rowsTop + rowsH + 18;
-  cursor += drawLegend(svg, legendRows(legendItems, W, 8), cursor);
+  cursor += drawLegend(svg, legendLayout, cursor);
   noteLine(svg, sourceNote, 8, cursor);
   return svg;
 }
