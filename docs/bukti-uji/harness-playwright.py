@@ -771,6 +771,9 @@ def s15(browser):
                               geolocation={"latitude": -6.2, "longitude": 106.8, "accuracy": 12}, permissions=["geolocation"])
     pg = ctx.new_page()
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
+    # Lembar onboarding site-manager yang belum diputuskan menangkap ketukan 'Buat laporan hari ini'
+    # (verifikasi P1-B 5 Sep 2026) — status diputuskan dulu, seperti S21.
+    decide_onboarding("site-manager@nusantara.test")
     login(pg, "site-manager@nusantara.test")
     pg.goto(BASE + "#/lapangan")
     pg.wait_for_selector("button:has-text('Ambil foto'), button:has-text('Buat laporan hari ini')", timeout=15000)
@@ -928,6 +931,14 @@ def s17(pg):
 # dibaca kembali dari sqlite untuk membuktikan Lewati/Esc tercatat DI SERVER — bukan localStorage.
 def reset_onboarding(email):
     con = sqlite3.connect(DB); con.execute("UPDATE users SET onboarding_status=NULL, onboarding_seen_at=NULL WHERE email=?", (email,)); con.commit(); con.close()
+
+# Memutuskan status onboarding langsung di sqlite (verifikasi P1-B 5 Sep 2026): pada salinan DB hidup yang
+# statusnya masih NULL, panel berlabuh terbuka SESUDAH pemeriksaan 'Lewati' satu kali milik S21 (fetchGuide
+# mengulang sampai 2 × 1,5 s) dan langkah 1 memindah halaman ke #/dashboard — remah modul yang mau diklik
+# lenyap, S21/S21m jatuh dengan TypeError. Skenario yang bukan tentang onboarding memutuskannya lebih dulu;
+# S18/S19 mengatur ulang sendiri (reset_onboarding) sebelum menguji panelnya.
+def decide_onboarding(email, status="skipped"):
+    con = sqlite3.connect(DB); con.execute("UPDATE users SET onboarding_status=?, onboarding_seen_at=datetime('now') WHERE email=? AND onboarding_status IS NULL", (status, email)); con.commit(); con.close()
 
 def onboarding_status(email):
     con = sqlite3.connect(DB); row = con.execute("SELECT onboarding_status FROM users WHERE email=?", (email,)).fetchone(); con.close()
@@ -1637,10 +1648,12 @@ def module_accents(pg, tag):
     errors = []; console_errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
     pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+    # Status diputuskan di DB sebelum masuk (bukan klik Lewati yang berlomba dengan fetchGuide): pada DB
+    # yang belum memutuskan, panel terbuka sesudah pemeriksaan sekali dan memindah halaman ke #/dashboard.
+    decide_onboarding("admin@nusantara.test"); decide_onboarding("warehouse@nusantara.test")
     login(pg, "admin@nusantara.test")
-    if pg.locator(".onboarding-dock .dock-foot button:has-text('Lewati')").count():
-        pg.click(".onboarding-dock .dock-foot button:has-text('Lewati')"); pg.wait_for_timeout(600)
-    out = {"viewport": pg.viewport_size}
+    out = {"viewport": pg.viewport_size, "onboarding_status": {"admin": onboarding_status("admin@nusantara.test"), "warehouse": onboarding_status("warehouse@nusantara.test")},
+           "dock_open": pg.locator(".onboarding-dock").count()}
     prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
     out["sidebar_prefixes"] = prefixes
 
@@ -1724,14 +1737,15 @@ def module_accents(pg, tag):
     probe = "#/r/inventory/item-categories"
     # Daftar PO ikut: satu-satunya dari ketiga halaman yang punya tfoot ("Total halaman ini").
     po_list = "#/r/procurement/purchase-orders"
-    dens = {"baseline": rows_on(probe), "baseline_accounts": rows_on("#/r/finance/accounts"), "baseline_po": rows_on(po_list)}
+    dens = {"baseline": rows_on(probe), "baseline_po": rows_on(po_list), "baseline_accounts": rows_on("#/r/finance/accounts")}
     coarse = dens["baseline"]["pointer"] == "coarse"
     dens["expected"] = {"compact": 43 if coarse else 32, "comfortable": 55 if coarse else 48, "normal": 47 if not coarse else 55}
     for value in ("compact", "comfortable", "normal"):
         set_density(pg, value)
         dens[value] = rows_on(probe)
-        dens[value + "_accounts"] = rows_on("#/r/finance/accounts")
         dens[value + "_po"] = rows_on(po_list)
+        # Bagan Akun terakhir: muat ulang di bawah mendarat di halaman ini (baris PO semuanya dua-baris, `all`-nya kosong).
+        dens[value + "_accounts"] = rows_on("#/r/finance/accounts")
         if value == "compact":
             pg.screenshot(path=f"{OUT}/s21-density-compact{tag}.png")
     set_density(pg, "compact")
@@ -1748,7 +1762,9 @@ def module_accents(pg, tag):
                                       and dens["normal_po"]["tfoot"] == dens["baseline_po"]["tfoot"])
     # Kaki tabel PO per profil (normal harus 41 = tinggi sebelum token, --foot-py 10 px; rapat 4 px; lega 10 px).
     dens["tfoot_po"] = {k: dens[k + "_po"]["tfoot"] for k in ("baseline", "compact", "comfortable", "normal")}
-    dens["tfoot_normal_41"] = bool(dens["normal_po"]["tfoot"]) and all(abs(v - 41) <= 0.5 for v in dens["normal_po"]["tfoot"])
+    # Hanya di viewport lebar: di 390 px label "Total halaman ini" membungkus dua baris (60,5 px) — di sana yang
+    # berlaku normal == baseline di atas.
+    dens["tfoot_normal_41"] = (bool(dens["normal_po"]["tfoot"]) and all(abs(v - 41) <= 0.5 for v in dens["normal_po"]["tfoot"])) if pg.viewport_size["width"] >= 900 else None
     # Bagan Akun: baris terpendek per jenis (teks/lencana/tombol) di tiap profil — nama panjang membungkus, jadi min-nya yang satu-baris.
     dens["accounts_min_by_kind"] = {k: dens[k + "_accounts"]["min_by_kind"] for k in ("baseline", "compact", "comfortable", "normal")}
     # Muat ulang mendarat di Bagan Akun (nama panjang membungkus): yang dibandingkan baris terpendeknya.
