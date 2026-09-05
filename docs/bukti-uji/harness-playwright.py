@@ -1525,6 +1525,19 @@ MODULE_HOME = """() => { const head=document.querySelector('.module-head'); cons
              empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
              smallest_font_px: Math.min(...[...document.querySelectorAll('#view *')].map(el=>parseFloat(getComputedStyle(el).fontSize)).filter(Boolean)) } }"""
 
+# Panah atas/bawah di beranda modul: dari SETIAP kartu, ArrowDown/ArrowUp harus mendarat pada kartu yang
+# secara geometri tepat di bawah/atas pada kolom yang sama (baris terdekat; tidak ada → fokus diam) —
+# verifikasi P1-B 5 Sep 2026: indeks ± jumlah kolom meleset 17/20 di #/m/fin begitu pemisah memutus kisi.
+ARROWS = """() => { const cards=[...document.querySelectorAll('.module-card')]; const rect=(c)=>c.getBoundingClientRect();
+    const neighbour=(i, dir)=>{ const r=rect(cards[i]); let best=-1, bestD=1e9; cards.forEach((c,j)=>{ if (j===i) return; const q=rect(c);
+      const d = dir > 0 ? q.top - r.bottom : r.top - q.bottom; if (d < -1 || Math.abs(q.left - r.left) > 2) return; if (d < bestD) { bestD=d; best=j; } }); return best; };
+    const out={ cards: cards.length, down_mismatches: [], up_mismatches: [] };
+    for (const [key, dir, bucket] of [['ArrowDown', 1, 'down_mismatches'], ['ArrowUp', -1, 'up_mismatches']]) {
+      for (let i=0;i<cards.length;i++){ cards[i].focus(); cards[i].dispatchEvent(new KeyboardEvent('keydown',{key, bubbles:true, cancelable:true}));
+        const got=cards.indexOf(document.activeElement); const want=neighbour(i, dir); if (want === -1 ? got !== i : got !== want) out[bucket].push({ from: cards[i].querySelector('b').innerText, got: got>=0?cards[got].querySelector('b').innerText:null, want: want>=0?cards[want].querySelector('b').innerText:null }); } }
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    out.ok = out.down_mismatches.length === 0 && out.up_mismatches.length === 0; return out }"""
+
 # Tinggi baris satu-baris (tanpa .cell-sub) per JENIS baris: teks polos, berlencana, bertombol aksi.
 ROWS = """() => { const h=(e)=>+e.getBoundingClientRect().height.toFixed(2);
     // Baris tanpa .cell-sub; halaman uji dipilih yang namanya tidak membungkus (Kategori Item), jadi
@@ -1597,7 +1610,9 @@ def module_vs_sidebar(pg, prefixes):
     for prefix in prefixes:
         pg.goto(BASE + f"#/m/{prefix}"); pg.wait_for_timeout(900)
         m = pg.evaluate(MODULE_HOME)
+        arrows = pg.evaluate(ARROWS) if m["cards"] else None
         out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": m["cards"] == m["sidebar"], "head": bool(m["head"]),
+                       "arrows": arrows and {"ok": arrows["ok"], "down_mismatches": arrows["down_mismatches"][:4], "up_mismatches": arrows["up_mismatches"][:4]},
                        "sections": m["sections"], "hints": m["hints"], "empty": m["empty"], "columns": m["columns"], "smallest_font_px": m["smallest_font_px"],
                        "only_in_cards": sorted(set(m["cards"]) - set(m["sidebar"])), "only_in_sidebar": sorted(set(m["sidebar"]) - set(m["cards"]))}
     return out
@@ -1665,6 +1680,7 @@ def module_accents(pg, tag):
     # Beranda modul vs sidebar, admin: setiap grup.
     out["admin_modules"] = module_vs_sidebar(pg, prefixes)
     out["admin_all_match"] = all(m["match"] for m in out["admin_modules"].values())
+    out["admin_arrows_ok"] = all(m["arrows"] is None or m["arrows"]["ok"] for m in out["admin_modules"].values())
     out["unknown_prefix"] = (pg.goto(BASE + "#/m/tidak-ada") or pg.wait_for_timeout(600) or pg.evaluate("() => document.querySelector('#view').innerText.trim().slice(0, 80)"))
 
     # Kepadatan: tiga profil pada satu daftar bertombol aksi (Kategori Item: nama pendek, tidak

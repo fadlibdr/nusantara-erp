@@ -92,9 +92,14 @@ function screenCard(item) {
 
 /*
  * Panah memindah fokus antar kartu; Tab/Enter sudah bekerja karena kartunya
- * <a>. Jumlah kolom dibaca dari trek grid yang terkomputasi, bukan ditebak
- * dari lebar, supaya atas/bawah tetap benar di ponsel (satu kolom) maupun
- * layar lebar (lima kolom); Home/End ke kartu pertama/terakhir.
+ * <a>. Kiri/kanan = urutan DOM (sama dengan urutan visual kisi); atas/bawah
+ * dipilih dari GEOMETRI: kartu terdekat di baris berikutnya yang kolomnya
+ * tumpang tindih dengan kartu sekarang — bukan indeks ± jumlah kolom, yang
+ * meleset begitu sebuah pemisah memutus kisi dan baris sebelum pemisah tidak
+ * penuh (verifikasi P1-B 5 Sep 2026: #/m/fin 17 dari 20 salah, #/m/prj 11).
+ * Baris parsial tanpa kartu di kolom itu dilewati ke baris berikutnya yang
+ * punya; tidak ada kartu di bawah → fokus diam. Home/End ke kartu
+ * pertama/terakhir.
  */
 function arrowNavigation(event) {
   const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: 'up', ArrowDown: 'down', Home: 'first', End: 'last' };
@@ -103,17 +108,29 @@ function arrowNavigation(event) {
   const index = cards.indexOf(document.activeElement);
   if (index === -1) return;
 
-  const grid = document.activeElement.closest('.module-grid');
-  const columns = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(' ').length);
   const move = moves[event.key];
   let next = index;
   if (move === 'first') next = 0;
   else if (move === 'last') next = cards.length - 1;
-  else if (move === 'up') next = index - columns;
-  else if (move === 'down') next = index + columns;
+  else if (move === 'up' || move === 'down') next = verticalNeighbour(cards, index, move === 'down' ? 1 : -1);
   else next = index + move;
 
   if (next < 0 || next >= cards.length) return;
   event.preventDefault();
   cards[next].focus();
+}
+
+function verticalNeighbour(cards, index, direction) {
+  const from = cards[index].getBoundingClientRect();
+  let best = -1;
+  let bestDistance = Infinity;
+  cards.forEach((card, i) => {
+    if (i === index) return;
+    const rect = card.getBoundingClientRect();
+    const overlapsColumn = rect.left < from.right - 1 && rect.right > from.left + 1;
+    const distance = direction > 0 ? rect.top - from.bottom : from.top - rect.bottom;
+    if (!overlapsColumn || distance < -1) return;
+    if (distance < bestDistance) { bestDistance = distance; best = i; }
+  });
+  return best;
 }
