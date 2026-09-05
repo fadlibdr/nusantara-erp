@@ -6,6 +6,10 @@
 # terus menulis ke inode lama yang sudah dipindahkan dan berkas baru tetap
 # kosong. Pasang: cp deploy/logrotate/erp1 /etc/logrotate.d/erp1
 /var/log/erp1/queue.log /var/log/erp1/scheduler.log /var/log/erp1/watchdog.log {
+    # Direktori dan berkasnya milik www-data (README langkah 1); rotasi sebagai
+    # pemilik yang sama supaya salinan lama tetap terbaca unit, dan tidak
+    # bergantung pada `su root adm` global di /etc/logrotate.conf.
+    su www-data www-data
     weekly
     rotate 8
     compress
