@@ -645,9 +645,9 @@ function buildShell() {
       // pembaca layar bisa melompat ke remah roti (verifikasi P1-B 5 Sep 2026).
       el('nav.crumbs', { id: 'crumbs', 'aria-label': 'Remah roti' }),
       el('.spacer'),
-      // Kelas search + aria-label: di ponsel labelnya disembunyikan (app.css ≤ 760 px)
-      // supaya header 390 px tidak melebihi lebarnya — verifikasi P1-B 5 Sep 2026:
-      // dengan label, remah 'Keuangan' pun terpaksa terpotong.
+      // Kelas global-search: di ponsel labelnya disembunyikan secara VISUAL saja (app.css
+      // ≤ 760 px; nama tombol tetap dari span-nya) supaya header 390 px tidak melebihi
+      // lebarnya — verifikasi P1-B 5 Sep 2026: berlabel, remah 'Keuangan' pun terpotong.
       Object.assign(button('Cari', {
         variant: 'ghost',
         iconName: 'search',
