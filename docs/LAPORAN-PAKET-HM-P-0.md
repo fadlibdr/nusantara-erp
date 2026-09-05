@@ -60,8 +60,11 @@ Koneksi baru `sqlite_legacy` di `config/database.php` (env `SQLITE_LEGACY_PATH`)
 - suite penuh SQLite di `f816ec5`: **3.797 tes / 17.916 asersi, hijau** (run verifier);
   di `cfb3f85` dijalankan ulang oleh gerbang `deploy/sync-erp1.sh` (hijau — skrip menolak
   deploy bila merah).
-- suite penuh MySQL di `cfb3f85`: berjalan dari worktree terpisah saat laporan ini ditulis
-  (hasil di scratchpad `phase0/suite-mysql-cfb3f85.txt`; angka diisi di § Deviasi baru).
+- suite penuh MySQL di `cfb3f85` (worktree terpisah, 27 mnt 13 dtk): **3.797 tes / 17.944
+  asersi, 3 dilewati, 1 galat** — `PayrollPostingTest::test_two_projects_get_a_line_each…`,
+  `Duplicate entry 'PRJ-2026-988'`: helper `project()` memakai `random_int(100, 999)` dua kali
+  dalam satu uji (peluang tabrakan 1/900, bukan cacat MySQL) → kode proyek dibuat berurutan;
+  berkas dijalankan ulang di MySQL: hijau.
 
 ## Smoke test
 
@@ -113,4 +116,5 @@ job `phpunit-mysql`; `tests/harness/burst.py`.
 - Dua balapan yang hanya muncul di MySQL (SQLite menyembunyikannya dengan kunci tulis
   global) — diperbaiki lewat urutan kunci (`ee708aa`); ini menegaskan alasan Fase 0
   mendahului Fase 1.
-- Suite penuh MySQL di `cfb3f85`: (diisi saat selesai).
+- `PayrollPostingTest` memakai kode proyek acak 3 digit — tabrakan 1/900 muncul di run MySQL
+  penuh 5 Sep; diperbaiki berurutan (bisa terjadi di SQLite juga; bukan regresi Fase 0).
