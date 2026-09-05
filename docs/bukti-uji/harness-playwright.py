@@ -911,6 +911,159 @@ def s17(pg):
     out["quotation_after"] = {"action_bar": pg.evaluate(BAR), **pg.evaluate(KV, ["No. kontrak"])}
     return out
 
+
+# ---------------------------------------------------------- onboarding v2
+# Panel berlabuh / lembar bawah (masukan pemilik 5 Sep 2026: "show the intended page/location while user
+# displayed the onboarding … also make it on mobile version"). Status onboarding di-reset langsung di
+# sqlite (bukan PUT lewat token_for(): login dibatasi 10/menit/IP dan S18+S19 sudah dua kali masuk), dan
+# dibaca kembali dari sqlite untuk membuktikan Lewati/Esc tercatat DI SERVER — bukan localStorage.
+def reset_onboarding(email):
+    con = sqlite3.connect(DB); con.execute("UPDATE users SET onboarding_status=NULL, onboarding_seen_at=NULL WHERE email=?", (email,)); con.commit(); con.close()
+
+def onboarding_status(email):
+    con = sqlite3.connect(DB); row = con.execute("SELECT onboarding_status FROM users WHERE email=?", (email,)).fetchone(); con.close()
+    return row[0] if row else None
+
+def tap(page, sel, **kw):
+    CLICKS[0] += 1
+    page.tap(sel, **kw)
+
+DOCK = """() => { const d=document.querySelector('.onboarding-dock'); if(!d) return null; const r=d.getBoundingClientRect();
+    const shell=document.querySelector('.shell').getBoundingClientRect();
+    return { mode: d.dataset.mode, state: d.dataset.state, left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height),
+      shell_right: Math.round(shell.right), counter: (d.querySelector('.onboarding-counter')||{}).innerText || null,
+      heading: (d.querySelector('.onboarding-heading')||{}).innerText || null,
+      chips: [...d.querySelectorAll('.onboarding-location')].map(c => ({ text: c.innerText.replace(/\\s+/g,' ').trim(), route: c.dataset.route, here: c.classList.contains('here') })),
+      steps: [...d.querySelectorAll('.onboarding-step')].map(s => s.innerText.replace(/\\s+/g,' ').trim()),
+      foot: [...d.querySelectorAll('.dock-foot .btn')].filter(b => !b.hidden).map(b => ({ label: b.innerText.trim(), h: Math.round(b.getBoundingClientRect().height), w: Math.round(b.getBoundingClientRect().width) })),
+      bar: d.dataset.state === 'collapsed' ? { text: d.querySelector('.dock-bar').innerText.replace(/\\s+/g,' ').trim(), h: Math.round(d.querySelector('.dock-bar').getBoundingClientRect().height) } : null,
+      spotlights: [...document.querySelectorAll('.spotlight:not([hidden])')].map(s => { const b=s.getBoundingClientRect(); return { label: (s.querySelector('.spotlight-label')||{}).innerText || null, w: Math.round(b.width), h: Math.round(b.height), x: Math.round(b.left), y: Math.round(b.top) } }),
+      body_classes: [...document.body.classList], hash: location.hash, h1: (document.querySelector('#view .page-head h1')||{}).innerText || null } }"""
+
+# Elemen yang benar-benar menerima klik di titik itu — bukti "tidak tertutup" yang lebih kuat daripada z-index.
+HIT = """(sel) => { const e=document.querySelector(sel); if(!e) return null; const r=e.getBoundingClientRect();
+    const t=document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); return { visible: e.checkVisibility(), hit_is_self: !!t && (t === e || e.contains(t)), hit: t ? (t.getAttribute('class') || t.tagName) : null } }"""
+
+@scenario("S18_onboarding_dock_desktop")
+def s18(pg):
+    """Onboarding v2 di desktop (1440×900) sebagai procurement@ yang belum memutuskan: panel berlabuh tampil
+    ≤3 s sesudah masuk; halaman di bawahnya hidup (tautan sidebar diklik selagi panel terbuka → hash berganti,
+    panel tetap ada, konten tidak tersembunyi di balik panel); Lanjut ke langkah 2 → sorotan sidebar; Lanjut ke
+    langkah 3 → hash pindah ke rute yang izinnya dipegang (lokasi pertama bagian itu) dengan cincin sorotan pada
+    tautan sidebar dan tombol Tambah; lipat → tab tepi "Onboarding 3/7", buka lagi; Esc pada buka-otomatis =
+    Lewati (tercatat 'skipped' di sqlite); dibuka lagi dari menu akun → Tutup, Esc tidak mengubah status."""
+    email = "procurement@nusantara.test"
+    reset_onboarding(email)
+    errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
+    login(pg, email)
+    t0 = time.time()
+    pg.wait_for_selector(".onboarding-dock[data-state='open']", timeout=3000)
+    out = {"dock_ms_after_login": int((time.time() - t0) * 1000), "status_before": onboarding_status(email)}
+    pg.wait_for_timeout(700)
+    out["step1"] = pg.evaluate(DOCK)
+    pg.screenshot(path=f"{OUT}/s18-dock-step1.png")
+    # halaman di bawah panel hidup: sidebar diklik selagi panel terbuka
+    out["underneath_before"] = pg.evaluate(HIT, "nav.nav a[href='#/tenggat']")
+    nav_click(pg, "#/tenggat"); pg.wait_for_timeout(900)
+    d = pg.evaluate(DOCK)
+    out["underneath"] = {"hash": d["hash"], "dock_present": d is not None, "state": d["state"], "shell_right_lte_dock_left": d["shell_right"] <= d["left"], "h1": d["h1"],
+                         "userchip_hit": pg.evaluate(HIT, ".header .userchip")}
+    # langkah 2: sorot sidebar
+    click(pg, ".onboarding-dock .dock-foot button:has-text('Lanjut')"); pg.wait_for_timeout(900)
+    d2 = pg.evaluate(DOCK)
+    out["step2"] = {"hash": d2["hash"], "counter": d2["counter"], "spotlights": d2["spotlights"],
+                    "ring_covers_nav": any(s["w"] >= 200 and s["h"] >= 600 for s in d2["spotlights"])}
+    # langkah 3: pindah ke lokasi pertama yang bisa dibuka + sorotan
+    click(pg, ".onboarding-dock .dock-foot button:has-text('Lanjut')"); pg.wait_for_timeout(1500)
+    d3 = pg.evaluate(DOCK)
+    perms = pg.evaluate("() => (JSON.parse(localStorage.getItem('nusantara_erp_user') || '{}').permissions || [])")
+    out["step3"] = {"hash": d3["hash"], "counter": d3["counter"], "h1": d3["h1"], "chips": d3["chips"], "spotlights": d3["spotlights"],
+                    "hash_changed": d3["hash"] != d2["hash"], "route_permitted": "prc.view" in perms and not pg.locator("#view .alert.error").count(),
+                    "chip_here": [c["text"] for c in d3["chips"] if c["here"]], "active_nav": pg.evaluate("() => (document.querySelector('nav.nav a.active')||{}).innerText || null")}
+    pg.screenshot(path=f"{OUT}/s18-dock-step3.png")
+    # keping "Buka ›" kedua: pindah lagi, sorotan mengikuti
+    click(pg, ".onboarding-dock .onboarding-location >> nth=1"); pg.wait_for_timeout(1500)
+    d3b = pg.evaluate(DOCK)
+    out["chip_click"] = {"hash": d3b["hash"], "h1": d3b["h1"], "chip_here": [c["text"] for c in d3b["chips"] if c["here"]], "spotlights": d3b["spotlights"]}
+    # lipat → tab tepi; buka lagi
+    click(pg, ".onboarding-dock .dock-head button[title='Lipat panel']"); pg.wait_for_timeout(300)
+    dc = pg.evaluate(DOCK)
+    out["collapsed"] = {"state": dc["state"], "bar": dc["bar"], "width": dc["width"], "body_classes": dc["body_classes"], "shell_right": dc["shell_right"]}
+    pg.screenshot(path=f"{OUT}/s18-collapsed.png")
+    click(pg, ".onboarding-dock .dock-bar"); pg.wait_for_timeout(300)
+    out["reopened_state"] = pg.evaluate(DOCK)["state"]
+    # Esc pada buka-otomatis = Lewati, tercatat di server
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(1200)
+    out["escape"] = {"dock_gone": pg.locator(".onboarding-dock").count() == 0, "spotlights_gone": pg.locator(".spotlight").count() == 0,
+                     "toasts": toasts(pg), "status_after": onboarding_status(email), "body_classes": pg.evaluate("() => [...document.body.classList]")}
+    # dari menu akun: Tutup, bukan Lewati; Esc tidak mencatat apa pun
+    click(pg, ".header .userchip"); pg.wait_for_selector(".modal", timeout=5000)
+    click(pg, ".modal .modal-foot button:has-text('Panduan onboarding')")
+    pg.wait_for_selector(".onboarding-dock[data-state='open']", timeout=5000); pg.wait_for_timeout(600)
+    dr = pg.evaluate(DOCK)
+    out["reopen"] = {"foot": [b["label"] for b in dr["foot"]], "again_button": pg.locator(".onboarding-dock button:has-text('Tampilkan lagi')").count() == 1, "hash": dr["hash"]}
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
+    out["reopen"]["escape_status"] = onboarding_status(email); out["reopen"]["dock_gone"] = pg.locator(".onboarding-dock").count() == 0
+    out["pageerrors"] = errors
+    return out
+
+@scenario("S19_onboarding_sheet_mobile")
+def s19(browser):
+    """Onboarding v2 di ponsel (390×844, is_mobile, has_touch) sebagai procurement@: lembar bawah tampil ≤3 s,
+    tinggi 55–60% layar, tombol drawer nav dan chip akun di header tetap tersentuh; kepingan langkah menggulir
+    mendatar; tombol kaki selebar lembar dan ≥44 px; Lanjut → langkah 2 membuka drawer 2 detik dengan sorotan
+    pada tombolnya; Lanjut → langkah 3 pindah halaman, lembar melipat ke bilah yang menyebut "Anda di: …",
+    ketuk bilah → terbuka lagi; Lewati tercatat 'skipped' di sqlite."""
+    email = "procurement@nusantara.test"
+    reset_onboarding(email)
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
+    login(pg, email)
+    t0 = time.time()
+    pg.wait_for_selector(".onboarding-dock[data-mode='mobile'][data-state='open']", timeout=3000)
+    out = {"sheet_ms_after_login": int((time.time() - t0) * 1000)}
+    pg.wait_for_timeout(700)
+    d = pg.evaluate(DOCK)
+    out["sheet"] = {"height": d["height"], "height_pct": round(d["height"] / 844 * 100, 1), "top": d["top"], "counter": d["counter"], "foot": d["foot"],
+                    "foot_full_width": all(b["w"] >= 170 for b in d["foot"]), "foot_min_h_44": all(b["h"] >= 44 for b in d["foot"]),
+                    "chips_scroll": pg.evaluate("() => { const s=document.querySelector('.onboarding-dock .onboarding-steps'); return { scrollWidth: s.scrollWidth, clientWidth: s.clientWidth, scrolls: s.scrollWidth > s.clientWidth } }"),
+                    "menu_toggle": pg.evaluate(HIT, ".header .menu-toggle"), "userchip": pg.evaluate(HIT, ".header .userchip"), "body_classes": d["body_classes"]}
+    pg.screenshot(path=f"{OUT}/s19-sheet-step1.png")
+    # kepingan langkah digulir dengan jari
+    pg.evaluate("() => { const s=document.querySelector('.onboarding-dock .onboarding-steps'); s.scrollLeft = 200; }"); pg.wait_for_timeout(150)
+    out["sheet"]["chips_scrolled_left"] = pg.evaluate("() => document.querySelector('.onboarding-dock .onboarding-steps').scrollLeft")
+    # langkah 2: drawer terbuka 2 s + sorotan pada tombol drawer
+    tap(pg, ".onboarding-dock .dock-foot button:has-text('Lanjut')"); pg.wait_for_timeout(600)
+    d2 = pg.evaluate(DOCK)
+    out["step2"] = {"counter": d2["counter"], "hash": d2["hash"], "drawer_open_at_0_6s": "nav-open" in d2["body_classes"], "spotlights": d2["spotlights"]}
+    pg.screenshot(path=f"{OUT}/s19-step2-drawer.png")
+    pg.wait_for_timeout(2000)
+    out["step2"]["drawer_open_at_2_6s"] = pg.evaluate("() => document.body.classList.contains('nav-open')")
+    # langkah 3: pindah halaman → lembar melipat ke bilah yang menyebut lokasi
+    tap(pg, ".onboarding-dock .dock-foot button:has-text('Lanjut')"); pg.wait_for_timeout(1500)
+    d3 = pg.evaluate(DOCK)
+    out["step3"] = {"hash": d3["hash"], "hash_changed": d3["hash"] != d2["hash"], "state": d3["state"], "bar": d3["bar"], "h1": d3["h1"],
+                    "bar_names_location": bool(d3["bar"]) and "Anda di:" in d3["bar"]["text"], "spotlights": d3["spotlights"],
+                    "page_visible_above_bar": pg.evaluate("() => { const h=document.querySelector('#view .page-head h1'); const b=document.querySelector('.onboarding-dock .dock-bar').getBoundingClientRect(); const r=h.getBoundingClientRect(); return r.bottom < b.top }"),
+                    "menu_toggle": pg.evaluate(HIT, ".header .menu-toggle")}
+    pg.screenshot(path=f"{OUT}/s19-bar-step3.png")
+    tap(pg, ".onboarding-dock .dock-bar"); pg.wait_for_timeout(400)
+    d3b = pg.evaluate(DOCK)
+    out["expanded"] = {"state": d3b["state"], "height_pct": round(d3b["height"] / 844 * 100, 1), "chips": d3b["chips"], "chip_here": [c["text"] for c in d3b["chips"] if c["here"]], "heading": d3b["heading"]}
+    pg.screenshot(path=f"{OUT}/s19-expanded-step3.png")
+    # pegangan: ketuk = lipat
+    tap(pg, ".onboarding-dock .dock-handle"); pg.wait_for_timeout(300)
+    out["handle_tap_collapses"] = pg.evaluate(DOCK)["state"] == "collapsed"
+    tap(pg, ".onboarding-dock .dock-bar"); pg.wait_for_timeout(300)
+    # Lewati → tercatat di server
+    tap(pg, ".onboarding-dock .dock-foot button:has-text('Lewati')"); pg.wait_for_timeout(1200)
+    out["skip"] = {"dock_gone": pg.locator(".onboarding-dock").count() == 0, "toasts": toasts(pg), "status_after": onboarding_status(email),
+                   "body_classes": pg.evaluate("() => [...document.body.classList]"), "main_padding_bottom": pg.evaluate("() => getComputedStyle(document.querySelector('.main')).paddingBottom")}
+    out["pageerrors"] = errors
+    ctx.close()
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -921,7 +1074,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

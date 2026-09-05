@@ -49,7 +49,7 @@ import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
 import { renderTugas } from './views/tugas.js';
 import { openForm } from './views/form.js';
-import { openOnboarding } from './views/onboarding.js';
+import { openOnboarding, closeOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
 const root = document.getElementById('root');
@@ -85,6 +85,10 @@ applyTheme(localStorage.getItem(THEME_KEY) || 'system');
 
 /* ------------------------------------------------------------------ login */
 function renderLogin({ message } = {}) {
+  /* Panel onboarding v2 hidup di body, di luar #root (supaya pindah rute tidak
+     membuangnya) — jadi halaman masuk yang digambar ulang di sini (keluar,
+     401, masuk ulang) tidak ikut membuangnya. Ditutup tanpa mencatat apa pun. */
+  closeOnboarding();
   clear(root);
   root.className = '';
 
@@ -1190,7 +1194,11 @@ async function boot() {
  * Panduan onboarding muncul di SETIAP masuk — akun lama maupun baru — sampai
  * orangnya menekan Lewati atau Selesai, dan tidak pernah lagi sesudahnya
  * (permintaan pemilik 5 Sep 2026: "on boarding is not working" — panduan
- * hanya ada sebagai berkas docs, tidak pernah tampil di aplikasi).
+ * hanya ada sebagai berkas docs, tidak pernah tampil di aplikasi). Sejak v2
+ * (masukan pemilik 5 Sep 2026: "show the intended page/location while user
+ * displayed the onboarding … also make it on mobile version") yang dibuka
+ * bukan modal melainkan panel berlabuh / lembar bawah yang memindah halaman
+ * ke layar yang dibicarakan tiap langkah — views/onboarding.js.
  *
  * Yang dibaca adalah onboarding_status di auth/me, BUKAN localStorage:
  * keputusan harus mengikuti orangnya ke tablet lapangan yang dipakai

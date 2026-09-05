@@ -120,6 +120,85 @@ export async function withBusy(node, fn) {
   }
 }
 
+/* -------------------------------------------------------------- spotlight */
+/*
+ * Sorotan: cincin berdenyut di atas sebuah elemen — pemakai pertamanya tur
+ * onboarding (views/onboarding.js; masukan pemilik 5 Sep 2026: "show the
+ * intended page/location while user displayed the onboarding"). Cincinnya
+ * elemen terpisah di body dengan pointer-events: none, jadi tautan sidebar
+ * atau tombol Tambah yang disorot tetap bisa diklik apa adanya, dan tidak ada
+ * class yang ditempel pada elemen halaman (yang bisa hilang saat halaman
+ * digambar ulang). Posisinya dihitung dari getBoundingClientRect() dan dihitung
+ * ulang lewat requestAnimationFrame pada scroll/resize — satu pendengar untuk
+ * semua cincin; cincin yang elemennya sudah lepas dari DOM (tombol Tambah
+ * halaman yang ditinggalkan) dibuang sendiri. Boleh lebih dari satu cincin
+ * (tautan sidebar + tombol Tambah); spotlightClear() membuang semuanya.
+ */
+const spotlights = new Set();
+let spotlightFrame = 0;
+let spotlightTimer = 0;
+
+function placeSpotlight(entry) {
+  const rect = entry.element.getBoundingClientRect();
+  const visible = rect.width > 0 && rect.height > 0 && entry.element.getClientRects().length > 0;
+  entry.ring.hidden = !visible;
+  if (!visible) return;
+  entry.ring.style.transform = `translate(${Math.round(rect.left - entry.pad)}px, ${Math.round(rect.top - entry.pad)}px)`;
+  entry.ring.style.width = `${Math.round(rect.width + entry.pad * 2)}px`;
+  entry.ring.style.height = `${Math.round(rect.height + entry.pad * 2)}px`;
+}
+
+function scheduleSpotlights() {
+  if (spotlightFrame) return;
+  spotlightFrame = requestAnimationFrame(() => {
+    spotlightFrame = 0;
+    for (const entry of spotlights) {
+      if (!entry.element.isConnected) { dropSpotlight(entry); continue; }
+      placeSpotlight(entry);
+    }
+  });
+}
+
+function dropSpotlight(entry) {
+  spotlights.delete(entry);
+  entry.ring.remove();
+  if (!spotlights.size) {
+    window.removeEventListener('scroll', scheduleSpotlights, true);
+    window.removeEventListener('resize', scheduleSpotlights);
+    clearInterval(spotlightTimer);
+    spotlightTimer = 0;
+  }
+}
+
+/**
+ * Menyorot `element`; mengembalikan fungsi untuk melepas cincin itu saja.
+ * `label` (opsional, pendek) digantung di bawah cincin. Elemen digulir ke
+ * dalam pandangan dulu — sidebar dan #view menggulir sendiri-sendiri.
+ */
+export function spotlight(element, { label = '', pad = 5 } = {}) {
+  if (!(element instanceof Element) || !element.isConnected) return () => {};
+  const ring = el('.spotlight', { 'aria-hidden': 'true' }, label ? el('span.spotlight-label', { text: label }) : null);
+  document.body.appendChild(ring);
+  const entry = { element, ring, pad };
+
+  if (!spotlights.size) {
+    window.addEventListener('scroll', scheduleSpotlights, true);
+    window.addEventListener('resize', scheduleSpotlights);
+    // Pengaman untuk perubahan tata letak tanpa scroll/resize: grup sidebar
+    // yang membuka, kartu dasbor yang selesai memuat di atas tombolnya.
+    spotlightTimer = setInterval(scheduleSpotlights, 400);
+  }
+  spotlights.add(entry);
+
+  try { element.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch { /* elemen tanpa kotak */ }
+  placeSpotlight(entry);
+  return () => dropSpotlight(entry);
+}
+
+export function spotlightClear() {
+  for (const entry of [...spotlights]) dropSpotlight(entry);
+}
+
 /* ------------------------------------------------------------------- menu */
 /*
  * Tombol yang membuka daftar perintah — pola WAI-ARIA "menu button".

@@ -28,7 +28,13 @@ use Tests\ErpTestCase;
  *    any filesystem call;
  *  - PUT skipped / completed / null round-trips into auth/me, which is where
  *    the SPA reads the decision at login, so it follows the person across
- *    devices; anything else is refused in Indonesian and changes nothing.
+ *    devices; anything else is refused in Indonesian and changes nothing;
+ *  - v2 (owner's feedback, 5 Sep 2026: "show the intended page/location
+ *    while user displayed the onboarding"): every section carries the
+ *    `Grup › Layar` screens it names, in reading order, de-duplicated and
+ *    capped — read from code spans and bold runs, across the guides' wrapped
+ *    lines — and a section that names none says so with an empty list. The
+ *    SPA resolves those labels against its sidebar; `tour_route` is null.
  */
 class OnboardingTest extends ErpTestCase
 {
@@ -191,6 +197,97 @@ class OnboardingTest extends ErpTestCase
         $second = $sections[1]['html'];
         $this->assertStringContainsString('type="checkbox"', $second);
         $this->assertStringContainsString('<table>', $second);
+    }
+
+    // ------------------------------------------------------------ locations
+
+    public function test_each_section_lists_the_screens_it_names_in_order(): void
+    {
+        $user = $this->userWithRole('procurement');
+
+        $sections = $this->asUser($user)->getJson('/api/iam/me/onboarding')->assertOk()->json('data.sections');
+        $this->assertCount(7, $sections);
+
+        foreach ($sections as $section) {
+            $this->assertArrayHasKey('locations', $section, "Section [{$section['heading']}] has no locations key.");
+            $this->assertArrayHasKey('tour_route', $section);
+            $this->assertNull($section['tour_route'], 'The route is resolved against the sidebar in the SPA, never guessed here.');
+        }
+
+        // "3. Pekerjaan Anda" names the procurement screens walkthrough by
+        // walkthrough; the tour takes them in that order, the first eight.
+        $work = $sections[2];
+        $this->assertStringContainsString('Pekerjaan Anda', $work['heading']);
+        $this->assertSame([
+            'Pengadaan › Vendor & Subkon',
+            'Pengadaan › Dokumen Vendor',
+            'Sistem › Impor Data Master',
+            'Pengadaan › Permintaan (PR)',
+            'Pengadaan › RFQ (Banding Penawaran)',
+            'Pengadaan › BA Negosiasi',
+            'Pengadaan › Keputusan Pemenang',
+            'Pengadaan › Pesanan (PO)',
+        ], array_column($work['locations'], 'raw'));
+        $this->assertCount(OnboardingGuide::LOCATIONS_MAX, $work['locations']);
+        $this->assertSame(['group' => 'Pengadaan', 'item' => 'Permintaan (PR)', 'raw' => 'Pengadaan › Permintaan (PR)'], $work['locations'][3]);
+
+        // The checklist names two screens in bold and in code, once each.
+        $this->assertSame(
+            ['Engineering › Persetujuan Material (SMS)', 'Ringkasan › Tenggat'],
+            array_column($sections[5]['locations'], 'raw'),
+        );
+
+        // "4. Yang akan menolak Anda" quotes refusals, not screens: nothing is
+        // invented for it.
+        $this->assertStringContainsString('menolak', $sections[3]['heading']);
+        $this->assertSame([], $sections[3]['locations']);
+    }
+
+    public function test_screen_mentions_are_read_from_code_spans_and_bold_across_wrapped_lines(): void
+    {
+        $this->scratchGuide('uji-lokasi', implode("\n", [
+            '# Onboarding minggu pertama — Peran Uji (`uji-lokasi`)',
+            '',
+            '## 1. Siapa Anda di sistem',
+            '',
+            'Tidak ada layar yang disebut di sini; tanda › dalam prosa biasa › bukan layar.',
+            '',
+            '## 2. Hari pertama',
+            '',
+            // A code span wrapped over a line break, as the guides wrap at ~90 columns.
+            'Layar: `Pengadaan ›',
+            '   Permintaan Pembelian (PR)` → **`Tambah PR`** → Proyek.',
+            // Bold with a nested code span: the button is a third segment, kept in raw only.
+            'Lalu **Sistem › Pengguna › `Tambah Pengguna`** untuk akun baru.',
+            // The closing parenthesis fell outside the span.',
+            'Ketidaksesuaian di `Mutu › Ketidaksesuaian (NCR` dicatat.',
+            // A repeat, differently wrapped, is one screen.
+            'Kembali ke `Pengadaan › Permintaan',
+            'Pembelian (PR)` bila ditolak.',
+            // Bold whose only › sits inside its code span is prose around a mention.
+            '**Bukan layar: `Ringkasan › Tenggat` yang dimaksud.**',
+            '',
+            '## 3. Pekerjaan Anda',
+            '',
+            '`Grup › Layar 1` `Grup › Layar 2` `Grup › Layar 3` `Grup › Layar 4` `Grup › Layar 5`',
+            '`Grup › Layar 6` `Grup › Layar 7` `Grup › Layar 8` `Grup › Layar 9` `Grup › Layar 10`',
+        ]));
+        $user = $this->userWithRole('uji-lokasi');
+
+        $sections = $this->asUser($user)->getJson('/api/iam/me/onboarding')->assertOk()->json('data.sections');
+        $this->assertCount(3, $sections);
+
+        $this->assertSame([], $sections[0]['locations']);
+
+        $this->assertSame([
+            ['group' => 'Pengadaan', 'item' => 'Permintaan Pembelian (PR)', 'raw' => 'Pengadaan › Permintaan Pembelian (PR)'],
+            ['group' => 'Sistem', 'item' => 'Pengguna', 'raw' => 'Sistem › Pengguna › Tambah Pengguna'],
+            ['group' => 'Mutu', 'item' => 'Ketidaksesuaian', 'raw' => 'Mutu › Ketidaksesuaian'],
+            ['group' => 'Ringkasan', 'item' => 'Tenggat', 'raw' => 'Ringkasan › Tenggat'],
+        ], $sections[1]['locations']);
+
+        $this->assertCount(OnboardingGuide::LOCATIONS_MAX, $sections[2]['locations']);
+        $this->assertSame('Grup › Layar 8', $sections[2]['locations'][7]['raw']);
     }
 
     public function test_a_role_without_a_guide_is_refused_in_indonesian(): void
