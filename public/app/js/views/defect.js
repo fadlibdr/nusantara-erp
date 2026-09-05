@@ -633,6 +633,7 @@ export async function renderDefects(host) {
           : 'Tidak ada temuan yang cocok dengan pencarian atau saringan di atas.',
         {
           title: 'Tidak ada baris',
+          kind: summary.total === 0 ? 'inbox' : 'filter',
           action: canCreate
             ? button('Catat temuan', { variant: 'primary', iconName: 'plus', onClick: () => catatTemuan() })
             : null,

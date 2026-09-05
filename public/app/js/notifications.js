@@ -7,7 +7,7 @@
  * cheap indexed count and is honest about what it is. */
 
 import { api, session } from './api.js';
-import { el, clear, button, icon, badge, toast, toastError, modal, closeModal, withBusy } from './ui.js';
+import { el, clear, button, icon, badge, toast, toastError, modal, closeModal, withBusy, emptyState } from './ui.js';
 import * as fmt from './format.js';
 
 const POLL_MS = 90_000;
@@ -129,8 +129,8 @@ function openInbox() {
       clear(body);
 
       if (!list.length) {
-        body.appendChild(el('p.muted', {
-          text: 'Belum ada pemberitahuan. Dokumen yang diajukan untuk disetujui akan muncul di sini.',
+        body.appendChild(emptyState('Belum ada pemberitahuan. Dokumen yang diajukan untuk disetujui akan muncul di sini.', {
+          kind: 'inbox', compact: true, title: null,
         }));
         return;
       }

@@ -272,6 +272,22 @@ export async function renderList(host, { key, def }) {
     if (stillOnScreen()) renderAll();
   }
 
+  /* Satu definisi "sedang disaring" dan satu jalan menghapusnya, dipakai
+     tombol Reset di bilah filter DAN tombol "Hapus filter" di keadaan kosong
+     (P1-B) — dua tombol dengan dua salinan logika akan hanyut. */
+  function isFiltered() {
+    return Boolean(ui.q || ui.dateFrom || ui.dateTo || Object.values(ui.filters).some(Boolean));
+  }
+
+  function resetFilters() {
+    ui.q = '';
+    ui.filters = {};
+    ui.dateFrom = '';
+    ui.dateTo = '';
+    ui.page = 1;
+    load();
+  }
+
   function filterBar() {
     filterCombos = [];
     const bar = el('.filters');
@@ -334,18 +350,8 @@ export async function renderList(host, { key, def }) {
       }));
     }
 
-    if (ui.q || ui.dateFrom || ui.dateTo || Object.values(ui.filters).some(Boolean)) {
-      bar.appendChild(button('Reset', {
-        size: 'sm', variant: 'ghost',
-        onClick: () => {
-          ui.q = '';
-          ui.filters = {};
-          ui.dateFrom = '';
-          ui.dateTo = '';
-          ui.page = 1;
-          load();
-        },
-      }));
+    if (isFiltered()) {
+      bar.appendChild(button('Reset', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
     }
 
     // Ekspor memakai endpoint dan parameter yang sama dengan daftar itu sendiri,
@@ -704,17 +710,25 @@ export async function renderList(host, { key, def }) {
 
     const rows = payload ? payload.data || [] : [];
 
+    /* Dua keadaan kosong yang berbeda (P1-B): tidak ada baris sama sekali
+       (ilustrasi nampan + Tambah) versus filter/pencarian yang menyaring
+       semuanya (ilustrasi corong/kaca pembesar + "Hapus filter" — jalan
+       keluarnya ada di tempat orang membacanya, bukan di bilah di atas).
+       Keduanya dulu satu kalimat dengan gambar yang sama. */
     if (!rows.length) {
-      body.appendChild(emptyState(
-        ui.q || ui.dateFrom || ui.dateTo || Object.keys(ui.filters).length
-          ? 'Tidak ada data yang cocok dengan pencarian atau filter.'
-          : `Belum ada ${def.label.toLowerCase()} yang tercatat.`,
-        {
-          action: canCreate && !ui.q
+      const onlySearch = Boolean(ui.q) && !ui.dateFrom && !ui.dateTo && !Object.values(ui.filters).some(Boolean);
+      body.appendChild(isFiltered()
+        ? emptyState('Tidak ada hasil untuk filter ini', {
+          title: 'Tidak ada hasil',
+          kind: onlySearch ? 'search' : 'filter',
+          action: button('Hapus filter', { iconName: 'close', onClick: resetFilters }),
+        })
+        : emptyState(`Belum ada ${def.label.toLowerCase()} yang tercatat.`, {
+          kind: 'inbox',
+          action: canCreate
             ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: afterCreate }) })
             : null,
-        },
-      ));
+        }));
       return;
     }
 

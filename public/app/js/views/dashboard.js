@@ -29,6 +29,10 @@ function stat(label, value, { sub, tone, onClick } = {}) {
   return node;
 }
 
+function tileEmpty(message, kind) {
+  return el('.card-body.flush', emptyState(message, { kind, compact: true, title: null }));
+}
+
 function card(title, body, { action } = {}) {
   return el('.card', [
     el('.card-head', [el('h2', { text: title }), el('.spacer'), action || null]),
@@ -36,9 +40,12 @@ function card(title, body, { action } = {}) {
   ]);
 }
 
-function miniTable(columns, rows, onRowClick) {
+/* Cabang kosong ubin (P1-B): keadaan kosong ringkas berilustrasi. `empty.kind`
+   'done' hanya untuk ubin yang kosongnya berarti tidak ada yang tertunda
+   (piutang jatuh tempo, tiket aktif); ubin lain memakai 'inbox' yang netral. */
+function miniTable(columns, rows, onRowClick, { empty = {} } = {}) {
   if (!rows.length) {
-    return el('.card-body', el('p.muted', { text: 'Tidak ada data.', style: { margin: 0, fontSize: '13px' } }));
+    return tileEmpty(empty.message || 'Tidak ada data.', empty.kind || 'inbox');
   }
   return el('.table-wrap', el('table.data', [
     el('thead', el('tr', columns.map((column) => el(`th${column.align ? `.${column.align}` : ''}`, { text: column.label })))),
@@ -440,13 +447,12 @@ export async function renderDashboard(host) {
             inboxRows.slice(0, INBOX_PREVIEW),
             (r) => navigate(r.link.replace(/^#\//, '')),
           )
-          : el('.card-body', el('p.muted', {
-            // "Tidak ada yang menunggu" adalah pernyataan tentang dunia; bila
-            // sumbernya gagal, yang bisa dikatakan hanya bahwa tidak ada yang
-            // dapat ditampilkan.
-            text: inboxFailed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu persetujuan.',
-            style: { margin: 0, fontSize: '13px' },
-          })),
+          // "Tidak ada yang menunggu" adalah pernyataan tentang dunia; bila
+          // sumbernya gagal, yang bisa dikatakan hanya bahwa tidak ada yang
+          // dapat ditampilkan — dan gambarnya pun gambar galat, bukan centang.
+          : (inboxFailed.length
+            ? tileEmpty('Tidak ada dokumen yang dapat ditampilkan.', 'error')
+            : tileEmpty('Tidak ada dokumen yang menunggu persetujuan.', 'done')),
         inboxTotal > INBOX_PREVIEW
           ? el('.card-foot', button(`Lihat semua (${inboxTotal})`, { size: 'sm', onClick: () => navigate('tugas') }))
           : null,
@@ -589,12 +595,9 @@ export async function renderDashboard(host) {
         // periods, ...) — bukan ke #/kalender yang belum dirutekan.
         (event) => navigate(event.link),
       )
-      : el('.card-body', el('p.muted', {
-        text: events.length
-          ? 'Tidak ada agenda tersisa bulan ini.'
-          : 'Tidak ada agenda bulan ini pada modul yang boleh Anda lihat.',
-        style: { margin: 0, fontSize: '13px' },
-      }));
+      : tileEmpty(events.length
+        ? 'Tidak ada agenda tersisa bulan ini.'
+        : 'Tidak ada agenda bulan ini pada modul yang boleh Anda lihat.', 'inbox');
 
     const kalCard = card('Kalender Acara', el('div', [
       el('.card-body', { style: { paddingBottom: '12px' } }, [
@@ -682,6 +685,7 @@ export async function renderDashboard(host) {
       ],
       overdue.slice(0, 6),
       (row) => navigate(`d/finance/ar-invoices/${row.id}`),
+      { empty: { kind: 'done', message: 'Tidak ada piutang yang jatuh tempo.' } },
     ), { action: button('Umur piutang', { size: 'sm', variant: 'ghost', onClick: () => navigate('reports') }) }));
   }
 
@@ -706,6 +710,7 @@ export async function renderDashboard(host) {
       ],
       openTickets.slice(0, 6),
       (row) => navigate(`d/servicedesk/tickets/${row.id}`),
+      { empty: { kind: 'done', message: 'Tidak ada tiket yang terbuka.' } },
     ), { action: button('Semua', { size: 'sm', variant: 'ghost', onClick: () => navigate('r/servicedesk/tickets') }) }));
   }
 
