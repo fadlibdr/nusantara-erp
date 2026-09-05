@@ -3,10 +3,10 @@
 Branch: `feat/phase0-queue` (dari main `cfb3f85`; 27 commit kode + dokumen) · 5 September 2026 (Sabtu)
 
 > Status jujur: kode T0b.1–T0b.4 dibangun, diverifikasi adversarial dua lensa, 16 temuan
-> diperbaiki dan diverifikasi ulang. **Unit systemd, pengawas, dan logrotate BELUM dipasang
-> di erp1** saat laporan ini ditulis — pemasangan adalah langkah orang di server
-> (`deploy/systemd/README.md`), dicatat di § "Yang sengaja tidak dikerjakan" beserta
-> perintahnya. Produksi masih SQLite (cut-over P-0 menunggu pemilik).
+> diperbaiki dan diverifikasi ulang, **merged ke main (`abb9d42`) dan ter-deploy ke erp1 5 Sep
+> 12:50 UTC** (migrasi `000194` tercatat, tabel ada). Pemasangan unit: langkah 1–2 selesai;
+> **langkah 3–5 (ganti cron → unit, pengawas) ditolak sandbox untuk agen — pemilik menjalankannya**
+> per `deploy/systemd/README.md`. Produksi masih SQLite (cut-over P-0 menunggu pemilik).
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 0 / P-0b → status)
 
@@ -16,7 +16,7 @@ Branch: `feat/phase0-queue` (dari main `cfb3f85`; 27 commit kode + dokumen) · 5
 | T0b.2 `erp:heartbeat` tiap 5 menit → `core_settings.scheduler.heartbeat_at` (kunci internal, ditolak formulir Pengaturan); `GET api/core/health` (`core.view`): `scheduler_heartbeat_age_s`, `scheduler_status` ok/stale/unknown, `queue_oldest_pending_age_s`, `failed_jobs_count`, `queued_deliveries_older_than_1h` — null bila tak diketahui; `erp:watchdog-alarm`; `deploy/erp1-watchdog.sh` + `deploy/cron.d/erp1-watchdog` (root, */15); spanduk dasbor "Penjadwal tidak berjalan sejak …" | ✅ kode | `316043f`, `4603535`, `d597841`, `a695e08`; `SchedulerHeartbeatTest`: cadence `*/5 * * * *` dipaku, tabel hilang → null bukan 0, kunci internal ditolak `PUT settings` |
 | T0b.3 kotak keluar `core_notification_deliveries` (channel, recipient, `queued|sent|failed|skipped`, attempts, provider_id, error, sent_at, next_attempt_at), `DeliveryChannel` + `MailChannel`, job `DeliverNotification` (`ShouldQueueAfterCommit`, tries 5, backoff 60/300/900/3600 dari hitungan pekerja, `failed()` → `failed` + pesan penyedia / kehabisan waktu), `NotificationService`: SEMUA baris in-app dulu, lalu kotak keluar per penerima di balik guard-nya sendiri; `GET/POST api/core/notification-deliveries[/{id}/retry]` (`core.update`); layar Sistem › Pengiriman Notifikasi | ✅ kode | `d39e4b2`, `9bb5582`, `995b853`, `947a460`, `37d3d18`, `2f8f736`, `a86dced`; `NotificationDeliveryTest` (21 uji) + `ApprovalNotificationTest` (kegagalan pengiriman tidak membatalkan persetujuan — tetap hijau) |
 | T0b.4 `GET api/core/queue/failed[/{id}]`, `POST …/retry` (`core.update`, lewat `queue:retry`), `DELETE` (`core.delete`); layar Sistem › Antrean Gagal; baris dasbor "Antrean: N job gagal · N pengiriman antre > 1 jam"; retry job `DeliverNotification` DITOLAK 422 dengan penunjuk ke layar pengiriman | ✅ kode | `ef07fab`, `644346e`, `4ecd611`; `QueueFailedJobsTest` (8 uji, pekerja sungguhan `queue:work --once`) |
-| Pemasangan di erp1 (README langkah 1–5) | ⏳ **belum** | lihat § Yang sengaja tidak dikerjakan |
+| Pemasangan di erp1 (README langkah 1–5) | 🟡 **1–2 selesai, 3–5 menunggu pemilik** | 5 Sep 13:02 UTC: `/var/log/erp1` (www-data 0755), unit + `/etc/logrotate.d/erp1` terpasang (`systemd-analyze verify` bersih, `logrotate -d /etc/logrotate.conf` keluar 0 tanpa error); langkah 3–4 (hapus baris cron, `enable --now`) DITOLAK sandbox agen — cron `schedule:run` masih berjalan, unit `disabled`, tidak ada dua penjadwal |
 | `core/health` menjawab tiga angka di produksi | ⏳ menunggu pemasangan | — |
 
 ## Verifikasi adversarial (dua lensa baca-saja → perbaikan → verifikasi ulang)
@@ -115,11 +115,13 @@ Kalimat 422 dipaku uji (`NotificationDeliveryTest`, `QueueFailedJobsTest`). Laya
 
 ## Yang sengaja tidak dikerjakan, dan mengapa
 
-- **Pemasangan di erp1 belum dilakukan saat laporan ditulis** — dilakukan setelah merge + deploy
-  (README urutannya: 1 direktori log; 2 unit + logrotate `install -m 0644`; 3 HAPUS baris
-  `schedule:run` dari `/etc/cron.d/erp1` **sebelum** 4 `systemctl enable --now erp1-queue
-  erp1-scheduler`; 5 tunggu detak pertama lalu pengawas). Bila orkestrator diblokir sandbox,
-  pemilik menjalankannya sebagai root — perintahnya lengkap di README.
+- **Pemasangan langkah 3–5 ditolak sandbox agen** (13:02 UTC, setelah langkah 1–2 berhasil).
+  Pemilik menjalankan sebagai root di erp1, di luar 05:00–09:00 WIB, persis blok README
+  "Pasang" langkah 3 (sed baris cron + `grep -c` = 0), 4 (`systemctl enable --now erp1-queue
+  erp1-scheduler`, status, tail log), 5 (tunggu `erp:heartbeat --age` bukan `?`, jalankan pengawas
+  sekali → "sehat", lalu `install -m 0644 $SITE/deploy/cron.d/erp1-watchdog /etc/cron.d/erp1-watchdog`).
+  Sesudahnya `GET /api/core/health` (pemegang `core.view`) harus `scheduler_status: "ok"`.
+  Salinan cron sebelum perubahan: buat dulu `cp -a /etc/cron.d/erp1 /root/erp1.cron.before-systemd`.
 - **ops-6**: unit belum pernah hidup di systemd sungguhan (gladi memakai skrip di salinan coretan,
   bukan unit). Bukti pertamanya adalah `systemctl status` + `GET api/core/health` setelah pasang.
 - Tidak ada Redis/Horizon; satu pekerja `database`; WhatsApp/push menunggu Fase 3 (kanal `email`
