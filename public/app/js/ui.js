@@ -91,6 +91,44 @@ export function icon(name, size = 16) {
   return svg;
 }
 
+/*
+ * Ikon dari sprite Lucide yang di-vendor (public/app/vendor/lucide@<ver>/
+ * sprite.svg — manifest, lisensi, dan cara memperbarui di VENDOR.md; aturan
+ * tanpa-CDN dipaku tests/Feature/Core/VendorManifestTest). Ini jalur ikon
+ * Fase 1; icon() di atas tetap dipakai pemanggil yang ada sampai P1-B
+ * mengalihkannya, karena itu LUCIDE_ALIAS menerima nama icon() lama supaya
+ * pengalihan nanti satu baris per pemanggil. Nama lain = nama kanonik Lucide
+ * 1.41.0 (daftar 79 simbol di VENDOR.md); nama yang tidak ada di sprite
+ * menghasilkan kotak kosong, bukan galat — sama seperti icon() dengan PATHS
+ * yang tak dikenal. Rujukan <use href> relatif terhadap dokumen
+ * (/app/index.html → /app/vendor/…): hash router tidak pernah mengubah URL
+ * dokumen, jadi jalur ini stabil di semua rute; simbolnya membawa
+ * stroke/fill sendiri (lihat VENDOR.md) sehingga di sini cukup ukuran.
+ */
+export const LUCIDE_SPRITE = 'vendor/lucide@1.41.0/sprite.svg';
+const LUCIDE_ALIAS = {
+  chevron: 'chevron-down', chevronRight: 'chevron-right', close: 'x', edit: 'pencil', trash: 'trash-2',
+  back: 'arrow-left', refresh: 'refresh-cw', warn: 'triangle-alert', logout: 'log-out', print: 'printer',
+};
+
+export function svgIcon(name, { size = 16, label } = {}) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'lucide');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', '0 0 24 24');
+  if (label) {
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', label);
+  } else {
+    svg.setAttribute('aria-hidden', 'true');
+  }
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `${LUCIDE_SPRITE}#lucide-${LUCIDE_ALIAS[name] || name}`);
+  svg.appendChild(use);
+  return svg;
+}
+
 /* ----------------------------------------------------------------- badges */
 export function badge(label, tone = '') {
   return el(`span.badge${tone ? `.${tone}` : ''}.dot`, { text: label ?? '—' });

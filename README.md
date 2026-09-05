@@ -36,8 +36,11 @@ Arsitektur & aturan modul: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 ## Front-end
 
 SPA di `public/app/` — HTML/CSS/JavaScript murni (ES modules), **tanpa build step**:
-tidak ada Node, npm, bundler, atau dependensi CDN. Di-serve sebagai file statis oleh
-web server yang sama; root `/` mengarahkan ke `/app/`.
+tidak ada Node, npm, bundler, atau dependensi CDN (dipaku uji `VendorManifestTest`). Dua
+pustaka kecil di-vendor sebagai berkas statis di `public/app/vendor/` — SortableJS dan sprite
+ikon Lucide subset, manifest + lisensi di `VENDOR.md` (≤ 60 KB gzip; terukur 21 KB); grafik
+adalah SVG tangan `js/charts.js`. Di-serve sebagai file statis oleh web server yang sama;
+root `/` mengarahkan ke `/app/`.
 
 - Login Sanctum (token bearer), navigasi & tombol aksi otomatis mengikuti permission user.
 - Seluruh 14 modul: daftar (cari, filter, paginasi), detail dokumen, form create/edit

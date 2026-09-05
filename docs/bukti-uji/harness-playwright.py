@@ -1064,6 +1064,359 @@ def s19(browser):
     ctx.close()
     return out
 
+
+# ------------------------------------------------------------ S20 (P1-A)
+# Token grafik js/charts.js. Modul diimpor di konteks halaman lewat import('/app/js/charts.js')
+# — php -S -t public melayani /app/js/*.js apa adanya, dan hash router tidak mengubah URL
+# dokumen, jadi jalur absolut ini sama di server mana pun yang melayani public/. Setiap
+# jenis grafik dirender dengan fixture (termasuk kasus kosong, celah NaN, satu titik, gantt
+# terbuka) ke #s20 di body, lalu diukur dengan getComputedStyle di tema terang DAN gelap
+# (data-theme di <html>, mekanisme yang sama dengan tombol tema app.js): warna terkomputasi
+# tiap bentuk ber-data-token == nilai token itu, teks == --chart-text, jumlah <title> ==
+# jumlah .mark, placeholder memuat "Belum ada data", gantt punya garis hari ini + rect akhir
+# pekan. Nilai yang dicatat adalah angka terukur (hitungan, rasio kontras, lebar render),
+# bukan boolean saja. Verifikasi P1-A (5 Sep 2026) menambah: neg_dims (atribut negatif yang
+# ditolak Chromium) + console.error, geometri di luar viewBox (getBBox; legenda/catatan/label
+# tick yang melampaui svg), klip garis & titik di luar sumbu paksa, tinggi legenda vs baris
+# tergambar, ukuran huruf placeholder/donat/gantt terender per viewport, cincin donat irisan
+# mungil, legenda irisan yang dikecualikan, gantt data tidak konsisten, label gantt terpotong
+# ber-<title> (satu-satunya <title> di luar .mark), label baris vs kolom jadwal, teks yang
+# HANYA cocok aturan .chart-lib (tabular-nums), dan pass cetak (abu-abu, pola garis/tepi).
+CHART_RENDER = """async () => {
+  const m = await import('/app/js/charts.js');
+  const host = document.createElement('div'); host.id = 's20';
+  host.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:999;padding:16px;background:var(--surface);color:var(--text)';
+  document.body.appendChild(host);
+  const add = (name, svg) => { const w = document.createElement('div'); w.dataset.name = name; w.style.cssText = 'margin:0 0 12px;max-width:760px';
+    if (name.startsWith('gantt')) { const sc = document.createElement('div'); sc.className = 'chart-scroll'; sc.appendChild(svg); w.appendChild(sc); } else w.appendChild(svg);
+    host.appendChild(w); return svg; };
+  const rp = (v) => new Intl.NumberFormat('id-ID').format(v) + ' jt';
+  const errors = [];
+  const t = (name, fn) => { try { add(name, fn()); } catch (e) { errors.push(name + ': ' + e.message); } };
+  t('line', () => m.lineChart({ series: [
+      { label: 'Rencana', points: [{x:0,y:10},{x:1,y:20},{x:2,y:null},{x:3,y:40},{x:4,y:35},{x:5,y:60}], dashed: true },
+      { label: 'Aktual', points: [{x:0,y:5},{x:1,y:NaN},{x:2,y:25},{x:3,y:30},{x:4,y:-5},{x:5,y:12}], area: true },
+      { label: 'Biaya', points: [{x:0,y:2},{x:1,y:8},{x:2,y:14},{x:3,y:22},{x:4,y:30},{x:5,y:44}] }],
+    xLabels: ['M1','M2','M3','M4','M5','M6'], yFormat: (v) => v + ' %', ariaLabel: 'uji garis', sourceNote: 'Sumber: fixture harness S20' }));
+  t('line_single', () => m.lineChart({ series: [{ label: 'Satu', points: [{x:0,y:7}] }], ariaLabel: 'satu titik' }));
+  // Paritas tiga grafik tangan (P1-E): dash per seri ('5 3' rencana vs '2 4' baseline), token
+  // eksplisit, dots:false / 'last', <title> gabungan per titik, jari-jari titik as-of, token per
+  // titik (GRN vs PO pada satu garis), yStep 25 dengan yMax 125 (aturan EVM >100 %).
+  t('line_api', () => m.lineChart({ series: [
+      { label: 'Rencana', points: [{x:0,y:10},{x:1,y:40},{x:2,y:70},{x:3,y:100}], dash: '5 3', token: '--chart-8', dots: false },
+      { label: 'Aktual', points: [{x:0,y:8,title:'Minggu 1 — rencana 10 %, aktual 8 %'},{x:1,y:35,title:'Minggu 2 — rencana 40 %, aktual 35 %'},{x:2,y:60,title:'Minggu 3 — rencana 70 %, aktual 60 %',r:4,token:'--chart-2'}], area: true },
+      { label: 'Baseline', points: [{x:0,y:12},{x:1,y:45},{x:2,y:72},{x:3,y:118}], dash: '2 4', dots: 'last' }],
+    yMin: 0, yMax: 125, yStep: 25, yFormat: (v) => v + ' %', ariaLabel: 'API paritas grafik tangan' }));
+  // points[].r ≤ 0 / bukan angka dan token yang tidak terdefinisi: dulu r="-3" (console.error Chromium,
+  // titik tidak digambar), r="0" (.mark tak terlihat ber-<title>), '--chart-nope' → stroke:none diam-diam.
+  t('line_r_edge', () => m.lineChart({ series: [
+      { label: 'r tepi', points: [{x:0,y:1},{x:1,y:2,r:-3},{x:2,y:3,r:0},{x:3,y:4,r:'x'},{x:4,y:5,r:2.5,token:'--chart-nope'}] },
+      { label: 'token asing', points: [{x:0,y:2},{x:1,y:3}], token: '--chart-nope' }], ariaLabel: 'jari-jari & token tepi' }));
+  // Skala x campuran (tanggal + angka + 'abc'): yang bukan tanggal dibuang, bukan diformat "01 Jan 70".
+  // Sumbu tanggal tanpa xFormat: label bawaan harus berbentuk fmt.date ("05 Sep 2026"), bukan "05 Sep 26".
+  t('line_dates', () => m.lineChart({ series: [{ label: 'Harga PO', points: [{x:'2026-01-05',y:12500},{x:'2026-03-02',y:13000},{x:'2026-06-10',y:13750}] }], yMin: 12000, yMax: 14000, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'sumbu tanggal' }));
+  t('line_mixed_x', () => m.lineChart({ series: [{ label: 'campur', points: [{x:'2026-01-01',y:1},{x:5,y:3},{x:'abc',y:2},{x:'2026-02-01',y:4}] }], ariaLabel: 'x campuran' }));
+  // Seri yang semua x-nya dibuang (indeks pada sumbu tanggal) atau semua y-nya null: legenda harus mengatakannya '(tanpa data)'.
+  t('line_series_nodata', () => m.lineChart({ series: [{ label: 'tanggal', points: [{x:'2026-01-01',y:1},{x:'2026-02-01',y:3}] }, { label: 'indeks', points: [{x:0,y:2},{x:1,y:4}] }, { label: 'kosong', points: [{x:'2026-01-01',y:null},{x:'2026-02-01',y:NaN}] }], ariaLabel: 'seri tanpa data' }));
+  // Sumbu tanggal padat (P1-E: tren harga harian, kurva-S 52 minggu, EVM bulanan): label terakhir
+  // ditambatkan ke ujung kanan dan bergeser ±30 px — verifikasi P1-A putaran 2 mengukur dua label
+  // terakhir bertumpuk 17–54 px pada setiap sumbu tanggal ≥ 10 titik (line_dates hanya 3 titik).
+  // x_label_overlaps (getBBox semua label sumbu-x) harus 0 di desktop DAN pada lebar 358.
+  const dated = (n, stepDays, k = 0) => Array.from({length: n}, (_, i) => ({ x: new Date(Date.UTC(2026, 8, 1 + i * stepDays)).toISOString().slice(0, 10), y: 10 + ((i + k) * 37) % 50 }));
+  t('line_dates_daily_31', () => m.lineChart({ series: [{ label: 'Harga PO', points: dated(31, 1).map(p => ({ x: p.x, y: 12000 + p.y * 40 })) }], yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'tanggal harian 31' }));
+  t('line_dates_weekly_52', () => m.lineChart({ series: [
+      { label: 'Rencana', points: dated(52, 7).map((p, i) => ({ x: p.x, y: Math.round(100 * (1 - Math.cos(Math.PI * i / 51)) / 2) })), dash: '5 3', dots: false },
+      { label: 'Aktual', points: dated(40, 7).map((p, i) => ({ x: p.x, y: Math.round(90 * (1 - Math.cos(Math.PI * i / 51)) / 2) })), area: true, dots: 'last' },
+      { label: 'Baseline', points: dated(52, 7).map((p, i) => ({ x: p.x, y: Math.round(100 * (1 - Math.cos(Math.PI * i / 45)) / 2) })), dash: '2 4', dots: false }],
+    yMin: 0, yMax: 125, yStep: 25, yFormat: (v) => v + ' %', ariaLabel: 'kurva-S 52 minggu' }));
+  t('line_dates_monthly_24', () => m.lineChart({ series: [{ label: 'Biaya', points: dated(24, 30).map(p => ({ x: p.x, y: p.y * 1e8 })) }], yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'tanggal bulanan 24' }));
+  t('line_dates_w358', () => m.lineChart({ series: [{ label: 'Harga PO', points: dated(30, 1).map(p => ({ x: p.x, y: 12000 + p.y * 40 })) }], width: 358, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'tanggal harian lebar 358' }));
+  // Sumbu dipaksa 0..100 dengan nilai 140 dan −20: dulu titik+garis terlukis 73 px di atas svg
+  // (menimpa kepala kartu) — kini garis diklip dan titiknya ditempel di tepi plot + "(di luar sumbu)".
+  t('line_clip', () => m.lineChart({ series: [{ label: 'Progres', points: [{x:0,y:10},{x:1,y:60},{x:2,y:140},{x:3,y:-20},{x:4,y:50}], area: true }], yMin: 0, yMax: 100, yFormat: (v) => v + ' %', ariaLabel: 'di luar sumbu' }));
+  t('line_empty', () => m.lineChart({ series: [{ label: 'Kosong', points: [{x:0,y:null},{x:1,y:NaN}] }], ariaLabel: 'kosong' }));
+  // 8 seri berlabel 28 huruf + sumbu Rp (PAD.left 120) + catatan sumber: legenda membungkus 4 baris —
+  // tinggi viewBox harus dihitung dari tata letak yang sama (dulu 3 baris, catatan 16 px di luar svg).
+  const longLabel = (i) => ('Seri ' + i + ' ' + 'x'.repeat(40)).slice(0, 28);
+  const rpAxis = (v) => 'Rp ' + new Intl.NumberFormat('id-ID').format(v);
+  t('line_legend_wrap', () => m.lineChart({ series: [1,2,3,4,5,6,7,8].map(i => ({ label: longLabel(i), points: [{x:0,y:1e9*i},{x:1,y:2e9*i}] })), yFormat: rpAxis, sourceNote: 'Sumber: fixture legenda 8 seri', ariaLabel: 'legenda membungkus' }));
+  t('bar_legend_wrap', () => m.barChart({ categories: ['A','B','C'], series: [1,2,3,4,5,6,7,8].map(i => ({ label: longLabel(i), values: [1e9*i, 2e9*i, 1.5e9*i] })), yFormat: rpAxis, sourceNote: 'Sumber: fixture', ariaLabel: 'legenda batang membungkus' }));
+  t('bar', () => m.barChart({ categories: ['Jan','Feb','Mar','Apr'], series: [{ label: 'RAP', values: [3,-2,5,4] },{ label: 'Realisasi', values: [1,4,null,6] }], yFormat: rp, ariaLabel: 'uji batang' }));
+  t('bar_stacked', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Material', values: [3,2,1] },{ label: 'Upah', values: [1,4,2] },{ label: 'Alat', values: [-1,1,0] }], stacked: true, ariaLabel: 'tumpuk' }));
+  t('bar_horizontal', () => m.barChart({ categories: ['Gudang Utama Jakarta Selatan','Gudang 2','Gudang 3'], series: [{ label: 'Stok', values: [30,12,0] }], horizontal: true, ariaLabel: 'mendatar' }));
+  // Label nilai mendatar 'Rp 1.000.000.000,00' (103 px) × 5 tick: yang terakhir ditambatkan ke ujung kanan — dijarangkan dengan kotak yang sama.
+  t('bar_horizontal_rp', () => m.barChart({ categories: ['Proyek A','Proyek B','Proyek C'], series: [{ label: 'Nilai', values: [1e9, 2e9, 5e8] }], horizontal: true, yFormat: (v) => 'Rp ' + new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(v), ariaLabel: 'mendatar rupiah' }));
+  t('bar_empty', () => m.barChart({ categories: [], series: [], ariaLabel: 'kosong' }));
+  // 12 nama bulan pada lebar 720 (pita 55,7 px): 'Februari' 41 px / 'September' 54 px muat — dulu
+  // CHAR_W 6,3 memotongnya jadi 'Februa…', 'Septem…', 'Novemb…', 'Desemb…'.
+  t('bar_months', () => m.barChart({ categories: ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'], series: [{ label: 'RAP', values: [1,2,3,4,5,6,7,8,9,10,11,12] }], ariaLabel: 'dua belas bulan' }));
+  // 100 kategori × 6 seri = 600 batang pada lebar 720: barW < 1 px — sebelum verifikasi P1-A
+  // width="-0.2" (Chromium menolak, 0 batang tergambar, 600 <title> tetap ada).
+  t('bar_dense', () => m.barChart({ categories: Array.from({length: 100}, (_, i) => 'K' + (i + 1)), series: Array.from({length: 6}, (_, i) => ({ label: 'S' + (i + 1), values: Array.from({length: 100}, (_, j) => (j * 7919 + i) % 97) })), ariaLabel: 'batang rapat 600' }));
+  t('donut', () => m.donutChart({ slices: [{label:'Disetujui',value:60},{label:'Menunggu',value:30},{label:'Ditolak',value:10},{label:'Draf',value:0}], centerLabel: '100', centerSub: 'dokumen', ariaLabel: 'donat' }));
+  t('donut_one', () => m.donutChart({ slices: [{label:'Semua',value:5}], ariaLabel: 'satu irisan' }));
+  // Nilai negatif / tak terukur tidak digambar, tetapi harus tetap disebut legenda (dulu hilang tanpa jejak).
+  t('donut_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Disetujui',value:5},{label:'Tak terukur',value:NaN}], ariaLabel: 'irisan dikecualikan' }));
+  t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
+  // Semua baris dikecualikan (negatif/NaN/teks): dulu placeholder polos 'Belum ada data' menelan ketiganya tanpa jejak.
+  t('donut_all_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Tak terukur',value:NaN},{label:'Teks',value:'x'},{label:'Nol',value:0}], ariaLabel: 'semua dikecualikan' }));
+  // Label 55 huruf: dulu viewBox melebar ke 560 mengikuti label lalu menyusut ×0,64 di ponsel (teks 7 px);
+  // kini lebar tetap 360 dan legenda dibungkus per kata (data-lines > 1) — ukuran huruf sama dengan donat lain.
+  t('donut_long', () => m.donutChart({ slices: [{label:'Kategori dengan nama yang sangat panjang sekali sekali',value:1},{label:'B',value:2},{label:'Rp 10 M',value:1e10}], valueFormat: (v) => new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'label panjang' }));
+  // Verifikasi P1-A putaran 3: label HURUF BESAR / angka polos (nama proyek yang lazim) — 6,1–8,6 px/glyph, bukan 5,6:
+  // dulu dibungkus 21 huruf × CHAR_W lalu 'PEMBANGUNAN GEDUNG' (137 px) berakhir 9,5 px di luar viewBox 360; kini dibungkus
+  // menurut taksiran per kelas glyph dan grup legenda diklip ke viewBox (legend_texts_past_right harus 0, legend_clipped 1).
+  t('donut_uppercase', () => m.donutChart({ slices: [{label:'PEMBANGUNAN GEDUNG KANTOR PUSAT JAKARTA SELATAN',value:5e9},{label:'PENGADAAN ALAT BERAT 2026',value:3e9},{label:'1234567890 1234567890',value:1e9}], valueFormat: (v) => new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'label huruf besar' }));
+  // Sembilan seri/irisan: token berulang setelah 8 (seri 9 = --chart-1) dan blok cetak memberi seri 2..8 pola masing-masing.
+  t('donut_9', () => m.donutChart({ slices: Array.from({length: 9}, (_, i) => ({ label: 'Bagian ' + (i + 1), value: i + 1 })), ariaLabel: 'sembilan irisan' }));
+  t('line_9_series', () => m.lineChart({ series: Array.from({length: 9}, (_, i) => ({ label: 'S' + (i + 1), points: [{x:0,y:i},{x:1,y:i+1}] })), ariaLabel: 'sembilan seri' }));
+  // Irisan 99,9999 %: busur ≥ 359,99° yang ujungnya berimpit setelah pembulatan hilang dari
+  // path (cakram tanpa lubang / tidak tergambar) — diukur getTotalLength cincin ≈ 2π(84+56) = 880.
+  t('donut_tiny', () => m.donutChart({ slices: [{label:'Rp 10 M',value:1e10},{label:'Rp 100 rb',value:1e5}], ariaLabel: 'irisan mungil' }));
+  t('spark', () => m.sparkline({ points: [1,3,2,null,5,4,6], ariaLabel: 'spark' }));
+  t('spark_single', () => m.sparkline({ points: [2], ariaLabel: 'spark satu' }));
+  t('spark_empty', () => m.sparkline({ points: [null, NaN], ariaLabel: 'spark kosong' }));
+  const rows = [
+    { label: 'Persiapan', start: '2026-08-24', end: '2026-09-04', progress: 1, baselineStart: '2026-08-24', baselineEnd: '2026-09-02', level: 0 },
+    { label: 'Mobilisasi alat', start: '2026-08-26', end: '2026-09-01', progress: 1, level: 1 },
+    { label: 'Pekerjaan tanah dan galian pondasi', start: '2026-09-01', end: '2026-09-18', progress: 0.4, baselineStart: '2026-08-31', baselineEnd: '2026-09-14', level: 0 },
+    { label: 'Galian', start: '2026-09-01', end: '2026-09-09', progress: 0.8, level: 1 },
+    { label: 'Urugan', start: '2026-09-08', end: '2026-09-18', progress: 0.1, level: 1 },
+    { label: 'Struktur bawah', start: '2026-09-14', end: null, progress: 0, baselineStart: '2026-09-12', baselineEnd: '2026-10-02', level: 0 },
+    { label: 'Pengadaan besi', start: null, end: '2026-09-20', level: 1 },
+    { label: 'Belum dijadwalkan: pengadaan material finishing tahap kedua', level: 1 },
+    { label: 'Struktur atas', start: '2026-10-01', end: '2026-10-30', progress: 0, level: 0 },
+    { label: 'Finishing', start: '2026-10-20', end: '2026-11-30', level: 0 },
+  ];
+  t('gantt_week', () => m.ganttChart({ rows, from: '2026-08-24', to: '2026-10-11', zoom: 'week', today: '2026-09-05', ariaLabel: 'gantt minggu', sourceNote: 'Sumber: fixture' }));
+  t('gantt_month', () => m.ganttChart({ rows, from: '2026-06-01', to: '2026-12-31', zoom: 'month', today: '2026-09-05', ariaLabel: 'gantt bulan' }));
+  t('gantt_week_long', () => m.ganttChart({ rows, from: '2026-06-01', to: '2026-12-31', zoom: 'week', today: '2026-09-05', ariaLabel: 'gantt minggu rentang sama' }));
+  t('gantt_empty', () => m.ganttChart({ rows: [], ariaLabel: 'gantt kosong' }));
+  // Data tidak konsisten: dulu end<start jadi bar 1 px bertitle terbalik, '2026-13-45' jadi
+  // "14 Feb 2027", progress 7 jadi "100 %", baris di luar rentang tanpa keterangan apa pun.
+  t('gantt_invalid', () => m.ganttChart({ rows: [
+      { label: 'Terbalik', start: '2026-09-10', end: '2026-09-02' },
+      { label: 'Tanggal rusak', start: 'abc', end: '2026-13-45' },
+      { label: 'Progres 700 %', start: '2026-09-01', end: '2026-09-20', progress: 7 },
+      { label: 'Progres negatif', start: '2026-09-01', end: '2026-09-20', progress: -1 },
+      { label: 'Sebelum rentang', start: '2026-01-01', end: '2026-01-10' },
+      // Baris terbuka di luar rentang: dulu batas rentang (01 Sep / 30 Sep 2026) dicetak sebagai tanggal tugas.
+      { label: 'Buka-awal lampau', start: null, end: '2026-01-10' },
+      { label: 'Buka-akhir mendatang', start: '2027-01-01', end: null },
+      // Baris berteks + baseline: dulu rect baseline 240 px digambar DI BAWAH teks catatan (tak terbaca), dan
+      // baris 'tanpa tanggal' dengan baseline terbalik diam saja (catatannya hanya ada di <title> bar yang tidak ada).
+      { label: 'Rusak + baseline', start: 'abc', end: '2026-13-45', baselineStart: '2026-09-03', baselineEnd: '2026-09-12' },
+      { label: 'Tanpa tanggal + baseline', baselineStart: '2026-09-03', baselineEnd: '2026-09-12' },
+      { label: 'Tanpa tanggal, baseline terbalik', baselineStart: '2026-09-20', baselineEnd: '2026-09-01' },
+      { label: 'Baseline di luar rentang', start: '2026-09-02', end: '2026-09-10', baselineStart: '2026-01-03', baselineEnd: '2026-01-12' },
+      { label: 'Baseline terbalik', start: '2026-09-03', end: '2026-09-12', baselineStart: '2026-09-20', baselineEnd: '2026-09-01' },
+      { label: 'Benar', start: '2026-09-02', end: '2026-09-10', progress: 0.5 }],
+    from: '2026-09-01', to: '2026-09-30', today: '2026-09-05', ariaLabel: 'gantt data tidak konsisten' }));
+  // Satu-satunya baseline di luar rentang: tidak ada rect baseline, jadi legenda tidak boleh menyebut 'Baseline'.
+  t('gantt_baseline_outside', () => m.ganttChart({ rows: [{ label: 'Benar, baseline Januari', start: '2026-09-02', end: '2026-09-10', baselineStart: '2026-01-03', baselineEnd: '2026-01-12' }], from: '2026-09-01', to: '2026-09-30', today: '2026-09-05', ariaLabel: 'baseline di luar rentang' }));
+  return { errors, charts: host.querySelectorAll('svg').length, exports: Object.keys(m).sort() };
+}"""
+
+CHART_MEASURE = """(theme) => {
+  document.documentElement.dataset.theme = theme;
+  const root = getComputedStyle(document.documentElement);
+  const v = (n) => root.getPropertyValue(n).trim();
+  const rgb = (hex) => { const h = hex.replace('#',''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`; };
+  const lum = (hex) => { const c = hex.match(/\\w\\w/g).map(x => parseInt(x, 16) / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const cr = (a, b) => { const l1 = lum(a), l2 = lum(b); return +(((Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05)).toFixed(2)); };
+  const names = [1,2,3,4,5,6,7,8].map(i => `--chart-${i}`).concat(['grid','axis','text','today','weekend','baseline'].map(k => `--chart-${k}`));
+  const tokens = Object.fromEntries(names.map(n => [n, v(n)]));
+  const surface = v('--surface');
+  const contrast = Object.fromEntries([1,2,3,4,5,6,7,8].map(i => [`--chart-${i}`, cr(tokens[`--chart-${i}`], surface)]));
+  contrast['--chart-text'] = cr(tokens['--chart-text'], surface);
+  const charts = {};
+  // Label sumbu-x = baris teks di bawah sumbu (y > y2 sumbu + 4); tumpang tindih diukur getBBox
+  // (koordinat svg, bebas skala) atas SEMUA pasangan tetangga — termasuk label terakhir yang
+  // ditambatkan ke ujung, yang dulu luput karena pemeriksaan lama hanya melihat label kategori
+  // bertumpu tengah.
+  const bottomLabels = (svg, bottom) => [...svg.querySelectorAll('text.chart-tick')].filter(t => +t.getAttribute('y') > bottom + 4);
+  const overlaps = (els) => { const b = els.map(t => t.getBBox()).sort((p, q) => p.x - q.x); const ov = b.map((x, i) => i ? b[i - 1].x + b[i - 1].width - x.x : 0); return { count: ov.filter(o => o > 0.5).length, max_px: +Math.max(0, ...ov).toFixed(1) }; };
+  document.querySelectorAll('#s20 [data-name]').forEach(w => {
+    const svg = w.querySelector('svg'); const name = w.dataset.name;
+    const painted = [...svg.querySelectorAll('[data-token]')]; const mismatch = [];
+    painted.forEach(el => { const got = getComputedStyle(el)[el.dataset.paint]; const want = rgb(tokens[el.dataset.token] || v(el.dataset.token)); if (got !== want) mismatch.push(`${el.tagName}.${el.getAttribute('class')} ${el.dataset.token}/${el.dataset.paint}: ${got} != ${want}`); });
+    const texts = [...svg.querySelectorAll('text:not([data-token])')];
+    // Pembeda: --chart-text == --muted di kedua tema, jadi fill saja tidak membedakan aturan
+    // .chart-lib text dari .chart text (yang juga cocok). tabular-nums hanya diberi .chart-lib.
+    const textOk = texts.filter(t => { const cs = getComputedStyle(t); return cs.fill === rgb(tokens['--chart-text']) && cs.fontVariantNumeric === 'tabular-nums'; }).length;
+    const fonts = [...new Set(texts.map(t => getComputedStyle(t).fontFamily.split(',')[0].trim()))];
+    const numeric = [...new Set(texts.map(t => getComputedStyle(t).fontVariantNumeric))];
+    const box = svg.getBoundingClientRect(); const vb = svg.viewBox.baseVal;
+    const scale = vb.width ? box.width / vb.width : 1;
+    const negDims = [...svg.querySelectorAll('rect, circle')].filter(e => ['width', 'height', 'r'].some(a => e.hasAttribute(a) && parseFloat(e.getAttribute(a)) < 0)).length;
+    // <title> yang sah: tepat satu per .mark, plus nama lengkap pada label gantt yang dipotong (data-truncated).
+    const strayTitles = [...svg.querySelectorAll('title')].filter(t => !t.parentElement.classList.contains('mark') && !(t.parentElement.classList.contains('gantt-label') && t.parentElement.dataset.truncated)).length;
+    const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, mark_titles: svg.querySelectorAll('.mark > title').length, stray_titles: strayTitles, neg_dims: negDims,
+      texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
+      empty_font_px: svg.dataset.empty === 'true' ? +(parseFloat(getComputedStyle(svg.querySelector('.chart-empty')).fontSize) * scale).toFixed(1) : null,
+      empty_sub: (svg.querySelector('.chart-empty-sub') || {}).textContent || null, excluded_rows: svg.dataset.excluded ? +svg.dataset.excluded : null,
+      width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
+    // Geometri di luar viewBox (getBBox dalam koordinat svg): legenda/catatan yang melampaui tinggi,
+    // label tick yang keluar tepi kanan, titik di luar plot — .chart { overflow: visible } melukisnya
+    // di atas elemen berikutnya. Path yang diklip dikecualikan (getBBox = geometri sebelum klip).
+    const outside = [...svg.querySelectorAll('circle, rect, line, text:not([clip-path]), path:not([clip-path])')].filter(e => !e.closest('defs')).filter(e => { try { const b = e.getBBox(); return b.y + b.height > vb.height + 0.5 || b.y < -0.5 || b.x + b.width > vb.width + 0.5 || b.x < -0.5; } catch (x) { return false; } });
+    c.outside_viewbox = outside.length; c.outside_viewbox_sample = outside.slice(0, 3).map(e => e.tagName + '.' + (e.getAttribute('class') || '') + ' ' + (e.textContent || '').slice(0, 20));
+    // px/glyph terukur label tick (getBBox lebar ÷ jumlah huruf) — pembanding untuk taksiran CHAR_W 5,6 charts.js (docblock menyebut 'September' 6,02 dan angka polos 6,12 melampauinya).
+    const glyphs = [...svg.querySelectorAll('text.chart-tick')].filter(t => t.textContent.length >= 3).map(t => t.getBBox().width / t.textContent.length); c.tick_glyph_px_max = glyphs.length ? +Math.max(...glyphs).toFixed(2) : null;
+    const legendEls = [...svg.querySelectorAll('text.chart-legend')]; const legendYs = legendEls.map(t => +t.getAttribute('y')); const note = svg.querySelector('text.chart-note');
+    // Teks entri legenda: donat membungkus per baris ke <tspan> (dy 14) — digabung dengan spasi supaya sama dengan teks satu barisnya.
+    const legendText = (t) => t.querySelector('tspan') ? [...t.querySelectorAll('tspan')].map(sp => sp.textContent).join(' ') : t.textContent;
+    // Tepi bawah legenda dari getBBox (entri donat bisa 2–3 baris; y atribut hanya baris pertamanya), catatan sumber dari y-nya.
+    if (legendEls.length) { c.legend_rows = new Set(legendYs).size; c.legend_overflow_px = +(Math.max(...legendEls.map(t => { const b = t.getBBox(); return b.y + b.height; }), note ? +note.getAttribute('y') + 4 : 0) - vb.height).toFixed(1); }
+    if (name.startsWith('line')) { c.series_line_paths = svg.querySelectorAll('path.series-line').length; c.series1_segments = svg.querySelectorAll('path.series-line[data-series="1"]').length; c.zero_line = svg.querySelectorAll('.chart-zero').length;
+      const clipRect = svg.querySelector('clipPath rect'); const top = clipRect ? +clipRect.getAttribute('y') + 2 : 14; const bottom = clipRect ? top + +clipRect.getAttribute('height') - 4 : 232;
+      c.clipped_paths = svg.querySelectorAll('path.series-line[clip-path], path.series-area[clip-path]').length; c.unclipped_paths = svg.querySelectorAll('path.series-line:not([clip-path]), path.series-area:not([clip-path])').length;
+      const dots = [...svg.querySelectorAll('circle.series-point')]; c.dots_outside_plot = dots.filter(d => +d.getAttribute('cy') < top - 0.5 || +d.getAttribute('cy') > bottom + 0.5).length;
+      c.dots_marked_outside = dots.filter(d => d.dataset.outside).length; c.outside_titles = [...svg.querySelectorAll('circle[data-outside] title')].map(t => t.textContent);
+      const xl = bottomLabels(svg, bottom); c.x_labels = xl.map(t => t.textContent); c.dropped_x = +(svg.dataset.droppedX || 0);
+      const xo = overlaps(xl); c.x_label_overlaps = xo.count; c.x_label_max_overlap_px = xo.max_px; c.x_label_anchors = [...new Set(xl.map(t => t.getAttribute('text-anchor')))];
+      c.two_digit_year_labels = c.x_labels.filter(l => /^\d{2} \w{3} \d{2}$/.test(l)).length;
+      c.y_ticks = [...svg.querySelectorAll('text.chart-tick[text-anchor="end"]')].filter(t => +t.getAttribute('y') <= bottom + 4).map(t => t.textContent);
+      c.series_dash = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + (p.getAttribute('stroke-dasharray') || 'solid'));
+      c.dots_by_series = dots.reduce((a, d) => { a[d.dataset.series] = (a[d.dataset.series] || 0) + 1; return a; }, {});
+      c.dot_tokens = [...new Set(dots.map(d => d.dataset.token))]; c.dot_radii = [...new Set(dots.map(d => +d.getAttribute('r')))];
+      // Seri di legenda tanpa satu pun path/titik yang tidak mengatakan '(tanpa data)'.
+      const drawnSeries = new Set([...svg.querySelectorAll('path.series-line, circle.series-point')].map(e => e.dataset.series));
+      c.legend_series_silent_nodata = [...svg.querySelectorAll('text.chart-legend')].filter(t => { const sw = t.previousElementSibling; return sw && sw.dataset.series && !drawnSeries.has(sw.dataset.series) && !t.dataset.nodata; }).length;
+      c.legend_nodata = svg.querySelectorAll('text.chart-legend[data-nodata]').length;
+      c.dots_r_not_positive = dots.filter(d => !(+d.getAttribute('r') > 0)).length; c.undefined_tokens = [...svg.querySelectorAll('[data-token]')].filter(e => !v(e.dataset.token)).length;
+      c.line_stroke_none = [...svg.querySelectorAll('path.series-line')].filter(p => getComputedStyle(p).stroke === 'none').length;
+      c.line_tokens = [...svg.querySelectorAll('path.series-line')].map(p => p.dataset.series + ':' + p.dataset.token); c.custom_titles = [...svg.querySelectorAll('circle.series-point title')].map(t => t.textContent).filter(t => /^Minggu/.test(t)).length; c.fabricated_1970 = [...svg.querySelectorAll('text, title')].filter(t => /\b70\b|1970/.test(t.textContent)).length; }
+    if (name.startsWith('bar')) { c.zero_line = svg.querySelectorAll('.chart-zero').length; const bars = [...svg.querySelectorAll('rect.series-bar')]; c.bars = bars.length; c.bar_min_thickness = bars.length ? Math.min(...bars.map(r => +r.getAttribute(name.includes('horizontal') ? 'height' : 'width'))) : null;
+      const axisEl = svg.querySelector('.chart-axis'); const xl = axisEl ? bottomLabels(svg, +axisEl.getAttribute('y2')) : [];
+      const catLabels = name.includes('horizontal') ? [...svg.querySelectorAll('text.chart-tick[text-anchor="end"]')].filter(t => !xl.includes(t)) : xl;
+      c.category_labels = catLabels.map(t => t.textContent); c.truncated_labels = catLabels.filter(t => /…$/.test(t.textContent)).length;
+      // Label vs lebar sebenarnya: semua label baris bawah (kategori tegak / nilai mendatar) yang tumpang tindih dengan tetangganya (getBBox, koordinat svg).
+      c.x_labels = xl.map(t => t.textContent); const xo = overlaps(xl); c.label_overlaps = xo.count; c.x_label_overlaps = xo.count; c.x_label_max_overlap_px = xo.max_px; }
+    if (name.startsWith('donut')) { c.full_ring = svg.querySelectorAll('circle.mark').length; c.legend_items = legendEls.map(legendText); c.legend_excluded = svg.querySelectorAll('text.chart-legend[data-excluded]').length;
+      c.legend_lines_max = Math.max(0, ...legendEls.map(t => +(t.dataset.lines || 1))); c.legend_right_px = +Math.max(0, ...legendEls.map(t => { const b = t.getBBox(); return b.x + b.width; })).toFixed(1);
+      // Teks legenda yang tepi kanannya melewati viewBox (getBBox — geometri, bukan lukisan: klip tidak menyembunyikannya), px/glyph terukur per baris tspan
+      // (pembanding tabel GLYPH_CLASSES charts.js), dan apakah grup legenda diklip ke viewBox (jaring terakhir untuk font klien yang lebih lebar).
+      c.legend_texts_past_right = legendEls.filter(t => { const b = t.getBBox(); return b.x + b.width > vb.width + 0.5; }).length;
+      const spans = legendEls.flatMap(t => [...t.querySelectorAll('tspan')]).filter(sp => sp.textContent.length >= 3); c.legend_glyph_px_max = spans.length ? +Math.max(...spans.map(sp => sp.getBBox().width / sp.textContent.length)).toFixed(2) : null;
+      const group = svg.querySelector('g.chart-legend-group'); c.legend_clipped = group && group.getAttribute('clip-path') && svg.querySelector('clipPath rect') ? 1 : 0; c.slice_lengths = [...svg.querySelectorAll('path.series-slice')].map(p => +p.getTotalLength().toFixed(1)); c.biggest_slice_is_ring = c.slice_lengths.length ? Math.max(...c.slice_lengths) >= 2 * Math.PI * (84 + 56) - 2 : null; }
+    if (name.startsWith('gantt')) {
+      c.today_lines = svg.querySelectorAll('.gantt-today').length; c.today_label = (svg.querySelector('.gantt-today-label') || {}).textContent || null;
+      c.weekend_rects = svg.querySelectorAll('.gantt-weekend').length; c.ticks = svg.querySelectorAll('.gantt-tick').length; c.tick_labels = svg.querySelectorAll('.gantt-tick-label').length;
+      c.rows = svg.querySelectorAll('.gantt-label').length; c.bars = svg.querySelectorAll('.gantt-bar').length; c.baselines = svg.querySelectorAll('.gantt-baseline').length;
+      c.truncated_labels = svg.querySelectorAll('.gantt-label[data-truncated]').length; c.truncated_with_full_title = [...svg.querySelectorAll('.gantt-label[data-truncated]')].filter(t => t.querySelector('title') && t.querySelector('title').textContent === t.dataset.full).length;
+      c.open_titles = [...svg.querySelectorAll('.gantt-bar[data-open] title')].map(t => t.textContent);
+      const noteEls = [...svg.querySelectorAll('.gantt-nodate, .gantt-invalid, .gantt-outside')]; c.row_notes = noteEls.map(t => t.getAttribute('class').split(' ')[0] + ': ' + t.textContent);
+      // Catatan baris vs bar baseline: kotak teks yang beririsan dengan rect baseline (getBBox) — teks di atas rect tak terbaca.
+      const baseEls = [...svg.querySelectorAll('.gantt-baseline')]; const inter = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      c.note_over_baseline = noteEls.filter(n => baseEls.some(b => inter(n.getBBox(), b.getBBox()))).length; c.baseline_notes = noteEls.filter(n => /baseline/.test(n.textContent)).length;
+      c.bar_titles = [...svg.querySelectorAll('.gantt-bar title')].map(t => t.textContent); c.fabricated_dates = c.bar_titles.filter(t => /2027/.test(t)).length;
+      // Catatan 'di luar rentang' yang mengutip batas rentang fixture (01 Sep / 30 Sep 2026) sebagai tanggal tugas — baris terbuka tidak punya tanggal itu.
+      c.outside_notes = [...svg.querySelectorAll('.gantt-outside')].map(t => t.textContent); c.outside_notes_quoting_window = c.outside_notes.filter(t => /01 Sep 2026|30 Sep 2026/.test(t)).length;
+      c.legend_items = [...svg.querySelectorAll('text.chart-legend')].map(t => t.textContent);
+      // Legenda 'Baseline' hanya bila ada rect baseline yang tergambar (baseline di luar rentang tidak punya rect).
+      c.baseline_legend_dishonest = c.legend_items.includes('Baseline') !== (c.baselines > 0) ? 1 : 0;
+      c.baseline_before_actual = [...svg.querySelectorAll('.gantt-baseline')].every(b => { const bar = b.nextElementSibling; return bar && bar.classList.contains('gantt-bar') && !!(b.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING); });
+      // Label baris vs jadwal: label yang menembus kolom jadwal (bbox kanan > x sumbu = labelWidth) —
+      // pemeriksaan lama membandingkan baris yang berjarak rowHeight secara konstruksi (selalu 0).
+      const axis = svg.querySelector('.chart-axis'); const axisX = axis ? +axis.getAttribute('x1') : null; // placeholder gantt tidak punya sumbu
+      c.label_into_timeline = axisX === null ? 0 : [...svg.querySelectorAll('.gantt-label')].filter(t => { const b = t.getBBox(); return b.x + b.width > axisX - 2; }).length;
+      const sc = w.querySelector('.chart-scroll'); c.scroll_width = sc.scrollWidth; c.client_width = sc.clientWidth; c.scrolls = sc.scrollWidth > sc.clientWidth + 1; c.min_width = svg.style.minWidth;
+    }
+    charts[name] = c;
+  });
+  const total = Object.values(charts);
+  return { theme, tokens, surface, contrast, charts,
+    summary: { charts: total.length, painted: total.reduce((a, c) => a + c.painted, 0), mismatches: total.reduce((a, c) => a + c.mismatch.length, 0),
+      marks: total.reduce((a, c) => a + c.marks, 0), titles: total.reduce((a, c) => a + c.titles, 0), mark_titles: total.reduce((a, c) => a + c.mark_titles, 0), titles_equal_marks: total.every(c => c.marks === c.mark_titles), stray_titles: total.reduce((a, c) => a + c.stray_titles, 0),
+      neg_dims: total.reduce((a, c) => a + c.neg_dims, 0), outside_viewbox: total.reduce((a, c) => a + c.outside_viewbox, 0),
+      dots_outside_plot: total.reduce((a, c) => a + (c.dots_outside_plot || 0), 0), unclipped_paths: total.reduce((a, c) => a + (c.unclipped_paths || 0), 0),
+      legend_overflow_max_px: Math.max(...total.map(c => c.legend_overflow_px ?? -999)),
+      // Verifikasi P1-A putaran 2: label sumbu-x yang bertumpuk (getBBox, semua fixture garis+batang) — dulu 17–54 px pada sumbu tanggal ≥ 10 titik.
+      x_label_overlaps: total.reduce((a, c) => a + (c.x_label_overlaps || 0), 0), x_label_max_overlap_px: Math.max(0, ...total.map(c => c.x_label_max_overlap_px || 0)),
+      x_label_charts: total.filter(c => c.x_label_overlaps !== undefined).length,
+      tick_glyph_px_max: Math.max(...total.map(c => c.tick_glyph_px_max ?? 0)),
+      texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
+      empty_with_text: total.filter(c => c.empty && /^Belum ada data/.test(c.empty_text || '')).length,
+      // Donat yang semua barisnya dikecualikan: placeholder harus menyebut jumlah baris dan alasannya (data-excluded), bukan 'Belum ada data' polos.
+      excluded_placeholders_silent: total.filter(c => c.empty && c.excluded_rows && !c.empty_sub).length + Object.entries(charts).filter(([n, c]) => n === 'donut_all_excluded' && c.empty && !c.excluded_rows).length,
+      // Placeholder harus tetap terbaca di ponsel: viewBox 720/900 menyusutkan teksnya ke 5,5/4,4 px (diukur 5 Sep 2026).
+      empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)),
+      // Donat: ukuran huruf tidak boleh bergantung pada panjang label (donut 4 irisan vs donut_one vs donut_tiny).
+      donut_font_px: Object.fromEntries(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([n, c]) => [n, c.rendered_font_px])),
+      // Verifikasi P1-A putaran 2: lebar tetap 360 → ukuran huruf donat sama untuk semua fixture (donut_long 55 huruf dulu 7 px di ponsel), legenda dibungkus (baris maks) dan tetap di dalam viewBox.
+      donut_font_min_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([, c]) => c.rendered_font_px)),
+      donut_viewbox_widths: [...new Set(Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).map(([, c]) => c.viewbox_w))],
+      donut_legend_lines_max: Math.max(0, ...Object.entries(charts).filter(([n]) => n.startsWith('donut')).map(([, c]) => c.legend_lines_max || 0)),
+      donut_legend_right_max_px: Math.max(0, ...Object.entries(charts).filter(([n]) => n.startsWith('donut')).map(([, c]) => c.legend_right_px || 0)),
+      // Verifikasi P1-A putaran 3: teks legenda donat yang melewati tepi kanan viewBox (dulu 2 pada donut_uppercase, 369,5 px), px/glyph terukur maks, dan jumlah donat berlegenda yang grupnya diklip.
+      donut_legend_texts_past_right: total.reduce((a, c) => a + (c.legend_texts_past_right || 0), 0),
+      donut_legend_glyph_px_max: Math.max(0, ...total.map(c => c.legend_glyph_px_max || 0)),
+      donut_legend_clipped: total.filter(c => c.legend_clipped).length + '/' + Object.entries(charts).filter(([n, c]) => n.startsWith('donut') && !c.empty).length,
+      // Lantai ukuran huruf terender per viewport: gantt punya min-width 80 % (≥ 8,8 px) — garis/batang 720 px
+      // di ponsel 390 (5,5 px) adalah pertanyaan terbuka P1-A (lebar per viewport), dicatat, belum dipaku.
+      gantt_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => n.startsWith('gantt') && !c.empty).map(([, c]) => c.rendered_font_px)),
+      line_bar_min_font_px: Math.min(...Object.entries(charts).filter(([n, c]) => (n.startsWith('line') || n.startsWith('bar')) && !c.empty).map(([, c]) => c.rendered_font_px)),
+      label_into_timeline: total.reduce((a, c) => a + (c.label_into_timeline || 0), 0),
+      outside_notes_quoting_window: total.reduce((a, c) => a + (c.outside_notes_quoting_window || 0), 0),
+      note_over_baseline: total.reduce((a, c) => a + (c.note_over_baseline || 0), 0), baseline_legend_dishonest: total.reduce((a, c) => a + (c.baseline_legend_dishonest || 0), 0),
+      legend_series_silent_nodata: total.reduce((a, c) => a + (c.legend_series_silent_nodata || 0), 0), dots_r_not_positive: total.reduce((a, c) => a + (c.dots_r_not_positive || 0), 0), undefined_tokens: total.reduce((a, c) => a + (c.undefined_tokens || 0), 0), line_stroke_none: total.reduce((a, c) => a + (c.line_stroke_none || 0), 0),
+      min_series_contrast: Math.min(...Object.values(contrast)) } };
+}"""
+
+# Blok cetak: token seri jadi abu-abu — kontras tiap seri vs kertas putih, jarak antar-tetangga,
+# --chart-7 vs --chart-grid, dan pembeda BENTUK (pola putus garis per seri, pola garis tepi
+# batang/irisan/swatch per seri). Diukur dengan emulate_media('print') di atas fixture S20.
+CHART_PRINT = """() => {
+  const root = getComputedStyle(document.documentElement); const v = (n) => root.getPropertyValue(n).trim();
+  const lum = (hex) => { const c = hex.match(/\\w\\w/g).map(x => parseInt(x, 16) / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const cr = (a, b) => { const l1 = lum(a), l2 = lum(b); return +(((Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05)).toFixed(2)); };
+  const paper = v('--surface'); const series = {}; const neighbours = {};
+  for (let i = 1; i <= 8; i++) series['--chart-' + i] = { hex: v('--chart-' + i), vs_paper: cr(v('--chart-' + i), paper) };
+  for (let i = 1; i < 8; i++) neighbours[i + '-' + (i + 1)] = cr(v('--chart-' + i), v('--chart-' + (i + 1)));
+  const dash = (sel) => [...document.querySelectorAll(sel)].reduce((a, e) => { a[e.dataset.series] = getComputedStyle(e).strokeDasharray; return a; }, {});
+  const lineDash = dash('#s20 [data-name="line_9_series"] path.series-line'); const barDash = dash('#s20 [data-name="bar_legend_wrap"] rect.series-bar'); const sliceDash = dash('#s20 [data-name="donut_9"] path.series-slice');
+  const distinct = (o) => new Set(Object.entries(o).filter(([k]) => +k <= 8).map(([, d]) => d)).size;
+  return { print: matchMedia('print').matches, paper, series, neighbours, min_vs_paper: Math.min(...Object.values(series).map(s => s.vs_paper)), min_neighbour: Math.min(...Object.values(neighbours)),
+    chart7_vs_grid: cr(v('--chart-7'), v('--chart-grid')), line_dash: lineDash, bar_outline_dash: barDash, slice_outline_dash: sliceDash,
+    distinct_line_dashes: distinct(lineDash), distinct_bar_outlines: distinct(barDash), distinct_slice_outlines: distinct(sliceDash),
+    bar_outline_width: getComputedStyle(document.querySelector('#s20 [data-name="bar_legend_wrap"] rect.series-bar')).strokeWidth }; }"""
+
+def chart_tokens(pg, tag):
+    errors = []
+    console_errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    # Atribut SVG yang ditolak Chromium (width negatif dsb.) tidak melempar — hanya console.error.
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+    login(pg, "admin@nusantara.test")
+    out = {"render": pg.evaluate(CHART_RENDER)}
+    for theme in ("light", "dark"):
+        out[theme] = pg.evaluate(CHART_MEASURE, theme)
+        pg.wait_for_timeout(150)
+        pg.locator("#s20").screenshot(path=f"{OUT}/s20-chart-tokens-{theme}{tag}.png")
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+    pg.emulate_media(media="print")
+    out["print"] = pg.evaluate(CHART_PRINT)
+    pg.locator("#s20 [data-name='bar_legend_wrap']").screenshot(path=f"{OUT}/s20-chart-print-bars{tag}.png")
+    pg.emulate_media(media="screen")
+    out["pageerrors"] = errors
+    out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
+    out["viewport"] = pg.viewport_size
+    return out
+
+@scenario("S20_chart_tokens")
+def s20(pg):
+    return chart_tokens(pg, "")
+
+@scenario("S20_chart_tokens_mobile")
+def s20m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return chart_tokens(pg, "-mobile")
+    finally:
+        ctx.close()
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -1074,7 +1427,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

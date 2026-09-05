@@ -23,13 +23,20 @@ than written 50 times.
 ```
 public/app/
   index.html            shell: boot spinner, toast host, modal overlay
-  app.css               design tokens (light/dark), layout, components
+  app.css               design tokens (light/dark + chart tokens), layout, components, print
+  vendor/               third-party static files, one folder per <lib>@<ver> + LICENSE;
+                        VENDOR.md = manifest (sha256, gzip, how to update) pinned by
+                        tests/Feature/Core/VendorManifestTest — no CDN, no npm at runtime
+    sortablejs@1.15.7/  drag & drop (dashboard widgets, kanban) — lazy-loaded by its screens
+    lucide@1.41.0/      sprite.svg, 79 <symbol id="lucide-…"> for ui.js svgIcon()
   js/
     app.js              login gate, shell, navigation, route registration
     router.js           hash router (works from static hosting, no server rules)
     api.js              fetch wrapper, session storage, error normalisation
     format.js           id-ID money/date/percent formatting
-    ui.js               el() DOM builder, buttons, badges, modal, toast, fields
+    ui.js               el() DOM builder, buttons, badges, modal, toast, fields, svgIcon()
+    charts.js           SVG charts (line/bar/donut/sparkline/gantt) — the header docblock is
+                        the API reference; colours only via --chart-* tokens (harness S20)
     cells.js            value renderer shared by tables and detail panels
     enums.js            option lists mirrored from the PHP enums
     lookup.js           cached reference data for pickers and id -> name display

@@ -199,3 +199,57 @@ business math, FormRequests, Resources, thin controllers, routes, and a seeder p
 believable demo dataset that exercises the module (documents in several statuses).
 No TODO stubs for core flows. PHP 8.2+, typed signatures, `declare(strict_types=1);` NOT
 used (match Laravel skeleton style). Tests are optional; correctness of business math is not.
+
+## 10. Pustaka vendor SPA (`public/app/vendor/`)
+
+Aturan (ROADMAP-HASHMICRO §5 keputusan #2): **tanpa CDN, tanpa npm saat runtime, tanpa pustaka
+lain tanpa keputusan pemilik**. Yang di-vendor hanya SortableJS 1.15 dan sprite ikon Lucide subset,
+masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik ditulis sendiri
+(`js/charts.js`, §11). Manifestnya `public/app/vendor/VENDOR.md` — per pustaka: versi, URL sumber,
+sha256 tarball, lisensi, gzip terukur, untuk apa, cara memperbarui (perintah persis); per berkas:
+sha256. Uji `tests/Feature/Core/VendorManifestTest` memaku semuanya: setiap berkas vendor ada di
+manifest dengan sha yang sama dan sebaliknya; tidak ada `<script src>`, `<link href>`, `import`,
+`import()`, `new URL`, `fetch`, `url()`, `@import` yang menunjuk `http(s)://` atau `//host` di mana
+pun di bawah `public/app` — `srcset`/`imagesrcset` diperiksa per kandidat, bukan hanya kandidat
+pertamanya; literal http(s) yang bukan pemuat hanya boleh namespace W3C, tautan `<a>`/`href:`,
+atau komentar (aturan tertulis di uji — tambah aturan, bukan allowlist). Aturan `href:` bukan
+regex tetapi pindaian kurung berimbang: literal itu harus nilai langsung kunci `href` di argumen
+objek pertama pemanggilan `el('a…', { … })` **terdalam** yang melingkupinya (urutan kunci bebas,
+`el('div', {}, el('a', { onclick, href }))` sah), sedangkan `el('link'|'script'|'img'|'iframe'|
+'source'|'video'|'audio'|'embed'|'object'|…, { src|href|srcset|poster|… })` ke luar adalah pemuat
+betapa pun dalamnya ia bersarang di `el('a')` — `ui.js el()` memanggil `setAttribute`; jumlah gzip ≤ 60 KB
+(dicetak saat uji); sprite XML sah dengan `<symbol id="lucide-…" viewBox>`; `Sortable.min.js`
+identik dengan sha manifest.
+
+Cara memakai: ikon lewat `ui.js svgIcon(nama, { size, label })` → `<svg class="lucide"><use
+href="vendor/lucide@<ver>/sprite.svg#lucide-<nama>">` (nama kanonik Lucide; nama `icon()` lama
+dipetakan). Sortable dimuat malas oleh layar yang memakainya (`<script src="vendor/sortablejs@
+<ver>/Sortable.min.js">` sekali, lalu global `Sortable`) — bukan oleh shell, supaya layar yang
+tidak menyeret apa pun tidak membayarnya. Memperbarui versi = folder baru, ubah rujukan
+(`LUCIDE_SPRITE` di ui.js / pemuat Sortable), hapus folder lama, tabel manifest ditulis ulang
+dari perintah di VENDOR.md, uji hijau.
+
+## 11. Grafik (`public/app/js/charts.js`)
+
+Semua grafik baru memakai `js/charts.js` — lima fungsi murni yang mengembalikan `<svg>`:
+`lineChart`, `barChart`, `donutChart`, `sparkline`, `ganttChart`. **Docblock di kepala berkas
+itu adalah referensi API-nya** (parameter, bawaan, perilaku data kosong/celah/satu titik/negatif,
+gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pemanggil:
+
+- Warna hanya lewat token `--chart-1..8` (seri), `--chart-grid/-axis/-text/-today/-weekend/
+  -baseline` (app.css, dua tema + blok cetak; rasio kontras ≥ 3:1 terhadap `--surface` tercatat di
+  komentar tokennya). Tidak ada literal warna di charts.js maupun di pemanggil — kalau butuh warna
+  khusus (mis. GRN vs PO), itu seri sendiri dengan label di legenda.
+- Data kosong/null → grafik memasang placeholder "Belum ada data" (`data-empty="true"`); pemanggil
+  boleh menggantinya dengan `ui.emptyState()`, tetapi tidak boleh mengganti null menjadi 0 sebelum
+  memanggil grafik (aturan kejujuran §6). Nilai yang tak terukur dikirim sebagai `null`.
+- Format angka/tanggal diberikan pemanggil (`yFormat`, `valueFormat`, `xFormat`) dari `format.js`
+  (`fmt.rupiahShort`, `fmt.percent`, `fmt.date`) supaya sumbu, `<title>`, dan tabel di bawahnya
+  memakai format yang sama.
+- Setiap mark membawa `<title>`; harness S20 (`docs/bukti-uji/harness-playwright.py`) menghitung
+  `.mark > title` == `.mark`, warna terkomputasi == token di tema terang & gelap, dan placeholder — jangan
+  menambah `<title>` di luar mark (legenda, label) karena hitungan `<title>` liar akan pecah. Satu
+  pengecualian yang disengaja: label gantt yang dipotong (`data-truncated`) membawa nama lengkapnya.
+- Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
+  langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
+  `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.
