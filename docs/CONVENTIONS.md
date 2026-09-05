@@ -212,7 +212,12 @@ manifest dengan sha yang sama dan sebaliknya; tidak ada `<script src>`, `<link h
 `import()`, `new URL`, `fetch`, `url()`, `@import` yang menunjuk `http(s)://` atau `//host` di mana
 pun di bawah `public/app` — `srcset`/`imagesrcset` diperiksa per kandidat, bukan hanya kandidat
 pertamanya; literal http(s) yang bukan pemuat hanya boleh namespace W3C, tautan `<a>`/`href:`,
-atau komentar (aturan tertulis di uji — tambah aturan, bukan allowlist); jumlah gzip ≤ 60 KB
+atau komentar (aturan tertulis di uji — tambah aturan, bukan allowlist). Aturan `href:` bukan
+regex tetapi pindaian kurung berimbang: literal itu harus nilai langsung kunci `href` di argumen
+objek pertama pemanggilan `el('a…', { … })` **terdalam** yang melingkupinya (urutan kunci bebas,
+`el('div', {}, el('a', { onclick, href }))` sah), sedangkan `el('link'|'script'|'img'|'iframe'|
+'source'|'video'|'audio'|'embed'|'object'|…, { src|href|srcset|poster|… })` ke luar adalah pemuat
+betapa pun dalamnya ia bersarang di `el('a')` — `ui.js el()` memanggil `setAttribute`; jumlah gzip ≤ 60 KB
 (dicetak saat uji); sprite XML sah dengan `<symbol id="lucide-…" viewBox>`; `Sortable.min.js`
 identik dengan sha manifest.
 

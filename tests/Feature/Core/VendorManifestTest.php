@@ -118,6 +118,16 @@ class VendorManifestTest extends TestCase
     /** Kandidat srcset yang diambil dari luar: berskema http(s) atau relatif-protokol ke host bertitik. */
     private const EXTERNAL_CANDIDATE = '~^(?:https?://|//[a-z0-9-]+(?:\.[a-z0-9-]+)+)~i';
 
+    /**
+     * Tag el() yang MEMUAT sumber daya lewat kunci EL_LOADER_KEYS — ui.js el() memanggil
+     * setAttribute, jadi el('link', { href: 'https://cdn…' }) sama hidupnya dengan <link href>.
+     * Dinilai pada pemanggilan el() terdalam yang melingkupi URL (elContext), betapa pun ia
+     * bersarang di el('a', …).
+     */
+    private const EL_LOADER_TAGS = ['link', 'script', 'iframe', 'img', 'source', 'video', 'audio', 'embed', 'object', 'track', 'use', 'image'];
+
+    private const EL_LOADER_KEYS = ['src', 'href', 'srcset', 'xlink:href', 'data', 'poster'];
+
     /* --------------------------------------------------------------- (a) */
 
     public function test_every_vendored_file_is_in_the_manifest_with_its_current_sha256(): void
@@ -183,12 +193,14 @@ class VendorManifestTest extends TestCase
                         continue; // di dalam nilai srcset/imagesrcset: sudah diputuskan per kandidat di atas
                     }
                     $before = substr($line, 0, $offset);
-                    $loader = (bool) preg_match(self::LOADER_BEFORE_URL, $before);
-                    if ($loader) {
+                    $el = $this->elContext($before);
+                    if (preg_match(self::LOADER_BEFORE_URL, $before)) {
                         $violations[] = sprintf('%s:%d memuat %s dari luar (pemuat: %s)', $relative, $number + 1, $url, trim(substr($before, -40)));
+                    } elseif ($el !== null && in_array($el['tag'], self::EL_LOADER_TAGS, true) && in_array($el['key'], self::EL_LOADER_KEYS, true)) {
+                        $violations[] = sprintf("%s:%d memuat %s dari luar (pemuat: el('%s', { %s }) — ui.js el() memanggil setAttribute)", $relative, $number + 1, $url, $el['tag'], $el['key']);
                     } elseif (str_starts_with($url, '//') && ! preg_match('~["\'`]$~', $before)) {
                         continue; // relatif-protokol tanpa pemuat DAN tanpa kutip: `//` komentar JS atau pembagian, bukan alamat
-                    } elseif (! $this->isDataLiteral($url, $before, $line)) {
+                    } elseif (! $this->isDataLiteral($url, $before, $line, $el)) {
                         $violations[] = sprintf('%s:%d literal %s tidak dikenal aturan data isDataLiteral() — bukan pemuat, tetapi bukan pula namespace W3C, tautan <a>/href:, atau komentar; tambahkan aturan yang tepat bila memang data', $relative, $number + 1, $url);
                     }
                 }
@@ -202,16 +214,26 @@ class VendorManifestTest extends TestCase
     /**
      * Aturan data: sebuah literal http(s) yang bukan pemuat boleh ada HANYA bila
      *  1. ia namespace W3C (NAMESPACE_IRIS) sebagai string utuh — pengenal, bukan alamat;
-     *  2. ia tujuan tautan yang diklik orang: HTML `<a … href="…"` atau properti
-     *     `href:` di el('a', { href }) PADA BARIS YANG SAMA dan di dalam pemanggilan
-     *     el('a' itu (tidak melewati ')') — `href:` polos meloloskan
-     *     el('link', { rel: 'stylesheet', href }) yang, karena ui.js el() memanggil
-     *     setAttribute, adalah pemuat stylesheet sungguhan (verifikasi P1-A, mutasi m12);
-     *     `<link href` HTML ditangkap LOADER_BEFORE_URL lebih dulu; atau
+     *  2. ia tujuan tautan yang diklik orang: HTML `<a … href="…"` pada baris yang sama, atau
+     *     nilai langsung kunci `href` di argumen objek PERTAMA pemanggilan el('a…', { … })
+     *     TERDALAM yang melingkupinya (elContext — pindaian kurung berimbang, bukan regex).
+     *     `href:` polos meloloskan el('link', { rel: 'stylesheet', href }) yang, karena ui.js
+     *     el() memanggil setAttribute, adalah pemuat stylesheet sungguhan (verifikasi P1-A,
+     *     mutasi m12); batas ')' regex putaran 2 ([^;)]*) meloloskan el('link') sebagai argumen
+     *     ANAK — el('a', {href:'#'}, el('link', { href })) tanpa ')' di antaranya — dan menolak
+     *     el('a', { onclick: () => go(), href }) yang sah (putaran 2, mutasi y6b/y24). Kini:
+     *     urutan kunci bebas, kunci boleh berkutip, tag boleh membawa .kelas/#id, dan
+     *     el('div', {}, el('a', { href })) sah; el(tag, { href }) dengan tag bukan literal, href
+     *     di objek bersarang ({ dataset: { href } }) atau di argumen selain yang pertama tetap
+     *     gagal. Sebaliknya, el(EL_LOADER_TAGS, { EL_LOADER_KEYS }) ke http(s):// atau //host
+     *     adalah PEMUAT betapa pun dalamnya ia bersarang di el('a') — diputuskan di pemindai
+     *     sebelum sampai ke sini; `<link href` HTML ditangkap LOADER_BEFORE_URL; atau
      *  3. barisnya komentar JS/CSS (//, *, /*) — docblock yang mengutip alamat.
      * Selain itu gagal, supaya setiap URL baru di SPA diputuskan sadar.
+     *
+     * @param  array{tag: string, key: string}|null  $el  elContext($before)
      */
-    private function isDataLiteral(string $url, string $before, string $line): bool
+    private function isDataLiteral(string $url, string $before, string $line, ?array $el): bool
     {
         $quotedWhole = preg_match('~["\']$~', $before) && preg_match('~^'.preg_quote($url, '~').'["\']~', substr($line, strlen($before)));
         if ($quotedWhole && in_array($url, self::NAMESPACE_IRIS, true)) {
@@ -220,13 +242,72 @@ class VendorManifestTest extends TestCase
         if (preg_match('~xmlns(?::\w+)?\s*=\s*["\']$~', $before) && in_array($url, self::NAMESPACE_IRIS, true)) {
             return true;
         }
-        // [^;)]* — tidak boleh melewati penutup ')' el('a', …): `[el('a', {href:'#'}), el('link', { href: 'https://cdn…' })]`
-        // pada satu pernyataan dulu lolos karena [^;]* merentang dari el('a' sampai href: milik el('link') (mutasi x6).
-        if (preg_match('~(?:<a\b[^>]*\bhref\s*=\s*["\']|\bel\(\s*["\']a(?:[.#][^"\']*)?["\'][^;)]*\bhref\s*:\s*["\'`])$~i', $before)) {
+        if (preg_match('~<a\b[^>]*\bhref\s*=\s*["\']$~i', $before)) {
+            return true;
+        }
+        if ($el !== null && $el['tag'] === 'a' && $el['key'] === 'href') {
             return true;
         }
 
         return $this->isCommentLine($line);
+    }
+
+    /**
+     * Pemanggilan el() TERDALAM yang melingkupi posisi tepat setelah $before, bila URL di sana
+     * adalah nilai langsung sebuah kunci di argumen objek PERTAMA el('tag…', { … }) itu.
+     * Pindaian kurung berimbang atas $before, bukan regex: string berkutip ('"`, dengan escape)
+     * dilompati — string terakhir yang tidak tertutup adalah kutip pembuka URL itu sendiri —
+     * '(' '{' '[' ditumpuk, penutupnya membuang, dan koma pada kedalaman objek mencatat awal
+     * pasangan kunci-nilai yang sedang berjalan (koma di dalam () => go() atau fmt(x, {…}) yang
+     * sudah tertutup tidak terhitung). Syarat: tumpukan berakhir '(' lalu '{', '(' itu didahului
+     * \bel, di antara keduanya tepat satu literal tag berkutip (boleh .kelas/#id) + koma, dan
+     * sisa setelah koma terakhir pada '{' berbentuk `kunci: <kutip>`. Tidak memahami komentar
+     * atau regex JS di baris yang sama — bila tidak yakin, null, dan literalnya gagal (aturan
+     * "tambah aturan, bukan allowlist").
+     *
+     * @return array{tag: string, key: string}|null tag dan kunci dalam huruf kecil
+     */
+    private function elContext(string $before): ?array
+    {
+        $stack = [];
+        $length = strlen($before);
+        for ($i = 0; $i < $length; $i++) {
+            $c = $before[$i];
+            if ($c === '"' || $c === "'" || $c === '`') {
+                for ($j = $i + 1; $j < $length && $before[$j] !== $c; $j++) {
+                    if ($before[$j] === '\\') {
+                        $j++;
+                    }
+                }
+                if ($j >= $length) {
+                    break; // string tidak tertutup = kutip pembuka URL yang sedang diperiksa
+                }
+                $i = $j;
+            } elseif ($c === '(' || $c === '{' || $c === '[') {
+                $stack[] = ['open' => $c, 'at' => $i, 'comma' => null];
+            } elseif ($c === ')' || $c === '}' || $c === ']') {
+                array_pop($stack);
+            } elseif ($c === ',' && $stack !== []) {
+                $stack[array_key_last($stack)]['comma'] = $i;
+            }
+        }
+
+        $depth = count($stack);
+        if ($depth < 2 || $stack[$depth - 1]['open'] !== '{' || $stack[$depth - 2]['open'] !== '(') {
+            return null;
+        }
+        [$paren, $brace] = [$stack[$depth - 2], $stack[$depth - 1]];
+        if (! preg_match('~\bel\s*$~', substr($before, 0, $paren['at']))) {
+            return null;
+        }
+        if (! preg_match('~^\s*(["\'])([a-z][a-z0-9]*)(?:[.#][^"\']*)?\1\s*,\s*$~i', substr($before, $paren['at'] + 1, $brace['at'] - $paren['at'] - 1), $tag)) {
+            return null;
+        }
+        if (! preg_match('~^\s*(["\']?)([\w:-]+)\1\s*:\s*["\'`]$~', substr($before, ($brace['comma'] ?? $brace['at']) + 1), $key)) {
+            return null;
+        }
+
+        return ['tag' => strtolower($tag[2]), 'key' => strtolower($key[2])];
     }
 
     private function isCommentLine(string $line): bool
