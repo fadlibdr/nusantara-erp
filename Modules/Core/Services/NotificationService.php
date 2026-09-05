@@ -5,11 +5,11 @@ namespace Modules\Core\Services;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Modules\Core\Mail\ApprovalNotificationMail;
+use InvalidArgumentException;
+use Modules\Core\Jobs\DeliverNotification;
 use Modules\Core\Models\Notification;
+use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\ApprovableDocuments;
 use Modules\Core\Support\Erp;
 use Modules\Core\Support\SegregationOfDuties;
@@ -26,16 +26,22 @@ use Modules\Core\Support\SegregationOfDuties;
  *
  * Delivery:
  *
- *  - IN-APP, always. It needs no external service, so it is the channel that
- *    actually works on every installation.
- *  - EMAIL, when notifications.email_enabled is on AND the recipient has an
- *    address. Off by default: config('mail.default') is 'log' on a fresh
- *    install, and silently writing approval traffic into the application log is
- *    worse than not sending it.
- *  - WHATSAPP is not implemented. It needs a gateway account (Twilio, Fonnte,
- *    Wablas or Meta's Cloud API) with per-customer credentials and a template
- *    approved by Meta — none of which can ship inside the application. The seam
- *    is deliver(): add a channel there once an account exists.
+ *  - IN-APP, always, synchronously. It needs no external service, so it is the
+ *    channel that actually works on every installation — the channel of truth.
+ *  - Every OUTSIDE channel goes through the outbox (Fase 0 / P-0b, T0b.3): one
+ *    core_notification_deliveries row per recipient, then a queued
+ *    DeliverNotification job. EMAIL is written `queued` when
+ *    notifications.email_enabled is on AND the recipient has an address, and
+ *    `skipped` with the reason otherwise — off by default, because
+ *    config('mail.default') is 'log' on a fresh install and silently writing
+ *    approval traffic into the application log is worse than not sending it.
+ *    A failed send is `failed` with the provider's message, visible in
+ *    Sistem › Pengiriman Notifikasi with a Kirim ulang button. What guard()
+ *    still wraps is the DISPATCH: a dead queue must never roll back an
+ *    approval, but the queued row it leaves behind is exactly what the screen
+ *    shows.
+ *  - WHATSAPP and web push are Fase 3: implement DeliveryChannel, register it
+ *    in DeliveryChannels, and write their rows in outbox().
  */
 class NotificationService
 {
@@ -163,28 +169,21 @@ class NotificationService
                 return;
             }
 
-            $now = now();
-            $rows = $recipients->map(fn (User $user): array => [
-                'user_id' => $user->id,
-                'event' => Notification::SYSTEM,
-                'title' => $title,
-                'body' => $body,
-                'link' => $link,
-                'document_type' => null,
-                'document_id' => null,
-                'document_code' => $signature,
-                'actor_id' => null,
-                'read_at' => null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])->all();
+            foreach ($recipients as $recipient) {
+                $notification = Notification::query()->create([
+                    'user_id' => $recipient->id,
+                    'event' => Notification::SYSTEM,
+                    'title' => $title,
+                    'body' => $body,
+                    'link' => $link,
+                    'document_type' => null,
+                    'document_id' => null,
+                    'document_code' => $signature,
+                    'actor_id' => null,
+                    'read_at' => null,
+                ]);
 
-            DB::table('core_notifications')->insert($rows);
-
-            if ($this->emailEnabled()) {
-                foreach ($recipients as $recipient) {
-                    $this->email($recipient, $title, $body, $link);
-                }
+                $this->outbox($notification, $recipient);
             }
         });
     }
@@ -252,47 +251,108 @@ class NotificationService
             return;
         }
 
-        $now = now();
         $link = ApprovableDocuments::link($document);
 
-        $rows = $recipients->map(fn (User $user): array => [
-            'user_id' => $user->id,
-            'event' => $event,
-            'title' => $title,
-            'body' => $body,
-            'link' => $link,
-            'document_type' => $document::class,
-            'document_id' => $document->getKey(),
-            'document_code' => $document->code ?? null,
-            'actor_id' => $actor?->id,
-            'read_at' => null,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ])->all();
-
-        DB::table('core_notifications')->insert($rows);
-
-        if (! $this->emailEnabled()) {
-            return;
-        }
-
         foreach ($recipients as $recipient) {
-            $this->email($recipient, $title, $body, $link);
+            $notification = Notification::query()->create([
+                'user_id' => $recipient->id,
+                'event' => $event,
+                'title' => $title,
+                'body' => $body,
+                'link' => $link,
+                'document_type' => $document::class,
+                'document_id' => $document->getKey(),
+                'document_code' => $document->code ?? null,
+                'actor_id' => $actor?->id,
+                'read_at' => null,
+            ]);
+
+            $this->outbox($notification, $recipient);
         }
     }
 
-    private function email(User $recipient, string $title, string $body, ?string $link): void
+    public const SKIP_EMAIL_DISABLED = 'E-mail dinonaktifkan di Pengaturan.';
+
+    public const SKIP_NO_ADDRESS = 'Penerima tidak punya alamat e-mail.';
+
+    /**
+     * Kotak keluar: satu baris pengiriman per kanal luar untuk notifikasi yang
+     * baru ditulis, lalu job-nya. Hari ini satu kanal (e-mail).
+     *
+     * Barisnya ditulis DULU dan tanpa guard — kalau tulisan ke tabel sendiri
+     * gagal, tidak ada yang bisa dilaporkan. Yang dijaga hanya dispatch:
+     * antrean yang mati tidak boleh membatalkan persetujuan yang sedang
+     * dilaporkan, dan baris `queued` tanpa job adalah persis yang dilihat
+     * operator di layar (dan yang dihitung core/health sebagai
+     * queued_deliveries_older_than_1h).
+     */
+    private function outbox(Notification $notification, User $recipient): void
     {
-        if (blank($recipient->email)) {
-            return;
+        $address = trim((string) $recipient->email);
+
+        $delivery = new NotificationDelivery([
+            'notification_id' => $notification->id,
+            'channel' => NotificationDelivery::CHANNEL_EMAIL,
+            'recipient' => $address,
+            'status' => NotificationDelivery::QUEUED,
+            'attempts' => 0,
+        ]);
+
+        if (! $this->emailEnabled()) {
+            $delivery->status = NotificationDelivery::SKIPPED;
+            $delivery->error = self::SKIP_EMAIL_DISABLED;
+        } elseif ($address === '') {
+            $delivery->status = NotificationDelivery::SKIPPED;
+            $delivery->error = self::SKIP_NO_ADDRESS;
         }
 
-        $url = $link === null ? null : rtrim((string) config('app.url'), '/').'/app/'.$link;
+        $delivery->save();
 
-        // Guarded per recipient: one bad address must not stop the rest.
-        $this->guard(function () use ($recipient, $title, $body, $url): void {
-            Mail::to($recipient->email)->send(new ApprovalNotificationMail($title, $body, $url));
-        });
+        if ($delivery->status === NotificationDelivery::QUEUED) {
+            $this->guard(fn () => DeliverNotification::dispatch($delivery->id));
+        }
+    }
+
+    /**
+     * Kirim ulang dari layar (POST core/notification-deliveries/{id}/retry).
+     *
+     * Syarat yang sama dengan pengiriman pertama diperiksa ULANG — e-mail yang
+     * masih dimatikan atau penerima tanpa alamat ditolak dengan kalimatnya,
+     * bukan diantrekan untuk gagal lagi. Yang sudah `sent` tidak dikirim dua
+     * kali. attempts TIDAK direset: ia riwayat, dan pekerja menghitung
+     * percobaannya sendiri.
+     *
+     * Dispatch di sini TIDAK dijaga: orangnya baru saja menekan tombol, dan
+     * antrean yang menolak harus sampai ke dia sebagai galat, bukan sebagai
+     * baris `queued` yang diam.
+     *
+     * @throws InvalidArgumentException bila tidak bisa dikirim ulang
+     */
+    public function retry(NotificationDelivery $delivery): NotificationDelivery
+    {
+        if ($delivery->status === NotificationDelivery::SENT) {
+            throw new InvalidArgumentException('Pengiriman ini sudah diterima penyedia; tidak ada yang perlu dikirim ulang.');
+        }
+
+        if ($delivery->channel === NotificationDelivery::CHANNEL_EMAIL) {
+            if (! $this->emailEnabled()) {
+                throw new InvalidArgumentException('E-mail masih dinonaktifkan di Pengaturan — nyalakan dulu, lalu kirim ulang.');
+            }
+
+            if (trim((string) $delivery->recipient) === '') {
+                throw new InvalidArgumentException('Penerima tidak punya alamat e-mail; lengkapi alamatnya di Sistem › Pengguna, lalu kirim ulang.');
+            }
+        }
+
+        $delivery->forceFill([
+            'status' => NotificationDelivery::QUEUED,
+            'error' => null,
+            'next_attempt_at' => null,
+        ])->save();
+
+        DeliverNotification::dispatch($delivery->id);
+
+        return $delivery->refresh();
     }
 
     private function emailEnabled(): bool

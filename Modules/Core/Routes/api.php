@@ -17,6 +17,7 @@ use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
 use Modules\Core\Http\Controllers\NotificationController;
+use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
 use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\SearchController;
@@ -69,6 +70,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('notifications/read', [NotificationController::class, 'markRead']);
+
+    // P-0b: kotak keluar pengiriman (e-mail; WhatsApp/web push di Fase 3).
+    // Baca-saja + Kirim ulang, bergerbang core.update — pemegang Pengaturan,
+    // tempat sakelar e-mail yang menentukan `skipped` atau bukan.
+    Route::get('notification-deliveries', [NotificationDeliveryController::class, 'index'])->middleware('permission:core.update');
+    Route::get('notification-deliveries/{notificationDelivery}', [NotificationDeliveryController::class, 'show'])->middleware('permission:core.update');
+    Route::post('notification-deliveries/{notificationDelivery}/retry', [NotificationDeliveryController::class, 'retry'])->middleware('permission:core.update');
 
     // Attachments. No route-level permission: the required one depends on which
     // document the file hangs off, so the controller derives it per request.
