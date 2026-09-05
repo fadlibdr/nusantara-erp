@@ -121,6 +121,23 @@ sudo -u www-data php artisan event:cache  >/dev/null
 echo "==> Reloading php-fpm (clears the opcode cache)"
 systemctl reload php8.3-fpm
 
+# The queue worker is a long-lived PHP process holding the code it was started
+# with: without this, every job dispatched after the deploy runs on the OLD
+# build until --max-time (1 h) expires. schedule:work spawns a fresh
+# `schedule:run` each minute and would catch up on its own, but restarting
+# both keeps "what is running" equal to "what was deployed". Guarded by
+# is-enabled so a box still on /etc/cron.d/erp1 (units not installed yet —
+# deploy/systemd/README.md) deploys exactly as before.
+echo "==> Restarting queue worker and scheduler (units pick up the new code)"
+for unit in erp1-queue erp1-scheduler; do
+  if systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+    systemctl restart "$unit"
+    echo "    $unit restarted"
+  else
+    echo "    $unit not enabled — skipped (still on cron? see deploy/systemd/README.md)"
+  fi
+done
+
 echo "==> Smoke test"
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://erp1.pi2.co.id/up || true)
 if [[ "$code" == "401" ]]; then

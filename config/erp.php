@@ -242,6 +242,23 @@ return [
         'offsite_max_age_days' => 3,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scheduler watchdog (Fase 0 / P-0b)
+    |--------------------------------------------------------------------------
+    | erp:heartbeat writes core_settings scheduler.heartbeat_at every five
+    | minutes from the scheduler itself. A heartbeat older than this many
+    | seconds means the scheduler is not running: GET api/core/health reports
+    | scheduler_status=stale, the dashboard banner appears for core.update
+    | holders, and deploy/erp1-watchdog.sh restarts erp1-scheduler and runs
+    | erp:watchdog-alarm. 1200 s = four missed beats — one missed beat is a
+    | busy minute, four is a dead process. Install-time constant on purpose:
+    | an operator who can widen this from a form will silence the alarm.
+    */
+    'scheduler' => [
+        'heartbeat_max_age_s' => 1200,
+    ],
+
     'reconciliation' => [
         'match_date_window_days' => 7,
     ],

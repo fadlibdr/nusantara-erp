@@ -5368,6 +5368,73 @@ export const RESOURCES = {
      yang sudah dikirim mengutip versi yang berlaku SAAT ITU. Daftarnya secara
      bawaan hanya memuat versi berlaku — server yang menyaring, supaya pemilih
      pada layar Penawaran tidak pernah menawarkan dokumen yang sudah ditarik. */
+  /* P-0b — kotak keluar pengiriman notifikasi. Baca-saja: baris ditulis
+     NotificationService dan job DeliverNotification; satu-satunya kata kerja
+     adalah Kirim ulang, dan hanya untuk yang belum diterima penyedia (server
+     menolak `sent` dengan 422, dan e-mail yang masih dimatikan pun ditolak
+     dengan kalimatnya — bukan diantrekan untuk gagal lagi). Bergerbang
+     core.update (pemegang Pengaturan) di kedua sisi, sama dengan rutenya. */
+  'core/notification-deliveries': {
+    module: 'core', api: 'core/notification-deliveries', label: 'Pengiriman Notifikasi', labelOne: 'Pengiriman',
+    viewPerm: 'core.update',
+    canCreate: false, canEdit: false, canDelete: false,
+    columns: [
+      { key: 'created_at', label: 'Dibuat', type: 'datetime', width: '1%' },
+      { key: 'channel', label: 'Kanal', type: 'enum', enum: 'deliveryChannel', width: '1%' },
+      { key: 'recipient', label: 'Penerima', type: 'text', sub: 'user_name' },
+      { key: 'title', label: 'Notifikasi', type: 'text' },
+      { key: 'status', label: 'Status', type: 'status', enum: 'deliveryStatus', width: '1%' },
+      { key: 'attempts', label: 'Percobaan', type: 'number', align: 'right', width: '1%', hideOnNarrow: true },
+      { key: 'error', label: 'Galat / alasan', type: 'text', hideOnNarrow: true },
+      { key: 'sent_at', label: 'Terkirim', type: 'datetime', hideOnNarrow: true },
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'deliveryStatus' },
+      { key: 'channel', label: 'Kanal', enum: 'deliveryChannel' },
+    ],
+    actions: [
+      {
+        key: 'retry', label: 'Kirim ulang', path: '{id}/retry', method: 'POST', variant: 'primary',
+        perm: 'core.update',
+        when: (row) => ['queued', 'failed', 'skipped'].includes(row.status),
+        confirm: (row) => `Antrekan ulang pengiriman ${row.channel === 'email' ? 'e-mail' : row.channel} ke ${row.recipient || '(tanpa alamat)'}? `
+          + 'Percobaan sebelumnya tetap tercatat.',
+        toast: () => 'Pengiriman diantrekan ulang — statusnya menjadi Antre sampai pekerja antrean mengambilnya.',
+      },
+    ],
+  },
+
+  /* P-0b — tabel failed_jobs Laravel dari layar. Baca-saja + dua kata kerja:
+     Kirim ulang (queue:retry di server) dan Hapus (tombol generik daftar,
+     core.delete — cermin rutenya). Kunci dengan dua garis miring sengaja:
+     r/core/queue/failed → RESOURCES['core/queue/failed'], api core/queue/failed.
+     Job pengiriman notifikasi (delivery_id terisi) TIDAK diberi Kirim ulang
+     di sini: barisnya sudah `failed` dan pekerja melewati job yang
+     dikembalikan begitu saja — server menolak 422; tombolnya ada di Sistem ›
+     Pengiriman Notifikasi (retry_hint di bawah pengecualiannya). */
+  'core/queue/failed': {
+    module: 'core', api: 'core/queue/failed', label: 'Antrean Gagal', labelOne: 'Job gagal',
+    viewPerm: 'core.update',
+    canCreate: false, canEdit: false,
+    deleteLabel: 'Hapus catatan',
+    deleteConfirm: 'Hapus catatan job gagal ini? Job-nya TIDAK dijalankan ulang — pakai "Kirim ulang" bila pekerjaannya masih harus terjadi.',
+    columns: [
+      { key: 'failed_at', label: 'Gagal pada', type: 'datetime', width: '1%' },
+      { key: 'job', label: 'Job', type: 'text', sub: 'queue' },
+      { key: 'exception_excerpt', label: 'Pengecualian (baris pertama)', type: 'text', sub: 'retry_hint' },
+      { key: 'uuid', label: 'UUID', type: 'code', width: '1%', hideOnNarrow: true },
+    ],
+    actions: [
+      {
+        key: 'retry', label: 'Kirim ulang', path: '{id}/retry', method: 'POST', variant: 'primary',
+        perm: 'core.update',
+        when: (row) => row.delivery_id == null,
+        confirm: (row) => `Kembalikan job ${row.job || row.uuid} ke antrean? Pekerja akan mencobanya lagi dari awal; catatan gagal ini dihapus.`,
+        toast: () => 'Job dikembalikan ke antrean; pekerja akan mencobanya lagi.',
+      },
+    ],
+  },
+
   'core/method-library': {
     module: 'est', api: 'core/method-library',
     label: 'Pustaka Metode Kerja', labelOne: 'Metode Kerja',
@@ -5974,6 +6041,10 @@ export const NAV = [
       // yang boleh dibaca si pemanggil (GET core/document-import menyaring).
       { label: 'Impor Dokumen', route: 'impor-dokumen', perm: ['crm.create', 'est.create', 'prj.create', 'inv.create', 'scm.create', 'qc.create'] },
       { label: 'Pengaturan', route: 'settings' },
+      // P-0b: kotak keluar e-mail — pasangan sakelar "Kirim juga lewat email"
+      // di Pengaturan, jadi bergerbang orang yang sama (core.update).
+      { label: 'Pengiriman Notifikasi', route: 'r/core/notification-deliveries', perm: 'core.update' },
+      { label: 'Antrean Gagal', route: 'r/core/queue/failed', perm: 'core.update' },
     ],
   },
 ];

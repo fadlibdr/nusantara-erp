@@ -333,42 +333,82 @@ Log in and spot-check a few documents (invoice terakhir, stok, payroll run).
 **Do a restore drill on a scratch VM at least once** before you need it for
 real — an untested backup is a hope, not a plan.
 
-## 6. Monitoring
+## 6. Monitoring (erp1 bare-metal: systemd, bukan Docker)
 
-- **Health endpoint** — Laravel's `/up` (also used by uptime monitors;
-  point yours at `https://erp.example.co.id/up`):
+Sejak Fase 0 / P-0b antrean dan penjadwal adalah **layanan systemd**, bukan
+baris cron. Berkas unit, langkah pasang, dan cara membaca kegagalannya ada di
+`deploy/systemd/README.md`; ringkasannya:
 
-  ```bash
-  curl -fsS http://127.0.0.1:8080/up
-  ```
+| Apa | Bagaimana | Log |
+|---|---|---|
+| Pekerja antrean | `systemctl status erp1-queue` (`queue:work database --tries=5 --max-time=3600`) | `/var/log/erp1/queue.log` |
+| Penjadwal | `systemctl status erp1-scheduler` (`schedule:work`) | `/var/log/erp1/scheduler.log` |
+| Pengawas penjadwal | `/etc/cron.d/erp1-watchdog` (root, tiap 15 menit) → `deploy/erp1-watchdog.sh` | `/var/log/erp1/watchdog.log` |
+| Cadangan | tetap cron root di `/etc/cron.d/erp1` (§5.1) | `/var/log/erp1-backup.log` |
 
-- **Container status** — all services should be `Up`, mysql/redis `healthy`:
-
-  ```bash
-  docker compose -f docker-compose.prod.yml ps
-  ```
-
-- **Queue backlog** — alert if pending jobs exceed the threshold:
-
-  ```bash
-  docker compose -f docker-compose.prod.yml exec app php artisan queue:monitor redis:default --max=100
-  ```
-
-- **Logs** — the app logs to stderr (`LOG_CHANNEL=stderr`,
-  `LOG_LEVEL=warning`), so everything is in Docker's log stream:
+- **Health endpoint untuk uptime monitor** — Laravel `/up` (tanpa autentikasi;
+  hanya membuktikan php-fpm menjawab):
 
   ```bash
-  docker compose -f docker-compose.prod.yml logs -f --tail=100 app queue scheduler
-  docker compose -f docker-compose.prod.yml logs -f nginx mysql redis
+  curl -fsS https://erp1.pi2.co.id/up
   ```
 
-  To ship logs off-box, point a drain (promtail/vector/journald forwarding)
-  at the Docker json-file logs, and set log rotation in
-  `/etc/docker/daemon.json` (`"log-opts": {"max-size": "50m", "max-file": "5"}`).
+- **Health endpoint untuk operator** — `GET /api/core/health` (token API
+  pemegang `core.view`). Setiap angka yang tidak bisa dihitung dijawab `null`
+  dan SPA menampilkannya sebagai `?` — bukan `0`, bukan "ok":
 
-- **Disk** — MySQL data and `/backups` grow; watch `df -h` and
-  `docker system df`. Prune old images after deploys:
-  `docker image prune -f`.
+  ```bash
+  curl -fsS -H "X-Api-Token: $TOKEN" https://erp1.pi2.co.id/api/core/health
+  # {"data":{"scheduler_status":"ok","scheduler_heartbeat_at":"…","scheduler_heartbeat_age_s":112,
+  #          "queue_pending_count":0,"queue_oldest_pending_age_s":0,"failed_jobs_count":0,
+  #          "queued_deliveries_older_than_1h":0,"checked_at":"…"}}
+  ```
+
+  `scheduler_status` = `ok` (detak jantung `erp:heartbeat` < 20 menit), `stale`
+  (lebih tua — pengawas sudah/akan memulai ulang unit dan menaikkan alarm ke
+  pemegang `core.update`, dasbor mereka menampilkan spanduk "Penjadwal tidak
+  berjalan sejak …"), atau `unknown` (belum pernah ada detak: unit belum
+  pernah berjalan sejak dipasang, atau tabel pengaturan tidak terbaca).
+
+- **Antrean macet** — `queue_oldest_pending_age_s` yang terus naik berarti
+  tidak ada pekerja yang mengambil job: `systemctl status erp1-queue`, lalu
+  `/var/log/erp1/queue.log`. `failed_jobs_count` > 0 → Sistem › Antrean Gagal
+  di aplikasi (kirim ulang / hapus) atau `php artisan queue:failed`.
+  **`php artisan queue:retry <uuid>|all` atas job `DeliverNotification` tidak
+  mengirim apa pun**: baris `core_notification_deliveries`-nya sudah `failed`,
+  pekerja melewatinya, catatan gagalnya terhapus, barisnya tetap `failed`;
+  yang tersisa hanya satu peringatan "Pengiriman #N sudah berstatus failed …"
+  di log aplikasi (`storage/logs/laravel-<tanggal>.log`, bukan
+  `/var/log/erp1/queue.log`). Layar Antrean Gagal menolaknya (422), shell tidak — kirim
+  ulang di Sistem › Pengiriman Notifikasi (keputusan pemilik,
+  `ROADMAP-HASHMICRO.md` §5 #16).
+
+- **Pengiriman e-mail yang gagal** terlihat di Sistem › Pengiriman Notifikasi
+  (`core_notification_deliveries`: `queued|sent|failed|skipped`, pesan galat
+  penyedia, tombol Kirim ulang). Pengiriman yang tidak pernah diambil pekerja
+  tinggal `queued` — tidak pernah dicatat sebagai terkirim.
+  `queued_deliveries_older_than_1h` menghitung baris `queued` yang sudah
+  sejam lebih tidak disentuh pekerja (jadwal percobaannya lewat, atau tidak
+  ada jadwal dan `updated_at` lewat) — baris yang sedang menunggu backoff
+  (60/300/900/3600 s) tidak dihitung.
+
+- **Setelah deploy kode** — `deploy/sync-erp1.sh` memulai ulang kedua unit bila
+  `is-enabled`; pekerja antrean memegang kode lama sampai dimulai ulang.
+
+- **Log aplikasi** — `storage/logs/laravel-<YYYY-MM-DD>.log` di
+  `/var/www/erp1.pi2.co.id` (`LOG_CHANNEL=stack`, `LOG_STACK=daily`,
+  `LOG_LEVEL=warning` di `.env` erp1; `laravel.log` hanya bila `single`);
+  rotasi log host oleh `/etc/logrotate.d/erp1`
+  (sumber: `deploy/logrotate/erp1`, `copytruncate` karena unit menulis dengan
+  `append:` dan tidak membuka ulang berkas).
+
+- **Disk** — `df -h`; MySQL data di `/var/lib/mysql`, arsip cadangan di
+  `/var/backups/erp1` (§5.1, dipangkas oleh `backup-erp1.sh`).
+
+> **Docker (`docker-compose.prod.yml`)** — jalur ini tidak dipakai erp1. Bila
+> dipakai di tempat lain: `docker compose -f docker-compose.prod.yml ps`
+> (semua `Up`), `… logs -f --tail=100 app queue scheduler`, dan
+> `… exec app php artisan queue:monitor redis:default --max=100`.
 
 ## 7. Security checklist
 
@@ -983,7 +1023,12 @@ bash $S pra          # 0. mysql active, new code deployed, .env still sqlite, no
                      #    (diff against docs/bukti-uji/mysql-preflight-erp1-2026-09-05.json:
                      #    only generated_at and guarded flags may differ), disk space
 bash $S basisdata    # 1. CREATE DATABASE erp (root, auth_socket) + migrate:fresh → 190 tables, 0 rows
-bash $S down         # 2. php artisan down --secret=<random> --retry=60; park /etc/cron.d/erp1
+bash $S down         # 2. php artisan down --secret=<random> --retry=60; park /etc/cron.d/erp1-watchdog
+                     #    (→ erp1-watchdog.cutover-parked — otherwise 20 min later the root watchdog
+                     #    restarts erp1-scheduler and writes an alarm + heartbeat into the FROZEN
+                     #    SQLite, and the sha256 gate in salin/rollback fails); systemctl stop erp1-queue
+                     #    erp1-scheduler when enabled (P-0b — a worker still writing to the SQLite
+                     #    file being frozen is data loss); park /etc/cron.d/erp1
                      #    (→ erp1.cutover-parked: a dot in the name, cron ignores it); wait for a
                      #    running schedule:run; 10 s for in-flight requests; PRAGMA
                      #    wal_checkpoint(TRUNCATE); sha256 of the frozen file
@@ -1002,18 +1047,27 @@ bash $S smoke        # 7. through nginx with the down secret's bypass cookie: /u
                      #    /api/iam/auth/login → token; GET /api/procurement/purchase-orders → 200;
                      #    POST /api/projects/daily-reports for an EXISTING (project, date) → 422
                      #    naming report_date and the row count unchanged; erp:permission-check → 0
-bash $S up           # 8. php artisan up; cron back; /etc/erp1/mysql-backup.cnf (600) +
+bash $S up           # 8. php artisan up; cron back; systemctl start the two units when enabled;
+                     #    wait for a FRESH heartbeat (erp:heartbeat --age < 1200 s, at most
+                     #    24 × 15 s = 6 min — the stored beat is hours old after the stop, and a
+                     #    */15 watchdog tick before the first */5 beat would restart the
+                     #    just-started scheduler and raise a false "Penjadwal tidak berjalan"
+                     #    alarm that nothing retracts; after 6 min: loud warning, watchdog
+                     #    restored anyway) and only then the watchdog cron back;
+                     #    /etc/erp1/mysql-backup.cnf (600) +
                      #    BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=erp appended to
                      #    backup.conf; backup-erp1.sh --local-only; --restore-drill --source=local
                      #    must print RESTORE DRILL PASSED; prints the 24-hour rollback deadline
 ```
 
 **Rollback** — `bash $S rollback`, within 24 hours of `up`: `down`, park
-cron, sha256 of the SQLite file must still equal the frozen one (the file
+the watchdog and the cron, stop the units, sha256 of the SQLite file must
+still equal the frozen one (the file
 was never written after step 2 — the tools only read it), `.env` restored
 from `cutover/env.sqlite-latest`, `config:clear` + caches, php-fpm reload,
 `migrate:status` proves SQLite answers, `BACKUP_ENGINE=mysql` commented out,
-`up`, cron back. **Whatever users wrote to MySQL between `up` and `rollback`
+`up`, cron, units back, then the watchdog back after the same fresh-heartbeat
+wait as step 8. **Whatever users wrote to MySQL between `up` and `rollback`
 does not come back** — that is why the window is 24 hours and the day is
 Saturday. After the window, `ROLLBACK_FORCE=1` is required and the MySQL
 schema is left in place for inspection. The SQLite file and its GPG archive

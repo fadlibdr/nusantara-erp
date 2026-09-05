@@ -45,7 +45,11 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Di bawah --timeout=60 pekerja antrean (deploy/systemd/erp1-queue.service):
+            // host SMTP yang tidak menjawab harus gagal SEBAGAI pesan penyedia di
+            // baris pengiriman, bukan sebagai pekerja yang dibunuh pcntl tanpa
+            // sempat mencatat apa pun (verifikasi P-0b, 5 Sep 2026).
+            'timeout' => 30,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 

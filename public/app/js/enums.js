@@ -10,6 +10,14 @@ const opts = (pairs) => pairs.map(([value, label, tone]) =>
   (tone === undefined ? { value, label } : { value, label, tone }));
 
 export const ENUMS = {
+  /* P-0b — kotak keluar pengiriman notifikasi (core_notification_deliveries).
+     Warna dipasang di sini: `queued` bukan keadaan normal yang layak hijau,
+     dan `skipped` adalah keputusan yang jujur, bukan galat. */
+  deliveryChannel: opts([['email', 'E-mail'], ['whatsapp', 'WhatsApp'], ['webpush', 'Web push']]),
+  deliveryStatus: opts([
+    ['queued', 'Antre', 'amber'], ['sent', 'Terkirim', 'green'],
+    ['failed', 'Gagal', 'red'], ['skipped', 'Dilewati', ''],
+  ]),
   documentStatus: opts([
     ['draft', 'Draf'], ['submitted', 'Diajukan'], ['approved', 'Disetujui'],
     ['rejected', 'Ditolak'], ['closed', 'Selesai'], ['cancelled', 'Dibatalkan'],

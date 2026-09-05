@@ -11,12 +11,15 @@ use Modules\Core\Http\Controllers\DocumentImportController;
 use Modules\Core\Http\Controllers\DocumentPdfController;
 use Modules\Core\Http\Controllers\ExternalApprovalController;
 use Modules\Core\Http\Controllers\FormPrintController;
+use Modules\Core\Http\Controllers\HealthController;
 use Modules\Core\Http\Controllers\InboxController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
 use Modules\Core\Http\Controllers\NotificationController;
+use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
+use Modules\Core\Http\Controllers\QueueFailedJobController;
 use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
@@ -51,6 +54,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update'])->middleware('permission:core.update');
 
+    // P-0b: umur detak penjadwal, antrean tertua, job gagal, pengiriman yang
+    // menunggu. Bergerbang core.view — /up yang publik hanya membuktikan
+    // php-fpm menjawab. Null = tidak diketahui (SPA menulis `?`).
+    Route::get('health', HealthController::class)->middleware('permission:core.view');
+
     // The caller's own inbox. Scoped to $request->user() in the service, so no
     // permission gate applies — and none could help: there is no parameter that
     // would let one user read another's.
@@ -63,6 +71,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('notifications/read', [NotificationController::class, 'markRead']);
+
+    // P-0b: kotak keluar pengiriman (e-mail; WhatsApp/web push di Fase 3).
+    // Baca-saja + Kirim ulang, bergerbang core.update — pemegang Pengaturan,
+    // tempat sakelar e-mail yang menentukan `skipped` atau bukan.
+    Route::get('notification-deliveries', [NotificationDeliveryController::class, 'index'])->middleware('permission:core.update');
+    Route::get('notification-deliveries/{notificationDelivery}', [NotificationDeliveryController::class, 'show'])->middleware('permission:core.update');
+    Route::post('notification-deliveries/{notificationDelivery}/retry', [NotificationDeliveryController::class, 'retry'])->middleware('permission:core.update');
+
+    // P-0b: tabel failed_jobs dari layar (Sistem › Antrean Gagal). Hapus
+    // bergerbang core.delete, cermin tombol hapus generik daftar SPA.
+    Route::get('queue/failed', [QueueFailedJobController::class, 'index'])->middleware('permission:core.update');
+    Route::get('queue/failed/{failedJob}', [QueueFailedJobController::class, 'show'])->middleware('permission:core.update');
+    Route::post('queue/failed/{failedJob}/retry', [QueueFailedJobController::class, 'retry'])->middleware('permission:core.update');
+    Route::delete('queue/failed/{failedJob}', [QueueFailedJobController::class, 'destroy'])->middleware('permission:core.delete');
 
     // Attachments. No route-level permission: the required one depends on which
     // document the file hangs off, so the controller derives it per request.

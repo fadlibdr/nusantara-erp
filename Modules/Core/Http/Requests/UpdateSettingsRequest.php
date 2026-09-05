@@ -142,6 +142,17 @@ class UpdateSettingsRequest extends FormRequest
                 continue;
             }
 
+            // Ditulis erp:heartbeat, dibaca pengawas: nilai yang bisa
+            // "diperbaiki" dari formulir membuat penjadwal mati tampak hidup.
+            if ($this->settings()->isInternal($key)) {
+                $validator->errors()->add(
+                    'settings.'.$key,
+                    "Parameter {$key} ditulis oleh sistem (penjadwal) dan tidak dapat diubah dari layar ini.",
+                );
+
+                continue;
+            }
+
             $validator->errors()->add(
                 'settings.'.$key,
                 config()->has("erp.{$key}")

@@ -17,13 +17,13 @@
 #
 #   cutover-erp1.sh pra          pemeriksaan pra-terbang (tanpa mengubah apa pun)
 #   cutover-erp1.sh basisdata    CREATE DATABASE erp + migrate:fresh (skema kosong)
-#   cutover-erp1.sh down         php artisan down --secret, parkir cron, bekukan SQLite
+#   cutover-erp1.sh down         php artisan down --secret, parkir pengawas & cron, stop unit, bekukan SQLite
 #   cutover-erp1.sh snapshot     snapshot SQLite terakhir + GPG (arsip 30 hari)
 #   cutover-erp1.sh salin        erp:sqlite-to-mysql
 #   cutover-erp1.sh verifikasi   erp:migration-verify — wajib 0 selisih
 #   cutover-erp1.sh env          .env → mysql; migrate --pretend wajib kosong; config:cache
 #   cutover-erp1.sh smoke        masuk, daftar PO, laporan harian ganda → 422, permission-check
-#   cutover-erp1.sh up           php artisan up, cron kembali, cadangan beralih ke mysqldump
+#   cutover-erp1.sh up           php artisan up, cron/unit kembali, pengawas kembali setelah detak segar, cadangan → mysqldump
 #   cutover-erp1.sh rollback     .env kembali ke SQLite (berkas tidak pernah disentuh) — jendela 24 jam
 #   cutover-erp1.sh status       apa yang sudah tercatat
 #
@@ -57,6 +57,17 @@ CRON_FILE=/etc/cron.d/erp1
 # A dot in the name: cron ignores files in /etc/cron.d whose names contain
 # one, so "parking" the file disables it without editing it.
 CRON_PARKED=/etc/cron.d/erp1.cutover-parked
+# Pengawas penjadwal P-0b (root, tiap 15 menit): diparkir dengan cara yang sama.
+# Tanpa ini, 20 menit setelah `down` ia menemukan detak jantung basi, memulai
+# ulang erp1-scheduler (unit hanya di-stop, masih enabled) dan menulis alarm +
+# detak baru ke SQLite yang sudah dibekukan — sha256 di `salin`/`rollback`
+# lalu gagal (verifikasi P-0b, 5 Sep 2026).
+WATCHDOG_CRON=/etc/cron.d/erp1-watchdog
+WATCHDOG_PARKED=/etc/cron.d/erp1-watchdog.cutover-parked
+# Ambang detak yang dipakai pengawas (deploy/erp1-watchdog.sh MAX_AGE =
+# config/erp.php scheduler.heartbeat_max_age_s): pengawas baru boleh kembali
+# setelah erp:heartbeat --age di bawah angka ini — lihat heartbeat_wait.
+HEARTBEAT_MAX_AGE=1200
 ENV_FILE="$SITE/.env"
 SQLITE="$SITE/database/database.sqlite"
 BACKUP_CONF=/etc/erp1/backup.conf
@@ -159,6 +170,79 @@ run_sh_masked() { printf '    $ %s\n' "$2"; [ "$DRY" = 1 ] || bash -o pipefail -
 
 mysql_app() { mysql --defaults-extra-file="$WORK/.cred.cnf" --batch --skip-column-names "$@"; }
 
+# Unit systemd P-0b (deploy/systemd/README.md). Dijaga is-enabled: sebelum unit
+# dipasang, cut-over berjalan persis seperti sebelumnya (hanya cron yang
+# diparkir). Sesudahnya, pekerja antrean yang masih menulis ke SQLite yang
+# sedang dipindahkan adalah kehilangan data — jadi keduanya dihentikan di
+# `down` SEBELUM berkas dibekukan, dan dinyalakan lagi di `up` / `rollback`.
+ERP_UNITS=(erp1-queue erp1-scheduler)
+units_stop() {
+    local u
+    for u in "${ERP_UNITS[@]}"; do
+        if systemctl is-enabled --quiet "$u" 2>/dev/null; then run systemctl stop "$u"; else say "    $u tidak enabled — dilewati"; fi
+    done
+}
+units_start() {
+    local u
+    for u in "${ERP_UNITS[@]}"; do
+        if systemctl is-enabled --quiet "$u" 2>/dev/null; then run systemctl start "$u"; else say "    $u tidak enabled — dilewati"; fi
+    done
+}
+# Pengawas diparkir SEBELUM unit dihentikan (supaya tidak ada tick di antara
+# keduanya) dan dikembalikan SESUDAH unit dinyalakan DAN detak jantungnya
+# segar. Host yang belum memasang pengawas: tidak ada yang dilakukan.
+watchdog_park() {
+    if [ -f "$WATCHDOG_CRON" ]; then run mv "$WATCHDOG_CRON" "$WATCHDOG_PARKED"; else say "    $WATCHDOG_CRON tidak ada — pengawas belum dipasang, dilewati"; fi
+}
+
+# Detak segar dulu, baru pengawas kembali. Sepanjang cut-over penjadwal
+# berhenti berjam-jam (satu langkah per panggilan, Sabtu pagi), jadi detak
+# yang tersimpan jauh lebih tua dari HEARTBEAT_MAX_AGE, dan erp:heartbeat
+# berikutnya baru ditulis pada menit kelipatan 5 setelah unit menyala. Tick
+# pengawas (*/15 — selalu menit kelipatan 5) yang mendarat sebelum itu membaca
+# detak lama → memulai ulang erp1-scheduler yang baru dinyalakan dan mengirim
+# alarm "Penjadwal tidak berjalan" palsu ke semua pemegang core.update, yang
+# tidak dicabut siapa pun saat detaknya datang (kelas gagal yang sama dengan
+# README langkah 5; verifikasi P-0b, 5 Sep 2026). Tunggu paling lama
+# 24 × 15 s = 6 menit; lewat itu: peringatan keras, pengawas TETAP
+# dikembalikan — penjadwal tanpa pengawas lebih buruk daripada satu alarm
+# palsu.
+heartbeat_wait() {
+    local i out age=''
+    for i in $(seq 1 24); do
+        # artisan() mencetak perintahnya lalu menjalankannya; keduanya
+        # tertangkap di sini: baris pertama = perintahnya (dicetak ulang),
+        # baris terakhir = umur dalam detik atau `?`. Gagal (basis data belum
+        # menjawab) bukan alasan berhenti — dicoba lagi 15 detik kemudian.
+        out="$(artisan erp:heartbeat --age 2>/dev/null || true)"
+        say "${out%%$'\n'*}"
+        if [ "$DRY" = 1 ]; then
+            say "    (diulang tiap 15 detik sampai umur < $HEARTBEAT_MAX_AGE detik, paling banyak 24×; lewat itu peringatan, pengawas tetap kembali)"
+            return 0
+        fi
+        age="$(printf '%s\n' "$out" | sed -n '2,$p' | tail -n 1 | tr -d '[:space:]')"
+        case "$age" in
+            ''|*[!0-9]*) say "    detak: '${age:-?}' (belum pernah / tidak terbaca) — percobaan $i/24" ;;
+            *)
+                if [ "$age" -lt "$HEARTBEAT_MAX_AGE" ]; then say "    detak segar: ${age} detik lalu — pengawas boleh kembali"; return 0; fi
+                say "    detak: ${age} detik lalu, masih ≥ ambang $HEARTBEAT_MAX_AGE — percobaan $i/24" ;;
+        esac
+        sleep 15
+    done
+    say "    PERINGATAN: detak jantung masih '${age:-?}' setelah 6 menit — periksa 'systemctl status erp1-scheduler' dan /var/log/erp1/scheduler.log."
+    say "    Pengawas TETAP dikembalikan: pada tick berikutnya ia memulai ulang penjadwal dan menaikkan alarm bila detaknya memang tidak datang."
+}
+watchdog_restore() {
+    # Rencana (--dry-run) dicetak apa pun keadaan berkasnya: dry-run lazim
+    # dijalankan SEBELUM `down`, saat belum ada yang diparkir.
+    if [ "$DRY" != 1 ] && [ ! -f "$WATCHDOG_PARKED" ]; then
+        say "    $WATCHDOG_PARKED tidak ada — tidak ada pengawas yang diparkir, dilewati"
+        return 0
+    fi
+    heartbeat_wait
+    run mv "$WATCHDOG_PARKED" "$WATCHDOG_CRON"
+}
+
 # ------------------------------------------------------------------ steps
 
 step_pra() {
@@ -233,6 +317,8 @@ step_down() {
 
     akan "menyimpan rahasia bypass di $WORK/down-secret (mode 600) untuk langkah smoke"
     akan "php artisan down --secret=… --retry=60 (pengguna melihat halaman pemeliharaan; API menjawab 503)"
+    akan "memarkir pengawas $WATCHDOG_CRON → $WATCHDOG_PARKED (bila ada) — ia akan memulai ulang penjadwal dan menulis alarm ke SQLite beku 20 menit lagi"
+    akan "menghentikan unit systemd ${ERP_UNITS[*]} bila enabled (pekerja antrean tidak boleh menulis ke SQLite yang dibekukan)"
     akan "memarkir $CRON_FILE → $CRON_PARKED (scheduler & backup cron berhenti), menunggu schedule:run yang sedang berjalan"
     akan "menunggu 10 detik agar permintaan yang sedang berjalan selesai, lalu PRAGMA wal_checkpoint(TRUNCATE) dan sha256 berkas SQLite → $WORK/sqlite-frozen.sha256"
 
@@ -242,6 +328,8 @@ step_down() {
     fi
 
     artisan down --secret="$secret" --retry=60
+    watchdog_park
+    units_stop
     [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "for i in \$(seq 1 60); do pgrep -u www-data -f 'artisan schedule:run' >/dev/null || break; sleep 2; done; ! pgrep -u www-data -f 'artisan schedule:run' >/dev/null"
     run sleep 10
@@ -422,7 +510,8 @@ step_up() {
     require_root; require_done smoke; require_not_done
     load_cred
 
-    akan "php artisan up; $CRON_PARKED → $CRON_FILE"
+    akan "php artisan up; $CRON_PARKED → $CRON_FILE; systemctl start ${ERP_UNITS[*]} bila enabled"
+    akan "menunggu detak jantung segar (erp:heartbeat --age < $HEARTBEAT_MAX_AGE detik, paling lama 6 menit) LALU pengawas $WATCHDOG_PARKED → $WATCHDOG_CRON — tick */15 sebelum detak pertama = restart + alarm palsu"
     akan "memasang $MYSQL_CNF (mode 600) dan menambah BACKUP_ENGINE=mysql, MYSQL_DEFAULTS_FILE, MYSQL_DATABASE=$DB_NAME ke $BACKUP_CONF"
     akan "backup-erp1.sh --local-only lalu --restore-drill --source=local (mysqldump → erp_restore_check → verify) sebagai bukti"
     akan "menghapus salinan kredensial sementara $WORK/.cred.cnf dan mencetak jendela rollback 24 jam"
@@ -430,6 +519,8 @@ step_up() {
     artisan up
     # Guarded so a re-run after a failed drill does not die here (verifier 5 Sep 2026).
     [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
+    units_start
+    watchdog_restore
 
     if [ "$DRY" != 1 ]; then
         [ -f "$MYSQL_CNF" ] || ( umask 077; printf '[client]\nuser=%s\npassword=%s\nhost=127.0.0.1\nport=3306\n' "$DB_USERNAME" "$DB_PASSWORD" > "$MYSQL_CNF" )
@@ -456,9 +547,9 @@ step_rollback() {
     local upat
     upat="$( { grep '^up ' "$STATE" 2>/dev/null || true; } | tail -1 | cut -d' ' -f2)"
 
-    akan "php artisan down; parkir cron; salin $WORK/env.sqlite-latest → $ENV_FILE; config:clear/cache route/event cache; reload $PHP_FPM"
+    akan "php artisan down; parkir pengawas & cron; hentikan unit; salin $WORK/env.sqlite-latest → $ENV_FILE; config:clear/cache route/event cache; reload $PHP_FPM"
     akan "memastikan sha256 $SQLITE = yang dibekukan (bila berbeda: berkas berubah sesudah down — hentikan dan periksa)"
-    akan "mematikan BACKUP_ENGINE=mysql di $BACKUP_CONF; php artisan up; cron kembali"
+    akan "mematikan BACKUP_ENGINE=mysql di $BACKUP_CONF; php artisan up; cron dan unit kembali; pengawas kembali SETELAH detak jantung segar (erp:heartbeat --age < $HEARTBEAT_MAX_AGE detik, paling lama 6 menit)"
     if [ -n "$upat" ]; then
         say "    up tercatat $upat — yang ditulis pengguna ke MySQL sejak itu TIDAK ikut kembali."
         if [ "$DRY" != 1 ] && [ "$(( $(date +%s) - $(date -d "$upat" +%s) ))" -gt 86400 ] && [ "${ROLLBACK_FORCE:-0}" != 1 ]; then
@@ -467,6 +558,8 @@ step_rollback() {
     fi
 
     artisan down --retry=60
+    watchdog_park
+    units_stop
     [ -f "$CRON_FILE" ] && run mv "$CRON_FILE" "$CRON_PARKED"
     run_sh "sha256sum -c '$WORK/sqlite-frozen.sha256'"
     run_sh "cp -p '$WORK/env.sqlite-latest' '$ENV_FILE' && chown root:www-data '$ENV_FILE' && chmod 640 '$ENV_FILE'"
@@ -480,6 +573,8 @@ step_rollback() {
     run_sh "sed -i 's/^BACKUP_ENGINE=mysql/#BACKUP_ENGINE=mysql/' '$BACKUP_CONF'"
     artisan up
     [ -f "$CRON_PARKED" ] && run mv "$CRON_PARKED" "$CRON_FILE"
+    units_start
+    watchdog_restore
 
     [ "$DRY" = 1 ] || printf 'rollback %s\n' "$(date -Is)" >> "$STATE"
     say "Kembali ke SQLite. Basis data MySQL $DB_NAME dibiarkan apa adanya untuk diperiksa; jangan dihapus sebelum penyebabnya dipahami."

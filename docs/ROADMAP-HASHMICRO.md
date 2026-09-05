@@ -252,6 +252,7 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 | 13 | Fase bulanan anggaran = baseline; ambang peringatan | ya; 90 % |
 | 14 | Geofence absensi & di-luar-geofence; usulan rekap ke payroll | 500 m, dicatat bukan ditolak; usulan yang HR terapkan |
 | 15 | Code 128 vs QR ter-vendor | Code 128 tanpa dependensi |
+| 16 | `queue:retry` shell untuk job pengiriman (`DeliverNotification`): no-op jujur vs terima baris `failed` | ⏳ **no-op jujur = perilaku hari ini** (verifikasi P-0b, 5 Sep 2026): kebenaran pengiriman adalah baris `core_notification_deliveries`; job yang kembali lewat `queue:retry` melewati baris `failed` tanpa mengirim dan menulis satu peringatan di log pekerja yang menunjuk ke Sistem › Pengiriman Notifikasi; layar Antrean Gagal menolak (422) dengan penunjuk yang sama. Alternatif (menerima baris `failed` saat job datang lewat retry) = dua jalur kirim ulang yang bisa saling menimpa |
 
 ## 6. Urutan pengerjaan yang diusulkan & total
 

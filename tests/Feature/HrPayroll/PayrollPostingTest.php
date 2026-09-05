@@ -60,10 +60,15 @@ class PayrollPostingTest extends ErpTestCase
         ], $overrides));
     }
 
+    /** Codes are sequential, not random: `random_int(100, 999)` twice in one test
+     *  collided (`PRJ-2026-988` twice, MySQL full run 5 Sep 2026) — a 1-in-900 flake
+     *  that any driver can hit. */
+    private static int $projectSeq = 0;
+
     private function project(): Project
     {
         return Project::query()->create([
-            'code' => 'PRJ-2026-'.random_int(100, 999),
+            'code' => sprintf('PRJ-2026-%03d', ++self::$projectSeq),
             'name' => 'Proyek Uji Payroll',
             'type' => 'construction',
             'status' => 'active',

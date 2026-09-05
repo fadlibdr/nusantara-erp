@@ -10,9 +10,11 @@ use Modules\Core\Console\Commands\ApprovalWatchCommand;
 use Modules\Core\Console\Commands\BackupWatchCommand;
 use Modules\Core\Console\Commands\DeadlineWatchCommand;
 use Modules\Core\Console\Commands\HardenDemoLoginsCommand;
+use Modules\Core\Console\Commands\HeartbeatCommand;
 use Modules\Core\Console\Commands\MigrationVerifyCommand;
 use Modules\Core\Console\Commands\MysqlPreflightCommand;
 use Modules\Core\Console\Commands\SqliteToMysqlCommand;
+use Modules\Core\Console\Commands\WatchdogAlarmCommand;
 use Modules\Core\Events\DocumentTransitioned;
 use Modules\Core\Listeners\SendApprovalNotifications;
 use Modules\Core\Services\AuditService;
@@ -101,17 +103,25 @@ class CoreServiceProvider extends ServiceProvider
         $this->commands([
             BackupWatchCommand::class, DeadlineWatchCommand::class, ApprovalWatchCommand::class, HardenDemoLoginsCommand::class,
             MysqlPreflightCommand::class, SqliteToMysqlCommand::class, MigrationVerifyCommand::class,
+            HeartbeatCommand::class, WatchdogAlarmCommand::class,
         ]);
 
         // After the 02:15 backup and before the workday: whoever opens the ERP
         // at nine sees "offsite backup stale" the same morning it went stale.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            // P-0b: detak jantung penjadwal. Tiap 5 menit, dari penjadwal itu
+            // sendiri — satu-satunya bukti bahwa ia masih berjalan. Dibaca
+            // GET core/health, spanduk dasbor, dan deploy/erp1-watchdog.sh
+            // (restart unit + erp:watchdog-alarm bila > 20 menit).
+            $schedule->command('erp:heartbeat')->everyFiveMinutes();
+
             $schedule->command('erp:backup-watch')->dailyAt('08:00')->timezone('Asia/Jakarta');
 
             // 08:30, after fin:close-watch (08:15): the morning reads in order
             // of blast radius — backups, then the ledger, then every other
-            // date that can slide. /etc/cron.d/erp1 already runs schedule:run
-            // every minute; no cron change is needed for this line to fire.
+            // date that can slide. The erp1-scheduler unit (schedule:work,
+            // deploy/systemd) fires every minute; nothing on the host changes
+            // for this line to run.
             $schedule->command('erp:deadline-watch')->dailyAt('08:30')->timezone('Asia/Jakarta');
             // 08:45: antrean persetujuan yang menua — tanggal yang tidak
             // punya kolom, jadi tidak bisa hidup di WatchedDeadlines.

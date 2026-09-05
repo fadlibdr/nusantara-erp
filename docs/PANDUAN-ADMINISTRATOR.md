@@ -56,17 +56,21 @@ cd /var/www/erp1.pi2.co.id
 sudo -u www-data env HOME=/tmp php artisan <perintah>
 ```
 
-**Delapan perintah** (§5.1). Enam berjalan lewat satu baris `schedule:run` di
-`/etc/cron.d/erp1`; dua tidak pernah terjadwal:
+**Perintah-perintah** (§5.1). Yang berjadwal berjalan lewat penjadwal — sejak Fase 0 /
+P-0b unit systemd `erp1-scheduler` (`schedule:work`), bukan lagi baris `schedule:run` di
+`/etc/cron.d/erp1` (`deploy/systemd/README.md`); `erp:watchdog-alarm` dipanggil cron
+pengawas (root); dua tidak pernah terjadwal:
 
 | Perintah | Jadwal | Dijelaskan di |
 |---|---|---|
+| `erp:heartbeat` | tiap 5 menit | §5.2 |
 | `fin:ensure-calendar` | 05:30 WIB harian | §5.3 |
 | `ast:accrue-plant` | 05:40 WIB harian | §5.4 |
 | `svc:generate-pm` | 06:00 WIB harian | §5.5 |
 | `erp:backup-watch` | 08:00 WIB harian | §5.6 |
 | `fin:close-watch` | 08:15 WIB harian | §5.7 |
 | `erp:deadline-watch` | 08:30 WIB harian | §5.8 |
+| `erp:watchdog-alarm` | dari `deploy/erp1-watchdog.sh` (cron root tiap 15 menit) bila detak > 20 menit | §5.2 |
 | `erp:harden-demo-logins` | tangan saja — butuh TTY | §5.9 |
 | `erp:inventory-method-check` | tangan saja | §4.7 |
 
@@ -148,7 +152,8 @@ mengecualikan berkas itu dari penyalinan (`--exclude='database/database.sqlite'`
 alasannya berdiri di kepala skrip yang sama, `deploy/sync-erp1.sh:6-8` — *"The live site
 is a COPY, not a symlink, so that a half-finished edit in the source tree is never
 served."*
-Penjadwal cron pun berjalan dengan `cd /var/www/erp1.pi2.co.id` (`/etc/cron.d/erp1`).
+Penjadwal pun berjalan dengan `WorkingDirectory=/var/www/erp1.pi2.co.id`
+(`/etc/systemd/system/erp1-scheduler.service`; dulu `/etc/cron.d/erp1`).
 Perintah yang diketik dari `/root/construction-erp` **berhasil**, mencetak angka, dan
 tidak mengubah apa pun di erp1.pi2.co.id.
 
@@ -173,7 +178,7 @@ sudo -u www-data env HOME=/tmp php artisan fin:ensure-calendar
 > **Belum terdokumentasi di tempat lain.** `DEPLOYMENT.md` tidak menyebut `www-data`
 > sama sekali; kebiasaan ini hidup di catatan proyek dan baru dituliskan di sini.
 > Dua berkas yang membuktikannya, dan yang harus Anda buka bila ragu:
-> `/etc/cron.d/erp1` (siapa yang menjalankan penjadwal) dan
+> `systemctl cat erp1-scheduler` (siapa yang menjalankan penjadwal) dan
 > `ls -la /var/www/erp1.pi2.co.id/database/` (siapa yang memiliki basis datanya).
 
 ---
@@ -1575,23 +1580,41 @@ dijalankan tanpa TTY, kedua entri kosong dan ditolak pagar panjang minimal.
 
 ### 5.2 Roda yang memutar semuanya
 
-Satu baris di `/etc/cron.d/erp1` menjalankan seluruh penjadwal, sebagai `www-data`,
-setiap menit. Berkas itu juga memuat tiga cron cadangan (sebagai root): backup malam
-**02:15 WIB**, retry offsite **13:15 WIB**, dan restore drill bulanan **03:30 WIB
-tanggal 2**. Header berkasnya menjelaskan mengapa jamnya ditulis ganda UTC/WIB: *"'02:15'
-that silently means 09:15 WIB is how a backup ends up racing the workday."*
+Sejak Fase 0 / P-0b (5 Sep 2026) penjadwal adalah **unit systemd `erp1-scheduler`**
+(`php artisan schedule:work`, sebagai `www-data`, `Restart=always`, log
+`/var/log/erp1/scheduler.log`), berdampingan dengan **`erp1-queue`** (`queue:work
+database --tries=5`, log `/var/log/erp1/queue.log`) yang mengerjakan antrean — sebelum
+itu `QUEUE_CONNECTION=database` tidak punya satu pun pekerja. Berkas unit, langkah
+pasang, dan cara membacanya: `deploy/systemd/README.md`; ringkasan operasional:
+`docs/DEPLOYMENT.md` §6. Baris `schedule:run` di `/etc/cron.d/erp1` **dihapus** saat unit
+dipasang — dua penjadwal berarti setiap perintah jalan dua kali. Tiga cron cadangan
+(sebagai root) tetap di berkas itu: backup malam **02:15 WIB**, retry offsite
+**13:15 WIB**, restore drill bulanan **03:30 WIB tanggal 2**. Header berkasnya
+menjelaskan mengapa jamnya ditulis ganda UTC/WIB: *"'02:15' that silently means 09:15 WIB
+is how a backup ends up racing the workday."*
 
-> **Keluaran CLI keenam perintah terjadwal dibuang ke `/dev/null`.** Terlihat di
-> `/var/log/erp1-schedule.log`: setiap eksekusi tercatat sebagai
-> `artisan erp:deadline-watch > '/dev/null' 2>&1`. Artinya baris SKIP, baris **BLIND**,
-> dan rincian rupiah akrual **tidak pernah terbaca siapa pun** kecuali perintahnya
-> dijalankan tangan. Yang selamat dari jadwal harian hanyalah notifikasi dalam
-> aplikasi.
->
-> Dan: **tidak ada yang mengawasi penjadwal itu sendiri.** Bila baris `schedule:run` di
-> `/etc/cron.d/erp1` berhenti, keenam perintah berhenti bersamaan dan **tidak ada alarm
-> yang naik** — alarm-alarm itu justru yang dinaikkan oleh perintah yang berhenti.
-> Satu-satunya bukti adalah berhentinya baris baru di `/var/log/erp1-schedule.log`.
+**Yang mengawasi penjadwalnya sendiri.** `erp:heartbeat` menulis stempel waktu ke
+`core_settings` (`scheduler.heartbeat_at`) tiap 5 menit — dari penjadwal itu sendiri,
+jadi stempel yang berhenti bergerak berarti penjadwal berhenti. Tiga pembaca:
+
+- `GET /api/core/health` (pemegang `core.view`): `scheduler_status` `ok` (< 20 menit),
+  `stale`, atau `unknown` (belum pernah ada detak); umur detak dalam detik; jumlah job
+  menunggu dan job gagal; pengiriman notifikasi yang > 1 jam masih `queued`. Angka yang
+  tidak bisa dihitung dijawab `null`, ditampilkan `?` — bukan `0`, bukan "ok".
+- **Dasbor** pemegang `core.update`: spanduk *"Penjadwal tidak berjalan sejak …"* selama
+  detaknya basi; *"belum pernah melapor (?)"* selama belum ada detak.
+- `deploy/erp1-watchdog.sh` dari `/etc/cron.d/erp1-watchdog` (root, tiap 15 menit): detak
+  > 20 menit atau `?` → `systemctl restart erp1-scheduler` + `php artisan
+  erp:watchdog-alarm` (notifikasi dalam aplikasi *"Penjadwal tidak berjalan"* ke pemegang
+  `core.update`, satu salinan per kemacetan, diulang tiap 15 menit setelah dibaca selama
+  masih macet). Log: `/var/log/erp1/watchdog.log` — baris `sehat: detak terakhir N detik
+  lalu` tiap 15 menit adalah bukti pengawasnya sendiri hidup.
+
+> **Keluaran CLI perintah terjadwal tetap dibuang ke `/dev/null`** (tidak berubah di
+> P-0b): `/var/log/erp1/scheduler.log` mencatat `Running [erp:deadline-watch] … DONE`,
+> bukan isinya. Baris SKIP, baris **BLIND**, dan rincian rupiah akrual **tidak pernah
+> terbaca siapa pun** kecuali perintahnya dijalankan tangan. Yang selamat dari jadwal
+> harian tetap notifikasi dalam aplikasi — dan, sejak P-0b, jawaban `core/health`.
 
 ### 5.3 `fin:ensure-calendar`
 

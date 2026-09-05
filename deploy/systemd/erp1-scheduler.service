@@ -1,0 +1,39 @@
+# Nusantara ERP — penjadwal (Fase 0 / P-0b, T0b.1).
+#
+# Menggantikan baris `* * * * * www-data … php artisan schedule:run` di
+# /etc/cron.d/erp1. `schedule:work` menjalankan `schedule:run` setiap menit
+# dari satu proses yang diawasi systemd; yang berhenti terlihat di
+# `systemctl status erp1-scheduler`, bukan hanya dari berhentinya baris baru
+# di berkas log (PANDUAN-ADMINISTRATOR §5.2, "tidak ada yang mengawasi
+# penjadwal itu sendiri").
+#
+# DUA penjadwal = jalan dua kali: baris schedule:run di /etc/cron.d/erp1
+# WAJIB dihapus SEBELUM unit ini dinyalakan (README.md langkah 3 — tidak ada
+# perintah terjadwal yang memakai withoutOverlapping). Baris cron cadangan
+# (root) tetap.
+#
+# Pengawas: erp:heartbeat menulis detak jantung tiap 5 menit;
+# deploy/cron.d/erp1-watchdog (root, tiap 15 menit) memulai ulang unit ini dan
+# menaikkan alarm dalam aplikasi bila detaknya lebih tua dari 20 menit.
+[Unit]
+Description=Nusantara ERP scheduler (erp1.pi2.co.id)
+Documentation=file:/var/www/erp1.pi2.co.id/deploy/systemd/README.md
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/erp1.pi2.co.id
+Environment=HOME=/tmp
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=append:/var/log/erp1/scheduler.log
+StandardError=append:/var/log/erp1/scheduler.log
+
+[Install]
+WantedBy=multi-user.target
