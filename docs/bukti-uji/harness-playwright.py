@@ -1681,6 +1681,16 @@ def module_accents(pg, tag):
         home["marker_after"] = pg.evaluate(ACTIVE_MARKER)["group"]
         res["module_home_fin"] = home
         pg.screenshot(path=f"{OUT}/s21-module-home-{theme}{tag}.png", full_page=False)
+        # Media cetak pada tema ini: token aksen harus jatuh ke nilai TERANG (blok cetak app.css) —
+        # verifikasi P1-B 5 Sep 2026: tema gelap mencetak --accent-7 #fbcd1a di kertas putih (1,52:1).
+        pg.emulate_media(media="print"); pg.wait_for_timeout(150)
+        pr = {"tokens": pg.evaluate(ACCENT_TOKENS)["tokens"], "head": pg.evaluate(MODULE_HOME)["head"], "body_bg": pg.evaluate("() => getComputedStyle(document.body).backgroundColor")}
+        pg.emulate_media(media="null"); pg.wait_for_timeout(150)
+        pr["min_on_paper"] = min(wcag(pr["tokens"][n]["accent"], "#ffffff") for n in pr["tokens"])
+        pr["all_on_paper_ge_3"] = pr["min_on_paper"] >= 3
+        pr["head_border_hex"] = rgb_to_hex(pr["head"]["border_left"]) if pr["head"] else None
+        pr["head_uses_print_token"] = bool(pr["head"]) and pr["head_border_hex"] == pr["tokens"][pr["head"]["accent"]]["accent"]
+        res["print_accents"] = pr
         # Lima jenis ilustrasi keadaan kosong, stroke/fill terkomputasi vs token.
         pg.evaluate(EMPTY_KINDS); pg.wait_for_timeout(200)
         em = pg.evaluate(EMPTY_MEASURE)

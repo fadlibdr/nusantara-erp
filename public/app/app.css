@@ -1313,6 +1313,14 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
     --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
     --shadow-sm: none; --shadow-md: none; --shadow-lg: none;
+    /* Aksen modul ikut dipaksa ke nilai terang (verifikasi P1-B 5 Sep 2026: tema
+       gelap mencetak --accent-7 #fbcd1a di kertas putih = 1,52:1, slot 3 1,70,
+       slot 5 1,79, slot 2 2,30 — semua di bawah 3:1 — dan ubin ikon -soft
+       nyaris hitam). Nilai = blok token terang, kontras di #ffffff ≥ 5,20. */
+    --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff; --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+    --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+    --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+    --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
   }
   /* .toasts dan .overlay ikut daftar ini: toast yang masih tampil dan dialog
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
