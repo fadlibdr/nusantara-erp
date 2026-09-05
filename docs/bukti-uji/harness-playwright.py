@@ -1156,6 +1156,8 @@ CHART_RENDER = """async () => {
   // Nilai negatif / tak terukur tidak digambar, tetapi harus tetap disebut legenda (dulu hilang tanpa jejak).
   t('donut_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Disetujui',value:5},{label:'Tak terukur',value:NaN}], ariaLabel: 'irisan dikecualikan' }));
   t('donut_empty', () => m.donutChart({ slices: [], ariaLabel: 'kosong' }));
+  // Semua baris dikecualikan (negatif/NaN/teks): dulu placeholder polos 'Belum ada data' menelan ketiganya tanpa jejak.
+  t('donut_all_excluded', () => m.donutChart({ slices: [{label:'Retur',value:-5},{label:'Tak terukur',value:NaN},{label:'Teks',value:'x'},{label:'Nol',value:0}], ariaLabel: 'semua dikecualikan' }));
   // Label 55 huruf: dulu viewBox melebar ke 560 mengikuti label lalu menyusut ×0,64 di ponsel (teks 7 px);
   // kini lebar tetap 360 dan legenda dibungkus per kata (data-lines > 1) — ukuran huruf sama dengan donat lain.
   t('donut_long', () => m.donutChart({ slices: [{label:'Kategori dengan nama yang sangat panjang sekali sekali',value:1},{label:'B',value:2},{label:'Rp 10 M',value:1e10}], valueFormat: (v) => new Intl.NumberFormat('id-ID').format(v), ariaLabel: 'label panjang' }));
@@ -1246,6 +1248,7 @@ CHART_MEASURE = """(theme) => {
     const c = { painted: painted.length, painted_ok: painted.length - mismatch.length, mismatch, marks: svg.querySelectorAll('.mark').length, titles: svg.querySelectorAll('title').length, mark_titles: svg.querySelectorAll('.mark > title').length, stray_titles: strayTitles, neg_dims: negDims,
       texts: texts.length, text_ok: textOk, fonts, font_variant_numeric: numeric, empty: svg.dataset.empty === 'true', empty_text: (svg.querySelector('.chart-empty') || {}).textContent || null,
       empty_font_px: svg.dataset.empty === 'true' ? +(parseFloat(getComputedStyle(svg.querySelector('.chart-empty')).fontSize) * scale).toFixed(1) : null,
+      empty_sub: (svg.querySelector('.chart-empty-sub') || {}).textContent || null, excluded_rows: svg.dataset.excluded ? +svg.dataset.excluded : null,
       width: Math.round(box.width), height: Math.round(box.height), viewbox_w: vb.width, rendered_font_px: +(11 * scale).toFixed(1), series_tokens: [...new Set(painted.filter(e => e.dataset.token.match(/--chart-\\d/)).map(e => e.dataset.token))] };
     // Geometri di luar viewBox (getBBox dalam koordinat svg): legenda/catatan yang melampaui tinggi,
     // label tick yang keluar tepi kanan, titik di luar plot — .chart { overflow: visible } melukisnya
@@ -1316,7 +1319,9 @@ CHART_MEASURE = """(theme) => {
       x_label_overlaps: total.reduce((a, c) => a + (c.x_label_overlaps || 0), 0), x_label_max_overlap_px: Math.max(0, ...total.map(c => c.x_label_max_overlap_px || 0)),
       x_label_charts: total.filter(c => c.x_label_overlaps !== undefined).length,
       texts: total.reduce((a, c) => a + c.texts, 0), text_ok: total.reduce((a, c) => a + c.text_ok, 0), empty_charts: total.filter(c => c.empty).length,
-      empty_with_text: total.filter(c => c.empty && c.empty_text === 'Belum ada data').length,
+      empty_with_text: total.filter(c => c.empty && /^Belum ada data/.test(c.empty_text || '')).length,
+      // Donat yang semua barisnya dikecualikan: placeholder harus menyebut jumlah baris dan alasannya (data-excluded), bukan 'Belum ada data' polos.
+      excluded_placeholders_silent: total.filter(c => c.empty && c.excluded_rows && !c.empty_sub).length + Object.entries(charts).filter(([n, c]) => n === 'donut_all_excluded' && c.empty && !c.excluded_rows).length,
       // Placeholder harus tetap terbaca di ponsel: viewBox 720/900 menyusutkan teksnya ke 5,5/4,4 px (diukur 5 Sep 2026).
       empty_min_font_px: Math.min(...total.filter(c => c.empty).map(c => c.empty_font_px)),
       // Donat: ukuran huruf tidak boleh bergantung pada panjang label (donut 4 irisan vs donut_one vs donut_tiny).

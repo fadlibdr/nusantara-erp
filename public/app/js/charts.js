@@ -52,7 +52,9 @@
  *     label di viewport mana pun. slices: [{ label, value }]; hanya value > 0 yang digambar (yang 0 tetap di legenda
  *     sebagai 0 %); value null/NaN/teks → baris legenda "? (tidak dihitung)", negatif →
  *     "(bukan bagian dari keseluruhan)" — keduanya tanpa swatch, tidak pernah disembunyikan;
- *     satu irisan → cincin penuh; tak ada yang > 0 → placeholder.
+ *     satu irisan → cincin penuh; tak ada yang > 0 → placeholder, dan bila ada barisnya
+ *     placeholder itu menyebutnya: "Belum ada data yang bisa dihitung" + "3 baris tidak
+ *     digambar: 1 negatif, 2 tak terukur" (svg data-excluded = jumlah baris).
  *
  *   sparkline({ points, width?, height?, ariaLabel, format? })
  *     points: [angka|null,…] (null = celah). 120×32 bawaan, tanpa sumbu; <title> di garis
@@ -224,12 +226,15 @@ function frame(kind, width, height, ariaLabel) {
     jenis kecuali sparkline (yang berukuran intrinsik): viewBox selebar grafik penuh (720/900)
     menyusutkan teks 13 px jadi 7 px (garis/batang) atau 4,4 px (gantt) di ponsel 390 px, dan
     di desktop menyisakan kartu kosong 290–300 px untuk satu baris teks (diukur 5 Sep 2026). */
-function placeholder(kind, ariaLabel, { width = 360, height = 64, fit = true, message = EMPTY_TEXT } = {}) {
+function placeholder(kind, ariaLabel, { width = 360, height = 64, fit = true, message = EMPTY_TEXT, sub } = {}) {
   const svg = frame(kind, width, height, ariaLabel);
   svg.classList.add('is-empty');
   svg.dataset.empty = 'true';
   if (fit) { svg.setAttribute('width', width); svg.setAttribute('height', height); svg.style.maxWidth = `${width}px`; }
-  svg.appendChild(make('text', { class: 'chart-empty', x: width / 2, y: height / 2 + FONT / 3, 'text-anchor': 'middle' }, message));
+  /* `sub` = baris kedua 11 px yang mengatakan MENGAPA kosong (donat yang semua barisnya
+     dikecualikan); tanpa sub, satu baris di tengah seperti semula. */
+  svg.appendChild(make('text', { class: 'chart-empty', x: width / 2, y: sub ? height / 2 - 2 : height / 2 + FONT / 3, 'text-anchor': 'middle' }, message));
+  if (sub) svg.appendChild(make('text', { class: 'chart-empty-sub chart-tick', x: width / 2, y: height / 2 + 15, 'text-anchor': 'middle' }, sub));
   return svg;
 }
 
@@ -641,7 +646,18 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   const rowsH = entries.reduce((a, e) => a + entryH(e), 0);
   const noteH = sourceNote ? 18 : 0;
   const H = Math.max(200, rowsH + 24) + noteH;
-  if (!drawn.length) return placeholder('donut', ariaLabel);
+  if (!drawn.length) {
+    /* Ada baris tetapi tidak satu pun bisa digambar: placeholder MENYEBUT berapa dan mengapa
+       (svg data-excluded = jumlah baris) — placeholder polos menelan tiga baris negatif/tak
+       terukur tanpa jejak, padahal legenda berjanji tidak pernah menyembunyikannya (verifikasi
+       P1-A putaran 2). Tanpa baris sama sekali tetap "Belum ada data". */
+    if (!rows.length) return placeholder('donut', ariaLabel);
+    const count = (fn) => rows.filter(fn).length;
+    const parts = [[count((s) => s.value === 0), 'bernilai 0'], [count((s) => s.value !== null && s.value < 0), 'negatif'], [count((s) => s.value === null), 'tak terukur']].filter(([n]) => n > 0).map(([n, why]) => `${n} ${why}`);
+    const svg = placeholder('donut', ariaLabel, { message: 'Belum ada data yang bisa dihitung', sub: `${rows.length} baris tidak digambar: ${parts.join(', ')}` });
+    svg.dataset.excluded = String(rows.length);
+    return svg;
+  }
 
   const svg = frame('donut', W, H, ariaLabel);
   /* Ukuran intrinsik (atribut width/height + .chart-donut { width: auto; max-width: 100% }):
