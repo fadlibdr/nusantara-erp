@@ -14,7 +14,7 @@
  *              Campuran: begitu ada x tanggal, titik yang x-nya bukan tanggal DIBUANG sebagai
  *              celah (svg data-dropped-x = jumlahnya) — tidak diformat jadi "01 Jan 70".
  *     xLabels: label per indeks x (['M1','M2',…]); xFormat(x) menang bila ada; bawaan:
- *              tanggal → "05 Sep 26", angka → id-ID.
+ *              tanggal → "05 Sep 2026" (bentuk fmt.date format.js), angka → id-ID.
  *     yFormat: (angka) → teks; dipakai di sumbu DAN <title> tiap titik (bawaan id-ID, 2 desimal).
  *     yMin/yMax: sumbu dipaksa ke nilai itu (kurva EVM memakai yMax ≥ 100 hasil hitungannya
  *              sendiri — aturan ">100 % dipertahankan" milik pemanggil, bukan grafik).
@@ -96,7 +96,10 @@ let clipSeq = 0;
 
 const numberFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 });
 const percentFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
-const shortDate = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'UTC' });
+/* Label tanggal bawaan = bentuk yang sama dengan format.js fmt.date ("05 Sep 2026", tahun 4
+   digit): tahun 2 digit adalah format tanggal ketiga di aplikasi (CONVENTIONS §11 — format
+   dari format.js). Pemanggil yang mengoper xFormat tetap menang. */
+const shortDate = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const dayMonth = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', timeZone: 'UTC' });
 const fullDate = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const monthYear = new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric', timeZone: 'UTC' });
