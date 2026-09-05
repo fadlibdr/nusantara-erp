@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Projects;
 
-use Illuminate\Database\QueryException;
+use Illuminate\Validation\ValidationException;
 use Modules\Projects\Enums\Weather;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\DailyReportMaterial;
@@ -98,7 +98,11 @@ class DailyReportTest extends ErpTestCase
     {
         $this->makeReport();
 
-        $this->expectException(QueryException::class);
+        // The index refuses the second row; since T0.4 the service answers
+        // with the validator's own 422 sentence instead of the QueryException
+        // (two requests for the same day at the same moment, burst harness).
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Sudah ada laporan harian untuk proyek ini pada tanggal tersebut.');
 
         try {
             $this->makeReport(['activities' => 'Laporan kedua di hari yang sama.']);

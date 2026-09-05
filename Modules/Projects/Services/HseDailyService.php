@@ -3,6 +3,7 @@
 namespace Modules\Projects\Services;
 
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -34,6 +35,13 @@ use Modules\Projects\Models\Project;
  */
 class HseDailyService
 {
+    /**
+     * One sentence for both refusals of a second sheet on the same day: the
+     * one assertSingleSheetPerDay sees coming, and the one only the unique
+     * index catches under concurrency.
+     */
+    public const DUPLICATE_MESSAGE = 'Formulir K3 harian untuk proyek dan tanggal ini sudah ada.';
+
     public function create(array $data, User $by): HseDaily
     {
         Project::query()->findOrFail((int) $data['project_id'])
@@ -42,11 +50,19 @@ class HseDailyService
         $this->assertSingleSheetPerDay((int) $data['project_id'], (string) $data['report_date']);
 
         return DB::transaction(function () use ($data, $by): HseDaily {
-            /** @var HseDaily $daily */
-            $daily = HseDaily::query()->create(
-                Arr::except($data, ['code', 'daily_report_id', 'apd', 'findings'])
-                + ['created_by' => $by->id]
-            );
+            try {
+                /** @var HseDaily $daily */
+                $daily = HseDaily::query()->create(
+                    Arr::except($data, ['code', 'daily_report_id', 'apd', 'findings'])
+                    + ['created_by' => $by->id]
+                );
+            } catch (UniqueConstraintViolationException) {
+                // Two sheets for the same day keyed at the same moment both
+                // passed assertSingleSheetPerDay; the unique index (live_key on
+                // MySQL, T0.2) refused the second — the same refusal, late.
+                // Mirrors DailyReportService::create (burst harness T0.4).
+                throw ValidationException::withMessages(['report_date' => self::DUPLICATE_MESSAGE]);
+            }
 
             $daily->forceFill([
                 'daily_report_id' => $this->resolveReportId($daily),
@@ -141,7 +157,7 @@ class HseDailyService
 
         if ($exists) {
             throw ValidationException::withMessages([
-                'report_date' => 'Formulir K3 harian untuk proyek dan tanggal ini sudah ada.',
+                'report_date' => self::DUPLICATE_MESSAGE,
             ]);
         }
     }

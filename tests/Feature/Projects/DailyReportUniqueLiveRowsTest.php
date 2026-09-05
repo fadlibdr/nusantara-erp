@@ -150,6 +150,54 @@ class DailyReportUniqueLiveRowsTest extends ErpTestCase
     }
 
     /**
+     * The race neither validator can see: two requests for the same day pass
+     * UniqueDailyReportDate / assertSingleSheetPerDay at the same moment
+     * (neither row exists yet) and the unique index refuses the second
+     * INSERT. Measured by the burst harness (T0.4, MySQL 8.0.46, 5 Sep 2026):
+     * 3 of 4 parallel POSTs answered 500 "1062 Duplicate entry" before the
+     * services caught it. Simulated here by letting the OTHER request's row
+     * land from the model's `creating` hook — after this request's validator
+     * looked, before its INSERT — so the refusal has to come from the index.
+     */
+    #[DataProvider('races')]
+    public function test_a_duplicate_that_lands_between_the_validator_and_the_insert_is_the_same_422_not_a_500(
+        string $table,
+        string $prefix,
+        string $model,
+        string $route,
+        string $payload,
+        string $sentence,
+    ): void {
+        $project = $this->project();
+        $this->actingAs($this->adminUser());
+        $fired = false;
+
+        // '2026-03-25 00:00:00' is the exact text the date cast writes on
+        // SQLite (where the index compares strings); MySQL folds it into DATE.
+        $model::creating(function () use (&$fired, $table, $prefix, $project): void {
+            $fired = true;
+            DB::table($table)->insert($this->rawRow($table, $prefix, $project, 9, '2026-03-25 00:00:00'));
+        });
+
+        $this->postJson($route, $this->{$payload}($project))
+            ->assertStatus(422)
+            ->assertJsonPath('errors.report_date.0', $sentence);
+
+        $this->assertTrue($fired, 'The validator refused before the INSERT — the race was not simulated.');
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string, 2: class-string, 3: string, 4: string, 5: string}>
+     */
+    public static function races(): array
+    {
+        return [
+            'laporan harian' => ['prj_daily_reports', 'DRP', DailyReport::class, 'api/projects/daily-reports', 'dailyPayload', self::DAILY_422],
+            'formulir K3 harian' => ['prj_hse_daily', 'HSE', HseDaily::class, 'api/projects/hse-daily', 'hsePayload', self::HSE_422],
+        ];
+    }
+
+    /**
      * @return array<string, array{0: string, 1: string}>
      */
     public static function tables(): array

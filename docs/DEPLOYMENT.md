@@ -805,3 +805,32 @@ CI runs this suite nightly at 02:00 WIB and on `v*` tags (job
 `phpunit-mysql`, service container `mysql:8.0` configured like `erp1.cnf` in
 its first step); the SQLite job is unchanged and still gates every push.
 
+### 10.6 Burst harness on MySQL (T0.4)
+
+`tests/harness/burst.py` (Python 3 standard library only — no node on erp1)
+fires P simultaneous requests at the five services the roadmap names as
+concurrency risks, at P = 20, 40, 80, against the PHP CLI server serving a
+seeded scratch schema:
+
+```
+set -a; . /path/to/mysql-erp.cred; set +a
+DB_CONNECTION=mysql DB_DATABASE=erp_scratch php artisan migrate:fresh --seed --force
+tests/harness/serve-mysql.sh erp_scratch 8004 &      # PHP_CLI_SERVER_WORKERS=8, API_RATE_LIMIT raised
+python3 tests/harness/burst.py --base http://127.0.0.1:8004 --parallel 20,40,80 \
+    --out docs/bukti-uji/burst-mysql-<tanggal>.json
+```
+
+Per scenario it reports requests, 2xx, 4xx (expected business refusals), 5xx,
+503, deadlocks and lock waits (scanned from `storage/logs/laravel.log`),
+p50/p95/max ms and a data check: PR / JV / PM / bukti potong numbers unique
+**and contiguous**, journals all posted by a second user (SoD), stock never
+negative and exactly `floor(saldo / qty)` bon posted, exactly one laporan
+harian per (project, date) with the rest `422` and none `500`. Client-side
+there is no retry — a `500` is a `500`. Evidence of 5 Sep 2026:
+`docs/bukti-uji/burst-mysql-2026-09-05.json` — 980 requests, 0 × 5xx, 0 × 503,
+0 deadlocks, 0 lock waits, every check green — after two MySQL-only races the
+first run exposed were fixed in the services (`NumberSequence::lockBucket`,
+the duplicate-day catch in `DailyReportService` / `HseDailyService`), never by
+a retry. The p95 the harness prints is client-observed latency including the
+queue behind 8 CLI workers on one vCPU; the T0.7 targets are measured on the
+php-fpm/nginx stack, not here.

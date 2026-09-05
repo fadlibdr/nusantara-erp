@@ -31,6 +31,13 @@ use Modules\Projects\Models\DailyReport;
  */
 class UniqueDailyReportDate implements ValidationRule
 {
+    /**
+     * One sentence for both refusals: the one this rule sees coming, and the
+     * one only the unique index catches when two requests for the same day
+     * pass this rule at the same moment (DailyReportService::create).
+     */
+    public const MESSAGE = 'Sudah ada laporan harian untuk proyek ini pada tanggal tersebut.';
+
     public function __construct(
         private readonly ?int $projectId,
         private readonly ?int $ignoreId = null,
@@ -55,7 +62,7 @@ class UniqueDailyReportDate implements ValidationRule
             ->exists();
 
         if ($exists) {
-            $fail('Sudah ada laporan harian untuk proyek ini pada tanggal tersebut.');
+            $fail(self::MESSAGE);
         }
     }
 }

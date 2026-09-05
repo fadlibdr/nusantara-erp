@@ -3,6 +3,7 @@
 namespace Modules\Projects\Services;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +15,7 @@ use Modules\Projects\Enums\BastType;
 use Modules\Projects\Models\Bast;
 use Modules\Projects\Models\DailyReport;
 use Modules\Projects\Models\Project;
+use Modules\Projects\Rules\UniqueDailyReportDate;
 
 /**
  * P0-A: laporan harian dengan empat tabel baris FM-10-12.
@@ -58,7 +60,18 @@ class DailyReportService
         ) ?? 0;
 
         return DB::transaction(function () use ($data, $lines): DailyReport {
-            $report = DailyReport::query()->create(Arr::except($data, ['code']));
+            try {
+                $report = DailyReport::query()->create(Arr::except($data, ['code']));
+            } catch (UniqueConstraintViolationException) {
+                // Two mandor keyed the same day at the same moment: both passed
+                // UniqueDailyReportDate (neither row existed yet) and the unique
+                // index — live_key on MySQL since T0.2 — refused the second
+                // INSERT. That is the validator's refusal arriving late, not a
+                // server error: burst harness T0.4 (5 Sep 2026) got 3 × 500 out
+                // of 4 parallel POSTs before this catch. The transaction rolls
+                // back, so the DRP number minted in `creating` is given back.
+                throw ValidationException::withMessages(['report_date' => UniqueDailyReportDate::MESSAGE]);
+            }
 
             foreach ($lines as $key => $rows) {
                 $this->replaceLines($report, $key, $rows);
