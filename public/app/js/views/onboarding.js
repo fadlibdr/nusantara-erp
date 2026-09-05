@@ -47,15 +47,39 @@ const ticks = new Map();
  * (`auto: false`) tidak ada yang dicatat kecuali orangnya menekan Lewati atau
  * Selesai, dan galat ditampilkan.
  */
+/*
+ * GET panduan, dengan ulang-coba pada jalur otomatis. Pada masuk, enam
+ * permintaan API berangkat bersamaan dan SQLite bisa menjawab salah satunya
+ * "database is locked" (500) — verifikasi 5 Sep 2026 menjatuhkan GET ini
+ * pada burst masuk, dan tanpa ulang-coba pop-up-nya diam-diam hilang untuk
+ * sesi itu. Dua kali ulang berjarak 1,5 detik cukup untuk kunci yang lepas
+ * dalam hitungan milidetik; 404 (peran tanpa panduan) tidak diulang.
+ */
+async function fetchGuide(auto) {
+  const attempts = auto ? 3 : 1;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await api.get(ENDPOINT);
+    } catch (error) {
+      if (attempt >= attempts || (error && error.status === 404)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+}
+
 export async function openOnboarding({ auto = false } = {}) {
   let guide;
   try {
-    guide = await api.get(ENDPOINT);
+    guide = await fetchGuide(auto);
   } catch (error) {
-    /* Peran khusus tanpa berkas panduan: satu GET kecil per masuk, dan bila
-       panduannya ditulis kemudian orangnya masih akan melihatnya — mencatat
-       "dilewati" diam-diam di sini akan menghilangkan itu selamanya. */
+    /* Peran khusus tanpa berkas panduan (404): satu GET kecil per masuk, dan
+       bila panduannya ditulis kemudian orangnya masih akan melihatnya —
+       mencatat "dilewati" diam-diam di sini akan menghilangkan itu selamanya.
+       Galat lain pada jalur otomatis sudah dicoba ulang oleh fetchGuide();
+       yang tersisa dibiarkan diam supaya halaman masuk tidak diawali toast
+       merah — status masih null, jadi panduan tampil pada masuk berikutnya. */
     if (!auto) toastError(error);
+    else if (!error || error.status !== 404) console.warn('onboarding: panduan tidak termuat', error);
     return null;
   }
 
