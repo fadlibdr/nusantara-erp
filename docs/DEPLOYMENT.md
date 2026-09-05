@@ -378,7 +378,8 @@ baris cron. Berkas unit, langkah pasang, dan cara membaca kegagalannya ada di
   mengirim apa pun**: baris `core_notification_deliveries`-nya sudah `failed`,
   pekerja melewatinya, catatan gagalnya terhapus, barisnya tetap `failed`;
   yang tersisa hanya satu peringatan "Pengiriman #N sudah berstatus failed …"
-  di log pekerja. Layar Antrean Gagal menolaknya (422), shell tidak — kirim
+  di log aplikasi (`storage/logs/laravel-<tanggal>.log`, bukan
+  `/var/log/erp1/queue.log`). Layar Antrean Gagal menolaknya (422), shell tidak — kirim
   ulang di Sistem › Pengiriman Notifikasi (keputusan pemilik,
   `ROADMAP-HASHMICRO.md` §5 #16).
 
@@ -394,8 +395,10 @@ baris cron. Berkas unit, langkah pasang, dan cara membaca kegagalannya ada di
 - **Setelah deploy kode** — `deploy/sync-erp1.sh` memulai ulang kedua unit bila
   `is-enabled`; pekerja antrean memegang kode lama sampai dimulai ulang.
 
-- **Log aplikasi** — `storage/logs/laravel.log` di `/var/www/erp1.pi2.co.id`
-  (`LOG_CHANNEL` di `.env`); rotasi log host oleh `/etc/logrotate.d/erp1`
+- **Log aplikasi** — `storage/logs/laravel-<YYYY-MM-DD>.log` di
+  `/var/www/erp1.pi2.co.id` (`LOG_CHANNEL=stack`, `LOG_STACK=daily`,
+  `LOG_LEVEL=warning` di `.env` erp1; `laravel.log` hanya bila `single`);
+  rotasi log host oleh `/etc/logrotate.d/erp1`
   (sumber: `deploy/logrotate/erp1`, `copytruncate` karena unit menulis dengan
   `append:` dan tidak membuka ulang berkas).
 
