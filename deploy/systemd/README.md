@@ -24,6 +24,10 @@ oleh deploy: `sync-erp1.sh` hanya `restart` unit yang sudah `enabled`.
 SITE=/var/www/erp1.pi2.co.id
 
 # 1. Direktori log milik www-data (unit menulis dengan StandardOutput=append:).
+#    0755, JANGAN 0775: logrotate menolak direktori yang bisa ditulis grup
+#    ("parent directory has insecure permissions"). Berkas log-nya sendiri akan
+#    milik root (systemd membuka append: sebelum melepas hak; cron menulis
+#    sebagai root) — itulah mengapa blok logrotate tidak memakai `su www-data`.
 install -d -o www-data -g www-data -m 0755 /var/log/erp1
 
 # 2. Unit + logrotate.
@@ -53,6 +57,13 @@ grep -c 'schedule:run' /etc/cron.d/erp1   # harus 0
 systemctl enable --now erp1-queue erp1-scheduler
 systemctl --no-pager status erp1-queue erp1-scheduler
 tail -n 5 /var/log/erp1/queue.log /var/log/erp1/scheduler.log
+#    Rotasi paksa SEKALI sebagai bukti hak akses (berkas state terpisah, rotasi
+#    mingguan yang asli tidak terpengaruh): "error opening … Permission denied"
+#    harus muncul DI SINI, bukan di jurnal logrotate minggu depan. Hasil yang
+#    benar: queue.log.1, scheduler.log.1, watchdog.log.1 (kosong = tidak
+#    dirotasi, notifempty) dan keluar 0.
+ls -l /var/log/erp1
+logrotate -f -v -s /tmp/erp1-logrotate-check.state /etc/logrotate.d/erp1 && ls -l /var/log/erp1
 
 # 5. Pengawas (root): heartbeat > 20 menit -> restart erp1-scheduler + alarm dalam aplikasi.
 #    TUNGGU detak pertama dulu. erp:heartbeat baru ditulis pada menit kelipatan

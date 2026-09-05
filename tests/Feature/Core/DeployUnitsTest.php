@@ -79,6 +79,16 @@ class DeployUnitsTest extends TestCase
         // Unit menulis dengan append: dan tidak membuka ulang berkasnya; tanpa
         // copytruncate rotasi meninggalkan proses menulis ke inode lama.
         $this->assertStringContainsString('copytruncate', $rotated);
+
+        // Berkas-berkas itu milik root (systemd membuka append: sebelum melepas
+        // hak; cron menulis watchdog.log sebagai root): `su` ke pengguna lain
+        // membuat logrotate gagal "Permission denied" pada ketiganya dan keluar
+        // 1 (diukur 5 Sep 2026). Rotasi berjalan di bawah `su root adm` global.
+        $this->assertDoesNotMatchRegularExpression(
+            '/^\s*su\s+(?!root\b)\S+/m',
+            $rotated,
+            'deploy/logrotate/erp1 tidak boleh beralih ke pengguna selain root: berkas log milik root.',
+        );
     }
 
     /**

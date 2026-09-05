@@ -6,10 +6,15 @@
 # terus menulis ke inode lama yang sudah dipindahkan dan berkas baru tetap
 # kosong. Pasang: cp deploy/logrotate/erp1 /etc/logrotate.d/erp1
 /var/log/erp1/queue.log /var/log/erp1/scheduler.log /var/log/erp1/watchdog.log {
-    # Direktori dan berkasnya milik www-data (README langkah 1); rotasi sebagai
-    # pemilik yang sama supaya salinan lama tetap terbaca unit, dan tidak
-    # bergantung pada `su root adm` global di /etc/logrotate.conf.
-    su www-data www-data
+    # TANPA `su www-data`: berkas-berkas ini milik root — systemd membuka
+    # StandardOutput=append: sebelum melepas hak ke User=www-data, dan
+    # watchdog.log ditulis cron sebagai root — sehingga logrotate yang beralih
+    # ke www-data gagal "error opening …: Permission denied" pada ketiganya,
+    # keluar 1, tidak ada yang dirotasi (diukur 5 Sep 2026). `su root adm`
+    # global di /etc/logrotate.conf merotasinya; direktori www-data 0755
+    # diterima (yang ditolak hanya direktori yang bisa ditulis grup/dunia —
+    # README langkah 1: 0755, bukan 0775). Salinan lama root:root 0644 tetap
+    # terbaca siapa pun.
     weekly
     rotate 8
     compress
