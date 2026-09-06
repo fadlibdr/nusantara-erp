@@ -17,6 +17,7 @@ import { renderDashboard } from './views/dashboard.js';
 import { renderProject } from './views/project.js';
 import { renderReports } from './views/reports.js';
 import { renderLaporanBebas } from './views/laporanbebas.js';
+import { renderBoard } from './views/board.js';
 import {
   renderStock, renderPayrollRun, renderTicket, renderSubcontract,
   renderPayment, renderRole, renderEmployee, renderAsset, renderAssetUtilization, renderCompany, renderRevenueRun,
@@ -1191,6 +1192,27 @@ function registerRoutes() {
   });
 
   // r/<resource path> — list screen
+  /* b/<resource path> — papan kanban (P1-G). Gerbangnya PERSIS gerbang layar
+     daftarnya (def.viewPerm || `${def.module}.view`): papan bukan data baru,
+     ia tampilan kedua atas daftar yang sama. Resource tanpa blok `board:`
+     menjawab kalimat, bukan layar kosong. */
+  route('b/*', (_, path) => {
+    const key = path.slice(2);
+    const def = RESOURCES[key];
+    const host = view();
+
+    if (!def || !def.board) {
+      host.appendChild(el('.alert.error', `Papan "${key}" tidak dikenal.`));
+      return;
+    }
+
+    setCrumbs([groupLabelFor(key), `Papan ${def.label}`]);
+    setActiveNav(`b/${key}`);
+
+    if (!session.can(def.viewPerm || `${def.module}.view`)) return accessDenied(host, def.module);
+    return guard(host, () => renderBoard(host, { key, def }));
+  });
+
   route('r/*', (_, path) => {
     const key = path.slice(2);
     const def = RESOURCES[key];

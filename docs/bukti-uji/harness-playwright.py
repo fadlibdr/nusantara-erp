@@ -1940,6 +1940,166 @@ def s24(pg):
     return out
 
 
+# ------------------------------------------------------------ S25 (P1-G)
+#
+# Papan kanban. Yang diukur di sini adalah satu hal yang tidak bisa dibuktikan
+# uji PHP mana pun: bahwa kartu yang DITOLAK benar-benar KEMBALI. SortableJS
+# tidak punya API batal — onEnd menyala setelah DOM dipindahkan — jadi
+# "kartunya kembali" adalah kode tangan, dan sebuah papan yang salah di situ
+# menampilkan dokumen di kolom yang bukan statusnya: papan yang berbohong
+# tentang keadaan dokumen, yang justru satu-satunya hal yang dijualnya.
+#
+# Dua akun, dua hasil, satu gerakan yang sama: procurement@ memegang prc.update
+# tetapi BUKAN prc.approve, direktur@ memegang keduanya.
+
+def restore_pr(code):
+    """Kembalikan satu PR ke `submitted` dan buang jejak persetujuannya.
+
+    Tidak ada endpoint yang membatalkan persetujuan — dan memang tidak boleh
+    ada. Skenario ini karena itu memulihkan keadaannya langsung di sqlite,
+    pola yang sama dengan decide_onboarding(), supaya jalan KEDUA berangkat
+    dari keadaan yang sama dengan jalan pertama.
+    """
+    con = sqlite3.connect(DB)
+    con.execute("UPDATE prc_purchase_requisitions SET status='submitted' WHERE code=?", (code,))
+    con.execute(
+        "DELETE FROM core_approvals WHERE approvable_type LIKE '%PurchaseRequisition%' "
+        "AND approvable_id IN (SELECT id FROM prc_purchase_requisitions WHERE code=?)", (code,))
+    con.commit()
+    row = con.execute("SELECT status FROM prc_purchase_requisitions WHERE code=?", (code,)).fetchone()
+    con.close()
+    return {"code": code, "status": row[0] if row else None}
+
+
+S25_LANES = """() => [...document.querySelectorAll('.board-lane')].map((lane) => ({
+  head: lane.querySelector('.board-lane-head').innerText.split(String.fromCharCode(10)).join(' '),
+  status: lane.querySelector('.board-cards').dataset.status,
+  cards: [...lane.querySelectorAll('.board-card')].map((c) => c.querySelector('.cell-main').innerText.trim()),
+}))"""
+
+
+@scenario("S25_papan_pr")
+def s25(pg):
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    out = {"pageerrors": errors}
+
+    # PRASYARAT DIPASANG SENDIRI, bukan diwarisi: skenario ini menyetujui
+    # sebuah PR, jadi ia mengembalikannya di akhir DAN memasangnya di awal.
+    # Sebuah skenario yang bergantung pada keadaan yang ditinggalkan jalan
+    # sebelumnya hijau sekali lalu merah selamanya.
+    out["precondition"] = restore_pr("PR/2026/III/0002")
+
+    # ---- 1. drop yang DITOLAK: pengadaan tidak memegang prc.approve --------
+    login(pg, "procurement@nusantara.test")
+    pg.evaluate("() => { location.hash = '#/b/procurement/purchase-requisitions'; }")
+    pg.wait_for_selector(".board-card", timeout=20000)
+    pg.wait_for_timeout(800)
+
+    out["refused_before"] = pg.evaluate(S25_LANES)
+    submitted = pg.locator(".board-lane:has-text('Diajukan') .board-card").first
+    approved_lane = pg.locator(".board-lane:has-text('Disetujui') .board-cards").first
+    CLICKS[0] += 1
+    submitted.drag_to(approved_lane)
+    pg.wait_for_timeout(2000)
+
+    out["refused_after"] = pg.evaluate(S25_LANES)
+    out["refused_toasts"] = toasts(pg)
+    pg.screenshot(path=f"{OUT}/s25-papan-drop-ditolak-p1g.png", full_page=True)
+
+    # ---- 2. drop yang DITERIMA: direktur memegang prc.approve --------------
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 1000})
+    boss = ctx.new_page()
+    try:
+        login(boss, "direktur@nusantara.test")
+        boss.evaluate("() => { location.hash = '#/b/procurement/purchase-requisitions'; }")
+        boss.wait_for_selector(".board-card", timeout=20000)
+        boss.wait_for_timeout(800)
+
+        out["allowed_before"] = boss.evaluate(S25_LANES)
+        boss.locator(".board-lane:has-text('Diajukan') .board-card").first.drag_to(
+            boss.locator(".board-lane:has-text('Disetujui') .board-cards").first)
+        boss.wait_for_timeout(1200)
+
+        # Aksi Setujui membawa `inlineNote`: panel catatan yang SAMA dengan
+        # bilah aksi ditawarkan sebelum aksinya jalan.
+        out["note_dialog"] = boss.evaluate("""() => {
+          const m = document.querySelector('.modal');
+          return m ? {
+            title: (m.querySelector('.modal-head') || {}).innerText,
+            has_note_panel: !!m.querySelector('details.action-note'),
+            buttons: [...m.querySelectorAll('.modal-foot button')].map((b) => b.innerText.trim()),
+          } : null;
+        }""")
+        boss.screenshot(path=f"{OUT}/s25-papan-catatan-p1g.png")
+
+        if out["note_dialog"]:
+            boss.click(".modal-foot button:has-text('Setujui')")
+            boss.wait_for_timeout(3000)
+
+        out["allowed_after"] = boss.evaluate(S25_LANES)
+        out["allowed_toasts"] = toasts(boss)
+
+    finally:
+        ctx.close()
+
+    # Kembalikan keadaannya LEWAT SQLITE, karena tidak ada endpoint yang
+    # membatalkan persetujuan — dan tanpa ini skenario hanya hijau pada jalan
+    # pertama. Pola yang sama dengan decide_onboarding().
+    out["restored"] = restore_pr("PR/2026/III/0002")
+
+    # ---- 3. papan kedua: kontrak `board:` di luar documentStatus -----------
+    # Akun BARU: pengadaan tidak memegang qc.view, dan papan NCR baginya adalah
+    # panel akses-ditolak — bukan bukti bahwa papan kedua tidak tergambar.
+    ctx2 = pg.context.browser.new_context(viewport={"width": 1440, "height": 1000})
+    qc = ctx2.new_page()
+    try:
+        login(qc, "admin@nusantara.test")
+        qc.evaluate("() => { location.hash = '#/b/quality/ncr'; }")
+        qc.wait_for_timeout(3000)
+        out["ncr"] = qc.evaluate(S25_LANES)
+        qc.screenshot(path=f"{OUT}/s25-papan-ncr-p1g.png", full_page=True)
+    finally:
+        ctx2.close()
+
+    # ---------------------------- syarat ----------------------------------
+    refused_before = {lane["status"]: len(lane["cards"]) for lane in out["refused_before"]}
+    refused_after = {lane["status"]: len(lane["cards"]) for lane in out["refused_after"]}
+    allowed_before = {lane["status"]: len(lane["cards"]) for lane in out["allowed_before"]}
+    allowed_after = {lane["status"]: len(lane["cards"]) for lane in out["allowed_after"]}
+    refusal = " ".join(out["refused_toasts"])
+
+    checks = {
+        # Kolomnya adalah nilai enum, dilabeli seperti layar daftarnya.
+        "lanes_are_labelled_statuses": [lane["status"] for lane in out["refused_before"]]
+            == ["draft", "submitted", "approved", "rejected"],
+        "lane_heads_use_enum_labels": "Diajukan" in " ".join(l["head"] for l in out["refused_before"]),
+        # DROP DITOLAK: kartu kembali, dan tidak satu kolom pun berubah.
+        "refused_drop_puts_the_card_back": refused_before == refused_after,
+        # Kalimatnya menyebut dokumen, kolom tujuan DAN aksinya.
+        "refusal_names_the_document": "PR/" in refusal,
+        "refusal_names_the_target_lane": "Disetujui" in refusal,
+        "refusal_names_the_missing_action": "Setujui tidak tersedia untuk Anda" in refusal,
+        # DROP DITERIMA: panel catatan yang sama dengan bilah aksi, lalu pindah.
+        "note_panel_is_the_action_bar_panel": bool(out["note_dialog"]) and out["note_dialog"]["has_note_panel"],
+        "allowed_drop_moves_the_card": allowed_after.get("approved", 0) == allowed_before.get("approved", 0) + 1
+            and allowed_after.get("submitted", 0) == allowed_before.get("submitted", 0) - 1,
+        # Toast datang dari runAction — bukti jalur tombolnya yang dipakai.
+        "toast_is_the_shared_one": any("disetujui" in t for t in out["allowed_toasts"]),
+        # …dan `offerNext` ikut, yang hanya mungkin lewat runAction.
+        "offer_next_came_along": any("Berikutnya menunggu Anda" in t for t in out["allowed_toasts"]),
+        # Papan kedua berdiri di enum yang berbeda.
+        "second_board_renders": [lane["status"] for lane in out["ncr"]]
+            == ["open", "under_correction", "verified", "closed"],
+        "no_page_errors": not errors,
+    }
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 # ------------------------------------------------------------ S21 (P1-B)
 # Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
 # 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
@@ -3350,7 +3510,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S24",s24,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S24",s24,None),("S25",s25,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

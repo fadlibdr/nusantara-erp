@@ -585,3 +585,65 @@ laporannya, pemiliknya, dan jalan keluarnya — bentuk `PettyCashVoucherService:
 tetapi §2 sudah memberikan 001400–001499 kepada Quality dan Quality memakainya sejak 001400 —
 saran itu **tidak diikuti**. Core menyisakan **000198 dan 000199**; blok lanjutan Core perlu
 diputuskan sebelum tabel Core berikutnya.
+
+## 19. Papan kanban — blok `board:` (P1-G)
+
+Tampilan KEDUA atas daftar yang sudah ada, di rute `#/b/<resource>`. Gerbangnya persis gerbang
+layar daftarnya (`def.viewPerm || `${def.module}.view``) — papan bukan data baru.
+
+**SATU ATURAN MENENTUKAN SELURUHNYA: drop menjalankan aksi yang SUDAH ADA lewat `runAction()`,**
+jalur yang sama persis dengan tombol di halaman dokumen. Bukan endpoint baru, bukan `PUT {id}` yang
+menulis status, bukan salinan aturan transisi. Yang ikut secara gratis karena itu: catatan
+persetujuan inline, maker-checker, `confirmResubmit` bertingkat, dialog alasan wajib pada Tolak,
+toast berbahasa Indonesia yang menyebut kode dokumennya, dan tawaran "dokumen berikutnya" setelah
+menyetujui. Papan yang menulis statusnya sendiri kehilangan keenamnya sekaligus, diam-diam.
+
+```js
+board: {
+  enum: 'documentStatus',                    // enum status; kolom dilabeli darinya
+  lanes: ['draft', 'submitted', 'approved', 'rejected'],
+  moves: { submitted: 'submit', approved: 'approve', rejected: 'reject' },
+  why: '…',                                  // kenapa resource INI yang berpapan
+}
+```
+
+`lanes` adalah nilai status yang **benar-benar tercapai** — `documentStatus` punya enam nilai dan
+hampir tidak ada dokumen yang mencapai semuanya; kolom yang tidak pernah terisi hanya mengambil
+ruang. `moves` memetakan **kolom tujuan → kunci aksi**; kolom tanpa entri tidak menerima kartu.
+
+**DUA PENOLAKAN YANG BERBEDA, dan keduanya wajib ada:**
+
+1. **Yang bisa diketahui sebelum mencoba** — izin dan `when`. Predikatnya diambil UTUH dari
+   `actionButtons()`, dalam urutan yang sama (`session.can(action.perm)` lalu
+   `!action.when || action.when(row)`): papan yang memakai predikat kedua menawarkan perpindahan
+   yang tombolnya sendiri sembunyikan. Kartu kembali, dan kalimatnya menyebut dokumennya, kolom
+   tujuannya DAN aksi yang kurang — *"PR PR/2026/III/0002 tidak bisa dipindah ke Disetujui: aksi
+   Setujui tidak tersedia untuk Anda."*
+2. **Yang hanya bisa diketahui dengan mencoba** — maker-checker, tangga persetujuan, ambang
+   direktur, prasyarat BAST. Tidak satu pun ada di muatan daftar (`approvals` di-load hanya pada
+   detail; tidak ada medan `can_approve` di mana pun). Papan **tidak boleh menebaknya**: ia mencoba,
+   `runAction` menampilkan kalimat servernya, dan kartunya kembali.
+
+**Mengembalikan kartu adalah pekerjaan tangan.** SortableJS tidak punya API batal — `onEnd` menyala
+SETELAH DOM dipindahkan, dan tidak satu pun metode instansnya mengembalikannya. Satu-satunya jalan
+adalah idiom pustakanya sendiri: simpan tetangga di kolom asal **sebelum** apa pun yang bisa gagal,
+lalu `insertBefore` / `appendChild`. Karena itu pula `sort: false` — papan ini tentang KOLOM, dan
+membiarkan pengurutan di dalam kolom menambah satu bentuk pembatalan lagi yang indeksnya bergeser.
+
+**`runAction` selalu resolve `undefined` dan tidak pernah melempar**: batal, 422 dan berhasil tidak
+bisa dibedakan dari nilai kembaliannya. Yang menandakan berhasil hanyalah `onDone` yang menyala —
+papan memasang bendera di dalamnya dan mengembalikan kartu bila bendera itu tidak menyala. Karena
+`onDone` **dilewati** untuk aksi ber-`navigateTo`/`navigateToResult`, aksi seperti itu tidak boleh
+menjadi `moves` (dipaku `BoardWiringTest`).
+
+**Yang TIDAK boleh berpapan** (dipaku uji): resource yang salah satu aksinya memposting ke buku
+besar atau ke stok. Aturannya tentang **akibat**, bukan tentang kunci — lima resource
+menyembunyikan posting di balik kunci bernama `approve`/`acknowledge`
+(`inventory/stock-adjustments`, `finance/ar-invoices`, `finance/ap-bills`, `hr/payroll-runs`,
+`servicedesk/field-reports`). Aksi ber-`opens` juga tidak: ia tidak punya `path` dan tidak pernah
+POST.
+
+**Menambahkan papan** = satu blok `board:` di entri RESOURCES + satu baris NAV `b/<key>`.
+`BoardWiringTest` memeriksa sisanya: kolom adalah nilai enum sungguhan, setiap `moves` menunjuk
+kolom papan itu DAN kunci aksi yang ada, aksinya punya `path` dan tidak berpindah halaman, dan
+tidak satu pun resource yang memposting.

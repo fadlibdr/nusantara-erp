@@ -51,7 +51,18 @@ async function offerNext(justDecided) {
 const NOTE_OPEN = 'Tambah catatan';
 const NOTE_CLOSE = 'Batalkan catatan';
 
-function inlineNote(action, row) {
+/**
+ * Panel catatan persetujuan inline.
+ *
+ * DIEKSPOR sejak P1-G. Papan kanban menjalankan aksi lewat `runAction()` —
+ * jalur tombol yang sama, sebagaimana disyaratkan ROADMAP — tetapi panel
+ * catatan ini dibangun `actionButtons()`, bukan `runAction()`: memanggil
+ * `runAction` tanpa opsi `inline` menghilangkan catatan persetujuan diam-diam.
+ * Yang diekspor karena itu adalah panelnya, bukan salinannya, supaya papan dan
+ * bilah aksi tidak pernah bisa berselisih tentang apa yang tersimpan di
+ * riwayat persetujuan.
+ */
+export function inlineNote(action, row) {
   const spec = action.inlineNote;
   // Textarea yang sama dengan form/modal: read() memulangkan null untuk isian
   // kosong atau spasi saja, jadi catatan "   " tidak pernah sampai ke server.

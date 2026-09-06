@@ -20602,5 +20602,176 @@
   "ok": true,
   "_ms": 20298,
   "_clicks": 6
+ },
+ "S25_papan_pr": {
+  "pageerrors": [],
+  "precondition": {
+   "code": "PR/2026/III/0002",
+   "status": "submitted"
+  },
+  "refused_before": [
+   {
+    "head": "Draf 0",
+    "status": "draft",
+    "cards": []
+   },
+   {
+    "head": "Diajukan 1",
+    "status": "submitted",
+    "cards": [
+     "PR/2026/III/0002"
+    ]
+   },
+   {
+    "head": "Disetujui 1",
+    "status": "approved",
+    "cards": [
+     "PR/2026/II/0001"
+    ]
+   },
+   {
+    "head": "Ditolak 0",
+    "status": "rejected",
+    "cards": []
+   }
+  ],
+  "refused_after": [
+   {
+    "head": "Draf 0",
+    "status": "draft",
+    "cards": []
+   },
+   {
+    "head": "Diajukan 1",
+    "status": "submitted",
+    "cards": [
+     "PR/2026/III/0002"
+    ]
+   },
+   {
+    "head": "Disetujui 1",
+    "status": "approved",
+    "cards": [
+     "PR/2026/II/0001"
+    ]
+   },
+   {
+    "head": "Ditolak 0",
+    "status": "rejected",
+    "cards": []
+   }
+  ],
+  "refused_toasts": [
+   "Perpindahan ditolak\nPR PR/2026/III/0002 tidak bisa dipindah ke Disetujui: aksi Setujui tidak tersedia untuk Anda."
+  ],
+  "allowed_before": [
+   {
+    "head": "Draf 0",
+    "status": "draft",
+    "cards": []
+   },
+   {
+    "head": "Diajukan 1",
+    "status": "submitted",
+    "cards": [
+     "PR/2026/III/0002"
+    ]
+   },
+   {
+    "head": "Disetujui 1",
+    "status": "approved",
+    "cards": [
+     "PR/2026/II/0001"
+    ]
+   },
+   {
+    "head": "Ditolak 0",
+    "status": "rejected",
+    "cards": []
+   }
+  ],
+  "note_dialog": {
+   "title": "Setujui",
+   "has_note_panel": true,
+   "buttons": [
+    "Batal",
+    "Setujui"
+   ]
+  },
+  "allowed_after": [
+   {
+    "head": "Draf 0",
+    "status": "draft",
+    "cards": []
+   },
+   {
+    "head": "Diajukan 0",
+    "status": "submitted",
+    "cards": []
+   },
+   {
+    "head": "Disetujui 2",
+    "status": "approved",
+    "cards": [
+     "PR/2026/III/0002",
+     "PR/2026/II/0001"
+    ]
+   },
+   {
+    "head": "Ditolak 0",
+    "status": "rejected",
+    "cards": []
+   }
+  ],
+  "allowed_toasts": [
+   "PR/2026/III/0002 disetujui.",
+   "Berikutnya menunggu Anda (3)\nCTI/2026/VIII/0002 · Pengajuan cuti\nBuka\nSemua tugas"
+  ],
+  "restored": {
+   "code": "PR/2026/III/0002",
+   "status": "submitted"
+  },
+  "ncr": [
+   {
+    "head": "Terbuka 0",
+    "status": "open",
+    "cards": []
+   },
+   {
+    "head": "Perbaikan berjalan 0",
+    "status": "under_correction",
+    "cards": []
+   },
+   {
+    "head": "Terverifikasi 0",
+    "status": "verified",
+    "cards": []
+   },
+   {
+    "head": "Ditutup 1",
+    "status": "closed",
+    "cards": [
+     "NCR/2026/VIII/0001"
+    ]
+   }
+  ],
+  "checks": {
+   "lanes_are_labelled_statuses": true,
+   "lane_heads_use_enum_labels": true,
+   "refused_drop_puts_the_card_back": true,
+   "refusal_names_the_document": true,
+   "refusal_names_the_target_lane": true,
+   "refusal_names_the_missing_action": true,
+   "note_panel_is_the_action_bar_panel": true,
+   "allowed_drop_moves_the_card": true,
+   "toast_is_the_shared_one": true,
+   "offer_next_came_along": true,
+   "second_board_renders": true,
+   "no_page_errors": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 17787,
+  "_clicks": 1
  }
 }

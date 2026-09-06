@@ -2118,3 +2118,61 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
   .dash-setup-row { flex-wrap: wrap; }
   .dash-setup-row .dash-setup-name { flex-basis: 100%; }
 }
+
+/* ----------------------------------------------------------- papan (P1-G)
+   Kolom yang menggulir MENDATAR sebagai satu blok, bukan kisi yang membungkus:
+   sebuah papan yang kolomnya turun ke baris kedua berhenti menjadi papan.
+   `min-width` per kolom menjaga kartu tetap terbaca; di ponsel kolom menyempit
+   tetapi tetap satu baris, dan jempol menggulir mendatar seperti pada .chart-scroll. */
+.board-grid {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+.board-lane {
+  flex: 1 0 240px;
+  min-width: 240px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.board-lane-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.board-lane-head .board-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+/* min-height BUKAN hiasan: SortableJS hanya bisa menerima kartu ke dalam kolom
+   yang punya tinggi (emptyInsertThreshold diukur terhadap kotaknya), jadi kolom
+   kosong setinggi nol tidak bisa dijatuhi apa pun. */
+.board-cards { min-height: 96px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.board-empty { opacity: .75; }
+
+.board-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--module-accent, var(--border-strong));
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: grab;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.board-card:active { cursor: grabbing; }
+.board-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.board-card-head { display: flex; align-items: baseline; gap: 8px; }
+.board-card-head .num { margin-left: auto; }
+.board-card-foot { display: flex; gap: 8px; justify-content: space-between; }
+/* Kelas yang dipasang SortableJS pada kartu yang sedang diseret. */
+.board-card-ghost { opacity: .4; }
+
+@media (max-width: 760px) {
+  .board-lane { flex-basis: 78vw; min-width: 78vw; }
+}

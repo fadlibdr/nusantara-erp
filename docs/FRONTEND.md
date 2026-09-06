@@ -66,6 +66,8 @@ public/app/
       widgets/          one file per dashboard widget + registry.js (the catalogue) and
                         kit.js (safe/failure/failedStat — the "a failed fetch is not an empty
                         one" rule, written once) — CONVENTIONS §17
+      board.js          kanban board (P1-G) at #/b/<resource> — a SECOND view over an existing
+                        list; every drop runs an existing action through runAction()
       laporanbebas.js   Laporan Bebas (P1-F): the report builder over the eight catalogued
                         resources — every choice on screen comes from GET core/reports/resources,
                         including the ceilings, which are announced not memorised
@@ -161,6 +163,14 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **Kanban boards (P1-G)**: `#/b/<resource>` renders any RESOURCES entry carrying a `board:` block
+  as columns of cards. A drop does not write a status — it runs the resource's own existing action
+  through `runAction()`, the same path as the document-page buttons, so the inline approval note,
+  maker-checker, `confirmResubmit` and the shared toasts all keep working. Refusals come in two
+  kinds: permission/`when` (known before the drop, card returns with a sentence naming the document,
+  the target column and the missing action) and server-only rules (attempted, refused, card
+  returns). SortableJS has no cancel API, so the card is put back by hand from a neighbour captured
+  before the drop. CONVENTIONS §19.
 - **Laporan Bebas (P1-F)**: `#/laporan-bebas` builds reports over eight catalogued resources. The
   screen holds no knowledge of its own — sources, which columns may be a dimension, which may be
   summed, which filters exist and what the ceilings are all arrive from

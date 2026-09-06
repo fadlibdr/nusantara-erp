@@ -174,8 +174,8 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
 | Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Formulir K3 Harian · Register IBPRP · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
-| Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton · Template Inspeksi |
-| Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat & Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang · Rencana Pengadaan · Evaluasi Vendor |
+| Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Papan NCR · Benda Uji Beton · Template Inspeksi |
+| Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · Papan PR · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat & Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang · Rencana Pengadaan · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
@@ -359,6 +359,36 @@ Bila sebuah peran diganti namanya setelah laporan dibagikan kepadanya, daftar me
 untuk laporan yang **sudah disimpan**, karena berkasnya menyebut nama laporannya — sebuah lampiran
 rapat yang tidak bisa dilacak kembali ke pertanyaan yang menghasilkannya tidak bisa
 dipertanggungjawabkan. Di kedua berkas, sel kosong tetap kosong dan nol tetap nol.
+
+### 1.4d Papan — menyeret dokumen antar kolom
+
+Dua layar berbentuk **papan**: `Pengadaan › Papan PR` dan `Mutu › Papan NCR`. Keduanya menampilkan
+dokumen yang sama dengan layar daftarnya, disusun sebagai kolom menurut statusnya.
+
+**Menyeret kartu ke kolom lain menjalankan aksinya** — persis tombol yang sama dengan yang ada di
+halaman dokumen. Menyeret PR dari *Diajukan* ke *Disetujui* adalah menekan tombol **`Setujui`**:
+kotak catatan yang sama muncul, aturan yang sama berlaku, dan pemberitahuan yang sama terkirim.
+Tidak ada jalan pintas di papan; ia hanya cara lain menekan tombol yang sudah ada.
+
+**Kartu yang tidak boleh dipindah kembali ke tempatnya, dan papan mengatakan kenapa.** Ada dua
+sebab, dan keduanya berbunyi berbeda:
+
+- **Sudah bisa diketahui sebelum kartunya dilepas** — Anda tidak memegang haknya, atau dokumen itu
+  memang tidak bisa berpindah dari statusnya sekarang. Contoh: *"PR PR/2026/III/0002 tidak bisa
+  dipindah ke Disetujui: aksi Setujui tidak tersedia untuk Anda."*
+- **Baru ketahuan setelah dicoba** — aturan yang hanya server yang tahu: Anda pengaju dokumen itu
+  sendiri (pemisahan tugas), nilainya butuh tanda tangan direktur, atau ada prasyarat yang belum
+  selesai. Kartunya kembali dan pesannya menjelaskan apa yang harus dilakukan.
+
+**Kolom yang tidak menerima kartu.** Tidak ada aksi yang mengembalikan PR ke *Draf*, jadi kolom itu
+tidak bisa dijatuhi kartu. Dokumen yang statusnya di luar kolom papan tidak digambar, dan papan
+menyebut berapa banyak — buka tampilan daftar untuk melihatnya.
+
+**Klik kartu** membuka dokumennya. Tombol **`Tampilan daftar`** di kanan atas kembali ke tabelnya,
+yang tetap menjadi tempat menyaring, mengurutkan, dan mengunduh CSV.
+
+Bila seret-lepas tidak bekerja (berkas pustakanya gagal dimuat), papan mengatakannya dan kartu tetap
+bisa dibuka — aksinya selalu tersedia di halaman dokumen.
 
 ### 1.5 Pencarian
 

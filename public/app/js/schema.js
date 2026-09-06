@@ -2207,6 +2207,29 @@ export const RESOURCES = {
         ],
       },
     ],
+    /*
+     * Papan kanban (Fase 1 / P1-G). `lanes` adalah nilai status yang
+     * BENAR-BENAR dicapai PR di sistem ini — `closed` dan `cancelled` ada di
+     * enum documentStatus tetapi tidak ada satu pun kode yang menuliskannya ke
+     * PR, dan kolom yang tidak pernah terisi hanya mengambil ruang layar.
+     *
+     * `moves` memetakan KOLOM TUJUAN → kunci aksi yang SUDAH ADA. Tidak ada
+     * endpoint baru, dan tidak ada aturan transisi kedua: yang memutuskan
+     * boleh-tidaknya sebuah perpindahan adalah `perm` dan `when` aksi itu
+     * sendiri, predikat yang sama persis dengan yang menentukan tombolnya
+     * muncul di halaman dokumen.
+     *
+     * `draft` tanpa entri `moves`: tidak ada aksi yang mengembalikan PR ke
+     * draf, jadi kolomnya menerima kartu dari mana pun adalah kebohongan.
+     */
+    board: {
+      enum: 'documentStatus',
+      lanes: ['draft', 'submitted', 'approved', 'rejected'],
+      moves: { submitted: 'submit', approved: 'approve', rejected: 'reject' },
+      why: 'Antrean persetujuan pengadaan adalah papan yang orang gambar sendiri di papan tulis: '
+        + 'draf, diajukan, disetujui. Peran demo memisahkan prc.update (pengadaan) dari prc.approve '
+        + '(direktur), jadi drop yang ditolak bisa ditunjukkan pada data yang ada.',
+    },
   },
 
   'procurement/rfqs': {
@@ -5627,6 +5650,20 @@ export const RESOURCES = {
         confirm: 'Tutup NCR ini secara administratif? Setelah ditutup tidak dapat diubah lagi.',
       },
     ],
+    /*
+     * Papan kanban (P1-G) — papan kedua, dan ia ada untuk membuktikan kontrak
+     * `board:` bekerja di luar enum documentStatus. Keempat nilai ncrStatus
+     * benar-benar tercapai, dan ketiga aksinya memetakan tepat ke ketiga
+     * transisi majunya: tidak ada kolom mati dan tidak ada perpindahan tanpa
+     * aksi.
+     */
+    board: {
+      enum: 'ncrStatus',
+      lanes: ['open', 'under_correction', 'verified', 'closed'],
+      moves: { under_correction: 'start-correction', verified: 'verify', closed: 'close' },
+      why: 'Mutu memakai papan ini sebagai daftar kerja harian: NCR terbuka menahan inspeksi tahap '
+        + 'berikutnya, dan yang dicari mandor adalah kolom pertama — bukan tabel 12 kolom.',
+    },
   },
 
   'quality/concrete-samples': {
@@ -5958,6 +5995,8 @@ export const NAV = [
     items: [
       { label: 'Inspeksi Mutu (QCI)', route: 'r/quality/inspections' },
       { label: 'Ketidaksesuaian (NCR)', route: 'r/quality/ncr' },
+      // P1-G — papan kedua, membuktikan kontrak `board:` di luar documentStatus.
+      { label: 'Papan NCR', route: 'b/quality/ncr' },
       { label: 'Benda Uji Beton', route: 'r/quality/concrete-samples' },
       { label: 'Template Inspeksi', route: 'r/quality/inspection-templates' },
     ],
@@ -5968,6 +6007,8 @@ export const NAV = [
       { label: 'Vendor & Subkon', route: 'r/procurement/vendors' },
       { label: 'Dokumen Vendor', route: 'r/procurement/vendor-documents' },
       { label: 'Permintaan (PR)', route: 'r/procurement/purchase-requisitions' },
+      // P1-G — papan kanban atas daftar yang sama, satu baris di bawahnya.
+      { label: 'Papan PR', route: 'b/procurement/purchase-requisitions' },
       { label: 'RFQ (Banding Penawaran)', route: 'r/procurement/rfqs' },
       { label: 'Pesanan (PO)', route: 'r/procurement/purchase-orders' },
       { label: 'Baris PO Terbuka', route: 'po-outstanding' },

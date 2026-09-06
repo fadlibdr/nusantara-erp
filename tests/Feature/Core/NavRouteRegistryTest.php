@@ -199,11 +199,41 @@ class NavRouteRegistryTest extends ErpTestCase
                 || str_contains($this->views(), "RESOURCES['{$key}'] = {");
         }
 
+        /*
+         * `b/<resource>` — papan kanban (P1-G), keluarga wildcard KEDUA. Ia
+         * butuh dua hal, bukan satu: entri RESOURCES-nya, DAN blok `board:` di
+         * dalam entri itu. Rute b/* menjawab "Papan … tidak dikenal" untuk
+         * resource yang ada tetapi tidak punya papan, dan sebuah baris menu ke
+         * sana adalah pintu yang selalu tertutup.
+         */
+        if (str_starts_with($route, 'b/')) {
+            $key = substr($route, 2);
+            $at = strpos($this->schema(), "  '{$key}': {");
+
+            if ($at === false) {
+                return false;
+            }
+
+            $entry = substr($this->schema(), $at, (int) strpos($this->schema(), "\n  },", $at) - $at);
+
+            return str_contains($entry, "\n    board: {");
+        }
+
         return str_contains($this->app(), "route('{$route}'");
     }
 
     private function missingMessage(string $route): string
     {
+        if (str_starts_with($route, 'b/')) {
+            return sprintf(
+                'NAV entry [%s] points at a kanban board, but "%s" has no `board: {` block in schema.js '
+                .'(or no RESOURCES entry at all). The b/* route answers "Papan … tidak dikenal" for those, '
+                .'so the menu row is a door that never opens.',
+                $route,
+                substr($route, 2),
+            );
+        }
+
         return str_starts_with($route, 'r/')
             ? sprintf(
                 'NAV entry [%s] has no RESOURCES definition for "%s", so the generic list route renders '
