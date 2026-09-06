@@ -132,9 +132,14 @@ class ChartMigrationTest extends ErpTestCase
         $this->assertStringContainsString("el('.legend'", $trend);
 
         /*
-         * Swatch legenda DOM memakai token GRAFIK, bukan --warning. Blok cetak
-         * app.css hanya menukar token --chart-*, jadi swatch ber-`--warning`
-         * tercetak dengan warna yang berbeda dari titik yang diwakilinya.
+         * Swatch legenda DOM memakai token GRAFIK, bukan --warning — dan
+         * alasannya KERTAS. Blok cetak app.css hanya menukar token --chart-*
+         * menjadi abu-abu; --warning tidak ikut (terukur: #96601a di layar DAN
+         * di cetak), jadi titik GRN ber---warning tercetak BERWARNA di tengah
+         * grafik yang seluruhnya abu-abu. Kalimat yang berdiri di sini sampai
+         * verifikasi P1-E — "swatch tercetak berbeda dari titik yang
+         * diwakilinya" — menggambarkan cacat yang tidak pernah ada: sebelum
+         * paket ini keduanya sama-sama `var(--warning)`.
          */
         $this->assertStringNotContainsString("background: 'var(--warning)'", $trend);
         $this->assertStringContainsString("background: 'var(--chart-7)'", $trend);

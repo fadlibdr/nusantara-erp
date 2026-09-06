@@ -227,10 +227,16 @@ export async function renderHargaSatuan(host) {
       ]),
       el('.card-body', [
         trendChart(series) || el('p.muted', { text: 'Belum ada titik harga yang bisa digambar.', style: { margin: 0 } }),
-        /* Swatch memakai token GRAFIK yang sama dengan titiknya (P1-E) — dulu
-           `--warning`, yang tidak pernah dipakai grafik itu sendiri di kertas:
-           blok cetak app.css hanya menukar token --chart-*, jadi legenda
-           berwarna --warning tercetak berbeda dari titik yang diwakilinya. */
+        /* Swatch memakai token GRAFIK yang sama dengan titiknya (P1-E).
+           ALASANNYA, diperbaiki setelah verifikasi P1-E: sebelum paket ini
+           swatch DAN titiknya sama-sama `var(--warning)`, jadi keduanya
+           tercetak dengan warna yang sama — kalimat lama ("legenda --warning
+           tercetak berbeda dari titiknya") menggambarkan cacat yang tidak
+           pernah ada. Yang benar-benar salah adalah KERTASnya: blok cetak
+           app.css hanya menukar token --chart-* menjadi abu-abu, dan --warning
+           tidak ikut (terukur: #96601a di layar DAN di cetak, sementara
+           --chart-7 #a16207 → #363636). Titik GRN karena itu tercetak
+           BERWARNA di tengah grafik yang seluruhnya abu-abu. */
         el('.legend', [
           el('span', [el('i', { style: { background: 'var(--chart-1)' } }), 'Harga PO (disepakati)']),
           el('span', [el('i', { style: { background: 'var(--chart-7)' } }), 'Valuasi GRN (barang datang)']),

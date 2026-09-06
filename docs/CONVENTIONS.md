@@ -268,8 +268,11 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
   ter-skala), jadi blok `.legend` DOM di sebelahnya dibuang. Yang tersisa memakainya hanya tren
   harga satuan, karena pembedanya per TITIK (PO vs GRN pada satu garis kronologis, `points[].token`)
   dan itu tidak bisa dinyatakan legenda per-seri; swatch-nya memakai token `--chart-*` yang sama
-  dengan titiknya — `--warning` tercetak berbeda dari titik yang diwakilinya, karena blok cetak
-  hanya menukar token `--chart-*`.
+  dengan titiknya. Alasannya KERTAS, bukan layar: blok cetak hanya menukar token `--chart-*`
+  menjadi abu-abu, jadi titik ber-`--warning` tercetak BERWARNA di tengah grafik yang seluruhnya
+  abu-abu (terukur 6 Sep 2026: `--warning` #96601a di layar dan di cetak, `--chart-7` #a16207 →
+  #363636). Sebelum verifikasi P1-E alasan yang ditulis di sini adalah "swatch tercetak berbeda
+  dari titiknya", dan itu tidak pernah benar — keduanya memakai `--warning` yang sama.
 
 ## 12. Aksen modul (`--accent-1..8`, P1-B)
 
