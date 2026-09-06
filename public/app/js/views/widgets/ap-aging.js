@@ -15,7 +15,13 @@ export async function build({ reload }) {
   if (failure(report)) return failedBody(failure(report), reload);
 
   const buckets = (report && report.buckets) || {};
-  if (!Object.keys(buckets).length) {
+  /* Keranjang selalu lima, juga ketika semuanya nol — jadi `Object.keys` tidak
+     bisa membedakan "tidak ada dokumen terbuka" dari "ada, semuanya belum
+     jatuh tempo". Yang membedakan adalah baris rinciannya, dan server
+     mengirimkannya utuh (laporan ini tidak berhalaman). Lima batang nol di
+     atas angka Rp 0 bukan kebohongan, hanya kebisingan; kalimatnya lebih
+     berguna. */
+  if (!((report && report.rows) || []).length || !Object.keys(buckets).length) {
     return tileEmpty('Tidak ada tagihan vendor terbuka.', 'done');
   }
 

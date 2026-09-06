@@ -3,11 +3,12 @@
 Branch: `feat/phase1-d` (dari `feat/phase1-c` — paket ini berdiri di atas preferensi
 `dashboard.layout` dan registri P1-C, yang belum di-merge ke main) · 6 September 2026
 
-> Status jujur: **dibangun, belum diverifikasi adversarial.** Yang ada di bawah adalah
-> hasil putaran bangun plus uji yang ditulisnya sendiri. Dua putaran verifikasi ganda
+> Status jujur: **dibangun dan diukur di peramban, belum diverifikasi adversarial.**
+> Harness Playwright dipasang dan skenario **S23** ditulis serta dijalankan (empat bagian,
+> semuanya hijau, 12 akun demo) — ia menemukan enam cacat sungguhan yang tidak satu pun
+> tertangkap uji PHP; lihat § Yang ditemukan harness. Dua putaran verifikasi ganda
 > (aturan ROADMAP-DEVIASI §4/§6, pola yang menemukan ~40 cacat di P2–P8 dan 16 di P1-C)
-> **belum dijalankan**, dan harness Playwright **tidak dapat dijalankan di lingkungan ini**
-> — lihat § Yang belum diverifikasi. Tidak ada migrasi baru.
+> **belum dijalankan**. Tidak ada migrasi baru.
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 1 / P1-D → status)
 
@@ -18,6 +19,7 @@ Branch: `feat/phase1-d` (dari `feat/phase1-c` — paket ini berdiri di atas pref
 | Laci "Atur dasbor" (tambah/hapus/ukuran/urut) | ✅ | `views/dashsetup.js`; ukuran kecil/sedang/lebar, Naik/Turun tanpa vendor, seret-lepas SortableJS dimuat malas |
 | Muat per batch 4 | ✅ | `const BATCH = 4` di dashboard.js, dipaku `DashboardWidgetRegistryTest::test_widgets_load_four_at_a_time` |
 | `DashboardTileFailureTest` ditulis ulang memindai `views/widgets/*` | ✅ | berkas ber-`build(` **adalah** widget: wajib bercabang `failure(` di kode, wajib berpasangan satu-satu dengan katalog |
+| Harness S23 ("dasbor diatur & gagal-jujur", ROADMAP §4) | ✅ | empat bagian di `docs/bukti-uji/harness-playwright.py`, hasil di `results-phase-1.json`, 5 PNG |
 | Susunan tersimpan per pengguna | ✅ | preferensi `dashboard.layout` (P1-C), validator diperketat ke ISI lewat `Support\SpaWidgets` |
 
 ## Yang benar-benar berubah
@@ -150,8 +152,54 @@ Diperbarui:
 `tests/Feature/Core` + `tests/Feature/Iam` sebelum perbaikan gerbang inbox: 803 hijau /
 1 merah (6.068 asersi, 11 dilewati) — yang merah adalah `ApprovalInboxGateTest`, yang memang
 menghitung dua pemanggilan `session.can(ANY_APPROVE)` di dashboard.js dan karena itu HARUS
-merah pada paket ini; ia lalu ditulis ulang ke rantai gerbang yang baru. Angka setelah
-perbaikan, dan suite penuh: (diisi).
+merah pada paket ini; ia lalu ditulis ulang ke rantai gerbang yang baru.
+
+**Suite penuh (SQLite) di `c6aadcf`: 3.907 uji / 19.730 asersi hijau, 11 dilewati, 560 s.**
+MySQL: (diisi — job CI nightly).
+
+### Harness S23 (Playwright, Chromium 1440×900 dan 390×844)
+
+Empat bagian, semuanya hijau; hasil di `docs/bukti-uji/results-phase-1.json`, lima PNG
+`s23-*-p1d.png`.
+
+- **`S23_dashboard_per_role`** — 12 akun demo, satu per peran. **0 peran tanpa kartu**,
+  **71 kartu** seluruhnya, **0 kartu berbadan kosong** (setiap kartu menggambar angkanya,
+  keadaan kosongnya, atau kalimat gagalnya). Permintaan serentak per peran tidak pernah
+  melewati anggarannya:
+
+  | peran | kartu | permintaan seluruhnya | permintaan widget | serentak / anggaran |
+  |---|---|---|---|---|
+  | admin | 8 | 15 | 8 | 4 / 4 |
+  | direktur | 9 | 15 | 9 | 4 / 4 |
+  | project-manager | 8 | 15 | 9 | 5 / 5 |
+  | site-manager | 5 | 12 | 6 | 5 / 5 |
+  | estimator | 4 | 10 | 4 | 4 / 4 |
+  | procurement | 4 | 10 | 4 | 4 / 4 |
+  | warehouse | 5 | 11 | 5 | 4 / 4 |
+  | finance | 9 | 15 | 9 | 4 / 4 |
+  | finance-manager | 7 | 13 | 7 | 4 / 4 |
+  | hr | 3 | 9 | 3 | 3 / 4 |
+  | sales | 5 | 12 | 5 | 4 / 4 |
+  | teknisi | 4 | 10 | 4 | 4 / 4 |
+
+  "Anggaran" = 4 + jumlah widget dua-permintaan dalam susunan itu (hanya `ncr`), karena
+  batch membatasi **widget**, bukan permintaan — project-manager dan site-manager memakai 9
+  dan 6 permintaan untuk 8 dan 5 kartu justru karena `ncr` menjumlah dua status.
+
+- **`S23_setup_drawer`** — tambah (Kalender acara), hapus (`ringkasan-uang`), ubah ukuran
+  (`inbox` lebar → sedang), naikkan urutan (`proyeksi-kas` ke atas), Simpan, lalu **muat
+  ulang halaman penuh**: sembilan kartu kembali dalam urutan dan ukuran yang persis sama,
+  dan baris `dashboard.layout` di server memuat sembilan `{id,size}` yang sama. "Kembalikan
+  ke bawaan" mengembalikan persis susunan awal direktur. 8 klik.
+
+- **`S23_honest_failure`** — `core/dashboard/summary` dijatuhkan sungguhan (route abort) pada
+  akun finance. Kartu **tetap digambar**, ketiga ubinnya menulis `—` + "Gagal dimuat",
+  **tidak ada "Rp 0"**, dan **kedelapan kartu lain tetap termuat**. Ini bukti yang tidak bisa
+  diberikan uji PHP: uji itu hanya membuktikan bahwa berkasnya MEMANGGIL `failure()`.
+
+- **`S23_dashboard_mobile`** — teknisi di 390×844: kisi **satu kolom**, keempat kartu selebar
+  362 px dan mulai di tepi kiri yang sama, **halaman tidak menggulung mendatar**, tinggi
+  1.667 px.
 
 ## Deviasi
 
@@ -191,37 +239,75 @@ perbaikan, dan suite penuh: (diisi).
   Nilainya tidak berubah satu hex pun; yang berubah adalah arah ketergantungan — sejak
   kalender menjadi salah satu dari 19 widget, dasbor tidak lagi memilikinya.
 
+## Yang ditemukan harness — enam cacat yang tidak satu pun tertangkap uji PHP
+
+Semuanya sudah diperbaiki dan diukur ulang; dicatat di sini karena bentuknya berulang.
+
+1. **Kartu 'lebar' tetap dua kolom di 390 px.** Pembatal `@media (max-width: 760px)` ditulis
+   `.card.widget { grid-column: span 1 !important; }` — kurang spesifik daripada
+   `.card.widget[data-size="lebar"]` di blok 1180 px, dan **di antara dua deklarasi
+   `!important` yang menang adalah yang lebih spesifik, bukan yang belakangan**. Akibatnya
+   kisi satu kolom menumbuhkan kolom IMPLISIT: terukur 84,6 px + 261,4 px, tiga kartu
+   'sedang' terjepit di 85 px.
+2. **Kisi tiga kolom membuang sepertiga layar.** 'sedang' adalah ukuran yang paling banyak
+   dipakai, dan dua di antaranya tidak muat bersebelahan di tiga kolom (2 + 2 > 3): tiga
+   baris berturut-turut pada dasbor direktur kosong di kanannya. Kisi sekarang **empat**
+   kolom (kecil 1, sedang 2, lebar 4) — tanpa `grid-auto-flow: dense`, yang akan menyusun
+   ulang kartu dan mematahkan urutan yang justru dipilih pemakainya.
+3. **Win-rate ditulis "10.000%".** `PipelineReportService::rate()` sudah mengirim PERSEN
+   (`won/decided × 100`); widget mengalikannya lagi. Formatnya kini sama persis dengan layar
+   Analitik Win-Rate.
+4. **`payroll` membaca `run.period`** yang tidak pernah dikirim `PayrollRunResource`
+   (`period_year` + `period_month`; kolom "Periode" adalah kolom komposit schema.js) — em
+   dash di setiap baris, tanpa satu galat pun.
+5. **`pajak` membaca `row.label`/`row.period`** dengan cara yang sama;
+   `TaxObligationResource` mengirim `tax_type_label`, `masa_year`, `masa_month`.
+6. **`ncr` membaca `row.title`** yang tidak ada di `NcrResource` (yang ada `description`).
+
+Cacat 4–6 satu keluarga: **membaca nama field yang tidak pernah dikirim server menggambar
+em dash yang sempurna dan diam.** Tidak ada uji PHP yang bisa menangkapnya, karena tidak ada
+kontrak yang dilanggar — hanya sebuah properti `undefined`. Yang menangkapnya adalah membuka
+halamannya. Sisa 13 widget diperiksa satu per satu terhadap bentuk jawaban endpointnya yang
+sebenarnya (diambil hidup, 6 Sep 2026); tidak ada temuan lain.
+
+Ditambah satu cacat di harness sendiri: penghitung serentaknya mula-mula menghitung SELURUH
+permintaan API, sehingga `prefs.load()` di boot yang tumpang tindih dengan batch pertama
+terbaca sebagai pelanggaran batch pada finance-manager. Ia sekarang menghitung permintaan
+widget saja dan mencatat jumlah seluruhnya terpisah.
+
 ## Yang BELUM diverifikasi — baca ini sebelum merge
 
 1. **Tidak ada verifikasi adversarial.** Aturan per paket menuntut dua verifier baca-saja
    sebelum merge. Belum dijalankan. Pola yang sama menemukan 16 temuan di P1-C, sepuluh di
    antaranya cacat sungguhan.
-2. **Harness Playwright tidak bisa dijalankan di lingkungan ini** (`python3 -c "import
-   playwright"` → `ModuleNotFoundError`; tidak ada peramban terpasang). Karena itu **tidak
-   ada satu pun angka UI yang diukur** untuk paket ini: skenario **S23** ("dasbor diatur &
-   gagal-jujur", yang diminta ROADMAP §4) belum ditulis maupun dijalankan, tidak ada
-   tangkapan layar baru, dan `docs/bukti-uji/results-phase-1.json` **tidak** memuat P1-D.
-3. **Tidak ada runtime JS di host ini**, jadi 24 berkas JS baru tidak pernah diurai satu kali
-   pun — tidak oleh `node --check`, tidak oleh peramban. Yang menjaga mereka hari ini hanyalah
-   uji grep PHP (yang memang menangkap satu rute salah: `proyeksi-kas` menaut ke `cashflow`,
-   rute yang tidak pernah didaftarkan). Kesalahan sintaks atau nama impor yang salah **tidak
-   akan terlihat** sampai seseorang membuka dasbor.
-4. **Angka yang dijanjikan paket ini belum diukur**: jumlah permintaan dasbor per peran
-   (target Fase 1 ≤ 10 direktur / ≤ 5 warehouse), jumlah modul JS yang benar-benar diunduh
-   per susunan bawaan, dan perilaku laci di 390 × 844.
-
-Yang bisa dikatakan hari ini adalah: seluruh uji Core+Iam hijau, dan setiap sifat yang
-disebut laporan ini punya ujinya. Yang **tidak** bisa dikatakan adalah bahwa dasbornya sudah
-pernah tergambar.
+2. **Suite MySQL belum dijalankan** (job CI nightly). SQLite penuh hijau.
+3. **Yang diukur S23 adalah data demo**: dua proyek, nol invoice AR terbuka, nol baris NCR,
+   nol baris kewajiban pajak. Tiga widget (`ncr`, `pajak`, `stok-minimum`) karena itu hanya
+   pernah terlihat dalam keadaan KOSONGNYA; tabel dan angkanya belum pernah tergambar dengan
+   baris sungguhan. Nama field-nya sudah dicocokkan tangan dengan resource masing-masing,
+   tetapi itu bukan hal yang sama dengan melihatnya.
+4. **Seret-lepas SortableJS belum diuji di harness** — yang diuji S23 adalah jalur papan
+   ketik (Naik/Turun), yang memang jalur yang dijanjikan bekerja tanpa vendor. Pemuatan malas
+   vendornya sendiri belum pernah diukur.
+5. **Target metrik Fase 1 tidak tercapai, dan bentuknya perlu diputuskan ulang** — lihat
+   keputusan pemilik #1 di bawah.
 
 ## Keputusan pemilik yang masih terbuka (dibawa dari P1-C)
 
-1. **Jumlah permintaan dasbor naik satu** (`prefs.load()` pada setiap boot; 11 → 12, target
-   ≤ 10). P1-D **menambah lagi ke arah lain**: jumlahnya kini ditentukan susunan orangnya,
-   bukan kode — susunan bawaan direktur berisi 8 widget, dan `ncr` menghabiskan dua
-   permintaan bila dipasang. Angka yang harus diukur S23 karena itu bukan "berapa permintaan
-   dasbor", melainkan "berapa permintaan susunan BAWAAN tiap peran". Pilihan pemilik yang
-   lama tetap berlaku (lipat preferensi ke `iam/auth/me`, atau catat baseline baru).
+1. **Target metrik Fase 1 ≤ 10 permintaan (direktur) / ≤ 5 (warehouse) tidak tercapai, dan
+   sekarang ada angkanya.** Terukur 6 Sep 2026: **direktur 15** (9 widget + 6 shell),
+   **warehouse 11** (5 widget + 6 shell). Sebabnya bukan pemborosan melainkan perubahan
+   bentuk: jumlah permintaan dasbor kini ditentukan **susunan orangnya**, bukan kode —
+   susunan bawaan direktur berisi 9 widget, masing-masing satu angka yang dulu tidak ada di
+   dasbor sama sekali (umur piutang, proyeksi kas, EVM, pipeline). Sebuah target berupa satu
+   angka tetap sudah tidak bisa dipenuhi oleh layar yang isinya dipilih pemakainya.
+
+   Tiga pilihan, dan ini keputusan pemilik:
+   - **catat baseline baru per peran** (tabel S23 di atas) dan ubah targetnya menjadi
+     "per WIDGET satu permintaan" — yang sudah benar hari ini kecuali `ncr`;
+   - **kecilkan susunan bawaan** (mis. direktur 9 → 6 kartu) sampai muat di ≤ 10 seluruhnya;
+   - **kurangi permintaan shell**: lipat preferensi ke `iam/auth/me` yang sudah diambil
+     (keputusan P1-C #1 yang masih terbuka) — menghemat satu, tidak cukup sendirian.
 2. **Angka KPI tidak bisa diklik** (ubin launcher menaut ke beranda modul yang mengulang
    angkanya lalu menawarkan kartu tanpa filter). P1-D menjawabnya **sebagian dan hanya untuk
    dasbor**: setiap widget punya `route` ke layar yang memuat angkanya lengkap, dan tiga

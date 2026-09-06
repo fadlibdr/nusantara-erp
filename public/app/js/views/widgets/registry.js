@@ -34,8 +34,20 @@ import { MODULES, ANY_APPROVE } from '../../schema.js';
 
 export const SIZES = ['kecil', 'sedang', 'lebar'];
 
-/** Lebar kolom per ukuran; dipakai dashboard.js sebagai grid-column: span N. */
-export const SPAN = { kecil: 1, sedang: 2, lebar: 3 };
+/**
+ * Lebar kolom per ukuran; dipakai dashboard.js sebagai `grid-column: span N`
+ * atas kisi EMPAT kolom.
+ *
+ * Kenapa empat dan bukan tiga. 'sedang' adalah ukuran yang dipakai sebagian
+ * besar widget, dan di kisi tiga kolom dua widget 'sedang' TIDAK MUAT
+ * bersebelahan (2 + 2 > 3): terukur 6 Sep 2026 pada susunan bawaan direktur,
+ * tiga baris berturut-turut menyisakan sepertiga layar kosong di kanannya.
+ * Dengan empat kolom, dua 'sedang' mengisi satu baris penuh, 'kecil' + 'kecil'
+ * + 'sedang' juga, dan 'lebar' tetap satu baris utuh — tanpa `grid-auto-flow:
+ * dense`, yang akan menyusun ulang kartu dan mematahkan urutan yang justru
+ * dipilih sendiri oleh pemakainya.
+ */
+export const SPAN = { kecil: 1, sedang: 2, lebar: 4 };
 
 /**
  * 19 widget, urut sebagaimana laci "Atur dasbor" menawarkannya (kelompok:

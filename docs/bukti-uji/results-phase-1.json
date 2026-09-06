@@ -19702,5 +19702,442 @@
   "pageerrors": [],
   "_ms": 10294,
   "_clicks": 6
+ },
+ "S23_setup_drawer": {
+  "before": [
+   "ringkasan-uang",
+   "inbox",
+   "proyeksi-kas",
+   "ar-aging",
+   "evm",
+   "siap-tagih",
+   "saldo-bank",
+   "pipeline",
+   "tenggat"
+  ],
+  "added_label": "Kalender acara",
+  "removed": "ringkasan-uang",
+  "resized": "inbox",
+  "resized_from": "lebar",
+  "resized_to": "sedang",
+  "moved_up": "proyeksi-kas",
+  "order_in_drawer": [
+   "proyeksi-kas",
+   "inbox",
+   "ar-aging",
+   "evm",
+   "siap-tagih",
+   "saldo-bank",
+   "pipeline",
+   "tenggat",
+   "kalender"
+  ],
+  "after_save": [
+   "proyeksi-kas",
+   "inbox",
+   "ar-aging",
+   "evm",
+   "siap-tagih",
+   "saldo-bank",
+   "pipeline",
+   "tenggat",
+   "kalender"
+  ],
+  "after_reload": [
+   "proyeksi-kas",
+   "inbox",
+   "ar-aging",
+   "evm",
+   "siap-tagih",
+   "saldo-bank",
+   "pipeline",
+   "tenggat",
+   "kalender"
+  ],
+  "stored_preference": [
+   {
+    "id": "proyeksi-kas",
+    "size": "sedang"
+   },
+   {
+    "id": "inbox",
+    "size": "sedang"
+   },
+   {
+    "id": "ar-aging",
+    "size": "sedang"
+   },
+   {
+    "id": "evm",
+    "size": "sedang"
+   },
+   {
+    "id": "siap-tagih",
+    "size": "kecil"
+   },
+   {
+    "id": "saldo-bank",
+    "size": "kecil"
+   },
+   {
+    "id": "pipeline",
+    "size": "sedang"
+   },
+   {
+    "id": "tenggat",
+    "size": "sedang"
+   },
+   {
+    "id": "kalender",
+    "size": "sedang"
+   }
+  ],
+  "restore_default_matches_before": true,
+  "sizes_after_reload": {
+   "proyeksi-kas": "sedang",
+   "inbox": "sedang",
+   "ar-aging": "sedang",
+   "evm": "sedang",
+   "siap-tagih": "kecil",
+   "saldo-bank": "kecil",
+   "pipeline": "sedang",
+   "tenggat": "sedang",
+   "kalender": "sedang"
+  },
+  "ok": true,
+  "_ms": 10787,
+  "_clicks": 8
+ },
+ "S23_honest_failure": {
+  "healthy_money_card": "PIUTANG BELUM TERTAGIH\nRp 0\n0 invoice terbuka\nHUTANG BELUM DIBAYAR\nRp 0\n0 tagihan terbuka",
+  "broken_money_card": "PROYEK BERJALAN\n—\nGagal dimuat\nPIUTANG BELUM TERTAGIH\n—\nGagal dimuat\nHUTANG BELUM DIBAYAR\n—\nGagal dimuat",
+  "card_still_drawn": true,
+  "says_failed": true,
+  "writes_em_dash": true,
+  "no_zero_rupiah": true,
+  "other_cards_still_loaded": [
+   "ar-aging",
+   "ap-aging",
+   "proyeksi-kas",
+   "siap-tagih",
+   "saldo-bank",
+   "pajak",
+   "payroll",
+   "tenggat"
+  ],
+  "other_cards_lost": [],
+  "ok": true,
+  "_ms": 8185,
+  "_clicks": 0
+ },
+ "S23_dashboard_mobile": {
+  "cards": [
+   "sla-tiket",
+   "stok-minimum",
+   "tenggat",
+   "kalender"
+  ],
+  "grid": {
+   "cols": 1,
+   "widths": [
+    362,
+    362,
+    362,
+    362
+   ],
+   "lefts": [
+    14
+   ],
+   "page_scroll_x": false,
+   "height": 1667
+  },
+  "ok": true,
+  "_ms": 4893,
+  "_clicks": 0
+ },
+ "S23_dashboard_per_role": {
+  "roles": {
+   "admin": {
+    "cards": [
+     "ringkasan-uang",
+     "inbox",
+     "tenggat",
+     "proyeksi-kas",
+     "evm",
+     "stok-minimum",
+     "sla-tiket",
+     "kalender"
+    ],
+    "sizes": {
+     "ringkasan-uang": "lebar",
+     "inbox": "lebar",
+     "tenggat": "sedang",
+     "proyeksi-kas": "sedang",
+     "evm": "sedang",
+     "stok-minimum": "sedang",
+     "sla-tiket": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 15,
+    "api_widgets": 8,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "direktur": {
+    "cards": [
+     "ringkasan-uang",
+     "inbox",
+     "proyeksi-kas",
+     "ar-aging",
+     "evm",
+     "siap-tagih",
+     "saldo-bank",
+     "pipeline",
+     "tenggat"
+    ],
+    "sizes": {
+     "ringkasan-uang": "lebar",
+     "inbox": "lebar",
+     "proyeksi-kas": "sedang",
+     "ar-aging": "sedang",
+     "evm": "sedang",
+     "siap-tagih": "kecil",
+     "saldo-bank": "kecil",
+     "pipeline": "sedang",
+     "tenggat": "sedang"
+    },
+    "api_total": 15,
+    "api_widgets": 9,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "project-manager": {
+    "cards": [
+     "ringkasan-uang",
+     "inbox",
+     "proyek-progres",
+     "evm",
+     "defect",
+     "ncr",
+     "stok-minimum",
+     "tenggat"
+    ],
+    "sizes": {
+     "ringkasan-uang": "lebar",
+     "inbox": "lebar",
+     "proyek-progres": "sedang",
+     "evm": "sedang",
+     "defect": "sedang",
+     "ncr": "kecil",
+     "stok-minimum": "sedang",
+     "tenggat": "sedang"
+    },
+    "api_total": 15,
+    "api_widgets": 9,
+    "max_concurrent": 5,
+    "empty_bodies": [],
+    "concurrent_budget": 5
+   },
+   "site-manager": {
+    "cards": [
+     "proyek-progres",
+     "defect",
+     "ncr",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "proyek-progres": "sedang",
+     "defect": "sedang",
+     "ncr": "kecil",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 12,
+    "api_widgets": 6,
+    "max_concurrent": 5,
+    "empty_bodies": [],
+    "concurrent_budget": 5
+   },
+   "estimator": {
+    "cards": [
+     "proyek-progres",
+     "evm",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "proyek-progres": "sedang",
+     "evm": "sedang",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 10,
+    "api_widgets": 4,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "procurement": {
+    "cards": [
+     "po-outstanding",
+     "stok-minimum",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "po-outstanding": "lebar",
+     "stok-minimum": "sedang",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 10,
+    "api_widgets": 4,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "warehouse": {
+    "cards": [
+     "stok-minimum",
+     "ringkasan-uang",
+     "proyek-progres",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "stok-minimum": "lebar",
+     "ringkasan-uang": "sedang",
+     "proyek-progres": "sedang",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 11,
+    "api_widgets": 5,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "finance": {
+    "cards": [
+     "ringkasan-uang",
+     "ar-aging",
+     "ap-aging",
+     "proyeksi-kas",
+     "siap-tagih",
+     "saldo-bank",
+     "pajak",
+     "payroll",
+     "tenggat"
+    ],
+    "sizes": {
+     "ringkasan-uang": "lebar",
+     "ar-aging": "sedang",
+     "ap-aging": "sedang",
+     "proyeksi-kas": "sedang",
+     "siap-tagih": "kecil",
+     "saldo-bank": "kecil",
+     "pajak": "sedang",
+     "payroll": "sedang",
+     "tenggat": "sedang"
+    },
+    "api_total": 15,
+    "api_widgets": 9,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "finance-manager": {
+    "cards": [
+     "ringkasan-uang",
+     "inbox",
+     "ar-aging",
+     "ap-aging",
+     "proyeksi-kas",
+     "saldo-bank",
+     "tenggat"
+    ],
+    "sizes": {
+     "ringkasan-uang": "lebar",
+     "inbox": "lebar",
+     "ar-aging": "sedang",
+     "ap-aging": "sedang",
+     "proyeksi-kas": "sedang",
+     "saldo-bank": "kecil",
+     "tenggat": "sedang"
+    },
+    "api_total": 13,
+    "api_widgets": 7,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "hr": {
+    "cards": [
+     "payroll",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "payroll": "lebar",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 9,
+    "api_widgets": 3,
+    "max_concurrent": 3,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "sales": {
+    "cards": [
+     "pipeline",
+     "proyek-progres",
+     "sla-tiket",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "pipeline": "sedang",
+     "proyek-progres": "sedang",
+     "sla-tiket": "sedang",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 12,
+    "api_widgets": 5,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   },
+   "teknisi": {
+    "cards": [
+     "sla-tiket",
+     "stok-minimum",
+     "tenggat",
+     "kalender"
+    ],
+    "sizes": {
+     "sla-tiket": "lebar",
+     "stok-minimum": "sedang",
+     "tenggat": "sedang",
+     "kalender": "sedang"
+    },
+    "api_total": 10,
+    "api_widgets": 4,
+    "max_concurrent": 4,
+    "empty_bodies": [],
+    "concurrent_budget": 4
+   }
+  },
+  "roles_without_cards": [],
+  "cards_total": 71,
+  "max_concurrent_any_role": 5,
+  "over_budget": [],
+  "ok": true,
+  "_ms": 70179,
+  "_clicks": 0
  }
 }

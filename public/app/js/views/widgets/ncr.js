@@ -39,7 +39,12 @@ export async function build() {
     ])),
     miniTable(
       [
-        { label: 'NCR', render: (row) => el('span', [el('span.cell-main.mono', { text: row.code }), el('span.cell-sub', { text: row.title || '' })]) },
+        /* NcrResource tidak punya `title` — yang ada `description`, dipotong
+           satu baris seperti kolom Keterangan kotak masuk. */
+        { label: 'NCR', render: (row) => el('span', [
+          el('span.cell-main.mono', { text: row.code }),
+          el('span.cell-sub', { text: row.description || '—', title: row.description || '', style: { display: 'block', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }),
+        ]) },
         { label: 'Status', render: (row) => el('span.cell-sub', { text: row.status_label || row.status }) },
       ],
       rows,

@@ -2648,6 +2648,294 @@ def s21m(browser):
     finally:
         ctx.close()
 
+# ---------------------------------------------------------------- S23 (P1-D)
+#
+# Dasbor yang bisa diatur: apakah setiap peran mendapat kartu, berapa permintaan
+# yang dibayar susunan BAWAANNYA, apakah pemuatan benar-benar per batch 4, apakah
+# laci menyimpan apa yang dipilih orangnya, dan apakah kartu yang sumbernya jatuh
+# MENGAKU jatuh alih-alih menulis Rp 0.
+#
+# Angka terakhir itulah alasan skenario ini ada. Uji PHP hanya bisa membuktikan
+# bahwa setiap berkas widget MEMANGGIL failure(); yang tidak bisa dibuktikannya
+# adalah bahwa yang tergambar ketika sumbernya benar-benar jatuh adalah kalimat
+# "gagal dimuat" dan bukan angka nol yang meyakinkan. Di sini permintaannya
+# benar-benar dijatuhkan (route abort) dan yang dibaca adalah teks di layar.
+
+# Widget yang mengirim LEBIH DARI SATU permintaan. Satu-satunya hari ini, dan
+# alasannya ditulis di views/widgets/ncr.js: "NCR terbuka" berarti open ATAU
+# under_correction, endpoint daftar hanya menerima satu status, dan menyaring
+# sisi klien atas halaman pertama adalah Temuan 79.
+MULTI_REQUEST_WIDGETS = {"ncr"}
+
+S23_ACCOUNTS = [
+    "admin@nusantara.test", "direktur@nusantara.test", "project-manager@nusantara.test",
+    "site-manager@nusantara.test", "estimator@nusantara.test", "procurement@nusantara.test",
+    "warehouse@nusantara.test", "finance@nusantara.test", "finance-manager@nusantara.test",
+    "hr@nusantara.test", "sales@nusantara.test", "teknisi@nusantara.test",
+]
+
+DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].map((c) => ({
+    id: c.dataset.widget,
+    size: c.dataset.size,
+    span: getComputedStyle(c).gridColumnEnd,
+    title: (c.querySelector('.card-head h2') || {}).innerText || null,
+    body: ((c.querySelector('.widget-body') || {}).innerText || '').trim(),
+}))"""
+
+
+# Permintaan yang dibayar SETIAP layar, bukan oleh susunan dasbor: sesi, izin,
+# lencana lonceng, status penjadwal, dan pemuatan preferensi di boot.
+SHELL_REQUESTS = ("iam/auth", "core/notifications/unread-count", "core/health", "core/me/preferences")
+
+
+def dash_probe(pg):
+    """Pasang penghitung permintaan WIDGET yang berjalan bersamaan.
+
+    Diukur dari sisi peramban, bukan dari log server: yang dijanjikan paket ini
+    adalah berapa banyak yang BERANGKAT sekaligus, dan hanya klien yang tahu itu.
+
+    Permintaan shell sengaja tidak dihitung dalam serentaknya. Bukan karena
+    murah, melainkan karena ia bukan yang dibatasi: `prefs.load()` di boot
+    berangkat sendiri dan bisa tumpang tindih dengan batch pertama — terukur
+    6 Sep 2026 pada finance-manager sebagai 5 permintaan serentak untuk susunan
+    yang tidak memuat satu pun widget dua-permintaan. Jumlah SELURUH permintaan
+    tetap dicatat terpisah (`api_total`), karena itulah angka yang dibandingkan
+    dengan target metrik Fase 1.
+    """
+    inflight = {"now": 0, "max": 0, "urls": []}
+
+    def is_widget(url):
+        if "/api/" not in url:
+            return False
+        return not url.split("/api/")[1].startswith(SHELL_REQUESTS)
+
+    def start(req):
+        if "/api/" not in req.url:
+            return
+        inflight["urls"].append(req.url.split("/api/")[1])
+        if not is_widget(req.url):
+            return
+        inflight["now"] += 1
+        inflight["max"] = max(inflight["max"], inflight["now"])
+
+    def done(req):
+        if is_widget(req.url):
+            inflight["now"] = max(0, inflight["now"] - 1)
+
+    pg.on("request", start)
+    pg.on("requestfinished", done)
+    pg.on("requestfailed", done)
+    return inflight
+
+
+@scenario("S23_dashboard_per_role")
+def s23(pg):
+    out = {"roles": {}, "roles_without_cards": [], "cards_total": 0}
+
+    for email in S23_ACCOUNTS:
+        ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+        page = ctx.new_page()
+        probe = dash_probe(page)
+        try:
+            login(page, email)
+            page.wait_for_timeout(2500)
+            assert_screen(page, "#/dashboard")
+            cards = page.evaluate(DASH_CARDS)
+            if email in ("direktur@nusantara.test", "teknisi@nusantara.test"):
+                page.screenshot(path=f"{OUT}/s23-dashboard-{email.split('@')[0]}-p1d.png", full_page=True)
+            # Permintaan widget saja (SHELL_REQUESTS di atas dibayar setiap layar).
+            widget_reqs = [u for u in probe["urls"] if not u.startswith(SHELL_REQUESTS)]
+            out["roles"][email.split("@")[0]] = {
+                "cards": [c["id"] for c in cards],
+                "sizes": {c["id"]: c["size"] for c in cards},
+                "api_total": len(probe["urls"]),
+                "api_widgets": len(widget_reqs),
+                "max_concurrent": probe["max"],
+                # Kartu yang badannya kosong tidak pernah benar: sebuah widget
+                # menggambar angkanya, keadaan kosongnya, atau kalimat gagalnya.
+                "empty_bodies": [c["id"] for c in cards if len(c["body"]) < 3],
+            }
+            # Batch 4 membatasi WIDGET, bukan permintaan: satu widget boleh
+            # mengirim lebih dari satu (hanya `ncr`, yang menjumlah dua status
+            # karena endpoint daftar menerima satu status per permintaan dan
+            # angkanya harus sama dengan ubin launcher). Batas atas yang benar
+            # karena itu 4 + jumlah permintaan EKSTRA milik widget semacam itu
+            # yang ada di susunan ini — bukan 4 mentah, dan bukan "berapa pun".
+            extra = sum(1 for c in cards if c["id"] in MULTI_REQUEST_WIDGETS)
+            out["roles"][email.split("@")[0]]["concurrent_budget"] = 4 + extra
+            out["cards_total"] += len(cards)
+            if not cards:
+                out["roles_without_cards"].append(email)
+        finally:
+            ctx.close()
+
+    out["max_concurrent_any_role"] = max(r["max_concurrent"] for r in out["roles"].values())
+    out["over_budget"] = [
+        name for name, r in out["roles"].items() if r["max_concurrent"] > r["concurrent_budget"]
+    ]
+    out["ok"] = (
+        not out["roles_without_cards"]
+        and not out["over_budget"]
+        and not any(r["empty_bodies"] for r in out["roles"].values())
+    )
+    return out
+
+
+@scenario("S23_setup_drawer")
+def s23s(pg):
+    """Laci: tambah, hapus, ubah ukuran, urutkan — lalu MUAT ULANG dan baca lagi."""
+    login(pg, "direktur@nusantara.test")
+    pg.wait_for_timeout(2500)
+    before = [c["id"] for c in pg.evaluate(DASH_CARDS)]
+
+    click(pg, ".page-head .actions button:has-text('Atur dasbor')")
+    pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
+    pg.screenshot(path=f"{OUT}/s23-atur-dasbor-p1d.png", full_page=True)
+
+    spare_first = pg.locator(".dash-setup-spare .dash-setup-row").first
+    added = spare_first.locator(".dash-setup-name .cell-main").inner_text()
+    click(pg, ".dash-setup-spare .dash-setup-row:first-child button:has-text('Tambah')")
+    pg.wait_for_timeout(150)
+
+    removed = pg.locator(".dash-setup-list .dash-setup-row").first.get_attribute("data-id")
+    click(pg, ".dash-setup-list .dash-setup-row:first-child button:has-text('Hapus')")
+    pg.wait_for_timeout(150)
+
+    # Ukuran baris pertama diubah ke pilihan yang BUKAN nilainya sekarang.
+    sel = pg.locator(".dash-setup-list .dash-setup-row").first.locator("select.dash-setup-size")
+    options = sel.evaluate("(s) => [...s.options].map((o) => o.value)")
+    now = sel.input_value()
+    target = next(o for o in options if o != now)
+    sel.select_option(target)
+    resized = pg.locator(".dash-setup-list .dash-setup-row").first.get_attribute("data-id")
+
+    # Urutan: baris kedua dinaikkan lewat tombol (jalur papan ketik, tanpa vendor).
+    second = pg.locator(".dash-setup-list .dash-setup-row").nth(1).get_attribute("data-id")
+    click(pg, ".dash-setup-list .dash-setup-row:nth-child(2) button:has-text('Naik')")
+    pg.wait_for_timeout(150)
+    order_in_drawer = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
+
+    click(pg, ".modal-foot button:has-text('Simpan')")
+    pg.wait_for_timeout(1200)
+    after_save = [c["id"] for c in pg.evaluate(DASH_CARDS)]
+
+    # Muat ulang penuh: yang diuji adalah baris preferensi di SERVER, bukan
+    # keadaan yang kebetulan masih ada di memori halaman ini.
+    pg.reload()
+    pg.wait_for_selector("nav.nav", timeout=15000)
+    pg.wait_for_timeout(3000)
+    reloaded = pg.evaluate(DASH_CARDS)
+    reloaded_ids = [c["id"] for c in reloaded]
+
+    stored = pg.evaluate("""async () => {
+        const r = await fetch('/api/core/me/preferences', { headers: {
+            'X-Api-Token': localStorage.getItem('nusantara_erp_token'), Accept: 'application/json' } });
+        const j = await r.json();
+        return (j.data || []).filter((x) => x.key === 'dashboard.layout').map((x) => x.value)[0] || null;
+    }""")
+
+    click(pg, ".page-head .actions button:has-text('Atur dasbor')")
+    pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
+    click(pg, ".modal-foot button:has-text('Kembalikan ke bawaan')")
+    pg.wait_for_timeout(200)
+    restored = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
+    click(pg, ".modal-foot button:has-text('Batal')")
+
+    return {
+        "before": before,
+        "added_label": added,
+        "removed": removed,
+        "resized": resized, "resized_from": now, "resized_to": target,
+        "moved_up": second,
+        "order_in_drawer": order_in_drawer,
+        "after_save": after_save,
+        "after_reload": reloaded_ids,
+        "stored_preference": stored,
+        "restore_default_matches_before": restored == before,
+        "sizes_after_reload": {c["id"]: c["size"] for c in reloaded},
+        "ok": (
+            removed not in reloaded_ids
+            and reloaded_ids == order_in_drawer
+            and reloaded_ids == after_save
+            and isinstance(stored, list) and len(stored) == len(reloaded_ids)
+            and restored == before
+        ),
+    }
+
+
+@scenario("S23_honest_failure")
+def s23f(pg):
+    """Satu sumber dijatuhkan sungguhan; kartunya harus MENGAKU, bukan menulis 0."""
+    login(pg, "finance@nusantara.test")
+    pg.wait_for_timeout(2500)
+    healthy = {c["id"]: c["body"] for c in pg.evaluate(DASH_CARDS)}
+
+    # `core/dashboard/summary` memberi makan KETIGA ubin uang Temuan 79.
+    pg.route("**/api/core/dashboard/summary*", lambda route: route.abort())
+    pg.reload()
+    pg.wait_for_selector("nav.nav", timeout=15000)
+    pg.wait_for_timeout(3500)
+    broken = {c["id"]: c["body"] for c in pg.evaluate(DASH_CARDS)}
+    pg.screenshot(path=f"{OUT}/s23-gagal-jujur-p1d.png", full_page=True)
+    pg.unroute("**/api/core/dashboard/summary*")
+
+    money = broken.get("ringkasan-uang", "")
+    others = [i for i in healthy if i != "ringkasan-uang"]
+
+    return {
+        "healthy_money_card": healthy.get("ringkasan-uang", "")[:120],
+        "broken_money_card": money[:160],
+        "card_still_drawn": "ringkasan-uang" in broken,
+        "says_failed": "Gagal dimuat" in money,
+        "writes_em_dash": money.count("—") >= 3,
+        # Yang paling penting: TIDAK ada angka rupiah yang dikarang.
+        "no_zero_rupiah": "Rp 0" not in money,
+        "other_cards_still_loaded": [i for i in others if i in broken and len(broken[i]) > 3],
+        "other_cards_lost": [i for i in others if i not in broken],
+        "ok": (
+            "ringkasan-uang" in broken
+            and "Gagal dimuat" in money
+            and "Rp 0" not in money
+            and not [i for i in others if i not in broken]
+        ),
+    }
+
+
+@scenario("S23_dashboard_mobile")
+def s23m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "teknisi@nusantara.test")
+        # Aturan landing P1-C: ponsel mendarat di #/home, jadi dasbor dibuka sendiri.
+        pg.evaluate("() => { location.hash = '#/dashboard'; }")
+        pg.wait_for_timeout(3000)
+        cards = pg.evaluate(DASH_CARDS)
+        geom = pg.evaluate("""() => {
+            const grid = document.querySelector('.dash-grid');
+            const rects = [...document.querySelectorAll('.dash-grid .card.widget')].map((c) => c.getBoundingClientRect());
+            return {
+                cols: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+                widths: rects.map((r) => Math.round(r.width)),
+                lefts: [...new Set(rects.map((r) => Math.round(r.left)))],
+                page_scroll_x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                height: Math.round(document.documentElement.scrollHeight),
+            };
+        }""")
+        pg.screenshot(path=f"{OUT}/s23-dashboard-teknisi-mobile-p1d.png", full_page=True)
+        return {
+            "cards": [c["id"] for c in cards],
+            "grid": geom,
+            # Satu kolom: setiap kartu mulai di tepi kiri yang sama, dan halaman
+            # tidak menggulung mendatar.
+            "ok": geom["cols"] == 1 and len(geom["lefts"]) == 1 and not geom["page_scroll_x"] and bool(cards),
+        }
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -2658,7 +2946,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

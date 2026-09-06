@@ -4,7 +4,7 @@
    pernah mencakup 17 lainnya — pengajuan cuti yang menunggu tak terlihat oleh
    direktur ber-hr.approve. */
 
-import { el, icon, button } from '../../ui.js';
+import { el, icon } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
 import { safeList, failure, rowsOf, tileEmpty, failedBody, miniTable, footLink } from './kit.js';

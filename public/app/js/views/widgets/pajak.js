@@ -37,7 +37,15 @@ export async function build({ reload }) {
     ])),
     miniTable(
       [
-        { label: 'Masa', render: (row) => el('span', [el('span.cell-main', { text: row.label || row.tax_type || '—' }), el('span.cell-sub', { text: row.period || '' })]) },
+        /* Nama field mengikuti TaxObligationResource apa adanya:
+           `tax_type_label` + `masa_year`/`masa_month`. Sebuah `row.label` atau
+           `row.period` yang tidak pernah dikirim server menggambar em dash di
+           setiap baris tanpa satu galat pun — terukur 6 Sep 2026 pada widget
+           payroll yang membaca `run.period` dengan cara yang sama. */
+        { label: 'Masa', render: (row) => el('span', [
+          el('span.cell-main', { text: row.tax_type_label || row.name || row.tax_type || '—' }),
+          el('span.cell-sub', { text: fmt.periodLabel(row.masa_year, row.masa_month) }),
+        ]) },
         {
           label: 'Tenggat setor',
           render: (row) => el('span', [

@@ -8,14 +8,19 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedStat, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safeList, failure, rowsOf, failedStat, statRow, stat, footLink, tileEmpty } from './kit.js';
 
 export async function build({ reload }) {
-  const rows = await safe('crm/contract-termins/billing-ready');
-  if (failure(rows)) return el('.card-body', statRow([failedStat('Termin siap ditagih')]));
+  // api.list, bukan api.get: `meta.total_amount` adalah jumlah SERVER, dan
+  // menjumlah ulang di klien hanya menambah satu tempat yang bisa berselisih.
+  const payload = await safeList('crm/contract-termins/billing-ready');
+  if (failure(payload)) return el('.card-body', statRow([failedStat('Termin siap ditagih')]));
+
+  const rows = rowsOf(payload);
   if (!rows.length) return tileEmpty('Tidak ada termin yang siap ditagih.', 'done');
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const meta = payload.meta || {};
+  const total = Number(meta.total_amount ?? rows.reduce((sum, row) => sum + Number(row.amount || 0), 0));
 
   return el('div', [
     el('.card-body', statRow([

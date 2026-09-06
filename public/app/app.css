@@ -2061,13 +2061,13 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
    sampai halaman menggulung mendatar — nilai minimum otomatis sel grid adalah
    min-content, bukan nol.
 
-   Di bawah 1180 px kisinya dua kolom dan 'lebar' tetap penuh; di bawah 760 px
+   Di bawah 1180 px kisinya dua kolom, 'sedang' dan 'lebar' sama-sama penuh; di bawah 760 px
    (titik potong yang sama dengan laci nav dan aturan landing P1-C) satu kolom,
    dan span dari inline style dibatalkan — grid-column inline ditulis penyusun
    dasbor, jadi pembatalnya harus lebih spesifik. */
 .dash-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
 }
@@ -2081,10 +2081,19 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 @media (max-width: 1180px) {
   .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card.widget[data-size="lebar"] { grid-column: span 2 !important; }
+  .card.widget[data-size="sedang"] { grid-column: span 2 !important; }
 }
 @media (max-width: 760px) {
   .dash-grid { grid-template-columns: minmax(0, 1fr); }
-  .card.widget { grid-column: span 1 !important; }
+  /* `[data-size]` bukan hiasan: pembatal ini harus SEKURANGNYA sespesifik
+     `.card.widget[data-size="lebar"]` di blok 1180 px di atas, karena di antara
+     dua deklarasi !important yang menang adalah yang lebih spesifik — bukan
+     yang belakangan. Tanpa atributnya, sebuah kartu 'lebar' tetap `span 2` di
+     390 px, dan kisi satu kolom menumbuhkan kolom IMPLISIT untuk menampungnya:
+     terukur 6 Sep 2026 (S23 ponsel, teknisi) sebagai grid 84,6 px + 261,4 px —
+     tiga kartu 'sedang' terjepit di 85 px sementara yang 'lebar' memakai
+     keduanya. */
+  .card.widget[data-size] { grid-column: span 1 !important; }
 }
 
 /* Laci "Atur dasbor". Baris = satu kisi supaya nama, ukuran dan tombol berbaris

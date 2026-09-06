@@ -17,11 +17,16 @@ export async function build({ reload }) {
   if (!runs.length) return tileEmpty('Belum ada run payroll yang dibuat.');
 
   const latest = runs[0];
+  /* PayrollRunResource mengirim `period_year` + `period_month`, BUKAN `period`
+     — kolom "Periode" di layar daftar adalah kolom komposit schema.js. Membaca
+     `run.period` menggambar em dash di setiap baris tanpa satu galat pun
+     (terukur 6 Sep 2026, dasbor finance). */
+  const period = (run) => fmt.periodLabel(run.period_year, run.period_month);
 
   return el('div', [
     el('.card-body', { style: { paddingBottom: '0' } }, statRow([
       stat('Netto run terbaru', fmt.rupiahShort(latest.total_net), {
-        sub: `${latest.code} · ${latest.period || '—'}`,
+        sub: `${latest.code} · ${period(latest)}`,
       }),
       stat('Bruto', fmt.rupiahShort(latest.total_gross), {
         sub: `potongan ${fmt.rupiahShort(latest.total_deductions)}`,
@@ -29,7 +34,7 @@ export async function build({ reload }) {
     ])),
     miniTable(
       [
-        { label: 'Run', render: (row) => el('span', [el('span.cell-main.mono', { text: row.code }), el('span.cell-sub', { text: row.period || '' })]) },
+        { label: 'Run', render: (row) => el('span', [el('span.cell-main.mono', { text: row.code }), el('span.cell-sub', { text: period(row) })]) },
         { label: 'Status', render: (row) => badge(row.status_label || row.status, fmt.statusTone(row.status)) },
         { label: 'Netto', align: 'right', render: (row) => el('span.num', { text: fmt.rupiah(row.total_net) }) },
       ],

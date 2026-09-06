@@ -9,7 +9,11 @@ import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
 import { safe, failure, failedBody, statRow, stat, footLink, tileEmpty } from './kit.js';
 
-const pct = (value) => (value === null || value === undefined ? '—' : `${fmt.num(Number(value) * 100, 1)}%`);
+/* Server MENGIRIM persen (PipelineReportService::rate = won/decided × 100,
+   dibulatkan satu desimal), bukan pecahan — mengalikannya lagi menulis
+   "10.000%" untuk 3 menang 0 kalah, terukur 6 Sep 2026 pada dasbor direktur.
+   Formatnya sama persis dengan layar Analitik Win-Rate. */
+const pct = (value) => (value === null || value === undefined ? '—' : `${Number(value).toLocaleString('id-ID')}%`);
 
 export async function build({ reload }) {
   const report = await safe('crm/reports/pipeline');
