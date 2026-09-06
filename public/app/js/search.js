@@ -35,6 +35,11 @@ let refusal = null;
  * sampai ke layar Opname berarti membaca 121 tautan sidebar (HASIL-UJI §1,
  * S5) — padahal palet ini sudah ada di bawah setiap tangan.
  *
+ * Diekspor sejak P1-C: kotak cari launcher #/home memakai indeks yang SAMA
+ * (dengan batas sendiri, karena halaman punya ruang yang palet tidak punya) —
+ * dua kotak cari yang menawarkan daftar layar berbeda untuk kata yang sama
+ * adalah dua aplikasi.
+ *
  * Awal kata, bukan substring: "po" harus menemukan "Pesanan (PO)" dan "Baris
  * PO Terbuka", bukan "La-po-ran Harian" — dan Enter membuka hasil pertama,
  * jadi derau di sini berarti orang yang mengetik kode dokumen mendarat di
@@ -43,7 +48,7 @@ let refusal = null;
  * dokumen itu. Disaring lewat visibleNav() yang sama dengan sidebar, supaya
  * palet tidak menawarkan layar yang barisnya disembunyikan dari menu.
  */
-function screenHits(term) {
+export function screenHits(term, limit = SCREEN_MAX) {
   const needle = term.toLowerCase();
   const hits = [];
 
@@ -57,7 +62,7 @@ function screenHits(term) {
     }
   }
 
-  return hits.sort((a, b) => a.rank - b.rank).slice(0, SCREEN_MAX);
+  return hits.sort((a, b) => a.rank - b.rank).slice(0, limit);
 }
 
 function resultRow(hit, onPick) {

@@ -9,6 +9,7 @@ import { route, fallback, navigate, start, currentPath } from './router.js';
 import { setCrumbs } from './crumbs.js';
 import { prefs } from './prefs.js';
 import { renderModuleHome } from './views/module.js';
+import { renderHome } from './views/home.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
 import { renderDetail } from './views/detail.js';
@@ -632,6 +633,12 @@ function buildShell() {
     ]),
     el('header.header', [
       menuToggle,
+      // Rumah ke launcher (P1-C), di sebelah hamburger dan sebelum remah roti:
+      // di ponsel remah roti hanya menyebut TEMPAT SEKARANG, dan sebelum ini
+      // satu-satunya jalan pulang adalah membuka laci menu lebih dulu.
+      Object.assign(button('', {
+        variant: 'ghost', iconName: 'home', title: 'Beranda', onClick: () => navigate('home'),
+      }), { className: 'btn ghost icon home-btn' }),
       // <nav> berlabel: dua tautan di dalamnya (modul, layar) butuh landmark supaya
       // pembaca layar bisa melompat ke remah roti (verifikasi P1-B 5 Sep 2026).
       el('nav.crumbs', { id: 'crumbs', 'aria-label': 'Remah roti' }),
@@ -1123,6 +1130,18 @@ function registerRoutes() {
     guard(host, () => renderSettings(host));
   });
 
+  /* App launcher (P1-C) — halaman pertama di ponsel (keputusan pemilik #3) dan
+     "Beranda" di sidebar/header pada semua lebar. Tanpa gerbang izin: kisinya
+     dibangun dari visibleNav(), jadi orang tanpa satu layar pun mendapat
+     keadaan kosong beranda itu sendiri — dan orang seperti itu tidak bisa
+     masuk. */
+  route('home', () => {
+    setCrumbs(['Beranda']);
+    setActiveNav('home');
+    const host = view();
+    guard(host, () => renderHome(host));
+  });
+
   /* Beranda modul (P1-B) — sasaran remah modul; minimal: kepala beraksen +
      kartu layar yang boleh dibuka (views/module.js). Tanpa gerbang izin:
      grup yang izinnya tidak dipegang berakhir di keadaan kosong beranda itu
@@ -1226,7 +1245,7 @@ function registerRoutes() {
 
   fallback((path) => {
     if (!path || path === '/') {
-      navigate('dashboard', { replace: true });
+      landOnDefault();
       return;
     }
     setCrumbs(['Tidak ditemukan']);
@@ -1284,13 +1303,17 @@ async function boot() {
     // otherwise stack a second listener and open two dialogs on one Ctrl+K.
     registerSearchShortcut();
     routesRegistered = true;
+    landOnDefault();
     start();
   } else {
     // Re-render the current route into the freshly built shell.
     const path = currentPath();
     navigate('dashboard', { replace: true });
     if (path !== 'dashboard') navigate(path, { replace: true });
-    else start();
+    else {
+      landOnDefault();
+      start();
+    }
   }
 
   // Refresh permissions in the background — roles may have changed since login.
@@ -1308,6 +1331,26 @@ async function boot() {
       maybeShowOnboarding();
     });
   offerDrafts();
+}
+
+/*
+ * Landing sesudah masuk (keputusan pemilik #3, ROADMAP-HASHMICRO §5): dasbor di
+ * >= 760 px, app launcher #/home di bawahnya. 760 px bukan angka baru — itulah
+ * titik potong yang SUDAH dipakai app.css untuk melipat sidebar menjadi laci,
+ * dan di bawahnya menu tidak terlihat sampai seseorang menekan hamburger:
+ * mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar yang
+ * terlihat. Tiga dari 12 peran demo bahkan mendarat di dasbor KOSONG
+ * (procurement, hr, teknisi tidak memegang prj.view maupun fin.view).
+ *
+ * Hanya berlaku ketika TIDAK ADA hash: tautan-dalam (notifikasi ke
+ * `#/d/finance/ap-bills/12`, tab yang dipulihkan peramban, tombol Kembali)
+ * mendarat di tempat yang diminta. Karena itu location.hash yang dibaca, bukan
+ * currentPath() yang mengarang 'dashboard' saat hash kosong.
+ */
+function landOnDefault() {
+  const hash = location.hash;
+  if (hash && hash !== '#' && hash !== '#/') return;
+  navigate(window.innerWidth >= 760 ? 'dashboard' : 'home', { replace: true });
 }
 
 /*

@@ -109,7 +109,7 @@ class ModuleCountsTest extends ErpTestCase
             'eng' => 1,         // 1 SDS tanpa keputusan & belum disuperseded
             'prj' => 2,         // active + finishing; completed tidak
             'qc' => 2,          // open + under_correction; verified & closed tidak
-            'prc' => 1,         // 1 PO submitted
+            'prc' => 1,         // 1 PO approved = terbuka; draft/submitted/closed tidak
             'inv' => 1,         // 1 baris gudang×item di bawah min; item nonaktif tidak
             'scm' => 1,         // 1 opname subkon submitted
             'fin' => 1,         // 1 invoice approved dengan sisa; lunas tidak
@@ -347,9 +347,9 @@ class ModuleCountsTest extends ErpTestCase
             ]);
         }
 
-        // prc — 1 submitted, 2 bukan.
+        // prc — 1 terbuka (approved), 3 bukan; `closed` adalah PO yang barangnya sudah lengkap.
         $vendor = $this->insert('prc_vendors', ['code' => $this->code('VND'), 'name' => 'PT Uji', 'classification' => 'supplier']);
-        foreach (['submitted', 'draft', 'approved'] as $status) {
+        foreach (['approved', 'draft', 'submitted', 'closed'] as $status) {
             $this->insert('prc_purchase_orders', ['code' => $this->code('PO'), 'vendor_id' => $vendor, 'order_date' => now()->toDateString(), 'status' => $status]);
         }
 

@@ -5815,7 +5815,11 @@ export function moduleForLabel(label) {
 export const NAV = [
   {
     label: 'Ringkasan', perm: null, prefix: 'ringkasan',
-    items: [{ label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+    // 'Beranda' (P1-C) di paling atas: launcher #/home adalah landing ponsel
+    // (keputusan pemilik #3) dan harus punya baris sendiri di menu — tanpa itu
+    // satu-satunya jalan ke sana adalah tombol rumah di header, yang hilang
+    // dari kesadaran orang begitu ia terbiasa memakai sidebar.
+    items: [{ label: 'Beranda', route: 'home' }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',

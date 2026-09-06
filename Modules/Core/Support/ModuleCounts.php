@@ -156,17 +156,18 @@ final class ModuleCounts
             ],
 
             'prc' => [
-                'label' => 'PO menunggu persetujuan',
+                'label' => 'PO terbuka',
                 'unit' => 'PO',
                 'permission' => 'prc.view',
                 'tables' => ['prc_purchase_orders'],
-                'why' => '"PO terbuka" dalam arti sisa barang yang belum datang membutuhkan join ke baris PO dan '
-                    .'penerimaan — layar "Baris PO Terbuka" yang memilikinya, dan menyalinnya ke sini berarti dua '
-                    .'definisi "terbuka". Yang murah DAN menahan pekerjaan adalah PO yang diajukan dan belum '
-                    .'diputus: selama itu barangnya tidak dipesan.',
+                'why' => 'PoService menutup sebuah PO sendiri (status closed + closed_at) begitu SELURUH barisnya '
+                    .'diterima penuh, jadi status `approved` sudah berarti persis "sudah dipesan, barangnya belum '
+                    .'lengkap" — "PO terbuka" tanpa satu pun join ke baris penerimaan. Data demo menunjukkan '
+                    .'kenapa angka ini yang dipilih: dua PO senilai Rp 360,8 jt berstatus approved dan dijanjikan '
+                    .'Maret 2026; keterlambatannya diawasi WatchedDeadlines, jumlahnya di sini.',
                 'count' => static fn (): ?int => (int) DB::table('prc_purchase_orders')
                     ->whereNull('deleted_at')
-                    ->where('status', 'submitted')
+                    ->where('status', 'approved')
                     ->count(),
             ],
 
