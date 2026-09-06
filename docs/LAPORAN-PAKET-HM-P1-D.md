@@ -152,7 +152,8 @@ Diperbarui:
 `tests/Feature/Core` + `tests/Feature/Iam` sebelum perbaikan gerbang inbox: 803 hijau /
 1 merah (6.068 asersi, 11 dilewati) — yang merah adalah `ApprovalInboxGateTest`, yang memang
 menghitung dua pemanggilan `session.can(ANY_APPROVE)` di dashboard.js dan karena itu HARUS
-merah pada paket ini; ia lalu ditulis ulang ke rantai gerbang yang baru.
+merah pada paket ini; ia lalu ditulis ulang ke rantai gerbang yang baru. Setelah perbaikan
+dan setelah keenam temuan harness: **804 hijau / 6.072 asersi** (11 dilewati, 152 s).
 
 **Suite penuh (SQLite) di `c6aadcf`: 3.907 uji / 19.730 asersi hijau, 11 dilewati, 560 s.**
 MySQL: (diisi — job CI nightly).
