@@ -408,6 +408,17 @@ Per entri: `label` (nama angkanya), `unit` (ubin menulis "7 proyek", bukan "7"),
 dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri `DB::table`), dan
 `why` — alasan angka INI, bukan angka lain, yang memimpin modulnya.
 
+**Biaya kuerinya diukur, bukan diasumsikan.** `EXPLAIN` keempat belas kueri di MySQL 8
+(verifikasi P1-C putaran 2, 6 Sep 2026) menemukan tiga pemindaian tabel penuh (`type=ALL key=NULL`):
+`qc_ncr.status`, `hr_leave_requests.status`, dan `eng_drawing_submittals(decision, superseded_at)`.
+Ketiganya sekarang berindeks (migrasi Core `000196`, hanya indeks, berpenjaga `Schema::hasTable`),
+dan `ModuleCountsTest::test_the_scanning_counts_have_their_indexes` menjaga agar tidak hilang lagi —
+sejak P1-C hitungan ini berjalan setiap kali launcher `#/home` dibuka, yaitu landing ponsel setiap
+pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv` membandingkan `b.qty < i.min_stock`
+antar dua tabel, dan tidak ada indeks yang bisa melayani perbandingan antar kolom; bila
+`inv_stock_balances` tumbuh melewati ~100 rb baris, angka itu perlu tabel ringkasan, bukan indeks.
+Entri baru: jalankan `EXPLAIN`-nya dan tulis hasilnya di sini atau tambahkan indeksnya.
+
 `label` punya CERMIN di klien: `schema.js` `MODULES[prefix].kpi`. Ia ada karena ubin harus bisa
 menyebut angka yang tidak dikirim server — entri yang izinnya tidak dipegang tidak ada di jawaban,
 jadi tanpa cermin itu ubinnya menulis `—` telanjang tanpa satu kata pun. Kesetaraan kedua daftar

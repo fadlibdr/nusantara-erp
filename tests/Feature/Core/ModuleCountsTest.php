@@ -313,6 +313,31 @@ class ModuleCountsTest extends ErpTestCase
 
     // -------------------------------------------------------------- endpoint
 
+    /**
+     * Tiga hitungan registri yang dulu memindai seluruh tabel punya indeksnya.
+     *
+     * EXPLAIN keempat belas kueri di MySQL 8 (verifikasi P1-C putaran 2)
+     * menemukan `type=ALL key=NULL` pada qc_ncr.status, hr_leave_requests.status
+     * dan eng_drawing_submittals(decision, superseded_at) — dan sejak P1-C
+     * ketiganya berjalan setiap kali launcher #/home dibuka, yaitu landing
+     * ponsel setiap pengguna. Migrasi 000196 menambahkannya; uji ini menjaga
+     * agar tidak hilang lagi tanpa ada yang menyadarinya.
+     */
+    public function test_the_scanning_counts_have_their_indexes(): void
+    {
+        foreach ([
+            'qc_ncr' => 'qc_ncr_status_index',
+            'hr_leave_requests' => 'hr_leave_requests_status_index',
+            'eng_drawing_submittals' => 'eng_drawing_submittals_decision_superseded_index',
+        ] as $table => $index) {
+            $names = array_map(fn (array $one) => $one['name'] ?? '', Schema::getIndexes($table));
+
+            $this->assertContains($index, $names,
+                "{$table} kehilangan indeks {$index}: hitungan registrinya kembali memindai seluruh tabel, "
+                .'dan hitungan itu berjalan setiap kali launcher dibuka.');
+        }
+    }
+
     public function test_dashboard_summary_carries_the_modules_block_only_when_asked(): void
     {
         $admin = $this->adminUser();
