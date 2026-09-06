@@ -1251,9 +1251,30 @@ function registerRoutes() {
   });
 }
 
+/*
+ * Label remah pertama untuk layar r/<key>: nama grup NAV yang memuatnya, dan
+ * bila tidak ada grup yang memuatnya, nama modul si resource sendiri.
+ *
+ * Tujuh resource memang tidak ada di sidebar — dibuka dari layar lain, bukan
+ * dari menu: projects/baselines, projects/defects, inventory/issue-returns,
+ * inventory/purchase-returns, hr/certificates (schema.js) serta
+ * finance/petty-cash-vouchers dan finance/kasbon (didaftarkan kaskecil.js).
+ * Dulu semuanya berakar pada penanda 'ERP', yang bukan grup mana pun, sehingga
+ * crumbs.js menandainya data-root='screen' — dan di ponsel HALAMAN DOKUMEN-nya
+ * tetap menulis 'Keuangan' (kaskecil.js) alias data-root='module'. Daftar dan
+ * dokumennya karena itu berganti subjek: '#/r/finance/kasbon' membaca 'Kasbon',
+ * '#/d/finance/kasbon/1' membaca 'Keuangan' (diukur 390×844 dan 1440×900,
+ * verifikasi P1-B putaran 2). Modul resource-nya adalah jawaban yang sama untuk
+ * keduanya, dan bertaut ke beranda modul yang memang boleh dibuka pemakainya:
+ * rute r/* menolak siapa pun tanpa `<module>.view`, izin yang sama yang membuat
+ * beranda modul itu berisi.
+ */
 function groupLabelFor(key) {
   const group = NAV.find((entry) => entry.items.some((item) => item.route === `r/${key}`));
-  return group ? group.label : 'ERP';
+  if (group) return group.label;
+  const def = RESOURCES[key];
+  const module = def ? moduleFor(def.module) : null;
+  return module ? module.label : 'ERP';
 }
 
 /* ------------------------------------------------------------------- boot */

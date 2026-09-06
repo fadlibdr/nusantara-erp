@@ -224,6 +224,76 @@ class SidebarNavWiringTest extends ErpTestCase
             'app.css has no [data-root="screen"] rule keeping the screen crumb visible (ellipsised) on mobile.');
     }
 
+    /**
+     * Setiap layar r/<key> berakar pada MODULnya, dan tidak ada view yang
+     * mengeja label modul itu sendiri.
+     *
+     * Tujuh resource tidak ada di sidebar (dibuka dari layar lain): lima di
+     * schema.js — projects/baselines, projects/defects, inventory/issue-returns,
+     * inventory/purchase-returns, hr/certificates — dan dua didaftarkan
+     * kaskecil.js saat modulnya dimuat (finance/petty-cash-vouchers,
+     * finance/kasbon). Sampai 6 Sep 2026 groupLabelFor() mengembalikan penanda
+     * 'ERP' untuk ketujuhnya, jadi crumbs.js menandai daftarnya
+     * data-root='screen' sementara HALAMAN DOKUMEN kasbon mengeja 'Keuangan'
+     * sendiri dan menjadi data-root='module': daftar dan dokumennya berganti
+     * subjek di header ponsel (diukur 390×844: '#/r/finance/kasbon' → 'Kasbon',
+     * '#/d/finance/kasbon/1' → 'Keuangan').
+     *
+     * Dua syarat yang menutupnya, keduanya bisa hanyut tanpa build step:
+     * modul setiap resource harus prefix grup NAV yang nyata (kalau tidak,
+     * groupLabelFor jatuh ke 'ERP' lagi), dan tidak ada view yang boleh
+     * menuliskan label grup sebagai remah pertama — label itu hanya ada di NAV.
+     */
+    public function test_every_resource_screen_is_rooted_in_a_real_module(): void
+    {
+        $prefixes = $this->navPrefixes();
+        $this->assertGreaterThanOrEqual(14, count($prefixes),
+            'Only '.count($prefixes).' NAV group prefixes were read from schema.js; the reader lost the shape.');
+
+        $resources = $this->resourceModules();
+        $this->assertGreaterThan(90, count($resources),
+            'Only '.count($resources).' RESOURCES entries were read; the reader lost the table.');
+
+        // Layar yang ADA di sidebar berakar pada grup NAV-nya, apa pun prefix izinnya
+        // (core/notification-deliveries memakai izin core.* di dalam grup Sistem/iam —
+        // sah, dan remahnya tetap 'Sistem'). Yang harus punya modul sungguhan adalah
+        // layar di LUAR sidebar: hanya modul itu yang tersisa sebagai akar.
+        $navRoutes = $this->navRoutes();
+        $outsideNav = array_filter($resources, fn ($module, $key) => ! in_array('r/'.$key, $navRoutes, true),
+            ARRAY_FILTER_USE_BOTH);
+
+        $this->assertNotEmpty($outsideNav, 'The reader found no resource outside NAV; the extraction is broken.');
+
+        foreach ($outsideNav as $key => $module) {
+            $this->assertContains($module, $prefixes,
+                "RESOURCES['{$key}'] is not in the sidebar and belongs to module '{$module}', which is not a NAV "
+                ."group prefix. groupLabelFor() then falls back to the 'ERP' placeholder and the screen's "
+                .'breadcrumb roots on nothing — while its document page keeps whatever root its own view wrote.');
+        }
+
+        // Ketujuh layar di luar NAV memang ada — kalau daftarnya menyusut, hilangnya bukan karena
+        // uji ini melewatkannya.
+        foreach (['projects/baselines', 'projects/defects', 'inventory/issue-returns',
+            'inventory/purchase-returns', 'hr/certificates', 'finance/petty-cash-vouchers',
+            'finance/kasbon'] as $outside) {
+            $this->assertArrayHasKey($outside, $resources, "RESOURCES['{$outside}'] is gone from the SPA.");
+        }
+
+        $labels = $this->navGroupLabels();
+        foreach ($this->spaScripts() as $path => $source) {
+            if ($path === 'js/app.js') {
+                continue;   // layar khusus non-resource merakit rantainya sendiri di satu tempat
+            }
+            preg_match_all("/setCrumbs\(\s*\[\s*'([^']+)'/", $source, $found);
+            foreach ($found[1] as $first) {
+                $this->assertNotContains($first, $labels,
+                    "{$path} spells the module label '{$first}' into setCrumbs(). The label lives in NAV only "
+                    .'(moduleFor(prefix).label); a second copy drifts the moment a group is renamed, and that is '
+                    .'exactly how the kasbon list and its document page came to disagree.');
+            }
+        }
+    }
+
     /** The refused half: the readers say no to a caption and a route that do not exist. */
     public function test_the_readers_can_still_say_no(): void
     {
@@ -276,6 +346,57 @@ class SidebarNavWiringTest extends ErpTestCase
         $this->assertNotFalse($start, 'NAV could not be found in schema.js; this test can no longer check anything.');
 
         return substr($schema, $start);
+    }
+
+    /** @return list<string> prefix setiap grup NAV. */
+    private function navPrefixes(): array
+    {
+        preg_match_all("/prefix: '([a-z]+)'/", $this->navBlock(), $found);
+
+        return array_values(array_unique($found[1]));
+    }
+
+    /** @return list<string> rute r/… yang ada di sidebar. */
+    private function navRoutes(): array
+    {
+        preg_match_all("/route: '(r\/[^']+)'/", $this->navBlock(), $found);
+
+        return array_values(array_unique($found[1]));
+    }
+
+    /** @return list<string> label setiap grup NAV. */
+    private function navGroupLabels(): array
+    {
+        preg_match_all("/label: '([^']+)', perm: /", $this->navBlock(), $found);
+
+        return array_values(array_unique($found[1]));
+    }
+
+    /**
+     * Setiap entri RESOURCES → prefix modulnya: tabel schema.js DAN entri yang
+     * didaftarkan view saat dimuat (kaskecil.js menambah tiga).
+     *
+     * @return array<string, string>
+     */
+    private function resourceModules(): array
+    {
+        $out = [];
+
+        $schema = $this->file('schema.js');
+        $table = substr($schema, (int) strpos($schema, 'export const RESOURCES'));
+        preg_match_all("/\n  '([^']+)': \{(.{0,400}?)module: '([a-z]+)'/s", $table, $found, PREG_SET_ORDER);
+        foreach ($found as $entry) {
+            $out[$entry[1]] = $entry[3];
+        }
+
+        foreach ($this->spaScripts() as $source) {
+            preg_match_all("/RESOURCES\['([^']+)'\] = \{(.{0,400}?)module: '([a-z]+)'/s", $source, $extra, PREG_SET_ORDER);
+            foreach ($extra as $entry) {
+                $out[$entry[1]] = $entry[3];
+            }
+        }
+
+        return $out;
     }
 
     private function file(string $relative): string

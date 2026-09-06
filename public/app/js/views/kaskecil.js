@@ -36,10 +36,16 @@ import {
 import * as fmt from '../format.js';
 import { loadSource, optionsFor, preload, labelFor, SOURCES } from '../lookup.js';
 import { ENUMS } from '../enums.js';
-import { RESOURCES } from '../schema.js';
+import { RESOURCES, moduleFor } from '../schema.js';
 import { openForm, promptFields } from './form.js';
 import { route, navigate, back } from '../router.js';
 import { setCrumbs } from '../crumbs.js';
+
+/* Label modulnya dibaca dari NAV lewat moduleFor, tidak ditulis ulang di sini:
+   daftar r/finance/kasbon memakai groupLabelFor → modul resource-nya, dan dua
+   tempat yang mengeja 'Keuangan' sendiri akan berpisah begitu label grup diubah
+   (verifikasi P1-B putaran 3, 6 Sep 2026 — dipaku SidebarNavWiringTest). */
+const FIN = moduleFor('fin');
 
 const IS_DRAFT = (row) => row.status === 'draft';
 
@@ -629,7 +635,7 @@ async function renderKasbon(host, { id }) {
 
 /* Registrasi SEBELUM wildcard d/* milik app.js — lihat komentar kepala file. */
 route('d/finance/petty-cash-funds/:id', ({ id }) => {
-  setCrumbs(['Keuangan', 'Kas Kecil', `#${id}`], { screenHref: '#/r/finance/petty-cash-funds' });
+  setCrumbs([FIN.label, 'Kas Kecil', `#${id}`], { screenHref: '#/r/finance/petty-cash-funds' });
   const host = screenHost();
   if (!session.can('fin.view')) {
     host.appendChild(el('.alert.error', 'Anda tidak memiliki hak akses "fin.view" untuk halaman ini.'));
@@ -641,7 +647,7 @@ route('d/finance/petty-cash-funds/:id', ({ id }) => {
 });
 
 route('d/finance/kasbon/:id', ({ id }) => {
-  setCrumbs(['Keuangan', 'Kasbon', `#${id}`], { screenHref: '#/r/finance/kasbon' });
+  setCrumbs([FIN.label, 'Kasbon', `#${id}`], { screenHref: '#/r/finance/kasbon' });
   const host = screenHost();
   if (!session.can('fin.view')) {
     host.appendChild(el('.alert.error', 'Anda tidak memiliki hak akses "fin.view" untuk halaman ini.'));
