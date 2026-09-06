@@ -235,7 +235,19 @@ class DashboardTileFailureTest extends ErpTestCase
         $decides = preg_match('/(if\s*\(\s*!?|return\s+!?|=>\s*!?|[?&|]\s*!?|!\s*)failure\s*\(/', $code) === 1
             || preg_match('/failure\s*\([^;\n]*\)\s*(\?|&&|\|\|)/', $code) === 1;
 
-        $draws = str_contains($code, 'failedBody') || str_contains($code, 'failedStat');
+        /*
+         * Baris `import { … failedBody … } from './kit.js'` SUDAH memuat namanya,
+         * jadi pemeriksaan substring atas seluruh berkas dipenuhi baris 1 apa pun
+         * isi kodenya: sebuah widget yang cabang gagalnya `return null` — kartunya
+         * lenyap diam-diam alih-alih mengaku gagal — tetap hijau (diukur pada
+         * salinan terisolasi, verifikasi P1-D putaran 2, 6 Sep 2026: defect.js
+         * dengan satu-satunya cabang `if (failure(summary)) return null;` lolos
+         * `OK (6 tests, 61 assertions)`, padahal bentuk yang SAMA sebagai string
+         * sintetis ditolak asersi uji ini sendiri). Impornya dibuang dulu, lalu
+         * penggambarnya dicari sebagai PANGGILAN.
+         */
+        $body = preg_replace('/^\s*import\s[^;]*;/m', '', $code) ?? $code;
+        $draws = preg_match('/\b(failedBody|failedStat|failedStats)\s*\(/', $body) === 1;
 
         return $decides && $draws;
     }
