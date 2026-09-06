@@ -20178,8 +20178,48 @@
       "concurrent_budget": 4,
       "empty_bodies_after": []
     },
+    "mine_switch": {
+      "summary_request": "core/dashboard/summary?mine=1",
+      "projects_request": "projects?per_page=100&mine=1",
+      "card_titles": [
+        {
+          "id": "ringkasan-uang",
+          "title": "Proyek, piutang & hutang"
+        },
+        {
+          "id": "inbox",
+          "title": "Menunggu persetujuan Anda"
+        },
+        {
+          "id": "proyek-progres",
+          "title": "Progres proyek saya"
+        },
+        {
+          "id": "evm",
+          "title": "Kinerja EVM portofolio"
+        },
+        {
+          "id": "defect",
+          "title": "Temuan lapangan (defect)"
+        },
+        {
+          "id": "ncr",
+          "title": "NCR terbuka"
+        },
+        {
+          "id": "stok-minimum",
+          "title": "Stok di bawah minimum"
+        },
+        {
+          "id": "tenggat",
+          "title": "Tenggat menipis & lewat"
+        }
+      ],
+      "both_filtered": true,
+      "progres_card_says_mine": true
+    },
     "ok": true,
-    "_ms": 79958,
+    "_ms": 88219,
     "_clicks": 0
   },
   "S20e_migrated_charts": {

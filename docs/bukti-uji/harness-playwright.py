@@ -3457,12 +3457,61 @@ def s23(pg):
     finally:
         ctx.close()
 
+    # --- SAKELAR 'Proyek saya' menyaring KEDUA kartu proyek ----------------
+    #
+    # ringkasan-uang mengirim `mine`, dan docblock-nya menjanjikan bahwa widget
+    # itu dan "Progres proyek" "selalu bercerita tentang himpunan proyek yang
+    # SAMA saat sakelar Proyek saya menyala". Sampai verifikasi kedua P1-D
+    # proyek-progres.js tidak mengirim `mine` sama sekali (regresi dari P1-C,
+    # yang mengirimkannya): dasbor project-manager dengan sakelar menyala
+    # menuliskan ubin uang untuk proyek MILIKNYA di sebelah daftar yang memuat
+    # seluruh portofolio. Yang diukur di sini adalah parameter yang benar-benar
+    # berangkat, dan judul kartu yang ikut berganti.
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    sent = []
+    page.on("request", lambda r: sent.append(r.url.split("/api/")[1]) if "/api/" in r.url else None)
+    try:
+        login(page, "project-manager@nusantara.test")
+        page.wait_for_timeout(3000)
+        sent.clear()
+        # Sakelar menyala; kalau sudah menyala, dimatikan lalu dinyalakan lagi.
+        state = page.evaluate("() => localStorage.getItem('nusantara_erp_dash_mine')")
+        if state == "1":
+            page.click(".page-head .actions button:has-text('Proyek saya')")
+            page.wait_for_timeout(2500)
+            sent.clear()
+        page.click(".page-head .actions button:has-text('Proyek saya')")
+        page.wait_for_timeout(3500)
+
+        out["mine_switch"] = {
+            "summary_request": next((u for u in sent if u.startswith("core/dashboard/summary")), None),
+            "projects_request": next((u for u in sent if u.startswith("projects")), None),
+            "card_titles": page.evaluate(
+                "() => [...document.querySelectorAll('.dash-grid .card.widget')]"
+                ".map((c) => ({ id: c.dataset.widget, title: (c.querySelector('.card-head h2')||{}).innerText }))"),
+        }
+        page.screenshot(path=f"{OUT}/s23-proyek-saya-p1d.png", full_page=True)
+    finally:
+        ctx.close()
+
+    mine = out["mine_switch"]
+    titles = {c["id"]: c["title"] for c in mine["card_titles"]}
+    mine["both_filtered"] = (
+        "mine=1" in (mine["summary_request"] or "")
+        and "mine=1" in (mine["projects_request"] or "")
+    )
+    # Kartu yang berganti makna berganti judul: pola ringkasan-uang.
+    mine["progres_card_says_mine"] = titles.get("proyek-progres") == "Progres proyek saya"
+
     out["ok"] = (
         not out["roles_without_cards"]
         and not out["over_budget"]
         and not any(r["empty_bodies"] for r in out["roles"].values())
         and out["rapid_reload"]["max_concurrent"] <= out["rapid_reload"]["concurrent_budget"]
         and not out["rapid_reload"]["empty_bodies_after"]
+        and mine["both_filtered"]
+        and mine["progres_card_says_mine"]
     )
     return out
 
