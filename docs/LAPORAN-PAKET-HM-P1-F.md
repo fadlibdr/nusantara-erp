@@ -122,8 +122,10 @@ Dua aturan yang menjaganya aman, keduanya diuji:
 | `SavedReportTest` | 11 / 51 |
 | `ReportXlsxExportTest` | 5 / 21 |
 
-`tests/Feature/Core` seluruhnya: **790 hijau / 6.040 asersi** (11 dilewati). Suite penuh dan MySQL:
-(diisi).
+`tests/Feature/Core` + `tests/Feature/Iam`: **847 hijau / 6.497 asersi** (11 dilewati, 153 s).
+**Suite penuh (SQLite): 3.950 uji / 20.155 asersi hijau, 11 dilewati, 554 s** — 38 uji dan 392
+asersi lebih banyak daripada P1-E, seluruhnya milik paket ini; tidak ada uji lain yang berubah
+hasilnya. MySQL: (diisi — job CI nightly).
 
 **Harness S24** (Chromium 1440×900): 15 syarat hijau pada jalan pertama — katalog delapan sumber
 yang menyaring dirinya per izin (gudang melihat lebih sedikit), plafon yang **diumumkan server**
@@ -152,7 +154,7 @@ menawarkan XLSX. Bukti: `docs/bukti-uji/results-phase-1.json`, `s24-*-p1f.png`.
 
 1. **Verifikasi adversarial sedang berjalan** (enam lensa, setiap temuan disanggah tiga penyanggah
    independen; yang bertahan dua dari tiga suara dilaporkan). Hasilnya belum masuk laporan ini.
-2. **Suite penuh dan MySQL belum dijalankan** untuk paket ini; `tests/Feature/Core` hijau.
+2. **Suite MySQL belum dijalankan.** SQLite penuh hijau (3.950/20.155).
 3. **Data demo tipis.** Tabel katalog berisi 1–9 baris; plafon 200 kelompok / 5.000 baris hanya
    pernah tersentuh oleh fixture yang dibuat ujinya sendiri, tidak pernah oleh data nyata.
    `crm/contracts`, `hr/employees` dan `subcontract/subcontracts` **belum pernah tergambar di
