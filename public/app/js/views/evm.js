@@ -39,10 +39,9 @@ import { loadSource, optionsFor } from '../lookup.js';
 import { ENUMS } from '../enums.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
+import { lineChart } from '../charts.js';
 
 /* ------------------------------------------------------------------ helpers */
-
-const ns = 'http://www.w3.org/2000/svg';
 
 const TONE = { up: 'var(--success)', down: 'var(--danger)', warn: 'var(--warning)' };
 
@@ -157,88 +156,75 @@ export function evmCurve(points, bac) {
     });
   });
 
+  /* ATURAN ">100 % DIPERTAHANKAN", dan ia milik PEMANGGIL — bukan grafik.
+     charts.js menerima yMax apa adanya; yang memutuskan bahwa sumbu boleh naik
+     melewati 100 adalah baris di bawah ini, sama persis seperti sebelum P1-E.
+     Menahannya di 100 % akan memotong garis biaya justru pada proyek yang
+     paling perlu terlihat — yang sudah membelanjakan lebih dari anggarannya. */
   const peak = values.length ? Math.max(...values) : 100;
   const yMax = Math.max(100, Math.ceil(peak / 25) * 25);
   const gridStep = Math.max(25, Math.ceil(yMax / 4 / 25) * 25);
 
-  const W = 720;
-  const H = 260;
-  const PAD = { top: 14, right: 16, bottom: 28, left: 42 };
-  const plotW = W - PAD.left - PAD.right;
-  const plotH = H - PAD.top - PAD.bottom;
-
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('class', 'chart');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Kurva EVM: rencana baseline, nilai diperoleh dan biaya aktual terhadap BAC');
-
-  const add = (tag, attrs, text) => {
-    const node = document.createElementNS(ns, tag);
-    Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
-    if (text !== undefined) node.textContent = text;
-    svg.appendChild(node);
-    return node;
+  const value = (v) => {
+    const n = Number(v);
+    return v === null || v === undefined || !Number.isFinite(n) ? null : n;
   };
 
-  const first = Date.parse(rows[0].period_end);
-  const last = Date.parse(rows[rows.length - 1].period_end);
-  const span = last - first;
+  /* Satu kalimat untuk ketiga garis pada tanggal yang sama — bentuk yang sama
+     dengan grafik tangan. Titiknya hanya ada di garis FISIK, jadi kalimat itu
+     digantungkan di sana. */
+  const titleOf = (row) => `${fmt.date(row.period_end)} — rencana ${fmt.percent(row.planned_pct)}, `
+    + `fisik ${fmt.percent(row.actual_pct)}, biaya ${fmt.rupiah(row.actual_cost)}`;
 
-  const x = (row) => (span > 0
-    ? PAD.left + ((Date.parse(row.period_end) - first) / span) * plotW
-    : PAD.left + plotW / 2);
-  const y = (value) => PAD.top + plotH - (Math.max(0, Math.min(yMax, value)) / yMax) * plotH;
+  /* Sumbu TANGGAL, bukan sumbu indeks: titik baseline berjarak sebulan
+     sedangkan titik terakhir selalu tanggal laporan — pada data demo titik
+     "1 Agustus 2026" hanya berjarak satu hari dari akhir Juli, dan menaruhnya
+     sejauh satu bulan penuh dari tetangganya membuat kurva terlihat mendatar di
+     ujung. charts.js membaca x string ISO sebagai tanggal.
 
-  for (let value = 0; value <= yMax; value += gridStep) {
-    add('line', { class: 'grid', x1: PAD.left, x2: W - PAD.right, y1: y(value), y2: y(value) });
-    add('text', { x: PAD.left - 7, y: y(value) + 3.5, 'text-anchor': 'end' }, `${value}%`);
-  }
-  add('line', { class: 'axis', x1: PAD.left, x2: PAD.left, y1: PAD.top, y2: PAD.top + plotH });
+     Sebuah seri BERHENTI di tempat datanya berhenti: y null adalah celah, bukan
+     nol, jadi garis fisik tidak pernah menarik nol melintasi bulan yang belum
+     terjadi. */
+  const series = [
+    {
+      label: 'Rencana baseline (kurva beku)',
+      token: '--chart-8',
+      dash: '2 4',
+      dots: false,
+      points: rows.map((row) => ({ x: row.period_end, y: value(row.planned_pct) })),
+    },
+    {
+      label: 'Progres fisik (EV)',
+      token: '--chart-1',
+      points: rows.map((row) => ({
+        x: row.period_end,
+        y: value(row.actual_pct),
+        title: titleOf(row),
+        // Titik "posisi hari ini" lebih besar — satu-satunya titik yang dicari
+        // orang saat membuka kartu ini.
+        r: row.is_as_of ? 4 : 2.5,
+      })),
+    },
+    {
+      /* Biaya aktual dulu memakai warna yang SAMA dengan garis fisik dan hanya
+         dibedakan opacity .55 — dua garis biru pada satu grafik yang selisihnya
+         justru pesan utamanya (EV vs AC = CPI). Sejak P1-E ia punya token
+         sendiri. */
+      label: 'Biaya aktual terhadap BAC',
+      token: '--chart-2',
+      dots: false,
+      points: rows.map((row) => ({ x: row.period_end, y: value(costPct(row)) })),
+    },
+  ];
 
-  const step = Math.max(1, Math.ceil(rows.length / 8));
-  rows.forEach((row, index) => {
-    if (index % step === 0 || index === rows.length - 1) {
-      add('text', { x: x(row), y: H - 9, 'text-anchor': 'middle' }, fmt.date(row.period_end));
-    }
+  return lineChart({
+    series,
+    yMin: 0,
+    yMax,
+    yStep: gridStep,
+    yFormat: (v) => `${v}%`,
+    ariaLabel: 'Kurva EVM: rencana baseline, nilai diperoleh dan biaya aktual terhadap BAC',
   });
-
-  /* A series stops where its data stops: drawing an actual line across months
-     that have not happened yet would invent progress the report never claimed. */
-  const line = (pick) => {
-    let started = false;
-    const parts = [];
-    rows.forEach((row) => {
-      const value = pick(row);
-      if (value === null || value === undefined || !Number.isFinite(Number(value))) return;
-      parts.push(`${started ? 'L' : 'M'}${x(row).toFixed(1)},${y(Number(value)).toFixed(1)}`);
-      started = true;
-    });
-    return parts.join(' ');
-  };
-
-  add('path', { class: 'base', d: line((row) => row.planned_pct) });
-  add('path', { class: 'ev', d: line((row) => row.actual_pct) });
-  add('path', { class: 'act', d: line(costPct) });
-
-  rows.forEach((row) => {
-    if (row.actual_pct === null || row.actual_pct === undefined) return;
-    const point = add('circle', { class: 'pt', cx: x(row), cy: y(Number(row.actual_pct)), r: row.is_as_of ? 4 : 2.5 });
-    const title = document.createElementNS(ns, 'title');
-    title.textContent = `${fmt.date(row.period_end)} — rencana ${fmt.percent(row.planned_pct)}, `
-      + `fisik ${fmt.percent(row.actual_pct)}, biaya ${fmt.rupiah(row.actual_cost)}`;
-    point.appendChild(title);
-  });
-
-  return svg;
-}
-
-function curveLegend() {
-  return el('.legend', [
-    el('span', [el('i.base'), 'Rencana baseline (kurva beku)']),
-    el('span', [el('i.ev'), 'Progres fisik (EV)']),
-    el('span', [el('i.act'), 'Biaya aktual terhadap BAC']),
-  ]);
 }
 
 /*
@@ -485,7 +471,6 @@ export async function evmCard(projectId, prefetched) {
   const curve = evmCurve((report.curve || {}).points, Number(m.bac) || 0);
   if (curve) {
     body.appendChild(curve);
-    body.appendChild(curveLegend());
 
     const sourceNote = curveSourceNote(report.curve);
     if (sourceNote) {
@@ -1020,8 +1005,8 @@ function reportView(host, report, ctx) {
     ]),
     el('.card-body', curve
       ? el('div', [
+        // Legendanya di dalam svg sejak P1-E.
         curve,
-        curveLegend(),
         el('p.muted', {
           text: (report.curve || {}).reason
             || 'Garis rencana adalah kurva yang dibekukan dari bobot dan tanggal WBS pada saat baseline '
@@ -1110,8 +1095,12 @@ function baselineDetail(detail) {
       badge(`${points.length} titik kurva`),
     ]),
     el('.card-body', [
+      /* Legenda svg menamai ketiga seri katalog; pada tampilan baseline hanya
+         seri rencana yang punya data, dan charts.js menuliskannya sendiri
+         sebagai "… (tanpa data)" untuk dua sisanya — lebih jujur daripada
+         legenda tangan yang menyebut satu garis dan diam tentang dua yang
+         swatch-nya tetap tergambar. */
       curve || el('p.muted', { text: 'Baseline ini tidak punya titik kurva.', style: { margin: 0 } }),
-      curve ? el('.legend', [el('span', [el('i.base'), 'Rencana kumulatif saat dibekukan'])]) : null,
     ]),
     el('.table-wrap', el('table.data', [
       el('thead', el('tr', [

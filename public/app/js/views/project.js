@@ -12,63 +12,66 @@ import { promptFields, buildInput } from './form.js';
 import { navigate, back } from '../router.js';
 import { openPrintable } from '../print.js';
 import { RESOURCES } from '../schema.js';
+import { lineChart } from '../charts.js';
 import { openTutupProyek } from './tutupproyek.js';
 
-/** Inline SVG kurva-S — planned vs actual cumulative percentage per week.
-    `baselinePoints` is optional: when the frozen baseline curve is available it
-    is drawn as a third, dashed series. Every existing caller passes one
-    argument, so their charts are unchanged. */
+/**
+ * Kurva-S rencana vs aktual — `charts.js lineChart` sejak P1-E.
+ *
+ * Sampai P1-D grafik ini adalah ~95 baris SVG tangan di berkas ini: kisi, sumbu,
+ * penjarangan label, path area, tiga garis dan titik ber-<title>, semuanya
+ * ditulis sendiri dan diwarnai lewat kelas `.plan/.act/.base` di app.css.
+ * `charts.js` (P1-A) ditulis untuk menampungnya — `yMin/yMax/yStep`,
+ * `series.dash/token/area/dots`, `points[].title` — dan sekarang yang tersisa
+ * di sini hanya DATA-nya.
+ *
+ * Yang BERUBAH, dan disengaja:
+ *  • Warna datang dari token kategorikal `--chart-n`, bukan `--muted/--primary/
+ *    --text-2`. "Aktual" tetap biru yang sama persis (`--chart-1` = `--primary`
+ *    = #1a56db); dua garis rencana yang dulu abu-abu tua dan abu-abu muda —
+ *    hampir tak terbedakan kecuali dari pola putusnya — kini hijau dan batu
+ *    tulis, pola putusnya dipertahankan ('5 3' mingguan, '2 4' baseline).
+ *  • Nilai di LUAR 0–100 tidak lagi dijepit diam-diam. Kode lama menulis
+ *    `Math.min(100, value)`, jadi minggu ber-105 % tergambar persis di garis
+ *    100 % dan tidak ada yang tahu; `charts.js` menempelkannya di tepi plot
+ *    dengan `data-outside` dan menambahkan "(di luar sumbu)" pada <title>-nya.
+ *  • Legenda pindah KE DALAM svg (ikut tercetak, ikut ter-skala), jadi blok
+ *    `.legend` di pemanggil dibuang — bukan disembunyikan.
+ *
+ * `baselinePoints` opsional: kurva baseline beku digambar sebagai seri ketiga,
+ * DISAMPEL pada tanggal milik setiap minggu, bukan pada indeksnya — titik
+ * baseline bulanan dan minggu mingguan, dan memplot yang satu di posisi yang
+ * lain menggeser kurvanya berminggu-minggu. Interpolasinya tidak berubah satu
+ * baris pun; yang berubah hanya siapa yang menggambar hasilnya.
+ */
 export function sCurveChart(weeks, baselinePoints) {
-  const W = 720;
-  const H = 260;
-  const PAD = { top: 14, right: 16, bottom: 28, left: 38 };
-  const plotW = W - PAD.left - PAD.right;
-  const plotH = H - PAD.top - PAD.bottom;
-
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('class', 'chart');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Kurva-S rencana vs aktual');
-
-  const ns = 'http://www.w3.org/2000/svg';
-  const add = (tag, attrs, text) => {
-    const node = document.createElementNS(ns, tag);
-    Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
-    if (text !== undefined) node.textContent = text;
-    svg.appendChild(node);
-    return node;
+  const pct = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
   };
 
-  const x = (index) => PAD.left + (weeks.length <= 1 ? plotW / 2 : (index / (weeks.length - 1)) * plotW);
-  const y = (value) => PAD.top + plotH - (Math.max(0, Math.min(100, value)) / 100) * plotH;
+  /* Satu kalimat <title> untuk KEDUA seri di minggu yang sama — bentuk yang
+     sama dengan grafik tangan: pembaca yang menyentuh titik aktual ingin tahu
+     rencananya juga, bukan salah satunya saja. */
+  const titleOf = (week) => `Minggu ${week.week_no} — rencana ${fmt.percent(week.planned_pct)}, `
+    + `aktual ${fmt.percent(week.actual_pct)}`;
 
-  for (let value = 0; value <= 100; value += 25) {
-    add('line', { class: 'grid', x1: PAD.left, x2: W - PAD.right, y1: y(value), y2: y(value) });
-    add('text', { x: PAD.left - 7, y: y(value) + 3.5, 'text-anchor': 'end' }, `${value}%`);
-  }
-  add('line', { class: 'axis', x1: PAD.left, x2: PAD.left, y1: PAD.top, y2: PAD.top + plotH });
+  const series = [
+    {
+      label: 'Rencana (laporan mingguan)',
+      token: '--chart-3',
+      dash: '5 3',
+      dots: false,
+      points: weeks.map((week) => ({ y: pct(week.planned_pct), title: titleOf(week) })),
+    },
+    {
+      label: 'Aktual',
+      token: '--chart-1',
+      area: true,
+      points: weeks.map((week) => ({ y: pct(week.actual_pct), title: titleOf(week) })),
+    },
+  ];
 
-  const step = Math.max(1, Math.ceil(weeks.length / 12));
-  weeks.forEach((week, index) => {
-    if (index % step === 0 || index === weeks.length - 1) {
-      add('text', { x: x(index), y: H - 9, 'text-anchor': 'middle' }, `M${week.week_no}`);
-    }
-  });
-
-  const line = (key) => weeks.map((week, index) => `${index === 0 ? 'M' : 'L'}${x(index).toFixed(1)},${y(Number(week[key]) || 0).toFixed(1)}`).join(' ');
-
-  const areaPath = `${line('actual_pct')} L${x(weeks.length - 1).toFixed(1)},${(PAD.top + plotH).toFixed(1)} L${x(0).toFixed(1)},${(PAD.top + plotH).toFixed(1)} Z`;
-  add('path', { class: 'act-fill', d: areaPath });
-  add('path', { class: 'plan', d: line('planned_pct') });
-  add('path', { class: 'act', d: line('actual_pct') });
-
-  /* The frozen baseline, sampled at each week's OWN date rather than at its
-     index — the baseline points are monthly and the weeks are weekly, and
-     plotting one against the other's position would misplace the curve by
-     weeks. The two planned series genuinely disagree on the demo data (the
-     weekly report says 62% at 29-03-2026, the WBS-derived baseline says 16%),
-     which is why the legend has to name which is which. */
   if (baselinePoints && baselinePoints.length) {
     const samples = baselinePoints
       .filter((point) => point && point.period_end)
@@ -78,9 +81,9 @@ export function sCurveChart(weeks, baselinePoints) {
 
     const pctAt = (time) => {
       if (!samples.length || !Number.isFinite(time)) return null;
-      // Before the first sample the curve is unknown, not zero. The dashed
-      // line simply starts where the data starts rather than drawing a flat
-      // zero across the opening weeks and inventing a bigger gap than there is.
+      // Sebelum sampel pertama kurvanya TIDAK DIKETAHUI, bukan nol. Garis putus
+      // mulai di tempat datanya mulai, alih-alih menarik garis nol mendatar
+      // yang mengarang selisih lebih besar daripada yang sebenarnya ada.
       if (time < samples[0].at) return null;
       if (time === samples[0].at) return samples[0].pct;
       if (time >= samples[samples.length - 1].at) return samples[samples.length - 1].pct;
@@ -94,24 +97,28 @@ export function sCurveChart(weeks, baselinePoints) {
       return null;
     };
 
-    const parts = [];
-    weeks.forEach((week, index) => {
-      const value = pctAt(Date.parse(week.period_end));
-      if (value === null) return;
-      parts.push(`${parts.length === 0 ? 'M' : 'L'}${x(index).toFixed(1)},${y(value).toFixed(1)}`);
+    series.push({
+      label: 'Rencana baseline (kurva beku)',
+      token: '--chart-8',
+      dash: '2 4',
+      dots: false,
+      // y null = CELAH: minggu sebelum sampel pertama memang tidak punya nilai.
+      points: weeks.map((week) => ({ y: pctAt(Date.parse(week.period_end)) })),
     });
-
-    if (parts.length > 1) add('path', { class: 'base', d: parts.join(' ') });
   }
 
-  weeks.forEach((week, index) => {
-    const point = add('circle', { class: 'pt', cx: x(index), cy: y(Number(week.actual_pct) || 0), r: 3 });
-    const title = document.createElementNS(ns, 'title');
-    title.textContent = `Minggu ${week.week_no} — rencana ${fmt.percent(week.planned_pct)}, aktual ${fmt.percent(week.actual_pct)}`;
-    point.appendChild(title);
+  return lineChart({
+    series,
+    xLabels: weeks.map((week) => `M${week.week_no}`),
+    // Sumbu 0–100 dipaksa: kurva-S adalah persen kumulatif, dan sumbu yang
+    // menyesuaikan diri ke puncak data membuat dua proyek tidak bisa
+    // dibandingkan sekilas.
+    yMin: 0,
+    yMax: 100,
+    yStep: 25,
+    yFormat: (value) => `${value}%`,
+    ariaLabel: 'Kurva-S rencana vs aktual',
   });
-
-  return svg;
 }
 
 /**
@@ -455,12 +462,10 @@ export async function renderProject(host, { id }) {
     ]),
     el('.card-body', weeks.length
       ? el('div', [
+        // Legendanya ada DI DALAM svg sejak P1-E — blok .legend lama dibuang,
+        // bukan disembunyikan: dua legenda untuk satu grafik adalah dua tempat
+        // yang bisa berselisih tentang nama garis yang sama.
         sCurveChart(weeks, baselineCurvePoints),
-        el('.legend', [
-          el('span', [el('i.plan'), 'Rencana (laporan mingguan)']),
-          el('span', [el('i.act'), 'Aktual']),
-          baselineCurvePoints ? el('span', [el('i.base'), 'Rencana baseline (kurva beku)']) : null,
-        ]),
       ])
       : el('p.muted', { text: 'Belum ada data progres mingguan.', style: { margin: 0 } })),
   ]));

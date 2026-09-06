@@ -1289,27 +1289,23 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 
 @keyframes slide-in { from { opacity: 0; transform: translateX(14px); } }
 
-/* --------------------------------------------------------------- s-curve */
+/* ------------------------------------------------------- kerangka grafik */
+/* `.chart` adalah pembungkus responsif yang dipakai SETIAP svg grafik (viewBox
+   + lebar 100 %). Sampai P1-D ia juga membawa gaya untuk tiga grafik tangan
+   (.grid/.axis/.plan/.act/.act-fill/.pt/.base/.ev dan swatch legendanya);
+   P1-E memindahkan ketiganya ke charts.js, yang memakai kelasnya sendiri
+   (.chart-grid/.chart-axis/.series-line/.series-point/.series-area) dan
+   mewarnai lewat token --chart-*. Aturan lama DIHAPUS, bukan dibiarkan:
+   selektor yang tidak lagi cocok dengan apa pun adalah warna yang menunggu
+   dipakai lagi oleh grafik berikutnya tanpa ada yang tahu dari mana asalnya. */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
-.chart .grid { stroke: var(--border); stroke-width: 1; }
-.chart .axis { stroke: var(--border-strong); stroke-width: 1; }
-.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
-.chart .plan { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 3; }
-.chart .act { fill: none; stroke: var(--primary); stroke-width: 2.5; }
-.chart .act-fill { fill: var(--primary); opacity: .08; }
-.chart .pt { fill: var(--primary); }
-/* Frozen baseline: deliberately quieter than the weekly plan it sits beside,
-   because on the demo the two disagree by 45 points and the eye has to be able
-   to tell which one is the agreed plan. */
-.chart .base { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-dasharray: 2 4; }
-.chart .ev { fill: none; stroke: var(--primary); stroke-width: 2; opacity: .55; }
 
+/* Legenda DOM. charts.js menggambar legendanya sendiri di dalam svg; yang
+   tersisa memakai blok ini adalah tren harga satuan, yang pembedanya per TITIK
+   (PO vs GRN pada satu garis) dan karena itu tidak bisa dinyatakan legenda
+   per-seri. Swatch-nya memakai token --chart-* yang sama dengan titiknya. */
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
 .legend i { display: inline-block; width: 16px; height: 2.5px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-.legend i.plan { background: var(--muted); }
-.legend i.act { background: var(--primary); }
-.legend i.base { background: var(--text-2); }
-.legend i.ev { background: var(--primary); opacity: .55; }
 
 /* ------------------------------------------------- grafik charts.js (P1-A) */
 /* svg dari js/charts.js: class "chart chart-lib chart-<jenis>". .chart memberi
