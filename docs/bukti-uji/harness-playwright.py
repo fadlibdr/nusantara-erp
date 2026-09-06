@@ -1877,6 +1877,52 @@ def s24(pg):
       };
     }""")
 
+    # --- saringan yang layar tidak punya kendalinya TETAP TERBACA ----------
+    #
+    # Sebuah laporan tersimpan boleh membawa saringan ber-FK (pemilihnya
+    # sengaja ditunda ke v2) atau nilai enum yang sudah dicabut. 'Buka'
+    # mengirimkannya kembali apa adanya, jadi angka yang tergambar adalah
+    # HIMPUNAN BAGIAN — dan sampai verifikasi kedua P1-F setiap kendali di
+    # layar terbaca '— tidak ada —' sementara tak satu kata pun menyebut
+    # saringannya. Yang diukur di sini adalah bahwa saringan itu punya suara:
+    # keping di panel dan kalimat 'Disaring:' di kartu hasilnya.
+    out["hidden_filter"] = pg.evaluate("""async () => {
+      const token = localStorage.getItem('nusantara_erp_token');
+      const head = { 'X-Api-Token': token, Accept: 'application/json', 'Content-Type': 'application/json' };
+      const body = {
+        name: 'Biaya proyek satu saja (S24)',
+        definition: {
+          resource: 'finance/project-costs', mode: 'group',
+          row: { column: 'cost_category' }, measure: { agg: 'sum', column: 'amount' },
+          filters: { eq: { project_id: 1 } },
+        },
+      };
+      const r = await fetch('/api/core/reports/saved', { method: 'POST', headers: head, body: JSON.stringify(body) });
+      return (await r.json()).data;
+    }""")
+
+    # Daftar tersimpan digambar ulang, lalu barisnya dibuka.
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(600)
+    pg.evaluate("() => { location.hash = '#/laporan-bebas'; }")
+    pg.wait_for_selector(".card select", timeout=20000)
+    pg.wait_for_timeout(1500)
+    click(pg, "tr:has-text('Biaya proyek satu saja (S24)') button:has-text('Buka')")
+    pg.wait_for_timeout(2500)
+
+    out["hidden_filter_screen"] = pg.evaluate("""() => {
+      const chips = document.querySelector('.report-filter-chips');
+      const result = document.querySelector('.card.report-result');
+      return {
+        chips: chips ? chips.innerText.trim() : null,
+        head: result ? result.querySelector('.card-head').innerText : null,
+        // Kendali enum di panel TIDAK boleh mengaku '— tidak ada —' untuk
+        // saringan yang sedang berlaku.
+        controls: [...document.querySelectorAll('.card select')].map((s) => s.selectedOptions[0].text),
+      };
+    }""")
+    pg.screenshot(path=f"{OUT}/s24-saringan-tersembunyi-p1f.png", full_page=True)
+
     # --- katalog peran lain: menyaring dirinya sendiri ---------------------
     ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
     other = ctx.new_page()
@@ -1923,6 +1969,11 @@ def s24(pg):
         "empty_cell_says_why": any(t and ("tidak ada" in t or "nilainya tidak ada" in t) for t in (assets.get("titles") or [])),
         "saved_report_listed": bool(out["saved"]) and len(out["saved"]["rows"]) >= 1,
         "saved_report_offers_xlsx": "XLSX" in (out["saved"] or {}).get("actions", []),
+        # Saringan yang layar tidak punya kendalinya tetap PUNYA SUARA: keping
+        # berlabel di panel, dan kalimat 'Disaring:' di kartu hasilnya.
+        "hidden_filter_has_a_chip": "Proyek" in ((out["hidden_filter_screen"] or {}).get("chips") or ""),
+        "hidden_filter_chip_is_labelled_like_the_list_screen": "PRJ-" in ((out["hidden_filter_screen"] or {}).get("chips") or ""),
+        "result_card_names_the_filter_in_force": "Disaring" in ((out["hidden_filter_screen"] or {}).get("head") or ""),
         # Katalog menyaring dirinya: gudang tidak memegang satu pun sumber.
         "catalogue_filters_by_permission": len(out["warehouse"]["sources"]) < 8,
         "no_page_errors": not errors,

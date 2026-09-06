@@ -108,6 +108,90 @@ function keyText(descriptor, key) {
   return String(key);
 }
 
+/**
+ * Satu nilai saringan → teks, lewat fungsi yang sama dengan layar daftarnya.
+ *
+ * Nilai enum yang TIDAK ada lagi di enums.js tidak dilabeli diam-diam dengan
+ * dirinya sendiri: ia disebut sebagai nilai yang sudah tidak ditawarkan, karena
+ * itulah satu-satunya hal yang berguna bagi orang yang membaca laporan lama.
+ */
+function filterValueText(filter, value) {
+  if (!filter) return String(value);
+  if (filter.enum) {
+    const known = (ENUMS[filter.enum] || []).some((one) => one.value === value);
+    return known ? enumLabel(filter.enum, value) : `"${value}" (nilai ini sudah tidak ditawarkan)`;
+  }
+  if (filter.lookup) return labelFor(filter.lookup, value) || `#${value}`;
+  return String(value);
+}
+
+/**
+ * Saringan yang definisi ini BAWA tetapi tidak digambar sebagai kendali.
+ *
+ * Tiga sebabnya, semuanya nyata pada laporan tersimpan: saringan ber-FK (yang
+ * pemilihnya sengaja ditunda ke v2), nilai enum yang sudah dicabut, dan
+ * saringan bentuk `in` yang layar v1 tidak pernah tawarkan tetapi `openSaved`
+ * membawa apa adanya. Sebelum verifikasi kedua P1-F ketiganya menyaring angka
+ * tanpa satu kata pun di layar.
+ *
+ * @param {object} entry entri katalog sumber yang sedang dipilih
+ * @param {Set<string>} drawn kunci saringan yang sudah punya kendali di atas
+ */
+function undrawnFilters(entry, drawn) {
+  const describe = (key) => (entry.filters || []).find((one) => one.key === key) || null;
+  const out = [];
+
+  Object.entries(state.filters.eq || {}).forEach(([key, value]) => {
+    if (drawn.has(key)) return;
+    const filter = describe(key);
+    out.push({ key, shape: 'eq', label: filter ? filter.label : key, text: filterValueText(filter, value) });
+  });
+
+  Object.entries(state.filters.in || {}).forEach(([key, values]) => {
+    const filter = describe(key);
+    out.push({
+      key,
+      shape: 'in',
+      label: filter ? filter.label : key,
+      text: (Array.isArray(values) ? values : [values]).map((one) => filterValueText(filter, one)).join(', '),
+    });
+  });
+
+  return out;
+}
+
+/**
+ * Saringan yang BENAR-BENAR dipakai kueri ini → satu kalimat, atau '' bila
+ * tidak ada satu pun.
+ *
+ * Dibaca dari definisi yang server KEMBALIKAN (data.definition), bukan dari
+ * state layar: yang harus dijelaskan adalah angka yang tergambar, dan angka itu
+ * milik definisi yang dijalankan.
+ */
+function appliedFilterText(definition, resourceKey) {
+  const entry = state.catalogue.find((one) => one.key === resourceKey) || null;
+  const describe = (key) => ((entry && entry.filters) || []).find((one) => one.key === key) || null;
+  const filters = definition.filters || {};
+  const parts = [];
+
+  if (filters.date_from || filters.date_to) {
+    parts.push(`tanggal ${filters.date_from ? fmt.date(filters.date_from) : 'awal'} s.d. ${filters.date_to ? fmt.date(filters.date_to) : 'kini'}`);
+  }
+
+  Object.entries(filters.eq || {}).forEach(([key, value]) => {
+    const filter = describe(key);
+    parts.push(`${filter ? filter.label : key} ${filterValueText(filter, value)}`);
+  });
+
+  Object.entries(filters.in || {}).forEach(([key, values]) => {
+    const filter = describe(key);
+    const list = (Array.isArray(values) ? values : [values]).map((one) => filterValueText(filter, one)).join(', ');
+    parts.push(`${filter ? filter.label : key} salah satu dari ${list}`);
+  });
+
+  return parts.join(' · ');
+}
+
 /* ------------------------------------------------------------------ layar */
 
 export async function renderLaporanBebas(host) {
@@ -284,18 +368,57 @@ function paintControls(host, output, savedPanel) {
      butuh pemilih ber-cache lookup, dan menawarkan kotak teks untuk sebuah id
      adalah antarmuka yang menyuruh orang mengetik angka — ditulis di laporan
      paket sebagai yang sengaja ditunda. */
+  const drawn = new Set();
+
   (entry.filters || []).filter((filter) => filter.enum).forEach((filter) => {
     const options = (ENUMS[filter.enum] || []).map((one) => ({ key: one.value, label: one.label }));
 
     if (!options.length) return;
 
-    grid.appendChild(field(filter.label, select(state.filters.eq[filter.key] || null, options, (value) => {
-      if (value) state.filters.eq[filter.key] = value;
+    /* Nilai tersimpan yang TIDAK ada di daftar pilihan tidak boleh diam-diam
+       jatuh ke opsi pertama ('— tidak ada —') sementara servernya tetap
+       menyaring dengannya. Kalau nilainya asing, kendalinya dilewati di sini
+       dan barisnya digambar sebagai keping di bawah, dengan kalimatnya. */
+    const value = state.filters.eq[filter.key] || null;
+    if (value !== null && !options.some((one) => one.key === value)) return;
+
+    drawn.add(filter.key);
+    grid.appendChild(field(filter.label, select(value, options, (nextValue) => {
+      if (nextValue) state.filters.eq[filter.key] = nextValue;
       else delete state.filters.eq[filter.key];
     }, { allowEmpty: true })));
   });
 
   host.appendChild(grid);
+
+  /* SARINGAN YANG LAYAR INI TIDAK PUNYA KENDALINYA — dan sampai verifikasi
+     kedua P1-F tidak punya SUARANYA juga. Sebuah laporan tersimpan boleh
+     membawa saringan ber-FK (yang pemilihnya sengaja ditunda) atau nilai enum
+     yang sudah dicabut; 'Buka' mengirimkannya kembali apa adanya, sehingga
+     angka yang tergambar adalah himpunan bagian sementara setiap kendali di
+     atas terbaca '— tidak ada —'. Yang paling sulit dilihat dari sebuah
+     saringan adalah saringan yang tidak kelihatan. Kepingnya dilabeli lewat
+     labelFor()/enumLabel() — fungsi yang sama dengan layar daftarnya — dan
+     masing-masing bisa dibuang. */
+  const hidden = undrawnFilters(entry, drawn);
+
+  if (hidden.length) {
+    host.appendChild(el('.alert.info', { style: { margin: '0 16px 16px' } }, [
+      el('div', { style: { flex: '1' } }, [
+        el('div', { text: 'Laporan ini membawa saringan yang belum punya kendali di layar. Angkanya sudah disaring olehnya.' }),
+        el('.report-filter-chips', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' } }, hidden.map((one) => el('span.badge', [
+          el('span', { text: `${one.label}: ${one.text}` }),
+          button('', {
+            size: 'sm', variant: 'ghost', iconName: 'close', title: `Buang saringan ${one.label}`,
+            onClick: () => {
+              delete state.filters[one.shape][one.key];
+              paintControls(host, output, savedPanel);
+            },
+          }),
+        ]))),
+      ]),
+    ]));
+  }
 
   host.appendChild(el('.card-foot', [
     button('Jalankan', { variant: 'primary', onClick: () => run(output) }),
@@ -351,8 +474,18 @@ function paintResult(output) {
   const meta = payload.meta || {};
   const descriptors = data.descriptors || {};
 
+  /* Kartu hasil MENYEBUT saringan yang berlaku, semuanya — bukan hanya yang
+     punya kendali di panel atas. Kartu ini sudah mengaku apa yang TIDAK
+     dihitung (dokumen terhapus); sebuah angka yang merupakan himpunan bagian
+     karena saringan yang tak terlihat adalah kebohongan dari jenis yang sama
+     (verifikasi kedua P1-F). */
+  const applied = appliedFilterText(data.definition || {}, data.resource);
+
   const head = el('.card-head', [
-    el('h2', { text: data.resource_label }),
+    el('div', [
+      el('h2', { text: data.resource_label }),
+      applied ? el('.cell-sub', { text: `Disaring: ${applied}` }) : null,
+    ]),
     el('.spacer'),
     el('.cell-sub', {
       text: meta.soft_deleted_excluded
