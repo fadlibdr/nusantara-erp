@@ -429,6 +429,22 @@ final class ReportableResources
     }
 
     /**
+     * Entri ini ADA di katalog dan tabelnya benar-benar terpasang di server ini.
+     *
+     * Separuh kedua aturan degradasi registri, dalam satu tempat. Sampai
+     * verifikasi kedua P1-F pemeriksaan itu ditulis ulang di dalam
+     * `ReportController::run()` saja (lewat `for()`), sehingga jalur KEDUA yang
+     * menjalankan kueri yang sama — XLSX laporan tersimpan — tidak memilikinya
+     * dan menjawab 500 dengan pesan SQL mentah (nama berkas basis data ikut
+     * tercetak) untuk sumber yang tabelnya belum dimigrasi. Yang memakai ini
+     * mengubahnya menjadi kalimat.
+     */
+    public static function installed(string $key): bool
+    {
+        return self::has($key) && self::tableExists(self::definition($key)['table']);
+    }
+
+    /**
      * @return Entry
      *
      * @throws \InvalidArgumentException bila kuncinya bukan resource katalog

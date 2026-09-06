@@ -4,7 +4,9 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Core\Models\SavedReport;
+use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\SpaEnums;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -186,6 +188,36 @@ class ReportXlsxExportTest extends ErpTestCase
 
         $this->actingAs($other, 'sanctum');
         $this->get("/api/core/reports/saved/{$report->id}/xlsx")->assertStatus(404);
+    }
+
+    /**
+     * Kembaran ReportEndpointTest::test_a_resource_whose_table_is_missing_is_refused_not_crashed
+     * untuk jalur KEDUA yang menjalankan kueri yang sama.
+     *
+     * Sampai verifikasi kedua P1-F pemeriksaan "tabelnya terpasang" hanya ada
+     * di `run()`; `GET saved/{id}/xlsx` menjawab 500 dengan pesan SQL mentah
+     * (termasuk lintasan berkas basis datanya) — sementara daftar laporan tetap
+     * menawarkan tombol XLSX-nya.
+     */
+    public function test_the_xlsx_of_a_resource_whose_table_is_missing_is_refused_not_crashed(): void
+    {
+        $user = $this->financeUser();
+        $this->seedAssets();
+        $report = $this->savedPivot($user);
+
+        $this->actingAs($user, 'sanctum');
+        $this->get("/api/core/reports/saved/{$report->id}/xlsx")->assertOk();
+
+        Schema::drop('ast_assets');
+        ReportableResources::flushSchemaMemo();
+
+        $response = $this->get("/api/core/reports/saved/{$report->id}/xlsx")->assertStatus(422);
+
+        $this->assertStringContainsString('belum terpasang', (string) $response->json('message'));
+        // Dan tidak sepatah kata pun SQL: pesan galat driver menyebut lintasan
+        // berkas basis data, yang bukan milik siapa pun di sisi ini.
+        $this->assertStringNotContainsString('SQLSTATE', (string) $response->json('message'));
+        $this->assertStringNotContainsString('select', (string) $response->json('message'));
     }
 
     /**

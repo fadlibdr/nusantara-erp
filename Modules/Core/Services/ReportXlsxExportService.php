@@ -4,6 +4,7 @@ namespace Modules\Core\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 use Modules\Core\Models\SavedReport;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\ReportDefinition;
@@ -66,6 +67,20 @@ final class ReportXlsxExportService
         // Divalidasi ULANG: katalog berubah lebih cepat daripada baris
         // tersimpan, dan kolom yang dicabut harus menolak dengan namanya.
         $definition = ReportDefinition::validate($report->definition + ['resource' => $report->resource]);
+
+        /* Separuh KEDUA aturan degradasi registri, di jalur kedua yang
+           menjalankan kueri. `ReportController::run()` memilikinya sejak
+           putaran verifikasi pertama; jalur ini tidak, dan sebuah laporan
+           tersimpan atas modul yang belum termigrasi menjawab 500 dengan SQL
+           mentah — termasuk lintasan berkas basis data — alih-alih kalimat
+           yang mengatakannya (temuan verifikasi kedua P1-F). */
+        if (! ReportableResources::installed($definition['resource'])) {
+            throw new InvalidArgumentException(sprintf(
+                'Sumber "%s" tidak tersedia di server ini — tabelnya belum terpasang.',
+                $definition['resource'],
+            ));
+        }
+
         $entry = ReportableResources::definition($definition['resource']);
         $result = $this->runner->run($definition);
 

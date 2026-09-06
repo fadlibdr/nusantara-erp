@@ -105,8 +105,10 @@ class ReportController extends ApiController
            ada TIDAK ADA. Katalog sudah menyaringnya (for()), tetapi jalankan
            tidak — dan tanpa baris ini sebuah laporan tersimpan atas modul yang
            belum termigrasi menjawab 500 alih-alih kalimat yang mengatakannya
-           (temuan verifikasi P1-F). */
-        if (! array_key_exists($definition['resource'], ReportableResources::for($request->user()))) {
+           (temuan verifikasi P1-F). Pemeriksaannya hidup di
+           ReportableResources::installed() sejak verifikasi kedua, karena
+           jalur XLSX menjalankan kueri yang sama dan tidak memilikinya. */
+        if (! ReportableResources::installed($definition['resource'])) {
             return $this->error(sprintf(
                 'Sumber "%s" tidak tersedia di server ini — tabelnya belum terpasang.',
                 $definition['resource'],
