@@ -485,11 +485,15 @@ function ensureGroupOpen(label) {
   localStorage.setItem(NAV_STATE_KEY, JSON.stringify([...stored]));
 }
 
+/*
+ * Bintang dan "Terakhir dibuka" ditulis prefs.js, dan prefs.js yang mengumumkan
+ * perubahannya lewat peristiwa window — sidebar mendengarkan di bawah. Jalur
+ * ini satu untuk SEMUA pemasang bintang (sidebar, beranda modul), jadi bintang
+ * yang dinyalakan di kartu beranda modul menyalakan baris sidebarnya juga tanpa
+ * module.js perlu mengimpor shell ini.
+ */
 function toggleFavorite(route) {
-  const had = prefs.favorites().length;
-  const next = prefs.toggleFavorite(route);
-  if (!had && next.length) ensureGroupOpen(FAVORITES_LABEL);
-  refreshNav();
+  prefs.toggleFavorite(route);
   // Fokus kembali ke bintang baris yang sama di grup asalnya: barisan
   // Favorit baru saja dibangun ulang (atau barisnya hilang), dan pengguna
   // papan ketik tidak boleh terlempar ke awal dokumen.
@@ -497,12 +501,16 @@ function toggleFavorite(route) {
   if (star) star.focus();
 }
 
-function rememberRecent(route, label, sub) {
-  const had = prefs.recent().length;
-  prefs.rememberRecent(route, label, sub);
-  if (!had) ensureGroupOpen(RECENT_LABEL);
+window.addEventListener('erp:favorites-changed', (event) => {
+  const { was = 0, now = 0 } = event.detail || {};
+  if (!was && now) ensureGroupOpen(FAVORITES_LABEL);
   refreshNav();
-}
+});
+
+window.addEventListener('erp:recent-changed', (event) => {
+  if (!(event.detail || {}).was) ensureGroupOpen(RECENT_LABEL);
+  refreshNav();
+});
 
 /* Favorit dirujuk lewat rute ke NAV yang sedang terlihat: bintang pada layar
    yang izinnya dicabut ikut lenyap, dan kembali bila izinnya kembali (daftar
@@ -1237,7 +1245,7 @@ function registerRoutes() {
       if (currentPath().split('?')[0] !== route || !host.querySelector('.page-head')) return;
       const crumb = document.querySelector('#crumbs b');
       const title = crumb && crumb.textContent.trim() !== `#${id}` ? crumb.textContent.trim() : '';
-      rememberRecent(route, title || `${def.labelOne || def.label} #${id}`, def.labelOne || def.label);
+      prefs.rememberRecent(route, title || `${def.labelOne || def.label} #${id}`, def.labelOne || def.label);
     });
 
     return shown;

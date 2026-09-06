@@ -75,6 +75,31 @@ class LauncherWiringTest extends ErpTestCase
         }
     }
 
+    public function test_the_module_home_carries_counts_recents_and_a_star_beside_each_card(): void
+    {
+        $module = $this->file('app/js/views/module.js');
+
+        // Bintang BERSEBELAHAN dengan kartu, tidak bersarang di dalamnya:
+        // <button> di dalam <a> bukan HTML yang sah, dan Enter di atasnya
+        // membuka layarnya alih-alih memasang bintang.
+        $this->assertStringContainsString("el('li.module-cell', [screenCard(item), starButton(item)])", $module);
+        $this->assertStringContainsString('prefs.toggleFavorite(', $module);
+
+        // Kosong yang jujur, bukan seksi yang hilang.
+        $this->assertStringContainsString('Belum ada yang dibuka.', $module);
+        $this->assertStringContainsString("'—'", $module);
+
+        /*
+         * SATU permintaan untuk angka utama DAN angka sekunder: Proyek/Keuangan
+         * memakai dashboard/summary?include=modules (yang membawa keduanya),
+         * modul lain core/modules saja. Endpoint ketiga di sini berarti beranda
+         * modul menambah beban yang paket ini justru berjanji tidak menambah.
+         */
+        preg_match_all("/api\.get\('([^']+)'/", $module, $calls);
+        $this->assertSame(['core/dashboard/summary', 'core/modules'], array_values(array_unique($calls[1])));
+        $this->assertStringContainsString("include: 'modules'", $module);
+    }
+
     public function test_personal_preferences_are_read_through_prefs_js_only(): void
     {
         $this->assertFileExists(public_path('app/js/prefs.js'));

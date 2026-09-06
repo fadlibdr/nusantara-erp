@@ -260,11 +260,21 @@ export function isFavorite(route) {
   return favorites().includes(route);
 }
 
-/** Nyalakan/matikan bintang; mengembalikan daftar baru. */
+/**
+ * Nyalakan/matikan bintang; mengembalikan daftar baru.
+ *
+ * Peristiwa `erp:favorites-changed` di window adalah cara sidebar tahu harus
+ * menggambar ulang tanpa module.js atau home.js perlu mengimpor app.js —
+ * impor yang akan melingkar (app.js sudah mengimpor keduanya). detail.was
+ * dibawa serta karena sidebar memakainya untuk membedakan "bintang PERTAMA"
+ * (grup Favorit baru lahir, buka sendiri) dari bintang kesekian (grup yang
+ * dilipat pemakainya tetap terlipat).
+ */
 export function toggleFavorite(route) {
   const list = favorites();
   const next = list.includes(route) ? list.filter((one) => one !== route) : [...list, route].slice(-FAVORITES_MAX);
   set('favorites', next);
+  announce('erp:favorites-changed', { was: list.length, now: next.length, route });
   return next;
 }
 
@@ -277,9 +287,15 @@ export function recent() {
 /** Dokumen yang baru dibuka naik ke atas; duplikatnya dibuang, bukan ditumpuk. */
 export function rememberRecent(route, label, sub) {
   const entry = { route, label, sub: sub || null, at: new Date().toISOString() };
-  const next = [entry, ...recent().filter((one) => one.route !== route)].slice(0, RECENT_MAX);
+  const was = recent();
+  const next = [entry, ...was.filter((one) => one.route !== route)].slice(0, RECENT_MAX);
   set('recent', next);
+  announce('erp:recent-changed', { was: was.length, now: next.length, route });
   return next;
+}
+
+function announce(name, detail) {
+  window.dispatchEvent(new CustomEvent(name, { detail }));
 }
 
 /** Kunci resource di balik rute `d/<kunci>/<id>`. */

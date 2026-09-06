@@ -977,6 +977,13 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   list-style: none; margin: 0; padding: 0;
 }
 .module-grid > li { display: grid; min-width: 0; }
+/* Sel kartu (P1-C): kartu <a> + bintang <button> BERSEBELAHAN, tidak bersarang —
+   tombol di dalam tautan bukan HTML yang sah, dan Enter di atasnya membuka
+   layarnya alih-alih memasang bintang. Bintang ditumpuk di pojok kanan atas dan
+   kartunya diberi ruang kanan supaya judul panjang tidak lewat di bawahnya. */
+.module-cell { position: relative; }
+.module-cell > .module-card { padding-right: 34px; }
+.module-cell > .star { position: absolute; top: 8px; right: 6px; }
 .module-section-block + .module-section-block, .module-grid + .module-section-block { margin-top: 18px; }
 .module-section {
   margin: 0 0 8px;
@@ -999,6 +1006,26 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .module-card .lucide { color: var(--muted); margin-top: 1px; }
 .module-card b { display: block; font-size: 13px; font-weight: 600; line-height: 1.35; }
 .module-card .hint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Ubin angka kepala modul (P1-C): angka utama registri + paling banyak tiga
+   angka sekunder dari jawaban yang SAMA. Kisi auto-fit, bukan kolom tetap:
+   modul yang hanya punya angka utama tidak boleh meninggalkan tiga sel kosong. */
+.module-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.module-kpis:empty { display: none; }
+.module-kpi {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.module-kpi-value { font-size: 20px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.module-kpi-unit { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.module-kpi-label { font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-kpi-note { font-size: 12.5px; }
+.module-recent { margin-bottom: 18px; }
+.module-recent .module-section { margin-bottom: 8px; }
 
 /* ------------------------------------------------------------ app launcher */
 /* #/home (views/home.js, P1-C): kotak cari, dua baris pintasan (Favorit,
