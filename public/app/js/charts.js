@@ -8,6 +8,7 @@
  * dihitung server; di sini hanya geometri.
  *
  *   lineChart({ series, xLabels?, xFormat?, yFormat?, yMax?, yMin?, yStep?, width?, height?, ariaLabel, sourceNote?, legend? })
+ *     series[]: { label, points, token?, dash?, dots?, area?, width? } — `width` = tebal garis px (bawaan 2, dijepit 1–4)
  *     series : [{ label, points: [{ x?, y, title?, r?, token? }], dash?|dashed?, area?, token?, dots? }]
  *              dash: pola putus-putus seri sebagai string SVG ('5 3' rencana, '2 4' baseline);
  *              dashed:true = '6 4'. token: token warna eksplisit '--chart-n' (bawaan: posisi seri,
@@ -320,7 +321,7 @@ function drawLegend(svg, rows, y0) {
     const y = y0 + r * 16;
     row.forEach((item) => {
       if (item.kind === 'line') {
-        const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': 2.5, 'stroke-dasharray': item.dash ?? null, 'data-series': item.series });
+        const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': item.width ?? 2.5, 'stroke-dasharray': item.dash ?? null, 'data-series': item.series });
         svg.appendChild(paint(line, 'stroke', item.token));
       } else if (item.kind === 'dot') {
         const dot = make('circle', { class: 'legend-swatch series-point', cx: item.x + 8, cy: y - 4, r: 3, 'data-series': item.series });
@@ -437,7 +438,14 @@ export function lineChart({
     }).sort((a, b) => a.x - b.x);
     const dash = typeof s?.dash === 'string' && s.dash.trim() ? s.dash.trim() : s?.dashed ? '6 4' : null;
     const dots = s?.dots === false ? 'none' : s?.dots === 'last' ? 'last' : 'all';
-    return { label: s?.label ?? `Seri ${i + 1}`, dash, dots, area: !!s?.area, token: tokenOf(s?.token) ?? seriesToken(i), index: i + 1, points };
+    /* Tebal garis per seri, 2 px bila tidak disebut. Ada karena grafik tangan
+       yang digantikan P1-E memberi seri TERUKUR satu setengah kali tebal seri
+       acuannya (`.chart .act { stroke-width: 2.5 }` vs `.plan/.base/.ev` 2),
+       dan hierarki itu hilang tanpa suara saat charts.js menuliskan 2 untuk
+       semuanya — seri kini hanya berbeda warna dan pola putus (verifikasi
+       P1-E). Dijepit 1–4: sebuah garis 12 px bukan penekanan melainkan pita. */
+    const strokeWidth = Math.min(4, Math.max(1, finite(s?.width) ?? 2));
+    return { label: s?.label ?? `Seri ${i + 1}`, dash, dots, width: strokeWidth, area: !!s?.area, token: tokenOf(s?.token) ?? seriesToken(i), index: i + 1, points };
   });
   /* Skala campuran adalah kesalahan pemanggil, tetapi keluarannya tidak boleh mengarang:
      begitu satu x adalah tanggal, x yang bukan tanggal (angka, 'abc') dibuang sebagai
@@ -490,6 +498,9 @@ export function lineChart({
     // tanpa garis adalah legenda yang menjelaskan grafik lain.
     kind: s.hasData && !s.hasLine ? 'dot' : 'line',
     dash: s.dash,
+    // Swatch setebal garisnya: legenda yang menggambar semua seri sama tebal
+    // menghapus hierarki yang baru saja dipulihkan di plotnya.
+    width: s.width,
     series: s.index,
     nodata: !s.hasData,
   }));
@@ -532,7 +543,7 @@ export function lineChart({
         const area = make('path', { class: 'series-area', d: `${d} L${round(x(pts[pts.length - 1].x))},${round(base)} L${round(x(pts[0].x))},${round(base)} Z`, 'fill-opacity': 0.12, 'data-series': s.index, 'clip-path': clip });
         svg.appendChild(paint(area, 'fill', s.token));
       }
-      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash, 'data-series': s.index, 'clip-path': clip });
+      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': s.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash, 'data-series': s.index, 'clip-path': clip });
       svg.appendChild(paint(path, 'stroke', s.token));
     });
     const lastRun = runs[runs.length - 1];

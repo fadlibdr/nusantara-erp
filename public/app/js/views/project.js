@@ -91,6 +91,12 @@ export function sCurveChart(weeks, baselinePoints) {
       label: 'Aktual',
       token: '--chart-1',
       area: true,
+      /* 2,5 px, seperti `.chart .act` grafik tangan: seri yang DIUKUR lebih
+         tebal daripada seri acuannya, jadi hierarkinya terbaca sebelum
+         warnanya. Pemindahan P1-E menuliskan 2 untuk semua seri dan
+         hierarki itu hilang tanpa disebut di daftar sebab piksel laporan
+         paketnya (verifikasi P1-E). */
+      width: 2.5,
       points: weeks.map((week) => ({ y: pct(week.actual_pct), title: titleOf(week) })),
     },
   ];

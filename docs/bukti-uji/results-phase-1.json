@@ -166,8 +166,7 @@
             "--chart-3"
           ],
           "dot_radii": [
-            3,
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -222,7 +221,7 @@
           "zero_line": 0,
           "clipped_paths": 0,
           "unclipped_paths": 0,
-          "dots_outside_plot": 0,
+          "dots_outside_plot": 1,
           "dots_marked_outside": 0,
           "outside_titles": [],
           "x_labels": [
@@ -244,13 +243,13 @@
           ],
           "series_dash": [],
           "dots_by_series": {
-            "1": 1
+            "1": 2
           },
           "dot_tokens": [
             "--chart-1"
           ],
           "dot_radii": [
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -2914,7 +2913,7 @@
         "stray_titles": 0,
         "neg_dims": 0,
         "outside_viewbox": 0,
-        "dots_outside_plot": 0,
+        "dots_outside_plot": 1,
         "unclipped_paths": 0,
         "legend_overflow_max_px": 0,
         "x_label_overlaps": 0,
@@ -3072,8 +3071,7 @@
             "--chart-3"
           ],
           "dot_radii": [
-            3,
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -3128,7 +3126,7 @@
           "zero_line": 0,
           "clipped_paths": 0,
           "unclipped_paths": 0,
-          "dots_outside_plot": 0,
+          "dots_outside_plot": 1,
           "dots_marked_outside": 0,
           "outside_titles": [],
           "x_labels": [
@@ -3150,13 +3148,13 @@
           ],
           "series_dash": [],
           "dots_by_series": {
-            "1": 1
+            "1": 2
           },
           "dot_tokens": [
             "--chart-1"
           ],
           "dot_radii": [
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -5820,7 +5818,7 @@
         "stray_titles": 0,
         "neg_dims": 0,
         "outside_viewbox": 0,
-        "dots_outside_plot": 0,
+        "dots_outside_plot": 1,
         "unclipped_paths": 0,
         "legend_overflow_max_px": 0,
         "x_label_overlaps": 0,
@@ -5959,7 +5957,7 @@
       "width": 1440,
       "height": 900
     },
-    "_ms": 4839,
+    "_ms": 3663,
     "_clicks": 0
   },
   "S20_chart_tokens_mobile": {
@@ -6088,8 +6086,7 @@
             "--chart-3"
           ],
           "dot_radii": [
-            3,
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -6144,7 +6141,7 @@
           "zero_line": 0,
           "clipped_paths": 0,
           "unclipped_paths": 0,
-          "dots_outside_plot": 0,
+          "dots_outside_plot": 1,
           "dots_marked_outside": 0,
           "outside_titles": [],
           "x_labels": [
@@ -6166,13 +6163,13 @@
           ],
           "series_dash": [],
           "dots_by_series": {
-            "1": 1
+            "1": 2
           },
           "dot_tokens": [
             "--chart-1"
           ],
           "dot_radii": [
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -8836,7 +8833,7 @@
         "stray_titles": 0,
         "neg_dims": 0,
         "outside_viewbox": 0,
-        "dots_outside_plot": 0,
+        "dots_outside_plot": 1,
         "unclipped_paths": 0,
         "legend_overflow_max_px": 0,
         "x_label_overlaps": 0,
@@ -8994,8 +8991,7 @@
             "--chart-3"
           ],
           "dot_radii": [
-            3,
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -9050,7 +9046,7 @@
           "zero_line": 0,
           "clipped_paths": 0,
           "unclipped_paths": 0,
-          "dots_outside_plot": 0,
+          "dots_outside_plot": 1,
           "dots_marked_outside": 0,
           "outside_titles": [],
           "x_labels": [
@@ -9072,13 +9068,13 @@
           ],
           "series_dash": [],
           "dots_by_series": {
-            "1": 1
+            "1": 2
           },
           "dot_tokens": [
             "--chart-1"
           ],
           "dot_radii": [
-            4
+            3
           ],
           "legend_series_silent_nodata": 0,
           "legend_nodata": 0,
@@ -11742,7 +11738,7 @@
         "stray_titles": 0,
         "neg_dims": 0,
         "outside_viewbox": 0,
-        "dots_outside_plot": 0,
+        "dots_outside_plot": 1,
         "unclipped_paths": 0,
         "legend_overflow_max_px": 0,
         "x_label_overlaps": 0,
@@ -11881,7 +11877,7 @@
       "width": 390,
       "height": 844
     },
-    "_ms": 4062,
+    "_ms": 2952,
     "_clicks": 0
   },
   "S21_module_accents_breadcrumb": {
@@ -20274,19 +20270,22 @@
             "token": "--chart-3",
             "stroke": "rgb(21, 128, 61)",
             "expected": "#15803d",
-            "dash": "5px, 3px"
+            "dash": "5px, 3px",
+            "width": 2
           },
           {
             "token": "--chart-1",
             "stroke": "rgb(26, 86, 219)",
             "expected": "#1a56db",
-            "dash": "none"
+            "dash": "none",
+            "width": 2.5
           },
           {
             "token": "--chart-8",
             "stroke": "rgb(71, 85, 105)",
             "expected": "#475569",
-            "dash": "2px, 4px"
+            "dash": "2px, 4px",
+            "width": 2
           }
         ],
         "areas": 1,
@@ -20349,19 +20348,22 @@
             "token": "--chart-8",
             "stroke": "rgb(71, 85, 105)",
             "expected": "#475569",
-            "dash": "2px, 4px"
+            "dash": "2px, 4px",
+            "width": 2
           },
           {
             "token": "--chart-1",
             "stroke": "rgb(26, 86, 219)",
             "expected": "#1a56db",
-            "dash": "none"
+            "dash": "none",
+            "width": 2
           },
           {
             "token": "--chart-2",
             "stroke": "rgb(194, 65, 12)",
             "expected": "#c2410c",
-            "dash": "none"
+            "dash": "none",
+            "width": 2.5
           }
         ],
         "areas": 0,
@@ -20425,7 +20427,8 @@
             "token": "--chart-1",
             "stroke": "rgb(26, 86, 219)",
             "expected": "#1a56db",
-            "dash": "none"
+            "dash": "none",
+            "width": 2.5
           }
         ],
         "areas": 0,
@@ -20560,6 +20563,7 @@
       "dot_only_series_gets_a_dot_swatch": true,
       "evm_title_names_three_numbers": true,
       "evm_axis_reaches_100": true,
+      "measured_series_is_the_heaviest_line": true,
       "trend_axis_not_zero_based": true,
       "trend_five_gridlines": true,
       "trend_axis_edges_are_labelled": true,
@@ -20574,7 +20578,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 6948,
+    "_ms": 6908,
     "_clicks": 0
   },
   "S24_laporan_bebas": {

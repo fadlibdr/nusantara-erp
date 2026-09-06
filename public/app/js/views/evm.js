@@ -213,6 +213,12 @@ export function evmCurve(points, bac) {
       label: 'Biaya aktual terhadap BAC',
       token: '--chart-2',
       dots: false,
+      /* 2,5 px, seperti `.chart .act` grafik tangan: seri yang DIUKUR lebih
+         tebal daripada seri acuannya, jadi hierarkinya terbaca sebelum
+         warnanya. Pemindahan P1-E menuliskan 2 untuk semua seri dan
+         hierarki itu hilang tanpa disebut di daftar sebab piksel laporan
+         paketnya (verifikasi P1-E). */
+      width: 2.5,
       points: rows.map((row) => ({ x: row.period_end, y: value(costPct(row)) })),
     },
   ];

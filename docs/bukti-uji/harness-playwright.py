@@ -1587,6 +1587,10 @@ CHART_INVENTORY = """(sel) => {
       stroke: cs(l, 'stroke'),
       expected: l.dataset.token ? resolve(l.dataset.token) : null,
       dash: cs(l, 'strokeDasharray'),
+      // Tebal garis: seri yang DIUKUR lebih tebal daripada seri acuannya,
+      // seperti `.chart .act` grafik tangan. Pemindahan P1-E menuliskan 2 untuk
+      // semuanya dan hierarki itu hilang tanpa disebut (verifikasi P1-E).
+      width: parseFloat(cs(l, 'strokeWidth')),
     })),
     areas: svg.querySelectorAll('path.series-area').length,
     points: pts.length,
@@ -1806,6 +1810,15 @@ def s20e(pg):
         # Sumbu EVM boleh melewati 100 % — di sini datanya berhenti di 100, jadi
         # yang dibuktikan adalah bahwa ia TIDAK jatuh di bawahnya.
         "evm_axis_reaches_100": "100%" in evm["ticks"],
+        # Seri yang DIUKUR lebih tebal daripada seri acuannya — pada ketiga
+        # grafik. Kurva-S: Aktual di atas dua garis rencana; EVM: biaya aktual
+        # di atas baseline dan EV; tren harga: satu-satunya garisnya.
+        "measured_series_is_the_heaviest_line": (
+            max(x["width"] for x in scurve["series"]) == 2.5
+            and sorted(x["width"] for x in scurve["series"]) == [2, 2, 2.5]
+            and sorted(x["width"] for x in evm["series"]) == [2, 2, 2.5]
+            and [x["width"] for x in trend["series"]] == [2.5]
+        ),
         # Tren harga: sumbu TIDAK mulai dari nol.
         "trend_axis_not_zero_based": trend["ticks"] and not trend["ticks"][0].strip().endswith(" 0"),
         "trend_five_gridlines": len([t for t in trend["ticks"] if t.startswith("Rp")]) == 5,
