@@ -25,8 +25,9 @@ use Tests\ErpTestCase;
  *    sementara dokumen yang sama tampil bagi pemegang `<awalan>.approve`;
  *  - `.approve-director` saja tidak membuka kotak masuk — itulah mengapa
  *    ANY_APPROVE sengaja tidak menghitungnya;
- *  - schema.js (tautan), dashboard.js (permintaan + kartu) dan api.js
- *    (session.can memanggil predikat fungsi) masih memakai predikat itu.
+ *  - schema.js (tautan), katalog widget P1-D (permintaan + kartu, satu
+ *    gerbang) dan api.js (session.can memanggil predikat fungsi) masih memakai
+ *    predikat itu.
  */
 class ApprovalInboxGateTest extends ErpTestCase
 {
@@ -70,11 +71,42 @@ class ApprovalInboxGateTest extends ErpTestCase
         );
         $this->assertStringContainsString("{ label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }", $schema);
 
+        /*
+         * P1-D memindahkan gerbangnya, dan menjadikannya SATU.
+         *
+         * Sampai P1-C dashboard.js menyebut `session.can(ANY_APPROVE)` dua
+         * kali — sekali untuk permintaan core/inbox, sekali untuk kartunya —
+         * dan uji ini menghitung keduanya, karena satu tanpa yang lain berarti
+         * kartu kosong atau permintaan sia-sia. Sejak P1-D kotak masuk adalah
+         * widget: berkas `views/widgets/inbox.js` TIDAK DIIMPOR sama sekali
+         * kecuali resolveLayout meloloskan izinnya, sehingga permintaan dan
+         * kartunya tidak bisa lagi berselisih — keduanya di balik satu gerbang
+         * yang dinyatakan katalog.
+         *
+         * Yang dipaku sekarang adalah rantai itu: katalog menuntut
+         * '*.approve' untuk widget inbox, permOf menerjemahkannya ke predikat
+         * ANY_APPROVE yang sama dengan sidebar, dan penyusunnya benar-benar
+         * memakai resolveLayout untuk memutuskan apa yang dimuat.
+         */
+        $registry = $this->spa('views/widgets/registry.js');
+        $this->assertStringContainsString(
+            "module: 'ringkasan', perm: '*.approve', route: 'tugas',",
+            $registry,
+            'Widget kotak masuk tidak lagi bergerbang *.approve di katalog.',
+        );
+        $this->assertStringContainsString(
+            "if (widget.perm === '*.approve') return ANY_APPROVE;",
+            $registry,
+            "permOf harus menerjemahkan '*.approve' ke predikat ANY_APPROVE yang sama dengan sidebar — bukan aturan kedua.",
+        );
+
         $dashboard = $this->spa('views/dashboard.js');
+        $this->assertStringContainsString('resolveLayout(stored, can)', $dashboard,
+            'Penyusun dasbor tidak lagi memakai resolveLayout, jadi gerbang izin katalog tidak menentukan apa yang dimuat.');
         $this->assertSame(
-            2,
-            substr_count($dashboard, 'session.can(ANY_APPROVE)'),
-            'dashboard.js menggerbangi permintaan core/inbox DAN kartunya dengan predikat yang sama; satu saja berarti kartu kosong atau permintaan sia-sia kembali.',
+            0,
+            substr_count($dashboard, 'core/inbox'),
+            'dashboard.js menyebut core/inbox lagi; permintaan itu milik widget-nya, di balik gerbang katalog.',
         );
 
         $this->assertStringContainsString(

@@ -2,177 +2,246 @@
 
 namespace Tests\Feature\Core;
 
+use Modules\Core\Support\SpaWidgets;
 use Tests\ErpTestCase;
 
 /**
- * The dashboard fetches seventeen sources in parallel and must survive any one
- * of them failing. It used to survive them the wrong way: safe() ended in
- * `.catch(() => [])`, so a source that FAILED and a source that was genuinely
- * EMPTY produced the identical value, and every tile drawn only when `.length`
- * is truthy simply stopped existing.
+ * Setiap widget dasbor harus BERCABANG pada kegagalan sumbernya (P1-D).
  *
- * That is not hypothetical. Under SQLite lock contention the Kalender card and
- * the "Termin siap ditagih" tile disappeared intermittently while the rest of
- * the dashboard looked perfectly healthy — and "Termin siap ditagih" is the tile
- * carrying Rp 14,55 miliar of work already earned and not yet invoiced. A reader
- * who cannot see the tile concludes there is nothing to bill.
+ * Aturan yang dijaga berkas ini lebih tua daripada widget-nya. Sampai Temuan 79
+ * dasbor mengambil sumber-sumbernya dengan `safe()` yang berakhir
+ * `.catch(() => [])`, jadi sumber yang GAGAL dan sumber yang memang KOSONG
+ * menghasilkan nilai yang persis sama — dan setiap ubin yang digambar hanya
+ * bila `.length` benar berhenti ada.
  *
- * The rule locked here is deliberately narrow and mechanical: a catch in
- * dashboard.js must at least RECEIVE its error. `.catch(() => ...)` takes no
- * argument, so it cannot log the cause, cannot tag the value, and cannot tell
- * any tile that its number is unknown — it is the swallow, in source form. A
- * catch that takes (error) may still choose to be quiet, but the choice is then
- * visible to a reviewer reading the two lines beneath it.
+ * Itu bukan hipotesis. Saat SQLite berebut kunci, kartu Kalender dan ubin
+ * "Termin siap ditagih" hilang bergantian sementara sisa dasbor tampak sehat —
+ * dan "Termin siap ditagih" adalah ubin yang membawa Rp 14,55 miliar pekerjaan
+ * yang sudah berhak ditagih dan belum ditagih. Pembaca yang tidak melihat
+ * ubinnya menyimpulkan tidak ada yang bisa ditagih.
  *
- * The check is a grep on purpose, for the same reason NavRouteRegistryTest is:
- * there is no JS runtime on this host, and a grep over the file a reviewer would
- * read cannot drift out of date the way a hand-kept list would.
+ * YANG BERUBAH DI P1-D: dasbor tidak lagi satu berkas. `views/dashboard.js`
+ * hanya menyusun; setiap angka hidup di `views/widgets/<id>.js`, dan susunannya
+ * dipilih pemakainya sendiri — sehingga sebuah widget yang menyimpang tidak
+ * lagi tampak di layar siapa pun kecuali orang yang kebetulan memasangnya.
+ * Karena itu pemindaian di sini berpindah dari SATU berkas ke SELURUH folder,
+ * dan tumbuh sendiri: berkas widget berikutnya ikut diperiksa tanpa satu baris
+ * pun ditambahkan di sini.
+ *
+ * SIAPA YANG DIANGGAP WIDGET: berkas di `views/widgets/` yang mengekspor
+ * `build(`. Itu definisi yang sama dengan yang dipakai penyusunnya (dashboard.js
+ * memanggil `module.build(ctx)`), jadi sebuah widget tidak bisa lolos
+ * pemeriksaan dengan cara tidak mendaftar — mendaftar bukan syaratnya, punya
+ * build() adalah. Berkas pembantu (kit.js, registry.js, aging.js) tidak punya
+ * build() dan tidak diperiksa; yang menjaga mereka adalah widget yang
+ * memakainya.
+ *
+ * Pemeriksaannya grep, dengan alasan yang sama seperti NavRouteRegistryTest:
+ * tidak ada runtime JS di host ini, dan grep atas berkas yang dibaca peninjau
+ * tidak bisa basi seperti daftar yang dipelihara tangan.
  */
 class DashboardTileFailureTest extends ErpTestCase
 {
-    /**
-     * Sources whose card is drawn only when the list is non-empty, plus the
-     * money tiles whose value is a reduce(). Both shapes read a failed fetch as
-     * "nothing here" unless something branches on the failure first: the former
-     * vanishes, the latter prints a confident Rp 0.
-     *
-     * @var list<string>
-     */
-    private const SOURCES_THAT_CAN_VANISH = [
-        'projects',      // kartu "Progres proyek" (ubin uangnya kini dari `summary`)
-        'arInvoices',    // kartu "Piutang jatuh tempo terdekat"
-        // Sejak Temuan 79 ketiga ubin uang (Proyek berjalan, Piutang, Hutang)
-        // membaca core/dashboard/summary yang menjumlah di SQL — gagalnya SATU
-        // fetch itu harus menjatuhkan KETIGA ubin ke failedStat(), bukan Rp 0.
-        // `apBills` keluar dari daftar ini bersamaan: ia tak lagi memberi makan
-        // ubin atau kartu ber-`.length` mana pun — satu-satunya pembacanya
-        // adalah antrean persetujuan, yang menyebut sumber gagalnya lewat
-        // inboxFailed ("Gagal dimuat: Tagihan vendor. Daftar ini belum
-        // lengkap."), diperiksa per sumber di inboxSources, bukan per nama.
-        'summary',       // ubin "Proyek berjalan" + "Piutang" + "Hutang"
-        'tickets',       // ubin "Tiket aktif" + kartu "Tiket layanan aktif"
-        'lowStock',      // kartu "Stok di bawah minimum"
-        'bankBalances',  // ubin "Saldo bank"
-        'billingReady',  // ubin "Termin siap ditagih"
-        'agenda',        // kartu "Kalender Acara"
-    ];
-
-    /** No catch in the dashboard may discard the error it was handed. */
-    public function test_the_dashboard_never_turns_a_failed_fetch_into_a_silent_empty_value(): void
+    /** Tidak ada catch di dasbor yang boleh membuang error yang diterimanya. */
+    public function test_no_dashboard_file_turns_a_failed_fetch_into_a_silent_empty_value(): void
     {
-        // Code only: dashboard.js's own docblock quotes `.catch(() => [])` by
-        // name as the bug it fixed, and a test that cannot tell prose from code
-        // would fail on the comment explaining why it must not fail.
-        $source = $this->codeOnly($this->dashboard());
+        $files = $this->dashboardFiles();
+        $this->assertGreaterThan(15, count($files), 'Folder widget nyaris kosong — pemindaian ini kehilangan sasarannya.');
 
-        // A regex that quietly stopped matching would make this test a no-op
-        // that still reports PASS, so prove the file has catches to inspect.
-        $this->assertGreaterThan(
-            0,
-            preg_match_all('/\.catch\(/', $source),
-            'No .catch( was found in dashboard.js. Either the file moved or this test is no longer reading it.',
-        );
+        $catches = 0;
 
-        $this->assertFalse(
-            $this->swallowsFailures($source),
-            'public/app/js/views/dashboard.js contains a `.catch(() => [])`-shaped handler. A catch that does not '
-            .'receive its error cannot tell the tile that its number is unknown, so the tile silently disappears or '
-            .'prints Rp 0 — the exact failure that made the Kalender card and "Termin siap ditagih" vanish under '
-            .'SQLite lock contention. Take the error, log it, and tag the value the way safe() now does.',
-        );
+        foreach ($files as $path => $source) {
+            // Kode saja: docblock kit.js MENGUTIP `.catch(() => [])` sebagai bug
+            // yang diperbaikinya, dan uji yang tidak bisa membedakan prosa dari
+            // kode akan merah justru pada komentar yang menjelaskannya.
+            $code = $this->codeOnly($source);
+            $catches += preg_match_all('/\.catch\(/', $code);
+
+            $this->assertFalse(
+                $this->swallowsFailures($code),
+                sprintf(
+                    '%s memuat handler berbentuk `.catch(() => [])`. Catch yang tidak MENERIMA error-nya tidak bisa '
+                    .'memberi tahu ubinnya bahwa angkanya tidak diketahui, sehingga ubin itu diam-diam hilang atau '
+                    .'menulis Rp 0 — persis kegagalan yang membuat kartu Kalender dan "Termin siap ditagih" lenyap '
+                    .'saat SQLite berebut kunci. Terima error-nya, catat, dan tandai nilainya seperti safe().',
+                    $path,
+                ),
+            );
+        }
+
+        // Regex yang diam-diam berhenti cocok akan membuat uji ini no-op yang
+        // tetap melaporkan PASS.
+        $this->assertGreaterThan(0, $catches, 'Tidak ada satu pun `.catch(` di berkas dasbor. Berkasnya pindah, atau pemindaian ini sudah tidak membacanya.');
     }
 
     /**
-     * The refused half: prove the detector says yes to the shape that shipped.
-     * Without it the works-test above would pass for every possible input.
+     * Bagian yang menolak: buktikan detektornya berkata YA pada bentuk yang
+     * pernah dirilis. Tanpa ini, uji di atas lolos untuk masukan apa pun.
      */
     public function test_a_catch_that_discards_its_error_is_reported(): void
     {
-        // The three literal forms of the swallow, two of which were in this
-        // very file before the fix.
         $this->assertTrue($this->swallowsFailures(
             'const safe = (path, params) => api.get(path, params).then((rows) => rows || []).catch(() => []);',
         ));
         $this->assertTrue($this->swallowsFailures("api.list('core/calendar').catch(() => null),"));
         $this->assertTrue($this->swallowsFailures('load().catch( ( ) => { } )'));
 
-        // ...while a catch that takes its error is accepted, so the detector is
-        // not simply refusing every catch in sight.
+        // …sementara catch yang menerima error-nya DITERIMA, jadi detektornya
+        // bukan sekadar menolak setiap catch yang terlihat.
         $this->assertFalse($this->swallowsFailures(
             ".catch((error) => { console.error('x', error); return Object.assign([], { loadFailure: error }); })",
         ));
 
-        // And prose naming the forbidden shape stays prose. Without codeOnly()
-        // this very test would be unfixable: the comment in dashboard.js that
-        // explains the swallow would itself be read as the swallow.
-        $this->assertFalse($this->swallowsFailures(
-            $this->codeOnly('/* dulu `.catch(() => [])`, sekarang tidak lagi */'),
-        ));
-        $this->assertFalse($this->swallowsFailures(
-            $this->codeOnly("// jangan pernah menulis .catch(() => null) di sini\n"),
-        ));
+        // Dan prosa yang menyebut bentuk terlarang tetap prosa. Tanpa codeOnly()
+        // uji ini tidak akan pernah bisa dibuat hijau: komentar di kit.js yang
+        // menjelaskan penelanan akan terbaca sebagai penelanan itu sendiri.
+        $this->assertFalse($this->swallowsFailures($this->codeOnly('/* dulu `.catch(() => [])`, sekarang tidak lagi */')));
+        $this->assertFalse($this->swallowsFailures($this->codeOnly("// jangan pernah menulis .catch(() => null) di sini\n")));
     }
 
-    /** Every source that can vanish is branched on before its tile is drawn. */
-    public function test_every_source_that_can_vanish_has_a_visible_failure_branch(): void
+    /**
+     * Perkakas bersamanya masih MENANDAI kegagalan. Tanpa `loadFailure`,
+     * failure() tidak pernah benar dan setiap cabang di bawahnya kode mati —
+     * 19 widget yang tampak berhati-hati dan tidak satu pun yang bekerja.
+     */
+    public function test_the_shared_kit_still_tags_a_failed_fetch(): void
     {
-        // Code only, for the same reason as above: a branch that exists only in
-        // a comment protects nothing.
-        $source = $this->codeOnly($this->dashboard());
+        $kit = $this->codeOnly($this->read('kit.js'));
 
-        $this->assertStringContainsString(
-            'loadFailure',
-            $source,
-            'safe() no longer tags a failed fetch, so failure() can never be true and every branch below it is dead.',
-        );
+        $this->assertStringContainsString('loadFailure', $kit);
+        $this->assertMatchesRegularExpression('/export const failure =/', $kit,
+            'kit.js tidak lagi mengekspor failure(); widget di bawahnya tidak punya apa pun untuk dicabangkan.');
+    }
 
-        foreach (self::SOURCES_THAT_CAN_VANISH as $name) {
+    /** Setiap widget bercabang pada kegagalan sumbernya, di KODE. */
+    public function test_every_widget_branches_on_failure(): void
+    {
+        $widgets = $this->widgetFiles();
+        $this->assertGreaterThan(15, count($widgets), 'Widget yang ditemukan terlalu sedikit — pemindaian ini kehilangan sasarannya.');
+
+        foreach ($widgets as $id => $source) {
             $this->assertTrue(
-                $this->branchesOnFailure($source, $name),
+                $this->branchesOnFailure($source),
                 sprintf(
-                    'Dashboard source [%s] is never passed to failure(), so a failed fetch of it is indistinguishable '
-                    .'from an empty result: the tile it feeds either disappears or reports zero. Add a failure(%s) '
-                    .'branch rendering failedStat()/failedBody() beside the normal one.',
-                    $name,
-                    $name,
+                    'Widget [%s] tidak pernah memanggil failure(), jadi fetch yang gagal tidak bisa dibedakan dari '
+                    .'hasil kosong: kartunya menghilang atau melaporkan nol. Tambahkan cabang failure(...) yang '
+                    .'menggambar failedStat()/failedBody() di samping cabang normalnya.',
+                    $id,
                 ),
             );
         }
     }
 
     /**
-     * The refused half of the branch check: a name nothing branches on must be
-     * reported, or the loop above passes for any list of names at all.
+     * Bagian yang menolak dari pemeriksaan cabang: sebuah berkas yang TIDAK
+     * bercabang harus dilaporkan, atau perulangan di atas lolos untuk daftar
+     * berkas apa pun.
      */
-    public function test_a_source_with_no_failure_branch_is_reported(): void
+    public function test_a_widget_with_no_failure_branch_is_reported(): void
     {
-        $source = $this->codeOnly($this->dashboard());
+        $this->assertFalse($this->branchesOnFailure('export async function build() { return el("div"); }'));
 
-        $this->assertFalse($this->branchesOnFailure($source, 'sumberYangTidakPernahDiperiksa'));
-        // `submitted` is a real identifier in the file that is deliberately NOT
-        // a source — proof the matcher reads failure(), not any mention of it.
-        $this->assertFalse($this->branchesOnFailure($source, 'submitted'));
+        // Cabang yang hanya ada di KOMENTAR tidak menjaga apa pun.
+        $this->assertFalse($this->branchesOnFailure("/* nanti: if (failure(rows)) ... */\nexport async function build() {}"));
 
-        $this->assertTrue($this->branchesOnFailure($source, 'billingReady'));
-    }
-
-    /** True when a catch discards the error it was given. */
-    private function swallowsFailures(string $source): bool
-    {
-        // `() =>` with nothing between the parentheses: the handler is not even
-        // handed the cause, so nothing downstream can be told about it.
-        return preg_match('/\.catch\(\s*\(\s*\)\s*=>/', $source) === 1;
+        // …dan salah satu widget sungguhan tetap lolos, jadi detektornya bukan
+        // "menolak segalanya".
+        $this->assertTrue($this->branchesOnFailure($this->read('siap-tagih.js')));
     }
 
     /**
-     * Strip comments and string bodies so the scan reads CODE. One pass over
-     * both comment forms and all three quote characters, the same shape the
-     * balance checker uses, so a `//` inside a string can never open a comment
-     * and a quote inside a comment can never open a string. dashboard.js
-     * contains no regular-expression literals (the one construct this simple
-     * scanner cannot tell from division); if one is ever added here, the
-     * assertGreaterThan guard above fires before any silence can set in,
-     * because a desynced scan destroys the `.catch(` occurrences it counts.
+     * Setiap berkas ber-build() TERDAFTAR di katalog, dan setiap entri katalog
+     * punya berkasnya.
+     *
+     * Kedua arahnya penting dan gagalnya berbeda. Berkas tanpa entri = kode
+     * mati yang tetap ikut deploy dan tetap harus dipelihara. Entri tanpa
+     * berkas = kartu yang ditawarkan laci "Atur dasbor", dipilih orangnya, lalu
+     * gagal di-import — satu-satunya jalur di dasbor ini yang kegagalannya
+     * tidak bisa dilaporkan widget-nya sendiri, karena kodenya tidak pernah
+     * jalan.
+     */
+    public function test_the_catalogue_and_the_widget_files_are_the_same_set(): void
+    {
+        $files = array_keys($this->widgetFiles());
+        $catalogue = SpaWidgets::ids();
+
+        sort($files);
+        sort($catalogue);
+
+        $this->assertNotSame([], $catalogue, 'SpaWidgets tidak membaca satu id pun dari registry.js.');
+        $this->assertSame($catalogue, $files,
+            'Katalog dasbor dan berkas widget berbeda isi. Berkas tanpa entri adalah kode mati; entri tanpa berkas '
+            .'adalah kartu yang ditawarkan laci lalu gagal dimuat.');
+    }
+
+    /* ------------------------------------------------------------ perkakas */
+
+    /** True bila sebuah catch membuang error yang diberikan kepadanya. */
+    private function swallowsFailures(string $source): bool
+    {
+        // `() =>` tanpa apa pun di antara kurungnya: handler-nya bahkan tidak
+        // diberi sebabnya, jadi tidak ada yang di bawahnya bisa diberi tahu.
+        return preg_match('/\.catch\(\s*\(\s*\)\s*=>/', $source) === 1;
+    }
+
+    private function branchesOnFailure(string $source): bool
+    {
+        return str_contains($this->codeOnly($source), 'failure(');
+    }
+
+    /** @return array<string, string> path relatif => sumber; dashboard.js + folder widget. */
+    private function dashboardFiles(): array
+    {
+        $files = ['views/dashboard.js' => (string) file_get_contents(public_path('app/js/views/dashboard.js'))];
+
+        foreach ($this->widgetPaths() as $path) {
+            $files['views/widgets/'.basename($path)] = (string) file_get_contents($path);
+        }
+
+        return $files;
+    }
+
+    /** @return array<string, string> id widget => sumber (hanya berkas ber-build()). */
+    private function widgetFiles(): array
+    {
+        $out = [];
+
+        foreach ($this->widgetPaths() as $path) {
+            $source = (string) file_get_contents($path);
+            // Definisi yang sama dengan yang dipakai penyusunnya: dashboard.js
+            // memanggil module.build(ctx).
+            if (preg_match('/export\s+async\s+function\s+build\s*\(/', $this->codeOnly($source)) === 1) {
+                $out[basename($path, '.js')] = $source;
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return list<string> */
+    private function widgetPaths(): array
+    {
+        $paths = glob(public_path('app/js/views/widgets/*.js'));
+        sort($paths);
+
+        return $paths === false ? [] : $paths;
+    }
+
+    private function read(string $name): string
+    {
+        return (string) file_get_contents(public_path('app/js/views/widgets/'.$name));
+    }
+
+    /**
+     * Buang komentar dan isi string supaya pemindaian membaca KODE. Satu lintasan
+     * atas kedua bentuk komentar dan ketiga karakter kutip, bentuk yang sama
+     * dengan pemeriksa keseimbangan, sehingga `//` di dalam string tidak pernah
+     * membuka komentar dan kutip di dalam komentar tidak pernah membuka string.
+     *
+     * Berkas widget tidak memuat literal ekspresi reguler (satu-satunya
+     * konstruksi yang pemindai sederhana ini tidak bisa bedakan dari pembagian);
+     * bila kelak ada, penjaga assertGreaterThan di atas menyala lebih dulu,
+     * karena pemindaian yang keluar sinkron merusak `.catch(` yang dihitungnya.
      */
     private function codeOnly(string $source): string
     {
@@ -217,15 +286,5 @@ class DashboardTileFailureTest extends ErpTestCase
         }
 
         return $out;
-    }
-
-    private function branchesOnFailure(string $source, string $name): bool
-    {
-        return str_contains($source, "failure({$name})");
-    }
-
-    private function dashboard(): string
-    {
-        return (string) file_get_contents(public_path('app/js/views/dashboard.js'));
     }
 }

@@ -4,6 +4,8 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Core\Models\UserPreference;
+use Modules\Core\Support\SpaWidgets;
 use Modules\Core\Support\UserPreferences;
 use Tests\ErpTestCase;
 
@@ -50,7 +52,7 @@ class UserPreferencesTest extends ErpTestCase
             'favorites' => ['r/projects', 'r/finance/ar-invoices'],
             'recent' => [['route' => 'd/projects/1', 'label' => 'PRJ-001', 'sub' => 'Proyek', 'at' => '2026-09-06T08:00:00Z']],
             'density' => 'compact',
-            'dashboard.layout' => [['id' => 'ar-aging', 'w' => 2]],
+            'dashboard.layout' => [['id' => 'ar-aging', 'size' => 'sedang']],
             'launcher.hidden' => ['svc'],
         ];
 
@@ -91,7 +93,7 @@ class UserPreferencesTest extends ErpTestCase
             ['key' => 'favorites', 'label' => 'Favorit', 'max_bytes' => 4096, 'max_entries' => 50],
             ['key' => 'recent', 'label' => 'Terakhir dibuka', 'max_bytes' => 8192, 'max_entries' => 20],
             ['key' => 'density', 'label' => 'Kepadatan', 'max_bytes' => 64, 'max_entries' => null],
-            ['key' => 'dashboard.layout', 'label' => 'Susunan dasbor', 'max_bytes' => 16384, 'max_entries' => null],
+            ['key' => 'dashboard.layout', 'label' => 'Susunan dasbor', 'max_bytes' => 16384, 'max_entries' => 24],
             ['key' => 'launcher.hidden', 'label' => 'Modul disembunyikan', 'max_bytes' => 512, 'max_entries' => 32],
         ], $meta);
 
@@ -168,43 +170,82 @@ class UserPreferencesTest extends ErpTestCase
         $this->assertSame(['compact', 'normal', 'comfortable'], UserPreferences::DENSITIES);
     }
 
-    public function test_a_value_over_16_kb_is_refused_naming_the_key(): void
+    /**
+     * Plafon keras 16 KB, dipaku pada 16384 LITERAL dan dari KEDUA sisi
+     * batasnya.
+     *
+     * Bentuk uji ini berubah di P1-D. Sampai P1-C `dashboard.layout` menerima
+     * daftar apa pun, jadi 16384 byte teks bisa dikirim lewat endpoint dan
+     * diterima; sejak P1-D validatornya memeriksa ISI (id katalog + ukuran),
+     * dan TIDAK ADA nilai sah yang sebesar itu untuk kunci mana pun. Yang masih
+     * bisa — dan harus — dibuktikan adalah bahwa pemeriksaan BYTE berjalan
+     * lebih dulu dan berhenti tepat di 16384: sebuah muatan 16385 byte harus
+     * ditolak KARENA ukurannya (bukan karena bentuknya), dan muatan 16384 byte
+     * yang bentuknya sama harus lolos pemeriksaan ukuran dan jatuh pada
+     * bentuknya. Urutan itulah yang membuat pesan 422-nya berguna: "terlalu
+     * besar" tentang nilai 50 KB yang juga salah bentuk memberi tahu apa yang
+     * harus diperbaiki lebih dulu.
+     */
+    public function test_the_hard_ceiling_stops_at_16384_bytes_and_is_checked_before_shape(): void
     {
         $this->actingAs($this->user('a@test.local'), 'sanctum');
 
         // Panjangnya dihitung mundur dari 16384 LITERAL: `["x…"]` = isi + 4
-        // byte pembungkus. 16384 tepat masuk, 16385 ditolak.
+        // byte pembungkus. Keduanya salah BENTUK untuk dashboard.layout
+        // (string, bukan objek {id,size}) — justru itu yang diuji.
         $atLimit = [str_repeat('x', 16384 - 4)];
         $over = [str_repeat('x', 16385 - 4)];
         $this->assertSame(16384, UserPreferences::encodedBytes($atLimit));
         $this->assertSame(16385, UserPreferences::encodedBytes($over));
 
-        $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $atLimit])->assertOk();
+        $tooBig = (string) $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $over])
+            ->assertStatus(422)->json('errors.value.0');
+        $this->assertStringContainsString('dashboard.layout', $tooBig);
+        $this->assertStringContainsString('16385', $tooBig, 'Pesannya tidak menyebut ukuran yang dikirim.');
+        $this->assertStringContainsString('16384', $tooBig, 'Pesannya tidak menyebut batasnya.');
 
-        $response = $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $over])->assertStatus(422);
-        $message = (string) $response->json('errors.value.0');
-        $this->assertStringContainsString('dashboard.layout', $message);
-        $this->assertStringContainsString('16385', $message, 'Pesannya tidak menyebut ukuran yang dikirim.');
-        $this->assertStringContainsString('16384', $message, 'Pesannya tidak menyebut batasnya.');
+        // Satu byte lebih kecil: ukurannya lolos, dan yang menolak sekarang
+        // adalah bentuknya. Bila pemeriksaan byte bergeser ke 16385, kalimat
+        // ini berubah menjadi kalimat ukuran dan uji ini merah.
+        $atLimitMessage = (string) $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $atLimit])
+            ->assertStatus(422)->json('errors.value.0');
+        $this->assertStringContainsString('objek', $atLimitMessage,
+            'Nilai 16384 byte ditolak karena ukurannya, bukan karena bentuknya — batasnya bergeser satu byte.');
+        $this->assertStringNotContainsString('16384 byte', $atLimitMessage);
 
-        // Yang ditolak tidak menyisakan baris; yang tepat 16384 tadi tetap satu.
-        $this->assertSame(1, DB::table('core_user_preferences')->count());
+        // Tidak satu pun dari keduanya menyisakan baris.
+        $this->assertSame(0, DB::table('core_user_preferences')->count());
+    }
 
-        /*
-         * …dan yang diukur adalah yang DISIMPAN. Cast 'json' Eloquent menulis
-         * dengan json_encode tanpa flag, jadi tiap karakter non-ASCII menjadi
-         * \uXXXX: dengan JSON_UNESCAPED_UNICODE (dipakai sampai 6 Sep 2026)
-         * nilai emoji terukur 16.384 tetapi mendarat 49.144 byte di kolom, tiga
-         * kali plafon yang diumumkan pesannya (verifikasi P1-C putaran 2).
-         */
-        // Oraclenya adalah KOLOM, bukan hitungan tandingan: PDO::quote() meng-escape
-        // per driver (MySQL 1.406 vs SQLite 1.204 untuk muatan yang sama), jadi ia
-        // mengukur transport, bukan penyimpanan.
+    /**
+     * …dan yang DIUKUR adalah yang DISIMPAN. Cast 'json' Eloquent menulis
+     * dengan json_encode tanpa flag, jadi tiap karakter non-ASCII menjadi
+     * \uXXXX: dengan JSON_UNESCAPED_UNICODE (dipakai sampai 6 Sep 2026) nilai
+     * emoji terukur 16.384 tetapi mendarat 49.144 byte di kolom, tiga kali
+     * plafon yang diumumkan pesannya, sementara TEXT MySQL berhenti di 65.535
+     * (verifikasi P1-C putaran 2).
+     *
+     * Ditulis lewat MODEL, bukan endpoint: sejak P1-D tidak ada kunci yang
+     * menerima teks bebas, dan yang harus dibuktikan bukan endpointnya
+     * melainkan bahwa encodedBytes() mengukur seperti KOLOMNYA menulis. Oracle-
+     * nya kolom itu sendiri — PDO::quote() meng-escape per driver (MySQL 1.406
+     * vs SQLite 1.204 untuk muatan yang sama), jadi ia mengukur transport,
+     * bukan penyimpanan.
+     */
+    public function test_encoded_bytes_measures_what_the_column_actually_stores(): void
+    {
+        $user = $this->user('a@test.local');
         $emoji = [str_repeat('😀', 100)];
 
-        $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $emoji])->assertOk();
+        UserPreference::query()->create([
+            'user_id' => $user->getKey(),
+            'key' => 'dashboard.layout',
+            'value' => $emoji,
+        ]);
+
         $stored = (string) DB::table('core_user_preferences')
             ->where('key', 'dashboard.layout')->value('value');
+
         $this->assertSame(strlen($stored), UserPreferences::encodedBytes($emoji),
             'Byte yang tersimpan di kolom berbeda dari byte yang diukur — plafonnya berbohong justru untuk nilai multibyte.');
     }
@@ -287,6 +328,89 @@ class UserPreferencesTest extends ErpTestCase
         $this->putJson('/api/core/me/preferences/recent', ['value' => array_fill(0, 21, $entry)])->assertStatus(422);
         $this->putJson('/api/core/me/preferences/recent', ['value' => [$entry + ['token' => 'rahasia']]])->assertStatus(422);
         $this->putJson('/api/core/me/preferences/recent', ['value' => [$entry]])->assertOk();
+    }
+
+    /**
+     * Susunan dasbor menerima ISI yang benar-benar bisa digambar (P1-D).
+     *
+     * Sampai P1-C kunci ini menerima daftar apa pun — validatornya sengaja
+     * hanya bentuk, karena katalog widget-nya belum ditulis. Sekarang katalog
+     * itu ada di `views/widgets/registry.js` dan SpaWidgets membacanya, dengan
+     * alasan yang sama seperti favorit terhadap NAV: baris preferensi yang
+     * menyebut widget yang tidak ada adalah baris mati yang dibawa ke setiap
+     * backup selamanya, dan endpoint ini tidak punya gerbang izin yang bisa
+     * membatasinya.
+     */
+    public function test_dashboard_layout_accepts_catalogue_widgets_and_refuses_the_rest(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        $put = fn (mixed $value) => $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $value]);
+
+        // Bentuk yang benar-benar ditulis laci "Atur dasbor".
+        $put([['id' => 'inbox', 'size' => 'lebar'], ['id' => 'ar-aging', 'size' => 'sedang']])->assertOk();
+        // `size` boleh tidak disebut: widget memakai ukuran bawaannya.
+        $put([['id' => 'tenggat']])->assertOk();
+
+        // Widget karangan disebut NAMANYA — pesan "susunan tidak valid" pada
+        // daftar 12 entri tidak memberi tahu siapa pun entri mana yang salah.
+        $put([['id' => 'widget-karangan', 'size' => 'kecil']])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.value.0', fn ($m) => str_contains((string) $m, 'widget-karangan'));
+
+        // Ukuran di luar tiga yang dikenal katalog.
+        $put([['id' => 'inbox', 'size' => 'raksasa']])->assertStatus(422);
+
+        // Duplikat: resolveLayout hanya menggambar yang pertama, jadi yang
+        // kedua adalah baris yang tidak akan pernah berarti apa-apa.
+        $put([['id' => 'inbox', 'size' => 'lebar'], ['id' => 'inbox', 'size' => 'sedang']])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.value.0', fn ($m) => str_contains((string) $m, 'dua kali'));
+
+        // Field titipan — pintu yang sama yang ditutup untuk "Terakhir dibuka".
+        $put([['id' => 'inbox', 'size' => 'lebar', 'token' => 'rahasia']])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.value.0', fn ($m) => str_contains((string) $m, 'token'));
+
+        // Bentuk lama P1-C (daftar string) tidak lagi diterima: yang disimpan
+        // harus bentuk yang dibaca laci, satu bentuk saja.
+        $put(['inbox', 'ar-aging'])->assertStatus(422);
+        $put('inbox')->assertStatus(422);
+    }
+
+    /**
+     * Katalog yang tidak terbaca TIDAK boleh menolak susunan yang sah.
+     *
+     * Aturan degradasi SpaNav, dipakai ulang: sebuah deploy yang menaruh
+     * public/ di tempat lain akan membuat setiap PUT susunan dijawab 422, dan
+     * laci "Atur dasbor" yang menolak simpanannya sendiri terbaca sebagai fitur
+     * yang rusak. Daftar kosong berarti "tidak bisa memeriksa keanggotaan" —
+     * pemeriksaan BENTUK tetap berjalan, dan SPA menyaring lagi saat menggambar.
+     */
+    public function test_an_unreadable_catalogue_falls_back_to_shape_only(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        $this->assertNotSame([], SpaWidgets::ids(), 'Katalog widget tidak terbaca — uji di bawah tidak membuktikan apa pun.');
+
+        $this->assertSame(
+            'dashboard.layout: Widget "widget-karangan" tidak ada di katalog dasbor.',
+            UserPreferences::reject('dashboard.layout', [['id' => 'widget-karangan']]),
+        );
+
+        // Katalog kosong: id apa pun lolos keanggotaan, bentuk tetap dijaga.
+        $ids = new \ReflectionProperty(SpaWidgets::class, 'ids');
+        $ids->setValue(null, []);
+
+        try {
+            $this->assertNull(UserPreferences::reject('dashboard.layout', [['id' => 'widget-karangan']]));
+            $this->assertSame(
+                'dashboard.layout: Setiap widget harus berupa objek {id, size}.',
+                UserPreferences::reject('dashboard.layout', ['inbox']),
+            );
+        } finally {
+            SpaWidgets::flush();
+        }
     }
 
     public function test_launcher_hidden_accepts_only_nav_prefixes(): void
