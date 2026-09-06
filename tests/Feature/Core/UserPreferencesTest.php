@@ -197,12 +197,10 @@ class UserPreferencesTest extends ErpTestCase
          * nilai emoji terukur 16.384 tetapi mendarat 49.144 byte di kolom, tiga
          * kali plafon yang diumumkan pesannya (verifikasi P1-C putaran 2).
          */
+        // Oraclenya adalah KOLOM, bukan hitungan tandingan: PDO::quote() meng-escape
+        // per driver (MySQL 1.406 vs SQLite 1.204 untuk muatan yang sama), jadi ia
+        // mengukur transport, bukan penyimpanan.
         $emoji = [str_repeat('😀', 100)];
-        $this->assertSame(
-            strlen((string) DB::connection()->getPdo()->quote(json_encode($emoji))) - 2,
-            UserPreferences::encodedBytes($emoji),
-            'encodedBytes() tidak mengukur seperti kolomnya menulis; pesan 422 akan menyebut angka yang bukan angka tersimpan.',
-        );
 
         $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $emoji])->assertOk();
         $stored = (string) DB::table('core_user_preferences')
