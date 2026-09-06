@@ -985,7 +985,10 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .module-cell > .module-card { padding-right: 34px; }
 .module-cell > .star { position: absolute; top: 8px; right: 6px; }
 .module-section-block + .module-section-block, .module-grid + .module-section-block { margin-top: 18px; }
-.module-section {
+/* .module-section = pemisah NAV yang MELABELI kisinya (aria-labelledby); judul
+   "Terakhir dibuka" memakai kelas sendiri dengan gaya yang sama, karena ia tidak
+   melabeli kisi mana pun dan uji struktur memeriksa persis sifat itu. */
+.module-section, .module-recent-title {
   margin: 0 0 8px;
   font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
@@ -1025,7 +1028,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .module-kpi-label { font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .module-kpi-note { font-size: 12.5px; }
 .module-recent { margin-bottom: 18px; }
-.module-recent .module-section { margin-bottom: 8px; }
 
 /* ------------------------------------------------------------ app launcher */
 /* #/home (views/home.js, P1-C): kotak cari, dua baris pintasan (Favorit,

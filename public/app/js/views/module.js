@@ -185,8 +185,13 @@ function recentSection(prefix) {
     .filter((one) => groupPrefixFor(one.key) === prefix)
     .slice(0, RECENT_MAX);
 
+  /* Judulnya BUKAN .module-section: kelas itu berarti "pemisah NAV yang
+     melabeli kisinya", dan SidebarNav/S21 memeriksa bahwa SETIAP .module-section
+     punya id yang ditunjuk aria-labelledby sebuah .module-grid. Judul yang
+     menumpang kelas itu membuat pemeriksaan struktur merah untuk alasan yang
+     bukan cacat (terukur 6 Sep 2026: sections_label_their_grid false di #/m/fin). */
   return el('section.module-recent', [
-    el('h2.module-section', { text: 'Terakhir dibuka' }),
+    el('h2.module-recent-title', { text: 'Terakhir dibuka' }),
     rows.length
       ? el('ul.home-chips', { 'aria-label': `Dokumen ${prefix} yang terakhir dibuka` }, rows.map((one) => el('li',
         el('a.home-chip', { href: `#/${one.route}` }, [

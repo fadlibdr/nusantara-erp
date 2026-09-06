@@ -1,14 +1,16 @@
 /*
  * App launcher `#/home` (Fase 1 / P1-C, T1C.3) — halaman pertama di ponsel.
  *
- * KENAPA ADA. Diukur pada 12 peran demo: tiga di antaranya (procurement, hr,
- * teknisi) tidak memegang satu pun dari prj.view / fin.view, jadi
- * GET core/dashboard/summary menjawab {} dan dasbor mereka tidak punya satu
- * angka pun — halaman pembuka yang kosong. Dan di ponsel sidebar terlipat jadi
- * laci: jalan ke Lapangan adalah hamburger → grup Proyek → Lapangan, tiga
- * ketukan, dua di antaranya untuk membuka menu. Launcher ini menjawab keduanya:
- * satu ubin per modul yang BOLEH dibuka orangnya, masing-masing dengan satu
- * angka utama (registri ModuleCounts) dan jumlah layarnya.
+ * KENAPA ADA. Diukur dengan MASUK sebagai kedua belas akun demo (harness S22):
+ * DUA peran — procurement dan hr — mendarat di dasbor tanpa satu ubin angka pun
+ * (0 `.stat`), karena tak satu pun blok `core/dashboard/summary` (prj/fin) dan
+ * tak satu pun sumber ubin lainnya berlaku untuk mereka. Halaman pembuka yang
+ * kosong. Dan di ponsel sidebar terlipat jadi laci: jalan ke Lapangan adalah
+ * hamburger → grup Proyek → Lapangan, TIGA ketukan, dua di antaranya hanya untuk
+ * membuka menu. Launcher ini menjawab keduanya: satu ubin per modul yang BOLEH
+ * dibuka orangnya, masing-masing dengan satu angka utama (registri ModuleCounts)
+ * dan jumlah layarnya — terukur 3 ubin (hr, teknisi) sampai 14 (admin), 0 peran
+ * tanpa ubin, dan 2 ketukan ke Lapangan.
  *
  * ANGKA. Ubin memimpin dengan hitungan dari GET core/modules. Aturannya sama
  * dengan registrinya: modul yang server tidak sebutkan (izin hitungannya tidak
@@ -158,12 +160,19 @@ function moduleTile(group) {
 
 /** Dua baris pintasan di atas kisi; yang kosong tidak menggambar apa pun. */
 function shortcutRows(body) {
-  const flat = visibleNav((perm) => session.can(perm)).flatMap((group) => group.items.filter((item) => item.route));
+  // Satu jalan atas NAV, bukan satu per chip: rute → { item, grup }. Dengan 50
+  // favorit (plafon server) pencarian per chip berarti 50 × 14 grup tiap gambar.
+  const byRoute = new Map();
+  for (const group of visibleNav((perm) => session.can(perm))) {
+    for (const item of group.items) {
+      if (item.route) byRoute.set(item.route, { item, group });
+    }
+  }
 
   const favorites = prefs.favorites()
-    .map((route) => flat.find((item) => item.route === route))
+    .map((route) => byRoute.get(route))
     .filter(Boolean)
-    .map((item) => shortcut(`#/${item.route}`, item.label, groupOf(item.route)));
+    .map(({ item, group }) => shortcut(`#/${item.route}`, item.label, group.label));
 
   const recent = prefs.visibleRecent((perm) => session.can(perm))
     .slice(0, 8)
@@ -204,12 +213,6 @@ function redrawWhenPrefsLand(node, redraw) {
     redraw();
   };
   window.addEventListener('erp:prefs-loaded', handler);
-}
-
-/** Nama grup NAV yang memuat rute ini (keterangan kecil di chip favorit). */
-function groupOf(route) {
-  const group = visibleNav((perm) => session.can(perm)).find((one) => one.items.some((item) => item.route === route));
-  return group ? group.label : null;
 }
 
 /* ------------------------------------------------------------------ cari */
