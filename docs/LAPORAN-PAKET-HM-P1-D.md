@@ -3,12 +3,29 @@
 Branch: `feat/phase1-d` (dari `feat/phase1-c` — paket ini berdiri di atas preferensi
 `dashboard.layout` dan registri P1-C, yang belum di-merge ke main) · 6 September 2026
 
-> Status jujur: **dibangun dan diukur di peramban, belum diverifikasi adversarial.**
-> Harness Playwright dipasang dan skenario **S23** ditulis serta dijalankan (empat bagian,
-> semuanya hijau, 12 akun demo) — ia menemukan enam cacat sungguhan yang tidak satu pun
-> tertangkap uji PHP; lihat § Yang ditemukan harness. Dua putaran verifikasi ganda
-> (aturan ROADMAP-DEVIASI §4/§6, pola yang menemukan ~40 cacat di P2–P8 dan 16 di P1-C)
-> **belum dijalankan**. Tidak ada migrasi baru.
+> Status jujur: **dibangun, diukur di peramban, dan DIVERIFIKASI ADVERSARIAL satu putaran
+> (dua lensa, 6 September 2026).** 22 temuan diangkat dan **22 diperbaiki**, masing-masing
+> dengan uji atau syarat harness yang lebih dulu dibuktikan MERAH. Yang terpenting di
+> antaranya, karena ketiganya kehilangan data atau membacanya salah tanpa satu galat pun:
+>
+> - **Susunan tersimpan diabaikan pada kunjungan pertama di peramban baru** — `prefs.load()`
+>   selesai sesudah gambar pertama, jadi yang tergambar adalah bawaan peran (7 kartu di atas
+>   baris server 3 kartu) dan tidak pernah memperbaiki dirinya; satu klik "Simpan" pada laci
+>   yang terbuka di atas gambar itu MENIMPA susunan orangnya, permanen, dengan toast
+>   "tersimpan". Laci juga menghapus entri yang izinnya sedang dicabut — kebalikan dari yang
+>   dijanjikan docblock `resolveLayout`.
+> - **Gambar dasbor lama tidak berhenti** saat digantikan: tiga klik "Muat ulang" berjarak
+>   120 ms membayar 27 permintaan dengan 12 berjalan bersamaan, sementara paket ini menjual
+>   "tidak pernah lebih dari 4". Terukur 9 permintaan / 4 serentak sesudah perbaikan.
+> - **10 dari 19 kartu tidak menggambar kaki**, dan empat widget yang gagal tidak menawarkan
+>   satu tombol pun — pemulihan satu-satunya adalah "Muat ulang" sehalaman, yaitu perilaku
+>   P1-C yang paket ini menyatakan digantikannya. Terukur 71/71 kartu berkaki sesudahnya.
+>
+> Baris konsol harness juga berbohong: `scenario()` mencetak "ok" untuk skenario yang
+> menjatuhkan syaratnya sendiri, dan seluruh kalimat "empat bagian, semuanya hijau" di atas
+> bersandar pada baris itu. S23 kini menguji persistensi di KONTEKS PERAMBAN BARU (muat ulang
+> di konteks yang sama dijawab cermin localStorage, dengan atau tanpa baris server).
+> Putaran verifikasi KEDUA belum dijalankan. Tidak ada migrasi baru.
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 1 / P1-D → status)
 

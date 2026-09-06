@@ -2,10 +2,28 @@
 
 Branch: `feat/phase1-f` (dari `feat/phase1-e`) · 6 September 2026
 
-> Status jujur: **dibangun, diuji, diukur di peramban, dan diverifikasi adversarial satu
-> putaran** — enam lensa baca-saja mengangkat **42 temuan berbeda**; **20 di antaranya cacat
-> sungguhan dan sudah diperbaiki**, masing-masing dengan ujinya. Putaran verifikasi KEDUA belum
-> dijalankan. Paket ini didahului dua putaran orkestrasi: survei
+> Status jujur: **dibangun, diuji, diukur di peramban, dan diverifikasi adversarial DUA
+> putaran** — putaran pertama (enam lensa) mengangkat 42 temuan, 20 cacat sungguhan
+> diperbaiki; putaran KEDUA (6 September 2026) menyerang perbaikan itu sendiri dan mengangkat
+> **9 temuan lagi, semuanya diperbaiki**. Empat di antaranya adalah perbaikan putaran pertama
+> yang tidak lengkap atau tidak bisa dicapai:
+>
+> - Pemeriksaan "tabelnya belum terpasang" hanya dipasang di `run()`; jalur XLSX laporan
+>   tersimpan menjawab **500 dengan SQL mentah** (nama berkas basis data ikut tercetak).
+> - Pemeriksaan nilai saringan hanya menulis lengan `kind: 'key'`; sebuah nilai enum yang
+>   sudah dicabut lolos ke SQL, menjawab 200 dengan nol baris tanpa satu kata pun, DAN bisa
+>   disimpan lalu dibagikan — persis bentuk yang komentar perbaikan itu sendiri sebut
+>   "kebohongan yang paling sulit dilihat".
+> - `canManage()` — yang ditambahkan supaya pemilik bisa membuang barisnya setelah izinnya
+>   dicabut — tidak bisa dicapai dari layar mana pun: `visibleTo()` tetap menyaring baris
+>   sendiri, jadi daftar mengembalikan `[]` sementara DELETE atas id yang sama menjawab 200.
+>   Tidak ada satu uji pun untuknya.
+> - `XlsxSheetWriter::putRow` menomori kolom per KUNCI array, bukan per posisi seperti badan
+>   yang digantikannya.
+>
+> Ditambah cacat yang putaran pertama tidak sampai: laporan tersimpan ber-saringan FK
+> menggambar **himpunan bagian** sementara setiap kendali di layar terbaca "— tidak ada —",
+> dan `{"name": []}` menjawab 500 pada tiga endpoint. Paket ini didahului dua putaran orkestrasi: survei
 > delapan lensa atas codebase (±70 jebakan terverifikasi) dan panel tiga rancangan yang
 > dinilai tiga hakim pada tiga sumbu. Rancangan pemenang (*registry-purist*, 23,0/30)
 > dipakai dengan koreksi yang diambil dari dua yang kalah. Satu migrasi baru (000197),
