@@ -405,15 +405,15 @@ function xValue(point, index) {
 /** Indeks label sumbu-x yang digambar. `centers` = pusat tiap label (koordinat svg), `labelAt(i)`
     = teksnya (dipanggil malas: hanya kandidat yang diformat — 10 rb titik tidak memformat 10 rb
     tanggal). Irama: paling banyak floor(plotW/minGap) label berlangkah tetap dari kiri, dan label
-    terakhir selalu (tanggal/kategori terbaru adalah yang dicari pembaca); minGap dinaikkan ke
-    lebar label terlebar + 2·gap bila label lebih lebar dari irama bawaan ('05 Sep 2026' 61,6 px
-    taksiran vs 64). Lalu setiap kandidat diuji terhadap KOTAK label tetangga yang sudah terpilih
+    terakhir selalu (tanggal/kategori terbaru adalah yang dicari pembaca); irama bawaan (64 px, tera '05 Sep 2026' 61,6 px taksiran)
+    menyesuaikan DUA arah terhadap lebar label terlebar + 2·gap, dengan lantai 28 px; irama yang
+    DISEBUT pemanggil (barChart: 48 atau lebar band) hanya dinaikkan, tidak pernah diturunkan. Lalu setiap kandidat diuji terhadap KOTAK label tetangga yang sudah terpilih
     — kotak xLabelBox yang sama dengan yang digambar, termasuk pergeseran jangkar tepi: yang
     menabrak dibuang, label terakhir menang atas tetangga kirinya. Dulu irama dihitung untuk label
     berpusat sementara label terakhir ditambatkan ke ujung kanan (bergeser ±30 px ke kiri): dua
     label terakhir setiap sumbu tanggal ≥ 10 titik bertumpuk 17–54 px (verifikasi P1-A putaran
     2, 5 Sep 2026). Pemanggil menjamin `centers` terurut naik. */
-function thin(centers, labelAt, width, plotW, minGap = 64, gap = 6) {
+function thin(centers, labelAt, width, plotW, minGap = null, gap = 6) {
   const count = centers.length;
   const memo = new Map();
   const label = (i) => { if (!memo.has(i)) memo.set(i, labelAt(i)); return memo.get(i); };
@@ -425,19 +425,27 @@ function thin(centers, labelAt, width, plotW, minGap = 64, gap = 6) {
     return c;
   };
   const stepFor = (g) => Math.max(1, Math.ceil(count / Math.max(1, Math.floor(plotW / g))));
-  let step = stepFor(minGap);
+  const base = minGap ?? 64;
+  let step = stepFor(base);
   const widest = Math.max(0, ...candidates(step).map((i) => textWidth(label(i))));
-  /* Irama menyesuaikan DUA arah, bukan satu. Menaikkan minGap untuk label lebar
-     sudah ada sejak P1-A; menurunkannya untuk label SEMPIT ditambahkan setelah
-     verifikasi P1-E, karena irama 64 px ditera untuk '05 Sep 2026' (61,6 px)
-     dan dipakai apa adanya oleh sumbu berlabel 'M12' (±21 px): kurva-S 12
-     minggu tergambar M1, M3, M5, M7, M9, M11, M12 — tujuh label di sumbu yang
-     grafik tangannya menggambar dua belas, dengan ruang yang jelas cukup.
-     Lantainya 28 px supaya label tidak pernah berhimpit; uji tabrakan di bawah
-     tetap kata terakhir, jadi menurunkan irama tidak bisa membuat dua label
+  /* Irama BAWAAN menyesuaikan DUA arah; irama yang DISEBUT pemanggil hanya naik.
+     Menaikkan untuk label lebar sudah ada sejak P1-A. Menurunkan untuk label
+     SEMPIT ditambahkan setelah verifikasi P1-E: 64 px ditera untuk
+     '05 Sep 2026' (61,6 px) dan dipakai apa adanya oleh sumbu berlabel 'M12'
+     (±21 px), sehingga kurva-S 12 minggu tergambar M1, M3, M5, M7, M9, M11,
+     M12 — tujuh label di sumbu yang grafik tangannya menggambar dua belas,
+     dengan ruang yang jelas cukup.
+
+     Hanya bawaan, karena `barChart` MENYEBUT iramanya (48, atau lebar band):
+     angka itu adalah pernyataan tentang bentuk grafiknya, bukan tera untuk
+     lebar teks, dan menurunkannya akan menambah label di sumbu yang tidak
+     meminta. Lantai 28 px menjaga jarak; uji tabrakan di bawah tetap kata
+     terakhir, jadi irama yang lebih rapat tidak pernah bisa membuat dua label
      bertumpuk. */
-  const rhythm = Math.max(28, widest + gap * 2);
-  if (rhythm !== minGap) step = stepFor(rhythm);
+  const rhythm = minGap === null
+    ? Math.max(28, widest + gap * 2)
+    : Math.max(base, widest + gap * 2);
+  if (rhythm !== base) step = stepFor(rhythm);
   const picked = [];
   candidates(step).forEach((i) => {
     const { left } = box(i);
