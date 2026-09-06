@@ -497,7 +497,20 @@ class ModuleCountsTest extends ErpTestCase
         // dan gudang dibuang semuanya tidak dihitung.
         $category = $this->insert('inv_item_categories', ['code' => $this->code('CAT'), 'name' => 'Semen']);
         $warehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang']);
-        foreach ([[true, 10, 2, null], [true, 10, 40, null], [false, 10, 1, null], [true, 10, 1, now()]] as [$active, $min, $qty, $deleted]) {
+        // Tiga baris terakhir duduk PERSIS di batas kedua perbandingan numerik entri
+        // inv, yang tanpa mereka lolos mutasi (verifikasi P1-C putaran 2):
+        //  - qty == min membuktikan `qty < min_stock`, bukan `<=`;
+        //  - min_stock 0 dengan qty 0 adalah kasus lazimnya (item tanpa ambang);
+        //  - min_stock 0 dengan qty NEGATIF membuktikan `min_stock > 0` sendiri.
+        //    Saldo negatif tidak pernah dibuat StockService (setiap jalur menolak
+        //    qty <= 0 dan uji burst mengukur "stok tak pernah negatif"), tetapi
+        //    kolomnya decimal(15,3) tanpa unsigned, jadi keadaan itu BISA ada —
+        //    entah dari koreksi opname atau data lama. Aturannya: item yang tidak
+        //    menyatakan stok minimum tidak punya ambang, jadi ia tidak pernah "di
+        //    bawah minimum" berapa pun saldonya. Tanpa baris ini `> 0` boleh
+        //    menjadi `>= 0` tanpa satu uji pun berubah warna.
+        foreach ([[true, 10, 2, null], [true, 10, 40, null], [false, 10, 1, null], [true, 10, 1, now()],
+            [true, 10, 10, null], [true, 0, 0, null], [true, 0, -1, null]] as [$active, $min, $qty, $deleted]) {
             $item = $this->insert('inv_items', [
                 'code' => $this->code('ITM'), 'name' => 'Item', 'category_id' => $category,
                 'unit' => 'sak', 'min_stock' => $min, 'is_active' => $active, 'deleted_at' => $deleted,
