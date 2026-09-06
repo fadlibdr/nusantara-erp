@@ -64,6 +64,32 @@ class LauncherWiringTest extends ErpTestCase
         $this->assertStringContainsString('landOnDefault();', $app);
     }
 
+    /**
+     * Panduan onboarding membuka langkah 1 pada HALAMAN PEMBUKA, dan sejak P1-C
+     * halaman pembuka ponsel bukan dasbor melainkan launcher. tour() yang tetap
+     * menyebut 'dashboard' di kedua lebar membuat visit() menganggap orangnya
+     * pindah pada langkah pertama: ia menavigasi keluar dari launcher DAN
+     * melipat lembar bawahnya, jadi panduan lahir terlipat pada setiap masuk
+     * pertama di ponsel (terukur 6 Sep 2026: S19 merah, dock state=collapsed
+     * h=49 px, jejak hash ['#/home','#/dashboard']).
+     */
+    public function test_the_onboarding_tour_opens_on_the_page_the_landing_rule_chose(): void
+    {
+        $onboarding = $this->file('app/js/views/onboarding.js');
+        $tour = $this->functionBody($onboarding, 'function tour()');
+
+        $this->assertNotNull($tour, 'tour() tidak ditemukan di views/onboarding.js.');
+        $this->assertStringContainsString('MOBILE.matches', $tour,
+            'tour() tidak menanyakan lebar layar, jadi langkah 1 di ponsel memindah orangnya keluar dari launcher dan melipat lembar panduannya.');
+        $this->assertStringContainsString("route: 'home'", $tour);
+        $this->assertStringContainsString("route: 'dashboard'", $tour);
+
+        // …dan lebar yang ditanyakannya adalah titik potong yang sama dengan
+        // aturan landing: dua angka yang berselisih di sini berarti satu lebar
+        // layar yang mendarat di launcher tetapi dituntun ke dasbor.
+        $this->assertStringContainsString("matchMedia('(max-width: 760px)')", $onboarding);
+    }
+
     public function test_the_tiles_never_turn_an_unknown_count_into_zero(): void
     {
         $home = $this->file('app/js/views/home.js');
@@ -131,6 +157,7 @@ class LauncherWiringTest extends ErpTestCase
     public function test_the_readers_can_still_say_no(): void
     {
         $this->assertNull($this->landingRule("function bukanLandOnDefault() {\n  return 1;\n}\n"));
+        $this->assertNull($this->functionBody("const tour = 1;\n", 'function tour()'));
         $this->assertArrayNotHasKey('rumah', $this->iconPaths());
         $this->assertArrayHasKey('star', $this->iconPaths());
     }
@@ -138,11 +165,22 @@ class LauncherWiringTest extends ErpTestCase
     /** Badan fungsi landOnDefault(), atau null bila tidak ada. */
     private function landingRule(string $source): ?string
     {
-        $start = strpos($source, 'function landOnDefault()');
+        return $this->functionBody($source, 'function landOnDefault()');
+    }
+
+    /**
+     * Badan sebuah fungsi bertingkat-atas — dari tanda tangannya sampai kurung
+     * tutup di kolom 0 (atau, untuk fungsi bersarang seperti tour(), kurung
+     * tutup pada indentasinya sendiri). null bila tanda tangannya tidak ada.
+     */
+    private function functionBody(string $source, string $signature): ?string
+    {
+        $start = strpos($source, $signature);
         if ($start === false) {
             return null;
         }
-        $end = strpos($source, "\n}", $start);
+        $indent = str_repeat(' ', $start - (int) strrpos(substr($source, 0, $start), "\n") - 1);
+        $end = strpos($source, "\n{$indent}}", $start);
 
         return $end === false ? null : substr($source, $start, $end - $start);
     }

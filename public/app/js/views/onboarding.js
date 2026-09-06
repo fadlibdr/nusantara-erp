@@ -407,11 +407,26 @@ function mountDock(guide, { auto }) {
    * 2026). Nomor langkah mengikuti kerangka README §"Kerangka yang sama":
    * 1 Siapa Anda · 2 Hari pertama · 3 Pekerjaan Anda · 4 Yang akan menolak ·
    * 5 Formulir · 6 Daftar periksa · 7 Bila tersangkut.
+   *
+   * HALAMAN PEMBUKANYA BUKAN SELALU DASBOR (P1-C). Di bawah 760 px orang
+   * mendarat di launcher #/home, jadi "dasbor" sebagai halaman langkah 1 di
+   * ponsel berarti visit() menganggap orangnya PINDAH: ia menavigasi ke
+   * #/dashboard — halaman yang bagi dua peran demo kosong, dan yang justru
+   * dihindari aturan landing — lalu MELIPAT lembar bawahnya karena itulah yang
+   * dilakukan visit() pada setiap perpindahan. Akibatnya, sesudah P1-C, panduan
+   * di ponsel lahir terlipat pada setiap masuk pertama (terukur 6 Sep 2026:
+   * dock mode=mobile state=collapsed h=49 px pada semua sampel 7 detik,
+   * jejak hash ['#/home','#/dashboard'], S19 merah di wait_for_selector
+   * [data-state='open']). Yang benar adalah menamai halaman pembuka per
+   * lebar layar: di ponsel Beranda, di desktop Dasbor — lalu langkah 1 tidak
+   * memindah siapa pun, moved === false, dan lembarnya tetap terbuka.
    */
   function tour() {
-    const dashboard = { group: 'Ringkasan', label: 'Dasbor', route: 'dashboard', raw: 'Ringkasan › Dasbor' };
-    if (index === 0 || index === 5) { visit(dashboard); return; }
-    if (index === 1) { visit(dashboard, { sidebar: true }); return; }
+    const opening = MOBILE.matches
+      ? { group: 'Ringkasan', label: 'Beranda', route: 'home', raw: 'Ringkasan › Beranda' }
+      : { group: 'Ringkasan', label: 'Dasbor', route: 'dashboard', raw: 'Ringkasan › Dasbor' };
+    if (index === 0 || index === 5) { visit(opening); return; }
+    if (index === 1) { visit(opening, { sidebar: true }); return; }
     if (index === 3) return; // kalimat penolakan — tidak ada satu layar untuknya
     const here = routeNow();
     const target = locations.find((loc) => onRoute(here, loc.route)) || locations[0];
