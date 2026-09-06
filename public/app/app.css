@@ -1083,6 +1083,15 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   list-style: none; margin: 0; padding: 0;
 }
 .home-grid > li { display: grid; min-width: 0; }
+
+/* Ponsel mendapat DUA kolom: dengan minimum 230 px hanya satu yang muat di
+   390 px, dan launcher admin menjadi 2.235 px — 2,6 layar gulungan untuk
+   menggantikan laci yang menampilkan keempat belas kepala grupnya sekaligus
+   (diukur 6 Sep 2026, verifikasi P1-C putaran 2). Ambang sama dengan ambang
+   laci (760 px) supaya "tampilan ponsel" berarti satu hal di seluruh berkas. */
+@media (max-width: 760px) {
+  .home-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
 .home-tile {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
