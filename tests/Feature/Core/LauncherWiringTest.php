@@ -40,9 +40,20 @@ class LauncherWiringTest extends ErpTestCase
         $this->assertStringContainsString("route('home'", $app,
             "app.js has no route('home', ...) — the NAV entry and the header house button both land on the not-found fallback.");
 
-        // Baris menu + tombol rumah di header: dua jalan, dan keduanya disebut
-        // keputusan pemilik #3 ("sidebar/header gets a 'Beranda' entry").
-        $this->assertStringContainsString("{ label: 'Beranda', route: 'home' }", $this->file('app/js/schema.js'));
+        /*
+         * Baris menu + tombol rumah di header: dua jalan, dan keduanya disebut
+         * keputusan pemilik #3 ("sidebar/header gets a 'Beranda' entry").
+         *
+         * `chrome: true` ikut dipaku: tanpanya launcher menghitung dirinya
+         * sendiri sebagai salah satu layar Ringkasan ("5 layar" untuk 4) dan
+         * beranda modul Ringkasan menggambar kartu yang kembali ke launcher
+         * yang baru saja ditinggalkan pemakainya.
+         */
+        $this->assertStringContainsString("{ label: 'Beranda', route: 'home', chrome: true }", $this->file('app/js/schema.js'));
+        $this->assertStringContainsString('item.route && !item.chrome', $this->file('app/js/views/home.js'),
+            'Ubin launcher menghitung baris kroma sebagai layar; "n layar" tidak lagi sama dengan jumlah kartu di beranda modulnya.');
+        $this->assertStringContainsString('filter((item) => !item.chrome)', $this->file('app/js/views/module.js'),
+            'Beranda modul masih menggambar kartu untuk baris kroma (Beranda → launcher yang baru saja ditinggalkan).');
         $this->assertMatchesRegularExpression("/iconName: 'home'[^)]*title: 'Beranda'/", $app);
         $this->assertArrayHasKey('home', $this->iconPaths(), 'ui.js icon() tidak punya glyph "home"; tombolnya menggambar path kosong.');
     }

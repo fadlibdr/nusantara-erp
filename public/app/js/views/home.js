@@ -110,7 +110,10 @@ export async function renderHome(host) {
  */
 function moduleTile(group) {
   const module = moduleFor(group.prefix) || { accent: 8, icon: 'layout-grid', label: group.label };
-  const screens = group.items.filter((item) => item.route).length;
+  // Baris `chrome` (Beranda) tidak dihitung: launcher adalah tempat ubin ini
+  // ditekan DARI, bukan salah satu layar modulnya — "5 layar" untuk 4 adalah
+  // janji yang tidak ditepati kisi kartu di seberangnya.
+  const screens = group.items.filter((item) => item.route && !item.chrome).length;
 
   const value = el('.home-kpi-value', { text: '·' });
   const unit = el('.home-kpi-unit', { text: '' });

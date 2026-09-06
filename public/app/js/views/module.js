@@ -48,7 +48,11 @@ export function renderModuleHome(host, { prefix }) {
   }
 
   const visible = visibleNav((perm) => session.can(perm)).find((group) => group.prefix === prefix);
-  const items = visible ? visible.items : [];
+  /* Baris `chrome` (schema.js — hari ini hanya Beranda) dibuang: ia baris menu,
+     bukan layar modul. Kartu 'Beranda' di #/m/ringkasan menutup lingkaran ke
+     launcher yang baru saja ditinggalkan pemakainya, dan ubin launcher yang
+     menghitungnya mengaku "5 layar" untuk 4. */
+  const items = (visible ? visible.items : []).filter((item) => !item.chrome);
 
   host.appendChild(el('.module-head', { dataset: { accent: String(module.accent), prefix } }, [
     el('.module-icon', svgIcon(module.icon, { size: 22 })),

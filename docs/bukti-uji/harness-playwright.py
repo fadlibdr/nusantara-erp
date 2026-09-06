@@ -1675,7 +1675,11 @@ MODULE_HOME = """() => { const head=document.querySelector('.module-head'); cons
                                  li_per_card: document.querySelectorAll('.module-grid > li > a.module-card').length === document.querySelectorAll('.module-card').length,
                                  section_tags: [...new Set([...document.querySelectorAll('.module-section')].map(s => s.tagName))],
                                  sections_label_their_grid: [...document.querySelectorAll('.module-section')].every(s => s.id && document.querySelector(`.module-grid[aria-labelledby="${s.id}"]`)) } : null,
-             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a`)].map(a => a.getAttribute('href')) : [],
+             // Baris kroma aplikasi (data-chrome, hari ini hanya Beranda) BUKAN layar modul:
+             // ia ada di menu tetapi tidak berkartu di beranda modul, dan penyaringnya penanda
+             // yang dipasang aplikasi sendiri — bukan daftar href yang dikarang harness.
+             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a:not([data-chrome])`)].map(a => a.getAttribute('href')) : [],
+             sidebar_chrome: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a[data-chrome]`)].map(a => a.getAttribute('href')) : [],
              sidebar_open: prefix ? (document.querySelector(`nav.nav .nav-group[data-prefix="${prefix}"]`)||{}).dataset?.open : null,
              empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
              smallest_font_px: Math.min(...[...document.querySelectorAll('#view *')].map(el=>parseFloat(getComputedStyle(el).fontSize)).filter(Boolean)) } }"""
@@ -1780,6 +1784,10 @@ def module_vs_sidebar(pg, prefixes):
         m = pg.evaluate(MODULE_HOME)
         arrows = pg.evaluate(ARROWS) if m["cards"] else None
         out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": m["cards"] == m["sidebar"], "head": bool(m["head"]),
+                       # Baris menu yang bukan layar (data-chrome) dicatat apa adanya: kalau
+                       # daftarnya bertambah, yang bertambah harus terbaca di bukti dan bukan
+                       # menghilang diam-diam dari pembandingan.
+                       "sidebar_chrome": m["sidebar_chrome"],
                        "arrows": arrows and {"ok": arrows["ok"], "down_mismatches": arrows["down_mismatches"][:4], "up_mismatches": arrows["up_mismatches"][:4]},
                        "sections": m["sections"], "hints": m["hints"], "empty": m["empty"], "columns": m["columns"], "smallest_font_px": m["smallest_font_px"],
                        "only_in_cards": sorted(set(m["cards"]) - set(m["sidebar"])), "only_in_sidebar": sorted(set(m["sidebar"]) - set(m["cards"]))}
@@ -2070,7 +2078,10 @@ LAUNCHER_TILES = """() => {
                      border: getComputedStyle(t).borderLeftColor };
         }),
         nav_prefixes: groups.map(g => g.dataset.prefix),
-        nav_screens: Object.fromEntries(groups.map(g => [g.dataset.prefix, g.querySelectorAll('.nav-items a').length])),
+        // ':not([data-chrome])' — baris Beranda ada di menu tetapi bukan layar modul, jadi
+        // ia tidak dihitung ubin maupun kisi kartu; harness memakai penanda yang sama.
+        nav_screens: Object.fromEntries(groups.map(g => [g.dataset.prefix, g.querySelectorAll('.nav-items a:not([data-chrome])').length])),
+        nav_chrome: Object.fromEntries(groups.map(g => [g.dataset.prefix, [...g.querySelectorAll('.nav-items a[data-chrome]')].map(a => a.getAttribute('href'))]).filter(([, v]) => v.length)),
         sections: [...document.querySelectorAll('.home-section-title')].map(h => h.innerText.trim()),
         chips: [...document.querySelectorAll('.home-chip')].map(a => ({ href: a.getAttribute('href'), h: +a.getBoundingClientRect().height.toFixed(1) })),
         search_h: (s => s ? +s.getBoundingClientRect().height.toFixed(1) : null)(document.querySelector('.home-search')),

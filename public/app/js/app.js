@@ -545,6 +545,11 @@ function navItemNode(item, favorites) {
     el('span.tick'),
     el('span.lbl', { text: item.label }),
   ]);
+  // Baris kroma aplikasi (schema.js `chrome: true` — hari ini hanya Beranda):
+  // ada di menu, tetapi bukan salah satu LAYAR modulnya. Ditandai di DOM supaya
+  // pembaca luar (harness) menyaring dengan penanda yang sama seperti kisi
+  // kartu beranda modul, bukan dengan daftar href yang dikarangnya sendiri.
+  if (item.chrome) link.dataset.chrome = '1';
   const node = el(`.nav-item${item.shortcut ? '.shortcut' : ''}`, { dataset: { route: item.route } }, [link]);
   if (item.starrable !== false) node.appendChild(starButton(item.route, favorites.includes(item.route)));
   return node;

@@ -5829,7 +5829,14 @@ export const NAV = [
     // (keputusan pemilik #3) dan harus punya baris sendiri di menu — tanpa itu
     // satu-satunya jalan ke sana adalah tombol rumah di header, yang hilang
     // dari kesadaran orang begitu ia terbiasa memakai sidebar.
-    items: [{ label: 'Beranda', route: 'home' }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+    //
+    // `chrome: true` = BARIS MENU, BUKAN LAYAR MODUL. Launcher adalah tempat
+    // beranda modul dibuka DARI; menghitungnya sebagai salah satu layar
+    // Ringkasan membuat ubinnya mengaku "5 layar" untuk 4, dan menaruh kartu
+    // 'Beranda' di #/m/ringkasan menutup lingkaran (#/home → ubin Ringkasan →
+    // #/m/ringkasan → kartu Beranda → #/home). Sidebar tetap memuatnya;
+    // yang menyaring adalah kisi kartu dan hitungan layar.
+    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',
