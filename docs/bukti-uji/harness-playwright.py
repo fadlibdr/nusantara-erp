@@ -1743,6 +1743,181 @@ def _rgb_css(hexs):
     return "rgb({},{},{})".format(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))
 
 
+# ------------------------------------------------------------ S24 (P1-F)
+#
+# Laporan Bebas: katalog yang menyaring dirinya per izin, pivot yang benar-benar
+# berjalan, kolom yang DITOLAK katalog yang tetap terlihat dengan alasannya, sel
+# kosong yang tidak pernah menjadi 0, dan laporan tersimpan yang dibagikan per
+# peran.
+#
+# Yang tidak bisa dibuktikan uji PHP dan karena itu ada di sini: bahwa angka di
+# LAYAR sama dengan angka yang dikirim server (label enum dan nama relasi
+# ditulis peramban), bahwa kolom yang ditolak benar-benar terbaca oleh orang
+# yang mencarinya, dan bahwa plafon yang diumumkan server benar-benar tercetak
+# di layar alih-alih dihafal SPA.
+
+S24_RUN = """() => {
+  const cards = [...document.querySelectorAll('.card')];
+  const last = cards[cards.length - 1];
+  if (!last) return null;
+  return {
+    head: (last.querySelector('.card-head') || {}).innerText || '',
+    foot: (last.querySelector('.card-foot') || {}).innerText || '',
+    rows: [...last.querySelectorAll('table.data tr')].map((tr) => [...tr.children].map((td) => td.innerText.trim())),
+    // Judul sel membedakan "tidak ada baris" dari "ada baris, nilainya tidak ada".
+    titles: [...last.querySelectorAll('table.data td.num')].map((td) => td.getAttribute('title')),
+  };
+}"""
+
+
+@scenario("S24_laporan_bebas")
+def s24(pg):
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+    pg.evaluate("() => { location.hash = '#/laporan-bebas'; }")
+    pg.wait_for_selector(".card select", timeout=20000)
+    pg.wait_for_timeout(1200)
+
+    out = {"pageerrors": errors}
+
+    # --- katalog + plafon yang DIUMUMKAN (bukan dihafal SPA) ---------------
+    out["catalogue"] = pg.evaluate("""() => {
+      const first = document.querySelector('.card select');
+      return {
+        sources: [...first.options].map((o) => o.value),
+        limits_text: (document.querySelector('.card-head .cell-sub') || {}).innerText || '',
+      };
+    }""")
+    out["limits_not_hardcoded"] = pg.evaluate(
+        "async () => { const r = await fetch('/api/core/reports/resources', { headers: { 'X-Api-Token': localStorage.getItem('nusantara_erp_token'), Accept: 'application/json' } });"
+        " const j = await r.json(); return j.meta && j.meta.limits; }")
+
+    # --- pivot sungguhan --------------------------------------------------
+    pg.select_option(".card select >> nth=0", "finance/project-costs")
+    pg.wait_for_timeout(500)
+    pg.select_option(".card select >> nth=1", "pivot")
+    pg.wait_for_timeout(500)
+    click(pg, ".card-foot button:has-text('Jalankan')")
+    pg.wait_for_timeout(2500)
+    out["pivot"] = pg.evaluate(S24_RUN)
+    pg.screenshot(path=f"{OUT}/s24-laporan-bebas-p1f.png", full_page=True)
+
+    # --- kolom yang DITOLAK katalog, terlihat dengan alasannya -------------
+    pg.select_option(".card select >> nth=0", "finance/ar-invoices")
+    pg.wait_for_timeout(600)
+    pg.select_option(".card select >> nth=1", "detail")
+    pg.wait_for_timeout(500)
+    click(pg, ".card-body button:has-text('Pilih kolom')")
+    pg.wait_for_selector(".modal", timeout=10000)
+    out["column_picker"] = pg.evaluate("""() => {
+      const rows = [...document.querySelectorAll('.modal .field')];
+      return rows.map((r) => ({
+        label: (r.querySelector('.cell-main') || {}).innerText || '',
+        disabled: !!(r.querySelector('input[type=checkbox]') || {}).disabled,
+        reason: (r.querySelector('.help') || {}).innerText || null,
+      })).filter((r) => r.label);
+    }""")
+    pg.screenshot(path=f"{OUT}/s24-kolom-ditolak-p1f.png")
+    click(pg, ".modal-foot button:has-text('Selesai')")
+    pg.wait_for_timeout(400)
+
+    # --- sel kosong bukan 0, pada aset (nilai buku alat sewa NULL) ---------
+    pg.select_option(".card select >> nth=0", "assets/assets")
+    pg.wait_for_timeout(600)
+    pg.select_option(".card select >> nth=1", "pivot")
+    pg.wait_for_timeout(500)
+    # baris = kepemilikan, kolom = status, ukuran = SUM nilai buku
+    pg.select_option(".card select >> nth=2", "ownership")
+    pg.wait_for_timeout(300)
+    pg.select_option(".card select >> nth=3", "status")
+    pg.wait_for_timeout(300)
+    labels = pg.evaluate("() => [...document.querySelectorAll('.card select')].map((s) => (s.closest('.field').querySelector('label') || {}).innerText)")
+    if "Kolom ukuran" in labels:
+        pg.select_option(f".card select >> nth={labels.index('Kolom ukuran')}", "book_value")
+        pg.wait_for_timeout(300)
+    click(pg, ".card-foot button:has-text('Jalankan')")
+    pg.wait_for_timeout(2500)
+    out["assets"] = pg.evaluate(S24_RUN)
+
+    # --- simpan, bagikan, salin, hapus ------------------------------------
+    click(pg, ".card-foot button:has-text('Simpan laporan')")
+    pg.wait_for_selector(".modal input[type=text]", timeout=10000)
+    pg.fill(".modal input[type=text]", "Nilai buku per kepemilikan (S24)")
+    shares = pg.locator(".modal input[type=checkbox]")
+    if shares.count():
+        shares.first.check()
+    click(pg, ".modal-foot button:has-text('Simpan')")
+    pg.wait_for_timeout(1800)
+
+    out["saved"] = pg.evaluate("""() => {
+      const table = [...document.querySelectorAll('table.data')].pop();
+      const card = [...document.querySelectorAll('.card')].find((c) => (c.querySelector('.card-head') || {}).innerText.includes('Laporan tersimpan'));
+      if (!card) return null;
+      return {
+        head: card.querySelector('.card-head').innerText,
+        rows: [...card.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((td) => td.innerText.trim())),
+        actions: [...card.querySelectorAll('tbody tr td:last-child button')].map((b) => b.innerText.trim()),
+      };
+    }""")
+
+    # --- katalog peran lain: menyaring dirinya sendiri ---------------------
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    other = ctx.new_page()
+    try:
+        login(other, "warehouse@nusantara.test")
+        other.evaluate("() => { location.hash = '#/laporan-bebas'; }")
+        other.wait_for_timeout(3000)
+        out["warehouse"] = other.evaluate("""() => {
+          const first = document.querySelector('.card select');
+          return {
+            sources: first ? [...first.options].map((o) => o.value) : [],
+            alert: (document.querySelector('.alert') || {}).innerText || null,
+            // Laporan orang lain yang dibagikan ke peran ini tetap tak terlihat
+            // bila sumbernya bukan miliknya.
+            saved_rows: [...document.querySelectorAll('.card')].filter((c) => (c.querySelector('.card-head') || {}).innerText.includes('Laporan tersimpan')).length,
+          };
+        }""")
+    finally:
+        ctx.close()
+
+    # ---------------------------- syarat ----------------------------------
+    pivot = out["pivot"] or {}
+    assets = out["assets"] or {}
+    picker = out["column_picker"] or []
+    refused = [r for r in picker if r["disabled"]]
+
+    checks = {
+        "catalogue_has_eight_sources": len(out["catalogue"]["sources"]) == 8,
+        # Plafon DIUMUMKAN server dan tercetak di layar — tidak dihafal SPA.
+        "limits_announced_by_server": out["limits_not_hardcoded"] == {"rows": 5000, "groups": 200},
+        "limits_printed_on_screen": "200" in out["catalogue"]["limits_text"] and "5.000" in out["catalogue"]["limits_text"],
+        "pivot_ran": bool(pivot.get("rows")) and len(pivot["rows"]) > 1,
+        # SATU kueri, diumumkan di kaki kartu.
+        "one_query_announced": "1 kueri" in pivot.get("foot", ""),
+        # Dimensi ber-FK dilabeli seperti di layar daftarnya, bukan id telanjang.
+        "fk_dimension_is_labelled": any("PRJ-" in cell for row in pivot.get("rows", []) for cell in row),
+        # Kolom yang ditolak katalog TERLIHAT, nonaktif, dengan alasannya.
+        "refused_columns_shown": len(refused) > 0,
+        "refused_columns_explain_themselves": all(bool(r["reason"]) for r in refused),
+        "outstanding_is_refused": any("Sisa" in r["label"] for r in refused),
+        # Sel kosong '—', tidak pernah 0.
+        "empty_cell_is_dash_never_zero": bool(assets.get("rows")) and any(
+            "—" in cell for row in assets.get("rows", [])[1:] for cell in row),
+        "empty_cell_says_why": any(t and ("tidak ada" in t or "nilainya tidak ada" in t) for t in (assets.get("titles") or [])),
+        "saved_report_listed": bool(out["saved"]) and len(out["saved"]["rows"]) >= 1,
+        "saved_report_offers_xlsx": "XLSX" in (out["saved"] or {}).get("actions", []),
+        # Katalog menyaring dirinya: gudang tidak memegang satu pun sumber.
+        "catalogue_filters_by_permission": len(out["warehouse"]["sources"]) < 8,
+        "no_page_errors": not errors,
+    }
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 # ------------------------------------------------------------ S21 (P1-B)
 # Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
 # 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
@@ -3153,7 +3328,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S24",s24,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

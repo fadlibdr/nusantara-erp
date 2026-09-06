@@ -20440,5 +20440,166 @@
   "ok": true,
   "_ms": 7150,
   "_clicks": 0
+ },
+ "S24_laporan_bebas": {
+  "pageerrors": [],
+  "catalogue": {
+   "sources": [
+    "crm/contracts",
+    "projects",
+    "finance/ar-invoices",
+    "finance/project-costs",
+    "procurement/purchase-orders",
+    "subcontract/subcontracts",
+    "hr/employees",
+    "assets/assets"
+   ],
+   "limits_text": "Maksimal 200 kelompok / 5.000 baris rincian"
+  },
+  "limits_not_hardcoded": {
+   "rows": 5000,
+   "groups": 200
+  },
+  "pivot": {
+   "head": "Biaya Proyek\nTabel ini tidak mengenal penghapusan lunak",
+   "foot": "Unduh CSV\n1 kueri · 2 kelompok",
+   "rows": [
+    [
+     "TANGGAL",
+     "PRJ-2026-001 — PEMBANGUNAN GEDUNG KANTOR GRAHA SENTOSA (8 LANTAI)",
+     "TOTAL"
+    ],
+    [
+     "2026-03",
+     "Rp 209.500.000",
+     "Rp 209.500.000"
+    ],
+    [
+     "2026-07",
+     "Rp 18.740.000",
+     "Rp 18.740.000"
+    ]
+   ],
+   "titles": [
+    "1 baris",
+    null,
+    "2 baris",
+    null
+   ]
+  },
+  "column_picker": [
+   {
+    "label": "Kode",
+    "disabled": true,
+    "reason": "Kode unik per dokumen: mengelompokkan menurutnya memberi satu kelompok per baris, dan laporan itu adalah layar daftarnya sendiri."
+   },
+   {
+    "label": "Pelanggan",
+    "disabled": false,
+    "reason": null
+   },
+   {
+    "label": "Tgl invoice",
+    "disabled": false,
+    "reason": null
+   },
+   {
+    "label": "Jatuh tempo",
+    "disabled": false,
+    "reason": null
+   },
+   {
+    "label": "Total",
+    "disabled": false,
+    "reason": null
+   },
+   {
+    "label": "Sisa",
+    "disabled": true,
+    "reason": "Sisa tagihan bukan \"total dikurangi dibayar\": invoice yang dibatalkan sisanya nol, dan aturan itu tinggal di modelnya. Laporan ini menawarkan Total dan menyaring per Status; untuk umur piutang pakai Keuangan › Laporan › Umur Piutang, yang menghitungnya di server."
+   },
+   {
+    "label": "Status",
+    "disabled": false,
+    "reason": null
+   }
+  ],
+  "assets": {
+   "head": "Aset\nDokumen yang sudah dihapus tidak dihitung",
+   "foot": "Unduh CSV\n1 kueri · 3 kelompok",
+   "rows": [
+    [
+     "KEPEMILIKAN",
+     "AVAILABLE",
+     "DEPLOYED",
+     "TOTAL"
+    ],
+    [
+     "Milik sendiri",
+     "Rp 259.500.000",
+     "Rp 1.011.750.000",
+     "Rp 1.271.250.000"
+    ],
+    [
+     "Sewa",
+     "—",
+     "—",
+     "—"
+    ]
+   ],
+   "titles": [
+    "3 baris",
+    "3 baris",
+    null,
+    "Tidak ada baris pada kombinasi ini",
+    "1 baris, tetapi nilainya tidak ada",
+    null
+   ]
+  },
+  "saved": {
+   "head": "Laporan tersimpan (1)",
+   "rows": [
+    [
+     "Nilai buku per kepemilikan (S24)\nmilik Anda",
+     "Aset",
+     "admin",
+     "Buka\nXLSX\nSalin\nHapus"
+    ]
+   ],
+   "actions": [
+    "Buka",
+    "XLSX",
+    "Salin",
+    "Hapus"
+   ]
+  },
+  "warehouse": {
+   "sources": [
+    "projects"
+   ],
+   "alert": null,
+   "saved_rows": 0
+  },
+  "checks": {
+   "catalogue_has_eight_sources": true,
+   "limits_announced_by_server": true,
+   "limits_printed_on_screen": true,
+   "pivot_ran": true,
+   "one_query_announced": true,
+   "fk_dimension_is_labelled": true,
+   "refused_columns_shown": true,
+   "refused_columns_explain_themselves": true,
+   "outstanding_is_refused": true,
+   "empty_cell_is_dash_never_zero": true,
+   "empty_cell_says_why": true,
+   "saved_report_listed": true,
+   "saved_report_offers_xlsx": true,
+   "catalogue_filters_by_permission": true,
+   "no_page_errors": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 20983,
+  "_clicks": 6
  }
 }
