@@ -2053,3 +2053,63 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 /* Menu akun kini empat tombol (Tutup · Ganti kata sandi · Panduan onboarding
    · Keluar) di modal 420 px: dibiarkan melipat, bukan meluap. */
 .modal.narrow .modal-foot { flex-wrap: wrap; }
+
+/* ------------------------------------------------------- dasbor P1-D
+   Kisi widget. Tiga kolom di desktop supaya ketiga ukuran punya arti
+   (kecil 1, sedang 2, lebar 3 = satu baris penuh); `minmax(0, 1fr)` dan bukan
+   `auto` karena sebuah tabel lebar di dalam sel grid akan MELEBARKAN kolomnya
+   sampai halaman menggulung mendatar — nilai minimum otomatis sel grid adalah
+   min-content, bukan nol.
+
+   Di bawah 1180 px kisinya dua kolom dan 'lebar' tetap penuh; di bawah 760 px
+   (titik potong yang sama dengan laci nav dan aturan landing P1-C) satu kolom,
+   dan span dari inline style dibatalkan — grid-column inline ditulis penyusun
+   dasbor, jadi pembatalnya harus lebih spesifik. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.card.widget { min-width: 0; }
+.card.widget > .card-head { border-left: 3px solid var(--module-accent); }
+.card.widget .widget-body { min-width: 0; }
+/* Ubin di dalam widget 'kecil' berdiri sendiri-sendiri; .stat-row bawaan
+   mengejar empat kolom dan menyisakan tiga sel kosong di lebar 1 kolom. */
+.card.widget[data-size="kecil"] .stat-row { grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 1180px) {
+  .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card.widget[data-size="lebar"] { grid-column: span 2 !important; }
+}
+@media (max-width: 760px) {
+  .dash-grid { grid-template-columns: minmax(0, 1fr); }
+  .card.widget { grid-column: span 1 !important; }
+}
+
+/* Laci "Atur dasbor". Baris = satu kisi supaya nama, ukuran dan tombol berbaris
+   rapi di setiap baris; di ponsel nama pindah ke baris sendiri dan kendalinya
+   membungkus, bukan mengecil sampai tidak bisa disentuh (target 44 px). */
+.dash-setup-head { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 8px; }
+.dash-setup-head:first-child { margin-top: 0; }
+.dash-setup-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 6px;
+}
+.dash-setup-row .dash-setup-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dash-setup-row .dash-setup-name .cell-sub { white-space: normal; }
+.dash-setup-grip { cursor: grab; color: var(--muted); display: inline-flex; padding: 4px; }
+.dash-setup-grip:active { cursor: grabbing; }
+.dash-setup-row.spare { opacity: .92; }
+.dash-setup-row select.dash-setup-size { width: auto; flex: none; }
+/* Kelas yang dipasang SortableJS pada baris yang sedang diseret. */
+.dash-setup-row.sortable-ghost { opacity: .4; }
+@media (max-width: 560px) {
+  .dash-setup-row { flex-wrap: wrap; }
+  .dash-setup-row .dash-setup-name { flex-basis: 100%; }
+}
