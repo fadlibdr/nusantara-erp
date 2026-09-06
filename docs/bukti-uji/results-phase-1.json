@@ -19924,11 +19924,12 @@
           "kalender": "sedang"
         },
         "api_total": 15,
-        "api_widgets": 8,
+        "api_widgets": 9,
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
-        "concurrent_budget": 4
+        "scheduler_banner_requests": 1,
+        "concurrent_budget": 5
       },
       "direktur": {
         "cards": [
@@ -19958,6 +19959,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "project-manager": {
@@ -19986,6 +19988,7 @@
         "max_concurrent": 5,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 5
       },
       "site-manager": {
@@ -20008,6 +20011,7 @@
         "max_concurrent": 5,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 5
       },
       "estimator": {
@@ -20028,6 +20032,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "procurement": {
@@ -20048,6 +20053,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "warehouse": {
@@ -20070,6 +20076,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "finance": {
@@ -20100,6 +20107,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "finance-manager": {
@@ -20126,6 +20134,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "hr": {
@@ -20144,6 +20153,7 @@
         "max_concurrent": 3,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "sales": {
@@ -20166,6 +20176,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       },
       "teknisi": {
@@ -20186,6 +20197,7 @@
         "max_concurrent": 4,
         "empty_bodies": [],
         "cards_without_foot": [],
+        "scheduler_banner_requests": 0,
         "concurrent_budget": 4
       }
     },
@@ -20243,7 +20255,7 @@
       "progres_card_says_mine": true
     },
     "ok": true,
-    "_ms": 88725,
+    "_ms": 87691,
     "_clicks": 0
   },
   "S20e_migrated_charts": {

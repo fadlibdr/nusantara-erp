@@ -3332,8 +3332,18 @@ DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].
 
 
 # Permintaan yang dibayar SETIAP layar, bukan oleh susunan dasbor: sesi, izin,
-# lencana lonceng, status penjadwal, dan pemuatan preferensi di boot.
-SHELL_REQUESTS = ("iam/auth", "core/notifications/unread-count", "core/health", "core/me/preferences")
+# lencana lonceng, dan pemuatan preferensi di boot.
+#
+# `core/health` TIDAK ada di sini sejak verifikasi kedua P1-D. Docstring lama
+# menyebutnya "dibayar setiap layar", dan itu tidak benar: grep menunjukkan
+# satu-satunya pemanggilnya di seluruh SPA adalah views/dashboard.js
+# (schedulerBanner, hanya pemegang core.update), dan navigasi ke #/home atau ke
+# layar daftar mana pun mengirim NOL core/health. Membukukannya sebagai shell
+# berarti permintaan kesembilan dasbor admin tidak dihitung — tidak di
+# api_widgets, tidak di anggaran serentak. Di localhost ia kebetulan selesai
+# sebelum batch pertama; di lapangan ia berjalan bersamanya, dan angka yang
+# diumumkan harness akan salah tepat pada keadaan yang paling penting.
+SHELL_REQUESTS = ("iam/auth", "core/notifications/unread-count", "core/me/preferences")
 
 
 def dash_probe(pg):
@@ -3412,7 +3422,16 @@ def s23(pg):
             # karena itu 4 + jumlah permintaan EKSTRA milik widget semacam itu
             # yang ada di susunan ini — bukan 4 mentah, dan bukan "berapa pun".
             extra = sum(1 for c in cards if c["id"] in MULTI_REQUEST_WIDGETS)
-            out["roles"][email.split("@")[0]]["concurrent_budget"] = 4 + extra
+            # `core/health` adalah permintaan DASBOR, bukan shell (lihat
+            # SHELL_REQUESTS): satu-satunya pemanggilnya di seluruh SPA adalah
+            # spanduk penjadwal di views/dashboard.js, dan hanya untuk pemegang
+            # core.update. Ia sengaja tidak menahan batch mana pun — docblock
+            # schedulerBanner: "slot kosong dulu, spanduk menyusul" — jadi ia
+            # boleh berjalan di samping batch pertama, dan anggarannya menyebut
+            # itu alih-alih menyembunyikannya sebagai "bukan permintaan dasbor".
+            banner = sum(1 for u in probe["urls"] if u.startswith("core/health"))
+            out["roles"][email.split("@")[0]]["scheduler_banner_requests"] = banner
+            out["roles"][email.split("@")[0]]["concurrent_budget"] = 4 + extra + banner
             out["cards_total"] += len(cards)
             if not cards:
                 out["roles_without_cards"].append(email)
