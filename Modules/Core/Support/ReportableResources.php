@@ -131,12 +131,22 @@ final class ReportableResources
                     'code' => ['label' => 'Kode', 'type' => 'code', 'select' => 'code',
                         'dimension' => false, 'measure' => false, 'why_not' => self::CODE_NOT_A_DIMENSION],
                     /*
-                     * `sub: 'customer.name'` di layar. Nama pelanggan ada di
-                     * crm_customers, dan laporan ini satu tabel — jadi kolomnya
-                     * DIGANTIKAN oleh kunci pelanggannya, yang SPA labeli
-                     * dengan labelFor('customers', id): fungsi yang sama dengan
-                     * yang dipakai layar daftarnya, jadi teksnya tidak bisa
-                     * berbeda.
+                     * Kolom layar ini membawa `sub: 'customer.name'`, dan yang
+                     * dipetakan di sini adalah JUDULnya saja (nasib 1) — bukan
+                     * nasib 2. Penggantian "kolom relasi → kunci FK-nya" yang
+                     * ditulis CONVENTIONS §18 terjadi di fin/ar-invoices, di
+                     * mana kolom LAYARnya sendiri bernama `customer.name`;
+                     * di sini kolom layarnya bernama `title`, dan menggantinya
+                     * dengan customer_id berarti kolom berlabel "Judul" yang
+                     * mengembalikan pelanggan.
+                     *
+                     * Akibatnya "nilai kontrak per pelanggan" TIDAK tersedia
+                     * dari sumber ini; pelanggan masuk hanya sebagai saringan
+                     * di bawah. Itu harga dari aturan "kolom = kolom layar
+                     * daftar", dan disebut di sini supaya yang mencarinya
+                     * berhenti mencari (verifikasi kedua P1-F: sampai 6 Sep
+                     * 2026 komentar ini menjanjikan penggantian yang tidak
+                     * pernah dilakukan entri ini).
                      */
                     'title' => ['label' => 'Judul', 'type' => 'text', 'select' => 'title',
                         'dimension' => false, 'measure' => false, 'why_not' => self::FREE_TEXT_NOT_A_DIMENSION],

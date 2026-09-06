@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Core;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\SpaEnums;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
 
 /**
@@ -297,6 +300,51 @@ class ReportableResourcesTest extends ErpTestCase
             .'kolom kode dan nama di katalog persis begitu. Kedua sifat itu sedang disamakan lagi.');
     }
 
+    /**
+     * Nasib 2 ("kolom relasi DIGANTIKAN oleh kunci FK-nya") dikerjakan hanya
+     * oleh kolom yang memang relasi — dan setiap kolom relasi mengerjakannya.
+     *
+     * Verifikasi kedua P1-F menemukan komentar yang MENJANJIKAN penggantian itu
+     * di atas sebuah kolom teks biasa (crm/contracts `title`, yang sub-nya di
+     * layar adalah `customer.name`). Yang dijaga di sini adalah setengahnya
+     * yang bisa dijaga mekanis: sebuah kolom berlabel "Judul" tidak boleh
+     * diam-diam menyeleksi `customer_id`, dan sebuah kolom relasi tidak boleh
+     * berhenti menjadi dimensi kunci.
+     */
+    public function test_only_relation_columns_stand_in_for_a_foreign_key(): void
+    {
+        $relations = 0;
+
+        foreach (ReportableResources::entries() as $key => $entry) {
+            foreach ($entry['columns'] as $columnKey => $column) {
+                $select = $column['select'] ?? null;
+
+                if (($column['type'] ?? null) === 'rel') {
+                    $relations++;
+                    $this->assertNotNull($select, "Kolom relasi [{$key}.{$columnKey}] tidak menyeleksi apa pun.");
+                    $this->assertStringEndsWith('_id', $select,
+                        "Kolom relasi [{$key}.{$columnKey}] harus digantikan oleh kunci FK-nya, bukan oleh [{$select}].");
+                    $this->assertSame('key', $column['dimension'] ?? null,
+                        "Kolom relasi [{$key}.{$columnKey}] harus berdimensi 'key' supaya SPA melabelinya lewat labelFor().");
+                    $this->assertArrayHasKey('lookup', $column,
+                        "Kolom relasi [{$key}.{$columnKey}] tanpa `lookup` tidak bisa dilabeli, jadi ia menggambar id telanjang.");
+
+                    continue;
+                }
+
+                $this->assertTrue($select === null || ! str_ends_with($select, '_id'), sprintf(
+                    'Kolom [%s.%s] bertipe %s menyeleksi %s. Menggantikan sebuah kolom dengan kunci FK adalah nasib 2, '
+                    .'dan nasib 2 hanya untuk kolom yang layarnya memang kolom relasi — kalau tidak, sebuah kolom '
+                    .'berlabel "%s" mengembalikan pelanggan.',
+                    $key, $columnKey, $column['type'] ?? '?', $select, $column['label'],
+                ));
+            }
+        }
+
+        $this->assertGreaterThan(2, $relations,
+            'Tidak ada cukup kolom relasi di katalog — sapuan ini kehilangan sasarannya.');
+    }
+
     /* ------------------------------------------------------------ perkakas */
 
     /**
@@ -306,15 +354,15 @@ class ReportableResourcesTest extends ErpTestCase
      *
      * @param  list<string>  $permissions
      */
-    private function userWithPermissions(array $permissions): \App\Models\User
+    private function userWithPermissions(array $permissions): User
     {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $role = \Spatie\Permission\Models\Role::findOrCreate('peran-'.substr(md5(implode('|', $permissions)), 0, 8), 'web');
+        $role = Role::findOrCreate('peran-'.substr(md5(implode('|', $permissions)), 0, 8), 'web');
         $role->syncPermissions($permissions);
 
-        /** @var \App\Models\User $user */
-        $user = \App\Models\User::query()->create([
+        /** @var User $user */
+        $user = User::query()->create([
             'name' => 'Pengguna uji',
             'email' => substr(md5(implode('|', $permissions).microtime()), 0, 10).'@test.local',
             'password' => 'password',

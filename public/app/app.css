@@ -1377,6 +1377,26 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .chart-lib .series-area { fill-opacity: .08; }
   .chart-scroll { overflow: visible; }
   .chart-gantt { min-width: 0 !important; }
+
+  /* P1-H — LEMBAR GANTT MENDATAR.
+     `@page` BERNAMA, bukan `@page` telanjang: satu stylesheet melayani 16 layar
+     yang memanggil window.print(), dan setiap satu di antaranya adalah tabel
+     potret (neraca saldo, buku besar, WIP schedule, EVM, K3, …). Sebuah
+     `@page { size: landscape }` di sini akan memutar semuanya. Idiomnya disalin
+     dari Modules/Core/Resources/views/forms/layout.blade.php, yang sudah
+     memakai halaman bernama untuk grid mingguannya.
+
+     `.detail-grid` dijadikan blok DI DALAM lembar ini saja: kisi 2fr/1fr tidak
+     pernah diruntuhkan blok cetak, jadi gantt di kolom `main` mendapat ~478 px
+     dari 733 px kertas potret — label 11,5 px tercetak ~6 px.
+
+     `break-inside: auto` menimpa `.card { break-inside: avoid }` di bawah:
+     sebuah SVG tidak bisa dipaginasi, dan kartu gantt yang lebih tinggi dari
+     satu halaman akan didorong Chrome ke lembar baru lalu tetap dipotong —
+     membuang satu halaman untuk tidak menyelesaikan apa pun. */
+  @page gantt { size: A4 landscape; margin: 8mm 8mm 10mm 8mm; }
+  .gantt-sheet { page: gantt; break-inside: auto; }
+  .gantt-sheet .filters { display: none !important; }
 }
 
 .bar-row { display: grid; grid-template-columns: minmax(110px, 26%) 1fr minmax(96px, auto); gap: 10px; align-items: center; padding: 6px 0; }
@@ -1487,6 +1507,10 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
   .shell { display: block; }
+  /* P1-H: kisi 2fr/1fr tidak pernah diruntuhkan di kertas, dan lembar gantt
+     butuh seluruh lebarnya. Diruntuhkan untuk SEMUA layar detail: sebuah kolom
+     samping selebar 280 px di kertas hanya memaksa kolom utamanya sempit. */
+  .detail-grid { display: block; }
   .main { padding: 0; overflow: visible; }
   .card { box-shadow: none; break-inside: avoid; }
   /* Plafon scroll layar di .table-wrap memotong cetakan pada satu layar

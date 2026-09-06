@@ -14,6 +14,22 @@ import { openPrintable } from '../print.js';
 import { RESOURCES } from '../schema.js';
 import { lineChart } from '../charts.js';
 import { openTutupProyek } from './tutupproyek.js';
+import { renderJadwal } from './jadwal.js';
+
+/*
+ * Tab yang sedang dibuka (P1-H). DI LINGKUP MODUL, bukan di dalam
+ * renderProject: `reload` menggambar ulang SELURUH layar dan dipasang di enam
+ * tempat (simpan Ubah, Buat WBS dari BOQ, impor MPP-XML, Tutup proyek, simpan
+ * catatan minggu, simpan progres daun WBS). Sebuah variabel tab yang hidup di
+ * dalam fungsi render akan kembali ke Ringkasan setiap kali salah satu dari
+ * keenamnya menyimpan — yaitu justru saat orangnya sedang bekerja di Jadwal.
+ */
+const tabState = { tab: 'ringkasan' };
+
+const PROJECT_TABS = [
+  { key: 'ringkasan', label: 'Ringkasan' },
+  { key: 'jadwal', label: 'Jadwal' },
+];
 
 /**
  * Kurva-S rencana vs aktual — `charts.js lineChart` sejak P1-E.
@@ -438,6 +454,14 @@ export async function renderProject(host, { id }) {
     ]),
   ]));
 
+  /* Bilah tab (P1-H) — pola paintTabs() views/evm.js, satu-satunya bentuk tab
+     di SPA ini. Kepala halaman dan baris ubin di atas tetap terlihat pada
+     kedua tab: keduanya menjawab "proyek mana ini", pertanyaan yang tidak
+     berubah karena orang membuka jadwalnya. */
+  const tabs = el('.tabs');
+  const pane = el('div');
+  host.append(tabs, pane);
+
   const main = el('div');
   const side = el('div');
 
@@ -605,5 +629,34 @@ export async function renderProject(host, { id }) {
   const attachments = attachmentsCard('projects/projects', Number(id), 'prj');
   if (attachments) side.appendChild(attachments);
 
-  host.appendChild(el('.detail-grid', [main, side]));
+  const paintPane = () => {
+    clear(pane);
+
+    if (tabState.tab === 'jadwal') {
+      // Gantt baca-saja; ia mengambil datanya sendiri (dua endpoint yang sudah
+      // ada) supaya tab Ringkasan tidak membayar permintaan yang tidak
+      // dilihatnya.
+      renderJadwal(pane, { id, project });
+
+      return;
+    }
+
+    pane.appendChild(el('.detail-grid', [main, side]));
+  };
+
+  const paintTabs = () => {
+    clear(tabs);
+    PROJECT_TABS.forEach((tab) => tabs.appendChild(el(`button${tab.key === tabState.tab ? '.active' : ''}`, {
+      text: tab.label,
+      onclick: () => {
+        if (tabState.tab === tab.key) return;
+        tabState.tab = tab.key;
+        paintTabs();
+        paintPane();
+      },
+    })));
+  };
+
+  paintTabs();
+  paintPane();
 }
