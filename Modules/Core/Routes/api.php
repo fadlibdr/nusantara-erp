@@ -23,6 +23,7 @@ use Modules\Core\Http\Controllers\QueueFailedJobController;
 use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
+use Modules\Core\Http\Controllers\UserPreferenceController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('company', [CompanyController::class, 'show']);
@@ -50,6 +51,17 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // rows. No permission gate for the same reason as search and calendar:
     // each block is included only when the caller holds that module's .view.
     Route::get('dashboard/summary', DashboardController::class);
+
+    // P1-C: preferensi pemanggil sendiri (favorit, "Terakhir dibuka",
+    // kepadatan, susunan dasbor, modul yang disembunyikan). Tanpa gerbang izin
+    // untuk alasan yang sama dengan core/inbox: barisnya milik $request->user()
+    // dan tidak ada parameter yang bisa menyebut orang lain. Yang menggantikan
+    // gerbang izin adalah whitelist UserPreferences (kunci + plafon 16 KB).
+    Route::get('me/preferences', [UserPreferenceController::class, 'index']);
+    // Batasan rute sengaja LONGGAR (bentuk kunci, bukan daftarnya): kunci yang
+    // tidak dikenal harus dijawab 422 yang menyebut kuncinya, bukan 404 yang
+    // terbaca sebagai "endpoint-nya hilang" saat dibaca dari konsol peramban.
+    Route::put('me/preferences/{key}', [UserPreferenceController::class, 'update'])->where('key', '[A-Za-z0-9._-]{1,64}');
 
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update'])->middleware('permission:core.update');

@@ -7,6 +7,7 @@ import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
 import { setCrumbs } from './crumbs.js';
+import { prefs } from './prefs.js';
 import { renderModuleHome } from './views/module.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
@@ -58,25 +59,28 @@ const root = document.getElementById('root');
 const THEME_KEY = 'nusantara_erp_theme';
 const NAV_STATE_KEY = 'nusantara_erp_nav';
 /*
- * Favorit dan Terakhir dibuka (T2.5) berkunci per id pengguna, tidak seperti
- * NAV_STATE_KEY: tablet kantor lapangan dipakai bergantian, dan lima dokumen
- * terakhir seorang pengawas bukan urusan kasir yang masuk sesudahnya.
+ * Favorit dan Terakhir dibuka (T2.5) — sejak P1-C keduanya PREFERENSI SERVER
+ * (core/me/preferences lewat prefs.js), bukan localStorage per id pengguna:
+ * bintang yang dipasang di desktop kantor harus ada juga di tablet lapangan.
+ * prefs.js tetap menyimpan cermin lokal per pengguna, jadi sifat "kasir tidak
+ * mewarisi lima dokumen pengawas" yang dulu dijaga personalKey tetap berlaku.
+ *
+ * RECENT_MAX 20 disimpan (plafon server), lima teratas yang digambar sidebar —
+ * beranda modul #/m/<prefix> menyaring daftar yang sama per modul, jadi
+ * menyimpan lebih banyak daripada yang muat di sidebar memang gunanya.
  */
-const FAVORITES_KEY = 'nusantara_erp_fav';
-const RECENT_KEY = 'nusantara_erp_recent';
-const RECENT_MAX = 5;
+const RECENT_MAX = 20;
+const RECENT_SIDEBAR = 5;
 const FAVORITES_LABEL = 'Favorit';
 const RECENT_LABEL = 'Terakhir dibuka';
 /*
  * Kepadatan (P1-B): rapat 32 / normal 38,5 / lega 48 px per baris satu-baris
- * (angka diukur, blok token app.css). Per pengguna lewat personalKey seperti
- * favorit — kunci localStorage `nusantara_erp_density:<id pengguna>`, nilai
- * 'compact' | 'normal' | 'comfortable'. P1-C memindahkannya ke server
- * (core/me/preferences) bersama favorit/recent: baca kunci ini sekali lalu
- * hapus. Dipasang sebagai data-density di <html> SEBELUM shell digambar
- * (evaluasi modul + boot()), jadi tidak ada kedipan dari normal ke rapat.
+ * (angka diukur, blok token app.css). Sejak P1-C nilainya preferensi server
+ * ('compact' | 'normal' | 'comfortable'); cermin lokal prefs.js yang menjawab
+ * seketika, karena atribut data-density dipasang di <html> SEBELUM shell
+ * digambar (evaluasi modul + boot()) dan jawaban server baru datang sesudah
+ * refreshMe() — tanpa cermin ada kedipan normal → padat di setiap muat.
  */
-const DENSITY_KEY = 'nusantara_erp_density';
 // 'Padat', bukan 'Rapat': di ERP "rapat" terbaca lebih dulu sebagai pertemuan (verifikasi P1-B 5 Sep 2026).
 const DENSITIES = { compact: 'Padat', normal: 'Normal', comfortable: 'Lega' };
 
@@ -99,7 +103,7 @@ applyTheme(localStorage.getItem(THEME_KEY) || 'system');
 
 /* ---------------------------------------------------------------- density */
 function readDensity() {
-  const stored = localStorage.getItem(personalKey(DENSITY_KEY));
+  const stored = prefs.get('density');
   return DENSITIES[stored] ? stored : 'normal';
 }
 
@@ -108,7 +112,7 @@ function applyDensity(density) {
 }
 
 function setDensity(density) {
-  localStorage.setItem(personalKey(DENSITY_KEY), density);
+  prefs.set('density', density);
   applyDensity(density);
 }
 
@@ -451,15 +455,6 @@ function renderResetPassword({ token, email }) {
  */
 const navForSession = () => visibleNav((perm) => session.can(perm));
 
-function personalKey(base) {
-  return `${base}:${(session.user || {}).id ?? 'anon'}`;
-}
-
-function readList(key) {
-  const list = JSON.parse(localStorage.getItem(key) || '[]');
-  return Array.isArray(list) ? list : [];
-}
-
 /*
  * null = belum pernah menyentuh grup mana pun, dan itulah yang membedakan
  * bawaan baru (tertutup) dari preferensi tersimpan (menang, seperti dulu).
@@ -490,11 +485,9 @@ function ensureGroupOpen(label) {
 }
 
 function toggleFavorite(route) {
-  const key = personalKey(FAVORITES_KEY);
-  const list = readList(key);
-  const next = list.includes(route) ? list.filter((one) => one !== route) : [...list, route];
-  localStorage.setItem(key, JSON.stringify(next));
-  if (!list.length && next.length) ensureGroupOpen(FAVORITES_LABEL);
+  const had = prefs.favorites().length;
+  const next = prefs.toggleFavorite(route);
+  if (!had && next.length) ensureGroupOpen(FAVORITES_LABEL);
   refreshNav();
   // Fokus kembali ke bintang baris yang sama di grup asalnya: barisan
   // Favorit baru saja dibangun ulang (atau barisnya hilang), dan pengguna
@@ -504,11 +497,9 @@ function toggleFavorite(route) {
 }
 
 function rememberRecent(route, label, sub) {
-  const key = personalKey(RECENT_KEY);
-  const list = readList(key);
-  const next = [{ route, label, sub }, ...list.filter((one) => one.route !== route)].slice(0, RECENT_MAX);
-  localStorage.setItem(key, JSON.stringify(next));
-  if (!list.length) ensureGroupOpen(RECENT_LABEL);
+  const had = prefs.recent().length;
+  prefs.rememberRecent(route, label, sub);
+  if (!had) ensureGroupOpen(RECENT_LABEL);
   refreshNav();
 }
 
@@ -518,15 +509,14 @@ function rememberRecent(route, label, sub) {
    rute d/* sendiri, jadi tidak ada tautan ke halaman "akses ditolak". */
 function shortcutGroups(groups) {
   const flat = groups.flatMap((group) => group.items.filter((item) => item.route));
-  const favorites = readList(personalKey(FAVORITES_KEY))
+  const favorites = prefs.favorites()
     .map((route) => flat.find((item) => item.route === route))
     .filter(Boolean);
-  const recent = readList(personalKey(RECENT_KEY))
-    .filter((one) => {
-      const def = RESOURCES[String(one.route).replace(/^d\//, '').replace(/\/[^/]+$/, '')];
-      return Boolean(def) && session.can(def.viewPerm || `${def.module}.view`);
-    })
-    .map((one) => ({ ...one, starrable: false, shortcut: true }));
+  // Disimpan 20 (plafon server), digambar lima: sidebar bukan riwayat, dan
+  // sisanya dipakai beranda modul yang menyaring daftar yang sama per modul.
+  const recent = prefs.visibleRecent((perm) => session.can(perm))
+    .slice(0, RECENT_SIDEBAR)
+    .map((one) => ({ route: one.route, label: one.label, sub: one.sub, starrable: false, shortcut: true }));
   return [
     favorites.length ? { label: FAVORITES_LABEL, kind: 'shortcut', items: favorites } : null,
     recent.length ? { label: RECENT_LABEL, kind: 'shortcut', items: recent } : null,
@@ -591,7 +581,7 @@ function navGroupNode(nav, group, favorites, stored) {
 function renderNav(nav) {
   clear(nav);
   const groups = navForSession();
-  const favorites = readList(personalKey(FAVORITES_KEY));
+  const favorites = prefs.favorites();
   const stored = storedOpenGroups();
   for (const group of [...shortcutGroups(groups), ...groups]) {
     nav.appendChild(navGroupNode(nav, group, favorites, stored));
@@ -726,9 +716,9 @@ function openUserMenu(user) {
 
 /*
  * Kontrol "Kepadatan" di dialog Akun (P1-B): tiga radio, berlaku seketika
- * (tanpa muat ulang) dan diingat per pengguna di peramban ini — sama seperti
- * favorit, dan sama seperti tema, ini preferensi peramban sampai P1-C
- * memindahkannya ke server.
+ * (tanpa muat ulang) dan sejak P1-C diingat DI SERVER bersama favorit — jadi
+ * pilihannya ikut orangnya ke tablet lapangan. Tema masih preferensi peramban:
+ * terang/gelap mengikuti perangkat dan cahaya di sekitarnya, bukan orangnya.
  */
 function densityControl() {
   const current = readDensity();
@@ -1282,8 +1272,8 @@ let routesRegistered = false;
 
 async function boot() {
   // Sesudah masuk id pengguna sudah ada: kepadatan MILIKNYA dipasang sebelum
-  // shell digambar (evaluasi modul di atas membaca kunci pengguna sebelumnya
-  // atau 'anon').
+  // shell digambar (cermin prefs.js; evaluasi modul di atas membaca cermin
+  // pengguna sebelumnya atau 'anon').
   applyDensity(readDensity());
   startNotificationPolling();
   buildShell();
@@ -1305,7 +1295,18 @@ async function boot() {
 
   // Refresh permissions in the background — roles may have changed since login.
   // The onboarding decision rides on the same answer, so it waits for it.
-  refreshMe().catch(() => {}).then(() => maybeShowOnboarding());
+  // Preferensi ikut di belakangnya, dan dengan alasan yang sama: keputusan yang
+  // dibuat di perangkat lain harus menang atas cermin lokal peramban ini.
+  refreshMe()
+    .catch(() => {})
+    .then(() => prefs.load().catch(() => {}))
+    .then(() => {
+      // Jawaban server boleh berbeda dari cermin (dipilih di perangkat lain,
+      // atau baru saja dinaikkan dari localStorage P1-B): pasang lagi.
+      applyDensity(readDensity());
+      refreshNav();
+      maybeShowOnboarding();
+    });
   offerDrafts();
 }
 
