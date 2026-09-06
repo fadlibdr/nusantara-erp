@@ -3630,6 +3630,23 @@ def s23f(pg):
     money = broken.get("ringkasan-uang", "")
     others = [i for i in healthy if i != "ringkasan-uang"]
 
+    # …dan PEMULIHANNYA. Mengaku gagal tanpa menawarkan jalan keluar hanya
+    # setengah janji paket ini ("satu widget yang gagal memuat ulang dirinya
+    # sendiri"): sampai verifikasi kedua P1-D kartu uang yang jatuh punya NOL
+    # tombol, dan satu-satunya pemulihannya adalah Muat ulang di kepala
+    # halaman — sembilan permintaan untuk memperbaiki satu, yaitu perilaku
+    # P1-C yang paket ini menyatakan sudah digantikannya. Yang diukur di sini
+    # adalah tombolnya DAN berapa permintaan yang dibayar satu klik.
+    retry_buttons = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-grid .card.widget[data-widget=\"ringkasan-uang\"] button')]"
+        ".map((b) => b.innerText.trim())")
+
+    requests_on_retry = []
+    pg.on("request", lambda r: requests_on_retry.append(r.url.split("/api/")[1]) if "/api/" in r.url else None)
+    if retry_buttons:
+        pg.click(".dash-grid .card.widget[data-widget='ringkasan-uang'] button")
+        pg.wait_for_timeout(2000)
+
     return {
         "healthy_money_card": healthy.get("ringkasan-uang", "")[:120],
         "broken_money_card": money[:160],
@@ -3638,12 +3655,17 @@ def s23f(pg):
         "writes_em_dash": money.count("—") >= 3,
         # Yang paling penting: TIDAK ada angka rupiah yang dikarang.
         "no_zero_rupiah": "Rp 0" not in money,
+        "retry_buttons": retry_buttons,
+        "requests_on_retry": requests_on_retry,
         "other_cards_still_loaded": [i for i in others if i in broken and len(broken[i]) > 3],
         "other_cards_lost": [i for i in others if i not in broken],
         "ok": (
             "ringkasan-uang" in broken
             and "Gagal dimuat" in money
             and "Rp 0" not in money
+            and retry_buttons == ["Coba lagi"]
+            # Satu klik = satu permintaan: widget itu saja, bukan dasbor.
+            and len(requests_on_retry) == 1
             and not [i for i in others if i not in broken]
         ),
     }

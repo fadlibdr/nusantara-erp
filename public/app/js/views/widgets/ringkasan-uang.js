@@ -17,9 +17,9 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedStat, statRow, stat } from './kit.js';
+import { safe, failure, failedStats, statRow, stat } from './kit.js';
 
-export async function build({ mineOnly }) {
+export async function build({ mineOnly, reload }) {
   const tiles = await safe('core/dashboard/summary', { mine: mineOnly ? 1 : undefined });
 
   /* Satu fetch memberi makan KETIGA ubin, jadi gagalnya menjatuhkan ketiganya
@@ -27,11 +27,7 @@ export async function build({ mineOnly }) {
      "Hutang belum dibayar Rp 0" di atas sumber yang jatuh adalah kebohongan
      yang rapi. */
   if (failure(tiles)) {
-    return el('.card-body', statRow([
-      failedStat('Proyek berjalan'),
-      failedStat('Piutang belum tertagih'),
-      failedStat('Hutang belum dibayar'),
-    ]));
+    return failedStats(['Proyek berjalan', 'Piutang belum tertagih', 'Hutang belum dibayar'], reload);
   }
 
   // Label ikut sakelarnya: angka yang berganti makna tidak boleh memakai judul

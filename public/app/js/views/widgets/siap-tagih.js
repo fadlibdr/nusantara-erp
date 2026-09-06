@@ -8,13 +8,13 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, failedStat, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safeList, failure, rowsOf, failedStats, statRow, stat, footLink, tileEmpty } from './kit.js';
 
 export async function build({ reload }) {
   // api.list, bukan api.get: `meta.total_amount` adalah jumlah SERVER, dan
   // menjumlah ulang di klien hanya menambah satu tempat yang bisa berselisih.
   const payload = await safeList('crm/contract-termins/billing-ready');
-  if (failure(payload)) return el('.card-body', statRow([failedStat('Termin siap ditagih')]));
+  if (failure(payload)) return failedStats(['Termin siap ditagih'], reload);
 
   const rows = rowsOf(payload);
   if (!rows.length) return tileEmpty('Tidak ada termin yang siap ditagih.', 'done');

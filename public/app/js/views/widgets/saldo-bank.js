@@ -10,13 +10,13 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedStat, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safe, failure, failedStats, statRow, stat, footLink, tileEmpty } from './kit.js';
 
 export async function build({ reload }) {
   const rows = await safe('finance/reports/bank-balances');
   // Gagal LEBIH DULU daripada .length: sumber yang jatuh panjangnya 0, dan
   // cabang "kosong" akan menuliskan Rp 0 di atas kas yang tidak diketahui.
-  if (failure(rows)) return el('.card-body', statRow([failedStat('Saldo bank')]));
+  if (failure(rows)) return failedStats(['Saldo bank'], reload);
   if (!rows.length) return tileEmpty('Belum ada rekening bank yang terdaftar.');
 
   const total = rows.reduce((sum, row) => sum + Number(row.balance || 0), 0);

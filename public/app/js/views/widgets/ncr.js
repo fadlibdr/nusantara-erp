@@ -11,11 +11,11 @@
 
 import { el } from '../../ui.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, totalOf, failedStat, statRow, stat, footLink, miniTable } from './kit.js';
+import { safeList, failure, rowsOf, totalOf, failedStats, statRow, stat, footLink, miniTable } from './kit.js';
 
 const OPEN_STATUSES = ['open', 'under_correction'];
 
-export async function build() {
+export async function build({ reload }) {
   const payloads = await Promise.all(
     OPEN_STATUSES.map((status) => safeList('quality/ncr', { status, per_page: 3 })),
   );
@@ -25,7 +25,7 @@ export async function build() {
   // percaya diri, dan "NCR terbuka 1" pada mutu yang sebenarnya punya 6 adalah
   // kabar baik palsu.
   const broken = payloads.find((payload) => failure(payload));
-  if (broken) return el('.card-body', statRow([failedStat('NCR terbuka')]));
+  if (broken) return failedStats(['NCR terbuka'], reload);
 
   const total = payloads.reduce((sum, payload) => sum + (totalOf(payload) || 0), 0);
   const rows = payloads.flatMap((payload) => rowsOf(payload)).slice(0, 4);

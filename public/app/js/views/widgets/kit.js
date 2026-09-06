@@ -89,6 +89,26 @@ export function stat(label, value, { sub, tone, onClick, small = true } = {}) {
  */
 export const failedStat = (label) => stat(label, '—', { sub: 'Gagal dimuat', tone: 'down' });
 
+/**
+ * Badan widget untuk ubin ANGKA yang gagal — dengan "Coba lagi"-nya.
+ *
+ * failedStat() sendiri hanya menggambar ubinnya, dan sampai verifikasi kedua
+ * P1-D empat widget (ringkasan-uang, saldo-bank, siap-tagih, ncr) memakainya
+ * begitu saja: kartunya menulis '— Gagal dimuat' TANPA satu tombol pun, jadi
+ * satu-satunya pemulihannya adalah "Muat ulang" di kepala halaman — yang
+ * menggambar ulang SELURUH dasbor, yaitu persis perilaku P1-C yang paket ini
+ * menyatakan sudah digantikannya. Terukur: kartu uang direktur = 0 tombol,
+ * sementara kartu ar-aging yang gagal = ['Coba lagi'] dan satu klik = satu
+ * permintaan.
+ *
+ * Kaki yang sama dengan failedBody(): satu widget yang jatuh memuat ulang
+ * dirinya sendiri.
+ */
+export const failedStats = (labels, retry) => el('div', [
+  el('.card-body', statRow(labels.map((label) => failedStat(label)))),
+  retry ? footLink('Coba lagi', retry) : null,
+]);
+
 export function statRow(children) {
   return el('.stat-row', children.filter(Boolean));
 }

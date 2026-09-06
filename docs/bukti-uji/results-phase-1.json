@@ -19822,11 +19822,17 @@
   },
   "S23_honest_failure": {
     "healthy_money_card": "PIUTANG BELUM TERTAGIH\nRp 0\n0 invoice terbuka\nHUTANG BELUM DIBAYAR\nRp 0\n0 tagihan terbuka",
-    "broken_money_card": "PROYEK BERJALAN\n—\nGagal dimuat\nPIUTANG BELUM TERTAGIH\n—\nGagal dimuat\nHUTANG BELUM DIBAYAR\n—\nGagal dimuat",
+    "broken_money_card": "PROYEK BERJALAN\n—\nGagal dimuat\nPIUTANG BELUM TERTAGIH\n—\nGagal dimuat\nHUTANG BELUM DIBAYAR\n—\nGagal dimuat\nCoba lagi",
     "card_still_drawn": true,
     "says_failed": true,
     "writes_em_dash": true,
     "no_zero_rupiah": true,
+    "retry_buttons": [
+      "Coba lagi"
+    ],
+    "requests_on_retry": [
+      "core/dashboard/summary"
+    ],
     "other_cards_still_loaded": [
       "ar-aging",
       "ap-aging",
@@ -19839,7 +19845,7 @@
     ],
     "other_cards_lost": [],
     "ok": true,
-    "_ms": 8217,
+    "_ms": 10191,
     "_clicks": 0
   },
   "S23_dashboard_mobile": {
