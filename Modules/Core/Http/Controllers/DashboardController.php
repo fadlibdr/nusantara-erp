@@ -90,13 +90,23 @@ class DashboardController extends ApiController
          * ada supaya sebuah layar yang butuh KEDUANYA (dasbor + ubin modul)
          * bisa mengambilnya dalam satu permintaan, bukan dua.
          */
-        // is_string() sebelum str_contains(): `?include[]=modules` membuat
-        // query() mengembalikan array, dan cast (string) atasnya adalah 500 pada
-        // dasbor yang dipicu satu tautan yang dikarang — pola yang sama dengan
-        // penanganan bound tanggal di ApiController::listing().
+        /*
+         * Dicocokkan sebagai DAFTAR, bukan substring. `str_contains($include,
+         * 'modules')` juga cocok untuk `?include=notmodules` — 14 hitungan dan
+         * pemeriksaan tabel dibayar oleh permintaan yang tidak pernah memintanya
+         * (verifikasi P1-C putaran 2). Bentuk array `?include[]=modules` dulu
+         * dilewati diam-diam karena is_string() menolaknya; kini keduanya dibaca
+         * dengan satu aturan, dan cast (string) yang dulu meng-500-kan dasbor
+         * lewat satu tautan karangan tetap tidak pernah terjadi.
+         */
         $include = $request->query('include');
+        $wanted = is_array($include)
+            // Anggota yang bukan skalar dibuang, bukan di-cast: `?include[][]=modules`
+            // membuat anggotanya sendiri sebuah array, dan (string) atasnya 500.
+            ? array_map('trim', array_filter($include, 'is_string'))
+            : array_map('trim', explode(',', is_scalar($include) ? (string) $include : ''));
 
-        if (is_string($include) && str_contains($include, 'modules')) {
+        if (in_array('modules', $wanted, true)) {
             $data['modules'] = ModuleCounts::for($user);
         }
 

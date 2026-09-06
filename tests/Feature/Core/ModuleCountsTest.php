@@ -327,16 +327,43 @@ class ModuleCountsTest extends ErpTestCase
             ->assertOk()
             ->assertJsonPath('data.projects.active_count', 0)
             ->assertJsonStructure(['data' => ['modules' => [['prefix', 'label', 'unit', 'count']]]]);
+
+        // Daftar, bukan substring: `notmodules` bukan `modules`, dan sampai
+        // 6 Sep 2026 str_contains() membuat permintaan itu membayar 14 hitungan
+        // yang tidak diminta siapa pun (verifikasi P1-C putaran 2).
+        foreach (['notmodules', 'modules-lain', 'MODULES', 'module'] as $near) {
+            $this->getJson("/api/core/dashboard/summary?include={$near}")
+                ->assertOk()
+                ->assertJsonMissingPath('data.modules');
+        }
+
+        // …tetapi anggota daftar yang sah tetap dibaca, di mana pun letaknya.
+        foreach (['a,modules', 'modules,a', ' modules ', 'a, modules ,b'] as $list) {
+            $this->getJson('/api/core/dashboard/summary?include='.rawurlencode($list))
+                ->assertOk()
+                ->assertJsonStructure(['data' => ['modules']]);
+        }
     }
 
-    public function test_an_array_shaped_include_parameter_does_not_500_the_dashboard(): void
+    public function test_an_array_shaped_include_parameter_is_read_like_the_string_form(): void
     {
         $this->actingAs($this->adminUser(), 'sanctum');
 
-        // `?include[]=modules` membuat query() mengembalikan array; tanpa
-        // is_string() di controller, cast (string) atasnya adalah 500 pada
-        // dasbor yang dipicu satu tautan yang dikarang.
+        // `?include[]=modules` membuat query() mengembalikan array. Dulu is_string()
+        // menolaknya (agar cast (string) tidak meng-500-kan dasbor lewat tautan
+        // karangan) sehingga permintaan yang jelas-jelas meminta blok itu dijawab
+        // TANPA blok; kini kedua bentuk dibaca dengan satu aturan dan tetap tidak
+        // pernah 500.
         $this->getJson('/api/core/dashboard/summary?include[]=modules')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['modules']]);
+
+        $this->getJson('/api/core/dashboard/summary?include[]=notmodules')
+            ->assertOk()
+            ->assertJsonMissingPath('data.modules');
+
+        // Array bersarang: (string) atas array adalah 500 — kini tidak pernah tercapai.
+        $this->getJson('/api/core/dashboard/summary?include[][]=modules')
             ->assertOk()
             ->assertJsonMissingPath('data.modules');
     }
