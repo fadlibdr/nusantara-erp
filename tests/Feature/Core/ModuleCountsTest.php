@@ -32,6 +32,30 @@ use Tests\ErpTestCase;
  */
 class ModuleCountsTest extends ErpTestCase
 {
+    /**
+     * Modul yang tabelnya menghapus-lembut → [tabel yang harus punya baris
+     * dibuang di fixture, angka yang benar SESUDAH baris itu dikecualikan].
+     * DB::table melewati scope SoftDeletes, jadi setiap entri memeriksa
+     * `deleted_at` dengan tangan — dan aturan yang diperiksa dengan tangan
+     * hanya seaman fixture yang punya baris untuk melanggarnya.
+     *
+     * @var array<string, array{list<string>, int}>
+     */
+    private const SOFT_DELETED_FIXTURES = [
+        'crm' => [['crm_leads'], 3],
+        'est' => [['est_boqs'], 2],
+        'eng' => [['eng_drawing_submittals'], 2],
+        'prj' => [['prj_projects'], 2],
+        'qc' => [['qc_ncr'], 2],
+        'prc' => [['prc_purchase_orders'], 2],
+        'inv' => [['inv_items', 'inv_warehouses'], 1],
+        'scm' => [['scm_progress_claims'], 2],
+        'fin' => [['fin_ar_invoices'], 2],
+        'hr' => [['hr_leave_requests'], 2],
+        'svc' => [['svc_tickets'], 4],
+        'ast' => [['ast_assets'], 2],
+    ];
+
     /** Nomor urut supaya kolom `code` yang unik tidak bertabrakan antar fixture. */
     private int $seq = 0;
 
@@ -124,22 +148,79 @@ class ModuleCountsTest extends ErpTestCase
 
         $counts = collect(ModuleCounts::for($admin))->pluck('count', 'prefix')->all();
 
+        /*
+         * Angka harapan yang BERBEDA dari jumlah baris status lain mana pun —
+         * itulah yang membuat daftar ini menguji status yang dihitung dan bukan
+         * hanya "ada kueri". Fixture 1-baris-per-status yang dipakai sampai
+         * 6 Sep 2026 lulus untuk status apa pun: 'prc' => 1 benar baik kueri
+         * itu menghitung approved, submitted, draft maupun closed, dan empat
+         * mutasi status/scope lolos hijau (verifikasi P1-C). Sekarang setiap
+         * entri berstatus punya 2 baris yang masuk dan 1 per status yang tidak,
+         * jadi penggantian nama status di lane tim lain menjatuhkan uji ini —
+         * klaim yang sudah ditulis docblock ModuleCounts sejak awal.
+         */
         $this->assertSame([
-            'ringkasan' => 2,   // 2 notifikasi belum dibaca, 1 sudah dibaca
-            'crm' => 3,         // new + contacted + qualified; won & lost tidak dihitung
-            'est' => 1,         // 1 RAB submitted; draft & approved tidak
-            'eng' => 1,         // 1 SDS tanpa keputusan & belum disuperseded
-            'prj' => 2,         // active + finishing; completed tidak
-            'qc' => 2,          // open + under_correction; verified & closed tidak
-            'prc' => 1,         // 1 PO approved = terbuka; draft/submitted/closed tidak
-            'inv' => 1,         // 1 baris gudang×item di bawah min; item nonaktif tidak
-            'scm' => 1,         // 1 opname subkon submitted
-            'fin' => 1,         // 1 invoice approved dengan sisa; lunas tidak
-            'hr' => 1,          // 1 cuti submitted
-            'svc' => 3,         // open + assigned + in_progress; resolved & closed tidak
-            'ast' => 1,         // 1 aset berstatus maintenance
+            'ringkasan' => 2,   // 2 notifikasi belum dibaca; 1 sudah dibaca, 1 milik orang lain
+            'crm' => 3,         // new + contacted + qualified; won, lost & yang dibuang tidak
+            'est' => 2,         // 2 RAB submitted; 1 draft, 1 approved, 1 dibuang tidak
+            'eng' => 2,         // 2 SDS tanpa keputusan & belum disuperseded; 1 diputus, 1 disuperseded, 1 dibuang
+            'prj' => 2,         // active + finishing; completed & yang dibuang tidak
+            'qc' => 2,          // open + under_correction; verified, closed & yang dibuang tidak
+            'prc' => 2,         // 2 PO approved = terbuka; draft/submitted/closed & yang dibuang tidak
+            'inv' => 1,         // 1 baris gudang×item di bawah min; item nonaktif, item dibuang, gudang dibuang tidak
+            'scm' => 2,         // 2 opname subkon submitted; draft & yang dibuang tidak
+            'fin' => 2,         // 2 invoice approved bersisa; lunas, draft & yang dibuang tidak
+            'hr' => 2,          // 2 cuti submitted; approved & yang dibuang tidak
+            'svc' => 4,         // open + assigned + in_progress + pending_customer; resolved, closed & yang dibuang tidak
+            'ast' => 2,         // 2 aset maintenance; available, deployed & yang dibuang tidak
             'iam' => 2,         // 2 job gagal
         ], $counts);
+    }
+
+    /**
+     * Setiap tabel yang MENGHAPUS-LEMBUT dijaga tangan (DB::table melewati
+     * scope SoftDeletes), dan sampai 6 Sep 2026 tidak satu pun baris fixture
+     * yang dibuang — jadi menghapus `whereNull('deleted_at')` dari entri mana
+     * pun lolos hijau (verifikasi P1-C: mutasi crm). Uji ini memakai fixture
+     * yang sama dan menyatakan bagian itu sendirian: buang penjaganya, dan
+     * angka yang bergerak dinamai.
+     */
+    public function test_soft_deleted_rows_are_counted_by_no_entry(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $counts = collect(ModuleCounts::for($admin))->pluck('count', 'prefix');
+
+        foreach (self::SOFT_DELETED_FIXTURES as $prefix => [$tables, $withGuard]) {
+            foreach ($tables as $table) {
+                $this->assertGreaterThan(0, DB::table($table)->whereNotNull('deleted_at')->count(),
+                    "Fixture {$prefix} tidak punya satu pun baris {$table} yang dibuang, jadi aturan deleted_at-nya tidak diuji apa pun.");
+            }
+            $this->assertSame($withGuard, $counts[$prefix],
+                "Modul {$prefix} menghitung baris ".implode('/', $tables).' yang sudah dibuang.');
+        }
+    }
+
+    /**
+     * Ubin Sistem bergerbang core.update — izin layar "Antrean Gagal" — dan
+     * BUKAN iam.view yang membuka grupnya. Akibatnya disengaja dan dinyatakan
+     * di sini dengan literalnya: pemegang hr yang melihat grup Sistem karena
+     * iam.view mendapat ubin tanpa angka. test_an_entry_without_its_permission
+     * _is_absent_not_zero tidak bisa menjaga ini — ia membaca daftar izin dari
+     * registri yang sama, jadi mengganti izin sebuah entri memindahkan kedua
+     * sisi pernyataannya (verifikasi P1-C: mutasi core.update → iam.view hijau).
+     */
+    public function test_the_system_tile_is_gated_by_core_update_not_by_the_group_permission(): void
+    {
+        $this->assertSame('core.update', ModuleCounts::entries()['iam']['permission']);
+
+        $sees = array_column(ModuleCounts::for($this->userWith(['iam.view'])), 'prefix');
+        $this->assertNotContains('iam', $sees,
+            'Pemegang iam.view mendapat angka "Job gagal"; gerbangnya harus izin layar antreannya, core.update.');
+
+        $admin = array_column(ModuleCounts::for($this->userWith(['core.update'])), 'prefix');
+        $this->assertContains('iam', $admin, 'Pemegang core.update TIDAK mendapat ubin Sistem; gerbangnya menolak semua orang.');
     }
 
     /**
@@ -332,9 +413,22 @@ class ModuleCountsTest extends ErpTestCase
     }
 
     /**
-     * Satu baris yang MASUK hitungan dan satu yang tidak, per modul — kalau
-     * fixture-nya hanya berisi baris yang masuk, sebuah WHERE yang hilang tetap
-     * lulus.
+     * Fixture per modul dengan TIGA sifat, dan ketiganya baru sejak verifikasi
+     * P1-C (6 Sep 2026) karena versi sebelumnya — satu baris per status —
+     * meloloskan empat mutasi status/scope:
+     *
+     *  - LEBIH BANYAK YANG MASUK DARIPADA YANG TIDAK. Dua baris berstatus yang
+     *    dihitung, satu per status yang tidak, jadi angka harapannya (2) salah
+     *    untuk status mana pun yang lain. Dengan satu baris per status, 'prc'
+     *    => 1 benar entah kuerinya menghitung approved, submitted, draft
+     *    maupun closed.
+     *  - SATU BARIS YANG DIBUANG di setiap tabel yang menghapus-lembut, supaya
+     *    `whereNull('deleted_at')` yang hilang menggerakkan angka.
+     *  - STATUS YANG DIPERDEBATKAN ADA BARISNYA. svc menghitung
+     *    pending_customer ("tiket yang menunggu pelanggan tetap milik kita"),
+     *    dan sampai putaran ini tidak ada satu pun tiket pending_customer di
+     *    seluruh fixture — argumen yang ditulis registrinya sendiri tidak
+     *    diuji apa pun.
      */
     private function seedFixtures(User $admin): void
     {
@@ -345,34 +439,37 @@ class ModuleCountsTest extends ErpTestCase
         }
         $this->insert('core_notifications', ['user_id' => $other, 'event' => 'document.submitted', 'title' => 'Uji', 'read_at' => null]);
 
-        // crm — 3 terbuka, 2 selesai.
+        // crm — 3 terbuka, 2 selesai, 1 terbuka yang sudah dibuang.
         foreach (['new', 'contacted', 'qualified', 'won', 'lost'] as $status) {
             $this->insert('crm_leads', ['code' => $this->code('LEAD'), 'name' => 'Prospek', 'status' => $status]);
         }
+        $this->insert('crm_leads', ['code' => $this->code('LEAD'), 'name' => 'Prospek dibuang', 'status' => 'new', 'deleted_at' => now()]);
 
-        // est — 1 submitted, 2 bukan.
-        foreach (['submitted', 'draft', 'approved'] as $status) {
+        // est — 2 submitted, 1 draft, 1 approved, 1 submitted yang dibuang.
+        foreach (['submitted', 'submitted', 'draft', 'approved'] as $status) {
             $this->insert('est_boqs', ['code' => $this->code('BOQ'), 'title' => 'RAB', 'status' => $status]);
         }
+        $this->insert('est_boqs', ['code' => $this->code('BOQ'), 'title' => 'RAB dibuang', 'status' => 'submitted', 'deleted_at' => now()]);
 
-        // prj — 2 aktif (active + finishing), 1 selesai.
+        // prj — 2 aktif (active + finishing), 1 selesai, 1 aktif yang dibuang.
         $projects = [];
         foreach (['active', 'finishing', 'completed'] as $status) {
             $projects[$status] = $this->insert('prj_projects', ['code' => $this->code('PRJ'), 'name' => 'Proyek', 'type' => 'construction', 'status' => $status]);
         }
+        $this->insert('prj_projects', ['code' => $this->code('PRJ'), 'name' => 'Proyek dibuang', 'type' => 'construction', 'status' => 'active', 'deleted_at' => now()]);
 
-        // eng — 1 menunggu keputusan, 1 sudah diputus, 1 sudah disuperseded.
+        // eng — 2 menunggu keputusan, 1 sudah diputus, 1 sudah disuperseded, 1 dibuang.
         $drawing = $this->insert('eng_drawings', ['project_id' => $projects['active'], 'number' => $this->code('DWG'), 'title' => 'Denah', 'discipline' => 'structure']);
         // Revisi berbeda per baris: UNIQUE(drawing_id, revision) di register gambar.
-        foreach ([[null, null], ['approved', null], [null, now()]] as $index => [$decision, $superseded]) {
+        foreach ([[null, null, null], [null, null, null], ['approved', null, null], [null, now(), null], [null, null, now()]] as $index => [$decision, $superseded, $deleted]) {
             $this->insert('eng_drawing_submittals', [
                 'code' => $this->code('SDS'), 'drawing_id' => $drawing, 'revision' => "R{$index}",
                 'submitted_at' => now()->toDateString(), 'reviewer_party' => 'mk',
-                'decision' => $decision, 'superseded_at' => $superseded,
+                'decision' => $decision, 'superseded_at' => $superseded, 'deleted_at' => $deleted,
             ]);
         }
 
-        // qc — 2 terbuka (open + under_correction), 2 selesai.
+        // qc — 2 terbuka (open + under_correction), 2 selesai, 1 terbuka yang dibuang.
         $location = $this->insert('core_locations', ['project_id' => $projects['active'], 'kind' => 'zone', 'code' => $this->code('LOC'), 'name' => 'Zona A']);
         foreach (['open', 'under_correction', 'verified', 'closed'] as $status) {
             $this->insert('qc_ncr', [
@@ -380,71 +477,91 @@ class ModuleCountsTest extends ErpTestCase
                 'stage' => 'pelaksanaan', 'description' => 'Tidak sesuai', 'status' => $status,
             ]);
         }
+        $this->insert('qc_ncr', [
+            'code' => $this->code('NCR'), 'project_id' => $projects['active'], 'location_id' => $location,
+            'stage' => 'pelaksanaan', 'description' => 'Dibuang', 'status' => 'open', 'deleted_at' => now(),
+        ]);
 
-        // prc — 1 terbuka (approved), 3 bukan; `closed` adalah PO yang barangnya sudah lengkap.
+        // prc — 2 terbuka (approved), 3 bukan, 1 approved yang dibuang; `closed`
+        // adalah PO yang barangnya sudah lengkap.
         $vendor = $this->insert('prc_vendors', ['code' => $this->code('VND'), 'name' => 'PT Uji', 'classification' => 'supplier']);
-        foreach (['approved', 'draft', 'submitted', 'closed'] as $status) {
+        foreach (['approved', 'approved', 'draft', 'submitted', 'closed'] as $status) {
             $this->insert('prc_purchase_orders', ['code' => $this->code('PO'), 'vendor_id' => $vendor, 'order_date' => now()->toDateString(), 'status' => $status]);
         }
+        $this->insert('prc_purchase_orders', [
+            'code' => $this->code('PO'), 'vendor_id' => $vendor, 'order_date' => now()->toDateString(),
+            'status' => 'approved', 'deleted_at' => now(),
+        ]);
 
-        // inv — 1 baris di bawah min, 1 di atas, 1 di bawah tapi itemnya nonaktif.
+        // inv — 1 baris di bawah min; di atas min, item nonaktif, item dibuang
+        // dan gudang dibuang semuanya tidak dihitung.
         $category = $this->insert('inv_item_categories', ['code' => $this->code('CAT'), 'name' => 'Semen']);
         $warehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang']);
-        foreach ([[true, 10, 2], [true, 10, 40], [false, 10, 1]] as [$active, $min, $qty]) {
-            $item = $this->insert('inv_items', ['code' => $this->code('ITM'), 'name' => 'Item', 'category_id' => $category, 'unit' => 'sak', 'min_stock' => $min, 'is_active' => $active]);
+        foreach ([[true, 10, 2, null], [true, 10, 40, null], [false, 10, 1, null], [true, 10, 1, now()]] as [$active, $min, $qty, $deleted]) {
+            $item = $this->insert('inv_items', [
+                'code' => $this->code('ITM'), 'name' => 'Item', 'category_id' => $category,
+                'unit' => 'sak', 'min_stock' => $min, 'is_active' => $active, 'deleted_at' => $deleted,
+            ]);
             $this->insert('inv_stock_balances', ['warehouse_id' => $warehouse, 'item_id' => $item, 'qty' => $qty]);
         }
+        // …dan gudang yang dibuang membawa serta barisnya, walau itemnya hidup.
+        $closedWarehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang dibuang', 'deleted_at' => now()]);
+        $liveItem = $this->insert('inv_items', ['code' => $this->code('ITM'), 'name' => 'Item', 'category_id' => $category, 'unit' => 'sak', 'min_stock' => 10, 'is_active' => true]);
+        $this->insert('inv_stock_balances', ['warehouse_id' => $closedWarehouse, 'item_id' => $liveItem, 'qty' => 1]);
 
-        // scm — 1 opname submitted, 1 draft.
+        // scm — 2 opname submitted, 1 draft, 1 submitted yang dibuang.
         $subcontract = $this->insert('scm_subcontracts', ['code' => $this->code('SPK'), 'vendor_id' => $vendor, 'title' => 'Pekerjaan', 'pph_scheme' => 'final_2_65']);
-        foreach (['submitted', 'draft'] as $index => $status) {
+        foreach (['submitted', 'submitted', 'draft', 'submitted'] as $index => $status) {
             $this->insert('scm_progress_claims', [
                 'code' => $this->code('OPN'), 'subcontract_id' => $subcontract, 'claim_no' => $index + 1,
                 'period_start' => now()->startOfMonth()->toDateString(), 'period_end' => now()->endOfMonth()->toDateString(),
-                'status' => $status,
+                'status' => $status, 'deleted_at' => $index === 3 ? now() : null,
             ]);
         }
 
-        // fin — 1 approved bersisa, 1 approved lunas, 1 draft bersisa.
+        // fin — 2 approved bersisa, 1 approved lunas, 1 draft bersisa, 1 approved
+        // bersisa yang dibuang.
         $customer = $this->insert('crm_customers', ['code' => $this->code('CUST'), 'name' => 'PT Pelanggan']);
         $contract = $this->insert('crm_contracts', ['code' => $this->code('CTR'), 'customer_id' => $customer, 'title' => 'Kontrak', 'scope_type' => 'construction']);
-        foreach ([['approved', 100, 0], ['approved', 100, 100], ['draft', 100, 0]] as [$status, $total, $paid]) {
+        foreach ([['approved', 100, 0, null], ['approved', 100, 40, null], ['approved', 100, 100, null], ['draft', 100, 0, null], ['approved', 100, 0, now()]] as [$status, $total, $paid, $deleted]) {
             $this->insert('fin_ar_invoices', [
                 'code' => $this->code('INV'), 'customer_id' => $customer, 'contract_id' => $contract,
                 'invoice_date' => now()->toDateString(), 'due_date' => now()->addMonth()->toDateString(),
                 'description' => 'Termin', 'dpp' => $total, 'total' => $total, 'amount_paid' => $paid,
-                'terbilang' => 'seratus rupiah', 'status' => $status,
+                'terbilang' => 'seratus rupiah', 'status' => $status, 'deleted_at' => $deleted,
             ]);
         }
 
-        // hr — 1 submitted, 1 approved.
+        // hr — 2 submitted, 1 approved, 1 submitted yang dibuang.
         $employee = $this->insert('hr_employees', [
             'code' => $this->code('EMP'), 'name' => 'Karyawan', 'nik_ktp' => (string) (3200000000000000 + $this->seq),
             'gender' => 'male', 'birth_date' => '1990-01-01', 'ptkp_status' => 'TK/0', 'join_date' => '2020-01-01',
             'employment_type' => 'tetap', 'position' => 'Staf', 'department' => 'Umum',
         ]);
-        foreach (['submitted', 'approved'] as $status) {
+        foreach ([['submitted', null], ['submitted', null], ['approved', null], ['submitted', now()]] as [$status, $deleted]) {
             $this->insert('hr_leave_requests', [
                 'code' => $this->code('CUTI'), 'employee_id' => $employee, 'leave_type' => 'annual',
                 'start_date' => now()->toDateString(), 'end_date' => now()->addDay()->toDateString(),
-                'day_count' => 2, 'reason' => 'Keperluan keluarga', 'status' => $status,
+                'day_count' => 2, 'reason' => 'Keperluan keluarga', 'status' => $status, 'deleted_at' => $deleted,
             ]);
         }
 
-        // svc — 3 belum selesai, 2 selesai.
-        foreach (['open', 'assigned', 'in_progress', 'resolved', 'closed'] as $status) {
+        // svc — 4 belum selesai (pending_customer IKUT: tiket yang menunggu
+        // pelanggan tetap milik kita), 2 selesai, 1 terbuka yang dibuang.
+        foreach ([['open', null], ['assigned', null], ['in_progress', null], ['pending_customer', null], ['resolved', null], ['closed', null], ['open', now()]] as [$status, $deleted]) {
             $this->insert('svc_tickets', [
                 'code' => $this->code('TKT'), 'customer_id' => $customer, 'title' => 'Tiket',
-                'reported_at' => now(), 'status' => $status,
+                'reported_at' => now(), 'status' => $status, 'deleted_at' => $deleted,
             ]);
         }
 
-        // ast — 1 dalam perawatan, 2 tidak.
+        // ast — 2 dalam perawatan, 2 tidak, 1 dalam perawatan yang dibuang.
         $assetCategory = $this->insert('ast_categories', ['code' => $this->code('ACAT'), 'name' => 'Alat Berat']);
-        foreach (['maintenance', 'available', 'deployed'] as $status) {
+        foreach ([['maintenance', null], ['maintenance', null], ['available', null], ['deployed', null], ['maintenance', now()]] as [$status, $deleted]) {
             $this->insert('ast_assets', [
                 'code' => $this->code('AST'), 'name' => 'Excavator', 'category_id' => $assetCategory,
                 'useful_life_months' => 60, 'acquisition_date' => now()->toDateString(), 'status' => $status,
+                'deleted_at' => $deleted,
             ]);
         }
 
