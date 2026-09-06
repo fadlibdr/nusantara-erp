@@ -36,16 +36,58 @@ function permitted() {
 }
 
 /**
- * @param {Array<{id: string, size: string}>} current susunan yang sedang tampil
+ * @param {Array<{id: string, size: string}>} current susunan TERSIMPAN apa adanya
  * @param {() => void} onSaved dipanggil setelah preferensi ditulis
  */
 export function openDashboardSetup(current, onSaved) {
+  /* Yang masuk ke sini adalah susunan TERSIMPAN, bukan hasil resolveLayout():
+     yang kedua sudah membuang entri yang izinnya tidak dipegang, dan menyimpan
+     kembali daftar yang sudah terpotong menghapusnya dari preferensi selamanya
+     — kebalikan persis dari yang dijanjikan docblock resolveLayout ("TIDAK
+     dihapus dari preferensinya … izin bisa kembali"). Terukur pada
+     finance-manager tanpa hr.view: baris [payroll, ar-aging, tenggat] menjadi
+     [ar-aging, tenggat] setelah satu klik Simpan (verifikasi P1-D). */
+  const stored = normalise(current);
+  const canSee = (id) => !BY_ID[id] || session.can(permOf(BY_ID[id]));
+
+  /* Entri yang orangnya tidak boleh lihat: DISIMPAN DI SINI dengan posisi
+     aslinya, tidak digambar, dan diletakkan kembali saat menulis. Entri
+     hantu (id yang katalognya sudah tidak punya) justru MASUK ke draft —
+     barisnya ditawarkan untuk dihapus, yang sebelumnya kode mati karena
+     resolveLayout sudah membuangnya sebelum laci melihatnya. */
+  const hidden = stored
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => !canSee(entry.id));
+
   // Salinan yang boleh diaduk-aduk: membatalkan laci harus benar-benar
   // membatalkan, termasuk urutan yang sudah diseret.
-  let draft = current.map((entry) => ({ id: entry.id, size: entry.size }));
+  let draft = stored.filter((entry) => canSee(entry.id)).map((entry) => ({ id: entry.id, size: entry.size }));
+
+  /** draft + entri tersembunyi, masing-masing kembali ke posisi semula. */
+  const merged = () => {
+    const out = normalise(draft).filter((entry) => BY_ID[entry.id]);
+    // Urut naik: setiap penyisipan menggeser yang di belakangnya, jadi indeks
+    // yang lebih besar tetap benar hanya bila yang kecil dimasukkan lebih dulu.
+    [...hidden].sort((a, b) => a.index - b.index).forEach(({ entry, index }) => {
+      out.splice(Math.min(index, out.length), 0, { id: entry.id, size: entry.size });
+    });
+    return out;
+  };
 
   const inUse = el('.dash-setup-list');
   const spare = el('.dash-setup-spare');
+
+  /* Yang tidak terlihat tetap DISEBUT: sebuah daftar yang diam-diam lebih
+     pendek daripada yang disimpan membuat "Simpan" terasa seperti tidak
+     mengubah apa-apa padahal ia menulis daftar yang berbeda. */
+  const hiddenNote = el('p.cell-sub', { style: { margin: '4px 0 12px' } });
+  const paintHiddenNote = () => {
+    hiddenNote.textContent = hidden.length
+      ? `${hidden.length} widget lain ada di susunan Anda tetapi tidak dapat ditampilkan dengan izin Anda `
+        + 'sekarang. Widget itu tetap disimpan pada posisinya — bila izinnya kembali, ia muncul lagi.'
+      : '';
+    hiddenNote.hidden = !hidden.length;
+  };
   const body = el('div', [
     el('p.cell-sub', {
       text: 'Widget di bawah digambar berurutan dari kiri atas. Ukuran "lebar" memakai satu baris penuh.',
@@ -53,6 +95,7 @@ export function openDashboardSetup(current, onSaved) {
     }),
     el('h3.dash-setup-head', { text: 'Di dasbor Anda' }),
     inUse,
+    hiddenNote,
     el('h3.dash-setup-head', { text: 'Belum dipakai' }),
     spare,
   ]);
@@ -146,6 +189,7 @@ export function openDashboardSetup(current, onSaved) {
   function paint() {
     paintInUse();
     paintSpare();
+    paintHiddenNote();
   }
 
   /* Seret-lepas hanya MENAMBAH: urutan sudah bisa diubah tanpa tetikus, dan
@@ -185,6 +229,9 @@ export function openDashboardSetup(current, onSaved) {
         title: 'Susunan bawaan peran Anda',
         onClick: () => {
           draft = defaultLayout((session.user || {}).roles || [], (perm) => session.can(perm));
+          // "Kembalikan ke bawaan" berarti bawaan, seluruhnya: entri
+          // tersembunyi pun tidak boleh diselundupkan kembali ke dalamnya.
+          hidden.length = 0;
           paint();
         },
       }),
@@ -196,8 +243,12 @@ export function openDashboardSetup(current, onSaved) {
           /* normalise() sekali lagi sebelum menulis: yang disimpan harus bentuk
              yang sama dengan yang dibaca, dan baris hantu (id yang katalognya
              sudah tidak punya) tidak ikut — orangnya baru saja melihat
-             daftarnya, jadi menghapusnya di sini bukan kejutan. */
-          const value = normalise(draft).filter((entry) => BY_ID[entry.id]);
+             daftarnya, jadi menghapusnya di sini bukan kejutan. Entri yang
+             izinnya sedang tidak dipegang justru IKUT, kembali ke posisi
+             semula: ia tidak pernah ditawarkan untuk dihapus, jadi
+             membuangnya di sini adalah keputusan yang tidak pernah diambil
+             siapa pun. */
+          const value = merged();
           prefs.set('dashboard.layout', value);
           closeModal();
           toast('Susunan dasbor disimpan.');

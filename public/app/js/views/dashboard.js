@@ -33,7 +33,7 @@ import { el, clear, button, icon } from '../ui.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
 import { prefs } from '../prefs.js';
-import { SPAN, resolveLayout, defaultLayout, toStored, accentOf } from './widgets/registry.js';
+import { SPAN, resolveLayout, defaultLayout, normalise, accentOf } from './widgets/registry.js';
 import { openDashboardSetup } from './dashsetup.js';
 
 /* #80 'Proyek saya': status sakelar dasbor, bertahan antar kunjungan. Hanya
@@ -124,7 +124,19 @@ function widgetCard(widget, size) {
   return { card, body };
 }
 
+/**
+ * Nomor gambar dasbor yang sedang berlaku.
+ *
+ * renderDashboard() bisa dipanggil ulang kapan saja (tombol Muat ulang,
+ * sakelar 'Proyek saya', laci yang menyimpan, preferensi yang menyusul), dan
+ * gambar LAMA tidak berhenti sendiri: `clear(host)` melepaskan kartunya tetapi
+ * perulangan batch-nya masih menunggu. Setiap gambar mencatat nomornya dan
+ * berhenti begitu nomor itu bukan lagi yang berlaku.
+ */
+let generation = 0;
+
 export async function renderDashboard(host) {
+  const mine = ++generation;
   clear(host);
 
   const user = session.user || {};
@@ -144,12 +156,44 @@ export async function renderDashboard(host) {
      tertukar: yang kedua adalah pilihan sadar (dasbor sengaja dikosongkan) dan
      mengembalikannya diam-diam ke bawaan akan menghapus pilihan itu setiap
      kali halaman dibuka. */
-  const stored = prefs.has('dashboard.layout')
+  const chosen = prefs.has('dashboard.layout');
+  const stored = chosen
     ? prefs.get('dashboard.layout', [])
     : defaultLayout(user.roles || [], can);
   const layout = resolveLayout(stored, can);
 
   const reloadAll = () => renderDashboard(host);
+
+  /* PREFERENSI YANG MENYUSUL — dan kenapa dasbor ini pernah mengabaikan
+     susunan tersimpan sepenuhnya pada kunjungan pertama.
+     `boot()` menggambar #/dashboard SECARA SINKRON (landOnDefault() + start())
+     dan baru sesudahnya merantai `refreshMe().then(() => prefs.load())`. Di
+     peramban, perangkat atau profil BARU cermin localStorage kosong, jadi
+     `prefs.has('dashboard.layout')` di atas menjawab false dan yang tergambar
+     adalah BAWAAN PERAN — terukur 6 Sep 2026: baris server 3 kartu, layar 7
+     kartu bawaan, dan tidak pernah berubah sampai kunjungan kedua ke layar
+     yang sama.
+     Pola pemulihannya sama persis dengan yang dipasang verifikasi P1-C di
+     home.js dan module.js untuk bug yang sama pada launcher: yang mendengarkan
+     menggambar ulang BAGIANNYA sendiri, sekali, dan hanya bila nilai yang tiba
+     benar-benar berbeda dari yang sudah tergambar. */
+  if (!prefs.loaded()) {
+    const onPrefs = () => {
+      window.removeEventListener('erp:prefs-loaded', onPrefs);
+
+      // Gambar ini sudah digantikan gambar lain: yang itu punya pendengarnya
+      // sendiri, dan dua gambar ulang untuk satu peristiwa adalah dua kali
+      // seluruh permintaan dasbor.
+      if (mine !== generation) return;
+
+      const arrived = prefs.has('dashboard.layout') ? prefs.get('dashboard.layout', []) : null;
+      if (arrived === null) return;
+      if (JSON.stringify(normalise(arrived)) === JSON.stringify(normalise(stored))) return;
+
+      renderDashboard(host);
+    };
+    window.addEventListener('erp:prefs-loaded', onPrefs);
+  }
 
   host.appendChild(el('.page-head', [
     el('div', [
@@ -169,10 +213,19 @@ export async function renderDashboard(host) {
           },
         })
         : null,
+      /* Laci dibuka dari susunan TERSIMPAN, bukan dari apa yang tergambar.
+         Dua sebab yang keduanya terukur (verifikasi P1-D):
+         (a) sebelum prefs.load() selesai yang tergambar adalah bawaan peran,
+             dan menyimpannya menimpa susunan yang ditata orangnya di
+             perangkat lain — permanen, tanpa riwayat, dengan toast
+             "tersimpan";
+         (b) resolveLayout() sudah MEMBUANG entri yang izinnya tidak dipegang,
+             jadi menyimpan hasilnya menghapusnya dari preferensi — kebalikan
+             persis dari yang dijanjikan docblock resolveLayout. */
       button('Atur dasbor', {
         variant: 'ghost',
         title: 'Tambah, hapus, ubah ukuran dan urutan widget',
-        onClick: () => openDashboardSetup(toStored(layout), reloadAll),
+        onClick: () => openDashboardSetup(stored, reloadAll),
       }),
       button('', { iconName: 'refresh', title: 'Muat ulang', onClick: reloadAll }),
     ]),
@@ -192,7 +245,7 @@ export async function renderDashboard(host) {
       el('div', { style: { flex: '1' } }, prefs.has('dashboard.layout')
         ? 'Dasbor Anda sedang kosong. Buka "Atur dasbor" untuk menambahkan widget.'
         : 'Peran Anda belum memiliki akses ke widget dasbor mana pun.'),
-      button('Atur dasbor', { size: 'sm', onClick: () => openDashboardSetup(toStored(layout), reloadAll) }),
+      button('Atur dasbor', { size: 'sm', onClick: () => openDashboardSetup(stored, reloadAll) }),
     ]));
     return;
   }

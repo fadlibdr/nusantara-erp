@@ -76,6 +76,18 @@ const state = {};
 /** Kunci yang SERVER punya barisnya (null = belum pernah dimuat dari server). */
 let serverKeys = null;
 
+/**
+ * `load()` sudah SELESAI — dijawab server atau menyerah (luring, 401).
+ *
+ * Bukan sama dengan `serverKeys !== null`: yang menyerah tidak punya kunci
+ * server tetapi tetap selesai, dan penulis yang menunggu "server sudah
+ * menjawab" akan menunggu selamanya di tablet lapangan yang luring. Yang
+ * membaca ini adalah penggambar yang harus tahu bahwa cerminnya sudah
+ * sepadan dengan yang bisa didapat — dasbor P1-D memakainya untuk tidak
+ * MENIMPA susunan orangnya dengan bawaan peran (verifikasi P1-D).
+ */
+let settled = false;
+
 /** Id pengguna yang cerminnya sedang dimuat — masuk sebagai orang lain memuat ulang. */
 let mirrorFor = Symbol('belum');
 
@@ -171,9 +183,15 @@ async function load() {
     // plafon per kunci yang dipakai penulis di bawah.
     payload = await api.list('core/me/preferences');
   } catch {
-    // Luring atau sesi berakhir: cermin yang berlaku, dan tidak ada yang
-    // dinaikkan (menaikkan tanpa tahu isi server bisa menimpa pilihan yang
-    // dibuat di perangkat lain).
+    /* Luring atau sesi berakhir: cermin yang berlaku, dan tidak ada yang
+       dinaikkan (menaikkan tanpa tahu isi server bisa menimpa pilihan yang
+       dibuat di perangkat lain).
+
+       TETAP mengumumkan, dan tetap `settled`: yang mendengarkan harus tahu
+       bahwa tidak akan ada jawaban lagi. Tanpa ini penggambar yang menunggu
+       preferensi (dasbor P1-D) menunggu selamanya di tablet lapangan. */
+    settled = true;
+    announce('erp:prefs-loaded', { keys: Object.keys(state), from: 'cermin' });
     return state;
   }
 
@@ -212,7 +230,8 @@ async function load() {
      memuatnya. Yang mendengarkan menggambar ulang bagiannya sendiri; tidak ada
      yang me-resolve ulang rutenya, karena itu berarti setiap permintaan layar
      dijalankan dua kali. */
-  announce('erp:prefs-loaded', { keys: Object.keys(state) });
+  settled = true;
+  announce('erp:prefs-loaded', { keys: Object.keys(state), from: 'server' });
   return state;
 }
 
@@ -354,8 +373,13 @@ export function visibleRecent(can) {
     .filter((one) => one.def && can(one.def.viewPerm || `${one.def.module}.view`));
 }
 
+/** `load()` sudah selesai (dijawab server ATAU menyerah)? */
+function loaded() {
+  return settled;
+}
+
 export const prefs = {
-  get, set, has, load, favorites, isFavorite, toggleFavorite, recent, rememberRecent, visibleRecent, resourceKeyOf,
+  get, set, has, load, loaded, favorites, isFavorite, toggleFavorite, recent, rememberRecent, visibleRecent, resourceKeyOf,
   limitOf, DENSITIES,
 };
 
