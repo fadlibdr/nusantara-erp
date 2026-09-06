@@ -106,17 +106,82 @@ class UserPreferencesTest extends ErpTestCase
         $this->assertSame(0, DB::table('core_user_preferences')->count());
     }
 
+    /**
+     * Plafonnya ANGKA, dan angkanya ditulis di sini — bukan dibaca dari
+     * konstanta yang sedang diuji. Sampai verifikasi P1-C (6 Sep 2026) uji
+     * kelebihan ukuran membangun muatannya dari UserPreferences::MAX_BYTES dan
+     * mencocokkan pesannya dengan konstanta yang sama, jadi kedua sisinya
+     * bergerak bersama: menaikkan MAX_BYTES 16384 → 32768 lolos hijau. Satu
+     * angka inilah yang membatasi berapa banyak data kendali-pengguna yang
+     * dibawa core_user_preferences ke setiap backup dan setiap ekspor.
+     */
+    public function test_the_ceilings_are_the_numbers_the_documents_promise(): void
+    {
+        $this->assertSame(16384, UserPreferences::MAX_BYTES);
+
+        $this->assertSame([
+            'favorites' => 4096,
+            'recent' => 8192,
+            'density' => 64,
+            'dashboard.layout' => 16384,
+            'launcher.hidden' => 512,
+        ], array_map(fn (array $entry) => $entry['max_bytes'], UserPreferences::keys()));
+
+        $this->assertSame(['compact', 'normal', 'comfortable'], UserPreferences::DENSITIES);
+    }
+
     public function test_a_value_over_16_kb_is_refused_naming_the_key(): void
     {
         $this->actingAs($this->user('a@test.local'), 'sanctum');
 
-        // 16 KB of JSON inside one reserved-for-P1-D layout array.
-        $big = [str_repeat('x', UserPreferences::MAX_BYTES + 1)];
+        // Panjangnya dihitung mundur dari 16384 LITERAL: `["x…"]` = isi + 4
+        // byte pembungkus. 16384 tepat masuk, 16385 ditolak.
+        $atLimit = [str_repeat('x', 16384 - 4)];
+        $over = [str_repeat('x', 16385 - 4)];
+        $this->assertSame(16384, UserPreferences::encodedBytes($atLimit));
+        $this->assertSame(16385, UserPreferences::encodedBytes($over));
 
-        $response = $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $big])->assertStatus(422);
+        $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $atLimit])->assertOk();
 
-        $this->assertStringContainsString('dashboard.layout', (string) $response->json('errors.value.0'));
-        $this->assertStringContainsString((string) UserPreferences::MAX_BYTES, (string) $response->json('errors.value.0'));
+        $response = $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $over])->assertStatus(422);
+        $message = (string) $response->json('errors.value.0');
+        $this->assertStringContainsString('dashboard.layout', $message);
+        $this->assertStringContainsString('16385', $message, 'Pesannya tidak menyebut ukuran yang dikirim.');
+        $this->assertStringContainsString('16384', $message, 'Pesannya tidak menyebut batasnya.');
+
+        // Yang ditolak tidak menyisakan baris; yang tepat 16384 tadi tetap satu.
+        $this->assertSame(1, DB::table('core_user_preferences')->count());
+    }
+
+    /**
+     * Plafon per kunci LEBIH KECIL daripada plafon keras, dan itulah yang
+     * berlaku duluan: sebuah daftar favorit 6 KB masih di bawah 16384 dan tetap
+     * ditolak — dengan angka kuncinya sendiri yang disebut, bukan 16384.
+     */
+    public function test_each_key_is_refused_at_its_own_smaller_ceiling(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        $cases = [
+            'favorites' => [array_fill(0, 50, str_repeat('r', 120)), 4096],
+            'recent' => [array_fill(0, 20, ['route' => str_repeat('d', 200), 'label' => str_repeat('L', 200), 'sub' => str_repeat('s', 200)]), 8192],
+            'density' => [str_repeat('c', 100), 64],
+            'launcher.hidden' => [array_fill(0, 32, str_repeat('p', 16)), 512],
+        ];
+
+        foreach ($cases as $key => [$value, $limit]) {
+            $bytes = UserPreferences::encodedBytes($value);
+            $this->assertGreaterThan($limit, $bytes);
+            $this->assertLessThan(UserPreferences::MAX_BYTES, $bytes,
+                "Muatan {$key} melebihi plafon keras juga, jadi uji ini tidak membuktikan plafon kuncinya berlaku.");
+
+            $message = (string) $this->putJson("/api/core/me/preferences/{$key}", ['value' => $value])
+                ->assertStatus(422)->json('errors.value.0');
+            $this->assertStringContainsString($key, $message);
+            $this->assertStringContainsString((string) $limit, $message,
+                "Penolakan {$key} tidak menyebut plafon kuncinya ({$limit} byte).");
+        }
+
         $this->assertSame(0, DB::table('core_user_preferences')->count());
     }
 
