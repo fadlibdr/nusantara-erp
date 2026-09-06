@@ -427,7 +427,17 @@ function thin(centers, labelAt, width, plotW, minGap = 64, gap = 6) {
   const stepFor = (g) => Math.max(1, Math.ceil(count / Math.max(1, Math.floor(plotW / g))));
   let step = stepFor(minGap);
   const widest = Math.max(0, ...candidates(step).map((i) => textWidth(label(i))));
-  if (widest + gap * 2 > minGap) step = stepFor(widest + gap * 2);
+  /* Irama menyesuaikan DUA arah, bukan satu. Menaikkan minGap untuk label lebar
+     sudah ada sejak P1-A; menurunkannya untuk label SEMPIT ditambahkan setelah
+     verifikasi P1-E, karena irama 64 px ditera untuk '05 Sep 2026' (61,6 px)
+     dan dipakai apa adanya oleh sumbu berlabel 'M12' (±21 px): kurva-S 12
+     minggu tergambar M1, M3, M5, M7, M9, M11, M12 — tujuh label di sumbu yang
+     grafik tangannya menggambar dua belas, dengan ruang yang jelas cukup.
+     Lantainya 28 px supaya label tidak pernah berhimpit; uji tabrakan di bawah
+     tetap kata terakhir, jadi menurunkan irama tidak bisa membuat dua label
+     bertumpuk. */
+  const rhythm = Math.max(28, widest + gap * 2);
+  if (rhythm !== minGap) step = stepFor(rhythm);
   const picked = [];
   candidates(step).forEach((i) => {
     const { left } = box(i);

@@ -1911,6 +1911,39 @@ def s20e(pg):
         and print_state["trend_point_radii"][1] - print_state["trend_point_radii"][0] >= 1
     )
 
+    # KEPADATAN LABEL SUMBU MINGGU. Grafik tangan kurva-S menjarangkan per
+    # INDEKS (paling banyak 12 label); charts.js menjarangkan di ruang piksel
+    # dengan irama 64 px yang ditera untuk "05 Sep 2026" (61,6 px) — dan
+    # dipakai apa adanya oleh label selebar "M12" (±21 px), sehingga proyek 12
+    # minggu kehilangan lima labelnya (M1, M3, M5, M7, M9, M11, M12) di sumbu
+    # yang ruangnya jelas cukup (verifikasi P1-E). Proyek demo hanya 8 minggu,
+    # jadi bentuk ini tidak pernah terlihat di layar mana pun di sini.
+    week_axis = pg.evaluate("""async () => {
+      const m = await import("/app/js/charts.js");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const draw = (n) => {
+        host.replaceChildren(m.lineChart({
+          series: [{ label: "Aktual", points: Array.from({ length: n }, (_, i) => ({ y: (i + 1) * (100 / n) })) }],
+          xLabels: Array.from({ length: n }, (_, i) => `M${i + 1}`),
+          width: 720, height: 260, yMin: 0, yMax: 100, yStep: 25, yFormat: (v) => `${v}%`,
+        }));
+        const labels = [...host.querySelectorAll("text.chart-tick")]
+          .filter((t) => t.getAttribute("text-anchor") !== "end");
+        // Tidak boleh ada dua label yang kotaknya bersentuhan.
+        const boxes = labels.map((t) => t.getBBox()).sort((a, b) => a.x - b.x);
+        let overlap = false;
+        for (let i = 1; i < boxes.length; i++) {
+          if (boxes[i - 1].x + boxes[i - 1].width > boxes[i].x) overlap = true;
+        }
+        return { labels: labels.map((t) => t.textContent), overlap };
+      };
+      const out = { w8: draw(8), w12: draw(12), w52: draw(52) };
+      host.remove();
+      return out;
+    }""")
+    out["week_axis"] = week_axis
+
     checks = {
         # Ketiganya benar-benar digambar charts.js, bukan sisa SVG tangan.
         "all_are_chart_lib": all(c["lib"] for c in (scurve, evm, trend)),
@@ -1957,6 +1990,10 @@ def s20e(pg):
         "authored_dash_survives_print": print_state["authored_dash_survives_print"],
         "trend_legend_prints_and_differs_by_shape": print_state["trend_legend_prints_and_differs_by_shape"],
         "trend_points_differ_by_more_than_half_a_pixel": print_state["trend_points_differ_by_more_than_half_a_pixel"],
+        # Sumbu minggu 12 titik menggambar KEDUA BELAS labelnya, dan tidak ada
+        # sumbu minggu yang labelnya bertumpuk.
+        "twelve_week_axis_keeps_all_labels": len(week_axis["w12"]["labels"]) == 12,
+        "week_axis_never_overlaps": not any(week_axis[k]["overlap"] for k in ("w8", "w12", "w52")),
         # Tren harga: sumbu TIDAK mulai dari nol.
         "trend_axis_not_zero_based": trend["ticks"] and not trend["ticks"][0].strip().endswith(" 0"),
         "trend_five_gridlines": len([t for t in trend["ticks"] if t.startswith("Rp")]) == 5,
