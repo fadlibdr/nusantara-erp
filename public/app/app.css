@@ -1278,14 +1278,32 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      tertutup), dan tautan ke beranda modulnya. Remah layar/dokumen hanya
      disembunyikan secara VISUAL — judul halaman (h1) sudah memuatnya, pembaca
      layar tetap mendapat remah aria-current. Halaman beremah tunggal (Dasbor,
-     beranda modul) tetap menampilkannya, dielipsiskan bila perlu. */
+     beranda modul) tetap menampilkannya, dielipsiskan bila perlu.
+     Putaran 2 (6 Sep 2026): aturan itu MENGANDAIKAN setiap rantai berakar pada grup
+     NAV. Tujuh layar tidak — RESOURCES di luar NAV (projects/baselines,
+     projects/defects, inventory/issue-returns, inventory/purchase-returns,
+     hr/certificates, finance/petty-cash-vouchers, finance/kasbon) berakar pada
+     penanda "ERP" milik groupLabelFor(), yang dirender <span>. Dengan span, svg dan
+     remah layar disembunyikan sekaligus, header ponselnya KOSONG (terukur: anak
+     ['SPAN','svg','B'], teks tampak '', tinggi remah 0 px di header 56 px). Karena
+     itu crumbs.js menandai bentuk rantainya di #crumbs[data-root] dan yang disembunyikan
+     hanya yang benar-benar tergantikan remah modul. */
   /* Basis auto, bukan 0: dengan basis 0 remah berbagi ruang bebas sama rata dengan
      .spacer (terukur: 'Keuangan' terpotong padahal 54 px masih kosong). */
   .header .crumbs { flex: 0 1 auto; min-width: 0; }
   .header .crumbs a.crumb-module { min-width: 0; }
   .header .crumbs a.crumb-module .lbl, .header .crumbs > b:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .header .crumbs > svg, .header .crumbs > span, .header .crumbs a.crumb-screen { display: none; }
-  .header .crumbs > b:not(:first-child) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Penanda akar "ERP" dan chevron tidak pernah dibutuhkan di ponsel. */
+  .header .crumbs > svg, .header .crumbs > span { display: none; }
+  /* Berakar modul: remah modul saja; layar/dokumen tersembunyi VISUAL (aria tetap). */
+  .header .crumbs[data-root="module"] a.crumb-screen { display: none; }
+  .header .crumbs[data-root="module"] > b:not(:first-child) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Tanpa remah modul: remah LAYAR yang tampil, dipotong elipsis supaya tetap satu
+     baris di sebelah tombol Cari. Di halaman dokumen yang tampil tautan layarnya
+     (jalan kembali ke daftar); kode dokumennya sudah menjadi judul halaman. */
+  .header .crumbs[data-root="screen"] a.crumb-screen,
+  .header .crumbs[data-root="screen"] > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header .crumbs[data-root="screen"] a.crumb-screen ~ b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   /* Tombol Cari hanya ikon di ponsel (title + aria-label tetap): berlabel, isi header
      390 px berjumlah 416 px dan remah modul terpendek pun ikut terpotong. */
   .header .btn.global-search { width: 34px; padding: 0; }

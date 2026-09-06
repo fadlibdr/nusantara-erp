@@ -4,8 +4,9 @@ import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from '
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
 import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
-import { NAV, RESOURCES, visibleNav, moduleFor, moduleForLabel } from './schema.js';
+import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
+import { setCrumbs } from './crumbs.js';
 import { renderModuleHome } from './views/module.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
@@ -781,37 +782,6 @@ function setActiveNav(path) {
       group.classList.add('has-active');
     }
   }
-}
-
-/*
- * Remah roti "Modul › Layar › (Dokumen)" (P1-B). Remah pertama yang berupa
- * nama grup NAV menjadi tautan ke beranda modul #/m/<prefix> dan membawa
- * aksen modulnya (data-accent → app.css); remah layar pada halaman detail
- * menjadi tautan ke daftarnya bila pemanggil memberi screenHref. Remah
- * terakhir tetap <b> — layar detail menimpanya dengan kode dokumen begitu
- * rekamannya tiba (detail.js/custom.js membaca '#crumbs b'). Satu remah
- * (Dasbor, beranda modul sendiri) tidak ditautkan ke mana pun.
- */
-function setCrumbs(parts, { screenHref } = {}) {
-  const host = document.getElementById('crumbs');
-  if (!host) return;
-  clear(host);
-  const module = parts.length > 1 ? moduleForLabel(parts[0]) : null;
-  parts.forEach((part, index) => {
-    if (index) host.appendChild(icon('chevronRight', 12));
-    const last = index === parts.length - 1;
-    if (index === 0 && module) {
-      // Label di <span> sendiri supaya di ponsel bisa dielipsiskan (app.css ≤ 760 px).
-      host.appendChild(el('a.crumb-module', {
-        href: `#/m/${module.prefix}`, dataset: { accent: String(module.accent) }, title: `Beranda modul ${part}`,
-      }, el('span.lbl', { text: part })));
-    } else if (index === 1 && !last && screenHref) {
-      host.appendChild(el('a.crumb-screen', { href: screenHref, text: part }));
-    } else {
-      host.appendChild(last ? el('b', { text: part, 'aria-current': 'page' }) : el('span', { text: part }));
-    }
-  });
-  document.title = `${parts[parts.length - 1]} · Nusantara ERP`;
 }
 
 /* ----------------------------------------------------------------- routes */

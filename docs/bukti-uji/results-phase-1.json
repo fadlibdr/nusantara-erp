@@ -11890,8 +11890,7 @@
    "height": 900
   },
   "onboarding_status": {
-   "admin": "skipped",
-   "warehouse": "skipped"
+   "admin": "skipped"
   },
   "dock_open": 0,
   "sidebar_prefixes": [
@@ -13220,6 +13219,48 @@
   "admin_all_match": true,
   "admin_arrows_ok": true,
   "unknown_prefix": "Modul \"tidak-ada\" tidak dikenal.",
+  "crumb_walk": {
+   "routes": 131,
+   "nav": 124,
+   "outside": [
+    "#/r/finance/kasbon",
+    "#/r/finance/petty-cash-vouchers",
+    "#/r/hr/certificates",
+    "#/r/inventory/issue-returns",
+    "#/r/inventory/purchase-returns",
+    "#/r/projects/baselines",
+    "#/r/projects/defects"
+   ],
+   "by_root": {
+    "module": 123,
+    "screen": 8,
+    "null": 0
+   },
+   "empty": [],
+   "overlapping": [],
+   "taller_than_header": [],
+   "without_aria_current": [],
+   "outside_texts": {
+    "#/r/finance/kasbon": "ERP › Kasbon",
+    "#/r/finance/petty-cash-vouchers": "ERP › Voucher Kas Kecil",
+    "#/r/hr/certificates": "ERP › Sertifikat",
+    "#/r/inventory/issue-returns": "ERP › Retur Material Proyek",
+    "#/r/inventory/purchase-returns": "ERP › Retur Pembelian",
+    "#/r/projects/baselines": "ERP › Baseline Proyek",
+    "#/r/projects/defects": "ERP › Register Defect (Punch List)"
+   },
+   "console_errors_from_stub": {
+    "count": 2,
+    "first": [
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8026/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8026/app/js/views/retensi.js:48:41)"
+    ]
+   },
+   "never_empty": true,
+   "all_fit": true,
+   "all_aria_current": true,
+   "ok": true
+  },
   "density": {
    "baseline": {
     "density": "normal",
@@ -13706,6 +13747,8 @@
     "ast",
     "iam"
    ],
+   "onboarding_status": "skipped",
+   "dock_open": 0,
    "modules": {
     "ringkasan": {
      "cards": 3,
@@ -13853,7 +13896,7 @@
    "count": 0,
    "first": []
   },
-  "_ms": 68163,
+  "_ms": 96261,
   "_clicks": 11
  },
  "S21_module_accents_breadcrumb_mobile": {
@@ -13862,8 +13905,7 @@
    "height": 844
   },
   "onboarding_status": {
-   "admin": "skipped",
-   "warehouse": "skipped"
+   "admin": "skipped"
   },
   "dock_open": 0,
   "sidebar_prefixes": [
@@ -15180,6 +15222,48 @@
   "admin_all_match": true,
   "admin_arrows_ok": true,
   "unknown_prefix": "Modul \"tidak-ada\" tidak dikenal.",
+  "crumb_walk": {
+   "routes": 131,
+   "nav": 124,
+   "outside": [
+    "#/r/finance/kasbon",
+    "#/r/finance/petty-cash-vouchers",
+    "#/r/hr/certificates",
+    "#/r/inventory/issue-returns",
+    "#/r/inventory/purchase-returns",
+    "#/r/projects/baselines",
+    "#/r/projects/defects"
+   ],
+   "by_root": {
+    "module": 123,
+    "screen": 8,
+    "null": 0
+   },
+   "empty": [],
+   "overlapping": [],
+   "taller_than_header": [],
+   "without_aria_current": [],
+   "outside_texts": {
+    "#/r/finance/kasbon": "Kasbon",
+    "#/r/finance/petty-cash-vouchers": "Voucher Kas Kecil",
+    "#/r/hr/certificates": "Sertifikat",
+    "#/r/inventory/issue-returns": "Retur Material Proyek",
+    "#/r/inventory/purchase-returns": "Retur Pembelian",
+    "#/r/projects/baselines": "Baseline Proyek",
+    "#/r/projects/defects": "Register Defect (Punch List)"
+   },
+   "console_errors_from_stub": {
+    "count": 2,
+    "first": [
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8026/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8026/app/js/views/retensi.js:48:41)"
+    ]
+   },
+   "never_empty": true,
+   "all_fit": true,
+   "all_aria_current": true,
+   "ok": true
+  },
   "density": {
    "baseline": {
     "density": "normal",
@@ -15710,6 +15794,8 @@
     "ast",
     "iam"
    ],
+   "onboarding_status": "skipped",
+   "dock_open": 0,
    "modules": {
     "ringkasan": {
      "cards": 3,
@@ -15857,7 +15943,7 @@
    "count": 0,
    "first": []
   },
-  "_ms": 68074,
+  "_ms": 93625,
   "_clicks": 11
  },
  "S15_lapangan_upload": {

@@ -1573,6 +1573,35 @@ CRUMB_FIT = """() => { const h=document.getElementById('crumbs'); const hdr=docu
              module_lbl_ellipsized: (l => !!l && l.scrollWidth > l.clientWidth + 1)(h.querySelector('a.crumb-module .lbl')),
              last: b ? { text: b.innerText, aria_current: b.getAttribute('aria-current'), display: getComputedStyle(b).display, visible: b.checkVisibility() && b.getBoundingClientRect().width > 1 } : null } }"""
 
+# CRUMB_FIT di atas hanya menyidik dua halaman Keuangan — dua-duanya berakar grup NAV. Verifikasi P1-B
+# putaran 2 (6 Sep 2026) menemukan yang tidak: tujuh layar RESOURCES di luar NAV berakar penanda "ERP"
+# milik groupLabelFor(), dirender <span>, dan aturan ≤ 760 px menyembunyikan span + chevron + remah
+# layar sekaligus — remah roti ponselnya KOSONG (tinggi 0 px di header 56 px). Jadi remahnya dijalani:
+# setiap rute NAV yang benar-benar tergambar di sidebar, plus setiap kunci RESOURCES yang tidak ada di
+# NAV. Pindah rute lewat location.hash (router hash, tanpa muat ulang dokumen) karena setCrumbs jalan
+# sinkron di penangan rute — 220 ms per rute, 131 rute selesai dalam 29 s (diukur 6 Sep 2026).
+CRUMB_ROUTES = """async () => { const s = await import('/app/js/schema.js');
+    const nav = [...new Set([...document.querySelectorAll('nav.nav .nav-group:not([data-kind]) .nav-items a')].map(a => a.getAttribute('href')))];
+    const navSet = new Set(s.NAV.flatMap(g => g.items.map(i => i.route)));
+    const outside = Object.keys(s.RESOURCES).filter(k => !navSet.has('r/' + k)).sort().map(k => '#/r/' + k);
+    return { nav, outside } }"""
+
+CRUMB_WALK = """async (routes) => { const hdr=document.querySelector('.header'); const h=document.getElementById('crumbs'); const out=[];
+    for (const r of routes) {
+      location.hash = r;
+      await new Promise((res) => setTimeout(res, 220));
+      const kids=[...hdr.children];
+      const next=kids.slice(kids.indexOf(h)+1).find(e => e.getBoundingClientRect().width > 0 && !e.classList.contains('spacer'));
+      const vis=[...h.children].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+      const right=Math.max(...vis.map(e => e.getBoundingClientRect().right), h.getBoundingClientRect().left);
+      const b=h.querySelector('b');
+      out.push({ route: r, root: h.dataset.root || null, text: vis.map(e => (e.innerText || '').trim()).filter(Boolean).join(' › '),
+                 crumbs_h: Math.round(h.getBoundingClientRect().height), header_h: Math.round(hdr.getBoundingClientRect().height),
+                 overlap_next: !!next && right > next.getBoundingClientRect().left + 0.5,
+                 aria_current: b ? b.getAttribute('aria-current') : null });
+    }
+    return out }"""
+
 MODULE_HOME = """() => { const head=document.querySelector('.module-head'); const grid=document.querySelector('.module-grid'); const e=document.querySelector('#view .empty');
     const prefix = head && head.dataset.prefix;
     return { hash: location.hash, head: head ? { prefix, accent: head.dataset.accent, h1: head.querySelector('h1').innerText, desc: head.querySelector('.desc').innerText,
@@ -1779,6 +1808,50 @@ def module_accents(pg, tag):
     out["admin_all_match"] = all(m["match"] for m in out["admin_modules"].values())
     out["admin_arrows_ok"] = all(m["arrows"] is None or m["arrows"]["ok"] for m in out["admin_modules"].values())
     out["unknown_prefix"] = (pg.goto(BASE + "#/m/tidak-ada") or pg.wait_for_timeout(600) or pg.evaluate("() => document.querySelector('#view').innerText.trim().slice(0, 80)"))
+
+    # Remah roti dijalani di SETIAP rute: tidak boleh ada satu pun yang remahnya kosong, dan yang tampil
+    # harus tetap muat di header 56 px tanpa menimpa tombol Cari (di ponsel; di desktop syarat yang sama
+    # berlaku dan lebih longgar). Sekali per skenario, bukan per tema: yang diuji bentuk, bukan warna.
+    routes = pg.evaluate(CRUMB_ROUTES)
+    # Jawaban API dipalsukan kosong selama jalan-jalan ini. 131 rute × permintaan daftarnya menembus
+    # batas 120 permintaan/menit/pengguna (AppServiceProvider): diukur 6 Sep 2026 — sesudah walk tanpa
+    # palsu, GET inventory/item-categories membalas 429 dan langkah kepadatan di bawah menunggu baris
+    # tabel sampai 15 s habis. Remah roti digambar penangan rute SEBELUM data tiba, jadi datanya memang
+    # tidak dibutuhkan di sini; iam/auth/me dilewatkan apa adanya supaya izin sesi tidak ikut dikosongkan.
+    def empty_api(handler):
+        url = handler.request.url
+        if "iam/auth/me" in url or "iam/me/" in url:
+            handler.continue_()
+        else:
+            handler.fulfill(status=200, content_type="application/json",
+                            body='{"data":[],"meta":{"current_page":1,"last_page":1,"per_page":20,"total":0}}')
+    stub_from = len(console_errors)
+    pg.route("**/api/**", empty_api)
+    pg.goto(BASE + "#/dashboard"); pg.wait_for_timeout(800)
+    try:
+        walk = pg.evaluate(CRUMB_WALK, routes["nav"] + routes["outside"])
+    finally:
+        pg.unroute("**/api/**", empty_api)
+    # Dua layar khusus (rekap alat, retensi) membaca objek berbentuk, bukan daftar, jadi badan palsu di
+    # atas — bukan pemakaian sungguhan — yang membuatnya melempar. Dicatat terpisah supaya console_errors
+    # skenario tetap berarti "galat saat memakai aplikasi dengan data sungguhan".
+    stub_errors = console_errors[stub_from:]
+    del console_errors[stub_from:]
+    empty = [w for w in walk if not w["text"]]
+    overlapping = [w for w in walk if w["overlap_next"]]
+    taller = [w for w in walk if w["crumbs_h"] > w["header_h"]]
+    no_aria = [w for w in walk if w["aria_current"] != "page"]
+    out["crumb_walk"] = {"routes": len(walk), "nav": len(routes["nav"]), "outside": routes["outside"],
+                         "by_root": {r: sum(1 for w in walk if w["root"] == r) for r in ("module", "screen", None)},
+                         "empty": [w["route"] for w in empty], "overlapping": [w["route"] for w in overlapping],
+                         "taller_than_header": [w["route"] for w in taller], "without_aria_current": [w["route"] for w in no_aria],
+                         "outside_texts": {w["route"]: w["text"] for w in walk if w["route"] in routes["outside"]},
+                         "console_errors_from_stub": {"count": len(stub_errors), "first": stub_errors[:3]},
+                         "never_empty": not empty, "all_fit": not overlapping and not taller, "all_aria_current": not no_aria}
+    out["crumb_walk"]["ok"] = out["crumb_walk"]["never_empty"] and out["crumb_walk"]["all_fit"] and out["crumb_walk"]["all_aria_current"]
+    # Gambar untuk salah satu dari tujuh: header yang di ponsel dulu kosong sama sekali.
+    pg.goto(BASE + "#/r/projects/defects"); pg.wait_for_timeout(1200)
+    pg.screenshot(path=f"{OUT}/s21-crumb-outside-nav{tag}.png", clip={"x": 0, "y": 0, "width": pg.viewport_size["width"], "height": 120})
 
     # Kepadatan: tiga profil pada satu daftar bertombol aksi (Kategori Item: nama pendek, tidak
     # membungkus), lalu muat ulang. Harapan per penunjuk: pointer fine → 32/48 untuk SEMUA baris

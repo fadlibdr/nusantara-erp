@@ -165,6 +165,65 @@ class SidebarNavWiringTest extends ErpTestCase
             'CONVENTIONS.md lost § Aksen modul — the group → slot mapping table has no home.');
     }
 
+    /**
+     * P1-B putaran 2 — remah roti di ponsel tidak boleh kosong.
+     *
+     * Aturan ≤ 760 px app.css menyembunyikan penanda akar (<span>), chevron dan
+     * remah layar sekaligus, dengan andaian setiap rantai berakar pada nama grup
+     * NAV dan karenanya menyisakan a.crumb-module. Tujuh layar tidak: RESOURCES
+     * yang tidak ada di NAV berakar penanda 'ERP' milik groupLabelFor(), dan di
+     * ponsel header-nya jadi KOSONG (diukur 6 Sep 2026: anak ['SPAN','svg','B'],
+     * teks tampak '', tinggi remah 0 px di header 56 px, pada #/r/projects/baselines,
+     * #/r/projects/defects, #/r/inventory/issue-returns, #/r/inventory/purchase-returns,
+     * #/r/hr/certificates, #/r/finance/petty-cash-vouchers, #/r/finance/kasbon).
+     *
+     * Yang dipaku di sini adalah kontraknya, bukan pikselnya (piksel = harness S21
+     * crumb_walk, 131 rute): pembuat remah menuliskan bentuk rantai ke
+     * #crumbs[data-root], setiap aturan penyembunyi ponsel MENYEBUT data-root itu,
+     * dan hanya ADA SATU pembuat remah — salinan kedua (dulu views/kaskecil.js)
+     * tidak akan menulis data-root dan diam-diam jatuh ke perilaku ketiga.
+     */
+    public function test_the_mobile_breadcrumb_rules_are_scoped_to_the_chain_shape(): void
+    {
+        $crumbs = $this->file('crumbs.js');
+
+        $this->assertStringContainsString('export function setCrumbs(', $crumbs,
+            'public/app/js/crumbs.js no longer exports setCrumbs — the single breadcrumb builder is gone.');
+        $this->assertStringContainsString("host.dataset.root = module ? 'module' : 'screen';", $crumbs,
+            'setCrumbs no longer writes #crumbs[data-root]; the ≤ 760 px rules cannot tell a module-rooted chain '
+            .'from one rooted on the "ERP" placeholder, and the seven screens outside NAV go back to an empty header.');
+
+        // Satu pembuat: siapa pun yang memegang #crumbs sendiri merakit bentuk lain. Menimpa TEKS remah
+        // terakhir (document.querySelector('#crumbs b') di detail.js/custom.js/kaskecil.js) tetap boleh —
+        // yang dilarang adalah mengambil host-nya dan mengisinya sendiri, seperti crumbs() lama kaskecil.js.
+        $builders = [];
+        foreach ($this->spaScripts() as $path => $source) {
+            if (str_contains($source, "getElementById('crumbs')")) {
+                $builders[] = $path;
+            }
+        }
+        $this->assertSame(['js/crumbs.js'], $builders,
+            'More than one file builds the breadcrumb: '.implode(', ', $builders).'. A second builder writes no '
+            .'data-root and no aria-current, so the mobile rules and the screen reader both see a shape they do not know.');
+
+        $css = (string) file_get_contents(public_path('app/app.css'));
+
+        // Penyembunyi remah layar/dokumen HARUS bersyarat data-root="module".
+        foreach (['a.crumb-screen { display: none; }', '> b:not(:first-child) { position: absolute;'] as $rule) {
+            preg_match_all('/^\s*(\S[^\n]*?'.preg_quote($rule, '/').')/m', $css, $found);
+            $this->assertNotEmpty($found[1], "app.css lost the mobile rule '{$rule}'.");
+            foreach ($found[1] as $line) {
+                $this->assertStringContainsString('[data-root="module"]', $line,
+                    "app.css hides the screen crumb unconditionally ({$rule}); on a chain without a module crumb "
+                    .'that leaves the mobile header blank.');
+            }
+        }
+
+        // ...dan rantai tanpa remah modul harus punya aturan yang MENAMPILKAN remah layarnya.
+        $this->assertMatchesRegularExpression('/\[data-root="screen"\][^\n]*(a\.crumb-screen|> b)[^\n]*\n?[^\n]*text-overflow: ellipsis/', $css,
+            'app.css has no [data-root="screen"] rule keeping the screen crumb visible (ellipsised) on mobile.');
+    }
+
     /** The refused half: the readers say no to a caption and a route that do not exist. */
     public function test_the_readers_can_still_say_no(): void
     {
@@ -226,5 +285,27 @@ class SidebarNavWiringTest extends ErpTestCase
         $this->assertFileExists($path, "public/app/js/{$relative} is missing.");
 
         return (string) file_get_contents($path);
+    }
+
+    /**
+     * Every SPA script, keyed by its path relative to public/app/ — the whole
+     * tree, so a builder added in a new view file is read too.
+     *
+     * @return array<string, string>
+     */
+    private function spaScripts(): array
+    {
+        $root = public_path('app');
+        $files = [];
+
+        foreach (['js/*.js', 'js/views/*.js'] as $glob) {
+            foreach (glob($root.'/'.$glob) ?: [] as $path) {
+                $files[substr($path, strlen($root) + 1)] = (string) file_get_contents($path);
+            }
+        }
+
+        $this->assertGreaterThan(30, count($files), 'Only '.count($files).' SPA scripts were found; the reader lost the tree.');
+
+        return $files;
     }
 }

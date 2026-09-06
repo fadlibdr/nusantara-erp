@@ -33,6 +33,8 @@ public/app/
   js/
     app.js              login gate, shell, navigation, route registration
     router.js           hash router (works from static hosting, no server rules)
+    crumbs.js           setCrumbs() — the one breadcrumb builder: module crumb → #/m/<prefix>,
+                        screen crumb → its list, #crumbs[data-root] = module | screen
     api.js              fetch wrapper, session storage, error normalisation
     format.js           id-ID money/date/percent formatting
     ui.js               el() DOM builder, buttons, badges, modal, toast, fields, svgIcon(),
@@ -120,8 +122,14 @@ reading, in another shape. There is no `print` action anywhere in the permission
   every role.
 - **Navigation chrome**: the breadcrumb is `Modul › Layar › (Dokumen)` — the module crumb
   links to `#/m/<prefix>` and carries the module accent (`data-accent`), the same colour as
-  the active sidebar group marker; `setCrumbs(parts, { screenHref })` in `app.js` derives the
-  module from the first crumb's NAV group label. Accents never colour semantic states.
+  the active sidebar group marker; `setCrumbs(parts, { screenHref })` in `js/crumbs.js` (the
+  only builder — a second one writes no `data-root` and no `aria-current`) derives the module
+  from the first crumb's NAV group label, and records the chain shape in `#crumbs[data-root]`:
+  `module` when the first crumb is a NAV group, `screen` otherwise. Below 760 px that attribute
+  decides what may be hidden — a module-rooted chain shows the module crumb alone, a chain
+  without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
+  rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
+  `crumb_walk` walks every route). Accents never colour semantic states.
 - **Density**: `data-density` on `<html>` (compact/normal/comfortable) drives `--row-h` and the
   cell paddings; chosen in the account dialog, stored per user in `localStorage`
   (`nusantara_erp_density:<userId>`) until P1-C moves it server-side.
