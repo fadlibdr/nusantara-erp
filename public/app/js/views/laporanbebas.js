@@ -565,6 +565,16 @@ async function refreshSaved(host, output, redraw) {
         el('td', [
           el('span.cell-main', { text: report.name }),
           el('span.cell-sub', { text: report.is_owner ? 'milik Anda' : `milik ${report.owner_name || 'pengguna lain'}` }),
+          /* Baris sendiri yang sumbernya sudah tidak boleh dibaca TETAP di
+             daftar — kalau tidak, tidak ada satu pun cara membuangnya. Yang
+             ditutup adalah angkanya, dan sebabnya ditulis di sini alih-alih
+             ditawarkan sebagai tombol yang selalu gagal. */
+          report.readable === false
+            ? el('span.cell-sub', {
+              text: `Anda tidak lagi memiliki hak akses untuk membaca ${report.resource_label || report.resource}; barisnya tetap dapat dihapus.`,
+              style: { color: 'var(--warning)' },
+            })
+            : null,
         ]),
         el('td', { text: report.resource_label }),
         el('td', [
@@ -575,9 +585,15 @@ async function refreshSaved(host, output, redraw) {
             : null,
         ]),
         el('td.right', [
-          button('Buka', { size: 'sm', variant: 'ghost', onClick: () => openSaved(report, output, redraw) }),
-          button('XLSX', { size: 'sm', variant: 'ghost', onClick: () => downloadXlsx(report) }),
-          button('Salin', { size: 'sm', variant: 'ghost', onClick: () => copySaved(report, host, output, redraw) }),
+          report.readable === false
+            ? null
+            : button('Buka', { size: 'sm', variant: 'ghost', onClick: () => openSaved(report, output, redraw) }),
+          report.readable === false
+            ? null
+            : button('XLSX', { size: 'sm', variant: 'ghost', onClick: () => downloadXlsx(report) }),
+          report.readable === false
+            ? null
+            : button('Salin', { size: 'sm', variant: 'ghost', onClick: () => copySaved(report, host, output, redraw) }),
           report.is_owner
             ? button('Hapus', { size: 'sm', variant: 'ghost', onClick: () => deleteSaved(report, host, output, redraw) })
             : null,

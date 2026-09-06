@@ -80,7 +80,23 @@ final class SavedReportService
             ->orderBy('name')
             ->get()
             ->filter(function (SavedReport $report) use ($user, $roles): bool {
-                if ($report->user_id !== $user->getKey() && ! array_intersect($roles, $report->sharedRoles())) {
+                if ($report->user_id === $user->getKey()) {
+                    /* BARIS SENDIRI SELALU TERLIHAT, juga setelah izin sumbernya
+                       dicabut — ANGKAnya tidak (canRead), dan `present()`
+                       menandainya `readable: false` supaya layar menutup Buka
+                       dan XLSX serta menuliskan sebabnya.
+
+                       Sampai verifikasi kedua P1-F baris ini pun disaring izin
+                       sumber, sehingga `canManage()` — yang justru ditambahkan
+                       putaran pertama supaya pemiliknya bisa membuang barisnya
+                       — tidak bisa dicapai dari layar mana pun: barisnya hilang
+                       dari daftar, jadi tombol Hapus-nya tidak pernah ada.
+                       Terukur: GET saved => data [], GET saved/{id} => 404,
+                       DELETE saved/{id} => 200. */
+                    return true;
+                }
+
+                if (! array_intersect($roles, $report->sharedRoles())) {
                     return false;
                 }
 

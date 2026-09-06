@@ -2,9 +2,10 @@
 
 namespace Modules\Core\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use InvalidArgumentException;
 use LogicException;
 use Modules\Core\Http\ApiController;
@@ -33,7 +34,7 @@ class SavedReportController extends ApiController
         $out = [];
 
         foreach ($this->service->visibleTo($user) as $report) {
-            $out[] = $this->present($report, $user->getKey());
+            $out[] = $this->present($report, $user);
         }
 
         return $this->ok($out);
@@ -47,18 +48,23 @@ class SavedReportController extends ApiController
             return $this->error($e->getMessage(), 422, ['definition' => [$e->getMessage()]]);
         }
 
-        return $this->created($this->present($report, $request->user()->getKey()));
+        return $this->created($this->present($report, $request->user()));
     }
 
     public function show(Request $request, string $savedReport): JsonResponse
     {
-        $report = $this->resolve($request, $savedReport);
+        // Baris SENDIRI, juga tanpa izin sumbernya: daftar menampilkannya (ia
+        // harus bisa dibuang), jadi 404 di sini adalah dua jawaban berbeda
+        // untuk satu id — GET 404 sementara PUT dan DELETE 200 (verifikasi
+        // kedua P1-F). Yang dikirim adalah PERTANYAAN yang ditulis orangnya
+        // sendiri; angkanya tetap butuh izin, dan `readable` mengatakannya.
+        $report = $this->resolve($request, $savedReport, manage: true);
 
         if ($report === null) {
             return $this->notVisible();
         }
 
-        return $this->ok($this->present($report, $request->user()->getKey()));
+        return $this->ok($this->present($report, $request->user()));
     }
 
     public function update(Request $request, string $savedReport): JsonResponse
@@ -84,7 +90,7 @@ class SavedReportController extends ApiController
             return $this->error($e->getMessage(), 422, ['owner' => [$e->getMessage()]]);
         }
 
-        return $this->ok($this->present($report, $request->user()->getKey()));
+        return $this->ok($this->present($report, $request->user()));
     }
 
     public function destroy(Request $request, string $savedReport): JsonResponse
@@ -118,7 +124,7 @@ class SavedReportController extends ApiController
             return $this->error($e->getMessage(), 422);
         }
 
-        return $this->created($this->present($report, $request->user()->getKey()));
+        return $this->created($this->present($report, $request->user()));
     }
 
     /**
@@ -168,10 +174,12 @@ class SavedReportController extends ApiController
 
         $user = $request->user();
 
-        /* `manage` = menamai ulang, membagikan, menghapus. Pemilik boleh
-           melakukannya bahkan setelah izin sumbernya dicabut — kalau tidak,
-           barisnya tinggal selamanya tanpa satu pun cara membuangnya
-           (temuan verifikasi P1-F). MEMBACA angkanya tetap butuh izin. */
+        /* `manage` = melihat barisnya, menamai ulang, membagikan, menghapus.
+           Pemilik boleh melakukannya bahkan setelah izin sumbernya dicabut —
+           kalau tidak, barisnya tinggal selamanya tanpa satu pun cara
+           membuangnya (temuan verifikasi P1-F). MEMBACA ANGKAnya tetap butuh
+           izin, dan itulah kenapa `copy` dan `xlsx` — dua verb yang benar-benar
+           menjalankan kuerinya — sengaja TIDAK memakai lengan ini. */
         if ($manage && $this->service->canManage($user, $report)) {
             return $report;
         }
@@ -191,7 +199,7 @@ class SavedReportController extends ApiController
     }
 
     /** @return array<string, mixed> */
-    private function present(SavedReport $report, int $viewerId): array
+    private function present(SavedReport $report, User $viewer): array
     {
         $entry = ReportableResources::has($report->resource)
             ? ReportableResources::definition($report->resource)
@@ -210,7 +218,13 @@ class SavedReportController extends ApiController
             'stale_roles' => $this->service->staleRoles($report),
             'owner_id' => $report->user_id,
             'owner_name' => $report->user?->name,
-            'is_owner' => $report->user_id === $viewerId,
+            'is_owner' => $report->user_id === $viewer->getKey(),
+            /* ANGKAnya boleh dibaca pemanggil? Baris sendiri tetap terlihat
+               setelah izin sumbernya dicabut (supaya bisa dibuang), tetapi
+               Buka dan XLSX-nya harus tertutup dan sebabnya tertulis —
+               daftar yang menawarkan tombol yang selalu 404 lebih buruk
+               daripada daftar yang mengatakannya (verifikasi kedua P1-F). */
+            'readable' => $this->service->canRead($viewer, $report),
             'updated_at' => $report->updated_at?->toIso8601String(),
         ];
     }

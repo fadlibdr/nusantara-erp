@@ -258,6 +258,72 @@ class SavedReportTest extends ErpTestCase
     }
 
     /**
+     * Sesudah izin sumbernya dicabut, pemiliknya masih MELIHAT barisnya —
+     * dan itulah satu-satunya cara `canManage()` bisa dicapai dari layar.
+     *
+     * Putaran verifikasi pertama menambahkan `canManage()` supaya barisnya
+     * tidak "tinggal selamanya tanpa satu pun cara membuangnya", tetapi
+     * `visibleTo()` tetap menyaring baris SENDIRI lewat izin sumber: daftar
+     * mengembalikan [], GET id menjawab 404, sementara PUT dan DELETE atas id
+     * yang sama menjawab 200 — perbaikan yang tidak bisa dicapai dan tidak
+     * punya satu uji pun (verifikasi kedua P1-F).
+     */
+    public function test_the_owner_still_sees_and_can_delete_his_row_after_the_source_permission_is_revoked(): void
+    {
+        $owner = $this->userWith('finance', ['fin.view']);
+        $this->actingAs($owner, 'sanctum');
+
+        $id = $this->postJson('/api/core/reports/saved', ['name' => 'Biaya saya', 'definition' => $this->definition()])
+            ->assertStatus(201)->assertJsonPath('data.readable', true)->json('data.id');
+
+        // Izin sumbernya dicabut — perannya tetap sama, isinya yang berubah.
+        Role::findByName('finance', 'web')->syncPermissions([]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->getJson('/api/core/reports/saved')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $id)
+            // …tetapi ANGKAnya tertutup, dan barisnya mengatakannya.
+            ->assertJsonPath('data.0.readable', false);
+
+        $this->getJson("/api/core/reports/saved/{$id}")->assertOk()->assertJsonPath('data.readable', false);
+
+        // Menjalankan dan mengekspornya tetap tertutup: yang boleh dibuang
+        // bukan yang boleh dibaca.
+        $this->postJson('/api/core/reports/run', $this->definition())->assertStatus(403);
+        $this->get("/api/core/reports/saved/{$id}/xlsx")->assertStatus(404);
+        $this->postJson("/api/core/reports/saved/{$id}/copy")->assertStatus(404);
+
+        // Dan jalan keluarnya benar-benar ada, dari daftar yang menampilkannya.
+        $this->deleteJson("/api/core/reports/saved/{$id}")->assertOk();
+        $this->getJson('/api/core/reports/saved')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    /**
+     * Baris orang lain TIDAK ikut terlihat: kelonggaran di atas hanya untuk
+     * pemiliknya, dan berbagi tetap tidak memberi akses baru.
+     */
+    public function test_a_shared_row_still_disappears_when_the_reader_loses_the_source_permission(): void
+    {
+        $owner = $this->userWith('finance', ['fin.view']);
+        $reader = $this->userWith('finance-manager', ['fin.view']);
+
+        $this->actingAs($owner, 'sanctum');
+        $this->postJson('/api/core/reports/saved', [
+            'name' => 'Dibagikan', 'definition' => $this->definition(), 'shared_roles' => ['finance-manager'],
+        ])->assertStatus(201);
+
+        $this->actingAs($reader, 'sanctum');
+        $this->getJson('/api/core/reports/saved')->assertOk()->assertJsonCount(1, 'data');
+
+        Role::findByName('finance-manager', 'web')->syncPermissions([]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->getJson('/api/core/reports/saved')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    /**
      * Nama yang bukan teks ditolak dengan kalimat, bukan dengan 500.
      *
      * `trim((string) $input['name'])` atas sebuah array memicu 'Array to
