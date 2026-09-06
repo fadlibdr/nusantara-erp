@@ -852,11 +852,15 @@ function registerRoutes() {
     guard(host, () => renderDashboard(host));
   });
 
-  route('reports', () => {
+  /* `?tab=<kunci>` (P1-D): widget dasbor menaut ke laporan yang benar-benar
+     memuat angkanya, bukan ke tab pertama. Query dipisah router sebelum
+     pencocokan pola, jadi rute lama '#/reports' tidak berubah sedikit pun. */
+  route('reports', (params, path, query) => {
     setCrumbs(['Keuangan', 'Laporan']);
     setActiveNav('reports');
     const host = view();
-    guard(host, () => renderReports(host));
+    const tab = new URLSearchParams(query || '').get('tab');
+    guard(host, () => renderReports(host, tab));
   });
 
   /* Drill-down di balik satu baris neraca saldo. Neraca saldo Juli 2026
