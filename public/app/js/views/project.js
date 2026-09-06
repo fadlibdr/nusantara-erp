@@ -61,7 +61,14 @@ const PROJECT_TABS = [
  * baris pun; yang berubah hanya siapa yang menggambar hasilnya.
  */
 export function sCurveChart(weeks, baselinePoints) {
+  /* `Number(null)` adalah 0, dan `Number('')` juga — keduanya BERHINGGA,
+     jadi penjaga yang hanya memeriksa Number.isFinite mengembalikan 0 untuk
+     nilai yang tidak diketahui dan menggambar titiknya persis di garis 0 %
+     dengan tooltip yang berbunyi "rencana —, aktual —" (verifikasi P1-E).
+     Bentuk yang benar adalah bentuk yang dipakai evm.js value() dan
+     charts.js finite(): null/undefined/'' adalah CELAH, bukan nol. */
   const pct = (value) => {
+    if (value === null || value === undefined || value === '') return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
   };
@@ -132,7 +139,12 @@ export function sCurveChart(weeks, baselinePoints) {
     yMin: 0,
     yMax: 100,
     yStep: 25,
-    yFormat: (value) => `${value}%`,
+    /* fmt.percent, bukan `${value}%`: yFormat dipakai charts.js untuk label
+       sumbu DAN untuk <title> bawaan setiap titik tanpa judul sendiri, jadi
+       bentuk template mencetak titik desimal Inggris ('4.5%') di aplikasi yang
+       menulis '4,5%' di mana pun (verifikasi P1-E). Label sumbunya bilangan
+       bulat, jadi teksnya tidak berubah. */
+    yFormat: (value) => fmt.percent(value, { decimals: 1 }),
     ariaLabel: 'Kurva-S rencana vs aktual',
   });
 }
