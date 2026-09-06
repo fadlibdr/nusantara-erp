@@ -127,9 +127,9 @@ Dua aturan yang menjaganya aman, keduanya diuji:
 
 `tests/Feature/Core` + `tests/Feature/Iam` setelah perbaikan verifikasi: **858 hijau / 6.630
 asersi** (11 dilewati, 154 s).
-**Suite penuh (SQLite): 3.950 uji / 20.155 asersi hijau, 11 dilewati, 554 s** — 38 uji dan 392
-asersi lebih banyak daripada P1-E, seluruhnya milik paket ini; tidak ada uji lain yang berubah
-hasilnya. MySQL: (diisi — job CI nightly).
+**Suite penuh (SQLite) setelah perbaikan verifikasi: 3.961 uji / 20.288 asersi hijau, 11
+dilewati, 543 s** — 49 uji dan 525 asersi lebih banyak daripada P1-E, seluruhnya milik paket ini;
+tidak ada uji lain yang berubah hasilnya. MySQL: (diisi — job CI nightly).
 
 **Harness S24** (Chromium 1440×900): 15 syarat hijau pada jalan pertama — katalog delapan sumber
 yang menyaring dirinya per izin (gudang melihat lebih sedikit), plafon yang **diumumkan server**
