@@ -16,6 +16,7 @@ use Modules\Core\Http\Controllers\InboxController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
+use Modules\Core\Http\Controllers\ModuleCountController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
@@ -51,6 +52,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // rows. No permission gate for the same reason as search and calendar:
     // each block is included only when the caller holds that module's .view.
     Route::get('dashboard/summary', DashboardController::class);
+
+    // P1-C: satu angka utama per modul (registri ModuleCounts) — muatan yang
+    // sama dengan blok `modules` pada dashboard/summary?include=modules.
+    // Endpoint sendiri supaya launcher #/home tidak ikut memikul ubin uang
+    // dasbor, dan dasbor tetap seringan hari ini bagi yang tidak memintanya.
+    // Tanpa gerbang izin untuk alasan yang sama dengan search dan calendar:
+    // registri menyaring dirinya sendiri per entri.
+    Route::get('modules', ModuleCountController::class);
 
     // P1-C: preferensi pemanggil sendiri (favorit, "Terakhir dibuka",
     // kepadatan, susunan dasbor, modul yang disembunyikan). Tanpa gerbang izin

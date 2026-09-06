@@ -5,6 +5,7 @@ namespace Modules\Core\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Core\Http\ApiController;
+use Modules\Core\Support\ModuleCounts;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ArInvoice;
 use Modules\Projects\Models\Project;
@@ -78,6 +79,19 @@ class DashboardController extends ApiController
                 'outstanding' => round((float) $ap->outstanding, 2),
                 'open_count' => (int) $ap->open_count,
             ];
+        }
+
+        /*
+         * Blok `modules` (P1-C) HANYA bila diminta. Target metrik Fase 1
+         * mengikat jumlah permintaan dasbor pada angka hari ini, dan blok ini
+         * berarti 14 hitungan + pemeriksaan tabel yang tidak dibutuhkan satu
+         * pun ubin dasbor — yang membutuhkannya adalah launcher #/home dan
+         * beranda modul, dan keduanya memanggil GET core/modules. Parameternya
+         * ada supaya sebuah layar yang butuh KEDUANYA (dasbor + ubin modul)
+         * bisa mengambilnya dalam satu permintaan, bukan dua.
+         */
+        if (str_contains((string) $request->query('include', ''), 'modules')) {
+            $data['modules'] = ModuleCounts::for($user);
         }
 
         // (object) so a caller with no view permission at all reads {} — the

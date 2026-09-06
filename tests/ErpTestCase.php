@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use InvalidArgumentException;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ModuleCounts;
 use Modules\Core\Support\WatchedDeadlines;
 use Modules\Finance\Database\Seeders\ChartOfAccountsSeeder;
 use Modules\Finance\Models\FiscalPeriod;
@@ -37,6 +38,8 @@ abstract class ErpTestCase extends TestCase
         // tables that no longer exist and crashes the degradation tests that
         // drop one on purpose.
         WatchedDeadlines::flushSchemaMemo();
+        // Memo tabel milik registri ModuleCounts (P1-C), alasan yang sama.
+        ModuleCounts::flushSchemaMemo();
     }
 
     /**
