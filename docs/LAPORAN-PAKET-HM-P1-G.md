@@ -107,7 +107,9 @@ disebut namanya, dan juga menolak kunci `post` untuk resource mana pun.
 - diperbarui: `NavRouteRegistryTest` kini mengenal keluarga wildcard **kedua** (`b/<resource>`),
   yang butuh DUA hal — entri RESOURCES **dan** blok `board:` di dalamnya.
 - `tests/Feature/Core` + `tests/Feature/Iam`: **865 hijau / 6.701 asersi** (11 dilewati, 161 s).
-  Suite penuh dan MySQL: (diisi).
+  **Suite penuh (SQLite): 3.968 uji / 20.359 asersi hijau, 11 dilewati, 541 s** — tujuh uji lebih
+  banyak daripada P1-F, seluruhnya `BoardWiringTest`; tidak ada uji lain yang berubah hasilnya.
+  MySQL: (diisi — job CI nightly).
 
 **Harness S25** (Chromium 1440×1000): 12 syarat hijau, **dua jalan berturut-turut**. Ia memasang
 prasyaratnya sendiri di awal dan memulihkan keadaannya di akhir lewat sqlite (pola
@@ -130,7 +132,7 @@ sekali lalu merah selamanya.
 
 1. **Tidak ada verifikasi adversarial.** Putaran pertama P1-F menemukan 20 cacat sungguhan; paket
    ini belum melewati satu putaran pun.
-2. **Suite penuh dan MySQL belum dijalankan** untuk paket ini; Core+Iam hijau.
+2. **Suite MySQL belum dijalankan.** SQLite penuh hijau (3.968 / 20.359).
 3. **Ponsel belum diukur.** CSS papan punya titik potong 760 px (kolom 78vw, satu baris yang
    menggulir mendatar), tetapi S25 hanya berjalan di 1440×1000. Seret-lepas sentuh — yang
    SortableJS dukung dan yang menjadi alasan pustaka ini di-vendor — **belum pernah dicoba**.
