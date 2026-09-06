@@ -20336,17 +20336,8 @@
         },
         "text_outside_viewbox": [],
         "pixel_diff": {
-          "available": true,
-          "before": [
-            720,
-            260
-          ],
-          "after": [
-            720,
-            276
-          ],
-          "changed_pct": 3.19,
-          "outside_intersection_pct": 5.8
+          "available": false,
+          "reason": "Pillow tidak terpasang"
         }
       },
       "evm": {
@@ -20421,17 +20412,8 @@
         },
         "text_outside_viewbox": [],
         "pixel_diff": {
-          "available": true,
-          "before": [
-            720,
-            261
-          ],
-          "after": [
-            720,
-            277
-          ],
-          "changed_pct": 7.15,
-          "outside_intersection_pct": 5.78
+          "available": false,
+          "reason": "Pillow tidak terpasang"
         }
       },
       "tren_harga": {
@@ -20479,17 +20461,8 @@
         },
         "text_outside_viewbox": [],
         "pixel_diff": {
-          "available": true,
-          "before": [
-            1112,
-            372
-          ],
-          "after": [
-            1112,
-            403
-          ],
-          "changed_pct": 6.08,
-          "outside_intersection_pct": 7.69
+          "available": false,
+          "reason": "Pillow tidak terpasang"
         }
       }
     },
@@ -20537,6 +20510,17 @@
         ]
       ]
     },
+    "trend_axis_rising": {
+      "rising_ticks": [
+        7875,
+        14813,
+        21750,
+        28688,
+        35625
+      ],
+      "rising_gridlines": 5,
+      "edges_labelled": true
+    },
     "checks": {
       "all_are_chart_lib": true,
       "every_mark_titled": true,
@@ -20551,6 +20535,8 @@
       "evm_axis_reaches_100": true,
       "trend_axis_not_zero_based": true,
       "trend_five_gridlines": true,
+      "trend_axis_edges_are_labelled": true,
+      "trend_rising_prices_keep_five_gridlines": true,
       "trend_one_series": true,
       "trend_point_tokens_differ": true,
       "series_colours_match_tokens": true,
@@ -20561,7 +20547,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 7121,
+    "_ms": 6927,
     "_clicks": 0
   },
   "S24_laporan_bebas": {

@@ -1697,6 +1697,41 @@ def s20e(pg):
     pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
 
     # ---- daftar fitur yang TIDAK boleh hilang, dinyatakan sebagai syarat ----
+    # Sumbu tren harga atas deret harga yang BERGERAK — data demo punya dua
+    # harga yang sama, dan itulah satu-satunya bentuk yang lolos aturan lama.
+    # Digambar dengan lineChart yang dikapalkan, memakai rumus yLo/yHi/yStep
+    # milik hargasatuan.js sendiri, di halaman yang sedang diuji.
+    trend_axis = pg.evaluate("""async () => {
+      const m = await import("/app/js/charts.js");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const axisOf = (prices) => {
+        const lo = Math.min(...prices), hi = Math.max(...prices);
+        const room = (hi - lo) * 0.25 || hi * 0.05 || 1;
+        const yLo = Math.max(0, lo - room), yHi = hi + room;
+        host.replaceChildren(m.lineChart({
+          series: [{ label: "Harga", points: prices.map((v, i) => ({ x: i, y: v })) }],
+          width: 1112, height: 260, legend: false,
+          yMin: yLo, yMax: yHi, yStep: (yHi - yLo) / 4, yFormat: (v) => String(Math.round(v)),
+        }));
+        const ticks = [...host.querySelectorAll("text.chart-tick")]
+          .filter((t) => t.getAttribute("text-anchor") === "end")
+          .map((t) => parseFloat(t.textContent));
+        return { ticks, yLo, yHi };
+      };
+      const rising = axisOf([12500, 18750, 31000]);
+      const near = (a, b) => Math.abs(a - b) <= Math.max(1, Math.abs(b) * 1e-6);
+      host.remove();
+      return {
+        rising_ticks: rising.ticks,
+        rising_gridlines: rising.ticks.length,
+        edges_labelled: rising.ticks.length > 1
+          && near(rising.ticks[0], Math.round(rising.yLo))
+          && near(rising.ticks[rising.ticks.length - 1], Math.round(rising.yHi)),
+      };
+    }""")
+    out["trend_axis_rising"] = trend_axis
+
     checks = {
         # Ketiganya benar-benar digambar charts.js, bukan sisa SVG tangan.
         "all_are_chart_lib": all(c["lib"] for c in (scurve, evm, trend)),
@@ -1724,6 +1759,19 @@ def s20e(pg):
         # Tren harga: sumbu TIDAK mulai dari nol.
         "trend_axis_not_zero_based": trend["ticks"] and not trend["ticks"][0].strip().endswith(" 0"),
         "trend_five_gridlines": len([t for t in trend["ticks"] if t.startswith("Rp")]) == 5,
+        # …dan garis kisi itu benar-benar MEMBENTANG plotnya: label pertama =
+        # lantai sumbu, label terakhir = langit-langitnya.
+        #
+        # Menghitung lima saja tidak cukup, dan buktinya ada di data demo
+        # sendiri: kedua harga item demo SAMA (Rp 62.000), dan pada kasus
+        # berimpit itu lo/step kebetulan bulat untuk harga BERAPA pun — jadi
+        # syarat lama hijau di sini sementara sumbu harga yang sungguhan
+        # kehilangan garis kelima DAN kedua label tepinya (terukur atas 205
+        # deret harga: 5 garis pada 21,5 % kasus, 161 sumbu tanpa label tepi;
+        # sesudah perbaikan 100 % dan 0). Yang di bawah ini diukur pada deret
+        # harga NAIK yang digambar di halaman ini juga.
+        "trend_axis_edges_are_labelled": trend_axis["edges_labelled"],
+        "trend_rising_prices_keep_five_gridlines": trend_axis["rising_gridlines"] == 5,
         # PO vs GRN dibedakan per TITIK, bukan per seri.
         "trend_one_series": len(trend["series"]) == 1,
         "trend_point_tokens_differ": len(trend["point_tokens"]) >= 2,

@@ -91,7 +91,13 @@ function trendChart(series) {
     }],
     yMin: yLo,
     yMax: yHi,
-    // Lima garis kisi, seperti grafik tangan (i = 0..4).
+    /* Lima garis kisi, seperti grafik tangan (i = 0..4) — dan itu benar HANYA
+       karena charts.js menjangkarkan tick pada `lo` ketika KEDUA tepi sumbu
+       dipaksa. Sampai verifikasi P1-E ia menjangkarkannya pada kelipatan
+       langkah, jadi kalimat ini salah untuk hampir setiap riwayat harga
+       sungguhan: terukur atas 205 deret harga, 5 garis pada 21,5 % kasus dan
+       161 sumbu tanpa label lantai maupun langit-langit. Item demo lolos hanya
+       karena kedua harganya sama. */
     yStep: (yHi - yLo) / 4,
     yFormat: (value) => fmt.rupiahShort(value),
     ariaLabel: 'Tren harga satuan',

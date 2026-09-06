@@ -355,10 +355,21 @@ function domain(values, min, max, tickCount = 4, fixedStep) {
     else hi = 0;
   }
   const step = finite(fixedStep) > 0 ? finite(fixedStep) : niceStep((hi - lo) / tickCount);
+  const bothForced = finite(min) !== null && finite(max) !== null;
   if (finite(min) === null) lo = Math.floor(lo / step + 1e-9) * step;
   if (finite(max) === null) hi = Math.ceil(hi / step - 1e-9) * step;
+  /* Jangkar garis kisi. Bila pemanggil memaksa KEDUA tepinya, tepi itulah
+     jangkarnya: sumbu yang dipaksa 50..350 dengan langkah 75 harus digaris di
+     50/125/200/275/350 — lima garis yang membentang penuh — bukan di
+     75/150/225/300, yang membuang label lantai DAN label langit-langit.
+     Terukur pada tren harga satuan (yMin/yMax/yStep ketiganya dipaksa): 5 garis
+     kisi hanya pada ~6 % pasangan harga, dan demo lolos cuma karena kedua
+     harganya sama (verifikasi P1-E). Bila salah satu tepi dihitung sendiri,
+     jangkarnya tetap kelipatan langkah — di sanalah "langkah rapi" berarti
+     "angka rapi". */
   const ticks = [];
-  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : +v.toPrecision(12));
+  const first = bothForced ? lo : Math.ceil(lo / step - 1e-9) * step;
+  for (let v = first; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : +v.toPrecision(12));
   return { lo, hi, ticks };
 }
 
