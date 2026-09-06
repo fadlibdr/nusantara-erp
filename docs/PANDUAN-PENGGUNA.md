@@ -153,7 +153,8 @@ peran").
 **Remah roti dan beranda modul.** Remah pertama adalah nama modul dengan titik warna
 modul itu (warna yang sama menandai kelompok yang sedang terbuka di sidebar); klik untuk
 membuka **beranda modul** — satu halaman berisi kartu semua layar modul itu yang boleh
-Anda buka (kartunya persis daftar sidebar; modul yang izinnya tidak Anda pegang hanya
+Anda buka (kartunya persis daftar sidebar kelompok itu, kecuali baris **Beranda** yang
+memang bukan layar modul melainkan peluncurnya; modul yang izinnya tidak Anda pegang hanya
 menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman dokumen,
 remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
 (judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
@@ -235,15 +236,19 @@ yang paling menuntut tindakan di modul itu:
 
 **Tanda `—` berarti "tidak diketahui", bukan nol.** Ubin menulis `—` ketika Anda memang
 tidak boleh melihat angka itu (mis. "Job gagal" hanya untuk pemegang hak Pengaturan) atau
-ketika hitungannya gagal. Angka `0` selalu berarti benar-benar nol.
+ketika hitungannya gagal — dan **namanya tetap tertulis di bawah tanda itu**, jadi yang
+Anda baca adalah "— Job gagal": kami memberi tahu angka apa yang tidak diketahui, bukan
+sekadar bahwa ada yang tidak diketahui. Angka `0` selalu berarti benar-benar nol.
 
 Di atas ubin ada **kotak cari** yang menyaring modul DAN layar sekaligus (Enter membuka
 hasil pertama), lalu baris **Favorit** dan **Terakhir dibuka** bila Anda punya isinya.
 
-**Kapan Beranda yang terbuka lebih dulu.** Di layar lebar (≥ 760 px) masuk membawa Anda ke
-**Dasbor** seperti sebelumnya; di ponsel dan tablet sempit masuk membawa Anda ke
-**Beranda**, karena di sana menu tersembunyi di laci dan peluncur adalah jalan tercepat ke
-mana pun. Tautan langsung (dari e-mail, pemberitahuan, atau tab yang dipulihkan peramban)
+**Kapan Beranda yang terbuka lebih dulu.** Di layar lebar (**lebih dari 760 px**, yaitu lebar
+yang sidebar-nya masih terlihat) masuk membawa Anda ke **Dasbor** seperti sebelumnya; pada
+760 px ke bawah — ponsel dan tablet sempit, di mana sidebar sudah menjadi laci — masuk
+membawa Anda ke **Beranda**, karena di sana menu tersembunyi dan peluncur adalah jalan
+tercepat ke mana pun. Panduan onboarding pada masuk pertama juga membuka di halaman itu:
+di ponsel ia menunjuk Beranda, bukan Dasbor. Tautan langsung (dari e-mail, pemberitahuan, atau tab yang dipulihkan peramban)
 selalu menang atas aturan ini. Kapan pun, ikon rumah di bilah atas dan baris **Beranda** di
 kelompok Ringkasan membawa Anda ke sana. Dari Beranda, Lapangan hanya **dua ketukan**:
 ubin **Proyek** → kartu **Lapangan (mobile)**.

@@ -354,8 +354,11 @@ susunan dasbor — hidup di `core_user_preferences` (satu baris per pengguna per
 lapangan milik orang yang sama, dan "Hapus data situs" menghapus semuanya tanpa jejak.
 
 **Whitelist, bukan kolom bebas.** `Modules\Core\Support\UserPreferences::keys()` — satu entri per
-kunci dengan `label`, `max_bytes`, dan `validate`. Kunci di luar daftar dijawab **422 yang menyebut
-kuncinya**; plafon keras **16 KB** per nilai (`MAX_BYTES`), tiap kunci boleh lebih ketat. Tanpa
+kunci dengan `label`, `max_bytes`, `max_entries`, dan `validate`. Kunci di luar daftar dijawab
+**422 yang menyebut kuncinya**; plafon keras **16 KB** per nilai (`MAX_BYTES`), tiap kunci boleh
+lebih ketat. Angka-angka itu ditulis literal di `UserPreferencesTest` — sampai verifikasi P1-C
+uji plafon membangun muatannya DARI konstanta yang diujinya, jadi menaikkan 16384 → 32768 lolos
+hijau. Tanpa
 daftar itu `PUT core/me/preferences/{key}` — yang sengaja tanpa gerbang izin, karena barisnya milik
 pemanggil sendiri dan tidak ada parameter yang bisa menyebut orang lain (pola `GET core/inbox`) —
 adalah penyimpanan bebas 16 KB × kunci sebanyak-banyaknya × jumlah pengguna, ikut ke setiap backup.
@@ -370,6 +373,13 @@ adalah penyimpanan bebas 16 KB × kunci sebanyak-banyaknya × jumlah pengguna, i
 
 **Kejujuran.** Kunci yang belum pernah dipilih **tidak punya baris**; bawaan (`normal`, `[]`) milik
 SPA. Baris `density: 'normal'` yang ditulis server berbohong bahwa orangnya pernah memilih.
+
+**Plafon diumumkan, bukan disalin.** `GET core/me/preferences` menjawab `meta.keys` =
+`UserPreferences::describe()`, satu objek `{key, label, max_bytes, max_entries}` per kunci, dan
+`prefs.js` MEMBACANYA (`api.list`, karena `api.get` membuang meta). Bentuk lama — daftar nama +
+`MAX_BYTES` saja — menjanjikan pencegahan yang tidak pernah terjadi: tidak ada yang membacanya,
+klien tetap menyalin 50/20 sendiri, dan 16384 yang diumumkannya bukan plafon yang berlaku untuk
+`favorites` (4096) maupun `recent` (8192).
 
 **`SpaNav`** membaca rute dan prefix NAV dari `public/app/js/schema.js` (memo per proses). Menyalin
 131 rute ke PHP akan basi pada sunting pertama, dan yang basi di sini adalah VALIDATOR. Berkas tidak
@@ -398,10 +408,21 @@ Per entri: `label` (nama angkanya), `unit` (ubin menulis "7 proyek", bukan "7"),
 dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri `DB::table`), dan
 `why` — alasan angka INI, bukan angka lain, yang memimpin modulnya.
 
+`label` punya CERMIN di klien: `schema.js` `MODULES[prefix].kpi`. Ia ada karena ubin harus bisa
+menyebut angka yang tidak dikirim server — entri yang izinnya tidak dipegang tidak ada di jawaban,
+jadi tanpa cermin itu ubinnya menulis `—` telanjang tanpa satu kata pun. Kesetaraan kedua daftar
+dipaku `ModuleCountsTest`.
+
 Dua aturan yang sama dengan `WatchedDeadlines`: **tanpa mengimpor modul fitur** (literal string,
 dipaku uji, jadi penggantian nama status di lane tim lain menjatuhkan uji dan bukan mengosongkan
 ubin) dan **degradasi per entri**. `deleted_at` diperiksa tangan di setiap kueri — `DB::table`
 melewati scope `SoftDeletes`.
+
+Klaim "dipaku uji" itu hanya sekuat fixture-nya: satu baris per status membuat angka harapan (1)
+benar untuk status apa pun, dan sampai verifikasi P1-C empat mutasi status/scope lolos hijau. Sejak
+itu tiap entri berstatus punya **2 baris yang masuk hitungan dan 1 per status yang tidak**, satu
+baris yang **sudah dibuang** di tiap tabel penghapus-lembut, dan baris untuk status yang
+diperdebatkan entri itu sendiri (`svc` `pending_customer`) — 12 mutasi status/scope merah.
 
 **Absen ≠ 0.** Izin tidak dipegang, atau tabel belum ada → entri **TIDAK ADA**. Kueri melempar →
 `count: null` + `Log::warning`, tidak pernah 500. Sebuah 0 adalah pernyataan ("saya menghitung, dan

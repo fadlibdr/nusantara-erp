@@ -61,9 +61,11 @@ public/app/
       dashboard.js      cross-module dashboard + approval inbox
       home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
                         Terakhir dibuka rows from server prefs, one tile per module the caller may
-                        open (visibleNav()) with its ModuleCounts headline. Landing on < 760 px
-                        (owner decision #3); "Beranda" is the first NAV row and a house button in
-                        the header. Unknown count = '—', never 0 (LauncherWiringTest)
+                        open (visibleNav()) with its ModuleCounts headline. Landing on <= 760 px
+                        (owner decision #3); "Beranda" is the first NAV row (marked `chrome: true`,
+                        so it is not counted as one of Ringkasan's screens) and a house button in
+                        the header. Unknown count = '—' AND the number's name from MODULES.kpi
+                        ("— Job gagal"), never 0 (LauncherWiringTest)
       module.js         module home #/m/<prefix>: accent header + cards of the NAV screens the
                         caller may open (same visibleNav() filter as the sidebar); breadcrumb target.
                         Grid is auto-fill minmax(220px, 1fr): measured 4 columns at 1440 px, 1 at 390
@@ -159,9 +161,14 @@ reading, in another shape. There is no `print` action anywhere in the permission
 - **Module counts**: one headline number per module comes from `GET core/modules` (registry
   `ModuleCounts`, CONVENTIONS §16). A module the response does not mention, or one whose `count`
   is `null`, renders `—`. Never `count ?? 0`.
-- **Landing**: after login with no hash, ≥ 760 px → `#/dashboard`, < 760 px → `#/home` (owner
-  decision #3). The rule reads `location.hash`, not `currentPath()` — the latter invents
-  `dashboard` when the hash is empty, which would hijack every deep link.
+- **Landing**: after login with no hash, `> 760 px` → `#/dashboard`, `<= 760 px` → `#/home` (owner
+  decision #3). Strictly greater, because `@media (max-width: 760px)` is inclusive: at exactly
+  760 px the sidebar is already a drawer, and `>= 760` gave that one width both the drawer and the
+  dashboard (S22 `landing_boundary` measures 759/760/761). The rule reads `location.hash`, not
+  `currentPath()` — the latter invents `dashboard` when the hash is empty, which would hijack every
+  deep link. The onboarding tour follows the same rule: its opening step visits `home` on mobile and
+  `dashboard` above the breakpoint, or step 1 would navigate the person off the launcher and collapse
+  the mobile sheet (S19).
 - **Empty states**: always `ui.emptyState()` with the right `kind` — a failed source is
   `error`, never `inbox`/`done`; a filtered-out list offers "Hapus filter".
 - **Money and dates**: always through `format.js` (`Rp 1.234.567`, `26 Jul 2026`).
