@@ -31,12 +31,22 @@ final class XlsxSheetWriter
     /**
      * Satu baris sel, mulai kolom 1. `$row` maju satu.
      *
-     * @param  list<mixed>  $cells
+     * Kolom dihitung POSISI, bukan kunci array — bentuk yang dibawa dari
+     * `FormXlsxExportService::line()` yang badan ini gantikan. Sempat berubah
+     * menjadi `$index + 1` saat pemindahannya (P1-F), yang berarti sebuah
+     * baris berkunci teks melempar TypeError ('bahaya' + 1) dan sebuah baris
+     * berlubang menulis ke kolom yang salah — hari ini tidak ada pemanggil
+     * seperti itu, tetapi penulis XLSX ketiga tidak punya cara mengetahuinya
+     * dari tanda tangan ini (verifikasi kedua P1-F).
+     *
+     * @param  array<array-key, mixed>  $cells
      */
     public static function putRow(Worksheet $sheet, int &$row, array $cells): void
     {
-        foreach ($cells as $index => $value) {
-            $column = $index + 1;
+        $column = 0;
+
+        foreach ($cells as $value) {
+            $column++;
 
             if ($value !== null && $value !== '') {
                 is_numeric($value) && ! is_string($value)
@@ -48,7 +58,11 @@ final class XlsxSheetWriter
         $row++;
     }
 
-    /** Baris tebal — kepala tabel dan baris total. */
+    /**
+     * Baris tebal — kepala tabel dan baris total.
+     *
+     * @param  array<array-key, mixed>  $cells
+     */
     public static function putHeadRow(Worksheet $sheet, int &$row, array $cells): void
     {
         $at = $row;

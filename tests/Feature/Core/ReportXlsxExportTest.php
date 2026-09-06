@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Schema;
 use Modules\Core\Models\SavedReport;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\SpaEnums;
+use Modules\Core\Support\XlsxSheetWriter;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -218,6 +220,31 @@ class ReportXlsxExportTest extends ErpTestCase
         // berkas basis data, yang bukan milik siapa pun di sisi ini.
         $this->assertStringNotContainsString('SQLSTATE', (string) $response->json('message'));
         $this->assertStringNotContainsString('select', (string) $response->json('message'));
+    }
+
+    /**
+     * Kolom dihitung POSISI, bukan kunci array.
+     *
+     * `FormXlsxExportService::line()` — badan yang putRow() gantikan — memakai
+     * pencacah posisi dan mengabaikan kunci; pemindahannya menuliskannya
+     * `$index + 1`, yang melempar TypeError untuk baris berkunci teks dan
+     * menulis ke kolom yang salah untuk baris berlubang (verifikasi kedua
+     * P1-F). Tidak ada pemanggil seperti itu hari ini — justru itu sebabnya
+     * hanya uji yang bisa menjaganya.
+     */
+    public function test_the_sheet_writer_numbers_columns_by_position_not_by_array_key(): void
+    {
+        $sheet = (new Spreadsheet)->getActiveSheet();
+        $row = 1;
+
+        XlsxSheetWriter::putRow($sheet, $row, ['bahaya' => 'Jatuh', 'apd' => 'Helm']);
+        XlsxSheetWriter::putRow($sheet, $row, [3 => 'Ketiga', 9 => 'Kesembilan']);
+
+        $this->assertSame('Jatuh', $sheet->getCell([1, 1])->getValue());
+        $this->assertSame('Helm', $sheet->getCell([2, 1])->getValue());
+        $this->assertSame('Ketiga', $sheet->getCell([1, 2])->getValue());
+        $this->assertSame('Kesembilan', $sheet->getCell([2, 2])->getValue());
+        $this->assertSame(3, $row);
     }
 
     /**
