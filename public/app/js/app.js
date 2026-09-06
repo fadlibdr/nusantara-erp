@@ -16,6 +16,7 @@ import { renderDetail } from './views/detail.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderProject } from './views/project.js';
 import { renderReports } from './views/reports.js';
+import { renderLaporanBebas } from './views/laporanbebas.js';
 import {
   renderStock, renderPayrollRun, renderTicket, renderSubcontract,
   renderPayment, renderRole, renderEmployee, renderAsset, renderAssetUtilization, renderCompany, renderRevenueRun,
@@ -855,6 +856,15 @@ function registerRoutes() {
   /* `?tab=<kunci>` (P1-D): widget dasbor menaut ke laporan yang benar-benar
      memuat angkanya, bukan ke tab pertama. Query dipisah router sebelum
      pencocokan pola, jadi rute lama '#/reports' tidak berubah sedikit pun. */
+  /* P1-F — penyusun laporan lintas modul. Tanpa guard() berizin tunggal:
+     izin sebuah laporan adalah izin SUMBERnya, dan katalognya menyaring diri
+     sendiri; peran tanpa satu sumber pun mendapat kalimat yang mengatakannya. */
+  route('laporan-bebas', () => {
+    setCrumbs(['Ringkasan', 'Laporan Bebas']);
+    setActiveNav('laporan-bebas');
+    renderLaporanBebas(view());
+  });
+
   route('reports', (params, path, query) => {
     setCrumbs(['Keuangan', 'Laporan']);
     setActiveNav('reports');

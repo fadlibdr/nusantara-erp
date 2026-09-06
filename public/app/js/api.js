@@ -288,6 +288,10 @@ export const api = {
   /** List + pagination meta together. */
   list: (path, params) => request('GET', path, { params, raw: true }),
   post: (path, body) => request('POST', path, { body }),
+  /** POST yang mengembalikan AMPLOP utuh (data + meta) — saudara list() untuk
+      GET. Dipakai Laporan Bebas, yang metanya membawa plafon yang diumumkan
+      server dan jumlah kueri yang dijalankan; keduanya milik meta, bukan data. */
+  postRaw: (path, body) => request('POST', path, { body, raw: true }),
   put: (path, body) => request('PUT', path, { body }),
   del: (path) => request('DELETE', path),
   uploadFile,

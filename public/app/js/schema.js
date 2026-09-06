@@ -5836,7 +5836,13 @@ export const NAV = [
     // 'Beranda' di #/m/ringkasan menutup lingkaran (#/home → ubin Ringkasan →
     // #/m/ringkasan → kartu Beranda → #/home). Sidebar tetap memuatnya;
     // yang menyaring adalah kisi kartu dan hitungan layar.
-    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }],
+    /* P1-F — 'Laporan Bebas' duduk di Ringkasan, bukan di Keuangan: ia
+       menyusun laporan atas DELAPAN sumber dari enam modul, dan menaruhnya di
+       satu modul akan menyembunyikannya dari lima peran lain yang punya
+       sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
+       dan peran yang tidak punya satu sumber pun mendapat kalimat yang
+       mengatakannya — bukan baris menu yang hilang tanpa sebab. */
+    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',

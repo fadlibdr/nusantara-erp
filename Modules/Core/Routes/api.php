@@ -5,6 +5,7 @@ use Modules\Core\Http\Controllers\AttachmentController;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\CalendarController;
 use Modules\Core\Http\Controllers\ReportController;
+use Modules\Core\Http\Controllers\SavedReportController;
 use Modules\Core\Http\Controllers\CompanyController;
 use Modules\Core\Http\Controllers\DashboardController;
 use Modules\Core\Http\Controllers\DeadlineController;
@@ -74,6 +75,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
      */
     Route::get('reports/resources', [ReportController::class, 'resources']);
     Route::post('reports/run', [ReportController::class, 'run']);
+
+    /*
+     * Laporan tersimpan. Kepemilikan dijaga SavedReportService dan dilaporkan
+     * 422 (bukan 403): orang yang mencoba menyunting laporan orang lain BOLEH
+     * membacanya — ia hanya bukan pemiliknya, dan kalimatnya menyebut jalan
+     * keluarnya. Yang TIDAK boleh dibacanya dijawab 404, supaya endpoint ini
+     * tidak menjadi cara menghitung laporan milik orang lain.
+     */
+    Route::get('reports/saved', [SavedReportController::class, 'index']);
+    Route::post('reports/saved', [SavedReportController::class, 'store']);
+    Route::get('reports/saved/{savedReport}', [SavedReportController::class, 'show']);
+    Route::put('reports/saved/{savedReport}', [SavedReportController::class, 'update']);
+    Route::delete('reports/saved/{savedReport}', [SavedReportController::class, 'destroy']);
+    Route::post('reports/saved/{savedReport}/copy', [SavedReportController::class, 'copy']);
+    // GET, karena api.blob SPA hanya GET — jalur yang sama dengan cetak XLSX formulir.
+    Route::get('reports/saved/{savedReport}/xlsx', [SavedReportController::class, 'xlsx']);
 
     // P1-C: preferensi pemanggil sendiri (favorit, "Terakhir dibuka",
     // kepadatan, susunan dasbor, modul yang disembunyikan). Tanpa gerbang izin
