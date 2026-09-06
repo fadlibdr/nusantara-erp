@@ -189,6 +189,26 @@ class UserPreferencesTest extends ErpTestCase
 
         // Yang ditolak tidak menyisakan baris; yang tepat 16384 tadi tetap satu.
         $this->assertSame(1, DB::table('core_user_preferences')->count());
+
+        /*
+         * …dan yang diukur adalah yang DISIMPAN. Cast 'json' Eloquent menulis
+         * dengan json_encode tanpa flag, jadi tiap karakter non-ASCII menjadi
+         * \uXXXX: dengan JSON_UNESCAPED_UNICODE (dipakai sampai 6 Sep 2026)
+         * nilai emoji terukur 16.384 tetapi mendarat 49.144 byte di kolom, tiga
+         * kali plafon yang diumumkan pesannya (verifikasi P1-C putaran 2).
+         */
+        $emoji = [str_repeat('😀', 100)];
+        $this->assertSame(
+            strlen((string) DB::connection()->getPdo()->quote(json_encode($emoji))) - 2,
+            UserPreferences::encodedBytes($emoji),
+            'encodedBytes() tidak mengukur seperti kolomnya menulis; pesan 422 akan menyebut angka yang bukan angka tersimpan.',
+        );
+
+        $this->putJson('/api/core/me/preferences/dashboard.layout', ['value' => $emoji])->assertOk();
+        $stored = (string) DB::table('core_user_preferences')
+            ->where('key', 'dashboard.layout')->value('value');
+        $this->assertSame(strlen($stored), UserPreferences::encodedBytes($emoji),
+            'Byte yang tersimpan di kolom berbeda dari byte yang diukur — plafonnya berbohong justru untuk nilai multibyte.');
     }
 
     /**

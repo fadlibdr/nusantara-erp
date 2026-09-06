@@ -215,7 +215,17 @@ final class UserPreferences
     /** Ukuran nilai sebagaimana ia akan DISIMPAN (JSON terkode), dalam byte. */
     public static function encodedBytes(mixed $value): int
     {
-        return strlen((string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        /*
+         * Diukur PERSIS seperti kolomnya menulis: cast 'json' milik Eloquent
+         * memanggil json_encode tanpa flag, jadi setiap karakter non-ASCII
+         * menjadi \uXXXX. Dengan JSON_UNESCAPED_UNICODE (yang dipakai di sini
+         * sampai 6 Sep 2026) satu nilai bisa terukur 16.384 byte dan mendarat
+         * 49.144 byte di kolom — rasio 3× untuk emoji, terukur di kedua driver
+         * (verifikasi P1-C putaran 2). Angka di pesan 422 harus angka yang
+         * benar-benar disimpan; kalau tidak, plafonnya bohong pada arah yang
+         * berbahaya (TEXT MySQL 65.535 byte).
+         */
+        return strlen((string) json_encode($value));
     }
 
     /**
