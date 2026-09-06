@@ -222,7 +222,10 @@ export function evmCurve(points, bac) {
     yMin: 0,
     yMax,
     yStep: gridStep,
-    yFormat: (v) => `${v}%`,
+    // fmt.percent, alasan yang sama dengan project.js: yFormat juga menulis
+    // <title> bawaan titik tanpa judul sendiri, dan '0.75%' bukan bahasa
+    // aplikasi ini (verifikasi P1-E).
+    yFormat: (v) => fmt.percent(v, { decimals: 1 }),
     ariaLabel: 'Kurva EVM: rencana baseline, nilai diperoleh dan biaya aktual terhadap BAC',
   });
 }

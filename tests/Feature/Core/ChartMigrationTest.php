@@ -138,6 +138,42 @@ class ChartMigrationTest extends ErpTestCase
          */
         $this->assertStringNotContainsString("background: 'var(--warning)'", $trend);
         $this->assertStringContainsString("background: 'var(--chart-7)'", $trend);
+
+        /*
+         * …DAN token itu benar-benar token TITIKnya. Sampai verifikasi P1-E
+         * hanya string legendanya yang dipaku, jadi mengubah literal di
+         * `token: point.source === 'grn' ? '--chart-7' : null` menjadi
+         * '--chart-5' membuat swatch dan titik berbeda warna tanpa satu uji pun
+         * merah — sementara "swatch = warna titiknya" adalah justru sifat yang
+         * pemindahan ini ada untuk melindungi.
+         */
+        $this->assertMatchesRegularExpression(
+            "/token:\s*point\.source === 'grn' \? '--chart-7' : null/",
+            $trend,
+            'Titik GRN tidak lagi memakai --chart-7, sementara swatch legendanya masih. Keduanya harus token yang SAMA.',
+        );
+    }
+
+    /**
+     * Kedua grafik proyek memformat sumbunya lewat fmt.percent, bukan template.
+     *
+     * `yFormat` dipakai charts.js untuk label sumbu DAN untuk `<title>` bawaan
+     * setiap titik yang tidak punya judulnya sendiri (titik yang dikecualikan
+     * `dots:false`, misalnya). Bentuk `` `${v}%` `` karena itu mencetak titik
+     * desimal Inggris — terukur '4.5%' dan '0.75%' — di aplikasi yang menulis
+     * '4,5%' di setiap layar lain (verifikasi P1-E). Label sumbunya bilangan
+     * bulat, jadi teks sumbu tidak berubah sama sekali.
+     */
+    public function test_the_project_charts_format_percentages_the_way_the_rest_of_the_app_does(): void
+    {
+        foreach (['views/project.js', 'views/evm.js'] as $file) {
+            $source = $this->spa($file);
+
+            $this->assertMatchesRegularExpression('/yFormat:\s*\([a-z]+\)\s*=>\s*fmt\.percent\(/', $source,
+                "{$file} memformat sumbu persennya sendiri; angka desimalnya akan bertitik, bukan berkoma.");
+            $this->assertDoesNotMatchRegularExpression('/yFormat:\s*\([a-z]+\)\s*=>\s*`\$\{[a-z]+\}%`/', $source,
+                "{$file} masih memakai template `\${v}%` untuk yFormat.");
+        }
     }
 
     /**
