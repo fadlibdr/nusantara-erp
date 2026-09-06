@@ -51,9 +51,23 @@ class LauncherWiringTest extends ErpTestCase
         $rule = $this->landingRule($app);
 
         $this->assertNotNull($rule, 'landOnDefault() tidak ditemukan di app.js — aturan landing (keputusan pemilik #3) hilang.');
-        $this->assertStringContainsString('window.innerWidth >= 760', $rule);
         $this->assertStringContainsString("'home'", $rule);
         $this->assertStringContainsString("'dashboard'", $rule);
+
+        /*
+         * `>`, bukan `>=`. `@media (max-width: 760px)` inklusif: pada 760 px
+         * tepat sidebar SUDAH menjadi laci. Aturan landing yang juga inklusif
+         * memberi lebar itu laci DAN dasbor — gabungan yang aturan ini ada
+         * untuk mencegah (terukur 6 Sep 2026: 760 px → #/dashboard dengan nav
+         * di luar layar). Kedua sisi diuji di sini karena keduanya berada di
+         * berkas berbeda dan tidak ada yang gagal berisik saat salah satunya
+         * bergeser.
+         */
+        $this->assertStringContainsString('window.innerWidth > 760', $rule);
+        $this->assertStringNotContainsString('>= 760', $rule,
+            'Aturan landing inklusif pada 760 px, sama seperti @media (max-width: 760px): lebar itu mendapat laci DAN dasbor.');
+        $this->assertStringContainsString('@media (max-width: 760px)', $this->file('app/app.css'),
+            'app.css tidak lagi melipat sidebar pada 760 px; aturan landing memakai angka yang tidak berarti apa-apa lagi.');
 
         // location.hash, BUKAN currentPath(): yang kedua mengarang 'dashboard'
         // saat hash kosong, jadi setiap tautan-dalam akan dibajak ke launcher.

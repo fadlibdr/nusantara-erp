@@ -2184,11 +2184,41 @@ def launcher_for(pg, email, tag, theme_probe=False):
     return out
 
 
+def landing_boundary(pg):
+    """Aturan landing DI TITIK POTONGNYA, bukan hanya di 1440 dan 390.
+
+    `@media (max-width: 760px)` inklusif, jadi 760 px tepat sudah memakai laci;
+    aturan landing yang juga inklusif (`>= 760`) memberi lebar itu laci DAN
+    dasbor — gabungan yang aturan itu ada untuk mencegah (terukur 6 Sep 2026,
+    admin@ 760 px: #/dashboard dengan nav di luar layar). Yang diperiksa di sini
+    bukan angkanya melainkan KESEPAKATANNYA: setiap lebar yang melipat sidebar
+    menjadi laci harus mendarat di launcher. Diukur dengan mengubah ukuran
+    viewport pada sesi yang sudah masuk — tanpa login tambahan (10/menit/IP)."""
+    original = dict(pg.viewport_size)
+    out = {}
+    for width in (759, 760, 761):
+        pg.set_viewport_size({"width": width, "height": original["height"]})
+        pg.goto(BASE)  # tanpa hash: aturan landing yang memilih
+        pg.wait_for_selector("nav.nav", timeout=15000)
+        pg.wait_for_timeout(900)
+        out[str(width)] = pg.evaluate("""() => ({ hash: location.hash,
+            drawer: matchMedia('(max-width: 760px)').matches,
+            nav_offscreen: document.querySelector('nav.nav').getBoundingClientRect().right <= 0,
+            menu_toggle: getComputedStyle(document.querySelector('.header .menu-toggle')).display })""")
+    pg.set_viewport_size(original)
+    out["ok"] = all(v["hash"] == ("#/home" if v["drawer"] else "#/dashboard") for v in
+                    (out["759"], out["760"], out["761"]))
+    out["drawer_and_dashboard"] = [w for w in ("759", "760", "761") if out[w]["drawer"] and out[w]["hash"] == "#/dashboard"]
+    return out
+
+
 def launcher_truth(pg, tag):
     errors, console_errors = [], []
     pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
     pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
-    mobile = pg.viewport_size["width"] < 760
+    # <= 760, bukan < 760: titik potong laci app.css inklusif, dan harapan yang
+    # dibangun dari perbandingan yang berbeda dari aplikasi tidak memeriksa apa pun.
+    mobile = pg.viewport_size["width"] <= 760
     out = {"viewport": pg.viewport_size}
 
     # ---------------------------------------------------------------- migrasi
@@ -2242,6 +2272,11 @@ def launcher_truth(pg, tag):
                       "expected": "#/dashboard" if not mobile else "#/home",
                       "measured": out["roles"]["teknisi"]["landing_after_login"]}
     out["landing"]["ok"] = out["landing"]["measured"] == out["landing"]["expected"]
+    # Titik potongnya sendiri — sekali, di skenario desktop (mengubah ukuran
+    # konteks is_mobile tidak mengubah pointer/touch-nya, jadi 761 px di sana
+    # bukan "desktop" yang sama).
+    if not mobile:
+        out["landing_boundary"] = landing_boundary(pg)
 
     # ------------------------------------------------- favorit lintas konteks
     # Bintang dipasang di SATU peramban, dibaca di peramban BARU (konteks baru =

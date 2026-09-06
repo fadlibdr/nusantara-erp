@@ -1349,12 +1349,20 @@ async function boot() {
 
 /*
  * Landing sesudah masuk (keputusan pemilik #3, ROADMAP-HASHMICRO §5): dasbor di
- * >= 760 px, app launcher #/home di bawahnya. 760 px bukan angka baru — itulah
- * titik potong yang SUDAH dipakai app.css untuk melipat sidebar menjadi laci,
- * dan di bawahnya menu tidak terlihat sampai seseorang menekan hamburger:
- * mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar yang
- * terlihat. Tiga dari 12 peran demo bahkan mendarat di dasbor KOSONG
+ * atas 760 px, app launcher #/home pada 760 px ke bawah. 760 px bukan angka
+ * baru — itulah titik potong yang SUDAH dipakai app.css untuk melipat sidebar
+ * menjadi laci, dan di bawahnya menu tidak terlihat sampai seseorang menekan
+ * hamburger: mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar
+ * yang terlihat. Tiga dari 12 peran demo bahkan mendarat di dasbor KOSONG
  * (procurement, hr, teknisi tidak memegang prj.view maupun fin.view).
+ *
+ * PEMBANDINGNYA `>`, BUKAN `>=`. `@media (max-width: 760px)` INKLUSIF: pada
+ * lebar 760 px tepat, sidebar sudah menjadi laci. Aturan ini dulu memakai
+ * `>= 760` — juga inklusif — jadi 760 px adalah satu-satunya lebar yang
+ * mendapat KEDUANYA: laci DAN dasbor, persis gabungan yang aturan ini ditulis
+ * untuk mencegah (terukur 6 Sep 2026 sebagai admin@: 759 → #/home,
+ * 760 → #/dashboard dengan matchMedia('(max-width: 760px)') true dan nav di
+ * luar layar, 761 → #/dashboard dengan sidebar terlihat).
  *
  * Hanya berlaku ketika TIDAK ADA hash: tautan-dalam (notifikasi ke
  * `#/d/finance/ap-bills/12`, tab yang dipulihkan peramban, tombol Kembali)
@@ -1364,7 +1372,7 @@ async function boot() {
 function landOnDefault() {
   const hash = location.hash;
   if (hash && hash !== '#' && hash !== '#/') return;
-  navigate(window.innerWidth >= 760 ? 'dashboard' : 'home', { replace: true });
+  navigate(window.innerWidth > 760 ? 'dashboard' : 'home', { replace: true });
 }
 
 /*
