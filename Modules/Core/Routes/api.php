@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\AttachmentController;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\CalendarController;
+use Modules\Core\Http\Controllers\ReportController;
 use Modules\Core\Http\Controllers\CompanyController;
 use Modules\Core\Http\Controllers\DashboardController;
 use Modules\Core\Http\Controllers\DeadlineController;
@@ -60,6 +61,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Tanpa gerbang izin untuk alasan yang sama dengan search dan calendar:
     // registri menyaring dirinya sendiri per entri.
     Route::get('modules', ModuleCountController::class);
+
+    /*
+     * P1-F — Laporan Bebas. TANPA gerbang izin di rute, dengan alasan yang sama
+     * dengan search/calendar/modules di atas: izin sebuah laporan adalah izin
+     * SUMBERnya (`{prefix}.view` layar daftarnya), yang baru diketahui setelah
+     * permintaannya dibaca. Sebuah `permission:` di sini harus memilih satu
+     * izin untuk delapan sumber, yang berarti menyembunyikan katalog dari orang
+     * yang sah memegang satu modul saja. ReportableResources menyaring dirinya
+     * sendiri per entri, dan ReportController menjawab 403 yang MENYEBUT
+     * izinnya untuk sumber yang tidak boleh dibaca pemanggil.
+     */
+    Route::get('reports/resources', [ReportController::class, 'resources']);
+    Route::post('reports/run', [ReportController::class, 'run']);
 
     // P1-C: preferensi pemanggil sendiri (favorit, "Terakhir dibuka",
     // kepadatan, susunan dasbor, modul yang disembunyikan). Tanpa gerbang izin

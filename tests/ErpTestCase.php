@@ -8,6 +8,7 @@ use Illuminate\Support\Arr;
 use InvalidArgumentException;
 use Modules\Core\Services\SettingService;
 use Modules\Core\Support\ModuleCounts;
+use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\WatchedDeadlines;
 use Modules\Finance\Database\Seeders\ChartOfAccountsSeeder;
 use Modules\Finance\Models\FiscalPeriod;
@@ -40,6 +41,8 @@ abstract class ErpTestCase extends TestCase
         WatchedDeadlines::flushSchemaMemo();
         // Memo tabel milik registri ModuleCounts (P1-C), alasan yang sama.
         ModuleCounts::flushSchemaMemo();
+        // …dan registri ReportableResources (P1-F), alasan yang sama lagi.
+        ReportableResources::flushSchemaMemo();
     }
 
     /**
