@@ -18,6 +18,9 @@ DB = os.environ.get("ERP_DB", "/home/claude/nusantara-erp/database/database.sqli
 OUT = os.environ.get("UXTEST_OUT", "/home/claude/uxtest")
 R = {}          # results
 CLICKS = [0]    # click counter for the current scenario
+# Skenario yang JATUH (ERROR atau ok:false). Dibaca di akhir: sebuah harness yang selalu
+# keluar dengan status 0 tidak bisa dipakai gerbang apa pun (verifikasi kedua P1-D).
+FAILED = []
 
 def api(path, token, method="GET", body=None):
     req = urllib.request.Request(API + path, method=method, headers={
@@ -117,8 +120,22 @@ def scenario(name):
             R[name]["_clicks"] = CLICKS[0]
             # SKIPPED dicetak apa adanya: sebuah skenario yang tidak menemukan fixture-nya bukan "ok"
             # (verifikasi P1-B putaran 3, 6 Sep 2026 — S16 pada salinan DB hidup).
-            state = R[name].get("ERROR") or (f"SKIPPED: {R[name]['SKIPPED']}" if "SKIPPED" in R[name] else "ok")
+            #
+            # …dan `ok: False` juga bukan "ok". Sampai verifikasi kedua P1-D baris ini hanya melihat
+            # ERROR dan SKIPPED, jadi sebuah skenario yang MENJATUHKAN syaratnya sendiri tetap
+            # tercetak hijau: terukur pada S23_setup_drawer, yang mencetak "ok" sementara
+            # results.json memuat "ok": false (stored_preference null, tabel preferensi belum ada di
+            # salinan DB). Laporan paket yang menulis "empat bagian, semuanya hijau" bersandar pada
+            # baris ini, jadi baris inilah yang harus jujur.
+            failed = R[name].get("ok") is False
+            state = (
+                R[name].get("ERROR")
+                or (f"SKIPPED: {R[name]['SKIPPED']}" if "SKIPPED" in R[name] else None)
+                or ("GAGAL: " + ", ".join(R[name].get("failed_checks") or ["syarat ok"]) if failed else "ok")
+            )
             print(f"[{name}] {state} {R[name]['_ms']}ms clicks={CLICKS[0]}")
+            if R[name].get("ERROR") or failed:
+                FAILED.append(name)
         return wrapper
     return deco
 
@@ -3289,6 +3306,16 @@ S23_ACCOUNTS = [
     "hr@nusantara.test", "sales@nusantara.test", "teknisi@nusantara.test",
 ]
 
+# Baris preferensi `dashboard.layout` di SERVER, dibaca lewat API — bukan
+# lewat cermin localStorage, yang menjawab sama dengan atau tanpa baris server.
+PREF_LAYOUT_READ = """async () => {
+    const r = await fetch('/api/core/me/preferences', { headers: {
+        'X-Api-Token': localStorage.getItem('nusantara_erp_token'), Accept: 'application/json' } });
+    const j = await r.json();
+    return (j.data || []).filter((x) => x.key === 'dashboard.layout').map((x) => x.value)[0] || null;
+}"""
+
+
 DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].map((c) => ({
     id: c.dataset.widget,
     size: c.dataset.size,
@@ -3403,6 +3430,25 @@ def s23s(pg):
     pg.wait_for_timeout(2500)
     before = [c["id"] for c in pg.evaluate(DASH_CARDS)]
 
+    # Baris preferensi SEBELUM skenario ini menyentuhnya, supaya jalan ini bisa
+    # diulang: tanpa mengembalikannya, jalan kedua berangkat dari susunan yang
+    # ditinggalkan jalan pertama.
+    initial_pref = pg.evaluate(PREF_LAYOUT_READ)
+
+    # Bawaan peran menurut REGISTRI yang dikapalkan — bukan menurut apa yang
+    # kebetulan tergambar sebelum skenario ini mulai. Sampai verifikasi kedua
+    # P1-D "Kembalikan ke bawaan" dibandingkan dengan `before`, yang sama
+    # dengan bawaan HANYA selama dasbor mengabaikan susunan tersimpan pada
+    # kunjungan pertama (d-correct-1): begitu itu diperbaiki, perbandingan itu
+    # merah pada jalan kedua walau tombolnya benar.
+    default_layout = pg.evaluate("""async () => {
+        const reg = await import('/app/js/views/widgets/registry.js');
+        const api = await import('/app/js/api.js');
+        const user = api.session.user || {};
+        return reg.defaultLayout(user.roles || [], (perm) => api.session.can(perm));
+    }""")
+    default_ids = [e["id"] for e in default_layout]
+
     click(pg, ".page-head .actions button:has-text('Atur dasbor')")
     pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
     pg.screenshot(path=f"{OUT}/s23-atur-dasbor-p1d.png", full_page=True)
@@ -3435,20 +3481,38 @@ def s23s(pg):
     pg.wait_for_timeout(1200)
     after_save = [c["id"] for c in pg.evaluate(DASH_CARDS)]
 
-    # Muat ulang penuh: yang diuji adalah baris preferensi di SERVER, bukan
-    # keadaan yang kebetulan masih ada di memori halaman ini.
-    pg.reload()
-    pg.wait_for_selector("nav.nav", timeout=15000)
-    pg.wait_for_timeout(3000)
-    reloaded = pg.evaluate(DASH_CARDS)
+    # KONTEKS PERAMBAN BARU, bukan pg.reload().
+    #
+    # Sampai verifikasi kedua P1-D baris ini berbunyi "muat ulang penuh: yang
+    # diuji adalah baris preferensi di SERVER" — dan itu tidak benar: prefs.js
+    # menyimpan CERMIN localStorage per pengguna yang dibaca sinkron, jadi
+    # sebuah reload di konteks yang sama mengembalikan susunannya dengan atau
+    # tanpa baris server. Terbukti: jalan pertama verifikasi memakai salinan
+    # database/database.sqlite yang belum dimigrasi (tanpa tabel
+    # core_user_preferences, setiap panggilan preferensi 500) dan after_reload
+    # tetap sama dengan after_save.
+    #
+    # Konteks baru = cermin kosong = hanya server yang bisa menjawab. Itu juga
+    # persis keadaan yang membuat dasbor pernah menggambar BAWAAN PERAN pada
+    # kunjungan pertama dan tidak pernah memperbaikinya (temuan d-correct-1 /
+    # d-ux-01): kalau pendengar 'erp:prefs-loaded' di views/dashboard.js hilang
+    # lagi, kolom di bawah ini merah.
+    fresh_ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    fresh = fresh_ctx.new_page()
+    try:
+        login(fresh, "direktur@nusantara.test")
+        fresh.wait_for_selector("nav.nav", timeout=15000)
+        # Cukup lama untuk prefs.load() + gambar ulang, tetapi TIDAK dibantu
+        # navigasi apa pun: kunjungan PERTAMA yang harus benar.
+        fresh.wait_for_timeout(6000)
+        reloaded = fresh.evaluate(DASH_CARDS)
+        fresh.screenshot(path=f"{OUT}/s23-konteks-baru-p1d.png", full_page=True)
+    finally:
+        fresh_ctx.close()
+
     reloaded_ids = [c["id"] for c in reloaded]
 
-    stored = pg.evaluate("""async () => {
-        const r = await fetch('/api/core/me/preferences', { headers: {
-            'X-Api-Token': localStorage.getItem('nusantara_erp_token'), Accept: 'application/json' } });
-        const j = await r.json();
-        return (j.data || []).filter((x) => x.key === 'dashboard.layout').map((x) => x.value)[0] || null;
-    }""")
+    stored = pg.evaluate(PREF_LAYOUT_READ)
 
     click(pg, ".page-head .actions button:has-text('Atur dasbor')")
     pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
@@ -3458,6 +3522,23 @@ def s23s(pg):
         "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
     click(pg, ".modal-foot button:has-text('Batal')")
 
+    # Skenario ini mengembalikan baris preferensi ke keadaan semula: tidak ada
+    # endpoint yang MENGHAPUS preferensi, jadi yang bisa dilakukan adalah
+    # menulis kembali nilai awalnya. Bila BELUM ada barisnya, yang ditulis
+    # adalah bawaan perannya — bukan `[]`, yang berarti "sengaja dikosongkan"
+    # dan membuat jalan berikutnya membuka laci tanpa satu baris pun.
+    # Tanpa ini jalan kedua berangkat dari susunan yang ditinggalkan jalan
+    # pertama, dan angkanya tidak bisa dibandingkan antar jalan.
+    pg.evaluate("""async (value) => {
+        await fetch('/api/core/me/preferences/dashboard.layout', {
+            method: 'PUT',
+            headers: { 'X-Api-Token': localStorage.getItem('nusantara_erp_token'),
+                       Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value }),
+        });
+        localStorage.clear();
+    }""", initial_pref if initial_pref is not None else default_layout)
+
     return {
         "before": before,
         "added_label": added,
@@ -3466,16 +3547,22 @@ def s23s(pg):
         "moved_up": second,
         "order_in_drawer": order_in_drawer,
         "after_save": after_save,
-        "after_reload": reloaded_ids,
+        "after_fresh_context": reloaded_ids,
         "stored_preference": stored,
-        "restore_default_matches_before": restored == before,
-        "sizes_after_reload": {c["id"]: c["size"] for c in reloaded},
+        "role_default": default_ids,
+        "restore_default_matches_role_default": restored == default_ids,
+        "sizes_after_fresh_context": {c["id"]: c["size"] for c in reloaded},
+        # Ukuran yang diubah harus SELAMAT juga — `sizes_after_reload` dicatat
+        # sejak awal tetapi tidak pernah dibandingkan dengan `resized_to`, jadi
+        # satu-satunya perubahan yang tidak berupa urutan tidak pernah diuji.
+        "resized_survived": {c["id"]: c["size"] for c in reloaded}.get(resized) == target,
         "ok": (
             removed not in reloaded_ids
             and reloaded_ids == order_in_drawer
             and reloaded_ids == after_save
             and isinstance(stored, list) and len(stored) == len(reloaded_ids)
-            and restored == before
+            and {c["id"]: c["size"] for c in reloaded}.get(resized) == target
+            and restored == default_ids
         ),
     }
 
@@ -3569,3 +3656,8 @@ with sync_playwright() as p:
 import os; os.makedirs(OUT, exist_ok=True)  # verifikasi B4 fase 3: OUT yang belum ada menjatuhkan run di akhir, hasil hilang
 json.dump(R, open(f"{OUT}/results.json", "w"), ensure_ascii=False, indent=1)
 print("saved results.json")
+
+# Status keluar yang bisa dipercaya: yang membaca hanya baris terakhir tetap tahu.
+if FAILED:
+    print("GAGAL: " + ", ".join(FAILED))
+    sys.exit(1)
