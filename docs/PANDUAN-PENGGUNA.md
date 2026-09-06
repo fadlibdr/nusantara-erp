@@ -145,9 +145,10 @@ ada tombol "keluarkan saya dari semua perangkat"; itu pekerjaan administrator
 ### 1.4 Tampilan — apa yang ada di layar
 
 **Bilah atas**, dari kiri ke kanan: ikon **Menu** (hanya berguna di layar sempit —
-membuka/menutup sidebar), remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`),
-tombol **`Cari`**, tombol tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan
-peran Anda (atau "tanpa peran").
+membuka/menutup sidebar), ikon **rumah** (**Beranda** — halaman peluncur, lihat §1.4a),
+remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`), tombol **`Cari`**, tombol
+tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan peran Anda (atau "tanpa
+peran").
 
 **Remah roti dan beranda modul.** Remah pertama adalah nama modul dengan titik warna
 modul itu (warna yang sama menandai kelompok yang sedang terbuka di sidebar); klik untuk
@@ -157,7 +158,8 @@ menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman doku
 remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
 (judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
 Akun: *Padat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
-seketika, diingat di peramban ini untuk akun Anda. Di layar sentuh tombol baris memegang
+seketika, dan **diingat pada akun Anda** — bukan pada peramban ini: pilihan yang Anda buat
+di komputer kantor berlaku juga di tablet lapangan. Di layar sentuh tombol baris memegang
 sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 / 55 px
 (Lega = Normal untuk baris bertombol).
 
@@ -166,7 +168,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 
 | Kelompok | Isinya |
 |---|---|
-| Ringkasan | Dasbor · Tenggat · Kalender |
+| Ringkasan | Beranda · Dasbor · Tugas Saya · Tenggat · Kalender |
 | Penjualan | Pelanggan · Prospek · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
@@ -195,7 +197,8 @@ kelompok itu yang boleh mereka buka.
 **Tema.** Tombol matahari/bulan berputar antara *mengikuti sistem* → *terang* → *gelap*,
 dan memberi tahu pilihannya lewat notifikasi kecil. Pilihan tema, lipatan sidebar, dan
 jumlah baris per halaman **disimpan di peramban ini**, bukan di akun Anda — komputer lain
-mulai dari bawaan lagi.
+mulai dari bawaan lagi. Yang sebaliknya, **disimpan pada akun Anda dan ikut ke perangkat
+mana pun**: Favorit, Terakhir dibuka, dan Kepadatan.
 
 **Dialog Akun** (klik kotak nama): memperlihatkan nama, email, **Peran**, dan
 **Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Kepadatan**
@@ -206,6 +209,56 @@ ganti email, foto, atau pengaturan pemberitahuan.
 **Halaman yang salah alamat.** Alamat yang tidak dikenal menghasilkan
 `Halaman "…" tidak ditemukan.` dengan tombol **`Ke dasbor`**. Layar yang izinnya tidak
 Anda pegang menghasilkan `Anda tidak memiliki hak akses "<modul>.view" untuk halaman ini.`
+
+### 1.4a Beranda — peluncur modul
+
+**Beranda** (`#/home`) adalah satu halaman berisi **satu ubin per modul yang boleh Anda
+buka**. Tiap ubin membawa nama modul, jumlah layarnya, dan **satu angka utama** — angka
+yang paling menuntut tindakan di modul itu:
+
+| Modul | Angka di ubinnya |
+|---|---|
+| Ringkasan | Notifikasi belum dibaca |
+| Penjualan | Prospek terbuka (belum menang, belum kalah) |
+| Estimasi | RAB menunggu persetujuan |
+| Engineering | Gambar menunggu keputusan MK (SDS belum diputus) |
+| Proyek | Proyek aktif (berjalan + finishing) |
+| Mutu (QA/QC) | NCR terbuka (belum diverifikasi/ditutup) |
+| Pengadaan | PO terbuka (disetujui, barangnya belum lengkap) |
+| Persediaan | Item di bawah stok minimum (per gudang) |
+| Subkontrak | Opname subkon menunggu persetujuan |
+| Keuangan | Invoice termin belum lunas |
+| SDM & Payroll | Cuti menunggu persetujuan |
+| Layanan | Tiket belum selesai |
+| Aset | Aset dalam perawatan |
+| Sistem | Job gagal |
+
+**Tanda `—` berarti "tidak diketahui", bukan nol.** Ubin menulis `—` ketika Anda memang
+tidak boleh melihat angka itu (mis. "Job gagal" hanya untuk pemegang hak Pengaturan) atau
+ketika hitungannya gagal. Angka `0` selalu berarti benar-benar nol.
+
+Di atas ubin ada **kotak cari** yang menyaring modul DAN layar sekaligus (Enter membuka
+hasil pertama), lalu baris **Favorit** dan **Terakhir dibuka** bila Anda punya isinya.
+
+**Kapan Beranda yang terbuka lebih dulu.** Di layar lebar (≥ 760 px) masuk membawa Anda ke
+**Dasbor** seperti sebelumnya; di ponsel dan tablet sempit masuk membawa Anda ke
+**Beranda**, karena di sana menu tersembunyi di laci dan peluncur adalah jalan tercepat ke
+mana pun. Tautan langsung (dari e-mail, pemberitahuan, atau tab yang dipulihkan peramban)
+selalu menang atas aturan ini. Kapan pun, ikon rumah di bilah atas dan baris **Beranda** di
+kelompok Ringkasan membawa Anda ke sana. Dari Beranda, Lapangan hanya **dua ketukan**:
+ubin **Proyek** → kartu **Lapangan (mobile)**.
+
+**Beranda modul** (`#/m/<modul>`, dibuka dari ubin atau dari remah roti pertama) kini juga
+memimpin dengan angkanya: angka utama modul plus — untuk Proyek dan Keuangan — sampai tiga
+angka tambahan yang sudah ada di dasbor (nilai kontrak berjalan; piutang, utang, tagihan
+vendor terbuka). Di bawahnya ada **Terakhir dibuka** untuk modul itu ("Belum ada yang
+dibuka." bila memang belum) dan kartu layarnya, masing-masing dengan **bintang** untuk
+menambahkannya ke Favorit.
+
+**Favorit dan Terakhir dibuka mengikuti akun Anda,** bukan peramban: bintang yang Anda
+pasang di komputer kantor ada juga di tablet lapangan, dan membersihkan data peramban tidak
+menghapusnya. Bintang bisa dipasang dari baris sidebar maupun dari kartu di beranda modul —
+keduanya menulis daftar yang sama.
 
 ### 1.5 Pencarian
 

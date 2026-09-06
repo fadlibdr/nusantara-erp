@@ -36,6 +36,11 @@ public/app/
     crumbs.js           setCrumbs() — the one breadcrumb builder: module crumb → #/m/<prefix>,
                         screen crumb → its list, #crumbs[data-root] = module | screen
     api.js              fetch wrapper, session storage, error normalisation
+    prefs.js            user preferences (favourites, recent, density, launcher.hidden) —
+                        SERVER is the truth (core/me/preferences), localStorage is a mirror;
+                        one-time lift of the P1-B keys, per key; announces
+                        erp:favorites-changed / erp:recent-changed / erp:prefs-loaded so the
+                        sidebar and the views redraw without importing app.js (CONVENTIONS §15)
     format.js           id-ID money/date/percent formatting
     ui.js               el() DOM builder, buttons, badges, modal, toast, fields, svgIcon(),
                         emptyState({ kind }) — CONVENTIONS §14
@@ -54,10 +59,19 @@ public/app/
       detail.js         generic document detail: fields, lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…)
       dashboard.js      cross-module dashboard + approval inbox
+      home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
+                        Terakhir dibuka rows from server prefs, one tile per module the caller may
+                        open (visibleNav()) with its ModuleCounts headline. Landing on < 760 px
+                        (owner decision #3); "Beranda" is the first NAV row and a house button in
+                        the header. Unknown count = '—', never 0 (LauncherWiringTest)
       module.js         module home #/m/<prefix>: accent header + cards of the NAV screens the
                         caller may open (same visibleNav() filter as the sidebar); breadcrumb target.
                         Grid is auto-fill minmax(220px, 1fr): measured 4 columns at 1440 px, 1 at 390
-                        (S21 admin_modules[*].columns) — not "3 columns"
+                        (S21 admin_modules[*].columns) — not "3 columns".
+                        P1-C: KPI tiles (ModuleCounts headline + up to 3 secondaries that are already
+                        in the same response — prj/fin read dashboard/summary?include=modules, so it
+                        stays ONE request), "Terakhir dibuka" for this module, and a favourite star
+                        BESIDE each card (never inside the <a>)
       project.js        project workspace: kurva-S, WBS tree, site activity
       reports.js        finance reports (TB, P&L, BS, aging, project P&L)
       custom.js         stock, payroll, ticket, subcontract, payment, role, …
@@ -131,8 +145,23 @@ reading, in another shape. There is no `print` action anywhere in the permission
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
 - **Density**: `data-density` on `<html>` (compact/normal/comfortable) drives `--row-h` and the
-  cell paddings; chosen in the account dialog, stored per user in `localStorage`
-  (`nusantara_erp_density:<userId>`) until P1-C moves it server-side.
+  cell paddings; chosen in the account dialog and, since P1-C, stored per user on the SERVER
+  (`core/me/preferences`, CONVENTIONS §15). `localStorage` keeps a mirror so the attribute is set
+  before the shell paints; `js/prefs.js` lifts the old `nusantara_erp_density:<userId>` key once
+  and deletes it.
+- **Personal state**: favourites, "Terakhir dibuka" and density go through `js/prefs.js` and
+  nowhere else — a second reader of the legacy keys is a second source of truth, and
+  `LauncherWiringTest` refuses one. Read with `prefs.get(key, fallback)` (defaults live in the
+  SPA, never as a server row), write with `prefs.set(key, value)` (optimistic: mirror first, PUT
+  after; a 401 keeps the local value). A view that draws prefs-backed content must redraw that
+  part on `erp:prefs-loaded` — on a fresh browser the mirror is empty and the first paint happens
+  before the server answers.
+- **Module counts**: one headline number per module comes from `GET core/modules` (registry
+  `ModuleCounts`, CONVENTIONS §16). A module the response does not mention, or one whose `count`
+  is `null`, renders `—`. Never `count ?? 0`.
+- **Landing**: after login with no hash, ≥ 760 px → `#/dashboard`, < 760 px → `#/home` (owner
+  decision #3). The rule reads `location.hash`, not `currentPath()` — the latter invents
+  `dashboard` when the hash is empty, which would hijack every deep link.
 - **Empty states**: always `ui.emptyState()` with the right `kind` — a failed source is
   `error`, never `inbox`/`done`; a filtered-out list offers "Hapus filter".
 - **Money and dates**: always through `format.js` (`Rp 1.234.567`, `26 Jul 2026`).

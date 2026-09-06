@@ -318,8 +318,9 @@ angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (b
 pertemuan), berlaku seketika. Simpanan: `localStorage`
 `nusantara_erp_density:<id pengguna>` (`personalKey`, seperti favorit) dengan nilai
 `compact|normal|comfortable`, dipasang saat evaluasi modul app.js dan lagi di `boot()` — sebelum
-shell digambar, tanpa kedipan. P1-C memindahkannya ke `core/me/preferences`: baca kunci ini sekali,
-tulis ke server, hapus.
+shell digambar, tanpa kedipan. **Sejak P1-C nilainya preferensi SERVER** (`core/me/preferences`,
+§15); `localStorage` tinggal cermin yang menjawab seketika, dan kunci `nusantara_erp_density:<id>`
+dinaikkan sekali lalu dihapus oleh `js/prefs.js`.
 
 ## 14. Keadaan kosong berilustrasi (`ui.emptyState`, P1-B)
 
@@ -343,3 +344,79 @@ habis", dan yang tersaring habis menyebut penyaringnya: pencarian (`… yang coc
 Hapus pencarian) atau filter (`… yang lolos filter yang dipasang.` + Hapus filter) — tiga kalimat,
 tiga gambar; judul tidak mengulang kalimatnya. Ilustrasi
 baru = entri di `ILLUSTRATIONS` + baris di tabel ini.
+
+## 15. Preferensi pengguna (`core_user_preferences`, P1-C)
+
+Apa pun yang seseorang PILIH untuk dirinya sendiri — favorit, "Terakhir dibuka", kepadatan, kelak
+susunan dasbor — hidup di `core_user_preferences` (satu baris per pengguna per kunci,
+`UNIQUE(user_id, key)`), bukan di `localStorage`. Alasannya diukur: sampai P1-B ketiganya berkunci
+`<nama>:<id pengguna>` di peramban, jadi bintang yang dipasang di desktop kantor tidak ada di tablet
+lapangan milik orang yang sama, dan "Hapus data situs" menghapus semuanya tanpa jejak.
+
+**Whitelist, bukan kolom bebas.** `Modules\Core\Support\UserPreferences::keys()` — satu entri per
+kunci dengan `label`, `max_bytes`, dan `validate`. Kunci di luar daftar dijawab **422 yang menyebut
+kuncinya**; plafon keras **16 KB** per nilai (`MAX_BYTES`), tiap kunci boleh lebih ketat. Tanpa
+daftar itu `PUT core/me/preferences/{key}` — yang sengaja tanpa gerbang izin, karena barisnya milik
+pemanggil sendiri dan tidak ada parameter yang bisa menyebut orang lain (pola `GET core/inbox`) —
+adalah penyimpanan bebas 16 KB × kunci sebanyak-banyaknya × jumlah pengguna, ikut ke setiap backup.
+
+| kunci | isi | plafon |
+|---|---|---|
+| `favorites` | daftar rute NAV yang dibintangi (keanggotaan NAV diperiksa `Support\SpaNav`) | 50 entri / 4 KB |
+| `recent` | `{route,label,sub,at}` dokumen terakhir dibuka; field di luar keempatnya ditolak | 20 entri / 8 KB |
+| `density` | `compact` \| `normal` \| `comfortable` (§13) | 64 B |
+| `dashboard.layout` | dicadangkan P1-D; validator hanya bentuk + plafon | 16 KB |
+| `launcher.hidden` | prefix modul yang disembunyikan dari `#/home` | 32 entri / 512 B |
+
+**Kejujuran.** Kunci yang belum pernah dipilih **tidak punya baris**; bawaan (`normal`, `[]`) milik
+SPA. Baris `density: 'normal'` yang ditulis server berbohong bahwa orangnya pernah memilih.
+
+**`SpaNav`** membaca rute dan prefix NAV dari `public/app/js/schema.js` (memo per proses). Menyalin
+131 rute ke PHP akan basi pada sunting pertama, dan yang basi di sini adalah VALIDATOR. Berkas tidak
+terbaca → daftar kosong → validator jatuh ke pemeriksaan bentuk saja; bintang yang ditolak karena
+deploy terbaca sebagai bintang yang rusak.
+
+**Sisi SPA** — `js/prefs.js`, dan hanya berkas itu yang boleh menyentuh kunci warisan (dipaku
+`LauncherWiringTest`). Server adalah kebenaran; `localStorage` adalah CERMIN, untuk tiga hal yang
+butuh jawaban seketika: kepadatan dipasang sebelum shell digambar (tanpa cermin ada kedipan), antrean
+Lapangan yang luring, dan sesi yang berakhir di tengah kerja. Migrasi satu kali dijalankan **per
+kunci**: server yang sudah punya barisnya MENANG, dan kunci lokal hanya dihapus setelah server
+benar-benar punya nilainya. `set()` optimistis (cermin dulu, PUT menyusul); PUT yang tidak pernah
+sampai dicoba lagi pada boot berikutnya. `load()` mengumumkan `erp:prefs-loaded`, dan layar yang
+sudah tergambar dari cermin (launcher, beranda modul) menggambar ulang BAGIANNYA — bukan rutenya,
+yang berarti setiap permintaan layar berjalan dua kali.
+
+## 16. Registri `ModuleCounts` (P1-C)
+
+Satu angka utama per modul, dipimpin ubin launcher `#/home` dan kepala beranda modul `#/m/<prefix>`.
+`Modules\Core\Support\ModuleCounts::entries()` — satu entri per prefix grup NAV, **dalam urutan NAV**;
+kelengkapan dan urutannya dipaku `ModuleCountsTest` terhadap `schema.js`, jadi grup ke-15 tanpa entri
+menjatuhkan uji alih-alih diam-diam menghasilkan ubin tanpa angka selamanya.
+
+Per entri: `label` (nama angkanya), `unit` (ubin menulis "7 proyek", bukan "7"), `permission`
+(null = semua yang punya sesi), `tables` (setiap tabel yang disentuh; dijaga `Schema::hasTable`
+dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri `DB::table`), dan
+`why` — alasan angka INI, bukan angka lain, yang memimpin modulnya.
+
+Dua aturan yang sama dengan `WatchedDeadlines`: **tanpa mengimpor modul fitur** (literal string,
+dipaku uji, jadi penggantian nama status di lane tim lain menjatuhkan uji dan bukan mengosongkan
+ubin) dan **degradasi per entri**. `deleted_at` diperiksa tangan di setiap kueri — `DB::table`
+melewati scope `SoftDeletes`.
+
+**Absen ≠ 0.** Izin tidak dipegang, atau tabel belum ada → entri **TIDAK ADA**. Kueri melempar →
+`count: null` + `Log::warning`, tidak pernah 500. Sebuah 0 adalah pernyataan ("saya menghitung, dan
+hasilnya nol"); "0 tiket" di layar orang yang memang tidak boleh melihat tiket adalah kebohongan
+yang tampak seperti kabar baik. SPA menulis `—` untuk keduanya.
+
+**Satu kueri per entri adalah batasan yang dipilih**: blok ini ikut jawaban dasbor
+(`?include=modules`) dan endpoint launcher, keduanya dibaca di ponsel lapangan. Angka yang butuh join
+berlapis atau "baris terakhir per grup" (mis. "aset jatuh tempo servis", yang aturannya sudah
+dimiliki `WatchedDeadlines`) sengaja tidak diambil: salinan kedua sebuah aturan adalah penyimpangan
+yang paling mahal. Tiga angka yang SUDAH punya pemilik lain dipaku setara — `prj` = dasbor
+`projects.active_count`, `fin` = dasbor `ar_invoices.open_count`, `inv` =
+`StockService::lowStockAlerts()->count()`.
+
+**Endpoint.** `GET core/modules` (launcher) dan blok `modules` pada `GET core/dashboard/summary`
+**hanya bila `?include=modules`** — tanpa parameter itu jumlah permintaan dan bentuk jawaban dasbor
+tidak berubah sedikit pun (target metrik Fase 1). Keduanya tanpa gerbang izin, pola
+`search`/`calendar`: registri menyaring dirinya sendiri per entri.
