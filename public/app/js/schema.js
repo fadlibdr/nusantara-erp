@@ -5782,21 +5782,31 @@ export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve')
  *  - description: satu kalimat kepala beranda #/m/<prefix> (views/module.js)
  *    — ringkasan ISI grup NAV di bawah, bukan salinan pemasaran.
  */
+/*
+ * `kpi` adalah NAMA angka utama modul — cerminan label registri ModuleCounts
+ * di server (Modules/Core/Support/ModuleCounts.php), dan kesetaraan keduanya
+ * dipaku ModuleCountsTest. Ia ada di sini karena ubin launcher harus bisa
+ * menyebut angka yang TIDAK dikirim server: modul yang izin hitungannya tidak
+ * dipegang tidak punya entri di core/modules, jadi tanpa daftar ini ubinnya
+ * menulis '—' telanjang tanpa keterangan — "—" yang tidak memberi tahu
+ * pembacanya angka apa yang tidak diketahui (terukur 6 Sep 2026: warehouse@
+ * di 390×844 melihat tiga ubin ber-'—' dengan keterangan kosong).
+ */
 export const MODULES = {
-  ringkasan: { accent: 8, icon: 'layout-dashboard', description: 'Dasbor, tugas persetujuan, tenggat, dan kalender lintas modul.' },
-  crm: { accent: 4, icon: 'handshake', description: 'Pelanggan, prospek, paket tender, penawaran, kontrak, dan jaminan.' },
-  est: { accent: 4, icon: 'calculator', description: 'AHSP, BOQ/RAB, RAP, riwayat harga satuan, dan pustaka metode kerja.' },
-  eng: { accent: 8, icon: 'drafting-compass', description: 'Register gambar, persetujuan gambar dan material, transmittal, IPP, lokasi tapak.' },
-  prj: { accent: 1, icon: 'hard-hat', description: 'Pelaksanaan: laporan harian, progres, opname, serah terima, izin dan K3, register.' },
-  qc: { accent: 8, icon: 'clipboard-check', description: 'Inspeksi mutu, NCR, benda uji beton, dan template inspeksi.' },
-  prc: { accent: 3, icon: 'shopping-cart', description: 'Vendor, permintaan (PR), RFQ, pesanan (PO), PPK alat dan jasa, evaluasi vendor.' },
-  inv: { accent: 3, icon: 'warehouse', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
-  scm: { accent: 3, icon: 'file-signature', description: 'SPK subkon, addendum, opname dan BAST subkon, SP3 dan opname mandor.' },
-  fin: { accent: 2, icon: 'landmark', description: 'AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.' },
-  hr: { accent: 5, icon: 'users', description: 'Karyawan, sertifikat dan PKWT, cuti, absensi, dan payroll.' },
-  svc: { accent: 7, icon: 'headset', description: 'Tiket, SLA, kontrak layanan, jadwal preventif, dan berita acara.' },
-  ast: { accent: 6, icon: 'truck', description: 'Daftar aset, mobilisasi, log BBM dan jam alat, perawatan, penyusutan, utilisasi.' },
-  iam: { accent: 8, icon: 'settings', description: 'Pengguna, peran dan hak akses, profil perusahaan, impor, pengaturan, antrean.' },
+  ringkasan: { accent: 8, icon: 'layout-dashboard', kpi: 'Notifikasi belum dibaca', description: 'Dasbor, tugas persetujuan, tenggat, dan kalender lintas modul.' },
+  crm: { accent: 4, icon: 'handshake', kpi: 'Prospek terbuka', description: 'Pelanggan, prospek, paket tender, penawaran, kontrak, dan jaminan.' },
+  est: { accent: 4, icon: 'calculator', kpi: 'RAB menunggu persetujuan', description: 'AHSP, BOQ/RAB, RAP, riwayat harga satuan, dan pustaka metode kerja.' },
+  eng: { accent: 8, icon: 'drafting-compass', kpi: 'Gambar menunggu keputusan MK', description: 'Register gambar, persetujuan gambar dan material, transmittal, IPP, lokasi tapak.' },
+  prj: { accent: 1, icon: 'hard-hat', kpi: 'Proyek aktif', description: 'Pelaksanaan: laporan harian, progres, opname, serah terima, izin dan K3, register.' },
+  qc: { accent: 8, icon: 'clipboard-check', kpi: 'NCR terbuka', description: 'Inspeksi mutu, NCR, benda uji beton, dan template inspeksi.' },
+  prc: { accent: 3, icon: 'shopping-cart', kpi: 'PO terbuka', description: 'Vendor, permintaan (PR), RFQ, pesanan (PO), PPK alat dan jasa, evaluasi vendor.' },
+  inv: { accent: 3, icon: 'warehouse', kpi: 'Item di bawah stok minimum', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
+  scm: { accent: 3, icon: 'file-signature', kpi: 'Opname subkon menunggu persetujuan', description: 'SPK subkon, addendum, opname dan BAST subkon, SP3 dan opname mandor.' },
+  fin: { accent: 2, icon: 'landmark', kpi: 'Invoice termin belum lunas', description: 'AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.' },
+  hr: { accent: 5, icon: 'users', kpi: 'Cuti menunggu persetujuan', description: 'Karyawan, sertifikat dan PKWT, cuti, absensi, dan payroll.' },
+  svc: { accent: 7, icon: 'headset', kpi: 'Tiket belum selesai', description: 'Tiket, SLA, kontrak layanan, jadwal preventif, dan berita acara.' },
+  ast: { accent: 6, icon: 'truck', kpi: 'Aset dalam perawatan', description: 'Daftar aset, mobilisasi, log BBM dan jam alat, perawatan, penyusutan, utilisasi.' },
+  iam: { accent: 8, icon: 'settings', kpi: 'Job gagal', description: 'Pengguna, peran dan hak akses, profil perusahaan, impor, pengaturan, antrean.' },
 };
 
 /** Modul untuk sebuah prefix: entri MODULES + label dan grup NAV-nya; null bila tidak ada. */

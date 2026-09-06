@@ -141,9 +141,15 @@ class NavRouteRegistryTest extends ErpTestCase
         $this->assertSame([], array_filter($before, fn (array $header) => $header['prefix'] === null));
     }
 
+    /**
+     * Bentuk entri lengkap, `kpi` ikut (P1-C): tanpa nama angka utamanya ubin
+     * launcher yang angkanya tidak diketahui menulis '—' telanjang, tanpa
+     * memberi tahu pembacanya angka apa yang tidak diketahui. Kesetaraan nama
+     * itu dengan label registri server diuji ModuleCountsTest.
+     */
     private function moduleResolves(string $prefix): bool
     {
-        return (bool) preg_match('/^  '.preg_quote($prefix, '/').": \{ accent: [1-8], icon: '[a-z0-9-]+', description: '[^']+' \},$/m", $this->modulesBlock());
+        return (bool) preg_match('/^  '.preg_quote($prefix, '/').": \{ accent: [1-8], icon: '[a-z0-9-]+', kpi: '[^']+', description: '[^']+' \},$/m", $this->modulesBlock());
     }
 
     /** The `export const MODULES = {...}` block, so a RESOURCES key never passes for a module. */

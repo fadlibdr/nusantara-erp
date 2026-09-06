@@ -66,6 +66,28 @@ class ModuleCountsTest extends ErpTestCase
         }
     }
 
+    /**
+     * Launcher menulis '—' untuk modul yang izin hitungannya tidak dipegang —
+     * dan server, karena itu, TIDAK mengirim entri modul itu, jadi labelnya
+     * tidak ada di jawaban. Supaya ubinnya tetap bisa menyebut angka apa yang
+     * tidak diketahui ("— Job gagal"), schema.js menyimpan cerminan label ini.
+     * Dua daftar yang bisa berselisih hanya aman kalau selisihnya diuji.
+     */
+    public function test_every_entry_label_is_mirrored_in_the_spa_module_registry(): void
+    {
+        $source = (string) file_get_contents(public_path('app/js/schema.js'));
+        $start = strpos($source, 'export const MODULES = {');
+        $this->assertNotFalse($start, 'schema.js tidak punya MODULES; launcher menggambar ubin tanpa aksen maupun nama angka.');
+        $block = substr($source, $start, (int) strpos($source, "\n};", $start) - $start);
+
+        preg_match_all("/^  ([a-z]+): \{[^}]*\bkpi: '([^']*)'/m", $block, $matches, PREG_SET_ORDER);
+        $mirror = array_column($matches, 2, 1);
+
+        $labels = array_map(fn (array $entry) => $entry['label'], ModuleCounts::entries());
+        $this->assertSame($labels, $mirror,
+            'Nama angka utama di schema.js MODULES.kpi tidak lagi sama dengan label registri: ubin yang angkanya tidak diketahui akan menyebut angka yang salah.');
+    }
+
     // ---------------------------------------------------------------- gerbang
 
     public function test_an_entry_without_its_permission_is_absent_not_zero(): void

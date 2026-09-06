@@ -2161,6 +2161,13 @@ def launcher_for(pg, email, tag, theme_probe=False):
     out["kpi_mismatches"] = [p for p, c in checks.items() if not c.get("ok")]
     # Kejujuran: tidak satu pun ubin tanpa izin menulis angka.
     out["no_fake_zero"] = not any(c.get("held") is False and c["tile"] != "—" for c in checks.values())
+    # …dan '—' tetap MENYEBUT angka apa yang tidak diketahui. Kasus yang paling
+    # sering adalah izin hitungan yang tidak dipegang, dan em dash telanjang
+    # tanpa keterangan tidak memberi tahu pembacanya apa pun (terukur 6 Sep 2026:
+    # warehouse@ 390×844 — Engineering, Aset dan Sistem '—' dengan caption '').
+    out["captions"] = {t["prefix"]: t["caption"] for t in out["tiles"]}
+    out["tiles_without_caption"] = [t["prefix"] for t in out["tiles"] if not t["caption"]]
+    out["every_tile_names_its_number"] = not out["tiles_without_caption"]
     # Temuan terpisah, DILAPORKAN dan tidak diperbaiki di sini: rute daftar yang
     # menjawab tanpa gerbang izin sementara layarnya di SPA bergerbang.
     out["endpoint_open_without_permission"] = open_endpoints

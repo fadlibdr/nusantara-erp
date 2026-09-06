@@ -148,10 +148,20 @@ function moduleTile(group) {
       value.textContent = String(entry.count);
       unit.textContent = entry.unit;
     },
+    /*
+     * Angkanya tidak diketahui — karena izin hitungannya tidak dipegang (server
+     * tidak mengirim entri modul ini) atau karena seluruh permintaannya gagal.
+     * Keterangannya TETAP menyebut angka apa yang tidak diketahui, dari cermin
+     * lokal MODULES[prefix].kpi: '—' telanjang tanpa keterangan tidak memberi
+     * tahu pembacanya apa pun, dan kasus "izin tidak dipegang" justru yang
+     * paling sering (terukur 6 Sep 2026: warehouse@ 390×844 — tiga dari enam
+     * ubin ber-'—' tanpa satu kata pun; sesudah ini "— Job gagal").
+     */
     fail() {
       value.textContent = '—';
       unit.textContent = '';
-      caption.textContent = '';
+      caption.textContent = module.kpi || '';
+      caption.title = module.kpi || '';
     },
   };
 }
