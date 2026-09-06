@@ -72,7 +72,7 @@ export function renderModuleHome(host, { prefix }) {
   loadKpis(kpis, prefix);
 
   const recentHost = el('div');
-  recentHost.appendChild(recentSection(prefix));
+  recentHost.appendChild(recentSection(prefix, module.label));
   host.appendChild(recentHost);
 
   const screens = el('.module-screens', sections(items, prefix).map(({ caption, id, screens: list }) => {
@@ -97,7 +97,7 @@ export function renderModuleHome(host, { prefix }) {
       window.removeEventListener('erp:prefs-loaded', onPrefs);
       return;
     }
-    recentHost.replaceChildren(recentSection(prefix));
+    recentHost.replaceChildren(recentSection(prefix, module.label));
     syncStars(screens);
   };
   window.addEventListener('erp:prefs-loaded', onPrefs);
@@ -180,7 +180,7 @@ function kpiTile(label, value, unit) {
  * Engineering, Log BBM di grup Aset dengan izin proyek): entri yang dibuka dari
  * grup Engineering harus muncul kembali di beranda Engineering.
  */
-function recentSection(prefix) {
+function recentSection(prefix, moduleLabel) {
   const rows = prefs.visibleRecent((perm) => session.can(perm))
     .filter((one) => groupPrefixFor(one.key) === prefix)
     .slice(0, RECENT_MAX);
@@ -193,7 +193,7 @@ function recentSection(prefix) {
   return el('section.module-recent', [
     el('h2.module-recent-title', { text: 'Terakhir dibuka' }),
     rows.length
-      ? el('ul.home-chips', { 'aria-label': `Dokumen ${prefix} yang terakhir dibuka` }, rows.map((one) => el('li',
+      ? el('ul.home-chips', { 'aria-label': `Dokumen ${moduleLabel} yang terakhir dibuka` }, rows.map((one) => el('li',
         el('a.home-chip', { href: `#/${one.route}` }, [
           el('b', { text: one.label }),
           el('span.hint', { text: one.sub || one.def.labelOne || one.def.label }),
