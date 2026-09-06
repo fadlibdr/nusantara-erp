@@ -515,3 +515,73 @@ landing P1-C.
 **Vendor dimuat malas.** SortableJS (seret-lepas di laci) diambil `js/vendorload.js` saat laci
 DIBUKA, bukan oleh shell. Urutan tetap bisa diubah dengan tombol Naik/Turun tanpa satu byte vendor
 pun; berkas vendor yang gagal dimuat mencatat sekali di konsol dan tidak mematikan apa pun.
+
+## 18. Laporan Bebas — registri `ReportableResources` (P1-F)
+
+Penyusun laporan atas **delapan** resource (keputusan pemilik ledger #4), satu layar
+`#/laporan-bebas`, satu endpoint `POST core/reports/run` = **satu** kueri `DB::table` ber-whitelist.
+
+**"Kolom = kolom layar daftar" tidak bisa harfiah, dan registri mengatakannya.** Hanya 31 dari 90
+layar daftar yang seluruh kolomnya kolom tabel dasar; sisanya memuat jalur relasi (`vendor.name`)
+atau medan yang dihitung kelas Resource (`outstanding`, `project_code`). Maka `columns` dikunci
+dengan **kunci kolom layar, dalam urutan layar, setiap kunci hadir**, dan setiap kunci berakhir di
+salah satu dari **tiga nasib** — tidak ada nasib keempat:
+
+| nasib | bentuk | contoh |
+|---|---|---|
+| dipetakan | `select` = kolom tabel bernama sama | `amount` |
+| digantikan | `select` = kolom lain + `lookup` | `customer.name` → `customer_id` |
+| **ditolak** | tanpa `select`, dengan `why_not` | `outstanding` |
+
+`why_not` adalah kalimat yang **dibaca orangnya di pemilih kolom**, di tempat ia mencari kolom itu.
+Katalog yang diam-diam menghilangkan kolom "Sisa" membuat orang menjumlahkan "Total" dan menyangka
+itu sisa tagihan. `ReportableResourcesTest` memaku kesetaraan kunci **dan urutannya** terhadap
+`schema.js` di kedua arah, `select` terhadap skema hidup, `soft_deletes` terhadap ada-tidaknya
+`deleted_at`, izin terhadap `PermissionSeeder`, dan `date_column` terhadap `meta.date_column`
+endpoint daftarnya sendiri.
+
+**Aturan mesin** (`Modules\Core\Services\ReportRunner`, dijaga `ReportRunnerSafetyTest`):
+
+- **Tidak ada string klien yang menjadi teks SQL.** Identifier hanya dari registri, melewati
+  `guardIdentifier()`; nilai selalu binding. Tidak ada `whereRaw`/`havingRaw`/`orderByRaw`/`fromRaw`/
+  `DB::select` — hanya `selectRaw`/`groupByRaw` dengan string yang dibangun dari registri.
+- **ONLY_FULL_GROUP_BY.** Menyala di MySQL, tidak di SQLite. Setiap ekspresi select bukan-agregat
+  masuk `GROUP BY` **byte-identik**; `compile()` diekspos supaya ujinya menyapu setiap sumber ×
+  dimensi × ember × agregat tanpa MySQL.
+- **Ember tanggal `substr`.** `MONTH()`/`DATE_FORMAT` MySQL saja; `strftime` SQLite saja **dan**
+  dipindai terlarang `MysqlPreflightCommand`. Ember **harian** pun memotong (`substr(col,1,10)`):
+  kolom `date` terbaca `'2026-03-25 00:00:00'` di SQLite dan `'2026-03-25'` di MySQL.
+- **SoftDeletes dengan tangan.** `DB::table` melewati scope-nya.
+- **Pengurutan di PHP**, bukan `orderByRaw` — ≤ 200 kelompok, dan satu tempat lagi yang tidak
+  menjadi teks SQL.
+
+**Tiga keadaan sel, dan ketiganya berbeda** (syarat "sel kosong, bukan 0"):
+
+| keadaan | JSON | layar | XLSX |
+|---|---|---|---|
+| tidak ada baris sumber | `cells[i] = null`, `counts[i] = 0` | `—` | sel kosong |
+| ada baris, agregat NULL | `cells[i] = null`, `counts[i] > 0` | `—` | sel kosong |
+| nol yang dijumlahkan | `cells[i] = 0.0` | `0` | `0` |
+
+`array_key_exists`, tidak pernah `?? 0` dan tidak pernah `empty()`. Aturan sel XLSX punya **satu
+pemilik**: `Modules\Core\Support\XlsxSheetWriter::putRow` (`$value !== null && $value !== ''`,
+perbandingan KETAT — `empty()` menulis sel kosong untuk setiap nol yang sah).
+
+**Plafon DIUMUMKAN, dan ia PENOLAKAN bukan pemotongan.** 5.000 baris rincian / 200 kelompok, di
+`meta.limits` (aturan yang sama dengan `meta.sortable` dan `UserPreferences::describe()`); SPA
+membacanya, tidak menghafalnya. Melewatinya dijawab 422 — SUM atas 200 dari 340 kelompok adalah
+angka salah yang berpakaian angka benar.
+
+**Berbagi per peran menyimpan NAMA.** Ini rujukan peran pertama di seluruh basis data ini: id tidak
+bisa membawa FK (peran milik Iam, tabel milik Core — §3), nama adalah yang sudah diseberangkan ke
+klien dan yang dibaca `hasRole()` yang tidak pernah melempar. Penulisan divalidasi terhadap peran
+yang hidup (berbagi tidak pernah **lahir** basi); peran yang kemudian diganti nama **ditandai** di
+daftar, bukan diam-diam berhenti berbagi. Dua aturan yang tidak boleh dilanggar: **berbagi tidak
+pernah memberi akses baru** (laporan tetap disaring izin sumbernya), dan **hanya pemilik yang
+mengubah**, tanpa jalan pintas admin, ditolak **422 dari service** dengan kalimat yang menyebut
+laporannya, pemiliknya, dan jalan keluarnya — bentuk `PettyCashVoucherService::assertCustodian`.
+
+**Blok migrasi.** `core_saved_reports` mengambil **000197**. Ledger #5 menyarankan "Core 001400–",
+tetapi §2 sudah memberikan 001400–001499 kepada Quality dan Quality memakainya sejak 001400 —
+saran itu **tidak diikuti**. Core menyisakan **000198 dan 000199**; blok lanjutan Core perlu
+diputuskan sebelum tabel Core berikutnya.

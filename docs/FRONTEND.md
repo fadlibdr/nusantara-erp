@@ -66,6 +66,9 @@ public/app/
       widgets/          one file per dashboard widget + registry.js (the catalogue) and
                         kit.js (safe/failure/failedStat — the "a failed fetch is not an empty
                         one" rule, written once) — CONVENTIONS §17
+      laporanbebas.js   Laporan Bebas (P1-F): the report builder over the eight catalogued
+                        resources — every choice on screen comes from GET core/reports/resources,
+                        including the ceilings, which are announced not memorised
       list.js           generic list: search, filters, table, pagination
       form.js           generic create/edit modal incl. repeatable line items
       detail.js         generic document detail: fields, lines, approvals
@@ -158,6 +161,14 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **Laporan Bebas (P1-F)**: `#/laporan-bebas` builds reports over eight catalogued resources. The
+  screen holds no knowledge of its own — sources, which columns may be a dimension, which may be
+  summed, which filters exist and what the ceilings are all arrive from
+  `GET core/reports/resources`. Columns the catalogue REFUSES are still rendered, disabled, with
+  their reason underneath, because that is where someone looks for them. Values are never
+  re-computed here: cells come from the server and labels go through `enumLabel()`/`labelFor()` —
+  the same functions the list screen uses — so preview, CSV and screen cannot disagree. A `null`
+  cell prints `—` and never `0`; its tooltip says which of the two reasons applies. CONVENTIONS §18.
 - **Charts (P1-A, P1-E)**: every chart in the app is `js/charts.js`. Screens supply data and the
   properties that are theirs to decide — the EVM axis being allowed above 100 %, the price-trend
   axis not being forced to zero — and nothing else; `ChartMigrationTest` refuses a

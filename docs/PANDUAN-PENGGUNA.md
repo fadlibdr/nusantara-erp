@@ -169,7 +169,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 
 | Kelompok | Isinya |
 |---|---|
-| Ringkasan | Beranda · Dasbor · Tugas Saya · Tenggat · Kalender |
+| Ringkasan | Beranda · Dasbor · Tugas Saya · Tenggat · Kalender · Laporan Bebas |
 | Penjualan | Pelanggan · Prospek · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
@@ -308,6 +308,57 @@ bahwa bagian dari sistem sedang mati.
 widget proyek ke proyek yang Anda kelola. Sakelar itu disimpan **di peramban ini**, bukan di akun
 Anda: ia dibalik beberapa kali sehari dan menceritakan apa yang sedang Anda kerjakan, bukan siapa
 Anda.
+
+### 1.4c Laporan Bebas — menyusun laporan sendiri
+
+`Ringkasan › Laporan Bebas` menyusun laporan atas data yang **sudah boleh Anda lihat**. Ia tidak
+memberi akses baru: sumber yang layar daftarnya tidak boleh Anda buka tidak muncul di sini.
+
+**Tiga bentuk.**
+
+- **Kelompok** — satu kolom pengelompokan dan satu angka. "Biaya per kategori."
+- **Pivot** — baris × kolom × satu angka. "Biaya per kategori per bulan."
+- **Rincian** — baris apa adanya dengan kolom yang Anda pilih.
+
+**Menyusunnya.** Pilih **Sumber**, **Bentuk**, lalu kolom pengelompokannya. Kolom tanggal
+menawarkan **satuan periode** (harian, bulanan, tahunan). **Ukuran** adalah angka yang dihitung:
+*Banyak baris* selalu tersedia; *Jumlah*, *Rata-rata*, *Terkecil* dan *Terbesar* hanya untuk kolom
+uang. Persen dan progres **tidak** bisa dijumlahkan — jumlah tiga persen bukan persen, dan
+rata-rata sederhananya memperlakukan proyek Rp 40 M sama beratnya dengan proyek Rp 400 jt.
+
+**Kolom yang tidak tersedia tetap ditampilkan, nonaktif, dengan alasannya.** Contohnya kolom
+**Sisa** pada invoice: sisa tagihan bukan "total dikurangi dibayar" — invoice yang dibatalkan
+sisanya nol, dan aturan itu tinggal di dokumennya. Laporan Bebas menawarkan **Total** dan saringan
+**Status**; untuk umur piutang pakai `Keuangan › Laporan Keuangan › Umur Piutang`, yang
+menghitungnya di server.
+
+**Sel kosong bukan nol.** Sebuah **`—`** berarti angkanya tidak ada; arahkan kursor ke selnya dan
+keterangannya menyebut yang mana: *tidak ada baris pada kombinasi ini*, atau *ada barisnya, tetapi
+nilainya tidak ada* (nilai buku alat **sewa**, misalnya — alat itu tidak ada di neraca perusahaan).
+Angka **0** berarti sesuatu yang lain: sudah dihitung, dan hasilnya nol.
+
+**Batasnya diumumkan, dan ia menolak — bukan memotong.** Maksimal **200 kelompok** dan **5.000
+baris** rincian; angkanya tertulis di atas tombol Jalankan. Laporan yang melewatinya **ditolak**
+dengan saran mempersempit jendela tanggal atau menambah saringan — bukan dipotong, karena jumlah
+dari sebagian kelompok adalah angka yang salah yang tampak seperti angka yang benar.
+
+**Menyimpan dan membagikan.** **`Simpan laporan…`** menyimpan pertanyaannya (bukan datanya, yang
+selalu dihitung ulang saat dibuka) dan boleh membagikannya ke **peran**. Dua hal yang perlu
+diketahui:
+
+- **Berbagi tidak memberi akses.** Laporan keuangan yang dibagikan ke gudang tetap tidak terlihat
+  oleh gudang.
+- **Hanya pemiliknya yang dapat mengubah atau menghapus** — termasuk terhadap admin. Orang lain
+  menekan **`Salin`** dan mendapat salinan miliknya sendiri, yang bebas ia sesuaikan. Salinan tidak
+  mewarisi pembagian.
+
+Bila sebuah peran diganti namanya setelah laporan dibagikan kepadanya, daftar menuliskannya
+(*"peran … sudah tidak ada"*) alih-alih diam-diam berhenti membagikan.
+
+**Mengunduh.** **`Unduh CSV`** tersedia untuk laporan apa pun yang sedang tampil. **`XLSX`** hanya
+untuk laporan yang **sudah disimpan**, karena berkasnya menyebut nama laporannya — sebuah lampiran
+rapat yang tidak bisa dilacak kembali ke pertanyaan yang menghasilkannya tidak bisa
+dipertanggungjawabkan. Di kedua berkas, sel kosong tetap kosong dan nol tetap nol.
 
 ### 1.5 Pencarian
 
