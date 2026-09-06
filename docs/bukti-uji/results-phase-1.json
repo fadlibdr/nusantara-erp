@@ -37,7 +37,7 @@
     "Tambah PO"
    ]
   },
-  "_ms": 4589,
+  "_ms": 4926,
   "_clicks": 0
  },
  "S20_chart_tokens": {
@@ -13232,28 +13232,31 @@
     "#/r/projects/defects"
    ],
    "by_root": {
-    "module": 123,
-    "screen": 8,
+    "module": 130,
+    "screen": 1,
     "null": 0
    },
+   "screen_routes": [
+    "#/dashboard"
+   ],
    "empty": [],
    "overlapping": [],
    "taller_than_header": [],
    "without_aria_current": [],
    "outside_texts": {
-    "#/r/finance/kasbon": "ERP › Kasbon",
-    "#/r/finance/petty-cash-vouchers": "ERP › Voucher Kas Kecil",
-    "#/r/hr/certificates": "ERP › Sertifikat",
-    "#/r/inventory/issue-returns": "ERP › Retur Material Proyek",
-    "#/r/inventory/purchase-returns": "ERP › Retur Pembelian",
-    "#/r/projects/baselines": "ERP › Baseline Proyek",
-    "#/r/projects/defects": "ERP › Register Defect (Punch List)"
+    "#/r/finance/kasbon": "Keuangan › Kasbon",
+    "#/r/finance/petty-cash-vouchers": "Keuangan › Voucher Kas Kecil",
+    "#/r/hr/certificates": "SDM & Payroll › Sertifikat",
+    "#/r/inventory/issue-returns": "Persediaan › Retur Material Proyek",
+    "#/r/inventory/purchase-returns": "Persediaan › Retur Pembelian",
+    "#/r/projects/baselines": "Proyek › Baseline Proyek",
+    "#/r/projects/defects": "Proyek › Register Defect (Punch List)"
    },
    "console_errors_from_stub": {
     "count": 2,
     "first": [
-     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8026/app/js/views/k3.js:129:43)\n    at async rende",
-     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8026/app/js/views/retensi.js:48:41)"
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8028/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8028/app/js/views/retensi.js:48:41)"
     ]
    },
    "never_empty": true,
@@ -13896,7 +13899,7 @@
    "count": 0,
    "first": []
   },
-  "_ms": 96261,
+  "_ms": 95091,
   "_clicks": 11
  },
  "S21_module_accents_breadcrumb_mobile": {
@@ -15235,28 +15238,31 @@
     "#/r/projects/defects"
    ],
    "by_root": {
-    "module": 123,
-    "screen": 8,
+    "module": 130,
+    "screen": 1,
     "null": 0
    },
+   "screen_routes": [
+    "#/dashboard"
+   ],
    "empty": [],
    "overlapping": [],
    "taller_than_header": [],
    "without_aria_current": [],
    "outside_texts": {
-    "#/r/finance/kasbon": "Kasbon",
-    "#/r/finance/petty-cash-vouchers": "Voucher Kas Kecil",
-    "#/r/hr/certificates": "Sertifikat",
-    "#/r/inventory/issue-returns": "Retur Material Proyek",
-    "#/r/inventory/purchase-returns": "Retur Pembelian",
-    "#/r/projects/baselines": "Baseline Proyek",
-    "#/r/projects/defects": "Register Defect (Punch List)"
+    "#/r/finance/kasbon": "Keuangan",
+    "#/r/finance/petty-cash-vouchers": "Keuangan",
+    "#/r/hr/certificates": "SDM & Payroll",
+    "#/r/inventory/issue-returns": "Persediaan",
+    "#/r/inventory/purchase-returns": "Persediaan",
+    "#/r/projects/baselines": "Proyek",
+    "#/r/projects/defects": "Proyek"
    },
    "console_errors_from_stub": {
     "count": 2,
     "first": [
-     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8026/app/js/views/k3.js:129:43)\n    at async rende",
-     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8026/app/js/views/retensi.js:48:41)"
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8028/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8028/app/js/views/retensi.js:48:41)"
     ]
    },
    "never_empty": true,
@@ -15943,7 +15949,7 @@
    "count": 0,
    "first": []
   },
-  "_ms": 93625,
+  "_ms": 94354,
   "_clicks": 11
  },
  "S15_lapangan_upload": {

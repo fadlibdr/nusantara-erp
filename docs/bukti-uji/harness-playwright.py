@@ -1899,6 +1899,10 @@ def module_accents(pg, tag):
     no_aria = [w for w in walk if w["aria_current"] != "page"]
     out["crumb_walk"] = {"routes": len(walk), "nav": len(routes["nav"]), "outside": routes["outside"],
                          "by_root": {r: sum(1 for w in walk if w["root"] == r) for r in ("module", "screen", None)},
+                         # Rantai berakar 'screen' DINAMAI, bukan hanya dihitung: sejak layar di luar NAV
+                         # berakar pada modulnya (eaef2e7) yang tersisa hanyalah rantai satu remah seperti
+                         # #/dashboard — kalau daftarnya bertambah, yang bertambah harus terbaca di bukti.
+                         "screen_routes": [w["route"] for w in walk if w["root"] == "screen"],
                          "empty": [w["route"] for w in empty], "overlapping": [w["route"] for w in overlapping],
                          "taller_than_header": [w["route"] for w in taller], "without_aria_current": [w["route"] for w in no_aria],
                          "outside_texts": {w["route"]: w["text"] for w in walk if w["route"] in routes["outside"]},
