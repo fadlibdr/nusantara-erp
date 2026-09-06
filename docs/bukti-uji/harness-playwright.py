@@ -3415,10 +3415,54 @@ def s23(pg):
     out["over_budget"] = [
         name for name, r in out["roles"].items() if r["max_concurrent"] > r["concurrent_budget"]
     ]
+
+    # --- MUAT ULANG BERTUBI-TUBI -----------------------------------------
+    #
+    # Angka di atas diukur pada SATU pemuatan yang tenang, dan itulah keadaan
+    # yang paling jarang terjadi di lapangan. renderDashboard() dipanggil ulang
+    # oleh tombol Muat ulang, sakelar 'Proyek saya' dan laci yang menyimpan;
+    # sampai verifikasi kedua P1-D gambar LAMA tidak berhenti — `clear(host)`
+    # melepaskan kartunya, perulangan batch-nya jalan terus. Terukur: tiga klik
+    # berjarak 120 ms = 27 permintaan, 12 berjalan bersamaan, tiga batch
+    # tumpang tindih. Yang dijaga di sini adalah janji paketnya sendiri:
+    # tidak pernah lebih dari BATCH sekaligus, berapa kali pun tombolnya
+    # ditekan.
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    probe = dash_probe(page)
+    try:
+        login(page, "direktur@nusantara.test")
+        page.wait_for_timeout(3000)
+        cards = page.evaluate(DASH_CARDS)
+        budget = 4 + sum(1 for c in cards if c["id"] in MULTI_REQUEST_WIDGETS)
+
+        probe["urls"].clear()
+        probe["max"] = 0
+        for _ in range(3):
+            page.evaluate("() => { const b = document.querySelector(\".page-head .actions button.icon\"); if (b && !b.disabled) b.click(); }")
+            page.wait_for_timeout(120)
+        page.wait_for_timeout(4000)
+
+        widget_reqs = [u for u in probe["urls"] if not u.startswith(SHELL_REQUESTS)]
+        out["rapid_reload"] = {
+            "clicks": 3,
+            "gap_ms": 120,
+            "cards": len(cards),
+            "api_widgets": len(widget_reqs),
+            "max_concurrent": probe["max"],
+            "concurrent_budget": budget,
+            # Kartu tetap terisi sesudahnya: berhenti bukan berarti menyerah.
+            "empty_bodies_after": [c["id"] for c in page.evaluate(DASH_CARDS) if len(c["body"]) < 3],
+        }
+    finally:
+        ctx.close()
+
     out["ok"] = (
         not out["roles_without_cards"]
         and not out["over_budget"]
         and not any(r["empty_bodies"] for r in out["roles"].values())
+        and out["rapid_reload"]["max_concurrent"] <= out["rapid_reload"]["concurrent_budget"]
+        and not out["rapid_reload"]["empty_bodies_after"]
     )
     return out
 

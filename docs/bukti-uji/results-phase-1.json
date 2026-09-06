@@ -19743,7 +19743,7 @@
       "tenggat",
       "kalender"
     ],
-    "after_reload": [
+    "after_fresh_context": [
       "proyeksi-kas",
       "inbox",
       "ar-aging",
@@ -19792,8 +19792,19 @@
         "size": "sedang"
       }
     ],
-    "restore_default_matches_before": true,
-    "sizes_after_reload": {
+    "role_default": [
+      "ringkasan-uang",
+      "inbox",
+      "proyeksi-kas",
+      "ar-aging",
+      "evm",
+      "siap-tagih",
+      "saldo-bank",
+      "pipeline",
+      "tenggat"
+    ],
+    "restore_default_matches_role_default": true,
+    "sizes_after_fresh_context": {
       "proyeksi-kas": "sedang",
       "inbox": "sedang",
       "ar-aging": "sedang",
@@ -19804,8 +19815,9 @@
       "tenggat": "sedang",
       "kalender": "sedang"
     },
+    "resized_survived": true,
     "ok": true,
-    "_ms": 10787,
+    "_ms": 16123,
     "_clicks": 8
   },
   "S23_honest_failure": {
@@ -19827,7 +19839,7 @@
     ],
     "other_cards_lost": [],
     "ok": true,
-    "_ms": 8185,
+    "_ms": 8217,
     "_clicks": 0
   },
   "S23_dashboard_mobile": {
@@ -19852,7 +19864,7 @@
       "height": 1667
     },
     "ok": true,
-    "_ms": 4893,
+    "_ms": 4910,
     "_clicks": 0
   },
   "S23_dashboard_per_role": {
@@ -20136,8 +20148,17 @@
     "cards_total": 71,
     "max_concurrent_any_role": 5,
     "over_budget": [],
+    "rapid_reload": {
+      "clicks": 3,
+      "gap_ms": 120,
+      "cards": 9,
+      "api_widgets": 9,
+      "max_concurrent": 4,
+      "concurrent_budget": 4,
+      "empty_bodies_after": []
+    },
     "ok": true,
-    "_ms": 70179,
+    "_ms": 79958,
     "_clicks": 0
   },
   "S20e_migrated_charts": {

@@ -164,6 +164,12 @@ export async function renderDashboard(host) {
 
   const reloadAll = () => renderDashboard(host);
 
+  /* Dinonaktifkan selama pemuatan berjalan. Token `generation` sudah membuat
+     penekanan kedua BENAR (gambar lama berhenti), tetapi tombol yang tetap
+     bisa ditekan tetap membayar permintaan yang tidak ada gunanya — dan pada
+     sambungan lapangan itulah yang paling terasa. */
+  const refreshButton = button('', { iconName: 'refresh', title: 'Muat ulang', onClick: reloadAll });
+
   /* PREFERENSI YANG MENYUSUL — dan kenapa dasbor ini pernah mengabaikan
      susunan tersimpan sepenuhnya pada kunjungan pertama.
      `boot()` menggambar #/dashboard SECARA SINKRON (landOnDefault() + start())
@@ -227,7 +233,7 @@ export async function renderDashboard(host) {
         title: 'Tambah, hapus, ubah ukuran dan urutan widget',
         onClick: () => openDashboardSetup(stored, reloadAll),
       }),
-      button('', { iconName: 'refresh', title: 'Muat ulang', onClick: reloadAll }),
+      refreshButton,
     ]),
   ]));
 
@@ -259,6 +265,17 @@ export async function renderDashboard(host) {
 
   const paint = async (slot) => {
     const { widget, body, card } = slot;
+
+    /* Gambar ini sudah digantikan gambar lain (Muat ulang ditekan lagi,
+       sakelar 'Proyek saya' dibalik, laci menyimpan): kartunya sudah lepas
+       dari dokumen, jadi permintaannya tidak akan pernah dibaca siapa pun.
+       Tanpa baris ini perulangan batch LAMA terus menembakkan batch-batchnya
+       ke dalam kartu yang tidak terpasang, dan janji "tidak pernah lebih dari
+       BATCH sekaligus" batal: terukur 6 Sep 2026, tiga klik Muat ulang
+       berjarak 120 ms = 27 permintaan dengan 12 berjalan bersamaan
+       (verifikasi P1-D). */
+    if (mine !== generation) return;
+
     const ctx = {
       size: slot.size,
       mineOnly,
@@ -287,12 +304,21 @@ export async function renderDashboard(host) {
     }
   };
 
+  refreshButton.disabled = true;
+
   for (let start = 0; start < mounted.length; start += BATCH) {
     // Berurutan per batch, serentak DI DALAM batch. Satu widget yang lambat
     // menahan batch-nya sendiri, bukan seluruh halaman — dan tidak ada saat
     // pun ketika lebih dari BATCH permintaan dasbor berjalan bersamaan.
+    // Diperiksa DUA KALI (di sini dan di paint()): yang di sini menghentikan
+    // batch berikutnya, yang di sana menghentikan anggota batch yang sudah
+    // terjadwal.
+    if (mine !== generation) return;
     await Promise.all(mounted.slice(start, start + BATCH).map(paint));
   }
+
+  // Selesai: tombol Muat ulang boleh ditekan lagi.
+  if (mine === generation) refreshButton.disabled = false;
 }
 
 /* Dibaca uji: satu-satunya sumber kebenaran tentang ukuran batch. */
