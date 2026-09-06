@@ -62,6 +62,10 @@ export async function build({ reload }) {
           el('div', { text: `Gagal dimuat: ${failed.join(', ')}. Daftar ini belum lengkap.` }),
         ]))
       : null,
-    total > PREVIEW ? footLink(`Lihat semua (${total})`, () => navigate('tugas')) : null,
+    /* SELALU ada kakinya. Bentuk `N > M ? footLink(...) : null` membuang
+       satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
+       keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
+       (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
+    footLink(total > PREVIEW ? `Lihat semua (${total})` : 'Buka Tugas Saya', () => navigate('tugas')),
   ]);
 }

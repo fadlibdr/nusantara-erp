@@ -106,6 +106,64 @@ class DashboardWidgetRegistryTest extends ErpTestCase
         }
     }
 
+    /**
+     * `route` katalog bukan metadata mati: setiap widget PUNYA kaki kartu, dan
+     * kaki itu menuju rute yang katalognya sebut.
+     *
+     * Verifikasi kedua P1-D: tidak satu baris JavaScript pun membaca
+     * `widget.route` — setiap kaki menuliskan sasarannya sendiri — sehingga 19
+     * string yang dipaku uji di atas bukan string yang dikapalkan. Sekaligus
+     * dua widget tidak menggambar kaki sama sekali (kalender, ringkasan-uang)
+     * walau katalog memberi keduanya route, dan tiga lagi menjatuhkan kakinya
+     * justru pada keadaan KOSONG — layar yang paling perlu diperiksa.
+     *
+     * Yang dijaga di sini karena itu dua hal yang bisa dijaga tanpa runtime JS:
+     *  1. setiap berkas widget memanggil footLink();
+     *  2. sedikitnya satu `navigate('…')` di berkas itu MULAI DENGAN route
+     *     katalognya — jadi `reports?tab=ar-aging` sah untuk route `reports`
+     *     (tautan dalam ke tab layar yang sama), sementara route yang tidak
+     *     pernah disentuh berkasnya jatuh.
+     */
+    public function test_every_widget_draws_a_foot_that_goes_where_the_catalogue_says(): void
+    {
+        $checked = 0;
+
+        foreach ($this->entries() as $entry) {
+            $this->assertSame(1, preg_match("/route: '([^']+)'/", $entry['block'], $found),
+                "Entri katalog [{$entry['id']}] tidak menyebut route.");
+            $route = $found[1];
+
+            $path = public_path('app/js/views/widgets/'.$entry['id'].'.js');
+            $this->assertFileExists($path);
+            $source = (string) file_get_contents($path);
+
+            $this->assertStringContainsString('footLink(', $source, sprintf(
+                'Widget [%s] tidak menggambar kaki kartu satu kali pun, jadi katalognya menjanjikan pintu '
+                .'("route: %s") yang tidak ada di layar mana pun.',
+                $entry['id'], $route,
+            ));
+
+            preg_match_all("/navigate\('([^']+)'/", $source, $targets);
+            $this->assertNotSame([], $targets[1], "Widget [{$entry['id']}] tidak menaut ke mana pun.");
+
+            $hits = array_filter(
+                $targets[1],
+                static fn (string $target): bool => $target === $route || str_starts_with($target, $route.'?'),
+            );
+
+            $this->assertNotSame([], $hits, sprintf(
+                'Widget [%s] menaut ke [%s] sementara katalognya menyebut route [%s]. Salah satunya salah, dan '
+                .'yang dipaku uji adalah katalognya — jadi selama ini 19 string route dipaku tanpa satu pun '
+                .'benar-benar dikapalkan.',
+                $entry['id'], implode(', ', array_unique($targets[1])), $route,
+            ));
+
+            $checked++;
+        }
+
+        $this->assertSame(19, $checked, 'Jumlah widget yang disapu berubah — sapuan ini kehilangan sasarannya.');
+    }
+
     /** Prefix modul setiap widget adalah grup NAV sungguhan (aksen + pengelompokan). */
     public function test_every_widget_names_a_real_module_prefix(): void
     {

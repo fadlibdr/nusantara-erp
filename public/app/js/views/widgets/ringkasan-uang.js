@@ -17,7 +17,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedStats, statRow, stat } from './kit.js';
+import { safe, failure, failedStats, statRow, stat, footLink } from './kit.js';
 
 export async function build({ mineOnly, reload }) {
   const tiles = await safe('core/dashboard/summary', { mine: mineOnly ? 1 : undefined });
@@ -34,7 +34,7 @@ export async function build({ mineOnly, reload }) {
   // yang sama.
   const projectLabel = mineOnly ? 'Proyek saya (berjalan)' : 'Proyek berjalan';
 
-  return el('.card-body', statRow([
+  const body = el('.card-body', statRow([
     tiles.projects
       ? stat(projectLabel, String(tiles.projects.active_count), {
         sub: `Nilai kontrak ${fmt.rupiahShort(Number(tiles.projects.contract_value || 0))}`,
@@ -54,4 +54,20 @@ export async function build({ mineOnly, reload }) {
       })
       : null,
   ]));
+
+  /* SATU pintu yang bisa dicapai papan ketik. Ketiga ubin di atas adalah <div>
+     ber-onClick (kit.stat menambahkan cursor:pointer dan pendengar klik), jadi
+     sampai verifikasi kedua P1-D kartu ini tidak punya satu pun elemen yang
+     bisa di-Tab — dan katalog memberinya route yang tidak pernah dipakai.
+     Kakinya menunjuk blok PERTAMA yang benar-benar dikirim server, supaya
+     peran tanpa prj.view tidak diberi pintu ke layar yang akan menolaknya. */
+  const door = tiles.projects
+    ? { label: 'Semua proyek', route: 'r/projects' }
+    : tiles.ar_invoices
+      ? { label: 'Semua invoice termin', route: 'r/finance/ar-invoices' }
+      : tiles.ap_bills
+        ? { label: 'Semua tagihan vendor', route: 'r/finance/ap-bills' }
+        : null;
+
+  return el('div', [body, door ? footLink(door.label, () => navigate(door.route)) : null]);
 }

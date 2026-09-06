@@ -18,7 +18,13 @@ export async function build({ reload }) {
   // api.get membuka amplop `data`, jadi yang kembali sudah berupa baris.
   const rows = await safe('finance/tax-obligations', { year, per_page: 60 });
   if (failure(rows)) return failedBody(failure(rows), reload);
-  if (!rows.length) return tileEmpty(`Belum ada baris kewajiban masa ${year}.`);
+  // Kaki kartu IKUT digambar pada keadaan kosong (verifikasi kedua P1-D).
+  if (!rows.length) {
+    return el('div', [
+      tileEmpty(`Belum ada baris kewajiban masa ${year}.`),
+      footLink('Buka kalender pajak', () => navigate('kalender-pajak')),
+    ]);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const belum = rows.filter((row) => row.status === 'belum');

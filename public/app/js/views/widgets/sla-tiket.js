@@ -52,6 +52,10 @@ export async function build({ reload }) {
       (row) => navigate(`d/servicedesk/tickets/${row.id}`),
       { empty: { kind: 'done', message: 'Tidak ada tiket yang melewati SLA.' } },
     ),
-    total > tickets.length ? footLink(`Lihat semua (${total})`, () => navigate('sla-breaches')) : null,
+    /* SELALU ada kakinya. Bentuk `N > M ? footLink(...) : null` membuang
+       satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
+       keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
+       (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
+    footLink(total > tickets.length ? `Lihat semua (${total})` : 'Buka Pelanggaran SLA', () => navigate('sla-breaches')),
   ]);
 }

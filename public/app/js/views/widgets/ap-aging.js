@@ -21,8 +21,14 @@ export async function build({ reload }) {
      mengirimkannya utuh (laporan ini tidak berhalaman). Lima batang nol di
      atas angka Rp 0 bukan kebohongan, hanya kebisingan; kalimatnya lebih
      berguna. */
+  /* Kaki kartu IKUT digambar pada keadaan kosong — alasan yang sama dengan
+     ar-aging: layar yang kosong justru yang paling perlu diperiksa
+     (verifikasi kedua P1-D). */
   if (!((report && report.rows) || []).length || !Object.keys(buckets).length) {
-    return tileEmpty('Tidak ada tagihan vendor terbuka.', 'done');
+    return el('div', [
+      tileEmpty('Tidak ada tagihan vendor terbuka.', 'done'),
+      footLink('Buka umur hutang', () => navigate('reports?tab=ap-aging')),
+    ]);
   }
 
   const total = Number(report.total_outstanding || 0);

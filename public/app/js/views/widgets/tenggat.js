@@ -19,7 +19,10 @@ export async function build({ reload }) {
   const meta = payload.meta || {};
 
   if (!findings.length) {
-    return tileEmpty('Tidak ada tenggat yang menipis atau lewat pada modul yang boleh Anda lihat.', 'done');
+    return el('div', [
+      tileEmpty('Tidak ada tenggat yang menipis atau lewat pada modul yang boleh Anda lihat.', 'done'),
+      footLink('Buka semua tenggat', () => navigate('tenggat')),
+    ]);
   }
 
   const totalOfTier = (tier) => findings.filter((f) => f.tier === tier).reduce((sum, f) => sum + f.count, 0);
@@ -51,6 +54,12 @@ export async function build({ reload }) {
       top,
       () => navigate('tenggat'),
     ),
-    findings.length > top.length ? footLink(`Lihat semua (${findings.length} kelompok)`, () => navigate('tenggat')) : null,
+    /* SELALU ada kakinya, bukan hanya saat daftarnya terpotong: sampai
+       verifikasi kedua P1-D kartu ini kehilangan satu-satunya pintunya persis
+       ketika kelompoknya lima atau kurang — yaitu keadaan yang paling sering. */
+    footLink(
+      findings.length > top.length ? `Lihat semua (${findings.length} kelompok)` : 'Buka semua tenggat',
+      () => navigate('tenggat'),
+    ),
   ]);
 }

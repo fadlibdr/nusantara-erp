@@ -15,7 +15,7 @@ import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
 import { KALENDER_DEPTS, ensureKalenderPalette, kalDot } from '../../kalenderpalette.js';
-import { safeList, failure, tileEmpty, failedBody, miniTable } from './kit.js';
+import { safeList, failure, tileEmpty, failedBody, miniTable, footLink } from './kit.js';
 
 export async function build({ reload, card }) {
   const payload = await safeList('core/calendar');
@@ -145,5 +145,10 @@ export async function build({ reload, card }) {
       : tileEmpty(events.length
         ? 'Tidak ada agenda tersisa bulan ini.'
         : 'Tidak ada agenda bulan ini pada modul yang boleh Anda lihat.', 'inbox'),
+    /* Pintu ke kalender penuh, yang docblock di atas sebut "selalu tersedia"
+       dan yang kartu kalender P1-C memang punya ("Buka kalender lengkap").
+       Sampai verifikasi kedua P1-D berkas ini tidak memanggil footLink satu
+       kali pun, jadi kalimat itu tidak benar untuk satu keadaan pun. */
+    footLink('Buka kalender lengkap', () => navigate('kalender')),
   ]);
 }

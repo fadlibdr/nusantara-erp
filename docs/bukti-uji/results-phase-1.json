@@ -19915,6 +19915,7 @@
         "api_widgets": 8,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "direktur": {
@@ -19944,6 +19945,7 @@
         "api_widgets": 9,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "project-manager": {
@@ -19971,6 +19973,7 @@
         "api_widgets": 9,
         "max_concurrent": 5,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 5
       },
       "site-manager": {
@@ -19992,6 +19995,7 @@
         "api_widgets": 6,
         "max_concurrent": 5,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 5
       },
       "estimator": {
@@ -20011,6 +20015,7 @@
         "api_widgets": 4,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "procurement": {
@@ -20030,6 +20035,7 @@
         "api_widgets": 4,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "warehouse": {
@@ -20051,6 +20057,7 @@
         "api_widgets": 5,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "finance": {
@@ -20080,6 +20087,7 @@
         "api_widgets": 9,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "finance-manager": {
@@ -20105,6 +20113,7 @@
         "api_widgets": 7,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "hr": {
@@ -20122,6 +20131,7 @@
         "api_widgets": 3,
         "max_concurrent": 3,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "sales": {
@@ -20143,6 +20153,7 @@
         "api_widgets": 5,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       },
       "teknisi": {
@@ -20162,6 +20173,7 @@
         "api_widgets": 4,
         "max_concurrent": 4,
         "empty_bodies": [],
+        "cards_without_foot": [],
         "concurrent_budget": 4
       }
     },
@@ -20219,7 +20231,7 @@
       "progres_card_says_mine": true
     },
     "ok": true,
-    "_ms": 88219,
+    "_ms": 86999,
     "_clicks": 0
   },
   "S20e_migrated_charts": {

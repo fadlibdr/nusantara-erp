@@ -3322,6 +3322,12 @@ DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].
     span: getComputedStyle(c).gridColumnEnd,
     title: (c.querySelector('.card-head h2') || {}).innerText || null,
     body: ((c.querySelector('.widget-body') || {}).innerText || '').trim(),
+    // Kaki kartu = pintu ke layar yang memuat angka ini secara lengkap. Sebuah
+    // kartu tanpa kaki adalah angka tanpa cara memeriksanya, dan itu paling
+    // menyakitkan justru pada kartu yang isinya kosong (verifikasi kedua P1-D:
+    // 10 dari 19 kartu tanpa .card-foot, termasuk seluruh kartu umur piutang/
+    // hutang/pajak yang sedang kosong).
+    foot: ((c.querySelector('.card-foot') || {}).innerText || '').trim() || null,
 }))"""
 
 
@@ -3396,6 +3402,8 @@ def s23(pg):
                 # Kartu yang badannya kosong tidak pernah benar: sebuah widget
                 # menggambar angkanya, keadaan kosongnya, atau kalimat gagalnya.
                 "empty_bodies": [c["id"] for c in cards if len(c["body"]) < 3],
+                # …dan kartu tanpa KAKI adalah angka tanpa cara memeriksanya.
+                "cards_without_foot": [c["id"] for c in cards if not c["foot"]],
             }
             # Batch 4 membatasi WIDGET, bukan permintaan: satu widget boleh
             # mengirim lebih dari satu (hanya `ncr`, yang menjumlah dua status
@@ -3512,6 +3520,7 @@ def s23(pg):
         and not out["rapid_reload"]["empty_bodies_after"]
         and mine["both_filtered"]
         and mine["progres_card_says_mine"]
+        and not any(r["cards_without_foot"] for r in out["roles"].values())
     )
     return out
 

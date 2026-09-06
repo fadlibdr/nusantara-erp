@@ -19,8 +19,15 @@ export async function build({ reload }) {
      mengirimkannya utuh (laporan ini tidak berhalaman). Lima batang nol di
      atas angka Rp 0 bukan kebohongan, hanya kebisingan; kalimatnya lebih
      berguna. */
+  /* Kaki kartu IKUT digambar pada keadaan kosong. Justru pada layar yang
+     isinya kosong pembacanya perlu jalan untuk memeriksa — dan sampai
+     verifikasi kedua P1-D `return tileEmpty(...)` mendahului footLink() di
+     sini, sehingga kartu yang kosong tidak punya satu pintu pun. */
   if (!((report && report.rows) || []).length || !Object.keys(buckets).length) {
-    return tileEmpty('Tidak ada dokumen piutang terbuka.', 'done');
+    return el('div', [
+      tileEmpty('Tidak ada dokumen piutang terbuka.', 'done'),
+      footLink('Buka umur piutang', () => navigate('reports?tab=ar-aging')),
+    ]);
   }
 
   const total = Number(report.total_outstanding || 0);

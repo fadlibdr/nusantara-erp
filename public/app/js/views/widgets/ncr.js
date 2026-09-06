@@ -51,6 +51,10 @@ export async function build({ reload }) {
       (row) => navigate(`d/quality/ncr/${row.id}`),
       { empty: { kind: 'done', message: 'Tidak ada NCR yang terbuka.' } },
     ),
-    total > rows.length ? footLink(`Lihat semua (${total})`, () => navigate('r/quality/ncr')) : null,
+    /* SELALU ada kakinya. Bentuk `N > M ? footLink(...) : null` membuang
+       satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
+       keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
+       (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
+    footLink(total > rows.length ? `Lihat semua (${total})` : 'Buka NCR', () => navigate('r/quality/ncr')),
   ]);
 }

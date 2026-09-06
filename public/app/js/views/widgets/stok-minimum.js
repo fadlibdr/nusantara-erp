@@ -31,6 +31,10 @@ export async function build({ reload }) {
       () => navigate('stock'),
       { empty: { kind: 'done', message: 'Tidak ada item di bawah stok minimum.' } },
     ),
-    rows.length > worst.length ? footLink(`Lihat semua (${rows.length})`, () => navigate('stock')) : null,
+    /* SELALU ada kakinya. Bentuk `N > M ? footLink(...) : null` membuang
+       satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
+       keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
+       (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
+    footLink(rows.length > worst.length ? `Lihat semua (${rows.length})` : 'Buka Stok', () => navigate('stock')),
   ]);
 }
