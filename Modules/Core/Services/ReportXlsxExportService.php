@@ -85,6 +85,13 @@ final class ReportXlsxExportService
             ]);
         }
 
+        /* Aritmetikanya, ditulis: sebuah ekspor SUM dan sebuah ekspor AVG atas
+           pertanyaan yang sama menghasilkan berkas yang tidak bisa dibedakan
+           tanpa baris ini (temuan verifikasi P1-F). */
+        if ($definition['mode'] !== 'detail') {
+            XlsxSheetWriter::putRow($sheet, $row, ['Ukuran', $this->measureLabel($entry, $definition)]);
+        }
+
         // Baris yang mengaku apa yang TIDAK dihitung: dokumen yang dibuang.
         XlsxSheetWriter::putRow($sheet, $row, [
             'Catatan',
@@ -154,7 +161,7 @@ final class ReportXlsxExportService
 
         $head = [$rowColumn['label']];
 
-        foreach (($pivot ? $result['column_keys'] : ['Nilai']) as $key) {
+        foreach (($pivot ? $result['column_keys'] : [$this->measureLabel($entry, $definition)]) as $key) {
             $head[] = $pivot
                 ? $this->renderKey($columnColumn, $key, $definition['column']['bucket'] ?? null, $dictionaries)
                 : $key;
@@ -182,6 +189,23 @@ final class ReportXlsxExportService
 
             XlsxSheetWriter::putRow($sheet, $row, $cells);
         }
+    }
+
+    /**
+     * "Jumlah — Nilai buku" / "Banyak baris": agregat DAN kolomnya.
+     *
+     * @param  array<string, mixed>  $entry
+     * @param  array<string, mixed>  $definition
+     */
+    private function measureLabel(array $entry, array $definition): string
+    {
+        $measure = $definition['measure'] ?? ['agg' => 'count'];
+        $names = ['sum' => 'Jumlah', 'avg' => 'Rata-rata', 'min' => 'Terkecil', 'max' => 'Terbesar', 'count' => 'Banyak baris'];
+        $agg = $names[$measure['agg']] ?? $measure['agg'];
+
+        return isset($measure['column'])
+            ? $agg.' — '.$entry['columns'][$measure['column']]['label']
+            : $agg;
     }
 
     /* -------------------------------------------------------------- kamus */
@@ -259,6 +283,15 @@ final class ReportXlsxExportService
     {
         if ($value === null) {
             return null;
+        }
+
+        /* MySQL mengembalikan DECIMAL sebagai STRING lewat PDO sementara SQLite
+           mengembalikannya sebagai float. Tanpa cast ini, setiap kolom uang
+           pada ekspor rincian ditulis sebagai TEKS di MySQL — rata kiri, dan
+           SUM Excel atasnya menghasilkan 0. Registri tahu jenisnya; di sinilah
+           satu-satunya tempat yang tahu. */
+        if (in_array($column['type'], ['currency', 'percent', 'progress', 'number'], true) && is_numeric($value)) {
+            return (float) $value;
         }
 
         if (($column['enum'] ?? null) !== null) {

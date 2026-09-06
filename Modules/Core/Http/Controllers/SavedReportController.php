@@ -50,42 +50,53 @@ class SavedReportController extends ApiController
         return $this->created($this->present($report, $request->user()->getKey()));
     }
 
-    public function show(Request $request, SavedReport $savedReport): JsonResponse
+    public function show(Request $request, string $savedReport): JsonResponse
     {
-        if (! $this->service->canRead($request->user(), $savedReport)) {
+        $report = $this->resolve($request, $savedReport);
+
+        if ($report === null) {
             return $this->notVisible();
-        }
-
-        return $this->ok($this->present($savedReport, $request->user()->getKey()));
-    }
-
-    public function update(Request $request, SavedReport $savedReport): JsonResponse
-    {
-        if (! $this->service->canRead($request->user(), $savedReport)) {
-            return $this->notVisible();
-        }
-
-        try {
-            $report = $this->service->update($request->user(), $savedReport, $request->all());
-        } catch (LogicException $e) {
-            // Bukan pemiliknya. 422, dengan kalimat yang menyebut pemiliknya
-            // dan jalan keluarnya — pola PettyCashVoucherService::assertCustodian.
-            return $this->error($e->getMessage(), 422, ['owner' => [$e->getMessage()]]);
-        } catch (InvalidArgumentException $e) {
-            return $this->error($e->getMessage(), 422, ['definition' => [$e->getMessage()]]);
         }
 
         return $this->ok($this->present($report, $request->user()->getKey()));
     }
 
-    public function destroy(Request $request, SavedReport $savedReport): JsonResponse
+    public function update(Request $request, string $savedReport): JsonResponse
     {
-        if (! $this->service->canRead($request->user(), $savedReport)) {
+        $report = $this->resolve($request, $savedReport, manage: true);
+
+        if ($report === null) {
             return $this->notVisible();
         }
 
         try {
-            $this->service->delete($request->user(), $savedReport);
+            $report = $this->service->update($request->user(), $report, $request->all());
+        } catch (InvalidArgumentException $e) {
+            /* LEBIH DULU daripada LogicException, dan itu bukan gaya melainkan
+               syarat: InvalidArgumentException MEWARISI LogicException di PHP,
+               jadi urutan sebaliknya membuat lengan kedua tidak pernah
+               tercapai — setiap galat definisi akan dilabeli 'owner' dan
+               terbaca sebagai "Anda bukan pemiliknya". */
+            return $this->error($e->getMessage(), 422, ['definition' => [$e->getMessage()]]);
+        } catch (LogicException $e) {
+            // Bukan pemiliknya. 422, dengan kalimat yang menyebut pemiliknya
+            // dan jalan keluarnya — pola PettyCashVoucherService::assertCustodian.
+            return $this->error($e->getMessage(), 422, ['owner' => [$e->getMessage()]]);
+        }
+
+        return $this->ok($this->present($report, $request->user()->getKey()));
+    }
+
+    public function destroy(Request $request, string $savedReport): JsonResponse
+    {
+        $report = $this->resolve($request, $savedReport, manage: true);
+
+        if ($report === null) {
+            return $this->notVisible();
+        }
+
+        try {
+            $this->service->delete($request->user(), $report);
         } catch (LogicException $e) {
             return $this->error($e->getMessage(), 422, ['owner' => [$e->getMessage()]]);
         }
@@ -93,14 +104,16 @@ class SavedReportController extends ApiController
         return $this->ok(null, 'Laporan dihapus.');
     }
 
-    public function copy(Request $request, SavedReport $savedReport): JsonResponse
+    public function copy(Request $request, string $savedReport): JsonResponse
     {
-        if (! $this->service->canRead($request->user(), $savedReport)) {
+        $report = $this->resolve($request, $savedReport);
+
+        if ($report === null) {
             return $this->notVisible();
         }
 
         try {
-            $report = $this->service->copy($request->user(), $savedReport, $request->input('name'));
+            $report = $this->service->copy($request->user(), $report, $request->input('name'));
         } catch (LogicException|InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);
         }
@@ -114,14 +127,16 @@ class SavedReportController extends ApiController
      *
      * Header disalin verbatim dari FormPrintController::xlsx().
      */
-    public function xlsx(Request $request, SavedReport $savedReport): Response|JsonResponse
+    public function xlsx(Request $request, string $savedReport): Response|JsonResponse
     {
-        if (! $this->service->canRead($request->user(), $savedReport)) {
+        $report = $this->resolve($request, $savedReport);
+
+        if ($report === null) {
             return $this->notVisible();
         }
 
         try {
-            $export = app(ReportXlsxExportService::class)->export($savedReport);
+            $export = app(ReportXlsxExportService::class)->export($report);
         } catch (InvalidArgumentException|LogicException $e) {
             return $this->error($e->getMessage(), 422);
         }
@@ -133,6 +148,35 @@ class SavedReportController extends ApiController
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=0, no-store',
         ]);
+    }
+
+    /**
+     * Id → baris yang boleh dibaca pemanggil, atau null.
+     *
+     * Diselesaikan DI SINI dan bukan lewat binding implisit: binding menjawab
+     * id yang tidak ada dengan pesan Laravel, sementara laporan yang ada
+     * tetapi tersembunyi dijawab kalimat kami — dan dua 404 yang berbeda
+     * bunyinya membocorkan tepat apa yang 404 itu ada untuk menutupi.
+     */
+    private function resolve(Request $request, string $id, bool $manage = false): ?SavedReport
+    {
+        $report = ctype_digit($id) ? SavedReport::query()->find((int) $id) : null;
+
+        if ($report === null) {
+            return null;
+        }
+
+        $user = $request->user();
+
+        /* `manage` = menamai ulang, membagikan, menghapus. Pemilik boleh
+           melakukannya bahkan setelah izin sumbernya dicabut — kalau tidak,
+           barisnya tinggal selamanya tanpa satu pun cara membuangnya
+           (temuan verifikasi P1-F). MEMBACA angkanya tetap butuh izin. */
+        if ($manage && $this->service->canManage($user, $report)) {
+            return $report;
+        }
+
+        return $this->service->canRead($user, $report) ? $report : null;
     }
 
     /**

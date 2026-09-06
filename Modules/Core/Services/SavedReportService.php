@@ -97,6 +97,22 @@ final class SavedReportService
         return $rows;
     }
 
+    /**
+     * Pemilik selalu boleh MENGELOLA barisnya sendiri — menamai ulang,
+     * membagikan, menghapus — bahkan setelah izin sumbernya dicabut.
+     *
+     * Temuan verifikasi P1-F: `canRead()` menolak pada izin sumber SEBELUM
+     * mempertimbangkan kepemilikan, dan ketiga verb pengelolaan bergerbang
+     * padanya — sehingga seseorang yang kehilangan `fin.view` tidak bisa lagi
+     * menghapus laporannya sendiri, dan barisnya tinggal selamanya tanpa satu
+     * pun cara membuangnya. Membaca ANGKAnya tetap butuh izin (canRead);
+     * membuang barisnya tidak, karena tidak ada data yang terbaca di situ.
+     */
+    public function canManage(User $user, SavedReport $report): bool
+    {
+        return $report->user_id === $user->getKey();
+    }
+
     public function canRead(User $user, SavedReport $report): bool
     {
         if (! ReportableResources::has($report->resource)) {
@@ -121,6 +137,22 @@ final class SavedReportService
         $definition = $this->definitionFrom($input);
         $name = $this->nameFrom($input);
         $roles = $this->rolesFrom($input);
+
+        /* Izin diperiksa saat MENULIS, bukan hanya saat membaca. Tanpa ini
+           seseorang bisa menyimpan laporan atas sumber yang tidak boleh ia
+           lihat: barisnya lalu tak terlihat olehnya (visibleTo menyaringnya)
+           tetapi TETAP ADA — dan bila ia kemudian membagikannya ke peran yang
+           memegang izin itu, ia telah menyusun laporan atas data yang tidak
+           pernah boleh ia sentuh. */
+        $entry = ReportableResources::definition($definition['resource']);
+
+        if (! ReportableResources::allows($user, $entry)) {
+            throw new InvalidArgumentException(sprintf(
+                'Anda tidak memiliki hak akses %s untuk menyimpan laporan atas "%s".',
+                implode(' atau ', $entry['permission']),
+                $definition['resource'],
+            ));
+        }
 
         if (SavedReport::query()->where('user_id', $user->getKey())->count() >= self::MAX_PER_USER) {
             throw new InvalidArgumentException(sprintf(
@@ -166,6 +198,19 @@ final class SavedReportService
 
         if (array_key_exists('definition', $input) || array_key_exists('resource', $input)) {
             $definition = $this->definitionFrom($input + ['resource' => $report->resource]);
+
+            // Alasan yang sama dengan create(): sunting boleh MEMINDAHKAN
+            // laporan ke sumber lain, dan sumber itu harus boleh ia baca.
+            $target = ReportableResources::definition($definition['resource']);
+
+            if (! ReportableResources::allows($user, $target)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Anda tidak memiliki hak akses %s untuk sumber "%s".',
+                    implode(' atau ', $target['permission']),
+                    $definition['resource'],
+                ));
+            }
+
             $changes['definition'] = $definition;
             $changes['resource'] = $definition['resource'];
         }
@@ -333,13 +378,20 @@ final class SavedReportService
         return $out;
     }
 
+    /** @var list<string>|null memo per instans: index memanggilnya sekali per baris */
+    private ?array $liveRoles = null;
+
     /** @return list<string> */
     private function liveRoleNames(): array
     {
+        if ($this->liveRoles !== null) {
+            return $this->liveRoles;
+        }
+
         // DB::table lewat config, bukan model Role: Sanctum menjadikan 'sanctum'
         // guard bawaan di tengah permintaan sementara seluruh izin hidup di
         // guard 'web', dan relasi Spatie menyelesaikan modelnya dari guard_name.
-        return DB::table(config('permission.table_names.roles', 'roles'))
+        return $this->liveRoles = DB::table(config('permission.table_names.roles', 'roles'))
             ->where('guard_name', 'web')
             ->pluck('name')
             ->all();

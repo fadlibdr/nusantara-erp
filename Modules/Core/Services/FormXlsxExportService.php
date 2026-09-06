@@ -3,6 +3,7 @@
 namespace Modules\Core\Services;
 
 use InvalidArgumentException;
+use Modules\Core\Support\XlsxSheetWriter;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -252,21 +253,15 @@ class FormXlsxExportService
      * hasil cast komposer tidak 'diperbaiki' binder menjadi angka lain;
      * angka mentah (float/int komposisi bespoke) ditulis sebagai angka; null
      * TIDAK ditulis sama sekali — sel kosong sungguhan.
+     *
+     * Badannya pindah ke Modules\Core\Support\XlsxSheetWriter pada P1-F, ketika
+     * penulis XLSX kedua lahir: aturan "sel kosong, bukan 0" tidak boleh punya
+     * dua salinan, dan sebuah docblock yang MENGAKU punya satu pemilik
+     * sementara pemilik lamanya masih menyimpan salinannya adalah dokumentasi
+     * yang berbohong (temuan verifikasi P1-F).
      */
     private function line(Worksheet $sheet, int &$row, array $cells): void
     {
-        $column = 1;
-
-        foreach ($cells as $value) {
-            if ($value !== null && $value !== '') {
-                is_int($value) || is_float($value)
-                    ? $sheet->getCell([$column, $row])->setValue($value)
-                    : $sheet->getCell([$column, $row])->setValueExplicit((string) $value, DataType::TYPE_STRING);
-            }
-
-            $column++;
-        }
-
-        $row++;
+        XlsxSheetWriter::putRow($sheet, $row, $cells);
     }
 }

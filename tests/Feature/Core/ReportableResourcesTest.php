@@ -4,6 +4,7 @@ namespace Tests\Feature\Core;
 
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Support\ReportableResources;
+use Modules\Core\Support\SpaEnums;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Tests\ErpTestCase;
 
@@ -209,6 +210,91 @@ class ReportableResourcesTest extends ErpTestCase
         $none = $this->userWithPermissions(['core.view']);
         $this->assertSame([], ReportableResources::for($none),
             'Katalog untuk peran tanpa satu pun izin sumber harus KOSONG, bukan berisi entri yang gagal saat dijalankan.');
+    }
+
+    /**
+     * Setiap kolom berjenis enum ATAU status membawa `enum`, dan enum itu ada
+     * di `public/app/js/enums.js`.
+     *
+     * Temuan verifikasi P1-F, ditemukan lima lensa secara terpisah: ketujuh
+     * kolom `status` katalog semula tanpa `enum`, sehingga mengelompokkan
+     * menurut Status menuliskan token basis data mentah ('approved',
+     * 'available') di layar, di CSV DAN di XLSX — di tempat layar daftarnya
+     * menuliskan 'Disetujui' dan 'Tersedia'. Layar daftar mendapatkannya dari
+     * `status_label` yang dikirim kelas Resource; laporan tidak lewat Resource
+     * sama sekali, jadi satu-satunya sumbernya adalah `enum` di sini.
+     */
+    public function test_every_enum_and_status_column_names_an_enum_that_exists(): void
+    {
+        $enums = SpaEnums::all();
+        $this->assertGreaterThan(50, count($enums), 'enums.js tidak terbaca — uji ini tidak membuktikan apa pun.');
+
+        $checked = 0;
+
+        foreach (ReportableResources::entries() as $key => $entry) {
+            foreach ($entry['columns'] as $columnKey => $column) {
+                if (! in_array($column['type'], ['enum', 'status'], true)) {
+                    continue;
+                }
+
+                $checked++;
+                $this->assertArrayHasKey('enum', $column,
+                    "Kolom [{$key}.{$columnKey}] berjenis {$column['type']} tanpa `enum`: laporan akan menuliskan "
+                    .'token basis data mentah di tempat layar daftarnya menuliskan labelnya.');
+                $this->assertNotSame([], SpaEnums::labels($column['enum']),
+                    "Enum [{$column['enum']}] pada [{$key}.{$columnKey}] tidak ada di enums.js.");
+            }
+
+            foreach ($entry['filters'] as $filterKey => $filter) {
+                if (($filter['enum'] ?? null) === null) {
+                    continue;
+                }
+
+                $this->assertNotSame([], SpaEnums::labels($filter['enum']),
+                    "Enum saringan [{$filter['enum']}] pada [{$key}.{$filterKey}] tidak ada di enums.js.");
+            }
+        }
+
+        $this->assertGreaterThan(10, $checked, 'Terlalu sedikit kolom berjenis enum/status yang diperiksa.');
+    }
+
+    /**
+     * Katalog membedakan "bisa dicetak" dari "bisa dikelompokkan".
+     *
+     * Temuan verifikasi P1-F (blocking): pemilih kolom mode rincian dulu
+     * menonaktifkan setiap kolom yang punya `why_not`, padahal `why_not`
+     * menjelaskan kenapa sebuah kolom tidak bisa menjadi DIMENSI atau UKURAN —
+     * bukan kenapa ia tidak bisa dicetak. Akibatnya setiap kolom Kode, Nama dan
+     * Keterangan di seluruh katalog mati di pemilihnya.
+     */
+    public function test_the_catalogue_separates_printable_from_groupable(): void
+    {
+        $this->seed(PermissionSeeder::class);
+        $this->actingAs($this->adminUser(), 'sanctum');
+
+        $payload = $this->getJson('/api/core/reports/resources')->assertOk()->json('data');
+
+        $bothSelectableAndRefusedAsDimension = 0;
+
+        foreach ($payload as $resource) {
+            foreach ($resource['columns'] as $column) {
+                $this->assertArrayHasKey('selectable', $column,
+                    "Katalog tidak menyatakan `selectable` untuk [{$resource['key']}.{$column['key']}].");
+
+                if ($column['selectable'] && $column['why_not'] !== null) {
+                    $bothSelectableAndRefusedAsDimension++;
+                }
+
+                if (! $column['selectable']) {
+                    $this->assertNotNull($column['why_not'],
+                        "Kolom [{$resource['key']}.{$column['key']}] tidak bisa dipilih dan tidak menjelaskan kenapa.");
+                }
+            }
+        }
+
+        $this->assertGreaterThan(10, $bothSelectableAndRefusedAsDimension,
+            'Tidak ada satu pun kolom yang bisa DICETAK tetapi tidak bisa DIKELOMPOKKAN — mustahil, karena setiap '
+            .'kolom kode dan nama di katalog persis begitu. Kedua sifat itu sedang disamakan lagi.');
     }
 
     /* ------------------------------------------------------------ perkakas */

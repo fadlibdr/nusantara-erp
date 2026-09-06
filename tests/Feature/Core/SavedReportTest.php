@@ -257,6 +257,83 @@ class SavedReportTest extends ErpTestCase
         $this->postJson("/api/core/reports/saved/{$id}/copy")->assertStatus(201)->assertJsonPath('data.name', 'Asli (salinan) 2');
     }
 
+    /**
+     * Definisi yang salah dilaporkan sebagai DEFINISI, bukan sebagai
+     * kepemilikan.
+     *
+     * Temuan verifikasi P1-F: `InvalidArgumentException` MEWARISI
+     * `LogicException` di PHP, jadi lengan `catch (LogicException)` yang
+     * ditulis lebih dulu menelan setiap galat definisi dan melabelinya
+     * `owner` — pemiliknya sendiri diberi tahu "hanya pemiliknya yang dapat
+     * mengubah" ketika yang salah adalah nama kolomnya.
+     */
+    public function test_a_definition_error_on_update_is_labelled_as_a_definition_error(): void
+    {
+        $owner = $this->userWith('finance', ['fin.view']);
+        $this->actingAs($owner, 'sanctum');
+
+        $id = $this->postJson('/api/core/reports/saved', [
+            'name' => 'Milik saya', 'definition' => $this->definition(),
+        ])->assertStatus(201)->json('data.id');
+
+        $response = $this->putJson("/api/core/reports/saved/{$id}", [
+            'definition' => ['resource' => 'finance/project-costs', 'mode' => 'group',
+                'row' => ['column' => 'kolom-karangan'], 'measure' => ['agg' => 'count']],
+        ])->assertStatus(422);
+
+        $response->assertJsonPath('errors.definition.0', fn ($m) => str_contains((string) $m, 'kolom-karangan'));
+        $this->assertNull($response->json('errors.owner'),
+            'Galat definisi dilabeli kepemilikan: urutan catch-nya terbalik dan lengan kedua tidak pernah tercapai.');
+    }
+
+    /**
+     * Izin sumber diperiksa saat MENULIS, bukan hanya saat membaca.
+     *
+     * Temuan verifikasi P1-F: tanpa ini seseorang bisa menyimpan laporan atas
+     * sumber yang tidak boleh ia lihat — barisnya lalu tak terlihat olehnya
+     * tetapi TETAP ADA, dan membagikannya ke peran yang memegang izin itu
+     * berarti ia menyusun laporan atas data yang tidak pernah boleh ia sentuh.
+     */
+    public function test_saving_a_report_for_a_resource_you_cannot_read_is_refused(): void
+    {
+        $warehouse = $this->userWith('warehouse', ['inv.view']);
+        $this->actingAs($warehouse, 'sanctum');
+
+        $this->postJson('/api/core/reports/saved', [
+            'name' => 'Biaya proyek', 'definition' => $this->definition(),
+        ])->assertStatus(422)
+            ->assertJsonPath('errors.definition.0', fn ($m) => str_contains((string) $m, 'fin.view'));
+
+        $this->assertSame(0, SavedReport::query()->count());
+    }
+
+    /**
+     * Laporan yang TERSEMBUNYI dan laporan yang TIDAK ADA menjawab hal yang
+     * sama, kata demi kata.
+     *
+     * Temuan verifikasi P1-F: binding rute implisit menjawab id yang tidak ada
+     * dengan pesan Laravel sendiri, sementara laporan yang ada tetapi bukan
+     * hak pemanggil dijawab kalimat kami — dan dua 404 yang berbeda bunyinya
+     * adalah cara menghitung laporan milik orang lain.
+     */
+    public function test_a_hidden_report_and_a_missing_one_answer_identically(): void
+    {
+        $owner = $this->userWith('finance', ['fin.view']);
+        $this->actingAs($owner, 'sanctum');
+        $id = $this->postJson('/api/core/reports/saved', [
+            'name' => 'Rahasia', 'definition' => $this->definition(),
+        ])->assertStatus(201)->json('data.id');
+
+        $stranger = $this->userWith('warehouse', ['inv.view']);
+        $this->actingAs($stranger, 'sanctum');
+
+        $hidden = $this->getJson("/api/core/reports/saved/{$id}")->assertStatus(404);
+        $missing = $this->getJson('/api/core/reports/saved/999999')->assertStatus(404);
+
+        $this->assertSame($hidden->json('message'), $missing->json('message'));
+        $this->assertSame('Laporan tidak ditemukan.', $hidden->json('message'));
+    }
+
     public function test_the_endpoints_require_a_session(): void
     {
         $this->getJson('/api/core/reports/saved')->assertStatus(401);

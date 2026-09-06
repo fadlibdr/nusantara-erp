@@ -83,6 +83,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
      * keluarnya. Yang TIDAK boleh dibacanya dijawab 404, supaya endpoint ini
      * tidak menjadi cara menghitung laporan milik orang lain.
      */
+    /*
+     * `{savedReport}` TIDAK memakai binding implisit: Laravel menjawab id yang
+     * tidak ada dengan pesannya sendiri, sementara laporan yang ADA tetapi
+     * tidak boleh dibaca pemanggil dijawab kalimat kami — dan dua 404 yang
+     * berbeda bunyinya adalah cara menghitung laporan milik orang lain. Id
+     * diselesaikan di controller, dengan satu kalimat untuk keduanya.
+     */
     Route::get('reports/saved', [SavedReportController::class, 'index']);
     Route::post('reports/saved', [SavedReportController::class, 'store']);
     Route::get('reports/saved/{savedReport}', [SavedReportController::class, 'show']);

@@ -2,8 +2,10 @@
 
 Branch: `feat/phase1-f` (dari `feat/phase1-e`) · 6 September 2026
 
-> Status jujur: **dibangun, diuji, dan diukur di peramban; verifikasi adversarial SEDANG
-> BERJALAN saat laporan ini ditulis.** Paket ini didahului dua putaran orkestrasi: survei
+> Status jujur: **dibangun, diuji, diukur di peramban, dan diverifikasi adversarial satu
+> putaran** — enam lensa baca-saja mengangkat **42 temuan berbeda**; **20 di antaranya cacat
+> sungguhan dan sudah diperbaiki**, masing-masing dengan ujinya. Putaran verifikasi KEDUA belum
+> dijalankan. Paket ini didahului dua putaran orkestrasi: survei
 > delapan lensa atas codebase (±70 jebakan terverifikasi) dan panel tiga rancangan yang
 > dinilai tiga hakim pada tiga sumbu. Rancangan pemenang (*registry-purist*, 23,0/30)
 > dipakai dengan koreksi yang diambil dari dua yang kalah. Satu migrasi baru (000197),
@@ -117,12 +119,14 @@ Dua aturan yang menjaganya aman, keduanya diuji:
 | berkas | uji / asersi |
 |---|---|
 | `ReportRunnerTest` | 10 / 128 |
-| `ReportableResourcesTest` | 8 / 158 |
-| `ReportRunnerSafetyTest` | 4 / 33 |
-| `SavedReportTest` | 11 / 51 |
+| `ReportableResourcesTest` | 10 / 254 |
+| `ReportRunnerSafetyTest` | 4 / 39 |
+| `SavedReportTest` | 14 / 60 |
 | `ReportXlsxExportTest` | 5 / 21 |
+| `ReportEndpointTest` | 6 / 22 |
 
-`tests/Feature/Core` + `tests/Feature/Iam`: **847 hijau / 6.497 asersi** (11 dilewati, 153 s).
+`tests/Feature/Core` + `tests/Feature/Iam` setelah perbaikan verifikasi: **858 hijau / 6.630
+asersi** (11 dilewati, 154 s).
 **Suite penuh (SQLite): 3.950 uji / 20.155 asersi hijau, 11 dilewati, 554 s** — 38 uji dan 392
 asersi lebih banyak daripada P1-E, seluruhnya milik paket ini; tidak ada uji lain yang berubah
 hasilnya. MySQL: (diisi — job CI nightly).
@@ -150,10 +154,46 @@ menawarkan XLSX. Bukti: `docs/bukti-uji/results-phase-1.json`, `s24-*-p1f.png`.
    bisa dilacak kembali ke pertanyaannya bukan lampiran rapat yang bisa dipertanggungjawabkan.
    Laporan ad-hoc mengunduh CSV.
 
+## Verifikasi adversarial — putaran pertama
+
+Enam lensa baca-saja (SQL & angka, injeksi & otorisasi, kecocokan dengan codebase, aturan
+kejujuran, layar, dan kontrak roadmap klausa demi klausa) mengangkat **42 temuan berbeda**. Dua
+puluh adalah cacat sungguhan dan sudah diperbaiki; masing-masing dipaku uji. Yang paling penting:
+
+| # | temuan | akibatnya |
+|---|---|---|
+| 1 | **Pemilih kolom menyamakan `why_not` dengan "tidak tersedia"** | 15 kolom yang sempurna dapat DICETAK (setiap Kode, Nama, Keterangan) mati di pemilihnya, karena `why_not` menjelaskan kenapa sebuah kolom tidak bisa jadi DIMENSI. Katalog kini menyatakan `selectable` terpisah. |
+| 2 | **Ketujuh kolom `status` tanpa `enum`** (ditemukan lima lensa terpisah) | Mengelompokkan menurut Status menuliskan `approved`/`available` di layar, CSV DAN XLSX, di tempat layar daftarnya menuliskan `Disetujui`/`Tersedia` — layar daftar mendapatkannya dari `status_label` kelas Resource, dan laporan tidak lewat Resource sama sekali. |
+| 3 | **`catch (LogicException)` sebelum `catch (InvalidArgumentException)`** | `InvalidArgumentException` MEWARISI `LogicException` di PHP, jadi lengan kedua kode mati: setiap galat definisi dilabeli `owner` dan pemiliknya sendiri diberi tahu "hanya pemiliknya yang dapat mengubah" ketika yang salah adalah nama kolomnya. |
+| 4 | **XLSX rincian menulis DECIMAL sebagai TEKS di MySQL** | PDO MySQL mengembalikan DECIMAL sebagai string; `is_numeric && !is_string` menolaknya, jadi kolom uang tercetak rata kiri dan `SUM` Excel atasnya nol. Service kini meng-cast lewat jenis kolom registri. |
+| 5 | **Uji ONLY_FULL_GROUP_BY menuliskan kutip SQLite** | Uji yang ada JUSTRU untuk menjaga MySQL akan merah di suite MySQL. Kini membandingkan SQL tanpa karakter kutip di kedua sisi. |
+| 6 | **`create()` tidak memeriksa izin sumber** | Seseorang bisa menyimpan laporan atas sumber yang tidak boleh ia lihat; barisnya tak terlihat olehnya tetapi TETAP ADA, dan membagikannya ke peran yang memegang izin itu berarti ia menyusun laporan atas data yang tidak pernah boleh ia sentuh. |
+| 7 | **`canRead` menolak pemilik yang kehilangan izin sumber** | Orang yang kehilangan `fin.view` tidak bisa lagi menghapus laporannya sendiri — barisnya tinggal selamanya. Kini pemilik selalu boleh MENGELOLA barisnya (menamai, membagikan, menghapus); MEMBACA angkanya tetap butuh izin. |
+| 8 | **Binding rute implisit membocorkan keberadaan** | Id yang tidak ada dijawab pesan Laravel, laporan tersembunyi dijawab kalimat kami — dua 404 yang berbeda bunyinya adalah cara menghitung laporan milik orang lain. Id kini diselesaikan di controller, satu kalimat untuk keduanya. |
+| 9 | **Anggota `filters.in` tidak diperiksa jenisnya** | Anggota berupa array sampai ke pembangun kueri: `(string) []` adalah 500, `(int) []` diam-diam 0 — saringan yang mengembalikan laporan kosong tanpa satu kata pun. |
+| 10 | **`tableExists()` hanya dipakai katalog** | Separuh kedua aturan degradasi registri tidak berlaku pada `run()`: laporan tersimpan atas modul yang belum termigrasi menjawab 500 alih-alih kalimatnya. |
+| 11 | **`refreshSaved()` menelan galat** | "Gagal memuat" dan "Anda belum menyimpan laporan" tergambar sama — aturan Temuan 79, di layar ini. |
+| 12 | **`XlsxSheetWriter` mengaku satu pemilik, padahal dua** | `FormXlsxExportService::line()` masih menyimpan salinannya, dan CONVENTIONS §18 mengklaim sebaliknya. Kini benar-benar satu pemilik. |
+| 13–20 | plafon pivot menyebut "kelompok" padahal menghitung kombinasi; `'Buka'` meng-alias objek definisi baris tersimpan; sumber yang hilang dari katalog melempar TypeError; saringan `in` dibuang saat membuka; tanggal mode rincian tercetak ISO mentah; CSV rincian menulis desimal titik untuk non-currency; XLSX tidak menyebut agregatnya; saringan ber-kunci menerima teks apa pun dan diam-diam menjadi 0 | masing-masing diperbaiki dan dipaku |
+
+Ditambah satu cacat di **harness sendiri**: S24 mengambil "kartu terakhir" sebagai kartu hasil,
+yang benar hanya pada basis data bersih — begitu satu laporan tersimpan ada di bawahnya, jalan
+KEDUA membaca kartu yang salah. Kartu hasil kini ditandai aplikasinya (`.report-result`), dan S24
+menghapus laporan yang dibuatnya sendiri sehingga ia benar-benar dapat diulang.
+
+**Yang TIDAK diperbaiki, dan alasannya**: berbagi ke peran yang tidak dipegang penyimpan (sah —
+seorang admin membagikan ke peran yang tidak ia pegang adalah pemakaian normal, dan penerimanya
+tetap disaring izin sumbernya); `MODES`/`AGGREGATES` yang disalin ke SPA (dua daftar lima kata yang
+tidak pernah berubah tanpa mengubah validatornya juga); dan saringan ber-FK yang belum punya
+pemilih di layar (§ Deviasi 3).
+
 ## Yang BELUM diverifikasi — baca ini sebelum merge
 
-1. **Verifikasi adversarial sedang berjalan** (enam lensa, setiap temuan disanggah tiga penyanggah
-   independen; yang bertahan dua dari tiga suara dilaporkan). Hasilnya belum masuk laporan ini.
+1. **Putaran verifikasi KEDUA belum dijalankan.** Putaran pertama (42 temuan, 20 diperbaiki) ada
+   di atas; pola paket-paket sebelumnya menemukan temuan susulan pada putaran kedua, termasuk
+   temuan TENTANG perbaikan putaran pertama. Fase penyanggahan otomatis (tiga penyanggah per
+   temuan) DIHENTIKAN karena 129 agen pada mesin dua-konkurensi akan memakan berjam-jam; triase
+   dilakukan tangan terhadap kodenya, dan setiap perbaikan dipaku uji.
 2. **Suite MySQL belum dijalankan.** SQLite penuh hijau (3.950/20.155).
 3. **Data demo tipis.** Tabel katalog berisi 1–9 baris; plafon 200 kelompok / 5.000 baris hanya
    pernah tersentuh oleh fixture yang dibuat ujinya sendiri, tidak pernah oleh data nyata.

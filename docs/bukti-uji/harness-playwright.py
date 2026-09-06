@@ -1756,9 +1756,23 @@ def _rgb_css(hexs):
 # yang mencarinya, dan bahwa plafon yang diumumkan server benar-benar tercetak
 # di layar alih-alih dihafal SPA.
 
+S24_CLEANUP = """async () => {
+  const token = localStorage.getItem('nusantara_erp_token');
+  const head = { 'X-Api-Token': token, Accept: 'application/json' };
+  const list = await (await fetch('/api/core/reports/saved', { headers: head })).json();
+  const mine = (list.data || []).filter((r) => r.name.includes('(S24)'));
+  for (const one of mine) {
+    await fetch('/api/core/reports/saved/' + one.id, { method: 'DELETE', headers: head });
+  }
+  return mine.length;
+}"""
+
+
 S24_RUN = """() => {
-  const cards = [...document.querySelectorAll('.card')];
-  const last = cards[cards.length - 1];
+  // Kartu HASIL ditandai aplikasinya (.report-result). Memakai "kartu terakhir"
+  // salah begitu daftar laporan tersimpan tumbuh di bawahnya — dan itu terjadi
+  // pada jalan KEDUA, yaitu jalan yang membuktikan skenario ini bisa diulang.
+  const last = document.querySelector('.card.report-result');
   if (!last) return null;
   return {
     head: (last.querySelector('.card-head') || {}).innerText || '',
@@ -1768,6 +1782,8 @@ S24_RUN = """() => {
     titles: [...last.querySelectorAll('table.data td.num')].map((td) => td.getAttribute('title')),
   };
 }"""
+
+
 
 
 @scenario("S24_laporan_bebas")
@@ -1911,6 +1927,12 @@ def s24(pg):
         "catalogue_filters_by_permission": len(out["warehouse"]["sources"]) < 8,
         "no_page_errors": not errors,
     }
+
+    # Skenario ini membersihkan jejaknya sendiri: laporan tersimpan yang
+    # ditinggalkan membuat jalan berikutnya berangkat dari keadaan yang
+    # berbeda, dan skenario yang hanya hijau pada basis data bersih tidak
+    # membuktikan apa yang diklaimnya.
+    out["cleanup"] = pg.evaluate(S24_CLEANUP)
 
     out["checks"] = checks
     out["failed_checks"] = [k for k, v in checks.items() if not v]

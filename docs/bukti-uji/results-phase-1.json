@@ -20269,7 +20269,7 @@
      "30 Jun 2026 — rencana 49,84%, fisik 55%, biaya Rp 209.500.000",
      "31 Jul 2026 — rencana 61,34%, fisik 55%, biaya Rp 228.240.000",
      "31 Agu 2026 — rencana 72,83%, fisik 55%, biaya Rp 228.240.000",
-     "06 Sep 2026 — rencana 75,05%, fisik 55%, biaya Rp 228.240.000"
+     "07 Sep 2026 — rencana 75,42%, fisik 55%, biaya Rp 228.240.000"
     ],
     "ticks": [
      "0%",
@@ -20307,7 +20307,7 @@
       720,
       277
      ],
-     "changed_pct": 7.16,
+     "changed_pct": 7.15,
      "outside_intersection_pct": 5.78
     }
    },
@@ -20438,7 +20438,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7150,
+  "_ms": 7121,
   "_clicks": 0
  },
  "S24_laporan_bebas": {
@@ -20490,8 +20490,8 @@
   "column_picker": [
    {
     "label": "Kode",
-    "disabled": true,
-    "reason": "Kode unik per dokumen: mengelompokkan menurutnya memberi satu kelompok per baris, dan laporan itu adalah layar daftarnya sendiri."
+    "disabled": false,
+    "reason": null
    },
    {
     "label": "Pelanggan",
@@ -20530,8 +20530,8 @@
    "rows": [
     [
      "KEPEMILIKAN",
-     "AVAILABLE",
-     "DEPLOYED",
+     "TERSEDIA",
+     "TERMOBILISASI",
      "TOTAL"
     ],
     [
@@ -20580,6 +20580,7 @@
    "alert": null,
    "saved_rows": 0
   },
+  "cleanup": 1,
   "checks": {
    "catalogue_has_eight_sources": true,
    "limits_announced_by_server": true,
@@ -20599,7 +20600,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 20983,
+  "_ms": 20298,
   "_clicks": 6
  }
 }

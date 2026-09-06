@@ -96,6 +96,26 @@ class ReportRunnerSafetyTest extends ErpTestCase
                 'row' => ['column' => 'cost_category'], 'measure' => ['agg' => 'count'],
                 'filters' => ['eq' => ['1=1' => 'x']],
             ]],
+            /* Temuan verifikasi P1-F: anggota daftar `in` tidak pernah
+               diperiksa jenisnya, sehingga sebuah anggota berupa array sampai
+               ke pembangun kueri — `(string) []` adalah 500 dan `(int) []`
+               diam-diam menjadi 0, yaitu saringan yang mengembalikan laporan
+               kosong tanpa satu kata pun. */
+            ['label' => 'anggota in berupa array', 'definition' => [
+                'resource' => 'finance/project-costs', 'mode' => 'group',
+                'row' => ['column' => 'cost_category'], 'measure' => ['agg' => 'count'],
+                'filters' => ['in' => ['project_id' => [1, ['nested']]]],
+            ]],
+            ['label' => 'anggota in berupa objek', 'definition' => [
+                'resource' => 'finance/project-costs', 'mode' => 'group',
+                'row' => ['column' => 'cost_category'], 'measure' => ['agg' => 'count'],
+                'filters' => ['in' => ['cost_category' => [['a' => 'b']]]],
+            ]],
+            ['label' => 'nilai eq berupa objek', 'definition' => [
+                'resource' => 'finance/project-costs', 'mode' => 'group',
+                'row' => ['column' => 'cost_category'], 'measure' => ['agg' => 'count'],
+                'filters' => ['eq' => ['cost_category' => ['a' => 'b']]],
+            ]],
             ['label' => 'ember karangan', 'definition' => [
                 'resource' => 'finance/project-costs', 'mode' => 'group',
                 'row' => ['column' => 'cost_date', 'bucket' => "7) ,(select 1"],

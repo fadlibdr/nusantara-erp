@@ -60,8 +60,17 @@ class ReportController extends ApiController
                     'dimension' => $column['dimension'],
                     'buckets' => $column['buckets'] ?? [],
                     'measure' => $column['measure'],
-                    // Kalimat yang dibaca orangnya di pemilih kolom. Hanya ada
-                    // pada kolom yang ditolak; null berarti kolomnya tersedia.
+                    /*
+                     * DUA hal yang berbeda, dan menyatukannya adalah cacat yang
+                     * ditemukan verifikasi: `selectable` = kolom ini bisa
+                     * dicetak apa adanya pada mode rincian; `why_not` = kenapa
+                     * ia tidak bisa menjadi DIMENSI atau UKURAN. Sebuah kolom
+                     * boleh punya why_not dan tetap selectable — 'Kode' tidak
+                     * bisa dikelompokkan tetapi tentu saja bisa dicetak, dan
+                     * pemilih kolom yang menonaktifkannya karena punya why_not
+                     * mematikan 15 kolom yang sempurna dapat dipakai.
+                     */
+                    'selectable' => isset($column['select']),
                     'why_not' => $column['why_not'] ?? null,
                 ], array_keys($entry['columns']), $entry['columns']),
                 'filters' => array_map(static fn (string $filterKey, array $filter): array => [
@@ -90,6 +99,18 @@ class ReportController extends ApiController
 
         if ($denied !== null) {
             return $denied;
+        }
+
+        /* Separuh KEDUA aturan degradasi registri: entri yang tabelnya belum
+           ada TIDAK ADA. Katalog sudah menyaringnya (for()), tetapi jalankan
+           tidak — dan tanpa baris ini sebuah laporan tersimpan atas modul yang
+           belum termigrasi menjawab 500 alih-alih kalimat yang mengatakannya
+           (temuan verifikasi P1-F). */
+        if (! array_key_exists($definition['resource'], ReportableResources::for($request->user()))) {
+            return $this->error(sprintf(
+                'Sumber "%s" tidak tersedia di server ini — tabelnya belum terpasang.',
+                $definition['resource'],
+            ), 422, ['definition' => ['Sumber laporan tidak tersedia di server ini.']]);
         }
 
         try {

@@ -81,8 +81,8 @@ class ReportRunnerTest extends ErpTestCase
                             }
 
                             $this->assertStringContainsString(
-                                $this->quoted($select['expr']),
-                                $groupBy,
+                                $this->unquote($select['expr']),
+                                $this->unquote($groupBy),
                                 sprintf(
                                     'Ekspresi select [%s] pada laporan %s (dimensi %s%s) tidak ada di GROUP BY. '
                                     .'MySQL menjalankan ONLY_FULL_GROUP_BY dan akan menjawab 1055; SQLite tidak, '
@@ -330,30 +330,21 @@ class ReportRunnerTest extends ErpTestCase
     }
 
     /**
-     * Ekspresi seperti yang benar-benar muncul di SQL.
+     * Ekspresi seperti yang benar-benar muncul di SQL, TANPA berasumsi tentang
+     * karakter kutip driver.
      *
-     * Kolom polos lewat groupBy() dan grammar mengutipnya; ember tanggal lewat
-     * groupByRaw() dan bertahan apa adanya — DAN ITU YANG PENTING: selectRaw
-     * menuliskan string yang sama persis, sehingga keduanya byte-identik dan
-     * ONLY_FULL_GROUP_BY terpenuhi.
+     * Versi pertama uji ini menuliskan `"tabel"."kolom"` — kutip ganda milik
+     * SQLite. MySQL memakai backtick, jadi uji yang ada justru untuk menjaga
+     * MySQL akan merah di suite MySQL (temuan verifikasi P1-F). Yang
+     * dibandingkan sekarang adalah SQL dengan seluruh karakter kutipnya
+     * dibuang, di kedua sisi — sehingga perbandingannya tentang ekspresinya,
+     * bukan tentang grammar-nya.
      */
-    private function quoted(string $expression): string
+    private function unquote(string $sql): string
     {
-        if (str_contains($expression, '(')) {
-            return $expression;
-        }
-
-        [$table, $column] = explode('.', $expression);
-
-        return '"'.$table.'"."'.$column.'"';
+        return str_replace(['"', '`', '['   , ']'], '', $sql);
     }
 
-    /**
-     * Empat aset yang membuat ketiga keadaan sel bisa dibedakan: satu owned
-     * bernilai buku NOL, satu rented bernilai buku NULL, satu owned dalam
-     * perawatan — dan TIDAK ADA rented dalam perawatan, yang membuat pasangan
-     * itu benar-benar kosong.
-     */
     private function seedAssets(): void
     {
         // ast_assets.category_id ber-FK; satu kategori sudah cukup untuk ketiganya.

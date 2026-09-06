@@ -84,6 +84,12 @@ use Illuminate\Support\Facades\Schema;
  *   why          — kenapa resource INI yang masuk delapan, dan resource mana
  *                  yang digesernya.
  *
+ * `enum` WAJIB pada kolom berjenis enum ATAU status. Tanpa itu layar menulis
+ * nilai mentah basis data ('approved', 'available') di tempat layar daftarnya
+ * menulis 'Disetujui' dan 'Tersedia' — layar daftar mendapatkannya dari
+ * `status_label` yang dikirim kelas Resource-nya, dan laporan ini tidak lewat
+ * Resource sama sekali. Dipaku ReportableResourcesTest.
+ *
  * `dimension`: false | 'value' (enum/status/teks kardinalitas rendah) | 'key'
  * (FK integer, dilabeli lewat lookup) | 'date' (boleh diember day|month|year).
  * `measure`: true hanya untuk kolom yang PENJUMLAHANNYA berarti — uang dan
@@ -140,8 +146,8 @@ final class ReportableResources
                         'dimension' => 'date', 'buckets' => ['day', 'month', 'year'], 'measure' => false],
                     'value' => ['label' => 'Nilai (DPP)', 'type' => 'currency', 'select' => 'value',
                         'dimension' => false, 'measure' => true],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'documentStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'customer_id' => ['label' => 'Pelanggan', 'column' => 'customer_id', 'kind' => 'key', 'lookup' => 'customers'],
@@ -181,8 +187,8 @@ final class ReportableResources
                         'dimension' => false, 'measure' => false,
                         'why_not' => 'Persen tidak bisa dijumlahkan, dan rata-rata sederhananya memperlakukan proyek '
                             .'Rp 40 M sama beratnya dengan proyek Rp 400 jt. Pakai EVM untuk kinerja portofolio.'],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'projectStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'status' => ['label' => 'Status', 'column' => 'status', 'kind' => 'enum', 'enum' => 'projectStatus'],
@@ -228,8 +234,8 @@ final class ReportableResources
                         'why_not' => 'Sisa tagihan bukan "total dikurangi dibayar": invoice yang dibatalkan sisanya nol, '
                             .'dan aturan itu tinggal di modelnya. Laporan ini menawarkan Total dan menyaring per Status; '
                             .'untuk umur piutang pakai Keuangan › Laporan › Umur Piutang, yang menghitungnya di server.'],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'documentStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'customer_id' => ['label' => 'Pelanggan', 'column' => 'customer_id', 'kind' => 'key', 'lookup' => 'customers'],
@@ -289,8 +295,8 @@ final class ReportableResources
                         'dimension' => 'date', 'buckets' => ['day', 'month', 'year'], 'measure' => false],
                     'total' => ['label' => 'Total', 'type' => 'currency', 'select' => 'total',
                         'dimension' => false, 'measure' => true],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'documentStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'vendor_id' => ['label' => 'Vendor', 'column' => 'vendor_id', 'kind' => 'key', 'lookup' => 'vendors'],
@@ -320,8 +326,8 @@ final class ReportableResources
                         'dimension' => 'value', 'measure' => false,
                         'why_not' => 'Tarif pajak boleh DIKELOMPOKKAN (ada beberapa tarif saja), tetapi tidak boleh '
                             .'dijumlahkan: jumlah tarif bukan tarif.'],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'documentStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'project_id' => ['label' => 'Proyek', 'column' => 'project_id', 'kind' => 'key', 'lookup' => 'projects'],
@@ -353,8 +359,8 @@ final class ReportableResources
                         'dimension' => 'value', 'measure' => false],
                     'base_salary' => ['label' => 'Gaji pokok', 'type' => 'currency', 'select' => 'base_salary',
                         'dimension' => false, 'measure' => true],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'employeeStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'department' => ['label' => 'Departemen', 'column' => 'department', 'kind' => 'enum', 'enum' => 'department'],
@@ -396,8 +402,8 @@ final class ReportableResources
                         'dimension' => false, 'measure' => true],
                     'current_project_id' => ['label' => 'Proyek', 'type' => 'rel', 'lookup' => 'projects',
                         'select' => 'current_project_id', 'dimension' => 'key', 'measure' => false],
-                    'status' => ['label' => 'Status', 'type' => 'status', 'select' => 'status',
-                        'dimension' => 'value', 'measure' => false],
+                    'status' => ['label' => 'Status', 'type' => 'status', 'enum' => 'assetStatus',
+                        'select' => 'status', 'dimension' => 'value', 'measure' => false],
                 ],
                 'filters' => [
                     'ownership' => ['label' => 'Kepemilikan', 'column' => 'ownership', 'kind' => 'enum', 'enum' => 'assetOwnership'],

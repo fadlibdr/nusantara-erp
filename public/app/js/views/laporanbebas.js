@@ -92,6 +92,10 @@ function cellText(value, type) {
   if (value === null || value === undefined) return '—';
   if (type === 'currency') return fmt.rupiah(value);
   if (type === 'percent' || type === 'progress') return fmt.percent(value);
+  // Tanggal diformat seperti di seluruh aplikasi; tanpa cabang ini mode
+  // rincian menuliskan '2026-03-25' mentah di sebelah layar daftar yang
+  // menuliskan '25 Mar 2026'.
+  if (type === 'date') return fmt.date(value);
   return typeof value === 'number' ? fmt.num(value, Number.isInteger(value) ? 0 : 2) : String(value);
 }
 
@@ -174,7 +178,7 @@ function selectResource(key) {
   state.columnBucket = dims.length > 1 && dims[1].dimension === 'date' ? 'month' : null;
   state.agg = money.length ? 'sum' : 'count';
   state.measureColumn = money.length ? money[0].key : null;
-  state.filters = { date_from: '', date_to: '', eq: {} };
+  state.filters = { date_from: '', date_to: '', eq: {}, in: undefined };
   state.result = null;
 }
 
@@ -334,7 +338,8 @@ function definition() {
 
   if (state.filters.date_from) out.filters.date_from = state.filters.date_from;
   if (state.filters.date_to) out.filters.date_to = state.filters.date_to;
-  if (Object.keys(state.filters.eq).length) out.filters.eq = state.filters.eq;
+  if (Object.keys(state.filters.eq || {}).length) out.filters.eq = state.filters.eq;
+  if (state.filters.in && Object.keys(state.filters.in).length) out.filters.in = state.filters.in;
 
   return out;
 }
@@ -358,7 +363,10 @@ function paintResult(output) {
 
   const table = data.mode === 'detail' ? detailTable(data, descriptors) : groupedTable(data, descriptors);
 
-  output.appendChild(el('.card', [
+  /* Kelas penanda: harness menandai kartu HASIL dengan penanda aplikasi, bukan
+     dengan "kartu terakhir di halaman" — daftar laporan tersimpan tumbuh di
+     bawahnya dan membuat pemilih posisional itu salah pada jalan kedua. */
+  output.appendChild(el('.card.report-result', [
     head,
     table,
     el('.card-foot', [
@@ -446,7 +454,10 @@ function downloadResultCsv(data, descriptors) {
       if (raw === null || raw === undefined) return '';
       if (column.enum) return enumLabel(column.enum, raw) || raw;
       if (column.lookup) return labelFor(column.lookup, raw) || `#${raw}`;
-      return column.type === 'currency' ? num(raw) : raw;
+      /* SETIAP jenis angka lewat csvValue, bukan hanya currency: berkas ini
+         dipisah ';' dengan desimal KOMA (Excel-ID), dan sebuah persen yang
+         lolos sebagai '12.5' terbaca 125 di sana. */
+      return ['currency', 'percent', 'progress', 'number', 'qty'].includes(column.type) ? num(raw) : raw;
     }));
   } else {
     const pivot = data.mode === 'pivot';
@@ -472,7 +483,11 @@ function downloadResultCsv(data, descriptors) {
 
 function openColumnPicker(entry, onDone) {
   const rows = columnsOf(entry).map((column) => {
-    const available = column.why_not === null || column.why_not === undefined;
+    /* `selectable`, BUKAN `why_not`: sebuah kolom boleh punya alasan kenapa ia
+       tidak bisa jadi dimensi ('Kode unik per dokumen…') dan tetap sempurna
+       dapat DICETAK. Menyamakan keduanya mematikan setiap kolom kode, nama dan
+       keterangan di seluruh katalog. */
+    const available = column.selectable !== false;
     const checkbox = el('input', {
       type: 'checkbox',
       checked: state.columns.includes(column.key),
@@ -512,14 +527,30 @@ function openColumnPicker(entry, onDone) {
 
 async function refreshSaved(host, output, redraw) {
   let rows = [];
+  let failure = null;
+
   try {
     rows = await api.get('core/reports/saved');
-  } catch {
+  } catch (error) {
+    /* Gagal memuat daftar dan "Anda belum menyimpan laporan" tidak boleh
+       terlihat sama: yang kedua adalah pernyataan tentang dunia, dan yang
+       pertama adalah kita yang tidak tahu. Aturan Temuan 79, di layar ini. */
+    console.error('Laporan Bebas: daftar laporan tersimpan gagal dimuat', error);
+    failure = error;
     rows = [];
   }
 
   state.saved = rows || [];
   clear(host);
+
+  if (failure) {
+    host.appendChild(el('.card', { style: { marginTop: '16px' } },
+      el('.card-body', errorState({
+        message: 'Daftar laporan tersimpan gagal dimuat.',
+        details: ['Jangan dibaca sebagai "belum ada laporan tersimpan" — isinya tidak diketahui.', failure.message || String(failure)],
+      }, () => refreshSaved(host, output, redraw)))));
+    return;
+  }
 
   if (!state.saved.length) return;
 
@@ -557,7 +588,17 @@ async function refreshSaved(host, output, redraw) {
 }
 
 function openSaved(report, output, redraw) {
-  const definition = report.definition || {};
+  /* Sumber yang sudah tidak ada di katalog (dicabut, atau izinnya dicabut)
+     tidak boleh menjatuhkan layar: selectResource() akan membaca `null`. */
+  if (!state.catalogue.some((one) => one.key === (report.definition || {}).resource || one.key === report.resource)) {
+    toast(`Sumber "${report.resource_label || report.resource}" tidak ada di katalog Anda.`, { tone: 'warn' });
+    return;
+  }
+
+  /* Salinan DALAM, bukan alias: menyunting kolom atau saringan sesudah 'Buka'
+     tidak boleh menulis balik ke objek definisi milik baris tersimpan yang
+     masih ditampilkan daftar di bawahnya. */
+  const definition = JSON.parse(JSON.stringify(report.definition || {}));
   state.resource = definition.resource || report.resource;
   state.mode = definition.mode || 'group';
   state.columns = definition.columns || [];
@@ -567,10 +608,15 @@ function openSaved(report, output, redraw) {
   state.columnBucket = (definition.column || {}).bucket || null;
   state.agg = (definition.measure || {}).agg || 'count';
   state.measureColumn = (definition.measure || {}).column || null;
+  const filters = definition.filters || {};
   state.filters = {
-    date_from: (definition.filters || {}).date_from || '',
-    date_to: (definition.filters || {}).date_to || '',
-    eq: (definition.filters || {}).eq || {},
+    date_from: filters.date_from || '',
+    date_to: filters.date_to || '',
+    eq: filters.eq || {},
+    // Saringan `in` dibawa APA ADANYA meski layar v1 belum menawarkan
+    // pemilihnya: membuangnya diam-diam membuat laporan yang dibuka
+    // menghasilkan angka yang berbeda dari laporan yang disimpan.
+    in: filters.in || undefined,
   };
 
   redraw();

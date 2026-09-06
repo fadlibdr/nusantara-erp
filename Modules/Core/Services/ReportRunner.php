@@ -350,11 +350,16 @@ final class ReportRunner
     private function shapeGrouped(array $rows, array $d, bool $pivot): array
     {
         if (count($rows) > self::MAX_GROUPS) {
+            /* Yang dihitung pada pivot adalah PASANGAN (baris, kolom), bukan
+               baris — 30 kategori × 12 bulan sudah 360. Kalimatnya menyebut
+               yang benar-benar dihitung, karena "lebih dari 200 kelompok" pada
+               laporan yang barisnya 30 terbaca sebagai galat aplikasi. */
             throw new LogicException(sprintf(
-                'Laporan ini menghasilkan lebih dari %d kelompok, dan angka dari sebagian kelompok bukan jawaban '
+                'Laporan ini menghasilkan lebih dari %d %s, dan angka dari sebagian di antaranya bukan jawaban '
                 .'yang benar. Persempit jendela tanggal, tambahkan saringan, atau kelompokkan menurut kolom yang '
                 .'nilainya lebih sedikit.',
                 self::MAX_GROUPS,
+                $pivot ? 'kombinasi baris × kolom' : 'kelompok',
             ));
         }
 

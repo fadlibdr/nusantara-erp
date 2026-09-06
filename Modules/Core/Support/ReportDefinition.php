@@ -142,10 +142,10 @@ final class ReportDefinition
         $column = self::column($entry, $key, sprintf('Dimensi %s', $noun));
 
         if (($column['dimension'] ?? false) === false) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentException(trim(sprintf(
                 'Kolom "%s" tidak bisa menjadi dimensi %s. %s',
                 $key, $noun, $column['why_not'] ?? '',
-            ));
+            )));
         }
 
         $out = ['column' => $key];
@@ -272,8 +272,30 @@ final class ReportDefinition
                             'Saringan "%s" menyebut lebih dari %d nilai.', $key, self::MAX_IN_VALUES,
                         ));
                     }
-                } elseif (is_array($value)) {
-                    throw new InvalidArgumentException(sprintf('Saringan "%s" hanya menerima satu nilai.', $key));
+
+                    /* Setiap ANGGOTA diperiksa, bukan hanya daftarnya. Tanpa
+                       ini sebuah anggota berupa array sampai ke pembangun kueri
+                       apa adanya: `(string) []` adalah galat konversi (500) dan
+                       `(int) []` diam-diam menjadi 0, yaitu saringan yang
+                       mengembalikan laporan kosong tanpa satu kata pun. */
+                    foreach ($value as $one) {
+                        if (! is_scalar($one)) {
+                            throw new InvalidArgumentException(sprintf(
+                                'Nilai saringan "%s" harus berupa teks atau angka.', $key,
+                            ));
+                        }
+
+                        self::assertKindMatches($entry['filters'][$key], $key, $one);
+                    }
+                } elseif (! is_scalar($value)) {
+                    throw new InvalidArgumentException(sprintf(
+                        is_array($value)
+                            ? 'Saringan "%s" hanya menerima satu nilai.'
+                            : 'Nilai saringan "%s" harus berupa teks atau angka.',
+                        $key,
+                    ));
+                } else {
+                    self::assertKindMatches($entry['filters'][$key], $key, $value);
                 }
 
                 $out[$shape][$key] = $value;
@@ -299,6 +321,29 @@ final class ReportDefinition
         }
 
         return $entry['columns'][$key];
+    }
+
+    /**
+     * Saringan ber-kunci menerima KUNCI, bukan teks apa pun.
+     *
+     * Tanpa ini `(int) 'abc'` menjadi 0 dan laporannya kembali kosong tanpa
+     * satu kata pun — sebuah saringan yang diam-diam tidak cocok dengan apa
+     * pun adalah bentuk kebohongan yang paling sulit dilihat (temuan
+     * verifikasi P1-F).
+     *
+     * @param  array<string, mixed>  $filter
+     */
+    private static function assertKindMatches(array $filter, string $key, mixed $value): void
+    {
+        if (($filter['kind'] ?? null) !== 'key') {
+            return;
+        }
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            throw new InvalidArgumentException(sprintf(
+                'Saringan "%s" menerima nomor baris, bukan "%s".', $key, (string) $value,
+            ));
+        }
     }
 
     private static function isDate(string $value): bool
