@@ -18,9 +18,14 @@ namespace Modules\Core\Support;
  * disimpan seseorang persis apa yang dibaca aplikasi.
  *
  * Setiap entri:
- *   label      — nama Indonesia untuk pesan 422 (kuncinya sendiri juga disebut).
- *   max_bytes  — plafon per kunci; tidak pernah lebih dari MAX_BYTES.
- *   validate   — fn(mixed $value): ?string — null = sah, string = kalimat 422.
+ *   label       — nama Indonesia untuk pesan 422 (kuncinya sendiri juga disebut).
+ *   max_bytes   — plafon per kunci; tidak pernah lebih dari MAX_BYTES.
+ *   max_entries — jumlah maksimum anggota bila nilainya daftar, null bila bukan;
+ *                 describe() mengirimkannya di meta.keys supaya klien tahu batas
+ *                 yang berlaku sebelum menulis (verifikasi P1-C: meta dulu hanya
+ *                 mengiklankan MAX_BYTES global, yang lebih longgar dari yang
+ *                 sebenarnya dipakai setiap kunci).
+ *   validate    — fn(mixed $value): ?string — null = sah, string = kalimat 422.
  *
  * KEJUJURAN: kunci yang belum pernah ditulis TIDAK ADA barisnya. Bawaan
  * ('normal' untuk kepadatan, [] untuk favorit) milik SPA, bukan server —
