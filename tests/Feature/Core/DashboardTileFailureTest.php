@@ -123,9 +123,11 @@ class DashboardTileFailureTest extends ErpTestCase
             $this->assertTrue(
                 $this->branchesOnFailure($source),
                 sprintf(
-                    'Widget [%s] tidak pernah memanggil failure(), jadi fetch yang gagal tidak bisa dibedakan dari '
-                    .'hasil kosong: kartunya menghilang atau melaporkan nol. Tambahkan cabang failure(...) yang '
-                    .'menggambar failedStat()/failedBody() di samping cabang normalnya.',
+                    'Widget [%s] tidak BERCABANG pada failure(): entah ia tidak pernah memanggilnya, entah ia '
+                    .'memanggilnya lalu membuang hasilnya, entah cabangnya tidak menggambar kegagalannya. Ketiganya '
+                    .'berarti fetch yang gagal tidak bisa dibedakan dari hasil kosong: kartunya menghilang atau '
+                    .'melaporkan nol. Tulis `if (failure(x)) return failedBody(failure(x), reload);` di samping '
+                    .'cabang normalnya.',
                     $id,
                 ),
             );
@@ -140,6 +142,26 @@ class DashboardTileFailureTest extends ErpTestCase
     public function test_a_widget_with_no_failure_branch_is_reported(): void
     {
         $this->assertFalse($this->branchesOnFailure('export async function build() { return el("div"); }'));
+
+        /* Bentuk yang lolos detektor lama, dan yang justru Temuan 79 sendiri:
+           failure() DIPANGGIL, hasilnya dibuang, dan ubinnya menulis 0 di atas
+           sumber yang jatuh (verifikasi kedua P1-D). */
+        $this->assertFalse($this->branchesOnFailure(
+            'export async function build() { const ignored = failure(summary); '
+            .'return stat("Terbuka", String(summary.open_count || 0)); }',
+        ));
+
+        // …dan sebuah keputusan yang tidak menggambar kegagalannya juga bukan
+        // cabang: kartunya menghilang alih-alih mengaku.
+        $this->assertFalse($this->branchesOnFailure(
+            'export async function build() { if (failure(summary)) return null; return stat("x", "1"); }',
+        ));
+
+        // Bagian yang MENERIMA: bentuk yang benar-benar dipakai ke-19 widget.
+        $this->assertTrue($this->branchesOnFailure(
+            'export async function build() { if (failure(report)) return failedBody(failure(report), reload); '
+            .'return stat("x", "1"); }',
+        ));
 
         // Cabang yang hanya ada di KOMENTAR tidak menjaga apa pun.
         $this->assertFalse($this->branchesOnFailure("/* nanti: if (failure(rows)) ... */\nexport async function build() {}"));
@@ -184,9 +206,38 @@ class DashboardTileFailureTest extends ErpTestCase
         return preg_match('/\.catch\(\s*\(\s*\)\s*=>/', $source) === 1;
     }
 
+    /**
+     * Widget ini benar-benar BERCABANG pada kegagalan sumbernya.
+     *
+     * Dua syarat, karena satu saja lolos untuk bentuk yang justru dilarang
+     * Temuan 79. Sampai verifikasi kedua P1-D syaratnya cuma `str_contains(…,
+     * 'failure(')`, dan uji mutasi membuktikan lubangnya: sebuah widget yang
+     * menulis `const ignored = failure(summary);` lalu menggambar
+     * `String(summary.open_count || 0)` — memanggil failure(), membuang
+     * hasilnya, dan mencetak 0 di atas sumber yang jatuh — tetap HIJAU.
+     *
+     *  1. `failure(` berdiri di posisi KEPUTUSAN: `if (failure(`, `return
+     *     failure(`, `!failure(`, badan panah (`(p) => failure(p)`, bentuk
+     *     yang dipakai ncr.js untuk MENCARI muatan yang jatuh), atau di kiri
+     *     `?`/`&&`/`||`.
+     *  2. Berkasnya menyebut penggambar kegagalannya (failedBody/failedStat)
+     *     — sebuah keputusan yang tidak menggambar apa pun tidak menolong
+     *     siapa pun.
+     *
+     * Tetap dua grep, tetap murah, dan tetap tentang KODE (codeOnly membuang
+     * komentar, jadi prosa yang menjelaskan aturan ini tidak pernah lulus
+     * untuknya).
+     */
     private function branchesOnFailure(string $source): bool
     {
-        return str_contains($this->codeOnly($source), 'failure(');
+        $code = $this->codeOnly($source);
+
+        $decides = preg_match('/(if\s*\(\s*!?|return\s+!?|=>\s*!?|[?&|]\s*!?|!\s*)failure\s*\(/', $code) === 1
+            || preg_match('/failure\s*\([^;\n]*\)\s*(\?|&&|\|\|)/', $code) === 1;
+
+        $draws = str_contains($code, 'failedBody') || str_contains($code, 'failedStat');
+
+        return $decides && $draws;
     }
 
     /** @return array<string, string> path relatif => sumber; dashboard.js + folder widget. */
