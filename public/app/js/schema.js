@@ -5772,7 +5772,12 @@ export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve')
  *  - accent: slot warna departemen 1..8 → token --accent-<slot> di app.css.
  *    Tabel pemetaan 14 grup → 8 slot dan angka ΔE/kontrasnya ada di blok
  *    token app.css dan CONVENTIONS § Aksen modul; dipaku uji
- *    SidebarNavWiringTest (slot 1..8, token ada di keempat blok tema).
+ *    SidebarNavWiringTest (slot 1..8; ketiga token WAJIB ada di KELIMA blok:
+ *    :root terang, @media prefers-color-scheme: dark, [data-theme=light],
+ *    [data-theme=dark], dan blok token @media print — tanpa yang terakhir
+ *    tema gelap mencetak aksen gelap di kertas putih, slot 7 1,52:1
+ *    (verifikasi P1-B, 5 Sep 2026). Menambah slot 9 berarti menulis
+ *    --accent-9/-soft/-fg lima kali; uji itu menghitungnya.)
  *  - icon: nama kanonik sprite Lucide (ui.js svgIcon; daftar di VENDOR.md).
  *  - description: satu kalimat kepala beranda #/m/<prefix> (views/module.js)
  *    — ringkasan ISI grup NAV di bawah, bukan salinan pemasaran.
