@@ -1855,6 +1855,62 @@ def s20e(pg):
     }""")
     out["dots_false_probe"] = dots_probe
 
+    # KERTAS. Blok cetak app.css mengabukan token --chart-* dan memberi setiap
+    # seri pola putusnya; sampai verifikasi P1-E deklarasi itu juga MENIMPA
+    # pola yang ditulis pemanggil (deklarasi CSS mengalahkan atribut
+    # presentasi), jadi baseline yang ditulis "2 4" dan garis EV yang UTUH di
+    # layar tercetak sebagai dua pola titik yang hanya berbeda 1 px celah, dan
+    # "Aktual" kurva-S yang utuh di layar menjadi garis paling putus di
+    # kertas. Dan legenda DOM tren harga tidak tercetak sama sekali pada
+    # setelan bawaan Chrome (grafik latar mati) — dua label tanpa satu swatch.
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(300)
+    print_state = pg.evaluate("""() => {
+      const svgs = [...document.querySelectorAll("svg.chart-lib")];
+      const chart = (svg) => [...svg.querySelectorAll("path.series-line")].map((l) => ({
+        series: l.dataset.series,
+        authored: l.getAttribute("stroke-dasharray"),
+        printed: getComputedStyle(l).strokeDasharray,
+      }));
+      return { charts: svgs.map(chart) };
+    }""")
+    pg.emulate_media(media="screen")
+    pg.wait_for_timeout(200)
+
+    pg.evaluate("""() => { location.hash = "#/harga-satuan"; }""")
+    pg.wait_for_selector("svg[aria-label*='Tren harga']", timeout=20000)
+    pg.wait_for_timeout(1200)
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(300)
+    print_state["trend_legend"] = pg.evaluate("""() => [...document.querySelectorAll(".legend i")].map((i) => {
+      const cs = getComputedStyle(i);
+      const r = i.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height), adjust: cs.printColorAdjust || cs.webkitPrintColorAdjust };
+    })""")
+    print_state["trend_point_radii"] = pg.evaluate(
+        "() => [...new Set([...document.querySelectorAll('circle.series-point:not(.legend-swatch)')]"
+        ".map((c) => parseFloat(c.getAttribute('r'))))].sort((a, b) => a - b)")
+    pg.emulate_media(media="screen")
+    out["print"] = print_state
+
+    # Pola yang DITULIS pemanggil selamat di kertas; yang tidak menulis apa pun
+    # tetap mendapat pola cetaknya (itulah alasan blok cetak ada).
+    authored = [l for c in print_state["charts"] for l in c if l["authored"]]
+    print_state["authored_dash_survives_print"] = bool(authored) and all(
+        l["printed"].replace("px", "").replace(",", "") == l["authored"] for l in authored)
+    # Swatch legenda tren harga: tercetak (print-color-adjust) DAN berbeda
+    # UKURAN, bukan hanya berbeda abu-abu.
+    legend = print_state["trend_legend"]
+    print_state["trend_legend_prints_and_differs_by_shape"] = (
+        len(legend) == 2
+        and all(i["adjust"] == "exact" for i in legend)
+        and legend[0]["w"] != legend[1]["w"]
+    )
+    print_state["trend_points_differ_by_more_than_half_a_pixel"] = (
+        len(print_state["trend_point_radii"]) == 2
+        and print_state["trend_point_radii"][1] - print_state["trend_point_radii"][0] >= 1
+    )
+
     checks = {
         # Ketiganya benar-benar digambar charts.js, bukan sisa SVG tangan.
         "all_are_chart_lib": all(c["lib"] for c in (scurve, evm, trend)),
@@ -1896,6 +1952,11 @@ def s20e(pg):
             and sorted(x["width"] for x in evm["series"]) == [2, 2, 2.5]
             and [x["width"] for x in trend["series"]] == [2.5]
         ),
+        # KERTAS: pola yang ditulis pemanggil menang, legenda DOM benar-benar
+        # tercetak, dan pembeda titiknya bukan 0,5 px.
+        "authored_dash_survives_print": print_state["authored_dash_survives_print"],
+        "trend_legend_prints_and_differs_by_shape": print_state["trend_legend_prints_and_differs_by_shape"],
+        "trend_points_differ_by_more_than_half_a_pixel": print_state["trend_points_differ_by_more_than_half_a_pixel"],
         # Tren harga: sumbu TIDAK mulai dari nol.
         "trend_axis_not_zero_based": trend["ticks"] and not trend["ticks"][0].strip().endswith(" 0"),
         "trend_five_gridlines": len([t for t in trend["ticks"] if t.startswith("Rp")]) == 5,

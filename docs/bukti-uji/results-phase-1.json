@@ -5913,7 +5913,7 @@
       "chart7_vs_grid": 8.2,
       "line_dash": {
         "1": "none",
-        "2": "2px, 3px",
+        "2": "1px, 3px",
         "3": "8px, 3px, 2px, 3px",
         "4": "1px, 2px",
         "5": "10px, 4px",
@@ -5957,7 +5957,7 @@
       "width": 1440,
       "height": 900
     },
-    "_ms": 3663,
+    "_ms": 4226,
     "_clicks": 0
   },
   "S20_chart_tokens_mobile": {
@@ -11833,7 +11833,7 @@
       "chart7_vs_grid": 8.2,
       "line_dash": {
         "1": "none",
-        "2": "2px, 3px",
+        "2": "1px, 3px",
         "3": "8px, 3px, 2px, 3px",
         "4": "1px, 2px",
         "5": "10px, 4px",
@@ -11877,7 +11877,7 @@
       "width": 390,
       "height": 844
     },
-    "_ms": 2952,
+    "_ms": 3083,
     "_clicks": 0
   },
   "S21_module_accents_breadcrumb": {
@@ -20453,7 +20453,7 @@
         "points": 2,
         "point_radii": [
           "3",
-          "3.5"
+          "4.5"
         ],
         "point_tokens": [
           "--chart-1",
@@ -20491,7 +20491,7 @@
             1112,
             403
           ],
-          "changed_pct": 6.08,
+          "changed_pct": 6.09,
           "outside_intersection_pct": 7.69
         }
       }
@@ -20576,6 +20576,63 @@
         ]
       }
     },
+    "print": {
+      "charts": [
+        [
+          {
+            "series": "1",
+            "authored": "5 3",
+            "printed": "5px, 3px"
+          },
+          {
+            "series": "2",
+            "authored": null,
+            "printed": "1px, 3px"
+          },
+          {
+            "series": "3",
+            "authored": "2 4",
+            "printed": "2px, 4px"
+          }
+        ],
+        [
+          {
+            "series": "1",
+            "authored": "2 4",
+            "printed": "2px, 4px"
+          },
+          {
+            "series": "2",
+            "authored": null,
+            "printed": "1px, 3px"
+          },
+          {
+            "series": "3",
+            "authored": null,
+            "printed": "8px, 3px, 2px, 3px"
+          }
+        ]
+      ],
+      "trend_legend": [
+        {
+          "w": 8,
+          "h": 8,
+          "adjust": "exact"
+        },
+        {
+          "w": 12,
+          "h": 12,
+          "adjust": "exact"
+        }
+      ],
+      "trend_point_radii": [
+        3,
+        4.5
+      ],
+      "authored_dash_survives_print": true,
+      "trend_legend_prints_and_differs_by_shape": true,
+      "trend_points_differ_by_more_than_half_a_pixel": true
+    },
     "checks": {
       "all_are_chart_lib": true,
       "every_mark_titled": true,
@@ -20591,6 +20648,9 @@
       "evm_title_names_three_numbers": true,
       "evm_axis_reaches_100": true,
       "measured_series_is_the_heaviest_line": true,
+      "authored_dash_survives_print": true,
+      "trend_legend_prints_and_differs_by_shape": true,
+      "trend_points_differ_by_more_than_half_a_pixel": true,
       "trend_axis_not_zero_based": true,
       "trend_five_gridlines": true,
       "trend_axis_edges_are_labelled": true,
@@ -20605,7 +20665,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 8277,
+    "_ms": 10314,
     "_clicks": 0
   },
   "S24_laporan_bebas": {

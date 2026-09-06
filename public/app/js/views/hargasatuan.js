@@ -89,7 +89,10 @@ function trendChart(series) {
         y: point.price,
         // Titik GRN sedikit lebih besar DAN berwarna sendiri: pembedanya tidak
         // pernah warna saja (aturan yang sama dengan legenda departemen).
-        r: point.source === 'grn' ? 3.5 : 3,
+        // 4,5 vs 3, bukan 3,5 vs 3: docblock di atas menyatakan pembedanya
+        // tidak pernah warna saja, dan 0,5 px tidak menyanggupi kalimat itu di
+        // layar maupun di kertas (verifikasi P1-E).
+        r: point.source === 'grn' ? 4.5 : 3,
         token: point.source === 'grn' ? '--chart-7' : null,
         title: `${fmt.date(point.date)} — ${point.code}`
           + `${point.vendor_name ? ` (${point.vendor_name})` : ''}: ${fmt.rupiah(point.price)}`,
@@ -237,9 +240,13 @@ export async function renderHargaSatuan(host) {
            tidak ikut (terukur: #96601a di layar DAN di cetak, sementara
            --chart-7 #a16207 → #363636). Titik GRN karena itu tercetak
            BERWARNA di tengah grafik yang seluruhnya abu-abu. */
+        /* `i.pt` / `i.pt.lg`: swatch berbentuk TITIK seukuran titik yang
+           diwakilinya, bukan batang. Legenda ini mewakili dua jenis TITIK pada
+           satu garis, dan di kertas abu-abu ukuran adalah pembeda yang selamat
+           sementara warna (#222222 vs #363636, 1,32:1) tidak. */
         el('.legend', [
-          el('span', [el('i', { style: { background: 'var(--chart-1)' } }), 'Harga PO (disepakati)']),
-          el('span', [el('i', { style: { background: 'var(--chart-7)' } }), 'Valuasi GRN (barang datang)']),
+          el('span', [el('i.pt', { style: { background: 'var(--chart-1)' } }), 'Harga PO (disepakati)']),
+          el('span', [el('i.pt.lg', { style: { background: 'var(--chart-7)' } }), 'Valuasi GRN (barang datang)']),
         ]),
       ]),
     ]));
