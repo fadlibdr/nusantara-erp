@@ -152,6 +152,32 @@ class LauncherWiringTest extends ErpTestCase
         $this->assertDoesNotMatchRegularExpression("/textContent = (?:'\d|\"\d|String\()/", $fail,
             'fail() menulis sebuah ANGKA sebagai nilai ubin; yang tidak dihitung tidak boleh tampak seperti hasil hitungan.');
 
+        /*
+         * …dan KETERANGANNYA menyebut angka yang benar. Menjaga "ada keterangan"
+         * saja tidak cukup: verifikasi P1-C putaran 1 menambal keterangan kosong,
+         * lalu putaran 2 menemukan tiga mutasi yang tetap hijau — dikosongkan lagi,
+         * diisi kalimat karangan ('Angka tidak diketahui'), atau diisi NAMA MODUL
+         * (yang terbaca masuk akal justru karena berdampingan dengan angkanya).
+         * Sumbernya harus cermin MODULES[prefix].kpi, yang ModuleCountsTest sudah
+         * paku sama dengan label registri server — jadi dua uji bersama berarti
+         * "keterangan ubin = nama angka yang dihitung server".
+         */
+        foreach (['fail()' => $fail, 'fill(entry)' => $this->functionBody($home, 'fill(entry) {')] as $where => $body) {
+            $this->assertNotNull($body, "moduleTile() di home.js tidak punya {$where}.");
+            preg_match_all('/caption\.(?:textContent|title) = ([^;]+);/', (string) $body, $writes);
+            $this->assertNotEmpty($writes[1], "{$where} tidak menulis keterangan ubin sama sekali; '—' telanjang tidak menyebut angka apa pun.");
+
+            // fail() membaca cermin lokal (server tidak mengirim entrinya), fill() membaca
+            // label yang DIKIRIM server untuk entri itu. Sumber lain — literal, module.label,
+            // group.label — berarti ubin bisa menyebut angka yang bukan angkanya.
+            $allowed = $where === 'fail()' ? "module.kpi || ''" : "entry.label || ''";
+            foreach ($writes[1] as $written) {
+                $this->assertSame($allowed, trim($written),
+                    "{$where} mengisi keterangan ubin dengan \"".trim($written)."\" alih-alih {$allowed}: "
+                    .'keterangan harus menyebut angka yang dihitung, bukan kalimat lain yang kebetulan terbaca masuk akal.');
+            }
+        }
+
         // …dan angka utama beranda modul: entri yang tidak ada TIDAK berubin,
         // count null menulis '—'.
         $headline = $this->functionBody($module, 'function headlineTile(');
