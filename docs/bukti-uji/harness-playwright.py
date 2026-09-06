@@ -1,4 +1,5 @@
 import json, os, re, time, sqlite3, struct, base64, traceback, urllib.request
+from datetime import date
 from playwright.sync_api import sync_playwright
 
 # Jalur dibaca dari env dengan literal asli sebagai bawaan: harness ini ditulis di
@@ -110,7 +111,10 @@ def scenario(name):
                 R[name] = {"ERROR": str(e)[:400], "trace": traceback.format_exc()[-600:]}
             R[name]["_ms"] = int((time.time() - t0) * 1000)
             R[name]["_clicks"] = CLICKS[0]
-            print(f"[{name}] {R[name].get('ERROR', 'ok')} {R[name]['_ms']}ms clicks={CLICKS[0]}")
+            # SKIPPED dicetak apa adanya: sebuah skenario yang tidak menemukan fixture-nya bukan "ok"
+            # (verifikasi P1-B putaran 3, 6 Sep 2026 — S16 pada salinan DB hidup).
+            state = R[name].get("ERROR") or (f"SKIPPED: {R[name]['SKIPPED']}" if "SKIPPED" in R[name] else "ok")
+            print(f"[{name}] {state} {R[name]['_ms']}ms clicks={CLICKS[0]}")
         return wrapper
     return deco
 
@@ -280,7 +284,10 @@ def po_action_bar(pg):
     XLSX tidak pernah tergambar, kolom "Sesudah" 2 Sep 2026 pun tanpa keduanya."""
     tok = token_for("procurement@nusantara.test")
     s, d = api("procurement/vendors?status=active&per_page=20", tok)
-    vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
+    vendor = next((v for v in d["data"] if v.get("vendor_type") in (None, "supplier")), None)
+    if vendor is None:   # StopIteration menyembunyikan sebabnya (verifikasi P1-B putaran 3)
+        raise AssertionError(f"tidak ada vendor bertipe supplier/kosong di antara {len(d['data'])} vendor — "
+                             "fixture RFQ/PR tidak bisa dibuat pada basis data ini")
     s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
                "expected_date": "2026-09-16",  # wajib sejak T3.5
                "pr_bypass_reason": "UJI-UX — pembelian langsung tanpa PR",  # wajib sejak T3.8 (PO tanpa PR)
@@ -661,7 +668,10 @@ def s12(pg):
     tok = token_for("procurement@nusantara.test")
     s, d = api("procurement/vendors?status=active&per_page=20", tok)
     # Pemasok biasa: subkon/mandor tunduk klausul K3L/pakta (P0-E) — bukan yang diukur di sini.
-    vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
+    vendor = next((v for v in d["data"] if v.get("vendor_type") in (None, "supplier")), None)
+    if vendor is None:   # StopIteration menyembunyikan sebabnya (verifikasi P1-B putaran 3)
+        raise AssertionError(f"tidak ada vendor bertipe supplier/kosong di antara {len(d['data'])} vendor — "
+                             "fixture RFQ/PR tidak bisa dibuat pada basis data ini")
     BADGE = "() => (document.querySelector('.page-head .badge')||{}).innerText"
     def draft_po(tag):
         s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
@@ -885,6 +895,50 @@ def s15(browser):
     ctx.close()
     return out
 
+def ap_bill_with_outstanding(tok):
+    """Tagihan vendor yang disetujui dan MASIH BERSISA untuk S16 — dipakai apa adanya bila ada,
+    dibuat lewat API bila tidak.
+
+    Salinan basis data hidup 6 Sep 2026 memuat SATU tagihan (BIL/2026/III/0001, approved,
+    amount_paid 232.545.000 = lunas), jadi `next(b for b in ... if outstanding > 0)` melempar
+    StopIteration dan S16 mati SEBELUM mengukur apa pun — bukan gagal jujur, melainkan tidak ada
+    hasil sama sekali (verifikasi P1-B putaran 3). Skenario ini jalan di atas SALINAN coretan
+    (ERP_DB), tidak pernah basis data hidup, jadi ia boleh membuat fixture-nya sendiri: draf →
+    submit (finance) → approve (direktur). Yang dikembalikan: (tagihan, catatan) — catatan berisi
+    kode yang dibuat, atau alasan mengapa tidak ada, dan pemanggil MENCATATNYA. Bila pembuatan
+    gagal, S16 tercatat SKIPPED dengan sebabnya, tidak pernah "ok" tanpa pengukuran."""
+    s, d = api("finance/ap-bills?status=approved&per_page=50", tok)
+    for b in (d or {}).get("data", []):
+        if float(b.get("outstanding") or 0) > 0:
+            return b, None
+
+    s, v = api("procurement/vendors?per_page=1", tok)
+    vendors = (v or {}).get("data", [])
+    if not vendors:
+        return None, "tidak ada tagihan vendor approved yang bersisa DAN tidak ada vendor untuk membuatnya"
+
+    payload = {"vendor_id": vendors[0]["id"], "description": "Fixture S16 — jasa uji harness",
+               "vendor_invoice_no": f"INV-S16-{int(time.time())}", "dpp": 12_500_000,
+               "bill_date": date.today().isoformat(), "due_date": date.today().isoformat()}
+    s, made = api("finance/ap-bills", tok, "POST", payload)
+    if s not in (200, 201) or not made:
+        return None, f"POST finance/ap-bills → {s}: {str(made)[:160]}"
+    bill_id = (made.get("data") or made).get("id")
+
+    s, _ = api(f"finance/ap-bills/{bill_id}/submit", tok, "POST", {})
+    if s != 200:
+        return None, f"submit tagihan {bill_id} → {s}"
+    s, _ = api(f"finance/ap-bills/{bill_id}/approve", token_for("direktur@nusantara.test"), "POST", {})
+    if s != 200:
+        return None, f"approve tagihan {bill_id} → {s} (direktur@ memegang fin.approve?)"
+
+    s, fresh = api(f"finance/ap-bills/{bill_id}", tok)
+    bill = (fresh or {}).get("data") or fresh
+    if not bill or float(bill.get("outstanding") or 0) <= 0:
+        return None, f"tagihan {bill_id} dibuat tetapi outstanding {bill.get('outstanding') if bill else '?'}"
+    return bill, f"dibuat oleh harness: {bill['code']} (dpp 12.500.000, jatuh tempo hari ini)"
+
+
 @scenario("S16_ap_bill_payment_button")
 def s16(pg):
     """T3.1 — "Buat pembayaran" pada tagihan vendor yang disetujui dan masih bersisa (BIL/2026/VII/0002
@@ -892,12 +946,14 @@ def s16(pg):
     tombolnya diklik: yang harus muncul formulir Pembayaran (bukan POST) dengan arah keluar dan jumlah =
     sisa tagihan; tersimpan tidak diuji di sini — itu formulir pembayaran biasa."""
     tok = token_for("finance@nusantara.test")
-    s, d = api("finance/ap-bills?status=approved&per_page=50", tok)
-    bill = next(b for b in d["data"] if float(b.get("outstanding") or 0) > 0)
+    bill, created = ap_bill_with_outstanding(tok)
+    if bill is None:
+        return {"SKIPPED": created}   # sebab tercatat, bukan "ok" — lihat ap_bill_with_outstanding()
     login(pg, "finance@nusantara.test")
     pg.goto(BASE + f"#/d/finance/ap-bills/{bill['id']}")
     pg.wait_for_selector(f".page-head h1:has-text('{bill['code']}')", timeout=15000); pg.wait_for_timeout(800)
-    out = {"bill": bill["code"], "outstanding": bill["outstanding"], **read_action_bar(pg, "s16-ap-bill-bar")}
+    out = {"bill": bill["code"], "outstanding": bill["outstanding"], "fixture_created": created,
+           **read_action_bar(pg, "s16-ap-bill-bar")}
     click(pg, ".page-head .actions button:has-text('Buat pembayaran')")
     pg.wait_for_selector(".modal .field", timeout=10000); pg.wait_for_timeout(300)
     out["modal"] = pg.evaluate("""() => ({ title: (document.querySelector('.modal h2, .modal .modal-head')||{}).innerText,
