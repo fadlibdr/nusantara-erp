@@ -12097,7 +12097,7 @@
       "B:Invoice Termin (AR)"
      ],
      "text_visible": "Keuangan › Invoice Termin (AR)",
-     "right_edge": 495,
+     "right_edge": 541,
      "next_left": 1066,
      "overlap_next": false,
      "crumbs_h": 20,
@@ -12120,7 +12120,7 @@
       "B:INV/2026/II/0001"
      ],
      "text_visible": "Keuangan › Invoice Termin (AR) › INV/2026/II/0001",
-     "right_edge": 610,
+     "right_edge": 656,
      "next_left": 1066,
      "overlap_next": false,
      "crumbs_h": 20,
@@ -12618,7 +12618,7 @@
       "B:Invoice Termin (AR)"
      ],
      "text_visible": "Keuangan › Invoice Termin (AR)",
-     "right_edge": 495,
+     "right_edge": 541,
      "next_left": 1066,
      "overlap_next": false,
      "crumbs_h": 20,
@@ -12641,7 +12641,7 @@
       "B:INV/2026/II/0001"
      ],
      "text_visible": "Keuangan › Invoice Termin (AR) › INV/2026/II/0001",
-     "right_edge": 610,
+     "right_edge": 656,
      "next_left": 1066,
      "overlap_next": false,
      "crumbs_h": 20,
@@ -12953,8 +12953,8 @@
   },
   "admin_modules": {
    "ringkasan": {
-    "cards": 4,
-    "sidebar": 4,
+    "cards": 5,
+    "sidebar": 5,
     "match": true,
     "head": true,
     "arrows": {
@@ -13220,8 +13220,8 @@
   "admin_arrows_ok": true,
   "unknown_prefix": "Modul \"tidak-ada\" tidak dikenal.",
   "crumb_walk": {
-   "routes": 131,
-   "nav": 124,
+   "routes": 132,
+   "nav": 125,
    "outside": [
     "#/r/finance/kasbon",
     "#/r/finance/petty-cash-vouchers",
@@ -13233,10 +13233,11 @@
    ],
    "by_root": {
     "module": 130,
-    "screen": 1,
+    "screen": 2,
     "null": 0
    },
    "screen_routes": [
+    "#/home",
     "#/dashboard"
    ],
    "empty": [],
@@ -13255,8 +13256,8 @@
    "console_errors_from_stub": {
     "count": 2,
     "first": [
-     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8028/app/js/views/k3.js:129:43)\n    at async rende",
-     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8028/app/js/views/retensi.js:48:41)"
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8031/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8031/app/js/views/retensi.js:48:41)"
     ]
    },
    "never_empty": true,
@@ -13384,9 +13385,7 @@
     "nav_link": 27.5,
     "tfoot": [],
     "btn_sm": 24,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "compact_po": {
     "density": "compact",
@@ -13403,9 +13402,7 @@
      32
     ],
     "btn_sm": null,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "compact_accounts": {
     "density": "compact",
@@ -13432,9 +13429,7 @@
     "nav_link": 27.5,
     "tfoot": [],
     "btn_sm": 24,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "dialog_before_comfortable": {
     "rows": [
@@ -13481,9 +13476,7 @@
     "nav_link": 35.5,
     "tfoot": [],
     "btn_sm": 28,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "comfortable_po": {
     "density": "comfortable",
@@ -13500,9 +13493,7 @@
      48
     ],
     "btn_sm": null,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "comfortable_accounts": {
     "density": "comfortable",
@@ -13529,9 +13520,7 @@
     "nav_link": 35.5,
     "tfoot": [],
     "btn_sm": 28,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "dialog_before_normal": {
     "rows": [
@@ -13580,9 +13569,7 @@
     "nav_link": 31.5,
     "tfoot": [],
     "btn_sm": 28,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "normal_po": {
     "density": "normal",
@@ -13599,9 +13586,7 @@
      41
     ],
     "btn_sm": null,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "normal_accounts": {
     "density": "normal",
@@ -13628,9 +13613,7 @@
     "nav_link": 31.5,
     "tfoot": [],
     "btn_sm": 28,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "after_reload": {
     "density": "compact",
@@ -13657,9 +13640,7 @@
     "nav_link": 27.5,
     "tfoot": [],
     "btn_sm": 24,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "compact_ok": true,
    "comfortable_ok": true,
@@ -13754,8 +13735,8 @@
    "dock_open": 0,
    "modules": {
     "ringkasan": {
-     "cards": 3,
-     "sidebar": 3,
+     "cards": 4,
+     "sidebar": 4,
      "match": true,
      "head": true,
      "arrows": {
@@ -13899,7 +13880,7 @@
    "count": 0,
    "first": []
   },
-  "_ms": 95091,
+  "_ms": 95510,
   "_clicks": 11
  },
  "S21_module_accents_breadcrumb_mobile": {
@@ -14089,7 +14070,7 @@
      "text": "Keuangan",
      "accent": "2",
      "color": "rgb(196, 62, 5)",
-     "width": 77,
+     "width": 69,
      "visible": true
     },
     "crumbs_text": "Keuangan\nInvoice Termin (AR)",
@@ -14113,12 +14094,12 @@
       "A.crumb-module:Keuangan"
      ],
      "text_visible": "Keuangan",
-     "right_edge": 143,
-     "next_left": 190,
+     "right_edge": 175,
+     "next_left": 199,
      "overlap_next": false,
      "crumbs_h": 20,
      "header_h": 56,
-     "module_lbl_ellipsized": false,
+     "module_lbl_ellipsized": true,
      "last": {
       "text": "Invoice Termin (AR)",
       "aria_current": "page",
@@ -14132,12 +14113,12 @@
       "A.crumb-module:Keuangan"
      ],
      "text_visible": "Keuangan",
-     "right_edge": 143,
-     "next_left": 190,
+     "right_edge": 175,
+     "next_left": 199,
      "overlap_next": false,
      "crumbs_h": 20,
      "header_h": 56,
-     "module_lbl_ellipsized": false,
+     "module_lbl_ellipsized": true,
      "last": {
       "text": "INV/2026/II/0001",
       "aria_current": "page",
@@ -14604,7 +14585,7 @@
      "text": "Keuangan",
      "accent": "2",
      "color": "rgb(249, 145, 60)",
-     "width": 77,
+     "width": 69,
      "visible": true
     },
     "crumbs_text": "Keuangan\nInvoice Termin (AR)",
@@ -14628,12 +14609,12 @@
       "A.crumb-module:Keuangan"
      ],
      "text_visible": "Keuangan",
-     "right_edge": 143,
-     "next_left": 190,
+     "right_edge": 175,
+     "next_left": 199,
      "overlap_next": false,
      "crumbs_h": 20,
      "header_h": 56,
-     "module_lbl_ellipsized": false,
+     "module_lbl_ellipsized": true,
      "last": {
       "text": "Invoice Termin (AR)",
       "aria_current": "page",
@@ -14647,12 +14628,12 @@
       "A.crumb-module:Keuangan"
      ],
      "text_visible": "Keuangan",
-     "right_edge": 143,
-     "next_left": 190,
+     "right_edge": 175,
+     "next_left": 199,
      "overlap_next": false,
      "crumbs_h": 20,
      "header_h": 56,
-     "module_lbl_ellipsized": false,
+     "module_lbl_ellipsized": true,
      "last": {
       "text": "INV/2026/II/0001",
       "aria_current": "page",
@@ -14959,8 +14940,8 @@
   },
   "admin_modules": {
    "ringkasan": {
-    "cards": 4,
-    "sidebar": 4,
+    "cards": 5,
+    "sidebar": 5,
     "match": true,
     "head": true,
     "arrows": {
@@ -15226,8 +15207,8 @@
   "admin_arrows_ok": true,
   "unknown_prefix": "Modul \"tidak-ada\" tidak dikenal.",
   "crumb_walk": {
-   "routes": 131,
-   "nav": 124,
+   "routes": 132,
+   "nav": 125,
    "outside": [
     "#/r/finance/kasbon",
     "#/r/finance/petty-cash-vouchers",
@@ -15239,10 +15220,11 @@
    ],
    "by_root": {
     "module": 130,
-    "screen": 1,
+    "screen": 2,
     "null": 0
    },
    "screen_routes": [
+    "#/home",
     "#/dashboard"
    ],
    "empty": [],
@@ -15261,8 +15243,8 @@
    "console_errors_from_stub": {
     "count": 2,
     "first": [
-     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8028/app/js/views/k3.js:129:43)\n    at async rende",
-     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8028/app/js/views/retensi.js:48:41)"
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8031/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8031/app/js/views/retensi.js:48:41)"
     ]
    },
    "never_empty": true,
@@ -15400,9 +15382,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "compact_po": {
     "density": "compact",
@@ -15419,9 +15399,7 @@
      48.5
     ],
     "btn_sm": null,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "compact_accounts": {
     "density": "compact",
@@ -15456,9 +15434,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "dialog_before_comfortable": {
     "rows": [
@@ -15507,9 +15483,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "comfortable_po": {
     "density": "comfortable",
@@ -15526,9 +15500,7 @@
      60.5
     ],
     "btn_sm": null,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "comfortable_accounts": {
     "density": "comfortable",
@@ -15563,9 +15535,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "dialog_before_normal": {
     "rows": [
@@ -15614,9 +15584,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "normal_po": {
     "density": "normal",
@@ -15633,9 +15601,7 @@
      60.5
     ],
     "btn_sm": null,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "normal_accounts": {
     "density": "normal",
@@ -15670,9 +15636,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "after_reload": {
     "density": "compact",
@@ -15707,9 +15671,7 @@
     "nav_link": 36,
     "tfoot": [],
     "btn_sm": 36,
-    "stored": [
-     "nusantara_erp_density:1"
-    ]
+    "stored": []
    },
    "compact_ok": true,
    "comfortable_ok": true,
@@ -15804,8 +15766,8 @@
    "dock_open": 0,
    "modules": {
     "ringkasan": {
-     "cards": 3,
-     "sidebar": 3,
+     "cards": 4,
+     "sidebar": 4,
      "match": true,
      "head": true,
      "arrows": {
@@ -15949,7 +15911,7 @@
    "count": 0,
    "first": []
   },
-  "_ms": 94354,
+  "_ms": 98681,
   "_clicks": 11
  },
  "S15_lapangan_upload": {
@@ -16010,5 +15972,2527 @@
   "pageerrors": [],
   "_ms": 24474,
   "_clicks": 4
+ },
+ "S22_launcher_truth": {
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "migration": {
+   "server_before": {},
+   "server_after": {
+    "density": "compact",
+    "favorites": [
+     "r/servicedesk/tickets"
+    ],
+    "recent": [
+     {
+      "route": "d/servicedesk/tickets/1",
+      "label": "TKT-LAMA",
+      "sub": "Tiket"
+     }
+    ]
+   },
+   "local_keys_left": [],
+   "density_applied": "compact",
+   "ok": true,
+   "server_after_second_boot": {
+    "density": "compact",
+    "favorites": [
+     "r/servicedesk/tickets"
+    ],
+    "recent": [
+     {
+      "route": "d/servicedesk/tickets/1",
+      "label": "TKT-LAMA",
+      "sub": "Tiket"
+     }
+    ]
+   },
+   "ran_once": true
+  },
+  "roles": {
+   "admin": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "tiles": [
+     {
+      "prefix": "ringkasan",
+      "accent": "8",
+      "label": "Ringkasan",
+      "kpi": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "crm",
+      "accent": "4",
+      "label": "Penjualan",
+      "kpi": "2",
+      "unit": "prospek",
+      "caption": "Prospek terbuka",
+      "screens": "11 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(144, 0, 198)"
+     },
+     {
+      "prefix": "est",
+      "accent": "4",
+      "label": "Estimasi",
+      "kpi": "0",
+      "unit": "RAB",
+      "caption": "RAB menunggu persetujuan",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(144, 0, 198)"
+     },
+     {
+      "prefix": "eng",
+      "accent": "8",
+      "label": "Engineering",
+      "kpi": "0",
+      "unit": "SDS",
+      "caption": "Gambar menunggu keputusan MK",
+      "screens": "6 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "prj",
+      "accent": "1",
+      "label": "Proyek",
+      "kpi": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "screens": "20 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(26, 86, 219)"
+     },
+     {
+      "prefix": "qc",
+      "accent": "8",
+      "label": "Mutu (QA/QC)",
+      "kpi": "0",
+      "unit": "NCR",
+      "caption": "NCR terbuka",
+      "screens": "4 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "prc",
+      "accent": "3",
+      "label": "Pengadaan",
+      "kpi": "2",
+      "unit": "PO",
+      "caption": "PO terbuka",
+      "screens": "13 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "inv",
+      "accent": "3",
+      "label": "Persediaan",
+      "kpi": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "scm",
+      "accent": "3",
+      "label": "Subkontrak",
+      "kpi": "0",
+      "unit": "opname",
+      "caption": "Opname subkon menunggu persetujuan",
+      "screens": "6 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "fin",
+      "accent": "2",
+      "label": "Keuangan",
+      "kpi": "0",
+      "unit": "invoice",
+      "caption": "Invoice termin belum lunas",
+      "screens": "20 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(196, 62, 5)"
+     },
+     {
+      "prefix": "hr",
+      "accent": "5",
+      "label": "SDM & Payroll",
+      "kpi": "1",
+      "unit": "pengajuan",
+      "caption": "Cuti menunggu persetujuan",
+      "screens": "6 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(0, 117, 143)"
+     },
+     {
+      "prefix": "svc",
+      "accent": "7",
+      "label": "Layanan",
+      "kpi": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(146, 97, 0)"
+     },
+     {
+      "prefix": "ast",
+      "accent": "6",
+      "label": "Aset",
+      "kpi": "0",
+      "unit": "aset",
+      "caption": "Aset dalam perawatan",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(151, 14, 42)"
+     },
+     {
+      "prefix": "iam",
+      "accent": "8",
+      "label": "Sistem",
+      "kpi": "0",
+      "unit": "job",
+      "caption": "Job gagal",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     }
+    ],
+    "nav_prefixes": [
+     "ringkasan",
+     "crm",
+     "est",
+     "eng",
+     "prj",
+     "qc",
+     "prc",
+     "inv",
+     "scm",
+     "fin",
+     "hr",
+     "svc",
+     "ast",
+     "iam"
+    ],
+    "nav_screens": {
+     "ringkasan": 5,
+     "crm": 11,
+     "est": 5,
+     "eng": 6,
+     "prj": 20,
+     "qc": 4,
+     "prc": 13,
+     "inv": 8,
+     "scm": 6,
+     "fin": 20,
+     "hr": 6,
+     "svc": 5,
+     "ast": 8,
+     "iam": 8
+    },
+    "sections": [
+     "TERAKHIR DIBUKA",
+     "MODUL"
+    ],
+    "chips": [
+     {
+      "href": "#/d/finance/ar-invoices/1",
+      "h": 39
+     }
+    ],
+    "search_h": 43,
+    "landing_after_login": "#/dashboard",
+    "viewport": {
+     "width": 1440,
+     "height": 900
+    },
+    "tiles_equal_nav": true,
+    "only_in_tiles": [],
+    "only_in_nav": [],
+    "screens_label_ok": true,
+    "permissions": 86,
+    "kpi_checks": {
+     "ringkasan": {
+      "perm": null,
+      "expected": 0,
+      "tile": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "calls": [
+       {
+        "path": "core/notifications/unread-count",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "crm": {
+      "perm": "crm.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "prospek",
+      "caption": "Prospek terbuka",
+      "calls": [
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "new"
+        },
+        "status": 200
+       },
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "contacted"
+        },
+        "status": 200
+       },
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "qualified"
+        },
+        "status": 200
+       },
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "proposal"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "est": {
+      "perm": "est.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "RAB",
+      "caption": "RAB menunggu persetujuan",
+      "calls": [
+       {
+        "path": "estimation/boqs",
+        "params": {
+         "status": "submitted"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "eng": {
+      "perm": "eng.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "SDS",
+      "caption": "Gambar menunggu keputusan MK",
+      "calls": [
+       {
+        "path": "engineering/drawing-submittals",
+        "params": {
+         "current_only": 1,
+         "per_page": 500
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "prj": {
+      "perm": "prj.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "calls": [
+       {
+        "path": "projects",
+        "params": {
+         "status": "active"
+        },
+        "status": 200
+       },
+       {
+        "path": "projects",
+        "params": {
+         "status": "finishing"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "qc": {
+      "perm": "qc.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "NCR",
+      "caption": "NCR terbuka",
+      "calls": [
+       {
+        "path": "quality/ncr",
+        "params": {
+         "status": "open"
+        },
+        "status": 200
+       },
+       {
+        "path": "quality/ncr",
+        "params": {
+         "status": "under_correction"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "prc": {
+      "perm": "prc.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "PO",
+      "caption": "PO terbuka",
+      "calls": [
+       {
+        "path": "procurement/purchase-orders",
+        "params": {
+         "status": "approved"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "inv": {
+      "perm": "inv.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "calls": [
+       {
+        "path": "inventory/stock/low-stock",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "scm": {
+      "perm": "scm.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "opname",
+      "caption": "Opname subkon menunggu persetujuan",
+      "calls": [
+       {
+        "path": "subcontract/progress-claims",
+        "params": {
+         "status": "submitted"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "fin": {
+      "perm": "fin.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "invoice",
+      "caption": "Invoice termin belum lunas",
+      "calls": [
+       {
+        "path": "finance/ar-invoices",
+        "params": {
+         "status": "approved",
+         "per_page": 500
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "hr": {
+      "perm": "hr.view",
+      "expected": 1,
+      "tile": "1",
+      "unit": "pengajuan",
+      "caption": "Cuti menunggu persetujuan",
+      "calls": [
+       {
+        "path": "hr/leave-requests",
+        "params": {
+         "status": "submitted"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "svc": {
+      "perm": "svc.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "calls": [
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "open"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "assigned"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "in_progress"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "pending_customer"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "ast": {
+      "perm": "ast.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "aset",
+      "caption": "Aset dalam perawatan",
+      "calls": [
+       {
+        "path": "assets/assets",
+        "params": {
+         "status": "maintenance"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "iam": {
+      "perm": "core.update",
+      "expected": 0,
+      "tile": "0",
+      "unit": "job",
+      "caption": "Job gagal",
+      "calls": [
+       {
+        "path": "core/queue/failed",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     }
+    },
+    "kpi_all_match": true,
+    "kpi_mismatches": [],
+    "no_fake_zero": true,
+    "endpoint_open_without_permission": [],
+    "accents": {
+     "light": {
+      "tiles": {
+       "ringkasan": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       },
+       "crm": {
+        "accent": "4",
+        "border": "#9000c6",
+        "token": "#9000c6"
+       },
+       "est": {
+        "accent": "4",
+        "border": "#9000c6",
+        "token": "#9000c6"
+       },
+       "eng": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       },
+       "prj": {
+        "accent": "1",
+        "border": "#1a56db",
+        "token": "#1a56db"
+       },
+       "qc": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       },
+       "prc": {
+        "accent": "3",
+        "border": "#007d3d",
+        "token": "#007d3d"
+       },
+       "inv": {
+        "accent": "3",
+        "border": "#007d3d",
+        "token": "#007d3d"
+       },
+       "scm": {
+        "accent": "3",
+        "border": "#007d3d",
+        "token": "#007d3d"
+       },
+       "fin": {
+        "accent": "2",
+        "border": "#c43e05",
+        "token": "#c43e05"
+       },
+       "hr": {
+        "accent": "5",
+        "border": "#00758f",
+        "token": "#00758f"
+       },
+       "svc": {
+        "accent": "7",
+        "border": "#926100",
+        "token": "#926100"
+       },
+       "ast": {
+        "accent": "6",
+        "border": "#970e2a",
+        "token": "#970e2a"
+       },
+       "iam": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       }
+      },
+      "all_match": true
+     },
+     "dark": {
+      "tiles": {
+       "ringkasan": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       },
+       "crm": {
+        "accent": "4",
+        "border": "#bd7efc",
+        "token": "#bd7efc"
+       },
+       "est": {
+        "accent": "4",
+        "border": "#bd7efc",
+        "token": "#bd7efc"
+       },
+       "eng": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       },
+       "prj": {
+        "accent": "1",
+        "border": "#5b8def",
+        "token": "#5b8def"
+       },
+       "qc": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       },
+       "prc": {
+        "accent": "3",
+        "border": "#49e181",
+        "token": "#49e181"
+       },
+       "inv": {
+        "accent": "3",
+        "border": "#49e181",
+        "token": "#49e181"
+       },
+       "scm": {
+        "accent": "3",
+        "border": "#49e181",
+        "token": "#49e181"
+       },
+       "fin": {
+        "accent": "2",
+        "border": "#f9913c",
+        "token": "#f9913c"
+       },
+       "hr": {
+        "accent": "5",
+        "border": "#00d4f2",
+        "token": "#00d4f2"
+       },
+       "svc": {
+        "accent": "7",
+        "border": "#fbcd1a",
+        "token": "#fbcd1a"
+       },
+       "ast": {
+        "accent": "6",
+        "border": "#f57272",
+        "token": "#f57272"
+       },
+       "iam": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       }
+      },
+      "all_match": true
+     }
+    },
+    "accents_ok": true
+   },
+   "warehouse": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "tiles": [
+     {
+      "prefix": "ringkasan",
+      "accent": "8",
+      "label": "Ringkasan",
+      "kpi": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "screens": "4 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "eng",
+      "accent": "8",
+      "label": "Engineering",
+      "kpi": "—",
+      "unit": "",
+      "caption": "",
+      "screens": "1 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "prj",
+      "accent": "1",
+      "label": "Proyek",
+      "kpi": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "screens": "20 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(26, 86, 219)"
+     },
+     {
+      "prefix": "inv",
+      "accent": "3",
+      "label": "Persediaan",
+      "kpi": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "ast",
+      "accent": "6",
+      "label": "Aset",
+      "kpi": "—",
+      "unit": "",
+      "caption": "",
+      "screens": "1 layar",
+      "h": 120.8,
+      "w": 277.5,
+      "border": "rgb(151, 14, 42)"
+     },
+     {
+      "prefix": "iam",
+      "accent": "8",
+      "label": "Sistem",
+      "kpi": "—",
+      "unit": "",
+      "caption": "",
+      "screens": "2 layar",
+      "h": 120.8,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     }
+    ],
+    "nav_prefixes": [
+     "ringkasan",
+     "eng",
+     "prj",
+     "inv",
+     "ast",
+     "iam"
+    ],
+    "nav_screens": {
+     "ringkasan": 4,
+     "eng": 1,
+     "prj": 20,
+     "inv": 8,
+     "ast": 1,
+     "iam": 2
+    },
+    "sections": [
+     "MODUL"
+    ],
+    "chips": [],
+    "search_h": 43,
+    "landing_after_login": "#/dashboard",
+    "viewport": {
+     "width": 1440,
+     "height": 900
+    },
+    "tiles_equal_nav": true,
+    "only_in_tiles": [],
+    "only_in_nav": [],
+    "screens_label_ok": true,
+    "permissions": 5,
+    "kpi_checks": {
+     "ringkasan": {
+      "perm": null,
+      "expected": 0,
+      "tile": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "calls": [
+       {
+        "path": "core/notifications/unread-count",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "eng": {
+      "perm": "eng.view",
+      "held": false,
+      "tile": "—",
+      "calls": [
+       {
+        "path": "engineering/drawing-submittals",
+        "params": {
+         "current_only": 1,
+         "per_page": 500
+        },
+        "status": 200
+       }
+      ],
+      "ok": true,
+      "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"
+     },
+     "prj": {
+      "perm": "prj.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "calls": [
+       {
+        "path": "projects",
+        "params": {
+         "status": "active"
+        },
+        "status": 200
+       },
+       {
+        "path": "projects",
+        "params": {
+         "status": "finishing"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "inv": {
+      "perm": "inv.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "calls": [
+       {
+        "path": "inventory/stock/low-stock",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "ast": {
+      "perm": "ast.view",
+      "held": false,
+      "tile": "—",
+      "calls": [
+       {
+        "path": "assets/assets",
+        "params": {
+         "status": "maintenance"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true,
+      "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"
+     },
+     "iam": {
+      "perm": "core.update",
+      "held": false,
+      "tile": "—",
+      "calls": [
+       {
+        "path": "core/queue/failed",
+        "params": {},
+        "status": 403
+       }
+      ],
+      "ok": true,
+      "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"
+     }
+    },
+    "kpi_all_match": true,
+    "kpi_mismatches": [],
+    "no_fake_zero": true,
+    "endpoint_open_without_permission": [
+     {
+      "prefix": "eng",
+      "perm": "eng.view",
+      "path": "engineering/drawing-submittals",
+      "answered": 0
+     },
+     {
+      "prefix": "ast",
+      "perm": "ast.view",
+      "path": "assets/assets",
+      "answered": 0
+     }
+    ]
+   },
+   "teknisi": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "tiles": [
+     {
+      "prefix": "ringkasan",
+      "accent": "8",
+      "label": "Ringkasan",
+      "kpi": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "screens": "4 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "inv",
+      "accent": "3",
+      "label": "Persediaan",
+      "kpi": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "svc",
+      "accent": "7",
+      "label": "Layanan",
+      "kpi": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 277.5,
+      "border": "rgb(146, 97, 0)"
+     }
+    ],
+    "nav_prefixes": [
+     "ringkasan",
+     "inv",
+     "svc"
+    ],
+    "nav_screens": {
+     "ringkasan": 4,
+     "inv": 8,
+     "svc": 5
+    },
+    "sections": [
+     "FAVORIT",
+     "TERAKHIR DIBUKA",
+     "MODUL"
+    ],
+    "chips": [
+     {
+      "href": "#/r/servicedesk/tickets",
+      "h": 39
+     },
+     {
+      "href": "#/d/servicedesk/tickets/1",
+      "h": 39
+     }
+    ],
+    "search_h": 43,
+    "landing_after_login": "#/dashboard",
+    "viewport": {
+     "width": 1440,
+     "height": 900
+    },
+    "tiles_equal_nav": true,
+    "only_in_tiles": [],
+    "only_in_nav": [],
+    "screens_label_ok": true,
+    "permissions": 5,
+    "kpi_checks": {
+     "ringkasan": {
+      "perm": null,
+      "expected": 0,
+      "tile": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "calls": [
+       {
+        "path": "core/notifications/unread-count",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "inv": {
+      "perm": "inv.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "calls": [
+       {
+        "path": "inventory/stock/low-stock",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "svc": {
+      "perm": "svc.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "calls": [
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "open"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "assigned"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "in_progress"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "pending_customer"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     }
+    },
+    "kpi_all_match": true,
+    "kpi_mismatches": [],
+    "no_fake_zero": true,
+    "endpoint_open_without_permission": []
+   }
+  },
+  "landing": {
+   "viewport_w": 1440,
+   "expected": "#/dashboard",
+   "measured": "#/dashboard",
+   "ok": true
+  },
+  "favorite_write": {
+   "pressed": "true",
+   "server": [
+    "r/servicedesk/tickets",
+    "r/servicedesk/preventive-schedules"
+   ]
+  },
+  "favorite_new_context": {
+   "sections": [
+    "FAVORIT",
+    "TERAKHIR DIBUKA",
+    "MODUL"
+   ],
+   "favorites": [
+    "#/r/servicedesk/tickets",
+    "#/r/servicedesk/preventive-schedules"
+   ],
+   "sidebar": [
+    "#/r/servicedesk/tickets",
+    "#/r/servicedesk/preventive-schedules",
+    "#/d/servicedesk/tickets/1"
+   ],
+   "local_prefs_before_load": null,
+   "ok": true
+  },
+  "pageerrors": [],
+  "console_errors": {
+   "count": 0,
+   "first": []
+  },
+  "console_errors_from_probe": {
+   "count": 1,
+   "first": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ]
+  },
+  "_ms": 34926,
+  "_clicks": 1
+ },
+ "S22_launcher_truth_mobile": {
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "migration": {
+   "server_before": {},
+   "server_after": {
+    "density": "compact",
+    "favorites": [
+     "r/servicedesk/tickets"
+    ],
+    "recent": [
+     {
+      "route": "d/servicedesk/tickets/1",
+      "label": "TKT-LAMA",
+      "sub": "Tiket"
+     }
+    ]
+   },
+   "local_keys_left": [],
+   "density_applied": "compact",
+   "ok": true,
+   "server_after_second_boot": {
+    "density": "compact",
+    "favorites": [
+     "r/servicedesk/tickets"
+    ],
+    "recent": [
+     {
+      "route": "d/servicedesk/tickets/1",
+      "label": "TKT-LAMA",
+      "sub": "Tiket"
+     }
+    ]
+   },
+   "ran_once": true
+  },
+  "roles": {
+   "admin": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "tiles": [
+     {
+      "prefix": "ringkasan",
+      "accent": "8",
+      "label": "Ringkasan",
+      "kpi": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "crm",
+      "accent": "4",
+      "label": "Penjualan",
+      "kpi": "2",
+      "unit": "prospek",
+      "caption": "Prospek terbuka",
+      "screens": "11 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(144, 0, 198)"
+     },
+     {
+      "prefix": "est",
+      "accent": "4",
+      "label": "Estimasi",
+      "kpi": "0",
+      "unit": "RAB",
+      "caption": "RAB menunggu persetujuan",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(144, 0, 198)"
+     },
+     {
+      "prefix": "eng",
+      "accent": "8",
+      "label": "Engineering",
+      "kpi": "0",
+      "unit": "SDS",
+      "caption": "Gambar menunggu keputusan MK",
+      "screens": "6 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "prj",
+      "accent": "1",
+      "label": "Proyek",
+      "kpi": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "screens": "20 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(26, 86, 219)"
+     },
+     {
+      "prefix": "qc",
+      "accent": "8",
+      "label": "Mutu (QA/QC)",
+      "kpi": "0",
+      "unit": "NCR",
+      "caption": "NCR terbuka",
+      "screens": "4 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "prc",
+      "accent": "3",
+      "label": "Pengadaan",
+      "kpi": "2",
+      "unit": "PO",
+      "caption": "PO terbuka",
+      "screens": "13 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "inv",
+      "accent": "3",
+      "label": "Persediaan",
+      "kpi": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "scm",
+      "accent": "3",
+      "label": "Subkontrak",
+      "kpi": "0",
+      "unit": "opname",
+      "caption": "Opname subkon menunggu persetujuan",
+      "screens": "6 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "fin",
+      "accent": "2",
+      "label": "Keuangan",
+      "kpi": "0",
+      "unit": "invoice",
+      "caption": "Invoice termin belum lunas",
+      "screens": "20 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(196, 62, 5)"
+     },
+     {
+      "prefix": "hr",
+      "accent": "5",
+      "label": "SDM & Payroll",
+      "kpi": "1",
+      "unit": "pengajuan",
+      "caption": "Cuti menunggu persetujuan",
+      "screens": "6 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(0, 117, 143)"
+     },
+     {
+      "prefix": "svc",
+      "accent": "7",
+      "label": "Layanan",
+      "kpi": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(146, 97, 0)"
+     },
+     {
+      "prefix": "ast",
+      "accent": "6",
+      "label": "Aset",
+      "kpi": "0",
+      "unit": "aset",
+      "caption": "Aset dalam perawatan",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(151, 14, 42)"
+     },
+     {
+      "prefix": "iam",
+      "accent": "8",
+      "label": "Sistem",
+      "kpi": "0",
+      "unit": "job",
+      "caption": "Job gagal",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     }
+    ],
+    "nav_prefixes": [
+     "ringkasan",
+     "crm",
+     "est",
+     "eng",
+     "prj",
+     "qc",
+     "prc",
+     "inv",
+     "scm",
+     "fin",
+     "hr",
+     "svc",
+     "ast",
+     "iam"
+    ],
+    "nav_screens": {
+     "ringkasan": 5,
+     "crm": 11,
+     "est": 5,
+     "eng": 6,
+     "prj": 20,
+     "qc": 4,
+     "prc": 13,
+     "inv": 8,
+     "scm": 6,
+     "fin": 20,
+     "hr": 6,
+     "svc": 5,
+     "ast": 8,
+     "iam": 8
+    },
+    "sections": [
+     "TERAKHIR DIBUKA",
+     "MODUL"
+    ],
+    "chips": [
+     {
+      "href": "#/d/finance/ar-invoices/1",
+      "h": 55.5
+     }
+    ],
+    "search_h": 44,
+    "landing_after_login": "#/home",
+    "viewport": {
+     "width": 390,
+     "height": 844
+    },
+    "tiles_equal_nav": true,
+    "only_in_tiles": [],
+    "only_in_nav": [],
+    "screens_label_ok": true,
+    "permissions": 86,
+    "kpi_checks": {
+     "ringkasan": {
+      "perm": null,
+      "expected": 0,
+      "tile": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "calls": [
+       {
+        "path": "core/notifications/unread-count",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "crm": {
+      "perm": "crm.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "prospek",
+      "caption": "Prospek terbuka",
+      "calls": [
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "new"
+        },
+        "status": 200
+       },
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "contacted"
+        },
+        "status": 200
+       },
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "qualified"
+        },
+        "status": 200
+       },
+       {
+        "path": "crm/leads",
+        "params": {
+         "status": "proposal"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "est": {
+      "perm": "est.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "RAB",
+      "caption": "RAB menunggu persetujuan",
+      "calls": [
+       {
+        "path": "estimation/boqs",
+        "params": {
+         "status": "submitted"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "eng": {
+      "perm": "eng.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "SDS",
+      "caption": "Gambar menunggu keputusan MK",
+      "calls": [
+       {
+        "path": "engineering/drawing-submittals",
+        "params": {
+         "current_only": 1,
+         "per_page": 500
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "prj": {
+      "perm": "prj.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "calls": [
+       {
+        "path": "projects",
+        "params": {
+         "status": "active"
+        },
+        "status": 200
+       },
+       {
+        "path": "projects",
+        "params": {
+         "status": "finishing"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "qc": {
+      "perm": "qc.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "NCR",
+      "caption": "NCR terbuka",
+      "calls": [
+       {
+        "path": "quality/ncr",
+        "params": {
+         "status": "open"
+        },
+        "status": 200
+       },
+       {
+        "path": "quality/ncr",
+        "params": {
+         "status": "under_correction"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "prc": {
+      "perm": "prc.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "PO",
+      "caption": "PO terbuka",
+      "calls": [
+       {
+        "path": "procurement/purchase-orders",
+        "params": {
+         "status": "approved"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "inv": {
+      "perm": "inv.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "calls": [
+       {
+        "path": "inventory/stock/low-stock",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "scm": {
+      "perm": "scm.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "opname",
+      "caption": "Opname subkon menunggu persetujuan",
+      "calls": [
+       {
+        "path": "subcontract/progress-claims",
+        "params": {
+         "status": "submitted"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "fin": {
+      "perm": "fin.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "invoice",
+      "caption": "Invoice termin belum lunas",
+      "calls": [
+       {
+        "path": "finance/ar-invoices",
+        "params": {
+         "status": "approved",
+         "per_page": 500
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "hr": {
+      "perm": "hr.view",
+      "expected": 1,
+      "tile": "1",
+      "unit": "pengajuan",
+      "caption": "Cuti menunggu persetujuan",
+      "calls": [
+       {
+        "path": "hr/leave-requests",
+        "params": {
+         "status": "submitted"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "svc": {
+      "perm": "svc.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "calls": [
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "open"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "assigned"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "in_progress"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "pending_customer"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "ast": {
+      "perm": "ast.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "aset",
+      "caption": "Aset dalam perawatan",
+      "calls": [
+       {
+        "path": "assets/assets",
+        "params": {
+         "status": "maintenance"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "iam": {
+      "perm": "core.update",
+      "expected": 0,
+      "tile": "0",
+      "unit": "job",
+      "caption": "Job gagal",
+      "calls": [
+       {
+        "path": "core/queue/failed",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     }
+    },
+    "kpi_all_match": true,
+    "kpi_mismatches": [],
+    "no_fake_zero": true,
+    "endpoint_open_without_permission": [],
+    "accents": {
+     "light": {
+      "tiles": {
+       "ringkasan": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       },
+       "crm": {
+        "accent": "4",
+        "border": "#9000c6",
+        "token": "#9000c6"
+       },
+       "est": {
+        "accent": "4",
+        "border": "#9000c6",
+        "token": "#9000c6"
+       },
+       "eng": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       },
+       "prj": {
+        "accent": "1",
+        "border": "#1a56db",
+        "token": "#1a56db"
+       },
+       "qc": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       },
+       "prc": {
+        "accent": "3",
+        "border": "#007d3d",
+        "token": "#007d3d"
+       },
+       "inv": {
+        "accent": "3",
+        "border": "#007d3d",
+        "token": "#007d3d"
+       },
+       "scm": {
+        "accent": "3",
+        "border": "#007d3d",
+        "token": "#007d3d"
+       },
+       "fin": {
+        "accent": "2",
+        "border": "#c43e05",
+        "token": "#c43e05"
+       },
+       "hr": {
+        "accent": "5",
+        "border": "#00758f",
+        "token": "#00758f"
+       },
+       "svc": {
+        "accent": "7",
+        "border": "#926100",
+        "token": "#926100"
+       },
+       "ast": {
+        "accent": "6",
+        "border": "#970e2a",
+        "token": "#970e2a"
+       },
+       "iam": {
+        "accent": "8",
+        "border": "#4a505c",
+        "token": "#4a505c"
+       }
+      },
+      "all_match": true
+     },
+     "dark": {
+      "tiles": {
+       "ringkasan": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       },
+       "crm": {
+        "accent": "4",
+        "border": "#bd7efc",
+        "token": "#bd7efc"
+       },
+       "est": {
+        "accent": "4",
+        "border": "#bd7efc",
+        "token": "#bd7efc"
+       },
+       "eng": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       },
+       "prj": {
+        "accent": "1",
+        "border": "#5b8def",
+        "token": "#5b8def"
+       },
+       "qc": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       },
+       "prc": {
+        "accent": "3",
+        "border": "#49e181",
+        "token": "#49e181"
+       },
+       "inv": {
+        "accent": "3",
+        "border": "#49e181",
+        "token": "#49e181"
+       },
+       "scm": {
+        "accent": "3",
+        "border": "#49e181",
+        "token": "#49e181"
+       },
+       "fin": {
+        "accent": "2",
+        "border": "#f9913c",
+        "token": "#f9913c"
+       },
+       "hr": {
+        "accent": "5",
+        "border": "#00d4f2",
+        "token": "#00d4f2"
+       },
+       "svc": {
+        "accent": "7",
+        "border": "#fbcd1a",
+        "token": "#fbcd1a"
+       },
+       "ast": {
+        "accent": "6",
+        "border": "#f57272",
+        "token": "#f57272"
+       },
+       "iam": {
+        "accent": "8",
+        "border": "#afb3bc",
+        "token": "#afb3bc"
+       }
+      },
+      "all_match": true
+     }
+    },
+    "accents_ok": true
+   },
+   "warehouse": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "tiles": [
+     {
+      "prefix": "ringkasan",
+      "accent": "8",
+      "label": "Ringkasan",
+      "kpi": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "screens": "4 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "eng",
+      "accent": "8",
+      "label": "Engineering",
+      "kpi": "—",
+      "unit": "",
+      "caption": "",
+      "screens": "1 layar",
+      "h": 120.8,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "prj",
+      "accent": "1",
+      "label": "Proyek",
+      "kpi": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "screens": "20 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(26, 86, 219)"
+     },
+     {
+      "prefix": "inv",
+      "accent": "3",
+      "label": "Persediaan",
+      "kpi": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "ast",
+      "accent": "6",
+      "label": "Aset",
+      "kpi": "—",
+      "unit": "",
+      "caption": "",
+      "screens": "1 layar",
+      "h": 120.8,
+      "w": 362,
+      "border": "rgb(151, 14, 42)"
+     },
+     {
+      "prefix": "iam",
+      "accent": "8",
+      "label": "Sistem",
+      "kpi": "—",
+      "unit": "",
+      "caption": "",
+      "screens": "2 layar",
+      "h": 120.8,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     }
+    ],
+    "nav_prefixes": [
+     "ringkasan",
+     "eng",
+     "prj",
+     "inv",
+     "ast",
+     "iam"
+    ],
+    "nav_screens": {
+     "ringkasan": 4,
+     "eng": 1,
+     "prj": 20,
+     "inv": 8,
+     "ast": 1,
+     "iam": 2
+    },
+    "sections": [
+     "MODUL"
+    ],
+    "chips": [],
+    "search_h": 44,
+    "landing_after_login": "#/home",
+    "viewport": {
+     "width": 390,
+     "height": 844
+    },
+    "tiles_equal_nav": true,
+    "only_in_tiles": [],
+    "only_in_nav": [],
+    "screens_label_ok": true,
+    "permissions": 5,
+    "kpi_checks": {
+     "ringkasan": {
+      "perm": null,
+      "expected": 0,
+      "tile": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "calls": [
+       {
+        "path": "core/notifications/unread-count",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "eng": {
+      "perm": "eng.view",
+      "held": false,
+      "tile": "—",
+      "calls": [
+       {
+        "path": "engineering/drawing-submittals",
+        "params": {
+         "current_only": 1,
+         "per_page": 500
+        },
+        "status": 200
+       }
+      ],
+      "ok": true,
+      "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"
+     },
+     "prj": {
+      "perm": "prj.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "proyek",
+      "caption": "Proyek aktif",
+      "calls": [
+       {
+        "path": "projects",
+        "params": {
+         "status": "active"
+        },
+        "status": 200
+       },
+       {
+        "path": "projects",
+        "params": {
+         "status": "finishing"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "inv": {
+      "perm": "inv.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "calls": [
+       {
+        "path": "inventory/stock/low-stock",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "ast": {
+      "perm": "ast.view",
+      "held": false,
+      "tile": "—",
+      "calls": [
+       {
+        "path": "assets/assets",
+        "params": {
+         "status": "maintenance"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true,
+      "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"
+     },
+     "iam": {
+      "perm": "core.update",
+      "held": false,
+      "tile": "—",
+      "calls": [
+       {
+        "path": "core/queue/failed",
+        "params": {},
+        "status": 403
+       }
+      ],
+      "ok": true,
+      "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"
+     }
+    },
+    "kpi_all_match": true,
+    "kpi_mismatches": [],
+    "no_fake_zero": true,
+    "endpoint_open_without_permission": [
+     {
+      "prefix": "eng",
+      "perm": "eng.view",
+      "path": "engineering/drawing-submittals",
+      "answered": 0
+     },
+     {
+      "prefix": "ast",
+      "perm": "ast.view",
+      "path": "assets/assets",
+      "answered": 0
+     }
+    ]
+   },
+   "teknisi": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "tiles": [
+     {
+      "prefix": "ringkasan",
+      "accent": "8",
+      "label": "Ringkasan",
+      "kpi": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "screens": "4 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(74, 80, 92)"
+     },
+     {
+      "prefix": "inv",
+      "accent": "3",
+      "label": "Persediaan",
+      "kpi": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "screens": "8 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(0, 125, 61)"
+     },
+     {
+      "prefix": "svc",
+      "accent": "7",
+      "label": "Layanan",
+      "kpi": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "screens": "5 layar",
+      "h": 123.2,
+      "w": 362,
+      "border": "rgb(146, 97, 0)"
+     }
+    ],
+    "nav_prefixes": [
+     "ringkasan",
+     "inv",
+     "svc"
+    ],
+    "nav_screens": {
+     "ringkasan": 4,
+     "inv": 8,
+     "svc": 5
+    },
+    "sections": [
+     "FAVORIT",
+     "TERAKHIR DIBUKA",
+     "MODUL"
+    ],
+    "chips": [
+     {
+      "href": "#/r/servicedesk/tickets",
+      "h": 55.5
+     },
+     {
+      "href": "#/d/servicedesk/tickets/1",
+      "h": 55.5
+     }
+    ],
+    "search_h": 44,
+    "landing_after_login": "#/home",
+    "viewport": {
+     "width": 390,
+     "height": 844
+    },
+    "tiles_equal_nav": true,
+    "only_in_tiles": [],
+    "only_in_nav": [],
+    "screens_label_ok": true,
+    "permissions": 5,
+    "kpi_checks": {
+     "ringkasan": {
+      "perm": null,
+      "expected": 0,
+      "tile": "0",
+      "unit": "notifikasi",
+      "caption": "Notifikasi belum dibaca",
+      "calls": [
+       {
+        "path": "core/notifications/unread-count",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "inv": {
+      "perm": "inv.view",
+      "expected": 0,
+      "tile": "0",
+      "unit": "item",
+      "caption": "Item di bawah stok minimum",
+      "calls": [
+       {
+        "path": "inventory/stock/low-stock",
+        "params": {},
+        "status": 200
+       }
+      ],
+      "ok": true
+     },
+     "svc": {
+      "perm": "svc.view",
+      "expected": 2,
+      "tile": "2",
+      "unit": "tiket",
+      "caption": "Tiket belum selesai",
+      "calls": [
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "open"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "assigned"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "in_progress"
+        },
+        "status": 200
+       },
+       {
+        "path": "servicedesk/tickets",
+        "params": {
+         "status": "pending_customer"
+        },
+        "status": 200
+       }
+      ],
+      "ok": true
+     }
+    },
+    "kpi_all_match": true,
+    "kpi_mismatches": [],
+    "no_fake_zero": true,
+    "endpoint_open_without_permission": []
+   }
+  },
+  "landing": {
+   "viewport_w": 390,
+   "expected": "#/home",
+   "measured": "#/home",
+   "ok": true
+  },
+  "favorite_write": {
+   "pressed": "true",
+   "server": [
+    "r/servicedesk/tickets",
+    "r/servicedesk/preventive-schedules"
+   ]
+  },
+  "favorite_new_context": {
+   "sections": [
+    "FAVORIT",
+    "TERAKHIR DIBUKA",
+    "MODUL"
+   ],
+   "favorites": [
+    "#/r/servicedesk/tickets",
+    "#/r/servicedesk/preventive-schedules"
+   ],
+   "sidebar": [
+    "#/r/servicedesk/tickets",
+    "#/r/servicedesk/preventive-schedules",
+    "#/d/servicedesk/tickets/1"
+   ],
+   "local_prefs_before_load": null,
+   "ok": true
+  },
+  "taps_to_lapangan": {
+   "from": "#/home",
+   "taps": 2,
+   "hash": "#/lapangan",
+   "target_le_2": true
+  },
+  "pageerrors": [],
+  "console_errors": {
+   "count": 0,
+   "first": []
+  },
+  "console_errors_from_probe": {
+   "count": 1,
+   "first": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ]
+  },
+  "_ms": 43556,
+  "_clicks": 2
+ },
+ "S22_roles_with_tiles": {
+  "roles": {
+   "admin": {
+    "launcher_tiles": 14,
+    "dashboard_stats": 6,
+    "prefixes": [
+     "ringkasan",
+     "crm",
+     "est",
+     "eng",
+     "prj",
+     "qc",
+     "prc",
+     "inv",
+     "scm",
+     "fin",
+     "hr",
+     "svc",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [],
+    "empty_state": false
+   },
+   "direktur": {
+    "launcher_tiles": 14,
+    "dashboard_stats": 6,
+    "prefixes": [
+     "ringkasan",
+     "crm",
+     "est",
+     "eng",
+     "prj",
+     "qc",
+     "prc",
+     "inv",
+     "scm",
+     "fin",
+     "hr",
+     "svc",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "project-manager": {
+    "launcher_tiles": 9,
+    "dashboard_stats": 1,
+    "prefixes": [
+     "ringkasan",
+     "est",
+     "eng",
+     "prj",
+     "qc",
+     "inv",
+     "scm",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "site-manager": {
+    "launcher_tiles": 7,
+    "dashboard_stats": 1,
+    "prefixes": [
+     "ringkasan",
+     "eng",
+     "prj",
+     "qc",
+     "inv",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [
+     "ast",
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "estimator": {
+    "launcher_tiles": 7,
+    "dashboard_stats": 1,
+    "prefixes": [
+     "ringkasan",
+     "crm",
+     "est",
+     "eng",
+     "prj",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [
+     "ast",
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "procurement": {
+    "launcher_tiles": 6,
+    "dashboard_stats": 0,
+    "prefixes": [
+     "ringkasan",
+     "est",
+     "eng",
+     "prc",
+     "inv",
+     "iam"
+    ],
+    "unknown_counts": [
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "warehouse": {
+    "launcher_tiles": 6,
+    "dashboard_stats": 1,
+    "prefixes": [
+     "ringkasan",
+     "eng",
+     "prj",
+     "inv",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [
+     "eng",
+     "ast",
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "finance": {
+    "launcher_tiles": 7,
+    "dashboard_stats": 4,
+    "prefixes": [
+     "ringkasan",
+     "crm",
+     "prc",
+     "scm",
+     "fin",
+     "hr",
+     "ast"
+    ],
+    "unknown_counts": [],
+    "empty_state": false
+   },
+   "finance-manager": {
+    "launcher_tiles": 5,
+    "dashboard_stats": 4,
+    "prefixes": [
+     "ringkasan",
+     "crm",
+     "prc",
+     "scm",
+     "fin"
+    ],
+    "unknown_counts": [],
+    "empty_state": false
+   },
+   "hr": {
+    "launcher_tiles": 3,
+    "dashboard_stats": 0,
+    "prefixes": [
+     "ringkasan",
+     "hr",
+     "iam"
+    ],
+    "unknown_counts": [
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "sales": {
+    "launcher_tiles": 7,
+    "dashboard_stats": 2,
+    "prefixes": [
+     "ringkasan",
+     "crm",
+     "eng",
+     "prj",
+     "svc",
+     "ast",
+     "iam"
+    ],
+    "unknown_counts": [
+     "eng",
+     "ast",
+     "iam"
+    ],
+    "empty_state": false
+   },
+   "teknisi": {
+    "launcher_tiles": 3,
+    "dashboard_stats": 1,
+    "prefixes": [
+     "ringkasan",
+     "inv",
+     "svc"
+    ],
+    "unknown_counts": [],
+    "empty_state": false
+   }
+  },
+  "roles_measured": 12,
+  "roles_without_launcher_tile": [],
+  "roles_without_dashboard_stat": [
+   "procurement",
+   "hr"
+  ],
+  "tiles_by_role": {
+   "admin": 14,
+   "direktur": 14,
+   "project-manager": 9,
+   "site-manager": 7,
+   "estimator": 7,
+   "procurement": 6,
+   "warehouse": 6,
+   "finance": 7,
+   "finance-manager": 5,
+   "hr": 3,
+   "sales": 7,
+   "teknisi": 3
+  },
+  "_ms": 79326,
+  "_clicks": 0
  }
 }

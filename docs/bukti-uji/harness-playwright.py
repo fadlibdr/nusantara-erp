@@ -61,7 +61,10 @@ def login(page, email, onboarding="decide"):
     # kena 429 (diamati 4 Sep 2026: teknisi/sales/finance bergantian, POST-nya tidak pernah sampai ke
     # log php -S, toast-nya sudah lenyap saat 15 s habis). Ditunggu sesuai Retry-After lalu diklik
     # lagi — yang dilakukan orang juga; tidak masuk hitungan klik skenario.
-    for _ in range(3):
+    # Enam percobaan, bukan tiga (P1-C, 6 Sep 2026): S22 + S22m + S22r berurutan memasukkan 23 sesi,
+    # dan tiga percobaan habis di tengah S22m — skenarionya mati di wait_for_selector('nav.nav')
+    # dengan sebab yang tidak ada hubungannya dengan yang diujinya.
+    for _ in range(6):
         with page.expect_response(lambda r: "iam/auth/login" in r.url, timeout=15000) as info:
             page.click("button[type=submit]")
         if info.value.status != 429:
@@ -1997,6 +2000,384 @@ def module_accents(pg, tag):
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
     return out
 
+
+# ------------------------------------------------- S22 kebenaran hitungan launcher
+
+# Filter per modul yang dipakai untuk MEMERIKSA setiap ubin — ditulis di sini,
+# bukan dibaca dari server: pemeriksa yang memanggil kueri yang sama dengan yang
+# diperiksanya tidak memeriksa apa pun. Tiap entri menyebut endpoint DAFTAR milik
+# modulnya (layar yang dibuka orang dari ubin itu), parameter penyaringnya, dan
+# cara membaca angkanya:
+#   meta_total       jumlah baris yang dilaporkan meta.total (dijumlahkan bila
+#                    filternya beberapa status — endpoint daftar hanya menerima
+#                    satu status per permintaan)
+#   unread_field     data.unread pada core/notifications/unread-count
+#   rows             panjang daftar (endpoint tanpa paginasi)
+#   decision_null    baris SDS yang belum diputus (tidak ada filter "belum
+#                    diputus"; yang ada filter decision=<nilai>)
+#   outstanding_gt0  invoice approved yang masih bersisa (resource-nya sudah
+#                    membawa `outstanding`, jadi tidak ada aritmetika di sini)
+#
+# `perm` adalah izin yang HARUS dipegang agar ubinnya berangka — ditulis lagi di
+# sini, sengaja, sebagai pernyataan independen dari registri. Ia bukan sama
+# dengan "endpoint daftarnya menjawab": sebagian rute index modul memang tidak
+# bergerbang izin di server (hanya tulisnya yang bergerbang), sementara LAYAR-nya
+# di SPA bergerbang `<modul>.view`. Selisih itu direkam di bawah sebagai
+# endpoint_open_without_permission — temuan yang dilaporkan, bukan diperbaiki
+# paket ini (mengubah gerbang rute adalah perubahan izin dengan paketnya sendiri).
+LAUNCHER_CHECKS = {
+    "ringkasan": {"perm": None, "path": "core/notifications/unread-count", "params": [{}], "read": "unread_field"},
+    "crm":       {"perm": "crm.view", "path": "crm/leads", "params": [{"status": s} for s in ("new", "contacted", "qualified", "proposal")], "read": "meta_total"},
+    "est":       {"perm": "est.view", "path": "estimation/boqs", "params": [{"status": "submitted"}], "read": "meta_total"},
+    "eng":       {"perm": "eng.view", "path": "engineering/drawing-submittals", "params": [{"current_only": 1, "per_page": 500}], "read": "decision_null"},
+    "prj":       {"perm": "prj.view", "path": "projects", "params": [{"status": "active"}, {"status": "finishing"}], "read": "meta_total"},
+    "qc":        {"perm": "qc.view", "path": "quality/ncr", "params": [{"status": "open"}, {"status": "under_correction"}], "read": "meta_total"},
+    "prc":       {"perm": "prc.view", "path": "procurement/purchase-orders", "params": [{"status": "approved"}], "read": "meta_total"},
+    "inv":       {"perm": "inv.view", "path": "inventory/stock/low-stock", "params": [{}], "read": "rows"},
+    "scm":       {"perm": "scm.view", "path": "subcontract/progress-claims", "params": [{"status": "submitted"}], "read": "meta_total"},
+    "fin":       {"perm": "fin.view", "path": "finance/ar-invoices", "params": [{"status": "approved", "per_page": 500}], "read": "outstanding_gt0"},
+    "hr":        {"perm": "hr.view", "path": "hr/leave-requests", "params": [{"status": "submitted"}], "read": "meta_total"},
+    "svc":       {"perm": "svc.view", "path": "servicedesk/tickets", "params": [{"status": s} for s in ("open", "assigned", "in_progress", "pending_customer")], "read": "meta_total"},
+    "ast":       {"perm": "ast.view", "path": "assets/assets", "params": [{"status": "maintenance"}], "read": "meta_total"},
+    "iam":       {"perm": "core.update", "path": "core/queue/failed", "params": [{}], "read": "meta_total"},
+}
+
+# Permintaan dijalankan DI DALAM halaman dengan token sesi peramban itu sendiri —
+# bukan lewat token_for(), yang berarti satu login tambahan per pemeriksaan
+# (iam/auth/login dibatasi 10/menit/IP) dan, lebih penting, izin yang belum tentu
+# sama dengan sesi yang sedang menggambar ubinnya.
+API_IN_PAGE = """async ([url, params]) => {
+    const u = new URL(url);
+    Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+    const r = await fetch(u, { headers: { Accept: 'application/json', 'X-Api-Token': localStorage.getItem('nusantara_erp_token') } });
+    let body = null; try { body = await r.json(); } catch (e) { body = null; }
+    return { status: r.status, data: (body && body.data !== undefined) ? body.data : null, meta: (body || {}).meta || null };
+}"""
+
+LAUNCHER_TILES = """() => {
+    const cell = (t, sel) => (t.querySelector(sel) || {}).innerText || '';
+    const groups = [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')];
+    return {
+        hash: location.hash,
+        h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+        tiles: [...document.querySelectorAll('.home-tile')].map(t => {
+            const r = t.getBoundingClientRect();
+            return { prefix: t.dataset.prefix, accent: t.dataset.accent,
+                     label: cell(t, '.home-tile-label').trim(), kpi: cell(t, '.home-kpi-value').trim(),
+                     unit: cell(t, '.home-kpi-unit').trim(), caption: cell(t, '.home-kpi-label').trim(),
+                     screens: cell(t, '.home-tile-screens').trim(),
+                     h: +r.height.toFixed(1), w: +r.width.toFixed(1),
+                     border: getComputedStyle(t).borderLeftColor };
+        }),
+        nav_prefixes: groups.map(g => g.dataset.prefix),
+        nav_screens: Object.fromEntries(groups.map(g => [g.dataset.prefix, g.querySelectorAll('.nav-items a').length])),
+        sections: [...document.querySelectorAll('.home-section-title')].map(h => h.innerText.trim()),
+        chips: [...document.querySelectorAll('.home-chip')].map(a => ({ href: a.getAttribute('href'), h: +a.getBoundingClientRect().height.toFixed(1) })),
+        search_h: (s => s ? +s.getBoundingClientRect().height.toFixed(1) : null)(document.querySelector('.home-search')),
+    };
+}"""
+
+
+def api_in_page(pg, path, params):
+    return pg.evaluate(API_IN_PAGE, [API + path, {k: str(v) for k, v in params.items()}])
+
+
+def expected_count(pg, prefix):
+    """Angka yang DIJANJIKAN ubin, dihitung ulang dari endpoint daftar modulnya.
+
+    None = endpoint menolak (403/401) — dan ubinnya karena itu WAJIB '—': server
+    tidak mengirim entri untuk modul yang izin hitungannya tidak dipegang."""
+    spec = LAUNCHER_CHECKS[prefix]
+    total, calls = 0, []
+    for params in spec["params"]:
+        res = api_in_page(pg, spec["path"], params)
+        calls.append({"path": spec["path"], "params": params, "status": res["status"]})
+        if res["status"] != 200:
+            return None, calls
+        if spec["read"] == "meta_total":
+            total += int((res["meta"] or {}).get("total", 0))
+        elif spec["read"] == "unread_field":
+            total += int((res["data"] or {}).get("unread", 0))
+        elif spec["read"] == "rows":
+            total += len(res["data"] or [])
+        elif spec["read"] == "decision_null":
+            total += sum(1 for row in (res["data"] or []) if row.get("decision") is None)
+        elif spec["read"] == "outstanding_gt0":
+            total += sum(1 for row in (res["data"] or []) if float(row.get("outstanding") or 0) > 0)
+    return total, calls
+
+
+def launcher_for(pg, email, tag, theme_probe=False):
+    """Satu peran: ubin vs NAV, ubin vs endpoint daftar, dan (bila diminta) warna
+    aksen ubin di dua tema."""
+    pg.context.clear_cookies()
+    pg.goto(BASE)
+    pg.evaluate("() => localStorage.clear()")
+    login(pg, email)
+    landing = pg.evaluate("() => location.hash")
+
+    pg.goto(BASE + "#/home")
+    pg.wait_for_selector(".home-tile, #view .empty", timeout=15000)
+    pg.wait_for_timeout(1200)
+    out = pg.evaluate(LAUNCHER_TILES)
+    out["landing_after_login"] = landing
+    out["viewport"] = pg.viewport_size
+
+    # 1. Ubin yang tampil == modul dengan sedikitnya satu layar yang bisa dibuka
+    #    (grup NAV yang terlihat), dalam urutan yang sama.
+    shown = [t["prefix"] for t in out["tiles"]]
+    out["tiles_equal_nav"] = shown == out["nav_prefixes"]
+    out["only_in_tiles"] = sorted(set(shown) - set(out["nav_prefixes"]))
+    out["only_in_nav"] = sorted(set(out["nav_prefixes"]) - set(shown))
+    out["screens_label_ok"] = all(t["screens"] == f"{out['nav_screens'].get(t['prefix'], -1)} layar" for t in out["tiles"])
+
+    # 2. Setiap angka ubin == angka endpoint daftar modulnya dengan filter yang
+    #    sama — dan ubin yang izinnya tidak dipegang WAJIB '—', tidak pernah 0.
+    held = pg.evaluate("() => (JSON.parse(localStorage.getItem('nusantara_erp_user') || '{}').permissions || [])")
+    out["permissions"] = len(held)
+    checks, open_endpoints = {}, []
+    for tile in out["tiles"]:
+        prefix = tile["prefix"]
+        if prefix not in LAUNCHER_CHECKS:
+            checks[prefix] = {"ERROR": "tidak ada filter pembanding untuk modul ini"}
+            continue
+        spec = LAUNCHER_CHECKS[prefix]
+        may = spec["perm"] is None or spec["perm"] in held
+        expected, calls = expected_count(pg, prefix)
+        shown_kpi = tile["kpi"]
+        if not may and expected is not None:
+            # Rute index-nya menjawab walau izin layarnya tidak dipegang.
+            open_endpoints.append({"prefix": prefix, "perm": spec["perm"], "path": spec["path"], "answered": expected})
+        if may:
+            ok = expected is not None and shown_kpi == str(expected)
+            checks[prefix] = {"perm": spec["perm"], "expected": expected, "tile": shown_kpi, "unit": tile["unit"],
+                              "caption": tile["caption"], "calls": calls, "ok": ok}
+        else:
+            ok = shown_kpi == "—"
+            checks[prefix] = {"perm": spec["perm"], "held": False, "tile": shown_kpi, "calls": calls, "ok": ok,
+                              "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"}
+    out["kpi_checks"] = checks
+    out["kpi_all_match"] = all(c.get("ok") for c in checks.values())
+    out["kpi_mismatches"] = [p for p, c in checks.items() if not c.get("ok")]
+    # Kejujuran: tidak satu pun ubin tanpa izin menulis angka.
+    out["no_fake_zero"] = not any(c.get("held") is False and c["tile"] != "—" for c in checks.values())
+    # Temuan terpisah, DILAPORKAN dan tidak diperbaiki di sini: rute daftar yang
+    # menjawab tanpa gerbang izin sementara layarnya di SPA bergerbang.
+    out["endpoint_open_without_permission"] = open_endpoints
+
+    pg.screenshot(path=f"{OUT}/s22-home-{email.split('@')[0]}{tag}-p1c.png", full_page=True)
+
+    if theme_probe:
+        themes = {}
+        for theme in ("light", "dark"):
+            set_theme(pg, theme)
+            tok = pg.evaluate(ACCENT_TOKENS)["tokens"]
+            tiles = pg.evaluate(LAUNCHER_TILES)["tiles"]
+            rows = {t["prefix"]: {"accent": t["accent"], "border": rgb_to_hex(t["border"]),
+                                 "token": tok[t["accent"]]["accent"]} for t in tiles}
+            themes[theme] = {"tiles": rows, "all_match": all(r["border"] == r["token"] for r in rows.values())}
+            pg.screenshot(path=f"{OUT}/s22-home-{theme}{tag}-p1c.png", full_page=True)
+        set_theme(pg, None)
+        out["accents"] = themes
+        out["accents_ok"] = all(t["all_match"] for t in themes.values())
+
+    return out
+
+
+def launcher_truth(pg, tag):
+    errors, console_errors = [], []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+    mobile = pg.viewport_size["width"] < 760
+    out = {"viewport": pg.viewport_size}
+
+    # ---------------------------------------------------------------- migrasi
+    # Kunci localStorage P1-B DITANAM sebelum masuk, lalu dibuktikan: server
+    # memilikinya sesudah boot, dan kunci lokalnya sudah tidak ada. Dijalankan
+    # lebih dulu karena ia satu-satunya langkah yang menuntut peramban BERSIH.
+    pg.context.clear_cookies()
+    pg.goto(BASE)
+    pg.evaluate("() => localStorage.clear()")
+    decide_onboarding("teknisi@nusantara.test")
+    teknisi_id = user_id_of("teknisi@nusantara.test")
+    # Skenario ini MEMBUAT fixture-nya sendiri (pola S16, verifikasi P1-B putaran 3):
+    # jalan sebelumnya di salinan DB yang sama sudah memindahkan preferensi teknisi
+    # ke server, dan "migrasi dari nol" yang mengukur baris yang sudah ada di sana
+    # akan melaporkan gagal untuk alasan yang bukan produknya.
+    reset_preferences(teknisi_id)
+    pg.evaluate("""(id) => {
+        localStorage.setItem('nusantara_erp_fav:' + id, JSON.stringify(['r/servicedesk/tickets']));
+        localStorage.setItem('nusantara_erp_density:' + id, 'compact');
+        localStorage.setItem('nusantara_erp_recent:' + id, JSON.stringify([{ route: 'd/servicedesk/tickets/1', label: 'TKT-LAMA', sub: 'Tiket' }]));
+    }""", teknisi_id)
+    before = preferences_rows(teknisi_id)
+    login(pg, "teknisi@nusantara.test")
+    pg.wait_for_timeout(2500)
+    after = preferences_rows(teknisi_id)
+    local_after = pg.evaluate("""(id) => ['nusantara_erp_fav:', 'nusantara_erp_density:', 'nusantara_erp_recent:']
+        .filter(k => localStorage.getItem(k + id) !== null)""", teknisi_id)
+    out["migration"] = {
+        "server_before": before, "server_after": {k: v for k, v in after.items()},
+        "local_keys_left": local_after,
+        "density_applied": pg.evaluate("() => document.documentElement.dataset.density"),
+        "ok": before == {} and after.get("favorites") == ["r/servicedesk/tickets"] and after.get("density") == "compact"
+              and [e.get("route") for e in (after.get("recent") or [])] == ["d/servicedesk/tickets/1"]
+              and local_after == [],
+    }
+    # …dan sekali saja: masuk lagi tidak boleh menulis ulang apa pun dari lokal.
+    pg.goto(BASE)
+    pg.reload()
+    pg.wait_for_timeout(2500)
+    out["migration"]["server_after_second_boot"] = preferences_rows(teknisi_id)
+    out["migration"]["ran_once"] = out["migration"]["server_after_second_boot"] == after
+
+    # ------------------------------------------------------- tiga peran penuh
+    out["roles"] = {}
+    for index, email in enumerate(["admin@nusantara.test", "warehouse@nusantara.test", "teknisi@nusantara.test"]):
+        out["roles"][email.split("@")[0]] = launcher_for(pg, email, tag, theme_probe=(index == 0))
+
+    # --------------------------------------------------------- aturan landing
+    # Diukur di viewport skenario ini; pasangannya diukur skenario kembarannya.
+    out["landing"] = {"viewport_w": pg.viewport_size["width"],
+                      "expected": "#/dashboard" if not mobile else "#/home",
+                      "measured": out["roles"]["teknisi"]["landing_after_login"]}
+    out["landing"]["ok"] = out["landing"]["measured"] == out["landing"]["expected"]
+
+    # ------------------------------------------------- favorit lintas konteks
+    # Bintang dipasang di SATU peramban, dibaca di peramban BARU (konteks baru =
+    # localStorage kosong): kalau ia masih ada, ia datang dari server.
+    pg.goto(BASE + "#/m/svc")
+    pg.wait_for_selector(".module-cell > button.star", timeout=15000)
+    pg.wait_for_timeout(600)
+    star = ".module-cell:has(a[data-route='r/servicedesk/preventive-schedules']) > button.star"
+    click(pg, star)
+    pg.wait_for_timeout(1200)
+    out["favorite_write"] = {"pressed": pg.evaluate(f"() => document.querySelector({star!r}).getAttribute('aria-pressed')"),
+                             "server": preferences_rows(teknisi_id).get("favorites")}
+    fresh_ctx = pg.context.browser.new_context(viewport=pg.viewport_size)
+    fresh = fresh_ctx.new_page()
+    try:
+        login(fresh, "teknisi@nusantara.test")
+        fresh.goto(BASE + "#/home")
+        fresh.wait_for_selector(".home-tile", timeout=15000)
+        fresh.wait_for_timeout(1200)
+        out["favorite_new_context"] = fresh.evaluate("""() => ({
+            sections: [...document.querySelectorAll('.home-section-title')].map(h => h.innerText.trim()),
+            favorites: [...document.querySelectorAll('.home-section')].filter(s => /FAVORIT/i.test(s.innerText)).flatMap(s => [...s.querySelectorAll('a')].map(a => a.getAttribute('href'))),
+            sidebar: [...document.querySelectorAll("nav.nav .nav-group[data-kind='shortcut'] a")].map(a => a.getAttribute('href')),
+            local_prefs_before_load: null })""")
+        out["favorite_new_context"]["ok"] = "#/r/servicedesk/preventive-schedules" in out["favorite_new_context"]["favorites"]
+    finally:
+        fresh_ctx.close()
+
+    # ------------------------------------------------- ketuk ke Lapangan (ponsel)
+    if mobile:
+        pg.context.clear_cookies()
+        pg.goto(BASE)
+        pg.evaluate("() => localStorage.clear()")
+        login(pg, "site-manager@nusantara.test")
+        pg.wait_for_timeout(1500)
+        start_hash = pg.evaluate("() => location.hash")
+        CLICKS[0] = 0
+        tap(pg, ".home-tile[data-prefix=prj]")
+        pg.wait_for_timeout(1400)
+        tap(pg, ".module-card[data-route=lapangan]")
+        pg.wait_for_timeout(1800)
+        assert_screen(pg, "#/lapangan")
+        out["taps_to_lapangan"] = {"from": start_hash, "taps": CLICKS[0], "hash": pg.evaluate("() => location.hash"),
+                                   "target_le_2": CLICKS[0] <= 2}
+        pg.screenshot(path=f"{OUT}/s22-lapangan-2-taps{tag}-p1c.png")
+
+    out["pageerrors"] = errors
+    # Galat 403 di konsol berasal dari PEMERIKSA ini sendiri: setiap ubin diadu
+    # dengan endpoint daftar modulnya, termasuk untuk peran yang memang tidak
+    # boleh membacanya (itulah cara kita membuktikan ubinnya '—'). Dipisahkan
+    # supaya console_errors skenario tetap berarti "galat saat memakai aplikasi".
+    # …dan 429 berasal dari batas 10 login/menit/IP yang ditembus skenario ini
+    # sendiri (tiga peran + konteks baru + peran ponsel); login() menunggu
+    # Retry-After lalu mencoba lagi, jadi ia bukan kegagalan yang dilihat orang.
+    noisy = lambda c: "403" in c or "429" in c
+    from_probe = [c for c in console_errors if noisy(c)]
+    rest = [c for c in console_errors if not noisy(c)]
+    out["console_errors"] = {"count": len(rest), "first": rest[:3]}
+    out["console_errors_from_probe"] = {"count": len(from_probe), "first": from_probe[:2]}
+    return out
+
+
+def user_id_of(email):
+    con = sqlite3.connect(DB); row = con.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone(); con.close()
+    return row[0] if row else None
+
+
+def reset_preferences(user_id):
+    con = sqlite3.connect(DB); con.execute("DELETE FROM core_user_preferences WHERE user_id=?", (user_id,)); con.commit(); con.close()
+
+
+def preferences_rows(user_id):
+    """Isi core_user_preferences milik satu pengguna, dibaca LANGSUNG dari sqlite —
+    bukti sisi-server yang tidak bisa dipalsukan localStorage peramban."""
+    con = sqlite3.connect(DB)
+    rows = con.execute("SELECT key, value FROM core_user_preferences WHERE user_id=?", (user_id,)).fetchall()
+    con.close()
+    return {k: json.loads(v) for k, v in rows}
+
+
+@scenario("S22_launcher_truth")
+def s22(pg):
+    return launcher_truth(pg, "")
+
+
+@scenario("S22_launcher_truth_mobile")
+def s22m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return launcher_truth(pg, "-mobile")
+    finally:
+        ctx.close()
+
+
+@scenario("S22_roles_with_tiles")
+def s22r(pg):
+    """Target metrik Fase 1 "0 peran tanpa ubin", diukur dengan MASUK sebagai
+    kedua belas akun demo — bukan dengan membaca RoleSeeder. Yang dicatat per
+    peran: jumlah ubin launcher, jumlah ubin angka dasbor (.stat), dan angka
+    yang tidak diketahui ('—'), supaya "punya ubin" tidak pernah berarti "ubin
+    yang tak satu pun berisi"."""
+    roles = ["admin", "direktur", "project-manager", "site-manager", "estimator", "procurement",
+             "warehouse", "finance", "finance-manager", "hr", "sales", "teknisi"]
+    out = {}
+    for role in roles:
+        pg.context.clear_cookies()
+        pg.goto(BASE)
+        pg.evaluate("() => localStorage.clear()")
+        try:
+            login(pg, f"{role}@nusantara.test")
+        except Exception as e:
+            out[role] = {"ERROR": str(e)[:140]}
+            continue
+        pg.goto(BASE + "#/dashboard")
+        pg.wait_for_timeout(1800)
+        stats = pg.evaluate("() => document.querySelectorAll('.stat').length")
+        pg.goto(BASE + "#/home")
+        pg.wait_for_selector(".home-tile, #view .empty", timeout=15000)
+        pg.wait_for_timeout(1200)
+        out[role] = pg.evaluate("""(stats) => {
+            const tiles = [...document.querySelectorAll('.home-tile')];
+            return { launcher_tiles: tiles.length,
+                     dashboard_stats: stats,
+                     prefixes: tiles.map(t => t.dataset.prefix),
+                     unknown_counts: tiles.filter(t => t.querySelector('.home-kpi-value').innerText.trim() === '—').map(t => t.dataset.prefix),
+                     empty_state: !!document.querySelector('#view .empty') };
+        }""", stats)
+    ok = [r for r, v in out.items() if not v.get("ERROR")]
+    return {"roles": out,
+            "roles_measured": len(ok),
+            "roles_without_launcher_tile": [r for r in ok if out[r]["launcher_tiles"] == 0],
+            "roles_without_dashboard_stat": [r for r in ok if out[r]["dashboard_stats"] == 0],
+            "tiles_by_role": {r: out[r]["launcher_tiles"] for r in ok}}
+
+
 @scenario("S21_module_accents_breadcrumb")
 def s21(pg):
     return module_accents(pg, "")
@@ -2020,7 +2401,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
