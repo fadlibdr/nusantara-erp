@@ -219,10 +219,31 @@ export function openDashboardSetup(current, onSaved) {
 
   paint();
 
-  modal({
+  /* Bentuk yang dibandingkan penjaga: apa yang benar-benar akan DITULIS.
+     Memakai `merged()` dan bukan `draft` supaya entri tersembunyi tidak
+     pernah terhitung sebagai perubahan. */
+  const asWritten = JSON.stringify(merged());
+
+  const dialog = modal({
     title: 'Atur dasbor',
     width: 'wide',
     body,
+    /* Penjaga "perubahan belum disimpan" — yang docblock di atas sebut sebagai
+       ALASAN memilih modal(). `dirty` adalah opsi (ui.js: `if (!dirty) {
+       close(); return true; }`), dan panggilan ini tidak melewatkannya sampai
+       verifikasi kedua P1-D: Escape, klik latar, atau 'Batal' membuang
+       susunan yang baru saja ditata tanpa satu pertanyaan pun. Terukur:
+       sembilan baris ditata ulang, satu ketukan Escape, tidak ada dialog dan
+       tidak ada yang tersisa. */
+    dirty: () => JSON.stringify(merged()) !== asWritten,
+    dirtyPrompt: {
+      title: 'Buang perubahan susunan dasbor?',
+      message: 'Urutan, ukuran dan pilihan widget yang baru Anda atur belum disimpan dan akan hilang.',
+      // Bawaan modal() berbunyi "Buang isian"/"Kembali mengisi" — kata-kata
+      // formulir, dan laci ini tidak punya satu isian pun.
+      confirmLabel: 'Buang perubahan',
+      cancelLabel: 'Kembali menata',
+    },
     footer: el('div', { style: { display: 'flex', gap: '8px', width: '100%' } }, [
       button('Kembalikan ke bawaan', {
         variant: 'ghost',
@@ -236,7 +257,9 @@ export function openDashboardSetup(current, onSaved) {
         },
       }),
       el('.spacer', { style: { flex: '1' } }),
-      button('Batal', { variant: 'ghost', onClick: () => closeModal() }),
+      // requestClose(), bukan closeModal(): 'Batal' harus melewati penjaga
+      // yang sama dengan Escape dan klik latar (pola periods.js).
+      button('Batal', { variant: 'ghost', onClick: () => dialog.requestClose() }),
       button('Simpan', {
         variant: 'primary',
         onClick: () => {

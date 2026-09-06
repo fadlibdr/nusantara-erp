@@ -19732,6 +19732,21 @@
       "tenggat",
       "kalender"
     ],
+    "dirty_guard": {
+      "prompt": "Buang perubahan susunan dasbor?\n\nUrutan, ukuran dan pilihan widget yang baru Anda atur belum disimpan dan akan hilang.\n\nKembali menata\nBuang perubahan",
+      "drawer_still_open": true,
+      "order_kept": [
+        "proyeksi-kas",
+        "inbox",
+        "ar-aging",
+        "evm",
+        "siap-tagih",
+        "saldo-bank",
+        "pipeline",
+        "tenggat",
+        "kalender"
+      ]
+    },
     "after_save": [
       "proyeksi-kas",
       "inbox",
@@ -19817,7 +19832,7 @@
     },
     "resized_survived": true,
     "ok": true,
-    "_ms": 16123,
+    "_ms": 16378,
     "_clicks": 8
   },
   "S23_honest_failure": {

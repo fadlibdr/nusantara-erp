@@ -3521,6 +3521,30 @@ def s23s(pg):
     order_in_drawer = pg.evaluate(
         "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
 
+    # PENJAGA "perubahan belum disimpan", sebelum menyimpan apa pun.
+    #
+    # docblock dashsetup.js memilih modal() justru KARENA aplikasi ini sudah
+    # punya penjaga itu — tetapi `dirty` adalah opsi yang harus dilewatkan, dan
+    # sampai verifikasi kedua P1-D panggilannya tidak melewatkannya: satu
+    # ketukan Escape membuang urutan yang baru saja ditata, tanpa satu
+    # pertanyaan pun. Di sini Escape ditekan dengan draft yang SUDAH berubah,
+    # dan yang diukur adalah dialognya muncul dan lacinya tetap terbuka.
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(600)
+    dirty_guard = pg.evaluate("""() => ({
+        prompt: (document.querySelector('.overlay-stacked .modal') || {}).innerText || null,
+        drawer_still_open: !!document.querySelector('.modal .dash-setup-list'),
+    })""")
+    # "Kembali menata": lacinya harus utuh, termasuk urutan yang sudah diubah.
+    pg.evaluate("""() => {
+        const buttons = [...document.querySelectorAll('.overlay-stacked .modal-foot button')];
+        const back = buttons.find((b) => !b.classList.contains('primary')) || buttons[0];
+        if (back) back.click();
+    }""")
+    pg.wait_for_timeout(400)
+    dirty_guard["order_kept"] = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
+
     click(pg, ".modal-foot button:has-text('Simpan')")
     pg.wait_for_timeout(1200)
     after_save = [c["id"] for c in pg.evaluate(DASH_CARDS)]
@@ -3590,6 +3614,7 @@ def s23s(pg):
         "resized": resized, "resized_from": now, "resized_to": target,
         "moved_up": second,
         "order_in_drawer": order_in_drawer,
+        "dirty_guard": dirty_guard,
         "after_save": after_save,
         "after_fresh_context": reloaded_ids,
         "stored_preference": stored,
@@ -3601,7 +3626,11 @@ def s23s(pg):
         # satu-satunya perubahan yang tidak berupa urutan tidak pernah diuji.
         "resized_survived": {c["id"]: c["size"] for c in reloaded}.get(resized) == target,
         "ok": (
-            removed not in reloaded_ids
+            # Escape pada draf yang berubah BERTANYA dulu, dan lacinya utuh.
+            bool(dirty_guard["prompt"]) and "belum disimpan" in (dirty_guard["prompt"] or "")
+            and dirty_guard["drawer_still_open"]
+            and dirty_guard["order_kept"] == order_in_drawer
+            and removed not in reloaded_ids
             and reloaded_ids == order_in_drawer
             and reloaded_ids == after_save
             and isinstance(stored, list) and len(stored) == len(reloaded_ids)
