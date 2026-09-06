@@ -199,7 +199,7 @@ kelompok itu yang boleh mereka buka.
 dan memberi tahu pilihannya lewat notifikasi kecil. Pilihan tema, lipatan sidebar, dan
 jumlah baris per halaman **disimpan di peramban ini**, bukan di akun Anda — komputer lain
 mulai dari bawaan lagi. Yang sebaliknya, **disimpan pada akun Anda dan ikut ke perangkat
-mana pun**: Favorit, Terakhir dibuka, dan Kepadatan.
+mana pun**: Favorit, Terakhir dibuka, Kepadatan, dan **susunan dasbor** (§1.4b).
 
 **Dialog Akun** (klik kotak nama): memperlihatkan nama, email, **Peran**, dan
 **Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Kepadatan**
@@ -265,6 +265,50 @@ pasang di komputer kantor ada juga di tablet lapangan, dan membersihkan data per
 menghapusnya. Bintang bisa dipasang dari baris sidebar maupun dari kartu di beranda modul —
 keduanya menulis daftar yang sama.
 
+### 1.4b Dasbor — dan cara mengaturnya
+
+Dasbor (`#/dashboard`) tersusun dari **widget**: kartu-kartu yang masing-masing menjawab satu
+pertanyaan. Anda memilih sendiri widget mana yang ada di sana, seberapa lebar, dan dalam urutan
+apa.
+
+**Hari pertama Anda sudah terisi.** Sebelum Anda pernah mengatur apa pun, dasbor memakai susunan
+bawaan **peran Anda** — misalnya seorang petugas gudang membuka dengan *Stok di bawah minimum*
+selebar layar, sedangkan bagian keuangan membuka dengan piutang, hutang, dan proyeksi kas. Widget
+yang izinnya tidak Anda pegang tidak pernah digambar dan tidak pernah ditawarkan.
+
+**Mengaturnya.** Tombol **`Atur dasbor`** di kanan atas membuka daftar dua bagian:
+
+- **Di dasbor Anda** — setiap baris punya pilihan **ukuran** (*Kecil* satu kolom, *Sedang* dua,
+  *Lebar* satu baris penuh), tombol **`Naik`** / **`Turun`** untuk memindahkannya, dan
+  **`Hapus`**. Baris juga bisa **diseret** dari gagang di kiri, termasuk dengan jari di layar
+  sentuh; kalau menyeret tidak bekerja, tombol Naik/Turun melakukan hal yang sama.
+- **Belum dipakai** — seluruh widget lain yang boleh Anda lihat, masing-masing dengan satu
+  kalimat tentang apa yang dihitungnya dan tombol **`Tambah`**.
+
+Perubahan baru tersimpan saat Anda menekan **`Simpan`**; **`Batal`** membuang semuanya, termasuk
+urutan yang sudah diseret. **`Kembalikan ke bawaan`** mengembalikan susunan peran Anda.
+Susunannya **diingat pada akun Anda**, jadi dasbor yang Anda tata di komputer kantor sama di
+tablet lapangan.
+
+**Widget dimuat empat-empat.** Kerangka semua kartu digambar lebih dulu, lalu isinya menyusul
+empat kartu sekaligus dari atas ke bawah — itu sebabnya kartu paling atas terisi duluan dan
+halaman tidak melompat-lompat saat Anda sudah mulai membaca.
+
+**Kartu yang gagal mengaku gagal.** Bila sumber sebuah widget tidak bisa dibaca, kartunya
+menuliskan *"Data widget ini gagal dimuat"* beserta tombol **`Coba lagi`** yang memuat ulang
+kartu itu saja — bukan seluruh dasbor. Angka yang tidak diketahui ditulis **`—`**, tidak pernah
+`Rp 0`: nol adalah pernyataan bahwa Anda sudah menghitung, dan sebuah "Hutang belum dibayar
+Rp 0" di atas data yang gagal dimuat adalah kabar baik yang tidak benar.
+
+**Spanduk penjadwal dan antrean** di atas dasbor (hanya bagi pemegang hak `core.update`) **bukan**
+widget dan tidak bisa dilepas — ia bukan angka yang Anda pilih untuk dibaca, melainkan kabar
+bahwa bagian dari sistem sedang mati.
+
+**`Proyek saya`** (hanya untuk akun yang tertaut data karyawan dan boleh melihat proyek) menyaring
+widget proyek ke proyek yang Anda kelola. Sakelar itu disimpan **di peramban ini**, bukan di akun
+Anda: ia dibalik beberapa kali sehari dan menceritakan apa yang sedang Anda kerjakan, bukan siapa
+Anda.
+
 ### 1.5 Pencarian
 
 1. Tekan **Ctrl+K** (atau **Cmd+K** di Mac), atau klik **`Cari`** di bilah atas.
@@ -316,20 +360,24 @@ Yang perlu Anda ketahui tentang lonceng:
 
 Ketiganya menjawab pertanyaan yang berbeda. Pakailah ketiganya.
 
-**a. Dasbor → kartu "Menunggu persetujuan Anda"** — kotak masuk persetujuan. Berisi
-dokumen berstatus **Diajukan** yang boleh Anda setujui, terbaru di atas, **paling banyak
-10 baris**. Klik baris untuk membukanya.
+**a. Dasbor → widget "Menunggu persetujuan Anda"** — kotak masuk persetujuan. Berisi
+dokumen berstatus **Diajukan** yang boleh Anda setujui, yang paling lama menunggu di atas.
+Widget menampilkan **lima baris** dengan tombol **`Lihat semua (n)`** di bawahnya; daftar
+penuhnya ada di **Ringkasan › Tugas Saya**. Klik baris untuk membukanya.
 
-Kartu ini hanya mencakup **11 jenis dokumen**: Penawaran, BOQ/RAB, RAP, Permintaan (PR),
-Pesanan (PO), SPK subkon, Opname subkon, Opname stok, Invoice termin, Tagihan vendor,
-Payroll. **Tidak** termasuk: pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK,
-baseline proyek, pengajuan cuti, dan ketiga izin lapangan (IKL/ILB/IMK, §7.13) —
-kesembilannya hanya sampai lewat lonceng dan lewat layar daftarnya sendiri yang
-disaring ke status **Diajukan**.
+Kartu ini mencakup **seluruh 28 jenis dokumen** yang punya alur persetujuan — termasuk
+pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK, baseline proyek, pengajuan cuti,
+dan ketiga izin lapangan (IKL/ILB/IMK, §7.13). Sampai 2 September 2026 kartu ini hanya
+menanyakan 11 jenis, sehingga sembilan jenis lainnya — pengajuan cuti di antaranya — tidak
+pernah terlihat oleh orang yang berhak menyetujuinya; sejak itu satu permintaan melayani
+seluruh registri.
 
 Bila salah satu sumber gagal dimuat, kartu berkata *"Tidak ada dokumen yang dapat
-ditampilkan"* dan menyebut sumber yang gagal. **Daftar yang pendek bukan bukti tidak ada
-yang menunggu.**
+ditampilkan"* dan **menyebut sumber yang gagal** di bawahnya ("Gagal dimuat: … Daftar ini
+belum lengkap."). **Daftar yang pendek bukan bukti tidak ada yang menunggu.**
+
+Widget ini hanya digambar bagi pemegang hak `.approve` mana pun. Bila peran Anda tidak
+menyetujui apa pun, kartunya tidak ada — dan permintaannya pun tidak dikirim.
 
 **b. Lonceng** — memberi tahu bahwa sesuatu *terjadi*. Ia menjadi basi.
 

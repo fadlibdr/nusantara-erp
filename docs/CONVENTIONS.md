@@ -347,8 +347,8 @@ baru = entri di `ILLUSTRATIONS` + baris di tabel ini.
 
 ## 15. Preferensi pengguna (`core_user_preferences`, P1-C)
 
-Apa pun yang seseorang PILIH untuk dirinya sendiri — favorit, "Terakhir dibuka", kepadatan, kelak
-susunan dasbor — hidup di `core_user_preferences` (satu baris per pengguna per kunci,
+Apa pun yang seseorang PILIH untuk dirinya sendiri — favorit, "Terakhir dibuka", kepadatan, susunan
+dasbor (P1-D) — hidup di `core_user_preferences` (satu baris per pengguna per kunci,
 `UNIQUE(user_id, key)`), bukan di `localStorage`. Alasannya diukur: sampai P1-B ketiganya berkunci
 `<nama>:<id pengguna>` di peramban, jadi bintang yang dipasang di desktop kantor tidak ada di tablet
 lapangan milik orang yang sama, dan "Hapus data situs" menghapus semuanya tanpa jejak.
@@ -368,7 +368,7 @@ adalah penyimpanan bebas 16 KB × kunci sebanyak-banyaknya × jumlah pengguna, i
 | `favorites` | daftar rute NAV yang dibintangi (keanggotaan NAV diperiksa `Support\SpaNav`) | 50 entri / 4 KB |
 | `recent` | `{route,label,sub,at}` dokumen terakhir dibuka; field di luar keempatnya ditolak | 20 entri / 8 KB |
 | `density` | `compact` \| `normal` \| `comfortable` (§13) | 64 B |
-| `dashboard.layout` | dicadangkan P1-D; validator hanya bentuk + plafon | 16 KB |
+| `dashboard.layout` | susunan dasbor P1-D: `[{id,size}]`, id diperiksa `Support\SpaWidgets`, size ∈ {kecil, sedang, lebar}, duplikat ditolak | 24 entri / 16 KB |
 | `launcher.hidden` | prefix modul yang disembunyikan dari `#/home` | 32 entri / 512 B |
 
 **Kejujuran.** Kunci yang belum pernah dipilih **tidak punya baris**; bawaan (`normal`, `[]`) milik
@@ -452,3 +452,49 @@ yang paling mahal. Tiga angka yang SUDAH punya pemilik lain dipaku setara — `p
 **hanya bila `?include=modules`** — tanpa parameter itu jumlah permintaan dan bentuk jawaban dasbor
 tidak berubah sedikit pun (target metrik Fase 1). Keduanya tanpa gerbang izin, pola
 `search`/`calendar`: registri menyaring dirinya sendiri per entri.
+
+## 17. Widget dasbor (`public/app/js/views/widgets/`, P1-D)
+
+Dasbor `#/dashboard` adalah **penyusun**, bukan penggambar. `views/dashboard.js` membaca susunan
+orangnya, menggambar kerangka kartu dalam urutan itu, lalu memanggil `views/widgets/<id>.js` **per
+batch 4**. Setiap angka, tabel dan cabang "gagal dimuat" hidup di berkas widget-nya sendiri.
+
+**Katalog = satu daftar deklaratif** (`views/widgets/registry.js`), selera yang sama dengan
+`ModuleCounts` / `UserPreferences`: widget berikutnya adalah satu entri array + satu berkas.
+Per entri — `id` (nama berkas DAN kunci preferensi), `title`, `desc` (kalimat di laci), `module`
+(prefix grup NAV → aksen §12), `perm` (nama izin, `null`, `'*.approve'`, atau daftar "salah satu
+cukup"), `route` (layar yang memuat angkanya lengkap), `sizes` + `size`.
+
+**Metadata di registry, kode di berkas widget.** Laci "Atur dasbor" harus menawarkan seluruh katalog
+termasuk yang tidak dipakai; bila judul dan izinnya hidup di dalam berkas widget-nya, membuka laci
+berarti mengunduh 19 modul yang belasan di antaranya tidak akan digambar. Penggambarnya diimpor
+**dinamis** hanya bila widget-nya ada di susunan orangnya.
+
+**`perm` sengaja string, bukan predikat.** `Modules\Core\Support\SpaWidgets` membacanya dari
+registry.js dengan regex yang sama seperti `SpaNav` membaca NAV, dan `DashboardDefaultsTest`
+memakainya untuk membuktikan — terhadap `RoleSeeder::intended()` yang asli — bahwa **setiap peran
+demo mendapat sedikitnya satu widget**. Itulah metrik Fase 1 "0 peran tanpa ubin", dijadikan uji
+alih-alih pengukuran yang basi pada sunting berikutnya.
+
+**Aturan wajib per widget** (dipaku `DashboardTileFailureTest`, yang memindai folder — widget baru
+ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
+
+1. Berkas yang mengekspor `build(` **adalah** widget: ia wajib ada di katalog, dan katalog wajib
+   punya berkasnya. Berkas tanpa entri = kode mati; entri tanpa berkas = kartu yang ditawarkan laci
+   lalu gagal di-`import`.
+2. Setiap widget **bercabang `failure(`** di KODE (komentar dibuang sebelum dipindai). Sumber yang
+   gagal dan sumber yang kosong tidak boleh terbaca sama — pelajaran Temuan 79.
+3. Tidak ada `.catch(() => …)` di mana pun di dasbor: catch yang tidak menerima error-nya tidak bisa
+   memberi tahu ubinnya bahwa angkanya tidak diketahui.
+
+**Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
+`failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
+Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
+
+**Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 3 (satu baris penuh) di kisi tiga kolom; dua kolom
+di bawah 1180 px, satu kolom di bawah 760 px — titik potong yang sama dengan laci nav dan aturan
+landing P1-C.
+
+**Vendor dimuat malas.** SortableJS (seret-lepas di laci) diambil `js/vendorload.js` saat laci
+DIBUKA, bukan oleh shell. Urutan tetap bisa diubah dengan tombol Naik/Turun tanpa satu byte vendor
+pun; berkas vendor yang gagal dimuat mencatat sekali di konsol dan tidak mematikan apa pun.

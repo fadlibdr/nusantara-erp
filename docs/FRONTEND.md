@@ -36,7 +36,12 @@ public/app/
     crumbs.js           setCrumbs() — the one breadcrumb builder: module crumb → #/m/<prefix>,
                         screen crumb → its list, #crumbs[data-root] = module | screen
     api.js              fetch wrapper, session storage, error normalisation
-    prefs.js            user preferences (favourites, recent, density, launcher.hidden) —
+    vendorload.js       lazy <script> loader for UMD vendor files (SortableJS), one promise per
+                        src, rejects on failure so the caller decides how to degrade
+    kalenderpalette.js  the 8 department dot colours (ΔE-CVD validated) shared by the calendar
+                        widget and the full calendar screen — owned by neither
+    prefs.js            user preferences (favourites, recent, density, launcher.hidden,
+                        dashboard.layout) —
                         SERVER is the truth (core/me/preferences), localStorage is a mirror;
                         one-time lift of the P1-B keys, per key; announces
                         erp:favorites-changed / erp:recent-changed / erp:prefs-loaded so the
@@ -54,6 +59,12 @@ public/app/
     schema.js           THE RESOURCE CATALOGUE — every screen is an entry here; NAV groups carry
                         `prefix`, MODULES maps prefix → { accent, icon, description } (CONVENTIONS §12)
     views/
+      dashboard.js      the dashboard COMPOSER (P1-D): reads the person's layout, draws every
+                        widget shell first, then loads them four at a time
+      dashsetup.js      the "Atur dasbor" drawer: add / remove / resize / reorder, saved once
+      widgets/          one file per dashboard widget + registry.js (the catalogue) and
+                        kit.js (safe/failure/failedStat — the "a failed fetch is not an empty
+                        one" rule, written once) — CONVENTIONS §17
       list.js           generic list: search, filters, table, pagination
       form.js           generic create/edit modal incl. repeatable line items
       detail.js         generic document detail: fields, lines, approvals
@@ -146,6 +157,18 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **Dashboard widgets (P1-D)**: `#/dashboard` is composed, not drawn. `views/widgets/registry.js`
+  is the catalogue — 19 entries, each `{ id, title, desc, module, perm, route, sizes, size }` —
+  and each widget's renderer lives in `views/widgets/<id>.js`, imported **dynamically** only when
+  that widget is in the person's layout. Three rules are pinned by
+  `tests/Feature/Core/DashboardTileFailureTest`, which scans the folder rather than a hand-kept
+  list: a file that exports `build(` **is** a widget (so it must be catalogued, and the catalogue
+  must have its file), every widget must branch on `failure(` in code, and no `.catch(() => …)`
+  may appear anywhere in the dashboard. The layout is stored in the `dashboard.layout` preference
+  (CONVENTIONS §15) and validated server-side against the same catalogue via `SpaWidgets`; a role
+  that has never opened the drawer gets the default set written for its role, and
+  `DashboardDefaultsTest` proves — against `RoleSeeder::intended()` — that no seeded role lands on
+  an empty dashboard.
 - **Density**: `data-density` on `<html>` (compact/normal/comfortable) drives `--row-h` and the
   cell paddings; chosen in the account dialog and, since P1-C, stored per user on the SERVER
   (`core/me/preferences`, CONVENTIONS §15). `localStorage` keeps a mirror so the attribute is set
