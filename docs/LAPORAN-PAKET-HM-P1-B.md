@@ -66,7 +66,7 @@ Tidak ada migrasi, tidak ada endpoint, tidak ada perubahan izin.
   0 bertabrakan dengan tombol Cari, 0 lebih tinggi dari header, 131 `aria-current`**; S8 dua tema
   identik dengan sebelum P1-B (th 11 px, muted 5,23:1 terang / 6,24:1 gelap, smallest font 11 px)
   dan kini mencatat layar yang diukurnya (`#/r/procurement/purchase-orders`).
-- **suite penuh di commit rilis `bb3645d`**: SQLite — (diisi); MySQL — (diisi).
+- **suite penuh di commit rilis `bb3645d`** (worktree terpisah): SQLite **3.860 uji / 18.716 asersi, 11 dilewati, hijau** (11 mnt 11 dtk); MySQL 8.0.46 **3.860 uji / 18.736 asersi, 4 dilewati, hijau** (26 mnt 37 dtk).
 
 ## Yang sengaja tidak dikerjakan
 
