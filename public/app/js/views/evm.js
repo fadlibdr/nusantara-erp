@@ -39,7 +39,7 @@ import { loadSource, optionsFor } from '../lookup.js';
 import { ENUMS } from '../enums.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
-import { lineChart } from '../charts.js';
+import { lineChart, chartWidth } from '../charts.js';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -236,6 +236,10 @@ export function evmCurve(points, bac, { baselineOnly = false } = {}) {
   ];
 
   return lineChart({
+    /* Lebar viewBox mengikuti lebar layar: legenda paket ini pindah KE DALAM
+       svg, dan svg 720 yang diregangkan ke kartu 328 px menuliskan legenda
+       dan label sumbunya pada 5,0 px terbaca (verifikasi P1-E). */
+    width: chartWidth(),
     // Kartu "Isi beku" hanya menggambar kurva rencananya, jadi legendanya hanya
     // menyebut kurva itu.
     series: baselineOnly ? series.slice(0, 1) : series,

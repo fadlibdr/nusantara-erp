@@ -21,7 +21,7 @@ import { api, session } from '../api.js';
 import { el, clear, button, badge, errorState, skeletonTable } from '../ui.js';
 import * as fmt from '../format.js';
 import { loadSource, optionsFor } from '../lookup.js';
-import { lineChart } from '../charts.js';
+import { lineChart, chartWidth } from '../charts.js';
 
 const state = { itemId: null, from: '', to: '' };
 
@@ -75,6 +75,11 @@ function trendChart(series) {
   const yHi = hi + room * 0.25;
 
   return lineChart({
+    /* Lebar viewBox mengikuti lebar layar: pada kartu ponsel 328 px sebuah svg
+       720 mengecilkan label sumbunya menjadi 5,0 px terbaca — legenda grafik
+       ini memang DOM (12 px, tidak ikut mengecil), tetapi angka rupiah di
+       sumbunya ikut (verifikasi P1-E). */
+    width: chartWidth(),
     series: [{
       label: 'Harga satuan',
       token: '--chart-1',

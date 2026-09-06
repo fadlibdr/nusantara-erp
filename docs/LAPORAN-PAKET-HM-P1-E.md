@@ -6,7 +6,7 @@ Branch: `feat/phase1-e` (dari `feat/phase1-d`) · 6 September 2026
 > harness **S20e** ditulis dan dijalankan: 20 syarat fitur hijau di tema terang DAN gelap, dan
 > **diff piksel benar-benar
 > DIUKUR** terhadap tangkapan layar sebelum migrasi yang kini ada di repositori. Angkanya
-> **melampaui target 2 %** — 6,06 % / 4,63 % / 6,08 % sesudah putaran verifikasi
+> **melampaui target 2 %** — 6,06 % / 4,63 % / 6,09 % sesudah putaran verifikasi
 > (3,19 % / 7,15 % / 6,08 % sebelum) — persis seperti yang diperkirakan
 > laporan P1-A; § Kriteria "diff piksel ≤ 2 %" menjelaskan apa yang mengubah piksel itu dan
 > mengusulkan kriteria pengganti. Tidak ada migrasi basis data, tidak ada endpoint baru.
@@ -18,8 +18,8 @@ Branch: `feat/phase1-e` (dari `feat/phase1-d`) · 6 September 2026
 | Kurva-S proyek → `charts.js` | ✅ | `views/project.js`: ~95 baris SVG tangan → satu panggilan `lineChart` |
 | Kurva EVM → `charts.js` (aturan sumbu > 100 % dipertahankan) | ✅ | `views/evm.js`; `yMax = Math.max(100, ceil(peak/25)*25)` tetap di pemanggil dan dipaku `ChartMigrationTest` |
 | Tren harga satuan → `charts.js` | ✅ | `views/hargasatuan.js`; sumbu tidak-dari-nol dipertahankan lewat `yMin`/`yMax` sendiri |
-| Diff piksel ≤ 2 % | ❌ **diukur, tidak tercapai** | 6,06 % / 4,63 % / 6,08 % (S20e, diukur ulang sesudah verifikasi) — lihat § Kriteria |
-| Harness | ✅ | **S20e** (20 syarat fitur, dua tema), 7 PNG, hasil di `results-phase-1.json` |
+| Diff piksel ≤ 2 % | ❌ **diukur, tidak tercapai** | 6,06 % / 4,63 % / 6,09 % (S20e, diukur ulang sesudah verifikasi) — lihat § Kriteria |
+| Harness | ✅ | **S20e** (dua tema, kini termasuk kertas dan sumbu harga naik) + **S20em** (390 px: teks terkecil yang benar-benar tergambar), PNG dan hasil di `results-phase-1.json` |
 
 ## Yang benar-benar berubah
 
@@ -93,7 +93,7 @@ bisa tahu. `charts.js` menempelkannya di tepi plot dengan `data-outside` dan men
 |---|---|---|---|---|
 | Kurva-S | 720×260 | 720×277 | **6,06 %** | 6,14 % |
 | Kurva EVM | 720×261 | 720×277 | **4,63 %** | 5,78 % |
-| Tren harga | 1112×372 | 1112×403 | **6,08 %** | 7,69 % |
+| Tren harga | 1112×372 | 1112×403 | **6,09 %** | 7,69 % |
 
 Toleransi 16/255 per kanal (anti-alias sub-piksel tidak dihitung sebagai perubahan).
 

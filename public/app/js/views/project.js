@@ -12,7 +12,7 @@ import { promptFields, buildInput } from './form.js';
 import { navigate, back } from '../router.js';
 import { openPrintable } from '../print.js';
 import { RESOURCES } from '../schema.js';
-import { lineChart } from '../charts.js';
+import { lineChart, chartWidth } from '../charts.js';
 import { openTutupProyek } from './tutupproyek.js';
 import { renderJadwal } from './jadwal.js';
 
@@ -137,6 +137,10 @@ export function sCurveChart(weeks, baselinePoints) {
   }
 
   return lineChart({
+    /* Lebar viewBox mengikuti lebar layar: legenda paket ini pindah KE DALAM
+       svg, dan svg 720 yang diregangkan ke kartu 328 px menuliskan legenda
+       dan label sumbunya pada 5,0 px terbaca (verifikasi P1-E). */
+    width: chartWidth(),
     series,
     xLabels: weeks.map((week) => `M${week.week_no}`),
     // Sumbu 0–100 dipaksa: kurva-S adalah persen kumulatif, dan sumbu yang

@@ -20665,7 +20665,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 10314,
+    "_ms": 10324,
     "_clicks": 0
   },
   "S24_laporan_bebas": {
@@ -21044,5 +21044,54 @@
     "ok": true,
     "_ms": 17787,
     "_clicks": 1
+  },
+  "S20e_migrated_charts_mobile": {
+    "project_charts": [
+      {
+        "aria": "Kurva-S rencana vs aktua",
+        "viewbox_w": 380,
+        "css_w": 328,
+        "scale": 0.863,
+        "legend_px": 9.5,
+        "tick_px": 9.5,
+        "stroke_px": 1.73,
+        "overflows": false
+      },
+      {
+        "aria": "Kurva EVM: rencana basel",
+        "viewbox_w": 380,
+        "css_w": 328,
+        "scale": 0.863,
+        "legend_px": 9.5,
+        "tick_px": 9.5,
+        "stroke_px": 1.73,
+        "overflows": false
+      }
+    ],
+    "trend_chart": [
+      {
+        "aria": "Tren harga satuan",
+        "viewbox_w": 380,
+        "css_w": 328,
+        "scale": 0.863,
+        "legend_px": null,
+        "tick_px": 9.5,
+        "stroke_px": 2.16,
+        "overflows": false
+      }
+    ],
+    "dom_legend_px": 12,
+    "min_rendered_text_px": 9.5,
+    "pageerrors": [],
+    "checks": {
+      "charts_drawn": true,
+      "rendered_text_never_below_9px": true,
+      "no_horizontal_overflow": true,
+      "no_page_errors": true
+    },
+    "failed_checks": [],
+    "ok": true,
+    "_ms": 8703,
+    "_clicks": 0
   }
 }

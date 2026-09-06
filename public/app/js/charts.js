@@ -336,6 +336,23 @@ function drawLegend(svg, rows, y0) {
   return rows.length * 16;
 }
 
+/**
+ * Lebar viewBox yang masuk akal untuk lebar layar sekarang.
+ *
+ * charts.js menggambar pada viewBox tetap dan CSS meregangkannya ke lebar
+ * kartunya, jadi teks 11 px di dalam svg 720 yang dipasang pada kartu 328 px
+ * TERBACA 5,0 px — di bawah setiap lantai keterbacaan yang dipakai aplikasi ini
+ * di tempat lain. Selama legenda hidup di DOM (sebelum P1-E) itu tidak terasa
+ * pada dua grafik proyek; sejak legendanya masuk ke dalam svg, ia terasa
+ * (verifikasi P1-E, diukur 390×844: legenda dan tick 5,0 px, garis 0,91 px).
+ *
+ * Yang dikembalikan adalah viewBox, bukan piksel layar: pada ponsel viewBox
+ * yang mendekati lebar kartunya membuat skala ≈ 1, sehingga 11 px tetap 11 px.
+ */
+export function chartWidth(wide = 720, narrow = 380) {
+  return typeof window !== 'undefined' && window.innerWidth <= 560 ? narrow : wide;
+}
+
 /* ---------------------------------------------------------------- skala */
 
 function niceStep(rough) {

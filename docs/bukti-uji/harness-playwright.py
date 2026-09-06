@@ -2052,6 +2052,87 @@ S24_RUN = """() => {
 
 
 
+# ------------------------------------------------------- S20em (P1-E, ponsel)
+#
+# S20e berjalan pada 1440x900, dan itulah satu-satunya lebar yang pernah
+# diukurnya. Yang PALING berubah pada pemindahan P1-E justru hanya terlihat di
+# lebar lain: legenda kurva-S dan EVM pindah KE DALAM svg, dan svg ber-viewBox
+# tetap yang diregangkan ke kartu ponsel mengecilkan teksnya bersama gambarnya —
+# terukur 5,0 px untuk legenda DAN label sumbu pada 390x844, sementara legenda
+# DOM yang tersisa (tren harga) tetap 12 px di halaman yang sama. Skenario ini
+# mengukur lantai itu, di kedua tema.
+
+MOBILE_CHART_TEXT = """() => [...document.querySelectorAll("svg.chart-lib")].map((svg) => {
+  const r = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  const scale = vb.width ? r.width / vb.width : 1;
+  const px = (node) => (node ? +(parseFloat(getComputedStyle(node).fontSize) * scale).toFixed(1) : null);
+  return {
+    aria: (svg.getAttribute("aria-label") || "").slice(0, 24),
+    viewbox_w: vb.width,
+    css_w: Math.round(r.width),
+    scale: +scale.toFixed(3),
+    legend_px: px(svg.querySelector("text.chart-legend")),
+    tick_px: px(svg.querySelector("text.chart-tick")),
+    stroke_px: (() => { const l = svg.querySelector("path.series-line");
+      return l ? +(parseFloat(getComputedStyle(l).strokeWidth) * scale).toFixed(2) : null; })(),
+    // Halaman tidak boleh menggulung mendatar karena grafiknya.
+    overflows: r.width > document.documentElement.clientWidth + 1,
+  };
+})"""
+
+
+@scenario("S20e_migrated_charts_mobile")
+def s20em(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.evaluate("""() => { location.hash = "#/d/projects/1"; }""")
+        pg.wait_for_selector("svg[aria-label*='Kurva-S']", timeout=20000)
+        pg.wait_for_timeout(2500)
+        project = pg.evaluate(MOBILE_CHART_TEXT)
+        pg.screenshot(path=f"{OUT}/s20em-proyek-ponsel-p1e.png", full_page=True)
+
+        pg.evaluate("""() => { location.hash = "#/harga-satuan"; }""")
+        pg.wait_for_selector("svg[aria-label*='Tren harga']", timeout=20000)
+        pg.wait_for_timeout(1800)
+        trend = pg.evaluate(MOBILE_CHART_TEXT)
+        # Legenda DOM tren harga: pembanding yang ada DI HALAMAN yang sama.
+        dom_legend_px = pg.evaluate(
+            "() => { const i = document.querySelector('.legend'); "
+            "return i ? parseFloat(getComputedStyle(i).fontSize) : null; }")
+        pg.screenshot(path=f"{OUT}/s20em-tren-harga-ponsel-p1e.png", full_page=True)
+
+        charts = project + trend
+        texts = [c["legend_px"] for c in charts if c["legend_px"]] + [c["tick_px"] for c in charts if c["tick_px"]]
+
+        out = {
+            "project_charts": project,
+            "trend_chart": trend,
+            "dom_legend_px": dom_legend_px,
+            "min_rendered_text_px": min(texts) if texts else None,
+            "pageerrors": errors,
+        }
+        checks = {
+            "charts_drawn": len(project) >= 2 and len(trend) >= 1,
+            # Lantai 9 px: bukan angka mutlak melainkan angka yang bisa dibaca,
+            # dan jarak yang jelas dari 5,0 px yang terukur sebelum perbaikan.
+            "rendered_text_never_below_9px": bool(texts) and min(texts) >= 9,
+            # Grafik tidak melebihi lebar layarnya.
+            "no_horizontal_overflow": not any(c["overflows"] for c in charts),
+            "no_page_errors": not errors,
+        }
+        out["checks"] = checks
+        out["failed_checks"] = [k for k, v in checks.items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 @scenario("S24_laporan_bebas")
 def s24(pg):
     errors = []
@@ -4149,7 +4230,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S24",s24,None),("S25",s25,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
