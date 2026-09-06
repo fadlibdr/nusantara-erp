@@ -1,5 +1,10 @@
 {
  "S8_styles": {
+  "screen": {
+   "hash": "#/r/procurement/purchase-orders",
+   "h1": "Pesanan Pembelian (PO)",
+   "dock": false
+  },
   "theme": "light",
   "th_font": "11px",
   "th_color": "rgb(94, 104, 116)",
@@ -32,7 +37,7 @@
     "Tambah PO"
    ]
   },
-  "_ms": 4498,
+  "_ms": 4589,
   "_clicks": 0
  },
  "S20_chart_tokens": {
@@ -5954,7 +5959,7 @@
    "width": 1440,
    "height": 900
   },
-  "_ms": 8638,
+  "_ms": 4839,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
@@ -11876,7 +11881,7 @@
    "width": 390,
    "height": 844
   },
-  "_ms": 11792,
+  "_ms": 4062,
   "_clicks": 0
  },
  "S21_module_accents_breadcrumb": {
@@ -15859,19 +15864,18 @@
   "report_created": true,
   "photos_before": 0,
   "throttled": {
-   "ms": 10974,
-   "samples": 68,
-   "distinct_pct": 65,
+   "ms": 10057,
+   "samples": 67,
+   "distinct_pct": 66,
    "pct_first_last": [
     0,
-    100
+    99
    ],
    "states": [
     "sending"
    ],
    "texts": [
-    "1.0 MB · Mengirim… N %",
-    "1.0 MB · Menunggu jawaban server…"
+    "1.0 MB · Mengirim… N %"
    ],
    "toast": [
     "Foto uji-1mb.jpg terkirim dengan lokasi."
@@ -15912,7 +15916,7 @@
    "last_photo": "uji-putus.jpg · lokasi dari perangkat · ±12 m · hari ini · 2.8 km dari lokasi"
   },
   "pageerrors": [],
-  "_ms": 27082,
+  "_ms": 24474,
   "_clicks": 4
  }
 }

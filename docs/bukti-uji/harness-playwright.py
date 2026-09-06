@@ -35,7 +35,23 @@ def click(page, sel, **kw):
     CLICKS[0] += 1
     page.click(sel, **kw)
 
-def login(page, email):
+def login(page, email, onboarding="decide"):
+    """Masuk lewat halaman masuk sungguhan.
+
+    `onboarding="decide"` (bawaan): keputusan onboarding pengguna ini ditetapkan di sqlite SEBELUM
+    masuk. Pada salinan DB hidup semua users.onboarding_status masih NULL, dan app.js membuka panduan
+    sendiri (maybeShowOnboarding) — langkah 1 memanggil visit(dashboard) → navigate('dashboard'),
+    jadi layar yang diukur skenario bisa berganti menjadi dasbor DI TENGAH pengukuran. Diukur
+    6 Sep 2026: S8 pada DB yang belum memutuskan melaporkan "ok" dengan btn_sm_height 28 dan
+    page_head_buttons ['Muat ulang'] — angka DASBOR, bukan daftar PO (0 / ['Muat ulang','Tambah PO']).
+    Keputusannya dipasang di satu tempat ini, bukan ditaburkan per skenario: skenario berikutnya yang
+    ditulis orang lain ikut aman tanpa harus tahu balapan ini ada.
+    `onboarding=None` hanya untuk S18/S19 — merekalah yang MENGUJI panduan itu dan mulai dari NULL.
+    Satu-satunya skenario lain yang tidak lewat sini adalah S10: seluruhnya API lewat token_for(),
+    tanpa sesi peramban, jadi tidak ada panduan yang bisa terbuka.
+    """
+    if onboarding == "decide":
+        decide_onboarding(email)
     page.goto(BASE)
     page.wait_for_selector("input[type=email]", timeout=15000)
     page.fill("input[type=email]", email)
@@ -69,6 +85,19 @@ def nav_click(page, href):
         click(page, f"{group} > button"); page.wait_for_timeout(150); opened = True
     click(page, f"nav.nav a[href='{href}']")
     return opened
+
+def assert_screen(page, route, h1=None):
+    """Layar yang DIUKUR harus layar yang dimaksud — kalau tidak, skenarionya JATUH, bukan mencatat
+    angka halaman lain sebagai "ok" (verifikasi P1-B putaran 2, 6 Sep 2026: S8 mencatat angka dasbor).
+    Dipakai pada skenario yang menuju sebuah rute lalu mengukur sesuatu yang juga ADA di dasbor
+    (tombol .btn.sm, lencana, tinggi baris); yang menunggu `h1:has-text('<kode>')` sudah jatuh sendiri."""
+    got = page.evaluate("""() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText || null,
+        dock: !!document.querySelector('.onboarding-dock') })""")
+    if got["hash"] != route or (h1 is not None and (not got["h1"] or h1 not in got["h1"])):
+        raise AssertionError(f"layar salah: diminta {route}" + (f" (h1 memuat {h1!r})" if h1 else "")
+                             + f", terukur {got['hash']} h1={got['h1']!r}"
+                             + (" — panel onboarding terbuka dan memindah halaman" if got["dock"] else ""))
+    return got
 
 def scenario(name):
     def deco(fn):
@@ -510,6 +539,9 @@ def s6(browser):
     pg.wait_for_timeout(1500)
     lap = pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText, bigButtons: document.querySelectorAll('.btn.lg').length, text: document.querySelector('main').innerText.slice(0,300) })")
     pg.screenshot(path=f"{OUT}/s6-mobile-lapangan.png")
+    # "Tombol besar" ada juga di dasbor lapangan: hash-nya dicatat sejak dulu, tetapi tidak pernah
+    # dijadikan syarat — sekarang iya (verifikasi P1-B putaran 2, 6 Sep 2026).
+    assert_screen(pg, "#/lapangan")
     ctx.close()
     return {"taps_to_lapangan": CLICKS[0], "ms": int((time.time()-t0)*1000), **drawer, "lapangan": lap}
 
@@ -519,6 +551,9 @@ def s7(pg):
     out = {}
     for key, route in [("ncr","#/r/quality/ncr"), ("k3","#/r/projects/safety-incidents"), ("defects","#/defects"), ("tickets","#/r/servicedesk/tickets")]:
         pg.goto(BASE + route); pg.wait_for_timeout(1800)
+        # Halaman yang salah tidak punya table.data → daftar KOSONG, yang di sini terbaca persis seperti
+        # "daftar ini memang tanpa lencana" (verifikasi P1-B putaran 2, 6 Sep 2026).
+        assert_screen(pg, route)
         out[key] = pg.evaluate("() => [...new Set([...document.querySelectorAll('table.data .badge')].map(b => b.innerText.trim()+' → '+[...b.classList].filter(c=>['green','red','amber','blue','primary'].includes(c)).join('/')))]")
         # T2.8 — lencana di kepala halaman detail juga diukur: di sanalah statusTone
         # melukis 'open' (detail.js), sedangkan daftar NCR/K3/defect semula menulis
@@ -546,8 +581,11 @@ def s8(pg):
     # jalan); `dark` = pengukuran yang sama di tema gelap (data-theme di <html>, mekanisme S20).
     login(pg, "admin@nusantara.test")
     pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
+    # Semua yang diukur di bawah juga ADA di dasbor (tabel, .btn.sm, tombol kepala halaman), jadi
+    # halaman yang salah lolos tanpa suara — dijatuhkan di sini (verifikasi P1-B putaran 2, 6 Sep 2026).
+    screen = assert_screen(pg, "#/r/procurement/purchase-orders", "Pesanan Pembelian")
     pg.evaluate("() => { document.documentElement.dataset.theme = 'light'; }"); pg.wait_for_timeout(150)
-    out = pg.evaluate(S8_MEASURE)
+    out = {"screen": screen, **pg.evaluate(S8_MEASURE)}
     pg.evaluate("() => { document.documentElement.dataset.theme = 'dark'; }"); pg.wait_for_timeout(150)
     out["dark"] = pg.evaluate(S8_MEASURE)
     pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
@@ -603,6 +641,9 @@ def s11(pg):
     login(pg, "direktur@nusantara.test")
     nav_click(pg, "#/tugas")
     pg.wait_for_selector("table.data, .empty", timeout=15000); pg.wait_for_timeout(800)
+    # Dasbor juga punya table.data (kartu "Menunggu persetujuan"): tunggu di atas puas di halaman yang
+    # salah, dan `rows` di bawah akan mencatat baris kartu itu (verifikasi P1-B putaran 2, 6 Sep 2026).
+    assert_screen(pg, "#/tugas", "Tugas Saya")
     out = pg.evaluate("() => ({ h1: document.querySelector('.page-head h1').innerText, rows: [...document.querySelectorAll('table.data tbody tr')].map(r=>r.innerText.split('\\n')[0]), types: [...document.querySelectorAll('.filters option')].map(o=>o.innerText) })")
     pg.screenshot(path=f"{OUT}/s11-tugas.png")
     click(pg, "table.data tbody tr:has-text('CTI/')")
@@ -772,8 +813,7 @@ def s15(browser):
     pg = ctx.new_page()
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
     # Lembar onboarding site-manager yang belum diputuskan menangkap ketukan 'Buat laporan hari ini'
-    # (verifikasi P1-B 5 Sep 2026) — status diputuskan dulu, seperti S21.
-    decide_onboarding("site-manager@nusantara.test")
+    # (verifikasi P1-B 5 Sep 2026) — statusnya diputuskan oleh login() sendiri sejak putaran 2.
     login(pg, "site-manager@nusantara.test")
     pg.goto(BASE + "#/lapangan")
     pg.wait_for_selector("button:has-text('Ambil foto'), button:has-text('Buat laporan hari ini')", timeout=15000)
@@ -975,7 +1015,7 @@ def s18(pg):
     email = "procurement@nusantara.test"
     reset_onboarding(email)
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
-    login(pg, email)
+    login(pg, email, onboarding=None)  # satu-satunya jalur yang MEMBIARKAN status NULL: panel inilah yang diuji
     t0 = time.time()
     pg.wait_for_selector(".onboarding-dock[data-state='open']", timeout=3000)
     out = {"dock_ms_after_login": int((time.time() - t0) * 1000), "status_before": onboarding_status(email)}
@@ -1039,7 +1079,7 @@ def s19(browser):
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
     pg = ctx.new_page()
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
-    login(pg, email)
+    login(pg, email, onboarding=None)  # seperti S18: lembar bawahnya yang diuji, jadi status tetap NULL
     t0 = time.time()
     pg.wait_for_selector(".onboarding-dock[data-mode='mobile'][data-state='open']", timeout=3000)
     out = {"sheet_ms_after_login": int((time.time() - t0) * 1000)}
@@ -1663,9 +1703,9 @@ def module_accents(pg, tag):
     pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
     # Status diputuskan di DB sebelum masuk (bukan klik Lewati yang berlomba dengan fetchGuide): pada DB
     # yang belum memutuskan, panel terbuka sesudah pemeriksaan sekali dan memindah halaman ke #/dashboard.
-    decide_onboarding("admin@nusantara.test"); decide_onboarding("warehouse@nusantara.test")
+    # Sejak putaran 2 itu dikerjakan login() untuk SEMUA skenario; yang dicatat di bawah hasilnya.
     login(pg, "admin@nusantara.test")
-    out = {"viewport": pg.viewport_size, "onboarding_status": {"admin": onboarding_status("admin@nusantara.test"), "warehouse": onboarding_status("warehouse@nusantara.test")},
+    out = {"viewport": pg.viewport_size, "onboarding_status": {"admin": onboarding_status("admin@nusantara.test")},
            "dock_open": pg.locator(".onboarding-dock").count()}
     prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
     out["sidebar_prefixes"] = prefixes
@@ -1812,7 +1852,8 @@ def module_accents(pg, tag):
     pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
     login(pg, "warehouse@nusantara.test")
     wh_prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
-    out["warehouse"] = {"prefixes": wh_prefixes, "modules": module_vs_sidebar(pg, wh_prefixes)}
+    out["warehouse"] = {"prefixes": wh_prefixes, "onboarding_status": onboarding_status("warehouse@nusantara.test"),
+                        "dock_open": pg.locator(".onboarding-dock").count(), "modules": module_vs_sidebar(pg, wh_prefixes)}
     out["warehouse"]["all_match"] = all(m["match"] for m in out["warehouse"]["modules"].values())
     pg.goto(BASE + "#/m/fin"); pg.wait_for_timeout(900)
     out["warehouse"]["fin_home"] = pg.evaluate(MODULE_HOME)
