@@ -1732,6 +1732,48 @@ def s20e(pg):
     }""")
     out["trend_axis_rising"] = trend_axis
 
+    # TITIK YANG DIKECUALIKAN `dots:false`, dan legendanya.
+    #
+    # charts.js tetap menggambar run SATU TITIK walau pemanggilnya menulis
+    # `dots:false` — tanpa garis maupun titik nilainya tidak terlihat sama
+    # sekali. Yang salah sampai verifikasi P1-E adalah UKURANNYA: r 4, sama
+    # dengan titik as-of EVM yang justru satu-satunya titik yang dicari orang,
+    # 2,7 px di sebelahnya. Dan sebuah seri yang seluruh datanya terpencil
+    # (biaya aktual berlubang) kehilangan garisnya sama sekali sementara
+    # legendanya tetap menggambar swatch GARIS untuk garis yang tidak ada.
+    # Dua bentuk itu digambar di sini dengan lineChart yang dikapalkan.
+    dots_probe = pg.evaluate("""async () => {
+      const m = await import("/app/js/charts.js");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const draw = (series) => {
+        host.replaceChildren(m.lineChart({ series, yMin: 0, yMax: 100, yStep: 25,
+          yFormat: (v) => `${v}%`, ariaLabel: "uji" }));
+        return {
+          radii: [...host.querySelectorAll("circle.series-point:not(.legend-swatch)")].map((c) => +c.getAttribute("r")),
+          lines: host.querySelectorAll("path.series-line").length,
+          swatches: [...host.querySelectorAll(".legend-swatch")].map((n) => n.tagName),
+        };
+      };
+      const fresh = draw([
+        { label: "baseline", token: "--chart-8", dash: "2 4", dots: false,
+          points: [{ x: "2026-01-05", y: 0 }, { x: "2026-02-05", y: 20 }, { x: "2026-03-05", y: 60 }] },
+        { label: "EV", token: "--chart-1",
+          points: [{ x: "2026-01-05", y: 0.75, r: 4 }, { x: "2026-02-05", y: null }, { x: "2026-03-05", y: null }] },
+        { label: "AC", token: "--chart-2", dots: false,
+          points: [{ x: "2026-01-05", y: 0.75 }, { x: "2026-02-05", y: null }, { x: "2026-03-05", y: null }] },
+      ]);
+      const gap = draw([
+        { label: "baseline", token: "--chart-8", dash: "2 4", dots: false,
+          points: [{ x: "2026-01-05", y: 10 }, { x: "2026-02-05", y: 40 }, { x: "2026-03-05", y: 80 }] },
+        { label: "AC", token: "--chart-2", dots: false,
+          points: [{ x: "2026-01-05", y: 5 }, { x: "2026-02-05", y: null }, { x: "2026-03-05", y: 30 }] },
+      ]);
+      host.remove();
+      return { fresh, gap };
+    }""")
+    out["dots_false_probe"] = dots_probe
+
     checks = {
         # Ketiganya benar-benar digambar charts.js, bukan sisa SVG tangan.
         "all_are_chart_lib": all(c["lib"] for c in (scurve, evm, trend)),
@@ -1751,6 +1793,14 @@ def s20e(pg):
         "evm_three_distinct_colours": len({s["stroke"] for s in evm["series"]}) == 3,
         # Titik as-of lebih besar daripada titik biasa.
         "evm_as_of_point_larger": len(evm["point_radii"]) >= 2,
+        # …dan titik yang DIKECUALIKAN dots:false tidak boleh menyamainya:
+        # pada proyek yang baru dibaseline, r 4 hanya milik penanda as-of.
+        "exempt_dot_never_outranks_the_as_of_marker":
+            dots_probe["fresh"]["radii"].count(4) == 1 and max(dots_probe["gap"]["radii"]) < 4,
+        # Seri yang seluruh datanya terpencil dilambangkan TITIK di legenda,
+        # bukan garis penuh untuk garis yang tidak ada di grafiknya.
+        "dot_only_series_gets_a_dot_swatch":
+            dots_probe["gap"]["lines"] == 1 and dots_probe["gap"]["swatches"] == ["line", "circle"],
         "evm_title_names_three_numbers": all(
             ("rencana" in t and "fisik" in t and "biaya" in t) for t in evm["titles"]) and bool(evm["titles"]),
         # Sumbu EVM boleh melewati 100 % — di sini datanya berhenti di 100, jadi

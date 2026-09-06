@@ -322,6 +322,9 @@ function drawLegend(svg, rows, y0) {
       if (item.kind === 'line') {
         const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': 2.5, 'stroke-dasharray': item.dash ?? null, 'data-series': item.series });
         svg.appendChild(paint(line, 'stroke', item.token));
+      } else if (item.kind === 'dot') {
+        const dot = make('circle', { class: 'legend-swatch series-point', cx: item.x + 8, cy: y - 4, r: 3, 'data-series': item.series });
+        svg.appendChild(paint(dot, 'fill', item.token));
       } else {
         const box = make('rect', { class: 'legend-swatch', x: item.x, y: y - 9, width: 12, height: 10, rx: 2, 'fill-opacity': item.opacity, 'data-series': item.series });
         svg.appendChild(paint(box, 'fill', item.token));
@@ -452,6 +455,19 @@ export function lineChart({
      pada sumbu tanggal) tetap di legenda tetapi MENGATAKANNYA: 'indeks (tanpa data)' — swatch
      tanpa garis dulu tampak seperti seri yang kebetulan tidak terlihat. */
   rows.forEach((s) => { s.hasData = s.points.some((p) => p.y !== null); });
+  /* …dan apakah seri itu akan punya GARIS sama sekali. Sebuah run satu titik
+     tidak menggambar path, jadi seri yang seluruh datanya terpencil (biaya
+     aktual EVM dengan lubang di tengah, atau proyek yang baru dibaseline)
+     hanya menghasilkan titik — sementara legendanya tetap menggambar swatch
+     berupa GARIS penuh untuk garis yang tidak ada di grafik (verifikasi P1-E). */
+  rows.forEach((s) => {
+    let run = 0;
+    s.hasLine = false;
+    s.points.forEach((p) => {
+      run = p.y === null ? 0 : run + 1;
+      if (run > 1) s.hasLine = true;
+    });
+  });
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
   if (!ys.length) return placeholder('line', ariaLabel);
 
@@ -467,7 +483,16 @@ export function lineChart({
      tingginya dari x0 = 0 memberi baris lebih sedikit daripada yang tergambar (sumbu Rp →
      PAD.left 120, 8 seri berlabel 26–31 huruf: 3 baris dihitung, 4 digambar, catatan sumber
      16 px di luar viewBox — menimpa kepala kartu berikutnya; diukur 5 Sep 2026). */
-  const items = rows.map((s) => ({ label: s.hasData ? s.label : `${s.label} (tanpa data)`, token: s.token, kind: 'line', dash: s.dash, series: s.index, nodata: !s.hasData }));
+  const items = rows.map((s) => ({
+    label: s.hasData ? s.label : `${s.label} (tanpa data)`,
+    token: s.token,
+    // Seri yang hanya bertitik dilambangkan TITIK: swatch garis untuk seri
+    // tanpa garis adalah legenda yang menjelaskan grafik lain.
+    kind: s.hasData && !s.hasLine ? 'dot' : 'line',
+    dash: s.dash,
+    series: s.index,
+    nodata: !s.hasData,
+  }));
   const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
   const legendH = legendLayout.length * 16;
   const noteH = sourceNote ? 16 : 0;
@@ -520,7 +545,14 @@ export function lineChart({
          dengan nilai 140 dulu menggambar titik 73 px di atas svg, menimpa kepala kartu. */
       const outside = p.y > hi ? 'above' : p.y < lo ? 'below' : null;
       const cy = outside === 'above' ? PAD.top : outside === 'below' ? PAD.top + plotH : y(p.y);
-      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: p.r ?? (pts.length === 1 ? 4 : 3), 'data-series': s.index, 'data-outside': outside });
+      /* Run satu titik digambar walau `dots:false` — tanpa garis maupun titik
+         nilainya tidak terlihat sama sekali — tetapi ukurannya TIDAK boleh
+         melampaui penanda yang pemanggilnya minta sendiri: titik as-of EVM
+         (r 4, satu-satunya titik yang dicari orang saat membuka kartu itu)
+         dulu diimbangi oleh titik pengecualian yang juga r 4, 2,7 px di
+         sebelahnya (verifikasi P1-E). Pengecualian karena itu memakai jari-jari
+         titik biasa. */
+      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: p.r ?? 3, 'data-series': s.index, 'data-outside': outside });
       svg.appendChild(mark(paint(dot, 'fill', p.token ?? s.token), `${p.title ?? `${s.label} — ${labelX(p.x)}: ${fy(p.y)}`}${outside ? ' (di luar sumbu)' : ''}`));
     }));
   });

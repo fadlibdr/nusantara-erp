@@ -20521,6 +20521,31 @@
       "rising_gridlines": 5,
       "edges_labelled": true
     },
+    "dots_false_probe": {
+      "fresh": {
+        "radii": [
+          4,
+          3
+        ],
+        "lines": 1,
+        "swatches": [
+          "line",
+          "circle",
+          "circle"
+        ]
+      },
+      "gap": {
+        "radii": [
+          3,
+          3
+        ],
+        "lines": 1,
+        "swatches": [
+          "line",
+          "circle"
+        ]
+      }
+    },
     "checks": {
       "all_are_chart_lib": true,
       "every_mark_titled": true,
@@ -20531,6 +20556,8 @@
       "scurve_title_names_both": true,
       "evm_three_distinct_colours": true,
       "evm_as_of_point_larger": true,
+      "exempt_dot_never_outranks_the_as_of_marker": true,
+      "dot_only_series_gets_a_dot_swatch": true,
       "evm_title_names_three_numbers": true,
       "evm_axis_reaches_100": true,
       "trend_axis_not_zero_based": true,
@@ -20547,7 +20574,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 6927,
+    "_ms": 6948,
     "_clicks": 0
   },
   "S24_laporan_bebas": {
