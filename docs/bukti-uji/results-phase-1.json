@@ -20139,5 +20139,306 @@
   "ok": true,
   "_ms": 70179,
   "_clicks": 0
+ },
+ "S20e_migrated_charts": {
+  "charts": {
+   "kurva_s": {
+    "cls": "chart chart-lib chart-line",
+    "aria": "Kurva-S rencana vs aktual",
+    "lib": true,
+    "series": [
+     {
+      "token": "--chart-3",
+      "stroke": "rgb(21, 128, 61)",
+      "expected": "#15803d",
+      "dash": "5px, 3px"
+     },
+     {
+      "token": "--chart-1",
+      "stroke": "rgb(26, 86, 219)",
+      "expected": "#1a56db",
+      "dash": "none"
+     },
+     {
+      "token": "--chart-8",
+      "stroke": "rgb(71, 85, 105)",
+      "expected": "#475569",
+      "dash": "2px, 4px"
+     }
+    ],
+    "areas": 1,
+    "points": 8,
+    "point_radii": [
+     "3"
+    ],
+    "point_tokens": [
+     "--chart-1"
+    ],
+    "marks_with_title": 8,
+    "marks": 8,
+    "titles": [
+     "Minggu 1 — rencana 2%, aktual 1,5%",
+     "Minggu 2 — rencana 6%, aktual 5%",
+     "Minggu 3 — rencana 12%, aktual 10%",
+     "Minggu 4 — rencana 20%, aktual 17%",
+     "Minggu 5 — rencana 30%, aktual 26%",
+     "Minggu 6 — rencana 41%, aktual 36%",
+     "Minggu 7 — rencana 52%, aktual 47%",
+     "Minggu 8 — rencana 62%, aktual 55%"
+    ],
+    "ticks": [
+     "0%",
+     "25%",
+     "50%",
+     "75%",
+     "100%",
+     "M1",
+     "M2",
+     "M3",
+     "M4",
+     "M5",
+     "M6",
+     "M7",
+     "M8"
+    ],
+    "legend": [
+     "Rencana (laporan mingguan)",
+     "Aktual",
+     "Rencana baseline (kurva beku)"
+    ],
+    "outside": 0,
+    "box": {
+     "w": 719,
+     "h": 276
+    },
+    "text_outside_viewbox": [],
+    "pixel_diff": {
+     "available": true,
+     "before": [
+      720,
+      260
+     ],
+     "after": [
+      720,
+      276
+     ],
+     "changed_pct": 3.19,
+     "outside_intersection_pct": 5.8
+    }
+   },
+   "evm": {
+    "cls": "chart chart-lib chart-line",
+    "aria": "Kurva EVM: rencana baseline, nilai diperoleh dan biaya aktual terhadap BAC",
+    "lib": true,
+    "series": [
+     {
+      "token": "--chart-8",
+      "stroke": "rgb(71, 85, 105)",
+      "expected": "#475569",
+      "dash": "2px, 4px"
+     },
+     {
+      "token": "--chart-1",
+      "stroke": "rgb(26, 86, 219)",
+      "expected": "#1a56db",
+      "dash": "none"
+     },
+     {
+      "token": "--chart-2",
+      "stroke": "rgb(194, 65, 12)",
+      "expected": "#c2410c",
+      "dash": "none"
+     }
+    ],
+    "areas": 0,
+    "points": 8,
+    "point_radii": [
+     "2.5",
+     "4"
+    ],
+    "point_tokens": [
+     "--chart-1"
+    ],
+    "marks_with_title": 8,
+    "marks": 8,
+    "titles": [
+     "28 Feb 2026 — rencana 3,29%, fisik 10%, biaya Rp 0",
+     "31 Mar 2026 — rencana 16,11%, fisik 55%, biaya Rp 209.500.000",
+     "30 Apr 2026 — rencana 27,23%, fisik 55%, biaya Rp 209.500.000",
+     "31 Mei 2026 — rencana 38,72%, fisik 55%, biaya Rp 209.500.000",
+     "30 Jun 2026 — rencana 49,84%, fisik 55%, biaya Rp 209.500.000",
+     "31 Jul 2026 — rencana 61,34%, fisik 55%, biaya Rp 228.240.000",
+     "31 Agu 2026 — rencana 72,83%, fisik 55%, biaya Rp 228.240.000",
+     "06 Sep 2026 — rencana 75,05%, fisik 55%, biaya Rp 228.240.000"
+    ],
+    "ticks": [
+     "0%",
+     "25%",
+     "50%",
+     "75%",
+     "100%",
+     "28 Feb 2026",
+     "30 Apr 2026",
+     "30 Jun 2026",
+     "31 Agu 2026",
+     "30 Nov 2026",
+     "31 Jan 2027",
+     "31 Mar 2027",
+     "30 Jun 2027"
+    ],
+    "legend": [
+     "Rencana baseline (kurva beku)",
+     "Progres fisik (EV)",
+     "Biaya aktual terhadap BAC"
+    ],
+    "outside": 0,
+    "box": {
+     "w": 719,
+     "h": 276
+    },
+    "text_outside_viewbox": [],
+    "pixel_diff": {
+     "available": true,
+     "before": [
+      720,
+      261
+     ],
+     "after": [
+      720,
+      277
+     ],
+     "changed_pct": 7.16,
+     "outside_intersection_pct": 5.78
+    }
+   },
+   "tren_harga": {
+    "cls": "chart chart-lib chart-line",
+    "aria": "Tren harga satuan",
+    "lib": true,
+    "series": [
+     {
+      "token": "--chart-1",
+      "stroke": "rgb(26, 86, 219)",
+      "expected": "#1a56db",
+      "dash": "none"
+     }
+    ],
+    "areas": 0,
+    "points": 2,
+    "point_radii": [
+     "3",
+     "3.5"
+    ],
+    "point_tokens": [
+     "--chart-1",
+     "--chart-7"
+    ],
+    "marks_with_title": 2,
+    "marks": 2,
+    "titles": [
+     "16 Feb 2026 — PO/2026/II/0001 (PT Semen Distribusi Utama): Rp 62.000",
+     "01 Jul 2026 — GRN/2026/VII/0001: Rp 62.000"
+    ],
+    "ticks": [
+     "Rp 61,23 rb",
+     "Rp 61,61 rb",
+     "Rp 62 rb",
+     "Rp 62,39 rb",
+     "Rp 62,78 rb",
+     "16 Feb 2026",
+     "01 Jul 2026"
+    ],
+    "legend": [],
+    "outside": 0,
+    "box": {
+     "w": 1112,
+     "h": 402
+    },
+    "text_outside_viewbox": [],
+    "pixel_diff": {
+     "available": true,
+     "before": [
+      1112,
+      372
+     ],
+     "after": [
+      1112,
+      403
+     ],
+     "changed_pct": 6.08,
+     "outside_intersection_pct": 7.69
+    }
+   }
+  },
+  "pageerrors": [],
+  "dark": {
+   "tren_harga": [
+    [
+     "--chart-1",
+     "rgb(91, 141, 239)",
+     "#5b8def"
+    ]
+   ],
+   "kurva_s": [
+    [
+     "--chart-3",
+     "rgb(74, 222, 128)",
+     "#4ade80"
+    ],
+    [
+     "--chart-1",
+     "rgb(91, 141, 239)",
+     "#5b8def"
+    ],
+    [
+     "--chart-8",
+     "rgb(148, 163, 184)",
+     "#94a3b8"
+    ]
+   ],
+   "evm": [
+    [
+     "--chart-8",
+     "rgb(148, 163, 184)",
+     "#94a3b8"
+    ],
+    [
+     "--chart-1",
+     "rgb(91, 141, 239)",
+     "#5b8def"
+    ],
+    [
+     "--chart-2",
+     "rgb(251, 146, 60)",
+     "#fb923c"
+    ]
+   ]
+  },
+  "checks": {
+   "all_are_chart_lib": true,
+   "every_mark_titled": true,
+   "scurve_three_series": true,
+   "scurve_has_area": true,
+   "scurve_axis_0_100": true,
+   "scurve_week_labels": true,
+   "scurve_title_names_both": true,
+   "evm_three_distinct_colours": true,
+   "evm_as_of_point_larger": true,
+   "evm_title_names_three_numbers": true,
+   "evm_axis_reaches_100": true,
+   "trend_axis_not_zero_based": true,
+   "trend_five_gridlines": true,
+   "trend_one_series": true,
+   "trend_point_tokens_differ": true,
+   "series_colours_match_tokens": true,
+   "no_text_outside_viewbox": true,
+   "dark_colours_match_tokens": true,
+   "dark_differs_from_light": true,
+   "no_page_errors": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 7150,
+  "_clicks": 0
  }
 }

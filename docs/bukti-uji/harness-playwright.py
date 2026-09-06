@@ -13,6 +13,7 @@ from playwright.sync_api import sync_playwright
 ORIGIN = os.environ.get("ERP_BASE", "http://127.0.0.1:8000").rstrip("/")
 BASE = ORIGIN + "/app/"
 API = ORIGIN + "/api/"
+SPA_EVIDENCE = os.path.dirname(os.path.abspath(__file__))
 DB = os.environ.get("ERP_DB", "/home/claude/nusantara-erp/database/database.sqlite")
 OUT = os.environ.get("UXTEST_OUT", "/home/claude/uxtest")
 R = {}          # results
@@ -1536,6 +1537,212 @@ def s20m(browser):
     finally:
         ctx.close()
 
+# ------------------------------------------------------------ S20e (P1-E)
+#
+# Tiga grafik tangan yang pindah ke charts.js: kurva-S proyek, kurva EVM, tren
+# harga satuan. S20 mengukur token pada grafik SINTETIS di sandbox; di sini yang
+# dibuka adalah LAYAR SUNGGUHAN dengan data demo, karena yang bisa hilang dalam
+# migrasi bukan tokennya melainkan FITURNYA — sumbu EVM yang boleh melewati
+# 100 %, sumbu harga yang tidak dipaksa mulai dari nol, celah kurva baseline
+# sebelum sampel pertama, titik as-of yang lebih besar, dan kalimat <title> yang
+# menyebut ketiga angka sekaligus.
+#
+# ROADMAP menuliskan kriteria "diff piksel ≤ 2 %". Angka itu DIUKUR di sini
+# (bukan diasumsikan) terhadap tangkapan layar sebelum migrasi yang disimpan di
+# repositori — dan hasilnya dilaporkan apa adanya, termasuk ketika ia melampaui
+# 2 %: legenda yang pindah ke dalam svg dan warna yang pindah ke token
+# kategorikal mengubah piksel dengan sengaja. Yang tidak boleh berubah adalah
+# daftar fitur di bawahnya.
+
+CHART_INVENTORY = """(sel) => {
+  const svg = document.querySelector(sel);
+  if (!svg) return null;
+  const cs = (n, p) => getComputedStyle(n)[p];
+  const resolve = (t) => getComputedStyle(document.documentElement).getPropertyValue(t).trim();
+  const lines = [...svg.querySelectorAll('path.series-line')];
+  const pts = [...svg.querySelectorAll('circle.series-point, .series-point')];
+  return {
+    cls: svg.getAttribute('class'),
+    aria: svg.getAttribute('aria-label'),
+    lib: (svg.getAttribute('class') || '').includes('chart-lib'),
+    series: lines.map((l) => ({
+      token: l.dataset.token || null,
+      stroke: cs(l, 'stroke'),
+      expected: l.dataset.token ? resolve(l.dataset.token) : null,
+      dash: cs(l, 'strokeDasharray'),
+    })),
+    areas: svg.querySelectorAll('path.series-area').length,
+    points: pts.length,
+    point_radii: [...new Set(pts.map((p) => p.getAttribute('r')))].sort(),
+    point_tokens: [...new Set(pts.map((p) => p.dataset.token || null))].sort(),
+    marks_with_title: [...svg.querySelectorAll('.mark')].filter((m) => m.querySelector('title')).length,
+    marks: svg.querySelectorAll('.mark').length,
+    titles: [...svg.querySelectorAll('title')].map((t) => t.textContent),
+    ticks: [...svg.querySelectorAll('text.chart-tick')].map((t) => t.textContent),
+    legend: [...svg.querySelectorAll('text.chart-legend')].map((t) => t.textContent),
+    outside: svg.querySelectorAll('[data-outside]').length,
+    box: (() => { const r = svg.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })(),
+    // Label tepi tidak boleh keluar dari kotak svg — yang persis dilanggar
+    // grafik tangan tren harga sebelum migrasi.
+    text_outside_viewbox: (() => {
+      const vb = (svg.getAttribute('viewBox') || '0 0 0 0').split(' ').map(Number);
+      return [...svg.querySelectorAll('text')].filter((t) => {
+        const b = t.getBBox();
+        return b.x < vb[0] - 0.5 || b.x + b.width > vb[0] + vb[2] + 0.5;
+      }).map((t) => t.textContent);
+    })(),
+  };
+}"""
+
+
+def _pixel_diff(before, after):
+    """Bagian piksel yang berubah pada irisan kedua gambar, plus luas di luarnya.
+
+    PIL opsional: harness ini harus tetap jalan di mesin yang tidak memasangnya,
+    dan sebuah angka yang TIDAK bisa diukur dilaporkan sebagai null bersebab —
+    bukan dihilangkan diam-diam.
+    """
+    try:
+        from PIL import Image, ImageChops
+    except ImportError:
+        return {"available": False, "reason": "Pillow tidak terpasang"}
+
+    if not (os.path.exists(before) and os.path.exists(after)):
+        return {"available": False, "reason": "tangkapan layar pembanding tidak ada"}
+
+    a = Image.open(before).convert("RGB")
+    b = Image.open(after).convert("RGB")
+    w, h = min(a.width, b.width), min(a.height, b.height)
+    diff = ImageChops.difference(a.crop((0, 0, w, h)), b.crop((0, 0, w, h)))
+    # Toleransi 16/255 per kanal: anti-alias sub-piksel bukan perubahan.
+    changed = sum(1 for r, g, bl in diff.getdata() if r > 16 or g > 16 or bl > 16)
+    frame = max(a.width, b.width) * max(a.height, b.height)
+    outside = frame - (w * h)
+    return {
+        "available": True,
+        "before": [a.width, a.height], "after": [b.width, b.height],
+        "changed_pct": round(changed / (w * h) * 100, 2),
+        "outside_intersection_pct": round(outside / frame * 100, 2),
+    }
+
+
+@scenario("S20e_migrated_charts")
+def s20e(pg):
+    login(pg, "admin@nusantara.test")
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+
+    out = {"charts": {}, "pageerrors": errors}
+
+    def grab(key, sel, shot):
+        pg.wait_for_selector(sel, timeout=20000)
+        info = pg.evaluate(CHART_INVENTORY, sel)
+        pg.locator(sel).first.screenshot(path=f"{OUT}/{shot}-sesudah-p1e.png")
+        info["pixel_diff"] = _pixel_diff(f"{SPA_EVIDENCE}/{shot}-sebelum-p1e.png", f"{OUT}/{shot}-sesudah-p1e.png")
+        out["charts"][key] = info
+        return info
+
+    # Kurva-S dan kurva EVM hidup di halaman proyek yang sama; kartu EVM dimuat
+    # setelah kurva-S, jadi masing-masing ditunggu dengan selektornya sendiri.
+    pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+    pg.wait_for_timeout(1200)
+    scurve = grab("kurva_s", "svg[aria-label*='Kurva-S']", "s20e-kurva-s")
+    evm = grab("evm", "svg[aria-label*='EVM']", "s20e-evm")
+
+    pg.evaluate("() => { location.hash = '#/harga-satuan'; }")
+    pg.wait_for_timeout(2500)
+    if not pg.locator("svg[aria-label*='Tren harga']").count():
+        pg.locator("select").first.select_option(index=1)
+        pg.wait_for_timeout(2500)
+    trend = grab("tren_harga", "svg[aria-label*='Tren harga']", "s20e-tren-harga")
+
+    light_series = {
+        "kurva_s": [(x["token"], x["stroke"]) for x in scurve["series"]],
+        "evm": [(x["token"], x["stroke"]) for x in evm["series"]],
+        "tren_harga": [(x["token"], x["stroke"]) for x in trend["series"]],
+    }
+
+    # Tema gelap: yang diperiksa BUKAN gambarnya melainkan bahwa setiap garis
+    # tetap mengambil warnanya dari tokennya — token --chart-* punya nilai
+    # sendiri di blok gelap, jadi sebuah warna yang ter-hardcode akan lolos di
+    # terang dan ketahuan di sini.
+    pg.evaluate("() => { document.documentElement.dataset.theme = 'dark'; }")
+    pg.wait_for_timeout(250)
+    dark = {
+        "tren_harga": pg.evaluate(CHART_INVENTORY, "svg[aria-label*='Tren harga']"),
+    }
+    pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+    pg.wait_for_selector("svg[aria-label*='EVM']", timeout=20000)
+    dark["kurva_s"] = pg.evaluate(CHART_INVENTORY, "svg[aria-label*='Kurva-S']")
+    dark["evm"] = pg.evaluate(CHART_INVENTORY, "svg[aria-label*='EVM']")
+    pg.locator("svg[aria-label*='Kurva-S']").first.screenshot(path=f"{OUT}/s20e-kurva-s-gelap-p1e.png")
+    out["dark"] = {k: [(x["token"], x["stroke"], x["expected"]) for x in v["series"]] for k, v in dark.items() if v}
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+
+    # ---- daftar fitur yang TIDAK boleh hilang, dinyatakan sebagai syarat ----
+    checks = {
+        # Ketiganya benar-benar digambar charts.js, bukan sisa SVG tangan.
+        "all_are_chart_lib": all(c["lib"] for c in (scurve, evm, trend)),
+        # Setiap tanda membawa tepat satu <title> (aturan charts.js, dan satu-
+        # satunya cara pembaca layar mendapat angkanya).
+        "every_mark_titled": all(c["marks_with_title"] == c["marks"] for c in (scurve, evm, trend)),
+        # Kurva-S: tiga seri, area di bawah aktual, sumbu 0–100 langkah 25.
+        "scurve_three_series": len(scurve["series"]) == 3,
+        "scurve_has_area": scurve["areas"] == 1,
+        "scurve_axis_0_100": scurve["ticks"][:5] == ["0%", "25%", "50%", "75%", "100%"],
+        "scurve_week_labels": any(t.startswith("M") for t in scurve["ticks"]),
+        # Kalimat <title> menyebut rencana DAN aktual pada minggu yang sama.
+        "scurve_title_names_both": all(
+            ("rencana" in t and "aktual" in t) for t in scurve["titles"]) and bool(scurve["titles"]),
+        # EVM: tiga seri dengan TIGA warna berbeda (sebelum P1-E garis EV dan
+        # biaya sama-sama biru, hanya dibedakan opacity .55).
+        "evm_three_distinct_colours": len({s["stroke"] for s in evm["series"]}) == 3,
+        # Titik as-of lebih besar daripada titik biasa.
+        "evm_as_of_point_larger": len(evm["point_radii"]) >= 2,
+        "evm_title_names_three_numbers": all(
+            ("rencana" in t and "fisik" in t and "biaya" in t) for t in evm["titles"]) and bool(evm["titles"]),
+        # Sumbu EVM boleh melewati 100 % — di sini datanya berhenti di 100, jadi
+        # yang dibuktikan adalah bahwa ia TIDAK jatuh di bawahnya.
+        "evm_axis_reaches_100": "100%" in evm["ticks"],
+        # Tren harga: sumbu TIDAK mulai dari nol.
+        "trend_axis_not_zero_based": trend["ticks"] and not trend["ticks"][0].strip().endswith(" 0"),
+        "trend_five_gridlines": len([t for t in trend["ticks"] if t.startswith("Rp")]) == 5,
+        # PO vs GRN dibedakan per TITIK, bukan per seri.
+        "trend_one_series": len(trend["series"]) == 1,
+        "trend_point_tokens_differ": len(trend["point_tokens"]) >= 2,
+        # Warna setiap garis benar-benar nilai tokennya.
+        "series_colours_match_tokens": all(
+            s["expected"] and s["stroke"].replace(" ", "") == _rgb_css(s["expected"])
+            for c in (scurve, evm, trend) for s in c["series"]),
+        # Label tepi tidak keluar dari kotak — cacat yang DIPERBAIKI migrasi ini.
+        "no_text_outside_viewbox": all(not c["text_outside_viewbox"] for c in (scurve, evm, trend)),
+        # …dan warnanya masih datang dari token di tema GELAP, di mana setiap
+        # token punya nilai berbeda: warna ter-hardcode lolos di terang dan
+        # ketahuan di sini.
+        "dark_colours_match_tokens": all(
+            s["expected"] and s["stroke"].replace(" ", "") == _rgb_css(s["expected"])
+            for v in dark.values() if v for s in v["series"]),
+        "dark_differs_from_light": any(
+            d[i][1] != light_series[key][i][1]
+            for key, d in out["dark"].items()
+            for i in range(len(d))
+            if key in light_series and i < len(light_series[key])),
+        "no_page_errors": not errors,
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+def _rgb_css(hexs):
+    """'#1a56db' → 'rgb(26,86,219)' untuk dibandingkan dengan getComputedStyle."""
+    h = hexs.strip().lstrip("#")
+    if len(h) != 6:
+        return hexs.strip()
+    return "rgb({},{},{})".format(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))
+
+
 # ------------------------------------------------------------ S21 (P1-B)
 # Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
 # 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
@@ -2946,7 +3153,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
