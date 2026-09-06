@@ -20335,8 +20335,17 @@
         },
         "text_outside_viewbox": [],
         "pixel_diff": {
-          "available": false,
-          "reason": "Pillow tidak terpasang"
+          "available": true,
+          "before": [
+            720,
+            260
+          ],
+          "after": [
+            720,
+            277
+          ],
+          "changed_pct": 6.06,
+          "outside_intersection_pct": 6.14
         }
       },
       "evm": {
@@ -20414,8 +20423,17 @@
         },
         "text_outside_viewbox": [],
         "pixel_diff": {
-          "available": false,
-          "reason": "Pillow tidak terpasang"
+          "available": true,
+          "before": [
+            720,
+            261
+          ],
+          "after": [
+            720,
+            277
+          ],
+          "changed_pct": 4.63,
+          "outside_intersection_pct": 5.78
         }
       },
       "tren_harga": {
@@ -20464,8 +20482,17 @@
         },
         "text_outside_viewbox": [],
         "pixel_diff": {
-          "available": false,
-          "reason": "Pillow tidak terpasang"
+          "available": true,
+          "before": [
+            1112,
+            372
+          ],
+          "after": [
+            1112,
+            403
+          ],
+          "changed_pct": 6.08,
+          "outside_intersection_pct": 7.69
         }
       }
     },
@@ -20578,7 +20605,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 6908,
+    "_ms": 8277,
     "_clicks": 0
   },
   "S24_laporan_bebas": {

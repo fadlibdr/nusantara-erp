@@ -1,4 +1,4 @@
-import json, os, re, time, sqlite3, struct, base64, traceback, urllib.request
+import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request
 from datetime import date
 from playwright.sync_api import sync_playwright
 
@@ -1619,32 +1619,109 @@ CHART_INVENTORY = """(sel) => {
 def _pixel_diff(before, after):
     """Bagian piksel yang berubah pada irisan kedua gambar, plus luas di luarnya.
 
-    PIL opsional: harness ini harus tetap jalan di mesin yang tidak memasangnya,
-    dan sebuah angka yang TIDAK bisa diukur dilaporkan sebagai null bersebab —
-    bukan dihilangkan diam-diam.
+    Tanpa dependensi: dekodernya `_read_png` di bawah. Sampai verifikasi P1-E
+    fungsi ini memanggil Pillow dan menyerah dengan sopan bila tidak ada — dan
+    host tempat harness ini benar-benar dijalankan TIDAK memasang Pillow, jadi
+    satu-satunya angka yang roadmap tuntut untuk pemindahan grafik dilaporkan
+    "tidak tersedia" setiap kali. Sebuah angka yang tidak pernah terukur bukan
+    kriteria.
     """
-    try:
-        from PIL import Image, ImageChops
-    except ImportError:
-        return {"available": False, "reason": "Pillow tidak terpasang"}
-
     if not (os.path.exists(before) and os.path.exists(after)):
         return {"available": False, "reason": "tangkapan layar pembanding tidak ada"}
 
-    a = Image.open(before).convert("RGB")
-    b = Image.open(after).convert("RGB")
-    w, h = min(a.width, b.width), min(a.height, b.height)
-    diff = ImageChops.difference(a.crop((0, 0, w, h)), b.crop((0, 0, w, h)))
-    # Toleransi 16/255 per kanal: anti-alias sub-piksel bukan perubahan.
-    changed = sum(1 for r, g, bl in diff.getdata() if r > 16 or g > 16 or bl > 16)
-    frame = max(a.width, b.width) * max(a.height, b.height)
+    aw, ah, a = _read_png(before)
+    bw, bh, b = _read_png(after)
+    if a is None or b is None:
+        return {"available": False, "reason": "PNG tidak bisa dibaca dekoder bawaan"}
+
+    w, h = min(aw, bw), min(ah, bh)
+    changed = 0
+    for y in range(h):
+        ra, rb = y * aw * 3, y * bw * 3
+        for x in range(w):
+            ia, ib = ra + x * 3, rb + x * 3
+            # Toleransi 16/255 per kanal: anti-alias sub-piksel bukan perubahan.
+            if (abs(a[ia] - b[ib]) > 16 or abs(a[ia + 1] - b[ib + 1]) > 16
+                    or abs(a[ia + 2] - b[ib + 2]) > 16):
+                changed += 1
+
+    frame = max(aw, bw) * max(ah, bh)
     outside = frame - (w * h)
     return {
         "available": True,
-        "before": [a.width, a.height], "after": [b.width, b.height],
+        "before": [aw, ah], "after": [bw, bh],
         "changed_pct": round(changed / (w * h) * 100, 2),
         "outside_intersection_pct": round(outside / frame * 100, 2),
     }
+
+
+def _read_png(path):
+    """PNG 8-bit non-interlaced -> (lebar, tinggi, bytes RGB). (0, 0, None) bila tak terbaca.
+
+    Dekoder sendiri, bukan Pillow. Alasannya diukur: host produksi ini TIDAK
+    memasang Pillow, jadi satu-satunya angka yang dijanjikan roadmap untuk
+    pemindahan grafik ("diff piksel") dilaporkan "tidak tersedia" persis di
+    tempat ia paling dibutuhkan — dan sebuah metrik yang selalu menyerah dengan
+    sopan tidak pernah menjadi gerbang (verifikasi P1-E). Format yang dibaca
+    adalah format yang benar-benar ditulis Playwright: 8 bit per kanal, tanpa
+    interlace; bentuk lain menjawab None dan pemanggilnya melaporkannya.
+    """
+    try:
+        data = open(path, "rb").read()
+        if data[:8] != b"\x89PNG\r\n\x1a\n":
+            return 0, 0, None
+
+        pos, idat, w, h, ctype = 8, b"", 0, 0, 0
+        while pos + 8 <= len(data):
+            ln = struct.unpack(">I", data[pos:pos + 4])[0]
+            typ = data[pos + 4:pos + 8]
+            body = data[pos + 8:pos + 8 + ln]
+            if typ == b"IHDR":
+                w, h, bitd, ctype, _, _, interlace = struct.unpack(">IIBBBBB", body)
+                if bitd != 8 or interlace != 0 or ctype not in (2, 6):
+                    return 0, 0, None
+            elif typ == b"IDAT":
+                idat += body
+            elif typ == b"IEND":
+                break
+            pos += 12 + ln
+
+        ch = 3 if ctype == 2 else 4
+        raw = zlib.decompress(idat)
+        stride = w * ch
+        rgb = bytearray(w * h * 3)
+        prev = bytearray(stride)
+        at = 0
+        for y in range(h):
+            f = raw[at]
+            at += 1
+            line = bytearray(raw[at:at + stride])
+            at += stride
+            if f == 1:
+                for i in range(ch, stride):
+                    line[i] = (line[i] + line[i - ch]) & 0xFF
+            elif f == 2:
+                for i in range(stride):
+                    line[i] = (line[i] + prev[i]) & 0xFF
+            elif f == 3:
+                for i in range(stride):
+                    left = line[i - ch] if i >= ch else 0
+                    line[i] = (line[i] + ((left + prev[i]) >> 1)) & 0xFF
+            elif f == 4:
+                for i in range(stride):
+                    left = line[i - ch] if i >= ch else 0
+                    up = prev[i]
+                    ul = prev[i - ch] if i >= ch else 0
+                    p = left + up - ul
+                    pa, pb, pc = abs(p - left), abs(p - up), abs(p - ul)
+                    line[i] = (line[i] + (left if (pa <= pb and pa <= pc) else (up if pb <= pc else ul))) & 0xFF
+            base = y * w * 3
+            for x in range(w):
+                rgb[base + x * 3:base + x * 3 + 3] = line[x * ch:x * ch + 3]
+            prev = line
+        return w, h, bytes(rgb)
+    except Exception:
+        return 0, 0, None
 
 
 @scenario("S20e_migrated_charts")

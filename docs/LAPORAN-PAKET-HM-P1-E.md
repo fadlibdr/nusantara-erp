@@ -6,7 +6,8 @@ Branch: `feat/phase1-e` (dari `feat/phase1-d`) · 6 September 2026
 > harness **S20e** ditulis dan dijalankan: 20 syarat fitur hijau di tema terang DAN gelap, dan
 > **diff piksel benar-benar
 > DIUKUR** terhadap tangkapan layar sebelum migrasi yang kini ada di repositori. Angkanya
-> **melampaui target 2 %** — 3,19 % / 7,16 % / 6,08 % — persis seperti yang diperkirakan
+> **melampaui target 2 %** — 6,06 % / 4,63 % / 6,08 % sesudah putaran verifikasi
+> (3,19 % / 7,15 % / 6,08 % sebelum) — persis seperti yang diperkirakan
 > laporan P1-A; § Kriteria "diff piksel ≤ 2 %" menjelaskan apa yang mengubah piksel itu dan
 > mengusulkan kriteria pengganti. Tidak ada migrasi basis data, tidak ada endpoint baru.
 
@@ -17,7 +18,7 @@ Branch: `feat/phase1-e` (dari `feat/phase1-d`) · 6 September 2026
 | Kurva-S proyek → `charts.js` | ✅ | `views/project.js`: ~95 baris SVG tangan → satu panggilan `lineChart` |
 | Kurva EVM → `charts.js` (aturan sumbu > 100 % dipertahankan) | ✅ | `views/evm.js`; `yMax = Math.max(100, ceil(peak/25)*25)` tetap di pemanggil dan dipaku `ChartMigrationTest` |
 | Tren harga satuan → `charts.js` | ✅ | `views/hargasatuan.js`; sumbu tidak-dari-nol dipertahankan lewat `yMin`/`yMax` sendiri |
-| Diff piksel ≤ 2 % | ❌ **diukur, tidak tercapai** | 3,19 % / 7,16 % / 6,08 % (S20e) — lihat § Kriteria |
+| Diff piksel ≤ 2 % | ❌ **diukur, tidak tercapai** | 6,06 % / 4,63 % / 6,08 % (S20e, diukur ulang sesudah verifikasi) — lihat § Kriteria |
 | Harness | ✅ | **S20e** (20 syarat fitur, dua tema), 7 PNG, hasil di `results-phase-1.json` |
 
 ## Yang benar-benar berubah
@@ -63,7 +64,13 @@ svg; `s20e-tren-harga-sesudah-p1e.png` memuat keduanya utuh, dan S20e memaku sif
 
 **Penjarangan label sumbu tanggal EVM.** Grafik tangan menjarangkan per INDEKS
 (`ceil(rows/8)`), padahal sumbunya tanggal — jarak antar label karena itu tidak rata di layar.
-`charts.js` menjarangkan di ruang piksel: 7 label tidak rata → 8 label rata.
+`charts.js` menjarangkan di ruang piksel: **7 label menjadi 8, tidak ada yang bertumpuk, dan
+label tepi kanan tidak lagi terpotong** ('30 Jun 20' → '30 Jun 2027', terlihat pada kedua PNG
+sebelum/sesudah). Yang TIDAK terjadi adalah jarak yang rata: terukur pada layar hidup, pusat
+kedelapan label ada di 36,4 / 120,0 / 203,6 / 288,6 / 413,4 / 498,4 / 579,3 / 704 — jarak
+80,9–124,8 px, rasio 1,54. Penjarangan ruang piksel mencegah TABRAKAN; ia tidak meratakan
+langkah. Versi pertama laporan ini menulis "7 label tidak rata → 8 label rata" (temuan
+verifikasi P1-E).
 
 **Nilai di luar sumbu tidak lagi dijepit diam-diam.** Kurva-S lama menulis
 `Math.min(100, value)`, jadi minggu ber-105 % tergambar persis di garis 100 % dan tidak ada yang
@@ -84,18 +91,38 @@ bisa tahu. `charts.js` menempelkannya di tepi plot dengan `data-outside` dan men
 
 | grafik | ukuran sebelum | ukuran sesudah | piksel berubah pada irisan | luas di luar irisan |
 |---|---|---|---|---|
-| Kurva-S | 720×260 | 720×276 | **3,19 %** | 5,80 % |
-| Kurva EVM | 720×261 | 720×277 | **7,16 %** | 5,78 % |
+| Kurva-S | 720×260 | 720×277 | **6,06 %** | 6,14 % |
+| Kurva EVM | 720×261 | 720×277 | **4,63 %** | 5,78 % |
 | Tren harga | 1112×372 | 1112×403 | **6,08 %** | 7,69 % |
 
 Toleransi 16/255 per kanal (anti-alias sub-piksel tidak dihitung sebagai perubahan).
 
+Angka di atas **diukur ulang 6 September 2026, sesudah putaran verifikasi adversarial**, dan
+karena itu berbeda dari yang dilaporkan versi pertama paket ini (3,19 % / 7,15 % / 6,08 %):
+perbaikan verifikasi ikut memindahkan piksel — tebal garis seri terukur kembali ke 2,5 px,
+jari-jari titik yang dikecualikan `dots:false` turun dari 4 ke 3, dan seri yang seluruh datanya
+terpencil kini dilambangkan TITIK di legendanya. Dua catatan tentang angkanya sendiri:
+
+- Versi pertama menuliskan **7,16 %** untuk EVM sementara `results-phase-1.json` merekam
+  **7,15**; yang benar adalah berkas buktinya.
+- Diff itu dulu hanya bisa diukur di mesin ber-Pillow, dan host tempat harness ini benar-benar
+  dijalankan tidak memasangnya — jadi satu-satunya angka yang diminta roadmap untuk paket ini
+  dilaporkan "tidak tersedia" setiap kali. Sejak verifikasi, `harness-playwright.py` membawa
+  dekoder PNG-nya sendiri (`_read_png`, 8-bit non-interlaced — format yang memang ditulis
+  Playwright) dan angkanya terukur tanpa satu dependensi pun.
+
 **Apa yang mengubah piksel itu**, seluruhnya disengaja dan tidak satu pun bisa dihindari sambil
 tetap memakai `charts.js`:
 
-1. **Legenda pindah KE DALAM svg** — tinggi natural bertambah 16 px (satu baris legenda) pada
-   kurva-S dan EVM, 31 px pada tren harga yang dirender lebih lebar. Itu sendiri sudah
-   5,8–7,7 % luas bingkai, sebelum satu piksel di dalam irisan berubah.
+1. **Legenda pindah KE DALAM svg** — tinggi natural bertambah 16 px (satu baris legenda), dan
+   itu berlaku untuk **kurva-S dan EVM saja**.
+1b. **Tinggi bawaan `charts.js` 260 vs 240 grafik tangan** — inilah +31 px pada **tren harga**,
+   yang justru satu-satunya dari ketiganya yang TIDAK memakai legenda svg (`legend: false`,
+   legendanya tetap DOM karena pembedanya per titik). 1112/720 × 20 = 30,9 px, yaitu 372 → 403
+   yang direkam berkas bukti. Versi pertama laporan ini menjelaskan +31 px itu dengan legenda
+   yang grafik tersebut tidak punya — `results-phase-1.json` merekamnya sendiri:
+   `S20e.charts.tren_harga.legend == []` sementara kurva-S dan EVM masing-masing tiga entri
+   (temuan verifikasi P1-E).
 2. **Warna pindah ke token kategorikal** — dua dari delapan seri kebetulan identik
    (`--chart-1` = `--primary`); enam sisanya berubah, dan dua di antaranya HARUS berubah
    (EV vs biaya yang dulu sewarna).
