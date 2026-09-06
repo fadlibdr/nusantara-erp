@@ -8,6 +8,7 @@ use LogicException;
 use Modules\Core\Services\ReportRunner;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\ReportDefinition;
+use Modules\Core\Support\SpaEnums;
 use Tests\ErpTestCase;
 
 /**
@@ -172,22 +173,29 @@ class ReportRunnerTest extends ErpTestCase
             'fin_project_costs tidak punya deleted_at; whereNull yang dipaksakan di sana adalah 500.');
     }
 
-    /** Nilai saringan adalah BINDING, tidak pernah teks SQL. */
+    /**
+     * Nilai saringan adalah BINDING, tidak pernah teks SQL.
+     *
+     * Diuji lewat saringan ber-kind `text`, satu-satunya kind yang memang
+     * menerima teks bebas — sejak verifikasi kedua P1-F kind `enum` dan `key`
+     * menolak nilai yang bukan miliknya SEBELUM SQL, jadi teks bermusuhan tidak
+     * pernah sampai ke sana lagi. Yang dijaga di sini karena itu justru jalur
+     * yang masih menerimanya.
+     */
     public function test_filter_values_travel_as_bindings(): void
     {
+        $hostile = "Jawa Barat'; drop table prj_projects; --";
+
         $compiled = $this->runner()->compile(ReportDefinition::validate([
-            'resource' => 'finance/project-costs',
+            'resource' => 'projects',
             'mode' => 'group',
-            'row' => ['column' => 'cost_category'],
-            'measure' => ['agg' => 'sum', 'column' => 'amount'],
-            'filters' => [
-                'date_from' => '2026-01-01',
-                'eq' => ['cost_category' => "material'; drop table fin_project_costs; --"],
-            ],
+            'row' => ['column' => 'status'],
+            'measure' => ['agg' => 'sum', 'column' => 'contract_value'],
+            'filters' => ['eq' => ['province' => $hostile]],
         ]));
 
         $this->assertStringNotContainsString('drop table', strtolower($compiled['sql']));
-        $this->assertContains("material'; drop table fin_project_costs; --", $compiled['bindings']);
+        $this->assertContains($hostile, $compiled['bindings']);
     }
 
     /** SATU kueri, diukur — bukan diklaim. */
@@ -196,7 +204,9 @@ class ReportRunnerTest extends ErpTestCase
         $this->seedCosts();
 
         $queries = [];
-        DB::listen(static function ($query) use (&$queries): void { $queries[] = $query->sql; });
+        DB::listen(static function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
 
         $this->runner()->run(ReportDefinition::validate([
             'resource' => 'finance/project-costs',
@@ -322,6 +332,70 @@ class ReportRunnerTest extends ErpTestCase
         }
     }
 
+    /**
+     * Saringan ber-enum menolak nilai yang bukan nilai enum-nya.
+     *
+     * Putaran verifikasi pertama menulis lengan 'key' saja; sebuah status yang
+     * sudah dicabut lolos ke SQL, laporannya kembali kosong tanpa satu kata pun,
+     * dan definisi itu bisa DISIMPAN lalu dibagikan ke seluruh peran.
+     */
+    public function test_an_enum_filter_refuses_a_value_that_is_not_one_of_its_values(): void
+    {
+        // Nilai yang sah tetap lewat, di kedua bentuk (eq dan in).
+        $ok = ReportDefinition::validate([
+            'resource' => 'projects', 'mode' => 'group',
+            'row' => ['column' => 'type'], 'measure' => ['agg' => 'count'],
+            'filters' => ['eq' => ['status' => 'active'], 'in' => ['type' => ['construction']]],
+        ]);
+        $this->assertSame('active', $ok['filters']['eq']['status']);
+
+        foreach ([
+            ['eq' => ['status' => 'status_yang_sudah_dicabut']],
+            ['eq' => ['status' => "' or 1=1 --"]],
+            ['in' => ['status' => ['active', 'bukan_status']]],
+        ] as $filters) {
+            try {
+                ReportDefinition::validate([
+                    'resource' => 'projects', 'mode' => 'group',
+                    'row' => ['column' => 'type'], 'measure' => ['agg' => 'count'],
+                    'filters' => $filters,
+                ]);
+                $this->fail('Nilai enum yang tidak dikenal seharusnya ditolak: '.json_encode($filters));
+            } catch (InvalidArgumentException $e) {
+                $this->assertStringContainsString('tidak mengenal nilai', $e->getMessage());
+                $this->assertStringContainsString('active', $e->getMessage(),
+                    'Penolakan harus MENYEBUT nilai yang tersedia, bukan hanya menolak.');
+            }
+        }
+    }
+
+    /**
+     * …dan bila `public/app/js/enums.js` tidak terbaca, aturan itu berhenti
+     * memeriksa alih-alih menolak semuanya — degradasi yang sama dengan
+     * SpaEnums sendiri (label basi lebih ringkas; 422 atas berkas statis yang
+     * hilang adalah fitur yang mati).
+     */
+    public function test_the_enum_check_degrades_to_accept_when_the_enum_file_is_unreadable(): void
+    {
+        $this->assertNotSame([], SpaEnums::labels('projectStatus'),
+            'Prasyarat: enums.js terbaca di lingkungan uji.');
+
+        $reflection = new \ReflectionClass(SpaEnums::class);
+        $property = $reflection->getProperty('enums');
+        $property->setValue(null, ['projectStatus' => []]);
+
+        try {
+            $out = ReportDefinition::validate([
+                'resource' => 'projects', 'mode' => 'group',
+                'row' => ['column' => 'type'], 'measure' => ['agg' => 'count'],
+                'filters' => ['eq' => ['status' => 'apa pun']],
+            ]);
+            $this->assertSame('apa pun', $out['filters']['eq']['status']);
+        } finally {
+            $property->setValue(null, null);
+        }
+    }
+
     private function groupByClause(string $sql): string
     {
         $at = stripos($sql, 'group by');
@@ -342,7 +416,7 @@ class ReportRunnerTest extends ErpTestCase
      */
     private function unquote(string $sql): string
     {
-        return str_replace(['"', '`', '['   , ']'], '', $sql);
+        return str_replace(['"', '`', '[', ']'], '', $sql);
     }
 
     private function seedAssets(): void

@@ -324,24 +324,55 @@ final class ReportDefinition
     }
 
     /**
-     * Saringan ber-kunci menerima KUNCI, bukan teks apa pun.
+     * Saringan ber-kunci menerima KUNCI, dan saringan ber-enum menerima NILAI
+     * ENUM — bukan teks apa pun.
      *
      * Tanpa ini `(int) 'abc'` menjadi 0 dan laporannya kembali kosong tanpa
      * satu kata pun — sebuah saringan yang diam-diam tidak cocok dengan apa
      * pun adalah bentuk kebohongan yang paling sulit dilihat (temuan
      * verifikasi P1-F).
      *
+     * Putaran pertama menulis lengan 'key' saja, jadi kalimat itu tetap benar
+     * untuk enum: sebuah status yang sudah dicabut — atau salah ketik — lolos
+     * ke `where status = 'x'`, menjawab 200 dengan nol baris, DAN bisa
+     * disimpan lalu dibagikan (temuan verifikasi kedua P1-F). Bahannya sudah
+     * ada di server: setiap entri saringan menyebut nama enum-nya, dan
+     * SpaEnums membaca enums.js yang sama dengan layarnya.
+     *
      * @param  array<string, mixed>  $filter
      */
     private static function assertKindMatches(array $filter, string $key, mixed $value): void
     {
-        if (($filter['kind'] ?? null) !== 'key') {
+        $kind = $filter['kind'] ?? null;
+
+        if ($kind === 'key') {
+            if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+                throw new InvalidArgumentException(sprintf(
+                    'Saringan "%s" menerima nomor baris, bukan "%s".', $key, (string) $value,
+                ));
+            }
+
             return;
         }
 
-        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+        if ($kind !== 'enum') {
+            return;
+        }
+
+        $labels = SpaEnums::labels((string) ($filter['enum'] ?? ''));
+
+        /* Degradasi yang SAMA dengan SpaEnums sendiri: `public/app/js/enums.js`
+           yang tidak terbaca memberi peta kosong, dan menolak setiap saringan
+           enum karena sebuah berkas statis yang hilang jauh lebih buruk
+           daripada yang dicegah aturan ini. Peta kosong = terima apa adanya. */
+        if ($labels === []) {
+            return;
+        }
+
+        if (! array_key_exists((string) $value, $labels)) {
             throw new InvalidArgumentException(sprintf(
-                'Saringan "%s" menerima nomor baris, bukan "%s".', $key, (string) $value,
+                'Saringan "%s" tidak mengenal nilai "%s". Yang tersedia: %s.',
+                $key, (string) $value, implode(', ', array_keys($labels)),
             ));
         }
     }
