@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\AttachmentController;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\CalendarController;
+use Modules\Core\Http\Controllers\ReportController;
+use Modules\Core\Http\Controllers\SavedReportController;
 use Modules\Core\Http\Controllers\CompanyController;
 use Modules\Core\Http\Controllers\DashboardController;
 use Modules\Core\Http\Controllers\DeadlineController;
@@ -16,6 +18,7 @@ use Modules\Core\Http\Controllers\InboxController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
+use Modules\Core\Http\Controllers\ModuleCountController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
@@ -23,6 +26,7 @@ use Modules\Core\Http\Controllers\QueueFailedJobController;
 use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
+use Modules\Core\Http\Controllers\UserPreferenceController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('company', [CompanyController::class, 'show']);
@@ -50,6 +54,61 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // rows. No permission gate for the same reason as search and calendar:
     // each block is included only when the caller holds that module's .view.
     Route::get('dashboard/summary', DashboardController::class);
+
+    // P1-C: satu angka utama per modul (registri ModuleCounts) — muatan yang
+    // sama dengan blok `modules` pada dashboard/summary?include=modules.
+    // Endpoint sendiri supaya launcher #/home tidak ikut memikul ubin uang
+    // dasbor, dan dasbor tetap seringan hari ini bagi yang tidak memintanya.
+    // Tanpa gerbang izin untuk alasan yang sama dengan search dan calendar:
+    // registri menyaring dirinya sendiri per entri.
+    Route::get('modules', ModuleCountController::class);
+
+    /*
+     * P1-F — Laporan Bebas. TANPA gerbang izin di rute, dengan alasan yang sama
+     * dengan search/calendar/modules di atas: izin sebuah laporan adalah izin
+     * SUMBERnya (`{prefix}.view` layar daftarnya), yang baru diketahui setelah
+     * permintaannya dibaca. Sebuah `permission:` di sini harus memilih satu
+     * izin untuk delapan sumber, yang berarti menyembunyikan katalog dari orang
+     * yang sah memegang satu modul saja. ReportableResources menyaring dirinya
+     * sendiri per entri, dan ReportController menjawab 403 yang MENYEBUT
+     * izinnya untuk sumber yang tidak boleh dibaca pemanggil.
+     */
+    Route::get('reports/resources', [ReportController::class, 'resources']);
+    Route::post('reports/run', [ReportController::class, 'run']);
+
+    /*
+     * Laporan tersimpan. Kepemilikan dijaga SavedReportService dan dilaporkan
+     * 422 (bukan 403): orang yang mencoba menyunting laporan orang lain BOLEH
+     * membacanya — ia hanya bukan pemiliknya, dan kalimatnya menyebut jalan
+     * keluarnya. Yang TIDAK boleh dibacanya dijawab 404, supaya endpoint ini
+     * tidak menjadi cara menghitung laporan milik orang lain.
+     */
+    /*
+     * `{savedReport}` TIDAK memakai binding implisit: Laravel menjawab id yang
+     * tidak ada dengan pesannya sendiri, sementara laporan yang ADA tetapi
+     * tidak boleh dibaca pemanggil dijawab kalimat kami — dan dua 404 yang
+     * berbeda bunyinya adalah cara menghitung laporan milik orang lain. Id
+     * diselesaikan di controller, dengan satu kalimat untuk keduanya.
+     */
+    Route::get('reports/saved', [SavedReportController::class, 'index']);
+    Route::post('reports/saved', [SavedReportController::class, 'store']);
+    Route::get('reports/saved/{savedReport}', [SavedReportController::class, 'show']);
+    Route::put('reports/saved/{savedReport}', [SavedReportController::class, 'update']);
+    Route::delete('reports/saved/{savedReport}', [SavedReportController::class, 'destroy']);
+    Route::post('reports/saved/{savedReport}/copy', [SavedReportController::class, 'copy']);
+    // GET, karena api.blob SPA hanya GET — jalur yang sama dengan cetak XLSX formulir.
+    Route::get('reports/saved/{savedReport}/xlsx', [SavedReportController::class, 'xlsx']);
+
+    // P1-C: preferensi pemanggil sendiri (favorit, "Terakhir dibuka",
+    // kepadatan, susunan dasbor, modul yang disembunyikan). Tanpa gerbang izin
+    // untuk alasan yang sama dengan core/inbox: barisnya milik $request->user()
+    // dan tidak ada parameter yang bisa menyebut orang lain. Yang menggantikan
+    // gerbang izin adalah whitelist UserPreferences (kunci + plafon 16 KB).
+    Route::get('me/preferences', [UserPreferenceController::class, 'index']);
+    // Batasan rute sengaja LONGGAR (bentuk kunci, bukan daftarnya): kunci yang
+    // tidak dikenal harus dijawab 422 yang menyebut kuncinya, bukan 404 yang
+    // terbaca sebagai "endpoint-nya hilang" saat dibaca dari konsol peramban.
+    Route::put('me/preferences/{key}', [UserPreferenceController::class, 'update'])->where('key', '[A-Za-z0-9._-]{1,64}');
 
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update'])->middleware('permission:core.update');

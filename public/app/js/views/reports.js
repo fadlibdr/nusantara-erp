@@ -431,11 +431,28 @@ async function render(host) {
   }
 }
 
-export async function renderReports(host) {
+/**
+ * @param {HTMLElement} host
+ * @param {?string} tab kunci TABS yang diminta pemanggil, atau null.
+ *
+ * `tab` ada karena P1-D: tiga widget dasbor (umur piutang, umur hutang,
+ * proyeksi kas) berjanji membuka LAPORANNYA, dan sampai paket ini ketiganya
+ * mendarat di Neraca Saldo — tab pertama, karena `state` modul ini adalah satu-
+ * satunya yang memilih. Sebuah tautan "Buka umur piutang" yang membuka neraca
+ * saldo adalah persis temuan verifikasi P1-C tentang ubin yang menaut ke
+ * halaman yang mengulang angkanya lalu berhenti. Kunci yang tidak dikenal
+ * DIABAIKAN (tab yang sedang aktif dipertahankan), bukan menjatuhkan layar.
+ */
+export async function renderReports(host, tab = null) {
   if (!session.can('fin.view')) {
     clear(host);
     host.appendChild(el('.alert.error', 'Anda tidak memiliki akses ke laporan keuangan.'));
     return;
+  }
+  if (tab && TABS.some((one) => one.key === tab) && tab !== state.tab) {
+    state.tab = tab;
+    // Parameter tab lama (project_id, days) milik laporan yang ditinggalkan.
+    state.params = {};
   }
   await render(host);
 }

@@ -145,19 +145,22 @@ ada tombol "keluarkan saya dari semua perangkat"; itu pekerjaan administrator
 ### 1.4 Tampilan — apa yang ada di layar
 
 **Bilah atas**, dari kiri ke kanan: ikon **Menu** (hanya berguna di layar sempit —
-membuka/menutup sidebar), remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`),
-tombol **`Cari`**, tombol tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan
-peran Anda (atau "tanpa peran").
+membuka/menutup sidebar), ikon **rumah** (**Beranda** — halaman peluncur, lihat §1.4a),
+remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`), tombol **`Cari`**, tombol
+tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan peran Anda (atau "tanpa
+peran").
 
 **Remah roti dan beranda modul.** Remah pertama adalah nama modul dengan titik warna
 modul itu (warna yang sama menandai kelompok yang sedang terbuka di sidebar); klik untuk
 membuka **beranda modul** — satu halaman berisi kartu semua layar modul itu yang boleh
-Anda buka (kartunya persis daftar sidebar; modul yang izinnya tidak Anda pegang hanya
+Anda buka (kartunya persis daftar sidebar kelompok itu, kecuali baris **Beranda** yang
+memang bukan layar modul melainkan peluncurnya; modul yang izinnya tidak Anda pegang hanya
 menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman dokumen,
 remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
 (judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
 Akun: *Padat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
-seketika, diingat di peramban ini untuk akun Anda. Di layar sentuh tombol baris memegang
+seketika, dan **diingat pada akun Anda** — bukan pada peramban ini: pilihan yang Anda buat
+di komputer kantor berlaku juga di tablet lapangan. Di layar sentuh tombol baris memegang
 sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 / 55 px
 (Lega = Normal untuk baris bertombol).
 
@@ -166,13 +169,13 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 
 | Kelompok | Isinya |
 |---|---|
-| Ringkasan | Dasbor · Tenggat · Kalender |
+| Ringkasan | Beranda · Dasbor · Tugas Saya · Tenggat · Kalender · Laporan Bebas |
 | Penjualan | Pelanggan · Prospek · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
 | Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Formulir K3 Harian · Register IBPRP · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
-| Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton · Template Inspeksi |
-| Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat & Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang · Rencana Pengadaan · Evaluasi Vendor |
+| Mutu (QA/QC) | Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Papan NCR · Benda Uji Beton · Template Inspeksi |
+| Pengadaan | Vendor & Subkon · Dokumen Vendor · Permintaan (PR) · Papan PR · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat & Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang · Rencana Pengadaan · Evaluasi Vendor |
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
@@ -195,7 +198,8 @@ kelompok itu yang boleh mereka buka.
 **Tema.** Tombol matahari/bulan berputar antara *mengikuti sistem* → *terang* → *gelap*,
 dan memberi tahu pilihannya lewat notifikasi kecil. Pilihan tema, lipatan sidebar, dan
 jumlah baris per halaman **disimpan di peramban ini**, bukan di akun Anda — komputer lain
-mulai dari bawaan lagi.
+mulai dari bawaan lagi. Yang sebaliknya, **disimpan pada akun Anda dan ikut ke perangkat
+mana pun**: Favorit, Terakhir dibuka, Kepadatan, dan **susunan dasbor** (§1.4b).
 
 **Dialog Akun** (klik kotak nama): memperlihatkan nama, email, **Peran**, dan
 **Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Kepadatan**
@@ -206,6 +210,185 @@ ganti email, foto, atau pengaturan pemberitahuan.
 **Halaman yang salah alamat.** Alamat yang tidak dikenal menghasilkan
 `Halaman "…" tidak ditemukan.` dengan tombol **`Ke dasbor`**. Layar yang izinnya tidak
 Anda pegang menghasilkan `Anda tidak memiliki hak akses "<modul>.view" untuk halaman ini.`
+
+### 1.4a Beranda — peluncur modul
+
+**Beranda** (`#/home`) adalah satu halaman berisi **satu ubin per modul yang boleh Anda
+buka**. Tiap ubin membawa nama modul, jumlah layarnya, dan **satu angka utama** — angka
+yang paling menuntut tindakan di modul itu:
+
+| Modul | Angka di ubinnya |
+|---|---|
+| Ringkasan | Notifikasi belum dibaca |
+| Penjualan | Prospek terbuka (belum menang, belum kalah) |
+| Estimasi | RAB menunggu persetujuan |
+| Engineering | Gambar menunggu keputusan MK (SDS belum diputus) |
+| Proyek | Proyek aktif (berjalan + finishing) |
+| Mutu (QA/QC) | NCR terbuka (belum diverifikasi/ditutup) |
+| Pengadaan | PO terbuka (disetujui, barangnya belum lengkap) |
+| Persediaan | Item di bawah stok minimum (per gudang) |
+| Subkontrak | Opname subkon menunggu persetujuan |
+| Keuangan | Invoice termin belum lunas |
+| SDM & Payroll | Cuti menunggu persetujuan |
+| Layanan | Tiket belum selesai |
+| Aset | Aset dalam perawatan |
+| Sistem | Job gagal |
+
+**Tanda `—` berarti "tidak diketahui", bukan nol.** Ubin menulis `—` ketika Anda memang
+tidak boleh melihat angka itu (mis. "Job gagal" hanya untuk pemegang hak Pengaturan) atau
+ketika hitungannya gagal — dan **namanya tetap tertulis di bawah tanda itu**, jadi yang
+Anda baca adalah "— Job gagal": kami memberi tahu angka apa yang tidak diketahui, bukan
+sekadar bahwa ada yang tidak diketahui. Angka `0` selalu berarti benar-benar nol.
+
+Di atas ubin ada **kotak cari** yang menyaring modul DAN layar sekaligus (Enter membuka
+hasil pertama), lalu baris **Favorit** dan **Terakhir dibuka** bila Anda punya isinya.
+
+**Kapan Beranda yang terbuka lebih dulu.** Di layar lebar (**lebih dari 760 px**, yaitu lebar
+yang sidebar-nya masih terlihat) masuk membawa Anda ke **Dasbor** seperti sebelumnya; pada
+760 px ke bawah — ponsel dan tablet sempit, di mana sidebar sudah menjadi laci — masuk
+membawa Anda ke **Beranda**, karena di sana menu tersembunyi dan peluncur adalah jalan
+tercepat ke mana pun. Panduan onboarding pada masuk pertama juga membuka di halaman itu:
+di ponsel ia menunjuk Beranda, bukan Dasbor. Tautan langsung (dari e-mail, pemberitahuan, atau tab yang dipulihkan peramban)
+selalu menang atas aturan ini. Kapan pun, ikon rumah di bilah atas dan baris **Beranda** di
+kelompok Ringkasan membawa Anda ke sana. Dari Beranda, Lapangan hanya **dua ketukan**:
+ubin **Proyek** → kartu **Lapangan (mobile)**.
+
+**Beranda modul** (`#/m/<modul>`, dibuka dari ubin atau dari remah roti pertama) kini juga
+memimpin dengan angkanya: angka utama modul plus — untuk Proyek dan Keuangan — sampai tiga
+angka tambahan yang sudah ada di dasbor (nilai kontrak berjalan; piutang, utang, tagihan
+vendor terbuka). Di bawahnya ada **Terakhir dibuka** untuk modul itu ("Belum ada yang
+dibuka." bila memang belum) dan kartu layarnya, masing-masing dengan **bintang** untuk
+menambahkannya ke Favorit.
+
+**Favorit dan Terakhir dibuka mengikuti akun Anda,** bukan peramban: bintang yang Anda
+pasang di komputer kantor ada juga di tablet lapangan, dan membersihkan data peramban tidak
+menghapusnya. Bintang bisa dipasang dari baris sidebar maupun dari kartu di beranda modul —
+keduanya menulis daftar yang sama.
+
+### 1.4b Dasbor — dan cara mengaturnya
+
+Dasbor (`#/dashboard`) tersusun dari **widget**: kartu-kartu yang masing-masing menjawab satu
+pertanyaan. Anda memilih sendiri widget mana yang ada di sana, seberapa lebar, dan dalam urutan
+apa.
+
+**Hari pertama Anda sudah terisi.** Sebelum Anda pernah mengatur apa pun, dasbor memakai susunan
+bawaan **peran Anda** — misalnya seorang petugas gudang membuka dengan *Stok di bawah minimum*
+selebar layar, sedangkan bagian keuangan membuka dengan piutang, hutang, dan proyeksi kas. Widget
+yang izinnya tidak Anda pegang tidak pernah digambar dan tidak pernah ditawarkan.
+
+**Mengaturnya.** Tombol **`Atur dasbor`** di kanan atas membuka daftar dua bagian:
+
+- **Di dasbor Anda** — setiap baris punya pilihan **ukuran** (*Kecil* satu kolom, *Sedang* dua,
+  *Lebar* satu baris penuh), tombol **`Naik`** / **`Turun`** untuk memindahkannya, dan
+  **`Hapus`**. Baris juga bisa **diseret** dari gagang di kiri, termasuk dengan jari di layar
+  sentuh; kalau menyeret tidak bekerja, tombol Naik/Turun melakukan hal yang sama.
+- **Belum dipakai** — seluruh widget lain yang boleh Anda lihat, masing-masing dengan satu
+  kalimat tentang apa yang dihitungnya dan tombol **`Tambah`**.
+
+Perubahan baru tersimpan saat Anda menekan **`Simpan`**; **`Batal`** membuang semuanya, termasuk
+urutan yang sudah diseret. **`Kembalikan ke bawaan`** mengembalikan susunan peran Anda.
+Susunannya **diingat pada akun Anda**, jadi dasbor yang Anda tata di komputer kantor sama di
+tablet lapangan.
+
+**Widget dimuat empat-empat.** Kerangka semua kartu digambar lebih dulu, lalu isinya menyusul
+empat kartu sekaligus dari atas ke bawah — itu sebabnya kartu paling atas terisi duluan dan
+halaman tidak melompat-lompat saat Anda sudah mulai membaca.
+
+**Kartu yang gagal mengaku gagal.** Bila sumber sebuah widget tidak bisa dibaca, kartunya
+menuliskan *"Data widget ini gagal dimuat"* beserta tombol **`Coba lagi`** yang memuat ulang
+kartu itu saja — bukan seluruh dasbor. Angka yang tidak diketahui ditulis **`—`**, tidak pernah
+`Rp 0`: nol adalah pernyataan bahwa Anda sudah menghitung, dan sebuah "Hutang belum dibayar
+Rp 0" di atas data yang gagal dimuat adalah kabar baik yang tidak benar.
+
+**Spanduk penjadwal dan antrean** di atas dasbor (hanya bagi pemegang hak `core.update`) **bukan**
+widget dan tidak bisa dilepas — ia bukan angka yang Anda pilih untuk dibaca, melainkan kabar
+bahwa bagian dari sistem sedang mati.
+
+**`Proyek saya`** (hanya untuk akun yang tertaut data karyawan dan boleh melihat proyek) menyaring
+widget proyek ke proyek yang Anda kelola. Sakelar itu disimpan **di peramban ini**, bukan di akun
+Anda: ia dibalik beberapa kali sehari dan menceritakan apa yang sedang Anda kerjakan, bukan siapa
+Anda.
+
+### 1.4c Laporan Bebas — menyusun laporan sendiri
+
+`Ringkasan › Laporan Bebas` menyusun laporan atas data yang **sudah boleh Anda lihat**. Ia tidak
+memberi akses baru: sumber yang layar daftarnya tidak boleh Anda buka tidak muncul di sini.
+
+**Tiga bentuk.**
+
+- **Kelompok** — satu kolom pengelompokan dan satu angka. "Biaya per kategori."
+- **Pivot** — baris × kolom × satu angka. "Biaya per kategori per bulan."
+- **Rincian** — baris apa adanya dengan kolom yang Anda pilih.
+
+**Menyusunnya.** Pilih **Sumber**, **Bentuk**, lalu kolom pengelompokannya. Kolom tanggal
+menawarkan **satuan periode** (harian, bulanan, tahunan). **Ukuran** adalah angka yang dihitung:
+*Banyak baris* selalu tersedia; *Jumlah*, *Rata-rata*, *Terkecil* dan *Terbesar* hanya untuk kolom
+uang. Persen dan progres **tidak** bisa dijumlahkan — jumlah tiga persen bukan persen, dan
+rata-rata sederhananya memperlakukan proyek Rp 40 M sama beratnya dengan proyek Rp 400 jt.
+
+**Kolom yang tidak tersedia tetap ditampilkan, nonaktif, dengan alasannya.** Contohnya kolom
+**Sisa** pada invoice: sisa tagihan bukan "total dikurangi dibayar" — invoice yang dibatalkan
+sisanya nol, dan aturan itu tinggal di dokumennya. Laporan Bebas menawarkan **Total** dan saringan
+**Status**; untuk umur piutang pakai `Keuangan › Laporan Keuangan › Umur Piutang`, yang
+menghitungnya di server.
+
+**Sel kosong bukan nol.** Sebuah **`—`** berarti angkanya tidak ada; arahkan kursor ke selnya dan
+keterangannya menyebut yang mana: *tidak ada baris pada kombinasi ini*, atau *ada barisnya, tetapi
+nilainya tidak ada* (nilai buku alat **sewa**, misalnya — alat itu tidak ada di neraca perusahaan).
+Angka **0** berarti sesuatu yang lain: sudah dihitung, dan hasilnya nol.
+
+**Batasnya diumumkan, dan ia menolak — bukan memotong.** Maksimal **200 kelompok** dan **5.000
+baris** rincian; angkanya tertulis di atas tombol Jalankan. Laporan yang melewatinya **ditolak**
+dengan saran mempersempit jendela tanggal atau menambah saringan — bukan dipotong, karena jumlah
+dari sebagian kelompok adalah angka yang salah yang tampak seperti angka yang benar.
+
+**Menyimpan dan membagikan.** **`Simpan laporan…`** menyimpan pertanyaannya (bukan datanya, yang
+selalu dihitung ulang saat dibuka) dan boleh membagikannya ke **peran**. Dua hal yang perlu
+diketahui:
+
+- **Berbagi tidak memberi akses.** Laporan keuangan yang dibagikan ke gudang tetap tidak terlihat
+  oleh gudang.
+- **Hanya pemiliknya yang dapat mengubah atau menghapus** — termasuk terhadap admin. Orang lain
+  menekan **`Salin`** dan mendapat salinan miliknya sendiri, yang bebas ia sesuaikan. Salinan tidak
+  mewarisi pembagian.
+
+Bila sebuah peran diganti namanya setelah laporan dibagikan kepadanya, daftar menuliskannya
+(*"peran … sudah tidak ada"*) alih-alih diam-diam berhenti membagikan.
+
+**Mengunduh.** **`Unduh CSV`** tersedia untuk laporan apa pun yang sedang tampil. **`XLSX`** hanya
+untuk laporan yang **sudah disimpan**, karena berkasnya menyebut nama laporannya — sebuah lampiran
+rapat yang tidak bisa dilacak kembali ke pertanyaan yang menghasilkannya tidak bisa
+dipertanggungjawabkan. Di kedua berkas, sel kosong tetap kosong dan nol tetap nol.
+
+### 1.4d Papan — menyeret dokumen antar kolom
+
+Dua layar berbentuk **papan**: `Pengadaan › Papan PR` dan `Mutu › Papan NCR`. Keduanya menampilkan
+dokumen yang sama dengan layar daftarnya, disusun sebagai kolom menurut statusnya.
+
+**Menyeret kartu ke kolom lain menjalankan aksinya** — persis tombol yang sama dengan yang ada di
+halaman dokumen. Menyeret PR dari *Diajukan* ke *Disetujui* adalah menekan tombol **`Setujui`**:
+kotak catatan yang sama muncul, aturan yang sama berlaku, dan pemberitahuan yang sama terkirim.
+Tidak ada jalan pintas di papan; ia hanya cara lain menekan tombol yang sudah ada.
+
+**Kartu yang tidak boleh dipindah kembali ke tempatnya, dan papan mengatakan kenapa.** Ada dua
+sebab, dan keduanya berbunyi berbeda:
+
+- **Sudah bisa diketahui sebelum kartunya dilepas** — Anda tidak memegang haknya, atau dokumen itu
+  memang tidak bisa berpindah dari statusnya sekarang. Contoh: *"PR PR/2026/III/0002 tidak bisa
+  dipindah ke Disetujui: aksi Setujui tidak tersedia untuk Anda."*
+- **Baru ketahuan setelah dicoba** — aturan yang hanya server yang tahu: Anda pengaju dokumen itu
+  sendiri (pemisahan tugas), nilainya butuh tanda tangan direktur, atau ada prasyarat yang belum
+  selesai. Kartunya kembali dan pesannya menjelaskan apa yang harus dilakukan.
+
+**Kolom yang tidak menerima kartu.** Tidak ada aksi yang mengembalikan PR ke *Draf*, jadi kolom itu
+tidak bisa dijatuhi kartu. Dokumen yang statusnya di luar kolom papan tidak digambar, dan papan
+menyebut berapa banyak — buka tampilan daftar untuk melihatnya.
+
+**Klik kartu** membuka dokumennya. Tombol **`Tampilan daftar`** di kanan atas kembali ke tabelnya,
+yang tetap menjadi tempat menyaring, mengurutkan, dan mengunduh CSV.
+
+Bila seret-lepas tidak bekerja (berkas pustakanya gagal dimuat), papan mengatakannya dan kartu tetap
+bisa dibuka — aksinya selalu tersedia di halaman dokumen.
 
 ### 1.5 Pencarian
 
@@ -258,20 +441,24 @@ Yang perlu Anda ketahui tentang lonceng:
 
 Ketiganya menjawab pertanyaan yang berbeda. Pakailah ketiganya.
 
-**a. Dasbor → kartu "Menunggu persetujuan Anda"** — kotak masuk persetujuan. Berisi
-dokumen berstatus **Diajukan** yang boleh Anda setujui, terbaru di atas, **paling banyak
-10 baris**. Klik baris untuk membukanya.
+**a. Dasbor → widget "Menunggu persetujuan Anda"** — kotak masuk persetujuan. Berisi
+dokumen berstatus **Diajukan** yang boleh Anda setujui, yang paling lama menunggu di atas.
+Widget menampilkan **lima baris** dengan tombol **`Lihat semua (n)`** di bawahnya; daftar
+penuhnya ada di **Ringkasan › Tugas Saya**. Klik baris untuk membukanya.
 
-Kartu ini hanya mencakup **11 jenis dokumen**: Penawaran, BOQ/RAB, RAP, Permintaan (PR),
-Pesanan (PO), SPK subkon, Opname subkon, Opname stok, Invoice termin, Tagihan vendor,
-Payroll. **Tidak** termasuk: pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK,
-baseline proyek, pengajuan cuti, dan ketiga izin lapangan (IKL/ILB/IMK, §7.13) —
-kesembilannya hanya sampai lewat lonceng dan lewat layar daftarnya sendiri yang
-disaring ke status **Diajukan**.
+Kartu ini mencakup **seluruh 28 jenis dokumen** yang punya alur persetujuan — termasuk
+pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK, baseline proyek, pengajuan cuti,
+dan ketiga izin lapangan (IKL/ILB/IMK, §7.13). Sampai 2 September 2026 kartu ini hanya
+menanyakan 11 jenis, sehingga sembilan jenis lainnya — pengajuan cuti di antaranya — tidak
+pernah terlihat oleh orang yang berhak menyetujuinya; sejak itu satu permintaan melayani
+seluruh registri.
 
 Bila salah satu sumber gagal dimuat, kartu berkata *"Tidak ada dokumen yang dapat
-ditampilkan"* dan menyebut sumber yang gagal. **Daftar yang pendek bukan bukti tidak ada
-yang menunggu.**
+ditampilkan"* dan **menyebut sumber yang gagal** di bawahnya ("Gagal dimuat: … Daftar ini
+belum lengkap."). **Daftar yang pendek bukan bukti tidak ada yang menunggu.**
+
+Widget ini hanya digambar bagi pemegang hak `.approve` mana pun. Bila peran Anda tidak
+menyetujui apa pun, kartunya tidak ada — dan permintaannya pun tidak dikirim.
 
 **b. Lonceng** — memberi tahu bahwa sesuatu *terjadi*. Ia menjadi basi.
 

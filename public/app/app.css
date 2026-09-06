@@ -977,8 +977,18 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   list-style: none; margin: 0; padding: 0;
 }
 .module-grid > li { display: grid; min-width: 0; }
+/* Sel kartu (P1-C): kartu <a> + bintang <button> BERSEBELAHAN, tidak bersarang —
+   tombol di dalam tautan bukan HTML yang sah, dan Enter di atasnya membuka
+   layarnya alih-alih memasang bintang. Bintang ditumpuk di pojok kanan atas dan
+   kartunya diberi ruang kanan supaya judul panjang tidak lewat di bawahnya. */
+.module-cell { position: relative; }
+.module-cell > .module-card { padding-right: 34px; }
+.module-cell > .star { position: absolute; top: 8px; right: 6px; }
 .module-section-block + .module-section-block, .module-grid + .module-section-block { margin-top: 18px; }
-.module-section {
+/* .module-section = pemisah NAV yang MELABELI kisinya (aria-labelledby); judul
+   "Terakhir dibuka" memakai kelas sendiri dengan gaya yang sama, karena ia tidak
+   melabeli kisi mana pun dan uji struktur memeriksa persis sifat itu. */
+.module-section, .module-recent-title {
   margin: 0 0 8px;
   font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
@@ -999,6 +1009,138 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .module-card .lucide { color: var(--muted); margin-top: 1px; }
 .module-card b { display: block; font-size: 13px; font-weight: 600; line-height: 1.35; }
 .module-card .hint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Ubin angka kepala modul (P1-C): angka utama registri + paling banyak tiga
+   angka sekunder dari jawaban yang SAMA. Kisi auto-fit, bukan kolom tetap:
+   modul yang hanya punya angka utama tidak boleh meninggalkan tiga sel kosong. */
+.module-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.module-kpis:empty { display: none; }
+.module-kpi {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.module-kpi-value { font-size: 20px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.module-kpi-unit { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.module-kpi-label { font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-kpi-note { font-size: 12.5px; }
+.module-recent { margin-bottom: 18px; }
+
+/* ------------------------------------------------------------ app launcher */
+/* #/home (views/home.js, P1-C): kotak cari, dua baris pintasan (Favorit,
+   Terakhir dibuka) dan kisi ubin modul. Ubin memakai aksen slot modulnya lewat
+   data-accent, mekanisme yang sama dengan penanda grup sidebar dan kepala
+   beranda modul — satu atribut, tiga variabel (blok "Aksen modul" di atas).
+
+   Sasaran sentuh: ubin 76 px dan chip 44 px di penunjuk kasar; angka itu bukan
+   selera melainkan lantai WCAG 2.5.5/2.5.8 yang sama dengan yang dipakai
+   kepadatan (aturan pointer: coarse di § kepadatan). */
+.home-searchbar { margin-bottom: 14px; }
+.home-search {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.home-search:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+.home-results { margin-bottom: 18px; }
+.home-section { margin-bottom: 20px; }
+.home-section-title {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.home-note { font-size: 12.5px; margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Pintasan: chip mengalir, bukan kisi — jumlahnya berubah tiap hari dan sel
+   kosong di baris terakhir kisi terbaca sebagai sesuatu yang hilang. */
+.home-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.home-chip {
+  display: block;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  max-width: 100%;
+}
+.home-chip:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.home-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.home-chip b { font-size: 13px; font-weight: 600; }
+.home-chip .hint { font-size: 12px; color: var(--muted); margin-left: 6px; }
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  list-style: none; margin: 0; padding: 0;
+}
+.home-grid > li { display: grid; min-width: 0; }
+
+/* Ponsel mendapat DUA kolom: dengan minimum 230 px hanya satu yang muat di
+   390 px, dan launcher admin menjadi 2.235 px — 2,6 layar gulungan untuk
+   menggantikan laci yang menampilkan keempat belas kepala grupnya sekaligus
+   (diukur 6 Sep 2026, verifikasi P1-C putaran 2). Ambang sama dengan ambang
+   laci (760 px) supaya "tampilan ponsel" berarti satu hal di seluruh berkas. */
+@media (max-width: 760px) {
+  .home-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+.home-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon body" "screens screens";
+  gap: 4px 12px;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  min-height: 92px;
+  align-content: start;
+}
+.home-tile:hover { background: var(--surface-2); border-color: var(--border-strong); border-left-color: var(--module-accent); text-decoration: none; }
+.home-tile:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.home-tile-icon {
+  grid-area: icon;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--module-accent-soft); color: var(--module-accent);
+}
+.home-tile-body { grid-area: body; min-width: 0; }
+.home-tile-label { display: block; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.home-kpi { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+/* Angka sebesar judul dan bertabular: ubin yang berjejer harus bisa dibandingkan
+   sekilas, dan angka proporsional membuat "11" tampak lebih pendek dari "9". */
+.home-kpi-value { font-size: 22px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.home-kpi-unit { font-size: 12.5px; color: var(--muted); }
+/* Nama angkanya di barisnya sendiri, satu baris, dielipsiskan: "Opname subkon
+   menunggu persetujuan" tidak muat di ubin 230 px, dan ubin yang tingginya
+   berbeda-beda karena panjang kalimat membuat kisi tampak rusak. Kalimat
+   penuhnya tetap terbaca sebagai title dan di kepala beranda modulnya. */
+.home-kpi-label { font-size: 12px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* Tinggi barisnya dipesan walau kosong: ubin '—' (izin hitungannya tidak
+     dipegang) tanpa ini 18 px lebih pendek dari tetangganya dan kisinya
+     tampak seperti gigi gergaji — terukur warehouse@ 390 px: 105 vs 123 px. */
+  min-height: 1.35em; }
+.home-tile-screens { grid-area: screens; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+
+@media (pointer: coarse) {
+  .home-tile { min-height: 100px; }
+  .home-chip { min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
+  .home-chip .hint { margin-left: 0; }
+  .home-search { min-height: 44px; }
+}
 
 .stat {
   background: var(--surface);
@@ -1147,27 +1289,29 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 
 @keyframes slide-in { from { opacity: 0; transform: translateX(14px); } }
 
-/* --------------------------------------------------------------- s-curve */
+/* ------------------------------------------------------- kerangka grafik */
+/* `.chart` adalah pembungkus responsif yang dipakai SETIAP svg grafik (viewBox
+   + lebar 100 %). Sampai P1-D ia juga membawa gaya untuk tiga grafik tangan
+   (.grid/.axis/.plan/.act/.act-fill/.pt/.base/.ev dan swatch legendanya);
+   P1-E memindahkan ketiganya ke charts.js, yang memakai kelasnya sendiri
+   (.chart-grid/.chart-axis/.series-line/.series-point/.series-area) dan
+   mewarnai lewat token --chart-*. Aturan lama DIHAPUS, bukan dibiarkan:
+   selektor yang tidak lagi cocok dengan apa pun adalah warna yang menunggu
+   dipakai lagi oleh grafik berikutnya tanpa ada yang tahu dari mana asalnya. */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
-.chart .grid { stroke: var(--border); stroke-width: 1; }
-.chart .axis { stroke: var(--border-strong); stroke-width: 1; }
-.chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
-.chart .plan { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 3; }
-.chart .act { fill: none; stroke: var(--primary); stroke-width: 2.5; }
-.chart .act-fill { fill: var(--primary); opacity: .08; }
-.chart .pt { fill: var(--primary); }
-/* Frozen baseline: deliberately quieter than the weekly plan it sits beside,
-   because on the demo the two disagree by 45 points and the eye has to be able
-   to tell which one is the agreed plan. */
-.chart .base { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-dasharray: 2 4; }
-.chart .ev { fill: none; stroke: var(--primary); stroke-width: 2; opacity: .55; }
 
+/* Legenda DOM. charts.js menggambar legendanya sendiri di dalam svg; yang
+   tersisa memakai blok ini adalah tren harga satuan, yang pembedanya per TITIK
+   (PO vs GRN pada satu garis) dan karena itu tidak bisa dinyatakan legenda
+   per-seri. Swatch-nya memakai token --chart-* yang sama dengan titiknya. */
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
 .legend i { display: inline-block; width: 16px; height: 2.5px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-.legend i.plan { background: var(--muted); }
-.legend i.act { background: var(--primary); }
-.legend i.base { background: var(--text-2); }
-.legend i.ev { background: var(--primary); opacity: .55; }
+/* Swatch berbentuk TITIK, untuk legenda yang mewakili titik dan bukan garis
+   (tren harga satuan: PO vs GRN pada satu garis kronologis). Ukurannya
+   mencerminkan jari-jari titiknya, jadi pembedanya selamat di kertas abu-abu —
+   di mana perbedaan #222222 vs #363636 hanya 1,32:1 (verifikasi P1-E). */
+.legend i.pt { width: 8px; height: 8px; border-radius: 50%; }
+.legend i.pt.lg { width: 12px; height: 12px; }
 
 /* ------------------------------------------------- grafik charts.js (P1-A) */
 /* svg dari js/charts.js: class "chart chart-lib chart-<jenis>". .chart memberi
@@ -1218,14 +1362,29 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     --chart-weekend: #f3f4f6; --chart-baseline: #c4c9d0;
   }
   /* Seri 2 dimulai dari TITIK-TITIK, bukan garis putus 6 3: seri 1 yang sudah
-     `dashed`/`dash` dari datanya (rencana vs aktual) memakai 6 4 / 5 3 dan akan kembar. */
-  .chart-lib .series-line[data-series="2"] { stroke-dasharray: 2 3; }
-  .chart-lib .series-line[data-series="3"] { stroke-dasharray: 8 3 2 3; }
-  .chart-lib .series-line[data-series="4"] { stroke-dasharray: 1 2; }
-  .chart-lib .series-line[data-series="5"] { stroke-dasharray: 10 4; }
-  .chart-lib .series-line[data-series="6"] { stroke-dasharray: 4 2 1 2; }
-  .chart-lib .series-line[data-series="7"] { stroke-dasharray: 12 3 3 3; }
-  .chart-lib .series-line[data-series="8"] { stroke-dasharray: 6 3; }
+     `dashed`/`dash` dari datanya (rencana vs aktual) memakai 6 4 / 5 3 dan akan kembar.
+
+     `:not([stroke-dasharray])` — POLA YANG DITULIS PEMANGGIL MENANG DI KERTAS
+     JUGA. Sebuah deklarasi CSS mengalahkan atribut presentasi yang charts.js
+     tulis dari `series[].dash`, jadi tanpa penjaga ini setiap pola yang dipilih
+     pemanggil hilang begitu halamannya dicetak: terukur pada EVM, baseline
+     yang ditulis '2 4' dan garis EV yang di layar UTUH sama-sama menjadi
+     titik-titik yang hanya berbeda 1 px celah, dan pada kurva-S 'Aktual' yang
+     utuh di layar menjadi garis paling putus-putus di kertas (verifikasi
+     P1-E). Seri yang TIDAK menyebut dash-nya sendiri (atributnya tidak ditulis
+     sama sekali — make() melewati nilai null) tetap mendapat pola cetak, yang
+     memang alasan blok ini ada: delapan seri yang hanya berbeda abu-abu. */
+  /* `1 3` dan bukan `2 3`: pola cetak seri 2 berdiri di samping seri 1 yang
+     sering menulis `2 4` sendiri (baseline EVM dan baseline kurva-S), dan dua
+     pola yang hanya berbeda 1 px celah adalah satu pola di kertas — terukur
+     pada EVM sebelum verifikasi P1-E. */
+  .chart-lib .series-line[data-series="2"]:not([stroke-dasharray]) { stroke-dasharray: 1 3; }
+  .chart-lib .series-line[data-series="3"]:not([stroke-dasharray]) { stroke-dasharray: 8 3 2 3; }
+  .chart-lib .series-line[data-series="4"]:not([stroke-dasharray]) { stroke-dasharray: 1 2; }
+  .chart-lib .series-line[data-series="5"]:not([stroke-dasharray]) { stroke-dasharray: 10 4; }
+  .chart-lib .series-line[data-series="6"]:not([stroke-dasharray]) { stroke-dasharray: 4 2 1 2; }
+  .chart-lib .series-line[data-series="7"]:not([stroke-dasharray]) { stroke-dasharray: 12 3 3 3; }
+  .chart-lib .series-line[data-series="8"]:not([stroke-dasharray]) { stroke-dasharray: 6 3; }
   /* Garis tepi batang/irisan/swatch: seri 1 utuh, seri 2..8 masing-masing pola
      sendiri (tebal 1 px supaya polanya terbaca pada 0,75 px pun tidak). */
   .chart-lib rect.mark, .chart-lib path.mark, .chart-lib rect.legend-swatch { stroke: #111827; stroke-width: 1; }
@@ -1237,8 +1396,40 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .chart-lib rect.mark[data-series="7"], .chart-lib path.mark[data-series="7"], .chart-lib rect.legend-swatch[data-series="7"] { stroke-dasharray: 8 2; }
   .chart-lib rect.mark[data-series="8"], .chart-lib path.mark[data-series="8"], .chart-lib rect.legend-swatch[data-series="8"] { stroke-dasharray: 1.5 2.5; }
   .chart-lib .series-area { fill-opacity: .08; }
+
+  /* LEGENDA DOM (satu-satunya yang tersisa: tren harga satuan) ikut tercetak.
+     Dua hal yang keduanya terukur sebelum verifikasi P1-E:
+      - Tanpa `print-color-adjust: exact` Chrome TIDAK melukis latar `.legend i`
+        pada setelan bawaan (grafik latar mati), jadi PDF layar itu memuat dua
+        label telanjang tanpa satu swatch pun — tidak ada yang memberi tahu
+        titik mana PO dan titik mana GRN.
+      - Dengan latar menyala pun keduanya #222222 vs #363636, beda 1,32:1.
+        Karena itu swatch-nya BERBENTUK titik dengan ukuran yang berbeda, sama
+        seperti pembedanya di grafik — bentuk dan ukuran selamat dari abu-abu,
+        warna tidak. */
+  .legend i { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .chart-scroll { overflow: visible; }
   .chart-gantt { min-width: 0 !important; }
+
+  /* P1-H — LEMBAR GANTT MENDATAR.
+     `@page` BERNAMA, bukan `@page` telanjang: satu stylesheet melayani 16 layar
+     yang memanggil window.print(), dan setiap satu di antaranya adalah tabel
+     potret (neraca saldo, buku besar, WIP schedule, EVM, K3, …). Sebuah
+     `@page { size: landscape }` di sini akan memutar semuanya. Idiomnya disalin
+     dari Modules/Core/Resources/views/forms/layout.blade.php, yang sudah
+     memakai halaman bernama untuk grid mingguannya.
+
+     `.detail-grid` dijadikan blok DI DALAM lembar ini saja: kisi 2fr/1fr tidak
+     pernah diruntuhkan blok cetak, jadi gantt di kolom `main` mendapat ~478 px
+     dari 733 px kertas potret — label 11,5 px tercetak ~6 px.
+
+     `break-inside: auto` menimpa `.card { break-inside: avoid }` di bawah:
+     sebuah SVG tidak bisa dipaginasi, dan kartu gantt yang lebih tinggi dari
+     satu halaman akan didorong Chrome ke lembar baru lalu tetap dipotong —
+     membuang satu halaman untuk tidak menyelesaikan apa pun. */
+  @page gantt { size: A4 landscape; margin: 8mm 8mm 10mm 8mm; }
+  .gantt-sheet { page: gantt; break-inside: auto; }
+  .gantt-sheet .filters { display: none !important; }
 }
 
 .bar-row { display: grid; grid-template-columns: minmax(110px, 26%) 1fr minmax(96px, auto); gap: 10px; align-items: center; padding: 6px 0; }
@@ -1349,6 +1540,10 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
   .shell { display: block; }
+  /* P1-H: kisi 2fr/1fr tidak pernah diruntuhkan di kertas, dan lembar gantt
+     butuh seluruh lebarnya. Diruntuhkan untuk SEMUA layar detail: sebuah kolom
+     samping selebar 280 px di kertas hanya memaksa kolom utamanya sempit. */
+  .detail-grid { display: block; }
   .main { padding: 0; overflow: visible; }
   .card { box-shadow: none; break-inside: avoid; }
   /* Plafon scroll layar di .table-wrap memotong cetakan pada satu layar
@@ -1911,3 +2106,152 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 /* Menu akun kini empat tombol (Tutup · Ganti kata sandi · Panduan onboarding
    · Keluar) di modal 420 px: dibiarkan melipat, bukan meluap. */
 .modal.narrow .modal-foot { flex-wrap: wrap; }
+
+/* ------------------------------------------------------- dasbor P1-D
+   Kisi widget. EMPAT kolom di desktop supaya ketiga ukuran punya arti dan dua
+   'sedang' muat bersebelahan (kecil 1, sedang 2, lebar 4 = satu baris penuh);
+   alasan lengkapnya di registry.js SPAN. Komentar ini menyebut TIGA kolom
+   sampai verifikasi kedua P1-D — perbaikan harness ke empat kolom tidak
+   sampai ke sini. `minmax(0, 1fr)` dan bukan
+   `auto` karena sebuah tabel lebar di dalam sel grid akan MELEBARKAN kolomnya
+   sampai halaman menggulung mendatar — nilai minimum otomatis sel grid adalah
+   min-content, bukan nol.
+
+   Di bawah 1180 px kisinya dua kolom, 'sedang' dan 'lebar' sama-sama penuh; di bawah 760 px
+   (titik potong yang sama dengan laci nav dan aturan landing P1-C) satu kolom,
+   dan span dari inline style dibatalkan — grid-column inline ditulis penyusun
+   dasbor, jadi pembatalnya harus lebih spesifik. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.card.widget { min-width: 0; }
+.card.widget > .card-head { border-left: 3px solid var(--module-accent); }
+.card.widget .widget-body { min-width: 0; }
+/* Ubin di dalam widget 'kecil' berdiri sendiri-sendiri; .stat-row bawaan
+   mengejar empat kolom dan menyisakan tiga sel kosong di lebar 1 kolom. */
+.card.widget[data-size="kecil"] .stat-row { grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 1180px) {
+  .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card.widget[data-size="lebar"] { grid-column: span 2 !important; }
+  .card.widget[data-size="sedang"] { grid-column: span 2 !important; }
+}
+@media (max-width: 760px) {
+  .dash-grid { grid-template-columns: minmax(0, 1fr); }
+  /* `[data-size]` bukan hiasan: pembatal ini harus SEKURANGNYA sespesifik
+     `.card.widget[data-size="lebar"]` di blok 1180 px di atas, karena di antara
+     dua deklarasi !important yang menang adalah yang lebih spesifik — bukan
+     yang belakangan. Tanpa atributnya, sebuah kartu 'lebar' tetap `span 2` di
+     390 px, dan kisi satu kolom menumbuhkan kolom IMPLISIT untuk menampungnya:
+     terukur 6 Sep 2026 (S23 ponsel, teknisi) sebagai grid 84,6 px + 261,4 px —
+     tiga kartu 'sedang' terjepit di 85 px sementara yang 'lebar' memakai
+     keduanya. */
+  .card.widget[data-size] { grid-column: span 1 !important; }
+}
+
+/* Laci "Atur dasbor". Baris = satu kisi supaya nama, ukuran dan tombol berbaris
+   rapi di setiap baris; di ponsel nama pindah ke baris sendiri dan kendalinya
+   MEMBUNGKUS, bukan mengecil.
+
+   Tinggi kendalinya sekarang dipaksa 44 px di penunjuk kasar. Sampai verifikasi
+   kedua P1-D komentar ini menyebut "target 44 px" sementara yang terukur di
+   laci pada 390x844 adalah 36 px (Naik/Turun/Hapus), 34 px (select ukuran) dan
+   34 px (Kembalikan/Batal/Simpan) — di atas lantai WCAG 2.5.8 (24 px) tetapi
+   bukan angka yang ditulisnya. Aturan di bawah membuat kalimat itu benar. */
+.dash-setup-head { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 8px; }
+.dash-setup-head:first-child { margin-top: 0; }
+.dash-setup-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 6px;
+}
+.dash-setup-row .dash-setup-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dash-setup-row .dash-setup-name .cell-sub { white-space: normal; }
+.dash-setup-grip { cursor: grab; color: var(--muted); display: inline-flex; padding: 4px; }
+.dash-setup-grip:active { cursor: grabbing; }
+.dash-setup-row.spare { opacity: .92; }
+.dash-setup-row select.dash-setup-size { width: auto; flex: none; }
+/* Kelas yang dipasang SortableJS pada baris yang sedang diseret. */
+.dash-setup-row.sortable-ghost { opacity: .4; }
+@media (max-width: 560px) {
+  .dash-setup-row { flex-wrap: wrap; }
+  .dash-setup-row .dash-setup-name { flex-basis: 100%; }
+
+  /* …dan 44 px, angka yang komentar di atas sudah menyebut sejak P1-D.
+     Terukur di laci pada 390x844 sebelum aturan ini: Naik/Turun/Hapus 28 px,
+     select ukuran 34 px, tombol kaki 34 px — di atas lantai WCAG 2.5.8 (24 px)
+     tetapi bukan angka yang dijanjikan (verifikasi kedua P1-D).
+
+     Lebar layar, BUKAN `pointer: coarse`: idiom itu tidak bisa diukur harness
+     ini (Chromium-nya melaporkan maxTouchPoints 0 walau konteksnya ponsel),
+     dan sebuah janji yang tidak bisa diukur adalah janji berikutnya yang
+     diam-diam batal. Titik potongnya sama dengan pembungkus baris di atas. */
+  .dash-setup-row .btn,
+  .dash-setup-row select.dash-setup-size,
+  .modal:has(.dash-setup-list) .modal-foot .btn { min-height: 44px; }
+}
+
+/* ----------------------------------------------------------- papan (P1-G)
+   Kolom yang menggulir MENDATAR sebagai satu blok, bukan kisi yang membungkus:
+   sebuah papan yang kolomnya turun ke baris kedua berhenti menjadi papan.
+   `min-width` per kolom menjaga kartu tetap terbaca; di ponsel kolom menyempit
+   tetapi tetap satu baris, dan jempol menggulir mendatar seperti pada .chart-scroll. */
+.board-grid {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+.board-lane {
+  flex: 1 0 240px;
+  min-width: 240px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.board-lane-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.board-lane-head .board-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+/* min-height BUKAN hiasan: SortableJS hanya bisa menerima kartu ke dalam kolom
+   yang punya tinggi (emptyInsertThreshold diukur terhadap kotaknya), jadi kolom
+   kosong setinggi nol tidak bisa dijatuhi apa pun. */
+.board-cards { min-height: 96px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.board-empty { opacity: .75; }
+
+.board-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--module-accent, var(--border-strong));
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: grab;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.board-card:active { cursor: grabbing; }
+.board-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.board-card-head { display: flex; align-items: baseline; gap: 8px; }
+.board-card-head .num { margin-left: auto; }
+.board-card-foot { display: flex; gap: 8px; justify-content: space-between; }
+/* Kelas yang dipasang SortableJS pada kartu yang sedang diseret. */
+.board-card-ghost { opacity: .4; }
+
+@media (max-width: 760px) {
+  .board-lane { flex-basis: 78vw; min-width: 78vw; }
+}

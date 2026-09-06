@@ -245,14 +245,45 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
   memanggil grafik (aturan kejujuran §6). Nilai yang tak terukur dikirim sebagai `null`.
 - Format angka/tanggal diberikan pemanggil (`yFormat`, `valueFormat`, `xFormat`) dari `format.js`
   (`fmt.rupiahShort`, `fmt.percent`, `fmt.date`) supaya sumbu, `<title>`, dan tabel di bawahnya
-  memakai format yang sama.
+  memakai format yang sama. **`yFormat` bukan hanya sumbu**: charts.js memakainya juga untuk
+  `<title>` bawaan setiap titik tanpa judul sendiri, jadi `` `${v}%` `` mencetak titik desimal
+  Inggris di aplikasi berkoma — pakai `fmt.percent` (verifikasi P1-E).
+- **Lebar viewBox mengikuti lebar layar**: `chartWidth()` (720 desktop / 380 di ≤ 560 px). svg
+  ber-viewBox tetap diregangkan CSS ke lebar kartunya, jadi 720 pada kartu ponsel 328 px
+  menuliskan legenda dan label sumbu pada 5,0 px terbaca. Diukur S20em, lantai 9 px.
+- **Seri yang DIUKUR lebih tebal daripada seri acuannya**: `series[].width` (bawaan 2, dijepit
+  1–4; 2,5 untuk seri terukur). Hierarki ini dulu hidup di `.chart .act` grafik tangan dan hilang
+  tanpa suara saat charts.js menuliskan 2 untuk semuanya (verifikasi P1-E).
+- **Pola putus yang ditulis pemanggil menang DI KERTAS juga**: aturan blok cetak memakai
+  `:not([stroke-dasharray])`, karena deklarasi CSS mengalahkan atribut presentasi. Tanpa itu
+  setiap `dash` yang dipilih pemanggil hilang begitu halamannya dicetak.
 - Setiap mark membawa `<title>`; harness S20 (`docs/bukti-uji/harness-playwright.py`) menghitung
   `.mark > title` == `.mark`, warna terkomputasi == token di tema terang & gelap, dan placeholder — jangan
   menambah `<title>` di luar mark (legenda, label) karena hitungan `<title>` liar akan pecah. Satu
   pengecualian yang disengaja: label gantt yang dipotong (`data-truncated`) membawa nama lengkapnya.
 - Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
-  langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
-  `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.
+  langsung di `.card-body`.
+- **Tidak ada lagi grafik tangan (P1-E).** Kurva-S (`views/project.js`), kurva EVM
+  (`views/evm.js`) dan tren harga satuan (`views/hargasatuan.js`) sekarang memanggil
+  `lineChart`; ketiganya hanya menyusun DATA. `ChartMigrationTest` menolak
+  `document.createElementNS` yang kembali ke ketiga berkas itu — grafik tangan keempat akan lahir
+  tanpa token, tanpa `<title>` per tanda, dan tanpa blok cetak, yaitu persis tiga hal yang P1-A
+  dibangun untuk memberikannya. Butuh sesuatu yang belum ada? Tambahkan di `charts.js`, supaya
+  SEMUA grafik ikut mendapatkannya.
+- **Sifat yang milik PEMANGGIL, bukan grafik**, dan karena itu dipaku uji per layar: sumbu EVM
+  yang boleh naik melewati 100 % (`yMax = Math.max(100, …)` — sumbu yang ditahan di 100 % memotong
+  garis biaya justru pada proyek yang sudah melewati anggarannya), dan sumbu tren harga yang TIDAK
+  dipaksa memuat nol (`yMin/yMax` sendiri — bawaan charts.js selalu memuat nol, dan tren
+  12.500 → 13.750 pada sumbu 0..14.000 tampak datar).
+- **Satu legenda per grafik.** `charts.js` menggambar legendanya di dalam svg (ikut tercetak, ikut
+  ter-skala), jadi blok `.legend` DOM di sebelahnya dibuang. Yang tersisa memakainya hanya tren
+  harga satuan, karena pembedanya per TITIK (PO vs GRN pada satu garis kronologis, `points[].token`)
+  dan itu tidak bisa dinyatakan legenda per-seri; swatch-nya memakai token `--chart-*` yang sama
+  dengan titiknya. Alasannya KERTAS, bukan layar: blok cetak hanya menukar token `--chart-*`
+  menjadi abu-abu, jadi titik ber-`--warning` tercetak BERWARNA di tengah grafik yang seluruhnya
+  abu-abu (terukur 6 Sep 2026: `--warning` #96601a di layar dan di cetak, `--chart-7` #a16207 →
+  #363636). Sebelum verifikasi P1-E alasan yang ditulis di sini adalah "swatch tercetak berbeda
+  dari titiknya", dan itu tidak pernah benar — keduanya memakai `--warning` yang sama.
 
 ## 12. Aksen modul (`--accent-1..8`, P1-B)
 
@@ -318,8 +349,9 @@ angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (b
 pertemuan), berlaku seketika. Simpanan: `localStorage`
 `nusantara_erp_density:<id pengguna>` (`personalKey`, seperti favorit) dengan nilai
 `compact|normal|comfortable`, dipasang saat evaluasi modul app.js dan lagi di `boot()` — sebelum
-shell digambar, tanpa kedipan. P1-C memindahkannya ke `core/me/preferences`: baca kunci ini sekali,
-tulis ke server, hapus.
+shell digambar, tanpa kedipan. **Sejak P1-C nilainya preferensi SERVER** (`core/me/preferences`,
+§15); `localStorage` tinggal cermin yang menjawab seketika, dan kunci `nusantara_erp_density:<id>`
+dinaikkan sekali lalu dihapus oleh `js/prefs.js`.
 
 ## 14. Keadaan kosong berilustrasi (`ui.emptyState`, P1-B)
 
@@ -343,3 +375,308 @@ habis", dan yang tersaring habis menyebut penyaringnya: pencarian (`… yang coc
 Hapus pencarian) atau filter (`… yang lolos filter yang dipasang.` + Hapus filter) — tiga kalimat,
 tiga gambar; judul tidak mengulang kalimatnya. Ilustrasi
 baru = entri di `ILLUSTRATIONS` + baris di tabel ini.
+
+## 15. Preferensi pengguna (`core_user_preferences`, P1-C)
+
+Apa pun yang seseorang PILIH untuk dirinya sendiri — favorit, "Terakhir dibuka", kepadatan, susunan
+dasbor (P1-D) — hidup di `core_user_preferences` (satu baris per pengguna per kunci,
+`UNIQUE(user_id, key)`), bukan di `localStorage`. Alasannya diukur: sampai P1-B ketiganya berkunci
+`<nama>:<id pengguna>` di peramban, jadi bintang yang dipasang di desktop kantor tidak ada di tablet
+lapangan milik orang yang sama, dan "Hapus data situs" menghapus semuanya tanpa jejak.
+
+**Whitelist, bukan kolom bebas.** `Modules\Core\Support\UserPreferences::keys()` — satu entri per
+kunci dengan `label`, `max_bytes`, `max_entries`, dan `validate`. Kunci di luar daftar dijawab
+**422 yang menyebut kuncinya**; plafon keras **16 KB** per nilai (`MAX_BYTES`), tiap kunci boleh
+lebih ketat. Angka-angka itu ditulis literal di `UserPreferencesTest` — sampai verifikasi P1-C
+uji plafon membangun muatannya DARI konstanta yang diujinya, jadi menaikkan 16384 → 32768 lolos
+hijau. Tanpa
+daftar itu `PUT core/me/preferences/{key}` — yang sengaja tanpa gerbang izin, karena barisnya milik
+pemanggil sendiri dan tidak ada parameter yang bisa menyebut orang lain (pola `GET core/inbox`) —
+adalah penyimpanan bebas 16 KB × kunci sebanyak-banyaknya × jumlah pengguna, ikut ke setiap backup.
+
+| kunci | isi | plafon |
+|---|---|---|
+| `favorites` | daftar rute NAV yang dibintangi (keanggotaan NAV diperiksa `Support\SpaNav`) | 50 entri / 4 KB |
+| `recent` | `{route,label,sub,at}` dokumen terakhir dibuka; field di luar keempatnya ditolak | 20 entri / 8 KB |
+| `density` | `compact` \| `normal` \| `comfortable` (§13) | 64 B |
+| `dashboard.layout` | susunan dasbor P1-D: `[{id,size}]`, id diperiksa `Support\SpaWidgets`, size ∈ {kecil, sedang, lebar}, duplikat ditolak | 24 entri / 16 KB |
+| `launcher.hidden` | prefix modul yang disembunyikan dari `#/home` | 32 entri / 512 B |
+
+**Kejujuran.** Kunci yang belum pernah dipilih **tidak punya baris**; bawaan (`normal`, `[]`) milik
+SPA. Baris `density: 'normal'` yang ditulis server berbohong bahwa orangnya pernah memilih.
+
+**Plafon diumumkan, bukan disalin.** `GET core/me/preferences` menjawab `meta.keys` =
+`UserPreferences::describe()`, satu objek `{key, label, max_bytes, max_entries}` per kunci, dan
+`prefs.js` MEMBACANYA (`api.list`, karena `api.get` membuang meta). Bentuk lama — daftar nama +
+`MAX_BYTES` saja — menjanjikan pencegahan yang tidak pernah terjadi: tidak ada yang membacanya,
+klien tetap menyalin 50/20 sendiri, dan 16384 yang diumumkannya bukan plafon yang berlaku untuk
+`favorites` (4096) maupun `recent` (8192).
+
+**`SpaNav`** membaca rute dan prefix NAV dari `public/app/js/schema.js` (memo per proses). Menyalin
+131 rute ke PHP akan basi pada sunting pertama, dan yang basi di sini adalah VALIDATOR. Berkas tidak
+terbaca → daftar kosong → validator jatuh ke pemeriksaan bentuk saja; bintang yang ditolak karena
+deploy terbaca sebagai bintang yang rusak.
+
+**Sisi SPA** — `js/prefs.js`, dan hanya berkas itu yang boleh menyentuh kunci warisan (dipaku
+`LauncherWiringTest`). Server adalah kebenaran; `localStorage` adalah CERMIN, untuk tiga hal yang
+butuh jawaban seketika: kepadatan dipasang sebelum shell digambar (tanpa cermin ada kedipan), antrean
+Lapangan yang luring, dan sesi yang berakhir di tengah kerja. Migrasi satu kali dijalankan **per
+kunci**: server yang sudah punya barisnya MENANG, dan kunci lokal hanya dihapus setelah server
+benar-benar punya nilainya. `set()` optimistis (cermin dulu, PUT menyusul); PUT yang tidak pernah
+sampai dicoba lagi pada boot berikutnya. `load()` mengumumkan `erp:prefs-loaded`, dan layar yang
+sudah tergambar dari cermin (launcher, beranda modul) menggambar ulang BAGIANNYA — bukan rutenya,
+yang berarti setiap permintaan layar berjalan dua kali.
+
+## 16. Registri `ModuleCounts` (P1-C)
+
+Satu angka utama per modul, dipimpin ubin launcher `#/home` dan kepala beranda modul `#/m/<prefix>`.
+`Modules\Core\Support\ModuleCounts::entries()` — satu entri per prefix grup NAV, **dalam urutan NAV**;
+kelengkapan dan urutannya dipaku `ModuleCountsTest` terhadap `schema.js`, jadi grup ke-15 tanpa entri
+menjatuhkan uji alih-alih diam-diam menghasilkan ubin tanpa angka selamanya.
+
+Per entri: `label` (nama angkanya), `unit` (ubin menulis "7 proyek", bukan "7"), `permission`
+(null = semua yang punya sesi), `tables` (setiap tabel yang disentuh; dijaga `Schema::hasTable`
+dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri `DB::table`), dan
+`why` — alasan angka INI, bukan angka lain, yang memimpin modulnya.
+
+**Biaya kuerinya diukur, bukan diasumsikan.** `EXPLAIN` keempat belas kueri di MySQL 8
+(verifikasi P1-C putaran 2, 6 Sep 2026) menemukan tiga pemindaian tabel penuh (`type=ALL key=NULL`):
+`qc_ncr.status`, `hr_leave_requests.status`, dan `eng_drawing_submittals(decision, superseded_at)`.
+Ketiganya sekarang berindeks (migrasi Core `000196`, hanya indeks, berpenjaga `Schema::hasTable`),
+dan `ModuleCountsTest::test_the_scanning_counts_have_their_indexes` menjaga agar tidak hilang lagi —
+sejak P1-C hitungan ini berjalan setiap kali launcher `#/home` dibuka, yaitu landing ponsel setiap
+pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv` membandingkan `b.qty < i.min_stock`
+antar dua tabel, dan tidak ada indeks yang bisa melayani perbandingan antar kolom; bila
+`inv_stock_balances` tumbuh melewati ~100 rb baris, angka itu perlu tabel ringkasan, bukan indeks.
+Entri baru: jalankan `EXPLAIN`-nya dan tulis hasilnya di sini atau tambahkan indeksnya.
+
+`label` punya CERMIN di klien: `schema.js` `MODULES[prefix].kpi`. Ia ada karena ubin harus bisa
+menyebut angka yang tidak dikirim server — entri yang izinnya tidak dipegang tidak ada di jawaban,
+jadi tanpa cermin itu ubinnya menulis `—` telanjang tanpa satu kata pun. Kesetaraan kedua daftar
+dipaku `ModuleCountsTest`.
+
+Dua aturan yang sama dengan `WatchedDeadlines`: **tanpa mengimpor modul fitur** (literal string,
+dipaku uji, jadi penggantian nama status di lane tim lain menjatuhkan uji dan bukan mengosongkan
+ubin) dan **degradasi per entri**. `deleted_at` diperiksa tangan di setiap kueri — `DB::table`
+melewati scope `SoftDeletes`.
+
+Klaim "dipaku uji" itu hanya sekuat fixture-nya: satu baris per status membuat angka harapan (1)
+benar untuk status apa pun, dan sampai verifikasi P1-C empat mutasi status/scope lolos hijau. Sejak
+itu tiap entri berstatus punya **2 baris yang masuk hitungan dan 1 per status yang tidak**, satu
+baris yang **sudah dibuang** di tiap tabel penghapus-lembut, dan baris untuk status yang
+diperdebatkan entri itu sendiri (`svc` `pending_customer`) — 12 mutasi status/scope merah.
+
+**Absen ≠ 0.** Izin tidak dipegang, atau tabel belum ada → entri **TIDAK ADA**. Kueri melempar →
+`count: null` + `Log::warning`, tidak pernah 500. Sebuah 0 adalah pernyataan ("saya menghitung, dan
+hasilnya nol"); "0 tiket" di layar orang yang memang tidak boleh melihat tiket adalah kebohongan
+yang tampak seperti kabar baik. SPA menulis `—` untuk keduanya.
+
+**Satu kueri per entri adalah batasan yang dipilih**: blok ini ikut jawaban dasbor
+(`?include=modules`) dan endpoint launcher, keduanya dibaca di ponsel lapangan. Angka yang butuh join
+berlapis atau "baris terakhir per grup" (mis. "aset jatuh tempo servis", yang aturannya sudah
+dimiliki `WatchedDeadlines`) sengaja tidak diambil: salinan kedua sebuah aturan adalah penyimpangan
+yang paling mahal. Tiga angka yang SUDAH punya pemilik lain dipaku setara — `prj` = dasbor
+`projects.active_count`, `fin` = dasbor `ar_invoices.open_count`, `inv` =
+`StockService::lowStockAlerts()->count()`.
+
+**Endpoint.** `GET core/modules` (launcher) dan blok `modules` pada `GET core/dashboard/summary`
+**hanya bila `?include=modules`** — tanpa parameter itu jumlah permintaan dan bentuk jawaban dasbor
+tidak berubah sedikit pun (target metrik Fase 1). Keduanya tanpa gerbang izin, pola
+`search`/`calendar`: registri menyaring dirinya sendiri per entri.
+
+## 17. Widget dasbor (`public/app/js/views/widgets/`, P1-D)
+
+Dasbor `#/dashboard` adalah **penyusun**, bukan penggambar. `views/dashboard.js` membaca susunan
+orangnya, menggambar kerangka kartu dalam urutan itu, lalu memanggil `views/widgets/<id>.js` **per
+batch 4**. Setiap angka, tabel dan cabang "gagal dimuat" hidup di berkas widget-nya sendiri.
+
+**Katalog = satu daftar deklaratif** (`views/widgets/registry.js`), selera yang sama dengan
+`ModuleCounts` / `UserPreferences`: widget berikutnya adalah satu entri array + satu berkas.
+Per entri — `id` (nama berkas DAN kunci preferensi), `title`, `desc` (kalimat di laci), `module`
+(prefix grup NAV → aksen §12), `perm` (nama izin, `null`, `'*.approve'`, atau daftar "salah satu
+cukup"), `route` (layar yang memuat angkanya lengkap), `sizes` + `size`.
+
+**Metadata di registry, kode di berkas widget.** Laci "Atur dasbor" harus menawarkan seluruh katalog
+termasuk yang tidak dipakai; bila judul dan izinnya hidup di dalam berkas widget-nya, membuka laci
+berarti mengunduh 19 modul yang belasan di antaranya tidak akan digambar. Penggambarnya diimpor
+**dinamis** hanya bila widget-nya ada di susunan orangnya.
+
+**`perm` sengaja string, bukan predikat.** `Modules\Core\Support\SpaWidgets` membacanya dari
+registry.js dengan regex yang sama seperti `SpaNav` membaca NAV, dan `DashboardDefaultsTest`
+memakainya untuk membuktikan — terhadap `RoleSeeder::intended()` yang asli — bahwa **setiap peran
+demo mendapat sedikitnya satu widget**. Itulah metrik Fase 1 "0 peran tanpa ubin", dijadikan uji
+alih-alih pengukuran yang basi pada sunting berikutnya.
+
+**Aturan wajib per widget** (dipaku `DashboardTileFailureTest`, yang memindai folder — widget baru
+ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
+
+1. Berkas yang mengekspor `build(` **adalah** widget: ia wajib ada di katalog, dan katalog wajib
+   punya berkasnya. Berkas tanpa entri = kode mati; entri tanpa berkas = kartu yang ditawarkan laci
+   lalu gagal di-`import`.
+2. Setiap widget **bercabang `failure(`** di KODE (komentar dibuang sebelum dipindai). Sumber yang
+   gagal dan sumber yang kosong tidak boleh terbaca sama — pelajaran Temuan 79.
+3. Tidak ada `.catch(() => …)` di mana pun di dasbor: catch yang tidak menerima error-nya tidak bisa
+   memberi tahu ubinnya bahwa angkanya tidak diketahui.
+
+**Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
+`failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
+Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
+
+**Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 3 (satu baris penuh) di kisi tiga kolom; dua kolom
+di bawah 1180 px, satu kolom di bawah 760 px — titik potong yang sama dengan laci nav dan aturan
+landing P1-C.
+
+**Vendor dimuat malas.** SortableJS (seret-lepas di laci) diambil `js/vendorload.js` saat laci
+DIBUKA, bukan oleh shell. Urutan tetap bisa diubah dengan tombol Naik/Turun tanpa satu byte vendor
+pun; berkas vendor yang gagal dimuat mencatat sekali di konsol dan tidak mematikan apa pun.
+
+## 18. Laporan Bebas — registri `ReportableResources` (P1-F)
+
+Penyusun laporan atas **delapan** resource (keputusan pemilik ledger #4), satu layar
+`#/laporan-bebas`, satu endpoint `POST core/reports/run` = **satu** kueri `DB::table` ber-whitelist.
+
+**"Kolom = kolom layar daftar" tidak bisa harfiah, dan registri mengatakannya.** Hanya 31 dari 90
+layar daftar yang seluruh kolomnya kolom tabel dasar; sisanya memuat jalur relasi (`vendor.name`)
+atau medan yang dihitung kelas Resource (`outstanding`, `project_code`). Maka `columns` dikunci
+dengan **kunci kolom layar, dalam urutan layar, setiap kunci hadir**, dan setiap kunci berakhir di
+salah satu dari **tiga nasib** — tidak ada nasib keempat:
+
+| nasib | bentuk | contoh |
+|---|---|---|
+| dipetakan | `select` = kolom tabel bernama sama | `amount` |
+| digantikan | `select` = kolom lain + `lookup` | `customer.name` → `customer_id` |
+| **ditolak** | tanpa `select`, dengan `why_not` | `outstanding` |
+
+`why_not` adalah kalimat yang **dibaca orangnya di pemilih kolom**, di tempat ia mencari kolom itu.
+Katalog yang diam-diam menghilangkan kolom "Sisa" membuat orang menjumlahkan "Total" dan menyangka
+itu sisa tagihan. `ReportableResourcesTest` memaku kesetaraan kunci **dan urutannya** terhadap
+`schema.js` di kedua arah, `select` terhadap skema hidup, `soft_deletes` terhadap ada-tidaknya
+`deleted_at`, izin terhadap `PermissionSeeder`, dan `date_column` terhadap `meta.date_column`
+endpoint daftarnya sendiri.
+
+**Aturan mesin** (`Modules\Core\Services\ReportRunner`, dijaga `ReportRunnerSafetyTest`):
+
+- **Tidak ada string klien yang menjadi teks SQL.** Identifier hanya dari registri, melewati
+  `guardIdentifier()`; nilai selalu binding. Tidak ada `whereRaw`/`havingRaw`/`orderByRaw`/`fromRaw`/
+  `DB::select` — hanya `selectRaw`/`groupByRaw` dengan string yang dibangun dari registri.
+- **ONLY_FULL_GROUP_BY.** Menyala di MySQL, tidak di SQLite. Setiap ekspresi select bukan-agregat
+  masuk `GROUP BY` **byte-identik**; `compile()` diekspos supaya ujinya menyapu setiap sumber ×
+  dimensi × ember × agregat tanpa MySQL.
+- **Ember tanggal `substr`.** `MONTH()`/`DATE_FORMAT` MySQL saja; `strftime` SQLite saja **dan**
+  dipindai terlarang `MysqlPreflightCommand`. Ember **harian** pun memotong (`substr(col,1,10)`):
+  kolom `date` terbaca `'2026-03-25 00:00:00'` di SQLite dan `'2026-03-25'` di MySQL.
+- **SoftDeletes dengan tangan.** `DB::table` melewati scope-nya.
+- **Pengurutan di PHP**, bukan `orderByRaw` — ≤ 200 kelompok, dan satu tempat lagi yang tidak
+  menjadi teks SQL.
+
+**Tiga keadaan sel, dan ketiganya berbeda** (syarat "sel kosong, bukan 0"):
+
+| keadaan | JSON | layar | XLSX |
+|---|---|---|---|
+| tidak ada baris sumber | `cells[i] = null`, `counts[i] = 0` | `—` | sel kosong |
+| ada baris, agregat NULL | `cells[i] = null`, `counts[i] > 0` | `—` | sel kosong |
+| nol yang dijumlahkan | `cells[i] = 0.0` | `0` | `0` |
+
+`array_key_exists`, tidak pernah `?? 0` dan tidak pernah `empty()`. Aturan sel XLSX punya **satu
+pemilik**: `Modules\Core\Support\XlsxSheetWriter::putRow` (`$value !== null && $value !== ''`,
+perbandingan KETAT — `empty()` menulis sel kosong untuk setiap nol yang sah).
+
+**Setiap saringan memeriksa NILAInya, bukan hanya kuncinya.** Saringan ber-`kind: 'key'` menuntut
+nomor baris; saringan ber-`kind: 'enum'` menuntut nilai yang benar-benar ada di enum-nya (dibaca
+`SpaEnums`, berkas `enums.js` yang sama dengan layarnya) dan menolak dengan menyebut yang tersedia.
+Tanpa lengan kedua, sebuah status yang sudah dicabut lolos ke `where status = 'x'`, laporannya
+kembali kosong tanpa satu kata pun, dan definisi itu bisa DISIMPAN lalu dibagikan — saringan yang
+diam-diam tidak cocok dengan apa pun adalah kebohongan yang paling sulit dilihat. `enums.js` yang
+tidak terbaca menurunkan aturan ini menjadi "terima apa adanya" (degradasi SpaEnums), bukan
+menolak semuanya.
+
+**Saringan yang layar tidak punya kendalinya tetap PUNYA SUARA.** Laporan tersimpan boleh membawa
+saringan ber-FK (pemilihnya ditunda ke v2) atau nilai enum yang sudah dicabut; layar menggambarnya
+sebagai keping berlabel `labelFor()`/`enumLabel()` dan kartu hasil menuliskan `Disaring: …`.
+Angka yang merupakan himpunan bagian karena saringan tak terlihat adalah kebohongan sejenis dengan
+sel 0 yang seharusnya kosong.
+
+**Baris SENDIRI selalu terlihat pemiliknya**, juga setelah izin sumbernya dicabut — ditandai
+`readable: false`, dengan Buka/XLSX/Salin tertutup dan sebabnya tertulis. Kalau tidak, tidak ada
+satu pun cara membuangnya: barisnya hilang dari daftar sementara DELETE atas id-nya tetap berhasil.
+
+**Plafon DIUMUMKAN, dan ia PENOLAKAN bukan pemotongan.** 5.000 baris rincian / 200 kelompok, di
+`meta.limits` (aturan yang sama dengan `meta.sortable` dan `UserPreferences::describe()`); SPA
+membacanya, tidak menghafalnya. Melewatinya dijawab 422 — SUM atas 200 dari 340 kelompok adalah
+angka salah yang berpakaian angka benar.
+
+**Berbagi per peran menyimpan NAMA.** Ini rujukan peran pertama di seluruh basis data ini: id tidak
+bisa membawa FK (peran milik Iam, tabel milik Core — §3), nama adalah yang sudah diseberangkan ke
+klien dan yang dibaca `hasRole()` yang tidak pernah melempar. Penulisan divalidasi terhadap peran
+yang hidup (berbagi tidak pernah **lahir** basi); peran yang kemudian diganti nama **ditandai** di
+daftar, bukan diam-diam berhenti berbagi. Dua aturan yang tidak boleh dilanggar: **berbagi tidak
+pernah memberi akses baru** (laporan tetap disaring izin sumbernya), dan **hanya pemilik yang
+mengubah**, tanpa jalan pintas admin, ditolak **422 dari service** dengan kalimat yang menyebut
+laporannya, pemiliknya, dan jalan keluarnya — bentuk `PettyCashVoucherService::assertCustodian`.
+
+**Blok migrasi.** `core_saved_reports` mengambil **000197**. Ledger #5 menyarankan "Core 001400–",
+tetapi §2 sudah memberikan 001400–001499 kepada Quality dan Quality memakainya sejak 001400 —
+saran itu **tidak diikuti**. Core menyisakan **000198 dan 000199**; blok lanjutan Core perlu
+diputuskan sebelum tabel Core berikutnya.
+
+## 19. Papan kanban — blok `board:` (P1-G)
+
+Tampilan KEDUA atas daftar yang sudah ada, di rute `#/b/<resource>`. Gerbangnya persis gerbang
+layar daftarnya (`def.viewPerm || `${def.module}.view``) — papan bukan data baru.
+
+**SATU ATURAN MENENTUKAN SELURUHNYA: drop menjalankan aksi yang SUDAH ADA lewat `runAction()`,**
+jalur yang sama persis dengan tombol di halaman dokumen. Bukan endpoint baru, bukan `PUT {id}` yang
+menulis status, bukan salinan aturan transisi. Yang ikut secara gratis karena itu: catatan
+persetujuan inline, maker-checker, `confirmResubmit` bertingkat, dialog alasan wajib pada Tolak,
+toast berbahasa Indonesia yang menyebut kode dokumennya, dan tawaran "dokumen berikutnya" setelah
+menyetujui. Papan yang menulis statusnya sendiri kehilangan keenamnya sekaligus, diam-diam.
+
+```js
+board: {
+  enum: 'documentStatus',                    // enum status; kolom dilabeli darinya
+  lanes: ['draft', 'submitted', 'approved', 'rejected'],
+  moves: { submitted: 'submit', approved: 'approve', rejected: 'reject' },
+  why: '…',                                  // kenapa resource INI yang berpapan
+}
+```
+
+`lanes` adalah nilai status yang **benar-benar tercapai** — `documentStatus` punya enam nilai dan
+hampir tidak ada dokumen yang mencapai semuanya; kolom yang tidak pernah terisi hanya mengambil
+ruang. `moves` memetakan **kolom tujuan → kunci aksi**; kolom tanpa entri tidak menerima kartu.
+
+**DUA PENOLAKAN YANG BERBEDA, dan keduanya wajib ada:**
+
+1. **Yang bisa diketahui sebelum mencoba** — izin dan `when`. Predikatnya diambil UTUH dari
+   `actionButtons()`, dalam urutan yang sama (`session.can(action.perm)` lalu
+   `!action.when || action.when(row)`): papan yang memakai predikat kedua menawarkan perpindahan
+   yang tombolnya sendiri sembunyikan. Kartu kembali, dan kalimatnya menyebut dokumennya, kolom
+   tujuannya DAN aksi yang kurang — *"PR PR/2026/III/0002 tidak bisa dipindah ke Disetujui: aksi
+   Setujui tidak tersedia untuk Anda."*
+2. **Yang hanya bisa diketahui dengan mencoba** — maker-checker, tangga persetujuan, ambang
+   direktur, prasyarat BAST. Tidak satu pun ada di muatan daftar (`approvals` di-load hanya pada
+   detail; tidak ada medan `can_approve` di mana pun). Papan **tidak boleh menebaknya**: ia mencoba,
+   `runAction` menampilkan kalimat servernya, dan kartunya kembali.
+
+**Mengembalikan kartu adalah pekerjaan tangan.** SortableJS tidak punya API batal — `onEnd` menyala
+SETELAH DOM dipindahkan, dan tidak satu pun metode instansnya mengembalikannya. Satu-satunya jalan
+adalah idiom pustakanya sendiri: simpan tetangga di kolom asal **sebelum** apa pun yang bisa gagal,
+lalu `insertBefore` / `appendChild`. Karena itu pula `sort: false` — papan ini tentang KOLOM, dan
+membiarkan pengurutan di dalam kolom menambah satu bentuk pembatalan lagi yang indeksnya bergeser.
+
+**`runAction` selalu resolve `undefined` dan tidak pernah melempar**: batal, 422 dan berhasil tidak
+bisa dibedakan dari nilai kembaliannya. Yang menandakan berhasil hanyalah `onDone` yang menyala —
+papan memasang bendera di dalamnya dan mengembalikan kartu bila bendera itu tidak menyala. Karena
+`onDone` **dilewati** untuk aksi ber-`navigateTo`/`navigateToResult`, aksi seperti itu tidak boleh
+menjadi `moves` (dipaku `BoardWiringTest`).
+
+**Yang TIDAK boleh berpapan** (dipaku uji): resource yang salah satu aksinya memposting ke buku
+besar atau ke stok. Aturannya tentang **akibat**, bukan tentang kunci — lima resource
+menyembunyikan posting di balik kunci bernama `approve`/`acknowledge`
+(`inventory/stock-adjustments`, `finance/ar-invoices`, `finance/ap-bills`, `hr/payroll-runs`,
+`servicedesk/field-reports`). Aksi ber-`opens` juga tidak: ia tidak punya `path` dan tidak pernah
+POST.
+
+**Menambahkan papan** = satu blok `board:` di entri RESOURCES + satu baris NAV `b/<key>`.
+`BoardWiringTest` memeriksa sisanya: kolom adalah nilai enum sungguhan, setiap `moves` menunjuk
+kolom papan itu DAN kunci aksi yang ada, aksinya punya `path` dan tidak berpindah halaman, dan
+tidak satu pun resource yang memposting.

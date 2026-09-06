@@ -1,4 +1,4 @@
-import json, os, re, time, sqlite3, struct, base64, traceback, urllib.request
+import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request
 from datetime import date
 from playwright.sync_api import sync_playwright
 
@@ -13,10 +13,14 @@ from playwright.sync_api import sync_playwright
 ORIGIN = os.environ.get("ERP_BASE", "http://127.0.0.1:8000").rstrip("/")
 BASE = ORIGIN + "/app/"
 API = ORIGIN + "/api/"
+SPA_EVIDENCE = os.path.dirname(os.path.abspath(__file__))
 DB = os.environ.get("ERP_DB", "/home/claude/nusantara-erp/database/database.sqlite")
 OUT = os.environ.get("UXTEST_OUT", "/home/claude/uxtest")
 R = {}          # results
 CLICKS = [0]    # click counter for the current scenario
+# Skenario yang JATUH (ERROR atau ok:false). Dibaca di akhir: sebuah harness yang selalu
+# keluar dengan status 0 tidak bisa dipakai gerbang apa pun (verifikasi kedua P1-D).
+FAILED = []
 
 def api(path, token, method="GET", body=None):
     req = urllib.request.Request(API + path, method=method, headers={
@@ -61,7 +65,10 @@ def login(page, email, onboarding="decide"):
     # kena 429 (diamati 4 Sep 2026: teknisi/sales/finance bergantian, POST-nya tidak pernah sampai ke
     # log php -S, toast-nya sudah lenyap saat 15 s habis). Ditunggu sesuai Retry-After lalu diklik
     # lagi — yang dilakukan orang juga; tidak masuk hitungan klik skenario.
-    for _ in range(3):
+    # Enam percobaan, bukan tiga (P1-C, 6 Sep 2026): S22 + S22m + S22r berurutan memasukkan 23 sesi,
+    # dan tiga percobaan habis di tengah S22m — skenarionya mati di wait_for_selector('nav.nav')
+    # dengan sebab yang tidak ada hubungannya dengan yang diujinya.
+    for _ in range(6):
         with page.expect_response(lambda r: "iam/auth/login" in r.url, timeout=15000) as info:
             page.click("button[type=submit]")
         if info.value.status != 429:
@@ -113,8 +120,22 @@ def scenario(name):
             R[name]["_clicks"] = CLICKS[0]
             # SKIPPED dicetak apa adanya: sebuah skenario yang tidak menemukan fixture-nya bukan "ok"
             # (verifikasi P1-B putaran 3, 6 Sep 2026 — S16 pada salinan DB hidup).
-            state = R[name].get("ERROR") or (f"SKIPPED: {R[name]['SKIPPED']}" if "SKIPPED" in R[name] else "ok")
+            #
+            # …dan `ok: False` juga bukan "ok". Sampai verifikasi kedua P1-D baris ini hanya melihat
+            # ERROR dan SKIPPED, jadi sebuah skenario yang MENJATUHKAN syaratnya sendiri tetap
+            # tercetak hijau: terukur pada S23_setup_drawer, yang mencetak "ok" sementara
+            # results.json memuat "ok": false (stored_preference null, tabel preferensi belum ada di
+            # salinan DB). Laporan paket yang menulis "empat bagian, semuanya hijau" bersandar pada
+            # baris ini, jadi baris inilah yang harus jujur.
+            failed = R[name].get("ok") is False
+            state = (
+                R[name].get("ERROR")
+                or (f"SKIPPED: {R[name]['SKIPPED']}" if "SKIPPED" in R[name] else None)
+                or ("GAGAL: " + ", ".join(R[name].get("failed_checks") or ["syarat ok"]) if failed else "ok")
+            )
             print(f"[{name}] {state} {R[name]['_ms']}ms clicks={CLICKS[0]}")
+            if R[name].get("ERROR") or failed:
+                FAILED.append(name)
         return wrapper
     return deco
 
@@ -1533,6 +1554,987 @@ def s20m(browser):
     finally:
         ctx.close()
 
+# ------------------------------------------------------------ S20e (P1-E)
+#
+# Tiga grafik tangan yang pindah ke charts.js: kurva-S proyek, kurva EVM, tren
+# harga satuan. S20 mengukur token pada grafik SINTETIS di sandbox; di sini yang
+# dibuka adalah LAYAR SUNGGUHAN dengan data demo, karena yang bisa hilang dalam
+# migrasi bukan tokennya melainkan FITURNYA — sumbu EVM yang boleh melewati
+# 100 %, sumbu harga yang tidak dipaksa mulai dari nol, celah kurva baseline
+# sebelum sampel pertama, titik as-of yang lebih besar, dan kalimat <title> yang
+# menyebut ketiga angka sekaligus.
+#
+# ROADMAP menuliskan kriteria "diff piksel ≤ 2 %". Angka itu DIUKUR di sini
+# (bukan diasumsikan) terhadap tangkapan layar sebelum migrasi yang disimpan di
+# repositori — dan hasilnya dilaporkan apa adanya, termasuk ketika ia melampaui
+# 2 %: legenda yang pindah ke dalam svg dan warna yang pindah ke token
+# kategorikal mengubah piksel dengan sengaja. Yang tidak boleh berubah adalah
+# daftar fitur di bawahnya.
+
+CHART_INVENTORY = """(sel) => {
+  const svg = document.querySelector(sel);
+  if (!svg) return null;
+  const cs = (n, p) => getComputedStyle(n)[p];
+  const resolve = (t) => getComputedStyle(document.documentElement).getPropertyValue(t).trim();
+  const lines = [...svg.querySelectorAll('path.series-line')];
+  const pts = [...svg.querySelectorAll('circle.series-point, .series-point')];
+  return {
+    cls: svg.getAttribute('class'),
+    aria: svg.getAttribute('aria-label'),
+    lib: (svg.getAttribute('class') || '').includes('chart-lib'),
+    series: lines.map((l) => ({
+      token: l.dataset.token || null,
+      stroke: cs(l, 'stroke'),
+      expected: l.dataset.token ? resolve(l.dataset.token) : null,
+      dash: cs(l, 'strokeDasharray'),
+      // Tebal garis: seri yang DIUKUR lebih tebal daripada seri acuannya,
+      // seperti `.chart .act` grafik tangan. Pemindahan P1-E menuliskan 2 untuk
+      // semuanya dan hierarki itu hilang tanpa disebut (verifikasi P1-E).
+      width: parseFloat(cs(l, 'strokeWidth')),
+    })),
+    areas: svg.querySelectorAll('path.series-area').length,
+    points: pts.length,
+    point_radii: [...new Set(pts.map((p) => p.getAttribute('r')))].sort(),
+    point_tokens: [...new Set(pts.map((p) => p.dataset.token || null))].sort(),
+    marks_with_title: [...svg.querySelectorAll('.mark')].filter((m) => m.querySelector('title')).length,
+    marks: svg.querySelectorAll('.mark').length,
+    titles: [...svg.querySelectorAll('title')].map((t) => t.textContent),
+    ticks: [...svg.querySelectorAll('text.chart-tick')].map((t) => t.textContent),
+    legend: [...svg.querySelectorAll('text.chart-legend')].map((t) => t.textContent),
+    outside: svg.querySelectorAll('[data-outside]').length,
+    box: (() => { const r = svg.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })(),
+    // Label tepi tidak boleh keluar dari kotak svg — yang persis dilanggar
+    // grafik tangan tren harga sebelum migrasi.
+    text_outside_viewbox: (() => {
+      const vb = (svg.getAttribute('viewBox') || '0 0 0 0').split(' ').map(Number);
+      return [...svg.querySelectorAll('text')].filter((t) => {
+        const b = t.getBBox();
+        return b.x < vb[0] - 0.5 || b.x + b.width > vb[0] + vb[2] + 0.5;
+      }).map((t) => t.textContent);
+    })(),
+  };
+}"""
+
+
+def _pixel_diff(before, after):
+    """Bagian piksel yang berubah pada irisan kedua gambar, plus luas di luarnya.
+
+    Tanpa dependensi: dekodernya `_read_png` di bawah. Sampai verifikasi P1-E
+    fungsi ini memanggil Pillow dan menyerah dengan sopan bila tidak ada — dan
+    host tempat harness ini benar-benar dijalankan TIDAK memasang Pillow, jadi
+    satu-satunya angka yang roadmap tuntut untuk pemindahan grafik dilaporkan
+    "tidak tersedia" setiap kali. Sebuah angka yang tidak pernah terukur bukan
+    kriteria.
+    """
+    if not (os.path.exists(before) and os.path.exists(after)):
+        return {"available": False, "reason": "tangkapan layar pembanding tidak ada"}
+
+    aw, ah, a = _read_png(before)
+    bw, bh, b = _read_png(after)
+    if a is None or b is None:
+        return {"available": False, "reason": "PNG tidak bisa dibaca dekoder bawaan"}
+
+    w, h = min(aw, bw), min(ah, bh)
+    changed = 0
+    for y in range(h):
+        ra, rb = y * aw * 3, y * bw * 3
+        for x in range(w):
+            ia, ib = ra + x * 3, rb + x * 3
+            # Toleransi 16/255 per kanal: anti-alias sub-piksel bukan perubahan.
+            if (abs(a[ia] - b[ib]) > 16 or abs(a[ia + 1] - b[ib + 1]) > 16
+                    or abs(a[ia + 2] - b[ib + 2]) > 16):
+                changed += 1
+
+    frame = max(aw, bw) * max(ah, bh)
+    outside = frame - (w * h)
+    return {
+        "available": True,
+        "before": [aw, ah], "after": [bw, bh],
+        "changed_pct": round(changed / (w * h) * 100, 2),
+        "outside_intersection_pct": round(outside / frame * 100, 2),
+    }
+
+
+def _read_png(path):
+    """PNG 8-bit non-interlaced -> (lebar, tinggi, bytes RGB). (0, 0, None) bila tak terbaca.
+
+    Dekoder sendiri, bukan Pillow. Alasannya diukur: host produksi ini TIDAK
+    memasang Pillow, jadi satu-satunya angka yang dijanjikan roadmap untuk
+    pemindahan grafik ("diff piksel") dilaporkan "tidak tersedia" persis di
+    tempat ia paling dibutuhkan — dan sebuah metrik yang selalu menyerah dengan
+    sopan tidak pernah menjadi gerbang (verifikasi P1-E). Format yang dibaca
+    adalah format yang benar-benar ditulis Playwright: 8 bit per kanal, tanpa
+    interlace; bentuk lain menjawab None dan pemanggilnya melaporkannya.
+    """
+    try:
+        data = open(path, "rb").read()
+        if data[:8] != b"\x89PNG\r\n\x1a\n":
+            return 0, 0, None
+
+        pos, idat, w, h, ctype = 8, b"", 0, 0, 0
+        while pos + 8 <= len(data):
+            ln = struct.unpack(">I", data[pos:pos + 4])[0]
+            typ = data[pos + 4:pos + 8]
+            body = data[pos + 8:pos + 8 + ln]
+            if typ == b"IHDR":
+                w, h, bitd, ctype, _, _, interlace = struct.unpack(">IIBBBBB", body)
+                if bitd != 8 or interlace != 0 or ctype not in (2, 6):
+                    return 0, 0, None
+            elif typ == b"IDAT":
+                idat += body
+            elif typ == b"IEND":
+                break
+            pos += 12 + ln
+
+        ch = 3 if ctype == 2 else 4
+        raw = zlib.decompress(idat)
+        stride = w * ch
+        rgb = bytearray(w * h * 3)
+        prev = bytearray(stride)
+        at = 0
+        for y in range(h):
+            f = raw[at]
+            at += 1
+            line = bytearray(raw[at:at + stride])
+            at += stride
+            if f == 1:
+                for i in range(ch, stride):
+                    line[i] = (line[i] + line[i - ch]) & 0xFF
+            elif f == 2:
+                for i in range(stride):
+                    line[i] = (line[i] + prev[i]) & 0xFF
+            elif f == 3:
+                for i in range(stride):
+                    left = line[i - ch] if i >= ch else 0
+                    line[i] = (line[i] + ((left + prev[i]) >> 1)) & 0xFF
+            elif f == 4:
+                for i in range(stride):
+                    left = line[i - ch] if i >= ch else 0
+                    up = prev[i]
+                    ul = prev[i - ch] if i >= ch else 0
+                    p = left + up - ul
+                    pa, pb, pc = abs(p - left), abs(p - up), abs(p - ul)
+                    line[i] = (line[i] + (left if (pa <= pb and pa <= pc) else (up if pb <= pc else ul))) & 0xFF
+            base = y * w * 3
+            for x in range(w):
+                rgb[base + x * 3:base + x * 3 + 3] = line[x * ch:x * ch + 3]
+            prev = line
+        return w, h, bytes(rgb)
+    except Exception:
+        return 0, 0, None
+
+
+@scenario("S20e_migrated_charts")
+def s20e(pg):
+    login(pg, "admin@nusantara.test")
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+
+    out = {"charts": {}, "pageerrors": errors}
+
+    def grab(key, sel, shot):
+        pg.wait_for_selector(sel, timeout=20000)
+        info = pg.evaluate(CHART_INVENTORY, sel)
+        pg.locator(sel).first.screenshot(path=f"{OUT}/{shot}-sesudah-p1e.png")
+        info["pixel_diff"] = _pixel_diff(f"{SPA_EVIDENCE}/{shot}-sebelum-p1e.png", f"{OUT}/{shot}-sesudah-p1e.png")
+        out["charts"][key] = info
+        return info
+
+    # Kurva-S dan kurva EVM hidup di halaman proyek yang sama; kartu EVM dimuat
+    # setelah kurva-S, jadi masing-masing ditunggu dengan selektornya sendiri.
+    pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+    pg.wait_for_timeout(1200)
+    scurve = grab("kurva_s", "svg[aria-label*='Kurva-S']", "s20e-kurva-s")
+    evm = grab("evm", "svg[aria-label*='EVM']", "s20e-evm")
+
+    pg.evaluate("() => { location.hash = '#/harga-satuan'; }")
+    pg.wait_for_timeout(2500)
+    if not pg.locator("svg[aria-label*='Tren harga']").count():
+        pg.locator("select").first.select_option(index=1)
+        pg.wait_for_timeout(2500)
+    trend = grab("tren_harga", "svg[aria-label*='Tren harga']", "s20e-tren-harga")
+
+    light_series = {
+        "kurva_s": [(x["token"], x["stroke"]) for x in scurve["series"]],
+        "evm": [(x["token"], x["stroke"]) for x in evm["series"]],
+        "tren_harga": [(x["token"], x["stroke"]) for x in trend["series"]],
+    }
+
+    # Tema gelap: yang diperiksa BUKAN gambarnya melainkan bahwa setiap garis
+    # tetap mengambil warnanya dari tokennya — token --chart-* punya nilai
+    # sendiri di blok gelap, jadi sebuah warna yang ter-hardcode akan lolos di
+    # terang dan ketahuan di sini.
+    pg.evaluate("() => { document.documentElement.dataset.theme = 'dark'; }")
+    pg.wait_for_timeout(250)
+    dark = {
+        "tren_harga": pg.evaluate(CHART_INVENTORY, "svg[aria-label*='Tren harga']"),
+    }
+    pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+    pg.wait_for_selector("svg[aria-label*='EVM']", timeout=20000)
+    dark["kurva_s"] = pg.evaluate(CHART_INVENTORY, "svg[aria-label*='Kurva-S']")
+    dark["evm"] = pg.evaluate(CHART_INVENTORY, "svg[aria-label*='EVM']")
+    pg.locator("svg[aria-label*='Kurva-S']").first.screenshot(path=f"{OUT}/s20e-kurva-s-gelap-p1e.png")
+    out["dark"] = {k: [(x["token"], x["stroke"], x["expected"]) for x in v["series"]] for k, v in dark.items() if v}
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+
+    # ---- daftar fitur yang TIDAK boleh hilang, dinyatakan sebagai syarat ----
+    # Sumbu tren harga atas deret harga yang BERGERAK — data demo punya dua
+    # harga yang sama, dan itulah satu-satunya bentuk yang lolos aturan lama.
+    # Digambar dengan lineChart yang dikapalkan, memakai rumus yLo/yHi/yStep
+    # milik hargasatuan.js sendiri, di halaman yang sedang diuji.
+    trend_axis = pg.evaluate("""async () => {
+      const m = await import("/app/js/charts.js");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const axisOf = (prices) => {
+        const lo = Math.min(...prices), hi = Math.max(...prices);
+        const room = (hi - lo) * 0.25 || hi * 0.05 || 1;
+        const yLo = Math.max(0, lo - room), yHi = hi + room;
+        host.replaceChildren(m.lineChart({
+          series: [{ label: "Harga", points: prices.map((v, i) => ({ x: i, y: v })) }],
+          width: 1112, height: 260, legend: false,
+          yMin: yLo, yMax: yHi, yStep: (yHi - yLo) / 4, yFormat: (v) => String(Math.round(v)),
+        }));
+        const ticks = [...host.querySelectorAll("text.chart-tick")]
+          .filter((t) => t.getAttribute("text-anchor") === "end")
+          .map((t) => parseFloat(t.textContent));
+        return { ticks, yLo, yHi };
+      };
+      const rising = axisOf([12500, 18750, 31000]);
+      const near = (a, b) => Math.abs(a - b) <= Math.max(1, Math.abs(b) * 1e-6);
+      host.remove();
+      return {
+        rising_ticks: rising.ticks,
+        rising_gridlines: rising.ticks.length,
+        edges_labelled: rising.ticks.length > 1
+          && near(rising.ticks[0], Math.round(rising.yLo))
+          && near(rising.ticks[rising.ticks.length - 1], Math.round(rising.yHi)),
+      };
+    }""")
+    out["trend_axis_rising"] = trend_axis
+
+    # TITIK YANG DIKECUALIKAN `dots:false`, dan legendanya.
+    #
+    # charts.js tetap menggambar run SATU TITIK walau pemanggilnya menulis
+    # `dots:false` — tanpa garis maupun titik nilainya tidak terlihat sama
+    # sekali. Yang salah sampai verifikasi P1-E adalah UKURANNYA: r 4, sama
+    # dengan titik as-of EVM yang justru satu-satunya titik yang dicari orang,
+    # 2,7 px di sebelahnya. Dan sebuah seri yang seluruh datanya terpencil
+    # (biaya aktual berlubang) kehilangan garisnya sama sekali sementara
+    # legendanya tetap menggambar swatch GARIS untuk garis yang tidak ada.
+    # Dua bentuk itu digambar di sini dengan lineChart yang dikapalkan.
+    dots_probe = pg.evaluate("""async () => {
+      const m = await import("/app/js/charts.js");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const draw = (series) => {
+        host.replaceChildren(m.lineChart({ series, yMin: 0, yMax: 100, yStep: 25,
+          yFormat: (v) => `${v}%`, ariaLabel: "uji" }));
+        return {
+          radii: [...host.querySelectorAll("circle.series-point:not(.legend-swatch)")].map((c) => +c.getAttribute("r")),
+          lines: host.querySelectorAll("path.series-line").length,
+          swatches: [...host.querySelectorAll(".legend-swatch")].map((n) => n.tagName),
+        };
+      };
+      const fresh = draw([
+        { label: "baseline", token: "--chart-8", dash: "2 4", dots: false,
+          points: [{ x: "2026-01-05", y: 0 }, { x: "2026-02-05", y: 20 }, { x: "2026-03-05", y: 60 }] },
+        { label: "EV", token: "--chart-1",
+          points: [{ x: "2026-01-05", y: 0.75, r: 4 }, { x: "2026-02-05", y: null }, { x: "2026-03-05", y: null }] },
+        { label: "AC", token: "--chart-2", dots: false,
+          points: [{ x: "2026-01-05", y: 0.75 }, { x: "2026-02-05", y: null }, { x: "2026-03-05", y: null }] },
+      ]);
+      const gap = draw([
+        { label: "baseline", token: "--chart-8", dash: "2 4", dots: false,
+          points: [{ x: "2026-01-05", y: 10 }, { x: "2026-02-05", y: 40 }, { x: "2026-03-05", y: 80 }] },
+        { label: "AC", token: "--chart-2", dots: false,
+          points: [{ x: "2026-01-05", y: 5 }, { x: "2026-02-05", y: null }, { x: "2026-03-05", y: 30 }] },
+      ]);
+      host.remove();
+      return { fresh, gap };
+    }""")
+    out["dots_false_probe"] = dots_probe
+
+    # KERTAS. Blok cetak app.css mengabukan token --chart-* dan memberi setiap
+    # seri pola putusnya; sampai verifikasi P1-E deklarasi itu juga MENIMPA
+    # pola yang ditulis pemanggil (deklarasi CSS mengalahkan atribut
+    # presentasi), jadi baseline yang ditulis "2 4" dan garis EV yang UTUH di
+    # layar tercetak sebagai dua pola titik yang hanya berbeda 1 px celah, dan
+    # "Aktual" kurva-S yang utuh di layar menjadi garis paling putus di
+    # kertas. Dan legenda DOM tren harga tidak tercetak sama sekali pada
+    # setelan bawaan Chrome (grafik latar mati) — dua label tanpa satu swatch.
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(300)
+    print_state = pg.evaluate("""() => {
+      const svgs = [...document.querySelectorAll("svg.chart-lib")];
+      const chart = (svg) => [...svg.querySelectorAll("path.series-line")].map((l) => ({
+        series: l.dataset.series,
+        authored: l.getAttribute("stroke-dasharray"),
+        printed: getComputedStyle(l).strokeDasharray,
+      }));
+      return { charts: svgs.map(chart) };
+    }""")
+    pg.emulate_media(media="screen")
+    pg.wait_for_timeout(200)
+
+    pg.evaluate("""() => { location.hash = "#/harga-satuan"; }""")
+    pg.wait_for_selector("svg[aria-label*='Tren harga']", timeout=20000)
+    pg.wait_for_timeout(1200)
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(300)
+    print_state["trend_legend"] = pg.evaluate("""() => [...document.querySelectorAll(".legend i")].map((i) => {
+      const cs = getComputedStyle(i);
+      const r = i.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height), adjust: cs.printColorAdjust || cs.webkitPrintColorAdjust };
+    })""")
+    print_state["trend_point_radii"] = pg.evaluate(
+        "() => [...new Set([...document.querySelectorAll('circle.series-point:not(.legend-swatch)')]"
+        ".map((c) => parseFloat(c.getAttribute('r'))))].sort((a, b) => a - b)")
+    pg.emulate_media(media="screen")
+    out["print"] = print_state
+
+    # Pola yang DITULIS pemanggil selamat di kertas; yang tidak menulis apa pun
+    # tetap mendapat pola cetaknya (itulah alasan blok cetak ada).
+    authored = [l for c in print_state["charts"] for l in c if l["authored"]]
+    print_state["authored_dash_survives_print"] = bool(authored) and all(
+        l["printed"].replace("px", "").replace(",", "") == l["authored"] for l in authored)
+    # Swatch legenda tren harga: tercetak (print-color-adjust) DAN berbeda
+    # UKURAN, bukan hanya berbeda abu-abu.
+    legend = print_state["trend_legend"]
+    print_state["trend_legend_prints_and_differs_by_shape"] = (
+        len(legend) == 2
+        and all(i["adjust"] == "exact" for i in legend)
+        and legend[0]["w"] != legend[1]["w"]
+    )
+    print_state["trend_points_differ_by_more_than_half_a_pixel"] = (
+        len(print_state["trend_point_radii"]) == 2
+        and print_state["trend_point_radii"][1] - print_state["trend_point_radii"][0] >= 1
+    )
+
+    # KEPADATAN LABEL SUMBU MINGGU. Grafik tangan kurva-S menjarangkan per
+    # INDEKS (paling banyak 12 label); charts.js menjarangkan di ruang piksel
+    # dengan irama 64 px yang ditera untuk "05 Sep 2026" (61,6 px) — dan
+    # dipakai apa adanya oleh label selebar "M12" (±21 px), sehingga proyek 12
+    # minggu kehilangan lima labelnya (M1, M3, M5, M7, M9, M11, M12) di sumbu
+    # yang ruangnya jelas cukup (verifikasi P1-E). Proyek demo hanya 8 minggu,
+    # jadi bentuk ini tidak pernah terlihat di layar mana pun di sini.
+    week_axis = pg.evaluate("""async () => {
+      const m = await import("/app/js/charts.js");
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const draw = (n) => {
+        host.replaceChildren(m.lineChart({
+          series: [{ label: "Aktual", points: Array.from({ length: n }, (_, i) => ({ y: (i + 1) * (100 / n) })) }],
+          xLabels: Array.from({ length: n }, (_, i) => `M${i + 1}`),
+          width: 720, height: 260, yMin: 0, yMax: 100, yStep: 25, yFormat: (v) => `${v}%`,
+        }));
+        const labels = [...host.querySelectorAll("text.chart-tick")]
+          .filter((t) => t.getAttribute("text-anchor") !== "end");
+        // Tidak boleh ada dua label yang kotaknya bersentuhan.
+        const boxes = labels.map((t) => t.getBBox()).sort((a, b) => a.x - b.x);
+        let overlap = false;
+        for (let i = 1; i < boxes.length; i++) {
+          if (boxes[i - 1].x + boxes[i - 1].width > boxes[i].x) overlap = true;
+        }
+        return { labels: labels.map((t) => t.textContent), overlap };
+      };
+      const out = { w8: draw(8), w12: draw(12), w52: draw(52) };
+      host.remove();
+      return out;
+    }""")
+    out["week_axis"] = week_axis
+
+    checks = {
+        # Ketiganya benar-benar digambar charts.js, bukan sisa SVG tangan.
+        "all_are_chart_lib": all(c["lib"] for c in (scurve, evm, trend)),
+        # Setiap tanda membawa tepat satu <title> (aturan charts.js, dan satu-
+        # satunya cara pembaca layar mendapat angkanya).
+        "every_mark_titled": all(c["marks_with_title"] == c["marks"] for c in (scurve, evm, trend)),
+        # Kurva-S: tiga seri, area di bawah aktual, sumbu 0–100 langkah 25.
+        "scurve_three_series": len(scurve["series"]) == 3,
+        "scurve_has_area": scurve["areas"] == 1,
+        "scurve_axis_0_100": scurve["ticks"][:5] == ["0%", "25%", "50%", "75%", "100%"],
+        "scurve_week_labels": any(t.startswith("M") for t in scurve["ticks"]),
+        # Kalimat <title> menyebut rencana DAN aktual pada minggu yang sama.
+        "scurve_title_names_both": all(
+            ("rencana" in t and "aktual" in t) for t in scurve["titles"]) and bool(scurve["titles"]),
+        # EVM: tiga seri dengan TIGA warna berbeda (sebelum P1-E garis EV dan
+        # biaya sama-sama biru, hanya dibedakan opacity .55).
+        "evm_three_distinct_colours": len({s["stroke"] for s in evm["series"]}) == 3,
+        # Titik as-of lebih besar daripada titik biasa.
+        "evm_as_of_point_larger": len(evm["point_radii"]) >= 2,
+        # …dan titik yang DIKECUALIKAN dots:false tidak boleh menyamainya:
+        # pada proyek yang baru dibaseline, r 4 hanya milik penanda as-of.
+        "exempt_dot_never_outranks_the_as_of_marker":
+            dots_probe["fresh"]["radii"].count(4) == 1 and max(dots_probe["gap"]["radii"]) < 4,
+        # Seri yang seluruh datanya terpencil dilambangkan TITIK di legenda,
+        # bukan garis penuh untuk garis yang tidak ada di grafiknya.
+        "dot_only_series_gets_a_dot_swatch":
+            dots_probe["gap"]["lines"] == 1 and dots_probe["gap"]["swatches"] == ["line", "circle"],
+        "evm_title_names_three_numbers": all(
+            ("rencana" in t and "fisik" in t and "biaya" in t) for t in evm["titles"]) and bool(evm["titles"]),
+        # Sumbu EVM boleh melewati 100 % — di sini datanya berhenti di 100, jadi
+        # yang dibuktikan adalah bahwa ia TIDAK jatuh di bawahnya.
+        "evm_axis_reaches_100": "100%" in evm["ticks"],
+        # Seri yang DIUKUR lebih tebal daripada seri acuannya — pada ketiga
+        # grafik. Kurva-S: Aktual di atas dua garis rencana; EVM: biaya aktual
+        # di atas baseline dan EV; tren harga: satu-satunya garisnya.
+        "measured_series_is_the_heaviest_line": (
+            max(x["width"] for x in scurve["series"]) == 2.5
+            and sorted(x["width"] for x in scurve["series"]) == [2, 2, 2.5]
+            and sorted(x["width"] for x in evm["series"]) == [2, 2, 2.5]
+            and [x["width"] for x in trend["series"]] == [2.5]
+        ),
+        # KERTAS: pola yang ditulis pemanggil menang, legenda DOM benar-benar
+        # tercetak, dan pembeda titiknya bukan 0,5 px.
+        "authored_dash_survives_print": print_state["authored_dash_survives_print"],
+        "trend_legend_prints_and_differs_by_shape": print_state["trend_legend_prints_and_differs_by_shape"],
+        "trend_points_differ_by_more_than_half_a_pixel": print_state["trend_points_differ_by_more_than_half_a_pixel"],
+        # Sumbu minggu 12 titik menggambar KEDUA BELAS labelnya, dan tidak ada
+        # sumbu minggu yang labelnya bertumpuk.
+        "twelve_week_axis_keeps_all_labels": len(week_axis["w12"]["labels"]) == 12,
+        "week_axis_never_overlaps": not any(week_axis[k]["overlap"] for k in ("w8", "w12", "w52")),
+        # Tren harga: sumbu TIDAK mulai dari nol.
+        "trend_axis_not_zero_based": trend["ticks"] and not trend["ticks"][0].strip().endswith(" 0"),
+        "trend_five_gridlines": len([t for t in trend["ticks"] if t.startswith("Rp")]) == 5,
+        # …dan garis kisi itu benar-benar MEMBENTANG plotnya: label pertama =
+        # lantai sumbu, label terakhir = langit-langitnya.
+        #
+        # Menghitung lima saja tidak cukup, dan buktinya ada di data demo
+        # sendiri: kedua harga item demo SAMA (Rp 62.000), dan pada kasus
+        # berimpit itu lo/step kebetulan bulat untuk harga BERAPA pun — jadi
+        # syarat lama hijau di sini sementara sumbu harga yang sungguhan
+        # kehilangan garis kelima DAN kedua label tepinya (terukur atas 205
+        # deret harga: 5 garis pada 21,5 % kasus, 161 sumbu tanpa label tepi;
+        # sesudah perbaikan 100 % dan 0). Yang di bawah ini diukur pada deret
+        # harga NAIK yang digambar di halaman ini juga.
+        "trend_axis_edges_are_labelled": trend_axis["edges_labelled"],
+        "trend_rising_prices_keep_five_gridlines": trend_axis["rising_gridlines"] == 5,
+        # PO vs GRN dibedakan per TITIK, bukan per seri.
+        "trend_one_series": len(trend["series"]) == 1,
+        "trend_point_tokens_differ": len(trend["point_tokens"]) >= 2,
+        # Warna setiap garis benar-benar nilai tokennya.
+        "series_colours_match_tokens": all(
+            s["expected"] and s["stroke"].replace(" ", "") == _rgb_css(s["expected"])
+            for c in (scurve, evm, trend) for s in c["series"]),
+        # Label tepi tidak keluar dari kotak — cacat yang DIPERBAIKI migrasi ini.
+        "no_text_outside_viewbox": all(not c["text_outside_viewbox"] for c in (scurve, evm, trend)),
+        # …dan warnanya masih datang dari token di tema GELAP, di mana setiap
+        # token punya nilai berbeda: warna ter-hardcode lolos di terang dan
+        # ketahuan di sini.
+        "dark_colours_match_tokens": all(
+            s["expected"] and s["stroke"].replace(" ", "") == _rgb_css(s["expected"])
+            for v in dark.values() if v for s in v["series"]),
+        "dark_differs_from_light": any(
+            d[i][1] != light_series[key][i][1]
+            for key, d in out["dark"].items()
+            for i in range(len(d))
+            if key in light_series and i < len(light_series[key])),
+        "no_page_errors": not errors,
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+def _rgb_css(hexs):
+    """'#1a56db' → 'rgb(26,86,219)' untuk dibandingkan dengan getComputedStyle."""
+    h = hexs.strip().lstrip("#")
+    if len(h) != 6:
+        return hexs.strip()
+    return "rgb({},{},{})".format(*(int(h[i:i + 2], 16) for i in (0, 2, 4)))
+
+
+# ------------------------------------------------------------ S24 (P1-F)
+#
+# Laporan Bebas: katalog yang menyaring dirinya per izin, pivot yang benar-benar
+# berjalan, kolom yang DITOLAK katalog yang tetap terlihat dengan alasannya, sel
+# kosong yang tidak pernah menjadi 0, dan laporan tersimpan yang dibagikan per
+# peran.
+#
+# Yang tidak bisa dibuktikan uji PHP dan karena itu ada di sini: bahwa angka di
+# LAYAR sama dengan angka yang dikirim server (label enum dan nama relasi
+# ditulis peramban), bahwa kolom yang ditolak benar-benar terbaca oleh orang
+# yang mencarinya, dan bahwa plafon yang diumumkan server benar-benar tercetak
+# di layar alih-alih dihafal SPA.
+
+S24_CLEANUP = """async () => {
+  const token = localStorage.getItem('nusantara_erp_token');
+  const head = { 'X-Api-Token': token, Accept: 'application/json' };
+  const list = await (await fetch('/api/core/reports/saved', { headers: head })).json();
+  const mine = (list.data || []).filter((r) => r.name.includes('(S24)'));
+  for (const one of mine) {
+    await fetch('/api/core/reports/saved/' + one.id, { method: 'DELETE', headers: head });
+  }
+  return mine.length;
+}"""
+
+
+S24_RUN = """() => {
+  // Kartu HASIL ditandai aplikasinya (.report-result). Memakai "kartu terakhir"
+  // salah begitu daftar laporan tersimpan tumbuh di bawahnya — dan itu terjadi
+  // pada jalan KEDUA, yaitu jalan yang membuktikan skenario ini bisa diulang.
+  const last = document.querySelector('.card.report-result');
+  if (!last) return null;
+  return {
+    head: (last.querySelector('.card-head') || {}).innerText || '',
+    foot: (last.querySelector('.card-foot') || {}).innerText || '',
+    rows: [...last.querySelectorAll('table.data tr')].map((tr) => [...tr.children].map((td) => td.innerText.trim())),
+    // Judul sel membedakan "tidak ada baris" dari "ada baris, nilainya tidak ada".
+    titles: [...last.querySelectorAll('table.data td.num')].map((td) => td.getAttribute('title')),
+  };
+}"""
+
+
+
+
+# ------------------------------------------------------- S20em (P1-E, ponsel)
+#
+# S20e berjalan pada 1440x900, dan itulah satu-satunya lebar yang pernah
+# diukurnya. Yang PALING berubah pada pemindahan P1-E justru hanya terlihat di
+# lebar lain: legenda kurva-S dan EVM pindah KE DALAM svg, dan svg ber-viewBox
+# tetap yang diregangkan ke kartu ponsel mengecilkan teksnya bersama gambarnya —
+# terukur 5,0 px untuk legenda DAN label sumbu pada 390x844, sementara legenda
+# DOM yang tersisa (tren harga) tetap 12 px di halaman yang sama. Skenario ini
+# mengukur lantai itu, di kedua tema.
+
+MOBILE_CHART_TEXT = """() => [...document.querySelectorAll("svg.chart-lib")].map((svg) => {
+  const r = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  const scale = vb.width ? r.width / vb.width : 1;
+  const px = (node) => (node ? +(parseFloat(getComputedStyle(node).fontSize) * scale).toFixed(1) : null);
+  return {
+    aria: (svg.getAttribute("aria-label") || "").slice(0, 24),
+    viewbox_w: vb.width,
+    css_w: Math.round(r.width),
+    scale: +scale.toFixed(3),
+    legend_px: px(svg.querySelector("text.chart-legend")),
+    tick_px: px(svg.querySelector("text.chart-tick")),
+    stroke_px: (() => { const l = svg.querySelector("path.series-line");
+      return l ? +(parseFloat(getComputedStyle(l).strokeWidth) * scale).toFixed(2) : null; })(),
+    // Halaman tidak boleh menggulung mendatar karena grafiknya.
+    overflows: r.width > document.documentElement.clientWidth + 1,
+  };
+})"""
+
+
+@scenario("S20e_migrated_charts_mobile")
+def s20em(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.evaluate("""() => { location.hash = "#/d/projects/1"; }""")
+        pg.wait_for_selector("svg[aria-label*='Kurva-S']", timeout=20000)
+        pg.wait_for_timeout(2500)
+        project = pg.evaluate(MOBILE_CHART_TEXT)
+        pg.screenshot(path=f"{OUT}/s20em-proyek-ponsel-p1e.png", full_page=True)
+
+        pg.evaluate("""() => { location.hash = "#/harga-satuan"; }""")
+        pg.wait_for_selector("svg[aria-label*='Tren harga']", timeout=20000)
+        pg.wait_for_timeout(1800)
+        trend = pg.evaluate(MOBILE_CHART_TEXT)
+        # Legenda DOM tren harga: pembanding yang ada DI HALAMAN yang sama.
+        dom_legend_px = pg.evaluate(
+            "() => { const i = document.querySelector('.legend'); "
+            "return i ? parseFloat(getComputedStyle(i).fontSize) : null; }")
+        pg.screenshot(path=f"{OUT}/s20em-tren-harga-ponsel-p1e.png", full_page=True)
+
+        charts = project + trend
+        texts = [c["legend_px"] for c in charts if c["legend_px"]] + [c["tick_px"] for c in charts if c["tick_px"]]
+
+        out = {
+            "project_charts": project,
+            "trend_chart": trend,
+            "dom_legend_px": dom_legend_px,
+            "min_rendered_text_px": min(texts) if texts else None,
+            "pageerrors": errors,
+        }
+        checks = {
+            "charts_drawn": len(project) >= 2 and len(trend) >= 1,
+            # Lantai 9 px: bukan angka mutlak melainkan angka yang bisa dibaca,
+            # dan jarak yang jelas dari 5,0 px yang terukur sebelum perbaikan.
+            "rendered_text_never_below_9px": bool(texts) and min(texts) >= 9,
+            # Grafik tidak melebihi lebar layarnya.
+            "no_horizontal_overflow": not any(c["overflows"] for c in charts),
+            "no_page_errors": not errors,
+        }
+        out["checks"] = checks
+        out["failed_checks"] = [k for k, v in checks.items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
+@scenario("S24_laporan_bebas")
+def s24(pg):
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+    pg.evaluate("() => { location.hash = '#/laporan-bebas'; }")
+    pg.wait_for_selector(".card select", timeout=20000)
+    pg.wait_for_timeout(1200)
+
+    out = {"pageerrors": errors}
+
+    # --- katalog + plafon yang DIUMUMKAN (bukan dihafal SPA) ---------------
+    out["catalogue"] = pg.evaluate("""() => {
+      const first = document.querySelector('.card select');
+      return {
+        sources: [...first.options].map((o) => o.value),
+        limits_text: (document.querySelector('.card-head .cell-sub') || {}).innerText || '',
+      };
+    }""")
+    out["limits_not_hardcoded"] = pg.evaluate(
+        "async () => { const r = await fetch('/api/core/reports/resources', { headers: { 'X-Api-Token': localStorage.getItem('nusantara_erp_token'), Accept: 'application/json' } });"
+        " const j = await r.json(); return j.meta && j.meta.limits; }")
+
+    # --- pivot sungguhan --------------------------------------------------
+    pg.select_option(".card select >> nth=0", "finance/project-costs")
+    pg.wait_for_timeout(500)
+    pg.select_option(".card select >> nth=1", "pivot")
+    pg.wait_for_timeout(500)
+    click(pg, ".card-foot button:has-text('Jalankan')")
+    pg.wait_for_timeout(2500)
+    out["pivot"] = pg.evaluate(S24_RUN)
+    pg.screenshot(path=f"{OUT}/s24-laporan-bebas-p1f.png", full_page=True)
+
+    # --- kolom yang DITOLAK katalog, terlihat dengan alasannya -------------
+    pg.select_option(".card select >> nth=0", "finance/ar-invoices")
+    pg.wait_for_timeout(600)
+    pg.select_option(".card select >> nth=1", "detail")
+    pg.wait_for_timeout(500)
+    click(pg, ".card-body button:has-text('Pilih kolom')")
+    pg.wait_for_selector(".modal", timeout=10000)
+    out["column_picker"] = pg.evaluate("""() => {
+      const rows = [...document.querySelectorAll('.modal .field')];
+      return rows.map((r) => ({
+        label: (r.querySelector('.cell-main') || {}).innerText || '',
+        disabled: !!(r.querySelector('input[type=checkbox]') || {}).disabled,
+        reason: (r.querySelector('.help') || {}).innerText || null,
+      })).filter((r) => r.label);
+    }""")
+    pg.screenshot(path=f"{OUT}/s24-kolom-ditolak-p1f.png")
+    click(pg, ".modal-foot button:has-text('Selesai')")
+    pg.wait_for_timeout(400)
+
+    # --- sel kosong bukan 0, pada aset (nilai buku alat sewa NULL) ---------
+    pg.select_option(".card select >> nth=0", "assets/assets")
+    pg.wait_for_timeout(600)
+    pg.select_option(".card select >> nth=1", "pivot")
+    pg.wait_for_timeout(500)
+    # baris = kepemilikan, kolom = status, ukuran = SUM nilai buku
+    pg.select_option(".card select >> nth=2", "ownership")
+    pg.wait_for_timeout(300)
+    pg.select_option(".card select >> nth=3", "status")
+    pg.wait_for_timeout(300)
+    labels = pg.evaluate("() => [...document.querySelectorAll('.card select')].map((s) => (s.closest('.field').querySelector('label') || {}).innerText)")
+    if "Kolom ukuran" in labels:
+        pg.select_option(f".card select >> nth={labels.index('Kolom ukuran')}", "book_value")
+        pg.wait_for_timeout(300)
+    click(pg, ".card-foot button:has-text('Jalankan')")
+    pg.wait_for_timeout(2500)
+    out["assets"] = pg.evaluate(S24_RUN)
+
+    # --- simpan, bagikan, salin, hapus ------------------------------------
+    click(pg, ".card-foot button:has-text('Simpan laporan')")
+    pg.wait_for_selector(".modal input[type=text]", timeout=10000)
+    pg.fill(".modal input[type=text]", "Nilai buku per kepemilikan (S24)")
+    shares = pg.locator(".modal input[type=checkbox]")
+    if shares.count():
+        shares.first.check()
+    click(pg, ".modal-foot button:has-text('Simpan')")
+    pg.wait_for_timeout(1800)
+
+    out["saved"] = pg.evaluate("""() => {
+      const table = [...document.querySelectorAll('table.data')].pop();
+      const card = [...document.querySelectorAll('.card')].find((c) => (c.querySelector('.card-head') || {}).innerText.includes('Laporan tersimpan'));
+      if (!card) return null;
+      return {
+        head: card.querySelector('.card-head').innerText,
+        rows: [...card.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((td) => td.innerText.trim())),
+        actions: [...card.querySelectorAll('tbody tr td:last-child button')].map((b) => b.innerText.trim()),
+      };
+    }""")
+
+    # --- saringan yang layar tidak punya kendalinya TETAP TERBACA ----------
+    #
+    # Sebuah laporan tersimpan boleh membawa saringan ber-FK (pemilihnya
+    # sengaja ditunda ke v2) atau nilai enum yang sudah dicabut. 'Buka'
+    # mengirimkannya kembali apa adanya, jadi angka yang tergambar adalah
+    # HIMPUNAN BAGIAN — dan sampai verifikasi kedua P1-F setiap kendali di
+    # layar terbaca '— tidak ada —' sementara tak satu kata pun menyebut
+    # saringannya. Yang diukur di sini adalah bahwa saringan itu punya suara:
+    # keping di panel dan kalimat 'Disaring:' di kartu hasilnya.
+    out["hidden_filter"] = pg.evaluate("""async () => {
+      const token = localStorage.getItem('nusantara_erp_token');
+      const head = { 'X-Api-Token': token, Accept: 'application/json', 'Content-Type': 'application/json' };
+      const body = {
+        name: 'Biaya proyek satu saja (S24)',
+        definition: {
+          resource: 'finance/project-costs', mode: 'group',
+          row: { column: 'cost_category' }, measure: { agg: 'sum', column: 'amount' },
+          filters: { eq: { project_id: 1 } },
+        },
+      };
+      const r = await fetch('/api/core/reports/saved', { method: 'POST', headers: head, body: JSON.stringify(body) });
+      return (await r.json()).data;
+    }""")
+
+    # Daftar tersimpan digambar ulang, lalu barisnya dibuka.
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(600)
+    pg.evaluate("() => { location.hash = '#/laporan-bebas'; }")
+    pg.wait_for_selector(".card select", timeout=20000)
+    pg.wait_for_timeout(1500)
+    click(pg, "tr:has-text('Biaya proyek satu saja (S24)') button:has-text('Buka')")
+    pg.wait_for_timeout(2500)
+
+    out["hidden_filter_screen"] = pg.evaluate("""() => {
+      const chips = document.querySelector('.report-filter-chips');
+      const result = document.querySelector('.card.report-result');
+      return {
+        chips: chips ? chips.innerText.trim() : null,
+        head: result ? result.querySelector('.card-head').innerText : null,
+        // Kendali enum di panel TIDAK boleh mengaku '— tidak ada —' untuk
+        // saringan yang sedang berlaku.
+        controls: [...document.querySelectorAll('.card select')].map((s) => s.selectedOptions[0].text),
+      };
+    }""")
+    pg.screenshot(path=f"{OUT}/s24-saringan-tersembunyi-p1f.png", full_page=True)
+
+    # --- katalog peran lain: menyaring dirinya sendiri ---------------------
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    other = ctx.new_page()
+    try:
+        login(other, "warehouse@nusantara.test")
+        other.evaluate("() => { location.hash = '#/laporan-bebas'; }")
+        other.wait_for_timeout(3000)
+        out["warehouse"] = other.evaluate("""() => {
+          const first = document.querySelector('.card select');
+          return {
+            sources: first ? [...first.options].map((o) => o.value) : [],
+            alert: (document.querySelector('.alert') || {}).innerText || null,
+            // Laporan orang lain yang dibagikan ke peran ini tetap tak terlihat
+            // bila sumbernya bukan miliknya.
+            saved_rows: [...document.querySelectorAll('.card')].filter((c) => (c.querySelector('.card-head') || {}).innerText.includes('Laporan tersimpan')).length,
+          };
+        }""")
+    finally:
+        ctx.close()
+
+    # ---------------------------- syarat ----------------------------------
+    pivot = out["pivot"] or {}
+    assets = out["assets"] or {}
+    picker = out["column_picker"] or []
+    refused = [r for r in picker if r["disabled"]]
+
+    checks = {
+        "catalogue_has_eight_sources": len(out["catalogue"]["sources"]) == 8,
+        # Plafon DIUMUMKAN server dan tercetak di layar — tidak dihafal SPA.
+        "limits_announced_by_server": out["limits_not_hardcoded"] == {"rows": 5000, "groups": 200},
+        "limits_printed_on_screen": "200" in out["catalogue"]["limits_text"] and "5.000" in out["catalogue"]["limits_text"],
+        "pivot_ran": bool(pivot.get("rows")) and len(pivot["rows"]) > 1,
+        # SATU kueri, diumumkan di kaki kartu.
+        "one_query_announced": "1 kueri" in pivot.get("foot", ""),
+        # Dimensi ber-FK dilabeli seperti di layar daftarnya, bukan id telanjang.
+        "fk_dimension_is_labelled": any("PRJ-" in cell for row in pivot.get("rows", []) for cell in row),
+        # Kolom yang ditolak katalog TERLIHAT, nonaktif, dengan alasannya.
+        "refused_columns_shown": len(refused) > 0,
+        "refused_columns_explain_themselves": all(bool(r["reason"]) for r in refused),
+        "outstanding_is_refused": any("Sisa" in r["label"] for r in refused),
+        # Sel kosong '—', tidak pernah 0.
+        "empty_cell_is_dash_never_zero": bool(assets.get("rows")) and any(
+            "—" in cell for row in assets.get("rows", [])[1:] for cell in row),
+        "empty_cell_says_why": any(t and ("tidak ada" in t or "nilainya tidak ada" in t) for t in (assets.get("titles") or [])),
+        "saved_report_listed": bool(out["saved"]) and len(out["saved"]["rows"]) >= 1,
+        "saved_report_offers_xlsx": "XLSX" in (out["saved"] or {}).get("actions", []),
+        # Saringan yang layar tidak punya kendalinya tetap PUNYA SUARA: keping
+        # berlabel di panel, dan kalimat 'Disaring:' di kartu hasilnya.
+        "hidden_filter_has_a_chip": "Proyek" in ((out["hidden_filter_screen"] or {}).get("chips") or ""),
+        "hidden_filter_chip_is_labelled_like_the_list_screen": "PRJ-" in ((out["hidden_filter_screen"] or {}).get("chips") or ""),
+        "result_card_names_the_filter_in_force": "Disaring" in ((out["hidden_filter_screen"] or {}).get("head") or ""),
+        # Katalog menyaring dirinya: gudang tidak memegang satu pun sumber.
+        "catalogue_filters_by_permission": len(out["warehouse"]["sources"]) < 8,
+        "no_page_errors": not errors,
+    }
+
+    # Skenario ini membersihkan jejaknya sendiri: laporan tersimpan yang
+    # ditinggalkan membuat jalan berikutnya berangkat dari keadaan yang
+    # berbeda, dan skenario yang hanya hijau pada basis data bersih tidak
+    # membuktikan apa yang diklaimnya.
+    out["cleanup"] = pg.evaluate(S24_CLEANUP)
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+# ------------------------------------------------------------ S25 (P1-G)
+#
+# Papan kanban. Yang diukur di sini adalah satu hal yang tidak bisa dibuktikan
+# uji PHP mana pun: bahwa kartu yang DITOLAK benar-benar KEMBALI. SortableJS
+# tidak punya API batal — onEnd menyala setelah DOM dipindahkan — jadi
+# "kartunya kembali" adalah kode tangan, dan sebuah papan yang salah di situ
+# menampilkan dokumen di kolom yang bukan statusnya: papan yang berbohong
+# tentang keadaan dokumen, yang justru satu-satunya hal yang dijualnya.
+#
+# Dua akun, dua hasil, satu gerakan yang sama: procurement@ memegang prc.update
+# tetapi BUKAN prc.approve, direktur@ memegang keduanya.
+
+def restore_pr(code):
+    """Kembalikan satu PR ke `submitted` dan buang jejak persetujuannya.
+
+    Tidak ada endpoint yang membatalkan persetujuan — dan memang tidak boleh
+    ada. Skenario ini karena itu memulihkan keadaannya langsung di sqlite,
+    pola yang sama dengan decide_onboarding(), supaya jalan KEDUA berangkat
+    dari keadaan yang sama dengan jalan pertama.
+    """
+    con = sqlite3.connect(DB)
+    con.execute("UPDATE prc_purchase_requisitions SET status='submitted' WHERE code=?", (code,))
+    con.execute(
+        "DELETE FROM core_approvals WHERE approvable_type LIKE '%PurchaseRequisition%' "
+        "AND approvable_id IN (SELECT id FROM prc_purchase_requisitions WHERE code=?)", (code,))
+    con.commit()
+    row = con.execute("SELECT status FROM prc_purchase_requisitions WHERE code=?", (code,)).fetchone()
+    con.close()
+    return {"code": code, "status": row[0] if row else None}
+
+
+S25_LANES = """() => [...document.querySelectorAll('.board-lane')].map((lane) => ({
+  head: lane.querySelector('.board-lane-head').innerText.split(String.fromCharCode(10)).join(' '),
+  status: lane.querySelector('.board-cards').dataset.status,
+  cards: [...lane.querySelectorAll('.board-card')].map((c) => c.querySelector('.cell-main').innerText.trim()),
+}))"""
+
+
+@scenario("S25_papan_pr")
+def s25(pg):
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    out = {"pageerrors": errors}
+
+    # PRASYARAT DIPASANG SENDIRI, bukan diwarisi: skenario ini menyetujui
+    # sebuah PR, jadi ia mengembalikannya di akhir DAN memasangnya di awal.
+    # Sebuah skenario yang bergantung pada keadaan yang ditinggalkan jalan
+    # sebelumnya hijau sekali lalu merah selamanya.
+    out["precondition"] = restore_pr("PR/2026/III/0002")
+
+    # ---- 1. drop yang DITOLAK: pengadaan tidak memegang prc.approve --------
+    login(pg, "procurement@nusantara.test")
+    pg.evaluate("() => { location.hash = '#/b/procurement/purchase-requisitions'; }")
+    pg.wait_for_selector(".board-card", timeout=20000)
+    pg.wait_for_timeout(800)
+
+    out["refused_before"] = pg.evaluate(S25_LANES)
+    submitted = pg.locator(".board-lane:has-text('Diajukan') .board-card").first
+    approved_lane = pg.locator(".board-lane:has-text('Disetujui') .board-cards").first
+    CLICKS[0] += 1
+    submitted.drag_to(approved_lane)
+    pg.wait_for_timeout(2000)
+
+    out["refused_after"] = pg.evaluate(S25_LANES)
+    out["refused_toasts"] = toasts(pg)
+    pg.screenshot(path=f"{OUT}/s25-papan-drop-ditolak-p1g.png", full_page=True)
+
+    # ---- 2. drop yang DITERIMA: direktur memegang prc.approve --------------
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 1000})
+    boss = ctx.new_page()
+    try:
+        login(boss, "direktur@nusantara.test")
+        boss.evaluate("() => { location.hash = '#/b/procurement/purchase-requisitions'; }")
+        boss.wait_for_selector(".board-card", timeout=20000)
+        boss.wait_for_timeout(800)
+
+        out["allowed_before"] = boss.evaluate(S25_LANES)
+        boss.locator(".board-lane:has-text('Diajukan') .board-card").first.drag_to(
+            boss.locator(".board-lane:has-text('Disetujui') .board-cards").first)
+        boss.wait_for_timeout(1200)
+
+        # Aksi Setujui membawa `inlineNote`: panel catatan yang SAMA dengan
+        # bilah aksi ditawarkan sebelum aksinya jalan.
+        out["note_dialog"] = boss.evaluate("""() => {
+          const m = document.querySelector('.modal');
+          return m ? {
+            title: (m.querySelector('.modal-head') || {}).innerText,
+            has_note_panel: !!m.querySelector('details.action-note'),
+            buttons: [...m.querySelectorAll('.modal-foot button')].map((b) => b.innerText.trim()),
+          } : null;
+        }""")
+        boss.screenshot(path=f"{OUT}/s25-papan-catatan-p1g.png")
+
+        if out["note_dialog"]:
+            boss.click(".modal-foot button:has-text('Setujui')")
+            boss.wait_for_timeout(3000)
+
+        out["allowed_after"] = boss.evaluate(S25_LANES)
+        out["allowed_toasts"] = toasts(boss)
+
+    finally:
+        ctx.close()
+
+    # Kembalikan keadaannya LEWAT SQLITE, karena tidak ada endpoint yang
+    # membatalkan persetujuan — dan tanpa ini skenario hanya hijau pada jalan
+    # pertama. Pola yang sama dengan decide_onboarding().
+    out["restored"] = restore_pr("PR/2026/III/0002")
+
+    # ---- 3. papan kedua: kontrak `board:` di luar documentStatus -----------
+    # Akun BARU: pengadaan tidak memegang qc.view, dan papan NCR baginya adalah
+    # panel akses-ditolak — bukan bukti bahwa papan kedua tidak tergambar.
+    ctx2 = pg.context.browser.new_context(viewport={"width": 1440, "height": 1000})
+    qc = ctx2.new_page()
+    try:
+        login(qc, "admin@nusantara.test")
+        qc.evaluate("() => { location.hash = '#/b/quality/ncr'; }")
+        qc.wait_for_timeout(3000)
+        out["ncr"] = qc.evaluate(S25_LANES)
+        qc.screenshot(path=f"{OUT}/s25-papan-ncr-p1g.png", full_page=True)
+    finally:
+        ctx2.close()
+
+    # ---------------------------- syarat ----------------------------------
+    refused_before = {lane["status"]: len(lane["cards"]) for lane in out["refused_before"]}
+    refused_after = {lane["status"]: len(lane["cards"]) for lane in out["refused_after"]}
+    allowed_before = {lane["status"]: len(lane["cards"]) for lane in out["allowed_before"]}
+    allowed_after = {lane["status"]: len(lane["cards"]) for lane in out["allowed_after"]}
+    refusal = " ".join(out["refused_toasts"])
+
+    checks = {
+        # Kolomnya adalah nilai enum, dilabeli seperti layar daftarnya.
+        "lanes_are_labelled_statuses": [lane["status"] for lane in out["refused_before"]]
+            == ["draft", "submitted", "approved", "rejected"],
+        "lane_heads_use_enum_labels": "Diajukan" in " ".join(l["head"] for l in out["refused_before"]),
+        # DROP DITOLAK: kartu kembali, dan tidak satu kolom pun berubah.
+        "refused_drop_puts_the_card_back": refused_before == refused_after,
+        # Kalimatnya menyebut dokumen, kolom tujuan DAN aksinya.
+        "refusal_names_the_document": "PR/" in refusal,
+        "refusal_names_the_target_lane": "Disetujui" in refusal,
+        "refusal_names_the_missing_action": "Setujui tidak tersedia untuk Anda" in refusal,
+        # DROP DITERIMA: panel catatan yang sama dengan bilah aksi, lalu pindah.
+        "note_panel_is_the_action_bar_panel": bool(out["note_dialog"]) and out["note_dialog"]["has_note_panel"],
+        "allowed_drop_moves_the_card": allowed_after.get("approved", 0) == allowed_before.get("approved", 0) + 1
+            and allowed_after.get("submitted", 0) == allowed_before.get("submitted", 0) - 1,
+        # Toast datang dari runAction — bukti jalur tombolnya yang dipakai.
+        "toast_is_the_shared_one": any("disetujui" in t for t in out["allowed_toasts"]),
+        # …dan `offerNext` ikut, yang hanya mungkin lewat runAction.
+        "offer_next_came_along": any("Berikutnya menunggu Anda" in t for t in out["allowed_toasts"]),
+        # Papan kedua berdiri di enum yang berbeda.
+        "second_board_renders": [lane["status"] for lane in out["ncr"]]
+            == ["open", "under_correction", "verified", "closed"],
+        "no_page_errors": not errors,
+    }
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 # ------------------------------------------------------------ S21 (P1-B)
 # Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
 # 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
@@ -1672,7 +2674,11 @@ MODULE_HOME = """() => { const head=document.querySelector('.module-head'); cons
                                  li_per_card: document.querySelectorAll('.module-grid > li > a.module-card').length === document.querySelectorAll('.module-card').length,
                                  section_tags: [...new Set([...document.querySelectorAll('.module-section')].map(s => s.tagName))],
                                  sections_label_their_grid: [...document.querySelectorAll('.module-section')].every(s => s.id && document.querySelector(`.module-grid[aria-labelledby="${s.id}"]`)) } : null,
-             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a`)].map(a => a.getAttribute('href')) : [],
+             // Baris kroma aplikasi (data-chrome, hari ini hanya Beranda) BUKAN layar modul:
+             // ia ada di menu tetapi tidak berkartu di beranda modul, dan penyaringnya penanda
+             // yang dipasang aplikasi sendiri — bukan daftar href yang dikarang harness.
+             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a:not([data-chrome])`)].map(a => a.getAttribute('href')) : [],
+             sidebar_chrome: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a[data-chrome]`)].map(a => a.getAttribute('href')) : [],
              sidebar_open: prefix ? (document.querySelector(`nav.nav .nav-group[data-prefix="${prefix}"]`)||{}).dataset?.open : null,
              empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
              smallest_font_px: Math.min(...[...document.querySelectorAll('#view *')].map(el=>parseFloat(getComputedStyle(el).fontSize)).filter(Boolean)) } }"""
@@ -1777,6 +2783,10 @@ def module_vs_sidebar(pg, prefixes):
         m = pg.evaluate(MODULE_HOME)
         arrows = pg.evaluate(ARROWS) if m["cards"] else None
         out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": m["cards"] == m["sidebar"], "head": bool(m["head"]),
+                       # Baris menu yang bukan layar (data-chrome) dicatat apa adanya: kalau
+                       # daftarnya bertambah, yang bertambah harus terbaca di bukti dan bukan
+                       # menghilang diam-diam dari pembandingan.
+                       "sidebar_chrome": m["sidebar_chrome"],
                        "arrows": arrows and {"ok": arrows["ok"], "down_mismatches": arrows["down_mismatches"][:4], "up_mismatches": arrows["up_mismatches"][:4]},
                        "sections": m["sections"], "hints": m["hints"], "empty": m["empty"], "columns": m["columns"], "smallest_font_px": m["smallest_font_px"],
                        "only_in_cards": sorted(set(m["cards"]) - set(m["sidebar"])), "only_in_sidebar": sorted(set(m["sidebar"]) - set(m["cards"]))}
@@ -1997,6 +3007,646 @@ def module_accents(pg, tag):
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
     return out
 
+
+# ------------------------------------------------- S22 kebenaran hitungan launcher
+
+# Filter per modul yang dipakai untuk MEMERIKSA setiap ubin — ditulis di sini,
+# bukan dibaca dari server: pemeriksa yang memanggil kueri yang sama dengan yang
+# diperiksanya tidak memeriksa apa pun. Tiap entri menyebut endpoint DAFTAR milik
+# modulnya (layar yang dibuka orang dari ubin itu), parameter penyaringnya, dan
+# cara membaca angkanya:
+#   meta_total       jumlah baris yang dilaporkan meta.total (dijumlahkan bila
+#                    filternya beberapa status — endpoint daftar hanya menerima
+#                    satu status per permintaan)
+#   unread_field     data.unread pada core/notifications/unread-count
+#   rows             panjang daftar (endpoint tanpa paginasi)
+#   decision_null    baris SDS yang belum diputus (tidak ada filter "belum
+#                    diputus"; yang ada filter decision=<nilai>)
+#   outstanding_gt0  invoice approved yang masih bersisa (resource-nya sudah
+#                    membawa `outstanding`, jadi tidak ada aritmetika di sini)
+#
+# `perm` adalah izin yang HARUS dipegang agar ubinnya berangka — ditulis lagi di
+# sini, sengaja, sebagai pernyataan independen dari registri. Ia bukan sama
+# dengan "endpoint daftarnya menjawab": sebagian rute index modul memang tidak
+# bergerbang izin di server (hanya tulisnya yang bergerbang), sementara LAYAR-nya
+# di SPA bergerbang `<modul>.view`. Selisih itu direkam di bawah sebagai
+# endpoint_open_without_permission — temuan yang dilaporkan, bukan diperbaiki
+# paket ini (mengubah gerbang rute adalah perubahan izin dengan paketnya sendiri).
+LAUNCHER_CHECKS = {
+    "ringkasan": {"perm": None, "path": "core/notifications/unread-count", "params": [{}], "read": "unread_field"},
+    "crm":       {"perm": "crm.view", "path": "crm/leads", "params": [{"status": s} for s in ("new", "contacted", "qualified", "proposal")], "read": "meta_total"},
+    "est":       {"perm": "est.view", "path": "estimation/boqs", "params": [{"status": "submitted"}], "read": "meta_total"},
+    "eng":       {"perm": "eng.view", "path": "engineering/drawing-submittals", "params": [{"current_only": 1, "per_page": 500}], "read": "decision_null"},
+    "prj":       {"perm": "prj.view", "path": "projects", "params": [{"status": "active"}, {"status": "finishing"}], "read": "meta_total"},
+    "qc":        {"perm": "qc.view", "path": "quality/ncr", "params": [{"status": "open"}, {"status": "under_correction"}], "read": "meta_total"},
+    "prc":       {"perm": "prc.view", "path": "procurement/purchase-orders", "params": [{"status": "approved"}], "read": "meta_total"},
+    "inv":       {"perm": "inv.view", "path": "inventory/stock/low-stock", "params": [{}], "read": "rows"},
+    "scm":       {"perm": "scm.view", "path": "subcontract/progress-claims", "params": [{"status": "submitted"}], "read": "meta_total"},
+    "fin":       {"perm": "fin.view", "path": "finance/ar-invoices", "params": [{"status": "approved", "per_page": 500}], "read": "outstanding_gt0"},
+    "hr":        {"perm": "hr.view", "path": "hr/leave-requests", "params": [{"status": "submitted"}], "read": "meta_total"},
+    "svc":       {"perm": "svc.view", "path": "servicedesk/tickets", "params": [{"status": s} for s in ("open", "assigned", "in_progress", "pending_customer")], "read": "meta_total"},
+    "ast":       {"perm": "ast.view", "path": "assets/assets", "params": [{"status": "maintenance"}], "read": "meta_total"},
+    "iam":       {"perm": "core.update", "path": "core/queue/failed", "params": [{}], "read": "meta_total"},
+}
+
+# Permintaan dijalankan DI DALAM halaman dengan token sesi peramban itu sendiri —
+# bukan lewat token_for(), yang berarti satu login tambahan per pemeriksaan
+# (iam/auth/login dibatasi 10/menit/IP) dan, lebih penting, izin yang belum tentu
+# sama dengan sesi yang sedang menggambar ubinnya.
+API_IN_PAGE = """async ([url, params]) => {
+    const u = new URL(url);
+    Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+    const r = await fetch(u, { headers: { Accept: 'application/json', 'X-Api-Token': localStorage.getItem('nusantara_erp_token') } });
+    let body = null; try { body = await r.json(); } catch (e) { body = null; }
+    return { status: r.status, data: (body && body.data !== undefined) ? body.data : null, meta: (body || {}).meta || null };
+}"""
+
+LAUNCHER_TILES = """() => {
+    const cell = (t, sel) => (t.querySelector(sel) || {}).innerText || '';
+    const groups = [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')];
+    return {
+        hash: location.hash,
+        h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+        tiles: [...document.querySelectorAll('.home-tile')].map(t => {
+            const r = t.getBoundingClientRect();
+            return { prefix: t.dataset.prefix, accent: t.dataset.accent,
+                     label: cell(t, '.home-tile-label').trim(), kpi: cell(t, '.home-kpi-value').trim(),
+                     unit: cell(t, '.home-kpi-unit').trim(), caption: cell(t, '.home-kpi-label').trim(),
+                     screens: cell(t, '.home-tile-screens').trim(),
+                     h: +r.height.toFixed(1), w: +r.width.toFixed(1),
+                     border: getComputedStyle(t).borderLeftColor };
+        }),
+        nav_prefixes: groups.map(g => g.dataset.prefix),
+        // ':not([data-chrome])' — baris Beranda ada di menu tetapi bukan layar modul, jadi
+        // ia tidak dihitung ubin maupun kisi kartu; harness memakai penanda yang sama.
+        nav_screens: Object.fromEntries(groups.map(g => [g.dataset.prefix, g.querySelectorAll('.nav-items a:not([data-chrome])').length])),
+        nav_chrome: Object.fromEntries(groups.map(g => [g.dataset.prefix, [...g.querySelectorAll('.nav-items a[data-chrome]')].map(a => a.getAttribute('href'))]).filter(([, v]) => v.length)),
+        sections: [...document.querySelectorAll('.home-section-title')].map(h => h.innerText.trim()),
+        chips: [...document.querySelectorAll('.home-chip')].map(a => ({ href: a.getAttribute('href'), h: +a.getBoundingClientRect().height.toFixed(1) })),
+        search_h: (s => s ? +s.getBoundingClientRect().height.toFixed(1) : null)(document.querySelector('.home-search')),
+    };
+}"""
+
+
+def api_in_page(pg, path, params):
+    return pg.evaluate(API_IN_PAGE, [API + path, {k: str(v) for k, v in params.items()}])
+
+
+def expected_count(pg, prefix):
+    """Angka yang DIJANJIKAN ubin, dihitung ulang dari endpoint daftar modulnya.
+
+    Mengembalikan (angka, panggilan, terpotong). None = endpoint menolak
+    (403/401) — dan ubinnya karena itu WAJIB '—': server tidak mengirim entri
+    untuk modul yang izin hitungannya tidak dipegang.
+
+    `terpotong` = pembacaan sisi-klien (decision_null / outstanding_gt0 / rows)
+    yang halamannya tidak memuat seluruh baris: per_page=500 di atas 500 baris
+    akan diam-diam membandingkan 500 dari 700 dan melaporkan cocok. Yang benar
+    adalah JATUH, bukan menghitung sebagian (verifikasi P1-C, 6 Sep 2026)."""
+    spec = LAUNCHER_CHECKS[prefix]
+    total, calls, truncated = 0, [], False
+    for params in spec["params"]:
+        res = api_in_page(pg, spec["path"], params)
+        rows = res["data"] or []
+        meta_total = (res["meta"] or {}).get("total")
+        calls.append({"path": spec["path"], "params": params, "status": res["status"],
+                      "rows": len(rows) if isinstance(rows, list) else None, "meta_total": meta_total})
+        if res["status"] != 200:
+            return None, calls, False
+        if spec["read"] == "meta_total":
+            total += int(meta_total or 0)
+        elif spec["read"] == "unread_field":
+            total += int((res["data"] or {}).get("unread", 0))
+        elif spec["read"] == "rows":
+            total += len(rows)
+        elif spec["read"] == "decision_null":
+            total += sum(1 for row in rows if row.get("decision") is None)
+        elif spec["read"] == "outstanding_gt0":
+            total += sum(1 for row in rows if float(row.get("outstanding") or 0) > 0)
+        if spec["read"] in ("rows", "decision_null", "outstanding_gt0") and meta_total is not None and int(meta_total) > len(rows):
+            truncated = True
+    return total, calls, truncated
+
+
+def launcher_for(pg, email, tag, theme_probe=False):
+    """Satu peran: ubin vs NAV, ubin vs endpoint daftar, dan (bila diminta) warna
+    aksen ubin di dua tema."""
+    pg.context.clear_cookies()
+    pg.goto(BASE)
+    pg.evaluate("() => localStorage.clear()")
+    login(pg, email)
+    landing = pg.evaluate("() => location.hash")
+
+    pg.goto(BASE + "#/home")
+    pg.wait_for_selector(".home-tile, #view .empty", timeout=15000)
+    pg.wait_for_timeout(1200)
+    out = pg.evaluate(LAUNCHER_TILES)
+    out["landing_after_login"] = landing
+    out["viewport"] = pg.viewport_size
+
+    # 1. Ubin yang tampil == modul dengan sedikitnya satu layar yang bisa dibuka
+    #    (grup NAV yang terlihat), dalam urutan yang sama.
+    shown = [t["prefix"] for t in out["tiles"]]
+    out["tiles_equal_nav"] = shown == out["nav_prefixes"]
+    out["only_in_tiles"] = sorted(set(shown) - set(out["nav_prefixes"]))
+    out["only_in_nav"] = sorted(set(out["nav_prefixes"]) - set(shown))
+    out["screens_label_ok"] = all(t["screens"] == f"{out['nav_screens'].get(t['prefix'], -1)} layar" for t in out["tiles"])
+
+    # 2. Setiap angka ubin == angka endpoint daftar modulnya dengan filter yang
+    #    sama — dan ubin yang izinnya tidak dipegang WAJIB '—', tidak pernah 0.
+    held = pg.evaluate("() => (JSON.parse(localStorage.getItem('nusantara_erp_user') || '{}').permissions || [])")
+    out["permissions"] = len(held)
+    checks, open_endpoints = {}, []
+    for tile in out["tiles"]:
+        prefix = tile["prefix"]
+        if prefix not in LAUNCHER_CHECKS:
+            checks[prefix] = {"ERROR": "tidak ada filter pembanding untuk modul ini"}
+            continue
+        spec = LAUNCHER_CHECKS[prefix]
+        may = spec["perm"] is None or spec["perm"] in held
+        expected, calls, truncated = expected_count(pg, prefix)
+        shown_kpi = tile["kpi"]
+        if not may and expected is not None:
+            # Rute index-nya menjawab walau izin layarnya tidak dipegang.
+            open_endpoints.append({"prefix": prefix, "perm": spec["perm"], "path": spec["path"], "answered": expected})
+        if may:
+            ok = expected is not None and shown_kpi == str(expected) and not truncated
+            checks[prefix] = {"perm": spec["perm"], "expected": expected, "tile": shown_kpi, "unit": tile["unit"],
+                              "caption": tile["caption"], "calls": calls, "truncated": truncated,
+                              # Sebuah kecocokan 0 == 0 tidak membedakan filter status yang benar
+                              # dari yang salah; yang MEMBEDAKAN adalah angka bukan-nol di kedua sisi.
+                              "discriminating": expected not in (None, 0), "ok": ok}
+        else:
+            ok = shown_kpi == "—"
+            checks[prefix] = {"perm": spec["perm"], "held": False, "tile": shown_kpi, "calls": calls, "ok": ok,
+                              "why": "izin hitungan tidak dipegang → ubin wajib '—', bukan 0"}
+    out["kpi_checks"] = checks
+    out["kpi_all_match"] = all(c.get("ok") for c in checks.values())
+    out["kpi_mismatches"] = [p for p, c in checks.items() if not c.get("ok")]
+    out["kpi_truncated"] = [p for p, c in checks.items() if c.get("truncated")]
+    # BERAPA BANYAK ARTI "cocok" itu: modul yang diadu dengan angka bukan-nol di
+    # kedua sisi, versus yang hanya membandingkan 0 dengan 0 atau menuntut '—'.
+    out["kpi_power"] = {
+        "discriminating": sorted(p for p, c in checks.items() if c.get("discriminating")),
+        "zero_vs_zero": sorted(p for p, c in checks.items() if c.get("expected") == 0),
+        "dash_only": sorted(p for p, c in checks.items() if c.get("held") is False),
+    }
+    # Kejujuran: tidak satu pun ubin tanpa izin menulis angka.
+    out["no_fake_zero"] = not any(c.get("held") is False and c["tile"] != "—" for c in checks.values())
+    # …dan '—' tetap MENYEBUT angka apa yang tidak diketahui. Kasus yang paling
+    # sering adalah izin hitungan yang tidak dipegang, dan em dash telanjang
+    # tanpa keterangan tidak memberi tahu pembacanya apa pun (terukur 6 Sep 2026:
+    # warehouse@ 390×844 — Engineering, Aset dan Sistem '—' dengan caption '').
+    out["captions"] = {t["prefix"]: t["caption"] for t in out["tiles"]}
+    out["tiles_without_caption"] = [t["prefix"] for t in out["tiles"] if not t["caption"]]
+    out["every_tile_names_its_number"] = not out["tiles_without_caption"]
+    # Temuan terpisah, DILAPORKAN dan tidak diperbaiki di sini: rute daftar yang
+    # menjawab tanpa gerbang izin sementara layarnya di SPA bergerbang.
+    out["endpoint_open_without_permission"] = open_endpoints
+
+    pg.screenshot(path=f"{OUT}/s22-home-{email.split('@')[0]}{tag}-p1c.png", full_page=True)
+
+    if theme_probe:
+        themes = {}
+        for theme in ("light", "dark"):
+            set_theme(pg, theme)
+            tok = pg.evaluate(ACCENT_TOKENS)["tokens"]
+            tiles = pg.evaluate(LAUNCHER_TILES)["tiles"]
+            rows = {t["prefix"]: {"accent": t["accent"], "border": rgb_to_hex(t["border"]),
+                                 "token": tok[t["accent"]]["accent"]} for t in tiles}
+            themes[theme] = {"tiles": rows, "all_match": all(r["border"] == r["token"] for r in rows.values())}
+            pg.screenshot(path=f"{OUT}/s22-home-{theme}{tag}-p1c.png", full_page=True)
+        set_theme(pg, None)
+        out["accents"] = themes
+        out["accents_ok"] = all(t["all_match"] for t in themes.values())
+
+    return out
+
+
+def landing_boundary(pg):
+    """Aturan landing DI TITIK POTONGNYA, bukan hanya di 1440 dan 390.
+
+    `@media (max-width: 760px)` inklusif, jadi 760 px tepat sudah memakai laci;
+    aturan landing yang juga inklusif (`>= 760`) memberi lebar itu laci DAN
+    dasbor — gabungan yang aturan itu ada untuk mencegah (terukur 6 Sep 2026,
+    admin@ 760 px: #/dashboard dengan nav di luar layar). Yang diperiksa di sini
+    bukan angkanya melainkan KESEPAKATANNYA: setiap lebar yang melipat sidebar
+    menjadi laci harus mendarat di launcher. Diukur dengan mengubah ukuran
+    viewport pada sesi yang sudah masuk — tanpa login tambahan (10/menit/IP)."""
+    original = dict(pg.viewport_size)
+    out = {}
+    for width in (759, 760, 761):
+        pg.set_viewport_size({"width": width, "height": original["height"]})
+        pg.goto(BASE)  # tanpa hash: aturan landing yang memilih
+        pg.wait_for_selector("nav.nav", timeout=15000)
+        pg.wait_for_timeout(900)
+        out[str(width)] = pg.evaluate("""() => ({ hash: location.hash,
+            drawer: matchMedia('(max-width: 760px)').matches,
+            nav_offscreen: document.querySelector('nav.nav').getBoundingClientRect().right <= 0,
+            menu_toggle: getComputedStyle(document.querySelector('.header .menu-toggle')).display })""")
+    pg.set_viewport_size(original)
+    out["ok"] = all(v["hash"] == ("#/home" if v["drawer"] else "#/dashboard") for v in
+                    (out["759"], out["760"], out["761"]))
+    out["drawer_and_dashboard"] = [w for w in ("759", "760", "761") if out[w]["drawer"] and out[w]["hash"] == "#/dashboard"]
+    return out
+
+
+def launcher_truth(pg, tag):
+    errors, console_errors = [], []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+    # <= 760, bukan < 760: titik potong laci app.css inklusif, dan harapan yang
+    # dibangun dari perbandingan yang berbeda dari aplikasi tidak memeriksa apa pun.
+    mobile = pg.viewport_size["width"] <= 760
+    out = {"viewport": pg.viewport_size}
+
+    # ---------------------------------------------------------------- migrasi
+    # Kunci localStorage P1-B DITANAM sebelum masuk, lalu dibuktikan: server
+    # memilikinya sesudah boot, dan kunci lokalnya sudah tidak ada. Dijalankan
+    # lebih dulu karena ia satu-satunya langkah yang menuntut peramban BERSIH.
+    pg.context.clear_cookies()
+    pg.goto(BASE)
+    pg.evaluate("() => localStorage.clear()")
+    decide_onboarding("teknisi@nusantara.test")
+    teknisi_id = user_id_of("teknisi@nusantara.test")
+    # Skenario ini MEMBUAT fixture-nya sendiri (pola S16, verifikasi P1-B putaran 3):
+    # jalan sebelumnya di salinan DB yang sama sudah memindahkan preferensi teknisi
+    # ke server, dan "migrasi dari nol" yang mengukur baris yang sudah ada di sana
+    # akan melaporkan gagal untuk alasan yang bukan produknya.
+    reset_preferences(teknisi_id)
+    pg.evaluate("""(id) => {
+        localStorage.setItem('nusantara_erp_fav:' + id, JSON.stringify(['r/servicedesk/tickets']));
+        localStorage.setItem('nusantara_erp_density:' + id, 'compact');
+        localStorage.setItem('nusantara_erp_recent:' + id, JSON.stringify([{ route: 'd/servicedesk/tickets/1', label: 'TKT-LAMA', sub: 'Tiket' }]));
+    }""", teknisi_id)
+    before = preferences_rows(teknisi_id)
+    login(pg, "teknisi@nusantara.test")
+    pg.wait_for_timeout(2500)
+    after = preferences_rows(teknisi_id)
+    local_after = pg.evaluate("""(id) => ['nusantara_erp_fav:', 'nusantara_erp_density:', 'nusantara_erp_recent:']
+        .filter(k => localStorage.getItem(k + id) !== null)""", teknisi_id)
+    out["migration"] = {
+        "server_before": before, "server_after": {k: v for k, v in after.items()},
+        "local_keys_left": local_after,
+        "density_applied": pg.evaluate("() => document.documentElement.dataset.density"),
+        "ok": before == {} and after.get("favorites") == ["r/servicedesk/tickets"] and after.get("density") == "compact"
+              and [e.get("route") for e in (after.get("recent") or [])] == ["d/servicedesk/tickets/1"]
+              and local_after == [],
+    }
+    # …dan sekali saja: masuk lagi tidak boleh menulis ulang apa pun dari lokal.
+    pg.goto(BASE)
+    pg.reload()
+    pg.wait_for_timeout(2500)
+    out["migration"]["server_after_second_boot"] = preferences_rows(teknisi_id)
+    out["migration"]["ran_once"] = out["migration"]["server_after_second_boot"] == after
+
+    # ------------------------------------------------------- tiga peran penuh
+    emails = ["admin@nusantara.test", "warehouse@nusantara.test", "teknisi@nusantara.test"]
+    # Fixture pembeda dulu: tanpa baris ini 8 dari 14 ubin admin berangka 0 dan
+    # pemeriksaannya membandingkan 0 dengan 0 (lihat plant_launcher_fixtures).
+    out["planted"] = plant_launcher_fixtures(emails)
+    out["roles"] = {}
+    for index, email in enumerate(emails):
+        out["roles"][email.split("@")[0]] = launcher_for(pg, email, tag, theme_probe=(index == 0))
+
+    # Daya beda skenario ini, dinyatakan sebagai angka dan bukan disimpulkan
+    # dari "14/14": modul yang PERNAH diadu dengan angka bukan-nol di kedua
+    # sisi, dan yang tidak pernah.
+    exercised = set()
+    for role in out["roles"].values():
+        exercised |= set((role.get("kpi_power") or {}).get("discriminating") or [])
+    checks_all = [c for role in out["roles"].values() for c in (role.get("kpi_checks") or {}).values()]
+    out["kpi_power"] = {
+        "modules": len(LAUNCHER_CHECKS),
+        "exercised_with_a_nonzero_count": sorted(exercised),
+        "modules_never_exercised": sorted(set(LAUNCHER_CHECKS) - exercised),
+        "checks_total": len(checks_all),
+        "checks_discriminating": sum(1 for c in checks_all if c.get("discriminating")),
+        "checks_zero_vs_zero": sum(1 for c in checks_all if c.get("expected") == 0),
+        "checks_dash_only": sum(1 for c in checks_all if c.get("held") is False),
+    }
+    out["kpi_power"]["every_module_exercised"] = not out["kpi_power"]["modules_never_exercised"]
+
+    # --------------------------------------------------------- aturan landing
+    # Diukur di viewport skenario ini; pasangannya diukur skenario kembarannya.
+    out["landing"] = {"viewport_w": pg.viewport_size["width"],
+                      "expected": "#/dashboard" if not mobile else "#/home",
+                      "measured": out["roles"]["teknisi"]["landing_after_login"]}
+    out["landing"]["ok"] = out["landing"]["measured"] == out["landing"]["expected"]
+    # Titik potongnya sendiri — sekali, di skenario desktop (mengubah ukuran
+    # konteks is_mobile tidak mengubah pointer/touch-nya, jadi 761 px di sana
+    # bukan "desktop" yang sama).
+    if not mobile:
+        out["landing_boundary"] = landing_boundary(pg)
+
+    # ------------------------------------------------- favorit lintas konteks
+    # Bintang dipasang di SATU peramban, dibaca di peramban BARU (konteks baru =
+    # localStorage kosong): kalau ia masih ada, ia datang dari server.
+    pg.goto(BASE + "#/m/svc")
+    pg.wait_for_selector(".module-cell > button.star", timeout=15000)
+    pg.wait_for_timeout(600)
+    star = ".module-cell:has(a[data-route='r/servicedesk/preventive-schedules']) > button.star"
+    click(pg, star)
+    pg.wait_for_timeout(1200)
+    out["favorite_write"] = {"pressed": pg.evaluate(f"() => document.querySelector({star!r}).getAttribute('aria-pressed')"),
+                             "server": preferences_rows(teknisi_id).get("favorites")}
+    fresh_ctx = pg.context.browser.new_context(viewport=pg.viewport_size)
+    fresh = fresh_ctx.new_page()
+    try:
+        login(fresh, "teknisi@nusantara.test")
+        fresh.goto(BASE + "#/home")
+        fresh.wait_for_selector(".home-tile", timeout=15000)
+        fresh.wait_for_timeout(1200)
+        out["favorite_new_context"] = fresh.evaluate("""() => ({
+            sections: [...document.querySelectorAll('.home-section-title')].map(h => h.innerText.trim()),
+            favorites: [...document.querySelectorAll('.home-section')].filter(s => /FAVORIT/i.test(s.innerText)).flatMap(s => [...s.querySelectorAll('a')].map(a => a.getAttribute('href'))),
+            sidebar: [...document.querySelectorAll("nav.nav .nav-group[data-kind='shortcut'] a")].map(a => a.getAttribute('href')),
+            local_prefs_before_load: null })""")
+        out["favorite_new_context"]["ok"] = "#/r/servicedesk/preventive-schedules" in out["favorite_new_context"]["favorites"]
+    finally:
+        fresh_ctx.close()
+
+    # ------------------------------------------------- ketuk ke Lapangan (ponsel)
+    if mobile:
+        pg.context.clear_cookies()
+        pg.goto(BASE)
+        pg.evaluate("() => localStorage.clear()")
+        login(pg, "site-manager@nusantara.test")
+        pg.wait_for_timeout(1500)
+        start_hash = pg.evaluate("() => location.hash")
+        CLICKS[0] = 0
+        tap(pg, ".home-tile[data-prefix=prj]")
+        pg.wait_for_timeout(1400)
+        tap(pg, ".module-card[data-route=lapangan]")
+        pg.wait_for_timeout(1800)
+        assert_screen(pg, "#/lapangan")
+        out["taps_to_lapangan"] = {"from": start_hash, "taps": CLICKS[0], "hash": pg.evaluate("() => location.hash"),
+                                   "target_le_2": CLICKS[0] <= 2}
+        pg.screenshot(path=f"{OUT}/s22-lapangan-2-taps{tag}-p1c.png")
+
+    out["pageerrors"] = errors
+    # Galat 403 di konsol berasal dari PEMERIKSA ini sendiri: setiap ubin diadu
+    # dengan endpoint daftar modulnya, termasuk untuk peran yang memang tidak
+    # boleh membacanya (itulah cara kita membuktikan ubinnya '—'). Dipisahkan
+    # supaya console_errors skenario tetap berarti "galat saat memakai aplikasi".
+    # …dan 429 berasal dari batas 10 login/menit/IP yang ditembus skenario ini
+    # sendiri (tiga peran + konteks baru + peran ponsel); login() menunggu
+    # Retry-After lalu mencoba lagi, jadi ia bukan kegagalan yang dilihat orang.
+    noisy = lambda c: "403" in c or "429" in c
+    from_probe = [c for c in console_errors if noisy(c)]
+    rest = [c for c in console_errors if not noisy(c)]
+    out["console_errors"] = {"count": len(rest), "first": rest[:3]}
+    out["console_errors_from_probe"] = {"count": len(from_probe), "first": from_probe[:2]}
+    return out
+
+
+# ------------------------------------------- fixture ubin: baris yang MEMBEDAKAN
+#
+# Pada salinan data demo 8 dari 14 ubin admin berangka 0, dan "0 == 0" tidak
+# membedakan filter status yang benar dari yang salah: registri mengembalikan 0
+# dan penyaring pembanding di atas juga 0, jadi 'est' yang menghitung draft
+# alih-alih submitted lulus diam-diam. Terukur pada jalan pembangun (verifikasi
+# P1-C, 6 Sep 2026): dari 46 pemeriksaan ubin di dua viewport, 26 membandingkan
+# 0 dengan 0, 6 hanya menuntut '—', dan 14 sisanya menyentuh 5 dari 14 modul.
+#
+# Karena itu skenario ini MEMBUAT fixture-nya sendiri (pola yang sama dengan
+# langkah migrasi preferensi): satu baris tambahan per modul yang COCOK dengan
+# filter ubinnya, disalin dari baris yang sudah ada di tabel itu — jadi setiap
+# kolom NOT NULL dan setiap kunci asingnya benar tanpa harus ditulis di sini —
+# dengan kolom penentu status yang diganti. Kodenya tetap ('UJI-S22-…'), jadi
+# menjalankan skenario dua kali tidak menumpuk baris.
+#
+# Yang TIDAK dilakukan: menanam baris yang tidak cocok. Baris demo yang ada
+# sudah memainkan peran itu (est punya draft, prc punya closed, svc punya
+# resolved), dan sisi server-nya dipaku ModuleCountsTest dengan 12 mutasi
+# status/scope yang merah.
+PLANT_CODE = "UJI-S22"
+NOW = time.strftime("%Y-%m-%d %H:%M:%S")
+
+# prefix → (tabel, kolom yang diganti, jumlah minimum baris yang ditanam).
+# Jumlah SEBENARNYA dihitung dari datanya (rows_needed): angka yang cocok harus
+# LEBIH BESAR daripada jumlah baris status lain mana pun di tabel itu, karena
+# kalau tidak, filter status yang salah bisa kebetulan menghasilkan angka yang
+# sama — pada salinan demo est punya 1 submitted DAN 1 draft, jadi menanam satu
+# baris saja masih meloloskan 'submitted' → 'draft'.
+LAUNCHER_PLANTS = [
+    ("est", "est_boqs", {"status": "submitted"}, 1),
+    ("qc", "qc_ncr", {"status": "open"}, 1),
+    ("ast", "ast_assets", {"status": "maintenance"}, 1),
+    ("scm", "scm_progress_claims", {"status": "submitted"}, 1),
+    ("fin", "fin_ar_invoices", {"status": "approved", "amount_paid": 0, "faktur_pajak_no": None}, 1),
+    # Tanpa kolom status: yang membedakan adalah `decision` null vs berisi, dan
+    # data demo punya SATU yang sudah diputus — jadi dua baris, bukan satu.
+    ("eng", "eng_drawing_submittals", {"decision": None, "superseded_at": None}, 2),
+]
+
+
+def rows_needed(prefix, table, overrides, minimum):
+    """Berapa baris yang harus ditanam supaya angka ubinnya MEMBEDAKAN.
+
+    Untuk modul berstatus: satu lebih banyak daripada status lain yang paling
+    ramai di tabel itu (status yang dihitung dibaca dari LAUNCHER_CHECKS —
+    daftar pembanding harness sendiri, bukan registri yang diperiksanya)."""
+    counted = [p["status"] for p in LAUNCHER_CHECKS[prefix]["params"] if "status" in p]
+    if "status" not in overrides or not counted:
+        return minimum
+    con = sqlite3.connect(DB)
+    try:
+        marks = ",".join("?" * len(counted))
+        alive = "deleted_at IS NULL AND" if [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] == "deleted_at"] else ""
+        matching = con.execute(f"SELECT COUNT(*) FROM {table} WHERE {alive} status IN ({marks})", counted).fetchone()[0]
+        others = con.execute(f"SELECT COUNT(*) FROM {table} WHERE {alive} status NOT IN ({marks}) GROUP BY status", counted).fetchall()
+    finally:
+        con.close()
+    biggest = max([row[0] for row in others] or [0])
+    return max(minimum, biggest + 1 - matching)
+
+
+def plant_row(table, overrides, code=None, source_where=None):
+    """Satu baris tambahan di `table`, disalin dari baris yang sudah ada di sana.
+
+    Mengembalikan catatan apa adanya — "ditanam", "sudah ada", "tabel kosong"
+    atau "GAGAL: …" — supaya bukti menyebut modul yang fixture-nya TIDAK jadi,
+    alih-alih diam dan melaporkan 0 == 0 sebagai kecocokan."""
+    con = sqlite3.connect(DB)
+    try:
+        cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})")]
+        if not cols:
+            return {"table": table, "state": "tabel tidak ada"}
+        if code and "code" in cols:
+            if con.execute(f"SELECT COUNT(*) FROM {table} WHERE code = ?", (code,)).fetchone()[0]:
+                return {"table": table, "state": "sudah ada", "code": code}
+        where = source_where or ("deleted_at IS NULL" if "deleted_at" in cols else "1=1")
+        src = con.execute(f"SELECT * FROM {table} WHERE {where} ORDER BY id LIMIT 1").fetchone()
+        if src is None:
+            return {"table": table, "state": "tabel kosong — tidak ada yang bisa disalin"}
+        row = dict(zip(cols, src))
+        row.pop("id", None)
+        if code and "code" in cols:
+            row["code"] = code
+        row.update(overrides)
+        names = ",".join(f'"{c}"' for c in row)
+        cur = con.execute(f'INSERT INTO {table} ({names}) VALUES ({",".join("?" * len(row))})', list(row.values()))
+        con.commit()
+        return {"table": table, "state": "ditanam", "code": code, "id": cur.lastrowid,
+                "overrides": {k: ("null" if v is None else str(v)) for k, v in overrides.items()}}
+    except Exception as e:
+        return {"table": table, "state": f"GAGAL: {str(e)[:140]}"}
+    finally:
+        con.close()
+
+
+def plant_launcher_fixtures(emails):
+    """Baris pembeda untuk modul yang ubinnya berangka 0 pada data demo."""
+    planted = {}
+    for prefix, table, overrides, minimum in LAUNCHER_PLANTS:
+        need = rows_needed(prefix, table, overrides, minimum)
+        rows = []
+        for n in range(need):
+            extra = dict(overrides)
+            # Kolom unik selain `code` yang ikut disalin dari baris sumber.
+            if table == "scm_progress_claims":
+                extra["claim_no"] = 90 + n
+            if table == "eng_drawing_submittals":
+                extra["revision"] = f"R-UJI{n}"
+            rows.append(plant_row(table, extra, code=f"{PLANT_CODE}-{prefix.upper()}-{n}"))
+        planted[prefix] = {"needed": need, "rows": rows}
+
+    # Persediaan: item baru dengan minimum yang mustahil + saldo 0 di gudang
+    # hidup — "item di bawah stok minimum" tidak punya satu kolom status.
+    item = plant_row("inv_items", {"min_stock": 999999, "is_active": 1}, code=f"{PLANT_CODE}-ITM",
+                     source_where="deleted_at IS NULL AND is_active = 1")
+    planted["inv"] = item
+    if item.get("state") == "ditanam":
+        con = sqlite3.connect(DB)
+        warehouse = con.execute("SELECT id FROM inv_warehouses WHERE deleted_at IS NULL ORDER BY id LIMIT 1").fetchone()
+        con.close()
+        planted["inv_balance"] = (plant_row("inv_stock_balances", {"warehouse_id": warehouse[0], "item_id": item["id"], "qty": 0})
+                                  if warehouse else {"state": "tidak ada gudang hidup"})
+
+    # Antrean gagal: tabelnya kosong pada data demo, jadi tidak ada yang bisa
+    # disalin — barisnya ditulis kolom per kolom (semuanya sederhana).
+    con = sqlite3.connect(DB)
+    try:
+        if not con.execute("SELECT COUNT(*) FROM failed_jobs WHERE uuid = ?", (PLANT_CODE,)).fetchone()[0]:
+            con.execute("INSERT INTO failed_jobs (uuid, connection, queue, payload, exception, failed_at) VALUES (?,?,?,?,?,?)",
+                        (PLANT_CODE, "database", "default", "{}", "Uji S22", NOW))
+            con.commit()
+            planted["iam"] = {"table": "failed_jobs", "state": "ditanam", "code": PLANT_CODE}
+        else:
+            planted["iam"] = {"table": "failed_jobs", "state": "sudah ada", "code": PLANT_CODE}
+
+        # Notifikasi belum dibaca: angkanya PER ORANG, jadi satu baris per akun
+        # yang diukur skenario ini.
+        rows = []
+        for email in emails:
+            uid = user_id_of(email)
+            if uid is None:
+                rows.append({"email": email, "state": "akun tidak ada"})
+                continue
+            if con.execute("SELECT COUNT(*) FROM core_notifications WHERE user_id = ? AND title = ?", (uid, PLANT_CODE)).fetchone()[0]:
+                rows.append({"email": email, "state": "sudah ada"})
+                continue
+            con.execute("INSERT INTO core_notifications (user_id, event, title, read_at, created_at, updated_at) VALUES (?,?,?,NULL,?,?)",
+                        (uid, "document.submitted", PLANT_CODE, NOW, NOW))
+            rows.append({"email": email, "state": "ditanam"})
+        con.commit()
+        planted["ringkasan"] = rows
+    except Exception as e:
+        planted["ERROR"] = str(e)[:160]
+    finally:
+        con.close()
+
+    return planted
+
+
+def user_id_of(email):
+    con = sqlite3.connect(DB); row = con.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone(); con.close()
+    return row[0] if row else None
+
+
+def reset_preferences(user_id):
+    con = sqlite3.connect(DB); con.execute("DELETE FROM core_user_preferences WHERE user_id=?", (user_id,)); con.commit(); con.close()
+
+
+def preferences_rows(user_id):
+    """Isi core_user_preferences milik satu pengguna, dibaca LANGSUNG dari sqlite —
+    bukti sisi-server yang tidak bisa dipalsukan localStorage peramban."""
+    con = sqlite3.connect(DB)
+    rows = con.execute("SELECT key, value FROM core_user_preferences WHERE user_id=?", (user_id,)).fetchall()
+    con.close()
+    return {k: json.loads(v) for k, v in rows}
+
+
+@scenario("S22_launcher_truth")
+def s22(pg):
+    return launcher_truth(pg, "")
+
+
+@scenario("S22_launcher_truth_mobile")
+def s22m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return launcher_truth(pg, "-mobile")
+    finally:
+        ctx.close()
+
+
+@scenario("S22_roles_with_tiles")
+def s22r(pg):
+    """Target metrik Fase 1 "0 peran tanpa ubin", diukur dengan MASUK sebagai
+    kedua belas akun demo — bukan dengan membaca RoleSeeder. Yang dicatat per
+    peran: jumlah ubin launcher, jumlah ubin angka dasbor (.stat), dan angka
+    yang tidak diketahui ('—'), supaya "punya ubin" tidak pernah berarti "ubin
+    yang tak satu pun berisi"."""
+    roles = ["admin", "direktur", "project-manager", "site-manager", "estimator", "procurement",
+             "warehouse", "finance", "finance-manager", "hr", "sales", "teknisi"]
+    out = {}
+    for role in roles:
+        pg.context.clear_cookies()
+        pg.goto(BASE)
+        pg.evaluate("() => localStorage.clear()")
+        try:
+            login(pg, f"{role}@nusantara.test")
+        except Exception as e:
+            out[role] = {"ERROR": str(e)[:140]}
+            continue
+        pg.goto(BASE + "#/dashboard")
+        # TUNGGU SAMPAI SELESAI, bukan 1800 ms. Sejak P1-D dasbor memuat per
+        # BATCH 4 secara berurutan, jadi sebuah jeda tetap menghitung ubin
+        # setengah jalan — angka yang berbeda tiap jalan dan tidak berarti apa
+        # pun (verifikasi kedua P1-D). Yang ditunggu adalah hilangnya seluruh
+        # kerangka; batas atasnya tetap ada supaya satu widget yang menggantung
+        # tidak menggantung skenario.
+        try:
+            pg.wait_for_function(
+                "() => document.querySelector('.dash-grid') && "
+                "!document.querySelector('.dash-grid .skeleton')",
+                timeout=20000)
+        except Exception:
+            pass
+        pg.wait_for_timeout(400)
+        stats = pg.evaluate("() => document.querySelectorAll('.stat').length")
+        pg.goto(BASE + "#/home")
+        pg.wait_for_selector(".home-tile, #view .empty", timeout=15000)
+        pg.wait_for_timeout(1200)
+        out[role] = pg.evaluate("""(stats) => {
+            const tiles = [...document.querySelectorAll('.home-tile')];
+            return { launcher_tiles: tiles.length,
+                     dashboard_stats: stats,
+                     prefixes: tiles.map(t => t.dataset.prefix),
+                     unknown_counts: tiles.filter(t => t.querySelector('.home-kpi-value').innerText.trim() === '—').map(t => t.dataset.prefix),
+                     empty_state: !!document.querySelector('#view .empty') };
+        }""", stats)
+    ok = [r for r, v in out.items() if not v.get("ERROR")]
+    return {"roles": out,
+            "roles_measured": len(ok),
+            "roles_without_launcher_tile": [r for r in ok if out[r]["launcher_tiles"] == 0],
+            "roles_without_dashboard_stat": [r for r in ok if out[r]["dashboard_stats"] == 0],
+            "tiles_by_role": {r: out[r]["launcher_tiles"] for r in ok}}
+
+
 @scenario("S21_module_accents_breadcrumb")
 def s21(pg):
     return module_accents(pg, "")
@@ -2010,6 +3660,603 @@ def s21m(browser):
     finally:
         ctx.close()
 
+# ---------------------------------------------------------------- S23 (P1-D)
+#
+# Dasbor yang bisa diatur: apakah setiap peran mendapat kartu, berapa permintaan
+# yang dibayar susunan BAWAANNYA, apakah pemuatan benar-benar per batch 4, apakah
+# laci menyimpan apa yang dipilih orangnya, dan apakah kartu yang sumbernya jatuh
+# MENGAKU jatuh alih-alih menulis Rp 0.
+#
+# Angka terakhir itulah alasan skenario ini ada. Uji PHP hanya bisa membuktikan
+# bahwa setiap berkas widget MEMANGGIL failure(); yang tidak bisa dibuktikannya
+# adalah bahwa yang tergambar ketika sumbernya benar-benar jatuh adalah kalimat
+# "gagal dimuat" dan bukan angka nol yang meyakinkan. Di sini permintaannya
+# benar-benar dijatuhkan (route abort) dan yang dibaca adalah teks di layar.
+
+# Widget yang mengirim LEBIH DARI SATU permintaan. Satu-satunya hari ini, dan
+# alasannya ditulis di views/widgets/ncr.js: "NCR terbuka" berarti open ATAU
+# under_correction, endpoint daftar hanya menerima satu status, dan menyaring
+# sisi klien atas halaman pertama adalah Temuan 79.
+MULTI_REQUEST_WIDGETS = {"ncr"}
+
+S23_ACCOUNTS = [
+    "admin@nusantara.test", "direktur@nusantara.test", "project-manager@nusantara.test",
+    "site-manager@nusantara.test", "estimator@nusantara.test", "procurement@nusantara.test",
+    "warehouse@nusantara.test", "finance@nusantara.test", "finance-manager@nusantara.test",
+    "hr@nusantara.test", "sales@nusantara.test", "teknisi@nusantara.test",
+]
+
+# Baris preferensi `dashboard.layout` di SERVER, dibaca lewat API — bukan
+# lewat cermin localStorage, yang menjawab sama dengan atau tanpa baris server.
+PREF_LAYOUT_READ = """async () => {
+    const r = await fetch('/api/core/me/preferences', { headers: {
+        'X-Api-Token': localStorage.getItem('nusantara_erp_token'), Accept: 'application/json' } });
+    const j = await r.json();
+    return (j.data || []).filter((x) => x.key === 'dashboard.layout').map((x) => x.value)[0] || null;
+}"""
+
+
+DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].map((c) => ({
+    id: c.dataset.widget,
+    size: c.dataset.size,
+    span: getComputedStyle(c).gridColumnEnd,
+    title: (c.querySelector('.card-head h2') || {}).innerText || null,
+    body: ((c.querySelector('.widget-body') || {}).innerText || '').trim(),
+    // Kaki kartu = pintu ke layar yang memuat angka ini secara lengkap. Sebuah
+    // kartu tanpa kaki adalah angka tanpa cara memeriksanya, dan itu paling
+    // menyakitkan justru pada kartu yang isinya kosong (verifikasi kedua P1-D:
+    // 10 dari 19 kartu tanpa .card-foot, termasuk seluruh kartu umur piutang/
+    // hutang/pajak yang sedang kosong).
+    foot: ((c.querySelector('.card-foot') || {}).innerText || '').trim() || null,
+}))"""
+
+
+# Permintaan yang dibayar SETIAP layar, bukan oleh susunan dasbor: sesi, izin,
+# lencana lonceng, dan pemuatan preferensi di boot.
+#
+# `core/health` TIDAK ada di sini sejak verifikasi kedua P1-D. Docstring lama
+# menyebutnya "dibayar setiap layar", dan itu tidak benar: grep menunjukkan
+# satu-satunya pemanggilnya di seluruh SPA adalah views/dashboard.js
+# (schedulerBanner, hanya pemegang core.update), dan navigasi ke #/home atau ke
+# layar daftar mana pun mengirim NOL core/health. Membukukannya sebagai shell
+# berarti permintaan kesembilan dasbor admin tidak dihitung — tidak di
+# api_widgets, tidak di anggaran serentak. Di localhost ia kebetulan selesai
+# sebelum batch pertama; di lapangan ia berjalan bersamanya, dan angka yang
+# diumumkan harness akan salah tepat pada keadaan yang paling penting.
+SHELL_REQUESTS = ("iam/auth", "core/notifications/unread-count", "core/me/preferences")
+
+
+def dash_probe(pg):
+    """Pasang penghitung permintaan WIDGET yang berjalan bersamaan.
+
+    Diukur dari sisi peramban, bukan dari log server: yang dijanjikan paket ini
+    adalah berapa banyak yang BERANGKAT sekaligus, dan hanya klien yang tahu itu.
+
+    Permintaan shell sengaja tidak dihitung dalam serentaknya. Bukan karena
+    murah, melainkan karena ia bukan yang dibatasi: `prefs.load()` di boot
+    berangkat sendiri dan bisa tumpang tindih dengan batch pertama — terukur
+    6 Sep 2026 pada finance-manager sebagai 5 permintaan serentak untuk susunan
+    yang tidak memuat satu pun widget dua-permintaan. Jumlah SELURUH permintaan
+    tetap dicatat terpisah (`api_total`), karena itulah angka yang dibandingkan
+    dengan target metrik Fase 1.
+    """
+    inflight = {"now": 0, "max": 0, "urls": []}
+
+    def is_widget(url):
+        if "/api/" not in url:
+            return False
+        return not url.split("/api/")[1].startswith(SHELL_REQUESTS)
+
+    def start(req):
+        if "/api/" not in req.url:
+            return
+        inflight["urls"].append(req.url.split("/api/")[1])
+        if not is_widget(req.url):
+            return
+        inflight["now"] += 1
+        inflight["max"] = max(inflight["max"], inflight["now"])
+
+    def done(req):
+        if is_widget(req.url):
+            inflight["now"] = max(0, inflight["now"] - 1)
+
+    pg.on("request", start)
+    pg.on("requestfinished", done)
+    pg.on("requestfailed", done)
+    return inflight
+
+
+@scenario("S23_dashboard_per_role")
+def s23(pg):
+    out = {"roles": {}, "roles_without_cards": [], "cards_total": 0}
+
+    for email in S23_ACCOUNTS:
+        ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+        page = ctx.new_page()
+        probe = dash_probe(page)
+        try:
+            login(page, email)
+            page.wait_for_timeout(2500)
+            assert_screen(page, "#/dashboard")
+            cards = page.evaluate(DASH_CARDS)
+            if email in ("direktur@nusantara.test", "teknisi@nusantara.test"):
+                page.screenshot(path=f"{OUT}/s23-dashboard-{email.split('@')[0]}-p1d.png", full_page=True)
+            # Permintaan widget saja (SHELL_REQUESTS di atas dibayar setiap layar).
+            widget_reqs = [u for u in probe["urls"] if not u.startswith(SHELL_REQUESTS)]
+            out["roles"][email.split("@")[0]] = {
+                "cards": [c["id"] for c in cards],
+                "sizes": {c["id"]: c["size"] for c in cards},
+                "api_total": len(probe["urls"]),
+                "api_widgets": len(widget_reqs),
+                "max_concurrent": probe["max"],
+                # Kartu yang badannya kosong tidak pernah benar: sebuah widget
+                # menggambar angkanya, keadaan kosongnya, atau kalimat gagalnya.
+                "empty_bodies": [c["id"] for c in cards if len(c["body"]) < 3],
+                # …dan kartu tanpa KAKI adalah angka tanpa cara memeriksanya.
+                "cards_without_foot": [c["id"] for c in cards if not c["foot"]],
+            }
+            # Batch 4 membatasi WIDGET, bukan permintaan: satu widget boleh
+            # mengirim lebih dari satu (hanya `ncr`, yang menjumlah dua status
+            # karena endpoint daftar menerima satu status per permintaan dan
+            # angkanya harus sama dengan ubin launcher). Batas atas yang benar
+            # karena itu 4 + jumlah permintaan EKSTRA milik widget semacam itu
+            # yang ada di susunan ini — bukan 4 mentah, dan bukan "berapa pun".
+            extra = sum(1 for c in cards if c["id"] in MULTI_REQUEST_WIDGETS)
+            # `core/health` adalah permintaan DASBOR, bukan shell (lihat
+            # SHELL_REQUESTS): satu-satunya pemanggilnya di seluruh SPA adalah
+            # spanduk penjadwal di views/dashboard.js, dan hanya untuk pemegang
+            # core.update. Ia sengaja tidak menahan batch mana pun — docblock
+            # schedulerBanner: "slot kosong dulu, spanduk menyusul" — jadi ia
+            # boleh berjalan di samping batch pertama, dan anggarannya menyebut
+            # itu alih-alih menyembunyikannya sebagai "bukan permintaan dasbor".
+            banner = sum(1 for u in probe["urls"] if u.startswith("core/health"))
+            out["roles"][email.split("@")[0]]["scheduler_banner_requests"] = banner
+            out["roles"][email.split("@")[0]]["concurrent_budget"] = 4 + extra + banner
+            out["cards_total"] += len(cards)
+            if not cards:
+                out["roles_without_cards"].append(email)
+        finally:
+            ctx.close()
+
+    out["max_concurrent_any_role"] = max(r["max_concurrent"] for r in out["roles"].values())
+    out["over_budget"] = [
+        name for name, r in out["roles"].items() if r["max_concurrent"] > r["concurrent_budget"]
+    ]
+
+    # --- MUAT ULANG BERTUBI-TUBI -----------------------------------------
+    #
+    # Angka di atas diukur pada SATU pemuatan yang tenang, dan itulah keadaan
+    # yang paling jarang terjadi di lapangan. renderDashboard() dipanggil ulang
+    # oleh tombol Muat ulang, sakelar 'Proyek saya' dan laci yang menyimpan;
+    # sampai verifikasi kedua P1-D gambar LAMA tidak berhenti — `clear(host)`
+    # melepaskan kartunya, perulangan batch-nya jalan terus. Terukur: tiga klik
+    # berjarak 120 ms = 27 permintaan, 12 berjalan bersamaan, tiga batch
+    # tumpang tindih. Yang dijaga di sini adalah janji paketnya sendiri:
+    # tidak pernah lebih dari BATCH sekaligus, berapa kali pun tombolnya
+    # ditekan.
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    probe = dash_probe(page)
+    try:
+        login(page, "direktur@nusantara.test")
+        page.wait_for_timeout(3000)
+        cards = page.evaluate(DASH_CARDS)
+        budget = 4 + sum(1 for c in cards if c["id"] in MULTI_REQUEST_WIDGETS)
+
+        probe["urls"].clear()
+        probe["max"] = 0
+        for _ in range(3):
+            page.evaluate("() => { const b = document.querySelector(\".page-head .actions button.icon\"); if (b && !b.disabled) b.click(); }")
+            page.wait_for_timeout(120)
+        page.wait_for_timeout(4000)
+
+        widget_reqs = [u for u in probe["urls"] if not u.startswith(SHELL_REQUESTS)]
+        out["rapid_reload"] = {
+            "clicks": 3,
+            "gap_ms": 120,
+            "cards": len(cards),
+            "api_widgets": len(widget_reqs),
+            "max_concurrent": probe["max"],
+            "concurrent_budget": budget,
+            # Kartu tetap terisi sesudahnya: berhenti bukan berarti menyerah.
+            "empty_bodies_after": [c["id"] for c in page.evaluate(DASH_CARDS) if len(c["body"]) < 3],
+        }
+    finally:
+        ctx.close()
+
+    # --- SAKELAR 'Proyek saya' menyaring KEDUA kartu proyek ----------------
+    #
+    # ringkasan-uang mengirim `mine`, dan docblock-nya menjanjikan bahwa widget
+    # itu dan "Progres proyek" "selalu bercerita tentang himpunan proyek yang
+    # SAMA saat sakelar Proyek saya menyala". Sampai verifikasi kedua P1-D
+    # proyek-progres.js tidak mengirim `mine` sama sekali (regresi dari P1-C,
+    # yang mengirimkannya): dasbor project-manager dengan sakelar menyala
+    # menuliskan ubin uang untuk proyek MILIKNYA di sebelah daftar yang memuat
+    # seluruh portofolio. Yang diukur di sini adalah parameter yang benar-benar
+    # berangkat, dan judul kartu yang ikut berganti.
+    ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    sent = []
+    page.on("request", lambda r: sent.append(r.url.split("/api/")[1]) if "/api/" in r.url else None)
+    try:
+        login(page, "project-manager@nusantara.test")
+        page.wait_for_timeout(3000)
+        sent.clear()
+        # Sakelar menyala; kalau sudah menyala, dimatikan lalu dinyalakan lagi.
+        state = page.evaluate("() => localStorage.getItem('nusantara_erp_dash_mine')")
+        if state == "1":
+            page.click(".page-head .actions button:has-text('Proyek saya')")
+            page.wait_for_timeout(2500)
+            sent.clear()
+        page.click(".page-head .actions button:has-text('Proyek saya')")
+        page.wait_for_timeout(3500)
+
+        out["mine_switch"] = {
+            "summary_request": next((u for u in sent if u.startswith("core/dashboard/summary")), None),
+            "projects_request": next((u for u in sent if u.startswith("projects")), None),
+            "card_titles": page.evaluate(
+                "() => [...document.querySelectorAll('.dash-grid .card.widget')]"
+                ".map((c) => ({ id: c.dataset.widget, title: (c.querySelector('.card-head h2')||{}).innerText }))"),
+        }
+        page.screenshot(path=f"{OUT}/s23-proyek-saya-p1d.png", full_page=True)
+    finally:
+        ctx.close()
+
+    mine = out["mine_switch"]
+    titles = {c["id"]: c["title"] for c in mine["card_titles"]}
+    mine["both_filtered"] = (
+        "mine=1" in (mine["summary_request"] or "")
+        and "mine=1" in (mine["projects_request"] or "")
+    )
+    # Kartu yang berganti makna berganti judul: pola ringkasan-uang.
+    mine["progres_card_says_mine"] = titles.get("proyek-progres") == "Progres proyek saya"
+
+    out["ok"] = (
+        not out["roles_without_cards"]
+        and not out["over_budget"]
+        and not any(r["empty_bodies"] for r in out["roles"].values())
+        and out["rapid_reload"]["max_concurrent"] <= out["rapid_reload"]["concurrent_budget"]
+        and not out["rapid_reload"]["empty_bodies_after"]
+        and mine["both_filtered"]
+        and mine["progres_card_says_mine"]
+        and not any(r["cards_without_foot"] for r in out["roles"].values())
+    )
+    return out
+
+
+@scenario("S23_setup_drawer")
+def s23s(pg):
+    """Laci: tambah, hapus, ubah ukuran, urutkan — lalu MUAT ULANG dan baca lagi."""
+    login(pg, "direktur@nusantara.test")
+    pg.wait_for_timeout(2500)
+    before = [c["id"] for c in pg.evaluate(DASH_CARDS)]
+
+    # Baris preferensi SEBELUM skenario ini menyentuhnya, supaya jalan ini bisa
+    # diulang: tanpa mengembalikannya, jalan kedua berangkat dari susunan yang
+    # ditinggalkan jalan pertama.
+    initial_pref = pg.evaluate(PREF_LAYOUT_READ)
+
+    # Bawaan peran menurut REGISTRI yang dikapalkan — bukan menurut apa yang
+    # kebetulan tergambar sebelum skenario ini mulai. Sampai verifikasi kedua
+    # P1-D "Kembalikan ke bawaan" dibandingkan dengan `before`, yang sama
+    # dengan bawaan HANYA selama dasbor mengabaikan susunan tersimpan pada
+    # kunjungan pertama (d-correct-1): begitu itu diperbaiki, perbandingan itu
+    # merah pada jalan kedua walau tombolnya benar.
+    default_layout = pg.evaluate("""async () => {
+        const reg = await import('/app/js/views/widgets/registry.js');
+        const api = await import('/app/js/api.js');
+        const user = api.session.user || {};
+        return reg.defaultLayout(user.roles || [], (perm) => api.session.can(perm));
+    }""")
+    default_ids = [e["id"] for e in default_layout]
+
+    click(pg, ".page-head .actions button:has-text('Atur dasbor')")
+    pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
+    pg.screenshot(path=f"{OUT}/s23-atur-dasbor-p1d.png", full_page=True)
+
+    spare_first = pg.locator(".dash-setup-spare .dash-setup-row").first
+    added = spare_first.locator(".dash-setup-name .cell-main").inner_text()
+    click(pg, ".dash-setup-spare .dash-setup-row:first-child button:has-text('Tambah')")
+    pg.wait_for_timeout(150)
+
+    removed = pg.locator(".dash-setup-list .dash-setup-row").first.get_attribute("data-id")
+    click(pg, ".dash-setup-list .dash-setup-row:first-child button:has-text('Hapus')")
+    pg.wait_for_timeout(150)
+
+    # Ukuran baris pertama diubah ke pilihan yang BUKAN nilainya sekarang.
+    sel = pg.locator(".dash-setup-list .dash-setup-row").first.locator("select.dash-setup-size")
+    options = sel.evaluate("(s) => [...s.options].map((o) => o.value)")
+    now = sel.input_value()
+    target = next(o for o in options if o != now)
+    sel.select_option(target)
+    resized = pg.locator(".dash-setup-list .dash-setup-row").first.get_attribute("data-id")
+
+    # Urutan: baris kedua dinaikkan lewat tombol (jalur papan ketik, tanpa vendor).
+    second = pg.locator(".dash-setup-list .dash-setup-row").nth(1).get_attribute("data-id")
+    click(pg, ".dash-setup-list .dash-setup-row:nth-child(2) button:has-text('Naik')")
+    pg.wait_for_timeout(150)
+    # JALUR PAPAN KETIK: fokus tidak boleh dibuang setiap kali daftar digambar ulang.
+    #
+    # docblock dashsetup.js menjanjikan "PAPAN KETIK LEBIH DULU, SERET
+    # BELAKANGAN" — Naik/Turun yang "bekerja tanpa satu byte vendor pun".
+    # Tetapi setiap penekanan memanggil paint(), yang membangun ulang seluruh
+    # daftar dan MENGHANCURKAN tombol yang sedang dipegang: terukur sebelum
+    # verifikasi kedua P1-D, Enter pada Naik baris ke-3 memindahkan barisnya
+    # lalu melempar fokus ke <select> BARIS PERTAMA, jadi memindahkan satu
+    # widget dari posisi 9 ke 1 berarti delapan penekanan yang masing-masing
+    # didahului jalan-jalan Tab yang makin panjang.
+    kbd_row = pg.locator(".dash-setup-list .dash-setup-row").nth(2).get_attribute("data-id")
+    pg.evaluate("""(id) => {
+        const row = document.querySelector(`.dash-setup-row[data-id="${id}"]`);
+        const up = [...row.querySelectorAll(".btn")].find((b) => b.textContent.trim() === "Naik");
+        up.focus();
+    }""", kbd_row)
+    pg.keyboard.press("Enter")
+    pg.wait_for_timeout(300)
+    keyboard_focus = pg.evaluate("""() => {
+        const a = document.activeElement;
+        const row = a && a.closest ? a.closest(".dash-setup-row") : null;
+        return {
+            tag: a ? a.tagName : null,
+            // Dipotong: activeElement bisa jadi <body>, dan seluruh teks halaman
+            // di dalam results.json membuat berkas bukti itu tidak terbaca.
+            label: a ? a.textContent.trim().slice(0, 40) : null,
+            row_id: row ? row.dataset.id : null,
+            row_index: row ? [...document.querySelectorAll(".dash-setup-list .dash-setup-row")].indexOf(row) : null,
+        };
+    }""")
+    keyboard_focus["moved_row"] = kbd_row
+    # Fokus tetap pada tombol Naik baris YANG SAMA, yang kini satu tingkat naik.
+    keyboard_focus["stays_on_the_moved_row"] = (
+        keyboard_focus["row_id"] == kbd_row and keyboard_focus["label"] == "Naik"
+    )
+
+    order_in_drawer = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
+
+    # PENJAGA "perubahan belum disimpan", sebelum menyimpan apa pun.
+    #
+    # docblock dashsetup.js memilih modal() justru KARENA aplikasi ini sudah
+    # punya penjaga itu — tetapi `dirty` adalah opsi yang harus dilewatkan, dan
+    # sampai verifikasi kedua P1-D panggilannya tidak melewatkannya: satu
+    # ketukan Escape membuang urutan yang baru saja ditata, tanpa satu
+    # pertanyaan pun. Di sini Escape ditekan dengan draft yang SUDAH berubah,
+    # dan yang diukur adalah dialognya muncul dan lacinya tetap terbuka.
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(600)
+    dirty_guard = pg.evaluate("""() => ({
+        prompt: (document.querySelector('.overlay-stacked .modal') || {}).innerText || null,
+        drawer_still_open: !!document.querySelector('.modal .dash-setup-list'),
+    })""")
+    # "Kembali menata": lacinya harus utuh, termasuk urutan yang sudah diubah.
+    pg.evaluate("""() => {
+        const buttons = [...document.querySelectorAll('.overlay-stacked .modal-foot button')];
+        const back = buttons.find((b) => !b.classList.contains('primary')) || buttons[0];
+        if (back) back.click();
+    }""")
+    pg.wait_for_timeout(400)
+    dirty_guard["order_kept"] = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
+
+    click(pg, ".modal-foot button:has-text('Simpan')")
+    pg.wait_for_timeout(1200)
+    after_save = [c["id"] for c in pg.evaluate(DASH_CARDS)]
+
+    # KONTEKS PERAMBAN BARU, bukan pg.reload().
+    #
+    # Sampai verifikasi kedua P1-D baris ini berbunyi "muat ulang penuh: yang
+    # diuji adalah baris preferensi di SERVER" — dan itu tidak benar: prefs.js
+    # menyimpan CERMIN localStorage per pengguna yang dibaca sinkron, jadi
+    # sebuah reload di konteks yang sama mengembalikan susunannya dengan atau
+    # tanpa baris server. Terbukti: jalan pertama verifikasi memakai salinan
+    # database/database.sqlite yang belum dimigrasi (tanpa tabel
+    # core_user_preferences, setiap panggilan preferensi 500) dan after_reload
+    # tetap sama dengan after_save.
+    #
+    # Konteks baru = cermin kosong = hanya server yang bisa menjawab. Itu juga
+    # persis keadaan yang membuat dasbor pernah menggambar BAWAAN PERAN pada
+    # kunjungan pertama dan tidak pernah memperbaikinya (temuan d-correct-1 /
+    # d-ux-01): kalau pendengar 'erp:prefs-loaded' di views/dashboard.js hilang
+    # lagi, kolom di bawah ini merah.
+    fresh_ctx = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    fresh = fresh_ctx.new_page()
+    try:
+        login(fresh, "direktur@nusantara.test")
+        fresh.wait_for_selector("nav.nav", timeout=15000)
+        # Cukup lama untuk prefs.load() + gambar ulang, tetapi TIDAK dibantu
+        # navigasi apa pun: kunjungan PERTAMA yang harus benar.
+        fresh.wait_for_timeout(6000)
+        reloaded = fresh.evaluate(DASH_CARDS)
+        fresh.screenshot(path=f"{OUT}/s23-konteks-baru-p1d.png", full_page=True)
+    finally:
+        fresh_ctx.close()
+
+    reloaded_ids = [c["id"] for c in reloaded]
+
+    stored = pg.evaluate(PREF_LAYOUT_READ)
+
+    click(pg, ".page-head .actions button:has-text('Atur dasbor')")
+    pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
+    click(pg, ".modal-foot button:has-text('Kembalikan ke bawaan')")
+    pg.wait_for_timeout(200)
+    restored = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
+    click(pg, ".modal-foot button:has-text('Batal')")
+
+    # Skenario ini mengembalikan baris preferensi ke keadaan semula: tidak ada
+    # endpoint yang MENGHAPUS preferensi, jadi yang bisa dilakukan adalah
+    # menulis kembali nilai awalnya. Bila BELUM ada barisnya, yang ditulis
+    # adalah bawaan perannya — bukan `[]`, yang berarti "sengaja dikosongkan"
+    # dan membuat jalan berikutnya membuka laci tanpa satu baris pun.
+    # Tanpa ini jalan kedua berangkat dari susunan yang ditinggalkan jalan
+    # pertama, dan angkanya tidak bisa dibandingkan antar jalan.
+    pg.evaluate("""async (value) => {
+        await fetch('/api/core/me/preferences/dashboard.layout', {
+            method: 'PUT',
+            headers: { 'X-Api-Token': localStorage.getItem('nusantara_erp_token'),
+                       Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value }),
+        });
+        localStorage.clear();
+    }""", initial_pref if initial_pref is not None else default_layout)
+
+    return {
+        "before": before,
+        "added_label": added,
+        "removed": removed,
+        "resized": resized, "resized_from": now, "resized_to": target,
+        "moved_up": second,
+        "order_in_drawer": order_in_drawer,
+        "keyboard_focus": keyboard_focus,
+        "dirty_guard": dirty_guard,
+        "after_save": after_save,
+        "after_fresh_context": reloaded_ids,
+        "stored_preference": stored,
+        "role_default": default_ids,
+        "restore_default_matches_role_default": restored == default_ids,
+        "sizes_after_fresh_context": {c["id"]: c["size"] for c in reloaded},
+        # Ukuran yang diubah harus SELAMAT juga — `sizes_after_reload` dicatat
+        # sejak awal tetapi tidak pernah dibandingkan dengan `resized_to`, jadi
+        # satu-satunya perubahan yang tidak berupa urutan tidak pernah diuji.
+        "resized_survived": {c["id"]: c["size"] for c in reloaded}.get(resized) == target,
+        "ok": (
+            # Escape pada draf yang berubah BERTANYA dulu, dan lacinya utuh.
+            keyboard_focus["stays_on_the_moved_row"]
+            and bool(dirty_guard["prompt"]) and "belum disimpan" in (dirty_guard["prompt"] or "")
+            and dirty_guard["drawer_still_open"]
+            and dirty_guard["order_kept"] == order_in_drawer
+            and removed not in reloaded_ids
+            and reloaded_ids == order_in_drawer
+            and reloaded_ids == after_save
+            and isinstance(stored, list) and len(stored) == len(reloaded_ids)
+            and {c["id"]: c["size"] for c in reloaded}.get(resized) == target
+            and restored == default_ids
+        ),
+    }
+
+
+@scenario("S23_honest_failure")
+def s23f(pg):
+    """Satu sumber dijatuhkan sungguhan; kartunya harus MENGAKU, bukan menulis 0."""
+    login(pg, "finance@nusantara.test")
+    pg.wait_for_timeout(2500)
+    healthy = {c["id"]: c["body"] for c in pg.evaluate(DASH_CARDS)}
+
+    # `core/dashboard/summary` memberi makan KETIGA ubin uang Temuan 79.
+    pg.route("**/api/core/dashboard/summary*", lambda route: route.abort())
+    pg.reload()
+    pg.wait_for_selector("nav.nav", timeout=15000)
+    pg.wait_for_timeout(3500)
+    broken = {c["id"]: c["body"] for c in pg.evaluate(DASH_CARDS)}
+    pg.screenshot(path=f"{OUT}/s23-gagal-jujur-p1d.png", full_page=True)
+    pg.unroute("**/api/core/dashboard/summary*")
+
+    money = broken.get("ringkasan-uang", "")
+    others = [i for i in healthy if i != "ringkasan-uang"]
+
+    # …dan PEMULIHANNYA. Mengaku gagal tanpa menawarkan jalan keluar hanya
+    # setengah janji paket ini ("satu widget yang gagal memuat ulang dirinya
+    # sendiri"): sampai verifikasi kedua P1-D kartu uang yang jatuh punya NOL
+    # tombol, dan satu-satunya pemulihannya adalah Muat ulang di kepala
+    # halaman — sembilan permintaan untuk memperbaiki satu, yaitu perilaku
+    # P1-C yang paket ini menyatakan sudah digantikannya. Yang diukur di sini
+    # adalah tombolnya DAN berapa permintaan yang dibayar satu klik.
+    retry_buttons = pg.evaluate(
+        "() => [...document.querySelectorAll('.dash-grid .card.widget[data-widget=\"ringkasan-uang\"] button')]"
+        ".map((b) => b.innerText.trim())")
+
+    requests_on_retry = []
+    pg.on("request", lambda r: requests_on_retry.append(r.url.split("/api/")[1]) if "/api/" in r.url else None)
+    if retry_buttons:
+        pg.click(".dash-grid .card.widget[data-widget='ringkasan-uang'] button")
+        pg.wait_for_timeout(2000)
+
+    return {
+        "healthy_money_card": healthy.get("ringkasan-uang", "")[:120],
+        "broken_money_card": money[:160],
+        "card_still_drawn": "ringkasan-uang" in broken,
+        "says_failed": "Gagal dimuat" in money,
+        "writes_em_dash": money.count("—") >= 3,
+        # Yang paling penting: TIDAK ada angka rupiah yang dikarang.
+        "no_zero_rupiah": "Rp 0" not in money,
+        "retry_buttons": retry_buttons,
+        "requests_on_retry": requests_on_retry,
+        "other_cards_still_loaded": [i for i in others if i in broken and len(broken[i]) > 3],
+        "other_cards_lost": [i for i in others if i not in broken],
+        "ok": (
+            "ringkasan-uang" in broken
+            and "Gagal dimuat" in money
+            and "Rp 0" not in money
+            and retry_buttons == ["Coba lagi"]
+            # Satu klik = satu permintaan: widget itu saja, bukan dasbor.
+            and len(requests_on_retry) == 1
+            and not [i for i in others if i not in broken]
+        ),
+    }
+
+
+@scenario("S23_dashboard_mobile")
+def s23m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "teknisi@nusantara.test")
+        # Aturan landing P1-C: ponsel mendarat di #/home, jadi dasbor dibuka sendiri.
+        pg.evaluate("() => { location.hash = '#/dashboard'; }")
+        pg.wait_for_timeout(3000)
+        cards = pg.evaluate(DASH_CARDS)
+        geom = pg.evaluate("""() => {
+            const grid = document.querySelector('.dash-grid');
+            const rects = [...document.querySelectorAll('.dash-grid .card.widget')].map((c) => c.getBoundingClientRect());
+            return {
+                cols: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+                widths: rects.map((r) => Math.round(r.width)),
+                lefts: [...new Set(rects.map((r) => Math.round(r.left)))],
+                page_scroll_x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                height: Math.round(document.documentElement.scrollHeight),
+            };
+        }""")
+        pg.screenshot(path=f"{OUT}/s23-dashboard-teknisi-mobile-p1d.png", full_page=True)
+
+        # Laci "Atur dasbor" di ponsel: TINGGI KENDALINYA, diukur.
+        #
+        # app.css menyebut "target 44 px" tepat di atas aturan laci ini sejak
+        # P1-D; yang terukur sampai verifikasi kedua adalah 36 px (Naik/Turun/
+        # Hapus), 34 px (select ukuran) dan 34 px (tombol kaki) — di atas lantai
+        # WCAG 2.5.8 (24 px), tetapi bukan angka yang ditulis komentarnya. Satu
+        # komentar yang menjanjikan ukuran yang tidak diberikannya lebih buruk
+        # daripada tidak ada.
+        pg.click(".page-head .actions button:has-text('Atur dasbor')")
+        pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
+        pg.wait_for_timeout(400)
+        touch = pg.evaluate("""() => {
+            const px = (node) => Math.round(node.getBoundingClientRect().height);
+            const rows = [...document.querySelectorAll(".dash-setup-row")];
+            return {
+                row_buttons: [...new Set(rows.flatMap((r) => [...r.querySelectorAll(".btn")].map(px)))],
+                selects: [...new Set(rows.map((r) => r.querySelector("select.dash-setup-size")).filter(Boolean).map(px))],
+                foot_buttons: [...new Set([...document.querySelectorAll(".modal-foot .btn")].map(px))],
+            };
+        }""")
+        pg.screenshot(path=f"{OUT}/s23-atur-dasbor-mobile-p1d.png", full_page=True)
+        touch["min_px"] = min((touch["row_buttons"] + touch["selects"] + touch["foot_buttons"]) or [0])
+
+        return {
+            "cards": [c["id"] for c in cards],
+            "grid": geom,
+            "drawer_touch_targets": touch,
+            # Satu kolom: setiap kartu mulai di tepi kiri yang sama, dan halaman
+            # tidak menggulung mendatar.
+            "ok": (
+                geom["cols"] == 1 and len(geom["lefts"]) == 1 and not geom["page_scroll_x"] and bool(cards)
+                # …dan angka yang ditulis app.css benar-benar diberikan.
+                and touch["min_px"] >= 44
+            ),
+        }
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -2020,7 +4267,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
@@ -2028,3 +4275,8 @@ with sync_playwright() as p:
 import os; os.makedirs(OUT, exist_ok=True)  # verifikasi B4 fase 3: OUT yang belum ada menjatuhkan run di akhir, hasil hilang
 json.dump(R, open(f"{OUT}/results.json", "w"), ensure_ascii=False, indent=1)
 print("saved results.json")
+
+# Status keluar yang bisa dipercaya: yang membaca hanya baris terakhir tetap tahu.
+if FAILED:
+    print("GAGAL: " + ", ".join(FAILED))
+    sys.exit(1)

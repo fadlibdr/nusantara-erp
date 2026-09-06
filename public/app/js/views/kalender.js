@@ -29,7 +29,7 @@ import { navigate } from '../router.js';
 // SDM" di kartu, lalu membuka layar penuh; rona yang berpindah pemilik antara
 // keduanya membatalkan pelajaran itu. dashboard.js pemilik tunggalnya
 // (lengkap dengan step tema-gelapnya); layar ini hanya memakainya.
-import { KALENDER_DEPTS, kalenderDeptColor, ensureKalenderPalette } from './dashboard.js';
+import { KALENDER_DEPTS, kalenderDeptColor, ensureKalenderPalette } from '../kalenderpalette.js';
 
 /* Palet tema hanya punya enam rona untuk delapan departemen, jadi titik agenda
    teks di sebelahnya tetap var(--text). Urutan larik = urutan chip legenda,
@@ -293,7 +293,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
       ]);
     };
 
-    // KALENDER_DEPTS adalah larik nama datar (pemiliknya dashboard.js), bukan
+    // KALENDER_DEPTS adalah larik nama datar (pemiliknya kalenderpalette.js), bukan
     // pasangan [nama, warna] — warnanya diambil lewat kalenderDeptColor().
     const chips = DEPARTEMEN
       .filter((dept) => hitungDept[dept])

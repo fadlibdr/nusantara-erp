@@ -21,6 +21,7 @@ import { api, session } from '../api.js';
 import { el, clear, button, badge, errorState, skeletonTable } from '../ui.js';
 import * as fmt from '../format.js';
 import { loadSource, optionsFor } from '../lookup.js';
+import { lineChart, chartWidth } from '../charts.js';
 
 const state = { itemId: null, from: '', to: '' };
 
@@ -42,81 +43,83 @@ function statCard(label, value, hint, { title } = {}) {
 /** Garis waktu harga. Titik PO dan GRN dibedakan warna; judul tiap titik
     menyebut dokumen dan vendornya, karena satu angka tanpa dokumen tidak bisa
     diperiksa siapa pun. */
+/**
+ * Tren harga satuan — `charts.js lineChart` sejak P1-E.
+ *
+ * Dua sifat grafik ini yang TIDAK boleh hilang dalam migrasi, dan keduanya
+ * sudah punya tempatnya di API charts.js:
+ *
+ *  1. **Sumbu harga tidak dipaksa mulai dari nol.** Tren 12.500 → 13.750 pada
+ *     sumbu 0..14.000 tampak datar, padahal 10 % itulah yang dicari layar ini.
+ *     `yMin`/`yMax` dihitung di sini persis seperti sebelumnya (ruang 25 %
+ *     di atas dan di bawah rentang data; harga yang seluruhnya sama memakai
+ *     5 % dari harganya sendiri sebagai ruang, supaya garis datar tidak
+ *     menempel di tepi plot).
+ *  2. **PO dan GRN pada SATU garis kronologis, dibedakan per TITIK.** Harga
+ *     yang disepakati dan harga yang benar-benar datang adalah cerita yang
+ *     sama secara waktu; memecahnya jadi dua seri akan memutus garisnya.
+ *     `points[].token` mewarnai titik GRN sendiri — dulu `dot.style.fill =
+ *     'var(--warning)'`, satu-satunya warna literal yang tersisa di layar ini.
+ */
 function trendChart(series) {
-  const W = 720;
-  const H = 240;
-  const PAD = { top: 14, right: 16, bottom: 28, left: 64 };
-  const plotW = W - PAD.left - PAD.right;
-  const plotH = H - PAD.top - PAD.bottom;
-
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('class', 'chart');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Tren harga satuan');
-
-  const ns = 'http://www.w3.org/2000/svg';
-  const add = (tag, attrs, text) => {
-    const node = document.createElementNS(ns, tag);
-    Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
-    if (text !== undefined) node.textContent = text;
-    svg.appendChild(node);
-    return node;
-  };
-
   const points = series
     .map((row) => ({ ...row, at: Date.parse(row.date), price: Number(row.unit_price) || 0 }))
     .filter((row) => Number.isFinite(row.at));
-  if (!points.length) return svg;
+  if (!points.length) return null;
 
-  const t0 = points[0].at;
-  const t1 = points[points.length - 1].at;
-  const prices = points.map((p) => p.price);
-  /* Sumbu harga TIDAK dipaksa mulai dari nol: tren 12.500 → 13.750 pada sumbu
-     0..14.000 tampak datar, padahal 10% itulah yang dicari layar ini. */
+  const prices = points.map((point) => point.price);
   const lo = Math.min(...prices);
   const hi = Math.max(...prices);
   const room = (hi - lo) || Math.max(hi * 0.05, 1);
   const yLo = Math.max(0, lo - room * 0.25);
   const yHi = hi + room * 0.25;
 
-  const x = (at) => PAD.left + (t1 === t0 ? plotW / 2 : ((at - t0) / (t1 - t0)) * plotW);
-  const y = (price) => PAD.top + plotH - ((price - yLo) / (yHi - yLo)) * plotH;
-
-  for (let i = 0; i <= 4; i++) {
-    const price = yLo + ((yHi - yLo) * i) / 4;
-    add('line', { class: 'grid', x1: PAD.left, x2: W - PAD.right, y1: y(price), y2: y(price) });
-    add('text', { x: PAD.left - 7, y: y(price) + 3.5, 'text-anchor': 'end' }, fmt.rupiahShort(price));
-  }
-  add('line', { class: 'axis', x1: PAD.left, x2: PAD.left, y1: PAD.top, y2: PAD.top + plotH });
-
-  const step = Math.max(1, Math.ceil(points.length / 8));
-  points.forEach((point, index) => {
-    if (index % step === 0 || index === points.length - 1) {
-      add('text', { x: x(point.at), y: H - 9, 'text-anchor': 'middle' }, fmt.date(point.date));
-    }
+  return lineChart({
+    /* Lebar viewBox mengikuti lebar layar: pada kartu ponsel 328 px sebuah svg
+       720 mengecilkan label sumbunya menjadi 5,0 px terbaca — legenda grafik
+       ini memang DOM (12 px, tidak ikut mengecil), tetapi angka rupiah di
+       sumbunya ikut (verifikasi P1-E). */
+    width: chartWidth(),
+    series: [{
+      label: 'Harga satuan',
+      token: '--chart-1',
+      /* 2,5 px, seperti `.chart .act` grafik tangan: seri yang DIUKUR lebih
+         tebal daripada seri acuannya, jadi hierarkinya terbaca sebelum
+         warnanya. Pemindahan P1-E menuliskan 2 untuk semua seri dan
+         hierarki itu hilang tanpa disebut di daftar sebab piksel laporan
+         paketnya (verifikasi P1-E). */
+      width: 2.5,
+      points: points.map((point) => ({
+        x: point.date,
+        y: point.price,
+        // Titik GRN sedikit lebih besar DAN berwarna sendiri: pembedanya tidak
+        // pernah warna saja (aturan yang sama dengan legenda departemen).
+        // 4,5 vs 3, bukan 3,5 vs 3: docblock di atas menyatakan pembedanya
+        // tidak pernah warna saja, dan 0,5 px tidak menyanggupi kalimat itu di
+        // layar maupun di kertas (verifikasi P1-E).
+        r: point.source === 'grn' ? 4.5 : 3,
+        token: point.source === 'grn' ? '--chart-7' : null,
+        title: `${fmt.date(point.date)} — ${point.code}`
+          + `${point.vendor_name ? ` (${point.vendor_name})` : ''}: ${fmt.rupiah(point.price)}`,
+      })),
+    }],
+    yMin: yLo,
+    yMax: yHi,
+    /* Lima garis kisi, seperti grafik tangan (i = 0..4) — dan itu benar HANYA
+       karena charts.js menjangkarkan tick pada `lo` ketika KEDUA tepi sumbu
+       dipaksa. Sampai verifikasi P1-E ia menjangkarkannya pada kelipatan
+       langkah, jadi kalimat ini salah untuk hampir setiap riwayat harga
+       sungguhan: terukur atas 205 deret harga, 5 garis pada 21,5 % kasus dan
+       161 sumbu tanpa label lantai maupun langit-langit. Item demo lolos hanya
+       karena kedua harganya sama. */
+    yStep: (yHi - yLo) / 4,
+    yFormat: (value) => fmt.rupiahShort(value),
+    ariaLabel: 'Tren harga satuan',
+    // Satu seri: legenda svg akan menuliskan "Harga satuan" saja dan tidak
+    // menjelaskan apa pun. Yang perlu dijelaskan adalah PO vs GRN, dan itu
+    // pembedaan per titik — legendanya tetap di DOM, di bawah grafik.
+    legend: false,
   });
-
-  add('path', {
-    class: 'act',
-    d: points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.at).toFixed(1)},${y(p.price).toFixed(1)}`).join(' '),
-  });
-
-  points.forEach((point) => {
-    const dot = add('circle', {
-      class: 'pt',
-      cx: x(point.at),
-      cy: y(point.price),
-      r: point.source === 'grn' ? 3.5 : 3,
-    });
-    if (point.source === 'grn') dot.style.fill = 'var(--warning)';
-    const title = document.createElementNS(ns, 'title');
-    title.textContent = `${fmt.date(point.date)} — ${point.code}`
-      + `${point.vendor_name ? ` (${point.vendor_name})` : ''}: ${fmt.rupiah(point.price)}`;
-    dot.appendChild(title);
-  });
-
-  return svg;
 }
 
 /* ------------------------------------------------------------------- layar */
@@ -231,10 +234,24 @@ export async function renderHargaSatuan(host) {
         el('.cell-sub', { text: item ? `${item.code} · satuan ${item.unit}` : '' }),
       ]),
       el('.card-body', [
-        trendChart(series),
+        trendChart(series) || el('p.muted', { text: 'Belum ada titik harga yang bisa digambar.', style: { margin: 0 } }),
+        /* Swatch memakai token GRAFIK yang sama dengan titiknya (P1-E).
+           ALASANNYA, diperbaiki setelah verifikasi P1-E: sebelum paket ini
+           swatch DAN titiknya sama-sama `var(--warning)`, jadi keduanya
+           tercetak dengan warna yang sama — kalimat lama ("legenda --warning
+           tercetak berbeda dari titiknya") menggambarkan cacat yang tidak
+           pernah ada. Yang benar-benar salah adalah KERTASnya: blok cetak
+           app.css hanya menukar token --chart-* menjadi abu-abu, dan --warning
+           tidak ikut (terukur: #96601a di layar DAN di cetak, sementara
+           --chart-7 #a16207 → #363636). Titik GRN karena itu tercetak
+           BERWARNA di tengah grafik yang seluruhnya abu-abu. */
+        /* `i.pt` / `i.pt.lg`: swatch berbentuk TITIK seukuran titik yang
+           diwakilinya, bukan batang. Legenda ini mewakili dua jenis TITIK pada
+           satu garis, dan di kertas abu-abu ukuran adalah pembeda yang selamat
+           sementara warna (#222222 vs #363636, 1,32:1) tidak. */
         el('.legend', [
-          el('span', [el('i.act'), 'Harga PO (disepakati)']),
-          el('span', [el('i', { style: { background: 'var(--warning)' } }), 'Valuasi GRN (barang datang)']),
+          el('span', [el('i.pt', { style: { background: 'var(--chart-1)' } }), 'Harga PO (disepakati)']),
+          el('span', [el('i.pt.lg', { style: { background: 'var(--chart-7)' } }), 'Valuasi GRN (barang datang)']),
         ]),
       ]),
     ]));

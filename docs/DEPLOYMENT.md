@@ -245,6 +245,20 @@ docker compose -f docker-compose.prod.yml exec app php artisan up
 (`php artisan down` also accepts `--render=<view>` for a custom maintenance
 page; for this API-only backend the default 503 response is fine.)
 
+**Rilis yang MENAMBAH tabel: buktikan tabelnya mendarat.** `migrate` bisa
+melaporkan sukses sementara satu blok terlewat (lihat catatan blok migrasi di
+CONVENTIONS §2), dan gejalanya baru muncul sebagai 500 pada satu layar berhari-hari
+kemudian. Sesudah deploy yang membawa migrasi baru, tanyakan langsung — mis. untuk
+rilis P1-C (`core_user_preferences`):
+
+```bash
+docker compose -f docker-compose.prod.yml exec app \
+  php artisan tinker --execute="var_dump(Schema::hasTable('core_user_preferences'));"
+```
+
+`false` berarti migrasinya tidak berjalan; jalankan `php artisan migrate --force`
+lagi dan baca keluarannya baris per baris sebelum menyatakan rilis selesai.
+
 **Rollback**: `git checkout <previous-tag>`, then the same build + up
 commands. Migrations are not automatically reversed — restore the database
 from backup if a migration must be undone (section 5).

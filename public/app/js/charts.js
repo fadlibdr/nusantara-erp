@@ -8,6 +8,7 @@
  * dihitung server; di sini hanya geometri.
  *
  *   lineChart({ series, xLabels?, xFormat?, yFormat?, yMax?, yMin?, yStep?, width?, height?, ariaLabel, sourceNote?, legend? })
+ *     series[]: { label, points, token?, dash?, dots?, area?, width? } — `width` = tebal garis px (bawaan 2, dijepit 1–4)
  *     series : [{ label, points: [{ x?, y, title?, r?, token? }], dash?|dashed?, area?, token?, dots? }]
  *              dash: pola putus-putus seri sebagai string SVG ('5 3' rencana, '2 4' baseline);
  *              dashed:true = '6 4'. token: token warna eksplisit '--chart-n' (bawaan: posisi seri,
@@ -320,8 +321,11 @@ function drawLegend(svg, rows, y0) {
     const y = y0 + r * 16;
     row.forEach((item) => {
       if (item.kind === 'line') {
-        const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': 2.5, 'stroke-dasharray': item.dash ?? null, 'data-series': item.series });
+        const line = make('line', { class: 'legend-swatch series-line', x1: item.x, x2: item.x + 16, y1: y - 4, y2: y - 4, 'stroke-width': item.width ?? 2.5, 'stroke-dasharray': item.dash ?? null, 'data-series': item.series });
         svg.appendChild(paint(line, 'stroke', item.token));
+      } else if (item.kind === 'dot') {
+        const dot = make('circle', { class: 'legend-swatch series-point', cx: item.x + 8, cy: y - 4, r: 3, 'data-series': item.series });
+        svg.appendChild(paint(dot, 'fill', item.token));
       } else {
         const box = make('rect', { class: 'legend-swatch', x: item.x, y: y - 9, width: 12, height: 10, rx: 2, 'fill-opacity': item.opacity, 'data-series': item.series });
         svg.appendChild(paint(box, 'fill', item.token));
@@ -330,6 +334,23 @@ function drawLegend(svg, rows, y0) {
     });
   });
   return rows.length * 16;
+}
+
+/**
+ * Lebar viewBox yang masuk akal untuk lebar layar sekarang.
+ *
+ * charts.js menggambar pada viewBox tetap dan CSS meregangkannya ke lebar
+ * kartunya, jadi teks 11 px di dalam svg 720 yang dipasang pada kartu 328 px
+ * TERBACA 5,0 px — di bawah setiap lantai keterbacaan yang dipakai aplikasi ini
+ * di tempat lain. Selama legenda hidup di DOM (sebelum P1-E) itu tidak terasa
+ * pada dua grafik proyek; sejak legendanya masuk ke dalam svg, ia terasa
+ * (verifikasi P1-E, diukur 390×844: legenda dan tick 5,0 px, garis 0,91 px).
+ *
+ * Yang dikembalikan adalah viewBox, bukan piksel layar: pada ponsel viewBox
+ * yang mendekati lebar kartunya membuat skala ≈ 1, sehingga 11 px tetap 11 px.
+ */
+export function chartWidth(wide = 720, narrow = 380) {
+  return typeof window !== 'undefined' && window.innerWidth <= 560 ? narrow : wide;
 }
 
 /* ---------------------------------------------------------------- skala */
@@ -355,10 +376,21 @@ function domain(values, min, max, tickCount = 4, fixedStep) {
     else hi = 0;
   }
   const step = finite(fixedStep) > 0 ? finite(fixedStep) : niceStep((hi - lo) / tickCount);
+  const bothForced = finite(min) !== null && finite(max) !== null;
   if (finite(min) === null) lo = Math.floor(lo / step + 1e-9) * step;
   if (finite(max) === null) hi = Math.ceil(hi / step - 1e-9) * step;
+  /* Jangkar garis kisi. Bila pemanggil memaksa KEDUA tepinya, tepi itulah
+     jangkarnya: sumbu yang dipaksa 50..350 dengan langkah 75 harus digaris di
+     50/125/200/275/350 — lima garis yang membentang penuh — bukan di
+     75/150/225/300, yang membuang label lantai DAN label langit-langit.
+     Terukur pada tren harga satuan (yMin/yMax/yStep ketiganya dipaksa): 5 garis
+     kisi hanya pada ~6 % pasangan harga, dan demo lolos cuma karena kedua
+     harganya sama (verifikasi P1-E). Bila salah satu tepi dihitung sendiri,
+     jangkarnya tetap kelipatan langkah — di sanalah "langkah rapi" berarti
+     "angka rapi". */
   const ticks = [];
-  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : +v.toPrecision(12));
+  const first = bothForced ? lo : Math.ceil(lo / step - 1e-9) * step;
+  for (let v = first; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : +v.toPrecision(12));
   return { lo, hi, ticks };
 }
 
@@ -373,15 +405,15 @@ function xValue(point, index) {
 /** Indeks label sumbu-x yang digambar. `centers` = pusat tiap label (koordinat svg), `labelAt(i)`
     = teksnya (dipanggil malas: hanya kandidat yang diformat — 10 rb titik tidak memformat 10 rb
     tanggal). Irama: paling banyak floor(plotW/minGap) label berlangkah tetap dari kiri, dan label
-    terakhir selalu (tanggal/kategori terbaru adalah yang dicari pembaca); minGap dinaikkan ke
-    lebar label terlebar + 2·gap bila label lebih lebar dari irama bawaan ('05 Sep 2026' 61,6 px
-    taksiran vs 64). Lalu setiap kandidat diuji terhadap KOTAK label tetangga yang sudah terpilih
+    terakhir selalu (tanggal/kategori terbaru adalah yang dicari pembaca); irama bawaan (64 px, tera '05 Sep 2026' 61,6 px taksiran)
+    menyesuaikan DUA arah terhadap lebar label terlebar + 2·gap, dengan lantai 28 px; irama yang
+    DISEBUT pemanggil (barChart: 48 atau lebar band) hanya dinaikkan, tidak pernah diturunkan. Lalu setiap kandidat diuji terhadap KOTAK label tetangga yang sudah terpilih
     — kotak xLabelBox yang sama dengan yang digambar, termasuk pergeseran jangkar tepi: yang
     menabrak dibuang, label terakhir menang atas tetangga kirinya. Dulu irama dihitung untuk label
     berpusat sementara label terakhir ditambatkan ke ujung kanan (bergeser ±30 px ke kiri): dua
     label terakhir setiap sumbu tanggal ≥ 10 titik bertumpuk 17–54 px (verifikasi P1-A putaran
     2, 5 Sep 2026). Pemanggil menjamin `centers` terurut naik. */
-function thin(centers, labelAt, width, plotW, minGap = 64, gap = 6) {
+function thin(centers, labelAt, width, plotW, minGap = null, gap = 6) {
   const count = centers.length;
   const memo = new Map();
   const label = (i) => { if (!memo.has(i)) memo.set(i, labelAt(i)); return memo.get(i); };
@@ -393,9 +425,27 @@ function thin(centers, labelAt, width, plotW, minGap = 64, gap = 6) {
     return c;
   };
   const stepFor = (g) => Math.max(1, Math.ceil(count / Math.max(1, Math.floor(plotW / g))));
-  let step = stepFor(minGap);
+  const base = minGap ?? 64;
+  let step = stepFor(base);
   const widest = Math.max(0, ...candidates(step).map((i) => textWidth(label(i))));
-  if (widest + gap * 2 > minGap) step = stepFor(widest + gap * 2);
+  /* Irama BAWAAN menyesuaikan DUA arah; irama yang DISEBUT pemanggil hanya naik.
+     Menaikkan untuk label lebar sudah ada sejak P1-A. Menurunkan untuk label
+     SEMPIT ditambahkan setelah verifikasi P1-E: 64 px ditera untuk
+     '05 Sep 2026' (61,6 px) dan dipakai apa adanya oleh sumbu berlabel 'M12'
+     (±21 px), sehingga kurva-S 12 minggu tergambar M1, M3, M5, M7, M9, M11,
+     M12 — tujuh label di sumbu yang grafik tangannya menggambar dua belas,
+     dengan ruang yang jelas cukup.
+
+     Hanya bawaan, karena `barChart` MENYEBUT iramanya (48, atau lebar band):
+     angka itu adalah pernyataan tentang bentuk grafiknya, bukan tera untuk
+     lebar teks, dan menurunkannya akan menambah label di sumbu yang tidak
+     meminta. Lantai 28 px menjaga jarak; uji tabrakan di bawah tetap kata
+     terakhir, jadi irama yang lebih rapat tidak pernah bisa membuat dua label
+     bertumpuk. */
+  const rhythm = minGap === null
+    ? Math.max(28, widest + gap * 2)
+    : Math.max(base, widest + gap * 2);
+  if (rhythm !== base) step = stepFor(rhythm);
   const picked = [];
   candidates(step).forEach((i) => {
     const { left } = box(i);
@@ -423,7 +473,14 @@ export function lineChart({
     }).sort((a, b) => a.x - b.x);
     const dash = typeof s?.dash === 'string' && s.dash.trim() ? s.dash.trim() : s?.dashed ? '6 4' : null;
     const dots = s?.dots === false ? 'none' : s?.dots === 'last' ? 'last' : 'all';
-    return { label: s?.label ?? `Seri ${i + 1}`, dash, dots, area: !!s?.area, token: tokenOf(s?.token) ?? seriesToken(i), index: i + 1, points };
+    /* Tebal garis per seri, 2 px bila tidak disebut. Ada karena grafik tangan
+       yang digantikan P1-E memberi seri TERUKUR satu setengah kali tebal seri
+       acuannya (`.chart .act { stroke-width: 2.5 }` vs `.plan/.base/.ev` 2),
+       dan hierarki itu hilang tanpa suara saat charts.js menuliskan 2 untuk
+       semuanya — seri kini hanya berbeda warna dan pola putus (verifikasi
+       P1-E). Dijepit 1–4: sebuah garis 12 px bukan penekanan melainkan pita. */
+    const strokeWidth = Math.min(4, Math.max(1, finite(s?.width) ?? 2));
+    return { label: s?.label ?? `Seri ${i + 1}`, dash, dots, width: strokeWidth, area: !!s?.area, token: tokenOf(s?.token) ?? seriesToken(i), index: i + 1, points };
   });
   /* Skala campuran adalah kesalahan pemanggil, tetapi keluarannya tidak boleh mengarang:
      begitu satu x adalah tanggal, x yang bukan tanggal (angka, 'abc') dibuang sebagai
@@ -441,6 +498,19 @@ export function lineChart({
      pada sumbu tanggal) tetap di legenda tetapi MENGATAKANNYA: 'indeks (tanpa data)' — swatch
      tanpa garis dulu tampak seperti seri yang kebetulan tidak terlihat. */
   rows.forEach((s) => { s.hasData = s.points.some((p) => p.y !== null); });
+  /* …dan apakah seri itu akan punya GARIS sama sekali. Sebuah run satu titik
+     tidak menggambar path, jadi seri yang seluruh datanya terpencil (biaya
+     aktual EVM dengan lubang di tengah, atau proyek yang baru dibaseline)
+     hanya menghasilkan titik — sementara legendanya tetap menggambar swatch
+     berupa GARIS penuh untuk garis yang tidak ada di grafik (verifikasi P1-E). */
+  rows.forEach((s) => {
+    let run = 0;
+    s.hasLine = false;
+    s.points.forEach((p) => {
+      run = p.y === null ? 0 : run + 1;
+      if (run > 1) s.hasLine = true;
+    });
+  });
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
   if (!ys.length) return placeholder('line', ariaLabel);
 
@@ -456,7 +526,19 @@ export function lineChart({
      tingginya dari x0 = 0 memberi baris lebih sedikit daripada yang tergambar (sumbu Rp →
      PAD.left 120, 8 seri berlabel 26–31 huruf: 3 baris dihitung, 4 digambar, catatan sumber
      16 px di luar viewBox — menimpa kepala kartu berikutnya; diukur 5 Sep 2026). */
-  const items = rows.map((s) => ({ label: s.hasData ? s.label : `${s.label} (tanpa data)`, token: s.token, kind: 'line', dash: s.dash, series: s.index, nodata: !s.hasData }));
+  const items = rows.map((s) => ({
+    label: s.hasData ? s.label : `${s.label} (tanpa data)`,
+    token: s.token,
+    // Seri yang hanya bertitik dilambangkan TITIK: swatch garis untuk seri
+    // tanpa garis adalah legenda yang menjelaskan grafik lain.
+    kind: s.hasData && !s.hasLine ? 'dot' : 'line',
+    dash: s.dash,
+    // Swatch setebal garisnya: legenda yang menggambar semua seri sama tebal
+    // menghapus hierarki yang baru saja dipulihkan di plotnya.
+    width: s.width,
+    series: s.index,
+    nodata: !s.hasData,
+  }));
   const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
   const legendH = legendLayout.length * 16;
   const noteH = sourceNote ? 16 : 0;
@@ -496,7 +578,7 @@ export function lineChart({
         const area = make('path', { class: 'series-area', d: `${d} L${round(x(pts[pts.length - 1].x))},${round(base)} L${round(x(pts[0].x))},${round(base)} Z`, 'fill-opacity': 0.12, 'data-series': s.index, 'clip-path': clip });
         svg.appendChild(paint(area, 'fill', s.token));
       }
-      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash, 'data-series': s.index, 'clip-path': clip });
+      const path = make('path', { class: 'series-line', d, fill: 'none', 'stroke-width': s.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash, 'data-series': s.index, 'clip-path': clip });
       svg.appendChild(paint(path, 'stroke', s.token));
     });
     const lastRun = runs[runs.length - 1];
@@ -509,7 +591,14 @@ export function lineChart({
          dengan nilai 140 dulu menggambar titik 73 px di atas svg, menimpa kepala kartu. */
       const outside = p.y > hi ? 'above' : p.y < lo ? 'below' : null;
       const cy = outside === 'above' ? PAD.top : outside === 'below' ? PAD.top + plotH : y(p.y);
-      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: p.r ?? (pts.length === 1 ? 4 : 3), 'data-series': s.index, 'data-outside': outside });
+      /* Run satu titik digambar walau `dots:false` — tanpa garis maupun titik
+         nilainya tidak terlihat sama sekali — tetapi ukurannya TIDAK boleh
+         melampaui penanda yang pemanggilnya minta sendiri: titik as-of EVM
+         (r 4, satu-satunya titik yang dicari orang saat membuka kartu itu)
+         dulu diimbangi oleh titik pengecualian yang juga r 4, 2,7 px di
+         sebelahnya (verifikasi P1-E). Pengecualian karena itu memakai jari-jari
+         titik biasa. */
+      const dot = make('circle', { class: 'series-point', cx: x(p.x), cy, r: p.r ?? 3, 'data-series': s.index, 'data-outside': outside });
       svg.appendChild(mark(paint(dot, 'fill', p.token ?? s.token), `${p.title ?? `${s.label} — ${labelX(p.x)}: ${fy(p.y)}`}${outside ? ' (di luar sumbu)' : ''}`));
     }));
   });

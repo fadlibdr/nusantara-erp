@@ -7,13 +7,17 @@ import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
 import { setCrumbs } from './crumbs.js';
+import { prefs } from './prefs.js';
 import { renderModuleHome } from './views/module.js';
+import { renderHome } from './views/home.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
 import { renderDetail } from './views/detail.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderProject } from './views/project.js';
 import { renderReports } from './views/reports.js';
+import { renderLaporanBebas } from './views/laporanbebas.js';
+import { renderBoard } from './views/board.js';
 import {
   renderStock, renderPayrollRun, renderTicket, renderSubcontract,
   renderPayment, renderRole, renderEmployee, renderAsset, renderAssetUtilization, renderCompany, renderRevenueRun,
@@ -58,25 +62,31 @@ const root = document.getElementById('root');
 const THEME_KEY = 'nusantara_erp_theme';
 const NAV_STATE_KEY = 'nusantara_erp_nav';
 /*
- * Favorit dan Terakhir dibuka (T2.5) berkunci per id pengguna, tidak seperti
- * NAV_STATE_KEY: tablet kantor lapangan dipakai bergantian, dan lima dokumen
- * terakhir seorang pengawas bukan urusan kasir yang masuk sesudahnya.
+ * Favorit dan Terakhir dibuka (T2.5) — sejak P1-C keduanya PREFERENSI SERVER
+ * (core/me/preferences lewat prefs.js), bukan localStorage per id pengguna:
+ * bintang yang dipasang di desktop kantor harus ada juga di tablet lapangan.
+ * prefs.js tetap menyimpan cermin lokal per pengguna, jadi sifat "kasir tidak
+ * mewarisi lima dokumen pengawas" yang dulu dijaga personalKey tetap berlaku.
+ *
+ * Berapa banyak yang DISIMPAN adalah urusan server (whitelist UserPreferences,
+ * diumumkan lewat meta dan dibaca prefs.js); yang diputuskan di sini hanya
+ * berapa yang DIGAMBAR sidebar — lima teratas. Beranda modul #/m/<prefix>
+ * menyaring daftar yang sama per modul, jadi menyimpan lebih banyak daripada
+ * yang muat di sidebar memang gunanya. Angka plafonnya sendiri tidak ditulis
+ * lagi di berkas ini: salinan ketiganya yang pernah berdiri di sini tidak
+ * dibaca satu baris pun (verifikasi P1-C, 6 Sep 2026).
  */
-const FAVORITES_KEY = 'nusantara_erp_fav';
-const RECENT_KEY = 'nusantara_erp_recent';
-const RECENT_MAX = 5;
+const RECENT_SIDEBAR = 5;
 const FAVORITES_LABEL = 'Favorit';
 const RECENT_LABEL = 'Terakhir dibuka';
 /*
  * Kepadatan (P1-B): rapat 32 / normal 38,5 / lega 48 px per baris satu-baris
- * (angka diukur, blok token app.css). Per pengguna lewat personalKey seperti
- * favorit — kunci localStorage `nusantara_erp_density:<id pengguna>`, nilai
- * 'compact' | 'normal' | 'comfortable'. P1-C memindahkannya ke server
- * (core/me/preferences) bersama favorit/recent: baca kunci ini sekali lalu
- * hapus. Dipasang sebagai data-density di <html> SEBELUM shell digambar
- * (evaluasi modul + boot()), jadi tidak ada kedipan dari normal ke rapat.
+ * (angka diukur, blok token app.css). Sejak P1-C nilainya preferensi server
+ * ('compact' | 'normal' | 'comfortable'); cermin lokal prefs.js yang menjawab
+ * seketika, karena atribut data-density dipasang di <html> SEBELUM shell
+ * digambar (evaluasi modul + boot()) dan jawaban server baru datang sesudah
+ * refreshMe() — tanpa cermin ada kedipan normal → padat di setiap muat.
  */
-const DENSITY_KEY = 'nusantara_erp_density';
 // 'Padat', bukan 'Rapat': di ERP "rapat" terbaca lebih dulu sebagai pertemuan (verifikasi P1-B 5 Sep 2026).
 const DENSITIES = { compact: 'Padat', normal: 'Normal', comfortable: 'Lega' };
 
@@ -99,7 +109,7 @@ applyTheme(localStorage.getItem(THEME_KEY) || 'system');
 
 /* ---------------------------------------------------------------- density */
 function readDensity() {
-  const stored = localStorage.getItem(personalKey(DENSITY_KEY));
+  const stored = prefs.get('density');
   return DENSITIES[stored] ? stored : 'normal';
 }
 
@@ -108,7 +118,7 @@ function applyDensity(density) {
 }
 
 function setDensity(density) {
-  localStorage.setItem(personalKey(DENSITY_KEY), density);
+  prefs.set('density', density);
   applyDensity(density);
 }
 
@@ -451,15 +461,6 @@ function renderResetPassword({ token, email }) {
  */
 const navForSession = () => visibleNav((perm) => session.can(perm));
 
-function personalKey(base) {
-  return `${base}:${(session.user || {}).id ?? 'anon'}`;
-}
-
-function readList(key) {
-  const list = JSON.parse(localStorage.getItem(key) || '[]');
-  return Array.isArray(list) ? list : [];
-}
-
 /*
  * null = belum pernah menyentuh grup mana pun, dan itulah yang membedakan
  * bawaan baru (tertutup) dari preferensi tersimpan (menang, seperti dulu).
@@ -489,13 +490,15 @@ function ensureGroupOpen(label) {
   localStorage.setItem(NAV_STATE_KEY, JSON.stringify([...stored]));
 }
 
+/*
+ * Bintang dan "Terakhir dibuka" ditulis prefs.js, dan prefs.js yang mengumumkan
+ * perubahannya lewat peristiwa window — sidebar mendengarkan di bawah. Jalur
+ * ini satu untuk SEMUA pemasang bintang (sidebar, beranda modul), jadi bintang
+ * yang dinyalakan di kartu beranda modul menyalakan baris sidebarnya juga tanpa
+ * module.js perlu mengimpor shell ini.
+ */
 function toggleFavorite(route) {
-  const key = personalKey(FAVORITES_KEY);
-  const list = readList(key);
-  const next = list.includes(route) ? list.filter((one) => one !== route) : [...list, route];
-  localStorage.setItem(key, JSON.stringify(next));
-  if (!list.length && next.length) ensureGroupOpen(FAVORITES_LABEL);
-  refreshNav();
+  prefs.toggleFavorite(route);
   // Fokus kembali ke bintang baris yang sama di grup asalnya: barisan
   // Favorit baru saja dibangun ulang (atau barisnya hilang), dan pengguna
   // papan ketik tidak boleh terlempar ke awal dokumen.
@@ -503,14 +506,16 @@ function toggleFavorite(route) {
   if (star) star.focus();
 }
 
-function rememberRecent(route, label, sub) {
-  const key = personalKey(RECENT_KEY);
-  const list = readList(key);
-  const next = [{ route, label, sub }, ...list.filter((one) => one.route !== route)].slice(0, RECENT_MAX);
-  localStorage.setItem(key, JSON.stringify(next));
-  if (!list.length) ensureGroupOpen(RECENT_LABEL);
+window.addEventListener('erp:favorites-changed', (event) => {
+  const { was = 0, now = 0 } = event.detail || {};
+  if (!was && now) ensureGroupOpen(FAVORITES_LABEL);
   refreshNav();
-}
+});
+
+window.addEventListener('erp:recent-changed', (event) => {
+  if (!(event.detail || {}).was) ensureGroupOpen(RECENT_LABEL);
+  refreshNav();
+});
 
 /* Favorit dirujuk lewat rute ke NAV yang sedang terlihat: bintang pada layar
    yang izinnya dicabut ikut lenyap, dan kembali bila izinnya kembali (daftar
@@ -518,15 +523,14 @@ function rememberRecent(route, label, sub) {
    rute d/* sendiri, jadi tidak ada tautan ke halaman "akses ditolak". */
 function shortcutGroups(groups) {
   const flat = groups.flatMap((group) => group.items.filter((item) => item.route));
-  const favorites = readList(personalKey(FAVORITES_KEY))
+  const favorites = prefs.favorites()
     .map((route) => flat.find((item) => item.route === route))
     .filter(Boolean);
-  const recent = readList(personalKey(RECENT_KEY))
-    .filter((one) => {
-      const def = RESOURCES[String(one.route).replace(/^d\//, '').replace(/\/[^/]+$/, '')];
-      return Boolean(def) && session.can(def.viewPerm || `${def.module}.view`);
-    })
-    .map((one) => ({ ...one, starrable: false, shortcut: true }));
+  // Disimpan 20 (plafon server), digambar lima: sidebar bukan riwayat, dan
+  // sisanya dipakai beranda modul yang menyaring daftar yang sama per modul.
+  const recent = prefs.visibleRecent((perm) => session.can(perm))
+    .slice(0, RECENT_SIDEBAR)
+    .map((one) => ({ route: one.route, label: one.label, sub: one.sub, starrable: false, shortcut: true }));
   return [
     favorites.length ? { label: FAVORITES_LABEL, kind: 'shortcut', items: favorites } : null,
     recent.length ? { label: RECENT_LABEL, kind: 'shortcut', items: recent } : null,
@@ -546,6 +550,11 @@ function navItemNode(item, favorites) {
     el('span.tick'),
     el('span.lbl', { text: item.label }),
   ]);
+  // Baris kroma aplikasi (schema.js `chrome: true` — hari ini hanya Beranda):
+  // ada di menu, tetapi bukan salah satu LAYAR modulnya. Ditandai di DOM supaya
+  // pembaca luar (harness) menyaring dengan penanda yang sama seperti kisi
+  // kartu beranda modul, bukan dengan daftar href yang dikarangnya sendiri.
+  if (item.chrome) link.dataset.chrome = '1';
   const node = el(`.nav-item${item.shortcut ? '.shortcut' : ''}`, { dataset: { route: item.route } }, [link]);
   if (item.starrable !== false) node.appendChild(starButton(item.route, favorites.includes(item.route)));
   return node;
@@ -591,7 +600,7 @@ function navGroupNode(nav, group, favorites, stored) {
 function renderNav(nav) {
   clear(nav);
   const groups = navForSession();
-  const favorites = readList(personalKey(FAVORITES_KEY));
+  const favorites = prefs.favorites();
   const stored = storedOpenGroups();
   for (const group of [...shortcutGroups(groups), ...groups]) {
     nav.appendChild(navGroupNode(nav, group, favorites, stored));
@@ -642,6 +651,12 @@ function buildShell() {
     ]),
     el('header.header', [
       menuToggle,
+      // Rumah ke launcher (P1-C), di sebelah hamburger dan sebelum remah roti:
+      // di ponsel remah roti hanya menyebut TEMPAT SEKARANG, dan sebelum ini
+      // satu-satunya jalan pulang adalah membuka laci menu lebih dulu.
+      Object.assign(button('', {
+        variant: 'ghost', iconName: 'home', title: 'Beranda', onClick: () => navigate('home'),
+      }), { className: 'btn ghost icon home-btn' }),
       // <nav> berlabel: dua tautan di dalamnya (modul, layar) butuh landmark supaya
       // pembaca layar bisa melompat ke remah roti (verifikasi P1-B 5 Sep 2026).
       el('nav.crumbs', { id: 'crumbs', 'aria-label': 'Remah roti' }),
@@ -726,9 +741,9 @@ function openUserMenu(user) {
 
 /*
  * Kontrol "Kepadatan" di dialog Akun (P1-B): tiga radio, berlaku seketika
- * (tanpa muat ulang) dan diingat per pengguna di peramban ini — sama seperti
- * favorit, dan sama seperti tema, ini preferensi peramban sampai P1-C
- * memindahkannya ke server.
+ * (tanpa muat ulang) dan sejak P1-C diingat DI SERVER bersama favorit — jadi
+ * pilihannya ikut orangnya ke tablet lapangan. Tema masih preferensi peramban:
+ * terang/gelap mengikuti perangkat dan cahaya di sekitarnya, bukan orangnya.
  */
 function densityControl() {
   const current = readDensity();
@@ -839,11 +854,24 @@ function registerRoutes() {
     guard(host, () => renderDashboard(host));
   });
 
-  route('reports', () => {
+  /* `?tab=<kunci>` (P1-D): widget dasbor menaut ke laporan yang benar-benar
+     memuat angkanya, bukan ke tab pertama. Query dipisah router sebelum
+     pencocokan pola, jadi rute lama '#/reports' tidak berubah sedikit pun. */
+  /* P1-F — penyusun laporan lintas modul. Tanpa guard() berizin tunggal:
+     izin sebuah laporan adalah izin SUMBERnya, dan katalognya menyaring diri
+     sendiri; peran tanpa satu sumber pun mendapat kalimat yang mengatakannya. */
+  route('laporan-bebas', () => {
+    setCrumbs(['Ringkasan', 'Laporan Bebas']);
+    setActiveNav('laporan-bebas');
+    renderLaporanBebas(view());
+  });
+
+  route('reports', (params, path, query) => {
     setCrumbs(['Keuangan', 'Laporan']);
     setActiveNav('reports');
     const host = view();
-    guard(host, () => renderReports(host));
+    const tab = new URLSearchParams(query || '').get('tab');
+    guard(host, () => renderReports(host, tab));
   });
 
   /* Drill-down di balik satu baris neraca saldo. Neraca saldo Juli 2026
@@ -1133,6 +1161,18 @@ function registerRoutes() {
     guard(host, () => renderSettings(host));
   });
 
+  /* App launcher (P1-C) — halaman pertama di ponsel (keputusan pemilik #3) dan
+     "Beranda" di sidebar/header pada semua lebar. Tanpa gerbang izin: kisinya
+     dibangun dari visibleNav(), jadi orang tanpa satu layar pun mendapat
+     keadaan kosong beranda itu sendiri — dan orang seperti itu tidak bisa
+     masuk. */
+  route('home', () => {
+    setCrumbs(['Beranda']);
+    setActiveNav('home');
+    const host = view();
+    guard(host, () => renderHome(host));
+  });
+
   /* Beranda modul (P1-B) — sasaran remah modul; minimal: kepala beraksen +
      kartu layar yang boleh dibuka (views/module.js). Tanpa gerbang izin:
      grup yang izinnya tidak dipegang berakhir di keadaan kosong beranda itu
@@ -1152,6 +1192,27 @@ function registerRoutes() {
   });
 
   // r/<resource path> — list screen
+  /* b/<resource path> — papan kanban (P1-G). Gerbangnya PERSIS gerbang layar
+     daftarnya (def.viewPerm || `${def.module}.view`): papan bukan data baru,
+     ia tampilan kedua atas daftar yang sama. Resource tanpa blok `board:`
+     menjawab kalimat, bukan layar kosong. */
+  route('b/*', (_, path) => {
+    const key = path.slice(2);
+    const def = RESOURCES[key];
+    const host = view();
+
+    if (!def || !def.board) {
+      host.appendChild(el('.alert.error', `Papan "${key}" tidak dikenal.`));
+      return;
+    }
+
+    setCrumbs([groupLabelFor(key), `Papan ${def.label}`]);
+    setActiveNav(`b/${key}`);
+
+    if (!session.can(def.viewPerm || `${def.module}.view`)) return accessDenied(host, def.module);
+    return guard(host, () => renderBoard(host, { key, def }));
+  });
+
   route('r/*', (_, path) => {
     const key = path.slice(2);
     const def = RESOURCES[key];
@@ -1228,7 +1289,7 @@ function registerRoutes() {
       if (currentPath().split('?')[0] !== route || !host.querySelector('.page-head')) return;
       const crumb = document.querySelector('#crumbs b');
       const title = crumb && crumb.textContent.trim() !== `#${id}` ? crumb.textContent.trim() : '';
-      rememberRecent(route, title || `${def.labelOne || def.label} #${id}`, def.labelOne || def.label);
+      prefs.rememberRecent(route, title || `${def.labelOne || def.label} #${id}`, def.labelOne || def.label);
     });
 
     return shown;
@@ -1236,7 +1297,7 @@ function registerRoutes() {
 
   fallback((path) => {
     if (!path || path === '/') {
-      navigate('dashboard', { replace: true });
+      landOnDefault();
       return;
     }
     setCrumbs(['Tidak ditemukan']);
@@ -1282,8 +1343,8 @@ let routesRegistered = false;
 
 async function boot() {
   // Sesudah masuk id pengguna sudah ada: kepadatan MILIKNYA dipasang sebelum
-  // shell digambar (evaluasi modul di atas membaca kunci pengguna sebelumnya
-  // atau 'anon').
+  // shell digambar (cermin prefs.js; evaluasi modul di atas membaca cermin
+  // pengguna sebelumnya atau 'anon').
   applyDensity(readDensity());
   startNotificationPolling();
   buildShell();
@@ -1294,19 +1355,78 @@ async function boot() {
     // otherwise stack a second listener and open two dialogs on one Ctrl+K.
     registerSearchShortcut();
     routesRegistered = true;
+    landOnDefault();
     start();
   } else {
-    // Re-render the current route into the freshly built shell.
+    /* Masuk ULANG di tab yang sama (sesi berakhir di tengah kerja): halaman yang
+       sedang dibaca orangnya dipulihkan, dan landOnDefault() di bawah karena itu
+       tidak melakukan apa-apa — hash-nya sudah terisi. Itu disengaja: yang baru
+       saja kehilangan sesi sedang mengerjakan sesuatu (offerDrafts menawarkan
+       isiannya kembali di baris berikutnya), dan melemparnya ke launcher berarti
+       menghilangkan tempat ia berada. Aturan landing berlaku pada muat halaman
+       yang tanpa hash — yaitu masuk yang sesungguhnya pertama. */
     const path = currentPath();
     navigate('dashboard', { replace: true });
     if (path !== 'dashboard') navigate(path, { replace: true });
-    else start();
+    else {
+      landOnDefault();
+      start();
+    }
   }
 
   // Refresh permissions in the background — roles may have changed since login.
   // The onboarding decision rides on the same answer, so it waits for it.
-  refreshMe().catch(() => {}).then(() => maybeShowOnboarding());
+  // Preferensi ikut di belakangnya, dan dengan alasan yang sama: keputusan yang
+  // dibuat di perangkat lain harus menang atas cermin lokal peramban ini.
+  refreshMe()
+    .catch(() => {})
+    .then(() => prefs.load().catch(() => {}))
+    .then(() => {
+      // Jawaban server boleh berbeda dari cermin (dipilih di perangkat lain,
+      // atau baru saja dinaikkan dari localStorage P1-B): pasang lagi.
+      applyDensity(readDensity());
+      refreshNav();
+      maybeShowOnboarding();
+    });
   offerDrafts();
+}
+
+/*
+ * Landing sesudah masuk (keputusan pemilik #3, ROADMAP-HASHMICRO §5): dasbor di
+ * atas 760 px, app launcher #/home pada 760 px ke bawah. 760 px bukan angka
+ * baru — itulah titik potong yang SUDAH dipakai app.css untuk melipat sidebar
+ * menjadi laci, dan di bawahnya menu tidak terlihat sampai seseorang menekan
+ * hamburger: mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar
+ * yang terlihat. Itu SENDIRI sudah cukup, dan sejak P1-D itulah satu-satunya
+ * alasan yang masih berdiri.
+ *
+ * Alasan KEDUA yang dulu ditulis di sini — "DUA dari 12 peran demo bahkan
+ * mendarat di dasbor KOSONG: procurement dan hr" — sudah tidak benar, dan yang
+ * membatalkannya adalah paket P1-D itu sendiri: susunan bawaan per peran
+ * memberi setiap peran demo widget-nya sendiri. Diukur ulang 6 Sep 2026 dengan
+ * masuk sebagai kedua belas akun demo (S22_roles_with_tiles):
+ * roles_without_dashboard_stat = [] — hr 0 → 5 ubin, procurement 0 → 6,
+ * direktur 6 → 16, admin 6 → 16, project-manager 1 → 14. Kalimat lama
+ * dibiarkan hidup di sini sampai verifikasi kedua P1-D, sementara berkas bukti
+ * yang dirujuknya masih memuat angka sebelum paket ini.
+ *
+ * PEMBANDINGNYA `>`, BUKAN `>=`. `@media (max-width: 760px)` INKLUSIF: pada
+ * lebar 760 px tepat, sidebar sudah menjadi laci. Aturan ini dulu memakai
+ * `>= 760` — juga inklusif — jadi 760 px adalah satu-satunya lebar yang
+ * mendapat KEDUANYA: laci DAN dasbor, persis gabungan yang aturan ini ditulis
+ * untuk mencegah (terukur 6 Sep 2026 sebagai admin@: 759 → #/home,
+ * 760 → #/dashboard dengan matchMedia('(max-width: 760px)') true dan nav di
+ * luar layar, 761 → #/dashboard dengan sidebar terlihat).
+ *
+ * Hanya berlaku ketika TIDAK ADA hash: tautan-dalam (notifikasi ke
+ * `#/d/finance/ap-bills/12`, tab yang dipulihkan peramban, tombol Kembali)
+ * mendarat di tempat yang diminta. Karena itu location.hash yang dibaca, bukan
+ * currentPath() yang mengarang 'dashboard' saat hash kosong.
+ */
+function landOnDefault() {
+  const hash = location.hash;
+  if (hash && hash !== '#' && hash !== '#/') return;
+  navigate(window.innerWidth > 760 ? 'dashboard' : 'home', { replace: true });
 }
 
 /*

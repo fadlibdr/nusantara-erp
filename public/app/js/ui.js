@@ -73,6 +73,9 @@ const PATHS = {
   sun: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 1v1.5M8 13.5V15M15 8h-1.5M2.5 8H1M12.9 3.1l-1 1M4.1 11.9l-1 1M12.9 12.9l-1-1M4.1 4.1l-1-1',
   moon: 'M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1Z',
   star: 'M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z',
+  // P1-C: rumah = launcher #/home. Digambar di viewBox 16 seperti tetangganya
+  // (sprite Lucide berjalan di viewBox 24 lewat svgIcon dan tidak bisa dicampur).
+  home: 'M2.5 7.2 8 2.5l5.5 4.7M4 8.6V13a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V8.6M6.5 13.5V9.5h3v4',
 };
 
 export function icon(name, size = 16) {

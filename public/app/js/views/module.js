@@ -1,28 +1,44 @@
 /*
- * Beranda modul #/m/<prefix> (P1-B) — sasaran remah modul di bilah atas.
+ * Beranda modul #/m/<prefix> — sasaran remah modul dan ubin launcher.
  *
- * Versi minimal, sengaja: kepala beraksen (nama grup NAV, satu kalimat dari
- * schema.js MODULES) dan kisi kartu layar yang boleh dibuka pemanggil. Kartu
- * dibaca dari visibleNav() — penyaring izin yang SAMA dengan sidebar dan
- * Ctrl+K — jadi beranda ini tidak pernah menawarkan layar yang barisnya
- * disembunyikan dari menu, dan grup yang izinnya tidak dipegang berakhir di
- * keadaan kosong, bukan panel akses-ditolak (grupnya memang tidak ada bagi
- * orang itu). Tidak ada hitungan, tidak ada KPI: angka datang di P1-C bersama
- * "Terakhir dibuka" dan launcher #/home.
+ * P1-B membangun versinya yang minimal: kepala beraksen (nama grup NAV, satu
+ * kalimat dari schema.js MODULES) dan kisi kartu layar yang boleh dibuka
+ * pemanggil. Kartu dibaca dari visibleNav() — penyaring izin yang SAMA dengan
+ * sidebar, Ctrl+K dan launcher — jadi beranda ini tidak pernah menawarkan layar
+ * yang barisnya disembunyikan dari menu, dan grup yang izinnya tidak dipegang
+ * berakhir di keadaan kosong, bukan panel akses-ditolak (grupnya memang tidak
+ * ada bagi orang itu).
  *
- * Keterangan kartu hanya dari yang sudah ada (def.description resource daftar,
- * atau item.sub NAV) — tanpa itu kartu hanya ikon + label; tidak ada kalimat
- * yang dikarang per layar.
+ * P1-C menambahkan tiga hal, dan SATU permintaan untuk semuanya:
  *
- * Struktur (verifikasi P1-B 5 Sep 2026): kisi adalah <ul> berlabel dengan
- * <li> per kartu, pemisah NAV menjadi <h2> yang melabeli <section>-nya —
- * sebelumnya aria-label dipasang pada <div> polos (peran generic, label
- * diabaikan pembaca layar) dan pemisah adalah <div> bergaya eyebrow.
+ *  - UBIN ANGKA. Angka utama modul dari registri ModuleCounts, plus paling
+ *    banyak tiga angka sekunder — dan HANYA yang sudah ada di endpoint yang
+ *    dipanggil, tidak satu kueri baru pun. Untuk Proyek dan Keuangan itu
+ *    berarti `core/dashboard/summary?include=modules`, yang membawa blok modul
+ *    DAN ubin uang dasbor sekaligus: satu permintaan, bukan dua. Modul lain
+ *    memanggil `core/modules` saja dan memimpin dengan angka utamanya. Tidak
+ *    ada modul yang mendapat angka karangan supaya kepalanya tampak penuh.
+ *  - TERAKHIR DIBUKA modul ini, disaring dari preferensi server yang sama
+ *    dengan sidebar. Kosong → "Belum ada yang dibuka", bukan baris hilang.
+ *  - BINTANG per kartu, menulis ke preferensi server. Bintangnya <button> di
+ *    samping <a>, bukan di dalamnya: tombol di dalam tautan bukan HTML yang sah
+ *    dan Enter di atasnya membuka layarnya alih-alih memasang bintang.
+ *
+ * Kejujuran angka mengikuti registrinya: entri yang tidak dikirim server (izin
+ * hitungannya tidak dipegang) dan count null sama-sama '—', tidak pernah 0.
  */
 
-import { session } from '../api.js';
-import { el, svgIcon, emptyState } from '../ui.js';
-import { RESOURCES, moduleFor, visibleNav } from '../schema.js';
+import { api, session } from '../api.js';
+import { el, svgIcon, icon, emptyState } from '../ui.js';
+import { NAV, RESOURCES, moduleFor, visibleNav } from '../schema.js';
+import { prefs } from '../prefs.js';
+import * as fmt from '../format.js';
+
+/** Dua modul yang angka sekundernya SUDAH ada di jawaban dasbor. */
+const SUMMARY_PREFIXES = ['prj', 'fin'];
+
+/** Entri "Terakhir dibuka" yang muat di kepala modul tanpa mendorong kartu ke bawah lipatan. */
+const RECENT_MAX = 6;
 
 export function renderModuleHome(host, { prefix }) {
   const module = moduleFor(prefix);
@@ -32,7 +48,11 @@ export function renderModuleHome(host, { prefix }) {
   }
 
   const visible = visibleNav((perm) => session.can(perm)).find((group) => group.prefix === prefix);
-  const items = visible ? visible.items : [];
+  /* Baris `chrome` (schema.js — hari ini hanya Beranda) dibuang: ia baris menu,
+     bukan layar modul. Kartu 'Beranda' di #/m/ringkasan menutup lingkaran ke
+     launcher yang baru saja ditinggalkan pemakainya, dan ubin launcher yang
+     menghitungnya mengaku "5 layar" untuk 4. */
+  const items = (visible ? visible.items : []).filter((item) => !item.chrome);
 
   host.appendChild(el('.module-head', { dataset: { accent: String(module.accent), prefix } }, [
     el('.module-icon', svgIcon(module.icon, { size: 22 })),
@@ -51,16 +71,198 @@ export function renderModuleHome(host, { prefix }) {
     return;
   }
 
+  const kpis = el('.module-kpis');
+  host.appendChild(kpis);
+  loadKpis(kpis, prefix);
+
+  const recentHost = el('div');
+  recentHost.appendChild(recentSection(prefix, module.label));
+  host.appendChild(recentHost);
+
   const screens = el('.module-screens', sections(items, prefix).map(({ caption, id, screens: list }) => {
     const grid = el('ul.module-grid', caption ? { 'aria-labelledby': id } : { 'aria-label': `Layar modul ${module.label}` },
-      list.map((item) => el('li', screenCard(item))));
+      list.map((item) => el('li.module-cell', [screenCard(item), starButton(item)])));
     return caption
       ? el('section.module-section-block', [el('h2.module-section', { id, text: caption }), grid])
       : grid;
   }));
   screens.addEventListener('keydown', arrowNavigation);
   host.appendChild(screens);
+
+  watchFavorites(screens);
+
+  /* Alasan yang sama dengan launcher: pada boot pertama di peramban baru
+     beranda modul digambar sebelum core/me/preferences menjawab, jadi
+     "Terakhir dibuka" lahir kosong dan bintangnya padam walau server
+     memilikinya. Kedua bagian itu digambar ulang di tempat; rutenya tidak
+     di-resolve ulang. */
+  const onPrefs = () => {
+    if (!screens.isConnected) {
+      window.removeEventListener('erp:prefs-loaded', onPrefs);
+      return;
+    }
+    recentHost.replaceChildren(recentSection(prefix, module.label));
+    syncStars(screens);
+  };
+  window.addEventListener('erp:prefs-loaded', onPrefs);
 }
+
+/* ------------------------------------------------------------------ angka */
+
+async function loadKpis(host, prefix) {
+  const wantsSummary = SUMMARY_PREFIXES.includes(prefix);
+
+  let payload = null;
+  try {
+    payload = wantsSummary
+      ? await api.get('core/dashboard/summary', { include: 'modules' })
+      : { modules: await api.get('core/modules') };
+  } catch {
+    payload = null;
+  }
+
+  if (!host.isConnected) return; // halaman sudah berganti selagi menunggu
+
+  if (payload === null) {
+    host.appendChild(el('.muted.module-kpi-note', { text: 'Angka modul tidak dapat dimuat sekarang.' }));
+    return;
+  }
+
+  const headline = (payload.modules || []).find((one) => one.prefix === prefix) || null;
+  const tiles = [headlineTile(headline), ...secondaryTiles(prefix, payload)].filter(Boolean);
+  if (!tiles.length) return;
+  tiles.forEach((tile) => host.appendChild(tile));
+}
+
+/**
+ * Angka utama. Entri yang tidak dikirim server berarti izin hitungannya tidak
+ * dipegang — dan itu bukan "0", melainkan tidak ada ubinnya sama sekali di
+ * sini: berbeda dengan launcher (yang harus menggambar SATU ubin per modul dan
+ * karena itu menulis '—'), kepala modul boleh diam.
+ */
+function headlineTile(entry) {
+  if (!entry) return null;
+  return kpiTile(entry.label, entry.count === null ? '—' : String(entry.count), entry.count === null ? null : entry.unit);
+}
+
+/**
+ * Paling banyak tiga angka sekunder, semuanya dari blok yang SUDAH ada di
+ * jawaban yang baru saja diambil. Blok yang tidak ada (izin modulnya tidak
+ * dipegang — DashboardController menyaringnya) tidak menghasilkan ubin.
+ */
+function secondaryTiles(prefix, payload) {
+  if (prefix === 'prj' && payload.projects) {
+    return [kpiTile('Nilai kontrak berjalan', fmt.rupiahShort(payload.projects.contract_value), null)];
+  }
+
+  if (prefix === 'fin') {
+    const out = [];
+    if (payload.ar_invoices) out.push(kpiTile('Piutang belum tertagih', fmt.rupiahShort(payload.ar_invoices.outstanding), null));
+    if (payload.ap_bills) {
+      out.push(kpiTile('Utang vendor', fmt.rupiahShort(payload.ap_bills.outstanding), null));
+      out.push(kpiTile('Tagihan vendor terbuka', String(payload.ap_bills.open_count), 'tagihan'));
+    }
+    return out;
+  }
+
+  return [];
+}
+
+function kpiTile(label, value, unit) {
+  return el('.module-kpi', [
+    el('.module-kpi-value', [el('span', { text: value }), unit ? el('span.module-kpi-unit', { text: unit }) : null]),
+    el('.module-kpi-label', { text: label, title: label }),
+  ]);
+}
+
+/* -------------------------------------------------------- terakhir dibuka */
+
+/**
+ * Dokumen modul ini yang terakhir dibuka orangnya. Modul sebuah entri dibaca
+ * dari GRUP NAV yang memuat layar daftarnya — bukan dari def.module — karena
+ * tujuh layar duduk di grup modul lain (Lokasi Tapak milik Core ada di grup
+ * Engineering, Log BBM di grup Aset dengan izin proyek): entri yang dibuka dari
+ * grup Engineering harus muncul kembali di beranda Engineering.
+ */
+function recentSection(prefix, moduleLabel) {
+  const rows = prefs.visibleRecent((perm) => session.can(perm))
+    .filter((one) => groupPrefixFor(one.key) === prefix)
+    .slice(0, RECENT_MAX);
+
+  /* Judulnya BUKAN .module-section: kelas itu berarti "pemisah NAV yang
+     melabeli kisinya", dan SidebarNav/S21 memeriksa bahwa SETIAP .module-section
+     punya id yang ditunjuk aria-labelledby sebuah .module-grid. Judul yang
+     menumpang kelas itu membuat pemeriksaan struktur merah untuk alasan yang
+     bukan cacat (terukur 6 Sep 2026: sections_label_their_grid false di #/m/fin). */
+  return el('section.module-recent', [
+    el('h2.module-recent-title', { text: 'Terakhir dibuka' }),
+    rows.length
+      ? el('ul.home-chips', { 'aria-label': `Dokumen ${moduleLabel} yang terakhir dibuka` }, rows.map((one) => el('li',
+        el('a.home-chip', { href: `#/${one.route}` }, [
+          el('b', { text: one.label }),
+          el('span.hint', { text: one.sub || one.def.labelOne || one.def.label }),
+        ]))))
+      : el('.muted.module-kpi-note', { text: 'Belum ada yang dibuka.' }),
+  ]);
+}
+
+function groupPrefixFor(resourceKey) {
+  const group = NAV.find((one) => one.items.some((item) => item.route === `r/${resourceKey}`));
+  if (group) return group.prefix;
+  const def = RESOURCES[resourceKey];
+  const module = def ? moduleFor(def.module) : null;
+  return module ? module.prefix : null;
+}
+
+/* ---------------------------------------------------------------- bintang */
+
+function starButton(item) {
+  const on = prefs.isFavorite(item.route);
+  const node = el('button.star', {
+    type: 'button', 'aria-pressed': String(on),
+    'aria-label': label(on), title: label(on),
+    dataset: { route: item.route },
+  }, icon('star', 13));
+  node.classList.toggle('on', on);
+  node.addEventListener('click', () => prefs.toggleFavorite(item.route));
+  return node;
+}
+
+function label(on) {
+  return on ? 'Hapus dari Favorit' : 'Tandai sebagai Favorit';
+}
+
+/*
+ * Bintang di sini dan bintang di sidebar menulis daftar yang SAMA, jadi salah
+ * satunya harus mengikuti yang lain — di desktop keduanya terlihat sekaligus,
+ * dan bintang beranda modul yang tetap padam setelah barisnya dibintangi dari
+ * sidebar terbaca sebagai bintang yang rusak. Pendengarnya membuang dirinya
+ * sendiri begitu layarnya diganti (view() mengosongkan #view, jadi node ini
+ * lepas dari dokumen): tanpa itu setiap kunjungan ke beranda modul meninggalkan
+ * satu pendengar window yang menggambar node yatim.
+ */
+function watchFavorites(screens) {
+  const sync = () => {
+    if (!screens.isConnected) {
+      window.removeEventListener('erp:favorites-changed', sync);
+      return;
+    }
+    syncStars(screens);
+  };
+  window.addEventListener('erp:favorites-changed', sync);
+}
+
+function syncStars(screens) {
+  screens.querySelectorAll('button.star').forEach((star) => {
+    const on = prefs.isFavorite(star.dataset.route);
+    star.setAttribute('aria-pressed', String(on));
+    star.setAttribute('aria-label', label(on));
+    star.title = label(on);
+    star.classList.toggle('on', on);
+  });
+}
+
+/* ------------------------------------------------------------------ kartu */
 
 /* Item NAV → blok per pemisah: kartu sebelum pemisah pertama (bila ada) jadi
    satu kisi tanpa judul, tiap pemisah membuka blok baru berjudul. */
