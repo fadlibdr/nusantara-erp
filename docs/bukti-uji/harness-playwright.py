@@ -2096,26 +2096,37 @@ def api_in_page(pg, path, params):
 def expected_count(pg, prefix):
     """Angka yang DIJANJIKAN ubin, dihitung ulang dari endpoint daftar modulnya.
 
-    None = endpoint menolak (403/401) — dan ubinnya karena itu WAJIB '—': server
-    tidak mengirim entri untuk modul yang izin hitungannya tidak dipegang."""
+    Mengembalikan (angka, panggilan, terpotong). None = endpoint menolak
+    (403/401) — dan ubinnya karena itu WAJIB '—': server tidak mengirim entri
+    untuk modul yang izin hitungannya tidak dipegang.
+
+    `terpotong` = pembacaan sisi-klien (decision_null / outstanding_gt0 / rows)
+    yang halamannya tidak memuat seluruh baris: per_page=500 di atas 500 baris
+    akan diam-diam membandingkan 500 dari 700 dan melaporkan cocok. Yang benar
+    adalah JATUH, bukan menghitung sebagian (verifikasi P1-C, 6 Sep 2026)."""
     spec = LAUNCHER_CHECKS[prefix]
-    total, calls = 0, []
+    total, calls, truncated = 0, [], False
     for params in spec["params"]:
         res = api_in_page(pg, spec["path"], params)
-        calls.append({"path": spec["path"], "params": params, "status": res["status"]})
+        rows = res["data"] or []
+        meta_total = (res["meta"] or {}).get("total")
+        calls.append({"path": spec["path"], "params": params, "status": res["status"],
+                      "rows": len(rows) if isinstance(rows, list) else None, "meta_total": meta_total})
         if res["status"] != 200:
-            return None, calls
+            return None, calls, False
         if spec["read"] == "meta_total":
-            total += int((res["meta"] or {}).get("total", 0))
+            total += int(meta_total or 0)
         elif spec["read"] == "unread_field":
             total += int((res["data"] or {}).get("unread", 0))
         elif spec["read"] == "rows":
-            total += len(res["data"] or [])
+            total += len(rows)
         elif spec["read"] == "decision_null":
-            total += sum(1 for row in (res["data"] or []) if row.get("decision") is None)
+            total += sum(1 for row in rows if row.get("decision") is None)
         elif spec["read"] == "outstanding_gt0":
-            total += sum(1 for row in (res["data"] or []) if float(row.get("outstanding") or 0) > 0)
-    return total, calls
+            total += sum(1 for row in rows if float(row.get("outstanding") or 0) > 0)
+        if spec["read"] in ("rows", "decision_null", "outstanding_gt0") and meta_total is not None and int(meta_total) > len(rows):
+            truncated = True
+    return total, calls, truncated
 
 
 def launcher_for(pg, email, tag, theme_probe=False):
@@ -2154,15 +2165,18 @@ def launcher_for(pg, email, tag, theme_probe=False):
             continue
         spec = LAUNCHER_CHECKS[prefix]
         may = spec["perm"] is None or spec["perm"] in held
-        expected, calls = expected_count(pg, prefix)
+        expected, calls, truncated = expected_count(pg, prefix)
         shown_kpi = tile["kpi"]
         if not may and expected is not None:
             # Rute index-nya menjawab walau izin layarnya tidak dipegang.
             open_endpoints.append({"prefix": prefix, "perm": spec["perm"], "path": spec["path"], "answered": expected})
         if may:
-            ok = expected is not None and shown_kpi == str(expected)
+            ok = expected is not None and shown_kpi == str(expected) and not truncated
             checks[prefix] = {"perm": spec["perm"], "expected": expected, "tile": shown_kpi, "unit": tile["unit"],
-                              "caption": tile["caption"], "calls": calls, "ok": ok}
+                              "caption": tile["caption"], "calls": calls, "truncated": truncated,
+                              # Sebuah kecocokan 0 == 0 tidak membedakan filter status yang benar
+                              # dari yang salah; yang MEMBEDAKAN adalah angka bukan-nol di kedua sisi.
+                              "discriminating": expected not in (None, 0), "ok": ok}
         else:
             ok = shown_kpi == "—"
             checks[prefix] = {"perm": spec["perm"], "held": False, "tile": shown_kpi, "calls": calls, "ok": ok,
@@ -2170,6 +2184,14 @@ def launcher_for(pg, email, tag, theme_probe=False):
     out["kpi_checks"] = checks
     out["kpi_all_match"] = all(c.get("ok") for c in checks.values())
     out["kpi_mismatches"] = [p for p, c in checks.items() if not c.get("ok")]
+    out["kpi_truncated"] = [p for p, c in checks.items() if c.get("truncated")]
+    # BERAPA BANYAK ARTI "cocok" itu: modul yang diadu dengan angka bukan-nol di
+    # kedua sisi, versus yang hanya membandingkan 0 dengan 0 atau menuntut '—'.
+    out["kpi_power"] = {
+        "discriminating": sorted(p for p, c in checks.items() if c.get("discriminating")),
+        "zero_vs_zero": sorted(p for p, c in checks.items() if c.get("expected") == 0),
+        "dash_only": sorted(p for p, c in checks.items() if c.get("held") is False),
+    }
     # Kejujuran: tidak satu pun ubin tanpa izin menulis angka.
     out["no_fake_zero"] = not any(c.get("held") is False and c["tile"] != "—" for c in checks.values())
     # …dan '—' tetap MENYEBUT angka apa yang tidak diketahui. Kasus yang paling
@@ -2280,9 +2302,31 @@ def launcher_truth(pg, tag):
     out["migration"]["ran_once"] = out["migration"]["server_after_second_boot"] == after
 
     # ------------------------------------------------------- tiga peran penuh
+    emails = ["admin@nusantara.test", "warehouse@nusantara.test", "teknisi@nusantara.test"]
+    # Fixture pembeda dulu: tanpa baris ini 8 dari 14 ubin admin berangka 0 dan
+    # pemeriksaannya membandingkan 0 dengan 0 (lihat plant_launcher_fixtures).
+    out["planted"] = plant_launcher_fixtures(emails)
     out["roles"] = {}
-    for index, email in enumerate(["admin@nusantara.test", "warehouse@nusantara.test", "teknisi@nusantara.test"]):
+    for index, email in enumerate(emails):
         out["roles"][email.split("@")[0]] = launcher_for(pg, email, tag, theme_probe=(index == 0))
+
+    # Daya beda skenario ini, dinyatakan sebagai angka dan bukan disimpulkan
+    # dari "14/14": modul yang PERNAH diadu dengan angka bukan-nol di kedua
+    # sisi, dan yang tidak pernah.
+    exercised = set()
+    for role in out["roles"].values():
+        exercised |= set((role.get("kpi_power") or {}).get("discriminating") or [])
+    checks_all = [c for role in out["roles"].values() for c in (role.get("kpi_checks") or {}).values()]
+    out["kpi_power"] = {
+        "modules": len(LAUNCHER_CHECKS),
+        "exercised_with_a_nonzero_count": sorted(exercised),
+        "modules_never_exercised": sorted(set(LAUNCHER_CHECKS) - exercised),
+        "checks_total": len(checks_all),
+        "checks_discriminating": sum(1 for c in checks_all if c.get("discriminating")),
+        "checks_zero_vs_zero": sum(1 for c in checks_all if c.get("expected") == 0),
+        "checks_dash_only": sum(1 for c in checks_all if c.get("held") is False),
+    }
+    out["kpi_power"]["every_module_exercised"] = not out["kpi_power"]["modules_never_exercised"]
 
     # --------------------------------------------------------- aturan landing
     # Diukur di viewport skenario ini; pasangannya diukur skenario kembarannya.
@@ -2355,6 +2399,166 @@ def launcher_truth(pg, tag):
     out["console_errors"] = {"count": len(rest), "first": rest[:3]}
     out["console_errors_from_probe"] = {"count": len(from_probe), "first": from_probe[:2]}
     return out
+
+
+# ------------------------------------------- fixture ubin: baris yang MEMBEDAKAN
+#
+# Pada salinan data demo 8 dari 14 ubin admin berangka 0, dan "0 == 0" tidak
+# membedakan filter status yang benar dari yang salah: registri mengembalikan 0
+# dan penyaring pembanding di atas juga 0, jadi 'est' yang menghitung draft
+# alih-alih submitted lulus diam-diam. Terukur pada jalan pembangun (verifikasi
+# P1-C, 6 Sep 2026): dari 46 pemeriksaan ubin di dua viewport, 26 membandingkan
+# 0 dengan 0, 6 hanya menuntut '—', dan 14 sisanya menyentuh 5 dari 14 modul.
+#
+# Karena itu skenario ini MEMBUAT fixture-nya sendiri (pola yang sama dengan
+# langkah migrasi preferensi): satu baris tambahan per modul yang COCOK dengan
+# filter ubinnya, disalin dari baris yang sudah ada di tabel itu — jadi setiap
+# kolom NOT NULL dan setiap kunci asingnya benar tanpa harus ditulis di sini —
+# dengan kolom penentu status yang diganti. Kodenya tetap ('UJI-S22-…'), jadi
+# menjalankan skenario dua kali tidak menumpuk baris.
+#
+# Yang TIDAK dilakukan: menanam baris yang tidak cocok. Baris demo yang ada
+# sudah memainkan peran itu (est punya draft, prc punya closed, svc punya
+# resolved), dan sisi server-nya dipaku ModuleCountsTest dengan 12 mutasi
+# status/scope yang merah.
+PLANT_CODE = "UJI-S22"
+NOW = time.strftime("%Y-%m-%d %H:%M:%S")
+
+# prefix → (tabel, kolom yang diganti, jumlah minimum baris yang ditanam).
+# Jumlah SEBENARNYA dihitung dari datanya (rows_needed): angka yang cocok harus
+# LEBIH BESAR daripada jumlah baris status lain mana pun di tabel itu, karena
+# kalau tidak, filter status yang salah bisa kebetulan menghasilkan angka yang
+# sama — pada salinan demo est punya 1 submitted DAN 1 draft, jadi menanam satu
+# baris saja masih meloloskan 'submitted' → 'draft'.
+LAUNCHER_PLANTS = [
+    ("est", "est_boqs", {"status": "submitted"}, 1),
+    ("qc", "qc_ncr", {"status": "open"}, 1),
+    ("ast", "ast_assets", {"status": "maintenance"}, 1),
+    ("scm", "scm_progress_claims", {"status": "submitted"}, 1),
+    ("fin", "fin_ar_invoices", {"status": "approved", "amount_paid": 0, "faktur_pajak_no": None}, 1),
+    # Tanpa kolom status: yang membedakan adalah `decision` null vs berisi, dan
+    # data demo punya SATU yang sudah diputus — jadi dua baris, bukan satu.
+    ("eng", "eng_drawing_submittals", {"decision": None, "superseded_at": None}, 2),
+]
+
+
+def rows_needed(prefix, table, overrides, minimum):
+    """Berapa baris yang harus ditanam supaya angka ubinnya MEMBEDAKAN.
+
+    Untuk modul berstatus: satu lebih banyak daripada status lain yang paling
+    ramai di tabel itu (status yang dihitung dibaca dari LAUNCHER_CHECKS —
+    daftar pembanding harness sendiri, bukan registri yang diperiksanya)."""
+    counted = [p["status"] for p in LAUNCHER_CHECKS[prefix]["params"] if "status" in p]
+    if "status" not in overrides or not counted:
+        return minimum
+    con = sqlite3.connect(DB)
+    try:
+        marks = ",".join("?" * len(counted))
+        alive = "deleted_at IS NULL AND" if [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] == "deleted_at"] else ""
+        matching = con.execute(f"SELECT COUNT(*) FROM {table} WHERE {alive} status IN ({marks})", counted).fetchone()[0]
+        others = con.execute(f"SELECT COUNT(*) FROM {table} WHERE {alive} status NOT IN ({marks}) GROUP BY status", counted).fetchall()
+    finally:
+        con.close()
+    biggest = max([row[0] for row in others] or [0])
+    return max(minimum, biggest + 1 - matching)
+
+
+def plant_row(table, overrides, code=None, source_where=None):
+    """Satu baris tambahan di `table`, disalin dari baris yang sudah ada di sana.
+
+    Mengembalikan catatan apa adanya — "ditanam", "sudah ada", "tabel kosong"
+    atau "GAGAL: …" — supaya bukti menyebut modul yang fixture-nya TIDAK jadi,
+    alih-alih diam dan melaporkan 0 == 0 sebagai kecocokan."""
+    con = sqlite3.connect(DB)
+    try:
+        cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})")]
+        if not cols:
+            return {"table": table, "state": "tabel tidak ada"}
+        if code and "code" in cols:
+            if con.execute(f"SELECT COUNT(*) FROM {table} WHERE code = ?", (code,)).fetchone()[0]:
+                return {"table": table, "state": "sudah ada", "code": code}
+        where = source_where or ("deleted_at IS NULL" if "deleted_at" in cols else "1=1")
+        src = con.execute(f"SELECT * FROM {table} WHERE {where} ORDER BY id LIMIT 1").fetchone()
+        if src is None:
+            return {"table": table, "state": "tabel kosong — tidak ada yang bisa disalin"}
+        row = dict(zip(cols, src))
+        row.pop("id", None)
+        if code and "code" in cols:
+            row["code"] = code
+        row.update(overrides)
+        names = ",".join(f'"{c}"' for c in row)
+        cur = con.execute(f'INSERT INTO {table} ({names}) VALUES ({",".join("?" * len(row))})', list(row.values()))
+        con.commit()
+        return {"table": table, "state": "ditanam", "code": code, "id": cur.lastrowid,
+                "overrides": {k: ("null" if v is None else str(v)) for k, v in overrides.items()}}
+    except Exception as e:
+        return {"table": table, "state": f"GAGAL: {str(e)[:140]}"}
+    finally:
+        con.close()
+
+
+def plant_launcher_fixtures(emails):
+    """Baris pembeda untuk modul yang ubinnya berangka 0 pada data demo."""
+    planted = {}
+    for prefix, table, overrides, minimum in LAUNCHER_PLANTS:
+        need = rows_needed(prefix, table, overrides, minimum)
+        rows = []
+        for n in range(need):
+            extra = dict(overrides)
+            # Kolom unik selain `code` yang ikut disalin dari baris sumber.
+            if table == "scm_progress_claims":
+                extra["claim_no"] = 90 + n
+            if table == "eng_drawing_submittals":
+                extra["revision"] = f"R-UJI{n}"
+            rows.append(plant_row(table, extra, code=f"{PLANT_CODE}-{prefix.upper()}-{n}"))
+        planted[prefix] = {"needed": need, "rows": rows}
+
+    # Persediaan: item baru dengan minimum yang mustahil + saldo 0 di gudang
+    # hidup — "item di bawah stok minimum" tidak punya satu kolom status.
+    item = plant_row("inv_items", {"min_stock": 999999, "is_active": 1}, code=f"{PLANT_CODE}-ITM",
+                     source_where="deleted_at IS NULL AND is_active = 1")
+    planted["inv"] = item
+    if item.get("state") == "ditanam":
+        con = sqlite3.connect(DB)
+        warehouse = con.execute("SELECT id FROM inv_warehouses WHERE deleted_at IS NULL ORDER BY id LIMIT 1").fetchone()
+        con.close()
+        planted["inv_balance"] = (plant_row("inv_stock_balances", {"warehouse_id": warehouse[0], "item_id": item["id"], "qty": 0})
+                                  if warehouse else {"state": "tidak ada gudang hidup"})
+
+    # Antrean gagal: tabelnya kosong pada data demo, jadi tidak ada yang bisa
+    # disalin — barisnya ditulis kolom per kolom (semuanya sederhana).
+    con = sqlite3.connect(DB)
+    try:
+        if not con.execute("SELECT COUNT(*) FROM failed_jobs WHERE uuid = ?", (PLANT_CODE,)).fetchone()[0]:
+            con.execute("INSERT INTO failed_jobs (uuid, connection, queue, payload, exception, failed_at) VALUES (?,?,?,?,?,?)",
+                        (PLANT_CODE, "database", "default", "{}", "Uji S22", NOW))
+            con.commit()
+            planted["iam"] = {"table": "failed_jobs", "state": "ditanam", "code": PLANT_CODE}
+        else:
+            planted["iam"] = {"table": "failed_jobs", "state": "sudah ada", "code": PLANT_CODE}
+
+        # Notifikasi belum dibaca: angkanya PER ORANG, jadi satu baris per akun
+        # yang diukur skenario ini.
+        rows = []
+        for email in emails:
+            uid = user_id_of(email)
+            if uid is None:
+                rows.append({"email": email, "state": "akun tidak ada"})
+                continue
+            if con.execute("SELECT COUNT(*) FROM core_notifications WHERE user_id = ? AND title = ?", (uid, PLANT_CODE)).fetchone()[0]:
+                rows.append({"email": email, "state": "sudah ada"})
+                continue
+            con.execute("INSERT INTO core_notifications (user_id, event, title, read_at, created_at, updated_at) VALUES (?,?,?,NULL,?,?)",
+                        (uid, "document.submitted", PLANT_CODE, NOW, NOW))
+            rows.append({"email": email, "state": "ditanam"})
+        con.commit()
+        planted["ringkasan"] = rows
+    except Exception as e:
+        planted["ERROR"] = str(e)[:160]
+    finally:
+        con.close()
+
+    return planted
 
 
 def user_id_of(email):
