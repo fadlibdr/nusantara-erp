@@ -257,7 +257,10 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
 ## 12. Aksen modul (`--accent-1..8`, P1-B)
 
 Delapan slot warna departemen di `public/app/app.css` — `--accent-<n>`, `--accent-<n>-soft`,
-`--accent-<n>-fg` di **keempat blok tema** (root terang, media gelap, `data-theme` terang/gelap).
+`--accent-<n>-fg` didefinisikan **lima kali**: empat blok tema (root terang, media gelap,
+`data-theme` terang/gelap) dan blok token `@media print`, yang memaksa ketiganya ke nilai TERANG
+supaya pengguna bertema gelap tidak mencetak aksen gelap di kertas putih (slot 7 `#fbcd1a` = 1,52:1
+sebelum blok itu ada). Slot baru harus ditambahkan di kelimanya.
 Setiap grup NAV membawa `prefix` (prefix izinnya; Ringkasan = `ringkasan`) dan `schema.js MODULES`
 memetakan prefix → `{ accent, icon, description }`. Pemetaan 14 grup → 8 slot, diturunkan dari isi
 NAV (bukan grup baru):
@@ -283,7 +286,9 @@ kontras WCAG aksen di `--surface` ≥ **5,20** terang /
 sama dengan komentar blok token app.css), `-fg` di aksen
 ≥ 5,20 / 5,86, aksen di `-soft` ≥ 4,62 / 4,82. Harness **S21** mengukur nilai yang hidup di
 halaman (kedua tema, desktop + ponsel) dan menulisnya ke `results-phase-1.json`; uji
-`SidebarNavWiringTest` memaku slot 1..8 dan ketiga token di keempat blok.
+`SidebarNavWiringTest` memaku slot 1..8 dan ketiga tokennya tepat lima kali (empat blok tema +
+blok `@media print`), sedangkan S21 `print_accents` mengukur nilai cetaknya di kertas
+(minimum 5,20 di `#ffffff`).
 
 **Di mana aksen boleh tampil** (dan hanya di sini): penanda grup aktif di sidebar
 (`.nav-group.has-active > button`: batang 3 px + judul), remah modul di bilah atas

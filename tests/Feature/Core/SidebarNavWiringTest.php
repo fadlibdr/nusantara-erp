@@ -133,7 +133,7 @@ class SidebarNavWiringTest extends ErpTestCase
      * in which slot) lives in CONVENTIONS § Aksen modul and the app.css token
      * comment; the numbers there are measured by harness S21, not pinned here.
      */
-    public function test_every_module_accent_slot_has_its_three_tokens_in_all_four_theme_blocks(): void
+    public function test_every_module_accent_slot_has_its_three_tokens_in_all_five_token_blocks(): void
     {
         preg_match_all('/^  [a-z]+: \{ accent: ([1-8]),/m', $this->file('schema.js'), $slots);
 
