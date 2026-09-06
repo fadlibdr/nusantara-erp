@@ -19110,7 +19110,7 @@
     "roles": {
       "admin": {
         "launcher_tiles": 14,
-        "dashboard_stats": 6,
+        "dashboard_stats": 16,
         "prefixes": [
           "ringkasan",
           "crm",
@@ -19132,7 +19132,7 @@
       },
       "direktur": {
         "launcher_tiles": 14,
-        "dashboard_stats": 6,
+        "dashboard_stats": 16,
         "prefixes": [
           "ringkasan",
           "crm",
@@ -19156,7 +19156,7 @@
       },
       "project-manager": {
         "launcher_tiles": 9,
-        "dashboard_stats": 1,
+        "dashboard_stats": 14,
         "prefixes": [
           "ringkasan",
           "est",
@@ -19175,7 +19175,7 @@
       },
       "site-manager": {
         "launcher_tiles": 7,
-        "dashboard_stats": 1,
+        "dashboard_stats": 8,
         "prefixes": [
           "ringkasan",
           "eng",
@@ -19193,7 +19193,7 @@
       },
       "estimator": {
         "launcher_tiles": 7,
-        "dashboard_stats": 1,
+        "dashboard_stats": 5,
         "prefixes": [
           "ringkasan",
           "crm",
@@ -19211,7 +19211,7 @@
       },
       "procurement": {
         "launcher_tiles": 6,
-        "dashboard_stats": 0,
+        "dashboard_stats": 6,
         "prefixes": [
           "ringkasan",
           "est",
@@ -19245,7 +19245,7 @@
       },
       "finance": {
         "launcher_tiles": 7,
-        "dashboard_stats": 4,
+        "dashboard_stats": 12,
         "prefixes": [
           "ringkasan",
           "crm",
@@ -19260,7 +19260,7 @@
       },
       "finance-manager": {
         "launcher_tiles": 5,
-        "dashboard_stats": 4,
+        "dashboard_stats": 6,
         "prefixes": [
           "ringkasan",
           "crm",
@@ -19273,7 +19273,7 @@
       },
       "hr": {
         "launcher_tiles": 3,
-        "dashboard_stats": 0,
+        "dashboard_stats": 5,
         "prefixes": [
           "ringkasan",
           "hr",
@@ -19286,7 +19286,7 @@
       },
       "sales": {
         "launcher_tiles": 7,
-        "dashboard_stats": 2,
+        "dashboard_stats": 8,
         "prefixes": [
           "ringkasan",
           "crm",
@@ -19305,7 +19305,7 @@
       },
       "teknisi": {
         "launcher_tiles": 3,
-        "dashboard_stats": 1,
+        "dashboard_stats": 5,
         "prefixes": [
           "ringkasan",
           "inv",
@@ -19317,10 +19317,7 @@
     },
     "roles_measured": 12,
     "roles_without_launcher_tile": [],
-    "roles_without_dashboard_stat": [
-      "procurement",
-      "hr"
-    ],
+    "roles_without_dashboard_stat": [],
     "tiles_by_role": {
       "admin": 14,
       "direktur": 14,
@@ -19335,7 +19332,7 @@
       "sales": 7,
       "teknisi": 3
     },
-    "_ms": 72603,
+    "_ms": 41948,
     "_clicks": 0
   },
   "S18_onboarding_dock_desktop": {

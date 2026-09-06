@@ -3246,7 +3246,20 @@ def s22r(pg):
             out[role] = {"ERROR": str(e)[:140]}
             continue
         pg.goto(BASE + "#/dashboard")
-        pg.wait_for_timeout(1800)
+        # TUNGGU SAMPAI SELESAI, bukan 1800 ms. Sejak P1-D dasbor memuat per
+        # BATCH 4 secara berurutan, jadi sebuah jeda tetap menghitung ubin
+        # setengah jalan — angka yang berbeda tiap jalan dan tidak berarti apa
+        # pun (verifikasi kedua P1-D). Yang ditunggu adalah hilangnya seluruh
+        # kerangka; batas atasnya tetap ada supaya satu widget yang menggantung
+        # tidak menggantung skenario.
+        try:
+            pg.wait_for_function(
+                "() => document.querySelector('.dash-grid') && "
+                "!document.querySelector('.dash-grid .skeleton')",
+                timeout=20000)
+        except Exception:
+            pass
+        pg.wait_for_timeout(400)
         stats = pg.evaluate("() => document.querySelectorAll('.stat').length")
         pg.goto(BASE + "#/home")
         pg.wait_for_selector(".home-tile, #view .empty", timeout=15000)
