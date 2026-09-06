@@ -174,6 +174,15 @@ async function load() {
   }
 
   writeMirror();
+  /* Layar yang SUDAH tergambar sebelum jawaban ini tiba menggambar favorit dan
+     "Terakhir dibuka" dari cermin — dan di peramban baru cermin itu kosong.
+     Diukur 6 Sep 2026 (S22 ponsel, konteks peramban baru): landing #/home
+     digambar saat boot, prefs.load() selesai sesudahnya, dan baris Favorit
+     tidak pernah muncul walau sidebar (yang digambar ulang refreshNav) sudah
+     memuatnya. Yang mendengarkan menggambar ulang bagiannya sendiri; tidak ada
+     yang me-resolve ulang rutenya, karena itu berarti setiap permintaan layar
+     dijalankan dua kali. */
+  announce('erp:prefs-loaded', { keys: Object.keys(state) });
   return state;
 }
 

@@ -67,7 +67,10 @@ export async function renderHome(host) {
   const body = el('div');
   host.appendChild(body);
 
-  shortcutRows(body);
+  const shortcuts = el('div');
+  body.appendChild(shortcuts);
+  shortcutRows(shortcuts);
+  redrawWhenPrefsLand(shortcuts, () => shortcutRows(clear(shortcuts)));
 
   if (!tiles.size) {
     body.appendChild(el('.card', emptyState('Tidak ada modul yang bisa Anda buka.', { title: 'Belum ada modul', kind: 'inbox' })));
@@ -182,6 +185,25 @@ function shortcut(href, label, sub) {
     el('b', { text: label }),
     sub ? el('span.hint', { text: sub }) : null,
   ]);
+}
+
+/*
+ * Boot pertama di peramban baru: launcher digambar SEBELUM jawaban
+ * core/me/preferences tiba (prefs.js menjawab dari cermin lokal, yang di sana
+ * kosong), jadi baris Favorit dan Terakhir dibuka lahir kosong dan tidak pernah
+ * terisi. Yang digambar ulang hanya dua baris itu — bukan rutenya — supaya
+ * permintaan layar tidak berjalan dua kali. Pendengarnya membuang dirinya
+ * sendiri begitu simpulnya lepas dari dokumen (view() mengosongkan #view).
+ */
+function redrawWhenPrefsLand(node, redraw) {
+  const handler = () => {
+    if (!node.isConnected) {
+      window.removeEventListener('erp:prefs-loaded', handler);
+      return;
+    }
+    redraw();
+  };
+  window.addEventListener('erp:prefs-loaded', handler);
 }
 
 /** Nama grup NAV yang memuat rute ini (keterangan kecil di chip favorit). */

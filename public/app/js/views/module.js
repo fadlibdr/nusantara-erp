@@ -71,7 +71,9 @@ export function renderModuleHome(host, { prefix }) {
   host.appendChild(kpis);
   loadKpis(kpis, prefix);
 
-  host.appendChild(recentSection(prefix));
+  const recentHost = el('div');
+  recentHost.appendChild(recentSection(prefix));
+  host.appendChild(recentHost);
 
   const screens = el('.module-screens', sections(items, prefix).map(({ caption, id, screens: list }) => {
     const grid = el('ul.module-grid', caption ? { 'aria-labelledby': id } : { 'aria-label': `Layar modul ${module.label}` },
@@ -84,6 +86,21 @@ export function renderModuleHome(host, { prefix }) {
   host.appendChild(screens);
 
   watchFavorites(screens);
+
+  /* Alasan yang sama dengan launcher: pada boot pertama di peramban baru
+     beranda modul digambar sebelum core/me/preferences menjawab, jadi
+     "Terakhir dibuka" lahir kosong dan bintangnya padam walau server
+     memilikinya. Kedua bagian itu digambar ulang di tempat; rutenya tidak
+     di-resolve ulang. */
+  const onPrefs = () => {
+    if (!screens.isConnected) {
+      window.removeEventListener('erp:prefs-loaded', onPrefs);
+      return;
+    }
+    recentHost.replaceChildren(recentSection(prefix));
+    syncStars(screens);
+  };
+  window.addEventListener('erp:prefs-loaded', onPrefs);
 }
 
 /* ------------------------------------------------------------------ angka */
@@ -221,15 +238,19 @@ function watchFavorites(screens) {
       window.removeEventListener('erp:favorites-changed', sync);
       return;
     }
-    screens.querySelectorAll('button.star').forEach((star) => {
-      const on = prefs.isFavorite(star.dataset.route);
-      star.setAttribute('aria-pressed', String(on));
-      star.setAttribute('aria-label', label(on));
-      star.title = label(on);
-      star.classList.toggle('on', on);
-    });
+    syncStars(screens);
   };
   window.addEventListener('erp:favorites-changed', sync);
+}
+
+function syncStars(screens) {
+  screens.querySelectorAll('button.star').forEach((star) => {
+    const on = prefs.isFavorite(star.dataset.route);
+    star.setAttribute('aria-pressed', String(on));
+    star.setAttribute('aria-label', label(on));
+    star.title = label(on);
+    star.classList.toggle('on', on);
+  });
 }
 
 /* ------------------------------------------------------------------ kartu */
