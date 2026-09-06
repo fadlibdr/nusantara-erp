@@ -3595,6 +3595,42 @@ def s23s(pg):
     second = pg.locator(".dash-setup-list .dash-setup-row").nth(1).get_attribute("data-id")
     click(pg, ".dash-setup-list .dash-setup-row:nth-child(2) button:has-text('Naik')")
     pg.wait_for_timeout(150)
+    # JALUR PAPAN KETIK: fokus tidak boleh dibuang setiap kali daftar digambar ulang.
+    #
+    # docblock dashsetup.js menjanjikan "PAPAN KETIK LEBIH DULU, SERET
+    # BELAKANGAN" — Naik/Turun yang "bekerja tanpa satu byte vendor pun".
+    # Tetapi setiap penekanan memanggil paint(), yang membangun ulang seluruh
+    # daftar dan MENGHANCURKAN tombol yang sedang dipegang: terukur sebelum
+    # verifikasi kedua P1-D, Enter pada Naik baris ke-3 memindahkan barisnya
+    # lalu melempar fokus ke <select> BARIS PERTAMA, jadi memindahkan satu
+    # widget dari posisi 9 ke 1 berarti delapan penekanan yang masing-masing
+    # didahului jalan-jalan Tab yang makin panjang.
+    kbd_row = pg.locator(".dash-setup-list .dash-setup-row").nth(2).get_attribute("data-id")
+    pg.evaluate("""(id) => {
+        const row = document.querySelector(`.dash-setup-row[data-id="${id}"]`);
+        const up = [...row.querySelectorAll(".btn")].find((b) => b.textContent.trim() === "Naik");
+        up.focus();
+    }""", kbd_row)
+    pg.keyboard.press("Enter")
+    pg.wait_for_timeout(300)
+    keyboard_focus = pg.evaluate("""() => {
+        const a = document.activeElement;
+        const row = a && a.closest ? a.closest(".dash-setup-row") : null;
+        return {
+            tag: a ? a.tagName : null,
+            // Dipotong: activeElement bisa jadi <body>, dan seluruh teks halaman
+            // di dalam results.json membuat berkas bukti itu tidak terbaca.
+            label: a ? a.textContent.trim().slice(0, 40) : null,
+            row_id: row ? row.dataset.id : null,
+            row_index: row ? [...document.querySelectorAll(".dash-setup-list .dash-setup-row")].indexOf(row) : null,
+        };
+    }""")
+    keyboard_focus["moved_row"] = kbd_row
+    # Fokus tetap pada tombol Naik baris YANG SAMA, yang kini satu tingkat naik.
+    keyboard_focus["stays_on_the_moved_row"] = (
+        keyboard_focus["row_id"] == kbd_row and keyboard_focus["label"] == "Naik"
+    )
+
     order_in_drawer = pg.evaluate(
         "() => [...document.querySelectorAll('.dash-setup-list .dash-setup-row')].map((r) => r.dataset.id)")
 
@@ -3691,6 +3727,7 @@ def s23s(pg):
         "resized": resized, "resized_from": now, "resized_to": target,
         "moved_up": second,
         "order_in_drawer": order_in_drawer,
+        "keyboard_focus": keyboard_focus,
         "dirty_guard": dirty_guard,
         "after_save": after_save,
         "after_fresh_context": reloaded_ids,
@@ -3704,7 +3741,8 @@ def s23s(pg):
         "resized_survived": {c["id"]: c["size"] for c in reloaded}.get(resized) == target,
         "ok": (
             # Escape pada draf yang berubah BERTANYA dulu, dan lacinya utuh.
-            bool(dirty_guard["prompt"]) and "belum disimpan" in (dirty_guard["prompt"] or "")
+            keyboard_focus["stays_on_the_moved_row"]
+            and bool(dirty_guard["prompt"]) and "belum disimpan" in (dirty_guard["prompt"] or "")
             and dirty_guard["drawer_still_open"]
             and dirty_guard["order_kept"] == order_in_drawer
             and removed not in reloaded_ids

@@ -100,12 +100,37 @@ export function openDashboardSetup(current, onSaved) {
     spare,
   ]);
 
+  /* FOKUS SETELAH paint(). Setiap Naik/Turun/Hapus/Tambah membangun ulang
+     SELURUH daftar, jadi tombol yang sedang dipegang papan ketik ikut hilang —
+     terukur: Enter pada 'Naik' baris ar-aging memindahkan barisnya dengan
+     benar lalu melempar fokus ke <select> BARIS PERTAMA, dan setiap penekanan
+     berikutnya menuntut empat Tab lagi (jalur "PAPAN KETIK LEBIH DULU" yang
+     docblock di atas janjikan). paint() karena itu selalu dipanggil lewat
+     paintAndFocus(), yang mengembalikan fokus ke kendali yang sama pada baris
+     yang sama — atau ke tetangga terdekat bila barisnya baru saja dihapus. */
+  function paintAndFocus(id, role) {
+    paint();
+    const row = id ? inUse.querySelector(`.dash-setup-row[data-id="${CSS.escape(id)}"]`) : null;
+    const target = row
+      ? (role === 'size' ? row.querySelector('select.dash-setup-size') : [...row.querySelectorAll('.btn')].find((b) => b.textContent.trim() === role && !b.disabled))
+      : null;
+
+    // Baris yang dituju tidak ada lagi (dihapus, atau tombolnya nonaktif di
+    // ujung daftar): tombol pertama daftar, lalu daftar itu sendiri.
+    (target
+      || (row && [...row.querySelectorAll('.btn')].find((b) => !b.disabled))
+      || inUse.querySelector('.dash-setup-row .btn:not([disabled])')
+      || inUse
+    ).focus?.();
+  }
+
   const move = (index, delta) => {
     const target = index + delta;
     if (target < 0 || target >= draft.length) return;
     const [entry] = draft.splice(index, 1);
     draft.splice(target, 0, entry);
-    paint();
+    // Tombol yang sama pada baris yang sama — yang baru saja pindah.
+    paintAndFocus(entry.id, delta < 0 ? 'Naik' : 'Turun');
   };
 
   function paintInUse() {
@@ -152,7 +177,19 @@ export function openDashboardSetup(current, onSaved) {
            kerapian. Tombol bertulisan juga yang dibacakan pembaca layar. */
         button('Naik', { size: 'sm', variant: 'ghost', title: `Naikkan ${title}`, disabled: index === 0, onClick: () => move(index, -1) }),
         button('Turun', { size: 'sm', variant: 'ghost', title: `Turunkan ${title}`, disabled: index === draft.length - 1, onClick: () => move(index, 1) }),
-        button('Hapus', { size: 'sm', variant: 'ghost', title: `Hapus ${title} dari dasbor`, onClick: () => { draft.splice(index, 1); paint(); } }),
+        /* Setelah menghapus, fokus pindah ke 'Hapus' baris TETANGGA (yang kini
+           menempati posisi ini), bukan ke <body> — sebelumnya fokus hilang
+           sama sekali dan papan ketik harus menelusuri dari awal dokumen. */
+        button('Hapus', {
+          size: 'sm',
+          variant: 'ghost',
+          title: `Hapus ${title} dari dasbor`,
+          onClick: () => {
+            draft.splice(index, 1);
+            const next = draft[index] || draft[index - 1] || null;
+            paintAndFocus(next ? next.id : null, 'Hapus');
+          },
+        }),
       ]));
     });
 
@@ -180,7 +217,9 @@ export function openDashboardSetup(current, onSaved) {
         ]),
         button('Tambah', {
           size: 'sm', variant: 'ghost', iconName: 'plus',
-          onClick: () => { draft.push({ id: widget.id, size: widget.size }); paint(); },
+          // Yang baru ditambahkan ada di BAWAH daftar; fokus mengikutinya ke
+          // sana, karena itulah baris yang orangnya baru saja buat.
+          onClick: () => { draft.push({ id: widget.id, size: widget.size }); paintAndFocus(widget.id, 'Naik'); },
         }),
       ]));
     });

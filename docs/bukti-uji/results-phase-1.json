@@ -19723,8 +19723,8 @@
     "moved_up": "proyeksi-kas",
     "order_in_drawer": [
       "proyeksi-kas",
-      "inbox",
       "ar-aging",
+      "inbox",
       "evm",
       "siap-tagih",
       "saldo-bank",
@@ -19732,13 +19732,21 @@
       "tenggat",
       "kalender"
     ],
+    "keyboard_focus": {
+      "tag": "BUTTON",
+      "label": "Naik",
+      "row_id": "ar-aging",
+      "row_index": 1,
+      "moved_row": "ar-aging",
+      "stays_on_the_moved_row": true
+    },
     "dirty_guard": {
       "prompt": "Buang perubahan susunan dasbor?\n\nUrutan, ukuran dan pilihan widget yang baru Anda atur belum disimpan dan akan hilang.\n\nKembali menata\nBuang perubahan",
       "drawer_still_open": true,
       "order_kept": [
         "proyeksi-kas",
-        "inbox",
         "ar-aging",
+        "inbox",
         "evm",
         "siap-tagih",
         "saldo-bank",
@@ -19749,8 +19757,8 @@
     },
     "after_save": [
       "proyeksi-kas",
-      "inbox",
       "ar-aging",
+      "inbox",
       "evm",
       "siap-tagih",
       "saldo-bank",
@@ -19760,8 +19768,8 @@
     ],
     "after_fresh_context": [
       "proyeksi-kas",
-      "inbox",
       "ar-aging",
+      "inbox",
       "evm",
       "siap-tagih",
       "saldo-bank",
@@ -19775,11 +19783,11 @@
         "size": "sedang"
       },
       {
-        "id": "inbox",
+        "id": "ar-aging",
         "size": "sedang"
       },
       {
-        "id": "ar-aging",
+        "id": "inbox",
         "size": "sedang"
       },
       {
@@ -19821,8 +19829,8 @@
     "restore_default_matches_role_default": true,
     "sizes_after_fresh_context": {
       "proyeksi-kas": "sedang",
-      "inbox": "sedang",
       "ar-aging": "sedang",
+      "inbox": "sedang",
       "evm": "sedang",
       "siap-tagih": "kecil",
       "saldo-bank": "kecil",
@@ -19832,7 +19840,7 @@
     },
     "resized_survived": true,
     "ok": true,
-    "_ms": 16378,
+    "_ms": 16917,
     "_clicks": 8
   },
   "S23_honest_failure": {
