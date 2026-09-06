@@ -135,7 +135,19 @@ function kvCard(title, pairs, extra) {
  * garis biaya persis pada proyek yang paling perlu terlihat — yang sudah
  * membelanjakan lebih dari anggarannya.
  */
-export function evmCurve(points, bac) {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.baselineOnly] hanya seri rencana baseline yang digambar.
+ *   Dipakai kartu "Isi beku": kurva beku memang TIDAK punya aktual — bukan karena
+ *   proyeknya tanpa progres, melainkan karena baseline adalah rencana. Sampai
+ *   verifikasi P1-E kartu itu memanggil evmCurve dengan actual_pct/actual_cost
+ *   null untuk setiap titik, jadi legendanya menuliskan "Progres fisik (EV)
+ *   (tanpa data)" dan "Biaya aktual terhadap BAC (tanpa data)" — dua kalimat
+ *   yang terbaca sebagai pernyataan tentang PROYEKNYA, dan keduanya salah:
+ *   layar yang sama menampilkan progres 55 % dan biaya Rp 228,24 jt satu kartu
+ *   di sebelahnya.
+ */
+export function evmCurve(points, bac, { baselineOnly = false } = {}) {
   const rows = (points || [])
     .filter((point) => point && point.period_end && Number.isFinite(Date.parse(point.period_end)))
     .slice()
@@ -224,7 +236,9 @@ export function evmCurve(points, bac) {
   ];
 
   return lineChart({
-    series,
+    // Kartu "Isi beku" hanya menggambar kurva rencananya, jadi legendanya hanya
+    // menyebut kurva itu.
+    series: baselineOnly ? series.slice(0, 1) : series,
     yMin: 0,
     yMax,
     yStep: gridStep,
@@ -1094,7 +1108,7 @@ function baselineDetail(detail) {
     actual_pct: null,
     actual_cost: null,
     is_as_of: false,
-  })), Number(detail.bac) || 0);
+  })), Number(detail.bac) || 0, { baselineOnly: true });
 
   return el('.card', [
     el('.card-head', [
@@ -1104,11 +1118,12 @@ function baselineDetail(detail) {
       badge(`${points.length} titik kurva`),
     ]),
     el('.card-body', [
-      /* Legenda svg menamai ketiga seri katalog; pada tampilan baseline hanya
-         seri rencana yang punya data, dan charts.js menuliskannya sendiri
-         sebagai "… (tanpa data)" untuk dua sisanya — lebih jujur daripada
-         legenda tangan yang menyebut satu garis dan diam tentang dua yang
-         swatch-nya tetap tergambar. */
+      /* Legenda svg menamai SATU seri di sini: kurva beku memang hanya punya
+         rencana. Sampai verifikasi P1-E ketiga seri dikirim dan charts.js
+         menuliskan "Progres fisik (EV) (tanpa data)" dan "Biaya aktual terhadap
+         BAC (tanpa data)" dengan swatch penuh — kalimat yang benar tentang
+         PANGGILAN ini tetapi salah tentang proyeknya, yang progres dan biayanya
+         justru tercetak satu kartu di sebelahnya (55 % dan Rp 228,24 jt). */
       curve || el('p.muted', { text: 'Baseline ini tidak punya titik kurva.', style: { margin: 0 } }),
     ]),
     el('.table-wrap', el('table.data', [

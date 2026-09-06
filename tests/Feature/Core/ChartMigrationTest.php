@@ -182,6 +182,28 @@ class ChartMigrationTest extends ErpTestCase
     }
 
     /**
+     * Kartu "Isi beku" menamai SATU seri: kurva beku memang hanya rencana.
+     *
+     * `baselineDetail()` memanggil `evmCurve` dengan actual_pct dan actual_cost
+     * null untuk setiap titik — bukan karena proyeknya tanpa progres, melainkan
+     * karena baseline adalah rencana. Tanpa `baselineOnly` charts.js menuliskan
+     * "Progres fisik (EV) (tanpa data)" dan "Biaya aktual terhadap BAC (tanpa
+     * data)" dengan swatch penuh, dan kedua kalimat itu terbaca sebagai
+     * pernyataan tentang PROYEKNYA — yang progres 55 % dan biaya Rp 228,24 jt-nya
+     * justru tercetak satu kartu di sebelahnya (verifikasi P1-E).
+     */
+    public function test_the_frozen_baseline_card_names_only_the_line_it_draws(): void
+    {
+        $evm = $this->spa('views/evm.js');
+
+        $this->assertMatchesRegularExpression('/function evmCurve\(points, bac, \{ baselineOnly/', $evm,
+            'evmCurve tidak lagi menerima baselineOnly; kartu Isi beku akan menamai tiga seri lagi.');
+        $this->assertStringContainsString('{ baselineOnly: true }', $evm,
+            'baselineDetail tidak lagi meminta hanya seri baseline.');
+        $this->assertMatchesRegularExpression('/series: baselineOnly \? series\.slice\(0, 1\) : series/', $evm);
+    }
+
+    /**
      * Gaya grafik tangan DIHAPUS dari app.css, bukan ditinggalkan.
      *
      * Selektor yang tidak lagi cocok dengan apa pun adalah warna yang menunggu
