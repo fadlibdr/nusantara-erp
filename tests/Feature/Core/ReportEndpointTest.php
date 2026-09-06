@@ -136,6 +136,45 @@ class ReportEndpointTest extends ErpTestCase
             ->assertJsonPath('message', fn ($m) => str_contains((string) $m, 'belum terpasang'));
     }
 
+    /**
+     * COUNT menjawab banyak BARIS, jadi deskriptornya bukan tipe kolomnya.
+     *
+     * `{agg: count, column: amount}` mewarisi type 'currency' dan layar
+     * memformat hitungan dua baris sebagai 'Rp 2' — sementara
+     * `ReportRunner::scaleOf()` sudah mengecualikan count sejak awal
+     * (verifikasi kedua P1-F). Tidak bisa dibuat dari layar v1, bisa dari API
+     * dan dari laporan tersimpan yang dibagikan.
+     */
+    public function test_a_count_over_a_column_is_described_as_a_row_count_not_as_money(): void
+    {
+        $this->actingAs($this->userWith('finance', ['fin.view']), 'sanctum');
+
+        // Prasyarat: kolomnya memang uang bila yang diminta SUM.
+        $this->postJson('/api/core/reports/run', $this->definition())
+            ->assertOk()
+            ->assertJsonPath('data.descriptors.measure.type', 'currency');
+
+        $this->postJson('/api/core/reports/run', [
+            'resource' => 'finance/project-costs', 'mode' => 'group',
+            'row' => ['column' => 'cost_category'],
+            'measure' => ['agg' => 'count', 'column' => 'amount'],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.descriptors.measure.type', 'number')
+            ->assertJsonPath('data.descriptors.measure.label', 'Banyak baris — Jumlah')
+            ->assertJsonPath('data.descriptors.measure.enum', null)
+            ->assertJsonPath('data.descriptors.measure.lookup', null);
+
+        // COUNT tanpa kolom tetap seperti semula.
+        $this->postJson('/api/core/reports/run', [
+            'resource' => 'finance/project-costs', 'mode' => 'group',
+            'row' => ['column' => 'cost_category'], 'measure' => ['agg' => 'count'],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.descriptors.measure.type', 'number')
+            ->assertJsonPath('data.descriptors.measure.label', 'Jumlah baris');
+    }
+
     public function test_the_endpoints_require_a_session(): void
     {
         $this->getJson('/api/core/reports/resources')->assertStatus(401);

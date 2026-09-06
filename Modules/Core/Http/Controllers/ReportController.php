@@ -184,11 +184,30 @@ class ReportController extends ApiController
         }
 
         if (isset($definition['measure'])) {
-            $out['measure'] = [
+            $measure = [
                 'agg' => $definition['measure']['agg'],
             ] + (isset($definition['measure']['column'])
                 ? $describe($definition['measure']['column'])
                 : ['key' => null, 'label' => 'Jumlah baris', 'type' => 'number', 'lookup' => null, 'enum' => null]);
+
+            /* COUNT menjawab BANYAK BARIS, apa pun kolom yang dihitungnya:
+               mewarisi tipe kolomnya membuat `{agg: count, column:
+               contract_value}` tergambar 'Rp 2' di layar untuk hitungan dua
+               baris. `ReportRunner::scaleOf()` sudah mengecualikan count sejak
+               awal; deskriptornya tidak (verifikasi kedua P1-F). Tidak bisa
+               dibuat dari layar v1 — definition() membuang kolomnya untuk
+               count — tetapi bisa dari API dan dari laporan tersimpan yang
+               dibagikan. */
+            if ($measure['agg'] === 'count') {
+                $measure['type'] = 'number';
+                $measure['lookup'] = null;
+                $measure['enum'] = null;
+                if ($measure['key'] !== null) {
+                    $measure['label'] = 'Banyak baris — '.$measure['label'];
+                }
+            }
+
+            $out['measure'] = $measure;
         }
 
         return $out;
