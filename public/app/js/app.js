@@ -1353,8 +1353,12 @@ async function boot() {
  * baru — itulah titik potong yang SUDAH dipakai app.css untuk melipat sidebar
  * menjadi laci, dan di bawahnya menu tidak terlihat sampai seseorang menekan
  * hamburger: mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar
- * yang terlihat. Tiga dari 12 peran demo bahkan mendarat di dasbor KOSONG
- * (procurement, hr, teknisi tidak memegang prj.view maupun fin.view).
+ * yang terlihat. DUA dari 12 peran demo bahkan mendarat di dasbor KOSONG:
+ * procurement dan hr, yang tidak memegang prj.view maupun fin.view — diukur
+ * dengan masuk sebagai kedua belas akun demo (S22_roles_with_tiles,
+ * roles_without_dashboard_stat = ['procurement','hr']). Teknisi memegang
+ * inv.view + svc.view dan mendapat SATU ubin angka di dasbor, jadi ia bukan
+ * yang ketiga: dasbor punya sumber ubin selain kedua blok itu.
  *
  * PEMBANDINGNYA `>`, BUKAN `>=`. `@media (max-width: 760px)` INKLUSIF: pada
  * lebar 760 px tepat, sidebar sudah menjadi laci. Aturan ini dulu memakai

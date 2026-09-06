@@ -16,7 +16,9 @@ use Tests\ErpTestCase;
  *
  * Yang dijaga, dan kegagalan yang dicegahnya:
  *  - landing ponsel. Tanpa aturan 760 px, orang di ponsel mendarat di dasbor
- *    yang bagi tiga dari 12 peran demo KOSONG, dengan menu tersembunyi di laci.
+ *    yang bagi DUA dari 12 peran demo KOSONG (procurement dan hr — diukur
+ *    dengan masuk sebagai kedua belas akun demo, S22_roles_with_tiles), dengan
+ *    menu tersembunyi di laci.
  *  - tautan-dalam. Aturan landing yang membaca currentPath() alih-alih
  *    location.hash akan membajak setiap notifikasi yang menaut ke dokumen:
  *    currentPath() mengarang 'dashboard' saat hash kosong, jadi keduanya tampak
