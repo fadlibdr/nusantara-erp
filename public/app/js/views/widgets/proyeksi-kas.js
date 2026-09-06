@@ -43,7 +43,15 @@ export async function build({ reload }) {
       el('.stat', [
         el('.label', { text: `Saldo akhir (${report.days || 90} hari)` }),
         el('.value.sm', { text: money(ending), style: negative(ending) }),
-        el(`.delta${ending < 0 ? '.down' : '.up'}`, { text: ending < 0 ? 'defisit di akhir jendela' : 'masih positif' }),
+        /* TIGA keadaan, bukan dua. `Number(undefined)` adalah NaN, dan
+           `NaN < 0` salah — jadi cabang dua-arah melaporkan sebuah angka yang
+           TIDAK DIKETAHUI sebagai 'masih positif' berwarna hijau, tepat di
+           bawah nilai yang digambar '—'. Itu bentuk yang aturan rumah paket
+           ini larang: nol (dan hijau) adalah pernyataan tentang uang
+           (verifikasi kedua P1-D). */
+        Number.isFinite(ending)
+          ? el(`.delta${ending < 0 ? '.down' : '.up'}`, { text: ending < 0 ? 'defisit di akhir jendela' : 'masih positif' })
+          : el('.delta', { text: 'tidak diketahui' }),
       ]),
     ])),
     footLink('Buka proyeksi 90 hari', () => navigate('reports?tab=cash-projection')),
