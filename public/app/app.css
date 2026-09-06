@@ -2075,8 +2075,11 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 .modal.narrow .modal-foot { flex-wrap: wrap; }
 
 /* ------------------------------------------------------- dasbor P1-D
-   Kisi widget. Tiga kolom di desktop supaya ketiga ukuran punya arti
-   (kecil 1, sedang 2, lebar 3 = satu baris penuh); `minmax(0, 1fr)` dan bukan
+   Kisi widget. EMPAT kolom di desktop supaya ketiga ukuran punya arti dan dua
+   'sedang' muat bersebelahan (kecil 1, sedang 2, lebar 4 = satu baris penuh);
+   alasan lengkapnya di registry.js SPAN. Komentar ini menyebut TIGA kolom
+   sampai verifikasi kedua P1-D — perbaikan harness ke empat kolom tidak
+   sampai ke sini. `minmax(0, 1fr)` dan bukan
    `auto` karena sebuah tabel lebar di dalam sel grid akan MELEBARKAN kolomnya
    sampai halaman menggulung mendatar — nilai minimum otomatis sel grid adalah
    min-content, bukan nol.
@@ -2118,7 +2121,13 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 
 /* Laci "Atur dasbor". Baris = satu kisi supaya nama, ukuran dan tombol berbaris
    rapi di setiap baris; di ponsel nama pindah ke baris sendiri dan kendalinya
-   membungkus, bukan mengecil sampai tidak bisa disentuh (target 44 px). */
+   MEMBUNGKUS, bukan mengecil.
+
+   Tinggi kendalinya sekarang dipaksa 44 px di penunjuk kasar. Sampai verifikasi
+   kedua P1-D komentar ini menyebut "target 44 px" sementara yang terukur di
+   laci pada 390x844 adalah 36 px (Naik/Turun/Hapus), 34 px (select ukuran) dan
+   34 px (Kembalikan/Batal/Simpan) — di atas lantai WCAG 2.5.8 (24 px) tetapi
+   bukan angka yang ditulisnya. Aturan di bawah membuat kalimat itu benar. */
 .dash-setup-head { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 8px; }
 .dash-setup-head:first-child { margin-top: 0; }
 .dash-setup-row {
@@ -2141,6 +2150,19 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 @media (max-width: 560px) {
   .dash-setup-row { flex-wrap: wrap; }
   .dash-setup-row .dash-setup-name { flex-basis: 100%; }
+
+  /* …dan 44 px, angka yang komentar di atas sudah menyebut sejak P1-D.
+     Terukur di laci pada 390x844 sebelum aturan ini: Naik/Turun/Hapus 28 px,
+     select ukuran 34 px, tombol kaki 34 px — di atas lantai WCAG 2.5.8 (24 px)
+     tetapi bukan angka yang dijanjikan (verifikasi kedua P1-D).
+
+     Lebar layar, BUKAN `pointer: coarse`: idiom itu tidak bisa diukur harness
+     ini (Chromium-nya melaporkan maxTouchPoints 0 walau konteksnya ponsel),
+     dan sebuah janji yang tidak bisa diukur adalah janji berikutnya yang
+     diam-diam batal. Titik potongnya sama dengan pembungkus baris di atas. */
+  .dash-setup-row .btn,
+  .dash-setup-row select.dash-setup-size,
+  .modal:has(.dash-setup-list) .modal-foot .btn { min-height: 44px; }
 }
 
 /* ----------------------------------------------------------- papan (P1-G)

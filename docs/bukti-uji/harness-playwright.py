@@ -3780,12 +3780,41 @@ def s23m(browser):
             };
         }""")
         pg.screenshot(path=f"{OUT}/s23-dashboard-teknisi-mobile-p1d.png", full_page=True)
+
+        # Laci "Atur dasbor" di ponsel: TINGGI KENDALINYA, diukur.
+        #
+        # app.css menyebut "target 44 px" tepat di atas aturan laci ini sejak
+        # P1-D; yang terukur sampai verifikasi kedua adalah 36 px (Naik/Turun/
+        # Hapus), 34 px (select ukuran) dan 34 px (tombol kaki) — di atas lantai
+        # WCAG 2.5.8 (24 px), tetapi bukan angka yang ditulis komentarnya. Satu
+        # komentar yang menjanjikan ukuran yang tidak diberikannya lebih buruk
+        # daripada tidak ada.
+        pg.click(".page-head .actions button:has-text('Atur dasbor')")
+        pg.wait_for_selector(".modal .dash-setup-list", timeout=10000)
+        pg.wait_for_timeout(400)
+        touch = pg.evaluate("""() => {
+            const px = (node) => Math.round(node.getBoundingClientRect().height);
+            const rows = [...document.querySelectorAll(".dash-setup-row")];
+            return {
+                row_buttons: [...new Set(rows.flatMap((r) => [...r.querySelectorAll(".btn")].map(px)))],
+                selects: [...new Set(rows.map((r) => r.querySelector("select.dash-setup-size")).filter(Boolean).map(px))],
+                foot_buttons: [...new Set([...document.querySelectorAll(".modal-foot .btn")].map(px))],
+            };
+        }""")
+        pg.screenshot(path=f"{OUT}/s23-atur-dasbor-mobile-p1d.png", full_page=True)
+        touch["min_px"] = min((touch["row_buttons"] + touch["selects"] + touch["foot_buttons"]) or [0])
+
         return {
             "cards": [c["id"] for c in cards],
             "grid": geom,
+            "drawer_touch_targets": touch,
             # Satu kolom: setiap kartu mulai di tepi kiri yang sama, dan halaman
             # tidak menggulung mendatar.
-            "ok": geom["cols"] == 1 and len(geom["lefts"]) == 1 and not geom["page_scroll_x"] and bool(cards),
+            "ok": (
+                geom["cols"] == 1 and len(geom["lefts"]) == 1 and not geom["page_scroll_x"] and bool(cards)
+                # …dan angka yang ditulis app.css benar-benar diberikan.
+                and touch["min_px"] >= 44
+            ),
         }
     finally:
         ctx.close()

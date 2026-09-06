@@ -19882,10 +19882,22 @@
         14
       ],
       "page_scroll_x": false,
-      "height": 1667
+      "height": 1911
+    },
+    "drawer_touch_targets": {
+      "row_buttons": [
+        44
+      ],
+      "selects": [
+        44
+      ],
+      "foot_buttons": [
+        44
+      ],
+      "min_px": 44
     },
     "ok": true,
-    "_ms": 4910,
+    "_ms": 5523,
     "_clicks": 0
   },
   "S23_dashboard_per_role": {

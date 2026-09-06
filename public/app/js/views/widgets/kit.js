@@ -4,8 +4,8 @@
  * KENAPA BERKAS SENDIRI. Sampai P1-C potongan-potongan ini — safe(), failure(),
  * failedStat(), failedBody(), miniTable() — hidup di dalam views/dashboard.js
  * dan hanya bisa dipakai oleh dasbor itu sendiri. P1-D memecah dasbor menjadi
- * 18 widget di 18 berkas; menyalin aturan "gagal tidak boleh terbaca sebagai
- * kosong" ke 18 tempat adalah cara paling pasti untuk membuat 17 di antaranya
+ * 19 widget di 19 berkas; menyalin aturan "gagal tidak boleh terbaca sebagai
+ * kosong" ke 19 tempat adalah cara paling pasti untuk membuat 18 di antaranya
  * menyimpang. Aturannya hidup di sini, satu kali.
  *
  * ATURAN YANG DIJAGA BERKAS INI, ditulis ulang karena inilah alasan P1-D tidak

@@ -8,13 +8,13 @@
  * dipilih, bukan kebetulan (lihat § Deviasi pada LAPORAN-PAKET-HM-P1-D).
  *
  * KENAPA METADATA DI SINI DAN KODENYA DI SANA. Laci "Atur dasbor" harus
- * menawarkan 18 widget termasuk yang tidak sedang dipakai; kalau judul dan
- * izinnya hidup di dalam berkas widget-nya, membuka laci berarti mengunduh 18
- * modul yang 14 di antaranya tidak akan digambar. Maka: nama, izin, ukuran dan
+ * menawarkan 19 widget termasuk yang tidak sedang dipakai; kalau judul dan
+ * izinnya hidup di dalam berkas widget-nya, membuka laci berarti mengunduh 19
+ * modul yang 15 di antaranya tidak akan digambar. Maka: nama, izin, ukuran dan
  * pintu keluarnya di SINI (satu berkas, selalu dimuat), penggambarnya di
  * `./<id>.js` yang diimpor DINAMIS hanya bila widget-nya benar-benar ada di
  * susunan orangnya. Diukur pada susunan bawaan: teknisi memuat 4 modul widget,
- * bukan 18.
+ * bukan 19.
  *
  * `perm` DIBACA DUA SISI. Nilainya sengaja string biasa (atau null), bukan
  * predikat: `Modules\Core\Support\SpaWidgets` membacanya dari berkas ini dengan
