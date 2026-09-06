@@ -245,7 +245,18 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
   memanggil grafik (aturan kejujuran §6). Nilai yang tak terukur dikirim sebagai `null`.
 - Format angka/tanggal diberikan pemanggil (`yFormat`, `valueFormat`, `xFormat`) dari `format.js`
   (`fmt.rupiahShort`, `fmt.percent`, `fmt.date`) supaya sumbu, `<title>`, dan tabel di bawahnya
-  memakai format yang sama.
+  memakai format yang sama. **`yFormat` bukan hanya sumbu**: charts.js memakainya juga untuk
+  `<title>` bawaan setiap titik tanpa judul sendiri, jadi `` `${v}%` `` mencetak titik desimal
+  Inggris di aplikasi berkoma — pakai `fmt.percent` (verifikasi P1-E).
+- **Lebar viewBox mengikuti lebar layar**: `chartWidth()` (720 desktop / 380 di ≤ 560 px). svg
+  ber-viewBox tetap diregangkan CSS ke lebar kartunya, jadi 720 pada kartu ponsel 328 px
+  menuliskan legenda dan label sumbu pada 5,0 px terbaca. Diukur S20em, lantai 9 px.
+- **Seri yang DIUKUR lebih tebal daripada seri acuannya**: `series[].width` (bawaan 2, dijepit
+  1–4; 2,5 untuk seri terukur). Hierarki ini dulu hidup di `.chart .act` grafik tangan dan hilang
+  tanpa suara saat charts.js menuliskan 2 untuk semuanya (verifikasi P1-E).
+- **Pola putus yang ditulis pemanggil menang DI KERTAS juga**: aturan blok cetak memakai
+  `:not([stroke-dasharray])`, karena deklarasi CSS mengalahkan atribut presentasi. Tanpa itu
+  setiap `dash` yang dipilih pemanggil hilang begitu halamannya dicetak.
 - Setiap mark membawa `<title>`; harness S20 (`docs/bukti-uji/harness-playwright.py`) menghitung
   `.mark > title` == `.mark`, warna terkomputasi == token di tema terang & gelap, dan placeholder — jangan
   menambah `<title>` di luar mark (legenda, label) karena hitungan `<title>` liar akan pecah. Satu
@@ -569,6 +580,25 @@ endpoint daftarnya sendiri.
 `array_key_exists`, tidak pernah `?? 0` dan tidak pernah `empty()`. Aturan sel XLSX punya **satu
 pemilik**: `Modules\Core\Support\XlsxSheetWriter::putRow` (`$value !== null && $value !== ''`,
 perbandingan KETAT — `empty()` menulis sel kosong untuk setiap nol yang sah).
+
+**Setiap saringan memeriksa NILAInya, bukan hanya kuncinya.** Saringan ber-`kind: 'key'` menuntut
+nomor baris; saringan ber-`kind: 'enum'` menuntut nilai yang benar-benar ada di enum-nya (dibaca
+`SpaEnums`, berkas `enums.js` yang sama dengan layarnya) dan menolak dengan menyebut yang tersedia.
+Tanpa lengan kedua, sebuah status yang sudah dicabut lolos ke `where status = 'x'`, laporannya
+kembali kosong tanpa satu kata pun, dan definisi itu bisa DISIMPAN lalu dibagikan — saringan yang
+diam-diam tidak cocok dengan apa pun adalah kebohongan yang paling sulit dilihat. `enums.js` yang
+tidak terbaca menurunkan aturan ini menjadi "terima apa adanya" (degradasi SpaEnums), bukan
+menolak semuanya.
+
+**Saringan yang layar tidak punya kendalinya tetap PUNYA SUARA.** Laporan tersimpan boleh membawa
+saringan ber-FK (pemilihnya ditunda ke v2) atau nilai enum yang sudah dicabut; layar menggambarnya
+sebagai keping berlabel `labelFor()`/`enumLabel()` dan kartu hasil menuliskan `Disaring: …`.
+Angka yang merupakan himpunan bagian karena saringan tak terlihat adalah kebohongan sejenis dengan
+sel 0 yang seharusnya kosong.
+
+**Baris SENDIRI selalu terlihat pemiliknya**, juga setelah izin sumbernya dicabut — ditandai
+`readable: false`, dengan Buka/XLSX/Salin tertutup dan sebabnya tertulis. Kalau tidak, tidak ada
+satu pun cara membuangnya: barisnya hilang dari daftar sementara DELETE atas id-nya tetap berhasil.
 
 **Plafon DIUMUMKAN, dan ia PENOLAKAN bukan pemotongan.** 5.000 baris rincian / 200 kelompok, di
 `meta.limits` (aturan yang sama dengan `meta.sortable` dan `UserPreferences::describe()`); SPA
