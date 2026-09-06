@@ -36,12 +36,14 @@ final class UserPreferences
 
     private const RECENT_MAX = 20;
 
+    private const HIDDEN_MAX = 32;
+
     private const RECENT_FIELDS = ['route', 'label', 'sub', 'at'];
 
     public const DENSITIES = ['compact', 'normal', 'comfortable'];
 
     /**
-     * @return array<string, array{label: string, max_bytes: int, validate: callable(mixed): ?string}>
+     * @return array<string, array{label: string, max_bytes: int, max_entries: ?int, validate: callable(mixed): ?string}>
      */
     public static function keys(): array
     {
@@ -55,6 +57,7 @@ final class UserPreferences
             'favorites' => [
                 'label' => 'Favorit',
                 'max_bytes' => 4096,
+                'max_entries' => self::FAVORITES_MAX,
                 'validate' => static fn (mixed $value): ?string => self::validateList(
                     $value,
                     self::FAVORITES_MAX,
@@ -81,6 +84,7 @@ final class UserPreferences
             'recent' => [
                 'label' => 'Terakhir dibuka',
                 'max_bytes' => 8192,
+                'max_entries' => self::RECENT_MAX,
                 'validate' => static fn (mixed $value): ?string => self::validateList(
                     $value,
                     self::RECENT_MAX,
@@ -119,6 +123,7 @@ final class UserPreferences
             'density' => [
                 'label' => 'Kepadatan',
                 'max_bytes' => 64,
+                'max_entries' => null,
                 'validate' => static fn (mixed $value): ?string => is_string($value) && in_array($value, self::DENSITIES, true)
                     ? null
                     : sprintf('Kepadatan hanya boleh %s.', implode(', ', self::DENSITIES)),
@@ -134,6 +139,7 @@ final class UserPreferences
             'dashboard.layout' => [
                 'label' => 'Susunan dasbor',
                 'max_bytes' => self::MAX_BYTES,
+                'max_entries' => null,
                 'validate' => static fn (mixed $value): ?string => is_array($value) && array_is_list($value)
                     ? null
                     : 'Susunan dasbor harus berupa daftar.',
@@ -146,9 +152,10 @@ final class UserPreferences
             'launcher.hidden' => [
                 'label' => 'Modul disembunyikan',
                 'max_bytes' => 512,
+                'max_entries' => self::HIDDEN_MAX,
                 'validate' => static fn (mixed $value): ?string => self::validateList(
                     $value,
-                    32,
+                    self::HIDDEN_MAX,
                     'modul',
                     static function (mixed $prefix): ?string {
                         if (! is_string($prefix) || $prefix === '' || strlen($prefix) > 16) {
@@ -162,6 +169,37 @@ final class UserPreferences
                 ),
             ],
         ];
+    }
+
+    /**
+     * Whitelist sebagaimana KLIEN perlu tahu — satu entri per kunci dengan
+     * kedua plafon yang benar-benar berlaku padanya.
+     *
+     * Kenapa berbentuk ini. Sampai verifikasi P1-C (6 Sep 2026) meta hanya
+     * membawa daftar nama kunci dan MAX_BYTES, "supaya prefs.js tidak menyalin
+     * daftar kunci ke klien" — tetapi prefs.js tidak pernah membaca meta sama
+     * sekali dan tetap menyalin justru angka-angka yang tidak ada di sana
+     * (50 favorit, 20 entri terakhir), sementara meta yang dipercaya mentah
+     * akan membangun daftar favorit 16 KB yang ditolak server pada 4096.
+     * Sekarang yang diumumkan adalah plafon yang berlaku, dan prefs.js
+     * membacanya.
+     *
+     * @return list<array{key: string, label: string, max_bytes: int, max_entries: ?int}>
+     */
+    public static function describe(): array
+    {
+        $out = [];
+
+        foreach (self::keys() as $key => $entry) {
+            $out[] = [
+                'key' => $key,
+                'label' => $entry['label'],
+                'max_bytes' => min($entry['max_bytes'], self::MAX_BYTES),
+                'max_entries' => $entry['max_entries'],
+            ];
+        }
+
+        return $out;
     }
 
     public static function has(string $key): bool

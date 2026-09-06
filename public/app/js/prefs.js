@@ -39,11 +39,36 @@ const MIRROR_KEY = 'nusantara_erp_prefs';
 const LEGACY = { favorites: 'nusantara_erp_fav', recent: 'nusantara_erp_recent', density: 'nusantara_erp_density' };
 
 const DENSITIES = ['compact', 'normal', 'comfortable'];
-const FAVORITES_MAX = 50;
-const RECENT_MAX = 20;
 /* Field yang boleh ada di satu entri "Terakhir dibuka" — cermin dari
    UserPreferences::RECENT_FIELDS; entri lama tanpa `at` tetap sah. */
 const RECENT_FIELDS = ['route', 'label', 'sub', 'at'];
+
+/*
+ * Plafon jumlah entri datang DARI SERVER: load() membaca meta.keys[].max_entries
+ * milik jawaban core/me/preferences. Angka di bawah hanyalah nilai yang berlaku
+ * SEBELUM jawaban pertama tiba (bintang bisa dipasang saat itu) dan bila server
+ * tidak menyebutkan kuncinya.
+ *
+ * Kenapa dibaca dan bukan ditulis dua kali: sampai verifikasi P1-C (6 Sep 2026)
+ * 50 dan 20 ditulis di whitelist server DAN di sini, sementara meta yang ada
+ * justru "supaya klien tidak menyalin daftarnya" tidak pernah dibaca satu baris
+ * pun — dan angka yang diumumkannya (16384) bukan angka yang berlaku untuk
+ * kedua kunci ini (4096 dan 8192).
+ */
+const LIMIT_DEFAULTS = { favorites: 50, recent: 20 };
+const limits = { ...LIMIT_DEFAULTS };
+
+function limitOf(key) {
+  return limits[key] || LIMIT_DEFAULTS[key];
+}
+
+/** meta.keys server → plafon yang dipakai penulis di bawah. */
+function readLimits(meta) {
+  const keys = meta && Array.isArray(meta.keys) ? meta.keys : [];
+  for (const entry of keys) {
+    if (entry && typeof entry.key === 'string' && Number.isInteger(entry.max_entries)) limits[entry.key] = entry.max_entries;
+  }
+}
 
 /** key → value. Objek yang SAMA sepanjang hidup halaman: session.prefs menunjuk ke sini. */
 const state = {};
@@ -140,9 +165,11 @@ function set(key, value) {
 async function load() {
   readMirror();
 
-  let rows = null;
+  let payload = null;
   try {
-    rows = await api.get('core/me/preferences');
+    // api.list, bukan api.get: yang kedua membuang meta — dan meta membawa
+    // plafon per kunci yang dipakai penulis di bawah.
+    payload = await api.list('core/me/preferences');
   } catch {
     // Luring atau sesi berakhir: cermin yang berlaku, dan tidak ada yang
     // dinaikkan (menaikkan tanpa tahu isi server bisa menimpa pilihan yang
@@ -150,8 +177,11 @@ async function load() {
     return state;
   }
 
+  readLimits(payload && payload.meta);
+  const rows = payload && Array.isArray(payload.data) ? payload.data : [];
+
   serverKeys = new Set();
-  for (const row of Array.isArray(rows) ? rows : []) {
+  for (const row of rows) {
     if (!row || typeof row.key !== 'string') continue;
     serverKeys.add(row.key);
     state[row.key] = row.value;
@@ -237,7 +267,7 @@ function fromLegacy(key, raw) {
   if (!Array.isArray(list) || !list.length) return null;
 
   if (key === 'favorites') {
-    const routes = list.filter((one) => typeof one === 'string' && one).slice(0, FAVORITES_MAX);
+    const routes = list.filter((one) => typeof one === 'string' && one).slice(0, limitOf('favorites'));
     return routes.length ? routes : null;
   }
 
@@ -247,7 +277,7 @@ function fromLegacy(key, raw) {
     .map((one) => Object.fromEntries(RECENT_FIELDS
       .filter((field) => typeof one[field] === 'string' && one[field])
       .map((field) => [field, one[field]])))
-    .slice(0, RECENT_MAX);
+    .slice(0, limitOf('recent'));
   return entries.length ? entries : null;
 }
 
@@ -281,7 +311,7 @@ export function isFavorite(route) {
  */
 export function toggleFavorite(route) {
   const list = favorites();
-  const next = list.includes(route) ? list.filter((one) => one !== route) : [...list, route].slice(-FAVORITES_MAX);
+  const next = list.includes(route) ? list.filter((one) => one !== route) : [...list, route].slice(-limitOf('favorites'));
   set('favorites', next);
   announce('erp:favorites-changed', { was: list.length, now: next.length, route });
   return next;
@@ -297,7 +327,7 @@ export function recent() {
 export function rememberRecent(route, label, sub) {
   const entry = { route, label, sub: sub || null, at: new Date().toISOString() };
   const was = recent();
-  const next = [entry, ...was.filter((one) => one.route !== route)].slice(0, RECENT_MAX);
+  const next = [entry, ...was.filter((one) => one.route !== route)].slice(0, limitOf('recent'));
   set('recent', next);
   announce('erp:recent-changed', { was: was.length, now: next.length, route });
   return next;
@@ -326,7 +356,7 @@ export function visibleRecent(can) {
 
 export const prefs = {
   get, set, has, load, favorites, isFavorite, toggleFavorite, recent, rememberRecent, visibleRecent, resourceKeyOf,
-  FAVORITES_MAX, RECENT_MAX, DENSITIES,
+  limitOf, DENSITIES,
 };
 
 // Dibaca dari luar sebagai session.prefs (objek yang sama, bukan salinan).

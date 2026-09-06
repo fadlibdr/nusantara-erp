@@ -69,7 +69,45 @@ class UserPreferencesTest extends ErpTestCase
         ksort($stored);
         $this->assertSame($values, $stored);
         // meta.keys is the whitelist itself, so the SPA never hard-codes it.
-        $this->assertSame(array_keys(UserPreferences::keys()), $response->json('meta.keys'));
+        $this->assertSame(array_keys(UserPreferences::keys()), array_column((array) $response->json('meta.keys'), 'key'));
+    }
+
+    /**
+     * meta membawa plafon yang BENAR-BENAR BERLAKU per kunci, dan prefs.js
+     * membacanya. Bentuk lamanya (daftar nama + MAX_BYTES saja) menjanjikan
+     * "supaya klien tidak menyalin daftarnya" sambil membiarkan klien menyalin
+     * justru angka yang tidak ada di sana: 50 favorit dan 20 entri terakhir
+     * ditulis dua kali, dan 16384 yang diumumkan bukan angka yang berlaku
+     * untuk kedua kunci itu (4096 dan 8192) — sebuah klien yang mempercayainya
+     * membangun muatan yang ditolak server (verifikasi P1-C, 6 Sep 2026).
+     */
+    public function test_the_index_meta_carries_the_ceilings_that_actually_apply(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        $meta = (array) $this->getJson('/api/core/me/preferences')->assertOk()->json('meta.keys');
+
+        $this->assertSame([
+            ['key' => 'favorites', 'label' => 'Favorit', 'max_bytes' => 4096, 'max_entries' => 50],
+            ['key' => 'recent', 'label' => 'Terakhir dibuka', 'max_bytes' => 8192, 'max_entries' => 20],
+            ['key' => 'density', 'label' => 'Kepadatan', 'max_bytes' => 64, 'max_entries' => null],
+            ['key' => 'dashboard.layout', 'label' => 'Susunan dasbor', 'max_bytes' => 16384, 'max_entries' => null],
+            ['key' => 'launcher.hidden', 'label' => 'Modul disembunyikan', 'max_bytes' => 512, 'max_entries' => 32],
+        ], $meta);
+
+        // …dan angka yang diumumkan adalah angka yang ditegakkan: satu entri
+        // lebih banyak daripada max_entries ditolak, dengan angka itu disebut.
+        foreach ($meta as $entry) {
+            if ($entry['max_entries'] === null) {
+                continue;
+            }
+
+            $value = array_fill(0, $entry['max_entries'] + 1, $entry['key'] === 'recent' ? ['route' => 'd/projects/1'] : 'r/projects');
+            $message = (string) $this->putJson("/api/core/me/preferences/{$entry['key']}", ['value' => $value])
+                ->assertStatus(422)->json('errors.value.0');
+            $this->assertStringContainsString((string) $entry['max_entries'], $message,
+                "Penolakan {$entry['key']} tidak menyebut jumlah maksimum yang diumumkan meta.");
+        }
     }
 
     public function test_a_second_put_replaces_the_row_instead_of_stacking_history(): void

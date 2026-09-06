@@ -211,6 +211,23 @@ class LauncherWiringTest extends ErpTestCase
 
         $this->assertStringContainsString('removeItem(personalKey(base))', $prefs,
             'Kunci warisan tidak pernah dihapus; migrasinya akan berjalan setiap boot selamanya.');
+
+        /*
+         * …dan plafon jumlah entri DIBACA dari meta jawaban server, bukan
+         * ditulis lagi di klien. meta ada sejak awal justru untuk itu, tetapi
+         * sampai verifikasi P1-C tidak ada satu baris pun yang membacanya
+         * sementara 50 dan 20 tetap disalin ke prefs.js — dan app.js membawa
+         * salinan ketiga (`const RECENT_MAX = 20`) yang tidak dipakai apa pun.
+         */
+        $this->assertStringContainsString("api.list('core/me/preferences')", $prefs,
+            'prefs.js memakai api.get, yang membuang meta — plafon per kunci tidak pernah sampai ke klien.');
+        $this->assertStringContainsString('max_entries', $prefs);
+        foreach (['FAVORITES_MAX = 50', 'RECENT_MAX = 20'] as $copy) {
+            $this->assertStringNotContainsString($copy, $prefs,
+                "prefs.js masih menulis \"{$copy}\" sendiri; itulah daftar kedua yang meta ada untuk mencegah.");
+            $this->assertStringNotContainsString($copy, $app,
+                "app.js masih menulis \"{$copy}\"; plafon preferensi dimiliki server.");
+        }
     }
 
     /** Separuh penolakan: pembacanya harus bisa bilang tidak. */

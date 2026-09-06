@@ -31,10 +31,19 @@ class UserPreferenceController extends ApiController
             ->orderBy('key')
             ->get();
 
-        // meta.keys = whitelist-nya sendiri, supaya prefs.js tidak menyalin
-        // daftar kunci ke klien (dua daftar yang bisa berselisih).
+        /*
+         * meta.keys = whitelist-nya sendiri, satu objek per kunci dengan KEDUA
+         * plafon yang berlaku padanya — bukan hanya namanya. prefs.js
+         * membacanya (load() memakai api.list, yang membawa meta) dan berhenti
+         * menyalin angka 50/20 ke klien.
+         *
+         * Bentuk lamanya (daftar nama + MAX_BYTES saja) menjanjikan pencegahan
+         * yang tidak pernah terjadi: tidak ada yang membacanya, dan klien yang
+         * mempercayainya akan membangun daftar favorit 16 KB yang ditolak
+         * server pada 4096 (verifikasi P1-C, 6 Sep 2026).
+         */
         return $this->ok(UserPreferenceResource::collection($rows), null, [
-            'keys' => array_keys(UserPreferences::keys()),
+            'keys' => UserPreferences::describe(),
             'max_bytes' => UserPreferences::MAX_BYTES,
         ]);
     }

@@ -66,11 +66,14 @@ const NAV_STATE_KEY = 'nusantara_erp_nav';
  * prefs.js tetap menyimpan cermin lokal per pengguna, jadi sifat "kasir tidak
  * mewarisi lima dokumen pengawas" yang dulu dijaga personalKey tetap berlaku.
  *
- * RECENT_MAX 20 disimpan (plafon server), lima teratas yang digambar sidebar —
- * beranda modul #/m/<prefix> menyaring daftar yang sama per modul, jadi
- * menyimpan lebih banyak daripada yang muat di sidebar memang gunanya.
+ * Berapa banyak yang DISIMPAN adalah urusan server (whitelist UserPreferences,
+ * diumumkan lewat meta dan dibaca prefs.js); yang diputuskan di sini hanya
+ * berapa yang DIGAMBAR sidebar — lima teratas. Beranda modul #/m/<prefix>
+ * menyaring daftar yang sama per modul, jadi menyimpan lebih banyak daripada
+ * yang muat di sidebar memang gunanya. Angka plafonnya sendiri tidak ditulis
+ * lagi di berkas ini: salinan ketiganya yang pernah berdiri di sini tidak
+ * dibaca satu baris pun (verifikasi P1-C, 6 Sep 2026).
  */
-const RECENT_MAX = 20;
 const RECENT_SIDEBAR = 5;
 const FAVORITES_LABEL = 'Favorit';
 const RECENT_LABEL = 'Terakhir dibuka';
