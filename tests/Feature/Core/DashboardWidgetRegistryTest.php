@@ -158,10 +158,73 @@ class DashboardWidgetRegistryTest extends ErpTestCase
                 $entry['id'], implode(', ', array_unique($targets[1])), $route,
             ));
 
+            /*
+             * …dan kaki itu ada di SETIAP jalur gambar, bukan sekadar sekali di
+             * berkasnya. Tiga widget (ar-aging, ap-aging, pajak) menggambar dua
+             * kali — sekali di cabang kosong, sekali di cabang normal — sehingga
+             * pemeriksaan substring seluruh berkas tetap hijau ketika cabang
+             * KOSONG kehilangan kakinya, yaitu justru cacat yang perbaikan
+             * fb294dd tutup (diukur verifikasi P1-D putaran 2, 6 Sep 2026:
+             * menghapus footLink pertama ar-aging.js meninggalkan suite hijau,
+             * dan kartunya kembali tanpa pintu pada data kosong). Lapisan hidup
+             * tidak menutupinya juga: data demo tidak pernah menggambar kartu
+             * dalam keadaan kosong, jadi S23 mencatat empty_bodies [] untuk 12
+             * peran. Aturannya: sebuah `return` yang menggambar keadaan kosong
+             * (tileEmpty) menggambar kakinya juga.
+             */
+            foreach ($this->returnStatements($source) as $statement) {
+                if (! str_contains($statement, 'tileEmpty(')) {
+                    continue;
+                }
+
+                $this->assertStringContainsString('footLink(', $statement, sprintf(
+                    'Widget [%s] menggambar keadaan kosong tanpa kaki kartu. Justru pada layar yang isinya '
+                    .'kosong pembacanya perlu jalan untuk memeriksa, dan katalognya menjanjikan "route: %s".',
+                    $entry['id'], $route,
+                ));
+            }
+
             $checked++;
         }
 
         $this->assertSame(19, $checked, 'Jumlah widget yang disapu berubah — sapuan ini kehilangan sasarannya.');
+    }
+
+    /**
+     * Setiap pernyataan `return …;` di sebuah berkas, utuh sampai titik komanya.
+     *
+     * Dicari dengan mencocokkan kurung, bukan regex: badan `return el('div', [ … ])`
+     * memuat titik koma di dalamnya dan berakhir beberapa baris kemudian.
+     *
+     * @return list<string>
+     */
+    private function returnStatements(string $source): array
+    {
+        $out = [];
+        $offset = 0;
+
+        while (($start = strpos($source, 'return ', $offset)) !== false) {
+            $depth = 0;
+            $end = null;
+
+            for ($i = $start; $i < strlen($source); $i++) {
+                $char = $source[$i];
+
+                if (in_array($char, ['(', '[', '{'], true)) {
+                    $depth++;
+                } elseif (in_array($char, [')', ']', '}'], true)) {
+                    $depth--;
+                } elseif ($char === ';' && $depth <= 0) {
+                    $end = $i;
+                    break;
+                }
+            }
+
+            $out[] = substr($source, $start, ($end ?? strlen($source)) - $start + 1);
+            $offset = $start + 7;
+        }
+
+        return $out;
     }
 
     /** Prefix modul setiap widget adalah grup NAV sungguhan (aksen + pengelompokan). */

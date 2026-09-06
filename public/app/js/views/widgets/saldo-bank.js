@@ -17,7 +17,13 @@ export async function build({ reload }) {
   // Gagal LEBIH DULU daripada .length: sumber yang jatuh panjangnya 0, dan
   // cabang "kosong" akan menuliskan Rp 0 di atas kas yang tidak diketahui.
   if (failure(rows)) return failedStats(['Saldo bank'], reload);
-  if (!rows.length) return tileEmpty('Belum ada rekening bank yang terdaftar.');
+  if (!rows.length) return el('div', [
+      tileEmpty('Belum ada rekening bank yang terdaftar.'),
+      /* Kaki kartu ikut pada keadaan kosong: pembaca yang belum punya rekening
+         justru yang butuh pintu ke layar pendaftarannya (verifikasi P1-D
+         putaran 2, 6 Sep 2026). */
+      footLink('Buka rekening bank', () => navigate('r/finance/bank-accounts')),
+    ]);
 
   const total = rows.reduce((sum, row) => sum + Number(row.balance || 0), 0);
   const minus = rows.filter((row) => Number(row.balance || 0) < 0);

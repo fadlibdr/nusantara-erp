@@ -20,7 +20,12 @@ export async function build({ reload }) {
   if (failure(payload)) return failedBody(failure(payload), reload);
 
   const rows = (payload && payload.rows) || [];
-  if (!rows.length) return tileEmpty('Belum ada proyek yang terdaftar.');
+  if (!rows.length) return el('div', [
+      tileEmpty('Belum ada proyek yang terdaftar.'),
+      /* Kaki kartu ikut pada keadaan kosong: layar yang isinya kosong justru
+         yang butuh pintu untuk diperiksa (verifikasi P1-D putaran 2, 6 Sep 2026). */
+      footLink('Buka EVM & baseline', () => navigate('evm')),
+    ]);
 
   const per = fmt.date(payload.as_of);
   const measured = rows.filter((row) => row.baseline_code);

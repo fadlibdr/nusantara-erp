@@ -23,7 +23,14 @@ export async function build({ reload, card }) {
 
   const meta = payload.meta || {};
   if (!meta.as_of) {
-    return tileEmpty('Kalender bulan ini tidak dapat dibaca.', 'error');
+    /* Kaki kartu ikut di sini juga: justru ketika kartunya tidak bisa membaca
+       bulan ini, pembacanya perlu jalan untuk memeriksa sendiri di layar penuh
+       (verifikasi P1-D putaran 2, 6 Sep 2026 — aturan yang sama dengan cabang
+       kosong ar-aging/ap-aging/pajak). */
+    return el('div', [
+      tileEmpty('Kalender bulan ini tidak dapat dibaca.', 'error'),
+      footLink('Buka kalender lengkap', () => navigate('kalender')),
+    ]);
   }
 
   ensureKalenderPalette();

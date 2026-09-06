@@ -17,7 +17,12 @@ export async function build({ reload }) {
   if (failure(payload)) return failedStats(['Termin siap ditagih'], reload);
 
   const rows = rowsOf(payload);
-  if (!rows.length) return tileEmpty('Tidak ada termin yang siap ditagih.', 'done');
+  if (!rows.length) return el('div', [
+      tileEmpty('Tidak ada termin yang siap ditagih.', 'done'),
+      /* Kaki kartu ikut pada keadaan kosong: layar yang isinya kosong justru
+         yang butuh pintu untuk diperiksa (verifikasi P1-D putaran 2, 6 Sep 2026). */
+      footLink('Buka termin siap ditagih', () => navigate('siap-tagih')),
+    ]);
 
   const meta = payload.meta || {};
   const total = Number(meta.total_amount ?? rows.reduce((sum, row) => sum + Number(row.amount || 0), 0));

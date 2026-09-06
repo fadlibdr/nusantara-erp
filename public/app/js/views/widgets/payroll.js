@@ -14,7 +14,12 @@ export async function build({ reload }) {
   if (failure(payload)) return failedBody(failure(payload), reload);
 
   const runs = rowsOf(payload);
-  if (!runs.length) return tileEmpty('Belum ada run payroll yang dibuat.');
+  if (!runs.length) return el('div', [
+      tileEmpty('Belum ada run payroll yang dibuat.'),
+      /* Kaki kartu ikut pada keadaan kosong: layar yang isinya kosong justru
+         yang butuh pintu untuk diperiksa (verifikasi P1-D putaran 2, 6 Sep 2026). */
+      footLink('Buka run payroll', () => navigate('r/hr/payroll-runs')),
+    ]);
 
   const latest = runs[0];
   /* PayrollRunResource mengirim `period_year` + `period_month`, BUKAN `period`

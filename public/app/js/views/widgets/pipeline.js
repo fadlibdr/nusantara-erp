@@ -23,7 +23,12 @@ export async function build({ reload }) {
   const quarters = (report && report.quarters) || [];
 
   if (!quarters.length) {
-    return tileEmpty('Belum ada penawaran yang diputuskan menang atau kalah.');
+    return el('div', [
+      tileEmpty('Belum ada penawaran yang diputuskan menang atau kalah.'),
+      /* Kaki kartu ikut pada keadaan kosong: layar yang isinya kosong justru
+         yang butuh pintu untuk diperiksa (verifikasi P1-D putaran 2, 6 Sep 2026). */
+      footLink('Buka analitik win-rate', () => navigate('pipeline')),
+    ]);
   }
 
   return el('div', [
