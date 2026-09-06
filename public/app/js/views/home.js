@@ -77,7 +77,7 @@ export async function renderHome(host) {
     return;
   }
 
-  body.appendChild(el('section.home-section', { id: 'home-modules' }, [el('h2.home-section-title', { text: 'Modul' }), grid]));
+  body.appendChild(el('section.home-section', [el('h2.home-section-title', { text: 'Modul' }), grid]));
   append(body, hiddenFooter(hidden, host));
 
   /* Angka menyusul; ubin sudah bisa ditekan sebelum jawabannya datang, dan
@@ -237,7 +237,7 @@ function searchBox(results, groups, grid) {
     results.hidden = term.length < 2;
     if (results.hidden) {
       cells.forEach((cell) => { cell.hidden = false; });
-      const all = document.getElementById('home-modules');
+      const all = grid.closest('.home-section');
       if (all) all.hidden = false;
       return;
     }
@@ -253,7 +253,7 @@ function searchBox(results, groups, grid) {
     });
     // Seksi "Modul" berjudul di atas kisi yang seluruh selnya tersembunyi
     // terbaca sebagai modul yang hilang, bukan sebagai pencarian tanpa hasil.
-    const section = document.getElementById('home-modules');
+    const section = grid.closest('.home-section');
     if (section) section.hidden = !prefixes.length;
 
     const hits = screenHits(term, SEARCH_MAX);

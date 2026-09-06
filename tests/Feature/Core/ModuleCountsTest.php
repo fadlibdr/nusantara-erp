@@ -226,6 +226,18 @@ class ModuleCountsTest extends ErpTestCase
             ->assertJsonStructure(['data' => ['modules' => [['prefix', 'label', 'unit', 'count']]]]);
     }
 
+    public function test_an_array_shaped_include_parameter_does_not_500_the_dashboard(): void
+    {
+        $this->actingAs($this->adminUser(), 'sanctum');
+
+        // `?include[]=modules` membuat query() mengembalikan array; tanpa
+        // is_string() di controller, cast (string) atasnya adalah 500 pada
+        // dasbor yang dipicu satu tautan yang dikarang.
+        $this->getJson('/api/core/dashboard/summary?include[]=modules')
+            ->assertOk()
+            ->assertJsonMissingPath('data.modules');
+    }
+
     public function test_the_modules_endpoint_answers_the_same_payload_as_the_dashboard_block(): void
     {
         $admin = $this->adminUser();

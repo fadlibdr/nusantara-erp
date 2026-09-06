@@ -1314,7 +1314,13 @@ async function boot() {
     landOnDefault();
     start();
   } else {
-    // Re-render the current route into the freshly built shell.
+    /* Masuk ULANG di tab yang sama (sesi berakhir di tengah kerja): halaman yang
+       sedang dibaca orangnya dipulihkan, dan landOnDefault() di bawah karena itu
+       tidak melakukan apa-apa — hash-nya sudah terisi. Itu disengaja: yang baru
+       saja kehilangan sesi sedang mengerjakan sesuatu (offerDrafts menawarkan
+       isiannya kembali di baris berikutnya), dan melemparnya ke launcher berarti
+       menghilangkan tempat ia berada. Aturan landing berlaku pada muat halaman
+       yang tanpa hash — yaitu masuk yang sesungguhnya pertama. */
     const path = currentPath();
     navigate('dashboard', { replace: true });
     if (path !== 'dashboard') navigate(path, { replace: true });

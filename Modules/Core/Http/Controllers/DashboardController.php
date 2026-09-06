@@ -90,7 +90,13 @@ class DashboardController extends ApiController
          * ada supaya sebuah layar yang butuh KEDUANYA (dasbor + ubin modul)
          * bisa mengambilnya dalam satu permintaan, bukan dua.
          */
-        if (str_contains((string) $request->query('include', ''), 'modules')) {
+        // is_string() sebelum str_contains(): `?include[]=modules` membuat
+        // query() mengembalikan array, dan cast (string) atasnya adalah 500 pada
+        // dasbor yang dipicu satu tautan yang dikarang — pola yang sama dengan
+        // penanganan bound tanggal di ApiController::listing().
+        $include = $request->query('include');
+
+        if (is_string($include) && str_contains($include, 'modules')) {
             $data['modules'] = ModuleCounts::for($user);
         }
 
