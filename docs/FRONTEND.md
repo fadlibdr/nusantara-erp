@@ -51,7 +51,8 @@ public/app/
                         emptyState({ kind }) — CONVENTIONS §14
     illustrations.js    five stroke-only empty-state drawings (inbox/search/filter/error/done),
                         coloured by app.css tokens — no hex literals
-    charts.js           SVG charts (line/bar/donut/sparkline/gantt) — the header docblock is
+    charts.js           SVG charts (line/bar/donut/sparkline/gantt) — since P1-E the ONLY
+                        chart code in the app; the header docblock is
                         the API reference; colours only via --chart-* tokens (harness S20)
     cells.js            value renderer shared by tables and detail panels
     enums.js            option lists mirrored from the PHP enums
@@ -157,6 +158,12 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **Charts (P1-A, P1-E)**: every chart in the app is `js/charts.js`. Screens supply data and the
+  properties that are theirs to decide — the EVM axis being allowed above 100 %, the price-trend
+  axis not being forced to zero — and nothing else; `ChartMigrationTest` refuses a
+  `createElementNS` returning to `project.js` / `evm.js` / `hargasatuan.js`. Legends are drawn
+  inside the SVG, so no `.legend` block sits beside a chart except the price trend, whose
+  distinction (PO vs GRN) is per POINT rather than per series. CONVENTIONS §11.
 - **Dashboard widgets (P1-D)**: `#/dashboard` is composed, not drawn. `views/widgets/registry.js`
   is the catalogue — 19 entries, each `{ id, title, desc, module, perm, route, sizes, size }` —
   and each widget's renderer lives in `views/widgets/<id>.js`, imported **dynamically** only when

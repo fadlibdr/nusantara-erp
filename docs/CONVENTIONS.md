@@ -251,8 +251,25 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
   menambah `<title>` di luar mark (legenda, label) karena hitungan `<title>` liar akan pecah. Satu
   pengecualian yang disengaja: label gantt yang dipotong (`data-truncated`) membawa nama lengkapnya.
 - Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
-  langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
-  `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.
+  langsung di `.card-body`.
+- **Tidak ada lagi grafik tangan (P1-E).** Kurva-S (`views/project.js`), kurva EVM
+  (`views/evm.js`) dan tren harga satuan (`views/hargasatuan.js`) sekarang memanggil
+  `lineChart`; ketiganya hanya menyusun DATA. `ChartMigrationTest` menolak
+  `document.createElementNS` yang kembali ke ketiga berkas itu — grafik tangan keempat akan lahir
+  tanpa token, tanpa `<title>` per tanda, dan tanpa blok cetak, yaitu persis tiga hal yang P1-A
+  dibangun untuk memberikannya. Butuh sesuatu yang belum ada? Tambahkan di `charts.js`, supaya
+  SEMUA grafik ikut mendapatkannya.
+- **Sifat yang milik PEMANGGIL, bukan grafik**, dan karena itu dipaku uji per layar: sumbu EVM
+  yang boleh naik melewati 100 % (`yMax = Math.max(100, …)` — sumbu yang ditahan di 100 % memotong
+  garis biaya justru pada proyek yang sudah melewati anggarannya), dan sumbu tren harga yang TIDAK
+  dipaksa memuat nol (`yMin/yMax` sendiri — bawaan charts.js selalu memuat nol, dan tren
+  12.500 → 13.750 pada sumbu 0..14.000 tampak datar).
+- **Satu legenda per grafik.** `charts.js` menggambar legendanya di dalam svg (ikut tercetak, ikut
+  ter-skala), jadi blok `.legend` DOM di sebelahnya dibuang. Yang tersisa memakainya hanya tren
+  harga satuan, karena pembedanya per TITIK (PO vs GRN pada satu garis kronologis, `points[].token`)
+  dan itu tidak bisa dinyatakan legenda per-seri; swatch-nya memakai token `--chart-*` yang sama
+  dengan titiknya — `--warning` tercetak berbeda dari titik yang diwakilinya, karena blok cetak
+  hanya menukar token `--chart-*`.
 
 ## 12. Aksen modul (`--accent-1..8`, P1-B)
 
