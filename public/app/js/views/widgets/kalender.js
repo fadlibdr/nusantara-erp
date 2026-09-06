@@ -115,6 +115,19 @@ export async function build({ reload, card }) {
           style: { color: 'var(--warning)', margin: '8px 0 0' },
         })
         : null,
+      /* SUMBER YANG DILEWATI, bukan hanya yang terpotong. CalendarController
+         mengirim meta.skipped (tabel yang belum ada), dan layar kalender penuh
+         menuliskannya ("N dilewati (tabel sedang dimigrasi)" / "semua sumber
+         terbaca"); sampai verifikasi kedua P1-D widget ini hanya menangani
+         meta.capped, jadi sebuah bulan yang sebagiannya tidak terbaca tergambar
+         seolah lengkap — bentuk "sebagian gagal terbaca sebagai kosong" yang
+         justru inbox.js tangani dengan benar. */
+      meta.skipped
+        ? el('p.cell-sub', {
+          text: `${meta.skipped} sumber agenda dilewati (tabelnya sedang dimigrasi) - bulan ini belum tentu lengkap.`,
+          style: { color: 'var(--warning)', margin: '8px 0 0' },
+        })
+        : null,
     ]),
     upcoming.length
       ? miniTable(
