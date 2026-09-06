@@ -258,6 +258,45 @@ class SavedReportTest extends ErpTestCase
     }
 
     /**
+     * Nama yang bukan teks ditolak dengan kalimat, bukan dengan 500.
+     *
+     * `trim((string) $input['name'])` atas sebuah array memicu 'Array to
+     * string conversion' → ErrorException, dan `copy()` yang mengetik
+     * parameternya `?string` memicu TypeError; keduanya lolos dari lengan
+     * catch controller (`LogicException|InvalidArgumentException`) dan
+     * mendarat sebagai 500 — satu-satunya bentuk salah di endpoint ini yang
+     * tidak berkalimat (verifikasi kedua P1-F). Angka pun ditolak: sebuah
+     * laporan bernama '12345' adalah cast yang berhasil diam-diam.
+     */
+    public function test_a_name_that_is_not_text_is_refused_with_a_sentence_not_a_500(): void
+    {
+        $owner = $this->userWith('finance', ['fin.view']);
+        $this->actingAs($owner, 'sanctum');
+
+        $id = $this->postJson('/api/core/reports/saved', ['name' => 'Asli', 'definition' => $this->definition()])
+            ->assertStatus(201)->json('data.id');
+
+        foreach ([[], ['x'], ['a' => 'b'], 12345, true] as $shape) {
+            $this->postJson('/api/core/reports/saved', ['name' => $shape, 'definition' => $this->definition()])
+                ->assertStatus(422)
+                ->assertJsonPath('message', 'Nama laporan harus berupa teks.');
+
+            $this->putJson("/api/core/reports/saved/{$id}", ['name' => $shape, 'definition' => $this->definition()])
+                ->assertStatus(422)
+                ->assertJsonPath('message', 'Nama laporan harus berupa teks.');
+
+            $this->postJson("/api/core/reports/saved/{$id}/copy", ['name' => $shape])
+                ->assertStatus(422)
+                ->assertJsonPath('message', 'Nama laporan harus berupa teks.');
+        }
+
+        // Dan nama yang memang teks tetap lewat — termasuk salinan tanpa nama.
+        $this->postJson("/api/core/reports/saved/{$id}/copy")->assertStatus(201);
+        $this->postJson("/api/core/reports/saved/{$id}/copy", ['name' => 'Salinan bernama'])
+            ->assertStatus(201)->assertJsonPath('data.name', 'Salinan bernama');
+    }
+
+    /**
      * Definisi yang salah dilaporkan sebagai DEFINISI, bukan sebagai
      * kepemilikan.
      *

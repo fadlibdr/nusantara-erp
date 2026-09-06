@@ -241,13 +241,20 @@ final class SavedReportService
      * membagikan, dan mewarisi diam-diam adalah cara laporan menyebar ke peran
      * yang tidak pernah dipilih siapa pun.
      */
-    public function copy(User $user, SavedReport $report, ?string $name = null): SavedReport
+    public function copy(User $user, SavedReport $report, mixed $name = null): SavedReport
     {
         if (! $this->canRead($user, $report)) {
             throw new LogicException('Laporan ini tidak dapat Anda baca, jadi tidak dapat Anda salin.');
         }
 
-        $wanted = $name !== null && trim($name) !== '' ? trim($name) : $report->name.' (salinan)';
+        /* `mixed`, bukan `?string`: controller melewatkan `$request->input('name')`
+           apa adanya, dan sebuah array di sana adalah TypeError — yang mewarisi
+           Error, bukan Exception, jadi lengan catch controller tidak
+           menangkapnya dan jawabannya 500 (verifikasi kedua P1-F). Nama yang
+           benar-benar dikirim lewat pintu yang sama dengan create/update. */
+        $wanted = $name === null || (is_string($name) && trim($name) === '')
+            ? $report->name.' (salinan)'
+            : self::asName($name);
         $candidate = $wanted;
         $suffix = 2;
 
@@ -326,7 +333,31 @@ final class SavedReportService
     /** @param array<string, mixed> $input */
     private function nameFrom(array $input): string
     {
-        $name = trim((string) ($input['name'] ?? ''));
+        return self::asName($input['name'] ?? null);
+    }
+
+    /**
+     * Nilai apa pun → nama laporan, atau 422 berkalimat.
+     *
+     * `(string) $value` atas sebuah ARRAY memicu 'Array to string conversion',
+     * yang di Laravel menjadi ErrorException — bukan InvalidArgumentException —
+     * jadi ia melewati kedua lengan catch controller dan mendarat sebagai 500.
+     * Terukur pada POST/PUT `core/reports/saved` dan `…/copy` dengan
+     * `{"name": []}` (verifikasi kedua P1-F), sementara setiap bentuk salah
+     * lain di endpoint yang sama menjawab 422 dengan kalimat Indonesia.
+     *
+     * `is_string` dan bukan `is_scalar`: nama laporan diketik orang, jadi
+     * menerima angka hanya menutup efek samping kedua dari cast itu dengan
+     * cara yang sama diam-diamnya (`{"name": 12345}` membuat laporan bernama
+     * '12345'). Yang bukan teks ditolak dengan namanya.
+     */
+    private static function asName(mixed $value): string
+    {
+        if ($value !== null && ! is_string($value)) {
+            throw new InvalidArgumentException('Nama laporan harus berupa teks.');
+        }
+
+        $name = trim((string) ($value ?? ''));
 
         if ($name === '') {
             throw new InvalidArgumentException('Laporan harus punya nama.');
