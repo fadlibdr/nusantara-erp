@@ -19,7 +19,7 @@ import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
 import { safe, failure, failedStats, statRow, stat, footLink } from './kit.js';
 
-export async function build({ mineOnly, reload }) {
+export async function build({ mineOnly, reload, card }) {
   const tiles = await safe('core/dashboard/summary', { mine: mineOnly ? 1 : undefined });
 
   /* Satu fetch memberi makan KETIGA ubin, jadi gagalnya menjatuhkan ketiganya
@@ -33,6 +33,26 @@ export async function build({ mineOnly, reload }) {
   // Label ikut sakelarnya: angka yang berganti makna tidak boleh memakai judul
   // yang sama.
   const projectLabel = mineOnly ? 'Proyek saya (berjalan)' : 'Proyek berjalan';
+
+  /* JUDUL KARTU MENGIKUTI BLOK YANG BENAR-BENAR DIKIRIM SERVER.
+     Katalog memberi kartu ini judul tetap 'Proyek, piutang & hutang' dengan
+     izin ['prj.view','fin.view'] (salah satu cukup), sementara server menyaring
+     bloknya per izin — jadi gudang (prj.view tanpa fin.view) membaca judul yang
+     menjanjikan TIGA angka di atas kartu berisi SATU, tanpa satu kata pun yang
+     membedakan "tidak boleh dilihat" dari "tidak ada isinya". Sebelum P1-D ubin
+     ini tidak punya judul kartu sama sekali (P1-C menggambar .stat-row telanjang),
+     jadi janji berlebih itu baru (verifikasi kedua P1-D). */
+  const shown = [
+    tiles.projects ? 'Proyek' : null,
+    tiles.ar_invoices ? 'piutang' : null,
+    tiles.ap_bills ? 'hutang' : null,
+  ].filter(Boolean);
+  const heading = card && card.querySelector('.card-head h2');
+  if (heading && shown.length) {
+    heading.textContent = shown.length === 1
+      ? shown[0]
+      : `${shown.slice(0, -1).join(', ')} & ${shown[shown.length - 1]}`;
+  }
 
   const body = el('.card-body', statRow([
     tiles.projects

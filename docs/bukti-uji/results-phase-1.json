@@ -20196,7 +20196,7 @@
       "card_titles": [
         {
           "id": "ringkasan-uang",
-          "title": "Proyek, piutang & hutang"
+          "title": "Proyek"
         },
         {
           "id": "inbox",
@@ -20231,7 +20231,7 @@
       "progres_card_says_mine": true
     },
     "ok": true,
-    "_ms": 86999,
+    "_ms": 88725,
     "_clicks": 0
   },
   "S20e_migrated_charts": {
