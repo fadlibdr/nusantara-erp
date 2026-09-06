@@ -117,15 +117,48 @@ class LauncherWiringTest extends ErpTestCase
         $this->assertStringContainsString("matchMedia('(max-width: 760px)')", $onboarding);
     }
 
+    /**
+     * Aturan kejujuran ubin dijaga di DUA berkas dan pada JALUR yang menulis
+     * angkanya, bukan hanya dengan "ada '—' di suatu tempat".
+     *
+     * Sampai verifikasi P1-C (6 Sep 2026) daftar literal terlarang hanya
+     * dikenakan pada home.js, dan module.js cukup memuat '—' di mana saja: dua
+     * mutasi perilaku dari aturan yang sama lolos hijau — fail() di home.js
+     * menulis '0' alih-alih '—' (jalur untuk "izin hitungan tidak dipegang",
+     * yang justru kasus paling sering), dan headlineTile() di module.js
+     * memakai `String(entry.count ?? 0)`.
+     */
     public function test_the_tiles_never_turn_an_unknown_count_into_zero(): void
     {
         $home = $this->file('app/js/views/home.js');
+        $module = $this->file('app/js/views/module.js');
 
-        $this->assertStringContainsString("'—'", $home, 'home.js tidak pernah menulis "—"; ubin tanpa angka pasti menulis sesuatu yang lain.');
-        foreach (['count || 0', 'count ?? 0', 'count) || 0'] as $forbidden) {
-            $this->assertStringNotContainsString($forbidden, $home,
-                "home.js memakai \"{$forbidden}\": hitungan yang tidak diketahui menjadi 0, dan 0 adalah pernyataan.");
+        foreach (['views/home.js' => $home, 'views/module.js' => $module] as $name => $source) {
+            $this->assertStringContainsString("'—'", $source, "{$name} tidak pernah menulis \"—\"; ubin tanpa angka pasti menulis sesuatu yang lain.");
+            foreach (['count || 0', 'count ?? 0', 'count) || 0', 'count : 0'] as $forbidden) {
+                $this->assertStringNotContainsString($forbidden, $source,
+                    "{$name} memakai \"{$forbidden}\": hitungan yang tidak diketahui menjadi 0, dan 0 adalah pernyataan.");
+            }
         }
+
+        // Jalur "tidak tahu" di launcher: dipakai untuk entri yang TIDAK
+        // dikirim server (izin hitungan tidak dipegang) dan untuk permintaan
+        // yang gagal seluruhnya. Ia harus menulis '—', dan tidak boleh menulis
+        // angka apa pun.
+        $fail = $this->functionBody($home, 'fail() {');
+        $this->assertNotNull($fail, 'moduleTile() di home.js tidak punya fail(); jalur "angkanya tidak diketahui" hilang.');
+        $this->assertStringContainsString("value.textContent = '—'", $fail,
+            'fail() tidak menulis "—" pada angka ubin — dan inilah jalur yang dipakai ketika izin hitungannya tidak dipegang.');
+        $this->assertDoesNotMatchRegularExpression("/textContent = (?:'\d|\"\d|String\()/", $fail,
+            'fail() menulis sebuah ANGKA sebagai nilai ubin; yang tidak dihitung tidak boleh tampak seperti hasil hitungan.');
+
+        // …dan angka utama beranda modul: entri yang tidak ada TIDAK berubin,
+        // count null menulis '—'.
+        $headline = $this->functionBody($module, 'function headlineTile(');
+        $this->assertNotNull($headline, 'headlineTile() tidak ada di views/module.js.');
+        $this->assertStringContainsString('if (!entry) return null;', $headline,
+            'Entri yang tidak dikirim server menghasilkan ubin di beranda modul; yang benar adalah tidak menggambar ubin sama sekali.');
+        $this->assertStringContainsString("=== null ? '—'", $headline);
     }
 
     public function test_the_module_home_carries_counts_recents_and_a_star_beside_each_card(): void
