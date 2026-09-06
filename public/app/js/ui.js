@@ -1,5 +1,7 @@
 /* DOM helpers and shared widgets. No framework, no build step. */
 
+import { illustration } from './illustrations.js';
+
 /** el('div.card', { onclick }, [children]) — tag supports .class and #id. */
 export function el(spec, props, children) {
   const match = /^([a-z0-9]+)?([.#][^\s]*)?$/i.exec(spec) || [];
@@ -890,8 +892,23 @@ function installRowKeys() {
 installRowKeys();
 
 /* ------------------------------------------------------------------ empty */
-export function emptyState(message, { title = 'Belum ada data', action } = {}) {
-  return el('.empty', [icon('inbox', 34), el('h3', { text: title }), el('p', { text: message }), action || null]);
+/*
+ * Keadaan kosong berilustrasi (P1-B). `kind` memilih gambarnya
+ * (js/illustrations.js): inbox — belum ada yang tercatat (bawaan, jadi 16
+ * pemanggil lama tidak berubah); search — pencarian tanpa hasil; filter —
+ * filter menyaring semuanya (list.js memasangkan tombol "Hapus filter");
+ * error — sumbernya gagal, bukan kosong (jangan pernah memakai inbox/done
+ * untuk kegagalan: itu mengubah "tidak bisa ditanyakan" menjadi "tidak ada");
+ * done — semua selesai. `compact` = varian ubin dasbor/kotak pemberitahuan;
+ * `title: null` menghilangkan judulnya.
+ */
+export function emptyState(message, { title = 'Belum ada data', action, kind = 'inbox', compact = false } = {}) {
+  return el(`.empty${compact ? '.compact' : ''}`, [
+    illustration(kind),
+    title ? el('h3', { text: title }) : null,
+    el('p', { text: message }),
+    action || null,
+  ]);
 }
 
 export function errorState(error, retry) {

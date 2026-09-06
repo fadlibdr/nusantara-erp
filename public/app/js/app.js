@@ -4,8 +4,10 @@ import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from '
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
 import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
-import { NAV, RESOURCES, visibleNav } from './schema.js';
+import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
+import { setCrumbs } from './crumbs.js';
+import { renderModuleHome } from './views/module.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
 import { renderList } from './views/list.js';
 import { renderDetail } from './views/detail.js';
@@ -65,6 +67,18 @@ const RECENT_KEY = 'nusantara_erp_recent';
 const RECENT_MAX = 5;
 const FAVORITES_LABEL = 'Favorit';
 const RECENT_LABEL = 'Terakhir dibuka';
+/*
+ * Kepadatan (P1-B): rapat 32 / normal 38,5 / lega 48 px per baris satu-baris
+ * (angka diukur, blok token app.css). Per pengguna lewat personalKey seperti
+ * favorit — kunci localStorage `nusantara_erp_density:<id pengguna>`, nilai
+ * 'compact' | 'normal' | 'comfortable'. P1-C memindahkannya ke server
+ * (core/me/preferences) bersama favorit/recent: baca kunci ini sekali lalu
+ * hapus. Dipasang sebagai data-density di <html> SEBELUM shell digambar
+ * (evaluasi modul + boot()), jadi tidak ada kedipan dari normal ke rapat.
+ */
+const DENSITY_KEY = 'nusantara_erp_density';
+// 'Padat', bukan 'Rapat': di ERP "rapat" terbaca lebih dulu sebagai pertemuan (verifikasi P1-B 5 Sep 2026).
+const DENSITIES = { compact: 'Padat', normal: 'Normal', comfortable: 'Lega' };
 
 /* ------------------------------------------------------------------ theme */
 function applyTheme(theme) {
@@ -82,6 +96,23 @@ function cycleTheme() {
 }
 
 applyTheme(localStorage.getItem(THEME_KEY) || 'system');
+
+/* ---------------------------------------------------------------- density */
+function readDensity() {
+  const stored = localStorage.getItem(personalKey(DENSITY_KEY));
+  return DENSITIES[stored] ? stored : 'normal';
+}
+
+function applyDensity(density) {
+  document.documentElement.dataset.density = DENSITIES[density] ? density : 'normal';
+}
+
+function setDensity(density) {
+  localStorage.setItem(personalKey(DENSITY_KEY), density);
+  applyDensity(density);
+}
+
+applyDensity(readDensity());
 
 /* ------------------------------------------------------------------ login */
 function renderLogin({ message } = {}) {
@@ -537,6 +568,13 @@ function navGroupNode(nav, group, favorites, stored) {
     items,
   ]);
   if (group.kind) groupNode.dataset.kind = group.kind;
+  // Aksen modul (P1-B): slot warna grup, dipakai penanda grup aktif
+  // (.has-active, dipasang setActiveNav). Grup pintasan tidak beraksen.
+  const module = group.prefix ? moduleFor(group.prefix) : null;
+  if (module) {
+    groupNode.dataset.prefix = module.prefix;
+    groupNode.dataset.accent = String(module.accent);
+  }
 
   groupNode.querySelector('button').addEventListener('click', () => {
     const next = groupNode.dataset.open !== 'true';
@@ -604,14 +642,19 @@ function buildShell() {
     ]),
     el('header.header', [
       menuToggle,
-      el('.crumbs', { id: 'crumbs' }),
+      // <nav> berlabel: dua tautan di dalamnya (modul, layar) butuh landmark supaya
+      // pembaca layar bisa melompat ke remah roti (verifikasi P1-B 5 Sep 2026).
+      el('nav.crumbs', { id: 'crumbs', 'aria-label': 'Remah roti' }),
       el('.spacer'),
-      button('Cari', {
+      // Kelas global-search: di ponsel labelnya disembunyikan secara VISUAL saja (app.css
+      // ≤ 760 px; nama tombol tetap dari span-nya) supaya header 390 px tidak melebihi
+      // lebarnya — verifikasi P1-B 5 Sep 2026: berlabel, remah 'Keuangan' pun terpotong.
+      Object.assign(button('Cari', {
         variant: 'ghost',
         iconName: 'search',
         title: 'Pencarian global (Ctrl+K)',
         onClick: () => openSearch(),
-      }),
+      }), { className: 'btn ghost global-search' }),
       button('', {
         variant: 'ghost',
         iconName: (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun',
@@ -650,6 +693,7 @@ function openUserMenu(user) {
         el('dt', { text: 'Hak akses' }),
         el('dd', { text: `${(user.permissions || []).length} izin` }),
       ]),
+      densityControl(),
     ]),
     footer: [
       button('Tutup', { onClick: () => dialog.close() }),
@@ -680,7 +724,37 @@ function openUserMenu(user) {
   });
 }
 
+/*
+ * Kontrol "Kepadatan" di dialog Akun (P1-B): tiga radio, berlaku seketika
+ * (tanpa muat ulang) dan diingat per pengguna di peramban ini — sama seperti
+ * favorit, dan sama seperti tema, ini preferensi peramban sampai P1-C
+ * memindahkannya ke server.
+ */
+function densityControl() {
+  const current = readDensity();
+  // Petunjuk mengikuti perangkatnya (verifikasi P1-B 5 Sep 2026): di layar sentuh
+  // tombol baris memegang sasaran jempol 36 px (app.css pointer: coarse), jadi baris
+  // bertombol 43 (rapat) / 55 (normal DAN lega) — "48 px" akan berbohong di sana, dan
+  // baris teks di ponsel hampir selalu membungkus (terukur: 0 baris teks satu-baris di
+  // jurnal/item/proyek 390 px), jadi hanya angka bertombol yang disebut.
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const hints = coarse
+    ? { compact: 'baris bertombol 43 px', normal: 'baris bertombol 55 px', comfortable: 'baris bertombol 55 px (= Normal)' }
+    : { compact: '32 px per baris', normal: '38,5 px per baris', comfortable: '48 px per baris' };
+  return el('fieldset.density-pick', [
+    el('legend', { text: 'Kepadatan' }),
+    ...Object.entries(DENSITIES).map(([value, label]) => {
+      const input = el('input', { type: 'radio', name: 'density', value });
+      input.checked = value === current;
+      input.addEventListener('change', () => { if (input.checked) setDensity(value); });
+      return el('label.check-row', [input, el('span', { text: label }), el('span.muted', { text: hints[value] })]);
+    }),
+    coarse ? el('p.density-note.muted', { text: 'Di layar sentuh tombol baris memegang sasaran jempol 36 px; baris teks yang membungkus mengikuti isinya.' }) : null,
+  ]);
+}
+
 function setActiveNav(path) {
+  document.querySelectorAll('.nav-group.has-active').forEach((group) => group.classList.remove('has-active'));
   document.querySelectorAll('.nav-items a').forEach((link) => {
     const target = link.dataset.route;
     const active = path === target ||
@@ -692,20 +766,22 @@ function setActiveNav(path) {
       // Grup rute aktif dibuka (tidak disimpan) — inilah pengecualian bawaan
       // tertutup. Favorit/Terakhir dibuka yang memuat rute yang sama tidak
       // dipaksa: yang dilipat sendiri oleh pemakainya tetap terlipat.
-      if (group && !group.dataset.kind) group.dataset.open = 'true';
+      // has-active = penanda grup beraksen (P1-B), juga hanya di grup asal.
+      if (group && !group.dataset.kind) {
+        group.dataset.open = 'true';
+        group.classList.add('has-active');
+      }
     }
   });
-}
-
-function setCrumbs(parts) {
-  const host = document.getElementById('crumbs');
-  if (!host) return;
-  clear(host);
-  parts.forEach((part, index) => {
-    if (index) host.appendChild(icon('chevronRight', 12));
-    host.appendChild(index === parts.length - 1 ? el('b', { text: part }) : el('span', { text: part }));
-  });
-  document.title = `${parts[parts.length - 1]} · Nusantara ERP`;
+  // Beranda modul #/m/<prefix> tidak punya baris sendiri di sidebar; grupnya
+  // yang ditandai dan dibuka, supaya orang tahu sedang berada di modul mana.
+  if (path.startsWith('m/')) {
+    const group = document.querySelector(`nav.nav .nav-group[data-prefix="${CSS.escape(path.slice(2))}"]`);
+    if (group) {
+      group.dataset.open = 'true';
+      group.classList.add('has-active');
+    }
+  }
 }
 
 /* ----------------------------------------------------------------- routes */
@@ -1057,6 +1133,24 @@ function registerRoutes() {
     guard(host, () => renderSettings(host));
   });
 
+  /* Beranda modul (P1-B) — sasaran remah modul; minimal: kepala beraksen +
+     kartu layar yang boleh dibuka (views/module.js). Tanpa gerbang izin:
+     grup yang izinnya tidak dipegang berakhir di keadaan kosong beranda itu
+     sendiri, bukan panel akses-ditolak, karena grupnya memang tidak ada bagi
+     orang itu. Prefix yang bukan grup NAV mana pun → alert "tidak dikenal". */
+  route('m/:prefix', ({ prefix }) => {
+    const module = moduleFor(prefix);
+    const host = view();
+    if (!module) {
+      setCrumbs(['Tidak ditemukan']);
+      host.appendChild(el('.alert.error', `Modul "${prefix}" tidak dikenal.`));
+      return;
+    }
+    setCrumbs([module.label]);
+    setActiveNav(`m/${prefix}`);
+    guard(host, () => renderModuleHome(host, { prefix }));
+  });
+
   // r/<resource path> — list screen
   route('r/*', (_, path) => {
     const key = path.slice(2);
@@ -1094,7 +1188,7 @@ function registerRoutes() {
       return;
     }
 
-    setCrumbs([groupLabelFor(key), def.label, `#${id}`]);
+    setCrumbs([groupLabelFor(key), def.label, `#${id}`], { screenHref: `#/r/${key}` });
     setActiveNav(`d/${key}/${id}`);
 
     // Timpaan viewPerm yang sama dengan rute daftar r/* di atas.
@@ -1157,15 +1251,40 @@ function registerRoutes() {
   });
 }
 
+/*
+ * Label remah pertama untuk layar r/<key>: nama grup NAV yang memuatnya, dan
+ * bila tidak ada grup yang memuatnya, nama modul si resource sendiri.
+ *
+ * Tujuh resource memang tidak ada di sidebar — dibuka dari layar lain, bukan
+ * dari menu: projects/baselines, projects/defects, inventory/issue-returns,
+ * inventory/purchase-returns, hr/certificates (schema.js) serta
+ * finance/petty-cash-vouchers dan finance/kasbon (didaftarkan kaskecil.js).
+ * Dulu semuanya berakar pada penanda 'ERP', yang bukan grup mana pun, sehingga
+ * crumbs.js menandainya data-root='screen' — dan di ponsel HALAMAN DOKUMEN-nya
+ * tetap menulis 'Keuangan' (kaskecil.js) alias data-root='module'. Daftar dan
+ * dokumennya karena itu berganti subjek: '#/r/finance/kasbon' membaca 'Kasbon',
+ * '#/d/finance/kasbon/1' membaca 'Keuangan' (diukur 390×844 dan 1440×900,
+ * verifikasi P1-B putaran 2). Modul resource-nya adalah jawaban yang sama untuk
+ * keduanya, dan bertaut ke beranda modul yang memang boleh dibuka pemakainya:
+ * rute r/* menolak siapa pun tanpa `<module>.view`, izin yang sama yang membuat
+ * beranda modul itu berisi.
+ */
 function groupLabelFor(key) {
   const group = NAV.find((entry) => entry.items.some((item) => item.route === `r/${key}`));
-  return group ? group.label : 'ERP';
+  if (group) return group.label;
+  const def = RESOURCES[key];
+  const module = def ? moduleFor(def.module) : null;
+  return module ? module.label : 'ERP';
 }
 
 /* ------------------------------------------------------------------- boot */
 let routesRegistered = false;
 
 async function boot() {
+  // Sesudah masuk id pengguna sudah ada: kepadatan MILIKNYA dipasang sebelum
+  // shell digambar (evaluasi modul di atas membaca kunci pengguna sebelumnya
+  // atau 'anon').
+  applyDensity(readDensity());
   startNotificationPolling();
   buildShell();
 

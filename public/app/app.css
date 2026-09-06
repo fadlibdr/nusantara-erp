@@ -58,6 +58,71 @@
   --chart-today: #c62828;
   --chart-weekend: #f1f3f6;
   --chart-baseline: #94a3b8;
+  /* Aksen modul (P1-B). Delapan slot warna departemen; 14 grup NAV (schema.js MODULES,
+     kunci = prefix izin grup) dipetakan ke slot begini — turunan dari isi NAV, bukan grup baru:
+       1 Proyek (prj)                                    — lapangan
+       2 Keuangan (fin)                                  — keuangan & pajak
+       3 Pengadaan (prc) · Persediaan (inv) · Subkontrak (scm) — rantai pasok; subkon = vendor
+       4 Penjualan (crm) · Estimasi (est)                — komersial; RAB disusun bersama tender
+       5 SDM & Payroll (hr)
+       6 Aset (ast)                                      — peralatan
+       7 Layanan (svc)                                   — tiket & kontrak layanan
+       8 Sistem (iam) · Mutu (qc) · Engineering (eng) · Ringkasan — fungsi penunjang, slot netral
+     Hubungan dengan grafik: --accent-n memakai SUDUT HUE Lab yang sama dengan --chart-n
+     (toleransi ±12° — terukur maks 11,8° slot 6 terang, 7,3° slot 8 gelap, S21 hue_delta; slot 1 =
+     --primary = --chart-1 persis), hanya L dan C yang digeser sampai
+     setiap pasangan slot berjarak ≥ 20 ΔE2000 — palet grafik apa adanya gagal (terang 2–6 = 10,2;
+     gelap 1–8 = 13,8). Dihitung 5 Sep 2026 (CIEDE2000 di Lab, luminansi relatif WCAG; skrip
+     optimize2.py/finalize.py di scratch P1-B; harness S21 mengukur nilai terkomputasi yang hidup).
+     ΔE2000 antar slot, tema TERANG (minimum 20,1 = 1–8 dan 5–8):
+            1     2     3     4     5     6     7     8
+       1    —  48,9  51,0  20,4  20,3  40,1  56,0  20,1
+       2 48,9     —  58,9  46,3  54,0  20,2  20,7  35,1
+       3 51,0  58,9     —  52,2  33,1  66,7  36,4  31,7
+       4 20,4  46,3  52,2     —  33,1  32,2  59,4  23,6
+       5 20,3  54,0  33,1  33,1     —  56,6  42,8  20,1
+       6 40,1  20,2  66,7  32,2  56,6     —  34,0  29,8
+       7 56,0  20,7  36,4  59,4  42,8  34,0     —  33,0
+       8 20,1  35,1  31,7  23,6  20,1  29,8  33,0     —
+     Kontras WCAG terang (aksen di --surface / -fg di aksen / aksen di -soft), batas 3:1 · 4,5:1 ·
+     4,5:1 — dipasang ≥ 5,2:1 di --surface karena aksen dipakai sebagai TEKS remah roti:
+       1 6,18/6,18/5,47 · 2 5,20/5,20/4,64 · 3 5,25/5,25/4,62 · 4 7,00/7,00/6,15 ·
+       5 5,33/5,33/4,77 · 6 8,71/8,71/7,66 · 7 5,34/5,34/4,79 · 8 8,10/8,10/7,17
+     Catatan jujur: slot 3/6/7 sekeluarga hue dengan --success/--danger/--warning (warisan palet
+     grafik; ΔE 6,7 / 12,5 / 3,8 di tema terang). Aksen tidak pernah dipakai pada lencana atau
+     alert — hanya penanda grup aktif, remah modul, dan kepala beranda modul. */
+  --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff;
+  --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+  --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff;
+  --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+  --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff;
+  --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+  --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff;
+  --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
+  /* Kepadatan (P1-B). Diukur 5 Sep 2026 sebelum token ada: baris tabel satu baris teks 13 px =
+     19,5 + 2×9 padding + 1 border = 38,5 px; baris berlencana 41,13; baris bertombol aksi (.btn.sm
+     28 px) 47. "normal" = angka itu persis (lantai 38,5 tidak pernah mengikat, tidak ada yang
+     bergeser tanpa pilihan); rapat 32 (padding 3, tombol aksi 24) dan lega 48 (padding tetap,
+     lantai naik) — di kedua profil itu SEMUA baris satu-baris tepat 32/48. Diaktifkan lewat
+     data-density di <html> (app.js, kunci localStorage nusantara_erp_density:<id pengguna>). */
+  --row-h: 38.5px;
+  --cell-py: 9px;
+  --cell-px: 12px;
+  /* Kaki tabel (tfoot "Total") punya padding sendiri: sebelum token ada ia 10 px,
+     bukan 9 px seperti td — verifikasi P1-B 5 Sep 2026 mengukur baris total
+     41 → 39 px di PO, detail PO, Saldo Stok, dan Laporan begitu tfoot ikut
+     --cell-py. Normal = 10 px persis (41 px lagi); rapat 4; lega 10. */
+  --foot-py: 10px;
+  --nav-py: 6px;
+  --form-gap: 13px 16px;
+  --kv-gap: 9px 14px;
+}
+
+:root[data-density="compact"] {
+  --row-h: 32px; --cell-py: 3px; --cell-px: 10px; --foot-py: 4px; --nav-py: 4px; --form-gap: 9px 14px; --kv-gap: 5px 12px;
+}
+:root[data-density="comfortable"] {
+  --row-h: 48px; --cell-py: 9px; --cell-px: 14px; --foot-py: 10px; --nav-py: 8px; --form-gap: 16px 18px; --kv-gap: 12px 16px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -106,6 +171,30 @@
     --chart-today: #f87171;
     --chart-weekend: #212832;
     --chart-baseline: #4b5563;
+    /* Aksen modul, tema GELAP — hue sama dengan --chart-n gelap (slot 1 = --primary gelap persis).
+       Slot 8 gelap digeser 5 Sep 2026 (verifikasi P1-B): #a4a8b7 berjarak hue 14,3°
+       dari --chart-8 gelap, melanggar toleransi ±12° yang diklaim; #afb3bc = 7,3° (L 72,9,
+       C 5,1), dan minimum matriks naik dari 20,5 ke 20,9. ΔE2000 antar slot, minimum 20,9 (1–4):
+              1     2     3     4     5     6     7     8
+         1    —  50,5  53,2  20,9  28,7  40,9  62,7  22,5
+         2 50,5     —  53,3  50,5  50,2  23,4  24,2  31,1
+         3 53,2  53,3     —  54,1  35,6  71,4  34,7  31,6
+         4 20,9  50,5  54,1     —  40,8  32,5  69,8  21,7
+         5 28,7  50,2  35,6  40,8     —  70,0  48,9  23,5
+         6 40,9  23,4  71,4  32,5  70,0     —  45,9  29,0
+         7 62,7  24,2  34,7  69,8  48,9  45,9     —  35,0
+         8 22,5  31,1  31,6  21,7  23,5  29,0  35,0     —
+       Kontras (aksen di --surface #151a21 / -fg #0d1117 di aksen / aksen di -soft):
+         1 5,41/5,86/4,82 · 2 7,61/8,24/6,71 · 3 10,29/11,15/9,19 · 4 6,29/6,81/5,62 ·
+         5 9,74/10,54/8,59 · 6 6,27/6,79/5,56 · 7 11,53/12,48/10,20 · 8 8,32/9,01/7,42 */
+    --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117;
+    --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
+    --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117;
+    --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
+    --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117;
+    --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
+    --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117;
+    --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
   }
 }
 
@@ -124,6 +213,10 @@
   --chart-5: #0e7490; --chart-6: #b91c1c; --chart-7: #a16207; --chart-8: #475569;
   --chart-grid: #e2e6eb; --chart-axis: #cbd2da; --chart-text: #5e6874; --chart-today: #c62828;
   --chart-weekend: #f1f3f6; --chart-baseline: #94a3b8;
+  --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff; --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+  --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+  --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+  --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
 }
 
 :root[data-theme="dark"] {
@@ -141,6 +234,10 @@
   --chart-5: #22d3ee; --chart-6: #f87171; --chart-7: #facc15; --chart-8: #94a3b8;
   --chart-grid: #262d38; --chart-axis: #38414f; --chart-text: #8b95a3; --chart-today: #f87171;
   --chart-weekend: #212832; --chart-baseline: #4b5563;
+  --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117; --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
+  --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117; --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
+  --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117; --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
+  --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117; --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
 }
 
 /* ------------------------------------------------------------------ base */
@@ -306,6 +403,37 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .header .crumbs { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); min-width: 0; }
 .header .crumbs b { color: var(--text); font-weight: 600; }
+.header .crumbs a { color: inherit; }
+
+/* ------------------------------------------------------------ aksen modul */
+/* Satu atribut data-accent="1..8" (app.js/module.js) memilih slot; tiga variabel
+   turunan inilah yang dipakai aturan di bawah, jadi tidak ada aturan yang
+   menyebut nomor slot dua kali. Tabel pemetaan grup → slot ada di blok token. */
+[data-accent="1"] { --module-accent: var(--accent-1); --module-accent-soft: var(--accent-1-soft); --module-accent-fg: var(--accent-1-fg); }
+[data-accent="2"] { --module-accent: var(--accent-2); --module-accent-soft: var(--accent-2-soft); --module-accent-fg: var(--accent-2-fg); }
+[data-accent="3"] { --module-accent: var(--accent-3); --module-accent-soft: var(--accent-3-soft); --module-accent-fg: var(--accent-3-fg); }
+[data-accent="4"] { --module-accent: var(--accent-4); --module-accent-soft: var(--accent-4-soft); --module-accent-fg: var(--accent-4-fg); }
+[data-accent="5"] { --module-accent: var(--accent-5); --module-accent-soft: var(--accent-5-soft); --module-accent-fg: var(--accent-5-fg); }
+[data-accent="6"] { --module-accent: var(--accent-6); --module-accent-soft: var(--accent-6-soft); --module-accent-fg: var(--accent-6-fg); }
+[data-accent="7"] { --module-accent: var(--accent-7); --module-accent-soft: var(--accent-7-soft); --module-accent-fg: var(--accent-7-fg); }
+[data-accent="8"] { --module-accent: var(--accent-8); --module-accent-soft: var(--accent-8-soft); --module-accent-fg: var(--accent-8-fg); }
+
+/* Remah modul (P1-B): "Modul › Layar › (Dokumen)" — remah pertama adalah tautan
+   ke beranda modul #/m/<prefix> dan membawa aksen modulnya (teks ≥ 5,2:1 di
+   --surface, lihat blok token). Titik di depannya adalah penanda warna yang sama
+   dengan penanda grup aktif di sidebar, supaya keduanya terbaca sebagai satu hal. */
+.header .crumbs a.crumb-module {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--module-accent); font-weight: 600;
+  white-space: nowrap;
+}
+.header .crumbs a.crumb-module::before {
+  content: ""; width: 8px; height: 8px; border-radius: 2px; flex: none;
+  background: var(--module-accent);
+}
+.header .crumbs a.crumb-module:hover { text-decoration: underline; }
+.header .crumbs a.crumb-screen { color: var(--text-2); }
+.header .crumbs a.crumb-screen:hover { color: var(--text); }
 .header .spacer { flex: 1; }
 
 /* .btn sets display: inline-flex further down, so match its specificity here. */
@@ -356,6 +484,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .nav-group > button:hover { background: var(--surface-3); color: var(--text); }
+/* Penanda grup aktif (P1-B): grup yang memuat rute aktif (atau beranda modulnya)
+   memakai aksen modulnya — batang 3 px di kiri judul + judul berwarna aksen.
+   Hanya di sini dan di remah roti; baris tautan aktif tetap --primary-soft. */
+.nav-group.has-active > button { color: var(--module-accent); box-shadow: inset 3px 0 0 var(--module-accent); }
 .nav-group > button .chev { margin-left: auto; transition: transform .16s; opacity: .55; }
 .nav-group[data-open="false"] > button .chev { transform: rotate(-90deg); }
 .nav-group[data-open="false"] .nav-items { display: none; }
@@ -364,7 +496,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .nav-items a {
   display: flex; align-items: center; gap: 8px;
-  padding: 6px 10px 6px 28px;
+  padding: var(--nav-py) 10px var(--nav-py) 28px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
   font-size: 13px;
@@ -614,10 +746,17 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
 .check-row { display: flex; align-items: center; gap: 8px; height: 34px; }
 .check-row label { margin: 0; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 
+/* Kontrol Kepadatan di dialog Akun (app.js densityControl, P1-B). */
+.density-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.density-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.density-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
+.density-pick .check-row .muted { font-size: 12px; margin-left: auto; text-align: right; }
+.density-pick .density-note { margin: 4px 0 6px; font-size: 12px; line-height: 1.4; }
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 13px 16px;
+  gap: var(--form-gap);
 }
 .form-grid .span2 { grid-column: 1 / -1; }
 
@@ -653,7 +792,7 @@ table.data {
 table.data th {
   position: sticky; top: 0; z-index: 1;
   text-align: left;
-  padding: 9px 12px;
+  padding: var(--cell-py) var(--cell-px);
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
   font-size: 11px; font-weight: 700; color: var(--muted);
@@ -661,10 +800,21 @@ table.data th {
   white-space: nowrap;
 }
 
+/* Kepadatan (P1-B, blok token): height pada sel tabel = tinggi MINIMUM baris
+   (border-box termasuk border yang runtuh — diukur 5 Sep 2026: height 48px →
+   baris 48 px), jadi baris dua-baris (.cell-sub) tetap tumbuh apa adanya. */
 table.data td {
-  padding: 9px 12px;
+  padding: var(--cell-py) var(--cell-px);
+  height: var(--row-h);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
+}
+/* Tombol aksi baris ikut merapat — HANYA pada penunjuk halus: di layar sentuh
+   sasaran jempol 36 px (aturan pointer: coarse di bawah) menang atas kepadatan,
+   jadi baris rapat bertombol di ponsel tetap 43 px (36 + 2×3 + 1), diukur. */
+@media (pointer: fine) {
+  :root[data-density="compact"] table.data .btn.sm { height: 24px; }
+  :root[data-density="compact"] table.data .btn.sm.icon { width: 24px; }
 }
 
 table.data tbody tr:last-child td { border-bottom: 0; }
@@ -675,7 +825,7 @@ table.data th.center, table.data td.center { text-align: center; }
 table.data td.code { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
 table.data td.strong { font-weight: 600; }
 table.data tfoot td {
-  padding: 10px 12px;
+  padding: var(--foot-py) var(--cell-px);
   border-top: 2px solid var(--border-strong);
   font-weight: 700;
   background: var(--surface-2);
@@ -722,9 +872,30 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   text-align: center;
   color: var(--muted);
 }
-.empty svg { opacity: .3; margin-bottom: 10px; }
+/* Aturan lama `.empty svg { opacity: .3; margin-bottom: 10px }` dihapus (verifikasi
+   P1-B 5 Sep 2026): sasarannya ikon inbox 34 px yang sudah diganti .illus, tetapi
+   ia ikut memudarkan ikon × / + di tombol "Hapus filter" / "Tambah …" (0,3, terangkat
+   5 px dari tengah tombol). Ilustrasi mengatur ukuran/jaraknya sendiri di .illus. */
 .empty h3 { font-size: 14px; color: var(--text-2); margin-bottom: 4px; }
 .empty p { margin: 0 0 14px; font-size: 13px; }
+.empty p:last-child { margin-bottom: 0; }
+/* Ubin dasbor / kotak pemberitahuan: ilustrasi lebih kecil, tanpa judul. */
+.empty.compact { padding: 18px 16px 16px; }
+.empty.compact .illus { width: 72px; height: 72px; margin-bottom: 6px; }
+
+/* Ilustrasi keadaan kosong (js/illustrations.js, P1-B): lima jenis inbox ·
+   search · filter · error · done, garis (stroke) saja, tanpa satu pun literal
+   warna — kelas .ln/.ac/.fl/.fa di bawah inilah yang memberi warna dari token,
+   jadi ilustrasi mengikuti tema dan harness S21 bisa mengukur stroke-nya. */
+.empty .illus { display: block; margin: 0 auto 12px; width: 112px; height: 112px; opacity: 1; overflow: visible; }
+.empty .illus .ln { fill: none; stroke: var(--border-strong); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.empty .illus .ac { fill: none; stroke: var(--primary); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.empty .illus .fl { fill: var(--surface-3); stroke: none; }
+.empty .illus .fa { fill: var(--primary-soft); stroke: none; }
+.empty .illus[data-kind="error"] .ac { stroke: var(--danger); }
+.empty .illus[data-kind="error"] .fa { fill: var(--danger-soft); }
+.empty .illus[data-kind="done"] .ac { stroke: var(--success); }
+.empty .illus[data-kind="done"] .fa { fill: var(--success-soft); }
 
 .alert {
   display: flex; gap: 9px; align-items: flex-start;
@@ -757,7 +928,7 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   align-items: start;
 }
 
-.kv { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: 9px 14px; }
+.kv { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: var(--kv-gap); }
 .kv dt { font-size: 12px; color: var(--muted); }
 .kv dd { margin: 0; font-size: 13px; word-break: break-word; }
 .kv dd.num { font-variant-numeric: tabular-nums; }
@@ -768,6 +939,66 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   gap: 12px;
   margin-bottom: 16px;
 }
+
+/* ---------------------------------------------------------- beranda modul */
+/* #/m/<prefix> (views/module.js, P1-B): kepala beraksen + kisi kartu layar yang
+   boleh dibuka pemanggil (penyaring visibleNav yang sama dengan sidebar). Kartu
+   adalah <a>, jadi Tab/Enter bekerja tanpa skrip; panah kiri/kanan/atas/bawah
+   memindah fokus di kisi. P1-C menambahkan KPI dan "Terakhir dibuka" di sini. */
+.module-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.module-head .module-icon {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--module-accent-soft); color: var(--module-accent);
+}
+.module-head h1 { font-size: 20px; letter-spacing: -.015em; }
+.module-head .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--module-accent); }
+.module-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+/* Kisi = <ul> berlabel (li per kartu), pemisah NAV = <h2> yang melabeli
+   <section>-nya (verifikasi P1-B 5 Sep 2026: aria-label pada div generic
+   diabaikan, pemisah div bukan judul). li adalah sel kisinya; kartu <a>
+   mengisi sel lewat display: grid pada li, bukan display: contents (yang
+   menghapus semantik daftar di sebagian peramban). */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  list-style: none; margin: 0; padding: 0;
+}
+.module-grid > li { display: grid; min-width: 0; }
+.module-section-block + .module-section-block, .module-grid + .module-section-block { margin-top: 18px; }
+.module-section {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.module-card {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  min-height: 56px;
+}
+.module-card:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.module-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.module-card .lucide { color: var(--muted); margin-top: 1px; }
+.module-card b { display: block; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.module-card .hint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 .stat {
   background: var(--surface);
@@ -1040,6 +1271,43 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     background: rgba(12, 17, 23, .45);
   }
   .btn.menu-toggle { display: inline-flex; }
+  /* Remah roti di ponsel (verifikasi P1-B 5 Sep 2026): remah terakhir membungkus
+     tiga baris (58,5 px di header 56 px) dan menimpa tombol Cari — di halaman
+     dokumen main pun sudah menimpa 90 px. Yang tampil hanya remah modul: satu-
+     satunya informasi yang tidak ada di tempat lain di ponsel (sidebar
+     tertutup), dan tautan ke beranda modulnya. Remah layar/dokumen hanya
+     disembunyikan secara VISUAL — judul halaman (h1) sudah memuatnya, pembaca
+     layar tetap mendapat remah aria-current. Halaman beremah tunggal (Dasbor,
+     beranda modul) tetap menampilkannya, dielipsiskan bila perlu.
+     Putaran 2 (6 Sep 2026): aturan itu MENGANDAIKAN setiap rantai berakar pada grup
+     NAV. Tujuh layar tidak — RESOURCES di luar NAV (projects/baselines,
+     projects/defects, inventory/issue-returns, inventory/purchase-returns,
+     hr/certificates, finance/petty-cash-vouchers, finance/kasbon) berakar pada
+     penanda "ERP" milik groupLabelFor(), yang dirender <span>. Dengan span, svg dan
+     remah layar disembunyikan sekaligus, header ponselnya KOSONG (terukur: anak
+     ['SPAN','svg','B'], teks tampak '', tinggi remah 0 px di header 56 px). Karena
+     itu crumbs.js menandai bentuk rantainya di #crumbs[data-root] dan yang disembunyikan
+     hanya yang benar-benar tergantikan remah modul. */
+  /* Basis auto, bukan 0: dengan basis 0 remah berbagi ruang bebas sama rata dengan
+     .spacer (terukur: 'Keuangan' terpotong padahal 54 px masih kosong). */
+  .header .crumbs { flex: 0 1 auto; min-width: 0; }
+  .header .crumbs a.crumb-module { min-width: 0; }
+  .header .crumbs a.crumb-module .lbl, .header .crumbs > b:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Penanda akar "ERP" dan chevron tidak pernah dibutuhkan di ponsel. */
+  .header .crumbs > svg, .header .crumbs > span { display: none; }
+  /* Berakar modul: remah modul saja; layar/dokumen tersembunyi VISUAL (aria tetap). */
+  .header .crumbs[data-root="module"] a.crumb-screen { display: none; }
+  .header .crumbs[data-root="module"] > b:not(:first-child) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Tanpa remah modul: remah LAYAR yang tampil, dipotong elipsis supaya tetap satu
+     baris di sebelah tombol Cari. Di halaman dokumen yang tampil tautan layarnya
+     (jalan kembali ke daftar); kode dokumennya sudah menjadi judul halaman. */
+  .header .crumbs[data-root="screen"] a.crumb-screen,
+  .header .crumbs[data-root="screen"] > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header .crumbs[data-root="screen"] a.crumb-screen ~ b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Tombol Cari hanya ikon di ponsel (title + aria-label tetap): berlabel, isi header
+     390 px berjumlah 416 px dan remah modul terpendek pun ikut terpotong. */
+  .header .btn.global-search { width: 34px; padding: 0; }
+  .header .btn.global-search > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .main { padding: 16px 14px 50px; }
   .userchip .who { display: none; }
   .kv { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
@@ -1067,6 +1335,14 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
     --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
     --shadow-sm: none; --shadow-md: none; --shadow-lg: none;
+    /* Aksen modul ikut dipaksa ke nilai terang (verifikasi P1-B 5 Sep 2026: tema
+       gelap mencetak --accent-7 #fbcd1a di kertas putih = 1,52:1, slot 3 1,70,
+       slot 5 1,79, slot 2 2,30 — semua di bawah 3:1 — dan ubin ikon -soft
+       nyaris hitam). Nilai = blok token terang, kontras di #ffffff ≥ 5,20. */
+    --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff; --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+    --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+    --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+    --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
   }
   /* .toasts dan .overlay ikut daftar ini: toast yang masih tampil dan dialog
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
@@ -1358,6 +1634,14 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
   /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
   .btn.sm { height: 36px; }
   .btn.sm.icon { width: 36px; }
+  /* Kepadatan di layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer profil
+     rapat 27,5 px dan baris radio dialog Kepadatan 30 px berada di bawah sasaran
+     jempol 36 px yang dipakai aturan ini. Lantai 36 px untuk tautan sidebar di
+     SEMUA profil (normal 31,5 → 36 di layar sentuh, terukur; desktop tetap
+     27,5/31,5/35,5) dan baris radio ≥ 40 px dengan radio 18 px. */
+  .nav-items a { min-height: 36px; }
+  .density-pick .check-row { height: auto; min-height: 40px; }
+  .density-pick input[type="radio"] { width: 18px; height: 18px; }
   /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
      sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
      samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */

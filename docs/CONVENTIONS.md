@@ -253,3 +253,93 @@ gantt terbuka); jangan menyalin ulang aturannya ke sini. Yang wajib dipegang pem
 - Gantt dibungkus `<div class="chart-scroll">` (menggulir mendatar di ponsel); grafik lain
   langsung di `.card-body`. Tiga grafik tangan lama (kurva-S `views/project.js`, kurva EVM
   `views/evm.js`, tren harga `views/hargasatuan.js`) tetap sampai P1-E memigrasikannya.
+
+## 12. Aksen modul (`--accent-1..8`, P1-B)
+
+Delapan slot warna departemen di `public/app/app.css` — `--accent-<n>`, `--accent-<n>-soft`,
+`--accent-<n>-fg` didefinisikan **lima kali**: empat blok tema (root terang, media gelap,
+`data-theme` terang/gelap) dan blok token `@media print`, yang memaksa ketiganya ke nilai TERANG
+supaya pengguna bertema gelap tidak mencetak aksen gelap di kertas putih (slot 7 `#fbcd1a` = 1,52:1
+sebelum blok itu ada). Slot baru harus ditambahkan di kelimanya.
+Setiap grup NAV membawa `prefix` (prefix izinnya; Ringkasan = `ringkasan`) dan `schema.js MODULES`
+memetakan prefix → `{ accent, icon, description }`. Pemetaan 14 grup → 8 slot, diturunkan dari isi
+NAV (bukan grup baru):
+
+| Slot | Grup NAV (prefix) | Alasan |
+|---|---|---|
+| 1 | Proyek (`prj`) | lapangan; slot 1 = `--primary` = `--chart-1` persis |
+| 2 | Keuangan (`fin`) | keuangan & pajak |
+| 3 | Pengadaan (`prc`) · Persediaan (`inv`) · Subkontrak (`scm`) | rantai pasok; subkon adalah vendor (`is_subcontractor`) |
+| 4 | Penjualan (`crm`) · Estimasi (`est`) | komersial; RAB disusun bersama tender |
+| 5 | SDM & Payroll (`hr`) | |
+| 6 | Aset (`ast`) | peralatan |
+| 7 | Layanan (`svc`) | tiket & kontrak layanan |
+| 8 | Sistem (`iam`) · Mutu (`qc`) · Engineering (`eng`) · Ringkasan | fungsi penunjang, slot netral (abu kebiruan) |
+
+**Hubungan dengan grafik:** `--accent-n` memakai sudut hue Lab yang sama dengan `--chart-n`
+(toleransi ±12°), hanya L dan C yang digeser sampai semua pasangan slot berjarak **≥ 20 ΔE2000**
+— palet grafik apa adanya gagal (terang 2–6 = 10,2; gelap 1–8 = 13,8). Terukur 5 Sep 2026
+(CIEDE2000 di Lab; skrip turunan di scratch P1-B, matriks lengkap di komentar token app.css):
+minimum antar slot **20,1 terang / 20,9 gelap** (hue vs `--chart-n` maks 11,8° terang / 7,3° gelap);
+kontras WCAG aksen di `--surface` ≥ **5,20** terang /
+**5,41** gelap (batas 3:1; dipasang ≥ **5,2** karena aksen dipakai sebagai teks remah — angka yang
+sama dengan komentar blok token app.css), `-fg` di aksen
+≥ 5,20 / 5,86, aksen di `-soft` ≥ 4,62 / 4,82. Harness **S21** mengukur nilai yang hidup di
+halaman (kedua tema, desktop + ponsel) dan menulisnya ke `results-phase-1.json`; uji
+`SidebarNavWiringTest` memaku slot 1..8 dan ketiga tokennya tepat lima kali (empat blok tema +
+blok `@media print`), sedangkan S21 `print_accents` mengukur nilai cetaknya di kertas
+(minimum 5,20 di `#ffffff`).
+
+**Di mana aksen boleh tampil** (dan hanya di sini): penanda grup aktif di sidebar
+(`.nav-group.has-active > button`: batang 3 px + judul), remah modul di bilah atas
+(`#crumbs a.crumb-module`, tautan ke `#/m/<prefix>`), kepala beranda modul (`.module-head`), dan
+tepi kartu launcher (P1-C). Mekanismenya satu atribut `data-accent="n"` yang app.css ubah menjadi
+`--module-accent`/`-soft`/`-fg`; aturan komponen hanya menyebut ketiga variabel itu. **Tidak
+pernah** pada lencana, alert, tombol, atau status — semantik `--success/--warning/--danger` tetap.
+Catatan jujur: slot 3/6/7 sekeluarga hue dengan success/danger/warning (warisan palet grafik);
+itulah sebabnya aksen tidak boleh muncul di bentuk yang sama dengan lencana.
+
+## 13. Kepadatan (`--row-h`, P1-B)
+
+Tiga profil, `data-density` di `<html>`: `compact` 32 px · `normal` 38,5 px · `comfortable` 48 px
+per baris satu-baris `table.data`. **`normal` = angka yang diukur sebelum token ada** (13 px × 1,5 +
+2 × 9 padding + 1 border = 38,5; berlencana 41,13; bertombol aksi 47) sehingga tanpa pilihan
+tidak ada yang bergeser — lantai 38,5 tidak pernah mengikat. `compact` menurunkan padding ke 3 px
+dan tombol aksi baris ke 24 px (hanya `pointer: fine` — di layar sentuh sasaran jempol 36 px
+menang, baris rapat bertombol 43 px dan baris bertombol `normal` maupun `comfortable` 55 px;
+tautan sidebar di layar sentuh ≥ 36 px di semua profil, baris radio dialog ≥ 40 px, dan petunjuk
+dialog di sana menyebut dua angka "teks · bertombol"), `comfortable` menahan padding dan menaikkan lantai; di
+kedua profil itu **semua** baris satu-baris tepat 32/48 (kunci S21 yang benar-benar ditulis harness:
+`density.compact_ok` / `comfortable_ok`, `normal_equals_baseline` — termasuk tfoot daftar PO —
+dan `tfoot_normal_41`). Token turunan: `--cell-py/--cell-px` (td, th), `--foot-py` (tfoot: 10 px normal —
+angka sebelum token, baris total 41 px — · 4 rapat · 10 lega), `--nav-py` (baris sidebar), `--form-gap`
+(`.form-grid`), `--kv-gap` (`.kv`). Kontrol: dialog Akun › **Kepadatan**
+(tiga radio: Padat · Normal · Lega — "Padat", bukan "Rapat", yang di ERP terbaca sebagai
+pertemuan), berlaku seketika. Simpanan: `localStorage`
+`nusantara_erp_density:<id pengguna>` (`personalKey`, seperti favorit) dengan nilai
+`compact|normal|comfortable`, dipasang saat evaluasi modul app.js dan lagi di `boot()` — sebelum
+shell digambar, tanpa kedipan. P1-C memindahkannya ke `core/me/preferences`: baca kunci ini sekali,
+tulis ke server, hapus.
+
+## 14. Keadaan kosong berilustrasi (`ui.emptyState`, P1-B)
+
+`emptyState(message, { title, action, kind, compact })`; tanda tangan lama (`message`, `{ title,
+action }`) tetap sah — bawaan `kind: 'inbox'`. Lima jenis di `js/illustrations.js`:
+
+| kind | Arti | Pemakai |
+|---|---|---|
+| `inbox` | belum ada yang tercatat | daftar tanpa baris (+ Tambah), pemberitahuan, kalender, beranda modul tanpa layar yang boleh dibuka |
+| `search` | pencarian tanpa hasil | daftar dengan `q` saja (`Tidak ada <label> yang cocok dengan "<q>".` + **Hapus pencarian**) |
+| `filter` | filter menyaring semuanya | daftar tersaring (`Tidak ada <label> yang lolos filter yang dipasang.` + **Hapus filter**) |
+| `error` | sumbernya gagal, bukan kosong | kotak masuk/Tugas Saya saat `meta.failed` — jangan pernah `inbox`/`done` untuk kegagalan |
+| `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda, "Stok aman" (Saldo Stok), "Laci bersih" (Kasir Kas Kecil) |
+
+Aturan gambar: SVG garis (stroke) 120 × 120, dibaca di 96–120 px (ubin `compact` 72 px), **tanpa
+satu pun literal warna** — bentuk hanya membawa kelas `.ln/.ac/.fl/.fa` dan app.css memberi token
+(`--border-strong`, `--primary`, `--surface-3`, `--primary-soft`; `error` → `--danger`, `done` →
+`--success`), sehingga tema gelap otomatis dan S21 mengukur stroke terkomputasinya (`empty_kinds`);
+≤ 1,5 KB per gambar (terukur 402–521 B). `list.js` membedakan "belum ada baris" dari "tersaring
+habis", dan yang tersaring habis menyebut penyaringnya: pencarian (`… yang cocok dengan "<q>".` +
+Hapus pencarian) atau filter (`… yang lolos filter yang dipasang.` + Hapus filter) — tiga kalimat,
+tiga gambar; judul tidak mengulang kalimatnya. Ilustrasi
+baru = entri di `ILLUSTRATIONS` + baris di tabel ini.

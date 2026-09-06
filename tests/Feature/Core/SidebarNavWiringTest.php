@@ -120,6 +120,180 @@ class SidebarNavWiringTest extends ErpTestCase
             'search.js tidak lagi menggambar grup "Layar"; Ctrl+K kembali hanya mencari dokumen.');
     }
 
+    /**
+     * P1-B: the module accent is one attribute (data-accent="1..8") resolved by
+     * app.css into --accent-<slot>. Three files must agree without a build
+     * step: every MODULES entry names a slot 1..8, and app.css defines
+     * --accent-<n>, --accent-<n>-soft and --accent-<n>-fg for each slot in all
+     * four theme blocks (light root, dark media, data-theme light, data-theme
+     * dark) PLUS the @media print token block (verifikasi P1-B 5 Sep 2026: a
+     * dark-theme user printed --accent-7 #fbcd1a on white paper, 1,52:1) — a
+     * slot missing from one block is an accent that silently falls back to
+     * nothing in that theme or on paper. The mapping table itself (which group is
+     * in which slot) lives in CONVENTIONS § Aksen modul and the app.css token
+     * comment; the numbers there are measured by harness S21, not pinned here.
+     */
+    public function test_every_module_accent_slot_has_its_three_tokens_in_all_five_token_blocks(): void
+    {
+        preg_match_all('/^  [a-z]+: \{ accent: ([1-8]),/m', $this->file('schema.js'), $slots);
+
+        // One MODULES entry per NAV group — counted against the group headers
+        // themselves (with or without a prefix), not "> 10": verifikasi P1-B
+        // 5 Sep 2026 showed a lower bound lets one group lose its slot unnoticed.
+        preg_match_all("/^    label: '[^']+', perm: [^,]+(?:, prefix: '[a-z]+')?,$/m", $this->navBlock(), $groups);
+        $this->assertGreaterThan(10, count($groups[0]), 'The NAV group header shape has changed; this test no longer reads it.');
+        $this->assertCount(count($groups[0]), $slots[1],
+            sprintf('schema.js MODULES lists %d accent slots for %d NAV groups.', count($slots[1]), count($groups[0])));
+
+        $used = array_values(array_unique(array_map('intval', $slots[1])));
+        sort($used);
+        $this->assertSame(range(1, 8), $used,
+            'Not every accent slot 1..8 is used by a module — a slot nobody uses is a colour nobody validated in context.');
+
+        $css = (string) file_get_contents(public_path('app/app.css'));
+
+        foreach (range(1, 8) as $slot) {
+            foreach (["--accent-{$slot}:", "--accent-{$slot}-soft:", "--accent-{$slot}-fg:"] as $token) {
+                $this->assertSame(5, preg_match_all('/'.preg_quote($token, '/').'\s*#[0-9a-f]{6};/', $css),
+                    "app.css must define {$token} exactly once in each of the four theme blocks and once in the @media print block.");
+            }
+            $this->assertStringContainsString("[data-accent=\"{$slot}\"] { --module-accent: var(--accent-{$slot});", $css,
+                "app.css has no [data-accent=\"{$slot}\"] rule; the sidebar marker and crumb for slot {$slot} carry no colour.");
+        }
+
+        $this->assertStringContainsString('## 12. Aksen modul', (string) file_get_contents(base_path('docs/CONVENTIONS.md')),
+            'CONVENTIONS.md lost § Aksen modul — the group → slot mapping table has no home.');
+    }
+
+    /**
+     * P1-B putaran 2 — remah roti di ponsel tidak boleh kosong.
+     *
+     * Aturan ≤ 760 px app.css menyembunyikan penanda akar (<span>), chevron dan
+     * remah layar sekaligus, dengan andaian setiap rantai berakar pada nama grup
+     * NAV dan karenanya menyisakan a.crumb-module. Tujuh layar tidak: RESOURCES
+     * yang tidak ada di NAV berakar penanda 'ERP' milik groupLabelFor(), dan di
+     * ponsel header-nya jadi KOSONG (diukur 6 Sep 2026: anak ['SPAN','svg','B'],
+     * teks tampak '', tinggi remah 0 px di header 56 px, pada #/r/projects/baselines,
+     * #/r/projects/defects, #/r/inventory/issue-returns, #/r/inventory/purchase-returns,
+     * #/r/hr/certificates, #/r/finance/petty-cash-vouchers, #/r/finance/kasbon).
+     *
+     * Yang dipaku di sini adalah kontraknya, bukan pikselnya (piksel = harness S21
+     * crumb_walk, 131 rute): pembuat remah menuliskan bentuk rantai ke
+     * #crumbs[data-root], setiap aturan penyembunyi ponsel MENYEBUT data-root itu,
+     * dan hanya ADA SATU pembuat remah — salinan kedua (dulu views/kaskecil.js)
+     * tidak akan menulis data-root dan diam-diam jatuh ke perilaku ketiga.
+     */
+    public function test_the_mobile_breadcrumb_rules_are_scoped_to_the_chain_shape(): void
+    {
+        $crumbs = $this->file('crumbs.js');
+
+        $this->assertStringContainsString('export function setCrumbs(', $crumbs,
+            'public/app/js/crumbs.js no longer exports setCrumbs — the single breadcrumb builder is gone.');
+        $this->assertStringContainsString("host.dataset.root = module ? 'module' : 'screen';", $crumbs,
+            'setCrumbs no longer writes #crumbs[data-root]; the ≤ 760 px rules cannot tell a module-rooted chain '
+            .'from one rooted on the "ERP" placeholder, and the seven screens outside NAV go back to an empty header.');
+
+        // Satu pembuat: siapa pun yang memegang #crumbs sendiri merakit bentuk lain. Menimpa TEKS remah
+        // terakhir (document.querySelector('#crumbs b') di detail.js/custom.js/kaskecil.js) tetap boleh —
+        // yang dilarang adalah mengambil host-nya dan mengisinya sendiri, seperti crumbs() lama kaskecil.js.
+        $builders = [];
+        foreach ($this->spaScripts() as $path => $source) {
+            if (str_contains($source, "getElementById('crumbs')")) {
+                $builders[] = $path;
+            }
+        }
+        $this->assertSame(['js/crumbs.js'], $builders,
+            'More than one file builds the breadcrumb: '.implode(', ', $builders).'. A second builder writes no '
+            .'data-root and no aria-current, so the mobile rules and the screen reader both see a shape they do not know.');
+
+        $css = (string) file_get_contents(public_path('app/app.css'));
+
+        // Penyembunyi remah layar/dokumen HARUS bersyarat data-root="module".
+        foreach (['a.crumb-screen { display: none; }', '> b:not(:first-child) { position: absolute;'] as $rule) {
+            preg_match_all('/^\s*(\S[^\n]*?'.preg_quote($rule, '/').')/m', $css, $found);
+            $this->assertNotEmpty($found[1], "app.css lost the mobile rule '{$rule}'.");
+            foreach ($found[1] as $line) {
+                $this->assertStringContainsString('[data-root="module"]', $line,
+                    "app.css hides the screen crumb unconditionally ({$rule}); on a chain without a module crumb "
+                    .'that leaves the mobile header blank.');
+            }
+        }
+
+        // ...dan rantai tanpa remah modul harus punya aturan yang MENAMPILKAN remah layarnya.
+        $this->assertMatchesRegularExpression('/\[data-root="screen"\][^\n]*(a\.crumb-screen|> b)[^\n]*\n?[^\n]*text-overflow: ellipsis/', $css,
+            'app.css has no [data-root="screen"] rule keeping the screen crumb visible (ellipsised) on mobile.');
+    }
+
+    /**
+     * Setiap layar r/<key> berakar pada MODULnya, dan tidak ada view yang
+     * mengeja label modul itu sendiri.
+     *
+     * Tujuh resource tidak ada di sidebar (dibuka dari layar lain): lima di
+     * schema.js — projects/baselines, projects/defects, inventory/issue-returns,
+     * inventory/purchase-returns, hr/certificates — dan dua didaftarkan
+     * kaskecil.js saat modulnya dimuat (finance/petty-cash-vouchers,
+     * finance/kasbon). Sampai 6 Sep 2026 groupLabelFor() mengembalikan penanda
+     * 'ERP' untuk ketujuhnya, jadi crumbs.js menandai daftarnya
+     * data-root='screen' sementara HALAMAN DOKUMEN kasbon mengeja 'Keuangan'
+     * sendiri dan menjadi data-root='module': daftar dan dokumennya berganti
+     * subjek di header ponsel (diukur 390×844: '#/r/finance/kasbon' → 'Kasbon',
+     * '#/d/finance/kasbon/1' → 'Keuangan').
+     *
+     * Dua syarat yang menutupnya, keduanya bisa hanyut tanpa build step:
+     * modul setiap resource harus prefix grup NAV yang nyata (kalau tidak,
+     * groupLabelFor jatuh ke 'ERP' lagi), dan tidak ada view yang boleh
+     * menuliskan label grup sebagai remah pertama — label itu hanya ada di NAV.
+     */
+    public function test_every_resource_screen_is_rooted_in_a_real_module(): void
+    {
+        $prefixes = $this->navPrefixes();
+        $this->assertGreaterThanOrEqual(14, count($prefixes),
+            'Only '.count($prefixes).' NAV group prefixes were read from schema.js; the reader lost the shape.');
+
+        $resources = $this->resourceModules();
+        $this->assertGreaterThan(90, count($resources),
+            'Only '.count($resources).' RESOURCES entries were read; the reader lost the table.');
+
+        // Layar yang ADA di sidebar berakar pada grup NAV-nya, apa pun prefix izinnya
+        // (core/notification-deliveries memakai izin core.* di dalam grup Sistem/iam —
+        // sah, dan remahnya tetap 'Sistem'). Yang harus punya modul sungguhan adalah
+        // layar di LUAR sidebar: hanya modul itu yang tersisa sebagai akar.
+        $navRoutes = $this->navRoutes();
+        $outsideNav = array_filter($resources, fn ($module, $key) => ! in_array('r/'.$key, $navRoutes, true),
+            ARRAY_FILTER_USE_BOTH);
+
+        $this->assertNotEmpty($outsideNav, 'The reader found no resource outside NAV; the extraction is broken.');
+
+        foreach ($outsideNav as $key => $module) {
+            $this->assertContains($module, $prefixes,
+                "RESOURCES['{$key}'] is not in the sidebar and belongs to module '{$module}', which is not a NAV "
+                ."group prefix. groupLabelFor() then falls back to the 'ERP' placeholder and the screen's "
+                .'breadcrumb roots on nothing — while its document page keeps whatever root its own view wrote.');
+        }
+
+        // Ketujuh layar di luar NAV memang ada — kalau daftarnya menyusut, hilangnya bukan karena
+        // uji ini melewatkannya.
+        foreach (['projects/baselines', 'projects/defects', 'inventory/issue-returns',
+            'inventory/purchase-returns', 'hr/certificates', 'finance/petty-cash-vouchers',
+            'finance/kasbon'] as $outside) {
+            $this->assertArrayHasKey($outside, $resources, "RESOURCES['{$outside}'] is gone from the SPA.");
+        }
+
+        $labels = $this->navGroupLabels();
+        foreach ($this->spaScripts() as $path => $source) {
+            if ($path === 'js/app.js') {
+                continue;   // layar khusus non-resource merakit rantainya sendiri di satu tempat
+            }
+            preg_match_all("/setCrumbs\(\s*\[\s*'([^']+)'/", $source, $found);
+            foreach ($found[1] as $first) {
+                $this->assertNotContains($first, $labels,
+                    "{$path} spells the module label '{$first}' into setCrumbs(). The label lives in NAV only "
+                    .'(moduleFor(prefix).label); a second copy drifts the moment a group is renamed, and that is '
+                    .'exactly how the kasbon list and its document page came to disagree.');
+            }
+        }
+    }
+
     /** The refused half: the readers say no to a caption and a route that do not exist. */
     public function test_the_readers_can_still_say_no(): void
     {
@@ -174,6 +348,57 @@ class SidebarNavWiringTest extends ErpTestCase
         return substr($schema, $start);
     }
 
+    /** @return list<string> prefix setiap grup NAV. */
+    private function navPrefixes(): array
+    {
+        preg_match_all("/prefix: '([a-z]+)'/", $this->navBlock(), $found);
+
+        return array_values(array_unique($found[1]));
+    }
+
+    /** @return list<string> rute r/… yang ada di sidebar. */
+    private function navRoutes(): array
+    {
+        preg_match_all("/route: '(r\/[^']+)'/", $this->navBlock(), $found);
+
+        return array_values(array_unique($found[1]));
+    }
+
+    /** @return list<string> label setiap grup NAV. */
+    private function navGroupLabels(): array
+    {
+        preg_match_all("/label: '([^']+)', perm: /", $this->navBlock(), $found);
+
+        return array_values(array_unique($found[1]));
+    }
+
+    /**
+     * Setiap entri RESOURCES → prefix modulnya: tabel schema.js DAN entri yang
+     * didaftarkan view saat dimuat (kaskecil.js menambah tiga).
+     *
+     * @return array<string, string>
+     */
+    private function resourceModules(): array
+    {
+        $out = [];
+
+        $schema = $this->file('schema.js');
+        $table = substr($schema, (int) strpos($schema, 'export const RESOURCES'));
+        preg_match_all("/\n  '([^']+)': \{(.{0,400}?)module: '([a-z]+)'/s", $table, $found, PREG_SET_ORDER);
+        foreach ($found as $entry) {
+            $out[$entry[1]] = $entry[3];
+        }
+
+        foreach ($this->spaScripts() as $source) {
+            preg_match_all("/RESOURCES\['([^']+)'\] = \{(.{0,400}?)module: '([a-z]+)'/s", $source, $extra, PREG_SET_ORDER);
+            foreach ($extra as $entry) {
+                $out[$entry[1]] = $entry[3];
+            }
+        }
+
+        return $out;
+    }
+
     private function file(string $relative): string
     {
         $path = public_path('app/js/'.$relative);
@@ -181,5 +406,27 @@ class SidebarNavWiringTest extends ErpTestCase
         $this->assertFileExists($path, "public/app/js/{$relative} is missing.");
 
         return (string) file_get_contents($path);
+    }
+
+    /**
+     * Every SPA script, keyed by its path relative to public/app/ — the whole
+     * tree, so a builder added in a new view file is read too.
+     *
+     * @return array<string, string>
+     */
+    private function spaScripts(): array
+    {
+        $root = public_path('app');
+        $files = [];
+
+        foreach (['js/*.js', 'js/views/*.js'] as $glob) {
+            foreach (glob($root.'/'.$glob) ?: [] as $path) {
+                $files[substr($path, strlen($root) + 1)] = (string) file_get_contents($path);
+            }
+        }
+
+        $this->assertGreaterThan(30, count($files), 'Only '.count($files).' SPA scripts were found; the reader lost the tree.');
+
+        return $files;
     }
 }

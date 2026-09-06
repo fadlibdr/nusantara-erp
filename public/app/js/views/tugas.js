@@ -63,10 +63,10 @@ export async function renderTugas(host) {
     }
 
     if (!shown.length) {
-      body.appendChild(emptyState(
-        meta.failed && meta.failed.length ? 'Tidak ada dokumen yang dapat ditampilkan.' : 'Tidak ada dokumen yang menunggu keputusan Anda.',
-        { title: 'Kotak masuk kosong' },
-      ));
+      // Gambar galat saat sumbernya gagal, centang saat memang kosong (P1-B).
+      body.appendChild(meta.failed && meta.failed.length
+        ? emptyState('Tidak ada dokumen yang dapat ditampilkan.', { title: 'Daftar belum lengkap', kind: 'error' })
+        : emptyState('Tidak ada dokumen yang menunggu keputusan Anda.', { title: 'Kotak masuk kosong', kind: 'done' }));
       return;
     }
 

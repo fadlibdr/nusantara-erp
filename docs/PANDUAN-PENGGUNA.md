@@ -149,6 +149,18 @@ membuka/menutup sidebar), remah roti (mis. `Keuangan › Invoice Termin (AR) ›
 tombol **`Cari`**, tombol tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan
 peran Anda (atau "tanpa peran").
 
+**Remah roti dan beranda modul.** Remah pertama adalah nama modul dengan titik warna
+modul itu (warna yang sama menandai kelompok yang sedang terbuka di sidebar); klik untuk
+membuka **beranda modul** — satu halaman berisi kartu semua layar modul itu yang boleh
+Anda buka (kartunya persis daftar sidebar; modul yang izinnya tidak Anda pegang hanya
+menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman dokumen,
+remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
+(judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
+Akun: *Padat* (32 px per baris), *Normal* (bawaan, 38,5 px), *Lega* (48 px) — berlaku
+seketika, diingat di peramban ini untuk akun Anda. Di layar sentuh tombol baris memegang
+sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 / 55 px
+(Lega = Normal untuk baris bertombol).
+
 **Sidebar** berisi empat belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
 isinya, dan keadaan lipatan itu diingat peramban Anda.
 
@@ -186,9 +198,10 @@ jumlah baris per halaman **disimpan di peramban ini**, bukan di akun Anda — ko
 mulai dari bawaan lagi.
 
 **Dialog Akun** (klik kotak nama): memperlihatkan nama, email, **Peran**, dan
-**Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`). Daftar izinnya tidak
-diperlihatkan di mana pun. Tombolnya hanya **`Tutup`** dan **`Keluar`** — tidak ada
-ganti sandi, ganti email, foto, atau pengaturan pemberitahuan.
+**Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Kepadatan**
+(Padat · Normal · Lega). Daftar izinnya tidak diperlihatkan di mana pun. Tombolnya
+**`Tutup`**, **`Ganti kata sandi`**, **`Panduan onboarding`**, dan **`Keluar`** — tidak ada
+ganti email, foto, atau pengaturan pemberitahuan.
 
 **Halaman yang salah alamat.** Alamat yang tidak dikenal menghasilkan
 `Halaman "…" tidak ditemukan.` dengan tombol **`Ke dasbor`**. Layar yang izinnya tidak
@@ -360,9 +373,11 @@ tetapi lima layar mengabaikannya — mengetik di sana tidak menyaring apa pun:
 **Progres Mingguan**, **Evaluasi Vendor**, **Penyusutan**, **Biaya Proyek**,
 **Pengakuan Pendapatan**. Pakai saringan atau rentang tanggalnya.
 
-**Keadaan kosong.** Belum ada apa-apa → *"Belum ada <label> yang tercatat."* dengan
-tombol Tambah bila Anda boleh membuat. Tersaring habis → *"Tidak ada data yang cocok
-dengan pencarian atau filter."* — tekan **`Reset`**.
+**Keadaan kosong.** Belum ada apa-apa → *"Belum ada <label> yang tercatat."* (gambar
+nampan) dengan tombol Tambah bila Anda boleh membuat. Tersaring habis → *"Tidak ada <label>
+yang lolos filter yang dipasang."* (gambar corong) dengan tombol **`Hapus filter`**, atau — bila
+hanya kotak cari yang terisi — *"Tidak ada <label> yang cocok dengan \"<kata>\"."* (gambar kaca
+pembesar) dengan **`Hapus pencarian`**; keduanya sama dengan **`Reset`** di bilah filter.
 
 ### 2.2 Ekspor CSV
 

@@ -1,5 +1,11 @@
 {
  "S8_styles": {
+  "screen": {
+   "hash": "#/r/procurement/purchase-orders",
+   "h1": "Pesanan Pembelian (PO)",
+   "dock": false
+  },
+  "theme": "light",
   "th_font": "11px",
   "th_color": "rgb(94, 104, 116)",
   "muted_token": "#5e6874",
@@ -14,7 +20,24 @@
    "Muat ulang",
    "Tambah PO"
   ],
-  "_ms": 4139,
+  "dark": {
+   "theme": "dark",
+   "th_font": "11px",
+   "th_color": "rgb(139, 149, 163)",
+   "muted_token": "#8b95a3",
+   "bg": "#0d1117",
+   "surface2": "#1a1f27",
+   "contrast_muted_on_bg": 6.24,
+   "contrast_muted_on_surface2": 5.46,
+   "contrast_success_badge": 8.86,
+   "btn_sm_height": 0,
+   "smallest_font_px": 11,
+   "page_head_buttons": [
+    "Muat ulang",
+    "Tambah PO"
+   ]
+  },
+  "_ms": 4926,
   "_clicks": 0
  },
  "S20_chart_tokens": {
@@ -5936,7 +5959,7 @@
    "width": 1440,
    "height": 900
   },
-  "_ms": 8638,
+  "_ms": 4839,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
@@ -11858,7 +11881,4134 @@
    "width": 390,
    "height": 844
   },
-  "_ms": 11792,
+  "_ms": 4062,
   "_clicks": 0
+ },
+ "S21_module_accents_breadcrumb": {
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "onboarding_status": {
+   "admin": "skipped"
+  },
+  "dock_open": 0,
+  "sidebar_prefixes": [
+   "ringkasan",
+   "crm",
+   "est",
+   "eng",
+   "prj",
+   "qc",
+   "prc",
+   "inv",
+   "scm",
+   "fin",
+   "hr",
+   "svc",
+   "ast",
+   "iam"
+  ],
+  "light": {
+   "accent": {
+    "theme": "light",
+    "surface": "#ffffff",
+    "tokens": {
+     "1": {
+      "accent": "#1a56db",
+      "soft": "#edf1fc",
+      "fg": "#ffffff",
+      "chart": "#1a56db"
+     },
+     "2": {
+      "accent": "#c43e05",
+      "soft": "#faf0eb",
+      "fg": "#ffffff",
+      "chart": "#c2410c"
+     },
+     "3": {
+      "accent": "#007d3d",
+      "soft": "#e8f3ee",
+      "fg": "#ffffff",
+      "chart": "#15803d"
+     },
+     "4": {
+      "accent": "#9000c6",
+      "soft": "#f7edfb",
+      "fg": "#ffffff",
+      "chart": "#7e22ce"
+     },
+     "5": {
+      "accent": "#00758f",
+      "soft": "#ebf4f6",
+      "fg": "#ffffff",
+      "chart": "#0e7490"
+     },
+     "6": {
+      "accent": "#970e2a",
+      "soft": "#f8eef0",
+      "fg": "#ffffff",
+      "chart": "#b91c1c"
+     },
+     "7": {
+      "accent": "#926100",
+      "soft": "#f6f2eb",
+      "fg": "#ffffff",
+      "chart": "#a16207"
+     },
+     "8": {
+      "accent": "#4a505c",
+      "soft": "#f1f1f2",
+      "fg": "#ffffff",
+      "chart": "#475569"
+     }
+    },
+    "pairs": {
+     "1-2": 48.9,
+     "1-3": 51.0,
+     "1-4": 20.4,
+     "1-5": 20.3,
+     "1-6": 40.1,
+     "1-7": 56.0,
+     "1-8": 20.1,
+     "2-3": 58.9,
+     "2-4": 46.3,
+     "2-5": 54.0,
+     "2-6": 20.2,
+     "2-7": 20.7,
+     "2-8": 35.1,
+     "3-4": 52.2,
+     "3-5": 33.1,
+     "3-6": 66.7,
+     "3-7": 36.4,
+     "3-8": 31.7,
+     "4-5": 33.1,
+     "4-6": 32.2,
+     "4-7": 59.4,
+     "4-8": 23.6,
+     "5-6": 56.6,
+     "5-7": 42.8,
+     "5-8": 20.1,
+     "6-7": 34.0,
+     "6-8": 29.8,
+     "7-8": 33.0
+    },
+    "min_pair_de": 20.1,
+    "min_pair": "1-8",
+    "contrast": {
+     "1": {
+      "on_surface": 6.18,
+      "fg_on_accent": 6.18,
+      "on_soft": 5.47
+     },
+     "2": {
+      "on_surface": 5.2,
+      "fg_on_accent": 5.2,
+      "on_soft": 4.64
+     },
+     "3": {
+      "on_surface": 5.25,
+      "fg_on_accent": 5.25,
+      "on_soft": 4.62
+     },
+     "4": {
+      "on_surface": 7.0,
+      "fg_on_accent": 7.0,
+      "on_soft": 6.15
+     },
+     "5": {
+      "on_surface": 5.33,
+      "fg_on_accent": 5.33,
+      "on_soft": 4.77
+     },
+     "6": {
+      "on_surface": 8.71,
+      "fg_on_accent": 8.71,
+      "on_soft": 7.66
+     },
+     "7": {
+      "on_surface": 5.34,
+      "fg_on_accent": 5.34,
+      "on_soft": 4.79
+     },
+     "8": {
+      "on_surface": 8.1,
+      "fg_on_accent": 8.1,
+      "on_soft": 7.17
+     }
+    },
+    "hue_delta": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 1.9,
+     "4": 4.8,
+     "5": 3.7,
+     "6": 11.8,
+     "7": 6.1,
+     "8": 4.5
+    },
+    "max_hue_delta": 11.8,
+    "all_hue_within_12": true,
+    "min_on_surface": 5.2,
+    "min_fg_on_accent": 5.2,
+    "min_on_soft": 4.62,
+    "all_pairs_ge_20": true,
+    "all_on_surface_ge_3": true,
+    "all_fg_ge_4_5": true,
+    "all_on_soft_ge_4_5": true
+   },
+   "active_marker": {
+    "group": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(196, 62, 5)",
+     "box_shadow": "rgb(196, 62, 5) 3px 0px 0px 0px inset",
+     "open": "true"
+    },
+    "crumb": {
+     "href": "#/m/fin",
+     "text": "Keuangan",
+     "accent": "2",
+     "color": "rgb(196, 62, 5)",
+     "width": 77,
+     "visible": true
+    },
+    "crumbs_text": "Keuangan\nInvoice Termin (AR)",
+    "host_tag": "NAV",
+    "host_aria_label": "Remah roti",
+    "last_aria_current": "page",
+    "has_active_count": 1,
+    "marker_color_hex": "#c43e05",
+    "crumb_color_hex": "#c43e05",
+    "slot_token": "#c43e05",
+    "marker_matches_token": true,
+    "shadow_matches_token": true,
+    "crumb_matches_token": true,
+    "crumb_href_ok": true,
+    "a11y_ok": true
+   },
+   "crumb_fit": {
+    "list": {
+     "hash": "#/r/finance/ar-invoices",
+     "visible": [
+      "A.crumb-module:Keuangan",
+      "svg.[object SVGAnimatedString]:",
+      "B:Invoice Termin (AR)"
+     ],
+     "text_visible": "Keuangan › Invoice Termin (AR)",
+     "right_edge": 495,
+     "next_left": 1066,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "Invoice Termin (AR)",
+      "aria_current": "page",
+      "display": "block",
+      "visible": true
+     }
+    },
+    "detail": {
+     "hash": "#/d/finance/ar-invoices/1",
+     "visible": [
+      "A.crumb-module:Keuangan",
+      "svg.[object SVGAnimatedString]:",
+      "A.crumb-screen:Invoice Termin (AR)",
+      "svg.[object SVGAnimatedString]:",
+      "B:INV/2026/II/0001"
+     ],
+     "text_visible": "Keuangan › Invoice Termin (AR) › INV/2026/II/0001",
+     "right_edge": 610,
+     "next_left": 1066,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "INV/2026/II/0001",
+      "aria_current": "page",
+      "display": "block",
+      "visible": true
+     }
+    },
+    "ok": true
+   },
+   "module_home_fin": {
+    "hash": "#/m/fin",
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "cards": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sections": [
+     "AR/AP",
+     "KAS",
+     "PELAPORAN",
+     "PAJAK",
+     "MASTER"
+    ],
+    "hints": 0,
+    "columns": 4,
+    "structure": {
+     "grid_tag": "UL",
+     "grid_labelled": true,
+     "li_per_card": true,
+     "section_tags": [
+      "H2"
+     ],
+     "sections_label_their_grid": true
+    },
+    "sidebar": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sidebar_open": "true",
+    "empty": null,
+    "smallest_font_px": 11,
+    "navigated": true,
+    "head_border_hex": "#c43e05",
+    "head_matches_token": true,
+    "icon_bg_matches_soft": true,
+    "cards_equal_sidebar": true,
+    "structure_ok": true,
+    "marker_after": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(196, 62, 5)",
+     "box_shadow": "rgb(196, 62, 5) 3px 0px 0px 0px inset",
+     "open": "true"
+    }
+   },
+   "print_accents": {
+    "tokens": {
+     "1": {
+      "accent": "#1a56db",
+      "soft": "#edf1fc",
+      "fg": "#ffffff",
+      "chart": "#222222"
+     },
+     "2": {
+      "accent": "#c43e05",
+      "soft": "#faf0eb",
+      "fg": "#ffffff",
+      "chart": "#6c6c6c"
+     },
+     "3": {
+      "accent": "#007d3d",
+      "soft": "#e8f3ee",
+      "fg": "#ffffff",
+      "chart": "#484848"
+     },
+     "4": {
+      "accent": "#9000c6",
+      "soft": "#f7edfb",
+      "fg": "#ffffff",
+      "chart": "#939393"
+     },
+     "5": {
+      "accent": "#00758f",
+      "soft": "#ebf4f6",
+      "fg": "#ffffff",
+      "chart": "#000000"
+     },
+     "6": {
+      "accent": "#970e2a",
+      "soft": "#f8eef0",
+      "fg": "#ffffff",
+      "chart": "#5a5a5a"
+     },
+     "7": {
+      "accent": "#926100",
+      "soft": "#f6f2eb",
+      "fg": "#ffffff",
+      "chart": "#363636"
+     },
+     "8": {
+      "accent": "#4a505c",
+      "soft": "#f1f1f2",
+      "fg": "#ffffff",
+      "chart": "#808080"
+     }
+    },
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "body_bg": "rgb(255, 255, 255)",
+    "min_on_paper": 5.2,
+    "all_on_paper_ge_3": true,
+    "head_border_hex": "#c43e05",
+    "head_uses_print_token": true
+   },
+   "empty_kinds": {
+    "tokens": {
+     "--border-strong": "#cbd2da",
+     "--primary": "#1a56db",
+     "--danger": "#c62828",
+     "--success": "#17714a",
+     "--surface-3": "#f1f3f6",
+     "--primary-soft": "#e8effc",
+     "--danger-soft": "#fdecec",
+     "--success-soft": "#e6f4ec"
+    },
+    "kinds": {
+     "inbox": {
+      "width": 112,
+      "height": 112,
+      "bytes": 436,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(26, 86, 219)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": null,
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "search": {
+      "width": 112,
+      "height": 112,
+      "bytes": 528,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(26, 86, 219)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(232, 239, 252)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "filter": {
+      "width": 112,
+      "height": 112,
+      "bytes": 467,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(26, 86, 219)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(232, 239, 252)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "error": {
+      "width": 112,
+      "height": 112,
+      "bytes": 529,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(198, 40, 40)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(253, 236, 236)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done": {
+      "width": 112,
+      "height": 112,
+      "bytes": 563,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(23, 113, 74)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(230, 244, 236)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done_compact": {
+      "width": 72,
+      "height": 72,
+      "bytes": 563,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(23, 113, 74)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(230, 244, 236)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": false
+     }
+    },
+    "checks": {
+     "inbox": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "search": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "filter": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "error": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done_compact": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     }
+    },
+    "all_ok": true
+   }
+  },
+  "dark": {
+   "accent": {
+    "theme": "dark",
+    "surface": "#151a21",
+    "tokens": {
+     "1": {
+      "accent": "#5b8def",
+      "soft": "#1b2434",
+      "fg": "#0d1117",
+      "chart": "#5b8def"
+     },
+     "2": {
+      "accent": "#f9913c",
+      "soft": "#272423",
+      "fg": "#0d1117",
+      "chart": "#fb923c"
+     },
+     "3": {
+      "accent": "#49e181",
+      "soft": "#182627",
+      "fg": "#0d1117",
+      "chart": "#4ade80"
+     },
+     "4": {
+      "accent": "#bd7efc",
+      "soft": "#222233",
+      "fg": "#0d1117",
+      "chart": "#c084fc"
+     },
+     "5": {
+      "accent": "#00d4f2",
+      "soft": "#142730",
+      "fg": "#0d1117",
+      "chart": "#22d3ee"
+     },
+     "6": {
+      "accent": "#f57272",
+      "soft": "#292228",
+      "fg": "#0d1117",
+      "chart": "#f87171"
+     },
+     "7": {
+      "accent": "#fbcd1a",
+      "soft": "#232521",
+      "fg": "#0d1117",
+      "chart": "#facc15"
+     },
+     "8": {
+      "accent": "#afb3bc",
+      "soft": "#1f242c",
+      "fg": "#0d1117",
+      "chart": "#94a3b8"
+     }
+    },
+    "pairs": {
+     "1-2": 50.5,
+     "1-3": 53.2,
+     "1-4": 20.9,
+     "1-5": 28.7,
+     "1-6": 40.9,
+     "1-7": 62.7,
+     "1-8": 22.5,
+     "2-3": 53.3,
+     "2-4": 50.5,
+     "2-5": 50.2,
+     "2-6": 23.4,
+     "2-7": 24.2,
+     "2-8": 31.1,
+     "3-4": 54.1,
+     "3-5": 35.6,
+     "3-6": 71.4,
+     "3-7": 34.7,
+     "3-8": 31.6,
+     "4-5": 40.8,
+     "4-6": 32.5,
+     "4-7": 69.8,
+     "4-8": 21.7,
+     "5-6": 70.0,
+     "5-7": 48.9,
+     "5-8": 23.5,
+     "6-7": 45.9,
+     "6-8": 29.0,
+     "7-8": 35.0
+    },
+    "min_pair_de": 20.9,
+    "min_pair": "1-4",
+    "contrast": {
+     "1": {
+      "on_surface": 5.41,
+      "fg_on_accent": 5.86,
+      "on_soft": 4.82
+     },
+     "2": {
+      "on_surface": 7.61,
+      "fg_on_accent": 8.24,
+      "on_soft": 6.71
+     },
+     "3": {
+      "on_surface": 10.29,
+      "fg_on_accent": 11.15,
+      "on_soft": 9.19
+     },
+     "4": {
+      "on_surface": 6.29,
+      "fg_on_accent": 6.81,
+      "on_soft": 5.62
+     },
+     "5": {
+      "on_surface": 9.74,
+      "fg_on_accent": 10.54,
+      "on_soft": 8.59
+     },
+     "6": {
+      "on_surface": 6.27,
+      "fg_on_accent": 6.79,
+      "on_soft": 5.56
+     },
+     "7": {
+      "on_surface": 11.53,
+      "fg_on_accent": 12.48,
+      "on_soft": 10.2
+     },
+     "8": {
+      "on_surface": 8.32,
+      "fg_on_accent": 9.01,
+      "on_soft": 7.42
+     }
+    },
+    "hue_delta": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.1,
+     "5": 1.6,
+     "6": 0.2,
+     "7": 0.0,
+     "8": 7.3
+    },
+    "max_hue_delta": 7.3,
+    "all_hue_within_12": true,
+    "min_on_surface": 5.41,
+    "min_fg_on_accent": 5.86,
+    "min_on_soft": 4.82,
+    "all_pairs_ge_20": true,
+    "all_on_surface_ge_3": true,
+    "all_fg_ge_4_5": true,
+    "all_on_soft_ge_4_5": true
+   },
+   "active_marker": {
+    "group": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(249, 145, 60)",
+     "box_shadow": "rgb(249, 145, 60) 3px 0px 0px 0px inset",
+     "open": "true"
+    },
+    "crumb": {
+     "href": "#/m/fin",
+     "text": "Keuangan",
+     "accent": "2",
+     "color": "rgb(249, 145, 60)",
+     "width": 77,
+     "visible": true
+    },
+    "crumbs_text": "Keuangan\nInvoice Termin (AR)",
+    "host_tag": "NAV",
+    "host_aria_label": "Remah roti",
+    "last_aria_current": "page",
+    "has_active_count": 1,
+    "marker_color_hex": "#f9913c",
+    "crumb_color_hex": "#f9913c",
+    "slot_token": "#f9913c",
+    "marker_matches_token": true,
+    "shadow_matches_token": true,
+    "crumb_matches_token": true,
+    "crumb_href_ok": true,
+    "a11y_ok": true
+   },
+   "crumb_fit": {
+    "list": {
+     "hash": "#/r/finance/ar-invoices",
+     "visible": [
+      "A.crumb-module:Keuangan",
+      "svg.[object SVGAnimatedString]:",
+      "B:Invoice Termin (AR)"
+     ],
+     "text_visible": "Keuangan › Invoice Termin (AR)",
+     "right_edge": 495,
+     "next_left": 1066,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "Invoice Termin (AR)",
+      "aria_current": "page",
+      "display": "block",
+      "visible": true
+     }
+    },
+    "detail": {
+     "hash": "#/d/finance/ar-invoices/1",
+     "visible": [
+      "A.crumb-module:Keuangan",
+      "svg.[object SVGAnimatedString]:",
+      "A.crumb-screen:Invoice Termin (AR)",
+      "svg.[object SVGAnimatedString]:",
+      "B:INV/2026/II/0001"
+     ],
+     "text_visible": "Keuangan › Invoice Termin (AR) › INV/2026/II/0001",
+     "right_edge": 610,
+     "next_left": 1066,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "INV/2026/II/0001",
+      "aria_current": "page",
+      "display": "block",
+      "visible": true
+     }
+    },
+    "ok": true
+   },
+   "module_home_fin": {
+    "hash": "#/m/fin",
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(249, 145, 60)",
+     "eyebrow_color": "rgb(249, 145, 60)",
+     "icon_bg": "rgb(39, 36, 35)"
+    },
+    "cards": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sections": [
+     "AR/AP",
+     "KAS",
+     "PELAPORAN",
+     "PAJAK",
+     "MASTER"
+    ],
+    "hints": 0,
+    "columns": 4,
+    "structure": {
+     "grid_tag": "UL",
+     "grid_labelled": true,
+     "li_per_card": true,
+     "section_tags": [
+      "H2"
+     ],
+     "sections_label_their_grid": true
+    },
+    "sidebar": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sidebar_open": "true",
+    "empty": null,
+    "smallest_font_px": 11,
+    "navigated": true,
+    "head_border_hex": "#f9913c",
+    "head_matches_token": true,
+    "icon_bg_matches_soft": true,
+    "cards_equal_sidebar": true,
+    "structure_ok": true,
+    "marker_after": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(249, 145, 60)",
+     "box_shadow": "rgb(249, 145, 60) 3px 0px 0px 0px inset",
+     "open": "true"
+    }
+   },
+   "print_accents": {
+    "tokens": {
+     "1": {
+      "accent": "#1a56db",
+      "soft": "#edf1fc",
+      "fg": "#ffffff",
+      "chart": "#222222"
+     },
+     "2": {
+      "accent": "#c43e05",
+      "soft": "#faf0eb",
+      "fg": "#ffffff",
+      "chart": "#6c6c6c"
+     },
+     "3": {
+      "accent": "#007d3d",
+      "soft": "#e8f3ee",
+      "fg": "#ffffff",
+      "chart": "#484848"
+     },
+     "4": {
+      "accent": "#9000c6",
+      "soft": "#f7edfb",
+      "fg": "#ffffff",
+      "chart": "#939393"
+     },
+     "5": {
+      "accent": "#00758f",
+      "soft": "#ebf4f6",
+      "fg": "#ffffff",
+      "chart": "#000000"
+     },
+     "6": {
+      "accent": "#970e2a",
+      "soft": "#f8eef0",
+      "fg": "#ffffff",
+      "chart": "#5a5a5a"
+     },
+     "7": {
+      "accent": "#926100",
+      "soft": "#f6f2eb",
+      "fg": "#ffffff",
+      "chart": "#363636"
+     },
+     "8": {
+      "accent": "#4a505c",
+      "soft": "#f1f1f2",
+      "fg": "#ffffff",
+      "chart": "#808080"
+     }
+    },
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "body_bg": "rgb(255, 255, 255)",
+    "min_on_paper": 5.2,
+    "all_on_paper_ge_3": true,
+    "head_border_hex": "#c43e05",
+    "head_uses_print_token": true
+   },
+   "empty_kinds": {
+    "tokens": {
+     "--border-strong": "#38414f",
+     "--primary": "#5b8def",
+     "--danger": "#f87171",
+     "--success": "#4ade80",
+     "--surface-3": "#212832",
+     "--primary-soft": "#17263f",
+     "--danger-soft": "#331a1a",
+     "--success-soft": "#12291d"
+    },
+    "kinds": {
+     "inbox": {
+      "width": 112,
+      "height": 112,
+      "bytes": 436,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(91, 141, 239)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": null,
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "search": {
+      "width": 112,
+      "height": 112,
+      "bytes": 528,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(91, 141, 239)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(23, 38, 63)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "filter": {
+      "width": 112,
+      "height": 112,
+      "bytes": 467,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(91, 141, 239)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(23, 38, 63)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "error": {
+      "width": 112,
+      "height": 112,
+      "bytes": 529,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(248, 113, 113)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(51, 26, 26)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done": {
+      "width": 112,
+      "height": 112,
+      "bytes": 563,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(74, 222, 128)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(18, 41, 29)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done_compact": {
+      "width": 72,
+      "height": 72,
+      "bytes": 563,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(74, 222, 128)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(18, 41, 29)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": false
+     }
+    },
+    "checks": {
+     "inbox": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "search": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "filter": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "error": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done_compact": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     }
+    },
+    "all_ok": true
+   }
+  },
+  "admin_modules": {
+   "ringkasan": {
+    "cards": 4,
+    "sidebar": 4,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "crm": {
+    "cards": 11,
+    "sidebar": 11,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "est": {
+    "cards": 5,
+    "sidebar": 5,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "eng": {
+    "cards": 6,
+    "sidebar": 6,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "prj": {
+    "cards": 20,
+    "sidebar": 20,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [
+     "PELAKSANAAN",
+     "SERAH TERIMA",
+     "IZIN & K3",
+     "REGISTER"
+    ],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "qc": {
+    "cards": 4,
+    "sidebar": 4,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "prc": {
+    "cards": 13,
+    "sidebar": 13,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "inv": {
+    "cards": 8,
+    "sidebar": 8,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "scm": {
+    "cards": 6,
+    "sidebar": 6,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "fin": {
+    "cards": 20,
+    "sidebar": 20,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [
+     "AR/AP",
+     "KAS",
+     "PELAPORAN",
+     "PAJAK",
+     "MASTER"
+    ],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "hr": {
+    "cards": 6,
+    "sidebar": 6,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "svc": {
+    "cards": 5,
+    "sidebar": 5,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "ast": {
+    "cards": 8,
+    "sidebar": 8,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "iam": {
+    "cards": 8,
+    "sidebar": 8,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 4,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   }
+  },
+  "admin_all_match": true,
+  "admin_arrows_ok": true,
+  "unknown_prefix": "Modul \"tidak-ada\" tidak dikenal.",
+  "crumb_walk": {
+   "routes": 131,
+   "nav": 124,
+   "outside": [
+    "#/r/finance/kasbon",
+    "#/r/finance/petty-cash-vouchers",
+    "#/r/hr/certificates",
+    "#/r/inventory/issue-returns",
+    "#/r/inventory/purchase-returns",
+    "#/r/projects/baselines",
+    "#/r/projects/defects"
+   ],
+   "by_root": {
+    "module": 130,
+    "screen": 1,
+    "null": 0
+   },
+   "screen_routes": [
+    "#/dashboard"
+   ],
+   "empty": [],
+   "overlapping": [],
+   "taller_than_header": [],
+   "without_aria_current": [],
+   "outside_texts": {
+    "#/r/finance/kasbon": "Keuangan › Kasbon",
+    "#/r/finance/petty-cash-vouchers": "Keuangan › Voucher Kas Kecil",
+    "#/r/hr/certificates": "SDM & Payroll › Sertifikat",
+    "#/r/inventory/issue-returns": "Persediaan › Retur Material Proyek",
+    "#/r/inventory/purchase-returns": "Persediaan › Retur Pembelian",
+    "#/r/projects/baselines": "Proyek › Baseline Proyek",
+    "#/r/projects/defects": "Proyek › Register Defect (Punch List)"
+   },
+   "console_errors_from_stub": {
+    "count": 2,
+    "first": [
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8028/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8028/app/js/views/retensi.js:48:41)"
+    ]
+   },
+   "never_empty": true,
+   "all_fit": true,
+   "all_aria_current": true,
+   "ok": true
+  },
+  "density": {
+   "baseline": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "fine",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      46.5,
+      47
+     ]
+    },
+    "min_by_kind": {
+     "button": 46.5
+    },
+    "all": [
+     46.5,
+     47
+    ],
+    "th": 35,
+    "nav_link": 31.5,
+    "tfoot": [],
+    "btn_sm": 28,
+    "stored": []
+   },
+   "baseline_po": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "fine",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 35,
+    "nav_link": 31.5,
+    "tfoot": [
+     41
+    ],
+    "btn_sm": null,
+    "stored": []
+   },
+   "baseline_accounts": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "fine",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      47,
+      57.5,
+      58
+     ]
+    },
+    "min_by_kind": {
+     "button": 47
+    },
+    "all": [
+     47,
+     57.5,
+     58
+    ],
+    "th": 35,
+    "nav_link": 31.5,
+    "tfoot": [],
+    "btn_sm": 28,
+    "stored": []
+   },
+   "expected": {
+    "compact": 32,
+    "comfortable": 48,
+    "normal": 47
+   },
+   "dialog_before_compact": {
+    "rows": [
+     {
+      "label": "Padat",
+      "hint": "32 px per baris",
+      "h": 30,
+      "radio": 13
+     },
+     {
+      "label": "Normal",
+      "hint": "38,5 px per baris",
+      "h": 30,
+      "radio": 13
+     },
+     {
+      "label": "Lega",
+      "hint": "48 px per baris",
+      "h": 30,
+      "radio": 13
+     }
+    ],
+    "note": null,
+    "pointer": "fine"
+   },
+   "compact": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "fine",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      32
+     ]
+    },
+    "min_by_kind": {
+     "button": 32
+    },
+    "all": [
+     32
+    ],
+    "th": 23,
+    "nav_link": 27.5,
+    "tfoot": [],
+    "btn_sm": 24,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "compact_po": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "fine",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 23,
+    "nav_link": 27.5,
+    "tfoot": [
+     32
+    ],
+    "btn_sm": null,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "compact_accounts": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "fine",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      32,
+      45.5,
+      46
+     ]
+    },
+    "min_by_kind": {
+     "button": 32
+    },
+    "all": [
+     32,
+     45.5,
+     46
+    ],
+    "th": 23,
+    "nav_link": 27.5,
+    "tfoot": [],
+    "btn_sm": 24,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "dialog_before_comfortable": {
+    "rows": [
+     {
+      "label": "Padat",
+      "hint": "32 px per baris",
+      "h": 30,
+      "radio": 13
+     },
+     {
+      "label": "Normal",
+      "hint": "38,5 px per baris",
+      "h": 30,
+      "radio": 13
+     },
+     {
+      "label": "Lega",
+      "hint": "48 px per baris",
+      "h": 30,
+      "radio": 13
+     }
+    ],
+    "note": null,
+    "pointer": "fine"
+   },
+   "comfortable": {
+    "density": "comfortable",
+    "row_h_token": "48px",
+    "pointer": "fine",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      48
+     ]
+    },
+    "min_by_kind": {
+     "button": 48
+    },
+    "all": [
+     48
+    ],
+    "th": 35,
+    "nav_link": 35.5,
+    "tfoot": [],
+    "btn_sm": 28,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "comfortable_po": {
+    "density": "comfortable",
+    "row_h_token": "48px",
+    "pointer": "fine",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 35,
+    "nav_link": 35.5,
+    "tfoot": [
+     48
+    ],
+    "btn_sm": null,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "comfortable_accounts": {
+    "density": "comfortable",
+    "row_h_token": "48px",
+    "pointer": "fine",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      48,
+      57.5,
+      58
+     ]
+    },
+    "min_by_kind": {
+     "button": 48
+    },
+    "all": [
+     48,
+     57.5,
+     58
+    ],
+    "th": 35,
+    "nav_link": 35.5,
+    "tfoot": [],
+    "btn_sm": 28,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "dialog_before_normal": {
+    "rows": [
+     {
+      "label": "Padat",
+      "hint": "32 px per baris",
+      "h": 30,
+      "radio": 13
+     },
+     {
+      "label": "Normal",
+      "hint": "38,5 px per baris",
+      "h": 30,
+      "radio": 13
+     },
+     {
+      "label": "Lega",
+      "hint": "48 px per baris",
+      "h": 30,
+      "radio": 13
+     }
+    ],
+    "note": null,
+    "pointer": "fine"
+   },
+   "normal": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "fine",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      46.5,
+      47
+     ]
+    },
+    "min_by_kind": {
+     "button": 46.5
+    },
+    "all": [
+     46.5,
+     47
+    ],
+    "th": 35,
+    "nav_link": 31.5,
+    "tfoot": [],
+    "btn_sm": 28,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "normal_po": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "fine",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 35,
+    "nav_link": 31.5,
+    "tfoot": [
+     41
+    ],
+    "btn_sm": null,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "normal_accounts": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "fine",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      47,
+      57.5,
+      58
+     ]
+    },
+    "min_by_kind": {
+     "button": 47
+    },
+    "all": [
+     47,
+     57.5,
+     58
+    ],
+    "th": 35,
+    "nav_link": 31.5,
+    "tfoot": [],
+    "btn_sm": 28,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "after_reload": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "fine",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      32,
+      45.5,
+      46
+     ]
+    },
+    "min_by_kind": {
+     "button": 32
+    },
+    "all": [
+     32,
+     45.5,
+     46
+    ],
+    "th": 23,
+    "nav_link": 27.5,
+    "tfoot": [],
+    "btn_sm": 24,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "compact_ok": true,
+   "comfortable_ok": true,
+   "normal_equals_baseline": true,
+   "tfoot_po": {
+    "baseline": [
+     41
+    ],
+    "compact": [
+     32
+    ],
+    "comfortable": [
+     48
+    ],
+    "normal": [
+     41
+    ]
+   },
+   "tfoot_normal_41": true,
+   "accounts_min_by_kind": {
+    "baseline": {
+     "button": 47
+    },
+    "compact": {
+     "button": 32
+    },
+    "comfortable": {
+     "button": 48
+    },
+    "normal": {
+     "button": 47
+    }
+   },
+   "persisted": true,
+   "nav_link_by_density": {
+    "baseline": 31.5,
+    "compact": 27.5,
+    "comfortable": 35.5,
+    "normal": 31.5
+   },
+   "nav_link_ge_36_on_coarse": null,
+   "dialog_rows_ge_40_on_coarse": null,
+   "dialog_hints_name_button_rows_on_coarse": null
+  },
+  "list_empty": {
+   "search": {
+    "title": "Tidak ada hasil pencarian",
+    "text": "Tidak ada pesanan pembelian (po) yang cocok dengan \"zzzzqq\".",
+    "kind": "search",
+    "ln_stroke": "rgb(203, 210, 218)",
+    "buttons": [
+     "Hapus pencarian"
+    ],
+    "button_icon": {
+     "opacity": "1",
+     "margin_bottom": "0px",
+     "dy": 0
+    }
+   },
+   "filter": {
+    "title": "Tidak ada hasil",
+    "text": "Tidak ada pesanan pembelian (po) yang lolos filter yang dipasang.",
+    "kind": "filter",
+    "ln_stroke": "rgb(203, 210, 218)",
+    "buttons": [
+     "Hapus filter"
+    ],
+    "button_icon": {
+     "opacity": "1",
+     "margin_bottom": "0px",
+     "dy": 0
+    }
+   },
+   "after_clear": {
+    "rows": 2,
+    "hash": "#/r/procurement/purchase-orders",
+    "empty": false
+   },
+   "copy_ok": true,
+   "button_icon_ok": true
+  },
+  "warehouse": {
+   "prefixes": [
+    "ringkasan",
+    "eng",
+    "prj",
+    "inv",
+    "ast",
+    "iam"
+   ],
+   "onboarding_status": "skipped",
+   "dock_open": 0,
+   "modules": {
+    "ringkasan": {
+     "cards": 3,
+     "sidebar": 3,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 4,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "eng": {
+     "cards": 1,
+     "sidebar": 1,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 4,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "prj": {
+     "cards": 20,
+     "sidebar": 20,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [
+      "PELAKSANAAN",
+      "SERAH TERIMA",
+      "IZIN & K3",
+      "REGISTER"
+     ],
+     "hints": 0,
+     "empty": null,
+     "columns": 4,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "inv": {
+     "cards": 8,
+     "sidebar": 8,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 4,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "ast": {
+     "cards": 1,
+     "sidebar": 1,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 4,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "iam": {
+     "cards": 2,
+     "sidebar": 2,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 4,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    }
+   },
+   "all_match": true,
+   "fin_home": {
+    "hash": "#/m/fin",
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "cards": [],
+    "sections": [],
+    "hints": 0,
+    "columns": null,
+    "structure": null,
+    "sidebar": [],
+    "sidebar_open": null,
+    "empty": {
+     "text": "Tidak ada layar\n\nTidak ada layar yang bisa Anda buka di modul ini",
+     "kind": "inbox"
+    },
+    "smallest_font_px": 11
+   },
+   "fin_is_empty_state": true
+  },
+  "pageerrors": [],
+  "console_errors": {
+   "count": 0,
+   "first": []
+  },
+  "_ms": 95091,
+  "_clicks": 11
+ },
+ "S21_module_accents_breadcrumb_mobile": {
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "onboarding_status": {
+   "admin": "skipped"
+  },
+  "dock_open": 0,
+  "sidebar_prefixes": [
+   "ringkasan",
+   "crm",
+   "est",
+   "eng",
+   "prj",
+   "qc",
+   "prc",
+   "inv",
+   "scm",
+   "fin",
+   "hr",
+   "svc",
+   "ast",
+   "iam"
+  ],
+  "light": {
+   "accent": {
+    "theme": "light",
+    "surface": "#ffffff",
+    "tokens": {
+     "1": {
+      "accent": "#1a56db",
+      "soft": "#edf1fc",
+      "fg": "#ffffff",
+      "chart": "#1a56db"
+     },
+     "2": {
+      "accent": "#c43e05",
+      "soft": "#faf0eb",
+      "fg": "#ffffff",
+      "chart": "#c2410c"
+     },
+     "3": {
+      "accent": "#007d3d",
+      "soft": "#e8f3ee",
+      "fg": "#ffffff",
+      "chart": "#15803d"
+     },
+     "4": {
+      "accent": "#9000c6",
+      "soft": "#f7edfb",
+      "fg": "#ffffff",
+      "chart": "#7e22ce"
+     },
+     "5": {
+      "accent": "#00758f",
+      "soft": "#ebf4f6",
+      "fg": "#ffffff",
+      "chart": "#0e7490"
+     },
+     "6": {
+      "accent": "#970e2a",
+      "soft": "#f8eef0",
+      "fg": "#ffffff",
+      "chart": "#b91c1c"
+     },
+     "7": {
+      "accent": "#926100",
+      "soft": "#f6f2eb",
+      "fg": "#ffffff",
+      "chart": "#a16207"
+     },
+     "8": {
+      "accent": "#4a505c",
+      "soft": "#f1f1f2",
+      "fg": "#ffffff",
+      "chart": "#475569"
+     }
+    },
+    "pairs": {
+     "1-2": 48.9,
+     "1-3": 51.0,
+     "1-4": 20.4,
+     "1-5": 20.3,
+     "1-6": 40.1,
+     "1-7": 56.0,
+     "1-8": 20.1,
+     "2-3": 58.9,
+     "2-4": 46.3,
+     "2-5": 54.0,
+     "2-6": 20.2,
+     "2-7": 20.7,
+     "2-8": 35.1,
+     "3-4": 52.2,
+     "3-5": 33.1,
+     "3-6": 66.7,
+     "3-7": 36.4,
+     "3-8": 31.7,
+     "4-5": 33.1,
+     "4-6": 32.2,
+     "4-7": 59.4,
+     "4-8": 23.6,
+     "5-6": 56.6,
+     "5-7": 42.8,
+     "5-8": 20.1,
+     "6-7": 34.0,
+     "6-8": 29.8,
+     "7-8": 33.0
+    },
+    "min_pair_de": 20.1,
+    "min_pair": "1-8",
+    "contrast": {
+     "1": {
+      "on_surface": 6.18,
+      "fg_on_accent": 6.18,
+      "on_soft": 5.47
+     },
+     "2": {
+      "on_surface": 5.2,
+      "fg_on_accent": 5.2,
+      "on_soft": 4.64
+     },
+     "3": {
+      "on_surface": 5.25,
+      "fg_on_accent": 5.25,
+      "on_soft": 4.62
+     },
+     "4": {
+      "on_surface": 7.0,
+      "fg_on_accent": 7.0,
+      "on_soft": 6.15
+     },
+     "5": {
+      "on_surface": 5.33,
+      "fg_on_accent": 5.33,
+      "on_soft": 4.77
+     },
+     "6": {
+      "on_surface": 8.71,
+      "fg_on_accent": 8.71,
+      "on_soft": 7.66
+     },
+     "7": {
+      "on_surface": 5.34,
+      "fg_on_accent": 5.34,
+      "on_soft": 4.79
+     },
+     "8": {
+      "on_surface": 8.1,
+      "fg_on_accent": 8.1,
+      "on_soft": 7.17
+     }
+    },
+    "hue_delta": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 1.9,
+     "4": 4.8,
+     "5": 3.7,
+     "6": 11.8,
+     "7": 6.1,
+     "8": 4.5
+    },
+    "max_hue_delta": 11.8,
+    "all_hue_within_12": true,
+    "min_on_surface": 5.2,
+    "min_fg_on_accent": 5.2,
+    "min_on_soft": 4.62,
+    "all_pairs_ge_20": true,
+    "all_on_surface_ge_3": true,
+    "all_fg_ge_4_5": true,
+    "all_on_soft_ge_4_5": true
+   },
+   "active_marker": {
+    "group": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(196, 62, 5)",
+     "box_shadow": "rgb(196, 62, 5) 3px 0px 0px 0px inset",
+     "open": "true"
+    },
+    "crumb": {
+     "href": "#/m/fin",
+     "text": "Keuangan",
+     "accent": "2",
+     "color": "rgb(196, 62, 5)",
+     "width": 77,
+     "visible": true
+    },
+    "crumbs_text": "Keuangan\nInvoice Termin (AR)",
+    "host_tag": "NAV",
+    "host_aria_label": "Remah roti",
+    "last_aria_current": "page",
+    "has_active_count": 1,
+    "marker_color_hex": "#c43e05",
+    "crumb_color_hex": "#c43e05",
+    "slot_token": "#c43e05",
+    "marker_matches_token": true,
+    "shadow_matches_token": true,
+    "crumb_matches_token": true,
+    "crumb_href_ok": true,
+    "a11y_ok": true
+   },
+   "crumb_fit": {
+    "list": {
+     "hash": "#/r/finance/ar-invoices",
+     "visible": [
+      "A.crumb-module:Keuangan"
+     ],
+     "text_visible": "Keuangan",
+     "right_edge": 143,
+     "next_left": 190,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "Invoice Termin (AR)",
+      "aria_current": "page",
+      "display": "block",
+      "visible": false
+     }
+    },
+    "detail": {
+     "hash": "#/d/finance/ar-invoices/1",
+     "visible": [
+      "A.crumb-module:Keuangan"
+     ],
+     "text_visible": "Keuangan",
+     "right_edge": 143,
+     "next_left": 190,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "INV/2026/II/0001",
+      "aria_current": "page",
+      "display": "block",
+      "visible": false
+     }
+    },
+    "ok": true
+   },
+   "module_home_fin": {
+    "hash": "#/m/fin",
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "cards": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sections": [
+     "AR/AP",
+     "KAS",
+     "PELAPORAN",
+     "PAJAK",
+     "MASTER"
+    ],
+    "hints": 0,
+    "columns": 1,
+    "structure": {
+     "grid_tag": "UL",
+     "grid_labelled": true,
+     "li_per_card": true,
+     "section_tags": [
+      "H2"
+     ],
+     "sections_label_their_grid": true
+    },
+    "sidebar": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sidebar_open": "true",
+    "empty": null,
+    "smallest_font_px": 11,
+    "navigated": true,
+    "head_border_hex": "#c43e05",
+    "head_matches_token": true,
+    "icon_bg_matches_soft": true,
+    "cards_equal_sidebar": true,
+    "structure_ok": true,
+    "marker_after": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(196, 62, 5)",
+     "box_shadow": "rgb(196, 62, 5) 3px 0px 0px 0px inset",
+     "open": "true"
+    }
+   },
+   "print_accents": {
+    "tokens": {
+     "1": {
+      "accent": "#1a56db",
+      "soft": "#edf1fc",
+      "fg": "#ffffff",
+      "chart": "#222222"
+     },
+     "2": {
+      "accent": "#c43e05",
+      "soft": "#faf0eb",
+      "fg": "#ffffff",
+      "chart": "#6c6c6c"
+     },
+     "3": {
+      "accent": "#007d3d",
+      "soft": "#e8f3ee",
+      "fg": "#ffffff",
+      "chart": "#484848"
+     },
+     "4": {
+      "accent": "#9000c6",
+      "soft": "#f7edfb",
+      "fg": "#ffffff",
+      "chart": "#939393"
+     },
+     "5": {
+      "accent": "#00758f",
+      "soft": "#ebf4f6",
+      "fg": "#ffffff",
+      "chart": "#000000"
+     },
+     "6": {
+      "accent": "#970e2a",
+      "soft": "#f8eef0",
+      "fg": "#ffffff",
+      "chart": "#5a5a5a"
+     },
+     "7": {
+      "accent": "#926100",
+      "soft": "#f6f2eb",
+      "fg": "#ffffff",
+      "chart": "#363636"
+     },
+     "8": {
+      "accent": "#4a505c",
+      "soft": "#f1f1f2",
+      "fg": "#ffffff",
+      "chart": "#808080"
+     }
+    },
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "body_bg": "rgb(255, 255, 255)",
+    "min_on_paper": 5.2,
+    "all_on_paper_ge_3": true,
+    "head_border_hex": "#c43e05",
+    "head_uses_print_token": true
+   },
+   "empty_kinds": {
+    "tokens": {
+     "--border-strong": "#cbd2da",
+     "--primary": "#1a56db",
+     "--danger": "#c62828",
+     "--success": "#17714a",
+     "--surface-3": "#f1f3f6",
+     "--primary-soft": "#e8effc",
+     "--danger-soft": "#fdecec",
+     "--success-soft": "#e6f4ec"
+    },
+    "kinds": {
+     "inbox": {
+      "width": 112,
+      "height": 112,
+      "bytes": 436,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(26, 86, 219)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": null,
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "search": {
+      "width": 112,
+      "height": 112,
+      "bytes": 528,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(26, 86, 219)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(232, 239, 252)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "filter": {
+      "width": 112,
+      "height": 112,
+      "bytes": 467,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(26, 86, 219)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(232, 239, 252)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "error": {
+      "width": 112,
+      "height": 112,
+      "bytes": 529,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(198, 40, 40)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(253, 236, 236)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done": {
+      "width": 112,
+      "height": 112,
+      "bytes": 563,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(23, 113, 74)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(230, 244, 236)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done_compact": {
+      "width": 72,
+      "height": 72,
+      "bytes": 563,
+      "ln_stroke": "rgb(203, 210, 218)",
+      "ac_stroke": "rgb(23, 113, 74)",
+      "fl_fill": "rgb(241, 243, 246)",
+      "fa_fill": "rgb(230, 244, 236)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": false
+     }
+    },
+    "checks": {
+     "inbox": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "search": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "filter": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "error": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done_compact": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     }
+    },
+    "all_ok": true
+   }
+  },
+  "dark": {
+   "accent": {
+    "theme": "dark",
+    "surface": "#151a21",
+    "tokens": {
+     "1": {
+      "accent": "#5b8def",
+      "soft": "#1b2434",
+      "fg": "#0d1117",
+      "chart": "#5b8def"
+     },
+     "2": {
+      "accent": "#f9913c",
+      "soft": "#272423",
+      "fg": "#0d1117",
+      "chart": "#fb923c"
+     },
+     "3": {
+      "accent": "#49e181",
+      "soft": "#182627",
+      "fg": "#0d1117",
+      "chart": "#4ade80"
+     },
+     "4": {
+      "accent": "#bd7efc",
+      "soft": "#222233",
+      "fg": "#0d1117",
+      "chart": "#c084fc"
+     },
+     "5": {
+      "accent": "#00d4f2",
+      "soft": "#142730",
+      "fg": "#0d1117",
+      "chart": "#22d3ee"
+     },
+     "6": {
+      "accent": "#f57272",
+      "soft": "#292228",
+      "fg": "#0d1117",
+      "chart": "#f87171"
+     },
+     "7": {
+      "accent": "#fbcd1a",
+      "soft": "#232521",
+      "fg": "#0d1117",
+      "chart": "#facc15"
+     },
+     "8": {
+      "accent": "#afb3bc",
+      "soft": "#1f242c",
+      "fg": "#0d1117",
+      "chart": "#94a3b8"
+     }
+    },
+    "pairs": {
+     "1-2": 50.5,
+     "1-3": 53.2,
+     "1-4": 20.9,
+     "1-5": 28.7,
+     "1-6": 40.9,
+     "1-7": 62.7,
+     "1-8": 22.5,
+     "2-3": 53.3,
+     "2-4": 50.5,
+     "2-5": 50.2,
+     "2-6": 23.4,
+     "2-7": 24.2,
+     "2-8": 31.1,
+     "3-4": 54.1,
+     "3-5": 35.6,
+     "3-6": 71.4,
+     "3-7": 34.7,
+     "3-8": 31.6,
+     "4-5": 40.8,
+     "4-6": 32.5,
+     "4-7": 69.8,
+     "4-8": 21.7,
+     "5-6": 70.0,
+     "5-7": 48.9,
+     "5-8": 23.5,
+     "6-7": 45.9,
+     "6-8": 29.0,
+     "7-8": 35.0
+    },
+    "min_pair_de": 20.9,
+    "min_pair": "1-4",
+    "contrast": {
+     "1": {
+      "on_surface": 5.41,
+      "fg_on_accent": 5.86,
+      "on_soft": 4.82
+     },
+     "2": {
+      "on_surface": 7.61,
+      "fg_on_accent": 8.24,
+      "on_soft": 6.71
+     },
+     "3": {
+      "on_surface": 10.29,
+      "fg_on_accent": 11.15,
+      "on_soft": 9.19
+     },
+     "4": {
+      "on_surface": 6.29,
+      "fg_on_accent": 6.81,
+      "on_soft": 5.62
+     },
+     "5": {
+      "on_surface": 9.74,
+      "fg_on_accent": 10.54,
+      "on_soft": 8.59
+     },
+     "6": {
+      "on_surface": 6.27,
+      "fg_on_accent": 6.79,
+      "on_soft": 5.56
+     },
+     "7": {
+      "on_surface": 11.53,
+      "fg_on_accent": 12.48,
+      "on_soft": 10.2
+     },
+     "8": {
+      "on_surface": 8.32,
+      "fg_on_accent": 9.01,
+      "on_soft": 7.42
+     }
+    },
+    "hue_delta": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0,
+     "4": 0.1,
+     "5": 1.6,
+     "6": 0.2,
+     "7": 0.0,
+     "8": 7.3
+    },
+    "max_hue_delta": 7.3,
+    "all_hue_within_12": true,
+    "min_on_surface": 5.41,
+    "min_fg_on_accent": 5.86,
+    "min_on_soft": 4.82,
+    "all_pairs_ge_20": true,
+    "all_on_surface_ge_3": true,
+    "all_fg_ge_4_5": true,
+    "all_on_soft_ge_4_5": true
+   },
+   "active_marker": {
+    "group": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(249, 145, 60)",
+     "box_shadow": "rgb(249, 145, 60) 3px 0px 0px 0px inset",
+     "open": "true"
+    },
+    "crumb": {
+     "href": "#/m/fin",
+     "text": "Keuangan",
+     "accent": "2",
+     "color": "rgb(249, 145, 60)",
+     "width": 77,
+     "visible": true
+    },
+    "crumbs_text": "Keuangan\nInvoice Termin (AR)",
+    "host_tag": "NAV",
+    "host_aria_label": "Remah roti",
+    "last_aria_current": "page",
+    "has_active_count": 1,
+    "marker_color_hex": "#f9913c",
+    "crumb_color_hex": "#f9913c",
+    "slot_token": "#f9913c",
+    "marker_matches_token": true,
+    "shadow_matches_token": true,
+    "crumb_matches_token": true,
+    "crumb_href_ok": true,
+    "a11y_ok": true
+   },
+   "crumb_fit": {
+    "list": {
+     "hash": "#/r/finance/ar-invoices",
+     "visible": [
+      "A.crumb-module:Keuangan"
+     ],
+     "text_visible": "Keuangan",
+     "right_edge": 143,
+     "next_left": 190,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "Invoice Termin (AR)",
+      "aria_current": "page",
+      "display": "block",
+      "visible": false
+     }
+    },
+    "detail": {
+     "hash": "#/d/finance/ar-invoices/1",
+     "visible": [
+      "A.crumb-module:Keuangan"
+     ],
+     "text_visible": "Keuangan",
+     "right_edge": 143,
+     "next_left": 190,
+     "overlap_next": false,
+     "crumbs_h": 20,
+     "header_h": 56,
+     "module_lbl_ellipsized": false,
+     "last": {
+      "text": "INV/2026/II/0001",
+      "aria_current": "page",
+      "display": "block",
+      "visible": false
+     }
+    },
+    "ok": true
+   },
+   "module_home_fin": {
+    "hash": "#/m/fin",
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(249, 145, 60)",
+     "eyebrow_color": "rgb(249, 145, 60)",
+     "icon_bg": "rgb(39, 36, 35)"
+    },
+    "cards": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sections": [
+     "AR/AP",
+     "KAS",
+     "PELAPORAN",
+     "PAJAK",
+     "MASTER"
+    ],
+    "hints": 0,
+    "columns": 1,
+    "structure": {
+     "grid_tag": "UL",
+     "grid_labelled": true,
+     "li_per_card": true,
+     "section_tags": [
+      "H2"
+     ],
+     "sections_label_their_grid": true
+    },
+    "sidebar": [
+     "#/r/finance/ar-invoices",
+     "#/r/finance/ap-bills",
+     "#/r/finance/payments",
+     "#/siap-tagih",
+     "#/retensi",
+     "#/kas-kecil",
+     "#/r/finance/petty-cash-funds",
+     "#/bank-recon",
+     "#/r/finance/journals",
+     "#/r/finance/project-costs",
+     "#/r/finance/revenue-recognition",
+     "#/periods",
+     "#/reports",
+     "#/buku-besar",
+     "#/tax-exports",
+     "#/kalender-pajak",
+     "#/ekualisasi-pajak",
+     "#/r/finance/accounts",
+     "#/r/finance/taxes",
+     "#/r/finance/bank-accounts"
+    ],
+    "sidebar_open": "true",
+    "empty": null,
+    "smallest_font_px": 11,
+    "navigated": true,
+    "head_border_hex": "#f9913c",
+    "head_matches_token": true,
+    "icon_bg_matches_soft": true,
+    "cards_equal_sidebar": true,
+    "structure_ok": true,
+    "marker_after": {
+     "label": "KEUANGAN",
+     "prefix": "fin",
+     "accent": "2",
+     "color": "rgb(249, 145, 60)",
+     "box_shadow": "rgb(249, 145, 60) 3px 0px 0px 0px inset",
+     "open": "true"
+    }
+   },
+   "print_accents": {
+    "tokens": {
+     "1": {
+      "accent": "#1a56db",
+      "soft": "#edf1fc",
+      "fg": "#ffffff",
+      "chart": "#222222"
+     },
+     "2": {
+      "accent": "#c43e05",
+      "soft": "#faf0eb",
+      "fg": "#ffffff",
+      "chart": "#6c6c6c"
+     },
+     "3": {
+      "accent": "#007d3d",
+      "soft": "#e8f3ee",
+      "fg": "#ffffff",
+      "chart": "#484848"
+     },
+     "4": {
+      "accent": "#9000c6",
+      "soft": "#f7edfb",
+      "fg": "#ffffff",
+      "chart": "#939393"
+     },
+     "5": {
+      "accent": "#00758f",
+      "soft": "#ebf4f6",
+      "fg": "#ffffff",
+      "chart": "#000000"
+     },
+     "6": {
+      "accent": "#970e2a",
+      "soft": "#f8eef0",
+      "fg": "#ffffff",
+      "chart": "#5a5a5a"
+     },
+     "7": {
+      "accent": "#926100",
+      "soft": "#f6f2eb",
+      "fg": "#ffffff",
+      "chart": "#363636"
+     },
+     "8": {
+      "accent": "#4a505c",
+      "soft": "#f1f1f2",
+      "fg": "#ffffff",
+      "chart": "#808080"
+     }
+    },
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "body_bg": "rgb(255, 255, 255)",
+    "min_on_paper": 5.2,
+    "all_on_paper_ge_3": true,
+    "head_border_hex": "#c43e05",
+    "head_uses_print_token": true
+   },
+   "empty_kinds": {
+    "tokens": {
+     "--border-strong": "#38414f",
+     "--primary": "#5b8def",
+     "--danger": "#f87171",
+     "--success": "#4ade80",
+     "--surface-3": "#212832",
+     "--primary-soft": "#17263f",
+     "--danger-soft": "#331a1a",
+     "--success-soft": "#12291d"
+    },
+    "kinds": {
+     "inbox": {
+      "width": 112,
+      "height": 112,
+      "bytes": 436,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(91, 141, 239)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": null,
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "search": {
+      "width": 112,
+      "height": 112,
+      "bytes": 528,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(91, 141, 239)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(23, 38, 63)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "filter": {
+      "width": 112,
+      "height": 112,
+      "bytes": 467,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(91, 141, 239)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(23, 38, 63)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "error": {
+      "width": 112,
+      "height": 112,
+      "bytes": 529,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(248, 113, 113)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(51, 26, 26)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done": {
+      "width": 112,
+      "height": 112,
+      "bytes": 563,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(74, 222, 128)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(18, 41, 29)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": true
+     },
+     "done_compact": {
+      "width": 72,
+      "height": 72,
+      "bytes": 563,
+      "ln_stroke": "rgb(56, 65, 79)",
+      "ac_stroke": "rgb(74, 222, 128)",
+      "fl_fill": "rgb(33, 40, 50)",
+      "fa_fill": "rgb(18, 41, 29)",
+      "opacity": "1",
+      "hex_literals": 0,
+      "has_title": false
+     }
+    },
+    "checks": {
+     "inbox": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "search": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "filter": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "error": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     },
+     "done_compact": {
+      "ln_is_border_strong": true,
+      "ac_is_token": true,
+      "fl_is_surface3": true,
+      "fa_is_soft_token": true,
+      "bytes_le_1536": true,
+      "no_hex_literals": true
+     }
+    },
+    "all_ok": true
+   }
+  },
+  "admin_modules": {
+   "ringkasan": {
+    "cards": 4,
+    "sidebar": 4,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "crm": {
+    "cards": 11,
+    "sidebar": 11,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "est": {
+    "cards": 5,
+    "sidebar": 5,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "eng": {
+    "cards": 6,
+    "sidebar": 6,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "prj": {
+    "cards": 20,
+    "sidebar": 20,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [
+     "PELAKSANAAN",
+     "SERAH TERIMA",
+     "IZIN & K3",
+     "REGISTER"
+    ],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "qc": {
+    "cards": 4,
+    "sidebar": 4,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "prc": {
+    "cards": 13,
+    "sidebar": 13,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "inv": {
+    "cards": 8,
+    "sidebar": 8,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "scm": {
+    "cards": 6,
+    "sidebar": 6,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "fin": {
+    "cards": 20,
+    "sidebar": 20,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [
+     "AR/AP",
+     "KAS",
+     "PELAPORAN",
+     "PAJAK",
+     "MASTER"
+    ],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "hr": {
+    "cards": 6,
+    "sidebar": 6,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "svc": {
+    "cards": 5,
+    "sidebar": 5,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "ast": {
+    "cards": 8,
+    "sidebar": 8,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   },
+   "iam": {
+    "cards": 8,
+    "sidebar": 8,
+    "match": true,
+    "head": true,
+    "arrows": {
+     "ok": true,
+     "down_mismatches": [],
+     "up_mismatches": []
+    },
+    "sections": [],
+    "hints": 0,
+    "empty": null,
+    "columns": 1,
+    "smallest_font_px": 11,
+    "only_in_cards": [],
+    "only_in_sidebar": []
+   }
+  },
+  "admin_all_match": true,
+  "admin_arrows_ok": true,
+  "unknown_prefix": "Modul \"tidak-ada\" tidak dikenal.",
+  "crumb_walk": {
+   "routes": 131,
+   "nav": 124,
+   "outside": [
+    "#/r/finance/kasbon",
+    "#/r/finance/petty-cash-vouchers",
+    "#/r/hr/certificates",
+    "#/r/inventory/issue-returns",
+    "#/r/inventory/purchase-returns",
+    "#/r/projects/baselines",
+    "#/r/projects/defects"
+   ],
+   "by_root": {
+    "module": 130,
+    "screen": 1,
+    "null": 0
+   },
+   "screen_routes": [
+    "#/dashboard"
+   ],
+   "empty": [],
+   "overlapping": [],
+   "taller_than_header": [],
+   "without_aria_current": [],
+   "outside_texts": {
+    "#/r/finance/kasbon": "Keuangan",
+    "#/r/finance/petty-cash-vouchers": "Keuangan",
+    "#/r/hr/certificates": "SDM & Payroll",
+    "#/r/inventory/issue-returns": "Persediaan",
+    "#/r/inventory/purchase-returns": "Persediaan",
+    "#/r/projects/baselines": "Proyek",
+    "#/r/projects/defects": "Proyek"
+   },
+   "console_errors_from_stub": {
+    "count": 2,
+    "first": [
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8028/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8028/app/js/views/retensi.js:48:41)"
+    ]
+   },
+   "never_empty": true,
+   "all_fit": true,
+   "all_aria_current": true,
+   "ok": true
+  },
+  "density": {
+   "baseline": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "coarse",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      54.5,
+      55
+     ]
+    },
+    "min_by_kind": {
+     "button": 54.5
+    },
+    "all": [
+     54.5,
+     55
+    ],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": []
+   },
+   "baseline_po": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "coarse",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [
+     60.5
+    ],
+    "btn_sm": null,
+    "stored": []
+   },
+   "baseline_accounts": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "coarse",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      55,
+      58,
+      77.5,
+      96.5,
+      97,
+      116.5,
+      136
+     ]
+    },
+    "min_by_kind": {
+     "button": 55
+    },
+    "all": [
+     55,
+     58,
+     77.5,
+     96.5,
+     97,
+     116.5,
+     136
+    ],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": []
+   },
+   "expected": {
+    "compact": 43,
+    "comfortable": 55,
+    "normal": 55
+   },
+   "dialog_before_compact": {
+    "rows": [
+     {
+      "label": "Padat",
+      "hint": "baris bertombol 43 px",
+      "h": 40,
+      "radio": 18
+     },
+     {
+      "label": "Normal",
+      "hint": "baris bertombol 55 px",
+      "h": 40,
+      "radio": 18
+     },
+     {
+      "label": "Lega",
+      "hint": "baris bertombol 55 px (= Normal)",
+      "h": 40,
+      "radio": 18
+     }
+    ],
+    "note": "Di layar sentuh tombol baris memegang sasaran jempol 36 px; baris teks yang membungkus mengikuti isinya.",
+    "pointer": "coarse"
+   },
+   "compact": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "coarse",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      42.5,
+      43
+     ]
+    },
+    "min_by_kind": {
+     "button": 42.5
+    },
+    "all": [
+     42.5,
+     43
+    ],
+    "th": 23,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "compact_po": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "coarse",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 23,
+    "nav_link": 36,
+    "tfoot": [
+     48.5
+    ],
+    "btn_sm": null,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "compact_accounts": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "coarse",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      43,
+      46,
+      65.5,
+      84.5,
+      85,
+      104.5,
+      124
+     ]
+    },
+    "min_by_kind": {
+     "button": 43
+    },
+    "all": [
+     43,
+     46,
+     65.5,
+     84.5,
+     85,
+     104.5,
+     124
+    ],
+    "th": 23,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "dialog_before_comfortable": {
+    "rows": [
+     {
+      "label": "Padat",
+      "hint": "baris bertombol 43 px",
+      "h": 40,
+      "radio": 18
+     },
+     {
+      "label": "Normal",
+      "hint": "baris bertombol 55 px",
+      "h": 40,
+      "radio": 18
+     },
+     {
+      "label": "Lega",
+      "hint": "baris bertombol 55 px (= Normal)",
+      "h": 40,
+      "radio": 18
+     }
+    ],
+    "note": "Di layar sentuh tombol baris memegang sasaran jempol 36 px; baris teks yang membungkus mengikuti isinya.",
+    "pointer": "coarse"
+   },
+   "comfortable": {
+    "density": "comfortable",
+    "row_h_token": "48px",
+    "pointer": "coarse",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      54.5,
+      55
+     ]
+    },
+    "min_by_kind": {
+     "button": 54.5
+    },
+    "all": [
+     54.5,
+     55
+    ],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "comfortable_po": {
+    "density": "comfortable",
+    "row_h_token": "48px",
+    "pointer": "coarse",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [
+     60.5
+    ],
+    "btn_sm": null,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "comfortable_accounts": {
+    "density": "comfortable",
+    "row_h_token": "48px",
+    "pointer": "coarse",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      55,
+      58,
+      77.5,
+      96.5,
+      97,
+      116.5,
+      136
+     ]
+    },
+    "min_by_kind": {
+     "button": 55
+    },
+    "all": [
+     55,
+     58,
+     77.5,
+     96.5,
+     97,
+     116.5,
+     136
+    ],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "dialog_before_normal": {
+    "rows": [
+     {
+      "label": "Padat",
+      "hint": "baris bertombol 43 px",
+      "h": 40,
+      "radio": 18
+     },
+     {
+      "label": "Normal",
+      "hint": "baris bertombol 55 px",
+      "h": 40,
+      "radio": 18
+     },
+     {
+      "label": "Lega",
+      "hint": "baris bertombol 55 px (= Normal)",
+      "h": 40,
+      "radio": 18
+     }
+    ],
+    "note": "Di layar sentuh tombol baris memegang sasaran jempol 36 px; baris teks yang membungkus mengikuti isinya.",
+    "pointer": "coarse"
+   },
+   "normal": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "coarse",
+    "total_rows": 5,
+    "single_line_rows": 5,
+    "by_kind": {
+     "button": [
+      54.5,
+      55
+     ]
+    },
+    "min_by_kind": {
+     "button": 54.5
+    },
+    "all": [
+     54.5,
+     55
+    ],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "normal_po": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "coarse",
+    "total_rows": 2,
+    "single_line_rows": 0,
+    "by_kind": {},
+    "min_by_kind": {},
+    "all": [],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [
+     60.5
+    ],
+    "btn_sm": null,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "normal_accounts": {
+    "density": "normal",
+    "row_h_token": "38.5px",
+    "pointer": "coarse",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      55,
+      58,
+      77.5,
+      96.5,
+      97,
+      116.5,
+      136
+     ]
+    },
+    "min_by_kind": {
+     "button": 55
+    },
+    "all": [
+     55,
+     58,
+     77.5,
+     96.5,
+     97,
+     116.5,
+     136
+    ],
+    "th": 35,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "after_reload": {
+    "density": "compact",
+    "row_h_token": "32px",
+    "pointer": "coarse",
+    "total_rows": 77,
+    "single_line_rows": 77,
+    "by_kind": {
+     "button": [
+      43,
+      46,
+      65.5,
+      84.5,
+      85,
+      104.5,
+      124
+     ]
+    },
+    "min_by_kind": {
+     "button": 43
+    },
+    "all": [
+     43,
+     46,
+     65.5,
+     84.5,
+     85,
+     104.5,
+     124
+    ],
+    "th": 23,
+    "nav_link": 36,
+    "tfoot": [],
+    "btn_sm": 36,
+    "stored": [
+     "nusantara_erp_density:1"
+    ]
+   },
+   "compact_ok": true,
+   "comfortable_ok": true,
+   "normal_equals_baseline": true,
+   "tfoot_po": {
+    "baseline": [
+     60.5
+    ],
+    "compact": [
+     48.5
+    ],
+    "comfortable": [
+     60.5
+    ],
+    "normal": [
+     60.5
+    ]
+   },
+   "tfoot_normal_41": null,
+   "accounts_min_by_kind": {
+    "baseline": {
+     "button": 55
+    },
+    "compact": {
+     "button": 43
+    },
+    "comfortable": {
+     "button": 55
+    },
+    "normal": {
+     "button": 55
+    }
+   },
+   "persisted": true,
+   "nav_link_by_density": {
+    "baseline": 36,
+    "compact": 36,
+    "comfortable": 36,
+    "normal": 36
+   },
+   "nav_link_ge_36_on_coarse": true,
+   "dialog_rows_ge_40_on_coarse": true,
+   "dialog_hints_name_button_rows_on_coarse": true
+  },
+  "list_empty": {
+   "search": {
+    "title": "Tidak ada hasil pencarian",
+    "text": "Tidak ada pesanan pembelian (po) yang cocok dengan \"zzzzqq\".",
+    "kind": "search",
+    "ln_stroke": "rgb(203, 210, 218)",
+    "buttons": [
+     "Hapus pencarian"
+    ],
+    "button_icon": {
+     "opacity": "1",
+     "margin_bottom": "0px",
+     "dy": 0
+    }
+   },
+   "filter": {
+    "title": "Tidak ada hasil",
+    "text": "Tidak ada pesanan pembelian (po) yang lolos filter yang dipasang.",
+    "kind": "filter",
+    "ln_stroke": "rgb(203, 210, 218)",
+    "buttons": [
+     "Hapus filter"
+    ],
+    "button_icon": {
+     "opacity": "1",
+     "margin_bottom": "0px",
+     "dy": 0
+    }
+   },
+   "after_clear": {
+    "rows": 2,
+    "hash": "#/r/procurement/purchase-orders",
+    "empty": false
+   },
+   "copy_ok": true,
+   "button_icon_ok": true
+  },
+  "warehouse": {
+   "prefixes": [
+    "ringkasan",
+    "eng",
+    "prj",
+    "inv",
+    "ast",
+    "iam"
+   ],
+   "onboarding_status": "skipped",
+   "dock_open": 0,
+   "modules": {
+    "ringkasan": {
+     "cards": 3,
+     "sidebar": 3,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 1,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "eng": {
+     "cards": 1,
+     "sidebar": 1,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 1,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "prj": {
+     "cards": 20,
+     "sidebar": 20,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [
+      "PELAKSANAAN",
+      "SERAH TERIMA",
+      "IZIN & K3",
+      "REGISTER"
+     ],
+     "hints": 0,
+     "empty": null,
+     "columns": 1,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "inv": {
+     "cards": 8,
+     "sidebar": 8,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 1,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "ast": {
+     "cards": 1,
+     "sidebar": 1,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 1,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    },
+    "iam": {
+     "cards": 2,
+     "sidebar": 2,
+     "match": true,
+     "head": true,
+     "arrows": {
+      "ok": true,
+      "down_mismatches": [],
+      "up_mismatches": []
+     },
+     "sections": [],
+     "hints": 0,
+     "empty": null,
+     "columns": 1,
+     "smallest_font_px": 11,
+     "only_in_cards": [],
+     "only_in_sidebar": []
+    }
+   },
+   "all_match": true,
+   "fin_home": {
+    "hash": "#/m/fin",
+    "head": {
+     "prefix": "fin",
+     "accent": "2",
+     "h1": "Keuangan",
+     "desc": "AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.",
+     "border_left": "rgb(196, 62, 5)",
+     "eyebrow_color": "rgb(196, 62, 5)",
+     "icon_bg": "rgb(250, 240, 235)"
+    },
+    "cards": [],
+    "sections": [],
+    "hints": 0,
+    "columns": null,
+    "structure": null,
+    "sidebar": [],
+    "sidebar_open": null,
+    "empty": {
+     "text": "Tidak ada layar\n\nTidak ada layar yang bisa Anda buka di modul ini",
+     "kind": "inbox"
+    },
+    "smallest_font_px": 11
+   },
+   "fin_is_empty_state": true
+  },
+  "pageerrors": [],
+  "console_errors": {
+   "count": 0,
+   "first": []
+  },
+  "_ms": 94354,
+  "_clicks": 11
+ },
+ "S15_lapangan_upload": {
+  "report_created": true,
+  "photos_before": 0,
+  "throttled": {
+   "ms": 10057,
+   "samples": 67,
+   "distinct_pct": 66,
+   "pct_first_last": [
+    0,
+    99
+   ],
+   "states": [
+    "sending"
+   ],
+   "texts": [
+    "1.0 MB · Mengirim… N %"
+   ],
+   "toast": [
+    "Foto uji-1mb.jpg terkirim dengan lokasi."
+   ],
+   "photos_after": 1,
+   "queue_rows": 0,
+   "stored_keys": 0
+  },
+  "failed": {
+   "state": "failed",
+   "text": "1.0 MB · Belum terkirim — Tidak dapat terhubung ke server.",
+   "pct": null,
+   "bar_width": null,
+   "buttons": [
+    "Kirim ulang",
+    "Buang"
+   ],
+   "stored_keys": 1,
+   "toasts": []
+  },
+  "after_reload": {
+   "state": "failed",
+   "text": "1.0 MB · Belum terkirim — Tidak dapat terhubung ke server.",
+   "pct": null,
+   "bar_width": null,
+   "buttons": [
+    "Kirim ulang",
+    "Buang"
+   ]
+  },
+  "retry": {
+   "toast": [
+    "Foto uji-putus.jpg terkirim dengan lokasi."
+   ],
+   "queue_rows": 0,
+   "photos_after": 2,
+   "stored_keys": 0,
+   "last_photo": "uji-putus.jpg · lokasi dari perangkat · ±12 m · hari ini · 2.8 km dari lokasi"
+  },
+  "pageerrors": [],
+  "_ms": 24474,
+  "_clicks": 4
  }
 }

@@ -1,4 +1,5 @@
 import json, os, re, time, sqlite3, struct, base64, traceback, urllib.request
+from datetime import date
 from playwright.sync_api import sync_playwright
 
 # Jalur dibaca dari env dengan literal asli sebagai bawaan: harness ini ditulis di
@@ -35,7 +36,23 @@ def click(page, sel, **kw):
     CLICKS[0] += 1
     page.click(sel, **kw)
 
-def login(page, email):
+def login(page, email, onboarding="decide"):
+    """Masuk lewat halaman masuk sungguhan.
+
+    `onboarding="decide"` (bawaan): keputusan onboarding pengguna ini ditetapkan di sqlite SEBELUM
+    masuk. Pada salinan DB hidup semua users.onboarding_status masih NULL, dan app.js membuka panduan
+    sendiri (maybeShowOnboarding) — langkah 1 memanggil visit(dashboard) → navigate('dashboard'),
+    jadi layar yang diukur skenario bisa berganti menjadi dasbor DI TENGAH pengukuran. Diukur
+    6 Sep 2026: S8 pada DB yang belum memutuskan melaporkan "ok" dengan btn_sm_height 28 dan
+    page_head_buttons ['Muat ulang'] — angka DASBOR, bukan daftar PO (0 / ['Muat ulang','Tambah PO']).
+    Keputusannya dipasang di satu tempat ini, bukan ditaburkan per skenario: skenario berikutnya yang
+    ditulis orang lain ikut aman tanpa harus tahu balapan ini ada.
+    `onboarding=None` hanya untuk S18/S19 — merekalah yang MENGUJI panduan itu dan mulai dari NULL.
+    Satu-satunya skenario lain yang tidak lewat sini adalah S10: seluruhnya API lewat token_for(),
+    tanpa sesi peramban, jadi tidak ada panduan yang bisa terbuka.
+    """
+    if onboarding == "decide":
+        decide_onboarding(email)
     page.goto(BASE)
     page.wait_for_selector("input[type=email]", timeout=15000)
     page.fill("input[type=email]", email)
@@ -70,6 +87,19 @@ def nav_click(page, href):
     click(page, f"nav.nav a[href='{href}']")
     return opened
 
+def assert_screen(page, route, h1=None):
+    """Layar yang DIUKUR harus layar yang dimaksud — kalau tidak, skenarionya JATUH, bukan mencatat
+    angka halaman lain sebagai "ok" (verifikasi P1-B putaran 2, 6 Sep 2026: S8 mencatat angka dasbor).
+    Dipakai pada skenario yang menuju sebuah rute lalu mengukur sesuatu yang juga ADA di dasbor
+    (tombol .btn.sm, lencana, tinggi baris); yang menunggu `h1:has-text('<kode>')` sudah jatuh sendiri."""
+    got = page.evaluate("""() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText || null,
+        dock: !!document.querySelector('.onboarding-dock') })""")
+    if got["hash"] != route or (h1 is not None and (not got["h1"] or h1 not in got["h1"])):
+        raise AssertionError(f"layar salah: diminta {route}" + (f" (h1 memuat {h1!r})" if h1 else "")
+                             + f", terukur {got['hash']} h1={got['h1']!r}"
+                             + (" — panel onboarding terbuka dan memindah halaman" if got["dock"] else ""))
+    return got
+
 def scenario(name):
     def deco(fn):
         def wrapper(*a, **k):
@@ -81,7 +111,10 @@ def scenario(name):
                 R[name] = {"ERROR": str(e)[:400], "trace": traceback.format_exc()[-600:]}
             R[name]["_ms"] = int((time.time() - t0) * 1000)
             R[name]["_clicks"] = CLICKS[0]
-            print(f"[{name}] {R[name].get('ERROR', 'ok')} {R[name]['_ms']}ms clicks={CLICKS[0]}")
+            # SKIPPED dicetak apa adanya: sebuah skenario yang tidak menemukan fixture-nya bukan "ok"
+            # (verifikasi P1-B putaran 3, 6 Sep 2026 — S16 pada salinan DB hidup).
+            state = R[name].get("ERROR") or (f"SKIPPED: {R[name]['SKIPPED']}" if "SKIPPED" in R[name] else "ok")
+            print(f"[{name}] {state} {R[name]['_ms']}ms clicks={CLICKS[0]}")
         return wrapper
     return deco
 
@@ -251,7 +284,10 @@ def po_action_bar(pg):
     XLSX tidak pernah tergambar, kolom "Sesudah" 2 Sep 2026 pun tanpa keduanya."""
     tok = token_for("procurement@nusantara.test")
     s, d = api("procurement/vendors?status=active&per_page=20", tok)
-    vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
+    vendor = next((v for v in d["data"] if v.get("vendor_type") in (None, "supplier")), None)
+    if vendor is None:   # StopIteration menyembunyikan sebabnya (verifikasi P1-B putaran 3)
+        raise AssertionError(f"tidak ada vendor bertipe supplier/kosong di antara {len(d['data'])} vendor — "
+                             "fixture RFQ/PR tidak bisa dibuat pada basis data ini")
     s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
                "expected_date": "2026-09-16",  # wajib sejak T3.5
                "pr_bypass_reason": "UJI-UX — pembelian langsung tanpa PR",  # wajib sejak T3.8 (PO tanpa PR)
@@ -510,6 +546,9 @@ def s6(browser):
     pg.wait_for_timeout(1500)
     lap = pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText, bigButtons: document.querySelectorAll('.btn.lg').length, text: document.querySelector('main').innerText.slice(0,300) })")
     pg.screenshot(path=f"{OUT}/s6-mobile-lapangan.png")
+    # "Tombol besar" ada juga di dasbor lapangan: hash-nya dicatat sejak dulu, tetapi tidak pernah
+    # dijadikan syarat — sekarang iya (verifikasi P1-B putaran 2, 6 Sep 2026).
+    assert_screen(pg, "#/lapangan")
     ctx.close()
     return {"taps_to_lapangan": CLICKS[0], "ms": int((time.time()-t0)*1000), **drawer, "lapangan": lap}
 
@@ -519,6 +558,9 @@ def s7(pg):
     out = {}
     for key, route in [("ncr","#/r/quality/ncr"), ("k3","#/r/projects/safety-incidents"), ("defects","#/defects"), ("tickets","#/r/servicedesk/tickets")]:
         pg.goto(BASE + route); pg.wait_for_timeout(1800)
+        # Halaman yang salah tidak punya table.data → daftar KOSONG, yang di sini terbaca persis seperti
+        # "daftar ini memang tanpa lencana" (verifikasi P1-B putaran 2, 6 Sep 2026).
+        assert_screen(pg, route)
         out[key] = pg.evaluate("() => [...new Set([...document.querySelectorAll('table.data .badge')].map(b => b.innerText.trim()+' → '+[...b.classList].filter(c=>['green','red','amber','blue','primary'].includes(c)).join('/')))]")
         # T2.8 — lencana di kepala halaman detail juga diukur: di sanalah statusTone
         # melukis 'open' (detail.js), sedangkan daftar NCR/K3/defect semula menulis
@@ -528,21 +570,33 @@ def s7(pg):
             out[key + "_detail"] = pg.evaluate("() => { const b=document.querySelector('.page-head .badge'); return { h1: (document.querySelector('.page-head h1')||{}).innerText, badge: b ? b.innerText.trim()+' → '+[...b.classList].filter(c=>['green','red','amber','blue','primary'].includes(c)).join('/') : null } }")
     return out
 
-@scenario("S8_styles")
-def s8(pg):
-    login(pg, "admin@nusantara.test")
-    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
-    return pg.evaluate("""() => { const cs=(s)=>getComputedStyle(document.querySelector(s)); const th=cs('table.data th'); const sm=document.querySelector('.btn.sm');
+S8_MEASURE = """() => { const cs=(s)=>getComputedStyle(document.querySelector(s)); const th=cs('table.data th'); const sm=document.querySelector('.btn.sm');
         const root=getComputedStyle(document.documentElement);
         const lum=(hex)=>{const c=hex.match(/\\w\\w/g).map(x=>parseInt(x,16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2]};
         const cr=(a,b)=>{const l1=lum(a),l2=lum(b);return +(((Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05)).toFixed(2))};
         const v=(n)=>root.getPropertyValue(n).trim();
-        return { th_font: th.fontSize, th_color: th.color, muted_token: v('--muted'), bg: v('--bg'), surface2: v('--surface-2'),
+        return { theme: document.documentElement.dataset.theme || 'system', th_font: th.fontSize, th_color: th.color, muted_token: v('--muted'), bg: v('--bg'), surface2: v('--surface-2'),
                  contrast_muted_on_bg: cr(v('--muted'), v('--bg')), contrast_muted_on_surface2: cr(v('--muted'), v('--surface-2')),
                  contrast_success_badge: cr(v('--success'), v('--success-soft')),
                  btn_sm_height: sm ? sm.getBoundingClientRect().height : null,
                  smallest_font_px: Math.min(...[...document.querySelectorAll('body *')].map(e=>parseFloat(getComputedStyle(e).fontSize)).filter(Boolean)),
-                 page_head_buttons: [...document.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()||b.title) } }""")
+                 page_head_buttons: [...document.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()||b.title) } }"""
+
+@scenario("S8_styles")
+def s8(pg):
+    # P1-B: dijalankan di DUA tema. Kunci datar = tema terang (bentuk lama, pembaca lama tetap
+    # jalan); `dark` = pengukuran yang sama di tema gelap (data-theme di <html>, mekanisme S20).
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
+    # Semua yang diukur di bawah juga ADA di dasbor (tabel, .btn.sm, tombol kepala halaman), jadi
+    # halaman yang salah lolos tanpa suara — dijatuhkan di sini (verifikasi P1-B putaran 2, 6 Sep 2026).
+    screen = assert_screen(pg, "#/r/procurement/purchase-orders", "Pesanan Pembelian")
+    pg.evaluate("() => { document.documentElement.dataset.theme = 'light'; }"); pg.wait_for_timeout(150)
+    out = {"screen": screen, **pg.evaluate(S8_MEASURE)}
+    pg.evaluate("() => { document.documentElement.dataset.theme = 'dark'; }"); pg.wait_for_timeout(150)
+    out["dark"] = pg.evaluate(S8_MEASURE)
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+    return out
 
 @scenario("S9_account_menu")
 def s9(pg):
@@ -594,6 +648,9 @@ def s11(pg):
     login(pg, "direktur@nusantara.test")
     nav_click(pg, "#/tugas")
     pg.wait_for_selector("table.data, .empty", timeout=15000); pg.wait_for_timeout(800)
+    # Dasbor juga punya table.data (kartu "Menunggu persetujuan"): tunggu di atas puas di halaman yang
+    # salah, dan `rows` di bawah akan mencatat baris kartu itu (verifikasi P1-B putaran 2, 6 Sep 2026).
+    assert_screen(pg, "#/tugas", "Tugas Saya")
     out = pg.evaluate("() => ({ h1: document.querySelector('.page-head h1').innerText, rows: [...document.querySelectorAll('table.data tbody tr')].map(r=>r.innerText.split('\\n')[0]), types: [...document.querySelectorAll('.filters option')].map(o=>o.innerText) })")
     pg.screenshot(path=f"{OUT}/s11-tugas.png")
     click(pg, "table.data tbody tr:has-text('CTI/')")
@@ -611,7 +668,10 @@ def s12(pg):
     tok = token_for("procurement@nusantara.test")
     s, d = api("procurement/vendors?status=active&per_page=20", tok)
     # Pemasok biasa: subkon/mandor tunduk klausul K3L/pakta (P0-E) — bukan yang diukur di sini.
-    vendor = next(v for v in d["data"] if v.get("vendor_type") in (None, "supplier"))
+    vendor = next((v for v in d["data"] if v.get("vendor_type") in (None, "supplier")), None)
+    if vendor is None:   # StopIteration menyembunyikan sebabnya (verifikasi P1-B putaran 3)
+        raise AssertionError(f"tidak ada vendor bertipe supplier/kosong di antara {len(d['data'])} vendor — "
+                             "fixture RFQ/PR tidak bisa dibuat pada basis data ini")
     BADGE = "() => (document.querySelector('.page-head .badge')||{}).innerText"
     def draft_po(tag):
         s, d = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
@@ -762,6 +822,8 @@ def s15(browser):
                               geolocation={"latitude": -6.2, "longitude": 106.8, "accuracy": 12}, permissions=["geolocation"])
     pg = ctx.new_page()
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
+    # Lembar onboarding site-manager yang belum diputuskan menangkap ketukan 'Buat laporan hari ini'
+    # (verifikasi P1-B 5 Sep 2026) — statusnya diputuskan oleh login() sendiri sejak putaran 2.
     login(pg, "site-manager@nusantara.test")
     pg.goto(BASE + "#/lapangan")
     pg.wait_for_selector("button:has-text('Ambil foto'), button:has-text('Buat laporan hari ini')", timeout=15000)
@@ -833,6 +895,50 @@ def s15(browser):
     ctx.close()
     return out
 
+def ap_bill_with_outstanding(tok):
+    """Tagihan vendor yang disetujui dan MASIH BERSISA untuk S16 — dipakai apa adanya bila ada,
+    dibuat lewat API bila tidak.
+
+    Salinan basis data hidup 6 Sep 2026 memuat SATU tagihan (BIL/2026/III/0001, approved,
+    amount_paid 232.545.000 = lunas), jadi `next(b for b in ... if outstanding > 0)` melempar
+    StopIteration dan S16 mati SEBELUM mengukur apa pun — bukan gagal jujur, melainkan tidak ada
+    hasil sama sekali (verifikasi P1-B putaran 3). Skenario ini jalan di atas SALINAN coretan
+    (ERP_DB), tidak pernah basis data hidup, jadi ia boleh membuat fixture-nya sendiri: draf →
+    submit (finance) → approve (direktur). Yang dikembalikan: (tagihan, catatan) — catatan berisi
+    kode yang dibuat, atau alasan mengapa tidak ada, dan pemanggil MENCATATNYA. Bila pembuatan
+    gagal, S16 tercatat SKIPPED dengan sebabnya, tidak pernah "ok" tanpa pengukuran."""
+    s, d = api("finance/ap-bills?status=approved&per_page=50", tok)
+    for b in (d or {}).get("data", []):
+        if float(b.get("outstanding") or 0) > 0:
+            return b, None
+
+    s, v = api("procurement/vendors?per_page=1", tok)
+    vendors = (v or {}).get("data", [])
+    if not vendors:
+        return None, "tidak ada tagihan vendor approved yang bersisa DAN tidak ada vendor untuk membuatnya"
+
+    payload = {"vendor_id": vendors[0]["id"], "description": "Fixture S16 — jasa uji harness",
+               "vendor_invoice_no": f"INV-S16-{int(time.time())}", "dpp": 12_500_000,
+               "bill_date": date.today().isoformat(), "due_date": date.today().isoformat()}
+    s, made = api("finance/ap-bills", tok, "POST", payload)
+    if s not in (200, 201) or not made:
+        return None, f"POST finance/ap-bills → {s}: {str(made)[:160]}"
+    bill_id = (made.get("data") or made).get("id")
+
+    s, _ = api(f"finance/ap-bills/{bill_id}/submit", tok, "POST", {})
+    if s != 200:
+        return None, f"submit tagihan {bill_id} → {s}"
+    s, _ = api(f"finance/ap-bills/{bill_id}/approve", token_for("direktur@nusantara.test"), "POST", {})
+    if s != 200:
+        return None, f"approve tagihan {bill_id} → {s} (direktur@ memegang fin.approve?)"
+
+    s, fresh = api(f"finance/ap-bills/{bill_id}", tok)
+    bill = (fresh or {}).get("data") or fresh
+    if not bill or float(bill.get("outstanding") or 0) <= 0:
+        return None, f"tagihan {bill_id} dibuat tetapi outstanding {bill.get('outstanding') if bill else '?'}"
+    return bill, f"dibuat oleh harness: {bill['code']} (dpp 12.500.000, jatuh tempo hari ini)"
+
+
 @scenario("S16_ap_bill_payment_button")
 def s16(pg):
     """T3.1 — "Buat pembayaran" pada tagihan vendor yang disetujui dan masih bersisa (BIL/2026/VII/0002
@@ -840,12 +946,14 @@ def s16(pg):
     tombolnya diklik: yang harus muncul formulir Pembayaran (bukan POST) dengan arah keluar dan jumlah =
     sisa tagihan; tersimpan tidak diuji di sini — itu formulir pembayaran biasa."""
     tok = token_for("finance@nusantara.test")
-    s, d = api("finance/ap-bills?status=approved&per_page=50", tok)
-    bill = next(b for b in d["data"] if float(b.get("outstanding") or 0) > 0)
+    bill, created = ap_bill_with_outstanding(tok)
+    if bill is None:
+        return {"SKIPPED": created}   # sebab tercatat, bukan "ok" — lihat ap_bill_with_outstanding()
     login(pg, "finance@nusantara.test")
     pg.goto(BASE + f"#/d/finance/ap-bills/{bill['id']}")
     pg.wait_for_selector(f".page-head h1:has-text('{bill['code']}')", timeout=15000); pg.wait_for_timeout(800)
-    out = {"bill": bill["code"], "outstanding": bill["outstanding"], **read_action_bar(pg, "s16-ap-bill-bar")}
+    out = {"bill": bill["code"], "outstanding": bill["outstanding"], "fixture_created": created,
+           **read_action_bar(pg, "s16-ap-bill-bar")}
     click(pg, ".page-head .actions button:has-text('Buat pembayaran')")
     pg.wait_for_selector(".modal .field", timeout=10000); pg.wait_for_timeout(300)
     out["modal"] = pg.evaluate("""() => ({ title: (document.querySelector('.modal h2, .modal .modal-head')||{}).innerText,
@@ -920,6 +1028,14 @@ def s17(pg):
 def reset_onboarding(email):
     con = sqlite3.connect(DB); con.execute("UPDATE users SET onboarding_status=NULL, onboarding_seen_at=NULL WHERE email=?", (email,)); con.commit(); con.close()
 
+# Memutuskan status onboarding langsung di sqlite (verifikasi P1-B 5 Sep 2026): pada salinan DB hidup yang
+# statusnya masih NULL, panel berlabuh terbuka SESUDAH pemeriksaan 'Lewati' satu kali milik S21 (fetchGuide
+# mengulang sampai 2 × 1,5 s) dan langkah 1 memindah halaman ke #/dashboard — remah modul yang mau diklik
+# lenyap, S21/S21m jatuh dengan TypeError. Skenario yang bukan tentang onboarding memutuskannya lebih dulu;
+# S18/S19 mengatur ulang sendiri (reset_onboarding) sebelum menguji panelnya.
+def decide_onboarding(email, status="skipped"):
+    con = sqlite3.connect(DB); con.execute("UPDATE users SET onboarding_status=?, onboarding_seen_at=datetime('now') WHERE email=? AND onboarding_status IS NULL", (status, email)); con.commit(); con.close()
+
 def onboarding_status(email):
     con = sqlite3.connect(DB); row = con.execute("SELECT onboarding_status FROM users WHERE email=?", (email,)).fetchone(); con.close()
     return row[0] if row else None
@@ -955,7 +1071,7 @@ def s18(pg):
     email = "procurement@nusantara.test"
     reset_onboarding(email)
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
-    login(pg, email)
+    login(pg, email, onboarding=None)  # satu-satunya jalur yang MEMBIARKAN status NULL: panel inilah yang diuji
     t0 = time.time()
     pg.wait_for_selector(".onboarding-dock[data-state='open']", timeout=3000)
     out = {"dock_ms_after_login": int((time.time() - t0) * 1000), "status_before": onboarding_status(email)}
@@ -1019,7 +1135,7 @@ def s19(browser):
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
     pg = ctx.new_page()
     errors = []; pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
-    login(pg, email)
+    login(pg, email, onboarding=None)  # seperti S18: lembar bawahnya yang diuji, jadi status tetap NULL
     t0 = time.time()
     pg.wait_for_selector(".onboarding-dock[data-mode='mobile'][data-state='open']", timeout=3000)
     out = {"sheet_ms_after_login": int((time.time() - t0) * 1000)}
@@ -1417,6 +1533,483 @@ def s20m(browser):
     finally:
         ctx.close()
 
+# ------------------------------------------------------------ S21 (P1-B)
+# Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
+# 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
+# dicatat adalah nilai terukur: token --accent-1..8 (+ -soft, -fg) yang hidup di halaman,
+# ΔE2000 antar slot (dihitung di sini, di Lab — rumus yang sama dengan skrip turunan palet) dan
+# kontras WCAG (aksen di --surface, -fg di aksen, aksen di -soft); warna terkomputasi penanda grup
+# aktif dan remah modul dibandingkan dengan token slot modul itu; href remah = #/m/<prefix> dan
+# klik benar-benar berpindah; beranda modul memuat PERSIS tautan grup sidebar (admin: semua grup;
+# warehouse@: grupnya sendiri, dan grup yang tidak ia pegang berakhir di keadaan kosong); kontrol
+# Kepadatan mengubah tinggi baris satu-baris menjadi 32/38,5/48 dan bertahan setelah muat ulang;
+# lima jenis ilustrasi keadaan kosong punya stroke yang resolve ke token; daftar tersaring habis
+# menampilkan "Hapus filter" yang bekerja.
+
+def _lin(c):
+    return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+def _rgb(hexs):
+    h = hexs.lstrip("#"); return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+def wcag(a, b):
+    la = 0.2126 * _lin(_rgb(a)[0]) + 0.7152 * _lin(_rgb(a)[1]) + 0.0722 * _lin(_rgb(a)[2])
+    lb = 0.2126 * _lin(_rgb(b)[0]) + 0.7152 * _lin(_rgb(b)[1]) + 0.0722 * _lin(_rgb(b)[2])
+    return round((max(la, lb) + 0.05) / (min(la, lb) + 0.05), 2)
+
+def _lab(hexs):
+    import math
+    r, g, b = [_lin(c) * 100 for c in _rgb(hexs)]
+    x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 95.047; y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 100.0; z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 108.883
+    f = lambda t: t ** (1 / 3) if t > 0.008856 else (7.787 * t) + 16 / 116
+    return 116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))
+
+def de2000(h1, h2):
+    import math
+    L1, a1, b1 = _lab(h1); L2, a2, b2 = _lab(h2)
+    C1 = math.hypot(a1, b1); C2 = math.hypot(a2, b2); Cb = (C1 + C2) / 2
+    G = 0.5 * (1 - math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)))
+    a1p, a2p = (1 + G) * a1, (1 + G) * a2
+    C1p, C2p = math.hypot(a1p, b1), math.hypot(a2p, b2)
+    hp = lambda a, b: 0 if a == 0 and b == 0 else (math.degrees(math.atan2(b, a)) % 360)
+    h1p, h2p = hp(a1p, b1), hp(a2p, b2)
+    dLp, dCp = L2 - L1, C2p - C1p
+    if C1p * C2p == 0: dhp = 0
+    elif abs(h2p - h1p) <= 180: dhp = h2p - h1p
+    elif h2p - h1p > 180: dhp = h2p - h1p - 360
+    else: dhp = h2p - h1p + 360
+    dHp = 2 * math.sqrt(C1p * C2p) * math.sin(math.radians(dhp / 2))
+    Lbp, Cbp = (L1 + L2) / 2, (C1p + C2p) / 2
+    if C1p * C2p == 0: hbp = h1p + h2p
+    elif abs(h1p - h2p) <= 180: hbp = (h1p + h2p) / 2
+    elif h1p + h2p < 360: hbp = (h1p + h2p + 360) / 2
+    else: hbp = (h1p + h2p - 360) / 2
+    T = 1 - 0.17 * math.cos(math.radians(hbp - 30)) + 0.24 * math.cos(math.radians(2 * hbp)) + 0.32 * math.cos(math.radians(3 * hbp + 6)) - 0.20 * math.cos(math.radians(4 * hbp - 63))
+    dth = 30 * math.exp(-((hbp - 275) / 25) ** 2)
+    RC = 2 * math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7))
+    SL = 1 + (0.015 * (Lbp - 50) ** 2) / math.sqrt(20 + (Lbp - 50) ** 2)
+    SC = 1 + 0.045 * Cbp; SH = 1 + 0.015 * Cbp * T
+    RT = -math.sin(math.radians(2 * dth)) * RC
+    return round(math.sqrt((dLp / SL) ** 2 + (dCp / SC) ** 2 + (dHp / SH) ** 2 + RT * (dCp / SC) * (dHp / SH)), 1)
+
+def rgb_to_hex(css):
+    m = re.findall(r"\d+", css or "")
+    return "#%02x%02x%02x" % tuple(int(x) for x in m[:3]) if len(m) >= 3 else None
+
+ACCENT_TOKENS = """() => { const r=getComputedStyle(document.documentElement); const v=(n)=>r.getPropertyValue(n).trim();
+    const out={ theme: document.documentElement.dataset.theme || 'system', surface: v('--surface'), tokens: {} };
+    for (let n=1;n<=8;n++) out.tokens[n] = { accent: v('--accent-'+n), soft: v('--accent-'+n+'-soft'), fg: v('--accent-'+n+'-fg'), chart: v('--chart-'+n) };
+    return out }"""
+
+ACTIVE_MARKER = """() => { const g=document.querySelector('nav.nav .nav-group.has-active'); const b=g&&g.querySelector('button');
+    const a=document.querySelector('#crumbs a.crumb-module'); const rect=a&&a.getBoundingClientRect();
+    return { group: g ? { label: b.innerText.trim(), prefix: g.dataset.prefix, accent: g.dataset.accent, color: getComputedStyle(b).color,
+                          box_shadow: getComputedStyle(b).boxShadow, open: g.dataset.open } : null,
+             crumb: a ? { href: a.getAttribute('href'), text: a.innerText.trim(), accent: a.dataset.accent, color: getComputedStyle(a).color,
+                          width: Math.round(rect.width), visible: a.checkVisibility() } : null,
+             crumbs_text: (document.getElementById('crumbs')||{}).innerText,
+             // Struktur aksesibel (verifikasi P1-B 5 Sep 2026): host <nav aria-label>, remah terakhir aria-current="page".
+             host_tag: (document.getElementById('crumbs')||{}).tagName, host_aria_label: (document.getElementById('crumbs')||{}).getAttribute?.('aria-label'),
+             last_aria_current: (document.querySelector('#crumbs b')||{}).getAttribute?.('aria-current'),
+             has_active_count: document.querySelectorAll('nav.nav .nav-group.has-active').length } }"""
+
+# Remah roti vs kontrol header berikutnya (verifikasi P1-B 5 Sep 2026: di 390 px remah terakhir membungkus
+# tiga baris dan menimpa tombol Cari). Yang dicatat: anak #crumbs yang tampak, tepi kanannya vs tepi kiri
+# kontrol header tampak berikutnya, tinggi remah vs tinggi header, dan apakah pembaca layar masih mendapat
+# remah aria-current (tersembunyi visual, bukan display: none).
+CRUMB_FIT = """() => { const h=document.getElementById('crumbs'); const hdr=document.querySelector('.header'); const kids=[...hdr.children];
+    const next=kids.slice(kids.indexOf(h)+1).find(e => e.getBoundingClientRect().width > 0 && !e.classList.contains('spacer'));
+    const vis=[...h.children].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+    const right=Math.max(...vis.map(e => e.getBoundingClientRect().right), h.getBoundingClientRect().left);
+    const b=h.querySelector('b');
+    return { hash: location.hash, visible: vis.map(e => (e.tagName + (e.className ? '.' + e.className : '')) + ':' + (e.innerText || '').trim().slice(0, 24)),
+             text_visible: vis.map(e => (e.innerText || '').trim()).filter(Boolean).join(' › '), right_edge: Math.round(right), next_left: next ? Math.round(next.getBoundingClientRect().left) : null,
+             overlap_next: !!next && right > next.getBoundingClientRect().left + 0.5,
+             crumbs_h: Math.round(h.getBoundingClientRect().height), header_h: Math.round(hdr.getBoundingClientRect().height),
+             module_lbl_ellipsized: (l => !!l && l.scrollWidth > l.clientWidth + 1)(h.querySelector('a.crumb-module .lbl')),
+             last: b ? { text: b.innerText, aria_current: b.getAttribute('aria-current'), display: getComputedStyle(b).display, visible: b.checkVisibility() && b.getBoundingClientRect().width > 1 } : null } }"""
+
+# CRUMB_FIT di atas hanya menyidik dua halaman Keuangan — dua-duanya berakar grup NAV. Verifikasi P1-B
+# putaran 2 (6 Sep 2026) menemukan yang tidak: tujuh layar RESOURCES di luar NAV berakar penanda "ERP"
+# milik groupLabelFor(), dirender <span>, dan aturan ≤ 760 px menyembunyikan span + chevron + remah
+# layar sekaligus — remah roti ponselnya KOSONG (tinggi 0 px di header 56 px). Jadi remahnya dijalani:
+# setiap rute NAV yang benar-benar tergambar di sidebar, plus setiap kunci RESOURCES yang tidak ada di
+# NAV. Pindah rute lewat location.hash (router hash, tanpa muat ulang dokumen) karena setCrumbs jalan
+# sinkron di penangan rute — 220 ms per rute, 131 rute selesai dalam 29 s (diukur 6 Sep 2026).
+CRUMB_ROUTES = """async () => { const s = await import('/app/js/schema.js');
+    const nav = [...new Set([...document.querySelectorAll('nav.nav .nav-group:not([data-kind]) .nav-items a')].map(a => a.getAttribute('href')))];
+    const navSet = new Set(s.NAV.flatMap(g => g.items.map(i => i.route)));
+    const outside = Object.keys(s.RESOURCES).filter(k => !navSet.has('r/' + k)).sort().map(k => '#/r/' + k);
+    return { nav, outside } }"""
+
+CRUMB_WALK = """async (routes) => { const hdr=document.querySelector('.header'); const h=document.getElementById('crumbs'); const out=[];
+    for (const r of routes) {
+      location.hash = r;
+      await new Promise((res) => setTimeout(res, 220));
+      const kids=[...hdr.children];
+      const next=kids.slice(kids.indexOf(h)+1).find(e => e.getBoundingClientRect().width > 0 && !e.classList.contains('spacer'));
+      const vis=[...h.children].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+      const right=Math.max(...vis.map(e => e.getBoundingClientRect().right), h.getBoundingClientRect().left);
+      const b=h.querySelector('b');
+      out.push({ route: r, root: h.dataset.root || null, text: vis.map(e => (e.innerText || '').trim()).filter(Boolean).join(' › '),
+                 crumbs_h: Math.round(h.getBoundingClientRect().height), header_h: Math.round(hdr.getBoundingClientRect().height),
+                 overlap_next: !!next && right > next.getBoundingClientRect().left + 0.5,
+                 aria_current: b ? b.getAttribute('aria-current') : null });
+    }
+    return out }"""
+
+MODULE_HOME = """() => { const head=document.querySelector('.module-head'); const grid=document.querySelector('.module-grid'); const e=document.querySelector('#view .empty');
+    const prefix = head && head.dataset.prefix;
+    return { hash: location.hash, head: head ? { prefix, accent: head.dataset.accent, h1: head.querySelector('h1').innerText, desc: head.querySelector('.desc').innerText,
+                 border_left: getComputedStyle(head).borderLeftColor, eyebrow_color: getComputedStyle(head.querySelector('.eyebrow')).color,
+                 icon_bg: getComputedStyle(head.querySelector('.module-icon')).backgroundColor } : null,
+             cards: [...document.querySelectorAll('.module-card')].map(a => a.getAttribute('href')),
+             sections: [...document.querySelectorAll('.module-section')].map(s => s.innerText.trim()),
+             hints: document.querySelectorAll('.module-card .hint').length,
+             columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : null,
+             // Kisi <ul> berlabel + li per kartu, pemisah <h2> melabeli <section> (verifikasi P1-B 5 Sep 2026).
+             structure: grid ? { grid_tag: grid.tagName, grid_labelled: !!(grid.getAttribute('aria-label') || grid.getAttribute('aria-labelledby')),
+                                 li_per_card: document.querySelectorAll('.module-grid > li > a.module-card').length === document.querySelectorAll('.module-card').length,
+                                 section_tags: [...new Set([...document.querySelectorAll('.module-section')].map(s => s.tagName))],
+                                 sections_label_their_grid: [...document.querySelectorAll('.module-section')].every(s => s.id && document.querySelector(`.module-grid[aria-labelledby="${s.id}"]`)) } : null,
+             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a`)].map(a => a.getAttribute('href')) : [],
+             sidebar_open: prefix ? (document.querySelector(`nav.nav .nav-group[data-prefix="${prefix}"]`)||{}).dataset?.open : null,
+             empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
+             smallest_font_px: Math.min(...[...document.querySelectorAll('#view *')].map(el=>parseFloat(getComputedStyle(el).fontSize)).filter(Boolean)) } }"""
+
+# Panah atas/bawah di beranda modul: dari SETIAP kartu, ArrowDown/ArrowUp harus mendarat pada kartu yang
+# secara geometri tepat di bawah/atas pada kolom yang sama (baris terdekat; tidak ada → fokus diam) —
+# verifikasi P1-B 5 Sep 2026: indeks ± jumlah kolom meleset 17/20 di #/m/fin begitu pemisah memutus kisi.
+ARROWS = """() => { const cards=[...document.querySelectorAll('.module-card')]; const rect=(c)=>c.getBoundingClientRect();
+    const neighbour=(i, dir)=>{ const r=rect(cards[i]); let best=-1, bestD=1e9; cards.forEach((c,j)=>{ if (j===i) return; const q=rect(c);
+      const d = dir > 0 ? q.top - r.bottom : r.top - q.bottom; if (d < -1 || Math.abs(q.left - r.left) > 2) return; if (d < bestD) { bestD=d; best=j; } }); return best; };
+    const out={ cards: cards.length, down_mismatches: [], up_mismatches: [] };
+    for (const [key, dir, bucket] of [['ArrowDown', 1, 'down_mismatches'], ['ArrowUp', -1, 'up_mismatches']]) {
+      for (let i=0;i<cards.length;i++){ cards[i].focus(); cards[i].dispatchEvent(new KeyboardEvent('keydown',{key, bubbles:true, cancelable:true}));
+        const got=cards.indexOf(document.activeElement); const want=neighbour(i, dir); if (want === -1 ? got !== i : got !== want) out[bucket].push({ from: cards[i].querySelector('b').innerText, got: got>=0?cards[got].querySelector('b').innerText:null, want: want>=0?cards[want].querySelector('b').innerText:null }); } }
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    out.ok = out.down_mismatches.length === 0 && out.up_mismatches.length === 0; return out }"""
+
+# Tinggi baris satu-baris (tanpa .cell-sub) per JENIS baris: teks polos, berlencana, bertombol aksi.
+ROWS = """() => { const h=(e)=>+e.getBoundingClientRect().height.toFixed(2);
+    // Baris tanpa .cell-sub; halaman uji dipilih yang namanya tidak membungkus (Kategori Item), jadi
+    // `all` yang lebih dari satu nilai berarti ada baris yang membungkus — dicatat, bukan disembunyikan.
+    const rows=[...document.querySelectorAll('table.data tbody tr')].filter(r => !r.querySelector('.cell-sub'));
+    const kind=(r)=> r.querySelector('.btn') ? 'button' : r.querySelector('.badge') ? 'badge' : 'text';
+    const by={}; for (const r of rows) { (by[kind(r)] ||= []).push(h(r)); }
+    const uniq=(a)=>[...new Set(a)].sort((x,y)=>x-y);
+    return { density: document.documentElement.dataset.density, row_h_token: getComputedStyle(document.documentElement).getPropertyValue('--row-h').trim(),
+             pointer: matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine', total_rows: document.querySelectorAll('table.data tbody tr').length,
+             single_line_rows: rows.length, by_kind: Object.fromEntries(Object.entries(by).map(([k,v]) => [k, uniq(v)])),
+             min_by_kind: Object.fromEntries(Object.entries(by).map(([k,v]) => [k, Math.min(...v)])),
+             all: uniq(rows.map(h)), th: h(document.querySelector('table.data th')), nav_link: h(document.querySelector('.nav-items a')),
+             // Baris kaki (tfoot "Total …") ikut disidik: verifikasi P1-B 5 Sep 2026 menemukan
+             // baris total menciut 41 → 39 px pada profil normal karena sidik jari ini dulu
+             // hanya membaca tbody.
+             tfoot: uniq([...document.querySelectorAll('table.data tfoot tr')].map(h)),
+             btn_sm: (b => b ? h(b) : null)(document.querySelector('table.data .btn.sm')),
+             stored: Object.keys(localStorage).filter(k => k.startsWith('nusantara_erp_density')) } }"""
+
+EMPTY_KINDS = """async () => { const ui = await import('/app/js/ui.js'); const host=document.createElement('div'); host.id='s21e';
+    host.style.cssText='position:absolute;top:0;left:0;right:0;z-index:999;background:var(--surface);color:var(--text);display:grid;grid-template-columns:repeat(5,1fr)';
+    for (const kind of ['inbox','search','filter','error','done']) host.appendChild(ui.emptyState('Contoh ' + kind, { kind, title: kind }));
+    host.appendChild(ui.emptyState('Ringkas', { kind: 'done', compact: true, title: null }));
+    document.body.appendChild(host); return true }"""
+
+EMPTY_MEASURE = """() => { const r=getComputedStyle(document.documentElement); const v=(n)=>r.getPropertyValue(n).trim();
+    const tok={ '--border-strong': v('--border-strong'), '--primary': v('--primary'), '--danger': v('--danger'), '--success': v('--success'), '--surface-3': v('--surface-3'), '--primary-soft': v('--primary-soft'), '--danger-soft': v('--danger-soft'), '--success-soft': v('--success-soft') };
+    const out={ tokens: tok, kinds: {} };
+    for (const svg of document.querySelectorAll('#s21e .illus')) { const k=svg.dataset.kind; const cs=(sel)=>{ const n=svg.querySelector(sel); return n ? getComputedStyle(n) : {}; };
+      const box=svg.getBoundingClientRect(); const compact = svg.closest('.empty').classList.contains('compact');
+      out.kinds[k + (compact ? '_compact' : '')] = { width: Math.round(box.width), height: Math.round(box.height), bytes: svg.outerHTML.length,
+        ln_stroke: cs('.ln').stroke, ac_stroke: cs('.ac').stroke, fl_fill: cs('.fl').fill, fa_fill: cs('.fa').fill, opacity: getComputedStyle(svg).opacity,
+        hex_literals: (svg.outerHTML.match(/#[0-9a-fA-F]{3,6}\\b/g) || []).length, has_title: !!svg.closest('.empty').querySelector('h3') } }
+    return out }"""
+
+LIST_EMPTY = """() => { const e=document.querySelector('#view .empty'); if (!e) return null; const ln=e.querySelector('.illus .ln');
+    // Ikon di tombol keadaan kosong (verifikasi P1-B 5 Sep 2026: aturan lama .empty svg memudarkannya 0,3 dan
+    // mengangkatnya 5 px dari tengah tombol) — keburaman 1, tanpa margin, tengah ikon ≤ 1 px dari tengah tombol.
+    const btn=e.querySelector('button'); const svg=btn && btn.querySelector('svg'); const mid=(n)=>{ const r=n.getBoundingClientRect(); return r.top + r.height/2; };
+    return { title: (e.querySelector('h3')||{}).innerText, text: (e.querySelector('p')||{}).innerText, kind: (e.querySelector('.illus')||{}).dataset?.kind,
+             ln_stroke: ln ? getComputedStyle(ln).stroke : null, buttons: [...e.querySelectorAll('button')].map(b => b.innerText.trim()),
+             button_icon: svg ? { opacity: getComputedStyle(svg).opacity, margin_bottom: getComputedStyle(svg).marginBottom, dy: +(mid(svg) - mid(btn)).toFixed(1) } : null } }"""
+
+def set_theme(pg, theme):
+    pg.evaluate("(t) => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }", theme)
+    pg.wait_for_timeout(150)
+
+def accent_matrix(tokens_out):
+    t = tokens_out["tokens"]; surface = tokens_out["surface"]
+    pairs = {f"{i}-{j}": de2000(t[str(i)]["accent"], t[str(j)]["accent"]) for i in range(1, 9) for j in range(i + 1, 9)}
+    contrast = {n: {"on_surface": wcag(t[n]["accent"], surface), "fg_on_accent": wcag(t[n]["fg"], t[n]["accent"]), "on_soft": wcag(t[n]["accent"], t[n]["soft"])} for n in t}
+    # Sudut hue Lab aksen vs --chart-n yang hidup — klaim app.css "±12°" diukur, bukan dipercaya
+    # (verifikasi P1-B 5 Sep 2026: slot 8 gelap 14,3° sebelum digeser).
+    hue = lambda h: (lambda L, a, b: __import__("math").degrees(__import__("math").atan2(b, a)) % 360)(*_lab(h))
+    hue_delta = {n: round(min(abs(hue(t[n]["accent"]) - hue(t[n]["chart"])) % 360, 360 - abs(hue(t[n]["accent"]) - hue(t[n]["chart"])) % 360), 1) for n in t}
+    return {"theme": tokens_out["theme"], "surface": surface, "tokens": t, "pairs": pairs, "min_pair_de": min(pairs.values()),
+            "min_pair": min(pairs, key=pairs.get), "contrast": contrast,
+            "hue_delta": hue_delta, "max_hue_delta": max(hue_delta.values()), "all_hue_within_12": all(v <= 12 for v in hue_delta.values()),
+            "min_on_surface": min(c["on_surface"] for c in contrast.values()), "min_fg_on_accent": min(c["fg_on_accent"] for c in contrast.values()),
+            "min_on_soft": min(c["on_soft"] for c in contrast.values()),
+            "all_pairs_ge_20": all(v >= 20 for v in pairs.values()),
+            "all_on_surface_ge_3": all(c["on_surface"] >= 3 for c in contrast.values()),
+            "all_fg_ge_4_5": all(c["fg_on_accent"] >= 4.5 for c in contrast.values()),
+            "all_on_soft_ge_4_5": all(c["on_soft"] >= 4.5 for c in contrast.values())}
+
+# Dialog Kepadatan: tinggi baris radio (≥ 40 px di layar sentuh — verifikasi P1-B 5 Sep 2026: 30 px) dan
+# petunjuknya (di layar sentuh menyebut teks · bertombol, karena baris bertombol 43/55/55 di sana).
+DENSITY_DIALOG = """() => { const f=document.querySelector('.density-pick'); if (!f) return null;
+    return { rows: [...f.querySelectorAll('label.check-row')].map(l => ({ label: l.querySelector('span').innerText, hint: l.querySelector('.muted').innerText,
+             h: +l.getBoundingClientRect().height.toFixed(1), radio: +l.querySelector('input').getBoundingClientRect().height.toFixed(1) })),
+             note: (n => n ? n.innerText : null)(f.querySelector('.density-note')), pointer: matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine' } }"""
+
+def set_density(pg, value):
+    click(pg, ".userchip"); pg.wait_for_timeout(500)
+    dialog = pg.evaluate(DENSITY_DIALOG)
+    click(pg, f".density-pick input[value={value}]"); pg.wait_for_timeout(250)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    return dialog
+
+def module_vs_sidebar(pg, prefixes):
+    out = {}
+    for prefix in prefixes:
+        pg.goto(BASE + f"#/m/{prefix}"); pg.wait_for_timeout(900)
+        m = pg.evaluate(MODULE_HOME)
+        arrows = pg.evaluate(ARROWS) if m["cards"] else None
+        out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": m["cards"] == m["sidebar"], "head": bool(m["head"]),
+                       "arrows": arrows and {"ok": arrows["ok"], "down_mismatches": arrows["down_mismatches"][:4], "up_mismatches": arrows["up_mismatches"][:4]},
+                       "sections": m["sections"], "hints": m["hints"], "empty": m["empty"], "columns": m["columns"], "smallest_font_px": m["smallest_font_px"],
+                       "only_in_cards": sorted(set(m["cards"]) - set(m["sidebar"])), "only_in_sidebar": sorted(set(m["sidebar"]) - set(m["cards"]))}
+    return out
+
+def module_accents(pg, tag):
+    errors = []; console_errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+    # Status diputuskan di DB sebelum masuk (bukan klik Lewati yang berlomba dengan fetchGuide): pada DB
+    # yang belum memutuskan, panel terbuka sesudah pemeriksaan sekali dan memindah halaman ke #/dashboard.
+    # Sejak putaran 2 itu dikerjakan login() untuk SEMUA skenario; yang dicatat di bawah hasilnya.
+    login(pg, "admin@nusantara.test")
+    out = {"viewport": pg.viewport_size, "onboarding_status": {"admin": onboarding_status("admin@nusantara.test")},
+           "dock_open": pg.locator(".onboarding-dock").count()}
+    prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
+    out["sidebar_prefixes"] = prefixes
+
+    for theme in ("light", "dark"):
+        set_theme(pg, theme)
+        res = {"accent": accent_matrix(pg.evaluate(ACCENT_TOKENS))}
+        tok = res["accent"]["tokens"]
+        # Penanda grup aktif + remah modul di layar Keuangan (slot 2), lalu klik remahnya.
+        pg.goto(BASE + "#/r/finance/ar-invoices"); pg.wait_for_timeout(1500)
+        set_theme(pg, theme)
+        marker = pg.evaluate(ACTIVE_MARKER)
+        slot = marker["group"] and marker["group"]["accent"]
+        marker["marker_color_hex"] = rgb_to_hex(marker["group"]["color"]) if marker["group"] else None
+        marker["crumb_color_hex"] = rgb_to_hex(marker["crumb"]["color"]) if marker["crumb"] else None
+        marker["slot_token"] = tok[slot]["accent"] if slot else None
+        marker["marker_matches_token"] = bool(slot) and marker["marker_color_hex"] == tok[slot]["accent"]
+        marker["shadow_matches_token"] = bool(slot) and rgb_to_hex(marker["group"]["box_shadow"]) == tok[slot]["accent"]
+        marker["crumb_matches_token"] = bool(slot) and marker["crumb_color_hex"] == tok[slot]["accent"]
+        marker["crumb_href_ok"] = bool(marker["crumb"]) and marker["crumb"]["href"] == "#/m/fin"
+        marker["a11y_ok"] = marker["host_tag"] == "NAV" and bool(marker["host_aria_label"]) and marker["last_aria_current"] == "page"
+        res["active_marker"] = marker
+        fit = {"list": pg.evaluate(CRUMB_FIT)}
+        pg.goto(BASE + "#/d/finance/ar-invoices/1"); pg.wait_for_timeout(1500); fit["detail"] = pg.evaluate(CRUMB_FIT)
+        fit["ok"] = all(not f["overlap_next"] and f["crumbs_h"] <= f["header_h"] and f["last"] and f["last"]["aria_current"] == "page" and f["last"]["display"] != "none" for f in (fit["list"], fit["detail"]))
+        res["crumb_fit"] = fit
+        pg.goto(BASE + "#/r/finance/ar-invoices"); pg.wait_for_timeout(1200); set_theme(pg, theme)
+        pg.screenshot(path=f"{OUT}/s21-crumb-{theme}{tag}.png", clip={"x": 0, "y": 0, "width": pg.viewport_size["width"], "height": 120})
+        # Klik remah modul — di ponsel remah bisa terjepit (lebar dicatat di atas), jadi klik lewat DOM.
+        pg.evaluate("() => document.querySelector('#crumbs a.crumb-module').click()"); pg.wait_for_timeout(1000)
+        home = pg.evaluate(MODULE_HOME)
+        home["navigated"] = home["hash"] == "#/m/fin"
+        home["head_border_hex"] = rgb_to_hex(home["head"]["border_left"]) if home["head"] else None
+        home["head_matches_token"] = bool(home["head"]) and home["head_border_hex"] == tok[home["head"]["accent"]]["accent"]
+        home["icon_bg_matches_soft"] = bool(home["head"]) and rgb_to_hex(home["head"]["icon_bg"]) == tok[home["head"]["accent"]]["soft"]
+        home["cards_equal_sidebar"] = home["cards"] == home["sidebar"]
+        st = home["structure"] or {}
+        home["structure_ok"] = st.get("grid_tag") == "UL" and st.get("grid_labelled") and st.get("li_per_card") and st.get("section_tags") in (["H2"], []) and st.get("sections_label_their_grid")
+        home["marker_after"] = pg.evaluate(ACTIVE_MARKER)["group"]
+        res["module_home_fin"] = home
+        pg.screenshot(path=f"{OUT}/s21-module-home-{theme}{tag}.png", full_page=False)
+        # Media cetak pada tema ini: token aksen harus jatuh ke nilai TERANG (blok cetak app.css) —
+        # verifikasi P1-B 5 Sep 2026: tema gelap mencetak --accent-7 #fbcd1a di kertas putih (1,52:1).
+        pg.emulate_media(media="print"); pg.wait_for_timeout(150)
+        pr = {"tokens": pg.evaluate(ACCENT_TOKENS)["tokens"], "head": pg.evaluate(MODULE_HOME)["head"], "body_bg": pg.evaluate("() => getComputedStyle(document.body).backgroundColor")}
+        pg.emulate_media(media="null"); pg.wait_for_timeout(150)
+        pr["min_on_paper"] = min(wcag(pr["tokens"][n]["accent"], "#ffffff") for n in pr["tokens"])
+        pr["all_on_paper_ge_3"] = pr["min_on_paper"] >= 3
+        pr["head_border_hex"] = rgb_to_hex(pr["head"]["border_left"]) if pr["head"] else None
+        pr["head_uses_print_token"] = bool(pr["head"]) and pr["head_border_hex"] == pr["tokens"][pr["head"]["accent"]]["accent"]
+        res["print_accents"] = pr
+        # Lima jenis ilustrasi keadaan kosong, stroke/fill terkomputasi vs token.
+        pg.evaluate(EMPTY_KINDS); pg.wait_for_timeout(200)
+        em = pg.evaluate(EMPTY_MEASURE)
+        t = em["tokens"]
+        em["checks"] = {k: {"ln_is_border_strong": rgb_to_hex(v["ln_stroke"]) == t["--border-strong"],
+                            "ac_is_token": rgb_to_hex(v["ac_stroke"]) == t[{"error": "--danger", "done": "--success"}.get(k.replace("_compact", ""), "--primary")],
+                            "fl_is_surface3": rgb_to_hex(v["fl_fill"]) == t["--surface-3"],
+                            # inbox tidak punya bidang aksen (.fa); jenis lain harus memakai token -soft yang benar.
+                            "fa_is_soft_token": v["fa_fill"] is None or rgb_to_hex(v["fa_fill"]) == t[{"error": "--danger-soft", "done": "--success-soft"}.get(k.replace("_compact", ""), "--primary-soft")],
+                            "bytes_le_1536": v["bytes"] <= 1536, "no_hex_literals": v["hex_literals"] == 0} for k, v in em["kinds"].items()}
+        em["all_ok"] = all(all(c.values()) for c in em["checks"].values())
+        res["empty_kinds"] = em
+        pg.locator("#s21e").screenshot(path=f"{OUT}/s21-empty-kinds-{theme}{tag}.png")
+        pg.evaluate("() => document.getElementById('s21e').remove()")
+        out[theme] = res
+    set_theme(pg, None)
+
+    # Beranda modul vs sidebar, admin: setiap grup.
+    out["admin_modules"] = module_vs_sidebar(pg, prefixes)
+    out["admin_all_match"] = all(m["match"] for m in out["admin_modules"].values())
+    out["admin_arrows_ok"] = all(m["arrows"] is None or m["arrows"]["ok"] for m in out["admin_modules"].values())
+    out["unknown_prefix"] = (pg.goto(BASE + "#/m/tidak-ada") or pg.wait_for_timeout(600) or pg.evaluate("() => document.querySelector('#view').innerText.trim().slice(0, 80)"))
+
+    # Remah roti dijalani di SETIAP rute: tidak boleh ada satu pun yang remahnya kosong, dan yang tampil
+    # harus tetap muat di header 56 px tanpa menimpa tombol Cari (di ponsel; di desktop syarat yang sama
+    # berlaku dan lebih longgar). Sekali per skenario, bukan per tema: yang diuji bentuk, bukan warna.
+    routes = pg.evaluate(CRUMB_ROUTES)
+    # Jawaban API dipalsukan kosong selama jalan-jalan ini. 131 rute × permintaan daftarnya menembus
+    # batas 120 permintaan/menit/pengguna (AppServiceProvider): diukur 6 Sep 2026 — sesudah walk tanpa
+    # palsu, GET inventory/item-categories membalas 429 dan langkah kepadatan di bawah menunggu baris
+    # tabel sampai 15 s habis. Remah roti digambar penangan rute SEBELUM data tiba, jadi datanya memang
+    # tidak dibutuhkan di sini; iam/auth/me dilewatkan apa adanya supaya izin sesi tidak ikut dikosongkan.
+    def empty_api(handler):
+        url = handler.request.url
+        if "iam/auth/me" in url or "iam/me/" in url:
+            handler.continue_()
+        else:
+            handler.fulfill(status=200, content_type="application/json",
+                            body='{"data":[],"meta":{"current_page":1,"last_page":1,"per_page":20,"total":0}}')
+    stub_from = len(console_errors)
+    pg.route("**/api/**", empty_api)
+    pg.goto(BASE + "#/dashboard"); pg.wait_for_timeout(800)
+    try:
+        walk = pg.evaluate(CRUMB_WALK, routes["nav"] + routes["outside"])
+    finally:
+        pg.unroute("**/api/**", empty_api)
+    # Dua layar khusus (rekap alat, retensi) membaca objek berbentuk, bukan daftar, jadi badan palsu di
+    # atas — bukan pemakaian sungguhan — yang membuatnya melempar. Dicatat terpisah supaya console_errors
+    # skenario tetap berarti "galat saat memakai aplikasi dengan data sungguhan".
+    stub_errors = console_errors[stub_from:]
+    del console_errors[stub_from:]
+    empty = [w for w in walk if not w["text"]]
+    overlapping = [w for w in walk if w["overlap_next"]]
+    taller = [w for w in walk if w["crumbs_h"] > w["header_h"]]
+    no_aria = [w for w in walk if w["aria_current"] != "page"]
+    out["crumb_walk"] = {"routes": len(walk), "nav": len(routes["nav"]), "outside": routes["outside"],
+                         "by_root": {r: sum(1 for w in walk if w["root"] == r) for r in ("module", "screen", None)},
+                         # Rantai berakar 'screen' DINAMAI, bukan hanya dihitung: sejak layar di luar NAV
+                         # berakar pada modulnya (eaef2e7) yang tersisa hanyalah rantai satu remah seperti
+                         # #/dashboard — kalau daftarnya bertambah, yang bertambah harus terbaca di bukti.
+                         "screen_routes": [w["route"] for w in walk if w["root"] == "screen"],
+                         "empty": [w["route"] for w in empty], "overlapping": [w["route"] for w in overlapping],
+                         "taller_than_header": [w["route"] for w in taller], "without_aria_current": [w["route"] for w in no_aria],
+                         "outside_texts": {w["route"]: w["text"] for w in walk if w["route"] in routes["outside"]},
+                         "console_errors_from_stub": {"count": len(stub_errors), "first": stub_errors[:3]},
+                         "never_empty": not empty, "all_fit": not overlapping and not taller, "all_aria_current": not no_aria}
+    out["crumb_walk"]["ok"] = out["crumb_walk"]["never_empty"] and out["crumb_walk"]["all_fit"] and out["crumb_walk"]["all_aria_current"]
+    # Gambar untuk salah satu dari tujuh: header yang di ponsel dulu kosong sama sekali.
+    pg.goto(BASE + "#/r/projects/defects"); pg.wait_for_timeout(1200)
+    pg.screenshot(path=f"{OUT}/s21-crumb-outside-nav{tag}.png", clip={"x": 0, "y": 0, "width": pg.viewport_size["width"], "height": 120})
+
+    # Kepadatan: tiga profil pada satu daftar bertombol aksi (Kategori Item: nama pendek, tidak
+    # membungkus), lalu muat ulang. Harapan per penunjuk: pointer fine → 32/48 untuk SEMUA baris
+    # satu-baris; pointer coarse (ponsel) → sasaran jempol 36 px menang atas tombol 24 px, jadi baris
+    # bertombol 43 (rapat) / 55 (lega) — app.css § kepadatan. Bagan Akun ikut diukur per jenis baris.
+    def rows_on(route):
+        pg.goto(BASE + route); pg.wait_for_selector("table.data tbody tr", timeout=15000); pg.wait_for_timeout(600)
+        return pg.evaluate(ROWS)
+    probe = "#/r/inventory/item-categories"
+    # Daftar PO ikut: satu-satunya dari ketiga halaman yang punya tfoot ("Total halaman ini").
+    po_list = "#/r/procurement/purchase-orders"
+    dens = {"baseline": rows_on(probe), "baseline_po": rows_on(po_list), "baseline_accounts": rows_on("#/r/finance/accounts")}
+    coarse = dens["baseline"]["pointer"] == "coarse"
+    dens["expected"] = {"compact": 43 if coarse else 32, "comfortable": 55 if coarse else 48, "normal": 47 if not coarse else 55}
+    for value in ("compact", "comfortable", "normal"):
+        dens["dialog_before_" + value] = set_density(pg, value)
+        dens[value] = rows_on(probe)
+        dens[value + "_po"] = rows_on(po_list)
+        # Bagan Akun terakhir: muat ulang di bawah mendarat di halaman ini (baris PO semuanya dua-baris, `all`-nya kosong).
+        dens[value + "_accounts"] = rows_on("#/r/finance/accounts")
+        if value == "compact":
+            pg.screenshot(path=f"{OUT}/s21-density-compact{tag}.png")
+    set_density(pg, "compact")
+    pg.reload(); pg.wait_for_selector("table.data tbody tr", timeout=20000); pg.wait_for_timeout(600)
+    dens["after_reload"] = pg.evaluate(ROWS)
+    # Toleransi 0,5 px: baris terakhir tabel tanpa border-bottom (tr:last-child td) — di ponsel
+    # lantai tidak mengikat (tombol 36 px), jadi baris itu setengah piksel lebih pendek.
+    near = lambda values, want: bool(values) and all(abs(v - want) <= 0.5 for v in values)
+    dens["compact_ok"] = near(dens["compact"]["all"], dens["expected"]["compact"])
+    dens["comfortable_ok"] = near(dens["comfortable"]["all"], dens["expected"]["comfortable"])
+    dens["normal_equals_baseline"] = (dens["normal"]["all"] == dens["baseline"]["all"] and dens["baseline"]["density"] == "normal"
+                                      and dens["normal_accounts"]["by_kind"] == dens["baseline_accounts"]["by_kind"]
+                                      and dens["normal_po"]["by_kind"] == dens["baseline_po"]["by_kind"]
+                                      and dens["normal_po"]["tfoot"] == dens["baseline_po"]["tfoot"])
+    # Kaki tabel PO per profil (normal harus 41 = tinggi sebelum token, --foot-py 10 px; rapat 4 px; lega 10 px).
+    dens["tfoot_po"] = {k: dens[k + "_po"]["tfoot"] for k in ("baseline", "compact", "comfortable", "normal")}
+    # Hanya di viewport lebar: di 390 px label "Total halaman ini" membungkus dua baris (60,5 px) — di sana yang
+    # berlaku normal == baseline di atas.
+    dens["tfoot_normal_41"] = (bool(dens["normal_po"]["tfoot"]) and all(abs(v - 41) <= 0.5 for v in dens["normal_po"]["tfoot"])) if pg.viewport_size["width"] >= 900 else None
+    # Bagan Akun: baris terpendek per jenis (teks/lencana/tombol) di tiap profil — nama panjang membungkus, jadi min-nya yang satu-baris.
+    dens["accounts_min_by_kind"] = {k: dens[k + "_accounts"]["min_by_kind"] for k in ("baseline", "compact", "comfortable", "normal")}
+    # Muat ulang mendarat di Bagan Akun (nama panjang membungkus): yang dibandingkan baris terpendeknya.
+    dens["persisted"] = dens["after_reload"]["density"] == "compact" and bool(dens["after_reload"]["all"]) and min(dens["after_reload"]["all"]) == dens["expected"]["compact"]
+    # Layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer ≥ 36 px di semua profil (rapat dulu 27,5), baris radio ≥ 40 px,
+    # petunjuk menyebut angka bertombol. Di penunjuk halus hanya dicatat (27,5/31,5/35,5).
+    dens["nav_link_by_density"] = {k: dens[k]["nav_link"] for k in ("baseline", "compact", "comfortable", "normal")}
+    dens["nav_link_ge_36_on_coarse"] = all(v >= 36 for v in dens["nav_link_by_density"].values()) if coarse else None
+    dialog = dens["dialog_before_normal"] or {"rows": []}
+    dens["dialog_rows_ge_40_on_coarse"] = (bool(dialog["rows"]) and all(r["h"] >= 40 for r in dialog["rows"])) if coarse else None
+    dens["dialog_hints_name_button_rows_on_coarse"] = (bool(dialog["rows"]) and all("bertombol" in r["hint"] for r in dialog["rows"]) and bool(dialog.get("note"))) if coarse else None
+    set_density(pg, "normal")
+    out["density"] = dens
+
+    # Daftar tersaring habis: pencarian saja → search; filter → filter; "Hapus filter" mengembalikan baris.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq"); pg.wait_for_timeout(1800)
+    le = {"search": pg.evaluate(LIST_EMPTY)}
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq&status=approved"); pg.wait_for_timeout(1800)
+    le["filter"] = pg.evaluate(LIST_EMPTY)
+    click(pg, "#view .empty button:has-text('Hapus filter')"); pg.wait_for_timeout(1500)
+    le["after_clear"] = pg.evaluate("() => ({ rows: document.querySelectorAll('table.data tbody tr').length, hash: location.hash, empty: !!document.querySelector('#view .empty') })")
+    # Kalimat menyebut penyaringnya (verifikasi P1-B 5 Sep 2026): pencarian saja → "cocok dengan" + Hapus pencarian;
+    # filter → "lolos filter" + Hapus filter; judul tidak mengulang kalimat.
+    le["copy_ok"] = (bool(le["search"]) and "cocok dengan" in le["search"]["text"] and le["search"]["buttons"] == ["Hapus pencarian"] and le["search"]["title"] != le["search"]["text"]
+                     and bool(le["filter"]) and "lolos filter" in le["filter"]["text"] and le["filter"]["buttons"] == ["Hapus filter"] and le["filter"]["title"] != le["filter"]["text"])
+    le["button_icon_ok"] = all(bool(le[k]) and bool(le[k]["button_icon"]) and le[k]["button_icon"]["opacity"] == "1" and le[k]["button_icon"]["margin_bottom"] == "0px" and abs(le[k]["button_icon"]["dy"]) <= 1 for k in ("search", "filter"))
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq"); pg.wait_for_timeout(1500)
+    pg.screenshot(path=f"{OUT}/s21-empty-filter{tag}.png")
+    out["list_empty"] = le
+
+    # Peran sempit: warehouse@ — beranda tiap grupnya = sidebarnya; #/m/fin = keadaan kosong.
+    pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+    login(pg, "warehouse@nusantara.test")
+    wh_prefixes = pg.evaluate("() => [...document.querySelectorAll('nav.nav .nav-group[data-prefix]')].map(g => g.dataset.prefix)")
+    out["warehouse"] = {"prefixes": wh_prefixes, "onboarding_status": onboarding_status("warehouse@nusantara.test"),
+                        "dock_open": pg.locator(".onboarding-dock").count(), "modules": module_vs_sidebar(pg, wh_prefixes)}
+    out["warehouse"]["all_match"] = all(m["match"] for m in out["warehouse"]["modules"].values())
+    pg.goto(BASE + "#/m/fin"); pg.wait_for_timeout(900)
+    out["warehouse"]["fin_home"] = pg.evaluate(MODULE_HOME)
+    out["warehouse"]["fin_is_empty_state"] = bool(out["warehouse"]["fin_home"]["empty"]) and not out["warehouse"]["fin_home"]["cards"]
+    pg.screenshot(path=f"{OUT}/s21-module-empty-warehouse{tag}.png")
+
+    out["pageerrors"] = errors
+    out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
+    return out
+
+@scenario("S21_module_accents_breadcrumb")
+def s21(pg):
+    return module_accents(pg, "")
+
+@scenario("S21_module_accents_breadcrumb_mobile")
+def s21m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return module_accents(pg, "-mobile")
+    finally:
+        ctx.close()
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -1427,7 +2020,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
