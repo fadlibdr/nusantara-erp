@@ -43,6 +43,17 @@ final class UserPreferences
 
     private const HIDDEN_MAX = 32;
 
+    /*
+     * Plafon jumlah widget. Katalog P1-D berisi 19; angka di sini sedikit lebih
+     * longgar supaya menambah widget di rilis berikutnya tidak menolak susunan
+     * yang baru saja sah, dan tetap jauh di bawah plafon byte — sebuah dasbor
+     * dengan 24 kartu sudah bukan dasbor.
+     */
+    private const DASHBOARD_MAX = 24;
+
+    /** Field yang boleh ada pada satu entri susunan dasbor. */
+    private const DASHBOARD_FIELDS = ['id', 'size'];
+
     private const RECENT_FIELDS = ['route', 'label', 'sub', 'at'];
 
     public const DENSITIES = ['compact', 'normal', 'comfortable'];
@@ -135,19 +146,74 @@ final class UserPreferences
             ],
 
             /*
-             * Dicadangkan untuk P1-D (dasbor yang bisa diatur). Didaftarkan
-             * SEKARANG supaya laci "Atur dasbor" nanti tidak perlu migrasi
-             * kedua; validatornya sengaja hanya bentuk + plafon, karena daftar
-             * widget yang sah baru ada di P1-D dan mengarangnya di sini berarti
-             * menolak susunan yang belum sempat ditulis.
+             * Susunan dasbor (P1-D). Didaftarkan sejak P1-C dengan validator
+             * bentuk saja — "daftar widget yang sah baru ada di P1-D dan
+             * mengarangnya di sini berarti menolak susunan yang belum sempat
+             * ditulis". P1-D menulisnya, jadi validatornya sekarang memeriksa
+             * ISI: id yang benar-benar ada di katalog SPA (SpaWidgets membaca
+             * registry.js, alasan yang sama dengan SpaNav untuk favorit) dan
+             * ukuran yang benar-benar dikenal.
+             *
+             * KENAPA ITU PENTING DI SINI dan bukan cukup di klien: laci "Atur
+             * dasbor" tidak akan pernah mengirim id karangan, tetapi endpoint
+             * ini tanpa gerbang izin — barisnya milik pemanggil sendiri — dan
+             * tanpa daftar ini ia adalah penyimpanan bebas 16 KB per pengguna
+             * yang disalin ke setiap backup selamanya. Whitelist per KUNCI
+             * menutup pintu itu; whitelist per ISI menutup pintu yang sama satu
+             * lapis lebih dalam.
+             *
+             * Duplikat ditolak, bukan didiamkan: dua entri dengan id yang sama
+             * hanya bisa menggambar satu kartu (resolveLayout membuang yang
+             * kedua), jadi menyimpannya berarti menyimpan baris yang tidak akan
+             * pernah berarti apa-apa.
              */
             'dashboard.layout' => [
                 'label' => 'Susunan dasbor',
                 'max_bytes' => self::MAX_BYTES,
-                'max_entries' => null,
-                'validate' => static fn (mixed $value): ?string => is_array($value) && array_is_list($value)
-                    ? null
-                    : 'Susunan dasbor harus berupa daftar.',
+                'max_entries' => self::DASHBOARD_MAX,
+                'validate' => static function (mixed $value): ?string {
+                    if (! is_array($value) || ! array_is_list($value)) {
+                        return 'Susunan dasbor harus berupa daftar.';
+                    }
+
+                    if (count($value) > self::DASHBOARD_MAX) {
+                        return sprintf('Maksimal %d widget.', self::DASHBOARD_MAX);
+                    }
+
+                    $seen = [];
+
+                    foreach ($value as $entry) {
+                        if (! is_array($entry) || array_is_list($entry)) {
+                            return 'Setiap widget harus berupa objek {id, size}.';
+                        }
+
+                        $extra = array_diff(array_keys($entry), self::DASHBOARD_FIELDS);
+                        if ($extra !== []) {
+                            return sprintf('Field tidak dikenal pada susunan dasbor: %s.', implode(', ', $extra));
+                        }
+
+                        $id = $entry['id'] ?? null;
+                        if (! is_string($id) || $id === '' || strlen($id) > 64) {
+                            return 'Setiap widget harus punya id.';
+                        }
+
+                        if (! SpaWidgets::has($id)) {
+                            return sprintf('Widget "%s" tidak ada di katalog dasbor.', $id);
+                        }
+
+                        if (isset($seen[$id])) {
+                            return sprintf('Widget "%s" disebut dua kali.', $id);
+                        }
+                        $seen[$id] = true;
+
+                        $size = $entry['size'] ?? null;
+                        if ($size !== null && ! in_array($size, SpaWidgets::SIZES, true)) {
+                            return sprintf('Ukuran widget hanya boleh %s.', implode(', ', SpaWidgets::SIZES));
+                        }
+                    }
+
+                    return null;
+                },
             ],
 
             /*
