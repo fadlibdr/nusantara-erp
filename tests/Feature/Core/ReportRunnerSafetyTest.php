@@ -29,10 +29,22 @@ use Tests\ErpTestCase;
  */
 class ReportRunnerSafetyTest extends ErpTestCase
 {
-    /** Jalan keluar raw yang TIDAK boleh ada di runner. */
+    /**
+     * Jalan keluar raw yang TIDAK boleh ada di runner.
+     *
+     * Delapan pertama adalah helper `…Raw` dan tiga pintu DB. Lima berikutnya
+     * ditambahkan verifikasi kedua P1-F, karena daftar tanpa mereka menjanjikan
+     * "tidak boleh memuat satu pun jalan keluar raw" sambil membiarkan justru
+     * bentuk yang paling mungkin ditulis tangan berikutnya:
+     * `->where($column, DB::raw($teksKlien))`, `->addSelect(DB::raw(…))`,
+     * `selectSub`/`joinSub` (subkueri yang identifier-nya bukan dari registri),
+     * dan `whereIntegerInRaw` (satu-satunya `…InRaw` yang tidak berakhiran
+     * 'Raw' di posisi yang dipindai daftar lama).
+     */
     private const FORBIDDEN = [
         'whereRaw', 'orWhereRaw', 'havingRaw', 'orderByRaw', 'fromRaw',
         'DB::select', 'DB::statement', 'DB::unprepared',
+        'DB::raw', '->raw(', 'selectSub', 'joinSub', 'whereIntegerInRaw',
     ];
 
     public function test_the_runner_has_no_raw_escape_hatches_beyond_the_two_it_needs(): void
@@ -118,7 +130,7 @@ class ReportRunnerSafetyTest extends ErpTestCase
             ]],
             ['label' => 'ember karangan', 'definition' => [
                 'resource' => 'finance/project-costs', 'mode' => 'group',
-                'row' => ['column' => 'cost_date', 'bucket' => "7) ,(select 1"],
+                'row' => ['column' => 'cost_date', 'bucket' => '7) ,(select 1'],
                 'measure' => ['agg' => 'count'],
             ]],
         ];
