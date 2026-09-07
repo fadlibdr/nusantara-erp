@@ -28,7 +28,11 @@ class SettingApiTest extends ErpTestCase
      */
     private const MIN_EDITABLE_KEY_COUNT = 60;
 
-    private const GROUP_COUNT = 9;
+    /**
+     * Sepuluh sejak F-1: kelompok "Matriks Persetujuan" (28 baris jenis
+     * dokumen) menyusul sembilan yang sudah ada.
+     */
+    private const GROUP_COUNT = 10;
 
     private function actAsAdmin(): User
     {

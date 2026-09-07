@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Modules\Core\Models\Setting;
+use Modules\Core\Support\ApprovalPolicy;
 
 /**
  * Runtime overrides for config/erp.php.
@@ -337,6 +338,14 @@ class SettingService
             ],
 
             /*
+             * F-1 — MATRIKS PERSETUJUAN, satu baris per jenis dokumen yang
+             * ber-submit → approve. Dibangun dari registri, bukan diketik:
+             * jenis dokumen ke-29 muncul di layar tanpa satu suntingan pun di
+             * sini, dan tidak bisa lupa dibawa.
+             */
+            'approval_matrix' => $this->approvalMatrixGroup(),
+
+            /*
              * Two-way contract for this group:
              *   notifications.email_enabled  NotificationService::emailEnabled()
              */
@@ -541,6 +550,141 @@ class SettingService
     ];
 
     /**
+     * MATRIKS PERSETUJUAN (F-1) — 28 baris jenis dokumen × tiga kolom.
+     *
+     * Kelompok ini punya satu hal yang tidak dimiliki kelompok lain: `matrix`,
+     * daftar barisnya. Layar merendernya sebagai tabel jenis-dokumen ×
+     * (ambang, mode, tingkat-3) alih-alih sebagai 77 field berurutan — 77
+     * field yang tidak terbaca sebagai kebijakan adalah kebijakan yang tidak
+     * ada yang meninjaunya. Penyimpanannya tetap jalur yang sama persis:
+     * PUT core/settings, SettingService::setMany, validasi dari registri ini.
+     *
+     * TIGA JENIS TIDAK MENDAPAT SEL MODE. prc_purchase_orders,
+     * scm_subcontracts dan scm_subcontract_addenda menegakkan ambangnya lewat
+     * needs_director_approval + DirectorApproval/AddendumService. Ambangnya
+     * SUNGGUH dapat disunting di sini (model membaca kunci setelan yang sama),
+     * tetapi modenya tidak: menawarkan "tambahan tingkat" pada baris yang
+     * tidak ada penegaknya adalah layar yang berbohong. ROADMAP juga eksplisit
+     * bahwa gerbang lama itu tidak dimigrasikan — kesetaraannya dibuktikan
+     * uji, bukan ditulis ulang.
+     *
+     * ADDENDUM SPK TIDAK PUNYA KUNCI SENDIRI sama sekali (ApprovalPolicy::FOLLOWS).
+     *
+     * @return array{label: string, description: string, settings: list<array<string, mixed>>, matrix: list<array<string, mixed>>}
+     */
+    private function approvalMatrixGroup(): array
+    {
+        $settings = [];
+        $rows = [];
+
+        /*
+         * TIDAK ADA SATU PUN PEMBACAAN NILAI DI SINI — hanya label, awalan dan
+         * nama kunci. Alasannya bukan gaya: definitions() dipanggil dari dalam
+         * set(), dan sebuah pembacaan Erp:: di sini menghangatkan memo
+         * SettingService yang di-scope kontainer DI TENGAH sebuah penulisan
+         * yang dilakukan instance lain — sesudah itu unit kerja tersebut
+         * membaca peta yang sudah basi (terukur: SettingServiceTest
+         * "a reset by another process" berubah merah). Nilainya diambil
+         * overview(), sesudah semua definisi disusun.
+         */
+        foreach (ApprovalPolicy::documentTypes() as $type) {
+            $entry = ApprovalPolicy::documentEntry($type);
+            $label = $entry['label'] ?? 'Dokumen';
+            $prefix = $entry['prefix'] ?? '';
+            $follows = ApprovalPolicy::FOLLOWS[$type] ?? null;
+            $locked = ApprovalPolicy::modeIsLocked($type);
+            $keys = ApprovalPolicy::keysFor($type);
+            $measurable = ApprovalPolicy::hasMeasurableAmount($type);
+
+            $rows[] = [
+                'type' => $type,
+                'label' => $label,
+                'prefix' => $prefix,
+                'director_permission' => $prefix === '' ? null : "{$prefix}.approve-director",
+                'mode_locked' => $locked,
+                'has_amount' => $measurable,
+                'follows' => $follows,
+                'follows_label' => $follows === null ? null : (ApprovalPolicy::documentEntry($follows)['label'] ?? null),
+                'keys' => $keys,
+            ];
+
+            if ($follows !== null || ! $measurable) {
+                // Baris yang mengikuti jenis lain memakai sel jenis itu; baris
+                // tanpa nilai rupiah tidak mendapat sel sama sekali, dan layar
+                // mencetak aturannya. Lihat ApprovalPolicy::hasMeasurableAmount.
+                continue;
+            }
+
+            $settings[] = [
+                'key' => $keys['threshold'],
+                'label' => "{$label} — ambang persetujuan direktur",
+                'type' => 'currency',
+                'doc_type' => $type,
+                'doc_label' => $label,
+                'doc_prefix' => $prefix,
+                'column' => 'threshold',
+                'help' => 'Kosongkan untuk "tanpa ambang": dokumen jenis ini disetujui pemegang '
+                    ."{$prefix}.approve mana pun, berapa pun nilainya. Diisi, dokumen "
+                    .'senilai ITU KE ATAS menuntut persetujuan direktur.',
+            ];
+
+            if ($locked) {
+                continue;
+            }
+
+            $settings[] = [
+                'key' => $keys['mode'],
+                'label' => "{$label} — cara ambang berlaku",
+                'type' => 'select',
+                'options' => [
+                    ['value' => ApprovalPolicy::MODE_SINGLE_DIRECTOR, 'label' => 'Satu penyetuju, harus direktur di atas ambang'],
+                    ['value' => ApprovalPolicy::MODE_EXTRA_LEVEL, 'label' => 'Tambahan tingkat: penyetuju kedua yang berbeda'],
+                ],
+                'doc_type' => $type,
+                'doc_label' => $label,
+                'doc_prefix' => $prefix,
+                'column' => 'mode',
+                'help' => 'Tanpa ambang, pilihan ini tidak berlaku apa pun isinya.',
+            ];
+
+            $settings[] = [
+                'key' => $keys['third_level_threshold'],
+                'label' => "{$label} — ambang tingkat ketiga",
+                'type' => 'currency',
+                'doc_type' => $type,
+                'doc_label' => $label,
+                'doc_prefix' => $prefix,
+                'column' => 'third_level_threshold',
+                'help' => 'Hanya dibaca pada mode "tambahan tingkat": dokumen senilai ini ke atas '
+                    .'menuntut penyetuju BERBEDA yang ketiga.',
+            ];
+        }
+
+        $settings[] = [
+            'key' => 'approvals.batch_cap',
+            'label' => 'Setujui massal — maksimum dokumen sekali jalan',
+            'type' => 'integer',
+            'min' => 1,
+            'max' => 100,
+            'column' => 'batch_cap',
+            'help' => 'Kosong = tombol "Setujui terpilih" TIDAK ADA di layar Tugas Saya (bawaan). '
+                .'Diisi, sekian dokumen boleh dipilih sekaligus; aplikasi memanggil tombol Setujui '
+                .'tiap dokumen satu per satu, jadi maker-checker, ambang direktur, catatan dan '
+                .'pemberitahuan tetap berjalan persis seperti menyetujui satu-satu.',
+        ];
+
+        return [
+            'label' => 'Matriks Persetujuan',
+            'description' => 'Siapa boleh menyetujui apa, per jenis dokumen. Dikirim dengan nilai '
+                .'yang berlaku hari ini, jadi tidak ada yang berubah sampai Anda mengubahnya. '
+                .'Perubahan berlaku untuk dokumen yang DIAJUKAN sesudahnya: dokumen yang sudah '
+                .'menunggu persetujuan tetap mengikuti aturan saat ia diajukan.',
+            'settings' => $settings,
+            'matrix' => $rows,
+        ];
+    }
+
+    /**
      * Flat map of every editable key to its definition.
      *
      * @return array<string, array<string, mixed>>
@@ -634,6 +778,15 @@ class SettingService
     public function set(string $key, mixed $value): void
     {
         $this->assertValid($key, $value);
+        $this->assertMayChangeApprovalPolicy($key);
+
+        // F-1 — nilai EFEKTIF sebelum tulisan, untuk jejak audit "dari → ke".
+        // Dibaca sebelum apa pun berubah, dan hanya untuk approvals.*: baris
+        // core_settings sendiri sudah diamati AuditService, tetapi sebuah
+        // override yang BARU LAHIR tercatat sebagai 'created' tanpa "dari",
+        // dan "dari" adalah separuh yang penting ketika yang berubah adalah
+        // siapa boleh menyetujui berapa.
+        $approvalBefore = self::isApprovalPolicyKey($key) ? $this->get($key) : null;
 
         // P8 — riwayat tarif (D5): tarif efektif SEBELUM tulisan, dibaca di
         // sini karena set() adalah satu-satunya jalur tulis Pengaturan. Yang
@@ -643,15 +796,20 @@ class SettingService
         $oldEffective = $rates->tracks($key) ? $this->get($key) : null;
 
         if ($value === null) {
-            Setting::query()->where('key', $key)->delete();
+            $row = Setting::query()->where('key', $key)->first();
+            $row?->delete();
         } else {
-            Setting::query()->updateOrCreate(
+            $row = Setting::query()->updateOrCreate(
                 ['key' => $key],
                 ['value' => $value, 'group' => $this->writableDefinition($key)['group']],
             );
         }
 
         $this->flush();
+
+        if (self::isApprovalPolicyKey($key) && $row !== null) {
+            $this->auditApprovalPolicyChange($row, $key, $approvalBefore, $value ?? $this->default($key));
+        }
 
         if ($rates->tracks($key)) {
             // Efektif SESUDAH: nilai yang baru ditulis, atau default pabrik
@@ -660,6 +818,103 @@ class SettingService
             // menghangatkannya kembali (SettingServiceTest memaku itu).
             $rates->record($key, $oldEffective, $value ?? $this->default($key), Auth::id());
         }
+    }
+
+    /**
+     * Kunci yang MENGUBAH SIAPA BOLEH MENYETUJUI APA — seluruh sub-pohon
+     * approvals.*: ambang per jenis, mode, tingkat ketiga, pemisahan tugas,
+     * umur antrean dan plafon setujui massal.
+     *
+     * Satu awalan, bukan daftar: jenis dokumen ke-29 mendapat kunci baru dari
+     * registri tanpa satu suntingan pun, dan sebuah daftar yang lupa dibawa
+     * berarti sebuah ambang uang yang bisa diubah tanpa izin direktur dan
+     * tanpa jejak. Itulah kegagalan yang tidak boleh mungkin.
+     */
+    public static function isApprovalPolicyKey(string $key): bool
+    {
+        return str_starts_with($key, 'approvals.');
+    }
+
+    /**
+     * DUA IZIN, BUKAN SATU. Rute sudah menuntut core.update; ini menuntut
+     * SEBAGAI TAMBAHAN bahwa pelakunya memegang salah satu izin
+     * <awalan>.approve-director.
+     *
+     * Alasannya: core.update adalah izin administrasi umum — ia juga membuka
+     * format penomoran dan asumsi arus kas — sedangkan menurunkan ambang PO
+     * dari Rp 100 juta menjadi Rp 10 miliar adalah keputusan uang. Orang yang
+     * mengubah aturan persetujuan harus orang yang berdiri di dalam aturan
+     * itu.
+     *
+     * TANPA PENGGUNA MASUK, PENJAGA DIAM. Seeder, migrasi dan perintah konsol
+     * menulis setelan tanpa aktor; menolak mereka berarti instalasi baru tidak
+     * bisa diseed. Yang dijaga adalah ORANG, dan orang selalu punya sesi —
+     * penalaran yang sama dengan AuditService, yang mencatat aktor null apa
+     * adanya alih-alih menebak.
+     *
+     * @throws InvalidArgumentException
+     */
+    private function assertMayChangeApprovalPolicy(string $key): void
+    {
+        if (! self::isApprovalPolicyKey($key)) {
+            return;
+        }
+
+        $actor = Auth::user();
+
+        if ($actor === null) {
+            return;
+        }
+
+        foreach (ApprovalPolicy::directorPermissions() as $permission) {
+            if ($actor->can($permission)) {
+                return;
+            }
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'Setting [%s] mengubah aturan persetujuan dokumen. Selain izin core.update, penyuntingnya '
+            .'harus memegang salah satu izin persetujuan direktur (*.approve-director) — pada instalasi '
+            .'standar peran direktur atau admin.',
+            $key,
+        ));
+    }
+
+    /**
+     * Jejak "siapa, kapan, dari → ke" untuk satu perubahan aturan persetujuan.
+     *
+     * Bentuknya bentuk pengamat AuditService (pasangan from/to), jadi layar
+     * Log Audit membacanya tanpa perender kedua. Yang dicatat adalah nilai
+     * EFEKTIF, bukan isi baris: mengembalikan sebuah ambang ke bawaan pabrik
+     * menghapus barisnya, dan "dihapus" bukan jawaban atas "ambangnya menjadi
+     * berapa".
+     */
+    private function auditApprovalPolicyChange(Setting $row, string $key, mixed $from, mixed $to): void
+    {
+        if ($this->sameEffective($from, $to)) {
+            return;
+        }
+
+        app(AuditService::class)->event(
+            $row,
+            'updated',
+            ['effective' => ['from' => $from, 'to' => $to]],
+            $key,
+        );
+    }
+
+    /** Longgar terhadap bentuk string/angka yang datang dari formulir dan dari config. */
+    private function sameEffective(mixed $a, mixed $b): bool
+    {
+        if ($a === null || $b === null) {
+            return $a === $b;
+        }
+
+        if (is_numeric($a) && is_numeric($b)) {
+            return (float) $a === (float) $b;
+        }
+
+        return $a === $b;
     }
 
     /**
@@ -834,12 +1089,15 @@ class SettingService
                 ]);
             }
 
-            $groups[] = [
+            $groups[] = array_filter([
                 'key' => $groupKey,
                 'label' => $group['label'],
                 'description' => $group['description'],
                 'settings' => $settings,
-            ];
+                // Hanya kelompok matriks yang membawanya; array_filter
+                // menjaga payload kelompok lain persis seperti sebelumnya.
+                'matrix' => $group['matrix'] ?? null,
+            ], static fn ($value) => $value !== null);
         }
 
         return $groups;

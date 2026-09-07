@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use InvalidArgumentException;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ApprovalPolicy;
 use Modules\Core\Support\ModuleCounts;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\WatchedDeadlines;
@@ -43,6 +44,9 @@ abstract class ErpTestCase extends TestCase
         ModuleCounts::flushSchemaMemo();
         // …dan registri ReportableResources (P1-F), alasan yang sama lagi.
         ReportableResources::flushSchemaMemo();
+        // …dan memo "tabel mana yang membawa needs_director_approval sendiri"
+        // milik ApprovalPolicy (F-1), alasan yang sama lagi.
+        ApprovalPolicy::flushSchemaMemo();
     }
 
     /**

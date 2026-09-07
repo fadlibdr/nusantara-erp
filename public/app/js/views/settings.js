@@ -226,8 +226,90 @@ function buildControl(setting, ctx) {
   }
 }
 
+/* ================================================ MATRIKS PERSETUJUAN (F-1) ===
+ *
+ * Kelompok `approval_matrix` datang dengan `matrix`: satu baris per jenis
+ * dokumen, dengan nama kunci setelan yang dipakainya. Dirender sebagai TABEL
+ * jenis-dokumen × (ambang, mode, tingkat-3) dan bukan sebagai 39 field
+ * berurutan, karena 39 field yang tidak terbaca sebagai kebijakan adalah
+ * kebijakan yang tidak ada yang meninjaunya — dan yang ditinjau di sini adalah
+ * siapa boleh menyetujui uang berapa.
+ *
+ * TIGA JENIS BARIS YANG TIDAK PUNYA KOTAK ISIAN, masing-masing dengan
+ * aturannya tercetak apa adanya (bukan "—", dan tidak pernah "Rp 0"):
+ *
+ *   tanpa nilai   dokumennya tidak berharga rupiah (izin kerja, BAST, cuti…),
+ *                 jadi ambang tidak punya apa pun untuk diukur;
+ *   mengikuti     addendum SPK memakai ambang SPK, kunci yang sama persis;
+ *   mode terkunci PO/SPK/addendum menegakkan ambangnya lewat mekanismenya
+ *                 sendiri (needs_director_approval), yang tidak mengenal mode
+ *                 "tambahan tingkat".
+ *
+ * Sel-selnya adalah entry biasa — control, read(), pending, "Kembalikan ke
+ * bawaan" — jadi Simpan, Batalkan dan penandaan galat per-field bekerja persis
+ * seperti di kelompok lain, tanpa satu jalur simpan kedua. */
+function buildMatrix(group, ctx, entries) {
+  const byKey = new Map();
+  for (const setting of group.settings || []) byKey.set(setting.key, setting);
+
+  const cell = (key) => {
+    const setting = byKey.get(key);
+    if (!setting) return null;
+    const entry = buildEntry(setting, ctx, { compact: true });
+    entries.push(entry);
+    return entry.wrapper;
+  };
+
+  const rule = (text) => el('span.muted', { text, style: { fontSize: '12px' } });
+
+  const rows = (group.matrix || []).map((row) => {
+    let thresholdCell;
+    let modeCell;
+    let thirdCell;
+
+    if (row.follows) {
+      const note = rule(`Mengikuti ${row.follows_label || row.follows}`);
+      thresholdCell = note;
+      modeCell = rule('—');
+      thirdCell = rule('—');
+    } else if (!row.has_amount) {
+      thresholdCell = rule('Tanpa nilai rupiah — ambang tidak berlaku');
+      modeCell = rule('—');
+      thirdCell = rule('—');
+    } else {
+      thresholdCell = cell(row.keys.threshold) || rule('—');
+      modeCell = row.mode_locked
+        ? rule('Satu penyetuju, harus direktur di atas ambang')
+        : (cell(row.keys.mode) || rule('—'));
+      thirdCell = row.mode_locked
+        ? rule('Tidak berlaku pada mode ini')
+        : (cell(row.keys.third_level_threshold) || rule('—'));
+    }
+
+    return el('tr', [
+      el('td', [
+        el('span.cell-main', { text: row.label }),
+        el('span.cell-sub.mono', { text: row.director_permission || row.prefix }),
+      ]),
+      el('td', [thresholdCell]),
+      el('td', [modeCell]),
+      el('td', [thirdCell]),
+    ]);
+  });
+
+  return el('.table-wrap', el('table.data', [
+    el('thead', el('tr', [
+      el('th', { text: 'Jenis dokumen' }),
+      el('th', { text: 'Wajib direktur mulai dari' }),
+      el('th', { text: 'Cara ambang berlaku' }),
+      el('th', { text: 'Ambang tingkat ketiga' }),
+    ])),
+    el('tbody', rows),
+  ]));
+}
+
 /** One field: caption + badges + reset link, the control, then its hints. */
-function buildEntry(setting, ctx) {
+function buildEntry(setting, ctx, options = {}) {
   const control = buildControl(setting, ctx);
   const input = control.input || control.node;
   const wrapper = el('.field');
@@ -259,17 +341,33 @@ function buildEntry(setting, ctx) {
   });
   resetButton.style.marginLeft = 'auto';
 
-  wrapper.appendChild(el('label', { style: { display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' } }, [
-    el('span', { text: setting.label }),
-    setting.is_overridden ? badge('Diubah', 'primary') : null,
-    pending,
-    ctx.canEdit && setting.is_overridden ? resetButton : null,
-  ]));
+  /* Sel matriks (compact) tidak mengulang label barisnya — nama jenis
+     dokumennya sudah di kolom pertama, dan mengulanginya di setiap sel membuat
+     tabel 28 baris tidak terbaca. Yang TIDAK dihilangkan: lencana "Diubah",
+     "Belum disimpan", tombol kembalikan-ke-bawaan, dan baris "Bawaan: …" —
+     itulah yang membuat sebuah nilai bisa ditinjau. */
+  if (!options.compact) {
+    wrapper.appendChild(el('label', { style: { display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' } }, [
+      el('span', { text: setting.label }),
+      setting.is_overridden ? badge('Diubah', 'primary') : null,
+      pending,
+      ctx.canEdit && setting.is_overridden ? resetButton : null,
+    ]));
+  } else {
+    wrapper.appendChild(el('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' } }, [
+      setting.is_overridden ? badge('Diubah', 'primary') : null,
+      pending,
+      ctx.canEdit && setting.is_overridden ? resetButton : null,
+    ]));
+  }
 
   wrapper.appendChild(control.node);
   if (control.extra) wrapper.appendChild(control.extra);
-  if (setting.help) wrapper.appendChild(el('.help', { text: setting.help }));
-  wrapper.appendChild(el('.help', { text: `Bawaan: ${displayValue(setting, setting.default)}` }));
+  if (setting.help && !options.compact) wrapper.appendChild(el('.help', { text: setting.help }));
+  wrapper.appendChild(el('.help', {
+    text: `Bawaan: ${displayValue(setting, setting.default)}`,
+    title: setting.help || '',
+  }));
 
   const onEdit = () => {
     entry.reset = false;
@@ -478,17 +576,36 @@ export async function renderSettings(host) {
       const settings = group.settings || [];
       const grid = el('.form-grid');
 
-      for (const setting of settings) {
-        const entry = buildEntry(setting, ctx);
-        entries.push(entry);
-        grid.appendChild(entry.wrapper);
+      if (Array.isArray(group.matrix)) {
+        // Kelompok matriks: barisnya jenis dokumen, bukan field berurutan.
+        // Sel-selnya tetap entry yang sama, jadi Simpan tidak tahu bedanya.
+        grid.appendChild(buildMatrix(group, ctx, entries));
+        // Parameter kelompok ini yang BUKAN sel matriks (plafon setujui
+        // massal) tetap dirender sebagai field biasa, di bawah tabelnya.
+        for (const setting of settings) {
+          if (setting.doc_type) continue;
+          const entry = buildEntry(setting, ctx);
+          entries.push(entry);
+          grid.appendChild(entry.wrapper);
+        }
+      } else {
+        for (const setting of settings) {
+          const entry = buildEntry(setting, ctx);
+          entries.push(entry);
+          grid.appendChild(entry.wrapper);
+        }
       }
 
       body.appendChild(el('.card', [
         el('.card-head', [
           el('h2', { text: group.label }),
           el('.spacer'),
-          el('span.muted', { text: `${settings.length} parameter`, style: { fontSize: '12px' } }),
+          el('span.muted', {
+            text: Array.isArray(group.matrix)
+              ? `${group.matrix.length} jenis dokumen`
+              : `${settings.length} parameter`,
+            style: { fontSize: '12px' },
+          }),
         ]),
         el('.card-body', [
           group.description ? el('p.muted', { text: group.description, style: { margin: '0 0 14px', fontSize: '12.5px' } }) : null,

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Validator;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ApprovalPolicy;
 use Modules\Core\Support\Money;
 
 /**
@@ -102,9 +103,52 @@ class UpdateSettingsRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $this->rejectUnknownKeys($validator);
+            $this->rejectApprovalPolicyWithoutDirector($validator);
             $this->rejectUnpostableAccounts($validator);
             $this->rejectRepointingAnAccountInUse($validator);
         });
+    }
+
+    /**
+     * F-1 — mengubah approvals.* butuh core.update DAN sebuah izin persetujuan
+     * direktur.
+     *
+     * Dijawab 422 per-parameter dan bukan 403 di rute, karena sebuah simpanan
+     * boleh memuat parameter lain yang memang boleh diubah orang ini: 403
+     * menolak seluruh formulir tanpa memberi tahu baris mana yang menolaknya,
+     * dan operator akan mencoba lagi dengan formulir yang sama. Aturan yang
+     * sama ditegakkan LAGI di SettingService::set(), jadi ia tidak bisa
+     * dilewati dengan memanggil service langsung — di sini yang ditambahkan
+     * adalah kalimat Indonesia yang menyebut parameternya.
+     */
+    private function rejectApprovalPolicyWithoutDirector(Validator $validator): void
+    {
+        $keys = array_filter(
+            array_map('strval', array_keys($this->submitted())),
+            static fn (string $key): bool => SettingService::isApprovalPolicyKey($key),
+        );
+
+        if ($keys === []) {
+            return;
+        }
+
+        $actor = $this->user();
+
+        foreach (ApprovalPolicy::directorPermissions() as $permission) {
+            if ($actor !== null && $actor->can($permission)) {
+                return;
+            }
+        }
+
+        foreach ($keys as $key) {
+            $validator->errors()->add(
+                'settings.'.$key,
+                'Aturan persetujuan hanya dapat diubah oleh pemegang izin persetujuan direktur '
+                .'(*.approve-director) — pada instalasi standar peran direktur atau admin. Izin '
+                .'core.update saja tidak cukup: yang diubah di sini adalah siapa boleh menyetujui '
+                .'dokumen senilai berapa.',
+            );
+        }
     }
 
     /**

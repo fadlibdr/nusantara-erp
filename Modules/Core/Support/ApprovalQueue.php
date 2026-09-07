@@ -31,7 +31,13 @@ use Throwable;
  */
 class ApprovalQueue
 {
-    private const AMOUNT_KEYS = ['total', 'total_payable', 'net_payable', 'grand_total', 'value', 'total_budget', 'total_net', 'amount', 'total_amount'];
+    /**
+     * Publik sejak F-1: ApprovalPolicy mencap nilai dokumen pada baris
+     * `submitted` dan harus memindai kolom yang SAMA, dalam urutan yang sama.
+     * Dua daftar akan berarti kotak masuk menampilkan satu angka dan stempel
+     * kebijakan mengukur ambangnya terhadap angka lain.
+     */
+    public const AMOUNT_KEYS = ['total', 'total_payable', 'net_payable', 'grand_total', 'value', 'total_budget', 'total_net', 'amount', 'total_amount'];
 
     private const TITLE_KEYS = ['title', 'name', 'description', 'purpose', 'reason', 'notes', 'subject'];
 
@@ -49,6 +55,7 @@ class ApprovalQueue
         $rows = [];
         $failed = [];
         $employeeId = $forUser?->employee_id ?? null;
+        $approvable = self::resourcesWithAnApproveEndpoint();
 
         foreach (ApprovableDocuments::all() as $class => $entry) {
             $permission = "{$entry['prefix']}.approve";
@@ -113,6 +120,14 @@ class ApprovalQueue
                         'code' => $attrs['code'] ?? ('#'.$doc->getKey()),
                         'label' => $entry['label'],
                         'resource' => $entry['resource'],
+                        // F-1 — endpoint Setujui MILIK MODULNYA, atau null.
+                        // Setujui massal memanggil URL ini satu per satu; baris
+                        // yang tidak punya (jenis dokumen yang menyetujui lewat
+                        // pintu lain) tidak bisa dipilih, dan layar
+                        // mengatakannya alih-alih memanggil 404.
+                        'approve_url' => in_array($entry['resource'], $approvable, true)
+                            ? "{$entry['resource']}/{$doc->getKey()}/approve"
+                            : null,
                         'permission' => $permission,
                         'title' => $title,
                         'amount' => $amount,
@@ -133,5 +148,33 @@ class ApprovalQueue
         usort($rows, fn ($a, $b) => strcmp((string) $a['submitted_at'], (string) $b['submitted_at']));
 
         return ['rows' => $rows, 'failed' => $failed];
+    }
+
+    /**
+     * Resource yang BENAR-BENAR punya rute POST <resource>/{id}/approve.
+     *
+     * Dibaca dari tabel rute, bukan diasumsikan dari pola. Setujui massal
+     * memanggil endpoint modulnya sendiri satu per satu — itulah yang membuat
+     * maker-checker, ambang direktur, catatan dan pemberitahuan tetap berjalan
+     * — jadi sebuah baris yang endpoint-nya tidak ada harus DIKETAHUI di sini,
+     * bukan ditemukan sebagai 404 di tengah antrean sepuluh dokumen.
+     *
+     * @return list<string>
+     */
+    private static function resourcesWithAnApproveEndpoint(): array
+    {
+        $resources = [];
+
+        foreach (app('router')->getRoutes() as $route) {
+            if (! in_array('POST', $route->methods(), true)) {
+                continue;
+            }
+
+            if (preg_match('#^api/(.+)/\{[^}]+\}/approve$#', $route->uri(), $matches) === 1) {
+                $resources[] = $matches[1];
+            }
+        }
+
+        return array_values(array_unique($resources));
     }
 }
