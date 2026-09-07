@@ -5368,6 +5368,558 @@ def s23m(browser):
         ctx.close()
 
 
+
+# ------------------------------------------------------------------ S27 PWA
+
+# Berkas worker di pohon kerja — dinaikkan versinya lalu DIPULIHKAN untuk
+# mengukur toast "Versi baru siap" (pola yang sama dengan fixture yang ditanam
+# S26 di basis data: ditanam, diukur, dicabut di `finally`).
+SW_FILE = os.environ.get("ERP_SW", os.path.join(os.path.dirname(os.path.dirname(SPA_EVIDENCE)), "public/app/sw.js"))
+
+SW_FACTS = """async () => {
+  const reg = await navigator.serviceWorker.getRegistration();
+  const names = await caches.keys();
+  let keys = [];
+  for (const name of names) keys = keys.concat((await (await caches.open(name)).keys()).map((r) => new URL(r.url).pathname));
+  return {
+    scope: reg ? reg.scope : null,
+    script: reg && reg.active ? reg.active.scriptURL : null,
+    state: reg && reg.active ? reg.active.state : null,
+    controlled: !!navigator.serviceWorker.controller,
+    cache_names: names,
+    cached: keys.length,
+    cached_api: keys.filter((p) => p.startsWith('/api/')),
+    cached_outside_scope: keys.filter((p) => !p.startsWith('/app/')),
+  };
+}"""
+
+# deliveryType MEMBEDAKAN dua "cache" yang biasanya tertukar (diukur 7 Sep 2026):
+# 'cache' = cache HTTP peramban, '' = jaringan, 'cache-storage' = CacheStorage,
+# yaitu SATU-SATUNYA yang bisa diisi service worker. Klaim tengah paket ini —
+# "0 respons API dari cache SW" — karena itu bisa dibaca, bukan diyakini.
+ENTRIES = """() => performance.getEntriesByType('resource').map((e) => ({
+  name: e.name, delivery: e.deliveryType, transfer: e.transferSize, worker: Math.round(e.workerStart) }))"""
+
+RIBBON = """() => { const r = document.querySelector('.offline-ribbon');
+  return r ? { present: true, hidden: r.hidden, visible: r.checkVisibility(), text: r.innerText.trim() } : { present: false }; }"""
+
+
+def pwa_facts(pg):
+    e = pg.evaluate(ENTRIES)
+    api = [x for x in e if "/api/" in x["name"]]
+    shell = [x for x in e if "/app/" in x["name"]]
+    return {
+        "api_entries": len(api),
+        "api_from_cache_storage": [x["name"].split("/api/")[1] for x in api if x["delivery"] == "cache-storage"],
+        "shell_from_cache_storage": len([x for x in shell if x["delivery"] == "cache-storage"]),
+        "shell_entries": len(shell),
+    }
+
+
+def pwa_scenario(pg, tag, mobile=False):
+    ctx = pg.context
+    out = {"tag": tag}
+    seen = []
+    pg.on("response", lambda r: seen.append((r.url, r.from_service_worker)))
+
+    login(pg, "teknisi@nusantara.test")
+    # Pendaftaran worker sengaja menunggu `load` + satu putaran idle (app.js),
+    # jadi yang ditunggu di sini adalah AKIBATNYA, bukan waktu tetap.
+    pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=30000)
+    pg.wait_for_timeout(2500)
+    out["worker"] = pg.evaluate(SW_FACTS)
+
+    # DARING: satu berkas cangkang diminta lagi. Ia ADA di CacheStorage, jadi
+    # kalau strateginya "cache dulu" jawabannya akan bertanda deliveryType
+    # 'cache-storage' dan transferSize 0. Jaringan-dulu berarti keduanya bukan.
+    mark = len(seen)
+    out["online_shell_fetch"] = pg.evaluate("""async () => {
+      const r = await fetch('app.css', { cache: 'no-store' });
+      const all = performance.getEntriesByName(new URL('app.css', location.href).href);
+      const e = all[all.length - 1];
+      return { status: r.status, delivery: e ? e.deliveryType : null, transfer: e ? e.transferSize : null };
+    }""")
+    # …dan worker MEMANG yang menjawabnya (sisi Playwright, bukan sisi halaman).
+    out["online_shell_via_worker"] = any(u.endswith("/app/app.css") and sw for u, sw in seen[mark:])
+
+    pg.evaluate("() => { location.hash = '#/lapangan'; }")
+    pg.wait_for_timeout(2500)
+    out["ribbon_online"] = pg.evaluate(RIBBON)
+
+    # ---- pita: putus, lalu sambung lagi. TANPA muat ulang di antaranya, karena
+    # emulasi luring Playwright hilang saat dokumen baru dibuat: sesudah reload
+    # navigator.onLine kembali true meski jaringannya masih terputus (diukur
+    # 7 Sep 2026), sehingga peristiwa 'online' yang memadamkan pita tidak pernah
+    # menyala. Urutan ini mengukur kontraknya, bukan artefak alatnya.
+    ctx.set_offline(True)
+    pg.wait_for_timeout(1000)
+    out["ribbon_offline"] = pg.evaluate(RIBBON)
+    pg.screenshot(path=f"{OUT}/s27-pita-luring{tag}.png", full_page=False)
+
+    # Kalimat pita bergantung pada ISI antrean, dan kedua keadaan diukur di sini.
+    # Sampai 7 Sep 2026 pita selalu berbunyi 'tekan "Kirim ulang" pada barisnya'
+    # — termasuk pada antrean KOSONG, ketika tidak ada satu pun tombol itu di
+    # halaman (terukur: kartu "Foto belum terkirim" tersembunyi, 0 tombol).
+    # Satu butir ditanam langsung di localStorage (bentuk yang sama dengan yang
+    # ditulis enqueue()) lalu dicabut lagi, karena mengambil foto sungguhan
+    # butuh kamera.
+    out["retry_buttons_with_empty_queue"] = pg.evaluate(
+        "() => [...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Kirim ulang').length")
+    # Butirnya ditanam SEKARANG tetapi dibaca sesudah muat ulang luring di bawah:
+    # readQueue() menyimpan cache per pengguna dan tidak membaca localStorage lagi
+    # selama halaman yang sama hidup (terukur: pita tetap berkalimat antrean-kosong
+    # ketika butirnya ditanam di tengah halaman yang sudah berjalan).
+    out["queue_seeded"] = pg.evaluate("""() => {
+      const id = (JSON.parse(localStorage.getItem('nusantara_erp_user') || 'null') || {}).id || 0;
+      const key = 'nusantara_erp_upload:' + id + ':uji-s27';
+      localStorage.setItem(key, JSON.stringify({ key: 'uji-s27', userId: id, state: 'failed',
+        error: 'Ditanam harness S27.', attempts: 1, savedAt: Date.now(), slug: 'daily-report', id: 1,
+        label: 'Laporan harian (uji)', filename: 'uji-s27.jpg', position: null, size: 12,
+        content: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }));
+      return key; }""")
+
+    ctx.set_offline(False)
+    pg.wait_for_timeout(1500)
+    out["ribbon_back_online"] = pg.evaluate(RIBBON)
+
+    # ---- PORTAL: navigator.onLine berkata true, paketnya tetap tidak sampai.
+    # Kasus inilah yang pita ini ada untuk melaporkannya (Wi-Fi lokasi yang
+    # halaman login-nya belum dilewati, satu bar 4G di lantai basement), dan ia
+    # hanya muncul dalam urutan tertentu: satu kegagalan, lalu satu peristiwa
+    # `online`, TANPA satu pun permintaan berhasil di antaranya. Karena itu
+    # abort dipasang SEBELUM set_offline(False) dan tidak dilepas sampai
+    # pengukurannya selesai — permintaan yang berhasil di sela akan menyetel
+    # ulang ingatan api.js dan menyembunyikan cacatnya (terukur 7 Sep 2026:
+    # versi pertama syarat ini hijau di atas kode yang RUSAK karena satu
+    # permintaan sempat sampai selama jeda 1,5 detik).
+    pg.route("**/api/**", lambda route: route.abort("connectionfailed"))
+    ctx.set_offline(True)
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(2200)
+    ctx.set_offline(False)          # ← peristiwa `online` menyala di sini
+    pg.wait_for_timeout(1200)
+    pg.evaluate("() => { location.hash = '#/lapangan'; }")
+    pg.wait_for_timeout(2600)
+    out["ribbon_captive_portal"] = pg.evaluate(RIBBON)
+    out["captive_portal_online_flag"] = pg.evaluate("() => navigator.onLine")
+    pg.unroute("**/api/**")
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(2200)
+    pg.evaluate("() => { location.hash = '#/lapangan'; }")
+    pg.wait_for_timeout(2600)
+    out["ribbon_after_portal_cleared"] = pg.evaluate(RIBBON)
+
+    # ---- muat ulang TANPA jaringan: cangkang harus tetap tergambar…
+    ctx.set_offline(True)
+    pg.wait_for_timeout(500)
+    pg.reload(wait_until="load")
+    pg.wait_for_timeout(4500)
+    out["offline_shell"] = pg.evaluate("""() => ({
+      shell: !!document.querySelector('.shell'),
+      nav_items: document.querySelectorAll('nav.nav a').length,
+      login_form: !!document.querySelector('input[type=email]'),
+      title: document.title,
+      html_chars: document.documentElement.outerHTML.length,
+      toasts: [...document.querySelectorAll('.toast')].map((t) => t.innerText.replace(/\\n/g, ' / ')),
+      ribbon_visible: !!document.querySelector('.offline-ribbon:not([hidden])'),
+    })""")
+
+    # …dan permintaan /api/* harus GAGAL, bukan dijawab dari cache.
+    out["offline_api"] = pg.evaluate("""async () => {
+      try {
+        const r = await fetch('/api/core/dashboard/summary', { headers: { 'X-Api-Token': localStorage.getItem('nusantara_erp_token') || '' } });
+        return { threw: false, status: r.status };
+      } catch (e) { return { threw: true, error: String(e) }; }
+    }""")
+    # Halaman ini baru, jadi antrean yang ditanam di atas terbaca sekarang: pita
+    # yang sama harus berganti kalimat dan menunjuk tombol yang MEMANG ada.
+    out["ribbon_offline_with_queue"] = pg.evaluate(RIBBON)
+    out["retry_buttons_with_queue"] = pg.evaluate(
+        "() => [...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Kirim ulang').length")
+    pg.screenshot(path=f"{OUT}/s27-pita-luring-antrean{tag}.png", full_page=False)
+    pg.evaluate("(key) => localStorage.removeItem(key)", out["queue_seeded"])
+
+    out["offline_entries"] = pwa_facts(pg)
+    pg.screenshot(path=f"{OUT}/s27-luring{tag}.png", full_page=True)
+    ctx.set_offline(False)
+    pg.wait_for_timeout(800)
+
+    # Toast "Mode luring" harus MEMBETULKAN dirinya sendiri. Sampai 7 Sep 2026 ia
+    # dipasang dengan timeout 0 dan tanpa pendengar apa pun: layar sudah memuat
+    # data hidup, pita luring sudah padam, dan toast itu masih berbunyi "Tanpa
+    # koneksi" sampai orangnya menekan silang — di 390x844 ia menutup 104 px
+    # paling bawah layar selamanya.
+    #
+    # Yang memadamkannya adalah permintaan pertama yang SAMPAI, bukan jam:
+    # sesudah muat ulang luring navigator.onLine sudah true lagi (artefak
+    # emulasi Playwright, terukur), jadi set_offline(False) tidak menyalakan
+    # peristiwa `online` sama sekali. Karena itu di sini dibuka satu layar —
+    # yang juga yang dilakukan orangnya. Tanpa itu pun toast padam paling lambat
+    # pada polling notifikasi 90 detik.
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(3500)
+    out["toasts_after_reconnect"] = toasts(pg)
+    pg.screenshot(path=f"{OUT}/s27-kembali-daring{tag}.png", full_page=False)
+
+    # Bukti kedua, dari sisi Playwright dan bukan dari halaman: tidak satu pun
+    # respons /api/ yang datang dari service worker, sepanjang skenario.
+    out["api_responses_from_worker"] = sorted({u.split("/api/")[1] for u, sw in seen if "/api/" in u and sw})
+    out["api_responses_total"] = len([1 for u, _ in seen if "/api/" in u])
+
+    # ---- "Pasang aplikasi", dilaporkan apa adanya
+    out["beforeinstallprompt"] = pg.evaluate("""() => new Promise((res) => {
+      let fired = false;
+      window.addEventListener('beforeinstallprompt', () => { fired = true; res('menyala'); });
+      setTimeout(() => res(fired ? 'menyala' : 'tidak menyala'), 4000);
+    })""")
+    click(pg, "button.userchip")
+    pg.wait_for_selector(".modal", timeout=10000)
+    pg.wait_for_timeout(400)
+    out["account_dialog_install"] = pg.evaluate("""() => {
+      const rows = [...document.querySelectorAll('.modal .modal-body p')]
+        .map((n) => (n.innerText || '').trim()).filter((t) => /Pasang aplikasi|sudah terpasang/.test(t));
+      return { line: rows.length ? rows[rows.length - 1].slice(0, 200) : null,
+               button: [...document.querySelectorAll('.modal button')].some((b) => b.innerText.trim() === 'Pasang aplikasi') };
+    }""")
+    pg.screenshot(path=f"{OUT}/s27-akun-pasang{tag}.png", full_page=False)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    checks = {
+        "scope_is_app": out["worker"]["scope"] == ORIGIN + "/app/",
+        "script_is_app_sw": (out["worker"]["script"] or "").endswith("/app/sw.js"),
+        "page_is_controlled": out["worker"]["controlled"] is True,
+        "one_versioned_cache": len(out["worker"]["cache_names"]) == 1 and out["worker"]["cache_names"][0].startswith("nusantara-shell-v"),
+        "shell_precached": out["worker"]["cached"] >= 100,
+        "zero_api_in_cache": out["worker"]["cached_api"] == [],
+        "zero_outside_scope_in_cache": out["worker"]["cached_outside_scope"] == [],
+        "online_shell_from_network": (out["online_shell_fetch"]["status"] == 200
+                                      and out["online_shell_fetch"]["delivery"] != "cache-storage"
+                                      and (out["online_shell_fetch"]["transfer"] or 0) > 0),
+        "online_shell_answered_by_worker": out["online_shell_via_worker"] is True,
+        "ribbon_hidden_online": out["ribbon_online"]["present"] and out["ribbon_online"]["hidden"] is True,
+        "ribbon_shown_offline": out["ribbon_offline"]["visible"] is True and "Tanpa koneksi" in out["ribbon_offline"]["text"],
+        "empty_queue_ribbon_names_no_button": ("Kirim ulang" not in out["ribbon_offline"]["text"]
+                                               and out["retry_buttons_with_empty_queue"] == 0),
+        "queued_photo_ribbon_points_at_the_button": ('"Kirim ulang" pada barisnya' in out["ribbon_offline_with_queue"]["text"]
+                                                     and out["retry_buttons_with_queue"] >= 1),
+        "ribbon_hidden_again": out["ribbon_back_online"]["hidden"] is True,
+        "ribbon_shown_behind_captive_portal": (out["captive_portal_online_flag"] is True
+                                               and out["ribbon_captive_portal"]["visible"] is True),
+        "ribbon_hidden_when_requests_arrive_again": out["ribbon_after_portal_cleared"]["hidden"] is True,
+        "offline_shell_renders": out["offline_shell"]["shell"] and out["offline_shell"]["nav_items"] > 0 and not out["offline_shell"]["login_form"],
+        "offline_ribbon_survives_reload": out["offline_shell"]["ribbon_visible"] is True,
+        "offline_boot_toast_shown": any("Mode luring" in t for t in out["offline_shell"]["toasts"]),
+        "offline_boot_toast_clears_itself": not any("Mode luring" in t for t in out["toasts_after_reconnect"]),
+        "reconnect_says_the_session_was_refreshed": any("Kembali daring" in t for t in out["toasts_after_reconnect"]),
+        "offline_api_failed": out["offline_api"]["threw"] is True,
+        "offline_shell_came_from_cache_storage": out["offline_entries"]["shell_from_cache_storage"] > 0,
+        "zero_api_from_cache_storage": out["offline_entries"]["api_from_cache_storage"] == [],
+        "zero_api_responses_from_worker": out["api_responses_from_worker"] == [],
+        "install_row_present": bool(out["account_dialog_install"]["line"]),
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S27_pwa")
+def s27(pg):
+    return pwa_scenario(pg, "-p1i")
+
+
+@scenario("S27_pwa_mobile")
+def s27m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return pwa_scenario(pg, "-mobile-p1i", mobile=True)
+    finally:
+        ctx.close()
+
+
+@scenario("S27_pwa_pembaruan")
+def s27u(pg):
+    """Toast "Versi baru siap" — dan SATU muat ulang, tidak pernah dua.
+
+    SHELL_VERSION dinaikkan DI BERKASNYA lalu dipulihkan di `finally`: peramban
+    membandingkan BYTE sw.js, jadi tidak ada cara lain memunculkan worker yang
+    menunggu selain benar-benar mengubah berkasnya."""
+    if not os.path.exists(SW_FILE):
+        return {"SKIPPED": f"sw.js tidak ada di {SW_FILE} (setel ERP_SW)"}
+
+    original = open(SW_FILE, encoding="utf-8").read()
+    m = re.search(r"const SHELL_VERSION = '([^']+)';", original)
+    if not m:
+        return {"SKIPPED": "SHELL_VERSION tidak ditemukan di sw.js"}
+    bumped = original.replace(m.group(0), f"const SHELL_VERSION = '{m.group(1)}-uji';", 1)
+
+    out = {"version_before": m.group(1)}
+    navigations = []
+    pg.on("framenavigated", lambda f: navigations.append(f.url) if f == pg.main_frame else None)
+
+    try:
+        login(pg, "teknisi@nusantara.test")
+        pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=30000)
+        pg.wait_for_timeout(2000)
+        out["cache_before"] = pg.evaluate("async () => await caches.keys()")
+        out["toasts_before"] = toasts(pg)
+
+        open(SW_FILE, "w", encoding="utf-8").write(bumped)
+        pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }")
+        pg.wait_for_selector(".toast:has-text('Versi baru siap')", timeout=25000)
+        # Toast masuk dengan animasi; tangkapan layar tanpa jeda ini memotret
+        # separuh transisinya (terukur 7 Sep 2026: teks tembus pandang di atas
+        # kartu di belakangnya).
+        pg.wait_for_timeout(700)
+        out["toast"] = toasts(pg)
+        out["waiting_worker"] = pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.waiting); }")
+        pg.screenshot(path=f"{OUT}/s27-toast-versi-baru-p1i.png", full_page=False)
+
+        # RILIS KEDUA di tab yang sama, tanpa ada yang menekan apa pun. Sebuah
+        # tablet lapangan yang tidak pernah ditutup melihat setiap rilis; sampai
+        # 7 Sep 2026 setiap rilis menambah SATU toast permanen berbunyi persis
+        # sama (terukur: dua toast identik sesudah rilis ketiga, 88 px masing-
+        # masing di atas hosting toast yang sudah menutup 104 px dasar layar).
+        open(SW_FILE, "w", encoding="utf-8").write(
+            original.replace(m.group(0), f"const SHELL_VERSION = '{m.group(1)}-uji2';", 1))
+        pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }")
+        pg.wait_for_timeout(4000)
+        out["toasts_after_second_release"] = toasts(pg)
+        pg.screenshot(path=f"{OUT}/s27-toast-rilis-kedua-p1i.png", full_page=False)
+
+        navigations.clear()
+        click(pg, ".toast button:has-text('Muat ulang')")
+        # Cukup lama untuk memergoki muat ulang KEDUA kalau ada.
+        pg.wait_for_timeout(9000)
+        out["navigations_after_click"] = len(navigations)
+        out["cache_after"] = pg.evaluate("async () => await caches.keys()")
+        out["toasts_after"] = toasts(pg)
+        out["controlled_after"] = pg.evaluate("() => !!navigator.serviceWorker.controller")
+    finally:
+        open(SW_FILE, "w", encoding="utf-8").write(original)
+
+    checks = {
+        "no_toast_on_first_install": not any("Versi baru siap" in t for t in out["toasts_before"]),
+        "toast_says_the_sentence": any("Versi baru siap — Muat ulang" in t for t in out.get("toast", [])),
+        "toast_has_reload_button": any("Muat ulang" in t for t in out.get("toast", [])),
+        "a_worker_was_waiting": out.get("waiting_worker") is True,
+        "a_second_release_does_not_stack_a_second_toast":
+            len([t for t in out.get("toasts_after_second_release", []) if "Versi baru siap" in t]) == 1,
+        "reloaded_exactly_once": out.get("navigations_after_click") == 1,
+        "old_cache_deleted": len(out.get("cache_after", [])) == 1 and out.get("cache_after") != out.get("cache_before"),
+        "still_controlled": out.get("controlled_after") is True,
+        "no_toast_left_over": not any("Versi baru siap" in t for t in out.get("toasts_after", [])),
+        "sw_file_restored": open(SW_FILE, encoding="utf-8").read() == original,
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+INSTALL_ROW = """() => {
+  const rows = [...document.querySelectorAll('.modal .modal-body p')]
+    .map((n) => (n.innerText || '').trim())
+    .filter((t) => /Pasang aplikasi|sudah terpasang|Tawaran pemasangan/.test(t));
+  return { line: rows.length ? rows[rows.length - 1] : null,
+           button: [...document.querySelectorAll('.modal button')].some((b) => b.innerText.trim() === 'Pasang aplikasi'),
+           button_disabled: [...document.querySelectorAll('.modal button')]
+             .filter((b) => b.innerText.trim() === 'Pasang aplikasi').map((b) => b.disabled) }; }"""
+
+# beforeinstallprompt TIDAK menyala di Chromium headless (diukur ulang 7 Sep 2026:
+# "tidak menyala" sesudah 4 detik), jadi peristiwanya dikirim sendiri dengan
+# prompt()/userChoice palsu. Yang diuji tetap kode yang dikirim: preventDefault,
+# penangkapan, render tombol, pemanggilan prompt(), dan — yang jadi cacatnya —
+# kalimat yang dibaca orangnya SESUDAH tawaran itu dipakai.
+FIRE_PROMPT = """() => {
+  window.__promptCalls = 0;
+  window.__choice = 'dismissed';
+  const event = new Event('beforeinstallprompt', { cancelable: true });
+  event.prompt = () => { window.__promptCalls += 1; return Promise.resolve(); };
+  event.userChoice = Promise.resolve({ outcome: 'dismissed', platform: '' });
+  window.dispatchEvent(event);
+  return event.defaultPrevented; }"""
+
+
+def open_account(pg):
+    click(pg, "button.userchip")
+    pg.wait_for_selector(".modal", timeout=10000)
+    pg.wait_for_timeout(400)
+
+
+@scenario("S27_pwa_pasang")
+def s27p(pg):
+    """Dialog Akun: keempat keadaan baris "Pasang aplikasi", termasuk yang belum
+    pernah dijalankan siapa pun — apa yang dibaca orangnya SESUDAH ia menekan
+    tombolnya. Sampai 7 Sep 2026 jawabannya "Peramban ini belum menawarkannya
+    dari dalam halaman", kepada orang yang baru saja menawarkannya."""
+    out = {}
+    login(pg, "teknisi@nusantara.test")
+
+    open_account(pg)
+    out["state_never_offered"] = pg.evaluate(INSTALL_ROW)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    out["prevent_default"] = pg.evaluate(FIRE_PROMPT)
+    open_account(pg)
+    out["state_offered"] = pg.evaluate(INSTALL_ROW)
+    pg.screenshot(path=f"{OUT}/s27-pasang-tombol-p1i.png", full_page=False)
+    click(pg, ".modal button:has-text('Pasang aplikasi')")
+    pg.wait_for_timeout(800)
+    out["prompt_calls"] = pg.evaluate("() => window.__promptCalls")
+    out["state_while_open"] = pg.evaluate(INSTALL_ROW)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    open_account(pg)
+    out["state_after_use"] = pg.evaluate(INSTALL_ROW)
+    pg.screenshot(path=f"{OUT}/s27-pasang-sesudah-dipakai-p1i.png", full_page=False)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    pg.evaluate("() => window.dispatchEvent(new Event('appinstalled'))")
+    open_account(pg)
+    out["state_installed"] = pg.evaluate(INSTALL_ROW)
+    pg.screenshot(path=f"{OUT}/s27-pasang-terpasang-p1i.png", full_page=False)
+    pg.keyboard.press("Escape")
+
+    never = out["state_never_offered"]["line"] or ""
+    used = out["state_after_use"]["line"] or ""
+    checks = {
+        "never_offered_names_both_ways_in": "Instal aplikasi" in never and "Tambahkan ke Layar Utama" in never,
+        "never_offered_says_so": "belum menawarkannya" in never,
+        "the_event_is_captured": out["prevent_default"] is True,
+        "the_offer_becomes_a_button": out["state_offered"]["button"] is True,
+        "pressing_it_calls_prompt_once": out["prompt_calls"] == 1,
+        "the_button_locks_itself": out["state_while_open"]["button_disabled"] == [True],
+        "after_use_it_does_not_claim_it_was_never_offered": "belum menawarkannya" not in used,
+        "after_use_it_says_the_offer_was_spent": "Tawaran pemasangan sudah dipakai" in used,
+        "after_use_it_names_the_way_back": "Muat ulang halaman" in used,
+        "appinstalled_flips_the_row": "sudah terpasang" in (out["state_installed"]["line"] or ""),
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+BOOT_ROOT = """() => ({ spinner: !!document.querySelector('.boot-spinner'),
+  shell: !!document.querySelector('.shell'),
+  failed_panel: !!document.querySelector('#root.boot-failed'),
+  head: (document.querySelector('#root.boot-failed h1') || {}).textContent || null,
+  body: (document.querySelector('#root.boot-failed p') || {}).textContent || null,
+  button: (document.querySelector('#root.boot-failed button') || {}).textContent || null })"""
+
+
+@scenario("S27_pwa_cangkang_sebagian")
+def s27k(browser):
+    """Cangkang yang tidak lengkap: kuota penuh, dan berkas yang tidak sampai.
+
+    Dua keadaan yang tidak bisa dibuktikan uji PHP mana pun, karena keduanya
+    hanya ada di dalam peramban:
+
+    (A) KUOTA. Kuota origin dibatasi 1,2 MB lewat CDP (cangkangnya ~2,1 MB),
+        jadi install-nya sebagian. Sampai 7 Sep 2026 hasilnya: 42 dari 102 entri
+        masuk, worker aktif, DARING baik-baik saja — lalu muat ulang tanpa
+        jaringan berhenti selamanya di pemutar boot (body kosong, 1.532 char).
+        Sekarang cache yang tidak lengkap dibuang, jadi perangkatnya turun ke
+        "tidak punya lapisan luring", bukan ke aplikasi yang membeku.
+
+    (B) PENGAWAS BOOT. Satu modul cangkang digugurkan (persis rilis yang
+        kehilangan berkas — 7 Sep 2026 satu 404 menggantung seluruh SPA):
+        index.html harus mengganti pemutar dengan kalimat, dan kalimatnya
+        berbeda ketika perangkatnya luring."""
+    out = {}
+    decide_onboarding("teknisi@nusantara.test")
+
+    # ---- (A0) KENDALI. Konteks yang sama TANPA batas kuota, tanpa masuk —
+    # pendaftaran worker tidak menunggu sesi. Tanpa baris ini "0 entri" tidak
+    # membuktikan apa pun: navigator.storage.estimate() TIDAK melaporkan kuota
+    # yang ditimpa CDP (terukur 7 Sep 2026: tetap 4,3 GB sementara install-nya
+    # nyata-nyata terpotong), jadi yang membuktikan batasnya bekerja adalah
+    # selisih dengan jalan kendali ini.
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        pg.goto(BASE)
+        pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=40000)
+        pg.wait_for_timeout(8000)
+        out["control_cache"] = pg.evaluate(SW_FACTS)
+    finally:
+        ctx.close()
+
+    # ---------------------------------------------------------------- (A)
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        cdp = ctx.new_cdp_session(pg)
+        cdp.send("Storage.overrideQuotaForOrigin", {"origin": ORIGIN, "quotaSize": 1_200_000})
+        login(pg, "teknisi@nusantara.test")
+        pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=40000)
+        pg.wait_for_timeout(8000)   # 102 berkas dicoba satu per satu
+        out["cache_after_install"] = pg.evaluate(SW_FACTS)
+        pg.evaluate("() => { location.hash = '#/lapangan'; }")
+        pg.wait_for_timeout(2500)
+        out["online_after_quota"] = pg.evaluate("() => ((document.querySelector('.page-head h1') || {}).innerText || null)")
+        ctx.set_offline(True)
+        try:
+            pg.reload(wait_until="commit")
+            pg.wait_for_timeout(6000)
+            out["offline_reload"] = pg.evaluate(BOOT_ROOT)
+        except Exception as error:
+            # Tanpa index.html di cache peramban menggambar halaman galatnya
+            # sendiri: itulah "tidak punya lapisan luring", dan itu jujur.
+            out["offline_reload"] = {"navigation_error": str(error).splitlines()[0][:120], "spinner": False}
+    finally:
+        ctx.close()
+
+    # ---------------------------------------------------------------- (B)
+    for label, offline in (("daring", False), ("luring", True)):
+        ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+        pg = ctx.new_page()
+        try:
+            pg.route("**/app/js/ui.js", lambda route: route.abort("connectionfailed"))
+            if offline:
+                pg.add_init_script("Object.defineProperty(navigator, 'onLine', { get: () => false });")
+            pg.goto(BASE, wait_until="commit")
+            pg.wait_for_timeout(4000)
+            out[f"boot_{label}"] = pg.evaluate(BOOT_ROOT)
+            pg.screenshot(path=f"{OUT}/s27-boot-gagal-{label}-p1i.png", full_page=False)
+        finally:
+            ctx.close()
+
+    checks = {
+        "control_installs_the_whole_shell": out["control_cache"]["cached"] >= 100,
+        "quota_override_took": out["cache_after_install"]["cached"] < out["control_cache"]["cached"],
+        # Aturan sejak verifikasi ulang P1-I (7 Sep 2026): cache dibuang HANYA bila
+        # berkas INTI yang hilang. Kuota yang habis di tengah pemasangan biasanya
+        # menyisakan inti yang lengkap dan kehilangan layar-layar yang dimuat malas —
+        # dan cangkang sebagian yang JUJUR (panel pengawas menjelaskan keadaannya,
+        # dengan tombol Muat ulang) lebih berguna daripada tidak ada cangkang sama
+        # sekali, yang luring hanya memberi halaman galat bawaan peramban. Yang
+        # dijaga bukan lagi "dibuang", melainkan "tidak pernah menggantung".
+        "half_shell_keeps_its_core_or_is_discarded": (
+            out["cache_after_install"]["cached"] == 0
+            or out["cache_after_install"]["cached"] >= 8),
+        "half_shell_never_holds_api_or_foreign_entries": (
+            out["cache_after_install"]["cached_api"] == []
+            and out["cache_after_install"]["cached_outside_scope"] == []),
+        "app_still_works_online": out["online_after_quota"] == "Lapangan",
+        "offline_never_hangs_on_the_spinner": out["offline_reload"].get("spinner") is not True,
+        "watchdog_replaces_the_spinner": (out["boot_daring"]["failed_panel"] is True
+                                          and out["boot_daring"]["spinner"] is False),
+        "watchdog_says_what_to_do": out["boot_daring"]["button"] == "Muat ulang" and "Muat ulang halaman" in (out["boot_daring"]["body"] or ""),
+        "watchdog_knows_it_is_offline": "tanpa koneksi" in (out["boot_luring"]["head"] or ""),
+        "offline_sentence_names_the_photo_queue": "antrean" in (out["boot_luring"]["body"] or ""),
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -5378,7 +5930,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

@@ -1648,6 +1648,24 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .upload-item .row-actions { width: 100%; justify-content: flex-end; }
 }
 
+/* P1-I — pita luring di atas antrean Lapangan. Bentuknya .alert.warn (token yang
+   sama, kedua tema ikut sendiri), tetapi kelasnya sendiri karena ia BUKAN alert
+   sebuah halaman: ia menyala dan padam mengikuti jaringan, dan ui.js
+   offlineRibbon() yang memegang [hidden]-nya. Ikonnya tidak boleh menyusut
+   ketika kalimatnya membungkus di 390 px. */
+.offline-ribbon {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 11px 13px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 13px;
+}
+.offline-ribbon[hidden] { display: none; }
+.offline-ribbon svg { flex: none; margin-top: 1px; }
+
 .field-photos { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
 .field-photo {
   display: flex; align-items: center; gap: 10px;

@@ -787,3 +787,118 @@ progres setiap paket. Salinan itu juga PENDEK (11 dari 13 baris pada pohon empat
 tanpa kunci `children`. Muatan proyek karena itu tidak lagi membawa pohonnya sama sekali. Aturan
 umumnya: sebuah medan yang digerbangi di satu rute tidak boleh menumpang di rute lain yang tidak
 digerbangi — gerbang yang bisa diputari bukan gerbang.
+
+## 21. PWA — manifest & service worker (P1-I)
+
+Dua berkas statis di `public/app/`, dilayani tanpa satu baris pun konfigurasi server baru:
+`manifest.webmanifest` dan `sw.js`. nginx sudah melayani `/app/` dengan
+`try_files $uri $uri/index.html =404` dan `Cache-Control: no-cache`, dan `deploy/sync-erp1.sh`
+sudah menyalin seluruh `public/`.
+
+**Lingkup worker adalah `/app/`, dan itulah seluruh aturannya.** Sebuah service worker hanya boleh
+menguasai path di bawah folder skripnya, jadi `sw.js` yang duduk di `/app/sw.js` tidak bisa
+menyentuh `/api/`, `/storage/`, atau apa pun di luar cangkang — bahkan bila seseorang menuliskan
+kodenya. Itu bukan kebetulan yang beruntung, itu alasan berkasnya diletakkan di sana.
+
+**ATURAN "TIDAK PERNAH DI-CACHE".** Worker MENJAWAB sebuah permintaan hanya bila SEMUA benar:
+(1) metodenya `GET`; (2) asalnya sama dengan asal worker; (3) path-nya diawali lingkup worker
+(`/app/`); (4) tanpa header `Authorization`; (5) bukan `/app/sw.js` sendiri. Yang lain lewat
+**tanpa `respondWith()` sama sekali** — peramban mengambilnya seolah tidak ada worker. Yang boleh
+MASUK cache lebih sempit lagi: hanya jawaban `200` bertipe `basic`.
+
+Bentuknya **daftar izin, bukan daftar larangan**, dan itu keputusan sadar. Daftar larangan
+(`if (url.pathname.startsWith('/api/')) return;`) membusuk pada endpoint berikutnya yang lupa
+didaftarkan, dan kegagalannya diam: tablet lapangan yang dipakai bergantian akan menyajikan daftar
+dokumen milik orang sebelumnya, tanpa satu pun pesan galat, sampai ada yang menyadarinya. Satu
+awalan tidak bisa membusuk begitu. `tests/Feature/Core/PwaServiceWorkerTest` memaku kelima syarat
+itu, memaku bahwa hanya ada SATU `respondWith()` dan SATU `cache.put()`, dan memaku bahwa kode
+(tanpa komentar, tanpa daftar `SHELL`) tidak menyebut `/api`, `storage`, `attachment`, `lampiran`,
+`download` atau `unduh` sama sekali — **munculnya daftar larangan di sana adalah kegagalan uji.**
+
+Uji itu memaku **bentuk, bukan ejaan**: badan `shellRequest()` dan `storable()` dibandingkan UTUH,
+tulisan cache dihitung sebagai pola `\w+.put(`/`\w+.add(` (bukan nama variabel `cache`), dan DAFTAR
+pendengar worker dipaku persis empat (`install`, `activate`, `fetch`, `message`). Alasannya terukur:
+versi pertama yang menghitung potongan teks meloloskan empat mutasi yang benar-benar membocorkan
+cache — antara lain pendengar `fetch` KEDUA yang menulis lewat `store.put()` tanpa satu pun
+`respondWith()`, yang di peramban menyajikan `/api/core/dashboard/summary` kepada orang berikutnya
+di perangkat yang sama, sesudah Keluar, tanpa token. **Menambah pendengar berarti menambah ujinya.**
+
+**Strateginya jaringan-dulu.** Cache dibaca HANYA ketika `fetch()` melempar. Jawaban HTTP yang sah
+tetapi tidak menyenangkan (404 sesudah rilis membuang berkas, 401 dari gerbang HTTP) diteruskan apa
+adanya, tidak ditutupi salinan lama. `fetch()` juga **dimulai sebelum cache dibuka** — cache hanya
+dibuka ketika ada yang perlu disimpan (di dalam `waitUntil`) atau ketika fetch melempar. Urutan
+sebaliknya membuat ke-76 permintaan cangkang menunggu satu `caches.open` masing-masing sebelum satu
+byte pun diminta; terukur pada kunjungan kedua, 14 putaran per varian yang diselang-seling, cat
+pertama median 268 ms lawan 192 ms. Uji memaku urutan itu.
+
+**Cangkang setengah dibuang.** Bila satu saja entri `SHELL` gagal dipasang, seluruh cache dibuang
+(`caches.delete(CACHE)`) — install-nya sendiri tetap berhasil, jadi tidak ada pembaruan yang beku.
+Alasannya terukur dengan kuota origin 1,2 MB (cangkang ~2,1 MB): 42 dari 102 entri masuk, daring
+semuanya baik-baik saja, lalu muat ulang tanpa jaringan berhenti selamanya di pemutar boot dengan
+body kosong. **Cangkang setengah lebih buruk daripada tidak ada cangkang.** Jaring keduanya ada di
+`index.html`: pengawas boot sebaris — satu-satunya kode di sana yang tidak butuh berkas lain —
+mengganti pemutar dengan kalimat dan tombol "Muat ulang" bila sebuah `<script>` gagal atau boot
+belum selesai dalam 10 detik.
+
+**`SHELL` adalah daftar dua arah.** Ia memuat `'./'` + setiap berkas `html/css/js/svg/webmanifest`
+di bawah `public/app` (folder `icons/` tidak masuk — itu dibaca sistem operasi, bukan halaman; dan
+`sw.js` tidak pernah men-cache dirinya sendiri). Uji menolak baris yang berkasnya hilang **dan**
+berkas yang tidak terdaftar. Jadi: **setiap layar baru menambah satu baris di `SHELL`** — kalau
+tidak, aplikasi tetap jalan daring dan setengah mati saat luring, yang tidak akan terlihat siapa pun
+sampai seseorang membuka ponselnya di lokasi tanpa sinyal.
+
+**Menaikkan versi cache.** `const SHELL_VERSION = '1';` di kepala `sw.js`. Naikkan pada setiap rilis
+yang mengubah berkas cangkang. Peramban membandingkan **byte** `sw.js`, jadi mengubah angka itulah
+satu-satunya hal yang membuat worker baru dipasang — dan karena itu satu-satunya hal yang
+memunculkan toast "Versi baru siap — Muat ulang" di tab yang sudah terbuka berhari-hari. Rilis yang
+lupa menaikkannya tidak menyesatkan siapa pun (jaringan-dulu tetap menyajikan kode terbaru kepada
+siapa saja yang memuat ulang), ia hanya tidak mengumumkan dirinya. `activate` membuang setiap cache
+`nusantara-shell-*` yang bukan versi berjalan.
+
+**Warna.** `manifest.webmanifest` hanya boleh punya SATU `theme_color` dan SATU `background_color`,
+dan keduanya dipakai layar splash sebelum dokumen ada — jadi keduanya nilai tema **terang**
+(`--primary` `#1a56db` dan `--bg` `#f4f6f8`). Yang bisa bermedia adalah `<meta name="theme-color">`,
+dan index.html memasangnya **berpasangan** dengan nilai `--surface` kedua tema (`#ffffff` /
+`#151a21`) — `--surface`, bukan `--bg`, karena bilah peramban duduk persis di atas `.header`.
+`PwaManifestTest` membaca app.css dan menuntut keempat nilai itu sama persis dengan tokennya.
+
+**Ikon dibangkitkan, tidak digambar ulang.** `docs/bukti-uji/buat-ikon-pwa.py` memotret
+`public/app/favicon.svg` dengan Chromium milik harness (tidak ada rasterizer di host ini dan paket
+ini tidak menambah dependensi). Ukuran yang DIUMUMKAN manifest dipaku terhadap IHDR berkasnya:
+manifest yang menulis `512x512` di atas berkas 192 px tidak pernah terlihat sampai ikonnya buram di
+layar utama orang lain.
+
+**Pita luring.** `ui.offlineRibbon()` membaca DUA sumber: `navigator.onLine` **dan** peristiwa
+`erp:network` yang diumumkan `api.js` ketika sebuah transport gagal (fetch melempar, XHR status 0).
+`navigator.onLine` sendiri tidak cukup — Wi-Fi lokasi di balik portal dan 4G satu bar sama-sama
+melaporkan `true`. HTTP 500 **bukan** luring: server menjawab. Pita padam pada peristiwa `online`
+atau pada permintaan berikutnya yang berhasil — paling lambat polling notifikasi 90 detik. Ia
+sengaja tidak menyelidik jaringan sendiri: lalu lintas latar dari ponsel lapangan berkuota adalah
+biaya nyata untuk informasi yang akan datang sendiri.
+
+Dua sumber berarti dua ingatan, dan **keduanya harus dilupakan oleh peristiwa yang sama**: `api.js`
+menyetel ulang `lastNetworkOk` pada `online`, persis seperti `ui.js` menyetel ulang
+`networkTrouble`. Tanpa itu urutan luring → gagal → `online` meninggalkan `api.js` mengingat "sudah
+diumumkan luring" sementara `ui.js` sudah melupakannya, sehingga setiap kegagalan berikutnya kena
+dedupe dan pita tidak pernah menyala lagi — terukur: empat layar berturut yang seluruh
+permintaannya gagal, `navigator.onLine` true, pita padam, nol peristiwa. Itu justru kasus yang pita
+ini ada untuk melaporkannya.
+
+Kalimat pita **milik pemanggil dan boleh berupa fungsi**, dibaca ulang setiap kali pita menyala:
+layar Lapangan memilih antara "tekan Kirim ulang pada barisnya" (ada antrean) dan "foto yang Anda
+ambil sekarang tersimpan di ponsel ini" (antrean kosong). Pita yang menyuruh menekan tombol yang
+tidak ada di layar lebih buruk daripada pita yang diam.
+
+**Toast yang bertahan (`timeout: 0`) harus dipegang.** Dua di paket ini: "Versi baru siap" dibuang
+sebelum yang baru dibuat (kalau tidak, satu toast permanen menumpuk per rilis di tab yang tidak
+pernah ditutup — terukur dua toast identik pada rilis kedua), dan "Mode luring" dibuang pada
+peristiwa jaringan pertama yang berhasil, sekalian menyegarkan sesi cermin (`refreshMe`,
+`prefs.load`, `refreshNav`). Penyegaran yang gagal MEMBIARKAN toast lama berdiri: saat itu
+kalimatnya masih benar.
+
+**Mencabut worker.** Worker adalah satu-satunya artefak paket ini yang menetap di setiap peramban
+yang pernah membuka `/app/`, jadi "bagaimana mengambilnya kembali" adalah pertanyaan operasional
+yang harus punya jawaban tertulis: **DEPLOYMENT § 2.3**. Ringkasnya — **menghapus `sw.js` tidak
+mencopot apa pun** (terukur: sesudahnya worker tetap terdaftar, tetap menguasai halaman, cache tetap
+utuh, dan `update()` melempar), yang bekerja adalah **mengganti isinya** dengan pencabut yang
+menghapus cache dan memanggil `self.registration.unregister()`.

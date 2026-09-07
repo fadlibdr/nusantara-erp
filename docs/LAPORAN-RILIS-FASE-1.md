@@ -15,7 +15,9 @@ Main: `f51f18b` (P1-B) → **`0937dec`** (P1-C…P1-G) → `8bcd0ae` (perbaikan 
 | P1-F | Report builder "Laporan Bebas" v1 | `…-P1-F.md` |
 | P1-G | Papan kanban PR & NCR (0 endpoint baru) | `…-P1-G.md` |
 
-**Belum:** P1-H (gantt) setengah jadi di `feat/phase1-h`; P1-I (PWA) belum mulai.
+**Belum ada di catatan ini** (keduanya dikerjakan sesudah baris di atas ditulis): P1-H (gantt
+baca-saja + lapisan buktinya) sudah di-merge ke `main` sebagai `9e1e77a`, `…-P1-H.md`; P1-I (PWA)
+ada di `feat/phase1-i` menunggu gerbang rilis, `…-P1-I.md`.
 
 ## Gerbang rilis
 

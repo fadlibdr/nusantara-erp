@@ -22,20 +22,35 @@ than written 50 times.
 
 ```
 public/app/
-  index.html            shell: boot spinner, toast host, modal overlay
+  index.html            shell: boot spinner, toast host, modal overlay; <link rel=manifest> and
+                        the media-scoped theme-color pair (--surface, both themes)
   app.css               design tokens (light/dark, chart tokens, --accent-1..8 module accents,
                         --row-h density), layout, components, print
+  manifest.webmanifest  PWA manifest — id/start_url/scope all /app/, display standalone;
+                        pinned by tests/Feature/Core/PwaManifestTest (CONVENTIONS §21)
+  sw.js                 service worker, scope /app/ only: network-first for the shell, and an
+                        ALLOWLIST of one prefix — /api/*, /storage/* and attachments have no code
+                        path to the cache at all. SHELL is a two-way list: every new screen adds
+                        a line, or the app goes half-dead offline without saying so.
+                        Pinned by tests/Feature/Core/PwaServiceWorkerTest (CONVENTIONS §21)
+  icons/                icon-192 / icon-512 / icon-maskable-512, generated from favicon.svg by
+                        docs/bukti-uji/buat-ikon-pwa.py — never hand-drawn, never a placeholder
   vendor/               third-party static files, one folder per <lib>@<ver> + LICENSE;
                         VENDOR.md = manifest (sha256, gzip, how to update) pinned by
                         tests/Feature/Core/VendorManifestTest — no CDN, no npm at runtime
     sortablejs@1.15.7/  drag & drop (dashboard widgets, kanban) — lazy-loaded by its screens
     lucide@1.41.0/      sprite.svg, 79 <symbol id="lucide-…"> for ui.js svgIcon()
   js/
-    app.js              login gate, shell, navigation, route registration
+    app.js              login gate, shell, navigation, route registration; PWA wiring (P1-I):
+                        service-worker registration AFTER first paint (load + one idle turn),
+                        "Pasang aplikasi" in the account dialog, the "Versi baru siap" toast
+                        that reloads exactly once, and the offline boot from the cached session
     router.js           hash router (works from static hosting, no server rules)
     crumbs.js           setCrumbs() — the one breadcrumb builder: module crumb → #/m/<prefix>,
                         screen crumb → its list, #crumbs[data-root] = module | screen
-    api.js              fetch wrapper, session storage, error normalisation
+    api.js              fetch wrapper, session storage, error normalisation; announces
+                        erp:network { ok } from all three transports when a transport FAILS
+                        (a 500 is not offline) — the offline ribbon's second source
     vendorload.js       lazy <script> loader for UMD vendor files (SortableJS), one promise per
                         src, rejects on failure so the caller decides how to degrade
     kalenderpalette.js  the 8 department dot colours (ΔE-CVD validated) shared by the calendar
@@ -47,7 +62,8 @@ public/app/
                         erp:favorites-changed / erp:recent-changed / erp:prefs-loaded so the
                         sidebar and the views redraw without importing app.js (CONVENTIONS §15)
     format.js           id-ID money/date/percent formatting
-    ui.js               el() DOM builder, buttons, badges, modal, toast, fields, svgIcon(),
+    ui.js               el() DOM builder, buttons, badges, modal, toast (with an optional single
+                        action button), offlineRibbon()/networkDown(), fields, svgIcon(),
                         emptyState({ kind }) — CONVENTIONS §14
     illustrations.js    five stroke-only empty-state drawings (inbox/search/filter/error/done),
                         coloured by app.css tokens — no hex literals
@@ -256,3 +272,25 @@ Assets are referenced without a version query. In production, cache-bust by serv
 `public/app/` with a revalidating `Cache-Control` (or add a query string to the
 `index.html` script/link tags at release time). During development use a hard reload —
 a normal reload can leave a stale mix of ES modules in memory.
+
+Since P1-I a second cache sits in front of that one: the service worker's `nusantara-shell-v<n>`
+in CacheStorage. It changes nothing about who wins — the strategy is network-first, so a released
+file reaches anyone who reloads, and the cache is only ever read when `fetch()` throws. Two things
+follow for anyone touching the front-end:
+
+- **adding a file under `public/app/` means adding a line to `SHELL` in `sw.js`** (the test fails
+  otherwise, in both directions);
+- **a release that changes shell files should bump `SHELL_VERSION`** — that is what installs a new
+  worker and shows "Versi baru siap — Muat ulang" in tabs that have been open for days;
+- **adding a listener to `sw.js` means adding a test** — `PwaServiceWorkerTest` pins the listener
+  list at exactly four, because a second `fetch` listener can cache a per-user `/api` answer without
+  a single `respondWith()` and every other check in that file walks straight past it;
+- **`index.html` carries an inline boot watchdog** — the one script in the app that depends on no
+  other file. If a `<script>` fails or the app has not painted in 10 s it replaces the boot spinner
+  with a sentence and a reload button. Anything that changes `#root`'s boot markup must keep
+  `.boot-spinner` as the "still booting" signal.
+
+During development the worker makes a hard reload less predictable, not more: use DevTools →
+Application → Service Workers → *Update on reload*, or unregister it. CONVENTIONS §21 carries the
+never-cache rule itself; DEPLOYMENT §2.3 carries the way to take the worker back out of the fleet
+(deleting `sw.js` measurably does not).

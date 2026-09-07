@@ -4,8 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
+  <!-- Warna chrome peramban (bilah alamat Android, bilah status mode standalone). Ia duduk
+       PERSIS di atas .header, jadi tokennya --surface, bukan --bg: nilai kedua tema disalin
+       dari blok token app.css (#ffffff / #151a21). Dua meta bermedia, karena satu nilai akan
+       salah di separuh perangkat. manifest.webmanifest hanya boleh punya SATU theme_color —
+       itu untuk layar splash sebelum dokumen ini ada; sesudahnya kedua baris inilah yang
+       berlaku (P1-I). -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#151a21">
   <title>Nusantara ERP</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- iOS tidak membaca icons[] manifest untuk "Tambahkan ke Layar Utama". -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -15,6 +26,80 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="overlay" class="overlay" hidden></div>
   <script type="module" src="js/app.js"></script>
+  <!--
+    PENGAWAS BOOT (P1-I, verifikasi). Satu-satunya kode di berkas ini yang tidak
+    butuh berkas lain: kalau modulnya sendiri yang tidak sampai, tidak ada modul
+    yang bisa menggambar kalimat penggantinya.
+
+    Terukur 7 Sep 2026 dengan kuota origin dibatasi 1,2 MB: 42 dari 102 berkas
+    cangkang tersimpan, lalu muat ulang tanpa jaringan berhenti selamanya di
+    pemutar boot — body kosong, 1.532 char, nol kalimat. Kejadian yang sama
+    menimpa rilis yang kehilangan satu modul (7 Sep 2026, satu 404 menggantung
+    seluruh SPA). Pengawas ini mengganti pemutar dengan kalimat dan satu tombol.
+
+    Dua pemicu: peristiwa `error` sebuah <script> (modul yang tidak sampai
+    menyalakannya seketika) dan batas waktu 10 detik sebagai jaring terakhir —
+    boot yang sehat di loopback selesai di bawah 300 ms, jadi 10 detik tidak
+    pernah memotong boot yang hanya lambat. Keduanya baru menggambar bila
+    pemutar boot MASIH ada, sehingga aplikasi yang sudah tergambar tidak pernah
+    tersentuh.
+  -->
+  <script>
+    (function () {
+      var drawn = false;
+      function stuck() {
+        var root = document.getElementById('root');
+        if (drawn || !root || !root.querySelector('.boot-spinner')) return;
+        drawn = true;
+        var offline = !navigator.onLine;
+        root.className = 'boot-failed';
+        root.innerHTML = '';
+        var box = document.createElement('div');
+        box.setAttribute('role', 'alert');
+        box.style.cssText = 'max-width:34em;margin:12vh auto;padding:0 20px;'
+          + 'font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+        var head = document.createElement('h1');
+        head.style.cssText = 'font-size:17px;margin:0 0 8px';
+        head.textContent = offline ? 'Aplikasi tidak bisa dibuka tanpa koneksi' : 'Aplikasi gagal dimuat';
+        var body = document.createElement('p');
+        body.style.cssText = 'margin:0 0 16px';
+        /* Tiga kalimat, bukan dua: sampai verifikasi ulang P1-I kalimat daring
+           selalu berkata "sebagian berkas tidak sampai" — juga ketika SEMUA
+           berkas sampai dan yang lambat adalah jawaban server. Diukur 7 Sep
+           2026 dengan iam/auth/me ditunda 14 detik: pada detik ke-11 layarnya
+           berkata berkas tidak sampai, padahal setiap berkas cangkang sudah
+           tiba dan aplikasinya pulih sendiri pada detik ke-20. window.__erpModules
+           disetel app.js pada baris pertama modulnya, jadi ia membedakan
+           "modulnya tidak pernah dijalankan" dari "modulnya jalan, servernya
+           belum menjawab". */
+        var modules = !!window.__erpModules;
+        body.textContent = offline
+          ? 'Salinan luring di perangkat ini tidak lengkap, jadi sebagian berkas aplikasi tidak '
+            + 'ada. Sambungkan ke jaringan lalu muat ulang — salinannya diperbaiki sendiri, dan '
+            + 'sesudah itu aplikasi bisa dibuka lagi tanpa sinyal. Foto yang sudah masuk antrean '
+            + 'unggah tetap tersimpan di ponsel ini dan tidak hilang.'
+          : modules
+            ? 'Server belum menjawab. Berkas aplikasinya sudah sampai, jadi ini bukan soal '
+              + 'pemasangan — coba muat ulang; bila tetap begini, beri tahu pengelola sistem.'
+            : 'Sebagian berkas aplikasi tidak sampai. Muat ulang halaman; bila tetap begini, '
+              + 'beri tahu pengelola sistem.';
+        var again = document.createElement('button');
+        again.type = 'button';
+        again.textContent = 'Muat ulang';
+        again.style.cssText = 'font:inherit;padding:8px 14px;border-radius:8px;border:1px solid;'
+          + 'background:transparent;color:inherit;cursor:pointer';
+        again.onclick = function () { location.reload(); };
+        box.appendChild(head);
+        box.appendChild(body);
+        box.appendChild(again);
+        root.appendChild(box);
+      }
+      window.addEventListener('error', function (event) {
+        if (event.target && event.target.tagName === 'SCRIPT') stuck();
+      }, true);
+      setTimeout(stuck, 10000);
+    })();
+  </script>
   <noscript>Aplikasi ini membutuhkan JavaScript.</noscript>
 </body>
 </html>

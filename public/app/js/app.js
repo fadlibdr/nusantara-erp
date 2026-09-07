@@ -58,6 +58,12 @@ import { openForm } from './views/form.js';
 import { openOnboarding, closeOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
+/* Penanda untuk pengawas boot di index.html: modul SUDAH dijalankan.
+   Tanpa ini pengawas 10 detik selalu berkata "sebagian berkas aplikasi tidak
+   sampai" — juga ketika setiap berkas sampai dan yang lambat adalah jawaban
+   server (verifikasi ulang P1-I, 7 Sep 2026). */
+window.__erpModules = true;
+
 const root = document.getElementById('root');
 const THEME_KEY = 'nusantara_erp_theme';
 const NAV_STATE_KEY = 'nusantara_erp_nav';
@@ -709,6 +715,7 @@ function openUserMenu(user) {
         el('dd', { text: `${(user.permissions || []).length} izin` }),
       ]),
       densityControl(),
+      installRow(),
     ]),
     footer: [
       button('Tutup', { onClick: () => dialog.close() }),
@@ -1509,6 +1516,272 @@ window.addEventListener('error', (event) => {
   if (event.error) console.error('Uncaught error', event.error);
 });
 
+/* ---------------------------------------------------------------- PWA (P1-I) */
+
+/*
+ * Tiga hal, satu tempat: mendaftarkan service worker, menangkap tawaran pasang
+ * peramban, dan mengumumkan versi baru.
+ *
+ * Pendaftarannya SESUDAH aplikasi tergambar, tidak pernah sebelum. sw.js
+ * memasang 102 berkas cangkang ke cache saat install, dan itu 102 permintaan
+ * yang tidak boleh berebut dengan permintaan yang sedang ditunggu orangnya.
+ * Karena itu: tunggu `load`, lalu satu putaran idle.
+ */
+let swRegistration = null;
+let installPrompt = null;
+let reloadOnControllerChange = false;
+let updateToast = null;
+let installPromptUsed = false;
+let appInstalled = false;
+
+/**
+ * Sudah terpasang. `display-mode: standalone` hanya benar di JENDELA aplikasi,
+ * jadi tab yang baru saja memasangnya tetap membaca false — karena itu
+ * peristiwa `appinstalled` ikut diingat (P1-I, verifikasi 7 Sep 2026: tanpa itu
+ * dialog Akun berkata "peramban ini belum menawarkannya" kepada orang yang baru
+ * saja memasang aplikasinya dari dialog itu).
+ */
+function appIsInstalled() {
+  return appInstalled || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+/*
+ * Peramban menawarkan pemasangan lewat peristiwa ini, dan tawarannya HANGUS
+ * kalau tidak ditahan: preventDefault() menyimpannya sampai orangnya membuka
+ * menu Akun. Didaftarkan di tingkat modul supaya sudah terpasang sebelum
+ * peristiwa itu bisa menyala.
+ *
+ * Tidak semua peramban menyalakannya (Firefox dan Safari tidak punya
+ * beforeinstallprompt sama sekali, dan Chromium headless juga tidak — terukur
+ * 7 Sep 2026). Dialog Akun karena itu punya tiga keadaan, bukan dua: tombol,
+ * "sudah terpasang", atau kalimat yang menyebut jalan lewat menu peramban.
+ */
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  installPrompt = event;
+});
+
+window.addEventListener('appinstalled', () => {
+  installPrompt = null;
+  appInstalled = true;
+});
+
+/**
+ * Baris "Pasang aplikasi" untuk dialog Akun. Menu akun dipilih, bukan launcher
+ * #/home: launcher adalah kisi MODUL (Proyek, Keuangan, …) dan sebuah tindakan
+ * peramban di antaranya salah kategori, lagipula launcher hanya satu layar
+ * sementara chip akun ada di header setiap layar — termasuk di ponsel, yaitu
+ * perangkat yang justru dipasangi.
+ */
+function installRow() {
+  if (appIsInstalled()) {
+    return el('p.muted', { text: 'Aplikasi ini sudah terpasang di perangkat Anda.', style: { fontSize: '12.5px', margin: '14px 0 0' } });
+  }
+
+  /*
+   * "Tawarannya sudah dipakai" BUKAN "belum pernah ditawarkan" (verifikasi
+   * 7 Sep 2026). Tombol di bawah membuang `installPrompt` sebelum prompt() —
+   * benar menurut spesifikasi, tawaran peramban hanya sah sekali — sehingga
+   * dialog Akun yang dibuka lagi sesudahnya dulu berbunyi "Peramban ini belum
+   * menawarkannya dari dalam halaman" kepada orang yang baru saja menekan
+   * tawarannya, tanpa jalan kembali selain memuat ulang halaman. Terukur pada
+   * jalur tolak (prompt_calls 1, tombol disabled) maupun jalur terima.
+   */
+  if (installPromptUsed) {
+    return el('p.muted', {
+      text: 'Tawaran pemasangan sudah dipakai pada kunjungan ini. Muat ulang halaman untuk '
+        + 'menawarkannya lagi, atau pasang lewat menu peramban.',
+      style: { fontSize: '12.5px', margin: '14px 0 0' },
+    });
+  }
+
+  if (!installPrompt) {
+    /*
+     * Kalimat terakhir ini yang dibaca pemakai Firefox desktop (menunya memang
+     * tidak punya "Instal aplikasi") dan pemakai iPhone (jalannya lembar
+     * Bagikan, bukan menu peramban) — jadi keduanya disebut, bukan hanya satu.
+     */
+    return el('p.muted', {
+      text: 'Pasang aplikasi lewat peramban: menu "Instal aplikasi" di Chrome atau Edge, dan di '
+        + 'iPhone lewat tombol Bagikan → "Tambahkan ke Layar Utama". Peramban ini belum '
+        + 'menawarkannya dari dalam halaman.',
+      style: { fontSize: '12.5px', margin: '14px 0 0' },
+    });
+  }
+
+  return el('div', { style: { marginTop: '14px' } }, [
+    button('Pasang aplikasi', {
+      iconName: 'download',
+      onClick: async (event) => {
+        const deferred = installPrompt;
+        if (!deferred) return;
+        // Tawaran peramban hanya boleh dipakai SEKALI.
+        installPrompt = null;
+        installPromptUsed = true;
+        event.currentTarget.disabled = true;
+        deferred.prompt();
+        const choice = await deferred.userChoice.catch(() => null);
+        if (choice && choice.outcome === 'accepted') toast('Aplikasi sedang dipasang.');
+      },
+    }),
+    el('p.muted', {
+      text: 'Membuka aplikasi dari layar utama, tanpa bilah alamat.',
+      style: { fontSize: '12.5px', margin: '6px 0 0' },
+    }),
+  ]);
+}
+
+/*
+ * Worker baru sudah terpasang dan MENUNGGU. Toast-nya bertahan (timeout 0):
+ * pengumuman rilis yang lenyap dalam lima detik tidak mengumumkan apa pun.
+ * Tombolnya menyuruh worker menunggu itu mengambil alih; muat ulang menyusul
+ * di controllerchange, bukan di sini, supaya halaman tidak sempat dimuat ulang
+ * sebelum worker barunya siap menjawab.
+ */
+function announceUpdate(registration) {
+  /*
+   * SATU pengumuman, bukan satu per rilis. Toast ini bertahan (timeout 0), jadi
+   * tanpa baris ini setiap rilis menumpuk satu kalimat permanen yang berbunyi
+   * persis sama di tab yang dibiarkan terbuka. Terukur 7 Sep 2026: rilis kedua
+   * dan ketiga tanpa ada yang menekan apa pun meninggalkan dua toast identik,
+   * masing-masing 88 px di 390x844, di atas hosting toast yang sudah menutup
+   * 104 px dasar layar — tablet lapangan yang tidak pernah ditutup adalah
+   * perangkat yang paling mungkin mengalaminya.
+   *
+   * Yang lama dibuang, bukan yang baru dilewati: `registration` yang dipegang
+   * toast lama sudah menunjuk worker yang menunggu SEBELUMNYA.
+   */
+  if (updateToast) updateToast.remove();
+
+  updateToast = toast('Versi baru siap — Muat ulang untuk memakainya.', {
+    tone: 'info',
+    timeout: 0,
+    action: {
+      label: 'Muat ulang',
+      onClick: () => {
+        reloadOnControllerChange = true;
+        if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        else window.location.reload();
+      },
+    },
+  });
+}
+
+function watchForUpdate(registration) {
+  swRegistration = registration;
+
+  // Sudah menunggu saat halaman dimuat (worker baru dipasang di kunjungan lalu).
+  if (registration.waiting && navigator.serviceWorker.controller) announceUpdate(registration);
+
+  registration.addEventListener('updatefound', () => {
+    const installing = registration.installing;
+    if (!installing) return;
+    installing.addEventListener('statechange', () => {
+      // `controller` yang null berarti ini PEMASANGAN PERTAMA, bukan pembaruan:
+      // tanpa syarat itu setiap orang yang pertama kali membuka aplikasi
+      // disuruh memuat ulang sesuatu yang baru saja dimuatnya.
+      if (installing.state === 'installed' && navigator.serviceWorker.controller) announceUpdate(registration);
+    });
+  });
+}
+
+/*
+ * SATU muat ulang, tidak pernah dua. `controllerchange` juga menyala pada
+ * pemasangan pertama (sw.js memanggil clients.claim()), jadi bendera inilah
+ * yang membedakan "orangnya menekan Muat ulang" dari "worker pertama baru saja
+ * mengambil alih" — tanpa bendera itu, kunjungan pertama siapa pun memuat ulang
+ * dirinya sendiri.
+ */
+function registerServiceWorker() {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!reloadOnControllerChange) return;
+    reloadOnControllerChange = false;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register('sw.js')
+    .then(watchForUpdate)
+    .catch((error) => {
+      // Bukan alasan untuk mengganggu siapa pun: aplikasinya jalan tanpa worker.
+      console.warn('Service worker tidak terdaftar:', error);
+    });
+}
+
+function scheduleServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  const start = () => {
+    if (window.requestIdleCallback) window.requestIdleCallback(registerServiceWorker, { timeout: 3000 });
+    else setTimeout(registerServiceWorker, 500);
+  };
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start, { once: true });
+}
+
+/*
+ * Sesi yang berangkat dari cermin localStorage harus BERHENTI menjadi sesi
+ * cermin begitu jaringannya kembali (P1-I, verifikasi 7 Sep 2026).
+ *
+ * Toast "Mode luring" dulu dipasang dengan timeout 0 dan tanpa satu pun
+ * pendengar: terukur di 390x844, sesudah jaringan kembali dan layar Lapangan
+ * memuat data hidup dengan pita luring sudah padam dan nol galat, toast itu
+ * masih berbunyi "Tanpa koneksi …" — diperiksa lagi 8 detik kemudian, masih
+ * sama, dan menutup 104 px paling bawah layar sampai orangnya menekan silang.
+ * Ia juga satu-satunya penanda bahwa izin dan menu berasal dari cermin, dan
+ * refreshMe() tidak pernah dijalankan lagi sesudah boot luring.
+ *
+ * Jadi: satu percobaan penyegaran pada peristiwa jaringan pertama yang
+ * menjanjikan. BUKAN `online` saja — `online` hanya berarti antarmukanya
+ * menyala (Wi-Fi berportal melaporkannya juga), dan penyegaran yang gagal
+ * MEMBIARKAN toast-nya berdiri, karena saat itu kalimatnya masih benar.
+ */
+/*
+ * Sesi yang dibuka dari salinan luring adalah CERMIN: izin dan menunya berasal
+ * dari localStorage, bukan dari server. Ketika jaringan kembali, sesi itu harus
+ * disegarkan — dan itu TIDAK boleh bergantung pada toast-nya masih terpasang.
+ *
+ * Sampai verifikasi ulang P1-I (7 Sep 2026) seluruh pemulihan dijaga
+ * `!node.isConnected`: menekan "Tutup" pada toast — hal paling biasa yang
+ * dilakukan orang, apalagi di ponsel tempat ia menutupi ~104 px — membatalkan
+ * penyegaran itu diam-diam dan meninggalkan kedua pendengarnya terpasang
+ * selamanya. Terukur: tutup toast, sambungkan lagi, buka dua layar, tunggu
+ * 8 detik → 0 permintaan iam/auth/me. Toast-nya kini hanya kabar; yang
+ * menentukan adalah `done`.
+ */
+function recoverFromOfflineBoot(node) {
+  let running = false;
+  let done = false;
+
+  function stopListening() {
+    window.removeEventListener('erp:network', onNetwork);
+    window.removeEventListener('online', retry);
+  }
+
+  async function retry() {
+    if (running || done) return;
+    running = true;
+    try {
+      await refreshMe();
+    } catch {
+      running = false;   // belum sampai juga: kalimat toast-nya masih benar
+      return;
+    }
+    done = true;
+    stopListening();
+    if (node.isConnected) node.remove();
+    await prefs.load().catch(() => {});
+    applyDensity(readDensity());
+    refreshNav();
+    toast('Kembali daring. Izin dan menu disegarkan; buka ulang layarnya untuk angka terbaru.');
+  }
+
+  function onNetwork(event) {
+    if (event.detail && event.detail.ok) retry();
+  }
+
+  window.addEventListener('erp:network', onNetwork);
+  window.addEventListener('online', retry);
+}
+
 async function init() {
   // Tautan "lupa kata sandi" dibuka tanpa sesi — diperiksa sebelum apa pun.
   const reset = resetLinkParams();
@@ -1527,10 +1800,35 @@ async function init() {
     boot();
   } catch (error) {
     if (error.status === 401) renderLogin({ message: 'Sesi Anda berakhir. Silakan masuk kembali.' });
-    else {
+    else if (error.status === 0 && session.user) {
+      /*
+       * LURING dengan sesi yang masih tersimpan (P1-I). Sampai paket ini, muat
+       * ulang tanpa jaringan melempar orang yang sudah masuk ke halaman masuk
+       * berbunyi "Coba masuk kembali" — halaman masuk yang, tanpa jaringan,
+       * TIDAK BISA dilewati: POST iam/auth/login butuh server. Cangkang tergambar,
+       * tetapi satu-satunya layar yang bisa dicapai adalah jalan buntu — dan
+       * antrean foto Lapangan beserta pita luringnya ada di seberangnya.
+       *
+       * status 0 = transport gagal, bukan jawaban server (api.js). 401 di atas
+       * tetap membuang sesi; yang ini menahannya. Izin yang dipakai adalah
+       * cermin localStorage milik orang yang sama, dan begitu jaringan kembali,
+       * permintaan pertama yang dijawab 401 tetap melempar keluar lewat
+       * setUnauthorizedHandler. Jadi tidak ada satu pun data yang belum dimiliki
+       * peramban ini yang terbuka karenanya.
+       */
+      boot();
+      recoverFromOfflineBoot(toast(
+        'Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali.',
+        { tone: 'info', title: 'Mode luring', timeout: 0 },
+      ));
+    } else {
       renderLogin({ message: 'Tidak dapat menghubungi server. Coba masuk kembali.' });
     }
   }
 }
 
 init();
+
+/* Sesudah init() — dan, di dalamnya, sesudah `load` + satu putaran idle: tidak
+   ada satu byte pun dari pendaftaran worker yang berada di jalur cat pertama. */
+scheduleServiceWorker();
