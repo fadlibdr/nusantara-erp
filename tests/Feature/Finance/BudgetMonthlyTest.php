@@ -5,6 +5,7 @@ namespace Tests\Feature\Finance;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Support\Money;
 use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
 use Modules\Finance\Models\ProjectCost;
@@ -274,6 +275,84 @@ class BudgetMonthlyTest extends ErpTestCase
         $this->assertNotNull($rows['2026-01']['weight_pct'], 'bobot fase ADA — yang tidak ada adalah totalnya');
         $this->assertNull($rows['2026-01']['budget']);
         $this->assertSame('tanpa_rap', $rows['2026-01']['budget_state']);
+    }
+
+    /**
+     * ANGGARAN BULANAN MENJUMLAH TEPAT SEBESAR RAP-NYA — juga ketika totalnya
+     * tidak bulat dan bulannya banyak.
+     *
+     * Uji lama hanya memakukan invarian ini pada Rp 400 jt / 4 bulan, angka
+     * yang kebetulan habis dibagi, jadi hijaunya tidak membuktikan apa-apa.
+     * Lima dari tujuh kasus yang diukur pada verifikasi F-2 meleset ±Rp 0,01–
+     * 0,02; yang paling terlihat adalah Rp 999.999.999,99 / 17 bulan yang
+     * menjumlah Rp 1.000.000.000,00 tepat di bawah kalimat penurunan yang
+     * menyebut Rp 999.999.999,99.
+     */
+    public function test_an_unrounded_rap_still_sums_to_itself_across_seventeen_months(): void
+    {
+        foreach ([
+            ['PRJ-2026-927', 999_999_999.99, '2026-01-01', '2027-05-31', 17],
+            ['PRJ-2026-928', 123_456_789.01, '2026-01-01', '2026-12-31', 12],
+            ['PRJ-2026-929', 100.00, '2026-01-01', '2026-03-31', 3],
+        ] as [$code, $amount, $start, $finish, $months]) {
+            $project = $this->project($code);
+            $this->approvedRap($project, $amount);
+            $this->singleTaskBaseline($project, $start, $finish);
+
+            $payload = $this->monthly($project);
+            $sum = 0.0;
+
+            foreach ($payload['rows'] as $row) {
+                $sum = round($sum + (float) $row['budget'], 2);
+            }
+
+            $this->assertCount($months, $payload['rows'], "[{$code}]");
+            $this->assertSame($amount, $sum, "[{$code}] jumlah baris bulanan bukan RAP-nya");
+            $this->assertSame($amount, $payload['totals']['budget'], "[{$code}] total kolomnya bukan RAP-nya");
+            $this->assertStringContainsString(
+                Money::format($amount, false),
+                $payload['derivation'],
+                "[{$code}] kalimat penurunan menyebut RAP yang berbeda dari totalnya",
+            );
+        }
+    }
+
+    /** Baseline satu paket daun 100 % pada rentang tanggal apa pun. */
+    private function singleTaskBaseline(Project $project, string $start, string $finish): int
+    {
+        $baselineId = (int) DB::table('prj_baselines')->insertGetId([
+            'code' => 'BSL/'.$project->code,
+            'project_id' => $project->id,
+            'revision_no' => 0,
+            'status' => DocumentStatus::Approved->value,
+            'effective_date' => $start,
+            'bac' => 1_000_000_000,
+            'bac_source' => 'rap_approved',
+            'planned_start' => $start,
+            'planned_finish' => $finish,
+            'planned_duration_days' => 500,
+            'curve_source' => 'wbs',
+            'leaf_task_count' => 1,
+            'leaf_weight_total' => 100,
+            'approved_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('prj_baseline_tasks')->insert([
+            'baseline_id' => $baselineId,
+            'wbs_code' => 'A.1',
+            'name' => 'Paket tunggal',
+            'is_leaf' => true,
+            'weight_pct' => 100,
+            'planned_start' => $start,
+            'planned_end' => $finish,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $baselineId;
     }
 
     public function test_the_endpoint_serves_the_same_payload_behind_fin_view(): void

@@ -46,6 +46,12 @@ use Modules\Projects\Support\PlannedCurve;
  * menjanjikan Rp 1.697.500.000 sementara sisi non-subkon sudah −Rp 105.039.400
  * dan sebuah PO Rp 1 ditolak 422.
  *
+ * ANGGARAN BULANAN MENJUMLAH TEPAT SEBESAR RAP-NYA, dan itu diserap pada
+ * RUPIAHNYA (§ absorbRounding), bukan disimpulkan dari bobot yang berjumlah
+ * 100 %: dua belas pembulatan ke sen tidak ikut tepat hanya karena bobotnya
+ * tepat, dan sebuah tabel yang totalnya Rp 1.000.000.000,00 di bawah kalimat
+ * "RAP (Rp 999.999.999,99)" mencetak dua angka RAP yang berbeda di satu layar.
+ *
  * ANGGARAN BULANAN ADALAH TURUNAN, DAN LAYARNYA MENGATAKANNYA. Tidak ada
  * seorang pun yang mengetik anggaran bulan Maret: ia adalah total RAP dikalikan
  * bobot fase bulan itu pada BASELINE yang dibekukan (kurva PlannedCurve yang
@@ -279,6 +285,17 @@ class BudgetRealisationService
         $periods = array_values(array_unique(array_merge(array_keys($weights), array_keys($actuals))));
         sort($periods);
 
+        $budgets = [];
+
+        foreach ($periods as $period) {
+            $weight = $weights[$period] ?? null;
+            $budgets[$period] = ($weight === null || $rapTotal === null)
+                ? null
+                : round($rapTotal * $weight / 100, 2);
+        }
+
+        $budgets = $this->absorbRounding($budgets, $rapTotal);
+
         $rows = [];
         $cumBudget = 0.0;
         $cumActual = 0.0;
@@ -287,7 +304,7 @@ class BudgetRealisationService
 
         foreach ($periods as $period) {
             $weight = $weights[$period] ?? null;
-            $budget = ($weight === null || $rapTotal === null) ? null : round($rapTotal * $weight / 100, 2);
+            $budget = $budgets[$period];
             // Bulan tanpa satu baris biaya pun = null, bukan 0 (lihat docblock).
             $actual = $actuals[$period] ?? null;
 
@@ -452,12 +469,62 @@ class BudgetRealisationService
     }
 
     /**
+     * Sisa pembulatan RUPIAH dipikul bulan terakhir yang punya anggaran.
+     *
+     * KENAPA BUKAN DI BOBOTNYA (verifikasi F-2). monthlyWeights sudah memaksa
+     * jumlah BOBOT tepat 100 %, dan docblock-nya dulu menyimpulkan dari situ
+     * bahwa "anggaran bulanan menjumlah tepat sebesar RAP-nya". Tidak: tiap
+     * bulan dibulatkan ke sen SENDIRI-SENDIRI (round(rapTotal × bobot / 100, 2)),
+     * dan sisa-sisa itu tidak pernah diserap. Terukur pada tujuh kasus, lima di
+     * antaranya meleset: Rp 42.173.913.043 / 17 bulan menjumlah +Rp 0,01,
+     * Rp 123.456.789,01 / 12 bulan −Rp 0,01, Rp 100 / 3 bulan −Rp 0,01, dan
+     * Rp 999.999.999,99 / 17 bulan menjumlah Rp 1.000.000.000,00 — layar
+     * mencetak kalimat penurunan "RAP … (Rp 999.999.999,99)" tepat di atas
+     * tabel yang totalnya berbunyi satu miliar. Pola $remainder yang sama
+     * dengan RapService::splitBudget.
+     *
+     * @param  array<string, ?float>  $budgets
+     * @return array<string, ?float>
+     */
+    private function absorbRounding(array $budgets, ?float $rapTotal): array
+    {
+        if ($rapTotal === null) {
+            return $budgets;
+        }
+
+        $sum = 0.0;
+        $lastKey = null;
+
+        foreach ($budgets as $period => $budget) {
+            if ($budget === null) {
+                continue;
+            }
+
+            $sum = round($sum + $budget, 2);
+            $lastKey = $period;
+        }
+
+        if ($lastKey === null) {
+            return $budgets;
+        }
+
+        $remainder = round($rapTotal - $sum, 2);
+
+        if ($remainder !== 0.0) {
+            $budgets[$lastKey] = round($budgets[$lastKey] + $remainder, 2);
+        }
+
+        return $budgets;
+    }
+
+    /**
      * Bobot fase per bulan, dalam PERSEN, dari kurva rencana baseline.
      *
      * Selisih kumulatif antar akhir bulan — persis kurva yang dibaca EVM, lewat
-     * PlannedCurve yang sama. Bulan terakhir memikul sisa pembulatan supaya
-     * jumlah bobot selalu tepat 100 % dan anggaran bulanan menjumlah tepat
-     * sebesar RAP-nya.
+     * PlannedCurve yang sama. Bulan terakhir memikul sisa pembulatan BOBOT,
+     * supaya jumlah bobot selalu tepat 100 %; sisa pembulatan RUPIAH-nya diserap
+     * terpisah oleh absorbRounding(), karena 100 % bobot yang tepat tidak
+     * membuat dua belas pembulatan ke sen ikut tepat.
      *
      * @return array<string, float>
      */
