@@ -225,3 +225,15 @@ pemilih di layar (§ Deviasi 3).
    (`maatwebsite/excel ^3.1`, terkunci 1.30.6) — sama seperti `FormXlsxExportService` yang sudah
    ada. Tidak ada dependensi baru, tetapi ketergantungan itu tetap tidak dinyatakan di
    `composer.json`, dan sekarang DUA fitur bergantung padanya.
+
+## Gerbang rilis Fase 1 (ditambahkan 7 September 2026)
+
+Paket ini ikut rilis `0937dec` (P1-C…P1-G) yang di-merge ke main dan ter-deploy 6–7 Sep.
+Suite penuh di commit rilis: **SQLite 3.991 uji / 20.656 asersi hijau** (11 dilewati).
+Leg MySQL semula TIDAK bisa dijalankan (berkas kredensial Fase 0 hilang bersama scratchpad);
+pemilik memberi kata sandi baru 7 Sep dan leg itu dijalankan: pertama **29 kegagalan**, semuanya
+satu sebab — `Schema::drop()` di dalam uji adalah COMMIT IMPLISIT di MySQL, sehingga satu
+`Schema::drop('ast_assets')` di uji ekspor menjatuhkan 22 uji Finance sesudahnya. Diperbaiki
+lewat `FixtureSchema::withMissingTable()` (ganti nama, bukan hapus; `89ba8c9`), dan **MySQL 8.0.46
+di rilis Fase 1 kini 3.991 uji / 20.669 asersi hijau** (6 dilewati, 23 mnt 16 dtk).
+
