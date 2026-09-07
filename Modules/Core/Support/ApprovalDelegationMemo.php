@@ -22,6 +22,18 @@ final class ApprovalDelegationMemo
     /** @var array<int, list<array<string, mixed>>> */
     private array $rows = [];
 
+    /**
+     * Jawaban "pemberi #N memegang ability X sendiri?" untuk unit kerja ini.
+     *
+     * Tanpa ini, setiap pemeriksaan izin approve pada pengguna yang memegang
+     * delegasi melakukan satu SELECT users — dan satu permintaan memeriksa
+     * izin puluhan kali. Baris delegasinya sudah dimemo di atas; pemberinya
+     * juga harus, kalau tidak memo itu hanya memindahkan kuerinya.
+     *
+     * @var array<string, bool>
+     */
+    private array $giverHolds = [];
+
     public function has(int $userId): bool
     {
         return array_key_exists($userId, $this->rows);
@@ -39,8 +51,24 @@ final class ApprovalDelegationMemo
         $this->rows[$userId] = $rows;
     }
 
+    public function hasGiverAnswer(int $giverId, string $ability): bool
+    {
+        return array_key_exists($giverId.'|'.$ability, $this->giverHolds);
+    }
+
+    public function giverAnswer(int $giverId, string $ability): bool
+    {
+        return $this->giverHolds[$giverId.'|'.$ability] ?? false;
+    }
+
+    public function rememberGiver(int $giverId, string $ability, bool $holds): void
+    {
+        $this->giverHolds[$giverId.'|'.$ability] = $holds;
+    }
+
     public function flush(): void
     {
         $this->rows = [];
+        $this->giverHolds = [];
     }
 }

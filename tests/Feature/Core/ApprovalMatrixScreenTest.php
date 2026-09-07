@@ -5,8 +5,10 @@ namespace Tests\Feature\Core;
 use App\Models\User;
 use InvalidArgumentException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Models\ApprovalDelegation;
 use Modules\Core\Models\AuditLog;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ApprovalDelegations;
 use Modules\Core\Support\ApprovalPolicy;
 use Modules\Estimation\Models\Boq;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
@@ -225,6 +227,43 @@ class ApprovalMatrixScreenTest extends ErpTestCase
         // Parameter lain tetap boleh — penjaganya hanya approvals.*.
         app(SettingService::class)->set('tax.ppn_rate', 12);
         $this->assertSame(12.0, (float) app(SettingService::class)->get('tax.ppn_rate'));
+    }
+
+    /**
+     * SEBUAH DELEGASI PERSETUJUAN TIDAK MEMBUKA MATRIKSNYA (temuan tinjauan
+     * F-1).
+     *
+     * Delegasi meminjamkan hak MENYETUJUI DOKUMEN. Kalau penjaganya memakai
+     * can(), Budi yang memegang delegasi Sari plus core.update bisa
+     * menurunkan ambang PO dari Rp 100 juta menjadi Rp 10 miliar — sebuah
+     * kendali uang yang berpindah tangan sebagai efek samping cuti, dan
+     * berpindah untuk selamanya karena ambang barunya tidak ikut kedaluwarsa
+     * bersama delegasinya.
+     */
+    public function test_a_delegated_director_right_does_not_unlock_the_matrix(): void
+    {
+        $giver = $this->userHolding('sari@t.local', 'prc.approve', 'prc.approve-director');
+        $delegate = $this->userHolding('budi@t.local', 'core.update', 'core.view');
+
+        ApprovalDelegation::query()->create([
+            'giver_user_id' => $giver->id,
+            'delegate_user_id' => $delegate->id,
+            'scope' => null,
+            'starts_at' => now()->subDay()->toDateString(),
+            'ends_at' => now()->addDays(7)->toDateString(),
+        ]);
+        ApprovalDelegations::flushMemo();
+
+        // Haknya memang dipinjam — untuk MENYETUJUI.
+        $this->assertTrue($delegate->fresh()->can('prc.approve-director'));
+
+        // Tetapi tidak untuk mengubah aturannya.
+        $this->actingAs($delegate->fresh())->putJson('/api/core/settings', [
+            'settings' => ['approvals.purchase_order.threshold_two_level' => 10_000_000_000],
+        ])->assertStatus(422);
+
+        app(SettingService::class)->flush();
+        $this->assertSame(100000000.0, ApprovalPolicy::forType('purchase_order')->threshold);
     }
 
     /**

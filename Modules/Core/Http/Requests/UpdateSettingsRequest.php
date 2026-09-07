@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Validator;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ApprovalDelegations;
 use Modules\Core\Support\ApprovalPolicy;
 use Modules\Core\Support\Money;
 
@@ -134,8 +135,10 @@ class UpdateSettingsRequest extends FormRequest
 
         $actor = $this->user();
 
+        // hasPermissionTo, TIDAK can(): sebuah delegasi persetujuan tidak
+        // boleh menjadi hak mengubah aturan persetujuan itu sendiri.
         foreach (ApprovalPolicy::directorPermissions() as $permission) {
-            if ($actor !== null && $actor->can($permission)) {
+            if ($actor !== null && ApprovalDelegations::holdsNatively($actor, $permission)) {
                 return;
             }
         }

@@ -224,16 +224,32 @@ final class ApprovalDelegations
 
     private static function giverHoldsNatively(int $giverId, string $ability): bool
     {
-        $giver = User::query()->find($giverId);
+        $memo = app(ApprovalDelegationMemo::class);
 
-        return $giver !== null && (bool) $giver->is_active && self::holdsNatively($giver, $ability);
+        if ($memo->hasGiverAnswer($giverId, $ability)) {
+            return $memo->giverAnswer($giverId, $ability);
+        }
+
+        $giver = User::query()->find($giverId);
+        $holds = $giver !== null && (bool) $giver->is_active && self::holdsNatively($giver, $ability);
+
+        $memo->rememberGiver($giverId, $ability, $holds);
+
+        return $holds;
     }
 
     /**
      * Izin yang dipegang lewat peran/izin langsung — TIDAK lewat Gate, jadi
      * tidak lewat Gate::before, jadi tidak lewat delegasi.
+     *
+     * Publik sejak putaran tinjauan F-1: penjaga "mengubah approvals.* butuh
+     * *.approve-director" HARUS memakai ini dan bukan can(). Sebuah delegasi
+     * meminjamkan hak MENYETUJUI DOKUMEN; ia tidak boleh menjadi hak menulis
+     * ulang apa arti menyetujui. Dengan can(), Budi yang memegang delegasi
+     * Sari plus core.update bisa menurunkan ambang PO — sebuah kendali uang
+     * yang berpindah tangan sebagai efek samping cuti.
      */
-    private static function holdsNatively(User $user, string $ability): bool
+    public static function holdsNatively(User $user, string $ability): bool
     {
         try {
             return $user->hasPermissionTo($ability, 'web');

@@ -90,6 +90,9 @@ final class ApprovalPolicy
     /** @var array<string, bool>|null memo per proses: jenis yang punya nilai rupiah untuk diukur */
     private static ?array $measurable = null;
 
+    /** @var bool|null memo per proses: core_approvals.policy sudah ada? */
+    private static ?bool $hasPolicyColumn = null;
+
     private function __construct(
         public readonly string $type,
         public readonly string $prefix,
@@ -327,6 +330,7 @@ final class ApprovalPolicy
     {
         self::$ownGate = null;
         self::$measurable = null;
+        self::$hasPolicyColumn = null;
     }
 
     /**
@@ -434,7 +438,7 @@ final class ApprovalPolicy
      */
     public static function stampedFor(Model $document): ?array
     {
-        if (! Schema::hasColumn('core_approvals', 'policy')) {
+        if (! self::approvalsCarryAPolicyColumn()) {
             return null;
         }
 
@@ -486,6 +490,19 @@ final class ApprovalPolicy
     public static function documentEntry(string $type): array
     {
         return self::registryEntryFor($type);
+    }
+
+    /**
+     * Apakah core_approvals sudah punya kolom `policy` (migrasi 000198).
+     *
+     * Dimemo per proses karena stampedFor() dipanggil DUA KALI pada tiap
+     * persetujuan — sekali dari requiredApprovalLevels(), sekali dari
+     * assertStampedDirectorLevel() — dan Schema::hasColumn di MySQL adalah
+     * kueri information_schema, bukan pemeriksaan gratis.
+     */
+    private static function approvalsCarryAPolicyColumn(): bool
+    {
+        return self::$hasPolicyColumn ??= Schema::hasColumn('core_approvals', 'policy');
     }
 
     /** @return array{prefix?: string, label?: string} */

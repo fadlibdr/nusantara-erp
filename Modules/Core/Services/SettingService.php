@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Modules\Core\Models\Setting;
+use Modules\Core\Support\ApprovalDelegations;
 use Modules\Core\Support\ApprovalPolicy;
 
 /**
@@ -866,8 +867,11 @@ class SettingService
             return;
         }
 
+        // hasPermissionTo, TIDAK can(): sebuah delegasi meminjamkan hak
+        // menyetujui dokumen, bukan hak menulis ulang apa arti menyetujui.
+        // Lihat ApprovalDelegations::holdsNatively.
         foreach (ApprovalPolicy::directorPermissions() as $permission) {
-            if ($actor->can($permission)) {
+            if (ApprovalDelegations::holdsNatively($actor, $permission)) {
                 return;
             }
         }
