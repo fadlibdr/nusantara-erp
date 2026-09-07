@@ -70,6 +70,15 @@ export async function renderJadwal(host, { id, project }) {
   let tasks;
   let baseline;
   let cycles;
+  /* "Hari ini" MENURUT SERVER (meta.as_of), tidak pernah menurut jam peramban —
+     aturan yang sudah tertulis di EvmService ("an EVM report keyed off a skewed
+     PC clock manufactures schedule variance out of nothing") dan dipakai
+     evm.js, varian.js dan sertifikat.js. Garis "Hari ini" di gantt adalah
+     pembacaan keterlambatan yang sama, hanya dengan mata: tanpa medan ini
+     charts.js jatuh ke localToday() dan garisnya berpindah mengikuti timezone
+     pembacanya (diukur 7 Sep 2026: Asia/Jakarta x=484,67, America/Los_Angeles
+     x=483,27, pada berkas dan jam server yang sama). */
+  let today;
   /* Kegagalan baseline BUKAN ketiadaan baseline. `.catch(() => null)` dulu
      menyamakan keduanya, dan layar mengumumkan "belum ada baseline beku" untuk
      proyek yang baru saja ia baca punya baseline disetujui — fakta yang
@@ -97,6 +106,7 @@ export async function renderJadwal(host, { id, project }) {
 
     tasks = (live && live.data) || [];
     cycles = (live && live.meta && live.meta.parent_cycles) || [];
+    today = (live && live.meta && live.meta.as_of) || null;
     const head = Array.isArray(current) ? current[0] : null;
 
     if (head) {
@@ -112,11 +122,11 @@ export async function renderJadwal(host, { id, project }) {
   }
 
   clear(host);
-  paint(host, { id, project, tasks, baseline, cycles, fault });
+  paint(host, { id, project, tasks, baseline, cycles, fault, today });
 }
 
 function paint(host, ctx) {
-  const { id, project, tasks, baseline, cycles, fault } = ctx;
+  const { id, project, tasks, baseline, cycles, fault, today } = ctx;
   const flat = flatten(tasks);
 
   if (!flat.length) {
@@ -150,6 +160,9 @@ function paint(host, ctx) {
     rows,
     zoom: state.zoom,
     weekends: true,
+    // null → charts.js jatuh ke jam peramban; itu hanya terjadi bila server
+    // benar-benar tidak mengirim as_of.
+    today,
     ariaLabel: `Jadwal WBS ${project.code || ''}`.trim(),
     // Catatan sumber ikut TERCETAK (ia di dalam svg), dan di kertas bilah zoom
     // sudah disembunyikan blok cetak — jadi kalimat inilah yang memberi tahu

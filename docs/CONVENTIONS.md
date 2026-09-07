@@ -733,6 +733,19 @@ kini menelusuri dari akar dengan himpunan "sudah dikirim" lalu MENGANGKAT sisany
 memang berubah, dan karena itu ia DISEBUT: `meta.parent_cycles` memuat kodenya dan jadwal.js
 mencetaknya di bawah gantt.
 
+**Garis "Hari ini" datang dari SERVER.** `GET {project}/wbs-tasks` mengirim `meta.as_of` +
+`meta.as_of_source: 'server'` — kanal yang sama dengan `DeadlineController` dan `EvmService` — dan
+jadwal.js mengoperkannya ke `ganttChart({ today })`. Tanpa itu charts.js jatuh ke `localToday()`,
+yaitu jam PERAMBAN: diukur 7 Sep 2026 pada berkas dan jam server yang sama, garisnya berpindah
+mengikuti timezone pembacanya (Asia/Jakarta x=484,67 vs America/Los_Angeles x=483,27). Aturan
+tertulis aplikasi ini berlawanan dengan itu — EvmService: *"an EVM report keyed off a skewed PC
+clock manufactures schedule variance out of nothing"* — dan garis "Hari ini" pada gantt adalah
+pembacaan keterlambatan yang persis sama, hanya dengan mata. Dua peramban dengan timezone
+berjarak 25 jam (Pacific/Niue dan Pacific/Kiritimati, tidak pernah setanggal) mengukurnya di
+S26_gantt_jam_server; harness juga menghitung harapannya dari `meta.as_of`, bukan dari jam
+mesinnya sendiri — aplikasi berjalan di Asia/Jakarta sementara host harness UTC, jadi jam mesin
+berselisih sehari dengan server selama tujuh jam setiap hari.
+
 **Satuan.** `progress_pct` berjalan di kawat sebagai 0..100 dan sebagai *string* ('60.0000');
 `ganttChart` menerima 0..1. Pembagian 100 di jadwal.js bukan kosmetik — tanpa itu setiap bar terbaca
 100 %. Nilai di luar rentang tidak dijepit di jalur baca: gantt menjepit barnya sendiri lalu menulis

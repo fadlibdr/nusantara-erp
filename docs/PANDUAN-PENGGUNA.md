@@ -4030,7 +4030,9 @@ tetap diisi dari kartu **Struktur WBS** di tab Ringkasan.
   *"tanpa tanggal"* pada barisnya — sebuah batang yang dikarang lebih buruk daripada baris
   kosong.
 - **Garis tegak berlabel "Hari ini"** hanya muncul bila hari ini memang di dalam rentang
-  jadwalnya. Kolom abu-abu adalah Sabtu–Minggu.
+  jadwalnya, dan "hari ini" itu **tanggal server**, bukan tanggal komputer Anda: jam yang meleset
+  di satu PC tidak boleh membuat jadwal terbaca terlambat (atau tidak terlambat). Kolom abu-abu
+  adalah Sabtu–Minggu.
 - **`Mingguan` / `Bulanan`** mengubah kerapatan garis tanggal; **`Cetak`** mencetak lembar
   ini **mendatar (lanskap)**, lengkap dengan judul proyek dan kalimat sumbernya, sementara
   bilah tombolnya tidak ikut tercetak.

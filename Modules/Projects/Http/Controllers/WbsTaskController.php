@@ -105,11 +105,23 @@ class WbsTaskController extends ApiController
             $attach($task);
         }
 
-        return $this->ok(
-            WbsTaskResource::collection($roots->concat($detached)),
-            null,
-            $detached->isEmpty() ? null : ['parent_cycles' => $detached->pluck('wbs_code')->all()],
-        );
+        // as_of: TANGGAL "HARI INI" MENURUT SERVER, kanal yang sama dengan
+        // DeadlineController dan EvmService ('as_of_source' => 'server').
+        // Gantt menggambar garis "Hari ini", dan tanpa medan ini charts.js
+        // jatuh ke `localToday()` — jam PERAMBAN. Diukur 7 Sep 2026 pada berkas
+        // dan jam yang sama, hanya timezone konteks yang berbeda: garisnya
+        // berpindah (Asia/Jakarta x=484,67 vs America/Los_Angeles x=483,27).
+        // Aturan tertulis aplikasi ini justru sebaliknya — EvmService: "an EVM
+        // report keyed off a skewed PC clock manufactures schedule variance out
+        // of nothing" — dan garis "Hari ini" pada gantt adalah pembacaan
+        // keterlambatan yang persis sama, hanya dengan mata.
+        $meta = ['as_of' => now()->toDateString(), 'as_of_source' => 'server'];
+
+        if ($detached->isNotEmpty()) {
+            $meta['parent_cycles'] = $detached->pluck('wbs_code')->all();
+        }
+
+        return $this->ok(WbsTaskResource::collection($roots->concat($detached)), null, $meta);
     }
 
     /**

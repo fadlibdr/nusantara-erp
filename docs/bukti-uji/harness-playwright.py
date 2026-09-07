@@ -2910,9 +2910,17 @@ def gantt_scenario(pg, tag, mobile=False):
             "baseline_status": heads["status"],
             "baseline_code": (frozen or {}).get("data", {}).get("code") if frozen else None,
             "frozen_rows": len(((frozen or {}).get("data") or {}).get("tasks") or []),
+            "as_of": (tasks["meta"] or {}).get("as_of"),
+            "as_of_source": (tasks["meta"] or {}).get("as_of_source"),
         }
 
-        today = date.today()
+        # "Hari ini" DIUMUMKAN SERVER (meta.as_of), bukan dibaca dari jam mesin
+        # ini: aplikasinya berjalan di Asia/Jakarta sementara host harness ini
+        # UTC, jadi `date.today()` Python berselisih satu hari dengan server
+        # selama tujuh jam setiap hari — pembanding yang akan menyalahkan layar
+        # yang benar. Bahwa garisnya benar-benar tidak ikut jam PERAMBAN diukur
+        # terpisah oleh S26_gantt_jam_server (dua timezone berjarak 25 jam).
+        today = date.fromisoformat(out["api"]["as_of"]) if out["api"]["as_of"] else date.today()
         expect = gantt_expectations(tasks["data"] or [], ((frozen or {}).get("data") or {}).get("tasks") or [],
                                     _days(today.isoformat()))
         out["expected"] = expect
@@ -3016,6 +3024,9 @@ def gantt_scenario(pg, tag, mobile=False):
         "today_line_drawn": (week["today_x"] is not None) == expect["today_inside"],
         "today_line_at_the_right_x": expect["today_x"] is None or abs(week["today_x"] - expect["today_x"]) <= 0.05,
         "today_line_is_labelled": week["today_label"] == "Hari ini",
+        # …dan tanggalnya datang dari server, kanal yang sama dengan EVM.
+        "the_today_line_reads_the_server_date": out["api"]["as_of_source"] == "server"
+            and bool(out["api"]["as_of"]),
         # 3. Bayangan akhir pekan = jumlah Sabtu (+ Minggu pembuka) di jendela.
         "weekend_shading_matches_the_window": len(week["weekends"]) == expect["weekend_rects"],
         # 4. Bar baseline HANYA untuk baris yang punya baseline, dan DI BAWAH
@@ -3094,6 +3105,70 @@ def s26m(browser):
         return gantt_scenario(pg, "-mobile-p1h", mobile=True)
     finally:
         ctx.close()
+
+
+@scenario("S26_gantt_jam_server")
+def s26t(browser):
+    """Garis "Hari ini" digambar dari tanggal SERVER, bukan dari jam peramban.
+
+    Ini tidak bisa dibuktikan dengan satu peramban di mesin yang sama: harness
+    menghitung `today_x` dari `date.today()` Python pada host yang juga
+    menjalankan server, jadi jam peramban dan jam pembanding selalu identik dan
+    sebuah gantt yang membaca jam KLIEN tetap hijau (itulah keadaan S26 sampai
+    verifikasi P1-H, 7 Sep 2026 — diukur: Asia/Jakarta x=484,67 vs
+    America/Los_Angeles x=483,27 pada berkas dan jam server yang sama).
+
+    Karena itu dua konteks dengan timezone yang JARAKNYA 25 jam: Pacific/Niue
+    (UTC−11) dan Pacific/Kiritimati (UTC+14) tidak pernah berada di tanggal
+    lokal yang sama, kapan pun skenario ini dijalankan. Kalau garisnya lahir
+    dari jam peramban, kedua x itu berbeda; kalau ia lahir dari `meta.as_of`,
+    keduanya identik — dan sama dengan tanggal yang server umumkan.
+    """
+    out = {"contexts": {}}
+    errors = []
+
+    for zone in ("Pacific/Niue", "Pacific/Kiritimati"):
+        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, timezone_id=zone)
+        pg = ctx.new_page()
+        pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        try:
+            login(pg, "admin@nusantara.test")
+            pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+            pg.wait_for_selector(".tabs button", timeout=20000)
+            pg.wait_for_timeout(1200)
+            click(pg, ".tabs button:nth-child(2)")
+            pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
+            pg.wait_for_timeout(600)
+
+            tasks = api_in_page(pg, "projects/1/wbs-tasks", {})
+            out["contexts"][zone] = {
+                "browser_date": pg.evaluate("() => new Date().toLocaleDateString('sv-SE')"),
+                "today_x": pg.evaluate("""() => { const l = document.querySelector('.gantt-sheet line.gantt-today');
+                    return l ? +(+l.getAttribute('x1')).toFixed(2) : null; }"""),
+                "server_as_of": (tasks["meta"] or {}).get("as_of"),
+                "as_of_source": (tasks["meta"] or {}).get("as_of_source"),
+            }
+        finally:
+            ctx.close()
+
+    niue, kiri = out["contexts"]["Pacific/Niue"], out["contexts"]["Pacific/Kiritimati"]
+    out["pageerrors"] = errors
+
+    checks = {
+        # Prasyarat: kalau kedua peramban ternyata sehari, skenario ini tidak
+        # menguji apa pun dan harus mengatakannya, bukan hijau dengan percuma.
+        "the_two_browsers_really_are_on_different_dates": niue["browser_date"] != kiri["browser_date"],
+        "the_server_announces_its_own_date": bool(niue["server_as_of"]) and niue["as_of_source"] == "server"
+            and niue["server_as_of"] == kiri["server_as_of"],
+        "the_today_line_is_drawn_in_both": niue["today_x"] is not None and kiri["today_x"] is not None,
+        "the_today_line_does_not_move_with_the_browser_clock": niue["today_x"] == kiri["today_x"],
+        "no_page_errors": not errors,
+    }
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
 
 
 @scenario("S26_gantt_baseline_gagal")
@@ -4924,7 +4999,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
