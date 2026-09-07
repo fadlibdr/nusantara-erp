@@ -368,6 +368,14 @@ function budgetTileNote(budget) {
     return `${worst.document} tidak dianggarkan RAP ${budget.rap_code}`;
   }
 
+  // Sisa negatif tidak dicetak sebagai "menyisakan −Rp 105 juta": kalimat pita
+  // di bawahnya menjepit sisa ke Rp 0 (tidak pernah menjanjikan sisa negatif),
+  // dan dua angka berbeda untuk satu hal di satu layar adalah cacat yang sama
+  // yang diperbaiki paket ini. Yang dicetak adalah pelampauannya.
+  if (Number(worst.remaining) < 0) {
+    return `${worst.document} melampaui ${fmt.rupiah(Math.abs(Number(worst.remaining)))} · RAP ${budget.rap_code}`;
+  }
+
   return `${worst.document} menyisakan ${fmt.rupiah(worst.remaining)} · RAP ${budget.rap_code}`;
 }
 

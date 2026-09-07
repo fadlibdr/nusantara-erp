@@ -6561,7 +6561,7 @@ def s29(pg):
     status, after = api("finance/budget/projects/1", admin)
     a = after.get("data") or {}
     out["threshold_fixture"] = {"dpp": target, "submit": s_sub, "approve": s_apr}
-    out["budget_after_commitment"] = {k: a.get(k) for k in ("budget", "used", "pct", "state")}
+    out["budget_after_commitment"] = {k: a.get(k) for k in ("budget", "used", "pct", "state", "worst_side", "worst_state")}
 
     # (6) PERINGATAN DI TEMPAT UANGNYA DIBELANJAKAN — layar proyek…
     pg.goto(BASE + "#/d/projects/1")
@@ -6609,8 +6609,11 @@ def s29(pg):
         "the_refusal_names_the_same_remaining": (
             "31.123.865.391" in (out["gate"]["over_limit_message"] or "")),
         # Kolom "Sisa" membawa TOTAL-nya, dan di bawahnya kedua sisi yang
-        # benar-benar dihakimi gerbang — angka PO yang diterima di atas.
-        "the_portfolio_row_prints_the_remaining_the_gate_enforces": any("31,12 M" in c for c in cells),
+        # benar-benar dihakimi gerbang — dalam RUPIAH PENUH, angka PO yang
+        # diterima di atas apa adanya (format ringkas membulatkan KE ATAS, dan
+        # sebuah plafon yang dibulatkan ke atas adalah janji yang ditolak).
+        "the_portfolio_row_prints_the_remaining_the_gate_enforces": any(
+            "PO Rp 31.123.865.391" in c for c in cells),
         "the_portfolio_row_names_the_governing_rap": any("RAP/2026/0001" in c for c in cells),
         # Proyek TANPA RAP disetujui tidak boleh punya satu pun angka anggaran:
         # RAP, Sisa dan Terpakai harus digaris, tidak pernah "Rp 0".
@@ -6661,8 +6664,17 @@ def s29(pg):
             out["threshold_fixture"]["submit"] == 200 and out["threshold_fixture"]["approve"] == 200),
         "the_project_screen_carries_the_budget_tile": (
             out["project_screen"]["budget_tile"] is not None),
+        # Pita peringatan menyala menurut SISI TERBURUK, bukan menurut total:
+        # pada keadaan yang dibuat harness ini totalnya 93 % (mendekati)
+        # sementara sisi PO sudah lewat 100 %, dan pita kuning di atas proyek
+        # yang setiap PO-nya ditolak adalah alarm yang berbohong tenang.
         "the_project_screen_raises_the_warning_strip": (
-            out["project_screen"]["warning"] is not None and "warn" in (out["project_screen"]["warning_class"] or "")),
+            out["project_screen"]["warning"] is not None
+            and ("error" if out["budget_after_commitment"]["worst_state"] == "lampau" else "warn")
+            in (out["project_screen"]["warning_class"] or "")),
+        "and_it_names_the_side_the_gate_judges": (
+            "non-subkon" in (out["project_screen"]["warning"] or "")
+            and "PO menyisakan" in (out["project_screen"]["warning"] or "")),
         "the_po_form_warns_before_a_single_line_is_typed": any(
             "terpakai" in t for t in note_texts),
         "the_po_form_note_is_coloured_at_the_threshold": any(
