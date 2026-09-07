@@ -125,6 +125,47 @@ class JadwalGanttTest extends ErpTestCase
     // ------------------------------------------------ bentuk muatan pohon
 
     /**
+     * Impor MPP-XML menerima OutlineLevel sedalam apa pun (hanya lompatan lebih
+     * dari satu tingkat yang ditolak), tetapi endpoint pohon dulu memuat
+     * `children.children` saja — TIGA tingkat. Tugas tingkat empat tidak
+     * digambar gantt, tidak muncul di tabel WBS tab Ringkasan, dan induknya di
+     * tingkat tiga tampil sebagai DAUN lengkap dengan tombol "Perbarui" yang
+     * pasti ditolak server ("progress is entered on leaf tasks").
+     *
+     * Sebuah jadwal yang diam-diam kehilangan paket pekerjaan adalah jadwal
+     * karangan, dan ia terlihat persis seperti jadwal yang benar.
+     */
+    public function test_the_wbs_tree_carries_every_level_a_schedule_import_can_create(): void
+    {
+        $b3 = $this->project->wbsTasks()->where('wbs_code', 'B.3')->firstOrFail();
+        $level4 = $this->addTask('B.3.1', 'Pembesian lantai 1–4', $b3->id);
+        $this->addTask('B.3.1.1', 'Pembesian kolom lantai 1', $level4->id);
+
+        $tree = $this->actingAs($this->adminUser())
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk()->json('data');
+
+        $rows = $this->flatten($tree);
+
+        $this->assertSame(
+            $this->project->wbsTasks()->count(),
+            count($rows),
+            'Pohon yang dikirim lebih pendek daripada WBS yang tersimpan: gantt menggambar tugas yang '
+            .'diterimanya, jadi baris yang hilang di sini adalah paket pekerjaan yang hilang di jadwal.',
+        );
+        $this->assertContains('B.3.1.1', array_column($rows, 'wbs_code'));
+        $this->assertSame(3, collect($rows)->firstWhere('wbs_code', 'B.3.1.1')['level']);
+
+        // …dan setiap baris membawa kunci `children`, supaya "tidak punya anak"
+        // dan "anaknya tidak dimuat" tidak lagi terlihat sama di klien: baris
+        // B.3.1 PUNYA anak, dan tombol progres tidak boleh ditawarkan padanya.
+        foreach ($rows as $row) {
+            $this->assertArrayHasKey('children', $row['raw'], "Baris {$row['wbs_code']} tanpa kunci children.");
+        }
+        $this->assertCount(1, collect($rows)->firstWhere('wbs_code', 'B.3.1')['raw']['children']);
+        $this->assertSame([], collect($rows)->firstWhere('wbs_code', 'B.3.1.1')['raw']['children']);
+    }
+
+    /**
      * Tugas tanpa tanggal adalah keadaan yang sah (POST wbs-tasks menerima
      * keduanya null), dan gantt menggambarnya sebagai bar terbuka / baris
      * "tanpa tanggal". Yang tidak boleh dilakukan server adalah menambalnya

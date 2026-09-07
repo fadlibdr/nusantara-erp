@@ -18,14 +18,43 @@ class WbsTaskController extends ApiController
     public function __construct(private readonly ProgressService $progress) {}
 
     /**
-     * WBS tree of a project: root tasks with their children (two levels deep,
-     * which covers the section -> item structure generated from a BOQ).
+     * Pohon WBS sebuah proyek — SELURUHNYA, sedalam apa pun.
+     *
+     * Dulu `rootWbsTasks()->with('children.children')`: TIGA tingkat, "yang
+     * cukup untuk struktur bagian → item yang dihasilkan dari BOQ". Impor
+     * MPP-XML (P8) tidak dibatasi begitu — `MppXmlImportService` menerima
+     * OutlineLevel sedalam apa pun dan hanya menolak lompatan lebih dari satu
+     * tingkat — jadi sebuah jadwal MS Project empat tingkat kehilangan seluruh
+     * tingkat keempatnya di sini: tidak digambar gantt tab Jadwal, tidak muncul
+     * di tabel WBS tab Ringkasan, dan induknya di tingkat tiga tampil sebagai
+     * DAUN (relasi `children`-nya tidak dimuat, jadi kuncinya hilang dari
+     * muatan) lengkap dengan tombol "Perbarui" yang pasti ditolak server.
+     * Sebuah jadwal yang diam-diam kehilangan paket pekerjaan terlihat persis
+     * seperti jadwal yang benar — itulah yang membuatnya berbahaya.
+     *
+     * Pohonnya karena itu dirakit di sini dari SATU kueri: setiap baris
+     * mendapat relasi `children` yang terpasang (kosong bila memang daun), jadi
+     * "tidak punya anak" dan "anaknya tidak dimuat" tidak lagi terlihat sama di
+     * klien. Baris yang induknya tidak ada di himpunan ini (yatim — tidak bisa
+     * dibuat lewat API, tetapi bisa ada di data warisan) diperlakukan sebagai
+     * akar, bukan dibuang: menghilangkan baris dari sebuah jadwal adalah hal
+     * yang paling tidak boleh dilakukan endpoint ini.
      */
     public function index(Project $project): JsonResponse
     {
-        $tasks = $project->rootWbsTasks()->with('children.children')->get();
+        $tasks = $project->wbsTasks()->orderBy('sort_order')->orderBy('wbs_code')->get();
+        $children = $tasks->groupBy('parent_id');
 
-        return $this->ok(WbsTaskResource::collection($tasks));
+        foreach ($tasks as $task) {
+            $task->setRelation('children', $children->get($task->id, collect())->values());
+        }
+
+        $known = $tasks->keyBy('id');
+        $roots = $tasks
+            ->filter(fn (WbsTask $task): bool => $task->parent_id === null || ! $known->has($task->parent_id))
+            ->values();
+
+        return $this->ok(WbsTaskResource::collection($roots));
     }
 
     /**
