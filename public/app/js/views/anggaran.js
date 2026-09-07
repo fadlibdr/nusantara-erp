@@ -69,6 +69,22 @@ function selPersen(pct, stateKey) {
   return el('td.right.num.strong', { text: fmt.percent(pct, { decimals: 1 }), style: { color: tone } });
 }
 
+/* Kedua plafon gerbang pada satu baris kecil, dalam rupiah PENUH. Sisi yang
+   tidak dianggarkan RAP menyebutkan itu: "PO Rp 0" akan terbaca "anggarannya
+   habis dipakai", yang berbeda sebabnya dan berbeda jalan keluarnya. */
+function sisaPerSisi(row) {
+  const sides = row.sides || {};
+
+  const teks = (key, label) => {
+    const side = sides[key];
+    if (!side || side.budget === null || side.budget === undefined) return `${label} —`;
+    if (Number(side.budget) <= 0) return `${label} tidak dianggarkan`;
+    return `${label} ${fmt.rupiah(side.remaining)}`;
+  };
+
+  return `${teks('non_subcon', 'PO')} · ${teks('subcon', 'SPK')}`;
+}
+
 /* ------------------------------------------------------------- portofolio */
 
 function paintPortfolio(body, payload) {
@@ -145,7 +161,14 @@ function paintPortfolio(body, payload) {
           /* Sisa TOTAL, dan di bawahnya kedua sisi yang benar-benar dihakimi
              gerbang: sebuah PO diukur terhadap sisa NON-SUBKON dan sebuah SPK
              terhadap sisa SUBKON, jadi mencetak totalnya saja akan menjanjikan
-             ruang yang tidak dimiliki dokumen yang hendak dibuat orangnya. */
+             ruang yang tidak dimiliki dokumen yang hendak dibuat orangnya.
+
+             RUPIAH PENUH, BUKAN rupiahShort (verifikasi F-2). Format ringkas
+             membulatkan setengah KE ATAS — rupiahShort(31126000000) mencetak
+             "Rp 31,13 M", dua juta rupiah DI ATAS plafon yang sungguh berlaku —
+             dan satu-satunya tempat angka per sisi ini tercetak adalah baris
+             ini. Sebuah plafon yang dibulatkan ke atas adalah janji yang
+             ditolak gerbang sebelum angkanya tercapai. */
           row.remaining === null
             ? el('td.right', el('span.cell-sub', { text: '—' }))
             : el('td.right', [
@@ -153,9 +176,7 @@ function paintPortfolio(body, payload) {
                 text: fmt.rupiah(row.remaining),
                 style: row.remaining < 0 ? { color: 'var(--danger)' } : {},
               }),
-              el('span.cell-sub', {
-                text: `PO ${fmt.rupiahShort(row.remaining_non_subcon)} · SPK ${fmt.rupiahShort(row.remaining_subcon)}`,
-              }),
+              el('span.cell-sub', { text: sisaPerSisi(row) }),
             ]),
           selPersen(worst ? worst.pct : row.pct, row.worst_state),
           el('td', [

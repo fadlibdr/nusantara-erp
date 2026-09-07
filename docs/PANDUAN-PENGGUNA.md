@@ -8406,9 +8406,11 @@ Tab **Portofolio**, satu baris per proyek yang belum ditutup:
 | **Terpakai** | (realisasi + komitmen) ÷ RAP |
 
 **Angka "Sisa PO" adalah nilai PO terbesar yang masih diterima tanpa konfirmasi
-pelampauan** — bukan perkiraan. Kalau Anda mengajukan PO tepat sebesar angka itu,
-ia lolos; satu rupiah di atasnya, gerbang anggaran menahannya dan meminta Anda
-mengakui pelampauannya secara eksplisit. Itulah sebabnya sisanya dicetak per
+pelampauan** — bukan perkiraan, dan dicetak **dalam rupiah penuh** justru karena
+itu: sebuah angka ringkas seperti "Rp 31,13 M" membulatkan ke atas dan akan
+menjanjikan dua juta rupiah yang ditolak gerbang. Kalau Anda mengajukan PO tepat
+sebesar angka itu, ia lolos; satu rupiah di atasnya, gerbang anggaran menahannya
+dan meminta Anda mengakui pelampauannya secara eksplisit. Itulah sebabnya sisanya dicetak per
 sisi: sebuah PO diukur terhadap anggaran non-subkon (material, upah, alat,
 overhead) dan sebuah SPK terhadap anggaran subkon, jadi total saja akan
 menjanjikan ruang yang tidak dimiliki dokumen yang hendak Anda buat.
