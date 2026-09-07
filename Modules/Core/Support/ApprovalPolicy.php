@@ -624,6 +624,35 @@ final class ApprovalPolicy
     }
 
     /**
+     * IZIN YANG DITUNTUT OLEH BARIS INI, bukan oleh matriksnya.
+     *
+     * "approvals.purchase_order.threshold_two_level" → "prc.approve-director".
+     * null untuk kunci lintas-baris (approvals.aging_days,
+     * approvals.segregation_of_duties, approvals.batch_cap): kunci-kunci itu
+     * tidak berdiri di satu modul, jadi tuntutannya tetap "salah satu".
+     *
+     * Sebabnya diukur: penjaga F-1 yang dikirim menerima izin direktur MANA
+     * PUN dari sepuluh yang ada, jadi pemegang hr.approve-director + core.update
+     * menaikkan ambang PO dari Rp 100 juta menjadi Rp 10 miliar lewat HTTP 200
+     * (terukur 7 Sep 2026). Docblock penjaganya sendiri menyatakan maksud yang
+     * tidak dikerjakannya: "orang yang mengubah aturan persetujuan harus orang
+     * yang berdiri di dalam aturan itu" — memegang hak direktur payroll tidak
+     * menempatkan siapa pun di dalam aturan pengadaan.
+     *
+     * TIDAK MEMBACA SATU SETELAN PUN: dipanggil dari jalur tulis Pengaturan.
+     */
+    public static function directorPermissionForKey(string $key): ?string
+    {
+        if (! preg_match('/^approvals\.([a-z0-9_]+)\.[a-z0-9_]+$/', $key, $matches)) {
+            return null;
+        }
+
+        $prefix = self::registryEntryFor(self::settingType($matches[1]))['prefix'] ?? '';
+
+        return $prefix === '' ? null : "{$prefix}.approve-director";
+    }
+
+    /**
      * Setiap izin persetujuan direktur yang ada — satu per awalan berdokumen.
      *
      * Diturunkan dari registri dan TIDAK membaca satu pun setelan: dipanggil

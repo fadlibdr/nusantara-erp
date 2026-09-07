@@ -135,21 +135,36 @@ class UpdateSettingsRequest extends FormRequest
 
         $actor = $this->user();
 
-        // hasPermissionTo, TIDAK can(): sebuah delegasi persetujuan tidak
-        // boleh menjadi hak mengubah aturan persetujuan itu sendiri.
-        foreach (ApprovalPolicy::directorPermissions() as $permission) {
-            if ($actor !== null && ApprovalDelegations::holdsNatively($actor, $permission)) {
-                return;
-            }
-        }
-
         foreach ($keys as $key) {
+            // PER BARIS, bukan per formulir: baris PO menuntut
+            // prc.approve-director, baris payroll menuntut hr.approve-director,
+            // dan sebuah simpanan yang memuat keduanya menolak yang tidak
+            // dipegang penyuntingnya SAJA. Sebelum putaran verifikasi F-1 satu
+            // izin direktur mana pun membuka kesepuluh barisnya.
+            $required = ApprovalPolicy::directorPermissionForKey($key);
+            $held = false;
+
+            // hasPermissionTo, TIDAK can(): sebuah delegasi persetujuan tidak
+            // boleh menjadi hak mengubah aturan persetujuan itu sendiri.
+            foreach ($required === null ? ApprovalPolicy::directorPermissions() : [$required] as $permission) {
+                if ($actor !== null && ApprovalDelegations::holdsNatively($actor, $permission)) {
+                    $held = true;
+                    break;
+                }
+            }
+
+            if ($held) {
+                continue;
+            }
+
             $validator->errors()->add(
                 'settings.'.$key,
-                'Aturan persetujuan hanya dapat diubah oleh pemegang izin persetujuan direktur '
-                .'(*.approve-director) — pada instalasi standar peran direktur atau admin. Izin '
-                .'core.update saja tidak cukup: yang diubah di sini adalah siapa boleh menyetujui '
-                .'dokumen senilai berapa.',
+                sprintf(
+                    'Aturan persetujuan ini hanya dapat diubah oleh pemegang izin %s — pada instalasi '
+                    .'standar peran direktur atau admin. Izin core.update saja tidak cukup: yang diubah '
+                    .'di sini adalah siapa boleh menyetujui dokumen senilai berapa.',
+                    $required ?? 'persetujuan direktur (*.approve-director)',
+                ),
             );
         }
     }

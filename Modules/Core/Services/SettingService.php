@@ -881,6 +881,16 @@ class SettingService
      * mengubah aturan persetujuan harus orang yang berdiri di dalam aturan
      * itu.
      *
+     * IZIN YANG DITUNTUT ADALAH IZIN BARISNYA, bukan sembarang izin direktur —
+     * perbaikan putaran verifikasi F-1. Penjaga yang dikirim menerima salah
+     * satu dari sepuluh izin *.approve-director untuk baris mana pun, jadi
+     * pemegang hr.approve-director menaikkan ambang PO 100 kali lipat lewat
+     * HTTP 200 (terukur: ambang PO menjadi 10.000.000.000, dan
+     * PurchaseOrder::directorApprovalThreshold membacanya). Memegang hak
+     * direktur payroll tidak menempatkan siapa pun di dalam aturan pengadaan.
+     * Tiga kunci lintas-baris (aging_days, segregation_of_duties, batch_cap)
+     * tidak berdiri di satu modul dan tetap menuntut "salah satu".
+     *
      * TANPA PENGGUNA MASUK, PENJAGA DIAM. Seeder, migrasi dan perintah konsol
      * menulis setelan tanpa aktor; menolak mereka berarti instalasi baru tidak
      * bisa diseed. Yang dijaga adalah ORANG, dan orang selalu punya sesi —
@@ -901,10 +911,12 @@ class SettingService
             return;
         }
 
+        $required = ApprovalPolicy::directorPermissionForKey($key);
+
         // hasPermissionTo, TIDAK can(): sebuah delegasi meminjamkan hak
         // menyetujui dokumen, bukan hak menulis ulang apa arti menyetujui.
         // Lihat ApprovalDelegations::holdsNatively.
-        foreach (ApprovalPolicy::directorPermissions() as $permission) {
+        foreach ($required === null ? ApprovalPolicy::directorPermissions() : [$required] as $permission) {
             if (ApprovalDelegations::holdsNatively($actor, $permission)) {
                 return;
             }
@@ -912,9 +924,9 @@ class SettingService
 
         throw new InvalidArgumentException(sprintf(
             'Setting [%s] mengubah aturan persetujuan dokumen. Selain izin core.update, penyuntingnya '
-            .'harus memegang salah satu izin persetujuan direktur (*.approve-director) — pada instalasi '
-            .'standar peran direktur atau admin.',
+            .'harus memegang izin %s — pada instalasi standar peran direktur atau admin.',
             $key,
+            $required ?? 'salah satu izin persetujuan direktur (*.approve-director)',
         ));
     }
 
