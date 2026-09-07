@@ -3538,3 +3538,102 @@ pasalnya. Bila panduan ini dan docblock itu berbeda, docblock-nya yang dibaca ko
 *Panduan ini menjelaskan perilaku kode per 22 Agustus 2026. Setiap klaim di dalamnya
 diverifikasi terhadap berkas sumber atau terhadap salinan basis data hidup. Bila sebuah
 perilaku berubah, panduan inilah yang salah — bukan kodenya.*
+
+## 13. Matriks Persetujuan & delegasi (F-1)
+
+### Apa yang berubah saat paket ini dipasang
+
+**Tidak ada.** Setiap baris matriks dikirim membawa nilai yang mengatur jenis
+dokumen itu sebelum paket ini ada, dan setiap kendali baru (ambang pada jenis
+lain, delegasi, setujui massal) mati sampai Anda menyalakannya. Delapan izin
+`*.approve-director` baru dicetak dan diberikan ke peran `direktur` dan `admin`,
+tetapi tidak satu pun diperiksa sampai sebuah baris matriks membawa ambang.
+
+### Mengubah aturan persetujuan menuntut DUA hak
+
+`core.update` **dan** salah satu izin `*.approve-director`. Pada instalasi
+standar, itu berarti peran `admin` (atau `direktur` bila Anda menambahkan
+`core.update` padanya). Penolakannya 422 dan menyebut parameter mana yang
+ditolak.
+
+Alasannya: `core.update` juga membuka format penomoran dan asumsi arus kas,
+sedangkan menurunkan ambang PO dari Rp 100 juta ke Rp 10 miliar adalah keputusan
+uang. Orang yang mengubah aturan persetujuan harus berdiri di dalam aturan itu.
+
+**Setiap perubahan tercatat** di Sistem › Log Audit dengan nilai efektif
+**dari → ke**, termasuk saat Anda menekan "Kembalikan ke bawaan".
+
+### Membaca matriksnya
+
+Pengaturan › **Matriks Persetujuan**, satu baris per jenis dokumen (28), empat
+kolom.
+
+| Yang tertulis di sel | Artinya |
+|---|---|
+| sebuah angka rupiah | dokumen senilai itu **ke atas** menuntut persetujuan direktur |
+| kosong / "Bawaan: —" | **tanpa ambang**: siapa pun pemegang izin approve modul itu boleh menyetujui, berapa pun nilainya |
+| "Tanpa nilai rupiah — ambang tidak berlaku" | jenis dokumen ini **tidak punya kolom nilai** (izin kerja, BAST, cuti, permintaan pembelian, penyesuaian stok…). Ambang tidak punya apa pun untuk diukur, jadi tidak ada kotak isian. Sengaja: kotak isian di sana akan menjadi kendali yang tidak pernah berbunyi |
+| "Mengikuti SPK subkontraktor" | addendum SPK memakai ambang SPK, kunci yang sama persis. Ubah baris SPK-nya |
+| "Satu penyetuju, harus direktur di atas ambang" (tanpa pilihan) | PO, SPK dan addendum SPK menegakkan ambangnya lewat mekanismenya sendiri, yang tidak mengenal "tambahan tingkat". Ambangnya **bisa** diubah; modenya tidak |
+
+**Dua mode**, untuk baris yang menawarkannya:
+
+- **Satu penyetuju, harus direktur di atas ambang** — jumlah persetujuannya tetap
+  satu; yang berubah adalah **siapa** yang boleh memberikannya.
+- **Tambahan tingkat: penyetuju kedua yang berbeda** — di atas ambang dokumen
+  menuntut penyetuju **kedua yang berbeda orang**, dan penyetuju kedua itu wajib
+  pemegang izin direktur. Kolom keempat menambahkan penyetuju ketiga di atas
+  ambang yang lebih tinggi lagi.
+
+**Nol bukan "tanpa ambang".** Mengetik 0 berarti *setiap* dokumen jenis itu
+menuntut direktur. Untuk mematikan ambang, **kosongkan** selnya.
+
+### Perubahan hanya berlaku untuk dokumen yang DIAJUKAN sesudahnya
+
+Aturan yang berlaku atas sebuah dokumen adalah aturan saat dokumen itu diajukan,
+dan itu **disimpan pada dokumennya**. Menaikkan ambang siang hari tidak
+membebaskan satu pun dokumen yang sedang menunggu, dan menurunkannya tidak
+menuntut penyetuju tambahan atas dokumen yang sudah terbang. Kalau Anda memang
+ingin dokumen yang menunggu mengikuti aturan baru: tolak dokumennya (ia kembali
+ke draf) dan minta pengajunya mengajukan ulang.
+
+### Sebelum memasang ambang pada jenis yang belum punya
+
+1. Pastikan **ada orang yang memegang izin direkturnya**. Baris matriksnya
+   mencetak nama izin yang akan dituntutnya (mis. `fin.approve-director`).
+   Ambang tanpa pemegang izin = dokumen yang tidak dapat disetujui siapa pun.
+   Periksa dengan `php artisan erp:permission-check`.
+2. Ingat bahwa maker-checker tetap berlaku di atasnya: pemegang izin direktur
+   yang mengajukan dokumennya sendiri tetap ditolak.
+
+### Delegasi persetujuan
+
+Tabel `core_approval_delegations`. Dikelola pengguna sendiri di Tugas Saya ›
+Delegasi Persetujuan; pemegang `iam.update` dapat membuat dan mencabut delegasi
+untuk orang lain.
+
+Yang perlu Anda ketahui sebagai administrator:
+
+- Delegasi **hanya** memberikan `<awalan>.approve` dan
+  `<awalan>.approve-director`. Tidak pernah membuat, mengubah, menghapus atau
+  memposting apa pun.
+- Delegasi **tidak berantai**: pemberinya harus memegang izin itu sendiri, bukan
+  lewat delegasi lain.
+- Delegasi dari pemberi yang **dinonaktifkan** tidak memberikan apa pun.
+- **Dicabut, bukan dihapus.** Barisnya menjelaskan setiap "a.n." di jejak
+  persetujuan; jangan menghapusnya dari basis data.
+- Mematikan "Wajib pemisahan tugas (maker-checker)" **juga** mematikan larangan
+  delegat menyetujui pengajuan pemberinya — keduanya satu saklar, karena aturan
+  itu adalah maker-checker yang dilihat lewat delegasi.
+
+### Setujui massal
+
+`approvals.batch_cap` — **kosong = mati**, dan itulah bawaannya: tombolnya tidak
+digambar sama sekali. Nol ditolak (minimum 1); untuk mematikannya, kosongkan.
+
+Aplikasi tidak punya endpoint "setujui banyak" di server. Yang terjadi adalah
+klien menekan tombol Setujui tiap dokumen berurutan, jadi maker-checker, ambang
+direktur, jurnal, pergerakan stok dan pemberitahuan berjalan persis seperti
+menyetujui satu-satu. Angka yang Anda isi hanya membatasi berapa banyak boleh
+dipilih sekali jalan; pilih dengan mempertimbangkan bahwa tiap dokumen adalah
+satu permintaan dan laju API dibatasi 120 permintaan per menit.

@@ -902,3 +902,144 @@ yang harus punya jawaban tertulis: **DEPLOYMENT § 2.3**. Ringkasnya — **mengh
 mencopot apa pun** (terukur: sesudahnya worker tetap terdaftar, tetap menguasai halaman, cache tetap
 utuh, dan `update()` melempar), yang bekerja adalah **mengganti isinya** dengan pencabut yang
 menghapus cache dan memanggil `self.registration.unregister()`.
+
+## 22. Matriks persetujuan (`ApprovalPolicy`, F-1)
+
+Satu kebijakan per jenis dokumen di `ApprovableDocuments` — **ambang**, **mode**
+(`single_director` / `extra_level`), **ambang tingkat ketiga** — disunting di
+Pengaturan › Matriks Persetujuan dan disimpan lewat mekanisme setelan yang sudah
+ada (`approvals.*` di `core_settings`). Bukan mekanisme kedua: baris PO dan SPK
+menulis `approvals.purchase_order/subcontract.threshold_two_level`, **kunci yang
+sudah dibaca `needs_director_approval`**, jadi tidak ada dua angka yang bisa
+berbeda pendapat tentang ambang yang sama.
+
+**Slug jenis dokumen = `Str::snake(class_basename($model))`** — dan itu bukan
+kebetulan: kedua kunci yang sudah dikirim aplikasi ini persis bentuk itu. 28
+jenis diperiksa, tidak ada dua yang bertabrakan.
+
+**LIMA ATURAN YANG MENENTUKAN BENTUK LAYARNYA.**
+
+1. **Bawaan = nilai HARI INI.** Sebuah paket yang menambahkan layar tidak boleh
+   mengubah satu pun keputusan saat dipasang. Yang dikirim: PO Rp 100 juta, SPK
+   Rp 200 juta, addendum mengikuti SPK, award Rp 100 juta / Rp 1 miliar
+   berjenjang, dan **24 jenis lain tanpa ambang**.
+2. **"Tanpa ambang" adalah `null` dan dirender sebagai ATURAN — tidak pernah
+   `Rp 0`.** Ambang nol berarti setiap dokumen menuntut direktur, kebalikan
+   persis keadaannya, dan satu-satunya angka yang bisa mengubah aturan uang
+   tanpa seorang pun mengetiknya.
+3. **Jenis TANPA kolom nilai tidak mendapat sel ambang sama sekali.** Tiga belas
+   dari dua puluh delapan (izin kerja lapangan, izin lembur, izin masuk/keluar
+   material, BAST, baseline proyek, opname progres owner, IPP, inspeksi mutu,
+   pekerjaan tambah-kurang, permintaan pembelian, penyesuaian stok, BAST subkon,
+   pengajuan cuti — diukur dari skema 7 Sep 2026). Sebuah izin kerja lapangan
+   tidak berharga rupiah; menawarkan kotak isian di sana berarti menawarkan
+   kendali yang tidak akan pernah berbunyi. Lihat
+   `ApprovalPolicy::hasMeasurableAmount`.
+4. **Tiga tabel yang membawa `needs_director_approval` sendiri** (`prc_purchase_orders`,
+   `scm_subcontracts`, `scm_subcontract_addenda`) **tidak mendapat sel MODE**, dan
+   Core tidak menggerbangi ulang dokumennya: modul merekalah yang menegakkan,
+   lebih dulu, dengan kalimat penolakannya sendiri. Pertanyaan "tabel ini
+   bergerbang sendiri?" dijawab dari **skema** (`Schema::hasColumn`), bukan dari
+   daftar kelas yang harus diingat orang berikutnya.
+5. **Baris yang MENGIKUTI jenis lain memantul ke kunci jenis itu**
+   (`ApprovalPolicy::FOLLOWS`). Hari ini satu: addendum SPK menghitung
+   `needs_director_approval`-nya terhadap ambang SPK, jadi kunci sendiri untuknya
+   berarti sel yang bisa diedit dan tidak ada yang membacanya.
+
+**KEBIJAKAN DISTEMPEL PADA BARIS `submitted`** (`core_approvals.policy`, json).
+Yang dicap bukan hanya kebijakannya melainkan HASILNYA (`levels`, `director`)
+beserta nilai dokumennya, jadi saat menyetujui tidak ada yang perlu dihitung
+ulang. Sebelum ini, jenjang dibaca langsung dari config setiap kali seseorang
+menekan Setujui — menaikkan ambang siang hari MENGURANGI tuntutan setiap dokumen
+yang sedang menunggu, surut dan tanpa jejak. Stempelnya ditulis observer
+`Approval::creating` (`ApprovalStamp`), **bukan** baris di dalam
+`Traits\Approvable`: Payment, ProjectBaseline dan JournalService menulis baris
+persetujuan tanpa trait itu, dan jalur yang terlewat adalah jalur yang dicari
+sebuah penyelidikan. Dokumen yang diajukan sebelum kolomnya ada tidak punya
+stempel dan jatuh ke resolusi langsung — maju-saja, tidak pernah ditulis surut.
+
+**MENGUBAH `approvals.*` BUTUH DUA IZIN**: `core.update` **dan** salah satu
+`*.approve-director`. Ditegakkan di `UpdateSettingsRequest` (422 per-parameter,
+kalimat Indonesia) **dan lagi** di `SettingService::set()`, jadi memanggil
+service langsung bukan jalan memutar. Penulisan tanpa pengguna masuk (seeder,
+migrasi, konsol) tetap lewat: yang dijaga adalah ORANG. Setiap perubahan menulis
+satu baris `core_audit_log` dengan nilai **efektif** dari → ke — termasuk reset
+ke bawaan, yang tanpa ini hanya tercatat sebagai baris dihapus.
+
+**IZIN DIREKTUR DITURUNKAN, BUKAN DIKETIK.** `PermissionSeeder::directorApprovals()`
+mencetak satu `<awalan>.approve-director` per awalan yang memiliki setidaknya satu
+dokumen di `ApprovableDocuments` — sepuluh (crm, est, prj, eng, qc, prc, inv, scm,
+fin, hr). Empat awalan tanpa dokumen ber-approve (core, iam, ast, svc) tidak
+mendapatkannya: sebuah izin yang tidak diperiksa apa pun terbaca sebagai kendali
+yang ada.
+
+**Setujui massal** (`approvals.batch_cap`, bawaan kosong = mati) adalah **loop di
+klien** atas endpoint `POST <resource>/{id}/approve` milik tiap modul. Tidak ada
+endpoint server massal, dan ketiadaannya dipaku uji yang memindai tabel rute:
+satu endpoint massal akan melewati maker-checker, ambang direktur, jurnal, stok,
+catatan dan pemberitahuan sekaligus.
+
+**Blok migrasi Core HABIS.** 000198 dan 000199 adalah dua slot terakhir §2 (lihat
+§18). Tabel Core berikutnya menuntut keputusan blok lanjutan dari pemilik —
+ledger #5 belum menyebut satu pun rentang untuk Core.
+
+## 23. Delegasi persetujuan "a.n." (`core_approval_delegations`, F-1)
+
+Budi menyetujui atas nama Sari selama Sari cuti. Tanpa ini, cuti seorang direktur
+berakhir di antrean yang berhenti (diukur 4 Sep 2026: PAY/2026/VIII/0002 menunggu
+33 hari) atau kata sandi yang dipinjamkan, yang mengubah seluruh jejak persetujuan
+aplikasi ini menjadi fiksi.
+
+**Jendela TANGGAL, inklusif di kedua ujung** (Asia/Jakarta): "10 sampai 20
+September" berarti apa yang dikatakannya. `ends_at` null = sampai dicabut, dan
+layar mencetaknya sebagai delegasi tanpa akhir. **Lingkup** null = setiap hak
+approve yang DIPEGANG pemberinya; `'prc'` = hanya `prc.approve` /
+`prc.approve-director`. **Dicabut, bukan dihapus**: sebuah delegasi yang pernah
+hidup adalah penjelasan bagi setiap baris "a.n." yang ditinggalkannya.
+
+**`Gate::before` MENGEMBALIKAN `true` ATAU `null` — TIDAK PERNAH `false`.** Sebuah
+`Gate::before` yang mengembalikan `false` MENOLAK ability itu di seluruh aplikasi,
+mendahului setiap policy dan setiap middleware `permission:`. Polanya diperiksa
+SEBELUM satu baris pun dibaca dan hanya cocok pada `<awalan>.approve` /
+`.approve-director` dengan awalan yang benar-benar ada di registri.
+
+**TIDAK BERANTAI.** Pemberinya harus memegang izinnya SENDIRI —
+`hasPermissionTo()`, bukan `can()`. Dua alasan, keduanya cukup sendirian:
+`can()` masuk lagi ke `Gate::before` dan siklus A→B, B→A akan menggantung proses;
+dan rantai tiga orang menyerahkan hak direktur kepada orang yang tidak pernah
+dipilih siapa pun.
+
+**DUA PENOLAKAN.** Delegat tidak boleh menyetujui yang diajukan DIRINYA
+(maker-checker lama) **maupun** yang diajukan PEMBERI delegasinya. Yang kedua
+dipasang DI DALAM `SegregationOfDuties::assertNotSubmitter`, tempat maker-checker
+sudah berdiri, jadi keempat pemanggilnya (trait `Approvable`, `BaselineService`,
+`PaymentService`, `JournalService`) mendapatkannya tanpa satu pun harus tahu
+delegasi itu ada. Aturannya **sengaja lebih keras dari yang perlu** — berlaku
+bahkan bila delegatnya memegang hak itu sendiri — karena "hak yang mana yang
+dipakainya tadi" tidak dapat ditentukan sesudah kejadian, dan jawaban yang
+ditebak pada pertanyaan itu adalah jawaban yang salah. Ia mengikuti saklar
+`approvals.segregation_of_duties` yang sama: mematikan maker-checker mematikan
+keduanya, karena aturan ini adalah maker-checker yang dilihat lewat delegasi.
+
+**"a.n." DICAP HANYA BILA DELEGASINYA YANG MEMBUATNYA MUNGKIN**
+(`core_approvals.on_behalf_of_user_id`). Seseorang yang memegang izin approve-nya
+sendiri menyetujui atas namanya sendiri, punya delegasi atau tidak; mencap "a.n."
+pada persetujuan yang tidak membutuhkannya berarti menuliskan fiksi ke dalam
+jejak.
+
+**Satu perender jejak, `Core\Http\Resources\ApprovalTrail`**, dipakai 25 resource.
+Penutup yang sama disalin byte per byte di 25 berkas sebelum F-1; selama tidak ada
+yang berubah itu tidak menyakiti siapa pun, tetapi sebuah fakta baru yang harus
+muncul di 25 tempat akan muncul di 24.
+
+**Memo delegasi adalah objek yang di-bind `scoped()`**, bukan statis — batas dan
+alasan yang sama dengan `SettingService`: satu unit kerja membaca satu potret,
+unit berikutnya membaca ulang. Memo statis akan membuat pekerja antrean memegang
+delegasi yang sudah dicabut sampai ia direstart.
+
+**Yang TIDAK bisa dicetak "a.n.": formulir rumah.** `FormPrintService` dan
+`PrintableDocuments` sengaja meninggalkan setiap kolom tanda tangan TANPA NAMA —
+"core_approvals tahu siapa menekan Setujui; itu bukan klaim yang sama dengan
+'orang ini menandatangani dokumen'". Keputusan itu tidak diubah F-1, jadi "a.n."
+muncul di jejak persetujuan, di pemberitahuan keputusan dan di layar detail —
+bukan di kertas yang difile orang.
