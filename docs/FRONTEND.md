@@ -281,8 +281,16 @@ follow for anyone touching the front-end:
 - **adding a file under `public/app/` means adding a line to `SHELL` in `sw.js`** (the test fails
   otherwise, in both directions);
 - **a release that changes shell files should bump `SHELL_VERSION`** — that is what installs a new
-  worker and shows "Versi baru siap — Muat ulang" in tabs that have been open for days.
+  worker and shows "Versi baru siap — Muat ulang" in tabs that have been open for days;
+- **adding a listener to `sw.js` means adding a test** — `PwaServiceWorkerTest` pins the listener
+  list at exactly four, because a second `fetch` listener can cache a per-user `/api` answer without
+  a single `respondWith()` and every other check in that file walks straight past it;
+- **`index.html` carries an inline boot watchdog** — the one script in the app that depends on no
+  other file. If a `<script>` fails or the app has not painted in 10 s it replaces the boot spinner
+  with a sentence and a reload button. Anything that changes `#root`'s boot markup must keep
+  `.boot-spinner` as the "still booting" signal.
 
 During development the worker makes a hard reload less predictable, not more: use DevTools →
 Application → Service Workers → *Update on reload*, or unregister it. CONVENTIONS §21 carries the
-never-cache rule itself.
+never-cache rule itself; DEPLOYMENT §2.3 carries the way to take the worker back out of the fleet
+(deleting `sw.js` measurably does not).

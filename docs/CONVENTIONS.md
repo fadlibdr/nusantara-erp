@@ -815,9 +815,30 @@ itu, memaku bahwa hanya ada SATU `respondWith()` dan SATU `cache.put()`, dan mem
 (tanpa komentar, tanpa daftar `SHELL`) tidak menyebut `/api`, `storage`, `attachment`, `lampiran`,
 `download` atau `unduh` sama sekali — **munculnya daftar larangan di sana adalah kegagalan uji.**
 
+Uji itu memaku **bentuk, bukan ejaan**: badan `shellRequest()` dan `storable()` dibandingkan UTUH,
+tulisan cache dihitung sebagai pola `\w+.put(`/`\w+.add(` (bukan nama variabel `cache`), dan DAFTAR
+pendengar worker dipaku persis empat (`install`, `activate`, `fetch`, `message`). Alasannya terukur:
+versi pertama yang menghitung potongan teks meloloskan empat mutasi yang benar-benar membocorkan
+cache — antara lain pendengar `fetch` KEDUA yang menulis lewat `store.put()` tanpa satu pun
+`respondWith()`, yang di peramban menyajikan `/api/core/dashboard/summary` kepada orang berikutnya
+di perangkat yang sama, sesudah Keluar, tanpa token. **Menambah pendengar berarti menambah ujinya.**
+
 **Strateginya jaringan-dulu.** Cache dibaca HANYA ketika `fetch()` melempar. Jawaban HTTP yang sah
 tetapi tidak menyenangkan (404 sesudah rilis membuang berkas, 401 dari gerbang HTTP) diteruskan apa
-adanya, tidak ditutupi salinan lama.
+adanya, tidak ditutupi salinan lama. `fetch()` juga **dimulai sebelum cache dibuka** — cache hanya
+dibuka ketika ada yang perlu disimpan (di dalam `waitUntil`) atau ketika fetch melempar. Urutan
+sebaliknya membuat ke-76 permintaan cangkang menunggu satu `caches.open` masing-masing sebelum satu
+byte pun diminta; terukur pada kunjungan kedua, 14 putaran per varian yang diselang-seling, cat
+pertama median 268 ms lawan 192 ms. Uji memaku urutan itu.
+
+**Cangkang setengah dibuang.** Bila satu saja entri `SHELL` gagal dipasang, seluruh cache dibuang
+(`caches.delete(CACHE)`) — install-nya sendiri tetap berhasil, jadi tidak ada pembaruan yang beku.
+Alasannya terukur dengan kuota origin 1,2 MB (cangkang ~2,1 MB): 42 dari 102 entri masuk, daring
+semuanya baik-baik saja, lalu muat ulang tanpa jaringan berhenti selamanya di pemutar boot dengan
+body kosong. **Cangkang setengah lebih buruk daripada tidak ada cangkang.** Jaring keduanya ada di
+`index.html`: pengawas boot sebaris — satu-satunya kode di sana yang tidak butuh berkas lain —
+mengganti pemutar dengan kalimat dan tombol "Muat ulang" bila sebuah `<script>` gagal atau boot
+belum selesai dalam 10 detik.
 
 **`SHELL` adalah daftar dua arah.** Ia memuat `'./'` + setiap berkas `html/css/js/svg/webmanifest`
 di bawah `public/app` (folder `icons/` tidak masuk — itu dibaca sistem operasi, bukan halaman; dan
@@ -854,6 +875,26 @@ melaporkan `true`. HTTP 500 **bukan** luring: server menjawab. Pita padam pada p
 atau pada permintaan berikutnya yang berhasil — paling lambat polling notifikasi 90 detik. Ia
 sengaja tidak menyelidik jaringan sendiri: lalu lintas latar dari ponsel lapangan berkuota adalah
 biaya nyata untuk informasi yang akan datang sendiri.
+
+Dua sumber berarti dua ingatan, dan **keduanya harus dilupakan oleh peristiwa yang sama**: `api.js`
+menyetel ulang `lastNetworkOk` pada `online`, persis seperti `ui.js` menyetel ulang
+`networkTrouble`. Tanpa itu urutan luring → gagal → `online` meninggalkan `api.js` mengingat "sudah
+diumumkan luring" sementara `ui.js` sudah melupakannya, sehingga setiap kegagalan berikutnya kena
+dedupe dan pita tidak pernah menyala lagi — terukur: empat layar berturut yang seluruh
+permintaannya gagal, `navigator.onLine` true, pita padam, nol peristiwa. Itu justru kasus yang pita
+ini ada untuk melaporkannya.
+
+Kalimat pita **milik pemanggil dan boleh berupa fungsi**, dibaca ulang setiap kali pita menyala:
+layar Lapangan memilih antara "tekan Kirim ulang pada barisnya" (ada antrean) dan "foto yang Anda
+ambil sekarang tersimpan di ponsel ini" (antrean kosong). Pita yang menyuruh menekan tombol yang
+tidak ada di layar lebih buruk daripada pita yang diam.
+
+**Toast yang bertahan (`timeout: 0`) harus dipegang.** Dua di paket ini: "Versi baru siap" dibuang
+sebelum yang baru dibuat (kalau tidak, satu toast permanen menumpuk per rilis di tab yang tidak
+pernah ditutup — terukur dua toast identik pada rilis kedua), dan "Mode luring" dibuang pada
+peristiwa jaringan pertama yang berhasil, sekalian menyegarkan sesi cermin (`refreshMe`,
+`prefs.load`, `refreshNav`). Penyegaran yang gagal MEMBIARKAN toast lama berdiri: saat itu
+kalimatnya masih benar.
 
 **Mencabut worker.** Worker adalah satu-satunya artefak paket ini yang menetap di setiap peramban
 yang pernah membuka `/app/`, jadi "bagaimana mengambilnya kembali" adalah pertanyaan operasional

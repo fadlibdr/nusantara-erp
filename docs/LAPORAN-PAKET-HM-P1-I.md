@@ -9,12 +9,13 @@ Branch: `feat/phase1-i` (dari `main` 9e1e77a) · 7 September 2026 · **paket ter
 >
 > Klaim tengah paket ini bukan "aplikasinya bisa dipasang" — itu bagian yang mudah. Klaimnya adalah
 > **`/api/*` dan lampiran TIDAK PERNAH masuk cache**, dan klaim itu tidak dinyatakan melainkan
-> **diukur**: 102 entri cache, 0 di antaranya `/api/`; 0 dari 12 respons `/api/` yang pernah lewat
+> **diukur**: 102 entri cache, 0 di antaranya `/api/`; 0 dari 18 respons `/api/` yang pernah lewat
 > service worker; dan saat jaringan diputus, cangkang tergambar penuh dari `CacheStorage` (76 dari
 > 76 entri) **sementara** `fetch('/api/core/dashboard/summary')` melempar `TypeError: Failed to
 > fetch`.
 >
-> **VERIFIKASI ADVERSARIAL BELUM DIJALANKAN** — lihat § Yang BELUM diverifikasi.
+> **Putaran verifikasi adversarial pertama sudah dijalankan** (dua lensa, 10 temuan, semuanya
+> diperbaiki dan dipaku) — lihat § Verifikasi adversarial di bawah.
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 1 / P1-I, baris 195 → status)
 
@@ -116,12 +117,14 @@ tersimpan ia `boot()` dari cermin `localStorage` dan berkata **"Mode luring"**. 
 sesi, dan permintaan pertama yang dijawab `401` setelah sinyal kembali tetap melempar keluar lewat
 `setUnauthorizedHandler`. Tidak ada data yang belum dimiliki peramban itu yang terbuka karenanya.
 Sesudah perbaikan, diukur sama: `has_shell: true`, 17.396 karakter, judul
-*"Lapangan · Nusantara ERP"*.
+*"Lapangan · Nusantara ERP"*. (Diukur ulang sesudah putaran verifikasi: **21.455 karakter** —
+pengawas boot sebaris di `index.html` ikut terhitung.)
 
 ## Uji
 
-`tests/Feature/Core/PwaServiceWorkerTest` — 9 uji, 141 asersi ·
-`tests/Feature/Core/PwaManifestTest` — 6 uji, 51 asersi.
+`tests/Feature/Core/PwaServiceWorkerTest` — **12 uji, 152 asersi** ·
+`tests/Feature/Core/PwaManifestTest` — 6 uji, 51 asersi. (Tiga uji dan pemakuan bentuknya berasal
+dari verifikasi adversarial; lihat § di bawah.)
 
 **Merah dulu, dibuktikan dengan sepuluh mutasi** (dijalankan atas pohon kerja lalu dipulihkan,
 7 Sep 2026). **Kesepuluhnya MERAH; nol yang lolos:**
@@ -139,16 +142,28 @@ Sesudah perbaikan, diukur sama: `has_shell: true`, 17.396 karakter, judul
 | m9 | `SHELL` memuat `'/api/core/health'` | lubang lewat DAFTAR, bukan lewat fetch |
 | m10 | pendengar `fetch` kedua ber-`respondWith` tanpa gerbang | gerbang kedua |
 
-`tests/Feature/Core` hijau: **846 uji, 6.733 asersi, 11 dilewati, 155 detik.**
+Sepuluh mutasi itu tidak cukup: verifikasi menjalankan **enam** mutasi lain dan **empat**
+di antaranya lolos HIJAU — semuanya kebocoran cache sungguhan. Uji sekarang membandingkan **bentuk**
+(badan `shellRequest()` dan `storable()` utuh, tulisan cache sebagai pola `\w+.put(`, daftar
+pendengar tepat empat), dan keenam mutasi itu MERAH.
 
-## Harness — S27, tiga skenario, 47 syarat, semuanya hijau
+`tests/Feature/Core` hijau sesudah perbaikan: **849 uji, 6.744 asersi, 11 dilewati, 165,9 detik.**
 
-Dijalankan 7 Sep 2026 pada `http://127.0.0.1:8071` (`php -S`, salinan coretan basis data demo),
-masuk sebagai `teknisi@nusantara.test`. Hasil digabung ke `docs/bukti-uji/results-phase-1.json`
-(25 → 28 kunci); tujuh tangkapan layar `s27-*.png`.
+## Harness — S27, lima skenario, 81 syarat, semuanya hijau
 
-**`S27_pwa` (1440×900, 19 syarat, 20,7 s)** dan **`S27_pwa_mobile` (390×844, 19 syarat, 20,6 s)** —
-angkanya identik kecuali jumlah respons API (12 vs 9):
+Dijalankan 7 Sep 2026 (`php -S`, salinan coretan basis data demo — port 8071 saat dibangun,
+8074 saat diverifikasi ulang), masuk sebagai `teknisi@nusantara.test`. Hasil digabung ke
+`docs/bukti-uji/results-phase-1.json` (25 → **30** kunci); **17** tangkapan layar `s27-*.png`.
+
+| Skenario | Syarat | Waktu |
+|---|---|---|
+| `S27_pwa` (1440×900) | 26 | 35,5 s |
+| `S27_pwa_mobile` (390×844) | 26 | 35,0 s |
+| `S27_pwa_pembaruan` | 10 | 18,2 s |
+| `S27_pwa_cangkang_sebagian` | 9 | 29,5 s |
+| `S27_pwa_pasang` | 10 | 6,6 s |
+
+**`S27_pwa`** dan **`S27_pwa_mobile`** — angkanya identik kecuali jumlah respons API (18 vs 15):
 
 | Yang diukur | Angka |
 |---|---|
@@ -157,23 +172,42 @@ angkanya identik kecuali jumlah respons API (12 vs 9):
 | entri `/api/` di cache | **0** |
 | entri di luar `/app/` di cache | **0** |
 | daring, `app.css` diminta ulang | 200 · `deliveryType ''` · 112.978 byte · `from_service_worker=true` |
-| luring, cangkang | `.shell` ada · 18 tautan nav · 0 formulir masuk · 17.396 karakter · **76 dari 76** entri `/app/` ber-`deliveryType: 'cache-storage'` |
+| luring, cangkang | `.shell` ada · 18 tautan nav · 0 formulir masuk · 21.455 karakter · **76 dari 76** entri `/app/` ber-`deliveryType: 'cache-storage'` |
 | luring, `/api/core/dashboard/summary` | **melempar** `TypeError: Failed to fetch` |
 | entri `/api/` ber-`cache-storage` | **0 dari 6** |
-| respons `/api/` dari worker (sisi Playwright) | **0 dari 12** (desktop) · **0 dari 9** (ponsel) |
+| respons `/api/` dari worker (sisi Playwright) | **0 dari 18** (desktop) · **0 dari 15** (ponsel) |
 | pita | tersembunyi daring → terlihat luring → tersembunyi lagi; terlihat lagi sesudah muat ulang luring |
+| pita di balik portal (onLine `true`, `/api/**` digugurkan, sesudah satu peristiwa `online`) | **terlihat** — dan padam lagi begitu permintaan sampai |
+| kalimat pita | antrean kosong → tidak menyebut tombol, **0** tombol "Kirim ulang" di halaman; satu foto di antrean → menunjuk barisnya, **1** tombol |
+| toast "Mode luring" sesudah tersambung lagi | hilang, diganti *"Kembali daring. Izin dan menu disegarkan…"* |
 
 `deliveryType` adalah pembeda yang membuat klaim ini bisa dibaca alih-alih diyakini: `'cache'` =
 cache HTTP peramban, `''` = jaringan, `'cache-storage'` = CacheStorage, **satu-satunya** yang bisa
 diisi service worker.
 
-**`S27_pwa_pembaruan` (9 syarat, 14,1 s)** menaikkan `SHELL_VERSION` **di berkasnya** lalu
+**`S27_pwa_pembaruan` (10 syarat)** menaikkan `SHELL_VERSION` **di berkasnya** — dua kali, lalu
 memulihkannya di `finally` — peramban membandingkan **byte** `sw.js`, jadi tidak ada cara lain
 memunculkan worker yang menunggu. Terukur: 0 toast pada pemasangan pertama; sesudah
 `registration.update()` toast berbunyi *"Versi baru siap — Muat ulang untuk memakainya."* dengan
 tombol `Muat ulang` dan `registration.waiting` benar; **satu klik = 1 navigasi**; cache berganti
-`['nusantara-shell-v1']` → `['nusantara-shell-v1-uji']` (yang lama benar-benar dibuang); 0 toast
-tersisa; halaman tetap dikuasai; `sw.js` identik byte demi byte dengan sebelumnya.
+`['nusantara-shell-v1']` → `['nusantara-shell-v1-uji2']` (yang lama benar-benar dibuang); 0 toast
+tersisa; halaman tetap dikuasai; `sw.js` identik byte demi byte dengan sebelumnya. **Rilis KEDUA di
+tab yang sama tetap menyisakan satu toast**, dan tombolnya memasang versi terbaru — sebelum
+verifikasi ia menyisakan dua toast identik yang permanen.
+
+**`S27_pwa_cangkang_sebagian` (9 syarat)** membatasi kuota origin ke 1,2 MB lewat CDP dan membawa
+jalan **kendali** tanpa batas itu di konteks yang sama: kendali memasang **102** entri, yang
+berkuota **0** (cangkang tidak lengkap dibuang), aplikasinya tetap jalan daring (`h1` "Lapangan"),
+dan muat ulang luring jatuh ke halaman galat peramban alih-alih pemutar boot abadi. Jalan kendali
+itu perlu karena `navigator.storage.estimate()` **tidak** melaporkan kuota yang ditimpa CDP (tetap
+4,3 GB sementara install-nya nyata-nyata terpotong). Bagian keduanya menggugurkan satu modul
+cangkang: pengawas boot `index.html` menggambar kalimat + tombol `Muat ulang`, dan kalimatnya
+berganti ketika perangkatnya luring.
+
+**`S27_pwa_pasang` (10 syarat)** mengirim `beforeinstallprompt` sendiri (ia tidak menyala di
+Chromium headless) dan untuk pertama kalinya benar-benar **menekan** tombolnya: `preventDefault`,
+tombol tergambar, `prompt()` terpanggil tepat sekali, tombol mengunci diri, lalu kalimat yang
+dibaca orangnya sesudahnya, dan keadaan "sudah terpasang" lewat peristiwa `appinstalled`.
 
 **Urutan pita sengaja tanpa muat ulang di antara putus dan sambung.** Emulasi luring Playwright
 hilang saat dokumen baru dibuat: sesudah `reload()`, `navigator.onLine` kembali `true` meski
@@ -200,10 +234,35 @@ tidak akan pernah menyala. Yang diukur adalah kontrak aplikasinya, bukan artefak
 6. **`<link rel="apple-touch-icon">` dipasang tanpa bukti.** Satu baris, karena iOS tidak membaca
    `icons[]` manifest untuk "Tambahkan ke Layar Utama"; tidak ada perangkat iOS di sini.
 
+## Verifikasi adversarial — putaran pertama (7 Sep 2026)
+
+Dua lensa: **i-cache** (service worker sebagai permukaan keamanan) dan **i-ux** (orang yang
+memakainya, luring dan di ponsel). **Sepuluh temuan, sepuluh diperbaiki**, masing-masing dipaku uji
+atau syarat harness yang terbukti MERAH tanpa perbaikannya.
+
+| # | Temuan | Berat | Perbaikan | Pakunya |
+|---|---|---|---|---|
+| i-cache-1 / i-ux-1 | pita luring padam selamanya di balik portal Wi-Fi: `api.js` dan `ui.js` memegang dua salinan satu keadaan, dan `online` hanya melupakan salah satunya | RUSAK | `api.js` ikut menyetel ulang ingatannya pada `online` | S27 `ribbon_shown_behind_captive_portal` |
+| i-cache-2 | uji `sw.js` menghitung EJAAN: empat mutasi yang benar-benar membocorkan cache lolos hijau | KURANG | bentuk dibandingkan utuh; tulisan cache dihitung sebagai pola; daftar pendengar dipaku empat | keenam mutasi kini MERAH |
+| i-cache-3 | cangkang setengah (kuota penuh) → pemutar boot abadi saat luring | KURANG | cache tidak lengkap dibuang; pengawas boot sebaris di `index.html` | S27_pwa_cangkang_sebagian (9 syarat) + uji install |
+| i-cache-4 | tidak ada cara tertulis mencabut worker — dan menghapus `sw.js` terbukti tidak mencabut apa pun | KURANG | DEPLOYMENT § 2.3 dengan kedua jalan dan angkanya | terukur pada cermin statis (C dan D) |
+| i-ux-2 | toast "Mode luring" tidak pernah membetulkan diri, dan `refreshMe()` tidak pernah diulang | KURANG | toast dipegang, sesi disegarkan pada peristiwa jaringan pertama yang berhasil | S27 `offline_boot_toast_clears_itself` |
+| i-ux-3 | toast "Versi baru siap" menumpuk satu per rilis | KURANG | satu simpul di tingkat modul; yang lama dibuang | S27_pwa_pembaruan `a_second_release_does_not_stack_a_second_toast` |
+| i-ux-4 | sesudah tawaran pasang dipakai, dialog Akun berkata "belum menawarkannya" | KOSMETIK | empat keadaan, `appinstalled` diingat, kalimat menyebut jalan iPhone | S27_pwa_pasang (10 syarat) |
+| i-ux-5 | kunjungan kedua membayar 76 `caches.open` di jalur cat pertama | KURANG | `fetch()` dimulai sebelum cache dibuka | uji urutan + A/B 14 putaran |
+| i-ux-6 | pita menyuruh menekan tombol yang tidak ada di layar saat antrean kosong | KOSMETIK | dua kalimat, dipilih dari isi antrean | S27 `empty_queue_ribbon_names_no_button` |
+
+**Angka yang berubah karena putaran ini** — kunjungan kedua (worker menguasai halaman), 14 putaran
+per varian yang **diselang-seling** supaya drift mesin mengenai keduanya: cat pertama median
+**268 ms → 192 ms**, `loadEventEnd` **338,5 ms → 253,5 ms**, permintaan cangkang terakhir selesai
+**334,5 ms → 251,5 ms**. Ini menutup sebagian butir 10 daftar di bawah: biaya per-MUAT sudah punya
+angka; biaya install 102 berkas di 4G satu bar tetap tidak punya.
+
 ## Yang BELUM diverifikasi — baca ini sebelum merge
 
-1. **Verifikasi adversarial belum dijalankan.** Putaran pertama P1-F menemukan 20 cacat sungguhan;
-   putaran P1-H menemukan 18. Paket ini belum melewati satu pun.
+1. **Putaran verifikasi adversarial KEDUA belum dijalankan.** Putaran pertama (di atas) menemukan
+   10 cacat, dua di antaranya RUSAK; P1-F menemukan 20 pada putaran pertama dan tiga residu pada
+   putaran kedua. Tidak ada alasan menganggap putaran kedua di sini akan kosong.
 2. **Suite penuh dan suite MySQL belum dijalankan** — hanya `tests/Feature/Core` (846 hijau).
    Paket ini tidak menyentuh satu baris PHP produksi pun (hanya uji baru), jadi risikonya rendah,
    tetapi "rendah" bukan "diukur".
@@ -214,12 +273,13 @@ tidak akan pernah menyala. Yang diukur adalah kontrak aplikasinya, bukan artefak
    `application/octet-stream`. Yang **sudah** diukur: Chromium tetap mem-parsingnya dengan 0 galat
    ketika content-type ditulis ulang menjadi `application/octet-stream`. Yang **belum**: satu muat
    sungguhan di `https://erp1.pi2.co.id/app/` sesudah deploy.
-4. **Tombol "Pasang aplikasi" tidak pernah ditekan.** `beforeinstallprompt` tidak menyala di
-   Chromium headless (terukur: "tidak menyala" sesudah 4 detik), jadi yang terukur hanyalah keadaan
-   **ketiga** dialog Akun — kalimat yang menyebut jalan lewat menu peramban. Jalur
-   `deferred.prompt()` → `userChoice` → toast *"Aplikasi sedang dipasang."* **belum pernah
-   dijalankan siapa pun.** Begitu juga keadaan **kedua** ("sudah terpasang"), yang bergantung pada
-   `display-mode: standalone`.
+4. **Tombol "Pasang aplikasi" sekarang ditekan — tetapi oleh peristiwa yang DIKIRIM SENDIRI.**
+   `beforeinstallprompt` tetap tidak menyala di Chromium headless (diukur ulang: "tidak menyala"
+   sesudah 4 detik), jadi `S27_pwa_pasang` mengirim peristiwanya sendiri dengan `prompt()` dan
+   `userChoice` palsu. Yang dijalankan adalah kode yang dikirim — penangkapan, render tombol,
+   `prompt()` sekali, tombol mengunci diri, keempat kalimat — tetapi **dialog pemasangan peramban
+   yang sesungguhnya belum pernah muncul di sesi ini**, jadi toast *"Aplikasi sedang dipasang."*
+   (cabang `outcome === 'accepted'`) masih belum pernah dilihat siapa pun.
 5. **iOS belum disentuh sama sekali.** Tidak ada perangkat iOS di host ini. "Tambahkan ke Layar
    Utama", `apple-touch-icon`, dan perilaku standalone Safari semuanya tidak terukur — dan PANDUAN
    §1.4e menyebut langkah iOS-nya tanpa bukti.
@@ -229,11 +289,11 @@ tidak akan pernah menyala. Yang diukur adalah kontrak aplikasinya, bukan artefak
    saat luring tetap menampilkan panel galatnya sendiri, tanpa pita. Apakah itu cukup untuk
    pengawas yang membuka Absensi di basement belum ditanyakan ke siapa pun.
 8. **Pita tidak menyelidik jaringan sendiri.** Ia padam pada peristiwa `online` atau pada permintaan
-   berikutnya yang berhasil — paling lambat polling notifikasi **90 detik**. Pada kasus
-   "onLine bilang true tetapi paket tidak sampai" (portal Wi-Fi lokasi), pita bisa bertahan sampai
-   90 detik sesudah jaringan sebenarnya pulih. Itu pilihan sadar — lalu lintas latar dari ponsel
-   berkuota adalah biaya nyata untuk informasi yang akan datang sendiri — tetapi **belum diukur di
-   perangkat sungguhan** dan belum ditanyakan ke pemakainya.
+   berikutnya yang berhasil — paling lambat polling notifikasi **90 detik**. Butir ini dulu berbunyi
+   bahwa pita bisa BERTAHAN terlalu lama di kasus portal; verifikasi mengukur **kebalikannya** —
+   pita justru tidak pernah menyala lagi (i-cache-1/i-ux-1, sudah diperbaiki dan dipaku). Sisa yang
+   memang belum diukur: berapa lama pita bertahan sesudah jaringan sungguhan pulih **di perangkat
+   sungguhan**, dan apakah 90 detik terburuk itu diterima pemakainya. Keduanya belum ditanyakan.
 9. **Antrean foto tetap tidak mengirim dirinya sendiri.** `pump()` hanya berjalan saat foto
    dimasukkan atau `Kirim ulang` ditekan; paket ini tidak mengubahnya, dan kalimat pita serta
    PANDUAN §1.4e karena itu menyuruh menekan tombol. Pengiriman otomatis saat sinyal kembali adalah
@@ -241,21 +301,33 @@ tidak akan pernah menyala. Yang diukur adalah kontrak aplikasinya, bukan artefak
 10. **Install worker mengambil 102 berkas.** Di `php -S` loopback itu tidak terasa; di 4G satu bar
     pada rilis pertama sesudah deploy, biayanya **belum diukur**. Ia terjadi sekali per versi, di
     latar belakang, sesudah cat pertama — tetapi angkanya tidak ada.
-11. **`SHELL` yang dipasang satu per satu (`allSettled`) menelan kegagalan** ke `console.warn`.
-    Itu disengaja (satu 404 pada `addAll` menolak seluruh install dan membekukan pembaruan bagi
-    semua orang), dan uji dua arah menjaga daftarnya benar di repositori — tetapi di produksi,
-    berkas yang gagal terpasang tidak terlihat siapa pun.
+11. **Berkas yang gagal terpasang tetap tidak terlihat siapa pun di produksi.** Sejak verifikasi,
+    akibatnya tidak lagi diam: satu kegagalan membuang seluruh cache (perangkat turun ke "tanpa
+    lapisan luring") dan pengawas boot `index.html` menggantikan pemutar dengan kalimat. Tetapi
+    tidak ada telemetri: **berapa banyak perangkat yang benar-benar mengalaminya tidak diketahui**,
+    dan tidak ada rencana mengukurnya.
 12. **Kontras pita di tema gelap tidak diukur ulang.** Ia memakai pasangan `--warning` di atas
     `--warning-soft` yang sama dengan `.alert.warn`, yang sudah divalidasi P1-B/S8; tidak ada
     pengukuran baru di paket ini.
 
 ## Gerbang rilis
 
-Belum dijalankan — suite penuh dan MySQL adalah milik orkestrator. Yang sudah hijau di sesi ini:
-`tests/Feature/Core` **846 uji / 6.733 asersi** (11 dilewati, 155 s), `pint --dirty` bersih, tiga
-skenario harness S27 hijau (47 syarat), dan pemeriksaan peramban wajib — `/app/` dimuat di Chromium,
-**0 galat konsol, 0 permintaan gagal, formulir masuk tergambar**, dengan worker terdaftar di lingkup
-`/app/`.
+Belum dijalankan — suite penuh dan MySQL adalah milik orkestrator. Yang sudah hijau sesudah
+putaran verifikasi: `tests/Feature/Core` **849 uji / 6.744 asersi** (11 dilewati, 165,9 s),
+`pint --dirty` bersih, **lima** skenario harness S27 hijau (**81 syarat**), dan pemeriksaan peramban
+wajib — `/app/` dimuat di Chromium pada 1440×900 dan 390×844, **0 galat konsol, 0 permintaan gagal,
+formulir masuk tergambar**, worker terdaftar di lingkup `/app/` dengan 102 entri cache, ditambah
+sapuan masuk sebagai `admin@nusantara.test` melewati `#/lapangan`, `#/home`, `#/dashboard` dan
+`#/r/procurement/purchase-orders` — **0 galat konsol, 0 permintaan gagal**.
+
+**Catatan fixture (bukan cacat kode, bukan milik paket ini).** `database/database.sqlite` yang
+ikut repositori tertinggal dua migrasi dari produksi: ia belum punya `core_user_preferences`,
+sehingga salinan coretannya menjawab **500** pada `GET /api/core/me/preferences` sampai
+`php artisan migrate` dijalankan di atas salinan itu. Diperiksa baca-saja: basis data produksi
+`/var/www/erp1.pi2.co.id` **punya** tabel itu (migrasi terakhirnya
+`2026_09_06_000197_create_core_saved_reports_table`), jadi ini murni fixture repositori yang basi —
+tetapi ia membuat sapuan peramban pertama di sesi ini melaporkan satu 500 yang tidak ada
+hubungannya dengan PWA.
 
 ## Commit
 
@@ -266,3 +338,13 @@ skenario harness S27 hijau (47 syarat), dan pemeriksaan peramban wajib — `/app
 | `396fa34` | T1I.3 kabel SPA (pendaftaran, pasang, toast, pita, boot luring) |
 | `fe5b71b` | T1I.4 uji |
 | `84d42ac` | T1I.5 harness S27 |
+| `5892965` | T1I.6 dokumentasi |
+| `9ab8bce` | verifikasi — pita luring di balik portal Wi-Fi (i-cache-1 / i-ux-1) |
+| `2a1ffcf` | verifikasi — jaringan dimulai sebelum cache dibuka (i-ux-5) |
+| `7032951` | verifikasi — cangkang setengah dibuang + pengawas boot (i-cache-3) |
+| `16b194b` | verifikasi — uji memaku bentuk, bukan ejaan (i-cache-2) |
+| `d1d7ae2` | verifikasi — toast "Mode luring" membetulkan diri (i-ux-2) |
+| `231d8ec` | verifikasi — satu toast "Versi baru siap" (i-ux-3) |
+| `8a80a57` | verifikasi — kalimat pita mengikuti isi antrean (i-ux-6) |
+| `6ef5fca` | verifikasi — empat keadaan baris "Pasang aplikasi" (i-ux-4) |
+| `7493132` | verifikasi — DEPLOYMENT § 2.3 mencabut worker (i-cache-4) |

@@ -25385,8 +25385,8 @@
  "S27_pwa": {
   "tag": "-p1i",
   "worker": {
-   "scope": "http://127.0.0.1:8071/app/",
-   "script": "http://127.0.0.1:8071/app/sw.js",
+   "scope": "http://127.0.0.1:8074/app/",
+   "script": "http://127.0.0.1:8074/app/sw.js",
    "state": "activated",
    "controlled": true,
    "cache_names": [
@@ -25406,26 +25406,41 @@
    "present": true,
    "hidden": true,
    "visible": false,
-   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
   },
   "ribbon_offline": {
    "present": true,
    "hidden": false,
    "visible": true,
-   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
   },
+  "retry_buttons_with_empty_queue": 0,
+  "queue_seeded": "nusantara_erp_upload:12:uji-s27",
   "ribbon_back_online": {
    "present": true,
    "hidden": true,
    "visible": false,
-   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
+  },
+  "ribbon_captive_portal": {
+   "present": true,
+   "hidden": false,
+   "visible": true,
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
+  },
+  "captive_portal_online_flag": true,
+  "ribbon_after_portal_cleared": {
+   "present": true,
+   "hidden": true,
+   "visible": false,
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
   },
   "offline_shell": {
    "shell": true,
    "nav_items": 18,
    "login_form": false,
    "title": "Lapangan · Nusantara ERP",
-   "html_chars": 17396,
+   "html_chars": 21455,
    "toasts": [
     "Mode luring / Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali."
    ],
@@ -25435,17 +25450,27 @@
    "threw": true,
    "error": "TypeError: Failed to fetch"
   },
+  "ribbon_offline_with_queue": {
+   "present": true,
+   "hidden": false,
+   "visible": true,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "retry_buttons_with_queue": 1,
   "offline_entries": {
    "api_entries": 6,
    "api_from_cache_storage": [],
    "shell_from_cache_storage": 76,
    "shell_entries": 76
   },
+  "toasts_after_reconnect": [
+   "Kembali daring. Izin dan menu disegarkan; buka ulang layarnya untuk angka terbaru."
+  ],
   "api_responses_from_worker": [],
-  "api_responses_total": 12,
+  "api_responses_total": 18,
   "beforeinstallprompt": "tidak menyala",
   "account_dialog_install": {
-   "line": "Pasang aplikasi: lewat menu peramban (\"Instal aplikasi\" / \"Tambahkan ke Layar Utama\"). Peramban ini belum menawarkannya dari dalam halaman.",
+   "line": "Pasang aplikasi lewat peramban: menu \"Instal aplikasi\" di Chrome atau Edge, dan di iPhone lewat tombol Bagikan → \"Tambahkan ke Layar Utama\". Peramban ini belum menawarkannya dari dalam halaman.",
    "button": false
   },
   "checks": {
@@ -25460,9 +25485,16 @@
    "online_shell_answered_by_worker": true,
    "ribbon_hidden_online": true,
    "ribbon_shown_offline": true,
+   "empty_queue_ribbon_names_no_button": true,
+   "queued_photo_ribbon_points_at_the_button": true,
    "ribbon_hidden_again": true,
+   "ribbon_shown_behind_captive_portal": true,
+   "ribbon_hidden_when_requests_arrive_again": true,
    "offline_shell_renders": true,
    "offline_ribbon_survives_reload": true,
+   "offline_boot_toast_shown": true,
+   "offline_boot_toast_clears_itself": true,
+   "reconnect_says_the_session_was_refreshed": true,
    "offline_api_failed": true,
    "offline_shell_came_from_cache_storage": true,
    "zero_api_from_cache_storage": true,
@@ -25471,14 +25503,14 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 20682,
+  "_ms": 35499,
   "_clicks": 1
  },
  "S27_pwa_mobile": {
   "tag": "-mobile-p1i",
   "worker": {
-   "scope": "http://127.0.0.1:8071/app/",
-   "script": "http://127.0.0.1:8071/app/sw.js",
+   "scope": "http://127.0.0.1:8074/app/",
+   "script": "http://127.0.0.1:8074/app/sw.js",
    "state": "activated",
    "controlled": true,
    "cache_names": [
@@ -25498,26 +25530,41 @@
    "present": true,
    "hidden": true,
    "visible": false,
-   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
   },
   "ribbon_offline": {
    "present": true,
    "hidden": false,
    "visible": true,
-   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
   },
+  "retry_buttons_with_empty_queue": 0,
+  "queue_seeded": "nusantara_erp_upload:12:uji-s27",
   "ribbon_back_online": {
    "present": true,
    "hidden": true,
    "visible": false,
-   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
+  },
+  "ribbon_captive_portal": {
+   "present": true,
+   "hidden": false,
+   "visible": true,
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
+  },
+  "captive_portal_online_flag": true,
+  "ribbon_after_portal_cleared": {
+   "present": true,
+   "hidden": true,
+   "visible": false,
+   "text": "Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali."
   },
   "offline_shell": {
    "shell": true,
    "nav_items": 18,
    "login_form": false,
    "title": "Lapangan · Nusantara ERP",
-   "html_chars": 17396,
+   "html_chars": 21455,
    "toasts": [
     "Mode luring / Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali."
    ],
@@ -25527,17 +25574,27 @@
    "threw": true,
    "error": "TypeError: Failed to fetch"
   },
+  "ribbon_offline_with_queue": {
+   "present": true,
+   "hidden": false,
+   "visible": true,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "retry_buttons_with_queue": 1,
   "offline_entries": {
    "api_entries": 6,
    "api_from_cache_storage": [],
    "shell_from_cache_storage": 76,
    "shell_entries": 76
   },
+  "toasts_after_reconnect": [
+   "Kembali daring. Izin dan menu disegarkan; buka ulang layarnya untuk angka terbaru."
+  ],
   "api_responses_from_worker": [],
-  "api_responses_total": 9,
+  "api_responses_total": 15,
   "beforeinstallprompt": "tidak menyala",
   "account_dialog_install": {
-   "line": "Pasang aplikasi: lewat menu peramban (\"Instal aplikasi\" / \"Tambahkan ke Layar Utama\"). Peramban ini belum menawarkannya dari dalam halaman.",
+   "line": "Pasang aplikasi lewat peramban: menu \"Instal aplikasi\" di Chrome atau Edge, dan di iPhone lewat tombol Bagikan → \"Tambahkan ke Layar Utama\". Peramban ini belum menawarkannya dari dalam halaman.",
    "button": false
   },
   "checks": {
@@ -25552,9 +25609,16 @@
    "online_shell_answered_by_worker": true,
    "ribbon_hidden_online": true,
    "ribbon_shown_offline": true,
+   "empty_queue_ribbon_names_no_button": true,
+   "queued_photo_ribbon_points_at_the_button": true,
    "ribbon_hidden_again": true,
+   "ribbon_shown_behind_captive_portal": true,
+   "ribbon_hidden_when_requests_arrive_again": true,
    "offline_shell_renders": true,
    "offline_ribbon_survives_reload": true,
+   "offline_boot_toast_shown": true,
+   "offline_boot_toast_clears_itself": true,
+   "reconnect_says_the_session_was_refreshed": true,
    "offline_api_failed": true,
    "offline_shell_came_from_cache_storage": true,
    "zero_api_from_cache_storage": true,
@@ -25563,7 +25627,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 20644,
+  "_ms": 35001,
   "_clicks": 1
  },
  "S27_pwa_pembaruan": {
@@ -25576,9 +25640,12 @@
    "Versi baru siap — Muat ulang untuk memakainya.\nMuat ulang"
   ],
   "waiting_worker": true,
+  "toasts_after_second_release": [
+   "Versi baru siap — Muat ulang untuk memakainya.\nMuat ulang"
+  ],
   "navigations_after_click": 1,
   "cache_after": [
-   "nusantara-shell-v1-uji"
+   "nusantara-shell-v1-uji2"
   ],
   "toasts_after": [],
   "controlled_after": true,
@@ -25587,6 +25654,7 @@
    "toast_says_the_sentence": true,
    "toast_has_reload_button": true,
    "a_worker_was_waiting": true,
+   "a_second_release_does_not_stack_a_second_toast": true,
    "reloaded_exactly_once": true,
    "old_cache_deleted": true,
    "still_controlled": true,
@@ -25595,7 +25663,116 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 14075,
+  "_ms": 18190,
   "_clicks": 1
+ },
+ "S27_pwa_cangkang_sebagian": {
+  "control_cache": {
+   "scope": "http://127.0.0.1:8074/app/",
+   "script": "http://127.0.0.1:8074/app/sw.js",
+   "state": "activated",
+   "controlled": true,
+   "cache_names": [
+    "nusantara-shell-v1"
+   ],
+   "cached": 102,
+   "cached_api": [],
+   "cached_outside_scope": []
+  },
+  "cache_after_install": {
+   "scope": "http://127.0.0.1:8074/app/",
+   "script": "http://127.0.0.1:8074/app/sw.js",
+   "state": "activated",
+   "controlled": true,
+   "cache_names": [],
+   "cached": 0,
+   "cached_api": [],
+   "cached_outside_scope": []
+  },
+  "online_after_quota": "Lapangan",
+  "offline_reload": {
+   "navigation_error": "Page.reload: net::ERR_FAILED",
+   "spinner": false
+  },
+  "boot_daring": {
+   "spinner": false,
+   "shell": false,
+   "failed_panel": true,
+   "head": "Aplikasi gagal dimuat",
+   "body": "Sebagian berkas aplikasi tidak sampai. Muat ulang halaman; bila tetap begini, beri tahu pengelola sistem.",
+   "button": "Muat ulang"
+  },
+  "boot_luring": {
+   "spinner": false,
+   "shell": false,
+   "failed_panel": true,
+   "head": "Aplikasi tidak bisa dibuka tanpa koneksi",
+   "body": "Salinan luring di perangkat ini tidak lengkap, jadi sebagian berkas aplikasi tidak ada. Sambungkan ke jaringan lalu muat ulang — salinannya diperbaiki sendiri, dan sesudah itu aplikasi bisa dibuka lagi tanpa sinyal. Foto yang sudah masuk antrean unggah tetap tersimpan di ponsel ini dan tidak hilang.",
+   "button": "Muat ulang"
+  },
+  "checks": {
+   "control_installs_the_whole_shell": true,
+   "quota_override_took": true,
+   "half_shell_thrown_away": true,
+   "app_still_works_online": true,
+   "offline_never_hangs_on_the_spinner": true,
+   "watchdog_replaces_the_spinner": true,
+   "watchdog_says_what_to_do": true,
+   "watchdog_knows_it_is_offline": true,
+   "offline_sentence_names_the_photo_queue": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 29456,
+  "_clicks": 0
+ },
+ "S27_pwa_pasang": {
+  "state_never_offered": {
+   "line": "Pasang aplikasi lewat peramban: menu \"Instal aplikasi\" di Chrome atau Edge, dan di iPhone lewat tombol Bagikan → \"Tambahkan ke Layar Utama\". Peramban ini belum menawarkannya dari dalam halaman.",
+   "button": false,
+   "button_disabled": []
+  },
+  "prevent_default": true,
+  "state_offered": {
+   "line": null,
+   "button": true,
+   "button_disabled": [
+    false
+   ]
+  },
+  "prompt_calls": 1,
+  "state_while_open": {
+   "line": null,
+   "button": true,
+   "button_disabled": [
+    true
+   ]
+  },
+  "state_after_use": {
+   "line": "Tawaran pemasangan sudah dipakai pada kunjungan ini. Muat ulang halaman untuk menawarkannya lagi, atau pasang lewat menu peramban.",
+   "button": false,
+   "button_disabled": []
+  },
+  "state_installed": {
+   "line": "Aplikasi ini sudah terpasang di perangkat Anda.",
+   "button": false,
+   "button_disabled": []
+  },
+  "checks": {
+   "never_offered_names_both_ways_in": true,
+   "never_offered_says_so": true,
+   "the_event_is_captured": true,
+   "the_offer_becomes_a_button": true,
+   "pressing_it_calls_prompt_once": true,
+   "the_button_locks_itself": true,
+   "after_use_it_does_not_claim_it_was_never_offered": true,
+   "after_use_it_says_the_offer_was_spent": true,
+   "after_use_it_names_the_way_back": true,
+   "appinstalled_flips_the_row": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 6579,
+  "_clicks": 5
  }
 }
