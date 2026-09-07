@@ -3576,7 +3576,15 @@ kolom.
 | "Mengikuti SPK subkontraktor" | addendum SPK memakai ambang SPK, kunci yang sama persis. Ubah baris SPK-nya |
 | "Satu penyetuju, harus direktur di atas ambang" (tanpa pilihan) | PO, SPK dan addendum SPK menegakkan ambangnya lewat mekanismenya sendiri, yang tidak mengenal "tambahan tingkat". Ambangnya **bisa** diubah; modenya tidak |
 
-**Dua mode**, untuk baris yang menawarkannya:
+**Dua mode**, dan hari ini **tepat satu baris menawarkan pilihannya**: Keputusan
+pemenang. Baris lain hanya mengenal yang pertama, dan itu bukan kekurangan
+layar melainkan batas mekanismenya — mode kedua meninggalkan dokumen pada
+status "diajukan" sesudah persetujuan pertama, dan hanya keputusan pemenang
+yang pengendalinya membaca status itu; pada invoice termin ia memposting jurnal
+dua kali. Kunci `approvals.<jenis>.mode` untuk baris lain **tidak ada lagi di
+config/erp.php** sejak putaran verifikasi F-1 kedua: ia dibaca lalu dibuang, dan
+keberadaannya membuat layar Pengaturan menjanjikan sebuah deploy yang tidak
+dapat mengubah apa pun.
 
 - **Satu penyetuju, harus direktur di atas ambang** — jumlah persetujuannya tetap
   satu; yang berubah adalah **siapa** yang boleh memberikannya.
@@ -3629,6 +3637,17 @@ Yang perlu Anda ketahui sebagai administrator:
   perlu melakukannya, berikan izin itu kepadanya sebagai izin biasa —
   keputusannya lalu terlihat di Log Audit sebagai perubahan izin, bukan
   tersembunyi di dalam sebuah baris cuti.
+- **Penerimanya benar-benar melihatnya.** Sejak putaran verifikasi F-1 kedua,
+  sesi penerima delegasi membawa daftar hak yang DIPINJAMNYA (terpisah dari hak
+  yang dipegangnya), jadi "Tugas Saya" muncul di bilah sampingnya, kartu
+  "Menunggu persetujuan Anda" dapat dipasang di dasbornya, dan tombol
+  Setujui/Tolak muncul pada dokumen yang boleh diputuskannya — dengan keterangan
+  atas nama siapa. Sebelum itu servernya mengizinkan dan layarnya tidak pernah
+  menawarkan: seorang penerima yang tidak memegang satu pun izin approve
+  miliknya sendiri harus mengetik alamat layarnya. Daftar itu **hanya** memuat
+  hak persetujuan dokumen, jadi lima belas layar di butir sebelumnya tetap
+  tertutup di layar sama seperti di server. Perubahannya terlihat setelah
+  halaman dimuat ulang (sesi membaca ulang haknya saat memuat).
 - Delegasi **tidak berantai**: pemberinya harus memegang izin itu sendiri, bukan
   lewat delegasi lain.
 - Delegasi **tidak mencabut hak siapa pun.** Penerima yang sudah memegang hak

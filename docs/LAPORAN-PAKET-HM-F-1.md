@@ -12,14 +12,15 @@ Branch: `feat/phase2-f1` (dari `main` 1ce8a42) · 7 September 2026 · **paket pe
 > Dua migrasi Core (`000198`, `000199`) — **slot terakhir blok Core §2**. Satu migrasi Iam
 > (`000251`). Nol dependensi, nol pustaka vendor, nol perubahan konfigurasi server.
 >
-> **Verifikasi peramban sungguhan dijalankan**: harness S28 (23 syarat) + S28m ponsel (3 syarat),
-> semuanya hijau atas antrean yang BERISI — lihat § Harness.
+> **Verifikasi peramban sungguhan dijalankan**: harness S28 (34 syarat) + S28m ponsel (3 syarat),
+> semuanya hijau atas antrean yang BERISI — lihat § Harness. (Angka itu tumbuh dua kali: 23 saat
+> paket dikirim, 28 sesudah putaran verifikasi pertama, 34 sesudah yang kedua.)
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 2 / F-1, baris 207 → status)
 
 | Klausa kontrak | Status | Bukti |
 |---|---|---|
-| `ApprovalPolicy` per 28 jenis (ambang, mode, tingkat-3) di Pengaturan | ✅ | `Core\Support\ApprovalPolicy` + kelompok registri `approval_matrix` (39 kunci, 38 sel + plafon massal) · S28 `matrix_renders_every_approvable_type` (28 baris terukur di Chromium) |
+| `ApprovalPolicy` per 28 jenis (ambang, mode, tingkat-3) di Pengaturan | ✅ | `Core\Support\ApprovalPolicy` + kelompok registri `approval_matrix` (**17 kunci: 14 ambang + 1 mode + 1 ambang tingkat-3 + plafon massal**, yaitu 16 sel matriks yang bisa diedit) · S28 `matrix_renders_every_approvable_type` (28 baris terukur di Chromium) |
 | dikirim dengan NILAI EFEKTIF HARI INI | ✅ | tabel 28 baris di bawah · `ApprovalMatrixScreenTest::test_the_matrix_ships_with_the_values_that_govern_each_type_today` · S28 `po/spk/award_row_carries_todays_threshold` |
 | kebijakan distempel di baris `submitted` (tidak retroaktif) | ✅ | `core_approvals.policy` + `ApprovalStamp` (observer) · `ApprovalPolicyStampTest` (6 uji: naik/turun/HTTP penuh) |
 | mengubah `approvals.*` butuh `core.update` + `*.approve-director` + audit | ✅ | `UpdateSettingsRequest::rejectApprovalPolicyWithoutDirector` + `SettingService::assertMayChangeApprovalPolicy` + `auditApprovalPolicyChange` · S28 `core_update_alone_is_refused` (422 sungguhan) |
@@ -29,7 +30,7 @@ Branch: `feat/phase2-f1` (dari `main` 1ce8a42) · 7 September 2026 · **paket pe
 | patch `NotificationService::approvers` | ✅ | `ApprovalDelegationTest::test_the_delegate_is_told_a_document_is_waiting` |
 | delegat tidak boleh menyetujui pengajuan dirinya MAUPUN pemberinya | ✅ | dua uji terpisah, keduanya 422/`SelfApprovalException` |
 | trail & cetakan "Budi a.n. Sari" | ⚠️ **trail ya, cetakan TIDAK ADA yang menamai penyetuju** | § Yang tidak bisa dicetak |
-| setujui massal `approvals.batch_cap` (bawaan kosong = mati) | ✅ | S28 `bulk_is_invisible_while_the_cap_is_empty` diukur pada antrean **berisi 4 baris** |
+| setujui massal `approvals.batch_cap` (bawaan kosong = mati) | ✅ | S28 `bulk_is_invisible_while_the_cap_is_empty` diukur pada antrean **berisi 4 baris** (antrean `direktur`) |
 | loop di klien memanggil endpoint modul masing-masing | ✅ | `test_there_is_no_server_side_bulk_approve_endpoint` memindai tabel rute · S28 menyetujui 2 dokumen sungguhan lewat 2 panggilan |
 
 ## Lembar jawaban OQ-4 — 28 baris, apa yang berlaku HARI INI
@@ -96,12 +97,12 @@ Ini keputusan yang terbuka, dan dicatat di § Untuk pemilik.
 | Pertanyaan | Yang dikirim | Dapat diubah pemilik |
 |---|---|---|
 | Siapa boleh membuat delegasi? | pemiliknya sendiri, atau pemegang `iam.update` | lewat peran |
-| Apa yang dipinjamkan? | **hanya** `<awalan>.approve` dan `<awalan>.approve-director`, dan **hanya di tombol Setujui/Tolak sebuah dokumen** | tidak — dipaku uji |
+| Apa yang dipinjamkan? | **hanya** `<awalan>.approve` dan `<awalan>.approve-director`, dan **hanya di tombol Setujui/Tolak sebuah dokumen** — di server (`honouredOnThisRequest`) maupun di layar (`session.canAct`) | tidak — dipaku uji |
 | Lingkupnya? | seluruh hak approve pemberinya, atau satu awalan modul | per baris delegasi |
 | Jendelanya? | tanggal mulai wajib, tanggal selesai boleh kosong (= sampai dicabut) | per baris |
 | Berantai? | tidak — pemberinya harus memegang izinnya sendiri | tidak |
 | Delegat menyetujui pengajuan pemberinya? | **tidak dengan hak pemberi itu**; kalau ia memegang haknya sendiri, delegasinya tidak menghalanginya | ikut saklar maker-checker |
-| Terlihat sebelum dipakai? | spanduk di Tugas Saya menyebut pemberi, lingkup, jendela, alasan | tidak |
+| Terlihat sebelum dipakai? | spanduk di Tugas Saya menyebut pemberi, lingkup, jendela, alasan; **dan tombol Setujui pada layar dokumen membawa judul "Hak pinjaman: keputusan ini tercatat a.n. …"** (layar dokumen tidak punya spanduk) | tidak |
 | Terlihat sesudah dipakai? | jejak DAN pemberitahuan pengaju berbunyi "Budi a.n. Sari", selamanya | tidak |
 | Dicabut = dihapus? | **tidak** — barisnya menjelaskan setiap "a.n." yang ditinggalkannya | tidak |
 | Siapa boleh mencabut? | pemberinya, **penerimanya**, atau pemegang `iam.update`; `revoked_by` mencatat siapa | tidak |
@@ -160,6 +161,9 @@ dokumen ke-29 dari modul baru membawa izin direkturnya sendiri tanpa satu suntin
 | "a.n." dicap hanya bila delegasinya yang membuatnya mungkin | `ApprovalDelegations::actingForId` |
 | satu perender jejak untuk 25 resource | `Core\Http\Resources\ApprovalTrail` |
 | tidak ada endpoint massal di server | dipaku `test_there_is_no_server_side_bulk_approve_endpoint` |
+| sesi tahu hak apa yang DIPINJAMNYA, terpisah dari yang dipegangnya | `UserResource.delegated_permissions` ← `ApprovalDelegations::lentAbilitiesFor` |
+| layar meminjamkan hak itu HANYA di pintu keputusan dokumen — bentuk yang sama dengan server | `session.canAct` / `session.isDecisionDoor` (api.js) |
+| kunci config `approvals.<jenis>.mode` ada tepat pada jenis yang resolvernya membacanya | dipaku `WithdrawnApprovalModeKeysTest` |
 
 ## Satu regresi yang tertangkap saat menulisnya
 
@@ -209,6 +213,15 @@ atas dokumen, dan kolom `on_behalf_of_user_id` yang bisa dibaca laporan mana pun
 | `ApprovalDelegationTest` | 21 | apa yang diberikan (4) dan apa yang **tidak** (7: ability lain, lingkup, hak yang tak dipegang, berantai, di luar jendela, dicabut, pemberi nonaktif); dua penolakan maker-checker; pemberitahuan; lima uji endpoint |
 | `ApprovalMatrixScreenTest` | 17 | nilai hari ini; null bukan nol; 13 baris tanpa sel; 3 baris mode terkunci; setiap baris menamai izinnya; dua penjaga izin; audit dari→ke termasuk reset; plafon massal mati/hidup/nol; ketiadaan endpoint massal |
 
+**Sepuluh uji PHP lagi pada putaran verifikasi kedua**, dua berkas baru dan satu yang tumbuh:
+
+| Berkas | Uji | Yang dipakukannya |
+|---|---:|---|
+| `tests/Feature/Iam/DelegatedAbilitiesOnAuthMeTest` | 5 | `auth/me` membawa ability yang DIPINJAM untuk delegat murni, kosong untuk pembaca tanpa delegasi, tidak menghitung yang sudah dipegang sendiri (aturan `actingForId`), patuh lingkup dan pada apa yang benar-benar dipegang pemberinya, dan daftar 200 pengguna tidak menghitungnya per baris |
+| `tests/Feature/Core/WithdrawnApprovalModeKeysTest` | 5 | config mendeklarasikan kunci `mode` TEPAT pada jenis yang resolvernya membacanya (diturunkan dari registri); sebuah deploy yang menuliskannya tidak mengubah apa pun; penolakannya menyebut sebab yang sebenarnya, per jenis; salah ketik tetap dijawab "tidak dikenal" |
+| `ApprovalDelegationCostTest` | 3 → **4** | yang keempat mengukur SELURUH log kueri, bukan hanya yang menyebut tabel delegasi — pemberinya dimuat sekali, bukan sekali per awalan modul |
+| `ApprovalInboxGateTest` | +4 asersi | `ANY_APPROVE` menerima daftar pinjaman; `session.can` meneruskannya; `isDecisionDoor` mengenali pintu dari BENTUK jalurnya; bilah aksi memakai `canAct()` |
+
 **Empat uji yang sudah ada disesuaikan, semuanya karena kontraknya memang berubah:**
 
 - `SettingApiTest::GROUP_COUNT` 9 → **10** (kelompok Matriks Persetujuan).
@@ -222,19 +235,24 @@ atas dokumen, dan kolom `on_behalf_of_user_id` yang bisa dibaca laporan mana pun
   persis dari setiap layar detail, jadi resource yang tertinggal terlihat di sana dan bukan di
   produksi.
 
-## Harness — S28, dua skenario, 26 syarat, semuanya hijau
+## Harness — S28, dua skenario, 37 syarat, semuanya hijau
 
 `docs/bukti-uji/results-phase-2.json` (digabung per kunci skenario; delapan skenario era
-ROADMAP-DEVIASI yang sudah ada di berkas itu **tidak** ditimpa).
+ROADMAP-DEVIASI yang sudah ada di berkas itu **tidak** ditimpa). Seluruh angka di bawah dijalankan
+ulang pada putaran verifikasi kedua (7 Sep 2026), masing-masing di atas salinan dataset demo yang
+BARU dimigrasi — skenario ini menulis ke basis datanya, jadi menjalankan sepuluhnya berurutan di
+atas satu salinan berarti S28 mengukur antrean yang sudah dikosongkan skenario sebelumnya.
 
 | Skenario | ms | klik | Syarat |
 |---|---:|---:|---:|
-| `S28_matriks_persetujuan` (1440×900) | 21.849 | 1 | 23 |
-| `S28_matriks_persetujuan_mobile` (390×844) | 5.464 | 0 | 3 |
+| `S28_matriks_persetujuan` (1440×900) | 32.908 | 2 | **34** |
+| `S28_matriks_persetujuan_mobile` (390×844) | 5.911 | 0 | 3 |
 
 Yang benar-benar diukur di Chromium, bukan diasumsikan:
 
-- **28 baris** tergambar, label kartunya "28 jenis dokumen", **38 sel yang bisa diedit**.
+- **28 baris** tergambar, label kartunya "28 jenis dokumen", **16 sel yang bisa diedit**
+  (`editable_cells: 16` = 14 ambang + 1 mode + 1 ambang tingkat ketiga; plafon massal ada di luar
+  tabelnya).
 - PO membawa `Rp 100.000.000`, SPK `Rp 200.000.000`, award `Rp 100.000.000` + `Rp 1.000.000.000`,
   addendum "Mengikuti SPK subkontraktor", izin kerja lapangan "Tanpa nilai rupiah".
 - **`zero_rows: []`** — tidak satu pun dari 28 baris mencetak `Rp 0`. Ini syarat terpenting paket ini.
@@ -246,10 +264,21 @@ Yang benar-benar diukur di Chromium, bukan diasumsikan:
   bukan pada kotak masuk kosong. Syarat `the_queue_measured_for_bulk_off_is_not_empty` ada persis
   untuk itu: `admin` mengajukan hampir seluruh dataset demo, jadi antreannya nol dan "tidak ada
   kotak centang" akan hijau tanpa satu fakta pun di belakangnya.
-- Sesudah plafon 5: 4 kotak centang, bilahnya mencetak "maksimum 5", dua dipilih
-  (`CTI/2026/VIII/0002`, `RAP/2026/0001`), satu klik, toast berbunyi
-  **"2 dokumen disetujui: CTI/2026/VIII/0002, RAP/2026/0001."**, antrean turun 4 → 2.
+- Sesudah plafon 5, pada antrean DELEGAT (bukan antrean direktur di atas): **2 kotak centang**,
+  bilahnya mencetak "maksimum 5", **keduanya** dipilih (`CTI/2026/VIII/0002`, `RAP/2026/0001`), satu
+  klik, toast berbunyi **"2 dokumen disetujui: CTI/2026/VIII/0002, RAP/2026/0001."**, antrean turun
+  **2 → 0**. Antreannya dua dan bukan empat karena putaran verifikasi pertama membuang dua baris
+  yang dijamin ditolak (pengajuan si pemberi delegasi); syarat
+  `every_row_the_queue_offered_was_picked` yang mencentang SEMUANYA lahir di putaran itu juga.
 - Jejaknya berbunyi **"Dewi Lestari a.n. Administrator Sistem"**.
+- **Delegatnya sampai ke pekerjaannya tanpa mengetik URL** (putaran kedua): grup Ringkasan di bilah
+  sampingnya berbunyi `['Beranda','Dasbor','Tugas Saya','Tenggat','Kalender','Laporan Bebas']`,
+  layar `CTI/2026/IX/0004` menawarkan `['Cetak','Setujui','Tolak']`, tombol Setujui membawa judul
+  "Hak pinjaman: keputusan ini tercatat a.n. Administrator Sistem", dan menekannya membuat dokumen
+  itu `approved` dengan baris jejak "Dewi Lestari a.n. Administrator Sistem".
+- **Dan tidak lebih dari itu**: pada jurnal draf `JV/2026/09/0005`, `direktur` melihat tombol
+  "Posting Jurnal" (`fin.approve`, tetapi BUKAN pintu keputusan dokumen) dan delegatnya **tidak** —
+  `['Cetak','Ubah','Tambah lampiran']`.
 - Ponsel: 28 baris tergambar, tabel menggulir DI DALAM `.table-wrap`, halaman **tidak pernah**
   menggulir mendatar.
 
@@ -324,14 +353,18 @@ dilaporkan di § Gerbang di bawah berasal dari putaran yang dijalankan **sesudah
 
 ## Yang BELUM diverifikasi — baca ini sebelum merge
 
-1. **Verifikasi adversarial ganda belum dijalankan.** ROADMAP §4 menuntut dua verifier baca-saja
-   sebelum merge; paket ini keluar dari agen build saja. Pola itulah yang menemukan ~40 cacat di
-   P2–P8, termasuk tiga bug uang.
-2. **Belum dijalankan di MySQL.** Seluruh angka di laporan ini dari SQLite. Dua hal yang khusus
-   perlu dilihat di MySQL: kolom `json` `core_approvals.policy` (SQLite menyimpannya sebagai TEXT
+1. **~~Verifikasi adversarial ganda belum dijalankan.~~ DIJALANKAN, dua putaran.** Putaran pertama
+   (dua lensa, uang dan izin) menemukan sebelas temuan; putaran kedua, yang memeriksa perbaikan
+   itu, menemukan empat lagi — di antaranya cacat terbesar paket ini (§ Putaran verifikasi KEDUA).
+   Keduanya baca-saja, dan keduanya dijalankan SESUDAH paket keluar dari agen build, bukan
+   sebelum merge seperti yang diminta ROADMAP §4.
+2. **~~Belum dijalankan di MySQL.~~ DIJALANKAN pada kedua putaran verifikasi** — dua leg, lihat
+   § Gerbang rilis (282 + 69 uji hijau pada putaran kedua). Dua hal yang khusus perlu dilihat di
+   sana, dan keduanya ikut: kolom `json` `core_approvals.policy` (SQLite menyimpannya sebagai TEXT
    dan cast `array` menyembunyikan bedanya) dan `whereDate` pada jendela delegasi.
 3. **Suite penuh belum hijau di laporan ini** — yang dijalankan adalah direktori tersentuh
-   (Core, Iam, Procurement, Subcontract, Estimation, Finance). Gerbang rilis milik orkestrator.
+   (putaran kedua: Core, Iam, Finance, Estimation, Procurement, Subcontract, Projects, HrPayroll,
+   Crm — 3.554 uji). Gerbang rilis milik orkestrator.
 4. **Tidak diuji: delegasi berpapasan dengan penghapusan akun.** FK `cascadeOnDelete` menghapus
    barisnya bersama pemberinya; baris `core_approvals.on_behalf_of_user_id` yang menunjuk ke akun
    itu **tidak** ber-FK dan tetap tinggal sebagai angka. Itu disengaja (jejak harus selamat), tetapi
@@ -351,9 +384,28 @@ dilaporkan di § Gerbang di bawah berasal dari putaran yang dijalankan **sesudah
    | Kotak masuk (memanggil `grants()` dengan sengaja) | **2** untuk seluruh permintaan — bukan per jenis dokumen (28) dan bukan per baris |
    | Yang benar-benar memakai delegasi | **2 per unit kerja** (`Schema::hasTable`, di MySQL sebuah kueri `information_schema`, plus satu SELECT), bukan 2 per pemeriksaan |
 
-   Tidak ada yang perlu diperbaiki di kodenya — memonya bekerja seperti yang dirancang. Yang
-   diperbaiki adalah kalimatnya, dan `ApprovalDelegationCostTest` (3 uji) sekarang menjaga
-   ketiga angka itu.
+   **DAN TABEL ITU MENGUKUR TABEL YANG SALAH** — temuan putaran verifikasi kedua. Judul kolomnya
+   jujur ("Kueri delegasi"), tetapi pertanyaan yang diajukan butir ini adalah *biaya* `Gate::before`
+   pada permintaan yang berat, dan biaya itu hampir seluruhnya dibayar di tabel LAIN: `users`,
+   `model_has_permissions`, `model_has_roles`. Ketiga uji `ApprovalDelegationCostTest` menyaring log
+   kueri pada kata `core_approval_delegations`, jadi ketiganya melaporkan "2" untuk permintaan yang
+   menjalankan 46. Diukur pada GET `/api/core/inbox` yang sama, SQLite, `DB::enableQueryLog`,
+   7 Sep 2026:
+
+   | Seluruh kueri satu permintaan kotak masuk | Sebelum | Sesudah |
+   |---|---:|---:|
+   | Pembaca tanpa delegasi | 8 | 8 |
+   | Pembaca yang sama, delegasi lingkup penuh | **46** | **26** |
+
+   Sebabnya: `giverHoldsNatively()` mememo jawabannya per (pemberi, ability), tetapi mendapatkan
+   jawaban itu lewat `User::query()->find($giverId)` — instance BARU setiap kali, jadi Spatie memuat
+   ulang izin dan peran instance itu juga. `ApprovalQueue::pending` menanyakan 10 awalan modul, jadi
+   satu orang yang sama dimuat sepuluh kali. Pemberinya sekarang dimemo sebagai OBJEK untuk satu
+   unit kerja: 10 `select * from users` menjadi 1, 10 join `model_has_permissions` menjadi 2, 5 join
+   `model_has_roles` menjadi 2. Sisa 18 kueri di atas pembaca biasa bukan ongkos delegasi melainkan
+   pekerjaannya — seorang delegat memang boleh memutuskan dokumen lima modul, jadi antreannya
+   memindai dua belas tabel dokumen yang tidak dipindai pembaca tanpa delegasi.
+   `ApprovalDelegationCostTest` sekarang **4 uji**, dan yang keempat mengukur SELURUH log.
 7. **Tidak diuji lewat peramban: penolakan setujui massal di tengah antrean.** Kodenya melanjutkan
    dan menamai yang gagal; S28 hanya menjalankan dua dokumen yang keduanya berhasil.
 8. **Tidak dijalankan di erp1.** Paket ini belum menyentuh produksi.
@@ -398,7 +450,11 @@ apa yang bisa Anda ubah, dan apa yang Anda ubah kalau Anda menyentuhnya.
    bukan dua orang berbeda.
 5. **Setujui massal mati.** Isi angkanya hanya bila Anda memang menginginkan satu klik untuk banyak
    dokumen. Pertimbangkan bahwa setiap dokumen tetap satu permintaan dan laju API 120/menit.
-6. **Delegasi kosong.** Fiturnya ada; tidak ada satu baris pun sampai seseorang membuatnya.
+6. **Delegasi kosong.** Fiturnya ada; tidak ada satu baris pun sampai seseorang membuatnya. Sejak
+   putaran verifikasi kedua, orang yang MENERIMA sebuah delegasi benar-benar melihatnya: "Tugas
+   Saya" muncul di bilah sampingnya, kartu kotak masuk dapat ia pasang di dasbornya, dan tombol
+   Setujui muncul pada dokumen yang boleh ia putuskan — dengan judul yang menyebut atas nama siapa.
+   Sebelum itu ia harus mengetik alamat layarnya sendiri, dan tombolnya tidak pernah ada.
 7. **Delapan izin `*.approve-director` baru sudah ada di peran `direktur` dan `admin`.** Kalau
    perusahaan Anda ingin, misalnya, "manajer keuangan" memegang `fin.approve-director` tanpa menjadi
    direktur, itu tinggal ditambahkan di layar Peran.
@@ -408,6 +464,12 @@ apa yang bisa Anda ubah, dan apa yang Anda ubah kalau Anda menyentuhnya.
 9. **Keputusan yang masih terbuka**: apakah formulir rumah boleh mencetak nama penyetuju. Hari ini
    tidak satu pun mencetaknya, dengan alasan yang tertulis. Kalau pemilik memutuskan boleh, "a.n."
    ikut ke kertas; kalau tidak, ia tetap hanya di layar dan di basis data.
+10. **"Cara ambang berlaku" tidak dapat dinyalakan lewat deploy, dan layar sekarang mengatakannya.**
+   Sampai putaran verifikasi kedua, mencoba mengubah kolom itu lewat API dijawab "ditetapkan saat
+   instalasi di config/erp.php … mengubahnya membutuhkan deploy" — kalimat yang mengirim orang ke
+   pekerjaan yang tidak dapat berhasil, karena resolvernya memaksa "satu penyetuju" apa pun isi
+   config. Ke-26 kunci mati itu dibuang, dan penolakannya sekarang menyebut sebab yang sebenarnya
+   per jenis dokumen serta menunjuk ke apa yang MEMANG dapat diubah: ambangnya.
 
 ## Blok migrasi Core HABIS
 
@@ -447,6 +509,30 @@ Lima syarat harness BARU (26 → 31), semuanya menjaga perbaikan putaran ini:
 mengubah cara skenario memilih: SETIAP baris yang ditawarkan dicentang, bukan dua yang pertama —
 sebuah baris yang tidak dapat disetujui sekarang MEMBUAT skenario ini merah alih-alih terlewat.
 
+**Dijalankan ulang lagi sesudah putaran verifikasi KEDUA (7 Sep 2026)** — dan inilah angka yang
+berlaku untuk pohon ini:
+
+| Leg | Cakupan | Uji | Asersi | Dilewati | Waktu | Hasil |
+|---|---|---:|---:|---:|---:|---|
+| SQLite | Core, Iam, Finance, Estimation, Procurement, Subcontract, Projects, HrPayroll, Crm (Feature + Unit) | 3.554 | 19.982 | 11 | 09:50.459 | ✅ hijau |
+| MySQL 8 | 21 berkas persetujuan/setelan Core + `SettingService` unit + seluruh Iam | 282 | 3.626 | 0 | 03:08.657 | ✅ hijau |
+| MySQL 8 | 6 berkas uang Finance (jurnal AR/AP, persetujuan pembayaran, ambang direktur, posting JV) | 69 | 312 | 0 | 00:48.485 | ✅ hijau |
+| Peramban | sepuluh skenario `results-phase-2.json`, tiap skenario di atas salinan dataset demo yang BARU dimigrasi | 10 skenario | **37** syarat (S28 34 + S28m 3) | — | 32,9 s + 5,9 s | ✅ hijau |
+
+Enam syarat harness BARU lagi (28 → 34 di S28), semuanya menjaga perbaikan putaran kedua:
+`the_delegate_can_reach_the_queue_from_the_sidebar`,
+`the_delegate_is_offered_the_approve_button_on_the_document`,
+`the_button_says_whose_right_it_borrows`,
+`pressing_it_approves_the_document_a_n_the_giver`,
+`the_native_holder_sees_the_non_decision_button`, `the_delegate_does_not`. Dua yang terakhir
+berpasangan dan itulah gunanya: mereka mengukur bahwa memberi hak pinjaman kepada layar TIDAK
+membuka lima belas pintu lain yang izinnya kebetulan sama.
+
+Sepuluh skenario itu dijalankan satu per satu, masing-masing di atas salinan basis data yang baru:
+skenario harness Fase 2 MENULIS (setelan, delegasi, persetujuan), dan menjalankan sepuluhnya
+berurutan di atas satu salinan membuat S28 mengukur antrean yang sudah dikosongkan S2 dan S11 —
+diukur di sesi ini: dua skenario merah karena urutannya, keduanya hijau sendiri-sendiri.
+
 `/app/` dimuat di Chromium sesudah seluruh suntingan SPA (`settings.js`, `tugas.js`, `board.js`,
 `app.css`): halaman masuk, lalu `#/settings` (12 kartu), `#/tugas` (2 kartu) dan `#/dashboard`
 (8 kartu) — **nol galat konsol, nol permintaan gagal**.
@@ -457,7 +543,10 @@ nol penyimpangan**.
 Leg MySQL sengaja tidak menjalankan seluruh direktori: yang perlu dilihat di sana adalah kolom
 `json` `core_approvals.policy` (SQLite menyimpannya sebagai TEXT dan cast `array` menyembunyikan
 bedanya) dan `whereDate` pada jendela delegasi — keduanya ada di berkas F-1, dan seluruh registri
-Pengaturan ikut karena matriks menambah 39 kunci padanya.
+Pengaturan ikut karena matriks menambah kunci padanya (**17**: 14 ambang + mode + ambang tingkat
+ketiga keputusan pemenang + plafon massal; 39 adalah angka sebelum putaran verifikasi pertama
+mencabut sel mode dari dua belas baris, dan sebelum putaran kedua membuang kunci config yang
+ditinggalkannya).
 
 `php artisan erp:permission-check` pada salinan dataset demo yang sudah dimigrasi:
 **94 izin diharapkan (14 awalan × 6 aksi + 10 persetujuan direktur), 94 di basis data, 12 peran
@@ -515,3 +604,29 @@ menamai tiap kegagalan.
 diisi pada 12 baris sekarang hanya ada pada Keputusan pemenang. Tidak ada instalasi yang kehilangan
 sebuah keputusan karenanya — mode itu dikirim `single_director` pada kedua belas baris, dan tidak
 ada satu pun yang dapat menegakkannya kalau diubah.
+
+## Putaran verifikasi KEDUA (7 Sep 2026) — empat temuan, empat commit
+
+Verifier yang memeriksa perbaikan putaran pertama (sebelas dari sebelas: DIPERBAIKI) mengajukan
+**empat temuan baru**. Yang pertama adalah cacat terbesar yang pernah ditemukan pada paket ini, dan
+ia sudah ada sejak paket dikirim: fiturnya tidak terlihat oleh orang yang memegangnya.
+
+| # | Berat | Apa | Perbaikannya |
+|---|---|---|---|
+| r2-A | merusak | **Delegasi tidak terlihat oleh delegatnya.** Layar menggerbangi setiap layar dan tombol pada `user.permissions` dari `auth/me` — `getAllPermissions()` Spatie, yang tidak melewati `Gate::before`. Diukur di Chromium pada `finance@nusantara.test` (delegasi lingkup penuh, NOL izin approve sendiri): bilah samping tanpa "Tugas Saya", laci widget tanpa kartu kotak masuk, dan `['Cetak']` pada dokumen yang admin lihat sebagai `['Cetak','Setujui','Tolak']`. Servernya mengizinkan; layarnya tidak pernah menawarkan — dan S28 tidak melihatnya karena ia mengetik `#/tugas` sendiri | `auth/me` membawa `delegated_permissions` (ability → nama pemberi) DI FIELD SENDIRI; `permissions` tidak dilebarkan, karena penjaga matriks bergantung pada daftar itu tetap berarti "yang DIPEGANG". `session.canAct()` memberi hak pinjaman **hanya** di pintu keputusan dokumen (`POST …/{id}/approve\|reject`), bentuk yang sama dengan `DECISION_ROUTE` di server. Lima uji PHP + empat pemindaian sumber SPA + enam syarat S28 |
+| r2-B | tidak lengkap | **Kotak masuk seorang delegat berharga 46 kueri berbanding 8.** `giverHoldsNatively()` mememo jawabannya, tetapi mendapatkannya lewat `User::query()->find()` — instance baru tiap kali, jadi Spatie memuat ulang izin dan perannya. `ApprovalQueue::pending` menanyakan 10 awalan modul. Uji biayanya tidak dapat melihatnya: ketiganya menyaring log kueri pada nama tabel delegasi, dan ongkosnya dibayar di `users`/`model_has_permissions`/`model_has_roles` | Pemberinya dimemo sebagai OBJEK untuk satu unit kerja: 46 → **26** kueri (10 pemuatan pengguna → 1). Uji keempat mengukur SELURUH log dan memaku ketiga hitungan pernyataan |
+| r2-C | kosmetik | **26 kunci `approvals.<jenis>.mode` / `third_level_threshold` yang tidak ada yang membaca**, tertinggal saat sel modenya dicabut. Karena config mendefinisikannya, endpoint setelan menjawab "ditetapkan saat instalasi … mengubahnya membutuhkan deploy" — dan diukur bahwa deploy itu tidak mengubah apa pun: `forType()` memaksa `single_director` untuk 13 dari 14 jenis yang membawa kunci itu | Kuncinya dibuang; yang tersisa satu jenis (keputusan pemenang). Penolakannya menyebut sebab yang sebenarnya per jenis ("penegaknya tidak mengenal mode kedua" / "jalur persetujuannya tidak dapat berhenti di tengah") dan menutup pintu deploy alih-alih menunjuk ke sana. Uji pertamanya diturunkan dari registri, jadi jenis dokumen ke-29 ikut terjaga |
+| r2-D | kosmetik | Laporan ini membawa empat angka pra-perbaikan di bagian yang dibaca lebih dulu, dan bertentangan dengan § Gerbang rilis-nya sendiri: "39 kunci, 38 sel", "26 syarat", "38 sel yang bisa diedit", "4 kotak centang … antrean 4 → 2" | Diperbaiki dari bukti yang diukur ulang di sesi ini (17 kunci / 16 sel, 34 + 3 syarat, 2 kotak centang, antrean 2 → 0). Butir #6 § Yang BELUM diverifikasi ikut diperbaiki: tabel biayanya mengukur tabel yang salah, dan kalimat "tidak ada yang perlu diperbaiki di kodenya" ternyata salah |
+
+**Commit putaran kedua** (di atas `1906e23`):
+
+| # | Commit | Temuan |
+|---:|---|---|
+| 1 | `b4667e5` | r2-B — pemberi delegasi dimuat sekali per unit kerja (46 → 26 kueri) |
+| 2 | `3cd0d4d` | r2-A — sesi tahu hak apa yang dipinjamnya, dan hanya di pintu keputusan dokumen |
+| 3 | `baf2dc9` | r2-C — 26 kunci mode mati dibuang; penolakannya menyebut sebab yang sebenarnya |
+| 4 | (commit ini) | r2-D — angka laporan diperbaiki dari bukti yang diukur ulang; `results-phase-2.json` disegarkan |
+
+**Yang tidak berubah**: penegakan di server. r2-A adalah perbaikan LAYAR — setiap penolakan,
+setiap `Gate::before`, setiap penjaga maker-checker menjawab persis seperti sebelumnya. Yang
+berubah adalah bahwa layar berhenti menyembunyikan pekerjaan yang server sudah izinkan.
