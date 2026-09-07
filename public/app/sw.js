@@ -1,0 +1,265 @@
+/*
+ * Service worker SPA Nusantara ERP (P1-I). Lingkupnya /app/ — berkas ini
+ * dilayani sebagai /app/sw.js, dan sebuah worker hanya boleh menguasai path di
+ * bawah folder skripnya sendiri. Itu BUKAN kebetulan: lingkup /app/ persis
+ * cangkang aplikasi, dan /api/ berada DI LUARNYA.
+ *
+ * ====================================================================
+ *  ATURAN YANG TIDAK PERNAH DI-CACHE — RUJUKAN, bukan ringkasan
+ * ====================================================================
+ *  Worker ini MENJAWAB sebuah permintaan hanya bila permintaan itu memenuhi
+ *  SEMUA syarat berikut (shellRequest di bawah):
+ *
+ *    1. metodenya GET;
+ *    2. asalnya sama dengan asal worker (bukan lintas asal);
+ *    3. path-nya dimulai dengan lingkup worker, yaitu '/app/';
+ *    4. tidak membawa header Authorization;
+ *    5. bukan berkas worker ini sendiri (/app/sw.js).
+ *
+ *  Permintaan yang tidak memenuhinya TIDAK DISENTUH: tanpa respondWith(),
+ *  jadi peramban mengambilnya seolah worker ini tidak terpasang. Karena
+ *  `/api/*`, `/storage/*` dan setiap unduhan lampiran TIDAK berada di bawah
+ *  `/app/`, tidak ada satu jalur kode pun di berkas ini yang bisa menyimpan
+ *  atau menyajikannya — bukan "cache paling akhir", melainkan TIDAK PERNAH.
+ *
+ *  Bentuknya sengaja DAFTAR IZIN, bukan daftar larangan. Daftar larangan
+ *  membusuk: endpoint baru yang lupa didaftarkan langsung ikut ter-cache, dan
+ *  kegagalannya diam — orang berikutnya di tablet lapangan yang dipakai
+ *  bergantian membaca daftar milik orang sebelumnya. Daftar izin dengan satu
+ *  awalan tidak bisa membusuk begitu; syarat 1–5 dipaku
+ *  tests/Feature/Core/PwaServiceWorkerTest.
+ *
+ *  Yang boleh masuk cache lebih sempit lagi daripada yang dijawab: hanya
+ *  jawaban 200 bertipe 'basic' (asal sama, bukan opaque, bukan 206 Range).
+ *
+ * ------------------------------------------------------------------
+ *  STRATEGI: JARINGAN DULU
+ * ------------------------------------------------------------------
+ *  Setiap permintaan cangkang pergi ke jaringan lebih dulu; jawabannya
+ *  disalin ke cache lalu diteruskan apa adanya. Cache dibaca HANYA ketika
+ *  fetch() melempar — yaitu benar-benar tidak ada jaringan. Jawaban HTTP yang
+ *  sah tetapi tidak menyenangkan (404 sesudah rilis membuang berkas, 401 dari
+ *  gerbang HTTP) diteruskan apa adanya, TIDAK ditutupi salinan lama: cangkang
+ *  basi yang menutupi jawaban server adalah persis kebohongan yang paket ini
+ *  ada untuk mencegahnya.
+ *
+ *  Cangkang tidak memuat data siapa pun. Token sesi hidup di localStorage,
+ *  yang tidak pernah disentuh worker; jadi cangkang ter-cache yang dibuka
+ *  sesi yang sudah keluar hanya menggambar halaman masuk.
+ *
+ * ------------------------------------------------------------------
+ *  VERSI CACHE
+ * ------------------------------------------------------------------
+ *  SHELL_VERSION dinaikkan pada setiap rilis yang mengubah berkas cangkang.
+ *  Itu satu-satunya hal yang membuat peramban memasang worker baru (peramban
+ *  membandingkan BYTE sw.js), dan karena itu satu-satunya hal yang memunculkan
+ *  toast "Versi baru siap — Muat ulang" di tab yang sudah terbuka berhari-hari.
+ *  Rilis yang lupa menaikkannya tidak menyesatkan siapa pun — jaringan-dulu
+ *  tetap menyajikan kode terbaru kepada siapa saja yang memuat ulang — ia hanya
+ *  tidak mengumumkan dirinya. Prosedurnya di CONVENTIONS § 21.
+ *
+ *  SHELL berisi SETIAP berkas yang dimuat peramban saat aplikasi berjalan
+ *  (html/css/js/svg/webmanifest di bawah public/app, kecuali folder icons/ yang
+ *  dibaca sistem operasi, bukan halaman). Daftarnya dipaku dua arah oleh
+ *  tests/Feature/Core/PwaServiceWorkerTest: tidak boleh ada baris yang berkasnya
+ *  hilang, dan tidak boleh ada berkas yang tidak tercatat — sebuah layar baru
+ *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
+ */
+
+const SHELL_VERSION = '1';
+const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
+
+/** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
+const SCOPE = new URL('./', self.location).pathname;
+
+const SHELL = [
+  './',
+  'app.css',
+  'favicon.svg',
+  'index.html',
+  'js/api.js',
+  'js/app.js',
+  'js/cells.js',
+  'js/charts.js',
+  'js/combobox.js',
+  'js/crumbs.js',
+  'js/csv.js',
+  'js/drafts.js',
+  'js/enums.js',
+  'js/format.js',
+  'js/illustrations.js',
+  'js/kalenderpalette.js',
+  'js/lookup.js',
+  'js/money.js',
+  'js/notifications.js',
+  'js/prefs.js',
+  'js/print.js',
+  'js/printcatalog.js',
+  'js/router.js',
+  'js/schema.js',
+  'js/search.js',
+  'js/ui.js',
+  'js/vendorload.js',
+  'js/views/absensi.js',
+  'js/views/actions.js',
+  'js/views/attachments.js',
+  'js/views/bankrecon.js',
+  'js/views/board.js',
+  'js/views/bukubesar.js',
+  'js/views/cashflow.js',
+  'js/views/custom.js',
+  'js/views/dashboard.js',
+  'js/views/dashsetup.js',
+  'js/views/defect.js',
+  'js/views/detail.js',
+  'js/views/dokumenimpor.js',
+  'js/views/ekualisasi.js',
+  'js/views/evm.js',
+  'js/views/external.js',
+  'js/views/form.js',
+  'js/views/galeriproyek.js',
+  'js/views/hargasatuan.js',
+  'js/views/home.js',
+  'js/views/jadwal.js',
+  'js/views/k3.js',
+  'js/views/kalender.js',
+  'js/views/kalenderpajak.js',
+  'js/views/kaskecil.js',
+  'js/views/lapangan.js',
+  'js/views/laporanbebas.js',
+  'js/views/list.js',
+  'js/views/masterdata.js',
+  'js/views/module.js',
+  'js/views/onboarding.js',
+  'js/views/periods.js',
+  'js/views/pipeline.js',
+  'js/views/pooutstanding.js',
+  'js/views/project.js',
+  'js/views/rekapalat.js',
+  'js/views/reports.js',
+  'js/views/retensi.js',
+  'js/views/rfq.js',
+  'js/views/sertifikat.js',
+  'js/views/settings.js',
+  'js/views/sewavsbeli.js',
+  'js/views/siaptagih.js',
+  'js/views/slabreaches.js',
+  'js/views/taxexport.js',
+  'js/views/tender.js',
+  'js/views/tenggat.js',
+  'js/views/tugas.js',
+  'js/views/tutupproyek.js',
+  'js/views/varian.js',
+  'js/views/widgets/aging.js',
+  'js/views/widgets/ap-aging.js',
+  'js/views/widgets/ar-aging.js',
+  'js/views/widgets/defect.js',
+  'js/views/widgets/evm.js',
+  'js/views/widgets/inbox.js',
+  'js/views/widgets/kalender.js',
+  'js/views/widgets/kit.js',
+  'js/views/widgets/ncr.js',
+  'js/views/widgets/pajak.js',
+  'js/views/widgets/payroll.js',
+  'js/views/widgets/pipeline.js',
+  'js/views/widgets/po-outstanding.js',
+  'js/views/widgets/proyek-progres.js',
+  'js/views/widgets/proyeksi-kas.js',
+  'js/views/widgets/registry.js',
+  'js/views/widgets/ringkasan-uang.js',
+  'js/views/widgets/saldo-bank.js',
+  'js/views/widgets/siap-tagih.js',
+  'js/views/widgets/sla-tiket.js',
+  'js/views/widgets/stok-minimum.js',
+  'js/views/widgets/tenggat.js',
+  'manifest.webmanifest',
+  'vendor/lucide@1.41.0/sprite.svg',
+  'vendor/sortablejs@1.15.7/Sortable.min.js',
+];
+
+/* ------------------------------------------------------------------ pasang */
+
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // Satu per satu dengan allSettled, BUKAN addAll: addAll menolak seluruhnya
+    // bila satu berkas menjawab 404, dan install yang gagal berarti worker baru
+    // tidak pernah aktif — satu berkas yang tertinggal saat rilis akan
+    // membekukan pembaruan bagi semua orang. Yang gagal dicatat; uji dua arah
+    // atas SHELL-lah yang menjaga daftar ini benar.
+    const results = await Promise.allSettled(SHELL.map((path) => cache.add(path)));
+    const failed = SHELL.filter((_, i) => results[i].status === 'rejected');
+    if (failed.length) console.warn('[sw] tidak masuk cache:', failed);
+  })());
+  // TIDAK skipWaiting(): worker baru menunggu sampai orangnya menekan
+  // "Muat ulang" pada toast (app.js kirim pesan SKIP_WAITING). Mengambil alih
+  // diam-diam berarti memuat ulang halaman di bawah tangan orang yang sedang
+  // mengisi formulir.
+});
+
+/* ------------------------------------------------------------------ aktif */
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names
+      .filter((name) => name.startsWith('nusantara-shell-') && name !== CACHE)
+      .map((name) => caches.delete(name)));
+    await self.clients.claim();
+  })());
+});
+
+/* --------------------------------------------------------------- pengambil */
+
+/**
+ * Syarat 1–5 dari rujukan di kepala berkas. Satu-satunya gerbang; tidak ada
+ * jalan lain menuju cache.
+ */
+function shellRequest(request) {
+  if (request.method !== 'GET') return false;
+  if (request.headers.has('Authorization')) return false;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return false;
+  if (!url.pathname.startsWith(SCOPE)) return false;
+  if (url.pathname === self.location.pathname) return false;
+
+  return true;
+}
+
+/** Hanya jawaban yang aman disimpan: 200, asal sama, bukan opaque, bukan 206. */
+function storable(response) {
+  return Boolean(response) && response.status === 200 && response.type === 'basic';
+}
+
+async function networkFirst(event) {
+  const request = event.request;
+  const cache = await caches.open(CACHE);
+
+  try {
+    const response = await fetch(request);
+    if (storable(response)) event.waitUntil(cache.put(request, response.clone()));
+    return response;
+  } catch (error) {
+    const hit = await cache.match(request);
+    if (hit) return hit;
+    // Navigasi ke path /app/ mana pun jatuh ke cangkang: router aplikasi ini
+    // memakai hash, jadi setiap halaman adalah index.html yang sama.
+    if (request.mode === 'navigate') {
+      const shell = await cache.match(SCOPE);
+      if (shell) return shell;
+    }
+    throw error;
+  }
+}
+
+self.addEventListener('fetch', (event) => {
+  if (!shellRequest(event.request)) return;
+  event.respondWith(networkFirst(event));
+});
+
+/* ---------------------------------------------------------------- pesan */
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
