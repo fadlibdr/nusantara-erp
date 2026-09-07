@@ -2909,7 +2909,6 @@ def gantt_scenario(pg, tag, mobile=False):
     # Baris ke-i: bar aktual di y = 41 + 28i, bar baseline di y = 51 + 28i.
     bar_rows = sorted(round((b["y"] - 41) / 28) for b in bars)
     baseline_row_index = sorted(round((b["y"] - 51) / 28) for b in baseline_rows)
-    label_rows = list(range(len(week["labels"])))
     open_bars = [b for b in bars if b["open"] == "end"]
     # Setiap rect dikembalikan ke NOMOR BARISNYA dari koordinat y, lalu
     # dibandingkan dengan geometri yang dihitung ulang dari tanggal API — bukan

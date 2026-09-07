@@ -25,7 +25,14 @@
  * (Catatan untuk pembaca berikutnya: `EvmService::physicalProgress` mencoba id
  * DULU lalu jatuh ke kode. Keduanya memberi hasil yang sama pada data hari ini
  * justru karena setiap id meleset. Perbedaan itu disengaja dan ditulis di
- * LAPORAN-PAKET-HM-P1-H.)
+ * docs/CONVENTIONS.md §20 dan docs/LAPORAN-PAKET-HM-P1-H.md §3; sejak P1-H,
+ * ketidaksepakatan antara id dan kode TIDAK LAGI DIAM — laporan EVM memuat
+ * peringatan yang menyebut kedua kodenya.)
+ *
+ * Angka 0-dari-11 di atas bukan hafalan: `JadwalGanttTest` mengukurnya ulang
+ * terhadap `ProjectService::generateWbsFromBoq` yang sungguhan, dan harness
+ * S26_gantt mengukur gambarnya di peramban (23 rect berdiri di x dan lebar yang
+ * dihitung ulang dari tanggal muatan API-nya, 0 meleset > 0,05 px).
  * ────────────────────────────────────────────────────────────────────────────
  *
  * PROGRES DATANG DARI SISI HIDUP, dan hanya dari sana. Muatan baseline punya

@@ -3954,6 +3954,7 @@ Tiga akibatnya yang harus Anda ketahui sejak awal:
 |---|---|
 | Galeri Foto | tombol **`Galeri Foto`** di halaman proyek |
 | Struktur WBS | kartu di halaman proyek — bukan layar tersendiri |
+| **Jadwal (gantt)** | tab **`Jadwal`** di halaman proyek |
 | Tutup proyek | tombol **`Tutup proyek`** di halaman proyek |
 | Baseline proyek | layar **EVM & Baseline** atau kartu Baseline di halaman proyek |
 
@@ -3999,7 +4000,41 @@ Anda:
 > rencana" terlihat aneh: buka **Progres Mingguan** dan **simpan ulang minggu bernomor
 > tertinggi**. Kurva-S di kartu di bawahnya membaca baris minggu langsung dan tetap benar.
 
-**Kartu-kartu di halaman proyek:**
+**Dua tab: `Ringkasan` dan `Jadwal`.** Tab yang sedang terbuka bertahan ketika halaman
+menggambar ulang dirinya — menyimpan progres satu paket pekerjaan tidak melemparkan Anda
+kembali ke Ringkasan.
+
+**Tab `Jadwal`** menggambar seluruh tugas WBS proyek sebagai gantt **baca-saja**: satu baris
+per paket pekerjaan, dalam urutan pohonnya, dengan tanggal rencana sebagai batangnya dan
+bagian gelap di dalamnya sebagai progresnya. Tidak ada yang bisa diubah dari sini — progres
+tetap diisi dari kartu **Struktur WBS** di tab Ringkasan.
+
+- **Batang tipis di bawah batang utama = baseline yang dibekukan.** Ia digambar hanya untuk
+  paket yang punya pasangan di baseline, dan selisih ujungnya itulah keterlambatan (atau
+  percepatan) terhadap rencana yang disepakati.
+- **Kalimat di kaki gambar menyebut berapa yang cocok** — mis. *"baseline BSL/2026/VIII/0001
+  (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS"*. Paket yang tidak
+  punya pasangan hanya kehilangan batang pembandingnya; jadwalnya tetap tergambar.
+- **Belum ada baseline disetujui?** Gantt tetap tergambar, dan kalimatnya mengatakannya:
+  *"belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana WBS
+  yang berlaku sekarang."* Itu bukan galat.
+- **Batang yang ujung kanannya putus-putus** = tanggal selesainya belum ditetapkan; batangnya
+  memanjang sampai tepi kanan karena tidak ada yang tahu di mana ia berhenti. Paket yang
+  belum punya tanggal sama sekali tidak digambar sebagai batang, melainkan ditulis
+  *"tanpa tanggal"* pada barisnya — sebuah batang yang dikarang lebih buruk daripada baris
+  kosong.
+- **Garis tegak berlabel "Hari ini"** hanya muncul bila hari ini memang di dalam rentang
+  jadwalnya. Kolom abu-abu adalah Sabtu–Minggu.
+- **`Mingguan` / `Bulanan`** mengubah kerapatan garis tanggal; **`Cetak`** mencetak lembar
+  ini **mendatar (lanskap)**, lengkap dengan judul proyek dan kalimat sumbernya, sementara
+  bilah tombolnya tidak ikut tercetak.
+- **Garis ketergantungan antar tugas tidak digambar.** Kolomnya belum ada di basis data dan
+  impor MPP-XML mengabaikan `PredecessorLink` — kalimat di bawah gambar mengatakannya. Garis
+  yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.
+- Di ponsel gambarnya **menggulir mendatar** dan nama paket yang panjang terpotong; untuk
+  membaca jadwal penuh, buka di layar lebar atau cetak lembarnya.
+
+**Kartu-kartu di halaman proyek** (tab `Ringkasan`)**:**
 
 - **Kurva-S (progres kumulatif)** — tombol **`Catat minggu`** di kepala kartu. Grafiknya
   menggambar tiga garis: *Rencana (laporan mingguan)*, *Aktual*, dan — bila ada baseline
