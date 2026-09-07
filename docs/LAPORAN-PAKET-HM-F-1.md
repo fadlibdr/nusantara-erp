@@ -253,10 +253,11 @@ detik — "tidak ada laporan" untuk laporan yang ada adalah bukti yang berbohong
 | "results-phase-2.json **BARU**" | **digabung** ke berkas yang sudah ada | berkas itu sudah memuat 8 skenario era ROADMAP-DEVIASI; menimpanya berarti menghapus bukti. Digabung per kunci — tidak satu pun ditimpa |
 | mode `extra_level` untuk PO/SPK | **tidak ditawarkan** | ROADMAP juga berkata gerbang lama tidak dimigrasikan; menawarkan mode yang tidak ada penegaknya = layar yang berbohong |
 
-## Tinjauan sendiri — tiga temuan (dua ditutup di `beb7e32`, satu di `HEAD`), plus satu yang bukan milik paket ini
+## Tinjauan sendiri — tiga temuan, plus satu yang bukan milik paket ini
 
-Bukan pengganti verifikasi adversarial ganda (§ Yang BELUM diverifikasi #1), tetapi dua hal yang
-ditemukan dengan membaca kembali diff-nya sendiri sesudah semuanya hijau.
+Bukan pengganti verifikasi adversarial ganda (§ Yang BELUM diverifikasi #1) — hanya tiga hal yang
+ditemukan dengan membaca kembali diff-nya sendiri sesudah semuanya hijau. Temuan 1 dan 3 ditutup di
+`beb7e32`, temuan 2 di `4636d47`.
 
 **1. Sebuah delegasi persetujuan MEMBUKA matriksnya — kendali uang, bukan ketidaknyamanan.**
 
@@ -369,3 +370,45 @@ yang disisakan CONVENTIONS §2 untuk Core. Tabel Core berikutnya menuntut keputu
 ledger #5 menyarankan "Core 001400–" tetapi §2 sudah memberikan 001400–001499 kepada Quality dan
 Quality memakainya. **Ini keputusan pemilik yang harus diambil sebelum paket Fase 2 berikutnya yang
 menambah tabel Core.**
+
+## Gerbang rilis
+
+Dijalankan di atas pohon yang **sudah diam** — semua suntingan selesai dan tree bersih. Dua putaran
+sebelumnya dijalankan di atas pohon yang sedang disunting dan melaporkan kegagalan yang tidak nyata;
+angka di bawah bukan angka itu (§ Tinjauan sendiri, catatan proses).
+
+| Leg | Cakupan | Uji | Asersi | Dilewati | Waktu | Hasil |
+|---|---|---:|---:|---:|---:|---|
+| SQLite | Core, Iam, Procurement, Subcontract, Estimation, Finance (Feature + Unit) | 2.543 | 15.857 | 11 | 06:54.616 | ✅ hijau |
+| MySQL 8 | berkas F-1 + seluruh registri Pengaturan + Iam | 202 | 3.248 | 0 | 02:08.051 | ✅ hijau |
+| Peramban | S28 desktop 1440×900 + S28m ponsel 390×844 | 2 skenario | 26 syarat | — | 21.7 s + 5.4 s | ✅ hijau |
+
+Leg MySQL sengaja tidak menjalankan seluruh direktori: yang perlu dilihat di sana adalah kolom
+`json` `core_approvals.policy` (SQLite menyimpannya sebagai TEXT dan cast `array` menyembunyikan
+bedanya) dan `whereDate` pada jendela delegasi — keduanya ada di berkas F-1, dan seluruh registri
+Pengaturan ikut karena matriks menambah 39 kunci padanya.
+
+`php artisan erp:permission-check` pada salinan dataset demo yang sudah dimigrasi:
+**94 izin diharapkan (14 awalan × 6 aksi + 10 persetujuan direktur), 94 di basis data, 12 peran
+sesuai seeder, nol penyimpangan** — 86 → 94 adalah kedelapan izin baru. Ini gerbang deploy
+(`deploy/sync-erp1.sh` menjalankannya), jadi ia harus hijau sebelum merge.
+
+Pint: hijau pada 60 berkas PHP yang disentuh paket ini. (Enam berkas lain di repositori memang
+dilaporkan `pint --test` dan sudah begitu sebelum paket ini; tidak satu pun disentuh di sini.)
+
+## Commit
+
+| # | Commit | Isi |
+|---:|---|---|
+| 1 | `8a731c9` | T1.1+T1.3 — matriks 28 jenis, nilai hari ini, dua penjaga izin, audit dari→ke |
+| 2 | `719ae26` | T1.2 — stempel kebijakan pada baris `submitted` (Core 000198) |
+| 3 | `478d21a` | T1.4 — delapan izin direktur diturunkan dari registri (Iam 000251) |
+| 4 | `2516613` | T1.5 — delegasi "a.n." (Core 000199), `Gate::before`, dua penolakan, satu perender jejak |
+| 5 | `1b8b147` | T1.3 — berkas uji kesetaraan yang tertinggal dari commit 1 |
+| 6 | `18b5581` | T1.6 — setujui massal, plafon kosong = mati, loop di klien |
+| 7 | `2afdf69` | T1.7 — harness S28 + S28m, hasil digabung ke `results-phase-2.json` |
+| 8 | `ff0226a` | T1.8 — CONVENTIONS §22–§23, PANDUAN ×2, FRONTEND, laporan ini |
+| 9 | `beb7e32` | tinjauan sendiri 1+2 — delegasi tidak membuka matriks; dua kueri berulang |
+| 10 | `b9caf4c` | bukti UI diambil ulang di atas pohon yang diam |
+| 11 | `0e4008e` | stempel menjawab tiap pertanyaan sekali |
+| 12 | `4636d47` | tinjauan sendiri 3 — PO/SPK tergambar dua kali di Pengaturan |
