@@ -61,11 +61,20 @@ class PurchaseRequisitionApprovalTrailTest extends ErpTestCase
             ->assertJsonPath('data.approvals.1.note', 'Harga sesuai RAB.')
             ->assertJsonPath('data.approvals.1.created_at', '2026-09-04T09:15:00+07:00');
 
-        // Exactly the PaymentResource keys — nothing the SPA does not read.
+        /*
+         * Persis kunci Core\Http\Resources\ApprovalTrail — perender tunggal
+         * yang menggantikan dua puluh lima salinan penutup yang sama (F-1) —
+         * dan tidak satu pun yang tidak dibaca SPA.
+         *
+         * `on_behalf_of` menyusul bersama delegasi "a.n.": null pada baris
+         * biasa, yaitu hampir semuanya, dan itu berarti orangnya menyetujui
+         * atas namanya sendiri.
+         */
         $this->assertSame(
-            ['id', 'action', 'note', 'created_at', 'user'],
+            ['id', 'action', 'note', 'created_at', 'user', 'on_behalf_of'],
             array_keys($response->json('data.approvals.0')),
         );
+        $this->assertNull($response->json('data.approvals.0.on_behalf_of'));
     }
 
     /**

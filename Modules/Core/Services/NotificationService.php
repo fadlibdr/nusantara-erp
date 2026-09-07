@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\Failed\FailedJobProviderInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Exceptions\DeliveryRetryRefusedException;
@@ -416,13 +417,72 @@ class NotificationService
     /**
      * @return Collection<int, User>
      */
+    /**
+     * Siapa yang diberi tahu — pemegang izinnya, DAN delegat yang memegang
+     * hak itu untuk sementara (F-1).
+     *
+     * Tanpa baris kedua, delegasi hanyalah setengah fitur: Budi boleh
+     * menyetujui a.n. Sari tetapi tidak pernah tahu ada yang menunggu, jadi
+     * dokumen tetap menua persis seperti sebelumnya (diukur 4 Sep 2026:
+     * PAY/2026/VIII/0002 menunggu 33 hari). Yang dicegah delegasi adalah
+     * antrean yang berhenti karena satu orang pergi; pemberitahuan yang tidak
+     * ikut pindah tidak mencegah apa pun.
+     *
+     * Delegat yang KEBETULAN juga pemegang izinnya sendiri hanya muncul sekali
+     * (unique), dan pengaju tetap dikecualikan sesudah penggabungan — bukan di
+     * dalam kueri pertama, yang dulu melewatkan pengaju yang masuk lewat
+     * jalur delegasi.
+     */
     private function approvers(string $permission, ?User $actor): Collection
     {
-        return User::query()
+        $holders = User::query()
             ->permission($permission)
             ->where('is_active', true)
-            ->when($actor !== null, fn ($query) => $query->where('id', '!=', $actor->id))
             ->get();
+
+        return $holders
+            ->merge($this->delegatesFor($permission, $holders))
+            ->unique(fn (User $user) => $user->getKey())
+            ->reject(fn (User $user) => $actor !== null && (int) $user->getKey() === (int) $actor->getKey())
+            ->values();
+    }
+
+    /**
+     * Penerima delegasi hidup dari salah satu pemegang izin ini.
+     *
+     * Pemberinya harus ada di $holders: hak yang didelegasikan adalah hak yang
+     * DIPEGANG pemberinya, jadi seseorang tidak dapat mewariskan izin yang
+     * tidak dimilikinya — aturan yang sama yang ditegakkan
+     * ApprovalDelegations::grants saat menyetujui, di sini supaya daftar yang
+     * diberi tahu dan daftar yang boleh menyetujui adalah daftar yang sama.
+     *
+     * @param  Collection<int, User>  $holders
+     * @return Collection<int, User>
+     */
+    private function delegatesFor(string $permission, Collection $holders): Collection
+    {
+        if ($holders->isEmpty() || ! Schema::hasTable('core_approval_delegations')) {
+            return new Collection;
+        }
+
+        $prefix = str_contains($permission, '.') ? explode('.', $permission)[0] : null;
+        $today = now()->toDateString();
+
+        $ids = DB::table('core_approval_delegations')
+            ->whereIn('giver_user_id', $holders->map(fn (User $user) => $user->getKey())->all())
+            ->whereNull('revoked_at')
+            ->whereDate('starts_at', '<=', $today)
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhereDate('ends_at', '>=', $today))
+            ->where(fn ($query) => $query->whereNull('scope')->orWhere('scope', $prefix))
+            ->pluck('delegate_user_id')
+            ->unique()
+            ->all();
+
+        if ($ids === []) {
+            return new Collection;
+        }
+
+        return User::query()->whereIn('id', $ids)->where('is_active', true)->get();
     }
 
     private function submitterOf(Model $document): ?User

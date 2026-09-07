@@ -1,11 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Http\Controllers\ApprovalDelegationController;
 use Modules\Core\Http\Controllers\AttachmentController;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\CalendarController;
-use Modules\Core\Http\Controllers\ReportController;
-use Modules\Core\Http\Controllers\SavedReportController;
 use Modules\Core\Http\Controllers\CompanyController;
 use Modules\Core\Http\Controllers\DashboardController;
 use Modules\Core\Http\Controllers\DeadlineController;
@@ -24,6 +23,8 @@ use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
 use Modules\Core\Http\Controllers\QueueFailedJobController;
 use Modules\Core\Http\Controllers\RateHistoryController;
+use Modules\Core\Http\Controllers\ReportController;
+use Modules\Core\Http\Controllers\SavedReportController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
 use Modules\Core\Http\Controllers\UserPreferenceController;
@@ -126,6 +127,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // penyaringannya per {modul}.approve di dalam controller, dan yang tidak
     // punya satu pun mendapat daftar kosong yang jujur.
     Route::get('inbox', InboxController::class);
+
+    /*
+     * F-1 — delegasi persetujuan "a.n.". Tanpa gerbang izin di rute, untuk
+     * alasan yang sama dengan core/inbox dan me/preferences: index() hanya
+     * pernah mengembalikan baris yang menyangkut $request->user(), dan store()
+     * / destroy() menolak di dalam controller siapa pun yang bukan PEMBERI
+     * haknya (kecuali pemegang iam.update). Sebuah gerbang tunggal tidak bisa
+     * menyatakan itu — ia akan menutup pintu bagi direktur tanpa iam.update
+     * yang justru orang yang berhak menyerahkan haknya sendiri.
+     */
+    Route::get('approval-delegations', [ApprovalDelegationController::class, 'index']);
+    Route::post('approval-delegations', [ApprovalDelegationController::class, 'store']);
+    Route::delete('approval-delegations/{approvalDelegation}', [ApprovalDelegationController::class, 'destroy']);
 
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
