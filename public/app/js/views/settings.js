@@ -278,12 +278,20 @@ function buildMatrix(group, ctx, entries) {
       thirdCell = rule('—');
     } else {
       thresholdCell = cell(row.keys.threshold) || rule('—');
-      modeCell = row.mode_locked
-        ? rule('Satu penyetuju, harus direktur di atas ambang')
-        : (cell(row.keys.mode) || rule('—'));
-      thirdCell = row.mode_locked
-        ? rule('Tidak berlaku pada mode ini')
-        : (cell(row.keys.third_level_threshold) || rule('—'));
+      /* Dua sebab berbeda untuk satu sel yang tidak ada, dan masing-masing
+         dicetak apa adanya: modul yang menegakkan ambangnya sendiri tidak
+         MENGENAL mode kedua; jenis yang persetujuannya tidak bisa berhenti di
+         tengah tidak BOLEH menawarkannya (jurnalnya akan diposting dua kali). */
+      if (row.mode_locked) {
+        modeCell = rule('Satu penyetuju, harus direktur di atas ambang');
+        thirdCell = rule('Tidak berlaku pada mode ini');
+      } else if (!row.supports_extra_level) {
+        modeCell = rule('Satu penyetuju, harus direktur di atas ambang — jenis ini tidak mendukung tambahan tingkat');
+        thirdCell = rule('Tidak berlaku pada mode ini');
+      } else {
+        modeCell = cell(row.keys.mode) || rule('—');
+        thirdCell = cell(row.keys.third_level_threshold) || rule('—');
+      }
     }
 
     return el('tr', [

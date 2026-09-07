@@ -133,6 +133,8 @@ trait Approvable
      */
     protected function approveLevelled(User $by, ?string $note): static
     {
+        $this->assertLadderIsCarriedByThisModule();
+
         $prior = ApprovalLevels::distinctApprovals($this);
         ApprovalLevels::assertMayApproveNext($this, $by, $prior);
 
@@ -154,6 +156,46 @@ trait Approvable
         ]);
 
         return $this;
+    }
+
+    /**
+     * SEBUAH PERSETUJUAN YANG BERHENTI DI TENGAH HANYA BOLEH TERJADI DI TEMPAT
+     * MODULNYA MEMBACA STATUSNYA SESUDAHNYA.
+     *
+     * approveLevelled() menulis baris `approved` pertama TANPA memindahkan
+     * dokumen dari `submitted`. Pemanggilnya — service modul — menjalankan
+     * akibat persetujuan di baris berikutnya, dan hanya AwardDecisionService
+     * yang bertanya lebih dulu apakah dokumennya sudah benar-benar disetujui.
+     * Diukur 7 Sep 2026 pada jalur AR: sebuah stempel bertingkat dua pada
+     * invoice termin memposting JV/2026/09/0001 pada dokumen yang masih
+     * `submitted`, lalu JV/2026/09/0002 pada persetujuan kedua — Rp 2,22
+     * miliar piutang/pendapatan/PPN keluaran terbukukan dua kali, tanpa satu
+     * penolakan pun. Hal yang sama pada tagihan AP Rp 111 juta.
+     *
+     * Sejak putaran verifikasi F-1 layar tidak lagi menawarkan mode itu di
+     * sana (SettingService::approvalMatrixGroup) dan resolvernya memaksa
+     * single_director (ApprovalPolicy::forType). Penjaga ini adalah lapis
+     * ketiga, untuk stempel yang sudah TERLANJUR tertulis sebelum keduanya:
+     * sebuah penolakan yang dapat dibaca, bukan sebuah jurnal ganda.
+     *
+     * @throws ApprovalLevelException
+     */
+    protected function assertLadderIsCarriedByThisModule(): void
+    {
+        $type = ApprovalPolicy::slugFor($this);
+
+        if ($type === null || ApprovalPolicy::supportsExtraLevel($type)) {
+            return;
+        }
+
+        throw new ApprovalLevelException(sprintf(
+            '%s %s membawa stempel kebijakan "tambahan tingkat", tetapi jenis dokumen ini tidak dapat '
+            .'berhenti di tengah persetujuan — modulnya menjalankan akibat persetujuan (jurnal, stok) '
+            .'begitu Setujui ditekan. Kembalikan "cara ambang berlaku" jenis ini ke "satu penyetuju" di '
+            .'Pengaturan → Matriks Persetujuan, lalu ajukan ulang dokumen ini.',
+            ApprovableDocuments::label($this),
+            (string) ($this->code ?? $this->getKey()),
+        ));
     }
 
     /**

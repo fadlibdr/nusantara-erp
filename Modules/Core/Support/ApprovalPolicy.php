@@ -90,6 +90,9 @@ final class ApprovalPolicy
     /** @var array<string, bool>|null memo per proses: jenis yang punya nilai rupiah untuk diukur */
     private static ?array $measurable = null;
 
+    /** @var array<string, bool>|null memo per proses: jenis yang modelnya menyatakan approvalLadderKey() */
+    private static ?array $laddered = null;
+
     /** @var bool|null memo per proses: core_approvals.policy sudah ada? */
     private static ?bool $hasPolicyColumn = null;
 
@@ -160,10 +163,12 @@ final class ApprovalPolicy
         $third = Erp::setting("approvals.{$owner}.third_level_threshold");
         $mode = (string) (Erp::setting("approvals.{$owner}.mode") ?: self::MODE_SINGLE_DIRECTOR);
 
-        if (! in_array($mode, self::MODES, true) || self::modeIsLocked($type)) {
-            // Mode yang tidak dikenal (baris yang ditulis instalasi lama) dan
-            // tiga tabel bergerbang sendiri sama-sama jatuh ke perilaku hari
-            // ini, bukan ke mode yang tidak ada yang menegakkan.
+        if (! in_array($mode, self::MODES, true) || self::modeIsLocked($type) || ! self::supportsExtraLevel($type)) {
+            // Mode yang tidak dikenal (baris yang ditulis instalasi lama), tiga
+            // tabel bergerbang sendiri, dan jenis yang jalur persetujuannya
+            // tidak dapat berhenti di tengah — ketiganya jatuh ke perilaku hari
+            // ini, bukan ke mode yang tidak ada yang menegakkan. Baris setelan
+            // yang sudah terlanjur tertulis karena itu tidak berbunyi apa pun.
             $mode = self::MODE_SINGLE_DIRECTOR;
         }
 
@@ -260,6 +265,56 @@ final class ApprovalPolicy
     }
 
     /**
+     * MODE "TAMBAHAN TINGKAT" HANYA DITAWARKAN DI TEMPAT SEBUAH PERSETUJUAN
+     * BOLEH BERHENTI DI TENGAH — dan hanya satu jenis dokumen yang begitu.
+     *
+     * Sebuah persetujuan berjenjang menuliskan baris `approved` PERTAMA tanpa
+     * memindahkan dokumennya dari `submitted` (Approvable::approveLevelled).
+     * Itu hanya aman bila modul pemiliknya membaca statusnya sesudah Setujui.
+     * Diukur 7 Sep 2026, hanya AwardDecision yang begitu: pengendalinya
+     * membaca requiredApprovalLevels() dan mengatakan "menunggu tingkat
+     * berikutnya". Setiap service lain memperlakukan approve() sebagai
+     * TERMINAL dan menjalankan akibatnya di baris berikutnya tanpa syarat —
+     * ArInvoiceService memposting jurnal piutang/pendapatan/PPN, ApBillService
+     * memposting jurnal hutang. Menyalakan mode ini di sana berarti jurnal
+     * diposting pada dokumen yang MASIH `submitted`, lalu diposting KEDUA
+     * kalinya saat penyetuju kedua datang: diukur pada AR Rp 2,22 miliar
+     * (JV/2026/09/0001 dan JV/2026/09/0002, keduanya posted) dan pada tagihan
+     * AP Rp 111 juta. JournalService::autoPost tidak idempoten.
+     *
+     * Jawabannya diambil dari KONTRAKNYA, bukan dari daftar kelas: sebuah
+     * model ikut jenjang dengan menyatakan approvalLadderKey(), dan kontrak
+     * itu yang menuntut pengendalinya sadar akan tingkat.
+     */
+    public static function supportsExtraLevel(string $type): bool
+    {
+        if (self::$laddered === null) {
+            self::$laddered = [];
+
+            foreach (ApprovableDocuments::all() as $class => $entry) {
+                $slug = self::slugFor($class);
+
+                if ($slug === null) {
+                    continue;
+                }
+
+                try {
+                    $model = new $class;
+                    self::$laddered[$slug] = method_exists($model, 'approvalLadderKey')
+                        && $model->approvalLadderKey() !== null;
+                } catch (\Throwable) {
+                    // Model yang tidak dapat dibuat instansinya bukan alasan
+                    // untuk menebak "boleh": sebuah mode yang ditawarkan salah
+                    // adalah jurnal ganda, bukan sekadar sel yang hilang.
+                    self::$laddered[$slug] = false;
+                }
+            }
+        }
+
+        return self::$laddered[$type] ?? false;
+    }
+
+    /**
      * SEBUAH AMBANG BUTUH SEBUAH ANGKA UNTUK DIUKUR — dan tiga belas dari dua
      * puluh delapan jenis tidak punya satu pun.
      *
@@ -301,7 +356,7 @@ final class ApprovalPolicy
                     $model = new $class;
                     $table = $model->getTable();
 
-                    $found = method_exists($model, 'approvalLadderKey') && $model->approvalLadderKey() !== null;
+                    $found = self::supportsExtraLevel($slug);
 
                     if (! $found) {
                         foreach (self::AMOUNT_KEYS as $column) {
@@ -330,6 +385,7 @@ final class ApprovalPolicy
     {
         self::$ownGate = null;
         self::$measurable = null;
+        self::$laddered = null;
         self::$hasPolicyColumn = null;
     }
 

@@ -566,7 +566,18 @@ class SettingService
      * ada yang meninjaunya. Penyimpanannya tetap jalur yang sama persis:
      * PUT core/settings, SettingService::setMany, validasi dari registri ini.
      *
-     * TIGA JENIS TIDAK MENDAPAT SEL MODE. prc_purchase_orders,
+     * SATU JENIS SAJA YANG MENDAPAT SEL MODE, dan itu keputusan yang diambil
+     * pada putaran verifikasi F-1, bukan pada rancangannya. Mode "tambahan
+     * tingkat" membuat persetujuan PERTAMA meninggalkan dokumen pada status
+     * `submitted`; hanya keputusan pemenang yang pengendalinya membaca status
+     * itu. Setiap service lain memperlakukan approve() sebagai terminal dan
+     * menjalankan akibatnya di baris berikutnya — menyalakan mode ini pada
+     * invoice termin memposting jurnal Rp 2,22 miliar pada dokumen yang belum
+     * disetujui, lalu memposting jurnal KEDUA saat penyetuju kedua datang
+     * (terukur 7 Sep 2026). Jadi selnya hanya muncul di tempat yang benar-benar
+     * dapat membawanya: ApprovalPolicy::supportsExtraLevel.
+     *
+     * TIGA JENIS TIDAK MENDAPAT SEL MODE UNTUK SEBAB LAIN. prc_purchase_orders,
      * scm_subcontracts dan scm_subcontract_addenda menegakkan ambangnya lewat
      * needs_director_approval + DirectorApproval/AddendumService. Ambangnya
      * SUNGGUH dapat disunting di sini (model membaca kunci setelan yang sama),
@@ -599,9 +610,16 @@ class SettingService
             $label = $entry['label'] ?? 'Dokumen';
             $prefix = $entry['prefix'] ?? '';
             $follows = ApprovalPolicy::FOLLOWS[$type] ?? null;
-            $locked = ApprovalPolicy::modeIsLocked($type);
             $keys = ApprovalPolicy::keysFor($type);
             $measurable = ApprovalPolicy::hasMeasurableAmount($type);
+            // DUA SEBAB BERBEDA UNTUK SATU SEL YANG TIDAK ADA, dan layar
+            // mencetak sebabnya masing-masing: modul yang menegakkan ambangnya
+            // sendiri (PO/SPK/addendum) TIDAK MENGENAL mode kedua, dan jenis
+            // yang jalur persetujuannya tidak dapat berhenti di tengah tidak
+            // BOLEH menawarkannya (ApprovalPolicy::supportsExtraLevel — jurnal
+            // ganda yang terukur di AR dan AP).
+            $locked = ApprovalPolicy::modeIsLocked($type);
+            $laddered = ApprovalPolicy::supportsExtraLevel($type);
 
             $rows[] = [
                 'type' => $type,
@@ -609,6 +627,7 @@ class SettingService
                 'prefix' => $prefix,
                 'director_permission' => $prefix === '' ? null : "{$prefix}.approve-director",
                 'mode_locked' => $locked,
+                'supports_extra_level' => $laddered,
                 'has_amount' => $measurable,
                 'follows' => $follows,
                 'follows_label' => $follows === null ? null : (ApprovalPolicy::documentEntry($follows)['label'] ?? null),
@@ -635,7 +654,7 @@ class SettingService
                     .'senilai ITU KE ATAS menuntut persetujuan direktur.',
             ];
 
-            if ($locked) {
+            if ($locked || ! $laddered) {
                 continue;
             }
 
