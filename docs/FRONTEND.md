@@ -102,7 +102,16 @@ public/app/
                         "Buat WBS dari BOQ", 11 of 11 codes do). NOT imported by app.js — project.js
                         imports it, and on 7 Sep 2026 that is exactly what made it look like an
                         orphan worth dropping from a merge; one 404 module takes the whole ES-module
-                        graph down with it (JadwalGanttTest pins the import)
+                        graph down with it (JadwalGanttTest pins the import). Sejak verifikasi
+                        7 Sep 2026 ia juga: membaca AMPLOP endpoint pohon (api.list) untuk
+                        `meta.as_of` — garis "Hari ini" datang dari SERVER, tidak pernah dari jam
+                        peramban — dan `meta.parent_cycles`; membedakan baseline yang TIDAK ADA
+                        dari baseline yang GAGAL dibaca (dengan tombol coba lagi); menggulir
+                        gambar ke garis "Hari ini" pada gambar pertama dan mengulang kalimat
+                        sumbernya sebagai teks DOM (di ponsel yang di dalam svg di luar jendela);
+                        dan MEMOTONG lembar cetaknya sendiri jadi satu svg per 16 baris — sebuah
+                        <svg> tidak bisa dipaginasi, dan satu gambar besar mencetak halaman kosong
+                        serta halaman gambar tanpa sumbu tanggal
       reports.js        finance reports (TB, P&L, BS, aging, project P&L)
       custom.js         stock, payroll, ticket, subcontract, payment, role, …
 ```
