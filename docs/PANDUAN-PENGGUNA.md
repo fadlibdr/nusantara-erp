@@ -390,6 +390,44 @@ yang tetap menjadi tempat menyaring, mengurutkan, dan mengunduh CSV.
 Bila seret-lepas tidak bekerja (berkas pustakanya gagal dimuat), papan mengatakannya dan kartu tetap
 bisa dibuka — aksinya selalu tersedia di halaman dokumen.
 
+### 1.4e Memasang aplikasi di ponsel, dan bekerja tanpa sinyal
+
+**Memasang.** Buka menu **`Akun`** (chip nama Anda di kanan atas). Bila peramban Anda mendukungnya,
+di situ ada tombol **`Pasang aplikasi`**: sesudah ditekan, Nusantara ERP muncul di layar utama
+seperti aplikasi lain, terbuka tanpa bilah alamat, dan langsung ke halaman masuk. Bila tombolnya
+tidak ada, barisnya menjelaskan jalan lewat menu peramban — di Chrome/Edge Android
+**⋮ › Instal aplikasi**, di iPhone **Bagikan › Tambahkan ke Layar Utama**. Kalau aplikasinya memang
+sudah terpasang, barisnya berbunyi begitu.
+
+Memasang tidak mengunduh data Anda ke ponsel dan tidak mengubah izin apa pun. Yang disimpan hanya
+**tampilan** aplikasinya — halaman, gambar, dan kodenya.
+
+**Pita "Tanpa koneksi".** Di layar `Lapangan`, sebuah pita kuning muncul di atas antrean foto ketika
+ponsel Anda kehilangan jaringan — atau ketika ia mengaku punya jaringan tetapi permintaan tidak
+sampai (Wi-Fi lokasi di balik halaman login, satu bar 4G di lantai basement). Pita itu berarti:
+
+- **foto yang sudah Anda ambil aman.** Ia tersimpan di ponsel ini beserta lokasinya, dan tidak
+  hilang meski aplikasinya ditutup;
+- **tidak ada yang mengirimnya sendiri.** Setelah sinyal kembali, tekan **`Kirim ulang`** pada baris
+  fotonya. Selama Anda belum menekannya, foto itu belum sampai ke kantor;
+- **angka di layar lain bisa tertinggal.** Yang Anda lihat adalah tampilan tersimpan; daftar,
+  saldo, dan status dokumen tidak diperbarui tanpa jaringan — dan tidak pernah menampilkan
+  angka lama sebagai angka baru: layar yang gagal memuat mengatakannya.
+
+Pita padam sendiri begitu jaringan kembali. Bila ponsel Anda tidak menyadari jaringannya sudah
+pulih, pita padam pada permintaan pertama yang berhasil — cukup buka satu layar, atau tunggu paling
+lama satu setengah menit.
+
+**Membuka aplikasi tanpa sinyal.** Bila Anda sudah pernah masuk di ponsel itu, aplikasinya tetap
+terbuka: sebuah pesan **"Mode luring"** menjelaskan bahwa layarnya dibuka dari salinan di perangkat
+dan angkanya bisa tertinggal. Yang tidak bisa dilakukan tanpa sinyal adalah **masuk untuk pertama
+kali** — halaman masuk perlu server.
+
+**Toast "Versi baru siap — Muat ulang".** Muncul ketika kantor merilis versi baru sementara aplikasi
+Anda sedang terbuka. Tekan **`Muat ulang`** di dalam pesan itu; halaman dimuat ulang satu kali dan
+Anda memakai versi baru. Menunda tidak merusak apa pun — pesan itu bertahan sampai Anda menutupnya
+—, tetapi selesaikan dulu formulir yang sedang Anda isi.
+
 ### 1.5 Pencarian
 
 1. Tekan **Ctrl+K** (atau **Cmd+K** di Mac), atau klik **`Cari`** di bilah atas.

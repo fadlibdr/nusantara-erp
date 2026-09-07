@@ -122,6 +122,27 @@ Uploaded attachments are **live data**, like the database: the backup tars
 never wipe what users attached. That exclusion stays, whatever the limits
 above are tuned to.
 
+### 2.2 PWA — tidak ada langkah wajib, satu langkah pemilik yang OPSIONAL
+
+Paket P1-I (manifest + service worker) menambah **dua berkas statis** di `public/app/` dan **nol**
+perubahan server. `/app/` sudah dilayani `try_files $uri $uri/index.html =404` dengan
+`Cache-Control: no-cache`, worker di `/app/sw.js` karena itu berlingkup `/app/` (diverifikasi di
+Chromium, bukan diasumsikan), dan `deploy/sync-erp1.sh` sudah menyalin seluruh `public/`.
+
+Satu hal yang boleh dirapikan **pemilik**, dan hanya kerapian: `/etc/nginx/mime.types` bawaan Ubuntu
+(nginx 1.24) **tidak** memuat `.webmanifest`, jadi nginx melayaninya sebagai
+`default_type application/octet-stream`. Diukur 7 Sep 2026: Chromium tetap mem-parsing manifest itu
+dengan **0 galat** ketika content-type-nya ditulis ulang menjadi `application/octet-stream`, jadi
+"Pasang aplikasi" bekerja apa adanya. Bila pemilik ingin tipenya benar, tambahkan **di dalam blok
+`server`** situs (bukan di `mime.types`, yang milik paket distro):
+
+```nginx
+types { application/manifest+json  webmanifest; }
+```
+
+lalu `nginx -t && systemctl reload nginx`. Konfigurasi nginx adalah milik pemilik; repositori ini
+tidak mengubahnya.
+
 ## 3. First deployment (langkah demi langkah)
 
 **3.1 — Clone and configure**
@@ -258,6 +279,23 @@ docker compose -f docker-compose.prod.yml exec app \
 
 `false` berarti migrasinya tidak berjalan; jalankan `php artisan migrate --force`
 lagi dan baca keluarannya baris per baris sebelum menyatakan rilis selesai.
+
+**Rilis yang mengubah berkas SPA (`public/app/**`): naikkan `SHELL_VERSION`.** Sejak P1-I ada
+service worker di `public/app/sw.js`, dan peramban memasang worker baru hanya bila **byte** berkas
+itu berubah. Naikkan satu angka di kepalanya:
+
+```
+const SHELL_VERSION = '1';   →   '2'
+```
+
+Itu yang membuang cangkang versi lama dari perangkat dan memunculkan toast
+*"Versi baru siap — Muat ulang"* di tab yang sudah terbuka berhari-hari. Lupa menaikkannya **tidak**
+menyajikan kode basi — strateginya jaringan-dulu, jadi siapa pun yang memuat ulang mendapat berkas
+terbaru — rilisnya hanya tidak mengumumkan dirinya, dan salinan cangkang lama tetap di perangkat
+sampai rilis berikutnya. Menambah berkas baru di bawah `public/app/` **wajib** menambah barisnya di
+`SHELL`; `tests/Feature/Core/PwaServiceWorkerTest` menolak rilis yang lupa (dua arah). Tidak ada
+langkah server: `deploy/sync-erp1.sh` sudah menyalin seluruh `public/`, dan `/app/` sudah dilayani
+dengan `Cache-Control: no-cache`.
 
 **Rollback**: `git checkout <previous-tag>`, then the same build + up
 commands. Migrations are not automatically reversed — restore the database
