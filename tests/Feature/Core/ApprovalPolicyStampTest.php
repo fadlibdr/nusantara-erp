@@ -243,10 +243,15 @@ class ApprovalPolicyStampTest extends ErpTestCase
      * Mengubah aturan persetujuan menuntut izin direktur (T1.1); tes ini
      * TENTANG stempel, bukan tentang penjaga itu, jadi suntingannya dilakukan
      * sebagai orang yang memang boleh.
+     *
+     * Izinnya diturunkan dari KUNCINYA sejak putaran verifikasi F-1: penjaga
+     * itu dulu menerima izin direktur mana pun untuk baris mana pun, sehingga
+     * satu prc.approve-director membuka approvals.boq.* juga.
      */
     private function asDirectorEditing(string $key, mixed $value): void
     {
-        $editor = $this->userHolding('editor-'.md5($key).'@t.local', 'core.update', 'prc.approve-director');
+        $permission = ApprovalPolicy::directorPermissionForKey($key) ?? 'prc.approve-director';
+        $editor = $this->userHolding('editor-'.md5($key).'@t.local', 'core.update', $permission);
 
         $this->actingAs($editor);
         app(SettingService::class)->set($key, $value);
