@@ -365,7 +365,18 @@ class ApprovalDelegationTest extends ErpTestCase
             'starts_at' => now()->toDateString(),
         ])->assertStatus(201);
 
-        $this->assertTrue($delegate->fresh()->can('est.approve'));
+        // Ditanyakan lewat pintu keputusan dokumen, bukan lewat can() di
+        // tengah permintaan lain: sejak putaran verifikasi F-1, Gate::before
+        // hanya menghormati delegasi pada rute approve/reject sebuah dokumen
+        // (ApprovalDelegations::honouredOnThisRequest). Yang diuji di sini
+        // memang klaimnya: sesudah baris ini, Budi dapat menyetujui.
+        $boq = $this->submittedBoq(50_000_000, $this->userHolding('drafter@t.local', 'est.create'));
+
+        $this->actingAs($delegate->fresh())
+            ->postJson("/api/estimation/boqs/{$boq->id}/approve")
+            ->assertOk();
+
+        $this->assertSame(DocumentStatus::Approved, $boq->fresh()->status);
     }
 
     /** Barisnya tetap ada sesudah dicabut: ia menjelaskan setiap "a.n." yang ditinggalkannya. */

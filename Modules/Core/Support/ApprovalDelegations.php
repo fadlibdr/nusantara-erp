@@ -3,6 +3,7 @@
 namespace Modules\Core\Support;
 
 use App\Models\User;
+use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,12 @@ use Modules\Core\Exceptions\SelfApprovalException;
  * iam.update atau apa pun. Ini bukan kehati-hatian berlebih: Gate::before
  * berjalan mendahului SETIAP policy dan setiap middleware permission di
  * aplikasi ini, jadi sebuah kebocoran di sini adalah kebocoran di mana-mana.
+ *
+ * DAN HANYA DI PINTU KEPUTUSAN DOKUMEN. Menyaring nama ability ternyata belum
+ * cukup: <awalan>.approve sendiri menggerbangi 15 rute yang bukan keputusan
+ * atas dokumen — memposting jurnal manual, membuka kembali periode fiskal,
+ * advance payout dan retention release SPK, menutup proyek. Lihat
+ * honouredOnThisRequest() untuk daftar terukurnya dan untuk buktinya.
  *
  * TIDAK BERANTAI. Pemberinya harus memegang izinnya SENDIRI — hasPermissionTo(),
  * bukan can(). Dua alasan, dan keduanya cukup sendirian: can() akan masuk lagi
@@ -60,9 +67,66 @@ final class ApprovalDelegations
     private const ABILITY = '/^(?<prefix>[a-z][a-z0-9]{1,9})\.approve(-director)?$/';
 
     /**
-     * Gate::before. true = diberikan lewat delegasi; null = tidak berpendapat
-     * (WAJIB null, bukan false: false akan MENOLAK setiap ability lain di
-     * aplikasi ini, termasuk yang benar-benar dipegang pemakainya).
+     * Bentuk rute yang MENGHORMATI delegasi: keputusan atas SATU dokumen.
+     *
+     * Diturunkan dari bentuk URI, bukan dari daftar: rute ke-16 yang menuntut
+     * fin.approve besok tertutup secara bawaan, bukan terbuka.
+     */
+    private const DECISION_ROUTE = '#/\{[^}]+\}/(approve|reject)$#';
+
+    /**
+     * DELEGASI HANYA BERLAKU DI PINTU KEPUTUSAN DOKUMEN.
+     *
+     * Ini perbaikan putaran verifikasi F-1, dan ia menutup jarak antara apa
+     * yang dijanjikan tiga docblock dan PANDUAN-ADMINISTRATOR ("delegasi hanya
+     * memberikan <awalan>.approve … tidak pernah membuat, mengubah, menghapus
+     * atau memposting apa pun") dan apa yang benar-benar dibuka izin itu.
+     * Diukur dari tabel rute 7 Sep 2026: <awalan>.approve menggerbangi 71 rute,
+     * dan 15 di antaranya BUKAN keputusan atas dokumen —
+     *
+     *   fin.approve: memposting jurnal manual, MEMBUKA KEMBALI periode fiskal,
+     *       menerbitkan nomor e-Bupot, advance payout dan retention release SPK
+     *       (dua yang terakhir mencetak tagihan AP yang SUDAH disetujui, sampai
+     *       Rp 104.000.000, yang dibayar PaymentService tanpa persetujuan lagi);
+     *   prj.approve: menutup proyek, verify/waive/reopen defect, close/reopen
+     *       insiden K3;
+     *   crm.approve: mengaktifkan kontrak;
+     *   eng.approve: dua keputusan submittal;
+     *   qc.approve: verifikasi NCR.
+     *
+     * Dibuktikan ujung ke ujung: login dengan fin.view+fin.post menutup periode
+     * 2026-06, ditolak 403 saat membukanya kembali, menerima delegasi cuti
+     * biasa dari pemegang fin.approve, lalu membukanya — 403 menjadi 200.
+     * Komentar rutenya sendiri menyatakan aturan yang dikalahkannya: "batasnya
+     * HARUS lebih tinggi daripada yang membukanya … siapa pun yang bisa
+     * memposting tidak boleh bisa membuka sendiri periode yang ingin diisinya".
+     *
+     * TIDAK ADA RUTE = BOLEH. Konsol, antrean dan pemanggilan langsung tidak
+     * punya rute untuk diperiksa, dan seluruh permukaan serangan yang diukur di
+     * atas adalah rute HTTP. Yang dijaga adalah permintaan web.
+     */
+    public static function honouredOnThisRequest(): bool
+    {
+        $route = Container::getInstance()->bound('request')
+            ? Container::getInstance()->make('request')->route()
+            : null;
+
+        if ($route === null) {
+            return true;
+        }
+
+        return preg_match(self::DECISION_ROUTE, '/'.ltrim((string) $route->uri(), '/')) === 1;
+    }
+
+    /**
+     * Ability ini boleh dipakai orang ini lewat delegasi? true atau null,
+     * TIDAK PERNAH false (false akan MENOLAK ability itu di seluruh aplikasi,
+     * mendahului setiap policy dan setiap middleware permission).
+     *
+     * Ini jawaban MENTAHNYA, tanpa memandang rute. Gate::before membungkusnya
+     * dengan honouredOnThisRequest(); ApprovalQueue memanggilnya langsung,
+     * karena antrean adalah BACAAN — layar "Tugas Saya" harus menampilkan apa
+     * yang boleh diputuskan orang ini nanti, dan ia bukan pintu keputusan.
      */
     public static function grants(User $user, string $ability): ?bool
     {

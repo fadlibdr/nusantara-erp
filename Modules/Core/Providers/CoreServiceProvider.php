@@ -197,6 +197,14 @@ class CoreServiceProvider extends ServiceProvider
      * ApprovalDelegations::grants() hanya pernah mengembalikan true atau null,
      * dan hanya untuk ability berbentuk <awalan>.approve / .approve-director.
      *
+     * DAN HANYA DI PINTU KEPUTUSAN DOKUMEN (putaran verifikasi F-1).
+     * Menyaring nama ability tidak cukup: <awalan>.approve sendiri
+     * menggerbangi 15 rute yang bukan approve/reject sebuah dokumen —
+     * memposting jurnal manual, membuka kembali periode fiskal, advance payout
+     * dan retention release SPK di antaranya. honouredOnThisRequest()
+     * menutupnya dari BENTUK rutenya, jadi rute ke-16 tertutup secara bawaan.
+     * Antrean persetujuan memanggil grants() langsung, karena ia bacaan.
+     *
      * Memo delegasinya dibuang di batas unit kerja yang sama dengan memo
      * SettingService — permintaan berikutnya harus melihat delegasi yang baru
      * dicabut, tetapi satu permintaan membaca satu potret dari awal ke akhir.
@@ -204,9 +212,11 @@ class CoreServiceProvider extends ServiceProvider
     private function registerApprovalDelegationGate(): void
     {
         Gate::before(static function ($user, string $ability): ?bool {
-            return $user instanceof User
-                ? ApprovalDelegations::grants($user, $ability)
-                : null;
+            if (! $user instanceof User || ! ApprovalDelegations::honouredOnThisRequest()) {
+                return null;
+            }
+
+            return ApprovalDelegations::grants($user, $ability);
         });
     }
 }

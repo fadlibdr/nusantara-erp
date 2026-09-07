@@ -22,14 +22,19 @@ use Illuminate\Support\Facades\Schema;
  * hanya prc.approve / prc.approve-director. Awalan modul, bukan daftar
  * dokumen: hak yang didelegasikan adalah izin, dan izinlah yang diperiksa.
  *
- * YANG TABEL INI TIDAK PERNAH BERIKAN: apa pun selain persetujuan.
- * Core\Support\ApprovalDelegations menyaring ability terhadap pola
- * <awalan>.approve / <awalan>.approve-director sebelum melihat satu baris pun,
- * jadi delegasi tidak pernah menjadi jalan memutar untuk membuat, mengubah,
- * menghapus atau memposting apa pun. Delegasi juga tidak berantai: pemberinya
- * harus memegang izin itu SENDIRI (bukan lewat delegasi lain), kalau tidak
- * sebuah rantai tiga orang akan memberi hak direktur kepada orang yang tidak
- * pernah dipilih siapa pun.
+ * YANG TABEL INI TIDAK PERNAH BERIKAN: apa pun selain KEPUTUSAN ATAS SEBUAH
+ * DOKUMEN. Core\Support\ApprovalDelegations menyaring dua kali —
+ * ability terhadap pola <awalan>.approve / <awalan>.approve-director, DAN
+ * permintaannya terhadap bentuk rute keputusan dokumen
+ * (honouredOnThisRequest). Saringan kedua ditambahkan pada putaran verifikasi
+ * F-1, karena yang pertama sendiri tidak cukup: izin <awalan>.approve
+ * menggerbangi 15 rute yang bukan approve/reject sebuah dokumen — memposting
+ * jurnal manual, membuka kembali periode fiskal, pencairan uang muka dan
+ * pelepasan retensi SPK di antaranya — dan sebuah delegasi cuti biasa
+ * membukanya semua (terukur: 403 menjadi 200 pada reopen periode fiskal).
+ * Delegasi juga tidak berantai: pemberinya harus memegang izin itu SENDIRI
+ * (bukan lewat delegasi lain), kalau tidak sebuah rantai tiga orang akan
+ * memberi hak direktur kepada orang yang tidak pernah dipilih siapa pun.
  */
 return new class extends Migration
 {

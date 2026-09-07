@@ -3615,10 +3615,29 @@ untuk orang lain.
 Yang perlu Anda ketahui sebagai administrator:
 
 - Delegasi **hanya** memberikan `<awalan>.approve` dan
-  `<awalan>.approve-director`. Tidak pernah membuat, mengubah, menghapus atau
-  memposting apa pun.
+  `<awalan>.approve-director`, dan **hanya di tombol Setujui/Tolak sebuah
+  dokumen**. Tidak pernah membuat, mengubah, menghapus atau memposting apa pun.
+
+  Pembatasan kedua itu penting, dan ia ditambahkan pada putaran verifikasi F-1.
+  Izin `<awalan>.approve` sendiri menggerbangi lima belas layar yang BUKAN
+  keputusan atas sebuah dokumen — memposting jurnal manual, membuka kembali
+  periode fiskal, menerbitkan nomor e-Bupot, pencairan uang muka dan pelepasan
+  retensi SPK, menutup proyek, verify/waive/reopen defect, close/reopen insiden
+  K3, mengaktifkan kontrak, dua keputusan submittal, dan verifikasi NCR. Sebuah
+  delegasi **tidak** membuka satu pun dari lima belas itu; penerimanya tetap
+  membutuhkan izinnya sendiri di sana. Kalau seorang penerima delegasi memang
+  perlu melakukannya, berikan izin itu kepadanya sebagai izin biasa —
+  keputusannya lalu terlihat di Log Audit sebagai perubahan izin, bukan
+  tersembunyi di dalam sebuah baris cuti.
 - Delegasi **tidak berantai**: pemberinya harus memegang izin itu sendiri, bukan
   lewat delegasi lain.
+- Delegasi **tidak mencabut hak siapa pun.** Penerima yang sudah memegang hak
+  approve-nya sendiri tetap dapat menyetujui apa pun yang boleh disetujuinya,
+  termasuk dokumen yang diajukan pemberi delegasi. Yang dilarang hanya
+  memakai hak PEMBERI untuk menyetujui pekerjaan pemberi itu sendiri.
+- **Penerima boleh mencabut.** Sebuah delegasi dapat dicabut oleh pemberinya,
+  oleh penerimanya, atau oleh pemegang `iam.update`. Delegasi datang tanpa
+  diminta, jadi ia juga harus bisa dikembalikan tanpa meminta tolong.
 - Delegasi dari pemberi yang **dinonaktifkan** tidak memberikan apa pun.
 - **Dicabut, bukan dihapus.** Barisnya menjelaskan setiap "a.n." di jejak
   persetujuan; jangan menghapusnya dari basis data.

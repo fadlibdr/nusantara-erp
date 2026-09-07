@@ -69,7 +69,14 @@ class ApprovalQueue
 
         foreach (ApprovableDocuments::all() as $class => $entry) {
             $permission = "{$entry['prefix']}.approve";
-            if ($forUser !== null && ! $forUser->can($permission)) {
+            // grants() DITANYA LANGSUNG, bukan lewat can(): sejak putaran
+            // verifikasi F-1 Gate::before hanya menghormati delegasi pada rute
+            // keputusan dokumen, dan kotak masuk bukan salah satunya. Antrean
+            // adalah BACAAN — ia menjawab "apa yang boleh Anda putuskan
+            // nanti", dan jawabannya harus memasukkan yang dipinjam.
+            if ($forUser !== null
+                && ! $forUser->can($permission)
+                && ApprovalDelegations::grants($forUser, $permission) !== true) {
                 continue;
             }
 

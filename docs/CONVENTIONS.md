@@ -1003,6 +1003,23 @@ mendahului setiap policy dan setiap middleware `permission:`. Polanya diperiksa
 SEBELUM satu baris pun dibaca dan hanya cocok pada `<awalan>.approve` /
 `.approve-director` dengan awalan yang benar-benar ada di registri.
 
+**DAN HANYA DI PINTU KEPUTUSAN DOKUMEN** (`honouredOnThisRequest`, ditambahkan
+pada putaran verifikasi F-1). Menyaring nama ability ternyata belum cukup: izin
+`<awalan>.approve` itu sendiri menggerbangi 71 rute, dan **15 di antaranya bukan
+approve/reject sebuah dokumen** — memposting jurnal manual, membuka kembali
+periode fiskal, menerbitkan nomor e-Bupot, `advance-payout` dan
+`retention-release` SPK, menutup proyek, verify/waive/reopen defect, close/reopen
+insiden K3, mengaktifkan kontrak, dua keputusan submittal, verifikasi NCR.
+Terukur: sebuah login `fin.view`+`fin.post` yang menutup periode 2026-06 ditolak
+403 saat membukanya kembali, lalu 200 sesudah menerima delegasi cuti biasa —
+mengalahkan aturan yang ditulis di komentar rutenya sendiri ("siapa pun yang bisa
+memposting tidak boleh bisa membuka sendiri periode yang ingin diisinya").
+Saringannya diturunkan dari BENTUK URI (`/{id}/approve`, `/{id}/reject`), jadi
+rute ke-16 tertutup secara bawaan. **Tanpa rute (konsol, antrean, panggilan
+langsung) delegasinya berlaku**, karena permukaan yang dijaga adalah permintaan
+web. Antrean persetujuan memanggil `ApprovalDelegations::grants()` LANGSUNG,
+bukan lewat `can()`: kotak masuk adalah bacaan, bukan pintu keputusan.
+
 **TIDAK BERANTAI.** Pemberinya harus memegang izinnya SENDIRI —
 `hasPermissionTo()`, bukan `can()`. Dua alasan, keduanya cukup sendirian:
 `can()` masuk lagi ke `Gate::before` dan siklus A→B, B→A akan menggantung proses;
@@ -1014,12 +1031,32 @@ dipilih siapa pun.
 dipasang DI DALAM `SegregationOfDuties::assertNotSubmitter`, tempat maker-checker
 sudah berdiri, jadi keempat pemanggilnya (trait `Approvable`, `BaselineService`,
 `PaymentService`, `JournalService`) mendapatkannya tanpa satu pun harus tahu
-delegasi itu ada. Aturannya **sengaja lebih keras dari yang perlu** — berlaku
-bahkan bila delegatnya memegang hak itu sendiri — karena "hak yang mana yang
-dipakainya tadi" tidak dapat ditentukan sesudah kejadian, dan jawaban yang
-ditebak pada pertanyaan itu adalah jawaban yang salah. Ia mengikuti saklar
-`approvals.segregation_of_duties` yang sama: mematikan maker-checker mematikan
-keduanya, karena aturan ini adalah maker-checker yang dilihat lewat delegasi.
+delegasi itu ada.
+
+Yang kedua **hanya berlaku bila haknya memang dipinjam** (`refusesGiverSubmission`,
+disempitkan pada putaran verifikasi F-1). Ia dikirim lebih luas — berlaku bahkan
+bila delegatnya memegang hak itu sendiri — dengan alasan bahwa "hak yang mana yang
+dipakainya tadi" tidak dapat ditentukan sesudah kejadian. Alasan itu tidak benar:
+`actingForId()` menjawabnya secara deterministik dan sudah dipakai untuk mencap
+"a.n." pada jejak. Harganya terukur: pemakaian paling biasa dari fitur ini —
+pengaju menyerahkan haknya kepada penyetujunya sebelum cuti — membuat 2 dari 4
+baris antrean penyetuju itu tidak dapat disetujui; dan karena siapa pun boleh
+membuat baris yang menyebut dirinya sebagai pemberi, pengguna tanpa satu izin pun
+dapat **melumpuhkan seorang direktur** yang memegang haknya sendiri. Ketiga
+syaratnya sekarang harus benar sekaligus: pengajunya pemberi delegasi yang
+tercakup lingkupnya, pemberinya benar-benar memegang hak itu, dan penyetujunya
+TIDAK memegangnya sendiri (hak direktur ikut dihitung).
+
+Ia mengikuti saklar `approvals.segregation_of_duties` yang sama: mematikan
+maker-checker mematikan keduanya, karena aturan ini adalah maker-checker yang
+dilihat lewat delegasi. **Antrean memakai predikat yang sama**
+(`ApprovalQueue::pending`), supaya kotak masuk tidak menawarkan baris yang
+dijamin ditolak — sebelum ini 2 dari 4 baris antrean seorang delegat pada dataset
+demo dijamin gagal, lengkap dengan kotak centang "Setujui massal".
+
+**Delegasi dicabut oleh pemberinya, PENERIMANYA, atau pemegang `iam.update`.**
+Sebuah delegasi datang tanpa diminta, jadi ia harus bisa dikembalikan tanpa
+meminta tolong.
 
 **"a.n." DICAP HANYA BILA DELEGASINYA YANG MEMBUATNYA MUNGKIN**
 (`core_approvals.on_behalf_of_user_id`). Seseorang yang memegang izin approve-nya
