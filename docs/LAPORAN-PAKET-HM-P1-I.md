@@ -312,8 +312,33 @@ angka; biaya install 102 berkas di 4G satu bar tetap tidak punya.
 
 ## Gerbang rilis
 
-Belum dijalankan — suite penuh dan MySQL adalah milik orkestrator. Yang sudah hijau sesudah
-putaran verifikasi: `tests/Feature/Core` **849 uji / 6.744 asersi** (11 dilewati, 165,9 s),
+Commit rilis **`069a41e`**, suite penuh di worktree terpisah, KEDUA driver:
+**SQLite 4.025 uji / 21.029 asersi hijau** (11 dilewati, 10 mnt 16 dtk) dan
+**MySQL 8.0.46 4.025 uji / 21.042 asersi hijau** (6 dilewati, 33 mnt 53 dtk).
+
+### Putaran verifikasi ULANG — satu regresi dan tiga temuan, semuanya ditutup di `069a41e`
+
+Verifikasi ulang menemukan bahwa perbaikan urutan `fetch()`-sebelum-`caches.open()` MEMATIKAN
+seluruh penulisan cangkang: `response.clone()` berpindah ke dalam `.then()`, jadi ia berjalan
+sesudah `return response` menyerahkan badannya ke halaman dan melempar "Response body is already
+used" DI DALAM `waitUntil`, tempat tidak ada yang melihatnya. Ke-102 tulisan gagal diam-diam;
+daring semuanya tampak normal, luring layarnya kosong — dan setiap uji tetap hijau. Salinannya kini
+dibuat SEBELUM jawabannya diserahkan (terukur sesudah perbaikan: 102 entri, 0 `/api`, 0 di luar
+`/app/`; luring cangkang tergambar sementara `fetch('/api/…')` tetap `TypeError`).
+
+1. **Cangkang dibuang karena SATU dari 102 entri gagal** — pemicunya tidak eksotis (rsync yang
+   belum selesai, satu 5xx sesaat, satu permintaan jatuh) dan akibatnya perangkat itu kehilangan
+   seluruh lapisan luringnya. Sekarang hanya berkas INTI (`CORE`, delapan berkas tanpa mana
+   aplikasi tidak bisa dibuka sama sekali) yang memicu pembuangan.
+2. **Pengawas boot berbohong tentang server yang lambat**: pada detik ke-10 ia berkata "sebagian
+   berkas aplikasi tidak sampai" padahal setiap berkas sampai dan `iam/auth/me` yang lambat. Ia
+   kini membedakan keduanya lewat `window.__erpModules`.
+3. **Menutup toast luring membatalkan penyegaran sesinya** dan meninggalkan dua pendengar
+   terpasang selamanya; penyegaran kini bergantung pada keadaan, bukan pada toast.
+
+Empat mutasi memaku aturan barunya merah, termasuk regresi urutan `clone()` itu sendiri.
+
+### Sebelum gerbang penuh, sesudah putaran verifikasi: `tests/Feature/Core` **849 uji / 6.744 asersi** (11 dilewati, 165,9 s),
 `pint --dirty` bersih, **lima** skenario harness S27 hijau (**81 syarat**), dan pemeriksaan peramban
 wajib — `/app/` dimuat di Chromium pada 1440×900 dan 390×844, **0 galat konsol, 0 permintaan gagal,
 formulir masuk tergambar**, worker terdaftar di lingkup `/app/` dengan 102 entri cache, ditambah
