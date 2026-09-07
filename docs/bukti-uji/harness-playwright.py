@@ -2605,7 +2605,10 @@ S26_MEASURE = """() => {
     foot: [...document.querySelectorAll('.gantt-sheet .card-body p')].map((p) => p.innerText.trim()),
     zoom_buttons: [...document.querySelectorAll('.gantt-sheet .filters .btn')].map((b) => ({
       label: b.innerText.trim(), primary: b.classList.contains('primary'),
+      pressed: b.getAttribute('aria-pressed'),
     })),
+    filters_role: (() => { const f = document.querySelector('.gantt-sheet .filters');
+      return f ? { role: f.getAttribute('role'), label: f.getAttribute('aria-label') } : null; })(),
   };
 }"""
 
@@ -2944,8 +2947,25 @@ def gantt_scenario(pg, tag, mobile=False):
         out["month"] = month
         pg.screenshot(path=f"{OUT}/s26-jadwal-bulanan{tag}.png", full_page=True)
 
-        click(pg, ".gantt-sheet .filters .btn:nth-child(1)")
+        # Kembali ke mingguan LEWAT PAPAN KETIK: mengganti zoom menggambar ulang
+        # seluruh kartu, jadi tombol yang barusan ditekan ikut dihancurkan dan
+        # fokus jatuh ke <body> — Tab berikutnya memulai lagi dari puncak
+        # halaman (diukur 7 Sep 2026: activeElement BODY di kedua ukuran).
+        pg.focus(".gantt-sheet .filters .btn:nth-child(1)")
+        pg.keyboard.press("Enter")
         pg.wait_for_timeout(700)
+        out["keyboard"] = pg.evaluate("""() => {
+          const filters = document.querySelector('.gantt-sheet .filters');
+          const active = document.activeElement;
+          return {
+            active_tag: active ? active.tagName : null,
+            active_zoom: active && active.dataset ? (active.dataset.zoom || null) : null,
+            group_role: filters ? filters.getAttribute('role') : null,
+            group_label: filters ? filters.getAttribute('aria-label') : null,
+            pressed: [...document.querySelectorAll('.gantt-sheet .filters .btn')].map((b) => b.getAttribute('aria-pressed')),
+            note: (document.querySelector('.gantt-sheet text.chart-note') || {}).textContent,
+          };
+        }""")
 
         # ------------------------------------------------------------- cetak
         pg.emulate_media(media="print")
@@ -3052,6 +3072,14 @@ def gantt_scenario(pg, tag, mobile=False):
         "month_ticks_match_the_first_of_months": len(month["ticks"]) == expect["month_ticks"],
         "zoom_really_changes_tick_density": len(week["ticks"]) > len(month["ticks"]),
         "zoom_button_marks_itself_active": [b["primary"] for b in month["zoom_buttons"]][:2] == [False, True],
+        # …dan mengatakannya ke pembaca layar, bukan hanya dengan warna.
+        "zoom_buttons_announce_the_active_scale": [b["pressed"] for b in month["zoom_buttons"]][:2] == ["false", "true"]
+            and out["keyboard"]["pressed"][:2] == ["true", "false"]
+            and out["keyboard"]["group_role"] == "group" and bool(out["keyboard"]["group_label"]),
+        # Zoom lewat papan ketik: fokus tetap pada tombolnya, tidak jatuh ke <body>.
+        "keyboard_zoom_keeps_the_focus_on_the_button": out["keyboard"]["active_zoom"] == "week"
+            and out["keyboard"]["active_tag"] == "BUTTON",
+        "keyboard_zoom_really_switched_the_scale": "Skala mingguan" in (out["keyboard"]["note"] or ""),
         # 6. Tugas tanpa tanggal selesai: bar terbuka + tepi putus + namanya.
         "open_ended_task_draws_an_open_bar": len(open_bars) == len(expect["open_ended"]),
         "open_bar_has_a_dashed_edge": week["open_edges"] == len(expect["open_ended"]),
@@ -3062,6 +3090,10 @@ def gantt_scenario(pg, tag, mobile=False):
         # 8. Legenda hanya menyebut yang memang tergambar.
         "legend_names_only_what_is_drawn": ("Baseline" in week["legend"]) == (len(baseline_rows) > 0)
             and ("Hari ini" in week["legend"]) == (week["today_x"] is not None),
+        # Bar berujung putus-putus ikut dijelaskan legenda: <title>-nya tidak
+        # terjangkau di ponsel, di kertas, maupun oleh pembaca layar.
+        "legend_names_the_open_ended_bar":
+            ("Tanggal belum ditetapkan" in week["legend"]) == (len(expect["open_ended"]) > 0),
         # 9. Kaki kartu mengumumkan sumbernya dan menyebut yang TIDAK cocok.
         "source_note_states_the_matching_rule": "dicocokkan menurut kode WBS" in (week["note"] or ""),
         "source_note_counts_the_matches": f"{expect['baseline_rows']} dari {expect['rows']} tugas cocok" in (week["note"] or ""),

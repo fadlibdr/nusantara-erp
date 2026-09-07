@@ -970,6 +970,21 @@ export function ganttChart({
   const showToday = todayMs >= fromMs && todayMs <= toMs;
   const range = (a, b) => `${fullDate.format(new Date(a))} – ${fullDate.format(new Date(b))}`;
 
+  /* Bentuk bar setiap baris dihitung SEKALI, di sini: legenda harus tahu apa
+     yang akan digambar sebelum tinggi svg ditetapkan, dan perulangan baris di
+     bawah memakai fungsi yang sama supaya keduanya tidak bisa berbeda pendapat
+     tentang baris mana yang punya bar (dan ujung mana yang terbuka). */
+  const barShape = (t) => {
+    if (t.invalidDates || t.inverted || (t.start === null && t.end === null)) return null;
+    const openStart = t.start === null;
+    const openEnd = t.end === null;
+    const s = openStart ? fromMs : t.start;
+    const e = openEnd ? toMs : t.end;
+    if (e + DAY <= fromMs || s > toMs) return null;
+
+    return { openStart, openEnd, s, e };
+  };
+
   /* Legenda hanya menyebut yang memang digambar: "Hari ini" tanpa garisnya atau
      "Baseline" tanpa satu pun baseline adalah legenda yang berbohong. */
   const legendItems = [{ label: 'Aktual', token: '--chart-1', kind: 'box', opacity: 0.35 }];
@@ -978,6 +993,14 @@ export function ganttChart({
      punya rect, dan legenda 'Baseline' untuknya adalah legenda yang berbohong. */
   const baselineDrawn = (t) => t.hasBaseline && t.bEnd + DAY > fromMs && t.bStart <= toMs;
   if (tasks.some(baselineDrawn)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
+  /* Bar berujung putus-putus dijelaskan HANYA oleh <title>-nya sampai P1-H —
+     yaitu tidak dijelaskan sama sekali di ponsel (tidak muncul pada ketukan),
+     di kertas, dan bagi pembaca layar: sebuah paket yang tanggal selesainya
+     belum ditetapkan terbaca sebagai paket yang direncanakan berjalan sampai
+     ujung proyek. */
+  if (tasks.some((t) => { const shape = barShape(t); return shape && (shape.openStart || shape.openEnd); })) {
+    legendItems.push({ label: 'Tanggal belum ditetapkan', token: '--chart-1', kind: 'line', dash: '3 2', width: 2 });
+  }
   if (showToday) legendItems.push({ label: 'Hari ini', token: '--chart-today', kind: 'line' });
   const legendLayout = legendRows(legendItems, W, 8);
   const legendH = legendLayout.length * 16;
@@ -1082,6 +1105,7 @@ export function ganttChart({
        (y mid − 3; bar baseline menempati mid + 1..8), bukan menimpanya seperti dulu (teks di
        mid + 4 di atas rect 240 px; verifikasi P1-A putaran 2). */
     const rowNote = (cls, text) => svg.appendChild(make('text', { class: `${cls} chart-tick`, x: labelWidth + 6, y: withBaseline ? mid - 3 : mid + 4, 'data-above-baseline': withBaseline ? 'true' : null }, text));
+    const shape = barShape(t);
     if (t.invalidDates) { rowNote('gantt-invalid', `tanggal tidak valid: ${t.invalid.join(', ')}${t.bInverted ? ' · baseline tidak valid (selesai sebelum mulai)' : ''}`); return; }
     if (t.inverted) { rowNote('gantt-invalid', `tanggal selesai sebelum mulai (${range(t.start, t.end)})${baselineNote}`); return; }
     if (t.start === null && t.end === null) { rowNote('gantt-nodate', `tanpa tanggal${baselineNote}`); return; }
@@ -1089,7 +1113,7 @@ export function ganttChart({
     const openEnd = t.end === null;
     const s = openStart ? fromMs : t.start;
     const e = openEnd ? toMs : t.end;
-    if (e + DAY <= fromMs || s > toMs) {
+    if (shape === null) {
       /* Baris terbuka di luar rentang menyebut HANYA tanggal yang ada: batas rentang (from/to)
          yang disubstitusikan untuk ujung yang kosong dulu ikut dicetak sebagai tanggal tugas —
          'di luar rentang (01 Sep 2026 – 10 Jan 2026)' untuk {start:null, end:'2026-01-10'}
