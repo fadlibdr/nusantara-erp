@@ -51,7 +51,7 @@ class PermissionCheckTest extends ErpTestCase
     public function test_the_expected_count_is_derived_from_the_seeder_constants(): void
     {
         $derived = count(PermissionSeeder::PREFIXES) * count(PermissionSeeder::ACTIONS)
-            + count(PermissionSeeder::DIRECTOR_APPROVALS);
+            + count(PermissionSeeder::directorApprovals());
 
         $this->assertCount($derived, PermissionSeeder::expected());
         $this->assertCount($derived, array_unique(PermissionSeeder::expected()), 'no name is minted twice');
