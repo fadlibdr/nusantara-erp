@@ -20,6 +20,20 @@ use Tests\TestCase;
  * dengan komentar dibuang lebih dulu (stripComments) supaya rujukan di kepala
  * berkas — yang memang menyebut `/api/*` — tidak lolos sebagai kode.
  *
+ * BENTUK, BUKAN EJAAN (verifikasi, 7 Sep 2026). Versi pertama berkas ini
+ * menghitung potongan teks literal, dan empat mutasi yang nyata-nyata membocorkan
+ * cache lolos hijau: pendengar `fetch` KEDUA yang menulis lewat `store.put()`
+ * (tidak ada respondWith, tidak ada kata '/api' — dan di peramban ia benar-benar
+ * menyajikan /api/core/dashboard/summary kepada orang berikutnya di perangkat
+ * yang sama, sesudah Keluar, tanpa token); daftar izin yang dilebarkan dengan
+ * klausa startsWith() kedua sementara kelima syaratnya tetap ada kata demi kata;
+ * storable() yang menambah `if (response.type === 'opaque') return true;` di
+ * ATAS kedua potongan yang dicari; dan activate yang berhenti menghapus di
+ * .map() sementara .filter() yang di-grep tetap utuh. Karena itu sekarang:
+ * badan shellRequest() dan storable() dibandingkan UTUH, tulisan cache dihitung
+ * sebagai pola `\w+.put(`/`\w+.add(` (bukan nama variabel tertentu), dan DAFTAR
+ * pendengar worker dipaku persis empat.
+ *
  * Delapan hal:
  *  (a) sw.js DIDAFTARKAN dengan path yang benar-benar ada, tanpa opsi scope —
  *      lingkup yang lebih lebar daripada folder skripnya menuntut header
@@ -102,6 +116,29 @@ class PwaServiceWorkerTest extends TestCase
             'SCOPE tidak lagi diturunkan dari lokasi worker: sebuah awalan yang ditulis tangan bisa '
             .'melebar melewati /app/ tanpa ada yang menyadarinya.',
         );
+
+        /*
+         * …dan TIDAK ADA syarat lain. Kelima baris di atas boleh ada semua dan
+         * gerbangnya tetap melebar, karena yang dilonggarkan adalah baris
+         * keenam: `if (!url.pathname.startsWith(SCOPE) && !url.pathname
+         * .startsWith(alsoAllowed)) return false;` memuat syarat 3 kata demi
+         * kata sambil mengizinkan /api/core/ (diukur 7 Sep 2026: mutasi itu
+         * hijau di seluruh berkas ini). Karena itu badan fungsinya dibandingkan
+         * UTUH. Mengubahnya dengan sengaja berarti mengubah baris ini juga —
+         * itulah gunanya.
+         */
+        $this->assertSame(
+            "{ if (request.method !== 'GET') return false; "
+            ."if (request.headers.has('Authorization')) return false; "
+            .'const url = new URL(request.url); '
+            .'if (url.origin !== self.location.origin) return false; '
+            .'if (!url.pathname.startsWith(SCOPE)) return false; '
+            .'if (url.pathname === self.location.pathname) return false; '
+            .'return true; }',
+            $this->squash($body),
+            'Badan shellRequest() bukan lagi kelima syarat itu saja. Gerbang ini adalah SATU-SATUNYA '
+            .'yang memisahkan cangkang dari /api/*; setiap baris tambahan di dalamnya melebarkannya.',
+        );
     }
 
     /* --------------------------------------------------------------- (c) */
@@ -123,16 +160,50 @@ class PwaServiceWorkerTest extends TestCase
         );
     }
 
+    /**
+     * Menghitung respondWith() saja tidak cukup: sebuah pendengar `fetch` KEDUA
+     * bisa menyimpan jawaban tanpa pernah menjawabnya (waitUntil + put), dan
+     * itulah bentuk yang paling mungkin ditulis paket berikutnya yang ingin
+     * "dasbor luring". Diukur 7 Sep 2026: mutasi seperti itu HIJAU di seluruh
+     * uji berkas ini, lalu di peramban ia benar-benar menyimpan
+     * /api/core/dashboard/summary dan menyajikannya kepada orang berikutnya di
+     * perangkat yang sama — sesudah Keluar, tanpa token.
+     *
+     * Karena itu yang dipaku adalah DAFTAR pendengarnya, bukan isinya.
+     */
+    public function test_the_worker_registers_exactly_four_listeners(): void
+    {
+        preg_match_all("~addEventListener\('(\w+)'~", $this->code(), $found);
+        $listeners = $found[1];
+        sort($listeners);
+
+        $this->assertSame(
+            ['activate', 'fetch', 'install', 'message'],
+            $listeners,
+            'Daftar pendengar sw.js berubah. Pendengar `fetch` kedua bisa menyimpan jawaban '
+            .'tanpa satu pun respondWith(), sehingga seluruh pemeriksaan lain di berkas ini '
+            .'melewatinya; pendengar baru jenis lain butuh pembacanya sendiri. Tambahkan pendengar '
+            .'hanya bersama uji yang memaku apa yang boleh dilakukannya.',
+        );
+    }
+
     /* --------------------------------------------------------------- (d) */
 
     public function test_there_is_exactly_one_cache_write_and_it_sits_behind_the_storable_guard(): void
     {
         $code = $this->code();
 
+        /*
+         * Dihitung sebagai TULISAN, bukan sebagai ejaan. substr_count('cache.put(')
+         * hanya melihat variabel yang kebetulan bernama `cache`; sebuah pendengar
+         * kedua yang menamainya `store` menulis ke cache yang sama dan tetap
+         * terhitung nol (diukur 7 Sep 2026: mutasi itu hijau di seluruh berkas ini).
+         */
         $this->assertSame(
             1,
-            substr_count($code, 'cache.put('),
-            'Lebih dari satu cache.put(): satu-satunya tulisan ke cache di jalur fetch harus tetap satu.',
+            preg_match_all('~\b\w+\.put\(~', $code),
+            'Ada lebih dari satu tulisan .put( ke cache. Satu-satunya tulisan di jalur fetch harus '
+            .'tetap satu, apa pun nama variabel cache-nya.',
         );
         $this->assertMatchesRegularExpression(
             '~if \(storable\(response\)\) \{\s*event\.waitUntil\(caches\.open\(CACHE\)\.then\(\(cache\) => cache\.put\(request, response\.clone\(\)\)\)\);\s*\}~',
@@ -140,11 +211,11 @@ class PwaServiceWorkerTest extends TestCase
             'Tulisan cache tidak lagi berpenjaga storable(): jawaban 206, opaque atau bukan-200 bisa masuk cache.',
         );
 
-        // cache.add() hanya boleh muncul di install, atas daftar SHELL.
+        // .add() hanya boleh muncul di install, atas daftar SHELL.
         $this->assertSame(
             1,
-            substr_count($code, 'cache.add('),
-            'cache.add() dipakai di lebih dari satu tempat: satu-satunya sumber isi cache selain jalur fetch adalah SHELL.',
+            preg_match_all('~\b\w+\.add\(~', $code),
+            'Ada lebih dari satu .add( ke cache: satu-satunya sumber isi cache selain jalur fetch adalah SHELL.',
         );
     }
 
@@ -198,6 +269,20 @@ class PwaServiceWorkerTest extends TestCase
 
         $this->assertStringContainsString('response.status === 200', $body, 'storable() tidak lagi menuntut 200: 206 Range dan 30x bisa masuk cache.');
         $this->assertStringContainsString("response.type === 'basic'", $body, "storable() tidak lagi menuntut type 'basic': jawaban opaque lintas asal bisa masuk cache.");
+
+        /*
+         * Sekali lagi UTUH, bukan potongan: `if (response && response.type ===
+         * 'opaque') return true;` di baris pertama membiarkan kedua potongan di
+         * atas tetap ada dan tetap membuka pintu untuk jawaban opaque (diukur
+         * 7 Sep 2026: hijau). Penjaga sesempit ini hanya bisa dipaku sebagai
+         * satu kalimat penuh.
+         */
+        $this->assertSame(
+            "{ return Boolean(response) && response.status === 200 && response.type === 'basic'; }",
+            $this->squash($body),
+            'storable() bukan lagi satu pernyataan return. Setiap baris tambahan di dalamnya adalah '
+            .'pintu keluar dari penjaga yang menentukan apa yang boleh disimpan.',
+        );
     }
 
     /* --------------------------------------------------------------- (f) */
@@ -276,7 +361,19 @@ class PwaServiceWorkerTest extends TestCase
         $this->assertMatchesRegularExpression(
             "~name\.startsWith\('nusantara-shell-'\) && name !== CACHE~",
             $this->code(),
-            'activate tidak lagi membuang cache versi lain: setiap rilis meninggalkan satu salinan penuh cangkang di perangkat.',
+            'activate tidak lagi menyaring cache versi lain: setiap rilis meninggalkan satu salinan penuh cangkang di perangkat.',
+        );
+        /*
+         * Penyaringnya ada di .filter(), penghapusannya di .map() — dan mutasi
+         * yang mengosongkan .map() sambil membiarkan .filter() utuh HIJAU di
+         * seluruh berkas ini (diukur 7 Sep 2026). Yang harus dipaku adalah
+         * penghapusannya: sebuah perangkat yang menyimpan cangkang setiap rilis
+         * kehabisan kuota, dan kuota yang habis adalah cangkang setengah.
+         */
+        $this->assertMatchesRegularExpression(
+            '~\.map\(\(name\) => caches\.delete\(name\)\)~',
+            $this->code(),
+            'activate tidak lagi MENGHAPUS cache versi lain. Menyaringnya saja tidak membuang apa pun.',
         );
     }
 
@@ -314,6 +411,12 @@ class PwaServiceWorkerTest extends TestCase
         }
 
         $this->fail("Kurung badan function {$name}() tidak seimbang.");
+    }
+
+    /** Satu baris tanpa indentasi: pembandingan bentuk tidak boleh jatuh karena spasi. */
+    private function squash(string $code): string
+    {
+        return trim(preg_replace('~\s+~', ' ', $code));
     }
 
     /**
