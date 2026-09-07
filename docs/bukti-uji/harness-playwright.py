@@ -2779,13 +2779,27 @@ def gantt_expectations(tasks, frozen, today_ms):
     geom = []
     for row in flat:
         start, end = row.get("planned_start"), row.get("planned_end")
-        entry = {"code": row["wbs_code"], "bar": None, "baseline": None, "open": None}
+        entry = {"code": row["wbs_code"], "bar": None, "baseline": None, "progress": None, "open": None}
         if start or end:
             s_ms = _days(start) if start else lo
             e_ms = _days(end) if end else hi
             entry["open"] = "end" if (start and not end) else ("start" if (end and not start) else None)
             bx = clamp(x(s_ms))
-            entry["bar"] = {"x": round(bx, 2), "w": round(max(1.0, clamp(x(e_ms + DAY_MS)) - bx), 2)}
+            raw_w = clamp(x(e_ms + DAY_MS)) - bx
+            entry["bar"] = {"x": round(bx, 2), "w": round(max(1.0, raw_w), 2)}
+            # Isian progres: SATUANNYA yang diuji di sini. `progress_pct` datang
+            # 0..100 (dan sebagai string) dan charts.js menerima 0..1 — tanpa
+            # pembagian 100 di jadwal.js SETIAP batang terisi penuh, dan sampai
+            # verifikasi P1-H tidak ada satu syarat pun yang bisa melihatnya
+            # (S26 MENGUMPULKAN rect .gantt-progress lalu tidak membacanya:
+            # menghapus `/ 100` meninggalkan 29 syarat hijau). Lebar isian
+            # dihitung ulang dari persen yang dipulangkan API, seperti x dan
+            # lebar batangnya sendiri.
+            pct = row.get("progress_pct")
+            if pct not in (None, ""):
+                fraction = min(1.0, max(0.0, float(pct) / 100))
+                if fraction > 0:
+                    entry["progress"] = {"x": round(bx, 2), "w": round(max(1.0, raw_w * fraction), 2)}
         f = by_code.get(row["wbs_code"])
         if f and f.get("planned_start") and f.get("planned_end"):
             fb, fe = _days(f["planned_start"]), _days(f["planned_end"])
@@ -2915,9 +2929,12 @@ def gantt_scenario(pg, tag, mobile=False):
     # dengan dirinya sendiri.
     bar_by_row = {round((b["y"] - 41) / 28): b for b in bars}
     base_by_row = {round((b["y"] - 51) / 28): b for b in baseline_rows}
+    # Isian progres berbagi y dengan batangnya (mid − 9), jadi nomor barisnya
+    # dihitung dengan rumus yang sama.
+    prog_by_row = {round((r["y"] - 41) / 28): r for r in week["progress"]}
     mismatch = []
     for i, want in enumerate(expect["row_geometry"]):
-        for kind, got_map in (("bar", bar_by_row), ("baseline", base_by_row)):
+        for kind, got_map in (("bar", bar_by_row), ("baseline", base_by_row), ("progress", prog_by_row)):
             got, exp = got_map.get(i), want[kind]
             if (got is None) != (exp is None):
                 mismatch.append({"row": i, "code": want["code"], "kind": kind,
@@ -2968,7 +2985,13 @@ def gantt_scenario(pg, tag, mobile=False):
         # Setiap bar (aktual DAN baseline) berdiri di x dan lebar yang dihitung
         # ulang dari tanggal API-nya sendiri — 24 rect, tanpa satu pun meleset
         # lebih dari 0,05 px.
-        "every_bar_stands_where_its_dates_say": not mismatch,
+        "every_bar_stands_where_its_dates_say": not [m for m in mismatch if m["kind"] != "progress"],
+        # …dan setiap ISIAN progres selebar persen yang dikirim API dikali lebar
+        # batangnya. Ini sumbu yang dulu tidak diperiksa apa pun: menghapus
+        # `/ 100` di jadwal.js membuat kesebelas batang terisi penuh sementara
+        # 29 syarat tetap hijau.
+        "every_progress_fill_matches_the_percentage_the_api_sent":
+            not [m for m in mismatch if m["kind"] == "progress"],
         # …dan bar baseline benar-benar digambar dari tanggal BEKU: satu tanggal
         # beku digeser 30 hari, dan selisihnya muncul di layar sebesar itu.
         "a_shifted_baseline_shows_the_deviation": deviation is not None
