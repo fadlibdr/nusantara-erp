@@ -253,6 +253,40 @@ detik — "tidak ada laporan" untuk laporan yang ada adalah bukti yang berbohong
 | "results-phase-2.json **BARU**" | **digabung** ke berkas yang sudah ada | berkas itu sudah memuat 8 skenario era ROADMAP-DEVIASI; menimpanya berarti menghapus bukti. Digabung per kunci — tidak satu pun ditimpa |
 | mode `extra_level` untuk PO/SPK | **tidak ditawarkan** | ROADMAP juga berkata gerbang lama tidak dimigrasikan; menawarkan mode yang tidak ada penegaknya = layar yang berbohong |
 
+## Tinjauan sendiri — dua temuan, keduanya ditutup di `beb7e32`
+
+Bukan pengganti verifikasi adversarial ganda (§ Yang BELUM diverifikasi #1), tetapi dua hal yang
+ditemukan dengan membaca kembali diff-nya sendiri sesudah semuanya hijau.
+
+**1. Sebuah delegasi persetujuan MEMBUKA matriksnya — kendali uang, bukan ketidaknyamanan.**
+
+Penjaga "mengubah `approvals.*` butuh `*.approve-director`" memakai `can()`. `can()` melewati
+`Gate::before`. `Gate::before` **adalah** delegasi. Maka Budi yang memegang delegasi Sari **plus**
+`core.update` dapat menurunkan ambang PO dari Rp 100 juta menjadi Rp 10 miliar — sebuah kendali uang
+yang berpindah tangan sebagai efek samping cuti, dan berpindah **untuk selamanya**, karena ambang
+barunya tidak ikut kedaluwarsa bersama delegasi yang membukanya.
+
+Delegasi meminjamkan hak **menyetujui dokumen**; ia tidak boleh menjadi hak menulis ulang apa arti
+menyetujui. Kedua penjaganya kini membaca izin yang dipegang SENDIRI
+(`ApprovalDelegations::holdsNatively` — fungsi yang sudah ada untuk alasan yang sama persis di sisi
+delegasi). Dipaku `test_a_delegated_director_right_does_not_unlock_the_matrix`, yang lebih dulu
+menegaskan haknya memang dipinjam (delegat BISA menyetujui) sebelum menuntut matriksnya tetap
+tertutup.
+
+**2. Dua kueri yang berulang di tiap pemeriksaan izin.** `Gate::before` berjalan pada SETIAP
+pemeriksaan izin dan satu permintaan memeriksa izin puluhan kali. Baris delegasinya sudah dimemo per
+unit kerja — tetapi pencarian PEMBERINYA (satu `SELECT users` per baris per pemeriksaan) tidak, jadi
+memo itu hanya memindahkan kuerinya. Dan
+`Schema::hasColumn('core_approvals','policy')` dipanggil **dua kali pada tiap persetujuan** (sekali
+dari `requiredApprovalLevels()`, sekali dari `assertStampedDirectorLevel()`), sementara di MySQL itu
+kueri `information_schema`. Keduanya kini dimemo.
+
+**Satu catatan proses:** dua putaran uji dijalankan di atas pohon yang sedang disunting dan
+melaporkan kegagalan yang tidak nyata (`Call to private method holdsNatively`, dan delapan
+`ApprovalTrailOnShowTest` yang berkasnya sudah diperbaiki di tengah jalan). Itu persis jebakan
+"phantom flake" yang tercatat di memori repositori ini — kali ini ditimbulkan sendiri. Angka yang
+dilaporkan di § Gerbang di bawah berasal dari putaran yang dijalankan **sesudah** pohonnya diam.
+
 ## Yang BELUM diverifikasi — baca ini sebelum merge
 
 1. **Verifikasi adversarial ganda belum dijalankan.** ROADMAP §4 menuntut dua verifier baca-saja
