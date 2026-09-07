@@ -171,4 +171,46 @@ class WithdrawnApprovalModeKeysTest extends ErpTestCase
     {
         return (string) (($errors['settings.'.$key] ?? [])[0] ?? '');
     }
+
+    /**
+     * Kalimat penolakannya benar UNTUK JENIS ITU.
+     *
+     * Sampai verifikasi F-1 putaran 2 ia menyebut sebab yang sama untuk semua —
+     * "persetujuan pertamanya sudah menjalankan akibatnya (jurnal, stok)" —
+     * termasuk untuk izin kerja dan cuti, yang tidak memposting apa pun; dan
+     * selalu menutup dengan "yang dapat Anda ubah adalah ambangnya", padahal 14
+     * dari 28 jenis tidak punya sel ambang sama sekali.
+     */
+    public function test_the_refusal_names_a_cause_and_an_alternative_that_are_true_for_that_type(): void
+    {
+        $admin = $this->adminUser();
+
+        foreach (ApprovalPolicy::documentTypes() as $type) {
+            if (ApprovalPolicy::modeIsLocked($type)) {
+                continue;   // sebabnya penegak modulnya sendiri, diuji di atas
+            }
+
+            if (ApprovalPolicy::supportsExtraLevel($type)) {
+                continue;   // award_decision: selnya MEMANG ditawarkan, jadi 200 adalah jawabannya
+            }
+
+            $response = $this->actingAs($admin)
+                ->putJson('/api/core/settings', ['settings' => ["approvals.{$type}.mode" => 'extra_level']])
+                ->assertStatus(422);
+            $message = $this->messageFor($response->json('errors'), "approvals.{$type}.mode");
+
+            if (ApprovalPolicy::hasMeasurableAmount($type)) {
+                $this->assertStringContainsString('ambangnya', $message,
+                    "Jenis {$type} PUNYA sel ambang, tetapi penolakannya tidak menunjuk ke sana.");
+            } else {
+                $this->assertStringNotContainsString('Yang dapat Anda ubah untuk jenis ini adalah ambangnya', $message,
+                    "Jenis {$type} tidak punya kolom nilai rupiah, jadi penolakannya tidak boleh menyuruh "
+                        .'pemakainya mengatur ambang yang tidak ada.');
+                $this->assertStringContainsString('tanpa nilai rupiah', $message,
+                    "Penolakan {$type} tidak menyebut sebab yang sebenarnya.");
+                $this->assertStringNotContainsString('jurnal', $message,
+                    "Penolakan {$type} menyebut akibat jurnal/stok yang tidak dimiliki jenis ini.");
+            }
+        }
+    }
 }

@@ -266,15 +266,32 @@ class UpdateSettingsRequest extends FormRequest
 
         $label = ApprovalPolicy::documentEntry($type)['label'] ?? 'Dokumen';
 
+        /*
+         * Sebabnya diambil dari jenisnya, bukan dari satu cabang untuk semuanya.
+         * Sampai verifikasi F-1 putaran 2 kalimat ini menyebut "jurnal, stok"
+         * untuk SETIAP jenis yang mode-nya tidak terkunci — termasuk izin kerja
+         * dan cuti, yang tidak memposting apa pun — dan selalu menutup dengan
+         * "yang dapat Anda ubah adalah ambangnya", padahal 14 dari 28 jenis
+         * tidak punya sel ambang sama sekali (tanpa kolom nilai rupiah).
+         */
+        $posts = ApprovalPolicy::hasMeasurableAmount($type);
+
         $why = ApprovalPolicy::modeIsLocked($type)
             ? "ambang {$label} ditegakkan modulnya sendiri lewat kolom needs_director_approval, dan "
                 .'penegak itu tidak mengenal mode kedua'
-            : "jalur persetujuan {$label} tidak dapat berhenti di tengah — persetujuan pertamanya sudah "
-                .'menjalankan akibatnya (jurnal, stok), jadi "tambahan tingkat" akan menjalankannya dua kali';
+            : ($posts
+                ? "jalur persetujuan {$label} tidak dapat berhenti di tengah — persetujuan pertamanya "
+                    .'sudah menjalankan akibatnya, jadi "tambahan tingkat" akan menjalankannya dua kali'
+                : "{$label} tidak membawa nilai rupiah, jadi tidak ada ambang yang bisa memisahkan "
+                    .'tingkat kedua dari tingkat pertama');
+
+        $editable = $posts
+            ? 'Yang dapat Anda ubah untuk jenis ini adalah ambangnya, di Pengaturan › Matriks Persetujuan.'
+            : 'Jenis ini tidak punya sel yang bisa diubah di Matriks Persetujuan: tanpa nilai rupiah, '
+                .'tidak ada ambang untuk diatur.';
 
         return "Parameter {$key} tidak dapat diubah, di layar ini maupun lewat deploy: {$label} selalu "
-            .'memakai mode "satu penyetuju, harus direktur di atas ambang" karena '.$why.'. '
-            .'Yang dapat Anda ubah untuk jenis ini adalah ambangnya, di Pengaturan › Matriks Persetujuan.';
+            .'memakai mode "satu penyetuju, harus direktur di atas ambang" karena '.$why.'. '.$editable;
     }
 
     /**

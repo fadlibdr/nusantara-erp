@@ -155,6 +155,30 @@ class ApprovalInboxGateTest extends ErpTestCase
             'Bilah aksi layar dokumen harus memakai canAct(); dengan can(action.perm) seorang delegat tidak '
                 .'pernah melihat tombol Setujui, dan dengan can(perm, true) ia melihat sebelas tombol yang bukan haknya.',
         );
+
+        /*
+         * …dan layar yang MENULIS tombolnya sendiri ikut menghitung hak pinjaman.
+         *
+         * canAct() hanya menjangkau aksi yang lahir dari schema.js. Dua layar
+         * merakit tombol Setujui/Tolak-nya dengan tangan dan memanggil
+         * POST …/{id}/approve|reject langsung: Pembayaran (views/custom.js,
+         * finance/payments) dan Baseline EVM (views/evm.js, projects/baselines).
+         * Sampai verifikasi F-1 putaran 2 keduanya memakai session.can() polos,
+         * jadi delegat murni — justru orang yang fiturnya ada untuknya — tidak
+         * pernah melihat tombolnya sementara servernya menerima keputusannya
+         * (diukur di Chromium 7 Sep 2026: pembayaran menunggu, tombol tidak ada).
+         */
+        foreach ([
+            'views/custom.js' => ["session.can('fin.approve', true)", 3],
+            'views/evm.js' => ["session.can('prj.approve', true)", 1],
+        ] as $file => [$call, $times]) {
+            $this->assertSame(
+                $times,
+                substr_count($this->spa($file), $call),
+                "{$file} harus memanggil {$call} pada setiap pintu keputusan tulis-tangannya "
+                    .'({id}/approve|reject); tanpa argumen kedua, hak pinjaman delegasi tidak dihitung.',
+            );
+        }
     }
 
     // -------------------------------------------------------------- fixtures
