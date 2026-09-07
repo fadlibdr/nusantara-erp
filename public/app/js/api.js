@@ -67,6 +67,23 @@ export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }
 
+/*
+ * Sinyal jaringan (P1-I). Diumumkan sebagai peristiwa window, BUKAN lewat impor:
+ * ui.js tidak boleh mengimpor api.js (dan sebaliknya), dan pita luring di layar
+ * Lapangan hanya perlu tahu satu hal — apakah permintaan terakhir SAMPAI.
+ *
+ * "Gagal" di sini berarti transport-nya gagal (fetch melempar, XHR status 0):
+ * tidak ada jawaban sama sekali. HTTP 500 BUKAN luring — server menjawab, dan
+ * pita yang berkata "tanpa koneksi" atas 500 akan menyuruh orang mencari sinyal
+ * yang sudah ada. Pasangannya navigator.onLine dibaca ui.js sendiri.
+ */
+let lastNetworkOk = true;
+function announceNetwork(ok) {
+  if (ok === lastNetworkOk) return;
+  lastNetworkOk = ok;
+  window.dispatchEvent(new CustomEvent('erp:network', { detail: { ok } }));
+}
+
 function buildUrl(path, params) {
   const url = `${BASE}/${String(path).replace(/^\//, '')}`;
   if (!params) return url;
@@ -106,9 +123,11 @@ async function request(method, path, { body, params, raw = false } = {}) {
       body: body === undefined || multipart ? body : JSON.stringify(body),
     });
   } catch {
+    announceNetwork(false);
     throw new ApiError(0, 'Tidak dapat terhubung ke server.');
   }
 
+  announceNetwork(true);
   return settle(response.status, await response.text(), raw);
 }
 
@@ -177,12 +196,16 @@ function requestWithProgress(method, path, body, onProgress) {
 
     // A dropped connection, an aborted request and a timeout all land here
     // with status 0 — the same "Tidak dapat terhubung" that fetch() throws.
-    const failed = () => reject(new ApiError(0, 'Tidak dapat terhubung ke server.'));
+    const failed = () => {
+      announceNetwork(false);
+      reject(new ApiError(0, 'Tidak dapat terhubung ke server.'));
+    };
     xhr.addEventListener('error', failed);
     xhr.addEventListener('abort', failed);
     xhr.addEventListener('timeout', failed);
 
     xhr.addEventListener('load', () => {
+      announceNetwork(true);
       try {
         resolve(settle(xhr.status, xhr.responseText));
       } catch (error) {
@@ -212,9 +235,11 @@ async function requestBlob(path) {
   try {
     response = await fetch(buildUrl(path), { method: 'GET', headers });
   } catch {
+    announceNetwork(false);
     throw new ApiError(0, 'Tidak dapat terhubung ke server.');
   }
 
+  announceNetwork(true);
   if (!response.ok) {
     if (response.status === 401) {
       session.clear();

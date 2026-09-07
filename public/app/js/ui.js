@@ -392,15 +392,32 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
 }
 
 /* ----------------------------------------------------------------- toasts */
-export function toast(message, { tone = 'ok', title, timeout = 5200 } = {}) {
+/**
+ * `action: { label, onClick }` (P1-I) menambahkan SATU tombol di dalam toast dan
+ * menutup toast-nya sebelum memanggil onClick. Sebelumnya pemanggil menempelkan
+ * tombolnya sendiri ke `.msg` sesudah toast dibuat (app.js offerDrafts) — dua
+ * tempat yang harus sepakat soal tata letak; toast "Versi baru siap" memakai
+ * jalur ini supaya hanya ada satu.
+ */
+export function toast(message, { tone = 'ok', title, timeout = 5200, action } = {}) {
   const host = document.getElementById('toasts');
+  const body = el('div', { style: { flex: '1', minWidth: '0' } }, [
+    title ? el('b', { text: title }) : null,
+    el('.msg', { text: message }),
+  ]);
   const node = el(`.toast.${tone}`, [
-    el('div', { style: { flex: '1', minWidth: '0' } }, [
-      title ? el('b', { text: title }) : null,
-      el('.msg', { text: message }),
-    ]),
+    body,
     el('button', { 'aria-label': 'Tutup', onclick: () => node.remove() }, icon('close', 13)),
   ]);
+  if (action) {
+    body.appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
+      button(action.label, {
+        size: 'sm',
+        variant: 'primary',
+        onClick: () => { node.remove(); action.onClick(); },
+      }),
+    ]));
+  }
   host.appendChild(node);
   if (timeout) setTimeout(() => node.remove(), timeout);
   return node;
@@ -423,6 +440,57 @@ export function toastError(error) {
        the operator what to do. toast() treats 0 as "tetap tampil". */
     timeout: message.length > 160 ? 0 : 8000,
   });
+}
+
+/* ------------------------------------------------------------- pita luring */
+
+/*
+ * Dua sumber, bukan satu (P1-I). `navigator.onLine` hanya tahu apakah perangkat
+ * punya ANTARMUKA yang menyala: Wi-Fi lokasi yang portalnya belum dilewati dan
+ * 4G satu bar yang tidak mengantar paket sama-sama dilaporkan `true`. Karena itu
+ * permintaan yang benar-benar tidak sampai (api.js `erp:network` { ok: false })
+ * ikut menyalakan pita — dan `online` mematikannya lagi bersama-sama, jadi tidak
+ * ada keadaan "pita menyala selamanya karena satu permintaan pernah gagal":
+ * permintaan berikutnya yang berhasil sudah cukup.
+ */
+let networkTrouble = false;
+window.addEventListener('erp:network', (event) => {
+  networkTrouble = !(event.detail && event.detail.ok);
+});
+window.addEventListener('online', () => { networkTrouble = false; });
+
+/** Benar bila perangkat mengaku luring ATAU permintaan terakhir tidak sampai. */
+export function networkDown() {
+  return !navigator.onLine || networkTrouble;
+}
+
+/**
+ * Pita "tanpa koneksi" yang menyembunyikan dirinya sendiri saat jaringan kembali.
+ * Dipasang di atas antrean Lapangan; kalimatnya milik pemanggil karena hanya
+ * pemanggil yang tahu apa yang terjadi pada pekerjaan orangnya saat luring.
+ */
+export function offlineRibbon(message) {
+  const node = el('.offline-ribbon', { role: 'status', hidden: true }, [
+    icon('warn', 15),
+    el('span', { text: message }),
+  ]);
+
+  let mounted = false;
+  const events = ['online', 'offline', 'erp:network'];
+  const stop = () => events.forEach((name) => window.removeEventListener(name, sync));
+
+  function sync() {
+    // Pendengar window akan hidup selamanya kalau tidak dicabut: renderLapangan()
+    // membuat pita BARU setiap kali layarnya dibuka. Pola isConnected yang sama
+    // dipakai antrean unggah lapangan.js.
+    if (node.isConnected) mounted = true;
+    else if (mounted) { stop(); return; }
+    node.hidden = !networkDown();
+  }
+
+  events.forEach((name) => window.addEventListener(name, sync));
+  sync();
+  return node;
 }
 
 /* ------------------------------------------------------------------ modal */

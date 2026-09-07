@@ -709,6 +709,7 @@ function openUserMenu(user) {
         el('dd', { text: `${(user.permissions || []).length} izin` }),
       ]),
       densityControl(),
+      installRow(),
     ]),
     footer: [
       button('Tutup', { onClick: () => dialog.close() }),
@@ -1509,6 +1510,159 @@ window.addEventListener('error', (event) => {
   if (event.error) console.error('Uncaught error', event.error);
 });
 
+/* ---------------------------------------------------------------- PWA (P1-I) */
+
+/*
+ * Tiga hal, satu tempat: mendaftarkan service worker, menangkap tawaran pasang
+ * peramban, dan mengumumkan versi baru.
+ *
+ * Pendaftarannya SESUDAH aplikasi tergambar, tidak pernah sebelum. sw.js
+ * memasang 102 berkas cangkang ke cache saat install, dan itu 102 permintaan
+ * yang tidak boleh berebut dengan permintaan yang sedang ditunggu orangnya.
+ * Karena itu: tunggu `load`, lalu satu putaran idle.
+ */
+let swRegistration = null;
+let installPrompt = null;
+let reloadOnControllerChange = false;
+
+/** Sudah berjalan sebagai aplikasi terpasang (Android/desktop; `standalone` iOS). */
+function appIsInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+/*
+ * Peramban menawarkan pemasangan lewat peristiwa ini, dan tawarannya HANGUS
+ * kalau tidak ditahan: preventDefault() menyimpannya sampai orangnya membuka
+ * menu Akun. Didaftarkan di tingkat modul supaya sudah terpasang sebelum
+ * peristiwa itu bisa menyala.
+ *
+ * Tidak semua peramban menyalakannya (Firefox dan Safari tidak punya
+ * beforeinstallprompt sama sekali, dan Chromium headless juga tidak — terukur
+ * 7 Sep 2026). Dialog Akun karena itu punya tiga keadaan, bukan dua: tombol,
+ * "sudah terpasang", atau kalimat yang menyebut jalan lewat menu peramban.
+ */
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  installPrompt = event;
+});
+
+window.addEventListener('appinstalled', () => {
+  installPrompt = null;
+});
+
+/**
+ * Baris "Pasang aplikasi" untuk dialog Akun. Menu akun dipilih, bukan launcher
+ * #/home: launcher adalah kisi MODUL (Proyek, Keuangan, …) dan sebuah tindakan
+ * peramban di antaranya salah kategori, lagipula launcher hanya satu layar
+ * sementara chip akun ada di header setiap layar — termasuk di ponsel, yaitu
+ * perangkat yang justru dipasangi.
+ */
+function installRow() {
+  if (appIsInstalled()) {
+    return el('p.muted', { text: 'Aplikasi ini sudah terpasang di perangkat Anda.', style: { fontSize: '12.5px', margin: '14px 0 0' } });
+  }
+
+  if (!installPrompt) {
+    return el('p.muted', {
+      text: 'Pasang aplikasi: lewat menu peramban ("Instal aplikasi" / "Tambahkan ke Layar Utama"). '
+        + 'Peramban ini belum menawarkannya dari dalam halaman.',
+      style: { fontSize: '12.5px', margin: '14px 0 0' },
+    });
+  }
+
+  return el('div', { style: { marginTop: '14px' } }, [
+    button('Pasang aplikasi', {
+      iconName: 'download',
+      onClick: async (event) => {
+        const deferred = installPrompt;
+        if (!deferred) return;
+        // Tawaran peramban hanya boleh dipakai SEKALI.
+        installPrompt = null;
+        event.currentTarget.disabled = true;
+        deferred.prompt();
+        const choice = await deferred.userChoice.catch(() => null);
+        if (choice && choice.outcome === 'accepted') toast('Aplikasi sedang dipasang.');
+      },
+    }),
+    el('p.muted', {
+      text: 'Membuka aplikasi dari layar utama, tanpa bilah alamat.',
+      style: { fontSize: '12.5px', margin: '6px 0 0' },
+    }),
+  ]);
+}
+
+/*
+ * Worker baru sudah terpasang dan MENUNGGU. Toast-nya bertahan (timeout 0):
+ * pengumuman rilis yang lenyap dalam lima detik tidak mengumumkan apa pun.
+ * Tombolnya menyuruh worker menunggu itu mengambil alih; muat ulang menyusul
+ * di controllerchange, bukan di sini, supaya halaman tidak sempat dimuat ulang
+ * sebelum worker barunya siap menjawab.
+ */
+function announceUpdate(registration) {
+  toast('Versi baru siap — Muat ulang untuk memakainya.', {
+    tone: 'info',
+    timeout: 0,
+    action: {
+      label: 'Muat ulang',
+      onClick: () => {
+        reloadOnControllerChange = true;
+        if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        else window.location.reload();
+      },
+    },
+  });
+}
+
+function watchForUpdate(registration) {
+  swRegistration = registration;
+
+  // Sudah menunggu saat halaman dimuat (worker baru dipasang di kunjungan lalu).
+  if (registration.waiting && navigator.serviceWorker.controller) announceUpdate(registration);
+
+  registration.addEventListener('updatefound', () => {
+    const installing = registration.installing;
+    if (!installing) return;
+    installing.addEventListener('statechange', () => {
+      // `controller` yang null berarti ini PEMASANGAN PERTAMA, bukan pembaruan:
+      // tanpa syarat itu setiap orang yang pertama kali membuka aplikasi
+      // disuruh memuat ulang sesuatu yang baru saja dimuatnya.
+      if (installing.state === 'installed' && navigator.serviceWorker.controller) announceUpdate(registration);
+    });
+  });
+}
+
+/*
+ * SATU muat ulang, tidak pernah dua. `controllerchange` juga menyala pada
+ * pemasangan pertama (sw.js memanggil clients.claim()), jadi bendera inilah
+ * yang membedakan "orangnya menekan Muat ulang" dari "worker pertama baru saja
+ * mengambil alih" — tanpa bendera itu, kunjungan pertama siapa pun memuat ulang
+ * dirinya sendiri.
+ */
+function registerServiceWorker() {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!reloadOnControllerChange) return;
+    reloadOnControllerChange = false;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register('sw.js')
+    .then(watchForUpdate)
+    .catch((error) => {
+      // Bukan alasan untuk mengganggu siapa pun: aplikasinya jalan tanpa worker.
+      console.warn('Service worker tidak terdaftar:', error);
+    });
+}
+
+function scheduleServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  const start = () => {
+    if (window.requestIdleCallback) window.requestIdleCallback(registerServiceWorker, { timeout: 3000 });
+    else setTimeout(registerServiceWorker, 500);
+  };
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start, { once: true });
+}
+
 async function init() {
   // Tautan "lupa kata sandi" dibuka tanpa sesi — diperiksa sebelum apa pun.
   const reset = resetLinkParams();
@@ -1527,10 +1681,34 @@ async function init() {
     boot();
   } catch (error) {
     if (error.status === 401) renderLogin({ message: 'Sesi Anda berakhir. Silakan masuk kembali.' });
-    else {
+    else if (error.status === 0 && session.user) {
+      /*
+       * LURING dengan sesi yang masih tersimpan (P1-I). Sampai paket ini, muat
+       * ulang tanpa jaringan melempar orang yang sudah masuk ke halaman masuk
+       * berbunyi "Coba masuk kembali" — halaman masuk yang, tanpa jaringan,
+       * TIDAK BISA dilewati: POST iam/auth/login butuh server. Cangkang tergambar,
+       * tetapi satu-satunya layar yang bisa dicapai adalah jalan buntu — dan
+       * antrean foto Lapangan beserta pita luringnya ada di seberangnya.
+       *
+       * status 0 = transport gagal, bukan jawaban server (api.js). 401 di atas
+       * tetap membuang sesi; yang ini menahannya. Izin yang dipakai adalah
+       * cermin localStorage milik orang yang sama, dan begitu jaringan kembali,
+       * permintaan pertama yang dijawab 401 tetap melempar keluar lewat
+       * setUnauthorizedHandler. Jadi tidak ada satu pun data yang belum dimiliki
+       * peramban ini yang terbuka karenanya.
+       */
+      boot();
+      toast('Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali.', {
+        tone: 'info', title: 'Mode luring', timeout: 0,
+      });
+    } else {
       renderLogin({ message: 'Tidak dapat menghubungi server. Coba masuk kembali.' });
     }
   }
 }
 
 init();
+
+/* Sesudah init() — dan, di dalamnya, sesudah `load` + satu putaran idle: tidak
+   ada satu byte pun dari pendaftaran worker yang berada di jalur cat pertama. */
+scheduleServiceWorker();

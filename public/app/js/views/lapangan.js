@@ -12,7 +12,7 @@
  * screen keeps working — a photo with no position is worth more than no photo. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, errorState, toast, toastError, withBusy, field, progressBar, confirmDialog } from '../ui.js';
+import { el, clear, button, badge, icon, errorState, toast, toastError, withBusy, field, progressBar, confirmDialog, offlineRibbon } from '../ui.js';
 import { ENUMS } from '../enums.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
@@ -713,9 +713,19 @@ export async function renderLapangan(host) {
 
   const tabs = el('.tabs');
   const body = el('div');
+  /* Pita luring DI ATAS antrean (P1-I), dan kalimatnya menyebut apa yang
+     sebenarnya terjadi: foto yang sudah masuk antrean aman di localStorage
+     ponsel ini, tetapi TIDAK ada yang mengirimnya sendiri saat sinyal kembali —
+     pump() hanya berjalan saat foto dimasukkan atau "Kirim ulang" ditekan.
+     Menjanjikan pengiriman otomatis akan membuat orang menutup layarnya dan
+     pulang; kalimat ini menyuruhnya menekan tombol yang memang ada. */
+  const ribbon = offlineRibbon(
+    'Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, '
+    + 'tekan "Kirim ulang" pada barisnya.',
+  );
   // Above the tabs, hidden while empty: photos of a report or ticket that is
   // not on screen would otherwise stay in localStorage unseen and unsent.
-  host.append(pendingCard(), tabs, body);
+  host.append(ribbon, pendingCard(), tabs, body);
 
   const allowed = MODES.filter((mode) => session.can(`${mode.module}.view`));
 
