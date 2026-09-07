@@ -8,6 +8,7 @@ use Modules\Finance\Http\Controllers\ArRetentionController;
 use Modules\Finance\Http\Controllers\BankAccountController;
 use Modules\Finance\Http\Controllers\BankReconciliationController;
 use Modules\Finance\Http\Controllers\BankStatementController;
+use Modules\Finance\Http\Controllers\BudgetRealisationController;
 use Modules\Finance\Http\Controllers\FiscalPeriodController;
 use Modules\Finance\Http\Controllers\JournalController;
 use Modules\Finance\Http\Controllers\KasbonController;
@@ -176,6 +177,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Project cost ledger
     Route::get('project-costs', [ProjectCostController::class, 'index'])->middleware('permission:fin.view');
+
+    /*
+     * F-2 — anggaran vs realisasi. fin.view, izin yang sama dengan buku biaya
+     * proyek di atas: yang dibaca kedua endpoint ini adalah baris
+     * fin_project_costs itu juga, hanya diadu dengan RAP dan dibelah per bulan.
+     */
+    Route::get('budget/portfolio', [BudgetRealisationController::class, 'portfolio'])->middleware('permission:fin.view');
+    Route::get('budget/projects/{project}/monthly', [BudgetRealisationController::class, 'monthly'])->middleware('permission:fin.view');
 
     // Bank statements (rekening koran) — import and matching.
     // Matching is fin.update, not fin.post: it writes no ledger row. It records

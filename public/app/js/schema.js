@@ -6086,6 +6086,9 @@ export const NAV = [
       { divider: 'Pelaporan' },
       { label: 'Jurnal', route: 'r/finance/journals' },
       { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
+      // F-2 — tepat di bawah Biaya Proyek: baris yang sama, hanya diadu dengan
+      // RAP dan dibelah per bulan.
+      { label: 'Anggaran vs Realisasi', route: 'anggaran' },
       { label: 'Pengakuan Pendapatan', route: 'r/finance/revenue-recognition' },
       { label: 'Periode Fiskal', route: 'periods' },
       { label: 'Laporan Keuangan', route: 'reports' },

@@ -5,8 +5,10 @@ namespace Modules\Finance\Providers;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Core\Support\WatchedThresholds;
 use Modules\Finance\Console\Commands\CloseWatchCommand;
 use Modules\Finance\Console\Commands\EnsureFiscalCalendarCommand;
+use Modules\Finance\Services\BudgetRealisationService;
 
 class FinanceServiceProvider extends ServiceProvider
 {
@@ -39,6 +41,23 @@ class FinanceServiceProvider extends ServiceProvider
             $schedule->command('fin:ensure-calendar')->dailyAt('05:30')->timezone('Asia/Jakarta');
             $schedule->command('fin:close-watch')->dailyAt('08:15')->timezone('Asia/Jakarta');
         });
+
+        /*
+         * F-2 — Finance MEMASOK ukuran "anggaran proyek terpakai" ke registri
+         * Core. Arahnya sengaja begini: Core mendeklarasikan entrinya (label,
+         * izin, tautan, ambang, keadaan) tetapi tidak boleh tahu cara menghitung
+         * komitmen, dan menyalin SQL-nya ke Core berarti dua jawaban atas satu
+         * pertanyaan. Selama tidak ada yang memasok, entri itu SKIPPED di
+         * registri — bukan entri kosong yang terbaca "semua aman".
+         *
+         * Closure, bukan hasil: pemindaian bisa terjadi kapan saja setelah boot,
+         * dan menghitungnya di sini akan membebani SETIAP permintaan dengan
+         * kueri portofolio yang hampir tidak pernah dibaca.
+         */
+        WatchedThresholds::supply(
+            'project_budget_pct',
+            static fn (): array => app(BudgetRealisationService::class)->thresholdRows(),
+        );
 
         Route::middleware('api')
             ->prefix('api/finance')

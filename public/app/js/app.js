@@ -44,6 +44,7 @@ import { renderSewaVsBeli } from './views/sewavsbeli.js';
 import { renderTkdnWorksheet, renderRkkDocument, renderKualifikasi } from './views/tender.js';
 import { renderTenggat } from './views/tenggat.js';
 import { renderAmbang } from './views/ambang.js';
+import { renderAnggaran } from './views/anggaran.js';
 import { renderSertifikat } from './views/sertifikat.js';
 import { renderAbsensi } from './views/absensi.js';
 import { renderKalender } from './views/kalender.js';
@@ -1109,6 +1110,14 @@ function registerRoutes() {
     const host = view();
     // Tanpa gerbang izin: API core/calendar sudah menyaring agenda menurut izin lihat pemanggil.
     return guard(host, () => renderKalender(host));
+  });
+
+  route('anggaran', () => {
+    setCrumbs(['Keuangan', 'Anggaran vs Realisasi']);
+    setActiveNav('anggaran');
+    const host = view();
+    if (!session.can('fin.view')) return accessDenied(host, 'fin');
+    return guard(host, () => renderAnggaran(host));
   });
 
   route('periods', () => {

@@ -210,9 +210,9 @@ class WatchedThresholds
      * Ambang peringatan entri, dalam persen. Owner decision #13 (ROADMAP §5):
      * 90 %. Config, bukan konstanta, karena angkanya milik pemilik.
      */
-    public static function warnPct(array $entry): float
+    public static function warnPct(string $warnKey): float
     {
-        $configured = config('erp.thresholds.'.$entry['warn_key']);
+        $configured = config('erp.thresholds.'.$warnKey);
 
         return is_numeric($configured) ? (float) $configured : self::DEFAULT_WARN_PCT;
     }
@@ -299,7 +299,7 @@ class WatchedThresholds
 
     private static function measure(array $entry): array
     {
-        $warnPct = self::warnPct($entry);
+        $warnPct = self::warnPct($entry['warn_key']);
 
         $rows = isset($entry['supplied_by'])
             ? (self::$suppliers[$entry['key']])()

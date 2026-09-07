@@ -162,6 +162,7 @@ const SHELL = [
   'js/views/tender.js',
   'js/views/tenggat.js',
   'js/views/ambang.js',
+  'js/views/anggaran.js',
   'js/views/tugas.js',
   'js/views/tutupproyek.js',
   'js/views/varian.js',
