@@ -18,6 +18,12 @@ import { el, clear, button, badge, errorState, skeletonTable } from '../ui.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
 
+/** "tahun buku" -> "Tahun buku". Kapital di awal, sisanya apa adanya. */
+function titleCase(word) {
+  const text = String(word || 'Subjek');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 const STATE = {
   lampau: ['Melampaui batas', 'red'],
   mendekati: ['Mendekati batas', 'amber'],
@@ -130,7 +136,12 @@ export async function renderAmbang(host) {
       ]),
       el('.table-wrap', el('table.data', [
         el('thead', el('tr', [
-          el('th', { text: measure.subject_word === 'proyek' ? 'Proyek' : 'Subjek' }),
+          /* Kata yang DIDEKLARASIKAN entrinya, bukan dua pilihan yang dipatok
+             layar: entri overhead menyebut subject_word 'tahun buku', dan
+             tabelnya dulu berjudul "SUBJEK" di atas baris berisi "2026"
+             (verifikasi F-2). Registri yang mendeklarasikan satuannya sendiri
+             tidak boleh kehilangannya di tabel yang menampilkannya. */
+          el('th', { text: titleCase(measure.subject_word) }),
           el('th.right', { text: 'Aktual' }),
           el('th.right', { text: 'Batas' }),
           el('th.right', { text: 'Terpakai' }),
