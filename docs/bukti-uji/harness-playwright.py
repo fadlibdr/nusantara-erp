@@ -2601,6 +2601,22 @@ S26_MEASURE = """() => {
     note: (() => { const n = svg.querySelector('text.chart-note'); return n ? n.textContent : null; })(),
     font_css_px: { label: fontPx('text.gantt-label'), tick: fontPx('text.chart-tick') },
     scroll_x: (() => { const s = document.querySelector('.gantt-sheet .chart-scroll'); return s ? s.scrollWidth > s.clientWidth + 1 : null; })(),
+    /* Kotak di LAYAR (bukan atribut svg): sebuah garis "Hari ini" yang berdiri
+       di x yang benar tetapi 60 px di luar jendela penggulir tidak pernah
+       dilihat pembacanya. */
+    boxes: (() => {
+      const s = document.querySelector('.gantt-sheet .chart-scroll');
+      const box = (n) => { if (!n) return null; const r = n.getBoundingClientRect();
+        return { left: +r.left.toFixed(1), right: +r.right.toFixed(1), width: +r.width.toFixed(1) }; };
+      return {
+        scroller: s ? { ...box(s), scrollLeft: Math.round(s.scrollLeft), scrollWidth: s.scrollWidth, clientWidth: s.clientWidth } : null,
+        today: box(document.querySelector('.gantt-sheet line.gantt-today')),
+        today_label: box(document.querySelector('.gantt-sheet text.gantt-today-label')),
+        svg_note: box(document.querySelector('.gantt-sheet text.chart-note')),
+        dom_note: box(document.querySelector('.gantt-sheet .gantt-note-dom')),
+      };
+    })(),
+    dom_note: (document.querySelector('.gantt-sheet .gantt-note-dom') || {}).innerText || null,
     head: (() => { const h = document.querySelector('.gantt-sheet .card-head h2'); return h ? h.innerText : null; })(),
     foot: [...document.querySelectorAll('.gantt-sheet .card-body p')].map((p) => p.innerText.trim()),
     zoom_buttons: [...document.querySelectorAll('.gantt-sheet .filters .btn')].map((b) => ({
@@ -3096,6 +3112,16 @@ def gantt_scenario(pg, tag, mobile=False):
             ("Tanggal belum ditetapkan" in week["legend"]) == (len(expect["open_ended"]) > 0),
         # 9. Kaki kartu mengumumkan sumbernya dan menyebut yang TIDAK cocok.
         "source_note_states_the_matching_rule": "dicocokkan menurut kode WBS" in (week["note"] or ""),
+        # …dan kalimat itu bisa DIBACA tanpa menebak bahwa gambarnya bisa
+        # digulir: salinan DOM-nya di kaki kartu, seluruhnya di dalam lebar
+        # kartu (di ponsel kalimat di dalam svg terpotong 85,7 px).
+        "the_source_note_is_readable_as_dom_text": (week["dom_note"] or "").strip() == (week["note"] or "").strip(),
+        "the_dom_source_note_fits_the_card_width": week["boxes"]["dom_note"] is not None
+            and week["boxes"]["dom_note"]["right"] <= week["boxes"]["scroller"]["right"] + 1,
+        # Garis "Hari ini" ADA DI DALAM jendela penggulir pada gambar pertama.
+        "the_today_line_is_inside_the_visible_window": week["boxes"]["today"] is None or (
+            week["boxes"]["today"]["left"] >= week["boxes"]["scroller"]["left"] - 1
+            and week["boxes"]["today"]["right"] <= week["boxes"]["scroller"]["right"] + 1),
         "source_note_counts_the_matches": f"{expect['baseline_rows']} dari {expect['rows']} tugas cocok" in (week["note"] or ""),
         "legend_says_dependencies_are_not_drawn": any("Ketergantungan antar tugas tidak digambar" in f for f in week["foot"]),
         # 10. Cetak: lanskap sungguhan, dan gantt tidak terpotong.

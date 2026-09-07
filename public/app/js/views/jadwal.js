@@ -173,6 +173,7 @@ function paint(host, ctx) {
 
   const matched = rows.filter((row) => row.baselineStart || row.baselineEnd).length;
 
+  const note = sourceNote(baseline, fault, matched, rows.length);
   const chart = ganttChart({
     rows,
     zoom: state.zoom,
@@ -184,10 +185,10 @@ function paint(host, ctx) {
     // Catatan sumber ikut TERCETAK (ia di dalam svg), dan di kertas bilah zoom
     // sudah disembunyikan blok cetak — jadi kalimat inilah yang memberi tahu
     // pembaca kertasnya apa yang sedang ia lihat.
-    sourceNote: sourceNote(baseline, fault, matched, rows.length),
+    sourceNote: note,
   });
 
-  host.appendChild(el('.card.gantt-sheet', [
+  const sheet = el('.card.gantt-sheet', [
     el('.card-head', [
       // .card-head TIDAK disembunyikan blok cetak — inilah judul yang sampai
       // ke kertas, dan ia harus menyebut proyeknya.
@@ -231,6 +232,14 @@ function paint(host, ctx) {
     // ponsel; blok cetak P1-A sudah menjadikannya `overflow: visible`.
     el('.card-body', el('.chart-scroll', chart)),
     el('.card-body', { style: { borderTop: '1px solid var(--border)', paddingTop: '10px' } }, [
+      /* Salinan DOM kalimat sumber. Di ponsel kalimat yang di dalam svg berada
+         di luar jendela pada posisi gulir awal (diukur 390x844: ia membentang
+         37,4–444,7 px pada penggulir selebar 328 px, terpotong 85,7 px, dan
+         pembacanya melihatnya berhenti di tengah kata), dan aturan pencocokan
+         baseline adalah salah satu dari dua hal yang layar ini ada untuk
+         menyampaikannya. Di kertas salinan ini disembunyikan: yang tercetak
+         adalah kalimat di dalam svg. */
+      el('p.cell-sub.gantt-note-dom', { text: note, style: { margin: '0 0 6px' } }),
       el('p.cell-sub', {
         /* ROADMAP: "ketergantungan gantt ditunda ke Fase 2 (kolomnya tidak ada
            — impor MPP-XML mengabaikan PredecessorLink, legenda mengatakannya)."
@@ -280,7 +289,47 @@ function paint(host, ctx) {
         })
         : null,
     ]),
-  ]));
+  ]);
+
+  host.appendChild(sheet);
+  scrollTodayIntoView(sheet);
+}
+
+/**
+ * Gulir mendatar awal diletakkan pada garis "Hari ini", bukan pada nol.
+ *
+ * Diukur 390x844 pada PRJ-2026-001: penggulir selebar 328 px (isi 720 px),
+ * garis "Hari ini" di x=418,7 px — 59,7 px DI LUAR tepi kanan — dan labelnya
+ * 92,7 px di luar. Garis itu satu dari dua hal yang layar ini ada untuk
+ * menyampaikannya, dan pembaca ponsel tidak pernah melihatnya kecuali ia
+ * menebak bahwa gambarnya bisa digulir. Kedua syarat harness yang menutupinya
+ * hijau tanpa syarat: keduanya membaca atribut SVG, bukan layar.
+ *
+ * Kolom label ikut tergulir keluar (ia bagian dari svg yang sama) — karena itu
+ * kalimat sumber juga digambar sebagai paragraf DOM di kaki kartu, dan gulir
+ * hanya dilakukan bila garisnya memang di luar jendela.
+ */
+function scrollTodayIntoView(sheet) {
+  const scroller = sheet.querySelector('.chart-scroll');
+  const svg = scroller && scroller.querySelector('svg.chart-gantt');
+  const line = svg && svg.querySelector('line.gantt-today');
+
+  if (!line || typeof requestAnimationFrame !== 'function') return;
+
+  requestAnimationFrame(() => {
+    const width = svg.getBoundingClientRect().width;
+    const box = (svg.getAttribute('viewBox') || '').split(' ').map(Number);
+
+    if (!width || !box[2] || scroller.scrollWidth <= scroller.clientWidth) return;
+
+    const x = Number(line.getAttribute('x1')) * (width / box[2]);
+    const view = scroller.clientWidth;
+
+    // Sudah terlihat (dengan sedikit ruang di kedua sisi) → jangan diganggu.
+    if (x >= scroller.scrollLeft + 24 && x <= scroller.scrollLeft + view - 24) return;
+
+    scroller.scrollLeft = Math.max(0, Math.min(scroller.scrollWidth - view, x - view / 2));
+  });
 }
 
 /**

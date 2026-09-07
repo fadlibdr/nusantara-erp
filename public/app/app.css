@@ -1430,6 +1430,10 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   @page gantt { size: A4 landscape; margin: 8mm 8mm 10mm 8mm; }
   .gantt-sheet { page: gantt; break-inside: auto; }
   .gantt-sheet .filters { display: none !important; }
+  /* Kalimat sumber tercetak SEKALI: salinan DOM-nya ada untuk pembaca ponsel
+     (yang di dalam svg berada di luar jendela pada posisi gulir awal), di
+     kertas svg-nya utuh dan salinan kedua hanya mengulang. */
+  .gantt-sheet .gantt-note-dom { display: none !important; }
 }
 
 .bar-row { display: grid; grid-template-columns: minmax(110px, 26%) 1fr minmax(96px, auto); gap: 10px; align-items: center; padding: 6px 0; }
