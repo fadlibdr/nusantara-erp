@@ -745,3 +745,13 @@ sedang ia lihat. Diukur S26: PDF Chromium memberi halaman 792×612 pt (lanskap) 
 **Gerbang izin.** Ketiga GET layar proyek (`{project}/wbs-tasks`, `/s-curve`, `/dashboard`) menuntut
 `permission:prj.view`, sama dengan `{project}/evm` dan `projects/baselines`. Sampai P1-H gerbang itu
 hanya ada di app.js — separuh tab Jadwal dijaga server dan separuhnya tidak.
+
+**Pohon WBS punya SATU pintu**, `{project}/wbs-tasks`, dan itu bukan kerapian melainkan syarat
+gerbang di atas. `GET projects/{project}` dulu membawa salinan kedua pohon itu (`wbs_tasks` di
+`ProjectResource`) sementara rutenya sendiri berjalan di bawah `auth:sanctum` saja: diukur 7 Sep
+2026, peran tanpa satu pun izin `prj.*` (finance, teknisi, hr, procurement) mendapat 403 dari
+pintu yang bergerbang dan 200 di sana — lengkap dengan kode, uraian, bobot, tanggal rencana dan
+progres setiap paket. Salinan itu juga PENDEK (11 dari 13 baris pada pohon empat tingkat) dan
+tanpa kunci `children`. Muatan proyek karena itu tidak lagi membawa pohonnya sama sekali. Aturan
+umumnya: sebuah medan yang digerbangi di satu rute tidak boleh menumpang di rute lain yang tidak
+digerbangi — gerbang yang bisa diputari bukan gerbang.

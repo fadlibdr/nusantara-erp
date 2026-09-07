@@ -77,10 +77,16 @@ class ProjectController extends ApiController
         return $this->created(ProjectResource::make($project));
     }
 
+    /**
+     * Detail proyek — TANPA pohon WBS. Pohonnya dibaca dari
+     * `GET projects/{project}/wbs-tasks`, satu-satunya pintu yang merakitnya
+     * utuh (sedalam apa pun) dan satu-satunya yang bergerbang `prj.view`.
+     * Alasannya lengkap di ProjectResource, di tempat medannya dulu berada.
+     */
     public function show(Project $project): JsonResponse
     {
         return $this->ok(ProjectResource::make(
-            $project->load(['contract', 'customer', 'rootWbsTasks.children', 'milestones'])
+            $project->load(['contract', 'customer', 'milestones'])
         ));
     }
 
@@ -118,10 +124,9 @@ class ProjectController extends ApiController
             return $this->error($e->getMessage());
         }
 
-        return $this->ok(
-            ProjectResource::make($project->load('rootWbsTasks.children')),
-            'WBS generated from BOQ.'
-        );
+        // Muatan proyek tidak lagi membawa pohon WBS (lihat ProjectResource);
+        // layar memuat ulang pohonnya dari endpoint pohon sesudah ini.
+        return $this->ok(ProjectResource::make($project), 'WBS generated from BOQ.');
     }
 
     /**

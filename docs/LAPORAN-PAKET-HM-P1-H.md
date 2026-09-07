@@ -79,6 +79,17 @@ paket pekerjaan. **Separuh tab Jadwal dijaga server dan separuhnya tidak**, dan 
 membuat ketimpangan itu terlihat. Ketiganya kini `permission:prj.view`; gudang (yang memegangnya)
 ikut diuji tetap 200 supaya perbaikan ini tidak diam-diam mengunci orang yang membutuhkannya.
 
+**Putaran verifikasi menemukan gerbang itu bisa diputari** (7 Sep 2026): `GET projects/{project}`,
+tepat di atas ketiga rute yang baru digerbangi, tetap 200 untuk keempat peran tanpa `prj.*` —
+dan `ProjectResource` mengirim `wbs_tasks` di dalamnya, **persis daftar medan yang kalimat di atas
+sebut sebagai alasan gerbang itu dipasang**. Salinan kedua itu juga membawa dua cacat yang
+`df0bd21` tutup di pintu sebelah: pada proyek berpohon empat tingkat ia mengirim 11 dari 13 baris
+(B.3.1 dan B.3.1.1 hilang) dan setiap simpul tingkat satu dikirim tanpa kunci `children`. Medannya
+karena itu **dihapus**: pohon WBS kini punya satu pintu, yang utuh dan yang bergerbang. Tidak ada
+pembaca di SPA (grep `wbs_tasks` atas `public/app/js`: 0 hasil) dan tidak ada uji yang memakainya;
+`test_the_project_payload_carries_no_second_copy_of_the_wbs_tree` menjaganya. Rutenya SENDIRI
+tetap tanpa gerbang — itu bagian dari butir #10 di bawah, keputusan modul Projects.
+
 ## Invarian yang menopang seluruh layar
 
 **Baseline dicocokkan lewat `wbs_code`, tidak pernah lewat `wbs_task_id`** (CONVENTIONS §20).
@@ -198,7 +209,8 @@ console error, 0 permintaan gagal, formulir masuk tergambar.**
    luar SPA (skrip, integrasi), ia akan mulai menerima 403 tanpa peringatan.
 10. **29 GET Projects lain masih tanpa gerbang.** Dihitung 7 Sep 2026 di
     `Modules/Projects/Routes/api.php`: **44 GET, 15 bergerbang, 29 tidak** — termasuk
-    `GET projects/` (daftar seluruh proyek), `GET projects/{project}` (detail proyek), laporan
+    `GET projects/` (daftar seluruh proyek), `GET projects/{project}` (detail proyek — sejak
+    verifikasi 7 Sep 2026 tanpa muatan WBS, tetapi tetap tanpa gerbang), laporan
     harian, progres mingguan, milestone, BAST, punch list, insiden K3, register risiko, ketiga
     register izin, gate pass, dan penugasan personel. Paket ini hanya menutup **tiga** yang dipakai
     layar proyek, karena hanya ketiga itu yang tab Jadwal berdiri di atasnya. Sisanya adalah

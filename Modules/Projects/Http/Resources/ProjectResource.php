@@ -47,7 +47,29 @@ class ProjectResource extends JsonResource
             'planned_progress_pct' => $this->planned_progress_pct,
             'actual_progress_pct' => $this->actual_progress_pct,
             'deviation_pct' => $this->progressDeviation(),
-            'wbs_tasks' => WbsTaskResource::collection($this->whenLoaded('rootWbsTasks')),
+            // `wbs_tasks` SENGAJA TIDAK ADA DI SINI. Pohon WBS punya satu pintu,
+            // `GET projects/{project}/wbs-tasks`, dan pintu kedua yang dulu ada
+            // di muatan ini adalah pintu yang lebih buruk dalam dua hal
+            // sekaligus (diukur 7 Sep 2026 pada proyek berpohon empat tingkat,
+            // 13 baris tersimpan):
+            //
+            //   * ia MEMENDEKKAN jadwalnya — `rootWbsTasks.children` mengirim
+            //     11 dari 13 baris; B.3.1 dan B.3.1.1 hilang sepenuhnya,
+            //     kegagalan yang sama yang df0bd21 tutup di pintu sebelah, dan
+            //     setiap simpul tingkat satu dikirim TANPA kunci `children`
+            //     (termasuk B.3 yang justru punya anak), jadi "tidak punya
+            //     anak" dan "anaknya tidak dimuat" terlihat sama di klien;
+            //   * ia MEMBOCORKANNYA — rutenya (`GET projects/{project}`)
+            //     berjalan di bawah `auth:sanctum` saja, jadi peran tanpa satu
+            //     pun izin `prj.*` (diukur: finance, teknisi, hr, procurement)
+            //     mendapat 403 dari `{project}/wbs-tasks` sejak 4df5959 dan
+            //     tetap 200 di sini — lengkap dengan kode, uraian, bobot,
+            //     tanggal rencana dan progres setiap paket pekerjaan, yaitu
+            //     persis daftar medan yang gerbang itu dipasang untuk menutupi.
+            //
+            // Tidak ada satu pun pembaca di SPA (grep `wbs_tasks` atas
+            // public/app/js: 0 hasil) dan tidak ada satu pun uji yang
+            // memakainya; layar Ringkasan memuat pohonnya dari endpoint pohon.
             'milestones' => MilestoneResource::collection($this->whenLoaded('milestones')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

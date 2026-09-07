@@ -200,6 +200,45 @@ class JadwalGanttTest extends ErpTestCase
     }
 
     /**
+     * Pintu KEDUA ke pohon yang sama — `GET projects/{project}` — dulu membawa
+     * kedua cacat yang uji di atas menutup, di tempat yang tidak dilihat siapa
+     * pun: `rootWbsTasks.children` mengirim 11 dari 13 baris (B.3.1 dan
+     * B.3.1.1 hilang) dan setiap simpul tingkat satu dikirim TANPA kunci
+     * `children`, termasuk yang punya anak.
+     *
+     * Dan rutenya berjalan di bawah `auth:sanctum` saja: sesudah 4df5959 peran
+     * tanpa satu pun izin `prj.*` mendapat 403 dari `{project}/wbs-tasks` dan
+     * tetap 200 di sini, lengkap dengan kode, uraian, bobot, tanggal rencana
+     * dan progres setiap paket pekerjaan — persis daftar medan yang gerbang itu
+     * dipasang untuk menutupi. Muatan proyek karena itu tidak lagi membawa
+     * pohonnya sama sekali: satu pintu, yang utuh dan yang bergerbang.
+     */
+    public function test_the_project_payload_carries_no_second_copy_of_the_wbs_tree(): void
+    {
+        $b3 = $this->project->wbsTasks()->where('wbs_code', 'B.3')->firstOrFail();
+        $this->addTask('B.3.1', 'Pembesian lantai 1–4', $b3->id);
+
+        $payload = $this->actingAs($this->adminUser())
+            ->getJson("/api/projects/{$this->project->id}")->assertOk()->json('data');
+
+        $this->assertArrayNotHasKey('wbs_tasks', $payload);
+        $this->assertSame([], array_values(array_filter(
+            array_keys($payload),
+            fn (string $key): bool => str_contains($key, 'wbs'),
+        )), 'Muatan proyek membawa medan WBS lagi — pintu kedua ke pohon itu terbuka kembali.');
+
+        // Peran tanpa satu pun izin `prj.*` boleh membaca kepala proyeknya
+        // (29 GET Projects lain juga masih terbuka — keputusan modul Projects),
+        // tetapi tidak boleh lagi ikut membawa pulang seluruh WBS-nya.
+        $stranger = $this->userWithoutProjectAccess();
+        $leaked = $this->actingAs($stranger)
+            ->getJson("/api/projects/{$this->project->id}")->assertOk()->json('data');
+        $this->assertArrayNotHasKey('wbs_tasks', $leaked);
+        $this->actingAs($stranger)
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertForbidden();
+    }
+
+    /**
      * Tugas tanpa tanggal adalah keadaan yang sah (POST wbs-tasks menerima
      * keduanya null), dan gantt menggambarnya sebagai bar terbuka / baris
      * "tanpa tanggal". Yang tidak boleh dilakukan server adalah menambalnya
