@@ -308,6 +308,38 @@ class JadwalGanttTest extends ErpTestCase
 
     // ------------------------------------------------------------- gerbang
 
+    /**
+     * Gerbang layar Jadwal ada di app.js (`session.can('prj.view')`), dan sampai
+     * paket ini gerbang itu HANYA di peramban: GET
+     * `projects/{project}/wbs-tasks` berjalan di bawah `auth:sanctum` saja, jadi
+     * siapa pun yang punya token bisa membaca seluruh WBS setiap proyek — kode,
+     * uraian, bobot, tanggal rencana dan progres — dengan satu permintaan.
+     * `projects/baselines` di sebelahnya sudah menuntut `prj.view`, jadi
+     * separuh jadwalnya dijaga dan separuhnya tidak.
+     *
+     * Peran demo `finance` dipakai sebagai penguji: RoleSeeder tidak memberinya
+     * satu pun izin `prj.*`.
+     */
+    public function test_the_two_endpoints_the_schedule_reads_both_demand_prj_view(): void
+    {
+        $stranger = $this->userWithoutProjectAccess();
+
+        $this->actingAs($stranger)
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertForbidden();
+        $this->actingAs($stranger)
+            ->getJson("/api/projects/baselines?project_id={$this->project->id}&current=1&per_page=1")
+            ->assertForbidden();
+
+        // Dua tetangga di layar yang sama, dan lubang yang sama.
+        $this->actingAs($stranger)->getJson("/api/projects/{$this->project->id}/s-curve")->assertForbidden();
+        $this->actingAs($stranger)->getJson("/api/projects/{$this->project->id}/dashboard")->assertForbidden();
+
+        // Gudang MEMEGANG prj.view (RoleSeeder), dan tidak boleh ikut terkunci.
+        $storeman = $this->userWith('prj.view', 'Gudang');
+        $this->actingAs($storeman)
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk();
+    }
+
     // ------------------------------------------------------ pin SPA ↔ server
 
     /**
