@@ -22,8 +22,23 @@ class BaselineTaskResource extends JsonResource
             // A missing live task is the "scope removed after freezing" case,
             // not an error — the screen shows it struck through rather than
             // dropping the row and quietly shrinking the frozen plan.
-            'live_exists' => $this->whenLoaded('liveTask', fn (): bool => $this->liveTask !== null),
-            'live_progress_pct' => $this->whenLoaded('liveTask', fn () => $this->liveTask?->progress_pct),
+            //
+            // `when(relationLoaded)`, NOT `whenLoaded`: whenLoaded() returns
+            // null WITHOUT calling the closure when the relation is loaded but
+            // empty, so live_exists was `null` — never `false` — for exactly
+            // the rows it exists to flag. evm.js:1145 tests
+            // `task.live_exists === false`, so the struck-through "tugas
+            // dihapus" row has never once been drawn, and this docblock
+            // promised a safety it did not provide. Every frozen row on the
+            // shipped demo file is such a row (11 of 11 wbs_task_id dangle).
+            'live_exists' => $this->when(
+                $this->resource->relationLoaded('liveTask'),
+                fn (): bool => $this->liveTask !== null,
+            ),
+            'live_progress_pct' => $this->when(
+                $this->resource->relationLoaded('liveTask'),
+                fn () => $this->liveTask?->progress_pct,
+            ),
         ];
     }
 }

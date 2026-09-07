@@ -216,6 +216,36 @@ class JadwalGanttTest extends ErpTestCase
     // -------------------------------------------- baseline yang tak lengkap
 
     /**
+     * Baris beku yang tugas hidupnya sudah tidak ada = lingkup yang DIHAPUS
+     * sesudah rencana disepakati, dan itulah satu hal paling penting yang bisa
+     * dilaporkan sebuah laporan deviasi. Baris itu harus tetap ikut, dan harus
+     * MENGATAKAN dirinya hilang.
+     *
+     * `live_exists` dulu `null` untuk baris itu, bukan `false` — Laravel
+     * memulangkan null tanpa memanggil closure `whenLoaded` ketika relasinya
+     * dimuat TETAPI kosong. evm.js:1145 menguji `task.live_exists === false`,
+     * jadi coretan "tugas dihapus" tidak pernah tergambar sekali pun, dan
+     * docblock resource-nya menjanjikan keselamatan yang tidak diberikannya.
+     */
+    public function test_a_frozen_row_whose_live_task_is_gone_says_so_with_false_not_null(): void
+    {
+        $baseline = $this->freeze();
+        $this->project->wbsTasks()->where('wbs_code', 'C.2')->delete();
+
+        $tasks = collect($this->actingAs($this->adminUser())
+            ->getJson("/api/projects/baselines/{$baseline->id}")->assertOk()->json('data.tasks'));
+
+        $gone = $tasks->firstWhere('wbs_code', 'C.2');
+        $this->assertNotNull($gone, 'Baris beku ikut hilang bersama tugasnya — bukti deviasinya terhapus.');
+        $this->assertFalse($gone['live_exists']);
+        $this->assertNull($gone['live_progress_pct']);
+
+        $alive = $tasks->firstWhere('wbs_code', 'B.3');
+        $this->assertTrue($alive['live_exists']);
+        $this->assertSame('60.0000', $alive['live_progress_pct']);
+    }
+
+    /**
      * Baseline yang belum ada bukan galat: proyek yang belum dibekukan tetap
      * punya jadwal, dan yang hilang hanya bar pembandingnya. Endpoint yang
      * dipanggil layar harus memulangkan daftar KOSONG dengan 200 — jadwal.js
