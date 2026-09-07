@@ -4,11 +4,11 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
+use Tests\Support\FixtureSchema;
 
 /**
  * Endpoint Laporan Bebas dari luar (Fase 1 / P1-F).
@@ -129,11 +129,11 @@ class ReportEndpointTest extends ErpTestCase
     {
         $this->actingAs($this->userWith('finance', ['fin.view']), 'sanctum');
 
-        Schema::drop('fin_project_costs');
-
-        $this->postJson('/api/core/reports/run', $this->definition())
-            ->assertStatus(422)
-            ->assertJsonPath('message', fn ($m) => str_contains((string) $m, 'belum terpasang'));
+        FixtureSchema::withMissingTable('fin_project_costs', function () {
+            $this->postJson('/api/core/reports/run', $this->definition())
+                ->assertStatus(422)
+                ->assertJsonPath('message', fn ($m) => str_contains((string) $m, 'belum terpasang'));
+        });
     }
 
     /**

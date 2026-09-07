@@ -81,6 +81,38 @@ final class FixtureSchema
         }
     }
 
+    /**
+     * Menjalankan $body dengan $table SEOLAH BELUM TERPASANG, lalu
+     * mengembalikannya — untuk menguji jalur "tabel modulnya belum ada".
+     *
+     * `Schema::drop()` langsung adalah jebakan yang sama dengan yang dijelaskan
+     * di kepala berkas ini, dari arah sebaliknya. Di SQLite drop itu ikut
+     * transaksi tes dan lenyap saat rollback, jadi tidak ada yang terlihat. Di
+     * MySQL ia COMMIT IMPLISIT: tabelnya hilang UNTUK SETERUSNYA di proses itu,
+     * dan tes-tes berikutnya menabraknya. Diukur pada gerbang rilis
+     * 0937dec (7 Sep 2026): `Schema::drop('ast_assets')` di satu tes ekspor
+     * menjatuhkan 22 tes Finance sesudahnya — seluruh gugus PeriodClose gagal
+     * dengan "penyusutan bulan ini belum ada", sebuah peringatan tutup buku
+     * yang membaca ast_assets — sementara tes yang menjatuhkannya sendiri hijau,
+     * dan hijau juga bila dijalankan sendirian. Suite SQLite tidak pernah
+     * memperlihatkannya.
+     *
+     * Ganti nama, bukan hapus: barisnya ikut pindah dan kembali utuh, jadi tes
+     * berikutnya menemukan tabel DAN datanya seperti semula.
+     */
+    public static function withMissingTable(string $table, Closure $body): void
+    {
+        $parked = $table.'__parked';
+
+        Schema::rename($table, $parked);
+
+        try {
+            $body();
+        } finally {
+            Schema::rename($parked, $table);
+        }
+    }
+
     public static function isTransactionalDdl(): bool
     {
         return DB::getDriverName() === 'sqlite';

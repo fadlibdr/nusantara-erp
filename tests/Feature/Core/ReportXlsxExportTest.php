@@ -4,7 +4,6 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Modules\Core\Models\SavedReport;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\SpaEnums;
@@ -15,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
+use Tests\Support\FixtureSchema;
 
 /**
  * Berkas XLSX laporan bebas (Fase 1 / P1-F).
@@ -210,16 +210,19 @@ class ReportXlsxExportTest extends ErpTestCase
         $this->actingAs($user, 'sanctum');
         $this->get("/api/core/reports/saved/{$report->id}/xlsx")->assertOk();
 
-        Schema::drop('ast_assets');
+        FixtureSchema::withMissingTable('ast_assets', function () use ($report) {
+            ReportableResources::flushSchemaMemo();
+
+            $response = $this->get("/api/core/reports/saved/{$report->id}/xlsx")->assertStatus(422);
+
+            $this->assertStringContainsString('belum terpasang', (string) $response->json('message'));
+            // Dan tidak sepatah kata pun SQL: pesan galat driver menyebut lintasan
+            // berkas basis data, yang bukan milik siapa pun di sisi ini.
+            $this->assertStringNotContainsString('SQLSTATE', (string) $response->json('message'));
+            $this->assertStringNotContainsString('select', (string) $response->json('message'));
+        });
+
         ReportableResources::flushSchemaMemo();
-
-        $response = $this->get("/api/core/reports/saved/{$report->id}/xlsx")->assertStatus(422);
-
-        $this->assertStringContainsString('belum terpasang', (string) $response->json('message'));
-        // Dan tidak sepatah kata pun SQL: pesan galat driver menyebut lintasan
-        // berkas basis data, yang bukan milik siapa pun di sisi ini.
-        $this->assertStringNotContainsString('SQLSTATE', (string) $response->json('message'));
-        $this->assertStringNotContainsString('select', (string) $response->json('message'));
     }
 
     /**
