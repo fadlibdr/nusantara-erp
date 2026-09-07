@@ -110,7 +110,9 @@ export async function renderList(host, { key, def }) {
     el('div', [el('h1', { text: def.label }), def.description ? el('.desc', { text: def.description }) : null]),
     el('.actions', [
       ...(def.collectionActions || [])
-        .filter((action) => session.can(action.perm))
+        // canAct(): lihat session.canAct — aksi koleksi tidak pernah berbentuk
+        // pintu keputusan dokumen, jadi ia menjawab sama dengan can().
+        .filter((action) => session.canAct(action))
         .map((action) => button(action.label, {
           onClick: async (event) => {
             await runAction(action, null, def, { trigger: event.currentTarget, onDone: load });

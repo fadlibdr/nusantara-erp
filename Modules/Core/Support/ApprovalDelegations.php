@@ -150,6 +150,76 @@ final class ApprovalDelegations
     }
 
     /**
+     * KEMAMPUAN YANG SEDANG DIPINJAM ORANG INI, dan dari siapa.
+     *
+     * Ini jawaban yang sama dengan grants(), dibalik: bukan "boleh tidak
+     * ability X?" melainkan "X apa saja yang terbuka karena sebuah delegasi?".
+     * Ia ada karena sesi peramban tidak dapat menanyakan yang pertama —
+     * GET /api/iam/auth/me mengirim getAllPermissions() milik Spatie, yang
+     * TIDAK melewati Gate::before, jadi sebuah hak pinjaman tidak pernah sampai
+     * ke layar dan seorang delegat murni tidak melihat satu pun tombol Setujui
+     * (diukur di Chromium 7 Sep 2026: finance@nusantara.test dengan delegasi
+     * penuh melihat ['Cetak'] pada dokumen yang admin lihat sebagai
+     * ['Cetak','Setujui','Tolak']).
+     *
+     * DIKIRIM TERPISAH DARI `permissions`, TIDAK DILEBURKAN KE DALAMNYA. Daftar
+     * itu menjawab "apa yang DIPEGANG orang ini", dan layar Matriks Persetujuan
+     * bergantung pada jawaban itu tetap benar: menyunting ambang menuntut
+     * <awalan>.approve-director yang DIPEGANG SENDIRI (holdsNatively), karena
+     * sebuah delegasi meminjamkan hak menyetujui dokumen dan bukan hak menulis
+     * ulang apa arti menyetujui.
+     *
+     * YANG SUDAH DIPEGANG SENDIRI TIDAK DIHITUNG PINJAMAN — aturan yang sama
+     * persis dengan actingForId(), supaya tombol dan jejak tidak berbeda
+     * pendapat tentang kapan sebuah persetujuan berbunyi "a.n.".
+     *
+     * TANPA MEMANDANG RUTE, seperti grants(): honouredOnThisRequest() adalah
+     * penjaga di pintu, dan pemakainya (layar) harus menerapkan bentuk yang
+     * sama — hanya pintu keputusan dokumen.
+     *
+     * @return array<string, list<string>> ability => nama pemberi, urut ability
+     */
+    public static function lentAbilitiesFor(User $delegate): array
+    {
+        $lent = [];
+
+        foreach (self::activeFor($delegate) as $delegation) {
+            $scope = $delegation['scope'] === null ? null : (string) $delegation['scope'];
+            $prefixes = $scope === null ? self::approvablePrefixes() : [$scope];
+            $giverId = (int) $delegation['giver_user_id'];
+
+            foreach ($prefixes as $prefix) {
+                foreach (["{$prefix}.approve", "{$prefix}.approve-director"] as $ability) {
+                    // Lingkup yang menyebut awalan yang tidak dimiliki modul
+                    // mana pun tidak meminjamkan apa pun — pemeriksaan yang
+                    // sama dengan grants().
+                    if (self::prefixOf($ability) === null) {
+                        continue;
+                    }
+
+                    if (self::holdsNatively($delegate, $ability)) {
+                        continue;
+                    }
+
+                    if (! self::giverHoldsNatively($giverId, $ability)) {
+                        continue;
+                    }
+
+                    $name = self::giver($giverId)?->name ?? "pengguna #{$giverId}";
+
+                    if (! in_array($name, $lent[$ability] ?? [], true)) {
+                        $lent[$ability][] = $name;
+                    }
+                }
+            }
+        }
+
+        ksort($lent);
+
+        return $lent;
+    }
+
+    /**
      * Pemberi yang haknya dipakai baris persetujuan ini, atau null.
      *
      * "a.n." dicap HANYA ketika delegasinya yang membuat persetujuan itu

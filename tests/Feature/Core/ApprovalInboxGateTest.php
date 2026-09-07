@@ -28,6 +28,16 @@ use Tests\ErpTestCase;
  *  - schema.js (tautan), katalog widget P1-D (permintaan + kartu, satu
  *    gerbang) dan api.js (session.can memanggil predikat fungsi) masih memakai
  *    predikat itu.
+ *
+ * PUTARAN KEDUA VERIFIKASI F-1 menambahkan sisi keempat, dan ia adalah sisi
+ * yang paling lama salah: gerbang klien membaca `user.permissions` dari
+ * auth/me — getAllPermissions() milik Spatie, yang TIDAK melewati Gate::before
+ * — jadi hak yang dipinjamkan sebuah delegasi tidak pernah sampai ke layar.
+ * Seorang delegat murni karena itu tidak melihat tautan Tugas Saya dan tidak
+ * melihat satu pun tombol Setujui, sementara ApprovalQueue::pending memanggil
+ * grants() dan mengisi kotak masuknya. Yang dipaku di bawah adalah bahwa
+ * kedua sisi kini memakai bentuk yang sama — hak pinjaman dihitung, TETAPI
+ * hanya di pintu keputusan dokumen.
  */
 class ApprovalInboxGateTest extends ErpTestCase
 {
@@ -65,9 +75,11 @@ class ApprovalInboxGateTest extends ErpTestCase
     {
         $schema = $this->spa('schema.js');
         $this->assertStringContainsString(
-            "export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve'));",
+            'export const ANY_APPROVE = (held, lent = []) => '
+                ."held.some((one) => one.endsWith('.approve')) || lent.length > 0;",
             $schema,
-            'ANY_APPROVE harus mencerminkan penyaring ApprovalQueue::pending ("<awalan>.approve"), tanpa .approve-director.',
+            'ANY_APPROVE harus mencerminkan penyaring ApprovalQueue::pending: "<awalan>.approve" yang '
+                .'DIPEGANG atau yang DIPINJAM sebuah delegasi (grants()), tanpa .approve-director.',
         );
         $this->assertStringContainsString("{ label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }", $schema);
 
@@ -109,10 +121,39 @@ class ApprovalInboxGateTest extends ErpTestCase
             'dashboard.js menyebut core/inbox lagi; permintaan itu milik widget-nya, di balik gerbang katalog.',
         );
 
+        $api = $this->spa('api.js');
         $this->assertStringContainsString(
-            "if (typeof permission === 'function') return permission(held);",
-            $this->spa('api.js'),
-            'session.can harus memanggil predikat fungsi dengan daftar izin; tanpa itu visibleNav menyembunyikan Tugas Saya dari semua orang.',
+            "if (typeof permission === 'function') return permission(held, lent);",
+            $api,
+            'session.can harus memanggil predikat fungsi dengan daftar izin YANG DIPEGANG dan YANG DIPINJAM; '
+                .'tanpa argumen kedua, seorang delegat murni tidak mendapat tautan Tugas Saya sama sekali.',
+        );
+
+        /*
+         * DAN HANYA DI PINTU KEPUTUSAN DOKUMEN — bentuk yang sama dengan
+         * ApprovalDelegations::DECISION_ROUTE di server.
+         *
+         * Gerbang klien yang meleburkan hak pinjaman ke dalam setiap
+         * pemeriksaan izin akan menggambar tombol yang dijawab 403: izin
+         * `<awalan>.approve` yang sama juga menggerbangi posting jurnal manual,
+         * membuka kembali periode fiskal, mengaktifkan kontrak, menutup insiden
+         * K3 dan menstempel submittal (15 rute, diukur 7 Sep 2026).
+         */
+        $this->assertStringContainsString(
+            "/\\{id\\}\\/(approve|reject)\$/.test(String(action.path || ''))",
+            $api,
+            'session.isDecisionDoor harus mengenali pintu keputusan dari BENTUK jalurnya, sama seperti server.',
+        );
+        $this->assertStringContainsString(
+            'return this.can(action.perm, this.isDecisionDoor(action));',
+            $api,
+            'session.canAct harus memberi hak pinjaman HANYA di pintu keputusan dokumen.',
+        );
+        $this->assertStringContainsString(
+            '.filter((action) => session.canAct(action))',
+            $this->spa('views/actions.js'),
+            'Bilah aksi layar dokumen harus memakai canAct(); dengan can(action.perm) seorang delegat tidak '
+                .'pernah melihat tombol Setujui, dan dengan can(perm, true) ia melihat sebelas tombol yang bukan haknya.',
         );
     }
 

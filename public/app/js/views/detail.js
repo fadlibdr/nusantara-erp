@@ -473,7 +473,7 @@ function linesTable(rows, table, record) {
    * and the alternative was typing a raw database id into the invoice form —
    * where a typo bills the wrong termin and nothing catches it.
    */
-  const action = table.rowAction && session.can(table.rowAction.perm) ? table.rowAction : null;
+  const action = table.rowAction && session.canAct(table.rowAction) ? table.rowAction : null;
 
   /* Kolom bertanda hideOnNarrow disembunyikan per sel — th, td, DAN sel tfoot,
      supaya jumlah sel tiap baris tetap segaris di bawah 760px. Aturan CSS-nya

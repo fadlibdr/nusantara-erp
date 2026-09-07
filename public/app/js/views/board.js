@@ -358,7 +358,9 @@ function refuse(ctx, row, fromStatus, toStatus) {
     return `${what} tidak bisa dipindah ke ${label(toStatus)}: aksi itu membuka layar lain, bukan memindahkan dokumen.`;
   }
 
-  if (!session.can(action.perm)) {
+  // canAct(): hak pinjaman sebuah delegasi hanya berlaku di pintu keputusan
+  // dokumen — perpindahan papan yang lain memakai izin yang dipegang sendiri.
+  if (!session.canAct(action)) {
     return `${what} tidak bisa dipindah ke ${label(toStatus)}: aksi ${action.label} tidak tersedia untuk Anda.`;
   }
 

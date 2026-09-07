@@ -5795,8 +5795,20 @@ export const RESOURCES = {
  * mendapat kotak kosong. Dipakai lewat session.can(ANY_APPROVE), yang
  * memanggil fungsi ini dengan daftar izin yang dipegang; satu predikat untuk
  * sidebar, sumber "Layar" di Ctrl+K, dan dasbor.
+ *
+ * ARGUMEN KEDUA ADALAH HAK PINJAMAN (F-1 putaran 2), dan tanpanya gerbang ini
+ * menutup pintu tepat di depan orang yang fitur delegasi ada untuknya: seorang
+ * delegat murni tidak memegang satu pun `.approve` sendiri, jadi ia tidak
+ * mendapat tautan "Tugas Saya" — sementara kotak masuk di baliknya berisi
+ * dokumen yang server izinkan ia putuskan (diukur 7 Sep 2026 pada
+ * finance@nusantara.test: bilah samping tanpa "Tugas Saya", dasbor tanpa kata
+ * "persetujuan", kotak masuk dengan 2 baris). PANJANGNYA saja yang diperiksa,
+ * bukan bentuknya: satu-satunya ability yang pernah dipinjamkan sebuah delegasi
+ * adalah `<awalan>.approve` dan `<awalan>.approve-director`
+ * (ApprovalDelegations::ABILITY), jadi daftar pinjaman yang tidak kosong berarti
+ * ADA yang bisa ia putuskan.
  */
-export const ANY_APPROVE = (held) => held.some((one) => one.endsWith('.approve'));
+export const ANY_APPROVE = (held, lent = []) => held.some((one) => one.endsWith('.approve')) || lent.length > 0;
 
 /** Sidebar structure. Each entry is gated by the module's `.view` permission. */
 /*

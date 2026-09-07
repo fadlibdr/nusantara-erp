@@ -43,18 +43,52 @@ export const session = {
     localStorage.removeItem(USER_KEY);
   },
   /** An array means "any of these" — a screen several modules can reach.
-      A function is asked with the list held — a screen gated by the SHAPE of
-      a permission rather than a name (Tugas Saya and the approvals card: any
-      `<module>.approve`, schema.js ANY_APPROVE, T2.11). */
-  can(permission) {
+      A function is asked with the list held AND the list LENT — a screen gated
+      by the SHAPE of a permission rather than a name (Tugas Saya and the
+      approvals card: any `<module>.approve`, schema.js ANY_APPROVE, T2.11).
+
+      `borrowed` (F-1 putaran 2): hitung juga hak yang DIPINJAMKAN sebuah
+      delegasi (`delegated_permissions` dari auth/me). Bawaannya false, dan itu
+      bukan kehati-hatian berlebih — server hanya menghormati hak pinjaman di
+      PINTU KEPUTUSAN DOKUMEN (ApprovalDelegations::honouredOnThisRequest),
+      sedangkan `<awalan>.approve` yang sama juga menggerbangi memposting jurnal
+      manual, MEMBUKA KEMBALI PERIODE FISKAL, mengaktifkan kontrak, menutup
+      insiden K3 dan menstempel submittal. Melebarkannya di mana-mana berarti
+      menggambar tombol yang dijawab 403. Lihat canAct(). */
+  can(permission, borrowed = false) {
     if (!permission) return true;
     const user = this.user;
     if (!user) return false;
     const held = user.permissions || [];
-    if (typeof permission === 'function') return permission(held);
+    const lent = Object.keys(user.delegated_permissions || {});
+    if (typeof permission === 'function') return permission(held, lent);
+    const list = borrowed && lent.length ? held.concat(lent) : held;
     return Array.isArray(permission)
-      ? permission.some((one) => held.includes(one))
-      : held.includes(permission);
+      ? permission.some((one) => list.includes(one))
+      : list.includes(permission);
+  },
+  /** Pintu keputusan dokumen: POST …/{id}/approve atau …/{id}/reject. Bentuk
+      yang SAMA dengan DECISION_ROUTE di server, dan diturunkan dari bentuk
+      jalurnya — bukan dari daftar aksi, supaya aksi ke-16 yang menuntut
+      `fin.approve` besok tertutup secara bawaan, bukan terbuka. */
+  isDecisionDoor(action) {
+    return Boolean(action)
+      && String(action.method || '').toUpperCase() === 'POST'
+      && /\{id\}\/(approve|reject)$/.test(String(action.path || ''));
+  },
+  /** Boleh menjalankan AKSI ini? can(action.perm), ditambah hak pinjaman —
+      hanya di pintu keputusan dokumen. */
+  canAct(action) {
+    if (!action) return true;
+    return this.can(action.perm, this.isDecisionDoor(action));
+  },
+  /** Nama pemberi yang MEMINJAMKAN ability ini, atau null bila ia hak sendiri.
+      Aturannya sama dengan ApprovalDelegations::actingForId: sebuah izin yang
+      dipegang sendiri tidak pernah tercatat di sini, jadi tombolnya tidak
+      pernah berkata "a.n." untuk persetujuan yang memakai hak si penekan. */
+  lentBy(permission) {
+    const names = ((this.user || {}).delegated_permissions || {})[permission];
+    return Array.isArray(names) && names.length ? names : null;
   },
   hasRole(role) {
     return ((this.user || {}).roles || []).includes(role);
