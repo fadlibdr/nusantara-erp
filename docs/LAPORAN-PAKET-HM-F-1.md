@@ -253,7 +253,7 @@ detik — "tidak ada laporan" untuk laporan yang ada adalah bukti yang berbohong
 | "results-phase-2.json **BARU**" | **digabung** ke berkas yang sudah ada | berkas itu sudah memuat 8 skenario era ROADMAP-DEVIASI; menimpanya berarti menghapus bukti. Digabung per kunci — tidak satu pun ditimpa |
 | mode `extra_level` untuk PO/SPK | **tidak ditawarkan** | ROADMAP juga berkata gerbang lama tidak dimigrasikan; menawarkan mode yang tidak ada penegaknya = layar yang berbohong |
 
-## Tinjauan sendiri — dua temuan, keduanya ditutup di `beb7e32`
+## Tinjauan sendiri — tiga temuan (dua ditutup di `beb7e32`, satu di `HEAD`), plus satu yang bukan milik paket ini
 
 Bukan pengganti verifikasi adversarial ganda (§ Yang BELUM diverifikasi #1), tetapi dua hal yang
 ditemukan dengan membaca kembali diff-nya sendiri sesudah semuanya hijau.
@@ -273,7 +273,22 @@ delegasi). Dipaku `test_a_delegated_director_right_does_not_unlock_the_matrix`, 
 menegaskan haknya memang dipinjam (delegat BISA menyetujui) sebelum menuntut matriksnya tetap
 tertutup.
 
-**2. Dua kueri yang berulang di tiap pemeriksaan izin.** `Gate::before` berjalan pada SETIAP
+**2. PO dan SPK tergambar DUA KALI di layar Pengaturan.**
+`approvals.purchase_order.threshold_two_level` dan `approvals.subcontract.threshold_two_level`
+adalah dua field yang sudah ada di kelompok "Proyek & Persetujuan" — dan matriks membawa BARIS untuk
+keduanya, dengan kunci yang sama persis. Hasilnya dua kontrol untuk satu ambang uang di satu layar:
+seorang operator dapat mengetik dua angka berbeda dan Simpan memilih salah satunya tanpa memberi
+tahu siapa pun. Field lamanya dihapus; matriks adalah satu-satunya tempat ambang per jenis dokumen
+disunting. (Dua kunci `approvals.*` yang tersisa di kelompok itu — umur antrean dan pemisahan tugas
+— memang bukan aturan per jenis dokumen dan tetap di sana.) Layar Pengaturan turun dari 148 menjadi
+**146 baris**.
+
+**Ditemukan tetapi TIDAK diperbaiki, karena bukan milik paket ini:** `cashflow.termin_collection_days`
+juga tergambar dua kali, di kelompok "PPh Final Jasa Konstruksi" DAN "Proyeksi Arus Kas". Itu sudah
+begitu sebelum F-1; memindahkannya berarti menyunting kelompok yang tidak ada hubungannya dengan
+paket ini. Dicatat di sini supaya paket berikutnya yang menyentuh Pengaturan tahu.
+
+**3. Dua kueri yang berulang di tiap pemeriksaan izin.** `Gate::before` berjalan pada SETIAP
 pemeriksaan izin dan satu permintaan memeriksa izin puluhan kali. Baris delegasinya sudah dimemo per
 unit kerja — tetapi pencarian PEMBERINYA (satu `SELECT users` per baris per pemeriksaan) tidak, jadi
 memo itu hanya memindahkan kuerinya. Dan
@@ -310,7 +325,13 @@ dilaporkan di § Gerbang di bawah berasal dari putaran yang dijalankan **sesudah
 7. **Tidak diuji lewat peramban: penolakan setujui massal di tengah antrean.** Kodenya melanjutkan
    dan menamai yang gagal; S28 hanya menjalankan dua dokumen yang keduanya berhasil.
 8. **Tidak dijalankan di erp1.** Paket ini belum menyentuh produksi.
-9. **Seeder demo tidak menambahkan satu pun delegasi.** Layar Delegasi Persetujuan pada dataset demo
+9. **Tidak diputuskan: apakah delegat boleh mengisi tingkat KEDUA sebuah jenjang yang tingkat
+   pertamanya diisi pemberinya sendiri.** Hari ini boleh — `ApprovalLevels` menghitung penyetuju
+   BERBEDA menurut `user_id`, dan Budi memang orang lain yang benar-benar melihat dokumennya.
+   Bacaan yang lebih ketat ("hak yang dipakai sama, jadi bukan mata kedua") akan menolaknya. Yang
+   sudah pasti tertutup adalah kasus terburuknya: delegat tidak pernah boleh menyetujui dokumen
+   yang DIAJUKAN pemberinya.
+10. **Seeder demo tidak menambahkan satu pun delegasi.** Layar Delegasi Persetujuan pada dataset demo
    kosong sampai seseorang membuat satu — itu jujur, tetapi berarti tidak ada contoh yang bisa
    dilihat pemilik tanpa mengetik.
 

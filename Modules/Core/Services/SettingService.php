@@ -307,16 +307,22 @@ class SettingService
                             .'mencetak aturan ambang ini apa adanya, jadi mengubah angka di sini mengubah '
                             .'kalimat yang dibaca pengawas lapangan.',
                     ],
-                    [
-                        'key' => 'approvals.purchase_order.threshold_two_level',
-                        'label' => 'PO wajib persetujuan direktur di atas',
-                        'type' => 'currency',
-                    ],
-                    [
-                        'key' => 'approvals.subcontract.threshold_two_level',
-                        'label' => 'SPK wajib persetujuan direktur di atas',
-                        'type' => 'currency',
-                    ],
+                    /*
+                     * PINDAH KE KELOMPOK "Matriks Persetujuan" (F-1).
+                     *
+                     * approvals.purchase_order.threshold_two_level dan
+                     * approvals.subcontract.threshold_two_level dulu dua field
+                     * di sini. Matriks membawa BARIS untuk keduanya, dengan
+                     * kunci yang sama persis — dan sebuah kunci yang punya DUA
+                     * kontrol di satu layar adalah layar yang bisa menyimpan
+                     * dua nilai berbeda untuk satu ambang uang, lalu memilih
+                     * salah satunya tanpa memberi tahu siapa pun. Satu kunci,
+                     * satu kontrol.
+                     *
+                     * Dua kunci approvals.* di bawah TETAP di sini: keduanya
+                     * bukan aturan per jenis dokumen — umur antrean dan
+                     * pemisahan tugas berlaku untuk semuanya sekaligus.
+                     */
                     [
                         'key' => 'approvals.aging_days',
                         'label' => 'Ingatkan penyetuju setelah (hari)',
