@@ -80,18 +80,23 @@ function paintPortfolio(body, payload) {
     return;
   }
 
-  const count = (key) => rows.filter((row) => row.state === key).length;
+  /* DIHITUNG PER SISI (verifikasi F-2). row.state adalah keadaan TOTAL, dan
+     gerbang tidak pernah menghakimi total: sebuah proyek yang totalnya 16,7 %
+     terpakai bisa punya sisi PO yang sudah habis, dan ubin "Melampaui anggaran
+     0" di atas baris seperti itu adalah alarm yang mati. row.worst_state
+     adalah sisi yang paling dekat ke batasnya. */
+  const count = (key) => rows.filter((row) => row.worst_state === key).length;
 
   body.appendChild(el('.stat-row', [
     el('.stat', [
       el('.label', { text: 'Melampaui anggaran' }),
       el('.value.sm', { text: String(count('lampau')), style: count('lampau') ? { color: 'var(--danger)' } : {} }),
-      el('.delta.down', { text: 'realisasi + komitmen ≥ RAP' }),
+      el('.delta.down', { text: 'sisi PO atau SPK sudah habis' }),
     ]),
     el('.stat', [
       el('.label', { text: 'Mendekati anggaran' }),
       el('.value.sm', { text: String(count('mendekati')) }),
-      el('.delta', { text: `≥ ${fmt.percent(rows[0].warn_pct, { decimals: 0 })} terpakai` }),
+      el('.delta', { text: `≥ ${fmt.percent(rows[0].warn_pct, { decimals: 0 })} pada satu sisi` }),
     ]),
     el('.stat', [
       el('.label', { text: 'Tanpa RAP disetujui' }),
@@ -107,8 +112,10 @@ function paintPortfolio(body, payload) {
     ]),
     el('.card-body', el('p.help', {
       text: 'Angka pada tabel ini adalah angka yang dibaca gerbang anggaran saat PO atau SPK diajukan: '
-        + 'sisa = RAP − realisasi − komitmen berjalan. Kolom "Sisa" adalah DPP terbesar yang masih '
-        + 'diterima tanpa konfirmasi pelampauan.',
+        + 'sisa = RAP − realisasi − komitmen berjalan. Gerbang menghakimi PER SISI — sebuah PO diukur '
+        + 'terhadap sisa non-subkon dan sebuah SPK terhadap sisa subkon — jadi DPP terbesar yang masih '
+        + 'diterima tanpa konfirmasi pelampauan adalah angka PO/SPK di bawah kolom "Sisa", bukan sisa '
+        + 'totalnya. Kolom "Terpakai" dan "Keadaan" menyebut sisi yang paling dekat ke batasnya.',
     })),
     el('.table-wrap', el('table.data', [
       el('thead', el('tr', [
@@ -123,7 +130,8 @@ function paintPortfolio(body, payload) {
         el('th', { text: '' }),
       ])),
       el('tbody', rows.map((row) => {
-        const [label, tone] = STATE[row.state] || [row.state, ''];
+        const [label, tone] = STATE[row.worst_state] || [row.worst_state, ''];
+        const worst = row.worst_side ? row.sides[row.worst_side] : null;
 
         return el('tr', [
           el('td', [
@@ -149,8 +157,11 @@ function paintPortfolio(body, payload) {
                 text: `PO ${fmt.rupiahShort(row.remaining_non_subcon)} · SPK ${fmt.rupiahShort(row.remaining_subcon)}`,
               }),
             ]),
-          selPersen(row.pct, row.state),
-          el('td', badge(label, tone)),
+          selPersen(worst ? worst.pct : row.pct, row.worst_state),
+          el('td', [
+            badge(label, tone),
+            worst ? el('span.cell-sub', { text: `sisi ${worst.document} · total ${fmt.percent(row.pct, { decimals: 1 })}` }) : null,
+          ]),
           el('td.right', button('Per bulan', {
             size: 'sm',
             onClick: () => { state.projectId = row.project_id; state.tab = 'bulan'; render(); },

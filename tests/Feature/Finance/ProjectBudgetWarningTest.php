@@ -35,7 +35,7 @@ class ProjectBudgetWarningTest extends ErpTestCase
         ]);
     }
 
-    private function approvedRap(Project $project, float $amount): CostBudget
+    private function approvedRap(Project $project, float $amount, float $subcon = 0): CostBudget
     {
         $boq = Boq::query()->create([
             'project_id' => $project->id,
@@ -70,6 +70,18 @@ class ProjectBudgetWarningTest extends ErpTestCase
             'unit_price' => $amount,
             'amount' => $amount,
         ]);
+
+        if ($subcon > 0) {
+            $rap->items()->create([
+                'boq_item_id' => $item->id,
+                'cost_category' => 'subcon',
+                'description' => 'Paket subkon',
+                'qty' => 1,
+                'unit' => 'ls',
+                'unit_price' => $subcon,
+                'amount' => $subcon,
+            ]);
+        }
 
         return $rap;
     }
@@ -117,6 +129,33 @@ class ProjectBudgetWarningTest extends ErpTestCase
         $this->assertEquals(90.0, $payload['warn_pct']);
         $this->assertStringContainsString('92,0 %', $payload['sentence']);
         $this->assertStringContainsString('sisa Rp 8.000.000', $payload['sentence']);
+        // Sisi yang dihakimi gerbang saat PO-nya diajukan, dengan kalimatnya
+        // sendiri — inilah yang dicetak di bawah kotak Proyek.
+        $this->assertSame('non_subcon', $payload['worst_side']);
+        $this->assertSame('mendekati', $payload['worst_state']);
+        $this->assertStringContainsString('menyisakan Rp 8.000.000', $payload['sides']['non_subcon']['sentence']);
+    }
+
+    /**
+     * DUA SISI, DUA PLAFON, DUA KALIMAT. Pembeli membaca plafon PO; yang
+     * membuat SPK membaca plafon SPK. Tidak satu pun dari keduanya membaca
+     * jumlah keduanya, karena tidak ada dokumen yang dihakimi terhadap jumlah
+     * itu (verifikasi F-2).
+     */
+    public function test_each_form_reads_the_ceiling_that_judges_its_own_document(): void
+    {
+        $project = $this->project('PRJ-2026-964');
+        $this->approvedRap($project, 100_000_000, subcon: 400_000_000);
+
+        Sanctum::actingAs($this->userHolding('pembeli3@test.local', 'prc.create'));
+
+        $payload = $this->getJson("/api/finance/budget/projects/{$project->id}")->assertOk()->json('data');
+
+        $this->assertEquals(500000000.0, $payload['remaining'], 'sisa total = kedua sisi dijumlahkan');
+        $this->assertStringContainsString('Rp 100.000.000', $payload['sides']['non_subcon']['sentence']);
+        $this->assertStringNotContainsString('Rp 500.000.000', $payload['sides']['non_subcon']['sentence']);
+        $this->assertStringContainsString('Rp 400.000.000', $payload['sides']['subcon']['sentence']);
+        $this->assertStringNotContainsString('Rp 500.000.000', $payload['sides']['subcon']['sentence']);
     }
 
     public function test_a_role_that_may_neither_buy_nor_read_finance_is_refused(): void
@@ -153,10 +192,15 @@ class ProjectBudgetWarningTest extends ErpTestCase
         $form = (string) file_get_contents(public_path('app/js/views/form.js'));
         $project = (string) file_get_contents(public_path('app/js/views/project.js'));
 
-        $this->assertSame(2, substr_count($schema, "liveNote: 'projectBudget'"),
-            'Peringatan anggaran harus terpasang pada DUA formulir: PO dan SPK.');
-        $this->assertStringContainsString('async projectBudget(value)', $form,
-            'form.js kehilangan penyedia catatan hidup projectBudget.');
+        // Dan MASING-MASING sisinya sendiri: sebuah PO dihakimi terhadap sisa
+        // non-subkon, sebuah SPK terhadap sisa subkon. Satu catatan untuk
+        // keduanya berarti salah satu formulir mencetak plafon dokumen lain.
+        $this->assertSame(1, substr_count($schema, "liveNote: 'projectBudgetPo'"),
+            'Formulir PO harus meminta sisa NON-SUBKON.');
+        $this->assertSame(1, substr_count($schema, "liveNote: 'projectBudgetSpk'"),
+            'Formulir SPK harus meminta sisa SUBKON.');
+        $this->assertStringContainsString("projectBudgetPo: (value) => projectBudgetSide(value, 'non_subcon')", $form);
+        $this->assertStringContainsString("projectBudgetSpk: (value) => projectBudgetSide(value, 'subcon')", $form);
         $this->assertStringContainsString('finance/budget/projects/${value}', $form);
         $this->assertStringContainsString('finance/budget/projects/${id}', $project,
             'Layar proyek tidak lagi meminta anggaran terpakainya.');

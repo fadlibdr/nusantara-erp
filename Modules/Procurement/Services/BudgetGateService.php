@@ -117,8 +117,11 @@ class BudgetGateService
             return;
         }
 
-        $sideLabel = $subconSide ? 'subkon' : 'non-subkon (material/upah/alat/overhead)';
-        $committedLabel = $subconSide ? 'komitmen SPK berjalan' : 'komitmen PO berjalan';
+        // Satu kosakata untuk penolakan DAN untuk peringatan: kalimat sisi di
+        // BudgetRealisationService memakai kedua label yang sama, jadi layar
+        // dan gerbang tidak pernah menamai satu sisi dengan dua istilah.
+        $sideLabel = BudgetRealisationService::sideLabel($subconSide);
+        $committedLabel = BudgetRealisationService::committedLabel($subconSide);
 
         $numbers = sprintf(
             'Anggaran RAP %s proyek ini %s; realisasi %s dan %s %s menyisakan %s, '

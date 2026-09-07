@@ -36,6 +36,16 @@ use Modules\Projects\Support\PlannedCurve;
  * Semua DPP, tanpa PPN — satuan yang sama dengan CommitmentService dan
  * fin_project_costs.
  *
+ * DAN KESETARAAN ITU PER SISI, BUKAN PER TOTAL. Gerbang tidak pernah membaca
+ * sisa total: sebuah PO diukur terhadap sisa NON-SUBKON, sebuah SPK terhadap
+ * sisa SUBKON. Maka setiap sisi membawa keadaan, persentase dan KALIMATNYA
+ * sendiri (§ project → `sides`), dan permukaan tempat uang dibelanjakan
+ * mencetak sisi yang menghakiminya. Sisa total tetap dipublikasikan — ia
+ * jawaban atas "berapa anggaran proyek yang sudah habis" — tetapi tidak satu
+ * kalimat pun boleh menyebutnya sebagai plafon gerbang: pada data demo total
+ * menjanjikan Rp 1.697.500.000 sementara sisi non-subkon sudah −Rp 105.039.400
+ * dan sebuah PO Rp 1 ditolak 422.
+ *
  * ANGGARAN BULANAN ADALAH TURUNAN, DAN LAYARNYA MENGATAKANNYA. Tidak ada
  * seorang pun yang mengetik anggaran bulan Maret: ia adalah total RAP dikalikan
  * bobot fase bulan itu pada BASELINE yang dibekukan (kurva PlannedCurve yang
@@ -89,6 +99,23 @@ class BudgetRealisationService
     /**
      * Kedua sisi + totalnya + keadaan ambangnya, untuk satu proyek.
      *
+     * KENAPA `sides` ADA (verifikasi F-2). Gerbang tidak pernah menghakimi
+     * TOTAL: sebuah PO diukur terhadap sisa NON-SUBKON dan sebuah SPK terhadap
+     * sisa SUBKON. Muatan versi pertama hanya membawa keadaan, persentase dan
+     * KALIMAT total, dan tiga permukaan tempat uang dibelanjakan mencetak
+     * kalimat itu sambil menjanjikan bahwa gerbang menegakkannya. Terukur pada
+     * salinan data demo: layar menjanjikan "sisa Rp 1.697.500.000" sementara
+     * sisi non-subkonnya −Rp 105.039.400, dan sebuah PO Rp 1 ditolak 422. Maka
+     * setiap sisi kini membawa keadaan, persentase dan kalimatnya SENDIRI —
+     * kalimat yang memakai kata-kata yang sama dengan penolakan gerbang — dan
+     * `worst_state` adalah sisi yang paling dekat ke batasnya, yaitu keadaan
+     * yang menentukan apakah layar proyek menyalakan peringatannya.
+     *
+     * `pct` dan `state` TETAP total: itu jawaban jujur atas "berapa banyak
+     * anggaran proyek ini yang sudah habis", angka yang sama yang dipublikasikan
+     * registri ambang, dan mengubahnya menjadi "sisi terburuk" akan membuat satu
+     * entri registri punya dua definisi.
+     *
      * @return array<string, mixed>
      */
     public function project(int $projectId): array
@@ -103,6 +130,12 @@ class BudgetRealisationService
         $used = round($actual + $committed, 2);
 
         $warnPct = WatchedThresholds::warnPct('project_budget_pct');
+
+        $sides = [
+            'non_subcon' => $this->sideView('non_subcon', false, $nonSubcon, $rap?->code, $warnPct),
+            'subcon' => $this->sideView('subcon', true, $subcon, $rap?->code, $warnPct),
+        ];
+        $worst = $rap === null ? null : $this->worstSide($sides);
 
         return [
             'project_id' => $projectId,
@@ -123,8 +156,33 @@ class BudgetRealisationService
             // Kalimat yang dibaca manusia, dibangun satu kali di server supaya
             // layar proyek, layar anggaran dan formulir PO tidak mengarang tiga
             // kalimat berbeda untuk satu keadaan.
-            'sentence' => $this->sentence($budget, $used, $rap?->code),
+            'sentence' => $this->sentence($budget, $used, $rap?->code, $sides),
+            'sides' => $sides,
+            'worst_side' => $worst['key'] ?? null,
+            'worst_state' => $worst['state'] ?? WatchedThresholds::TANPA_BATAS,
         ];
+    }
+
+    /**
+     * Kata-kata yang dipakai gerbang untuk menamai sisi yang dihakiminya.
+     *
+     * Dipakai BudgetGateService pada kalimat penolakannya DAN kalimat sisi di
+     * sini, supaya penolakan dan peringatan tidak pernah menamai satu hal yang
+     * sama dengan dua istilah berbeda.
+     */
+    public static function sideLabel(bool $subcon): string
+    {
+        return $subcon ? 'subkon' : 'non-subkon (material/upah/alat/overhead)';
+    }
+
+    public static function committedLabel(bool $subcon): string
+    {
+        return $subcon ? 'komitmen SPK berjalan' : 'komitmen PO berjalan';
+    }
+
+    public static function documentLabel(bool $subcon): string
+    {
+        return $subcon ? 'SPK' : 'PO';
     }
 
     // ------------------------------------------------------------- portofolio
@@ -165,6 +223,13 @@ class BudgetRealisationService
      * Inilah alasan mekanisme supply() ada: angkanya lahir di sini, tempat
      * gerbang membacanya, dan Core tidak perlu menyalin satu baris SQL pun.
      *
+     * YANG DIKIRIM ADALAH SISI TERKETAT, bukan totalnya (verifikasi F-2).
+     * Sebuah registri ambang menjawab "apa yang mendekati atau melewati
+     * batasnya"; satu-satunya batas yang benar-benar ditegakkan adalah batas
+     * per sisi, dan sebuah proyek yang totalnya 16,7 % terpakai sementara sisi
+     * PO-nya sudah habis akan berbaris tenang di antara yang aman. Totalnya
+     * tetap dicetak — pada catatan barisnya, dengan namanya sendiri.
+     *
      * @return array<int, array<string, mixed>>
      */
     public function thresholdRows(): array
@@ -172,18 +237,23 @@ class BudgetRealisationService
         $rows = [];
 
         foreach ($this->portfolio() as $row) {
+            $worst = $row['worst_side'] === null ? null : $row['sides'][$row['worst_side']];
+
             $rows[] = [
                 'subject' => $row['project_code'],
                 'name' => $row['project_name'],
-                'actual' => $row['used'],
-                'limit' => $row['budget'],
-                'note' => $row['budget'] === null
+                'actual' => $worst === null ? $row['used'] : $worst['used'],
+                'limit' => $worst === null ? $row['budget'] : $worst['budget'],
+                'note' => $worst === null
                     ? 'RAP disetujui belum ada, jadi tidak ada anggaran yang bisa dilampaui.'
                     : sprintf(
-                        'Realisasi %s + komitmen %s terhadap RAP %s.',
-                        Money::format($row['actual'], false),
-                        Money::format($row['committed'], false),
+                        'Sisi %s — realisasi %s + komitmen %s terhadap RAP %s. Seluruh proyek: %s dari %s.',
+                        $worst['label'],
+                        Money::format($worst['actual'], false),
+                        Money::format($worst['committed'], false),
                         $row['rap_code'],
+                        Money::format($row['used'], false),
+                        Money::format($row['budget'], false),
                     ),
             ];
         }
@@ -466,7 +536,142 @@ class BudgetRealisationService
         );
     }
 
-    private function sentence(?float $budget, float $used, ?string $rapCode): string
+    /**
+     * Satu sisi anggaran dalam bentuk yang dibaca LAYAR: keadaan, persentase
+     * dan kalimatnya sendiri.
+     *
+     * @param  array{budget: ?float, actual: float, committed: float, remaining: ?float}  $side
+     * @return array<string, mixed>
+     */
+    private function sideView(string $key, bool $subcon, array $side, ?string $rapCode, float $warnPct): array
+    {
+        $budget = $side['budget'];
+        $used = round($side['actual'] + $side['committed'], 2);
+
+        return [
+            'key' => $key,
+            'document' => self::documentLabel($subcon),
+            'label' => self::sideLabel($subcon),
+            'budget' => $budget,
+            'actual' => $side['actual'],
+            'committed' => $side['committed'],
+            'used' => $used,
+            'remaining' => $side['remaining'],
+            'pct' => WatchedThresholds::pct($used, $budget),
+            'state' => $this->sideState($budget, $used, $warnPct),
+            'sentence' => $this->sideSentence($subcon, $budget, $side, $used, $rapCode),
+        ];
+    }
+
+    /**
+     * Keadaan satu sisi — dan satu tambahan atas aturan registri.
+     *
+     * Sebuah sisi yang TIDAK DIANGGARKAN sama sekali (RAP tanpa satu baris
+     * subkon pun) punya batas Rp 0, dan WatchedThresholds membaca batas ≤ 0
+     * sebagai "batas belum disetel". Untuk sisi yang belum dibelanjakan itu
+     * benar dan tenang — sebuah RAP tanpa subkon adalah rencana, bukan alarm.
+     * Tetapi begitu ada rupiah yang sudah dibelanjakan di sisi itu, gerbang
+     * menolak setiap dokumen berikutnya, dan "batas belum disetel" akan menjadi
+     * satu-satunya baris tenang di layar tentang uang yang sudah lewat.
+     */
+    private function sideState(?float $budget, float $used, float $warnPct): string
+    {
+        if ($budget !== null && $budget <= 0.0 && $used > 0.0) {
+            return WatchedThresholds::LAMPAU;
+        }
+
+        return WatchedThresholds::state($used, $budget, $warnPct);
+    }
+
+    /**
+     * Kalimat satu sisi, dengan kata-kata yang sama yang dipakai gerbang saat
+     * menolak dokumen di sisi itu (BudgetGateService::assertWithinBudget).
+     *
+     * @param  array{budget: ?float, actual: float, committed: float, remaining: ?float}  $side
+     */
+    private function sideSentence(bool $subcon, ?float $budget, array $side, float $used, ?string $rapCode): string
+    {
+        $document = self::documentLabel($subcon);
+
+        if ($budget === null) {
+            return 'Proyek ini belum punya RAP yang disetujui, jadi tidak ada anggaran yang bisa dilampaui '
+                .'— dan gerbang anggaran pada '.$document.' diam untuk proyek ini.';
+        }
+
+        if ($budget <= 0.0) {
+            return sprintf(
+                'RAP %s tidak menganggarkan satu rupiah pun untuk %s, jadi gerbang menolak setiap %s '
+                .'proyek ini sampai pengajunya mengonfirmasi pelampauan%s.',
+                $rapCode,
+                self::sideLabel($subcon),
+                $document,
+                $used > 0.0 ? ' — dan '.Money::format($used, false).' sudah terpakai di sisi ini' : '',
+            );
+        }
+
+        $pct = WatchedThresholds::pct($used, $budget);
+
+        return sprintf(
+            'Anggaran RAP %s %s; realisasi %s dan %s %s menyisakan %s — DPP terbesar yang masih '
+            .'diterima gerbang tanpa konfirmasi pelampauan (%s terpakai).',
+            self::sideLabel($subcon),
+            Money::format($budget, false),
+            Money::format($side['actual'], false),
+            self::committedLabel($subcon),
+            Money::format($side['committed'], false),
+            Money::format(max(0.0, (float) $side['remaining']), false),
+            $pct === null ? 'tidak terhitung' : number_format($pct, 1, ',', '.').' %',
+        );
+    }
+
+    /**
+     * Sisi yang paling dekat ke batasnya — keadaan yang menyalakan peringatan
+     * di layar proyek. Lampau mengalahkan mendekati, mendekati mengalahkan
+     * aman; di antara keadaan yang sama, persentase yang lebih tinggi menang.
+     *
+     * @param  array<string, array<string, mixed>>  $sides
+     * @return array<string, mixed>|null
+     */
+    private function worstSide(array $sides): ?array
+    {
+        $rank = [
+            WatchedThresholds::LAMPAU => 3,
+            WatchedThresholds::MENDEKATI => 2,
+            WatchedThresholds::AMAN => 1,
+        ];
+
+        $worst = null;
+
+        foreach ($sides as $side) {
+            if ($worst === null) {
+                $worst = $side;
+
+                continue;
+            }
+
+            $a = [$rank[$side['state']] ?? 0, $side['pct'] ?? -1];
+            $b = [$rank[$worst['state']] ?? 0, $worst['pct'] ?? -1];
+
+            if ($a > $b) {
+                $worst = $side;
+            }
+        }
+
+        return $worst;
+    }
+
+    /**
+     * Kalimat proyek KESELURUHAN — dan ia menyebutkan kedua batas yang
+     * benar-benar dihakimi gerbang.
+     *
+     * Versi pertama berhenti pada "sisa Rp X" dan tiga permukaan mencetaknya
+     * sebagai plafon gerbang. Sisa total BUKAN plafon apa pun: ia jumlah dua
+     * plafon yang dihakimi terpisah, dan pada data demo selisihnya sebuah PO
+     * Rp 1 yang ditolak di bawah janji "sisa Rp 1.697.500.000".
+     *
+     * @param  array<string, array<string, mixed>>  $sides
+     */
+    private function sentence(?float $budget, float $used, ?string $rapCode, array $sides): string
     {
         if ($budget === null) {
             return 'Proyek ini belum punya RAP yang disetujui, jadi tidak ada anggaran yang bisa dilampaui '
@@ -476,12 +681,31 @@ class BudgetRealisationService
         $pct = WatchedThresholds::pct($used, $budget);
 
         return sprintf(
-            'Realisasi + komitmen %s dari anggaran RAP %s (%s) — %s terpakai, sisa %s.',
+            'Realisasi + komitmen %s dari anggaran RAP %s (%s) — %s terpakai, sisa %s. '
+            .'Gerbang menghakimi PER SISI: %s, %s.',
             Money::format($used, false),
             $rapCode,
             Money::format($budget, false),
             $pct === null ? 'tidak terhitung' : number_format($pct, 1, ',', '.').' %',
             Money::format(max(0.0, round($budget - $used, 2)), false),
+            $this->ceilingPhrase($sides['non_subcon']),
+            $this->ceilingPhrase($sides['subcon']),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $side
+     */
+    private function ceilingPhrase(array $side): string
+    {
+        if ((float) $side['budget'] <= 0.0) {
+            return $side['document'].' tidak dianggarkan';
+        }
+
+        return sprintf(
+            '%s menyisakan %s',
+            $side['document'],
+            Money::format(max(0.0, (float) $side['remaining']), false),
         );
     }
 

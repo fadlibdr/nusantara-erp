@@ -210,6 +210,22 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
 
         $this->assertSame(25000000.0, $remaining, 'sisa non-subkon = 75jt − 15jt − 35jt');
 
+        /*
+         * DAN KALIMAT SISI PO MENYEBUT ANGKA ITU, bukan sisa totalnya.
+         * Fixture ini bersisi dua (non-subkon 75 jt + subkon 200 jt), jadi sisa
+         * TOTAL-nya Rp 225.000.000 — sembilan kali plafon yang sungguh berlaku
+         * untuk PO. Sebelum verifikasi F-2 catatan hidup formulir PO mencetak
+         * angka total itu; sekarang ia mencetak kalimat di bawah ini.
+         */
+        $printed = $this->portfolioRow($project);
+        $this->assertSame(225000000.0, $printed['remaining'], 'sisa total memang berbeda dari plafon PO');
+        $this->assertStringContainsString('menyisakan Rp 25.000.000', $printed['sides']['non_subcon']['sentence']);
+        $this->assertStringNotContainsString('Rp 225.000.000', $printed['sides']['non_subcon']['sentence']);
+        // Dan kalimat proyek keseluruhan menyebut KEDUA plafon, jadi tidak ada
+        // permukaan yang bisa membaca "sisa" sebagai plafon dokumen.
+        $this->assertStringContainsString('PO menyisakan Rp 25.000.000', $printed['sentence']);
+        $this->assertStringContainsString('SPK menyisakan Rp 200.000.000', $printed['sentence']);
+
         // Tepat di batas: diterima.
         $this->submitPo($this->po($project, $remaining, DocumentStatus::Draft))->assertOk();
 
@@ -232,6 +248,10 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         $remaining = (float) $row['remaining_subcon'];
 
         $this->assertSame(130000000.0, $remaining, 'sisa subkon = 200jt − 20jt − 50jt');
+        $this->assertStringContainsString(
+            'menyisakan Rp 130.000.000',
+            $this->portfolioRow($project)['sides']['subcon']['sentence'],
+        );
 
         $this->submitSpk($this->spk($project, $remaining, DocumentStatus::Draft))->assertOk();
 
@@ -419,9 +439,73 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
 
         // assertEquals, bukan assertSame: JSON tidak membedakan 100000000 dari
         // 100000000.0, dan yang diuji di sini adalah ANGKANYA.
-        $this->assertEquals($row['used'], $line['actual']);
-        $this->assertEquals($row['budget'], $line['limit']);
-        $this->assertEquals($row['pct'], $line['pct']);
-        $this->assertSame($row['state'], $line['state']);
+        // Registri menerbitkan SISI TERKETAT — satu-satunya batas yang
+        // benar-benar ditegakkan gerbang — dan totalnya ikut di catatannya.
+        $worst = $row['sides'][$row['worst_side']];
+
+        $this->assertSame('non_subcon', $row['worst_side']);
+        $this->assertEquals($worst['used'], $line['actual']);
+        $this->assertEquals($worst['budget'], $line['limit']);
+        $this->assertEquals($worst['pct'], $line['pct']);
+        $this->assertSame($row['worst_state'], $line['state']);
+        $this->assertStringContainsString('Seluruh proyek: Rp 100.000.000 dari Rp 200.000.000', $line['note']);
+    }
+
+    /**
+     * SISI YANG HABIS SEMENTARA TOTALNYA MASIH LEGA — keadaan yang dilewatkan
+     * setiap uji paket ini sebelum verifikasi F-2, karena semuanya memakai RAP
+     * bersisi satu (subcon: 0) sehingga total dan sisi selalu berimpit.
+     *
+     * Terukur sebelum perbaikan: layar mencetak "16,7 % terpakai, sisa
+     * Rp 500.000.000", keadaan 'aman', tanpa satu pita peringatan pun — dan
+     * gerbang menolak PO Rp 1.
+     */
+    public function test_a_side_that_is_spent_out_is_not_hidden_by_a_healthy_total(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $project = $this->project('PRJ-2026-920');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 500_000_000);
+        $this->cost($project, 'material', 100_000_000);
+
+        $row = $this->portfolioRow($project);
+
+        // Totalnya memang masih lega, dan itu tetap dicetak apa adanya…
+        $this->assertSame(500000000.0, $row['remaining']);
+        $this->assertSame(16.67, $row['pct']);
+        $this->assertSame('aman', $row['state']);
+
+        // …tetapi keadaan yang dibaca layar adalah SISI yang menghakimi.
+        $this->assertSame('non_subcon', $row['worst_side']);
+        $this->assertSame('lampau', $row['worst_state']);
+        $this->assertSame(0.0, $row['sides']['non_subcon']['remaining']);
+        $this->assertSame(100.0, $row['sides']['non_subcon']['pct']);
+
+        // Dan gerbang menolak rupiah berikutnya di sisi itu, seperti kalimatnya.
+        $this->submitPo($this->po($project, 1, DocumentStatus::Draft))->assertStatus(422);
+        // Sementara sisi subkon masih menerima seluruh anggarannya.
+        $this->submitSpk($this->spk($project, 500_000_000, DocumentStatus::Draft))->assertOk();
+    }
+
+    /**
+     * Sisi yang TIDAK DIANGGARKAN sama sekali: kalimatnya menyebutkan itu,
+     * karena gerbang menolak setiap dokumen di sisi itu — sebuah "sisa Rp 0"
+     * tanpa sebab akan terbaca "anggarannya habis dipakai".
+     */
+    public function test_a_side_the_rap_never_budgeted_says_so(): void
+    {
+        $project = $this->project('PRJ-2026-921');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 0);
+
+        $row = $this->portfolioRow($project);
+
+        $this->assertSame(0.0, $row['sides']['subcon']['budget']);
+        $this->assertStringContainsString('tidak menganggarkan satu rupiah pun untuk subkon',
+            $row['sides']['subcon']['sentence']);
+        $this->assertStringContainsString('SPK tidak dianggarkan', $row['sentence']);
+        // Sisi tanpa anggaran DAN tanpa belanja bukan alarm: yang mengatur
+        // keadaan proyek ini adalah sisi non-subkon yang memang punya batas.
+        $this->assertSame('non_subcon', $row['worst_side']);
+        $this->assertSame('aman', $row['worst_state']);
     }
 }

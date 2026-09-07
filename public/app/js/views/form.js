@@ -29,22 +29,30 @@ import { saveDraft, loadDraft, removeDraft, registerDraftFlush, relativeAge, dra
  * menghalangi pembuatan PO. Yang hilang hanyalah peringatannya, dan gerbang di
  * server tetap berdiri di belakangnya dengan kalimat penolakannya sendiri.
  */
+/* SISI YANG BENAR, BUKAN TOTALNYA (verifikasi F-2). Gerbang mengukur sebuah PO
+   terhadap sisa NON-SUBKON dan sebuah SPK terhadap sisa SUBKON; catatan yang
+   mencetak sisa TOTAL menjanjikan ruang yang tidak dimiliki dokumen yang sedang
+   dibuat orangnya. Terukur pada salinan data demo: catatan formulir PO berbunyi
+   "sisa Rp 1.697.500.000" sementara sisi non-subkonnya −Rp 105.039.400, dan PO
+   Rp 1 ditolak 422. Maka formulir PO memakai sides.non_subcon dan formulir SPK
+   sides.subcon — kalimat yang kata-katanya sama dengan penolakan gerbang. */
+async function projectBudgetSide(value, key) {
+  if (!value) return null;
+
+  const budget = await api.get(`finance/budget/projects/${value}`);
+  const side = budget && budget.sides ? budget.sides[key] : null;
+
+  if (!side) return null;
+
+  return {
+    tone: side.state === 'lampau' ? 'danger' : (side.state === 'mendekati' ? 'warning' : ''),
+    text: side.sentence,
+  };
+}
+
 const LIVE_NOTES = {
-  async projectBudget(value) {
-    if (!value) return null;
-
-    const budget = await api.get(`finance/budget/projects/${value}`);
-
-    if (!budget || budget.budget === null) {
-      return {
-        tone: '',
-        text: 'Proyek ini belum punya RAP yang disetujui, jadi tidak ada anggaran yang bisa dilampaui '
-          + '— gerbang anggaran diam untuk proyek ini.',
-      };
-    }
-
-    return { tone: budget.state === 'lampau' ? 'danger' : (budget.state === 'mendekati' ? 'warning' : ''), text: budget.sentence };
-  },
+  projectBudgetPo: (value) => projectBudgetSide(value, 'non_subcon'),
+  projectBudgetSpk: (value) => projectBudgetSide(value, 'subcon'),
 };
 
 

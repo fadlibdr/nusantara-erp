@@ -2365,11 +2365,12 @@ export const RESOURCES = {
           { key: 'pr_bypass_reason', label: 'Alasan tanpa PR', type: 'textarea', span: 2, required: true, visibleWhen: PO_WITHOUT_PR,
             help: 'PO ini dibuat tanpa permintaan pembelian (PR). Sebutkan mengapa pembelian langsung dilakukan (mis. kebutuhan darurat di lapangan).' },
           /* F-2 / T2.6 — peringatan anggaran DI TEMPAT UANGNYA DIBELANJAKAN.
-             Memilih proyek mencetak "realisasi + komitmen X dari anggaran RAP Y —
-             Z % terpakai, sisa S" di bawah kotaknya, berwarna sejak 90 %, sebelum
-             satu baris item pun diketik. Angkanya lahir di kelas yang sama yang
-             menolak PO ini bila DPP-nya melampaui sisanya. */
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudget' },
+             Memilih proyek mencetak sisa anggaran RAP NON-SUBKON di bawah
+             kotaknya, berwarna sejak 90 %, sebelum satu baris item pun diketik:
+             sisi yang sama yang menolak PO ini bila DPP-nya melampauinya.
+             Bukan sisa TOTAL — verifikasi F-2 mengukur catatan lama menjanjikan
+             Rp 1.697.500.000 pada proyek yang sisi non-subkonnya sudah minus. */
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudgetPo' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },
           // Wajib sejak T3.5: kolom inilah yang dibaca pengawas tenggat
@@ -3426,9 +3427,10 @@ export const RESOURCES = {
         fields: [
           { key: 'vendor_id', label: 'Subkontraktor', type: 'lookup', lookup: 'subcontractors', required: true },
           // F-2 / T2.6 — peringatan anggaran di tempat uangnya dibelanjakan.
-          // Catatannya menyebut anggaran proyek KESELURUHAN; gerbang SPK
-          // kemudian menghakimi sisi SUBKON-nya, dengan angkanya sendiri.
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, liveNote: 'projectBudget' },
+          // Sisi SUBKON: persis angka yang dipakai gerbang saat menolak SPK ini
+          // (verifikasi F-2 — sebelumnya catatan ini menyebut anggaran proyek
+          // KESELURUHAN, yang bukan plafon dokumen mana pun).
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, liveNote: 'projectBudgetSpk' },
           { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
           { key: 'pph_scheme', label: 'Skema PPh final konstruksi', type: 'select', enum: 'pphScheme', required: true, span: 2 },
           { key: 'retention_pct', label: 'Retensi (%)', type: 'percent', default: 5 },

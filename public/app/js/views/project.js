@@ -344,6 +344,33 @@ function openMppXmlImport(project, { onImported } = {}) {
 
 const safe = (path, params) => api.get(path, params).then((rows) => rows || []).catch(() => []);
 
+/* Persentase ubin "Anggaran terpakai": sisi yang paling dekat ke batasnya —
+   angka yang sama yang dipakai kolom Terpakai pada layar Anggaran dan registri
+   Ambang, supaya satu proyek tidak punya dua "persen terpakai" di dua layar. */
+function budgetTilePct(budget) {
+  const worst = budget.worst_side ? budget.sides[budget.worst_side] : null;
+  const pct = worst ? worst.pct : budget.pct;
+
+  return pct === null || pct === undefined ? '—' : fmt.percent(pct, { decimals: 1 });
+}
+
+/* Baris bawah ubin: sisi yang paling dekat ke batasnya, dengan rupiah PENUH.
+   rupiahShort membulatkan setengah ke atas (Rp 31.126.000.000 -> "Rp 31,13 M"),
+   dan sebuah plafon yang dibulatkan KE ATAS adalah janji yang ditolak gerbang
+   dua juta rupiah sebelum angkanya tercapai. */
+function budgetTileNote(budget) {
+  if (budget.budget === null) return 'Belum ada RAP disetujui';
+
+  const worst = budget.sides[budget.worst_side];
+
+  if (!worst) return `Sisa ${fmt.rupiah(budget.remaining)} dari RAP ${budget.rap_code}`;
+  if (worst.budget !== null && Number(worst.budget) <= 0) {
+    return `${worst.document} tidak dianggarkan RAP ${budget.rap_code}`;
+  }
+
+  return `${worst.document} menyisakan ${fmt.rupiah(worst.remaining)} · RAP ${budget.rap_code}`;
+}
+
 export async function renderProject(host, { id }) {
   clear(host);
   host.appendChild(el('.card', el('.card-body', el('.skeleton', { style: { height: '18px', width: '35%' } }))));
@@ -484,34 +511,42 @@ export async function renderProject(host, { id }) {
        setiap hari. Sel yang tidak punya jawaban DIGARIS: proyek tanpa RAP
        disetujui tidak "0 % terpakai", ia tidak punya anggaran sama sekali,
        dan mencetak 0 % di situ adalah cara termurah membuat ubin ini
-       berbohong. Warna menyala pada ambang yang sama dengan registri (90 %). */
+       berbohong. Warna menyala pada ambang yang sama dengan registri (90 %).
+
+       ANGKANYA TOTAL, WARNANYA SISI TERBURUK (verifikasi F-2). "Berapa
+       anggaran proyek ini yang sudah habis" memang dijawab totalnya; yang
+       TIDAK dijawab totalnya adalah "berapa lagi yang boleh dibelanjakan",
+       karena gerbang menghakimi per sisi. Maka baris bawah ubin menyebut sisi
+       yang paling dekat ke batasnya dengan rupiah PENUH — terukur pada data
+       demo: "Sisa Rp 1,7 M" pada proyek yang sisi PO-nya menolak Rp 1. */
     budget ? el('.stat', [
       el('.label', { text: 'Anggaran terpakai' }),
       el('.value', {
-        text: budget.pct === null ? '—' : fmt.percent(budget.pct, { decimals: 1 }),
-        style: budget.state === 'lampau'
+        text: budgetTilePct(budget),
+        style: budget.worst_state === 'lampau'
           ? { color: 'var(--danger)' }
-          : (budget.state === 'mendekati' ? { color: 'var(--warning)' } : {}),
+          : (budget.worst_state === 'mendekati' ? { color: 'var(--warning)' } : {}),
       }),
-      el('.delta', {
-        text: budget.budget === null
-          ? 'Belum ada RAP disetujui'
-          : `Sisa ${fmt.rupiahShort(budget.remaining)} dari RAP ${budget.rap_code}`,
-      }),
+      el('.delta', { text: budgetTileNote(budget) }),
     ]) : null,
   ]));
 
   /* Kalimat penuhnya, dengan kata-kata yang sama yang dipakai gerbang saat
-     menolak PO — dan hanya ketika ia sudah pantas dibaca (mendekati/lampau),
-     supaya baris peringatan tidak menjadi hiasan tetap yang berhenti dibaca. */
-  if (budget && (budget.state === 'mendekati' || budget.state === 'lampau')) {
-    host.appendChild(el(budget.state === 'lampau' ? '.alert.error' : '.alert.warn', [
-      el('div', { text: budget.sentence }),
+     menolak PO — dan hanya ketika ia sudah pantas dibaca (mendekati/lampau
+     PADA SALAH SATU SISI, bukan pada totalnya: sebuah proyek yang totalnya
+     "aman" bisa punya sisi PO yang sudah lewat 100 %), supaya baris peringatan
+     tidak menjadi hiasan tetap yang berhenti dibaca. */
+  if (budget && (budget.worst_state === 'mendekati' || budget.worst_state === 'lampau')) {
+    const worst = budget.sides[budget.worst_side];
+
+    host.appendChild(el(budget.worst_state === 'lampau' ? '.alert.error' : '.alert.warn', [
+      el('div', { text: worst.sentence }),
+      el('div', { style: { marginTop: '6px' }, text: budget.sentence }),
       el('div', {
         style: { marginTop: '6px' },
         text: `Ambang peringatan ${fmt.percent(budget.warn_pct, { decimals: 0 })}. `
-          + 'Gerbang anggaran menolak PO/SPK yang DPP-nya melampaui sisa ini sampai pengajunya '
-          + 'mengonfirmasi pelampauannya.',
+          + 'Gerbang anggaran menghakimi PO terhadap sisa non-subkon dan SPK terhadap sisa subkon, '
+          + 'masing-masing sampai pengajunya mengonfirmasi pelampauannya.',
       }),
     ]));
   }

@@ -112,8 +112,10 @@ class WatchedThresholds
                  */
                 'key' => 'project_budget_pct',
                 'label' => 'Anggaran proyek terpakai',
-                'measures' => 'Realisasi biaya proyek + komitmen PO/SPK berjalan',
-                'limit_source' => 'Total RAP yang disetujui untuk proyek itu (revisi terbaru yang belum digantikan)',
+                'measures' => 'Realisasi + komitmen pada SISI yang paling dekat ke batasnya — '
+                    .'non-subkon (dihakimi saat PO diajukan) atau subkon (saat SPK diajukan)',
+                'limit_source' => 'RAP yang disetujui untuk proyek itu (revisi terbaru yang belum digantikan), '
+                    .'pada sisi yang sama; totalnya ada di catatan tiap baris',
                 'subject_word' => 'proyek',
                 'unit' => 'rupiah',
                 'warn_key' => 'project_budget_pct',
