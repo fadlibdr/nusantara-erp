@@ -1064,6 +1064,15 @@ sendiri menyetujui atas namanya sendiri, punya delegasi atau tidak; mencap "a.n.
 pada persetujuan yang tidak membutuhkannya berarti menuliskan fiksi ke dalam
 jejak.
 
+**Dan ia ikut ke PEMBERITAHUAN yang sampai kepada pengaju** ("Budi a.n. Sari
+menyetujui …"), ditambahkan pada putaran verifikasi F-1. Jejak dan layar detail
+sudah benar sejak awal, tetapi pengaju tidak membuka layar detail untuk membaca
+jejak — yang dibacanya adalah satu kalimat di kotak masuknya, dan kalimat itu
+menyebut Budi saja. Namanya dibaca dari BARIS yang baru ditulis, bukan
+ditanyakan ulang kepada `ApprovalDelegations`: pendengarnya berjalan sesudah
+commit, dan sebuah fakta yang sudah tercatat tidak boleh dihitung ulang dengan
+delegasi yang mungkin sudah dicabut semenit kemudian.
+
 **Satu perender jejak, `Core\Http\Resources\ApprovalTrail`**, dipakai 25 resource.
 Penutup yang sama disalin byte per byte di 25 berkas sebelum F-1; selama tidak ada
 yang berubah itu tidak menyakiti siapa pun, tetapi sebuah fakta baru yang harus

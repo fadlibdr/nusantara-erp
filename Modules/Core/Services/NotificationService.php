@@ -104,7 +104,7 @@ class NotificationService
                 "{$label} {$code} ".($approved ? 'disetujui' : 'ditolak'),
                 trim(sprintf(
                     '%s %s %s.%s',
-                    $actor?->name ?? 'Seseorang',
+                    $this->deciderPhrase($document, $actor, $action),
                     $approved ? 'menyetujui' : 'menolak',
                     mb_strtolower($label)." {$code}",
                     $note === null || $note === '' ? '' : " Catatan: {$note}",
@@ -112,6 +112,46 @@ class NotificationService
                 $actor,
             );
         });
+    }
+
+    /**
+     * "Budi a.n. Sari" — nama yang dibaca pengaju di kotak masuknya.
+     *
+     * F-1 mencap "a.n." pada jejak (core_approvals.on_behalf_of_user_id) dan
+     * merendernya di layar detail, tetapi pemberitahuan yang benar-benar
+     * SAMPAI kepada pengaju masih berbunyi "Budi menyetujui" — dan bagi
+     * pengaju itu, pemberitahuan itulah keseluruhan ceritanya (verifikasi F-1,
+     * 7 Sep 2026: baris jejaknya benar, isi pemberitahuannya tidak menyebut
+     * Sari sama sekali).
+     *
+     * Dibaca dari BARIS yang baru ditulis, bukan ditanyakan ulang kepada
+     * ApprovalDelegations: pendengarnya berjalan sesudah commit, jadi barisnya
+     * sudah ada, dan jawaban yang sudah tercatat tidak boleh dihitung ulang
+     * dengan delegasi yang mungkin sudah dicabut semenit kemudian.
+     *
+     * Satu SELECT tambahan per keputusan, dan hanya bila kolomnya ada.
+     */
+    private function deciderPhrase(Model $document, ?User $actor, string $action): string
+    {
+        if ($actor === null) {
+            return 'Seseorang';
+        }
+
+        if (! Schema::hasColumn('core_approvals', 'on_behalf_of_user_id')) {
+            return (string) $actor->name;
+        }
+
+        $giverId = DB::table('core_approvals')
+            ->where('approvable_type', $document->getMorphClass())
+            ->where('approvable_id', $document->getKey())
+            ->where('action', $action)
+            ->where('user_id', $actor->getKey())
+            ->orderByDesc('id')
+            ->value('on_behalf_of_user_id');
+
+        $giver = $giverId === null ? null : User::query()->find($giverId)?->name;
+
+        return $giver === null ? (string) $actor->name : "{$actor->name} a.n. {$giver}";
     }
 
     /**
