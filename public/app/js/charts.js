@@ -291,10 +291,41 @@ function plotClip(svg, x, y, w, h, pad = 2) {
   return `url(#${id})`;
 }
 
-function noteLine(svg, text, x, y) {
+/*
+ * Catatan sumber, DIBUNGKUS ke lebar yang tersedia.
+ *
+ * Dulu satu <text> tanpa pembungkusan: svg akarnya mengklip pada viewBox-nya,
+ * jadi catatan yang panjang hilang di kertas tanpa jejak. Diukur pada jadwal 41
+ * baris dengan isian baseline gagal (media cetak, tiga halaman): getBBox
+ * berakhir 241–247 satuan di luar tepi kanan, dan pdftotext memperlihatkan
+ * halaman 2 berhenti pada '…yang berlaku' — penanda 'halaman 2 dari 3, baris
+ * 17–32 dari 41' tidak pernah sampai (verifikasi P1-H putaran 2, 7 Sep 2026).
+ * Syarat harness membaca textContent, jadi ia hijau sementara kalimatnya tidak
+ * terbaca.
+ *
+ * Mengembalikan tinggi yang benar-benar dipakai (16 per baris), supaya
+ * pemanggil yang menghitung tinggi svg tidak kekurangan ruang.
+ */
+/** Tinggi yang akan dipakai catatan sumber setelah dibungkus — dipanggil SEBELUM
+    tinggi svg dihitung, dengan lebar dan x yang sama dengan noteLine(). */
+function noteHeight(text, x, width, unit = 16) {
   if (!text) return 0;
-  svg.appendChild(make('text', { class: 'chart-note', x, y }, text));
-  return 16;
+
+  const room = Math.max(40, (Number.isFinite(width) ? width : 0) - x - 8);
+  return unit * (room > 0 ? wrapPhrases([String(text)], room, estimateWidth).length : 1);
+}
+
+function noteLine(svg, text, x, y, width) {
+  if (!text) return 0;
+
+  const room = Math.max(40, (Number.isFinite(width) ? width : 0) - x - 8);
+  const lines = room > 0 ? wrapPhrases([String(text)], room, estimateWidth) : [String(text)];
+
+  lines.forEach((line, index) => {
+    svg.appendChild(make('text', { class: 'chart-note', x, y: y + index * 16 }, line));
+  });
+
+  return 16 * lines.length;
 }
 
 /* --------------------------------------------------------------- legenda */
@@ -541,7 +572,7 @@ export function lineChart({
   }));
   const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
   const legendH = legendLayout.length * 16;
-  const noteH = sourceNote ? 16 : 0;
+  const noteH = noteHeight(sourceNote, PAD.left, width);
   const H = height + legendH + noteH;
   const xs = [...new Set(rows.flatMap((s) => s.points.map((p) => p.x)))].sort((a, b) => a - b);
   const x0 = xs[0];
@@ -605,7 +636,7 @@ export function lineChart({
 
   let cursor = height + 12;
   if (legendH) cursor += drawLegend(svg, legendLayout, cursor);
-  noteLine(svg, sourceNote, PAD.left, cursor);
+  noteLine(svg, sourceNote, PAD.left, cursor, width);
   return svg;
 }
 
@@ -621,7 +652,6 @@ export function barChart({
     label: s?.label ?? `Seri ${i + 1}`, token: seriesToken(i), index: i + 1,
     values: cats.map((_, j) => finite(Array.isArray(s?.values) ? s.values[j] : null)),
   }));
-  const noteH = sourceNote ? 16 : 0;
   const n = cats.length;
   const m = rows.length;
   const rowH = 26;
@@ -643,6 +673,10 @@ export function barChart({
   const PAD = horizontal
     ? { top: 8, right: 16, bottom: 28, left: Math.max(40, catLabelW) }
     : { top: 14, right: 16, bottom: 28, left: Math.min(120, Math.max(36, Math.max(...ticks.map((t) => textWidth(fy(t)))) + 14)) };
+  // noteH DIHITUNG SETELAH PAD: pembungkusan catatan sumber butuh lebar yang tersisa,
+  // dan PAD.left barChart bergantung pada orientasi (verifikasi P1-H putaran 2).
+  const noteH = noteHeight(sourceNote, PAD.left, width);
+
   /* Legenda ditata sekali dari PAD.left (lihat catatan di lineChart). */
   const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'box', series: s.index }));
   const legendLayout = legend && items.length > 1 ? legendRows(items, width, PAD.left) : [];
@@ -723,7 +757,7 @@ export function barChart({
 
   let cursor = PAD.top + plotH + PAD.bottom + 8;
   if (legendH) cursor += drawLegend(svg, legendLayout, cursor);
-  noteLine(svg, sourceNote, PAD.left, cursor);
+  noteLine(svg, sourceNote, PAD.left, cursor, width);
   return svg;
 }
 
@@ -789,7 +823,7 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   const entries = rows.map((s) => ({ ...s, lines: wrapPhrases(legendPhrases(s), legendW) }));
   const entryH = (e) => 18 + (e.lines.length - 1) * 14;
   const rowsH = entries.reduce((a, e) => a + entryH(e), 0);
-  const noteH = sourceNote ? 18 : 0;
+  const noteH = noteHeight(sourceNote, 8, W, 18);
   const H = Math.max(200, rowsH + 24) + noteH;
   if (!drawn.length) {
     /* Ada baris tetapi tidak satu pun bisa digambar: placeholder MENYEBUT berapa dan mengapa
@@ -859,7 +893,7 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
     legend.appendChild(text);
     y += entryH(s);
   });
-  noteLine(svg, sourceNote, 8, H - 5);
+  noteLine(svg, sourceNote, 8, H - 5 - (noteH - 18), W);
   return svg;
 }
 
@@ -960,7 +994,7 @@ export function ganttChart({
   const dates = tasks.flatMap((t) => [t.start, t.end, t.bStart, t.bEnd]).filter((d) => d !== null);
   const W = labelWidth + timelineWidth;
   const headerH = 36;
-  const noteH = sourceNote ? 16 : 0;
+  const noteH = noteHeight(sourceNote, 8, W);
   if (!tasks.length || (!dates.length && dayOrNull(from) === null)) return placeholder('gantt', ariaLabel);
 
   const fromMs = dayOrNull(from) ?? Math.min(...dates);
@@ -970,6 +1004,21 @@ export function ganttChart({
   const showToday = todayMs >= fromMs && todayMs <= toMs;
   const range = (a, b) => `${fullDate.format(new Date(a))} – ${fullDate.format(new Date(b))}`;
 
+  /* Bentuk bar setiap baris dihitung SEKALI, di sini: legenda harus tahu apa
+     yang akan digambar sebelum tinggi svg ditetapkan, dan perulangan baris di
+     bawah memakai fungsi yang sama supaya keduanya tidak bisa berbeda pendapat
+     tentang baris mana yang punya bar (dan ujung mana yang terbuka). */
+  const barShape = (t) => {
+    if (t.invalidDates || t.inverted || (t.start === null && t.end === null)) return null;
+    const openStart = t.start === null;
+    const openEnd = t.end === null;
+    const s = openStart ? fromMs : t.start;
+    const e = openEnd ? toMs : t.end;
+    if (e + DAY <= fromMs || s > toMs) return null;
+
+    return { openStart, openEnd, s, e };
+  };
+
   /* Legenda hanya menyebut yang memang digambar: "Hari ini" tanpa garisnya atau
      "Baseline" tanpa satu pun baseline adalah legenda yang berbohong. */
   const legendItems = [{ label: 'Aktual', token: '--chart-1', kind: 'box', opacity: 0.35 }];
@@ -978,6 +1027,14 @@ export function ganttChart({
      punya rect, dan legenda 'Baseline' untuknya adalah legenda yang berbohong. */
   const baselineDrawn = (t) => t.hasBaseline && t.bEnd + DAY > fromMs && t.bStart <= toMs;
   if (tasks.some(baselineDrawn)) legendItems.push({ label: 'Baseline', token: '--chart-baseline', kind: 'box' });
+  /* Bar berujung putus-putus dijelaskan HANYA oleh <title>-nya sampai P1-H —
+     yaitu tidak dijelaskan sama sekali di ponsel (tidak muncul pada ketukan),
+     di kertas, dan bagi pembaca layar: sebuah paket yang tanggal selesainya
+     belum ditetapkan terbaca sebagai paket yang direncanakan berjalan sampai
+     ujung proyek. */
+  if (tasks.some((t) => { const shape = barShape(t); return shape && (shape.openStart || shape.openEnd); })) {
+    legendItems.push({ label: 'Tanggal belum ditetapkan', token: '--chart-1', kind: 'line', dash: '3 2', width: 2 });
+  }
   if (showToday) legendItems.push({ label: 'Hari ini', token: '--chart-today', kind: 'line' });
   const legendLayout = legendRows(legendItems, W, 8);
   const legendH = legendLayout.length * 16;
@@ -995,6 +1052,21 @@ export function ganttChart({
      2026) — pemotongan memakai faktor itu, dan kolom label diklip pada labelWidth − 6 supaya
      label berglyph lebar ('WWW…', 10,9 px/glyph) pun tidak pernah menembus kolom jadwal. */
   const labelChars = (level) => Math.floor((labelWidth - 14 - level * 12) / (CHAR_W * (11.5 / 11) * (level === 0 ? 1.06 : 1)));
+  /* DUA BARIS, bukan satu yang dipotong. Nama paket pekerjaan yang sungguhan
+     lebih panjang daripada satu baris kolom label — diukur pada berkas demo,
+     kolom 180: 9 dari 11 nama terpotong, di ponsel MAUPUN di layar 1440 (dan
+     di kertas, tempat <title> tidak bisa disentuh sama sekali). Baris kedua
+     memakai tinggi baris yang sudah ada (28 px) tanpa menggeser satu bar pun;
+     yang masih tidak muat tetap dipotong dengan '…' dan tetap membawa nama
+     lengkapnya di <title>. */
+  const labelLines = (text, maxChars) => {
+    if (text.length <= maxChars) return [text];
+    const cut = text.lastIndexOf(' ', maxChars);
+    const head = cut > maxChars * 0.4 ? text.slice(0, cut) : text.slice(0, maxChars);
+    const tail = text.slice(head.length).trim();
+
+    return [head, truncate(tail, maxChars)];
+  };
   const labelClip = plotClip(svg, 0, 0, labelWidth - 8, H);
 
   /* Bayangan akhir pekan: Sabtu+Minggu digabung jadi satu rect. */
@@ -1057,12 +1129,16 @@ export function ganttChart({
     const mid = top + rowHeight / 2;
     svg.appendChild(paint(make('line', { class: 'gantt-row-line', x1: 0, x2: W, y1: top + rowHeight, y2: top + rowHeight }), 'stroke', '--chart-grid'));
     const indent = t.level * 12;
-    const shown = truncate(t.label, labelChars(t.level));
-    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'data-truncated': shown !== t.label ? 'true' : null, 'font-weight': t.level === 0 ? 600 : null, 'clip-path': labelClip }, shown);
+    const lines = labelLines(t.label, labelChars(t.level));
+    const truncated = lines.join(' ') !== t.label;
+    /* Satu <text> dengan dua <tspan>, bukan dua <text>: satu baris jadwal tetap
+       satu simpul label, jadi "jumlah label = jumlah tugas" tetap benar. */
+    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: lines.length > 1 ? mid - 2 : mid + 4, 'data-full': t.label, 'data-truncated': truncated ? 'true' : null, 'data-lines': lines.length, 'font-weight': t.level === 0 ? 600 : null, 'clip-path': labelClip }, undefined);
+    lines.forEach((line, index) => text.appendChild(make('tspan', { x: 8 + indent, dy: index === 0 ? 0 : 12 }, line)));
     /* Label yang dipotong membawa nama lengkapnya di <title> — satu-satunya <title> di
        luar .mark (nama WBS lazim > 29 huruf, dan baris "tanpa tanggal" tidak punya bar
        yang <title>-nya mengulang nama itu). Harness S20 menghitung .mark > title. */
-    if (shown !== t.label) text.appendChild(make('title', {}, t.label));
+    if (truncated) text.appendChild(make('title', {}, t.label));
     svg.appendChild(text);
 
     const withBaseline = baselineDrawn(t);
@@ -1082,6 +1158,7 @@ export function ganttChart({
        (y mid − 3; bar baseline menempati mid + 1..8), bukan menimpanya seperti dulu (teks di
        mid + 4 di atas rect 240 px; verifikasi P1-A putaran 2). */
     const rowNote = (cls, text) => svg.appendChild(make('text', { class: `${cls} chart-tick`, x: labelWidth + 6, y: withBaseline ? mid - 3 : mid + 4, 'data-above-baseline': withBaseline ? 'true' : null }, text));
+    const shape = barShape(t);
     if (t.invalidDates) { rowNote('gantt-invalid', `tanggal tidak valid: ${t.invalid.join(', ')}${t.bInverted ? ' · baseline tidak valid (selesai sebelum mulai)' : ''}`); return; }
     if (t.inverted) { rowNote('gantt-invalid', `tanggal selesai sebelum mulai (${range(t.start, t.end)})${baselineNote}`); return; }
     if (t.start === null && t.end === null) { rowNote('gantt-nodate', `tanpa tanggal${baselineNote}`); return; }
@@ -1089,7 +1166,7 @@ export function ganttChart({
     const openEnd = t.end === null;
     const s = openStart ? fromMs : t.start;
     const e = openEnd ? toMs : t.end;
-    if (e + DAY <= fromMs || s > toMs) {
+    if (shape === null) {
       /* Baris terbuka di luar rentang menyebut HANYA tanggal yang ada: batas rentang (from/to)
          yang disubstitusikan untuk ujung yang kosong dulu ikut dicetak sebagai tanggal tugas —
          'di luar rentang (01 Sep 2026 – 10 Jan 2026)' untuk {start:null, end:'2026-01-10'}
@@ -1128,6 +1205,6 @@ export function ganttChart({
 
   let cursor = rowsTop + rowsH + 18;
   cursor += drawLegend(svg, legendLayout, cursor);
-  noteLine(svg, sourceNote, 8, cursor);
+  noteLine(svg, sourceNote, 8, cursor, W);
   return svg;
 }

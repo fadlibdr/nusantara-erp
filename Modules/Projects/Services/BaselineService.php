@@ -261,6 +261,47 @@ class BaselineService
         return $query->whereNull('superseded_at')->orderByDesc('revision_no')->first();
     }
 
+    /**
+     * Pasangkan setiap baris beku dengan tugas WBS hidupnya — ID DULU, LALU
+     * `wbs_code`, aturan yang sama dengan `EvmService::physicalProgress`.
+     *
+     * Relasi `liveTask` sendirian adalah relasi id, dan id beku MENGGANTUNG:
+     * `ProjectService::generateWbsFromBoq` menghapus seluruh WBS lalu
+     * membuatnya ulang dengan id baru, jadi sesudah SATU kali "Buat WBS dari
+     * BOQ" tidak ada satu pun id beku yang menunjuk baris yang masih ada
+     * (diukur pada berkas demo yang dikirim repositori ini: 0 dari 11 id
+     * bertahan, 11 dari 11 kode cocok). Tanpa pemasangan lewat kode di sini,
+     * `live_exists` bernilai `false` untuk SELURUH isi baseline dan kartu "Isi
+     * beku" di layar EVM mencoret kesebelas barisnya dengan kalimat "sudah
+     * tidak ada di WBS — bobotnya dihitung nol" — sementara EVM di layar
+     * sebelahnya justru MENGHITUNG nilai perolehan dari tugas-tugas itu lewat
+     * jatuh-ke-kode dan memulangkan `tasks_removed: []`. Satu layar mengatakan
+     * lingkupnya dihapus, layar sebelahnya menghitung uang dari lingkup yang
+     * sama (verifikasi P1-H, 7 Sep 2026).
+     *
+     * Kenapa id tetap menang: sebuah kode WBS yang DIGANTI NAMA masih tugas
+     * yang sama, dan id-lah yang benar di situ. Ketidaksepakatannya tidak
+     * disembunyikan — resource-nya mengirim `live_matched_by` dan
+     * `live_wbs_code`, jadi baris yang progresnya datang dari tugas berkode
+     * lain mengatakannya sendiri di layar.
+     */
+    public function attachLiveTasks(ProjectBaseline $baseline): ProjectBaseline
+    {
+        $baseline->loadMissing('tasks');
+
+        $live = WbsTask::query()->where('project_id', $baseline->project_id)->get();
+        $byId = $live->keyBy('id');
+        $byCode = $live->keyBy('wbs_code');
+
+        foreach ($baseline->tasks as $task) {
+            $viaId = $task->wbs_task_id !== null ? $byId->get($task->wbs_task_id) : null;
+
+            $task->setRelation('liveTask', $viaId ?? $byCode->get($task->wbs_code));
+        }
+
+        return $baseline;
+    }
+
     /** Revision 0 — the plan at contract signature, and never deletable. */
     public function originalFor(Project $project): ?ProjectBaseline
     {

@@ -91,7 +91,27 @@ public/app/
                         in the same response — prj/fin read dashboard/summary?include=modules, so it
                         stays ONE request), "Terakhir dibuka" for this module, and a favourite star
                         BESIDE each card (never inside the <a>)
-      project.js        project workspace: kurva-S, WBS tree, site activity
+      project.js        project workspace: two tabs — "Ringkasan" (kurva-S, WBS tree, site
+                        activity) and "Jadwal". The tab lives in a MODULE-level variable because
+                        `reload` redraws the whole screen from six places, and a tab variable
+                        inside the render function would jump back to Ringkasan on every save
+      jadwal.js         the "Jadwal" tab (P1-H): read-only gantt over the project WBS, drawn by
+                        charts.js ganttChart() over TWO EXISTING endpoints (projects/{id}/wbs-tasks
+                        + projects/baselines) — P1-H adds none. The frozen baseline is matched by
+                        `wbs_code`, NEVER by `wbs_task_id` (CONVENTIONS §20: 0 of 11 ids survive one
+                        "Buat WBS dari BOQ", 11 of 11 codes do). NOT imported by app.js — project.js
+                        imports it, and on 7 Sep 2026 that is exactly what made it look like an
+                        orphan worth dropping from a merge; one 404 module takes the whole ES-module
+                        graph down with it (JadwalGanttTest pins the import). Sejak verifikasi
+                        7 Sep 2026 ia juga: membaca AMPLOP endpoint pohon (api.list) untuk
+                        `meta.as_of` — garis "Hari ini" datang dari SERVER, tidak pernah dari jam
+                        peramban — dan `meta.parent_cycles`; membedakan baseline yang TIDAK ADA
+                        dari baseline yang GAGAL dibaca (dengan tombol coba lagi); menggulir
+                        gambar ke garis "Hari ini" pada gambar pertama dan mengulang kalimat
+                        sumbernya sebagai teks DOM (di ponsel yang di dalam svg di luar jendela);
+                        dan MEMOTONG lembar cetaknya sendiri jadi satu svg per 16 baris — sebuah
+                        <svg> tidak bisa dipaginasi, dan satu gambar besar mencetak halaman kosong
+                        serta halaman gambar tanpa sumbu tanggal
       reports.js        finance reports (TB, P&L, BS, aging, project P&L)
       custom.js         stock, payroll, ticket, subcontract, payment, role, …
 ```

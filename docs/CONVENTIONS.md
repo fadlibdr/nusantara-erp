@@ -680,3 +680,110 @@ POST.
 `BoardWiringTest` memeriksa sisanya: kolom adalah nilai enum sungguhan, setiap `moves` menunjuk
 kolom papan itu DAN kunci aksi yang ada, aksinya punya `path` dan tidak berpindah halaman, dan
 tidak satu pun resource yang memposting.
+
+## 20. Tab "Jadwal" — gantt baca-saja atas WBS (P1-H)
+
+`public/app/js/views/jadwal.js` menggambar gantt proyek dengan `charts.js ganttChart()` (§11).
+Ia **tidak menambah satu endpoint pun**: seluruh layarnya berdiri di atas dua yang sudah ada,
+`projects/{id}/wbs-tasks` (pohon hidup) dan `projects/baselines` → `projects/baselines/{id}`
+(rencana beku). Yang menjadi aturan — bukan detail implementasi — adalah dari mana setiap medan
+baris itu datang.
+
+**BASELINE DICOCOKKAN LEWAT `wbs_code`, TIDAK PERNAH LEWAT `wbs_task_id`.**
+`prj_baseline_tasks.wbs_task_id` sengaja tanpa FK: baris beku harus bertahan meski tugas hidupnya
+dihapus, karena lingkup yang dihapus sesudah rencana disepakati adalah hal paling penting yang bisa
+dilaporkan sebuah laporan deviasi. Akibatnya id itu **menggantung**, dan bukan sesekali:
+`ProjectService::generateWbsFromBoq` MENGHAPUS seluruh WBS lalu membuatnya ulang dengan id baru
+setiap kali "Buat WBS dari BOQ" ditekan. Diukur `JadwalGanttTest` terhadap layanan yang sungguhan —
+sesudah **satu** kali tekan, **0 dari 11** id beku menemukan tugas hidup sementara **11 dari 11**
+`wbs_code` cocok; berkas demo yang dikirim repositori ini punya bentuk yang sama (id beku 12–22, id
+hidup 34–44). Jadi mencocokkan lewat id bukan "kurang aman" — ia menghasilkan gantt tanpa satu pun
+bar pembanding, dan kaki kartu yang mengumumkan "0 dari 11 tugas cocok" untuk baseline yang
+disetujui dan lengkap.
+
+Satu-satunya tempat lain yang masih memakai id adalah `EvmService::physicalProgress`, yang mencoba
+id **dulu** lalu jatuh ke kode. Perbedaan itu disengaja (kode WBS yang diganti nama adalah tugas
+yang sama, dan di situ id-lah yang benar) dan pada data hari ini keduanya memberi hasil yang sama
+justru karena setiap id meleset. Sejak P1-H ketidaksepakatan antara keduanya **disebut**: bila id
+beku menunjuk tugas hidup berkode lain, laporan EVM memuat peringatan yang menyebut kedua kodenya.
+Tidak ada FK yang bisa mencegah keadaan itu, jadi yang dijamin adalah ia tidak pernah diam.
+
+**Kode WBS tidak dijamin unik.** Indeks `(baseline_id, wbs_code)` bukan `unique` dan validasinya
+hanya `required|string|max:20`. Peta di jadwal.js diam-diam menyimpan yang terakhir, jadi
+tabrakannya DIHITUNG dan disebutkan di bawah gantt. Angka yang salah yang mengaku dirinya salah
+lebih baik daripada angka yang salah dan diam.
+
+**Urutan baris diambil dari SARANGNYA, bukan dari muatan baseline.** Muatan beku diurutkan
+`(sort_order, wbs_code)`, yang menyelang-nyeling induk dan anak dari cabang berbeda (A, A.1, B.1,
+C.1, A.2, B, …); menggambar dalam urutan itu menghasilkan gantt acak. `prj_wbs_tasks` tidak punya
+kolom level/depth, jadi kedalamannya dihitung dari sarang sisi hidup.
+
+**Endpoint pohon mengirim SELURUH pohon.** `WbsTaskController::index()` merakit sarangnya dari satu
+kueri, tanpa batas kedalaman, dan setiap baris membawa `children` (kosong bila daun). Batas tiga
+tingkat yang lama (`with('children.children')`) benar untuk WBS dari BOQ dan salah untuk pintu kedua
+ke tabel yang sama: `MppXmlImportService` menerima OutlineLevel sedalam apa pun, jadi jadwal empat
+tingkat kehilangan seluruh tingkat keempatnya — tidak digambar gantt, tidak muncul di tabel WBS, dan
+induk tingkat tiganya tampil sebagai daun bertombol "Perbarui" yang pasti ditolak server. **Sebuah
+jadwal yang diam-diam kehilangan paket pekerjaan terlihat persis seperti jadwal yang benar.**
+Sejak verifikasi 7 Sep 2026 janji itu juga berlaku untuk **siklus `parent_id`** (B.3 ↔ B.3.1 —
+FK mengizinkannya, kedua baris ada): dulu anggota siklus tidak pernah menjadi akar dan tidak
+pernah terjangkau dari akar mana pun, jadi 13 baris tersimpan berangkat sebagai 10. Perakitannya
+kini menelusuri dari akar dengan himpunan "sudah dikirim" lalu MENGANGKAT sisanya menjadi akar
+(sisi belakang siklus dipotong, jadi setiap baris muncul tepat sekali). Letak baris itu di pohon
+memang berubah, dan karena itu ia DISEBUT: `meta.parent_cycles` memuat kodenya dan jadwal.js
+mencetaknya di bawah gantt.
+
+**Garis "Hari ini" datang dari SERVER.** `GET {project}/wbs-tasks` mengirim `meta.as_of` +
+`meta.as_of_source: 'server'` — kanal yang sama dengan `DeadlineController` dan `EvmService` — dan
+jadwal.js mengoperkannya ke `ganttChart({ today })`. Tanpa itu charts.js jatuh ke `localToday()`,
+yaitu jam PERAMBAN: diukur 7 Sep 2026 pada berkas dan jam server yang sama, garisnya berpindah
+mengikuti timezone pembacanya (Asia/Jakarta x=484,67 vs America/Los_Angeles x=483,27; diukur
+dengan kolom label 180, sebelum kolomnya dilebarkan). Aturan
+tertulis aplikasi ini berlawanan dengan itu — EvmService: *"an EVM report keyed off a skewed PC
+clock manufactures schedule variance out of nothing"* — dan garis "Hari ini" pada gantt adalah
+pembacaan keterlambatan yang persis sama, hanya dengan mata. Dua peramban dengan timezone
+berjarak 25 jam (Pacific/Niue dan Pacific/Kiritimati, tidak pernah setanggal) mengukurnya di
+S26_gantt_jam_server; harness juga menghitung harapannya dari `meta.as_of`, bukan dari jam
+mesinnya sendiri — aplikasi berjalan di Asia/Jakarta sementara host harness UTC, jadi jam mesin
+berselisih sehari dengan server selama tujuh jam setiap hari.
+
+**Satuan.** `progress_pct` berjalan di kawat sebagai 0..100 dan sebagai *string* ('60.0000');
+`ganttChart` menerima 0..1. Pembagian 100 di jadwal.js bukan kosmetik — tanpa itu setiap bar terbaca
+100 %. Nilai di luar rentang tidak dijepit di jalur baca: gantt menjepit barnya sendiri lalu menulis
+"(di luar 0–100 %)" di `<title>`, yang hanya mungkin bila angka aslinya sampai ke peramban.
+
+**Ketergantungan antar tugas tidak digambar**, dan legenda di kaki kartu mengatakannya: kolomnya
+belum ada di basis data dan impor MPP-XML mengabaikan `PredecessorLink` (ROADMAP menunda ini ke
+Fase 2). Garis yang digambar dari kolom yang tidak ada adalah jadwal karangan.
+
+**Cetak.** Lembar gantt memakai `@page` **bernama** (`@page gantt { size: A4 landscape }` +
+`.gantt-sheet { page: gantt }`), tidak pernah `@page` telanjang: satu stylesheet melayani 16 layar
+yang memanggil `window.print()` dan semuanya tabel potret. Bilah zoom disembunyikan di kertas, judul
+kartu dan catatan sumber di dalam svg tidak — merekalah yang memberi tahu pembaca kertasnya apa yang
+sedang ia lihat. Diukur S26: PDF Chromium memberi halaman 792×612 pt (lanskap) untuk lembar itu dan
+612×792 pt (potret) untuk sisanya — yang dibuktikan angka itu adalah ORIENTASINYA, bukan ukuran
+kertasnya: 792×612 pt adalah US Letter lanskap, dan yang memilih kertas adalah dialog cetak
+(bawaan `page.pdf()` di harness), bukan `size: A4` di stylesheet.
+
+**Jadwal yang lebih tinggi daripada satu kertas DIPOTONG SENDIRI menjadi beberapa svg.** Sebuah
+`<svg>` tidak bisa dipaginasi: diukur 7 Sep 2026 pada jadwal 66 baris, satu gambar besar memberi
+halaman kosong, satu baris terbelah di batas halaman, dan tiga dari empat halaman gambar tanpa
+satu pun sumbu tanggal. `jadwal.js` karena itu menggambar satu svg per 16 baris untuk kertas —
+masing-masing dengan pita bulan, tick, garis "Hari ini" dan legendanya sendiri, dan semuanya
+memakai `from`/`to` yang SAMA supaya skalanya sebanding — lalu menyembunyikan gambar layarnya
+(`.gantt-sheet.is-paginated .chart-scroll`). Kaki setiap halaman menyebut "halaman n dari m,
+baris a–b dari N".
+
+**Gerbang izin.** Ketiga GET layar proyek (`{project}/wbs-tasks`, `/s-curve`, `/dashboard`) menuntut
+`permission:prj.view`, sama dengan `{project}/evm` dan `projects/baselines`. Sampai P1-H gerbang itu
+hanya ada di app.js — separuh tab Jadwal dijaga server dan separuhnya tidak.
+
+**Pohon WBS punya SATU pintu**, `{project}/wbs-tasks`, dan itu bukan kerapian melainkan syarat
+gerbang di atas. `GET projects/{project}` dulu membawa salinan kedua pohon itu (`wbs_tasks` di
+`ProjectResource`) sementara rutenya sendiri berjalan di bawah `auth:sanctum` saja: diukur 7 Sep
+2026, peran tanpa satu pun izin `prj.*` (finance, teknisi, hr, procurement) mendapat 403 dari
+pintu yang bergerbang dan 200 di sana — lengkap dengan kode, uraian, bobot, tanggal rencana dan
+progres setiap paket. Salinan itu juga PENDEK (11 dari 13 baris pada pohon empat tingkat) dan
+tanpa kunci `children`. Muatan proyek karena itu tidak lagi membawa pohonnya sama sekali. Aturan
+umumnya: sebuah medan yang digerbangi di satu rute tidak boleh menumpang di rute lain yang tidak
+digerbangi — gerbang yang bisa diputari bukan gerbang.

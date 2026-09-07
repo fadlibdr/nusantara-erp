@@ -236,14 +236,24 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Impor jadwal MS Project XML (P8 #8): pintu yang sama beratnya dengan
     // generate-wbs — keduanya menulis pohon WBS — maka izinnya juga sama.
     Route::post('{project}/import-mpp-xml', [ProjectController::class, 'importMppXml'])->middleware('permission:prj.update');
-    Route::get('{project}/s-curve', [ProjectController::class, 'sCurve']);
+    // P1-H — TIGA GET layar proyek yang gerbangnya dulu HANYA di peramban.
+    // app.js menolak rute `d/projects/projects/{id}` tanpa `prj.view`, tetapi
+    // s-curve, dashboard dan wbs-tasks berjalan di bawah `auth:sanctum` saja:
+    // siapa pun yang punya token bisa membaca seluruh WBS setiap proyek — kode,
+    // uraian, bobot, tanggal rencana, progres — dengan satu permintaan, dan
+    // separuh tab Jadwal (`projects/baselines`) sudah menuntut prj.view sejak
+    // awal. Izinnya kini disamakan dengan tetangganya di file ini ({project}/evm
+    // dan {project}/material-variance): peran yang memang membuka layar proyek
+    // (project-manager, site-manager, estimator, sales, warehouse, direktur,
+    // admin) semuanya memegang prj.view lewat RoleSeeder.
+    Route::get('{project}/s-curve', [ProjectController::class, 'sCurve'])->middleware('permission:prj.view');
     Route::get('{project}/evm', [EvmController::class, 'show'])->middleware('permission:prj.view');
     // Varian material: teori AHSP x volume BOQ vs bon gudang. prj.view for the
     // same reason as the EVM GET above — the payload names RAB volumes and
     // harga satuan. The warehouse role holds prj.view, so the storeman who
     // raises the bon can read the variance his tagging produces.
     Route::get('{project}/material-variance', [MaterialVarianceController::class, 'show'])->middleware('permission:prj.view');
-    Route::get('{project}/dashboard', [ProjectController::class, 'dashboard']);
-    Route::get('{project}/wbs-tasks', [WbsTaskController::class, 'index']);
+    Route::get('{project}/dashboard', [ProjectController::class, 'dashboard'])->middleware('permission:prj.view');
+    Route::get('{project}/wbs-tasks', [WbsTaskController::class, 'index'])->middleware('permission:prj.view');
     Route::post('{project}/wbs-tasks', [WbsTaskController::class, 'store'])->middleware('permission:prj.create');
 });

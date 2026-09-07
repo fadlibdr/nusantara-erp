@@ -18,14 +18,110 @@ class WbsTaskController extends ApiController
     public function __construct(private readonly ProgressService $progress) {}
 
     /**
-     * WBS tree of a project: root tasks with their children (two levels deep,
-     * which covers the section -> item structure generated from a BOQ).
+     * Pohon WBS sebuah proyek — SELURUHNYA, sedalam apa pun.
+     *
+     * Dulu `rootWbsTasks()->with('children.children')`: TIGA tingkat, "yang
+     * cukup untuk struktur bagian → item yang dihasilkan dari BOQ". Impor
+     * MPP-XML (P8) tidak dibatasi begitu — `MppXmlImportService` menerima
+     * OutlineLevel sedalam apa pun dan hanya menolak lompatan lebih dari satu
+     * tingkat — jadi sebuah jadwal MS Project empat tingkat kehilangan seluruh
+     * tingkat keempatnya di sini: tidak digambar gantt tab Jadwal, tidak muncul
+     * di tabel WBS tab Ringkasan, dan induknya di tingkat tiga tampil sebagai
+     * DAUN (relasi `children`-nya tidak dimuat, jadi kuncinya hilang dari
+     * muatan) lengkap dengan tombol "Perbarui" yang pasti ditolak server.
+     * Sebuah jadwal yang diam-diam kehilangan paket pekerjaan terlihat persis
+     * seperti jadwal yang benar — itulah yang membuatnya berbahaya.
+     *
+     * Pohonnya karena itu dirakit di sini dari SATU kueri: setiap baris
+     * mendapat relasi `children` yang terpasang (kosong bila memang daun), jadi
+     * "tidak punya anak" dan "anaknya tidak dimuat" tidak lagi terlihat sama di
+     * klien. Baris yang induknya tidak ada di himpunan ini (yatim — tidak bisa
+     * dibuat lewat API, tetapi bisa ada di data warisan) diperlakukan sebagai
+     * akar, bukan dibuang: menghilangkan baris dari sebuah jadwal adalah hal
+     * yang paling tidak boleh dilakukan endpoint ini.
+     *
+     * SIKLUS `parent_id` DULU MEMBUANG BARISNYA DIAM-DIAM, dan janji paragraf di
+     * atas karena itu tidak berlaku persis pada keadaan yang paling
+     * membutuhkannya. Penyaring akar hanya menerima `parent_id` null atau induk
+     * yang tidak dikenal, jadi anggota siklus tidak pernah menjadi akar DAN
+     * tidak pernah dijangkau dari akar mana pun. Diukur 7 Sep 2026 dengan
+     * B.3 ↔ B.3.1 saling menunjuk (FK mengizinkannya — kedua baris ada):
+     * 13 baris tersimpan, **10 terkirim**; B.3, B.3.1 dan B.3.1.1 lenyap tanpa
+     * sepatah kata sementara kaki gantt tetap mengumumkan angka yang penuh
+     * percaya diri.
+     *
+     * Perakitannya kini menelusuri dari akar dengan himpunan "sudah dikirim",
+     * lalu MENGANGKAT setiap baris yang tidak terjangkau menjadi akar. Sisi
+     * belakang siklus dipotong (anak yang sudah dikirim tidak dipasang dua
+     * kali), jadi setiap baris muncul TEPAT SEKALI dan serialisasinya tidak
+     * berulang tanpa henti. Barisnya sampai; yang berubah hanya tempatnya di
+     * pohon — dan itu DISEBUT: `meta.parent_cycles` memuat kodenya, dan
+     * jadwal.js mencetaknya di bawah gantt.
      */
     public function index(Project $project): JsonResponse
     {
-        $tasks = $project->rootWbsTasks()->with('children.children')->get();
+        $tasks = $project->wbsTasks()->orderBy('sort_order')->orderBy('wbs_code')->get();
+        $children = $tasks->groupBy('parent_id');
+        $known = $tasks->keyBy('id');
+        $sent = [];
 
-        return $this->ok(WbsTaskResource::collection($tasks));
+        $attach = function (WbsTask $task) use (&$attach, $children, &$sent): void {
+            $sent[$task->id] = true;
+            $kids = $children->get($task->id, collect())
+                ->reject(fn (WbsTask $child): bool => isset($sent[$child->id]))
+                ->values();
+
+            // Ditandai SEBELUM menurun: tanpa itu sebuah siklus masuk kembali
+            // lewat cucunya dan merakit pohon yang tidak berujung.
+            foreach ($kids as $kid) {
+                $sent[$kid->id] = true;
+            }
+
+            $task->setRelation('children', $kids);
+
+            foreach ($kids as $kid) {
+                $attach($kid);
+            }
+        };
+
+        $roots = $tasks
+            ->filter(fn (WbsTask $task): bool => $task->parent_id === null || ! $known->has($task->parent_id))
+            ->values();
+
+        foreach ($roots as $root) {
+            $attach($root);
+        }
+
+        // Yang tersisa hanya bisa anggota siklus: ia punya induk yang dikenal,
+        // tetapi induknya tidak pernah terjangkau dari akar mana pun.
+        $detached = collect();
+
+        foreach ($tasks as $task) {
+            if (isset($sent[$task->id])) {
+                continue;
+            }
+
+            $detached->push($task);
+            $attach($task);
+        }
+
+        // as_of: TANGGAL "HARI INI" MENURUT SERVER, kanal yang sama dengan
+        // DeadlineController dan EvmService ('as_of_source' => 'server').
+        // Gantt menggambar garis "Hari ini", dan tanpa medan ini charts.js
+        // jatuh ke `localToday()` — jam PERAMBAN. Diukur 7 Sep 2026 pada berkas
+        // dan jam yang sama, hanya timezone konteks yang berbeda: garisnya
+        // berpindah (Asia/Jakarta x=484,67 vs America/Los_Angeles x=483,27).
+        // Aturan tertulis aplikasi ini justru sebaliknya — EvmService: "an EVM
+        // report keyed off a skewed PC clock manufactures schedule variance out
+        // of nothing" — dan garis "Hari ini" pada gantt adalah pembacaan
+        // keterlambatan yang persis sama, hanya dengan mata.
+        $meta = ['as_of' => now()->toDateString(), 'as_of_source' => 'server'];
+
+        if ($detached->isNotEmpty()) {
+            $meta['parent_cycles'] = $detached->pluck('wbs_code')->all();
+        }
+
+        return $this->ok(WbsTaskResource::collection($roots->concat($detached)), null, $meta);
     }
 
     /**

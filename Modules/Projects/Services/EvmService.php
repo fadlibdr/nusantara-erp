@@ -252,10 +252,38 @@ class EvmService
         $earned = 0.0;
         $removed = [];
         $matchedIds = [];
+        $crossed = [];
 
         foreach ($frozenLeaves as $leaf) {
-            $task = ($leaf->wbs_task_id !== null ? $byId->get($leaf->wbs_task_id) : null)
-                ?? $byCode->get($leaf->wbs_code);
+            $viaId = $leaf->wbs_task_id !== null ? $byId->get($leaf->wbs_task_id) : null;
+
+            /*
+             * `wbs_task_id` TANPA FK, tanpa validasi, dan relasinya tidak
+             * dibatasi per proyek — jadi tidak ada apa pun di basis data yang
+             * mencegah sebuah baris beku menunjuk tugas hidup yang BUKAN tugas
+             * itu. Pencocok di sini mencoba id DULU, jadi kalau itu terjadi
+             * nilai perolehan dihitung dari progres tugas yang salah, dan
+             * sampai P1-H tidak ada satu kalimat pun yang mengatakannya: uang
+             * yang salah, dan diam.
+             *
+             * Yang dipaku bukan "tidak boleh terjadi" (tidak bisa dijamin tanpa
+             * FK) melainkan "tidak boleh diam". Perilaku angkanya sengaja TIDAK
+             * diubah — id tetap menang, karena sebuah kode WBS yang diganti
+             * nama adalah tugas yang sama dan id-lah yang benar di situ — tetapi
+             * ketidaksepakatannya disebut, dengan kedua kodenya.
+             *
+             * Catatan untuk pembaca berikutnya: `views/jadwal.js` (gantt tab
+             * Jadwal) mencocokkan lewat `wbs_code` SAJA dan tidak pernah lewat
+             * id. Pada data hari ini keduanya memberi hasil yang sama justru
+             * karena setiap id meleset (diukur: 0 dari 11 bertahan sesudah satu
+             * kali "Buat WBS dari BOQ"). Perbedaan itu disengaja dan ditulis di
+             * docs/LAPORAN-PAKET-HM-P1-H.md §4.
+             */
+            if ($viaId !== null && $viaId->wbs_code !== $leaf->wbs_code) {
+                $crossed[] = sprintf('%s → %s', $leaf->wbs_code, $viaId->wbs_code);
+            }
+
+            $task = $viaId ?? $byCode->get($leaf->wbs_code);
 
             if ($task === null) {
                 // Scope removed after freezing. It earns nothing — deleting a
@@ -290,6 +318,15 @@ class EvmService
                 'Tugas %s ada di WBS tetapi tidak ada di baseline; lingkup baru belum menghasilkan nilai '
                 .'sampai baseline baru disetujui.',
                 implode(', ', $added),
+            );
+        }
+
+        if ($crossed !== []) {
+            $warnings[] = sprintf(
+                'Baris baseline %s menunjuk tugas WBS dengan kode WBS yang berbeda; nilai perolehannya '
+                .'dihitung dari tugas yang ditunjuk id, bukan dari tugas berkode sama. Periksa baseline ini '
+                .'sebelum memakai CPI/SPI-nya.',
+                implode(', ', $crossed),
             );
         }
 

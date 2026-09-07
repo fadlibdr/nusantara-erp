@@ -3954,6 +3954,7 @@ Tiga akibatnya yang harus Anda ketahui sejak awal:
 |---|---|
 | Galeri Foto | tombol **`Galeri Foto`** di halaman proyek |
 | Struktur WBS | kartu di halaman proyek — bukan layar tersendiri |
+| **Jadwal (gantt)** | tab **`Jadwal`** di halaman proyek |
 | Tutup proyek | tombol **`Tutup proyek`** di halaman proyek |
 | Baseline proyek | layar **EVM & Baseline** atau kartu Baseline di halaman proyek |
 
@@ -3999,7 +4000,54 @@ Anda:
 > rencana" terlihat aneh: buka **Progres Mingguan** dan **simpan ulang minggu bernomor
 > tertinggi**. Kurva-S di kartu di bawahnya membaca baris minggu langsung dan tetap benar.
 
-**Kartu-kartu di halaman proyek:**
+**Dua tab: `Ringkasan` dan `Jadwal`.** Tab yang sedang terbuka bertahan ketika halaman
+menggambar ulang dirinya — menyimpan progres satu paket pekerjaan tidak melemparkan Anda
+kembali ke Ringkasan.
+
+**Tab `Jadwal`** menggambar seluruh tugas WBS proyek sebagai gantt **baca-saja**: satu baris
+per paket pekerjaan, dalam urutan pohonnya, dengan tanggal rencana sebagai batangnya dan
+bagian gelap di dalamnya sebagai progresnya. Tidak ada yang bisa diubah dari sini — progres
+tetap diisi dari kartu **Struktur WBS** di tab Ringkasan.
+
+- **Batang tipis di bawah batang utama = baseline yang dibekukan.** Ia digambar hanya untuk
+  paket yang punya pasangan di baseline, dan selisih ujungnya itulah keterlambatan (atau
+  percepatan) terhadap rencana yang disepakati.
+- **Kalimat di kaki gambar menyebut berapa yang cocok** — mis. *"baseline BSL/2026/VIII/0001
+  (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS"*. Paket yang tidak
+  punya pasangan hanya kehilangan batang pembandingnya; jadwalnya tetap tergambar.
+- **Belum ada baseline disetujui?** Gantt tetap tergambar, dan kalimatnya mengatakannya:
+  *"belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana WBS
+  yang berlaku sekarang."* Itu bukan galat.
+- **Kalimat itu HANYA dipakai kalau baselinenya memang tidak ada.** Bila baselinenya ada tetapi
+  tidak bisa dibaca, kalimatnya berbeda dan menyebut sebabnya — *"Baseline BSL/2026/VIII/0001
+  ada, tetapi isinya gagal dimuat (galat HTTP 500) — bar pembanding tidak digambar"*, atau
+  *"Daftar baseline gagal dimuat …, jadi layar ini tidak tahu apakah proyek ini punya rencana
+  beku"* — dan di kaki kartu muncul tombol **Coba lagi**. Jadwal yang tergambar tetap benar;
+  yang belum diketahui adalah pembandingnya.
+- **Batang yang ujung kanannya putus-putus** = tanggal selesainya belum ditetapkan; batangnya
+  memanjang sampai tepi kanan karena tidak ada yang tahu di mana ia berhenti. Paket yang
+  belum punya tanggal sama sekali tidak digambar sebagai batang, melainkan ditulis
+  *"tanpa tanggal"* pada barisnya — sebuah batang yang dikarang lebih buruk daripada baris
+  kosong.
+- **Garis tegak berlabel "Hari ini"** hanya muncul bila hari ini memang di dalam rentang
+  jadwalnya, dan "hari ini" itu **tanggal server**, bukan tanggal komputer Anda: jam yang meleset
+  di satu PC tidak boleh membuat jadwal terbaca terlambat (atau tidak terlambat). Kolom abu-abu
+  adalah Sabtu–Minggu.
+- **`Mingguan` / `Bulanan`** mengubah kerapatan garis tanggal; **`Cetak`** mencetak lembar
+  ini **mendatar (lanskap)**, lengkap dengan judul proyek dan kalimat sumbernya, sementara
+  bilah tombolnya tidak ikut tercetak.
+- **Garis ketergantungan antar tugas tidak digambar.** Kolomnya belum ada di basis data dan
+  impor MPP-XML mengabaikan `PredecessorLink` — kalimat di bawah gambar mengatakannya. Garis
+  yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.
+- Nama paket yang panjang **dipatahkan ke dua baris**. Yang tetap tidak muat berakhir dengan
+  "…" dan nama lengkapnya muncul saat kursor diarahkan ke label itu (di ponsel dan di kertas
+  petunjuk itu tidak ada — nama penuhnya ada di tabel WBS pada tab **Ringkasan**).
+- Di ponsel gambarnya **menggulir mendatar**, dan posisi gulir awalnya diletakkan pada garis
+  **"Hari ini"** supaya bagian jadwal yang sedang berjalan yang pertama terlihat; geser ke kiri
+  untuk membaca kolom nama. Kalimat sumber di kaki kartu juga digambar sebagai teks biasa di
+  bawah gambar, jadi ia terbaca tanpa menggeser apa pun.
+
+**Kartu-kartu di halaman proyek** (tab `Ringkasan`)**:**
 
 - **Kurva-S (progres kumulatif)** — tombol **`Catat minggu`** di kepala kartu. Grafiknya
   menggambar tiga garis: *Rencana (laporan mingguan)*, *Aktual*, dan — bila ada baseline
