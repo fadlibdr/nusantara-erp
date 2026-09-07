@@ -1,0 +1,399 @@
+<?php
+
+namespace Tests\Feature\Projects;
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Modules\Iam\Database\Seeders\PermissionSeeder;
+use Modules\Projects\Models\Project;
+use Modules\Projects\Models\ProjectBaseline;
+use Modules\Projects\Services\BaselineService;
+use Modules\Projects\Services\ProjectService;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\ErpTestCase;
+
+/**
+ * Tab "Jadwal" (P1-H) — apa yang HARUS dijamin server supaya gantt baca-saja di
+ * `public/app/js/views/jadwal.js` menggambar jadwal yang benar.
+ *
+ * Gambarnya digambar di peramban, jadi berkas ini tidak menguji piksel; yang
+ * diuji adalah muatan yang dibaca layar itu, dan setiap anggapan yang
+ * disandarinya. Sisi peramban diukur harness S26_gantt.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * SATU HAL YANG MENOPANG SELURUH LAYAR: BASELINE DICOCOKKAN LEWAT `wbs_code`.
+ *
+ * `prj_baseline_tasks.wbs_task_id` ada, tetapi ia menggantung. Diukur di sini
+ * (test pertama, satu panggilan `generateWbsFromBoq` yang sungguhan): sesudah
+ * "Buat WBS dari BOQ" ditekan SEKALI, 0 dari 11 id beku menunjuk baris WBS yang
+ * masih ada sementara 11 dari 11 `wbs_code` cocok — angka yang sama bentuknya
+ * dengan berkas demo yang dikirim repositori ini (id beku 12–22, id hidup
+ * 34–44, yang berarti tombol itu ditekan dua kali lagi sesudahnya).
+ *
+ * Maka mencocokkan lewat id bukan "kurang aman": ia menghasilkan gantt TANPA
+ * SATU PUN bar pembanding pada data yang ada, dan kaki kartunya akan
+ * mengumumkan "0 dari 11 tugas cocok" untuk sebuah baseline yang disetujui dan
+ * lengkap. Angka yang salah, diumumkan dengan yakin.
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+class JadwalGanttTest extends ErpTestCase
+{
+    use BaselineFixtures;
+
+    private Project $project;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(PermissionSeeder::class);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->project = $this->grahaProject();
+    }
+
+    // ------------------------------------------------ invarian `wbs_code`
+
+    /**
+     * Angka yang ditulis docblock jadwal.js, diukur ulang di sini terhadap
+     * layanan yang sungguhan — bukan dihafal.
+     */
+    public function test_a_regenerated_wbs_leaves_every_frozen_id_dangling_while_every_wbs_code_still_matches(): void
+    {
+        $baseline = $this->freeze();
+
+        $before = $this->project->refresh()->wbsTasks()->pluck('id', 'wbs_code')->all();
+        $this->assertSame(
+            $baseline->tasks()->pluck('wbs_task_id', 'wbs_code')->all(),
+            $before,
+            'Baseline dibekukan dari WBS yang sedang hidup, jadi sebelum apa pun terjadi setiap id beku '
+            .'MEMANG menunjuk tugasnya sendiri — itulah yang membuat pencocokan lewat id terlihat aman.',
+        );
+
+        // "Buat WBS dari BOQ" — sekali. Layanannya MENGHAPUS seluruh WBS lalu
+        // membuatnya ulang, jadi setiap baris hidup memakai id baru.
+        app(ProjectService::class)->generateWbsFromBoq($this->project->refresh());
+
+        $live = $this->project->refresh()->wbsTasks()->get();
+        $frozen = $baseline->tasks()->get();
+        $liveById = $live->keyBy('id');
+        $liveByCode = $live->keyBy('wbs_code');
+
+        $this->assertCount(11, $frozen);
+        $this->assertCount(11, $live);
+        $this->assertSame(0, $frozen->filter(fn ($row): bool => $liveById->has($row->wbs_task_id))->count(),
+            'Sebuah id beku masih menemukan tugas hidup; kalau ini pernah terjadi, angka 0/11 yang '
+            .'ditulis docblock jadwal.js dan laporan paketnya sudah tidak benar lagi.');
+        $this->assertSame(11, $frozen->filter(fn ($row): bool => $liveByCode->has($row->wbs_code))->count());
+
+        // …dan id yang lama tidak dipakai ulang, ia hanya ditinggalkan.
+        $this->assertEmpty(array_intersect(array_values($before), $live->pluck('id')->all()));
+    }
+
+    /**
+     * Dua pencocok yang sama dijalankan atas MUATAN yang sungguhan (dua endpoint
+     * yang dipanggil layar), supaya yang dibandingkan adalah apa yang benar-benar
+     * sampai ke peramban.
+     */
+    public function test_matching_the_frozen_baseline_by_id_would_draw_a_gantt_with_no_baseline_bar_at_all(): void
+    {
+        $baseline = $this->freeze();
+        app(ProjectService::class)->generateWbsFromBoq($this->project->refresh());
+
+        $admin = $this->adminUser();
+        $tree = $this->actingAs($admin)
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk()->json('data');
+        $frozen = $this->actingAs($admin)
+            ->getJson("/api/projects/baselines/{$baseline->id}")->assertOk()->json('data.tasks');
+
+        $rows = $this->flatten($tree);
+        $byId = collect($frozen)->keyBy('wbs_task_id');
+        $byCode = collect($frozen)->keyBy('wbs_code');
+
+        $matchedById = collect($rows)->filter(fn (array $row): bool => $byId->has($row['id']))->count();
+        $matchedByCode = collect($rows)->filter(fn (array $row): bool => $byCode->has($row['wbs_code']))->count();
+
+        $this->assertCount(11, $rows);
+        $this->assertSame(0, $matchedById);
+        $this->assertSame(11, $matchedByCode);
+
+        // Dan bar pembandingnya memang punya tanggal untuk digambar.
+        $b3 = $byCode->get('B.3');
+        $this->assertSame('2026-02-23', $b3['planned_start']);
+        $this->assertSame('2026-10-15', $b3['planned_end']);
+    }
+
+    // ------------------------------------------------ bentuk muatan pohon
+
+    /**
+     * Tugas tanpa tanggal adalah keadaan yang sah (POST wbs-tasks menerima
+     * keduanya null), dan gantt menggambarnya sebagai bar terbuka / baris
+     * "tanpa tanggal". Yang tidak boleh dilakukan server adalah menambalnya
+     * dengan tanggal proyek: sebuah bar yang membentang sepanjang proyek adalah
+     * rencana yang tidak pernah dibuat siapa pun.
+     */
+    public function test_a_task_without_planned_dates_reaches_the_screen_as_null(): void
+    {
+        $b = $this->project->wbsTasks()->where('wbs_code', 'B')->firstOrFail();
+        $this->addTask('B.5', 'Pekerjaan tambah belum dijadwalkan', $b->id, start: null, end: null);
+        $this->addTask('B.6', 'Pembongkaran bekisting (selesai belum ditetapkan)', $b->id, start: '2026-05-01', end: null);
+
+        $rows = collect($this->flatten($this->actingAs($this->adminUser())
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk()->json('data')));
+
+        $none = $rows->firstWhere('wbs_code', 'B.5');
+        $this->assertNull($none['raw']['planned_start']);
+        $this->assertNull($none['raw']['planned_end']);
+
+        $open = $rows->firstWhere('wbs_code', 'B.6');
+        $this->assertSame('2026-05-01', $open['raw']['planned_start']);
+        $this->assertNull($open['raw']['planned_end']);
+    }
+
+    /**
+     * SATUAN. `progress_pct` berjalan di kawat sebagai 0..100 dan sebagai STRING
+     * ('60.0000'); `charts.js ganttChart` menerima 0..1, jadi jadwal.js
+     * membaginya 100. Kalau server suatu hari mengirim 0..1, setiap bar terbaca
+     * 1 % dan tidak ada yang gagal — karena itu skalanya dipaku di sini.
+     *
+     * Dan nilai di luar rentang TIDAK dijepit di jalur baca: gantt menjepit
+     * barnya sendiri lalu menulis "(di luar 0–100 %)" di <title>-nya, yang hanya
+     * mungkin kalau angka aslinya sampai ke peramban.
+     */
+    public function test_progress_travels_as_zero_to_one_hundred_and_is_never_clamped_on_the_way_out(): void
+    {
+        DB::table('prj_wbs_tasks')->where('project_id', $this->project->id)
+            ->where('wbs_code', 'B.2')->update(['progress_pct' => 105.5]);
+
+        $rows = collect($this->flatten($this->actingAs($this->adminUser())
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk()->json('data')));
+
+        // B.3 = 60 % pada fixture: 60, bukan 0,6.
+        $this->assertSame('60.0000', $rows->firstWhere('wbs_code', 'B.3')['raw']['progress_pct']);
+        $this->assertSame('105.5000', $rows->firstWhere('wbs_code', 'B.2')['raw']['progress_pct']);
+    }
+
+    // -------------------------------------------- baseline yang tak lengkap
+
+    /**
+     * Baseline yang belum ada bukan galat: proyek yang belum dibekukan tetap
+     * punya jadwal, dan yang hilang hanya bar pembandingnya. Endpoint yang
+     * dipanggil layar harus memulangkan daftar KOSONG dengan 200 — jadwal.js
+     * membaca `current[0]` dan menggambar tanpa baseline.
+     */
+    public function test_a_project_with_no_approved_baseline_answers_an_empty_current_list(): void
+    {
+        $admin = $this->adminUser();
+        $path = "/api/projects/baselines?project_id={$this->project->id}&current=1&per_page=1";
+
+        $this->assertSame([], $this->actingAs($admin)->getJson($path)->assertOk()->json('data'));
+
+        // Baseline yang masih draft juga belum jadi pembanding: yang dibekukan
+        // adalah yang DISETUJUI, dan `current=1` menyaringnya.
+        $this->makeRapMirroringWbs();
+        $draft = app(BaselineService::class)->snapshot($this->project->refresh(), ['effective_date' => '2026-02-02']);
+        $this->assertSame([], $this->actingAs($admin)->getJson($path)->assertOk()->json('data'));
+
+        // Revisi 1 wajib beralasan — BaselineService menolak revisi tanpa sebab.
+        $approved = $this->freeze(['reason' => 'Addendum waktu pelaksanaan.']);
+        $current = $this->actingAs($admin)->getJson($path)->assertOk()->json('data');
+        $this->assertCount(1, $current);
+        $this->assertSame($approved->id, $current[0]['id']);
+        $this->assertNotSame($draft->id, $current[0]['id']);
+    }
+
+    // ------------------------------------------------------------- gerbang
+
+    // ------------------------------------------------------ pin SPA ↔ server
+
+    /**
+     * Pin SPA↔server, dengan grep — sama seperti CrossModuleSpaWiringTest,
+     * karena tidak ada runtime JS di host ini dan grep membaca berkas yang sama
+     * dengan yang dibaca peninjau.
+     *
+     * P1-H tidak menambah satu endpoint pun; seluruh layarnya berdiri di atas
+     * dua endpoint yang sudah ada. Sebuah endpoint yang diubah namanya di server
+     * tanpa menyentuh jadwal.js akan memberi tab yang selamanya "Memuat…".
+     */
+    public function test_the_schedule_tab_calls_only_endpoints_that_exist(): void
+    {
+        $jadwal = $this->spa('views/jadwal.js');
+
+        foreach (['projects/${id}/wbs-tasks', "projects/baselines'", 'projects/baselines/${head.id}'] as $needle) {
+            $this->assertStringContainsString($needle, $jadwal, "jadwal.js tidak lagi memanggil {$needle}.");
+        }
+
+        $routes = collect(app('router')->getRoutes()->getRoutes())
+            ->map(fn ($route): string => $route->uri())->all();
+
+        $this->assertContains('api/projects/{project}/wbs-tasks', $routes);
+        $this->assertContains('api/projects/baselines', $routes);
+        $this->assertContains('api/projects/baselines/{baseline}', $routes);
+
+        // Medan yang DIBACA jadwal.js, dipaku pada muatan yang sungguhan.
+        $baseline = $this->freeze();
+        $admin = $this->adminUser();
+
+        $tree = $this->actingAs($admin)
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk()->json('data');
+        foreach (['wbs_code', 'name', 'planned_start', 'planned_end', 'progress_pct', 'children'] as $field) {
+            $this->assertArrayHasKey($field, $tree[0], "Muatan pohon WBS kehilangan `{$field}`.");
+        }
+
+        $show = $this->actingAs($admin)
+            ->getJson("/api/projects/baselines/{$baseline->id}")->assertOk()->json('data');
+        $this->assertArrayHasKey('code', $show);
+        $this->assertArrayHasKey('tasks', $show);
+        foreach (['wbs_code', 'planned_start', 'planned_end'] as $field) {
+            $this->assertArrayHasKey($field, $show['tasks'][0], "Muatan baseline kehilangan `{$field}`.");
+        }
+
+        $index = $this->actingAs($admin)
+            ->getJson("/api/projects/baselines?project_id={$this->project->id}&current=1&per_page=1")
+            ->assertOk()->json('data');
+        $this->assertArrayHasKey('id', $index[0], 'jadwal.js memakai current[0].id untuk mengambil baseline penuhnya.');
+    }
+
+    /**
+     * Pelajaran 7 September 2026, dijadikan uji: `views/jadwal.js` sempat
+     * dikeluarkan dari sebuah merge dengan alasan "yatim, belum terpasang rute".
+     * Ia memang tidak punya rute sendiri — `views/project.js` yang mengimpornya
+     * — dan satu modul yang 404 menjatuhkan SELURUH graf modul ES: /app/ berhenti
+     * pada pemuatnya. Situsnya padam sampai berkasnya dikembalikan.
+     */
+    public function test_the_schedule_module_is_reachable_only_through_the_project_screen_and_that_import_is_pinned(): void
+    {
+        $this->assertFileExists(public_path('app/js/views/jadwal.js'));
+
+        $project = $this->spa('views/project.js');
+
+        $this->assertStringContainsString("import { renderJadwal } from './jadwal.js'", $project,
+            'project.js tidak lagi mengimpor jadwal.js — kalau impornya dibuang, berkasnya menjadi '
+            .'yatim sungguhan; kalau BERKASNYA yang dibuang, /app/ padam seluruhnya.');
+        $this->assertStringContainsString("key: 'jadwal'", $project, 'Tab "Jadwal" tidak lagi terdaftar.');
+        $this->assertStringContainsString('renderJadwal(pane', $project, 'Tab "Jadwal" terdaftar tetapi tidak memanggil apa pun.');
+    }
+
+    // ------------------------------------------------------------ pembantu
+
+    /** Snapshot → submit → approve, oleh dua orang berbeda. */
+    private function freeze(array $data = []): ProjectBaseline
+    {
+        $this->makeRapMirroringWbs();
+
+        $maker = $this->userWith('prj.create', 'Perencana');
+        $checker = $this->userWith('prj.approve', 'Direktur');
+        $service = app(BaselineService::class);
+
+        $baseline = $service->snapshot($this->project->refresh(), array_merge([
+            'effective_date' => '2026-02-02',
+        ], $data), $maker);
+        $service->submit($baseline, $maker);
+
+        return $service->approve($baseline, $checker);
+    }
+
+    /**
+     * BOQ yang bagian dan itemnya persis mencerminkan WBS fixture, supaya
+     * `generateWbsFromBoq` membangun ulang pohon dengan KODE yang sama dan id
+     * yang baru — jalur yang sesungguhnya, bukan penghapusan buatan tangan.
+     */
+    private function makeRapMirroringWbs(): int
+    {
+        if ($this->project->boq_id !== null) {
+            return (int) $this->project->boq_id;
+        }
+
+        $boqId = DB::table('est_boqs')->insertGetId([
+            'code' => 'BOQ/2026/0001', 'title' => 'BOQ '.$this->project->code,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $sections = [];
+        foreach (['A' => 'Pekerjaan Persiapan', 'B' => 'Pekerjaan Struktur', 'C' => 'Pekerjaan Arsitektur & MEP'] as $no => $name) {
+            $sections[$no] = DB::table('est_boq_sections')->insertGetId([
+                'boq_id' => $boqId, 'section_no' => $no, 'name' => $name,
+                'sort_order' => count($sections) + 1, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $boqItemId = null;
+        foreach (self::LEAVES as $index => [$code, $weight]) {
+            $amount = round($weight / 100 * self::RAP_TOTAL, 2);
+            $id = DB::table('est_boq_items')->insertGetId([
+                'boq_id' => $boqId, 'section_id' => $sections[explode('.', $code)[0]],
+                'wbs_code' => $code, 'description' => 'Pekerjaan '.$code, 'qty' => 1, 'unit' => 'ls',
+                'unit_price' => $amount, 'amount' => $amount, 'sort_order' => $index + 1,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $boqItemId ??= $id;
+        }
+
+        $rapId = DB::table('est_cost_budgets')->insertGetId([
+            'code' => 'RAP/2026/0001', 'boq_id' => $boqId, 'project_id' => $this->project->id,
+            'target_margin_pct' => 13, 'total_budget' => self::RAP_TOTAL, 'status' => 'approved',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach (self::RAP_CATEGORIES as $category => $amount) {
+            DB::table('est_cost_budget_items')->insert([
+                'cost_budget_id' => $rapId, 'boq_item_id' => $boqItemId, 'cost_category' => $category,
+                'description' => 'Anggaran '.$category, 'qty' => 1, 'unit' => 'ls',
+                'unit_price' => $amount, 'amount' => $amount, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $this->project->forceFill(['boq_id' => $boqId])->save();
+        $this->project->refresh();
+
+        return $rapId;
+    }
+
+    private function addTask(string $code, string $name, ?int $parentId, ?string $start = '2026-03-02', ?string $end = '2026-04-30')
+    {
+        return $this->project->wbsTasks()->create([
+            'parent_id' => $parentId,
+            'wbs_code' => $code,
+            'name' => $name,
+            'weight_pct' => 0,
+            'planned_start' => $start,
+            'planned_end' => $end,
+            'progress_pct' => 0,
+            'sort_order' => 9,
+        ]);
+    }
+
+    /** Pohon bersarang → daftar rata, cara yang sama dengan `flatten()` jadwal.js. */
+    private function flatten(array $nodes, int $level = 0, array &$out = []): array
+    {
+        foreach ($nodes as $node) {
+            $out[] = ['id' => $node['id'], 'wbs_code' => $node['wbs_code'], 'level' => $level, 'raw' => $node];
+            $this->flatten($node['children'] ?? [], $level + 1, $out);
+        }
+
+        return $out;
+    }
+
+    private function spa(string $relative): string
+    {
+        $path = public_path('app/js/'.$relative);
+        $this->assertFileExists($path, "public/app/js/{$relative} hilang.");
+
+        return (string) file_get_contents($path);
+    }
+
+    /** Peran demo tanpa satu pun izin `prj.*` (RoleSeeder: finance). */
+    private function userWithoutProjectAccess(): User
+    {
+        $role = Role::findOrCreate('finance-tanpa-prj', 'web');
+        $role->syncPermissions(['fin.view', 'crm.view']);
+
+        /** @var User $user */
+        $user = User::query()->create([
+            'name' => 'Keuangan', 'email' => 'keuangan-'.str()->random(6).'@nusantara.test',
+            'password' => 'password', 'is_active' => true,
+        ]);
+        $user->assignRole($role);
+
+        return $user;
+    }
+}
