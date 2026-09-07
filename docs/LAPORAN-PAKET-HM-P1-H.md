@@ -293,3 +293,12 @@ console error, 0 permintaan gagal, formulir masuk tergambar.**
     layar proyek, karena hanya ketiga itu yang tab Jadwal berdiri di atasnya. Sisanya adalah
     keputusan modul Projects, bukan keputusan P1-H — dan angkanya ditulis di sini supaya ia tidak
     hilang bersama paket ini.
+
+## Gerbang rilis (7 September 2026)
+
+Commit rilis `f344a5b`. Suite penuh di worktree terpisah, KEDUA driver:
+**SQLite 4.007 uji / 20.799 asersi hijau** (11 dilewati, 10 mnt 08 dtk) dan
+**MySQL 8.0.46 4.007 uji / 20.812 asersi hijau** (6 dilewati, 30 mnt 44 dtk).
+Harness sesudah perubahan `charts.js` putaran kedua: S20, S20m, S20e, S20em, S26, S26m
+dijalankan ulang seluruhnya — hijau, dan `results-phase-1.json` menggambarkan kode di commit ini.
+Pemeriksaan peramban wajib: `/app/` dimuat di Chromium, 0 galat konsol, 0 permintaan gagal.
