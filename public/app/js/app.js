@@ -1524,6 +1524,7 @@ window.addEventListener('error', (event) => {
 let swRegistration = null;
 let installPrompt = null;
 let reloadOnControllerChange = false;
+let updateToast = null;
 
 /** Sudah berjalan sebagai aplikasi terpasang (Android/desktop; `standalone` iOS). */
 function appIsInstalled() {
@@ -1599,7 +1600,21 @@ function installRow() {
  * sebelum worker barunya siap menjawab.
  */
 function announceUpdate(registration) {
-  toast('Versi baru siap — Muat ulang untuk memakainya.', {
+  /*
+   * SATU pengumuman, bukan satu per rilis. Toast ini bertahan (timeout 0), jadi
+   * tanpa baris ini setiap rilis menumpuk satu kalimat permanen yang berbunyi
+   * persis sama di tab yang dibiarkan terbuka. Terukur 7 Sep 2026: rilis kedua
+   * dan ketiga tanpa ada yang menekan apa pun meninggalkan dua toast identik,
+   * masing-masing 88 px di 390x844, di atas hosting toast yang sudah menutup
+   * 104 px dasar layar — tablet lapangan yang tidak pernah ditutup adalah
+   * perangkat yang paling mungkin mengalaminya.
+   *
+   * Yang lama dibuang, bukan yang baru dilewati: `registration` yang dipegang
+   * toast lama sudah menunjuk worker yang menunggu SEBELUMNYA.
+   */
+  if (updateToast) updateToast.remove();
+
+  updateToast = toast('Versi baru siap — Muat ulang untuk memakainya.', {
     tone: 'info',
     timeout: 0,
     action: {

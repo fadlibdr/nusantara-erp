@@ -5643,6 +5643,18 @@ def s27u(pg):
         out["waiting_worker"] = pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.waiting); }")
         pg.screenshot(path=f"{OUT}/s27-toast-versi-baru-p1i.png", full_page=False)
 
+        # RILIS KEDUA di tab yang sama, tanpa ada yang menekan apa pun. Sebuah
+        # tablet lapangan yang tidak pernah ditutup melihat setiap rilis; sampai
+        # 7 Sep 2026 setiap rilis menambah SATU toast permanen berbunyi persis
+        # sama (terukur: dua toast identik sesudah rilis ketiga, 88 px masing-
+        # masing di atas hosting toast yang sudah menutup 104 px dasar layar).
+        open(SW_FILE, "w", encoding="utf-8").write(
+            original.replace(m.group(0), f"const SHELL_VERSION = '{m.group(1)}-uji2';", 1))
+        pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }")
+        pg.wait_for_timeout(4000)
+        out["toasts_after_second_release"] = toasts(pg)
+        pg.screenshot(path=f"{OUT}/s27-toast-rilis-kedua-p1i.png", full_page=False)
+
         navigations.clear()
         click(pg, ".toast button:has-text('Muat ulang')")
         # Cukup lama untuk memergoki muat ulang KEDUA kalau ada.
@@ -5659,6 +5671,8 @@ def s27u(pg):
         "toast_says_the_sentence": any("Versi baru siap — Muat ulang" in t for t in out.get("toast", [])),
         "toast_has_reload_button": any("Muat ulang" in t for t in out.get("toast", [])),
         "a_worker_was_waiting": out.get("waiting_worker") is True,
+        "a_second_release_does_not_stack_a_second_toast":
+            len([t for t in out.get("toasts_after_second_release", []) if "Versi baru siap" in t]) == 1,
         "reloaded_exactly_once": out.get("navigations_after_click") == 1,
         "old_cache_deleted": len(out.get("cache_after", [])) == 1 and out.get("cache_after") != out.get("cache_before"),
         "still_controlled": out.get("controlled_after") is True,
