@@ -180,7 +180,10 @@ console error, 0 permintaan gagal, formulir masuk tergambar.**
 1. **Data demo tidak punya deviasi jadwal sama sekali.** `BSL/2026/VIII/0001` dibekukan dari WBS
    yang sama persis, jadi **11 dari 11** bar pembandingnya berimpit sempurna dengan bar rencana
    hidupnya: sebuah gantt yang MELUPAKAN bar baseline akan terlihat sama benarnya. Karena itu S26
-   menanam deviasinya sendiri (satu tanggal digeser 30 hari) dan mengembalikannya. Yang **belum**
+   menanam deviasinya sendiri (satu tanggal beku dipasang MUTLAK ke 2026-10-01, 30 hari dari
+   2026-10-31, dan dikembalikan di blok `finally` — verifikasi 7 Sep 2026: pergeseran relatif
+   yang dikembalikan di baris pernyataan biasa merusak baseline yang disetujui secara permanen
+   begitu satu jalan mati di tengah, sementara setiap S26 berikutnya tetap hijau). Yang **belum**
    pernah dilihat siapa pun adalah gantt dengan deviasi yang SUNGGUHAN dan banyak.
 2. **Verifikasi adversarial belum dijalankan.** Putaran pertama P1-F menemukan 20 cacat sungguhan.
 3. **Suite MySQL belum dijalankan.** Perbaikan pohon WBS mengubah bentuk kueri (`groupBy` di PHP

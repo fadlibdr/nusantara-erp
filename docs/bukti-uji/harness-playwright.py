@@ -2668,37 +2668,68 @@ def drop_planted_task(project_id=1, code="B.5"):
         con.close()
 
 
-def shift_baseline_task(code="B.2", days=-30):
+# Tanggal beku B.2 pada berkas demo, dan tanggal yang skenario ini geser
+# menjadi. Keduanya MUTLAK, bukan "before + hari": pergeseran relatif menggeser
+# LAGI dari nilai yang sudah tergeser bila jalan sebelumnya mati sebelum sempat
+# mengembalikan, lalu menyimpan nilai itu sebagai titik pulang — dan
+# "pengembalian"-nya memasang tanggal yang salah pada baseline yang DISETUJUI
+# dan menurut rancangannya tidak bisa diubah, secara permanen, sementara setiap
+# S26 berikutnya tetap hijau karena semua harapan dihitung ulang dari API.
+# (Diperagakan pada salinan buangan: 2026-10-31 → 2026-10-01 → mati → 2026-09-01
+#  → "pengembalian" menulis 2026-10-01. Verifikasi P1-H, 7 Sep 2026.)
+BASELINE_FIXTURE = {"code": "B.2", "original": "2026-10-31", "shifted": "2026-10-01"}
+
+
+def shift_baseline_task(code=None, original=None, shifted=None):
     """Menggeser SATU tanggal beku, karena tanpa itu skenario ini tidak menguji
     apa pun yang menarik: pada data demo baseline BSL/2026/VIII/0001 dibekukan
     dari WBS yang sama persis, jadi 11 dari 11 bar pembandingnya berimpit
     sempurna dengan bar rencana hidupnya dan sebuah gantt yang MELUPAKAN bar
-    baseline akan terlihat sama benarnya. Digeser di sini, dikembalikan di akhir."""
+    baseline akan terlihat sama benarnya.
+
+    Prasyaratnya DIPASANG di sini dan diperiksa, pola S25 ("skenario yang
+    bergantung pada keadaan yang ditinggalkan jalan sebelumnya hijau sekali lalu
+    merah selamanya"): tanggal yang sudah tergeser dikenali sebagai sisa jalan
+    yang mati dan dipulihkan lebih dulu; tanggal yang BUKAN keduanya membuat
+    skenarionya JATUH — menggeser dari titik yang tidak dikenal berarti
+    mengarang titik pulang."""
+    code = code or BASELINE_FIXTURE["code"]
+    original = original or BASELINE_FIXTURE["original"]
+    shifted = shifted or BASELINE_FIXTURE["shifted"]
     con = sqlite3.connect(DB)
     try:
         row = con.execute("SELECT id, planned_end FROM prj_baseline_tasks WHERE wbs_code = ? ORDER BY id LIMIT 1", (code,)).fetchone()
         if row is None:
             return {"state": f"baris beku {code} tidak ada"}
         before = str(row[1])[:10]
-        after = (date.fromisoformat(before) + timedelta(days=days)).isoformat()
-        con.execute("UPDATE prj_baseline_tasks SET planned_end = ? WHERE id = ?", (after + " 00:00:00", row[0]))
+        if before not in (original, shifted):
+            raise AssertionError(
+                f"tanggal beku {code} = {before}, bukan {original} (asli) maupun {shifted} "
+                f"(sisa jalan yang mati) — fixture ini menolak menggeser dari titik yang tidak dikenal")
+        con.execute("UPDATE prj_baseline_tasks SET planned_end = ? WHERE id = ?", (shifted + " 00:00:00", row[0]))
         con.commit()
-        return {"state": "digeser", "code": code, "from": before, "to": after, "days": days, "row_id": row[0], "restore": before}
-    except Exception as e:
-        return {"state": f"GAGAL: {str(e)[:140]}"}
+        days = (date.fromisoformat(shifted) - date.fromisoformat(original)).days
+        return {"state": "digeser", "code": code, "from": original, "to": shifted, "days": days,
+                "row_id": row[0], "restore": original,
+                "healed": before == shifted}
     finally:
         con.close()
 
 
 def restore_baseline_task(planted):
+    """Mengembalikan tanggal beku ke nilai MUTLAKNYA, lalu membacanya lagi:
+    sebuah pengembalian yang tidak diperiksa adalah keyakinan, bukan bukti."""
     if planted.get("state") != "digeser":
-        return {"state": "tidak ada yang dikembalikan"}
+        return {"state": "tidak ada yang dikembalikan", "sebab": planted.get("state")}
     con = sqlite3.connect(DB)
     try:
         con.execute("UPDATE prj_baseline_tasks SET planned_end = ? WHERE id = ?",
                     (planted["restore"] + " 00:00:00", planted["row_id"]))
         con.commit()
-        return {"state": "dikembalikan", "code": planted["code"], "to": planted["restore"]}
+        after = str(con.execute("SELECT planned_end FROM prj_baseline_tasks WHERE id = ?",
+                                (planted["row_id"],)).fetchone()[0])[:10]
+        return {"state": "dikembalikan" if after == planted["restore"] else f"GAGAL: terbaca {after}",
+                "code": planted["code"], "to": planted["restore"], "read_back": after}
     finally:
         con.close()
 
@@ -2853,67 +2884,76 @@ def gantt_scenario(pg, tag, mobile=False):
         "planted_deviation": shift_baseline_task(),
     }
 
-    login(pg, "admin@nusantara.test")
-    pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
-    pg.wait_for_selector(".tabs button", timeout=20000)
-    pg.wait_for_timeout(1500)
-    out["tabs"] = pg.evaluate("() => [...document.querySelectorAll('.tabs button')].map((b) => b.innerText.trim())")
-
-    # Muatan yang DIBACA layar, diambil dengan token sesi peramban sendiri —
-    # inilah yang setiap angka di bawah dibandingkan dengannya.
-    tasks = api_in_page(pg, "projects/1/wbs-tasks", {})
-    heads = api_in_page(pg, "projects/baselines", {"project_id": 1, "current": 1, "per_page": 1})
-    frozen = None
-    if heads["status"] == 200 and heads["data"]:
-        frozen = api_in_page(pg, f"projects/baselines/{heads['data'][0]['id']}", {})
-    out["api"] = {
-        "wbs_status": tasks["status"],
-        "baseline_status": heads["status"],
-        "baseline_code": (frozen or {}).get("data", {}).get("code") if frozen else None,
-        "frozen_rows": len(((frozen or {}).get("data") or {}).get("tasks") or []),
-    }
-
-    today = date.today()
-    expect = gantt_expectations(tasks["data"] or [], ((frozen or {}).get("data") or {}).get("tasks") or [],
-                                _days(today.isoformat()))
-    out["expected"] = expect
-
-    click(pg, ".tabs button:nth-child(2)")
-    pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
-    pg.wait_for_timeout(800)
-
-    week = pg.evaluate(S26_MEASURE)
-    out["week"] = week
-    pg.screenshot(path=f"{OUT}/s26-jadwal-mingguan{tag}.png", full_page=True)
-
-    set_theme(pg, "dark")
-    pg.screenshot(path=f"{OUT}/s26-jadwal-gelap{tag}.png", full_page=True)
-    set_theme(pg, None)
-
-    # Zoom bulanan: tombol kedua di bilah kartu.
-    click(pg, ".gantt-sheet .filters .btn:nth-child(2)")
-    pg.wait_for_timeout(700)
-    month = pg.evaluate(S26_MEASURE)
-    out["month"] = month
-    pg.screenshot(path=f"{OUT}/s26-jadwal-bulanan{tag}.png", full_page=True)
-
-    click(pg, ".gantt-sheet .filters .btn:nth-child(1)")
-    pg.wait_for_timeout(700)
-
-    # ------------------------------------------------------------- cetak
-    pg.emulate_media(media="print")
-    pg.wait_for_timeout(300)
-    out["print"] = pg.evaluate(S26_PRINT)
-    pg.screenshot(path=f"{OUT}/s26-jadwal-cetak{tag}.png", full_page=True)
-    pdf_path = f"{OUT}/s26-jadwal{tag}.pdf"
+    # Fixture dikembalikan di `finally`, bukan di baris pernyataan biasa:
+    # satu galat di tengah (wait_for_selector habis waktu, 429, Chromium
+    # tersendat) ditangkap dekorator @scenario dan dilanjutkan ke skenario
+    # berikutnya — dengan tugas tanam DAN tanggal beku yang tergeser masih
+    # tertinggal di basis data bukti. Tidak satu syarat pun akan
+    # menyadarinya: setiap harapan dihitung ulang dari muatan API, jadi
+    # angka yang cocok tetap cocok (verifikasi P1-H, 7 Sep 2026).
     try:
-        pg.pdf(path=pdf_path, print_background=True)
-        out["print"]["pdf_pages"] = _pdf_pages(pdf_path)
-    except Exception as e:
-        out["print"]["pdf_pages"] = f"GAGAL: {str(e)[:140]}"
-    pg.emulate_media(media="screen")
+        login(pg, "admin@nusantara.test")
+        pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+        pg.wait_for_selector(".tabs button", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out["tabs"] = pg.evaluate("() => [...document.querySelectorAll('.tabs button')].map((b) => b.innerText.trim())")
 
-    out["cleanup"] = [drop_planted_task(), restore_baseline_task(out["planted_deviation"])]
+        # Muatan yang DIBACA layar, diambil dengan token sesi peramban sendiri —
+        # inilah yang setiap angka di bawah dibandingkan dengannya.
+        tasks = api_in_page(pg, "projects/1/wbs-tasks", {})
+        heads = api_in_page(pg, "projects/baselines", {"project_id": 1, "current": 1, "per_page": 1})
+        frozen = None
+        if heads["status"] == 200 and heads["data"]:
+            frozen = api_in_page(pg, f"projects/baselines/{heads['data'][0]['id']}", {})
+        out["api"] = {
+            "wbs_status": tasks["status"],
+            "baseline_status": heads["status"],
+            "baseline_code": (frozen or {}).get("data", {}).get("code") if frozen else None,
+            "frozen_rows": len(((frozen or {}).get("data") or {}).get("tasks") or []),
+        }
+
+        today = date.today()
+        expect = gantt_expectations(tasks["data"] or [], ((frozen or {}).get("data") or {}).get("tasks") or [],
+                                    _days(today.isoformat()))
+        out["expected"] = expect
+
+        click(pg, ".tabs button:nth-child(2)")
+        pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
+        pg.wait_for_timeout(800)
+
+        week = pg.evaluate(S26_MEASURE)
+        out["week"] = week
+        pg.screenshot(path=f"{OUT}/s26-jadwal-mingguan{tag}.png", full_page=True)
+
+        set_theme(pg, "dark")
+        pg.screenshot(path=f"{OUT}/s26-jadwal-gelap{tag}.png", full_page=True)
+        set_theme(pg, None)
+
+        # Zoom bulanan: tombol kedua di bilah kartu.
+        click(pg, ".gantt-sheet .filters .btn:nth-child(2)")
+        pg.wait_for_timeout(700)
+        month = pg.evaluate(S26_MEASURE)
+        out["month"] = month
+        pg.screenshot(path=f"{OUT}/s26-jadwal-bulanan{tag}.png", full_page=True)
+
+        click(pg, ".gantt-sheet .filters .btn:nth-child(1)")
+        pg.wait_for_timeout(700)
+
+        # ------------------------------------------------------------- cetak
+        pg.emulate_media(media="print")
+        pg.wait_for_timeout(300)
+        out["print"] = pg.evaluate(S26_PRINT)
+        pg.screenshot(path=f"{OUT}/s26-jadwal-cetak{tag}.png", full_page=True)
+        pdf_path = f"{OUT}/s26-jadwal{tag}.pdf"
+        try:
+            pg.pdf(path=pdf_path, print_background=True)
+            out["print"]["pdf_pages"] = _pdf_pages(pdf_path)
+        except Exception as e:
+            out["print"]["pdf_pages"] = f"GAGAL: {str(e)[:140]}"
+        pg.emulate_media(media="screen")
+
+    finally:
+        out["cleanup"] = [drop_planted_task(), restore_baseline_task(out["planted_deviation"])]
     out["pageerrors"] = errors
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
 
