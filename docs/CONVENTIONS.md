@@ -52,6 +52,22 @@ Modules/<Name>/
 | Engineering | `api/engineering`  | `eng_`       | 001300–001399 |
 | Quality     | `api/quality`      | `qc_`        | 001400–001499 |
 
+**Blok lanjutan** (F-2, 7 Sep 2026). Blok pertama sebuah modul bisa habis, dan dua di antaranya
+sudah: Projects memakai 000799 pada 9 Agustus 2026 dan Finance memakai 001199 pada 25 Juli 2026.
+Pemilik menyetujui rentang lanjutannya (ROADMAP-HASHMICRO §5 baris 5), dan **tabel di bawah ini —
+bukan prosa mana pun — adalah sumber kebenaran rentang blok untuk kedua modul itu:**
+
+| Module      | Blok pertama  | Blok lanjutan | Status |
+|-------------|---------------|---------------|--------|
+| Finance     | 001100–001199 | **001500–001599** | DIPAKAI — slot pertama `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) |
+| Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
+
+Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
+lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
+migrasi Core-lah yang menetapkannya di tabel ini, dalam commit yang sama dengan pemakaian
+pertamanya. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
+commit yang pertama kali memakainya, tidak pernah lebih dulu dan tidak pernah belakangan.
+
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
 inside your block). Never use another module's block.
 

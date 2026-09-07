@@ -4227,6 +4227,66 @@ export const RESOURCES = {
     ],
   },
 
+  /*
+   * F-2 — OVB, anggaran overhead perusahaan per tahun buku.
+   *
+   * Satu tahun hanya boleh punya SATU OVB disetujui; aturannya ditegakkan
+   * server (layanan + indeks unik parsial), bukan di sini — sebuah salinan
+   * aturan di layar akan menua sendiri dan berbeda kalimat. Layar realisasinya
+   * ada di Anggaran vs Realisasi tab "Overhead"; daftar ini yang menyusun dan
+   * memutuskannya.
+   */
+  'finance/overhead-budgets': {
+    module: 'fin', api: 'finance/overhead-budgets', label: 'Anggaran Overhead (OVB)', labelOne: 'Anggaran Overhead',
+    columns: [
+      codeColumn,
+      { key: 'period_year', label: 'Tahun buku', type: 'number', align: 'right' },
+      { key: 'lines_count', label: 'Akun', type: 'number', align: 'right' },
+      { key: 'total_amount', label: 'Total anggaran', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'period_year', label: 'Tahun buku', type: 'number' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Anggaran overhead tahunan',
+        help: 'Anggaran biaya yang tidak dimiliki proyek mana pun — kantor, staf pusat, sewa, penyusutan. '
+          + 'Realisasinya dibaca dari mutasi akun yang Anda pilih di bawah, jadi tidak ada daftar '
+          + '"akun overhead" yang perlu dipelihara di tempat lain. Satu tahun buku hanya boleh punya '
+          + 'satu OVB yang disetujui.',
+        fields: [
+          { key: 'period_year', label: 'Tahun buku', type: 'number', required: true, default: new Date().getFullYear() },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'lines', label: 'Akun yang dianggarkan', min: 1,
+        columns: [
+          { key: 'account_id', label: 'Akun', type: 'lookup', lookup: 'postableAccounts', required: true, width: '40%' },
+          { key: 'amount', label: 'Anggaran setahun', type: 'currency', required: true, width: '30%' },
+          { key: 'notes', label: 'Catatan', type: 'text', width: '30%' },
+        ],
+      }],
+    },
+    detail: {
+      tables: [{
+        key: 'lines', label: 'Akun yang dianggarkan',
+        columns: [
+          { key: 'account.code', label: 'Kode', type: 'code' },
+          { key: 'account.name', label: 'Akun' },
+          { key: 'notes', label: 'Catatan' },
+          { key: 'amount', label: 'Anggaran', type: 'currency', align: 'right' },
+        ],
+        totals: ['amount'],
+      }],
+    },
+    actions: approvalActions('fin', { submitPerm: 'fin.create' }),
+  },
+
   /* ======================================================== HR PAYROLL === */
   'hr/employees': {
     module: 'hr', api: 'hr/employees', label: 'Karyawan', labelOne: 'Karyawan',
@@ -6089,6 +6149,7 @@ export const NAV = [
       // F-2 — tepat di bawah Biaya Proyek: baris yang sama, hanya diadu dengan
       // RAP dan dibelah per bulan.
       { label: 'Anggaran vs Realisasi', route: 'anggaran' },
+      { label: 'Anggaran Overhead (OVB)', route: 'r/finance/overhead-budgets' },
       { label: 'Pengakuan Pendapatan', route: 'r/finance/revenue-recognition' },
       { label: 'Periode Fiskal', route: 'periods' },
       { label: 'Laporan Keuangan', route: 'reports' },

@@ -727,6 +727,11 @@ return [
         'ap_bill' => ['threshold_two_level' => null],
         'payment' => ['threshold_two_level' => null],
         'payroll_run' => ['threshold_two_level' => null],
+        // F-2 — Anggaran overhead (OVB). Membawa kolom nilai rupiah
+        // (total_amount), jadi ambangnya BISA diisi pemilik; dikirim kosong
+        // seperti empat belas baris lain, supaya memasang OVB tidak mengubah
+        // satu pun keputusan persetujuan.
+        'overhead_budget' => ['threshold_two_level' => null],
 
         /*
          * F-1 — SETUJUI MASSAL. Kosong = fitur MATI, dan itulah bawaannya:

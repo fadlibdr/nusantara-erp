@@ -12,6 +12,7 @@ use Modules\Finance\Http\Controllers\BudgetRealisationController;
 use Modules\Finance\Http\Controllers\FiscalPeriodController;
 use Modules\Finance\Http\Controllers\JournalController;
 use Modules\Finance\Http\Controllers\KasbonController;
+use Modules\Finance\Http\Controllers\OverheadBudgetController;
 use Modules\Finance\Http\Controllers\PaymentController;
 use Modules\Finance\Http\Controllers\PettyCashFundController;
 use Modules\Finance\Http\Controllers\PettyCashVoucherController;
@@ -183,6 +184,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
      * proyek di atas: yang dibaca kedua endpoint ini adalah baris
      * fin_project_costs itu juga, hanya diadu dengan RAP dan dibelah per bulan.
      */
+    /*
+     * OVB — anggaran overhead per tahun buku. Approvable penuh: fin.create
+     * menyusunnya, fin.approve memutuskannya, maker-checker di trait. Tidak ada
+     * fin.post di sini — menyetujui sebuah anggaran tidak memposting satu baris
+     * jurnal pun (forward-only: yang berubah adalah BATAS, bukan buku besar).
+     */
+    Route::get('overhead-budgets', [OverheadBudgetController::class, 'index'])->middleware('permission:fin.view');
+    Route::get('overhead-budgets/realisation', [OverheadBudgetController::class, 'realisation'])->middleware('permission:fin.view');
+    Route::post('overhead-budgets', [OverheadBudgetController::class, 'store'])->middleware('permission:fin.create');
+    Route::get('overhead-budgets/{overheadBudget}', [OverheadBudgetController::class, 'show'])->middleware('permission:fin.view');
+    Route::put('overhead-budgets/{overheadBudget}', [OverheadBudgetController::class, 'update'])->middleware('permission:fin.update');
+    Route::delete('overhead-budgets/{overheadBudget}', [OverheadBudgetController::class, 'destroy'])->middleware('permission:fin.delete');
+    Route::post('overhead-budgets/{overheadBudget}/submit', [OverheadBudgetController::class, 'submit'])->middleware('permission:fin.create');
+    Route::post('overhead-budgets/{overheadBudget}/approve', [OverheadBudgetController::class, 'approve'])->middleware('permission:fin.approve');
+    Route::post('overhead-budgets/{overheadBudget}/reject', [OverheadBudgetController::class, 'reject'])->middleware('permission:fin.approve');
+
     Route::get('budget/portfolio', [BudgetRealisationController::class, 'portfolio'])->middleware('permission:fin.view');
     Route::get('budget/projects/{project}/monthly', [BudgetRealisationController::class, 'monthly'])->middleware('permission:fin.view');
 

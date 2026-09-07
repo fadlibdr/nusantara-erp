@@ -22,10 +22,12 @@ import { api } from '../api.js';
 import { el, clear, button, badge, errorState, skeletonTable } from '../ui.js';
 import * as fmt from '../format.js';
 import { loadSource, optionsFor } from '../lookup.js';
+import { navigate } from '../router.js';
 
 const TABS = [
   { key: 'portofolio', label: 'Portofolio' },
   { key: 'bulan', label: 'Per bulan' },
+  { key: 'overhead', label: 'Overhead (OVB)' },
 ];
 
 const STATE = {
@@ -44,7 +46,7 @@ const SEBAB_KOSONG = {
   di_luar_rentang_baseline: 'Di luar rentang baseline',
 };
 
-const state = { tab: 'portofolio', projectId: null };
+const state = { tab: 'portofolio', projectId: null, year: new Date().getFullYear() };
 
 function money(value) {
   return value === null || value === undefined ? '—' : fmt.rupiah(value);
@@ -214,6 +216,83 @@ function paintMonthly(body, payload) {
   ]));
 }
 
+/* ---------------------------------------------------------------- overhead */
+
+function paintOverhead(body, payload) {
+  const rows = payload.rows || [];
+
+  body.appendChild(el(payload.code ? '.alert.info' : '.alert.warning', payload.note));
+
+  if (!payload.code) {
+    body.appendChild(el('.card', [
+      el('.card-head', el('h2', { text: 'Belum ada OVB disetujui untuk tahun ini' })),
+      el('.card-body', [
+        el('p', { text: 'Anggaran overhead disusun di layar Anggaran Overhead (OVB): satu tahun buku, satu anggaran yang berlaku, dengan daftar akun COA yang dianggarkan. Realisasinya dibaca dari mutasi akun-akun itu sendiri.' }),
+        el('.actions', [button('Buka Anggaran Overhead', { variant: 'primary', onClick: () => navigate('r/finance/overhead-budgets') })]),
+      ]),
+    ]));
+    return;
+  }
+
+  body.appendChild(el('.stat-row', [
+    el('.stat', [
+      el('.label', { text: 'Anggaran' }),
+      el('.value.sm', { text: fmt.rupiahShort(payload.total_budget) }),
+      el('.delta', { text: `OVB ${payload.code}` }),
+    ]),
+    el('.stat', [
+      el('.label', { text: 'Realisasi' }),
+      el('.value.sm', { text: fmt.rupiahShort(payload.total_actual) }),
+      el('.delta', { text: 'jurnal terposting tahun ini' }),
+    ]),
+    el('.stat', [
+      el('.label', { text: 'Terpakai' }),
+      el('.value.sm', {
+        text: payload.pct === null ? '—' : fmt.percent(payload.pct, { decimals: 1 }),
+        style: payload.state === 'lampau' ? { color: 'var(--danger)' } : {},
+      }),
+      el('.delta', { text: `peringatan ≥ ${fmt.percent(payload.warn_pct, { decimals: 0 })}` }),
+    ]),
+  ]));
+
+  body.appendChild(el('.card', [
+    el('.card-head', [
+      el('h2', { text: `Anggaran vs realisasi overhead ${payload.period_year}` }),
+      badge(`OVB ${payload.code}`, ''),
+    ]),
+    el('.table-wrap', el('table.data', [
+      el('thead', el('tr', [
+        el('th', { text: 'Akun' }),
+        el('th.right', { text: 'Anggaran' }),
+        el('th.right', { text: 'Realisasi' }),
+        el('th.right', { text: 'Selisih' }),
+        el('th.right', { text: 'Terpakai' }),
+      ])),
+      el('tbody', rows.map((row) => el('tr', [
+        el('td', [
+          el('span.cell-main', { text: row.account_code }),
+          el('span.cell-sub', { text: row.account_name }),
+        ]),
+        selMoney(row.budget),
+        selMoney(row.actual),
+        selMoney(row.variance, { tone: row.variance !== null && row.variance < 0 ? 'var(--danger)' : null }),
+        selPersen(row.pct, row.state),
+      ]))),
+      el('tfoot', el('tr', [
+        el('td', el('span.cell-main', { text: 'Total' })),
+        el('td.right.num.strong', { text: money(payload.total_budget) }),
+        el('td.right.num.strong', { text: money(payload.total_actual) }),
+        el('td', { text: '' }),
+        el('td.right.num.strong', { text: payload.pct === null ? '—' : fmt.percent(payload.pct, { decimals: 1 }) }),
+      ])),
+    ])),
+    el('.card-body', el('p.help', {
+      text: 'Akun yang belum bermutasi sekali pun tahun ini bertanda "—", bukan Rp 0: belum ada yang tercatat, '
+        + 'dan itu bukan hal yang sama dengan nol rupiah belanja.',
+    })),
+  ]));
+}
+
 /* -------------------------------------------------------------------- layar */
 
 let host = null;
@@ -232,6 +311,13 @@ async function load() {
   try {
     // list() memulangkan AMPLOP (data + meta) — portofolio membutuhkan
     // meta.without_budget; get() memulangkan isi `data` saja.
+    if (state.tab === 'overhead') {
+      const payload = await api.get('finance/overhead-budgets/realisation', { year: state.year });
+      clear(bodyNode);
+      paintOverhead(bodyNode, payload);
+      return;
+    }
+
     const payload = state.tab === 'portofolio'
       ? await api.list('finance/budget/portfolio')
       : await api.get(`finance/budget/projects/${state.projectId}/monthly`);
@@ -288,6 +374,12 @@ export async function renderAnggaran(hostNode) {
 
   if (state.tab === 'bulan') {
     controls.appendChild(el('label.filter', [el('span', { text: 'Proyek' }), projectSelect]));
+  } else if (state.tab === 'overhead') {
+    const yearInput = el('input.filter-w', {
+      type: 'number', min: '2000', max: '2100', value: String(state.year), 'aria-label': 'Tahun buku',
+      onchange: () => { state.year = Number(yearInput.value) || state.year; load(); },
+    });
+    controls.appendChild(el('label.filter', [el('span', { text: 'Tahun buku' }), yearInput]));
   } else {
     controls.appendChild(el('span.help', {
       text: 'Portofolio menampilkan setiap proyek yang belum ditutup. Buka "Per bulan" dari tombol di barisnya.',

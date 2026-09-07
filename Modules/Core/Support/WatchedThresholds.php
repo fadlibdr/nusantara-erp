@@ -151,6 +151,43 @@ class WatchedThresholds
                 ],
                 'rows' => static fn (): array => self::rapVersusContract(),
             ],
+            [
+                /*
+                 * Realisasi overhead perusahaan terhadap OVB tahun berjalan.
+                 *
+                 * Batasnya adalah dokumen yang DISETUJUI, satu per tahun buku
+                 * (F-2/T2.4). Tahun tanpa OVB disetujui adalah TANPA_BATAS —
+                 * belanja overheadnya tetap terjadi dan tetap terbaca di buku
+                 * besar, yang tidak ada adalah angka yang boleh menghakiminya.
+                 *
+                 * Dihitung di Core: akun yang diukur adalah akun yang DIPILIH
+                 * pemilik pada OVB-nya, jadi tidak ada daftar "akun overhead"
+                 * yang perlu dikarang di sini, dan realisasinya adalah
+                 * debit − kredit baris jurnal TERPOSTING tahun itu — sebuah
+                 * penjumlahan, bukan aritmetika milik modul lain.
+                 *
+                 * Tahun yang dibaca adalah tahun berjalan menurut jam server:
+                 * satu baris, karena "berapa persen anggaran tahun ini sudah
+                 * terpakai" adalah satu-satunya pertanyaan yang masih bisa
+                 * ditindaklanjuti — tahun lalu sudah tutup buku.
+                 */
+                'key' => 'overhead_budget_pct',
+                'label' => 'Anggaran overhead terpakai',
+                'measures' => 'Mutasi akun yang dianggarkan (debit − kredit) pada jurnal terposting tahun berjalan',
+                'limit_source' => 'OVB — anggaran overhead yang disetujui untuk tahun buku itu (satu per tahun)',
+                'subject_word' => 'tahun buku',
+                'unit' => 'rupiah',
+                'warn_key' => 'overhead_budget_pct',
+                'permission' => 'fin.view',
+                'link' => 'r/finance/overhead-budgets',
+                'tables' => [
+                    'fin_overhead_budgets' => ['code', 'period_year', 'status', 'deleted_at'],
+                    'fin_overhead_budget_lines' => ['overhead_budget_id', 'account_id', 'amount'],
+                    'fin_journals' => ['journal_date', 'status', 'deleted_at'],
+                    'fin_journal_lines' => ['journal_id', 'account_id', 'debit', 'credit'],
+                ],
+                'rows' => static fn (): array => self::overheadVersusBudget(),
+            ],
         ];
     }
 
@@ -421,6 +458,68 @@ class WatchedThresholds
         }
 
         return $rows;
+    }
+
+    /**
+     * Realisasi overhead tahun berjalan terhadap OVB yang disetujui.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function overheadVersusBudget(): array
+    {
+        $year = (int) date('Y');
+
+        $budget = DB::table('fin_overhead_budgets')
+            ->where('period_year', $year)
+            ->where('status', 'approved')
+            ->whereNull('deleted_at')
+            ->first(['id', 'code']);
+
+        if ($budget === null) {
+            return [[
+                'subject' => (string) $year,
+                'name' => 'Tahun buku berjalan',
+                // Belanja overheadnya nyata dan terbaca di buku besar; yang
+                // tidak ada adalah akun-akun yang dianggarkan, jadi tidak ada
+                // yang bisa dijumlahkan sebagai "realisasi overhead". null,
+                // bukan Rp 0 — perusahaan ini tetap membayar sewa kantornya.
+                'actual' => null,
+                'limit' => null,
+                'note' => 'Belum ada OVB yang disetujui untuk tahun buku ini; tanpa akun yang dianggarkan '
+                    .'tidak ada realisasi overhead yang bisa dijumlahkan maupun batas yang bisa dilampaui.',
+            ]];
+        }
+
+        $accountIds = DB::table('fin_overhead_budget_lines')
+            ->where('overhead_budget_id', $budget->id)
+            ->pluck('account_id')
+            ->all();
+
+        $limit = round((float) DB::table('fin_overhead_budget_lines')
+            ->where('overhead_budget_id', $budget->id)
+            ->sum('amount'), 2);
+
+        // SETENGAH TERBUKA: kolom date tersimpan '2026-12-31 00:00:00' di
+        // SQLite, dan string itu sortir SESUDAH '2026-12-31' — sebuah BETWEEN
+        // membuang setiap jurnal 31 Desember.
+        $actual = $accountIds === [] ? null : round((float) DB::table('fin_journal_lines as l')
+            ->join('fin_journals as j', 'j.id', '=', 'l.journal_id')
+            ->whereIn('l.account_id', $accountIds)
+            ->where('j.status', 'posted')
+            ->whereNull('j.deleted_at')
+            ->where('j.journal_date', '>=', $year.'-01-01')
+            ->where('j.journal_date', '<', ($year + 1).'-01-01')
+            ->sum(DB::raw('l.debit - l.credit')), 2);
+
+        return [[
+            'subject' => (string) $year,
+            'name' => 'OVB '.$budget->code,
+            'actual' => $actual,
+            'limit' => $limit,
+            'note' => $accountIds === []
+                ? 'OVB '.$budget->code.' belum memuat satu akun pun, jadi belum ada yang bisa diukur.'
+                : 'Realisasi dibaca dari '.count($accountIds).' akun yang dianggarkan OVB '.$budget->code.'.',
+        ]];
     }
 
     /**

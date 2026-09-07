@@ -80,14 +80,19 @@ class ApprovalExtraLevelReachTest extends ErpTestCase
         $this->assertSame(['approvals.award_decision.mode'], $modeKeys);
         $this->assertSame(['approvals.award_decision.third_level_threshold'], $thirdKeys);
 
-        // Barisnya tetap 28 dan ambangnya tetap ditawarkan di empat belas
-        // baris: yang dicabut adalah modenya, bukan matriksnya.
-        $this->assertCount(28, $group['matrix']);
+        // Barisnya tetap seluruh registri (28 saat F-1, 29 sejak OVB di F-2)
+        // dan ambangnya tetap ditawarkan pada baris yang punya nilai rupiah:
+        // yang dicabut adalah modenya, bukan matriksnya.
+        $this->assertCount(29, $group['matrix']);
         $thresholdKeys = array_filter(
             array_column($group['settings'], 'key'),
             fn (string $key): bool => str_ends_with($key, '.threshold_two_level'),
         );
-        $this->assertCount(14, $thresholdKeys); // 28 - 13 tanpa nilai rupiah - 1 yang mengikuti SPK
+        // 29 - 13 tanpa nilai rupiah - 1 yang mengikuti SPK. 14 saat F-1; baris
+        // ke-15 adalah Anggaran overhead (OVB, F-2), yang MEMBAWA kolom nilai
+        // rupiah (total_amount) sehingga selnya bisa diisi pemilik — dan
+        // dikirim kosong seperti empat belas lainnya.
+        $this->assertCount(15, $thresholdKeys);
 
         foreach ($group['matrix'] as $row) {
             $this->assertSame(
