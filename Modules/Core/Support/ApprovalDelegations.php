@@ -422,12 +422,37 @@ final class ApprovalDelegations
             return $memo->giverAnswer($giverId, $ability);
         }
 
-        $giver = User::query()->find($giverId);
+        $giver = self::giver($giverId);
         $holds = $giver !== null && (bool) $giver->is_active && self::holdsNatively($giver, $ability);
 
         $memo->rememberGiver($giverId, $ability, $holds);
 
         return $holds;
+    }
+
+    /**
+     * Pemberi #N untuk unit kerja ini — DIMUAT SEKALI, bukan sekali per ability.
+     *
+     * Sebelum putaran kedua verifikasi F-1 baris ini adalah
+     * User::query()->find() di dalam giverHoldsNatively(): setiap (pemberi,
+     * ability) yang belum dimemo memulangkan instance BARU, dan Spatie memuat
+     * ulang izin serta peran instance itu. ApprovalQueue::pending menanyakan 10
+     * awalan modul, jadi seorang delegat membayar tiga kueri itu sepuluh kali.
+     *
+     * Diukur pada GET /api/core/inbox yang sama (SQLite, 7 Sep 2026):
+     * 8 kueri untuk pembaca tanpa delegasi, 46 untuk delegat lingkup penuh
+     * sebelum, 26 sesudah. Dijaga
+     * ApprovalDelegationCostTest::test_the_giver_is_loaded_once_for_the_whole_inbox_not_once_per_module.
+     */
+    private static function giver(int $giverId): ?User
+    {
+        $memo = app(ApprovalDelegationMemo::class);
+
+        if (! $memo->hasGiverUser($giverId)) {
+            $memo->rememberGiverUser($giverId, User::query()->find($giverId));
+        }
+
+        return $memo->giverUser($giverId);
     }
 
     /**

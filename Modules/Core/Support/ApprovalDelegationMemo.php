@@ -2,6 +2,8 @@
 
 namespace Modules\Core\Support;
 
+use App\Models\User;
+
 /**
  * Potret delegasi hidup untuk SATU unit kerja (F-1).
  *
@@ -33,6 +35,27 @@ final class ApprovalDelegationMemo
      * @var array<string, bool>
      */
     private array $giverHolds = [];
+
+    /**
+     * Pemberi itu SENDIRI, dimuat sekali untuk unit kerja ini.
+     *
+     * Jawaban boolean di atas tidak cukup, dan itulah temuan putaran kedua
+     * verifikasi F-1: ia dimemo per (pemberi, ability), sedangkan yang MAHAL
+     * bukan jawabannya melainkan cara mendapatkannya. User::query()->find()
+     * memulangkan instance BARU setiap kali, dan Spatie memuat ulang izin dan
+     * peran instance itu — jadi sebuah kotak masuk yang menanyakan sepuluh
+     * awalan modul membayar tiga kueri sepuluh kali untuk satu orang yang sama.
+     * Diukur pada GET /api/core/inbox (SQLite, 7 Sep 2026): 46 kueri untuk
+     * seorang delegat berbanding 8 untuk pembaca yang sama tanpa delegasi;
+     * dengan potret ini, 26 — dan sisanya adalah pemindaian tabel dokumen yang
+     * memang menjadi haknya, bukan pemuatan ulang orang yang sama.
+     *
+     * null DISIMPAN juga: pemberi yang barisnya sudah dihapus tidak boleh
+     * dicari ulang sepuluh kali untuk mendapat jawaban "tidak ada" yang sama.
+     *
+     * @var array<int, User|null>
+     */
+    private array $givers = [];
 
     public function has(int $userId): bool
     {
@@ -66,9 +89,25 @@ final class ApprovalDelegationMemo
         $this->giverHolds[$giverId.'|'.$ability] = $holds;
     }
 
+    public function hasGiverUser(int $giverId): bool
+    {
+        return array_key_exists($giverId, $this->givers);
+    }
+
+    public function giverUser(int $giverId): ?User
+    {
+        return $this->givers[$giverId] ?? null;
+    }
+
+    public function rememberGiverUser(int $giverId, ?User $giver): void
+    {
+        $this->givers[$giverId] = $giver;
+    }
+
     public function flush(): void
     {
         $this->rows = [];
         $this->giverHolds = [];
+        $this->givers = [];
     }
 }
