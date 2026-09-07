@@ -272,7 +272,7 @@ export async function renderTugas(host) {
 
     if (done.length) toast(`${done.length} dokumen disetujui: ${done.join(', ')}.`, { timeout: 6000 });
     if (failed.length) {
-      toast(`${failed.length} tidak disetujui — ${failed.join(' · ')}`, { tone: 'error', timeout: 12000 });
+      toast(`${failed.length} tidak disetujui — ${failed.join(' · ')}`, { tone: 'err', timeout: 12000 });
     }
 
     renderTugas(host);
