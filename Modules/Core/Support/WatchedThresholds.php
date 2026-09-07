@@ -66,6 +66,9 @@ class WatchedThresholds
     /** Ambang peringatan bawaan bila config tidak menyebut entrinya. */
     private const DEFAULT_WARN_PCT = 90.0;
 
+    /** Desimal persentase yang dicetak setiap layar registri/anggaran. */
+    private const DISPLAY_DECIMALS = 1;
+
     /** @var array<string, Closure> pemasok baris per kunci entri */
     private static array $suppliers = [];
 
@@ -260,6 +263,22 @@ class WatchedThresholds
      * Keadaan satu baris. SATU tempat, dipakai baris yang dihitung Core maupun
      * baris yang dipasok modul lain — supaya "tepat 100 %" tidak pernah
      * mendarat di dua sisi yang berbeda pada dua layar.
+     *
+     * DUA PERBANDINGAN, DAN MASING-MASING PADA ANGKA YANG BENAR (verifikasi F-2):
+     *
+     *  LAMPAU dibandingkan pada RUPIAHNYA. "Anggarannya habis" adalah fakta
+     *  yang tidak perlu dibulatkan, dan sebuah baris yang berbunyi "Melampaui"
+     *  sementara gerbang masih menerima satu rupiah berikutnya adalah persis
+     *  perselisihan layar-vs-gerbang yang paket ini ada untuk menghapus.
+     *
+     *  MENDEKATI dibandingkan pada PERSENTASE YANG DICETAK layar (satu
+     *  desimal). Sebelumnya keadaan dihitung dari persentase MENTAH sementara
+     *  layar mencetak yang dibulatkan: terukur, RAP Rp 1.000.000.000 dengan
+     *  Rp 899.999.999 terpakai mencetak "90,0 % terpakai" berlencana hijau
+     *  "Aman", tepat di bawah judul kartunya sendiri "Peringatan ≥ 90 %".
+     *  Satu angka, satu keputusan — dan pembulatannya condong ke arah yang
+     *  aman: sebuah baris boleh memperingatkan lebih awal, tidak boleh
+     *  menenangkan lebih lama.
      */
     public static function state(?float $actual, ?float $limit, float $warnPct): string
     {
@@ -274,13 +293,11 @@ class WatchedThresholds
             return self::TANPA_BATAS;
         }
 
-        $pct = $actual / $limit * 100;
-
-        if ($pct >= 100.0) {
+        if ($actual >= $limit) {
             return self::LAMPAU;
         }
 
-        return $pct >= $warnPct ? self::MENDEKATI : self::AMAN;
+        return (float) self::displayPct($actual, $limit) >= $warnPct ? self::MENDEKATI : self::AMAN;
     }
 
     /** Persentase, atau null bila salah satu sisinya tidak ada. */
@@ -291,6 +308,19 @@ class WatchedThresholds
         }
 
         return round($actual / $limit * 100, 2);
+    }
+
+    /**
+     * Persentase SEBAGAIMANA DICETAK: pct() dibulatkan ke jumlah desimal yang
+     * dipakai setiap layar (fmt.percent(pct, { decimals: 1 })). Pembulatan
+     * gandanya disengaja — itu persis dua langkah yang dilalui angka di layar,
+     * jadi keadaan dan angka tidak bisa berselisih di desimal ketiga.
+     */
+    public static function displayPct(?float $actual, ?float $limit): ?float
+    {
+        $pct = self::pct($actual, $limit);
+
+        return $pct === null ? null : round($pct, self::DISPLAY_DECIMALS);
     }
 
     /**

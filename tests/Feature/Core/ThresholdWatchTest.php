@@ -185,6 +185,40 @@ class ThresholdWatchTest extends ErpTestCase
     }
 
     /**
+     * KEADAAN DIBANDINGKAN PADA ANGKA YANG DICETAK (verifikasi F-2).
+     *
+     * Terukur sebelum perbaikan: Rp 899.999.999 dari Rp 1.000.000.000 dicetak
+     * "90,0 % terpakai" berlencana hijau "Aman" — di bawah judul kartunya
+     * sendiri "Peringatan ≥ 90 %" — karena keadaan dihitung dari persentase
+     * MENTAH (89,9999999) sementara layar mencetak yang dibulatkan.
+     *
+     * Dan kebalikannya juga dijaga: sebuah baris yang mencetak "100,0 %"
+     * tetapi masih menyisakan satu rupiah BUKAN "melampaui", karena gerbang
+     * menerima rupiah itu — LAMPAU dibandingkan pada rupiahnya, bukan pada
+     * persentase yang dibulatkan.
+     */
+    public function test_the_state_matches_the_percentage_that_is_printed_beside_it(): void
+    {
+        // 89,9999999 % -> dicetak "90,0 %".
+        $mendekati = $this->project('PRJ-2026-815', 1_000_000_000);
+        $this->approvedRap($mendekati, 'RAP/2026/0815', 899_999_999);
+
+        // 99,9999999 % -> dicetak "100,0 %", tetapi masih ada Rp 1 tersisa.
+        $hampir = $this->project('PRJ-2026-816', 1_000_000_000);
+        $this->approvedRap($hampir, 'RAP/2026/0816', 999_999_999);
+
+        $rows = $this->rowsOf('rap_vs_kontrak_pct');
+
+        $this->assertSame(90.0, $rows['PRJ-2026-815']['pct']);
+        $this->assertSame(WatchedThresholds::MENDEKATI, $rows['PRJ-2026-815']['state'],
+            'baris yang mencetak 90,0 % tidak boleh menyebut dirinya aman');
+
+        $this->assertSame(100.0, $rows['PRJ-2026-816']['pct']);
+        $this->assertSame(WatchedThresholds::MENDEKATI, $rows['PRJ-2026-816']['state'],
+            'Rp 1 yang masih diterima gerbang bukan "melampaui batas"');
+    }
+
+    /**
      * Aturan kejujuran paket ini, dipaku sebagai invarian atas SELURUH
      * registri: tidak ada satu pun baris yang memancarkan persentase tanpa
      * kedua sisinya, dan tidak ada satu pun batas 0 yang diperlakukan sebagai
