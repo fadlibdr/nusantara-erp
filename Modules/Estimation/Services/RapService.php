@@ -252,6 +252,8 @@ class RapService
             );
         }
 
+        $this->assertNoLiveRevision($budget);
+
         $reason = trim((string) ($data['revision_reason'] ?? ''));
 
         if ($reason === '') {
@@ -302,15 +304,28 @@ class RapService
      * superseded_by_id — isinya tidak disentuh, jadi revisi 0 tetap terbaca
      * utuh berapa pun revisi yang menyusul (aturan append-only yang sama
      * dengan BaselineService).
+     *
+     * DAN MENSTEMPEL PENDAHULUNYA SAJA TIDAK CUKUP (verifikasi F-2). Menggantikan
+     * pendahulu HANYA menutup satu jalan menuju dua jawaban; jalan kedua adalah
+     * RAP disetujui LAIN yang bukan pendahulunya — dua revisi paralel dari satu
+     * RAP, atau sebuah RAP kedua dari BOQ lain. Terukur pada versi sebelum
+     * perbaikan ini: dua revisi dari RAP/2026/0001 sama-sama disetujui, keduanya
+     * approved dengan superseded_at NULL, layar riwayat mencetak Rp 40,4 miliar
+     * sementara gerbang PO/SPK menolak terhadap Rp 30,3 miliar milik id
+     * terbesar — Rp 10,1 miliar berselisih pada satu proyek. Maka persetujuan
+     * memeriksa SELURUH sisa: sesudah transaksi ini boleh ada tepat SATU RAP
+     * disetujui yang belum digantikan untuk proyek ini.
      */
     public function approve(CostBudget $budget, User $by, ?string $note = null): CostBudget
     {
         return DB::transaction(function () use ($budget, $by, $note): CostBudget {
-            $budget->approve($by, $note);
-
             $predecessor = $budget->revised_from_id === null
                 ? null
                 : CostBudget::query()->find($budget->revised_from_id);
+
+            $this->assertNoGoverningRival($budget, $predecessor);
+
+            $budget->approve($by, $note);
 
             if ($predecessor !== null && $predecessor->superseded_at === null) {
                 $predecessor->forceFill([
@@ -328,6 +343,86 @@ class RapService
         // Tanpa penggantian apa pun: sebuah revisi yang ditolak tidak pernah
         // mengatur apa pun, jadi pendahulunya tetap berlaku tanpa disentuh.
         return $budget->reject($by, $note);
+    }
+
+    /**
+     * Sesudah persetujuan ini, proyek harus punya TEPAT SATU RAP yang mengatur.
+     *
+     * Yang dicari: RAP disetujui yang belum digantikan, bukan RAP ini dan bukan
+     * pendahulu yang akan distempel beberapa baris di bawah. Kalau ada, dua
+     * anggaran akan berdiri berdampingan dan governing() harus memilih salah
+     * satunya diam-diam (id terbesar) — sementara layar riwayat revisi mencetak
+     * yang lain.
+     *
+     * TIDAK ADA INDEKS UNIK yang menjaga ini di basis data, berbeda dengan
+     * fin_overhead_budgets (satu OVB disetujui per tahun, migrasi 001500), dan
+     * itu keputusan yang diukur: data SEBELUM F-2 sah memuat dua RAP disetujui
+     * pada satu proyek — RapRevisionTest::test_an_approved_rap_without_revisions_answers_exactly_as_before
+     * memakukan bahwa proyek seperti itu tetap dijawab persis seperti dulu —
+     * jadi sebuah indeks unik parsial akan MENOLAK BERMIGRASI justru di
+     * pemasangan yang paling membutuhkan perbaikan ini. Yang dijaga pintu ini
+     * adalah baris baru; yang lama tetap terbaca, dengan aturan yang sama.
+     */
+    private function assertNoGoverningRival(CostBudget $budget, ?CostBudget $predecessor): void
+    {
+        if ($budget->project_id === null) {
+            return;
+        }
+
+        $rival = CostBudget::query()
+            ->where('project_id', $budget->project_id)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('superseded_at')
+            ->where('id', '!=', $budget->id)
+            ->when($predecessor !== null, fn ($query) => $query->where('id', '!=', $predecessor->id))
+            ->orderByDesc('id')
+            ->first();
+
+        if ($rival === null) {
+            return;
+        }
+
+        throw new LogicException(sprintf(
+            'Proyek ini sudah punya RAP yang berlaku (%s), jadi RAP %s tidak dapat disetujui. Dua RAP '
+            .'disetujui yang belum digantikan membuat "RAP yang mengatur" punya dua jawaban: layar '
+            .'anggaran akan mencetak yang satu sementara gerbang PO/SPK menolak dokumen dengan yang '
+            .'lain. Buat RAP ini sebagai REVISI dari %s (revisi menggantikan pendahulunya pada detik '
+            .'ia disetujui), atau tolak salah satunya lebih dulu.',
+            $rival->code,
+            $budget->code,
+            $rival->code,
+        ));
+    }
+
+    /**
+     * Satu RAP hanya boleh punya satu revisi yang masih hidup.
+     *
+     * Dua revisi dari pendahulu yang sama menerima NOMOR REVISI yang sama
+     * (keduanya revisi + 1) dan bercabang: rantainya berhenti bisa dibaca
+     * sebagai satu garis, dan bila keduanya sampai ke meja penyetuju yang kedua
+     * ditolak assertNoGoverningRival — sesudah seseorang mengerjakan seluruh
+     * anggarannya. Ditolak di sini, sebelum pekerjaan itu dimulai.
+     */
+    private function assertNoLiveRevision(CostBudget $budget): void
+    {
+        $live = CostBudget::query()
+            ->where('revised_from_id', $budget->id)
+            ->whereIn('status', [DocumentStatus::Draft->value, DocumentStatus::Submitted->value])
+            ->orderBy('id')
+            ->first();
+
+        if ($live === null) {
+            return;
+        }
+
+        throw new LogicException(sprintf(
+            'RAP %s sudah punya revisi yang belum selesai (%s, status %s). Selesaikan revisi itu — '
+            .'disetujui atau ditolak — sebelum membuat revisi berikutnya, supaya nomor revisi dan '
+            .'rantai riwayatnya tetap satu garis.',
+            $budget->code,
+            $live->code,
+            $live->status->value,
+        ));
     }
 
     /**
@@ -430,29 +525,44 @@ class RapService
      * menampilkan keduanya sebagai satu rantai revisi akan mengarang selisih
      * antara dua anggaran yang tidak pernah menggantikan satu sama lain.
      *
+     * KE BELAKANG DULU, DARI RAP YANG DIMINTA — bukan "dari akar lalu anak
+     * pertama". Setiap RAP punya TEPAT SATU pendahulu, jadi jalan mundur tidak
+     * pernah bercabang; jalan maju bisa (data sebelum verifikasi F-2 memuat dua
+     * revisi dari satu pendahulu, dan kini assertNoLiveRevision menutupnya untuk
+     * baris baru). Versi sebelumnya berjalan maju dari akar lewat anak ber-id
+     * terkecil, jadi pada data bercabang RAP yang dibuka orangnya TIDAK ADA di
+     * riwayatnya sendiri — terukur: riwayat RAP/2026/0004 mencetak 0001, 0002,
+     * 0003 dan menandai 0003 "mengatur", padahal yang mengatur adalah 0004.
+     *
      * @return array<int, CostBudget>
      */
     private function chainOf(CostBudget $budget): array
     {
-        $root = $budget;
+        $chain = [$budget];
+        $cursor = $budget;
         $guard = 0;
 
-        while ($root->revised_from_id !== null && $guard++ < 100) {
-            $parent = CostBudget::query()->find($root->revised_from_id);
+        while ($cursor->revised_from_id !== null && $guard++ < 100) {
+            $parent = CostBudget::query()->find($cursor->revised_from_id);
 
             if ($parent === null) {
                 break;
             }
 
-            $root = $parent;
+            array_unshift($chain, $parent);
+            $cursor = $parent;
         }
 
-        $chain = [$root];
-        $cursor = $root;
+        $cursor = $budget;
         $guard = 0;
 
         while ($guard++ < 100) {
-            $next = CostBudget::query()->where('revised_from_id', $cursor->id)->orderBy('id')->first();
+            // Cabang yang dipilih ke depan: yang MENGGANTIKAN kursor bila ada
+            // (satu-satunya yang benar-benar mengatur sesudahnya), selain itu
+            // anak ber-id terkecil.
+            $next = $cursor->superseded_by_id !== null
+                ? CostBudget::query()->find($cursor->superseded_by_id)
+                : CostBudget::query()->where('revised_from_id', $cursor->id)->orderBy('id')->first();
 
             if ($next === null) {
                 break;

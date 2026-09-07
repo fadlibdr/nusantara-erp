@@ -351,4 +351,126 @@ class RapRevisionTest extends ErpTestCase
         $this->assertCount(2, $chain);
         $this->assertTrue($chain[0]['is_governing'], 'revisi 0 masih yang mengatur sampai revisinya disetujui');
     }
+
+    // ------------------------------------- satu proyek, satu RAP yang mengatur
+
+    /**
+     * DUA REVISI PARALEL: ditolak saat revisi KEDUA dibuat, sebelum ada yang
+     * mengerjakan anggarannya.
+     *
+     * Sebelum verifikasi F-2 keduanya lahir dengan nomor revisi KEMBAR (dua-dua
+     * "revisi 2"), dan keduanya bisa disetujui.
+     */
+    public function test_a_second_live_revision_of_one_rap_is_refused(): void
+    {
+        $project = $this->project('PRJ-2026-952');
+        $rev0 = $this->rap($project, ['material' => 400_000_000]);
+
+        $first = $this->service->revise($rev0, ['revision_reason' => 'CCO-05 cabang pertama'], $this->maker());
+
+        try {
+            $this->service->revise($rev0->refresh(), ['revision_reason' => 'CCO-05 cabang kedua'], $this->maker());
+            $this->fail('revisi kedua dari RAP yang sama seharusnya ditolak');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('revisi yang belum selesai', $e->getMessage());
+            $this->assertStringContainsString($first->code, $e->getMessage());
+        }
+
+        // Sesudah revisi pertama DITOLAK, jalannya terbuka lagi: yang dijaga
+        // adalah percabangan, bukan hak merevisi.
+        $first->submit($this->maker());
+        $this->service->reject($first, $this->checker(), 'salah kategori');
+
+        $second = $this->service->revise($rev0->refresh(), ['revision_reason' => 'CCO-05 usulan kedua'], $this->maker());
+        $this->assertSame(1, (int) $second->revision);
+    }
+
+    /**
+     * DUA RAP DISETUJUI PADA SATU PROYEK: ditolak di persetujuannya.
+     *
+     * Cabang keduanya dibuat langsung lewat model — persis bentuk baris yang
+     * bisa dibuat versi sebelum verifikasi F-2 (dan yang bisa berdiri di data
+     * lama) — supaya yang diuji adalah PINTU PERSETUJUANNYA, bukan pintu revisi.
+     * Terukur pada versi sebelum perbaikan: keduanya 200 OK, dua baris approved
+     * dengan superseded_at NULL, dan gerbang memakai yang ber-id terbesar
+     * sementara layar riwayat mencetak yang lain.
+     */
+    public function test_a_second_governing_rap_cannot_be_approved_for_one_project(): void
+    {
+        $project = $this->project('PRJ-2026-953');
+        $rev0 = $this->rap($project, ['material' => 400_000_000]);
+
+        $cabangA = $this->service->revise($rev0, ['revision_reason' => 'cabang A'], $this->maker());
+        $cabangA->items()->first()->forceFill(['amount' => 500_000_000, 'unit_price' => 500_000_000])->save();
+        $this->service->recalcTotals($cabangA);
+
+        /** @var CostBudget $cabangB */
+        $cabangB = CostBudget::query()->create([
+            'boq_id' => $rev0->boq_id,
+            'project_id' => $project->id,
+            'target_margin_pct' => $rev0->target_margin_pct,
+            'status' => DocumentStatus::Draft,
+            'revision' => 1,
+            'revised_from_id' => $rev0->id,
+            'revision_reason' => 'cabang B',
+        ]);
+        $cabangB->items()->create([
+            'boq_item_id' => $rev0->items()->value('boq_item_id'),
+            'cost_category' => 'material',
+            'description' => 'Paket material (cabang B)',
+            'qty' => 1,
+            'unit' => 'ls',
+            'unit_price' => 900_000_000,
+            'amount' => 900_000_000,
+        ]);
+        $this->service->recalcTotals($cabangB);
+
+        $cabangA->submit($this->maker());
+        $cabangB->submit($this->maker());
+
+        $this->service->approve($cabangA, $this->checker());
+
+        try {
+            $this->service->approve($cabangB->refresh(), $this->checker());
+            $this->fail('RAP kedua yang mengatur seharusnya ditolak');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('sudah punya RAP yang berlaku ('.$cabangA->code.')', $e->getMessage());
+        }
+
+        $governing = DB::table('est_cost_budgets')
+            ->where('project_id', $project->id)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('superseded_at')
+            ->pluck('code')
+            ->all();
+
+        $this->assertSame([$cabangA->code], $governing, 'tepat satu RAP yang mengatur, tidak dua');
+        $this->assertSame(500000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+
+        // Dan riwayat revisi cabang B memuat cabang B — sebelum perbaikan ini
+        // rantainya berjalan maju dari akar lewat anak ber-id terkecil, jadi
+        // RAP yang dibuka orangnya tidak ada di riwayatnya sendiri.
+        $this->assertContains(
+            $cabangB->code,
+            array_column($this->service->revisionChain($cabangB->refresh()), 'code'),
+        );
+    }
+
+    /**
+     * RAP KEDUA YANG TIDAK BERHUBUNGAN (BOQ lain) juga ditolak: gerbang hanya
+     * bisa membaca satu anggaran, dan diam-diam memilih yang ber-id terbesar
+     * adalah cara sebuah proyek kehilangan separuh anggarannya tanpa satu
+     * kalimat pun di layar.
+     */
+    public function test_an_unrelated_second_rap_cannot_be_approved_while_one_governs(): void
+    {
+        $project = $this->project('PRJ-2026-954');
+        $pertama = $this->rap($project, ['material' => 300_000_000]);
+
+        $kedua = $this->rap($project, ['material' => 800_000_000], DocumentStatus::Draft);
+        $kedua->submit($this->maker());
+
+        $this->expectExceptionMessage('sudah punya RAP yang berlaku ('.$pertama->code.')');
+        $this->service->approve($kedua, $this->checker());
+    }
 }
