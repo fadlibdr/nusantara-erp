@@ -2572,7 +2572,9 @@ S26_MEASURE = """() => {
     scale: +scale.toFixed(4),
     svg_min_width: getComputedStyle(svg).minWidth,
     labels: [...svg.querySelectorAll('text.gantt-label')].map((t) => ({
-      shown: t.textContent, full: t.dataset.full || null, truncated: t.dataset.truncated === 'true',
+      shown: [...t.querySelectorAll('tspan')].map((s) => s.textContent).join(' '),
+      full: t.dataset.full || null, truncated: t.dataset.truncated === 'true',
+      lines: +(t.dataset.lines || 1), title: (t.querySelector('title') || {}).textContent || null,
     })),
     bars: [...svg.querySelectorAll('rect.gantt-bar')].map((r) => ({
       x: num(r, 'x'), y: num(r, 'y'), w: num(r, 'width'),
@@ -2764,7 +2766,7 @@ def _dow(ms):
     return (date.fromordinal(ms // DAY_MS + date(1970, 1, 1).toordinal()).weekday() + 1) % 7
 
 
-def gantt_expectations(tasks, frozen, today_ms):
+def gantt_expectations(tasks, frozen, today_ms, label_w=180):
     """Seluruh geometri gantt dihitung ULANG dari muatan API — inilah pembanding
     yang membuat angka terukur berarti sesuatu."""
     flat = []
@@ -2790,8 +2792,11 @@ def gantt_expectations(tasks, frozen, today_ms):
 
     lo, hi = min(dates), max(dates)
     days = round((hi - lo) / DAY_MS) + 1
-    day_w = 720 / days
-    x = lambda ms: 180 + ((ms - lo) / DAY_MS) * day_w
+    # Lebar kolom label mengikuti ATURAN yang ditulis jadwal.js (300 satuan di
+    # layar >= 900 px, 180 di bawahnya); total viewBox tetap 900 satuan.
+    timeline_w = 900 - label_w
+    day_w = timeline_w / days
+    x = lambda ms: label_w + ((ms - lo) / DAY_MS) * day_w
 
     weekends = 0
     cursor = lo
@@ -2825,7 +2830,7 @@ def gantt_expectations(tasks, frozen, today_ms):
     # selesai (`to` inklusif). Inilah yang membuat bar baseline berarti sesuatu:
     # kalau ia digambar dari tanggal hidup alih-alih tanggal beku, x atau
     # lebarnya meleset dan angkanya ketahuan.
-    clamp = lambda v: max(180.0, min(900.0, v))
+    clamp = lambda v: max(float(label_w), min(900.0, v))
     geom = []
     for row in flat:
         start, end = row.get("planned_start"), row.get("planned_end")
@@ -2940,8 +2945,10 @@ def gantt_scenario(pg, tag, mobile=False):
         # yang benar. Bahwa garisnya benar-benar tidak ikut jam PERAMBAN diukur
         # terpisah oleh S26_gantt_jam_server (dua timezone berjarak 25 jam).
         today = date.fromisoformat(out["api"]["as_of"]) if out["api"]["as_of"] else date.today()
+        label_w = 300 if (pg.viewport_size or {}).get("width", 0) >= 900 else 180
         expect = gantt_expectations(tasks["data"] or [], ((frozen or {}).get("data") or {}).get("tasks") or [],
-                                    _days(today.isoformat()))
+                                    _days(today.isoformat()), label_w=label_w)
+        out["label_width"] = label_w
         out["expected"] = expect
 
         click(pg, ".tabs button:nth-child(2)")
@@ -3056,6 +3063,14 @@ def gantt_scenario(pg, tag, mobile=False):
         "every_task_the_api_returned_has_a_row": len(week["labels"]) == expect["rows"],
         "row_labels_are_code_plus_name": all(
             lab["full"].startswith(code + " ") for lab, code in zip(week["labels"], expect["codes"])),
+        # Nama panjang dipatahkan ke DUA baris alih-alih dipotong; yang tetap
+        # tidak muat wajib membawa nama lengkapnya di <title> — dan angkanya
+        # dicatat, bukan dibiarkan tak terlihat seperti sebelumnya (S26 dulu
+        # merekam labels[].truncated lalu tidak menegaskan apa pun tentangnya:
+        # 10 dari 12 terpotong di desktop, angka yang sama dengan di ponsel).
+        "long_names_wrap_instead_of_being_cut": any(lab["lines"] > 1 for lab in week["labels"]),
+        "every_truncated_label_keeps_its_full_name": all(
+            lab["title"] == lab["full"] for lab in week["labels"] if lab["truncated"]),
         # 2. Garis hari ini ADA dan berdiri di x yang benar untuk jendelanya.
         "today_line_drawn": (week["today_x"] is not None) == expect["today_inside"],
         "today_line_at_the_right_x": expect["today_x"] is None or abs(week["today_x"] - expect["today_x"]) <= 0.05,
@@ -3139,7 +3154,11 @@ def gantt_scenario(pg, tag, mobile=False):
     # 80 % (720 px) adalah lantai yang DISENGAJA charts.js, dan angkanya dicatat
     # apa adanya alih-alih dipoles.
     out["text_px"] = {"label": week["font_css_px"]["label"], "tick": week["font_css_px"]["tick"],
-                      "svg_rendered_px": week["box"]["w"], "scrolls_horizontally": week["scroll_x"]}
+                      "svg_rendered_px": week["box"]["w"], "scrolls_horizontally": week["scroll_x"],
+                      "label_width_units": out.get("label_width"),
+                      "labels_truncated": sum(1 for lab in week["labels"] if lab["truncated"]),
+                      "labels_wrapped": sum(1 for lab in week["labels"] if lab["lines"] > 1),
+                      "labels_total": len(week["labels"])}
     checks["text_is_at_least_11px" if not mobile else "text_is_at_least_the_designed_mobile_floor"] = (
         week["font_css_px"]["label"] >= (11 if not mobile else 8.8)
         and week["font_css_px"]["tick"] >= (11 if not mobile else 8.8))

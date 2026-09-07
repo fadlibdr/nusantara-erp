@@ -4039,8 +4039,13 @@ tetap diisi dari kartu **Struktur WBS** di tab Ringkasan.
 - **Garis ketergantungan antar tugas tidak digambar.** Kolomnya belum ada di basis data dan
   impor MPP-XML mengabaikan `PredecessorLink` — kalimat di bawah gambar mengatakannya. Garis
   yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.
-- Di ponsel gambarnya **menggulir mendatar** dan nama paket yang panjang terpotong; untuk
-  membaca jadwal penuh, buka di layar lebar atau cetak lembarnya.
+- Nama paket yang panjang **dipatahkan ke dua baris**. Yang tetap tidak muat berakhir dengan
+  "…" dan nama lengkapnya muncul saat kursor diarahkan ke label itu (di ponsel dan di kertas
+  petunjuk itu tidak ada — nama penuhnya ada di tabel WBS pada tab **Ringkasan**).
+- Di ponsel gambarnya **menggulir mendatar**, dan posisi gulir awalnya diletakkan pada garis
+  **"Hari ini"** supaya bagian jadwal yang sedang berjalan yang pertama terlihat; geser ke kiri
+  untuk membaca kolom nama. Kalimat sumber di kaki kartu juga digambar sebagai teks biasa di
+  bawah gambar, jadi ia terbaca tanpa menggeser apa pun.
 
 **Kartu-kartu di halaman proyek** (tab `Ringkasan`)**:**
 

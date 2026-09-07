@@ -154,6 +154,16 @@ kedua ukuran, jalan pertama**, dan yang dicatat adalah angka:
   80 % (720 px dari 900 px alami) yang **diputuskan P1-A dan ditulis di docblock charts.js**, dan
   **10 dari 12** label baris terpotong. Di desktop label terukur **14,21 px**, tick **13,59 px**,
   pada svg **1.112 px**.
+  **Diperbaiki 7 Sep 2026** (verifikasi): angka 10-dari-12 itu bukan gejala ponsel — pemotongan
+  dihitung dalam satuan viewBox atas kolom label yang lebar tetapnya 180 dari 900, jadi bukti
+  paket ini sendiri mencatat **10 dari 12 terpotong di desktop 1440×900 juga**, dan di kertas
+  `<title>` tidak bisa disentuh sama sekali. Nama panjang kini **dipatahkan ke dua baris** (tinggi
+  baris 28 px yang sama, tidak ada bar yang bergeser) dan kolom labelnya melebar menjadi 300 dari
+  900 satuan pada layar ≥ 900 px (tetap 180 di layar sempit, di mana kolom lebar justru memakan
+  jendela). Terukur sesudahnya: **desktop 0 dari 12 terpotong** (4 label dua baris), **ponsel 3
+  dari 12** (10 label dua baris) — dan ketiga sisanya wajib membawa nama lengkapnya di `<title>`,
+  yang kini menjadi syarat harness (`every_truncated_label_keeps_its_full_name`) alih-alih angka
+  yang dicatat lalu tidak ditegaskan apa pun.
 - 0 `pageerror` di kedua ukuran. Dua console error yang tercatat adalah HTTP 500
   `PUT core/me/preferences/recent` — tabel `core_user_preferences` memang belum ada di salinan
   berkas demo (0 baris di `sqlite_master`), tidak ada hubungannya dengan paket ini, dan dicatat apa
@@ -195,8 +205,11 @@ console error, 0 permintaan gagal, formulir masuk tergambar.**
    sendiri. Yang belum dilakukan: menanyakan ke pemakainya apakah gantt di ponsel memang dipakai
    untuk MEMBACA nama paket, atau hanya untuk melihat bentuk jadwalnya.
 5. **`<title>` tidak bisa disentuh.** Seluruh keterangan bar (tanggal, persentase, catatan
-   baseline tidak valid) hidup di `<title>` SVG, yang di ponsel tidak muncul pada ketukan. Di layar
-   sentuh, 10 dari 12 nama paket terpotong DAN keterangannya tidak terjangkau.
+   baseline tidak valid) hidup di `<title>` SVG, yang di ponsel tidak muncul pada ketukan.
+   Sebagian dari akibatnya ditutup 7 Sep 2026 — nama paket kini dipatahkan ke dua baris (ponsel:
+   3 dari 12 masih terpotong, dari 10 dari 12), dan bar berujung terbuka kini punya entri
+   legendanya sendiri alih-alih hanya `<title>` — tetapi TANGGAL dan PERSENTASE setiap bar tetap
+   hanya di `<title>`, dan di layar sentuh keduanya tetap tidak terjangkau.
 6. **Pohon lebih dari tiga tingkat belum pernah ada di data sungguhan.** Perbaikan #1 diuji dengan
    dua baris yang ditanam uji; belum ada berkas MPP-XML empat tingkat yang benar-benar diimpor
    lewat layarnya.

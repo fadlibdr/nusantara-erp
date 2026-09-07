@@ -174,8 +174,19 @@ function paint(host, ctx) {
   const matched = rows.filter((row) => row.baselineStart || row.baselineEnd).length;
 
   const note = sourceNote(baseline, fault, matched, rows.length);
+  /* KOLOM LABEL selebar 300 dari 900 satuan viewBox di layar lebar, 180 di
+     layar sempit. Kolom 180 yang tetap adalah 20 % dari gambar, berapa pun
+     lebar layarnya: di 1440x900 svg melebar ke 1.112 px dan kolom labelnya ikut
+     melebar hanya sampai 222 px — 9 dari 11 nama paket terpotong, sama persis
+     dengan di ponsel, dan di kertas <title> tidak bisa disentuh sama sekali.
+     Di layar sempit kolom lebar justru merugikan (208 px dari 328 px jendela
+     habis untuk label), jadi lantainya tetap 180 di sana. */
+  const wide = typeof window !== 'undefined' && window.innerWidth >= 900;
+  const labelWidth = wide ? 300 : 180;
   const chart = ganttChart({
     rows,
+    labelWidth,
+    timelineWidth: 900 - labelWidth,
     zoom: state.zoom,
     weekends: true,
     // null → charts.js jatuh ke jam peramban; itu hanya terjadi bila server

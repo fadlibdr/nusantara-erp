@@ -1018,6 +1018,21 @@ export function ganttChart({
      2026) — pemotongan memakai faktor itu, dan kolom label diklip pada labelWidth − 6 supaya
      label berglyph lebar ('WWW…', 10,9 px/glyph) pun tidak pernah menembus kolom jadwal. */
   const labelChars = (level) => Math.floor((labelWidth - 14 - level * 12) / (CHAR_W * (11.5 / 11) * (level === 0 ? 1.06 : 1)));
+  /* DUA BARIS, bukan satu yang dipotong. Nama paket pekerjaan yang sungguhan
+     lebih panjang daripada satu baris kolom label — diukur pada berkas demo,
+     kolom 180: 9 dari 11 nama terpotong, di ponsel MAUPUN di layar 1440 (dan
+     di kertas, tempat <title> tidak bisa disentuh sama sekali). Baris kedua
+     memakai tinggi baris yang sudah ada (28 px) tanpa menggeser satu bar pun;
+     yang masih tidak muat tetap dipotong dengan '…' dan tetap membawa nama
+     lengkapnya di <title>. */
+  const labelLines = (text, maxChars) => {
+    if (text.length <= maxChars) return [text];
+    const cut = text.lastIndexOf(' ', maxChars);
+    const head = cut > maxChars * 0.4 ? text.slice(0, cut) : text.slice(0, maxChars);
+    const tail = text.slice(head.length).trim();
+
+    return [head, truncate(tail, maxChars)];
+  };
   const labelClip = plotClip(svg, 0, 0, labelWidth - 8, H);
 
   /* Bayangan akhir pekan: Sabtu+Minggu digabung jadi satu rect. */
@@ -1080,12 +1095,16 @@ export function ganttChart({
     const mid = top + rowHeight / 2;
     svg.appendChild(paint(make('line', { class: 'gantt-row-line', x1: 0, x2: W, y1: top + rowHeight, y2: top + rowHeight }), 'stroke', '--chart-grid'));
     const indent = t.level * 12;
-    const shown = truncate(t.label, labelChars(t.level));
-    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: mid + 4, 'data-full': t.label, 'data-truncated': shown !== t.label ? 'true' : null, 'font-weight': t.level === 0 ? 600 : null, 'clip-path': labelClip }, shown);
+    const lines = labelLines(t.label, labelChars(t.level));
+    const truncated = lines.join(' ') !== t.label;
+    /* Satu <text> dengan dua <tspan>, bukan dua <text>: satu baris jadwal tetap
+       satu simpul label, jadi "jumlah label = jumlah tugas" tetap benar. */
+    const text = make('text', { class: 'gantt-label', x: 8 + indent, y: lines.length > 1 ? mid - 2 : mid + 4, 'data-full': t.label, 'data-truncated': truncated ? 'true' : null, 'data-lines': lines.length, 'font-weight': t.level === 0 ? 600 : null, 'clip-path': labelClip }, undefined);
+    lines.forEach((line, index) => text.appendChild(make('tspan', { x: 8 + indent, dy: index === 0 ? 0 : 12 }, line)));
     /* Label yang dipotong membawa nama lengkapnya di <title> — satu-satunya <title> di
        luar .mark (nama WBS lazim > 29 huruf, dan baris "tanpa tanggal" tidak punya bar
        yang <title>-nya mengulang nama itu). Harness S20 menghitung .mark > title. */
-    if (shown !== t.label) text.appendChild(make('title', {}, t.label));
+    if (truncated) text.appendChild(make('title', {}, t.label));
     svg.appendChild(text);
 
     const withBaseline = baselineDrawn(t);
