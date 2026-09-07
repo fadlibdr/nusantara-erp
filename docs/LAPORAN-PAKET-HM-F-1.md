@@ -630,3 +630,26 @@ ia sudah ada sejak paket dikirim: fiturnya tidak terlihat oleh orang yang memega
 **Yang tidak berubah**: penegakan di server. r2-A adalah perbaikan LAYAR — setiap penolakan,
 setiap `Gate::before`, setiap penjaga maker-checker menjawab persis seperti sebelumnya. Yang
 berubah adalah bahwa layar berhenti menyembunyikan pekerjaan yang server sudah izinkan.
+
+## Gerbang rilis terakhir (7 September 2026)
+
+Commit rilis **`a10e8a1`**, suite penuh di worktree terpisah, KEDUA driver:
+**SQLite 4.131 uji / 22.912 asersi hijau** (11 dilewati, 11 mnt 00 dtk) dan
+**MySQL 8.0.46 4.131 uji / 22.925 asersi hijau** (6 dilewati, 30 mnt 15 dtk).
+
+Dua residu putaran kedua ditutup di commit itu, keduanya kelas yang sama — perbaikan yang benar
+tetapi belum menyapu seluruh permukaannya:
+
+1. **Dua pintu keputusan tulis-tangan tidak menghitung hak pinjaman.** `session.canAct()` hanya
+   menjangkau aksi yang lahir dari `schema.js`; layar Pembayaran (`finance/payments/{id}/approve`)
+   dan Baseline EVM (`projects/baselines/{id}/approve`) merakit tombolnya sendiri dan masih
+   memakai `session.can()` polos — jadi delegat murni tetap tidak melihat tombolnya pada
+   PEMBAYARAN KELUAR, justru dokumen yang paling perlu diputuskan tepat waktu, sementara server
+   menerima keputusannya. Dipaku `ApprovalInboxGateTest` (jumlah panggilan per berkas), merah
+   pada mutasi.
+2. **Kalimat penolakan sel `mode` tidak benar untuk jenisnya.** Ia menyebut "persetujuan pertamanya
+   sudah menjalankan akibatnya (jurnal, stok)" untuk SETIAP jenis yang mode-nya tidak terkunci —
+   termasuk izin kerja dan cuti, yang tidak memposting apa pun — dan selalu menutup dengan "yang
+   dapat Anda ubah adalah ambangnya", padahal **14 dari 28 jenis tidak punya sel ambang sama
+   sekali** (tanpa kolom nilai rupiah). Sebab dan alternatifnya kini diturunkan dari
+   `ApprovalPolicy::hasMeasurableAmount()`; dipaku uji yang menyapu seluruh registri.
