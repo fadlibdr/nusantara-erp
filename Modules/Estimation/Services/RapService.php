@@ -2,6 +2,7 @@
 
 namespace Modules\Estimation\Services;
 
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
@@ -196,6 +197,298 @@ class RapService
         if (! $budget->status->isEditable()) {
             throw new LogicException("RAP {$budget->code} cannot be {$action} while status is {$budget->status->value}.");
         }
+    }
+
+    // ------------------------------------------------------------ revisi RAP
+
+    /**
+     * RAP yang MENGATUR sebuah proyek hari ini: disetujui, revisi terbaru yang
+     * belum digantikan.
+     *
+     * SATU KALIMAT ATURAN, DAN INILAH KALIMATNYA. Gerbang anggaran PO/SPK,
+     * layar portofolio, layar anggaran bulanan dan registri ambang membaca RAP
+     * yang sama — dan sebelum F-2 kalimatnya adalah "disetujui, id terbesar".
+     * Klausa superseded_at MENYEMPITKAN tanpa mengubah jawabannya pada data
+     * yang belum pernah direvisi (sebuah revisi selalu ber-id lebih besar
+     * daripada yang digantikannya), dan itu dibuktikan
+     * RapRevisionTest::test_an_approved_rap_without_revisions_answers_exactly_as_before.
+     */
+    public function governing(int $projectId): ?CostBudget
+    {
+        return CostBudget::query()
+            ->where('project_id', $projectId)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('superseded_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Buat revisi DRAF dari sebuah RAP yang sudah disetujui.
+     *
+     * Menyalin rinciannya apa adanya supaya yang mengerjakan revisi mengubah
+     * baris yang berbeda saja, bukan mengetik ulang seluruh anggaran. Alasan
+     * WAJIB, alasan yang sama dengan BaselineService::snapshot: enam bulan
+     * kemudian tidak ada yang bisa mengatakan apakah anggaran naik karena CCO,
+     * karena eskalasi harga, atau karena angkanya tidak nyaman.
+     *
+     * Yang direvisi harus DISETUJUI. RAP draf tidak perlu revisi — ia diedit;
+     * membuat revisi dari draf akan melahirkan dua draf yang sama-sama belum
+     * pernah mengatur apa pun.
+     */
+    public function revise(CostBudget $budget, array $data, ?User $by = null): CostBudget
+    {
+        if ($budget->status !== DocumentStatus::Approved) {
+            throw new LogicException(
+                "RAP {$budget->code} berstatus {$budget->status->value}, jadi tidak perlu direvisi — "
+                .'yang belum disetujui cukup diubah langsung. Revisi hanya untuk RAP yang sudah berlaku.'
+            );
+        }
+
+        if ($budget->superseded_at !== null) {
+            throw new LogicException(
+                "RAP {$budget->code} sudah digantikan revisi berikutnya, jadi bukan lagi anggaran yang "
+                .'berlaku. Buat revisi dari RAP yang sedang mengatur proyek ini.'
+            );
+        }
+
+        $reason = trim((string) ($data['revision_reason'] ?? ''));
+
+        if ($reason === '') {
+            throw new LogicException(
+                "Revisi RAP {$budget->code} wajib menyebutkan alasan (mis. CCO, addendum, eskalasi harga "
+                .'yang disetujui). Anggaran yang berubah tanpa sebab tertulis adalah anggaran yang tidak '
+                .'bisa dipertanggungjawabkan enam bulan kemudian.'
+            );
+        }
+
+        return DB::transaction(function () use ($budget, $data, $reason): CostBudget {
+            /** @var CostBudget $revision */
+            $revision = CostBudget::query()->create([
+                'boq_id' => $budget->boq_id,
+                'project_id' => $budget->project_id,
+                'target_margin_pct' => $data['target_margin_pct'] ?? $budget->target_margin_pct,
+                'status' => DocumentStatus::Draft,
+                'notes' => $data['notes'] ?? $budget->notes,
+                'revision' => (int) $budget->revision + 1,
+                'revised_from_id' => $budget->id,
+                'revision_reason' => $reason,
+            ]);
+
+            foreach ($budget->items()->get() as $item) {
+                $revision->items()->create([
+                    'boq_item_id' => $item->boq_item_id,
+                    'cost_category' => $item->cost_category,
+                    'description' => $item->description,
+                    'qty' => $item->qty,
+                    'unit' => $item->unit,
+                    'unit_price' => $item->unit_price,
+                    'amount' => $item->amount,
+                ]);
+            }
+
+            return $this->recalcTotals($revision)->refresh();
+        });
+    }
+
+    /**
+     * Setujui sebuah RAP — dan, bila ia sebuah revisi, GANTIKAN pendahulunya
+     * dalam transaksi yang sama.
+     *
+     * Pintu satu-satunya. Sebelum F-2 controller memanggil trait langsung; kalau
+     * itu dibiarkan, sebuah revisi yang disetujui lewat pintu itu akan berdiri
+     * berdampingan dengan pendahulunya dan "RAP yang mengatur" punya dua
+     * jawaban. Yang ditulis pada pendahulunya HANYA superseded_at dan
+     * superseded_by_id — isinya tidak disentuh, jadi revisi 0 tetap terbaca
+     * utuh berapa pun revisi yang menyusul (aturan append-only yang sama
+     * dengan BaselineService).
+     */
+    public function approve(CostBudget $budget, User $by, ?string $note = null): CostBudget
+    {
+        return DB::transaction(function () use ($budget, $by, $note): CostBudget {
+            $budget->approve($by, $note);
+
+            $predecessor = $budget->revised_from_id === null
+                ? null
+                : CostBudget::query()->find($budget->revised_from_id);
+
+            if ($predecessor !== null && $predecessor->superseded_at === null) {
+                $predecessor->forceFill([
+                    'superseded_at' => now(),
+                    'superseded_by_id' => $budget->id,
+                ])->save();
+            }
+
+            return $budget;
+        });
+    }
+
+    public function reject(CostBudget $budget, User $by, ?string $note = null): CostBudget
+    {
+        // Tanpa penggantian apa pun: sebuah revisi yang ditolak tidak pernah
+        // mengatur apa pun, jadi pendahulunya tetap berlaku tanpa disentuh.
+        return $budget->reject($by, $note);
+    }
+
+    /**
+     * Rantai revisi sebuah RAP, dari revisi 0 ke depan, dengan SELISIH tiap
+     * revisi terhadap pendahulunya.
+     *
+     * Dibelah subkon / non-subkon karena itulah garis yang dibaca gerbang PO
+     * dan SPK: sebuah revisi yang menaikkan total tetapi memindahkan Rp 300
+     * juta dari material ke subkon mengubah dua gerbang ke arah yang berlawanan,
+     * dan sebuah tabel yang hanya menampilkan total menyembunyikannya.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function revisionChain(CostBudget $budget): array
+    {
+        $chain = $this->chainOf($budget);
+        $rows = [];
+        $previous = null;
+
+        foreach ($chain as $entry) {
+            $totals = $this->totalsOf($entry);
+
+            $rows[] = [
+                'id' => $entry->id,
+                'code' => $entry->code,
+                'revision' => (int) $entry->revision,
+                'status' => $entry->status->value,
+                'is_governing' => $entry->status === DocumentStatus::Approved && $entry->superseded_at === null,
+                'subcon' => $totals['subcon'],
+                'non_subcon' => $totals['non_subcon'],
+                'total' => $totals['total'],
+                // Revisi 0 tidak punya pendahulu, jadi selisihnya BUKAN 0 —
+                // tidak ada yang bisa dikurangkan. null, dan layar menggarisnya.
+                'delta_total' => $previous === null ? null : round($totals['total'] - $previous['total'], 2),
+                'delta_subcon' => $previous === null ? null : round($totals['subcon'] - $previous['subcon'], 2),
+                'delta_non_subcon' => $previous === null ? null : round($totals['non_subcon'] - $previous['non_subcon'], 2),
+                'revision_reason' => $entry->revision_reason,
+                'superseded_at' => $entry->superseded_at?->toDateTimeString(),
+                'superseded_by_id' => $entry->superseded_by_id,
+            ];
+
+            $previous = $totals;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Selisih per KATEGORI BIAYA antara tiap revisi dan pendahulunya —
+     * "riwayat selisih" yang diminta kontrak paket, pada granularitas tempat
+     * uangnya benar-benar berpindah.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function revisionDiff(CostBudget $budget): array
+    {
+        $chain = $this->chainOf($budget);
+        $rows = [];
+        $previous = null;
+        $previousCode = null;
+
+        foreach ($chain as $entry) {
+            $current = $this->byCategory($entry);
+
+            if ($previous !== null) {
+                foreach (array_unique(array_merge(array_keys($previous), array_keys($current))) as $category) {
+                    $from = $previous[$category] ?? 0.0;
+                    $to = $current[$category] ?? 0.0;
+
+                    if (round($to - $from, 2) === 0.0) {
+                        continue;
+                    }
+
+                    $rows[] = [
+                        'revision' => (int) $entry->revision,
+                        'from_code' => $previousCode,
+                        'to_code' => $entry->code,
+                        'cost_category' => $category,
+                        'label' => CostCategory::tryFrom($category)?->label() ?? $category,
+                        'amount_from' => $from,
+                        'amount_to' => $to,
+                        'delta' => round($to - $from, 2),
+                    ];
+                }
+            }
+
+            $previous = $current;
+            $previousCode = $entry->code;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Seluruh rantai yang memuat RAP ini, dari revisi 0 ke depan.
+     *
+     * Ditelusuri lewat revised_from_id ke belakang lalu superseded_by_id/
+     * revised_from_id ke depan, bukan lewat "semua RAP proyek ini": sebuah
+     * proyek boleh punya dua RAP yang tidak berhubungan (dua BOQ), dan
+     * menampilkan keduanya sebagai satu rantai revisi akan mengarang selisih
+     * antara dua anggaran yang tidak pernah menggantikan satu sama lain.
+     *
+     * @return array<int, CostBudget>
+     */
+    private function chainOf(CostBudget $budget): array
+    {
+        $root = $budget;
+        $guard = 0;
+
+        while ($root->revised_from_id !== null && $guard++ < 100) {
+            $parent = CostBudget::query()->find($root->revised_from_id);
+
+            if ($parent === null) {
+                break;
+            }
+
+            $root = $parent;
+        }
+
+        $chain = [$root];
+        $cursor = $root;
+        $guard = 0;
+
+        while ($guard++ < 100) {
+            $next = CostBudget::query()->where('revised_from_id', $cursor->id)->orderBy('id')->first();
+
+            if ($next === null) {
+                break;
+            }
+
+            $chain[] = $next;
+            $cursor = $next;
+        }
+
+        return $chain;
+    }
+
+    /**
+     * @return array{subcon: float, non_subcon: float, total: float}
+     */
+    private function totalsOf(CostBudget $budget): array
+    {
+        $subcon = round((float) $budget->items()->where('cost_category', CostCategory::Subcon->value)->sum('amount'), 2);
+        $total = round((float) $budget->items()->sum('amount'), 2);
+
+        return ['subcon' => $subcon, 'non_subcon' => round($total - $subcon, 2), 'total' => $total];
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function byCategory(CostBudget $budget): array
+    {
+        $totals = [];
+
+        foreach ($budget->items()->selectRaw('cost_category, SUM(amount) as total')->groupBy('cost_category')->get() as $row) {
+            $key = $row->cost_category instanceof CostCategory ? $row->cost_category->value : (string) $row->cost_category;
+            $totals[$key] = round((float) $row->total, 2);
+        }
+
+        return $totals;
     }
 
     /**

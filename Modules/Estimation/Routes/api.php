@@ -41,4 +41,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('cost-budgets/{costBudget}/submit', [CostBudgetController::class, 'submit'])->middleware('permission:est.update');
     Route::post('cost-budgets/{costBudget}/approve', [CostBudgetController::class, 'approve'])->middleware('permission:est.approve');
     Route::post('cost-budgets/{costBudget}/reject', [CostBudgetController::class, 'reject'])->middleware('permission:est.approve');
+    /*
+     * F-2 — revisi RAP. Membuat revisi adalah est.create (ia melahirkan dokumen
+     * baru, sebuah draf), bukan est.update: mengubah RAP yang sudah disetujui
+     * memang TIDAK boleh, dan itulah kenapa revisi ada.
+     */
+    Route::post('cost-budgets/{costBudget}/revise', [CostBudgetController::class, 'revise'])->middleware('permission:est.create');
+    Route::get('cost-budgets/{costBudget}/revisions', [CostBudgetController::class, 'revisions'])->middleware('permission:est.view');
+    Route::get('cost-budgets/{costBudget}/revision-diff', [CostBudgetController::class, 'revisionDiff'])->middleware('permission:est.view');
 });

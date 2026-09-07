@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Finance;
 
+use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
+use Modules\Estimation\Services\RapService;
 use Modules\Finance\Models\ProjectCost;
 use Modules\Finance\Services\BudgetRealisationService;
 use Modules\Procurement\Models\PurchaseOrder;
@@ -25,10 +27,9 @@ use Tests\ErpTestCase;
  * pada kunci `budget`). Kalau layar dan gerbang pernah berselisih satu rupiah,
  * salah satu dari dua pengajuan itu menjawab terbalik.
  *
- * Lima keadaan yang diminta kontrak paket, masing-masing sebuah proyek:
- * tanpa RAP, lampau anggaran, tepat di anggaran, nilai kontrak nol, dan proyek
- * dengan anggaran normal (batas atas + satu sen). Revisi RAP diuji terpisah di
- * RapRevisionTest, yang memakai kelas yang sama.
+ * Enam keadaan yang diminta kontrak paket, masing-masing sebuah proyek:
+ * tanpa RAP, RAP yang sudah DIREVISI, lampau anggaran, tepat di anggaran,
+ * nilai kontrak nol, dan proyek dengan anggaran normal (batas atas + satu sen).
  */
 class BudgetPortfolioEqualityTest extends ErpTestCase
 {
@@ -323,6 +324,58 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         $this->assertNull($row['contract_value'], 'nilai kontrak 0 harus digaris, bukan dicetak Rp 0');
         $this->assertSame(80000000.0, $row['budget']);
         $this->assertSame(80000000.0, $row['remaining']);
+    }
+
+    /**
+     * RAP DIREVISI: gerbang dan layar sama-sama pindah ke revisi yang menggantikan,
+     * pada detik yang sama — dan batas atas yang diterima gerbang adalah batas
+     * atas yang dicetak layar, sebelum maupun sesudah.
+     */
+    public function test_after_a_rap_revision_both_the_screen_and_the_gate_move_together(): void
+    {
+        $maker = $this->adminUser();
+        Sanctum::actingAs($maker);
+
+        $project = $this->project('PRJ-2026-919');
+        $rev0 = $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 0);
+
+        $this->assertSame(100000000.0, (float) $this->portfolioRow($project)['remaining_non_subcon']);
+        $this->submitPo($this->po($project, 100_000_000.01, DocumentStatus::Draft))->assertStatus(422);
+
+        // Revisi menaikkan sisi non-subkon menjadi Rp 250 juta.
+        $rap = app(RapService::class);
+        $revision = $rap->revise($rev0, ['revision_reason' => 'CCO-04: penambahan lingkup'], $maker);
+        $revision->items()->first()->forceFill(['amount' => 250_000_000, 'unit_price' => 250_000_000])->save();
+        $rap->recalcTotals($revision);
+        $revision->submit($maker);
+
+        // Sebelum revisinya disetujui, tidak ada yang berubah — di layar
+        // maupun di gerbang.
+        $this->assertSame(100000000.0, (float) $this->portfolioRow($project)['remaining_non_subcon']);
+
+        $rap->approve($revision, $this->secondUser());
+
+        $row = $this->portfolioRow($project);
+        $this->assertSame(250000000.0, (float) $row['remaining_non_subcon']);
+        $this->assertSame($revision->code, $row['rap_code']);
+        $this->assertSame(1, $row['rap_revision']);
+
+        $this->submitPo($this->po($project, 250_000_000, DocumentStatus::Draft))->assertOk();
+        $this->submitPo($this->po($project, 250_000_000.01, DocumentStatus::Draft))->assertStatus(422);
+    }
+
+    private function secondUser(): User
+    {
+        /** @var User $user */
+        $user = User::query()->create([
+            'name' => 'Pemeriksa RAP',
+            'email' => 'checker.equality@test.local',
+            'password' => 'password',
+            'is_active' => true,
+        ]);
+        $user->assignRole('admin');
+
+        return $user;
     }
 
     /**

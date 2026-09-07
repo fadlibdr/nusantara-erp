@@ -913,6 +913,15 @@ export const RESOURCES = {
       { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
       { key: 'target_margin_pct', label: 'Target margin', type: 'percent', align: 'right' },
       { key: 'total_budget', label: 'Total anggaran', type: 'currency', align: 'right' },
+      // F-2 — revisi ke berapa, dan MANA yang sedang mengatur proyeknya.
+      // 'is_governing' datang dari server (CostBudgetResource): aturannya
+      // dibaca gerbang PO/SPK dan layar anggaran, jadi salinannya di
+      // JavaScript akan menua sendiri.
+      { key: 'revision', label: 'Revisi', type: 'number', align: 'right' },
+      {
+        key: 'is_governing', label: 'Anggaran berlaku', type: 'flag', width: '1%',
+        trueLabel: 'Mengatur', trueTone: 'green', falseLabel: '—', falseTone: '',
+      },
       statusColumn,
     ],
     filters: [
@@ -944,6 +953,37 @@ export const RESOURCES = {
           { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
         ],
         totalKey: 'amount',
+      }, {
+        /* F-2 — rantai revisi, dari revisi 0 ke depan. Kolom "Selisih total"
+           KOSONG pada revisi 0: ia tidak punya pendahulu, jadi selisihnya bukan
+           nol melainkan tidak ada. */
+        key: 'revisions', label: 'Riwayat revisi', endpoint: '{id}/revisions',
+        columns: [
+          { key: 'revision', label: 'Revisi', type: 'number', align: 'right' },
+          { key: 'code', label: 'Kode', type: 'code' },
+          { key: 'status', label: 'Status', type: 'enum', enum: 'documentStatus' },
+          { key: 'is_governing', label: 'Anggaran berlaku', type: 'flag', trueLabel: 'Mengatur', trueTone: 'green', falseLabel: '—', falseTone: '' },
+          { key: 'non_subcon', label: 'Non-subkon', type: 'currency', align: 'right' },
+          { key: 'subcon', label: 'Subkon', type: 'currency', align: 'right' },
+          { key: 'total', label: 'Total', type: 'currency', align: 'right' },
+          { key: 'delta_total', label: 'Selisih total', type: 'currency', align: 'right' },
+          { key: 'revision_reason', label: 'Alasan' },
+        ],
+      }, {
+        /* …dan selisihnya per KATEGORI BIAYA, tempat uangnya benar-benar
+           berpindah: sebuah revisi yang totalnya naik Rp 150 juta tetapi
+           memindahkan Rp 300 juta dari material ke subkon menggerakkan gerbang
+           PO dan gerbang SPK ke arah yang berlawanan. Hanya kategori yang
+           BERUBAH yang muncul. */
+        key: 'revision_diff', label: 'Selisih per kategori biaya', endpoint: '{id}/revision-diff',
+        columns: [
+          { key: 'revision', label: 'Revisi', type: 'number', align: 'right' },
+          { key: 'label', label: 'Kategori' },
+          { key: 'from_code', label: 'Dari', type: 'code' },
+          { key: 'amount_from', label: 'Sebelum', type: 'currency', align: 'right' },
+          { key: 'amount_to', label: 'Sesudah', type: 'currency', align: 'right' },
+          { key: 'delta', label: 'Selisih', type: 'currency', align: 'right' },
+        ],
       }],
     },
     actions: [
@@ -953,6 +993,22 @@ export const RESOURCES = {
         fields: [{ key: 'target_margin_pct', label: 'Target margin (%)', type: 'percent', help: 'Kosongkan untuk memakai margin yang tersimpan.' }],
       },
       ...approvalActions('est'),
+      {
+        /* F-2 — revisi RAP. Hanya pada RAP yang SEDANG BERLAKU: yang draf cukup
+           diubah langsung, dan yang sudah digantikan bukan lagi anggaran
+           siapa pun. Alasannya WAJIB — server menolak yang kosong dengan
+           kalimatnya sendiri, dan kotak ini tidak menyalin aturan itu. */
+        key: 'revise', label: 'Buat Revisi', path: '{id}/revise', method: 'POST',
+        perm: 'est.create', when: (row) => row.status === 'approved' && row.is_governing !== false,
+        variant: 'primary', navigateToResult: true,
+        fields: [
+          {
+            key: 'revision_reason', label: 'Alasan revisi', type: 'textarea', required: true,
+            help: 'Mis. CCO-01, addendum kontrak, eskalasi harga yang disetujui. Alasan ini ikut '
+              + 'selamanya di riwayat revisi RAP.',
+          },
+        ],
+      },
     ],
   },
 

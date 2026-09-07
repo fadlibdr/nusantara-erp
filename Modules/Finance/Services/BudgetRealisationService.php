@@ -56,9 +56,6 @@ class BudgetRealisationService
     /** Locale aplikasi 'en' (config/app.php); nama bulan Indonesia ditulis, tidak diterjemahkan runtime. */
     private const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-    /** @var array<int, object|null> memo per instance: RAP yang mengatur tiap proyek */
-    private array $rapMemo = [];
-
     public function __construct(private readonly CommitmentService $commitments) {}
 
     // ------------------------------------------------------------- satu sisi
@@ -278,15 +275,11 @@ class BudgetRealisationService
      */
     private function rapOf(int $projectId): ?object
     {
-        if (array_key_exists($projectId, $this->rapMemo)) {
-            return $this->rapMemo[$projectId];
-        }
-
         if (! Schema::hasTable('est_cost_budgets') || ! Schema::hasTable('est_cost_budget_items')) {
-            return $this->rapMemo[$projectId] = null;
+            return null;
         }
 
-        return $this->rapMemo[$projectId] = DB::table('est_cost_budgets')
+        return DB::table('est_cost_budgets')
             ->where('project_id', $projectId)
             ->where('status', DocumentStatus::Approved->value)
             ->whereNull('deleted_at')

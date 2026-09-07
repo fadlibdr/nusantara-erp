@@ -1,0 +1,354 @@
+<?php
+
+namespace Tests\Feature\Estimation;
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
+use Modules\Core\Enums\DocumentStatus;
+use Modules\Estimation\Models\Boq;
+use Modules\Estimation\Models\CostBudget;
+use Modules\Estimation\Services\RapService;
+use Modules\Finance\Services\BudgetRealisationService;
+use Modules\Projects\Models\Project;
+use Tests\ErpTestCase;
+
+/**
+ * F-2 / T2.5 — revisi RAP, dan janji yang menyertainya.
+ *
+ * KLAIM YANG PALING PENTING DI BERKAS INI BUKAN "REVISI BEKERJA" MELAINKAN
+ * "YANG SUDAH ADA TIDAK BERUBAH". Setiap RAP yang berdiri hari ini menjadi
+ * revisi 0 yang belum digantikan, dan aturan lama — "disetujui, id terbesar" —
+ * menjawab persis sama dengan aturan baru. Itu dibuktikan dengan menghitung
+ * kedua aturan berdampingan pada data yang sama, termasuk proyek dengan DUA
+ * RAP disetujui yang tidak berhubungan, bukan dengan membaca kodenya.
+ */
+class RapRevisionTest extends ErpTestCase
+{
+    private RapService $service;
+
+    private ?User $maker = null;
+
+    private ?User $checkerUser = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->service = app(RapService::class);
+    }
+
+    private function project(string $code): Project
+    {
+        return Project::query()->create([
+            'code' => $code,
+            'name' => 'Proyek '.$code,
+            'type' => 'construction',
+            'status' => 'active',
+            'contract_value' => 5_000_000_000,
+        ]);
+    }
+
+    /**
+     * @param  array<string, float>  $byCategory
+     */
+    private function rap(Project $project, array $byCategory, DocumentStatus $status = DocumentStatus::Approved): CostBudget
+    {
+        $boq = Boq::query()->create([
+            'project_id' => $project->id,
+            'title' => 'RAB '.$project->code,
+            'status' => DocumentStatus::Approved,
+        ]);
+        $section = $boq->sections()->create(['section_no' => 'A', 'name' => 'Struktur']);
+
+        /** @var CostBudget $rap */
+        $rap = CostBudget::query()->create([
+            'boq_id' => $boq->id,
+            'project_id' => $project->id,
+            'target_margin_pct' => 10,
+            'status' => $status,
+        ]);
+
+        foreach ($byCategory as $category => $amount) {
+            $item = $boq->items()->create([
+                'section_id' => $section->id,
+                'wbs_code' => 'A.'.$category,
+                'description' => 'Paket '.$category,
+                'qty' => 1,
+                'unit' => 'ls',
+                'unit_price' => $amount,
+                'amount' => $amount,
+            ]);
+
+            $rap->items()->create([
+                'boq_item_id' => $item->id,
+                'cost_category' => $category,
+                'description' => 'Paket '.$category,
+                'qty' => 1,
+                'unit' => 'ls',
+                'unit_price' => $amount,
+                'amount' => $amount,
+            ]);
+        }
+
+        return $this->service->recalcTotals($rap)->refresh();
+    }
+
+    private function maker(): User
+    {
+        return $this->maker ??= $this->adminUser();
+    }
+
+    private function checker(): User
+    {
+        if ($this->checkerUser !== null) {
+            return $this->checkerUser;
+        }
+
+        $this->maker();
+
+        /** @var User $user */
+        $user = User::query()->create([
+            'name' => 'Pemeriksa RAP',
+            'email' => 'checker.rap@test.local',
+            'password' => 'password',
+            'is_active' => true,
+        ]);
+        $user->assignRole('admin');
+
+        return $this->checkerUser = $user;
+    }
+
+    /** Aturan LAMA, ditulis ulang apa adanya: disetujui, id terbesar. */
+    private function budgetUnderTheOldRule(int $projectId): ?float
+    {
+        $rapId = DB::table('est_cost_budgets')
+            ->where('project_id', $projectId)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->value('id');
+
+        if ($rapId === null) {
+            return null;
+        }
+
+        return round((float) DB::table('est_cost_budget_items')->where('cost_budget_id', $rapId)->sum('amount'), 2);
+    }
+
+    // ------------------------------------- yang sudah ada tidak boleh berubah
+
+    /**
+     * RAP yang tidak pernah direvisi — termasuk proyek yang menyimpan DUA RAP
+     * disetujui yang tidak berhubungan — dijawab identik oleh aturan lama dan
+     * aturan baru.
+     */
+    public function test_an_approved_rap_without_revisions_answers_exactly_as_before(): void
+    {
+        $satu = $this->project('PRJ-2026-941');
+        $this->rap($satu, ['material' => 300_000_000, 'subcon' => 200_000_000]);
+
+        // Dua RAP disetujui pada satu proyek: sah sebelum F-2, dan yang
+        // menang tetap yang ber-id terbesar — di kedua aturan.
+        $dua = $this->project('PRJ-2026-942');
+        $this->rap($dua, ['material' => 100_000_000]);
+        $this->rap($dua, ['material' => 700_000_000, 'subcon' => 50_000_000]);
+
+        // Draf dan yang ditolak tidak pernah mengatur apa pun.
+        $tiga = $this->project('PRJ-2026-943');
+        $this->rap($tiga, ['material' => 900_000_000], DocumentStatus::Draft);
+        $this->rap($tiga, ['material' => 400_000_000]);
+        $this->rap($tiga, ['material' => 800_000_000], DocumentStatus::Rejected);
+
+        $empat = $this->project('PRJ-2026-944'); // tanpa RAP sama sekali
+
+        $budgets = app(BudgetRealisationService::class);
+
+        foreach ([$satu, $dua, $tiga, $empat] as $project) {
+            $new = $budgets->project($project->id)['budget'];
+            $old = $this->budgetUnderTheOldRule($project->id);
+
+            $this->assertSame($old, $new, "[{$project->code}] aturan baru menjawab berbeda dari aturan lama");
+        }
+
+        $this->assertSame(500000000.0, $budgets->project($satu->id)['budget']);
+        $this->assertSame(750000000.0, $budgets->project($dua->id)['budget']);
+        $this->assertSame(400000000.0, $budgets->project($tiga->id)['budget']);
+        $this->assertNull($budgets->project($empat->id)['budget']);
+    }
+
+    // ------------------------------------------------------------ revisi RAP
+
+    public function test_approving_a_revision_supersedes_its_predecessor_and_moves_the_governing_budget(): void
+    {
+        $project = $this->project('PRJ-2026-945');
+        $rev0 = $this->rap($project, ['material' => 300_000_000, 'subcon' => 200_000_000]);
+
+        $budgets = app(BudgetRealisationService::class);
+        $this->assertSame(500000000.0, $budgets->project($project->id)['budget']);
+
+        $rev1 = $this->service->revise($rev0, ['revision_reason' => 'CCO-01: penambahan lingkup struktur'], $this->maker());
+        $this->service->replaceItems($rev1, [[
+            'boq_item_id' => $rev1->items()->value('boq_item_id'),
+            'cost_category' => 'material',
+            'description' => 'Paket material (revisi)',
+            'qty' => 1,
+            'unit' => 'ls',
+            'unit_price' => 650_000_000,
+        ]]);
+
+        // Selama revisinya belum disetujui, yang mengatur MASIH revisi 0.
+        $rev1->submit($this->maker());
+        $this->assertSame(500000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+        $this->assertNull($rev0->refresh()->superseded_at);
+
+        $this->service->approve($rev1, $this->checker());
+
+        $this->assertSame(1, (int) $rev1->refresh()->revision);
+        $this->assertNotNull($rev0->refresh()->superseded_at);
+        $this->assertSame($rev1->id, (int) $rev0->superseded_by_id);
+        $this->assertFalse($rev0->isGoverning());
+        $this->assertTrue($rev1->isGoverning());
+
+        // Dan anggarannya berpindah — SATU jawaban, bukan dua RAP approved.
+        $this->assertSame(650000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+        $this->assertSame($rev1->code, app(BudgetRealisationService::class)->project($project->id)['rap_code']);
+    }
+
+    /** Isi pendahulunya tidak disentuh satu byte pun — rantai append-only. */
+    public function test_superseding_writes_only_two_columns_on_the_predecessor(): void
+    {
+        $project = $this->project('PRJ-2026-946');
+        $rev0 = $this->rap($project, ['material' => 300_000_000]);
+
+        $before = DB::table('est_cost_budgets')->where('id', $rev0->id)->first();
+        $itemsBefore = DB::table('est_cost_budget_items')->where('cost_budget_id', $rev0->id)->get()->toArray();
+
+        $rev1 = $this->service->revise($rev0, ['revision_reason' => 'Eskalasi harga besi'], $this->maker());
+        $rev1->submit($this->maker());
+        $this->service->approve($rev1, $this->checker());
+
+        $after = DB::table('est_cost_budgets')->where('id', $rev0->id)->first();
+
+        foreach ((array) $before as $column => $value) {
+            if (in_array($column, ['superseded_at', 'superseded_by_id', 'updated_at'], true)) {
+                continue;
+            }
+
+            $this->assertSame($value, ((array) $after)[$column], "kolom {$column} pendahulunya ikut berubah");
+        }
+
+        $this->assertEquals($itemsBefore, DB::table('est_cost_budget_items')->where('cost_budget_id', $rev0->id)->get()->toArray());
+    }
+
+    public function test_a_revision_without_a_reason_is_refused(): void
+    {
+        $rev0 = $this->rap($this->project('PRJ-2026-947'), ['material' => 100_000_000]);
+
+        $this->expectExceptionMessage('wajib menyebutkan alasan');
+        $this->service->revise($rev0, ['revision_reason' => '   '], $this->maker());
+    }
+
+    public function test_only_an_approved_and_still_governing_rap_can_be_revised(): void
+    {
+        $project = $this->project('PRJ-2026-948');
+        $draft = $this->rap($project, ['material' => 100_000_000], DocumentStatus::Draft);
+
+        try {
+            $this->service->revise($draft, ['revision_reason' => 'apa pun'], $this->maker());
+            $this->fail('RAP draf seharusnya tidak bisa direvisi');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('cukup diubah langsung', $e->getMessage());
+        }
+
+        $rev0 = $this->rap($project, ['material' => 100_000_000]);
+        $rev1 = $this->service->revise($rev0, ['revision_reason' => 'CCO-02'], $this->maker());
+        $rev1->submit($this->maker());
+        $this->service->approve($rev1, $this->checker());
+
+        $this->expectExceptionMessage('sudah digantikan revisi berikutnya');
+        $this->service->revise($rev0->refresh(), ['revision_reason' => 'terlambat'], $this->maker());
+    }
+
+    /**
+     * Revisi yang DITOLAK tidak menggantikan apa pun: pendahulunya tetap
+     * berlaku, dan gerbang tetap membaca angkanya.
+     */
+    public function test_a_rejected_revision_leaves_the_predecessor_governing(): void
+    {
+        $project = $this->project('PRJ-2026-949');
+        $rev0 = $this->rap($project, ['material' => 300_000_000]);
+
+        $rev1 = $this->service->revise($rev0, ['revision_reason' => 'usulan yang ditolak'], $this->maker());
+        $rev1->submit($this->maker());
+        $this->service->reject($rev1, $this->checker(), 'tidak disetujui direksi');
+
+        $this->assertNull($rev0->refresh()->superseded_at);
+        $this->assertTrue($rev0->isGoverning());
+        $this->assertSame(300000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+    }
+
+    // -------------------------------------------------------- riwayat selisih
+
+    public function test_the_revision_history_carries_the_difference_between_revisions(): void
+    {
+        $project = $this->project('PRJ-2026-950');
+        $rev0 = $this->rap($project, ['material' => 300_000_000, 'subcon' => 200_000_000]);
+
+        $rev1 = $this->service->revise($rev0, ['revision_reason' => 'CCO-03: subkon bertambah'], $this->maker());
+        $subconItem = $rev1->items()->where('cost_category', 'subcon')->first();
+        $subconItem->forceFill(['amount' => 350_000_000, 'unit_price' => 350_000_000])->save();
+        $this->service->recalcTotals($rev1);
+        $rev1->submit($this->maker());
+        $this->service->approve($rev1, $this->checker());
+
+        $chain = $this->service->revisionChain($rev1->refresh());
+
+        $this->assertCount(2, $chain);
+        $this->assertNull($chain[0]['delta_total'], 'revisi 0 tidak punya pendahulu — selisihnya bukan 0');
+        $this->assertSame(0, $chain[0]['revision']);
+        $this->assertFalse($chain[0]['is_governing']);
+
+        $this->assertSame(1, $chain[1]['revision']);
+        $this->assertTrue($chain[1]['is_governing']);
+        $this->assertSame(150000000.0, $chain[1]['delta_total']);
+        $this->assertSame(150000000.0, $chain[1]['delta_subcon']);
+        $this->assertSame(0.0, $chain[1]['delta_non_subcon'], 'sisi non-subkon tidak bergerak');
+        $this->assertSame('CCO-03: subkon bertambah', $chain[1]['revision_reason']);
+
+        $diff = $this->service->revisionDiff($rev1);
+
+        $this->assertCount(1, $diff, 'hanya kategori yang benar-benar berubah yang muncul');
+        $this->assertSame('subcon', $diff[0]['cost_category']);
+        $this->assertSame(200000000.0, $diff[0]['amount_from']);
+        $this->assertSame(350000000.0, $diff[0]['amount_to']);
+        $this->assertSame(150000000.0, $diff[0]['delta']);
+        $this->assertSame($rev0->code, $diff[0]['from_code']);
+    }
+
+    // -------------------------------------------------------------- endpoint
+
+    public function test_the_endpoints_revise_and_report_the_chain(): void
+    {
+        Sanctum::actingAs($this->maker());
+
+        $project = $this->project('PRJ-2026-951');
+        $rev0 = $this->rap($project, ['material' => 100_000_000]);
+
+        $this->postJson("/api/estimation/cost-budgets/{$rev0->id}/revise", [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('revision_reason');
+
+        $revision = $this->postJson("/api/estimation/cost-budgets/{$rev0->id}/revise", [
+            'revision_reason' => 'Addendum I',
+        ])->assertCreated()->json('data');
+
+        $this->assertSame(1, $revision['revision']);
+        $this->assertSame($rev0->id, $revision['revised_from_id']);
+        $this->assertFalse($revision['is_governing']);
+
+        $chain = $this->getJson("/api/estimation/cost-budgets/{$revision['id']}/revisions")->assertOk()->json('data');
+        $this->assertCount(2, $chain);
+        $this->assertTrue($chain[0]['is_governing'], 'revisi 0 masih yang mengatur sampai revisinya disetujui');
+    }
+}
