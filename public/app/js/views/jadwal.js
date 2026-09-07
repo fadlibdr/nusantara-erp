@@ -70,11 +70,19 @@ export async function renderJadwal(host, { id, project }) {
   let tasks;
   let baseline;
   let cycles;
+  /* Kegagalan baseline BUKAN ketiadaan baseline. `.catch(() => null)` dulu
+     menyamakan keduanya, dan layar mengumumkan "belum ada baseline beku" untuk
+     proyek yang baru saja ia baca punya baseline disetujui — fakta yang
+     dikarang tentang rencana beku, di layar yang justru ada untuk membandingkan
+     rencana dengan kenyataan, dan PANDUAN §7.2 mengajarkan kalimat itu berarti
+     "bukan galat". Ketiga keadaannya kini dibedakan (tidak ada / gagal dimuat /
+     tidak boleh dibaca), dan yang gagal membawa tombol coba lagi. */
+  let fault = null;
 
   try {
-    /* DUA endpoint yang SUDAH ADA — P1-H tidak menambah satu pun. Baseline
-       gagal/absen bukan galat: proyek yang belum dibekukan tetap punya jadwal,
-       dan yang hilang hanyalah bar pembandingnya.
+    /* DUA endpoint yang SUDAH ADA — P1-H tidak menambah satu pun. Baseline yang
+       memang belum ada bukan galat: proyek yang belum dibekukan tetap punya
+       jadwal, dan yang hilang hanyalah bar pembandingnya.
 
        `api.list` (amplop utuh), bukan `api.get`: endpoint pohon mengirim
        `meta.parent_cycles` ketika sebuah siklus parent_id memaksanya mengangkat
@@ -83,23 +91,32 @@ export async function renderJadwal(host, { id, project }) {
        diam-diam. */
     const [live, current] = await Promise.all([
       api.list(`projects/${id}/wbs-tasks`),
-      api.get('projects/baselines', { project_id: id, current: 1, per_page: 1 }).catch(() => []),
+      api.get('projects/baselines', { project_id: id, current: 1, per_page: 1 })
+        .catch((error) => { fault = { stage: 'list', status: error.status || 0 }; return null; }),
     ]);
 
     tasks = (live && live.data) || [];
     cycles = (live && live.meta && live.meta.parent_cycles) || [];
     const head = Array.isArray(current) ? current[0] : null;
-    baseline = head ? await api.get(`projects/baselines/${head.id}`).catch(() => null) : null;
+
+    if (head) {
+      baseline = await api.get(`projects/baselines/${head.id}`)
+        .catch((error) => {
+          fault = { stage: 'show', status: error.status || 0, code: head.code || null };
+
+          return null;
+        });
+    }
   } catch (error) {
     return clear(host).appendChild(errorState(error, () => renderJadwal(host, { id, project })));
   }
 
   clear(host);
-  paint(host, { id, project, tasks, baseline, cycles });
+  paint(host, { id, project, tasks, baseline, cycles, fault });
 }
 
 function paint(host, ctx) {
-  const { project, tasks, baseline, cycles } = ctx;
+  const { id, project, tasks, baseline, cycles, fault } = ctx;
   const flat = flatten(tasks);
 
   if (!flat.length) {
@@ -137,7 +154,7 @@ function paint(host, ctx) {
     // Catatan sumber ikut TERCETAK (ia di dalam svg), dan di kertas bilah zoom
     // sudah disembunyikan blok cetak — jadi kalimat inilah yang memberi tahu
     // pembaca kertasnya apa yang sedang ia lihat.
-    sourceNote: sourceNote(project, baseline, matched, rows.length),
+    sourceNote: sourceNote(baseline, fault, matched, rows.length),
   });
 
   host.appendChild(el('.card.gantt-sheet', [
@@ -178,6 +195,19 @@ function paint(host, ctx) {
             + 'Kode WBS tidak dijamin unik per proyek oleh basis data.',
           style: { margin: '6px 0 0', color: 'var(--warning)' },
         })
+        : null,
+      /* Baseline yang GAGAL dibaca: kalimatnya sudah ada di dalam svg (ikut
+         tercetak), tetapi kegagalan yang bisa dicoba lagi butuh pintu keluar —
+         dan sebuah pintu keluar tidak bisa hidup di dalam svg yang tercetak. */
+      fault
+        ? el('p.cell-sub', { style: { margin: '6px 0 0', color: 'var(--warning)' } }, [
+          el('span', { text: `${faultSentence(fault)} ` }),
+          button('Coba lagi', {
+            size: 'sm',
+            variant: 'ghost',
+            onClick: () => renderJadwal(host, { id, project }),
+          }),
+        ])
         : null,
       /* Siklus parent_id: barisnya tetap tergambar (server mengangkatnya menjadi
          akar), tetapi posisinya di pohon bukan posisi yang tersimpan — dan
@@ -247,14 +277,39 @@ function toFraction(value) {
   return Number.isFinite(number) ? number / 100 : null;
 }
 
+/**
+ * Kenapa bar pembanding tidak ada, dalam kalimat yang membedakan "sudah
+ * ditanya, jawabannya tidak ada" dari "tidak bisa ditanya".
+ *
+ * `stage: 'list'` — daftar baselinenya sendiri gagal: layar ini TIDAK TAHU
+ * apakah proyek ini punya rencana beku, dan mengatakan "belum ada" di situ
+ * adalah mengarang fakta tentang rencana yang disepakati.
+ * `stage: 'show'` — daftarnya menjawab, isinya yang gagal: keberadaan
+ * baselinenya justru diketahui, lengkap dengan kodenya.
+ */
+function faultSentence(fault) {
+  const how = fault.status === 403
+    ? 'tidak boleh dibaca oleh peran Anda'
+    : fault.status
+      ? `gagal dimuat (galat HTTP ${fault.status})`
+      : 'gagal dimuat (sambungan ke server terputus)';
+
+  return fault.stage === 'show'
+    ? `Baseline ${fault.code || 'yang berlaku'} ada, tetapi isinya ${how} — bar pembanding tidak digambar.`
+    : `Daftar baseline ${how}, jadi layar ini tidak tahu apakah proyek ini punya rencana beku — `
+      + 'bar pembanding tidak digambar.';
+}
+
 /** Kalimat di dalam svg — ikut tercetak, dan menyebut apa yang TIDAK cocok. */
-function sourceNote(project, baseline, matched, total) {
+function sourceNote(baseline, fault, matched, total) {
   const zoom = state.zoom === 'month' ? 'bulanan' : 'mingguan';
   const scale = `Skala ${zoom}`;
 
   if (!baseline) {
-    return `${scale} · belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana `
-      + 'WBS yang berlaku sekarang.';
+    return fault
+      ? `${scale} · ${faultSentence(fault)} Yang tergambar hanya rencana WBS yang berlaku sekarang.`
+      : `${scale} · belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana `
+        + 'WBS yang berlaku sekarang.';
   }
 
   const missing = total - matched;

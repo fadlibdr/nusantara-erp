@@ -4018,6 +4018,12 @@ tetap diisi dari kartu **Struktur WBS** di tab Ringkasan.
 - **Belum ada baseline disetujui?** Gantt tetap tergambar, dan kalimatnya mengatakannya:
   *"belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana WBS
   yang berlaku sekarang."* Itu bukan galat.
+- **Kalimat itu HANYA dipakai kalau baselinenya memang tidak ada.** Bila baselinenya ada tetapi
+  tidak bisa dibaca, kalimatnya berbeda dan menyebut sebabnya — *"Baseline BSL/2026/VIII/0001
+  ada, tetapi isinya gagal dimuat (galat HTTP 500) — bar pembanding tidak digambar"*, atau
+  *"Daftar baseline gagal dimuat …, jadi layar ini tidak tahu apakah proyek ini punya rencana
+  beku"* — dan di kaki kartu muncul tombol **Coba lagi**. Jadwal yang tergambar tetap benar;
+  yang belum diketahui adalah pembandingnya.
 - **Batang yang ujung kanannya putus-putus** = tanggal selesainya belum ditetapkan; batangnya
   memanjang sampai tepi kanan karena tidak ada yang tahu di mana ia berhenti. Paket yang
   belum punya tanggal sama sekali tidak digambar sebagai batang, melainkan ditulis

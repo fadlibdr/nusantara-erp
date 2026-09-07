@@ -3033,6 +3033,102 @@ def s26m(browser):
         ctx.close()
 
 
+@scenario("S26_gantt_baseline_gagal")
+def s26f(pg):
+    """Baseline yang GAGAL dibaca vs baseline yang memang TIDAK ADA.
+
+    Sampai verifikasi P1-H keduanya sama saja bagi layar ini: `.catch(() => null)`
+    dan satu kalimat "belum ada baseline beku" — fakta yang dikarang tentang
+    rencana beku sebuah proyek yang BARU SAJA terbaca punya baseline disetujui,
+    di layar yang justru ada untuk membandingkan rencana dengan kenyataan, dan
+    PANDUAN §7.2 mengajarkan pemakainya membaca kalimat itu sebagai "bukan
+    galat". Tidak ada satu pun uji PHP yang bisa melihat ini: kalimatnya lahir
+    di peramban, dari cabang yang hanya diambil ketika permintaan ditolak.
+
+    Ketiga keadaan dipaksa di sini dengan mencegat permintaannya, lalu
+    cegatannya DILEPAS dan tombol "Coba lagi" diklik — sebuah pintu keluar yang
+    tidak benar-benar memulihkan bar pembandingnya bukan pintu keluar.
+    """
+    out = {"viewport": pg.viewport_size}
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+
+    login(pg, "admin@nusantara.test")
+
+    def read():
+        return pg.evaluate("""() => {
+          const sheet = document.querySelector('.gantt-sheet');
+          const svg = sheet ? sheet.querySelector('svg.chart-gantt') : null;
+          return {
+            bars: svg ? svg.querySelectorAll('rect.gantt-bar').length : 0,
+            baselines: svg ? svg.querySelectorAll('rect.gantt-baseline').length : 0,
+            note: svg ? (svg.querySelector('text.chart-note') || {}).textContent : null,
+            legend: svg ? [...svg.querySelectorAll('text.chart-legend')].map((t) => t.textContent) : [],
+            foot: sheet ? [...sheet.querySelectorAll('.card-body p')].map((p) => p.innerText.trim()) : [],
+            retry: sheet ? [...sheet.querySelectorAll('.card-body button')].map((b) => b.innerText.trim()) : [],
+          };
+        }""")
+
+    def open_jadwal():
+        pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+        pg.wait_for_selector(".tabs button", timeout=20000)
+        pg.wait_for_timeout(1200)
+        click(pg, ".tabs button:nth-child(2)")
+        pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
+        pg.wait_for_timeout(600)
+
+    # 1. Daftar baseline ditolak: keberadaan baselinenya TIDAK diketahui.
+    pg.route("**/api/projects/baselines?**", lambda route: route.fulfill(
+        status=500, content_type="application/json", body='{"message":"Server Error"}'))
+    open_jadwal()
+    out["list_500"] = read()
+    pg.screenshot(path=f"{OUT}/s26-jadwal-baseline-gagal-p1h.png", full_page=True)
+    pg.unroute("**/api/projects/baselines?**")
+
+    # 2. Daftarnya menjawab, ISI baselinenya yang ditolak: kodenya diketahui.
+    pg.route("**/api/projects/baselines/*", lambda route: route.fulfill(
+        status=500, content_type="application/json", body='{"message":"Server Error"}'))
+    pg.evaluate("() => { location.hash = '#/dashboard'; }")
+    pg.wait_for_timeout(800)
+    open_jadwal()
+    out["show_500"] = read()
+
+    # 3. Cegatan dilepas, "Coba lagi" diklik — bar pembandingnya harus kembali.
+    pg.unroute("**/api/projects/baselines/*")
+    click(pg, ".gantt-sheet .card-body button:has-text('Coba lagi')")
+    pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
+    pg.wait_for_timeout(800)
+    out["after_retry"] = read()
+    out["pageerrors"] = errors
+
+    absence = "belum ada baseline beku"
+    checks = {
+        # Kegagalan TIDAK BOLEH memakai kalimat ketiadaan — itulah cacatnya.
+        "a_failed_baseline_list_does_not_claim_there_is_none": absence not in (out["list_500"]["note"] or ""),
+        "a_failed_baseline_list_says_it_does_not_know": "tidak tahu apakah" in (out["list_500"]["note"] or ""),
+        "a_failed_baseline_list_names_the_http_status": "HTTP 500" in (out["list_500"]["note"] or ""),
+        "a_failed_baseline_show_does_not_claim_there_is_none": absence not in (out["show_500"]["note"] or ""),
+        "a_failed_baseline_show_names_the_baseline_it_could_not_read":
+            "BSL/2026/VIII/0001" in (out["show_500"]["note"] or ""),
+        # Jadwalnya sendiri tetap tergambar: yang hilang hanya pembandingnya.
+        "the_schedule_is_still_drawn_without_its_baseline":
+            out["list_500"]["bars"] > 0 and out["list_500"]["baselines"] == 0,
+        "the_legend_drops_baseline_when_none_is_drawn": "Baseline" not in out["list_500"]["legend"],
+        # …dan pembacanya diberi pintu keluar, yang benar-benar bekerja.
+        "a_failure_offers_a_retry": "Coba lagi" in out["list_500"]["retry"]
+            and "Coba lagi" in out["show_500"]["retry"],
+        "retry_brings_the_baseline_bars_back": out["after_retry"]["baselines"] > 0
+            and "dicocokkan menurut kode WBS" in (out["after_retry"]["note"] or ""),
+        "retry_removes_the_failure_sentence": out["after_retry"]["retry"] == [],
+        "no_page_errors": not errors,
+    }
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 # ------------------------------------------------------------ S21 (P1-B)
 # Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
 # 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
@@ -4765,7 +4861,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
