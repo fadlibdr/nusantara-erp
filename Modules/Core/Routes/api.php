@@ -27,6 +27,7 @@ use Modules\Core\Http\Controllers\ReportController;
 use Modules\Core\Http\Controllers\SavedReportController;
 use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
+use Modules\Core\Http\Controllers\ThresholdController;
 use Modules\Core\Http\Controllers\UserPreferenceController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -43,6 +44,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // permission gate for the same reason as search: the controller returns
     // only the entries whose permission the caller holds.
     Route::get('deadlines', DeadlineController::class);
+
+    // F-2 — saudara deadlines untuk "aktual vs batas": anggaran proyek yang
+    // mendekati atau melewati RAP, RAP yang memakan nilai kontrak, realisasi
+    // overhead terhadap OVB tahun berjalan. Tanpa gerbang izin dengan alasan
+    // yang sama: registri menyaring dirinya per entri, dan sebuah izin tunggal
+    // di rute harus memilih satu modul untuk entri yang izinnya berbeda-beda.
+    Route::get('thresholds', ThresholdController::class);
 
     // One month of corporate agenda — kapan sesuatu terjadi, bukan apa yang
     // terlambat (that is deadlines' job). No permission gate for the same

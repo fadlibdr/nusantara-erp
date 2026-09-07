@@ -5842,7 +5842,7 @@ export const ANY_APPROVE = (held, lent = []) => held.some((one) => one.endsWith(
  * di 390×844 melihat tiga ubin ber-'—' dengan keterangan kosong).
  */
 export const MODULES = {
-  ringkasan: { accent: 8, icon: 'layout-dashboard', kpi: 'Notifikasi belum dibaca', description: 'Dasbor, tugas persetujuan, tenggat, dan kalender lintas modul.' },
+  ringkasan: { accent: 8, icon: 'layout-dashboard', kpi: 'Notifikasi belum dibaca', description: 'Dasbor, tugas persetujuan, tenggat, ambang anggaran, dan kalender lintas modul.' },
   crm: { accent: 4, icon: 'handshake', kpi: 'Prospek terbuka', description: 'Pelanggan, prospek, paket tender, penawaran, kontrak, dan jaminan.' },
   est: { accent: 4, icon: 'calculator', kpi: 'RAB menunggu persetujuan', description: 'AHSP, BOQ/RAB, RAP, riwayat harga satuan, dan pustaka metode kerja.' },
   eng: { accent: 8, icon: 'drafting-compass', kpi: 'Gambar menunggu keputusan MK', description: 'Register gambar, persetujuan gambar dan material, transmittal, IPP, lokasi tapak.' },
@@ -5891,7 +5891,7 @@ export const NAV = [
        sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
        dan peran yang tidak punya satu sumber pun mendapat kalimat yang
        mengatakannya — bukan baris menu yang hilang tanpa sebab. */
-    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }],
+    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',

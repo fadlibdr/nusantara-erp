@@ -491,6 +491,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ambang peringatan registri WatchedThresholds (F-2)
+    |--------------------------------------------------------------------------
+    |
+    | Persen dari BATAS tempat sebuah baris berubah dari "aman" menjadi
+    | "mendekati batas". 90 % adalah rekomendasi yang diterima pemilik
+    | (ROADMAP-HASHMICRO §5 baris 13); satu kunci per entri registri supaya
+    | anggaran proyek dan anggaran overhead bisa berbeda tanpa menyentuh kode.
+    |
+    | Ini PERINGATAN, bukan gerbang: tidak ada satu dokumen pun yang ditolak
+    | karena angka di blok ini. Yang menolak PO/SPK yang menjebol RAP tetap
+    | procurement.budget_gate di atas, dengan kalimatnya sendiri.
+    |
+    | Nilai bukan-angka dibaca sebagai 90 — salah ketik tidak boleh diam-diam
+    | mematikan peringatannya (kebiasaan yang sama dengan budget_gate).
+    */
+    'thresholds' => [
+        'project_budget_pct' => 90,
+        'rap_vs_kontrak_pct' => 90,
+        'overhead_budget_pct' => 90,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Paket tender (P7)
     |--------------------------------------------------------------------------
     |

@@ -43,6 +43,7 @@ import { renderRekapAlat } from './views/rekapalat.js';
 import { renderSewaVsBeli } from './views/sewavsbeli.js';
 import { renderTkdnWorksheet, renderRkkDocument, renderKualifikasi } from './views/tender.js';
 import { renderTenggat } from './views/tenggat.js';
+import { renderAmbang } from './views/ambang.js';
 import { renderSertifikat } from './views/sertifikat.js';
 import { renderAbsensi } from './views/absensi.js';
 import { renderKalender } from './views/kalender.js';
@@ -1092,6 +1093,14 @@ function registerRoutes() {
     const host = view();
     // Tanpa gerbang izin: API core/deadlines sudah menyaring entri menurut izin pemanggil.
     return guard(host, () => renderTenggat(host));
+  });
+
+  route('ambang', () => {
+    setCrumbs(['Ringkasan', 'Ambang & Batas']);
+    setActiveNav('ambang');
+    const host = view();
+    // Tanpa gerbang izin: API core/thresholds sudah menyaring ukuran menurut izin pemanggil.
+    return guard(host, () => renderAmbang(host));
   });
 
   route('kalender', () => {
