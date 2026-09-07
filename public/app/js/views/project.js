@@ -352,14 +352,20 @@ export async function renderProject(host, { id }) {
   let dashboard;
   let sCurve;
   let evm;
+  let budget;
   try {
-    [project, dashboard, sCurve, evm] = await Promise.all([
+    [project, dashboard, sCurve, evm, budget] = await Promise.all([
       api.get(`projects/${id}`),
       api.get(`projects/${id}/dashboard`).catch(() => null),
       api.get(`projects/${id}/s-curve`).catch(() => null),
       // Fetched here so the kurva-S can draw the frozen baseline alongside the
       // weekly plan; evmCard reuses this response rather than asking twice.
       api.get(`projects/${id}/evm`).catch(() => null),
+      /* F-2 / T2.6 — anggaran vs realisasi + komitmen, angka yang sama yang
+         menolak PO/SPK proyek ini. .catch(() => null): pemakai tanpa izin
+         membacanya (403) atau modul Finance yang diam tidak boleh menghalangi
+         seluruh layar proyek — ubinnya yang hilang, bukan halamannya. */
+      api.get(`finance/budget/projects/${id}`).catch(() => null),
     ]);
   } catch (error) {
     clear(host);
@@ -474,7 +480,41 @@ export async function renderProject(host, { id }) {
       el('.value.sm', { text: fmt.rupiah(project.retention_amount) }),
       el('.delta', { text: `${fmt.percent(project.retention_pct)} dari nilai kontrak` }),
     ]),
+    /* F-2 / T2.6 — anggaran terpakai, di layar yang dibuka manajer proyeknya
+       setiap hari. Sel yang tidak punya jawaban DIGARIS: proyek tanpa RAP
+       disetujui tidak "0 % terpakai", ia tidak punya anggaran sama sekali,
+       dan mencetak 0 % di situ adalah cara termurah membuat ubin ini
+       berbohong. Warna menyala pada ambang yang sama dengan registri (90 %). */
+    budget ? el('.stat', [
+      el('.label', { text: 'Anggaran terpakai' }),
+      el('.value', {
+        text: budget.pct === null ? '—' : fmt.percent(budget.pct, { decimals: 1 }),
+        style: budget.state === 'lampau'
+          ? { color: 'var(--danger)' }
+          : (budget.state === 'mendekati' ? { color: 'var(--warning)' } : {}),
+      }),
+      el('.delta', {
+        text: budget.budget === null
+          ? 'Belum ada RAP disetujui'
+          : `Sisa ${fmt.rupiahShort(budget.remaining)} dari RAP ${budget.rap_code}`,
+      }),
+    ]) : null,
   ]));
+
+  /* Kalimat penuhnya, dengan kata-kata yang sama yang dipakai gerbang saat
+     menolak PO — dan hanya ketika ia sudah pantas dibaca (mendekati/lampau),
+     supaya baris peringatan tidak menjadi hiasan tetap yang berhenti dibaca. */
+  if (budget && (budget.state === 'mendekati' || budget.state === 'lampau')) {
+    host.appendChild(el(budget.state === 'lampau' ? '.alert.error' : '.alert.warn', [
+      el('div', { text: budget.sentence }),
+      el('div', {
+        style: { marginTop: '6px' },
+        text: `Ambang peringatan ${fmt.percent(budget.warn_pct, { decimals: 0 })}. `
+          + 'Gerbang anggaran menolak PO/SPK yang DPP-nya melampaui sisa ini sampai pengajunya '
+          + 'mengonfirmasi pelampauannya.',
+      }),
+    ]));
+  }
 
   /* Bilah tab (P1-H) — pola paintTabs() views/evm.js, satu-satunya bentuk tab
      di SPA ini. Kepala halaman dan baris ubin di atas tetap terlihat pada

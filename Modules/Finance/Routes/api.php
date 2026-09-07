@@ -202,6 +202,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('budget/portfolio', [BudgetRealisationController::class, 'portfolio'])->middleware('permission:fin.view');
     Route::get('budget/projects/{project}/monthly', [BudgetRealisationController::class, 'monthly'])->middleware('permission:fin.view');
+    // T2.6 — dibaca formulir PO/SPK dan layar proyek. fin.view ATAU izin
+    // membuat dokumen yang gerbangnya memakai angka ini (pola ast.view|prj.view
+    // pada rute Assets): yang boleh mengajukan PO sudah diberi tahu angka yang
+    // sama oleh kalimat penolakan gerbang — ini hanya lebih awal.
+    Route::get('budget/projects/{project}', [BudgetRealisationController::class, 'project'])
+        ->middleware('permission:fin.view|prc.create|scm.create');
 
     // Bank statements (rekening koran) — import and matching.
     // Matching is fin.update, not fin.post: it writes no ledger row. It records

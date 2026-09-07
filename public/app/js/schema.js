@@ -2214,7 +2214,12 @@ export const RESOURCES = {
       sections: [{
         title: 'Permintaan pembelian',
         fields: [
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          /* F-2 / T2.6 — peringatan anggaran DI TEMPAT UANGNYA DIBELANJAKAN.
+             Memilih proyek mencetak "realisasi + komitmen X dari anggaran RAP Y
+             — Z % terpakai, sisa S" di bawah kotaknya, dengan warna sejak 90 %,
+             sebelum satu baris item pun diketik. Angkanya lahir di kelas yang
+             sama yang menolak PO ini bila DPP-nya melampaui sisanya. */
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudget' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'needed_date', label: 'Dibutuhkan tanggal', type: 'date', required: true },
           { key: 'requested_by', label: 'Diminta oleh', type: 'lookup', lookup: 'users' },
@@ -3415,7 +3420,10 @@ export const RESOURCES = {
         help: 'PPN mengikuti status PKP vendor; tarif PPh final PP 9/2022 di-snapshot dari skema yang dipilih.',
         fields: [
           { key: 'vendor_id', label: 'Subkontraktor', type: 'lookup', lookup: 'subcontractors', required: true },
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          // F-2 / T2.6 — peringatan anggaran di tempat uangnya dibelanjakan.
+          // Catatannya menyebut anggaran proyek KESELURUHAN; gerbang SPK
+          // kemudian menghakimi sisi SUBKON-nya, dengan angkanya sendiri.
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, liveNote: 'projectBudget' },
           { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
           { key: 'pph_scheme', label: 'Skema PPh final konstruksi', type: 'select', enum: 'pphScheme', required: true, span: 2 },
           { key: 'retention_pct', label: 'Retensi (%)', type: 'percent', default: 5 },

@@ -33,6 +33,22 @@ class BudgetRealisationController extends ApiController
         ]);
     }
 
+    /**
+     * Satu proyek — dipakai formulir PO/SPK dan layar proyek untuk memasang
+     * peringatan ≥ 90 % DI TEMPAT UANGNYA DIBELANJAKAN (T2.6).
+     *
+     * Izinnya fin.view ATAU prc.create ATAU scm.create, dan itu bukan
+     * kelonggaran: siapa pun yang boleh mengajukan PO/SPK untuk sebuah proyek
+     * SUDAH diberi tahu angka anggaran proyek itu oleh gerbangnya — kalimat
+     * penolakannya menyebut anggaran, realisasi, komitmen dan sisanya. Yang
+     * ditambahkan endpoint ini adalah memberitahunya SEBELUM ia mengetik satu
+     * baris, bukan sesudah dokumennya ditolak.
+     */
+    public function project(Request $request, int $project): JsonResponse
+    {
+        return $this->ok($this->budgets->project($project));
+    }
+
     /** Per bulan untuk satu proyek. */
     public function monthly(Request $request, int $project): JsonResponse
     {

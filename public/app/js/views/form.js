@@ -11,6 +11,44 @@ import { MONTHS, rupiah, toDateInput, toDateTimeInput, today, date as fmtDate } 
 import { navigate } from '../router.js';
 import { saveDraft, loadDraft, removeDraft, registerDraftFlush, relativeAge, draftRemovalSuspended } from '../drafts.js';
 
+/*
+ * CATATAN HIDUP DI BAWAH SEBUAH FIELD (F-2 / T2.6).
+ *
+ * Sebuah peringatan anggaran yang hanya ada di layar laporan adalah peringatan
+ * yang dibaca sesudah uangnya dibelanjakan. Ini memasangnya DI TEMPAT UANGNYA
+ * DIBELANJAKAN: begitu sebuah proyek dipilih pada formulir PO atau SPK, server
+ * ditanya berapa anggaran proyek itu yang sudah terpakai, dan jawabannya
+ * dicetak di bawah kotak Proyek sebelum satu baris pun diketik.
+ *
+ * Bentuknya registri berkunci, bukan closure di schema.js: schema.js adalah
+ * DATA (tidak mengimpor apa pun), dan memberinya `import { api }` akan
+ * menautkan berkas terbesar SPA ke transport-nya.
+ *
+ * Kegagalan = DIAM. Pemakai tanpa izin membaca angka anggaran (403), modul
+ * Finance yang tidak menjawab, jaringan yang putus — tidak satu pun boleh
+ * menghalangi pembuatan PO. Yang hilang hanyalah peringatannya, dan gerbang di
+ * server tetap berdiri di belakangnya dengan kalimat penolakannya sendiri.
+ */
+const LIVE_NOTES = {
+  async projectBudget(value) {
+    if (!value) return null;
+
+    const budget = await api.get(`finance/budget/projects/${value}`);
+
+    if (!budget || budget.budget === null) {
+      return {
+        tone: '',
+        text: 'Proyek ini belum punya RAP yang disetujui, jadi tidak ada anggaran yang bisa dilampaui '
+          + '— gerbang anggaran diam untuk proyek ini.',
+      };
+    }
+
+    return { tone: budget.state === 'lampau' ? 'danger' : (budget.state === 'mendekati' ? 'warning' : ''), text: budget.sentence };
+  },
+};
+
+
+
 /* ------------------------------------------------------ lookup field glue */
 
 /** The option list a lookup field renders; `valueKey` submits a column, not the id. */
@@ -698,6 +736,8 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   const visibilityWatchers = []; // [{ spec, wrapper, sectionNode, sectionSpecs }]
   const body = el('div');
 
+  const noteWatchers = [];
+
   for (const section of sections) {
     const fields = section.fields
       .filter((spec) => (isEdit ? !spec.createOnly : !spec.editOnly))
@@ -728,6 +768,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       if (spec.span === 2) wrapper.classList.add('span2');
       grid.appendChild(wrapper);
       if (spec.visibleWhen) sectionWatchers.push({ spec, wrapper });
+      if (spec.liveNote && LIVE_NOTES[spec.liveNote]) noteWatchers.push({ spec, wrapper, control });
     }
 
     const sectionNode = el('.form-section', [
@@ -778,6 +819,38 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     // memancarkan 'input' — keduanya cukup untuk mengevaluasi ulang.
     body.addEventListener('input', applyVisibility);
     body.addEventListener('change', applyVisibility);
+  }
+
+  /* Catatan hidup: satu <div class=help> per field, diperbarui setiap kali
+     nilainya berubah. `seq` menjaga urutan — jawaban untuk proyek yang dipilih
+     lebih dulu tidak boleh menimpa jawaban untuk proyek yang dipilih kemudian
+     hanya karena ia datang belakangan. */
+  for (const watcher of noteWatchers) {
+    const note = el('.help');
+    note.hidden = true;
+    watcher.wrapper.appendChild(note);
+
+    let seq = 0;
+    const refresh = async () => {
+      const mine = ++seq;
+      const value = watcher.control.read();
+
+      try {
+        const result = await LIVE_NOTES[watcher.spec.liveNote](value);
+        if (mine !== seq) return;
+        note.hidden = !result;
+        note.textContent = result ? result.text : '';
+        note.style.color = result && result.tone === 'danger' ? 'var(--danger)'
+          : (result && result.tone === 'warning' ? 'var(--warning)' : '');
+      } catch {
+        // Diam: peringatan yang gagal dimuat tidak boleh menghalangi dokumen.
+        if (mine !== seq) return;
+        note.hidden = true;
+      }
+    };
+
+    (watcher.control.input || watcher.control.node).addEventListener('change', refresh);
+    refresh();
   }
 
   const lineControls = lineDefs.map((lineDef) => {

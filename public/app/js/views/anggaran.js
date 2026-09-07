@@ -152,7 +152,7 @@ function paintPortfolio(body, payload) {
 function paintMonthly(body, payload) {
   const rows = payload.rows || [];
 
-  body.appendChild(el(payload.derived ? '.alert.info' : '.alert.warning', payload.derivation));
+  body.appendChild(el(payload.derived ? '.alert.info' : '.alert.warn', payload.derivation));
 
   if (!rows.length) {
     body.appendChild(el('.alert.info',
@@ -221,7 +221,7 @@ function paintMonthly(body, payload) {
 function paintOverhead(body, payload) {
   const rows = payload.rows || [];
 
-  body.appendChild(el(payload.code ? '.alert.info' : '.alert.warning', payload.note));
+  body.appendChild(el(payload.code ? '.alert.info' : '.alert.warn', payload.note));
 
   if (!payload.code) {
     body.appendChild(el('.card', [
