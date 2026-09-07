@@ -134,7 +134,21 @@ function paintPortfolio(body, payload) {
           selMoney(row.budget),
           selMoney(row.actual),
           selMoney(row.committed),
-          selMoney(row.remaining, { tone: row.remaining !== null && row.remaining < 0 ? 'var(--danger)' : null }),
+          /* Sisa TOTAL, dan di bawahnya kedua sisi yang benar-benar dihakimi
+             gerbang: sebuah PO diukur terhadap sisa NON-SUBKON dan sebuah SPK
+             terhadap sisa SUBKON, jadi mencetak totalnya saja akan menjanjikan
+             ruang yang tidak dimiliki dokumen yang hendak dibuat orangnya. */
+          row.remaining === null
+            ? el('td.right', el('span.cell-sub', { text: '—' }))
+            : el('td.right', [
+              el('span.num', {
+                text: fmt.rupiah(row.remaining),
+                style: row.remaining < 0 ? { color: 'var(--danger)' } : {},
+              }),
+              el('span.cell-sub', {
+                text: `PO ${fmt.rupiahShort(row.remaining_non_subcon)} · SPK ${fmt.rupiahShort(row.remaining_subcon)}`,
+              }),
+            ]),
           selPersen(row.pct, row.state),
           el('td', badge(label, tone)),
           el('td.right', button('Per bulan', {

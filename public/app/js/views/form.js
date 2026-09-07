@@ -824,16 +824,29 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   /* Catatan hidup: satu <div class=help> per field, diperbarui setiap kali
      nilainya berubah. `seq` menjaga urutan — jawaban untuk proyek yang dipilih
      lebih dulu tidak boleh menimpa jawaban untuk proyek yang dipilih kemudian
-     hanya karena ia datang belakangan. */
-  for (const watcher of noteWatchers) {
+     hanya karena ia datang belakangan.
+
+     Pendengarnya DIDELEGASIKAN pada body, bukan dipasang pada control-nya, dan
+     itu bukan selera: combobox memancarkan 'change' dari <input> di dalamnya
+     (combobox.js), dan sebuah pendengar pada pembungkus lookup tidak
+     menerimanya di setiap jalur — diukur pada harness S29 putaran pertama,
+     yang memilih PRJ-2026-001 di formulir PO dan tidak mendapat satu pun
+     catatan. Delegasi adalah pola yang sama yang sudah dipakai visibleWhen di
+     atas, dengan alasan yang persis sama. */
+  const noteRefreshers = noteWatchers.map((watcher) => {
     const note = el('.help');
     note.hidden = true;
     watcher.wrapper.appendChild(note);
 
     let seq = 0;
-    const refresh = async () => {
-      const mine = ++seq;
+    let last;
+
+    return async () => {
       const value = watcher.control.read();
+      if (value === last) return;
+      last = value;
+
+      const mine = ++seq;
 
       try {
         const result = await LIVE_NOTES[watcher.spec.liveNote](value);
@@ -848,9 +861,12 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         note.hidden = true;
       }
     };
+  });
 
-    (watcher.control.input || watcher.control.node).addEventListener('change', refresh);
-    refresh();
+  if (noteRefreshers.length) {
+    const refreshNotes = () => noteRefreshers.forEach((run) => run());
+    body.addEventListener('change', refreshNotes);
+    refreshNotes();
   }
 
   const lineControls = lineDefs.map((lineDef) => {

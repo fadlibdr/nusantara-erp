@@ -153,7 +153,7 @@ export async function renderAmbang(host) {
               row.note ? el('span.cell-sub', { text: row.note }) : null,
             ]),
             el('td.right', button('Buka', { size: 'sm', onClick: () => navigate(row.link) })),
-          ];
+          ]);
         })),
       ])),
     ]));

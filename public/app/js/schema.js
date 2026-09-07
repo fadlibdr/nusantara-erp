@@ -2219,7 +2219,7 @@ export const RESOURCES = {
              — Z % terpakai, sisa S" di bawah kotaknya, dengan warna sejak 90 %,
              sebelum satu baris item pun diketik. Angkanya lahir di kelas yang
              sama yang menolak PO ini bila DPP-nya melampaui sisanya. */
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudget' },
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'needed_date', label: 'Dibutuhkan tanggal', type: 'date', required: true },
           { key: 'requested_by', label: 'Diminta oleh', type: 'lookup', lookup: 'users' },
@@ -2364,7 +2364,12 @@ export const RESOURCES = {
           // formulir cetak — sama seperti alasan override prakualifikasi (T3.8).
           { key: 'pr_bypass_reason', label: 'Alasan tanpa PR', type: 'textarea', span: 2, required: true, visibleWhen: PO_WITHOUT_PR,
             help: 'PO ini dibuat tanpa permintaan pembelian (PR). Sebutkan mengapa pembelian langsung dilakukan (mis. kebutuhan darurat di lapangan).' },
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          /* F-2 / T2.6 — peringatan anggaran DI TEMPAT UANGNYA DIBELANJAKAN.
+             Memilih proyek mencetak "realisasi + komitmen X dari anggaran RAP Y —
+             Z % terpakai, sisa S" di bawah kotaknya, berwarna sejak 90 %, sebelum
+             satu baris item pun diketik. Angkanya lahir di kelas yang sama yang
+             menolak PO ini bila DPP-nya melampaui sisanya. */
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudget' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },
           // Wajib sejak T3.5: kolom inilah yang dibaca pengawas tenggat
