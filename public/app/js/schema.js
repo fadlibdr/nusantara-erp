@@ -2214,11 +2214,13 @@ export const RESOURCES = {
       sections: [{
         title: 'Permintaan pembelian',
         fields: [
-          /* F-2 / T2.6 — peringatan anggaran DI TEMPAT UANGNYA DIBELANJAKAN.
-             Memilih proyek mencetak "realisasi + komitmen X dari anggaran RAP Y
-             — Z % terpakai, sisa S" di bawah kotaknya, dengan warna sejak 90 %,
-             sebelum satu baris item pun diketik. Angkanya lahir di kelas yang
-             sama yang menolak PO ini bila DPP-nya melampaui sisanya. */
+          /* TANPA catatan anggaran, dengan sengaja: sebuah PR tidak dihakimi
+             BudgetGateService sama sekali (yang dihakimi adalah PO yang lahir
+             darinya, terhadap sisa non-subkon). Peringatan yang menjanjikan
+             gerbang di formulir yang tidak bergerbang adalah kalimat yang
+             tidak bisa ditepati. Komentar lama di sini menjelaskan sebuah
+             liveNote yang memang tidak pernah dipasang di formulir ini —
+             ia dihapus pada verifikasi F-2. */
           { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'needed_date', label: 'Dibutuhkan tanggal', type: 'date', required: true },
