@@ -4,8 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
+  <!-- Warna chrome peramban (bilah alamat Android, bilah status mode standalone). Ia duduk
+       PERSIS di atas .header, jadi tokennya --surface, bukan --bg: nilai kedua tema disalin
+       dari blok token app.css (#ffffff / #151a21). Dua meta bermedia, karena satu nilai akan
+       salah di separuh perangkat. manifest.webmanifest hanya boleh punya SATU theme_color —
+       itu untuk layar splash sebelum dokumen ini ada; sesudahnya kedua baris inilah yang
+       berlaku (P1-I). -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#151a21">
   <title>Nusantara ERP</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- iOS tidak membaca icons[] manifest untuk "Tambahkan ke Layar Utama". -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
