@@ -551,10 +551,13 @@ class WatchedThresholds
             ->whereNull('j.deleted_at')
             ->where('j.journal_date', '>=', $year.'-01-01')
             ->where('j.journal_date', '<', ($year + 1).'-01-01')
-            ->selectRaw('COUNT(*) as lines, SUM(l.debit - l.credit) as net')
+            // 'line_count', bukan 'lines': LINES adalah kata TERCADANG MySQL 8
+            // (klausa LOAD DATA), dan SQLite menerimanya tanpa keluhan — jadi
+            // alias itu hijau di satu driver dan 1064 di driver yang lain.
+            ->selectRaw('COUNT(*) as line_count, SUM(l.debit - l.credit) as net')
             ->first();
 
-        $measuredLines = $movement === null ? 0 : (int) $movement->lines;
+        $measuredLines = $movement === null ? 0 : (int) $movement->line_count;
         $actual = $measuredLines === 0 ? null : round((float) $movement->net, 2);
 
         return [[
