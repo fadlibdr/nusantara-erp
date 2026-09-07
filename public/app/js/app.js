@@ -1525,10 +1525,18 @@ let swRegistration = null;
 let installPrompt = null;
 let reloadOnControllerChange = false;
 let updateToast = null;
+let installPromptUsed = false;
+let appInstalled = false;
 
-/** Sudah berjalan sebagai aplikasi terpasang (Android/desktop; `standalone` iOS). */
+/**
+ * Sudah terpasang. `display-mode: standalone` hanya benar di JENDELA aplikasi,
+ * jadi tab yang baru saja memasangnya tetap membaca false — karena itu
+ * peristiwa `appinstalled` ikut diingat (P1-I, verifikasi 7 Sep 2026: tanpa itu
+ * dialog Akun berkata "peramban ini belum menawarkannya" kepada orang yang baru
+ * saja memasang aplikasinya dari dialog itu).
+ */
 function appIsInstalled() {
-  return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  return appInstalled || window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 }
 
 /*
@@ -1549,6 +1557,7 @@ window.addEventListener('beforeinstallprompt', (event) => {
 
 window.addEventListener('appinstalled', () => {
   installPrompt = null;
+  appInstalled = true;
 });
 
 /**
@@ -1563,10 +1572,33 @@ function installRow() {
     return el('p.muted', { text: 'Aplikasi ini sudah terpasang di perangkat Anda.', style: { fontSize: '12.5px', margin: '14px 0 0' } });
   }
 
-  if (!installPrompt) {
+  /*
+   * "Tawarannya sudah dipakai" BUKAN "belum pernah ditawarkan" (verifikasi
+   * 7 Sep 2026). Tombol di bawah membuang `installPrompt` sebelum prompt() —
+   * benar menurut spesifikasi, tawaran peramban hanya sah sekali — sehingga
+   * dialog Akun yang dibuka lagi sesudahnya dulu berbunyi "Peramban ini belum
+   * menawarkannya dari dalam halaman" kepada orang yang baru saja menekan
+   * tawarannya, tanpa jalan kembali selain memuat ulang halaman. Terukur pada
+   * jalur tolak (prompt_calls 1, tombol disabled) maupun jalur terima.
+   */
+  if (installPromptUsed) {
     return el('p.muted', {
-      text: 'Pasang aplikasi: lewat menu peramban ("Instal aplikasi" / "Tambahkan ke Layar Utama"). '
-        + 'Peramban ini belum menawarkannya dari dalam halaman.',
+      text: 'Tawaran pemasangan sudah dipakai pada kunjungan ini. Muat ulang halaman untuk '
+        + 'menawarkannya lagi, atau pasang lewat menu peramban.',
+      style: { fontSize: '12.5px', margin: '14px 0 0' },
+    });
+  }
+
+  if (!installPrompt) {
+    /*
+     * Kalimat terakhir ini yang dibaca pemakai Firefox desktop (menunya memang
+     * tidak punya "Instal aplikasi") dan pemakai iPhone (jalannya lembar
+     * Bagikan, bukan menu peramban) — jadi keduanya disebut, bukan hanya satu.
+     */
+    return el('p.muted', {
+      text: 'Pasang aplikasi lewat peramban: menu "Instal aplikasi" di Chrome atau Edge, dan di '
+        + 'iPhone lewat tombol Bagikan → "Tambahkan ke Layar Utama". Peramban ini belum '
+        + 'menawarkannya dari dalam halaman.',
       style: { fontSize: '12.5px', margin: '14px 0 0' },
     });
   }
@@ -1579,6 +1611,7 @@ function installRow() {
         if (!deferred) return;
         // Tawaran peramban hanya boleh dipakai SEKALI.
         installPrompt = null;
+        installPromptUsed = true;
         event.currentTarget.disabled = true;
         deferred.prompt();
         const choice = await deferred.userChoice.catch(() => null);

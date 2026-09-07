@@ -5719,6 +5719,93 @@ def s27u(pg):
     return out
 
 
+INSTALL_ROW = """() => {
+  const rows = [...document.querySelectorAll('.modal .modal-body p')]
+    .map((n) => (n.innerText || '').trim())
+    .filter((t) => /Pasang aplikasi|sudah terpasang|Tawaran pemasangan/.test(t));
+  return { line: rows.length ? rows[rows.length - 1] : null,
+           button: [...document.querySelectorAll('.modal button')].some((b) => b.innerText.trim() === 'Pasang aplikasi'),
+           button_disabled: [...document.querySelectorAll('.modal button')]
+             .filter((b) => b.innerText.trim() === 'Pasang aplikasi').map((b) => b.disabled) }; }"""
+
+# beforeinstallprompt TIDAK menyala di Chromium headless (diukur ulang 7 Sep 2026:
+# "tidak menyala" sesudah 4 detik), jadi peristiwanya dikirim sendiri dengan
+# prompt()/userChoice palsu. Yang diuji tetap kode yang dikirim: preventDefault,
+# penangkapan, render tombol, pemanggilan prompt(), dan — yang jadi cacatnya —
+# kalimat yang dibaca orangnya SESUDAH tawaran itu dipakai.
+FIRE_PROMPT = """() => {
+  window.__promptCalls = 0;
+  window.__choice = 'dismissed';
+  const event = new Event('beforeinstallprompt', { cancelable: true });
+  event.prompt = () => { window.__promptCalls += 1; return Promise.resolve(); };
+  event.userChoice = Promise.resolve({ outcome: 'dismissed', platform: '' });
+  window.dispatchEvent(event);
+  return event.defaultPrevented; }"""
+
+
+def open_account(pg):
+    click(pg, "button.userchip")
+    pg.wait_for_selector(".modal", timeout=10000)
+    pg.wait_for_timeout(400)
+
+
+@scenario("S27_pwa_pasang")
+def s27p(pg):
+    """Dialog Akun: keempat keadaan baris "Pasang aplikasi", termasuk yang belum
+    pernah dijalankan siapa pun — apa yang dibaca orangnya SESUDAH ia menekan
+    tombolnya. Sampai 7 Sep 2026 jawabannya "Peramban ini belum menawarkannya
+    dari dalam halaman", kepada orang yang baru saja menawarkannya."""
+    out = {}
+    login(pg, "teknisi@nusantara.test")
+
+    open_account(pg)
+    out["state_never_offered"] = pg.evaluate(INSTALL_ROW)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    out["prevent_default"] = pg.evaluate(FIRE_PROMPT)
+    open_account(pg)
+    out["state_offered"] = pg.evaluate(INSTALL_ROW)
+    pg.screenshot(path=f"{OUT}/s27-pasang-tombol-p1i.png", full_page=False)
+    click(pg, ".modal button:has-text('Pasang aplikasi')")
+    pg.wait_for_timeout(800)
+    out["prompt_calls"] = pg.evaluate("() => window.__promptCalls")
+    out["state_while_open"] = pg.evaluate(INSTALL_ROW)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    open_account(pg)
+    out["state_after_use"] = pg.evaluate(INSTALL_ROW)
+    pg.screenshot(path=f"{OUT}/s27-pasang-sesudah-dipakai-p1i.png", full_page=False)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    pg.evaluate("() => window.dispatchEvent(new Event('appinstalled'))")
+    open_account(pg)
+    out["state_installed"] = pg.evaluate(INSTALL_ROW)
+    pg.screenshot(path=f"{OUT}/s27-pasang-terpasang-p1i.png", full_page=False)
+    pg.keyboard.press("Escape")
+
+    never = out["state_never_offered"]["line"] or ""
+    used = out["state_after_use"]["line"] or ""
+    checks = {
+        "never_offered_names_both_ways_in": "Instal aplikasi" in never and "Tambahkan ke Layar Utama" in never,
+        "never_offered_says_so": "belum menawarkannya" in never,
+        "the_event_is_captured": out["prevent_default"] is True,
+        "the_offer_becomes_a_button": out["state_offered"]["button"] is True,
+        "pressing_it_calls_prompt_once": out["prompt_calls"] == 1,
+        "the_button_locks_itself": out["state_while_open"]["button_disabled"] == [True],
+        "after_use_it_does_not_claim_it_was_never_offered": "belum menawarkannya" not in used,
+        "after_use_it_says_the_offer_was_spent": "Tawaran pemasangan sudah dipakai" in used,
+        "after_use_it_names_the_way_back": "Muat ulang halaman" in used,
+        "appinstalled_flips_the_row": "sudah terpasang" in (out["state_installed"]["line"] or ""),
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 BOOT_ROOT = """() => ({ spinner: !!document.querySelector('.boot-spinner'),
   shell: !!document.querySelector('.shell'),
   failed_panel: !!document.querySelector('#root.boot-failed'),
@@ -5831,7 +5918,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
