@@ -8,6 +8,7 @@ use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Modules\Projects\Models\Project;
 use Modules\Projects\Models\ProjectBaseline;
 use Modules\Projects\Services\BaselineService;
+use Modules\Projects\Services\EvmService;
 use Modules\Projects\Services\ProjectService;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -120,6 +121,39 @@ class JadwalGanttTest extends ErpTestCase
         $b3 = $byCode->get('B.3');
         $this->assertSame('2026-02-23', $b3['planned_start']);
         $this->assertSame('2026-10-15', $b3['planned_end']);
+    }
+
+    /**
+     * Sisi yang lain dari invarian yang sama, dan satu-satunya tempat di aplikasi
+     * ini yang masih memakai id: `EvmService::physicalProgress` mencoba
+     * `wbs_task_id` DULU lalu jatuh ke `wbs_code`.
+     *
+     * Tidak ada FK pada kolom itu, tidak ada yang memvalidasinya, dan relasinya
+     * tidak dibatasi per proyek — jadi tidak ada apa pun di basis data yang
+     * mencegah sebuah id beku menunjuk tugas hidup yang BUKAN tugas itu. Kalau
+     * itu terjadi, EV dihitung dari progres tugas yang salah dan tidak ada satu
+     * kalimat pun yang mengatakannya: uang yang salah, dan diam.
+     *
+     * Yang dipaku di sini bukan "jangan pernah terjadi" (tidak bisa dijamin
+     * tanpa FK) melainkan "jangan pernah diam".
+     */
+    public function test_a_frozen_id_pointing_at_a_task_with_another_code_is_named_instead_of_silently_compared(): void
+    {
+        $baseline = $this->freeze();
+
+        // Keadaan yang DIIZINKAN skema: id beku B.3 dipindahkan ke baris hidup
+        // C.1. Satu UPDATE, tanpa satu pun batasan yang menolaknya.
+        $c1 = $this->project->wbsTasks()->where('wbs_code', 'C.1')->firstOrFail();
+        DB::table('prj_baseline_tasks')
+            ->where('baseline_id', $baseline->id)->where('wbs_code', 'B.3')
+            ->update(['wbs_task_id' => $c1->id]);
+
+        $report = app(EvmService::class)->report($this->project->refresh());
+        $warnings = implode(' | ', $report['warnings']);
+
+        $this->assertStringContainsString('B.3', $warnings);
+        $this->assertStringContainsString('C.1', $warnings);
+        $this->assertMatchesRegularExpression('/kode WBS.*berbeda|berbeda.*kode WBS/i', $warnings);
     }
 
     // ------------------------------------------------ bentuk muatan pohon
