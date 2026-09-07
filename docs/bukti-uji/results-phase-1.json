@@ -25385,8 +25385,8 @@
  "S27_pwa": {
   "tag": "-p1i",
   "worker": {
-   "scope": "http://127.0.0.1:8074/app/",
-   "script": "http://127.0.0.1:8074/app/sw.js",
+   "scope": "http://127.0.0.1:8081/app/",
+   "script": "http://127.0.0.1:8081/app/sw.js",
    "state": "activated",
    "controlled": true,
    "cache_names": [
@@ -25440,7 +25440,7 @@
    "nav_items": 18,
    "login_form": false,
    "title": "Lapangan · Nusantara ERP",
-   "html_chars": 21455,
+   "html_chars": 22369,
    "toasts": [
     "Mode luring / Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali."
    ],
@@ -25503,14 +25503,14 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 35499,
+  "_ms": 35827,
   "_clicks": 1
  },
  "S27_pwa_mobile": {
   "tag": "-mobile-p1i",
   "worker": {
-   "scope": "http://127.0.0.1:8074/app/",
-   "script": "http://127.0.0.1:8074/app/sw.js",
+   "scope": "http://127.0.0.1:8081/app/",
+   "script": "http://127.0.0.1:8081/app/sw.js",
    "state": "activated",
    "controlled": true,
    "cache_names": [
@@ -25564,7 +25564,7 @@
    "nav_items": 18,
    "login_form": false,
    "title": "Lapangan · Nusantara ERP",
-   "html_chars": 21455,
+   "html_chars": 22369,
    "toasts": [
     "Mode luring / Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali."
    ],
@@ -25627,7 +25627,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 35001,
+  "_ms": 35411,
   "_clicks": 1
  },
  "S27_pwa_pembaruan": {
@@ -25663,13 +25663,13 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 18190,
+  "_ms": 18256,
   "_clicks": 1
  },
  "S27_pwa_cangkang_sebagian": {
   "control_cache": {
-   "scope": "http://127.0.0.1:8074/app/",
-   "script": "http://127.0.0.1:8074/app/sw.js",
+   "scope": "http://127.0.0.1:8081/app/",
+   "script": "http://127.0.0.1:8081/app/sw.js",
    "state": "activated",
    "controlled": true,
    "cache_names": [
@@ -25680,19 +25680,25 @@
    "cached_outside_scope": []
   },
   "cache_after_install": {
-   "scope": "http://127.0.0.1:8074/app/",
-   "script": "http://127.0.0.1:8074/app/sw.js",
+   "scope": "http://127.0.0.1:8081/app/",
+   "script": "http://127.0.0.1:8081/app/sw.js",
    "state": "activated",
    "controlled": true,
-   "cache_names": [],
-   "cached": 0,
+   "cache_names": [
+    "nusantara-shell-v1"
+   ],
+   "cached": 49,
    "cached_api": [],
    "cached_outside_scope": []
   },
   "online_after_quota": "Lapangan",
   "offline_reload": {
-   "navigation_error": "Page.reload: net::ERR_FAILED",
-   "spinner": false
+   "spinner": false,
+   "shell": false,
+   "failed_panel": true,
+   "head": "Aplikasi gagal dimuat",
+   "body": "Sebagian berkas aplikasi tidak sampai. Muat ulang halaman; bila tetap begini, beri tahu pengelola sistem.",
+   "button": "Muat ulang"
   },
   "boot_daring": {
    "spinner": false,
@@ -25713,7 +25719,8 @@
   "checks": {
    "control_installs_the_whole_shell": true,
    "quota_override_took": true,
-   "half_shell_thrown_away": true,
+   "half_shell_keeps_its_core_or_is_discarded": true,
+   "half_shell_never_holds_api_or_foreign_entries": true,
    "app_still_works_online": true,
    "offline_never_hangs_on_the_spinner": true,
    "watchdog_replaces_the_spinner": true,
@@ -25723,7 +25730,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 29456,
+  "_ms": 35497,
   "_clicks": 0
  },
  "S27_pwa_pasang": {
@@ -25772,7 +25779,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 6579,
+  "_ms": 6371,
   "_clicks": 5
  }
 }

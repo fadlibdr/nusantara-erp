@@ -5894,7 +5894,19 @@ def s27k(browser):
     checks = {
         "control_installs_the_whole_shell": out["control_cache"]["cached"] >= 100,
         "quota_override_took": out["cache_after_install"]["cached"] < out["control_cache"]["cached"],
-        "half_shell_thrown_away": out["cache_after_install"]["cached"] == 0,
+        # Aturan sejak verifikasi ulang P1-I (7 Sep 2026): cache dibuang HANYA bila
+        # berkas INTI yang hilang. Kuota yang habis di tengah pemasangan biasanya
+        # menyisakan inti yang lengkap dan kehilangan layar-layar yang dimuat malas —
+        # dan cangkang sebagian yang JUJUR (panel pengawas menjelaskan keadaannya,
+        # dengan tombol Muat ulang) lebih berguna daripada tidak ada cangkang sama
+        # sekali, yang luring hanya memberi halaman galat bawaan peramban. Yang
+        # dijaga bukan lagi "dibuang", melainkan "tidak pernah menggantung".
+        "half_shell_keeps_its_core_or_is_discarded": (
+            out["cache_after_install"]["cached"] == 0
+            or out["cache_after_install"]["cached"] >= 8),
+        "half_shell_never_holds_api_or_foreign_entries": (
+            out["cache_after_install"]["cached_api"] == []
+            and out["cache_after_install"]["cached_outside_scope"] == []),
         "app_still_works_online": out["online_after_quota"] == "Lapangan",
         "offline_never_hangs_on_the_spinner": out["offline_reload"].get("spinner") is not True,
         "watchdog_replaces_the_spinner": (out["boot_daring"]["failed_panel"] is True

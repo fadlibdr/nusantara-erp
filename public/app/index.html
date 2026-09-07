@@ -63,13 +63,26 @@
         head.textContent = offline ? 'Aplikasi tidak bisa dibuka tanpa koneksi' : 'Aplikasi gagal dimuat';
         var body = document.createElement('p');
         body.style.cssText = 'margin:0 0 16px';
+        /* Tiga kalimat, bukan dua: sampai verifikasi ulang P1-I kalimat daring
+           selalu berkata "sebagian berkas tidak sampai" — juga ketika SEMUA
+           berkas sampai dan yang lambat adalah jawaban server. Diukur 7 Sep
+           2026 dengan iam/auth/me ditunda 14 detik: pada detik ke-11 layarnya
+           berkata berkas tidak sampai, padahal setiap berkas cangkang sudah
+           tiba dan aplikasinya pulih sendiri pada detik ke-20. window.__erpModules
+           disetel app.js pada baris pertama modulnya, jadi ia membedakan
+           "modulnya tidak pernah dijalankan" dari "modulnya jalan, servernya
+           belum menjawab". */
+        var modules = !!window.__erpModules;
         body.textContent = offline
           ? 'Salinan luring di perangkat ini tidak lengkap, jadi sebagian berkas aplikasi tidak '
             + 'ada. Sambungkan ke jaringan lalu muat ulang — salinannya diperbaiki sendiri, dan '
             + 'sesudah itu aplikasi bisa dibuka lagi tanpa sinyal. Foto yang sudah masuk antrean '
             + 'unggah tetap tersimpan di ponsel ini dan tidak hilang.'
-          : 'Sebagian berkas aplikasi tidak sampai. Muat ulang halaman; bila tetap begini, '
-            + 'beri tahu pengelola sistem.';
+          : modules
+            ? 'Server belum menjawab. Berkas aplikasinya sudah sampai, jadi ini bukan soal '
+              + 'pemasangan — coba muat ulang; bila tetap begini, beri tahu pengelola sistem.'
+            : 'Sebagian berkas aplikasi tidak sampai. Muat ulang halaman; bila tetap begini, '
+              + 'beri tahu pengelola sistem.';
         var again = document.createElement('button');
         again.type = 'button';
         again.textContent = 'Muat ulang';

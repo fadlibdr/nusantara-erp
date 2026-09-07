@@ -206,16 +206,42 @@ class PwaServiceWorkerTest extends TestCase
             .'tetap satu, apa pun nama variabel cache-nya.',
         );
         $this->assertMatchesRegularExpression(
-            '~if \(storable\(response\)\) \{\s*event\.waitUntil\(caches\.open\(CACHE\)\.then\(\(cache\) => cache\.put\(request, response\.clone\(\)\)\)\);\s*\}~',
+            '~if \(storable\(response\)\) \{~',
             $code,
             'Tulisan cache tidak lagi berpenjaga storable(): jawaban 206, opaque atau bukan-200 bisa masuk cache.',
         );
 
-        // .add() hanya boleh muncul di install, atas daftar SHELL.
+        /*
+         * Badannya disalin SEBELUM jawabannya diserahkan ke halaman.
+         *
+         * Badan jawaban hanya bisa dibaca sekali. Ketika clone() dipanggil di
+         * dalam `.then()` milik caches.open, ia berjalan SESUDAH `return
+         * response` — dan melempar "Response body is already used" di dalam
+         * waitUntil, tempat tidak ada yang melihatnya. Akibatnya seluruh 102
+         * entri cangkang berhenti tersimpan dan mode luring menjadi layar
+         * kosong, tanpa satu pun galat di layar (regresi yang dibuat perbaikan
+         * urutan fetch-sebelum-caches.open, ditemukan verifikasi ulang P1-I,
+         * 7 Sep 2026; sesudah perbaikan: 102 entri, 0 /api, 0 di luar /app/).
+         */
+        $this->assertMatchesRegularExpression(
+            '~const \w+ = response\.clone\(\);\s*event\.waitUntil\(~',
+            $code,
+            'response.clone() tidak lagi dipanggil SEBELUM event.waitUntil: bila ia berjalan di dalam '
+            .'.then(), badan jawabannya sudah diserahkan ke halaman dan setiap tulisan cangkang gagal diam-diam.',
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '~\.then\([^)]*\) => \w+\.put\([^)]*response\.clone\(\)~',
+            $code,
+            'response.clone() dipanggil di dalam .then() — lihat komentar di atas: itu selalu terlambat.',
+        );
+
+        // .add()/.addAll() hanya boleh muncul di install, atas daftar SHELL.
         $this->assertSame(
             1,
-            preg_match_all('~\b\w+\.add\(~', $code),
-            'Ada lebih dari satu .add( ke cache: satu-satunya sumber isi cache selain jalur fetch adalah SHELL.',
+            preg_match_all('~\b\w+\.add(?:All)?\(~', $code),
+            'Ada lebih dari satu .add(/.addAll( ke cache: satu-satunya sumber isi cache selain jalur fetch '
+            .'adalah SHELL. (addAll dihitung juga sejak verifikasi ulang P1-I: menghitung .add( saja '
+            .'membiarkan satu baris cache.addAll([...]) di pendengar fetch menyimpan jawaban /api.)',
         );
     }
 
@@ -227,18 +253,49 @@ class PwaServiceWorkerTest extends TestCase
         $body = substr($install, $start, strpos($install, "self.addEventListener('activate'") - $start);
 
         $this->assertMatchesRegularExpression(
-            '~if \(failed\.length\) \{~',
+            '~const missingCore = failed\.filter\(~',
             $body,
-            'install tidak lagi memeriksa entri yang gagal dipasang.',
+            'install tidak lagi memisahkan berkas INTI dari berkas layar. Membuang cache karena satu '
+            .'dari 102 entri gagal berarti satu rsync yang belum selesai, satu 5xx sesaat atau satu '
+            .'permintaan yang jatuh menghapus lapisan luring seluruhnya (verifikasi ulang P1-I).',
         );
         $this->assertMatchesRegularExpression(
-            '~if \(failed\.length\) \{.*?await caches\.delete\(CACHE\);~s',
+            '~if \(missingCore\.length\) \{.*?await caches\.delete\(CACHE\);~s',
             $body,
-            'Cangkang yang tidak lengkap tidak lagi dibuang. Terukur 7 Sep 2026 dengan kuota origin '
-            .'1,2 MB: 42 dari 102 entri masuk, worker tetap aktif, lalu muat ulang tanpa jaringan '
-            .'berhenti selamanya di pemutar boot (body kosong, 1.532 char). Cangkang setengah lebih '
-            .'buruk daripada tidak ada cangkang — dipaku juga oleh harness S27_pwa_cangkang_sebagian.',
+            'Cangkang yang kehilangan berkas INTI tidak lagi dibuang. Terukur 7 Sep 2026 dengan kuota '
+            .'origin 1,2 MB: 42 dari 102 entri masuk, worker tetap aktif, lalu muat ulang tanpa '
+            .'jaringan berhenti selamanya di pemutar boot (body kosong, 1.532 char). Cangkang '
+            .'setengah lebih buruk daripada tidak ada cangkang.',
         );
+
+        /*
+         * …dan yang hilang HANYA layar tidak membuang apa pun: berkas itu diisi
+         * jalur fetch pada kunjungan daring berikutnya, sementara aplikasinya
+         * tetap bisa dibuka tanpa sinyal.
+         */
+        $this->assertMatchesRegularExpression(
+            '~if \(failed\.length && !missingCore\.length\) \{~',
+            $body,
+            'Kehilangan berkas non-inti tidak lagi dibedakan dari kehilangan berkas inti.',
+        );
+
+        $core = $this->arrayLiteral('CORE');
+        foreach (['./', 'index.html', 'app.css', 'js/app.js', 'js/api.js', 'js/ui.js', 'js/router.js'] as $must) {
+            $this->assertContains($must, $core, "CORE tidak lagi menyebut {$must}; tanpa berkas itu aplikasi tidak bisa dibuka sama sekali.");
+        }
+        foreach ($core as $path) {
+            $this->assertContains($path, $this->arrayLiteral('SHELL'), "CORE menyebut {$path}, yang tidak ada di SHELL — ia tidak akan pernah dipasang.");
+        }
+    }
+
+    /** @return list<string> isi sebuah literal array di sw.js. */
+    private function arrayLiteral(string $name): array
+    {
+        preg_match('~const '.$name.' = \[(.*?)\];~s', $this->code(), $found);
+        $this->assertNotEmpty($found, "Tidak ada literal {$name} di sw.js.");
+        preg_match_all("~'([^']+)'~", $found[1], $items);
+
+        return $items[1];
     }
 
     public function test_the_network_starts_before_the_cache_is_opened(): void
@@ -292,7 +349,8 @@ class PwaServiceWorkerTest extends TestCase
         // Daftar SHELL dibuang lebih dulu: ia memang memuat 'js/api.js' dan
         // 'js/views/attachments.js' — nama BERKAS cangkang, bukan awalan URL
         // server. Yang diperiksa di sini adalah logikanya.
-        $code = strtolower(preg_replace('~const SHELL = \[.*?\n\];~s', '', $this->code()));
+        // CORE dibuang bersama SHELL dan untuk alasan yang sama: ia menyebut 'js/api.js'.
+        $code = strtolower(preg_replace('~const (?:SHELL|CORE) = \[.*?\];~s', '', $this->code()));
 
         foreach (['/api', 'storage', 'attachment', 'lampiran', 'download', 'unduh'] as $needle) {
             $this->assertStringNotContainsString(

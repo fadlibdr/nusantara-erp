@@ -58,6 +58,12 @@ import { openForm } from './views/form.js';
 import { openOnboarding, closeOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
+/* Penanda untuk pengawas boot di index.html: modul SUDAH dijalankan.
+   Tanpa ini pengawas 10 detik selalu berkata "sebagian berkas aplikasi tidak
+   sampai" — juga ketika setiap berkas sampai dan yang lambat adalah jawaban
+   server (verifikasi ulang P1-I, 7 Sep 2026). */
+window.__erpModules = true;
+
 const root = document.getElementById('root');
 const THEME_KEY = 'nusantara_erp_theme';
 const NAV_STATE_KEY = 'nusantara_erp_nav';
@@ -1728,11 +1734,30 @@ function scheduleServiceWorker() {
  * menyala (Wi-Fi berportal melaporkannya juga), dan penyegaran yang gagal
  * MEMBIARKAN toast-nya berdiri, karena saat itu kalimatnya masih benar.
  */
+/*
+ * Sesi yang dibuka dari salinan luring adalah CERMIN: izin dan menunya berasal
+ * dari localStorage, bukan dari server. Ketika jaringan kembali, sesi itu harus
+ * disegarkan — dan itu TIDAK boleh bergantung pada toast-nya masih terpasang.
+ *
+ * Sampai verifikasi ulang P1-I (7 Sep 2026) seluruh pemulihan dijaga
+ * `!node.isConnected`: menekan "Tutup" pada toast — hal paling biasa yang
+ * dilakukan orang, apalagi di ponsel tempat ia menutupi ~104 px — membatalkan
+ * penyegaran itu diam-diam dan meninggalkan kedua pendengarnya terpasang
+ * selamanya. Terukur: tutup toast, sambungkan lagi, buka dua layar, tunggu
+ * 8 detik → 0 permintaan iam/auth/me. Toast-nya kini hanya kabar; yang
+ * menentukan adalah `done`.
+ */
 function recoverFromOfflineBoot(node) {
   let running = false;
+  let done = false;
+
+  function stopListening() {
+    window.removeEventListener('erp:network', onNetwork);
+    window.removeEventListener('online', retry);
+  }
 
   async function retry() {
-    if (running || !node.isConnected) return;
+    if (running || done) return;
     running = true;
     try {
       await refreshMe();
@@ -1740,9 +1765,9 @@ function recoverFromOfflineBoot(node) {
       running = false;   // belum sampai juga: kalimat toast-nya masih benar
       return;
     }
-    window.removeEventListener('erp:network', onNetwork);
-    window.removeEventListener('online', retry);
-    node.remove();
+    done = true;
+    stopListening();
+    if (node.isConnected) node.remove();
     await prefs.load().catch(() => {});
     applyDensity(readDensity());
     refreshNav();

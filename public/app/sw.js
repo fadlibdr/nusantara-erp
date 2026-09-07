@@ -72,6 +72,20 @@ const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
 const SCOPE = new URL('./', self.location).pathname;
 
+/*
+ * Berkas yang harus ADA agar aplikasi bisa dibuka tanpa jaringan. Semua yang
+ * lain (layar, widget) diimpor saat dibutuhkan: kehilangan satu di antaranya
+ * berarti satu layar tidak bisa dibuka luring, bukan aplikasi yang membeku.
+ *
+ * Sampai verifikasi ulang P1-I (7 Sep 2026) cache dibuang bila SATU dari 102
+ * entri gagal — dan pemicunya tidak eksotis: rsync yang belum selesai, satu 5xx
+ * sesaat, satu permintaan jatuh. Terukur: satu berkas widget yang dimuat malas
+ * tidak tersedia selama install → caches {}, ke-101 berkas lain ikut dibuang,
+ * termasuk semua yang dibutuhkan untuk boot. Yang benar adalah membuang hanya
+ * ketika yang hilang membuat boot mustahil.
+ */
+const CORE = ['./', 'index.html', 'app.css', 'js/app.js', 'js/api.js', 'js/ui.js', 'js/router.js', 'js/schema.js'];
+
 const SHELL = [
   './',
   'app.css',
@@ -189,7 +203,16 @@ self.addEventListener('install', (event) => {
     // atas SHELL-lah yang menjaga daftar ini benar.
     const results = await Promise.allSettled(SHELL.map((path) => cache.add(path)));
     const failed = SHELL.filter((_, i) => results[i].status === 'rejected');
-    if (failed.length) {
+    const missingCore = failed.filter((path) => CORE.includes(path));
+
+    if (failed.length && !missingCore.length) {
+      // Cangkang tanpa satu-dua layar: setiap berkas CORE ada, jadi aplikasinya
+      // TETAP bisa dibuka luring; yang hilang adalah layar yang gagal itu, dan
+      // jalur fetch mengisinya pada kunjungan daring berikutnya.
+      console.warn('[sw] cangkang tanpa', failed.length, 'berkas non-inti; lapisan luring tetap dipasang:', failed);
+    }
+
+    if (missingCore.length) {
       /*
        * CANGKANG SETENGAH LEBIH BURUK DARIPADA TIDAK ADA CANGKANG.
        *
@@ -213,7 +236,7 @@ self.addEventListener('install', (event) => {
        * pemutar dengan kalimat, karena cache juga bisa terisi separuh lewat
        * jalur fetch di perangkat yang penyimpanannya sempit.
        */
-      console.warn('[sw] cangkang tidak lengkap, cache dibuang:', failed);
+      console.warn('[sw] berkas inti tidak sampai, cache dibuang:', missingCore, '(total gagal:', failed.length, ')');
       await caches.delete(CACHE);
     }
   })());
@@ -281,7 +304,18 @@ async function networkFirst(event) {
      */
     const response = await fetch(request);
     if (storable(response)) {
-      event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, response.clone())));
+      /*
+       * clone() SEKARANG, bukan di dalam .then(): badan jawaban hanya bisa
+       * dibaca sekali, dan begitu `return response` menyerahkannya ke halaman,
+       * clone() melempar "Response body is already used" — di dalam waitUntil,
+       * jadi tidak ada yang melihatnya kecuali seluruh cangkang berhenti
+       * tersimpan (76 tulisan gagal; luring kembali menjadi layar kosong).
+       * Ditemukan verifikasi ulang P1-I, 7 Sep 2026, sebagai regresi dari
+       * perbaikan urutan fetch-sebelum-caches.open di atas — urutan itu tetap,
+       * yang pindah hanya salinannya.
+       */
+      const copy = response.clone();
+      event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, copy)));
     }
     return response;
   } catch (error) {
