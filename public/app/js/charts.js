@@ -291,10 +291,41 @@ function plotClip(svg, x, y, w, h, pad = 2) {
   return `url(#${id})`;
 }
 
-function noteLine(svg, text, x, y) {
+/*
+ * Catatan sumber, DIBUNGKUS ke lebar yang tersedia.
+ *
+ * Dulu satu <text> tanpa pembungkusan: svg akarnya mengklip pada viewBox-nya,
+ * jadi catatan yang panjang hilang di kertas tanpa jejak. Diukur pada jadwal 41
+ * baris dengan isian baseline gagal (media cetak, tiga halaman): getBBox
+ * berakhir 241–247 satuan di luar tepi kanan, dan pdftotext memperlihatkan
+ * halaman 2 berhenti pada '…yang berlaku' — penanda 'halaman 2 dari 3, baris
+ * 17–32 dari 41' tidak pernah sampai (verifikasi P1-H putaran 2, 7 Sep 2026).
+ * Syarat harness membaca textContent, jadi ia hijau sementara kalimatnya tidak
+ * terbaca.
+ *
+ * Mengembalikan tinggi yang benar-benar dipakai (16 per baris), supaya
+ * pemanggil yang menghitung tinggi svg tidak kekurangan ruang.
+ */
+/** Tinggi yang akan dipakai catatan sumber setelah dibungkus — dipanggil SEBELUM
+    tinggi svg dihitung, dengan lebar dan x yang sama dengan noteLine(). */
+function noteHeight(text, x, width, unit = 16) {
   if (!text) return 0;
-  svg.appendChild(make('text', { class: 'chart-note', x, y }, text));
-  return 16;
+
+  const room = Math.max(40, (Number.isFinite(width) ? width : 0) - x - 8);
+  return unit * (room > 0 ? wrapPhrases([String(text)], room, estimateWidth).length : 1);
+}
+
+function noteLine(svg, text, x, y, width) {
+  if (!text) return 0;
+
+  const room = Math.max(40, (Number.isFinite(width) ? width : 0) - x - 8);
+  const lines = room > 0 ? wrapPhrases([String(text)], room, estimateWidth) : [String(text)];
+
+  lines.forEach((line, index) => {
+    svg.appendChild(make('text', { class: 'chart-note', x, y: y + index * 16 }, line));
+  });
+
+  return 16 * lines.length;
 }
 
 /* --------------------------------------------------------------- legenda */
@@ -541,7 +572,7 @@ export function lineChart({
   }));
   const legendLayout = legend && items.length ? legendRows(items, width, PAD.left) : [];
   const legendH = legendLayout.length * 16;
-  const noteH = sourceNote ? 16 : 0;
+  const noteH = noteHeight(sourceNote, PAD.left, width);
   const H = height + legendH + noteH;
   const xs = [...new Set(rows.flatMap((s) => s.points.map((p) => p.x)))].sort((a, b) => a - b);
   const x0 = xs[0];
@@ -605,7 +636,7 @@ export function lineChart({
 
   let cursor = height + 12;
   if (legendH) cursor += drawLegend(svg, legendLayout, cursor);
-  noteLine(svg, sourceNote, PAD.left, cursor);
+  noteLine(svg, sourceNote, PAD.left, cursor, width);
   return svg;
 }
 
@@ -621,7 +652,6 @@ export function barChart({
     label: s?.label ?? `Seri ${i + 1}`, token: seriesToken(i), index: i + 1,
     values: cats.map((_, j) => finite(Array.isArray(s?.values) ? s.values[j] : null)),
   }));
-  const noteH = sourceNote ? 16 : 0;
   const n = cats.length;
   const m = rows.length;
   const rowH = 26;
@@ -643,6 +673,10 @@ export function barChart({
   const PAD = horizontal
     ? { top: 8, right: 16, bottom: 28, left: Math.max(40, catLabelW) }
     : { top: 14, right: 16, bottom: 28, left: Math.min(120, Math.max(36, Math.max(...ticks.map((t) => textWidth(fy(t)))) + 14)) };
+  // noteH DIHITUNG SETELAH PAD: pembungkusan catatan sumber butuh lebar yang tersisa,
+  // dan PAD.left barChart bergantung pada orientasi (verifikasi P1-H putaran 2).
+  const noteH = noteHeight(sourceNote, PAD.left, width);
+
   /* Legenda ditata sekali dari PAD.left (lihat catatan di lineChart). */
   const items = rows.map((s) => ({ label: s.label, token: s.token, kind: 'box', series: s.index }));
   const legendLayout = legend && items.length > 1 ? legendRows(items, width, PAD.left) : [];
@@ -723,7 +757,7 @@ export function barChart({
 
   let cursor = PAD.top + plotH + PAD.bottom + 8;
   if (legendH) cursor += drawLegend(svg, legendLayout, cursor);
-  noteLine(svg, sourceNote, PAD.left, cursor);
+  noteLine(svg, sourceNote, PAD.left, cursor, width);
   return svg;
 }
 
@@ -789,7 +823,7 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
   const entries = rows.map((s) => ({ ...s, lines: wrapPhrases(legendPhrases(s), legendW) }));
   const entryH = (e) => 18 + (e.lines.length - 1) * 14;
   const rowsH = entries.reduce((a, e) => a + entryH(e), 0);
-  const noteH = sourceNote ? 18 : 0;
+  const noteH = noteHeight(sourceNote, 8, W, 18);
   const H = Math.max(200, rowsH + 24) + noteH;
   if (!drawn.length) {
     /* Ada baris tetapi tidak satu pun bisa digambar: placeholder MENYEBUT berapa dan mengapa
@@ -859,7 +893,7 @@ export function donutChart({ slices = [], centerLabel, centerSub, valueFormat, a
     legend.appendChild(text);
     y += entryH(s);
   });
-  noteLine(svg, sourceNote, 8, H - 5);
+  noteLine(svg, sourceNote, 8, H - 5 - (noteH - 18), W);
   return svg;
 }
 
@@ -960,7 +994,7 @@ export function ganttChart({
   const dates = tasks.flatMap((t) => [t.start, t.end, t.bStart, t.bEnd]).filter((d) => d !== null);
   const W = labelWidth + timelineWidth;
   const headerH = 36;
-  const noteH = sourceNote ? 16 : 0;
+  const noteH = noteHeight(sourceNote, 8, W);
   if (!tasks.length || (!dates.length && dayOrNull(from) === null)) return placeholder('gantt', ariaLabel);
 
   const fromMs = dayOrNull(from) ?? Math.min(...dates);
@@ -1171,6 +1205,6 @@ export function ganttChart({
 
   let cursor = rowsTop + rowsH + 18;
   cursor += drawLegend(svg, legendLayout, cursor);
-  noteLine(svg, sourceNote, 8, cursor);
+  noteLine(svg, sourceNote, 8, cursor, W);
   return svg;
 }

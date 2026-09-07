@@ -2450,16 +2450,16 @@
      "tick_glyph_px_max": null
     },
     "gantt_week": {
-     "painted": 52,
-     "painted_ok": 52,
+     "painted": 53,
+     "painted_ok": 53,
      "mismatch": [],
      "marks": 11,
-     "titles": 13,
+     "titles": 12,
      "mark_titles": 11,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 26,
-     "text_ok": 26,
+     "texts": 27,
+     "text_ok": 27,
      "fonts": [
       "-apple-system"
      ],
@@ -2491,8 +2491,8 @@
      "rows": 10,
      "bars": 8,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -2522,6 +2522,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -2533,16 +2534,16 @@
      "min_width": "720px"
     },
     "gantt_month": {
-     "painted": 74,
-     "painted_ok": 74,
+     "painted": 75,
+     "painted_ok": 75,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 22,
-     "text_ok": 22,
+     "texts": 23,
+     "text_ok": 23,
      "fonts": [
       "-apple-system"
      ],
@@ -2574,8 +2575,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -2603,6 +2604,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -2614,16 +2616,16 @@
      "min_width": "720px"
     },
     "gantt_week_long": {
-     "painted": 104,
-     "painted_ok": 104,
+     "painted": 105,
+     "painted_ok": 105,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 36,
-     "text_ok": 36,
+     "texts": 37,
+     "text_ok": 37,
      "fonts": [
       "-apple-system"
      ],
@@ -2655,8 +2657,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -2684,6 +2686,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -2756,7 +2759,7 @@
      "painted_ok": 38,
      "mismatch": [],
      "marks": 7,
-     "titles": 8,
+     "titles": 7,
      "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
@@ -2793,8 +2796,8 @@
      "rows": 13,
      "bars": 5,
      "baselines": 2,
-     "truncated_labels": 1,
-     "truncated_with_full_title": 1,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
@@ -2905,10 +2908,10 @@
    },
    "summary": {
     "charts": 41,
-    "painted": 1373,
+    "painted": 1376,
     "mismatches": 0,
     "marks": 887,
-    "titles": 894,
+    "titles": 890,
     "mark_titles": 887,
     "titles_equal_marks": true,
     "stray_titles": 0,
@@ -2921,8 +2924,8 @@
     "x_label_max_overlap_px": 0,
     "x_label_charts": 23,
     "tick_glyph_px_max": 8.15,
-    "texts": 409,
-    "text_ok": 409,
+    "texts": 412,
+    "text_ok": 412,
     "empty_charts": 6,
     "empty_with_text": 6,
     "excluded_placeholders_silent": 0,
@@ -5355,16 +5358,16 @@
      "tick_glyph_px_max": null
     },
     "gantt_week": {
-     "painted": 52,
-     "painted_ok": 52,
+     "painted": 53,
+     "painted_ok": 53,
      "mismatch": [],
      "marks": 11,
-     "titles": 13,
+     "titles": 12,
      "mark_titles": 11,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 26,
-     "text_ok": 26,
+     "texts": 27,
+     "text_ok": 27,
      "fonts": [
       "-apple-system"
      ],
@@ -5396,8 +5399,8 @@
      "rows": 10,
      "bars": 8,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -5427,6 +5430,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -5438,16 +5442,16 @@
      "min_width": "720px"
     },
     "gantt_month": {
-     "painted": 74,
-     "painted_ok": 74,
+     "painted": 75,
+     "painted_ok": 75,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 22,
-     "text_ok": 22,
+     "texts": 23,
+     "text_ok": 23,
      "fonts": [
       "-apple-system"
      ],
@@ -5479,8 +5483,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -5508,6 +5512,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -5519,16 +5524,16 @@
      "min_width": "720px"
     },
     "gantt_week_long": {
-     "painted": 104,
-     "painted_ok": 104,
+     "painted": 105,
+     "painted_ok": 105,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 36,
-     "text_ok": 36,
+     "texts": 37,
+     "text_ok": 37,
      "fonts": [
       "-apple-system"
      ],
@@ -5560,8 +5565,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -5589,6 +5594,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -5661,7 +5667,7 @@
      "painted_ok": 38,
      "mismatch": [],
      "marks": 7,
-     "titles": 8,
+     "titles": 7,
      "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
@@ -5698,8 +5704,8 @@
      "rows": 13,
      "bars": 5,
      "baselines": 2,
-     "truncated_labels": 1,
-     "truncated_with_full_title": 1,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
@@ -5810,10 +5816,10 @@
    },
    "summary": {
     "charts": 41,
-    "painted": 1373,
+    "painted": 1376,
     "mismatches": 0,
     "marks": 887,
-    "titles": 894,
+    "titles": 890,
     "mark_titles": 887,
     "titles_equal_marks": true,
     "stray_titles": 0,
@@ -5826,8 +5832,8 @@
     "x_label_max_overlap_px": 0,
     "x_label_charts": 23,
     "tick_glyph_px_max": 8.15,
-    "texts": 409,
-    "text_ok": 409,
+    "texts": 412,
+    "text_ok": 412,
     "empty_charts": 6,
     "empty_with_text": 6,
     "excluded_placeholders_silent": 0,
@@ -5951,14 +5957,16 @@
   },
   "pageerrors": [],
   "console_errors": {
-   "count": 0,
-   "first": []
+   "count": 1,
+   "first": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ]
   },
   "viewport": {
    "width": 1440,
    "height": 900
   },
-  "_ms": 3668,
+  "_ms": 5427,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
@@ -8371,16 +8379,16 @@
      "tick_glyph_px_max": null
     },
     "gantt_week": {
-     "painted": 52,
-     "painted_ok": 52,
+     "painted": 53,
+     "painted_ok": 53,
      "mismatch": [],
      "marks": 11,
-     "titles": 13,
+     "titles": 12,
      "mark_titles": 11,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 26,
-     "text_ok": 26,
+     "texts": 27,
+     "text_ok": 27,
      "fonts": [
       "-apple-system"
      ],
@@ -8412,8 +8420,8 @@
      "rows": 10,
      "bars": 8,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -8443,6 +8451,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -8454,16 +8463,16 @@
      "min_width": "720px"
     },
     "gantt_month": {
-     "painted": 74,
-     "painted_ok": 74,
+     "painted": 75,
+     "painted_ok": 75,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 22,
-     "text_ok": 22,
+     "texts": 23,
+     "text_ok": 23,
      "fonts": [
       "-apple-system"
      ],
@@ -8495,8 +8504,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -8524,6 +8533,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -8535,16 +8545,16 @@
      "min_width": "720px"
     },
     "gantt_week_long": {
-     "painted": 104,
-     "painted_ok": 104,
+     "painted": 105,
+     "painted_ok": 105,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 36,
-     "text_ok": 36,
+     "texts": 37,
+     "text_ok": 37,
      "fonts": [
       "-apple-system"
      ],
@@ -8576,8 +8586,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -8605,6 +8615,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -8677,7 +8688,7 @@
      "painted_ok": 38,
      "mismatch": [],
      "marks": 7,
-     "titles": 8,
+     "titles": 7,
      "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
@@ -8714,8 +8725,8 @@
      "rows": 13,
      "bars": 5,
      "baselines": 2,
-     "truncated_labels": 1,
-     "truncated_with_full_title": 1,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
@@ -8826,10 +8837,10 @@
    },
    "summary": {
     "charts": 41,
-    "painted": 1373,
+    "painted": 1376,
     "mismatches": 0,
     "marks": 887,
-    "titles": 894,
+    "titles": 890,
     "mark_titles": 887,
     "titles_equal_marks": true,
     "stray_titles": 0,
@@ -8842,8 +8853,8 @@
     "x_label_max_overlap_px": 0,
     "x_label_charts": 23,
     "tick_glyph_px_max": 8.13,
-    "texts": 409,
-    "text_ok": 409,
+    "texts": 412,
+    "text_ok": 412,
     "empty_charts": 6,
     "empty_with_text": 6,
     "excluded_placeholders_silent": 0,
@@ -11276,16 +11287,16 @@
      "tick_glyph_px_max": null
     },
     "gantt_week": {
-     "painted": 52,
-     "painted_ok": 52,
+     "painted": 53,
+     "painted_ok": 53,
      "mismatch": [],
      "marks": 11,
-     "titles": 13,
+     "titles": 12,
      "mark_titles": 11,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 26,
-     "text_ok": 26,
+     "texts": 27,
+     "text_ok": 27,
      "fonts": [
       "-apple-system"
      ],
@@ -11317,8 +11328,8 @@
      "rows": 10,
      "bars": 8,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -11348,6 +11359,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -11359,16 +11371,16 @@
      "min_width": "720px"
     },
     "gantt_month": {
-     "painted": 74,
-     "painted_ok": 74,
+     "painted": 75,
+     "painted_ok": 75,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 22,
-     "text_ok": 22,
+     "texts": 23,
+     "text_ok": 23,
      "fonts": [
       "-apple-system"
      ],
@@ -11400,8 +11412,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -11429,6 +11441,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -11440,16 +11453,16 @@
      "min_width": "720px"
     },
     "gantt_week_long": {
-     "painted": 104,
-     "painted_ok": 104,
+     "painted": 105,
+     "painted_ok": 105,
      "mismatch": [],
      "marks": 12,
-     "titles": 14,
+     "titles": 13,
      "mark_titles": 12,
      "stray_titles": 0,
      "neg_dims": 0,
-     "texts": 36,
-     "text_ok": 36,
+     "texts": 37,
+     "text_ok": 37,
      "fonts": [
       "-apple-system"
      ],
@@ -11481,8 +11494,8 @@
      "rows": 10,
      "bars": 9,
      "baselines": 3,
-     "truncated_labels": 2,
-     "truncated_with_full_title": 2,
+     "truncated_labels": 1,
+     "truncated_with_full_title": 1,
      "open_titles": [
       "Struktur bawah: mulai 14 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %",
       "Pengadaan besi: tanggal mulai belum ditetapkan, selesai 20 Sep 2026 (bar terbuka)"
@@ -11510,6 +11523,7 @@
       "Aktual",
       "Progres",
       "Baseline",
+      "Tanggal belum ditetapkan",
       "Hari ini"
      ],
      "baseline_legend_dishonest": 0,
@@ -11582,7 +11596,7 @@
      "painted_ok": 38,
      "mismatch": [],
      "marks": 7,
-     "titles": 8,
+     "titles": 7,
      "mark_titles": 7,
      "stray_titles": 0,
      "neg_dims": 0,
@@ -11619,8 +11633,8 @@
      "rows": 13,
      "bars": 5,
      "baselines": 2,
-     "truncated_labels": 1,
-     "truncated_with_full_title": 1,
+     "truncated_labels": 0,
+     "truncated_with_full_title": 0,
      "open_titles": [],
      "row_notes": [
       "gantt-invalid: tanggal selesai sebelum mulai (10 Sep 2026 – 02 Sep 2026)",
@@ -11731,10 +11745,10 @@
    },
    "summary": {
     "charts": 41,
-    "painted": 1373,
+    "painted": 1376,
     "mismatches": 0,
     "marks": 887,
-    "titles": 894,
+    "titles": 890,
     "mark_titles": 887,
     "titles_equal_marks": true,
     "stray_titles": 0,
@@ -11747,8 +11761,8 @@
     "x_label_max_overlap_px": 0,
     "x_label_charts": 23,
     "tick_glyph_px_max": 8.13,
-    "texts": 409,
-    "text_ok": 409,
+    "texts": 412,
+    "text_ok": 412,
     "empty_charts": 6,
     "empty_with_text": 6,
     "excluded_placeholders_silent": 0,
@@ -11872,14 +11886,16 @@
   },
   "pageerrors": [],
   "console_errors": {
-   "count": 0,
-   "first": []
+   "count": 1,
+   "first": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ]
   },
   "viewport": {
    "width": 390,
    "height": 844
   },
-  "_ms": 3096,
+  "_ms": 3800,
   "_clicks": 0
  },
  "S21_module_accents_breadcrumb": {
@@ -20724,7 +20740,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 10358,
+  "_ms": 10563,
   "_clicks": 0
  },
  "S24_laporan_bebas": {
@@ -21150,7 +21166,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7372,
+  "_ms": 7565,
   "_clicks": 0
  },
  "S26_gantt": {
@@ -21160,7 +21176,7 @@
   },
   "planted_task": {
    "state": "ditanam",
-   "id": 45,
+   "id": 50,
    "code": "B.5",
    "planned_end": null
   },
@@ -23090,7 +23106,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 11296,
+  "_ms": 8536,
   "_clicks": 2
  },
  "S26_gantt_mobile": {
@@ -23100,7 +23116,7 @@
   },
   "planted_task": {
    "state": "ditanam",
-   "id": 46,
+   "id": 51,
    "code": "B.5",
    "planned_end": null
   },
@@ -25032,7 +25048,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 9809,
+  "_ms": 8344,
   "_clicks": 2
  },
  "S26_gantt_baseline_gagal": {

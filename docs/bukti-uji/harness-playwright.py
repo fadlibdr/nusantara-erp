@@ -2790,6 +2790,17 @@ def gantt_expectations(tasks, frozen, today_ms, label_w=180):
                 if f.get(key):
                     dates.append(_days(f[key]))
 
+    if not dates:
+        # Tanpa penjaga ini kegagalannya berbunyi "min() iterable argument is empty",
+        # yang tidak menyebut sebabnya. Sebab yang sesungguhnya selalu sama: muatan
+        # API kosong — paling sering karena batas 120 permintaan/menit/pengguna
+        # menjawab 429 ketika beberapa skenario dijalankan berurutan (terukur
+        # 7 Sep 2026: S26m jatuh sesudah lima skenario, hijau bila dijalankan
+        # sendiri, basis data bukti utuh 11 tugas).
+        raise AssertionError(
+            f"tidak ada satu pun tanggal pada {len(tasks)} tugas hidup dan {len(frozen)} baris beku — "
+            "muatan API kosong (429 karena batas laju? proyek tanpa jadwal?), bukan gantt yang salah")
+
     lo, hi = min(dates), max(dates)
     days = round((hi - lo) / DAY_MS) + 1
     # Lebar kolom label mengikuti ATURAN yang ditulis jadwal.js (300 satuan di
@@ -2902,11 +2913,14 @@ def gantt_scenario(pg, tag, mobile=False):
     pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
     pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
 
-    out = {
-        "viewport": pg.viewport_size,
-        "planted_task": plant_open_ended_task(),
-        "planted_deviation": shift_baseline_task(),
-    }
+    # Fixture ditanam DI DALAM try, bukan di kepala `out`: penjaga
+    # shift_baseline_task() sendiri melempar bila tanggal beku bukan yang
+    # diharapkannya, dan pada saat itu plant_open_ended_task() SUDAH menulis
+    # barisnya — pemanggilan di kepala berada di luar jangkauan finally, jadi
+    # baris tanam itu tertinggal (diukur: B.2 diset 2026-07-15, S26 jatuh, dan
+    # prj_wbs_tasks proyek 1 tinggal 12 baris alih-alih 11; verifikasi P1-H
+    # putaran 2, 7 Sep 2026).
+    out = {"viewport": pg.viewport_size}
 
     # Fixture dikembalikan di `finally`, bukan di baris pernyataan biasa:
     # satu galat di tengah (wait_for_selector habis waktu, 429, Chromium
@@ -2916,6 +2930,9 @@ def gantt_scenario(pg, tag, mobile=False):
     # menyadarinya: setiap harapan dihitung ulang dari muatan API, jadi
     # angka yang cocok tetap cocok (verifikasi P1-H, 7 Sep 2026).
     try:
+        out["planted_task"] = plant_open_ended_task()
+        out["planted_deviation"] = shift_baseline_task()
+
         login(pg, "admin@nusantara.test")
         pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
         pg.wait_for_selector(".tabs button", timeout=20000)
