@@ -5460,6 +5460,33 @@ def pwa_scenario(pg, tag, mobile=False):
     pg.wait_for_timeout(1500)
     out["ribbon_back_online"] = pg.evaluate(RIBBON)
 
+    # ---- PORTAL: navigator.onLine berkata true, paketnya tetap tidak sampai.
+    # Kasus inilah yang pita ini ada untuk melaporkannya (Wi-Fi lokasi yang
+    # halaman login-nya belum dilewati, satu bar 4G di lantai basement), dan ia
+    # hanya muncul dalam urutan tertentu: satu kegagalan, lalu satu peristiwa
+    # `online`, TANPA satu pun permintaan berhasil di antaranya. Karena itu
+    # abort dipasang SEBELUM set_offline(False) dan tidak dilepas sampai
+    # pengukurannya selesai — permintaan yang berhasil di sela akan menyetel
+    # ulang ingatan api.js dan menyembunyikan cacatnya (terukur 7 Sep 2026:
+    # versi pertama syarat ini hijau di atas kode yang RUSAK karena satu
+    # permintaan sempat sampai selama jeda 1,5 detik).
+    pg.route("**/api/**", lambda route: route.abort("connectionfailed"))
+    ctx.set_offline(True)
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(2200)
+    ctx.set_offline(False)          # ← peristiwa `online` menyala di sini
+    pg.wait_for_timeout(1200)
+    pg.evaluate("() => { location.hash = '#/lapangan'; }")
+    pg.wait_for_timeout(2600)
+    out["ribbon_captive_portal"] = pg.evaluate(RIBBON)
+    out["captive_portal_online_flag"] = pg.evaluate("() => navigator.onLine")
+    pg.unroute("**/api/**")
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(2200)
+    pg.evaluate("() => { location.hash = '#/lapangan'; }")
+    pg.wait_for_timeout(2600)
+    out["ribbon_after_portal_cleared"] = pg.evaluate(RIBBON)
+
     # ---- muat ulang TANPA jaringan: cangkang harus tetap tergambar…
     ctx.set_offline(True)
     pg.wait_for_timeout(500)
@@ -5526,6 +5553,9 @@ def pwa_scenario(pg, tag, mobile=False):
         "ribbon_hidden_online": out["ribbon_online"]["present"] and out["ribbon_online"]["hidden"] is True,
         "ribbon_shown_offline": out["ribbon_offline"]["visible"] is True and "Tanpa koneksi" in out["ribbon_offline"]["text"],
         "ribbon_hidden_again": out["ribbon_back_online"]["hidden"] is True,
+        "ribbon_shown_behind_captive_portal": (out["captive_portal_online_flag"] is True
+                                               and out["ribbon_captive_portal"]["visible"] is True),
+        "ribbon_hidden_when_requests_arrive_again": out["ribbon_after_portal_cleared"]["hidden"] is True,
         "offline_shell_renders": out["offline_shell"]["shell"] and out["offline_shell"]["nav_items"] > 0 and not out["offline_shell"]["login_form"],
         "offline_ribbon_survives_reload": out["offline_shell"]["ribbon_visible"] is True,
         "offline_api_failed": out["offline_api"]["threw"] is True,

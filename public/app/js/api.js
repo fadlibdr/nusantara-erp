@@ -84,6 +84,22 @@ function announceNetwork(ok) {
   window.dispatchEvent(new CustomEvent('erp:network', { detail: { ok } }));
 }
 
+/*
+ * `lastNetworkOk` hanya mengingat apa yang TERAKHIR DIUMUMKAN, supaya satu
+ * keadaan tidak diumumkan berkali-kali. Ingatan itu harus dilupakan bersama-sama
+ * dengan pendengarnya: ui.js memadamkan pitanya sendiri pada peristiwa `online`,
+ * dan kalau api.js tetap mengingat "sudah diumumkan luring", kegagalan
+ * BERIKUTNYA kena `return` di atas dan tidak mengumumkan apa pun.
+ *
+ * Terukur 7 Sep 2026 (Chromium, ponsel 390x844, satu dokumen tanpa muat ulang):
+ * luring sungguhan → pita menyala; peristiwa `online` sementara setiap /api/*
+ * masih gagal (Wi-Fi lokasi yang portalnya belum dilewati) → pita padam; empat
+ * layar berikutnya yang seluruh permintaannya gagal → pita TETAP padam, nol
+ * peristiwa `erp:network` — persis keadaan yang pita ini ada untuk melaporkannya.
+ * Dengan baris ini, layar berikutnya yang gagal menyalakannya kembali.
+ */
+window.addEventListener('online', () => { lastNetworkOk = true; });
+
 function buildUrl(path, params) {
   const url = `${BASE}/${String(path).replace(/^\//, '')}`;
   if (!params) return url;
