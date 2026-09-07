@@ -144,3 +144,14 @@ sekali lalu merah selamanya.
    `procurement/purchase-orders`, yang **tidak** berpapan — PO berpindah kolom sendiri ketika GRN
    menerima penuh, dan papan yang kartunya bergerak tanpa ada yang menyentuhnya butuh cerita
    penyegaran yang belum ditulis.
+
+## Gerbang rilis (ditambahkan 7 September 2026)
+
+Paket ini dikapalkan di dalam rilis `0937dec` (P1-C…P1-G) — lihat `docs/LAPORAN-RILIS-FASE-1.md`.
+Suite penuh di commit rilis itu: **SQLite 3.991 uji / 20.656 asersi hijau** (11 dilewati). Leg MySQL
+semula tidak bisa dijalankan (kredensial Fase 0 hilang bersama scratchpad); sesudah pemilik memberi
+kata sandi baru dan satu cacat isolasi uji diperbaiki (`Schema::drop()` di dalam uji = COMMIT
+IMPLISIT di MySQL), **MySQL 8.0.46 di `89ba8c9`: 3.991 uji / 20.669 asersi hijau**.
+
+Gerbang terakhir Fase 1 (sesudah P1-H dan P1-I, commit `069a41e`), yang juga menjalankan ulang
+seluruh uji paket ini: **SQLite 4.025 / 21.029 dan MySQL 4.025 / 21.042, keduanya hijau.**

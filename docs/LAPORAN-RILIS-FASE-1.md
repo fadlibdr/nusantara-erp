@@ -1,7 +1,8 @@
-# Catatan Rilis Fase 1 (P1-A … P1-G) — 5–7 September 2026
+# Catatan Rilis Fase 1 (P1-A … P1-I — LENGKAP) — 5–7 September 2026
 
 Main: `f51f18b` (P1-B) → **`0937dec`** (P1-C…P1-G) → `8bcd0ae` (perbaikan padam) → `89ba8c9`
-(perbaikan isolasi uji MySQL). Ter-deploy ke erp1.pi2.co.id.
+(perbaikan isolasi uji MySQL) → **`9e1e77a`** (P1-H) → **`c78c970`** (P1-I). Ter-deploy seluruhnya
+ke erp1.pi2.co.id; **Fase 1 selesai, sembilan dari sembilan paket**.
 
 ## Yang dikapalkan
 
@@ -14,14 +15,15 @@ Main: `f51f18b` (P1-B) → **`0937dec`** (P1-C…P1-G) → `8bcd0ae` (perbaikan 
 | P1-E | Migrasi tiga grafik tangan ke `charts.js` | `…-P1-E.md` |
 | P1-F | Report builder "Laporan Bebas" v1 | `…-P1-F.md` |
 | P1-G | Papan kanban PR & NCR (0 endpoint baru) | `…-P1-G.md` |
-
-**Belum ada di catatan ini** (keduanya dikerjakan sesudah baris di atas ditulis): P1-H (gantt
-baca-saja + lapisan buktinya) sudah di-merge ke `main` sebagai `9e1e77a`, `…-P1-H.md`; P1-I (PWA)
-ada di `feat/phase1-i` menunggu gerbang rilis, `…-P1-I.md`.
+| P1-H | Gantt baca-saja + tab "Jadwal" — lapisan buktinya menemukan empat cacat SERVER | `…-P1-H.md` |
+| P1-I | PWA: manifest, service worker jaringan-dulu, pasang, toast pembaruan, pita luring | `…-P1-I.md` |
 
 ## Gerbang rilis
 
-- SQLite di `4a73e31`: **3.991 uji / 20.656 asersi hijau** (11 dilewati).
+- P1-C…P1-G di `4a73e31`: SQLite **3.991 uji / 20.656 asersi hijau** (11 dilewati).
+- P1-H di `f344a5b`: SQLite **4.007 / 20.799** dan MySQL **4.007 / 20.812**, keduanya hijau.
+- **P1-I di `069a41e` (gerbang terakhir Fase 1): SQLite 4.025 uji / 21.029 asersi dan
+  MySQL 8.0.46 4.025 / 21.042, keduanya hijau.**
 - MySQL 8.0.46 di `89ba8c9`: **3.991 uji / 20.669 asersi hijau** (6 dilewati, 23 mnt 16 dtk).
   Leg ini semula tidak bisa dijalankan — kredensial Fase 0 hilang bersama scratchpad `/tmp`;
   pemilik memberi kata sandi baru 7 Sep.
