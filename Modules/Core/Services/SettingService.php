@@ -554,6 +554,7 @@ class SettingService
         'HSE' => 'Formulir K3 harian',
         'TND' => 'Paket tender', 'TKD' => 'Lembar TKDN', 'RKK' => 'RKK penawaran',
         'MTD' => 'Pustaka metode kerja',
+        'OVB' => 'Anggaran overhead (OVB)',
     ];
 
     /**

@@ -12,6 +12,10 @@ use Modules\Core\Services\DocumentNumberService;
  * The model declares:  public string $documentType = 'PO';
  * Optionally override the target column: protected string $documentNumberColumn = 'code';
  *
+ * F-2 — a model may also declare  public function documentNumberYear(): ?int
+ * to mint under a year of its own (a fiscal-year document whose identity IS
+ * that year); every model without it keeps minting under the current year.
+ *
  * P8 — {PROJ}: when the effective mask for the type carries the {PROJ} token,
  * the trait resolves the model's project (the conventional `project` belongsTo
  * that every project-bound document already declares) and passes its CODE as
@@ -37,7 +41,15 @@ trait HasDocumentNumber
                     ? static::documentProjectScope($model, $type)
                     : null;
 
-                $model->{$column} = $service->next($type, $scope);
+                // Sebuah dokumen boleh menyebutkan TAHUN yang menjadi
+                // identitasnya sendiri (OVB: tahun buku yang dianggarkan).
+                // Yang tidak menyebutkannya — setiap jenis lain — memakai tahun
+                // berjalan seperti sebelumnya (verifikasi F-2).
+                $year = method_exists($model, 'documentNumberYear')
+                    ? $model->documentNumberYear()
+                    : null;
+
+                $model->{$column} = $service->next($type, $scope, $year);
             }
         });
     }

@@ -221,6 +221,41 @@ class OverheadBudgetTest extends ErpTestCase
         $this->service->submit($budget, $this->maker());
     }
 
+    // --------------------------------------------------------------- kodenya
+
+    /**
+     * KODE OVB MEMBAWA TAHUN BUKUNYA (verifikasi F-2).
+     *
+     * Terukur sebelum perbaikan: OVB untuk tahun buku 2031 yang dibuat hari ini
+     * menerima 'OVB/2026/IX/0001' dari fallback DocumentNumberService, dan
+     * kalimat penolakan "satu per tahun" mencetak dua tahun berbeda dalam satu
+     * kalimat. Urutannya pun terpisah per tahun buku: OVB kedua untuk 2031
+     * adalah 0002, bukan melanjutkan ember tahun berjalan.
+     */
+    public function test_the_code_carries_the_budgeted_year_not_the_wall_clock_year(): void
+    {
+        $future = $this->budget(2031, ['6-1100' => 100_000_000]);
+        $futureToo = $this->budget(2031, ['6-1100' => 200_000_000]);
+        $thisYear = $this->budget(2026, ['6-1100' => 300_000_000]);
+
+        $this->assertSame('OVB/2031/0001', $future->refresh()->code);
+        $this->assertSame('OVB/2031/0002', $futureToo->refresh()->code);
+        $this->assertSame('OVB/2026/0001', $thisYear->refresh()->code);
+
+        // Dan kalimat penolakannya kini menyebut SATU tahun.
+        $this->service->submit($future, $this->maker());
+        $this->service->approve($future, $this->checker());
+
+        try {
+            $this->service->submit($futureToo, $this->maker());
+            $this->fail('OVB kedua untuk tahun yang sama seharusnya ditolak');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('Tahun buku 2031', $e->getMessage());
+            $this->assertStringContainsString('OVB/2031/0001', $e->getMessage());
+            $this->assertStringNotContainsString('OVB/2026', $e->getMessage());
+        }
+    }
+
     // ----------------------------------------------------------- pembatalan
 
     /**

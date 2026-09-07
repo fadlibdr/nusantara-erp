@@ -31,11 +31,21 @@ class DocumentNumberService
      * without a project — is a configuration error (the token was switched on
      * in Pengaturan for a document that cannot supply a project) and fails
      * loudly rather than printing a blank into a document code.
+     *
+     * F-2 (verifikasi) — $year: sebuah dokumen yang seluruh identitasnya adalah
+     * SEBUAH TAHUN BUKU tidak boleh membawa tahun jam server. Terukur: OVB
+     * untuk tahun buku 2031 yang dibuat hari ini menerima kode
+     * 'OVB/2026/IX/0001', dan kalimat penolakannya berbunyi "Tahun buku 2031
+     * sudah punya anggaran overhead yang disetujui (OVB/2026/IX/0001)" — dua
+     * tahun berbeda dalam satu kalimat. Yang dilewatkan pemanggil menggantikan
+     * {Y} DAN ember urutannya, jadi OVB tahun buku 2031 punya penomorannya
+     * sendiri. Tidak dilewatkan (setiap jenis dokumen lain, tanpa kecuali) =
+     * tahun berjalan, byte demi byte seperti sebelumnya.
      */
-    public function next(string $type, ?string $projectScope = null): string
+    public function next(string $type, ?string $projectScope = null, ?int $year = null): string
     {
         $format = $this->format($type);
-        $year = now()->year;
+        $year ??= now()->year;
         $month = now()->month;
 
         $scope = '';

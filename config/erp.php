@@ -99,6 +99,11 @@ return [
         'TKD' => 'TKD/{Y}/{RM}/{N4}',   // Lembar hitung TKDN atas satu penawaran (P7)
         'RKK' => 'RKK/{Y}/{RM}/{N4}',   // Rencana Keselamatan Konstruksi penawaran (P7 — Permen PUPR 10/2021)
         'MTD' => 'MTD/{Y}/{N4}',        // Entri pustaka metode kerja (P7 — master, tanpa bulan seperti BOQ/RAP)
+        // F-2: OVB tanpa {RM}, dan {Y}-nya adalah TAHUN BUKU yang dianggarkan
+        // (OverheadBudget::documentNumberYear), bukan tahun jam server — sebuah
+        // anggaran 2031 yang dibuat hari ini berkode OVB/2031/0001. Bulan
+        // pembuatannya kebisingan pada dokumen yang identitasnya sebuah tahun.
+        'OVB' => 'OVB/{Y}/{N4}',        // Anggaran overhead per tahun buku (F-2)
     ],
 
     /*
