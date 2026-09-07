@@ -6604,6 +6604,14 @@ def s29(pg):
         "a_project_without_a_rap_is_ruled_never_rp_0": (
             out["portfolio_without_rap"].get("found") is True
             and [out["portfolio_without_rap"]["cells"][i] for i in (2, 5, 6)] == ["—", "—", "Tanpa RAP"]),
+        # …dan TIDAK SATU SEL PUN di seluruh tabel berbunyi "Rp 0". Harness ini
+        # sudah mengumpulkan zero_cells sejak putaran pertama tanpa ada satu
+        # syarat pun yang membacanya — dan yang diukurnya waktu itu ['Rp 0']:
+        # kolom Realisasi PRJ-2026-002, proyek tanpa satu baris biaya pun
+        # (pola "no_row_ships_a_fabricated_zero" milik S28).
+        "no_row_ships_a_fabricated_zero": (
+            (out["portfolio"] or {}).get("zero_cells") == []
+            and (out["portfolio_without_rap"] or {}).get("zero_cells") == []),
         # 2 — anggaran bulanan berlabel turunan
         "the_monthly_budget_is_labelled_derived": (
             "TURUNAN" in (monthly.get("derivation") or "")

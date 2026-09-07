@@ -384,6 +384,41 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         $this->submitPo($this->po($project, 250_000_000.01, DocumentStatus::Draft))->assertStatus(422);
     }
 
+    /**
+     * NOL BARIS BIAYA = "—", BUKAN "Rp 0" (verifikasi F-2).
+     *
+     * Layar portofolio mencetak aturannya sendiri pada tab Per bulan ("Kolom
+     * realisasi '—' berarti bulan itu belum punya satu baris biaya pun. Itu
+     * bukan Rp 0.") lalu melanggarnya pada kolom Realisasi baris portofolio:
+     * terukur pada data demo, PRJ-2026-002 tanpa satu baris fin_project_costs
+     * pun mencetak "Rp 0" di antara tiga sel yang benar-benar digaris.
+     *
+     * Dan sebaliknya: baris biaya yang berjumlah nol rupiah tetap Rp 0 — ada
+     * yang tercatat, dan jumlahnya nol.
+     */
+    public function test_a_project_without_a_single_cost_row_rules_its_realisation(): void
+    {
+        $kosong = $this->project('PRJ-2026-922');
+        $this->approvedRap($kosong, nonSubcon: 100_000_000, subcon: 0);
+        $this->po($kosong, 30_000_000, DocumentStatus::Approved);
+
+        $row = $this->portfolioRow($kosong);
+
+        $this->assertNull($row['actual'], 'nol baris biaya bukan realisasi Rp 0');
+        // Komitmennya nyata dan tetap angka, begitu pula aritmetika gerbang:
+        // sisa = 100 jt − 0 − 30 jt.
+        $this->assertSame(30000000.0, $row['committed']);
+        $this->assertSame(30000000.0, $row['used']);
+        $this->assertSame(70000000.0, $row['remaining']);
+
+        // Baris biaya yang berjumlah nol rupiah: itu Rp 0 yang sungguh diukur.
+        $nol = $this->project('PRJ-2026-923');
+        $this->approvedRap($nol, nonSubcon: 100_000_000, subcon: 0);
+        $this->cost($nol, 'material', 0);
+
+        $this->assertSame(0.0, $this->portfolioRow($nol)['actual']);
+    }
+
     private function secondUser(): User
     {
         /** @var User $user */

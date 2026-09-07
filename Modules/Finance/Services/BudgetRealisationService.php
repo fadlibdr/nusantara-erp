@@ -63,9 +63,12 @@ use Modules\Projects\Support\PlannedCurve;
  *
  * BULAN TANPA REALISASI = null, BUKAN 0. Sebuah 0 di kolom realisasi bulan
  * depan terbaca "anggaran terjaga"; yang benar adalah "belum ada apa-apa yang
- * tercatat". Yang tetap berupa angka adalah TOTAL realisasi proyek pada
- * portofolio: itu jumlah baris yang sungguh dijumlahkan gerbang, dan jumlah
- * nol baris memang nol rupiah.
+ * tercatat". Sejak verifikasi F-2 aturan itu berlaku juga untuk TOTAL realisasi
+ * proyek di portofolio: sebuah proyek yang belum punya satu baris
+ * fin_project_costs pun digaris, bukan dicetak "Rp 0" di antara sel-sel yang
+ * memang digaris. Yang tetap berupa angka adalah apa yang masuk ke ARITMETIKA
+ * gerbang (sisa = anggaran − realisasi − komitmen): nol baris memang menambah
+ * nol rupiah pada pengurangan itu, dan gerbang tidak pernah mencetak apa pun.
  */
 class BudgetRealisationService
 {
@@ -150,7 +153,14 @@ class BudgetRealisationService
             'budget' => $budget,
             'budget_subcon' => $subcon['budget'],
             'budget_non_subcon' => $nonSubcon['budget'],
-            'actual' => $actual,
+            // NOL BARIS BIAYA = BELUM ADA YANG TERCATAT, bukan Rp 0 (verifikasi
+            // F-2). Aturan yang sama yang sudah dipatuhi kolom realisasi per
+            // bulan, dan yang dicetak layar portofolio sebagai kalimatnya
+            // sendiri: "Kolom realisasi '—' berarti bulan itu belum punya satu
+            // baris biaya pun. Itu bukan Rp 0." Terukur: PRJ-2026-002 tanpa
+            // satu baris fin_project_costs pun mencetak "Rp 0" di antara tiga
+            // sel yang benar-benar digaris.
+            'actual' => $this->hasCostRows($projectId) ? $actual : null,
             'committed' => $committed,
             'used' => $used,
             'remaining' => $budget === null ? null : round($budget - $used, 2),
@@ -415,6 +425,25 @@ class BudgetRealisationService
                 fn ($query) => $query->where('cost_category', '!=', 'subcon'),
             )
             ->sum('amount'), 2);
+    }
+
+    /**
+     * Apakah buku biaya proyek ini punya satu baris pun.
+     *
+     * Sebuah COUNT, bukan sebuah SUM: nol baris ("belum ada yang tercatat") dan
+     * baris-baris yang kebetulan berjumlah nol rupiah adalah dua fakta yang
+     * berbeda, dan hanya yang pertama yang harus digaris. Yang MASUK KE
+     * ARITMETIKA gerbang tetap 0.0 — sisa = anggaran − 0 − komitmen adalah
+     * jawaban yang benar untuk proyek yang belum membelanjakan apa pun; yang
+     * berubah hanyalah angka yang DICETAK di kolom Realisasi.
+     */
+    private function hasCostRows(int $projectId): bool
+    {
+        if (! Schema::hasTable('fin_project_costs')) {
+            return false;
+        }
+
+        return DB::table('fin_project_costs')->where('project_id', $projectId)->exists();
     }
 
     private function committed(int $projectId, bool $subcon): float
