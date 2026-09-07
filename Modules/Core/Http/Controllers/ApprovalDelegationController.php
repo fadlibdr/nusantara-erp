@@ -142,7 +142,10 @@ class ApprovalDelegationController extends ApiController
         }
 
         if ($approvalDelegation->revoked_at === null) {
-            $approvalDelegation->forceFill(['revoked_at' => now()])->save();
+            $approvalDelegation->forceFill([
+                'revoked_at' => now(),
+                'revoked_by' => $actor->getKey(),
+            ])->save();
             ApprovalDelegations::flushMemo();
         }
 
@@ -194,6 +197,7 @@ class ApprovalDelegationController extends ApiController
             'ends_at' => $row->ends_at?->toDateString(),
             'reason' => $row->reason,
             'revoked_at' => $row->revoked_at?->toIso8601String(),
+            'revoked_by' => $row->revoked_by === null ? null : $row->revokedBy?->name,
             'is_active' => $row->isActive(),
             'state' => $row->stateLabel(),
             'direction' => (int) $row->giver_user_id === (int) $viewer->getKey() ? 'given' : 'held',

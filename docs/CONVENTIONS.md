@@ -1056,7 +1056,17 @@ demo dijamin gagal, lengkap dengan kotak centang "Setujui massal".
 
 **Delegasi dicabut oleh pemberinya, PENERIMANYA, atau pemegang `iam.update`.**
 Sebuah delegasi datang tanpa diminta, jadi ia harus bisa dikembalikan tanpa
-meminta tolong.
+meminta tolong. Kolom `revoked_by` mencatat siapa — pencabutan oleh orang
+ketiga adalah persis kejadian yang ditanyakan sebuah penyelidikan, dan sebuah
+stempel waktu tanpa nama tidak menjawabnya.
+
+**`ApprovalDelegation` ADALAH MODEL YANG DIAUDIT** (`AuditedModels`), satu-satunya
+pengecualian dari "dokumen sengaja absen" di daftar itu: barisnya bukan dokumen,
+ia adalah izin dengan tanggal kedaluwarsa. F-1 mengaudit setiap perubahan
+`approvals.*` dari→ke, jadi ATURAN uangnya tercatat; tanpa baris ini, pemberian
+hak untuk menerapkan aturan itu tidak tercatat sama sekali. Judul barisnya
+adalah atribut turunan `audit_label` ("Sari → Budi (est)"), supaya log tetap
+terbaca sesudah kedua akunnya dihapus.
 
 **"a.n." DICAP HANYA BILA DELEGASINYA YANG MEMBUATNYA MUNGKIN**
 (`core_approvals.on_behalf_of_user_id`). Seseorang yang memegang izin approve-nya

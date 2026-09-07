@@ -32,6 +32,27 @@ class ApprovalDelegation extends BaseModel
         return $this->belongsTo(User::class, 'delegate_user_id');
     }
 
+    public function revokedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by');
+    }
+
+    /**
+     * Judul baris ini di Log Audit: "Sari → Budi (prc)".
+     *
+     * Sebuah atribut turunan, bukan kolom, karena tidak ada satu kolom pun
+     * yang menjawab "delegasi yang mana" — dan log audit harus terbaca sesudah
+     * kedua akunnya dihapus. AuditedModels::labelFor membacanya lewat
+     * getAttribute(), yang menyelesaikan accessor seperti kolom biasa.
+     */
+    public function getAuditLabelAttribute(): string
+    {
+        $giver = $this->giver?->name ?? "pengguna #{$this->giver_user_id}";
+        $delegate = $this->delegate?->name ?? "pengguna #{$this->delegate_user_id}";
+
+        return $giver.' → '.$delegate.($this->scope === null ? '' : " ({$this->scope})");
+    }
+
     /**
      * Hidup HARI INI: belum dicabut, sudah mulai, belum lewat.
      *

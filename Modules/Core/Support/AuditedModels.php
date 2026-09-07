@@ -3,6 +3,7 @@
 namespace Modules\Core\Support;
 
 use App\Models\User;
+use Modules\Core\Models\ApprovalDelegation;
 use Modules\Core\Models\Setting;
 use Modules\Crm\Models\Contract;
 use Modules\Finance\Models\Account;
@@ -43,6 +44,21 @@ class AuditedModels
 
         // Who can do any of it.
         User::class => 'email',
+
+        /*
+         * Dan siapa yang MEMINJAMKANNYA (F-1, putaran verifikasi).
+         *
+         * Paket F-1 mengaudit setiap perubahan aturan persetujuan dari→ke,
+         * jadi aturan uangnya tercatat — sementara PEMBERIAN hak untuk
+         * menerapkan aturan itu tidak tercatat sama sekali. Sebuah baris di
+         * tabel ini memindahkan hak menyetujui dokumen dari satu orang ke
+         * orang lain, dan pencabutannya boleh dilakukan orang ketiga; keduanya
+         * persis pertanyaan yang ditanyakan sebuah penyelidikan.
+         *
+         * Ini pengecualian dari "dokumen sengaja absen" di atas: barisnya
+         * bukan dokumen, ia adalah izin dengan tanggal kedaluwarsa.
+         */
+        ApprovalDelegation::class => 'audit_label',
 
         // Contract value is the basis of every termin invoice raised against it.
         Contract::class => 'code',

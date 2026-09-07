@@ -3637,7 +3637,12 @@ Yang perlu Anda ketahui sebagai administrator:
   memakai hak PEMBERI untuk menyetujui pekerjaan pemberi itu sendiri.
 - **Penerima boleh mencabut.** Sebuah delegasi dapat dicabut oleh pemberinya,
   oleh penerimanya, atau oleh pemegang `iam.update`. Delegasi datang tanpa
-  diminta, jadi ia juga harus bisa dikembalikan tanpa meminta tolong.
+  diminta, jadi ia juga harus bisa dikembalikan tanpa meminta tolong. Siapa yang
+  mencabut ikut tercatat (`revoked_by`).
+- **Setiap delegasi masuk Log Audit** — dibuat dan dicabut, dengan nama pemberi
+  dan penerimanya. Cari "Delegasi Persetujuan" di Log Audit; barisnya berjudul
+  "Sari → Budi (est)". Ini satu-satunya tempat Anda melihat siapa meminjamkan
+  hak persetujuan kepada siapa, dan kapan.
 - Delegasi dari pemberi yang **dinonaktifkan** tidak memberikan apa pun.
 - **Dicabut, bukan dihapus.** Barisnya menjelaskan setiap "a.n." di jejak
   persetujuan; jangan menghapusnya dari basis data.

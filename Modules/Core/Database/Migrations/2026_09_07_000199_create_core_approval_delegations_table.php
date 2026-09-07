@@ -63,7 +63,15 @@ return new class extends Migration
 
             // Dicabut, bukan dihapus: sebuah delegasi yang pernah hidup adalah
             // penjelasan bagi setiap baris "a.n." yang ditinggalkannya.
+            //
+            // DAN SIAPA YANG MENCABUTNYA. Tiga orang boleh: pemberinya,
+            // penerimanya, dan pemegang iam.update. Tanpa kolom ini, "siapa
+            // mencabut delegasi ini" adalah pertanyaan yang tidak dapat
+            // dijawab — hanya ada stempel waktu — padahal pencabutan oleh
+            // ORANG KETIGA adalah persis kejadian yang ditanyakan sebuah
+            // penyelidikan.
             $table->timestamp('revoked_at')->nullable();
+            $table->unsignedBigInteger('revoked_by')->nullable();
 
             $table->unsignedBigInteger('created_by')->nullable();
 
