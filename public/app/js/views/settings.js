@@ -276,6 +276,13 @@ function buildMatrix(group, ctx, entries) {
       thresholdCell = rule('Tanpa nilai rupiah — ambang tidak berlaku');
       modeCell = rule('—');
       thirdCell = rule('—');
+    } else if (!row.threshold_enforced) {
+      /* Punya nilai rupiah, tetapi jalur persetujuannya tidak membaca stempel
+         kebijakan — sebuah kotak isian di sini adalah kendali yang tidak akan
+         pernah berbunyi. Aturannya dicetak, bukan disamarkan sebagai "—". */
+      thresholdCell = rule('Disetujui lewat mekanismenya sendiri — ambang tidak ditegakkan di sini');
+      modeCell = rule('—');
+      thirdCell = rule('—');
     } else {
       thresholdCell = cell(row.keys.threshold) || rule('—');
       /* Dua sebab berbeda untuk satu sel yang tidak ada, dan masing-masing

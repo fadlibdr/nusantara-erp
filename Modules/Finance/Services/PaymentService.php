@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Events\DocumentTransitioned;
+use Modules\Core\Support\ApprovalPolicy;
 use Modules\Core\Support\SegregationOfDuties;
 use Modules\Finance\Enums\KasbonStatus;
 use Modules\Finance\Enums\PaymentDirection;
@@ -252,6 +253,17 @@ class PaymentService
     /**
      * The second pair of eyes. SegregationOfDuties refuses the person who
      * clicked Ajukan — the whole reason this stage exists.
+     *
+     * AMBANG DIREKTUR YANG DICAP — ditambahkan pada putaran verifikasi F-1.
+     * Pembayaran keluar ada di matriks persetujuan dan pemilik boleh memasang
+     * ambang di barisnya, tetapi Payment tidak memakai trait Approvable
+     * (PaymentStatus bukan DocumentStatus), jadi satu-satunya penegak stempel
+     * di aplikasi ini tidak lewat sini. Terukur: dengan ambang Rp 1, sebuah
+     * pembayaran Rp 111.000.000 dicap `director: true` pada baris pengajuannya
+     * dan disetujui oleh orang yang tidak memegang fin.approve-director —
+     * jejaknya mencatat bahwa direktur dituntut dan uangnya tetap keluar.
+     * Itu persis kegagalan yang docblock DirectorApproval ditulis untuk
+     * ("pemeriksaan yang berjalan di mana pun", SPK Rp 6,5 miliar).
      */
     public function approve(Payment $payment, User $by, ?string $note = null): Payment
     {
@@ -260,6 +272,7 @@ class PaymentService
             $this->assertAwaitingApproval($payment, 'disetujui');
 
             SegregationOfDuties::assertNotSubmitter($payment, $by);
+            ApprovalPolicy::assertStampedDirector($payment, $by);
 
             $payment->forceFill(['status' => PaymentStatus::Approved])->save();
             $this->recordApproval($payment, 'approved', $by, $note);

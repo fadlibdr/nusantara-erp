@@ -620,6 +620,11 @@ class SettingService
             // ganda yang terukur di AR dan AP).
             $locked = ApprovalPolicy::modeIsLocked($type);
             $laddered = ApprovalPolicy::supportsExtraLevel($type);
+            // DAN SEBUAH AMBANG BUTUH SEORANG PENEGAK. Sel ambang pada baris
+            // yang jalur persetujuannya tidak membaca stempel adalah kendali
+            // yang tidak pernah berbunyi — lihat
+            // ApprovalPolicy::enforcesStampedDirector.
+            $enforced = ApprovalPolicy::enforcesStampedDirector($type);
 
             $rows[] = [
                 'type' => $type,
@@ -629,15 +634,19 @@ class SettingService
                 'mode_locked' => $locked,
                 'supports_extra_level' => $laddered,
                 'has_amount' => $measurable,
+                'threshold_enforced' => $enforced,
                 'follows' => $follows,
                 'follows_label' => $follows === null ? null : (ApprovalPolicy::documentEntry($follows)['label'] ?? null),
                 'keys' => $keys,
             ];
 
-            if ($follows !== null || ! $measurable) {
+            if ($follows !== null || ! $measurable || ! $enforced) {
                 // Baris yang mengikuti jenis lain memakai sel jenis itu; baris
                 // tanpa nilai rupiah tidak mendapat sel sama sekali, dan layar
                 // mencetak aturannya. Lihat ApprovalPolicy::hasMeasurableAmount.
+                // Baris yang tidak ada penegaknya juga tidak mendapat sel:
+                // sebuah ambang yang tidak dibaca siapa pun saat menyetujui
+                // adalah kendali yang tidak pernah berbunyi.
                 continue;
             }
 

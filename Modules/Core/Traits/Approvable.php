@@ -87,37 +87,17 @@ trait Approvable
      * berbunyi director=false dan tidak ada satu pun keputusan yang berubah
      * karena paket ini dipasang. Ia menyala pada baris yang pemiliknya isi.
      *
+     * BADANNYA TIDAK DI SINI, dan itu perbaikan putaran verifikasi F-1: satu
+     * jenis dokumen berambang — Pembayaran keluar — tidak memakai trait ini
+     * sama sekali, jadi selama pemeriksaannya hidup di dalam trait, ambang
+     * yang dipasang pemilik pada baris itu dicap `director: true` dan tidak
+     * ditegakkan siapa pun. Lihat ApprovalPolicy::assertStampedDirector.
+     *
      * @throws ApprovalLevelException
      */
     protected function assertStampedDirectorLevel(User $by): void
     {
-        $stamp = ApprovalPolicy::stampedFor($this);
-
-        if ($stamp === null || ($stamp['director'] ?? false) !== true) {
-            return;
-        }
-
-        if (ApprovalPolicy::modeIsLocked((string) ($stamp['type'] ?? ''))) {
-            return;
-        }
-
-        $permission = ($stamp['prefix'] ?? '') === '' ? null : "{$stamp['prefix']}.approve-director";
-
-        if ($permission !== null && $by->can($permission)) {
-            return;
-        }
-
-        throw new ApprovalLevelException(sprintf(
-            '%s %s senilai %s mencapai ambang persetujuan direktur %s yang berlaku saat dokumen ini '
-            .'DIAJUKAN; ia hanya dapat disetujui oleh pemegang izin %s. Mengubah ambangnya di '
-            .'Pengaturan → Matriks Persetujuan sekarang tidak mengubah tuntutan dokumen ini — '
-            .'aturan yang berlaku adalah aturan saat pengajuan.',
-            ApprovableDocuments::label($this),
-            (string) ($this->code ?? $this->getKey()),
-            Money::format((float) ($stamp['amount'] ?? 0), false),
-            Money::format((float) ($stamp['threshold'] ?? 0), false),
-            $permission ?? 'persetujuan direktur',
-        ));
+        ApprovalPolicy::assertStampedDirector($this, $by);
     }
 
     /**

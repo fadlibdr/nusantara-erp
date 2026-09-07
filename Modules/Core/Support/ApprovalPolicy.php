@@ -2,10 +2,13 @@
 
 namespace Modules\Core\Support;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Modules\Core\Exceptions\ApprovalLevelException;
+use Modules\Core\Traits\Approvable;
 
 /**
  * Satu kebijakan persetujuan per jenis dokumen (F-1).
@@ -92,6 +95,9 @@ final class ApprovalPolicy
 
     /** @var array<string, bool>|null memo per proses: jenis yang modelnya menyatakan approvalLadderKey() */
     private static ?array $laddered = null;
+
+    /** @var array<string, bool>|null memo per proses: jenis yang modelnya memakai trait Approvable */
+    private static ?array $enforced = null;
 
     /** @var bool|null memo per proses: core_approvals.policy sudah ada? */
     private static ?bool $hasPolicyColumn = null;
@@ -386,6 +392,7 @@ final class ApprovalPolicy
         self::$ownGate = null;
         self::$measurable = null;
         self::$laddered = null;
+        self::$enforced = null;
         self::$hasPolicyColumn = null;
     }
 
@@ -516,6 +523,104 @@ final class ApprovalPolicy
         }
 
         return $stamp;
+    }
+
+    /**
+     * TUNTUTAN DIREKTUR YANG DICAP PADA BARIS `submitted`, DITEGAKKAN.
+     *
+     * Satu badan untuk dua pemanggil, dan itu sebabnya ia ada di sini alih-alih
+     * di dalam trait Approvable: Pembayaran keluar adalah satu-satunya jenis
+     * BERAMBANG yang tidak memakai trait itu (PaymentStatus bukan
+     * DocumentStatus — lihat Payment::approvals). Selama pemeriksaannya hidup
+     * di dalam trait, sebuah ambang yang dipasang pemilik pada baris
+     * Pembayaran keluar dicap `director: true` pada baris pengajuan dan
+     * ditegakkan oleh NOL baris kode — jejaknya mencatat bahwa seorang
+     * direktur dituntut dan uangnya keluar tanpa satu pun. Terukur pada
+     * pembayaran Rp 111.000.000 dengan ambang Rp 1 (verifikasi F-1).
+     *
+     * Diam untuk tiga tabel bergerbang sendiri (PO, SPK, addendum SPK):
+     * modulnya menolak lebih dulu dengan kalimatnya sendiri, dan dua penolakan
+     * untuk satu aturan adalah dua kalimat yang bisa berbeda.
+     *
+     * @throws ApprovalLevelException
+     */
+    public static function assertStampedDirector(Model $document, User $by): void
+    {
+        $stamp = self::stampedFor($document);
+
+        if ($stamp === null || ($stamp['director'] ?? false) !== true) {
+            return;
+        }
+
+        if (self::modeIsLocked((string) ($stamp['type'] ?? ''))) {
+            return;
+        }
+
+        $permission = ($stamp['prefix'] ?? '') === '' ? null : "{$stamp['prefix']}.approve-director";
+
+        if ($permission !== null && $by->can($permission)) {
+            return;
+        }
+
+        throw new ApprovalLevelException(sprintf(
+            '%s %s senilai %s mencapai ambang persetujuan direktur %s yang berlaku saat dokumen ini '
+            .'DIAJUKAN; ia hanya dapat disetujui oleh pemegang izin %s. Mengubah ambangnya di '
+            .'Pengaturan → Matriks Persetujuan sekarang tidak mengubah tuntutan dokumen ini — '
+            .'aturan yang berlaku adalah aturan saat pengajuan.',
+            ApprovableDocuments::label($document),
+            (string) ($document->code ?? $document->getKey()),
+            Money::format((float) ($stamp['amount'] ?? 0), false),
+            Money::format((float) ($stamp['threshold'] ?? 0), false),
+            $permission ?? 'persetujuan direktur',
+        ));
+    }
+
+    /**
+     * JENIS YANG AMBANGNYA BENAR-BENAR ADA YANG MEMBACA.
+     *
+     * Sebuah sel ambang pada baris yang tidak ada penegaknya adalah kendali
+     * yang tidak pernah berbunyi — kegagalan yang sama persis dengan
+     * needs_director_approval yang dulu dicap, ditampilkan dan tidak dibaca
+     * siapa pun saat menyetujui. Maka layar hanya menawarkannya di tempat
+     * jawabannya "ya".
+     *
+     * Tiga jalan menjadi ditegakkan:
+     *   1. modelnya memakai trait Approvable (dua puluh enam dari dua puluh
+     *      delapan) — approve() memanggil assertStampedDirector;
+     *   2. tabelnya membawa needs_director_approval — modulnya sendiri yang
+     *      menegakkan, lebih dulu dan dengan kalimatnya sendiri;
+     *   3. namanya ada di ENFORCED_BY_ITS_SERVICE di bawah.
+     *
+     * Daftar (3) adalah daftar kelas yang harus diingat orang berikutnya, dan
+     * itu memang bahaya — karena itu ApprovalDirectorReachTest memaku bahwa
+     * SETIAP baris yang mendapat sel ambang lolos salah satu dari ketiganya.
+     * Jenis ke-29 yang tidak menegakkan apa pun tidak akan mendapat sel; ia
+     * akan membuat uji itu merah.
+     */
+    public const ENFORCED_BY_ITS_SERVICE = [
+        // PaymentService::approve memanggil assertStampedDirector sendiri.
+        'payment',
+    ];
+
+    public static function enforcesStampedDirector(string $type): bool
+    {
+        if (self::modeIsLocked($type) || in_array($type, self::ENFORCED_BY_ITS_SERVICE, true)) {
+            return true;
+        }
+
+        if (self::$enforced === null) {
+            self::$enforced = [];
+
+            foreach (array_keys(ApprovableDocuments::all()) as $class) {
+                $slug = self::slugFor($class);
+
+                if ($slug !== null) {
+                    self::$enforced[$slug] = in_array(Approvable::class, class_uses_recursive($class), true);
+                }
+            }
+        }
+
+        return self::$enforced[$type] ?? false;
     }
 
     /**
