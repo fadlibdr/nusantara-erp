@@ -1143,6 +1143,11 @@ function baselineDetail(detail) {
         // live_exists hanya ada saat relasi liveTask dimuat (endpoint show).
         // Bedakan "tugasnya dihapus dari WBS" dari "kami tidak menanyakannya".
         const gone = task.live_exists === false;
+        /* Pasangan hidupnya dicari id DULU lalu kode (BaselineService::attachLiveTasks).
+           Kalau id beku menunjuk tugas berkode LAIN, progres di baris ini adalah progres
+           tugas itu — dan baris ini mengatakannya alih-alih menyajikannya sebagai
+           progresnya sendiri. Pada data yang sehat kalimat ini tidak pernah muncul. */
+        const crossed = task.live_wbs_code && task.live_wbs_code !== task.wbs_code ? task.live_wbs_code : null;
         return el('tr', [
           el('td.code', { text: task.wbs_code || '' }),
           el('td', el('span', [
@@ -1151,6 +1156,10 @@ function baselineDetail(detail) {
               style: gone ? { textDecoration: 'line-through', color: 'var(--muted)' } : null,
             }),
             gone ? el('span.cell-sub', { text: 'sudah tidak ada di WBS — bobotnya dihitung nol' }) : null,
+            crossed ? el('span.cell-sub', {
+              text: `progres diambil dari tugas hidup ${crossed} — id beku baris ini menunjuk ke sana`,
+              style: { color: 'var(--warning)' },
+            }) : null,
           ])),
           el('td.right.num', { text: fmt.percent(task.weight_pct, { decimals: 4 }) }),
           el('td', { text: fmt.date(task.planned_start) }),

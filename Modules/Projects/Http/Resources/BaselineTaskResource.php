@@ -28,12 +28,32 @@ class BaselineTaskResource extends JsonResource
             // empty, so live_exists was `null` — never `false` — for exactly
             // the rows it exists to flag. evm.js:1145 tests
             // `task.live_exists === false`, so the struck-through "tugas
-            // dihapus" row has never once been drawn, and this docblock
-            // promised a safety it did not provide. Every frozen row on the
-            // shipped demo file is such a row (11 of 11 wbs_task_id dangle).
+            // dihapus" row had never once been drawn.
+            //
+            // WHICH live task, though, is decided by
+            // BaselineService::attachLiveTasks (id first, then wbs_code), not
+            // by the id-only `liveTask` relation: every frozen id on the demo
+            // file dangles, so the relation alone made all 11 rows say "sudah
+            // tidak ada di WBS" while EVM was earning value from those very
+            // tasks. `live_matched_by` and `live_wbs_code` carry the rule that
+            // was actually applied to the screen, so a row whose progress
+            // comes from a task with ANOTHER code says so instead of
+            // presenting it as its own.
             'live_exists' => $this->when(
                 $this->resource->relationLoaded('liveTask'),
                 fn (): bool => $this->liveTask !== null,
+            ),
+            'live_matched_by' => $this->when(
+                $this->resource->relationLoaded('liveTask'),
+                fn (): ?string => match (true) {
+                    $this->liveTask === null => null,
+                    $this->liveTask->id === $this->wbs_task_id => 'id',
+                    default => 'code',
+                },
+            ),
+            'live_wbs_code' => $this->when(
+                $this->resource->relationLoaded('liveTask'),
+                fn (): ?string => $this->liveTask?->wbs_code,
             ),
             'live_progress_pct' => $this->when(
                 $this->resource->relationLoaded('liveTask'),

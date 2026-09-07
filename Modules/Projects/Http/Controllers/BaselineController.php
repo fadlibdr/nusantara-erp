@@ -49,9 +49,15 @@ class BaselineController extends ApiController
         // approvals.user: jejak persetujuan — 4 Sep 2026 hanya 5 dari 28 show()
         // memuatnya; kartu Riwayat Persetujuan dan nama/tanggal pada strip status
         // hilang di dokumen lainnya (HASIL-UJI P-4, T3.3).
-        return $this->ok(ProjectBaselineResource::make(
-            $baseline->load(['project', 'points', 'tasks.liveTask', 'approvals.user'])
-        ));
+        //
+        // attachLiveTasks, BUKAN `tasks.liveTask`: relasi itu sendirian adalah
+        // relasi id, dan id beku menggantung sesudah satu kali "Buat WBS dari
+        // BOQ" — memuatnya begitu saja membuat SETIAP baris beku mengaku
+        // "sudah tidak ada di WBS". Aturannya kini sama dengan EVM: id dulu,
+        // lalu wbs_code dalam proyek yang sama.
+        $baseline->load(['project', 'points', 'tasks', 'approvals.user']);
+
+        return $this->ok(ProjectBaselineResource::make($this->service->attachLiveTasks($baseline)));
     }
 
     public function update(BaselineUpdateRequest $request, ProjectBaseline $baseline): JsonResponse

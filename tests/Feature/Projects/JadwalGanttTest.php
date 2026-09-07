@@ -280,6 +280,75 @@ class JadwalGanttTest extends ErpTestCase
     }
 
     /**
+     * Uji di atas membekukan baseline lalu langsung bertanya — keadaan
+     * id-masih-utuh, yang paket ini sendiri buktikan TIDAK PERNAH bertahan.
+     * Yang normal adalah keadaan di bawah ini: satu kali "Buat WBS dari BOQ"
+     * sesudah pembekuan, dan setiap id beku menggantung.
+     *
+     * Sampai verifikasi P1-H, muatan `show` memuat `tasks.liveTask` — relasi
+     * ID — jadi keadaan normal itu memulangkan `live_exists: false` untuk
+     * SELURUH isi baseline dan kartu "Isi beku" di layar EVM mencoret setiap
+     * barisnya dengan "sudah tidak ada di WBS — bobotnya dihitung nol",
+     * sementara EVM di layar sebelahnya menghitung nilai perolehan justru DARI
+     * tugas-tugas itu (`tasks_removed: []`). Satu layar mengatakan lingkupnya
+     * dihapus, layar sebelahnya menghitung uang dari lingkup yang sama.
+     */
+    public function test_every_frozen_row_still_finds_its_live_task_after_the_wbs_was_regenerated(): void
+    {
+        $baseline = $this->freeze();
+        app(ProjectService::class)->generateWbsFromBoq($this->project->refresh());
+
+        // Prasyarat yang membuat uji ini berarti: id-nya memang menggantung.
+        $liveIds = $this->project->refresh()->wbsTasks()->pluck('id')->all();
+        $frozenIds = $baseline->tasks()->whereNotNull('wbs_task_id')->pluck('wbs_task_id')->all();
+        $this->assertNotEmpty($frozenIds);
+        $this->assertSame([], array_intersect($frozenIds, $liveIds),
+            'Prasyarat uji hilang: masih ada id beku yang menunjuk baris hidup.');
+
+        $tasks = collect($this->actingAs($this->adminUser())
+            ->getJson("/api/projects/baselines/{$baseline->id}")->assertOk()->json('data.tasks'));
+
+        $this->assertSame([], $tasks->where('live_exists', false)->pluck('wbs_code')->all(),
+            'Baris beku yang tugasnya MASIH ADA (kodenya cocok) dikirim sebagai "sudah tidak ada di WBS".');
+        $this->assertSame(['code'], $tasks->pluck('live_matched_by')->unique()->values()->all());
+
+        // Progresnya datang dari tugas hidup yang benar, bukan dari null.
+        $progress = $this->project->wbsTasks()->pluck('progress_pct', 'wbs_code');
+        foreach ($tasks as $task) {
+            $this->assertSame((string) $progress[$task['wbs_code']], (string) $task['live_progress_pct']);
+            $this->assertSame($task['wbs_code'], $task['live_wbs_code']);
+        }
+    }
+
+    /**
+     * Sisi id dari aturan yang sama: id beku menang (kode yang DIGANTI NAMA
+     * masih tugas yang sama), tetapi baris yang progresnya datang dari tugas
+     * berkode lain harus MENGATAKANNYA — di layar EVM kalimat itulah yang
+     * membedakan "progres saya" dari "progres tugas sebelah".
+     */
+    public function test_a_frozen_row_whose_id_points_at_another_code_says_where_its_progress_came_from(): void
+    {
+        $baseline = $this->freeze();
+        $c1 = $this->project->wbsTasks()->where('wbs_code', 'C.1')->firstOrFail();
+        DB::table('prj_baseline_tasks')
+            ->where('baseline_id', $baseline->id)->where('wbs_code', 'B.3')
+            ->update(['wbs_task_id' => $c1->id]);
+
+        $row = collect($this->actingAs($this->adminUser())
+            ->getJson("/api/projects/baselines/{$baseline->id}")->assertOk()->json('data.tasks'))
+            ->firstWhere('wbs_code', 'B.3');
+
+        $this->assertTrue($row['live_exists']);
+        $this->assertSame('id', $row['live_matched_by']);
+        $this->assertSame('C.1', $row['live_wbs_code']);
+        $this->assertSame((string) $c1->progress_pct, (string) $row['live_progress_pct']);
+
+        $evm = $this->spa('views/evm.js');
+        $this->assertStringContainsString('task.live_wbs_code !== task.wbs_code', $evm,
+            'Layar EVM tidak lagi membandingkan kode hidup dengan kode beku, jadi baris silang kembali diam.');
+    }
+
+    /**
      * Baseline yang belum ada bukan galat: proyek yang belum dibekukan tetap
      * punya jadwal, dan yang hilang hanya bar pembandingnya. Endpoint yang
      * dipanggil layar harus memulangkan daftar KOSONG dengan 200 — jadwal.js
