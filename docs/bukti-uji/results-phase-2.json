@@ -837,7 +837,9 @@
    "head": "Matriks Persetujuan",
    "count_label": "28 jenis dokumen",
    "rows": 28,
-   "editable_cells": 38,
+   "editable_cells": 16,
+   "mode_cells": 1,
+   "threshold_cells": 14,
    "headers": [
     "JENIS DOKUMEN",
     "WAJIB DIREKTUR MULAI DARI",
@@ -888,7 +890,7 @@
   "user_created": 201,
   "edit_without_director": {
    "status": 422,
-   "message": "{\"settings.approvals.purchase_order.threshold_two_level\": [\"Aturan persetujuan hanya dapat diubah oleh pemegang izin persetujuan direktur (*.approve-director) — pada instalasi standar peran direktur atau admin. Izin core.update saja tidak cukup: yang diubah di sini adalah siapa boleh menyetujui dokumen senilai berapa.\"]}"
+   "message": "{\"settings.approvals.purchase_order.threshold_two_level\": [\"Aturan persetujuan ini hanya dapat diubah oleh pemegang izin prc.approve-director — pada instalasi standar peran direktur atau admin. Izin core.update saja tidak cukup: yang diubah di sini adalah siapa boleh menyetujui dokumen senilai berapa.\"]}"
   },
   "edit_with_both": {
    "status": 200,
@@ -908,12 +910,18 @@
   },
   "delegate_banner": "Anda memegang delegasi persetujuan dari Administrator Sistem (seluruh persetujuannya, 01 Sep 2026 – 27 Sep 2026) — Cuti tahunan (fixture S28).\nPersetujuan yang Anda berikan dengan hak ini tercatat sebagai \"Anda a.n. pemberinya\". Dokumen yang DIAJUKAN pemberi delegasi tetap tidak boleh Anda setujui.",
   "bulk_on": {
-   "rows": 4,
-   "checkboxes": 4,
+   "rows": 2,
+   "checkboxes": 2,
    "disabled": 0,
    "bulk_button": true,
    "bulk_text": "Pilih dokumen untuk disetujui sekaligus (maksimum 5).\nSetujui terpilih"
   },
+  "delegate_queue_submitters": [
+   "—"
+  ],
+  "delegate_queue_submitter_ids": [
+   null
+  ],
   "selected": {
    "codes": [
     "CTI/2026/VIII/0002",
@@ -925,8 +933,8 @@
    "2 dokumen disetujui: CTI/2026/VIII/0002, RAP/2026/0001."
   ],
   "after_bulk": {
-   "rows": 2,
-   "checkboxes": 2,
+   "rows": 0,
+   "checkboxes": 0,
    "disabled": 0,
    "bulk_button": true,
    "bulk_text": "Pilih dokumen untuk disetujui sekaligus (maksimum 5).\nSetujui terpilih"
@@ -954,6 +962,8 @@
    "amountless_rows_print_the_rule": true,
    "thirteen_rows_have_no_amount": true,
    "no_row_ships_a_fabricated_zero": true,
+   "a_threshold_cell_only_where_something_enforces_it": true,
+   "the_mode_cell_only_on_the_type_that_can_carry_it": true,
    "core_update_alone_is_refused": true,
    "the_refusal_names_the_permission_needed": true,
    "a_director_with_core_update_may_edit": true,
@@ -965,13 +975,16 @@
    "bulk_appears_once_the_owner_sets_a_cap": true,
    "the_cap_is_printed_not_implied": true,
    "two_documents_were_actually_picked": true,
+   "every_row_the_queue_offered_was_picked": true,
+   "the_delegates_queue_holds_nothing_the_giver_submitted": true,
    "bulk_approve_names_every_document_it_touched": true,
+   "not_one_offered_row_was_refused": true,
    "approved_rows_leave_the_queue": true,
    "the_trail_reads_budi_a_n_sari": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 21729,
+  "_ms": 21817,
   "_clicks": 1
  },
  "S28_matriks_persetujuan_mobile": {
@@ -986,7 +999,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5413,
+  "_ms": 5553,
   "_clicks": 0
  }
 }

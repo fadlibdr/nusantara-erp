@@ -96,14 +96,33 @@ Ini keputusan yang terbuka, dan dicatat di § Untuk pemilik.
 | Pertanyaan | Yang dikirim | Dapat diubah pemilik |
 |---|---|---|
 | Siapa boleh membuat delegasi? | pemiliknya sendiri, atau pemegang `iam.update` | lewat peran |
-| Apa yang dipinjamkan? | **hanya** `<awalan>.approve` dan `<awalan>.approve-director` | tidak — dipaku uji |
+| Apa yang dipinjamkan? | **hanya** `<awalan>.approve` dan `<awalan>.approve-director`, dan **hanya di tombol Setujui/Tolak sebuah dokumen** | tidak — dipaku uji |
 | Lingkupnya? | seluruh hak approve pemberinya, atau satu awalan modul | per baris delegasi |
 | Jendelanya? | tanggal mulai wajib, tanggal selesai boleh kosong (= sampai dicabut) | per baris |
 | Berantai? | tidak — pemberinya harus memegang izinnya sendiri | tidak |
-| Delegat menyetujui pengajuan pemberinya? | **tidak pernah** | ikut saklar maker-checker |
+| Delegat menyetujui pengajuan pemberinya? | **tidak dengan hak pemberi itu**; kalau ia memegang haknya sendiri, delegasinya tidak menghalanginya | ikut saklar maker-checker |
 | Terlihat sebelum dipakai? | spanduk di Tugas Saya menyebut pemberi, lingkup, jendela, alasan | tidak |
-| Terlihat sesudah dipakai? | jejak berbunyi "Budi a.n. Sari", selamanya | tidak |
+| Terlihat sesudah dipakai? | jejak DAN pemberitahuan pengaju berbunyi "Budi a.n. Sari", selamanya | tidak |
 | Dicabut = dihapus? | **tidak** — barisnya menjelaskan setiap "a.n." yang ditinggalkannya | tidak |
+| Siapa boleh mencabut? | pemberinya, **penerimanya**, atau pemegang `iam.update`; `revoked_by` mencatat siapa | tidak |
+| Tercatat di Log Audit? | ya — dibuat dan dicabut, berjudul "Sari → Budi (est)" | tidak |
+
+**Empat baris di tabel ini berubah pada putaran verifikasi** (7 Sep 2026), dan keempatnya karena yang
+dikirim tidak sesuai dengan yang dijanjikannya:
+
+- *Apa yang dipinjamkan* — izin `<awalan>.approve` sendiri menggerbangi **15 rute yang bukan
+  keputusan atas dokumen**: memposting jurnal manual, membuka kembali periode fiskal, menerbitkan
+  nomor e-Bupot, `advance-payout` dan `retention-release` SPK, menutup proyek, verify/waive/reopen
+  defect, close/reopen insiden K3, mengaktifkan kontrak, dua keputusan submittal, verifikasi NCR.
+  Diukur ujung ke ujung: 403 menjadi 200 pada reopen periode fiskal sesudah sebuah delegasi cuti
+  biasa. Sekarang delegasi hanya dihormati pada rute `/{id}/approve` dan `/{id}/reject`.
+- *Delegat menyetujui pengajuan pemberinya* — "tidak pernah" berarti sebuah delegasi **mencabut hak
+  orang yang menerimanya**: pemakaian paling biasa (pengaju menyerahkan haknya kepada penyetujunya
+  sebelum cuti) membuat 2 dari 4 baris antrean penyetuju itu tidak dapat disetujui, dan siapa pun
+  boleh membuat baris yang melumpuhkan seorang direktur. Penolakannya kini hanya berlaku bila
+  haknya memang dipinjam.
+- *Siapa boleh mencabut* — penerimanya ditambahkan; sebuah delegasi datang tanpa diminta.
+- *Tercatat di Log Audit* — barisnya sebelumnya tidak diaudit sama sekali.
 
 ## Delapan, bukan sembilan
 
@@ -354,14 +373,29 @@ dilaporkan di § Gerbang di bawah berasal dari putaran yang dijalankan **sesudah
 apa yang bisa Anda ubah, dan apa yang Anda ubah kalau Anda menyentuhnya.
 
 1. **Tabel 28 baris di atas adalah jawaban OQ-4 apa adanya.** Tiga jenis punya aturan bernilai; 11
-   lagi bisa diberi; 13 tidak punya nilai untuk diukur.
+   lagi bisa diberi; 13 tidak punya nilai untuk diukur. Yang ditawarkan pada 14 baris berambang
+   adalah **ambangnya saja** — kolom "cara ambang berlaku" hanya ada pada Keputusan pemenang
+   (lihat butir 4).
 2. **Ambang PO Rp 100 juta dan SPK Rp 200 juta tidak berubah** — sel itu sekarang bisa Anda edit dari
    layar, dan kunci yang ditulisnya adalah kunci yang sama yang sudah dibaca gerbangnya.
 3. **Keputusan pemenang tetap berjenjang** Rp 100 juta (2 penyetuju) / Rp 1 miliar (3), sekarang
    terbaca di layar dalam kosakata yang sama dengan baris lain.
-4. **Mode `extra_level` tersedia untuk 12 jenis** yang punya nilai dan tidak bergerbang sendiri.
-   Menyalakannya pada, misalnya, Pembayaran keluar berarti pembayaran di atas ambang menuntut
-   **dua orang berbeda**, yang kedua pemegang `fin.approve-director`.
+4. **~~Mode `extra_level` tersedia untuk 12 jenis~~ — DICABUT pada putaran verifikasi, dan kalimat
+   di atas menjual cacat uang.** Mode itu membuat persetujuan PERTAMA meninggalkan dokumen pada
+   status `submitted`, dan hanya keputusan pemenang yang pengendalinya membaca status itu. Terukur
+   7 Sep 2026: menyalakannya pada Invoice termin memposting jurnal
+   piutang/pendapatan/PPN keluaran Rp 2,22 miliar pada dokumen yang **belum disetujui**, lalu
+   memposting jurnal **kedua** saat penyetuju berikutnya datang (JV/2026/09/0001 dan
+   JV/2026/09/0002, keduanya posted). Bentuk yang sama pada Tagihan vendor Rp 111 juta. Selnya
+   sekarang hanya muncul pada satu baris — Keputusan pemenang — dan resolvernya memaksa
+   `single_director` di mana pun mode itu sempat tertulis.
+
+   Contoh yang dipakai kalimat lama itu juga salah untuk sebab kedua: **Pembayaran keluar** tidak
+   memakai trait `Approvable`, jadi ambang direkturnya dicap `director: true` dan tidak ditegakkan
+   satu baris kode pun (terukur: pembayaran Rp 111.000.000 disetujui oleh orang tanpa
+   `fin.approve-director`). Sejak putaran ini `PaymentService::approve` menegakkannya, dan sel
+   ambangnya sah — tetapi yang dituntut adalah **satu** penyetuju pemegang `fin.approve-director`,
+   bukan dua orang berbeda.
 5. **Setujui massal mati.** Isi angkanya hanya bila Anda memang menginginkan satu klik untuk banyak
    dokumen. Pertimbangkan bahwa setiap dokumen tetap satu permintaan dan laju API 120/menit.
 6. **Delegasi kosong.** Fiturnya ada; tidak ada satu baris pun sampai seseorang membuatnya.
@@ -395,6 +429,31 @@ angka di bawah bukan angka itu (§ Tinjauan sendiri, catatan proses).
 | MySQL 8 | berkas F-1 + seluruh registri Pengaturan + Iam | 202 | 3.248 | 0 | 02:08.051 | ✅ hijau |
 | Peramban | S28 desktop 1440×900 + S28m ponsel 390×844 | 2 skenario | 26 syarat | — | 21.7 s + 5.4 s | ✅ hijau |
 
+**Dijalankan ulang sesudah putaran verifikasi (7 Sep 2026)** — angka di bawah adalah angka yang
+berlaku untuk pohon yang di-merge, dan semuanya diukur di sesi itu:
+
+| Leg | Cakupan | Uji | Asersi | Dilewati | Waktu | Hasil |
+|---|---|---:|---:|---:|---:|---|
+| SQLite | Core, Finance, Estimation, Procurement, Subcontract, Iam, Projects (Feature + Unit) | 2.900 | 17.905 | 11 | 09:10.020 | ✅ hijau |
+| MySQL 8 | 17 berkas persetujuan/setelan Core + Iam | 139 | 2.791 | 0 | 02:12.201 | ✅ hijau |
+| MySQL 8 | 5 berkas uang Finance (jurnal AR/AP, persetujuan pembayaran) | 63 | 285 | 0 | 01:14.985 | ✅ hijau |
+| Peramban | S28 desktop + S28m ponsel, di atas salinan dataset demo yang dimigrasi | 2 skenario | **31** syarat | — | 21.8 s + 5.6 s | ✅ hijau |
+
+Lima syarat harness BARU (26 → 31), semuanya menjaga perbaikan putaran ini:
+`a_threshold_cell_only_where_something_enforces_it` (14 kotak ambang, bukan 15),
+`the_mode_cell_only_on_the_type_that_can_carry_it` (1 sel mode, bukan 12),
+`the_delegates_queue_holds_nothing_the_giver_submitted`,
+`every_row_the_queue_offered_was_picked`, `not_one_offered_row_was_refused`. Yang terakhir dua
+mengubah cara skenario memilih: SETIAP baris yang ditawarkan dicentang, bukan dua yang pertama —
+sebuah baris yang tidak dapat disetujui sekarang MEMBUAT skenario ini merah alih-alih terlewat.
+
+`/app/` dimuat di Chromium sesudah seluruh suntingan SPA (`settings.js`, `tugas.js`, `board.js`,
+`app.css`): halaman masuk, lalu `#/settings` (12 kartu), `#/tugas` (2 kartu) dan `#/dashboard`
+(8 kartu) — **nol galat konsol, nol permintaan gagal**.
+
+`erp:permission-check` pada salinan demo yang dimigrasi, dijalankan ulang: **94 izin, 12 peran,
+nol penyimpangan**.
+
 Leg MySQL sengaja tidak menjalankan seluruh direktori: yang perlu dilihat di sana adalah kolom
 `json` `core_approvals.policy` (SQLite menyimpannya sebagai TEXT dan cast `array` menyembunyikan
 bedanya) dan `whereDate` pada jendela delegasi — keduanya ada di berkas F-1, dan seluruh registri
@@ -424,3 +483,35 @@ dilaporkan `pint --test` dan sudah begitu sebelum paket ini; tidak satu pun dise
 | 10 | `b9caf4c` | bukti UI diambil ulang di atas pohon yang diam |
 | 11 | `0e4008e` | stempel menjawab tiap pertanyaan sekali |
 | 12 | `4636d47` | tinjauan sendiri 3 — PO/SPK tergambar dua kali di Pengaturan |
+
+## Putaran verifikasi (7 Sep 2026) — sebelas temuan, sebelas commit
+
+Paket ini keluar dari agen pembangun tanpa verifikasi adversarial (butir #1 di
+§ Yang TIDAK diverifikasi). Verifikasi itu dijalankan sesudahnya, dua lensa —
+uang dan izin — dan menemukan **sebelas** hal. Tiga di antaranya cacat uang yang
+berdiri sendiri, dan dua dari ketiganya adalah kendali yang layar tawarkan dan
+tidak ada yang tegakkan.
+
+| # | Berat | Apa | Perbaikannya |
+|---|---|---|---|
+| f1-money-1 | merusak | Mode `extra_level` ditawarkan pada 12 baris; hanya keputusan pemenang yang pengendalinya membaca status sesudah Setujui. Terukur: Invoice termin Rp 2,22 miliar memposting jurnal pada dokumen `submitted`, lalu memposting jurnal **kedua** | Sel modenya hanya muncul pada baris yang menyatakan `approvalLadderKey()`; resolvernya memaksa `single_director` di mana pun mode itu terlanjur tertulis; `Approvable` menolak stempel bertingkat pada jenis yang tidak mendukungnya |
+| f1-money-2 | merusak | Ambang direktur pada Pembayaran keluar dicap `director: true` dan ditegakkan **nol** baris kode — `Payment` tidak memakai trait `Approvable`. Terukur pada Rp 111.000.000 | Pemeriksanya pindah ke `ApprovalPolicy::assertStampedDirector`; `PaymentService::approve` memanggilnya. Dan `enforcesStampedDirector` + satu uji memastikan setiap baris berkotak-isian punya penegak |
+| f1-money-3 | tidak lengkap | Satu izin `*.approve-director` mana pun membuka **semua** baris matriks: pemegang `hr.approve-director` menaikkan ambang PO 100× lewat HTTP 200 | `directorPermissionForKey` menuntut izin barisnya sendiri; tiga kunci lintas-baris tetap "salah satu"; validator menolak per baris |
+| f1-money-4 / f1-perm-03 | tidak lengkap | Antrean delegat memuat pengajuan pemberinya — pekerjaan yang F-1 sendiri jamin akan ditolak — dan setujui massal mencentangnya. Terukur pada dataset demo: 2 dari 4 baris | `ApprovalQueue` memakai predikat yang MENOLAK, bukan salinannya; kolom `policy` ikut di SELECT yang sudah ada, jadi nol kueri tambahan per baris |
+| f1-money-5 | kosmetik | `tone: 'error'` tidak dikenal stylesheet: toast kegagalan berwarna netral, `rgb(94,104,116)` | `tone: 'err'`; pemindai nada menemukan **empat** kejadian lain yang sudah ada sebelum F-1 dan `.toast.warn` didefinisikan untuk keempatnya |
+| f1-perm-01 | merusak | Delegasi meminjamkan `<awalan>.approve`, dan izin itu menggerbangi **15 rute** yang bukan keputusan dokumen — posting jurnal manual, reopen periode fiskal, advance payout, retention release. Terukur 403 → 200 | Delegasi hanya dihormati pada rute `/{id}/approve` dan `/{id}/reject`; rute ke-16 tertutup secara bawaan. Tiga docblock dan PANDUAN-ADMINISTRATOR diperbaiki dengan daftar terukurnya |
+| f1-perm-02 | merusak | Sebuah delegasi **mencabut** hak penerimanya atas pengajuan pemberinya, bahkan bila ia memegang hak itu sendiri; siapa pun boleh membuat baris seperti itu, dan yang dicabut tidak bisa mengembalikannya | Penolakannya menuntut ketiga syaratnya sekaligus (pemberi tercakup lingkup, pemberi benar-benar memegang haknya, penyetuju TIDAK memegangnya sendiri); penerima boleh mencabut |
+| f1-perm-04 | tidak lengkap | "a.n." sampai ke jejak dan layar detail, tetapi **tidak** ke pemberitahuan yang dibaca pengaju | Isi pemberitahuan keputusan dibaca dari `on_behalf_of_user_id` pada baris yang baru ditulis |
+| f1-perm-05 | tidak lengkap | Memberi dan mencabut hak menyetujui adalah satu-satunya perubahan izin yang paket ini tidak audit; pencabutan tidak mencatat aktor sama sekali | `ApprovalDelegation` masuk `AuditedModels`; kolom `revoked_by` ditambahkan ke migrasi 000199 sendiri (tabelnya belum pernah hidup di mana pun, jadi blok Core yang penuh tidak perlu diperlebar) |
+| f1-perm-06 | kosmetik | Kalimat "nol kueri untuk yang tidak punya delegasi" tidak pernah diukur, dan salah | Diukur, tabelnya ada di butir #6 § Yang TIDAK diverifikasi, dan `ApprovalDelegationCostTest` menjaganya |
+
+**Butir #7 § Yang TIDAK diverifikasi ("penolakan setujui massal di tengah antrean, belum diuji lewat
+peramban") tertutup dari sisi lain**: sesudah f1-money-4, antrean tidak lagi berisi baris yang dijamin
+ditolak, jadi keadaan yang dulu tidak teruji itu tidak lagi dibuat oleh aplikasi ini sendiri.
+Penolakan yang tersisa (mis. ambang direktur) tetap ditangani loop klien, yang melanjutkan dan
+menamai tiap kegagalan.
+
+**Satu bawaan berubah bagi pemilik**, dan hanya satu: kolom "cara ambang berlaku" yang dulu dapat
+diisi pada 12 baris sekarang hanya ada pada Keputusan pemenang. Tidak ada instalasi yang kehilangan
+sebuah keputusan karenanya — mode itu dikirim `single_director` pada kedua belas baris, dan tidak
+ada satu pun yang dapat menegakkannya kalau diubah.

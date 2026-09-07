@@ -5955,6 +5955,13 @@ MATRIX_CARD = """() => {
     count_label: card.querySelector('.card-head span.muted').innerText,
     rows: rows.length,
     editable_cells: card.querySelectorAll('tbody input, tbody select').length,
+    // Putaran verifikasi F-1: sel MODE hanya boleh ada di baris yang
+    // persetujuannya boleh berhenti di tengah (keputusan pemenang). Pada
+    // sebelas baris lain ia memposting jurnal dua kali.
+    mode_cells: card.querySelectorAll('tbody select').length,
+    // Kolom kedua saja: kolom keempat (ambang tingkat ketiga) juga sebuah
+    // input, dan menghitung keduanya bersama menjawab pertanyaan lain.
+    threshold_cells: rows.filter(r => r.children[1] && r.children[1].querySelector('input')).length,
     headers: [...card.querySelectorAll('thead th')].map(th => th.innerText),
     po: cells(/Pesanan pembelian/),
     spk: cells(/SPK subkontraktor/),
@@ -6081,9 +6088,22 @@ def s28(pg):
     #     berarti menebak.
     finance_token = token_for("finance@nusantara.test")
     status, trail_source = api("core/inbox", finance_token)
+    # Putaran verifikasi F-1: antrean seorang delegat tidak boleh memuat
+    # pengajuan pemberinya — F-1 yang dikirim menawarkan 2 dari 4 baris yang
+    # dijamin menjawab 422, lengkap dengan kotak centang.
+    out["delegate_queue_submitters"] = sorted({
+        (r.get("submitted_by") or "—") for r in (trail_source.get("data") or [])})
+    out["delegate_queue_submitter_ids"] = sorted({
+        r.get("submitted_by_id") for r in (trail_source.get("data") or [])}, key=lambda v: (v is None, v))
+    # SETIAP baris yang ditawarkan dipilih, bukan dua yang pertama. Sebelum
+    # putaran verifikasi F-1 antrean seorang delegat memuat baris yang dijamin
+    # menjawab 422 (pengajuan pemberinya), dan memilih dua yang pertama —
+    # kebetulan dua yang berhasil — menghijaukan skenario ini di atas antrean
+    # yang separuhnya tidak dapat disetujui. Memilih semuanya berarti sebuah
+    # baris yang tidak dapat disetujui MEMBUAT skenario ini merah.
     boxes = pg.query_selector_all("table.data tbody input[type=checkbox]:not([disabled])")
     picked = []
-    for box in boxes[:2]:
+    for box in boxes[:5]:
         row = box.evaluate_handle("b => b.closest('tr')")
         # Kode dokumennya, bukan baris innerText-nya: sejak kolom kotak
         # centang ada, baris innerText dimulai dengan sel kosong.
@@ -6139,6 +6159,10 @@ def s28(pg):
         "thirteen_rows_have_no_amount": m.get("dash_rows") == 13,
         # Syarat terpenting paket ini: tidak ada satu pun Rp 0 karangan.
         "no_row_ships_a_fabricated_zero": m.get("zero_rows") == [],
+        # 14 ambang = 28 - 13 tanpa nilai rupiah - 1 yang mengikuti SPK.
+        "a_threshold_cell_only_where_something_enforces_it": m.get("threshold_cells") == 14,
+        # dan SATU sel mode, pada satu-satunya jenis yang dapat membawanya.
+        "the_mode_cell_only_on_the_type_that_can_carry_it": m.get("mode_cells") == 1,
         "core_update_alone_is_refused": out["edit_without_director"]["status"] == 422,
         "the_refusal_names_the_permission_needed": "approve-director" in out["edit_without_director"]["message"],
         "a_director_with_core_update_may_edit": out["edit_with_both"]["status"] == 200,
@@ -6155,10 +6179,18 @@ def s28(pg):
             out["bulk_on"]["bulk_button"] is True and out["bulk_on"]["checkboxes"] > 0),
         "the_cap_is_printed_not_implied": "maksimum 5" in (out["bulk_on"]["bulk_text"] or ""),
         "two_documents_were_actually_picked": len(picked) == 2,
+        "every_row_the_queue_offered_was_picked": len(picked) == out["bulk_on"]["checkboxes"],
+        "the_delegates_queue_holds_nothing_the_giver_submitted": (
+            "Administrator Sistem" not in out["delegate_queue_submitters"]
+            and 1 not in out["delegate_queue_submitter_ids"]),
     }
     if picked:
         checks["bulk_approve_names_every_document_it_touched"] = all(
             any(code in t for t in (out.get("bulk_toasts") or [])) for code in picked)
+        # Dan tidak satu pun yang ditawarkan ditolak: itulah kalimat yang
+        # dijaga saringan antrean, diucapkan oleh peramban.
+        checks["not_one_offered_row_was_refused"] = not any(
+            "tidak disetujui" in t.lower() for t in (out.get("bulk_toasts") or []))
         checks["approved_rows_leave_the_queue"] = (
             out["after_bulk"]["rows"] == out["bulk_on"]["rows"] - len(picked))
         checks["the_trail_reads_budi_a_n_sari"] = (
