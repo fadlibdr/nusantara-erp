@@ -369,4 +369,30 @@ class BudgetMonthlyTest extends ErpTestCase
         $this->assertCount(4, $payload['rows']);
         $this->assertStringContainsString('TURUNAN', $payload['derivation']);
     }
+
+    /**
+     * MUATANNYA MENYEBUT PROYEKNYA — dan itu terutama demi KERTAS.
+     *
+     * app.css menyembunyikan .filters dan .tabs @media print, jadi lembar
+     * "Per bulan" yang dicetak tidak punya satu penanda proyek pun: terukur
+     * pada data demo, 17 baris anggaran vs realisasi senilai
+     * Rp 24.250.000.000 tanpa kode maupun nama proyek di atasnya. Kepala
+     * kartunya kini mencetaknya, dan kepala kartu ikut tercetak.
+     */
+    public function test_the_monthly_payload_names_the_project_it_belongs_to(): void
+    {
+        $project = $this->project('PRJ-2026-930');
+        $this->approvedRap($project, 400_000_000);
+        $this->approvedBaseline($project, 'BSL/2026/0930');
+
+        $payload = $this->monthly($project);
+
+        $this->assertSame('PRJ-2026-930', $payload['project_code']);
+        $this->assertSame('Proyek PRJ-2026-930', $payload['project_name']);
+
+        // Dan layarnya benar-benar mencetaknya di kepala kartu (uji berkas;
+        // harness S29 membacanya di media cetak sungguhan).
+        $screen = (string) file_get_contents(public_path('app/js/views/anggaran.js'));
+        $this->assertStringContainsString('payload.project_code', $screen);
+    }
 }

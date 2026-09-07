@@ -6515,6 +6515,19 @@ def s29(pg):
     out["monthly_with_baseline"] = pg.evaluate(BULANAN)
     pg.screenshot(path=f"{OUT}/s29-bulanan-turunan-f2.png", full_page=False)
 
+    # …dan di KERTAS. app.css menyembunyikan .filters dan .tabs @media print,
+    # jadi kotak pilih proyek — satu-satunya penanda proyek pada versi pertama
+    # layar ini — menghilang justru pada lembar yang dibawa orang ke rapat.
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(400)
+    out["monthly_print"] = pg.evaluate("""() => ({
+      names_the_project: /PRJ-2026-001/.test(document.querySelector('.main').innerText),
+      filters_hidden: getComputedStyle(document.querySelector('.filters')).display === 'none',
+      head: (document.querySelector('.card .card-head') || {}).innerText || null,
+    })""")
+    pg.emulate_media(media="screen")
+    pg.wait_for_timeout(300)
+
     # (4) …dan proyek TANPA baseline: digaris, bukan ditaksir.
     pg.select_option(".filters select", "2")
     pg.wait_for_timeout(2500)
@@ -6619,6 +6632,11 @@ def s29(pg):
             and "BSL/2026/VIII/0001" in (monthly.get("derivation") or "")),
         "the_monthly_table_has_a_derived_budget_column": any(
             "turunan" in h.lower() for h in (monthly.get("headers") or [])),
+        # Lembar tercetak menyebut proyeknya — diuji di media cetak sungguhan,
+        # dengan saringan proyek yang memang tersembunyi di sana.
+        "the_printed_monthly_sheet_names_its_project": (
+            out["monthly_print"]["names_the_project"] is True
+            and out["monthly_print"]["filters_hidden"] is True),
         "months_without_realisation_are_ruled_not_zero": (
             "—" in (monthly.get("actual_cells") or []) and monthly.get("zero_budget_cells") == []),
         # 3 — tanpa baseline

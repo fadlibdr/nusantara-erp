@@ -208,7 +208,16 @@ function paintMonthly(body, payload) {
 
   body.appendChild(el('.card', [
     el('.card-head', [
-      el('h2', { text: 'Anggaran vs realisasi per bulan' }),
+      /* PROYEKNYA DISEBUT DI SINI, dan itu terutama untuk KERTAS (verifikasi
+         F-2): app.css menyembunyikan .filters dan .tabs @media print, jadi
+         satu-satunya penanda proyek pada lembar tercetak dulu adalah kotak
+         pilih yang justru hilang — 17 baris anggaran tanpa nama pemiliknya. */
+      el('div', [
+        el('h2', { text: 'Anggaran vs realisasi per bulan' }),
+        payload.project_code
+          ? el('.desc', { text: `${payload.project_code} · ${payload.project_name || ''}`.trim() })
+          : null,
+      ]),
       el('span', [
         payload.rap_code ? badge(`RAP ${payload.rap_code}`, '') : badge('Tanpa RAP', 'amber'),
         payload.baseline_code

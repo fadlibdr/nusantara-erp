@@ -341,8 +341,17 @@ class BudgetRealisationService
             ];
         }
 
+        // Identitas proyeknya ikut dalam muatan (verifikasi F-2): di KERTAS,
+        // saringan proyek dan bilah tab disembunyikan @media print, jadi lembar
+        // "Per bulan" yang dicetak dulu tidak menyebut proyek mana pun — 17
+        // baris anggaran vs realisasi senilai Rp 24.250.000.000 tanpa satu
+        // penanda pun tentang milik siapa angka itu.
+        $project = $this->projectOf($projectId);
+
         return [
             'project_id' => $projectId,
+            'project_code' => $project?->code,
+            'project_name' => $project?->name,
             'rap_code' => $rap?->code,
             'rap_total' => $rapTotal,
             'baseline_code' => $baseline?->code,
@@ -425,6 +434,16 @@ class BudgetRealisationService
                 fn ($query) => $query->where('cost_category', '!=', 'subcon'),
             )
             ->sum('amount'), 2);
+    }
+
+    /** Kode dan nama proyek — untuk kepala kartu, dan untuk kertas. */
+    private function projectOf(int $projectId): ?object
+    {
+        if (! Schema::hasTable('prj_projects')) {
+            return null;
+        }
+
+        return DB::table('prj_projects')->where('id', $projectId)->first(['code', 'name']);
     }
 
     /**
