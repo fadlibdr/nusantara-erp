@@ -5456,6 +5456,28 @@ def pwa_scenario(pg, tag, mobile=False):
     out["ribbon_offline"] = pg.evaluate(RIBBON)
     pg.screenshot(path=f"{OUT}/s27-pita-luring{tag}.png", full_page=False)
 
+    # Kalimat pita bergantung pada ISI antrean, dan kedua keadaan diukur di sini.
+    # Sampai 7 Sep 2026 pita selalu berbunyi 'tekan "Kirim ulang" pada barisnya'
+    # — termasuk pada antrean KOSONG, ketika tidak ada satu pun tombol itu di
+    # halaman (terukur: kartu "Foto belum terkirim" tersembunyi, 0 tombol).
+    # Satu butir ditanam langsung di localStorage (bentuk yang sama dengan yang
+    # ditulis enqueue()) lalu dicabut lagi, karena mengambil foto sungguhan
+    # butuh kamera.
+    out["retry_buttons_with_empty_queue"] = pg.evaluate(
+        "() => [...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Kirim ulang').length")
+    # Butirnya ditanam SEKARANG tetapi dibaca sesudah muat ulang luring di bawah:
+    # readQueue() menyimpan cache per pengguna dan tidak membaca localStorage lagi
+    # selama halaman yang sama hidup (terukur: pita tetap berkalimat antrean-kosong
+    # ketika butirnya ditanam di tengah halaman yang sudah berjalan).
+    out["queue_seeded"] = pg.evaluate("""() => {
+      const id = (JSON.parse(localStorage.getItem('nusantara_erp_user') || 'null') || {}).id || 0;
+      const key = 'nusantara_erp_upload:' + id + ':uji-s27';
+      localStorage.setItem(key, JSON.stringify({ key: 'uji-s27', userId: id, state: 'failed',
+        error: 'Ditanam harness S27.', attempts: 1, savedAt: Date.now(), slug: 'daily-report', id: 1,
+        label: 'Laporan harian (uji)', filename: 'uji-s27.jpg', position: null, size: 12,
+        content: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }));
+      return key; }""")
+
     ctx.set_offline(False)
     pg.wait_for_timeout(1500)
     out["ribbon_back_online"] = pg.evaluate(RIBBON)
@@ -5509,6 +5531,14 @@ def pwa_scenario(pg, tag, mobile=False):
         return { threw: false, status: r.status };
       } catch (e) { return { threw: true, error: String(e) }; }
     }""")
+    # Halaman ini baru, jadi antrean yang ditanam di atas terbaca sekarang: pita
+    # yang sama harus berganti kalimat dan menunjuk tombol yang MEMANG ada.
+    out["ribbon_offline_with_queue"] = pg.evaluate(RIBBON)
+    out["retry_buttons_with_queue"] = pg.evaluate(
+        "() => [...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Kirim ulang').length")
+    pg.screenshot(path=f"{OUT}/s27-pita-luring-antrean{tag}.png", full_page=False)
+    pg.evaluate("(key) => localStorage.removeItem(key)", out["queue_seeded"])
+
     out["offline_entries"] = pwa_facts(pg)
     pg.screenshot(path=f"{OUT}/s27-luring{tag}.png", full_page=True)
     ctx.set_offline(False)
@@ -5569,6 +5599,10 @@ def pwa_scenario(pg, tag, mobile=False):
         "online_shell_answered_by_worker": out["online_shell_via_worker"] is True,
         "ribbon_hidden_online": out["ribbon_online"]["present"] and out["ribbon_online"]["hidden"] is True,
         "ribbon_shown_offline": out["ribbon_offline"]["visible"] is True and "Tanpa koneksi" in out["ribbon_offline"]["text"],
+        "empty_queue_ribbon_names_no_button": ("Kirim ulang" not in out["ribbon_offline"]["text"]
+                                               and out["retry_buttons_with_empty_queue"] == 0),
+        "queued_photo_ribbon_points_at_the_button": ('"Kirim ulang" pada barisnya' in out["ribbon_offline_with_queue"]["text"]
+                                                     and out["retry_buttons_with_queue"] >= 1),
         "ribbon_hidden_again": out["ribbon_back_online"]["hidden"] is True,
         "ribbon_shown_behind_captive_portal": (out["captive_portal_online_flag"] is True
                                                and out["ribbon_captive_portal"]["visible"] is True),

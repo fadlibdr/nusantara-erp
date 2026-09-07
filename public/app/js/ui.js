@@ -468,11 +468,18 @@ export function networkDown() {
  * Pita "tanpa koneksi" yang menyembunyikan dirinya sendiri saat jaringan kembali.
  * Dipasang di atas antrean Lapangan; kalimatnya milik pemanggil karena hanya
  * pemanggil yang tahu apa yang terjadi pada pekerjaan orangnya saat luring.
+ *
+ * `message` boleh berupa FUNGSI, dan kalau begitu ia dibaca ulang setiap kali
+ * pita menyala (P1-I, verifikasi 7 Sep 2026): satu kalimat tetap tidak bisa
+ * benar untuk dua keadaan yang berbeda, dan pita yang menyuruh menekan tombol
+ * yang tidak ada di layar lebih buruk daripada pita yang diam.
  */
 export function offlineRibbon(message) {
+  const read = () => (typeof message === 'function' ? message() : message);
+  const text = el('span', { text: read() });
   const node = el('.offline-ribbon', { role: 'status', hidden: true }, [
     icon('warn', 15),
-    el('span', { text: message }),
+    text,
   ]);
 
   let mounted = false;
@@ -485,7 +492,10 @@ export function offlineRibbon(message) {
     // dipakai antrean unggah lapangan.js.
     if (node.isConnected) mounted = true;
     else if (mounted) { stop(); return; }
-    node.hidden = !networkDown();
+    const down = networkDown();
+    // Kalimatnya dibaca ulang SEBELUM pita terlihat, tidak pernah sesudahnya.
+    if (down) text.textContent = read();
+    node.hidden = !down;
   }
 
   events.forEach((name) => window.addEventListener(name, sync));

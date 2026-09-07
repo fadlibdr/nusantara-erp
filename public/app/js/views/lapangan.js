@@ -718,11 +718,17 @@ export async function renderLapangan(host) {
      ponsel ini, tetapi TIDAK ada yang mengirimnya sendiri saat sinyal kembali —
      pump() hanya berjalan saat foto dimasukkan atau "Kirim ulang" ditekan.
      Menjanjikan pengiriman otomatis akan membuat orang menutup layarnya dan
-     pulang; kalimat ini menyuruhnya menekan tombol yang memang ada. */
-  const ribbon = offlineRibbon(
-    'Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, '
-    + 'tekan "Kirim ulang" pada barisnya.',
-  );
+     pulang; kalimat ini menyuruhnya menekan tombol yang memang ada.
+
+     DUA kalimat, dipilih saat pita menyala (verifikasi 7 Sep 2026): kalimat
+     "tekan Kirim ulang pada barisnya" hanya benar bila ada barisnya. Terukur di
+     390x844 dengan antrean kosong — kartu "Foto belum terkirim" tersembunyi,
+     nol tombol "Kirim ulang" di seluruh halaman — dan pita tetap menyuruh
+     menekannya. */
+  const ribbon = offlineRibbon(() => (readQueue().length
+    ? 'Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, '
+      + 'tekan "Kirim ulang" pada barisnya.'
+    : 'Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali.'));
   // Above the tabs, hidden while empty: photos of a report or ticket that is
   // not on screen would otherwise stay in localStorage unseen and unsent.
   host.append(ribbon, pendingCard(), tabs, body);
