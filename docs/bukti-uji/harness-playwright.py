@@ -1,5 +1,5 @@
 import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request
-from datetime import date
+from datetime import date, timedelta
 from playwright.sync_api import sync_playwright
 
 # Jalur dibaca dari env dengan literal asli sebagai bawaan: harness ini ditulis di
@@ -2535,6 +2535,505 @@ def s25(pg):
     return out
 
 
+# ------------------------------------------------------------ S26 (P1-H)
+#
+# Tab "Jadwal" — gantt baca-saja atas WBS proyek. Yang diukur di sini adalah
+# yang TIDAK bisa dibuktikan uji PHP: uji PHP memaku muatan dua endpoint yang
+# dibaca layar ini (JadwalGanttTest), gambarnya sendiri hanya ada di peramban.
+#
+# Setiap syarat di bawah adalah ANGKA yang dihitung ulang dari muatan API-nya,
+# bukan boolean: jumlah baris yang tergambar vs jumlah tugas yang dipulangkan
+# server, posisi x garis "Hari ini" vs posisi yang seharusnya untuk jendela
+# rentangnya, jumlah bayangan akhir pekan vs jumlah Sabtu di jendela itu,
+# kerapatan tick mingguan vs bulanan, dan ukuran teks SESUDAH skala viewBox —
+# yaitu px yang benar-benar dilihat mata, bukan 11 px yang tertulis di CSS.
+#
+# Geometri gantt (charts.js): labelWidth 180 + timelineWidth 720 = 900 lebar
+# alami, rowHeight 28, headerH 36. Baris ke-i: mid = 50 + 28i, bar aktual di
+# y = mid − 9, bar baseline di y = mid + 1 — DI BAWAH bar aktualnya, dan itulah
+# yang membuat selisih rencana vs beku terlihat. Angka-angka itu dipakai di
+# sini untuk membaca kembali baris mana milik siapa dari koordinat rect-nya.
+
+DAY_MS = 86400000
+
+S26_MEASURE = """() => {
+  const svg = document.querySelector('.gantt-sheet svg.chart-gantt');
+  if (!svg) return null;
+  const vb = (svg.getAttribute('viewBox') || '0 0 0 0').split(' ').map(Number);
+  const box = svg.getBoundingClientRect();
+  const scale = box.width / vb[2];
+  const num = (n, a) => +n.getAttribute(a);
+  const titleOf = (n) => { const t = n.querySelector('title'); return t ? t.textContent : null; };
+  const fontPx = (sel) => { const n = svg.querySelector(sel); return n ? +(parseFloat(getComputedStyle(n).fontSize) * scale).toFixed(2) : null; };
+  const marks = [...svg.querySelectorAll('.mark')];
+  return {
+    viewbox: vb,
+    box: { w: +box.width.toFixed(1), h: +box.height.toFixed(1) },
+    scale: +scale.toFixed(4),
+    svg_min_width: getComputedStyle(svg).minWidth,
+    labels: [...svg.querySelectorAll('text.gantt-label')].map((t) => ({
+      shown: t.textContent, full: t.dataset.full || null, truncated: t.dataset.truncated === 'true',
+    })),
+    bars: [...svg.querySelectorAll('rect.gantt-bar')].map((r) => ({
+      x: num(r, 'x'), y: num(r, 'y'), w: num(r, 'width'),
+      open: r.dataset.open || null, level: r.dataset.level, title: titleOf(r),
+    })),
+    progress: [...svg.querySelectorAll('rect.gantt-progress')].map((r) => ({ x: num(r, 'x'), y: num(r, 'y'), w: num(r, 'width') })),
+    baselines: [...svg.querySelectorAll('rect.gantt-baseline')].map((r) => ({
+      x: num(r, 'x'), y: num(r, 'y'), w: num(r, 'width'), title: titleOf(r),
+    })),
+    open_edges: svg.querySelectorAll('line.gantt-open-edge').length,
+    row_notes: {
+      nodate: [...svg.querySelectorAll('text.gantt-nodate')].map((t) => t.textContent),
+      invalid: [...svg.querySelectorAll('text.gantt-invalid')].map((t) => t.textContent),
+      outside: [...svg.querySelectorAll('text.gantt-outside')].map((t) => t.textContent),
+    },
+    weekends: [...svg.querySelectorAll('rect.gantt-weekend')].map((r) => ({ x: num(r, 'x'), w: num(r, 'width') })),
+    ticks: [...svg.querySelectorAll('line.gantt-tick')].map((l) => num(l, 'x1')),
+    tick_labels: [...svg.querySelectorAll('text.gantt-tick-label')].map((t) => t.textContent),
+    groups: [...svg.querySelectorAll('text.gantt-group')].map((t) => t.textContent),
+    today_x: (() => { const l = svg.querySelector('line.gantt-today'); return l ? num(l, 'x1') : null; })(),
+    today_label: (() => { const t = svg.querySelector('text.gantt-today-label'); return t ? t.textContent : null; })(),
+    marks: marks.length,
+    marks_with_title: marks.filter((m) => m.querySelector('title')).length,
+    other_titles: [...svg.querySelectorAll('title')].length - marks.filter((m) => m.querySelector('title')).length,
+    legend: [...svg.querySelectorAll('text.chart-legend')].map((t) => t.textContent),
+    note: (() => { const n = svg.querySelector('text.chart-note'); return n ? n.textContent : null; })(),
+    font_css_px: { label: fontPx('text.gantt-label'), tick: fontPx('text.chart-tick') },
+    scroll_x: (() => { const s = document.querySelector('.gantt-sheet .chart-scroll'); return s ? s.scrollWidth > s.clientWidth + 1 : null; })(),
+    head: (() => { const h = document.querySelector('.gantt-sheet .card-head h2'); return h ? h.innerText : null; })(),
+    foot: [...document.querySelectorAll('.gantt-sheet .card-body p')].map((p) => p.innerText.trim()),
+    zoom_buttons: [...document.querySelectorAll('.gantt-sheet .filters .btn')].map((b) => ({
+      label: b.innerText.trim(), primary: b.classList.contains('primary'),
+    })),
+  };
+}"""
+
+# Cetak: yang bisa dibaca dari halaman (blok @media print) DAN dari PDF yang
+# benar-benar dihasilkan Chromium — ukuran halamannya diambil dari /MediaBox,
+# bukan dari keyakinan bahwa `@page gantt { size: A4 landscape }` bekerja.
+S26_PRINT = """() => {
+  const sheet = document.querySelector('.gantt-sheet');
+  const svg = sheet.querySelector('svg.chart-gantt');
+  const scroll = sheet.querySelector('.chart-scroll');
+  const flat = [];
+  for (const s of document.styleSheets) {
+    let rules = []; try { rules = [...s.cssRules]; } catch (e) { continue; }
+    for (const r of rules) { flat.push(r); if (r.cssRules) for (const n of r.cssRules) flat.push(n); }
+  }
+  return {
+    page_rules: flat.filter((r) => /^@page/.test(r.cssText || '')).map((r) => r.cssText),
+    sheet_page: getComputedStyle(sheet).page || null,
+    scroll_overflow_x: getComputedStyle(scroll).overflowX,
+    svg_min_width: getComputedStyle(svg).minWidth,
+    filters_visible: !!(sheet.querySelector('.filters') || {}).checkVisibility?.(),
+    head_visible: !!(sheet.querySelector('.card-head h2') || {}).checkVisibility?.(),
+    note_in_svg: !!svg.querySelector('text.chart-note'),
+    svg_w: Math.round(svg.getBoundingClientRect().width),
+    container_w: Math.round(scroll.getBoundingClientRect().width),
+  };
+}"""
+
+
+def plant_open_ended_task(project_id=1, code="B.5"):
+    """Satu tugas WBS tanpa tanggal selesai — keadaan yang sah (POST wbs-tasks
+    menerima null) dan tidak ada di data demo, sehingga bar terbuka gantt tidak
+    pernah tergambar sekali pun tanpa fixture ini."""
+    con = sqlite3.connect(DB)
+    try:
+        parent = con.execute("SELECT id FROM prj_wbs_tasks WHERE project_id = ? AND wbs_code = 'B'", (project_id,)).fetchone()
+        if parent is None:
+            return {"state": "induk B tidak ada"}
+        con.execute("DELETE FROM prj_wbs_tasks WHERE project_id = ? AND wbs_code = ?", (project_id, code))
+        cur = con.execute(
+            "INSERT INTO prj_wbs_tasks (project_id, parent_id, wbs_code, name, weight_pct, planned_start,"
+            " planned_end, progress_pct, sort_order, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, 0, '2026-09-01 00:00:00', NULL, 0, 9, datetime('now'), datetime('now'))",
+            (project_id, parent[0], code, "Pekerjaan tambah — selesai belum ditetapkan"))
+        con.commit()
+        return {"state": "ditanam", "id": cur.lastrowid, "code": code, "planned_end": None}
+    except Exception as e:
+        return {"state": f"GAGAL: {str(e)[:140]}"}
+    finally:
+        con.close()
+
+
+def drop_planted_task(project_id=1, code="B.5"):
+    con = sqlite3.connect(DB)
+    try:
+        n = con.execute("DELETE FROM prj_wbs_tasks WHERE project_id = ? AND wbs_code = ?", (project_id, code)).rowcount
+        con.commit()
+        return {"state": "dibersihkan", "rows": n}
+    finally:
+        con.close()
+
+
+def shift_baseline_task(code="B.2", days=-30):
+    """Menggeser SATU tanggal beku, karena tanpa itu skenario ini tidak menguji
+    apa pun yang menarik: pada data demo baseline BSL/2026/VIII/0001 dibekukan
+    dari WBS yang sama persis, jadi 11 dari 11 bar pembandingnya berimpit
+    sempurna dengan bar rencana hidupnya dan sebuah gantt yang MELUPAKAN bar
+    baseline akan terlihat sama benarnya. Digeser di sini, dikembalikan di akhir."""
+    con = sqlite3.connect(DB)
+    try:
+        row = con.execute("SELECT id, planned_end FROM prj_baseline_tasks WHERE wbs_code = ? ORDER BY id LIMIT 1", (code,)).fetchone()
+        if row is None:
+            return {"state": f"baris beku {code} tidak ada"}
+        before = str(row[1])[:10]
+        after = (date.fromisoformat(before) + timedelta(days=days)).isoformat()
+        con.execute("UPDATE prj_baseline_tasks SET planned_end = ? WHERE id = ?", (after + " 00:00:00", row[0]))
+        con.commit()
+        return {"state": "digeser", "code": code, "from": before, "to": after, "days": days, "row_id": row[0], "restore": before}
+    except Exception as e:
+        return {"state": f"GAGAL: {str(e)[:140]}"}
+    finally:
+        con.close()
+
+
+def restore_baseline_task(planted):
+    if planted.get("state") != "digeser":
+        return {"state": "tidak ada yang dikembalikan"}
+    con = sqlite3.connect(DB)
+    try:
+        con.execute("UPDATE prj_baseline_tasks SET planned_end = ? WHERE id = ?",
+                    (planted["restore"] + " 00:00:00", planted["row_id"]))
+        con.commit()
+        return {"state": "dikembalikan", "code": planted["code"], "to": planted["restore"]}
+    finally:
+        con.close()
+
+
+def _days(value):
+    """'YYYY-MM-DD' → hari UTC dalam ms, cara yang sama dengan parseDay charts.js."""
+    y, m, d = (int(part) for part in value[:10].split("-"))
+    return int(date(y, m, d).toordinal() - date(1970, 1, 1).toordinal()) * DAY_MS
+
+
+def _dow(ms):
+    """Hari dalam minggu ala JS getUTCDay(): Minggu 0 … Sabtu 6."""
+    return (date.fromordinal(ms // DAY_MS + date(1970, 1, 1).toordinal()).weekday() + 1) % 7
+
+
+def gantt_expectations(tasks, frozen, today_ms):
+    """Seluruh geometri gantt dihitung ULANG dari muatan API — inilah pembanding
+    yang membuat angka terukur berarti sesuatu."""
+    flat = []
+
+    def walk(nodes, level):
+        for node in nodes:
+            flat.append({**node, "level": level})
+            walk(node.get("children") or [], level + 1)
+
+    walk(tasks, 0)
+
+    by_code = {row["wbs_code"]: row for row in (frozen or [])}
+    dates = []
+    for row in flat:
+        for key in ("planned_start", "planned_end"):
+            if row.get(key):
+                dates.append(_days(row[key]))
+        f = by_code.get(row["wbs_code"])
+        if f:
+            for key in ("planned_start", "planned_end"):
+                if f.get(key):
+                    dates.append(_days(f[key]))
+
+    lo, hi = min(dates), max(dates)
+    days = round((hi - lo) / DAY_MS) + 1
+    day_w = 720 / days
+    x = lambda ms: 180 + ((ms - lo) / DAY_MS) * day_w
+
+    weekends = 0
+    cursor = lo
+    while cursor <= hi:
+        dow = _dow(cursor)
+        if dow == 6:
+            weekends += 1
+            if cursor + DAY_MS <= hi:
+                cursor += DAY_MS
+        elif dow == 0 and cursor == lo:
+            weekends += 1
+        cursor += DAY_MS
+
+    week_ticks = 0
+    cursor = lo + ((8 - _dow(lo)) % 7) * DAY_MS
+    while cursor <= hi:
+        week_ticks += 1
+        cursor += 7 * DAY_MS
+
+    month_ticks = 0
+    d = date.fromordinal(lo // DAY_MS + date(1970, 1, 1).toordinal())
+    cursor_y, cursor_m = (d.year, d.month) if d.day == 1 else (d.year + d.month // 12, d.month % 12 + 1)
+    while _days(f"{cursor_y:04d}-{cursor_m:02d}-01") <= hi:
+        month_ticks += 1
+        cursor_y, cursor_m = (cursor_y + cursor_m // 12, cursor_m % 12 + 1)
+
+    matched = [row["wbs_code"] for row in flat if row["wbs_code"] in by_code]
+
+    # Geometri SETIAP baris, dihitung ulang dari tanggal yang dipulangkan API:
+    # x = 180 + (hari sejak `from`) x dayW, lebar = sampai HARI SESUDAH tanggal
+    # selesai (`to` inklusif). Inilah yang membuat bar baseline berarti sesuatu:
+    # kalau ia digambar dari tanggal hidup alih-alih tanggal beku, x atau
+    # lebarnya meleset dan angkanya ketahuan.
+    clamp = lambda v: max(180.0, min(900.0, v))
+    geom = []
+    for row in flat:
+        start, end = row.get("planned_start"), row.get("planned_end")
+        entry = {"code": row["wbs_code"], "bar": None, "baseline": None, "open": None}
+        if start or end:
+            s_ms = _days(start) if start else lo
+            e_ms = _days(end) if end else hi
+            entry["open"] = "end" if (start and not end) else ("start" if (end and not start) else None)
+            bx = clamp(x(s_ms))
+            entry["bar"] = {"x": round(bx, 2), "w": round(max(1.0, clamp(x(e_ms + DAY_MS)) - bx), 2)}
+        f = by_code.get(row["wbs_code"])
+        if f and f.get("planned_start") and f.get("planned_end"):
+            fb, fe = _days(f["planned_start"]), _days(f["planned_end"])
+            if fe >= fb:
+                bx = clamp(x(fb))
+                entry["baseline"] = {"x": round(bx, 2), "w": round(max(1.0, clamp(x(fe + DAY_MS)) - bx), 2)}
+        geom.append(entry)
+
+    return {
+        "row_geometry": geom,
+        "rows": len(flat),
+        "codes": [row["wbs_code"] for row in flat],
+        "from": date.fromordinal(lo // DAY_MS + date(1970, 1, 1).toordinal()).isoformat(),
+        "to": date.fromordinal(hi // DAY_MS + date(1970, 1, 1).toordinal()).isoformat(),
+        "days": days,
+        "day_w": round(day_w, 4),
+        "weekend_rects": weekends,
+        "week_ticks": week_ticks,
+        "month_ticks": month_ticks,
+        "baseline_rows": len(matched),
+        "baseline_codes": matched,
+        "rows_without_baseline": [row["wbs_code"] for row in flat if row["wbs_code"] not in by_code],
+        "open_ended": [row["wbs_code"] for row in flat if row.get("planned_start") and not row.get("planned_end")],
+        "today_x": round(x(today_ms) + day_w / 2, 2) if lo <= today_ms <= hi else None,
+        "today_inside": lo <= today_ms <= hi,
+    }
+
+
+def _pdf_pages(path):
+    """Ukuran setiap halaman PDF dari /MediaBox — bukti lanskap yang tidak bisa
+    dibantah oleh keyakinan bahwa `@page gantt` bekerja."""
+    raw = open(path, "rb").read()
+    boxes = re.findall(rb"/MediaBox\s*\[\s*([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)\s+([\d.\-]+)\s*\]", raw)
+    out = []
+    for box in boxes:
+        w = round(float(box[2]) - float(box[0]), 2)
+        h = round(float(box[3]) - float(box[1]), 2)
+        out.append({"w_pt": w, "h_pt": h, "landscape": w > h})
+    return out
+
+
+def gantt_scenario(pg, tag, mobile=False):
+    errors = []
+    console_errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: console_errors.append(m.text[:160]) if m.type == "error" else None)
+
+    out = {
+        "viewport": pg.viewport_size,
+        "planted_task": plant_open_ended_task(),
+        "planted_deviation": shift_baseline_task(),
+    }
+
+    login(pg, "admin@nusantara.test")
+    pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+    pg.wait_for_selector(".tabs button", timeout=20000)
+    pg.wait_for_timeout(1500)
+    out["tabs"] = pg.evaluate("() => [...document.querySelectorAll('.tabs button')].map((b) => b.innerText.trim())")
+
+    # Muatan yang DIBACA layar, diambil dengan token sesi peramban sendiri —
+    # inilah yang setiap angka di bawah dibandingkan dengannya.
+    tasks = api_in_page(pg, "projects/1/wbs-tasks", {})
+    heads = api_in_page(pg, "projects/baselines", {"project_id": 1, "current": 1, "per_page": 1})
+    frozen = None
+    if heads["status"] == 200 and heads["data"]:
+        frozen = api_in_page(pg, f"projects/baselines/{heads['data'][0]['id']}", {})
+    out["api"] = {
+        "wbs_status": tasks["status"],
+        "baseline_status": heads["status"],
+        "baseline_code": (frozen or {}).get("data", {}).get("code") if frozen else None,
+        "frozen_rows": len(((frozen or {}).get("data") or {}).get("tasks") or []),
+    }
+
+    today = date.today()
+    expect = gantt_expectations(tasks["data"] or [], ((frozen or {}).get("data") or {}).get("tasks") or [],
+                                _days(today.isoformat()))
+    out["expected"] = expect
+
+    click(pg, ".tabs button:nth-child(2)")
+    pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
+    pg.wait_for_timeout(800)
+
+    week = pg.evaluate(S26_MEASURE)
+    out["week"] = week
+    pg.screenshot(path=f"{OUT}/s26-jadwal-mingguan{tag}.png", full_page=True)
+
+    set_theme(pg, "dark")
+    pg.screenshot(path=f"{OUT}/s26-jadwal-gelap{tag}.png", full_page=True)
+    set_theme(pg, None)
+
+    # Zoom bulanan: tombol kedua di bilah kartu.
+    click(pg, ".gantt-sheet .filters .btn:nth-child(2)")
+    pg.wait_for_timeout(700)
+    month = pg.evaluate(S26_MEASURE)
+    out["month"] = month
+    pg.screenshot(path=f"{OUT}/s26-jadwal-bulanan{tag}.png", full_page=True)
+
+    click(pg, ".gantt-sheet .filters .btn:nth-child(1)")
+    pg.wait_for_timeout(700)
+
+    # ------------------------------------------------------------- cetak
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(300)
+    out["print"] = pg.evaluate(S26_PRINT)
+    pg.screenshot(path=f"{OUT}/s26-jadwal-cetak{tag}.png", full_page=True)
+    pdf_path = f"{OUT}/s26-jadwal{tag}.pdf"
+    try:
+        pg.pdf(path=pdf_path, print_background=True)
+        out["print"]["pdf_pages"] = _pdf_pages(pdf_path)
+    except Exception as e:
+        out["print"]["pdf_pages"] = f"GAGAL: {str(e)[:140]}"
+    pg.emulate_media(media="screen")
+
+    out["cleanup"] = [drop_planted_task(), restore_baseline_task(out["planted_deviation"])]
+    out["pageerrors"] = errors
+    out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
+
+    # ------------------------------------------------------------ syarat
+    baseline_rows = week["baselines"]
+    bars = week["bars"]
+    # Baris ke-i: bar aktual di y = 41 + 28i, bar baseline di y = 51 + 28i.
+    bar_rows = sorted(round((b["y"] - 41) / 28) for b in bars)
+    baseline_row_index = sorted(round((b["y"] - 51) / 28) for b in baseline_rows)
+    label_rows = list(range(len(week["labels"])))
+    open_bars = [b for b in bars if b["open"] == "end"]
+    # Setiap rect dikembalikan ke NOMOR BARISNYA dari koordinat y, lalu
+    # dibandingkan dengan geometri yang dihitung ulang dari tanggal API — bukan
+    # dengan dirinya sendiri.
+    bar_by_row = {round((b["y"] - 41) / 28): b for b in bars}
+    base_by_row = {round((b["y"] - 51) / 28): b for b in baseline_rows}
+    mismatch = []
+    for i, want in enumerate(expect["row_geometry"]):
+        for kind, got_map in (("bar", bar_by_row), ("baseline", base_by_row)):
+            got, exp = got_map.get(i), want[kind]
+            if (got is None) != (exp is None):
+                mismatch.append({"row": i, "code": want["code"], "kind": kind,
+                                 "expected": exp, "measured": got and {"x": got["x"], "w": got["w"]}})
+            elif got is not None and (abs(got["x"] - exp["x"]) > 0.05 or abs(got["w"] - exp["w"]) > 0.05):
+                mismatch.append({"row": i, "code": want["code"], "kind": kind,
+                                 "expected": exp, "measured": {"x": got["x"], "w": got["w"]}})
+
+    dev = out["planted_deviation"]
+    dev_row = next((i for i, r in enumerate(expect["row_geometry"]) if r["code"] == dev.get("code")), None)
+    deviation = None
+    if dev_row is not None and dev_row in bar_by_row and dev_row in base_by_row:
+        deviation = {
+            "code": dev["code"],
+            "bar_right": round(bar_by_row[dev_row]["x"] + bar_by_row[dev_row]["w"], 2),
+            "baseline_right": round(base_by_row[dev_row]["x"] + base_by_row[dev_row]["w"], 2),
+            "expected_gap_px": round(abs(dev["days"]) * expect["day_w"], 2),
+        }
+        deviation["measured_gap_px"] = round(deviation["bar_right"] - deviation["baseline_right"], 2)
+
+    out["geometry"] = {
+        "bar_rows": bar_rows,
+        "baseline_rows": baseline_row_index,
+        "baseline_offset_px": sorted({round(b["y"] - a["y"], 2)
+                                      for b in baseline_rows for a in bars
+                                      if round((b["y"] - 51) / 28) == round((a["y"] - 41) / 28)}),
+        "today_x_measured": week["today_x"],
+        "today_x_expected": expect["today_x"],
+        "row_geometry_mismatch": mismatch,
+        "planted_deviation": deviation,
+    }
+
+    checks = {
+        # 1. Setiap tugas yang dipulangkan server punya barisnya di layar.
+        "every_task_the_api_returned_has_a_row": len(week["labels"]) == expect["rows"],
+        "row_labels_are_code_plus_name": all(
+            lab["full"].startswith(code + " ") for lab, code in zip(week["labels"], expect["codes"])),
+        # 2. Garis hari ini ADA dan berdiri di x yang benar untuk jendelanya.
+        "today_line_drawn": (week["today_x"] is not None) == expect["today_inside"],
+        "today_line_at_the_right_x": expect["today_x"] is None or abs(week["today_x"] - expect["today_x"]) <= 0.05,
+        "today_line_is_labelled": week["today_label"] == "Hari ini",
+        # 3. Bayangan akhir pekan = jumlah Sabtu (+ Minggu pembuka) di jendela.
+        "weekend_shading_matches_the_window": len(week["weekends"]) == expect["weekend_rects"],
+        # 4. Bar baseline HANYA untuk baris yang punya baseline, dan DI BAWAH
+        #    bar aktualnya (mid + 1 vs mid − 9 = selisih 10 px).
+        "baseline_bars_only_where_a_baseline_exists": len(baseline_rows) == expect["baseline_rows"],
+        "baseline_bar_sits_under_the_actual_bar": out["geometry"]["baseline_offset_px"] == [10.0],
+        # Setiap bar (aktual DAN baseline) berdiri di x dan lebar yang dihitung
+        # ulang dari tanggal API-nya sendiri — 24 rect, tanpa satu pun meleset
+        # lebih dari 0,05 px.
+        "every_bar_stands_where_its_dates_say": not mismatch,
+        # …dan bar baseline benar-benar digambar dari tanggal BEKU: satu tanggal
+        # beku digeser 30 hari, dan selisihnya muncul di layar sebesar itu.
+        "a_shifted_baseline_shows_the_deviation": deviation is not None
+            and abs(deviation["measured_gap_px"] - deviation["expected_gap_px"]) <= 0.05,
+        # 5. Zoom mingguan vs bulanan benar-benar mengubah kerapatan tick.
+        "week_ticks_match_the_mondays": len(week["ticks"]) == expect["week_ticks"],
+        "month_ticks_match_the_first_of_months": len(month["ticks"]) == expect["month_ticks"],
+        "zoom_really_changes_tick_density": len(week["ticks"]) > len(month["ticks"]),
+        "zoom_button_marks_itself_active": [b["primary"] for b in month["zoom_buttons"]][:2] == [False, True],
+        # 6. Tugas tanpa tanggal selesai: bar terbuka + tepi putus + namanya.
+        "open_ended_task_draws_an_open_bar": len(open_bars) == len(expect["open_ended"]),
+        "open_bar_has_a_dashed_edge": week["open_edges"] == len(expect["open_ended"]),
+        "open_bar_title_names_the_task_and_says_why": bool(open_bars) and all(
+            "tanggal selesai belum ditetapkan (bar terbuka)" in b["title"] for b in open_bars),
+        # 7. Setiap mark membawa tepat satu <title>.
+        "every_mark_carries_a_title": week["marks"] == week["marks_with_title"] and week["marks"] > 0,
+        # 8. Legenda hanya menyebut yang memang tergambar.
+        "legend_names_only_what_is_drawn": ("Baseline" in week["legend"]) == (len(baseline_rows) > 0)
+            and ("Hari ini" in week["legend"]) == (week["today_x"] is not None),
+        # 9. Kaki kartu mengumumkan sumbernya dan menyebut yang TIDAK cocok.
+        "source_note_states_the_matching_rule": "dicocokkan menurut kode WBS" in (week["note"] or ""),
+        "source_note_counts_the_matches": f"{expect['baseline_rows']} dari {expect['rows']} tugas cocok" in (week["note"] or ""),
+        "legend_says_dependencies_are_not_drawn": any("Ketergantungan antar tugas tidak digambar" in f for f in week["foot"]),
+        # 10. Cetak: lanskap sungguhan, dan gantt tidak terpotong.
+        "print_page_is_landscape": isinstance(out["print"]["pdf_pages"], list)
+            and any(p["landscape"] for p in out["print"]["pdf_pages"]),
+        "print_releases_the_horizontal_scroll": out["print"]["scroll_overflow_x"] == "visible",
+        "print_drops_the_min_width_so_the_chart_fits": out["print"]["svg_min_width"] in ("0px", "auto"),
+        "print_hides_the_zoom_bar_but_keeps_the_title": not out["print"]["filters_visible"] and out["print"]["head_visible"],
+        "print_keeps_the_source_note_on_paper": out["print"]["note_in_svg"],
+        "no_page_errors": not errors,
+    }
+
+    # Ukuran teks: 11 px CSS DIKALI skala viewBox. Di desktop svg melebar di atas
+    # 900 px alaminya, jadi teksnya justru lebih besar; di ponsel `min-width`
+    # 80 % (720 px) adalah lantai yang DISENGAJA charts.js, dan angkanya dicatat
+    # apa adanya alih-alih dipoles.
+    out["text_px"] = {"label": week["font_css_px"]["label"], "tick": week["font_css_px"]["tick"],
+                      "svg_rendered_px": week["box"]["w"], "scrolls_horizontally": week["scroll_x"]}
+    checks["text_is_at_least_11px" if not mobile else "text_is_at_least_the_designed_mobile_floor"] = (
+        week["font_css_px"]["label"] >= (11 if not mobile else 8.8)
+        and week["font_css_px"]["tick"] >= (11 if not mobile else 8.8))
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S26_gantt")
+def s26(pg):
+    return gantt_scenario(pg, "-p1h")
+
+
+@scenario("S26_gantt_mobile")
+def s26m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return gantt_scenario(pg, "-mobile-p1h", mobile=True)
+    finally:
+        ctx.close()
+
+
 # ------------------------------------------------------------ S21 (P1-B)
 # Aksen modul, remah roti → beranda modul, kepadatan, keadaan kosong berilustrasi — desktop
 # 1440×900 (S21) dan ponsel 390×844 (S21m), masing-masing di tema terang DAN gelap. Yang
@@ -4267,7 +4766,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
