@@ -737,7 +737,8 @@ mencetaknya di bawah gantt.
 `meta.as_of_source: 'server'` — kanal yang sama dengan `DeadlineController` dan `EvmService` — dan
 jadwal.js mengoperkannya ke `ganttChart({ today })`. Tanpa itu charts.js jatuh ke `localToday()`,
 yaitu jam PERAMBAN: diukur 7 Sep 2026 pada berkas dan jam server yang sama, garisnya berpindah
-mengikuti timezone pembacanya (Asia/Jakarta x=484,67 vs America/Los_Angeles x=483,27). Aturan
+mengikuti timezone pembacanya (Asia/Jakarta x=484,67 vs America/Los_Angeles x=483,27; diukur
+dengan kolom label 180, sebelum kolomnya dilebarkan). Aturan
 tertulis aplikasi ini berlawanan dengan itu — EvmService: *"an EVM report keyed off a skewed PC
 clock manufactures schedule variance out of nothing"* — dan garis "Hari ini" pada gantt adalah
 pembacaan keterlambatan yang persis sama, hanya dengan mata. Dua peramban dengan timezone

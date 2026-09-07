@@ -21160,7 +21160,7 @@
   },
   "planted_task": {
    "state": "ditanam",
-   "id": 49,
+   "id": 45,
    "code": "B.5",
    "planned_end": null
   },
@@ -21171,7 +21171,8 @@
    "to": "2026-10-01",
    "days": -30,
    "row_id": 7,
-   "restore": "2026-10-31"
+   "restore": "2026-10-31",
+   "healed": false
   },
   "tabs": [
    "Ringkasan",
@@ -21181,148 +21182,196 @@
    "wbs_status": 200,
    "baseline_status": 200,
    "baseline_code": "BSL/2026/VIII/0001",
-   "frozen_rows": 11
+   "frozen_rows": 11,
+   "as_of": "2026-09-07",
+   "as_of_source": "server"
   },
+  "label_width": 300,
   "expected": {
    "row_geometry": [
     {
      "code": "A",
      "bar": {
-      "x": 180.0,
-      "w": 123.27
+      "x": 300.0,
+      "w": 102.72
      },
      "baseline": {
-      "x": 180.0,
-      "w": 123.27
+      "x": 300.0,
+      "w": 102.72
+     },
+     "progress": {
+      "x": 300.0,
+      "w": 102.72
      },
      "open": null
     },
     {
      "code": "A.1",
      "bar": {
-      "x": 180.0,
-      "w": 81.25
+      "x": 300.0,
+      "w": 67.7
      },
      "baseline": {
-      "x": 180.0,
-      "w": 81.25
+      "x": 300.0,
+      "w": 67.7
+     },
+     "progress": {
+      "x": 300.0,
+      "w": 67.7
      },
      "open": null
     },
     {
      "code": "A.2",
      "bar": {
-      "x": 180.0,
-      "w": 58.83
+      "x": 300.0,
+      "w": 49.03
      },
      "baseline": {
-      "x": 180.0,
-      "w": 58.83
+      "x": 300.0,
+      "w": 49.03
+     },
+     "progress": {
+      "x": 300.0,
+      "w": 49.03
      },
      "open": null
     },
     {
      "code": "B",
      "bar": {
-      "x": 189.81,
-      "w": 413.23
+      "x": 308.17,
+      "w": 344.36
      },
      "baseline": {
-      "x": 189.81,
-      "w": 413.23
+      "x": 308.17,
+      "w": 344.36
+     },
+     "progress": {
+      "x": 308.17,
+      "w": 216.71
      },
      "open": null
     },
     {
      "code": "B.1",
      "bar": {
-      "x": 189.81,
-      "w": 56.03
+      "x": 308.17,
+      "w": 46.69
      },
      "baseline": {
-      "x": 189.81,
-      "w": 56.03
+      "x": 308.17,
+      "w": 46.69
+     },
+     "progress": {
+      "x": 308.17,
+      "w": 46.69
      },
      "open": null
     },
     {
      "code": "B.2",
      "bar": {
-      "x": 219.22,
-      "w": 341.79
+      "x": 332.68,
+      "w": 284.82
      },
      "baseline": {
-      "x": 219.22,
-      "w": 299.77
+      "x": 332.68,
+      "w": 249.81
+     },
+     "progress": {
+      "x": 332.68,
+      "w": 185.14
      },
      "open": null
     },
     {
      "code": "B.3",
      "bar": {
-      "x": 209.42,
-      "w": 329.18
+      "x": 324.51,
+      "w": 274.32
      },
      "baseline": {
-      "x": 209.42,
-      "w": 329.18
+      "x": 324.51,
+      "w": 274.32
+     },
+     "progress": {
+      "x": 324.51,
+      "w": 164.59
      },
      "open": null
     },
     {
      "code": "B.4",
      "bar": {
-      "x": 219.22,
-      "w": 362.8
+      "x": 332.68,
+      "w": 302.33
      },
      "baseline": {
-      "x": 219.22,
-      "w": 362.8
+      "x": 332.68,
+      "w": 302.33
+     },
+     "progress": {
+      "x": 332.68,
+      "w": 181.4
      },
      "open": null
     },
     {
      "code": "B.5",
      "bar": {
-      "x": 475.56,
-      "w": 424.44
+      "x": 546.3,
+      "w": 353.7
      },
      "baseline": null,
+     "progress": null,
      "open": "end"
     },
     {
      "code": "C",
      "bar": {
-      "x": 238.83,
-      "w": 661.17
+      "x": 349.03,
+      "w": 550.97
      },
      "baseline": {
-      "x": 238.83,
-      "w": 661.17
+      "x": 349.03,
+      "w": 550.97
+     },
+     "progress": {
+      "x": 349.03,
+      "w": 23.35
      },
      "open": null
     },
     {
      "code": "C.1",
      "bar": {
-      "x": 238.83,
-      "w": 533.7
+      "x": 349.03,
+      "w": 444.75
      },
      "baseline": {
-      "x": 238.83,
-      "w": 533.7
+      "x": 349.03,
+      "w": 444.75
+     },
+     "progress": {
+      "x": 349.03,
+      "w": 18.06
      },
      "open": null
     },
     {
      "code": "C.2",
      "bar": {
-      "x": 248.64,
-      "w": 651.36
+      "x": 357.2,
+      "w": 542.8
      },
      "baseline": {
-      "x": 248.64,
-      "w": 651.36
+      "x": 357.2,
+      "w": 542.8
+     },
+     "progress": {
+      "x": 357.2,
+      "w": 27.14
      },
      "open": null
     }
@@ -21345,7 +21394,7 @@
    "from": "2026-02-02",
    "to": "2027-06-30",
    "days": 514,
-   "day_w": 1.4008,
+   "day_w": 1.1673,
    "weekend_rects": 73,
    "week_ticks": 74,
    "month_ticks": 16,
@@ -21369,7 +21418,7 @@
    "open_ended": [
     "B.5"
    ],
-   "today_x": 484.67,
+   "today_x": 553.89,
    "today_inside": true
   },
   "week": {
@@ -21389,157 +21438,181 @@
     {
      "shown": "A Pekerjaan Persiapan",
      "full": "A Pekerjaan Persiapan",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "A.1 Mobilisasi & demobili…A.1 Mobilisasi & demobilisasi peralatan",
+     "shown": "A.1 Mobilisasi & demobilisasi peralatan",
      "full": "A.1 Mobilisasi & demobilisasi peralatan",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "A.2 Direksi keet, pagar s…A.2 Direksi keet, pagar sementara & fasilitas proyek",
+     "shown": "A.2 Direksi keet, pagar sementara & fasilitas proyek",
      "full": "A.2 Direksi keet, pagar sementara & fasilitas proyek",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
      "shown": "B Pekerjaan Struktur",
      "full": "B Pekerjaan Struktur",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.1 Galian tanah basement…B.1 Galian tanah basement & pondasi",
+     "shown": "B.1 Galian tanah basement & pondasi",
      "full": "B.1 Galian tanah basement & pondasi",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.2 Beton ready mix K-300…B.2 Beton ready mix K-300 kolom, balok & plat",
+     "shown": "B.2 Beton ready mix K-300 kolom, balok & plat",
      "full": "B.2 Beton ready mix K-300 kolom, balok & plat",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.3 Pembesian besi beton …B.3 Pembesian besi beton ulir",
+     "shown": "B.3 Pembesian besi beton ulir",
      "full": "B.3 Pembesian besi beton ulir",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.4 Bekisting kolom, balo…B.4 Bekisting kolom, balok & plat lantai",
+     "shown": "B.4 Bekisting kolom, balok & plat lantai",
      "full": "B.4 Bekisting kolom, balok & plat lantai",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.5 Pekerjaan tambah — se…B.5 Pekerjaan tambah — selesai belum ditetapkan",
+     "shown": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
      "full": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C Pekerjaan Arsitektur & …C Pekerjaan Arsitektur & MEP",
+     "shown": "C Pekerjaan Arsitektur & MEP",
      "full": "C Pekerjaan Arsitektur & MEP",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "C.1 Pasangan bata, pleste…C.1 Pasangan bata, plesteran & finishing arsitektur",
+     "shown": "C.1 Pasangan bata, plesteran & finishing arsitektur",
      "full": "C.1 Pasangan bata, plesteran & finishing arsitektur",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C.2 MEP, ELV & ICT (CCTV,…C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
+     "shown": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
      "full": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     }
    ],
    "bars": [
     {
-     "x": 180,
+     "x": 300,
      "y": 41,
-     "w": 123.27,
+     "w": 102.72,
      "open": null,
      "level": "0",
      "title": "A Pekerjaan Persiapan: 02 Feb 2026 – 30 Apr 2026 · 100 %"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 69,
-     "w": 81.25,
+     "w": 67.7,
      "open": null,
      "level": "1",
      "title": "A.1 Mobilisasi & demobilisasi peralatan: 02 Feb 2026 – 31 Mar 2026 · 100 %"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 97,
-     "w": 58.83,
+     "w": 49.03,
      "open": null,
      "level": "1",
      "title": "A.2 Direksi keet, pagar sementara & fasilitas proyek: 02 Feb 2026 – 15 Mar 2026 · 100 %"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 125,
-     "w": 413.23,
+     "w": 344.36,
      "open": null,
      "level": "0",
      "title": "B Pekerjaan Struktur: 09 Feb 2026 – 30 Nov 2026 · 62,9 %"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 153,
-     "w": 56.03,
+     "w": 46.69,
      "open": null,
      "level": "1",
      "title": "B.1 Galian tanah basement & pondasi: 09 Feb 2026 – 20 Mar 2026 · 100 %"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 181,
-     "w": 341.79,
+     "w": 284.82,
      "open": null,
      "level": "1",
      "title": "B.2 Beton ready mix K-300 kolom, balok & plat: 02 Mar 2026 – 31 Okt 2026 · 65 %"
     },
     {
-     "x": 209.42,
+     "x": 324.51,
      "y": 209,
-     "w": 329.18,
+     "w": 274.32,
      "open": null,
      "level": "1",
      "title": "B.3 Pembesian besi beton ulir: 23 Feb 2026 – 15 Okt 2026 · 60 %"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 237,
-     "w": 362.8,
+     "w": 302.33,
      "open": null,
      "level": "1",
      "title": "B.4 Bekisting kolom, balok & plat lantai: 02 Mar 2026 – 15 Nov 2026 · 60 %"
     },
     {
-     "x": 475.56,
+     "x": 546.3,
      "y": 265,
-     "w": 424.44,
+     "w": 353.7,
      "open": "end",
      "level": "1",
      "title": "B.5 Pekerjaan tambah — selesai belum ditetapkan: mulai 01 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 293,
-     "w": 661.17,
+     "w": 550.97,
      "open": null,
      "level": "0",
      "title": "C Pekerjaan Arsitektur & MEP: 16 Mar 2026 – 30 Jun 2027 · 4,2 %"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 321,
-     "w": 533.7,
+     "w": 444.75,
      "open": null,
      "level": "1",
      "title": "C.1 Pasangan bata, plesteran & finishing arsitektur: 16 Mar 2026 – 31 Mar 2027 · 4,1 %"
     },
     {
-     "x": 248.64,
+     "x": 357.2,
      "y": 349,
-     "w": 651.36,
+     "w": 542.8,
      "open": null,
      "level": "1",
      "title": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat): 23 Mar 2026 – 30 Jun 2027 · 5 %"
@@ -21547,126 +21620,126 @@
    ],
    "progress": [
     {
-     "x": 180,
+     "x": 300,
      "y": 41,
-     "w": 123.27
+     "w": 102.72
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 69,
-     "w": 81.25
+     "w": 67.7
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 97,
-     "w": 58.83
+     "w": 49.03
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 125,
-     "w": 260.05
+     "w": 216.71
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 153,
-     "w": 56.03
+     "w": 46.69
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 181,
-     "w": 222.16
+     "w": 185.14
     },
     {
-     "x": 209.42,
+     "x": 324.51,
      "y": 209,
-     "w": 197.51
+     "w": 164.59
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 237,
-     "w": 217.68
+     "w": 181.4
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 293,
-     "w": 28.02
+     "w": 23.35
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 321,
-     "w": 21.67
+     "w": 18.06
     },
     {
-     "x": 248.64,
+     "x": 357.2,
      "y": 349,
-     "w": 32.57
+     "w": 27.14
     }
    ],
    "baselines": [
     {
-     "x": 180,
+     "x": 300,
      "y": 51,
-     "w": 123.27,
+     "w": 102.72,
      "title": "A Pekerjaan Persiapan — baseline: 02 Feb 2026 – 30 Apr 2026"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 79,
-     "w": 81.25,
+     "w": 67.7,
      "title": "A.1 Mobilisasi & demobilisasi peralatan — baseline: 02 Feb 2026 – 31 Mar 2026"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 107,
-     "w": 58.83,
+     "w": 49.03,
      "title": "A.2 Direksi keet, pagar sementara & fasilitas proyek — baseline: 02 Feb 2026 – 15 Mar 2026"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 135,
-     "w": 413.23,
+     "w": 344.36,
      "title": "B Pekerjaan Struktur — baseline: 09 Feb 2026 – 30 Nov 2026"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 163,
-     "w": 56.03,
+     "w": 46.69,
      "title": "B.1 Galian tanah basement & pondasi — baseline: 09 Feb 2026 – 20 Mar 2026"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 191,
-     "w": 299.77,
+     "w": 249.81,
      "title": "B.2 Beton ready mix K-300 kolom, balok & plat — baseline: 02 Mar 2026 – 01 Okt 2026"
     },
     {
-     "x": 209.42,
+     "x": 324.51,
      "y": 219,
-     "w": 329.18,
+     "w": 274.32,
      "title": "B.3 Pembesian besi beton ulir — baseline: 23 Feb 2026 – 15 Okt 2026"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 247,
-     "w": 362.8,
+     "w": 302.33,
      "title": "B.4 Bekisting kolom, balok & plat lantai — baseline: 02 Mar 2026 – 15 Nov 2026"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 303,
-     "w": 661.17,
+     "w": 550.97,
      "title": "C Pekerjaan Arsitektur & MEP — baseline: 16 Mar 2026 – 30 Jun 2027"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 331,
-     "w": 533.7,
+     "w": 444.75,
      "title": "C.1 Pasangan bata, plesteran & finishing arsitektur — baseline: 16 Mar 2026 – 31 Mar 2027"
     },
     {
-     "x": 248.64,
+     "x": 357.2,
      "y": 359,
-     "w": 651.36,
+     "w": 542.8,
      "title": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat) — baseline: 23 Mar 2026 – 30 Jun 2027"
     }
    ],
@@ -21678,398 +21751,397 @@
    },
    "weekends": [
     {
-     "x": 187,
-     "w": 2.8
+     "x": 305.84,
+     "w": 2.33
     },
     {
-     "x": 196.81,
-     "w": 2.8
+     "x": 314.01,
+     "w": 2.33
     },
     {
-     "x": 206.61,
-     "w": 2.8
+     "x": 322.18,
+     "w": 2.33
     },
     {
-     "x": 216.42,
-     "w": 2.8
+     "x": 330.35,
+     "w": 2.33
     },
     {
-     "x": 226.23,
-     "w": 2.8
+     "x": 338.52,
+     "w": 2.33
     },
     {
-     "x": 236.03,
-     "w": 2.8
+     "x": 346.69,
+     "w": 2.33
     },
     {
-     "x": 245.84,
-     "w": 2.8
+     "x": 354.86,
+     "w": 2.33
     },
     {
-     "x": 255.64,
-     "w": 2.8
+     "x": 363.04,
+     "w": 2.33
     },
     {
-     "x": 265.45,
-     "w": 2.8
+     "x": 371.21,
+     "w": 2.33
     },
     {
-     "x": 275.25,
-     "w": 2.8
+     "x": 379.38,
+     "w": 2.33
     },
     {
-     "x": 285.06,
-     "w": 2.8
+     "x": 387.55,
+     "w": 2.33
     },
     {
-     "x": 294.86,
-     "w": 2.8
+     "x": 395.72,
+     "w": 2.33
     },
     {
-     "x": 304.67,
-     "w": 2.8
+     "x": 403.89,
+     "w": 2.33
     },
     {
-     "x": 314.47,
-     "w": 2.8
+     "x": 412.06,
+     "w": 2.33
     },
     {
-     "x": 324.28,
-     "w": 2.8
+     "x": 420.23,
+     "w": 2.33
     },
     {
-     "x": 334.09,
-     "w": 2.8
+     "x": 428.4,
+     "w": 2.33
     },
     {
-     "x": 343.89,
-     "w": 2.8
+     "x": 436.58,
+     "w": 2.33
     },
     {
-     "x": 353.7,
-     "w": 2.8
+     "x": 444.75,
+     "w": 2.33
     },
     {
-     "x": 363.5,
-     "w": 2.8
+     "x": 452.92,
+     "w": 2.33
     },
     {
-     "x": 373.31,
-     "w": 2.8
+     "x": 461.09,
+     "w": 2.33
     },
     {
-     "x": 383.11,
-     "w": 2.8
+     "x": 469.26,
+     "w": 2.33
     },
     {
-     "x": 392.92,
-     "w": 2.8
+     "x": 477.43,
+     "w": 2.33
     },
     {
-     "x": 402.72,
-     "w": 2.8
+     "x": 485.6,
+     "w": 2.33
     },
     {
-     "x": 412.53,
-     "w": 2.8
+     "x": 493.77,
+     "w": 2.33
     },
     {
-     "x": 422.33,
-     "w": 2.8
+     "x": 501.95,
+     "w": 2.33
     },
     {
-     "x": 432.14,
-     "w": 2.8
+     "x": 510.12,
+     "w": 2.33
     },
     {
-     "x": 441.95,
-     "w": 2.8
+     "x": 518.29,
+     "w": 2.33
     },
     {
-     "x": 451.75,
-     "w": 2.8
+     "x": 526.46,
+     "w": 2.33
     },
     {
-     "x": 461.56,
-     "w": 2.8
+     "x": 534.63,
+     "w": 2.33
     },
     {
-     "x": 471.36,
-     "w": 2.8
+     "x": 542.8,
+     "w": 2.33
     },
     {
-     "x": 481.17,
-     "w": 2.8
+     "x": 550.97,
+     "w": 2.33
     },
     {
-     "x": 490.97,
-     "w": 2.8
+     "x": 559.14,
+     "w": 2.33
     },
     {
-     "x": 500.78,
-     "w": 2.8
+     "x": 567.32,
+     "w": 2.33
     },
     {
-     "x": 510.58,
-     "w": 2.8
+     "x": 575.49,
+     "w": 2.33
     },
     {
-     "x": 520.39,
-     "w": 2.8
+     "x": 583.66,
+     "w": 2.33
     },
     {
-     "x": 530.19,
-     "w": 2.8
+     "x": 591.83,
+     "w": 2.33
     },
     {
-     "x": 540,
-     "w": 2.8
+     "x": 600,
+     "w": 2.33
     },
     {
-     "x": 549.81,
-     "w": 2.8
+     "x": 608.17,
+     "w": 2.33
     },
     {
-     "x": 559.61,
-     "w": 2.8
+     "x": 616.34,
+     "w": 2.33
     },
     {
-     "x": 569.42,
-     "w": 2.8
+     "x": 624.51,
+     "w": 2.33
     },
     {
-     "x": 579.22,
-     "w": 2.8
+     "x": 632.68,
+     "w": 2.33
     },
     {
-     "x": 589.03,
-     "w": 2.8
+     "x": 640.86,
+     "w": 2.33
     },
     {
-     "x": 598.83,
-     "w": 2.8
+     "x": 649.03,
+     "w": 2.33
     },
     {
-     "x": 608.64,
-     "w": 2.8
+     "x": 657.2,
+     "w": 2.33
     },
     {
-     "x": 618.44,
-     "w": 2.8
+     "x": 665.37,
+     "w": 2.33
     },
     {
-     "x": 628.25,
-     "w": 2.8
+     "x": 673.54,
+     "w": 2.33
     },
     {
-     "x": 638.05,
-     "w": 2.8
+     "x": 681.71,
+     "w": 2.33
     },
     {
-     "x": 647.86,
-     "w": 2.8
+     "x": 689.88,
+     "w": 2.33
     },
     {
-     "x": 657.67,
-     "w": 2.8
+     "x": 698.05,
+     "w": 2.33
     },
     {
-     "x": 667.47,
-     "w": 2.8
+     "x": 706.23,
+     "w": 2.33
     },
     {
-     "x": 677.28,
-     "w": 2.8
+     "x": 714.4,
+     "w": 2.33
     },
     {
-     "x": 687.08,
-     "w": 2.8
+     "x": 722.57,
+     "w": 2.33
     },
     {
-     "x": 696.89,
-     "w": 2.8
+     "x": 730.74,
+     "w": 2.33
     },
     {
-     "x": 706.69,
-     "w": 2.8
+     "x": 738.91,
+     "w": 2.33
     },
     {
-     "x": 716.5,
-     "w": 2.8
+     "x": 747.08,
+     "w": 2.33
     },
     {
-     "x": 726.3,
-     "w": 2.8
+     "x": 755.25,
+     "w": 2.33
     },
     {
-     "x": 736.11,
-     "w": 2.8
+     "x": 763.42,
+     "w": 2.33
     },
     {
-     "x": 745.91,
-     "w": 2.8
+     "x": 771.6,
+     "w": 2.33
     },
     {
-     "x": 755.72,
-     "w": 2.8
+     "x": 779.77,
+     "w": 2.33
     },
     {
-     "x": 765.53,
-     "w": 2.8
+     "x": 787.94,
+     "w": 2.33
     },
     {
-     "x": 775.33,
-     "w": 2.8
+     "x": 796.11,
+     "w": 2.33
     },
     {
-     "x": 785.14,
-     "w": 2.8
+     "x": 804.28,
+     "w": 2.33
     },
     {
-     "x": 794.94,
-     "w": 2.8
+     "x": 812.45,
+     "w": 2.33
     },
     {
-     "x": 804.75,
-     "w": 2.8
+     "x": 820.62,
+     "w": 2.33
     },
     {
-     "x": 814.55,
-     "w": 2.8
+     "x": 828.79,
+     "w": 2.33
     },
     {
-     "x": 824.36,
-     "w": 2.8
+     "x": 836.96,
+     "w": 2.33
     },
     {
-     "x": 834.16,
-     "w": 2.8
+     "x": 845.14,
+     "w": 2.33
     },
     {
-     "x": 843.97,
-     "w": 2.8
+     "x": 853.31,
+     "w": 2.33
     },
     {
-     "x": 853.77,
-     "w": 2.8
+     "x": 861.48,
+     "w": 2.33
     },
     {
-     "x": 863.58,
-     "w": 2.8
+     "x": 869.65,
+     "w": 2.33
     },
     {
-     "x": 873.39,
-     "w": 2.8
+     "x": 877.82,
+     "w": 2.33
     },
     {
-     "x": 883.19,
-     "w": 2.8
+     "x": 885.99,
+     "w": 2.33
     },
     {
-     "x": 893,
-     "w": 2.8
+     "x": 894.16,
+     "w": 2.33
     }
    ],
    "ticks": [
-    180,
-    189.81,
-    199.61,
-    209.42,
-    219.22,
-    229.03,
-    238.83,
-    248.64,
-    258.44,
-    268.25,
-    278.05,
-    287.86,
-    297.67,
-    307.47,
-    317.28,
-    327.08,
-    336.89,
-    346.69,
-    356.5,
-    366.3,
-    376.11,
-    385.91,
-    395.72,
-    405.53,
-    415.33,
-    425.14,
-    434.94,
-    444.75,
-    454.55,
-    464.36,
-    474.16,
-    483.97,
-    493.77,
-    503.58,
-    513.39,
-    523.19,
-    533,
-    542.8,
-    552.61,
-    562.41,
-    572.22,
-    582.02,
-    591.83,
-    601.63,
-    611.44,
-    621.25,
-    631.05,
-    640.86,
-    650.66,
-    660.47,
-    670.27,
-    680.08,
-    689.88,
-    699.69,
-    709.49,
-    719.3,
-    729.11,
-    738.91,
-    748.72,
-    758.52,
-    768.33,
-    778.13,
-    787.94,
-    797.74,
-    807.55,
-    817.35,
-    827.16,
-    836.96,
-    846.77,
-    856.58,
-    866.38,
-    876.19,
-    885.99,
-    895.8
+    300,
+    308.17,
+    316.34,
+    324.51,
+    332.68,
+    340.86,
+    349.03,
+    357.2,
+    365.37,
+    373.54,
+    381.71,
+    389.88,
+    398.05,
+    406.23,
+    414.4,
+    422.57,
+    430.74,
+    438.91,
+    447.08,
+    455.25,
+    463.42,
+    471.6,
+    479.77,
+    487.94,
+    496.11,
+    504.28,
+    512.45,
+    520.62,
+    528.79,
+    536.96,
+    545.14,
+    553.31,
+    561.48,
+    569.65,
+    577.82,
+    585.99,
+    594.16,
+    602.33,
+    610.51,
+    618.68,
+    626.85,
+    635.02,
+    643.19,
+    651.36,
+    659.53,
+    667.7,
+    675.88,
+    684.05,
+    692.22,
+    700.39,
+    708.56,
+    716.73,
+    724.9,
+    733.07,
+    741.25,
+    749.42,
+    757.59,
+    765.76,
+    773.93,
+    782.1,
+    790.27,
+    798.44,
+    806.61,
+    814.79,
+    822.96,
+    831.13,
+    839.3,
+    847.47,
+    855.64,
+    863.81,
+    871.98,
+    880.16,
+    888.33,
+    896.5
    ],
    "tick_labels": [
     "02 Feb",
-    "09 Mar",
-    "13 Apr",
-    "18 Mei",
-    "22 Jun",
-    "27 Jul",
-    "09 Nov",
-    "14 Des",
-    "18 Jan",
-    "22 Feb",
+    "16 Mar",
+    "27 Apr",
+    "08 Jun",
+    "20 Jul",
+    "23 Nov",
+    "04 Jan",
+    "15 Feb",
     "29 Mar",
-    "03 Mei"
+    "10 Mei"
    ],
    "groups": [],
-   "today_x": 484.67,
+   "today_x": 553.89,
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
-   "other_titles": 10,
+   "other_titles": 0,
    "legend": [
     "Aktual",
     "Progres",
     "Baseline",
+    "Tanggal belum ditetapkan",
     "Hari ini"
    ],
    "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
@@ -22078,24 +22150,63 @@
     "tick": 13.59
    },
    "scroll_x": false,
+   "boxes": {
+    "scroller": {
+     "left": 289,
+     "right": 1401,
+     "width": 1112,
+     "scrollLeft": 0,
+     "scrollWidth": 1112,
+     "clientWidth": 1112
+    },
+    "today": {
+     "left": 973.4,
+     "right": 973.4,
+     "width": 0
+    },
+    "today_label": {
+     "left": 978.3,
+     "right": 1024.3,
+     "width": 46
+    },
+    "svg_note": {
+     "left": 298.9,
+     "right": 1045.9,
+     "width": 747
+    },
+    "dom_note": {
+     "left": 289,
+     "right": 1401,
+     "width": 1112
+    }
+   },
+   "dom_note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
    "head": "Jadwal — PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
    "foot": [
+    "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
     "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan."
    ],
    "zoom_buttons": [
     {
      "label": "Mingguan",
-     "primary": true
+     "primary": true,
+     "pressed": "true"
     },
     {
      "label": "Bulanan",
-     "primary": false
+     "primary": false,
+     "pressed": "false"
     },
     {
      "label": "Cetak",
-     "primary": false
+     "primary": false,
+     "pressed": null
     }
-   ]
+   ],
+   "filters_role": {
+    "role": "group",
+    "label": "Skala waktu gantt"
+   }
   },
   "month": {
    "viewbox": [
@@ -22114,157 +22225,181 @@
     {
      "shown": "A Pekerjaan Persiapan",
      "full": "A Pekerjaan Persiapan",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "A.1 Mobilisasi & demobili…A.1 Mobilisasi & demobilisasi peralatan",
+     "shown": "A.1 Mobilisasi & demobilisasi peralatan",
      "full": "A.1 Mobilisasi & demobilisasi peralatan",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "A.2 Direksi keet, pagar s…A.2 Direksi keet, pagar sementara & fasilitas proyek",
+     "shown": "A.2 Direksi keet, pagar sementara & fasilitas proyek",
      "full": "A.2 Direksi keet, pagar sementara & fasilitas proyek",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
      "shown": "B Pekerjaan Struktur",
      "full": "B Pekerjaan Struktur",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.1 Galian tanah basement…B.1 Galian tanah basement & pondasi",
+     "shown": "B.1 Galian tanah basement & pondasi",
      "full": "B.1 Galian tanah basement & pondasi",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.2 Beton ready mix K-300…B.2 Beton ready mix K-300 kolom, balok & plat",
+     "shown": "B.2 Beton ready mix K-300 kolom, balok & plat",
      "full": "B.2 Beton ready mix K-300 kolom, balok & plat",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.3 Pembesian besi beton …B.3 Pembesian besi beton ulir",
+     "shown": "B.3 Pembesian besi beton ulir",
      "full": "B.3 Pembesian besi beton ulir",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.4 Bekisting kolom, balo…B.4 Bekisting kolom, balok & plat lantai",
+     "shown": "B.4 Bekisting kolom, balok & plat lantai",
      "full": "B.4 Bekisting kolom, balok & plat lantai",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.5 Pekerjaan tambah — se…B.5 Pekerjaan tambah — selesai belum ditetapkan",
+     "shown": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
      "full": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C Pekerjaan Arsitektur & …C Pekerjaan Arsitektur & MEP",
+     "shown": "C Pekerjaan Arsitektur & MEP",
      "full": "C Pekerjaan Arsitektur & MEP",
-     "truncated": true
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "C.1 Pasangan bata, pleste…C.1 Pasangan bata, plesteran & finishing arsitektur",
+     "shown": "C.1 Pasangan bata, plesteran & finishing arsitektur",
      "full": "C.1 Pasangan bata, plesteran & finishing arsitektur",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C.2 MEP, ELV & ICT (CCTV,…C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
+     "shown": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
      "full": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     }
    ],
    "bars": [
     {
-     "x": 180,
+     "x": 300,
      "y": 41,
-     "w": 123.27,
+     "w": 102.72,
      "open": null,
      "level": "0",
      "title": "A Pekerjaan Persiapan: 02 Feb 2026 – 30 Apr 2026 · 100 %"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 69,
-     "w": 81.25,
+     "w": 67.7,
      "open": null,
      "level": "1",
      "title": "A.1 Mobilisasi & demobilisasi peralatan: 02 Feb 2026 – 31 Mar 2026 · 100 %"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 97,
-     "w": 58.83,
+     "w": 49.03,
      "open": null,
      "level": "1",
      "title": "A.2 Direksi keet, pagar sementara & fasilitas proyek: 02 Feb 2026 – 15 Mar 2026 · 100 %"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 125,
-     "w": 413.23,
+     "w": 344.36,
      "open": null,
      "level": "0",
      "title": "B Pekerjaan Struktur: 09 Feb 2026 – 30 Nov 2026 · 62,9 %"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 153,
-     "w": 56.03,
+     "w": 46.69,
      "open": null,
      "level": "1",
      "title": "B.1 Galian tanah basement & pondasi: 09 Feb 2026 – 20 Mar 2026 · 100 %"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 181,
-     "w": 341.79,
+     "w": 284.82,
      "open": null,
      "level": "1",
      "title": "B.2 Beton ready mix K-300 kolom, balok & plat: 02 Mar 2026 – 31 Okt 2026 · 65 %"
     },
     {
-     "x": 209.42,
+     "x": 324.51,
      "y": 209,
-     "w": 329.18,
+     "w": 274.32,
      "open": null,
      "level": "1",
      "title": "B.3 Pembesian besi beton ulir: 23 Feb 2026 – 15 Okt 2026 · 60 %"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 237,
-     "w": 362.8,
+     "w": 302.33,
      "open": null,
      "level": "1",
      "title": "B.4 Bekisting kolom, balok & plat lantai: 02 Mar 2026 – 15 Nov 2026 · 60 %"
     },
     {
-     "x": 475.56,
+     "x": 546.3,
      "y": 265,
-     "w": 424.44,
+     "w": 353.7,
      "open": "end",
      "level": "1",
      "title": "B.5 Pekerjaan tambah — selesai belum ditetapkan: mulai 01 Sep 2026, tanggal selesai belum ditetapkan (bar terbuka) · 0 %"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 293,
-     "w": 661.17,
+     "w": 550.97,
      "open": null,
      "level": "0",
      "title": "C Pekerjaan Arsitektur & MEP: 16 Mar 2026 – 30 Jun 2027 · 4,2 %"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 321,
-     "w": 533.7,
+     "w": 444.75,
      "open": null,
      "level": "1",
      "title": "C.1 Pasangan bata, plesteran & finishing arsitektur: 16 Mar 2026 – 31 Mar 2027 · 4,1 %"
     },
     {
-     "x": 248.64,
+     "x": 357.2,
      "y": 349,
-     "w": 651.36,
+     "w": 542.8,
      "open": null,
      "level": "1",
      "title": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat): 23 Mar 2026 – 30 Jun 2027 · 5 %"
@@ -22272,126 +22407,126 @@
    ],
    "progress": [
     {
-     "x": 180,
+     "x": 300,
      "y": 41,
-     "w": 123.27
+     "w": 102.72
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 69,
-     "w": 81.25
+     "w": 67.7
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 97,
-     "w": 58.83
+     "w": 49.03
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 125,
-     "w": 260.05
+     "w": 216.71
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 153,
-     "w": 56.03
+     "w": 46.69
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 181,
-     "w": 222.16
+     "w": 185.14
     },
     {
-     "x": 209.42,
+     "x": 324.51,
      "y": 209,
-     "w": 197.51
+     "w": 164.59
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 237,
-     "w": 217.68
+     "w": 181.4
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 293,
-     "w": 28.02
+     "w": 23.35
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 321,
-     "w": 21.67
+     "w": 18.06
     },
     {
-     "x": 248.64,
+     "x": 357.2,
      "y": 349,
-     "w": 32.57
+     "w": 27.14
     }
    ],
    "baselines": [
     {
-     "x": 180,
+     "x": 300,
      "y": 51,
-     "w": 123.27,
+     "w": 102.72,
      "title": "A Pekerjaan Persiapan — baseline: 02 Feb 2026 – 30 Apr 2026"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 79,
-     "w": 81.25,
+     "w": 67.7,
      "title": "A.1 Mobilisasi & demobilisasi peralatan — baseline: 02 Feb 2026 – 31 Mar 2026"
     },
     {
-     "x": 180,
+     "x": 300,
      "y": 107,
-     "w": 58.83,
+     "w": 49.03,
      "title": "A.2 Direksi keet, pagar sementara & fasilitas proyek — baseline: 02 Feb 2026 – 15 Mar 2026"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 135,
-     "w": 413.23,
+     "w": 344.36,
      "title": "B Pekerjaan Struktur — baseline: 09 Feb 2026 – 30 Nov 2026"
     },
     {
-     "x": 189.81,
+     "x": 308.17,
      "y": 163,
-     "w": 56.03,
+     "w": 46.69,
      "title": "B.1 Galian tanah basement & pondasi — baseline: 09 Feb 2026 – 20 Mar 2026"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 191,
-     "w": 299.77,
+     "w": 249.81,
      "title": "B.2 Beton ready mix K-300 kolom, balok & plat — baseline: 02 Mar 2026 – 01 Okt 2026"
     },
     {
-     "x": 209.42,
+     "x": 324.51,
      "y": 219,
-     "w": 329.18,
+     "w": 274.32,
      "title": "B.3 Pembesian besi beton ulir — baseline: 23 Feb 2026 – 15 Okt 2026"
     },
     {
-     "x": 219.22,
+     "x": 332.68,
      "y": 247,
-     "w": 362.8,
+     "w": 302.33,
      "title": "B.4 Bekisting kolom, balok & plat lantai — baseline: 02 Mar 2026 – 15 Nov 2026"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 303,
-     "w": 661.17,
+     "w": 550.97,
      "title": "C Pekerjaan Arsitektur & MEP — baseline: 16 Mar 2026 – 30 Jun 2027"
     },
     {
-     "x": 238.83,
+     "x": 349.03,
      "y": 331,
-     "w": 533.7,
+     "w": 444.75,
      "title": "C.1 Pasangan bata, plesteran & finishing arsitektur — baseline: 16 Mar 2026 – 31 Mar 2027"
     },
     {
-     "x": 248.64,
+     "x": 357.2,
      "y": 359,
-     "w": 651.36,
+     "w": 542.8,
      "title": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat) — baseline: 23 Mar 2026 – 30 Jun 2027"
     }
    ],
@@ -22403,315 +22538,315 @@
    },
    "weekends": [
     {
-     "x": 187,
-     "w": 2.8
+     "x": 305.84,
+     "w": 2.33
     },
     {
-     "x": 196.81,
-     "w": 2.8
+     "x": 314.01,
+     "w": 2.33
     },
     {
-     "x": 206.61,
-     "w": 2.8
+     "x": 322.18,
+     "w": 2.33
     },
     {
-     "x": 216.42,
-     "w": 2.8
+     "x": 330.35,
+     "w": 2.33
     },
     {
-     "x": 226.23,
-     "w": 2.8
+     "x": 338.52,
+     "w": 2.33
     },
     {
-     "x": 236.03,
-     "w": 2.8
+     "x": 346.69,
+     "w": 2.33
     },
     {
-     "x": 245.84,
-     "w": 2.8
+     "x": 354.86,
+     "w": 2.33
     },
     {
-     "x": 255.64,
-     "w": 2.8
+     "x": 363.04,
+     "w": 2.33
     },
     {
-     "x": 265.45,
-     "w": 2.8
+     "x": 371.21,
+     "w": 2.33
     },
     {
-     "x": 275.25,
-     "w": 2.8
+     "x": 379.38,
+     "w": 2.33
     },
     {
-     "x": 285.06,
-     "w": 2.8
+     "x": 387.55,
+     "w": 2.33
     },
     {
-     "x": 294.86,
-     "w": 2.8
+     "x": 395.72,
+     "w": 2.33
     },
     {
-     "x": 304.67,
-     "w": 2.8
+     "x": 403.89,
+     "w": 2.33
     },
     {
-     "x": 314.47,
-     "w": 2.8
+     "x": 412.06,
+     "w": 2.33
     },
     {
-     "x": 324.28,
-     "w": 2.8
+     "x": 420.23,
+     "w": 2.33
     },
     {
-     "x": 334.09,
-     "w": 2.8
+     "x": 428.4,
+     "w": 2.33
     },
     {
-     "x": 343.89,
-     "w": 2.8
+     "x": 436.58,
+     "w": 2.33
     },
     {
-     "x": 353.7,
-     "w": 2.8
+     "x": 444.75,
+     "w": 2.33
     },
     {
-     "x": 363.5,
-     "w": 2.8
+     "x": 452.92,
+     "w": 2.33
     },
     {
-     "x": 373.31,
-     "w": 2.8
+     "x": 461.09,
+     "w": 2.33
     },
     {
-     "x": 383.11,
-     "w": 2.8
+     "x": 469.26,
+     "w": 2.33
     },
     {
-     "x": 392.92,
-     "w": 2.8
+     "x": 477.43,
+     "w": 2.33
     },
     {
-     "x": 402.72,
-     "w": 2.8
+     "x": 485.6,
+     "w": 2.33
     },
     {
-     "x": 412.53,
-     "w": 2.8
+     "x": 493.77,
+     "w": 2.33
     },
     {
-     "x": 422.33,
-     "w": 2.8
+     "x": 501.95,
+     "w": 2.33
     },
     {
-     "x": 432.14,
-     "w": 2.8
+     "x": 510.12,
+     "w": 2.33
     },
     {
-     "x": 441.95,
-     "w": 2.8
+     "x": 518.29,
+     "w": 2.33
     },
     {
-     "x": 451.75,
-     "w": 2.8
+     "x": 526.46,
+     "w": 2.33
     },
     {
-     "x": 461.56,
-     "w": 2.8
+     "x": 534.63,
+     "w": 2.33
     },
     {
-     "x": 471.36,
-     "w": 2.8
+     "x": 542.8,
+     "w": 2.33
     },
     {
-     "x": 481.17,
-     "w": 2.8
+     "x": 550.97,
+     "w": 2.33
     },
     {
-     "x": 490.97,
-     "w": 2.8
+     "x": 559.14,
+     "w": 2.33
     },
     {
-     "x": 500.78,
-     "w": 2.8
+     "x": 567.32,
+     "w": 2.33
     },
     {
-     "x": 510.58,
-     "w": 2.8
+     "x": 575.49,
+     "w": 2.33
     },
     {
-     "x": 520.39,
-     "w": 2.8
+     "x": 583.66,
+     "w": 2.33
     },
     {
-     "x": 530.19,
-     "w": 2.8
+     "x": 591.83,
+     "w": 2.33
     },
     {
-     "x": 540,
-     "w": 2.8
+     "x": 600,
+     "w": 2.33
     },
     {
-     "x": 549.81,
-     "w": 2.8
+     "x": 608.17,
+     "w": 2.33
     },
     {
-     "x": 559.61,
-     "w": 2.8
+     "x": 616.34,
+     "w": 2.33
     },
     {
-     "x": 569.42,
-     "w": 2.8
+     "x": 624.51,
+     "w": 2.33
     },
     {
-     "x": 579.22,
-     "w": 2.8
+     "x": 632.68,
+     "w": 2.33
     },
     {
-     "x": 589.03,
-     "w": 2.8
+     "x": 640.86,
+     "w": 2.33
     },
     {
-     "x": 598.83,
-     "w": 2.8
+     "x": 649.03,
+     "w": 2.33
     },
     {
-     "x": 608.64,
-     "w": 2.8
+     "x": 657.2,
+     "w": 2.33
     },
     {
-     "x": 618.44,
-     "w": 2.8
+     "x": 665.37,
+     "w": 2.33
     },
     {
-     "x": 628.25,
-     "w": 2.8
+     "x": 673.54,
+     "w": 2.33
     },
     {
-     "x": 638.05,
-     "w": 2.8
+     "x": 681.71,
+     "w": 2.33
     },
     {
-     "x": 647.86,
-     "w": 2.8
+     "x": 689.88,
+     "w": 2.33
     },
     {
-     "x": 657.67,
-     "w": 2.8
+     "x": 698.05,
+     "w": 2.33
     },
     {
-     "x": 667.47,
-     "w": 2.8
+     "x": 706.23,
+     "w": 2.33
     },
     {
-     "x": 677.28,
-     "w": 2.8
+     "x": 714.4,
+     "w": 2.33
     },
     {
-     "x": 687.08,
-     "w": 2.8
+     "x": 722.57,
+     "w": 2.33
     },
     {
-     "x": 696.89,
-     "w": 2.8
+     "x": 730.74,
+     "w": 2.33
     },
     {
-     "x": 706.69,
-     "w": 2.8
+     "x": 738.91,
+     "w": 2.33
     },
     {
-     "x": 716.5,
-     "w": 2.8
+     "x": 747.08,
+     "w": 2.33
     },
     {
-     "x": 726.3,
-     "w": 2.8
+     "x": 755.25,
+     "w": 2.33
     },
     {
-     "x": 736.11,
-     "w": 2.8
+     "x": 763.42,
+     "w": 2.33
     },
     {
-     "x": 745.91,
-     "w": 2.8
+     "x": 771.6,
+     "w": 2.33
     },
     {
-     "x": 755.72,
-     "w": 2.8
+     "x": 779.77,
+     "w": 2.33
     },
     {
-     "x": 765.53,
-     "w": 2.8
+     "x": 787.94,
+     "w": 2.33
     },
     {
-     "x": 775.33,
-     "w": 2.8
+     "x": 796.11,
+     "w": 2.33
     },
     {
-     "x": 785.14,
-     "w": 2.8
+     "x": 804.28,
+     "w": 2.33
     },
     {
-     "x": 794.94,
-     "w": 2.8
+     "x": 812.45,
+     "w": 2.33
     },
     {
-     "x": 804.75,
-     "w": 2.8
+     "x": 820.62,
+     "w": 2.33
     },
     {
-     "x": 814.55,
-     "w": 2.8
+     "x": 828.79,
+     "w": 2.33
     },
     {
-     "x": 824.36,
-     "w": 2.8
+     "x": 836.96,
+     "w": 2.33
     },
     {
-     "x": 834.16,
-     "w": 2.8
+     "x": 845.14,
+     "w": 2.33
     },
     {
-     "x": 843.97,
-     "w": 2.8
+     "x": 853.31,
+     "w": 2.33
     },
     {
-     "x": 853.77,
-     "w": 2.8
+     "x": 861.48,
+     "w": 2.33
     },
     {
-     "x": 863.58,
-     "w": 2.8
+     "x": 869.65,
+     "w": 2.33
     },
     {
-     "x": 873.39,
-     "w": 2.8
+     "x": 877.82,
+     "w": 2.33
     },
     {
-     "x": 883.19,
-     "w": 2.8
+     "x": 885.99,
+     "w": 2.33
     },
     {
-     "x": 893,
-     "w": 2.8
+     "x": 894.16,
+     "w": 2.33
     }
    ],
    "ticks": [
-    217.82,
-    261.25,
-    303.27,
-    346.69,
-    388.72,
-    432.14,
-    475.56,
-    517.59,
-    561.01,
-    603.04,
-    646.46,
-    689.88,
-    729.11,
-    772.53,
-    814.55,
-    857.98
+    331.52,
+    367.7,
+    402.72,
+    438.91,
+    473.93,
+    510.12,
+    546.3,
+    581.32,
+    617.51,
+    652.53,
+    688.72,
+    724.9,
+    757.59,
+    793.77,
+    828.79,
+    864.98
    ],
    "tick_labels": [
     "Mar",
@@ -22726,15 +22861,16 @@
     "2026",
     "2027"
    ],
-   "today_x": 484.67,
+   "today_x": 553.89,
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
-   "other_titles": 10,
+   "other_titles": 0,
    "legend": [
     "Aktual",
     "Progres",
     "Baseline",
+    "Tanggal belum ditetapkan",
     "Hari ini"
    ],
    "note": "Skala bulanan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
@@ -22743,24 +22879,75 @@
     "tick": 13.59
    },
    "scroll_x": false,
+   "boxes": {
+    "scroller": {
+     "left": 289,
+     "right": 1401,
+     "width": 1112,
+     "scrollLeft": 0,
+     "scrollWidth": 1112,
+     "clientWidth": 1112
+    },
+    "today": {
+     "left": 973.4,
+     "right": 973.4,
+     "width": 0
+    },
+    "today_label": {
+     "left": 978.3,
+     "right": 1024.3,
+     "width": 46
+    },
+    "svg_note": {
+     "left": 298.9,
+     "right": 1034.6,
+     "width": 735.7
+    },
+    "dom_note": {
+     "left": 289,
+     "right": 1401,
+     "width": 1112
+    }
+   },
+   "dom_note": "Skala bulanan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
    "head": "Jadwal — PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
    "foot": [
+    "Skala bulanan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
     "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan."
    ],
    "zoom_buttons": [
     {
      "label": "Mingguan",
-     "primary": false
+     "primary": false,
+     "pressed": "false"
     },
     {
      "label": "Bulanan",
-     "primary": true
+     "primary": true,
+     "pressed": "true"
     },
     {
      "label": "Cetak",
-     "primary": false
+     "primary": false,
+     "pressed": null
     }
-   ]
+   ],
+   "filters_role": {
+    "role": "group",
+    "label": "Skala waktu gantt"
+   }
+  },
+  "keyboard": {
+   "active_tag": "BUTTON",
+   "active_zoom": "week",
+   "group_role": "group",
+   "group_label": "Skala waktu gantt",
+   "pressed": [
+    "true",
+    "false",
+    null
+   ],
+   "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS."
   },
   "print": {
    "page_rules": [
@@ -22795,7 +22982,8 @@
    {
     "state": "dikembalikan",
     "code": "B.2",
-    "to": "2026-10-31"
+    "to": "2026-10-31",
+    "read_back": "2026-10-31"
    }
   ],
   "pageerrors": [],
@@ -22837,44 +23025,59 @@
    "baseline_offset_px": [
     10
    ],
-   "today_x_measured": 484.67,
-   "today_x_expected": 484.67,
+   "today_x_measured": 553.89,
+   "today_x_expected": 553.89,
    "row_geometry_mismatch": [],
    "planted_deviation": {
     "code": "B.2",
-    "bar_right": 561.01,
-    "baseline_right": 518.99,
-    "expected_gap_px": 42.02,
-    "measured_gap_px": 42.02
+    "bar_right": 617.5,
+    "baseline_right": 582.49,
+    "expected_gap_px": 35.02,
+    "measured_gap_px": 35.01
    }
   },
   "text_px": {
    "label": 14.21,
    "tick": 13.59,
    "svg_rendered_px": 1112,
-   "scrolls_horizontally": false
+   "scrolls_horizontally": false,
+   "label_width_units": 300,
+   "labels_truncated": 0,
+   "labels_wrapped": 4,
+   "labels_total": 12
   },
   "checks": {
    "every_task_the_api_returned_has_a_row": true,
    "row_labels_are_code_plus_name": true,
+   "long_names_wrap_instead_of_being_cut": true,
+   "every_truncated_label_keeps_its_full_name": true,
    "today_line_drawn": true,
    "today_line_at_the_right_x": true,
    "today_line_is_labelled": true,
+   "the_today_line_reads_the_server_date": true,
    "weekend_shading_matches_the_window": true,
    "baseline_bars_only_where_a_baseline_exists": true,
    "baseline_bar_sits_under_the_actual_bar": true,
    "every_bar_stands_where_its_dates_say": true,
+   "every_progress_fill_matches_the_percentage_the_api_sent": true,
    "a_shifted_baseline_shows_the_deviation": true,
    "week_ticks_match_the_mondays": true,
    "month_ticks_match_the_first_of_months": true,
    "zoom_really_changes_tick_density": true,
    "zoom_button_marks_itself_active": true,
+   "zoom_buttons_announce_the_active_scale": true,
+   "keyboard_zoom_keeps_the_focus_on_the_button": true,
+   "keyboard_zoom_really_switched_the_scale": true,
    "open_ended_task_draws_an_open_bar": true,
    "open_bar_has_a_dashed_edge": true,
    "open_bar_title_names_the_task_and_says_why": true,
    "every_mark_carries_a_title": true,
    "legend_names_only_what_is_drawn": true,
+   "legend_names_the_open_ended_bar": true,
    "source_note_states_the_matching_rule": true,
+   "the_source_note_is_readable_as_dom_text": true,
+   "the_dom_source_note_fits_the_card_width": true,
+   "the_today_line_is_inside_the_visible_window": true,
    "source_note_counts_the_matches": true,
    "legend_says_dependencies_are_not_drawn": true,
    "print_page_is_landscape": true,
@@ -22887,8 +23090,8 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 9104,
-  "_clicks": 3
+  "_ms": 11296,
+  "_clicks": 2
  },
  "S26_gantt_mobile": {
   "viewport": {
@@ -22897,7 +23100,7 @@
   },
   "planted_task": {
    "state": "ditanam",
-   "id": 50,
+   "id": 46,
    "code": "B.5",
    "planned_end": null
   },
@@ -22908,7 +23111,8 @@
    "to": "2026-10-01",
    "days": -30,
    "row_id": 7,
-   "restore": "2026-10-31"
+   "restore": "2026-10-31",
+   "healed": false
   },
   "tabs": [
    "Ringkasan",
@@ -22918,8 +23122,11 @@
    "wbs_status": 200,
    "baseline_status": 200,
    "baseline_code": "BSL/2026/VIII/0001",
-   "frozen_rows": 11
+   "frozen_rows": 11,
+   "as_of": "2026-09-07",
+   "as_of_source": "server"
   },
+  "label_width": 180,
   "expected": {
    "row_geometry": [
     {
@@ -22929,6 +23136,10 @@
       "w": 123.27
      },
      "baseline": {
+      "x": 180.0,
+      "w": 123.27
+     },
+     "progress": {
       "x": 180.0,
       "w": 123.27
      },
@@ -22944,6 +23155,10 @@
       "x": 180.0,
       "w": 81.25
      },
+     "progress": {
+      "x": 180.0,
+      "w": 81.25
+     },
      "open": null
     },
     {
@@ -22953,6 +23168,10 @@
       "w": 58.83
      },
      "baseline": {
+      "x": 180.0,
+      "w": 58.83
+     },
+     "progress": {
       "x": 180.0,
       "w": 58.83
      },
@@ -22968,6 +23187,10 @@
       "x": 189.81,
       "w": 413.23
      },
+     "progress": {
+      "x": 189.81,
+      "w": 260.05
+     },
      "open": null
     },
     {
@@ -22977,6 +23200,10 @@
       "w": 56.03
      },
      "baseline": {
+      "x": 189.81,
+      "w": 56.03
+     },
+     "progress": {
       "x": 189.81,
       "w": 56.03
      },
@@ -22992,6 +23219,10 @@
       "x": 219.22,
       "w": 299.77
      },
+     "progress": {
+      "x": 219.22,
+      "w": 222.16
+     },
      "open": null
     },
     {
@@ -23003,6 +23234,10 @@
      "baseline": {
       "x": 209.42,
       "w": 329.18
+     },
+     "progress": {
+      "x": 209.42,
+      "w": 197.51
      },
      "open": null
     },
@@ -23016,6 +23251,10 @@
       "x": 219.22,
       "w": 362.8
      },
+     "progress": {
+      "x": 219.22,
+      "w": 217.68
+     },
      "open": null
     },
     {
@@ -23025,6 +23264,7 @@
       "w": 424.44
      },
      "baseline": null,
+     "progress": null,
      "open": "end"
     },
     {
@@ -23036,6 +23276,10 @@
      "baseline": {
       "x": 238.83,
       "w": 661.17
+     },
+     "progress": {
+      "x": 238.83,
+      "w": 28.02
      },
      "open": null
     },
@@ -23049,6 +23293,10 @@
       "x": 238.83,
       "w": 533.7
      },
+     "progress": {
+      "x": 238.83,
+      "w": 21.67
+     },
      "open": null
     },
     {
@@ -23060,6 +23308,10 @@
      "baseline": {
       "x": 248.64,
       "w": 651.36
+     },
+     "progress": {
+      "x": 248.64,
+      "w": 32.57
      },
      "open": null
     }
@@ -23126,62 +23378,86 @@
     {
      "shown": "A Pekerjaan Persiapan",
      "full": "A Pekerjaan Persiapan",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "A.1 Mobilisasi & demobili…A.1 Mobilisasi & demobilisasi peralatan",
+     "shown": "A.1 Mobilisasi & demobilisasi peralatan",
      "full": "A.1 Mobilisasi & demobilisasi peralatan",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "A.2 Direksi keet, pagar s…A.2 Direksi keet, pagar sementara & fasilitas proyek",
+     "shown": "A.2 Direksi keet, pagar sementara & fasilitas pro…",
      "full": "A.2 Direksi keet, pagar sementara & fasilitas proyek",
-     "truncated": true
+     "truncated": true,
+     "lines": 2,
+     "title": "A.2 Direksi keet, pagar sementara & fasilitas proyek"
     },
     {
      "shown": "B Pekerjaan Struktur",
      "full": "B Pekerjaan Struktur",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.1 Galian tanah basement…B.1 Galian tanah basement & pondasi",
+     "shown": "B.1 Galian tanah basement & pondasi",
      "full": "B.1 Galian tanah basement & pondasi",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.2 Beton ready mix K-300…B.2 Beton ready mix K-300 kolom, balok & plat",
+     "shown": "B.2 Beton ready mix K-300 kolom, balok & plat",
      "full": "B.2 Beton ready mix K-300 kolom, balok & plat",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.3 Pembesian besi beton …B.3 Pembesian besi beton ulir",
+     "shown": "B.3 Pembesian besi beton ulir",
      "full": "B.3 Pembesian besi beton ulir",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.4 Bekisting kolom, balo…B.4 Bekisting kolom, balok & plat lantai",
+     "shown": "B.4 Bekisting kolom, balok & plat lantai",
      "full": "B.4 Bekisting kolom, balok & plat lantai",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.5 Pekerjaan tambah — se…B.5 Pekerjaan tambah — selesai belum ditetapkan",
+     "shown": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
      "full": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C Pekerjaan Arsitektur & …C Pekerjaan Arsitektur & MEP",
+     "shown": "C Pekerjaan Arsitektur & MEP",
      "full": "C Pekerjaan Arsitektur & MEP",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C.1 Pasangan bata, pleste…C.1 Pasangan bata, plesteran & finishing arsitektur",
+     "shown": "C.1 Pasangan bata, plesteran & finishing ars…",
      "full": "C.1 Pasangan bata, plesteran & finishing arsitektur",
-     "truncated": true
+     "truncated": true,
+     "lines": 2,
+     "title": "C.1 Pasangan bata, plesteran & finishing arsitektur"
     },
     {
-     "shown": "C.2 MEP, ELV & ICT (CCTV,…C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
+     "shown": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus…",
      "full": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
-     "truncated": true
+     "truncated": true,
+     "lines": 2,
+     "title": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)"
     }
    ],
    "bars": [
@@ -23802,11 +24078,12 @@
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
-   "other_titles": 10,
+   "other_titles": 3,
    "legend": [
     "Aktual",
     "Progres",
     "Baseline",
+    "Tanggal belum ditetapkan",
     "Hari ini"
    ],
    "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
@@ -23815,24 +24092,63 @@
     "tick": 8.8
    },
    "scroll_x": true,
+   "boxes": {
+    "scroller": {
+     "left": 31,
+     "right": 359,
+     "width": 328,
+     "scrollLeft": 224,
+     "scrollWidth": 720,
+     "clientWidth": 328
+    },
+    "today": {
+     "left": 194.7,
+     "right": 194.7,
+     "width": 0
+    },
+    "today_label": {
+     "left": 197.9,
+     "right": 227.7,
+     "width": 29.8
+    },
+    "svg_note": {
+     "left": -186.6,
+     "right": 296.5,
+     "width": 483.1
+    },
+    "dom_note": {
+     "left": 31,
+     "right": 359,
+     "width": 328
+    }
+   },
+   "dom_note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
    "head": "Jadwal — PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
    "foot": [
+    "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
     "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan."
    ],
    "zoom_buttons": [
     {
      "label": "Mingguan",
-     "primary": true
+     "primary": true,
+     "pressed": "true"
     },
     {
      "label": "Bulanan",
-     "primary": false
+     "primary": false,
+     "pressed": "false"
     },
     {
      "label": "Cetak",
-     "primary": false
+     "primary": false,
+     "pressed": null
     }
-   ]
+   ],
+   "filters_role": {
+    "role": "group",
+    "label": "Skala waktu gantt"
+   }
   },
   "month": {
    "viewbox": [
@@ -23851,62 +24167,86 @@
     {
      "shown": "A Pekerjaan Persiapan",
      "full": "A Pekerjaan Persiapan",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "A.1 Mobilisasi & demobili…A.1 Mobilisasi & demobilisasi peralatan",
+     "shown": "A.1 Mobilisasi & demobilisasi peralatan",
      "full": "A.1 Mobilisasi & demobilisasi peralatan",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "A.2 Direksi keet, pagar s…A.2 Direksi keet, pagar sementara & fasilitas proyek",
+     "shown": "A.2 Direksi keet, pagar sementara & fasilitas pro…",
      "full": "A.2 Direksi keet, pagar sementara & fasilitas proyek",
-     "truncated": true
+     "truncated": true,
+     "lines": 2,
+     "title": "A.2 Direksi keet, pagar sementara & fasilitas proyek"
     },
     {
      "shown": "B Pekerjaan Struktur",
      "full": "B Pekerjaan Struktur",
-     "truncated": false
+     "truncated": false,
+     "lines": 1,
+     "title": null
     },
     {
-     "shown": "B.1 Galian tanah basement…B.1 Galian tanah basement & pondasi",
+     "shown": "B.1 Galian tanah basement & pondasi",
      "full": "B.1 Galian tanah basement & pondasi",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.2 Beton ready mix K-300…B.2 Beton ready mix K-300 kolom, balok & plat",
+     "shown": "B.2 Beton ready mix K-300 kolom, balok & plat",
      "full": "B.2 Beton ready mix K-300 kolom, balok & plat",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.3 Pembesian besi beton …B.3 Pembesian besi beton ulir",
+     "shown": "B.3 Pembesian besi beton ulir",
      "full": "B.3 Pembesian besi beton ulir",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.4 Bekisting kolom, balo…B.4 Bekisting kolom, balok & plat lantai",
+     "shown": "B.4 Bekisting kolom, balok & plat lantai",
      "full": "B.4 Bekisting kolom, balok & plat lantai",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "B.5 Pekerjaan tambah — se…B.5 Pekerjaan tambah — selesai belum ditetapkan",
+     "shown": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
      "full": "B.5 Pekerjaan tambah — selesai belum ditetapkan",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C Pekerjaan Arsitektur & …C Pekerjaan Arsitektur & MEP",
+     "shown": "C Pekerjaan Arsitektur & MEP",
      "full": "C Pekerjaan Arsitektur & MEP",
-     "truncated": true
+     "truncated": false,
+     "lines": 2,
+     "title": null
     },
     {
-     "shown": "C.1 Pasangan bata, pleste…C.1 Pasangan bata, plesteran & finishing arsitektur",
+     "shown": "C.1 Pasangan bata, plesteran & finishing ars…",
      "full": "C.1 Pasangan bata, plesteran & finishing arsitektur",
-     "truncated": true
+     "truncated": true,
+     "lines": 2,
+     "title": "C.1 Pasangan bata, plesteran & finishing arsitektur"
     },
     {
-     "shown": "C.2 MEP, ELV & ICT (CCTV,…C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
+     "shown": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus…",
      "full": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)",
-     "truncated": true
+     "truncated": true,
+     "lines": 2,
+     "title": "C.2 MEP, ELV & ICT (CCTV, LAN, plumbing, HVAC, arus kuat)"
     }
    ],
    "bars": [
@@ -24467,11 +24807,12 @@
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
-   "other_titles": 10,
+   "other_titles": 3,
    "legend": [
     "Aktual",
     "Progres",
     "Baseline",
+    "Tanggal belum ditetapkan",
     "Hari ini"
    ],
    "note": "Skala bulanan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
@@ -24480,24 +24821,75 @@
     "tick": 8.8
    },
    "scroll_x": true,
+   "boxes": {
+    "scroller": {
+     "left": 31,
+     "right": 359,
+     "width": 328,
+     "scrollLeft": 224,
+     "scrollWidth": 720,
+     "clientWidth": 328
+    },
+    "today": {
+     "left": 194.7,
+     "right": 194.7,
+     "width": 0
+    },
+    "today_label": {
+     "left": 197.9,
+     "right": 227.7,
+     "width": 29.8
+    },
+    "svg_note": {
+     "left": -186.6,
+     "right": 289.2,
+     "width": 475.8
+    },
+    "dom_note": {
+     "left": 31,
+     "right": 359,
+     "width": 328
+    }
+   },
+   "dom_note": "Skala bulanan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
    "head": "Jadwal — PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
    "foot": [
+    "Skala bulanan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS.",
     "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan."
    ],
    "zoom_buttons": [
     {
      "label": "Mingguan",
-     "primary": false
+     "primary": false,
+     "pressed": "false"
     },
     {
      "label": "Bulanan",
-     "primary": true
+     "primary": true,
+     "pressed": "true"
     },
     {
      "label": "Cetak",
-     "primary": false
+     "primary": false,
+     "pressed": null
     }
-   ]
+   ],
+   "filters_role": {
+    "role": "group",
+    "label": "Skala waktu gantt"
+   }
+  },
+  "keyboard": {
+   "active_tag": "BUTTON",
+   "active_zoom": "week",
+   "group_role": "group",
+   "group_label": "Skala waktu gantt",
+   "pressed": [
+    "true",
+    "false",
+    null
+   ],
+   "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 12 tugas cocok, 1 tanpa pasangan), dicocokkan menurut kode WBS."
   },
   "print": {
    "page_rules": [
@@ -24532,7 +24924,8 @@
    {
     "state": "dikembalikan",
     "code": "B.2",
-    "to": "2026-10-31"
+    "to": "2026-10-31",
+    "read_back": "2026-10-31"
    }
   ],
   "pageerrors": [],
@@ -24589,29 +24982,44 @@
    "label": 9.2,
    "tick": 8.8,
    "svg_rendered_px": 720,
-   "scrolls_horizontally": true
+   "scrolls_horizontally": true,
+   "label_width_units": 180,
+   "labels_truncated": 3,
+   "labels_wrapped": 10,
+   "labels_total": 12
   },
   "checks": {
    "every_task_the_api_returned_has_a_row": true,
    "row_labels_are_code_plus_name": true,
+   "long_names_wrap_instead_of_being_cut": true,
+   "every_truncated_label_keeps_its_full_name": true,
    "today_line_drawn": true,
    "today_line_at_the_right_x": true,
    "today_line_is_labelled": true,
+   "the_today_line_reads_the_server_date": true,
    "weekend_shading_matches_the_window": true,
    "baseline_bars_only_where_a_baseline_exists": true,
    "baseline_bar_sits_under_the_actual_bar": true,
    "every_bar_stands_where_its_dates_say": true,
+   "every_progress_fill_matches_the_percentage_the_api_sent": true,
    "a_shifted_baseline_shows_the_deviation": true,
    "week_ticks_match_the_mondays": true,
    "month_ticks_match_the_first_of_months": true,
    "zoom_really_changes_tick_density": true,
    "zoom_button_marks_itself_active": true,
+   "zoom_buttons_announce_the_active_scale": true,
+   "keyboard_zoom_keeps_the_focus_on_the_button": true,
+   "keyboard_zoom_really_switched_the_scale": true,
    "open_ended_task_draws_an_open_bar": true,
    "open_bar_has_a_dashed_edge": true,
    "open_bar_title_names_the_task_and_says_why": true,
    "every_mark_carries_a_title": true,
    "legend_names_only_what_is_drawn": true,
+   "legend_names_the_open_ended_bar": true,
    "source_note_states_the_matching_rule": true,
+   "the_source_note_is_readable_as_dom_text": true,
+   "the_dom_source_note_fits_the_card_width": true,
+   "the_today_line_is_inside_the_visible_window": true,
    "source_note_counts_the_matches": true,
    "legend_says_dependencies_are_not_drawn": true,
    "print_page_is_landscape": true,
@@ -24624,7 +25032,338 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8428,
+  "_ms": 9809,
+  "_clicks": 2
+ },
+ "S26_gantt_baseline_gagal": {
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "list_500": {
+   "bars": 11,
+   "baselines": 0,
+   "note": "Skala mingguan · Daftar baseline gagal dimuat (galat HTTP 500), jadi layar ini tidak tahu apakah proyek ini punya rencana beku — bar pembanding tidak digambar. Yang tergambar hanya rencana WBS yang berlaku sekarang.",
+   "legend": [
+    "Aktual",
+    "Progres",
+    "Hari ini"
+   ],
+   "foot": [
+    "Skala mingguan · Daftar baseline gagal dimuat (galat HTTP 500), jadi layar ini tidak tahu apakah proyek ini punya rencana beku — bar pembanding tidak digambar. Yang tergambar hanya rencana WBS yang berlaku sekarang.",
+    "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.",
+    "Daftar baseline gagal dimuat (galat HTTP 500), jadi layar ini tidak tahu apakah proyek ini punya rencana beku — bar pembanding tidak digambar. \nCoba lagi"
+   ],
+   "retry": [
+    "Coba lagi"
+   ]
+  },
+  "show_500": {
+   "bars": 11,
+   "baselines": 0,
+   "note": "Skala mingguan · Baseline BSL/2026/VIII/0001 ada, tetapi isinya gagal dimuat (galat HTTP 500) — bar pembanding tidak digambar. Yang tergambar hanya rencana WBS yang berlaku sekarang.",
+   "legend": [
+    "Aktual",
+    "Progres",
+    "Hari ini"
+   ],
+   "foot": [
+    "Skala mingguan · Baseline BSL/2026/VIII/0001 ada, tetapi isinya gagal dimuat (galat HTTP 500) — bar pembanding tidak digambar. Yang tergambar hanya rencana WBS yang berlaku sekarang.",
+    "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.",
+    "Baseline BSL/2026/VIII/0001 ada, tetapi isinya gagal dimuat (galat HTTP 500) — bar pembanding tidak digambar. \nCoba lagi"
+   ],
+   "retry": [
+    "Coba lagi"
+   ]
+  },
+  "after_retry": {
+   "bars": 11,
+   "baselines": 11,
+   "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 11 tugas cocok), dicocokkan menurut kode WBS.",
+   "legend": [
+    "Aktual",
+    "Progres",
+    "Baseline",
+    "Hari ini"
+   ],
+   "foot": [
+    "Skala mingguan · baseline BSL/2026/VIII/0001 (11 dari 11 tugas cocok), dicocokkan menurut kode WBS.",
+    "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan."
+   ],
+   "retry": []
+  },
+  "pageerrors": [],
+  "checks": {
+   "a_failed_baseline_list_does_not_claim_there_is_none": true,
+   "a_failed_baseline_list_says_it_does_not_know": true,
+   "a_failed_baseline_list_names_the_http_status": true,
+   "a_failed_baseline_show_does_not_claim_there_is_none": true,
+   "a_failed_baseline_show_names_the_baseline_it_could_not_read": true,
+   "the_schedule_is_still_drawn_without_its_baseline": true,
+   "the_legend_drops_baseline_when_none_is_drawn": true,
+   "a_failure_offers_a_retry": true,
+   "retry_brings_the_baseline_bars_back": true,
+   "retry_removes_the_failure_sentence": true,
+   "no_page_errors": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 10621,
   "_clicks": 3
+ },
+ "S26_gantt_jam_server": {
+  "contexts": {
+   "Pacific/Niue": {
+    "browser_date": "2026-09-06",
+    "today_x": 553.89,
+    "server_as_of": "2026-09-07",
+    "as_of_source": "server"
+   },
+   "Pacific/Kiritimati": {
+    "browser_date": "2026-09-07",
+    "today_x": 553.89,
+    "server_as_of": "2026-09-07",
+    "as_of_source": "server"
+   }
+  },
+  "pageerrors": [],
+  "checks": {
+   "the_two_browsers_really_are_on_different_dates": true,
+   "the_server_announces_its_own_date": true,
+   "the_today_line_is_drawn_in_both": true,
+   "the_today_line_does_not_move_with_the_browser_clock": true,
+   "no_page_errors": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 10441,
+  "_clicks": 2
+ },
+ "S26_gantt_kode_kembar": {
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "frozen_rows_before": 11,
+  "live_twin": {
+   "bars": 12,
+   "baselines": 12,
+   "twin_baseline_titles": [
+    "B.3 Pembesian besi beton ulir — baseline: 23 Feb 2026 – 15 Okt 2026",
+    "B.3 Pembesian TOWER B (kode kembar) — baseline: 23 Feb 2026 – 15 Okt 2026"
+   ],
+   "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (12 dari 12 tugas cocok, dari 11 baris beku — ada kode WBS kembar), dicocokkan menurut kode WBS.",
+   "foot": [
+    "Skala mingguan · baseline BSL/2026/VIII/0001 (12 dari 12 tugas cocok, dari 11 baris beku — ada kode WBS kembar), dicocokkan menurut kode WBS.",
+    "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.",
+    "Kode WBS ganda pada WBS yang berlaku: B.3 — setiap barisnya memakai baris beku YANG SAMA sebagai pembanding, jadi jumlah \"cocok\" di kaki gambar lebih besar daripada isi baseline. Kode WBS tidak dijamin unik per proyek oleh basis data."
+   ]
+  },
+  "both_twins": {
+   "bars": 12,
+   "baselines": 12,
+   "twin_baseline_titles": [
+    "B.3 Pembesian besi beton ulir — baseline: 02 Mar 2026 – 15 Nov 2026",
+    "B.3 Pembesian TOWER B (kode kembar) — baseline: 02 Mar 2026 – 15 Nov 2026"
+   ],
+   "note": "Skala mingguan · baseline BSL/2026/VIII/0001 (12 dari 12 tugas cocok), dicocokkan menurut kode WBS.",
+   "foot": [
+    "Skala mingguan · baseline BSL/2026/VIII/0001 (12 dari 12 tugas cocok), dicocokkan menurut kode WBS.",
+    "Ketergantungan antar tugas tidak digambar: kolomnya belum ada di basis data, dan impor MPP-XML mengabaikan PredecessorLink. Garis yang digambar dari kolom yang tidak ada akan menjadi jadwal karangan.",
+    "Kode WBS ganda pada baseline: B.3 — yang dipakai baris terakhir. Kode WBS tidak dijamin unik per proyek oleh basis data.",
+    "Kode WBS ganda pada WBS yang berlaku: B.3 — setiap barisnya memakai baris beku YANG SAMA sebagai pembanding, jadi jumlah \"cocok\" di kaki gambar lebih besar daripada isi baseline. Kode WBS tidak dijamin unik per proyek oleh basis data."
+   ]
+  },
+  "cleanup": [
+   {
+    "state": "dibersihkan",
+    "table": "prj_wbs_tasks",
+    "id": 47
+   },
+   {
+    "state": "dibersihkan",
+    "table": "prj_baseline_tasks",
+    "id": 12
+   }
+  ],
+  "pageerrors": [],
+  "checks": {
+   "a_duplicate_live_code_is_named": true,
+   "the_note_admits_the_match_count_exceeds_the_baseline": true,
+   "both_twins_draw_their_own_baseline_bar": true,
+   "a_duplicate_frozen_code_is_named": true,
+   "no_page_errors": true,
+   "the_fixtures_are_gone_again": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 9237,
+  "_clicks": 2
+ },
+ "S26_gantt_cetak_panjang": {
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "planted": {
+   "state": "ditanam",
+   "rows": 40,
+   "project_id": 2,
+   "mark": "S26 cetak panjang"
+  },
+  "print": {
+   "screen_rows": [
+    "A S26 cetak panjang — bagian A",
+    "A.1 S26 cetak panjang — paket A.1 lantai 1",
+    "A.2 S26 cetak panjang — paket A.2 lantai 2",
+    "A.3 S26 cetak panjang — paket A.3 lantai 3",
+    "A.4 S26 cetak panjang — paket A.4 lantai 4",
+    "A.5 S26 cetak panjang — paket A.5 lantai 5",
+    "A.6 S26 cetak panjang — paket A.6 lantai 6",
+    "A.7 S26 cetak panjang — paket A.7 lantai 7",
+    "A.8 S26 cetak panjang — paket A.8 lantai 8",
+    "A.9 S26 cetak panjang — paket A.9 lantai 9",
+    "B S26 cetak panjang — bagian B",
+    "B.1 S26 cetak panjang — paket B.1 lantai 1",
+    "B.2 S26 cetak panjang — paket B.2 lantai 2",
+    "B.3 S26 cetak panjang — paket B.3 lantai 3",
+    "B.4 S26 cetak panjang — paket B.4 lantai 4",
+    "B.5 S26 cetak panjang — paket B.5 lantai 5",
+    "B.6 S26 cetak panjang — paket B.6 lantai 6",
+    "B.7 S26 cetak panjang — paket B.7 lantai 7",
+    "B.8 S26 cetak panjang — paket B.8 lantai 8",
+    "B.9 S26 cetak panjang — paket B.9 lantai 9",
+    "C S26 cetak panjang — bagian C",
+    "C.1 S26 cetak panjang — paket C.1 lantai 1",
+    "C.2 S26 cetak panjang — paket C.2 lantai 2",
+    "C.3 S26 cetak panjang — paket C.3 lantai 3",
+    "C.4 S26 cetak panjang — paket C.4 lantai 4",
+    "C.5 S26 cetak panjang — paket C.5 lantai 5",
+    "C.6 S26 cetak panjang — paket C.6 lantai 6",
+    "C.7 S26 cetak panjang — paket C.7 lantai 7",
+    "C.8 S26 cetak panjang — paket C.8 lantai 8",
+    "C.9 S26 cetak panjang — paket C.9 lantai 9",
+    "D S26 cetak panjang — bagian D",
+    "D.1 S26 cetak panjang — paket D.1 lantai 1",
+    "D.2 S26 cetak panjang — paket D.2 lantai 2",
+    "D.3 S26 cetak panjang — paket D.3 lantai 3",
+    "D.4 S26 cetak panjang — paket D.4 lantai 4",
+    "D.5 S26 cetak panjang — paket D.5 lantai 5",
+    "D.6 S26 cetak panjang — paket D.6 lantai 6",
+    "D.7 S26 cetak panjang — paket D.7 lantai 7",
+    "D.8 S26 cetak panjang — paket D.8 lantai 8",
+    "D.9 S26 cetak panjang — paket D.9 lantai 9"
+   ],
+   "screen_chart_display": "none",
+   "print_display": "block",
+   "pages": [
+    {
+     "rows": [
+      "A S26 cetak panjang — bagian A",
+      "A.1 S26 cetak panjang — paket A.1 lantai 1",
+      "A.2 S26 cetak panjang — paket A.2 lantai 2",
+      "A.3 S26 cetak panjang — paket A.3 lantai 3",
+      "A.4 S26 cetak panjang — paket A.4 lantai 4",
+      "A.5 S26 cetak panjang — paket A.5 lantai 5",
+      "A.6 S26 cetak panjang — paket A.6 lantai 6",
+      "A.7 S26 cetak panjang — paket A.7 lantai 7",
+      "A.8 S26 cetak panjang — paket A.8 lantai 8",
+      "A.9 S26 cetak panjang — paket A.9 lantai 9",
+      "B S26 cetak panjang — bagian B",
+      "B.1 S26 cetak panjang — paket B.1 lantai 1",
+      "B.2 S26 cetak panjang — paket B.2 lantai 2",
+      "B.3 S26 cetak panjang — paket B.3 lantai 3",
+      "B.4 S26 cetak panjang — paket B.4 lantai 4",
+      "B.5 S26 cetak panjang — paket B.5 lantai 5"
+     ],
+     "tick_labels": 10,
+     "month_band": 9,
+     "note": "Skala mingguan · belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana WBS yang berlaku sekarang. · halaman 1 dari 3, baris 1–16 dari 40.",
+     "break_after": "page"
+    },
+    {
+     "rows": [
+      "B.6 S26 cetak panjang — paket B.6 lantai 6",
+      "B.7 S26 cetak panjang — paket B.7 lantai 7",
+      "B.8 S26 cetak panjang — paket B.8 lantai 8",
+      "B.9 S26 cetak panjang — paket B.9 lantai 9",
+      "C S26 cetak panjang — bagian C",
+      "C.1 S26 cetak panjang — paket C.1 lantai 1",
+      "C.2 S26 cetak panjang — paket C.2 lantai 2",
+      "C.3 S26 cetak panjang — paket C.3 lantai 3",
+      "C.4 S26 cetak panjang — paket C.4 lantai 4",
+      "C.5 S26 cetak panjang — paket C.5 lantai 5",
+      "C.6 S26 cetak panjang — paket C.6 lantai 6",
+      "C.7 S26 cetak panjang — paket C.7 lantai 7",
+      "C.8 S26 cetak panjang — paket C.8 lantai 8",
+      "C.9 S26 cetak panjang — paket C.9 lantai 9",
+      "D S26 cetak panjang — bagian D",
+      "D.1 S26 cetak panjang — paket D.1 lantai 1"
+     ],
+     "tick_labels": 10,
+     "month_band": 9,
+     "note": "Skala mingguan · belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana WBS yang berlaku sekarang. · halaman 2 dari 3, baris 17–32 dari 40.",
+     "break_after": "page"
+    },
+    {
+     "rows": [
+      "D.2 S26 cetak panjang — paket D.2 lantai 2",
+      "D.3 S26 cetak panjang — paket D.3 lantai 3",
+      "D.4 S26 cetak panjang — paket D.4 lantai 4",
+      "D.5 S26 cetak panjang — paket D.5 lantai 5",
+      "D.6 S26 cetak panjang — paket D.6 lantai 6",
+      "D.7 S26 cetak panjang — paket D.7 lantai 7",
+      "D.8 S26 cetak panjang — paket D.8 lantai 8",
+      "D.9 S26 cetak panjang — paket D.9 lantai 9"
+     ],
+     "tick_labels": 10,
+     "month_band": 9,
+     "note": "Skala mingguan · belum ada baseline beku, jadi tidak ada bar pembanding — yang tergambar hanya rencana WBS yang berlaku sekarang. · halaman 3 dari 3, baris 33–40 dari 40.",
+     "break_after": "auto"
+    }
+   ]
+  },
+  "pdf_pages": [
+   {
+    "w_pt": 612.0,
+    "h_pt": 792.0,
+    "landscape": false
+   },
+   {
+    "w_pt": 792.0,
+    "h_pt": 612.0,
+    "landscape": true
+   },
+   {
+    "w_pt": 792.0,
+    "h_pt": 612.0,
+    "landscape": true
+   },
+   {
+    "w_pt": 792.0,
+    "h_pt": 612.0,
+    "landscape": true
+   }
+  ],
+  "cleanup": {
+   "state": "dibersihkan",
+   "tersisa": 0
+  },
+  "pageerrors": [],
+  "checks": {
+   "a_long_schedule_is_split_into_pages": true,
+   "the_screen_chart_is_not_printed_as_well": true,
+   "every_row_is_printed_exactly_once": true,
+   "every_printed_page_carries_the_date_axis": true,
+   "every_printed_page_says_which_rows_it_carries": true,
+   "the_pdf_has_one_landscape_page_per_chunk": true,
+   "no_blank_page_is_produced": true,
+   "the_fixture_is_gone_again": true,
+   "no_page_errors": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 6186,
+  "_clicks": 1
  }
 }

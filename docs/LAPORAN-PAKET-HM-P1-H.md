@@ -9,7 +9,15 @@ Branch: `feat/phase1-h2` (dari `main` 932cb8b) · 7 September 2026
 > menutup empat cacat yang ditemukan lubang itu ketika ia akhirnya ditutup.
 >
 > Tidak ada migrasi, tidak ada endpoint baru, tidak ada dependensi baru, tidak ada pustaka vendor
-> baru. **Verifikasi adversarial belum dijalankan.**
+> baru.
+>
+> **VERIFIKASI ADVERSARIAL DIJALANKAN 7 September 2026** (dua lensa, `h-data` dan `h-ux`): **18
+> temuan, 18 diperbaiki**, masing-masing dengan uji atau syarat harness yang akan menangkapnya
+> lagi — termasuk satu BREAKS_SOMETHING yang dibuat paket ini sendiri (`live_exists` mencoret
+> SELURUH isi baseline demo), dua lubang yang gerbang izinnya bisa diputari lewat pintu sebelah,
+> satu siklus `parent_id` yang membuang 3 dari 13 baris jadwal tanpa sepatah kata, dan keluaran
+> utama paket ini — cetak lanskap — yang rusak pada jadwal 66 baris. Rincian per temuan ada di
+> riwayat commit; angka sesudahnya ada di § Uji dan § Harness.
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 1 / P1-H → status)
 
@@ -17,11 +25,11 @@ Branch: `feat/phase1-h2` (dari `main` 932cb8b) · 7 September 2026
 |---|---|---|
 | `prj_wbs_tasks` sebagai sumber baris | ✅ | `GET projects/{id}/wbs-tasks`; 12 baris tergambar = 12 tugas yang dipulangkan (S26) |
 | baseline per `wbs_code` (bukan id — kolomnya nullable) | ✅ | `JadwalGanttTest` mengukur **0 dari 11** id beku bertahan sesudah satu `generateWbsFromBoq`, **11 dari 11** kode cocok |
-| progres | ✅ | 0..100 sebagai string di kawat, dibagi 100 di klien; nilai di luar rentang lolos utuh (105,5000 diuji) |
-| garis hari ini | ✅ | terukur S26: x = 484,67 px, diharapkan 484,67 px |
+| progres | ✅ | 0..100 sebagai string di kawat, dibagi 100 di klien; nilai di luar rentang lolos utuh (105,5000 diuji); **lebar isian yang DIGAMBAR** dihitung ulang dari persen API di S26 (11 rect, 0 meleset > 0,05 px) |
+| garis hari ini | ✅ | terukur S26: x = 553,89 px, diharapkan 553,89 px — dan tanggalnya dari server (`meta.as_of`), diukur dua timezone berjarak 25 jam (`S26_gantt_jam_server`) |
 | bayangan akhir pekan | ✅ | 73 rect = 73 Sabtu di jendela 514 hari (dihitung ulang di harness) |
 | zoom minggu/bulan | ✅ | 74 tick mingguan (= 74 Senin) vs 16 tick bulanan (= 16 tanggal 1) |
-| cetak lanskap | ✅ | PDF Chromium: halaman gantt **792×612 pt (lanskap)**, halaman lain 612×792 pt |
+| cetak lanskap | ✅ | PDF Chromium: halaman gantt **792×612 pt (lanskap)**, halaman lain 612×792 pt; jadwal yang lebih tinggi daripada satu kertas dipotong menjadi satu svg per halaman, masing-masing dengan sumbu tanggalnya (`S26_gantt_cetak_panjang`) |
 | tab "Jadwal" di proyek | ✅ | `.tabs` = `["Ringkasan", "Jadwal"]`, dipaku uji impor `views/jadwal.js` |
 | **h-o 3,5** | — | layarnya sudah dibayar sesi lalu; paket ini adalah lapisan buktinya + 4 perbaikan |
 
@@ -119,30 +127,56 @@ dibandingkan adalah apa yang benar-benar sampai ke peramban.
   SPA↔server untuk tiga jalur + medan yang dibaca, pin impor `views/jadwal.js` oleh
   `views/project.js`); **empat sisanya ditulis MERAH lebih dulu** dan menjadi hijau bersama
   perbaikannya masing-masing, satu commit per cacat.
-- `tests/Feature/Projects` + `tests/Feature/Core`: **1.193 uji / 8.480 asersi hijau** (11
-  dilewati, 240 s). Suite penuh: gerbang rilis milik orkestrator. MySQL: belum dijalankan.
+- **Putaran verifikasi (7 Sep 2026) menambah 5 uji**: `JadwalGanttTest` kini **16 uji / 143
+  asersi**. Yang baru: baris beku menemukan pasangan hidupnya sesudah WBS diregenerasi (keadaan
+  yang normal, bukan baseline yang baru dibekukan), baris beku yang id-nya menunjuk kode lain
+  menyebutkan asal progresnya, siklus `parent_id` memindahkan baris alih-alih membuangnya, baris
+  berinduk lintas proyek menjadi akar (dan TIDAK dituduh siklus), dan muatan proyek tidak lagi
+  membawa salinan kedua pohon WBS.
+- `tests/Feature/Projects` + `tests/Feature/Core`: **1.198 uji / 8.534 asersi hijau** (11
+  dilewati, 277 s). `tests/Feature/Estimation` + `Engineering` + `Inventory`: **415 uji / 2.309
+  asersi hijau** (71 s). Suite penuh: gerbang rilis milik orkestrator. MySQL: belum dijalankan.
 
-**Harness `S26_gantt` + `S26_gantt_mobile`** (Chromium 1440×900 dan 390×844): **29 syarat hijau di
-kedua ukuran, jalan pertama**, dan yang dicatat adalah angka:
+**Harness — ENAM skenario, 111 syarat hijau** (7 Sep 2026, salinan berkas demo yang baru disalin
+ulang, semuanya jalan bersih):
 
-- **23 rect** (12 bar aktual + 11 bar baseline) berdiri di `x` dan lebar yang **dihitung ulang di
-  Python dari tanggal muatan API**, lalu dikembalikan ke nomor barisnya dari koordinat `y`:
-  **0 meleset lebih dari 0,05 px**.
+| skenario | ukuran | syarat | yang diukurnya |
+|---|---|---|---|
+| `S26_gantt` | 1440×900 | 40 | geometri, sumbu, zoom, papan ketik, cetak satu halaman |
+| `S26_gantt_mobile` | 390×844 | 40 | sama, plus keterbacaan di jendela ponsel |
+| `S26_gantt_baseline_gagal` | 1440×900 | 11 | tiga keadaan baseline (tidak ada / gagal / tak boleh) + tombol coba lagi yang benar-benar memulihkan |
+| `S26_gantt_jam_server` | 2 timezone | 5 | garis "Hari ini" tidak ikut jam peramban |
+| `S26_gantt_kode_kembar` | 1440×900 | 6 | kode WBS ganda di sisi hidup DAN sisi beku |
+| `S26_gantt_cetak_panjang` | 1440×900 | 9 | jadwal 40 baris yang tidak muat satu kertas |
+
+Angka yang dicatat (`S26_gantt`, kolom label 300 satuan sesudah perbaikan pemotongan nama):
+
+- **34 rect** (12 bar aktual + 11 bar baseline + **11 isian progres**) berdiri di `x` dan lebar
+  yang **dihitung ulang di Python dari muatan API** — tanggalnya untuk bar, dan persen × lebar bar
+  untuk isian progres — lalu dikembalikan ke nomor barisnya dari koordinat `y`: **0 meleset lebih
+  dari 0,05 px**. Isian progres baru diperiksa sejak putaran verifikasi: sebelumnya ia dikumpulkan
+  lalu tidak dibaca, dan menghapus `/ 100` meninggalkan 29 syarat hijau.
 - Bar baseline hanya pada 11 baris yang punya pasangan beku, dan **selalu 10 px di bawah** bar
   aktualnya — satu-satunya nilai selisih `y` yang terukur.
-- Bar baseline benar-benar digambar dari tanggal **beku**: satu tanggal beku (B.2) digeser 30 hari,
-  selisih yang muncul di layar **42,02 px**, yang diharapkan **42,02 px**. Tanpa fixture ini
-  skenarionya tidak menguji apa pun — lihat § Yang BELUM diverifikasi #1.
+- Bar baseline benar-benar digambar dari tanggal **beku**: satu tanggal beku (B.2) dipasang MUTLAK
+  ke 2026-10-01 (30 hari dari 2026-10-31), selisih yang muncul di layar **35,01 px**, yang
+  diharapkan **35,02 px** (toleransi 0,05). Tanpa fixture ini skenarionya tidak menguji apa pun —
+  lihat § Yang BELUM diverifikasi #1.
 - Garis "Hari ini" ada (7 Sep 2026 memang di dalam 02-02-2026 s.d. 30-06-2027), berlabel, di
-  **484,67 px** terukur vs **484,67 px** diharapkan.
+  **553,89 px** terukur vs **553,89 px** diharapkan — dan tanggalnya datang dari **server**
+  (`meta.as_of` = 2026-09-07, `as_of_source: 'server'`), bukan dari jam peramban: dua konteks
+  berjarak 25 jam (Pacific/Niue yang berada di 2026-09-06 dan Pacific/Kiritimati di 2026-09-07)
+  menggambar garis itu di x yang **sama persis**.
 - **73** bayangan akhir pekan = 73 Sabtu di jendela 514 hari; **74** tick mingguan = 74 Senin;
   **16** tick bulanan = 16 tanggal 1; zoom benar-benar mengubah kerapatan dan tombolnya menandai
   dirinya aktif.
 - Tugas tanpa tanggal selesai (ditanam — tidak ada di data demo): bar `data-open="end"`, satu tepi
   putus-putus, `<title>` menyebut namanya + *"tanggal selesai belum ditetapkan (bar terbuka)"*.
-- **23 mark, 23 `<title>`.** Legenda hanya menyebut yang tergambar. Kaki kartu mengumumkan
-  *"11 dari 12 tugas cocok, 1 tanpa pasangan, dicocokkan menurut kode WBS"* dan menyebut
-  ketergantungan yang sengaja tidak digambar.
+- **23 mark, 23 `<title>`.** Legenda hanya menyebut yang tergambar, dan sejak putaran verifikasi
+  ia juga menyebut bar berujung terbuka: terukur `['Aktual', 'Progres', 'Baseline', 'Tanggal belum
+  ditetapkan', 'Hari ini']`. Kaki kartu mengumumkan *"11 dari 12 tugas cocok, 1 tanpa pasangan,
+  dicocokkan menurut kode WBS"* — dan kalimat itu kini juga digambar sebagai paragraf DOM di kaki
+  kartu, karena di ponsel yang di dalam svg berada di luar jendela pada posisi gulir awal.
 - **Cetak**: PDF sungguhan dari Chromium, ukuran halaman dibaca dari `/MediaBox` —
   **792×612 pt (lanskap)** untuk lembar gantt, 612×792 pt untuk sisanya. **Yang diukur di situ
   adalah ORIENTASINYA, bukan ukuran kertasnya**: 792×612 pt adalah US Letter lanskap, sedangkan
@@ -164,7 +198,7 @@ kedua ukuran, jalan pertama**, dan yang dicatat adalah angka:
   svg jatuh ke 0 sehingga gambarnya menyusut ke kertas alih-alih terpotong, bilah zoom
   disembunyikan tetapi judul dan catatan sumber tetap tercetak
   (`s26-jadwal-cetak-lanskap-p1h.png` adalah halaman lanskapnya, di-render dari PDF-nya).
-- **Ponsel 390×844**: 29 syarat yang sama hijau, dengan angka yang **tidak dipoles** — teks
+- **Ponsel 390×844**: 40 syarat yang sama hijau, dengan angka yang **tidak dipoles** — teks
   tergambar **9,2 px** (label) dan **8,8 px** (tick) karena svg berhenti di lantai `min-width`
   80 % (720 px dari 900 px alami) yang **diputuskan P1-A dan ditulis di docblock charts.js**, dan
   **10 dari 12** label baris terpotong. Di desktop label terukur **14,21 px**, tick **13,59 px**,
