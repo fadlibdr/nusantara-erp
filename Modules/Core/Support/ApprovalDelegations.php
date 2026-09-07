@@ -17,8 +17,9 @@ use Modules\Core\Exceptions\SelfApprovalException;
  *
  *   grants()          Gate::before — ability ini boleh dipakai orang ini?
  *   actingForId()     baris persetujuan ini "a.n." siapa?
- *   giverIdsFor()     maker-checker — siapa saja yang pengajuannya haram
- *                     bagi orang ini?
+ *   refusesGiverSubmission()
+ *                     maker-checker — persetujuan ini meminjam hak si
+ *                     pengaju sendiri?
  *   activeFor()       banner "Anda menyetujui a.n. …"
  *
  * SATU-SATUNYA ABILITY YANG PERNAH DIBERIKAN adalah <awalan>.approve dan
@@ -34,15 +35,18 @@ use Modules\Core\Exceptions\SelfApprovalException;
  * proses; dan sebuah rantai tiga orang akan menyerahkan hak direktur kepada
  * orang yang tidak pernah dipilih siapa pun untuk memegangnya.
  *
- * DELEGAT TIDAK MENYETUJUI PEKERJAAN PEMBERINYA. Dipasang di dalam
- * SegregationOfDuties::assertNotSubmitter, tempat maker-checker sudah berdiri,
- * karena aturannya adalah maker-checker yang dilihat lewat delegasi: seorang
- * proxy yang menyetujui dokumen yang diajukan orang yang diwakilinya adalah
- * persetujuan-sendiri yang memakai topi. Aturan ini SENGAJA lebih keras dari
- * yang perlu: ia berlaku bahkan bila delegatnya memegang hak approve itu
- * sendiri dan tidak membutuhkan delegasinya — karena menentukan "hak yang
- * mana yang dipakainya tadi" tidak dapat dilakukan sesudah kejadian, dan
- * jawaban yang ditebak pada pertanyaan itu adalah jawaban yang salah.
+ * DELEGAT TIDAK MENYETUJUI PEKERJAAN PEMBERINYA DENGAN HAK PEMBERI ITU.
+ * Dipasang di dalam SegregationOfDuties::assertNotSubmitter, tempat
+ * maker-checker sudah berdiri, karena aturannya adalah maker-checker yang
+ * dilihat lewat delegasi: seorang proxy yang menyetujui dokumen yang diajukan
+ * orang yang diwakilinya adalah persetujuan-sendiri yang memakai topi.
+ *
+ * Aturan itu dikirim lebih luas dari yang perlu dan disempitkan pada putaran
+ * verifikasi F-1: ia dulu berlaku bahkan ketika delegatnya memegang hak
+ * approve itu SENDIRI — yang berarti sebuah delegasi mencabut hak orang yang
+ * menerimanya, siapa pun boleh membuat baris yang mencabutnya, dan yang
+ * dicabut tidak dapat mengembalikannya. Lihat refusesGiverSubmission untuk
+ * ketiga syaratnya dan untuk angka yang mengukur harganya.
  */
 final class ApprovalDelegations
 {
@@ -116,31 +120,132 @@ final class ApprovalDelegations
     }
 
     /**
-     * Setiap pemberi yang delegasinya kepada orang ini sedang hidup.
+     * BENAR bila persetujuan ini akan MEMINJAM hak si pengaju sendiri.
      *
-     * @return list<int>
+     * Satu predikat untuk dua pembaca — penolakan di bawah dan antrean
+     * (ApprovalQueue::pending) — supaya kotak masuk tidak pernah menawarkan
+     * baris yang dijamin ditolak, dan tidak pernah menyembunyikan baris yang
+     * sebenarnya boleh.
+     *
+     * TIGA SYARAT, DAN KETIGANYA HARUS BENAR:
+     *   1. pengajunya adalah pemberi delegasi yang sedang dipegang penyetuju,
+     *      dalam lingkup yang mencakup awalan dokumen ini;
+     *   2. pemberinya BENAR-BENAR memegang hak itu (kalau tidak, delegasinya
+     *      tidak meminjamkan apa pun dan tidak boleh melarang apa pun);
+     *   3. penyetujunya TIDAK memegang hak itu sendiri.
+     *
+     * SYARAT KETIGA ADALAH PERBAIKAN PUTARAN VERIFIKASI F-1, dan ia mencabut
+     * sebuah kalimat yang dulu berdiri di sini: "aturan ini SENGAJA lebih
+     * keras dari yang perlu — ia berlaku bahkan bila delegatnya memegang hak
+     * approve itu sendiri, karena menentukan hak yang mana yang dipakainya
+     * tidak dapat dilakukan sesudah kejadian". Yang kedua tidak benar:
+     * actingForId() menjawab pertanyaan itu, deterministik, dan sudah
+     * dipakai untuk mencap "a.n." pada jejak. Yang PERTAMA punya harga yang
+     * terukur:
+     *
+     *   - pemakaian paling biasa dari fitur ini — Administrator Sistem
+     *     menyerahkan haknya kepada direktur sebelum cuti — membuat 2 dari 4
+     *     baris antrean direktur itu tidak dapat disetujui, hak yang
+     *     dipegangnya sendiri sebelum delegasinya ada (diukur pada salinan
+     *     dataset demo, 7 Sep 2026: 13 dari 14 pengajuan tercatat milik
+     *     Administrator Sistem);
+     *   - dan siapa pun boleh membuat baris yang menyebut DIRINYA sebagai
+     *     pemberi, jadi pengguna tanpa satu izin pun bisa MERACUNI seorang
+     *     direktur: POST /api/core/approval-delegations → 201, lalu setiap
+     *     BOQ yang diajukan peracun itu ditolak 422 di tangan direktur yang
+     *     memegang est.approve sendiri — dan direktur itu tidak dapat
+     *     mencabutnya (dua direktur diracuni dalam satu uji).
+     *
+     * Yang tersisa sesudah penyempitan adalah aturan aslinya, utuh: seorang
+     * proxy tidak menyetujui pekerjaan orang yang diwakilinya DENGAN HAK ORANG
+     * ITU. Delegasi dari orang tanpa izin tidak melarang apa pun, karena ia
+     * juga tidak memberi apa pun.
      */
-    public static function giverIdsFor(User $delegate): array
+    public static function refusesGiverSubmission(Model $document, User $approver, ?int $makerId): bool
     {
-        return array_values(array_unique(array_map(
-            static fn (array $row): int => (int) $row['giver_user_id'],
-            self::activeFor($delegate),
-        )));
+        if ($makerId === null || $makerId === (int) $approver->getKey()) {
+            return false;
+        }
+
+        $delegations = self::activeFor($approver);
+
+        if ($delegations === []) {
+            return false;
+        }
+
+        $prefix = ApprovableDocuments::all()[$document::class]['prefix'] ?? null;
+
+        if ($prefix === null) {
+            return false;
+        }
+
+        foreach (self::abilitiesThisApprovalMayNeed($document, $prefix) as $ability) {
+            if (self::holdsNatively($approver, $ability)) {
+                continue; // haknya sendiri: delegasinya tidak ada urusannya
+            }
+
+            foreach ($delegations as $delegation) {
+                if ($delegation['scope'] !== null && $delegation['scope'] !== $prefix) {
+                    continue;
+                }
+
+                if ((int) $delegation['giver_user_id'] !== $makerId) {
+                    continue;
+                }
+
+                if (self::giverHoldsNatively($makerId, $ability)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Hak yang persetujuan atas dokumen ini BISA memakan.
+     *
+     * Selalu <awalan>.approve. Ditambah <awalan>.approve-director bila
+     * dokumennya menuntut direktur — dibaca dari stempel kebijakannya
+     * (director, atau jenjang di atas satu) atau dari kolom
+     * needs_director_approval yang dibawa tabelnya sendiri.
+     *
+     * Untuk jenjang, pertanyaannya dijawab KONSERVATIF (setiap tingkat
+     * dianggap bisa menuntut direktur) alih-alih menghitung tingkat ke berapa
+     * persetujuan ini akan mengisi: jawabannya harus sama persis di sini dan
+     * di ApprovalQueue, dan antrean tidak boleh membayar satu kueri per baris
+     * untuk menghitungnya. Yang dikorbankan hanya satu keadaan yang sangat
+     * jarang — tingkat PERTAMA sebuah keputusan pemenang yang diajukan
+     * pemberinya, oleh delegat yang memegang prc.approve sendiri — dan ia
+     * dikorbankan ke arah yang lebih keras, arah yang sama dengan maker-checker.
+     *
+     * @return list<string>
+     */
+    private static function abilitiesThisApprovalMayNeed(Model $document, string $prefix): array
+    {
+        $abilities = ["{$prefix}.approve"];
+
+        $stamp = ApprovalPolicy::stampedFor($document);
+        $needsDirector = ($stamp['director'] ?? false) === true
+            || (int) ($stamp['levels'] ?? 1) > 1
+            || ! empty($document->getAttributes()['needs_director_approval']);
+
+        if ($needsDirector) {
+            $abilities[] = "{$prefix}.approve-director";
+        }
+
+        return $abilities;
     }
 
     /**
      * Menolak persetujuan oleh delegat atas dokumen yang diajukan PEMBERI
-     * delegasinya.
+     * delegasinya — bila hak yang dipakainya memang hak pemberi itu.
      *
      * @throws SelfApprovalException
      */
     public static function assertNotGiverSubmission(Model $document, User $approver, ?int $makerId): void
     {
-        if ($makerId === null) {
-            return;
-        }
-
-        if (! in_array($makerId, self::giverIdsFor($approver), true)) {
+        if ($makerId === null || ! self::refusesGiverSubmission($document, $approver, $makerId)) {
             return;
         }
 

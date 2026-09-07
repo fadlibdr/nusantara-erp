@@ -116,14 +116,28 @@ class ApprovalDelegationController extends ApiController
         )->setStatusCode(201);
     }
 
-    /** Mencabut. Baris tetap ada — ia menjelaskan setiap "a.n." yang ditinggalkannya. */
+    /**
+     * Mencabut. Baris tetap ada — ia menjelaskan setiap "a.n." yang
+     * ditinggalkannya.
+     *
+     * TIGA ORANG BOLEH MENCABUT, dan yang ketiga ditambahkan pada putaran
+     * verifikasi F-1: PENERIMANYA. Sebuah delegasi tiba tanpa diminta —
+     * pemberinya membuatnya sendiri, tanpa izin apa pun — dan ia membebani
+     * penerimanya: banner, pemberitahuan atas dokumen orang lain, dan
+     * (sebelum penyempitan refusesGiverSubmission) larangan menyetujui
+     * pengajuan pemberinya. Orang yang dibebani sebuah hak yang tidak
+     * dimintanya harus dapat mengembalikannya sendiri; sebelum ini ia harus
+     * mencari pemegang iam.update, yang pada instalasi terseed hanya peran
+     * admin.
+     */
     public function destroy(Request $request, ApprovalDelegation $approvalDelegation): JsonResponse
     {
         $actor = $request->user();
 
-        if ((int) $approvalDelegation->giver_user_id !== (int) $actor->getKey() && ! $actor->can('iam.update')) {
+        if (! $this->mayRevoke($approvalDelegation, $actor)) {
             throw ValidationException::withMessages([
-                'id' => 'Delegasi hanya dapat dicabut oleh pemberinya, atau oleh pemegang izin iam.update.',
+                'id' => 'Delegasi hanya dapat dicabut oleh pemberinya, oleh penerimanya, atau oleh '
+                    .'pemegang izin iam.update.',
             ]);
         }
 
@@ -183,8 +197,16 @@ class ApprovalDelegationController extends ApiController
             'is_active' => $row->isActive(),
             'state' => $row->stateLabel(),
             'direction' => (int) $row->giver_user_id === (int) $viewer->getKey() ? 'given' : 'held',
-            'can_revoke' => (int) $row->giver_user_id === (int) $viewer->getKey() || $viewer->can('iam.update'),
+            'can_revoke' => $this->mayRevoke($row, $viewer),
         ];
+    }
+
+    /** Pemberinya, penerimanya, atau seorang penata akun. */
+    private function mayRevoke(ApprovalDelegation $row, User $actor): bool
+    {
+        return (int) $row->giver_user_id === (int) $actor->getKey()
+            || (int) $row->delegate_user_id === (int) $actor->getKey()
+            || $actor->can('iam.update');
     }
 
     /** @return list<array{value: string, label: string}> */
