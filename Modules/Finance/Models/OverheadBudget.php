@@ -43,6 +43,7 @@ class OverheadBudget extends BaseModel
             'status' => DocumentStatus::class,
             'period_year' => 'integer',
             'total_amount' => 'decimal:2',
+            'cancelled_at' => 'datetime',
         ];
     }
 

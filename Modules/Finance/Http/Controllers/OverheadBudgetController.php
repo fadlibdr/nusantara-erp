@@ -103,6 +103,28 @@ class OverheadBudgetController extends ApiController
         return $this->ok(new OverheadBudgetResource($overheadBudget), 'OVB ditolak');
     }
 
+    /**
+     * Batalkan OVB yang sudah disetujui — alasan WAJIB.
+     *
+     * Izinnya fin.approve, bukan fin.post seperti pembatalan faktur: pembatalan
+     * OVB tidak memposting apa pun (sebuah anggaran bukan transaksi), yang ia
+     * tarik kembali adalah sebuah PERSETUJUAN.
+     */
+    public function cancel(Request $request, OverheadBudget $overheadBudget): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+
+        try {
+            $overheadBudget = $this->service->cancel($overheadBudget, $request->user(), $validated['reason']);
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
+
+        return $this->ok(new OverheadBudgetResource($overheadBudget), 'OVB dibatalkan');
+    }
+
     /** Anggaran vs realisasi overhead satu tahun buku. */
     public function realisation(Request $request): JsonResponse
     {

@@ -4344,6 +4344,9 @@ export const RESOURCES = {
       }],
     },
     detail: {
+      /* Alasan pembatalan tidak perlu didaftarkan di sini: renderDetail
+         menampilkan setiap kolom rekaman, dan cancellation_reason ada di
+         WHEN_SET_KEYS — tampil hanya pada dokumen yang memang dibatalkan. */
       tables: [{
         key: 'lines', label: 'Akun yang dianggarkan',
         columns: [
@@ -4355,7 +4358,25 @@ export const RESOURCES = {
         totals: ['amount'],
       }],
     },
-    actions: approvalActions('fin', { submitPerm: 'fin.create' }),
+    actions: [
+      ...approvalActions('fin', { submitPerm: 'fin.create' }),
+      {
+        /* Satu tahun buku hanya boleh punya satu OVB yang berlaku, dan sampai
+           verifikasi F-2 tidak ada satu pun jalan menarik kembali yang salah:
+           DELETE/reject/PUT semuanya 422 pada dokumen approved, sementara
+           kalimat penolakan "satu per tahun" menyuruh operator membatalkannya.
+           Pembatalan tidak menyentuh satu baris jurnal pun — sebuah anggaran
+           adalah rencana — dan mengembalikan tahun itu ke "belum ada OVB
+           disetujui". */
+        key: 'cancel', label: 'Batalkan OVB', path: '{id}/cancel', method: 'POST',
+        perm: 'fin.approve', variant: 'danger',
+        when: (row) => row.status === 'approved',
+        fields: [{
+          key: 'reason', label: 'Alasan pembatalan', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen dan jejak audit. Minimal 5 karakter.',
+        }],
+      },
+    ],
   },
 
   /* ======================================================== HR PAYROLL === */

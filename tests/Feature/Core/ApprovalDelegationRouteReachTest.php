@@ -138,6 +138,12 @@ class ApprovalDelegationRouteReachTest extends ErpTestCase
             '/api/engineering/material-submittals/{materialSubmittal}/decision',
             '/api/finance/fiscal-periods/{fiscalPeriod}/reopen',
             '/api/finance/journals/{journal}/post',
+            // Pembatalan OVB (verifikasi F-2): digerbangi fin.approve karena
+            // yang ditarik kembali adalah sebuah persetujuan — dan BUKAN sebuah
+            // keputusan dokumen, jadi ia benar berada di daftar ini: sebuah
+            // delegasi tidak boleh meminjamkan wewenang membatalkan anggaran
+            // tahunan yang sudah berlaku.
+            '/api/finance/overhead-budgets/{overheadBudget}/cancel',
             '/api/finance/tax-exports/e-bupot/numbers',
             '/api/projects/defects/{defect}/reopen',
             '/api/projects/defects/{defect}/verify',

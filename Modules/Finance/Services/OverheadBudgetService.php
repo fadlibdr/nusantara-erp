@@ -29,10 +29,18 @@ use Modules\Finance\Models\OverheadBudget;
  * ia mengurangi saldo buku besarnya. Tidak ada daftar "akun overhead" yang
  * dikarang di kode — yang dianggarkan adalah akun yang DIPILIH pemilik.
  *
- * FORWARD-ONLY. Menyetujui, menolak, atau membuang sebuah OVB tidak memposting
- * satu baris jurnal pun dan tidak menyentuh satu baris jurnal pun yang sudah
- * ada: sebuah anggaran adalah rencana, bukan transaksi. Yang berubah saat OVB
- * disetujui hanyalah BATAS yang dipakai membaca angka yang sudah tercatat.
+ * FORWARD-ONLY. Menyetujui, menolak, membatalkan, atau membuang sebuah OVB
+ * tidak memposting satu baris jurnal pun dan tidak menyentuh satu baris jurnal
+ * pun yang sudah ada: sebuah anggaran adalah rencana, bukan transaksi. Yang
+ * berubah saat OVB disetujui hanyalah BATAS yang dipakai membaca angka yang
+ * sudah tercatat.
+ *
+ * DAN BATAS ITU BISA DITARIK KEMBALI (§ cancel, verifikasi F-2). Aturan "satu
+ * per tahun" tanpa jalan keluar berarti satu tahun buku yang OVB-nya salah
+ * ketik terkunci selamanya — dan kalimat penolakannya menyuruh orang
+ * "membatalkan" sesuatu yang tidak punya tombol. Pembatalan mengembalikan
+ * tahun itu ke keadaan "belum ada OVB disetujui" dan melepaskan slot indeks
+ * uniknya, dengan alasan yang wajib dan tercatat.
  */
 class OverheadBudgetService
 {
@@ -141,6 +149,63 @@ class OverheadBudgetService
     public function reject(OverheadBudget $budget, User $by, ?string $note = null): OverheadBudget
     {
         return $budget->reject($by, $note);
+    }
+
+    /**
+     * Batalkan OVB yang SUDAH DISETUJUI — jalan keluar yang dijanjikan kalimat
+     * penolakan "satu per tahun" (verifikasi F-2).
+     *
+     * Sebelum ini kalimat itu menyuruh operator "batalkan OVB/… lebih dulu",
+     * dan diukur lewat HTTP tidak satu pun jalan itu ada: DELETE 422 (isEditable
+     * hanya draft/rejected), reject 422 (hanya menerima submitted), PUT 422,
+     * cancel 404 — tidak ada rutenya. Satu tahun buku yang OVB-nya salah ketik
+     * terkunci selamanya.
+     *
+     * FORWARD-ONLY, DAN DI SINI ITU HAMPIR HAMPA: sebuah anggaran tidak pernah
+     * memposting satu baris jurnal pun, jadi tidak ada yang perlu dibalik.
+     * Yang berubah hanyalah BATAS yang dipakai membaca angka yang sudah
+     * tercatat — dan tahun itu kembali menjadi "belum ada OVB disetujui",
+     * keadaan TANPA_BATAS yang sudah punya kalimatnya sendiri.
+     *
+     * Alasan WAJIB, dan jejaknya baris `cancelled` di core_approvals — trail
+     * yang sama yang ditulis submit/approve/reject, supaya riwayat dokumen
+     * terbaca sebagai satu urutan (pola ArInvoiceService::cancel).
+     */
+    public function cancel(OverheadBudget $budget, User $by, string $reason): OverheadBudget
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw new LogicException(
+                "Pembatalan OVB {$budget->code} wajib menyebutkan alasan. Anggaran tahunan yang hilang "
+                .'tanpa sebab tertulis tidak bisa dipertanggungjawabkan pada audit tahun itu.'
+            );
+        }
+
+        if ($budget->status !== DocumentStatus::Approved) {
+            throw new LogicException(
+                "OVB {$budget->code} berstatus {$budget->status->value}, jadi tidak perlu dibatalkan — "
+                .'yang belum disetujui cukup diubah, ditolak, atau dihapus. Pembatalan hanya untuk '
+                .'anggaran yang sudah berlaku.'
+            );
+        }
+
+        return DB::transaction(function () use ($budget, $by, $reason): OverheadBudget {
+            $budget->forceFill([
+                'status' => DocumentStatus::Cancelled,
+                'cancelled_at' => now(),
+                'cancelled_by' => $by->id,
+                'cancellation_reason' => $reason,
+            ])->save();
+
+            $budget->approvals()->create([
+                'action' => 'cancelled',
+                'user_id' => $by->id,
+                'note' => $reason,
+            ]);
+
+            return $budget->refresh();
+        });
     }
 
     /**
@@ -301,8 +366,9 @@ class OverheadBudgetService
 
         return sprintf(
             'Tahun buku %d sudah punya anggaran overhead yang disetujui (%s), jadi OVB %s tidak dapat %s. '
-            .'Satu tahun hanya boleh punya satu anggaran yang berlaku — batalkan %s lebih dulu bila '
-            .'anggaran ini yang menggantikannya.',
+            .'Satu tahun hanya boleh punya satu anggaran yang berlaku — batalkan %s lebih dulu '
+            .'(tombol "Batalkan OVB" pada dokumennya, alasan wajib) bila anggaran ini yang '
+            .'menggantikannya.',
             $budget->period_year,
             $rivalCode,
             $budget->code,

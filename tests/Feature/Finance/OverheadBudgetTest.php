@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\WatchedThresholds;
 use Modules\Finance\Models\Account;
@@ -218,6 +219,89 @@ class OverheadBudgetTest extends ErpTestCase
 
         $this->expectExceptionMessage('belum punya satu akun pun');
         $this->service->submit($budget, $this->maker());
+    }
+
+    // ----------------------------------------------------------- pembatalan
+
+    /**
+     * JALAN KELUAR YANG DIJANJIKAN KALIMATNYA (verifikasi F-2).
+     *
+     * Kalimat penolakan "satu per tahun" menyuruh operator "batalkan OVB/…
+     * lebih dulu", dan diukur lewat HTTP tidak satu pun jalan itu ada pada OVB
+     * yang sudah disetujui: DELETE 422, reject 422, PUT 422, cancel 404 — satu
+     * tahun buku yang salah ketik terkunci selamanya.
+     */
+    public function test_an_approved_budget_can_be_cancelled_and_frees_its_year(): void
+    {
+        $first = $this->budget(2026, ['6-1100' => 500_000_000]);
+        $this->service->submit($first, $this->maker());
+        $this->service->approve($first, $this->checker());
+
+        $journalsBefore = DB::table('fin_journals')->count();
+        $linesBefore = DB::table('fin_journal_lines')->count();
+
+        $this->service->cancel($first, $this->checker(), 'Salah ketik: anggaran sewa kantor tertukar dengan 2027.');
+
+        $this->assertSame(DocumentStatus::Cancelled, $first->refresh()->status);
+        $this->assertNotNull($first->cancelled_at);
+        $this->assertSame($this->checker()->id, (int) $first->cancelled_by);
+        $this->assertStringContainsString('Salah ketik', (string) $first->cancellation_reason);
+        $this->assertNull($this->service->approvedFor(2026), 'tahun itu kembali tanpa OVB yang berlaku');
+
+        // FORWARD-ONLY: sebuah anggaran tidak pernah memposting jurnal, jadi
+        // pembatalannya tidak boleh membalik apa pun.
+        $this->assertSame($journalsBefore, DB::table('fin_journals')->count());
+        $this->assertSame($linesBefore, DB::table('fin_journal_lines')->count());
+
+        // Jejaknya baris `cancelled` di trail yang sama dengan submit/approve.
+        $this->assertSame(1, $first->approvals()->where('action', 'cancelled')->count());
+
+        // Dan penggantinya kini bisa disetujui — termasuk oleh indeks uniknya,
+        // yang hanya menghitung baris ber-status approved.
+        $second = $this->budget(2026, ['6-1100' => 700_000_000]);
+        $this->service->submit($second, $this->maker());
+        $this->service->approve($second, $this->checker());
+
+        $this->assertSame($second->id, $this->service->approvedFor(2026)?->id);
+    }
+
+    public function test_cancelling_demands_a_reason_and_refuses_a_draft(): void
+    {
+        $budget = $this->budget(2026, ['6-1100' => 500_000_000]);
+        $this->service->submit($budget, $this->maker());
+        $this->service->approve($budget, $this->checker());
+
+        try {
+            $this->service->cancel($budget, $this->checker(), '   ');
+            $this->fail('pembatalan tanpa alasan seharusnya ditolak');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('wajib menyebutkan alasan', $e->getMessage());
+        }
+
+        $draft = $this->budget(2027, ['6-1100' => 100_000_000]);
+
+        $this->expectExceptionMessage('cukup diubah, ditolak, atau dihapus');
+        $this->service->cancel($draft, $this->checker(), 'apa pun');
+    }
+
+    /** Dan lewat rutenya, dengan izin fin.approve dan alasan yang divalidasi. */
+    public function test_the_cancel_endpoint_exists_and_validates_its_reason(): void
+    {
+        $budget = $this->budget(2026, ['6-1100' => 500_000_000]);
+        $this->service->submit($budget, $this->maker());
+        $this->service->approve($budget, $this->checker());
+
+        Sanctum::actingAs($this->checker());
+
+        $this->postJson("/api/finance/overhead-budgets/{$budget->id}/cancel", [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
+
+        $this->postJson("/api/finance/overhead-budgets/{$budget->id}/cancel", [
+            'reason' => 'Anggaran diganti setelah rapat direksi 7 September.',
+        ])->assertOk();
+
+        $this->assertSame(DocumentStatus::Cancelled, $budget->refresh()->status);
     }
 
     // ------------------------------------------------------------- realisasi

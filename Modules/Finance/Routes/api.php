@@ -199,6 +199,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('overhead-budgets/{overheadBudget}/submit', [OverheadBudgetController::class, 'submit'])->middleware('permission:fin.create');
     Route::post('overhead-budgets/{overheadBudget}/approve', [OverheadBudgetController::class, 'approve'])->middleware('permission:fin.approve');
     Route::post('overhead-budgets/{overheadBudget}/reject', [OverheadBudgetController::class, 'reject'])->middleware('permission:fin.approve');
+    // Pembatalan OVB yang sudah disetujui (verifikasi F-2): fin.approve, karena
+    // yang ditarik kembali adalah sebuah persetujuan, bukan sebuah posting —
+    // sebuah anggaran tidak pernah memposting satu baris jurnal pun.
+    Route::post('overhead-budgets/{overheadBudget}/cancel', [OverheadBudgetController::class, 'cancel'])->middleware('permission:fin.approve');
 
     Route::get('budget/portfolio', [BudgetRealisationController::class, 'portfolio'])->middleware('permission:fin.view');
     Route::get('budget/projects/{project}/monthly', [BudgetRealisationController::class, 'monthly'])->middleware('permission:fin.view');
