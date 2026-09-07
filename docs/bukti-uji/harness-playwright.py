@@ -3107,6 +3107,159 @@ def s26m(browser):
         ctx.close()
 
 
+def plant_twin_live_task(project_id=1, code="B.3", name="Pembesian TOWER B (kode kembar)"):
+    """Tugas HIDUP kedua dengan kode WBS yang sudah dipakai — sah menurut basis
+    data (indeks (project_id, wbs_code) bukan unique) dan menurut validasinya
+    (`required|string|max:20`), dan tidak ada satu pun di data demo."""
+    con = sqlite3.connect(DB)
+    try:
+        parent = con.execute("SELECT id FROM prj_wbs_tasks WHERE project_id = ? AND wbs_code = 'B'", (project_id,)).fetchone()
+        if parent is None:
+            return {"state": "induk B tidak ada"}
+        con.execute("DELETE FROM prj_wbs_tasks WHERE project_id = ? AND name = ?", (project_id, name))
+        cur = con.execute(
+            "INSERT INTO prj_wbs_tasks (project_id, parent_id, wbs_code, name, weight_pct, planned_start,"
+            " planned_end, progress_pct, sort_order, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, 0, '2026-04-01 00:00:00', '2026-08-30 00:00:00', 10, 9, datetime('now'), datetime('now'))",
+            (project_id, parent[0], code, name))
+        con.commit()
+        return {"state": "ditanam", "id": cur.lastrowid, "code": code, "name": name}
+    finally:
+        con.close()
+
+
+def plant_twin_frozen_task(code="B.3", source="B.4", name="Baris beku kembar (fixture S26)"):
+    """Baris BEKU kedua dengan kode yang sudah ada, disalin dari baris beku lain.
+
+    Disisipkan, bukan diubah: baseline yang disetujui tidak boleh ditulisi
+    fixture, dan sebuah baris tambahan bisa dihapus lagi tanpa menyentuh satu
+    byte pun milik baris aslinya."""
+    con = sqlite3.connect(DB)
+    try:
+        con.execute("DELETE FROM prj_baseline_tasks WHERE name = ?", (name,))
+        cur = con.execute(
+            "INSERT INTO prj_baseline_tasks (baseline_id, wbs_task_id, wbs_code, parent_wbs_code, name,"
+            " is_leaf, weight_pct, planned_start, planned_end, sort_order, created_at, updated_at)"
+            " SELECT baseline_id, wbs_task_id, ?, parent_wbs_code, ?, is_leaf, weight_pct, planned_start,"
+            " planned_end, sort_order + 1, datetime('now'), datetime('now')"
+            " FROM prj_baseline_tasks WHERE wbs_code = ? ORDER BY id LIMIT 1", (code, name, source))
+        con.commit()
+        if cur.rowcount != 1:
+            return {"state": f"baris beku {source} tidak ada"}
+        return {"state": "ditanam", "id": cur.lastrowid, "code": code, "name": name}
+    finally:
+        con.close()
+
+
+def drop_planted_rows(planted):
+    out = []
+    con = sqlite3.connect(DB)
+    try:
+        for table, row in planted:
+            if row.get("state") != "ditanam":
+                out.append({"state": "tidak ada yang dihapus", "sebab": row.get("state")})
+                continue
+            n = con.execute(f"DELETE FROM {table} WHERE id = ?", (row["id"],)).rowcount
+            out.append({"state": "dibersihkan" if n == 1 else f"GAGAL: {n} baris", "table": table, "id": row["id"]})
+        con.commit()
+        return out
+    finally:
+        con.close()
+
+
+@scenario("S26_gantt_kode_kembar")
+def s26d(pg):
+    """Kode WBS ganda — DI KEDUA SISI, di peramban.
+
+    Basis data tidak menjamin `wbs_code` unik: indeks `(baseline_id, wbs_code)`
+    dan `(project_id, wbs_code)` sama-sama bukan `unique` dan validasinya hanya
+    `required|string|max:20`. Data demo tidak punya satu pun tabrakan, jadi
+    kalimat peringatannya belum pernah dilihat siapa pun (butir "belum
+    diverifikasi" #8 laporan paket) — dan sampai verifikasi P1-H sisi HIDUP
+    tidak dihitung sama sekali: dua baris memakai baris beku yang sama, 12 bar
+    baseline tergambar untuk baseline berisi 11 baris, dan kaki kartu
+    mengumumkan "12 dari 12 tugas cocok" tanpa sepatah kata.
+    """
+    out = {"viewport": pg.viewport_size}
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+
+    MEASURE = """() => {
+      const svg = document.querySelector('.gantt-sheet svg.chart-gantt');
+      return {
+        bars: svg.querySelectorAll('rect.gantt-bar').length,
+        baselines: svg.querySelectorAll('rect.gantt-baseline').length,
+        twin_baseline_titles: [...svg.querySelectorAll('rect.gantt-baseline title')]
+          .map((t) => t.textContent).filter((t) => t.startsWith('B.3 ')),
+        note: (svg.querySelector('text.chart-note') || {}).textContent,
+        foot: [...document.querySelectorAll('.gantt-sheet .card-body p')].map((p) => p.innerText.trim()),
+      };
+    }"""
+
+    def open_jadwal():
+        pg.evaluate("() => { location.hash = '#/dashboard'; }")
+        pg.wait_for_timeout(500)
+        pg.evaluate("() => { location.hash = '#/d/projects/1'; }")
+        pg.wait_for_selector(".tabs button", timeout=20000)
+        pg.wait_for_timeout(1200)
+        click(pg, ".tabs button:nth-child(2)")
+        pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=20000)
+        pg.wait_for_timeout(800)
+
+    planted = []
+
+    try:
+        login(pg, "admin@nusantara.test")
+
+        # Tahap 1 — kembaran di sisi HIDUP saja: dua baris layar memakai SATU
+        # baris beku, jadi jumlah "cocok" melampaui isi baseline.
+        live_twin = plant_twin_live_task()
+        planted.append(("prj_wbs_tasks", live_twin))
+        open_jadwal()
+        frozen_rows = len(((api_in_page(pg, "projects/baselines/1", {}) or {}).get("data") or {}).get("tasks") or [])
+        out["frozen_rows_before"] = frozen_rows
+        out["live_twin"] = pg.evaluate(MEASURE)
+        pg.screenshot(path=f"{OUT}/s26-jadwal-kode-kembar-p1h.png", full_page=True)
+
+        # Tahap 2 — kembaran di sisi BEKU juga: penjaga yang sudah ada sejak
+        # awal, yang data demo tidak pernah memicunya.
+        planted.append(("prj_baseline_tasks", plant_twin_frozen_task()))
+        open_jadwal()
+        out["both_twins"] = pg.evaluate(MEASURE)
+    finally:
+        out["cleanup"] = drop_planted_rows(planted)
+
+    live_foot = " | ".join(out["live_twin"]["foot"])
+    both_foot = " | ".join(out["both_twins"]["foot"])
+    checks = {
+        # Sisi HIDUP: dua baris berbagi satu baris beku — dan itu disebut.
+        "a_duplicate_live_code_is_named": "Kode WBS ganda pada WBS yang berlaku: B.3" in live_foot,
+        "the_note_admits_the_match_count_exceeds_the_baseline":
+            f"dari {out['frozen_rows_before']} baris beku" in (out["live_twin"]["note"] or ""),
+        "both_twins_draw_their_own_baseline_bar":
+            out["live_twin"]["baselines"] == out["live_twin"]["bars"]
+            and len(out["live_twin"]["twin_baseline_titles"]) == 2,
+        # Sisi BEKU: penjaga yang sudah ada, kini benar-benar terlihat.
+        "a_duplicate_frozen_code_is_named": "Kode WBS ganda pada baseline: B.3" in both_foot,
+        "no_page_errors": not errors,
+        "the_fixtures_are_gone_again": all(row["state"] == "dibersihkan" for row in out["cleanup"]),
+    }
+
+    out["pageerrors"] = errors
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+def _flat_codes(nodes, out=None):
+    out = [] if out is None else out
+    for node in nodes:
+        out.append(node["wbs_code"])
+        _flat_codes(node.get("children") or [], out)
+    return out
+
+
 @scenario("S26_gantt_jam_server")
 def s26t(browser):
     """Garis "Hari ini" digambar dari tanggal SERVER, bukan dari jam peramban.
@@ -4999,7 +5152,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

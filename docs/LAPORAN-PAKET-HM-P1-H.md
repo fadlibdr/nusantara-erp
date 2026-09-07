@@ -210,9 +210,15 @@ console error, 0 permintaan gagal, formulir masuk tergambar.**
    memberantas. Perakitan pohonnya kini mengangkat baris yang tidak terjangkau menjadi akar dan
    menyebutnya lewat `meta.parent_cycles`; dua uji baru memakukannya, dan perilaku YATIM yang
    selama ini tidak diuji apa pun ikut dipaku.
-8. **Kode WBS ganda belum pernah diukur di peramban.** `jadwal.js` menghitung tabrakan dan
-   menyebutkannya di bawah gantt (indeks `(baseline_id, wbs_code)` bukan `unique`), tetapi data
-   demo tidak punya satu pun, dan S26 karena itu tidak pernah melihat kalimat peringatannya.
+8. ~~**Kode WBS ganda belum pernah diukur di peramban.**~~ **DIUKUR 7 Sep 2026 — dan separuhnya
+   ternyata tidak dihitung sama sekali.** Yang dijaga hanya sisi BEKU; kembaran di sisi HIDUP
+   (satu tugas kedua berkode B.3, sah menurut basis data dan menurut validasinya) membuat dua
+   baris memakai baris beku yang SAMA: 12 bar baseline untuk baseline berisi 11 baris, dua
+   `<title>` baseline yang identik, dan kaki kartu mengumumkan *"12 dari 12 tugas cocok"* tanpa
+   sepatah kata. Sisi hidup kini ikut dihitung, kaki kartu menyebut jumlah baris beku yang
+   sebenarnya, dan `S26_gantt_kode_kembar` menanam kembaran di KEDUA sisi lalu menghapusnya
+   lagi (6 syarat hijau). Kutipan indeks di docblock `indexBaseline` — yang menyebut indeks tabel
+   HIDUP sebagai alasan memeriksa sisi BEKU — ikut dibetulkan.
 9. **`{project}/wbs-tasks` sekarang bergerbang — dan tidak ada layar lain yang memanggilnya.**
    Grep atas `public/app/js/` hanya menemukan `project.js` dan `jadwal.js`. Kalau ada pemakai di
    luar SPA (skrip, integrasi), ia akan mulai menerima 403 tanpa peringatan.

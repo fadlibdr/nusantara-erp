@@ -139,6 +139,14 @@ function paint(host, ctx) {
   }
 
   const { index, duplicates } = indexBaseline(baseline);
+  /* Tabrakan kode di sisi HIDUP dihitung juga, dan sampai verifikasi P1-H tidak:
+     satu tugas hidup kedua berkode B.3 (bisa dibuat lewat POST wbs-tasks —
+     validasinya hanya required|string|max:20) membuat DUA baris memakai baris
+     beku yang sama, jadi 12 batang baseline tergambar untuk baseline berisi 11
+     baris dan kaki kartu mengumumkan "12 dari 12 tugas cocok". Diukur di
+     peramban 7 Sep 2026: dua <title> baseline yang identik, tanpa satu kalimat
+     peringatan pun. */
+  const liveDuplicates = duplicateCodes(flat.map((task) => task.wbs_code));
   const rows = flat.map((task) => {
     const frozen = index.get(task.wbs_code) || null;
 
@@ -209,6 +217,14 @@ function paint(host, ctx) {
           style: { margin: '6px 0 0', color: 'var(--warning)' },
         })
         : null,
+      liveDuplicates.length
+        ? el('p.cell-sub', {
+          text: `Kode WBS ganda pada WBS yang berlaku: ${liveDuplicates.join(', ')} — setiap barisnya `
+            + 'memakai baris beku YANG SAMA sebagai pembanding, jadi jumlah "cocok" di kaki gambar '
+            + 'lebih besar daripada isi baseline. Kode WBS tidak dijamin unik per proyek oleh basis data.',
+          style: { margin: '6px 0 0', color: 'var(--warning)' },
+        })
+        : null,
       /* Baseline yang GAGAL dibaca: kalimatnya sudah ada di dalam svg (ikut
          tercetak), tetapi kegagalan yang bisa dicoba lagi butuh pintu keluar —
          dan sebuah pintu keluar tidak bisa hidup di dalam svg yang tercetak. */
@@ -259,26 +275,42 @@ function flatten(tasks, level = 0, out = []) {
   return out;
 }
 
+/** Kode yang muncul lebih dari sekali, dalam urutan kemunculan keduanya. */
+function duplicateCodes(codes) {
+  const seen = new Set();
+  const duplicates = [];
+
+  codes.forEach((code) => {
+    if (!code) return;
+    if (seen.has(code) && !duplicates.includes(code)) duplicates.push(code);
+    seen.add(code);
+  });
+
+  return duplicates;
+}
+
 /**
  * Baris baseline diindeks per `wbs_code`.
  *
- * Basis data TIDAK menjamin `wbs_code` unik per proyek (indeks
- * (project_id, wbs_code) bukan unique, dan aturan validasinya hanya
- * required/string/max:20). Sebuah Map diam-diam menyimpan yang terakhir; di
- * sini tabrakannya DIHITUNG dan disebutkan di bawah gantt — angka yang salah
+ * Basis data TIDAK menjamin `wbs_code` unik — DI KEDUA SISI, dan keduanya
+ * diperiksa: indeks `(baseline_id, wbs_code)` pada `prj_baseline_tasks` dan
+ * `(project_id, wbs_code)` pada `prj_wbs_tasks` sama-sama bukan `unique`
+ * (dibaca dari sqlite_master), dan validasinya hanya `required|string|max:20`.
+ * Sebuah Map diam-diam menyimpan yang terakhir; di sini tabrakan sisi BEKU
+ * dihitung, dan tabrakan sisi HIDUP dihitung di `paint()` — angka yang salah
  * yang mengaku dirinya salah lebih baik daripada angka yang salah dan diam.
+ *
+ * (Sampai verifikasi P1-H docblock ini mengutip indeks tabel HIDUP sebagai
+ * alasan memeriksa sisi BEKU, dan sisi hidup itu sendiri justru tidak
+ * diperiksa: tepat sisi yang dikutip.)
  */
 function indexBaseline(baseline) {
   const index = new Map();
-  const duplicates = [];
+  const rows = ((baseline && baseline.tasks) || []).filter((task) => task && task.wbs_code);
 
-  ((baseline && baseline.tasks) || []).forEach((task) => {
-    if (!task || !task.wbs_code) return;
-    if (index.has(task.wbs_code) && !duplicates.includes(task.wbs_code)) duplicates.push(task.wbs_code);
-    index.set(task.wbs_code, task);
-  });
+  rows.forEach((task) => index.set(task.wbs_code, task));
 
-  return { index, duplicates };
+  return { index, duplicates: duplicateCodes(rows.map((task) => task.wbs_code)) };
 }
 
 /** '60.0000' (0..100) → 0.6 (0..1); null tetap null, bukan 0. */
@@ -326,8 +358,14 @@ function sourceNote(baseline, fault, matched, total) {
   }
 
   const missing = total - matched;
+  /* Baris beku yang benar-benar ada. Kalau kode hidup kembar, DUA baris layar
+     memakai baris beku yang sama dan `matched` melampaui isi baseline: "12 dari
+     12 cocok" untuk baseline berisi 11 baris. Angkanya tetap dicetak apa
+     adanya, ditambah jumlah yang sebenarnya — bukan dirapikan diam-diam. */
+  const frozenRows = (baseline.tasks || []).length;
 
   return `${scale} · baseline ${baseline.code || ''} (${matched} dari ${total} tugas cocok`
     + (missing ? `, ${missing} tanpa pasangan` : '')
+    + (matched > frozenRows ? `, dari ${frozenRows} baris beku — ada kode WBS kembar` : '')
     + '), dicocokkan menurut kode WBS.';
 }
