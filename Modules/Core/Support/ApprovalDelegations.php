@@ -167,9 +167,7 @@ final class ApprovalDelegations
             return false;
         }
 
-        $delegations = self::activeFor($approver);
-
-        if ($delegations === []) {
+        if (self::activeFor($approver) === []) {
             return false;
         }
 
@@ -179,7 +177,42 @@ final class ApprovalDelegations
             return false;
         }
 
-        foreach (self::abilitiesThisApprovalMayNeed($document, $prefix) as $ability) {
+        return self::refusesBorrowedApproval(
+            $approver,
+            $makerId,
+            $prefix,
+            self::documentMayNeedADirector($document, ApprovalPolicy::stampedFor($document)),
+        );
+    }
+
+    /**
+     * Bentuk yang sama, dijawab dari fakta yang sudah di tangan pemanggilnya.
+     *
+     * ApprovalQueue memanggil ini: ia sudah mengambil baris pengajuan dan
+     * kolom `policy` untuk seluruh dokumen satu jenis dalam SATU kueri, jadi
+     * ia tidak boleh membayar satu kueri stempel per baris hanya untuk
+     * menjawab pertanyaan yang sama. Satu badan, dua pintu — antrean dan
+     * penolakan tidak boleh berbeda pendapat.
+     */
+    public static function refusesBorrowedApproval(User $approver, ?int $makerId, string $prefix, bool $mayNeedADirector): bool
+    {
+        if ($makerId === null || $makerId === (int) $approver->getKey()) {
+            return false;
+        }
+
+        $delegations = self::activeFor($approver);
+
+        if ($delegations === []) {
+            return false;
+        }
+
+        $abilities = ["{$prefix}.approve"];
+
+        if ($mayNeedADirector) {
+            $abilities[] = "{$prefix}.approve-director";
+        }
+
+        foreach ($abilities as $ability) {
             if (self::holdsNatively($approver, $ability)) {
                 continue; // haknya sendiri: delegasinya tidak ada urusannya
             }
@@ -203,12 +236,11 @@ final class ApprovalDelegations
     }
 
     /**
-     * Hak yang persetujuan atas dokumen ini BISA memakan.
+     * Apakah persetujuan atas dokumen ini BISA menuntut hak direktur.
      *
-     * Selalu <awalan>.approve. Ditambah <awalan>.approve-director bila
-     * dokumennya menuntut direktur — dibaca dari stempel kebijakannya
-     * (director, atau jenjang di atas satu) atau dari kolom
-     * needs_director_approval yang dibawa tabelnya sendiri.
+     * Dibaca dari stempel kebijakan baris `submitted` (director, atau jenjang
+     * di atas satu) atau dari kolom needs_director_approval yang dibawa
+     * tabelnya sendiri.
      *
      * Untuk jenjang, pertanyaannya dijawab KONSERVATIF (setiap tingkat
      * dianggap bisa menuntut direktur) alih-alih menghitung tingkat ke berapa
@@ -219,22 +251,13 @@ final class ApprovalDelegations
      * pemberinya, oleh delegat yang memegang prc.approve sendiri — dan ia
      * dikorbankan ke arah yang lebih keras, arah yang sama dengan maker-checker.
      *
-     * @return list<string>
+     * @param  array<string, mixed>|null  $stamp  stempel kebijakan baris `submitted`
      */
-    private static function abilitiesThisApprovalMayNeed(Model $document, string $prefix): array
+    public static function documentMayNeedADirector(Model $document, ?array $stamp): bool
     {
-        $abilities = ["{$prefix}.approve"];
-
-        $stamp = ApprovalPolicy::stampedFor($document);
-        $needsDirector = ($stamp['director'] ?? false) === true
+        return ($stamp['director'] ?? false) === true
             || (int) ($stamp['levels'] ?? 1) > 1
             || ! empty($document->getAttributes()['needs_director_approval']);
-
-        if ($needsDirector) {
-            $abilities[] = "{$prefix}.approve-director";
-        }
-
-        return $abilities;
     }
 
     /**

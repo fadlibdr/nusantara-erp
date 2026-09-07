@@ -516,6 +516,25 @@ final class ApprovalPolicy
             return null;
         }
 
+        return self::decodeStamp($raw);
+    }
+
+    /**
+     * Stempel dari isi kolom mentah, atau null bila versinya tak dikenal.
+     *
+     * Publik sejak putaran verifikasi F-1: ApprovalQueue mengambil kolom
+     * `policy` dalam SATU kueri per jenis dokumen bersama baris pengajuannya,
+     * jadi ia butuh pembacanya tanpa kueri kedua per baris. Satu pembaca, satu
+     * aturan versi.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function decodeStamp(mixed $raw): ?array
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
         $stamp = is_array($raw) ? $raw : json_decode((string) $raw, true);
 
         if (! is_array($stamp) || ($stamp['v'] ?? null) !== self::STAMP_VERSION) {
@@ -523,6 +542,17 @@ final class ApprovalPolicy
         }
 
         return $stamp;
+    }
+
+    /**
+     * Apakah core_approvals sudah punya kolom `policy` (migrasi 000198).
+     *
+     * Publik sejak putaran verifikasi F-1 — ApprovalQueue memutuskan sekali
+     * per permintaan apakah kolom itu boleh ikut di SELECT-nya.
+     */
+    public static function approvalsCarryAPolicyColumn(): bool
+    {
+        return self::$hasPolicyColumn ??= Schema::hasColumn('core_approvals', 'policy');
     }
 
     /**
@@ -680,19 +710,6 @@ final class ApprovalPolicy
     public static function documentEntry(string $type): array
     {
         return self::registryEntryFor($type);
-    }
-
-    /**
-     * Apakah core_approvals sudah punya kolom `policy` (migrasi 000198).
-     *
-     * Dimemo per proses karena stampedFor() dipanggil DUA KALI pada tiap
-     * persetujuan — sekali dari requiredApprovalLevels(), sekali dari
-     * assertStampedDirectorLevel() — dan Schema::hasColumn di MySQL adalah
-     * kueri information_schema, bukan pemeriksaan gratis.
-     */
-    private static function approvalsCarryAPolicyColumn(): bool
-    {
-        return self::$hasPolicyColumn ??= Schema::hasColumn('core_approvals', 'policy');
     }
 
     /** @return array{prefix?: string, label?: string} */

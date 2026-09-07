@@ -28,6 +28,16 @@ use Throwable;
  * created_by, submitted_by, employee_id → users.employee_id) dipakai sebagai
  * pengganti — dan sejak T3.4 penjaga memakai kolom yang sama untuk MENOLAK,
  * sehingga dokumen yang tidak ditawarkan di sini juga tidak lolos di sana.
+ *
+ * "MILIK PEMBERI DELEGASI" adalah bentuk kedua dari aturan yang sama, dan ia
+ * terlewat sampai putaran verifikasi F-1. Sebuah delegasi membuat dokumen
+ * pemberinya TERLIHAT di antrean penerimanya (Gate::before meminjamkan
+ * <awalan>.approve), lalu SegregationOfDuties menolaknya saat Setujui ditekan.
+ * Diukur pada dataset demo: sesudah Administrator Sistem mendelegasikan ke
+ * login finance, 2 dari 4 baris yang ditawarkan dijamin gagal, dan "Setujui
+ * massal" menawarkan centang pada keduanya. Predikat yang dipakai di sini
+ * adalah predikat yang MENOLAK (ApprovalDelegations::refusesBorrowedApproval),
+ * bukan salinannya.
  */
 class ApprovalQueue
 {
@@ -70,8 +80,18 @@ class ApprovalQueue
                 }
 
                 $morph = (new $class)->getMorphClass();
+                // `policy` ikut dalam kueri yang SAMA, bukan satu kueri per
+                // baris: antrean butuh jawaban "dokumen ini bisa menuntut
+                // direktur?" untuk saringan delegasi di bawah, dan itu
+                // pertanyaan yang stempelnya sudah jawab.
+                $columns = ['approvable_id', 'user_id', 'created_at'];
+
+                if (ApprovalPolicy::approvalsCarryAPolicyColumn()) {
+                    $columns[] = 'policy';
+                }
+
                 $submissions = DB::table('core_approvals')
-                    ->select('approvable_id', 'user_id', 'created_at')
+                    ->select($columns)
                     ->where('approvable_type', $morph)
                     ->where('action', 'submitted')
                     ->whereIn('approvable_id', $docs->modelKeys())
@@ -97,6 +117,32 @@ class ApprovalQueue
 
                     if ($forUser !== null && (($ownerId !== null && $ownerId === (int) $forUser->getKey()) || $ownEmployee)) {
                         continue; // maker-checker: not yours to approve
+                    }
+
+                    /*
+                     * F-1 (putaran verifikasi) — DAN BUKAN PULA PEKERJAAN
+                     * PEMBERI DELEGASI YANG SEDANG DIPAKAI.
+                     *
+                     * Delegasi membuat baris-baris ini TERLIHAT (Gate::before
+                     * meminjamkan <awalan>.approve), lalu penjaga
+                     * maker-checker menolaknya saat Setujui ditekan. Terukur
+                     * pada dataset demo: setelah Administrator Sistem
+                     * mendelegasikan ke login finance, 2 dari 4 baris antrean
+                     * delegat itu dijamin gagal — dan "Setujui massal"
+                     * menawarkan centang pada keduanya. Predikatnya sama persis
+                     * dengan yang menolak, jadi keduanya tidak bisa berbeda
+                     * pendapat.
+                     */
+                    if ($forUser !== null && ApprovalDelegations::refusesBorrowedApproval(
+                        $forUser,
+                        $ownerId,
+                        $entry['prefix'],
+                        ApprovalDelegations::documentMayNeedADirector(
+                            $doc,
+                            ApprovalPolicy::decodeStamp($sub->policy ?? null),
+                        ),
+                    )) {
+                        continue;
                     }
 
                     $amount = null;
