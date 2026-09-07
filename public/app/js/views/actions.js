@@ -234,7 +234,11 @@ function keyOf(def) {
 export function actionButtons(def, row, onDone) {
   const panels = [];
   const buttons = (def.actions || [])
-    .filter((action) => session.can(action.perm))
+    // canAct(), bukan can(action.perm): sebuah delegasi meminjamkan
+    // `<awalan>.approve` HANYA di pintu keputusan dokumen, dan izin yang sama
+    // menggerbangi belasan aksi lain di bilah ini (posting jurnal manual, buka
+    // kembali periode, aktifkan kontrak, tutup insiden). Lihat session.canAct.
+    .filter((action) => session.canAct(action))
     .filter((action) => !action.when || action.when(row))
     .map((action) => {
       /*
@@ -272,8 +276,21 @@ export function actionButtons(def, row, onDone) {
       }
       const note = action.inlineNote ? inlineNote(action, row) : null;
       if (note) panels.push(note.node);
+      /*
+       * "a.n." SEBELUM DITEKAN, bukan hanya sesudahnya (F-1 putaran 2). Tombol
+       * ini ada di layar seorang delegat KARENA sebuah delegasi meminjamkan
+       * haknya, dan jejak yang lahir saat ia menekannya akan berbunyi "Dewi
+       * a.n. Administrator Sistem". Spanduk di Tugas Saya mengatakannya; layar
+       * dokumen tidak punya spanduk, jadi tombolnya yang mengatakannya.
+       * null untuk hak yang dipegang sendiri — aturan yang sama dengan
+       * ApprovalDelegations::actingForId, supaya tidak ada "a.n." karangan.
+       */
+      const lentBy = session.isDecisionDoor(action) ? session.lentBy(action.perm) : null;
       return button(action.label, {
         variant: action.variant || '',
+        title: lentBy
+          ? `Hak pinjaman: keputusan ini tercatat a.n. ${lentBy.join(', ')}.`
+          : undefined,
         onClick: (event) => runAction(action, row, def, { trigger: event.currentTarget, onDone, inline: note ? note.read : null }),
       });
     });

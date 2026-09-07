@@ -3,6 +3,8 @@
   "po_422": {
    "vendor_id": "Vendor wajib diisi.",
    "order_date": "Tanggal PO wajib diisi.",
+   "expected_date": "Perkiraan kirim wajib diisi.",
+   "pr_bypass_reason": "Alasan tanpa PR wajib diisi bila PR kosong.",
    "items.0.qty": "Kuantitas minimal 0.001.",
    "items.0.unit_price": "Harga satuan wajib diisi."
   },
@@ -15,7 +17,7 @@
    "dpp": "DPP wajib diisi bila tidak ada satu pun dari PO / GRN / Opname subkon / Opname mandor / Tagihan ppk.",
    "vendor_invoice_no": "Nomor faktur vendor wajib diisi."
   },
-  "_ms": 1019,
+  "_ms": 1194,
   "_clicks": 0
  },
  "S1_inbox_truth": {
@@ -42,16 +44,16 @@
    "hr/leave-requests": 1
   },
   "dashboard_card": {
-   "title": "Menunggu persetujuan Anda (4)",
+   "title": "Menunggu persetujuan Anda",
    "rows": [
     "CTI/2026/VIII/0002",
     "RAP/2026/0001",
     "PR/2026/III/0002",
     "SPK/2026/III/0002"
    ],
-   "width": 565,
-   "height": 488.546875,
-   "seeAll": false,
+   "width": 1146,
+   "height": 355.046875,
+   "seeAll": true,
    "rowHeights": [
     56,
     56,
@@ -63,11 +65,15 @@
    "approvals_card": true,
    "tugas_link": true,
    "cards": [
+    "Proyek, piutang & hutang",
     "Menunggu persetujuan Anda",
-    "Kalender Acara",
-    "Progres proyek",
-    "Piutang jatuh tempo terdekat",
-    "Tiket layanan aktif"
+    "Proyeksi kas",
+    "Umur piutang",
+    "Kinerja EVM portofolio",
+    "Termin siap ditagih",
+    "Saldo bank",
+    "Pipeline penjualan",
+    "Tenggat menipis & lewat"
    ],
    "approve_perms": [
     "ast.approve",
@@ -85,70 +91,51 @@
     "scm.approve",
     "svc.approve"
    ],
-   "dashboard_api_calls": 11,
+   "dashboard_api_calls": 12,
    "dashboard_api_sample": [
     "core/notifications/unread-count",
     "iam/auth/me",
-    "projects?per_page=100",
-    "finance/ar-invoices?per_page=100",
-    "servicedesk/tickets?per_page=100",
-    "inventory/stock/low-stock",
-    "crm/contract-termins/billing-ready",
-    "finance/reports/bank-balances",
-    "core/calendar",
+    "core/me/preferences",
+    "finance/reports/cash-projection?days=90",
+    "finance/reports/ar-aging",
     "core/dashboard/summary",
-    "core/inbox"
+    "core/inbox",
+    "crm/contract-termins/billing-ready",
+    "crm/reports/pipeline",
+    "finance/reports/bank-balances",
+    "projects/evm",
+    "core/deadlines"
    ]
   },
   "warehouse": {
    "approvals_card": false,
    "tugas_link": false,
    "cards": [
-    "Kalender Acara",
-    "Progres proyek"
+    "Stok di bawah minimum",
+    "Proyek",
+    "Progres proyek",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ],
    "approve_perms": [],
-   "dashboard_api_calls": 6,
+   "dashboard_api_calls": 8,
    "dashboard_api_sample": [
     "core/notifications/unread-count",
     "iam/auth/me",
+    "core/me/preferences",
     "projects?per_page=100",
     "inventory/stock/low-stock",
-    "core/calendar",
-    "core/dashboard/summary"
+    "core/deadlines",
+    "core/dashboard/summary",
+    "core/calendar"
    ]
   },
-  "_ms": 9383,
+  "_ms": 8461,
   "_clicks": 0
  },
- "S11_tugas": {
-  "h1": "Tugas Saya",
-  "rows": [
-   "CTI/2026/VIII/0002",
-   "RAP/2026/0001",
-   "PR/2026/III/0002",
-   "SPK/2026/III/0002"
-  ],
-  "types": [
-   "Semua jenis (4)",
-   "Pengajuan cuti (1)",
-   "Permintaan pembelian (1)",
-   "RAP (1)",
-   "SPK subkontraktor (1)"
-  ],
-  "leave_detail_bar": [
-   "Kembali",
-   "Cetak",
-   "Setujui",
-   "Tolak"
-  ],
-  "status_strip": "Diajukan · menunggu persetujuan.\nUbah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
-  "_ms": 4419,
-  "_clicks": 2
- },
  "S2_approve_loop": {
-  "detail_ms": 1150,
-  "approve_total_ms": 2039,
+  "detail_ms": 1025,
+  "approve_total_ms": 1822,
   "action_bar": [
    "Kembali",
    "Cetak",
@@ -181,15 +168,16 @@
     "CTI/2026/VIII/0002 disetujui.",
     "Berikutnya menunggu Anda (3)\nRAP/2026/0001 · RAP · Rp 42.173.913.043,47\nBuka\nSemua tugas"
    ],
-   "strip": "Disetujui 04 Sep 2026 oleh Budi Santoso · dokumen terkunci.\nIsi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+   "strip": "Disetujui 07 Sep 2026 oleh Budi Santoso · dokumen terkunci.\nIsi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
    "opened_next": "RAP/2026/0001"
   },
-  "api_calls_detail_to_back": 14,
+  "api_calls_detail_to_back": 17,
   "api_calls_sample": [
    "hr/leave-requests/2",
    "hr/employees?per_page=500&page=1",
    "core/print/forms",
    "core/attachments?document_type=hr%2Fleave-requests&document_id=2",
+   "core/me/preferences/recent",
    "hr/leave-requests/2/approve",
    "core/inbox",
    "hr/leave-requests/2",
@@ -198,13 +186,16 @@
    "projects?per_page=500&page=1",
    "estimation/boqs?per_page=500&page=1",
    "core/attachments?document_type=estimation%2Fcost-budgets&document_id=1",
+   "core/me/preferences/recent",
    "hr/leave-requests/2",
    "core/attachments?document_type=hr%2Fleave-requests&document_id=2",
+   "core/me/preferences/recent",
    "procurement/purchase-orders/3",
    "procurement/vendors?per_page=500&page=1",
    "procurement/purchase-requisitions?per_page=500&page=1",
    "inventory/warehouses?per_page=500&page=1",
-   "core/attachments?document_type=procurement%2Fpurchase-orders&document_id=3"
+   "core/attachments?document_type=procurement%2Fpurchase-orders&document_id=3",
+   "core/me/preferences/recent"
   ],
   "po_bar": {
    "po": "PO/2026/IX/0003",
@@ -286,7 +277,7 @@
     }
    }
   },
-  "_ms": 16254,
+  "_ms": 15249,
   "_clicks": 4
  },
  "S3_create_po": {
@@ -294,10 +285,11 @@
    "fields": [
     "Vendor*",
     "Dari PR",
+    "Alasan tanpa PR*",
     "Proyek",
     "Gudang tujuan",
     "Tanggal PO*",
-    "Perkiraan kirim",
+    "Perkiraan kirim*",
     "Termin bayar (hari)",
     "Diskon",
     "Alamat pengiriman",
@@ -314,15 +306,17 @@
     ""
    ],
    "width": 960,
-   "bodyScroll": 903,
+   "bodyScroll": 1045,
    "bodyClient": 740,
-   "linesTop": 864.015625,
+   "linesTop": 1005.6875,
    "foot": [
     "Batal",
     "Simpan"
    ]
   },
   "client_errors": [
+   "Wajib diisi.",
+   "Wajib diisi.",
    "Wajib diisi.",
    "Wajib diisi.",
    "Wajib diisi."
@@ -340,6 +334,7 @@
    "Kuantitas minimal 0.001."
   ],
   "toast_on_422": [
+   "Periksa isian yang ditandai.",
    "Periksa isian yang ditandai."
   ],
   "saved": true,
@@ -348,34 +343,35 @@
    "PO dibuat."
   ],
   "landing_after_save": {
-   "hash": "#/d/procurement/purchase-orders/4",
-   "h1": "PO/2026/IX/0004"
+   "hash": "#/d/procurement/purchase-orders/3",
+   "h1": "PO/2026/IX/0003"
   },
-  "create_ms": 9549,
-  "api_calls": 18,
+  "create_ms": 9156,
+  "api_calls": 22,
   "nav_group_opened": true,
   "toast_after_submit": [
+   "Periksa isian yang ditandai.",
    "PO dibuat.",
-   "PO/2026/IX/0004 diajukan · menunggu persetujuan."
+   "PO/2026/IX/0003 diajukan · menunggu persetujuan."
   ],
   "status_after_submit": "Diajukan",
   "bar_after_submit": [
    "Kembali",
    "Cetak"
   ],
-  "po_code": "PO/2026/IX/0004",
+  "po_code": "PO/2026/IX/0003",
   "detail_action_bar": [
    "Kembali",
    "Cetak",
    "Ubah",
    "Ajukan"
   ],
-  "total_ms_create_to_submit": 11576,
-  "_ms": 15281,
+  "total_ms_create_to_submit": 11188,
+  "_ms": 15067,
   "_clicks": 12
  },
  "S4_session_loss": {
-  "tokens_revoked": 5,
+  "tokens_revoked": 1,
   "loginVisible": true,
   "modalVisible": false,
   "banner": "Sesi Anda berakhir. Isian PO yang sedang Anda buat tersimpan di peramban ini — masuk kembali untuk memulihkannya.",
@@ -383,7 +379,8 @@
    "Unauthenticated."
   ],
   "localStorageKeys": [
-   "nusantara_erp_draft:procurement/purchase-orders:new"
+   "nusantara_erp_draft:procurement/purchase-orders:new",
+   "nusantara_erp_prefs:6"
   ],
   "login_form_behind_overlay": "reachable",
   "after_escape": {
@@ -402,22 +399,22 @@
   },
   "restored": {
    "title": "Tambah PO",
-   "filled": 13,
+   "filled": 14,
    "lines": 3,
    "vendor": "VND-0003 — PT Elektrindo Supply",
-   "textarea": "UJI-UX — isian yang akan hilang bila sesi berakhir."
+   "textarea": "UJI-UX — pembelian langsung tanpa PR"
   },
-  "fields_typed_before_expiry": 13,
-  "_ms": 14633,
+  "fields_typed_before_expiry": 14,
+  "_ms": 12244,
   "_clicks": 8
  },
  "S5_nav_per_role": {
   "admin": {
    "groups": 14,
-   "links": 122,
-   "navHeightPx": 1233,
-   "viewportsTall": 1.4,
-   "navContentPx": 606,
+   "links": 128,
+   "navHeightPx": 2203,
+   "viewportsTall": 2.4,
+   "navContentPx": 669,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -444,24 +441,27 @@
     ],
     [
      "PENGADAAN",
-     13
+     14
     ]
    ],
-   "stats": 6,
+   "stats": 16,
    "cards": [
+    "Proyek, piutang & hutang",
     "Menunggu persetujuan Anda",
-    "Kalender Acara",
-    "Progres proyek",
-    "Piutang jatuh tempo terdekat",
-    "Tiket layanan aktif"
+    "Tenggat menipis & lewat",
+    "Proyeksi kas",
+    "Kinerja EVM portofolio",
+    "Stok di bawah minimum",
+    "Tiket lewat SLA",
+    "Kalender acara"
    ]
   },
   "direktur": {
    "groups": 14,
-   "links": 120,
-   "navHeightPx": 1233,
-   "viewportsTall": 1.4,
-   "navContentPx": 606,
+   "links": 124,
+   "navHeightPx": 1829,
+   "viewportsTall": 2,
+   "navContentPx": 669,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -488,24 +488,28 @@
     ],
     [
      "PENGADAAN",
-     13
+     14
     ]
    ],
-   "stats": 6,
+   "stats": 16,
    "cards": [
+    "Proyek, piutang & hutang",
     "Menunggu persetujuan Anda",
-    "Kalender Acara",
-    "Progres proyek",
-    "Piutang jatuh tempo terdekat",
-    "Tiket layanan aktif"
+    "Proyeksi kas",
+    "Umur piutang",
+    "Kinerja EVM portofolio",
+    "Termin siap ditagih",
+    "Saldo bank",
+    "Pipeline penjualan",
+    "Tenggat menipis & lewat"
    ]
   },
   "project-manager": {
    "groups": 9,
-   "links": 63,
-   "navHeightPx": 927,
-   "viewportsTall": 1,
-   "navContentPx": 451,
+   "links": 66,
+   "navHeightPx": 1818,
+   "viewportsTall": 2,
+   "navContentPx": 514,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -530,19 +534,24 @@
      8
     ]
    ],
-   "stats": 1,
+   "stats": 14,
    "cards": [
+    "Proyek",
     "Menunggu persetujuan Anda",
-    "Kalender Acara",
-    "Progres proyek"
+    "Progres proyek",
+    "Kinerja EVM portofolio",
+    "Temuan lapangan (defect)",
+    "NCR terbuka",
+    "Stok di bawah minimum",
+    "Tenggat menipis & lewat"
    ]
   },
   "site-manager": {
    "groups": 7,
-   "links": 44,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 357,
+   "links": 47,
+   "navHeightPx": 1415,
+   "viewportsTall": 1.6,
+   "navContentPx": 420,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -567,18 +576,21 @@
      6
     ]
    ],
-   "stats": 1,
+   "stats": 8,
    "cards": [
-    "Kalender Acara",
-    "Progres proyek"
+    "Progres proyek",
+    "Temuan lapangan (defect)",
+    "NCR terbuka",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
   "estimator": {
    "groups": 7,
-   "links": 47,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 357,
+   "links": 49,
+   "navHeightPx": 1029,
+   "viewportsTall": 1.1,
+   "navContentPx": 420,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -603,18 +615,20 @@
      6
     ]
    ],
-   "stats": 1,
+   "stats": 5,
    "cards": [
-    "Kalender Acara",
-    "Progres proyek"
+    "Progres proyek",
+    "Kinerja EVM portofolio",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
   "procurement": {
    "groups": 6,
-   "links": 35,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 326,
+   "links": 38,
+   "navHeightPx": 1551,
+   "viewportsTall": 1.7,
+   "navContentPx": 389,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -623,28 +637,31 @@
    "biggest": [
     [
      "PENGADAAN",
-     13
+     14
     ],
     [
      "PERSEDIAAN",
      8
     ],
     [
-     "ESTIMASI",
+     "RINGKASAN",
      5
     ]
    ],
-   "stats": 0,
+   "stats": 6,
    "cards": [
-    "Kalender Acara"
+    "PO belum diterima penuh",
+    "Stok di bawah minimum",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
   "warehouse": {
    "groups": 6,
-   "links": 35,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 326,
+   "links": 37,
+   "navHeightPx": 1123,
+   "viewportsTall": 1.2,
+   "navContentPx": 389,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -666,21 +683,24 @@
     ],
     [
      "RINGKASAN",
-     3
+     5
     ]
    ],
    "stats": 1,
    "cards": [
-    "Kalender Acara",
-    "Progres proyek"
+    "Stok di bawah minimum",
+    "Proyek",
+    "Progres proyek",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
   "finance": {
    "groups": 7,
-   "links": 67,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 357,
+   "links": 70,
+   "navHeightPx": 1790,
+   "viewportsTall": 2,
+   "navContentPx": 420,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -699,25 +719,32 @@
     ],
     [
      "PENGADAAN",
-     13
+     14
     ],
     [
      "PENJUALAN",
      11
     ]
    ],
-   "stats": 4,
+   "stats": 12,
    "cards": [
-    "Kalender Acara",
-    "Piutang jatuh tempo terdekat"
+    "piutang & hutang",
+    "Umur piutang",
+    "Umur hutang",
+    "Proyeksi kas",
+    "Termin siap ditagih",
+    "Saldo bank",
+    "Kewajiban pajak",
+    "Payroll bulan berjalan",
+    "Tenggat menipis & lewat"
    ]
   },
   "hr": {
    "groups": 3,
-   "links": 14,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 233,
+   "links": 16,
+   "navHeightPx": 1014,
+   "viewportsTall": 1.1,
+   "navContentPx": 296,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -729,25 +756,27 @@
      6
     ],
     [
-     "SISTEM",
+     "RINGKASAN",
      5
     ],
     [
-     "RINGKASAN",
-     3
+     "SISTEM",
+     5
     ]
    ],
-   "stats": 0,
+   "stats": 5,
    "cards": [
-    "Kalender Acara"
+    "Payroll bulan berjalan",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
   "sales": {
    "groups": 7,
-   "links": 43,
-   "navHeightPx": 872,
-   "viewportsTall": 1,
-   "navContentPx": 357,
+   "links": 45,
+   "navHeightPx": 1304,
+   "viewportsTall": 1.4,
+   "navContentPx": 420,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -768,23 +797,25 @@
      11
     ],
     [
-     "LAYANAN",
+     "RINGKASAN",
      5
     ]
    ],
-   "stats": 2,
+   "stats": 8,
    "cards": [
-    "Kalender Acara",
+    "Pipeline penjualan",
     "Progres proyek",
-    "Tiket layanan aktif"
+    "Tiket lewat SLA",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
   "teknisi": {
    "groups": 3,
-   "links": 16,
-   "navHeightPx": 844,
-   "viewportsTall": 0.9,
-   "navContentPx": 233,
+   "links": 18,
+   "navHeightPx": 1333,
+   "viewportsTall": 1.5,
+   "navContentPx": 296,
    "open_groups": [
     "RINGKASAN"
    ],
@@ -796,24 +827,32 @@
      8
     ],
     [
-     "LAYANAN",
+     "RINGKASAN",
      5
     ],
     [
-     "RINGKASAN",
-     3
+     "LAYANAN",
+     5
     ]
    ],
-   "stats": 1,
+   "stats": 5,
    "cards": [
-    "Kalender Acara",
-    "Tiket layanan aktif"
+    "Tiket lewat SLA",
+    "Stok di bawah minimum",
+    "Tenggat menipis & lewat",
+    "Kalender acara"
    ]
   },
-  "_ms": 33118,
+  "_ms": 63675,
   "_clicks": 0
  },
  "S8_styles": {
+  "screen": {
+   "hash": "#/r/procurement/purchase-orders",
+   "h1": "Pesanan Pembelian (PO)",
+   "dock": false
+  },
+  "theme": "light",
   "th_font": "11px",
   "th_color": "rgb(94, 104, 116)",
   "muted_token": "#5e6874",
@@ -828,7 +867,284 @@
    "Muat ulang",
    "Tambah PO"
   ],
-  "_ms": 4175,
+  "dark": {
+   "theme": "dark",
+   "th_font": "11px",
+   "th_color": "rgb(139, 149, 163)",
+   "muted_token": "#8b95a3",
+   "bg": "#0d1117",
+   "surface2": "#1a1f27",
+   "contrast_muted_on_bg": 6.24,
+   "contrast_muted_on_surface2": 5.46,
+   "contrast_success_badge": 8.86,
+   "btn_sm_height": 0,
+   "smallest_font_px": 11,
+   "page_head_buttons": [
+    "Muat ulang",
+    "Tambah PO"
+   ]
+  },
+  "_ms": 4343,
+  "_clicks": 0
+ },
+ "S11_tugas": {
+  "h1": "Tugas Saya",
+  "rows": [
+   "CTI/2026/VIII/0002",
+   "RAP/2026/0001",
+   "PR/2026/III/0002",
+   "SPK/2026/III/0002"
+  ],
+  "types": [
+   "Semua jenis (4)",
+   "Pengajuan cuti (1)",
+   "Permintaan pembelian (1)",
+   "RAP (1)",
+   "SPK subkontraktor (1)"
+  ],
+  "leave_detail_bar": [
+   "Kembali",
+   "Cetak",
+   "Setujui",
+   "Tolak"
+  ],
+  "status_strip": "Diajukan · menunggu persetujuan.\nUbah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+  "_ms": 5029,
+  "_clicks": 2
+ },
+ "S28_matriks_persetujuan": {
+  "draft_jv": {
+   "status": 201,
+   "code": "JV/2026/09/0005"
+  },
+  "matrix": {
+   "found": true,
+   "head": "Matriks Persetujuan",
+   "count_label": "28 jenis dokumen",
+   "rows": 28,
+   "editable_cells": 16,
+   "mode_cells": 1,
+   "threshold_cells": 14,
+   "headers": [
+    "JENIS DOKUMEN",
+    "WAJIB DIREKTUR MULAI DARI",
+    "CARA AMBANG BERLAKU",
+    "AMBANG TINGKAT KETIGA"
+   ],
+   "po": [
+    "Pesanan pembelian prc.approve-director",
+    "Rp 100 juta Bawaan: Rp 100.000.000",
+    "Satu penyetuju, harus direktur di atas ambang",
+    "Tidak berlaku pada mode ini"
+   ],
+   "spk": [
+    "SPK subkontraktor scm.approve-director",
+    "Rp 200 juta Bawaan: Rp 200.000.000",
+    "Satu penyetuju, harus direktur di atas ambang",
+    "Tidak berlaku pada mode ini"
+   ],
+   "addendum": [
+    "Addendum SPK scm.approve-director",
+    "Mengikuti SPK subkontraktor",
+    "—",
+    "—"
+   ],
+   "award": [
+    "Keputusan pemenang prc.approve-director",
+    "Rp 100 juta Bawaan: Rp 100.000.000",
+    "— Satu penyetuju, harus direktur di atas ambang Tambahan tingkat: penyetuju kedua yang berbeda Bawaan: Tambahan tingkat: penyetuju kedua yang berbeda",
+    "Rp 1 M Bawaan: Rp 1.000.000.000"
+   ],
+   "izin_kerja": [
+    "Izin kerja lapangan prj.approve-director",
+    "Tanpa nilai rupiah — ambang tidak berlaku",
+    "—",
+    "—"
+   ],
+   "cuti": [
+    "Pengajuan cuti hr.approve-director",
+    "Tanpa nilai rupiah — ambang tidak berlaku",
+    "—",
+    "—"
+   ],
+   "zero_rows": [],
+   "dash_rows": 13,
+   "follows_rows": 1
+  },
+  "role_created": 201,
+  "user_created": 201,
+  "edit_without_director": {
+   "status": 422,
+   "message": "{\"settings.approvals.purchase_order.threshold_two_level\": [\"Aturan persetujuan ini hanya dapat diubah oleh pemegang izin prc.approve-director — pada instalasi standar peran direktur atau admin. Izin core.update saja tidak cukup: yang diubah di sini adalah siapa boleh menyetujui dokumen senilai berapa.\"]}"
+  },
+  "edit_with_both": {
+   "status": 200,
+   "message": "Pengaturan disimpan."
+  },
+  "po_threshold_after_reset": 100000000,
+  "bulk_off": {
+   "rows": 4,
+   "checkboxes": 0,
+   "disabled": 0,
+   "bulk_button": false,
+   "bulk_text": null
+  },
+  "jv_buttons_native": [
+   {
+    "label": "Cetak",
+    "title": "Cetak atau unduh dokumen ini"
+   },
+   {
+    "label": "Posting Jurnal",
+    "title": null
+   }
+  ],
+  "delegation_created": {
+   "status": 201,
+   "state": "Berjalan"
+  },
+  "delegate_nav": [
+   "Beranda",
+   "Dasbor",
+   "Tugas Saya",
+   "Tenggat",
+   "Kalender",
+   "Laporan Bebas"
+  ],
+  "delegate_banner": "Anda memegang delegasi persetujuan dari Administrator Sistem (seluruh persetujuannya, 01 Sep 2026 – 27 Sep 2026) — Cuti tahunan (fixture S28).\nPersetujuan yang Anda berikan dengan hak ini tercatat sebagai \"Anda a.n. pemberinya\". Dokumen yang DIAJUKAN pemberi delegasi tetap tidak boleh Anda setujui.",
+  "bulk_on": {
+   "rows": 2,
+   "checkboxes": 2,
+   "disabled": 0,
+   "bulk_button": true,
+   "bulk_text": "Pilih dokumen untuk disetujui sekaligus (maksimum 5).\nSetujui terpilih"
+  },
+  "delegate_queue_submitters": [
+   "—"
+  ],
+  "delegate_queue_submitter_ids": [
+   null
+  ],
+  "selected": {
+   "codes": [
+    "CTI/2026/VIII/0002",
+    "RAP/2026/0001"
+   ],
+   "bar": "2 dipilih dari maksimum 5.\nSetujui terpilih"
+  },
+  "bulk_toasts": [
+   "2 dokumen disetujui: CTI/2026/VIII/0002, RAP/2026/0001."
+  ],
+  "after_bulk": {
+   "rows": 0,
+   "checkboxes": 0,
+   "disabled": 0,
+   "bulk_button": true,
+   "bulk_text": "Pilih dokumen untuk disetujui sekaligus (maksimum 5).\nSetujui terpilih"
+  },
+  "delegate_press": {
+   "code": "CTI/2026/IX/0004",
+   "buttons": [
+    {
+     "label": "Cetak",
+     "title": "Cetak atau unduh dokumen ini"
+    },
+    {
+     "label": "Setujui",
+     "title": "Hak pinjaman: keputusan ini tercatat a.n. Administrator Sistem."
+    },
+    {
+     "label": "Tolak",
+     "title": "Hak pinjaman: keputusan ini tercatat a.n. Administrator Sistem."
+    }
+   ],
+   "status_after": "approved",
+   "trail": {
+    "actor": "Dewi Lestari",
+    "on_behalf_of": "Administrator Sistem"
+   }
+  },
+  "jv_buttons_delegate": [
+   {
+    "label": "Cetak",
+    "title": "Cetak atau unduh dokumen ini"
+   },
+   {
+    "label": "Ubah",
+    "title": null
+   },
+   {
+    "label": "Tambah lampiran",
+    "title": null
+   }
+  ],
+  "an_trail": {
+   "code": "CTI/2026/VIII/0002",
+   "actor": "Dewi Lestari",
+   "on_behalf_of": "Administrator Sistem",
+   "reads": "Dewi Lestari a.n. Administrator Sistem"
+  },
+  "delegations_seen_by_giver": [
+   {
+    "delegate": "Dewi Lestari",
+    "state": "Berjalan",
+    "scope": "Semua persetujuan"
+   }
+  ],
+  "checks": {
+   "matrix_renders_every_approvable_type": true,
+   "matrix_is_labelled_by_document_type": true,
+   "po_row_carries_todays_threshold": true,
+   "spk_row_carries_todays_threshold": true,
+   "award_row_carries_todays_ladder": true,
+   "addendum_row_follows_the_spk_row": true,
+   "amountless_rows_print_the_rule": true,
+   "thirteen_rows_have_no_amount": true,
+   "no_row_ships_a_fabricated_zero": true,
+   "a_threshold_cell_only_where_something_enforces_it": true,
+   "the_mode_cell_only_on_the_type_that_can_carry_it": true,
+   "core_update_alone_is_refused": true,
+   "the_refusal_names_the_permission_needed": true,
+   "a_director_with_core_update_may_edit": true,
+   "the_edit_is_reversible_to_the_shipped_default": true,
+   "the_queue_measured_for_bulk_off_is_not_empty": true,
+   "bulk_is_invisible_while_the_cap_is_empty": true,
+   "the_delegate_is_told_before_approving": true,
+   "the_banner_names_the_giver": true,
+   "bulk_appears_once_the_owner_sets_a_cap": true,
+   "the_cap_is_printed_not_implied": true,
+   "two_documents_were_actually_picked": true,
+   "every_row_the_queue_offered_was_picked": true,
+   "the_delegates_queue_holds_nothing_the_giver_submitted": true,
+   "the_delegate_can_reach_the_queue_from_the_sidebar": true,
+   "the_delegate_is_offered_the_approve_button_on_the_document": true,
+   "the_button_says_whose_right_it_borrows": true,
+   "pressing_it_approves_the_document_a_n_the_giver": true,
+   "the_native_holder_sees_the_non_decision_button": true,
+   "the_delegate_does_not": true,
+   "bulk_approve_names_every_document_it_touched": true,
+   "not_one_offered_row_was_refused": true,
+   "approved_rows_leave_the_queue": true,
+   "the_trail_reads_budi_a_n_sari": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 32908,
+  "_clicks": 2
+ },
+ "S28_matriks_persetujuan_mobile": {
+  "found": true,
+  "rows": 28,
+  "wrap_scrolls": true,
+  "page_scrolls_sideways": false,
+  "checks": {
+   "matrix_renders_on_a_phone": true,
+   "the_wide_table_scrolls_inside_its_own_box": true,
+   "the_page_never_scrolls_sideways": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 5911,
   "_clicks": 0
  }
 }

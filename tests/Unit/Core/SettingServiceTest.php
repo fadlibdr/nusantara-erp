@@ -77,11 +77,26 @@ class SettingServiceTest extends ErpTestCase
         $this->assertFalse($rows['tax.ppn_rate']['is_overridden']);
     }
 
-    public function test_every_registry_key_resolves_to_a_config_default(): void
+    /**
+     * DIDEKLARASIKAN, bukan sekadar bukan-null (F-1).
+     *
+     * Cacat yang dijaga tetap sama: sebuah kunci yang config/erp.php tidak
+     * kenal sama sekali tidak punya bawaan untuk dipulihkan, jadi "Kembalikan
+     * ke bawaan" di layar tidak memulihkan apa pun.
+     *
+     * Yang berubah adalah bahwa null yang DINYATAKAN adalah bawaan yang sah.
+     * Matriks persetujuan mengirim dua puluh lima jenis dokumen dengan
+     * 'threshold_two_level' => null — "tanpa ambang" — dan setujui massal
+     * dengan 'batch_cap' => null — "fitur mati". Memaksa nilai bukan-null di
+     * sana berarti menuliskan 0, dan ambang nol berarti setiap dokumen
+     * menuntut direktur: angka karangan yang mengubah aturan uang, persis
+     * yang aturan kejujuran repositori ini larang.
+     */
+    public function test_every_registry_key_is_declared_in_the_shipped_config(): void
     {
         foreach (array_keys($this->settings->editableKeys()) as $key) {
-            $this->assertNotNull(
-                $this->settings->default($key),
+            $this->assertTrue(
+                config()->has("erp.{$key}"),
                 "Setting [{$key}] has no default in config/erp.php.",
             );
         }

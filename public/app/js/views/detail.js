@@ -473,7 +473,7 @@ function linesTable(rows, table, record) {
    * and the alternative was typing a raw database id into the invoice form —
    * where a typo bills the wrong termin and nothing catches it.
    */
-  const action = table.rowAction && session.can(table.rowAction.perm) ? table.rowAction : null;
+  const action = table.rowAction && session.canAct(table.rowAction) ? table.rowAction : null;
 
   /* Kolom bertanda hideOnNarrow disembunyikan per sel — th, td, DAN sel tfoot,
      supaya jumlah sel tiap baris tetap segaris di bawah 760px. Aturan CSS-nya
@@ -560,7 +560,8 @@ function statusStrip(def, record, canEdit) {
   const status = String(record.status || '');
   const approvals = Array.isArray(record.approvals) ? record.approvals : [];
   const last = (action) => [...approvals].reverse().find((a) => a.action === action);
-  const who = (entry) => (entry && entry.user ? entry.user.name : 'Sistem');
+  // F-1 — sama dengan garis waktunya: "Budi a.n. Sari" bila hak yang dipakai pinjaman.
+  const who = (entry) => (entry ? actorName(entry) : 'Sistem');
   const when = (entry) => (entry ? fmt.date(entry.created_at) : '');
   const label = (def.labelOne || 'Dokumen');
 
@@ -606,9 +607,24 @@ export function approvalTimeline(approvals) {
 
   return el('.timeline', approvals.map((entry) => el(`.timeline-item${tone[entry.action] ? `.${tone[entry.action]}` : ''}`, [
     el('b', { text: label[entry.action] || entry.action }),
-    el('.meta', { text: `${entry.user ? entry.user.name : 'Sistem'} · ${fmt.dateTime(entry.created_at)}` }),
+    el('.meta', { text: `${actorName(entry)} · ${fmt.dateTime(entry.created_at)}` }),
     entry.note ? el('.note', { text: entry.note }) : null,
   ])));
+}
+
+/* "Budi a.n. Sari" (F-1) — dua nama pada satu baris persetujuan.
+ *
+ * Yang menekan tombol dan yang haknya dipakai adalah dua fakta, dan sebuah
+ * jejak yang hanya menyebut yang pertama menghilangkan yang kedua. "a.n." (atas
+ * nama) adalah kata yang dipakai surat dinas Indonesia untuk hal yang sama
+ * persis, jadi tidak ada yang perlu diajari membacanya.
+ *
+ * on_behalf_of null pada hampir semua baris — itu bukan kekosongan, itu berarti
+ * orangnya menyetujui atas namanya sendiri. */
+export function actorName(entry) {
+  const who = entry.user ? entry.user.name : 'Sistem';
+  const behalf = entry.on_behalf_of && entry.on_behalf_of.name;
+  return behalf ? `${who} a.n. ${behalf}` : who;
 }
 
 /*

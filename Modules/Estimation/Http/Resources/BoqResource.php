@@ -4,6 +4,7 @@ namespace Modules\Estimation\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Core\Http\Resources\ApprovalTrail;
 
 class BoqResource extends JsonResource
 {
@@ -24,15 +25,10 @@ class BoqResource extends JsonResource
             'sections' => BoqSectionResource::collection($this->whenLoaded('sections')),
             // Jejak persetujuan, bentuk PaymentResource — satu perender di SPA
             // (approvalTimeline) untuk semua dokumen; hanya bila show() memuatnya (T3.3).
-            'approvals' => $this->whenLoaded('approvals', fn () => $this->approvals->map(fn ($approval): array => [
-                'id' => $approval->id,
-                'action' => $approval->action,
-                'note' => $approval->note,
-                'created_at' => $approval->created_at?->toIso8601String(),
-                'user' => $approval->relationLoaded('user') && $approval->user !== null
-                    ? ['id' => $approval->user->id, 'name' => $approval->user->name]
-                    : null,
-            ])->values()),
+            // F-1 — satu perender jejak untuk 25 resource (Core\Http\Resources\
+            // ApprovalTrail), supaya "Budi a.n. Sari" muncul di semuanya dan
+            // bukan di dua puluh empat di antaranya.
+            'approvals' => $this->whenLoaded('approvals', fn (): array => ApprovalTrail::map($this->approvals)),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

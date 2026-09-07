@@ -22,7 +22,7 @@ use Spatie\Permission\Models\Role;
  * bukan-nol begitu ada selisih.
  *
  * Dua lapis, keduanya diturunkan, bukan dihitung tangan: (1) daftar izin
- * PermissionSeeder::expected() — PREFIXES × ACTIONS + DIRECTOR_APPROVALS —
+ * PermissionSeeder::expected() — PREFIXES × ACTIONS + directorApprovals() —
  * lawan tabel permissions; (2) per peran, RoleSeeder::intended() lawan izin
  * yang benar-benar dipegang peran itu. Peran yang tidak dikenal seeder
  * (dibuat lewat Sistem › Peran & Hak Akses) dilaporkan, tidak dinilai:
@@ -137,7 +137,7 @@ class PermissionCheckCommand extends Command
             $r['expected'],
             count(PermissionSeeder::PREFIXES),
             count(PermissionSeeder::ACTIONS),
-            count(PermissionSeeder::DIRECTOR_APPROVALS),
+            count(PermissionSeeder::directorApprovals()),
             $r['in_database'],
         ));
         if ($r['missing']) {

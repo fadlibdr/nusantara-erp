@@ -5920,6 +5920,438 @@ def s27k(browser):
     out["ok"] = not out["failed_checks"]
     return out
 
+
+# ------------------------------------------------------- S28 (Fase 2 / F-1)
+#
+# MATRIKS PERSETUJUAN + DELEGASI "a.n." + SETUJUI MASSAL.
+#
+# Yang dibuktikan di sini bukan "layarnya tergambar" melainkan empat kalimat
+# yang hanya bisa dijawab peramban sungguhan:
+#
+#   1. matriks membawa NILAI HARI INI  — PO Rp 100 juta, SPK Rp 200 juta,
+#      award berjenjang, addendum mengikuti SPK, dan tidak ada satu pun
+#      "Rp 0" di 28 barisnya (ambang nol berarti setiap dokumen menuntut
+#      direktur — kebalikan persis keadaannya);
+#   2. mengubahnya butuh DUA izin — core.update saja ditolak dengan kalimat
+#      yang menyebut *.approve-director;
+#   3. delegasi terlihat SEBELUM menekan Setujui (spanduk), dan jejaknya
+#      berbunyi "Budi a.n. Sari" sesudahnya;
+#   4. setujui massal TIDAK ADA selama plafonnya kosong;
+#   5. (putaran kedua) delegatnya SAMPAI ke pekerjaannya tanpa mengetik URL —
+#      "Tugas Saya" ada di bilah sampingnya, tombol Setujui ada di layar
+#      dokumennya, tombol itu menyebut hak siapa yang dipinjamnya, dan
+#      menekannya benar-benar menyetujui "a.n." pemberinya;
+#   6. dan TIDAK LEBIH: `fin.approve` yang sama menggerbangi "Posting Jurnal",
+#      yang bukan pintu keputusan dokumen — pemegang aslinya melihatnya,
+#      delegatnya tidak. Sebuah gerbang klien yang meleburkan hak pinjaman ke
+#      dalam user.permissions akan menggambar tombol yang dijawab 403.
+#
+# Skenario ini MENULIS ke basis datanya (setelan, delegasi, persetujuan), jadi
+# ia dijalankan atas salinan coretan seperti seluruh harness — dan ia
+# mengembalikan plafon ke kosong di awal, bukan di akhir: sebuah pengulangan
+# yang mewarisi plafon dari jalannya sendiri akan menghijaukan syarat "fitur
+# mati secara bawaan" tanpa fakta apa pun di belakangnya.
+
+MATRIX_CARD = """() => {
+  const card = [...document.querySelectorAll('.card')].find(c => /Matriks Persetujuan/.test(c.innerText));
+  if (!card) return { found: false, cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText) };
+  const rows = [...card.querySelectorAll('tbody tr')];
+  const cells = (re) => { const r = rows.find(r => re.test(r.innerText)); return r ? [...r.children].map(td => td.innerText.replace(/\\s+/g, ' ').trim()) : null; };
+  return {
+    found: true,
+    head: card.querySelector('h2').innerText,
+    count_label: card.querySelector('.card-head span.muted').innerText,
+    rows: rows.length,
+    editable_cells: card.querySelectorAll('tbody input, tbody select').length,
+    // Putaran verifikasi F-1: sel MODE hanya boleh ada di baris yang
+    // persetujuannya boleh berhenti di tengah (keputusan pemenang). Pada
+    // sebelas baris lain ia memposting jurnal dua kali.
+    mode_cells: card.querySelectorAll('tbody select').length,
+    // Kolom kedua saja: kolom keempat (ambang tingkat ketiga) juga sebuah
+    // input, dan menghitung keduanya bersama menjawab pertanyaan lain.
+    threshold_cells: rows.filter(r => r.children[1] && r.children[1].querySelector('input')).length,
+    headers: [...card.querySelectorAll('thead th')].map(th => th.innerText),
+    po: cells(/Pesanan pembelian/),
+    spk: cells(/SPK subkontraktor/),
+    addendum: cells(/Addendum SPK/),
+    award: cells(/Keputusan pemenang/),
+    izin_kerja: cells(/Izin kerja lapangan/),
+    cuti: cells(/Pengajuan cuti/),
+    zero_rows: rows.filter(r => /Rp\\s*0(\\D|$)/.test(r.innerText)).map(r => r.innerText.split('\\n')[0]),
+    dash_rows: rows.filter(r => /Tanpa nilai rupiah/.test(r.innerText)).length,
+    follows_rows: rows.filter(r => /Mengikuti /.test(r.innerText)).length,
+  };
+}"""
+
+INBOX_BULK = """() => {
+  // Tabel kotak masuk dikenali dari kolomnya sendiri ("Menunggu"), bukan dari
+  // kata pertama yang kebetulan ada di halaman: kartu Delegasi Persetujuan di
+  // layar yang sama juga sebuah table.data.
+  const table = [...document.querySelectorAll('table.data')]
+    // /i wajib: app.css memberi th text-transform uppercase, dan innerText
+    // mengembalikan teks TERGAMBAR — "MENUNGGU", bukan "Menunggu".
+    .find(t => [...t.querySelectorAll('thead th')].some(th => /menunggu/i.test(th.innerText)));
+  const boxes = table ? [...table.querySelectorAll('tbody input[type=checkbox]')] : [];
+  return {
+    rows: table ? table.querySelectorAll('tbody tr').length : 0,
+    checkboxes: boxes.length,
+    disabled: boxes.filter(b => b.disabled).length,
+    bulk_button: [...document.querySelectorAll('button')].some(b => /Setujui terpilih/.test(b.innerText)),
+    bulk_text: ([...document.querySelectorAll('.filters')].find(f => /maksimum|dipilih/i.test(f.innerText)) || {}).innerText || null,
+  };
+}"""
+
+DELEGATION_BANNER = """() => (([...document.querySelectorAll('.alert')].find(a => /delegasi/i.test(a.innerText)) || {}).innerText || null)"""
+
+# Grup "Ringkasan" di bilah samping. Putaran kedua verifikasi F-1: seorang
+# delegat murni tidak melihat "Tugas Saya" di sini, dan S28 tidak dapat
+# melihatnya karena ia membuka layarnya dengan mengetik #/tugas — jalan yang
+# tidak dimiliki pemakainya.
+NAV_RINGKASAN = """() => [...document.querySelectorAll('nav.nav a')].map(a => a.innerText.trim())
+  .filter(t => ['Beranda','Dasbor','Tugas Saya','Tenggat','Kalender','Laporan Bebas'].includes(t))"""
+
+# Tombol aksi sebuah layar dokumen, DENGAN title-nya: "a.n." pada tombol Setujui
+# adalah satu-satunya tempat seorang delegat diberi tahu hak siapa yang sedang
+# dipakainya sebelum ia menekannya (layar dokumen tidak punya spanduk).
+ACTION_BUTTONS = """() => [...document.querySelectorAll('.page-head .actions button, .card .actions button, main button.btn')]
+  .map(b => ({ label: b.innerText.trim(), title: b.title || null })).filter(x => x.label)"""
+
+TRAIL = """() => {
+  const card = [...document.querySelectorAll('.card')].find(c => /Riwayat|Persetujuan/.test((c.querySelector('h2') || {}).innerText || ''));
+  const items = [...document.querySelectorAll('.timeline-item')].map(i => i.innerText.replace(/\\s+/g, ' ').trim());
+  return { items, card: !!card };
+}"""
+
+
+def s28_set_settings(tok, values):
+    return api("core/settings", tok, "PUT", {"settings": values})
+
+
+@scenario("S28_matriks_persetujuan")
+def s28(pg):
+    out = {}
+    admin = token_for("admin@nusantara.test")
+
+    # (0) Plafon setujui massal dikosongkan DI AWAL — lihat catatan di atas.
+    s28_set_settings(admin, {"approvals.batch_cap": None})
+
+    # (0b) SEBUAH JURNAL DRAF, dan ia adalah alat ukur, bukan hiasan.
+    #      "Posting Jurnal" digerbangi fin.approve — izin yang SAMA dengan yang
+    #      dipinjamkan delegasi — tetapi ia BUKAN pintu keputusan dokumen
+    #      (path {id}/post, bukan {id}/approve). Server hanya menghormati hak
+    #      pinjaman pada …/{id}/approve|reject, jadi tombol ini harus TETAP
+    #      hilang bagi seorang delegat. Ia mengukur bahwa perbaikan "delegat
+    #      akhirnya melihat tombol Setujui" tidak sekalian membuka lima belas
+    #      pintu lain yang izinnya kebetulan sama — di antaranya memposting
+    #      jurnal manual dan membuka kembali periode fiskal.
+    fin_token = token_for("finance@nusantara.test")
+    status, accounts = api("finance/accounts?per_page=200&is_postable=1", fin_token)
+    acc = [a["id"] for a in accounts.get("data", [])][:2]
+    status, jv = api("finance/journals", fin_token, "POST", {
+        "journal_date": date.today().isoformat(),
+        "description": "Fixture S28 — tombol non-keputusan bergerbang fin.approve",
+        "lines": [
+            {"account_id": acc[0], "description": "d", "debit": 1000, "credit": 0},
+            {"account_id": acc[1], "description": "k", "debit": 0, "credit": 1000},
+        ],
+    })
+    jv_id = (jv.get("data") or {}).get("id")
+    out["draft_jv"] = {"status": status, "code": (jv.get("data") or {}).get("code")}
+
+    # (1) Matriks membawa nilai hari ini.
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/settings")
+    pg.wait_for_timeout(3500)
+    out["matrix"] = pg.evaluate(MATRIX_CARD)
+    pg.screenshot(path=f"{OUT}/s28-matriks-persetujuan-f1.png", full_page=True)
+
+    # (2) Mengubah aturan persetujuan butuh DUA izin.
+    #     Perannya dibuat di sini dan bukan diasumsikan ada: tidak satu pun
+    #     login demo memegang core.update TANPA izin direktur, dan justru
+    #     kombinasi itu yang harus ditolak.
+    out["role_created"], role = api("iam/roles", admin, "POST", {
+        "name": "uji-f1-core-update", "permissions": ["core.view", "core.update"]})
+    out["user_created"], user = api("iam/users", admin, "POST", {
+        "name": "Penyunting Tanpa Direktur", "email": "f1-editor@nusantara.test",
+        "password": "password", "is_active": True, "roles": ["uji-f1-core-update"]})
+    editor = token_for("f1-editor@nusantara.test")
+    status, refused = s28_set_settings(editor, {"approvals.purchase_order.threshold_two_level": 5000000000})
+    out["edit_without_director"] = {
+        "status": status,
+        "message": json.dumps(refused.get("errors") or refused.get("message"), ensure_ascii=False)[:400],
+    }
+    status, allowed = s28_set_settings(admin, {"approvals.purchase_order.threshold_two_level": 250000000})
+    out["edit_with_both"] = {"status": status, "message": allowed.get("message")}
+    # …dan dikembalikan: skenario ini adalah bukti, bukan perubahan kebijakan.
+    s28_set_settings(admin, {"approvals.purchase_order.threshold_two_level": None})
+    status, back = api("core/settings", admin)
+    out["po_threshold_after_reset"] = next(
+        (row["value"] for group in back["data"]["groups"] for row in group["settings"]
+         if row["key"] == "approvals.purchase_order.threshold_two_level"), None)
+
+    # (3) Setujui massal TIDAK ADA selama plafonnya kosong — diukur pada
+    #     antrean yang BERISI. Diukur pada kotak masuk kosong, syarat ini
+    #     hijau tanpa fakta apa pun di belakangnya (admin sendiri mengajukan
+    #     hampir seluruh dataset demo, jadi antreannya nol).
+    pg.context.clear_cookies()
+    pg.goto(BASE)
+    pg.evaluate("() => localStorage.clear()")
+    login(pg, "direktur@nusantara.test")
+    pg.goto(BASE + "#/tugas")
+    pg.wait_for_timeout(2500)
+    out["bulk_off"] = pg.evaluate(INBOX_BULK)
+    # …dan pembanding untuk (6c): pemegang fin.approve ASLINYA melihat tombol
+    # non-keputusan itu. Tanpa baris ini, "delegat tidak melihatnya" bisa saja
+    # berarti tombolnya memang tidak pernah ada.
+    pg.goto(BASE + f"#/d/finance/journals/{jv_id}")
+    pg.wait_for_timeout(2500)
+    out["jv_buttons_native"] = pg.evaluate(ACTION_BUTTONS)
+
+    # (4) Delegasi: admin menyerahkan haknya kepada login finance bulan ini.
+    status, users = api("iam/users?per_page=200", admin)
+    finance = next(u for u in users["data"] if u["email"].startswith("finance@"))
+    status, delegation = api("core/approval-delegations", admin, "POST", {
+        "delegate_user_id": finance["id"],
+        "scope": None,
+        "starts_at": date.today().replace(day=1).isoformat(),
+        "ends_at": (date.today() + timedelta(days=20)).isoformat(),
+        "reason": "Cuti tahunan (fixture S28)",
+    })
+    out["delegation_created"] = {"status": status, "state": delegation.get("data", {}).get("state")}
+
+    # (5) Pemilik mengisi plafonnya.
+    s28_set_settings(admin, {"approvals.batch_cap": 5})
+
+    pg.context.clear_cookies()
+    pg.goto(BASE)
+    pg.evaluate("() => localStorage.clear()")
+    login(pg, "finance@nusantara.test")
+    # BILAH SAMPINGNYA DULU, sebelum satu URL pun diketik. Skenario ini membuka
+    # #/tugas dengan pg.goto, dan sampai putaran kedua verifikasi F-1 itulah
+    # satu-satunya cara seorang delegat bisa sampai ke sana: gerbangnya
+    # (schema.js ANY_APPROVE) membaca user.permissions dari auth/me, yang tidak
+    # pernah memuat hak pinjaman. Diukur 7 Sep 2026 pada login yang sama:
+    # ['Beranda','Dasbor','Tenggat','Kalender','Laporan Bebas'] — tanpa "Tugas
+    # Saya", sementara kotak masuk di baliknya berisi dua baris.
+    out["delegate_nav"] = pg.evaluate(NAV_RINGKASAN)
+    pg.goto(BASE + "#/tugas")
+    pg.wait_for_timeout(3000)
+    out["delegate_banner"] = pg.evaluate(DELEGATION_BANNER)
+    out["bulk_on"] = pg.evaluate(INBOX_BULK)
+    pg.screenshot(path=f"{OUT}/s28-spanduk-delegasi-f1.png", full_page=True)
+
+    # (6) Dua dokumen dipilih dan disetujui lewat endpoint modulnya
+    #     masing-masing. Barisnya DICATAT sebelum diklik: sesudah disetujui
+    #     mereka keluar dari kotak masuk, dan menebak tautannya kembali
+    #     berarti menebak.
+    finance_token = token_for("finance@nusantara.test")
+    status, trail_source = api("core/inbox", finance_token)
+    # Putaran verifikasi F-1: antrean seorang delegat tidak boleh memuat
+    # pengajuan pemberinya — F-1 yang dikirim menawarkan 2 dari 4 baris yang
+    # dijamin menjawab 422, lengkap dengan kotak centang.
+    out["delegate_queue_submitters"] = sorted({
+        (r.get("submitted_by") or "—") for r in (trail_source.get("data") or [])})
+    out["delegate_queue_submitter_ids"] = sorted({
+        r.get("submitted_by_id") for r in (trail_source.get("data") or [])}, key=lambda v: (v is None, v))
+    # SETIAP baris yang ditawarkan dipilih, bukan dua yang pertama. Sebelum
+    # putaran verifikasi F-1 antrean seorang delegat memuat baris yang dijamin
+    # menjawab 422 (pengajuan pemberinya), dan memilih dua yang pertama —
+    # kebetulan dua yang berhasil — menghijaukan skenario ini di atas antrean
+    # yang separuhnya tidak dapat disetujui. Memilih semuanya berarti sebuah
+    # baris yang tidak dapat disetujui MEMBUAT skenario ini merah.
+    boxes = pg.query_selector_all("table.data tbody input[type=checkbox]:not([disabled])")
+    picked = []
+    for box in boxes[:5]:
+        row = box.evaluate_handle("b => b.closest('tr')")
+        # Kode dokumennya, bukan baris innerText-nya: sejak kolom kotak
+        # centang ada, baris innerText dimulai dengan sel kosong.
+        picked.append(row.evaluate("r => (r.querySelector('.cell-main') || {}).innerText || null"))
+        box.click()
+    pg.wait_for_timeout(400)
+    out["selected"] = {"codes": picked, "bar": pg.evaluate(INBOX_BULK)["bulk_text"]}
+
+    if picked:
+        click(pg, "button:has-text('Setujui terpilih')")
+        # Toast-nya hidup 6 detik. Ditunggu SAMPAI MUNCUL lalu dibaca segera —
+        # sebuah sleep tetap yang lebih panjang membaca layar yang toast-nya
+        # sudah lewat dan mencatat "tidak ada laporan" untuk laporan yang ada.
+        pg.wait_for_function(
+            "() => [...document.querySelectorAll('.toast')].some(t => /disetujui|tidak disetujui/i.test(t.innerText))",
+            timeout=20000)
+        out["bulk_toasts"] = toasts(pg)
+        pg.wait_for_timeout(2500)
+        out["after_bulk"] = pg.evaluate(INBOX_BULK)
+
+    # (6b) DAN SATU DOKUMEN DISETUJUI DARI LAYARNYA SENDIRI, oleh delegat, dengan
+    #      tombol Setujui yang sampai putaran kedua verifikasi F-1 tidak pernah
+    #      digambar untuknya (diukur 7 Sep 2026 pada CTI/2026/VIII/0002: delegat
+    #      melihat ['Cetak'], admin melihat ['Cetak','Setujui','Tolak']).
+    #      Dokumennya BARU dan diajukan login hr — bukan salah satu dari dua
+    #      baris di atas: keduanya sudah disetujui massal, dan bukan pula
+    #      pengajuan pemberinya, yang memang tidak boleh disetujuinya.
+    hr_token = token_for("hr@nusantara.test")
+    status, leave = api("hr/leave-requests", hr_token, "POST", {
+        "employee_id": 5, "leave_type": "tahunan",
+        "start_date": (date.today() + timedelta(days=30)).isoformat(),
+        "end_date": (date.today() + timedelta(days=31)).isoformat(),
+        "reason": "Fixture S28 — delegat menekan Setujui sendiri.",
+    })
+    leave_id = (leave.get("data") or {}).get("id")
+    api(f"hr/leave-requests/{leave_id}/submit", hr_token, "POST", {})
+    out["delegate_press"] = {"code": (leave.get("data") or {}).get("code")}
+
+    pg.goto(BASE + f"#/d/hr/leave-requests/{leave_id}")
+    pg.wait_for_timeout(3000)
+    out["delegate_press"]["buttons"] = pg.evaluate(ACTION_BUTTONS)
+    if any(b["label"] == "Setujui" for b in out["delegate_press"]["buttons"]):
+        click(pg, "button:has-text('Setujui')")
+        pg.wait_for_timeout(3000)
+    status, after = api(f"hr/leave-requests/{leave_id}", finance_token)
+    entries = (after.get("data") or {}).get("approvals") or []
+    approved = next((e for e in entries if e.get("action") == "approved"), None)
+    out["delegate_press"]["status_after"] = (after.get("data") or {}).get("status")
+    out["delegate_press"]["trail"] = None if approved is None else {
+        "actor": (approved.get("user") or {}).get("name"),
+        "on_behalf_of": (approved.get("on_behalf_of") or {}).get("name"),
+    }
+
+    # (6c) …dan tombol non-keputusan yang izinnya SAMA tetap tidak ada.
+    pg.goto(BASE + f"#/d/finance/journals/{jv_id}")
+    pg.wait_for_timeout(2500)
+    out["jv_buttons_delegate"] = pg.evaluate(ACTION_BUTTONS)
+
+    # (7) Jejaknya berbunyi "a.n." — dibaca dari API dokumen yang tadi
+    #     disetujui, karena barisnya sudah keluar dari kotak masuk.
+    out["an_trail"] = None
+    for row in (trail_source.get("data") or []):
+        if row["code"] not in picked:
+            continue
+        status, doc = api(f"{row['resource']}/{row['id']}", finance_token)
+        entries = (doc.get("data") or {}).get("approvals") or []
+        behalf = next((e for e in entries if e.get("on_behalf_of")), None)
+        if behalf:
+            out["an_trail"] = {
+                "code": row["code"],
+                "actor": (behalf.get("user") or {}).get("name"),
+                "on_behalf_of": behalf["on_behalf_of"]["name"],
+                "reads": f"{(behalf.get('user') or {}).get('name')} a.n. {behalf['on_behalf_of']['name']}",
+            }
+            break
+
+    status, delegated_rows = api("core/approval-delegations", admin)
+    out["delegations_seen_by_giver"] = [
+        {"delegate": r["delegate"]["name"], "state": r["state"], "scope": r["scope_label"]}
+        for r in delegated_rows.get("data", [])]
+
+    m = out["matrix"]
+    checks = {
+        "matrix_renders_every_approvable_type": m.get("rows") == 28,
+        "matrix_is_labelled_by_document_type": m.get("count_label") == "28 jenis dokumen",
+        "po_row_carries_todays_threshold": any("100.000.000" in c for c in (m.get("po") or [])),
+        "spk_row_carries_todays_threshold": any("200.000.000" in c for c in (m.get("spk") or [])),
+        "award_row_carries_todays_ladder": any("1.000.000.000" in c for c in (m.get("award") or [])),
+        "addendum_row_follows_the_spk_row": any("Mengikuti" in c for c in (m.get("addendum") or [])),
+        "amountless_rows_print_the_rule": any("Tanpa nilai rupiah" in c for c in (m.get("izin_kerja") or [])),
+        "thirteen_rows_have_no_amount": m.get("dash_rows") == 13,
+        # Syarat terpenting paket ini: tidak ada satu pun Rp 0 karangan.
+        "no_row_ships_a_fabricated_zero": m.get("zero_rows") == [],
+        # 14 ambang = 28 - 13 tanpa nilai rupiah - 1 yang mengikuti SPK.
+        "a_threshold_cell_only_where_something_enforces_it": m.get("threshold_cells") == 14,
+        # dan SATU sel mode, pada satu-satunya jenis yang dapat membawanya.
+        "the_mode_cell_only_on_the_type_that_can_carry_it": m.get("mode_cells") == 1,
+        "core_update_alone_is_refused": out["edit_without_director"]["status"] == 422,
+        "the_refusal_names_the_permission_needed": "approve-director" in out["edit_without_director"]["message"],
+        "a_director_with_core_update_may_edit": out["edit_with_both"]["status"] == 200,
+        "the_edit_is_reversible_to_the_shipped_default": (
+            float(out["po_threshold_after_reset"] or 0) == 100000000.0),
+        # Syarat yang membuat syarat berikutnya berarti sesuatu.
+        "the_queue_measured_for_bulk_off_is_not_empty": out["bulk_off"]["rows"] > 0,
+        "bulk_is_invisible_while_the_cap_is_empty": (
+            out["bulk_off"]["checkboxes"] == 0 and out["bulk_off"]["bulk_button"] is False),
+        "the_delegate_is_told_before_approving": (
+            out["delegate_banner"] is not None and "a.n." in (out["delegate_banner"] or "")),
+        "the_banner_names_the_giver": "Administrator" in (out["delegate_banner"] or ""),
+        "bulk_appears_once_the_owner_sets_a_cap": (
+            out["bulk_on"]["bulk_button"] is True and out["bulk_on"]["checkboxes"] > 0),
+        "the_cap_is_printed_not_implied": "maksimum 5" in (out["bulk_on"]["bulk_text"] or ""),
+        "two_documents_were_actually_picked": len(picked) == 2,
+        "every_row_the_queue_offered_was_picked": len(picked) == out["bulk_on"]["checkboxes"],
+        "the_delegates_queue_holds_nothing_the_giver_submitted": (
+            "Administrator Sistem" not in out["delegate_queue_submitters"]
+            and 1 not in out["delegate_queue_submitter_ids"]),
+        # PUTARAN KEDUA — delegasi yang tidak terlihat oleh orang yang
+        # memegangnya. Keempat syarat di bawah mengukur satu kalimat: seorang
+        # delegat SAMPAI ke pekerjaannya sendiri, tanpa mengetik URL.
+        "the_delegate_can_reach_the_queue_from_the_sidebar": (
+            "Tugas Saya" in (out.get("delegate_nav") or [])),
+        "the_delegate_is_offered_the_approve_button_on_the_document": any(
+            b["label"] == "Setujui" for b in (out["delegate_press"].get("buttons") or [])),
+        # …dan tombol itu MENYEBUT hak siapa yang dipakainya, sebelum ditekan.
+        "the_button_says_whose_right_it_borrows": any(
+            b["label"] == "Setujui" and "a.n. Administrator Sistem" in (b.get("title") or "")
+            for b in (out["delegate_press"].get("buttons") or [])),
+        "pressing_it_approves_the_document_a_n_the_giver": (
+            out["delegate_press"].get("status_after") == "approved"
+            and (out["delegate_press"].get("trail") or {}).get("on_behalf_of") == "Administrator Sistem"),
+        # DAN TIDAK LEBIH DARI ITU: fin.approve juga menggerbangi "Posting
+        # Jurnal", yang BUKAN pintu keputusan dokumen. Server menolaknya untuk
+        # seorang delegat; layarnya harus setuju.
+        "the_native_holder_sees_the_non_decision_button": any(
+            b["label"] == "Posting Jurnal" for b in (out.get("jv_buttons_native") or [])),
+        "the_delegate_does_not": not any(
+            b["label"] == "Posting Jurnal" for b in (out.get("jv_buttons_delegate") or [])),
+    }
+    if picked:
+        checks["bulk_approve_names_every_document_it_touched"] = all(
+            any(code in t for t in (out.get("bulk_toasts") or [])) for code in picked)
+        # Dan tidak satu pun yang ditawarkan ditolak: itulah kalimat yang
+        # dijaga saringan antrean, diucapkan oleh peramban.
+        checks["not_one_offered_row_was_refused"] = not any(
+            "tidak disetujui" in t.lower() for t in (out.get("bulk_toasts") or []))
+        checks["approved_rows_leave_the_queue"] = (
+            out["after_bulk"]["rows"] == out["bulk_on"]["rows"] - len(picked))
+        checks["the_trail_reads_budi_a_n_sari"] = (
+            out["an_trail"] is not None and " a.n. " in out["an_trail"]["reads"])
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S28_matriks_persetujuan_mobile")
+def s28m(browser):
+    """Matriks 28 baris × 4 kolom di 390 px: tabel LEBAR harus menggulir di
+    dalam .table-wrap, bukan membuat halamannya menggulir mendatar."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.goto(BASE + "#/settings")
+        pg.wait_for_timeout(3500)
+        out = pg.evaluate("""() => {
+          const card = [...document.querySelectorAll('.card')].find(c => /Matriks Persetujuan/.test(c.innerText));
+          const wrap = card ? card.querySelector('.table-wrap') : null;
+          return {
+            found: !!card,
+            rows: card ? card.querySelectorAll('tbody tr').length : 0,
+            wrap_scrolls: wrap ? wrap.scrollWidth > wrap.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s28-matriks-ponsel-f1.png", full_page=False)
+        out["checks"] = {
+            "matrix_renders_on_a_phone": out["found"] and out["rows"] == 28,
+            "the_wide_table_scrolls_inside_its_own_box": out["wrap_scrolls"] is True,
+            "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -5930,7 +6362,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

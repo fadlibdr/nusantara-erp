@@ -8303,3 +8303,82 @@ Konsultan pada proyek belum diisi (§7.2).
 sebuah layar bertindak berbeda dari yang tertulis di sini, layarnyalah yang benar —
 laporkan selisihnya supaya halaman ini diperbaiki. Untuk segala hal yang bersifat
 administratif, rujukannya `docs/PANDUAN-ADMINISTRATOR.md`.*
+
+## 18. Persetujuan — ambang direktur, "a.n.", dan setujui massal (F-1)
+
+### Apa yang dilihat seorang direktur
+
+Dokumen yang menunggu keputusan Anda ada di **Tugas Saya**, paling lama menunggu
+di atas. Sebagian jenis dokumen punya **ambang**: di atas nilai tertentu, dokumen
+itu hanya boleh disetujui pemegang hak "persetujuan direktur". Kalau Anda ditolak
+dengan kalimat yang menyebut sebuah izin berakhiran `-director`, itulah yang
+terjadi — dan kalimat itu menyebut **dua angka**: nilai dokumennya dan ambang
+yang berlaku.
+
+**Ambang yang berlaku adalah ambang saat dokumen DIAJUKAN, bukan ambang hari
+ini.** Kalau administrator mengubah ambangnya siang hari, dokumen yang sudah
+menunggu tidak ikut berubah: dokumen itu tetap menuntut apa yang dituntutnya saat
+diajukan. Kalimat penolakannya mengatakan hal itu apa adanya, supaya tidak ada
+yang mencari-cari kenapa "ambangnya sudah dinaikkan tapi masih ditolak".
+
+Ambang mana yang berlaku untuk jenis dokumen apa dapat dilihat di **Pengaturan ›
+Matriks Persetujuan** (butuh hak baca Pengaturan). Sebagian besar jenis dokumen
+**tidak punya ambang sama sekali** — barisnya berbunyi "Tanpa ambang", bukan
+"Rp 0". Sebagian lagi tidak punya nilai rupiah untuk diukur (izin kerja lapangan,
+BAST, pengajuan cuti) dan barisnya mengatakan itu.
+
+### Apa arti "a.n."
+
+**"Budi a.n. Sari"** berarti: Budi yang menekan Setujui, memakai hak persetujuan
+**Sari** — persis seperti "a.n." pada surat dinas. Itu terjadi ketika Sari
+menyerahkan hak persetujuannya kepada Budi untuk sebuah jendela waktu
+(**delegasi**), misalnya selama cuti.
+
+Yang perlu Anda tahu sebagai delegat:
+
+- **Anda diberi tahu.** Sebuah spanduk di Tugas Saya menyebut dari siapa Anda
+  memegang delegasi, untuk lingkup apa, dan sampai kapan — sebelum Anda menekan
+  apa pun.
+- **Jejaknya tidak menyembunyikan apa pun.** Setiap persetujuan yang Anda berikan
+  dengan hak pinjaman tercatat sebagai "Anda a.n. pemberinya", di layar detail
+  dokumennya dan selamanya.
+- **Anda tidak boleh menyetujui dokumen yang DIAJUKAN pemberi delegasi**, dan
+  tentu saja tidak yang Anda ajukan sendiri. Keduanya berarti dokumen itu
+  disetujui oleh hak pengajunya sendiri.
+- **Delegasi tidak memberi Anda hak lain.** Bukan hak membuat, mengubah,
+  menghapus atau memposting apa pun — hanya menyetujui, dan hanya pada lingkup
+  yang disebut delegasinya.
+- **Delegasi tidak meminjamkan hak yang tidak dipegang pemberinya.** Kalau Sari
+  tidak memegang hak persetujuan gudang, delegasinya tidak memberi Anda hak itu.
+
+### Memberikan dan mencabut delegasi
+
+Di **Tugas Saya › Delegasi Persetujuan**. Anda hanya dapat mendelegasikan hak
+**milik Anda sendiri** (administrator dengan hak pengelolaan pengguna dapat
+melakukannya untuk orang lain). Isi penerima, lingkup (kosong = semua persetujuan
+Anda), tanggal mulai, tanggal selesai (boleh kosong = sampai dicabut) dan
+alasannya.
+
+**Cabut** menghentikannya seketika. Barisnya tetap tercatat — ia adalah
+penjelasan bagi setiap "a.n." yang ditinggalkannya.
+
+Kalau delegasi yang Anda buat tidak memberikan apa-apa (Anda memang tidak
+memegang hak persetujuan di lingkup itu), aplikasi **mengatakannya saat
+disimpan** alih-alih diam.
+
+### Setujui massal
+
+Kalau perusahaan Anda mengaktifkannya, Tugas Saya menampilkan kotak centang dan
+tombol **"Setujui terpilih"**. Bilahnya mencetak berapa banyak dokumen boleh
+dipilih sekaligus.
+
+Yang terjadi saat ditekan: aplikasi menekan tombol **Setujui milik tiap dokumen**
+satu per satu — jadi setiap penjagaan yang biasa berlaku tetap berlaku, termasuk
+larangan menyetujui dokumen yang Anda ajukan sendiri dan ambang direktur.
+Dokumen yang gagal **disebut satu per satu dengan kodenya**; sisanya tetap
+diproses.
+
+Bila kotak centang dan tombol itu **tidak ada**, perusahaan Anda memang belum
+mengaktifkannya. Sebagian baris juga tidak dapat dicentang karena jenis dokumen
+itu disetujui lewat layarnya sendiri; arahkan kursor ke kotaknya untuk membaca
+sebabnya.

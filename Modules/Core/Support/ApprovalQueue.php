@@ -28,10 +28,26 @@ use Throwable;
  * created_by, submitted_by, employee_id → users.employee_id) dipakai sebagai
  * pengganti — dan sejak T3.4 penjaga memakai kolom yang sama untuk MENOLAK,
  * sehingga dokumen yang tidak ditawarkan di sini juga tidak lolos di sana.
+ *
+ * "MILIK PEMBERI DELEGASI" adalah bentuk kedua dari aturan yang sama, dan ia
+ * terlewat sampai putaran verifikasi F-1. Sebuah delegasi membuat dokumen
+ * pemberinya TERLIHAT di antrean penerimanya (Gate::before meminjamkan
+ * <awalan>.approve), lalu SegregationOfDuties menolaknya saat Setujui ditekan.
+ * Diukur pada dataset demo: sesudah Administrator Sistem mendelegasikan ke
+ * login finance, 2 dari 4 baris yang ditawarkan dijamin gagal, dan "Setujui
+ * massal" menawarkan centang pada keduanya. Predikat yang dipakai di sini
+ * adalah predikat yang MENOLAK (ApprovalDelegations::refusesBorrowedApproval),
+ * bukan salinannya.
  */
 class ApprovalQueue
 {
-    private const AMOUNT_KEYS = ['total', 'total_payable', 'net_payable', 'grand_total', 'value', 'total_budget', 'total_net', 'amount', 'total_amount'];
+    /**
+     * Publik sejak F-1: ApprovalPolicy mencap nilai dokumen pada baris
+     * `submitted` dan harus memindai kolom yang SAMA, dalam urutan yang sama.
+     * Dua daftar akan berarti kotak masuk menampilkan satu angka dan stempel
+     * kebijakan mengukur ambangnya terhadap angka lain.
+     */
+    public const AMOUNT_KEYS = ['total', 'total_payable', 'net_payable', 'grand_total', 'value', 'total_budget', 'total_net', 'amount', 'total_amount'];
 
     private const TITLE_KEYS = ['title', 'name', 'description', 'purpose', 'reason', 'notes', 'subject'];
 
@@ -49,10 +65,18 @@ class ApprovalQueue
         $rows = [];
         $failed = [];
         $employeeId = $forUser?->employee_id ?? null;
+        $approvable = self::resourcesWithAnApproveEndpoint();
 
         foreach (ApprovableDocuments::all() as $class => $entry) {
             $permission = "{$entry['prefix']}.approve";
-            if ($forUser !== null && ! $forUser->can($permission)) {
+            // grants() DITANYA LANGSUNG, bukan lewat can(): sejak putaran
+            // verifikasi F-1 Gate::before hanya menghormati delegasi pada rute
+            // keputusan dokumen, dan kotak masuk bukan salah satunya. Antrean
+            // adalah BACAAN — ia menjawab "apa yang boleh Anda putuskan
+            // nanti", dan jawabannya harus memasukkan yang dipinjam.
+            if ($forUser !== null
+                && ! $forUser->can($permission)
+                && ApprovalDelegations::grants($forUser, $permission) !== true) {
                 continue;
             }
 
@@ -63,8 +87,18 @@ class ApprovalQueue
                 }
 
                 $morph = (new $class)->getMorphClass();
+                // `policy` ikut dalam kueri yang SAMA, bukan satu kueri per
+                // baris: antrean butuh jawaban "dokumen ini bisa menuntut
+                // direktur?" untuk saringan delegasi di bawah, dan itu
+                // pertanyaan yang stempelnya sudah jawab.
+                $columns = ['approvable_id', 'user_id', 'created_at'];
+
+                if (ApprovalPolicy::approvalsCarryAPolicyColumn()) {
+                    $columns[] = 'policy';
+                }
+
                 $submissions = DB::table('core_approvals')
-                    ->select('approvable_id', 'user_id', 'created_at')
+                    ->select($columns)
                     ->where('approvable_type', $morph)
                     ->where('action', 'submitted')
                     ->whereIn('approvable_id', $docs->modelKeys())
@@ -92,6 +126,32 @@ class ApprovalQueue
                         continue; // maker-checker: not yours to approve
                     }
 
+                    /*
+                     * F-1 (putaran verifikasi) — DAN BUKAN PULA PEKERJAAN
+                     * PEMBERI DELEGASI YANG SEDANG DIPAKAI.
+                     *
+                     * Delegasi membuat baris-baris ini TERLIHAT (Gate::before
+                     * meminjamkan <awalan>.approve), lalu penjaga
+                     * maker-checker menolaknya saat Setujui ditekan. Terukur
+                     * pada dataset demo: setelah Administrator Sistem
+                     * mendelegasikan ke login finance, 2 dari 4 baris antrean
+                     * delegat itu dijamin gagal — dan "Setujui massal"
+                     * menawarkan centang pada keduanya. Predikatnya sama persis
+                     * dengan yang menolak, jadi keduanya tidak bisa berbeda
+                     * pendapat.
+                     */
+                    if ($forUser !== null && ApprovalDelegations::refusesBorrowedApproval(
+                        $forUser,
+                        $ownerId,
+                        $entry['prefix'],
+                        ApprovalDelegations::documentMayNeedADirector(
+                            $doc,
+                            ApprovalPolicy::decodeStamp($sub->policy ?? null),
+                        ),
+                    )) {
+                        continue;
+                    }
+
                     $amount = null;
                     foreach (self::AMOUNT_KEYS as $key) {
                         if (isset($attrs[$key]) && is_numeric($attrs[$key])) {
@@ -113,6 +173,14 @@ class ApprovalQueue
                         'code' => $attrs['code'] ?? ('#'.$doc->getKey()),
                         'label' => $entry['label'],
                         'resource' => $entry['resource'],
+                        // F-1 — endpoint Setujui MILIK MODULNYA, atau null.
+                        // Setujui massal memanggil URL ini satu per satu; baris
+                        // yang tidak punya (jenis dokumen yang menyetujui lewat
+                        // pintu lain) tidak bisa dipilih, dan layar
+                        // mengatakannya alih-alih memanggil 404.
+                        'approve_url' => in_array($entry['resource'], $approvable, true)
+                            ? "{$entry['resource']}/{$doc->getKey()}/approve"
+                            : null,
                         'permission' => $permission,
                         'title' => $title,
                         'amount' => $amount,
@@ -133,5 +201,33 @@ class ApprovalQueue
         usort($rows, fn ($a, $b) => strcmp((string) $a['submitted_at'], (string) $b['submitted_at']));
 
         return ['rows' => $rows, 'failed' => $failed];
+    }
+
+    /**
+     * Resource yang BENAR-BENAR punya rute POST <resource>/{id}/approve.
+     *
+     * Dibaca dari tabel rute, bukan diasumsikan dari pola. Setujui massal
+     * memanggil endpoint modulnya sendiri satu per satu — itulah yang membuat
+     * maker-checker, ambang direktur, catatan dan pemberitahuan tetap berjalan
+     * — jadi sebuah baris yang endpoint-nya tidak ada harus DIKETAHUI di sini,
+     * bukan ditemukan sebagai 404 di tengah antrean sepuluh dokumen.
+     *
+     * @return list<string>
+     */
+    private static function resourcesWithAnApproveEndpoint(): array
+    {
+        $resources = [];
+
+        foreach (app('router')->getRoutes() as $route) {
+            if (! in_array('POST', $route->methods(), true)) {
+                continue;
+            }
+
+            if (preg_match('#^api/(.+)/\{[^}]+\}/approve$#', $route->uri(), $matches) === 1) {
+                $resources[] = $matches[1];
+            }
+        }
+
+        return array_values(array_unique($resources));
     }
 }

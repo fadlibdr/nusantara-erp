@@ -3538,3 +3538,145 @@ pasalnya. Bila panduan ini dan docblock itu berbeda, docblock-nya yang dibaca ko
 *Panduan ini menjelaskan perilaku kode per 22 Agustus 2026. Setiap klaim di dalamnya
 diverifikasi terhadap berkas sumber atau terhadap salinan basis data hidup. Bila sebuah
 perilaku berubah, panduan inilah yang salah — bukan kodenya.*
+
+## 13. Matriks Persetujuan & delegasi (F-1)
+
+### Apa yang berubah saat paket ini dipasang
+
+**Tidak ada.** Setiap baris matriks dikirim membawa nilai yang mengatur jenis
+dokumen itu sebelum paket ini ada, dan setiap kendali baru (ambang pada jenis
+lain, delegasi, setujui massal) mati sampai Anda menyalakannya. Delapan izin
+`*.approve-director` baru dicetak dan diberikan ke peran `direktur` dan `admin`,
+tetapi tidak satu pun diperiksa sampai sebuah baris matriks membawa ambang.
+
+### Mengubah aturan persetujuan menuntut DUA hak
+
+`core.update` **dan** salah satu izin `*.approve-director`. Pada instalasi
+standar, itu berarti peran `admin` (atau `direktur` bila Anda menambahkan
+`core.update` padanya). Penolakannya 422 dan menyebut parameter mana yang
+ditolak.
+
+Alasannya: `core.update` juga membuka format penomoran dan asumsi arus kas,
+sedangkan menurunkan ambang PO dari Rp 100 juta ke Rp 10 miliar adalah keputusan
+uang. Orang yang mengubah aturan persetujuan harus berdiri di dalam aturan itu.
+
+**Setiap perubahan tercatat** di Sistem › Log Audit dengan nilai efektif
+**dari → ke**, termasuk saat Anda menekan "Kembalikan ke bawaan".
+
+### Membaca matriksnya
+
+Pengaturan › **Matriks Persetujuan**, satu baris per jenis dokumen (28), empat
+kolom.
+
+| Yang tertulis di sel | Artinya |
+|---|---|
+| sebuah angka rupiah | dokumen senilai itu **ke atas** menuntut persetujuan direktur |
+| kosong / "Bawaan: —" | **tanpa ambang**: siapa pun pemegang izin approve modul itu boleh menyetujui, berapa pun nilainya |
+| "Tanpa nilai rupiah — ambang tidak berlaku" | jenis dokumen ini **tidak punya kolom nilai** (izin kerja, BAST, cuti, permintaan pembelian, penyesuaian stok…). Ambang tidak punya apa pun untuk diukur, jadi tidak ada kotak isian. Sengaja: kotak isian di sana akan menjadi kendali yang tidak pernah berbunyi |
+| "Mengikuti SPK subkontraktor" | addendum SPK memakai ambang SPK, kunci yang sama persis. Ubah baris SPK-nya |
+| "Satu penyetuju, harus direktur di atas ambang" (tanpa pilihan) | PO, SPK dan addendum SPK menegakkan ambangnya lewat mekanismenya sendiri, yang tidak mengenal "tambahan tingkat". Ambangnya **bisa** diubah; modenya tidak |
+
+**Dua mode**, dan hari ini **tepat satu baris menawarkan pilihannya**: Keputusan
+pemenang. Baris lain hanya mengenal yang pertama, dan itu bukan kekurangan
+layar melainkan batas mekanismenya — mode kedua meninggalkan dokumen pada
+status "diajukan" sesudah persetujuan pertama, dan hanya keputusan pemenang
+yang pengendalinya membaca status itu; pada invoice termin ia memposting jurnal
+dua kali. Kunci `approvals.<jenis>.mode` untuk baris lain **tidak ada lagi di
+config/erp.php** sejak putaran verifikasi F-1 kedua: ia dibaca lalu dibuang, dan
+keberadaannya membuat layar Pengaturan menjanjikan sebuah deploy yang tidak
+dapat mengubah apa pun.
+
+- **Satu penyetuju, harus direktur di atas ambang** — jumlah persetujuannya tetap
+  satu; yang berubah adalah **siapa** yang boleh memberikannya.
+- **Tambahan tingkat: penyetuju kedua yang berbeda** — di atas ambang dokumen
+  menuntut penyetuju **kedua yang berbeda orang**, dan penyetuju kedua itu wajib
+  pemegang izin direktur. Kolom keempat menambahkan penyetuju ketiga di atas
+  ambang yang lebih tinggi lagi.
+
+**Nol bukan "tanpa ambang".** Mengetik 0 berarti *setiap* dokumen jenis itu
+menuntut direktur. Untuk mematikan ambang, **kosongkan** selnya.
+
+### Perubahan hanya berlaku untuk dokumen yang DIAJUKAN sesudahnya
+
+Aturan yang berlaku atas sebuah dokumen adalah aturan saat dokumen itu diajukan,
+dan itu **disimpan pada dokumennya**. Menaikkan ambang siang hari tidak
+membebaskan satu pun dokumen yang sedang menunggu, dan menurunkannya tidak
+menuntut penyetuju tambahan atas dokumen yang sudah terbang. Kalau Anda memang
+ingin dokumen yang menunggu mengikuti aturan baru: tolak dokumennya (ia kembali
+ke draf) dan minta pengajunya mengajukan ulang.
+
+### Sebelum memasang ambang pada jenis yang belum punya
+
+1. Pastikan **ada orang yang memegang izin direkturnya**. Baris matriksnya
+   mencetak nama izin yang akan dituntutnya (mis. `fin.approve-director`).
+   Ambang tanpa pemegang izin = dokumen yang tidak dapat disetujui siapa pun.
+   Periksa dengan `php artisan erp:permission-check`.
+2. Ingat bahwa maker-checker tetap berlaku di atasnya: pemegang izin direktur
+   yang mengajukan dokumennya sendiri tetap ditolak.
+
+### Delegasi persetujuan
+
+Tabel `core_approval_delegations`. Dikelola pengguna sendiri di Tugas Saya ›
+Delegasi Persetujuan; pemegang `iam.update` dapat membuat dan mencabut delegasi
+untuk orang lain.
+
+Yang perlu Anda ketahui sebagai administrator:
+
+- Delegasi **hanya** memberikan `<awalan>.approve` dan
+  `<awalan>.approve-director`, dan **hanya di tombol Setujui/Tolak sebuah
+  dokumen**. Tidak pernah membuat, mengubah, menghapus atau memposting apa pun.
+
+  Pembatasan kedua itu penting, dan ia ditambahkan pada putaran verifikasi F-1.
+  Izin `<awalan>.approve` sendiri menggerbangi lima belas layar yang BUKAN
+  keputusan atas sebuah dokumen — memposting jurnal manual, membuka kembali
+  periode fiskal, menerbitkan nomor e-Bupot, pencairan uang muka dan pelepasan
+  retensi SPK, menutup proyek, verify/waive/reopen defect, close/reopen insiden
+  K3, mengaktifkan kontrak, dua keputusan submittal, dan verifikasi NCR. Sebuah
+  delegasi **tidak** membuka satu pun dari lima belas itu; penerimanya tetap
+  membutuhkan izinnya sendiri di sana. Kalau seorang penerima delegasi memang
+  perlu melakukannya, berikan izin itu kepadanya sebagai izin biasa —
+  keputusannya lalu terlihat di Log Audit sebagai perubahan izin, bukan
+  tersembunyi di dalam sebuah baris cuti.
+- **Penerimanya benar-benar melihatnya.** Sejak putaran verifikasi F-1 kedua,
+  sesi penerima delegasi membawa daftar hak yang DIPINJAMNYA (terpisah dari hak
+  yang dipegangnya), jadi "Tugas Saya" muncul di bilah sampingnya, kartu
+  "Menunggu persetujuan Anda" dapat dipasang di dasbornya, dan tombol
+  Setujui/Tolak muncul pada dokumen yang boleh diputuskannya — dengan keterangan
+  atas nama siapa. Sebelum itu servernya mengizinkan dan layarnya tidak pernah
+  menawarkan: seorang penerima yang tidak memegang satu pun izin approve
+  miliknya sendiri harus mengetik alamat layarnya. Daftar itu **hanya** memuat
+  hak persetujuan dokumen, jadi lima belas layar di butir sebelumnya tetap
+  tertutup di layar sama seperti di server. Perubahannya terlihat setelah
+  halaman dimuat ulang (sesi membaca ulang haknya saat memuat).
+- Delegasi **tidak berantai**: pemberinya harus memegang izin itu sendiri, bukan
+  lewat delegasi lain.
+- Delegasi **tidak mencabut hak siapa pun.** Penerima yang sudah memegang hak
+  approve-nya sendiri tetap dapat menyetujui apa pun yang boleh disetujuinya,
+  termasuk dokumen yang diajukan pemberi delegasi. Yang dilarang hanya
+  memakai hak PEMBERI untuk menyetujui pekerjaan pemberi itu sendiri.
+- **Penerima boleh mencabut.** Sebuah delegasi dapat dicabut oleh pemberinya,
+  oleh penerimanya, atau oleh pemegang `iam.update`. Delegasi datang tanpa
+  diminta, jadi ia juga harus bisa dikembalikan tanpa meminta tolong. Siapa yang
+  mencabut ikut tercatat (`revoked_by`).
+- **Setiap delegasi masuk Log Audit** — dibuat dan dicabut, dengan nama pemberi
+  dan penerimanya. Cari "Delegasi Persetujuan" di Log Audit; barisnya berjudul
+  "Sari → Budi (est)". Ini satu-satunya tempat Anda melihat siapa meminjamkan
+  hak persetujuan kepada siapa, dan kapan.
+- Delegasi dari pemberi yang **dinonaktifkan** tidak memberikan apa pun.
+- **Dicabut, bukan dihapus.** Barisnya menjelaskan setiap "a.n." di jejak
+  persetujuan; jangan menghapusnya dari basis data.
+- Mematikan "Wajib pemisahan tugas (maker-checker)" **juga** mematikan larangan
+  delegat menyetujui pengajuan pemberinya — keduanya satu saklar, karena aturan
+  itu adalah maker-checker yang dilihat lewat delegasi.
+
+### Setujui massal
+
+`approvals.batch_cap` — **kosong = mati**, dan itulah bawaannya: tombolnya tidak
+digambar sama sekali. Nol ditolak (minimum 1); untuk mematikannya, kosongkan.
+
+Aplikasi tidak punya endpoint "setujui banyak" di server. Yang terjadi adalah
+klien menekan tombol Setujui tiap dokumen berurutan, jadi maker-checker, ambang
+direktur, jurnal, pergerakan stok dan pemberitahuan berjalan persis seperti
+menyetujui satu-satu. Angka yang Anda isi hanya membatasi berapa banyak boleh
+dipilih sekali jalan; pilih dengan mempertimbangkan bahwa tiap dokumen adalah
+satu permintaan dan laju API dibatasi 120 permintaan per menit.

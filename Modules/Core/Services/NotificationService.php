@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\Failed\FailedJobProviderInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Exceptions\DeliveryRetryRefusedException;
@@ -103,7 +104,7 @@ class NotificationService
                 "{$label} {$code} ".($approved ? 'disetujui' : 'ditolak'),
                 trim(sprintf(
                     '%s %s %s.%s',
-                    $actor?->name ?? 'Seseorang',
+                    $this->deciderPhrase($document, $actor, $action),
                     $approved ? 'menyetujui' : 'menolak',
                     mb_strtolower($label)." {$code}",
                     $note === null || $note === '' ? '' : " Catatan: {$note}",
@@ -111,6 +112,46 @@ class NotificationService
                 $actor,
             );
         });
+    }
+
+    /**
+     * "Budi a.n. Sari" — nama yang dibaca pengaju di kotak masuknya.
+     *
+     * F-1 mencap "a.n." pada jejak (core_approvals.on_behalf_of_user_id) dan
+     * merendernya di layar detail, tetapi pemberitahuan yang benar-benar
+     * SAMPAI kepada pengaju masih berbunyi "Budi menyetujui" — dan bagi
+     * pengaju itu, pemberitahuan itulah keseluruhan ceritanya (verifikasi F-1,
+     * 7 Sep 2026: baris jejaknya benar, isi pemberitahuannya tidak menyebut
+     * Sari sama sekali).
+     *
+     * Dibaca dari BARIS yang baru ditulis, bukan ditanyakan ulang kepada
+     * ApprovalDelegations: pendengarnya berjalan sesudah commit, jadi barisnya
+     * sudah ada, dan jawaban yang sudah tercatat tidak boleh dihitung ulang
+     * dengan delegasi yang mungkin sudah dicabut semenit kemudian.
+     *
+     * Satu SELECT tambahan per keputusan, dan hanya bila kolomnya ada.
+     */
+    private function deciderPhrase(Model $document, ?User $actor, string $action): string
+    {
+        if ($actor === null) {
+            return 'Seseorang';
+        }
+
+        if (! Schema::hasColumn('core_approvals', 'on_behalf_of_user_id')) {
+            return (string) $actor->name;
+        }
+
+        $giverId = DB::table('core_approvals')
+            ->where('approvable_type', $document->getMorphClass())
+            ->where('approvable_id', $document->getKey())
+            ->where('action', $action)
+            ->where('user_id', $actor->getKey())
+            ->orderByDesc('id')
+            ->value('on_behalf_of_user_id');
+
+        $giver = $giverId === null ? null : User::query()->find($giverId)?->name;
+
+        return $giver === null ? (string) $actor->name : "{$actor->name} a.n. {$giver}";
     }
 
     /**
@@ -416,13 +457,72 @@ class NotificationService
     /**
      * @return Collection<int, User>
      */
+    /**
+     * Siapa yang diberi tahu — pemegang izinnya, DAN delegat yang memegang
+     * hak itu untuk sementara (F-1).
+     *
+     * Tanpa baris kedua, delegasi hanyalah setengah fitur: Budi boleh
+     * menyetujui a.n. Sari tetapi tidak pernah tahu ada yang menunggu, jadi
+     * dokumen tetap menua persis seperti sebelumnya (diukur 4 Sep 2026:
+     * PAY/2026/VIII/0002 menunggu 33 hari). Yang dicegah delegasi adalah
+     * antrean yang berhenti karena satu orang pergi; pemberitahuan yang tidak
+     * ikut pindah tidak mencegah apa pun.
+     *
+     * Delegat yang KEBETULAN juga pemegang izinnya sendiri hanya muncul sekali
+     * (unique), dan pengaju tetap dikecualikan sesudah penggabungan — bukan di
+     * dalam kueri pertama, yang dulu melewatkan pengaju yang masuk lewat
+     * jalur delegasi.
+     */
     private function approvers(string $permission, ?User $actor): Collection
     {
-        return User::query()
+        $holders = User::query()
             ->permission($permission)
             ->where('is_active', true)
-            ->when($actor !== null, fn ($query) => $query->where('id', '!=', $actor->id))
             ->get();
+
+        return $holders
+            ->merge($this->delegatesFor($permission, $holders))
+            ->unique(fn (User $user) => $user->getKey())
+            ->reject(fn (User $user) => $actor !== null && (int) $user->getKey() === (int) $actor->getKey())
+            ->values();
+    }
+
+    /**
+     * Penerima delegasi hidup dari salah satu pemegang izin ini.
+     *
+     * Pemberinya harus ada di $holders: hak yang didelegasikan adalah hak yang
+     * DIPEGANG pemberinya, jadi seseorang tidak dapat mewariskan izin yang
+     * tidak dimilikinya — aturan yang sama yang ditegakkan
+     * ApprovalDelegations::grants saat menyetujui, di sini supaya daftar yang
+     * diberi tahu dan daftar yang boleh menyetujui adalah daftar yang sama.
+     *
+     * @param  Collection<int, User>  $holders
+     * @return Collection<int, User>
+     */
+    private function delegatesFor(string $permission, Collection $holders): Collection
+    {
+        if ($holders->isEmpty() || ! Schema::hasTable('core_approval_delegations')) {
+            return new Collection;
+        }
+
+        $prefix = str_contains($permission, '.') ? explode('.', $permission)[0] : null;
+        $today = now()->toDateString();
+
+        $ids = DB::table('core_approval_delegations')
+            ->whereIn('giver_user_id', $holders->map(fn (User $user) => $user->getKey())->all())
+            ->whereNull('revoked_at')
+            ->whereDate('starts_at', '<=', $today)
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhereDate('ends_at', '>=', $today))
+            ->where(fn ($query) => $query->whereNull('scope')->orWhere('scope', $prefix))
+            ->pluck('delegate_user_id')
+            ->unique()
+            ->all();
+
+        if ($ids === []) {
+            return new Collection;
+        }
+
+        return User::query()->whereIn('id', $ids)->where('is_active', true)->get();
     }
 
     private function submitterOf(Model $document): ?User

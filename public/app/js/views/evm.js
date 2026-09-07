@@ -329,7 +329,10 @@ async function freezeBaseline(projectId, hasAnyBaseline, onDone) {
 function baselineRowActions(row, onChanged, extra = []) {
   const canUpdate = session.can('prj.update');
   const canDelete = session.can('prj.delete');
-  const canApprove = session.can('prj.approve');
+  /* Bekukan/Tolak baseline adalah POST projects/baselines/{id}/approve|reject —
+     pintu keputusan, jadi hak pinjaman delegasi ikut dihitung (verifikasi F-1
+     putaran 2, 7 Sep 2026: layar tulis-tangan tidak lewat session.canAct()). */
+  const canApprove = session.can('prj.approve', true);
   const frozen = row.status === 'approved';
 
   const act = async (action, message) => {

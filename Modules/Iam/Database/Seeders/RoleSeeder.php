@@ -40,7 +40,7 @@ class RoleSeeder extends Seeder
             'direktur' => array_merge(
                 self::expand(PermissionSeeder::PREFIXES, ['view']),
                 self::expand(PermissionSeeder::PREFIXES, ['approve']),
-                PermissionSeeder::DIRECTOR_APPROVALS,
+                PermissionSeeder::directorApprovals(),
             ),
 
             /*

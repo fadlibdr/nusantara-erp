@@ -198,7 +198,20 @@ class SegregationOfDuties
 
         $makerId = self::makerIdOf($document);
 
-        if ($makerId === null || $makerId !== (int) $approver->getKey()) {
+        if ($makerId === null) {
+            return;
+        }
+
+        if ($makerId !== (int) $approver->getKey()) {
+            // F-1 — DAN TIDAK PULA PEKERJAAN PEMBERI DELEGASINYA. Seorang
+            // proxy yang menyetujui dokumen yang diajukan orang yang
+            // diwakilinya adalah persetujuan-sendiri yang memakai topi: hak
+            // yang dipakai adalah hak si pengaju. Diperiksa di sini, di dalam
+            // penjaga maker-checker, supaya keempat pemanggilnya (trait
+            // Approvable, BaselineService, PaymentService, JournalService)
+            // mendapatkannya tanpa satu pun harus tahu delegasi itu ada.
+            ApprovalDelegations::assertNotGiverSubmission($document, $approver, $makerId);
+
             return;
         }
 

@@ -1283,6 +1283,12 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .toast.ok { border-left-color: var(--success); }
 .toast.err { border-left-color: var(--danger); }
 .toast.info { border-left-color: var(--info); }
+/* .toast.warn ditambahkan pada putaran verifikasi F-1: empat pemanggil sudah
+   memintanya (board, tutupproyek, laporanbebas, onboarding) dan mendapat toast
+   TANPA warna — rgb(94, 104, 116), identik dengan toast tanpa kelas. Yang
+   diperbaiki adalah warnanya, bukan maksud penulisnya: "Perpindahan ditolak"
+   dan "Server tidak mengirimkan ringkasan" memang peringatan, bukan galat. */
+.toast.warn { border-left-color: var(--warning); }
 .toast b { display: block; margin-bottom: 1px; }
 .toast .msg { color: var(--text-2); word-break: break-word; }
 .toast button { border: 0; background: transparent; cursor: pointer; color: var(--muted); padding: 0 2px; }

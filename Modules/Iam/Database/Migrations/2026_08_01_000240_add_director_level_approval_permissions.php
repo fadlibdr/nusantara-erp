@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Schema;
-use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -29,6 +28,21 @@ use Spatie\Permission\PermissionRegistrar;
  */
 return new class extends Migration
 {
+    /**
+     * DIBEKUKAN pada dua izin yang benar-benar dikirim migrasi ini.
+     *
+     * Dulu baris ini membaca PermissionSeeder::DIRECTOR_APPROVALS. Sejak F-1
+     * daftar itu DITURUNKAN dari registri dokumen dan tumbuh menjadi sepuluh —
+     * dan sebuah migrasi yang membaca daftar yang tumbuh bukan lagi catatan
+     * tentang apa yang terjadi: ia akan memberikan delapan izin yang tidak
+     * pernah dikirimnya, dan down()-nya akan MENGHAPUS delapan izin yang
+     * dibuat migrasi lain. Migrasi adalah sejarah; sejarah tidak membaca masa
+     * depan.
+     *
+     * @var list<string>
+     */
+    private const SHIPPED_WITH_THIS_MIGRATION = ['prc.approve-director', 'scm.approve-director'];
+
     public function up(): void
     {
         if (! $this->rolesAreSeeded()) {
@@ -37,7 +51,7 @@ return new class extends Migration
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (PermissionSeeder::DIRECTOR_APPROVALS as $name) {
+        foreach (self::SHIPPED_WITH_THIS_MIGRATION as $name) {
             $permission = Permission::findOrCreate($name, 'web');
 
             Role::where('name', 'direktur')->where('guard_name', 'web')->first()
@@ -59,7 +73,7 @@ return new class extends Migration
 
         // Deleting the permission row detaches it from every role and user.
         Permission::query()
-            ->whereIn('name', PermissionSeeder::DIRECTOR_APPROVALS)
+            ->whereIn('name', self::SHIPPED_WITH_THIS_MIGRATION)
             ->where('guard_name', 'web')
             ->delete();
 

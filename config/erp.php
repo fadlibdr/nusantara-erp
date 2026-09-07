@@ -579,8 +579,22 @@ return [
         // maker-checker still forbids the submitter. That mechanism ships unchanged
         // — every PurchaseOrderDirectorApprovalTest / SubcontractDirectorApprovalTest
         // assertion stays meaningful — so these two keys are LEFT AS THEY WERE.
-        'purchase_order' => ['threshold_two_level' => 100000000],
-        'subcontract' => ['threshold_two_level' => 200000000],
+        //
+        // TANPA KUNCI `mode`, dan itu perbaikan putaran kedua verifikasi F-1.
+        // Kuncinya dulu ada di sini dengan alasan "supaya layar punya bawaan
+        // untuk dibaca dan direset" — layar tidak pernah menggambar sel mode
+        // untuk kedua baris ini (SettingService::approvalMatrixGroup melewati
+        // baris yang modeIsLocked), dan ApprovalPolicy::forType MEMAKSA
+        // single_director untuk keduanya apa pun isi config. Sebuah kunci yang
+        // dibaca lalu dibuang bukan bawaan; ia membuat endpoint setelan
+        // menjawab "ditetapkan saat instalasi … membutuhkan deploy" untuk
+        // sesuatu yang tidak dapat diubah deploy mana pun.
+        'purchase_order' => [
+            'threshold_two_level' => 100000000,
+        ],
+        'subcontract' => [
+            'threshold_two_level' => 200000000,
+        ],
 
         /*
          * P2 — n-level approval ladder (generalised shared mechanism).
@@ -609,7 +623,97 @@ return [
                 ['to' => 1000000000, 'levels' => 2],
                 ['to' => null, 'levels' => 3],
             ],
+
+            /*
+             * F-1 — jenjang yang SAMA, ditulis dalam kosakata matriks
+             * (ambang / mode / ambang tingkat-3). Bukan sumber kebenaran
+             * kedua: ApprovalPolicyEquivalenceTest menghitung keduanya pada
+             * enam nilai di sekitar tiap batas dan menuntut jawaban identik,
+             * jadi keduanya tidak bisa menyimpang diam-diam. Yang menegakkan
+             * sejak F-1 adalah stempel pada baris `submitted` (dihitung dari
+             * baris ini), sehingga mengubah jenjang tidak lagi mengubah
+             * tuntutan dokumen yang sudah terbang.
+             */
+            'threshold_two_level' => 100000000,
+            'mode' => 'extra_level',
+            'third_level_threshold' => 1000000000,
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | F-1 — MATRIKS PERSETUJUAN: sebelas jenis lain yang BISA diberi ambang
+        |----------------------------------------------------------------------
+        | Registri Core\Support\ApprovableDocuments memuat 28 jenis dokumen
+        | ber-submit → approve. Tiga di antaranya punya aturan bernilai hari ini
+        | (PO, SPK dan keputusan pemenang, di atas). Sebelas lagi membawa nilai
+        | rupiah dan karena itu BISA diberi ambang oleh pemiliknya — dikirim
+        | tanpa ambang, dan itulah yang tertulis di sini.
+        |
+        | null, bukan 0. Nol berarti "setiap dokumen menuntut direktur" —
+        | kebalikan persis keadaannya, dan satu-satunya angka yang bisa
+        | mengubah siapa boleh menyetujui apa tanpa seorang pun mengetiknya.
+        | Layar merender null sebagai "Tanpa ambang", bukan sebagai Rp 0.
+        |
+        | Barisnya dituliskan SATU PER SATU dan bukan dibangkitkan dari
+        | registri: berkas ini adalah lembar jawaban OQ-4 — apa yang berlaku
+        | hari ini per jenis dokumen — dan lembar jawaban yang harus dijalankan
+        | dulu untuk dibaca bukan lembar jawaban.
+        |
+        | SATU AMBANG, TANPA `mode` DAN TANPA `third_level_threshold`.
+        | Ketiga kunci itu dulu ada di setiap baris. Putaran pertama verifikasi
+        | F-1 mencabut sel mode dari layar untuk sebelas baris ini (menyalakan
+        | "tambahan tingkat" pada invoice termin memposting jurnal Rp 2,22
+        | miliar dua kali — lihat ApprovalPolicy::supportsExtraLevel), tetapi
+        | meninggalkan kuncinya di sini. Diukur pada putaran kedua: 26 kunci
+        | pada 13 jenis yang forType() PAKSA menjadi single_director apa pun
+        | isinya — dibaca, lalu dibuang. Harganya bukan sekadar berkas yang
+        | lebih panjang: karena config mendefinisikan kunci yang tidak lagi
+        | digambarkan registri, endpoint setelan menjawab "ditetapkan saat
+        | instalasi di config/erp.php … mengubahnya membutuhkan deploy" —
+        | menyuruh operatornya melakukan deploy yang tidak mengubah apa pun.
+        | Sekarang kunci mode ada tepat pada jenis yang resolvernya membacanya
+        | (satu: keputusan pemenang), dan penolakannya menyebut sebab yang
+        | sebenarnya. Lihat WithdrawnApprovalModeKeysTest.
+        |
+        | DUA JENIS BARIS SENGAJA TIDAK ADA DI SINI.
+        |
+        | (1) Tiga belas jenis TANPA KOLOM NILAI apa pun — izin kerja lapangan,
+        |     izin lembur, izin masuk/keluar material, BAST, baseline proyek,
+        |     opname progres owner, IPP, inspeksi mutu, pekerjaan tambah-kurang,
+        |     permintaan pembelian, penyesuaian stok, BAST subkon dan pengajuan
+        |     cuti. Sebuah izin kerja lapangan tidak berharga rupiah, jadi
+        |     ambang tidak punya apa pun untuk diukur; menawarkan kotak isian di
+        |     sana berarti menawarkan kendali yang tidak akan pernah berbunyi.
+        |     Layar mencetak aturannya. Lihat ApprovalPolicy::hasMeasurableAmount.
+        |
+        | (2) Addendum SPK (subcontract_addendum): ia menghitung
+        |     needs_director_approval-nya terhadap ambang SPK
+        |     (SubcontractAddendum::submit → Subcontract::directorApprovalThreshold),
+        |     jadi barisnya di layar memantul ke baris SPK dan ditandai
+        |     "mengikuti". Kunci sendiri untuknya berarti sel yang bisa diedit
+        |     dan tidak ada yang membacanya. Lihat ApprovalPolicy::FOLLOWS.
+        */
+        'quotation' => ['threshold_two_level' => null],
+        'boq' => ['threshold_two_level' => null],
+        'cost_budget' => ['threshold_two_level' => null],
+        'work_order' => ['threshold_two_level' => null],
+        'progress_claim' => ['threshold_two_level' => null],
+        'labor_contract' => ['threshold_two_level' => null],
+        'labor_claim' => ['threshold_two_level' => null],
+        'ar_invoice' => ['threshold_two_level' => null],
+        'ap_bill' => ['threshold_two_level' => null],
+        'payment' => ['threshold_two_level' => null],
+        'payroll_run' => ['threshold_two_level' => null],
+
+        /*
+         * F-1 — SETUJUI MASSAL. Kosong = fitur MATI, dan itulah bawaannya:
+         * menyetujui banyak dokumen dengan satu klik adalah kemudahan yang
+         * hanya boleh ada bila pemilik memintanya. Diisi = berapa banyak
+         * dokumen boleh dipilih sekaligus. Loopnya di KLIEN dan memanggil
+         * endpoint approve tiap modul satu per satu, jadi tidak ada satu pun
+         * penjaga, notifikasi atau service modul yang dilewati.
+         */
+        'batch_cap' => null,
 
         /*
          * MAKER-CHECKER. Refuse an approval by the same person who submitted

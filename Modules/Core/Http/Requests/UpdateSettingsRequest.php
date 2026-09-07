@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Validator;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ApprovalDelegations;
+use Modules\Core\Support\ApprovalPolicy;
 use Modules\Core\Support\Money;
 
 /**
@@ -102,9 +104,69 @@ class UpdateSettingsRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $this->rejectUnknownKeys($validator);
+            $this->rejectApprovalPolicyWithoutDirector($validator);
             $this->rejectUnpostableAccounts($validator);
             $this->rejectRepointingAnAccountInUse($validator);
         });
+    }
+
+    /**
+     * F-1 — mengubah approvals.* butuh core.update DAN sebuah izin persetujuan
+     * direktur.
+     *
+     * Dijawab 422 per-parameter dan bukan 403 di rute, karena sebuah simpanan
+     * boleh memuat parameter lain yang memang boleh diubah orang ini: 403
+     * menolak seluruh formulir tanpa memberi tahu baris mana yang menolaknya,
+     * dan operator akan mencoba lagi dengan formulir yang sama. Aturan yang
+     * sama ditegakkan LAGI di SettingService::set(), jadi ia tidak bisa
+     * dilewati dengan memanggil service langsung — di sini yang ditambahkan
+     * adalah kalimat Indonesia yang menyebut parameternya.
+     */
+    private function rejectApprovalPolicyWithoutDirector(Validator $validator): void
+    {
+        $keys = array_filter(
+            array_map('strval', array_keys($this->submitted())),
+            static fn (string $key): bool => SettingService::isApprovalPolicyKey($key),
+        );
+
+        if ($keys === []) {
+            return;
+        }
+
+        $actor = $this->user();
+
+        foreach ($keys as $key) {
+            // PER BARIS, bukan per formulir: baris PO menuntut
+            // prc.approve-director, baris payroll menuntut hr.approve-director,
+            // dan sebuah simpanan yang memuat keduanya menolak yang tidak
+            // dipegang penyuntingnya SAJA. Sebelum putaran verifikasi F-1 satu
+            // izin direktur mana pun membuka kesepuluh barisnya.
+            $required = ApprovalPolicy::directorPermissionForKey($key);
+            $held = false;
+
+            // hasPermissionTo, TIDAK can(): sebuah delegasi persetujuan tidak
+            // boleh menjadi hak mengubah aturan persetujuan itu sendiri.
+            foreach ($required === null ? ApprovalPolicy::directorPermissions() : [$required] as $permission) {
+                if ($actor !== null && ApprovalDelegations::holdsNatively($actor, $permission)) {
+                    $held = true;
+                    break;
+                }
+            }
+
+            if ($held) {
+                continue;
+            }
+
+            $validator->errors()->add(
+                'settings.'.$key,
+                sprintf(
+                    'Aturan persetujuan ini hanya dapat diubah oleh pemegang izin %s — pada instalasi '
+                    .'standar peran direktur atau admin. Izin core.update saja tidak cukup: yang diubah '
+                    .'di sini adalah siapa boleh menyetujui dokumen senilai berapa.',
+                    $required ?? 'persetujuan direktur (*.approve-director)',
+                ),
+            );
+        }
     }
 
     /**
@@ -153,6 +215,14 @@ class UpdateSettingsRequest extends FormRequest
                 continue;
             }
 
+            $reason = $this->withdrawnMatrixCellReason($key);
+
+            if ($reason !== null) {
+                $validator->errors()->add('settings.'.$key, $reason);
+
+                continue;
+            }
+
             $validator->errors()->add(
                 'settings.'.$key,
                 config()->has("erp.{$key}")
@@ -161,6 +231,67 @@ class UpdateSettingsRequest extends FormRequest
                     : "Parameter {$key} tidak dikenal.",
             );
         }
+    }
+
+    /**
+     * Sel matriks yang DICABUT — dan sebab yang sebenarnya, bukan "deploy".
+     *
+     * Cabang di atas mengenal dua jenis kesalahan: kunci yang tidak ada, dan
+     * kunci yang ada di config tetapi tidak digambarkan registri ("tetapan saat
+     * instalasi"). Kolom mode dan ambang tingkat ketiga bukan salah satu dari
+     * keduanya. Ia BUKAN tetapan instalasi: ApprovalPolicy::forType() memaksa
+     * single_director untuk setiap jenis yang modenya terkunci atau yang tidak
+     * menyatakan approvalLadderKey(), jadi sebuah deploy yang menuliskannya di
+     * config tidak mengubah satu pun keputusan (diukur 7 Sep 2026 pada
+     * approvals.ar_invoice.mode = 'extra_level': mode efektif tetap
+     * single_director). Kalimat lamanya karena itu mengirim operatornya ke
+     * sebuah deploy yang tidak dapat bekerja — kegagalan yang sama bentuknya
+     * dengan docblock-docblock yang putaran verifikasi ini tulis ulang.
+     *
+     * Dan ia BUKAN pula sekadar "tidak dikenal": jenis dokumennya nyata, sel
+     * itu pernah ada di layar, dan yang perlu diketahui operatornya adalah
+     * kenapa ia tidak ada lagi.
+     */
+    private function withdrawnMatrixCellReason(string $key): ?string
+    {
+        if (preg_match('/^approvals\.([a-z0-9_]+)\.(mode|third_level_threshold)$/', $key, $match) !== 1) {
+            return null;
+        }
+
+        $type = $match[1];
+
+        if (! in_array($type, ApprovalPolicy::documentTypes(), true)) {
+            return null; // bukan jenis dokumen: "tidak dikenal" memang jawabannya
+        }
+
+        $label = ApprovalPolicy::documentEntry($type)['label'] ?? 'Dokumen';
+
+        /*
+         * Sebabnya diambil dari jenisnya, bukan dari satu cabang untuk semuanya.
+         * Sampai verifikasi F-1 putaran 2 kalimat ini menyebut "jurnal, stok"
+         * untuk SETIAP jenis yang mode-nya tidak terkunci — termasuk izin kerja
+         * dan cuti, yang tidak memposting apa pun — dan selalu menutup dengan
+         * "yang dapat Anda ubah adalah ambangnya", padahal 14 dari 28 jenis
+         * tidak punya sel ambang sama sekali (tanpa kolom nilai rupiah).
+         */
+        $posts = ApprovalPolicy::hasMeasurableAmount($type);
+
+        $why = ApprovalPolicy::modeIsLocked($type)
+            ? "ambang {$label} ditegakkan modulnya sendiri lewat kolom needs_director_approval, dan "
+                .'penegak itu tidak mengenal mode kedua'
+            : ($posts
+                ? "jalur persetujuan {$label} tidak dapat berhenti di tengah — persetujuan pertamanya "
+                    .'sudah menjalankan akibatnya, jadi "tambahan tingkat" akan menjalankannya dua kali'
+                : "{$label} tidak membawa nilai rupiah, jadi tidak ada ambang yang bisa memisahkan "
+                    .'tingkat kedua dari tingkat pertama');
+
+        $editable = $posts
+            ? 'Yang dapat Anda ubah untuk jenis ini adalah ambangnya, di Pengaturan › Matriks Persetujuan.'
+            : 'Jenis ini tidak punya sel yang bisa diubah di Matriks Persetujuan: tanpa nilai rupiah, '
+                .'tidak ada ambang untuk diatur.';
+
+        return "Parameter {$key} tidak dapat diubah, di layar ini maupun lewat deploy: {$label} selalu "
+            .'memakai mode "satu penyetuju, harus direktur di atas ambang" karena '.$why.'. '.$editable;
     }
 
     /**

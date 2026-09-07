@@ -2,8 +2,10 @@
 
 namespace Modules\Core\Providers;
 
+use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Console\Commands\ApprovalWatchCommand;
@@ -17,8 +19,12 @@ use Modules\Core\Console\Commands\SqliteToMysqlCommand;
 use Modules\Core\Console\Commands\WatchdogAlarmCommand;
 use Modules\Core\Events\DocumentTransitioned;
 use Modules\Core\Listeners\SendApprovalNotifications;
+use Modules\Core\Models\Approval;
 use Modules\Core\Services\AuditService;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\ApprovalDelegationMemo;
+use Modules\Core\Support\ApprovalDelegations;
+use Modules\Core\Support\ApprovalStamp;
 use Modules\Core\Support\AuditedModels;
 
 class CoreServiceProvider extends ServiceProvider
@@ -87,6 +93,14 @@ class CoreServiceProvider extends ServiceProvider
          *    immediately: set() flushes its own memo.
          */
         $this->app->scoped(SettingService::class);
+
+        /*
+         * F-1 — potret delegasi persetujuan, dengan batas yang sama persis
+         * dan untuk alasan yang sama: Gate::before berjalan puluhan kali per
+         * permintaan, dan memo statis akan membuat pekerja antrean memegang
+         * delegasi yang sudah dicabut sampai ia direstart.
+         */
+        $this->app->scoped(ApprovalDelegationMemo::class);
     }
 
     public function boot(): void
@@ -129,6 +143,8 @@ class CoreServiceProvider extends ServiceProvider
         });
 
         $this->registerAuditObservers();
+        $this->registerApprovalStamping();
+        $this->registerApprovalDelegationGate();
 
         Route::middleware('api')
             ->prefix('api/core')
@@ -156,5 +172,51 @@ class CoreServiceProvider extends ServiceProvider
             $class::updated(fn ($model) => app(AuditService::class)->updated($model));
             $class::deleted(fn ($model) => app(AuditService::class)->deleted($model));
         }
+    }
+
+    /**
+     * F-1 — stempel kebijakan dan "a.n." pada setiap baris core_approvals.
+     *
+     * Observer dan bukan baris di dalam Traits\Approvable: Payment,
+     * ProjectBaseline dan JournalService menulis baris persetujuan tanpa
+     * memakai trait itu, dan jalur yang terlewat adalah jalur yang dicari
+     * sebuah penyelidikan. Lihat ApprovalStamp.
+     */
+    private function registerApprovalStamping(): void
+    {
+        Approval::creating(fn (Approval $approval) => ApprovalStamp::stamp($approval));
+    }
+
+    /**
+     * F-1 — delegasi "a.n." sebagai Gate::before.
+     *
+     * MENGEMBALIKAN null, BUKAN false, ketika ia tidak berpendapat. Sebuah
+     * Gate::before yang mengembalikan false MENOLAK ability itu di seluruh
+     * aplikasi, mendahului setiap policy dan setiap middleware permission —
+     * satu baris salah di sini akan mengunci semua orang dari segalanya.
+     * ApprovalDelegations::grants() hanya pernah mengembalikan true atau null,
+     * dan hanya untuk ability berbentuk <awalan>.approve / .approve-director.
+     *
+     * DAN HANYA DI PINTU KEPUTUSAN DOKUMEN (putaran verifikasi F-1).
+     * Menyaring nama ability tidak cukup: <awalan>.approve sendiri
+     * menggerbangi 15 rute yang bukan approve/reject sebuah dokumen —
+     * memposting jurnal manual, membuka kembali periode fiskal, advance payout
+     * dan retention release SPK di antaranya. honouredOnThisRequest()
+     * menutupnya dari BENTUK rutenya, jadi rute ke-16 tertutup secara bawaan.
+     * Antrean persetujuan memanggil grants() langsung, karena ia bacaan.
+     *
+     * Memo delegasinya dibuang di batas unit kerja yang sama dengan memo
+     * SettingService — permintaan berikutnya harus melihat delegasi yang baru
+     * dicabut, tetapi satu permintaan membaca satu potret dari awal ke akhir.
+     */
+    private function registerApprovalDelegationGate(): void
+    {
+        Gate::before(static function ($user, string $ability): ?bool {
+            if (! $user instanceof User || ! ApprovalDelegations::honouredOnThisRequest()) {
+                return null;
+            }
+
+            return ApprovalDelegations::grants($user, $ability);
+        });
     }
 }

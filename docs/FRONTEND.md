@@ -215,6 +215,26 @@ reading, in another shape. There is no `print` action anywhere in the permission
   re-computed here: cells come from the server and labels go through `enumLabel()`/`labelFor()` —
   the same functions the list screen uses — so preview, CSV and screen cannot disagree. A `null`
   cell prints `—` and never `0`; its tooltip says which of the two reasons applies. CONVENTIONS §18.
+- **Matriks persetujuan (F-1)**: the settings screen renders one group as a TABLE instead of a
+  column of fields. `GET core/settings` carries `matrix` on that group — one row per approvable
+  document type with the setting keys it uses — and `buildMatrix()` pivots the same registry
+  entries into 28 rows x (threshold, mode, third level). The cells are ordinary `buildEntry()`
+  controls in `compact` mode, so Save, Batalkan, per-field errors and "Kembalikan ke bawaan" work
+  exactly as they do everywhere else, with no second save path. Three kinds of row carry a printed
+  RULE instead of an input, and never a fabricated `Rp 0`: a type with no amount column ("Tanpa
+  nilai rupiah - ambang tidak berlaku"), a type whose threshold belongs to another ("Mengikuti SPK
+  subkontraktor"), and the three types whose module owns the gate (mode is stated, not offered).
+  39 registry keys, 38 of them cells; the batch cap is the one that renders below the table as a
+  normal field. CONVENTIONS §22.
+- **Delegasi "a.n." + setujui massal (F-1)**: both live on `#/tugas`, the screen an approver
+  already opens. The banner is drawn only when `meta.delegations` is non-empty - a banner that is
+  always there stops being read on day two - and it names the giver, the window and the reason
+  BEFORE anything is approved. Bulk approve appears only when `meta.batch_cap` is set: the loop is
+  here, sequential, over each row's own `approve_url` (from `GET core/inbox`, read off the route
+  table server-side, `null` when the module has no such endpoint - that box is disabled with the
+  reason in its title). Failures do not stop the rest and every failure names its document code.
+  The approval trail prints `Budi a.n. Sari` through `actorName()` in `views/detail.js`, used by
+  both the timeline and the status strip. CONVENTIONS §23.
 - **Charts (P1-A, P1-E)**: every chart in the app is `js/charts.js`. Screens supply data and the
   properties that are theirs to decide — the EVM axis being allowed above 100 %, the price-trend
   axis not being forced to zero — and nothing else; `ChartMigrationTest` refuses a

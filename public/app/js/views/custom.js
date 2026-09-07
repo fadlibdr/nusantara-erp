@@ -907,8 +907,13 @@ export async function renderPayment(host, { id }) {
       editable && session.can('fin.update')
         ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key: 'finance/payments', row: payment, onSaved: reload }) })
         : null,
-      awaiting && session.can('fin.approve') ? decide('approve', 'Setujui') : null,
-      awaiting && session.can('fin.approve') ? decide('reject', 'Tolak') : null,
+      /* PINTU KEPUTUSAN: POST finance/payments/{id}/approve|reject. Hak pinjaman
+         delegasi ikut dihitung di sini — layar ini ditulis tangan, jadi ia tidak
+         lewat session.canAct() milik aksi schema.js, dan sampai verifikasi F-1
+         putaran 2 seorang delegat murni tidak pernah melihat tombolnya walau
+         servernya menerima keputusannya (7 Sep 2026). */
+      awaiting && session.can('fin.approve', true) ? decide('approve', 'Setujui') : null,
+      awaiting && session.can('fin.approve', true) ? decide('reject', 'Tolak') : null,
       readyToPost && session.can('fin.post') ? postApproved : null,
       reversible && session.can('fin.post') ? reverseButton : null,
     ],
@@ -948,7 +953,7 @@ export async function renderPayment(host, { id }) {
   /* Tanpa baris ini layar seorang penyetuju yang belum memegang fin.approve —
      dan layar petugas yang menunggu — hanya menampilkan lencana status tanpa
      satu pun tombol, yang terbaca sebagai "layarnya rusak". */
-  if (awaiting && !session.can('fin.approve')) {
+  if (awaiting && !session.can('fin.approve', true)) {
     host.appendChild(el('.alert.info', { style: { marginBottom: '14px' } }, [
       icon('warn', 15),
       el('div', { text: 'Menunggu persetujuan. Hanya pemegang izin fin.approve — peran finance-manager '

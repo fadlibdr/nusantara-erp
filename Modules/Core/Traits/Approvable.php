@@ -7,8 +7,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Events\DocumentTransitioned;
+use Modules\Core\Exceptions\ApprovalLevelException;
 use Modules\Core\Models\Approval;
+use Modules\Core\Support\ApprovableDocuments;
 use Modules\Core\Support\ApprovalLevels;
+use Modules\Core\Support\ApprovalPolicy;
+use Modules\Core\Support\Money;
 use Modules\Core\Support\SegregationOfDuties;
 
 /**
@@ -58,10 +62,42 @@ trait Approvable
             return $this->approveLevelled($by, $note);
         }
 
+        $this->assertStampedDirectorLevel($by);
+
         $this->forceFill(['status' => DocumentStatus::Approved])->save();
         $this->recordApproval('approved', $by, $note);
 
         return $this;
+    }
+
+    /**
+     * F-1 — tuntutan direktur yang DICAP pada baris `submitted`.
+     *
+     * Berlaku hanya untuk mode single_director, dan hanya untuk jenis dokumen
+     * yang TIDAK membawa gerbangnya sendiri. Tiga tabel membawa
+     * needs_director_approval (PO, SPK, addendum SPK) dan modulnyalah yang
+     * menegakkannya, lebih dulu, dengan kalimat penolakannya sendiri yang
+     * menyebut kedua angkanya; menggerbangi ulang di sini berarti dua
+     * penolakan untuk satu aturan, dengan dua kalimat yang bisa berbeda.
+     * ApprovalPolicy::modeIsLocked menjawab pertanyaan itu dari SKEMA, bukan
+     * dari daftar kelas yang harus diingat orang berikutnya.
+     *
+     * PADA INSTALASI YANG BELUM DISUNTING PEMILIKNYA, INI DIAM. Dua puluh
+     * empat dari dua puluh delapan jenis dikirim tanpa ambang, jadi stempelnya
+     * berbunyi director=false dan tidak ada satu pun keputusan yang berubah
+     * karena paket ini dipasang. Ia menyala pada baris yang pemiliknya isi.
+     *
+     * BADANNYA TIDAK DI SINI, dan itu perbaikan putaran verifikasi F-1: satu
+     * jenis dokumen berambang — Pembayaran keluar — tidak memakai trait ini
+     * sama sekali, jadi selama pemeriksaannya hidup di dalam trait, ambang
+     * yang dipasang pemilik pada baris itu dicap `director: true` dan tidak
+     * ditegakkan siapa pun. Lihat ApprovalPolicy::assertStampedDirector.
+     *
+     * @throws ApprovalLevelException
+     */
+    protected function assertStampedDirectorLevel(User $by): void
+    {
+        ApprovalPolicy::assertStampedDirector($this, $by);
     }
 
     /**
@@ -77,6 +113,8 @@ trait Approvable
      */
     protected function approveLevelled(User $by, ?string $note): static
     {
+        $this->assertLadderIsCarriedByThisModule();
+
         $prior = ApprovalLevels::distinctApprovals($this);
         ApprovalLevels::assertMayApproveNext($this, $by, $prior);
 
@@ -101,6 +139,46 @@ trait Approvable
     }
 
     /**
+     * SEBUAH PERSETUJUAN YANG BERHENTI DI TENGAH HANYA BOLEH TERJADI DI TEMPAT
+     * MODULNYA MEMBACA STATUSNYA SESUDAHNYA.
+     *
+     * approveLevelled() menulis baris `approved` pertama TANPA memindahkan
+     * dokumen dari `submitted`. Pemanggilnya — service modul — menjalankan
+     * akibat persetujuan di baris berikutnya, dan hanya AwardDecisionService
+     * yang bertanya lebih dulu apakah dokumennya sudah benar-benar disetujui.
+     * Diukur 7 Sep 2026 pada jalur AR: sebuah stempel bertingkat dua pada
+     * invoice termin memposting JV/2026/09/0001 pada dokumen yang masih
+     * `submitted`, lalu JV/2026/09/0002 pada persetujuan kedua — Rp 2,22
+     * miliar piutang/pendapatan/PPN keluaran terbukukan dua kali, tanpa satu
+     * penolakan pun. Hal yang sama pada tagihan AP Rp 111 juta.
+     *
+     * Sejak putaran verifikasi F-1 layar tidak lagi menawarkan mode itu di
+     * sana (SettingService::approvalMatrixGroup) dan resolvernya memaksa
+     * single_director (ApprovalPolicy::forType). Penjaga ini adalah lapis
+     * ketiga, untuk stempel yang sudah TERLANJUR tertulis sebelum keduanya:
+     * sebuah penolakan yang dapat dibaca, bukan sebuah jurnal ganda.
+     *
+     * @throws ApprovalLevelException
+     */
+    protected function assertLadderIsCarriedByThisModule(): void
+    {
+        $type = ApprovalPolicy::slugFor($this);
+
+        if ($type === null || ApprovalPolicy::supportsExtraLevel($type)) {
+            return;
+        }
+
+        throw new ApprovalLevelException(sprintf(
+            '%s %s membawa stempel kebijakan "tambahan tingkat", tetapi jenis dokumen ini tidak dapat '
+            .'berhenti di tengah persetujuan — modulnya menjalankan akibat persetujuan (jurnal, stok) '
+            .'begitu Setujui ditekan. Kembalikan "cara ambang berlaku" jenis ini ke "satu penyetuju" di '
+            .'Pengaturan → Matriks Persetujuan, lalu ajukan ulang dokumen ini.',
+            ApprovableDocuments::label($this),
+            (string) ($this->code ?? $this->getKey()),
+        ));
+    }
+
+    /**
      * The ladder key a document opts into, or null for the single-approval
      * default every existing Approvable keeps. A model returning a key must
      * also override approvalAmount() so the ladder has an amount to resolve.
@@ -116,9 +194,27 @@ trait Approvable
         return 0.0;
     }
 
-    /** How many distinct approvers this document needs (1 unless a ladder says more). */
+    /**
+     * How many distinct approvers this document needs.
+     *
+     * F-1 — DIBACA DARI STEMPEL, bukan diselesaikan ulang. Sampai paket ini,
+     * jenjangnya dibaca dari config setiap kali seseorang menekan Setujui,
+     * jadi menaikkan sebuah ambang siang hari MENGURANGI tuntutan setiap
+     * dokumen yang sedang menunggu — surut, dan tanpa satu baris pun yang
+     * mencatatnya. Yang mengikat sekarang adalah aturan saat dokumen DIAJUKAN.
+     *
+     * Dokumen yang diajukan sebelum kolomnya ada tidak punya stempel dan
+     * jatuh ke jalur lama, yang persis perilaku kemarin: maju-saja, tidak ada
+     * stempel yang ditulis surut, tidak ada riwayat yang dikarang.
+     */
     public function requiredApprovalLevels(): int
     {
+        $stamp = ApprovalPolicy::stampedFor($this);
+
+        if ($stamp !== null) {
+            return max(1, (int) ($stamp['levels'] ?? 1));
+        }
+
         $key = $this->approvalLadderKey();
 
         if ($key === null) {

@@ -36,7 +36,9 @@ use Tests\ErpTestCase;
  * Each case writes a `submitted` row directly (the trait's own shape) rather
  * than driving the module's submit gate — the gate is that module's business
  * and has its own suite; what is asserted here is only that show() carries
- * the row back in the PaymentResource shape.
+ * the row back in the ONE shape Core\Http\Resources\ApprovalTrail renders
+ * (F-1; it was PaymentResource's shape, copied by hand into 25 files, until
+ * that duplication was replaced by the single renderer).
  */
 class ApprovalTrailOnShowTest extends ErpTestCase
 {
@@ -192,11 +194,23 @@ class ApprovalTrailOnShowTest extends ErpTestCase
             ->assertJsonPath('data.approvals.0.user.id', $admin->id)
             ->assertJsonPath('data.approvals.0.user.name', $admin->name);
 
+        /*
+         * Bentuk tunggal Core\Http\Resources\ApprovalTrail (F-1) — perender
+         * yang menggantikan dua puluh lima salinan penutup yang identik. Uji
+         * ini adalah alasan salinan itu boleh diganti sekaligus: ia menuntut
+         * kunci yang SAMA PERSIS dari setiap layar detail, jadi sebuah
+         * resource yang tertinggal terlihat di sini dan bukan di produksi.
+         *
+         * `on_behalf_of` menyusul bersama delegasi "a.n.": null pada baris
+         * biasa — yaitu hampir semuanya — dan itu berarti orangnya menyetujui
+         * atas namanya sendiri.
+         */
         $this->assertSame(
-            ['id', 'action', 'note', 'created_at', 'user'],
+            ['id', 'action', 'note', 'created_at', 'user', 'on_behalf_of'],
             array_keys($response->json('data.approvals.0')),
-            "{$url} does not answer the PaymentResource shape",
+            "{$url} does not answer the ApprovalTrail shape",
         );
+        $response->assertJsonPath('data.approvals.0.on_behalf_of', null);
     }
 
     private function project(): Project
