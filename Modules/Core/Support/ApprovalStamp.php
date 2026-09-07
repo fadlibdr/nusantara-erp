@@ -46,7 +46,7 @@ final class ApprovalStamp
 
     private static function stampPolicy(Approval $approval): void
     {
-        if ($approval->action !== 'submitted' || $approval->policy !== null) {
+        if ($approval->action !== 'submitted' || array_key_exists('policy', $approval->getAttributes())) {
             return;
         }
 
@@ -77,7 +77,13 @@ final class ApprovalStamp
             return;
         }
 
-        if ($approval->user_id === null || $approval->on_behalf_of_user_id !== null) {
+        // "Sudah dijawab" adalah ATRIBUTNYA SUDAH DISET, bukan nilainya
+        // bukan-null. Jawaban yang benar hampir selalu null (persetujuan
+        // biasa), dan menguji terhadap null berarti pertanyaannya diajukan
+        // ulang oleh setiap pendengar berikutnya — satu SELECT users per
+        // pendengar. Pendengar model menumpuk satu per boot aplikasi, jadi di
+        // dalam satu proses uji panjang itu bukan sekali dua kali.
+        if ($approval->user_id === null || array_key_exists('on_behalf_of_user_id', $approval->getAttributes())) {
             return;
         }
 
