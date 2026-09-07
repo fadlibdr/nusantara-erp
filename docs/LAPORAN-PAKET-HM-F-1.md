@@ -320,9 +320,21 @@ dilaporkan di § Gerbang di bawah berasal dari putaran yang dijalankan **sesudah
    mencetak sesuatu yang jujur.
 5. **Tidak diuji: dua delegasi bersamaan dari dua pemberi berbeda ke satu orang.** Kodenya
    menanganinya (loop atas semua baris aktif) dan spanduk memformat jamak, tetapi tidak ada uji.
-6. **Tidak diukur: biaya `Gate::before` pada permintaan yang berat.** Memonya per unit kerja, jadi
-   biayanya satu SELECT per permintaan untuk pengguna yang punya delegasi dan nol kueri untuk yang
-   tidak (tabel dicek `Schema::hasTable` lalu dimemo). Belum ada angka yang diukur.
+6. **~~Tidak diukur: biaya `Gate::before` pada permintaan yang berat.~~ DIUKUR pada putaran
+   verifikasi (7 Sep 2026), dan tebakan di baris ini salah di kedua arahnya.** Yang tertulis di sini
+   adalah "satu SELECT per permintaan untuk pengguna yang punya delegasi dan nol kueri untuk yang
+   tidak". Angka yang benar, terukur di SQLite lewat `DB::enableQueryLog`:
+
+   | Siapa / di mana | Kueri delegasi |
+   |---|---|
+   | Pemegang izinnya sendiri, pemeriksaan approve | **0** — `Gate::before` Spatie menjawab lebih dulu |
+   | Pemeriksaan izin di luar pintu keputusan dokumen | **0** sejak saringan rute f1-perm-01; sebelum itu **2** pada tiap pemeriksaan approve yang GAGAL, dan pemeriksaan yang gagal adalah persis yang dilakukan layar penuh tombol bergerbang izin |
+   | Kotak masuk (memanggil `grants()` dengan sengaja) | **2** untuk seluruh permintaan — bukan per jenis dokumen (28) dan bukan per baris |
+   | Yang benar-benar memakai delegasi | **2 per unit kerja** (`Schema::hasTable`, di MySQL sebuah kueri `information_schema`, plus satu SELECT), bukan 2 per pemeriksaan |
+
+   Tidak ada yang perlu diperbaiki di kodenya — memonya bekerja seperti yang dirancang. Yang
+   diperbaiki adalah kalimatnya, dan `ApprovalDelegationCostTest` (3 uji) sekarang menjaga
+   ketiga angka itu.
 7. **Tidak diuji lewat peramban: penolakan setujui massal di tengah antrean.** Kodenya melanjutkan
    dan menamai yang gagal; S28 hanya menjalankan dua dokumen yang keduanya berhasil.
 8. **Tidak dijalankan di erp1.** Paket ini belum menyentuh produksi.
