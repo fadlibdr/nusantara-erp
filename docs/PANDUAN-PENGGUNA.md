@@ -8402,8 +8402,12 @@ Tab **Portofolio**, satu baris per proyek yang belum ditutup:
 | **RAP** | total RAP yang **disetujui** dan sedang berlaku untuk proyek itu (revisi terbaru yang belum digantikan) |
 | **Realisasi** | biaya yang sudah tercatat di buku biaya proyek — tagihan vendor yang disetujui, payroll, bon gudang |
 | **Komitmen** | yang sudah **dijanjikan** tetapi belum ditagih: PO disetujui dikurangi yang sudah ditagihkan, SPK dikurangi opname yang disetujui |
-| **Sisa** | RAP − realisasi − komitmen, **dan di bawahnya kedua sisinya**: "PO Rp …" (sisi non-subkon) dan "SPK Rp …" (sisi subkon) |
-| **Terpakai** | (realisasi + komitmen) ÷ RAP |
+| **Sisa** | RAP − realisasi − komitmen, **dan di bawahnya kedua sisinya** dalam rupiah penuh: "PO Rp …" (sisi non-subkon) dan "SPK Rp …" (sisi subkon) |
+| **Terpakai** dan **Keadaan** | sisi yang paling dekat ke batasnya — sisi itu disebut di bawah lencananya, bersama persentase totalnya |
+
+**Kolom Realisasi yang bertanda "—"** berarti proyek itu belum punya satu baris
+biaya pun; itu bukan "Rp 0 dibelanjakan". Aturan yang sama dengan kolom
+realisasi per bulan.
 
 **Angka "Sisa PO" adalah nilai PO terbesar yang masih diterima tanpa konfirmasi
 pelampauan** — bukan perkiraan, dan dicetak **dalam rupiah penuh** justru karena
@@ -8445,10 +8449,14 @@ siapa pun.
 Begitu **realisasi + komitmen** mencapai 90 % anggaran RAP, angkanya berwarna dan
 peringatannya muncul di tempat uangnya dibelanjakan:
 
-- **layar proyek** — ubin "Anggaran terpakai" dan pita peringatan di bawahnya;
+- **layar proyek** — ubin "Anggaran terpakai" dan pita peringatan di bawahnya.
+  Keduanya menyebut **sisi yang paling dekat ke batasnya**: sebuah proyek yang
+  totalnya 93 % terpakai tetapi sisi PO-nya sudah habis mendapat pita MERAH,
+  karena setiap PO berikutnya memang akan ditolak;
 - **formulir PO dan SPK** — begitu Anda memilih proyeknya, satu kalimat di bawah
-  kotak Proyek menyebut realisasi, komitmen, persentase dan sisanya, **sebelum**
-  Anda mengetik satu baris item;
+  kotak Proyek menyebut anggaran, realisasi, komitmen dan **sisa sisi yang
+  menghakimi dokumen itu** (PO → non-subkon, SPK → subkon), **sebelum** Anda
+  mengetik satu baris item;
 - **Ringkasan › Ambang & Batas** — daftar semua batas, termasuk RAP terhadap
   nilai kontrak dan realisasi overhead terhadap OVB.
 
@@ -8480,6 +8488,17 @@ memilih **akun-akun COA** yang dianggarkan beserta nilainya; realisasinya dibaca
 dari mutasi akun-akun itu sendiri di buku besar (jurnal yang **sudah diposting**;
 jurnal draf tidak dihitung). **Satu tahun buku hanya boleh punya satu OVB yang
 disetujui** — pengajuan kedua ditolak dengan menyebut kode yang sudah berdiri.
+Kodenya membawa **tahun buku yang dianggarkan** (OVB/2031/0001 untuk tahun buku
+2031, dibuat tahun berapa pun).
+
+Anggaran yang salah dan sudah terlanjur disetujui **dibatalkan** dengan tombol
+`Batalkan OVB` pada dokumennya (izin `fin.approve`, alasan wajib, tercatat
+permanen di jejak audit). Pembatalan tidak menyentuh satu baris jurnal pun —
+sebuah anggaran adalah rencana, bukan transaksi — dan mengembalikan tahun itu
+ke keadaan "belum ada OVB disetujui", sehingga penggantinya bisa disetujui.
+
 Tab **Overhead (OVB)** pada layar Anggaran vs Realisasi menampilkan
 perbandingannya; akun yang belum bermutasi sekali pun tahun ini bertanda "—",
-bukan Rp 0.
+bukan Rp 0. Bila **belum satu akun pun** bermutasi, totalnya ikut bertanda "—"
+dan persentasenya kosong: yang benar adalah "belum ada yang tercatat", bukan
+"0 % terpakai, aman".

@@ -169,10 +169,10 @@ registry (`LIVE_NOTES`) and renders a `.help` line under that field, refreshed w
 form changes:
 
 ```js
-{ key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudget' }
+{ key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudgetPo' }
 ```
 
-Three rules, all learned the hard way:
+Four rules, all learned the hard way:
 
 * the provider lives in `form.js`, NOT in `schema.js` — `schema.js` is data and imports
   nothing, and giving it `import { api }` would tie the SPA's largest file to its transport;
@@ -181,10 +181,16 @@ Three rules, all learned the hard way:
   listener bound to the lookup wrapper does not see it on every path (measured, harness S29);
 * failure is SILENT. A 403, a module that does not answer, a dropped network — none of them
   may block the document being created. The warning disappears; the server-side gate still
-  stands behind it with its own refusal sentence.
+  stands behind it with its own refusal sentence;
+* the note must print the number that judges THIS document, not a related one (F-2
+  verification). One provider served both the PO and the SPK form with the project's TOTAL
+  remaining, while the gate measures a PO against the non-subcon side and an SPK against the
+  subcon side: measured on the demo data, the PO form promised "sisa Rp 1.697.500.000" over a
+  non-subcon side of −Rp 105.039.400, and a PO of Rp 1 was refused 422.
 
-Shipped users: the Proyek field of the PO and SPK forms (`projectBudget` — budget used,
-remaining, and the ≥ 90 % colour, before a single line is typed).
+Shipped users: the Proyek field of the PO form (`projectBudgetPo` — the non-subcon ceiling)
+and of the SPK form (`projectBudgetSpk` — the subcon ceiling), each with its own sentence,
+its own ≥ 90 % colour, and the same words the gate uses when it refuses that document.
 
 ## Adding a "Cetak" button (formulir rumah)
 

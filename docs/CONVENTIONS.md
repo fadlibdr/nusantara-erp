@@ -59,7 +59,7 @@ bukan prosa mana pun — adalah sumber kebenaran rentang blok untuk kedua modul 
 
 | Module      | Blok pertama  | Blok lanjutan | Status |
 |-------------|---------------|---------------|--------|
-| Finance     | 001100–001199 | **001500–001599** | DIPAKAI — slot pertama `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) |
+| Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
 
 Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
@@ -1134,6 +1134,16 @@ registri ini ada, dan aturan yang mengikat setiap entri baru:
 | `tanpa_batas` | yang diukur ADA, batasnya tidak pernah disetel | **aturannya**, tidak pernah 0 % |
 | `tidak_terukur` | yang diukurnya sendiri belum ada | **aturannya**, tidak pernah 0 % |
 
+**KEADAAN DIBANDINGKAN PADA ANGKA YANG DICETAK, LAMPAU PADA RUPIAHNYA**
+(verifikasi F-2). `mendekati` diadu dengan `displayPct()` — `pct()` yang
+dibulatkan ke jumlah desimal yang benar-benar dicetak layar (satu) — karena
+sebuah baris yang mencetak "90,0 %" lalu menyebut dirinya "Aman" di bawah judul
+"Peringatan ≥ 90 %" adalah dua pernyataan yang bertentangan pada satu baris
+(terukur: Rp 899.999.999 dari Rp 1.000.000.000). `lampau` diadu dengan
+RUPIAHNYA (`$actual >= $limit`), bukan dengan persen yang dibulatkan: sebuah
+baris "Melampaui" yang masih menyisakan satu rupiah yang DITERIMA gerbang
+adalah perselisihan layar-vs-gerbang yang F-2 ada untuk menghapus.
+
 `tidak_terukur` MENDAHULUI `tanpa_batas` (tanpa satu angka pun, "batasnya belum
 disetel" bukan kalimat yang paling menolong), dan catatan barisnya menyebut
 **kedua** sisi yang hilang supaya satu keadaan tidak menyembunyikan kekurangan
@@ -1176,3 +1186,16 @@ kalimatnya sendiri.
 Entri yang dikirim F-2: `project_budget_pct` (dipasok Finance),
 `rap_vs_kontrak_pct` dan `overhead_budget_pct` (dihitung Core). Layarnya
 `#/ambang`, tetangga `#/tenggat` di grup Ringkasan.
+
+**BARIS YANG DIPASOK ADALAH SISI YANG DITEGAKKAN, BUKAN AGREGATNYA**
+(verifikasi F-2). `project_budget_pct` memasok sisi PROYEK yang paling dekat ke
+batasnya — non-subkon (dihakimi saat PO diajukan) atau subkon (saat SPK) —
+karena hanya batas per sisi itulah yang benar-benar menolak dokumen; totalnya
+ikut di catatan barisnya. Sebuah registri yang mengukur agregat akan
+membariskan proyek yang totalnya 16,7 % terpakai di antara yang aman sementara
+setiap PO-nya sudah ditolak. Aturannya untuk entri berikutnya: **yang diawasi
+adalah angka yang menolak sesuatu.**
+
+Kolom pertama tabelnya memakai `subject_word` entri apa adanya (dikapitalkan),
+bukan dua pilihan yang dipatok layar: entri yang menyebut satuannya sendiri
+tidak boleh kehilangannya di tabel yang menampilkannya.
