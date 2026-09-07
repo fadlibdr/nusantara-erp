@@ -1115,3 +1115,64 @@ delegasi yang sudah dicabut sampai ia direstart.
 'orang ini menandatangani dokumen'". Keputusan itu tidak diubah F-1, jadi "a.n."
 muncul di jejak persetujuan, di pemberitahuan keputusan dan di layar detail —
 bukan di kertas yang difile orang.
+
+## 24. Registri ambang (`WatchedThresholds`, F-2)
+
+`Modules\Core\Support\WatchedThresholds` adalah saudara `WatchedDeadlines`:
+yang itu menjawab "tanggal apa yang lewat", yang ini "angka apa yang mendekati
+atau melewati batasnya". Satu daftar deklaratif; batas berikutnya yang layak
+diawasi ditambahkan sebagai **satu entri array**, bukan sebagai layar baru.
+
+**LIMA KEADAAN, DAN TIGA DI ANTARANYA BUKAN ANGKA.** Inilah seluruh alasan
+registri ini ada, dan aturan yang mengikat setiap entri baru:
+
+| Keadaan | Artinya | Yang dicetak layar |
+|---|---|---|
+| `aman` | di bawah ambang peringatan | persentasenya |
+| `mendekati` | di ambang peringatan atau di atasnya, masih di bawah batas | persentasenya, berwarna |
+| `lampau` | di batas atau melewatinya — **tepat 100 % ada di sisi ini** | persentasenya, merah |
+| `tanpa_batas` | yang diukur ADA, batasnya tidak pernah disetel | **aturannya**, tidak pernah 0 % |
+| `tidak_terukur` | yang diukurnya sendiri belum ada | **aturannya**, tidak pernah 0 % |
+
+`tidak_terukur` MENDAHULUI `tanpa_batas` (tanpa satu angka pun, "batasnya belum
+disetel" bukan kalimat yang paling menolong), dan catatan barisnya menyebut
+**kedua** sisi yang hilang supaya satu keadaan tidak menyembunyikan kekurangan
+yang lain. Sebuah batas bernilai 0 diperlakukan sebagai TIDAK ADA: kolom
+`prj_projects.contract_value` berbawaan 0, jadi 0 di sana berarti belum dicatat
+— tidak pernah berarti kontrak senilai nol rupiah.
+
+**Aturan yang sama dengan `WatchedDeadlines`:** `DB::table`, literal string,
+**tanpa impor modul fitur** (dipaku `ThresholdWatchTest::test_core_imports_no_feature_module_to_compute_a_threshold`,
+yang memindai baris `use` berkas registrinya sendiri). Tabel dan kolom dijaga
+`missingSchema()`, jadi modul yang belum bermigrasi menjadi baris SKIPPED —
+bukan `QueryException`, dan bukan entri kosong yang terbaca "semua aman".
+
+**ENTRI YANG ANGKANYA MILIK MODUL LAIN DIPASOK, BUKAN DISALIN.** `project_budget_pct`
+mengukur realisasi + KOMITMEN terhadap RAP, dan aritmetika komitmen hidup di
+`Finance\Services\CommitmentService` — yang dibaca `BudgetGateService` sebelum
+menolak sebuah PO. Menyalin SQL-nya ke Core berarti dua jawaban atas satu
+pertanyaan. Maka Core mendeklarasikan entrinya (label, izin, tautan, ambang,
+keadaan) dan modul pemiliknya memasok barisnya:
+
+```php
+// Modules/Finance/Providers/FinanceServiceProvider::boot()
+WatchedThresholds::supply(
+    'project_budget_pct',
+    static fn (): array => app(BudgetRealisationService::class)->thresholdRows(),
+);
+```
+
+Closure, bukan hasil: pemindaian bisa terjadi kapan saja setelah boot, dan
+menghitungnya saat boot membebani setiap permintaan. Selama tidak ada yang
+memasok, entrinya SKIPPED. Uji wajib memanggil `flushSuppliers()` /
+`flushSchemaMemo()` (sudah dipasang di `ErpTestCase::setUp`).
+
+**Ambang peringatan ada di `config('erp.thresholds.<kunci>')`**, satu kunci per
+entri, bawaan 90 % (ROADMAP-HASHMICRO §5 baris 13). Ini PERINGATAN, bukan
+gerbang: tidak ada satu dokumen pun yang ditolak karena angka di blok itu — yang
+menolak PO/SPK yang menjebol RAP tetap `erp.procurement.budget_gate`, dengan
+kalimatnya sendiri.
+
+Entri yang dikirim F-2: `project_budget_pct` (dipasok Finance),
+`rap_vs_kontrak_pct` dan `overhead_budget_pct` (dihitung Core). Layarnya
+`#/ambang`, tetangga `#/tenggat` di grup Ringkasan.
