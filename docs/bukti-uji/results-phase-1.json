@@ -25381,5 +25381,221 @@
   "ok": true,
   "_ms": 6186,
   "_clicks": 1
+ },
+ "S27_pwa": {
+  "tag": "-p1i",
+  "worker": {
+   "scope": "http://127.0.0.1:8071/app/",
+   "script": "http://127.0.0.1:8071/app/sw.js",
+   "state": "activated",
+   "controlled": true,
+   "cache_names": [
+    "nusantara-shell-v1"
+   ],
+   "cached": 102,
+   "cached_api": [],
+   "cached_outside_scope": []
+  },
+  "online_shell_fetch": {
+   "status": 200,
+   "delivery": "",
+   "transfer": 112978
+  },
+  "online_shell_via_worker": true,
+  "ribbon_online": {
+   "present": true,
+   "hidden": true,
+   "visible": false,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "ribbon_offline": {
+   "present": true,
+   "hidden": false,
+   "visible": true,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "ribbon_back_online": {
+   "present": true,
+   "hidden": true,
+   "visible": false,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "offline_shell": {
+   "shell": true,
+   "nav_items": 18,
+   "login_form": false,
+   "title": "Lapangan · Nusantara ERP",
+   "html_chars": 17396,
+   "toasts": [
+    "Mode luring / Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali."
+   ],
+   "ribbon_visible": true
+  },
+  "offline_api": {
+   "threw": true,
+   "error": "TypeError: Failed to fetch"
+  },
+  "offline_entries": {
+   "api_entries": 6,
+   "api_from_cache_storage": [],
+   "shell_from_cache_storage": 76,
+   "shell_entries": 76
+  },
+  "api_responses_from_worker": [],
+  "api_responses_total": 12,
+  "beforeinstallprompt": "tidak menyala",
+  "account_dialog_install": {
+   "line": "Pasang aplikasi: lewat menu peramban (\"Instal aplikasi\" / \"Tambahkan ke Layar Utama\"). Peramban ini belum menawarkannya dari dalam halaman.",
+   "button": false
+  },
+  "checks": {
+   "scope_is_app": true,
+   "script_is_app_sw": true,
+   "page_is_controlled": true,
+   "one_versioned_cache": true,
+   "shell_precached": true,
+   "zero_api_in_cache": true,
+   "zero_outside_scope_in_cache": true,
+   "online_shell_from_network": true,
+   "online_shell_answered_by_worker": true,
+   "ribbon_hidden_online": true,
+   "ribbon_shown_offline": true,
+   "ribbon_hidden_again": true,
+   "offline_shell_renders": true,
+   "offline_ribbon_survives_reload": true,
+   "offline_api_failed": true,
+   "offline_shell_came_from_cache_storage": true,
+   "zero_api_from_cache_storage": true,
+   "zero_api_responses_from_worker": true,
+   "install_row_present": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 20682,
+  "_clicks": 1
+ },
+ "S27_pwa_mobile": {
+  "tag": "-mobile-p1i",
+  "worker": {
+   "scope": "http://127.0.0.1:8071/app/",
+   "script": "http://127.0.0.1:8071/app/sw.js",
+   "state": "activated",
+   "controlled": true,
+   "cache_names": [
+    "nusantara-shell-v1"
+   ],
+   "cached": 102,
+   "cached_api": [],
+   "cached_outside_scope": []
+  },
+  "online_shell_fetch": {
+   "status": 200,
+   "delivery": "",
+   "transfer": 112978
+  },
+  "online_shell_via_worker": true,
+  "ribbon_online": {
+   "present": true,
+   "hidden": true,
+   "visible": false,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "ribbon_offline": {
+   "present": true,
+   "hidden": false,
+   "visible": true,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "ribbon_back_online": {
+   "present": true,
+   "hidden": true,
+   "visible": false,
+   "text": "Tanpa koneksi. Foto yang sudah diambil tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya."
+  },
+  "offline_shell": {
+   "shell": true,
+   "nav_items": 18,
+   "login_form": false,
+   "title": "Lapangan · Nusantara ERP",
+   "html_chars": 17396,
+   "toasts": [
+    "Mode luring / Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali."
+   ],
+   "ribbon_visible": true
+  },
+  "offline_api": {
+   "threw": true,
+   "error": "TypeError: Failed to fetch"
+  },
+  "offline_entries": {
+   "api_entries": 6,
+   "api_from_cache_storage": [],
+   "shell_from_cache_storage": 76,
+   "shell_entries": 76
+  },
+  "api_responses_from_worker": [],
+  "api_responses_total": 9,
+  "beforeinstallprompt": "tidak menyala",
+  "account_dialog_install": {
+   "line": "Pasang aplikasi: lewat menu peramban (\"Instal aplikasi\" / \"Tambahkan ke Layar Utama\"). Peramban ini belum menawarkannya dari dalam halaman.",
+   "button": false
+  },
+  "checks": {
+   "scope_is_app": true,
+   "script_is_app_sw": true,
+   "page_is_controlled": true,
+   "one_versioned_cache": true,
+   "shell_precached": true,
+   "zero_api_in_cache": true,
+   "zero_outside_scope_in_cache": true,
+   "online_shell_from_network": true,
+   "online_shell_answered_by_worker": true,
+   "ribbon_hidden_online": true,
+   "ribbon_shown_offline": true,
+   "ribbon_hidden_again": true,
+   "offline_shell_renders": true,
+   "offline_ribbon_survives_reload": true,
+   "offline_api_failed": true,
+   "offline_shell_came_from_cache_storage": true,
+   "zero_api_from_cache_storage": true,
+   "zero_api_responses_from_worker": true,
+   "install_row_present": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 20644,
+  "_clicks": 1
+ },
+ "S27_pwa_pembaruan": {
+  "version_before": "1",
+  "cache_before": [
+   "nusantara-shell-v1"
+  ],
+  "toasts_before": [],
+  "toast": [
+   "Versi baru siap — Muat ulang untuk memakainya.\nMuat ulang"
+  ],
+  "waiting_worker": true,
+  "navigations_after_click": 1,
+  "cache_after": [
+   "nusantara-shell-v1-uji"
+  ],
+  "toasts_after": [],
+  "controlled_after": true,
+  "checks": {
+   "no_toast_on_first_install": true,
+   "toast_says_the_sentence": true,
+   "toast_has_reload_button": true,
+   "a_worker_was_waiting": true,
+   "reloaded_exactly_once": true,
+   "old_cache_deleted": true,
+   "still_controlled": true,
+   "no_toast_left_over": true,
+   "sw_file_restored": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 14075,
+  "_clicks": 1
  }
 }

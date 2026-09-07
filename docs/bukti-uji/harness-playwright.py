@@ -5368,6 +5368,258 @@ def s23m(browser):
         ctx.close()
 
 
+
+# ------------------------------------------------------------------ S27 PWA
+
+# Berkas worker di pohon kerja — dinaikkan versinya lalu DIPULIHKAN untuk
+# mengukur toast "Versi baru siap" (pola yang sama dengan fixture yang ditanam
+# S26 di basis data: ditanam, diukur, dicabut di `finally`).
+SW_FILE = os.environ.get("ERP_SW", os.path.join(os.path.dirname(os.path.dirname(SPA_EVIDENCE)), "public/app/sw.js"))
+
+SW_FACTS = """async () => {
+  const reg = await navigator.serviceWorker.getRegistration();
+  const names = await caches.keys();
+  let keys = [];
+  for (const name of names) keys = keys.concat((await (await caches.open(name)).keys()).map((r) => new URL(r.url).pathname));
+  return {
+    scope: reg ? reg.scope : null,
+    script: reg && reg.active ? reg.active.scriptURL : null,
+    state: reg && reg.active ? reg.active.state : null,
+    controlled: !!navigator.serviceWorker.controller,
+    cache_names: names,
+    cached: keys.length,
+    cached_api: keys.filter((p) => p.startsWith('/api/')),
+    cached_outside_scope: keys.filter((p) => !p.startsWith('/app/')),
+  };
+}"""
+
+# deliveryType MEMBEDAKAN dua "cache" yang biasanya tertukar (diukur 7 Sep 2026):
+# 'cache' = cache HTTP peramban, '' = jaringan, 'cache-storage' = CacheStorage,
+# yaitu SATU-SATUNYA yang bisa diisi service worker. Klaim tengah paket ini —
+# "0 respons API dari cache SW" — karena itu bisa dibaca, bukan diyakini.
+ENTRIES = """() => performance.getEntriesByType('resource').map((e) => ({
+  name: e.name, delivery: e.deliveryType, transfer: e.transferSize, worker: Math.round(e.workerStart) }))"""
+
+RIBBON = """() => { const r = document.querySelector('.offline-ribbon');
+  return r ? { present: true, hidden: r.hidden, visible: r.checkVisibility(), text: r.innerText.trim() } : { present: false }; }"""
+
+
+def pwa_facts(pg):
+    e = pg.evaluate(ENTRIES)
+    api = [x for x in e if "/api/" in x["name"]]
+    shell = [x for x in e if "/app/" in x["name"]]
+    return {
+        "api_entries": len(api),
+        "api_from_cache_storage": [x["name"].split("/api/")[1] for x in api if x["delivery"] == "cache-storage"],
+        "shell_from_cache_storage": len([x for x in shell if x["delivery"] == "cache-storage"]),
+        "shell_entries": len(shell),
+    }
+
+
+def pwa_scenario(pg, tag, mobile=False):
+    ctx = pg.context
+    out = {"tag": tag}
+    seen = []
+    pg.on("response", lambda r: seen.append((r.url, r.from_service_worker)))
+
+    login(pg, "teknisi@nusantara.test")
+    # Pendaftaran worker sengaja menunggu `load` + satu putaran idle (app.js),
+    # jadi yang ditunggu di sini adalah AKIBATNYA, bukan waktu tetap.
+    pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=30000)
+    pg.wait_for_timeout(2500)
+    out["worker"] = pg.evaluate(SW_FACTS)
+
+    # DARING: satu berkas cangkang diminta lagi. Ia ADA di CacheStorage, jadi
+    # kalau strateginya "cache dulu" jawabannya akan bertanda deliveryType
+    # 'cache-storage' dan transferSize 0. Jaringan-dulu berarti keduanya bukan.
+    mark = len(seen)
+    out["online_shell_fetch"] = pg.evaluate("""async () => {
+      const r = await fetch('app.css', { cache: 'no-store' });
+      const all = performance.getEntriesByName(new URL('app.css', location.href).href);
+      const e = all[all.length - 1];
+      return { status: r.status, delivery: e ? e.deliveryType : null, transfer: e ? e.transferSize : null };
+    }""")
+    # …dan worker MEMANG yang menjawabnya (sisi Playwright, bukan sisi halaman).
+    out["online_shell_via_worker"] = any(u.endswith("/app/app.css") and sw for u, sw in seen[mark:])
+
+    pg.evaluate("() => { location.hash = '#/lapangan'; }")
+    pg.wait_for_timeout(2500)
+    out["ribbon_online"] = pg.evaluate(RIBBON)
+
+    # ---- pita: putus, lalu sambung lagi. TANPA muat ulang di antaranya, karena
+    # emulasi luring Playwright hilang saat dokumen baru dibuat: sesudah reload
+    # navigator.onLine kembali true meski jaringannya masih terputus (diukur
+    # 7 Sep 2026), sehingga peristiwa 'online' yang memadamkan pita tidak pernah
+    # menyala. Urutan ini mengukur kontraknya, bukan artefak alatnya.
+    ctx.set_offline(True)
+    pg.wait_for_timeout(1000)
+    out["ribbon_offline"] = pg.evaluate(RIBBON)
+    pg.screenshot(path=f"{OUT}/s27-pita-luring{tag}.png", full_page=False)
+
+    ctx.set_offline(False)
+    pg.wait_for_timeout(1500)
+    out["ribbon_back_online"] = pg.evaluate(RIBBON)
+
+    # ---- muat ulang TANPA jaringan: cangkang harus tetap tergambar…
+    ctx.set_offline(True)
+    pg.wait_for_timeout(500)
+    pg.reload(wait_until="load")
+    pg.wait_for_timeout(4500)
+    out["offline_shell"] = pg.evaluate("""() => ({
+      shell: !!document.querySelector('.shell'),
+      nav_items: document.querySelectorAll('nav.nav a').length,
+      login_form: !!document.querySelector('input[type=email]'),
+      title: document.title,
+      html_chars: document.documentElement.outerHTML.length,
+      toasts: [...document.querySelectorAll('.toast')].map((t) => t.innerText.replace(/\\n/g, ' / ')),
+      ribbon_visible: !!document.querySelector('.offline-ribbon:not([hidden])'),
+    })""")
+
+    # …dan permintaan /api/* harus GAGAL, bukan dijawab dari cache.
+    out["offline_api"] = pg.evaluate("""async () => {
+      try {
+        const r = await fetch('/api/core/dashboard/summary', { headers: { 'X-Api-Token': localStorage.getItem('nusantara_erp_token') || '' } });
+        return { threw: false, status: r.status };
+      } catch (e) { return { threw: true, error: String(e) }; }
+    }""")
+    out["offline_entries"] = pwa_facts(pg)
+    pg.screenshot(path=f"{OUT}/s27-luring{tag}.png", full_page=True)
+    ctx.set_offline(False)
+    pg.wait_for_timeout(800)
+
+    # Bukti kedua, dari sisi Playwright dan bukan dari halaman: tidak satu pun
+    # respons /api/ yang datang dari service worker, sepanjang skenario.
+    out["api_responses_from_worker"] = sorted({u.split("/api/")[1] for u, sw in seen if "/api/" in u and sw})
+    out["api_responses_total"] = len([1 for u, _ in seen if "/api/" in u])
+
+    # ---- "Pasang aplikasi", dilaporkan apa adanya
+    out["beforeinstallprompt"] = pg.evaluate("""() => new Promise((res) => {
+      let fired = false;
+      window.addEventListener('beforeinstallprompt', () => { fired = true; res('menyala'); });
+      setTimeout(() => res(fired ? 'menyala' : 'tidak menyala'), 4000);
+    })""")
+    click(pg, "button.userchip")
+    pg.wait_for_selector(".modal", timeout=10000)
+    pg.wait_for_timeout(400)
+    out["account_dialog_install"] = pg.evaluate("""() => {
+      const rows = [...document.querySelectorAll('.modal .modal-body p')]
+        .map((n) => (n.innerText || '').trim()).filter((t) => /Pasang aplikasi|sudah terpasang/.test(t));
+      return { line: rows.length ? rows[rows.length - 1].slice(0, 200) : null,
+               button: [...document.querySelectorAll('.modal button')].some((b) => b.innerText.trim() === 'Pasang aplikasi') };
+    }""")
+    pg.screenshot(path=f"{OUT}/s27-akun-pasang{tag}.png", full_page=False)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(400)
+
+    checks = {
+        "scope_is_app": out["worker"]["scope"] == ORIGIN + "/app/",
+        "script_is_app_sw": (out["worker"]["script"] or "").endswith("/app/sw.js"),
+        "page_is_controlled": out["worker"]["controlled"] is True,
+        "one_versioned_cache": len(out["worker"]["cache_names"]) == 1 and out["worker"]["cache_names"][0].startswith("nusantara-shell-v"),
+        "shell_precached": out["worker"]["cached"] >= 100,
+        "zero_api_in_cache": out["worker"]["cached_api"] == [],
+        "zero_outside_scope_in_cache": out["worker"]["cached_outside_scope"] == [],
+        "online_shell_from_network": (out["online_shell_fetch"]["status"] == 200
+                                      and out["online_shell_fetch"]["delivery"] != "cache-storage"
+                                      and (out["online_shell_fetch"]["transfer"] or 0) > 0),
+        "online_shell_answered_by_worker": out["online_shell_via_worker"] is True,
+        "ribbon_hidden_online": out["ribbon_online"]["present"] and out["ribbon_online"]["hidden"] is True,
+        "ribbon_shown_offline": out["ribbon_offline"]["visible"] is True and "Tanpa koneksi" in out["ribbon_offline"]["text"],
+        "ribbon_hidden_again": out["ribbon_back_online"]["hidden"] is True,
+        "offline_shell_renders": out["offline_shell"]["shell"] and out["offline_shell"]["nav_items"] > 0 and not out["offline_shell"]["login_form"],
+        "offline_ribbon_survives_reload": out["offline_shell"]["ribbon_visible"] is True,
+        "offline_api_failed": out["offline_api"]["threw"] is True,
+        "offline_shell_came_from_cache_storage": out["offline_entries"]["shell_from_cache_storage"] > 0,
+        "zero_api_from_cache_storage": out["offline_entries"]["api_from_cache_storage"] == [],
+        "zero_api_responses_from_worker": out["api_responses_from_worker"] == [],
+        "install_row_present": bool(out["account_dialog_install"]["line"]),
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S27_pwa")
+def s27(pg):
+    return pwa_scenario(pg, "-p1i")
+
+
+@scenario("S27_pwa_mobile")
+def s27m(browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        return pwa_scenario(pg, "-mobile-p1i", mobile=True)
+    finally:
+        ctx.close()
+
+
+@scenario("S27_pwa_pembaruan")
+def s27u(pg):
+    """Toast "Versi baru siap" — dan SATU muat ulang, tidak pernah dua.
+
+    SHELL_VERSION dinaikkan DI BERKASNYA lalu dipulihkan di `finally`: peramban
+    membandingkan BYTE sw.js, jadi tidak ada cara lain memunculkan worker yang
+    menunggu selain benar-benar mengubah berkasnya."""
+    if not os.path.exists(SW_FILE):
+        return {"SKIPPED": f"sw.js tidak ada di {SW_FILE} (setel ERP_SW)"}
+
+    original = open(SW_FILE, encoding="utf-8").read()
+    m = re.search(r"const SHELL_VERSION = '([^']+)';", original)
+    if not m:
+        return {"SKIPPED": "SHELL_VERSION tidak ditemukan di sw.js"}
+    bumped = original.replace(m.group(0), f"const SHELL_VERSION = '{m.group(1)}-uji';", 1)
+
+    out = {"version_before": m.group(1)}
+    navigations = []
+    pg.on("framenavigated", lambda f: navigations.append(f.url) if f == pg.main_frame else None)
+
+    try:
+        login(pg, "teknisi@nusantara.test")
+        pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=30000)
+        pg.wait_for_timeout(2000)
+        out["cache_before"] = pg.evaluate("async () => await caches.keys()")
+        out["toasts_before"] = toasts(pg)
+
+        open(SW_FILE, "w", encoding="utf-8").write(bumped)
+        pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); await r.update(); }")
+        pg.wait_for_selector(".toast:has-text('Versi baru siap')", timeout=25000)
+        # Toast masuk dengan animasi; tangkapan layar tanpa jeda ini memotret
+        # separuh transisinya (terukur 7 Sep 2026: teks tembus pandang di atas
+        # kartu di belakangnya).
+        pg.wait_for_timeout(700)
+        out["toast"] = toasts(pg)
+        out["waiting_worker"] = pg.evaluate("async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.waiting); }")
+        pg.screenshot(path=f"{OUT}/s27-toast-versi-baru-p1i.png", full_page=False)
+
+        navigations.clear()
+        click(pg, ".toast button:has-text('Muat ulang')")
+        # Cukup lama untuk memergoki muat ulang KEDUA kalau ada.
+        pg.wait_for_timeout(9000)
+        out["navigations_after_click"] = len(navigations)
+        out["cache_after"] = pg.evaluate("async () => await caches.keys()")
+        out["toasts_after"] = toasts(pg)
+        out["controlled_after"] = pg.evaluate("() => !!navigator.serviceWorker.controller")
+    finally:
+        open(SW_FILE, "w", encoding="utf-8").write(original)
+
+    checks = {
+        "no_toast_on_first_install": not any("Versi baru siap" in t for t in out["toasts_before"]),
+        "toast_says_the_sentence": any("Versi baru siap — Muat ulang" in t for t in out.get("toast", [])),
+        "toast_has_reload_button": any("Muat ulang" in t for t in out.get("toast", [])),
+        "a_worker_was_waiting": out.get("waiting_worker") is True,
+        "reloaded_exactly_once": out.get("navigations_after_click") == 1,
+        "old_cache_deleted": len(out.get("cache_after", [])) == 1 and out.get("cache_after") != out.get("cache_before"),
+        "still_controlled": out.get("controlled_after") is True,
+        "no_toast_left_over": not any("Versi baru siap" in t for t in out.get("toasts_after", [])),
+        "sw_file_restored": open(SW_FILE, encoding="utf-8").read() == original,
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -5378,7 +5630,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
