@@ -47,7 +47,7 @@
  * Membaginya 100 karena itu bukan kosmetik: tanpa itu setiap bar terbaca 100 %.
  */
 
-import { api } from '../api.js';
+import { api, session } from '../api.js';
 import { el, clear, button, errorState, skeletonTable } from '../ui.js';
 import { ganttChart } from '../charts.js';
 
@@ -131,8 +131,17 @@ function paint(host, ctx) {
 
   if (!flat.length) {
     host.appendChild(el('.card', el('.card-body', el('p.muted', {
-      text: 'Proyek ini belum punya WBS. Buat WBS dari BOQ pada tab Ringkasan, atau impor jadwalnya dari '
-        + 'berkas MPP-XML — gantt menggambar tugas WBS, bukan laporan mingguan.',
+      /* Kedua tombol yang disebut ada di KEPALA HALAMAN (project.js), terlihat
+         dari kedua tab — menyuruh pembacanya pindah tab ("pada tab Ringkasan")
+         untuk mencari tombol yang sudah ada di layarnya adalah perjalanan
+         sia-sia. Dan tombolnya hanya digambar untuk pemegang prj.update pada
+         proyek yang belum ditutup, jadi kalimat ini menyebutnya hanya kepada
+         orang yang benar-benar melihatnya. */
+      text: session.can('prj.update')
+        ? 'Proyek ini belum punya WBS. Pakai tombol "Buat WBS dari BOQ" di kepala halaman, atau '
+          + '"Impor Jadwal (MPP-XML)" di sebelahnya — gantt menggambar tugas WBS, bukan laporan mingguan.'
+        : 'Proyek ini belum punya WBS, jadi belum ada jadwal yang bisa digambar. WBS dibuat dari BOQ '
+          + '(atau diimpor dari berkas MPP-XML) oleh pemegang izin ubah proyek.',
       style: { margin: 0 },
     }))));
     return;
@@ -184,16 +193,37 @@ function paint(host, ctx) {
       // ke kertas, dan ia harus menyebut proyeknya.
       el('h2', { text: `Jadwal — ${project.code || ''} ${project.name || ''}`.trim() }),
       el('.spacer'),
-      el('.filters', { style: { border: '0', margin: '0', padding: '0' } }, [
-        ...ZOOMS.map((zoom) => button(zoom.label, {
-          size: 'sm',
-          variant: state.zoom === zoom.key ? 'primary' : 'ghost',
-          onClick: () => {
-            if (state.zoom === zoom.key) return;
-            state.zoom = zoom.key;
-            paint(clear(host), ctx);
-          },
-        })),
+      /* role=group + aria-pressed: skala yang aktif dulu disampaikan HANYA oleh
+         warna (class .primary), jadi pembaca layar tidak diberi tahu apa pun
+         tentang skala mana yang sedang berlaku. */
+      el('.filters', {
+        role: 'group',
+        'aria-label': 'Skala waktu gantt',
+        style: { border: '0', margin: '0', padding: '0' },
+      }, [
+        ...ZOOMS.map((zoom) => {
+          const active = state.zoom === zoom.key;
+          const node = button(zoom.label, {
+            size: 'sm',
+            variant: active ? 'primary' : 'ghost',
+            onClick: () => {
+              if (state.zoom === zoom.key) return;
+              state.zoom = zoom.key;
+              paint(clear(host), ctx);
+              /* Menggambar ulang kartu MEMBUANG tombol yang barusan ditekan,
+                 dan fokus papan ketik ikut jatuh ke <body>: Tab berikutnya
+                 memulai lagi dari puncak halaman. Fokusnya dikembalikan ke
+                 tombol yang sama pada kartu yang baru. */
+              const again = host.querySelector(`.gantt-sheet .filters .btn[data-zoom="${zoom.key}"]`);
+              if (again) again.focus();
+            },
+          });
+
+          node.dataset.zoom = zoom.key;
+          node.setAttribute('aria-pressed', active ? 'true' : 'false');
+
+          return node;
+        }),
         button('Cetak', { size: 'sm', variant: 'ghost', iconName: 'print', onClick: () => window.print() }),
       ]),
     ]),
