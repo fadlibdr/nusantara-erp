@@ -1434,7 +1434,23 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      (yang di dalam svg berada di luar jendela pada posisi gulir awal), di
      kertas svg-nya utuh dan salinan kedua hanya mengulang. */
   .gantt-sheet .gantt-note-dom { display: none !important; }
+
+  /* LEMBAR BERHALAMAN. Sebuah <svg> tidak bisa dipaginasi: jadwal 66 baris yang
+     dicetak sebagai satu gambar memberi halaman kosong, baris yang terbelah di
+     batas halaman, dan tiga dari empat halaman gambar TANPA sumbu tanggal
+     (diukur 7 Sep 2026). Untuk jadwal setinggi itu jadwal.js menggambar satu
+     svg per halaman — masing-masing dengan pita bulan, tick dan legendanya
+     sendiri — dan gambar layarnya disembunyikan di kertas. */
+  .gantt-print { display: block !important; }
+  .gantt-sheet.is-paginated .chart-scroll { display: none !important; }
+  .gantt-print-page { break-inside: avoid; break-after: page; }
+  .gantt-print-page:last-child { break-after: auto; }
+  .gantt-sheet .card-head { break-after: avoid; }
 }
+
+/* Lembar cetak berhalaman gantt: hanya untuk kertas (blok @media print di atas
+   yang menyalakannya). */
+.gantt-print { display: none; }
 
 .bar-row { display: grid; grid-template-columns: minmax(110px, 26%) 1fr minmax(96px, auto); gap: 10px; align-items: center; padding: 6px 0; }
 .bar-row .name { font-size: 12.5px; }

@@ -144,7 +144,22 @@ kedua ukuran, jalan pertama**, dan yang dicatat adalah angka:
   *"11 dari 12 tugas cocok, 1 tanpa pasangan, dicocokkan menurut kode WBS"* dan menyebut
   ketergantungan yang sengaja tidak digambar.
 - **Cetak**: PDF sungguhan dari Chromium, ukuran halaman dibaca dari `/MediaBox` —
-  **792×612 pt (lanskap)** untuk lembar gantt, 612×792 pt untuk sisanya. `@page gantt` terbaca di
+  **792×612 pt (lanskap)** untuk lembar gantt, 612×792 pt untuk sisanya. **Yang diukur di situ
+  adalah ORIENTASINYA, bukan ukuran kertasnya**: 792×612 pt adalah US Letter lanskap, sedangkan
+  `@page gantt` meminta A4 lanskap (842×595 pt). Yang menentukan kertas adalah dialog cetak (dan
+  di harness: bawaan `page.pdf()`, yaitu Letter), bukan stylesheet — jadi angka itu membuktikan
+  halaman gantt benar-benar berputar mendatar, tidak lebih. Dicatat di sini 7 Sep 2026 supaya
+  tidak terbaca sebagai bukti bahwa A4 yang diminta itu selamat.
+- **Cetak jadwal panjang** (7 Sep 2026): sampai verifikasi, sebuah jadwal yang lebih tinggi
+  daripada satu kertas dicetak sebagai SATU svg dan Chrome memotongnya. Diukur pada jadwal 66
+  baris: 7 halaman — halaman 2 hanya judul kartu, halaman 3 kosong sama sekali, halaman 5 dan 6
+  memuat baris tanpa satu pun sumbu tanggal (dibaca per halaman dengan `pdftotext`), dan satu
+  baris terbelah di batas halaman. `jadwal.js` kini menggambar **satu svg per halaman** (16 baris,
+  masing-masing dengan pita bulan, tick, garis "Hari ini" dan legendanya sendiri, semuanya pada
+  `from`/`to` yang sama) dan menyembunyikan gambar layarnya di kertas. Terukur sesudahnya pada
+  jadwal 40 baris: **4 halaman** = 1 potret (kepala proyek) + 3 lanskap, setiap halaman gambar
+  membawa sumbu tanggalnya, 40 dari 40 baris tercetak tepat sekali, 0 halaman kosong
+  (`S26_gantt_cetak_panjang`, 9 syarat). `@page gantt` terbaca di
   CSSOM, `getComputedStyle('.gantt-sheet').page === "gantt"`, gulir mendatar dilepas, `min-width`
   svg jatuh ke 0 sehingga gambarnya menyusut ke kertas alih-alih terpotong, bilah zoom
   disembunyikan tetapi judul dan catatan sumber tetap tercetak

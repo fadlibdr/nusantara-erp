@@ -3244,6 +3244,138 @@ def drop_planted_rows(planted):
         con.close()
 
 
+def plant_long_schedule(project_id=2, parents=4, children=9, mark="S26 cetak panjang"):
+    """Jadwal setinggi 40 baris pada proyek yang belum punya WBS — ukuran biasa
+    untuk pekerjaan gedung, dan lebih tinggi daripada satu kertas."""
+    con = sqlite3.connect(DB)
+    try:
+        cur = con.cursor()
+        cur.execute("DELETE FROM prj_wbs_tasks WHERE project_id = ? AND name LIKE ?", (project_id, f"{mark}%"))
+        rows = 0
+        for section in range(parents):
+            code = chr(ord("A") + section)
+            cur.execute(
+                "INSERT INTO prj_wbs_tasks (project_id, parent_id, wbs_code, name, weight_pct, planned_start,"
+                " planned_end, progress_pct, sort_order, created_at, updated_at)"
+                " VALUES (?, NULL, ?, ?, 0, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                (project_id, code, f"{mark} — bagian {code}", f"2026-0{(section % 9) + 1}-01 00:00:00",
+                 f"2026-1{section % 2}-28 00:00:00", section * 10, section * 100))
+            parent = cur.lastrowid
+            rows += 1
+            for item in range(1, children + 1):
+                cur.execute(
+                    "INSERT INTO prj_wbs_tasks (project_id, parent_id, wbs_code, name, weight_pct, planned_start,"
+                    " planned_end, progress_pct, sort_order, created_at, updated_at)"
+                    " VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                    (project_id, parent, f"{code}.{item}", f"{mark} — paket {code}.{item} lantai {item}",
+                     f"2026-0{(item % 9) + 1}-05 00:00:00", f"2026-{(item % 12) + 1:02d}-20 00:00:00",
+                     (item * 7) % 100, section * 100 + item))
+                rows += 1
+        con.commit()
+        return {"state": "ditanam", "rows": rows, "project_id": project_id, "mark": mark}
+    finally:
+        con.close()
+
+
+def drop_long_schedule(planted):
+    if planted.get("state") != "ditanam":
+        return {"state": "tidak ada yang dihapus", "sebab": planted.get("state")}
+    con = sqlite3.connect(DB)
+    try:
+        n = con.execute("DELETE FROM prj_wbs_tasks WHERE project_id = ? AND name LIKE ?",
+                        (planted["project_id"], f"{planted['mark']}%")).rowcount
+        con.commit()
+        left = con.execute("SELECT count(*) FROM prj_wbs_tasks WHERE project_id = ?", (planted["project_id"],)).fetchone()[0]
+        return {"state": "dibersihkan" if n == planted["rows"] else f"GAGAL: {n} dari {planted['rows']}", "tersisa": left}
+    finally:
+        con.close()
+
+
+@scenario("S26_gantt_cetak_panjang")
+def s26p(pg):
+    """Cetak jadwal yang lebih tinggi daripada satu kertas.
+
+    S26 mencetak proyek 12 baris yang gambarnya muat satu halaman, jadi
+    `print_page_is_landscape` hijau apa pun yang terjadi pada jadwal yang
+    sungguhan. Diukur 7 Sep 2026 pada jadwal 66 baris: 7 halaman — halaman 2
+    memuat HANYA judul kartu, halaman 3 kosong sama sekali, halaman 5 dan 6
+    memuat baris TANPA satu pun sumbu tanggal, dan satu baris terbelah di batas
+    halaman. Tidak ada baris yang hilang, tetapi tiga dari empat halaman gambar
+    tidak punya cara untuk tahu bar-nya berdiri di bulan apa.
+    """
+    out = {"viewport": pg.viewport_size}
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+
+    planted = plant_long_schedule()
+    out["planted"] = planted
+
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.evaluate("() => { location.hash = '#/d/projects/2'; }")
+        pg.wait_for_selector(".tabs button", timeout=20000)
+        pg.wait_for_timeout(1500)
+        click(pg, ".tabs button:nth-child(2)")
+        pg.wait_for_selector(".gantt-sheet svg.chart-gantt", timeout=25000)
+        pg.wait_for_timeout(1000)
+
+        pg.emulate_media(media="print")
+        pg.wait_for_timeout(400)
+        out["print"] = pg.evaluate("""() => {
+          const pages = [...document.querySelectorAll('.gantt-print-page')];
+          const screenChart = document.querySelector('.gantt-sheet .chart-scroll');
+          return {
+            screen_rows: [...document.querySelectorAll('.gantt-sheet .chart-scroll text.gantt-label')].map((t) => t.dataset.full),
+            screen_chart_display: screenChart ? getComputedStyle(screenChart).display : null,
+            print_display: (() => { const p = document.querySelector('.gantt-print');
+              return p ? getComputedStyle(p).display : null; })(),
+            pages: pages.map((page) => ({
+              rows: [...page.querySelectorAll('text.gantt-label')].map((t) => t.dataset.full),
+              tick_labels: page.querySelectorAll('text.gantt-tick-label').length,
+              month_band: page.querySelectorAll('text.gantt-group').length,
+              note: (page.querySelector('text.chart-note') || {}).textContent,
+              break_after: getComputedStyle(page).breakAfter,
+            })),
+          };
+        }""")
+        pdf_path = f"{OUT}/s26-jadwal-cetak-panjang-p1h.pdf"
+        pg.pdf(path=pdf_path, print_background=True)
+        out["pdf_pages"] = _pdf_pages(pdf_path)
+        pg.emulate_media(media="screen")
+    finally:
+        out["cleanup"] = drop_long_schedule(planted)
+
+    pages = out["print"]["pages"]
+    printed_rows = [row for page in pages for row in page["rows"]]
+    landscape = [p for p in out["pdf_pages"] if p["landscape"]]
+    out["pageerrors"] = errors
+
+    checks = {
+        # Gambarnya DIPOTONG jadi halaman: satu svg tidak bisa dipaginasi.
+        "a_long_schedule_is_split_into_pages": len(pages) >= 3,
+        "the_screen_chart_is_not_printed_as_well": out["print"]["screen_chart_display"] == "none"
+            and out["print"]["print_display"] == "block",
+        # Tidak ada baris yang hilang, dan tidak ada yang tercetak dua kali.
+        "every_row_is_printed_exactly_once": printed_rows == out["print"]["screen_rows"],
+        # SETIAP halaman gambar punya sumbu tanggalnya sendiri — inilah cacatnya.
+        "every_printed_page_carries_the_date_axis": all(
+            page["tick_labels"] > 0 and page["month_band"] > 0 for page in pages),
+        "every_printed_page_says_which_rows_it_carries": all(
+            f"halaman {i + 1} dari {len(pages)}" in (page["note"] or "") for i, page in enumerate(pages)),
+        # Halaman lanskap sungguhan, sebanyak potongannya — tidak ada halaman
+        # kosong yang terselip (dulu: 7 halaman untuk 4 halaman gambar).
+        "the_pdf_has_one_landscape_page_per_chunk": len(landscape) == len(pages),
+        "no_blank_page_is_produced": len(out["pdf_pages"]) == len(pages) + 1,
+        "the_fixture_is_gone_again": out["cleanup"]["state"] == "dibersihkan",
+        "no_page_errors": not errors,
+    }
+
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 @scenario("S26_gantt_kode_kembar")
 def s26d(pg):
     """Kode WBS ganda — DI KEDUA SISI, di peramban.
@@ -5229,7 +5361,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

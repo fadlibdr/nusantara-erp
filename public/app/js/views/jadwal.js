@@ -183,8 +183,13 @@ function paint(host, ctx) {
      habis untuk label), jadi lantainya tetap 180 di sana. */
   const wide = typeof window !== 'undefined' && window.innerWidth >= 900;
   const labelWidth = wide ? 300 : 180;
-  const chart = ganttChart({
-    rows,
+  /* Jendela waktu dihitung SEKALI di sini dan dioper ke setiap gambar. Gambar
+     layar akan menghitung jendela yang sama sendiri; lembar cetak per halaman
+     TIDAK BISA — tiap potongan baris punya rentang tanggalnya sendiri, dan
+     tanpa `from`/`to` bersama setiap halaman akan memakai skala waktu yang
+     berbeda: tiga halaman jadwal yang tidak bisa dibandingkan satu sama lain. */
+  const window_ = dateWindow(rows);
+  const common = {
     labelWidth,
     timelineWidth: 900 - labelWidth,
     zoom: state.zoom,
@@ -192,14 +197,23 @@ function paint(host, ctx) {
     // null → charts.js jatuh ke jam peramban; itu hanya terjadi bila server
     // benar-benar tidak mengirim as_of.
     today,
+    from: window_.from,
+    to: window_.to,
     ariaLabel: `Jadwal WBS ${project.code || ''}`.trim(),
+  };
+
+  const chart = ganttChart({
+    ...common,
+    rows,
     // Catatan sumber ikut TERCETAK (ia di dalam svg), dan di kertas bilah zoom
     // sudah disembunyikan blok cetak — jadi kalimat inilah yang memberi tahu
     // pembaca kertasnya apa yang sedang ia lihat.
     sourceNote: note,
   });
 
-  const sheet = el('.card.gantt-sheet', [
+  const printPages = printSheets(rows, common, note);
+
+  const sheet = el(`.card.gantt-sheet${printPages ? '.is-paginated' : ''}`, [
     el('.card-head', [
       // .card-head TIDAK disembunyikan blok cetak — inilah judul yang sampai
       // ke kertas, dan ia harus menyebut proyeknya.
@@ -242,6 +256,10 @@ function paint(host, ctx) {
     // .chart-scroll: gantt lebarnya 900 px alami dan menggulir mendatar di
     // ponsel; blok cetak P1-A sudah menjadikannya `overflow: visible`.
     el('.card-body', el('.chart-scroll', chart)),
+    // Lembar cetak berhalaman (hanya bila jadwalnya lebih tinggi dari satu
+    // kertas) — tidak tergambar di layar, dan menggantikan gambar di atas saat
+    // dicetak.
+    printPages,
     el('.card-body', { style: { borderTop: '1px solid var(--border)', paddingTop: '10px' } }, [
       /* Salinan DOM kalimat sumber. Di ponsel kalimat yang di dalam svg berada
          di luar jendela pada posisi gulir awal (diukur 390x844: ia membentang
@@ -304,6 +322,72 @@ function paint(host, ctx) {
 
   host.appendChild(sheet);
   scrollTodayIntoView(sheet);
+}
+
+/** 'YYYY-MM-DD' yang benar-benar ada; selain itu null (aturan parseDay charts.js). */
+function validDay(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ''));
+
+  if (!match) return null;
+
+  const date = new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
+  const same = date.getUTCFullYear() === +match[1] && date.getUTCMonth() === +match[2] - 1
+    && date.getUTCDate() === +match[3];
+
+  return same ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
+/** Rentang tanggal seluruh jadwal — rencana hidup DAN baris beku. */
+function dateWindow(rows) {
+  const days = rows
+    .flatMap((row) => [row.start, row.end, row.baselineStart, row.baselineEnd])
+    .map(validDay)
+    .filter(Boolean)
+    .sort();
+
+  return { from: days[0] || undefined, to: days[days.length - 1] || undefined };
+}
+
+/* Baris per halaman cetak. Satu potongan setinggi 16 baris menghasilkan svg
+   36 + 16x28 + 10 + legenda + catatan = 542 satuan pada lebar 900 — 169 mm di
+   atas kertas A4 lanskap selebar 281 mm, di bawah tinggi cetaknya (192 mm). */
+const PRINT_ROWS = 16;
+
+/**
+ * Lembar cetak BERHALAMAN, karena sebuah <svg> tidak bisa dipaginasi.
+ *
+ * Diukur 7 Sep 2026 pada jadwal 66 baris (6 induk x 10 anak — ukuran biasa
+ * untuk pekerjaan gedung) yang dicetak dari Chromium: 7 halaman, halaman 2
+ * memuat HANYA judul kartu, halaman 3 kosong sama sekali, halaman 5 dan 6
+ * memuat baris TANPA satu pun sumbu tanggal (tidak ada pita bulan, tidak ada
+ * label tick — dibaca per halaman dengan pdftotext), dan satu baris terbelah di
+ * batas halaman. Tidak ada baris yang hilang, tetapi tiga dari empat halaman
+ * gambar tidak punya cara untuk tahu bar-nya berdiri di bulan apa. Syarat
+ * harness `print_page_is_landscape` hijau apa pun yang terjadi: ia diukur pada
+ * proyek 12 baris yang gambarnya muat satu halaman.
+ *
+ * Karena itu potongannya dibuat DI SINI, satu svg per halaman, masing-masing
+ * membawa pita bulan, tick, garis "Hari ini" dan legendanya sendiri — dan
+ * semuanya memakai `from`/`to` yang SAMA supaya skalanya sebanding. Jadwal yang
+ * memang muat satu halaman tidak dipotong sama sekali (null → kartu tetap
+ * mencetak gambar layarnya, perilaku yang sudah diverifikasi S26).
+ */
+function printSheets(rows, common, note) {
+  if (rows.length <= PRINT_ROWS) return null;
+
+  const pages = Math.ceil(rows.length / PRINT_ROWS);
+
+  return el('.gantt-print', Array.from({ length: pages }, (_, page) => {
+    const slice = rows.slice(page * PRINT_ROWS, (page + 1) * PRINT_ROWS);
+
+    return el('.gantt-print-page', ganttChart({
+      ...common,
+      rows: slice,
+      ariaLabel: `${common.ariaLabel} — halaman ${page + 1} dari ${pages}`,
+      sourceNote: `${note} · halaman ${page + 1} dari ${pages}, baris `
+        + `${page * PRINT_ROWS + 1}–${page * PRINT_ROWS + slice.length} dari ${rows.length}.`,
+    }));
+  }));
 }
 
 /**

@@ -760,7 +760,18 @@ Fase 2). Garis yang digambar dari kolom yang tidak ada adalah jadwal karangan.
 yang memanggil `window.print()` dan semuanya tabel potret. Bilah zoom disembunyikan di kertas, judul
 kartu dan catatan sumber di dalam svg tidak — merekalah yang memberi tahu pembaca kertasnya apa yang
 sedang ia lihat. Diukur S26: PDF Chromium memberi halaman 792×612 pt (lanskap) untuk lembar itu dan
-612×792 pt (potret) untuk sisanya.
+612×792 pt (potret) untuk sisanya — yang dibuktikan angka itu adalah ORIENTASINYA, bukan ukuran
+kertasnya: 792×612 pt adalah US Letter lanskap, dan yang memilih kertas adalah dialog cetak
+(bawaan `page.pdf()` di harness), bukan `size: A4` di stylesheet.
+
+**Jadwal yang lebih tinggi daripada satu kertas DIPOTONG SENDIRI menjadi beberapa svg.** Sebuah
+`<svg>` tidak bisa dipaginasi: diukur 7 Sep 2026 pada jadwal 66 baris, satu gambar besar memberi
+halaman kosong, satu baris terbelah di batas halaman, dan tiga dari empat halaman gambar tanpa
+satu pun sumbu tanggal. `jadwal.js` karena itu menggambar satu svg per 16 baris untuk kertas —
+masing-masing dengan pita bulan, tick, garis "Hari ini" dan legendanya sendiri, dan semuanya
+memakai `from`/`to` yang SAMA supaya skalanya sebanding — lalu menyembunyikan gambar layarnya
+(`.gantt-sheet.is-paginated .chart-scroll`). Kaki setiap halaman menyebut "halaman n dari m,
+baris a–b dari N".
 
 **Gerbang izin.** Ketiga GET layar proyek (`{project}/wbs-tasks`, `/s-curve`, `/dashboard`) menuntut
 `permission:prj.view`, sama dengan `{project}/evm` dan `projects/baselines`. Sampai P1-H gerbang itu
