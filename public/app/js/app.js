@@ -1663,6 +1663,52 @@ function scheduleServiceWorker() {
   else window.addEventListener('load', start, { once: true });
 }
 
+/*
+ * Sesi yang berangkat dari cermin localStorage harus BERHENTI menjadi sesi
+ * cermin begitu jaringannya kembali (P1-I, verifikasi 7 Sep 2026).
+ *
+ * Toast "Mode luring" dulu dipasang dengan timeout 0 dan tanpa satu pun
+ * pendengar: terukur di 390x844, sesudah jaringan kembali dan layar Lapangan
+ * memuat data hidup dengan pita luring sudah padam dan nol galat, toast itu
+ * masih berbunyi "Tanpa koneksi …" — diperiksa lagi 8 detik kemudian, masih
+ * sama, dan menutup 104 px paling bawah layar sampai orangnya menekan silang.
+ * Ia juga satu-satunya penanda bahwa izin dan menu berasal dari cermin, dan
+ * refreshMe() tidak pernah dijalankan lagi sesudah boot luring.
+ *
+ * Jadi: satu percobaan penyegaran pada peristiwa jaringan pertama yang
+ * menjanjikan. BUKAN `online` saja — `online` hanya berarti antarmukanya
+ * menyala (Wi-Fi berportal melaporkannya juga), dan penyegaran yang gagal
+ * MEMBIARKAN toast-nya berdiri, karena saat itu kalimatnya masih benar.
+ */
+function recoverFromOfflineBoot(node) {
+  let running = false;
+
+  async function retry() {
+    if (running || !node.isConnected) return;
+    running = true;
+    try {
+      await refreshMe();
+    } catch {
+      running = false;   // belum sampai juga: kalimat toast-nya masih benar
+      return;
+    }
+    window.removeEventListener('erp:network', onNetwork);
+    window.removeEventListener('online', retry);
+    node.remove();
+    await prefs.load().catch(() => {});
+    applyDensity(readDensity());
+    refreshNav();
+    toast('Kembali daring. Izin dan menu disegarkan; buka ulang layarnya untuk angka terbaru.');
+  }
+
+  function onNetwork(event) {
+    if (event.detail && event.detail.ok) retry();
+  }
+
+  window.addEventListener('erp:network', onNetwork);
+  window.addEventListener('online', retry);
+}
+
 async function init() {
   // Tautan "lupa kata sandi" dibuka tanpa sesi — diperiksa sebelum apa pun.
   const reset = resetLinkParams();
@@ -1698,9 +1744,10 @@ async function init() {
        * peramban ini yang terbuka karenanya.
        */
       boot();
-      toast('Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali.', {
-        tone: 'info', title: 'Mode luring', timeout: 0,
-      });
+      recoverFromOfflineBoot(toast(
+        'Tanpa koneksi — aplikasi dibuka dari salinan di perangkat ini. Angkanya bisa tertinggal sampai sinyal kembali.',
+        { tone: 'info', title: 'Mode luring', timeout: 0 },
+      ));
     } else {
       renderLogin({ message: 'Tidak dapat menghubungi server. Coba masuk kembali.' });
     }

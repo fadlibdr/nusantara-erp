@@ -5514,6 +5514,23 @@ def pwa_scenario(pg, tag, mobile=False):
     ctx.set_offline(False)
     pg.wait_for_timeout(800)
 
+    # Toast "Mode luring" harus MEMBETULKAN dirinya sendiri. Sampai 7 Sep 2026 ia
+    # dipasang dengan timeout 0 dan tanpa pendengar apa pun: layar sudah memuat
+    # data hidup, pita luring sudah padam, dan toast itu masih berbunyi "Tanpa
+    # koneksi" sampai orangnya menekan silang — di 390x844 ia menutup 104 px
+    # paling bawah layar selamanya.
+    #
+    # Yang memadamkannya adalah permintaan pertama yang SAMPAI, bukan jam:
+    # sesudah muat ulang luring navigator.onLine sudah true lagi (artefak
+    # emulasi Playwright, terukur), jadi set_offline(False) tidak menyalakan
+    # peristiwa `online` sama sekali. Karena itu di sini dibuka satu layar —
+    # yang juga yang dilakukan orangnya. Tanpa itu pun toast padam paling lambat
+    # pada polling notifikasi 90 detik.
+    pg.evaluate("() => { location.hash = '#/home'; }")
+    pg.wait_for_timeout(3500)
+    out["toasts_after_reconnect"] = toasts(pg)
+    pg.screenshot(path=f"{OUT}/s27-kembali-daring{tag}.png", full_page=False)
+
     # Bukti kedua, dari sisi Playwright dan bukan dari halaman: tidak satu pun
     # respons /api/ yang datang dari service worker, sepanjang skenario.
     out["api_responses_from_worker"] = sorted({u.split("/api/")[1] for u, sw in seen if "/api/" in u and sw})
@@ -5558,6 +5575,9 @@ def pwa_scenario(pg, tag, mobile=False):
         "ribbon_hidden_when_requests_arrive_again": out["ribbon_after_portal_cleared"]["hidden"] is True,
         "offline_shell_renders": out["offline_shell"]["shell"] and out["offline_shell"]["nav_items"] > 0 and not out["offline_shell"]["login_form"],
         "offline_ribbon_survives_reload": out["offline_shell"]["ribbon_visible"] is True,
+        "offline_boot_toast_shown": any("Mode luring" in t for t in out["offline_shell"]["toasts"]),
+        "offline_boot_toast_clears_itself": not any("Mode luring" in t for t in out["toasts_after_reconnect"]),
+        "reconnect_says_the_session_was_refreshed": any("Kembali daring" in t for t in out["toasts_after_reconnect"]),
         "offline_api_failed": out["offline_api"]["threw"] is True,
         "offline_shell_came_from_cache_storage": out["offline_entries"]["shell_from_cache_storage"] > 0,
         "zero_api_from_cache_storage": out["offline_entries"]["api_from_cache_storage"] == [],
