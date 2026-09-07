@@ -143,6 +143,52 @@ types { application/manifest+json  webmanifest; }
 lalu `nginx -t && systemctl reload nginx`. Konfigurasi nginx adalah milik pemilik; repositori ini
 tidak mengubahnya.
 
+### 2.3 Mencabut worker (jalan pulang)
+
+Service worker adalah satu-satunya artefak paket ini yang **menetap di setiap peramban yang pernah
+membuka `/app/`**, bahkan sesudah rilis berikutnya. Kalau ia harus dicabut — insiden, keputusan
+pemilik, atau lapisan luringnya ternyata tidak diinginkan — jalannya adalah ini, dan **bukan**
+menghapus berkasnya.
+
+**Jangan hapus `public/app/sw.js`.** Diukur 7 Sep 2026 pada cermin statis (peramban Chromium, satu
+profil): sesudah berkasnya dihapus dan rilis itu terbit, `registration.update()` melempar
+`TypeError: Failed to update a ServiceWorker …` dan sesudahnya worker-nya **tetap terdaftar, tetap
+menguasai halaman, dan cache `nusantara-shell-v1` tetap utuh** — juga sesudah muat ulang penuh.
+Menghapus berkasnya tidak mencopot apa pun; ia hanya membuat worker lama tidak bisa diperbarui lagi,
+yaitu keadaan terburuk dari keduanya.
+
+**Yang bekerja**: ganti ISI `public/app/sw.js` dengan pencabut, lalu rilis seperti biasa.
+
+```js
+/* Pencabut worker (jalan pulang). Dipasang sebagai /app/sw.js untuk satu rilis. */
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter((n) => n.startsWith('nusantara-shell-')).map((n) => caches.delete(n)));
+    await self.registration.unregister();
+    const windows = await self.clients.matchAll({ type: 'window' });
+    windows.forEach((client) => client.navigate(client.url));
+  })());
+});
+```
+
+Diukur pada profil yang sama, langsung sesudah pencabut itu terbit: `registered false`,
+`controller false`, `caches []`, dan halamannya tetap tergambar. Tidak ada langkah nginx: `/app/`
+sudah dilayani `Cache-Control: no-cache`, jadi setiap peramban merevalidasi `sw.js` pada kunjungan
+berikutnya.
+
+Tiga catatan yang menghemat satu insiden:
+
+1. **Biarkan pencabut itu terpasang satu siklus rilis penuh** sebelum berkasnya benar-benar dihapus.
+   Peramban yang tidak dibuka selama itu belum pernah membacanya, dan menghapus berkasnya lebih awal
+   mengembalikan keadaan "tidak bisa dicabut lagi" di atas.
+2. `tests/Feature/Core/PwaServiceWorkerTest` akan **merah** atas pencabut ini — memang harus: aturan
+   yang dipakunya sudah tidak berlaku. Hapus berkas ujinya dalam commit yang sama, jangan
+   melonggarkannya.
+3. `manifest.webmanifest` dan `<link rel="manifest">` boleh tetap ada. Manifest hanya membuat
+   aplikasi bisa dipasang; ia tidak menyimpan apa pun dan tidak menahan apa pun.
+
 ## 3. First deployment (langkah demi langkah)
 
 **3.1 — Clone and configure**

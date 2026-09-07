@@ -854,3 +854,10 @@ melaporkan `true`. HTTP 500 **bukan** luring: server menjawab. Pita padam pada p
 atau pada permintaan berikutnya yang berhasil — paling lambat polling notifikasi 90 detik. Ia
 sengaja tidak menyelidik jaringan sendiri: lalu lintas latar dari ponsel lapangan berkuota adalah
 biaya nyata untuk informasi yang akan datang sendiri.
+
+**Mencabut worker.** Worker adalah satu-satunya artefak paket ini yang menetap di setiap peramban
+yang pernah membuka `/app/`, jadi "bagaimana mengambilnya kembali" adalah pertanyaan operasional
+yang harus punya jawaban tertulis: **DEPLOYMENT § 2.3**. Ringkasnya — **menghapus `sw.js` tidak
+mencopot apa pun** (terukur: sesudahnya worker tetap terdaftar, tetap menguasai halaman, cache tetap
+utuh, dan `update()` melempar), yang bekerja adalah **mengganti isinya** dengan pencabut yang
+menghapus cache dan memanggil `self.registration.unregister()`.
