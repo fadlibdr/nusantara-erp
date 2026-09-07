@@ -148,6 +148,28 @@ class PwaServiceWorkerTest extends TestCase
         );
     }
 
+    public function test_an_incomplete_shell_install_is_thrown_away(): void
+    {
+        $install = $this->code();
+        $start = strpos($install, "self.addEventListener('install'");
+        $this->assertNotFalse($start, 'Tidak ada lagi pendengar install di sw.js.');
+        $body = substr($install, $start, strpos($install, "self.addEventListener('activate'") - $start);
+
+        $this->assertMatchesRegularExpression(
+            '~if \(failed\.length\) \{~',
+            $body,
+            'install tidak lagi memeriksa entri yang gagal dipasang.',
+        );
+        $this->assertMatchesRegularExpression(
+            '~if \(failed\.length\) \{.*?await caches\.delete\(CACHE\);~s',
+            $body,
+            'Cangkang yang tidak lengkap tidak lagi dibuang. Terukur 7 Sep 2026 dengan kuota origin '
+            .'1,2 MB: 42 dari 102 entri masuk, worker tetap aktif, lalu muat ulang tanpa jaringan '
+            .'berhenti selamanya di pemutar boot (body kosong, 1.532 char). Cangkang setengah lebih '
+            .'buruk daripada tidak ada cangkang — dipaku juga oleh harness S27_pwa_cangkang_sebagian.',
+        );
+    }
+
     public function test_the_network_starts_before_the_cache_is_opened(): void
     {
         $body = $this->functionBody('networkFirst');

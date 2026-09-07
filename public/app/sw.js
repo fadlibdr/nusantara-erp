@@ -189,7 +189,33 @@ self.addEventListener('install', (event) => {
     // atas SHELL-lah yang menjaga daftar ini benar.
     const results = await Promise.allSettled(SHELL.map((path) => cache.add(path)));
     const failed = SHELL.filter((_, i) => results[i].status === 'rejected');
-    if (failed.length) console.warn('[sw] tidak masuk cache:', failed);
+    if (failed.length) {
+      /*
+       * CANGKANG SETENGAH LEBIH BURUK DARIPADA TIDAK ADA CANGKANG.
+       *
+       * Terukur 7 Sep 2026 dengan kuota origin dibatasi 1,2 MB (CDP
+       * Storage.overrideQuotaForOrigin; cangkang ini ~2,1 MB): 42 dari 102
+       * entri masuk, worker tetap aktif dan menguasai halaman. DARING semuanya
+       * baik-baik saja — jaringan-dulu. LURING, muat ulang menyajikan
+       * index.html dari cache sementara modul-modul yang hilang gagal dengan
+       * net::ERR_FAILED, dan halamannya berhenti di pemutar boot: shell false,
+       * body kosong, 1.532 char, tanpa satu kalimat pun kepada orangnya.
+       *
+       * Karena itu cache yang tidak lengkap dibuang seluruhnya. Perangkatnya
+       * turun ke "tidak punya lapisan luring" — yang jujur dan bisa dipulihkan
+       * sendiri pada kunjungan berikutnya yang muat — bukan ke "aplikasi
+       * membeku saat sinyal hilang". Install-nya sendiri tetap BERHASIL (beda
+       * dengan cache.addAll yang menolak seluruhnya dan membekukan pembaruan
+       * bagi semua orang), jadi worker baru tetap dipasang dan rilis berikutnya
+       * tetap bisa mengambil alih.
+       *
+       * Jaring pengaman kedua ada di index.html: pengawas boot yang mengganti
+       * pemutar dengan kalimat, karena cache juga bisa terisi separuh lewat
+       * jalur fetch di perangkat yang penyimpanannya sempit.
+       */
+      console.warn('[sw] cangkang tidak lengkap, cache dibuang:', failed);
+      await caches.delete(CACHE);
+    }
   })());
   // TIDAK skipWaiting(): worker baru menunggu sampai orangnya menekan
   // "Muat ulang" pada toast (app.js kirim pesan SKIP_WAITING). Mengambil alih

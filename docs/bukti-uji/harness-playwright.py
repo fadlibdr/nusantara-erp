@@ -5650,6 +5650,109 @@ def s27u(pg):
     out["ok"] = not out["failed_checks"]
     return out
 
+
+BOOT_ROOT = """() => ({ spinner: !!document.querySelector('.boot-spinner'),
+  shell: !!document.querySelector('.shell'),
+  failed_panel: !!document.querySelector('#root.boot-failed'),
+  head: (document.querySelector('#root.boot-failed h1') || {}).textContent || null,
+  body: (document.querySelector('#root.boot-failed p') || {}).textContent || null,
+  button: (document.querySelector('#root.boot-failed button') || {}).textContent || null })"""
+
+
+@scenario("S27_pwa_cangkang_sebagian")
+def s27k(browser):
+    """Cangkang yang tidak lengkap: kuota penuh, dan berkas yang tidak sampai.
+
+    Dua keadaan yang tidak bisa dibuktikan uji PHP mana pun, karena keduanya
+    hanya ada di dalam peramban:
+
+    (A) KUOTA. Kuota origin dibatasi 1,2 MB lewat CDP (cangkangnya ~2,1 MB),
+        jadi install-nya sebagian. Sampai 7 Sep 2026 hasilnya: 42 dari 102 entri
+        masuk, worker aktif, DARING baik-baik saja — lalu muat ulang tanpa
+        jaringan berhenti selamanya di pemutar boot (body kosong, 1.532 char).
+        Sekarang cache yang tidak lengkap dibuang, jadi perangkatnya turun ke
+        "tidak punya lapisan luring", bukan ke aplikasi yang membeku.
+
+    (B) PENGAWAS BOOT. Satu modul cangkang digugurkan (persis rilis yang
+        kehilangan berkas — 7 Sep 2026 satu 404 menggantung seluruh SPA):
+        index.html harus mengganti pemutar dengan kalimat, dan kalimatnya
+        berbeda ketika perangkatnya luring."""
+    out = {}
+    decide_onboarding("teknisi@nusantara.test")
+
+    # ---- (A0) KENDALI. Konteks yang sama TANPA batas kuota, tanpa masuk —
+    # pendaftaran worker tidak menunggu sesi. Tanpa baris ini "0 entri" tidak
+    # membuktikan apa pun: navigator.storage.estimate() TIDAK melaporkan kuota
+    # yang ditimpa CDP (terukur 7 Sep 2026: tetap 4,3 GB sementara install-nya
+    # nyata-nyata terpotong), jadi yang membuktikan batasnya bekerja adalah
+    # selisih dengan jalan kendali ini.
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        pg.goto(BASE)
+        pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=40000)
+        pg.wait_for_timeout(8000)
+        out["control_cache"] = pg.evaluate(SW_FACTS)
+    finally:
+        ctx.close()
+
+    # ---------------------------------------------------------------- (A)
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        cdp = ctx.new_cdp_session(pg)
+        cdp.send("Storage.overrideQuotaForOrigin", {"origin": ORIGIN, "quotaSize": 1_200_000})
+        login(pg, "teknisi@nusantara.test")
+        pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=40000)
+        pg.wait_for_timeout(8000)   # 102 berkas dicoba satu per satu
+        out["cache_after_install"] = pg.evaluate(SW_FACTS)
+        pg.evaluate("() => { location.hash = '#/lapangan'; }")
+        pg.wait_for_timeout(2500)
+        out["online_after_quota"] = pg.evaluate("() => ((document.querySelector('.page-head h1') || {}).innerText || null)")
+        ctx.set_offline(True)
+        try:
+            pg.reload(wait_until="commit")
+            pg.wait_for_timeout(6000)
+            out["offline_reload"] = pg.evaluate(BOOT_ROOT)
+        except Exception as error:
+            # Tanpa index.html di cache peramban menggambar halaman galatnya
+            # sendiri: itulah "tidak punya lapisan luring", dan itu jujur.
+            out["offline_reload"] = {"navigation_error": str(error).splitlines()[0][:120], "spinner": False}
+    finally:
+        ctx.close()
+
+    # ---------------------------------------------------------------- (B)
+    for label, offline in (("daring", False), ("luring", True)):
+        ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+        pg = ctx.new_page()
+        try:
+            pg.route("**/app/js/ui.js", lambda route: route.abort("connectionfailed"))
+            if offline:
+                pg.add_init_script("Object.defineProperty(navigator, 'onLine', { get: () => false });")
+            pg.goto(BASE, wait_until="commit")
+            pg.wait_for_timeout(4000)
+            out[f"boot_{label}"] = pg.evaluate(BOOT_ROOT)
+            pg.screenshot(path=f"{OUT}/s27-boot-gagal-{label}-p1i.png", full_page=False)
+        finally:
+            ctx.close()
+
+    checks = {
+        "control_installs_the_whole_shell": out["control_cache"]["cached"] >= 100,
+        "quota_override_took": out["cache_after_install"]["cached"] < out["control_cache"]["cached"],
+        "half_shell_thrown_away": out["cache_after_install"]["cached"] == 0,
+        "app_still_works_online": out["online_after_quota"] == "Lapangan",
+        "offline_never_hangs_on_the_spinner": out["offline_reload"].get("spinner") is not True,
+        "watchdog_replaces_the_spinner": (out["boot_daring"]["failed_panel"] is True
+                                          and out["boot_daring"]["spinner"] is False),
+        "watchdog_says_what_to_do": out["boot_daring"]["button"] == "Muat ulang" and "Muat ulang halaman" in (out["boot_daring"]["body"] or ""),
+        "watchdog_knows_it_is_offline": "tanpa koneksi" in (out["boot_luring"]["head"] or ""),
+        "offline_sentence_names_the_photo_queue": "antrean" in (out["boot_luring"]["body"] or ""),
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -5660,7 +5763,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
