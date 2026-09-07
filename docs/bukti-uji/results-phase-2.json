@@ -830,5 +830,163 @@
   ],
   "_ms": 4175,
   "_clicks": 0
+ },
+ "S28_matriks_persetujuan": {
+  "matrix": {
+   "found": true,
+   "head": "Matriks Persetujuan",
+   "count_label": "28 jenis dokumen",
+   "rows": 28,
+   "editable_cells": 38,
+   "headers": [
+    "JENIS DOKUMEN",
+    "WAJIB DIREKTUR MULAI DARI",
+    "CARA AMBANG BERLAKU",
+    "AMBANG TINGKAT KETIGA"
+   ],
+   "po": [
+    "Pesanan pembelian prc.approve-director",
+    "Rp 100 juta Bawaan: Rp 100.000.000",
+    "Satu penyetuju, harus direktur di atas ambang",
+    "Tidak berlaku pada mode ini"
+   ],
+   "spk": [
+    "SPK subkontraktor scm.approve-director",
+    "Rp 200 juta Bawaan: Rp 200.000.000",
+    "Satu penyetuju, harus direktur di atas ambang",
+    "Tidak berlaku pada mode ini"
+   ],
+   "addendum": [
+    "Addendum SPK scm.approve-director",
+    "Mengikuti SPK subkontraktor",
+    "—",
+    "—"
+   ],
+   "award": [
+    "Keputusan pemenang prc.approve-director",
+    "Rp 100 juta Bawaan: Rp 100.000.000",
+    "— Satu penyetuju, harus direktur di atas ambang Tambahan tingkat: penyetuju kedua yang berbeda Bawaan: Tambahan tingkat: penyetuju kedua yang berbeda",
+    "Rp 1 M Bawaan: Rp 1.000.000.000"
+   ],
+   "izin_kerja": [
+    "Izin kerja lapangan prj.approve-director",
+    "Tanpa nilai rupiah — ambang tidak berlaku",
+    "—",
+    "—"
+   ],
+   "cuti": [
+    "Pengajuan cuti hr.approve-director",
+    "Tanpa nilai rupiah — ambang tidak berlaku",
+    "—",
+    "—"
+   ],
+   "zero_rows": [],
+   "dash_rows": 13,
+   "follows_rows": 1
+  },
+  "role_created": 201,
+  "user_created": 201,
+  "edit_without_director": {
+   "status": 422,
+   "message": "{\"settings.approvals.purchase_order.threshold_two_level\": [\"Aturan persetujuan hanya dapat diubah oleh pemegang izin persetujuan direktur (*.approve-director) — pada instalasi standar peran direktur atau admin. Izin core.update saja tidak cukup: yang diubah di sini adalah siapa boleh menyetujui dokumen senilai berapa.\"]}"
+  },
+  "edit_with_both": {
+   "status": 200,
+   "message": "Pengaturan disimpan."
+  },
+  "po_threshold_after_reset": 100000000,
+  "bulk_off": {
+   "rows": 4,
+   "checkboxes": 0,
+   "disabled": 0,
+   "bulk_button": false,
+   "bulk_text": null
+  },
+  "delegation_created": {
+   "status": 201,
+   "state": "Berjalan"
+  },
+  "delegate_banner": "Anda memegang delegasi persetujuan dari Administrator Sistem (seluruh persetujuannya, 01 Sep 2026 – 27 Sep 2026) — Cuti tahunan (fixture S28).\nPersetujuan yang Anda berikan dengan hak ini tercatat sebagai \"Anda a.n. pemberinya\". Dokumen yang DIAJUKAN pemberi delegasi tetap tidak boleh Anda setujui.",
+  "bulk_on": {
+   "rows": 4,
+   "checkboxes": 4,
+   "disabled": 0,
+   "bulk_button": true,
+   "bulk_text": "Pilih dokumen untuk disetujui sekaligus (maksimum 5).\nSetujui terpilih"
+  },
+  "selected": {
+   "codes": [
+    "CTI/2026/VIII/0002",
+    "RAP/2026/0001"
+   ],
+   "bar": "2 dipilih dari maksimum 5.\nSetujui terpilih"
+  },
+  "bulk_toasts": [
+   "2 dokumen disetujui: CTI/2026/VIII/0002, RAP/2026/0001."
+  ],
+  "after_bulk": {
+   "rows": 2,
+   "checkboxes": 2,
+   "disabled": 0,
+   "bulk_button": true,
+   "bulk_text": "Pilih dokumen untuk disetujui sekaligus (maksimum 5).\nSetujui terpilih"
+  },
+  "an_trail": {
+   "code": "CTI/2026/VIII/0002",
+   "actor": "Dewi Lestari",
+   "on_behalf_of": "Administrator Sistem",
+   "reads": "Dewi Lestari a.n. Administrator Sistem"
+  },
+  "delegations_seen_by_giver": [
+   {
+    "delegate": "Dewi Lestari",
+    "state": "Berjalan",
+    "scope": "Semua persetujuan"
+   }
+  ],
+  "checks": {
+   "matrix_renders_every_approvable_type": true,
+   "matrix_is_labelled_by_document_type": true,
+   "po_row_carries_todays_threshold": true,
+   "spk_row_carries_todays_threshold": true,
+   "award_row_carries_todays_ladder": true,
+   "addendum_row_follows_the_spk_row": true,
+   "amountless_rows_print_the_rule": true,
+   "thirteen_rows_have_no_amount": true,
+   "no_row_ships_a_fabricated_zero": true,
+   "core_update_alone_is_refused": true,
+   "the_refusal_names_the_permission_needed": true,
+   "a_director_with_core_update_may_edit": true,
+   "the_edit_is_reversible_to_the_shipped_default": true,
+   "the_queue_measured_for_bulk_off_is_not_empty": true,
+   "bulk_is_invisible_while_the_cap_is_empty": true,
+   "the_delegate_is_told_before_approving": true,
+   "the_banner_names_the_giver": true,
+   "bulk_appears_once_the_owner_sets_a_cap": true,
+   "the_cap_is_printed_not_implied": true,
+   "two_documents_were_actually_picked": true,
+   "bulk_approve_names_every_document_it_touched": true,
+   "approved_rows_leave_the_queue": true,
+   "the_trail_reads_budi_a_n_sari": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 21849,
+  "_clicks": 1
+ },
+ "S28_matriks_persetujuan_mobile": {
+  "found": true,
+  "rows": 28,
+  "wrap_scrolls": true,
+  "page_scrolls_sideways": false,
+  "checks": {
+   "matrix_renders_on_a_phone": true,
+   "the_wide_table_scrolls_inside_its_own_box": true,
+   "the_page_never_scrolls_sideways": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 5464,
+  "_clicks": 0
  }
 }
