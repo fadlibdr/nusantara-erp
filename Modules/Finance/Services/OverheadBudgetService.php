@@ -180,6 +180,7 @@ class OverheadBudgetService
         $rows = [];
         $totalBudget = 0.0;
         $totalActual = 0.0;
+        $measured = 0;
 
         foreach ($lines as $line) {
             $planned = (float) $line->amount;
@@ -189,6 +190,7 @@ class OverheadBudgetService
 
             $totalBudget = round($totalBudget + $planned, 2);
             $totalActual = round($totalActual + ($actual ?? 0.0), 2);
+            $measured += $actual === null ? 0 : 1;
 
             $rows[] = [
                 'account_id' => (int) $line->account_id,
@@ -203,24 +205,64 @@ class OverheadBudgetService
             ];
         }
 
+        /*
+         * NOL AKUN BERMUTASI BUKAN REALISASI NOL RUPIAH (verifikasi F-2).
+         * Setiap barisnya sudah menggaris dirinya sendiri ("—", tidak_terukur),
+         * tetapi totalnya menjumlahkan null sebagai 0 dan mencetak "Rp 0 /
+         * 0,0 % / Aman" hijau — tepat di bawah kalimat bantuan layarnya sendiri
+         * yang berbunyi "bertanda —, bukan Rp 0". Terukur: OVB 2026 disetujui,
+         * satu akun Rp 500.000.000, NOL jurnal terposting -> total_actual 0.0,
+         * pct 0.0, state 'aman', rows[0]['actual'] NULL. Sekarang totalnya
+         * mengikuti barisnya: TIDAK_TERUKUR, dan layar menggarisnya.
+         *
+         * Bila SEBAGIAN akun bermutasi, totalnya tetap angka — nol rupiah pada
+         * akun yang belum bermutasi memang tidak menambah apa pun ke jumlahnya —
+         * dan catatannya menyebut berapa akun yang belum terukur, supaya
+         * persentase itu dibaca dengan tahu apa yang belum ada di dalamnya.
+         */
+        $unmeasured = $lines->count() - $measured;
+        $nothingMeasured = $measured === 0;
+
         return [
             'period_year' => $year,
             'code' => $budget->code,
             'status' => $budget->status->value,
             'total_budget' => $totalBudget,
-            'total_actual' => $totalActual,
-            'pct' => WatchedThresholds::pct($totalActual, $totalBudget),
-            'state' => WatchedThresholds::state($totalActual, $totalBudget > 0 ? $totalBudget : null, $warnPct),
+            'total_actual' => $nothingMeasured ? null : $totalActual,
+            'pct' => $nothingMeasured ? null : WatchedThresholds::pct($totalActual, $totalBudget),
+            'state' => $nothingMeasured
+                ? WatchedThresholds::TIDAK_TERUKUR
+                : WatchedThresholds::state($totalActual, $totalBudget > 0 ? $totalBudget : null, $warnPct),
             'warn_pct' => $warnPct,
             'rows' => $rows,
             'note' => sprintf(
                 'Realisasi dibaca dari baris jurnal TERPOSTING bertanggal dalam %d pada akun yang '
-                .'dianggarkan OVB %s (debit − kredit). Anggaran %s.',
+                .'dianggarkan OVB %s (debit − kredit). Anggaran %s.%s',
                 $year,
                 $budget->code,
                 Money::format($totalBudget, false),
+                $this->measurementNote($nothingMeasured, $unmeasured, $lines->count()),
             ),
         ];
+    }
+
+    /** Kalimat tentang APA YANG BELUM TERUKUR — nol akun bermutasi, atau sebagian. */
+    private function measurementNote(bool $nothingMeasured, int $unmeasured, int $accounts): string
+    {
+        if ($nothingMeasured) {
+            return sprintf(
+                ' Belum ada satu baris jurnal terposting pun pada %d akun yang dianggarkan, jadi '
+                .'realisasinya BELUM TERUKUR — itu bukan hal yang sama dengan belanja nol rupiah.',
+                $accounts,
+            );
+        }
+
+        return $unmeasured === 0 ? '' : sprintf(
+            ' %d dari %d akun belum bermutasi sekali pun tahun ini dan tidak menambah apa pun ke '
+            .'jumlah di atas.',
+            $unmeasured,
+            $accounts,
+        );
     }
 
     public function approvedFor(int $year): ?OverheadBudget

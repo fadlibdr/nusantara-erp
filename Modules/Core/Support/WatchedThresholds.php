@@ -501,26 +501,45 @@ class WatchedThresholds
             ->where('overhead_budget_id', $budget->id)
             ->sum('amount'), 2);
 
-        // SETENGAH TERBUKA: kolom date tersimpan '2026-12-31 00:00:00' di
-        // SQLite, dan string itu sortir SESUDAH '2026-12-31' — sebuah BETWEEN
-        // membuang setiap jurnal 31 Desember.
-        $actual = $accountIds === [] ? null : round((float) DB::table('fin_journal_lines as l')
+        /*
+         * SETENGAH TERBUKA: kolom date tersimpan '2026-12-31 00:00:00' di
+         * SQLite, dan string itu sortir SESUDAH '2026-12-31' — sebuah BETWEEN
+         * membuang setiap jurnal 31 Desember.
+         *
+         * DAN JUMLAH BARISNYA IKUT DIHITUNG (verifikasi F-2). SUM() atas nol
+         * baris memulangkan NULL, dan (float) NULL adalah 0.0 — jadi sebuah OVB
+         * yang akun-akunnya belum bermutasi sekali pun berbaris di registri
+         * sebagai "Rp 0 · 0 % · Aman", yaitu persis batang 0 % hijau yang
+         * docblock kelas ini sebut "cara paling murah membuat layar anggaran
+         * berbohong". Nol baris jurnal = TIDAK TERUKUR; mutasi bersih nol
+         * rupiah = Rp 0, dan keduanya harus bisa dibedakan.
+         */
+        $movement = $accountIds === [] ? null : DB::table('fin_journal_lines as l')
             ->join('fin_journals as j', 'j.id', '=', 'l.journal_id')
             ->whereIn('l.account_id', $accountIds)
             ->where('j.status', 'posted')
             ->whereNull('j.deleted_at')
             ->where('j.journal_date', '>=', $year.'-01-01')
             ->where('j.journal_date', '<', ($year + 1).'-01-01')
-            ->sum(DB::raw('l.debit - l.credit')), 2);
+            ->selectRaw('COUNT(*) as lines, SUM(l.debit - l.credit) as net')
+            ->first();
+
+        $measuredLines = $movement === null ? 0 : (int) $movement->lines;
+        $actual = $measuredLines === 0 ? null : round((float) $movement->net, 2);
 
         return [[
             'subject' => (string) $year,
             'name' => 'OVB '.$budget->code,
             'actual' => $actual,
             'limit' => $limit,
-            'note' => $accountIds === []
-                ? 'OVB '.$budget->code.' belum memuat satu akun pun, jadi belum ada yang bisa diukur.'
-                : 'Realisasi dibaca dari '.count($accountIds).' akun yang dianggarkan OVB '.$budget->code.'.',
+            'note' => match (true) {
+                $accountIds === [] => 'OVB '.$budget->code.' belum memuat satu akun pun, jadi belum ada yang bisa diukur.',
+                $measuredLines === 0 => 'Belum ada satu baris jurnal terposting pun tahun ini pada '
+                    .count($accountIds).' akun yang dianggarkan OVB '.$budget->code
+                    .' — belum terukur, bukan nol rupiah belanja.',
+                default => 'Realisasi dibaca dari '.$measuredLines.' baris jurnal pada '
+                    .count($accountIds).' akun yang dianggarkan OVB '.$budget->code.'.',
+            },
         ]];
     }
 

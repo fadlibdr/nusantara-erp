@@ -101,6 +101,41 @@ class OverheadBudgetTest extends ErpTestCase
         ]);
     }
 
+    /** Pembalik: kredit pada akun bebannya, debit pada kas — jurnal terposting. */
+    private function postReversal(string $date, string $accountCode, float $amount): void
+    {
+        $journalId = DB::table('fin_journals')->insertGetId([
+            'code' => 'JV/REV/'.uniqid(),
+            'journal_date' => $date,
+            'description' => 'Pembalik beban overhead uji',
+            'status' => 'posted',
+            'posted_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('fin_journal_lines')->insert([
+            [
+                'journal_id' => $journalId,
+                'account_id' => $this->account($accountCode)->id,
+                'description' => 'Pembalik beban',
+                'debit' => 0,
+                'credit' => $amount,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'journal_id' => $journalId,
+                'account_id' => $this->account('1-1100')->id,
+                'description' => 'Kas',
+                'debit' => $amount,
+                'credit' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
+
     // --------------------------------------------------- satu per tahun buku
 
     /**
@@ -235,6 +270,74 @@ class OverheadBudgetTest extends ErpTestCase
         $rows = collect($this->service->realisation(2026)['rows'])->keyBy('account_code');
 
         $this->assertNull($rows['6-1100']['actual'], 'jurnal draf bukan realisasi');
+    }
+
+    /**
+     * OVB DISETUJUI, NOL JURNAL TERPOSTING: totalnya digaris seperti barisnya.
+     *
+     * Setiap baris akun sudah benar ("—", tidak_terukur) sejak awal; yang
+     * berbohong adalah TOTALNYA, yang menjumlahkan null sebagai 0 dan mencetak
+     * "Rp 0 · 0,0 % · Aman" hijau — di layar, tepat di bawah kalimat bantuannya
+     * sendiri yang berbunyi 'bertanda "—", bukan Rp 0'. Registri Ambang
+     * mengulangi kebohongan yang sama lewat SUM() atas nol baris.
+     */
+    public function test_an_approved_budget_without_a_single_posted_line_is_ruled_not_zero(): void
+    {
+        $budget = $this->budget(2026, ['6-1100' => 500_000_000, '6-1200' => 300_000_000]);
+        $this->service->submit($budget, $this->maker());
+        $this->service->approve($budget, $this->checker());
+
+        $payload = $this->service->realisation(2026);
+
+        $this->assertSame(800000000.0, $payload['total_budget']);
+        $this->assertNull($payload['total_actual'], 'nol akun bermutasi bukan realisasi Rp 0');
+        $this->assertNull($payload['pct']);
+        $this->assertSame(WatchedThresholds::TIDAK_TERUKUR, $payload['state']);
+        $this->assertStringContainsString('BELUM TERUKUR', $payload['note']);
+
+        foreach ($payload['rows'] as $row) {
+            $this->assertNull($row['actual']);
+            $this->assertSame(WatchedThresholds::TIDAK_TERUKUR, $row['state']);
+        }
+
+        // Registri Core mengukur hal yang sama, jadi ia harus menggaris juga:
+        // SUM() atas nol baris memulangkan NULL, dan (float) NULL = 0.0.
+        $registry = collect(WatchedThresholds::scan()['measures'])->firstWhere('key', 'overhead_budget_pct');
+        $row = $registry['rows'][0];
+
+        $this->assertNull($row['actual']);
+        $this->assertNull($row['pct']);
+        $this->assertSame(WatchedThresholds::TIDAK_TERUKUR, $row['state']);
+        $this->assertStringContainsString('belum terukur, bukan nol rupiah belanja', $row['note']);
+    }
+
+    /**
+     * SEBAGIAN akun bermutasi: totalnya tetap angka — nol rupiah pada akun yang
+     * belum bermutasi memang tidak menambah apa pun — tetapi catatannya
+     * menyebut berapa akun yang belum terukur, dan mutasi bersih NOL RUPIAH
+     * tetap dibedakan dari "belum ada jurnal".
+     */
+    public function test_a_partly_measured_budget_keeps_its_total_and_says_what_is_missing(): void
+    {
+        $budget = $this->budget(2026, ['6-1100' => 500_000_000, '6-1200' => 300_000_000]);
+        $budget->forceFill(['status' => DocumentStatus::Approved])->save();
+
+        $this->postJournal('2026-05-10', '6-1100', 120_000_000);
+
+        $payload = $this->service->realisation(2026);
+
+        $this->assertSame(120000000.0, $payload['total_actual']);
+        $this->assertSame(15.0, $payload['pct']);
+        $this->assertSame(WatchedThresholds::AMAN, $payload['state']);
+        $this->assertStringContainsString('1 dari 2 akun belum bermutasi', $payload['note']);
+
+        // Mutasi yang saling meniadakan (beban lalu pembaliknya) BUKAN "belum
+        // terukur": ada yang tercatat, dan jumlahnya nol rupiah.
+        $this->postJournal('2026-06-10', '6-1200', 50_000_000);
+        $this->postReversal('2026-06-11', '6-1200', 50_000_000);
+
+        $rows = collect($this->service->realisation(2026)['rows'])->keyBy('account_code');
+        $this->assertSame(0.0, $rows['6-1200']['actual'], 'mutasi bersih nol rupiah adalah Rp 0, bukan "—"');
     }
 
     public function test_a_year_without_an_approved_budget_is_ruled_never_zero_percent(): void

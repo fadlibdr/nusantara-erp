@@ -265,10 +265,16 @@ function paintOverhead(body, payload) {
       el('.value.sm', { text: fmt.rupiahShort(payload.total_budget) }),
       el('.delta', { text: `OVB ${payload.code}` }),
     ]),
+    /* "—", bukan "Rp 0", ketika BELUM SATU AKUN PUN bermutasi: rupiahShort(null)
+       mencetak "Rp 0", dan ubin hijau "Rp 0 · 0 %" di atas tabel yang setiap
+       barisnya bertanda "—" adalah kebalikan dari aturan kartu ini sendiri. */
     el('.stat', [
       el('.label', { text: 'Realisasi' }),
-      el('.value.sm', { text: fmt.rupiahShort(payload.total_actual) }),
-      el('.delta', { text: 'jurnal terposting tahun ini' }),
+      el('.value.sm', {
+        text: payload.total_actual === null || payload.total_actual === undefined
+          ? '—' : fmt.rupiahShort(payload.total_actual),
+      }),
+      el('.delta', { text: payload.total_actual === null ? 'belum ada jurnal terposting' : 'jurnal terposting tahun ini' }),
     ]),
     el('.stat', [
       el('.label', { text: 'Terpakai' }),
