@@ -215,6 +215,14 @@ class UpdateSettingsRequest extends FormRequest
                 continue;
             }
 
+            $reason = $this->withdrawnMatrixCellReason($key);
+
+            if ($reason !== null) {
+                $validator->errors()->add('settings.'.$key, $reason);
+
+                continue;
+            }
+
             $validator->errors()->add(
                 'settings.'.$key,
                 config()->has("erp.{$key}")
@@ -223,6 +231,50 @@ class UpdateSettingsRequest extends FormRequest
                     : "Parameter {$key} tidak dikenal.",
             );
         }
+    }
+
+    /**
+     * Sel matriks yang DICABUT — dan sebab yang sebenarnya, bukan "deploy".
+     *
+     * Cabang di atas mengenal dua jenis kesalahan: kunci yang tidak ada, dan
+     * kunci yang ada di config tetapi tidak digambarkan registri ("tetapan saat
+     * instalasi"). Kolom mode dan ambang tingkat ketiga bukan salah satu dari
+     * keduanya. Ia BUKAN tetapan instalasi: ApprovalPolicy::forType() memaksa
+     * single_director untuk setiap jenis yang modenya terkunci atau yang tidak
+     * menyatakan approvalLadderKey(), jadi sebuah deploy yang menuliskannya di
+     * config tidak mengubah satu pun keputusan (diukur 7 Sep 2026 pada
+     * approvals.ar_invoice.mode = 'extra_level': mode efektif tetap
+     * single_director). Kalimat lamanya karena itu mengirim operatornya ke
+     * sebuah deploy yang tidak dapat bekerja — kegagalan yang sama bentuknya
+     * dengan docblock-docblock yang putaran verifikasi ini tulis ulang.
+     *
+     * Dan ia BUKAN pula sekadar "tidak dikenal": jenis dokumennya nyata, sel
+     * itu pernah ada di layar, dan yang perlu diketahui operatornya adalah
+     * kenapa ia tidak ada lagi.
+     */
+    private function withdrawnMatrixCellReason(string $key): ?string
+    {
+        if (preg_match('/^approvals\.([a-z0-9_]+)\.(mode|third_level_threshold)$/', $key, $match) !== 1) {
+            return null;
+        }
+
+        $type = $match[1];
+
+        if (! in_array($type, ApprovalPolicy::documentTypes(), true)) {
+            return null; // bukan jenis dokumen: "tidak dikenal" memang jawabannya
+        }
+
+        $label = ApprovalPolicy::documentEntry($type)['label'] ?? 'Dokumen';
+
+        $why = ApprovalPolicy::modeIsLocked($type)
+            ? "ambang {$label} ditegakkan modulnya sendiri lewat kolom needs_director_approval, dan "
+                .'penegak itu tidak mengenal mode kedua'
+            : "jalur persetujuan {$label} tidak dapat berhenti di tengah — persetujuan pertamanya sudah "
+                .'menjalankan akibatnya (jurnal, stok), jadi "tambahan tingkat" akan menjalankannya dua kali';
+
+        return "Parameter {$key} tidak dapat diubah, di layar ini maupun lewat deploy: {$label} selalu "
+            .'memakai mode "satu penyetuju, harus direktur di atas ambang" karena '.$why.'. '
+            .'Yang dapat Anda ubah untuk jenis ini adalah ambangnya, di Pengaturan › Matriks Persetujuan.';
     }
 
     /**

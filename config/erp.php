@@ -579,19 +579,21 @@ return [
         // maker-checker still forbids the submitter. That mechanism ships unchanged
         // — every PurchaseOrderDirectorApprovalTest / SubcontractDirectorApprovalTest
         // assertion stays meaningful — so these two keys are LEFT AS THEY WERE.
+        //
+        // TANPA KUNCI `mode`, dan itu perbaikan putaran kedua verifikasi F-1.
+        // Kuncinya dulu ada di sini dengan alasan "supaya layar punya bawaan
+        // untuk dibaca dan direset" — layar tidak pernah menggambar sel mode
+        // untuk kedua baris ini (SettingService::approvalMatrixGroup melewati
+        // baris yang modeIsLocked), dan ApprovalPolicy::forType MEMAKSA
+        // single_director untuk keduanya apa pun isi config. Sebuah kunci yang
+        // dibaca lalu dibuang bukan bawaan; ia membuat endpoint setelan
+        // menjawab "ditetapkan saat instalasi … membutuhkan deploy" untuk
+        // sesuatu yang tidak dapat diubah deploy mana pun.
         'purchase_order' => [
             'threshold_two_level' => 100000000,
-            // F-1: mode DIKUNCI single_director untuk ketiga tabel yang
-            // membawa needs_director_approval sendiri (lihat blok MATRIKS di
-            // bawah). Kuncinya tetap ada supaya layar punya bawaan untuk
-            // dibaca dan direset, bukan supaya diedit.
-            'mode' => 'single_director',
-            'third_level_threshold' => null,
         ],
         'subcontract' => [
             'threshold_two_level' => 200000000,
-            'mode' => 'single_director',
-            'third_level_threshold' => null,
         ],
 
         /*
@@ -657,6 +659,22 @@ return [
         | hari ini per jenis dokumen — dan lembar jawaban yang harus dijalankan
         | dulu untuk dibaca bukan lembar jawaban.
         |
+        | SATU AMBANG, TANPA `mode` DAN TANPA `third_level_threshold`.
+        | Ketiga kunci itu dulu ada di setiap baris. Putaran pertama verifikasi
+        | F-1 mencabut sel mode dari layar untuk sebelas baris ini (menyalakan
+        | "tambahan tingkat" pada invoice termin memposting jurnal Rp 2,22
+        | miliar dua kali — lihat ApprovalPolicy::supportsExtraLevel), tetapi
+        | meninggalkan kuncinya di sini. Diukur pada putaran kedua: 26 kunci
+        | pada 13 jenis yang forType() PAKSA menjadi single_director apa pun
+        | isinya — dibaca, lalu dibuang. Harganya bukan sekadar berkas yang
+        | lebih panjang: karena config mendefinisikan kunci yang tidak lagi
+        | digambarkan registri, endpoint setelan menjawab "ditetapkan saat
+        | instalasi di config/erp.php … mengubahnya membutuhkan deploy" —
+        | menyuruh operatornya melakukan deploy yang tidak mengubah apa pun.
+        | Sekarang kunci mode ada tepat pada jenis yang resolvernya membacanya
+        | (satu: keputusan pemenang), dan penolakannya menyebut sebab yang
+        | sebenarnya. Lihat WithdrawnApprovalModeKeysTest.
+        |
         | DUA JENIS BARIS SENGAJA TIDAK ADA DI SINI.
         |
         | (1) Tiga belas jenis TANPA KOLOM NILAI apa pun — izin kerja lapangan,
@@ -675,17 +693,17 @@ return [
         |     "mengikuti". Kunci sendiri untuknya berarti sel yang bisa diedit
         |     dan tidak ada yang membacanya. Lihat ApprovalPolicy::FOLLOWS.
         */
-        'quotation' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'boq' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'cost_budget' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'work_order' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'progress_claim' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'labor_contract' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'labor_claim' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'ar_invoice' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'ap_bill' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'payment' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
-        'payroll_run' => ['threshold_two_level' => null, 'mode' => 'single_director', 'third_level_threshold' => null],
+        'quotation' => ['threshold_two_level' => null],
+        'boq' => ['threshold_two_level' => null],
+        'cost_budget' => ['threshold_two_level' => null],
+        'work_order' => ['threshold_two_level' => null],
+        'progress_claim' => ['threshold_two_level' => null],
+        'labor_contract' => ['threshold_two_level' => null],
+        'labor_claim' => ['threshold_two_level' => null],
+        'ar_invoice' => ['threshold_two_level' => null],
+        'ap_bill' => ['threshold_two_level' => null],
+        'payment' => ['threshold_two_level' => null],
+        'payroll_run' => ['threshold_two_level' => null],
 
         /*
          * F-1 — SETUJUI MASSAL. Kosong = fitur MATI, dan itulah bawaannya:
