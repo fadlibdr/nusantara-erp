@@ -69,17 +69,25 @@ export async function renderJadwal(host, { id, project }) {
 
   let tasks;
   let baseline;
+  let cycles;
 
   try {
     /* DUA endpoint yang SUDAH ADA — P1-H tidak menambah satu pun. Baseline
        gagal/absen bukan galat: proyek yang belum dibekukan tetap punya jadwal,
-       dan yang hilang hanyalah bar pembandingnya. */
+       dan yang hilang hanyalah bar pembandingnya.
+
+       `api.list` (amplop utuh), bukan `api.get`: endpoint pohon mengirim
+       `meta.parent_cycles` ketika sebuah siklus parent_id memaksanya mengangkat
+       baris menjadi akar. Barisnya sampai; tempatnya di pohon TIDAK, dan kaki
+       kartu mengatakannya alih-alih menggambar jadwal yang tersusun ulang
+       diam-diam. */
     const [live, current] = await Promise.all([
-      api.get(`projects/${id}/wbs-tasks`),
+      api.list(`projects/${id}/wbs-tasks`),
       api.get('projects/baselines', { project_id: id, current: 1, per_page: 1 }).catch(() => []),
     ]);
 
-    tasks = live || [];
+    tasks = (live && live.data) || [];
+    cycles = (live && live.meta && live.meta.parent_cycles) || [];
     const head = Array.isArray(current) ? current[0] : null;
     baseline = head ? await api.get(`projects/baselines/${head.id}`).catch(() => null) : null;
   } catch (error) {
@@ -87,11 +95,11 @@ export async function renderJadwal(host, { id, project }) {
   }
 
   clear(host);
-  paint(host, { id, project, tasks, baseline });
+  paint(host, { id, project, tasks, baseline, cycles });
 }
 
 function paint(host, ctx) {
-  const { project, tasks, baseline } = ctx;
+  const { project, tasks, baseline, cycles } = ctx;
   const flat = flatten(tasks);
 
   if (!flat.length) {
@@ -168,6 +176,17 @@ function paint(host, ctx) {
         ? el('p.cell-sub', {
           text: `Kode WBS ganda pada baseline: ${duplicates.join(', ')} — yang dipakai baris terakhir. `
             + 'Kode WBS tidak dijamin unik per proyek oleh basis data.',
+          style: { margin: '6px 0 0', color: 'var(--warning)' },
+        })
+        : null,
+      /* Siklus parent_id: barisnya tetap tergambar (server mengangkatnya menjadi
+         akar), tetapi posisinya di pohon bukan posisi yang tersimpan — dan
+         urutan serta indentasi gantt dibaca orang sebagai struktur. */
+      (cycles || []).length
+        ? el('p.cell-sub', {
+          text: `Induk melingkar pada ${cycles.join(', ')}: baris ini menunjuk induk yang justru `
+            + 'keturunannya sendiri, jadi ia digambar sebagai akar. Barisnya lengkap, letaknya di '
+            + 'pohon tidak — perbaiki induknya di basis data.',
           style: { margin: '6px 0 0', color: 'var(--warning)' },
         })
         : null,

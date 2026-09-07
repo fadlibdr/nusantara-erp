@@ -197,10 +197,16 @@ console error, 0 permintaan gagal, formulir masuk tergambar.**
 6. **Pohon lebih dari tiga tingkat belum pernah ada di data sungguhan.** Perbaikan #1 diuji dengan
    dua baris yang ditanam uji; belum ada berkas MPP-XML empat tingkat yang benar-benar diimpor
    lewat layarnya.
-7. **Siklus `parent_id` tidak dijaga.** Perbaikan #1 merakit pohonnya dari `parent_id`; sebuah
-   siklus (A → B → A) akan membuat `flatten()` di klien berulang tanpa henti. Tidak bisa dibuat
-   lewat API (tidak ada endpoint ubah tugas WBS, dan `parent_id` divalidasi `exists` saat dibuat),
-   jadi ia dibiarkan — tetapi ia dibiarkan **dengan sadar**, bukan tidak terpikir.
+7. ~~**Siklus `parent_id` tidak dijaga.**~~ **DIPERBAIKI 7 Sep 2026 — dan akibat yang ditulis di
+   sini keliru.** Dugaannya "`flatten()` di klien berulang tanpa henti"; yang sebenarnya terjadi
+   lebih sunyi: dengan penyaring akar yang baru, klien tidak pernah MELIHAT siklusnya — anggota
+   siklus tidak pernah menjadi akar dan tidak pernah terjangkau dari akar mana pun, jadi barisnya
+   hilang tanpa sepatah kata (diukur pada salinan berkas demo dengan B.3 ↔ B.3.1: 13 baris
+   tersimpan, **10 terkirim**; B.3, B.3.1 dan B.3.1.1 lenyap sementara kaki gantt tetap
+   mengumumkan angkanya dengan yakin). Itu persis kegagalan yang paket ini dibangun untuk
+   memberantas. Perakitan pohonnya kini mengangkat baris yang tidak terjangkau menjadi akar dan
+   menyebutnya lewat `meta.parent_cycles`; dua uji baru memakukannya, dan perilaku YATIM yang
+   selama ini tidak diuji apa pun ikut dipaku.
 8. **Kode WBS ganda belum pernah diukur di peramban.** `jadwal.js` menghitung tabrakan dan
    menyebutkannya di bawah gantt (indeks `(baseline_id, wbs_code)` bukan `unique`), tetapi data
    demo tidak punya satu pun, dan S26 karena itu tidak pernah melihat kalimat peringatannya.

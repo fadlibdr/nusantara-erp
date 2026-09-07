@@ -200,6 +200,82 @@ class JadwalGanttTest extends ErpTestCase
     }
 
     /**
+     * Janji docblock endpoint pohon ("menghilangkan baris dari sebuah jadwal
+     * adalah hal yang paling tidak boleh dilakukan endpoint ini") tidak berlaku
+     * persis pada keadaan yang paling membutuhkannya: penyaring akar menerima
+     * `parent_id` null ATAU induk yang tidak dikenal, jadi anggota SIKLUS tidak
+     * pernah menjadi akar dan tidak pernah dijangkau dari akar mana pun.
+     *
+     * Diukur 7 Sep 2026 pada salinan berkas demo dengan B.3 ↔ B.3.1 saling
+     * menunjuk (FK mengizinkannya, kedua baris ada): 13 baris tersimpan, 10
+     * terkirim — B.3, B.3.1 dan B.3.1.1 lenyap tanpa sepatah kata, sementara
+     * kaki gantt tetap mengumumkan "N dari N tugas cocok" dengan yakin.
+     */
+    public function test_a_parent_id_cycle_moves_the_rows_instead_of_dropping_them(): void
+    {
+        $b3 = $this->project->wbsTasks()->where('wbs_code', 'B.3')->firstOrFail();
+        $level3 = $this->addTask('B.3.1', 'Pembesian lantai 1–4', $b3->id);
+        $this->addTask('B.3.1.1', 'Pembesian kolom lantai 1', $level3->id);
+        // B.3 menunjuk keturunannya sendiri sebagai induk.
+        $b3->forceFill(['parent_id' => $level3->id])->save();
+
+        $response = $this->actingAs($this->adminUser())
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk();
+
+        $rows = $this->flatten($response->json('data'));
+        $codes = array_column($rows, 'wbs_code');
+
+        $this->assertSame($this->project->wbsTasks()->count(), count($rows),
+            'Siklus parent_id membuang baris: sebuah jadwal yang kehilangan paket pekerjaan '
+            .'terlihat persis seperti jadwal yang benar.');
+        $this->assertSame(count($codes), count(array_unique($codes)),
+            'Sebuah baris dikirim dua kali — sisi belakang siklus tidak dipotong.');
+        foreach (['B.3', 'B.3.1', 'B.3.1.1'] as $code) {
+            $this->assertContains($code, $codes);
+        }
+
+        // Letaknya di pohon memang berubah, dan itu DISEBUT — kalau tidak,
+        // pembaca gantt membaca struktur karangan sebagai struktur.
+        $this->assertSame(['B.3'], $response->json('meta.parent_cycles'));
+        $this->assertStringContainsString('parent_cycles', $this->spa('views/jadwal.js'),
+            'jadwal.js tidak lagi membaca meta siklus, jadi layarnya kembali diam.');
+    }
+
+    /**
+     * Sisi yang sudah ada dari janji yang sama, dan yang belum dipaku apa pun:
+     * baris yang induknya BUKAN anggota himpunan proyek ini (mis. induk milik
+     * proyek lain — tidak ada batasan yang melarangnya) menjadi akar, bukan
+     * dibuang. Menghapus cabang itu dulu meninggalkan seluruh suite hijau.
+     */
+    public function test_a_row_whose_parent_belongs_to_another_project_becomes_a_root(): void
+    {
+        $other = Project::query()->create([
+            'code' => 'PRJ-2026-999', 'name' => 'Proyek tetangga', 'type' => 'construction',
+            'status' => 'active', 'start_date' => '2026-02-02', 'end_date' => '2026-12-31',
+            'contract_value' => 1_000_000, 'retention_pct' => 5,
+        ]);
+        $foreignParent = $other->wbsTasks()->create([
+            'wbs_code' => 'X', 'name' => 'Induk milik proyek lain', 'weight_pct' => 0,
+            'progress_pct' => 0, 'sort_order' => 1,
+        ]);
+        $this->addTask('B.9', 'Paket dengan induk lintas proyek', $foreignParent->id);
+
+        $response = $this->actingAs($this->adminUser())
+            ->getJson("/api/projects/{$this->project->id}/wbs-tasks")->assertOk();
+        $rows = $this->flatten($response->json('data'));
+
+        $stray = collect($rows)->firstWhere('wbs_code', 'B.9');
+        $this->assertNotNull($stray, 'Baris berinduk asing dibuang — jadwalnya diam-diam menyusut.');
+        $this->assertSame(0, $stray['level']);
+        $this->assertSame($this->project->wbsTasks()->count(), count($rows));
+
+        // …dan ia menjadi akar lewat cabang YATIM, bukan lewat penyelamatan
+        // siklus: kalau cabang itu hilang, barisnya tetap sampai tetapi layar
+        // menuduhnya "induk melingkar" — kalimat yang salah tentang datanya.
+        $this->assertNull($response->json('meta.parent_cycles'));
+    }
+
+    /**
      * Pintu KEDUA ke pohon yang sama — `GET projects/{project}` — dulu membawa
      * kedua cacat yang uji di atas menutup, di tempat yang tidak dilihat siapa
      * pun: `rootWbsTasks.children` mengirim 11 dari 13 baris (B.3.1 dan

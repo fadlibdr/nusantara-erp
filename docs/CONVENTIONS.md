@@ -725,6 +725,13 @@ ke tabel yang sama: `MppXmlImportService` menerima OutlineLevel sedalam apa pun,
 tingkat kehilangan seluruh tingkat keempatnya — tidak digambar gantt, tidak muncul di tabel WBS, dan
 induk tingkat tiganya tampil sebagai daun bertombol "Perbarui" yang pasti ditolak server. **Sebuah
 jadwal yang diam-diam kehilangan paket pekerjaan terlihat persis seperti jadwal yang benar.**
+Sejak verifikasi 7 Sep 2026 janji itu juga berlaku untuk **siklus `parent_id`** (B.3 ↔ B.3.1 —
+FK mengizinkannya, kedua baris ada): dulu anggota siklus tidak pernah menjadi akar dan tidak
+pernah terjangkau dari akar mana pun, jadi 13 baris tersimpan berangkat sebagai 10. Perakitannya
+kini menelusuri dari akar dengan himpunan "sudah dikirim" lalu MENGANGKAT sisanya menjadi akar
+(sisi belakang siklus dipotong, jadi setiap baris muncul tepat sekali). Letak baris itu di pohon
+memang berubah, dan karena itu ia DISEBUT: `meta.parent_cycles` memuat kodenya dan jadwal.js
+mencetaknya di bawah gantt.
 
 **Satuan.** `progress_pct` berjalan di kawat sebagai 0..100 dan sebagai *string* ('60.0000');
 `ganttChart` menerima 0..1. Pembagian 100 di jadwal.js bukan kosmetik — tanpa itu setiap bar terbaca

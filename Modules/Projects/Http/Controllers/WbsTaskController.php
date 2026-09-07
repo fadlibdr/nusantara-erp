@@ -39,22 +39,77 @@ class WbsTaskController extends ApiController
      * dibuat lewat API, tetapi bisa ada di data warisan) diperlakukan sebagai
      * akar, bukan dibuang: menghilangkan baris dari sebuah jadwal adalah hal
      * yang paling tidak boleh dilakukan endpoint ini.
+     *
+     * SIKLUS `parent_id` DULU MEMBUANG BARISNYA DIAM-DIAM, dan janji paragraf di
+     * atas karena itu tidak berlaku persis pada keadaan yang paling
+     * membutuhkannya. Penyaring akar hanya menerima `parent_id` null atau induk
+     * yang tidak dikenal, jadi anggota siklus tidak pernah menjadi akar DAN
+     * tidak pernah dijangkau dari akar mana pun. Diukur 7 Sep 2026 dengan
+     * B.3 ↔ B.3.1 saling menunjuk (FK mengizinkannya — kedua baris ada):
+     * 13 baris tersimpan, **10 terkirim**; B.3, B.3.1 dan B.3.1.1 lenyap tanpa
+     * sepatah kata sementara kaki gantt tetap mengumumkan angka yang penuh
+     * percaya diri.
+     *
+     * Perakitannya kini menelusuri dari akar dengan himpunan "sudah dikirim",
+     * lalu MENGANGKAT setiap baris yang tidak terjangkau menjadi akar. Sisi
+     * belakang siklus dipotong (anak yang sudah dikirim tidak dipasang dua
+     * kali), jadi setiap baris muncul TEPAT SEKALI dan serialisasinya tidak
+     * berulang tanpa henti. Barisnya sampai; yang berubah hanya tempatnya di
+     * pohon — dan itu DISEBUT: `meta.parent_cycles` memuat kodenya, dan
+     * jadwal.js mencetaknya di bawah gantt.
      */
     public function index(Project $project): JsonResponse
     {
         $tasks = $project->wbsTasks()->orderBy('sort_order')->orderBy('wbs_code')->get();
         $children = $tasks->groupBy('parent_id');
-
-        foreach ($tasks as $task) {
-            $task->setRelation('children', $children->get($task->id, collect())->values());
-        }
-
         $known = $tasks->keyBy('id');
+        $sent = [];
+
+        $attach = function (WbsTask $task) use (&$attach, $children, &$sent): void {
+            $sent[$task->id] = true;
+            $kids = $children->get($task->id, collect())
+                ->reject(fn (WbsTask $child): bool => isset($sent[$child->id]))
+                ->values();
+
+            // Ditandai SEBELUM menurun: tanpa itu sebuah siklus masuk kembali
+            // lewat cucunya dan merakit pohon yang tidak berujung.
+            foreach ($kids as $kid) {
+                $sent[$kid->id] = true;
+            }
+
+            $task->setRelation('children', $kids);
+
+            foreach ($kids as $kid) {
+                $attach($kid);
+            }
+        };
+
         $roots = $tasks
             ->filter(fn (WbsTask $task): bool => $task->parent_id === null || ! $known->has($task->parent_id))
             ->values();
 
-        return $this->ok(WbsTaskResource::collection($roots));
+        foreach ($roots as $root) {
+            $attach($root);
+        }
+
+        // Yang tersisa hanya bisa anggota siklus: ia punya induk yang dikenal,
+        // tetapi induknya tidak pernah terjangkau dari akar mana pun.
+        $detached = collect();
+
+        foreach ($tasks as $task) {
+            if (isset($sent[$task->id])) {
+                continue;
+            }
+
+            $detached->push($task);
+            $attach($task);
+        }
+
+        return $this->ok(
+            WbsTaskResource::collection($roots->concat($detached)),
+            null,
+            $detached->isEmpty() ? null : ['parent_cycles' => $detached->pluck('wbs_code')->all()],
+        );
     }
 
     /**
