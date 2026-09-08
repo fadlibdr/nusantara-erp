@@ -103,6 +103,28 @@ class ActivityRegistryTest extends ErpTestCase
             'barisnya membaca `${key}_label` (document_id_label) yang tidak pernah ada — layarnya memajang id mentah');
     }
 
+    /**
+     * "Diselesaikan oleh" DUA KALI, sekali sebagai id mentah.
+     *
+     * LABELS memberi label yang sama kepada done_by_id dan done_by_name tanpa
+     * memasangkan keduanya, jadi panel Informasi sebuah aktivitas selesai
+     * memajang "Diselesaikan oleh = 1" tepat di atas "Diselesaikan oleh =
+     * Administrator Sistem" (diukur di peramban 8 Sep 2026). Id mentah di layar
+     * adalah persis yang NAME_SHADOWED ada untuk mencegahnya.
+     */
+    public function test_the_person_who_finished_it_is_named_once(): void
+    {
+        $detail = (string) file_get_contents(public_path('app/js/views/detail.js'));
+
+        if (preg_match('/const NAME_SHADOWED = \{(.*?)\n\};/s', $detail, $match) !== 1) {
+            $this->fail('blok NAME_SHADOWED tidak terbaca di detail.js');
+        }
+
+        $this->assertStringContainsString("done_by_id: 'done_by_name'", $match[1],
+            'id penyelesai tidak dibayangi namanya: panel Informasi menuliskan label yang sama dua kali, '
+            .'sekali sebagai id pengguna mentah');
+    }
+
     /** Jenis aktivitas di SPA = enum-nya di server, tanpa yang mengarang. */
     public function test_the_activity_types_match_the_enum(): void
     {

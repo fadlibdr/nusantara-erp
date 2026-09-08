@@ -50,6 +50,10 @@ const WHEN_SET_KEYS = new Set([
   'days_change', 'new_end_date', 'original_end_date',
   // Cap gerbang IMK (P0-C): kosong sampai security menekan 'periksa'.
   'checked_by', 'checked_at',
+  /* F-3: aktivitas yang BELUM selesai tidak punya penyelesai. "Diselesaikan
+     oleh: —" pada pekerjaan yang memang belum dikerjakan adalah baris yang
+     hanya menambah kebisingan pada kartu yang dibaca sambil menelepon. */
+  'done_by_id', 'done_by_name',
   // P1-ENG: revisi hidup belum digantikan siapa pun — "Digantikan pada: —"
   // pada SDS yang justru sedang berlaku adalah kebalikan dari informasi.
   'superseded_at', 'superseded_by_code',
@@ -100,6 +104,11 @@ const NAME_SHADOWED = {
   // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
   // "belum dimuat".
   owner_user_id: 'owner_user_name',
+  /* F-3 (verifikasi 8 Sep 2026): tanpa baris ini panel Informasi sebuah
+     aktivitas selesai memajang "Diselesaikan oleh" DUA KALI — sekali sebagai
+     id pengguna mentah ("1"), sekali sebagai namanya. Id mentah di layar
+     adalah persis yang mekanisme ini ada untuk mencegahnya. */
+  done_by_id: 'done_by_name',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
 
