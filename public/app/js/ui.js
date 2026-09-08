@@ -425,12 +425,19 @@ export function toast(message, { tone = 'ok', title, timeout = 5200, action } = 
 
 export function toastError(error) {
   const details = error && error.details ? error.details : [];
-  const message = details.length ? details.slice(0, 4).join('\n') : error.message || String(error);
   /* Laravel menaruh galat pertama sebagai `message` DAN sebagai baris pertama
      `errors`, jadi toast 422 dulu membaca kalimat yang sama dua kali — sekali
      sebagai judul, sekali sebagai rincian (diukur 2 Sep 2026 pada PO). Judul
      hanya dipakai bila ia memang kalimat lain. */
   const firstDetail = details.length ? details[0].replace(/^[^:]+:\s*/, '') : null;
+  /* SATU kunci galat = satu kalimat, tanpa awalan nama kolomnya. Penolakan
+     pipeline prospek (F-3) memulangkan satu kunci `status` berisi kalimat utuh
+     yang menyebut jalan keluarnya, dan toast-nya terbaca "status: Prospek
+     LEAD-0003 tidak bisa dipindahkan…" — kata PERTAMA yang dibaca sales adalah
+     nama kolom basis data. Awalan itu hanya berguna untuk membedakan BEBERAPA
+     galat; pada satu galat ia cuma kebisingan (diukur 8 Sep 2026, S30). */
+  const lines = details.length === 1 ? [firstDetail] : details;
+  const message = lines.length ? lines.slice(0, 4).join('\n') : error.message || String(error);
   toast(message, {
     tone: 'err',
     title: details.length && firstDetail !== error.message ? error.message : undefined,
