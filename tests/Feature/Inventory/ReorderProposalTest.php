@@ -11,6 +11,7 @@ use Modules\Inventory\Models\Warehouse;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Services\PurchaseRequisitionService;
 use Modules\Projects\Models\Project;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -310,6 +311,182 @@ class ReorderProposalTest extends ErpTestCase
             ->assertForbidden();
 
         $this->assertSame(0, PurchaseRequisition::query()->count());
+    }
+
+    /**
+     * "SEMUANYA SUDAH ADA DI PR TERBUKA" DIKATAKAN UNTUK SEBAB YANG BERBEDA.
+     *
+     * Sebuah gudang yang memang tidak punya satu pun kekurangan membaca
+     * kalimat yang menyuruhnya mencari PR yang tidak pernah ada. Servernya
+     * MEMEGANG angka yang membantah kalimatnya sendiri: skipped = 0 berarti
+     * tidak ada apa pun yang ada di PR terbuka.
+     */
+    public function test_a_warehouse_with_nothing_below_its_threshold_is_not_told_to_look_for_a_requisition(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-KOSONG');
+
+        $payload = $this->actingAs($this->adminUser(), 'sanctum')
+            ->postJson('api/inventory/reorder/requisitions', ['warehouse_id' => $warehouse->id])
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame([], $payload['created']);
+        $this->assertStringNotContainsString('PR terbuka', $payload['message']);
+        $this->assertStringContainsString('di bawah ambangnya', $payload['message']);
+    }
+
+    /** …dan ketika memang semuanya tertutup PR, kalimat itulah yang benar. */
+    public function test_a_warehouse_whose_shortages_are_all_covered_is_told_exactly_that(): void
+    {
+        $this->oneShortage();
+        $admin = $this->adminUser();
+
+        $this->actingAs($admin, 'sanctum')->postJson('api/inventory/reorder/requisitions', [])->assertCreated();
+
+        $payload = $this->actingAs($admin, 'sanctum')
+            ->postJson('api/inventory/reorder/requisitions', [])
+            ->assertOk()
+            ->json('data');
+
+        $this->assertStringContainsString('sudah ada di PR terbuka', $payload['message']);
+    }
+
+    /**
+     * Gudang yang tidak ada adalah permintaan yang SALAH, bukan jawaban
+     * "tidak ada kekurangan". Aturan `exists` sudah ditegakkan di
+     * ReorderRuleStoreRequest; ia bocor di permukaan ini.
+     */
+    public function test_a_requisition_run_for_a_warehouse_that_does_not_exist_is_refused(): void
+    {
+        $this->actingAs($this->adminUser(), 'sanctum')
+            ->postJson('api/inventory/reorder/requisitions', ['warehouse_id' => 99999])
+            ->assertStatus(422);
+    }
+
+    /**
+     * IDEMPOTENSI LINTAS STATUS — dan bukan hanya lengan Draf.
+     *
+     * Mempersempit OPEN_STATUSES menjadi [Draft] lolos seluruh suite hijau
+     * sebelum uji ini ada. Akibatnya: barang yang sudah ada di PR DISETUJUI —
+     * sedang berjalan menuju PO — muncul lagi sebagai "Akan diusulkan", dan
+     * tombolnya menerbitkan permintaan KEDUA untuk kekurangan yang sama.
+     */
+    public static function openStatusProvider(): array
+    {
+        return [
+            'diajukan' => [DocumentStatus::Submitted, 'Diajukan'],
+            'disetujui' => [DocumentStatus::Approved, 'Disetujui'],
+        ];
+    }
+
+    #[DataProvider('openStatusProvider')]
+    public function test_a_requisition_that_is_already_moving_still_blocks_the_item(DocumentStatus $status, string $label): void
+    {
+        [$warehouse, $item] = $this->oneShortage();
+
+        $pr = app(PurchaseRequisitionService::class)->create([
+            'warehouse_id' => $warehouse->id,
+            'items' => [['item_id' => $item->id, 'qty' => 7, 'unit' => 'roll']],
+        ]);
+        $pr->forceFill(['status' => $status])->save();
+
+        $row = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data.rows.0');
+
+        $this->assertTrue($row['skipped'], "PR berstatus {$label} harus tetap menahan usulan.");
+        $this->assertStringContainsString($label, (string) $row['skipped_reason']);
+        $this->assertSame($pr->code, $row['skipped_requisition_code']);
+    }
+
+    /**
+     * PR YANG SUDAH DIBUANG TIDAK MENAHAN APA PUN — dan "belum dibuang" adalah
+     * bagian dari aturan yang dinyatakan, bukan kebetulan implementasi.
+     *
+     * Tanpa penjaga ini: seseorang membuang PR draf yang salah — jalan
+     * pemulihan yang paling wajar — lalu setiap baris berbunyi "Dilewati:
+     * sudah diminta pada PR/…" untuk dokumen yang sudah tidak ada, dan
+     * barang itu tidak pernah bisa diusulkan lagi.
+     */
+    public function test_a_discarded_requisition_releases_the_shortage_again(): void
+    {
+        $this->oneShortage();
+        $admin = $this->adminUser();
+
+        $this->actingAs($admin, 'sanctum')->postJson('api/inventory/reorder/requisitions', [])->assertCreated();
+        PurchaseRequisition::query()->firstOrFail()->delete();
+
+        $payload = $this->actingAs($admin, 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertFalse($payload['rows'][0]['skipped']);
+        $this->assertSame(1, $payload['rules']['proposable']);
+        $this->assertSame(0, $payload['rules']['skipped']);
+    }
+
+    /**
+     * JUMLAH PESAN ATURAN SAMPAI KE DOKUMENNYA, bukan hanya ke barisnya.
+     *
+     * Fixture oneShortage() memakai reorder_qty 0, jadi usulan == kekurangan
+     * dan sebuah baris PR yang memakai shortage_qty lolos hijau. Di sini
+     * keduanya sengaja BERBEDA angkanya: layar mencetak "usulan pesan 200",
+     * dan PR yang tombol itu buat harus berisi 200 — bukan 7.
+     */
+    public function test_the_requisition_line_carries_the_rules_order_quantity_not_the_shortage(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-SITE');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 0, 'unit' => 'zak']);
+        $this->balance($warehouse->id, $item->id, 5);
+        ReorderRule::create([
+            'warehouse_id' => $warehouse->id, 'item_id' => $item->id,
+            'reorder_point' => 12, 'reorder_qty' => 200, 'is_active' => true,
+        ]);
+
+        $admin = $this->adminUser();
+
+        $row = $this->actingAs($admin, 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data.rows.0');
+
+        $this->assertSame(7.0, (float) $row['shortage_qty']);
+        $this->assertSame(200.0, (float) $row['suggested_qty']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('api/inventory/reorder/requisitions', [])
+            ->assertCreated();
+
+        $pr = PurchaseRequisition::query()->with('items')->firstOrFail();
+        $this->assertSame('200.000', $pr->items[0]->qty, 'Angka yang diketik penjaga gudang harus sampai ke kertas PR.');
+    }
+
+    /**
+     * KALIMAT ATURAN PELEWATAN datang dari server — CONVENTIONS §32 — dan
+     * sampai uji ini ada, tidak satu pun uji PHP memakunya: hanya harness yang
+     * menangkapnya, jadi ia hilang dari gerbang rilis paket berikutnya.
+     *
+     * Yang dipaku bukan seluruh kalimatnya (paku rapuh yang jatuh pada setiap
+     * perbaikan tanda baca) melainkan kata-kata yang membuatnya BENAR.
+     */
+    public function test_the_skip_rule_sentence_names_the_three_open_statuses_and_the_three_that_do_not_block(): void
+    {
+        $this->oneShortage();
+
+        $why = (string) $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data.why_skipped');
+
+        foreach (['draf', 'diajukan', 'disetujui'] as $open) {
+            $this->assertStringContainsString($open, mb_strtolower($why), "Aturan pelewatan harus menyebut status terbuka \"{$open}\".");
+        }
+
+        foreach (['ditolak', 'dibatalkan'] as $closed) {
+            $this->assertStringContainsString($closed, mb_strtolower($why), "Aturan pelewatan harus menyebut bahwa \"{$closed}\" TIDAK menahan.");
+        }
     }
 
     /**

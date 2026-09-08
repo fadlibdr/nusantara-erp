@@ -4,6 +4,7 @@ namespace Modules\Inventory\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Modules\Core\Http\ApiController;
 use Modules\Inventory\Services\ReorderService;
 
@@ -37,24 +38,44 @@ class ReorderController extends ApiController
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'warehouse_id' => ['nullable', 'integer'],
+            // `exists` DI SINI JUGA, sama seperti ReorderRuleStoreRequest.
+            // Tanpanya sebuah gudang yang tidak ada menjawab 200 dengan
+            // "tidak ada kekurangan yang tersisa" — jawaban yang benar untuk
+            // pertanyaan yang salah, dan permukaan saudaranya sudah menolak
+            // gudang yang sama sejak paket ini lahir.
+            'warehouse_id' => ['nullable', 'integer', Rule::exists('inv_warehouses', 'id')->whereNull('deleted_at')],
             'needed_date' => ['nullable', 'date'],
         ]);
 
+        $warehouseId = isset($data['warehouse_id']) ? (int) $data['warehouse_id'] : null;
+
         $created = $this->reorder->createDraftRequisitions(
-            isset($data['warehouse_id']) ? (int) $data['warehouse_id'] : null,
+            $warehouseId,
             $request->user(),
             $data['needed_date'] ?? null,
         );
 
         if ($created === []) {
-            // 200 dengan daftar kosong, bukan 422: "tidak ada yang tersisa
-            // untuk diusulkan" adalah jawaban yang benar, bukan permintaan
-            // yang salah. Yang membedakannya dari "belum pernah ada
-            // kekurangan" adalah blok usulan yang layar sudah pegang.
+            /*
+             * 200 dengan daftar kosong, bukan 422: "tidak ada yang tersisa
+             * untuk diusulkan" adalah jawaban yang benar, bukan permintaan
+             * yang salah.
+             *
+             * TETAPI KOSONG PUNYA DUA SEBAB, DAN SATU KALIMAT UNTUK KEDUANYA
+             * ADALAH KALIMAT YANG SALAH SETENGAH WAKTU. Dulu setiap hasil
+             * kosong berbunyi "semuanya sudah ada di PR terbuka" — termasuk
+             * bagi gudang yang tidak punya satu pun kekurangan, yang lalu
+             * mengirim orangnya mencari PR yang tidak pernah ada. Servernya
+             * memegang angka yang membedakannya: `skipped` adalah jumlah baris
+             * yang benar-benar tertutup PR terbuka.
+             */
+            $skipped = $this->reorder->proposal($warehouseId)['rules']['skipped'];
+
             return $this->ok([
                 'created' => [],
-                'message' => 'Tidak ada kekurangan yang tersisa untuk diusulkan — semuanya sudah ada di PR terbuka.',
+                'message' => $skipped > 0
+                    ? 'Tidak ada kekurangan yang tersisa untuk diusulkan — semuanya sudah ada di PR terbuka.'
+                    : 'Tidak ada pasangan gudang × item yang berada di bawah ambangnya. Tidak ada yang perlu diusulkan.',
             ]);
         }
 
