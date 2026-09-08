@@ -133,8 +133,24 @@ Gerbang rilis penuh (dan MySQL) **tidak** dijalankan di sini — ia dijalankan t
 
 ### `vendor/bin/pint --test`
 
-Lolos pada setiap berkas yang disentuh paket ini. Dua kegagalan yang sudah merah di `main`
-(`FormXlsxExportService.php`, `ChartMigrationTest.php`) tidak disentuh.
+Lolos pada setiap berkas yang disentuh paket ini. **Kegagalan lama yang tersisa ada ENAM, bukan
+dua** — angka itu salah sejak versi pertama laporan ini, dan pembacanya yang menjalankan `pint
+--test` sebagai gerbang tidak punya cara membedakan "yang memang sudah merah di `main`" dari "yang
+dibawa paket ini", yaitu persis pekerjaan yang kalimat itu seharusnya selesaikan. Diukur
+(putaran perbaikan, 8 Sep 2026):
+
+```
+{"tool":"pint","result":"fail","files":[
+  tests/Feature/Core/ChartMigrationTest.php,
+  Modules/Core/Services/FormXlsxExportService.php,
+  database/factories/UserFactory.php,
+  database/seeders/ProductionSeeder.php,
+  bootstrap/providers.php,
+  bootstrap/app.php ]}
+```
+
+`git diff --stat main...HEAD` atas keenam berkas itu **kosong**: 6 kegagalan lama, 0 di antaranya
+disentuh paket ini.
 
 ### Bukti peramban (Chromium headless, Playwright)
 
@@ -426,3 +442,175 @@ tests/Feature/Core/PrintCatalogueBespokeTest.php     katalog 64 → 65; uji izin
 Tidak satu pun berkas bersama terlarang disentuh (`bootstrap/*`, `composer.json`,
 `database/seeders/DatabaseSeeder.php`, `routes/*` di root). Tidak ada dependensi Composer/npm baru.
 `database/database.sqlite` tidak disentuh; seluruh percobaan berjalan di atas salinan di scratchpad.
+
+---
+
+## 9. Putaran perbaikan verifikasi (8–9 September 2026)
+
+Empat lensa verifikasi mengembalikan **41 temuan** atas `fb7ada5`. Seluruhnya diperbaiki di
+branch yang sama; tidak satu pun ditolak. Bagian ini menggantikan angka §3 dan §4 di atas untuk
+keadaan HARI INI — angka lama dibiarkan berdiri sebagai catatan keadaan pada `fb7ada5`.
+
+### 9.1 Tiga cacat yang membuat fiturnya tidak bekerja di tangan pemakainya
+
+**a. Dialog cetak lembar label TIDAK PERNAH muncul.** `print.js` menunggu
+`tab.document.querySelector('.lembar')` sebelum memanggil `tab.print()` — `readyState` saja tidak
+cukup, karena `about:blank` sudah `complete`. `label-barcode.blade.php` adalah satu-satunya lembar
+yang tidak mewarisi `forms.layout`, jadi ia tidak punya pembungkus itu: lembar 12 stiker tergambar
+sempurna di tab barunya, lalu tidak terjadi apa-apa; sesudah ~7 detik `PRINT_POLL_LIMIT` menyerah
+tanpa satu pun pesan. Di gudang itu terbaca sebagai "tombol cetaknya rusak".
+Diukur di Chromium lewat menu Cetak sungguhan: `print_calls` **0 → 1**, sama dengan kontrol GRN.
+
+**b. Barcode dikecilkan diam-diam sampai tidak terpindai.** `.stiker { width: 62mm }` +
+`max-width: 100%`: kotaknya tetap dan GAMBARNYA yang dikecilkan — 80,9% untuk ITM-0001, 26,2%
+untuk kode 33 karakter, **2,8%** untuk barcode pemasok 100 karakter (modul 0,055 mm). Dibuktikan
+sampai kertasnya oleh lensa barcode: raster 600 dpi dari PDF cetaknya sendiri, **0 dari 5 garis
+pindai** bisa membacanya. Sekarang KOTAKNYA yang menyesuaikan (kisi 3 → 2 → 1 stiker per baris)
+dan kode yang tetap tidak muat ditolak dengan kalimat yang menyebut panjangnya. Diukur di
+Chromium sesudahnya:
+
+| kode | kolom | stiker | modul cetak | tinggi batang | rasio |
+|---|---|---|---|---|---|
+| `ITM-0001` (8) | 3 | 62,0 mm | **0,432 mm** | 8,64 mm | 15,2% |
+| `8991002123458` (13) | 3 | 62,0 mm | **0,399 mm** | 8,57 mm | 15,0% |
+| 22 karakter | 2 | 95,0 mm | **0,303 mm** | 13,49 mm | 15,0% |
+| 33 karakter | 1 | 190,0 mm | **0,455 mm** | 27,74 mm | 15,0% |
+| 100 karakter | — | — | **ditolak** ("membutuhkan 1155 modul … di bawah 0,25 mm") | — | — |
+
+**c. "Matikan kamera" tidak mematikan kamera.** `ui.js` memasang `onClick:` lewat
+`addEventListener`; `pindai.js` lalu menambahkan `trigger.onclick = …`, yang adalah pendengar
+KEDUA. Satu klik menjalankan `startCamera()` DAN `stopCamera()`: akuisisi kedua menimpa `stream`
+sebelum yang pertama sempat dihentikan. Layar berkata "Kamera belum dinyalakan." sementara lampu
+kamera tetap menyala dan di Android menahan aplikasi lain sampai tabnya ditutup. Diukur
+(getUserMedia dan `MediaStreamTrack.stop` diinstrumentasi):
+
+```
+sebelum: gum=2 stops=1  stream#1 LIVE pada detik ke-1, 6 dan 10
+sesudah: gum=1 stops=1  stream#1 active=false track=ended
+pindah rute: gum=2 stops=2, kedua stream berakhir
+```
+
+### 9.2 Temuan → commit
+
+| Temuan | Ringkas | Commit |
+|---|---|---|
+| F6L-01, F6L-02 | "Jumlah pesan" dikosongkan → 500 SQL mentah; penjaga unik hanya satu arah | `38745b3` |
+| F6L-03 | "semuanya sudah ada di PR terbuka" untuk SETIAP hasil kosong; `warehouse_id` tanpa `exists` | `682f0c0` |
+| F6L-06, F6L-07, F6L-08, F6-K6 | empat kekosongan uji idempotensi/jumlah/soft-delete/kalimat | `682f0c0` |
+| F6L-09 | daftar `tables` registri tidak dijaga per-tabel | `c6706bc` |
+| F6L-12 | aturan yang item/gudangnya dibuang tampak hidup | `4dbc86a` |
+| F6L-10, F6L-11 | nama uji & dua komentar rute menjanjikan gerbang yang tidak ada; komentar app.js salah tempat | `3f97603` |
+| F6-C128-01…-04, -06…-10, F6-K1 | geometri cetak, teks terpotong, `.lembar`, `trim()`, barcode ganda di lembar, ambang formulir 7→8 | `a003a84` |
+| F6-V4-01, -02, -03, -05 | kamera bocor, urutan isSecureContext, huruf besar-kecil + autocapitalize, target sentuh | `05625ef` |
+| F6-V4-06 | ubin menghitung PASANGAN dan menyebut "item" | `671a091` |
+| F6-K2, F6-K11 | PO terbuka tanpa PR tidak menahan usulan; dua layar tanpa tautan | `35c98d7` |
+| F6-K4, F6-K10, F6-V4-08 | kartu item tidak menyebut penggantinya; audit barcode ganda tanpa permukaan | `5e4ce8c` |
+| F6-K5 | plafon 1–60 stiker tidak bisa dicapai pemakai | `bfccad1` |
+| F6-C128-05, F6-V4-04 | harness mengukur lembar tanpa CSS-nya; siklus hidup kamera tidak terlihat | `4887a57` |
+| F6L-04, F6L-05, F6-K3, F6-V4-07 | enam kalimat panduan yang paket ini buat salah | `bf34194` |
+| F6-K7, F6-K9 | §16 menggambarkan kueri lama tanpa EXPLAIN; tabrakan blok Core di ledger | `0af339b` |
+| F6-K8 | laporan menghitung 2 kegagalan pint, terukur 6 | berkas ini, §3 |
+| — | §31–§34 disesuaikan dengan aturan yang benar-benar berlaku | `cd78d35` |
+
+### 9.3 Mutasi putaran perbaikan — 25 dijalankan, 25 dipaku MERAH
+
+Sepuluh di antaranya **lolos hijau sebelum** commit yang menutupnya.
+
+| Mutasi | Berkas | Merah | Dulu |
+|---|---|---|---|
+| pin `reorder_qty` null → 0 dibuang | kedua FormRequest | 2 | — |
+| cermin `unique` pada `item_id` dibuang | `ReorderRuleUpdateRequest` | 1 | — |
+| pin `is_active` null dibuang | `ReorderRuleUpdateRequest` | 1 | — |
+| `skipped > 0` dipaksa `true` | `ReorderController` | 1 | — |
+| `Rule::exists` warehouse dibuang | `ReorderController` | 1 | — |
+| `OPEN_STATUSES` → `[Draft]` | `ReorderService` | 2 | **HIJAU** |
+| baris PR memakai `shortage_qty` | `ReorderService` | 1 | **HIJAU** |
+| `whereNull('p.deleted_at')` dibuang | `ReorderService` | 1 | **HIJAU** |
+| `why_skipped` → "XXX MUTASI XXX" | `ReorderService` | 1 | **HIJAU** |
+| kueri PO dicabut | `ReorderService` | 1 | — |
+| PO `closed` ikut dianggap terbuka | `ReorderService` | 1 | — |
+| "Sudah dipesan" disamakan dengan "diminta" | `ReorderService` | 1 | — |
+| `'inv_reorder_rules'` dibuang dari `tables` | `ModuleCounts` | 2 | **HIJAU** |
+| noun label dikembalikan ke "Item …" | `ModuleCounts` + `schema.js` | 1 | **HIJAU** |
+| kueri diubah menjadi `distinct` item | `ModuleCounts` | 5 | — |
+| `applies` dipaksa `true` + label dikosongkan | `ReorderRuleResource` | 2 | **HIJAU** |
+| kolom `deleted_labels` dicabut | `schema.js` | 1 | — |
+| lebar stiker 62 → 120 mm | `FormPrintService` | 5 | **HIJAU** |
+| tinggi batang 15% → 2% | `FormPrintService` | 4 | **HIJAU** |
+| `widthMm` dicabut (ukuran kembali ke CSS) | `FormPrintService` | 4 | — |
+| penolakan kode terlalu panjang dimatikan | `FormPrintService` | 3 | — |
+| pembungkus `.lembar` dicabut | blade F/LBL | 2 | **HIJAU** |
+| `trim()` barcode pemasok dicabut | `FormPrintService` | 2 | **HIJAU** |
+| peringatan barcode ganda dimatikan | `FormPrintService` | 1 | — |
+| pematahan teks manusia dikembalikan | `Code128` | 1 | — |
+| dekoder berhenti memeriksa digit periksa | `Code128Test` | 1 | — |
+| pencocokan pindai kembali peka huruf | `ItemScanController` | 3 | **HIJAU** |
+| `matched_on` kembali peka huruf | `ItemScanController` | 2 | — |
+| kalimat kartu item dimatikan | `ItemResource` | 1 | — |
+| hitungan aturan mengabaikan `is_active` | `ItemController` | 1 | — |
+| saringan barcode ganda dimatikan | `ItemController` | 1 | — |
+
+…ditambah tiga mutasi terhadap **harness**, yang sebelumnya tidak bisa dilihat sama sekali:
+
+| Mutasi | Skenario | Syarat merah | Dulu |
+|---|---|---|---|
+| `stopCamera()` dilumpuhkan total | S33k | 3 | **HIJAU** (S33, S33k, S33m semuanya) |
+| pembungkus `.lembar` dicabut | S33 | 1 | **HIJAU** |
+| `widthMm` dicabut + kisi dikunci 62 mm | S33 | 1 | **HIJAU** |
+
+### 9.4 Angka gerbang sesudah perbaikan
+
+| Perintah | Sebelum (`fb7ada5`) | Sesudah |
+|---|---|---|
+| `vendor/bin/phpunit tests/Feature/Inventory tests/Feature/Procurement` | OK 563 / 8.385 | **OK 603 uji / 8.789 pernyataan** (01:48) |
+| `vendor/bin/phpunit tests/Feature/Core` | OK 968 / 8.818, 11 dilewati | **OK 972 uji / 8.870 pernyataan, 11 dilewati** (03:08) |
+| MySQL 8 (`phpunit.mysql.xml`, `DB_DATABASE=erp_dryrun`), sembilan berkas F-6 | 55 / 293 | **OK 155 uji / 6.666 pernyataan, 3 dilewati** (01:05) |
+| `vendor/bin/pint --test` pada berkas yang disentuh | lolos | **lolos** |
+| Harness S32/S32m/S33/S33k/S33m | 5 skenario, 55 syarat | **5 skenario, 65 syarat**, semuanya hijau |
+| `results-phase-2.json` | 23 kunci | **23 kunci**; 18 kunci pra-F-6 tetap **byte-identik** dengan versi di `main` |
+
+**Peramban.** Chromium headless di atas `php -S 127.0.0.1:8166` melayani SALINAN sqlite di
+scratchpad (server dimatikan berdasarkan PID). **Lima peran** (admin, warehouse, procurement,
+teknisi, direktur) × **dua lebar** (1440×900 dan 390×844) × **delapan rute** (`#/home`,
+`#/dashboard`, `#/stock`, `#/r/inventory/reorder-rules`, `#/usulan-pesan-ulang`, `#/pindai`,
+`#/r/inventory/items`, `#/d/inventory/items/1`) = 80 pemuatan rute:
+
+```
+console_errors: 0   pageerrors: 0   failed_requests: 0   responses_4xx_5xx: 0
+```
+
+### 9.5 Yang berpindah ke keputusan pemilik
+
+1. **GET Inventory tidak bergerbang izin baca** — termasuk `reorder-rules`, `reorder/proposal` dan
+   `stock/low-stock`. Siapa pun yang punya sesi (termasuk peran HR) bisa membacanya lewat alamat
+   endpoint-nya, sementara ubin launcher Persediaan MEMANG bergerbang `inv.view`. Ini **pola modul
+   yang sudah ada sebelum F-6**, bukan lubang yang paket ini buka, jadi perilaku hari ini
+   dipertahankan — tetapi ia sekarang **dinyatakan**, bukan disimpulkan: nama uji dan komentar rute
+   berhenti menjanjikan gerbang, dan `ReorderRuleApiTest::test_writing_a_rule_needs_inv_create_
+   while_reading_follows_the_module_default` MEMAKU 200 bagi sesi tanpa satu pun izin `inv.*`.
+   Kalau pemilik memutuskan sebaliknya, baris itulah yang jatuh lebih dulu dan menunjuk tempat
+   gerbangnya.
+
+2. **Blok migrasi Core.** Ledger pemilik (ROADMAP §5 baris 5) merekomendasikan "Core 001400–?",
+   dan `001400–001499` adalah blok PERTAMA Quality menurut tabel CONVENTIONS §2 — sudah berisi
+   enam migrasi. Usul pengganti **001800–001899** ditandai di kedua dokumen dan menunggu
+   pengesahan. Tidak ada migrasi Core yang dibuat paket ini, jadi tidak ada yang mendesak.
+
+3. **`inv_items.barcode` unik atau tidak** (§5.1) tetap keputusan pemilik — tetapi audit yang
+   dibutuhkannya sekarang **punya permukaan**: daftar Item membawa kolom Barcode, saringan
+   "Barcode ganda", dan `sort=barcode`. Sebelumnya §5.1 meminta angka yang hanya bisa diambil
+   lewat SSH + tinker ke produksi, yaitu keputusan yang tidak akan pernah diambil.
+
+### 9.6 Deviasi tambahan yang ditemukan putaran ini
+
+1. **Tabrakan blok migrasi di ledger pemilik**: "Core 001400–?" = blok pertama Quality. Ditandai di
+   ROADMAP §5 dan CONVENTIONS §2 (lihat §9.5 butir 2).
+
+2. **Enumerasi layar Persediaan di empat berkas onboarding sudah tidak lengkap SEBELUM F-6.**
+   Diukur di Chromium: keenam peran pemegang `inv.view` (warehouse, procurement, teknisi,
+   site-manager, project-manager, direktur) melihat **11 baris yang sama**, sementara
+   `teknisi.md`, `site-manager.md` dan `project-manager.md` menyebut lima, tiga dan dua baris.
+   Putaran ini memperbaiki **klaim jumlah** yang F-6 buat salah (warehouse.md "kedelapan" → 11,
+   procurement.md "kedelapan" → 11, "tujuh lembar" → delapan) dan menambahkan satu kalimat tentang
+   tiga baris baru ke tiga berkas lain; **audit ulang penuh enumerasi lama tidak dikerjakan** —
+   ia tidak dibuat salah oleh F-6 dan menyentuh enam berkas peran sekaligus.
