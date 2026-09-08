@@ -665,6 +665,7 @@ Core.
 | V7-1, V7-6 | kode yang ditolak tercetak 191 mm di dalam kotak 56,5 mm, menimpa dua stiker tetangga dan keluar halaman | `5031ae0` |
 | (mutasi yang lolos) | font kode tulis-tangan boleh berbeda dari font yang dipakai menghitung penggalannya | `5150362` |
 | V7-5 | panduan pengadaan berkata daftar itu "tanpa tombol PR" — tombol yang hanya DIA yang dapat | `592295a` |
+| **V7-7 (ditemukan sendiri)** | saringan audit butuh **21 detik** pada katalog 5.000 item — lahir dari penyatuan `bdd7d8c` itu sendiri | `c1abb0d` |
 | — | §31/§33/§34 + PANDUAN §6.3 menyatakan aturan yang benar-benar berlaku | `047a734` |
 
 ### 10.3 Angka yang diukur di Chromium (media=print, item ITM-0006)
@@ -714,7 +715,7 @@ lain dan sengaja berbeda:
 | `widgets/stok-minimum.js`, tab `custom.js`, `reorder.js` | membaca endpoint yang sama |
 | FormRequest `unique` (gudang × item) | penjaga pasangan, bukan "berlaku" |
 
-### 10.5 Mutasi putaran kedua — 16 dijalankan, 16 dipaku MERAH
+### 10.5 Mutasi putaran kedua — 17 dijalankan, 17 dipaku MERAH
 
 Satu di antaranya **lolos hijau** dan memaksa syarat harness baru (baris terakhir).
 
@@ -736,15 +737,16 @@ Satu di antaranya **lolos hijau** dan memaksa syarat harness baru (baris terakhi
 | jaring `overflow-wrap` satu lembar dicabut | blade F/LBL | **S33** (`.lembar` 205,92 mm > 194,01 mm) |
 | lebar pemenggalan 3× lebar stiker | `FormPrintService` | 3 uji PHP |
 | font tulis-tangan 14 pt, penggalan tetap dihitung 9 pt | blade F/LBL | **LOLOS HIJAU** → syarat `Range.getClientRects()` ditambahkan, lalu **S33 merah** |
+| bentuk `EXISTS` berkorelasi dikembalikan (aturan sama, biaya kuadratik) | `Item` | 1 uji PHP (6,5 detik untuk 2.000 item, anggaran 2 detik) |
 
 ### 10.6 Angka gerbang sesudah putaran kedua
 
 | Perintah | Hasil |
 |---|---|
-| `vendor/bin/phpunit tests/Feature/Inventory tests/Feature/Procurement` | **OK 614 uji / 8.913 pernyataan** (01:59) |
+| `vendor/bin/phpunit tests/Feature/Inventory tests/Feature/Procurement` | **OK 615 uji / 8.916 pernyataan** (01:50) |
 | `vendor/bin/phpunit tests/Feature/Core` | **OK 972 uji / 8.870 pernyataan, 11 dilewati** (03:18) |
 | `vendor/bin/phpunit tests/Feature/Iam` | **OK 62 uji / 472 pernyataan** (00:21) |
-| MySQL 8 (`phpunit.mysql.xml`, `DB_DATABASE=erp_dryrun`), 11 berkas F-6 | **OK 188 uji / 6.789 pernyataan, 3 dilewati** |
+| MySQL 8 (`phpunit.mysql.xml`, `DB_DATABASE=erp_dryrun`), 11 berkas F-6 | **OK 188 uji / 6.789 pernyataan, 3 dilewati**; diulang untuk bentuk saringan yang baru (27 uji / 158 pernyataan) |
 | `vendor/bin/pint --test` pada berkas yang disentuh | **lolos** |
 | Harness S32/S32m/S33/S33k/S33m | **5 skenario, 71 syarat** (dari 65), semuanya hijau |
 | `results-phase-2.json` | **23 kunci**; 18 kunci non-F-6 **byte-identik** dengan sebelumnya (diperiksa sebelum ditulis) |
@@ -759,6 +761,38 @@ melayani SALINAN sqlite di scratchpad. Empat sesi (admin, warehouse, procurement
 console_errors: 0   pageerrors: 0   failed_requests: 0   responses_4xx_5xx: 0
 saringan "Barcode ganda" menggambar 3 baris pada katalog bertabrakan (keempat sesi)
 ```
+
+### 10.8 Cacat KETUJUH, yang lahir dari perbaikan ini sendiri
+
+Perintah putaran ini memperingatkan bahwa tambalan permukaan ketiga akan melahirkan temuan
+ketujuh. Penyatuannya menghindari temuan itu — dan melahirkan yang lain, di sumbu yang berbeda:
+**biaya**.
+
+`sharingScanCode()` versi pertama adalah `EXISTS (… other …)` **berkorelasi**: satu subkueri per
+baris, atas tabel yang sama. Aturannya benar dan setiap uji hijau — katalog uji berisi belasan
+item. Diukur pada katalog 5.000 item (SQLite):
+
+| | bentuk berkorelasi | dihitung sekali |
+|---|---|---|
+| `count()` lengan "ganda" | **20.973 ms** | **23 ms** |
+| `count()` lengan "tidak ganda" | **21.921 ms** | **23 ms** |
+| satu halaman 25 baris | 109 ms | 21 ms |
+| jawabannya | 10 ganda / 4.990 unik | sama persis |
+
+`listing()` menghitung total sebelum menggambar halaman pertama, jadi 21 detik itulah yang dilihat
+orangnya — pada permukaan yang seluruh gunanya adalah memberi pemilik angka untuk memutuskan
+`UNIQUE`. Saringan LAMA (`GROUP BY barcode`) tidak punya masalah itu; **penyatuannya yang
+membawanya masuk**, dan tidak satu pun uji fungsional bisa melihatnya.
+
+Sesudah: kunci yang bertabrakan dihitung SEKALI (UNION dua kolom kunci → `GROUP BY` →
+`COUNT(DISTINCT id) > 1`), aturannya tetap satu (`SCAN_KEY_COLUMNS` + `scanKeyExpression()` yang
+sama membangun kedua scope), dan ujinya memaku anggaran 2 detik untuk 2.000 item — ukuran di mana
+bentuk berkorelasi mendarat di 6,5 detik.
+
+**Pelajarannya untuk paket berikutnya:** menyatukan sebuah aturan berarti memeriksa BENTUK
+kuerinya, bukan hanya jawabannya. Fixture uji berisi belasan baris; permukaan audit dijalankan di
+atas katalog produksi, dan satu-satunya cara melihat selisihnya adalah mengukurnya pada ukuran
+sungguhan.
 
 ### 10.7 Yang TIDAK diperbaiki, dan alasannya
 

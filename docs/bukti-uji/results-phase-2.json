@@ -2435,10 +2435,10 @@
    "toasts": [
     "Satu PR draf dibuat. Periksa dan ajukan sendiri dari layar Permintaan Pembelian."
    ],
-   "hash": "#/d/procurement/purchase-requisitions/3"
+   "hash": "#/d/procurement/purchase-requisitions/4"
   },
   "created_codes": [
-   "PR/2026/IX/0003"
+   "PR/2026/IX/0004"
   ],
   "created_statuses": [
    "draft"
@@ -2463,7 +2463,7 @@
      ]
     },
     {
-     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf).",
+     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf).",
      "cells": [
       "Semen Portland 50kg ITM-0001",
       "Gudang Pusat (Cakung)",
@@ -2471,7 +2471,7 @@
       "710 Aturan reorder gudang ini · stok min. item 200",
       "10",
       "750 zak jumlah pesan aturan",
-      "Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf)."
+      "Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf)."
      ]
     }
    ],
@@ -2485,7 +2485,7 @@
   },
   "requisitions_after_second_press": 1,
   "skipped_row": {
-   "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf).",
+   "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf).",
    "cells": [
     "Semen Portland 50kg ITM-0001",
     "Gudang Pusat (Cakung)",
@@ -2493,7 +2493,7 @@
     "710 Aturan reorder gudang ini · stok min. item 200",
     "10",
     "750 zak jumlah pesan aturan",
-    "Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf)."
+    "Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf)."
    ]
   },
   "console_errors": [],
@@ -2516,7 +2516,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 11343,
+  "_ms": 11259,
   "_clicks": 2
  },
  "S32_reorder_usulan_pr_mobile": {
@@ -2547,7 +2547,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5481,
+  "_ms": 5415,
   "_clicks": 1
  },
  "S33_label_dan_pindai": {
@@ -2659,7 +2659,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 32250,
+  "_ms": 32012,
   "_clicks": 8
  },
  "S33_pindai_keadaan_kamera": {
@@ -2821,7 +2821,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 45407,
+  "_ms": 45226,
   "_clicks": 3
  },
  "S33_label_dan_pindai_mobile": {
@@ -2870,7 +2870,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 6363,
+  "_ms": 6351,
   "_clicks": 2
  }
 }
