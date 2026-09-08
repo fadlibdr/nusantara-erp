@@ -7812,7 +7812,7 @@ def s32(pg):
             "create_button": pg.locator("button:has-text('Buat PR draf')").count(),
             "all_skipped_line": pg.evaluate(
                 "() => { const n = [...document.querySelectorAll('.card-head .cell-sub')]"
-                ".find(e => /sudah ada di PR terbuka/.test(e.innerText)); return n ? n.innerText.trim() : null; }"),
+                ".find(e => /sudah ada di PR atau PO terbuka/.test(e.innerText)); return n ? n.innerText.trim() : null; }"),
         }
         pg.screenshot(path=f"{OUT}/s32-usulan-sesudah.png", full_page=False)
 
@@ -7850,8 +7850,12 @@ def s32(pg):
                 bool(planted) and "Aturan reorder gudang ini" in planted["cells"][3],
             "and_the_order_quantity_comes_from_the_rule_not_the_shortage":
                 bool(planted) and "jumlah pesan aturan" in planted["cells"][5],
+            # "PR ATAU PO terbuka" sejak putaran perbaikan F-6: PO boleh dibuat
+            # tanpa PR, dan penjaga yang hanya membaca baris PR mengusulkan lagi
+            # barang yang uangnya sudah terikat.
             "the_proposal_screen_states_the_skip_rule_before_it_bites":
-                bool(out["before"]["why_skipped_card"]) and "PR terbuka" in out["before"]["why_skipped_card"],
+                bool(out["before"]["why_skipped_card"])
+                and "PR ATAU PO terbuka" in out["before"]["why_skipped_card"],
             "pressing_the_button_once_creates_a_draft_requisition":
                 len(made) >= 1 and out["created_statuses"] == ["draft"],
             "the_row_that_was_proposable_now_says_it_was_skipped":
@@ -7862,7 +7866,7 @@ def s32(pg):
                 out["after"]["create_button"] == 0 and bool(out["after"]["all_skipped_line"]),
             "and_the_endpoint_itself_refuses_a_second_run_not_just_the_button":
                 out["second_press_direct"]["created"] == []
-                and "sudah ada di PR terbuka" in (out["second_press_direct"]["message"] or ""),
+                and "sudah ada di PR atau PO terbuka" in (out["second_press_direct"]["message"] or ""),
             "so_a_second_run_raises_no_second_requisition":
                 out["requisitions_after_second_press"] == len(made),
             "the_screens_raise_no_console_error":
@@ -7934,7 +7938,7 @@ def s32m(browser):
             "the_wide_table_scrolls_inside_its_own_box": out["wrap_scrolls"] is True,
             "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
             "the_skip_rule_is_still_readable_on_a_phone":
-                out["why_visible"] is True and "PR terbuka" in (out["why_text"] or ""),
+                out["why_visible"] is True and "PR ATAU PO terbuka" in (out["why_text"] or ""),
             "the_stock_table_also_stays_inside_its_box":
                 out["stock"]["wrap_scrolls"] is True and out["stock"]["page_scrolls_sideways"] is False,
             "and_every_row_still_names_where_its_threshold_came_from":
@@ -8040,39 +8044,69 @@ def s33(pg):
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(300)
 
-        # -------------------------- lembar labelnya, DIGAMBAR oleh Chromium
-        out["sheet"] = pg.evaluate("""async (id) => {
-          const res = await fetch(`/api/core/print/forms/label-barcode/${id}?jumlah=6`, {
-            headers: { Authorization: 'Bearer ' + localStorage.getItem('nusantara_erp_token') },
-          });
-          const html = await res.text();
-          const doc = new DOMParser().parseFromString(html, 'text/html');
-          const host = document.createElement('div');
-          host.style.cssText = 'position:fixed;left:-4000px;top:0;';
-          document.body.appendChild(host);
-          host.innerHTML = doc.body.innerHTML;
-          const svg = host.querySelector('svg');
-          const box = svg ? svg.getBoundingClientRect() : null;
+        # ---- lembar labelnya, DIBUKA SEBAGAI HALAMAN lewat menu Cetak sungguhan
+        #
+        # BUKAN fetch + `host.innerHTML = doc.body.innerHTML`, yang dipakai versi
+        # pertama skenario ini. Cara itu membuang <head><style> lembarnya, jadi
+        # yang diukur adalah potongan HTML TANPA satu pun aturan tata letaknya:
+        # `.stiker` terukur 819,95 mm alih-alih 62 mm, dan syarat "svg_width >
+        # 100" tetap hijau untuk barcode 100 karakter yang sudah terbukti tidak
+        # terbaca pada raster 600 dpi. Ia juga tidak pernah menjalankan
+        # openPrintable()/printWhenLoaded(), sehingga lembar tanpa pembungkus
+        # `.lembar` — yang membuat dialog cetak TIDAK PERNAH muncul — lolos
+        # tanpa suara.
+        #
+        # Yang diukur sekarang hanya bisa dilihat di halaman sungguhan: lebar
+        # `.stiker` dalam MILIMETER, lebar SVG SETELAH tata letak, lebar modul
+        # cetak, tinggi batang, apakah <text>-nya keluar viewBox, dan apakah
+        # window.print benar-benar terpanggil.
+        pg.context.add_init_script(
+            "window.__printCalls = 0; window.print = function () { window.__printCalls++; };")
+        click(pg, ".page-head .actions button.menu-trigger:has-text('Cetak')")
+        pg.wait_for_timeout(500)
+        with pg.context.expect_page(timeout=25000) as popup_info:
+            click(pg, ".menu-item:has-text('Label Barcode (12 stiker)')")
+        sheet = popup_info.value
+        sheet.wait_for_timeout(9000)
+        out["sheet"] = sheet.evaluate("""() => {
+          const probe = document.createElement('div');
+          probe.style.cssText = 'position:absolute;width:10mm';
+          document.body.appendChild(probe);
+          const pxPerMm = probe.getBoundingClientRect().width / 10;
+          probe.remove();
+
+          const st = document.querySelector('.stiker');
+          const svg = document.querySelector('.stiker svg');
+          const vb = svg ? svg.getAttribute('viewBox').split(' ').map(Number) : null;
           const rects = svg ? [...svg.querySelectorAll('g rect')] : [];
           const painted = rects.filter(r => r.getBoundingClientRect().width > 0);
-          const out = {
-            status: res.status,
-            content_type: res.headers.get('content-type'),
-            stickers: host.querySelectorAll('.stiker').length,
-            form_code: /Form F\\/LBL/.test(html),
-            note: (host.querySelector('.catatan') || {}).innerText || null,
+          const texts = svg ? [...svg.querySelectorAll('text')] : [];
+          const svgMm = svg ? svg.getBoundingClientRect().width / pxPerMm : null;
+
+          return {
+            print_calls: window.__printCalls,
+            has_lembar: !!document.querySelector('.lembar'),
+            stickers: document.querySelectorAll('.stiker').length,
+            form_code: /Form F\\/LBL/.test(document.body.innerText),
+            note: (document.querySelector('.catatan') || {}).innerText || null,
             svg_present: !!svg,
-            svg_width: box ? Math.round(box.width) : null,
-            svg_height: box ? Math.round(box.height) : null,
+            sticker_mm: st ? +(st.getBoundingClientRect().width / pxPerMm).toFixed(3) : null,
+            svg_mm: svgMm === null ? null : +svgMm.toFixed(3),
+            svg_attr_width: svg ? svg.getAttribute('width') : null,
+            module_mm: svgMm === null ? null : +(svgMm / vb[2] * 2).toFixed(4),
+            bar_height_mm: svgMm === null ? null
+              : +(+rects[0].getAttribute('height') * svgMm / vb[2]).toFixed(3),
             bars: rects.length,
             bars_painted: painted.length,
-            human_readable: svg ? (svg.querySelector('text') || {}).textContent || null : null,
+            human_readable: texts.map(t => t.textContent).join(''),
+            text_inside_viewbox: texts.every(t => t.getBBox().x >= -0.5
+              && t.getBBox().x + t.getBBox().width <= vb[2] + 0.5),
             aria: svg ? svg.getAttribute('aria-label') : null,
+            page_scrolls_sideways: document.body.scrollWidth > document.body.clientWidth,
           };
-          host.remove();
-          return out;
-        }""", item_id)
-        pg.screenshot(path=f"{OUT}/s33-lembar-label.png", full_page=False)
+        }""")
+        sheet.screenshot(path=f"{OUT}/s33-lembar-label.png", full_page=False)
+        sheet.close()
 
         # ------------------------------------------------- pindai: jalur ketik
         pg.goto(BASE + "#/pindai")
@@ -8123,18 +8157,29 @@ def s33(pg):
         out["checks"] = {
             "the_item_screen_offers_the_label_sheet":
                 any("Label Barcode" in b for b in out["print_menu"]),
-            "the_sheet_answers_as_html": out["sheet"]["status"] == 200
-                and "text/html" in (out["sheet"]["content_type"] or ""),
+            # `.lembar` adalah kontrak print.js: tanpanya lembarnya tergambar
+            # dan dialog cetak TIDAK PERNAH muncul, tanpa satu pun pesan.
+            "the_print_button_really_opens_the_print_dialog":
+                out["sheet"]["print_calls"] == 1 and out["sheet"]["has_lembar"] is True,
             "and_carries_its_form_code": out["sheet"]["form_code"] is True,
-            "and_prints_exactly_the_stickers_the_url_asked_for": out["sheet"]["stickers"] == 6,
-            # SVG yang cacat tetap 200 dan tetap "ada"; yang membuktikan ia benar
-            # adalah Chromium menggambarnya dengan lebar bukan-nol.
-            "chromium_actually_paints_the_barcode":
-                out["sheet"]["svg_present"] is True and (out["sheet"]["svg_width"] or 0) > 100,
+            "and_prints_exactly_the_stickers_the_button_asked_for": out["sheet"]["stickers"] == 12,
+            # MILIMETER DI KERTAS, bukan piksel atribut SVG. Nama syarat lama
+            # ("chromium_actually_paints_the_barcode") mengklaim jauh lebih
+            # daripada `svg_width > 100` yang sebenarnya diperiksanya, dan tetap
+            # hijau untuk barcode yang tidak terbaca pemindai mana pun.
+            "the_printed_module_is_wide_enough_to_scan":
+                (out["sheet"]["module_mm"] or 0) >= 0.25,
+            "and_the_symbol_fits_its_sticker_box_so_css_never_shrinks_it":
+                out["sheet"]["svg_mm"] is not None
+                and out["sheet"]["svg_mm"] <= out["sheet"]["sticker_mm"] - 4.9
+                and (out["sheet"]["svg_attr_width"] or "").endswith("mm"),
+            "and_the_bars_are_at_least_15_percent_as_tall_as_the_symbol_is_wide":
+                (out["sheet"]["bar_height_mm"] or 0) >= 0.15 * (out["sheet"]["svg_mm"] or 1) - 0.05,
             "every_bar_has_a_width": out["sheet"]["bars"] > 20
                 and out["sheet"]["bars_painted"] == out["sheet"]["bars"],
-            "and_the_human_readable_line_is_under_it":
-                F6_ITEM in (out["sheet"]["human_readable"] or ""),
+            "and_the_human_readable_line_is_under_it_and_never_clipped":
+                F6_ITEM in (out["sheet"]["human_readable"] or "")
+                and out["sheet"]["text_inside_viewbox"] is True,
             "and_the_sheet_says_which_code_it_encoded":
                 "kode item" in (out["sheet"]["note"] or "") or "barcode pemasok" in (out["sheet"]["note"] or ""),
             "typing_a_code_finds_the_item_and_its_stock_per_warehouse":
@@ -8202,8 +8247,20 @@ def s33k(browser):
     ctx.close()
 
     # 2. Bukan konteks aman (http://) — peramban tidak akan pernah meminta kamera.
+    #
+    # TANPA FAKE_DETECTOR, dan itu seluruh isinya. Versi pertama skenario ini
+    # menyuntikkan BarcodeDetector palsu KE DALAM halaman tidak aman — kombinasi
+    # yang tidak pernah diproduksi platform mana pun: BarcodeDetector
+    # ber-[SecureContext], jadi pada asal yang tidak aman ia undefined, dan
+    # navigator.mediaDevices ikut undefined. Halaman tidak aman yang JUJUR
+    # adalah halaman tanpa keduanya, dan hanya uji seperti itu yang bisa
+    # membedakan urutan pemeriksaan yang benar dari yang salah. Diukur pada
+    # hostname yang dipetakan ke loopback (--host-resolver-rules): dengan
+    # urutan lama, pemakai http di Chrome Android membaca "buka halaman ini
+    # dengan Chrome di Android".
     pg, ctx, errs, res = read({"viewport": {"width": 1440, "height": 900}},
-                              (FAKE_DETECTOR % F6_ITEM) +
+                              NO_DETECTOR +
+                              "delete navigator.mediaDevices;"
                               "Object.defineProperty(window, 'isSecureContext', { value: false, configurable: true });",
                               False)
     pg.screenshot(path=f"{OUT}/s33-kamera-bukan-https.png", full_page=False)
@@ -8252,6 +8309,76 @@ def s33k(browser):
     finally:
         ctx.close()
 
+    # 6. SIKLUS HIDUP TREK KAMERA — kelas cacat yang tidak bisa dilihat satu pun
+    #    asersi yang menghitung tombol atau membaca kalimat status.
+    #
+    #    Melumpuhkan stopCamera() sepenuhnya (pindai.js: baris stop() diganti
+    #    `;`) meninggalkan S33, S33k dan S33m HIJAU semuanya: kamera menyala
+    #    selamanya dan gerbang buktinya lolos dengan tiga skenario hijau. Yang
+    #    menemukannya adalah orang gudang yang baterainya habis sebelum jam dua,
+    #    dan di Android kamera yang tidak dilepas menahan aplikasi lain dari
+    #    memakainya sampai tabnya ditutup.
+    #
+    #    `grep -c "Matikan" harness-playwright.py` pernah menjawab 0.
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    ctx.add_init_script((FAKE_DETECTOR % F6_ITEM) + """
+      window.__streams = []; window.__gum = 0; window.__stops = 0;
+      const realStop = MediaStreamTrack.prototype.stop;
+      MediaStreamTrack.prototype.stop = function () { window.__stops++; return realStop.apply(this, arguments); };
+      navigator.mediaDevices = navigator.mediaDevices || {};
+      navigator.mediaDevices.getUserMedia = async () => {
+        window.__gum++;
+        const c = document.createElement('canvas'); c.width = 320; c.height = 240;
+        c.getContext('2d').fillRect(0, 0, 10, 10);
+        const s = c.captureStream(5); window.__streams.push(s); return s;
+      };
+    """)
+    pg = ctx.new_page()
+    life_errors = []
+    pg.on("pageerror", lambda e: life_errors.append(str(e)))
+    try:
+        login(pg, "warehouse@nusantara.test")
+        pg.goto(BASE + "#/pindai")
+        pg.wait_for_selector("button:has-text('Nyalakan kamera')", timeout=20000)
+
+        tracks = """() => ({ gum: window.__gum, stops: window.__stops,
+          streams: window.__streams.map(s => ({ active: s.active, tracks: s.getTracks().map(t => t.readyState) })) })"""
+
+        click(pg, "button:has-text('Nyalakan kamera')")
+        pg.wait_for_timeout(2000)
+        out["lifecycle_on"] = pg.evaluate(tracks)
+
+        click(pg, "button:has-text('Matikan kamera')")
+        # 7 detik: cukup lama untuk melihat sebuah akuisisi KEDUA yang dipicu
+        # pendengar bertumpuk menyelesaikan janjinya dan meninggalkan trek
+        # pertamanya hidup.
+        pg.wait_for_timeout(7000)
+        out["lifecycle_off"] = pg.evaluate(tracks)
+        out["lifecycle_screen"] = pg.evaluate("""() => ({
+          buttons: [...document.querySelectorAll('#view button')].map(b => b.innerText.trim()),
+          status: [...document.querySelectorAll('#view .cell-sub')].map(e => e.innerText.trim()),
+          heights: [...document.querySelectorAll('#view button')]
+            .map(b => [b.innerText.trim(), Math.round(b.getBoundingClientRect().height)]),
+        })""")
+        pg.screenshot(path=f"{OUT}/s33-kamera-dimatikan.png", full_page=False)
+
+        # …dan jalur PINDAH RUTE, yang pengawas video.isConnected pegang.
+        click(pg, "button:has-text('Nyalakan kamera')")
+        pg.wait_for_timeout(2000)
+        pg.goto(BASE + "#/dashboard")
+        pg.wait_for_timeout(2500)
+        out["lifecycle_route"] = pg.evaluate(tracks)
+        out["lifecycle_pageerrors"] = life_errors
+    finally:
+        ctx.close()
+
+    def ended(block):
+        """Setiap trek pada setiap stream yang pernah diminta halaman ini
+        BERAKHIR — bukan "tombolnya berubah", bukan "kalimatnya berganti"."""
+        return (block["streams"] != []
+                and all(s["active"] is False and all(t == "ended" for t in s["tracks"])
+                        for s in block["streams"]))
+
     def said(block, needle):
         """Kalimatnya boleh berada di JUDUL kartu atau di badannya — keduanya
         dibaca orang yang sama, dan uji yang hanya membaca badannya menyatakan
@@ -8283,6 +8410,23 @@ def s33k(browser):
             out["scanning"]["input_value"] == F6_ITEM and out["scanning"]["video"] is True,
         "and_the_lookup_really_happened":
             any("Semen" in c or F6_ITEM in c for c in out["scanning"]["result_cards"]),
+        # --------------------------------------------------- siklus hidup trek
+        "starting_the_camera_asks_for_it_exactly_once":
+            out["lifecycle_on"]["gum"] == 1 and len(out["lifecycle_on"]["streams"]) == 1,
+        "turning_it_off_really_ends_every_track_it_ever_held":
+            ended(out["lifecycle_off"]) and out["lifecycle_off"]["gum"] == 1,
+        "and_it_does_not_quietly_ask_for_the_camera_again_on_the_way_out":
+            out["lifecycle_off"]["stops"] == 1,
+        "and_the_screen_only_says_the_camera_is_off_once_it_really_is":
+            any("Kamera belum dinyalakan" in t for t in out["lifecycle_screen"]["status"])
+            and "Nyalakan kamera" in out["lifecycle_screen"]["buttons"],
+        "leaving_the_route_ends_its_tracks_too":
+            ended(out["lifecycle_route"]),
+        # Standar target sentuh rumah ini 42–46 px, di layar yang komentarnya
+        # sendiri menyebut orang bersarung tangan sebagai alasan.
+        "and_every_camera_button_is_a_thumb_sized_target":
+            all(h >= 44 for _, h in out["lifecycle_screen"]["heights"]),
+        "and_nothing_throws_along_the_way": out["lifecycle_pageerrors"] == [],
     }
     out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
     out["ok"] = not out["failed_checks"]
@@ -8332,6 +8476,13 @@ def s33m(browser):
           cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText.trim()),
           rows: document.querySelectorAll('table.data tbody tr').length,
           page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+          // Tombol "Buka kartu item" adalah SATU-SATUNYA jalan keluar dari
+          // kartu hasil, dan versi pertama layar ini menggambarnya 28 px —
+          // pada layar yang komentarnya sendiri menyebut orang bersarung
+          // tangan sebagai alasan. S33m dulu hanya mengukur isian dan tombol
+          // Cari; tombol hasil tidak pernah diukur pada lebar mana pun.
+          buttons: [...document.querySelectorAll('#view button')]
+            .map(b => [b.innerText.trim(), Math.round(b.getBoundingClientRect().height)]),
         })""")
         pg.screenshot(path=f"{OUT}/s33-pindai-ponsel-hasil.png", full_page=False)
         out["console_errors"] = errors
@@ -8351,6 +8502,9 @@ def s33m(browser):
                 out["result"]["rows"] > 0,
             "and_the_result_does_not_widen_the_page":
                 out["result"]["page_scrolls_sideways"] is False,
+            "and_every_button_on_the_result_is_a_thumb_sized_target":
+                out["result"]["buttons"] != []
+                and all(h >= 44 for _, h in out["result"]["buttons"]),
             "the_screen_raises_no_console_error": out["console_errors"] == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
