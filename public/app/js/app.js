@@ -26,6 +26,8 @@ import { renderSettings } from './views/settings.js';
 import { renderTaxExport } from './views/taxexport.js';
 import { renderBankRecon } from './views/bankrecon.js';
 import { renderLapangan } from './views/lapangan.js';
+import { renderAbsensiSaya } from './views/absensisaya.js';
+import { renderUsulanRekap } from './views/usulanrekap.js';
 import { renderK3 } from './views/k3.js';
 import { renderEvm } from './views/evm.js';
 import { renderDefects } from './views/defect.js';
@@ -959,6 +961,29 @@ function registerRoutes() {
     setActiveNav('lapangan');
     const host = view();
     return guard(host, () => renderLapangan(host));
+  });
+
+  /* "Absensi Saya" (F-4) TANPA gerbang izin, dan itu keputusan, bukan
+     kelalaian: layar ini hanya menyentuh baris absensi milik pemanggilnya
+     sendiri, dan orang yang paling membutuhkannya — tukang, teknisi, pengemudi
+     — tidak memegang satu pun izin hr.*. Register absensi orang lain tetap
+     dijaga hr.view di rutenya. Akun tanpa kartu karyawan mendapat kalimat dari
+     server, bukan layar kosong. */
+  /* Usulan rekap (F-4): hitungan register bulan itu sebagai isian awal formulir
+     rekap yang sudah ada. hr.view karena angkanya adalah register absensi. */
+  route('usulan-rekap', () => {
+    setCrumbs(['SDM & Payroll', 'Usulan Rekap Absensi']);
+    setActiveNav('usulan-rekap');
+    const host = view();
+    if (!session.can('hr.view')) return accessDenied(host, 'hr');
+    return guard(host, () => renderUsulanRekap(host));
+  });
+
+  route('absensi-saya', () => {
+    setCrumbs(['Ringkasan', 'Absensi Saya']);
+    setActiveNav('absensi-saya');
+    const host = view();
+    return guard(host, () => renderAbsensiSaya(host));
   });
 
   /* Galeri foto progres per proyek (Temuan 16). Rute berparameter id karena

@@ -32,7 +32,10 @@ class SettingApiTest extends ErpTestCase
      * Sepuluh sejak F-1: kelompok "Matriks Persetujuan" (28 baris jenis
      * dokumen) menyusul sembilan yang sudah ada.
      */
-    private const GROUP_COUNT = 10;
+    // 11 sejak verifikasi F-4: cuti & absensi memisahkan diri dari grup BPJS,
+    // yang berbunyi "berlaku pada perhitungan payroll berikutnya" — kalimat
+    // yang justru kebalikan dari yang berlaku untuk radius geofence.
+    private const GROUP_COUNT = 11;
 
     private function actAsAdmin(): User
     {

@@ -7213,6 +7213,385 @@ def s30m(browser):
         ctx.close()
 
 
+# --------------------------------------------------------------------- F-4
+
+# Titik proyek demo PRJ-2026-002 (Instalasi ELV & Data Center Bank Artha
+# Nusantara). Dibaca dari prj_projects, bukan dikarang: skenario yang memakai
+# koordinat sendiri mengukur jarak ke tempat yang tidak ada proyeknya.
+SITE_2 = {"latitude": -6.21462, "longitude": 106.82066}
+
+
+def _absensi_read(pg):
+    """Apa yang layar Absensi Saya KATAKAN — bukan apa yang disimpannya."""
+    return pg.evaluate("""() => {
+      const days = [...document.querySelectorAll('.absensi-day')].map(card => ({
+        head: card.querySelector('h2').innerText.trim(),
+        sides: [...card.querySelectorAll('.absensi-side')].map(side => ({
+          label: side.querySelector('strong').innerText.trim(),
+          badge: (side.querySelector('.badge') || {}).innerText,
+          lines: [...side.querySelectorAll('.cell-sub')].map(n => n.innerText.trim()),
+        })),
+      }));
+      return {
+        linked: !document.querySelector('.alert.info') ||
+          !/belum ditautkan/i.test(document.querySelector('.alert.info').innerText),
+        info: document.querySelector('.alert.info') ? document.querySelector('.alert.info').innerText.trim() : null,
+        buttons: [...document.querySelectorAll('.absensi-actions button')].map(b => b.innerText.trim()),
+        geofence_line: [...document.querySelectorAll('.card-body > .cell-sub')]
+          .map(n => n.innerText.trim()).filter(t => /Radius lokasi/.test(t))[0] || null,
+        queue: [...document.querySelectorAll('.upload-item')].map(r => ({
+          state: r.dataset.state, text: r.querySelector('.cell-sub').innerText.trim(),
+          buttons: [...r.querySelectorAll('button')].map(b => b.innerText.trim()),
+        })),
+        days,
+      };
+    }""")
+
+
+def _punch(pg, label):
+    """Menekan satu tombol absen dan menunggu ANTREANNYA KOSONG.
+
+    Bukan menunggu ".toast": toast hidup 5,2 detik, jadi toast absen sebelumnya
+    masih di layar saat tombol berikutnya ditekan — dan pengukuran yang berhenti
+    di situ membaca kalimat absen yang SALAH (terukur 8 Sep 2026: "Absensi
+    terkirim." milik absen masuk dibaca sebagai jawaban absen pulang). Antrean
+    kosong adalah tanda yang tidak bisa keliru: butirnya sudah dibuang
+    forget().
+    """
+    before = set(toasts(pg))
+    click(pg, f"button:has-text('{label}')")
+    pg.wait_for_function("() => document.querySelectorAll('.upload-item').length === 0", timeout=30000)
+    pg.wait_for_timeout(600)
+    fresh = [t for t in toasts(pg) if t not in before]
+    return fresh or toasts(pg)
+
+
+def _reset_absensi_today():
+    """Hapus baris absensi HARI INI milik karyawan yang dipakai S31.
+
+    Tanpa ini skenario tidak idempoten: jalankan dua kali pada server yang sama
+    dan absen masuk kedua menjawab "sudah tercatat … dan tetap dipakai" —
+    perilaku yang BENAR, tetapi bukan yang sedang diukur, jadi syaratnya merah
+    karena alasan yang tidak ada hubungannya dengan kodenya. Bukti yang hanya
+    bisa direproduksi di atas basis data perawan bukan bukti.
+    """
+    con = sqlite3.connect(DB)
+    try:
+        row = con.execute("select employee_id from users where email = ?",
+                          ("teknisi@nusantara.test",)).fetchone()
+        if not row or row[0] is None:
+            return None
+        employee_id = row[0]
+        ids = [r[0] for r in con.execute(
+            "select id from hr_attendances where employee_id = ? and date(date) = date('now','localtime')",
+            (employee_id,))]
+        for attendance_id in ids:
+            con.execute("delete from hr_attendance_corrections where attendance_id = ?", (attendance_id,))
+            con.execute("delete from core_attachments where attachable_type like '%Attendance' and attachable_id = ?",
+                        (attendance_id,))
+        con.execute("delete from hr_attendances where employee_id = ? and date(date) = date('now','localtime')",
+                    (employee_id,))
+        con.commit()
+        return employee_id
+    finally:
+        con.close()
+
+
+def _selfie_count(employee_id):
+    con = sqlite3.connect(DB)
+    try:
+        return con.execute(
+            "select count(*) from core_attachments a "
+            "join hr_attendances t on t.id = a.attachable_id "
+            "where a.attachable_type like '%Attendance' and t.employee_id = ? "
+            "and date(t.date) = date('now','localtime')",
+            (employee_id,)).fetchone()[0]
+    finally:
+        con.close()
+
+
+@scenario("S31_absensi_gps")
+def s31(browser):
+    """F-4 — absen masuk/pulang dari ponsel: di dalam radius, di luar radius, dan
+    TANPA posisi sama sekali. Yang diuji bukan kolomnya melainkan kalimatnya:
+    "Di lokasi" tidak boleh muncul untuk absen yang posisinya tidak pernah
+    terukur, dan jarak yang tidak diketahui harus bergaris, bukan 0 m.
+
+    teknisi@nusantara.test dipilih dengan sengaja: ia punya users.employee_id
+    (kartu karyawan 7) dan TIDAK punya satu pun izin hr.*. Kalau absen menuntut
+    izin HR, layar ini tidak dipakai siapa pun yang benar-benar berdiri di
+    lapangan."""
+    out = {"employee_id": _reset_absensi_today()}
+
+    # (1) DI DALAM radius: konteks berdiri di titik proyek PRJ-2026-002.
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                              geolocation={**SITE_2, "accuracy": 12}, permissions=["geolocation"])
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e).split("\n")[0][:160]))
+    try:
+        login(pg, "teknisi@nusantara.test")
+        pg.goto(BASE + "#/absensi-saya")
+        pg.wait_for_selector(".absensi-actions button", timeout=20000)
+
+        # select_option(label=…) menuntut teks PERSIS; regex tidak diterima.
+        pg.select_option(".card select", index=pg.evaluate(
+            "() => [...document.querySelector('.card select').options].findIndex(o => o.text.includes('PRJ-2026-002'))"))
+        pg.wait_for_timeout(300)
+        out["inside_toast"] = _punch(pg, "Absen masuk tanpa foto")
+        pg.wait_for_timeout(1200)
+        out["inside"] = _absensi_read(pg)
+        pg.screenshot(path=f"{OUT}/s31-absensi-di-lokasi.png", full_page=False)
+
+        out["page_scrolls_sideways"] = pg.evaluate(
+            "() => document.documentElement.scrollWidth > window.innerWidth + 1")
+        # Empat tombol, bukan delapan: dua load() beruntun yang keduanya
+        # menempel adalah cacat yang pernah ada di sini (8 Sep 2026). TINGGI
+        # ikut diukur — lebar adalah dimensi yang CSS-nya sudah benar, dan
+        # syarat yang hanya melihat lebar lolos pada tombol setinggi 1 px.
+        out["buttons_box"] = pg.evaluate(
+            "() => [...document.querySelectorAll('.absensi-actions button')]"
+            ".map(b => ({ w: Math.round(b.getBoundingClientRect().width),"
+            "             h: Math.round(b.getBoundingClientRect().height) }))")
+        out["button_widths"] = [b["w"] for b in out["buttons_box"]]
+        out["limit_announced_before_the_photo"] = pg.evaluate(
+            "() => /maksimal 5 MB/.test(document.querySelector('#view').innerText)")
+
+        # (1b) SELFIE: satu absen DENGAN foto, supaya jalur lampiran benar-benar
+        #      dijalankan. Tanpa ini AttachableDocuments/AttachmentService —
+        #      butir keenam spesifikasi paket — tidak tersentuh harness sama
+        #      sekali, dan syarat "ada kartu Lampiran" di S31s hijau di atas
+        #      basis data tanpa satu pun lampiran.
+        before = _selfie_count(out["employee_id"]) if out["employee_id"] else 0
+        # nth(0), bukan teksnya: label tombol pertama berganti menjadi
+        # "Absen masuk (sudah tercatat)" begitu hari itu punya absen masuk,
+        # dan selektor berbasis teks lalu menunggu tombol yang tidak akan
+        # pernah muncul.
+        CLICKS[0] += 1
+        with pg.expect_file_chooser() as chooser:
+            pg.locator(".absensi-actions button").nth(0).click()
+        chooser.value.set_files({"name": "selfie-s31.jpg", "mimeType": "image/jpeg",
+                                 "buffer": padded_jpeg(120 * 1024)})
+        pg.wait_for_function("() => document.querySelectorAll('.upload-item').length === 0", timeout=30000)
+        pg.wait_for_timeout(800)
+        out["selfie"] = {"before": before,
+                         "after": _selfie_count(out["employee_id"]) if out["employee_id"] else 0}
+    finally:
+        out["console_errors"] = errors
+        ctx.close()
+
+    # (2) DI LUAR radius: ~8 km ke selatan, proyek yang sama. KONTEKS BARU, bukan
+    #     set_geolocation di konteks lama: devicePosition() menerima fix
+    #     ber-umur sampai 60 detik (maximumAge), jadi konteks yang baru saja
+    #     absen di titik proyek akan memakai ulang fix itu dan mengukur 0 m.
+    ctxo = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                               geolocation={"latitude": SITE_2["latitude"] - 0.072,
+                                            "longitude": SITE_2["longitude"], "accuracy": 15},
+                               permissions=["geolocation"])
+    pgo = ctxo.new_page()
+    try:
+        login(pgo, "teknisi@nusantara.test")
+        pgo.goto(BASE + "#/absensi-saya")
+        pgo.wait_for_selector(".absensi-actions button", timeout=20000)
+        pgo.select_option(".card select", index=pgo.evaluate(
+            "() => [...document.querySelector('.card select').options].findIndex(o => o.text.includes('PRJ-2026-002'))"))
+        pgo.wait_for_timeout(300)
+        out["outside_toast"] = _punch(pgo, "Absen pulang tanpa foto")
+        pgo.wait_for_timeout(1500)
+        out["outside"] = _absensi_read(pgo)
+        pgo.screenshot(path=f"{OUT}/s31-absensi-di-luar.png", full_page=False)
+    finally:
+        ctxo.close()
+
+    # (3) IZIN LOKASI DITOLAK: konteks tanpa permissions=["geolocation"].
+    #     Absensinya HARUS tetap tersimpan, dan jaraknya HARUS bergaris.
+    ctx2 = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg2 = ctx2.new_page()
+    try:
+        login(pg2, "teknisi@nusantara.test")
+        pg2.goto(BASE + "#/absensi-saya")
+        pg2.wait_for_selector(".absensi-actions button", timeout=20000)
+        # Absen pulang: hari ini absen masuknya sudah ada (bagian 1) dan yang
+        # kedua ditolak dengan sengaja — di sini yang diuji adalah TANPA posisi.
+        out["denied_toast"] = _punch(pg2, "Absen pulang tanpa foto")
+        pg2.wait_for_timeout(1200)
+        out["denied"] = _absensi_read(pg2)
+        pg2.screenshot(path=f"{OUT}/s31-absensi-tanpa-lokasi.png", full_page=False)
+    finally:
+        ctx2.close()
+
+    # (4) LURING: butirnya bertahan, barisnya menawarkan "Kirim ulang", dan
+    #     tidak ada satu pun kalimat yang mengaku terkirim.
+    ctx3 = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                               geolocation={**SITE_2, "accuracy": 12}, permissions=["geolocation"])
+    pg3 = ctx3.new_page()
+    try:
+        login(pg3, "teknisi@nusantara.test")
+        pg3.goto(BASE + "#/absensi-saya")
+        pg3.wait_for_selector(".absensi-actions button", timeout=20000)
+        ctx3.set_offline(True)
+        click(pg3, "button:has-text('Absen pulang tanpa foto')")
+        # Luring: antreannya TIDAK akan kosong — yang ditunggu justru barisnya
+        # berhenti di keadaan 'failed' dengan tombol "Kirim ulang".
+        pg3.wait_for_function(
+            "() => [...document.querySelectorAll('.upload-item')].some(r => r.dataset.state === 'failed')",
+            timeout=30000)
+        pg3.wait_for_timeout(600)
+        out["offline"] = _absensi_read(pg3)
+        out["offline_ribbon"] = pg3.evaluate(
+            "() => { const r = document.querySelector('.offline-ribbon'); return r && !r.hidden ? r.innerText.trim() : null; }")
+        pg3.screenshot(path=f"{OUT}/s31-absensi-luring.png", full_page=False)
+
+        # Muat ulang HALAMAN saat masih luring: butir yang hanya hidup di memori
+        # akan lenyap di sini, dan orangnya tidak akan pernah tahu.
+        ctx3.set_offline(False)
+        pg3.reload()
+        pg3.wait_for_selector(".absensi-actions button", timeout=20000)
+        pg3.wait_for_timeout(800)
+        out["after_reload"] = _absensi_read(pg3)
+        if pg3.locator("button:has-text('Kirim ulang')").count():
+            click(pg3, "button:has-text('Kirim ulang')")
+            pg3.wait_for_selector(".toast", timeout=20000)
+            pg3.wait_for_timeout(1000)
+            out["retry_toast"] = toasts(pg3)
+        out["after_retry"] = _absensi_read(pg3)
+    finally:
+        ctx3.close()
+
+    # (5) AKUN TANPA KARTU KARYAWAN: gudang (users.employee_id NULL).
+    ctx4 = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg4 = ctx4.new_page()
+    try:
+        login(pg4, "warehouse@nusantara.test")
+        pg4.goto(BASE + "#/absensi-saya")
+        pg4.wait_for_timeout(2500)
+        out["unlinked"] = _absensi_read(pg4)
+        out["unlinked_menu"] = pg4.evaluate(
+            "() => [...document.querySelectorAll(\"nav.nav a[href='#/absensi-saya']\")].length")
+    finally:
+        ctx4.close()
+
+    def sides(block, day=0):
+        return {s["label"]: s for s in block["days"][day]["sides"]} if block["days"] else {}
+
+    inside = sides(out["inside"])
+    outside = sides(out["outside"])
+    denied = sides(out["denied"])
+
+    out["checks"] = {
+        "a_technician_with_no_hr_permission_reaches_the_screen":
+            out["inside"]["linked"] is True and len(out["inside"]["buttons"]) == 4,
+        "the_screen_says_the_radius_before_the_button_is_pressed":
+            bool(out["inside"]["geofence_line"]) and "TETAP tersimpan" in out["inside"]["geofence_line"],
+        "standing_on_site_reads_as_in_place":
+            inside.get("Absen masuk", {}).get("badge") == "Di lokasi",
+        "and_the_toast_repeats_the_servers_own_sentence":
+            any("Di lokasi proyek" in t for t in out["inside_toast"]),
+        "eight_kilometres_away_is_flagged_not_refused":
+            outside.get("Absen pulang", {}).get("badge") == "Di luar lokasi"
+            and any("DI LUAR" in t for t in out["outside_toast"]),
+        "and_it_was_still_recorded":
+            any("Tercatat" in line or "Jam server" in line for line in outside.get("Absen pulang", {}).get("lines", [])),
+        "a_refused_location_still_records_the_attendance":
+            denied.get("Absen pulang", {}).get("badge") == "Lokasi tidak terukur",
+        "and_never_claims_zero_metres":
+            any("Jarak ke titik proyek: —" in line for line in denied.get("Absen pulang", {}).get("lines", []))
+            and not any("0 m" in line for line in denied.get("Absen pulang", {}).get("lines", [])),
+        "offline_the_row_stays_and_offers_a_retry":
+            any(r["state"] == "failed" and "Kirim ulang" in r["buttons"] for r in out["offline"]["queue"]),
+        "and_the_buttons_do_not_vanish_with_the_list":
+            len(out["offline"]["buttons"]) == 4,
+        "and_the_ribbon_tells_the_truth_about_it":
+            bool(out["offline_ribbon"]) and "Kirim ulang" in (out["offline_ribbon"] or ""),
+        "the_queued_punch_survives_a_page_reload":
+            any(r["state"] == "failed" for r in out["after_reload"]["queue"]),
+        "and_sending_it_again_empties_the_queue":
+            out["after_retry"]["queue"] == [],
+        "an_account_with_no_employee_card_is_told_why":
+            out["unlinked"]["linked"] is False and "belum ditautkan" in (out["unlinked"]["info"] or ""),
+        "and_the_menu_entry_is_still_there_for_it":
+            out["unlinked_menu"] == 1,
+        "the_phone_page_never_scrolls_sideways":
+            out["page_scrolls_sideways"] is False,
+        "the_action_card_is_drawn_once_not_twice":
+            len(out["button_widths"]) == 4,
+        "the_buttons_are_full_width_on_a_phone":
+            bool(out["button_widths"]) and min(out["button_widths"]) > 280,
+        "and_tall_enough_for_a_thumb":
+            bool(out["buttons_box"]) and min(b["h"] for b in out["buttons_box"]) >= 44,
+        "the_photo_limit_is_announced_before_the_photo_is_taken":
+            out["limit_announced_before_the_photo"] is True,
+        "a_selfie_really_reaches_the_attachment_machinery":
+            out["selfie"]["after"] == out["selfie"]["before"] + 1,
+        "the_screen_raises_no_console_error":
+            out["console_errors"] == [],
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S31_absensi_gps_supervisor")
+def s31s(pg):
+    """Sisi pengawas: panel Rincian di layar Absensi Harian menunjukkan apa yang
+    tercatat dari ponsel, dan koreksinya MENUNTUT alasan. Alasan wajib bukan
+    gaya rumah — sejak absensi bisa diisi orangnya sendiri, menyimpan di panel
+    ini menimpa catatan seseorang tentang dirinya."""
+    login(pg, "hr@nusantara.test")
+    pg.goto(BASE + "#/absensi")
+    pg.wait_for_selector("table.data", timeout=20000)
+    # Lembar terbuka pada TANGGAL HARI INI dan proyek terakhir yang dipilih;
+    # baris yang S31 tulis ada di hari ini, jadi tidak ada yang perlu diubah —
+    # tetapi tunggu sampai kolom "Tersimpan" benar-benar terisi sebelum
+    # menghitung tombol Rincian.
+    pg.wait_for_timeout(2000)
+
+    out = {"detail_buttons": pg.locator("button:has-text('Rincian')").count()}
+
+    if not out["detail_buttons"]:
+        out["SKIPPED"] = ("Tidak ada baris absensi tersimpan pada tanggal hari ini di salinan DB ini, "
+                          "jadi tidak ada tombol Rincian untuk dibuka. Jalankan S31 lebih dulu pada "
+                          "server yang sama.")
+        return out
+
+    click(pg, "button:has-text('Rincian')")
+    pg.wait_for_selector(".modal", timeout=15000)
+    pg.wait_for_timeout(1500)
+
+    out["panel"] = pg.evaluate("""() => {
+      const m = document.querySelector('.modal');
+      return {
+        cards: [...m.querySelectorAll('.card-head h2')].map(h => h.innerText.trim()),
+        sides: [...m.querySelectorAll('.absensi-side')].map(s => s.innerText.replace(/\s+/g, ' ').trim()),
+        fields: [...m.querySelectorAll('.field label, .field .label')].map(l => l.innerText.trim()),
+        has_reason: !!m.querySelector('textarea'),
+        attachments: m.querySelectorAll('.attachment-row, .attachment-name').length,
+      };
+    }""")
+    pg.screenshot(path=f"{OUT}/s31-rincian-pengawas.png", full_page=False)
+
+    # Menyimpan TANPA alasan: server menolak, dan panelnya tetap terbuka.
+    click(pg, ".modal button:has-text('Simpan koreksi')")
+    pg.wait_for_timeout(2500)
+    out["no_reason"] = {"toasts": toasts(pg), "modal_open": pg.locator(".modal").count() > 0}
+
+    out["checks"] = {
+        "the_supervisor_panel_shows_both_sides": len(out["panel"]["sides"]) == 2,
+        "and_offers_a_correction_form_with_a_reason_box": out["panel"]["has_reason"] is True,
+        # Judul kartunya SELALU ada untuk pemegang hr.view, jadi "ada kartu
+        # Lampiran" hijau juga di atas basis data tanpa satu pun lampiran
+        # (terukur 8 Sep 2026). Yang diperiksa: fotonya benar-benar terdaftar.
+        "and_a_selfie_card_with_the_selfie_in_it":
+            "Lampiran" in out["panel"]["cards"] and out["panel"]["attachments"] >= 1,
+        "and_the_trail": "Jejak koreksi" in out["panel"]["cards"],
+        "saving_without_a_reason_is_refused": any("Alasan" in t for t in out["no_reason"]["toasts"]),
+        "and_the_panel_stays_open_so_the_typing_is_not_lost": out["no_reason"]["modal_open"] is True,
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -7223,7 +7602,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

@@ -9,9 +9,32 @@ use Modules\HrPayroll\Http\Requests\AttendanceRecapStoreRequest;
 use Modules\HrPayroll\Http\Requests\AttendanceRecapUpdateRequest;
 use Modules\HrPayroll\Http\Resources\AttendanceRecapResource;
 use Modules\HrPayroll\Models\AttendanceRecap;
+use Modules\HrPayroll\Services\AttendanceRecapProposalService;
 
 class AttendanceRecapController extends ApiController
 {
+    /**
+     * Angka register bulan itu sebagai USULAN — bukan rekap, dan bukan jalan
+     * pintas menuju payroll.
+     *
+     * Tidak ada padanan POST untuk endpoint ini, dan itu disengaja. HR menyalin
+     * angkanya ke formulir rekap yang sudah ada dan menekan Simpan sendiri,
+     * lewat izin hr.create yang sudah ada. Lihat AttendanceRecapProposalService
+     * untuk alasan lengkapnya.
+     */
+    public function proposal(Request $request, AttendanceRecapProposalService $proposals): JsonResponse
+    {
+        $data = $request->validate([
+            'period_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'period_month' => ['required', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        return $this->ok($proposals->propose(
+            (int) $data['period_year'],
+            (int) $data['period_month'],
+        ));
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = AttendanceRecap::query()

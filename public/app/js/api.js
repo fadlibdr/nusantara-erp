@@ -228,7 +228,7 @@ function settle(status, text, raw = false) {
  * the only difference between the two transports is the progress callback —
  * { loaded, total } in bytes, total null when the browser cannot know it.
  */
-function requestWithProgress(method, path, body, onProgress) {
+function requestWithProgress(method, path, body, onProgress, raw = false) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, buildUrl(path));
@@ -257,7 +257,7 @@ function requestWithProgress(method, path, body, onProgress) {
     xhr.addEventListener('load', () => {
       announceNetwork(true);
       try {
-        resolve(settle(xhr.status, xhr.responseText));
+        resolve(settle(xhr.status, xhr.responseText, raw));
       } catch (error) {
         reject(error);
       }
@@ -370,8 +370,16 @@ export const api = {
   put: (path, body) => request('PUT', path, { body }),
   del: (path) => request('DELETE', path),
   uploadFile,
-  /** POST with upload progress — the XHR path; onProgress({ loaded, total }). */
-  upload: (path, body, onProgress) => requestWithProgress('POST', path, body, onProgress),
+  /**
+   * POST with upload progress — the XHR path; onProgress({ loaded, total }).
+   *
+   * `raw` mengembalikan AMPLOP utuh, bukan hanya `data`. Antrean kirim
+   * memakainya karena untuk absensi kalimatnya ada di `message`: server yang
+   * tahu berapa meter orangnya dari titik proyek, dan tanpa amplopnya toast
+   * hanya bisa berkata "terkirim" tentang absen yang tercatat 8 km di luar
+   * lokasi (terukur di chromium, harness S31, 8 Sep 2026).
+   */
+  upload: (path, body, onProgress, { raw = false } = {}) => requestWithProgress('POST', path, body, onProgress, raw),
 };
 
 export async function login(email, password) {

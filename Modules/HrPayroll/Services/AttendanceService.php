@@ -2,6 +2,8 @@
 
 namespace Modules\HrPayroll\Services;
 
+use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\HrPayroll\Models\Attendance;
@@ -16,6 +18,8 @@ use Modules\HrPayroll\Models\Attendance;
  */
 class AttendanceService
 {
+    public function __construct(private readonly AttendanceCorrectionService $corrections) {}
+
     /**
      * The site sheet: one date, one project, many employees, one transaction.
      *
@@ -53,18 +57,75 @@ class AttendanceService
                 ];
 
                 if ($attendance === null) {
-                    Attendance::query()->create($values + [
-                        'employee_id' => (int) $entry['employee_id'],
-                        'date' => $date,
-                    ]);
-                    $created++;
-                } else {
-                    $attendance->fill($values)->save();
-                    $updated++;
+                    /*
+                     * Antara whereDate() di atas dan create() di sini, baris
+                     * (karyawan, tanggal) yang sama bisa lahir dari pintu absen
+                     * ponsel. Tanpa penjaga ini seluruh lembar 40 nama gagal
+                     * dengan 500 karena satu orang menekan absen masuk pada
+                     * detik yang salah (verifikasi F-4). Percobaan kedua
+                     * menemukan barisnya dan memperlakukannya sebagai
+                     * pembaruan — termasuk menulis jejaknya.
+                     */
+                    try {
+                        Attendance::query()->create($values + [
+                            'employee_id' => (int) $entry['employee_id'],
+                            'date' => $date,
+                        ]);
+                        $created++;
+
+                        continue;
+                    } catch (UniqueConstraintViolationException) {
+                        $attendance = Attendance::query()
+                            ->where('employee_id', (int) $entry['employee_id'])
+                            ->whereDate('date', $date)
+                            ->firstOrFail();
+                    }
                 }
+
+                // Sampai di sini baris itu ADA — ditemukan di awal, atau ditemukan
+                // oleh percobaan kedua sesudah tabrakan kunci unik di atas.
+                $attendance->fill($values);
+
+                /*
+                 * Lembar kerani menimpa baris yang mungkin diisi orangnya
+                 * sendiri dari ponsel — jadi perubahannya berjejak, sama
+                 * seperti pintu PUT. Alasannya DITULIS SISTEM, bukan
+                 * diketik: menuntut satu kalimat per orang pada lembar 40
+                 * nama berarti kerani berhenti memakai layarnya dan
+                 * kembali ke kertas, dan absensi yang tidak tercatat sama
+                 * sekali jauh lebih buruk daripada jejak beralasan generik.
+                 * Kolom `source` yang membedakan keduanya di layar.
+                 *
+                 * Kolom jam masuk/pulang TIDAK ADA di $values, dan itu
+                 * bukan kebetulan: lembar kertas tidak tahu jam berapa
+                 * orangnya datang, dan menimpanya dengan null berarti
+                 * lembar yang dikirim ulang menghapus bukti GPS hari itu.
+                 */
+                $pending = $this->corrections->pending($attendance);
+                $attendance->save();
+                $this->corrections->write(
+                    $attendance,
+                    $pending,
+                    sprintf('Lembar absensi %s dikirim ulang%s.', $date, $this->byWhom($recordedBy)),
+                    'bulk',
+                    $recordedBy,
+                );
+                $updated++;
             }
 
             return ['created' => $created, 'updated' => $updated];
         });
+    }
+
+    /** " oleh Budi" — atau kosong, karena akun bisa hilang dan jejaknya tetap harus terbaca. */
+    private function byWhom(?int $userId): string
+    {
+        if ($userId === null) {
+            return '';
+        }
+
+        $name = User::query()->whereKey($userId)->value('name');
+
+        return $name === null ? '' : ' oleh '.$name;
     }
 }

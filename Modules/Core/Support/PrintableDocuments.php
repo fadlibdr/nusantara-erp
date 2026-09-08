@@ -6270,16 +6270,21 @@ class PrintableDocuments
                             ['label' => 'JABATAN', 'width' => '34mm', 'value' => 'jabatan'],
                             ['label' => 'STATUS', 'align' => 'center', 'width' => '24mm', 'value' => 'status'],
                             /*
-                             * Four columns with NO value spec at all, which is
-                             * how the generic sheet is told to rule them. That
-                             * is the point of the document: nothing in
-                             * hr_attendances records a clock time, and the
-                             * signature is the wet ink the sheet is printed to
-                             * collect. A column that filled itself would
-                             * defeat it.
+                             * JAM MASUK/KELUAR membawa `value` sejak F-4: absen
+                             * ponsel MENCATAT jam, dan mencetak garis kosong di
+                             * atas jam yang sudah tercatat menyerahkan lembar
+                             * tanda tangan yang membantah registernya sendiri.
+                             * Baris yang tidak pernah diabsen dari ponsel tetap
+                             * digaris — sel yang nilainya null adalah persis
+                             * cara lembar generik ini disuruh menggaris.
+                             *
+                             * KETERANGAN dan TANDA TANGAN tetap tanpa `value`:
+                             * yang kedua adalah tinta basah yang menjadi alasan
+                             * lembar ini dicetak, dan kolom yang mengisi
+                             * dirinya sendiri akan mengalahkan gunanya.
                              */
-                            ['label' => 'JAM MASUK', 'align' => 'center', 'width' => '20mm'],
-                            ['label' => 'JAM KELUAR', 'align' => 'center', 'width' => '20mm'],
+                            ['label' => 'JAM MASUK', 'align' => 'center', 'width' => '20mm', 'value' => 'jam_masuk'],
+                            ['label' => 'JAM KELUAR', 'align' => 'center', 'width' => '20mm', 'value' => 'jam_keluar'],
                             ['label' => 'KETERANGAN', 'width' => '42mm', 'value' => 'keterangan'],
                             ['label' => 'TANDA TANGAN', 'align' => 'center', 'width' => '38mm'],
                         ],

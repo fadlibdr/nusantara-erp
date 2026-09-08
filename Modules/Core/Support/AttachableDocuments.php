@@ -18,6 +18,7 @@ use Modules\Finance\Models\Journal;
 use Modules\Finance\Models\Kasbon;
 use Modules\Finance\Models\Payment;
 use Modules\Finance\Models\PettyCashVoucher;
+use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\Certificate;
 use Modules\HrPayroll\Models\Employee;
 use Modules\HrPayroll\Models\LeaveRequest;
@@ -163,6 +164,15 @@ class AttachableDocuments
         // lampiran, penggantian imprest berjalan di atas kata-kata saja.
         'finance/petty-cash-vouchers' => ['class' => PettyCashVoucher::class, 'prefix' => 'fin', 'label' => 'Bon kas kecil'],
         'finance/kasbon' => ['class' => Kasbon::class, 'prefix' => 'fin', 'label' => 'Kasbon'],
+        // Selfie absen masuk/pulang (F-4). Terdaftar di sini BUKAN supaya orang
+        // melampirkan berkas ke absensi lewat layar lampiran biasa, melainkan
+        // supaya foto yang ditulis AttendanceClockService punya slug — tanpa
+        // baris ini Attachment::documentSlug() menjawab null dan selfienya
+        // menjadi berkas yang tersimpan tetapi tidak bisa dibuka siapa pun,
+        // termasuk pengawas yang justru menjadi alasan foto itu diminta.
+        // Izinnya hr: melihat selfie seseorang tidak boleh lebih mudah
+        // daripada melihat baris absensinya.
+        'hr/attendances' => ['class' => Attendance::class, 'prefix' => 'hr', 'label' => 'Absensi harian'],
         'hr/employees' => ['class' => Employee::class, 'prefix' => 'hr', 'label' => 'Karyawan'],
         'hr/certificates' => ['class' => Certificate::class, 'prefix' => 'hr', 'label' => 'Sertifikat'],
         // Surat dokter untuk sakit, undangan/akta untuk cuti khusus — bukti

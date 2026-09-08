@@ -253,11 +253,17 @@ class HrFormService
     /**
      * One printed line per worker.
      *
-     * jam_masuk, jam_keluar and tanda_tangan are absent from every row on
-     * purpose: nothing in hr_attendances records a clock time, and the
-     * signature is the wet ink the sheet is printed to collect. The generic
-     * Blade rules any cell it is not given, which is exactly the behaviour
-     * wanted here — see the columns declared with no value at all.
+     * tanda_tangan is absent from every row on purpose: the signature is the
+     * wet ink the sheet is printed to collect, and the generic Blade rules any
+     * cell it is not given.
+     *
+     * jam_masuk and jam_keluar used to be absent for the same reason, with the
+     * justification "nothing in hr_attendances records a clock time". F-4 made
+     * that false. A row whose worker clocked in from their phone at 07:12 now
+     * PRINTS 07:12, and a row that nobody clocked still rules blank — one
+     * column, two honest states. Printing a blank rule over a recorded time
+     * would hand a supervisor a sheet to sign that contradicts the register it
+     * came from.
      *
      * @return list<array<string, mixed>>
      */
@@ -273,6 +279,13 @@ class HrFormService
                 'nama' => $row->employee?->name,
                 'jabatan' => $row->employee?->position,
                 'status' => $row->status?->label(),
+                // null, bukan '': sel yang tidak diberi nilai DIGARIS oleh
+                // Blade generiknya, dan garis itulah yang diminta tanda tangan
+                // basah. String kosong akan mencetak sel kosong tanpa garis —
+                // tidak ada tempat menulis, dan tidak ada tanda bahwa memang
+                // tidak ada datanya.
+                'jam_masuk' => $row->check_in_at?->format('H:i'),
+                'jam_keluar' => $row->check_out_at?->format('H:i'),
                 'keterangan' => $row->note,
             ];
         }

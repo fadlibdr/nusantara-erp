@@ -230,6 +230,26 @@ class SettingService
                         'max' => 400,
                         'help' => 'Kepmenaker 102/2004: upah sejam = 1/173 × upah sebulan.',
                     ],
+                ],
+            ],
+
+            /*
+             * Cuti dan absensi keluar dari grup BPJS (verifikasi F-4).
+             *
+             * Grup itu berbunyi "Perubahan berlaku pada perhitungan payroll
+             * berikutnya" — kalimat yang benar untuk iuran BPJS dan pembagi
+             * lembur, dan justru kebalikan dari yang berlaku di sini: radius
+             * geofence tidak menyentuh satu rupiah pun, dan F-4 menghabiskan
+             * satu paket penuh memastikan register absensi TIDAK menjadi
+             * masukan payroll. Sebuah ambang yang ditaruh di bawah kalimat itu
+             * akan dibaca sebagai ambang yang menggerakkan gaji.
+             */
+            'hr' => [
+                'label' => 'SDM — Cuti & Absensi',
+                'description' => 'Hak cuti dan aturan absensi lapangan. TIDAK satu pun dari nilai di '
+                    .'sini yang langsung menggerakkan payroll: rekap bulanan tetap dokumen yang '
+                    .'diperiksa dan disimpan manusia.',
+                'settings' => [
                     [
                         'key' => 'hr.leave.annual_days',
                         'label' => 'Hak cuti tahunan (hari kerja)',
@@ -251,6 +271,19 @@ class SettingService
                         'min' => 5,
                         'max' => 6,
                         'help' => '6 = hanya Minggu libur (rezim proyek); 5 = Sabtu juga tidak memotong saldo cuti.',
+                    ],
+                    [
+                        'key' => 'hr.attendance.geofence_metres',
+                        'label' => 'Radius lokasi absensi ponsel (meter)',
+                        'type' => 'integer',
+                        'min' => 50,
+                        'max' => 20000,
+                        'help' => 'Absensi di luar radius ini TETAP TERSIMPAN — ia hanya ditandai '
+                            .'"di luar lokasi" agar pengawas melihatnya. Absensi tidak pernah ditolak '
+                            .'karena posisi. Nilai yang berlaku saat menekan tombol ikut tersimpan di '
+                            .'barisnya, jadi mengubah angka ini tidak menghapus tanda pada hari-hari '
+                            .'yang sudah lewat. Proyek tanpa titik peta, dan ponsel yang tidak memberi '
+                            .'posisi, tidak menghasilkan jarak sama sekali: barisnya bergaris, bukan 0 m.',
                     ],
                 ],
             ],

@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '3';
+const SHELL_VERSION = '4';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -113,8 +113,13 @@ const SHELL = [
   'js/schema.js',
   'js/search.js',
   'js/ui.js',
+  // F-4 — antrean kirim bersama (foto lampiran + absen masuk/pulang), dipindah
+  // ke luar views/lapangan.js supaya kedua layar memakai satu perilaku.
+  'js/uploadqueue.js',
   'js/vendorload.js',
   'js/views/absensi.js',
+  // F-4 — layar ponsel "Absensi Saya".
+  'js/views/absensisaya.js',
   'js/views/actions.js',
   // F-3 — kartu Aktivitas CRM di layar prospek/penawaran/pelanggan.
   'js/views/activities.js',
@@ -167,6 +172,8 @@ const SHELL = [
   'js/views/anggaran.js',
   'js/views/tugas.js',
   'js/views/tutupproyek.js',
+  // F-4 — usulan rekap bulanan dari register absensi.
+  'js/views/usulanrekap.js',
   'js/views/varian.js',
   'js/views/widgets/aging.js',
   'js/views/widgets/ap-aging.js',
