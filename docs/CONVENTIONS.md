@@ -52,15 +52,25 @@ Modules/<Name>/
 | Engineering | `api/engineering`  | `eng_`       | 001300–001399 |
 | Quality     | `api/quality`      | `qc_`        | 001400–001499 |
 
-**Blok lanjutan** (F-2, 7 Sep 2026). Blok pertama sebuah modul bisa habis, dan dua di antaranya
-sudah: Projects memakai 000799 pada 9 Agustus 2026 dan Finance memakai 001199 pada 25 Juli 2026.
-Pemilik menyetujui rentang lanjutannya (ROADMAP-HASHMICRO §5 baris 5), dan **tabel di bawah ini —
-bukan prosa mana pun — adalah sumber kebenaran rentang blok untuk kedua modul itu:**
+**Blok lanjutan** (F-2, 7 Sep 2026; Inventory ditambahkan F-6, 8 Sep 2026). Blok pertama sebuah
+modul bisa habis, dan tiga di antaranya sudah: Projects memakai 000799 pada 9 Agustus 2026,
+Finance memakai 001199 pada 25 Juli 2026, dan Inventory memakai kesepuluh slot puluhannya
+(000400…000490, ditambah luapan 000491 dan 000495–000499) pada 30 Agustus 2026.
+Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 baris 5), dan
+**tabel di bawah ini — bukan prosa mana pun — adalah sumber kebenaran rentang blok:**
 
 | Module      | Blok pertama  | Blok lanjutan | Status |
 |-------------|---------------|---------------|--------|
 | Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
+| Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
+
+Rentang Inventory 001700–001799 **belum ada di ledger pemilik** (ROADMAP-HASHMICRO §5 baris 5
+menyebut Core, Finance dan Projects saja). Ia ditetapkan di sini karena aturan di bawah menuntut
+penetapannya pada commit pemakaian pertama dan F-6 membutuhkannya; 001700–001799 dipilih karena
+ia rentang seratusan bebas pertama sesudah Projects (nomor ≥ 001400 yang terpakai hanya
+001400/001410/001420/001430/001440/001450/001500/001501). Baris ini adalah usulan yang menunggu
+pengesahan pemilik ke dalam ledger, bukan pengganti ledgernya.
 
 Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
 lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
