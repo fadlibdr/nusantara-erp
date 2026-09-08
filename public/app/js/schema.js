@@ -6250,7 +6250,7 @@ export const MODULES = {
   prj: { accent: 1, icon: 'hard-hat', kpi: 'Proyek aktif', description: 'Pelaksanaan: laporan harian, progres, opname, serah terima, izin dan K3, register.' },
   qc: { accent: 8, icon: 'clipboard-check', kpi: 'NCR terbuka', description: 'Inspeksi mutu, NCR, benda uji beton, dan template inspeksi.' },
   prc: { accent: 3, icon: 'shopping-cart', kpi: 'PO terbuka', description: 'Vendor, permintaan (PR), RFQ, pesanan (PO), PPK alat dan jasa, evaluasi vendor.' },
-  inv: { accent: 3, icon: 'warehouse', kpi: 'Item di bawah stok minimum', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
+  inv: { accent: 3, icon: 'warehouse', kpi: 'Item di bawah titik pesan ulang', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
   scm: { accent: 3, icon: 'file-signature', kpi: 'Opname subkon menunggu persetujuan', description: 'SPK subkon, addendum, opname dan BAST subkon, SP3 dan opname mandor.' },
   fin: { accent: 2, icon: 'landmark', kpi: 'Invoice termin belum lunas', description: 'AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.' },
   hr: { accent: 5, icon: 'users', kpi: 'Cuti menunggu persetujuan', description: 'Karyawan, sertifikat dan PKWT, cuti, absensi, dan payroll.' },

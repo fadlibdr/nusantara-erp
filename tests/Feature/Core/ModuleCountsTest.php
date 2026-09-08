@@ -48,7 +48,7 @@ class ModuleCountsTest extends ErpTestCase
         'prj' => [['prj_projects'], 2],
         'qc' => [['qc_ncr'], 2],
         'prc' => [['prc_purchase_orders'], 2],
-        'inv' => [['inv_items', 'inv_warehouses'], 1],
+        'inv' => [['inv_items', 'inv_warehouses'], 4],
         'scm' => [['scm_progress_claims'], 2],
         'fin' => [['fin_ar_invoices'], 2],
         'hr' => [['hr_leave_requests'], 2],
@@ -167,7 +167,7 @@ class ModuleCountsTest extends ErpTestCase
             'prj' => 2,         // active + finishing; completed & yang dibuang tidak
             'qc' => 2,          // open + under_correction; verified, closed & yang dibuang tidak
             'prc' => 2,         // 2 PO approved = terbuka; draft/submitted/closed & yang dibuang tidak
-            'inv' => 1,         // 1 baris gudang×item di bawah min; item nonaktif, item dibuang, gudang dibuang tidak
+            'inv' => 4,         // 4 baris gudang×item di bawah AMBANGNYA (F-6: aturan reorder menang atas min_stock)
             'scm' => 2,         // 2 opname subkon submitted; draft & yang dibuang tidak
             'fin' => 2,         // 2 invoice approved bersisa; lunas, draft & yang dibuang tidak
             'hr' => 2,          // 2 cuti submitted; approved & yang dibuang tidak
@@ -255,6 +255,78 @@ class ModuleCountsTest extends ErpTestCase
         $counts = collect(ModuleCounts::for($admin))->pluck('count', 'prefix');
 
         $this->assertSame(app(StockService::class)->lowStockAlerts()->count(), $counts['inv']);
+    }
+
+    /**
+     * …DAN kesetaraan itu harus MEMBEDAKAN sesuatu (F-6).
+     *
+     * Sampai F-6 kedua kueri hanya membaca `inv_items.min_stock`, jadi uji di
+     * atas akan tetap hijau untuk sepasang salinan yang SAMA-SAMA melupakan
+     * tabel aturan reorder — yaitu persis kegagalan yang paling mungkin
+     * terjadi ketika sebuah aturan baru diterapkan di layanan dan tidak di
+     * salinannya. Yang dipaku di sini adalah bahwa fixture-nya benar-benar
+     * memisahkan keduanya: kueri "hanya min_stock" di bawah ini adalah kueri
+     * SEBELUM F-6, kata demi kata, dan jawabannya HARUS berbeda.
+     *
+     * Kalau suatu hari fixture-nya berubah sampai kedua angka bertemu lagi,
+     * uji ini jatuh dengan menyebutkan sebabnya — bukan diam-diam berhenti
+     * menjaga apa pun.
+     */
+    public function test_the_low_stock_fixture_actually_separates_the_reorder_rule_from_min_stock(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $minStockOnly = DB::table('inv_stock_balances as b')
+            ->join('inv_items as i', 'i.id', '=', 'b.item_id')
+            ->join('inv_warehouses as w', 'w.id', '=', 'b.warehouse_id')
+            ->whereNull('i.deleted_at')
+            ->whereNull('w.deleted_at')
+            ->where('i.is_active', true)
+            ->where('i.min_stock', '>', 0)
+            ->whereColumn('b.qty', '<', 'i.min_stock')
+            ->count();
+
+        $withRules = app(StockService::class)->lowStockAlerts()->count();
+
+        $this->assertNotSame(
+            $minStockOnly,
+            $withRules,
+            'Fixture inv tidak lagi memisahkan "dengan aturan reorder" dari "hanya min_stock" (keduanya '
+            ."menjawab {$withRules}). Uji kesetaraan registri karena itu tidak membuktikan apa pun tentang "
+            .'aturan reorder: sepasang salinan yang sama-sama melupakan inv_reorder_rules akan lolos hijau. '
+            .'Kembalikan baris fixture (a)–(e) di seedFixtures().',
+        );
+
+        // …dan yang MENANG adalah yang membaca aturan, di kedua permukaan.
+        $counts = collect(ModuleCounts::for($admin))->pluck('count', 'prefix');
+        $this->assertSame($withRules, $counts['inv']);
+    }
+
+    /**
+     * Bentuk baris yang dibaca layar dan widget: ambang yang MENANG, angka
+     * item yang kalah, dan dari mana ambang itu datang — ketiganya, karena
+     * prioritas yang hanya berlaku di kode adalah angka yang tidak bisa
+     * diperiksa siapa pun (F-6).
+     */
+    public function test_a_row_governed_by_a_rule_carries_both_numbers_and_says_which_won(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $rows = app(StockService::class)->lowStockAlerts();
+
+        $byRule = $rows->firstWhere('threshold_source', 'rule');
+        $this->assertNotNull($byRule, 'Tidak ada satu pun baris yang ambangnya datang dari aturan reorder.');
+        $this->assertSame(12.0, (float) $byRule->reorder_point);
+        $this->assertSame(0.0, (float) $byRule->min_stock, 'min_stock item yang kalah tetap harus ikut di baris.');
+        $this->assertSame('Aturan reorder gudang ini', $byRule->threshold_source_label);
+        $this->assertSame(7.0, (float) $byRule->shortage_qty, 'Kekurangan dihitung dari ambang yang MENANG (12 − 5), bukan dari min_stock.');
+
+        $byItem = $rows->firstWhere('threshold_source', 'item');
+        $this->assertNotNull($byItem, 'Tidak ada satu pun baris yang ambangnya datang dari min_stock item.');
+        $this->assertSame('Stok minimum item', $byItem->threshold_source_label);
+        $this->assertSame((float) $byItem->min_stock, (float) $byItem->reorder_point);
     }
 
     // ------------------------------------------------------------- degradasi
@@ -545,8 +617,8 @@ class ModuleCountsTest extends ErpTestCase
             'status' => 'approved', 'deleted_at' => now(),
         ]);
 
-        // inv — 1 baris di bawah min; di atas min, item nonaktif, item dibuang
-        // dan gudang dibuang semuanya tidak dihitung.
+        // inv — 4 baris di bawah AMBANGNYA; di atas ambang, item nonaktif, item
+        // dibuang dan gudang dibuang semuanya tidak dihitung.
         $category = $this->insert('inv_item_categories', ['code' => $this->code('CAT'), 'name' => 'Semen']);
         $warehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang']);
         // Tiga baris terakhir duduk PERSIS di batas kedua perbandingan numerik entri
@@ -573,6 +645,50 @@ class ModuleCountsTest extends ErpTestCase
         $closedWarehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang dibuang', 'deleted_at' => now()]);
         $liveItem = $this->insert('inv_items', ['code' => $this->code('ITM'), 'name' => 'Item', 'category_id' => $category, 'unit' => 'sak', 'min_stock' => 10, 'is_active' => true]);
         $this->insert('inv_stock_balances', ['warehouse_id' => $closedWarehouse, 'item_id' => $liveItem, 'qty' => 1]);
+
+        /*
+         * F-6 — LIMA BARIS YANG JAWABANNYA BERBEDA ANTARA "DENGAN ATURAN
+         * REORDER" DAN "HANYA min_stock", supaya salinan kueri di registri ini
+         * tidak bisa melupakan join-nya dan tetap hijau. Tanpa kelimanya, uji
+         * kesetaraan di bawah hanya membandingkan dua kueri yang kebetulan
+         * sama-sama mengabaikan tabel aturan.
+         *
+         *  (a) min 0, qty 5, aturan aktif titik 12 → MASUK karena aturannya.
+         *      min_stock sendiri berkata "tidak punya ambang".
+         *  (b) min 100, qty 50, aturan aktif titik 20 → KELUAR karena
+         *      aturannya MENGGANTIKAN, bukan mengambil yang paling ketat.
+         *      Sebuah GREATEST()/max() di kueri mana pun menjatuhkan baris ini.
+         *  (c) min 100, qty 50, aturan NONAKTIF titik 20 → MASUK: aturan mati
+         *      tidak menentukan apa pun, angka item berlaku lagi.
+         *  (d) min 5, qty 3, aturan aktif titik 0 → KELUAR: titik 0 pada
+         *      aturan aktif berarti "pasangan ini tidak pernah dipesan ulang",
+         *      jadi syarat "> 0" berlaku pada ambang yang MENANG, bukan pada
+         *      min_stock.
+         *  (e) min 100, qty 50, aturan aktif titik 20 di GUDANG LAIN → MASUK:
+         *      aturan milik pasangan, bukan milik item. Sebuah join yang lupa
+         *      warehouse_id menjatuhkan baris ini.
+         */
+        $otherWarehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang lain']);
+        foreach ([
+            ['min' => 0, 'qty' => 5, 'point' => 12, 'active' => true, 'where' => 'same'],
+            ['min' => 100, 'qty' => 50, 'point' => 20, 'active' => true, 'where' => 'same'],
+            ['min' => 100, 'qty' => 50, 'point' => 20, 'active' => false, 'where' => 'same'],
+            ['min' => 5, 'qty' => 3, 'point' => 0, 'active' => true, 'where' => 'same'],
+            ['min' => 100, 'qty' => 50, 'point' => 20, 'active' => true, 'where' => 'other'],
+        ] as $case) {
+            $item = $this->insert('inv_items', [
+                'code' => $this->code('ITM'), 'name' => 'Item aturan', 'category_id' => $category,
+                'unit' => 'sak', 'min_stock' => $case['min'], 'is_active' => true,
+            ]);
+            $this->insert('inv_stock_balances', ['warehouse_id' => $warehouse, 'item_id' => $item, 'qty' => $case['qty']]);
+            $this->insert('inv_reorder_rules', [
+                'warehouse_id' => $case['where'] === 'same' ? $warehouse : $otherWarehouse,
+                'item_id' => $item,
+                'reorder_point' => $case['point'],
+                'reorder_qty' => 0,
+                'is_active' => $case['active'],
+            ]);
+        }
 
         // scm — 2 opname submitted, 1 draft, 1 submitted yang dibuang.
         $subcontract = $this->insert('scm_subcontracts', ['code' => $this->code('SPK'), 'vendor_id' => $vendor, 'title' => 'Pekerjaan', 'pph_scheme' => 'final_2_65']);

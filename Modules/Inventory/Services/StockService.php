@@ -1423,18 +1423,75 @@ class StockService
     }
 
     /**
-     * Per-warehouse balances that have fallen below the item's minimum stock.
+     * Per-warehouse balances that have fallen below their REORDER POINT.
+     *
+     * ================================= F-6 =================================
+     * "DI BAWAH MINIMUM" PUNYA SATU DEFINISI, DAN INI DIA — DENGAN SATU
+     * SALINAN YANG DISENGAJA.
+     *
+     * Ambang sebuah pasangan (gudang, item) adalah:
+     *
+     *   aturan reorder AKTIF untuk pasangan itu ada  → r.reorder_point
+     *   tidak ada                                    → i.min_stock
+     *
+     * MENGGANTIKAN, bukan menambah dan bukan "yang paling ketat menang".
+     * Aturan gudang site yang lebih RENDAH daripada angka perusahaan harus
+     * menang, atau tabel aturan tidak menyelesaikan masalah yang membuatnya
+     * lahir: hari ini gudang site hanya bisa berhenti berteriak dengan
+     * menurunkan ambang gudang pusat juga. Titik 0 pada aturan aktif berarti
+     * "pasangan ini tidak pernah dipesan ulang", persis seperti min_stock 0
+     * berarti itu untuk item tanpa aturan — jadi syarat "> 0" berlaku pada
+     * ambang yang MENANG, bukan pada min_stock.
+     *
+     * BENTUK OR, BUKAN COALESCE. Kedua lengan di bawah menyatakan aturan itu
+     * dalam query builder murni, tanpa satu potong SQL mentah pun: COALESCE di
+     * dalam whereRaw akan bekerja di kedua dialek tetapi harus DISALIN kata
+     * demi kata ke registri Core (ModuleCounts entri 'inv'), dan salinan yang
+     * berupa string mentah adalah salinan yang paling mudah menyimpang tanpa
+     * terlihat. Bentuk ini disalin sebagai struktur, dan uji kesetaraannya
+     * memakai fixture yang jawabannya BERBEDA antara "dengan aturan" dan
+     * "hanya min_stock" — sebuah salinan yang melupakan join-nya tidak bisa
+     * lolos hijau.
+     *
+     * `is_active` ada di ON, bukan di WHERE: di WHERE ia mengubah LEFT JOIN
+     * menjadi INNER JOIN untuk setiap baris yang aturannya nonaktif, dan
+     * seluruh pasangan tanpa aturan hilang dari daftar sekaligus.
+     *
+     * Barisnya membawa KEDUA angka — ambang yang menang DAN min_stock item —
+     * karena prioritas itu harus TERBACA di layar, bukan hanya berlaku di
+     * kode: sebuah baris yang menulis "min 20" padahal angka item 100 tanpa
+     * mengatakan dari mana 20 itu datang adalah angka yang tidak bisa
+     * diperiksa siapa pun.
+     * =======================================================================
      */
     public function lowStockAlerts(?int $warehouseId = null): Collection
     {
         return DB::table('inv_stock_balances as b')
             ->join('inv_items as i', 'i.id', '=', 'b.item_id')
             ->join('inv_warehouses as w', 'w.id', '=', 'b.warehouse_id')
+            ->leftJoin('inv_reorder_rules as r', function ($join): void {
+                $join->on('r.warehouse_id', '=', 'b.warehouse_id')
+                    ->on('r.item_id', '=', 'b.item_id')
+                    ->where('r.is_active', '=', true);
+            })
             ->whereNull('i.deleted_at')
             ->whereNull('w.deleted_at')
             ->where('i.is_active', true)
-            ->where('i.min_stock', '>', 0)
-            ->whereColumn('b.qty', '<', 'i.min_stock')
+            ->where(function ($query): void {
+                $query
+                    ->where(function ($arm): void {
+                        // Ada aturan aktif: ia yang menentukan, sendirian.
+                        $arm->whereNotNull('r.id')
+                            ->where('r.reorder_point', '>', 0)
+                            ->whereColumn('b.qty', '<', 'r.reorder_point');
+                    })
+                    ->orWhere(function ($arm): void {
+                        // Tidak ada: angka item, aturan lama yang tidak berubah.
+                        $arm->whereNull('r.id')
+                            ->where('i.min_stock', '>', 0)
+                            ->whereColumn('b.qty', '<', 'i.min_stock');
+                    });
+            })
             ->when($warehouseId !== null, fn ($query) => $query->where('b.warehouse_id', $warehouseId))
             ->orderBy('w.code')
             ->orderBy('i.code')
@@ -1448,9 +1505,29 @@ class StockService
                 'i.unit',
                 'b.qty',
                 'i.min_stock',
+                'r.id as reorder_rule_id',
+                'r.reorder_point as rule_reorder_point',
+                'r.reorder_qty as rule_reorder_qty',
             ])
             ->map(function (object $row): object {
-                $row->shortage_qty = round((float) $row->min_stock - (float) $row->qty, 3);
+                $fromRule = $row->reorder_rule_id !== null;
+
+                $row->reorder_point = round((float) ($fromRule ? $row->rule_reorder_point : $row->min_stock), 3);
+                $row->threshold_source = $fromRule ? 'rule' : 'item';
+                $row->threshold_source_label = $fromRule
+                    ? 'Aturan reorder gudang ini'
+                    : 'Stok minimum item';
+                $row->shortage_qty = round($row->reorder_point - (float) $row->qty, 3);
+
+                // Jumlah pesan aturan, bila aturan itu menyebutnya. 0 di kolom
+                // berarti "tidak dinyatakan", jadi ia menjadi null di sini dan
+                // usulan PR jatuh ke kekurangannya sendiri — bukan mengusulkan
+                // memesan nol.
+                $ruleQty = $fromRule ? round((float) $row->rule_reorder_qty, 3) : 0.0;
+                $row->reorder_qty = $ruleQty > 0 ? $ruleQty : null;
+                $row->suggested_qty = $row->reorder_qty ?? $row->shortage_qty;
+
+                unset($row->rule_reorder_point, $row->rule_reorder_qty);
 
                 return $row;
             });

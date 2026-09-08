@@ -172,22 +172,44 @@ final class ModuleCounts
             ],
 
             'inv' => [
-                'label' => 'Item di bawah stok minimum',
+                'label' => 'Item di bawah titik pesan ulang',
                 'unit' => 'item',
                 'permission' => 'inv.view',
-                'tables' => ['inv_stock_balances', 'inv_items', 'inv_warehouses'],
+                'tables' => ['inv_stock_balances', 'inv_items', 'inv_warehouses', 'inv_reorder_rules'],
                 'why' => 'Satu-satunya angka persediaan yang menuntut tindakan hari ini. Kueri ini adalah SALINAN '
-                    .'StockService::lowStockAlerts() (per gudang × item, item nonaktif dan min 0 keluar) karena '
+                    .'StockService::lowStockAlerts() (per gudang × item, item nonaktif dan ambang 0 keluar) karena '
                     .'Core tidak boleh mengimpor Inventory — kesetaraan keduanya dipaku ModuleCountsTest, satu-'
-                    .'satunya penjaga yang mungkin untuk sebuah salinan.',
+                    .'satunya penjaga yang mungkin untuk sebuah salinan. Sejak F-6 ambangnya adalah '
+                    .'inv_reorder_rules.reorder_point bila ada aturan AKTIF untuk pasangan gudang × item itu, dan '
+                    .'inv_items.min_stock bila tidak — menggantikan, bukan menambah; itulah kenapa dua lengan OR '
+                    .'di bawah saling meniadakan lewat r.id, bukan satu perbandingan dengan angka terbesar.',
+                // is_active DI ON, bukan di WHERE: di WHERE ia mengubah LEFT
+                // JOIN menjadi INNER JOIN dan setiap pasangan tanpa aturan
+                // menghilang dari hitungan sekaligus.
                 'count' => static fn (): ?int => (int) DB::table('inv_stock_balances as b')
                     ->join('inv_items as i', 'i.id', '=', 'b.item_id')
                     ->join('inv_warehouses as w', 'w.id', '=', 'b.warehouse_id')
+                    ->leftJoin('inv_reorder_rules as r', function ($join): void {
+                        $join->on('r.warehouse_id', '=', 'b.warehouse_id')
+                            ->on('r.item_id', '=', 'b.item_id')
+                            ->where('r.is_active', '=', true);
+                    })
                     ->whereNull('i.deleted_at')
                     ->whereNull('w.deleted_at')
                     ->where('i.is_active', true)
-                    ->where('i.min_stock', '>', 0)
-                    ->whereColumn('b.qty', '<', 'i.min_stock')
+                    ->where(function ($query): void {
+                        $query
+                            ->where(function ($arm): void {
+                                $arm->whereNotNull('r.id')
+                                    ->where('r.reorder_point', '>', 0)
+                                    ->whereColumn('b.qty', '<', 'r.reorder_point');
+                            })
+                            ->orWhere(function ($arm): void {
+                                $arm->whereNull('r.id')
+                                    ->where('i.min_stock', '>', 0)
+                                    ->whereColumn('b.qty', '<', 'i.min_stock');
+                            });
+                    })
                     ->count(),
             ],
 

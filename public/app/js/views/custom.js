@@ -91,7 +91,7 @@ export async function renderStock(host) {
   const tabs = el('.tabs', [
     el('button.active', { text: 'Saldo per gudang', onclick: () => switchTab('balances') }),
     el('button', { text: 'Kartu stok (ledger)', onclick: () => switchTab('ledger') }),
-    el('button', { text: 'Di bawah minimum', onclick: () => switchTab('low') }),
+    el('button', { text: 'Perlu dipesan ulang', onclick: () => switchTab('low') }),
   ]);
 
   const controls = el('.filters', { style: { border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: '16px' } });
@@ -212,19 +212,49 @@ export async function renderStock(host) {
       }
 
       const rows = await api.get('inventory/stock/low-stock', { warehouse_id: state.warehouse || undefined });
-      clear(body).appendChild(el('.card', rows.length ? el('.table-wrap', el('table.data', [
-        el('thead', el('tr', [
-          el('th', { text: 'Item' }), el('th', { text: 'Gudang' }),
-          el('th.right', { text: 'Stok' }), el('th.right', { text: 'Minimum' }), el('th.right', { text: 'Kurang' }),
+      /* F-6: PRIORITASNYA DITULIS, bukan hanya berlaku.
+         Kolom "Ambang" adalah angka yang MENANG, dan tepat di bawahnya berdiri
+         nama sumbernya. Untuk baris yang diperintah sebuah aturan, angka item
+         yang KALAH ikut dicetak ("stok min. item 100") — tanpa itu sebuah baris
+         yang menulis "20" padahal kartu itemnya berkata 100 adalah angka yang
+         tidak bisa diperiksa siapa pun, dan orang yang membukanya akan
+         menyangka kartu itemnya yang salah. */
+      clear(body).appendChild(el('.card', rows.length ? el('div', [
+        el('.card-body', el('.cell-sub', {
+          text: 'Ambang tiap baris: aturan reorder gudang ini bila ada yang AKTIF untuk pasangan gudang × item, '
+            + 'selain itu stok minimum item. Aturan gudang MENGGANTIKAN angka item — termasuk bila ia lebih rendah.',
+        })),
+        el('.table-wrap', el('table.data', [
+          el('thead', el('tr', [
+            el('th', { text: 'Item' }), el('th', { text: 'Gudang' }),
+            el('th.right', { text: 'Stok' }), el('th.right', { text: 'Ambang' }),
+            el('th.right', { text: 'Kurang' }), el('th.right', { text: 'Usulan pesan' }),
+          ])),
+          el('tbody', rows.map((row) => el('tr', [
+            el('td', el('span', [el('span.cell-main', { text: row.item_name }), el('span.cell-sub.mono', { text: row.item_code })])),
+            el('td', { text: row.warehouse_name }),
+            el('td.right.num', { text: fmt.qty(row.qty, row.unit) }),
+            el('td.right.num', el('span', [
+              el('span', { text: fmt.qty(row.reorder_point) }),
+              el('span.cell-sub', {
+                text: row.threshold_source === 'rule'
+                  ? `${row.threshold_source_label} · stok min. item ${fmt.qty(row.min_stock)}`
+                  : row.threshold_source_label,
+              }),
+            ])),
+            el('td.right.num', { text: fmt.qty(row.shortage_qty), style: { color: 'var(--danger)' } }),
+            /* "Usulan pesan" = jumlah pesan aturan bila aturan itu menyebutnya,
+               selain itu kekurangannya sendiri. Keduanya berdampingan dengan
+               "Kurang" supaya jumlah pesan yang LEBIH KECIL daripada kekurangan
+               terlihat sebagai pilihan yang disengaja, bukan sebagai salah
+               hitung yang tersembunyi. */
+            el('td.right.num', el('span', [
+              el('span', { text: fmt.qty(row.suggested_qty, row.unit) }),
+              row.reorder_qty != null ? el('span.cell-sub', { text: 'jumlah pesan aturan' }) : null,
+            ])),
+          ]))),
         ])),
-        el('tbody', rows.map((row) => el('tr', [
-          el('td', el('span', [el('span.cell-main', { text: row.item_name }), el('span.cell-sub.mono', { text: row.item_code })])),
-          el('td', { text: row.warehouse_name }),
-          el('td.right.num', { text: fmt.qty(row.qty, row.unit) }),
-          el('td.right.num', { text: fmt.qty(row.min_stock) }),
-          el('td.right.num', { text: fmt.qty(row.shortage_qty), style: { color: 'var(--danger)' } }),
-        ]))),
-      ])) : emptyState('Semua item berada di atas stok minimum.', { title: 'Stok aman', kind: 'done' })));
+      ]) : emptyState('Tidak ada pasangan gudang × item yang berada di bawah ambangnya.', { title: 'Stok aman', kind: 'done' })));
     } catch (error) {
       clear(body).appendChild(errorState(error, load));
     }

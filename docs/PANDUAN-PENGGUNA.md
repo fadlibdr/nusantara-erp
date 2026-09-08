@@ -228,7 +228,7 @@ yang paling menuntut tindakan di modul itu:
 | Proyek | Proyek aktif (berjalan + finishing) |
 | Mutu (QA/QC) | NCR terbuka (belum diverifikasi/ditutup) |
 | Pengadaan | PO terbuka (disetujui, barangnya belum lengkap) |
-| Persediaan | Item di bawah stok minimum (per gudang) |
+| Persediaan | Item di bawah titik pesan ulang (per gudang × item; aturan reorder gudang menang atas stok minimum item) |
 | Subkontrak | Opname subkon menunggu persetujuan |
 | Keuangan | Invoice termin belum lunas |
 | SDM & Payroll | Cuti menunggu persetujuan |
@@ -274,7 +274,7 @@ pertanyaan. Anda memilih sendiri widget mana yang ada di sana, seberapa lebar, d
 apa.
 
 **Hari pertama Anda sudah terisi.** Sebelum Anda pernah mengatur apa pun, dasbor memakai susunan
-bawaan **peran Anda** — misalnya seorang petugas gudang membuka dengan *Stok di bawah minimum*
+bawaan **peran Anda** — misalnya seorang petugas gudang membuka dengan *Perlu dipesan ulang*
 selebar layar, sedangkan bagian keuangan membuka dengan piutang, hutang, dan proyeksi kas. Widget
 yang izinnya tidak Anda pegang tidak pernah digambar dan tidak pernah ditawarkan.
 
