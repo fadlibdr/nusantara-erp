@@ -252,6 +252,19 @@ class SettingService
                         'max' => 6,
                         'help' => '6 = hanya Minggu libur (rezim proyek); 5 = Sabtu juga tidak memotong saldo cuti.',
                     ],
+                    [
+                        'key' => 'hr.attendance.geofence_metres',
+                        'label' => 'Radius lokasi absensi ponsel (meter)',
+                        'type' => 'integer',
+                        'min' => 50,
+                        'max' => 20000,
+                        'help' => 'Absensi di luar radius ini TETAP TERSIMPAN — ia hanya ditandai '
+                            .'"di luar lokasi" agar pengawas melihatnya. Absensi tidak pernah ditolak '
+                            .'karena posisi. Nilai yang berlaku saat menekan tombol ikut tersimpan di '
+                            .'barisnya, jadi mengubah angka ini tidak menghapus tanda pada hari-hari '
+                            .'yang sudah lewat. Proyek tanpa titik peta, dan ponsel yang tidak memberi '
+                            .'posisi, tidak menghasilkan jarak sama sekali: barisnya bergaris, bukan 0 m.',
+                    ],
                 ],
             ],
 

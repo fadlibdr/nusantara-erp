@@ -2,6 +2,7 @@
 
 namespace Modules\HrPayroll\Services;
 
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\HrPayroll\Models\Attendance;
@@ -16,6 +17,8 @@ use Modules\HrPayroll\Models\Attendance;
  */
 class AttendanceService
 {
+    public function __construct(private readonly AttendanceCorrectionService $corrections) {}
+
     /**
      * The site sheet: one date, one project, many employees, one transaction.
      *
@@ -59,12 +62,49 @@ class AttendanceService
                     ]);
                     $created++;
                 } else {
-                    $attendance->fill($values)->save();
+                    $attendance->fill($values);
+
+                    /*
+                     * Lembar kerani menimpa baris yang mungkin diisi orangnya
+                     * sendiri dari ponsel — jadi perubahannya berjejak, sama
+                     * seperti pintu PUT. Alasannya DITULIS SISTEM, bukan
+                     * diketik: menuntut satu kalimat per orang pada lembar 40
+                     * nama berarti kerani berhenti memakai layarnya dan
+                     * kembali ke kertas, dan absensi yang tidak tercatat sama
+                     * sekali jauh lebih buruk daripada jejak beralasan generik.
+                     * Kolom `source` yang membedakan keduanya di layar.
+                     *
+                     * Kolom jam masuk/pulang TIDAK ADA di $values, dan itu
+                     * bukan kebetulan: lembar kertas tidak tahu jam berapa
+                     * orangnya datang, dan menimpanya dengan null berarti
+                     * lembar yang dikirim ulang menghapus bukti GPS hari itu.
+                     */
+                    $pending = $this->corrections->pending($attendance);
+                    $attendance->save();
+                    $this->corrections->write(
+                        $attendance,
+                        $pending,
+                        sprintf('Lembar absensi %s dikirim ulang%s.', $date, $this->byWhom($recordedBy)),
+                        'bulk',
+                        $recordedBy,
+                    );
                     $updated++;
                 }
             }
 
             return ['created' => $created, 'updated' => $updated];
         });
+    }
+
+    /** " oleh Budi" — atau kosong, karena akun bisa hilang dan jejaknya tetap harus terbaca. */
+    private function byWhom(?int $userId): string
+    {
+        if ($userId === null) {
+            return '';
+        }
+
+        $name = User::query()->whereKey($userId)->value('name');
+
+        return $name === null ? '' : ' oleh '.$name;
     }
 }

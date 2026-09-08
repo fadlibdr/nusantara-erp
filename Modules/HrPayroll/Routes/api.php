@@ -31,6 +31,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Attendance recaps (rekap absensi bulanan)
     Route::get('attendance-recaps', [AttendanceRecapController::class, 'index']);
+    // DI ATAS rute berparameter di bawahnya, atau 'proposal' ditelan pengikat
+    // model dan menjadi 404. Usulan saja — tidak ada POST pasangannya, dan itu
+    // disengaja (AttendanceRecapProposalService).
+    Route::get('attendance-recaps/proposal', [AttendanceRecapController::class, 'proposal'])->middleware('permission:hr.view');
     Route::post('attendance-recaps', [AttendanceRecapController::class, 'store'])->middleware('permission:hr.create');
     Route::get('attendance-recaps/{attendanceRecap}', [AttendanceRecapController::class, 'show']);
     Route::put('attendance-recaps/{attendanceRecap}', [AttendanceRecapController::class, 'update'])->middleware('permission:hr.update');
@@ -49,15 +53,43 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])->middleware('permission:hr.approve');
     Route::post('leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->middleware('permission:hr.approve');
 
-    // Absensi harian (register, half 2 of finding #22). Ungated GETs like the
-    // monthly recaps: who was on site carries no reason and no diagnosis.
-    // Lembar absensi (absensi.js) adalah EDITOR-nya: bulk idempoten pada
-    // (employee, date), jadi mengoreksi satu baris = buka tanggalnya, ubah,
-    // simpan ulang. show/update/destroy per-baris di bawah adalah pintu API
-    // (integrasi/koreksi admin), sengaja tanpa layar sendiri.
-    Route::get('attendances', [AttendanceController::class, 'index']);
+    /*
+     * Absensi harian (register, half 2 of finding #22).
+     *
+     * GET-nya SEMULA tanpa gerbang, dengan alasan yang ditulis di sini: "siapa
+     * yang di lokasi tidak membawa sebab maupun diagnosis". F-4 mencabut
+     * alasan itu. Sejak barisnya membawa koordinat, akurasi fix, jam datang
+     * dan selfie, register ini menjadi riwayat POSISI seseorang hari demi
+     * hari — data pribadi yang setara dengan register sertifikat dan
+     * pengajuan cuti di atas, dan keduanya dijaga hr.view. Menu SDM & Payroll
+     * memang sudah dijaga hr.view di schema.js, jadi tidak ada layar yang
+     * kehilangan pintunya; yang ditutup adalah token yang memanggil API
+     * langsung.
+     *
+     * Lembar absensi (absensi.js) adalah EDITOR-nya: bulk idempoten pada
+     * (employee, date), jadi mengoreksi satu baris = buka tanggalnya, ubah,
+     * simpan ulang. show/update/destroy per-baris adalah pintu API
+     * (integrasi/koreksi admin), sengaja tanpa layar sendiri.
+     */
+    Route::get('attendances', [AttendanceController::class, 'index'])->middleware('permission:hr.view');
+    /*
+     * "Absensi Saya" — TANPA izin hr.*, dan sengaja DI ATAS rute berparameter
+     * di bawahnya: 'attendances/me' yang didaftarkan sesudah
+     * 'attendances/{attendance}' akan ditelan pengikat model dan menjawab 404
+     * untuk setiap orang.
+     *
+     * Ketiganya hanya menyentuh baris milik pemanggil sendiri — kuncinya
+     * users.employee_id, bukan sebuah field employee_id di badan permintaan.
+     * Absen masuk/pulang tidak menuntut hr.create karena tukang di lapangan
+     * tidak memegang izin HR mana pun, dan absensi yang hanya bisa dicatat
+     * oleh kerani adalah absensi kertas dengan langkah tambahan.
+     */
+    Route::get('attendances/me', [AttendanceController::class, 'mine']);
+    Route::post('attendances/me/clock-in', [AttendanceController::class, 'clockIn']);
+    Route::post('attendances/me/clock-out', [AttendanceController::class, 'clockOut']);
     Route::post('attendances/bulk', [AttendanceController::class, 'bulk'])->middleware('permission:hr.create');
-    Route::get('attendances/{attendance}', [AttendanceController::class, 'show']);
+    Route::get('attendances/{attendance}', [AttendanceController::class, 'show'])->middleware('permission:hr.view');
+    Route::get('attendances/{attendance}/corrections', [AttendanceController::class, 'corrections'])->middleware('permission:hr.view');
     Route::put('attendances/{attendance}', [AttendanceController::class, 'update'])->middleware('permission:hr.update');
     Route::delete('attendances/{attendance}', [AttendanceController::class, 'destroy'])->middleware('permission:hr.delete');
 

@@ -188,6 +188,18 @@ return [
             // 5 = Sabtu juga libur. Menentukan hitungan day_count cuti.
             'workweek_days' => 6,
         ],
+        'attendance' => [
+            // Radius wajar dari titik proyek untuk absensi ponsel, dalam meter.
+            // 500 m memaafkan fix GPS kota yang buruk dan proyek yang titik
+            // petanya ditaruh di gerbang, bukan di gedung.
+            //
+            // Ambang ini TIDAK PERNAH menolak absensi. Ia hanya menentukan
+            // baris mana yang ditandai "di luar lokasi" untuk dilihat pengawas.
+            // Absensi yang ditolak berarti orangnya tetap bekerja hari itu dan
+            // sistem tidak punya catatannya sama sekali — yang jauh lebih buruk
+            // daripada catatan bertanda.
+            'geofence_metres' => 500,
+        ],
     ],
 
     'projects' => [
