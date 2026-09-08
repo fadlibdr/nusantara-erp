@@ -4,6 +4,7 @@ namespace Modules\Crm\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Modules\Core\Http\ApiController;
 use Modules\Crm\Enums\LeadStatus;
 use Modules\Crm\Http\Requests\LeadPipelineRequest;
@@ -47,9 +48,14 @@ class LeadController extends ApiController
 
     public function store(LeadStoreRequest $request): JsonResponse
     {
-        $lead = Lead::query()->create($request->validated());
+        $lead = Lead::query()->create($this->writable($request->validated(), status: true));
 
-        return $this->created(LeadResource::make($lead->load('owner')));
+        // Dibaca ulang, bukan ditebak: kolom yang diisi DEFAULT basis data
+        // (status 'new' bila tidak disebut) belum ada pada instance hasil
+        // create(), dan jawaban 201 yang berbunyi "status: null" untuk baris
+        // yang sesungguhnya 'new' adalah kebohongan yang hidup sampai layarnya
+        // dimuat ulang.
+        return $this->created(LeadResource::make($lead->refresh()->load('owner')));
     }
 
     public function show(Lead $lead): JsonResponse
@@ -61,9 +67,39 @@ class LeadController extends ApiController
 
     public function update(LeadUpdateRequest $request, Lead $lead): JsonResponse
     {
-        $lead->update($request->validated());
+        $lead->update($this->writable($request->validated()));
 
         return $this->ok(LeadResource::make($lead->load('owner')));
+    }
+
+    /**
+     * Kolom yang boleh ditulis formulir prospek — IKAT PINGGANG DAN TALI
+     * (verifikasi F-3, 8 Sep 2026).
+     *
+     * `next_follow_up_at` adalah TURUNAN (LeadFollowUpService, satu penulis)
+     * dan `status` hanya berpindah lewat LeadPipelineService. Keduanya sudah
+     * ditolak di FormRequest — tetapi aturan di sana pernah `prohibited`, yang
+     * lulus untuk null: PUT {"next_follow_up_at":null} dijawab 200 dan
+     * menghapus kolom turunannya, sehingga satu halaman memajang dua jawaban
+     * berbeda untuk pertanyaan yang sama. Saringan kedua di sini berbiaya satu
+     * baris dan berarti aturan itu tidak bisa dibatalkan oleh satu rule yang
+     * salah pilih — bentuk yang sama dengan ActivityService (done_at/done_by).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function writable(array $data, bool $status = false): array
+    {
+        $data = Arr::except($data, $status ? ['next_follow_up_at'] : ['next_follow_up_at', 'status']);
+
+        // `status` null pada PEMBUATAN berarti "pakai tahap awal", bukan "tulis
+        // NULL": kolomnya NOT NULL berdefault 'new', dan meneruskan null apa
+        // adanya adalah HTTP 500 atas permintaan yang sah.
+        if ($status && array_key_exists('status', $data) && $data['status'] === null) {
+            unset($data['status']);
+        }
+
+        return $data;
     }
 
     public function destroy(Lead $lead): JsonResponse

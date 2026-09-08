@@ -41,8 +41,13 @@ class LeadStoreRequest extends FormRequest
              * satu penulis, LeadFollowUpService. Ditolak, BUKAN diabaikan
              * diam-diam: sebuah field yang hilang tanpa suara adalah cara
              * seseorang mengira ia sudah menjadwalkan tindak lanjut.
+             *
+             * `missing`, BUKAN `prohibited` — aturan yang sama dengan
+             * LeadUpdateRequest, dan disamakan di sini walau prospek baru
+             * memang menurunkan null: dua permukaan satu aturan yang berbeda
+             * bunyinya adalah cara aturan itu hanyut (verifikasi F-3).
              */
-            'next_follow_up_at' => ['prohibited'],
+            'next_follow_up_at' => ['missing'],
             'notes' => ['nullable', 'string'],
         ];
     }
@@ -52,7 +57,7 @@ class LeadStoreRequest extends FormRequest
         return [
             'status.Illuminate\\Validation\\Rules\\Enum' => 'Prospek tidak bisa dibuat langsung dengan status Menang atau Kalah: '
                 .'keduanya lahir dari keputusan penawaran (Tandai Menang / Tandai Kalah).',
-            'next_follow_up_at.prohibited' => 'Tanggal tindak lanjut diturunkan dari aktivitas prospek ini, '
+            'next_follow_up_at.missing' => 'Tanggal tindak lanjut diturunkan dari aktivitas prospek ini, '
                 .'bukan diketik: buat aktivitas berjatuh tempo pada kartu Aktivitas di layar prospek.',
         ];
     }

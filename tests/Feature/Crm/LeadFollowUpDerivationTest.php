@@ -161,6 +161,83 @@ class LeadFollowUpDerivationTest extends ErpTestCase
     }
 
     /**
+     * NULL EKSPLISIT ADALAH KETIKAN JUGA — dan yang paling merusak.
+     *
+     * Diukur 8 Sep 2026 sebelum perbaikan ini (php -S atas salinan DB demo):
+     * PUT {"next_follow_up_at":null} dijawab HTTP 200, kolomnya jadi kosong,
+     * aktivitas terbukanya masih di sana, dan SATU halaman memajang dua
+     * jawaban — kartu Aktivitas "Tindak lanjut berikutnya 25 Sep 2026" di atas
+     * panel Informasi "—". `prohibited` adalah kebalikan `required`, jadi ia
+     * lulus untuk nilai kosong; `missing` yang menolak KEBERADAAN kuncinya.
+     *
+     * Tiga bentuk kosong diuji karena ketiganya sampai sebagai hal yang sama:
+     * null, "" (ConvertEmptyStringsToNull), dan status null yang dulu menjadi
+     * HTTP 500 "NOT NULL constraint failed" alih-alih kalimat "Ubah Tahap".
+     */
+    public function test_an_explicit_null_cannot_wipe_the_derived_date(): void
+    {
+        $lead = $this->makeLead();
+        $admin = $this->adminUser();
+
+        $this->service()->create([
+            'document_type' => 'lead', 'document_id' => $lead->id,
+            'type' => 'call', 'subject' => 'Telepon terjadwal', 'due_at' => '2026-09-25',
+        ]);
+
+        $this->assertSame('2026-09-25', $lead->refresh()->next_follow_up_at?->toDateString());
+
+        foreach ([null, ''] as $empty) {
+            $this->actingAs($admin)
+                ->putJson("/api/crm/leads/{$lead->id}", ['name' => $lead->name, 'next_follow_up_at' => $empty])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('next_follow_up_at');
+
+            $this->assertSame('2026-09-25', $lead->refresh()->next_follow_up_at?->toDateString(),
+                'kolom turunan terhapus oleh nilai kosong yang lolos validasi');
+        }
+
+        // Tahap dijaga pintu yang sama: null bukan "biarkan saja", ia dulu
+        // menulis NULL ke kolom NOT NULL.
+        $this->actingAs($admin)
+            ->putJson("/api/crm/leads/{$lead->id}", ['name' => $lead->name, 'status' => null])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status');
+
+        $this->assertSame(LeadStatus::Contacted, $lead->refresh()->status, 'tahapnya bergeser oleh null');
+
+        // Prospek BARU: status kosong berarti "tahap awal", bukan HTTP 500.
+        $this->actingAs($admin)
+            ->postJson('/api/crm/leads', ['name' => 'Prospek Tanpa Tahap', 'status' => null])
+            ->assertStatus(201)
+            ->assertJsonPath('data.status', 'new');
+    }
+
+    /**
+     * Saringan kedua di controller (Arr::except) — supaya aturannya tidak
+     * bergantung pada satu rule validasi yang bisa salah pilih lagi. Dipanggil
+     * sebagaimana controller memanggilnya: lewat HTTP, dengan kunci yang lolos
+     * karena FormRequest-nya dilucuti tidak mungkin di sini — maka yang diuji
+     * adalah PERILAKUNYA: nilai turunan tidak pernah berpindah lewat formulir.
+     */
+    public function test_the_form_route_never_writes_the_derived_column(): void
+    {
+        $lead = $this->makeLead();
+        $admin = $this->adminUser();
+
+        $this->service()->create([
+            'document_type' => 'lead', 'document_id' => $lead->id,
+            'type' => 'call', 'subject' => 'Telepon terjadwal', 'due_at' => '2026-10-02',
+        ]);
+
+        $this->actingAs($admin)
+            ->putJson("/api/crm/leads/{$lead->id}", ['name' => 'Nama Baru', 'company_name' => 'PT Uji'])
+            ->assertOk()
+            ->assertJsonPath('data.next_follow_up_at', '2026-10-02');
+
+        $this->assertSame('2026-10-02', $lead->refresh()->next_follow_up_at?->toDateString());
+    }
+
+    /**
      * Prospek yang sudah punya tanggal ketikan TIDAK berubah makna.
      *
      * Barisnya ditulis mentah lewat DB::table — keadaan sebuah pemasangan yang
