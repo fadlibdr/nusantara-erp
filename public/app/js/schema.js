@@ -3029,8 +3029,15 @@ export const RESOURCES = {
        di sini dan bukan lewat katalog server karena ia formulir BESPOKE:
        katalog PrintableDocuments menggambar dokumen bertanda tangan, dan
        lembar stiker bukan salah satunya. */
+    /* TIGA JUMLAH, karena tab cetaknya dibuka dari `blob:` dan tidak punya
+       bilah alamat yang bisa ditambahi "?jumlah=". Plafon 1-60 sudah
+       divalidasi FormPrintController dan dipaku uji; sebelum ketiga entri ini
+       ada, tidak satu pun pemakai bisa mencapainya, dan PANDUAN menyuruh
+       mereka mengetik alamat API yang menjawab 302 ke halaman masuk. */
     printForms: [
-      { form: 'label-barcode', label: 'Label Barcode' },
+      { form: 'label-barcode', label: 'Label Barcode (12 stiker)' },
+      { form: 'label-barcode', label: 'Label Barcode (24 stiker)', query: { jumlah: 24 } },
+      { form: 'label-barcode', label: 'Label Barcode (60 stiker)', query: { jumlah: 60 } },
     ],
     columns: [
       codeColumn,

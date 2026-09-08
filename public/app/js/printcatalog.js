@@ -144,12 +144,24 @@ export function printableFor(form, row) {
  * A parameter whose field the row does not carry is LEFT OUT rather than sent
  * empty: the server's own default (today, this month, the whole register) is
  * better than a blank, and `?tanggal=` with nothing after it is a 422.
+ *
+ * `params` MEMETAKAN KE FIELD BARIS; `query` MEMBAWA NILAI TETAP (F-6).
+ * Keduanya perlu, dan bedanya bukan gaya: jumlah stiker pada lembar F/LBL
+ * bukan milik kartu itemnya — tidak ada kolom yang menyimpannya — melainkan
+ * milik TOMBOLNYA. Tanpa `query`, plafon 1–60 yang sudah divalidasi server dan
+ * dipaku uji tidak bisa dicapai satu pun pemakai: tab cetak dibuka dari
+ * `blob:` (api.js: sebuah <a href> polos tidak membawa header token dan
+ * kembali 401), jadi tidak ada bilah alamat yang bisa ditambahi "?jumlah=".
+ * PANDUAN pernah menyuruh pemakainya melakukan persis itu.
  */
 export function printablePath(form, row) {
-  const query = Object.entries(form.params || {})
-    .filter(([, field]) => row[field] !== null && row[field] !== undefined && row[field] !== '')
-    .map(([param, field]) => `${param}=${encodeURIComponent(row[field])}`)
-    .join('&');
+  const query = [
+    ...Object.entries(form.params || {})
+      .filter(([, field]) => row[field] !== null && row[field] !== undefined && row[field] !== '')
+      .map(([param, field]) => `${param}=${encodeURIComponent(row[field])}`),
+    ...Object.entries(form.query || {})
+      .map(([param, value]) => `${param}=${encodeURIComponent(value)}`),
+  ].join('&');
 
   return `core/print/forms/${form.form}/${row[form.idField || 'id']}${query ? `?${query}` : ''}`;
 }
