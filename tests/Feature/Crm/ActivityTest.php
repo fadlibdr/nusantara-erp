@@ -74,6 +74,57 @@ class ActivityTest extends ErpTestCase
             ->assertJsonPath('errors.document_id.0', 'Prospek #9999 tidak ditemukan, jadi aktivitas ini tidak bisa digantungkan padanya.');
     }
 
+    /**
+     * PROSPEK YANG SUDAH DIHAPUS TIDAK ADA — dan itu berlaku untuk aktivitas
+     * baru maupun untuk memindahkan aktivitas lama ke sana.
+     *
+     * ActivityDocuments::find() sengaja TIDAK memakai withTrashed(); aturannya
+     * ditulis di docblock-nya sejak hari pertama. Sampai 8 Sep 2026 tidak ada
+     * satu pun uji yang memegangnya: mengganti `find($id)` menjadi
+     * `withTrashed()->find($id)` di salinan repo meninggalkan 294 uji
+     * tests/Feature/Crm hijau seluruhnya — sebuah aturan yang hanya hidup di
+     * komentar, dan pekerjaan yang digantungkan pada prospek terhapus tidak
+     * akan pernah muncul di layar mana pun.
+     */
+    public function test_a_soft_deleted_parent_does_not_exist(): void
+    {
+        $lead = $this->makeLead();
+        $other = $this->makeLead(['name' => 'Prospek kedua']);
+
+        // Satu aktivitas yang sudah ada, dibuat SELAGI induknya masih ada.
+        $activity = $this->service()->create([
+            'document_type' => 'lead', 'document_id' => $other->id,
+            'type' => 'call', 'subject' => 'Telepon yang sudah tercatat',
+        ]);
+
+        $lead->delete();
+        $this->assertSoftDeleted('crm_leads', ['id' => $lead->id]);
+
+        $admin = $this->adminUser();
+
+        $this->actingAs($admin)
+            ->postJson('/api/crm/activities', [
+                'document_type' => 'lead',
+                'document_id' => $lead->id,
+                'type' => 'call',
+                'subject' => 'Telepon ke prospek yang sudah dihapus',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.document_id.0',
+                "Prospek #{$lead->id} tidak ditemukan, jadi aktivitas ini tidak bisa digantungkan padanya.");
+
+        // Memindahkannya ke sana ditolak dengan kalimat yang sama — dan
+        // aktivitasnya tetap menggantung di tempat asalnya.
+        $this->actingAs($admin)
+            ->putJson("/api/crm/activities/{$activity->id}", ['document_id' => $lead->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.document_id.0',
+                "Prospek #{$lead->id} tidak ditemukan, jadi aktivitas ini tidak bisa digantungkan padanya.");
+
+        $this->assertSame($other->id, (int) $activity->refresh()->document_id);
+        $this->assertSame(0, Activity::query()->where('document_id', $lead->id)->count());
+    }
+
     public function test_an_unknown_document_type_is_refused(): void
     {
         $this->actingAs($this->adminUser())
