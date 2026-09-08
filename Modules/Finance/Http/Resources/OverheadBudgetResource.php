@@ -16,6 +16,12 @@ class OverheadBudgetResource extends JsonResource
             'period_year' => $this->period_year,
             'total_amount' => $this->total_amount,
             'status' => $this->status?->value,
+            // Dipancarkan seperti setiap resource dokumen lain (bandingkan
+            // PurchaseOrderResource): cells.js merender kolom status sebagai
+            // `row.status_label || …`, jadi tanpa baris ini SATU-SATUNYA daftar
+            // dokumen di SPA yang mencetak "approved"/"cancelled" mentah adalah
+            // layar OVB — pada paket yang mengirimnya (verifikasi F-2 putaran 2).
+            'status_label' => $this->status?->label(),
             'notes' => $this->notes,
             // Pembatalan (verifikasi F-2): dokumen yang dibatalkan harus
             // membawa SEBABNYA ke layar, bukan hanya status 'cancelled'.

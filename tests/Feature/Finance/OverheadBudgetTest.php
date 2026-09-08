@@ -592,6 +592,43 @@ class OverheadBudgetTest extends ErpTestCase
         $this->assertEquals(250000000, $payload['total_budget']);
     }
 
+    /**
+     * STATUSNYA DIKIRIM DALAM BAHASA INDONESIA (verifikasi F-2 putaran 2).
+     *
+     * Diukur di Chromium, dua daftar berdampingan pada server yang sama:
+     *   #/r/finance/overhead-budgets   baris 0: badge "approved"
+     *   #/r/procurement/purchase-orders baris 0: badge "Disetujui"
+     * Perendernya satu (cells.js: `row.status_label || … || raw`); yang hilang
+     * adalah satu baris di Resource — OverheadBudgetResource memancarkan
+     * `status` tetapi tidak `status_label`, berbeda dengan setiap resource
+     * dokumen lain. Satu-satunya daftar dokumen di SPA yang mencetak status
+     * dalam bahasa Inggris mentah, pada layar yang dikirim paket ini.
+     */
+    public function test_the_list_ships_an_indonesian_status_label(): void
+    {
+        Sanctum::actingAs($this->maker());
+
+        $budget = $this->budget(2026, ['6-1100' => 100_000_000]);
+        $this->service->submit($budget, $this->maker());
+        $this->service->approve($budget, $this->checker());
+
+        Sanctum::actingAs($this->maker());
+
+        $row = collect($this->getJson('/api/finance/overhead-budgets')->assertOk()->json('data'))
+            ->firstWhere('id', $budget->id);
+
+        $this->assertSame('approved', $row['status']);
+        $this->assertSame('Disetujui', $row['status_label']);
+
+        $detail = $this->getJson("/api/finance/overhead-budgets/{$budget->id}")->assertOk()->json('data');
+        $this->assertSame('Disetujui', $detail['status_label']);
+
+        $this->service->cancel($budget->refresh(), $this->checker(), 'Salah ketik tahun buku.');
+
+        $cancelled = $this->getJson("/api/finance/overhead-budgets/{$budget->id}")->assertOk()->json('data');
+        $this->assertSame('Dibatalkan', $cancelled['status_label']);
+    }
+
     /** Penyusun — dibuat SEKALI per tes (adminUser() memakai e-mail tetap). */
     private function maker(): User
     {
