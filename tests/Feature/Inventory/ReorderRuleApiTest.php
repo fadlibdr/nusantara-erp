@@ -250,6 +250,53 @@ class ReorderRuleApiTest extends ErpTestCase
         $this->assertFalse($rule->is_active);
     }
 
+    /**
+     * "AKTIF ✓" TIDAK BERARTI "BERLAKU".
+     *
+     * Item dan gudang menghapus-lembut; relasi aturan memakai withTrashed()
+     * dengan sengaja supaya namanya selamat dan barisnya tetap bisa dibuang
+     * orangnya. Tetapi kueri kekurangan membuang item dan gudang terhapus
+     * lebih dulu — ambang baris itu sudah tidak menentukan apa pun, sementara
+     * kolom "Aktif" tetap ✓. Barisnya harus MENGATAKANNYA.
+     */
+    public function test_a_rule_whose_item_was_thrown_away_says_so_instead_of_looking_alive(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-PUSAT');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 80, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $admin = $this->adminUser();
+
+        $before = $this->actingAs($admin, 'sanctum')->getJson('api/inventory/reorder-rules')->json('data.0');
+        $this->assertTrue($before['applies']);
+        $this->assertSame([], $before['deleted_labels']);
+
+        $item->delete();
+
+        $after = $this->actingAs($admin, 'sanctum')->getJson('api/inventory/reorder-rules')->json('data.0');
+
+        $this->assertTrue($after['is_active'], 'Saklarnya memang masih menyala — itulah yang menyesatkan.');
+        $this->assertFalse($after['applies']);
+        $this->assertSame(['Item dibuang'], $after['deleted_labels']);
+        $this->assertTrue($after['item']['deleted']);
+    }
+
+    /** …dan gudang yang dibuang ditandai dengan kalimatnya sendiri. */
+    public function test_a_rule_whose_warehouse_was_thrown_away_says_that_instead(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-SITE');
+        $item = $this->makeItem('Besi Beton D16', ['min_stock' => 100]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 30, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $warehouse->delete();
+
+        $row = $this->actingAs($this->adminUser(), 'sanctum')->getJson('api/inventory/reorder-rules')->json('data.0');
+
+        $this->assertFalse($row['applies']);
+        $this->assertSame(['Gudang dibuang'], $row['deleted_labels']);
+        $this->assertTrue($row['warehouse']['deleted']);
+    }
+
     public function test_a_rule_for_a_warehouse_that_does_not_exist_is_refused(): void
     {
         $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);

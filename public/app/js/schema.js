@@ -3129,6 +3129,16 @@ export const RESOURCES = {
       { key: 'item.min_stock', label: 'Stok min. item', type: 'qty', align: 'right', hideOnNarrow: true },
       { key: 'reorder_qty', label: 'Jumlah pesan', type: 'qty', align: 'right' },
       { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+      /*
+       * "Aktif ✓" TIDAK BERARTI "berlaku". Item dan gudang menghapus-lembut,
+       * dan aturan yang salah satunya sudah dibuang tetap tersimpan dengan
+       * saklarnya menyala — tetapi kueri kekurangan membuang item dan gudang
+       * terhapus lebih dulu, jadi ambangnya tidak menentukan apa pun.
+       * Kepingnya datang dari server (`deleted_labels`), bukan disusun di
+       * sini, karena yang tahu baris mana yang ikut dihitung adalah kueri
+       * yang menghitungnya.
+       */
+      { key: 'deleted_labels', label: 'Peringatan', type: 'tags', tone: 'amber' },
     ],
     filters: [
       { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },

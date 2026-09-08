@@ -110,6 +110,29 @@ class ReorderRuleSchemaTest extends ErpTestCase
     }
 
     /**
+     * KEPING PERINGATANNYA ADA DI LAYAR, bukan hanya di jawaban server.
+     *
+     * `deleted_labels` yang dikirim resource tidak menandai apa pun kalau
+     * tidak ada kolom yang menggambarnya: barisnya tetap terbaca "titik 80 ·
+     * Aktif ✓" untuk aturan yang ambangnya sudah tidak menentukan apa pun.
+     */
+    public function test_the_rule_list_draws_the_warning_chip_the_resource_sends(): void
+    {
+        $source = (string) file_get_contents(public_path('app/js/schema.js'));
+        $start = strpos($source, "'inventory/reorder-rules': {");
+        $this->assertNotFalse($start, 'schema.js tidak lagi punya resource inventory/reorder-rules.');
+
+        $block = substr($source, $start, 2500);
+
+        $this->assertStringContainsString(
+            "key: 'deleted_labels'",
+            $block,
+            'Daftar Aturan Reorder tidak menggambar keping "Item dibuang"/"Gudang dibuang" yang dikirim '
+            .'ReorderRuleResource, jadi aturan yang ambangnya sudah tidak berlaku tampak hidup dengan Aktif ✓.',
+        );
+    }
+
+    /**
      * Blok lanjutan Inventory DIDAFTARKAN di tabel CONVENTIONS §2, pada commit
      * yang sama dengan pemakaian pertamanya — aturan §2 sendiri. Sebuah
      * migrasi 001700 tanpa baris tabelnya berarti modul berikutnya yang
