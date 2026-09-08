@@ -2262,6 +2262,21 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+/* Kertas tidak menggulir — alasan yang sama dengan .table-wrap dan
+   .chart-scroll di blok @media print utama, yang melewatkan papan sampai
+   8 Sep 2026. Diukur dengan emulate_media('print') pada 794 px (A4 potret
+   @96 dpi): scrollWidth 1500 px, dan hanya 3 dari 6 kolom papan prospek yang
+   utuh di halaman — "Penawaran Dikirim", "Menang" dan "Kalah" tidak tercetak,
+   tanpa satu kalimat pun yang mengaku. DIBUNGKUS, bukan dipotong: kolom yang
+   tidak muat turun ke baris berikutnya, dan tidak ada kolom yang terbelah dua
+   halaman. Blok ini berdiri SESUDAH .board-grid, bukan di blok cetak jauh di
+   atas: spesifisitasnya sama, jadi yang belakangan menang — sebuah aturan
+   cetak yang ditulis lebih dulu akan kalah oleh `overflow-x: auto` di atas
+   tanpa satu tanda pun. */
+@media print {
+  .board-grid { overflow: visible; flex-wrap: wrap; }
+  .board-lane { break-inside: avoid; }
+}
 .board-lane-head {
   display: flex; align-items: center; gap: 8px;
   padding: 9px 12px;
