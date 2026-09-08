@@ -175,11 +175,15 @@ class ActivityDeadlineWatchTest extends ErpTestCase
     }
 
     /**
-     * Jatuh tempo HARI INI sudah dihitung LEWAT.
+     * Jatuh tempo HARI INI belum terlambat — dan JUDULNYA yang membuktikannya.
      *
-     * Sama dengan seluruh registri (lead_days > 0 tanpa valid_through_end):
-     * batas MENIPIS mulai besok, dan hari ini masuk LEWAT. Yang dipaku di sini
-     * adalah bahwa harinya tidak jatuh di antara dua tingkat dan hilang.
+     * Entri ini `valid_through_end`: pekerjaan yang dijanjikan hari ini masih
+     * bisa dikerjakan hari ini, jadi harinya berbunyi MENIPIS ("hari ini") dan
+     * LEWAT baru mulai besok. Judulnya ikut dipaku, bukan hanya keberadaan
+     * alarmnya: sampai 8 Sep 2026 uji ini hanya menuntut SATU alarm, dan
+     * karena itu pengawas bisa menyebut "lewat jatuh tempo" bertahun-tahun
+     * sementara Activity::isOverdue, saringan state=overdue dan hitungan kartu
+     * papan menyebut hal sebaliknya untuk baris yang sama persis.
      */
     public function test_today_is_never_lost_between_the_two_tiers(): void
     {
@@ -189,7 +193,52 @@ class ActivityDeadlineWatchTest extends ErpTestCase
         $this->watch();
 
         $alarm = $this->alarms()->sole();
+        $this->assertSame('Aktivitas CRM mendekati jatuh tempo', $alarm->title,
+            'hari jatuh tempo disebut LEWAT oleh pengawas, padahal tiga permukaan lain menyebutnya belum');
         $this->assertStringContainsString('Jatuh tempo hari ini', $alarm->body);
+        $this->assertStringContainsString('hari ini', $alarm->body);
+    }
+
+    /**
+     * DAN besoknya barulah LEWAT — batas bawah tingkat itu ikut dipaku, supaya
+     * "belum terlambat hari ini" tidak diperbaiki dengan mendiamkan yang
+     * sungguh-sungguh terlambat.
+     */
+    public function test_the_day_after_the_due_date_is_overdue(): void
+    {
+        $this->salesUser();
+        $this->activity(['due_at' => '2026-09-07', 'subject' => 'Jatuh tempo kemarin']);
+
+        $this->watch();
+
+        $alarm = $this->alarms()->sole();
+        $this->assertSame('Aktivitas CRM lewat jatuh tempo', $alarm->title);
+        $this->assertStringContainsString('1 hari lalu', $alarm->body);
+    }
+
+    /**
+     * Satu baris, satu jawaban: apa yang dikatakan pengawas pukul 08.30 harus
+     * sama dengan apa yang dikatakan aplikasinya saat orangnya membukanya.
+     * Diukur lewat KEDUA jalur atas baris yang sama.
+     */
+    public function test_the_watcher_and_the_app_agree_on_what_is_late(): void
+    {
+        $sales = $this->salesUser();
+        $today = $this->activity(['due_at' => self::TODAY, 'subject' => 'Hari ini']);
+        $yesterday = $this->activity(['due_at' => '2026-09-07', 'subject' => 'Kemarin']);
+
+        $this->watch();
+
+        $this->assertFalse($today->refresh()->isOverdue(), 'aplikasi: hari ini belum lewat');
+        $this->assertTrue($yesterday->refresh()->isOverdue(), 'aplikasi: kemarin sudah lewat');
+
+        $lewat = $this->alarms('Aktivitas CRM lewat jatuh tempo')->sole();
+        $this->assertStringContainsString('Kemarin', $lewat->body);
+        $this->assertStringNotContainsString('Hari ini', $lewat->body,
+            'pengawas menyebut lewat jatuh tempo sesuatu yang layarnya sebut belum');
+
+        $menipis = $this->alarms('Aktivitas CRM mendekati jatuh tempo')->sole();
+        $this->assertStringContainsString('Hari ini', $menipis->body);
     }
 
     /** Yang tidak boleh menandainya selesai tidak diberi tahu. */
