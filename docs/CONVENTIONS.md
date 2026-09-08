@@ -1366,3 +1366,135 @@ kolom kedua; lihat docblock-nya). Boleh kosong, dan yang kosong berbunyi **"Belu
 setiap permukaan lewat SATU kalimat (`ActivityResource::ownerName`, dipakai juga `LeadResource`):
 daftar, CSV daftar, kartu papan, dan layar dokumen. Pemilik yang baris penggunanya sudah tidak ada
 berbunyi lain — itu data rusak, bukan "belum ditugaskan".
+
+## 27. Absensi masuk/pulang dari ponsel (`hr_attendances.check_in_*`, F-4)
+
+Absensi ponsel adalah pengukuran, dan setiap aturan di bawah lahir dari satu pertanyaan: apa yang
+boleh dikatakan sistem ini kepada orang yang membacanya nanti.
+
+**Mencatat, tidak pernah menolak.** Di luar radius proyek, di dalam, atau tidak diketahui —
+absensinya tersimpan sama saja. Ambang geofence (`hr.attendance.geofence_metres`, bawaan 500 m)
+hanya menentukan baris mana yang DITANDAI. Menolak absensi karena GPS berarti orang yang tetap
+bekerja hari itu tidak punya catatan sama sekali, dan yang paling sering kena bukan orang yang
+berbohong melainkan gudang berdinding beton, basement, dan ponsel murah.
+
+**Tidak tahu bukan nol.** Proyek tanpa `latitude`/`longitude`, dan ponsel tanpa fix, sama-sama
+menghasilkan `check_in_distance_m` **NULL**. Nol berarti "berdiri tepat di titik proyek". Kolom
+`outside_geofence` sengaja TIDAK ADA: ia turunan penuh dari (`distance_m`, `geofence_m`), dan kolom
+turunan yang disimpan adalah kolom yang suatu hari melenceng dari sumbernya.
+`Attendance::outsideGeofence($side)` menghitungnya dan mengembalikan **null** untuk keadaan ketiga —
+tiga keadaan, dan yang ketiga BUKAN "di dalam".
+
+**Kalimatnya milik server.** `AttendanceResource` menerbitkan `distance_text` (`"—"` bila null),
+`verdict` (`inside|outside|unknown`) dan `verdict_text` jadi. Layar mengulangnya; tidak ada layar
+yang menyusun kalimatnya sendiri dari angka. Idiom yang sama dengan
+`BudgetRealisationService::sideView()` (F-2), dan alasannya sama: layar kedua akan menyusunnya
+sedikit berbeda, dan yang ketiga akan menulis "0 m".
+
+**Waktu perangkat dicatat, tidak pernah menggantikan.** `*_at` = jam server saat catatan sampai;
+`*_device_at` = jam ponsel saat tombol ditekan. Antrean luring bisa mengirim berjam-jam kemudian,
+jadi jam server sendirian berbohong tentang kapan orangnya datang; jam ponsel bisa dipalsukan
+siapa saja. **Satu-satunya keputusan yang boleh diambil jam ponsel adalah TANGGAL barisnya**, dan
+hanya bila ia masih dalam ±48 jam dari jam server — tanpa itu antrean yang menyeberangi tengah
+malam menaruh absen kemarin di hari ini dan menimpanya lewat kunci unik (karyawan, tanggal). Jam
+ponsel yang berjalan maju tetap dipotong ke hari server. **`Carbon::parse()` atas ISO-8601 ber-Z
+menghasilkan objek ber-zona UTC**: ia WAJIB `->setTimezone(config('app.timezone'))` sebelum dipakai,
+atau absen pukul 06.30 WIB (23.30 UTC kemarin) diarsipkan ke tanggal kemarin.
+
+**Ambang distempel, seperti kebijakan persetujuan F-1.** `*_geofence_m` menyimpan radius yang
+BERLAKU saat itu, dan hanya ketika jaraknya benar-benar terukur. Tanpa stempel, menaikkan angka di
+Pengaturan membersihkan setiap tanda "di luar lokasi" di masa lalu secara surut. `*_project_id`
+menyimpan proyek ACUAN pengukuran, terpisah dari `project_id` baris: kerani boleh memindahkan baris
+ke proyek lain sesudahnya, dan tanpa acuan tersimpan jaraknya diam-diam berubah arti.
+
+**Idempotensi antrean.** Butir yang sama dikirim ulang membawa `device_at` yang sama — satu-satunya
+tanda yang membedakan "kirim ulang" dari "ditekan dua kali". Absen masuk kedua: yang PERTAMA
+menang, dan dikatakan. Absen pulang kedua: yang TERAKHIR menang (orang benar-benar pulang
+belakangan) dan yang lama menjadi baris jejak.
+
+**Pintu absen tidak menerima `employee_id`.** `POST hr/attendances/me/clock-in|clock-out` menulis
+baris milik `users.employee_id` pemanggilnya. Sebuah field yang bisa menyebut orang lain
+menjadikannya pintu untuk mengabsenkan rekan yang belum datang. Akun tanpa kartu karyawan mendapat
+kalimat, bukan layar rusak dan bukan absensi orang lain.
+
+**`GET hr/attendances` menuntut `hr.view` sejak F-4.** Barisnya kini membawa koordinat, akurasi fix
+dan selfie — riwayat posisi seseorang hari demi hari, setara dengan register sertifikat dan
+pengajuan cuti yang sudah dijaga. `GET hr/attendances/me` adalah pintu tanpa izin untuk baris
+sendiri: kueri yang secara struktur tidak bisa mengembalikan baris orang lain, bukan penyaring di
+atas daftar yang sama.
+
+## 28. Jejak koreksi absensi (`hr_attendance_corrections`, F-4)
+
+TAMBAH-SAJA: tidak ada rute update maupun delete, dan tidak akan ada. Log yang bisa diedit tidak
+membuktikan apa pun.
+
+TIGA pintu bisa mengubah satu baris absensi, dan ketiganya menulis lewat SATU kelas
+(`AttendanceCorrectionService`) — cacat yang paling sering ditemukan kampanye ini adalah aturan yang
+ditegakkan di satu pintu lalu bocor di pintu kedua:
+
+| `source` | Pintu | Alasan |
+|---|---|---|
+| `update` | `PUT hr/attendances/{id}` (pengawas) | **Diketik, wajib, minimal 5 karakter.** |
+| `bulk` | `POST hr/attendances/bulk` (lembar kerani dikirim ulang) | Ditulis sistem. Memaksa 40 alasan per lembar berarti kerani kembali ke kertas, dan absensi yang tidak tercatat sama sekali jauh lebih buruk daripada jejak beralasan generik. |
+| `clock` | absen pulang kedua dari ponsel | Ditulis sistem, menyebut jam pulang sebelumnya. |
+
+`pending()` dipanggil SEBELUM `save()` (ia membaca `getDirty()`/`getRawOriginal()`), `write()`
+sesudahnya (baris baru belum punya id). Nilai disimpan sebagai teks, dan **null tidak boleh menjadi
+string kosong**: `""` berarti seseorang mengetik catatan kosong, `null` berarti tidak pernah ada
+catatan.
+
+**Kolom pengukuran tidak bisa dikoreksi**: koordinat, jarak, akurasi dan ambang tidak ada di
+`AttendanceUpdateRequest`. Itu hasil pengukuran, bukan pendapat — dan orang yang paling
+berkepentingan menghapus tanda "di luar lokasi" adalah orang yang ditandai. Yang BOLEH: status,
+catatan, proyek, dan jam masuk/pulang ("lupa absen pulang" adalah kasus paling sering di lapangan).
+Kunci yang ABSEN dari badan permintaan tidak disentuh; `null` EKSPLISIT mengosongkan.
+
+**Lembar kerani tidak pernah menulis kolom jam.** Lembar kertas tidak tahu jam berapa orangnya
+datang, dan menimpanya dengan null berarti lembar yang dikirim ulang menghapus bukti GPS hari itu.
+
+## 29. Usulan rekap absensi — dan mengapa tidak ada POST-nya (F-4)
+
+`GET hr/attendance-recaps/proposal` MEMBACA. Tidak ada endpoint pasangan yang menulis, tidak ada
+jalur dari `hr_attendances` ke `hr_payroll_runs`/`hr_payslips`, dan
+`AttendanceIsNotPayrollInputTest` memakukan keduanya dari dua arah: uji perilaku (menulis 30 hari
+absen lalu menghitung ulang payroll tidak menggeser satu rupiah) DAN uji sumber (tujuh berkas
+penghasil payroll tidak menyebut register absensi, lima berkas absensi tidak menyebut payroll).
+Satu lapis tidak cukup — yang pertama hijau juga untuk jalur yang kebetulan belum ada datanya, yang
+kedua hijau juga untuk kode yang memanggilnya lewat nama tabel mentah.
+
+Alasannya bukan kehati-hatian yang samar: register absensi boleh dikoreksi kapan saja (F-4 justru
+menambah pintu koreksinya), sedangkan payroll yang disetujui sudah membukukan jurnal dan membayar
+orang.
+
+**Yang tidak diusulkan sama pentingnya dengan yang diusulkan.** `not_proposed` membawa `field`,
+`label` DAN `why` untuk sakit, cuti, hari kerja, jam lembur dan hari setengah — register tidak tahu
+apa-apa tentang kelimanya. Mengisinya dengan 0 akan terlihat seperti jawaban dan terbawa ke slip
+gaji sebagai hak yang hilang. Karyawan tanpa satu pun catatan bulan itu **tidak muncul** sebagai
+baris nol: "0 hadir" membaca seperti absen sebulan penuh.
+
+## 30. Antrean kirim bersama (`public/app/js/uploadqueue.js`, F-4)
+
+Satu kotak keluar untuk seluruh aplikasi: bilah kemajuan per butir (XHR `upload.onprogress` lewat
+`api.upload`), yang gagal tetap terdaftar dengan "Kirim ulang", butir bertahan di `localStorage`
+melewati muat-ulang halaman dan sesi yang berakhir, satu kirim pada satu waktu. Awalan
+`nusantara_erp_upload:<user id>:` — per pengguna (tablet lapangan dipakai bergantian) dan tidak
+boleh saling mengawali dengan awalan draf `drafts.js`.
+
+**Bentuk muatan didaftarkan DI DALAM berkas antrean** (`KINDS`), bukan oleh layar yang membuatnya.
+Butir hidup lebih lama daripada layar: butir 'clock' yang bentuknya hanya dikenal
+`views/absensisaya.js` akan terlihat di kartu "belum terkirim" tanpa bisa dikirim ulang sampai
+orangnya kebetulan membuka layar yang benar.
+
+**`api.upload(..., { raw: true })`** memulangkan AMPLOP, bukan `data`. Untuk absensi kalimat yang
+benar ada di `message` server — tanpa amplopnya toast hanya bisa berkata "terkirim" tentang absen
+yang tercatat 8 km di luar lokasi.
+
+**Antrean digambar DI LUAR kotak yang dilukis ulang `load()`.** Selama luring `load()` gagal dan
+segalanya yang dilukisnya lenyap; kalau barisnya ikut lenyap, pita luring menyuruh orang menekan
+"Kirim ulang" pada baris yang tidak ada di layar. Tombol aksinya pun digambar ulang dari jawaban
+terakhir yang berhasil, dengan pita "tidak dapat dimuat" di atasnya — antrean itu dibuat justru
+untuk saat tidak ada sinyal.
+
+**Layar yang memakai antrean tidak boleh mendeklarasikan `QUEUE_PREFIX` atau `MAX_BYTES` sendiri**
+(dipaku `UploadQueueTest`): dua antrean di `localStorage` yang sama tidak akan pernah saling
+melihat, dan salinan kedua batas ukuran adalah salinan yang suatu hari berbeda dari servernya.
