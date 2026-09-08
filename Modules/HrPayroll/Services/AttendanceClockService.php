@@ -106,17 +106,29 @@ class AttendanceClockService
             $existingAt = $attendance->exists ? $attendance->{"{$side}_at"} : null;
 
             if ($existingAt !== null && $this->isSameEvent($attendance, $side, $deviceAt)) {
-                return $this->reply($attendance, 'duplicate', $this->duplicateMessage($side), null);
+                return $this->reply(
+                    $attendance,
+                    'duplicate',
+                    $this->duplicateMessage($side),
+                    // Fotonya tetap disimpan kalau sisi itu belum punya — lihat
+                    // attachSelfie(). Butir antrean yang dikirim ulang sesudah
+                    // percobaan pertama gagal DI TENGAH membawa foto yang belum
+                    // pernah sampai.
+                    $this->attachSelfie($attendance, $side, $data, $userId),
+                );
             }
 
             if ($side === self::SIDE_IN && $existingAt !== null) {
-                // Yang PERTAMA menang. Absen masuk kedua di hari yang sama
-                // hampir selalu jempol yang menekan dua kali, dan jam datang
-                // yang bergeser maju diam-diam adalah jam datang yang salah.
+                // Yang PERTAMA menang untuk JAMNYA. Absen masuk kedua di hari
+                // yang sama hampir selalu jempol yang menekan dua kali, dan jam
+                // datang yang bergeser maju diam-diam adalah jam datang yang
+                // salah. Fotonya bukan jam: kalau sisi ini belum punya selfie,
+                // foto kedua adalah bukti kehadiran yang tidak boleh dibuang
+                // diam-diam hanya karena tombolnya ditekan dua kali.
                 return $this->reply($attendance, 'kept_earlier', sprintf(
                     'Absen masuk hari ini sudah tercatat pukul %s dan tetap dipakai.',
                     $existingAt->format('H:i'),
-                ), null);
+                ), $this->attachSelfie($attendance, $side, $data, $userId));
             }
 
             $reference = $this->referenceProject($data['project_id'] ?? null, $attendance);
@@ -355,6 +367,20 @@ class AttendanceClockService
      * sebagai kalimat yang dibaca pemakai, bukan sebagai 422 yang menghapus
      * kehadirannya.
      */
+    /**
+     * Ekstensi yang boleh menjadi selfie.
+     *
+     * AttachmentService memakai daftar izin GENERIK — PDF, Word, Excel, CSV,
+     * XML, DWG — karena ia melayani dua puluh dua jenis dokumen. Pintu ini
+     * melayani satu: foto wajah orang di gerbang proyek. Tanpa daftar sendiri,
+     * `catatan.txt` tersimpan sebagai "Selfie pulang" dan servernya menjawab
+     * tanpa satu pun keberatan (terukur 8 Sep 2026). `accept="image/*"` di HTML
+     * hanyalah saran kepada pemilih berkas, bukan aturan.
+     *
+     * @var list<string>
+     */
+    private const SELFIE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
+
     private function attachSelfie(Attendance $attendance, string $side, array $data, ?int $userId): ?string
     {
         $content = $data['selfie_content'] ?? null;
@@ -363,10 +389,33 @@ class AttendanceClockService
             return null;
         }
 
+        /*
+         * Satu selfie per sisi, dan yang PERTAMA bertahan.
+         *
+         * Menimpa penunjuknya akan meninggalkan berkas pertama di penyimpanan
+         * tanpa satu pun baris yang menyebutnya — bukti yang ada tetapi tidak
+         * bisa ditemukan siapa pun. Aturan yang sama dengan jam masuk: yang
+         * pertama menang, dan yang kedua dikatakan, bukan ditelan.
+         */
+        if ($attendance->{"{$side}_attachment_id"} !== null) {
+            return 'sisi ini sudah punya selfie, jadi foto yang baru tidak disimpan.';
+        }
+
+        $filename = $data['selfie_filename'] ?? 'selfie.jpg';
+        $extension = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+
+        if (! in_array($extension, self::SELFIE_EXTENSIONS, true)) {
+            return sprintf(
+                'hanya foto yang bisa menjadi selfie absensi (%s), sedangkan berkas ini "%s".',
+                implode(', ', self::SELFIE_EXTENSIONS),
+                $extension === '' ? 'tanpa ekstensi' : $extension,
+            );
+        }
+
         try {
             $attachment = $this->attachments->store(
                 $attendance,
-                $data['selfie_filename'] ?? 'selfie.jpg',
+                $filename,
                 $content,
                 sprintf('Selfie %s %s', $side === self::SIDE_IN ? 'masuk' : 'pulang', $attendance->date->toDateString()),
                 $userId,

@@ -75,13 +75,23 @@ class AttendanceRecapProposalService
                 DB::raw("SUM(CASE WHEN a.status = 'hadir' THEN 1 ELSE 0 END) as present_days"),
                 DB::raw("SUM(CASE WHEN a.status = 'setengah_hari' THEN 1 ELSE 0 END) as half_days"),
                 DB::raw("SUM(CASE WHEN a.status = 'absen' THEN 1 ELSE 0 END) as absent_days"),
-                DB::raw('SUM(CASE WHEN a.check_in_at IS NOT NULL THEN 1 ELSE 0 END) as clocked_days'),
+                /*
+                 * check_in_DEVICE_at, bukan check_in_at. Pengawas BOLEH
+                 * mengetik jam masuk lewat pintu koreksi (§28 justru
+                 * menganjurkannya untuk "lupa absen pulang"), dan menghitung
+                 * kolom itu membuat kolom layar yang berjudul "Absen ponsel"
+                 * melaporkan hari yang tidak pernah disentuh ponsel siapa pun —
+                 * lalu sub-barisnya menambahkan "1 tanpa jarak terukur" tentang
+                 * hari itu. Hanya pintu absen ponsel yang menulis jam
+                 * perangkat.
+                 */
+                DB::raw('SUM(CASE WHEN a.check_in_device_at IS NOT NULL THEN 1 ELSE 0 END) as clocked_days'),
                 // "Di luar lokasi" = jaraknya terukur DAN melewati ambang yang
                 // distempel saat itu. Baris tanpa jarak tidak masuk ke sini dan
                 // tidak masuk ke "di dalam" — ia dihitung terpisah di bawah.
                 DB::raw('SUM(CASE WHEN a.check_in_distance_m IS NOT NULL AND a.check_in_geofence_m IS NOT NULL '
                     .'AND a.check_in_distance_m > a.check_in_geofence_m THEN 1 ELSE 0 END) as outside_days'),
-                DB::raw('SUM(CASE WHEN a.check_in_at IS NOT NULL AND a.check_in_distance_m IS NULL '
+                DB::raw('SUM(CASE WHEN a.check_in_device_at IS NOT NULL AND a.check_in_distance_m IS NULL '
                     .'THEN 1 ELSE 0 END) as unmeasured_days'),
             ]);
 

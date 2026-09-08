@@ -7266,6 +7266,50 @@ def _punch(pg, label):
     return fresh or toasts(pg)
 
 
+def _reset_absensi_today():
+    """Hapus baris absensi HARI INI milik karyawan yang dipakai S31.
+
+    Tanpa ini skenario tidak idempoten: jalankan dua kali pada server yang sama
+    dan absen masuk kedua menjawab "sudah tercatat … dan tetap dipakai" —
+    perilaku yang BENAR, tetapi bukan yang sedang diukur, jadi syaratnya merah
+    karena alasan yang tidak ada hubungannya dengan kodenya. Bukti yang hanya
+    bisa direproduksi di atas basis data perawan bukan bukti.
+    """
+    con = sqlite3.connect(DB)
+    try:
+        row = con.execute("select employee_id from users where email = ?",
+                          ("teknisi@nusantara.test",)).fetchone()
+        if not row or row[0] is None:
+            return None
+        employee_id = row[0]
+        ids = [r[0] for r in con.execute(
+            "select id from hr_attendances where employee_id = ? and date(date) = date('now','localtime')",
+            (employee_id,))]
+        for attendance_id in ids:
+            con.execute("delete from hr_attendance_corrections where attendance_id = ?", (attendance_id,))
+            con.execute("delete from core_attachments where attachable_type like '%Attendance' and attachable_id = ?",
+                        (attendance_id,))
+        con.execute("delete from hr_attendances where employee_id = ? and date(date) = date('now','localtime')",
+                    (employee_id,))
+        con.commit()
+        return employee_id
+    finally:
+        con.close()
+
+
+def _selfie_count(employee_id):
+    con = sqlite3.connect(DB)
+    try:
+        return con.execute(
+            "select count(*) from core_attachments a "
+            "join hr_attendances t on t.id = a.attachable_id "
+            "where a.attachable_type like '%Attendance' and t.employee_id = ? "
+            "and date(t.date) = date('now','localtime')",
+            (employee_id,)).fetchone()[0]
+    finally:
+        con.close()
+
+
 @scenario("S31_absensi_gps")
 def s31(browser):
     """F-4 — absen masuk/pulang dari ponsel: di dalam radius, di luar radius, dan
@@ -7277,7 +7321,7 @@ def s31(browser):
     (kartu karyawan 7) dan TIDAK punya satu pun izin hr.*. Kalau absen menuntut
     izin HR, layar ini tidak dipakai siapa pun yang benar-benar berdiri di
     lapangan."""
-    out = {}
+    out = {"employee_id": _reset_absensi_today()}
 
     # (1) DI DALAM radius: konteks berdiri di titik proyek PRJ-2026-002.
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
@@ -7302,9 +7346,36 @@ def s31(browser):
         out["page_scrolls_sideways"] = pg.evaluate(
             "() => document.documentElement.scrollWidth > window.innerWidth + 1")
         # Empat tombol, bukan delapan: dua load() beruntun yang keduanya
-        # menempel adalah cacat yang pernah ada di sini (8 Sep 2026).
-        out["button_widths"] = pg.evaluate(
-            "() => [...document.querySelectorAll('.absensi-actions button')].map(b => Math.round(b.getBoundingClientRect().width))")
+        # menempel adalah cacat yang pernah ada di sini (8 Sep 2026). TINGGI
+        # ikut diukur — lebar adalah dimensi yang CSS-nya sudah benar, dan
+        # syarat yang hanya melihat lebar lolos pada tombol setinggi 1 px.
+        out["buttons_box"] = pg.evaluate(
+            "() => [...document.querySelectorAll('.absensi-actions button')]"
+            ".map(b => ({ w: Math.round(b.getBoundingClientRect().width),"
+            "             h: Math.round(b.getBoundingClientRect().height) }))")
+        out["button_widths"] = [b["w"] for b in out["buttons_box"]]
+        out["limit_announced_before_the_photo"] = pg.evaluate(
+            "() => /maksimal 5 MB/.test(document.querySelector('#view').innerText)")
+
+        # (1b) SELFIE: satu absen DENGAN foto, supaya jalur lampiran benar-benar
+        #      dijalankan. Tanpa ini AttachableDocuments/AttachmentService —
+        #      butir keenam spesifikasi paket — tidak tersentuh harness sama
+        #      sekali, dan syarat "ada kartu Lampiran" di S31s hijau di atas
+        #      basis data tanpa satu pun lampiran.
+        before = _selfie_count(out["employee_id"]) if out["employee_id"] else 0
+        # nth(0), bukan teksnya: label tombol pertama berganti menjadi
+        # "Absen masuk (sudah tercatat)" begitu hari itu punya absen masuk,
+        # dan selektor berbasis teks lalu menunggu tombol yang tidak akan
+        # pernah muncul.
+        CLICKS[0] += 1
+        with pg.expect_file_chooser() as chooser:
+            pg.locator(".absensi-actions button").nth(0).click()
+        chooser.value.set_files({"name": "selfie-s31.jpg", "mimeType": "image/jpeg",
+                                 "buffer": padded_jpeg(120 * 1024)})
+        pg.wait_for_function("() => document.querySelectorAll('.upload-item').length === 0", timeout=30000)
+        pg.wait_for_timeout(800)
+        out["selfie"] = {"before": before,
+                         "after": _selfie_count(out["employee_id"]) if out["employee_id"] else 0}
     finally:
         out["console_errors"] = errors
         ctx.close()
@@ -7446,6 +7517,12 @@ def s31(browser):
             len(out["button_widths"]) == 4,
         "the_buttons_are_full_width_on_a_phone":
             bool(out["button_widths"]) and min(out["button_widths"]) > 280,
+        "and_tall_enough_for_a_thumb":
+            bool(out["buttons_box"]) and min(b["h"] for b in out["buttons_box"]) >= 44,
+        "the_photo_limit_is_announced_before_the_photo_is_taken":
+            out["limit_announced_before_the_photo"] is True,
+        "a_selfie_really_reaches_the_attachment_machinery":
+            out["selfie"]["after"] == out["selfie"]["before"] + 1,
         "the_screen_raises_no_console_error":
             out["console_errors"] == [],
     }
@@ -7463,7 +7540,11 @@ def s31s(pg):
     login(pg, "hr@nusantara.test")
     pg.goto(BASE + "#/absensi")
     pg.wait_for_selector("table.data", timeout=20000)
-    pg.wait_for_timeout(1200)
+    # Lembar terbuka pada TANGGAL HARI INI dan proyek terakhir yang dipilih;
+    # baris yang S31 tulis ada di hari ini, jadi tidak ada yang perlu diubah —
+    # tetapi tunggu sampai kolom "Tersimpan" benar-benar terisi sebelum
+    # menghitung tombol Rincian.
+    pg.wait_for_timeout(2000)
 
     out = {"detail_buttons": pg.locator("button:has-text('Rincian')").count()}
 
@@ -7484,6 +7565,7 @@ def s31s(pg):
         sides: [...m.querySelectorAll('.absensi-side')].map(s => s.innerText.replace(/\s+/g, ' ').trim()),
         fields: [...m.querySelectorAll('.field label, .field .label')].map(l => l.innerText.trim()),
         has_reason: !!m.querySelector('textarea'),
+        attachments: m.querySelectorAll('.attachment-row, .attachment-name').length,
       };
     }""")
     pg.screenshot(path=f"{OUT}/s31-rincian-pengawas.png", full_page=False)
@@ -7496,7 +7578,11 @@ def s31s(pg):
     out["checks"] = {
         "the_supervisor_panel_shows_both_sides": len(out["panel"]["sides"]) == 2,
         "and_offers_a_correction_form_with_a_reason_box": out["panel"]["has_reason"] is True,
-        "and_a_selfie_card": "Lampiran" in out["panel"]["cards"],
+        # Judul kartunya SELALU ada untuk pemegang hr.view, jadi "ada kartu
+        # Lampiran" hijau juga di atas basis data tanpa satu pun lampiran
+        # (terukur 8 Sep 2026). Yang diperiksa: fotonya benar-benar terdaftar.
+        "and_a_selfie_card_with_the_selfie_in_it":
+            "Lampiran" in out["panel"]["cards"] and out["panel"]["attachments"] >= 1,
         "and_the_trail": "Jejak koreksi" in out["panel"]["cards"],
         "saving_without_a_reason_is_refused": any("Alasan" in t for t in out["no_reason"]["toasts"]),
         "and_the_panel_stays_open_so_the_typing_is_not_lost": out["no_reason"]["modal_open"] is True,

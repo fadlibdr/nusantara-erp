@@ -61,6 +61,17 @@ class AttendanceResource extends JsonResource
             'recorded' => $at !== null,
             'at' => $at?->toIso8601String(),
             'time_text' => $at?->format('H:i'),
+            /*
+             * Nilai siap-pakai untuk <input type="datetime-local">, dalam zona
+             * APLIKASI.
+             *
+             * Klien tidak boleh menyusunnya sendiri dari `at`: format.js
+             * merendernya dengan getHours(), yaitu zona PERAMBAN, sedangkan
+             * server mem-parse balik teks polos itu dalam app.timezone.
+             * Indonesia punya tiga zona — seorang pengawas di Makassar
+             * menggeser setiap jam yang ia simpan satu jam, setiap kali.
+             */
+            'at_input' => $at?->format('Y-m-d\TH:i'),
             'device_at' => $this->{"{$side}_device_at"}?->toIso8601String(),
             'device_time_text' => $this->{"{$side}_device_at"}?->format('H:i'),
             'latitude' => $this->{"{$side}_latitude"} === null ? null : (float) $this->{"{$side}_latitude"},

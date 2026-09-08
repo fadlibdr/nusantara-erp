@@ -135,6 +135,66 @@ class UploadQueueTest extends ErpTestCase
         $this->assertSame(AttachmentService::MAX_BYTES, (int) $matches[1] * 1024 * 1024);
     }
 
+    /**
+     * Butir yang ditulis versi SEBELUM F-4 tidak punya `kind`. Tanpa pemulihan,
+     * setiap foto yang sedang mengantre di ponsel orang saat rilis mendarat
+     * lenyap dari layar DAN tetap memakan kuota selamanya — butir yang tidak
+     * pernah masuk readQueue() tidak pernah sampai ke forget().
+     */
+    public function test_a_queue_item_from_the_previous_release_is_still_recognised(): void
+    {
+        $source = $this->spa('uploadqueue.js');
+
+        $this->assertStringContainsString("item.kind = 'attachment';", $source);
+        $this->assertStringContainsString('localStorage.removeItem(key)', $source, 'Butir dari versi LEBIH BARU harus dibuang, bukan dilewati diam-diam.');
+    }
+
+    /**
+     * Batas waktu MILIK KITA di samping milik peramban: menurut spesifikasi
+     * Geolocation, penghitung `timeout` baru berjalan sesudah izin diberikan,
+     * jadi permintaan izin yang tidak dijawab menggantung selamanya dan butir
+     * absensinya berhenti di 'locating' tanpa "Kirim ulang" maupun "Buang".
+     */
+    public function test_the_position_lookup_cannot_hang_forever(): void
+    {
+        $source = $this->spa('uploadqueue.js');
+
+        $this->assertStringContainsString('setTimeout(() => answer(null), GEO_TIMEOUT_MS)', $source);
+    }
+
+    /**
+     * Foto yang ditolak mengorbankan FOTONYA, bukan absennya. Kamera ponsel
+     * modern rutin melewati 5 MB, jadi ini jalur yang sering, bukan jarang.
+     */
+    public function test_an_oversize_selfie_still_sends_the_punch(): void
+    {
+        $source = $this->spa('views/absensisaya.js');
+
+        $this->assertStringContainsString('absensi tetap dikirim TANPA foto', $source);
+        $this->assertStringNotContainsString(
+            "melebihi batas 5 MB.`));\n      return;",
+            $source,
+            'Cabang foto kebesaran kembali membatalkan absensinya.',
+        );
+    }
+
+    /**
+     * Panel koreksi hanya mengirim kunci jam yang BENAR-BENAR berubah, dan
+     * membaca nilai awalnya dari server (zona aplikasi), bukan dari peramban.
+     */
+    public function test_the_correction_panel_leaves_untouched_clocks_alone(): void
+    {
+        $source = $this->spa('views/absensi.js');
+
+        $this->assertStringContainsString('clockAtOpen', $source);
+        $this->assertStringContainsString('row.check_in.at_input', $source);
+        $this->assertStringNotContainsString(
+            'fmt.toDateTimeInput(row.check_in.at)',
+            $source,
+            'Kotak jam kembali dirender dengan zona peramban; pengawas WITA menggeser setiap absen satu jam.',
+        );
+    }
+
     private function spa(string $file): string
     {
         return (string) file_get_contents(public_path('app/js/'.$file));

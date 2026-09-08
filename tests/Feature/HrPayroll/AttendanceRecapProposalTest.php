@@ -156,13 +156,15 @@ class AttendanceRecapProposalTest extends ErpTestCase
         $employee = $this->makeEmployee();
 
         $this->mark($employee->id, '2026-06-01', 'hadir', [
-            'check_in_at' => '2026-06-01 07:00:00', 'check_in_distance_m' => 4200, 'check_in_geofence_m' => 500,
+            'check_in_at' => '2026-06-01 07:00:00', 'check_in_device_at' => '2026-06-01 07:00:00',
+            'check_in_distance_m' => 4200, 'check_in_geofence_m' => 500,
         ]);
         $this->mark($employee->id, '2026-06-02', 'hadir', [
-            'check_in_at' => '2026-06-02 07:00:00', 'check_in_distance_m' => 12, 'check_in_geofence_m' => 500,
+            'check_in_at' => '2026-06-02 07:00:00', 'check_in_device_at' => '2026-06-02 07:00:00',
+            'check_in_distance_m' => 12, 'check_in_geofence_m' => 500,
         ]);
         $this->mark($employee->id, '2026-06-03', 'hadir', [
-            'check_in_at' => '2026-06-03 07:00:00',
+            'check_in_at' => '2026-06-03 07:00:00', 'check_in_device_at' => '2026-06-03 07:00:00',
         ]);
         // Diisi kerani dari kertas: tidak pernah ada absen ponsel sama sekali.
         $this->mark($employee->id, '2026-06-04', 'hadir');
@@ -176,6 +178,35 @@ class AttendanceRecapProposalTest extends ErpTestCase
         $this->assertSame(3, $row['clocked_days']);
         $this->assertSame(1, $row['outside_days']);
         $this->assertSame(1, $row['unmeasured_days'], 'Hari ber-absen tanpa jarak: satu (03), bukan dua.');
+    }
+
+    /**
+     * Jam masuk yang DIKETIK PENGAWAS bukan absen ponsel.
+     *
+     * §28 justru menganjurkan pengawas mengisi jam yang terlupa, jadi
+     * check_in_at bisa terisi tanpa satu pun ponsel terlibat. Menghitung kolom
+     * itu membuat kolom layar berjudul "Absen ponsel" melaporkan hari yang
+     * tidak pernah disentuh ponsel siapa pun — lalu menambahkan "1 tanpa jarak
+     * terukur" tentang hari itu. Hanya pintu absen ponsel yang menulis jam
+     * PERANGKAT.
+     */
+    public function test_a_supervisor_typed_clock_time_is_not_a_phone_punch(): void
+    {
+        $this->actAsAdmin();
+        $employee = $this->makeEmployee();
+
+        $this->mark($employee->id, '2026-06-05', 'hadir', [
+            'check_in_at' => '2026-06-05 07:05:00', // diketik pengawas, tanpa jam perangkat
+        ]);
+
+        $response = $this->getJson('/api/hr/attendance-recaps/proposal?period_year=2026&period_month=6');
+
+        $response->assertOk();
+        $row = $response->json('data.rows.0');
+
+        $this->assertSame(1, $row['recorded_days']);
+        $this->assertSame(0, $row['clocked_days'], 'Jam yang diketik pengawas bukan absen ponsel.');
+        $this->assertSame(0, $row['unmeasured_days']);
     }
 
     public function test_the_proposal_needs_hr_view(): void

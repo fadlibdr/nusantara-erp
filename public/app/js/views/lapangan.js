@@ -424,6 +424,10 @@ export async function renderLapangan(host) {
     : 'Tanpa koneksi. Foto yang Anda ambil sekarang tersimpan di ponsel ini sampai sinyal kembali.'));
   // Above the tabs, hidden while empty: photos of a report or ticket that is
   // not on screen would otherwise stay in localStorage unseen and unsent.
+  // pendingCard() menyusun keterangannya dari isi antreannya (uploadqueue.js):
+  // layar ini bisa memuat foto lapangan DAN absensi yang belum terkirim, dan
+  // keterangan tetap "foto tampil di dokumennya" pernah berdiri di atas baris
+  // absensi bertuliskan "tanpa foto".
   host.append(ribbon, pendingCard(), tabs, body);
 
   const allowed = MODES.filter((mode) => session.can(`${mode.module}.view`));

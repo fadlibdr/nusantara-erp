@@ -144,28 +144,54 @@ function openDetail(rowId, onSaved) {
     statusSelect.value = row.status;
 
     const noteInput = el('input', { type: 'text', maxlength: '200', value: row.note || '' });
-    const inInput = el('input', { type: 'datetime-local', value: fmt.toDateTimeInput(row.check_in.at) });
-    const outInput = el('input', { type: 'datetime-local', value: fmt.toDateTimeInput(row.check_out.at) });
+    /* at_input datang dari server dalam zona APLIKASI. fmt.toDateTimeInput()
+       tidak dipakai di sini karena ia merender dengan getHours() — zona
+       PERAMBAN — sementara server mem-parse teks yang dikirim balik dalam
+       app.timezone; di WITA/WIT selisihnya satu sampai dua jam per simpan. */
+    const inInput = el('input', { type: 'datetime-local', value: row.check_in.at_input || '' });
+    const outInput = el('input', { type: 'datetime-local', value: row.check_out.at_input || '' });
     const reasonInput = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Kenapa baris ini dikoreksi?' });
+
+    /* Nilai awal kotak jam, DISIMPAN, supaya kita bisa tahu apakah orangnya
+       benar-benar menyentuhnya.
+
+       Ini bukan optimasi. fmt.toDateTimeInput() merender saat ISO dengan
+       getHours() — zona waktu PERAMBAN — dan membuang detik; panel ini lalu
+       mengirimnya balik sebagai teks polos yang di-parse server dalam
+       app.timezone. Mengirim kedua kunci pada setiap simpan berarti seorang
+       pengawas di Makassar (WITA) menggeser setiap absen satu jam SETIAP KALI
+       ia mengubah catatan, dan di WIB pun detiknya hancur dan satu baris jejak
+       palsu "Jam masuk (server)" lahir tiap simpan. Terukur 8 Sep 2026:
+       11:23:00 → 04:23:00 hanya karena catatannya diubah.
+
+       CONVENTIONS §28 sudah mengatakan aturannya — kunci yang ABSEN tidak
+       disentuh — dan panel inilah yang tidak menurutinya. */
+    const clockAtOpen = { in: inInput.value, out: outInput.value };
 
     const save = button('Simpan koreksi', {
       variant: 'primary',
       iconName: 'check',
       onClick: () => withBusy(save, async () => {
         try {
-          const result = await api.put(`hr/attendances/${row.id}`, {
+          const body = {
             status: statusSelect.value,
             project_id: row.project_id,
             note: noteInput.value || null,
-            /* Kotak yang DIKOSONGKAN mengirim null eksplisit — "hapus jam ini" —
-               dan kotak yang tidak berubah tetap mengirim nilainya. Keduanya
-               sengaja: server membedakan kunci yang absen (jangan sentuh) dari
-               null eksplisit (kosongkan), dan panel ini selalu menawarkan kedua
-               kotaknya, jadi ia selalu punya pendapat tentang keduanya. */
-            check_in_at: inInput.value ? inInput.value.replace('T', ' ') : null,
-            check_out_at: outInput.value ? outInput.value.replace('T', ' ') : null,
             reason: reasonInput.value,
-          });
+          };
+
+          /* Kunci jam HANYA dikirim kalau kotaknya benar-benar berubah. Yang
+             dikosongkan mengirim null eksplisit — "hapus jam ini" — dan yang
+             tidak disentuh tidak muncul sama sekali, jadi server tidak
+             menyentuhnya (CONVENTIONS §28). */
+          if (inInput.value !== clockAtOpen.in) {
+            body.check_in_at = inInput.value ? inInput.value.replace('T', ' ') : null;
+          }
+          if (outInput.value !== clockAtOpen.out) {
+            body.check_out_at = outInput.value ? outInput.value.replace('T', ' ') : null;
+          }
+
+          const result = await api.put(`hr/attendances/${row.id}`, body);
           toast(result && result.message ? result.message : 'Koreksi tersimpan.');
           closeModal();
           if (onSaved) onSaved();

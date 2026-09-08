@@ -1752,19 +1752,18 @@
   "report_created": true,
   "photos_before": 0,
   "throttled": {
-   "ms": 9644,
-   "samples": 67,
-   "distinct_pct": 66,
+   "ms": 9697,
+   "samples": 68,
+   "distinct_pct": 67,
    "pct_first_last": [
     0,
-    100
+    99
    ],
    "states": [
     "sending"
    ],
    "texts": [
-    "1.0 MB · Mengirim… N %",
-    "1.0 MB · Menunggu jawaban server…"
+    "1.0 MB · Mengirim… N %"
    ],
    "toast": [
     "Foto uji-1mb.jpg terkirim dengan lokasi."
@@ -1805,12 +1804,13 @@
    "last_photo": "uji-putus.jpg · lokasi dari perangkat · ±12 m · hari ini · 2.8 km dari lokasi"
   },
   "pageerrors": [],
-  "_ms": 22416,
+  "_ms": 22159,
   "_clicks": 4
  },
  "S31_absensi_gps": {
+  "employee_id": 7,
   "inside_toast": [
-   "Absen masuk tercatat pukul 17:46. Di lokasi proyek — 0 m dari titik proyek."
+   "Absen masuk tercatat pukul 18:59. Di lokasi proyek — 0 m dari titik proyek."
   ],
   "inside": {
    "linked": true,
@@ -1831,7 +1831,7 @@
        "label": "Absen masuk",
        "badge": "Di lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
        ]
       },
@@ -1885,15 +1885,38 @@
    ]
   },
   "page_scrolls_sideways": false,
+  "buttons_box": [
+   {
+    "w": 328,
+    "h": 46
+   },
+   {
+    "w": 328,
+    "h": 46
+   },
+   {
+    "w": 328,
+    "h": 46
+   },
+   {
+    "w": 328,
+    "h": 46
+   }
+  ],
   "button_widths": [
    328,
    328,
    328,
    328
   ],
+  "limit_announced_before_the_photo": true,
+  "selfie": {
+   "before": 0,
+   "after": 1
+  },
   "console_errors": [],
   "outside_toast": [
-   "Absen pulang tercatat pukul 17:46. Tercatat DI LUAR lokasi proyek — 8,0 km dari titik proyek."
+   "Absen pulang tercatat pukul 18:59. Tercatat DI LUAR lokasi proyek — 8,0 km dari titik proyek."
   ],
   "outside": {
    "linked": true,
@@ -1914,7 +1937,7 @@
        "label": "Absen masuk",
        "badge": "Di lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
        ]
       },
@@ -1922,7 +1945,7 @@
        "label": "Absen pulang",
        "badge": "Di luar lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 8,0 km · akurasi fix ±15 m"
        ]
       }
@@ -1969,7 +1992,7 @@
    ]
   },
   "denied_toast": [
-   "Absen pulang tercatat pukul 17:46. Jarak ke lokasi proyek tidak terukur."
+   "Absen pulang tercatat pukul 18:59. Jarak ke lokasi proyek tidak terukur."
   ],
   "denied": {
    "linked": true,
@@ -1990,7 +2013,7 @@
        "label": "Absen masuk",
        "badge": "Di lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
        ]
       },
@@ -1998,7 +2021,7 @@
        "label": "Absen pulang",
        "badge": "Lokasi tidak terukur",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: —"
        ]
       }
@@ -2095,7 +2118,7 @@
        "label": "Absen masuk",
        "badge": "Di lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
        ]
       },
@@ -2103,7 +2126,7 @@
        "label": "Absen pulang",
        "badge": "Lokasi tidak terukur",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: —"
        ]
       }
@@ -2150,7 +2173,7 @@
    ]
   },
   "retry_toast": [
-   "Absen pulang tercatat pukul 17:46. Di lokasi proyek — 0 m dari titik proyek."
+   "Absen pulang tercatat pukul 18:59. Di lokasi proyek — 0 m dari titik proyek."
   ],
   "after_retry": {
    "linked": true,
@@ -2171,7 +2194,7 @@
        "label": "Absen masuk",
        "badge": "Di lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
        ]
       },
@@ -2179,7 +2202,7 @@
        "label": "Absen pulang",
        "badge": "Di lokasi",
        "lines": [
-        "Tercatat 17:46",
+        "Tercatat 18:59",
         "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
        ]
       }
@@ -2253,12 +2276,15 @@
    "the_phone_page_never_scrolls_sideways": true,
    "the_action_card_is_drawn_once_not_twice": true,
    "the_buttons_are_full_width_on_a_phone": true,
+   "and_tall_enough_for_a_thumb": true,
+   "the_photo_limit_is_announced_before_the_photo_is_taken": true,
+   "a_selfie_really_reaches_the_attachment_machinery": true,
    "the_screen_raises_no_console_error": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 24652,
-  "_clicks": 5
+  "_ms": 24005,
+  "_clicks": 6
  },
  "S31_absensi_gps_supervisor": {
   "detail_buttons": 1,
@@ -2270,8 +2296,8 @@
     "Koreksi"
    ],
    "sides": [
-    "Absen masuk Di lokasi Jam server 17:46 Jarak ke titik proyek: 0 m (radius berlaku saat itu 500 m) · akurasi fix ±12 m",
-    "Absen pulang Di lokasi Jam server 17:46 Jarak ke titik proyek: 0 m (radius berlaku saat itu 500 m) · akurasi fix ±12 m"
+    "Absen masuk Di lokasi Jam server 18:59 Jarak ke titik proyek: 0 m (radius berlaku saat itu 500 m) · akurasi fix ±12 m",
+    "Absen pulang Di lokasi Jam server 18:59 Jarak ke titik proyek: 0 m (radius berlaku saat itu 500 m) · akurasi fix ±12 m"
    ],
    "fields": [
     "Status",
@@ -2280,7 +2306,8 @@
     "Jam pulang",
     "Alasan koreksi*"
    ],
-   "has_reason": true
+   "has_reason": true,
+   "attachments": 1
   },
   "no_reason": {
    "toasts": [
@@ -2291,14 +2318,14 @@
   "checks": {
    "the_supervisor_panel_shows_both_sides": true,
    "and_offers_a_correction_form_with_a_reason_box": true,
-   "and_a_selfie_card": true,
+   "and_a_selfie_card_with_the_selfie_in_it": true,
    "and_the_trail": true,
    "saving_without_a_reason_is_refused": true,
    "and_the_panel_stays_open_so_the_typing_is_not_lost": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7880,
+  "_ms": 11936,
   "_clicks": 2
  }
 }

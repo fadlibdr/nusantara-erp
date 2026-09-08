@@ -88,13 +88,26 @@ export function devicePosition() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) return resolve(null);
 
+    /* Batas waktu MILIK KITA di samping milik peramban, dan bukan sabuk
+       pengaman berlebih: menurut spesifikasi Geolocation, penghitung `timeout`
+       baru berjalan SESUDAH izin diberikan. Permintaan izin yang tidak dijawab
+       — persis yang terjadi pada pemakaian pertama, di gerbang proyek pukul
+       tujuh — menggantung selamanya, dan butirnya tinggal di keadaan
+       'locating' tanpa "Kirim ulang", tanpa "Buang", tanpa terkirim. Terukur
+       8 Sep 2026 dengan getCurrentPosition yang tidak pernah menjawab: masih
+       'Menunggu posisi GPS…' pada detik ke-18. */
+    let settled = false;
+    const answer = (value) => { if (!settled) { settled = true; resolve(value); } };
+
+    setTimeout(() => answer(null), GEO_TIMEOUT_MS);
+
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve({
+      (position) => answer({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy_m: Math.round(position.coords.accuracy),
       }),
-      () => resolve(null),
+      () => answer(null),
       { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS, maximumAge: 60_000 },
     );
   });
@@ -125,10 +138,30 @@ export function readQueue() {
     if (!key || !key.startsWith(mine)) continue;
     try {
       const item = JSON.parse(localStorage.getItem(key));
-      // Butir tanpa isi berkas masih sah untuk bentuk 'clock': absen tanpa
-      // selfie adalah absen yang tetap harus sampai. Yang tidak sah adalah
-      // butir tanpa bentuk yang dikenali — itu butir dari versi lain.
-      if (!item || !KINDS[item.kind]) continue;
+      if (!item) continue;
+
+      /* Butir yang ditulis versi SEBELUM F-4 tidak punya `kind` sama sekali
+         (lihat git show main:public/app/js/views/lapangan.js — enqueue tidak
+         pernah menuliskannya), dan semuanya adalah lampiran. Tanpa baris ini
+         setiap foto yang sedang mengantre di ponsel orang saat rilis ini
+         mendarat akan lenyap dari layar DAN tetap memakan kuota selamanya:
+         butir yang tidak pernah masuk readQueue() tidak pernah sampai ke
+         forget(). Terukur pada butir berformat main, 8 Sep 2026. */
+      if (!item.kind) {
+        item.kind = 'attachment';
+        item.endpoint = item.endpoint || 'core/attachments';
+        item.fields = item.fields || {
+          document_type: item.slug,
+          document_id: item.id,
+          filename: item.filename,
+        };
+      }
+
+      /* Bentuk yang tetap tidak dikenali datang dari versi LEBIH BARU (turun
+         versi, atau dua tab beda rilis). Ia dibuang dari localStorage alih-alih
+         dilewati: butir yang tidak pernah terlihat tidak pernah bisa dikirim
+         maupun dihapus orangnya, dan 3,7 MB kuota per foto tidak kembali. */
+      if (!KINDS[item.kind]) { localStorage.removeItem(key); continue; }
       if (KINDS[item.kind].contentKey && item.requiresContent && !item.content) continue;
       // Halaman ditutup sebelum jawabannya sampai: yang tersisa hanya muatannya,
       // dan itu cukup untuk dikirim ulang.
@@ -362,22 +395,44 @@ export function queueRows(filter, { doc = null, withDocument = false } = {}) {
  * pendingCard() persis seperti sebelum pemindahan berkas ini.
  */
 export function pendingCard({
-  title = 'Foto belum terkirim',
-  description = 'Dari laporan atau tiket lain. Setelah terkirim, foto tampil di dokumennya.',
+  title = 'Belum terkirim',
+  description = null,
   filter = null,
 } = {}) {
   const shownElsewhere = (item) => Boolean(document.querySelector(`.upload-queue[data-doc="${item.slug}:${item.id}"]`));
   const list = queueRows((item) => !shownElsewhere(item) && (filter === null || filter(item)), { withDocument: true });
 
+  const line = el('p.cell-sub');
+
   const card = el('.card.upload-pending', [
     el('.card-head', [el('h2', { text: title }), el('.spacer')]),
-    el('.card-body', [
-      el('p.cell-sub', { text: description }),
-      list,
-    ]),
+    el('.card-body', [line, list]),
   ]);
 
-  const sync = () => { card.hidden = !list.childElementCount; };
+  /* Keterangannya mengikuti APA yang sedang mengantre, bukan layar tempat
+     kartunya kebetulan tampil. Sebelum ini kartu di layar Lapangan berbunyi
+     "Dari laporan atau tiket lain. Setelah terkirim, foto tampil di
+     dokumennya." di atas baris absensi bertuliskan "tanpa foto" — tiga
+     pernyataan salah sekaligus di atas satu baris yang membantahnya sendiri. */
+  const describe = () => {
+    if (description) return description;
+
+    const kinds = new Set(readQueue().filter((item) => (filter === null || filter(item))
+      && !shownElsewhere(item)).map((item) => item.kind));
+
+    if (kinds.size === 1 && kinds.has('clock')) {
+      return 'Absensi yang belum sampai ke server. Tekan "Kirim ulang" setelah sinyal kembali.';
+    }
+    if (kinds.size === 1 && kinds.has('attachment')) {
+      return 'Foto dari laporan atau tiket lain. Setelah terkirim, foto tampil di dokumennya.';
+    }
+    return 'Foto dan absensi dari layar lain. Tekan "Kirim ulang" setelah sinyal kembali.';
+  };
+
+  const sync = () => {
+    card.hidden = !list.childElementCount;
+    line.textContent = describe();
+  };
   sync();
   // Terdaftar SETELAH pendengar daftarnya, jadi menghitung anak yang sudah dilukis ulang.
   listen(card, sync);

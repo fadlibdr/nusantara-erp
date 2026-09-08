@@ -393,6 +393,82 @@ class AttendanceClockTest extends ErpTestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * Absen masuk KEDUA tidak menggeser jamnya — tetapi fotonya tetap disimpan
+     * kalau sisi itu belum punya. Foto bukan jam: membuangnya diam-diam hanya
+     * karena tombolnya ditekan dua kali berarti kehilangan bukti kehadiran.
+     */
+    public function test_a_second_clock_in_still_keeps_a_selfie_the_first_one_lacked(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+
+        $this->postJson('/api/hr/attendances/me/clock-in', [])->assertOk();
+        $this->assertNull(Attendance::query()->where('employee_id', $employee->id)->value('check_in_attachment_id'));
+
+        $second = $this->postJson('/api/hr/attendances/me/clock-in', [
+            'selfie_filename' => 'selfie.jpg',
+            'selfie_content' => base64_encode($this->jpeg()),
+        ]);
+
+        $second->assertOk();
+        $this->assertSame('kept_earlier', $second->json('data.outcome'));
+        $this->assertNull($second->json('data.selfie_error'));
+        $this->assertNotNull(
+            Attendance::query()->where('employee_id', $employee->id)->value('check_in_attachment_id'),
+            'Foto kedua disimpan pada sisi yang belum punya selfie.',
+        );
+    }
+
+    /** Selfie kedua pada sisi yang SUDAH punya tidak menimpa — dan dikatakan, bukan ditelan. */
+    public function test_a_second_selfie_on_the_same_side_is_refused_out_loud(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+        $photo = base64_encode($this->jpeg());
+
+        $this->postJson('/api/hr/attendances/me/clock-in', [
+            'selfie_filename' => 'satu.jpg', 'selfie_content' => $photo,
+        ])->assertOk();
+
+        $second = $this->postJson('/api/hr/attendances/me/clock-in', [
+            'selfie_filename' => 'dua.jpg', 'selfie_content' => $photo,
+        ]);
+
+        $second->assertOk();
+        $this->assertStringContainsString('sudah punya selfie', (string) $second->json('data.selfie_error'));
+    }
+
+    /** Hanya foto yang boleh menjadi selfie: accept="image/*" di HTML cuma saran kepada pemilih berkas. */
+    public function test_a_text_file_cannot_become_a_selfie(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+
+        $response = $this->postJson('/api/hr/attendances/me/clock-in', [
+            'selfie_filename' => 'catatan.txt',
+            'selfie_content' => base64_encode('bukan foto'),
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('hanya foto', (string) $response->json('data.selfie_error'));
+        $this->assertNotNull(
+            Attendance::query()->where('employee_id', $employee->id)->value('check_in_at'),
+            'Berkas yang ditolak tidak boleh ikut membatalkan absensinya.',
+        );
+        $this->assertNull(Attendance::query()->where('employee_id', $employee->id)->value('check_in_attachment_id'));
+    }
+
+    /** JPEG terkecil yang lolos sniff mime AttachmentService. */
+    private function jpeg(): string
+    {
+        return base64_decode(
+            '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a'
+            .'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA'
+            .'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q=='
+        );
+    }
+
     /** Absen pulang tanpa absen masuk tetap tercatat: orangnya tetap ada di sana. */
     public function test_clocking_out_without_clocking_in_is_recorded(): void
     {

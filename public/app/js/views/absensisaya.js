@@ -112,15 +112,23 @@ async function punch(side, file, onQueued) {
 
   let content = null;
   if (file) {
+    /* Foto yang ditolak MENGORBANKAN FOTONYA, bukan absennya. Sebelumnya baris
+       ini `return` — jadi menekan "Absen pulang + selfie" dengan foto 6 MB
+       (ukuran biasa kamera ponsel modern) tidak mengirim apa pun, tidak
+       meninggalkan baris antrean, dan hanya memunculkan toast tentang FOTO.
+       Orangnya pulang mengira sudah absen. Itu kebalikan persis dari aturan
+       paket ini, dan servernya sendiri sudah menanganinya dengan benar —
+       kliennya yang memotong jalan sebelum sampai ke sana. */
     if (file.size > MAX_BYTES) {
-      toastError(new Error(`Foto ${(file.size / 1024 / 1024).toFixed(1)} MB melebihi batas 5 MB.`));
-      return;
-    }
-    try {
-      content = await readAsBase64(file);
-    } catch (error) {
-      // Foto yang tidak terbaca tidak boleh membatalkan absennya.
-      toastError(error);
+      toastError(new Error(`Foto ${(file.size / 1024 / 1024).toFixed(1)} MB melebihi batas 5 MB — `
+        + 'absensi tetap dikirim TANPA foto.'));
+    } else {
+      try {
+        content = await readAsBase64(file);
+      } catch (error) {
+        // Foto yang tidak terbaca juga tidak membatalkan absennya.
+        toastError(error);
+      }
     }
   }
 
@@ -160,15 +168,12 @@ async function punch(side, file, onQueued) {
 export async function renderAbsensiSaya(host) {
   clear(host);
 
-  host.appendChild(el('.page-head', [
-    el('div', [
-      el('h1', { text: 'Absensi Saya' }),
-      el('.desc', {
-        text: 'Absen masuk dan pulang dari ponsel. Lokasi dicatat kalau ponsel memberikannya — '
-          + 'absensi Anda tetap tersimpan meski lokasi ditolak atau Anda berada jauh dari titik proyek.',
-      }),
-    ]),
-  ]));
+  /* Kalimat pengantar ditahan sampai kita tahu akun ini BISA absen. Untuk
+     empat akun demo tanpa kartu karyawan, janji "absensi Anda tetap tersimpan"
+     berdiri tepat di atas kalimat "akun ini belum ditautkan" — dan yang dibaca
+     orang lebih dulu adalah janjinya. */
+  const desc = el('.desc');
+  host.appendChild(el('.page-head', [el('div', [el('h1', { text: 'Absensi Saya' }), desc])]));
 
   const ribbon = offlineRibbon(() => (readQueue().length
     ? 'Tanpa koneksi. Absensi yang sudah ditekan tersimpan di ponsel ini — setelah sinyal kembali, '
@@ -186,11 +191,9 @@ export async function renderAbsensiSaya(host) {
      baris ini, layar luring hanya berisi panel galat. */
   const queueNode = queueRows((item) => item.slug === QUEUE_SLUG, { doc: `${QUEUE_SLUG}:panel` });
 
-  host.append(ribbon, pendingCard({
-    title: 'Belum terkirim',
-    description: 'Foto atau absensi dari layar lain. Tekan "Kirim ulang" setelah sinyal kembali.',
-    filter: (item) => item.slug !== QUEUE_SLUG,
-  }), actions, queueNode, list);
+  // Keterangannya disusun uploadqueue.js dari isi antreannya sendiri: kartu ini
+  // bisa memuat foto lapangan, absensi dari hari lain, atau keduanya.
+  host.append(ribbon, pendingCard({ filter: (item) => item.slug !== QUEUE_SLUG }), actions, queueNode, list);
 
   /* Jawaban terakhir yang BERHASIL. Dipakai saat muatan berikutnya gagal:
      tombol absen harus tetap ada di layar tanpa sinyal — antreannya memang
@@ -230,16 +233,21 @@ export async function renderAbsensiSaya(host) {
     return select;
   }
 
-  function paintActions(payload, { stale = false } = {}) {
+  function paintActions(payload, { stale = false, blind = false } = {}) {
     clear(actions);
 
     if (!payload.linked) {
+      desc.textContent = 'Layar absensi pribadi.';
       actions.appendChild(el('.alert.info', {
         text: 'Akun ini belum ditautkan ke data karyawan, jadi tidak ada absensi yang bisa dicatat '
           + 'atas namanya. Minta HR menautkan akun Anda ke kartu karyawan.',
       }));
       return;
     }
+
+    desc.textContent = 'Absen masuk dan pulang dari ponsel. Lokasi dicatat kalau ponsel '
+      + 'memberikannya — absensi Anda tetap tersimpan meski lokasi ditolak atau Anda berada jauh '
+      + 'dari titik proyek.';
 
     const today = (payload.data || []).find((row) => row.date === fmt.today()) || null;
     const doneIn = Boolean(today && today.check_in.recorded);
@@ -248,14 +256,25 @@ export async function renderAbsensiSaya(host) {
     actions.appendChild(el('.card', [
       el('.card-body', [
         stale ? el('.alert.warn', {
-          text: 'Daftar absensi tidak dapat dimuat sekarang. Tombol di bawah tetap bekerja: '
-            + 'absensinya masuk antrean di ponsel ini dan terkirim setelah sinyal kembali.',
+          text: blind
+            ? 'Daftar absensi belum pernah termuat di perangkat ini, jadi layar ini belum tahu '
+              + 'absensi Anda hari ini maupun daftar proyeknya. Tombol di bawah tetap bekerja: '
+              + 'absensinya masuk antrean di ponsel ini dan terkirim setelah sinyal kembali.'
+            : 'Daftar absensi tidak dapat dimuat sekarang. Tombol di bawah tetap bekerja: '
+              + 'absensinya masuk antrean di ponsel ini dan terkirim setelah sinyal kembali.',
         }) : null,
         field('Proyek hari ini', projectSelect(payload), {
-          help: 'Dipakai untuk mengukur jarak Anda ke titik proyek. Tanpa proyek, atau pada proyek '
-            + 'yang titik petanya belum diisi, jaraknya tidak terukur dan barisnya bergaris.',
+          help: blind
+            ? 'Daftar proyek belum termuat. Absensi tetap terkirim tanpa proyek — jaraknya tidak '
+              + 'terukur, dan barisnya akan bergaris.'
+            : 'Dipakai untuk mengukur jarak Anda ke titik proyek. Tanpa proyek, atau pada proyek '
+              + 'yang titik petanya belum diisi, jaraknya tidak terukur dan barisnya bergaris.',
         }),
         el('.absensi-actions', [
+          el('p.cell-sub', {
+            text: 'Selfie bersifat pilihan dan maksimal 5 MB. Foto yang lebih besar tidak terkirim, '
+              + 'tetapi absensinya tetap dikirim.',
+          }),
           button(doneIn ? 'Absen masuk (sudah tercatat)' : 'Absen masuk + selfie', {
             variant: 'primary', size: 'lg', iconName: 'camera', onClick: () => { pendingSide = 'check_in'; camera.click(); },
           }),
@@ -266,8 +285,13 @@ export async function renderAbsensiSaya(host) {
           button('Absen pulang tanpa foto', { size: 'lg', onClick: () => punch('check_out', null, load) }),
         ]),
         el('p.cell-sub', {
-          text: `Radius lokasi yang berlaku: ${payload.geofence_m} m. Di luar radius, absensi Anda `
-            + 'TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.',
+          // Radius yang TIDAK diketahui tidak disebut angkanya. "Radius yang
+          // berlaku: null m" adalah kalimat yang lebih buruk daripada diam.
+          text: payload.geofence_m === null || payload.geofence_m === undefined
+            ? 'Di luar radius lokasi proyek, absensi Anda TETAP tersimpan dan hanya ditandai untuk '
+              + 'dilihat pengawas. Radius yang berlaku baru terbaca setelah layar ini terhubung.'
+            : `Radius lokasi yang berlaku: ${payload.geofence_m} m. Di luar radius, absensi Anda `
+              + 'TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.',
         }),
       ].filter(Boolean)),
     ]));
@@ -283,13 +307,23 @@ export async function renderAbsensiSaya(host) {
     } catch (error) {
       if (token !== loadToken) return;
 
-      /* Gagal memuat TIDAK boleh menghapus tombolnya. Kalau layar ini pernah
-         berhasil memuat sekali, tombol-tombolnya digambar ulang dari jawaban
-         itu dengan pita "tidak dapat dimuat" di atasnya; kalau belum pernah,
-         yang bisa ditawarkan hanya panel galat dengan tombol coba lagi. */
+      /* Gagal memuat TIDAK boleh menghapus tombolnya — termasuk pada kunjungan
+         PERTAMA yang luring, yang justru kasus tersulit: sebelum perbaikan ini
+         layarnya hanya berisi panel galat sementara pita luring menyuruh orang
+         menekan "Kirim ulang" pada baris yang tidak ada, dan tidak ada satu pun
+         tombol absen. Itu persis cacat P1-I yang mahal, terulang.
+
+         Pintu absen tidak membutuhkan daftar hari maupun daftar proyek, jadi
+         tombolnya bisa digambar tanpa jawaban server sama sekali. Yang tidak
+         bisa ditebak dinyatakan apa adanya: proyek tidak dapat dipilih, dan
+         radius yang berlaku tidak diketahui. */
       clear(list).appendChild(errorState(error, load));
-      if (lastPayload) paintActions(lastPayload, { stale: true });
-      else clear(actions);
+      paintActions(lastPayload || {
+        linked: true,
+        data: [],
+        projects: [],
+        geofence_m: null,
+      }, { stale: true, blind: !lastPayload });
       return;
     }
 
