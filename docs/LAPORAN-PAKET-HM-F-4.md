@@ -2,11 +2,10 @@
 
 Branch: `feat/phase2-f4` (dari main `58426c3`) · 8 September 2026
 
-> Status jujur: dibangun dan diverifikasi sendiri di peramban sungguhan. Empat cacat yang lolos
-> dari suite PHP hijau ditemukan dengan memuat layarnya di Chromium — semuanya dicatat di bawah
-> beserta gejalanya. Dua migrasi baru (kolom absen maju-saja + tabel jejak koreksi). Verifikasi
-> adversarial dua lensa dan gerbang rilis dua driver **belum** dijalankan pada saat laporan ini
-> ditulis; angkanya diisi di § Gerbang rilis.
+> Status jujur: dibangun, diperiksa sendiri di peramban sungguhan (empat cacat), lalu diverifikasi
+> adversarial dua lensa — **28 temuan lagi, enam di antaranya bug yang menyentuh orang**. Semuanya
+> diperbaiki dan dicatat di bawah beserta gejala yang dibaca pemakainya. Dua migrasi baru (kolom
+> absen maju-saja + tabel jejak koreksi). Gerbang rilis dua driver di § Gerbang rilis.
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 2 / F-4 → status)
 
@@ -66,26 +65,82 @@ yang kehilangan pintunya**; yang ditutup adalah token yang memanggil API langsun
 "Absensi Saya" karena itu punya pintunya sendiri, `GET hr/attendances/me` — kueri yang secara
 struktur tidak bisa mengembalikan baris orang lain, bukan penyaring di atas daftar yang sama.
 
+## Verifikasi adversarial — 28 temuan
+
+Dua verifier baca-saja berjalan paralel di atas commit `3691211`: satu berlensa kebenaran server
+dan kejujuran angka, satu berlensa UX ponsel, antrean luring dan mutu bukti. Keduanya
+mengembalikan pohon kerja bersih.
+
+### Enam bug yang menyentuh orang
+
+| # | Gejala yang dibaca pemakainya | Sebab |
+|---|---|---|
+| 1 | Karyawan yang satu-satunya catatannya jatuh di tanggal TERAKHIR bulan itu lenyap dari usulan rekap, dan layarnya mencetak "register bulan ini kosong" tentang orang yang ada di dalamnya | `whereBetween` atas kolom yang menyimpan tengah malam; **SQLite** membandingkan string, `'2026-06-30 00:00:00' > '2026-06-30'`. MySQL benar — jadi yang salah justru driver produksi hari ini |
+| 2 | Jejak koreksi "tambah-saja" bisa DIMUSNAHKAN pemegang `hr.delete` — persis orang yang punya alasan | FK cascade + `hr_attendances` tanpa softDeletes. Uji lama hanya memeriksa tidak adanya RUTE update/delete, jadi tetap hijau |
+| 3 | Absen pertama hari itu yang berbalapan menjawab **HTTP 500** dan absennya hilang — pada satu-satunya pintu yang aturannya "tidak pernah menolak" | SELECT lalu INSERT tanpa penjaga tabrakan kunci unik. Lembar kerani punya lubang yang sama |
+| 4 | SETIAP foto yang mengantre di ponsel orang saat rilis mendarat lenyap dari layar dan memakan kuota selamanya | butir versi lama tidak punya `kind`; yang tidak masuk `readQueue()` tidak pernah sampai ke `forget()` |
+| 5 | Selfie kebesaran (kamera ponsel modern rutin >5 MB) MEMBATALKAN absennya; toastnya hanya bicara soal foto, dan orangnya pulang mengira sudah absen | `return` di klien sebelum `enqueue()` — servernya sendiri sudah benar |
+| 6 | Panel koreksi menulis ulang jam absen pada SETIAP simpan: mengubah catatan saja menggeser 11:23:00 → 04:23:00 dan menulis dua baris jejak palsu | `toDateTimeInput()` merender dengan zona PERAMBAN, server mem-parse dalam `app.timezone`. Indonesia punya tiga zona |
+
+### Satu paku yang bocor
+
+`AttendanceIsNotPayrollInputTest` mencari `hr_attendances`, `Models\Attendance;`, `Attendance::` —
+dan tidak satu pun melihat `$employee->attendances()`. Verifier memotong gaji pokok dari register
+GPS dan **kedua lensa tetap hijau**: lensa sumber tidak mengenali relasi `hasMany`, lensa perilaku
+luput karena 30 baris fixture-nya ber-`check_in_at` NULL. Sembilan jarum sekarang, dan mutasi yang
+sama (M20) merah.
+
+### Sisanya (diperbaiki, satu baris masing-masing)
+
+`device_at` bersampah dulu 422 dan menghilangkan absennya · `Carbon::parse('0000-00-00')` tidak
+melempar dan MySQL ketat menolak menulis tahun nol · kartu karyawan yang diarsipkan disuruh
+"menautkan akun yang sudah tertaut" · proyek yang diarsipkan lolos validasi lalu diam-diam
+menghasilkan "jarak tidak terukur" bagi orang yang berdiri di titiknya · "Lokasi tidak terukur"
+tepat di atas "8,2 km" · indeks yang dijanjikan komentar migrasi tidak pernah dibuat · radius
+geofence duduk di grup "BPJS & Lembur" yang berbunyi "berlaku pada perhitungan payroll berikutnya"
+· lembar cetak menggaris di atas jam yang sudah tercatat · panggilan geolokasi yang tidak dijawab
+menggantung selamanya (penghitung `timeout` baru jalan sesudah izin) · kunjungan PERTAMA yang
+luring hanya berisi panel galat sementara pita luring menyuruh menekan tombol yang tidak ada ·
+kartu "belum terkirim" menyebut absensi sebagai "foto yang akan tampil di dokumennya" · `.txt`
+tersimpan sebagai "Selfie pulang" · tombol layar ponsel 34 px, bukan 46 · kolom "Absen ponsel"
+menghitung jam server sehingga jam yang diketik pengawas dilaporkan sebagai absen ponsel · selfie
+pada absen kedua dibuang diam-diam · docblock menyebut uji yang tidak ada.
+
+### Tiga celah bukti
+
+S31 tidak idempoten — jalan kedua kali merah karena absen masuk sudah tercatat, perilaku yang benar
+tetapi bukti yang hanya bisa direproduksi di atas basis data perawan. S31/S31s tidak pernah
+mengirim satu selfie pun, jadi jalur `AttachableDocuments`/`AttachmentService` — butir keenam
+spesifikasi paket — tidak tersentuh, sementara syarat "ada kartu Lampiran" hijau di atas basis data
+tanpa lampiran karena judul kartunya selalu ada. Dan syarat tombol hanya mengukur LEBAR, dimensi
+yang CSS-nya sudah benar; ia lolos pada tombol setinggi 1 px. Ketiganya ditutup: S31 membersihkan
+baris hari ini lebih dulu (dijalankan dua kali berturut-turut, hijau), benar-benar mengirim satu
+selfie dan menghitungnya di basis data, dan mengukur tinggi tombol.
+
 ## Uji
 
-- baru: `AttendanceClockTest` (21 uji / 84 asersi), `AttendanceCorrectionTest` (11 / 40),
-  `AttendanceIsNotPayrollInputTest` (4 / 45), `AttendanceRecapProposalTest` (6 / 35).
-- dipindah: `LapanganUploadQueueTest` → `UploadQueueTest` (5 / 22) — pakunya menempel pada
+- baru: `AttendanceClockTest` (28 uji / 120 asersi), `AttendanceCorrectionTest` (15 / 54),
+  `AttendanceIsNotPayrollInputTest` (4 / 87), `AttendanceRecapProposalTest` (9 / 46).
+- dipindah: `LapanganUploadQueueTest` → `UploadQueueTest` (9 / 30) — pakunya menempel pada
   antreannya, bukan pada satu layar yang kebetulan dulu memilikinya.
-- **17 mutasi dipaku merah.** M1 jarak null→0 · M2 stempel ambang selalu ditulis · M3 tanggal selalu
+- **20 mutasi dipaku merah.** M1 jarak null→0 · M2 stempel ambang selalu ditulis · M3 tanggal selalu
   jam server · M4 jam server := jam ponsel · M5 `outsideGeofence` null→false · M6 absen masuk kedua
   menimpa · M7 ambang dipatri 500 · M8 setengah koordinat diterima · M9 kirim ulang dianggap
   peristiwa baru · M10 acuan proyek tidak disimpan · M11 `unmeasured_days` tanpa syarat absen ·
   M12 `outside_days` dengan angka dipatri · M13 alasan koreksi opsional · M14 jejak PUT tidak
   ditulis · M15 lembar kerani menimpa kolom jam · M16 jejak lembar kerani tidak ditulis ·
-  M17 zona waktu perangkat diabaikan.
-- per-direktori di HEAD: `tests/Feature/HrPayroll` 184 uji / 717 asersi hijau;
-  `tests/Feature/Core` 951 uji / 8.787 asersi hijau (11 dilewati).
-- harness: `S31_absensi_gps` 19 syarat hijau di 390×844 (di lokasi 0 m; di luar 8,0 km ditandai
+  M17 zona waktu perangkat diabaikan · M18 `whereBetween` kembali (tanggal terakhir bulan) ·
+  M19b penjaga balapan kunci unik dicabut · M20 gaji pokok dipotong dari register GPS lewat
+  `$employee->attendances()` — mutasi yang dipakai verifier, dan yang dulu lolos hijau.
+- per-direktori di HEAD: `tests/Feature/HrPayroll` 196 uji / 819 asersi hijau;
+  `tests/Feature/Core` 951 uji / 8.790 asersi hijau (11 dilewati) sebelum putaran perbaikan.
+- harness: `S31_absensi_gps` **22 syarat** hijau di 390×844 (di lokasi 0 m; di luar 8,0 km ditandai
   bukan ditolak; izin lokasi ditolak → "Lokasi tidak terukur" dan jarak bergaris; luring → baris
   bertahan melewati muat ulang lalu terkirim; akun tanpa kartu karyawan mendapat kalimatnya;
-  0 galat konsol), `S31_absensi_gps_supervisor` 6 syarat hijau, `S15_lapangan_upload` dijalankan
-  ulang dan **identik** kecuali derau waktu. Lima PNG `s31-*.png`.
+  0 galat konsol; selfie benar-benar dikirim dan terhitung di basis data; tombol 328×46 px),
+  `S31_absensi_gps_supervisor` 6 syarat hijau dengan lampiran yang benar-benar ada,
+  `S15_lapangan_upload` dijalankan ulang dan **identik** kecuali derau waktu. S31 dijalankan DUA
+  KALI berturut-turut pada server yang sama: hijau keduanya. Lima PNG `s31-*.png`.
 - **suite penuh di commit rilis**: SQLite — (diisi); MySQL — (diisi).
 
 ## Skema yang berubah — dan apakah aman di MySQL dengan data lama
@@ -116,6 +171,16 @@ paket ini tidak menjatuhkan tabel).
 5. **Toleransi jam ponsel ±48 jam.** Di luar itu tanggal server yang dipakai. Angka ini belum
    pernah diuji dengan ponsel lapangan sungguhan.
 
+## Catatan tentang putaran verifikasi ini
+
+Kedua verifier berjalan **paralel di atas satu pohon kerja**, dan keduanya melakukan mutasi
+sementara. Satu di antaranya mengamati `AttendanceResource` berubah dari `'—'` menjadi `'0 m'` lalu
+kembali dalam 47 detik — itu mutasi milik verifier yang lain, bukan bug. Lensa UX juga melaporkan
+satu pembacaan `check_out_geofence_m: 5000` yang tidak bisa diulang; jendelanya bertepatan dengan
+mutasi `config/erp.php` milik lensa server. **Verifier paralel di satu pohon mencemari pengukuran
+satu sama lain** — putaran berikutnya sebaiknya memberi tiap verifier `git worktree` sendiri, atau
+menjalankan keduanya berurutan.
+
 ## Deviasi baru yang ditemukan
 
 - **`api.get()`/`api.upload()` membuka amplop `{data}`, `api.list()`/`api.postRaw()` tidak.** Empat
@@ -124,6 +189,12 @@ paket ini tidak menjatuhkan tabel).
 - **`Carbon::parse()` atas ISO-8601 ber-offset mempertahankan zona sumbernya.** Setiap tempat lain
   yang menerima waktu dari klien layak diperiksa dengan lensa yang sama; F-4 hanya memperbaiki
   miliknya sendiri.
+- **Kunci unik `(employee_id, date)` tidak menjaga apa pun di SQLite bila dua penulis mengeja
+  harinya berbeda.** `'2026-09-08'` dan `'2026-09-08 00:00:00'` adalah dua nilai berbeda di sana
+  (di MySQL kolomnya DATE dan keduanya sama). Seluruh kode aplikasi menulis lewat cast `date`
+  sehingga selalu sepakat, tetapi impor mentah atau perintah artisan yang menulis ejaan pendek akan
+  menghasilkan dua baris untuk satu hari tanpa satu pun galat. Idiom `whereDate()` yang sudah
+  dipakai di modul ini lahir dari akar yang sama.
 - **`AttachmentController::reachable()` menolak lampiran yang kelasnya tidak ada di
   `AttachableDocuments`.** Menyimpan lampiran lewat `AttachmentService` tanpa mendaftarkan slugnya
   menghasilkan berkas yang tersimpan tetapi tidak bisa dibuka siapa pun — termasuk oleh orang yang

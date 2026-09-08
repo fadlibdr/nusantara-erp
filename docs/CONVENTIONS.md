@@ -1417,6 +1417,34 @@ baris milik `users.employee_id` pemanggilnya. Sebuah field yang bisa menyebut or
 menjadikannya pintu untuk mengabsenkan rekan yang belum datang. Akun tanpa kartu karyawan mendapat
 kalimat, bukan layar rusak dan bukan absensi orang lain.
 
+**Balapan pada absen pertama hari itu.** `rowFor()` melakukan SELECT lalu `save()` melakukan
+INSERT, dan di antaranya baris (karyawan, tanggal) yang sama bisa lahir dari pintu lain. Sekali
+ulang pada `UniqueConstraintViolationException` — di pintu absen DAN di lembar kerani. Pintu yang
+aturannya "mencatat, tidak pernah menolak" tidak boleh menjawab 500; itu penolakan paling keras
+yang tersedia. Idiom rumah yang sama: `DailyReportService`, `HseDailyService`,
+`BankStatementImportService`.
+
+**Jam ponsel yang tidak terbaca kehilangan JAMNYA, bukan absennya.** `device_at` divalidasi sebagai
+STRING, bukan `date`: aturan `date` berjalan sebelum service dan menjawab 422 untuk "banana" —
+tidak ada baris, tidak ada selfie, tidak ada catatan bahwa orangnya datang. Dan
+`Carbon::parse('0000-00-00 00:00:00')` TIDAK melempar (ia memulangkan tahun nol, yang MySQL ketat
+menolak menulis), jadi `deviceTime()` membuang apa pun di luar tahun 2000–2100.
+
+**Satu selfie per sisi, dan yang pertama bertahan.** Menimpa penunjuknya meninggalkan berkas
+pertama di penyimpanan tanpa baris yang menyebutnya. Absen kedua yang membawa foto TETAP menyimpan
+fotonya bila sisi itu belum punya — foto bukan jam — dan yang ditolak dikatakan, bukan ditelan.
+Ekstensinya dibatasi ke gambar: daftar izin `AttachmentService` bersifat generik (PDF, Word, CSV),
+dan `accept="image/*"` di HTML hanya saran kepada pemilih berkas.
+
+**Menghapus baris absensi.** Ditolak bila barisnya membawa jejak koreksi ATAU absen dari ponsel.
+Jejak tambah-saja yang bisa dimusnahkan pemegang `hr.delete` tidak membuktikan apa pun, dan absen
+ponsel adalah catatan seseorang tentang dirinya. FK-nya `restrictOnDelete` sebagai lapis kedua
+untuk jalur yang tidak lewat controller.
+
+**Dua keadaan "tidak ada karyawan", dua kalimat.** Akun tanpa `employee_id` diminta menautkan;
+akun yang tertaut ke kartu yang di-soft-delete diminta mengaktifkan kembali kartunya. Kalimat
+pertama untuk keadaan kedua menyuruh HR menautkan yang sudah tertaut.
+
 **`GET hr/attendances` menuntut `hr.view` sejak F-4.** Barisnya kini membawa koordinat, akurasi fix
 dan selfie — riwayat posisi seseorang hari demi hari, setara dengan register sertifikat dan
 pengajuan cuti yang sudah dijaga. `GET hr/attendances/me` adalah pintu tanpa izin untuk baris
@@ -1466,6 +1494,18 @@ Alasannya bukan kehati-hatian yang samar: register absensi boleh dikoreksi kapan
 menambah pintu koreksinya), sedangkan payroll yang disetujui sudah membukukan jurnal dan membayar
 orang.
 
+**`whereDate`, bukan `whereBetween`.** Cast `date` MENYIMPAN tengah malam, dan SQLite membandingkan
+STRING: `'2026-06-30 00:00:00' > '2026-06-30'`, sehingga tanggal terakhir setiap bulan jatuh keluar
+dari rentangnya. MySQL punya kolom DATE sungguhan dan benar — jadi yang salah justru driver yang
+dipakai produksi hari ini. Karyawan yang SATU-SATUNYA catatannya bulan itu jatuh di sana lenyap
+seluruhnya, dan layarnya lalu mencetak "register bulan ini kosong" tentang orang yang ada di
+dalamnya.
+
+**"Absen ponsel" dihitung dari `check_in_device_at`, bukan `check_in_at`.** Pengawas boleh mengetik
+jam masuk (§28 menganjurkannya untuk "lupa absen pulang"), dan hanya pintu absen ponsel yang
+menulis jam PERANGKAT. Menghitung kolom yang salah membuat layar melaporkan hari yang tidak pernah
+disentuh ponsel siapa pun sebagai absen ponsel tanpa jarak terukur.
+
 **Yang tidak diusulkan sama pentingnya dengan yang diusulkan.** `not_proposed` membawa `field`,
 `label` DAN `why` untuk sakit, cuti, hari kerja, jam lembur dan hari setengah — register tidak tahu
 apa-apa tentang kelimanya. Mengisinya dengan 0 akan terlihat seperti jawaban dan terbawa ke slip
@@ -1494,6 +1534,30 @@ segalanya yang dilukisnya lenyap; kalau barisnya ikut lenyap, pita luring menyur
 "Kirim ulang" pada baris yang tidak ada di layar. Tombol aksinya pun digambar ulang dari jawaban
 terakhir yang berhasil, dengan pita "tidak dapat dimuat" di atasnya — antrean itu dibuat justru
 untuk saat tidak ada sinyal.
+
+**Butir tanpa `kind` dipulihkan sebagai lampiran.** Versi sebelum F-4 tidak pernah menulis field
+itu. Butir yang tidak dikenali dan hanya dilewati akan lenyap dari layar DAN tetap memakan kuota
+selamanya — yang tidak pernah masuk `readQueue()` tidak pernah sampai ke `forget()`. Bentuk yang
+tetap tidak dikenali (dari versi lebih baru) DIBUANG dari `localStorage`, bukan dilewati.
+
+**`devicePosition()` memegang batas waktunya sendiri.** Menurut spesifikasi Geolocation, penghitung
+`timeout` baru berjalan sesudah izin diberikan; permintaan izin yang tidak dijawab — pemakaian
+pertama, di gerbang proyek — menggantung selamanya, dan butirnya berhenti di `locating` tanpa
+"Kirim ulang", tanpa "Buang", tanpa terkirim.
+
+**Muatan yang ditolak klien tidak boleh membatalkan peristiwanya.** Selfie kebesaran mengorbankan
+FOTONYA; absennya tetap masuk antrean, dan toastnya mengatakan keduanya. Kamera ponsel modern rutin
+melewati 5 MB, jadi ini jalur yang sering, bukan jarang.
+
+**Kunjungan pertama yang luring tetap punya tombolnya.** Pintu absen tidak membutuhkan daftar hari
+maupun daftar proyek, jadi tombolnya digambar tanpa jawaban server sama sekali; yang tidak bisa
+diketahui dinyatakan apa adanya, bukan ditebak. Layar yang hanya berisi panel galat sementara pita
+luring menyuruh menekan tombol yang tidak ada adalah cacat P1-I yang terulang.
+
+**`.btn.lg` menyetel `height`, bukan padding.** `.btn` punya `height: 34px` dan `box-sizing:
+border-box`, jadi padding vertikal tidak menumbuhkan kotaknya sama sekali. Target sentuh rumah ini
+42–44 px, dan layar yang dipakai satu tangan sambil berdiri adalah tempat terakhir yang boleh
+melanggarnya.
 
 **Layar yang memakai antrean tidak boleh mendeklarasikan `QUEUE_PREFIX` atau `MAX_BYTES` sendiri**
 (dipaku `UploadQueueTest`): dua antrean di `localStorage` yang sama tidak akan pernah saling
