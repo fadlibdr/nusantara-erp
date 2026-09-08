@@ -141,7 +141,20 @@ selfie dan menghitungnya di basis data, dan mengukur tinggi tombol.
   `S31_absensi_gps_supervisor` 6 syarat hijau dengan lampiran yang benar-benar ada,
   `S15_lapangan_upload` dijalankan ulang dan **identik** kecuali derau waktu. S31 dijalankan DUA
   KALI berturut-turut pada server yang sama: hijau keduanya. Lima PNG `s31-*.png`.
-- **suite penuh di commit rilis**: SQLite — (diisi); MySQL — (diisi).
+- **suite penuh di commit rilis `0636ad5`**, dijalankan dari `git worktree` sendiri dengan
+  `cp -a vendor` (bukan symlink): **SQLite 4.364 uji / 24.196 asersi hijau** (11 dilewati,
+  12 mnt 58 dtk) dan **MySQL 8.0.46 4.364 uji / 24.209 asersi hijau** (6 dilewati, 35 mnt 49 dtk).
+
+## Gerbang rilis
+
+| Leg | Commit | Uji | Asersi | Dilewati | Waktu |
+|---|---|---|---|---|---|
+| SQLite | `0636ad5` | 4.364 | 24.196 | 11 | 12:58 |
+| MySQL 8.0.46 | `0636ad5` | 4.364 | 24.209 | 6 | 35:49 |
+
+Selisih asersi (13) dan jumlah yang dilewati (11 vs 6) sama persis dengan gerbang-gerbang
+sebelumnya: `SqlitePragmaTest` dilewati di MySQL, `MysqlModeTest` dilewati di SQLite, dan lima
+uji yang memaku perilaku khusus driver menambah asersinya di sisi MySQL.
 
 ## Skema yang berubah — dan apakah aman di MySQL dengan data lama
 
