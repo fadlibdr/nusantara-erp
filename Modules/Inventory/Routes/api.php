@@ -7,6 +7,7 @@ use Modules\Inventory\Http\Controllers\IssueReturnController;
 use Modules\Inventory\Http\Controllers\ItemCategoryController;
 use Modules\Inventory\Http\Controllers\ItemController;
 use Modules\Inventory\Http\Controllers\PurchaseReturnController;
+use Modules\Inventory\Http\Controllers\ReorderController;
 use Modules\Inventory\Http\Controllers\ReorderRuleController;
 use Modules\Inventory\Http\Controllers\StockAdjustmentController;
 use Modules\Inventory\Http\Controllers\StockController;
@@ -111,6 +112,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'show']);
     Route::put('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'update'])->middleware('permission:inv.update');
     Route::delete('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'destroy'])->middleware('permission:inv.delete');
+
+    // Usulan PR dari kekurangan stok (F-6). Membaca terbuka seperti daftar
+    // Inventory lain; MEMBUAT menuntut prc.create — yang dibuat adalah dokumen
+    // Procurement, jadi ia menuntut hak layar PR sendiri, dari layar mana pun
+    // tombolnya ditekan. Tidak ada rute yang mengajukan atau menyetujui.
+    Route::get('reorder/proposal', [ReorderController::class, 'proposal']);
+    Route::post('reorder/requisitions', [ReorderController::class, 'store'])->middleware('permission:prc.create');
 
     // Stock reports
     Route::get('stock/balances', [StockController::class, 'balances']);

@@ -28,6 +28,7 @@ import { renderBankRecon } from './views/bankrecon.js';
 import { renderLapangan } from './views/lapangan.js';
 import { renderAbsensiSaya } from './views/absensisaya.js';
 import { renderUsulanRekap } from './views/usulanrekap.js';
+import { renderReorder } from './views/reorder.js';
 import { renderK3 } from './views/k3.js';
 import { renderEvm } from './views/evm.js';
 import { renderDefects } from './views/defect.js';
@@ -954,6 +955,19 @@ function registerRoutes() {
     const host = view();
     if (!session.can('fin.view')) return accessDenied(host, 'fin');
     return guard(host, () => renderKasKecil(host));
+  });
+
+  /* Usulan pesan ulang (F-6): membaca kekurangan stok dan menawarkan PR DRAF.
+     Gerbangnya inv.view karena angkanya adalah saldo persediaan; TOMBOL "Buat
+     PR draf" di dalamnya menuntut prc.create tersendiri, dan endpoint-nya
+     menegakkan itu sendiri — layar yang hanya menyembunyikan tombol adalah
+     gerbang yang bisa dilewati siapa pun yang tahu alamat endpoint-nya. */
+  route('usulan-pesan-ulang', () => {
+    setCrumbs(['Persediaan', 'Usulan Pesan Ulang']);
+    setActiveNav('usulan-pesan-ulang');
+    const host = view();
+    if (!session.can('inv.view')) return accessDenied(host, 'inv');
+    return guard(host, () => renderReorder(host));
   });
 
   route('lapangan', () => {

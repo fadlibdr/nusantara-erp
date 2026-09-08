@@ -6502,6 +6502,9 @@ export const NAV = [
       // item, dan orang yang baru membuat gudang site adalah orang yang
       // berikutnya menetapkan ambangnya sendiri.
       { label: 'Aturan Reorder', route: 'r/inventory/reorder-rules' },
+      // …dan tepat di bawahnya, layar yang MEMBACA aturan itu: kekurangan
+      // stok yang ditawarkan sebagai PR draf.
+      { label: 'Usulan Pesan Ulang', route: 'usulan-pesan-ulang' },
       { label: 'Penerimaan (GRN)', route: 'r/inventory/goods-receipts' },
       { label: 'Pengeluaran', route: 'r/inventory/issues' },
       { label: 'Transfer', route: 'r/inventory/transfers' },
