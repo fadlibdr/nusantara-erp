@@ -9,11 +9,27 @@
     dipakai siapa pun: setiap stiker akan membawa kop, atau kopnya hanya di
     halaman pertama dan stikernya tidak sejajar.
 
-    ZONA TENANG IKUT KE DALAM SVG, bukan diserahkan ke tata letak halaman ini.
-    Sebuah `overflow: hidden` atau lebar kotak yang lebih sempit daripada
-    gambarnya akan memotong batang tepi dan pemindai gagal DIAM-DIAM — jadi
-    kotak stiker di bawah tidak pernah memotong: gambarnya diberi lebar penuh
-    dan kotaknya yang menyesuaikan.
+    TETAPI `.lembar` TETAP DIPAKAI, DAN ITU KONTRAK — bukan gaya. print.js
+    menunggu `tab.document.querySelector('.lembar')` sebelum memanggil
+    tab.print(): readyState saja tidak cukup, karena about:blank sudah
+    'complete' dan yang tercetak akan menjadi halaman penampung "Menyiapkan
+    formulir…". Tanpa pembungkus ini, lembar 12 stiker benar-benar tergambar di
+    tab barunya dan dialog cetak TIDAK PERNAH muncul — satu-satunya formulir
+    rumah yang begitu, tanpa satu pun pesan, yang di gudang terbaca sebagai
+    "tombol cetaknya rusak".
+
+    LEBAR MODUL CETAK DIHITUNG DI PHP, BUKAN DISERAHKAN KE CSS. `.stiker`
+    selebar yang dipilih FormPrintService::labelGeometry(), dan SVG-nya membawa
+    lebar dalam MILIMETER yang persis sama dengan lebar isi kotak itu. Versi
+    pertama lembar ini memakai `max-width: 100%` dan menyerahkan ukurannya
+    kepada tata letak: stikernya tetap 62 mm dan GAMBARNYA yang dikecilkan —
+    2,8% untuk barcode 100 karakter, modul 0,055 mm, tidak terbaca satu pun
+    garis pindai pada raster 600 dpi. Sekarang kisinya yang jatuh ke dua atau
+    satu kolom, dan kode yang tetap tidak muat DITOLAK dengan kalimatnya.
+
+    ZONA TENANG IKUT KE DALAM SVG, bukan diserahkan ke tata letak halaman ini:
+    sebuah `overflow: hidden` atau kotak yang lebih sempit daripada gambarnya
+    akan memotong batang tepi dan pemindai gagal DIAM-DIAM.
 
     print-color-adjust: exact — Chrome membuang latar saat mencetak, dan batang
     hitam di atas latar yang hilang tetap hitam, tetapi stiker yang kehilangan
@@ -36,6 +52,8 @@
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
         }
 
+        .lembar { max-width: 194mm; margin: 0 auto; }
+
         .kepala { margin-bottom: 4mm; }
         .kepala h1 { font-size: 11pt; margin: 0 0 1mm; letter-spacing: .06em; text-decoration: underline; }
         .kepala .sub { font-size: 8pt; }
@@ -45,19 +63,33 @@
             border: .7pt solid #000; padding: 2mm; margin-bottom: 4mm;
             font-size: 8pt; line-height: 1.35;
         }
+        .catatan .ganda { display: block; margin-top: 1.5mm; }
 
         .kisi { display: flex; flex-wrap: wrap; gap: 3mm; }
 
         .stiker {
             border: .5pt dashed #666;
+            /* 2,5 mm kiri-kanan, dan angka ini IKUT dihitung labelGeometry():
+               lebar isi kotak = lebar stiker − 2 × padding, dan itulah lebar
+               milimeter yang dibawa SVG-nya. Mengubah salah satunya tanpa yang
+               lain membuat modul cetak berbeda dari yang tertulis di catatan. */
             padding: 2.5mm;
-            width: 62mm;
+            width: {{ $geometry['sticker_mm'] ?? 62.0 }}mm;
             text-align: center;
             break-inside: avoid; page-break-inside: avoid;
         }
         .stiker .nama { font-size: 8pt; font-weight: bold; line-height: 1.2; margin-bottom: 1mm; }
         .stiker .satuan { font-size: 7pt; margin-bottom: 1.5mm; }
-        .stiker svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+        /*
+            TANPA `max-width: 100%` DAN TANPA `height: auto`, dan itu justru
+            penjaganya: SVG-nya sudah membawa lebar milimeter yang sama dengan
+            lebar isi kotak ini, jadi keduanya tidak akan pernah menggigit —
+            dan seandainya suatu hari menggigit, angka lebar modul yang
+            dicetak di kotak catatan menjadi bohong tanpa satu pun tanda.
+            Gambar yang melebihi kotaknya terlihat; gambar yang dikecilkan
+            diam-diam tidak.
+        */
+        .stiker svg { display: block; margin: 0 auto; }
 
         /* Stiker tanpa batang: garis untuk ditulis tangan, bukan kotak kosong. */
         .stiker .tanpa-barcode {
@@ -71,6 +103,7 @@
     </style>
 </head>
 <body>
+<div class="lembar">
     <div class="kepala">
         <h1>{{ $formTitle }}</h1>
         <div class="sub">
@@ -78,7 +111,7 @@
         </div>
     </div>
 
-    @if ($supported)
+    @if ($svg)
         {{--
             SATU DIREKTIF PER BARIS, dan itu bukan selera tata letak.
 
@@ -97,8 +130,41 @@
             @else
                 yaitu <b>kode item</b>-nya sendiri; kartu item ini belum mencatat barcode pemasok.
             @endif
-            Simbologi Code 128. Jangan memperkecil, memotong, atau menempelkan apa pun pada ruang kosong
+            {{--
+                ANGKA YANG BISA DIPERIKSA OPERATORNYA, bukan larangan yang
+                lembarnya sendiri langgar. Versi pertama mencetak "jangan
+                memperkecil" di atas barcode yang sudah ia perkecil sendiri
+                sampai 2,8%; sekarang lebar modul yang BENAR-BENAR tercetak
+                disebut, dan lembarnya tidak pernah lagi mengecilkannya.
+            --}}
+            Simbologi Code 128, lebar modul <b>{{ number_format($geometry['module_mm'], 3, ',', '.') }} mm</b>
+            (minimum terpindai {{ number_format(\Modules\Core\Support\Code128::MIN_MODULE_MM, 2, ',', '.') }} mm),
+            tinggi batang {{ number_format($geometry['bar_height_mm'], 1, ',', '.') }} mm,
+            {{ $geometry['columns'] }} stiker per baris.
+            Jangan memperkecil, memfotokopi mengecil, memotong, atau menempelkan apa pun pada ruang kosong
             di kiri dan kanan batang — ruang itu yang dipakai pemindai untuk menemukan tepi kode.
+            @if ($sharedWith)
+                <span class="ganda"><b>Kode ini tidak unik.</b> {{ $encoded }} juga dipakai
+                    {{ implode(', ', $sharedWith) }}. Memindai stiker ini akan memulangkan lebih dari satu item,
+                    dan layar Pindai Barcode akan meminta orangnya memilih sendiri. Perbaiki kolom Barcode di layar
+                    Item lebih dulu bila kedua kartu itu memang barang yang berbeda.</span>
+            @endif
+        </div>
+    @elseif ($supported)
+        {{--
+            ATURAN KEJUJURAN, SEBAB KEDUA: kodenya bisa dikodekan, tetapi tidak
+            pada lebar yang masih terpindai. Menyusutkan gambarnya sampai muat
+            adalah persis kegagalan yang lembar ini dulu punya, dan ia gagal
+            DIAM-DIAM.
+        --}}
+        <div class="catatan">
+            <b>Barcode tidak dicetak.</b> Kode <b>{{ $encoded }}</b> ({{ mb_strlen($encoded) }} karakter)
+            membutuhkan {{ \Modules\Core\Support\Code128::moduleCount($encoded) }} modul, dan bahkan pada satu
+            stiker selebar halaman lebar modulnya jatuh di bawah
+            {{ number_format(\Modules\Core\Support\Code128::MIN_MODULE_MM, 2, ',', '.') }} mm — batangnya akan
+            menyatu saat dicetak dan tidak ada pemindai yang bisa membacanya. Stiker di bawah tetap dicetak
+            dengan garis untuk ditulis tangan. Pakai barcode pemasok yang lebih pendek, atau kode item ini
+            sendiri, lalu cetak ulang lembar ini.
         </div>
     @else
         {{--
@@ -121,7 +187,7 @@
             <div class="stiker">
                 <div class="nama">{{ $item->name }}</div>
                 <div class="satuan">{{ $item->code }}@if ($item->unit) · satuan {{ $item->unit }}@endif</div>
-                @if ($supported)
+                @if ($svg)
                     {!! $svg !!}
                 @else
                     <div class="tanpa-barcode"></div>
@@ -135,5 +201,6 @@
         <span>{{ $formCode }}@if ($company?->name) · {{ $company->name }}@endif</span>
         <span>{{ $count }} label · dicetak {{ $printedAt }}</span>
     </div>
+</div>
 </body>
 </html>

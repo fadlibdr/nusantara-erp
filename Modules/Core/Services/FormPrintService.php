@@ -1418,6 +1418,24 @@ class FormPrintService
      * mencetak stikernya TANPA batang, dengan kalimat yang menyebut kodenya
      * dan menyuruh memperbaikinya lebih dulu. Tidak pernah gambar, tidak
      * pernah kosong tanpa keterangan.
+     *
+     * ============================ DAN KALAU TIDAK MUAT ==================================
+     * ATURAN YANG SAMA, SEBAB YANG BERBEDA — dan sebab inilah yang dulu gagal
+     * diam-diam. Lebar modul cetak = lebar kotak stiker ÷ jumlah modul, jadi
+     * kode yang makin panjang berarti batang yang makin tipis. Versi pertama
+     * lembar ini menyerahkannya kepada `max-width: 100%`: stikernya tetap
+     * 62 mm dan GAMBARNYA yang dikecilkan — 80,9% untuk ITM-0001, 26,2% untuk
+     * kode 33 karakter, 2,8% untuk barcode pemasok 100 karakter, yang mendarat
+     * pada modul 0,055 mm dan tidak terbaca satu pun garis pindai pada raster
+     * 600 dpi dari PDF cetaknya sendiri. Tidak ada satu kata pun di lembarnya.
+     *
+     * Sekarang kotaknya yang menyesuaikan, bukan gambarnya: kisi jatuh dari
+     * tiga stiker per baris ke dua, lalu ke satu, sampai lebar modulnya ≥
+     * Code128::MIN_MODULE_MM. Kode yang tidak muat bahkan pada satu stiker
+     * selebar halaman DITOLAK dengan kalimat yang menyebut panjangnya — sama
+     * seperti karakter di luar ASCII 32–126 ditolak, dan karena alasan yang
+     * sama persis: sebuah barcode yang tidak bisa dibaca pemindai lebih buruk
+     * daripada tidak ada barcode, karena ia terlihat seperti ada.
      * ====================================================================================
      */
     private function labelBarcode(array $context): array
@@ -1433,30 +1451,96 @@ class FormPrintService
         // pernah sampai ke sini.
         $count = min(60, max(1, (int) ($context['count'] ?? 12)));
 
-        $supported = Code128::supports($encoded);
+        $geometry = Code128::supports($encoded) ? $this->labelGeometry($encoded) : null;
 
         return $this->sheet('label-barcode', [
             'item' => $item,
             'company' => Company::current(),
             'encoded' => $encoded,
             'encodedFromSupplierBarcode' => $supplier !== '',
-            'supported' => $supported,
+            'supported' => Code128::supports($encoded),
+            'geometry' => $geometry,
             // Teks manusia menyebut KEDUANYA saat barcode pemasok yang
             // dikodekan: yang dipindai mesin dan yang dicari orang di layar
             // adalah dua string berbeda, dan stiker yang hanya membawa salah
             // satunya membuat separuh pekerjaan mustahil.
-            'svg' => $supported
-                ? Code128::svg($encoded, [
-                    'module' => 2,
-                    'height' => 40,
-                    'fontSize' => 9,
-                    'label' => $supplier !== '' ? $item->code.' · '.$encoded : $encoded,
-                ])
-                : null,
+            'svg' => $geometry === null ? null : Code128::svg($encoded, [
+                'module' => 2,
+                'height' => $geometry['bar_height_units'],
+                'fontSize' => $geometry['font_size_units'],
+                'widthMm' => $geometry['usable_mm'],
+                'label' => $supplier !== '' ? $item->code.' · '.$encoded : $encoded,
+            ]),
+            /*
+             * BARCODE GANDA, DI PERMUKAAN YANG MENEMPELKANNYA DI RAK.
+             *
+             * Layar pindai sudah mengatakan "2 ITEM memakai kode yang sama" —
+             * tetapi ia mengatakannya SESUDAH stikernya menempel, yaitu pada
+             * saat yang paling mahal. Aturan pencocokannya sama persis dengan
+             * ItemScanController (barcode ATAU kode, cocok persis), karena
+             * yang diperingatkan di sini adalah keadaan yang akan membuat
+             * pemindaian stiker ini ambigu.
+             */
+            'sharedWith' => Item::query()->withTrashed()
+                ->whereKeyNot($item->getKey())
+                ->where(fn ($query) => $query->where('barcode', $encoded)->orWhere('code', $encoded))
+                ->orderBy('code')
+                ->limit(5)
+                ->pluck('code')
+                ->all(),
             'count' => $count,
             'formTitle' => 'LABEL BARCODE ITEM',
             'formCode' => 'Form F/LBL',
         ]);
+    }
+
+    /**
+     * Lebar stiker (mm) per jumlah kolom kisi, pada A4 potret bermargin 8 mm
+     * kiri-kanan (lebar isi 194 mm) dengan jarak antar stiker 3 mm.
+     */
+    private const LABEL_STICKER_WIDTHS_MM = [3 => 62.0, 2 => 95.0, 1 => 190.0];
+
+    /** Padding di dalam garis potong stiker, kiri dan kanan. */
+    private const LABEL_STICKER_PADDING_MM = 2.5;
+
+    /**
+     * Kisi mana yang membuat kode ini MASIH TERPINDAI — atau null bila tidak
+     * ada satu pun.
+     *
+     * @return array{columns: int, sticker_mm: float, usable_mm: float, module_mm: float, bar_height_mm: float, bar_height_units: int, font_size_units: int, modules: int}|null
+     */
+    private function labelGeometry(string $encoded): ?array
+    {
+        $modules = Code128::moduleCount($encoded);
+
+        foreach (self::LABEL_STICKER_WIDTHS_MM as $columns => $stickerMm) {
+            $usableMm = $stickerMm - 2 * self::LABEL_STICKER_PADDING_MM;
+            $moduleMm = $usableMm / $modules;
+
+            if ($moduleMm < Code128::MIN_MODULE_MM) {
+                continue;
+            }
+
+            // Tinggi batang ≥ 15% lebar simbol — aturan tinggi minimum Code
+            // 128, dan yang menahan simbol lebar dari menjadi sehelai garis.
+            // 8 mm adalah lantai praktis untuk pemindai genggam gudang.
+            $barHeightMm = max(8.0, round(0.15 * $usableMm, 2));
+            $unitsPerMm = ($modules * 2) / $usableMm;
+
+            return [
+                'columns' => $columns,
+                'sticker_mm' => $stickerMm,
+                'usable_mm' => $usableMm,
+                'module_mm' => round($moduleMm, 3),
+                'bar_height_mm' => $barHeightMm,
+                'bar_height_units' => (int) round($barHeightMm * $unitsPerMm),
+                // ~2,2 mm huruf terbaca-manusia, dalam satuan viewBox.
+                'font_size_units' => max(6, (int) round(2.2 * $unitsPerMm)),
+                'modules' => $modules,
+            ];
+        }
+
+        return null;
     }
 
     // ==================================================================

@@ -28,7 +28,7 @@ use Tests\ErpTestCase;
 class PrintFormReachabilityTest extends ErpTestCase
 {
     /**
-     * The seven bespoke forms — FormPrintService::FORMS — each have a button.
+     * The eight bespoke forms — FormPrintService::FORMS — each have a button.
      *
      * Two shapes: a `form: '<slug>'` entry in a schema.js printForms list or a
      * project.js form descriptor, which is how a form that hangs off a listed
@@ -36,14 +36,63 @@ class PrintFormReachabilityTest extends ErpTestCase
      * which is how a screen that has to CHOOSE the record first (data proyek)
      * draws its own.
      */
+    /**
+     * `.lembar` ADALAH KONTRAK ANTARA SETIAP LEMBAR DAN print.js.
+     *
+     * printWhenLoaded() menunggu `tab.document.querySelector('.lembar')`
+     * sebelum memanggil tab.print() — readyState saja tidak cukup, karena
+     * about:blank sudah 'complete' dan yang tercetak akan menjadi halaman
+     * penampung. Sebuah lembar tanpa pembungkus itu tergambar sempurna di tab
+     * barunya dan dialog cetaknya TIDAK PERNAH muncul; sesudah ~7 detik
+     * PRINT_POLL_LIMIT menyerah tanpa satu pun pesan, dan di gudang itu
+     * terbaca sebagai "tombol cetaknya rusak". Persis yang terjadi pada
+     * label-barcode, satu-satunya lembar yang tidak mewarisi forms.layout.
+     *
+     * Diperiksa dari SUMBER dan bukan dari satu render, supaya lembar bespoke
+     * kesembilan tidak bisa lahir tanpa kontraknya.
+     */
+    public function test_every_bespoke_sheet_carries_the_wrapper_print_js_waits_for(): void
+    {
+        $polled = (string) file_get_contents(public_path('app/js/print.js'));
+        $this->assertStringContainsString(".querySelector('.lembar')", $polled,
+            'print.js tidak lagi menunggu .lembar; kontraknya pindah dan uji ini harus ikut pindah.');
+
+        foreach ($this->bespokeSlugs() as $slug) {
+            $blade = (string) file_get_contents(
+                base_path("Modules/Core/Resources/views/forms/{$slug}.blade.php"),
+            );
+
+            $inherits = str_contains($blade, "@extends('coredoc::forms.layout')")
+                || str_contains($blade, '@extends(\'coredoc::forms.layout\')');
+
+            $this->assertTrue(
+                $inherits || str_contains($blade, 'class="lembar"'),
+                "Lembar [{$slug}] tidak mewarisi forms.layout dan tidak membawa `class=\"lembar\"` sendiri: "
+                .'print.js tidak akan pernah tahu lembarnya sudah mendarat, jadi dialog cetak tidak pernah muncul '
+                .'dan tidak ada satu pun pesan yang menjelaskannya.',
+            );
+        }
+    }
+
     public function test_every_bespoke_form_has_a_button_somewhere_in_the_spa(): void
     {
         $slugs = $this->bespokeSlugs();
 
         // A reflection that silently stopped reading FORMS would turn this into
         // a no-op that still reports PASS, which is worse than no test.
+        /*
+         * DELAPAN, ANGKA LITERAL, dan ia NAIK BERSAMA PAKETNYA — pola yang
+         * sama dengan PrintCatalogueBespokeTest::assertCount(65, …).
+         *
+         * Ambang ini dipasang supaya "refleksi yang diam-diam berhenti membaca
+         * FORMS" tidak berubah menjadi no-op yang tetap melapor PASS. Dengan
+         * delapan formulir dan ambang tujuh, penjaganya longgar satu: satu
+         * formulir yang hilang dari FORMS lolos tanpa suara — penjaga yang
+         * menjaga persis satu langkah lebih sedikit daripada yang dijanjikan
+         * komentarnya. F-6 menambahkan label-barcode dan tidak menaikkannya.
+         */
         $this->assertGreaterThanOrEqual(
-            7,
+            8,
             count($slugs),
             'Only '.count($slugs).' bespoke forms were read out of FormPrintService::FORMS. The constant has '
             .'moved and this test is no longer reading it — fix bespokeSlugs() before trusting a green run.',

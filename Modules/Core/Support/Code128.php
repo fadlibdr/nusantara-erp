@@ -88,6 +88,26 @@ final class Code128
     public const QUIET_MODULES = 10;
 
     /**
+     * LEBAR MODUL TERKECIL YANG MASIH TERPINDAI DI KERTAS, dalam MILIMETER.
+     *
+     * 0,25 mm adalah X-dimension minimum GS1 untuk cetak umum. Di bawahnya
+     * batang-batangnya menyatu pada raster cetak dan pemindai gagal DIAM-DIAM:
+     * labelnya tercetak rapi, alatnya sekadar tidak berbunyi, dan di gudang itu
+     * terbaca sebagai "pemindainya rusak" — bukan sebagai "labelnya salah
+     * cetak". Diukur pada lembar F/LBL sebelum paket perbaikan ini: barcode
+     * pemasok 100 karakter mendarat pada modul 0,055 mm dan 0 dari 5 garis
+     * pindai raster 600 dpi bisa membacanya, sementara seluruh uji hijau.
+     */
+    public const MIN_MODULE_MM = 0.25;
+
+    /**
+     * Lebar satu karakter monospace sebagai kelipatan fontSize. DejaVu Sans
+     * Mono, Liberation Mono dan Courier semuanya 0,60–0,61; 0,62 memberi
+     * sedikit ruang supaya perkiraan ini tidak pernah terlalu optimis.
+     */
+    private const MONO_ADVANCE = 0.62;
+
+    /**
      * Nilai simbol lengkap: start, data, digit periksa, stop.
      *
      * @return list<int>
@@ -169,12 +189,43 @@ final class Code128
     }
 
     /**
+     * BERAPA MODUL LEBAR simbol ini, zona tenang IKUT.
+     *
+     * Ini angka yang menentukan apakah sebuah kode muat di stikernya: lebar
+     * modul cetak = lebar kotak ÷ angka ini. Pemanggil cetak memakainya untuk
+     * MENOLAK kode yang tidak muat alih-alih mengecilkan gambarnya sampai di
+     * bawah MIN_MODULE_MM — penyusutan diam-diam adalah bagaimana lembar F/LBL
+     * dulu menghasilkan stiker yang tidak terbaca pemindai mana pun tanpa satu
+     * pun kata di layar.
+     */
+    public static function moduleCount(string $data): int
+    {
+        $modules = 2 * self::QUIET_MODULES;
+
+        foreach (self::encode($data) as $value) {
+            $modules += array_sum(array_map('intval', str_split(self::PATTERNS[$value])));
+        }
+
+        return $modules;
+    }
+
+    /**
      * Label sebagai SVG mandiri.
      *
-     * $options: module (px per modul), height (tinggi batang px),
-     * text (bool, teks terbaca-manusia), fontSize, label (teks manusia yang
-     * DIBACA, bila berbeda dari yang dikodekan — dipakai untuk menuliskan
-     * "ITM-0001" di bawah barcode pemasok).
+     * $options: module (satuan viewBox per modul), height (tinggi batang dalam
+     * satuan viewBox), text (bool, teks terbaca-manusia), fontSize, label
+     * (teks manusia yang DIBACA, bila berbeda dari yang dikodekan — dipakai
+     * untuk menuliskan "ITM-0001" di bawah barcode pemasok), dan widthMm.
+     *
+     * `widthMm` ADALAH SATU-SATUNYA OPSI YANG MENENTUKAN UKURAN CETAK.
+     * `module` hanya memilih satuan viewBox; begitu SVG-nya diletakkan di
+     * dalam kotak yang lebih sempit daripada lebar alaminya, yang menentukan
+     * lebar batang di kertas adalah kotaknya, bukan opsinya. Sebelum widthMm
+     * ada, menaikkan `module` dari 2 ke 6 pada lembar F/LBL menghasilkan
+     * barcode yang lebar batangnya PERSIS SAMA dan tingginya sepertiga —
+     * sebuah kendali yang tidak mengendalikan apa pun. Dengan widthMm, atribut
+     * width/height SVG ditulis dalam milimeter dan lebar modul cetaknya
+     * terhitung: widthMm ÷ moduleCount().
      */
     public static function svg(string $data, array $options = []): string
     {
@@ -209,7 +260,26 @@ final class Code128
         }
 
         $width = $x + self::QUIET_MODULES * $module;
-        $textHeight = $withText ? $fontSize + 6 : 0;
+
+        /*
+         * TEKS MANUSIA DIPATAHKAN, TIDAK DIBIARKAN KELUAR VIEWPORT.
+         *
+         * `<text text-anchor="middle">` dipusatkan pada $width/2 tanpa satu pun
+         * batas lebar, dan akar SVG memotong yang keluar — DI KEDUA UJUNG,
+         * diam-diam. Barcode 13 digit di bawah kode item 40 karakter tercetak
+         * sebagai 12 digit yang terlihat lengkap: orang gudang yang batangnya
+         * tergores mengetik ulang `899100212345` untuk barang ber-barcode
+         * `8991002123458`, sistem menjawab "tidak ada item dengan kode itu",
+         * dan tidak ada apa pun di label yang memberi tahu bahwa yang dibacanya
+         * sudah terpotong.
+         *
+         * Dipatahkan dan bukan dikecilkan fontnya: font yang menyusut sampai
+         * muat berhenti bisa dibaca orang, dan yang dibutuhkan baris ini
+         * justru dibaca orang.
+         */
+        $lines = $withText ? self::wrapLabel($human, $width, $fontSize) : [];
+        $lineHeight = $fontSize + 3;
+        $textHeight = $lines === [] ? 0 : count($lines) * $lineHeight + 3;
         $height = $barHeight + $textHeight;
 
         $rects = '';
@@ -220,25 +290,62 @@ final class Code128
 
         $text = '';
 
-        if ($withText) {
-            $text = sprintf(
+        foreach ($lines as $index => $line) {
+            $text .= sprintf(
                 '<text x="%s" y="%d" text-anchor="middle" font-family="monospace" font-size="%d" fill="#000">%s</text>',
                 $width / 2,
-                $barHeight + $fontSize + 2,
+                $barHeight + $fontSize + 2 + $index * $lineHeight,
                 $fontSize,
-                htmlspecialchars($human, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                htmlspecialchars($line, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
             );
         }
 
+        // Ukuran cetak dalam MILIMETER bila pemanggilnya menyebutnya; kalau
+        // tidak, satuan viewBox seperti sebelumnya (SVG mandiri di luar lembar
+        // cetak, mis. pratinjau layar).
+        $widthMm = isset($options['widthMm']) ? (float) $options['widthMm'] : null;
+        $size = $widthMm === null
+            ? sprintf('width="%d" height="%d"', $width, $height)
+            : sprintf('width="%smm" height="%smm"',
+                self::mm($widthMm),
+                self::mm($widthMm * $height / $width),
+            );
+
         return sprintf(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" role="img" aria-label="Barcode %s">'
+            '<svg xmlns="http://www.w3.org/2000/svg" %s viewBox="0 0 %d %d" role="img" aria-label="Barcode %s">'
             .'<rect x="0" y="0" width="%d" height="%d" fill="#fff"/><g fill="#000">%s</g>%s</svg>',
-            $width, $height, $width, $height,
+            $size, $width, $height,
             htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
             $width, $height,
             $rects,
             $text,
         );
+    }
+
+    /**
+     * Teks manusia dipecah menjadi baris yang MUAT di dalam viewBox.
+     *
+     * @return list<string>
+     */
+    private static function wrapLabel(string $text, int $width, int $fontSize): array
+    {
+        $perLine = max(1, (int) floor($width / ($fontSize * self::MONO_ADVANCE)));
+        $characters = mb_str_split($text);
+
+        if (count($characters) <= $perLine) {
+            return [$text];
+        }
+
+        return array_map(
+            fn (array $chunk): string => implode('', $chunk),
+            array_chunk($characters, $perLine),
+        );
+    }
+
+    /** Milimeter tanpa nol ekor yang tak berarti — atribut SVG, bukan kalimat. */
+    private static function mm(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 3, '.', ''), '0'), '.');
     }
 
     /**

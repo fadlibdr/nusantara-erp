@@ -5,6 +5,7 @@ namespace Tests\Feature\Inventory;
 use InvalidArgumentException;
 use Modules\Core\Support\Code128;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\ExpectationFailedException;
 use Tests\TestCase;
 
 /**
@@ -224,9 +225,48 @@ class Code128Test extends TestCase
     }
 
     /**
+     * SVG yang dirakit DI DALAM UJI dari deret nilai sembarang — termasuk
+     * deret yang digit periksanya salah, yang tidak bisa dihasilkan produksi.
+     *
+     * @param  list<int>  $values
+     */
+    private function svgFromValues(array $values, int $module = Code128::DEFAULT_MODULE): string
+    {
+        $x = Code128::QUIET_MODULES * $module;
+        $rects = '';
+        $isBar = true;
+
+        foreach ($values as $value) {
+            foreach (str_split(Code128::PATTERNS[$value]) as $element) {
+                $width = ((int) $element) * $module;
+
+                if ($isBar) {
+                    $rects .= sprintf('<rect x="%d" y="0" width="%d" height="40"/>', $x, $width);
+                }
+
+                $x += $width;
+                $isBar = ! $isBar;
+            }
+
+            $isBar = true;
+        }
+
+        $width = $x + Code128::QUIET_MODULES * $module;
+
+        return sprintf('<svg viewBox="0 0 %d 46"><g fill="#000">%s</g></svg>', $width, $rects);
+    }
+
+    /**
      * PEMBEDA: satu digit periksa yang salah harus MENJATUHKAN dekoder di
      * atas. Tanpa lengan ini, "bolak-balik berhasil" tidak membuktikan bahwa
      * digit periksanya benar — hanya bahwa encoder dan dekoder sepakat.
+     *
+     * VERSI PERTAMA UJI INI TIDAK PERNAH MEMANGGIL DEKODERNYA. Ia hanya
+     * membandingkan checksum(prefix) dengan (checksum(prefix)+1) % 103 —
+     * pernyataan yang hampir tidak mungkin gagal, dan yang tetap HIJAU dengan
+     * `return ($sum + 1) % 103;` dipasang di produksi. Sekarang simbolnya
+     * benar-benar dirakit dengan digit periksa yang digeser satu, dan
+     * dekodernya benar-benar dijalankan atasnya.
      */
     public function test_a_wrong_check_digit_is_caught_by_the_decoder(): void
     {
@@ -234,11 +274,26 @@ class Code128Test extends TestCase
         $checkIndex = count($values) - 2;
         $values[$checkIndex] = ($values[$checkIndex] + 1) % 103;
 
-        $this->assertNotSame(
-            Code128::checksum(array_slice($values, 0, $checkIndex)),
-            $values[$checkIndex],
-            'Mutasi digit periksa tidak mengubah apa pun — ujinya tidak membedakan.',
-        );
+        try {
+            $decoded = $this->decode($this->svgFromValues($values));
+        } catch (ExpectationFailedException $refusal) {
+            $this->assertStringContainsString(
+                'Digit periksa mod-103 tidak cocok',
+                $refusal->getMessage(),
+                'Dekoder menolak simbol ini, tetapi bukan karena digit periksanya.',
+            );
+
+            return;
+        }
+
+        $this->fail("Dekoder membaca \"{$decoded}\" dari simbol yang digit periksanya salah: sebuah label dengan "
+            .'digit periksa keliru akan lolos setiap uji di berkas ini dan ditolak setiap pemindai di gudang.');
+    }
+
+    /** …dan simbol yang digit periksanya BENAR tetap terbaca lewat jalur rakitan yang sama. */
+    public function test_the_hand_assembled_symbol_path_reads_a_correct_symbol_back(): void
+    {
+        $this->assertSame('ITM-0001', $this->decode($this->svgFromValues(Code128::encode('ITM-0001'))));
     }
 
     /** Digit periksa yang benar, dihitung tangan untuk satu contoh yang dikenal. */
