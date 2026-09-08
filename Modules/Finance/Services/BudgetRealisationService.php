@@ -866,6 +866,22 @@ class BudgetRealisationService
             'committed' => $side['committed'],
             'used' => $used,
             'remaining' => $side['remaining'],
+            /*
+             * Plafon dan pelampauan sebagai TEKS, dihitung di sini.
+             *
+             * Layar portofolio dulu memformat `remaining` sendiri dengan
+             * fmt.rupiah (Math.round — setengah KE ATAS), jadi sisa Rp 0,67
+             * tercetak "Rp 1" dan PO sebesar Rp 1 dijawab 422 oleh gerbang yang
+             * sama: sel itu menawarkan rupiah yang gerbangnya tolak (verifikasi
+             * F-2 putaran 3, 8 Sep 2026). Satu definisi, di sisi server, dipakai
+             * kalimat sisi DAN sel tabel.
+             */
+            'ceiling_text' => $budget === null || (float) $side['remaining'] < 0.0
+                ? null
+                : self::ceilingRupiah((float) $side['remaining']),
+            'overrun_text' => $budget === null || (float) $side['remaining'] >= 0.0
+                ? null
+                : self::overrunRupiah((float) $side['remaining']),
             'pct' => WatchedThresholds::pct($used, $budget),
             // Keadaan sisi dihitung aturan yang sama dengan setiap baris
             // registri — termasuk aturan batas Rp 0: dianggarkan nol dan sudah

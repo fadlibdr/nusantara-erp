@@ -141,7 +141,14 @@ class BudgetGateService
                 : 'menyisakan '.BudgetRealisationService::ceilingRupiah($remaining),
             $documentName,
             Money::format($documentDpp, false),
-            Money::format($overshoot, false),
+            // Pelampauan dibulatkan KE ATAS, aturan yang sama dengan klausa sisa
+            // di atas dan dari helper yang sama. Money::format(…, false)
+            // membulatkan SETENGAH KE ATAS, jadi setiap pelampauan di bawah
+            // Rp 0,50 tercetak "Rp 0" — kalimat yang menolak sambil mengatakan
+            // tidak ada yang dilampaui (verifikasi F-2 putaran 3, 8 Sep 2026:
+            // sisa Rp 66.666.666,67, PO Rp 66.666.667 ditolak "melampaui
+            // anggaran Rp 0").
+            BudgetRealisationService::overrunRupiah(-$overshoot),
         );
 
         if ($mode === 'block') {

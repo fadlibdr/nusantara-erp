@@ -5,6 +5,7 @@ namespace Tests\Feature\Estimation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
@@ -257,7 +258,7 @@ class RapRevisionTest extends ErpTestCase
         try {
             $this->service->revise($draft, ['revision_reason' => 'apa pun'], $this->maker());
             $this->fail('RAP draf seharusnya tidak bisa direvisi');
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             $this->assertStringContainsString('cukup diubah langsung', $e->getMessage());
         }
 
@@ -371,7 +372,7 @@ class RapRevisionTest extends ErpTestCase
         try {
             $this->service->revise($rev0->refresh(), ['revision_reason' => 'CCO-05 cabang kedua'], $this->maker());
             $this->fail('revisi kedua dari RAP yang sama seharusnya ditolak');
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             $this->assertStringContainsString('revisi yang belum selesai', $e->getMessage());
             $this->assertStringContainsString($first->code, $e->getMessage());
         }
@@ -433,7 +434,7 @@ class RapRevisionTest extends ErpTestCase
         try {
             $this->service->approve($cabangB->refresh(), $this->checker());
             $this->fail('RAP kedua yang mengatur seharusnya ditolak');
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             $this->assertStringContainsString('sudah punya RAP yang berlaku ('.$cabangA->code.')', $e->getMessage());
         }
 
@@ -505,7 +506,7 @@ class RapRevisionTest extends ErpTestCase
         try {
             $this->service->approve($revisi->refresh(), $this->checker());
             $this->fail('RAP kedua yang mengatur seharusnya ditolak');
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             $this->assertStringContainsString('sudah punya RAP yang berlaku ('.$lama->code.')', $e->getMessage());
             $this->assertStringContainsString('nyatakan RAP itu DIGANTIKAN', $e->getMessage());
         }
@@ -546,7 +547,7 @@ class RapRevisionTest extends ErpTestCase
         try {
             $this->service->supersede($satu, $this->checker(), 'coba-coba');
             $this->fail('RAP satu-satunya seharusnya tidak bisa digantikan begitu saja');
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             $this->assertStringContainsString('satu-satunya RAP yang berlaku', $e->getMessage());
         }
 
@@ -620,5 +621,44 @@ class RapRevisionTest extends ErpTestCase
 
         // Yang berlaku tinggal satu, dan gerbang membacanya.
         $this->assertSame(200000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+    }
+
+    /**
+     * RAP yang SEDANG MENGATUR tidak bisa dinyatakan digantikan.
+     *
+     * Jalan keluar warisan (dua RAP disetujui yang tidak saling menggantikan)
+     * memindahkan anggaran ke saudaranya bila yang dinyatakan digantikan adalah
+     * si pengatur — diukur verifikasi F-2 putaran 3: satu POST menaikkan plafon
+     * setiap PO/SPK berikutnya Rp 300 juta tanpa satu persetujuan anggaran pun,
+     * dengan jejak "digantikan oleh" dokumen yang LEBIH TUA. SPA menyembunyikan
+     * tombolnya; pintu yang terbuka adalah layanannya.
+     */
+    public function test_the_governing_rap_cannot_be_declared_superseded(): void
+    {
+        // Data WARISAN: dua RAP disetujui yang tidak saling menggantikan — bentuk
+        // yang justru menjadi alasan jalan keluar ini ada.
+        $project = $this->project('PRJ-WARISAN');
+        $first = $this->rap($project, ['material' => 1_000_000_000]);
+        $second = $this->rap($project, ['material' => 700_000_000]);
+
+        $service = app(RapService::class);
+        $governing = $service->governing((int) $project->id);
+        $this->assertNotNull($governing, 'Fixture warisan tidak menghasilkan RAP pengatur.');
+        $other = $governing->is($first) ? $second : $first;
+
+        try {
+            $service->supersede($governing, $this->checker(), 'Membersihkan data warisan');
+            $this->fail('Layanan menerima penggantian RAP yang sedang mengatur.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('SEDANG MENGATUR', $e->getMessage());
+            $this->assertStringContainsString($governing->code, $e->getMessage());
+        }
+
+        // …dan yang BUKAN pengatur tetap bisa — jalan keluarnya masih ada.
+        $service->supersede($other, $this->checker(), 'Membersihkan data warisan');
+
+        $this->assertNotNull($other->refresh()->superseded_at);
+        $this->assertTrue($service->governing((int) $project->id)->is($governing),
+            'Anggaran yang dibaca gerbang bergeser setelah membersihkan saudara yang bukan pengatur.');
     }
 }

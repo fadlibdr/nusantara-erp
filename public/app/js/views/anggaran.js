@@ -82,7 +82,13 @@ function sisaPerSisi(row) {
     const side = sides[key];
     if (!side || side.budget === null || side.budget === undefined) return `${label} —`;
     if (Number(side.budget) <= 0) return `${label} tidak dianggarkan`;
-    return `${label} ${fmt.rupiah(side.remaining)}`;
+    /* Teks dari SERVER, bukan fmt.rupiah(side.remaining): fmt.rupiah memakai
+       Math.round — setengah KE ATAS — jadi sisa Rp 0,67 tercetak "Rp 1"
+       sementara PO Rp 1 dijawab 422 oleh gerbang yang sama. Plafon dibulatkan
+       KE BAWAH dan pelampauan KE ATAS di BudgetRealisationService, satu
+       definisi untuk kalimat sisi dan sel ini (verifikasi F-2 putaran 3). */
+    if (side.overrun_text) return `${label} lampau ${side.overrun_text}`;
+    return `${label} ${side.ceiling_text}`;
   };
 
   return `${teks('non_subcon', 'PO')} · ${teks('subcon', 'SPK')}`;

@@ -426,6 +426,31 @@ class RapService
             ));
         }
 
+        /*
+         * Yang SEDANG MENGATUR tidak boleh dinyatakan digantikan dari sini.
+         *
+         * Jalan keluar ini ada untuk data warisan: dua RAP disetujui yang tidak
+         * saling menggantikan, salah satunya bukan yang dibaca gerbang. Menyatakan
+         * yang MENGATUR digantikan memindahkan anggaran ke saudaranya — diukur
+         * pada data warisan RAP/2026/0001 (Rp 1 miliar) + RAP/2026/0002 (Rp 700
+         * juta, yang mengatur): satu POST menaikkan plafon setiap PO/SPK
+         * berikutnya Rp 300 juta tanpa satu persetujuan anggaran pun, dan
+         * jejaknya berbunyi "digantikan oleh" sebuah dokumen yang LEBIH TUA
+         * (verifikasi F-2 putaran 3, 8 Sep 2026). SPA sudah menyembunyikan
+         * tombolnya; pintu yang terbuka adalah layanan dan rutenya, dan
+         * konvensi repo menyebut layanan sebagai satu-satunya pintu.
+         */
+        if ($this->governing((int) $budget->project_id)?->is($budget) ?? false) {
+            throw new LogicException(sprintf(
+                'RAP %s adalah RAP yang SEDANG MENGATUR proyek ini — anggaran yang dibaca gerbang PO/SPK. '
+                .'Menyatakannya digantikan akan memindahkan plafon ke RAP lain tanpa satu persetujuan '
+                .'anggaran pun. Yang bisa dinyatakan digantikan adalah RAP disetujui yang BUKAN pengatur; '
+                .'kalau angkanya yang perlu berubah, buat revisinya — revisi menggantikan pendahulunya '
+                .'pada detik ia disetujui.',
+                $budget->code,
+            ));
+        }
+
         if ((int) $successor->project_id !== (int) $budget->project_id
             || $successor->status !== DocumentStatus::Approved
             || $successor->superseded_at !== null
