@@ -98,8 +98,41 @@ class ActivityDeadlineWatchTest extends ErpTestCase
         $this->assertSame('due_at', $entry['date']);
         $this->assertSame('crm.update', $entry['permission'],
             'yang harus bertindak adalah orang yang bisa menandainya selesai');
-        $this->assertSame('r/crm/activities', $entry['link']);
+        $this->assertSame('r/crm/activities?state=open', $entry['link']);
         $this->assertArrayNotHasKey('value', $entry, 'aktivitas tidak menyimpan rupiah — jangan mengutip angka yang tidak ada');
+    }
+
+    /**
+     * TUJUAN PEMBERITAHUANNYA HARUS BISA MENJAWAB PERTANYAANNYA.
+     *
+     * `link` membawa saringan `state=open`, dan views/list.js hanya menerima
+     * kunci query yang dideklarasikan `def.filters` (seedFromUrl → `declared`):
+     * sebuah kunci yang tidak ada di schema.js dibuang DIAM-DIAM, dan layarnya
+     * terbuka pada urutan bawaannya — due_at menaik lintas keadaan, yang
+     * menaruh pekerjaan selesai 20 bulan lalu di baris pertama (diukur di
+     * peramban 8 Sep 2026). Uji ini membaca kedua sisinya sekaligus, karena
+     * penyimpangannya senyap: tidak ada galat, hanya jawaban yang salah.
+     */
+    public function test_the_notification_link_asks_a_question_the_screen_can_answer(): void
+    {
+        $entry = collect(WatchedDeadlines::entries())->firstWhere('key', 'crm_activity_due');
+        [$path, $query] = array_pad(explode('?', (string) $entry['link'], 2), 2, '');
+
+        $this->assertSame('r/crm/activities', $path);
+        parse_str($query, $params);
+        $this->assertNotEmpty($params, 'tautan tanpa saringan membuka arsip, bukan antrean');
+
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $start = strpos($schema, "  'crm/activities': {");
+        $this->assertNotFalse($start);
+        $end = strpos($schema, "\n  '", $start + 5);
+        $block = substr($schema, $start, $end === false ? null : $end - $start);
+
+        foreach (array_keys($params) as $key) {
+            $this->assertStringContainsString("{ key: '{$key}',", $block,
+                "saringan [{$key}] tidak dideklarasikan di layar crm/activities — views/list.js membuangnya diam-diam, "
+                .'dan pemberitahuan jatuh tempo membuka daftar yang tidak disaring apa pun');
+        }
     }
 
     public function test_an_activity_nearing_its_due_date_notifies_sales(): void
@@ -113,7 +146,7 @@ class ActivityDeadlineWatchTest extends ErpTestCase
         $this->assertStringContainsString('Telepon Pak Rudi', $alarm->body);
         $this->assertStringContainsString('jatuh tempo 10 Sep 2026', $alarm->body);
         $this->assertStringContainsString('2 hari lagi', $alarm->body);
-        $this->assertSame('r/crm/activities', $alarm->link);
+        $this->assertSame('r/crm/activities?state=open', $alarm->link);
     }
 
     /** lead_days 3: sebuah telepon dijadwalkan dalam hitungan hari. */

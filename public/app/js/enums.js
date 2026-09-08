@@ -95,6 +95,13 @@ export const ENUMS = {
     ['call', 'Telepon'], ['meeting', 'Rapat'], ['email', 'Email'],
     ['visit', 'Kunjungan'], ['note', 'Catatan'],
   ]),
+  /* Keadaan sebuah aktivitas — cermin tiga cabang `state` di
+     ActivityController::index. Tiga, bukan satu bendera: "lewat tanggal"
+     adalah bagian dari "terbuka", dan menggabungkannya membuat antrean kerja
+     harian mustahil ditanyakan. Urutannya urutan yang ditanyakan orang. */
+  activityState: opts([
+    ['open', 'Terbuka'], ['overdue', 'Lewat tanggal'], ['done', 'Selesai'],
+  ]),
   /* Jenis dokumen tempat sebuah aktivitas menggantung — cermin
      ActivityDocuments::DOCUMENTS. */
   activityDocument: opts([

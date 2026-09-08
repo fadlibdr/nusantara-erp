@@ -409,6 +409,16 @@ export const RESOURCES = {
       { key: 'done_at', label: 'Selesai', type: 'datetime' },
     ],
     filters: [
+      /* KEADAAN LEBIH DULU: layar ini adalah tujuan pemberitahuan jatuh tempo
+         (WatchedDeadlines crm_activity_due menautkan ke
+         `r/crm/activities?state=open`), dan pertanyaan yang dibawa orang ke
+         sini adalah "apa yang harus saya kerjakan". Tanpa saringan ini urutan
+         bawaannya (due_at menaik, lintas keadaan) menaruh pekerjaan yang
+         SELESAI 20 bulan lalu di baris pertama — diukur 8 Sep 2026:
+         "10 Jan 2025 · 606 hari lalu · Kunjungan pertama · selesai 15 Jan
+         2025". Servernya sudah punya ketiga keadaannya sejak T3.7; yang tidak
+         ada hanyalah kontrolnya. */
+      { key: 'state', label: 'Keadaan', enum: 'activityState' },
       { key: 'type', label: 'Jenis', enum: 'activityType' },
       { key: 'document_type', label: 'Dokumen', enum: 'activityDocument' },
       { key: 'owner_user_id', label: 'Pemilik', lookup: 'users' },

@@ -168,7 +168,19 @@ class WatchedDeadlines
                 'lead_days' => 3,
                 'valid_through_end' => true,
                 'permission' => 'crm.update',
-                'link' => 'r/crm/activities',
+                /*
+                 * ?state=open — pemberitahuan yang membuka antrean SESEORANG,
+                 * bukan arsip. Tanpa saringan itu layarnya terbuka pada urutan
+                 * due_at menaik LINTAS KEADAAN, jadi baris pertamanya adalah
+                 * pekerjaan yang sudah selesai bertahun lalu ("10 Jan 2025 ·
+                 * 606 hari lalu", diukur 8 Sep 2026) — dan kedua tingkat entri
+                 * ini (MENIPIS dan LEWAT) sama-sama bicara tentang aktivitas
+                 * yang BELUM selesai, jadi satu saringan melayani keduanya.
+                 * Kuncinya harus dideklarasikan di `def.filters` schema.js,
+                 * atau views/list.js membuangnya diam-diam — itu yang dipaku
+                 * ActivityDeadlineWatchTest.
+                 */
+                'link' => 'r/crm/activities?state=open',
                 'title_upcoming' => 'Aktivitas CRM mendekati jatuh tempo',
                 'title_overdue' => 'Aktivitas CRM lewat jatuh tempo',
                 'columns' => ['done_at', 'deleted_at'],
