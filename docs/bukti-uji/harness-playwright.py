@@ -7592,6 +7592,774 @@ def s31s(pg):
     return out
 
 
+
+
+# --------------------------------------------------------------------- F-6
+#
+# Dua skenario, dan keduanya mengukur hal yang TIDAK BISA dilihat suite PHP:
+#
+#   S32  ambang yang menang tertulis di layar bersama angka yang kalah, dan
+#        menekan "Buat PR draf" DUA KALI hanya menghasilkan satu PR — dibuktikan
+#        di peramban, bukan di service;
+#   S33  label F/LBL benar-benar TERGAMBAR oleh Chromium (SVG yang cacat tidak
+#        menggambar apa pun sementara HTML-nya tetap 200), dan layar pindai
+#        mengucapkan kalimat yang BERBEDA untuk keempat keadaan kameranya.
+#
+# Fixture-nya ditanam lewat API dan DIKEMBALIKAN sesudahnya: keduanya berjalan
+# di atas SALINAN basis data demo, dan skenario yang meninggalkan aturan reorder
+# atau barcode ganda akan mengubah angka skenario orang lain pada putaran
+# berikutnya.
+
+F6_WAREHOUSE = "WH-PRJ-2026-001"   # gudang site PRJ-2026-001, canon CONVENTIONS §8
+F6_ITEM = "ITM-0001"               # Semen Portland 50kg, saldo 350 di gudang itu
+F6_POINT = 400                     # di ATAS saldo → barisnya muncul karena ATURAN
+F6_ORDER_QTY = 500
+
+
+def _f6_ids(tok):
+    """id gudang dan item canon. Tidak dikarang: dibaca dari daftar hidup."""
+    _, wh = api(f"inventory/warehouses?q={F6_WAREHOUSE}", tok)
+    _, it = api(f"inventory/items?q={F6_ITEM}", tok)
+    w = next((r for r in wh.get("data", []) if r["code"] == F6_WAREHOUSE), None)
+    i = next((r for r in it.get("data", []) if r["code"] == F6_ITEM), None)
+    return (w or {}).get("id"), (i or {}).get("id")
+
+
+def _f6_plant_rule(tok, warehouse_id, item_id, point=F6_POINT, order_qty=F6_ORDER_QTY):
+    """Aturan reorder untuk pasangan itu, dibuat atau disetel ulang.
+
+    POST kedua atas pasangan yang sama ditolak 422 dengan kalimatnya sendiri
+    (itu justru aturannya), jadi putaran kedua harus MENYUNTING yang ada —
+    kalau tidak skenario ini jatuh pada run kedua di mesin yang sama."""
+    _, existing = api(f"inventory/reorder-rules?warehouse_id={warehouse_id}&item_id={item_id}", tok)
+    row = next(iter(existing.get("data", [])), None)
+    body = {"warehouse_id": warehouse_id, "item_id": item_id,
+            "reorder_point": point, "reorder_qty": order_qty, "is_active": True,
+            "notes": "Ditanam harness S32."}
+    if row:
+        api(f"inventory/reorder-rules/{row['id']}", tok, "PUT", body)
+        return row["id"], False
+    s, d = api("inventory/reorder-rules", tok, "POST", body)
+    return d.get("data", {}).get("id"), True
+
+
+def _f6_pick_target(tok):
+    """Pasangan gudang × item yang BISA diusulkan, DIPILIH DARI DATA.
+
+    Versi pertama skenario ini memaku pasangan canon (WH-PRJ-2026-001 ×
+    ITM-0001) dan jatuh: pada basis data demo item itu SUDAH menjadi baris PR
+    disetujui PR/2026/II/0001, jadi barisnya dilewati sejak awal dan PR yang
+    menutupinya bukan PR yang dibuat skenario ini. Kegagalan itu adalah
+    fiturnya bekerja, bukan fiturnya rusak — tetapi skenario yang menganggapnya
+    kegagalan tidak bisa dipercaya.
+
+    Jadi targetnya dicari: untuk tiap saldo bukan-nol, aturan ditanam dengan
+    titik DI ATAS saldonya lalu usulan dibaca; pasangan pertama yang muncul
+    TIDAK dilewati adalah yang dipakai. Aturan yang tidak terpakai dibuang lagi
+    di tempat, jadi loop ini tidak meninggalkan apa pun."""
+    _, balances = api("inventory/stock/balances?per_page=200&nonzero=1", tok)
+
+    for row in balances.get("data", [])[:12]:
+        item, wh = row.get("item") or {}, row.get("warehouse") or {}
+        qty = float(row.get("qty") or 0)
+        if qty <= 0 or not item.get("id") or not wh.get("id"):
+            continue
+
+        point = int(qty) + 10
+        rule_id, created = _f6_plant_rule(tok, wh["id"], item["id"], point, point + 40)
+        _, proposal = api(f"inventory/reorder/proposal?warehouse_id={wh['id']}", tok)
+        planted = next((r for r in proposal.get("data", {}).get("rows", [])
+                        if r["item_id"] == item["id"] and r["warehouse_id"] == wh["id"]), None)
+
+        if planted and not planted["skipped"]:
+            return {"warehouse": wh, "item": item, "qty": qty, "point": point,
+                    "order_qty": point + 40, "rule_id": rule_id, "created": created,
+                    "min_stock": float(item.get("min_stock") or 0)}
+
+        _f6_drop_rule(tok, rule_id, created)
+
+    return None
+
+
+def _f6_drop_rule(tok, rule_id, created):
+    if created and rule_id:
+        api(f"inventory/reorder-rules/{rule_id}", tok, "DELETE")
+
+
+def _f6_drop_requisitions(tok, codes):
+    """PR draf yang dibuat skenario ini dibuang lagi.
+
+    Kalau tidak, putaran berikutnya menemukan itemnya sudah ada di PR terbuka
+    dan tidak akan pernah bisa mengukur pembuatan PR-nya lagi — idempotensi
+    yang justru diuji skenario ini akan mengunci skenarionya sendiri."""
+    for code in codes:
+        _, listing = api(f"procurement/purchase-requisitions?q={code}", tok)
+        for row in listing.get("data", []):
+            if row.get("code") == code:
+                api(f"procurement/purchase-requisitions/{row['id']}", tok, "DELETE")
+
+
+F6_ROWS = """() => [...document.querySelectorAll('table.data tbody tr')].map(tr => ({
+  text: tr.innerText.replace(/\\s+/g, ' ').trim(),
+  cells: [...tr.querySelectorAll('td')].map(td => td.innerText.replace(/\\s+/g, ' ').trim()),
+}))"""
+
+
+@scenario("S32_reorder_usulan_pr")
+def s32(pg):
+    """Ambang yang MENANG di layar, dan usulan PR yang idempoten.
+
+    Dua hal yang tidak bisa dibuktikan suite PHP: (1) baris "perlu dipesan
+    ulang" benar-benar mencetak ambang aturan BESERTA stok minimum item yang
+    digantikannya — sebuah baris yang hanya menulis 410 tidak memberi tahu
+    siapa pun bahwa angka perusahaannya 200; (2) menekan tombolnya dua kali
+    menghasilkan satu PR, dilihat dari layar."""
+    tok = token_for("admin@nusantara.test")
+    target = _f6_pick_target(tok)
+    out = {}
+    if target is None:
+        out["SKIPPED"] = ("Tidak ada satu pun pasangan gudang × item pada salinan DB ini yang bisa "
+                          "diusulkan: semuanya sudah menjadi baris PR terbuka.")
+        return out
+
+    item, wh = target["item"], target["warehouse"]
+    out["target"] = {"item": item["code"], "warehouse": wh["code"], "qty": target["qty"],
+                     "point": target["point"], "min_stock": target["min_stock"],
+                     "order_qty": target["order_qty"]}
+    made = []
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+    try:
+        login(pg, "admin@nusantara.test")
+
+        # ---------------------------------------------- daftar aturan reorder
+        pg.goto(BASE + "#/r/inventory/reorder-rules")
+        pg.wait_for_selector("table.data", timeout=20000)
+        pg.wait_for_timeout(1200)
+        assert_screen(pg, "#/r/inventory/reorder-rules")
+        out["rules_screen"] = {
+            # innerText, jadi kepala kolom datang dalam huruf besar (text-transform
+            # CSS). Dibandingkan tanpa memedulikan besar-kecil huruf: yang diuji
+            # adalah ADANYA kolom itu, bukan cara CSS menulisnya.
+            "headers": pg.evaluate("() => [...document.querySelectorAll('table.data thead th')].map(t => t.innerText.trim())"),
+            "planted_row": pg.evaluate(
+                "(code) => { const tr = [...document.querySelectorAll('table.data tbody tr')]"
+                ".find(r => r.innerText.includes(code)); return tr ? tr.innerText.replace(/\\s+/g,' ').trim() : null; }",
+                item["code"]),
+        }
+        pg.screenshot(path=f"{OUT}/s32-aturan-reorder.png", full_page=False)
+
+        # -------------------------------------- tab "Perlu dipesan ulang"
+        pg.goto(BASE + "#/stock")
+        pg.wait_for_selector(".tabs button", timeout=20000)
+        click(pg, ".tabs button:has-text('Perlu dipesan ulang')")
+        pg.wait_for_selector("table.data tbody tr", timeout=20000)
+        pg.wait_for_timeout(800)
+        out["stock_low"] = {
+            "headers": pg.evaluate("() => [...document.querySelectorAll('table.data thead th')].map(t => t.innerText.trim())"),
+            "rows": pg.evaluate(F6_ROWS),
+            "priority_sentence": pg.evaluate(
+                "() => { const n = [...document.querySelectorAll('.card-body .cell-sub')]"
+                ".find(e => /Ambang tiap baris/.test(e.innerText)); return n ? n.innerText.replace(/\\s+/g,' ').trim() : null; }"),
+        }
+        pg.screenshot(path=f"{OUT}/s32-stok-perlu-dipesan.png", full_page=False)
+
+        # Item yang sama bisa punya baris di DUA gudang; barisnya dikenali dari
+        # kode item DAN nama gudangnya. Versi pertama skenario ini mencocokkan
+        # kode item saja dan mengukur baris gudang yang lain.
+        def mine(rows):
+            return next((r for r in rows if item["code"] in r["text"] and wh["name"] in r["text"]), None)
+
+        planted = mine(out["stock_low"]["rows"])
+        out["planted_low_row"] = planted
+
+        # ------------------------------------------------ usulan pesan ulang
+        pg.goto(BASE + "#/usulan-pesan-ulang")
+        pg.wait_for_selector("table.data tbody tr", timeout=20000)
+        pg.wait_for_timeout(800)
+        assert_screen(pg, "#/usulan-pesan-ulang", "Usulan Pesan Ulang")
+        out["before"] = {
+            "stats": pg.evaluate("() => [...document.querySelectorAll('.stat')].map(s => s.innerText.replace(/\\s+/g,' ').trim())"),
+            "why_skipped_card": pg.evaluate(
+                "() => { const c = [...document.querySelectorAll('.card')].find(x => /Yang dilewati/.test(x.innerText));"
+                "return c ? c.innerText.replace(/\\s+/g,' ').trim() : null; }"),
+            "rows": pg.evaluate(F6_ROWS),
+            "create_button": pg.locator("button:has-text('Buat PR draf')").count(),
+        }
+        pg.screenshot(path=f"{OUT}/s32-usulan-sebelum.png", full_page=False)
+
+        before_codes = {r["code"] for r in api("procurement/purchase-requisitions?per_page=200", tok)[1].get("data", [])}
+
+        # ------------------------------------------------- tekan sekali…
+        click(pg, "button:has-text('Buat PR draf')")
+        pg.wait_for_timeout(4000)
+        out["first_press"] = {"toasts": toasts(pg), "hash": pg.evaluate("() => location.hash")}
+
+        after = api("procurement/purchase-requisitions?per_page=200", tok)[1].get("data", [])
+        made = [r["code"] for r in after if r["code"] not in before_codes]
+        out["created_codes"] = made
+        out["created_statuses"] = sorted({r["status"] for r in after if r["code"] in made})
+
+        # ------------------------------------------------- …lalu sekali lagi
+        pg.goto(BASE + "#/usulan-pesan-ulang")
+        pg.wait_for_selector("table.data tbody tr", timeout=20000)
+        pg.wait_for_timeout(1000)
+        out["after"] = {
+            "stats": pg.evaluate("() => [...document.querySelectorAll('.stat')].map(s => s.innerText.replace(/\\s+/g,' ').trim())"),
+            "rows": pg.evaluate(F6_ROWS),
+            "create_button": pg.locator("button:has-text('Buat PR draf')").count(),
+            "all_skipped_line": pg.evaluate(
+                "() => { const n = [...document.querySelectorAll('.card-head .cell-sub')]"
+                ".find(e => /sudah ada di PR terbuka/.test(e.innerText)); return n ? n.innerText.trim() : null; }"),
+        }
+        pg.screenshot(path=f"{OUT}/s32-usulan-sesudah.png", full_page=False)
+
+        # Tombolnya sudah hilang dari layar — tetapi layar yang menyembunyikan
+        # tombol bukan gerbang. Endpoint-nya dipanggil LANGSUNG, dan ia harus
+        # menolak dengan daftar kosong, bukan membuat PR kedua.
+        s2, again = api("inventory/reorder/requisitions", tok, "POST", {})
+        out["second_press_direct"] = {"status": s2, "created": again.get("data", {}).get("created"),
+                                      "message": again.get("data", {}).get("message")}
+
+        final = api("procurement/purchase-requisitions?per_page=200", tok)[1].get("data", [])
+        out["requisitions_after_second_press"] = len([r for r in final if r["code"] not in before_codes])
+
+        skipped_row = mine(out["after"]["rows"])
+        out["skipped_row"] = skipped_row
+        out["console_errors"] = errors
+
+        headers_lower = [h.lower() for h in out["rules_screen"]["headers"]]
+        min_text = f"stok min. item {int(target['min_stock']) if target['min_stock'] == int(target['min_stock']) else target['min_stock']}"
+
+        out["checks"] = {
+            "the_rules_screen_prints_the_item_minimum_the_rule_replaces":
+                "stok min. item" in headers_lower,
+            "and_the_planted_rule_is_listed_with_both_numbers":
+                bool(out["rules_screen"]["planted_row"])
+                and str(target["point"]) in out["rules_screen"]["planted_row"],
+            "the_stock_screen_states_the_priority_in_words":
+                bool(out["stock_low"]["priority_sentence"])
+                and "MENGGANTIKAN" in out["stock_low"]["priority_sentence"].upper(),
+            "a_row_governed_by_a_rule_shows_the_winning_threshold":
+                bool(planted) and str(target["point"]) in planted["cells"][3],
+            "and_the_item_minimum_it_beat":
+                bool(planted) and min_text in planted["cells"][3],
+            "and_names_the_rule_as_its_source":
+                bool(planted) and "Aturan reorder gudang ini" in planted["cells"][3],
+            "and_the_order_quantity_comes_from_the_rule_not_the_shortage":
+                bool(planted) and "jumlah pesan aturan" in planted["cells"][5],
+            "the_proposal_screen_states_the_skip_rule_before_it_bites":
+                bool(out["before"]["why_skipped_card"]) and "PR terbuka" in out["before"]["why_skipped_card"],
+            "pressing_the_button_once_creates_a_draft_requisition":
+                len(made) >= 1 and out["created_statuses"] == ["draft"],
+            "the_row_that_was_proposable_now_says_it_was_skipped":
+                bool(skipped_row) and "Dilewati" in skipped_row["text"],
+            "and_names_the_requisition_that_covers_it":
+                bool(skipped_row) and any(code in skipped_row["text"] for code in made),
+            "and_the_create_button_is_gone_because_nothing_is_left":
+                out["after"]["create_button"] == 0 and bool(out["after"]["all_skipped_line"]),
+            "and_the_endpoint_itself_refuses_a_second_run_not_just_the_button":
+                out["second_press_direct"]["created"] == []
+                and "sudah ada di PR terbuka" in (out["second_press_direct"]["message"] or ""),
+            "so_a_second_run_raises_no_second_requisition":
+                out["requisitions_after_second_press"] == len(made),
+            "the_screens_raise_no_console_error":
+                out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        _f6_drop_requisitions(tok, made)
+        _f6_drop_rule(tok, target["rule_id"], target["created"])
+
+
+@scenario("S32_reorder_usulan_pr_mobile")
+def s32m(browser):
+    """390 px. Enam kolom kekurangan stok adalah tabel terlebar yang F-6
+    tambahkan; kalau ada yang mendorong halaman melebar, tabel inilah. Dan
+    kalimat prioritasnya harus tetap terbaca — sebuah keterangan yang terpotong
+    di ponsel adalah keterangan yang tidak ada."""
+    tok = token_for("admin@nusantara.test")
+    warehouse_id, item_id = _f6_ids(tok)
+    if not warehouse_id or not item_id:
+        return {"SKIPPED": f"Gudang {F6_WAREHOUSE} atau item {F6_ITEM} tidak ada di salinan DB ini."}
+
+    rule_id, created = _f6_plant_rule(tok, warehouse_id, item_id)
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+    try:
+        login(pg, "admin@nusantara.test")
+
+        pg.goto(BASE + "#/usulan-pesan-ulang")
+        pg.wait_for_selector("table.data tbody tr", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out = pg.evaluate("""() => {
+          const wrap = document.querySelector('.table-wrap');
+          const why = [...document.querySelectorAll('.card')].find(c => /Yang dilewati/.test(c.innerText));
+          return {
+            rows: document.querySelectorAll('table.data tbody tr').length,
+            wrap_scrolls: wrap ? wrap.scrollWidth > wrap.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            why_visible: !!(why && why.checkVisibility()),
+            why_text: why ? why.innerText.replace(/\\s+/g, ' ').trim() : null,
+            stats: [...document.querySelectorAll('.stat')].length,
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s32-usulan-ponsel.png", full_page=False)
+
+        pg.goto(BASE + "#/stock")
+        pg.wait_for_selector(".tabs button", timeout=20000)
+        tap(pg, ".tabs button:has-text('Perlu dipesan ulang')")
+        pg.wait_for_selector("table.data tbody tr", timeout=20000)
+        pg.wait_for_timeout(1200)
+        out["stock"] = pg.evaluate("""() => {
+          const wrap = document.querySelector('.table-wrap');
+          return {
+            wrap_scrolls: wrap ? wrap.scrollWidth > wrap.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            source_labels: [...document.querySelectorAll('table.data tbody .cell-sub')].map(e => e.innerText.trim()),
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s32-stok-ponsel.png", full_page=False)
+        out["console_errors"] = errors
+
+        out["checks"] = {
+            "the_proposal_table_renders_on_a_phone": out["rows"] > 0,
+            "the_wide_table_scrolls_inside_its_own_box": out["wrap_scrolls"] is True,
+            "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
+            "the_skip_rule_is_still_readable_on_a_phone":
+                out["why_visible"] is True and "PR terbuka" in (out["why_text"] or ""),
+            "the_stock_table_also_stays_inside_its_box":
+                out["stock"]["wrap_scrolls"] is True and out["stock"]["page_scrolls_sideways"] is False,
+            "and_every_row_still_names_where_its_threshold_came_from":
+                any("Aturan reorder gudang ini" in s or "Stok minimum item" in s
+                    for s in out["stock"]["source_labels"]),
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        _f6_drop_rule(tok, rule_id, created)
+
+
+# ------------------------------------------------------------- S33 (F-6)
+
+F6_PROBE_BARCODE = "F6PROBE9001"
+
+# BarcodeDetector PALSU. Dipasang lewat add_init_script sebelum satu baris pun
+# skrip halaman berjalan, jadi layar melihatnya persis seperti ia melihat milik
+# Chrome Android — dan jalur "didukung" bisa diukur di host yang perambannya
+# tidak punya satu pun.
+FAKE_DETECTOR = """
+window.BarcodeDetector = class {
+  static getSupportedFormats() { return Promise.resolve(['code_128']); }
+  constructor() {}
+  detect() { return Promise.resolve([{ rawValue: '%s', format: 'code_128' }]); }
+};
+"""
+
+# …dan kebalikannya: peramban yang TIDAK punya BarcodeDetector, yaitu Safari di
+# iPhone. Dihapus, bukan disembunyikan — layar memeriksa typeof.
+NO_DETECTOR = "delete window.BarcodeDetector;"
+
+
+def _f6_set_barcode(tok, item_id, value):
+    """Ganti kolom barcode saja — dengan MEMBAWA SELURUH kartu itemnya.
+
+    ItemUpdateRequest menuntut name/category_id/unit/item_type; PUT yang hanya
+    membawa `barcode` ditolak 422 dan barcode-nya tidak pernah berubah, tanpa
+    satu pun tanda di skenario. Versi pertama S33 melakukan itu dan mengukur
+    "tidak ada barcode ganda" sebagai keberhasilan."""
+    _, cur = api(f"inventory/items/{item_id}", tok)
+    row = cur.get("data") or {}
+    body = {
+        "name": row.get("name"),
+        "category_id": row.get("category_id") or (row.get("category") or {}).get("id"),
+        "unit": row.get("unit"),
+        "item_type": row.get("item_type"),
+        "min_stock": row.get("min_stock"),
+        "last_price": row.get("last_price"),
+        "is_active": row.get("is_active"),
+        "barcode": value,
+    }
+    return api(f"inventory/items/{item_id}", tok, "PUT", body)[0]
+
+
+@scenario("S33_label_dan_pindai")
+def s33(pg):
+    """Label F/LBL yang benar-benar TERGAMBAR, dan pemindai yang mengucapkan
+    kalimat berbeda untuk keadaan yang berbeda.
+
+    SVG yang cacat tidak menggambar apa pun sementara lembarnya tetap 200 dan
+    setiap uji PHP tetap hijau, jadi lembarnya disuntikkan ke dalam dokumen dan
+    kotak batasnya DIUKUR."""
+    tok = token_for("admin@nusantara.test")
+    _, item_id = _f6_ids(tok)
+    if not item_id:
+        return {"SKIPPED": f"Item {F6_ITEM} tidak ada di salinan DB ini."}
+
+    _, before = api(f"inventory/items/{item_id}", tok)
+    original = (before.get("data") or {}).get("barcode")
+
+    # Item KEDUA, supaya barcode ganda bisa diukur di layar.
+    _, others = api("inventory/items?per_page=200", tok)
+    second = next((r for r in others.get("data", []) if r["id"] != item_id), None)
+    _, before2 = api(f"inventory/items/{second['id']}", tok) if second else (None, {})
+    original2 = (before2.get("data") or {}).get("barcode") if second else None
+
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+    try:
+        login(pg, "admin@nusantara.test")
+
+        # ------------------------------------------------- tombol di layar item
+        pg.goto(BASE + f"#/d/inventory/items/{item_id}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(2000)
+        # Tombol formulir rumah pada layar detail GENERIK duduk di dalam menu
+        # "Cetak ▾" (printMenu, T2.6) — bukan sebagai tombol lepas. Versi
+        # pertama skenario ini membaca tombol bilahnya saja dan menyimpulkan
+        # tombolnya tidak ada.
+        out = {"item_id": item_id, "action_bar": pg.evaluate(
+            "() => [...document.querySelectorAll('.page-head .actions button')].map(b => b.innerText.trim()).filter(Boolean)")}
+        click(pg, ".page-head .actions button.menu-trigger:has-text('Cetak')")
+        pg.wait_for_timeout(600)
+        out["print_menu"] = pg.evaluate(
+            "() => [...document.querySelectorAll('.menu-item')].map(b => b.innerText.trim()).filter(Boolean)")
+        pg.screenshot(path=f"{OUT}/s33-item-tombol-label.png", full_page=False)
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(300)
+
+        # -------------------------- lembar labelnya, DIGAMBAR oleh Chromium
+        out["sheet"] = pg.evaluate("""async (id) => {
+          const res = await fetch(`/api/core/print/forms/label-barcode/${id}?jumlah=6`, {
+            headers: { Authorization: 'Bearer ' + localStorage.getItem('nusantara_erp_token') },
+          });
+          const html = await res.text();
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const host = document.createElement('div');
+          host.style.cssText = 'position:fixed;left:-4000px;top:0;';
+          document.body.appendChild(host);
+          host.innerHTML = doc.body.innerHTML;
+          const svg = host.querySelector('svg');
+          const box = svg ? svg.getBoundingClientRect() : null;
+          const rects = svg ? [...svg.querySelectorAll('g rect')] : [];
+          const painted = rects.filter(r => r.getBoundingClientRect().width > 0);
+          const out = {
+            status: res.status,
+            content_type: res.headers.get('content-type'),
+            stickers: host.querySelectorAll('.stiker').length,
+            form_code: /Form F\\/LBL/.test(html),
+            note: (host.querySelector('.catatan') || {}).innerText || null,
+            svg_present: !!svg,
+            svg_width: box ? Math.round(box.width) : null,
+            svg_height: box ? Math.round(box.height) : null,
+            bars: rects.length,
+            bars_painted: painted.length,
+            human_readable: svg ? (svg.querySelector('text') || {}).textContent || null : null,
+            aria: svg ? svg.getAttribute('aria-label') : null,
+          };
+          host.remove();
+          return out;
+        }""", item_id)
+        pg.screenshot(path=f"{OUT}/s33-lembar-label.png", full_page=False)
+
+        # ------------------------------------------------- pindai: jalur ketik
+        pg.goto(BASE + "#/pindai")
+        pg.wait_for_selector("input[aria-label='Barcode atau kode item']", timeout=20000)
+        pg.fill("input[aria-label='Barcode atau kode item']", F6_ITEM)
+        # BUKAN "button:has-text('Cari')": tombol pencarian global
+        # (.global-search) juga memuat kata itu dan Playwright memilih yang
+        # pertama — klik mendarat di palet Ctrl+K, bukan di formulir ini.
+        click(pg, "form button[type=submit]")
+        pg.wait_for_timeout(2500)
+        out["manual"] = pg.evaluate("""() => ({
+          cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText.trim()),
+          reason: [...document.querySelectorAll('.cell-sub')].map(e => e.innerText.trim()).filter(t => /Cocok pada/.test(t)),
+          warehouses: [...document.querySelectorAll('table.data tbody tr')].map(r => r.innerText.replace(/\\s+/g,' ').trim()),
+        })""")
+        pg.screenshot(path=f"{OUT}/s33-pindai-ketik.png", full_page=False)
+
+        # --------------------------------------- pindai: kode yang tidak ada
+        pg.fill("input[aria-label='Barcode atau kode item']", "F6-TIDAK-ADA-KODE-INI")
+        # BUKAN "button:has-text('Cari')": tombol pencarian global
+        # (.global-search) juga memuat kata itu dan Playwright memilih yang
+        # pertama — klik mendarat di palet Ctrl+K, bukan di formulir ini.
+        click(pg, "form button[type=submit]")
+        pg.wait_for_timeout(2500)
+        out["not_found"] = pg.evaluate(
+            "() => { const e = document.querySelector('.empty'); return e ? e.innerText.replace(/\\s+/g,' ').trim() : null; }")
+
+        # --------------------------------------------- barcode ganda (jebakan E)
+        out["probe_writes"] = [_f6_set_barcode(tok, item_id, F6_PROBE_BARCODE)]
+        if second:
+            out["probe_writes"].append(_f6_set_barcode(tok, second["id"], F6_PROBE_BARCODE))
+        pg.fill("input[aria-label='Barcode atau kode item']", F6_PROBE_BARCODE)
+        # BUKAN "button:has-text('Cari')": tombol pencarian global
+        # (.global-search) juga memuat kata itu dan Playwright memilih yang
+        # pertama — klik mendarat di palet Ctrl+K, bukan di formulir ini.
+        click(pg, "form button[type=submit]")
+        pg.wait_for_timeout(2500)
+        out["duplicate"] = pg.evaluate("""() => ({
+          warning: [...document.querySelectorAll('.card')].some(c => /dipakai lebih dari satu item/.test(c.innerText)),
+          message: (([...document.querySelectorAll('.card')].find(c => /dipakai lebih dari satu item/.test(c.innerText)) || {}).innerText || '')
+            .replace(/\\s+/g, ' ').trim(),
+          item_cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText.trim())
+            .filter(t => !/dipakai lebih dari satu/.test(t) && !/Ketik kodenya/.test(t) && !/kamera/i.test(t)),
+        })""")
+        pg.screenshot(path=f"{OUT}/s33-pindai-barcode-ganda.png", full_page=False)
+        out["console_errors"] = errors
+
+        out["checks"] = {
+            "the_item_screen_offers_the_label_sheet":
+                any("Label Barcode" in b for b in out["print_menu"]),
+            "the_sheet_answers_as_html": out["sheet"]["status"] == 200
+                and "text/html" in (out["sheet"]["content_type"] or ""),
+            "and_carries_its_form_code": out["sheet"]["form_code"] is True,
+            "and_prints_exactly_the_stickers_the_url_asked_for": out["sheet"]["stickers"] == 6,
+            # SVG yang cacat tetap 200 dan tetap "ada"; yang membuktikan ia benar
+            # adalah Chromium menggambarnya dengan lebar bukan-nol.
+            "chromium_actually_paints_the_barcode":
+                out["sheet"]["svg_present"] is True and (out["sheet"]["svg_width"] or 0) > 100,
+            "every_bar_has_a_width": out["sheet"]["bars"] > 20
+                and out["sheet"]["bars_painted"] == out["sheet"]["bars"],
+            "and_the_human_readable_line_is_under_it":
+                F6_ITEM in (out["sheet"]["human_readable"] or ""),
+            "and_the_sheet_says_which_code_it_encoded":
+                "kode item" in (out["sheet"]["note"] or "") or "barcode pemasok" in (out["sheet"]["note"] or ""),
+            "typing_a_code_finds_the_item_and_its_stock_per_warehouse":
+                len(out["manual"]["warehouses"]) > 0,
+            "and_says_whether_it_matched_the_code_or_the_barcode":
+                any("Cocok pada" in r for r in out["manual"]["reason"]),
+            "an_unknown_code_is_told_where_to_look":
+                "kolom Barcode" in (out["not_found"] or ""),
+            "the_duplicate_probe_really_reached_both_item_cards":
+                out["probe_writes"] == [200, 200],
+            "a_barcode_on_two_items_is_never_resolved_silently":
+                out["duplicate"]["warning"] is True and len(out["duplicate"]["item_cards"]) == 2,
+            "and_the_warning_says_how_many_and_why_it_matters":
+                "2 ITEM" in out["duplicate"]["message"] and "opname" in out["duplicate"]["message"],
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        _f6_set_barcode(tok, item_id, original)
+        if second:
+            _f6_set_barcode(tok, second["id"], original2)
+
+
+@scenario("S33_pindai_keadaan_kamera")
+def s33k(browser):
+    """EMPAT KEADAAN KAMERA, EMPAT KALIMAT — diukur, bukan dibaca dari kode.
+
+    Ini yang paling mudah salah dan paling mahal salahnya: separuh ponsel
+    lapangan adalah iPhone, dan Safari tidak punya BarcodeDetector. Keempat
+    konteks di bawah memalsukan tepat satu hal masing-masing dan menuntut
+    kalimat yang BERBEDA. Sebuah layar yang menuliskan satu kalimat untuk
+    keempatnya akan mengirim orang gudang mencari setelan izin di ponsel yang
+    memang tidak punya kamera."""
+    out = {}
+
+    def read(ctx_kwargs, init_script, click_start):
+        ctx = browser.new_context(**ctx_kwargs)
+        if init_script:
+            ctx.add_init_script(init_script)
+        pg = ctx.new_page()
+        errs = []
+        pg.on("pageerror", lambda e: errs.append(str(e)))
+        try:
+            login(pg, "warehouse@nusantara.test")
+            pg.goto(BASE + "#/pindai")
+            pg.wait_for_selector(".card", timeout=20000)
+            pg.wait_for_timeout(1500)
+            if click_start and pg.locator("button:has-text('Nyalakan kamera')").count():
+                pg.click("button:has-text('Nyalakan kamera')")
+                pg.wait_for_timeout(4000)
+            return pg, ctx, errs, pg.evaluate("""() => ({
+              cards: [...document.querySelectorAll('.card-head h2')].map(h => h.innerText.trim()),
+              body: [...document.querySelectorAll('.card-body')].map(b => b.innerText.replace(/\\s+/g, ' ').trim()),
+              manual_input: !!document.querySelector("input[aria-label='Barcode atau kode item']"),
+            })""")
+        finally:
+            pass
+
+    # 1. Peramban tanpa BarcodeDetector — Safari di iPhone.
+    pg, ctx, errs, res = read({"viewport": {"width": 1440, "height": 900}}, NO_DETECTOR, False)
+    pg.screenshot(path=f"{OUT}/s33-kamera-tanpa-detector.png", full_page=False)
+    out["no_detector"] = res | {"pageerrors": errs}
+    ctx.close()
+
+    # 2. Bukan konteks aman (http://) — peramban tidak akan pernah meminta kamera.
+    pg, ctx, errs, res = read({"viewport": {"width": 1440, "height": 900}},
+                              (FAKE_DETECTOR % F6_ITEM) +
+                              "Object.defineProperty(window, 'isSecureContext', { value: false, configurable: true });",
+                              False)
+    pg.screenshot(path=f"{OUT}/s33-kamera-bukan-https.png", full_page=False)
+    out["insecure"] = res | {"pageerrors": errs}
+    ctx.close()
+
+    # 3. Detektor ada, izin kamera DITOLAK.
+    pg, ctx, errs, res = read({"viewport": {"width": 1440, "height": 900}},
+                              (FAKE_DETECTOR % F6_ITEM) +
+                              "navigator.mediaDevices.getUserMedia = () => Promise.reject("
+                              "Object.assign(new Error('denied'), { name: 'NotAllowedError' }));",
+                              True)
+    pg.screenshot(path=f"{OUT}/s33-kamera-ditolak.png", full_page=False)
+    out["denied"] = res | {"pageerrors": errs}
+    ctx.close()
+
+    # 4. Detektor ada, izin bukan soal — TIDAK ADA kamera.
+    pg, ctx, errs, res = read({"viewport": {"width": 1440, "height": 900}},
+                              (FAKE_DETECTOR % F6_ITEM) +
+                              "navigator.mediaDevices.getUserMedia = () => Promise.reject("
+                              "Object.assign(new Error('none'), { name: 'NotFoundError' }));",
+                              True)
+    pg.screenshot(path=f"{OUT}/s33-kamera-tidak-ada.png", full_page=False)
+    out["no_camera"] = res | {"pageerrors": errs}
+    ctx.close()
+
+    # 5. Detektor ada, kamera ada, DAN ia membaca sesuatu.
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    ctx.add_init_script((FAKE_DETECTOR % F6_ITEM) +
+                        "navigator.mediaDevices.getUserMedia = () => Promise.resolve("
+                        "Object.assign(document.createElement('canvas').captureStream(1), {}));")
+    pg = ctx.new_page()
+    try:
+        login(pg, "warehouse@nusantara.test")
+        pg.goto(BASE + "#/pindai")
+        pg.wait_for_selector("button:has-text('Nyalakan kamera')", timeout=20000)
+        pg.click("button:has-text('Nyalakan kamera')")
+        pg.wait_for_timeout(5000)
+        out["scanning"] = pg.evaluate("""() => ({
+          status: [...document.querySelectorAll('.card-body .cell-sub')].map(e => e.innerText.trim()),
+          input_value: (document.querySelector("input[aria-label='Barcode atau kode item']") || {}).value || null,
+          result_cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText.trim()),
+          video: !!document.querySelector('video'),
+        })""")
+        pg.screenshot(path=f"{OUT}/s33-kamera-terbaca.png", full_page=False)
+    finally:
+        ctx.close()
+
+    def said(block, needle):
+        """Kalimatnya boleh berada di JUDUL kartu atau di badannya — keduanya
+        dibaca orang yang sama, dan uji yang hanya membaca badannya menyatakan
+        sebuah kalimat hilang padahal ia tercetak sebagai judul."""
+        haystack = block.get("body", []) + block.get("cards", [])
+        return any(needle.lower() in b.lower() for b in haystack)
+
+    out["checks"] = {
+        "a_browser_without_barcodedetector_says_exactly_that":
+            said(out["no_detector"], "tidak menyediakan BarcodeDetector")
+            and said(out["no_detector"], "Safari di iPhone"),
+        "and_it_does_not_pretend_there_is_a_camera_button":
+            "Pindai dengan kamera" not in out["no_detector"]["cards"],
+        "and_the_manual_field_is_still_there":
+            out["no_detector"]["manual_input"] is True,
+        "and_nothing_throws_where_BarcodeDetector_does_not_exist":
+            out["no_detector"]["pageerrors"] == [],
+        "an_insecure_page_is_told_it_is_the_protocol_not_the_permission":
+            said(out["insecure"], "bukan HTTPS"),
+        "a_denied_permission_is_told_where_to_grant_it":
+            said(out["denied"], "Izin kamera ditolak") and said(out["denied"], "setelan situs"),
+        "a_device_with_no_camera_is_told_it_is_not_about_permission":
+            said(out["no_camera"], "tidak punya kamera") and said(out["no_camera"], "Bukan soal izin"),
+        "the_four_sentences_are_four_different_sentences":
+            len({said(out[k], "tidak menyediakan BarcodeDetector") for k in ["no_detector", "insecure", "denied", "no_camera"]}) == 2
+            and not said(out["denied"], "tidak punya kamera")
+            and not said(out["no_camera"], "Izin kamera ditolak"),
+        "a_working_scanner_fills_the_field_and_looks_the_item_up":
+            out["scanning"]["input_value"] == F6_ITEM and out["scanning"]["video"] is True,
+        "and_the_lookup_really_happened":
+            any("Semen" in c or F6_ITEM in c for c in out["scanning"]["result_cards"]),
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S33_label_dan_pindai_mobile")
+def s33m(browser):
+    """390 px, dengan BarcodeDetector DIHAPUS — yaitu iPhone lapangan.
+
+    Yang diukur bukan tata letaknya saja: pada ponsel yang tidak bisa memindai,
+    isian ketiknya harus cukup lebar untuk jempol dan kalimat penjelasnya harus
+    terbaca tanpa menggulir mendatar."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    ctx.add_init_script(NO_DETECTOR)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+    try:
+        login(pg, "warehouse@nusantara.test")
+        pg.goto(BASE + "#/pindai")
+        pg.wait_for_selector("input[aria-label='Barcode atau kode item']", timeout=20000)
+        pg.wait_for_timeout(1200)
+
+        out = pg.evaluate("""() => {
+          const input = document.querySelector("input[aria-label='Barcode atau kode item']");
+          const box = input.getBoundingClientRect();
+          const btn = document.querySelector('form button[type=submit]');
+          const bbox = btn ? btn.getBoundingClientRect() : null;
+          return {
+            input_width: Math.round(box.width),
+            input_height: Math.round(box.height),
+            button_height: bbox ? Math.round(bbox.height) : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            cards: [...document.querySelectorAll('.card-head h2')].map(h => h.innerText.trim()),
+            notice: [...document.querySelectorAll('.card-body')].map(b => b.innerText.replace(/\\s+/g, ' ').trim()),
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s33-pindai-ponsel.png", full_page=False)
+
+        tap(pg, "input[aria-label='Barcode atau kode item']")
+        pg.fill("input[aria-label='Barcode atau kode item']", F6_ITEM)
+        tap(pg, "form button[type=submit]")
+        pg.wait_for_timeout(3000)
+        out["result"] = pg.evaluate("""() => ({
+          cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText.trim()),
+          rows: document.querySelectorAll('table.data tbody tr').length,
+          page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+        })""")
+        pg.screenshot(path=f"{OUT}/s33-pindai-ponsel-hasil.png", full_page=False)
+        out["console_errors"] = errors
+
+        out["checks"] = {
+            # 390 px dikurangi padding kartu dan tombol Cari: separuh lebar
+            # layar adalah ambang yang berarti, bukan angka bulat yang enak.
+            "the_manual_field_is_wide_enough_to_type_a_barcode_into": out["input_width"] > 195,
+            # Standar target sentuh rumah ini 42–46 px (.btn.lg = 46, catatan
+            # app.css). Versi pertama layar ini memakai tinggi baku 34 px.
+            "and_tall_enough_for_a_thumb": out["input_height"] >= 44 and (out["button_height"] or 0) >= 44,
+            "the_phone_is_told_why_there_is_no_camera_button":
+                any("tidak menyediakan BarcodeDetector" in n for n in out["notice"]),
+            "and_no_camera_card_is_drawn": "Pindai dengan kamera" not in out["cards"],
+            "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
+            "a_typed_code_still_finds_the_item_and_its_stock":
+                out["result"]["rows"] > 0,
+            "and_the_result_does_not_widen_the_page":
+                out["result"]["page_scrolls_sideways"] is False,
+            "the_screen_raises_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -7602,7 +8370,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None)]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

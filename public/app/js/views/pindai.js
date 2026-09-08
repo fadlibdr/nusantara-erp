@@ -73,16 +73,34 @@ export async function renderPindai(host) {
   ]));
 
   // ------------------------------------------------------------- isian manual
+  /* 46 px DAN 16 px, di layar mana pun — bukan hanya di ponsel.
+   *
+   * Ini SATU-SATUNYA jalan yang tersisa di iPhone (BarcodeDetector tidak ada
+   * di Safari), jadi isian ini adalah pemindai bagi separuh lapangan. Ia harus
+   * memenuhi standar target sentuh rumah ini (42–46 px; .btn.lg = 46 px) —
+   * versi pertama layar ini memakai tinggi baku 34 px dan harness S33m
+   * mengukurnya: sebuah kotak setinggi 34 px adalah kotak yang dicoba ditekan
+   * dua kali oleh orang bersarung tangan.
+   *
+   * font-size 16 px karena Safari iOS MEMPERBESAR seluruh halaman saat fokus
+   * masuk ke isian yang hurufnya lebih kecil dari itu, lalu tidak mengecil
+   * lagi — layar yang sudah dipakai satu tangan menjadi layar yang harus
+   * digeser dua arah. */
   const input = el('input', {
     type: 'text', inputmode: 'text', autocomplete: 'off', spellcheck: 'false',
     placeholder: 'Ketik atau tempel barcode / kode item…',
     'aria-label': 'Barcode atau kode item',
-    style: { fontFamily: 'var(--mono, monospace)' },
+    style: { fontFamily: 'var(--mono, monospace)', height: '46px', fontSize: '16px' },
   });
+
+  const submit = button('Cari', { variant: 'primary', iconName: 'search', type: 'submit' });
+  // .btn menyetel height: 34px eksplisit dengan box-sizing: border-box, jadi
+  // padding tidak menumbuhkannya sama sekali (catatan .btn.lg di app.css).
+  Object.assign(submit.style, { height: '46px', padding: '0 18px' });
 
   const form = el('form', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
     el('div', { style: { flex: '1 1 220px', minWidth: '0' } }, input),
-    button('Cari', { variant: 'primary', iconName: 'search', type: 'submit' }),
+    submit,
   ]);
 
   const cameraBox = el('div');
@@ -307,7 +325,14 @@ export async function renderPindai(host) {
     video = el('video', { autoplay: true, muted: true, playsinline: true, style: { width: '100%', maxWidth: '420px', borderRadius: 'var(--radius)', background: '#000' } });
     video.srcObject = stream;
     clear(holder).appendChild(video);
-    await video.play().catch(() => {});
+    /* TIDAK di-await. play() hanya menyelesaikan janjinya ketika trek video
+       benar-benar mengirim bingkai pertamanya, dan sebuah kamera yang menyala
+       tanpa mengirim apa pun akan menggantung baris ini SELAMANYA: pemindainya
+       tidak pernah mulai dan kalimat di layar berhenti di "Meminta izin
+       kamera…", yang persis salah — izinnya sudah diberikan. Terukur di
+       harness S33k (trek kanvas tanpa bingkai). Putaran pemindai di bawah
+       memang tahan terhadap bingkai yang belum ada. */
+    video.play().catch(() => {});
 
     const detector = new globalThis.BarcodeDetector({ formats: FORMATS });
     scanning = true;
