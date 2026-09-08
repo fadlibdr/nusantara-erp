@@ -618,4 +618,111 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         // Proyek tanpa RAP sama sekali: batasnya memang tidak pernah disetel.
         $this->assertSame('tanpa_batas', $this->portfolioRow($sepi)['sides']['subcon']['state']);
     }
+
+    // ------------------------------------------------- pemilihan sisi terburuk
+
+    /**
+     * SISI TERBURUK BISA SISI SUBKON — dan sebelum uji ini tidak ada satu pun
+     * yang mengatakannya (verifikasi F-2 putaran 2).
+     *
+     * Terukur: mutasi `if ($a > $b)` menjadi `if (false)` pada worstSide(),
+     * yang membuat jawabannya selalu 'non_subcon' (kunci pertama), lolos 1.922
+     * uji tanpa satu kegagalan pun — karena setiap fixture yang menyebut sisi
+     * terburuk kebetulan menamai sisi pertama. Dengan mutasi itu terpasang
+     * proyek ini berlencana "Aman" tanpa satu pita peringatan pun, sementara
+     * gerbang menolak SPK Rp 1.
+     */
+    public function test_the_worst_side_can_be_the_subcon_side(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $project = $this->project('PRJ-2026-926');
+        $this->approvedRap($project, nonSubcon: 500_000_000, subcon: 100_000_000, code: 'RAP/2026/0926');
+        $this->cost($project, 'subcon', 100_000_000);
+
+        $row = $this->portfolioRow($project);
+
+        // Totalnya masih lega — 16,7 % terpakai — dan sisi non-subkon utuh.
+        $this->assertSame('aman', $row['state']);
+        $this->assertSame('aman', $row['sides']['non_subcon']['state']);
+
+        $this->assertSame('subcon', $row['worst_side']);
+        $this->assertSame('lampau', $row['worst_state']);
+        $this->assertSame(0.0, $row['sides']['subcon']['remaining']);
+        $this->assertSame(100.0, $row['sides']['subcon']['pct']);
+
+        // Registri menerbitkan sisi ITU, bukan sisi pertama.
+        $registry = collect($this->getJson('/api/core/thresholds')->assertOk()->json('data'))
+            ->firstWhere('key', 'project_budget_pct');
+        $line = collect($registry['rows'])->firstWhere('subject', $project->code);
+
+        $this->assertSame('lampau', $line['state']);
+        $this->assertEquals(100000000.0, $line['actual']);
+        $this->assertEquals(100000000.0, $line['limit']);
+        $this->assertStringContainsString('subkon', (string) $line['note']);
+
+        // Dan gerbang menghakimi sisi yang sama: SPK ditolak, PO diterima.
+        $this->submitSpk($this->spk($project, 1, DocumentStatus::Draft))->assertStatus(422);
+        $this->submitPo($this->po($project, 500_000_000, DocumentStatus::Draft))->assertOk();
+    }
+
+    /**
+     * Dua sisi yang sama-sama tenang: yang terburuk adalah yang lebih dekat ke
+     * batasnya — dan itu boleh sisi kedua.
+     */
+    public function test_between_two_calm_sides_the_worst_is_the_one_closer_to_its_limit(): void
+    {
+        $project = $this->project('PRJ-2026-927');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 100_000_000, code: 'RAP/2026/0927');
+        $this->cost($project, 'material', 10_000_000);
+        $this->cost($project, 'subcon', 50_000_000);
+
+        $row = $this->portfolioRow($project);
+
+        $this->assertSame('subcon', $row['worst_side']);
+        $this->assertSame('aman', $row['worst_state']);
+        $this->assertSame(50.0, $row['sides']['subcon']['pct']);
+        $this->assertSame(10.0, $row['sides']['non_subcon']['pct']);
+    }
+
+    /**
+     * Dua sisi yang PERSIS sama beratnya: jawabannya tetap satu dan tidak
+     * berubah-ubah antar pemanggilan — layar proyek, layar anggaran dan
+     * registri harus menyebut sisi yang sama untuk keadaan yang sama.
+     */
+    public function test_two_equally_loaded_sides_answer_the_same_side_every_time(): void
+    {
+        $project = $this->project('PRJ-2026-928');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 100_000_000, code: 'RAP/2026/0928');
+        $this->cost($project, 'material', 50_000_000);
+        $this->cost($project, 'subcon', 50_000_000);
+
+        $service = app(BudgetRealisationService::class);
+        $first = $service->project($project->id);
+        $second = $service->project($project->id);
+
+        $this->assertSame(50.0, $first['sides']['non_subcon']['pct']);
+        $this->assertSame(50.0, $first['sides']['subcon']['pct']);
+        $this->assertSame('non_subcon', $first['worst_side'], 'seri dimenangkan sisi pertama, dan itu tetap');
+        $this->assertSame($first['worst_side'], $second['worst_side']);
+    }
+
+    /**
+     * Sisi yang TIDAK DIANGGARKAN tidak pernah mengalahkan sisi yang punya
+     * batas sungguhan — cermin dari test_a_side_the_rap_never_budgeted_says_so,
+     * dengan sisi pertama yang justru tidak dianggarkan.
+     */
+    public function test_an_unbudgeted_first_side_does_not_outrank_the_side_with_a_real_limit(): void
+    {
+        $project = $this->project('PRJ-2026-929');
+        $this->approvedRap($project, nonSubcon: 0, subcon: 100_000_000, code: 'RAP/2026/0929');
+        $this->cost($project, 'subcon', 95_000_000);
+
+        $row = $this->portfolioRow($project);
+
+        $this->assertSame('tanpa_anggaran', $row['sides']['non_subcon']['state']);
+        $this->assertSame('subcon', $row['worst_side']);
+        $this->assertSame('mendekati', $row['worst_state']);
+        $this->assertSame(95.0, $row['sides']['subcon']['pct']);
+    }
 }
