@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Models\BaseModel;
 use Modules\Inventory\Enums\ItemType;
 
@@ -109,47 +110,89 @@ class Item extends BaseModel
      * itu jawab — kodenya sendiri DAN barcode-nya. Yang diaudit adalah
      * katalognya, bukan satu stiker.
      *
-     * `$shared = false` adalah lengan "Tidak" saringannya, dan ia
-     * `whereNotExists` — bukan `NOT IN` atas daftar barcode, yang bernilai
-     * NULL untuk setiap item tanpa barcode dan diam-diam membuang sebagian
-     * besar katalog dari lengan itu.
+     * ===================== DIHITUNG SEKALI, BUKAN SEKALI PER BARIS =====================
+     * Bentuk pertamanya adalah `EXISTS (… other …)` berkorelasi — aturan yang sama persis,
+     * dan ia mengubah layar audit menjadi layar yang tidak bisa dibuka. Diukur pada SQLite
+     * dengan katalog 5.000 item (10 di antaranya bertabrakan):
+     *
+     *   ganda (count)        20.973 ms
+     *   tidak ganda (count)  21.921 ms
+     *
+     * `listing()` menghitung total sebelum menggambar halaman pertama, jadi angka itu adalah
+     * waktu yang dilihat orangnya. Sekarang kunci yang bertabrakan dihitung SEKALI lewat satu
+     * kueri berkelompok, dan barisnya hanya mencocokkan kuncinya ke daftar itu.
+     *
+     * `COUNT(DISTINCT id) > 1`, bukan `COUNT(*) > 1`: sebuah kartu yang barcode-nya SAMA
+     * dengan kodenya sendiri menyumbang dua baris untuk kunci yang sama, dan ia tidak
+     * bertabrakan dengan siapa pun. UNION (bukan UNION ALL) membuang pasangan (id, kunci)
+     * yang kembar itu, dan COUNT(DISTINCT id) menutup sisanya.
+     * ==================================================================================
+     *
+     * `$shared = false` adalah lengan "Tidak" saringannya. Tiap lengan MENYEBUT kunci
+     * kosongnya sendiri (`COALESCE(TRIM(...), '') <> ''`) — tanpa itu `UPPER(NULL) IN (…)`
+     * bernilai NULL, `NULL OR FALSE` bernilai NULL, dan `NOT NULL` membuang setiap item yang
+     * belum punya barcode dari lengan "Tidak", yaitu sebagian besar katalog, tanpa satu pun
+     * tanda.
      */
     public function scopeSharingScanCode(Builder $query, bool $shared = true): Builder
     {
         $table = $query->getModel()->getTable();
 
-        $twin = function (BuilderContract $other) use ($table): void {
-            $other->selectRaw('1')
-                ->from($table.' as other')
-                ->whereColumn('other.id', '!=', $table.'.id')
-                // Kembarannya harus HIDUP, sama seperti pada pemindaiannya.
-                ->whereNull('other.deleted_at')
-                ->where(function (BuilderContract $where) use ($table): void {
-                    foreach (self::SCAN_KEY_COLUMNS as $column) {
-                        $where->orWhere(function (BuilderContract $arm) use ($table, $column): void {
-                            // Kunci KOSONG bukan kunci: dua kartu yang sama-sama
-                            // belum mengisi barcode tidak berbagi apa pun, dan
-                            // tidak ada pemindaian yang bisa memulangkan
-                            // keduanya (isian kosong ditolak 422).
-                            $arm->whereRaw("COALESCE(TRIM({$table}.{$column}), '') <> ''");
-
-                            self::whereScanKeyEquals($arm, 'other', "UPPER({$table}.{$column})");
-                        });
-                    }
+        $matchesACollidingKey = function (BuilderContract $where) use ($table): void {
+            foreach (self::SCAN_KEY_COLUMNS as $column) {
+                $where->orWhere(function (BuilderContract $arm) use ($table, $column): void {
+                    // Kunci KOSONG bukan kunci: dua kartu yang sama-sama belum
+                    // mengisi barcode tidak berbagi apa pun, dan tidak ada
+                    // pemindaian yang bisa memulangkan keduanya (isian kosong
+                    // ditolak 422).
+                    $arm->whereRaw(self::scanKeyPresent($table, $column))
+                        ->whereIn(DB::raw(self::scanKeyExpression($table, $column)), self::collidingScanKeys($table));
                 });
+            }
         };
 
-        return $shared ? $query->whereExists($twin) : $query->whereNotExists($twin);
+        return $shared
+            ? $query->where($matchesACollidingKey)
+            : $query->whereNot($matchesACollidingKey);
+    }
+
+    /**
+     * Kunci pindai yang dijawab LEBIH DARI SATU item hidup — satu kueri, tanpa korelasi.
+     *
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private static function collidingScanKeys(string $table)
+    {
+        $arms = array_map(
+            fn (string $column) => DB::table($table)
+                ->select('id')
+                ->selectRaw(self::scanKeyExpression($table, $column).' as scan_key')
+                ->whereNull('deleted_at')
+                ->whereRaw(self::scanKeyPresent($table, $column)),
+            self::SCAN_KEY_COLUMNS,
+        );
+
+        $keys = array_shift($arms);
+
+        foreach ($arms as $arm) {
+            $keys->union($arm);
+        }
+
+        return DB::query()
+            ->fromSub($keys, 'kunci_pindai')
+            ->select('scan_key')
+            ->groupBy('scan_key')
+            ->havingRaw('COUNT(DISTINCT id) > 1');
     }
 
     /**
      * `UPPER(<kolom kunci>) = <ekspresi>` untuk setiap kolom kunci, sebagai
-     * SATU kelompok OR — bentuk perbandingan yang dipakai kedua scope di atas.
+     * SATU kelompok OR — bentuk perbandingan yang dipakai `matchingScanCode()`.
      *
-     * Ekspresinya bisa sebuah pengikat (`?`, untuk kode yang diketik) atau
-     * sebuah kolom (`UPPER(inv_items.code)`, untuk mencari kembaran di dalam
-     * tabel yang sama). Yang tidak boleh berbeda di antara keduanya adalah
-     * DAFTAR KOLOMNYA dan `UPPER()`-nya; karena itu keduanya cuma ada di sini.
+     * Ekspresinya sebuah pengikat (`?`, untuk kode yang diketik atau dicetak).
+     * Yang tidak boleh berbeda antara scope ini dan saudaranya adalah DAFTAR
+     * KOLOMNYA dan `UPPER()`-nya; karena itu keduanya cuma ada di sini dan di
+     * `scanKeyExpression()`.
      *
      * @param  list<mixed>  $bindings
      */
@@ -161,13 +204,31 @@ class Item extends BaseModel
     ): void {
         $query->where(function (BuilderContract $where) use ($table, $expression, $bindings): void {
             foreach (self::SCAN_KEY_COLUMNS as $index => $column) {
-                $comparison = "UPPER({$table}.{$column}) = {$expression}";
+                $comparison = self::scanKeyExpression($table, $column).' = '.$expression;
 
                 $index === 0
                     ? $where->whereRaw($comparison, $bindings)
                     : $where->orWhereRaw($comparison, $bindings);
             }
         });
+    }
+
+    /**
+     * NILAI sebuah kolom kunci sebagaimana pemindaian membandingkannya.
+     *
+     * `UPPER()` dan bukan collation: SQLite membandingkan `=` secara peka huruf
+     * sementara MySQL utf8mb4_unicode_ci tidak, jadi tanpa ini jawabannya
+     * berbeda antara mesin uji dan produksi.
+     */
+    private static function scanKeyExpression(string $table, string $column): string
+    {
+        return "UPPER({$table}.{$column})";
+    }
+
+    /** Kolom kunci yang benar-benar berisi sesuatu — kunci kosong bukan kunci. */
+    private static function scanKeyPresent(string $table, string $column): string
+    {
+        return "COALESCE(TRIM({$table}.{$column}), '') <> ''";
     }
 
     public function category(): BelongsTo

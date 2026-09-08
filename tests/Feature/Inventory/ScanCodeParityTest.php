@@ -3,6 +3,7 @@
 namespace Tests\Feature\Inventory;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Models\Item;
 use Tests\ErpTestCase;
 use Tests\Unit\Inventory\InventoryFixtures;
@@ -163,6 +164,60 @@ class ScanCodeParityTest extends ErpTestCase
         $this->assertFalse($this->sheetWarns($live),
             'Lembarnya menjanjikan pemindaian ganda yang tidak akan pernah terjadi.');
         $this->assertSame([], $this->auditFilter(true));
+    }
+
+    /**
+     * SARINGAN AUDIT HARUS BISA DIBUKA PADA KATALOG SUNGGUHAN.
+     *
+     * Bentuk pertama penyatuan ini adalah `EXISTS (… other …)` berkorelasi —
+     * aturannya benar, dan ia mengubah layar audit menjadi layar yang tidak
+     * bisa dibuka: diukur pada SQLite dengan 5.000 item, `count()` saringannya
+     * **20.973 ms** untuk lengan "ganda" dan **21.921 ms** untuk lengan
+     * "tidak". `listing()` menghitung total sebelum menggambar halaman
+     * pertama, jadi itulah waktu yang dilihat orangnya — dan permukaan yang
+     * butuh 21 detik adalah permukaan yang tidak dipakai untuk mengambil
+     * keputusan apa pun.
+     *
+     * Sesudah kunci yang bertabrakan dihitung SEKALI: 23 ms pada katalog yang
+     * sama. Anggaran di bawah adalah 2 detik untuk 2.000 item — bentuk
+     * berkorelasi mendarat di ~3,4 detik pada ukuran itu, jadi kembalinya
+     * bentuk itu MERAH di sini, sementara mesin yang sedang sibuk tidak.
+     */
+    public function test_the_audit_filter_answers_a_real_sized_catalogue_in_time_to_be_read(): void
+    {
+        $categoryId = $this->category()->id;
+        $rows = [];
+
+        for ($i = 1; $i <= 2000; $i++) {
+            $rows[] = [
+                'code' => 'ITM-P'.str_pad((string) $i, 5, '0', STR_PAD_LEFT),
+                'name' => 'Barang '.$i,
+                'category_id' => $categoryId,
+                'unit' => 'zak',
+                // 4 tabrakan yang disengaja, sisanya barcode unik.
+                'barcode' => $i % 500 === 0 ? 'F6BIG-'.($i % 1000) : 'BC-'.$i,
+                'item_type' => 'material',
+                'min_stock' => 0, 'avg_cost' => 0, 'last_price' => 0, 'is_active' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ];
+        }
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('inv_items')->insert($chunk);
+        }
+
+        $started = microtime(true);
+        $duplicates = Item::query()->sharingScanCode()->count();
+        $unique = Item::query()->sharingScanCode(false)->count();
+        $elapsed = microtime(true) - $started;
+
+        // 4 item bertabrakan: dua pasang yang berbagi F6BIG-500 dan F6BIG-0.
+        $this->assertSame(4, $duplicates);
+        $this->assertSame(1996, $unique, 'Kedua lengan harus menutupi seluruh katalog, bukan sebagian.');
+
+        $this->assertLessThan(2.0, $elapsed,
+            sprintf('Saringan audit butuh %.1f detik untuk 2.000 item: yang dipakai adalah bentuk '
+                .'berkorelasi (satu subkueri per baris), dan layarnya tidak bisa dibuka.', $elapsed));
     }
 
     /**
