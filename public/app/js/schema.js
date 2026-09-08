@@ -4331,7 +4331,9 @@ export const RESOURCES = {
     module: 'fin', api: 'finance/overhead-budgets', label: 'Anggaran Overhead (OVB)', labelOne: 'Anggaran Overhead',
     columns: [
       codeColumn,
-      { key: 'period_year', label: 'Tahun buku', type: 'number', align: 'right' },
+      /* type 'year', bukan 'number': perender angka memisah ribuan dan mencetak
+         "2.031" untuk tahun buku 2031 (verifikasi F-2 putaran 2). */
+      { key: 'period_year', label: 'Tahun buku', type: 'year', align: 'right' },
       { key: 'lines_count', label: 'Akun', type: 'number', align: 'right' },
       { key: 'total_amount', label: 'Total anggaran', type: 'currency', align: 'right' },
       statusColumn,

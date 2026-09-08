@@ -212,6 +212,9 @@ const LABELS = {
   accumulated_depreciation: 'Akumulasi penyusutan', book_value: 'Nilai buku',
   monthly_depreciation: 'Penyusutan per bulan', acquisition_cost: 'Harga perolehan',
   period_year: 'Tahun', period_month: 'Bulan', run_type: 'Jenis run', payslips_count: 'Jumlah slip',
+  // Tanpa entri ini panel Informasi OVB memajang "Lines Count" (verifikasi F-2
+  // putaran 2) — label auto-Inggris yang titleize() memang peringatkan.
+  lines_count: 'Jumlah baris',
   total_gross: 'Total bruto', total_deductions: 'Total potongan', total_net: 'Total netto',
   sla_response_hours: 'SLA respons (jam)', sla_resolution_hours: 'SLA penyelesaian (jam)',
   billing_cycle: 'Siklus penagihan', priority: 'Prioritas', category: 'Kategori', channel: 'Kanal',
