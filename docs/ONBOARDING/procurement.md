@@ -80,8 +80,18 @@ di sidebar Anda.
   menunggu persetujuan."* untuk Anda, karena Anda tidak menyetujui apa pun. Kabar PR/PO
   Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
   merah) dan lewat lencana status di layar daftarnya.
-- Kartu **Kalender Acara** (selalu digambar) dan **Perlu dipesan ulang** (digambar hanya
-  bila ada item di bawah minimum — daftar yang dibaca, tanpa tombol PR di atasnya; §6.10).
+- Kartu **Kalender Acara** (selalu digambar) dan **Perlu dipesan ulang** — digambar hanya
+  bila ada pasangan **gudang × item** di bawah **ambang**-nya. Ambang tiap baris adalah
+  aturan reorder gudang itu bila ada yang aktif (`Persediaan › Aturan Reorder`), dan stok
+  minimum kartu item bila tidak; kartunya menyebut yang mana. **Kartu ini memang daftar
+  yang dibaca** — kakinya satu tautan, `Buka Stok`. Tombolnya ada satu klik lebih jauh,
+  dan ia milik Anda: pada tab **`Perlu dipesan ulang`** di `Persediaan › Saldo Stok`,
+  sejak F-6 berdiri tombol **`Usulkan PR dari kekurangan ini`** untuk pemegang
+  `prc.create` — di lajur ini, itu **Anda**, dan petugas gudang tidak melihatnya. Tombol
+  itu membawa ke `Persediaan › Usulan Pesan Ulang`, tempat **`Buat PR draf`** membuat
+  permintaan **Draf** yang tetap Anda periksa dan ajukan sendiri (§6.3b). Tidak ada PR
+  **otomatis**: tidak ada penjadwal, dan tidak ada jalur yang mengajukan atau menyetujui
+  (§6.10).
 
 **Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7), tiga saja:
 

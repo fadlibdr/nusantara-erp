@@ -1793,3 +1793,36 @@ keduanya. Memilih diam-diam berarti stok masuk ke kartu barang lain tanpa satu p
 kekeliruan itu baru terlihat pada opname berikutnya. Pencocokannya **PERSIS**, bukan `like`:
 pemindaian adalah pembacaan mesin, ia tepat atau ia gagal. `items/scan` didaftarkan **di atas**
 `items/{item}` — di bawahnya `scan` tertangkap sebagai `{item}` dan setiap pemindaian menjawab 404.
+
+## 35. Sapuan dokumentasi saat sebuah layar berubah (F-6, putaran kedua)
+
+Sebuah paket yang menambah tombol, mengganti nama tab, atau mengubah arti sebuah angka
+**menjadikan kalimat yang sudah tertulis di `docs/` SALAH** — dan kalimat yang salah di panduan
+peran lebih mahal daripada kalimat yang hilang: ia dibaca sebagai janji, satu kali, pada hari
+pertama orang itu memakai sistemnya, dan sesudah itu ia tidak membukanya lagi.
+
+**ATURANNYA: grep, lalu HITUNG — sebelum dan sesudah.**
+
+```
+grep -rn "<label layar yang berubah>" docs/ | wc -l      # sebelum: N penyebutan
+# …perbaiki…
+grep -rn "<label layar yang berubah>" docs/ | wc -l      # sesudah: N yang sama, semuanya dibaca
+```
+
+Angkanya masuk laporan paket. "Keempat penyebutan sudah diperbaiki" tanpa angka grep-nya adalah
+klaim yang tidak bisa diperiksa siapa pun — dan F-6 membuktikan kenapa: sapuan putaran pertamanya
+menyebut "keempat penyebutan tab", sementara `grep -rc "Perlu dipesan ulang" docs/` memulangkan
+**13 penyebutan di delapan berkas**. Yang KELIMA berdiri di berkas yang sama dengan salah satu dari
+keempatnya (`docs/ONBOARDING/procurement.md`), dan ia berkata kepada petugas pengadaan bahwa daftar
+itu "tanpa tombol PR di atasnya" — tombol yang justru **hanya dia** yang dapat. Diukur di Chromium,
+dua sesi, tab "Perlu dipesan ulang" pada `#/stock` dengan satu baris kekurangan:
+
+| akun | tombol di tab | tombol di kartu dasbor |
+|---|---|---|
+| `procurement@nusantara.test` | **`Usulkan PR dari kekurangan ini`** | `Buka Stok` |
+| `warehouse@nusantara.test` | (tidak ada — tanpa `prc.create`) | `Buka Stok` |
+
+**DAN PERIKSA KEDUA PERMUKAAN YANG MEMAKAI NAMA YANG SAMA.** "Perlu dipesan ulang" adalah nama
+kartu dasbor DAN nama tab Saldo Stok. Kalimat yang benar tentang kartunya ("daftar yang dibaca")
+menjadi bohong begitu pembacanya mengira ia berbicara tentang tabnya. Sebutkan yang mana, dan
+sebutkan di mana tombolnya berdiri.
