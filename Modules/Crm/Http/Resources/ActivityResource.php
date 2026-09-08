@@ -41,6 +41,10 @@ class ActivityResource extends JsonResource
             'document_type' => $this->document_type,
             'document_type_label' => ActivityDocuments::label((string) $this->document_type),
             'document_id' => $this->document_id,
+            // Ditempelkan ActivityController (satu query per jenis). Absen —
+            // bukan null — bila pemanggilnya tidak memintanya, supaya "kosong"
+            // tidak pernah terbaca sebagai "dokumennya tanpa nama".
+            'document_label' => $this->whenNotNull($this->document_label),
             'type' => $this->type?->value,
             'type_label' => $this->type?->label(),
             'subject' => $this->subject,

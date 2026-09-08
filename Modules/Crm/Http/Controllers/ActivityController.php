@@ -5,12 +5,14 @@ namespace Modules\Crm\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Modules\Core\Http\ApiController;
 use Modules\Crm\Http\Requests\ActivityStoreRequest;
 use Modules\Crm\Http\Requests\ActivityUpdateRequest;
 use Modules\Crm\Http\Resources\ActivityResource;
 use Modules\Crm\Models\Activity;
 use Modules\Crm\Services\ActivityService;
+use Modules\Crm\Support\ActivityDocuments;
 
 /**
  * Register aktivitas CRM. Bukan dokumen: tanpa nomor, tanpa persetujuan.
@@ -54,29 +56,36 @@ class ActivityController extends ApiController
             ->orderByDesc('id');
 
         return $this->listing($request, $query, ActivityResource::class,
-            sortable: ['subject', 'type', 'due_at', 'done_at'], dateColumn: 'due_at');
+            sortable: ['subject', 'type', 'due_at', 'done_at'], dateColumn: 'due_at',
+            transform: fn (Collection $rows): Collection => $this->withDocumentLabels($rows));
     }
 
     public function store(ActivityStoreRequest $request): JsonResponse
     {
         $activity = $this->service->create($request->validated());
 
-        return $this->created(
-            ActivityResource::make($activity->load(['owner:id,name', 'doneBy:id,name'])),
-            'Aktivitas dicatat.',
-        );
+        return $this->created(ActivityResource::make($this->loaded($activity)), 'Aktivitas dicatat.');
     }
 
     public function show(Activity $activity): JsonResponse
     {
-        return $this->ok(ActivityResource::make($activity->load(['owner:id,name', 'doneBy:id,name'])));
+        return $this->ok(ActivityResource::make($this->loaded($activity)));
+    }
+
+    /** Satu aktivitas siap dikirim: relasi orang + nama dokumen induknya. */
+    private function loaded(Activity $activity): Activity
+    {
+        $activity->load(['owner:id,name', 'doneBy:id,name']);
+        $this->withDocumentLabels(collect([$activity]));
+
+        return $activity;
     }
 
     public function update(ActivityUpdateRequest $request, Activity $activity): JsonResponse
     {
         $activity = $this->service->update($activity, $request->validated());
 
-        return $this->ok(ActivityResource::make($activity->load(['owner:id,name', 'doneBy:id,name'])));
+        return $this->ok(ActivityResource::make($this->loaded($activity)));
     }
 
     public function destroy(Activity $activity): JsonResponse
@@ -86,12 +95,50 @@ class ActivityController extends ApiController
         return $this->ok(null, 'Aktivitas dihapus.');
     }
 
+    /**
+     * Nama dokumen induk untuk sekumpulan aktivitas — SATU query per jenis,
+     * bukan satu per baris.
+     *
+     * Tanpa ini daftar aktivitas hanya bisa memajang "Prospek #3", dan yang
+     * membacanya harus membuka barisnya untuk tahu prospek siapa. Dengan
+     * pengelompokan per jenis, seratus baris berbiaya paling banyak tiga query
+     * — bukan seratus (N+1 yang tidak terlihat sampai datanya banyak).
+     *
+     * @param  Collection<int, Activity>  $rows
+     * @return Collection<int, Activity>
+     */
+    private function withDocumentLabels(Collection $rows): Collection
+    {
+        foreach ($rows->groupBy('document_type') as $type => $group) {
+            $model = ActivityDocuments::model((string) $type);
+
+            if ($model === null) {
+                continue;
+            }
+
+            $parents = $model::query()->whereIn('id', $group->pluck('document_id')->unique())->get()->keyBy('id');
+
+            foreach ($group as $activity) {
+                $parent = $parents->get($activity->document_id);
+
+                // Induk yang tidak ditemukan (terhapus) TIDAK dikarang menjadi
+                // kalimat yang terdengar utuh: barisnya menyebut jenis dan
+                // idnya, dan itulah yang sebenarnya diketahui.
+                $activity->setAttribute('document_label', $parent === null
+                    ? ActivityDocuments::label((string) $type)." #{$activity->document_id} (tidak ditemukan)"
+                    : trim(($parent->code ?? '').' '.($parent->name ?? $parent->title ?? '')));
+            }
+        }
+
+        return $rows;
+    }
+
     public function markDone(Request $request, Activity $activity): JsonResponse
     {
         $activity = $this->service->markDone($activity, $request->user());
 
         return $this->ok(
-            ActivityResource::make($activity->load(['owner:id,name', 'doneBy:id,name'])),
+            ActivityResource::make($this->loaded($activity)),
             "Aktivitas \"{$activity->subject}\" ditandai selesai.",
         );
     }
@@ -101,7 +148,7 @@ class ActivityController extends ApiController
         $activity = $this->service->reopen($activity);
 
         return $this->ok(
-            ActivityResource::make($activity->load(['owner:id,name', 'doneBy:id,name'])),
+            ActivityResource::make($this->loaded($activity)),
             "Aktivitas \"{$activity->subject}\" dibuka kembali.",
         );
     }

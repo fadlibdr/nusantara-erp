@@ -88,6 +88,18 @@ export const ENUMS = {
     ['new', 'Baru'], ['contacted', 'Sudah Dihubungi'], ['qualified', 'Terkualifikasi'],
     ['proposal', 'Penawaran Dikirim'], ['won', 'Menang'], ['lost', 'Kalah'],
   ]),
+  /* Aktivitas CRM (F-3) — cermin Modules\Crm\Enums\ActivityType, dijaga
+     ActivityRegistryTest. Tanpa warna: jenis pekerjaan bukan keadaan, dan
+     sebuah "Telepon" hijau tidak berarti apa-apa. */
+  activityType: opts([
+    ['call', 'Telepon'], ['meeting', 'Rapat'], ['email', 'Email'],
+    ['visit', 'Kunjungan'], ['note', 'Catatan'],
+  ]),
+  /* Jenis dokumen tempat sebuah aktivitas menggantung — cermin
+     ActivityDocuments::DOCUMENTS. */
+  activityDocument: opts([
+    ['lead', 'Prospek'], ['quotation', 'Penawaran'], ['customer', 'Pelanggan'],
+  ]),
   /* Jenis CCO (temuan #61) — eskalasi harga menggerakkan nilai lewat jalur CCO
      yang sama dengan pekerjaan tambah-kurang; yang dibedakan makna jejak
      auditnya, bukan hitungannya (tidak ada mesin formula indeks). 'waktu'

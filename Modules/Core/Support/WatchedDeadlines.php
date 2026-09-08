@@ -112,6 +112,49 @@ class WatchedDeadlines
     {
         return [
             [
+                /*
+                 * Aktivitas CRM yang jatuh tempo (F-3 / T3.7).
+                 *
+                 * Ini tenggat pertama di daftar ini yang tanggalnya DIJANJIKAN
+                 * SEORANG SALES KEPADA DIRINYA SENDIRI — "telepon lagi Senin
+                 * depan" — dan justru karena itu ia yang paling mudah lewat
+                 * tanpa siapa pun tahu: tidak ada pelanggan yang menagih, tidak
+                 * ada dokumen yang macet, tidak ada angka yang berubah. Yang
+                 * hilang hanyalah prospeknya, enam minggu kemudian.
+                 *
+                 * lead_days 3, bukan 14: sebuah telepon dijadwalkan dalam
+                 * hitungan hari, dan pengingat dua minggu sebelumnya hanya
+                 * melatih orang mengabaikan pemberitahuannya.
+                 *
+                 * `done_at` adalah penanda selesai — itu pula sebabnya
+                 * "Selesai" mencap waktu alih-alih menghapus barisnya: sebuah
+                 * aktivitas yang dihapus akan diam dengan cara yang sama
+                 * dengan yang dikerjakan.
+                 *
+                 * crm.update, bukan crm.view: yang harus bertindak adalah orang
+                 * yang bisa menandainya selesai. 'value' sengaja kosong —
+                 * aktivitas tidak menyimpan rupiah, dan mengutip angka yang
+                 * tidak ada adalah hal yang tidak boleh dilakukan lembar mana
+                 * pun di repo ini.
+                 */
+                'key' => 'crm_activity_due',
+                'table' => 'crm_activities',
+                'date' => 'due_at',
+                'display' => 'subject',
+                'label' => 'Aktivitas CRM',
+                'unit' => 'aktivitas',
+                'date_word' => 'jatuh tempo',
+                'lead_days' => 3,
+                'permission' => 'crm.update',
+                'link' => 'r/crm/activities',
+                'title_upcoming' => 'Aktivitas CRM mendekati jatuh tempo',
+                'title_overdue' => 'Aktivitas CRM lewat jatuh tempo',
+                'columns' => ['done_at', 'deleted_at'],
+                'scope' => static fn (Builder $query): Builder => $query
+                    ->whereNull('done_at')
+                    ->whereNull('deleted_at'),
+            ],
+            [
                 // QTN/2026/VII/0004 (Rp 33,97 jt) is approved, not won, not
                 // lost, valid s/d 2026-08-31 — sales gets 14 days to close or
                 // re-issue it instead of finding out from the customer.

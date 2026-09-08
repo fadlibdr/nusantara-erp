@@ -86,6 +86,7 @@ abstract class ApiController extends Controller
         ?string $dateColumn = null,
         array $meta = [],
         int $perPageDefault = 20,
+        ?\Closure $transform = null,
     ): JsonResponse {
         $sort = $request->query('sort');
         $dir = $request->query('dir') === 'desc' ? 'desc' : 'asc';
@@ -132,6 +133,20 @@ abstract class ApiController extends Controller
         // Anything not positive falls back to THIS list's default, so
         // meta.per_page always echoes a size the caller could have asked for.
         $paginator = $query->paginate($perPage > 0 ? $perPage : $perPageDefault);
+
+        /*
+         * `transform`: kesempatan controller menyiapkan HALAMAN INI sebelum
+         * Resource membacanya. Lahir untuk ActivityController (F-3), yang
+         * menempelkan nama dokumen induk tiap aktivitas lewat satu query per
+         * JENIS alih-alih satu per baris — N+1 yang tidak terlihat sampai
+         * datanya banyak. Ia menerima dan memulangkan baris yang SAMA: ini
+         * bukan tempat menyaring atau mengurutkan, karena paginator sudah
+         * terlanjur menghitung total dan halamannya.
+         */
+        if ($transform !== null) {
+            $paginator->setCollection($transform($paginator->getCollection()));
+        }
+
         $data = $resource !== null ? $resource::collection($paginator) : $paginator->getCollection();
 
         return $this->ok($data, null, array_merge($this->paginationMeta($paginator) ?? [], [

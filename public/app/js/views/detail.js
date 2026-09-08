@@ -100,6 +100,9 @@ const NAME_SHADOWED = {
   // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
   // "belum dimuat".
   owner_user_id: 'owner_user_name',
+  // F-3: nama dokumen induk sebuah aktivitas ("LEAD-0001 Rudi Hartanto").
+  // Tanpa ini layar aktivitas menuliskan "Document: 3".
+  document_id: 'document_label',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
 
@@ -281,6 +284,11 @@ const LABELS = {
      label yang menyebutnya prospek. */
   owner_name: 'Pemberi tugas',
   owner_user_id: 'Pemilik prospek', owner_user_name: 'Pemilik prospek',
+  // F-3 — aktivitas CRM.
+  subject: 'Kegiatan', due_at: 'Jatuh tempo', done_at: 'Selesai pada',
+  done_by_id: 'Diselesaikan oleh', done_by_name: 'Diselesaikan oleh',
+  document_label: 'Dokumen', document_type: 'Jenis dokumen', document_type_label: 'Jenis dokumen',
+  is_open: 'Masih terbuka', is_overdue: 'Lewat tanggal',
   warehouse_name: 'Gudang', item_name: 'Item', item_code: 'Kode item', site_name: 'Nama site',
   customer_representative: 'Wakil pelanggan', customer_sign_name: 'TTD pelanggan',
   customer_signed_at: 'Ditandatangani pelanggan',

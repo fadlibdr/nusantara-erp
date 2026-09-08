@@ -382,6 +382,32 @@ export const RESOURCES = {
     },
   },
 
+  /*
+   * Daftar aktivitas CRM (F-3). BACA SAJA — tanpa blok `form`, karena sebuah
+   * aktivitas selalu menggantung pada satu dokumen dan id induknya tidak bisa
+   * diketik dari layar generik; tempat membuatnya adalah kartu Aktivitas di
+   * layar prospek/penawaran/pelanggan. Layar ini ada supaya antrean kerja
+   * harian bisa ditanyakan lintas dokumen — dan supaya notifikasi jatuh tempo
+   * (WatchedDeadlines) punya tujuan yang sungguhan.
+   */
+  'crm/activities': {
+    module: 'crm', api: 'crm/activities', label: 'Aktivitas CRM', labelOne: 'Aktivitas',
+    columns: [
+      { key: 'due_at', label: 'Jatuh tempo', type: 'date', withRelative: true },
+      { key: 'subject', label: 'Kegiatan', type: 'text' },
+      { key: 'type', label: 'Jenis', type: 'enum', enum: 'activityType' },
+      // Nama dokumen induknya, ditempelkan server dengan satu query per jenis.
+      { key: 'document_label', label: 'Dokumen', type: 'text', sub: 'document_type_label' },
+      { key: 'owner_user_name', label: 'Pemilik', type: 'text' },
+      { key: 'done_at', label: 'Selesai', type: 'datetime' },
+    ],
+    filters: [
+      { key: 'type', label: 'Jenis', enum: 'activityType' },
+      { key: 'document_type', label: 'Dokumen', enum: 'activityDocument' },
+      { key: 'owner_user_id', label: 'Pemilik', lookup: 'users' },
+    ],
+  },
+
   'crm/quotations': {
     module: 'crm', api: 'crm/quotations', label: 'Penawaran', labelOne: 'Penawaran',
     columns: [
@@ -6229,6 +6255,9 @@ export const NAV = [
       // F-3 — papan pipeline: corong yang sama, dilihat sebagai kolom. Satu
       // baris di bawah daftarnya, seperti papan PR dan papan NCR (P1-G).
       { label: 'Papan Pipeline', route: 'b/crm/leads' },
+      // F-3 — antrean kerja harian: apa yang jatuh tempo hari ini, lintas
+      // prospek/penawaran/pelanggan.
+      { label: 'Aktivitas CRM', route: 'r/crm/activities' },
       // P7 — berkas lelang duduk di antara prospek dan penawaran karena di
       // situlah pekerjaannya: dokumen lelang dan aanwijzing datang lebih dulu,
       // penawaran menyusul, dan lembar TKDN menguraikan penawaran itu.
