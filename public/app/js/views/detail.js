@@ -5,6 +5,7 @@ import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast, m
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
+import { activitiesCard } from './activities.js';
 import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
 import { openForm } from './form.js';
@@ -1000,6 +1001,14 @@ export async function renderDetail(host, { key, def, id }) {
   // attachments card: the registry mirror inside the card decides membership.
   const externalApprovals = externalApprovalsCard(key, record.id, def.module);
   if (externalApprovals) side.appendChild(externalApprovals);
+
+  /* Aktivitas CRM (F-3) — kawat satu baris yang sama; cermin registri di dalam
+     kartunya yang memutuskan prospek/penawaran/pelanggan. Di kolom UTAMA, bukan
+     samping: kartu ini adalah antrean kerja sales (apa yang jatuh tempo, apa
+     yang lewat tanggal, apa yang sudah dikerjakan dan oleh siapa), bukan
+     lampiran yang dibuka sesekali. */
+  const activities = activitiesCard(key, record.id, def.module);
+  if (activities) main.appendChild(activities);
 
   side.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Metadata' })),
