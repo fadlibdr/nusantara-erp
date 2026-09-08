@@ -323,11 +323,29 @@ final class Code128
     }
 
     /**
-     * Teks manusia dipecah menjadi baris yang MUAT di dalam viewBox.
+     * Teks monospace dipecah menjadi baris yang MUAT dalam lebar yang diberi.
+     *
+     * ======================================================================
+     * PUBLIK, DAN ITU YANG MENUTUP CACAT V7-1.
+     *
+     * Aturan pemenggalan ini dulu hanya melayani teks di bawah BATANG. Stiker
+     * yang batangnya tidak dicetak — kode di luar ASCII 32–126, atau kode yang
+     * terlalu panjang untuk tetap terpindai — menuliskan kodenya sebagai satu
+     * baris monospace tanpa satu pun aturan pemenggalan: diukur di Chromium
+     * (media=print), 100 karakter menjadi satu baris 191,10 mm di dalam kotak
+     * 56,5 mm, menimpa dua stiker tetangganya dan mendorong lembarnya sampai
+     * 322 mm — di atas kertas A4 yang lebar isinya 194 mm. Satu aturan, satu
+     * tempat; pemanggilnya cuma menyebut LEBAR dan TINGGI HURUF-nya.
+     *
+     * SATUANNYA MILIK PEMANGGIL: satuan viewBox untuk teks di bawah batang,
+     * MILIMETER untuk kode tulis-tangan di dalam stiker. Yang dihitung baris
+     * ini hanyalah "berapa karakter monospace yang muat dalam lebar segini",
+     * dan perbandingan itu tidak punya satuan.
+     * ======================================================================
      *
      * @return list<string>
      */
-    private static function wrapLabel(string $text, int $width, int $fontSize): array
+    public static function wrapLabel(string $text, float $width, float $fontSize): array
     {
         $perLine = max(1, (int) floor($width / ($fontSize * self::MONO_ADVANCE)));
         $characters = mb_str_split($text);

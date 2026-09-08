@@ -50,6 +50,29 @@
             font-family: Arial, Helvetica, sans-serif;
             font-size: 9pt; color: #000; background: #fff;
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            /*
+                JARING SATU LEMBAR PENUH, dan ia bukan selera tata letak.
+
+                SETIAP teks di lembar ini datang dari data yang diketik orang:
+                nama item (200 karakter), kode (40), barcode (100), satuan,
+                nama perusahaan. Sebuah token tanpa spasi tidak pernah patah
+                sendiri — ia keluar dari kotaknya, menimpa tetangganya, dan
+                sebagian tercetak di luar halaman. Diukur di Chromium,
+                media=print, barcode 100 karakter DAN nama 120 karakter:
+                `.lembar` 376,11 mm di atas kertas yang lebar isinya 194 mm;
+                `.kepala .sub` 244,30 mm, `.catatan` 205,66 mm, `.stiker .nama`
+                244,30 mm di dalam kotak 56,38 mm.
+
+                `anywhere` dan bukan `break-word`: hanya `anywhere` yang ikut
+                mengecilkan lebar min-content, yang adalah yang menahan kotak
+                stiker dari melebar sendiri. Prosa biasa tidak tersentuh —
+                aturan ini hanya berlaku pada kata yang memang tidak muat.
+
+                Ia JARING, bukan aturan: di mana kode tulis-tangan dipenggal
+                tetap diputuskan PHP (Code128::wrapLabel), supaya angkanya bisa
+                dipaku uji dan barisnya bisa dibaca orang baris demi baris.
+            */
+            overflow-wrap: anywhere;
         }
 
         .lembar { max-width: 194mm; margin: 0 auto; }
@@ -76,7 +99,7 @@
                milimeter yang dibawa SVG-nya. Mengubah salah satunya tanpa yang
                lain membuat modul cetak berbeda dari yang tertulis di catatan. */
             padding: 2.5mm;
-            width: {{ $geometry['sticker_mm'] ?? 62.0 }}mm;
+            width: {{ $stickerMm }}mm;
             text-align: center;
             break-inside: avoid; page-break-inside: avoid;
         }
@@ -97,7 +120,24 @@
         .stiker .tanpa-barcode {
             border-bottom: .7pt solid #000; height: 11mm; margin: 1mm 2mm 1.5mm;
         }
-        .stiker .kode-tangan { font-family: monospace; font-size: 9pt; }
+        /*
+            KODE TULIS-TANGANNYA DIPENGGAL DI PHP (Code128::wrapLabel, aturan
+            yang sama dengan teks di bawah batang), satu <div> per baris — dan
+            `overflow-wrap: anywhere` di sini adalah JARINGNYA, bukan
+            aturannya.
+
+            Tanpa keduanya, cabang "terlalu panjang untuk terpindai" mencetak
+            kodenya sebagai SATU baris: diukur di Chromium pada media=print,
+            100 karakter = 191,10 mm di dalam kotak 56,5 mm, menimpa dua
+            stiker tetangganya dan mendorong lembarnya ke 322 mm di atas
+            kertas selebar 194 mm. `font-size` datang dari konstanta PHP yang
+            SAMA dengan yang dipakai menghitung pemenggalannya; dua angka yang
+            berbeda berarti baris yang dihitung untuk 9 pt dicetak pada 11 pt.
+        */
+        .stiker .kode-tangan {
+            font-family: monospace; font-size: {{ $handFontPt }}pt;
+            overflow-wrap: anywhere; word-break: break-all;
+        }
 
         .kaki { margin-top: 5mm; font-size: 7.5pt; display: flex; justify-content: space-between; }
 
@@ -207,7 +247,9 @@
                     {!! $svg !!}
                 @else
                     <div class="tanpa-barcode"></div>
-                    <div class="kode-tangan">{{ $encoded }}</div>
+                    @foreach ($handLines as $line)
+                        <div class="kode-tangan">{{ $line }}</div>
+                    @endforeach
                 @endif
             </div>
         @endfor

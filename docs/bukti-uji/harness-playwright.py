@@ -8108,6 +8108,70 @@ def s33(pg):
         sheet.screenshot(path=f"{OUT}/s33-lembar-label.png", full_page=False)
         sheet.close()
 
+        # -------------------------- lembar yang DITOLAK, dibuka SEBAGAI HALAMAN
+        #
+        # Cabang penolakan ("kode ini tidak muat pada lebar yang masih
+        # terpindai") sampai putaran kedua F-6 hanya diuji sebagai KALIMAT:
+        # assertStringContains "Barcode tidak dicetak" + kelas 'tanpa-barcode'.
+        # Di balik keduanya, kodenya dicetak sebagai SATU baris monospace tanpa
+        # aturan pemenggalan — 63 karakter = 120,43 mm dan 100 karakter =
+        # 191,10 mm di dalam kotak 56,5 mm, menimpa dua stiker tetangganya dan
+        # mendorong `.lembar` ke 322 mm di atas kertas selebar 194 mm. Lolos
+        # 62 uji PHP hijau dan kelima skenario ini, karena S33 hanya pernah
+        # membuka lembar untuk item ber-barcode PENDEK.
+        #
+        # Diukur pada media=print, karena inilah lembar yang dicetak.
+        out["refused_writes"] = [_f6_set_barcode(tok, item_id, "A" * 100)]
+        pg.goto(BASE + f"#/d/inventory/items/{item_id}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(1500)
+        click(pg, ".page-head .actions button.menu-trigger:has-text('Cetak')")
+        pg.wait_for_timeout(500)
+        with pg.context.expect_page(timeout=25000) as refused_info:
+            click(pg, ".menu-item:has-text('Label Barcode (12 stiker)')")
+        refused = refused_info.value
+        refused.wait_for_timeout(6000)
+        refused.emulate_media(media="print")
+        refused.wait_for_timeout(400)
+        out["refused_sheet"] = refused.evaluate("""() => {
+          const probe = document.createElement('div');
+          probe.style.cssText = 'position:absolute;left:-9999px;width:10mm';
+          document.body.appendChild(probe);
+          const pxPerMm = probe.getBoundingClientRect().width / 10;
+          probe.remove();
+
+          const st = document.querySelector('.stiker');
+          // Baris SATU stiker, bukan seluruh lembar: 12 stiker × 100 karakter
+          // menyambung menjadi 1200 karakter yang "utuh" tanpa satu pun
+          // stikernya utuh (versi pertama syarat ini melakukan itu).
+          const lines = st ? [...st.querySelectorAll('.kode-tangan')] : [];
+          const box = st ? st.getBoundingClientRect().width / pxPerMm : null;
+          const lembar = document.querySelector('.lembar');
+
+          return {
+            svg_present: !!document.querySelector('.stiker svg'),
+            note: (document.querySelector('.catatan') || {}).innerText || null,
+            stickers: document.querySelectorAll('.stiker').length,
+            hand_lines_per_sticker: st ? st.querySelectorAll('.kode-tangan').length : 0,
+            sticker_mm: box === null ? null : +box.toFixed(2),
+            // Kotak ISI stikernya: lebar stiker dikurangi padding kiri-kanan.
+            sticker_inner_mm: st ? +((st.clientWidth
+              - parseFloat(getComputedStyle(st).paddingLeft)
+              - parseFloat(getComputedStyle(st).paddingRight)) / pxPerMm).toFixed(2) : null,
+            widest_hand_line_mm: lines.length
+              ? +(Math.max(...lines.map(l => l.scrollWidth)) / pxPerMm).toFixed(2) : null,
+            // Kode yang tercetak harus tetap UTUH: yang diketik ulang orangnya
+            // adalah kode ini, dan kode yang kehilangan ekornya adalah kode LAIN.
+            hand_code: lines.map(l => l.textContent).join(''),
+            lembar_scroll_mm: lembar ? +(lembar.scrollWidth / pxPerMm).toFixed(2) : null,
+            lembar_client_mm: lembar ? +(lembar.clientWidth / pxPerMm).toFixed(2) : null,
+            body_scroll: document.body.scrollWidth,
+            body_client: document.body.clientWidth,
+          };
+        }""")
+        refused.screenshot(path=f"{OUT}/s33-lembar-ditolak.png", full_page=False)
+        refused.close()
+
         # ------------------------------------------------- pindai: jalur ketik
         pg.goto(BASE + "#/pindai")
         pg.wait_for_selector("input[aria-label='Barcode atau kode item']", timeout=20000)
@@ -8182,6 +8246,22 @@ def s33(pg):
                 and out["sheet"]["text_inside_viewbox"] is True,
             "and_the_sheet_says_which_code_it_encoded":
                 "kode item" in (out["sheet"]["note"] or "") or "barcode pemasok" in (out["sheet"]["note"] or ""),
+            # LEMBAR YANG DITOLAK, DALAM MILIMETER — bukan sebagai kalimat.
+            "the_refused_probe_really_reached_the_item_card":
+                out["refused_writes"] == [200],
+            "a_code_too_long_to_scan_prints_no_bars_and_says_so":
+                out["refused_sheet"]["svg_present"] is False
+                and "Barcode tidak dicetak" in (out["refused_sheet"]["note"] or ""),
+            "and_its_handwritten_code_stays_inside_the_sticker_box":
+                (out["refused_sheet"]["widest_hand_line_mm"] or 999)
+                <= (out["refused_sheet"]["sticker_inner_mm"] or 0) + 0.1,
+            "and_the_sheet_never_grows_wider_than_the_page":
+                out["refused_sheet"]["lembar_scroll_mm"] is not None
+                and out["refused_sheet"]["lembar_scroll_mm"] <= out["refused_sheet"]["lembar_client_mm"] + 0.1
+                and out["refused_sheet"]["body_scroll"] <= out["refused_sheet"]["body_client"],
+            "and_the_code_a_person_retypes_is_still_whole":
+                out["refused_sheet"]["hand_code"] == "A" * 100
+                and out["refused_sheet"]["hand_lines_per_sticker"] == 4,
             "typing_a_code_finds_the_item_and_its_stock_per_warehouse":
                 len(out["manual"]["warehouses"]) > 0,
             "and_says_whether_it_matched_the_code_or_the_barcode":

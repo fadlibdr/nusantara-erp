@@ -205,6 +205,115 @@ class LabelBarcodePrintTest extends ErpTestCase
         $this->assertStringContainsString('tanpa-barcode', $html);
     }
 
+    // ------------------------------------- geometri stiker yang DITOLAK
+
+    /**
+     * CABANG PENOLAKAN DIUKUR DALAM MILIMETER, BUKAN DIBACA SEBAGAI KALIMAT.
+     *
+     * Uji penolakan di atas hanya menuntut kalimat dan kelas `tanpa-barcode`.
+     * Di balik keduanya, kode yang ditolak dicetak sebagai SATU baris
+     * monospace tanpa aturan pemenggalan apa pun — dan itu lolos 62 uji hijau
+     * dan lima skenario harness. Diukur di Chromium 151, media=print,
+     * stiker 56,5 mm:
+     *
+     *   n=62   has_svg=true    stiker 190,07 mm   lembar_scroll 194,01 mm
+     *   n=63   has_svg=FALSE   kode_tangan 120,43 mm   lembar_scroll 252,24 mm
+     *   n=100  has_svg=FALSE   kode_tangan 191,10 mm   lembar_scroll 322,00 mm
+     *
+     * 252 dan 322 mm di atas kertas yang lebar isinya 194 mm berarti dua
+     * stiker tetangganya tertimpa dan sebagian kodenya tercetak di luar
+     * halaman. Yang dipaku di sini adalah MILIMETER baris yang benar-benar
+     * dicetak; sisi Chromium-nya dipaku harness S33 (konteks "lembar yang
+     * ditolak").
+     */
+    #[DataProvider('refusedCodes')]
+    public function test_a_refused_code_is_broken_into_lines_that_fit_the_sticker(string $barcode, int $lines, int $lastLineLength): void
+    {
+        $item = $this->makeItem('Barang Impor', ['code' => 'ITM-0101', 'barcode' => $barcode]);
+
+        $html = $this->actingAs($this->adminUser(), 'sanctum')
+            ->get($this->url($item->id, 'jumlah=1'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('<svg', $html);
+
+        preg_match_all('/<div class="kode-tangan">([^<]*)<\/div>/', $html, $matches);
+        $printed = $matches[1];
+
+        // 1. UTUH: yang ditulis ulang orangnya harus kode yang sama, bukan
+        //    kode yang kehilangan ekornya di tepi kotak.
+        $this->assertSame($barcode, implode('', $printed),
+            'Kode tulis-tangan berubah saat dipenggal — yang diketik ulang orangnya menjadi kode LAIN.');
+
+        // 2. DIPENGGAL, dan pada angka yang bisa diperiksa.
+        $this->assertCount($lines, $printed);
+        $this->assertSame($lastLineLength, mb_strlen(end($printed)));
+
+        // 3. MILIMETER: tiap baris muat di dalam kotak isi stikernya
+        //    (62 mm − 2 × 2,5 mm padding = 57 mm), pada 9 pt monospace.
+        $usableMm = 62.0 - 2 * 2.5;
+        $charMm = 9 * 25.4 / 72 * 0.62;
+
+        foreach ($printed as $line) {
+            $this->assertLessThanOrEqual(
+                $usableMm,
+                round(mb_strlen($line) * $charMm, 3),
+                "Baris \"{$line}\" lebih lebar daripada isi stikernya: ia menimpa stiker tetangganya dan keluar halaman.",
+            );
+        }
+
+        // 28 karakter × 1,969 mm = 55,12 mm — angka yang menjadi bohong kalau
+        // font atau lebar stikernya diubah tanpa mengubah pemenggalannya.
+        $this->assertSame(28, max(array_map('mb_strlen', $printed)));
+
+        // 4. …dan JARINGNYA tetap terpasang untuk font yang lebih lebar
+        //    daripada perkiraan 0,62 em.
+        $this->assertStringContainsString('overflow-wrap: anywhere', $html,
+            'Tanpa jaring CSS-nya, satu font yang lebih lebar daripada perkiraan mengembalikan luapan yang sama.');
+    }
+
+    public static function refusedCodes(): array
+    {
+        return [
+            // 63 karakter: satu karakter di atas ambang penolakan (62 masih
+            // dicetak sebagai barcode pada stiker selebar halaman).
+            '63 karakter — satu di atas ambang' => [str_repeat('X', 63), 3, 7],
+            '100 karakter — batas kolom barcode' => [str_repeat('A', 100), 4, 16],
+        ];
+    }
+
+    /** 62 karakter masih DICETAK sebagai barcode: ambangnya di antara keduanya, dan itu yang membuat kasus di atas jadi kasus. */
+    public function test_sixty_two_characters_still_print_bars_so_the_refusal_starts_at_sixty_three(): void
+    {
+        $item = $this->makeItem('Barang Impor', ['code' => 'ITM-0102', 'barcode' => str_repeat('X', 62)]);
+
+        $html = $this->actingAs($this->adminUser(), 'sanctum')
+            ->get($this->url($item->id, 'jumlah=1'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('<svg', $html);
+        $this->assertStringNotContainsString('<div class="kode-tangan">', $html);
+        $this->assertSame(190.0, $this->geometry($html, str_repeat('X', 62))['sticker_mm']);
+    }
+
+    /**
+     * Kode NON-ASCII memakai stiker tulis-tangan yang sama — dan aturan
+     * pemenggalan yang sama, karena cabang inilah yang mewariskannya.
+     */
+    public function test_an_unencodable_code_is_wrapped_by_the_same_rule(): void
+    {
+        $item = $this->makeItem('Barang Impor', [
+            'code' => 'ITM-0103',
+            'barcode' => str_repeat('Ø', 40),
+        ]);
+
+        $html = $this->actingAs($this->adminUser(), 'sanctum')
+            ->get($this->url($item->id, 'jumlah=1'))->assertOk()->getContent();
+
+        preg_match_all('/<div class="kode-tangan">([^<]*)<\/div>/', $html, $matches);
+
+        $this->assertCount(2, $matches[1], 'Kode 40 karakter harus dipenggal menjadi 28 + 12.');
+        $this->assertSame(str_repeat('Ø', 40), implode('', $matches[1]));
+    }
+
     /**
      * TEKS TERBACA-MANUSIA TIDAK PERNAH TERPOTONG VIEWPORT — dan terpotongnya
      * DI KEDUA UJUNG, diam-diam.

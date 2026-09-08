@@ -1453,6 +1453,11 @@ class FormPrintService
 
         $geometry = Code128::supports($encoded) ? $this->labelGeometry($encoded) : null;
 
+        // Stiker tanpa batang memakai kisi tiga kolom, yaitu lebar yang sama
+        // dengan stiker ber-barcode terpendek: yang tidak dicetak adalah
+        // gambarnya, bukan stikernya.
+        $stickerMm = (float) ($geometry['sticker_mm'] ?? self::LABEL_STICKER_WIDTHS_MM[3]);
+
         return $this->sheet('label-barcode', [
             'item' => $item,
             'company' => Company::current(),
@@ -1460,6 +1465,34 @@ class FormPrintService
             'encodedFromSupplierBarcode' => $supplier !== '',
             'supported' => Code128::supports($encoded),
             'geometry' => $geometry,
+            'stickerMm' => $stickerMm,
+            'handFontPt' => self::LABEL_HAND_FONT_PT,
+            /*
+             * KODE TULIS-TANGAN DIPENGGAL DI SINI, dengan aturan yang sama
+             * dengan teks di bawah batang (Code128::wrapLabel) — dan itu
+             * cacat V7-1.
+             *
+             * Cabang "terlalu panjang untuk terpindai" mewarisi stiker
+             * tulis-tangan dari cabang NON-ASCII, yang tidak pernah punya
+             * aturan pemenggalan karena kode non-ASCII yang pernah masuk ke
+             * situ selalu pendek. Diukur di Chromium (media=print, stiker
+             * 56,5 mm): 63 karakter menjadi satu baris 120,43 mm dan 100
+             * karakter menjadi 191,10 mm — menimpa dua stiker tetangganya,
+             * dan mendorong `.lembar` ke 322 mm di atas kertas yang lebar
+             * isinya 194 mm. Semua itu di balik 62 uji hijau, karena tidak
+             * satu pun uji cabang ini mengukur MILIMETER.
+             *
+             * `overflow-wrap: anywhere` pada `.kode-tangan` adalah JARING,
+             * bukan aturannya: yang menentukan di mana barisnya patah adalah
+             * baris ini, supaya angkanya bisa dipaku uji PHP; jaringnya
+             * menangkap font yang ternyata lebih lebar daripada perkiraan
+             * 0,62 em.
+             */
+            'handLines' => $geometry !== null ? [] : Code128::wrapLabel(
+                $encoded,
+                $stickerMm - 2 * self::LABEL_STICKER_PADDING_MM,
+                self::LABEL_HAND_FONT_PT * 25.4 / 72,
+            ),
             // Teks manusia menyebut KEDUANYA saat barcode pemasok yang
             // dikodekan: yang dipindai mesin dan yang dicari orang di layar
             // adalah dua string berbeda, dan stiker yang hanya membawa salah
@@ -1509,6 +1542,17 @@ class FormPrintService
 
     /** Padding di dalam garis potong stiker, kiri dan kanan. */
     private const LABEL_STICKER_PADDING_MM = 2.5;
+
+    /**
+     * Tinggi huruf kode tulis-tangan pada stiker tanpa batang, dalam POIN —
+     * dan lembarnya mencetak CSS-nya dari konstanta ini.
+     *
+     * Angka ini dipakai dua kali: untuk memutuskan di mana kodenya dipenggal
+     * (Code128::wrapLabel, dalam milimeter) dan untuk `font-size` di lembarnya.
+     * Menuliskannya dua kali berarti pemenggalan yang dihitung untuk 9 pt
+     * dicetak pada 11 pt, dan barisnya keluar kotak lagi — diam-diam.
+     */
+    private const LABEL_HAND_FONT_PT = 9.0;
 
     /**
      * Kisi mana yang membuat kode ini MASIH TERPINDAI — atau null bila tidak
