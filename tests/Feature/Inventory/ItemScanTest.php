@@ -4,6 +4,7 @@ namespace Tests\Feature\Inventory;
 
 use App\Models\User;
 use Modules\Inventory\Models\StockBalance;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ErpTestCase;
 use Tests\Unit\Inventory\InventoryFixtures;
 
@@ -64,6 +65,59 @@ class ItemScanTest extends ErpTestCase
         $this->assertSame('one', $payload['status']);
         $this->assertSame($item->id, $payload['matches'][0]['id']);
         $this->assertSame('code', $payload['matches'][0]['matched_on']);
+    }
+
+    /**
+     * HURUF KECIL TETAP MENEMUKAN ITEMNYA — dan sebabnya papan ketik iPhone.
+     *
+     * Jalur ketik adalah SATU-SATUNYA jalur di iOS (tidak ada BarcodeDetector
+     * di Safari), dan papan ketik iOS mengapitalkan huruf pertama secara
+     * bawaan: orang gudang mengetik "itm-0003" dan yang terkirim "Itm-0003".
+     * Sebelum perbaikan ini ia membaca "Tidak ada item dengan barcode atau
+     * kode \"Itm-0003\"", membuka kartu itemnya, melihat kodenya memang ada di
+     * sana, dan menyimpulkan pemindainya rusak.
+     *
+     * Permukaan saudaranya sudah menjawab begitu sejak lama — baris terakhir
+     * uji ini memakunya, supaya keduanya tidak bisa menyimpang lagi.
+     */
+    #[DataProvider('caseVariants')]
+    public function test_a_scan_finds_its_item_whatever_the_keyboard_did_to_the_case(string $typed, string $matchedOn): void
+    {
+        $this->makeItem('Kabel UTP Cat6', ['code' => 'ITM-0003', 'barcode' => 'IDN8991002x', 'unit' => 'roll']);
+
+        $payload = $this->scan($typed);
+
+        $this->assertSame('one', $payload['status'], "Kode \"{$typed}\" tidak menemukan itemnya.");
+        $this->assertSame('ITM-0003', $payload['matches'][0]['code']);
+        $this->assertSame($matchedOn, $payload['matches'][0]['matched_on'],
+            'Sebab kecocokan harus tetap benar meski besar-kecilnya berbeda.');
+    }
+
+    public static function caseVariants(): array
+    {
+        return [
+            'kode persis' => ['ITM-0003', 'code'],
+            'kode huruf kecil' => ['itm-0003', 'code'],
+            'kode diapitalkan papan ketik iOS' => ['Itm-0003', 'code'],
+            'barcode persis' => ['IDN8991002x', 'barcode'],
+            'barcode huruf besar semua' => ['IDN8991002X', 'barcode'],
+            'barcode huruf kecil semua' => ['idn8991002x', 'barcode'],
+        ];
+    }
+
+    /** …dan permukaan saudaranya menjawab sama — itulah pembanding yang dulu berselisih. */
+    public function test_the_item_search_and_the_scan_answer_the_same_lowercase_code(): void
+    {
+        $this->makeItem('Kabel UTP Cat6', ['code' => 'ITM-0003', 'unit' => 'roll']);
+        $this->admin ??= $this->adminUser();
+
+        $searched = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('api/inventory/items?q=itm-0003')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertCount(1, $searched, 'Pencarian item memang tidak peka huruf; pindai harus sepakat.');
+        $this->assertSame('one', $this->scan('itm-0003')['status']);
     }
 
     /**

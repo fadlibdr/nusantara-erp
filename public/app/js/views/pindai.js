@@ -59,6 +59,24 @@ function detectorSupported() {
    bingkai. */
 const FORMATS = ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'qr_code'];
 
+/* 46 px, DI SETIAP TOMBOL LAYAR INI — bukan hanya di isian dan tombol Cari.
+ *
+ * `.btn` menyetel height: 34px eksplisit dengan box-sizing: border-box, jadi
+ * padding tidak menumbuhkannya sama sekali, dan `.btn.sm` 28 px. Standar target
+ * sentuh rumah ini 42–46 px (.btn.lg = 46 px), tetapi `.btn.lg` juga menyetel
+ * width: 100% dan akan mengambil seluruh baris kepala kartu — jadi tingginya
+ * disetel di sini, satu tempat, alih-alih ditaburkan per tombol dan terlupa
+ * pada tombol berikutnya. Versi pertama layar ini menegakkan standarnya pada
+ * isian ketik dan melanggarnya pada dua tombol lain di layar yang sama: kotak
+ * setinggi 34 px dan 28 px adalah kotak yang dicoba ditekan dua kali oleh orang
+ * bersarung tangan, tepat pada layar yang komentarnya sendiri menyebut orang
+ * bersarung tangan sebagai alasan. */
+function touchTarget(node) {
+  Object.assign(node.style, { height: '46px', padding: '0 18px' });
+
+  return node;
+}
+
 export async function renderPindai(host) {
   clear(host);
 
@@ -86,17 +104,29 @@ export async function renderPindai(host) {
    * masuk ke isian yang hurufnya lebih kecil dari itu, lalu tidak mengecil
    * lagi — layar yang sudah dipakai satu tangan menjadi layar yang harus
    * digeser dua arah. */
+  /* autocapitalize/autocorrect MATI, dan itu bukan kerapian.
+   *
+   * Papan ketik iOS mengapitalkan huruf pertama secara bawaan dan
+   * mengoreksi otomatis. Orang gudang mengetik "itm-0003"; yang sampai ke
+   * kotak ini adalah "Itm-0003", dan yang ia baca adalah "Tidak ada item
+   * dengan barcode atau kode \"Itm-0003\". Periksa apakah kartu itemnya sudah
+   * mencatat barcode ini" — jadi ia membuka kartu itemnya, melihat kodenya
+   * memang ada di sana, dan menyimpulkan pemindainya rusak. Sebabnya satu
+   * huruf yang bukan ia ketik, pada satu-satunya jalur yang tersisa di iPhone.
+   *
+   * Sisi server ikut dibetulkan (ItemScanController mencocokkan tanpa peduli
+   * besar-kecil, sama seperti GET inventory/items?q= yang sudah begitu); dua
+   * baris ini menutup jalurnya sebelum kode ini melihat masukannya sama
+   * sekali. */
   const input = el('input', {
     type: 'text', inputmode: 'text', autocomplete: 'off', spellcheck: 'false',
+    autocapitalize: 'none', autocorrect: 'off',
     placeholder: 'Ketik atau tempel barcode / kode item…',
     'aria-label': 'Barcode atau kode item',
     style: { fontFamily: 'var(--mono, monospace)', height: '46px', fontSize: '16px' },
   });
 
-  const submit = button('Cari', { variant: 'primary', iconName: 'search', type: 'submit' });
-  // .btn menyetel height: 34px eksplisit dengan box-sizing: border-box, jadi
-  // padding tidak menumbuhkannya sama sekali (catatan .btn.lg di app.css).
-  Object.assign(submit.style, { height: '46px', padding: '0 18px' });
+  const submit = touchTarget(button('Cari', { variant: 'primary', iconName: 'search', type: 'submit' }));
 
   const form = el('form', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
     el('div', { style: { flex: '1 1 220px', minWidth: '0' } }, input),
@@ -176,10 +206,16 @@ export async function renderPindai(host) {
           el('h2', { text: item.name }),
           el('.spacer'),
           item.is_active ? null : badge('Nonaktif', 'amber'),
-          button('Buka kartu item', {
-            size: 'sm', variant: 'ghost', iconName: 'chevronRight',
+          /* Bukan `size: 'sm'` (28 px): ini SATU-SATUNYA jalan keluar dari
+             kartu hasil, di layar yang dipakai orang bersarung tangan sambil
+             berdiri. Tingginya disetel eksplisit dan bukan lewat `.btn.lg`,
+             karena kelas itu juga menyetel width:100% dan akan mengambil
+             seluruh baris kepala kartu — idiom yang sama dengan tombol Cari
+             di atas. */
+          touchTarget(button('Buka kartu item', {
+            variant: 'ghost', iconName: 'chevronRight',
             onClick: () => navigate(`d/inventory/items/${item.id}`),
-          }),
+          })),
         ]),
         el('.card-body', [
           el('.cell-sub.mono', {
@@ -250,6 +286,31 @@ export async function renderPindai(host) {
   function drawCamera() {
     clear(cameraBox);
 
+    /* KEADAAN 2 DIPERIKSA LEBIH DULU, DAN URUTAN ITU SELURUH ISINYA.
+     *
+     * BarcodeDetector ber-[SecureContext]: pada asal yang tidak aman ia
+     * `undefined`, DAN navigator.mediaDevices ikut undefined. Dengan urutan
+     * sebaliknya, orang yang membuka aplikasi lewat http:// dengan Chrome di
+     * Android — persis peramban yang layar ini rekomendasikan — selalu jatuh ke
+     * cabang pertama dan membaca "Peramban ini tidak menyediakan
+     * BarcodeDetector … buka halaman ini dengan Chrome di Android". Ia SEDANG
+     * memakai Chrome di Android. Kalimat HTTPS-nya tidak pernah tercetak sekali
+     * pun di peramban sungguhan, dan sebab yang sebenarnya tidak pernah
+     * disebut.
+     *
+     * Konteks tidak aman adalah sebab yang LEBIH SPESIFIK: ia menjelaskan
+     * ketiadaan BarcodeDetector sekaligus ketiadaan mediaDevices. */
+    if (window.isSecureContext === false) {
+      cameraBox.appendChild(cameraNotice(
+        'Kamera dimatikan karena halaman ini bukan HTTPS',
+        'Peramban hanya memberikan kamera kepada halaman yang dibuka lewat https:// (atau localhost). '
+        + 'Halaman ini bukan salah satunya, jadi kameranya tidak akan pernah diminta — dan itu berlaku di '
+        + 'peramban mana pun, termasuk Chrome di Android. Buka aplikasi lewat alamat https-nya, atau ketik '
+        + 'kodenya di kotak di atas.',
+      ));
+      return;
+    }
+
     // KEADAAN 1 — peramban ini tidak punya BarcodeDetector (iOS Safari).
     if (!detectorSupported()) {
       cameraBox.appendChild(cameraNotice(
@@ -261,30 +322,44 @@ export async function renderPindai(host) {
       return;
     }
 
-    // KEADAAN 2 — halaman ini bukan konteks aman; peramban mematikan kamera.
-    if (window.isSecureContext === false) {
-      cameraBox.appendChild(cameraNotice(
-        'Kamera dimatikan karena halaman ini bukan HTTPS',
-        'Peramban hanya memberikan kamera kepada halaman yang dibuka lewat https:// (atau localhost). '
-        + 'Halaman ini bukan salah satunya, jadi kameranya tidak akan pernah diminta. Buka aplikasi lewat '
-        + 'alamat https-nya, atau ketik kodenya di kotak di atas.',
-      ));
-      return;
-    }
-
     const status = el('.cell-sub', { text: 'Kamera belum dinyalakan.' });
-    const start = button('Nyalakan kamera', { variant: 'primary', onClick: () => startCamera(status, holder, start) });
     const holder = el('div', { style: { marginTop: '10px' } });
 
+    /* SATU PENDENGAR, dan yang berubah adalah apa yang dijalankannya.
+     *
+     * Versi pertama menyalakan tombol lewat `onClick:` — yang ui.js pasang
+     * dengan addEventListener — lalu MENAMBAH `trigger.onclick = …` untuk mode
+     * "matikan". Itu pendengar KEDUA, bukan pengganti: satu klik menjalankan
+     * startCamera() DAN stopCamera(), dalam urutan itu. Pendengar
+     * addEventListener berjalan lebih dulu dan memanggil getUserMedia lagi;
+     * janjinya selesai di microtask checkpoint sehingga `stream` sudah
+     * DITIMPA; barulah stopCamera() menghentikan stream yang BARU. Stream
+     * pertama — kamera yang benar-benar dilihat orangnya — kehilangan seluruh
+     * rujukannya tanpa pernah di-stop().
+     *
+     * Yang dibacanya: tombol berubah menjadi "Nyalakan kamera" dan kalimatnya
+     * menjadi "Kamera belum dinyalakan." — sementara lampu kamera di ponselnya
+     * TETAP MENYALA dan kamera tetap terkunci dari aplikasi lain sampai tabnya
+     * ditutup. Di Android, membuka aplikasi Kamera sesudahnya gagal tanpa satu
+     * pun petunjuk bahwa ERP-lah yang memegangnya. */
+    let onTrigger = () => {};
+    const trigger = touchTarget(button('Nyalakan kamera', { variant: 'primary', onClick: () => onTrigger() }));
+    onTrigger = () => startCamera(status, holder, trigger, (next) => { onTrigger = next; });
+
     cameraBox.appendChild(el('.card', [
-      el('.card-head', [el('h2', { text: 'Pindai dengan kamera' }), el('.spacer'), start]),
+      el('.card-head', [el('h2', { text: 'Pindai dengan kamera' }), el('.spacer'), trigger]),
       el('.card-body', [status, holder]),
     ]));
   }
 
-  async function startCamera(status, holder, trigger) {
+  async function startCamera(status, holder, trigger, setTrigger) {
     trigger.disabled = true;
     status.textContent = 'Meminta izin kamera…';
+
+    // Penjaga: sebuah trek yang masih hidup tidak boleh kehilangan rujukannya
+    // karena permintaan kedua menimpa `stream`. Hari ini tidak ada jalan ke
+    // sini dengan kamera menyala; besok, ketika ada, kameranya tetap dilepas.
+    stopCamera();
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -317,10 +392,10 @@ export async function renderPindai(host) {
 
     trigger.textContent = 'Matikan kamera';
     trigger.disabled = false;
-    trigger.onclick = () => {
+    setTrigger(() => {
       stopCamera();
       drawCamera();
-    };
+    });
 
     video = el('video', { autoplay: true, muted: true, playsinline: true, style: { width: '100%', maxWidth: '420px', borderRadius: 'var(--radius)', background: '#000' } });
     video.srcObject = stream;

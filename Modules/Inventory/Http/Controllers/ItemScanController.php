@@ -34,6 +34,28 @@ use Modules\Inventory\Models\Item;
  * tepat atau ia gagal. Pencocokan sebagian akan membuat "ITM-001" menemukan
  * "ITM-0012" dan orang gudang tidak punya cara mengetahuinya. Pencarian
  * sebagian sudah ada tempatnya sendiri, di `GET inventory/items?q=`.
+ *
+ * ================= TETAPI TIDAK PEDULI BESAR-KECIL HURUF =================
+ * "Persis" berhenti pada huruf besar-kecil, dan itu keputusan yang dipaksa
+ * jalur ketiknya. Papan ketik iOS mengapitalkan huruf pertama secara bawaan,
+ * dan jalur ketik adalah SATU-SATUNYA jalur yang tersisa di iPhone (tidak ada
+ * BarcodeDetector di Safari). Orang gudang mengetik "itm-0003", papan
+ * ketiknya mengirim "Itm-0003", dan yang ia baca adalah "Tidak ada item dengan
+ * barcode atau kode …. Periksa apakah kartu itemnya sudah mencatat barcode
+ * ini" — jadi ia membuka kartu itemnya, melihat kodenya memang ada, dan
+ * menyimpulkan pemindainya rusak. Sebabnya satu huruf yang bukan ia ketik.
+ *
+ * Permukaan saudaranya sudah menjawab begitu sejak lama: `GET
+ * inventory/items?q=itm-0003` MENEMUKAN ITM-0003 (LIKE, tidak peka huruf).
+ * Aturan yang ditegakkan di satu permukaan dan bocor di permukaan lain adalah
+ * cacat yang berulang di kampanye ini; di sini keduanya dijawab sama.
+ *
+ * UPPER() di kedua sisi, bukan collation: SQLite membandingkan `=` secara
+ * peka-huruf sementara MySQL utf8mb4_unicode_ci tidak, jadi tanpa baris ini
+ * jawaban endpoint-nya BERBEDA antara mesin uji dan produksi. Kolom barcode
+ * tidak berindeks hari ini, dan tabel item berukuran master data — jadi
+ * UPPER() tidak membuang indeks yang ada.
+ * =========================================================================
  */
 class ItemScanController extends ApiController
 {
@@ -44,11 +66,14 @@ class ItemScanController extends ApiController
         ]);
 
         $code = trim($data['code']);
+        $needle = mb_strtoupper($code);
 
         $items = Item::query()
             ->with('category', 'balances.warehouse')
-            ->where(function ($query) use ($code): void {
-                $query->where('barcode', $code)->orWhere('code', $code);
+            ->where(function ($query) use ($needle): void {
+                $query
+                    ->whereRaw('UPPER(barcode) = ?', [$needle])
+                    ->orWhereRaw('UPPER(code) = ?', [$needle]);
             })
             ->orderBy('code')
             ->get();
@@ -66,7 +91,7 @@ class ItemScanController extends ApiController
                 // Kenapa item INI yang cocok. Satu kode bisa menjadi barcode
                 // sebuah item DAN kode item lain sekaligus, dan orang yang
                 // memilih di antara keduanya berhak tahu sebabnya.
-                'matched_on' => $item->barcode === $code ? 'barcode' : 'code',
+                'matched_on' => mb_strtoupper((string) $item->barcode) === $needle ? 'barcode' : 'code',
                 'balances' => $item->balances
                     ->filter(fn ($balance) => $balance->warehouse !== null)
                     ->map(fn ($balance): array => [
