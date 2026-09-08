@@ -156,6 +156,8 @@ const SHELL = [
   'js/views/pipeline.js',
   'js/views/pooutstanding.js',
   'js/views/project.js',
+  // F-6 — pindai barcode item (jalur kamera + jalur ketik).
+  'js/views/pindai.js',
   // F-6 — usulan pesan ulang dari kekurangan stok.
   'js/views/reorder.js',
   'js/views/rekapalat.js',

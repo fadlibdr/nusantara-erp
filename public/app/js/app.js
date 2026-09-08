@@ -29,6 +29,7 @@ import { renderLapangan } from './views/lapangan.js';
 import { renderAbsensiSaya } from './views/absensisaya.js';
 import { renderUsulanRekap } from './views/usulanrekap.js';
 import { renderReorder } from './views/reorder.js';
+import { renderPindai } from './views/pindai.js';
 import { renderK3 } from './views/k3.js';
 import { renderEvm } from './views/evm.js';
 import { renderDefects } from './views/defect.js';
@@ -962,6 +963,17 @@ function registerRoutes() {
      PR draf" di dalamnya menuntut prc.create tersendiri, dan endpoint-nya
      menegakkan itu sendiri — layar yang hanya menyembunyikan tombol adalah
      gerbang yang bisa dilewati siapa pun yang tahu alamat endpoint-nya. */
+  /* Pindai barcode (F-6). Gerbangnya inv.view: yang ditampilkan adalah kartu
+     item dan saldo stoknya. Kameranya opsional dan layar mengatakan sendiri
+     kapan ia tidak ada — jalur ketik selalu tersedia. */
+  route('pindai', () => {
+    setCrumbs(['Persediaan', 'Pindai Barcode']);
+    setActiveNav('pindai');
+    const host = view();
+    if (!session.can('inv.view')) return accessDenied(host, 'inv');
+    return guard(host, () => renderPindai(host));
+  });
+
   route('usulan-pesan-ulang', () => {
     setCrumbs(['Persediaan', 'Usulan Pesan Ulang']);
     setActiveNav('usulan-pesan-ulang');

@@ -6,6 +6,7 @@ use Modules\Inventory\Http\Controllers\IssueController;
 use Modules\Inventory\Http\Controllers\IssueReturnController;
 use Modules\Inventory\Http\Controllers\ItemCategoryController;
 use Modules\Inventory\Http\Controllers\ItemController;
+use Modules\Inventory\Http\Controllers\ItemScanController;
 use Modules\Inventory\Http\Controllers\PurchaseReturnController;
 use Modules\Inventory\Http\Controllers\ReorderController;
 use Modules\Inventory\Http\Controllers\ReorderRuleController;
@@ -25,6 +26,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Items (canonical item master for the whole ERP)
     Route::get('items', [ItemController::class, 'index']);
     Route::post('items', [ItemController::class, 'store'])->middleware('permission:inv.create');
+    // Pindai barcode (F-6): satu kode → item yang dimaksudnya. Cocok PERSIS
+    // pada barcode ATAU kode item, dan SELALU mengembalikan semua yang cocok —
+    // inv_items.barcode tidak unik, dan memilihkan salah satu diam-diam berarti
+    // stok masuk ke kartu barang lain tanpa satu pun pesan.
+    //
+    // DI ATAS items/{item}, DAN URUTAN ITU YANG MEMBUATNYA BEKERJA: Laravel
+    // mencocokkan rute dari atas, jadi di bawahnya 'scan' akan tertangkap
+    // sebagai {item} dan endpoint ini menjawab 404 pada setiap pemindaian —
+    // yang di lapangan terbaca sebagai "pemindainya rusak".
+    Route::get('items/scan', ItemScanController::class);
     Route::get('items/{item}', [ItemController::class, 'show']);
     Route::put('items/{item}', [ItemController::class, 'update'])->middleware('permission:inv.update');
     Route::delete('items/{item}', [ItemController::class, 'destroy'])->middleware('permission:inv.delete');

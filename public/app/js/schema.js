@@ -6512,6 +6512,8 @@ export const NAV = [
       // …dan tepat di bawahnya, layar yang MEMBACA aturan itu: kekurangan
       // stok yang ditawarkan sebagai PR draf.
       { label: 'Usulan Pesan Ulang', route: 'usulan-pesan-ulang' },
+      // …dan pintu lapangan ke kartu item: satu pindaian, satu kartu.
+      { label: 'Pindai Barcode', route: 'pindai' },
       { label: 'Penerimaan (GRN)', route: 'r/inventory/goods-receipts' },
       { label: 'Pengeluaran', route: 'r/inventory/issues' },
       { label: 'Transfer', route: 'r/inventory/transfers' },
