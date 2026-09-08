@@ -338,3 +338,31 @@ Harness: `S30_pipeline_crm` (23 syarat) · `S30_pipeline_crm_mobile` (4) ·
 `S30_pipeline_crm_repair` (16) — 43 syarat, semuanya hijau, di atas salinan coretan basis data
 demo (`database/database.sqlite` tidak disentuh; mtime tetap 7 Sep 14.17). Server `php -S`
 pada porta 8144, dimatikan menurut PID-nya.
+
+## Gerbang rilis terakhir (8 September 2026)
+
+Commit rilis **`2017cd6`**, suite penuh di worktree terpisah, KEDUA driver:
+**SQLite 4.303 uji / 23.852 asersi hijau** (11 dilewati, 14 mnt 07 dtk) dan
+**MySQL 8.0.46 4.303 uji / 23.865 asersi hijau** (6 dilewati, 55 mnt 50 dtk).
+
+### Putaran verifikasi KEDUA
+
+Verifikasi pertama mengangkat 19 temuan; 15 diperbaiki dan diverifikasi ulang FIXED. Yang terpenting:
+**`next_follow_up_at` ternyata tidak terlindungi** — aturan `prohibited` Laravel secara harfiah
+adalah "tidak wajib", jadi `null` eksplisit melewatinya, dijawab 200, dan MENGHAPUS kolom yang paket
+ini baru saja jadikan turunan. Sesudah perbaikan ia bertahan terhadap null, string kosong, tanggal,
+larik, penyelundupan lewat query string, badan form-encoded, dan penyamaran `_method=PUT`.
+
+Lima residu ditutup di `2017cd6`:
+
+1. **Antrean kerja harian membuka ARSIP.** Layar Aktivitas CRM adalah tujuan pemberitahuan 08:30
+   DAN tautan sidebar, tetapi urutannya `due_at` menaik LINTAS keadaan — diukur: 105 aktivitas yang
+   selesai bertahun lalu berdiri di atas pekerjaan hari ini. `defaultFilters` skema mengisinya
+   sekali per sesi, lalu saringannya milik pemakainya.
+2. **Dua penjaga tidak terpaku apa pun.** Uji kartu Aktivitas mencari substring `api.list` yang
+   muncul TIGA kali (mengembalikan panggilan isi kartu ke `api.get` lolos hijau) → dihitung; dan
+   lapisan kedua `Arr::except` tidak bisa diamati lewat HTTP selama lapisan pertama utuh → dipaku
+   sebagai sumber, BUKAN dengan menaruh kait uji di kode produksi.
+3. **Dua kalimat menyebut langkah yang tidak ada**: "tekan Ajukan" pada penawaran yang sudah
+   diajukan (tombolnya memang tidak digambar untuk status itu), dan komentar lintas-berkas yang
+   menyamakan batas kartu 100 dengan batas papan 50/25.
