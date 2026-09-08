@@ -614,3 +614,162 @@ console_errors: 0   pageerrors: 0   failed_requests: 0   responses_4xx_5xx: 0
    procurement.md "kedelapan" → 11, "tujuh lembar" → delapan) dan menambahkan satu kalimat tentang
    tiga baris baru ke tiga berkas lain; **audit ulang penuh enumerasi lama tidak dikerjakan** —
    ia tidak dibuat salah oleh F-6 dan menyentuh enam berkas peran sekaligus.
+
+---
+
+## 10. Putaran kedua: enam cacat yang LAHIR DARI PUTARAN PERBAIKAN (9 September 2026)
+
+Verifikasi ulang atas `4fe3274` menyatakan 39 dari 41 temuan FIXED dan 28 mutasi merah — dan
+menemukan **enam cacat baru, semuanya lahir dari putaran perbaikan itu sendiri**. Empat di
+antaranya sampai ke kertas atau ke keputusan pemilik. Bagian ini menggantikan §9 untuk keadaan
+HARI INI.
+
+### 10.1 Satu penyakit, tiga bentuk — dan bagaimana ia disatukan
+
+V7-2, V7-3 dan V7-4 adalah cacat yang sama: **satu aturan ditegakkan di satu permukaan dan bocor
+di permukaan kedua**. Ia sudah berulang di sepanjang kampanye ini, jadi perbaikannya bukan tambalan
+ketiga melainkan **penyatuan sumbernya**.
+
+**Aturan pertama — "kode mana yang dianggap sama".** Ditulis tiga kali, tiga jawaban:
+
+| permukaan | yang dijalankannya SEBELUM | akibat yang terukur |
+|---|---|---|
+| `items/scan` | `UPPER(barcode)=? OR UPPER(code)=?`, tanpa terbuang | (benar) |
+| lembar F/LBL | `where('barcode',$e)->orWhere('code',$e)` + `withTrashed()` | DIAM untuk `F6DUP001` vs `f6dup001`; MEMPERINGATKAN tentang kartu yang sudah dibuang |
+| saringan "Barcode ganda" | `GROUP BY barcode HAVING COUNT(*)>1` | **nol baris** untuk tabrakan yang pemindainya sebut ganda |
+
+Sesudah: `Item::SCAN_KEY_COLUMNS` (satu daftar kolom) + `Item::whereScanKeyEquals()` (satu bentuk
+perbandingan) → `matchingScanCode()` untuk dua permukaan pertama, `sharingScanCode()` untuk
+saringan audit. Pertanyaannya berbeda (kode yang DIKETIK / kode yang SEDANG DICETAK / SETIAP kode
+yang item itu jawab); aturannya satu.
+
+**Aturan kedua — "aturan reorder mana yang benar-benar berlaku".** Tiga syarat, tiga isi berbeda:
+
+| permukaan | SEBELUM | akibat |
+|---|---|---|
+| `lowStockAlerts()` | aktif + item hidup + gudang hidup | (benar) |
+| `loadCount` kartu item | `is_active` saja | kartu berkata "stok minimum di atas TIDAK berlaku" untuk aturan yang gudangnya dibuang |
+| `applies` daftar aturan | kedua `deleted_at` saja | aturan NONAKTIF dikirim `applies: true` |
+
+Sesudah: `ReorderRule::governing()` (kueri) dan `->governs()` (baris). Kueri kekurangan **tidak
+bisa** memanggilnya — ia berangkat dari `inv_stock_balances` lewat LEFT JOIN supaya pasangan TANPA
+aturan tetap muncul — jadi kesetaraannya **dipaku uji**, pola yang sama dengan salinan registri
+Core.
+
+### 10.2 Enam temuan → commit
+
+| Temuan | Gejala yang dibaca pemakainya | Commit |
+|---|---|---|
+| V7-2, V7-3 | lembar label DIAM untuk kode ganda; saringan audit menjawab "Tidak ada data" kepada pemilik yang sedang memutuskan UNIQUE | `bdd7d8c` |
+| V7-4 | kartu item menghitung aturan yang gudangnya sudah dibuang; `applies: true` untuk aturan nonaktif | `fac496f` |
+| V7-1, V7-6 | kode yang ditolak tercetak 191 mm di dalam kotak 56,5 mm, menimpa dua stiker tetangga dan keluar halaman | `5031ae0` |
+| (mutasi yang lolos) | font kode tulis-tangan boleh berbeda dari font yang dipakai menghitung penggalannya | `5150362` |
+| V7-5 | panduan pengadaan berkata daftar itu "tanpa tombol PR" — tombol yang hanya DIA yang dapat | `592295a` |
+| — | §31/§33/§34 + PANDUAN §6.3 menyatakan aturan yang benar-benar berlaku | `047a734` |
+
+### 10.3 Angka yang diukur di Chromium (media=print, item ITM-0006)
+
+| kode | sebelum | sesudah |
+|---|---|---|
+| 62 karakter | barcode dicetak, `.lembar` 194,01 mm | tidak berubah |
+| 63 karakter | `.kode-tangan` **120,43 mm** dalam kotak 56,5 mm; `.lembar` **252,24 mm** | 3 baris, terlebar **56,38 mm**; `.lembar` **194,01 mm** |
+| 100 karakter | `.kode-tangan` **191,10 mm**; `.lembar` **322,00 mm**; halaman menggulir menyamping | 4 baris, terlebar **56,38 mm**; `.lembar` **194,01 mm**; tidak menggulir |
+| nama 120 + barcode 100 | `.lembar` **376,11 mm** (`.kepala .sub` 244,30 · `.catatan` 205,66 · `.stiker .nama` 244,30) | **194,01 mm**, 0 kotak meluap |
+
+Permukaan keempat pada baris terakhir ditemukan oleh syarat harness yang baru, bukan oleh temuan:
+setiap teks di lembar itu datang dari data yang diketik orang, jadi jaringnya dipasang satu lembar
+penuh (`overflow-wrap: anywhere` pada `body`), sementara **di mana** kode tulis-tangan patah tetap
+diputuskan PHP supaya angkanya bisa dipaku uji.
+
+### 10.4 Permukaan yang DICARI SENDIRI (grep lengkap)
+
+**Membandingkan barcode / kode item** — 10 tempat, 3 memakai aturan bersama, 7 menjawab pertanyaan
+lain dan sengaja berbeda:
+
+| tempat | pertanyaannya | status |
+|---|---|---|
+| `ItemScanController` | kode yang dipindai/diketik | `matchingScanCode()` |
+| `FormPrintService::labelBarcode()` | kode yang sedang dicetak | `matchingScanCode()` |
+| `ItemController::index` (`barcode_duplicate`) | setiap kode yang item itu jawab | `sharingScanCode()` |
+| `ItemController::index` (`q=`) | pencarian SEBAGIAN (`LIKE %…%`) | beda pertanyaan — dinyatakan §34 |
+| `GlobalSearchService` (grup Item) | `code`/`name` `LIKE`, **tidak menyentuh barcode** | beda pertanyaan; Ctrl+K bukan pemindai |
+| `ImportableResources['items']` (`unique => 'code'`) | identitas baris saat impor | beda pertanyaan (upsert), bukan pencocokan pindai |
+| `Item::booted()` (`MAX(code)`) | penomoran ITM-nnnn berikutnya | bukan perbandingan |
+| `InventoryDatabaseSeeder` (`firstOrCreate(['code'…])`) | seed idempoten | bukan perbandingan |
+| `pindai.js` | menampilkan `matched_on`/`status` dari server | tidak pernah membandingkan sendiri |
+| `schema.js` (`lookup: 'items'`) | pilih item lewat id | bukan perbandingan |
+
+**Menghitung / menampilkan aturan reorder** — 10 tempat:
+
+| tempat | status |
+|---|---|
+| `StockService::lowStockAlerts()` | sumber ambang; tiga syaratnya di join |
+| `ModuleCounts` entri `inv` | salinan sengaja di Core, dipaku `ModuleCountsTest` |
+| `ItemController::show` (`loadCount`) | `governing()` |
+| `ItemResource::reorder_rule_note` | dari hitungan yang sama |
+| `ReorderRuleResource::applies` | `->governs()` |
+| `ReorderRuleResource::deleted_labels` | hanya yang benar-benar DIBUANG — namanya jujur |
+| `ReorderRuleController::index` | menampilkan SEMUA aturan, termasuk yang tidak berlaku (harus bisa dilihat & dibuang) |
+| `ReorderService` | membaca `lowStockAlerts()` |
+| `widgets/stok-minimum.js`, tab `custom.js`, `reorder.js` | membaca endpoint yang sama |
+| FormRequest `unique` (gudang × item) | penjaga pasangan, bukan "berlaku" |
+
+### 10.5 Mutasi putaran kedua — 17 dijalankan, 17 dipaku MERAH
+
+Satu di antaranya **lolos hijau** dan memaksa syarat harness baru (baris terakhir).
+
+| Mutasi | Berkas | Merah di |
+|---|---|---|
+| `UPPER()` dicabut dari `whereScanKeyEquals` | `Item` | 5 uji PHP |
+| `SCAN_KEY_COLUMNS` tinggal `['barcode']` | `Item` | 9 uji PHP |
+| `whereNull('other.deleted_at')` dicabut | `Item` | 1 uji PHP |
+| lembar F/LBL menyalin aturannya sendiri (peka huruf + `withTrashed`) | `FormPrintService` | 3 uji PHP |
+| peringatan ganda dimatikan di lembar | blade F/LBL | 4 uji PHP |
+| lengan saringan audit ditukar | `ItemController` | 5 uji PHP |
+| syarat "gudangnya hidup" dicabut dari `governing()` | `ReorderRule` | 2 uji PHP |
+| syarat "itemnya hidup" dicabut | `ReorderRule` | 1 uji PHP |
+| syarat `is_active` dicabut | `ReorderRule` | 2 uji PHP |
+| `governs()` berhenti melihat `is_active` | `ReorderRule` | 1 uji PHP |
+| kartu item kembali menghitung `is_active` saja | `ItemController` | 1 uji PHP |
+| `applies` kembali hanya melihat kedua `deleted_at` | `ReorderRuleResource` | 1 uji PHP |
+| aturan pemenggalan kode tulis-tangan dicabut | `FormPrintService` | 3 uji PHP **+ S33** |
+| jaring `overflow-wrap` satu lembar dicabut | blade F/LBL | **S33** (`.lembar` 205,92 mm > 194,01 mm) |
+| lebar pemenggalan 3× lebar stiker | `FormPrintService` | 3 uji PHP |
+| font tulis-tangan 14 pt, penggalan tetap dihitung 9 pt | blade F/LBL | **LOLOS HIJAU** → syarat `Range.getClientRects()` ditambahkan, lalu **S33 merah** |
+
+### 10.6 Angka gerbang sesudah putaran kedua
+
+| Perintah | Hasil |
+|---|---|
+| `vendor/bin/phpunit tests/Feature/Inventory tests/Feature/Procurement` | **OK 614 uji / 8.913 pernyataan** (01:59) |
+| `vendor/bin/phpunit tests/Feature/Core` | **OK 972 uji / 8.870 pernyataan, 11 dilewati** (03:18) |
+| `vendor/bin/phpunit tests/Feature/Iam` | **OK 62 uji / 472 pernyataan** (00:21) |
+| MySQL 8 (`phpunit.mysql.xml`, `DB_DATABASE=erp_dryrun`), 11 berkas F-6 | **OK 188 uji / 6.789 pernyataan, 3 dilewati** |
+| `vendor/bin/pint --test` pada berkas yang disentuh | **lolos** |
+| Harness S32/S32m/S33/S33k/S33m | **5 skenario, 71 syarat** (dari 65), semuanya hijau |
+| `results-phase-2.json` | **23 kunci**; 18 kunci non-F-6 **byte-identik** dengan sebelumnya (diperiksa sebelum ditulis) |
+
+**Peramban.** Chromium headless di atas `php -S 127.0.0.1:8171` (dimatikan berdasarkan PID)
+melayani SALINAN sqlite di scratchpad. Empat sesi (admin, warehouse, procurement, warehouse@390px)
+× **10 pemuatan rute** — `#/home`, `#/dashboard`, `#/stock` + tab "Perlu dipesan ulang",
+`#/r/inventory/items`, saringan `?barcode_duplicate=1`, `#/d/inventory/items/1`,
+`#/r/inventory/reorder-rules`, `#/usulan-pesan-ulang`, `#/pindai`:
+
+```
+console_errors: 0   pageerrors: 0   failed_requests: 0   responses_4xx_5xx: 0
+saringan "Barcode ganda" menggambar 3 baris pada katalog bertabrakan (keempat sesi)
+```
+
+### 10.7 Yang TIDAK diperbaiki, dan alasannya
+
+1. **`GlobalSearchService` tetap tidak mencari barcode.** Ctrl+K mencocokkan `code` dan `name`
+   dengan `LIKE`, jadi menempelkan barcode pemasok ke sana tidak menemukan itemnya. Itu permukaan
+   PENCARIAN, bukan pemindaian, dan layar `Persediaan › Pindai Barcode` adalah jawaban untuk
+   pertanyaan itu (§34). Menambahkannya berarti keputusan produk baru — bukan penyatuan aturan yang
+   sudah ada — jadi ia dinyatakan di sini, bukan dikerjakan diam-diam.
+2. **`deleted_labels` tidak mendapat keping "Nonaktif".** `applies` sekarang memperhitungkan
+   `is_active`, tetapi kepingnya tetap hanya menyebut yang benar-benar DIBUANG, karena itulah nama
+   kolomnya — dan keadaan "nonaktif" sudah punya kolomnya sendiri di layar yang sama ("Aktif ✗").
+3. **Audit enumerasi layar lama di enam berkas onboarding** (§9.6 butir 2) tetap tidak dikerjakan:
+   ia tidak dibuat salah oleh F-6, dan §35 yang ditambahkan putaran ini adalah aturan untuk paket
+   BERIKUTNYA, bukan izin membuka enam berkas peran sekaligus hari ini.
