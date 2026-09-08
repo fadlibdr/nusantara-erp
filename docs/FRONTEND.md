@@ -59,8 +59,10 @@ public/app/
                         gate can never answer differently. A cell with no answer is RULED with
                         its reason, never drawn as Rp 0 / 0 %
     views/ambang.js     Ambang & Batas (F-2): the WatchedThresholds registry, sibling of
-                        views/tenggat.js — actual vs limit, with "no limit set" and "nothing
-                        measured yet" printed as their own sentences (CONVENTIONS §24)
+                        views/tenggat.js — actual vs limit, with "no limit set", "budgeted at
+                        zero" and "nothing measured yet" printed as their own sentences
+                        (CONVENTIONS §24). A limit of Rp 0 that has already been SPENT is the
+                        loudest row there is, not a missing one — measured, it used to vanish
     kalenderpalette.js  the 8 department dot colours (ΔE-CVD validated) shared by the calendar
                         widget and the full calendar screen — owned by neither
     prefs.js            user preferences (favourites, recent, density, launcher.hidden,

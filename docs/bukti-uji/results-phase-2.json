@@ -1314,14 +1314,14 @@
   },
   "project_screen": {
    "budget_tile": "ANGGARAN TERPAKAI 100,6% PO melampaui Rp 105.039.400 · RAP RAP/2026/0002",
-   "warning": "Anggaran RAP non-subkon (material/upah/alat/overhead) Rp 18.027.460.600; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 17.904.260.000 menyisakan Rp 0 — DPP terbesar yang masih diterima gerbang tanpa konfirmasi pelampauan (100,6 % terpakai). Realisasi + komitmen Rp 22.552.500.000 dari anggaran RAP RAP/2026/0002 (Rp 24.250.000.000) — 93,0 % terpakai, sisa Rp 1.697.500.000. Gerbang menghakimi PER SISI: PO menyisakan Rp 0, SPK menyisakan Rp 1.802.539.400. Ambang peringatan 90%. Gerbang anggaran menghakimi PO terhadap sisa non-subkon dan SPK terhadap sisa subkon, masing-masing sampai pengajunya mengonfirmasi pelampauannya.",
+   "warning": "Anggaran RAP non-subkon (material/upah/alat/overhead) Rp 18.027.460.600; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 17.904.260.000 sudah melampaui anggaran sisi ini sebesar Rp 105.039.400 — tidak ada DPP PO yang diterima gerbang tanpa konfirmasi pelampauan (100,6 % terpakai). Realisasi + komitmen Rp 22.552.500.000 dari anggaran RAP RAP/2026/0002 (Rp 24.250.000.000) — 93,0 % terpakai, sisa Rp 1.697.500.000. Gerbang menghakimi PER SISI: PO melampaui Rp 105.039.400, SPK menyisakan Rp 1.802.539.400. Ambang peringatan 90%. Gerbang anggaran menghakimi PO terhadap sisa non-subkon dan SPK terhadap sisa subkon, masing-masing sampai pengajunya mengonfirmasi pelampauannya.",
    "warning_class": "alert error"
   },
   "po_form": {
    "found": true,
    "help": [
     {
-     "text": "Anggaran RAP non-subkon (material/upah/alat/overhead) Rp 18.027.460.600; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 17.904.260.000 menyisakan Rp 0 — DPP terbesar yang masih diterima gerbang tanpa konfirmasi pelampauan (100,6 % terpakai).",
+     "text": "Anggaran RAP non-subkon (material/upah/alat/overhead) Rp 18.027.460.600; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 17.904.260.000 sudah melampaui anggaran sisi ini sebesar Rp 105.039.400 — tidak ada DPP PO yang diterima gerbang tanpa konfirmasi pelampauan (100,6 % terpakai).",
      "hidden": false,
      "color": "var(--danger)"
     }
@@ -1354,6 +1354,23 @@
     ]
    ]
   },
+  "ambang": {
+   "found": true,
+   "index": 0,
+   "rows": 2,
+   "cells": [
+    "PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+    "Rp 18.132.500.000",
+    "Rp 18.027.460.600",
+    "100,6%",
+    "Melampaui batas Sisi non-subkon (material/upah/alat/overhead) — realisasi Rp 228.240.000 + komitmen Rp 17.904.260.000 terhadap RAP RAP/2026/0002. Seluruh proyek: Rp 22.552.500.000 dari Rp 24.250.000.000.",
+    "Buka"
+   ],
+   "states": [
+    "Melampaui batas",
+    "Batas belum disetel"
+   ]
+  },
   "checks": {
    "the_gate_accepts_exactly_the_remaining_the_screen_prints": true,
    "one_cent_more_is_refused_on_the_budget_key": true,
@@ -1375,16 +1392,19 @@
    "the_project_screen_carries_the_budget_tile": true,
    "the_project_screen_raises_the_warning_strip": true,
    "and_it_names_the_side_the_gate_judges": true,
+   "and_an_exhausted_side_offers_no_ceiling_at_all": true,
    "the_po_form_warns_before_a_single_line_is_typed": true,
    "the_po_form_note_is_coloured_at_the_threshold": true,
    "the_revision_history_shows_both_revisions": true,
    "and_the_difference_between_them": true,
-   "revision_zero_has_no_difference_to_show": true
+   "revision_zero_has_no_difference_to_show": true,
+   "the_threshold_registry_says_what_the_project_screen_says": true,
+   "and_the_row_closest_to_its_limit_stands_at_the_top": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 27474,
-  "_clicks": 2
+  "_ms": 33512,
+  "_clicks": 3
  },
  "S29_anggaran_vs_realisasi_mobile": {
   "rows": 2,
@@ -1397,7 +1417,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5444,
+  "_ms": 5465,
   "_clicks": 0
  }
 }

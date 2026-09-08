@@ -6436,6 +6436,22 @@ FORM_NOTE = """() => {
   return { found: true, help };
 }"""
 
+AMBANG_ROW = """(code) => {
+  const card = [...document.querySelectorAll('.card')]
+    .find(c => /Anggaran proyek terpakai/.test((c.querySelector('h2') || {}).innerText || ''));
+  if (!card) return { found: false, cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText) };
+  const rows = [...card.querySelectorAll('tbody tr')];
+  const i = rows.findIndex(r => r.innerText.includes(code));
+  if (i < 0) return { found: false, rows: rows.length };
+  return {
+    found: true,
+    index: i,
+    rows: rows.length,
+    cells: [...rows[i].children].map(td => td.innerText.replace(/\\s+/g, ' ').trim()),
+    states: rows.map(r => (r.querySelector('.badge') || {}).innerText || null),
+  };
+}"""
+
 REVISION_CHAIN = """() => {
   const card = [...document.querySelectorAll('.card')].find(c => /Riwayat revisi/.test((c.querySelector('h2') || {}).innerText || ''));
   if (!card) return { found: false, cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText) };
@@ -6588,12 +6604,33 @@ def s29(pg):
     out["po_form"] = pg.evaluate(FORM_NOTE)
     pg.screenshot(path=f"{OUT}/s29-formulir-po-peringatan-f2.png", full_page=False)
     pg.keyboard.press("Escape")
+    # Escape pada formulir yang sudah punya isian membuka dialog "Tutup tanpa
+    # menyimpan?", dan dialog itu BERTAHAN melewati navigasi berikutnya: bukti
+    # putaran lalu memuat "s29-riwayat-revisi-f2.png" yang seluruh isinya adalah
+    # dialog itu, bukan riwayat revisi yang namanya ia bawa. Dibuang di sini,
+    # jadi tangkapan layar sesudahnya memotret layarnya sendiri.
+    pg.wait_for_timeout(400)
+    if pg.locator(".modal button:has-text('Buang isian')").count():
+        click(pg, ".modal button:has-text('Buang isian')")
+        pg.wait_for_timeout(600)
 
     # (7) RIWAYAT REVISI di layar RAP.
     pg.goto(BASE + f"#/d/estimation/cost-budgets/{rev_id}")
     pg.wait_for_timeout(3000)
     out["revision_chain"] = pg.evaluate(REVISION_CHAIN)
     pg.screenshot(path=f"{OUT}/s29-riwayat-revisi-f2.png", full_page=False)
+
+    # (8) REGISTRI AMBANG — layar KEDUA yang menyebut keadaan proyek yang sama.
+    #     Sesudah f5d691b registri mengirim batas SISI TERBURUK, dan sebuah sisi
+    #     yang dianggarkan Rp 0 kehilangan batasnya (limit <= 0 dibaca "batas
+    #     belum disetel"): layar proyek berkata "Melampaui batas" sementara
+    #     baris registri untuk proyek yang SAMA berbunyi "Batas belum disetel"
+    #     dan — karena urutannya menurut persen yang tidak ada — jatuh ke DASAR
+    #     daftar. Dua layar, satu proyek, dua keadaan (verifikasi putaran 2).
+    pg.goto(BASE + "#/ambang")
+    pg.wait_for_timeout(3000)
+    out["ambang"] = pg.evaluate(AMBANG_ROW, "PRJ-2026-001")
+    pg.screenshot(path=f"{OUT}/s29-ambang-registri-f2.png", full_page=False)
 
     row = out["portfolio"] or {}
     cells = row.get("cells") or []
@@ -6672,9 +6709,18 @@ def s29(pg):
             out["project_screen"]["warning"] is not None
             and ("error" if out["budget_after_commitment"]["worst_state"] == "lampau" else "warn")
             in (out["project_screen"]["warning_class"] or "")),
+        # Pita menyebut sisi yang menghakimi, DENGAN kata yang benar untuk
+        # keadaannya: sisi yang sudah lewat tidak menawarkan plafon apa pun
+        # (verifikasi putaran 2 — "PO menyisakan Rp 0" menawarkan Rp 0 sebagai
+        # DPP yang diterima pada sisi yang tidak menerima satu DPP pun).
         "and_it_names_the_side_the_gate_judges": (
             "non-subkon" in (out["project_screen"]["warning"] or "")
-            and "PO menyisakan" in (out["project_screen"]["warning"] or "")),
+            and ("PO melampaui" if out["budget_after_commitment"]["worst_state"] == "lampau"
+                 else "PO menyisakan") in (out["project_screen"]["warning"] or "")),
+        "and_an_exhausted_side_offers_no_ceiling_at_all": (
+            out["budget_after_commitment"]["worst_state"] != "lampau"
+            or ("menyisakan Rp 0" not in (out["project_screen"]["warning"] or "")
+                and "sudah melampaui" in (out["project_screen"]["warning"] or ""))),
         "the_po_form_warns_before_a_single_line_is_typed": any(
             "terpakai" in t for t in note_texts),
         "the_po_form_note_is_coloured_at_the_threshold": any(
@@ -6685,6 +6731,15 @@ def s29(pg):
             (r[7] or "").startswith("Rp -") for r in (out["revision_chain"].get("rows") or []) if len(r) > 7),
         "revision_zero_has_no_difference_to_show": any(
             r[0] == "0" and r[7] == "—" for r in (out["revision_chain"].get("rows") or []) if len(r) > 7),
+        # 6 — registri Ambang: layar kedua, proyek yang sama, SATU keadaan
+        "the_threshold_registry_says_what_the_project_screen_says": (
+            out["ambang"].get("found") is True
+            and {"lampau": "Melampaui batas", "mendekati": "Mendekati batas", "aman": "Aman"}.get(
+                out["budget_after_commitment"]["worst_state"], "?") in " ".join(out["ambang"]["cells"])),
+        # …dan baris yang mendekati/melewati batasnya berdiri di ATAS daftar,
+        # bukan di dasarnya di bawah proyek yang tidak punya keadaan sama sekali.
+        "and_the_row_closest_to_its_limit_stands_at_the_top": (
+            out["ambang"].get("found") is True and out["ambang"]["index"] == 0),
     }
     out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
     out["ok"] = not out["failed_checks"]

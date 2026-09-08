@@ -28,19 +28,25 @@ Branch: `feat/phase2-f2` (dari `main` cfbdf84) · 7 September 2026 · **paket ke
 > tengah paket ini sendiri ternyata dilanggar layar-layarnya, karena gerbang menghakimi PER SISI
 > (PO terhadap non-subkon, SPK terhadap subkon) sementara empat permukaan mencetak sisa TOTAL dan
 > menjanjikan bahwa gerbang menegakkannya. Lihat § Putaran verifikasi.
+>
+> **PUTARAN KEDUA (8 Sep 2026) menemukan satu REGRESI dari perbaikan itu** — sebuah sisi yang
+> dianggarkan Rp 0 dan sudah dibelanjakan menghilang dari registri Ambang, keadaan paling
+> berbahaya yang ada — dan sepuluh temuan baru, termasuk plafon yang dibulatkan KE ATAS sehingga
+> gerbang menolak angka yang layar tawarkan, dan portofolio yang menembak 2.551 kueri untuk 102
+> proyek. Lihat § Putaran verifikasi KEDUA.
 
 ## Yang ditutup (ROADMAP-HASHMICRO Fase 2 / F-2, baris 208 → status)
 
 | Klausa kontrak | Status | Bukti |
 |---|---|---|
-| `WatchedThresholds` (Core, saudara `WatchedDeadlines`; limit null = digaris) | ✅ | `Core\Support\WatchedThresholds`, **5 keadaan**, 3 entri · `ThresholdWatchTest` (10 uji) · CONVENTIONS §24 |
+| `WatchedThresholds` (Core, saudara `WatchedDeadlines`; limit null = digaris) | ✅ | `Core\Support\WatchedThresholds`, **6 keadaan**, 3 entri · `ThresholdWatchTest` (11 uji) · CONVENTIONS §24 |
 | layar per proyek × bulan (anggaran bulanan = RAP × fase baseline, BERLABEL) | ✅ | `BudgetRealisationService::monthly()` + `#/anggaran` tab "Per bulan" · `BudgetMonthlyTest` (8 uji) · S29 `the_monthly_budget_is_labelled_derived` (17 bulan diukur) |
 | tanpa baseline → digaris | ✅ | `budget_state = tanpa_baseline` · S29 `and_invents_no_monthly_number_at_all` (**0 bulan, 0 rupiah** di layar) |
 | bulan kosong → null | ✅ | `BudgetMonthlyTest::test_a_month_without_realisation_is_null_never_zero` · S29 `months_without_realisation_are_ruled_not_zero` |
-| layar portofolio, angka SAMA dengan `BudgetGateService`, uji kesetaraan | ✅ | gerbang **membaca** kelas yang sama · `BudgetPortfolioEqualityTest` (12 uji, 8 keadaan) · S29 dua PO sungguhan di batasnya |
-| `fin_overhead_budgets` (OVB, Approvable, satu approved/tahun) | ✅ | migrasi 001500 + `OverheadBudgetService` · `OverheadBudgetTest` (17 uji) — ditolak di **layanan DAN di basis data** |
+| layar portofolio, angka SAMA dengan `BudgetGateService`, uji kesetaraan | ✅ | gerbang **membaca** kelas yang sama · `BudgetPortfolioEqualityTest` (21 uji) · S29 dua PO sungguhan di batasnya |
+| `fin_overhead_budgets` (OVB, Approvable, satu approved/tahun) | ✅ | migrasi 001500 + `OverheadBudgetService` · `OverheadBudgetTest` (20 uji) — ditolak di **layanan DAN di basis data** |
 | realisasi OVB dari jurnal | ✅ | debit − kredit baris jurnal **terposting** pada akun yang dianggarkan · uji memakai jurnal 31 Des dan jurnal draf |
-| revisi RAP (`revision`, `superseded_by_id`, riwayat selisih) | ✅ | migrasi 000670 + `RapService::revise/approve/revisionChain/revisionDiff` · `RapRevisionTest` (11 uji) |
+| revisi RAP (`revision`, `superseded_by_id`, riwayat selisih) | ✅ | migrasi 000670 + `RapService::revise/approve/supersede/revisionChain/revisionDiff` · `RapRevisionTest` (16 uji) |
 | peringatan `project_budget_pct` ≥ 90 % | ✅ | registri T2.1 + **formulir PO/SPK + layar proyek** · `ProjectBudgetWarningTest` (5 uji) · S29 empat syarat |
 | blok lanjutan CONVENTIONS §2 (Finance 001500–, Projects 001600–) | ✅ | tabel baru di §2 — **Projects 001600 DIDAFTARKAN tetapi tidak dipakai**: F-2 tidak butuh migrasi Projects |
 
@@ -136,17 +142,19 @@ Dan satu cacat ditemukan uji kesetaraan T2.3 sendiri, sebelum harness:
 
 | Berkas | Uji | Yang dijaganya |
 |---|---:|---|
-| `tests/Feature/Core/ThresholdWatchTest` | 10 | lima keadaan, invarian "tidak pernah persen tanpa kedua sisinya", **keadaan cocok dengan persentase yang dicetak di sebelahnya**, degradasi tabel hilang, Core tidak mengimpor modul fitur, gerbang izin endpoint |
-| `tests/Feature/Finance/BudgetPortfolioEqualityTest` | 12 | kesetaraan layar↔gerbang di batasnya, **8** keadaan tepi (termasuk sisi habis di balik total yang lega, dan realisasi nol baris yang digaris), registri Core menerbitkan angka yang sama |
+| `tests/Feature/Core/ThresholdWatchTest` | 11 | **enam** keadaan, invarian "tidak pernah persen tanpa kedua sisinya", **keadaan cocok dengan persentase yang dicetak di sebelahnya** (dan baris di bawah batasnya tidak pernah mencetak "100 %"), degradasi tabel hilang, Core tidak mengimpor modul fitur, gerbang izin endpoint |
+| `tests/Feature/Finance/BudgetPortfolioEqualityTest` | 21 | kesetaraan layar↔gerbang di batasnya, keadaan tepi (sisi habis di balik total yang lega, **sisi dianggarkan Rp 0 yang sudah dibelanjakan**, realisasi nol baris yang digaris), **pemilihan sisi terburuk** (4 kasus, termasuk cermin subkon), **plafon yang gerbangnya sungguh terima**, dan **biaya kueri portofolio yang tetap** |
 | `tests/Feature/Finance/BudgetMonthlyTest` | 8 | anggaran bulanan turunan + berlabel, **jumlah bulan = RAP juga pada total tidak bulat**, muatannya menyebut proyeknya, tanpa baseline digaris, bulan kosong null, biaya di luar rentang tetap tampil |
-| `tests/Feature/Finance/OverheadBudgetTest` | 17 | satu approved/tahun (layanan **dan** basis data), **pembatalan** + tahun buku pada kodenya, realisasi dari jurnal terposting termasuk 31 Des, **nol jurnal = digaris**, jurnal draf bukan realisasi, forward-only |
+| `tests/Feature/Finance/OverheadBudgetTest` | 20 | satu approved/tahun (layanan **dan** basis data), **pembatalan** + tahun buku pada kodenya (**termasuk saat tahunnya diubah**), status berbahasa Indonesia, realisasi dari jurnal terposting termasuk 31 Des, **nol jurnal = digaris**, jurnal draf bukan realisasi, forward-only |
 | `tests/Feature/Finance/ProjectBudgetWarningTest` | 5 | angka terbaca oleh yang MEMBUAT PO (tanpa `fin.view`), 403 bagi yang tidak berhak, tanpa RAP tidak dicetak 0 %, **tiap formulir membaca plafon dokumennya sendiri** |
-| `tests/Feature/Estimation/RapRevisionTest` | 11 | RAP lama menjawab identik dengan aturan lama, penggantian saat disetujui, **satu proyek satu RAP yang mengatur** (revisi kedua & RAP kedua ditolak), dua kolom saja pada pendahulu, alasan wajib, riwayat selisih |
-| **Total baru** | **63** | 340 assertion (47/235 di akhir pembangunan; sisanya dipaku putaran verifikasi) |
+| `tests/Feature/Estimation/RapRevisionTest` | 16 | RAP lama menjawab identik dengan aturan lama, penggantian saat disetujui, **satu proyek satu RAP yang mengatur** (revisi kedua & RAP kedua ditolak), dua kolom saja pada pendahulu, alasan wajib, riwayat selisih, **jalan keluar data warisan** (dan riwayat yang menandai tepat satu baris) |
+| `tests/Feature/Core/SpaYearColumnTest` | 2 | tidak satu pun kolom tabel bertahun memakai perender angka, dan `renderCell()` mengenal `year` |
+| **Total baru** | **83** | **463 assertion** (47/235 di akhir pembangunan; sisanya dipaku dua putaran verifikasi — diukur 8 Sep 2026, satu proses) |
 
-**Direktori tersentuh, SQLite** (diukur di ujung putaran verifikasi, satu proses): Core, Finance,
-Estimation, Projects, Procurement, Subcontract dan Unit — **3.236 uji, 18.784 assertion, 0 gagal**
-(11 skipped, semuanya sudah ada sebelum paket ini). `pint --dirty` bersih.
+**Direktori tersentuh, SQLite** (diukur di ujung putaran verifikasi KEDUA, 8 Sep 2026, satu
+proses): Core, Finance, Estimation, Projects, Procurement, Subcontract dan Unit — **3.256 uji,
+18.909 assertion, 0 gagal** (11 skipped, semuanya sudah ada sebelum paket ini; 3.236/18.784 di
+ujung putaran pertama). `pint --dirty` bersih.
 
 **MySQL** (`phpunit.mysql.xml`): berkas anggaran Finance + `ThresholdWatchTest` +
 `RapRevisionTest` + `tests/Unit/Core/DocumentFormatValidationTest` + `ApprovalDelegationRouteReachTest` —
@@ -158,12 +166,13 @@ MySQL 8 (lihat § Putaran verifikasi).
 
 ## Harness (bukti UI)
 
-Dijalankan 7 Sep 2026, `php -S` port 8121 atas **salinan coretan** basis data demo (disalin lalu
-dimigrasikan; `database/database.sqlite` tidak disentuh), Chromium.
+Dijalankan ulang **8 Sep 2026**, `php -S` port 8132 atas **salinan coretan** basis data demo
+(disalin lalu dimigrasikan; `database/database.sqlite` tidak disentuh), Chromium, dimatikan
+menurut PID-nya. (Putaran pertama: 7 Sep 2026, port 8121.)
 
 | Skenario | Viewport | Syarat | Hasil |
 |---|---|---:|---|
-| `S29_anggaran_vs_realisasi` | 1440×900 | 25 | ✅ semua (dijalankan ulang pada putaran verifikasi) |
+| `S29_anggaran_vs_realisasi` | 1440×900 | 28 | ✅ semua (dijalankan ulang 8 Sep 2026 — tiga syarat baru: registri Ambang menyebut keadaan yang sama dengan layar proyek, barisnya berdiri di atas daftar, dan sisi yang sudah lampau tidak menawarkan plafon apa pun) |
 | `S29_anggaran_vs_realisasi_mobile` | 390×844 | 3 | ✅ semua (idem) |
 | `S28_matriks_persetujuan` (dijalankan ulang, matriks 29 baris) | 1440×900 | 34 | ✅ semua |
 | `S28_matriks_persetujuan_mobile` (idem) | 390×844 | 3 | ✅ semua |
@@ -180,6 +189,13 @@ mencetak plafon non-subkon yang sama; lembar "Per bulan" **di media cetak** meny
 tersembunyi; riwayat revisi 2 baris dengan selisih **Rp -17.923.913.043** dan revisi 0 yang
 selisihnya "—". **Delapan** tangkapan layar di `docs/bukti-uji/s29-*.png` (dihitung hari ini);
 hasil digabung per kunci ke `results-phase-2.json` — 12 kunci, S1..S11 dan S28 tetap utuh.
+
+Yang DIUKUR ULANG 8 Sep 2026, sesudah perbaikan putaran kedua: pita layar proyek kini berbunyi
+"…**sudah melampaui anggaran sisi ini sebesar Rp 105.039.400** — tidak ada DPP PO yang diterima
+gerbang tanpa konfirmasi pelampauan (100,6 % terpakai)" — angka yang sama dengan ubinnya, yang
+sebelumnya berbunyi "menyisakan Rp 0"; dan registri Ambang mencetak PRJ-2026-001 sebagai baris
+**pertama** dengan lencana "Melampaui batas" (100,6 %), sementara PRJ-2026-002 di bawahnya
+"Batas belum disetel" — dua layar, satu keadaan.
 
 ## Putaran verifikasi (7 September 2026) — tiga belas temuan, tiga belas perbaikan
 
@@ -210,6 +226,46 @@ Ditemukan **saat memperbaiki**, bukan oleh verifier: alias `COUNT(*) as lines` h
 **Yang TIDAK berubah pada putaran ini:** definisi anggaran/realisasi/komitmen, kalimat penolakan
 gerbang, kebijakan `warn`/`block`/`off`, dan aturan "satu OVB disetujui per tahun". Kesetaraan
 layar-vs-gerbang tetap struktural — yang diperbaiki adalah SISI mana yang dicetak layar.
+
+## Putaran verifikasi KEDUA (8 September 2026) — satu regresi, dan sepuluh temuan baru
+
+Verifikasi ULANG atas perbaikan di atas memulangkan **14 FIXED, 1 REGRESI dan 10 temuan baru**.
+Regresinya lahir dari perbaikan nomor 2 di tabel sebelumnya: memindahkan `limit` registri ke SISI
+TERBURUK benar, tetapi registri membaca "batas ≤ 0" sebagai "batas belum disetel" — jadi justru
+sisi yang paling berbahaya, yang RAP-nya anggarkan **Rp 0** dan sudah dibelanjakan, kehilangan
+batasnya dan menghilang dari layar yang seluruh tugasnya menyebutkan apa yang melewati batasnya.
+
+| # | Temuan | Yang DIUKUR | Perbaikannya | Commit |
+|---|---|---|---|---|
+| A | **REGRESI** — proyek yang sisi terburuknya dianggarkan Rp 0 dan SUDAH dibelanjakan hilang dari registri Ambang | layar proyek "Melampaui batas" vs registri "Batas belum disetel" (pct NULL) untuk SATU proyek, dan barisnya jatuh ke DASAR daftar; identik di SQLite dan MySQL | batas tidak lagi disimpulkan dari NILAINYA (baris yang tidak punya batas mengirim null); keadaan keenam `tanpa_anggaran` memisahkan "dianggarkan nol" dari "belum disetel"; urutan registri memakai `stateRank()` lebih dulu | `2e3e7d0` |
+| B | `worstSide()` — mekanisme inti putaran lalu — tidak dipaku satu uji pun | mutasi `if ($a > $b)` → `if (false)` lolos seluruh gerbang; dengan mutasi itu proyek yang sisi SPK-nya habis berlencana "Aman" | empat kasus cermin (subkon terburuk, seri, sisi pertama tanpa anggaran), semuanya MERAH dengan mutasi terpasang | `7b061b6` |
+| C | Kalimat plafon menyebut angka yang gerbang TOLAK | sisa Rp 66.666.666,67 dicetak "Rp 66.666.667", PO sebesar itu **422**; sisi yang sudah lampau menawarkan "menyisakan Rp 0" sementara PO Rp 0,01 pun ditolak | plafon dibulatkan KE BAWAH, pelampauan KE ATAS; sisi lampau menyebut pelampauannya, dengan angka yang sama dengan ubinnya | `0a14c9d` |
+| D | `portfolio()` menembak ~25 kueri PER PROYEK | 2 proyek 51 kueri / 5,5 ms; **102 proyek 2.551 kueri / 195,8 ms** (salinan data demo) | `prime()` mengisi ingatan satu panggilan dengan 4 kueri berkelompok → **10 kueri / 2,5 ms**, muatan JSON byte-per-byte identik | `78bc97f` |
+| E | Proyek warisan dengan DUA RAP disetujui terkunci selamanya | approve ditolak, reject 422 ("Cannot reject … while status is approved"), tidak ada rute cancel — dan riwayatnya menandai KEDUA baris "mengatur" | `RapService::supersede()` + tombol "Nyatakan digantikan" (est.approve, alasan wajib); `isGoverning()` menjawab TEPAT SATU baris | `90c5fd4` |
+| F1 | Baris "100 %" berlencana "Mendekati batas", di bawah kalimat layarnya sendiri | RAP Rp 24.250.000.000 vs kontrak Rp 24.250.000.001 → "100% · Mendekati batas" | `pct()` tidak pernah mencetak 100 % untuk baris yang masih di bawah batasnya (99,9 % pada presisi layar) | `ec9bc16` |
+| F2 | Kode OVB tetap membawa tahun buku LAMA sesudah tahunnya diubah | create(2031) → OVB/2031/0001; update({2032}) → tahun 2032, kode tetap OVB/2031/0001 | kode diterbitkan ulang dari urutan tahun baru saat tahunnya berubah | `2344b6b` |
+| F3 | Daftar OVB mencetak status Inggris mentah | badge "approved" di OVB vs "Disetujui" di PO, dua daftar berdampingan | `status_label` dipancarkan seperti resource dokumen lain | `db6b6fe` |
+| F4 | Tahun buku dicetak "2.031" | `type: 'number'` + Intl id-ID pada kolom tahun | kosakata sel `year`; sekalian label "Lines Count" | `a21864f` |
+| F5 | Angka kaki MySQL laporan bukan yang terukur | tertulis 141/609; **terukur 176/805** pada delapan berkas yang persis disebutnya | angkanya diganti, dan jalur `DocumentFormatValidationTest` dibetulkan (ia di `tests/Unit/Core`, dan jalur Feature membuat phpunit menjawab "not found" **lalu keluar 0**) | `826e2db` |
+
+**Gerbang rilis sesudah putaran kedua** (diukur 8 Sep 2026): SQLite tujuh direktori **3.256 uji /
+18.909 assertion, 0 gagal** (11 skipped); MySQL delapan berkas F-2 **176 uji / 805 assertion**;
+harness S29 **28/28** dan S29m **3/3** di Chromium. `pint --dirty` bersih.
+
+Ditemukan **saat memperbaiki**, bukan oleh verifier: empat label auto-Inggris pada panel Informasi
+RAP ("Revised From", "Revision Reason", "Superseded At", "Is Governing") — terlihat pada tangkapan
+layar bukti putaran ini sendiri (`e28019a`); dan sebuah rute `est.approve` baru yang WAJIB
+didaftarkan pada daftar-ditulis-apa-adanya `ApprovalDelegationRouteReachTest`.
+
+**Dan bukti UI-nya sendiri ternyata memotret dialog.** `s29-riwayat-revisi-f2.png` putaran lalu —
+dan setiap tangkapan layar sesudah formulir PO — seluruh isinya adalah dialog "Tutup tanpa
+menyimpan?" yang bertahan melewati navigasi berikutnya, bukan layar yang namanya ia bawa. Harness
+kini membuang isian formulir itu sebelum melanjutkan; dua berkas bukti diganti dengan layar yang
+sesungguhnya.
+
+**Yang TIDAK berubah pada putaran kedua:** definisi anggaran/realisasi/komitmen (dibuktikan
+byte-per-byte pada perbaikan D), kalimat penolakan gerbang selain pembulatannya, dan aturan
+"satu RAP yang mengatur per proyek" — yang ditambahkan hanyalah JALAN KELUARNYA.
 
 ## Yang TIDAK diverifikasi
 
@@ -290,8 +346,11 @@ disetujui membuat gerbang anggaran diam untuk setiap PO/SPK berikutnya.
 
 - `docs/CONVENTIONS.md` §2 — **tabel blok lanjutan** (Finance 001500–, Projects 001600–), dan
   aturannya: didaftarkan di tabel itu pada commit yang pertama kali memakainya.
-- `docs/CONVENTIONS.md` §24 — registri `WatchedThresholds`: lima keadaan, aturan "batas 0 = tidak
-  ada", dan mekanisme `supply()` beserta alasannya.
+- `docs/CONVENTIONS.md` §24 — registri `WatchedThresholds`: **enam** keadaan, aturan "batas TIDAK
+  PERNAH disimpulkan dari nilainya" (putaran kedua menggantikan aturan lama "batas 0 = tidak ada"),
+  persentase yang tidak pernah membantah lencananya, dan mekanisme `supply()` beserta alasannya.
+- `docs/CONVENTIONS.md` §5 — aturan baru: setiap aturan "hanya boleh ada SATU" wajib punya jalan
+  keluarnya sendiri (OVB `cancel`, RAP `supersede`), dengan alasan wajib dan jejak audit.
 - `docs/FRONTEND.md` — `views/anggaran.js`, `views/ambang.js`, dan `liveNote` (**empat** aturannya,
   keempatnya dipelajari dengan cara yang mahal; yang keempat ditambahkan putaran verifikasi:
   catatan hidup harus mencetak angka yang menghakimi DOKUMEN ITU).
