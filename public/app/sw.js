@@ -172,6 +172,8 @@ const SHELL = [
   'js/views/anggaran.js',
   'js/views/tugas.js',
   'js/views/tutupproyek.js',
+  // F-4 — usulan rekap bulanan dari register absensi.
+  'js/views/usulanrekap.js',
   'js/views/varian.js',
   'js/views/widgets/aging.js',
   'js/views/widgets/ap-aging.js',

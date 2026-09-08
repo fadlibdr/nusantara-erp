@@ -78,11 +78,18 @@ class AttendanceRecapProposalService
                 'month' => $month,
                 'label' => $start->translatedFormat('F Y'),
             ],
+            // `label` ikut dikirim, bukan disusun layar: nama kolom bukan bahasa
+            // manusia, dan "sick_days" di layar HR adalah kebocoran istilah
+            // basis data ke orang yang sedang memutuskan gaji seseorang.
             'not_proposed' => [
-                ['field' => 'sick_days', 'why' => 'Sakit tercatat di pengajuan cuti/izin, bukan di register absensi.'],
-                ['field' => 'leave_days', 'why' => 'Cuti tercatat di pengajuan cuti/izin yang punya persetujuannya sendiri.'],
-                ['field' => 'work_days', 'why' => 'Register tidak tahu kalender kerja bulan ini — hari libur dan hari kerja pengganti tidak ada di dalamnya.'],
-                ['field' => 'overtime_hours', 'why' => 'Register mencatat kehadiran, bukan jam lembur yang disetujui.'],
+                ['field' => 'sick_days', 'label' => 'Hari sakit', 'why' => 'Sakit tercatat di pengajuan cuti/izin, bukan di register absensi.'],
+                ['field' => 'leave_days', 'label' => 'Hari cuti', 'why' => 'Cuti tercatat di pengajuan cuti/izin yang punya persetujuannya sendiri.'],
+                ['field' => 'work_days', 'label' => 'Hari kerja sebulan', 'why' => 'Register tidak tahu kalender kerja bulan ini — hari libur dan hari kerja pengganti tidak ada di dalamnya.'],
+                ['field' => 'overtime_hours', 'label' => 'Jam lembur', 'why' => 'Register mencatat kehadiran, bukan jam lembur yang disetujui.'],
+                ['field' => 'half_days', 'label' => 'Hari setengah', 'why' => 'Rekap bulanan tidak punya kolom setengah hari. Hari setengah '
+                    .'terhitung di layar ini supaya terlihat, tetapi ke mana ia dibukukan adalah keputusan HR — '
+                    .'membaginya sendiri menjadi setengah hadir dan setengah alpa akan menggeser gaji tanpa '
+                    .'seorang pun memutuskannya.'],
             ],
             'rows' => $rows->map(fn ($row) => [
                 'employee_id' => (int) $row->employee_id,

@@ -90,10 +90,14 @@ class AttendanceRecapProposalTest extends ErpTestCase
         $response->assertOk();
         $fields = collect($response->json('data.not_proposed'))->pluck('field')->all();
 
-        $this->assertSame(['sick_days', 'leave_days', 'work_days', 'overtime_hours'], $fields);
+        $this->assertSame(['sick_days', 'leave_days', 'work_days', 'overtime_hours', 'half_days'], $fields);
 
         foreach ($response->json('data.not_proposed') as $entry) {
             $this->assertNotSame('', trim((string) $entry['why']), 'Setiap kolom yang tidak diusulkan menyebut ALASANNYA.');
+            // Nama kolom bukan bahasa manusia: "sick_days" di layar HR adalah
+            // kebocoran istilah basis data ke orang yang memutuskan gaji.
+            $this->assertNotSame('', trim((string) $entry['label']));
+            $this->assertNotSame($entry['field'], $entry['label']);
         }
     }
 
