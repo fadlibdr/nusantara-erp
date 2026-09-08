@@ -143,6 +143,97 @@ class LeadPipelineTransitionTest extends ErpTestCase
         $this->assertSame(LeadStatus::Proposal, $lead->refresh()->status);
     }
 
+    /**
+     * Kalimatnya menyebut penawaran yang TOMBOLNYA ADA DI SANA.
+     *
+     * "Tandai Menang" hanya lahir pada penawaran yang sudah DISETUJUI. Sampai
+     * 8 Sep 2026 penolakan ini menyebut penawaran terbuka TERBARU: pada
+     * prospek dengan satu penawaran disetujui dan satu draf yang lebih baru,
+     * sales dikirim ke draf-nya — layar tanpa tombol itu — sementara
+     * penawaran yang benar-benar bisa dimenangkan tidak pernah disebut.
+     * Uji ini menempuh alamat yang diberikan kalimatnya, dan menuntut alamat
+     * itu berhasil.
+     */
+    public function test_the_won_refusal_names_the_quotation_that_can_actually_be_marked(): void
+    {
+        $lead = $this->makeLead(['status' => LeadStatus::Proposal]);
+        $customer = Customer::query()->create(['name' => 'PT Uji', 'status' => 'active']);
+
+        $approved = Quotation::query()->create([
+            'customer_id' => $customer->id, 'lead_id' => $lead->id,
+            'title' => 'Penawaran disetujui', 'scope_type' => 'system_integration',
+        ]);
+        $approved->forceFill(['status' => DocumentStatus::Approved, 'dpp' => 500_000_000])->save();
+
+        // Lebih BARU (id lebih besar) dan masih draf — yang dulu terpilih.
+        $draft = Quotation::query()->create([
+            'customer_id' => $customer->id, 'lead_id' => $lead->id,
+            'title' => 'Penawaran draf', 'scope_type' => 'system_integration',
+        ]);
+
+        $message = $this->actingAs($this->adminUser())
+            ->postJson("/api/crm/leads/{$lead->id}/pipeline", ['status' => 'won'])
+            ->assertStatus(422)
+            ->json('errors.status.0');
+
+        $this->assertStringContainsString($approved->code, $message,
+            'penolakan tidak menyebut penawaran yang bisa ditandai menang');
+        $this->assertStringNotContainsString($draft->code, $message,
+            'penolakan mengirim orang ke penawaran yang tombolnya tidak ada di sana');
+
+        // Alamat yang disebutnya benar-benar sampai: markWon menerima yang ini.
+        app(QuotationService::class)->markWon($approved->refresh());
+        $this->assertSame(LeadStatus::Won, $lead->refresh()->status);
+    }
+
+    /**
+     * Kalau yang ada hanya penawaran yang belum disetujui, kalimatnya menyebut
+     * LANGKAH YANG KURANG — bukan mengirim orang ke tombol yang tidak ada.
+     */
+    public function test_a_draft_only_lead_is_told_the_missing_step(): void
+    {
+        $lead = $this->makeLead(['status' => LeadStatus::Proposal]);
+        $customer = Customer::query()->create(['name' => 'PT Uji', 'status' => 'active']);
+        $draft = Quotation::query()->create([
+            'customer_id' => $customer->id, 'lead_id' => $lead->id,
+            'title' => 'Penawaran draf', 'scope_type' => 'system_integration',
+        ]);
+
+        $message = $this->actingAs($this->adminUser())
+            ->postJson("/api/crm/leads/{$lead->id}/pipeline", ['status' => 'won'])
+            ->assertStatus(422)
+            ->json('errors.status.0');
+
+        $this->assertStringContainsString($draft->code, $message);
+        $this->assertStringContainsString('draf', $message);
+        $this->assertStringContainsString('setujui dulu', $message);
+    }
+
+    /**
+     * "Tandai Kalah" ADA pada penawaran draf (QuotationService::markLost tidak
+     * menuntut persetujuan) — jadi untuk Kalah, penawaran terbuka terbaru
+     * memang alamat yang benar. Dua tombol, dua syarat, satu kalimat masing.
+     */
+    public function test_the_lost_refusal_may_name_an_unapproved_quotation(): void
+    {
+        $lead = $this->makeLead(['status' => LeadStatus::Proposal]);
+        $customer = Customer::query()->create(['name' => 'PT Uji', 'status' => 'active']);
+        $draft = Quotation::query()->create([
+            'customer_id' => $customer->id, 'lead_id' => $lead->id,
+            'title' => 'Penawaran draf', 'scope_type' => 'system_integration',
+        ]);
+
+        $message = $this->actingAs($this->adminUser())
+            ->postJson("/api/crm/leads/{$lead->id}/pipeline", ['status' => 'lost'])
+            ->assertStatus(422)
+            ->json('errors.status.0');
+
+        $this->assertStringContainsString("buka penawaran {$draft->code} lalu tekan \"Tandai Kalah\"", $message);
+
+        app(QuotationService::class)->markLost($draft->refresh(), 'Harga di atas pagu');
+        $this->assertSame(LeadStatus::Lost, $lead->refresh()->status);
+    }
+
     /** Tanpa penawaran, kalimatnya mengakui itu alih-alih menyebut kode hantu. */
     public function test_without_a_quotation_the_refusal_says_so(): void
     {

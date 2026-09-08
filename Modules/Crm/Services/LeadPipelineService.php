@@ -5,6 +5,7 @@ namespace Modules\Crm\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Core\Enums\DocumentStatus;
 use Modules\Crm\Enums\LeadMove;
 use Modules\Crm\Enums\LeadStatus;
 use Modules\Crm\Models\Lead;
@@ -108,20 +109,49 @@ class LeadPipelineService
     /**
      * Menang/Kalah lewat penawaran — dan kalimatnya menyebut penawaran MANA,
      * atau mengakui bahwa belum ada satu pun.
+     *
+     * "MANA" berarti yang tombolnya sungguh-sungguh ada di sana (verifikasi
+     * F-3, 8 Sep 2026). "Tandai Menang" hanya lahir pada penawaran yang SUDAH
+     * DISETUJUI — QuotationService::markWon melempar untuk status lain, dan
+     * schema.js pun tidak menggambar tombolnya — sedangkan "Tandai Kalah" ada
+     * pada setiap penawaran yang belum diputuskan. Sampai perbaikan ini
+     * kalimatnya selalu menyebut penawaran TERBUKA TERBARU: seorang sales
+     * dengan QTN/2026/IX/0001 (disetujui) dan QTN/2026/IX/0002 (draf) dikirim
+     * ke draf-nya, menekan tombol yang tidak ada di sana, dan penawaran yang
+     * sebenarnya bisa dimenangkan tidak pernah disebut. Sebuah penolakan yang
+     * menyebut alamat yang salah lebih buruk daripada penolakan tanpa alamat:
+     * yang kedua membuat orang bertanya, yang pertama membuatnya yakin
+     * aplikasinya rusak.
      */
     private function refuseOutcome(Lead $lead, LeadStatus $to): never
     {
         $action = $to === LeadStatus::Won ? 'Tandai Menang' : 'Tandai Kalah';
-        $quotation = $lead->quotations()
+
+        $undecided = $lead->quotations()
             ->whereNull('won_at')
             ->whereNull('lost_at')
             ->orderByDesc('id')
-            ->first();
+            ->get();
 
-        $where = $quotation !== null
-            ? "buka penawaran {$quotation->code} lalu tekan \"{$action}\""
-            : 'prospek ini belum punya penawaran — buat penawarannya lebih dulu, '
-                ."lalu tekan \"{$action}\" di penawaran itu";
+        $markable = $to === LeadStatus::Won
+            ? $undecided->first(static fn (Quotation $quotation): bool => $quotation->status === DocumentStatus::Approved)
+            : $undecided->first();
+
+        $where = match (true) {
+            // Jalan yang benar-benar bisa ditempuh sekarang.
+            $markable !== null => "buka penawaran {$markable->code} lalu tekan \"{$action}\"",
+            // Ada penawaran terbuka, tetapi belum disetujui: langkah yang
+            // KURANG disebutkan, bukan disembunyikan.
+            $undecided->isNotEmpty() => "penawaran {$undecided->first()->code} masih "
+                .mb_strtolower($undecided->first()->status?->label() ?? 'terbuka')
+                ." — ajukan dan setujui dulu, lalu tekan \"{$action}\" di penawaran itu",
+            // Punya penawaran, semuanya sudah diputuskan (mis. prospek yang
+            // sudah Menang lalu penawaran keduanya kalah).
+            $lead->quotations()->exists() => 'seluruh penawaran prospek ini sudah diputuskan — '
+                ."buat penawaran baru lebih dulu, lalu tekan \"{$action}\" di penawaran itu",
+            default => 'prospek ini belum punya penawaran — buat penawarannya lebih dulu, '
+                ."lalu tekan \"{$action}\" di penawaran itu",
+        };
 
         throw ValidationException::withMessages([
             'status' => ["{$this->name($lead)} tidak bisa dipindahkan ke {$to->label()} lewat tahap: "
