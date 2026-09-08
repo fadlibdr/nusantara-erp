@@ -216,9 +216,13 @@ The PHP side of the mirror is `Modules\Crm\Support\ActivityDocuments`, and
 only in the SPA renders a card whose every request 422s; a slug only in PHP is a document that
 quietly cannot record a single activity. Same shape as `AttachmentRegistryTest`.
 
-Two rules the card itself lives by (both are in CONVENTIONS §25): an empty card SAYS it is
-empty ("Belum ada aktivitas dicatat untuk dokumen ini", never "0 aktivitas"), and "overdue" is
-the server's `is_overdue`, never a browser-clock comparison.
+Three rules the card itself lives by (all in CONVENTIONS §25): an empty card SAYS it is empty
+("Belum ada aktivitas dicatat untuk dokumen ini", never "0 aktivitas"); "overdue" is the
+server's `is_overdue`, never a browser-clock comparison; and a card that draws only the first
+N rows SAYS SO and takes its totals from `meta` — which is why it calls `api.list`, not
+`api.get`. `api.get` throws the envelope away, so a card using it counts whatever happened to
+load: measured 8 Sep 2026, "100 terbuka." on a document holding 110, next to a board card that
+said 110 (verifikasi F-3).
 
 ### Kanban hooks (`board.api`, `board.card.fields`, `action.body`, `action.boardOnly`, F-3)
 

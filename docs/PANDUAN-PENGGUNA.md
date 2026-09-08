@@ -397,6 +397,14 @@ tersebut ditemui orang yang mencoba melakukannya.
 Bila sebuah kolom memuat lebih banyak, ia mengatakannya di bawah judul kolomnya
 (*"25 dari 61 digambar — 36 lainnya ada di tampilan daftar."*).
 
+**Tanpa tetikus.** Kartu papan dijangkau **Tab**, dan **Enter** atau **Spasi** membukanya. Papan
+tidak punya jalan keyboard untuk MEMINDAHKAN kartu; jalan yang ada adalah membuka dokumennya dan
+menekan tombol aksinya — tombol yang sama persis yang dijalankan seretan, jadi tidak ada aturan
+yang terlewat karenanya.
+
+**Mencetak papan.** Di kertas, kolom yang tidak muat **turun ke baris berikutnya** alih-alih
+terpotong: pada A4 potret keenam kolom Papan Pipeline tercetak seluruhnya.
+
 **Klik kartu** membuka dokumennya. Tombol **`Tampilan daftar`** di kanan atas kembali ke tabelnya,
 yang tetap menjadi tempat menyaring, mengurutkan, dan mengunduh CSV.
 
@@ -540,6 +548,7 @@ Yang diawasi Tenggat, dan siapa yang melihatnya:
 
 | Yang diawasi | Diperingatkan | Terlihat oleh pemegang |
 |---|---|---|
+| Aktivitas CRM mendekati jatuh tempo | 3 hari | `crm.update` |
 | Paket tender mendekati batas pemasukan | 7 hari | `crm.create` |
 | Penawaran mendekati akhir masa berlaku | 14 hari | `crm.update` |
 | Kontrak mendekati tanggal berakhir | 30 hari | `crm.approve` |
@@ -1020,8 +1029,9 @@ menyetujuinya (dan mengaktifkan kontrak).
 
 Kolom daftar: Kode · Kontak (dengan nama perusahaan di bawahnya) · Sumber · Estimasi
 nilai · **Pemilik prospek** · **Follow-up** (tanggal beserta "3 hari lagi") · Status.
-Saringan: Status dan **Pemilik prospek**. Kotak cari mencakup nama kontak, kode, dan nama
-perusahaan.
+Saringan: Status · **Pemilik prospek** · **Belum ditugaskan** (satu klik menjawab "prospek mana
+yang tidak dikejar siapa pun"; "Tidak" memulangkan yang sudah ada pemiliknya). Kotak cari
+mencakup nama kontak, kode, dan nama perusahaan.
 
 Status prospek: **Baru · Sudah Dihubungi · Terkualifikasi · Penawaran Dikirim · Menang ·
 Kalah**.
@@ -1136,14 +1146,26 @@ Pada halaman **prospek**, kartu ini juga menuliskan dari mana tanggal Follow-up 
 *"Tindak lanjut berikutnya 11 Sep 2026 — diturunkan dari aktivitas terbuka paling awal
 ("Telepon konfirmasi kebutuhan")"* — atau, bila tidak ada, mengapa kolomnya kosong.
 
+Sebuah dokumen bisa memuat lebih banyak aktivitas daripada yang digambar kartunya (100 baris).
+Bila begitu, kartu **mengatakannya** — *"100 dari 110 digambar — sisanya (yang jatuh temponya
+paling akhir, dan yang tanpa tanggal) ada di layar Aktivitas CRM"* — dan angka ringkasannya
+("110 terbuka") tetap angka yang sebenarnya, bukan jumlah baris yang kebetulan muat.
+
 **Layar `Penjualan › Aktivitas CRM`** adalah daftar yang sama lintas dokumen: antrean kerja
 harian. Kolomnya Jatuh tempo (dengan "3 hari lagi") · Kegiatan · Jenis · Dokumen · Pemilik ·
-Selesai, dengan saringan Jenis, Dokumen, dan Pemilik. Layar ini **baca saja** — aktivitas
-selalu dibuat dari kartu di halaman dokumennya, karena di sanalah ia menggantung.
+Selesai, dengan saringan **Keadaan** (Terbuka · Lewat tanggal · Selesai) · Jenis · Dokumen ·
+Pemilik. Layar ini **baca saja** — aktivitas selalu dibuat dari kartu di halaman dokumennya,
+karena di sanalah ia menggantung. Membuka satu barisnya membuka halaman aktivitas itu, yang
+menyebut dokumen induknya dan **menautkannya**: dari pemberitahuan sampai ke prospeknya tanpa
+mencarinya lagi.
 
 **Pemberitahuan.** Aktivitas yang belum selesai akan diingatkan lewat lonceng dan e-mail
-harian: tiga hari sebelum jatuh tempo, dan setiap hari setelah lewat. Yang diberi tahu adalah
-orang yang bisa menandainya selesai. Menandai selesai mendiamkannya — menghapusnya juga, tetapi
+harian: tiga hari sebelum jatuh tempo, dan setiap hari setelah lewat. **Hari jatuh temponya
+sendiri belum dihitung terlambat** — pekerjaan yang dijanjikan hari ini masih bisa dikerjakan
+hari ini, dan pemberitahuannya berbunyi "hari ini", bukan "lewat jatuh tempo"; itu jawaban yang
+sama dengan lencana di kartunya dan dengan hitungan di kartu papan. Yang diberi tahu adalah
+orang yang bisa menandainya selesai, dan tautannya membuka daftar Aktivitas CRM yang **sudah
+tersaring** ke yang belum selesai. Menandai selesai mendiamkannya — menghapusnya juga, tetapi
 keduanya tidak sama, dan hanya yang pertama meninggalkan jejak siapa yang mengerjakannya.
 
 ### 3.3 Pelanggan — `Penjualan › Pelanggan`

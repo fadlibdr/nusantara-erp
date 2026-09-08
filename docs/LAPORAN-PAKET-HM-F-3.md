@@ -29,7 +29,7 @@ Branch: `feat/phase2-f3` (dari `main` 6cd42de) · 8 September 2026 · **paket ke
 |---|---|---|
 | `crm_activities` (call/meeting/email/visit/note, due/done, owner) | ✅ | migrasi `000395` + `ActivityService` (satu pintu) · `ActivityTest` (10 uji) · CONVENTIONS §25 |
 | kartu di prospek / penawaran / pelanggan | ✅ | `views/activities.js` + satu baris di `renderDetail` · `ActivityRegistryTest` (6 uji) · S30 `the_same_card_serves_the_quotation_screen` |
-| `next_follow_up_at` DITURUNKAN dari aktivitas | ✅ | `LeadFollowUpService` (satu penulis) + `prohibited` di kedua FormRequest · `LeadFollowUpDerivationTest` (8 uji) · S30 tiga pembaca menyebut tanggal yang sama |
+| `next_follow_up_at` DITURUNKAN dari aktivitas | ✅ | `LeadFollowUpService` (satu penulis) + `missing` di kedua FormRequest + `Arr::except` di controller (lihat putaran verifikasi) · `LeadFollowUpDerivationTest` (10 uji) · S30 tiga pembaca menyebut tanggal yang sama |
 | …dan nilai yang sudah diketik tidak berubah makna | ✅ | migrasi data `000396` (idempoten, tanpa `down()` yang menghapus) · uji membandingkan tiap baris sebelum/sesudah |
 | `owner_user_id` pada prospek, **tanpa backfill** | ✅ (dengan penyimpangan bentuk — lihat § berikutnya) | migrasi `000397` **mengganti nama** `user_id` · `LeadOwnerTest` (6 uji) |
 | "Belum ditugaskan" di mana pun kosong | ✅ | SATU kalimat (`ActivityResource::ownerName`) → daftar, CSV daftar, kartu papan, layar dokumen · S30 tiga permukaan diukur |
@@ -275,7 +275,36 @@ semuanya bisa dicabut hanya lewat kode:
 | `docs/PANDUAN-PENGGUNA.md` §1.4d | papan ketiga, kolom yang menolak dengan sengaja, kartu yang tidak digambar |
 | `docs/PANDUAN-PENGGUNA.md` §3.2 | pemilik prospek, tahap awal, Ubah Tahap, apa arti penolakan mundur/menang |
 | `docs/PANDUAN-PENGGUNA.md` §3.2a/§3.2b | Papan Pipeline; kartu Aktivitas + layar Aktivitas CRM + pemberitahuannya |
-| `docs/bukti-uji/results-phase-2.json` | `S30_pipeline_crm` + `S30_pipeline_crm_mobile` digabung menurut kunci |
+| `docs/bukti-uji/results-phase-2.json` | `S30_pipeline_crm` + `S30_pipeline_crm_mobile` + `S30_pipeline_crm_repair` digabung menurut kunci |
+
+## Putaran verifikasi (8 September 2026) — 15 temuan, 15 diperbaiki
+
+Dua lensa verifikasi (aturan & turunannya; papan dan kartunya sebagaimana ditemui sales)
+menjalankan kodenya alih-alih membacanya, dan menemukan 15 hal. Satu aturan, banyak permukaan:
+sebelas dari lima belas adalah permukaan yang TERLEWAT, bukan aturan yang salah.
+
+| # | Yang ditemukan | Yang diperbaiki |
+|---|---|---|
+| 1 | `PUT crm/leads {"next_follow_up_at": null}` dijawab **200** dan menghapus kolom turunannya; satu halaman lalu memajang dua jawaban (kartu "25 Sep 2026" / panel Informasi "—"). `prohibited` adalah kebalikan `required`, jadi ia lulus untuk nilai KOSONG; `{"status": null}` bahkan HTTP 500 | `missing` di kedua FormRequest + `Arr::except` di `LeadController` (ikat pinggang dan tali, seperti `ActivityService`) + `status` null pada POST berarti "tahap awal", dan jawabannya dibaca ulang dari barisnya |
+| 2 | Pengawas menyebut aktivitas yang jatuh tempo HARI INI "lewat jatuh tempo", sementara `isOverdue`, saringan `state=overdue` dan hitungan kartu papan menyebutnya belum — orang dikabari terlambat lalu tidak menemukan tanda terlambat di mana pun | `valid_through_end` pada entri `crm_activity_due`: hari itu MENIPIS ("hari ini"), LEWAT mulai besok. Ujinya kini memaku JUDUL notifikasinya, bukan sekadar keberadaannya |
+| 3 | Penolakan "Menang" menyebut penawaran terbuka TERBARU — bisa jadi draf, yang tidak punya tombol "Tandai Menang" | Yang disebut adalah yang bisa ditandai (Menang: disetujui; Kalah: setiap yang terbuka); yang belum disetujui disebut bersama langkah yang kurang; yang semua penawarannya sudah diputuskan tidak lagi disebut "belum punya penawaran" |
+| 4 | `state=open\|done\|overdue` ada di API dan tidak di satu bilah saringan pun; layar yang dibuka pemberitahuan 08.30 terbuka pada urutan `due_at` lintas keadaan — baris pertamanya pekerjaan yang selesai 20 bulan lalu | Saringan **Keadaan** (enum `activityState`) sebagai saringan pertama, dan `link` entri pengawas menjadi `r/crm/activities?state=open`. Ujinya membaca KEDUA sisi: setiap kunci query di `link` harus dideklarasikan `def.filters` |
+| 5 | `?unassigned=1` dijanjikan komentar controller sebagai "satu klik" dan tidak bisa diklik dari layar mana pun (dan tautannya dibuang `seedFromUrl`) | Saringan `boolFilter` "Belum ditugaskan"; `filled()` menggantikan `boolean()` supaya "Tidak" benar-benar berarti "sudah ditugaskan" alih-alih memulangkan semua |
+| 6 | Aturan "induk terhapus tidak ada" hidup hanya di docblock: mutasi `withTrashed()` meninggalkan 294 uji hijau | `test_a_soft_deleted_parent_does_not_exist` (POST baru DAN PUT yang memindahkan) |
+| 7 | Kartu Aktivitas memajang "100 terbuka." pada dokumen berisi 110 tanpa mengaku memotong — sementara kartu papan untuk prospek yang sama menyebut 110 | `api.list` + `meta.total`, kalimat "100 dari 110 digambar", dan pada kartu terpotong jumlahnya ditanyakan lagi ke server (termasuk aktivitas terbuka paling awal, supaya kalimat turunannya tidak bisa menyebut baris yang salah) |
+| 8 | Layar detail aktivitas tidak menyebut dokumen induknya sama sekali: `document_id` dibayangi `document_label`, dan `document_label` dibuang penyaring `_label` | Baris "Dokumen" dengan TAUTAN ke induknya (peta jenis→layar dibalik dari registri yang sudah ada) |
+| 9 | "Diselesaikan oleh" dua kali, sekali sebagai id pengguna mentah | `NAME_SHADOWED.done_by_id`, + keduanya masuk `WHEN_SET_KEYS` supaya aktivitas terbuka tidak menyisakan baris menggantung |
+| 10 | Toast penolakan diawali nama kolom: "status: Prospek LEAD-0003 tidak bisa…" | `toastError` membuang awalan kunci ketika galatnya hanya SATU |
+| 11 | Toast keberhasilan perpindahan papan: "Pindahkan ke Baru berhasil." — tidak mengatakan prospek mana, padahal server sudah mengirim kalimat yang lebih baik | `TOAST_TAHAP` pada ketujuh aksinya; tahap tujuannya dibaca dari jawaban server |
+| 12 | Mencetak papan memotong 3 dari 6 kolom pada A4 tanpa mengaku | Satu blok `@media print` di sebelah `.board-grid` (bukan di blok cetak jauh di atas: spesifisitasnya sama, yang belakangan menang) |
+| 13 | Kartu papan bisa difokus tetapi tanpa `role`, dan Spasi menggulirkan halaman | `role="button"` + `aria-label`, Spasi = Enter dengan `preventDefault`, dan kalimat pengantar papan menyebut jalan yang ADA bagi yang tidak bisa menyeret |
+
+Dua temuan lensa UX adalah temuan yang sama dengan dua temuan lensa aturan (saringan `state` dan
+`unassigned`), jadi lima belas temuan ditutup oleh tiga belas perbaikan.
+
+**Bukti barunya bisa dijalankan ulang**: skenario harness `S30_pipeline_crm_repair` (16 syarat)
+mengukur ketiga belas perbaikan itu di peramban — termasuk kartu berisi 110 aktivitas, cetak A4
+794×1123, dan tombol Spasi pada kartu papan.
 
 ## Gerbang paket (8 September 2026)
 
@@ -293,3 +322,19 @@ migrasi 000397 dan kolom `crm_activities` berperilaku sama di kedua driver.
 
 **Gerbang rilis penuh (seluruh suite) adalah milik orkestrator** — paket ini
 menjalankan Crm + Core, sesuai penugasannya.
+
+### Sesudah putaran verifikasi (8 September 2026)
+
+Dijalankan ulang setelah tiga belas perbaikan di atas; angkanya naik karena putaran itu
+menambah 11 uji (dan `tests/Unit/Core` ikut dijalankan kali ini):
+
+| Kaki | Berkas uji | Hasil |
+|---|---|---|
+| SQLite (`phpunit.xml`) | `tests/Feature/Crm` + `tests/Unit/Crm` + `tests/Feature/Core` + `tests/Unit/Core` | **1.561 uji, 11.127 assertion hijau** (11 dilewati — semuanya khusus MySQL) |
+| MySQL 8 (`phpunit.mysql.xml`) | `tests/Feature/Core` | **961 uji, 8.776 assertion hijau** (6 dilewati) |
+| MySQL 8 (`phpunit.mysql.xml`) | `tests/Feature/Crm` + `tests/Unit/Crm` | **368 uji, 1.352 assertion hijau** |
+
+Harness: `S30_pipeline_crm` (23 syarat) · `S30_pipeline_crm_mobile` (4) ·
+`S30_pipeline_crm_repair` (16) — 43 syarat, semuanya hijau, di atas salinan coretan basis data
+demo (`database/database.sqlite` tidak disentuh; mtime tetap 7 Sep 14.17). Server `php -S`
+pada porta 8144, dimatikan menurut PID-nya.

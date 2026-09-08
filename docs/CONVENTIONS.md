@@ -1252,13 +1252,14 @@ cerminnya di klien (`public/app/js/views/activities.js` `ACTIVITY_DOCUMENTS`) di
 `ActivityRegistryTest` — slug yang hanya ada di satu sisi adalah kartu yang selalu 422, atau
 dokumen yang diam-diam tidak bisa mencatat satu pun aktivitas.
 
-**Satu pintu tulis: `ActivityService`.** `done_at`/`done_by_id` ditolak (`prohibited`) bila diketik;
+**Satu pintu tulis: `ActivityService`.** `done_at`/`done_by_id` ditolak bila diketik (dan dibuang
+lagi dengan `Arr::except` — ikat pinggang dan tali, §26);
 induk yang tidak ada ditolak dengan kalimat yang menyebut jenis dokumennya dalam bahasa layar; dan
 setiap perubahan memanggil `LeadFollowUpService` (§26). Dua pintu berarti satu di antaranya lupa
 menghitung ulang turunannya.
 
 **Kartunya** dipasang `renderDetail` dalam satu baris, seperti kartu Lampiran, dan keanggotaannya
-diputuskan cermin registri di dalam kartu itu sendiri. Tiga aturan kejujurannya:
+diputuskan cermin registri di dalam kartu itu sendiri. Empat aturan kejujurannya:
 
 1. **Kartu kosong mengatakan dirinya kosong** — "Belum ada aktivitas dicatat untuk dokumen ini",
    tidak pernah "0 aktivitas". Angka nol yang dipajang sebagai hasil pengukuran adalah kebohongan
@@ -1267,10 +1268,33 @@ diputuskan cermin registri di dalam kartu itu sendiri. Tiga aturan kejujurannya:
    mewarnai baris yang salah, dan warna itulah yang dipakai orang memilih pekerjaan hari ini.
 3. **Kartu prospek menyebut asal tanggal tindak lanjutnya**, dengan subjek aktivitas yang
    menentukannya.
+4. **Yang dipotong diakui, dan jumlahnya datang dari server** (verifikasi F-3, 8 Sep 2026). Kartu
+   menggambar paling banyak 100 baris dan memakai `api.list` — `api.get` membuang amplopnya, jadi
+   kartu yang memakainya menghitung ringkasannya dari baris yang KEBETULAN termuat: "100 terbuka."
+   pada dokumen berisi 110, sementara kartu papan untuk dokumen yang sama menyebut 110. Kalimat
+   pemotongannya sama bentuknya dengan papan ("100 dari 110 digambar"), dan pada kartu yang
+   terpotong jumlah terbuka/lewat-tanggal DITANYAKAN LAGI ke server alih-alih ditaksir dari yang
+   terlihat.
+
+**Layar detailnya menyebut dokumen induknya** dan menautkannya (`document_id` berlabel "Dokumen",
+tidak dibayangi `document_label`; peta jenis→layar dibalik dari registri yang sama). Antrean kerja
+yang barisnya tidak bisa dibuka sampai ke pekerjaannya adalah antrean buntu.
 
 **Pengawasnya** satu entri `WatchedDeadlines` (`crm_activity_due`, `lead_days` 3, izin
-`crm.update`, tautan `r/crm/activities`) — bukan perintah baru. `done_at` yang mendiamkannya; itu
-pula sebabnya "Selesai" mencap waktu alih-alih menghapus barisnya.
+`crm.update`, tautan `r/crm/activities?state=open`) — bukan perintah baru. `done_at` yang
+mendiamkannya; itu pula sebabnya "Selesai" mencap waktu alih-alih menghapus barisnya.
+
+Dua hal yang harus tetap sejalan dengannya, dan pernah tidak (verifikasi F-3):
+
+- **Hari jatuh temponya belum terlambat** (`valid_through_end`): telepon yang dijanjikan hari ini
+  masih bisa ditelepon hari ini, jadi hari itu MENIPIS dan LEWAT mulai besok — sama dengan
+  `Activity::isOverdue`, saringan `state=overdue`, dan hitungan lewat-tanggal kartu papan. Tanpa
+  bendera itu orang dikabari pukul 08.30 bahwa pekerjaannya terlambat lalu tidak menemukan satu pun
+  tanda terlambat di layar mana pun.
+- **Tautannya membawa saringan yang layarnya deklarasikan.** `views/list.js` membuang kunci query
+  yang tidak ada di `def.filters` DIAM-DIAM; tanpa saringan `state`, pemberitahuan jatuh tempo
+  membuka daftar yang urut `due_at` lintas keadaan — baris pertamanya pekerjaan yang selesai 20
+  bulan lalu.
 
 ## 26. Transisi pipeline prospek (`LeadStatus::canMoveTo`, F-3)
 
@@ -1298,15 +1322,29 @@ untuk bisa menulis kalimatnya):
   bisa dimundurkan diam-diam adalah corong yang angka konversinya tidak berarti apa-apa.
 - **lewat penawaran** — Menang/Kalah **hanya** lahir dari `QuotationService::markWon/markLost`
   (yang memanggil `LeadPipelineService::decideByQuotation`, jadi keputusannya ikut tercatat dengan
-  kode QTN-nya). Penolakannya menyebut penawaran MANA yang harus ditandai — atau mengakui bahwa
-  prospeknya belum punya penawaran sama sekali.
+  kode QTN-nya). Penolakannya menyebut penawaran MANA yang harus ditandai — **yang tombolnya
+  sungguh ada di sana**: "Tandai Menang" hanya lahir pada penawaran DISETUJUI, sedangkan "Tandai
+  Kalah" ada pada setiap penawaran yang belum diputuskan. Yang belum disetujui disebut bersama
+  langkah yang kurang ("masih draf — ajukan dan setujui dulu"); yang semua penawarannya sudah
+  diputuskan disuruh membuat penawaran baru; dan yang memang belum punya satu pun diakui apa
+  adanya. Sebuah penolakan yang menyebut alamat yang salah lebih buruk daripada penolakan tanpa
+  alamat: yang kedua membuat orang bertanya, yang pertama membuatnya yakin aplikasinya rusak.
 - **terkunci** — prospek yang sudah menang/kalah tidak bisa dikembalikan ke tahap mana pun; nasibnya
   milik penawarannya.
 
 **Pintunya satu: `POST crm/leads/{id}/pipeline` `{status, reason?}`** (`LeadPipelineService`).
-`LeadUpdateRequest` menolak `status` (`prohibited`), `LeadStoreRequest` hanya menerima tahap
-TERBUKA saat membuat, dan isian status di formulir SPA `createOnly`. Sebuah pintu kedua yang tidak
-memeriksa apa-apa membuat pintu pertama sekadar saran.
+`LeadUpdateRequest` menolak `status` dan `next_follow_up_at` dengan **`missing`, bukan
+`prohibited`**, `LeadStoreRequest` hanya menerima tahap TERBUKA saat membuat, dan isian status di
+formulir SPA `createOnly`. Sebuah pintu kedua yang tidak memeriksa apa-apa membuat pintu pertama
+sekadar saran.
+
+> **`prohibited` bukan penolak yang Anda kira** (verifikasi F-3, 8 Sep 2026). Aturannya adalah
+> kebalikan `required`, jadi ia LULUS untuk nilai kosong: `{"next_follow_up_at": null}` dijawab
+> 200 dan MENGHAPUS kolom turunannya (`""` sama saja — `ConvertEmptyStringsToNull`), dan
+> `{"status": null}` menjadi HTTP 500 "NOT NULL constraint failed". `missing` gagal begitu kuncinya
+> ADA. Untuk field yang tidak boleh ditulis formulir, `missing` adalah aturannya — dan
+> controllernya tetap menyaring sekali lagi (`Arr::except`), karena satu rule yang salah pilih
+> tidak boleh cukup untuk membatalkan sebuah aturan.
 
 **Alasan mundur diminta oleh SERVER, dijawab SPA.** Layanan menolak 422 berkunci `reason`; mesin
 `confirmResubmit` (§ actions.js) membuka satu isian wajib berisi kalimat servernya lalu mengirim
