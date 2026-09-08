@@ -75,6 +75,37 @@ class BudgetRealisationService
     /** Locale aplikasi 'en' (config/app.php); nama bulan Indonesia ditulis, tidak diterjemahkan runtime. */
     private const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
+    /**
+     * INGATAN SATU PEMANGGILAN portfolio(), dan hanya itu.
+     *
+     * portfolio() memanggil project() per proyek, dan project() dulu menembak
+     * ~25 kueri untuk setiap baris: rapOf() empat kali (sekali langsung, dua
+     * kali lewat rapBudget di dalam side(), plus pemeriksaan skemanya),
+     * actualCost dua kali, hasCostRows, dan CommitmentService dua kueri —
+     * semuanya per proyek, tanpa satu eager load pun. TERUKUR atas salinan data
+     * demo: 2 proyek 51 kueri (5,5 ms), 102 proyek 2.551 kueri (195,8 ms), dan
+     * registri Ambang membayar seluruhnya sekali lagi.
+     *
+     * Ingatannya SENGAJA berumur satu panggilan (diisi prime(), dibuang di
+     * finally): sebuah cache yang hidup selama instance akan menjawab dengan
+     * angka lama sesudah sebuah PO disetujui di dalam permintaan yang sama —
+     * dan angka gerbang yang basi adalah cacat yang jauh lebih mahal daripada
+     * kueri yang banyak. Di luar portfolio(), side()/project()/monthly()
+     * menembak kueri yang sama persis seperti sebelumnya.
+     *
+     * @var array<int, ?object>
+     */
+    private array $rapMemo = [];
+
+    /** @var array<int, array{subcon: float, non_subcon: float}> per id RAP */
+    private array $rapBudgetMemo = [];
+
+    /** @var array<int, array{subcon: float, non_subcon: float, rows: int}> per id proyek */
+    private array $costMemo = [];
+
+    /** @var array<int, array{purchase_orders: float, subcontracts: float}> per id proyek */
+    private array $committedMemo = [];
+
     public function __construct(private readonly CommitmentService $commitments) {}
 
     // ------------------------------------------------------------- satu sisi
@@ -218,19 +249,136 @@ class BudgetRealisationService
 
         $rows = [];
 
-        foreach ($projects as $project) {
-            $rows[] = [
-                'project_code' => $project->code,
-                'project_name' => $project->name,
-                'status' => $project->status,
-                // Kolom berbawaan 0: 0 berarti BELUM DICATAT, bukan kontrak nol
-                // rupiah. Dikirim null supaya layar menggarisnya, bukan
-                // mencetak "Rp 0" untuk nilai yang tidak diketahui siapa pun.
-                'contract_value' => (float) $project->contract_value > 0 ? round((float) $project->contract_value, 2) : null,
-            ] + $this->project((int) $project->id);
+        try {
+            $this->prime($projects->pluck('id')->map(fn ($id): int => (int) $id)->all());
+
+            foreach ($projects as $project) {
+                $rows[] = [
+                    'project_code' => $project->code,
+                    'project_name' => $project->name,
+                    'status' => $project->status,
+                    // Kolom berbawaan 0: 0 berarti BELUM DICATAT, bukan kontrak nol
+                    // rupiah. Dikirim null supaya layar menggarisnya, bukan
+                    // mencetak "Rp 0" untuk nilai yang tidak diketahui siapa pun.
+                    'contract_value' => (float) $project->contract_value > 0 ? round((float) $project->contract_value, 2) : null,
+                ] + $this->project((int) $project->id);
+            }
+        } finally {
+            $this->forget();
         }
 
         return $rows;
+    }
+
+    /**
+     * Isi ingatan satu panggilan untuk SEMUA proyek sekaligus — empat kueri
+     * berkelompok yang menggantikan ~25 kueri per proyek.
+     *
+     * Definisinya tidak berubah satu rupiah pun: kueri yang sama, dilebarkan
+     * dengan whereIn dan dikelompokkan di PHP dengan aturan yang sama
+     * (subkon = kategori 'subcon', non-subkon = kategori LAIN yang bukan null —
+     * persis semantik `where cost_category != 'subcon'` di SQL, yang membuang
+     * baris berkategori null). Kesetaraannya dipaku dari luar: setiap baris
+     * portfolio() harus identik dengan project() yang dihitung satu per satu.
+     *
+     * @param  array<int, int>  $projectIds
+     */
+    private function prime(array $projectIds): void
+    {
+        $this->forget();
+
+        if ($projectIds === []) {
+            return;
+        }
+
+        $hasBudgets = Schema::hasTable('est_cost_budgets') && Schema::hasTable('est_cost_budget_items');
+
+        if ($hasBudgets) {
+            $raps = DB::table('est_cost_budgets')
+                ->whereIn('project_id', $projectIds)
+                ->where('status', DocumentStatus::Approved->value)
+                ->whereNull('deleted_at')
+                ->when(
+                    Schema::hasColumn('est_cost_budgets', 'superseded_at'),
+                    fn ($query) => $query->whereNull('superseded_at'),
+                )
+                // orderBy('id') + keyBy: yang terakhir menang, yaitu id
+                // terbesar — jawaban yang sama dengan orderByDesc('id')->first().
+                ->orderBy('id')
+                ->get()
+                ->keyBy('project_id');
+
+            foreach ($projectIds as $projectId) {
+                $this->rapMemo[$projectId] = $raps[$projectId] ?? null;
+            }
+
+            $rapIds = $raps->pluck('id')->map(fn ($id): int => (int) $id)->all();
+
+            if ($rapIds !== []) {
+                foreach ($rapIds as $rapId) {
+                    $this->rapBudgetMemo[$rapId] = ['subcon' => 0.0, 'non_subcon' => 0.0];
+                }
+
+                $items = DB::table('est_cost_budget_items')
+                    ->whereIn('cost_budget_id', $rapIds)
+                    ->whereNotNull('cost_category')
+                    ->groupBy('cost_budget_id', 'cost_category')
+                    ->selectRaw('cost_budget_id, cost_category, SUM(amount) as total')
+                    ->get();
+
+                foreach ($items as $item) {
+                    $key = $item->cost_category === 'subcon' ? 'subcon' : 'non_subcon';
+                    $rapId = (int) $item->cost_budget_id;
+                    $this->rapBudgetMemo[$rapId][$key] = round(
+                        $this->rapBudgetMemo[$rapId][$key] + (float) $item->total, 2,
+                    );
+                }
+            }
+        }
+
+        if (Schema::hasTable('fin_project_costs')) {
+            foreach ($projectIds as $projectId) {
+                $this->costMemo[$projectId] = ['subcon' => 0.0, 'non_subcon' => 0.0, 'rows' => 0];
+            }
+
+            $costs = DB::table('fin_project_costs')
+                ->whereIn('project_id', $projectIds)
+                ->groupBy('project_id', 'cost_category')
+                // 'row_count', bukan 'rows': ROWS adalah kata tercadang MySQL 8.
+                ->selectRaw('project_id, cost_category, SUM(amount) as total, COUNT(*) as row_count')
+                ->get();
+
+            foreach ($costs as $cost) {
+                $projectId = (int) $cost->project_id;
+                // hasCostRows() menghitung SETIAP baris, apa pun kategorinya:
+                // "belum ada yang tercatat" bukan pertanyaan tentang kategori.
+                $this->costMemo[$projectId]['rows'] += (int) $cost->row_count;
+
+                if ($cost->cost_category === null) {
+                    continue;
+                }
+
+                $key = $cost->cost_category === 'subcon' ? 'subcon' : 'non_subcon';
+                $this->costMemo[$projectId][$key] = round(
+                    $this->costMemo[$projectId][$key] + (float) $cost->total, 2,
+                );
+            }
+        }
+
+        foreach ($this->commitments->forProjects($projectIds) as $projectId => $committed) {
+            $this->committedMemo[$projectId] = [
+                'purchase_orders' => (float) $committed['purchase_orders'],
+                'subcontracts' => (float) $committed['subcontracts'],
+            ];
+        }
+    }
+
+    private function forget(): void
+    {
+        $this->rapMemo = [];
+        $this->rapBudgetMemo = [];
+        $this->costMemo = [];
+        $this->committedMemo = [];
     }
 
     /**
@@ -409,6 +557,10 @@ class BudgetRealisationService
      */
     private function rapOf(int $projectId): ?object
     {
+        if (array_key_exists($projectId, $this->rapMemo)) {
+            return $this->rapMemo[$projectId];
+        }
+
         if (! Schema::hasTable('est_cost_budgets') || ! Schema::hasTable('est_cost_budget_items')) {
             return null;
         }
@@ -433,6 +585,12 @@ class BudgetRealisationService
             return null;
         }
 
+        $rapId = (int) $rap->id;
+
+        if (isset($this->rapBudgetMemo[$rapId])) {
+            return $this->rapBudgetMemo[$rapId][$subcon ? 'subcon' : 'non_subcon'];
+        }
+
         return round((float) DB::table('est_cost_budget_items')
             ->where('cost_budget_id', $rap->id)
             ->when(
@@ -450,6 +608,10 @@ class BudgetRealisationService
 
     private function actualCost(int $projectId, bool $subcon): float
     {
+        if (isset($this->costMemo[$projectId])) {
+            return $this->costMemo[$projectId][$subcon ? 'subcon' : 'non_subcon'];
+        }
+
         if (! Schema::hasTable('fin_project_costs')) {
             return 0.0;
         }
@@ -486,6 +648,10 @@ class BudgetRealisationService
      */
     private function hasCostRows(int $projectId): bool
     {
+        if (isset($this->costMemo[$projectId])) {
+            return $this->costMemo[$projectId]['rows'] > 0;
+        }
+
         if (! Schema::hasTable('fin_project_costs')) {
             return false;
         }
@@ -495,7 +661,7 @@ class BudgetRealisationService
 
     private function committed(int $projectId, bool $subcon): float
     {
-        $committed = $this->commitments->forProject($projectId);
+        $committed = $this->committedMemo[$projectId] ?? $this->commitments->forProject($projectId);
 
         return (float) ($subcon ? $committed['subcontracts'] : $committed['purchase_orders']);
     }

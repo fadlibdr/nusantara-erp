@@ -3,6 +3,7 @@
 namespace Tests\Feature\Finance;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\WatchedThresholds;
@@ -797,5 +798,87 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
 
         // Dan memang tidak ada satu DPP pun yang lolos tanpa konfirmasi.
         $this->submitPo($this->po($project, 1, DocumentStatus::Draft))->assertStatus(422);
+    }
+
+    // ------------------------------------------------------- biaya kuerinya
+
+    /**
+     * PORTOFOLIO MEMBAYAR KUERI YANG TETAP, dan tidak mengubah satu angka pun.
+     *
+     * Sebelum perbaikan (terukur atas salinan data demo, SQLite):
+     *     2 proyek ->    51 kueri,   5,5 ms  (25,5 kueri/proyek)
+     *   102 proyek -> 2.551 kueri, 195,8 ms  (25,0 kueri/proyek)
+     * Sesudah: 10 kueri untuk KEDUANYA (2,5 ms pada 102 proyek), dan muatan
+     * portofolionya byte-per-byte identik — kalimat dan `sides` termasuk.
+     *
+     * Uji ini menjaga keduanya sekaligus: biayanya tidak boleh tumbuh dengan
+     * jumlah proyek, DAN setiap baris harus tetap identik dengan project() yang
+     * dihitung satu per satu — jalur yang dibaca gerbang PO/SPK.
+     */
+    public function test_the_portfolio_costs_a_constant_number_of_queries_and_changes_no_number(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        for ($i = 1; $i <= 2; $i++) {
+            $this->fullyLoadedProject(940 + $i);
+        }
+
+        // Sekali pemanasan: pemeriksaan skema Laravel di-cache per proses, dan
+        // yang diukur adalah biaya per PROYEK, bukan biaya pemanasannya.
+        app(BudgetRealisationService::class)->portfolio();
+
+        $small = $this->countQueries(fn () => app(BudgetRealisationService::class)->portfolio());
+
+        for ($i = 3; $i <= 12; $i++) {
+            $this->fullyLoadedProject(940 + $i);
+        }
+
+        $large = $this->countQueries(fn () => app(BudgetRealisationService::class)->portfolio());
+
+        $this->assertCount(2, $small['result']);
+        $this->assertCount(12, $large['result']);
+        $this->assertSame(
+            $small['queries'],
+            $large['queries'],
+            "biaya kueri portofolio tumbuh dengan jumlah proyek: {$small['queries']} kueri untuk 2 proyek, "
+            ."{$large['queries']} untuk 12",
+        );
+        $this->assertLessThanOrEqual(15, $large['queries']);
+
+        // …dan angkanya persis angka yang dijawab satu-per-satu.
+        foreach ($large['result'] as $row) {
+            $alone = app(BudgetRealisationService::class)->project($row['project_id']);
+            $fromPortfolio = array_diff_key($row, array_flip(['project_code', 'project_name', 'status', 'contract_value']));
+
+            $this->assertEquals($alone, $fromPortfolio, "baris portofolio {$row['project_code']} berbeda dari project()");
+        }
+    }
+
+    /** Proyek dengan RAP dua sisi, biaya, PO disetujui dan SPK disetujui. */
+    private function fullyLoadedProject(int $n): Project
+    {
+        $project = $this->project('PRJ-2026-'.$n);
+        $this->approvedRap($project, nonSubcon: 200_000_000, subcon: 300_000_000, code: 'RAP/2026/0'.$n);
+        $this->cost($project, 'material', 20_000_000);
+        $this->cost($project, 'subcon', 30_000_000);
+        $this->po($project, 40_000_000, DocumentStatus::Approved);
+        $this->spk($project, 50_000_000, DocumentStatus::Approved);
+
+        return $project;
+    }
+
+    /**
+     * @param  callable(): mixed  $body
+     * @return array{queries: int, result: mixed}
+     */
+    private function countQueries(callable $body): array
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $result = $body();
+        $queries = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        return ['queries' => $queries, 'result' => $result];
     }
 }

@@ -218,8 +218,10 @@ layar-vs-gerbang tetap struktural — yang diperbaiki adalah SISI mana yang dice
    **menyetujui RAP itu di salinan coretannya**. Pemilik perlu menyetujui RAP-nya di produksi
    sebelum satu pun angka pada layar ini berarti sesuatu.
 2. **Belum pernah dijalankan di belakang nginx/produksi.** Seluruh pengukuran memakai `php -S`
-   loopback dan SQLite. Kinerja `budget/portfolio` pada portofolio besar (kueri per proyek)
-   belum diukur di mesin produksi maupun di MySQL.
+   loopback dan SQLite. Kinerja `budget/portfolio` pada portofolio besar SUDAH diukur di SQLite
+   sejak verifikasi putaran 2 — 102 proyek turun dari **2.551 kueri / 195,8 ms** menjadi
+   **10 kueri / 2,5 ms**, dengan muatan yang byte-per-byte identik — tetapi belum di MySQL
+   maupun di mesin produksi.
 3. **Belum ada OVB nyata.** Uji dan layar OVB dijalankan atas anggaran yang dibuat uji itu sendiri;
    tidak ada OVB pada data demo, jadi tab Overhead di erp1 akan berbunyi "belum ada OVB disetujui"
    sampai pemilik menyusunnya.
