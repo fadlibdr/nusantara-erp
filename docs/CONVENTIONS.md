@@ -1572,3 +1572,116 @@ melanggarnya.
 **Layar yang memakai antrean tidak boleh mendeklarasikan `QUEUE_PREFIX` atau `MAX_BYTES` sendiri**
 (dipaku `UploadQueueTest`): dua antrean di `localStorage` yang sama tidak akan pernah saling
 melihat, dan salinan kedua batas ukuran adalah salinan yang suatu hari berbeda dari servernya.
+
+## 31. Titik pesan ulang (`inv_reorder_rules`, F-6)
+
+Ambang "perlu dipesan ulang" untuk sepasang **gudang × item**. Aturan AKTIF untuk pasangan itu
+**MENGGANTIKAN** `inv_items.min_stock` — bukan menambahnya, bukan "yang paling ketat menang", dan
+itu berlaku juga bila titiknya LEBIH RENDAH. Kalau tidak, aturan gudang site tidak pernah bisa
+lebih longgar daripada angka perusahaan, yang adalah persis alasan tabelnya lahir. `reorder_point`
+0 pada aturan aktif berarti "pasangan ini tidak pernah dipesan ulang", jadi syarat `> 0` berlaku
+pada ambang yang **MENANG**, bukan pada `min_stock`.
+
+**Definisinya hidup di DUA tempat, dengan sengaja:** `StockService::lowStockAlerts()` dan salinan
+literalnya di registri Core `ModuleCounts` entri `inv` (Core tidak boleh mengimpor modul fitur,
+§16). Yang disalin adalah **struktur query builder**, bukan potongan SQL mentah: bentuk dua lengan
+`OR` yang saling meniadakan lewat `r.id`, dengan `is_active` **di klausa ON** — di WHERE ia
+mengubah LEFT JOIN menjadi INNER JOIN dan setiap pasangan tanpa aturan hilang dari daftar
+sekaligus. `ModuleCountsTest` memaku kesetaraan keduanya **dan** memaku bahwa fixture-nya
+benar-benar memisahkan "dengan aturan" dari "hanya min_stock" — tanpa lengan kedua itu, sepasang
+salinan yang sama-sama melupakan tabel aturan lolos hijau.
+
+**UNIQUE (warehouse_id, item_id), dan karena itu TANPA softDeletes** (pola `ast_depreciation_runs`
+dan `core_saved_reports`). Dua baris hidup untuk satu pasangan menggandakan setiap baris kekurangan
+di keempat permukaannya — layar Saldo Stok, widget dasbor, ubin launcher, usulan PR — tanpa satu
+pun galat. Sebuah baris yang dibuang lembut akan menempati pasangannya selamanya sehingga aturan
+yang dihapus tidak pernah bisa dibuat ulang; saklarnya `is_active`, yang memang untuk itu.
+`Rule::unique` di FormRequest menambahkan **kalimatnya**, bukan aturan kedua.
+
+**PRIORITASNYA DITULIS DI LAYAR, bukan hanya berlaku di kode.** Setiap baris membawa ambang yang
+menang, nama sumbernya (`threshold_source_label`), DAN angka item yang kalah. Sebuah baris yang
+menulis "20" padahal kartu itemnya berkata 100 tanpa mengatakan dari mana 20 itu datang adalah
+angka yang tidak bisa diperiksa siapa pun.
+
+## 32. Usulan PR dari kekurangan stok (`ReorderService`, F-6)
+
+**Draf, dan tidak selangkah lebih jauh.** Dokumennya dibuat lewat `PurchaseRequisitionService` yang
+sudah ada — yang selalu menyimpan Draf — dan berhenti. Tidak ada rute Inventory yang mengajukan
+atau menyetujui (dipaku `ReorderProposalTest`). Alasannya sama dengan §29: sebuah ambang yang salah
+ketik satu digit akan mengubah dirinya menjadi PO, dan PO adalah uang yang keluar.
+
+**Idempotensi DINYATAKAN, bukan disimpulkan.** Sebuah item dilewati bila ia sudah menjadi baris
+pada PR **terbuka** (`draft`/`submitted`/`approved`, belum dibuang) untuk gudang yang sama **atau**
+pada PR yang tidak menyebut gudang sama sekali. `rejected`/`closed`/`cancelled` **bukan** terbuka:
+PR yang ditolak adalah permintaan yang seseorang tolak, dan mengusulkannya lagi justru yang benar.
+Lengan "tanpa gudang" adalah pilihan ke arah yang lebih sepi, dan biayanya dibayar dengan
+keterlihatan: tiap baris yang dilewati menuliskan **kode PR** yang menutupinya. Kalimat aturannya
+dikirim server (`why_skipped`) — salinan di layar akan menyimpang pada suntingan pertama.
+
+**Satu PR per GUDANG**, karena PR punya satu `warehouse_id`. Proyeknya **diturunkan** dari
+`inv_warehouses.project_id`, taksiran harganya dari `inv_items.last_price`, jumlahnya dari ambang
+yang menang (atau `reorder_qty` aturan bila aturan menyebutnya). Tidak ada angka yang dikarang.
+Gerbangnya **`prc.create`**, bukan `inv.*`: yang dibuat adalah dokumen Procurement, dari layar mana
+pun tombolnya ditekan.
+
+## 33. Code 128 & label F/LBL (`Modules\Core\Support\Code128`, F-6)
+
+Barcode yang salah **tidak terlihat salah**: digit periksa mod-103 yang keliru menghasilkan gambar
+rapi yang tidak terbaca pemindai mana pun — atau, lebih buruk, terbaca sebagai **kode lain**,
+sehingga barang yang dipindai masuk ke kartu stok barang lain. Karena itu:
+
+- **Ujinya memuat DEKODER** (`Code128Test`): ia membaca `<rect>` dari SVG produksi, menyusun ulang
+  deret lebar batang DAN spasi, menghitung ulang digit periksanya dari nol, dan mengembalikan teks.
+  Uji yang menghitung jumlah batang, memeriksa `viewBox`, atau membandingkan snapshot HIJAU untuk
+  kedua kegagalan di atas. Tabel `PATTERNS` sendiri diperiksa terhadap sifatnya (107 simbol, 11
+  modul, 13 untuk stop, elemen 1–4 modul, semuanya unik) — encoder dan dekoder membaca tabel yang
+  sama, jadi satu angka tertukar akan bolak-balik dengan sempurna.
+- **Arti sebuah nilai bergantung pada SET yang berlaku.** Di set C, 99 adalah pasangan angka "99";
+  yang berarti "pindah ke set C" hanya di set A/B, dan yang berarti "pindah ke set B" di set C
+  adalah 100. Dekoder yang mengabaikan itu membaca `ITM-9999` sebagai `ITM-`.
+- **Zona tenang 10 modul WAJIB**, dan dipaku dengan **angka 10**, bukan dengan konstantanya
+  sendiri: uji yang membandingkan lebar terhadap `Code128::QUIET_MODULES` ikut berubah bersama
+  mutasinya, dan menyetel konstanta itu ke 0 — yang membuang seluruh zona tenang dan membuat
+  pemindai gagal diam-diam — lolos HIJAU (diukur).
+- **Teks terbaca-manusia WAJIB**, dari teks yang sama dengan yang dikodekan.
+
+**F/LBL adalah formulir BESPOKE**, bukan entri `PrintableDocuments`: registri itu menggambar
+dokumen bertanda tangan (pita empat pihak, blok identitas, tiga kolom tanda tangan), dan lembar
+label adalah kisi stiker yang digunting. Yang dikodekan: `inv_items.barcode` bila kartunya punya,
+`code`-nya sendiri bila tidak — dan lembarnya **menuliskan yang mana**. Kode yang memuat karakter
+di luar ASCII 32–126 mencetak stiker **tanpa batang** beserta kalimatnya; tidak pernah gambar yang
+salah, tidak pernah kosong tanpa keterangan.
+
+**Blade: `@else` yang didahului huruf BUKAN direktif.** Blade mencocokkan dengan `\B@`, jadi
+`…berbeda@else` lolos sebagai teks, cabang `@if` di atasnya menelan sisa berkas, dan seluruh lembar
+gagal dengan "unexpected end of file, expecting elseif". Satu direktif per baris.
+
+## 34. Pindai barcode (`views/pindai.js`, F-6)
+
+**`BarcodeDetector` tidak ada di iOS Safari**, dan itu ponsel separuh lapangan. Keberadaannya
+diperiksa lewat `typeof globalThis.BarcodeDetector` — referensi telanjang ke pengenal yang tidak
+ada adalah `ReferenceError` yang menjatuhkan seluruh layar, termasuk isian manualnya, yaitu
+satu-satunya jalan yang tersisa. **Jalur ketik adalah isian PERTAMA di layar**, bukan jalan pintas
+darurat; kamera adalah tambahan di atasnya.
+
+**Empat keadaan, empat kalimat**, karena keempatnya menuntut tindakan berbeda dari yang membacanya:
+peramban tanpa `BarcodeDetector` (tidak ada yang bisa diperbaiki) · halaman bukan konteks aman
+(kamera memang tidak akan pernah diminta) · izin **ditolak** (ada yang bisa dicabut kembali, di
+setelan situs) · **tidak ada** kamera (bukan soal izin). Plus keadaan kelima yang bukan galat:
+menyala dan belum menemukan apa pun. Satu kalimat untuk keempatnya mengirim orang gudang mencari
+setelan izin di ponsel yang memang tidak punya kamera.
+
+**`video.play()` tidak boleh di-`await`.** Janjinya baru selesai ketika trek mengirim bingkai
+pertamanya; kamera yang menyala tanpa mengirim apa pun menggantung baris itu selamanya, pemindainya
+tidak pernah mulai, dan kalimat di layar berhenti di "Meminta izin kamera…" — yang persis salah.
+
+**Kamera dimatikan lewat `video.isConnected`**, karena router ini tidak punya kait teardown:
+berpindah rute mencabut `<video>` dari dokumen dan putaran pemindai menghentikan treknya sendiri
+≤250 ms kemudian. Tanpa itu lampu kamera tetap menyala dan di Android menahan aplikasi lain.
+
+**`inv_items.barcode` NULLABLE dan TIDAK UNIK.** Pemindaian yang menemukan dua item **tidak pernah
+memilihkan**: server memulangkan semuanya dengan `status: 'ambiguous'`, dan layar menampilkan
+keduanya. Memilih diam-diam berarti stok masuk ke kartu barang lain tanpa satu pun pesan, dan
+kekeliruan itu baru terlihat pada opname berikutnya. Pencocokannya **PERSIS**, bukan `like`:
+pemindaian adalah pembacaan mesin, ia tepat atau ia gagal. `items/scan` didaftarkan **di atas**
+`items/{item}` — di bawahnya `scan` tertangkap sebagai `{item}` dan setiap pemindaian menjawab 404.
