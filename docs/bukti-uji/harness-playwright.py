@@ -6779,6 +6779,241 @@ def s29m(browser):
         ctx.close()
 
 
+
+# ------------------------------------------------------- S30 (Fase 2 / F-3)
+#
+# PIPELINE CRM — lima kalimat yang hanya bisa dijawab peramban sungguhan:
+#
+#   1. PROSPEK TANPA PEMILIK BERBUNYI SAMA DI MANA-MANA. "Belum ditugaskan" di
+#      kartu papan, di baris daftar, dan di layar dokumennya — bukan sel kosong,
+#      yang terbaca "belum dimuat" dan bukan "belum ada yang bertanggung jawab".
+#   2. SERETAN MUNDUR MENUNTUT ALASAN, dan kalimat yang diminta adalah kalimat
+#      SERVER (nama prospek, tahap asal dan tujuan). Membatalkannya
+#      MENGEMBALIKAN kartunya — papan yang meninggalkan kartu di kolom yang
+#      bukan statusnya berbohong tentang satu-satunya hal yang dijualnya.
+#   3. SERETAN KE "MENANG" DITOLAK dengan kalimat yang menyebut jalan yang
+#      benar (Tandai Menang pada penawarannya), bukan kalimat generik papan.
+#   4. TANGGAL TINDAK LANJUT = AKTIVITAS TERBUKA PALING AWAL. Diketik di dua
+#      tempat berbeda (dua aktivitas), dibaca di dua layar (kartu Aktivitas dan
+#      panel Informasi), dan ketiganya harus menyebut tanggal yang sama.
+#   5. KARTU AKTIVITAS KOSONG MENGATAKAN DIRINYA KOSONG — tidak ada "0
+#      aktivitas" di layar mana pun.
+#
+# Fixture dibuat lewat API (bukan lewat seed), lalu dibaca lewat peramban.
+
+S30_BOARD = """() => ({
+  h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+  lanes: [...document.querySelectorAll('.board-cards')].map(l => ({
+    status: l.dataset.status,
+    cards: [...l.querySelectorAll('.board-card')].map(c => c.innerText.replace(/\\s+/g, ' ').trim()),
+  })),
+})"""
+
+S30_CARD = """(title) => {
+  const card = [...document.querySelectorAll('.card')].find(c => new RegExp(title).test((c.querySelector('h2') || {}).innerText || ''));
+  if (!card) return { found: false, cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText) };
+  return { found: true, text: card.innerText.replace(/\\s+/g, ' ').trim(),
+           rows: [...card.querySelectorAll('tbody tr')].map(r => [...r.children].map(td => td.innerText.replace(/\\s+/g, ' ').trim())) };
+}"""
+
+S30_KV = """(label) => {
+  const dts = [...document.querySelectorAll('dl.kv dt')];
+  const dt = dts.find(d => d.innerText.trim() === label);
+  return dt ? (dt.nextElementSibling || {}).innerText.trim() : null;
+}"""
+
+
+def s30_lead(tok, name, status="contacted"):
+    code, body = api("crm/leads", tok, "POST", {"name": name, "status": status})
+    return code, (body.get("data") or {})
+
+
+def s30_activity(tok, lead_id, subject, due=None):
+    return api("crm/activities", tok, "POST", {
+        "document_type": "lead", "document_id": lead_id,
+        "type": "call", "subject": subject, "due_at": due})
+
+
+@scenario("S30_pipeline_crm")
+def s30(pg):
+    out = {}
+    admin = token_for("admin@nusantara.test")
+
+    # (0) Fixture: satu prospek TANPA pemilik dengan dua aktivitas terbuka, dan
+    #     satu prospek tanpa aktivitas sama sekali.
+    status, lead = s30_lead(admin, "PT Cahaya Nusantara (fixture S30)")
+    out["lead_created"] = {"status": status, "code": lead.get("code"), "owner": lead.get("owner_user_name")}
+    lead_id = lead.get("id")
+
+    jauh = (date.today() + timedelta(days=10)).isoformat()
+    dekat = (date.today() + timedelta(days=3)).isoformat()
+    out["activity_far"] = s30_activity(admin, lead_id, "Kirim proposal awal (S30)", jauh)[0]
+    out["activity_near"] = s30_activity(admin, lead_id, "Telepon konfirmasi kebutuhan (S30)", dekat)[0]
+    out["expected_follow_up"] = dekat
+
+    status, kosong = s30_lead(admin, "PT Tanpa Aktivitas (fixture S30)")
+    out["empty_lead"] = {"status": status, "code": kosong.get("code")}
+
+    login(pg, "admin@nusantara.test")
+
+    # (1) PAPAN: kartu tanpa pemilik menyebutnya.
+    pg.goto(BASE + "#/b/crm/leads")
+    pg.wait_for_timeout(3000)
+    board = pg.evaluate(S30_BOARD)
+    out["board"] = board
+    kartu = [c for lane in board["lanes"] for c in lane["cards"] if lead.get("code") in c]
+    out["unassigned_card"] = kartu[0] if kartu else None
+    pg.screenshot(path=f"{OUT}/s30-papan-pipeline-f3.png", full_page=True)
+
+    card_sel = f".board-card:has-text('{lead.get('code')}')"
+
+    # (2) SERETAN MUNDUR: dialog alasan, lalu DIBATALKAN — kartunya kembali.
+    pg.drag_and_drop(card_sel, ".board-cards[data-status='new']")
+    pg.wait_for_timeout(1200)
+    out["backward_dialog"] = pg.evaluate(r"""() => {
+      const m = document.querySelector('.modal');
+      return m ? { open: true, title: (m.querySelector('.modal-head, h2, header') || {}).innerText || null,
+                   text: m.innerText.replace(/\s+/g, ' ').trim() } : { open: false };
+    }""")
+    pg.screenshot(path=f"{OUT}/s30-alasan-mundur-f3.png", full_page=False)
+    click(pg, ".modal button:has-text('Batal')")
+    pg.wait_for_timeout(900)
+    out["after_cancel"] = pg.evaluate("""(code) => {
+      const lane = [...document.querySelectorAll('.board-cards')].find(l => [...l.querySelectorAll('.board-card')].some(c => c.innerText.includes(code)));
+      return lane ? lane.dataset.status : null;
+    }""", lead.get("code"))
+
+    # (3) SERETAN MUNDUR yang dijalani sampai selesai.
+    pg.drag_and_drop(card_sel, ".board-cards[data-status='new']")
+    pg.wait_for_timeout(1200)
+    pg.fill(".modal textarea", "Kontak PIC berganti, kualifikasi diulang (uji S30)")
+    click(pg, ".modal button:has-text('Pindahkan')")
+    pg.wait_for_timeout(2500)
+    out["after_backward"] = pg.evaluate(r"""(code) => {
+      const lane = [...document.querySelectorAll('.board-cards')].find(l => [...l.querySelectorAll('.board-card')].some(c => c.innerText.includes(code)));
+      return { lane: lane ? lane.dataset.status : null, toasts: [...document.querySelectorAll('.toast')].map(t => t.innerText.replace(/\s+/g, ' ').trim()) };
+    }""", lead.get("code"))
+
+    # (4) SERETAN KE MENANG: ditolak, kartunya kembali, kalimatnya menyebut jalannya.
+    pg.drag_and_drop(card_sel, ".board-cards[data-status='won']")
+    pg.wait_for_timeout(2500)
+    out["drag_to_won"] = pg.evaluate(r"""(code) => {
+      const lane = [...document.querySelectorAll('.board-cards')].find(l => [...l.querySelectorAll('.board-card')].some(c => c.innerText.includes(code)));
+      return { lane: lane ? lane.dataset.status : null,
+               toasts: [...document.querySelectorAll('.toast')].map(t => t.innerText.replace(/\s+/g, ' ').trim()) };
+    }""", lead.get("code"))
+    pg.screenshot(path=f"{OUT}/s30-tolak-menang-f3.png", full_page=False)
+
+    # (5) LAYAR DOKUMEN: kartu Aktivitas, tanggal turunan, pemilik, riwayat tahap.
+    pg.goto(BASE + f"#/d/crm/leads/{lead_id}")
+    pg.wait_for_timeout(3000)
+    out["activity_card"] = pg.evaluate(S30_CARD, "Aktivitas")
+    out["history_card"] = pg.evaluate(S30_CARD, "Riwayat Tahap")
+    out["kv_follow_up"] = pg.evaluate(S30_KV, "Tindak lanjut berikutnya")
+    out["kv_owner"] = pg.evaluate(S30_KV, "Pemilik prospek")
+    out["form_has_follow_up_input"] = pg.evaluate("""() => {
+      return [...document.querySelectorAll('label')].some(l => /Follow-up berikutnya/i.test(l.innerText));
+    }""")
+    pg.screenshot(path=f"{OUT}/s30-prospek-aktivitas-f3.png", full_page=True)
+
+    # (6) DAFTAR: sel pemilik pada baris yang sama.
+    pg.goto(BASE + "#/r/crm/leads")
+    pg.wait_for_timeout(2500)
+    out["list_row"] = pg.evaluate(r"""(code) => {
+      const head = [...document.querySelectorAll('table.data thead th')].map(th => th.innerText.trim());
+      const row = [...document.querySelectorAll('table.data tbody tr')].find(r => r.innerText.includes(code));
+      return row ? { head, cells: [...row.children].map(td => td.innerText.replace(/\s+/g, ' ').trim()) } : { head, cells: null };
+    }""", lead.get("code"))
+
+    # (7) KARTU AKTIVITAS KOSONG.
+    pg.goto(BASE + f"#/d/crm/leads/{kosong.get('id')}")
+    pg.wait_for_timeout(2500)
+    out["empty_activity_card"] = pg.evaluate(S30_CARD, "Aktivitas")
+
+    # Tanggal yang diharapkan, ditulis seperti layar menulisnya ("11 Sep 2026").
+    bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+    d = date.fromisoformat(dekat)
+    tanggal_layar = f"{d.day} {bulan[d.month - 1]} {d.year}"
+    out["expected_follow_up_text"] = tanggal_layar
+
+    activity_text = (out["activity_card"].get("text") or "")
+    kosong_text = (out["empty_activity_card"].get("text") or "")
+
+    out["checks"] = {
+        # 1 — pemilik kosong, tiga permukaan
+        "the_board_card_names_the_missing_owner": bool(out["unassigned_card"]) and "Belum ditugaskan" in out["unassigned_card"],
+        "the_document_screen_says_the_same": out["kv_owner"] == "Belum ditugaskan",
+        "and_so_does_the_list_row": bool(out["list_row"].get("cells")) and any(
+            c == "Belum ditugaskan" for c in out["list_row"]["cells"]),
+        # 2 — mundur wajib beralasan, dan pembatalan mengembalikan kartunya
+        "a_backward_drag_asks_for_a_reason": out["backward_dialog"].get("open") is True
+            and "sebutkan alasannya" in (out["backward_dialog"].get("text") or ""),
+        "the_reason_dialog_speaks_the_servers_own_sentence": lead.get("code") in (out["backward_dialog"].get("text") or ""),
+        "cancelling_puts_the_card_back": out["after_cancel"] == "contacted",
+        "answering_moves_the_card": out["after_backward"]["lane"] == "new",
+        # 3 — menang hanya lewat penawaran
+        "a_drag_to_won_is_refused": out["drag_to_won"]["lane"] == "new",
+        "and_the_refusal_names_the_quotation_route": any(
+            "Tandai Menang" in t for t in out["drag_to_won"]["toasts"]),
+        "the_refusal_is_the_servers_sentence_not_the_generic_one": not any(
+            "tidak ada aksi yang memindahkan" in t for t in out["drag_to_won"]["toasts"]),
+        # 4 — tanggal tindak lanjut = aktivitas terbuka paling awal
+        "the_activity_card_exists": out["activity_card"].get("found") is True,
+        "it_lists_both_open_activities": "Telepon konfirmasi kebutuhan (S30)" in activity_text
+            and "Kirim proposal awal (S30)" in activity_text,
+        "it_names_where_the_follow_up_date_comes_from": "diturunkan dari aktivitas terbuka paling awal" in activity_text,
+        "the_derived_date_is_the_earliest_open_activity": tanggal_layar in activity_text,
+        "and_the_information_panel_shows_the_same_date": out["kv_follow_up"] == tanggal_layar,
+        "the_typed_follow_up_field_is_gone_from_the_form": out["form_has_follow_up_input"] is False,
+        # 5 — kartu kosong mengaku kosong
+        "an_empty_activity_card_says_so": "Belum ada aktivitas dicatat" in kosong_text,
+        "and_never_prints_a_fabricated_zero": "0 aktivitas" not in kosong_text,
+        # riwayat tahap menyimpan alasannya
+        "the_backward_reason_is_stored_in_the_history": "Kontak PIC berganti" in (out["history_card"].get("text") or ""),
+        "the_history_names_the_direction": "Mundur" in (out["history_card"].get("text") or ""),
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+
+@scenario("S30_pipeline_crm_mobile")
+def s30m(browser):
+    """Papan enam kolom di 390 px: kolomnya menggulir DI DALAM .board-grid, dan
+    halamannya tidak menggulir mendatar. Enam kolom adalah papan terlebar di
+    aplikasi ini (papan PR dan NCR punya empat), jadi kalau ada papan yang
+    mendorong halaman melebar, papan inilah."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.goto(BASE + "#/b/crm/leads")
+        pg.wait_for_timeout(3500)
+        out = pg.evaluate("""() => {
+          const grid = document.querySelector('.board-grid');
+          return {
+            lanes: grid ? grid.querySelectorAll('.board-lane').length : 0,
+            cards: document.querySelectorAll('.board-card').length,
+            grid_scrolls: grid ? grid.scrollWidth > grid.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            owner_line: [...document.querySelectorAll('.board-card')].some(c => /Belum ditugaskan/.test(c.innerText)),
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s30-papan-ponsel-f3.png", full_page=False)
+        out["checks"] = {
+            "the_board_renders_on_a_phone": out["lanes"] == 6 and out["cards"] > 0,
+            "the_lanes_scroll_inside_their_own_box": out["grid_scrolls"] is True,
+            "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
+            "an_unowned_card_still_names_it": out["owner_line"] is True,
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -6789,7 +7024,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

@@ -1419,5 +1419,171 @@
   "ok": true,
   "_ms": 5465,
   "_clicks": 0
+ },
+ "S30_pipeline_crm": {
+  "lead_created": {
+   "status": 201,
+   "code": "LEAD-0005",
+   "owner": "Belum ditugaskan"
+  },
+  "activity_far": 201,
+  "activity_near": 201,
+  "expected_follow_up": "2026-09-11",
+  "empty_lead": {
+   "status": 201,
+   "code": "LEAD-0006"
+  },
+  "board": {
+   "h1": "Papan Prospek (Lead)",
+   "lanes": [
+    {
+     "status": "new",
+     "cards": [
+      "LEAD-0003 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka"
+     ]
+    },
+    {
+     "status": "contacted",
+     "cards": [
+      "LEAD-0005 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
+      "LEAD-0006 Rp 0 PT Tanpa Aktivitas (fixture S30) Belum ditugaskan",
+      "LEAD-0004 Rp 0 PT Tanpa Aktivitas (fixture S30) Belum ditugaskan",
+      "LEAD-0002 Rp 4,5 M Ir. Bambang Setiawan Administrator Sistem"
+     ]
+    },
+    {
+     "status": "qualified",
+     "cards": [
+      "LEAD-0001 Rp 65 M Rudi Hartanto Administrator Sistem"
+     ]
+    },
+    {
+     "status": "proposal",
+     "cards": []
+    },
+    {
+     "status": "won",
+     "cards": []
+    },
+    {
+     "status": "lost",
+     "cards": []
+    }
+   ]
+  },
+  "unassigned_card": "LEAD-0005 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
+  "backward_dialog": {
+   "open": true,
+   "title": "Alasan mundur",
+   "text": "Alasan mundur Prospek LEAD-0005 mundur dari Sudah Dihubungi ke Baru: sebutkan alasannya (minimal 5 karakter). Alasan ini tersimpan di riwayat tahap prospek dan dibaca saat corong ditinjau. Alasan mundur* Tersimpan permanen di Riwayat Tahap prospek ini dan dibaca saat corong ditinjau. Minimal 5 karakter. Batal Pindahkan"
+  },
+  "after_cancel": "contacted",
+  "after_backward": {
+   "lane": "new",
+   "toasts": [
+    "Pindahkan ke Baru berhasil."
+   ]
+  },
+  "drag_to_won": {
+   "lane": "new",
+   "toasts": [
+    "Pindahkan ke Baru berhasil.",
+    "status: Prospek LEAD-0005 tidak bisa dipindahkan ke Menang lewat tahap: status Menang/Kalah hanya lahir dari keputusan penawaran, bersama nilai dan tanggal keputusannya. Jalannya: prospek ini belum punya penawaran — buat penawarannya lebih dulu, lalu tekan \"Tandai Menang\" di penawaran itu."
+   ]
+  },
+  "activity_card": {
+   "found": true,
+   "text": "Aktivitas 2 terbuka. Tindak lanjut berikutnya 11 Sep 2026 — diturunkan dari aktivitas terbuka paling awal (\"Telepon konfirmasi kebutuhan (S30)\"). Telepon konfirmasi kebutuhan (S30) Telepon · Jatuh tempo 11 Sep 2026 · 3 hari lagi · Belum ditugaskan Selesai Hapus Kirim proposal awal (S30) Telepon · Jatuh tempo 18 Sep 2026 · 10 hari lagi · Belum ditugaskan Selesai Hapus Tambah aktivitas",
+   "rows": []
+  },
+  "history_card": {
+   "found": true,
+   "text": "Riwayat Tahap WAKTU DARI KE ARAH ALASAN DOKUMEN OLEH 08 Sep 2026 04.20 Sudah Dihubungi Baru Mundur Kontak PIC berganti, kualifikasi diulang (uji S30) — Administrator Sistem",
+   "rows": [
+    [
+     "08 Sep 2026 04.20",
+     "Sudah Dihubungi",
+     "Baru",
+     "Mundur",
+     "Kontak PIC berganti, kualifikasi diulang (uji S30)",
+     "—",
+     "Administrator Sistem"
+    ]
+   ]
+  },
+  "kv_follow_up": "11 Sep 2026",
+  "kv_owner": "Belum ditugaskan",
+  "form_has_follow_up_input": false,
+  "list_row": {
+   "head": [
+    "KODE",
+    "KONTAK",
+    "SUMBER",
+    "ESTIMASI NILAI",
+    "PEMILIK PROSPEK",
+    "FOLLOW-UP",
+    "STATUS",
+    ""
+   ],
+   "cells": [
+    "LEAD-0005",
+    "PT Cahaya Nusantara (fixture S30)",
+    "—",
+    "Rp 0",
+    "Belum ditugaskan",
+    "11 Sep 2026 3 hari lagi",
+    "Baru",
+    ""
+   ]
+  },
+  "empty_activity_card": {
+   "found": true,
+   "text": "Aktivitas Belum ada aktivitas dicatat untuk dokumen ini. Tanggal tindak lanjut prospek ini kosong: tidak ada aktivitas terbuka yang bertanggal. Tanggalnya diturunkan dari aktivitas, tidak diketik. Tambah aktivitas",
+   "rows": []
+  },
+  "expected_follow_up_text": "11 Sep 2026",
+  "checks": {
+   "the_board_card_names_the_missing_owner": true,
+   "the_document_screen_says_the_same": true,
+   "and_so_does_the_list_row": true,
+   "a_backward_drag_asks_for_a_reason": true,
+   "the_reason_dialog_speaks_the_servers_own_sentence": true,
+   "cancelling_puts_the_card_back": true,
+   "answering_moves_the_card": true,
+   "a_drag_to_won_is_refused": true,
+   "and_the_refusal_names_the_quotation_route": true,
+   "the_refusal_is_the_servers_sentence_not_the_generic_one": true,
+   "the_activity_card_exists": true,
+   "it_lists_both_open_activities": true,
+   "it_names_where_the_follow_up_date_comes_from": true,
+   "the_derived_date_is_the_earliest_open_activity": true,
+   "and_the_information_panel_shows_the_same_date": true,
+   "the_typed_follow_up_field_is_gone_from_the_form": true,
+   "an_empty_activity_card_says_so": true,
+   "and_never_prints_a_fabricated_zero": true,
+   "the_backward_reason_is_stored_in_the_history": true,
+   "the_history_names_the_direction": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 22988,
+  "_clicks": 2
+ },
+ "S30_pipeline_crm_mobile": {
+  "lanes": 6,
+  "cards": 6,
+  "grid_scrolls": true,
+  "page_scrolls_sideways": false,
+  "owner_line": true,
+  "checks": {
+   "the_board_renders_on_a_phone": true,
+   "the_lanes_scroll_inside_their_own_box": true,
+   "the_page_never_scrolls_sideways": true,
+   "an_unowned_card_still_names_it": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 5835,
+  "_clicks": 0
  }
 }
