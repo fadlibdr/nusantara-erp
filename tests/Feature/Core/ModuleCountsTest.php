@@ -49,7 +49,7 @@ class ModuleCountsTest extends ErpTestCase
         'prj' => [['prj_projects'], 2],
         'qc' => [['qc_ncr'], 2],
         'prc' => [['prc_purchase_orders'], 2],
-        'inv' => [['inv_items', 'inv_warehouses'], 4],
+        'inv' => [['inv_items', 'inv_warehouses'], 6],
         'scm' => [['scm_progress_claims'], 2],
         'fin' => [['fin_ar_invoices'], 2],
         'hr' => [['hr_leave_requests'], 2],
@@ -168,7 +168,7 @@ class ModuleCountsTest extends ErpTestCase
             'prj' => 2,         // active + finishing; completed & yang dibuang tidak
             'qc' => 2,          // open + under_correction; verified, closed & yang dibuang tidak
             'prc' => 2,         // 2 PO approved = terbuka; draft/submitted/closed & yang dibuang tidak
-            'inv' => 4,         // 4 baris gudang×item di bawah AMBANGNYA (F-6: aturan reorder menang atas min_stock)
+            'inv' => 6,         // 6 BARIS gudang×item di bawah AMBANGNYA — dari 5 item; (f) kurang di dua gudang sekaligus
             'scm' => 2,         // 2 opname subkon submitted; draft & yang dibuang tidak
             'fin' => 2,         // 2 invoice approved bersisa; lunas, draft & yang dibuang tidak
             'hr' => 2,          // 2 cuti submitted; approved & yang dibuang tidak
@@ -328,6 +328,45 @@ class ModuleCountsTest extends ErpTestCase
         $this->assertNotNull($byItem, 'Tidak ada satu pun baris yang ambangnya datang dari min_stock item.');
         $this->assertSame('Stok minimum item', $byItem->threshold_source_label);
         $this->assertSame((float) $byItem->min_stock, (float) $byItem->reorder_point);
+    }
+
+    /**
+     * ANGKANYA DAN NOUN-nya MENGHITUNG HAL YANG SAMA.
+     *
+     * Kueri entri 'inv' menghitung BARIS (gudang × item); labelnya dulu
+     * berbunyi "Item di bawah titik pesan ulang" dan ubinnya menulis "3 item"
+     * untuk 2 item yang kurang di tiga gudang. Orang pengadaan yang membaca
+     * "3 item" membuka Usulan Pesan Ulang, menghitung dua nama barang, dan
+     * tidak menemukan satu pun kalimat yang menjelaskan selisihnya — dan
+     * aturan reorder per gudang adalah fitur yang MEMBUAT selisih itu muncul.
+     *
+     * ModuleCountsTest memaku kesetaraan KUERI, bukan kesetaraan noun; uji ini
+     * yang menutupnya, di atas fixture yang selisihnya nyata.
+     */
+    public function test_the_inventory_tile_counts_pairs_and_says_pairs(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $rows = app(StockService::class)->lowStockAlerts();
+        $distinctItems = $rows->pluck('item_id')->unique()->count();
+
+        $this->assertSame(6, $rows->count());
+        $this->assertSame(5, $distinctItems,
+            'Fixture inv tidak lagi memisahkan BARIS dari ITEM: tanpa satu item yang kurang di dua gudang, '
+            .'label yang menghitung yang satu sambil menyebut yang lain tidak bisa dibedakan uji ini.');
+
+        $entry = ModuleCounts::entries()['inv'];
+        $count = collect(ModuleCounts::for($admin))->firstWhere('prefix', 'inv')['count'];
+
+        $this->assertSame($rows->count(), $count, 'Ubin menghitung baris, bukan item.');
+        $this->assertNotSame($distinctItems, $count);
+
+        // …jadi labelnya harus menyebut PASANGAN, dan satuannya bukan "item".
+        $this->assertStringContainsString('Pasangan gudang × item', $entry['label'],
+            "Label ubin \"{$entry['label']}\" menyebut satuan yang berbeda dari yang dihitung kuerinya.");
+        $this->assertNotSame('item', $entry['unit'],
+            'Satuan "item" pada angka yang menghitung baris membuat ubin menulis "6 item" untuk 5 item.');
     }
 
     // ------------------------------------------------------------- degradasi
@@ -762,6 +801,22 @@ class ModuleCountsTest extends ErpTestCase
                 'is_active' => $case['active'],
             ]);
         }
+
+        /*
+         * (f) SATU ITEM YANG KURANG DI DUA GUDANG — dua BARIS, satu ITEM.
+         *
+         * Tanpa baris ini fixture inv tidak pernah membedakan "berapa baris"
+         * dari "berapa item", dan label ubin boleh menghitung yang satu sambil
+         * menyebut yang lain tanpa satu uji pun berubah warna. Itulah persis
+         * yang terjadi sebelum F-6 diperbaiki: ubin berbunyi "3 item" untuk 2
+         * item yang kurang di tiga gudang.
+         */
+        $twoWarehouseItem = $this->insert('inv_items', [
+            'code' => $this->code('ITM'), 'name' => 'Item dua gudang', 'category_id' => $category,
+            'unit' => 'sak', 'min_stock' => 50, 'is_active' => true,
+        ]);
+        $this->insert('inv_stock_balances', ['warehouse_id' => $warehouse, 'item_id' => $twoWarehouseItem, 'qty' => 10]);
+        $this->insert('inv_stock_balances', ['warehouse_id' => $otherWarehouse, 'item_id' => $twoWarehouseItem, 'qty' => 20]);
 
         // scm — 2 opname submitted, 1 draft, 1 submitted yang dibuang.
         $subcontract = $this->insert('scm_subcontracts', ['code' => $this->code('SPK'), 'vendor_id' => $vendor, 'title' => 'Pekerjaan', 'pph_scheme' => 'final_2_65']);

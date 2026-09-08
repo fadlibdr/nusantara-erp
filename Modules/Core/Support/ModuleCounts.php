@@ -172,8 +172,25 @@ final class ModuleCounts
             ],
 
             'inv' => [
-                'label' => 'Item di bawah titik pesan ulang',
-                'unit' => 'item',
+                /*
+                 * NOUN-nya PASANGAN, bukan ITEM, karena itulah yang dihitung
+                 * kueri di bawah — satu baris per (gudang, item).
+                 *
+                 * Label lamanya berbunyi "Item di bawah titik pesan ulang" dan
+                 * ubinnya menulis "3 item" untuk 2 item yang kurang di tiga
+                 * gudang. Orang pengadaan yang membaca "3 item" lalu membuka
+                 * Usulan Pesan Ulang, menghitung dua nama barang, dan tidak
+                 * menemukan satu pun kalimat yang menjelaskan selisihnya.
+                 * Aturan reorder per gudang adalah fitur yang MEMBUAT selisih
+                 * itu muncul, jadi ia lahir bersama F-6.
+                 *
+                 * Permukaan saudaranya sudah memakai noun yang benar sejak
+                 * paket itu — widget registry.js, layar Usulan Pesan Ulang dan
+                 * tab Saldo Stok semuanya berkata "pasangan gudang × item".
+                 * Ubin ini yang tertinggal.
+                 */
+                'label' => 'Pasangan gudang × item di bawah titik pesan ulang',
+                'unit' => 'baris',
                 'permission' => 'inv.view',
                 'tables' => ['inv_stock_balances', 'inv_items', 'inv_warehouses', 'inv_reorder_rules'],
                 'why' => 'Satu-satunya angka persediaan yang menuntut tindakan hari ini. Kueri ini adalah SALINAN '
