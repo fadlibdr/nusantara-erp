@@ -194,6 +194,58 @@ Shipped users: the Proyek field of the PO form (`projectBudgetPo` — the non-su
 and of the SPK form (`projectBudgetSpk` — the subcon ceiling), each with its own sentence,
 its own ≥ 90 % colour, and the same words the gate uses when it refuses that document.
 
+### A card on the document screen (`activitiesCard`, F-3)
+
+Some cards belong to a whole FAMILY of screens rather than one resource — attachments,
+external approvals, and since F-3 the CRM activity card. They are wired the same way, in one
+line inside `renderDetail`, and the card itself decides membership from a registry mirror:
+
+```js
+const activities = activitiesCard(key, record.id, def.module);   // views/detail.js
+if (activities) main.appendChild(activities);
+```
+
+```js
+export const ACTIVITY_DOCUMENTS = {                              // views/activities.js
+  'crm/leads': 'lead', 'crm/quotations': 'quotation', 'crm/customers': 'customer',
+};
+```
+
+The PHP side of the mirror is `Modules\Crm\Support\ActivityDocuments`, and
+`tests/Feature/Crm/ActivityRegistryTest.php` reads both and fails when they diverge — a slug
+only in the SPA renders a card whose every request 422s; a slug only in PHP is a document that
+quietly cannot record a single activity. Same shape as `AttachmentRegistryTest`.
+
+Two rules the card itself lives by (both are in CONVENTIONS §25): an empty card SAYS it is
+empty ("Belum ada aktivitas dicatat untuk dokumen ini", never "0 aktivitas"), and "overdue" is
+the server's `is_overdue`, never a browser-clock comparison.
+
+### Kanban hooks (`board.api`, `board.card.fields`, `action.body`, `action.boardOnly`, F-3)
+
+`views/board.js` (P1-G) gained three hooks so the pipeline board could stand on it unchanged.
+They are generic; any board may use them. See CONVENTIONS §26 for the table of what each one
+exists to prevent:
+
+```js
+board: {
+  enum: 'leadStatus',
+  lanes: ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'],
+  moves: { new: 'to-new', …, won: 'to-won', lost: 'to-lost' },
+  api: 'crm/pipeline/board',                     // read source; moves still POST to def.api
+  card: { fields: ['owner_user_name', 'activity_note'] },
+}
+```
+
+```js
+{ key: 'to-won', label: 'Pindahkan ke Menang', path: '{id}/pipeline', method: 'POST',
+  perm: 'crm.update', boardOnly: true, body: { status: 'won' }, confirmResubmit: ALASAN_MUNDUR }
+```
+
+`body` is the action's fixed payload (`runAction` merges dialog answers over it), and
+`boardOnly` keeps an action out of `actionButtons()`. The won/lost lanes are mapped to actions
+the server ALWAYS refuses — on purpose: the card comes back carrying the server's own sentence
+("… lalu tekan "Tandai Menang" di penawaran itu"), instead of the board's generic one.
+
 ## Adding a "Cetak" button (formulir rumah)
 
 You don't. You add ONE entry to `Modules\Core\Support\PrintableDocuments`, in your own

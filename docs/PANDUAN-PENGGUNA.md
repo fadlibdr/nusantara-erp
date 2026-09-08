@@ -172,7 +172,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Kelompok | Isinya |
 |---|---|
 | Ringkasan | Beranda · Dasbor · Tugas Saya · Tenggat · Kalender · Laporan Bebas |
-| Penjualan | Pelanggan · Prospek · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
+| Penjualan | Pelanggan · Prospek · **Papan Pipeline** · **Aktivitas CRM** · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
 | Proyek | Daftar Proyek · Laporan Harian · Lapangan (mobile) · Progres Mingguan · Opname Owner (OPN) · Variasi Kontrak (Plafon Opname) · EVM & Baseline · Milestone · BAPP per Zona · BAST · Izin Kerja (IKL) · Izin Lembur (ILB) · Izin Material (IMK) · Register K3 (SMK3) · Formulir K3 Harian · Register IBPRP · Laporan K3 · Register Defect (Punch List) · Varian Material · Penugasan Personel |
@@ -364,8 +364,9 @@ dipertanggungjawabkan. Di kedua berkas, sel kosong tetap kosong dan nol tetap no
 
 ### 1.4d Papan — menyeret dokumen antar kolom
 
-Dua layar berbentuk **papan**: `Pengadaan › Papan PR` dan `Mutu › Papan NCR`. Keduanya menampilkan
-dokumen yang sama dengan layar daftarnya, disusun sebagai kolom menurut statusnya.
+Tiga layar berbentuk **papan**: `Pengadaan › Papan PR`, `Mutu › Papan NCR`, dan
+`Penjualan › Papan Pipeline` (§3.2a). Ketiganya menampilkan dokumen yang sama dengan layar
+daftarnya, disusun sebagai kolom menurut statusnya.
 
 **Menyeret kartu ke kolom lain menjalankan aksinya** — persis tombol yang sama dengan yang ada di
 halaman dokumen. Menyeret PR dari *Diajukan* ke *Disetujui* adalah menekan tombol **`Setujui`**:
@@ -385,6 +386,16 @@ sebab, dan keduanya berbunyi berbeda:
 **Kolom yang tidak menerima kartu.** Tidak ada aksi yang mengembalikan PR ke *Draf*, jadi kolom itu
 tidak bisa dijatuhi kartu. Dokumen yang statusnya di luar kolom papan tidak digambar, dan papan
 menyebut berapa banyak — buka tampilan daftar untuk melihatnya.
+
+**Kolom yang menerima kartu tetapi menolaknya, dengan sengaja.** Di Papan Pipeline, kolom *Menang*
+dan *Kalah* ada supaya hasilnya terlihat — tetapi kartu yang diseret ke sana selalu kembali, dengan
+kalimat yang menyebut jalan yang benar: keduanya ditetapkan lewat **`Tandai Menang`** /
+**`Tandai Kalah`** pada penawarannya. Penolakan itu bukan kerusakan; ia satu-satunya tempat aturan
+tersebut ditemui orang yang mencoba melakukannya.
+
+**Kartu yang lebih banyak daripada yang digambar.** Papan mengambil sebagian teratas per kolom.
+Bila sebuah kolom memuat lebih banyak, ia mengatakannya di bawah judul kolomnya
+(*"25 dari 61 digambar — 36 lainnya ada di tampilan daftar."*).
 
 **Klik kartu** membuka dokumennya. Tombol **`Tampilan daftar`** di kanan atas kembali ke tabelnya,
 yang tetap menjadi tempat menyaring, mengurutkan, dan mengunduh CSV.
@@ -1008,21 +1019,45 @@ menyetujuinya (dan mengaktifkan kontrak).
 ### 3.2 Prospek — `Penjualan › Prospek`
 
 Kolom daftar: Kode · Kontak (dengan nama perusahaan di bawahnya) · Sumber · Estimasi
-nilai · Sales · **Follow-up** (tanggal beserta "3 hari lagi") · Status. Saringan:
-Status. Kotak cari mencakup nama kontak, kode, dan nama perusahaan.
+nilai · **Pemilik prospek** · **Follow-up** (tanggal beserta "3 hari lagi") · Status.
+Saringan: Status dan **Pemilik prospek**. Kotak cari mencakup nama kontak, kode, dan nama
+perusahaan.
 
 Status prospek: **Baru · Sudah Dihubungi · Terkualifikasi · Penawaran Dikirim · Menang ·
 Kalah**.
+
+**Prospek tanpa pemilik berbunyi "Belum ditugaskan"** — di daftar, di kartu papan, di halaman
+prospeknya, dan di CSV yang diekspor dari daftar itu. Sel kosong akan terbaca "belum dimuat";
+kalimat ini mengatakan keadaan yang sebenarnya: belum ada yang bertanggung jawab. Tidak ada
+pemilik yang ditebak dari siapa yang mengetik barisnya.
 
 **Mencatat prospek baru:**
 
 1. Tekan **`Tambah Prospek`**.
 2. Isi **Nama kontak** (wajib). Kolom lain opsional: Perusahaan, Sumber (bantuan di
-   layar: *"mis. referral, tender, pameran"*), Status (bawaan Baru), Telepon, Email,
-   Estimasi nilai, **Sales penanggung jawab**, **Follow-up berikutnya**, Ringkasan
-   kebutuhan, Catatan.
+   layar: *"mis. referral, tender, pameran"*), **Tahap awal** (bawaan Baru), Telepon, Email,
+   Estimasi nilai, **Pemilik prospek (sales)**, Ringkasan kebutuhan, Catatan.
 3. **Kode** boleh dikosongkan — sistem menomorinya.
 4. **`Simpan`**.
+
+**Tahap awal hanya bisa dipilih saat membuat**, dan pilihannya hanya empat tahap terbuka —
+undangan tender boleh lahir langsung *Terkualifikasi*. *Menang* dan *Kalah* tidak ada di
+sana: keduanya lahir dari keputusan penawaran.
+
+**Tanggal Follow-up tidak lagi diketik.** Ia **diturunkan** dari aktivitas prospek ini yang
+belum selesai dan bertanggal — yang paling awal di antaranya. Cara menggesernya adalah
+menambah, menyelesaikan, atau mengubah aktivitasnya (§3.2b); tidak ada lagi isian tanggal di
+formulir prospek, dan mengirimnya lewat API dijawab penolakan yang menyebut kartu Aktivitas.
+Tanggal yang sudah pernah diketik SEBELUM pembaruan ini tidak hilang: masing-masing menjadi
+satu aktivitas terbuka bertanggal sama, sehingga angka di layar tetap sama persis.
+
+**Memindahkan tahap: tombol `Ubah Tahap`** (atau menyeret kartunya di Papan Pipeline, §3.2a).
+
+- **Maju bebas** — dan boleh melompat: dari *Baru* langsung ke *Penawaran Dikirim*.
+- **Mundur wajib beralasan.** Layar menolak sekali dengan kalimat yang menyebut prospek, tahap
+  asal dan tujuannya, lalu meminta alasannya (minimal 5 karakter). Alasan itu tersimpan
+  permanen di kartu **Riwayat Tahap** halaman prospek, lengkap dengan nama Anda dan waktunya.
+- **Menang / Kalah tidak ada di daftar tujuan** — lihat paragraf berikutnya.
 
 **Mengubah prospek menjadi pelanggan.** Tombol **`Jadikan Pelanggan`** hanya muncul di
 halaman prospek yang statusnya **Menang** dan belum punya pelanggan. Konfirmasinya:
@@ -1043,9 +1078,73 @@ Pelanggan, sedangkan tombol `Jadikan Pelanggan` baru muncul setelah prospek bers
 Menang. Untuk prospek yang baru mau ditawar, buat pelanggannya langsung di **Penjualan ›
 Pelanggan**.
 
-**Status prospek bergerak sendiri.** Menandai penawaran **Menang** mengubah prospek
-tertautnya menjadi Menang; menandai **Kalah** mengubahnya menjadi Kalah — kecuali prospek
-itu sudah Menang lewat penawaran lain.
+**Status prospek bergerak sendiri, dan HANYA lewat penawaran.** Menandai penawaran
+**Menang** mengubah prospek tertautnya menjadi Menang; menandai **Kalah** mengubahnya menjadi
+Kalah — kecuali prospek itu sudah Menang lewat penawaran lain. Perpindahan itu ikut tercatat
+di Riwayat Tahap dengan nomor penawarannya.
+
+Sebaliknya, **tidak ada jalan lain menuju Menang atau Kalah**: tidak lewat formulir, tidak
+lewat papan, tidak lewat API. Yang mencobanya dijawab kalimat yang menyebut penawaran mana
+yang harus ditandai — atau, bila prospek itu belum punya penawaran sama sekali, menyuruh
+membuat penawarannya lebih dulu. Alasannya satu: Menang tanpa penawaran adalah kemenangan
+tanpa nilai dan tanpa tanggal keputusan, sementara Analitik Win-Rate (§3.9) menghitung dari
+sana.
+
+**Prospek yang sudah Menang atau Kalah tidak bisa dikembalikan ke tahap mana pun** — nasibnya
+mengikuti penawarannya. Bila pekerjaannya berlanjut dengan lingkup baru, buat prospek baru;
+yang lama tetap utuh sebagai riwayat.
+
+### 3.2a Papan Pipeline — `Penjualan › Papan Pipeline`
+
+Corong yang sama dengan daftar Prospek, dilihat sebagai enam kolom. Satu kartu = satu prospek,
+dan kartunya menyebut: kode, estimasi nilai, nama kontak, tanggal tindak lanjut, **pemiliknya**
+("Belum ditugaskan" bila kosong), dan satu baris aktivitas — *"2 aktivitas lewat tanggal"* atau
+*"3 aktivitas terbuka"*. Kartu tanpa aktivitas tidak menulis apa-apa di baris itu; tidak ada
+"0 aktivitas" yang mengaku hasil pengukuran.
+
+Urutan di dalam kolom: **yang tindak lanjutnya paling dekat di atas**, yang belum punya tanggal
+di bawah.
+
+Menyeret kartu bekerja persis seperti papan lain (§1.4d) — ia menekan tombol yang sama dengan
+`Ubah Tahap`, jadi aturan yang sama berlaku: maju bebas, mundur membuka kotak alasan, dan
+kolom *Menang*/*Kalah* menolak dengan kalimat yang menyebut penawarannya. Membatalkan kotak
+alasan mengembalikan kartu ke kolom asalnya.
+
+### 3.2b Aktivitas CRM — kartu di halaman dokumen, dan `Penjualan › Aktivitas CRM`
+
+**Kartu Aktivitas** ada di halaman **Prospek, Penawaran, dan Pelanggan**. Ia menjawab empat
+pertanyaan: apa yang jatuh tempo, apa yang **lewat tanggal**, apa yang sudah dikerjakan, dan
+oleh siapa.
+
+Satu aktivitas berisi: **Jenis** (Telepon · Rapat · Email · Kunjungan · Catatan), **Kegiatan**
+(judul singkatnya), **Jatuh tempo** (boleh kosong — untuk catatan atas sesuatu yang sudah
+terjadi), **Pemilik** (boleh kosong: "Belum ditugaskan"), dan **Catatan**.
+
+- **`Tambah aktivitas`** membuka isiannya. Jatuh tempo adalah TANGGAL, bukan jam: "hubungi lagi
+  Senin depan" adalah sebuah hari.
+- **`Selesai`** mencap waktu dan nama Anda — yang muncul di barisnya sebagai *"Selesai 8 Sep
+  2026 09.15 oleh Budi Santoso"*. Menekannya dua kali ditolak dengan kalimat yang menyebut
+  kapan dan oleh siapa aktivitas itu sudah diselesaikan.
+- **`Buka kembali`** membatalkan cap itu — untuk satu klik pada baris yang salah.
+- **`Hapus`** menghapus barisnya, dan konfirmasinya mengingatkan bahwa tanggal tindak lanjut
+  prospeknya bisa ikut bergeser.
+
+Kartu yang belum berisi apa-apa mengatakannya: *"Belum ada aktivitas dicatat untuk dokumen
+ini."*
+
+Pada halaman **prospek**, kartu ini juga menuliskan dari mana tanggal Follow-up berasal —
+*"Tindak lanjut berikutnya 11 Sep 2026 — diturunkan dari aktivitas terbuka paling awal
+("Telepon konfirmasi kebutuhan")"* — atau, bila tidak ada, mengapa kolomnya kosong.
+
+**Layar `Penjualan › Aktivitas CRM`** adalah daftar yang sama lintas dokumen: antrean kerja
+harian. Kolomnya Jatuh tempo (dengan "3 hari lagi") · Kegiatan · Jenis · Dokumen · Pemilik ·
+Selesai, dengan saringan Jenis, Dokumen, dan Pemilik. Layar ini **baca saja** — aktivitas
+selalu dibuat dari kartu di halaman dokumennya, karena di sanalah ia menggantung.
+
+**Pemberitahuan.** Aktivitas yang belum selesai akan diingatkan lewat lonceng dan e-mail
+harian: tiga hari sebelum jatuh tempo, dan setiap hari setelah lewat. Yang diberi tahu adalah
+orang yang bisa menandainya selesai. Menandai selesai mendiamkannya — menghapusnya juga, tetapi
+keduanya tidak sama, dan hanya yang pertama meninggalkan jejak siapa yang mengerjakannya.
 
 ### 3.3 Pelanggan — `Penjualan › Pelanggan`
 

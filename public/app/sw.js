@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '2';
+const SHELL_VERSION = '3';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -116,6 +116,8 @@ const SHELL = [
   'js/vendorload.js',
   'js/views/absensi.js',
   'js/views/actions.js',
+  // F-3 — kartu Aktivitas CRM di layar prospek/penawaran/pelanggan.
+  'js/views/activities.js',
   'js/views/attachments.js',
   'js/views/bankrecon.js',
   'js/views/board.js',

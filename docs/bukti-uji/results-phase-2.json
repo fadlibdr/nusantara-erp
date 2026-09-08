@@ -1423,7 +1423,7 @@
  "S30_pipeline_crm": {
   "lead_created": {
    "status": 201,
-   "code": "LEAD-0005",
+   "code": "LEAD-0003",
    "owner": "Belum ditugaskan"
   },
   "activity_far": 201,
@@ -1431,22 +1431,19 @@
   "expected_follow_up": "2026-09-11",
   "empty_lead": {
    "status": 201,
-   "code": "LEAD-0006"
+   "code": "LEAD-0004"
   },
   "board": {
    "h1": "Papan Prospek (Lead)",
    "lanes": [
     {
      "status": "new",
-     "cards": [
-      "LEAD-0003 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka"
-     ]
+     "cards": []
     },
     {
      "status": "contacted",
      "cards": [
-      "LEAD-0005 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
-      "LEAD-0006 Rp 0 PT Tanpa Aktivitas (fixture S30) Belum ditugaskan",
+      "LEAD-0003 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
       "LEAD-0004 Rp 0 PT Tanpa Aktivitas (fixture S30) Belum ditugaskan",
       "LEAD-0002 Rp 4,5 M Ir. Bambang Setiawan Administrator Sistem"
      ]
@@ -1471,11 +1468,11 @@
     }
    ]
   },
-  "unassigned_card": "LEAD-0005 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
+  "unassigned_card": "LEAD-0003 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
   "backward_dialog": {
    "open": true,
    "title": "Alasan mundur",
-   "text": "Alasan mundur Prospek LEAD-0005 mundur dari Sudah Dihubungi ke Baru: sebutkan alasannya (minimal 5 karakter). Alasan ini tersimpan di riwayat tahap prospek dan dibaca saat corong ditinjau. Alasan mundur* Tersimpan permanen di Riwayat Tahap prospek ini dan dibaca saat corong ditinjau. Minimal 5 karakter. Batal Pindahkan"
+   "text": "Alasan mundur Prospek LEAD-0003 mundur dari Sudah Dihubungi ke Baru: sebutkan alasannya (minimal 5 karakter). Alasan ini tersimpan di riwayat tahap prospek dan dibaca saat corong ditinjau. Alasan mundur* Tersimpan permanen di Riwayat Tahap prospek ini dan dibaca saat corong ditinjau. Minimal 5 karakter. Batal Pindahkan"
   },
   "after_cancel": "contacted",
   "after_backward": {
@@ -1488,7 +1485,7 @@
    "lane": "new",
    "toasts": [
     "Pindahkan ke Baru berhasil.",
-    "status: Prospek LEAD-0005 tidak bisa dipindahkan ke Menang lewat tahap: status Menang/Kalah hanya lahir dari keputusan penawaran, bersama nilai dan tanggal keputusannya. Jalannya: prospek ini belum punya penawaran — buat penawarannya lebih dulu, lalu tekan \"Tandai Menang\" di penawaran itu."
+    "status: Prospek LEAD-0003 tidak bisa dipindahkan ke Menang lewat tahap: status Menang/Kalah hanya lahir dari keputusan penawaran, bersama nilai dan tanggal keputusannya. Jalannya: prospek ini belum punya penawaran — buat penawarannya lebih dulu, lalu tekan \"Tandai Menang\" di penawaran itu."
    ]
   },
   "activity_card": {
@@ -1498,10 +1495,10 @@
   },
   "history_card": {
    "found": true,
-   "text": "Riwayat Tahap WAKTU DARI KE ARAH ALASAN DOKUMEN OLEH 08 Sep 2026 04.20 Sudah Dihubungi Baru Mundur Kontak PIC berganti, kualifikasi diulang (uji S30) — Administrator Sistem",
+   "text": "Riwayat Tahap WAKTU DARI KE ARAH ALASAN DOKUMEN OLEH 08 Sep 2026 04.33 Sudah Dihubungi Baru Mundur Kontak PIC berganti, kualifikasi diulang (uji S30) — Administrator Sistem",
    "rows": [
     [
-     "08 Sep 2026 04.20",
+     "08 Sep 2026 04.33",
      "Sudah Dihubungi",
      "Baru",
      "Mundur",
@@ -1526,7 +1523,7 @@
     ""
    ],
    "cells": [
-    "LEAD-0005",
+    "LEAD-0003",
     "PT Cahaya Nusantara (fixture S30)",
     "—",
     "Rp 0",
@@ -1539,6 +1536,21 @@
   "empty_activity_card": {
    "found": true,
    "text": "Aktivitas Belum ada aktivitas dicatat untuk dokumen ini. Tanggal tindak lanjut prospek ini kosong: tidak ada aktivitas terbuka yang bertanggal. Tanggalnya diturunkan dari aktivitas, tidak diketik. Tambah aktivitas",
+   "rows": []
+  },
+  "after_add_activity": {
+   "found": true,
+   "text": "Aktivitas 1 terbuka. Tindak lanjut berikutnya 11 Sep 2026 — diturunkan dari aktivitas terbuka paling awal (\"Telepon pertama dari kartu (S30)\"). Telepon pertama dari kartu (S30) Telepon · Jatuh tempo 11 Sep 2026 · 3 hari lagi · Belum ditugaskan Selesai Hapus Tambah aktivitas",
+   "rows": []
+  },
+  "quotation": {
+   "status": 200,
+   "code": "QTN/2026/VIII/0004"
+  },
+  "quotation_activity": 201,
+  "quotation_activity_card": {
+   "found": true,
+   "text": "Aktivitas 1 terbuka. Klarifikasi teknis dengan pelanggan (S30) Rapat · Jatuh tempo 11 Sep 2026 · 3 hari lagi · Belum ditugaskan Selesai Hapus Tambah aktivitas",
    "rows": []
   },
   "expected_follow_up_text": "11 Sep 2026",
@@ -1560,18 +1572,21 @@
    "and_the_information_panel_shows_the_same_date": true,
    "the_typed_follow_up_field_is_gone_from_the_form": true,
    "an_empty_activity_card_says_so": true,
+   "adding_an_activity_from_the_card_works": true,
+   "and_the_derived_date_appears_at_once": true,
+   "the_same_card_serves_the_quotation_screen": true,
    "and_never_prints_a_fabricated_zero": true,
    "the_backward_reason_is_stored_in_the_history": true,
    "the_history_names_the_direction": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 22988,
-  "_clicks": 2
+  "_ms": 31731,
+  "_clicks": 4
  },
  "S30_pipeline_crm_mobile": {
   "lanes": 6,
-  "cards": 6,
+  "cards": 4,
   "grid_scrolls": true,
   "page_scrolls_sideways": false,
   "owner_line": true,
@@ -1583,7 +1598,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5835,
+  "_ms": 5822,
   "_clicks": 0
  }
 }

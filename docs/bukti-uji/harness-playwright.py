@@ -6869,7 +6869,10 @@ def s30(pg):
 
     # (2) SERETAN MUNDUR: dialog alasan, lalu DIBATALKAN — kartunya kembali.
     pg.drag_and_drop(card_sel, ".board-cards[data-status='new']")
-    pg.wait_for_timeout(1200)
+    # Dialognya menunggu satu perjalanan ke server (422 yang MEMINTA alasan),
+    # jadi yang ditunggu adalah dialognya — bukan sebuah angka milidetik yang
+    # kebetulan cukup di mesin ini dan tidak cukup di mesin berikutnya.
+    pg.wait_for_selector(".modal textarea", timeout=15000)
     out["backward_dialog"] = pg.evaluate(r"""() => {
       const m = document.querySelector('.modal');
       return m ? { open: true, title: (m.querySelector('.modal-head, h2, header') || {}).innerText || null,
@@ -6885,7 +6888,7 @@ def s30(pg):
 
     # (3) SERETAN MUNDUR yang dijalani sampai selesai.
     pg.drag_and_drop(card_sel, ".board-cards[data-status='new']")
-    pg.wait_for_timeout(1200)
+    pg.wait_for_selector(".modal textarea", timeout=15000)
     pg.fill(".modal textarea", "Kontak PIC berganti, kualifikasi diulang (uji S30)")
     click(pg, ".modal button:has-text('Pindahkan')")
     pg.wait_for_timeout(2500)
@@ -6930,6 +6933,32 @@ def s30(pg):
     pg.wait_for_timeout(2500)
     out["empty_activity_card"] = pg.evaluate(S30_CARD, "Aktivitas")
 
+    # (7b) MENAMBAH AKTIVITAS DARI KARTUNYA — satu-satunya jalan membuat
+    #      aktivitas (layar daftar baca saja), jadi jalur inilah yang harus
+    #      dibuktikan peramban, bukan POST yang dipakai fixture di atas.
+    click(pg, ".card:has-text('Aktivitas') button:has-text('Tambah aktivitas')")
+    pg.wait_for_selector(".modal input[name=subject], .modal .form-grid", timeout=10000)
+    pg.fill(".modal .field:has-text('Kegiatan') input", "Telepon pertama dari kartu (S30)")
+    pg.fill(".modal .field:has-text('Jatuh tempo') input", dekat)
+    click(pg, ".modal button:has-text('Simpan')")
+    pg.wait_for_timeout(2500)
+    out["after_add_activity"] = pg.evaluate(S30_CARD, "Aktivitas")
+
+    # (8) KARTU YANG SAMA DI LAYAR PENAWARAN — registri kartunya memuat tiga
+    #     slug, dan dua di antaranya tidak pernah dibuka uji PHP di peramban.
+    status, quotations = api("crm/quotations?per_page=1", admin)
+    quotation = (quotations.get("data") or [{}])[0]
+    out["quotation"] = {"status": status, "code": quotation.get("code")}
+    if quotation.get("id"):
+        out["quotation_activity"] = s30_activity(
+            admin, 0, "x")[0] if False else api("crm/activities", admin, "POST", {
+                "document_type": "quotation", "document_id": quotation["id"],
+                "type": "meeting", "subject": "Klarifikasi teknis dengan pelanggan (S30)",
+                "due_at": dekat})[0]
+        pg.goto(BASE + f"#/d/crm/quotations/{quotation['id']}")
+        pg.wait_for_timeout(2500)
+        out["quotation_activity_card"] = pg.evaluate(S30_CARD, "Aktivitas")
+
     # Tanggal yang diharapkan, ditulis seperti layar menulisnya ("11 Sep 2026").
     bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
     d = date.fromisoformat(dekat)
@@ -6967,6 +6996,12 @@ def s30(pg):
         "the_typed_follow_up_field_is_gone_from_the_form": out["form_has_follow_up_input"] is False,
         # 5 — kartu kosong mengaku kosong
         "an_empty_activity_card_says_so": "Belum ada aktivitas dicatat" in kosong_text,
+        # …dan mengisinya DARI KARTUNYA bekerja, lalu tanggal turunannya muncul
+        "adding_an_activity_from_the_card_works": "Telepon pertama dari kartu (S30)" in (out["after_add_activity"].get("text") or ""),
+        "and_the_derived_date_appears_at_once": "diturunkan dari aktivitas terbuka paling awal" in (out["after_add_activity"].get("text") or ""),
+        # kartu yang sama di layar penawaran
+        "the_same_card_serves_the_quotation_screen": out.get("quotation_activity_card", {}).get("found") is True
+            and "Klarifikasi teknis dengan pelanggan (S30)" in (out.get("quotation_activity_card", {}).get("text") or ""),
         "and_never_prints_a_fabricated_zero": "0 aktivitas" not in kosong_text,
         # riwayat tahap menyimpan alasannya
         "the_backward_reason_is_stored_in_the_history": "Kontak PIC berganti" in (out["history_card"].get("text") or ""),

@@ -1230,3 +1230,101 @@ adalah angka yang menolak sesuatu.**
 Kolom pertama tabelnya memakai `subject_word` entri apa adanya (dikapitalkan),
 bukan dua pilihan yang dipatok layar: entri yang menyebut satuannya sendiri
 tidak boleh kehilangannya di tabel yang menampilkannya.
+
+## 25. Aktivitas CRM (`crm_activities`, F-3)
+
+Register pekerjaan penjualan: telepon / rapat / email / kunjungan / catatan, menggantung pada satu
+prospek, penawaran, atau pelanggan. **Register, bukan dokumen** — tanpa nomor, tanpa persetujuan,
+tanpa jurnal (selera `crm_guarantees`). Yang dikenali orang adalah subjeknya.
+
+**Dua tanggal dengan dua tipe yang berbeda, dan itu disengaja.**
+
+| Kolom | Tipe | Kenapa |
+|---|---|---|
+| `due_at` | `date` | "Hubungi lagi Senin depan" adalah sebuah HARI. Menyimpannya sebagai `00:00` memalsukan ketelitian yang tidak pernah diketik siapa pun (alasan yang sama tertulis di migrasi 000383 untuk `next_follow_up_at`, dan turunannya harus setipe dengan sumbernya). |
+| `done_at` | `timestamp` | Dicap SERVER saat seseorang menekan "Selesai" — momen yang sungguhan terjadi, bersama `done_by_id`. |
+
+`document_type` + `document_id` menyimpan **jenis pendek** (`lead` / `quotation` / `customer`),
+tidak pernah nama kelas — pola `fin_payment_allocations.payable_type`, dan alasan
+`AttachableDocuments`: endpoint yang menerima nama kelas mengizinkan penelepon menyebut kelas apa
+pun sebagai induk sebuah baris. Daftar sahnya `Modules\Crm\Support\ActivityDocuments`, dan
+cerminnya di klien (`public/app/js/views/activities.js` `ACTIVITY_DOCUMENTS`) dijaga
+`ActivityRegistryTest` — slug yang hanya ada di satu sisi adalah kartu yang selalu 422, atau
+dokumen yang diam-diam tidak bisa mencatat satu pun aktivitas.
+
+**Satu pintu tulis: `ActivityService`.** `done_at`/`done_by_id` ditolak (`prohibited`) bila diketik;
+induk yang tidak ada ditolak dengan kalimat yang menyebut jenis dokumennya dalam bahasa layar; dan
+setiap perubahan memanggil `LeadFollowUpService` (§26). Dua pintu berarti satu di antaranya lupa
+menghitung ulang turunannya.
+
+**Kartunya** dipasang `renderDetail` dalam satu baris, seperti kartu Lampiran, dan keanggotaannya
+diputuskan cermin registri di dalam kartu itu sendiri. Tiga aturan kejujurannya:
+
+1. **Kartu kosong mengatakan dirinya kosong** — "Belum ada aktivitas dicatat untuk dokumen ini",
+   tidak pernah "0 aktivitas". Angka nol yang dipajang sebagai hasil pengukuran adalah kebohongan
+   kecil yang paling sering dipercaya.
+2. **"Lewat tanggal" dihitung SERVER** (`is_overdue`): jam peramban yang meleset dua hari akan
+   mewarnai baris yang salah, dan warna itulah yang dipakai orang memilih pekerjaan hari ini.
+3. **Kartu prospek menyebut asal tanggal tindak lanjutnya**, dengan subjek aktivitas yang
+   menentukannya.
+
+**Pengawasnya** satu entri `WatchedDeadlines` (`crm_activity_due`, `lead_days` 3, izin
+`crm.update`, tautan `r/crm/activities`) — bukan perintah baru. `done_at` yang mendiamkannya; itu
+pula sebabnya "Selesai" mencap waktu alih-alih menghapus barisnya.
+
+## 26. Transisi pipeline prospek (`LeadStatus::canMoveTo`, F-3)
+
+`crm_leads.status` bukan lagi kolom formulir. Sampai F-3 satu `PUT` dengan `{"status":"won"}`
+memenangkan sebuah prospek **tanpa penawaran, tanpa nilai, tanpa tanggal keputusan** — sementara
+win-rate per sales dihitung dari kolom itu.
+
+**Matriksnya, satu tempat** (`LeadStatus::canMoveTo` memulangkan `LeadMove`, bukan boolean: sebuah
+boolean hanya bisa mengatakan "tidak", dan setiap layar yang membacanya lalu harus MENEBAK sebabnya
+untuk bisa menulis kalimatnya):
+
+| dari \ ke | Baru | Sudah Dihubungi | Terkualifikasi | Penawaran Dikirim | Menang | Kalah |
+|---|---|---|---|---|---|---|
+| **Baru** | sama | maju | maju | maju | lewat penawaran | lewat penawaran |
+| **Sudah Dihubungi** | mundur | sama | maju | maju | lewat penawaran | lewat penawaran |
+| **Terkualifikasi** | mundur | mundur | sama | maju | lewat penawaran | lewat penawaran |
+| **Penawaran Dikirim** | mundur | mundur | mundur | sama | lewat penawaran | lewat penawaran |
+| **Menang** | terkunci | terkunci | terkunci | terkunci | sama | lewat penawaran |
+| **Kalah** | terkunci | terkunci | terkunci | terkunci | lewat penawaran | sama |
+
+- **maju** — bebas, boleh melompati tahap: prospek dari undangan tender memang lahir langsung
+  terkualifikasi.
+- **mundur** — boleh, **dengan alasan ≥ 5 karakter** yang tersimpan di `crm_lead_status_changes`
+  (append-only) dan terbaca di kartu "Riwayat Tahap". Mundur adalah kabar buruk, dan corong yang
+  bisa dimundurkan diam-diam adalah corong yang angka konversinya tidak berarti apa-apa.
+- **lewat penawaran** — Menang/Kalah **hanya** lahir dari `QuotationService::markWon/markLost`
+  (yang memanggil `LeadPipelineService::decideByQuotation`, jadi keputusannya ikut tercatat dengan
+  kode QTN-nya). Penolakannya menyebut penawaran MANA yang harus ditandai — atau mengakui bahwa
+  prospeknya belum punya penawaran sama sekali.
+- **terkunci** — prospek yang sudah menang/kalah tidak bisa dikembalikan ke tahap mana pun; nasibnya
+  milik penawarannya.
+
+**Pintunya satu: `POST crm/leads/{id}/pipeline` `{status, reason?}`** (`LeadPipelineService`).
+`LeadUpdateRequest` menolak `status` (`prohibited`), `LeadStoreRequest` hanya menerima tahap
+TERBUKA saat membuat, dan isian status di formulir SPA `createOnly`. Sebuah pintu kedua yang tidak
+memeriksa apa-apa membuat pintu pertama sekadar saran.
+
+**Alasan mundur diminta oleh SERVER, dijawab SPA.** Layanan menolak 422 berkunci `reason`; mesin
+`confirmResubmit` (§ actions.js) membuka satu isian wajib berisi kalimat servernya lalu mengirim
+ulang. Deklarasinya satu (`ALASAN_MUNDUR` di `schema.js`) dan dipakai tombol "Ubah Tahap" DAN
+keenam perpindahan papan — dialog yang berbeda antar permukaan adalah cara sebuah aturan berhenti
+terasa seperti satu aturan.
+
+**Papan pipeline** (`b/crm/leads`) memakai mesin §19 apa adanya, dengan tiga kait kecil yang lahir
+di sini dan berlaku untuk papan mana pun:
+
+| Kait | Isi | Kenapa |
+|---|---|---|
+| `board.api` | rute baca papan (`crm/pipeline/board`) | Papan generik mengambil SATU halaman lalu mengelompokkannya di klien: 300 prospek Menang mendorong kolom "Baru" keluar halaman dan papannya tampak kosong justru di kolom yang paling dikerjakan. Rute papan mengambil N teratas **per kolom** dan memulangkan jumlah sebenarnya di `meta.lanes` — selisihnya dikatakan ("5 dari 7 digambar"). |
+| `board.card.fields` | kunci baris yang dicetak apa adanya di kaki kartu | Kalimat siap pakai dari server ("Belum ditugaskan", "2 aktivitas lewat tanggal"). Nilai kosong DILEWATI: baris "0 aktivitas" yang selalu ada mengajari orang mengabaikan barisnya. |
+| `action.body` + `action.boardOnly` | muatan tetap satu aksi; aksi yang tidak muncul di bilah dokumen | Satu endpoint melayani enam kolom. `boardOnly` menahan enam tombol "Pindahkan ke …" keluar dari bilah aksi — termasuk dua yang memang **selalu ditolak** (Menang/Kalah), yang dipetakan justru supaya kartunya kembali membawa KALIMAT SERVER, bukan kalimat generik papan ("tidak ada aksi yang memindahkan dokumen ke kolom itu") yang terdengar seperti aplikasi rusak. |
+
+**Pemilik prospek: `owner_user_id`** (migrasi 000397 mengganti nama `user_id` — bukan menambah
+kolom kedua; lihat docblock-nya). Boleh kosong, dan yang kosong berbunyi **"Belum ditugaskan"** di
+setiap permukaan lewat SATU kalimat (`ActivityResource::ownerName`, dipakai juga `LeadResource`):
+daftar, CSV daftar, kartu papan, dan layar dokumen. Pemilik yang baris penggunanya sudah tidak ada
+berbunyi lain — itu data rusak, bukan "belum ditugaskan".
