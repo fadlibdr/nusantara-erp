@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Crm\Http\Controllers\ActivityController;
 use Modules\Crm\Http\Controllers\ContractChangeOrderController;
 use Modules\Crm\Http\Controllers\ContractController;
 use Modules\Crm\Http\Controllers\ContractTerminController;
@@ -31,6 +32,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Konversi lead→pelanggan (temuan #58). crm.create, karena yang dibuat
     // adalah master pelanggan — bukan sekadar perubahan pada lead-nya.
     Route::post('leads/{lead}/convert-to-customer', [LeadController::class, 'convertToCustomer'])->middleware('permission:crm.create');
+
+    /*
+     * Aktivitas CRM (F-3) — register telepon/rapat/email/kunjungan/catatan yang
+     * menggantung pada prospek, penawaran atau pelanggan. Bukan dokumen: tidak
+     * ada submit/approve. Menandai selesai adalah crm.update (mengubah baris
+     * yang ada), bukan crm.create.
+     */
+    Route::get('activities', [ActivityController::class, 'index'])->middleware('permission:crm.view');
+    Route::post('activities', [ActivityController::class, 'store'])->middleware('permission:crm.create');
+    Route::get('activities/{activity}', [ActivityController::class, 'show'])->middleware('permission:crm.view');
+    Route::put('activities/{activity}', [ActivityController::class, 'update'])->middleware('permission:crm.update');
+    Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->middleware('permission:crm.delete');
+    Route::post('activities/{activity}/done', [ActivityController::class, 'markDone'])->middleware('permission:crm.update');
+    Route::post('activities/{activity}/reopen', [ActivityController::class, 'reopen'])->middleware('permission:crm.update');
 
     // Quotations (penawaran)
     Route::get('quotations', [QuotationController::class, 'index']);
