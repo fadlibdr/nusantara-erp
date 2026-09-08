@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
  * OVB tahun berjalan. Satu daftar deklaratif, jadi batas berikutnya yang layak
  * diawasi ditambahkan sebagai SATU entri array, bukan sebagai layar baru.
  *
- * LIMA KEADAAN, DAN TIGA DI ANTARANYA BUKAN ANGKA. Inilah seluruh alasan kelas
+ * ENAM KEADAAN, DAN TIGA DI ANTARANYA BUKAN ANGKA. Inilah seluruh alasan kelas
  * ini ada. Sebuah sel anggaran yang batasnya belum pernah disetel bukan 0 %,
  * dan sebuah proyek yang belum punya RAP bukan 100 % terpakai — keduanya
  * "tidak ada jawaban", dengan sebab yang BERBEDA, dan menyamakan keduanya
@@ -24,7 +24,15 @@ use Illuminate\Support\Facades\Schema;
  *   AMAN           di bawah ambang peringatan;
  *   MENDEKATI      di ambang peringatan atau di atasnya, MASIH di bawah batas;
  *   LAMPAU         di batas atau melewatinya (tepat 100 % ada di sisi ini —
- *                  anggaran yang habis persis sudah tidak menyisakan apa pun);
+ *                  anggaran yang habis persis sudah tidak menyisakan apa pun).
+ *                  Batas Rp 0 YANG SUDAH DIBELANJAKAN ada di sini juga: nol
+ *                  rupiah adalah batas yang paling mudah dilampaui, bukan batas
+ *                  yang hilang;
+ *   TANPA_ANGGARAN batasnya DIKETAHUI dan besarnya nol — dokumen yang menyebut
+ *                  sisi ini menyebutnya Rp 0 — dan belum ada yang dibelanjakan
+ *                  di sana. Tenang, karena rencana yang tidak menganggarkan
+ *                  sesuatu bukan alarm; tetapi BUKAN "batas belum disetel",
+ *                  karena batasnya disetel, oleh sebuah dokumen yang disetujui;
  *   TANPA_BATAS    yang diukur ADA, batasnya tidak pernah disetel. Ini sebuah
  *                  ATURAN yang dicetak apa adanya, bukan nol dan bukan taksiran;
  *   TIDAK_TERUKUR  yang diukur sendiri belum ada. Mendahului TANPA_BATAS:
@@ -32,6 +40,15 @@ use Illuminate\Support\Facades\Schema;
  *                  kalimat yang paling menolong. Catatan barisnya tetap
  *                  menyebut KEDUA sisi yang hilang, jadi satu keadaan tidak
  *                  pernah menyembunyikan kekurangan yang lain.
+ *
+ * BATASNYA TIDAK PERNAH DISIMPULKAN DARI NILAINYA (verifikasi F-2 putaran 2).
+ * Sebuah baris yang tidak punya batas mengirim `limit` null; nol adalah ANGKA,
+ * dan aturan lama "limit ≤ 0 berarti tidak ada batas" menelan justru sisi yang
+ * paling berbahaya — RAP yang menganggarkan Rp 0 untuk subkon sementara
+ * Rp 200.000.000 biaya subkon sudah tercatat menghilang dari registri sebagai
+ * "Batas belum disetel", dan karena urutannya menurut persentase (yang tidak
+ * ada), barisnya jatuh ke DASAR daftar yang seluruh tugasnya menyebutkan apa
+ * yang melewati batasnya.
  *
  * ATURAN YANG SAMA DENGAN WatchedDeadlines: DB::table, literal string, tanpa
  * impor modul fitur — Core adalah modul yang dibergantungi semua orang.
@@ -55,6 +72,8 @@ class WatchedThresholds
     public const MENDEKATI = 'mendekati';
 
     public const LAMPAU = 'lampau';
+
+    public const TANPA_ANGGARAN = 'tanpa_anggaran';
 
     public const TANPA_BATAS = 'tanpa_batas';
 
@@ -286,11 +305,22 @@ class WatchedThresholds
             return self::TIDAK_TERUKUR;
         }
 
-        // <= 0 dan bukan hanya null: kolom nilai kontrak berbawaan 0, dan
-        // membagi dengan nol untuk mendapatkan "tak hingga persen" adalah
-        // karangan yang paling sulit dibantah di layar.
-        if ($limit === null || $limit <= 0.0) {
+        // HANYA null: sebuah batas yang tidak ada dikatakan null oleh barisnya,
+        // tidak disimpulkan dari nilainya. Aturan lama "≤ 0 berarti tidak ada"
+        // menghapus batas Rp 0 yang sungguh disetel sebuah RAP — dan bersamanya
+        // menghapus sisi yang sudah dibelanjakan di atas nol itu.
+        if ($limit === null) {
             return self::TANPA_BATAS;
+        }
+
+        // Batas nol yang DIKETAHUI: sudah dibelanjakan berarti sudah lewat —
+        // gerbang menolak dokumen berikutnya, dan sebuah baris tenang di atas
+        // uang yang sudah keluar adalah alarm yang mati. Belum dibelanjakan
+        // berarti belum ada apa-apa untuk dialarmkan; persentase tetap tidak
+        // ada, karena membagi dengan nol adalah karangan yang paling sulit
+        // dibantah di layar.
+        if ($limit <= 0.0) {
+            return $actual > 0.0 ? self::LAMPAU : self::TANPA_ANGGARAN;
         }
 
         if ($actual >= $limit) {
@@ -298,6 +328,28 @@ class WatchedThresholds
         }
 
         return (float) self::displayPct($actual, $limit) >= $warnPct ? self::MENDEKATI : self::AMAN;
+    }
+
+    /**
+     * Seberapa genting sebuah keadaan — SATU definisi "lebih buruk", dipakai
+     * urutan registri maupun pemilihan sisi terburuk sebuah proyek.
+     *
+     * Kenapa ini tidak boleh persentase saja: sebuah baris LAMPAU yang batasnya
+     * Rp 0 tidak punya persentase (0 tidak bisa dibagi), dan mengurutkan
+     * menurut persentase saja menaruhnya di DASAR daftar — di bawah setiap
+     * baris 90 % yang masih aman.
+     */
+    public static function stateRank(string $state): int
+    {
+        return match ($state) {
+            self::LAMPAU => 4,
+            self::MENDEKATI => 3,
+            self::AMAN => 2,
+            // Dianggarkan nol dan belum dibelanjakan: sebuah fakta, bukan
+            // peringatan — di bawah sisi mana pun yang punya batas sungguhan.
+            self::TANPA_ANGGARAN => 1,
+            default => 0,
+        };
     }
 
     /** Persentase, atau null bila salah satu sisinya tidak ada. */
@@ -334,6 +386,7 @@ class WatchedThresholds
             self::AMAN => 'Aman',
             self::MENDEKATI => 'Mendekati batas',
             self::LAMPAU => 'Melampaui batas',
+            self::TANPA_ANGGARAN => 'Tidak dianggarkan',
             self::TANPA_BATAS => 'Batas belum disetel',
             self::TIDAK_TERUKUR => 'Belum ada yang diukur',
             default => $state,
@@ -375,11 +428,22 @@ class WatchedThresholds
             : ($entry['rows'])();
 
         $finished = [];
-        $states = [self::LAMPAU => 0, self::MENDEKATI => 0, self::AMAN => 0, self::TANPA_BATAS => 0, self::TIDAK_TERUKUR => 0];
+        $states = [
+            self::LAMPAU => 0,
+            self::MENDEKATI => 0,
+            self::AMAN => 0,
+            self::TANPA_ANGGARAN => 0,
+            self::TANPA_BATAS => 0,
+            self::TIDAK_TERUKUR => 0,
+        ];
 
         foreach ($rows as $row) {
             $actual = isset($row['actual']) ? (float) $row['actual'] : null;
-            $limit = isset($row['limit']) && (float) $row['limit'] > 0 ? (float) $row['limit'] : null;
+            // isset(): sebuah baris yang TIDAK PUNYA batas mengirim null (atau
+            // tidak mengirim kuncinya sama sekali). Nol dibiarkan nol — ia
+            // batas yang disetel sebuah dokumen, dan state() yang memutuskan
+            // apa artinya, satu tempat untuk semua entri.
+            $limit = isset($row['limit']) ? (float) $row['limit'] : null;
             $state = self::state($actual, $limit, $warnPct);
             $states[$state]++;
 
@@ -396,9 +460,13 @@ class WatchedThresholds
             ];
         }
 
-        // Yang paling dekat ke batasnya lebih dulu; baris tanpa persentase
-        // turun ke bawah tanpa berpura-pura bernilai nol.
-        usort($finished, static fn (array $a, array $b): int => ($b['pct'] ?? -1) <=> ($a['pct'] ?? -1));
+        // Yang paling dekat ke batasnya lebih dulu — KEADAAN dulu, persentase
+        // sesudahnya. Mengurutkan menurut persentase saja menaruh baris LAMPAU
+        // yang batasnya Rp 0 (tidak punya persentase) di dasar daftar, di bawah
+        // setiap baris yang aman; baris tanpa keadaan yang genting tetap turun
+        // ke bawah tanpa berpura-pura bernilai nol.
+        usort($finished, static fn (array $a, array $b): int => [self::stateRank($b['state']), $b['pct'] ?? -1]
+            <=> [self::stateRank($a['state']), $a['pct'] ?? -1]);
 
         return [
             'key' => $entry['key'],
@@ -481,7 +549,11 @@ class WatchedThresholds
                 'subject' => $project->code,
                 'name' => $project->name,
                 'actual' => $rap === null ? null : round((float) ($totals[$rap->id] ?? 0), 2),
-                'limit' => $contract,
+                // Kolom nilai kontrak berbawaan 0, dan 0 di sana berarti BELUM
+                // DICATAT — bukan kontrak senilai nol rupiah. Barisnya yang
+                // mengatakan itu, dengan null; state() tidak lagi menebaknya
+                // dari nilainya (verifikasi F-2 putaran 2).
+                'limit' => $contract > 0 ? $contract : null,
                 'note' => $missing === []
                     ? 'Dari RAP '.$rap->code.'.'
                     : implode('; ', $missing).'.',
@@ -564,7 +636,10 @@ class WatchedThresholds
             'subject' => (string) $year,
             'name' => 'OVB '.$budget->code,
             'actual' => $actual,
-            'limit' => $limit,
+            // OVB tanpa satu akun pun tidak MENGANGGARKAN nol; ia belum
+            // menyebutkan apa pun untuk dianggarkan — batasnya tidak ada,
+            // dan barisnya mengatakannya dengan null.
+            'limit' => $accountIds === [] ? null : $limit,
             'note' => match (true) {
                 $accountIds === [] => 'OVB '.$budget->code.' belum memuat satu akun pun, jadi belum ada yang bisa diukur.',
                 $measuredLines === 0 => 'Belum ada satu baris jurnal terposting pun tahun ini pada '

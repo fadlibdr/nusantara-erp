@@ -1123,14 +1123,15 @@ yang itu menjawab "tanggal apa yang lewat", yang ini "angka apa yang mendekati
 atau melewati batasnya". Satu daftar deklaratif; batas berikutnya yang layak
 diawasi ditambahkan sebagai **satu entri array**, bukan sebagai layar baru.
 
-**LIMA KEADAAN, DAN TIGA DI ANTARANYA BUKAN ANGKA.** Inilah seluruh alasan
+**ENAM KEADAAN, DAN TIGA DI ANTARANYA BUKAN ANGKA.** Inilah seluruh alasan
 registri ini ada, dan aturan yang mengikat setiap entri baru:
 
 | Keadaan | Artinya | Yang dicetak layar |
 |---|---|---|
 | `aman` | di bawah ambang peringatan | persentasenya |
 | `mendekati` | di ambang peringatan atau di atasnya, masih di bawah batas | persentasenya, berwarna |
-| `lampau` | di batas atau melewatinya — **tepat 100 % ada di sisi ini** | persentasenya, merah |
+| `lampau` | di batas atau melewatinya — **tepat 100 % ada di sisi ini**, dan **batas Rp 0 yang sudah dibelanjakan ada di sini juga** | persentasenya, merah |
+| `tanpa_anggaran` | batasnya DIKETAHUI dan besarnya nol, belum ada yang dibelanjakan | **aturannya** ("Tidak dianggarkan") |
 | `tanpa_batas` | yang diukur ADA, batasnya tidak pernah disetel | **aturannya**, tidak pernah 0 % |
 | `tidak_terukur` | yang diukurnya sendiri belum ada | **aturannya**, tidak pernah 0 % |
 
@@ -1147,9 +1148,22 @@ adalah perselisihan layar-vs-gerbang yang F-2 ada untuk menghapus.
 `tidak_terukur` MENDAHULUI `tanpa_batas` (tanpa satu angka pun, "batasnya belum
 disetel" bukan kalimat yang paling menolong), dan catatan barisnya menyebut
 **kedua** sisi yang hilang supaya satu keadaan tidak menyembunyikan kekurangan
-yang lain. Sebuah batas bernilai 0 diperlakukan sebagai TIDAK ADA: kolom
-`prj_projects.contract_value` berbawaan 0, jadi 0 di sana berarti belum dicatat
-— tidak pernah berarti kontrak senilai nol rupiah.
+yang lain.
+
+**BATASNYA TIDAK PERNAH DISIMPULKAN DARI NILAINYA** (verifikasi F-2 putaran 2).
+Baris yang tidak punya batas mengirim `limit` **null**; nol adalah ANGKA. Aturan
+lama "`limit` ≤ 0 berarti tidak ada batas" ditulis untuk `prj_projects.contract_value`
+yang berbawaan 0 (0 di sana berarti belum dicatat, bukan kontrak nol rupiah) —
+dan ia menelan sisi yang paling berbahaya yang ada: RAP yang menganggarkan
+**Rp 0** untuk subkon sementara **Rp 200.000.000** biaya subkon sudah tercatat
+hilang dari registri sebagai "Batas belum disetel", lalu — karena urutannya
+menurut persentase, yang tidak ada — jatuh ke DASAR daftar yang seluruh tugasnya
+menyebutkan apa yang melewati batasnya (terukur di kedua driver). Sekarang
+`rapVersusContract` sendiri yang mengirim null saat nilai kontrak belum dicatat,
+`state()` yang memutuskan arti sebuah batas nol (dibelanjakan → `lampau`, belum →
+`tanpa_anggaran`), dan urutan registri memakai `stateRank()` **lebih dulu**,
+persentase sesudahnya — satu definisi "lebih buruk", dipakai juga
+`BudgetRealisationService::worstSide()`.
 
 **Aturan yang sama dengan `WatchedDeadlines`:** `DB::table`, literal string,
 **tanpa impor modul fitur** (dipaku `ThresholdWatchTest::test_core_imports_no_feature_module_to_compute_a_threshold`,

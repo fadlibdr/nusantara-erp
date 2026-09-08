@@ -84,19 +84,23 @@ Dan di peramban, atas salinan data demo (S29): PO **Rp 31.123.865.391** diterima
 **Rp 31.123.865.391,01** ditolak 422 pada kunci `budget` dengan kalimat yang menyebut
 "menyisakan Rp 31.123.865.391" — angka yang sama yang tercetak di barisnya.
 
-## Lima keadaan registri ambang, dan kenapa tiga di antaranya bukan angka
+## Enam keadaan registri ambang, dan kenapa tiga di antaranya bukan angka
 
 | Keadaan | Artinya | Yang dicetak |
 |---|---|---|
 | `aman` | di bawah ambang peringatan | persentasenya |
 | `mendekati` | ≥ ambang, masih di bawah batas | persentasenya, berwarna |
-| `lampau` | **tepat 100 % ada di sisi ini** | persentasenya, merah |
+| `lampau` | **tepat 100 % ada di sisi ini** — dan **batas Rp 0 yang sudah dibelanjakan** | persentasenya, merah |
+| `tanpa_anggaran` | batasnya DIKETAHUI nol, belum ada yang dibelanjakan | **aturannya** ("Tidak dianggarkan") |
 | `tanpa_batas` | yang diukur ADA, batasnya tidak pernah disetel | **aturannya** |
 | `tidak_terukur` | yang diukurnya sendiri belum ada | **aturannya** |
 
 `tidak_terukur` mendahului `tanpa_batas`, dan catatan barisnya menyebut **kedua** sisi yang hilang.
-Sebuah batas bernilai 0 diperlakukan TIDAK ADA: `prj_projects.contract_value` berbawaan 0, jadi 0
-di sana berarti belum dicatat — bukan kontrak nol rupiah.
+Sebuah batas yang TIDAK ADA dikatakan barisnya dengan **null**, tidak disimpulkan dari nilainya
+(verifikasi putaran 2): `prj_projects.contract_value` berbawaan 0 dan `rapVersusContract` sendiri
+yang mengirim null di sana, sementara **Rp 0 yang sungguh dianggarkan sebuah RAP tetap sebuah
+batas** — yang sudah dibelanjakan di atasnya `lampau`, dan urutan daftarnya `stateRank()` lebih
+dulu, persentase sesudahnya, supaya baris tanpa persentase tidak jatuh ke dasar.
 
 Tiga entri yang dikirim: `project_budget_pct` (**dipasok Finance** lewat `WatchedThresholds::supply`,
 karena aritmetika komitmen milik `CommitmentService` dan menyalinnya ke Core berarti dua jawaban),

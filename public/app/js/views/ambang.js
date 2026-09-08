@@ -28,6 +28,9 @@ const STATE = {
   lampau: ['Melampaui batas', 'red'],
   mendekati: ['Mendekati batas', 'amber'],
   aman: ['Aman', 'green'],
+  /* Dianggarkan Rp 0 dan belum dibelanjakan — batasnya DISETEL, dan besarnya
+     nol. Berbeda sebab dan berbeda jalan keluarnya dari "belum disetel". */
+  tanpa_anggaran: ['Tidak dianggarkan', ''],
   tanpa_batas: ['Batas belum disetel', ''],
   tidak_terukur: ['Belum ada yang diukur', ''],
 };
@@ -111,7 +114,7 @@ export async function renderAmbang(host) {
     ]),
     el('.stat', [
       el('.label', { text: 'Tanpa batas / belum terukur' }),
-      el('.value.sm', { text: String(jumlah('tanpa_batas') + jumlah('tidak_terukur')) }),
+      el('.value.sm', { text: String(jumlah('tanpa_anggaran') + jumlah('tanpa_batas') + jumlah('tidak_terukur')) }),
       el('.delta', { text: 'aturan, bukan nol' }),
     ]),
   ]));
@@ -175,6 +178,7 @@ export async function renderAmbang(host) {
     el('.card-body', [
       el('p', { text: 'Sebuah baris berubah menjadi "Mendekati batas" saat terpakai mencapai ambang peringatan, dan menjadi "Melampaui batas" tepat pada 100 % — anggaran yang habis persis sudah tidak menyisakan apa pun untuk dokumen berikutnya.' }),
       el('p', { text: '"Batas belum disetel" berarti angkanya ada tetapi batasnya tidak pernah dipasang (mis. nilai kontrak belum dicatat pada master proyek). Itu sebuah aturan yang dicetak apa adanya, bukan 0 % dan bukan taksiran.' }),
+      el('p', { text: '"Tidak dianggarkan" berarti batasnya justru DISETEL — sebuah dokumen yang disetujui menyebut sisi ini dan menyebutnya Rp 0 — dan belum ada yang dibelanjakan di sana. Begitu ada rupiah yang keluar di sisi itu, barisnya menjadi "Melampaui batas": nol adalah batas yang paling mudah dilampaui, bukan batas yang hilang.' }),
       el('p', { text: '"Belum ada yang diukur" berarti yang diukurnya sendiri belum ada (mis. proyek belum punya RAP yang disetujui). Catatan pada barisnya menyebut kedua sisi yang hilang.' }),
       el('p', { text: 'Layar ini TIDAK menolak dokumen apa pun. Yang menolak PO/SPK yang menjebol RAP adalah gerbang anggaran pada pengajuannya, dengan kalimat dan angkanya sendiri.' }),
       meta.skipped

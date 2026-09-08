@@ -34,6 +34,9 @@ const STATE = {
   lampau: ['Melampaui', 'red'],
   mendekati: ['Mendekati', 'amber'],
   aman: ['Aman', 'green'],
+  /* Sisi yang RAP-nya sebut dan sebut Rp 0, belum dibelanjakan — bukan
+     "Tanpa RAP": RAP-nya ada, dan justru RAP itu yang menyetel nol. */
+  tanpa_anggaran: ['Tidak dianggarkan', ''],
   tanpa_batas: ['Tanpa RAP', ''],
   tidak_terukur: ['Belum terukur', ''],
 };

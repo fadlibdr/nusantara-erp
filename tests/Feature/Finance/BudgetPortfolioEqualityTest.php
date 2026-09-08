@@ -5,6 +5,7 @@ namespace Tests\Feature\Finance;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Support\WatchedThresholds;
 use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
 use Modules\Estimation\Services\RapService;
@@ -542,5 +543,79 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         // keadaan proyek ini adalah sisi non-subkon yang memang punya batas.
         $this->assertSame('non_subcon', $row['worst_side']);
         $this->assertSame('aman', $row['worst_state']);
+    }
+
+    /**
+     * SISI YANG DIANGGARKAN Rp 0 DAN SUDAH DIBELANJAKAN — keadaan paling
+     * berbahaya yang ada, dan yang justru menghilang dari registri Ambang
+     * sesudah f5d691b (verifikasi F-2 putaran 2).
+     *
+     * Terukur sebelum perbaikan: layar proyek berkata "Melampaui batas"
+     * sementara baris registri untuk PROYEK YANG SAMA berbunyi "Batas belum
+     * disetel" dengan pct NULL — dan karena registri mengurutkan menurut
+     * persentase, baris itu jatuh ke DASAR daftar, di bawah setiap proyek yang
+     * aman. Sebabnya satu aturan: batas Rp 0 dibaca "batasnya tidak pernah
+     * disetel", padahal RAP-nya MENYEBUT sisi ini dan menyebutnya nol.
+     */
+    public function test_a_side_budgeted_at_zero_and_already_spent_is_loud_in_the_registry(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        // Satu proyek yang sehat tetapi mendekati batas: tanpa dia, urutan
+        // daftar tidak diuji apa pun (satu baris selalu baris pertama).
+        $tenang = $this->project('PRJ-2026-922');
+        $this->approvedRap($tenang, nonSubcon: 100_000_000, subcon: 0, code: 'RAP/2026/0922');
+        $this->cost($tenang, 'material', 90_000_000);
+
+        $project = $this->project('PRJ-2026-923');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 0, code: 'RAP/2026/0923');
+        $this->cost($project, 'subcon', 200_000_000);
+
+        $row = $this->portfolioRow($project);
+
+        $this->assertSame('subcon', $row['worst_side']);
+        $this->assertSame('lampau', $row['worst_state']);
+
+        $registry = collect($this->getJson('/api/core/thresholds')->assertOk()->json('data'))
+            ->firstWhere('key', 'project_budget_pct');
+
+        $line = collect($registry['rows'])->firstWhere('subject', $project->code);
+
+        // Registri dan layar proyek mengucapkan satu keadaan yang sama…
+        $this->assertSame('lampau', $line['state']);
+        $this->assertSame('Melampaui batas', $line['state_label']);
+        // …dan batasnya DIKETAHUI nol, bukan hilang. assertEquals, bukan
+        // assertSame: JSON tidak membedakan 0 dari 0.0 — yang diuji adalah
+        // bahwa batasnya ADA dan besarnya nol, bukan null.
+        $this->assertNotNull($line['limit'], 'batas Rp 0 adalah batas, bukan batas yang hilang');
+        $this->assertEquals(0.0, $line['limit']);
+        $this->assertEquals(200000000.0, $line['actual']);
+        $this->assertStringContainsString('tidak menganggarkan', (string) $line['note']);
+
+        // Dan ia berdiri di ATAS daftar, bukan di dasarnya di bawah proyek 90 %.
+        $this->assertSame($project->code, $registry['rows'][0]['subject']);
+        $this->assertSame(1, $registry['counts']['lampau']);
+    }
+
+    /**
+     * "Tidak dianggarkan" dan "batas belum disetel" adalah dua kalimat yang
+     * berbeda, dan tetap berbeda: yang pertama berarti RAP-nya menyebut sisi
+     * ini dan menyebutnya nol, yang kedua berarti tidak ada seorang pun yang
+     * pernah memasang batasnya. Menyamakan keduanya membuat sisi bernilai nol
+     * yang belum dibelanjakan terbaca sebagai kelalaian pencatatan.
+     */
+    public function test_a_side_budgeted_at_zero_is_not_the_same_state_as_a_limit_nobody_set(): void
+    {
+        $project = $this->project('PRJ-2026-924');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 0, code: 'RAP/2026/0924');
+
+        $sepi = $this->project('PRJ-2026-925');
+
+        $this->assertSame('tanpa_anggaran', $this->portfolioRow($project)['sides']['subcon']['state']);
+        $this->assertSame('Tidak dianggarkan',
+            WatchedThresholds::stateLabel('tanpa_anggaran'));
+
+        // Proyek tanpa RAP sama sekali: batasnya memang tidak pernah disetel.
+        $this->assertSame('tanpa_batas', $this->portfolioRow($sepi)['sides']['subcon']['state']);
     }
 }

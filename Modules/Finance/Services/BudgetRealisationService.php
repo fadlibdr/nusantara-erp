@@ -259,10 +259,37 @@ class BudgetRealisationService
                 'subject' => $row['project_code'],
                 'name' => $row['project_name'],
                 'actual' => $worst === null ? $row['used'] : $worst['used'],
+                // Batas sisi terburuk APA ADANYA, nol termasuk. Sebuah RAP yang
+                // menganggarkan Rp 0 untuk satu sisi MENYETEL batas sisi itu;
+                // mengirimkannya sebagai "tidak ada batas" membuat sisi yang
+                // sudah dibelanjakan di atas nol hilang dari registri
+                // (verifikasi F-2 putaran 2). Yang benar-benar tidak punya
+                // batas adalah proyek tanpa RAP — dan di sana $row['budget']
+                // memang null.
                 'limit' => $worst === null ? $row['budget'] : $worst['budget'],
-                'note' => $worst === null
-                    ? 'RAP disetujui belum ada, jadi tidak ada anggaran yang bisa dilampaui.'
-                    : sprintf(
+                'note' => match (true) {
+                    $worst === null => 'RAP disetujui belum ada, jadi tidak ada anggaran yang bisa dilampaui.',
+                    (float) $worst['budget'] <= 0.0 && (float) $worst['used'] <= 0.0 => sprintf(
+                        'RAP %s tidak menganggarkan satu rupiah pun untuk %s, dan belum ada yang terpakai '
+                        .'di sisi itu — gerbang menolak setiap %s sampai pengajunya mengonfirmasi '
+                        .'pelampauan. Seluruh proyek: %s dari %s.',
+                        $row['rap_code'],
+                        $worst['label'],
+                        $worst['document'],
+                        Money::format($row['used'], false),
+                        Money::format($row['budget'], false),
+                    ),
+                    (float) $worst['budget'] <= 0.0 => sprintf(
+                        'RAP %s tidak menganggarkan satu rupiah pun untuk %s, sementara %s sudah terpakai '
+                        .'di sisi itu — gerbang menolak setiap %s berikutnya. Seluruh proyek: %s dari %s.',
+                        $row['rap_code'],
+                        $worst['label'],
+                        Money::format($worst['used'], false),
+                        $worst['document'],
+                        Money::format($row['used'], false),
+                        Money::format($row['budget'], false),
+                    ),
+                    default => sprintf(
                         'Sisi %s — realisasi %s + komitmen %s terhadap RAP %s. Seluruh proyek: %s dari %s.',
                         $worst['label'],
                         Money::format($worst['actual'], false),
@@ -271,6 +298,7 @@ class BudgetRealisationService
                         Money::format($row['used'], false),
                         Money::format($row['budget'], false),
                     ),
+                },
             ];
         }
 
@@ -673,29 +701,16 @@ class BudgetRealisationService
             'used' => $used,
             'remaining' => $side['remaining'],
             'pct' => WatchedThresholds::pct($used, $budget),
-            'state' => $this->sideState($budget, $used, $warnPct),
+            // Keadaan sisi dihitung aturan yang sama dengan setiap baris
+            // registri — termasuk aturan batas Rp 0: dianggarkan nol dan sudah
+            // dibelanjakan adalah LAMPAU, dianggarkan nol dan belum
+            // dibelanjakan adalah TANPA_ANGGARAN. Aturan itu dulu hidup di sini
+            // sebagai tambahan lokal, dan registri tidak ikut membacanya —
+            // sehingga satu proyek mencetak dua keadaan di dua layar
+            // (verifikasi F-2 putaran 2).
+            'state' => WatchedThresholds::state($used, $budget, $warnPct),
             'sentence' => $this->sideSentence($subcon, $budget, $side, $used, $rapCode),
         ];
-    }
-
-    /**
-     * Keadaan satu sisi — dan satu tambahan atas aturan registri.
-     *
-     * Sebuah sisi yang TIDAK DIANGGARKAN sama sekali (RAP tanpa satu baris
-     * subkon pun) punya batas Rp 0, dan WatchedThresholds membaca batas ≤ 0
-     * sebagai "batas belum disetel". Untuk sisi yang belum dibelanjakan itu
-     * benar dan tenang — sebuah RAP tanpa subkon adalah rencana, bukan alarm.
-     * Tetapi begitu ada rupiah yang sudah dibelanjakan di sisi itu, gerbang
-     * menolak setiap dokumen berikutnya, dan "batas belum disetel" akan menjadi
-     * satu-satunya baris tenang di layar tentang uang yang sudah lewat.
-     */
-    private function sideState(?float $budget, float $used, float $warnPct): string
-    {
-        if ($budget !== null && $budget <= 0.0 && $used > 0.0) {
-            return WatchedThresholds::LAMPAU;
-        }
-
-        return WatchedThresholds::state($used, $budget, $warnPct);
     }
 
     /**
@@ -749,12 +764,6 @@ class BudgetRealisationService
      */
     private function worstSide(array $sides): ?array
     {
-        $rank = [
-            WatchedThresholds::LAMPAU => 3,
-            WatchedThresholds::MENDEKATI => 2,
-            WatchedThresholds::AMAN => 1,
-        ];
-
         $worst = null;
 
         foreach ($sides as $side) {
@@ -764,8 +773,11 @@ class BudgetRealisationService
                 continue;
             }
 
-            $a = [$rank[$side['state']] ?? 0, $side['pct'] ?? -1];
-            $b = [$rank[$worst['state']] ?? 0, $worst['pct'] ?? -1];
+            // Peringkat keadaan dari WatchedThresholds — satu definisi
+            // "lebih buruk" untuk urutan registri dan pemilihan sisi ini,
+            // supaya dua layar tidak bisa menemukan urutan masing-masing.
+            $a = [WatchedThresholds::stateRank($side['state']), $side['pct'] ?? -1];
+            $b = [WatchedThresholds::stateRank($worst['state']), $worst['pct'] ?? -1];
 
             if ($a > $b) {
                 $worst = $side;
