@@ -32,9 +32,11 @@ Tidak di-merge, tidak di-deploy. 8 September 2026.
 | `db55d4d` | core: Code 128 sebagai SVG tanpa dependensi + lembar label F/LBL — dibuktikan dengan DEKODER, bukan dengan menghitung batang |
 | `ff2881e` | inventory: pindai barcode — jalur ketik selalu ada, empat keadaan kamera punya empat kalimat, barcode ganda tidak pernah dipilihkan |
 | `2090af9` | bukti: harness S32/S33 (desktop + ponsel) — dan DUA cacat yang hanya terlihat di peramban |
+| `edc747a` | docs: CONVENTIONS §31–§34 dan LAPORAN-PAKET-HM-F-6 — termasuk mutasi yang LOLOS hijau |
+| `59bd642` | docs: panduan pengguna & enam berkas onboarding — kalimat yang menjadi SALAH begitu ambangnya berubah |
 
-Dokumentasi konvensi: CONVENTIONS §2 (blok lanjutan) pada `b56fb70`; §31–§34 (aturan reorder,
-usulan PR, Code 128/F-LBL, pindai) pada commit dokumentasi paket ini.
+CONVENTIONS §2 (blok lanjutan) didaftarkan pada `b56fb70`, yaitu commit pemakaian pertamanya —
+aturan §2 sendiri. §31–§34 pada `edc747a`.
 
 ---
 
@@ -311,7 +313,16 @@ yang mungkin tidak menjamin apa pun.
    `docs/CLAUDE-CODE-PROMPT.md`. Tidak ada berkas bernama `CLAUDE.md` di seluruh pohon (di luar
    `vendor/`).
 
-5. **Cacat SPA yang lolos dari suite PHP yang hijau sempurna** (keduanya ditemukan oleh harness,
+5. **Tiga kalimat dokumentasi yang menjadi SALAH begitu ambangnya berubah** — permukaan yang sama
+   mudah dilupakan seperti salinan kueri. PANDUAN §6.2 berkata "Stok minimum adalah satu angka pada
+   master item yang diterapkan ke SETIAP gudang" (sejak F-6 hanya benar untuk pasangan tanpa
+   aturan); ia mengutip keadaan kosong *"Semua item berada di atas stok minimum."* yang tidak ada
+   lagi di kodenya; dan **enam** berkas `docs/ONBOARDING/*.md` menamai kartu dasbor "Stok di bawah
+   minimum", kartu yang namanya sudah berganti. Ketiganya diperbaiki pada `59bd642`; berkas bukti
+   (`results-phase-*.json`) sengaja **tidak** disentuh — angka di sana adalah pengukuran pada
+   waktunya.
+
+6. **Cacat SPA yang lolos dari suite PHP yang hijau sempurna** (keduanya ditemukan oleh harness,
    keduanya diperbaiki pada `2090af9`):
 
    - **isian ketik layar pindai setinggi 34 px.** Ini satu-satunya jalan yang tersisa di iPhone,
@@ -322,17 +333,17 @@ yang mungkin tidak menjamin apa pun.
      pemindainya tidak pernah mulai dan kalimat di layar berhenti di "Meminta izin kamera…", yang
      persis salah — izinnya sudah diberikan.
 
-6. **Jebakan Blade `\B@`.** `@else` yang didahului huruf (`…berbeda@else`) **bukan** direktif: ia
+7. **Jebakan Blade `\B@`.** `@else` yang didahului huruf (`…berbeda@else`) **bukan** direktif: ia
    lolos sebagai teks, cabang `@if` di atasnya menelan sisa berkas, dan lembarnya gagal dengan
    "unexpected end of file, expecting elseif". Terjadi pada versi pertama `label-barcode.blade.php`
    dan sekarang tercatat di CONVENTIONS §33.
 
-7. **Urutan rute Laravel.** `items/scan` harus berdiri **di atas** `items/{item}`; di bawahnya
+8. **Urutan rute Laravel.** `items/scan` harus berdiri **di atas** `items/{item}`; di bawahnya
    `scan` tertangkap sebagai `{item}`, pengikatan modelnya gagal, dan **setiap** pemindaian
    menjawab 404 — yang di lapangan terbaca sebagai "pemindainya rusak". Dipaku uji (mutasi 21:
    10 uji merah).
 
-8. **Dua kekeliruan harness sendiri** (diperbaiki dan dicatat di tempatnya):
+9. **Dua kekeliruan harness sendiri** (diperbaiki dan dicatat di tempatnya):
    - skenario yang memaku pasangan canon `WH-PRJ-2026-001 × ITM-0001` jatuh karena item itu
      **sudah** menjadi baris PR disetujui `PR/2026/II/0001` di data demo — **fiturnya bekerja**,
      skenarionya yang tidak bisa dipercaya. Targetnya kini **dipilih dari data saat berjalan**;
@@ -403,7 +414,9 @@ public/app/js/views/widgets/stok-minimum.js          ambang yang menang + urutan
 public/app/js/views/widgets/registry.js              judul + keterangan widget
 public/app/sw.js                                     SHELL + SHELL_VERSION 4 → 5
 docs/CONVENTIONS.md                                  §2 blok lanjutan; §31–§34 baru
-docs/PANDUAN-PENGGUNA.md                             dua kalimat yang menjadi salah
+docs/PANDUAN-PENGGUNA.md                             §6.2 ditulis ulang; §6.3b baru (tiga layar F-6)
+docs/ONBOARDING/{direktur,procurement,project-manager,site-manager,teknisi,warehouse}.md
+                                                     nama kartu dasbor yang sudah berganti
 docs/bukti-uji/harness-playwright.py                 S32, S32m, S33, S33k, S33m
 docs/bukti-uji/results-phase-2.json                  18 → 23 kunci
 tests/Feature/Core/ModuleCountsTest.php              fixture + 2 uji baru
