@@ -958,11 +958,6 @@ function registerRoutes() {
     return guard(host, () => renderKasKecil(host));
   });
 
-  /* Usulan pesan ulang (F-6): membaca kekurangan stok dan menawarkan PR DRAF.
-     Gerbangnya inv.view karena angkanya adalah saldo persediaan; TOMBOL "Buat
-     PR draf" di dalamnya menuntut prc.create tersendiri, dan endpoint-nya
-     menegakkan itu sendiri — layar yang hanya menyembunyikan tombol adalah
-     gerbang yang bisa dilewati siapa pun yang tahu alamat endpoint-nya. */
   /* Pindai barcode (F-6). Gerbangnya inv.view: yang ditampilkan adalah kartu
      item dan saldo stoknya. Kameranya opsional dan layar mengatakan sendiri
      kapan ia tidak ada — jalur ketik selalu tersedia. */
@@ -974,6 +969,11 @@ function registerRoutes() {
     return guard(host, () => renderPindai(host));
   });
 
+  /* Usulan pesan ulang (F-6): membaca kekurangan stok dan menawarkan PR DRAF.
+     Gerbangnya inv.view karena angkanya adalah saldo persediaan; TOMBOL "Buat
+     PR draf" di dalamnya menuntut prc.create tersendiri, dan endpoint-nya
+     menegakkan itu sendiri — layar yang hanya menyembunyikan tombol adalah
+     gerbang yang bisa dilewati siapa pun yang tahu alamat endpoint-nya. */
   route('usulan-pesan-ulang', () => {
     setCrumbs(['Persediaan', 'Usulan Pesan Ulang']);
     setActiveNav('usulan-pesan-ulang');

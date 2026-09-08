@@ -28,20 +28,27 @@ class ReorderRuleApiTest extends ErpTestCase
 {
     use InventoryFixtures;
 
-    private function userWith(array $permissions): User
+    /**
+     * Peran DIBERI NAMA oleh pemanggilnya, karena satu uji memakai dua peran
+     * sekaligus: sebuah `Role::findOrCreate('penjaga-gudang')` yang dipakai
+     * dua kali akan men-syncPermissions peran yang SAMA, sehingga pemakai
+     * pertama diam-diam mewarisi izin pemakai kedua dan ujinya membuktikan
+     * yang lain daripada yang tertulis di namanya.
+     */
+    private function userWith(array $permissions, string $role = 'penjaga-gudang'): User
     {
         $this->seed(PermissionSeeder::class);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $role = Role::findOrCreate('penjaga-gudang', 'web');
-        $role->syncPermissions(Permission::query()->whereIn('name', $permissions)->get());
+        $roleModel = Role::findOrCreate($role, 'web');
+        $roleModel->syncPermissions(Permission::query()->whereIn('name', $permissions)->get());
 
         /** @var User $user */
         $user = User::query()->create([
-            'name' => 'Penjaga Gudang', 'email' => 'gudang@test.local',
+            'name' => 'Pemakai '.$role, 'email' => $role.'@test.local',
             'password' => 'password', 'is_active' => true,
         ]);
-        $user->assignRole($role);
+        $user->assignRole($roleModel);
 
         return $user;
     }
@@ -306,7 +313,24 @@ class ReorderRuleApiTest extends ErpTestCase
             ->assertStatus(422);
     }
 
-    public function test_reading_the_rules_needs_only_inv_view_but_writing_needs_inv_create(): void
+    /**
+     * NAMANYA MENYEBUT APA YANG BENAR-BENAR DIBUKTIKANNYA.
+     *
+     * Uji ini dulu bernama "…reading needs only inv.view…" dan tidak pernah
+     * menanyakan pemakai TANPA inv.view sama sekali; rutenya memang tidak
+     * bergerbang — `Route::get('reorder-rules', …)` hanya di bawah
+     * `auth:sanctum`, sama seperti SETIAP GET Inventory yang sudah ada. Nama
+     * itu berjanji gerbang yang tidak ada, dan pembaca berikutnya yang
+     * menyandarkan keputusan padanya tidak akan menjatuhkan satu uji pun.
+     *
+     * Jadi yang dipaku di sini adalah keduanya, apa adanya: MENULIS menuntut
+     * inv.create, dan MEMBACA mengikuti bawaan modul — terbuka bagi sesi mana
+     * pun. Baris terakhir mendokumentasikan 200 itu SEBAGAI keputusan yang
+     * disengaja (ReorderController docblock menyebutnya), bukan sebagai
+     * kelalaian yang kebetulan lolos; kalau pemilik memutuskan sebaliknya,
+     * baris inilah yang jatuh lebih dulu dan menunjuk tempat gerbangnya.
+     */
+    public function test_writing_a_rule_needs_inv_create_while_reading_follows_the_module_default(): void
     {
         $warehouse = $this->makeWarehouse('GD-PUSAT');
         $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
@@ -319,6 +343,21 @@ class ReorderRuleApiTest extends ErpTestCase
         $this->actingAs($reader, 'sanctum')
             ->postJson('api/inventory/reorder-rules', ['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 10])
             ->assertForbidden();
+
+        // Sesi TANPA satu pun izin inv.*: 200, sama seperti GET Inventory lain
+        // di sekitarnya. Ubin launcher Persediaan MEMANG bergerbang inv.view
+        // (registri ModuleCounts), jadi ubinnya tertutup sementara endpoint-nya
+        // terbuka — selisih yang ada sebelum paket ini dan tercatat sebagai
+        // keputusan pemilik di LAPORAN-PAKET-HM-F-6 §5.
+        $outsider = $this->userWith(['hr.view'], 'staf-hr');
+
+        $this->actingAs($outsider, 'sanctum')
+            ->getJson('api/inventory/reorder-rules')
+            ->assertOk();
+
+        $this->actingAs($outsider, 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk();
     }
 
     public function test_the_list_can_be_narrowed_to_one_warehouse_and_searched_by_item(): void

@@ -114,10 +114,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('stock-adjustments/{stockAdjustment}/approve', [StockAdjustmentController::class, 'approve'])->middleware('permission:inv.approve');
     Route::post('stock-adjustments/{stockAdjustment}/reject', [StockAdjustmentController::class, 'reject'])->middleware('permission:inv.approve');
 
-    // Aturan titik pesan ulang per gudang × item (F-6). Master data biasa
-    // dengan izin inv.* yang sudah ada — tetapi barisnya mengubah arti angka
-    // "perlu dipesan ulang" yang dibaca layar Saldo Stok, widget dasbor, ubin
-    // launcher dan usulan PR, jadi inv.update bukan sekadar formalitas.
+    // Aturan titik pesan ulang per gudang × item (F-6). MENULIS memakai izin
+    // inv.* yang sudah ada — dan barisnya mengubah arti angka "perlu dipesan
+    // ulang" yang dibaca layar Saldo Stok, widget dasbor, ubin launcher dan
+    // usulan PR, jadi inv.update bukan sekadar formalitas.
+    //
+    // MEMBACA TIDAK BERGERBANG, sama seperti setiap GET Inventory di atasnya:
+    // siapa pun yang punya sesi bisa membacanya. Itu bawaan modul ini, bukan
+    // lubang yang F-6 buka — tetapi ia ditulis di sini apa adanya, karena ubin
+    // launcher Persediaan MEMANG bergerbang inv.view (registri ModuleCounts)
+    // dan selisih itu tidak boleh disimpulkan sendiri oleh pembaca berikutnya.
+    // Dipaku ReorderRuleApiTest::test_writing_a_rule_needs_inv_create_while_
+    // reading_follows_the_module_default.
     Route::get('reorder-rules', [ReorderRuleController::class, 'index']);
     Route::post('reorder-rules', [ReorderRuleController::class, 'store'])->middleware('permission:inv.create');
     Route::get('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'show']);
