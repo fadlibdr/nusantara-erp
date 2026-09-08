@@ -301,4 +301,32 @@ class LeadFollowUpDerivationTest extends ErpTestCase
             'Modules/Crm/Database/Migrations/2026_09_08_000396_move_typed_lead_follow_up_into_activities.php'
         );
     }
+
+    /**
+     * LAPISAN KEDUA masih berdiri.
+     *
+     * Kolom turunan dijaga dua kali: `prohibited` di LeadUpdateRequest (diuji
+     * lewat perilaku di atas) dan `Arr::except` di LeadController::writable().
+     * Lapisan kedua TIDAK bisa diamati lewat HTTP selama lapisan pertama utuh —
+     * menghapusnya meninggalkan seluruh uji Crm hijau (diukur verifikasi F-3
+     * putaran 2, 8 Sep 2026) — dan melumpuhkan lapisan pertama hanya untuk uji
+     * berarti menaruh kait uji di kode produksi. Maka yang dipaku di sini adalah
+     * KEBERADAANNYA, dengan cara yang sama uji-uji pin lain di repo ini membaca
+     * sumbernya; docblock-nya menjanjikan lapisan itu ada, dan janji itulah yang
+     * dijaga.
+     */
+    public function test_the_controller_keeps_its_own_guard_on_the_derived_column(): void
+    {
+        $source = (string) file_get_contents(
+            base_path('Modules/Crm/Http/Controllers/LeadController.php'),
+        );
+
+        $this->assertMatchesRegularExpression(
+            "/Arr::except\(\s*\\\$data,[^)]*'next_follow_up_at'/",
+            $source,
+            'LeadController::writable() tidak lagi membuang next_follow_up_at. Kolom turunan itu '
+            .'kemudian hanya dijaga satu aturan permintaan, dan satu rule yang salah pilih '
+            .'membuat tanggal yang dihitung dari aktivitas bisa ditimpa ketikan.',
+        );
+    }
 }

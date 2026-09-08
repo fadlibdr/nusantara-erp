@@ -16,12 +16,27 @@ import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath 
 
 const state = new Map(); // per-resource UI state, kept across navigations
 
-function stateFor(key) {
+function stateFor(key, def) {
   // perPage null = belum pernah diisi; renderList mengisinya dari bawaan skema
   // sekali saja, supaya pilihan pengguna dari pemilih baris-per-halaman ikut
   // menetap di Map ini — aturan yang sama dengan sort dan filter.
   if (!state.has(key)) {
-    state.set(key, { q: '', page: 1, filters: {}, perPage: null, sort: null, dir: null, dateFrom: '', dateTo: '' });
+    /*
+     * `defaultFilters` skema: nilai awal SEKALI, pada kunjungan pertama sesi
+     * ini. Sesudah itu ia milik pemakainya — mengosongkan saringan tidak boleh
+     * dilawan setiap kali layarnya dibuka ulang.
+     *
+     * Antrean kerja harian (crm/activities) memerlukannya: tanpa nilai awal ia
+     * terbuka di ARSIP — 105 aktivitas yang selesai bertahun lalu berdiri di
+     * atas pekerjaan hari ini, karena urutannya due_at menaik LINTAS keadaan —
+     * dan pemberitahuan 08:30 hanya membawa saringannya bila orangnya menekan
+     * tautan itu, bukan bila ia membuka layarnya dari sidebar (verifikasi F-3
+     * putaran 2, 8 Sep 2026).
+     */
+    const defaults = (def && def.defaultFilters) || {};
+    state.set(key, {
+      q: '', page: 1, filters: { ...defaults }, perPage: null, sort: null, dir: null, dateFrom: '', dateTo: '',
+    });
   }
   return state.get(key);
 }
@@ -92,7 +107,7 @@ function seedFromUrl(key, def, ui) {
 }
 
 export async function renderList(host, { key, def }) {
-  const ui = stateFor(key);
+  const ui = stateFor(key, def);
   // Hanya kunjungan pertama yang memakai bawaan skema: menimpa tanpa syarat di
   // sini (versi lama) membuang pilihan baris-per-halaman pengguna pada setiap
   // navigasi sidebar — persis state yang Map di atas ada untuk mengingat.

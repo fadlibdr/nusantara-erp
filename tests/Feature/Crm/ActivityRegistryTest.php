@@ -170,7 +170,14 @@ class ActivityRegistryTest extends ErpTestCase
         $source = (string) file_get_contents(public_path('app/js/views/activities.js'));
         $body = substr($source, (int) strpos($source, 'import {'));
 
-        $this->assertStringContainsString("api.list('crm/activities'", $body,
+        /*
+         * DIHITUNG, bukan dicari sebagai substring: activities.js memanggil
+         * api.list('crm/activities' TIGA kali — sekali untuk isi kartu, dua kali
+         * per_page:1 untuk hitungan. Mengembalikan yang PERTAMA (isi kartunya)
+         * ke api.get meninggalkan substringnya utuh, dan seluruh 308 uji Crm
+         * tetap hijau (diukur verifikasi F-3 putaran 2, 8 Sep 2026).
+         */
+        $this->assertSame(3, substr_count($body, "api.list('crm/activities'"),
             'kartu memakai api.get: amplopnya dibuang dan meta.total tidak pernah sampai ke ringkasannya');
         $this->assertStringContainsString('meta.total', $body,
             'jumlah yang dipajang tidak datang dari server');

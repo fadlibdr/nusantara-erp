@@ -155,7 +155,10 @@ export function activitiesCard(slug, id, module) {
     body,
   ]);
 
-  /** Baris paling banyak yang digambar kartu ini. Papan memakai angka yang sama. */
+  /* Baris paling banyak yang digambar kartu ini. BUKAN angka papan: board.js
+   memakai 50 dan servernya 25 (PipelineBoardController::PER_LANE, dijepit
+   5..100) — komentar lama menyebut keduanya sama, dan itu tidak benar
+   (verifikasi F-3 putaran 2, 8 Sep 2026). */
   const PER_CARD = 100;
 
   async function load() {

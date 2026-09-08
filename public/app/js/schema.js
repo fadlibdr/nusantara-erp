@@ -423,6 +423,12 @@ export const RESOURCES = {
    */
   'crm/activities': {
     module: 'crm', api: 'crm/activities', label: 'Aktivitas CRM', labelOne: 'Aktivitas',
+    /* Antrean kerja HARIAN: terbuka pada yang masih terbuka. Tanpa ini layarnya
+       terbuka di arsip — urutannya due_at menaik lintas keadaan, jadi aktivitas
+       yang selesai bertahun lalu berdiri di atas pekerjaan hari ini (verifikasi
+       F-3 putaran 2). Nilai awal sekali per sesi; sesudah itu saringannya milik
+       pemakainya, termasuk mengosongkannya. */
+    defaultFilters: { state: 'open' },
     columns: [
       { key: 'due_at', label: 'Jatuh tempo', type: 'date', withRelative: true },
       { key: 'subject', label: 'Kegiatan', type: 'text' },

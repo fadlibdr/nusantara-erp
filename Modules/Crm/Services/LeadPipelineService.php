@@ -142,9 +142,22 @@ class LeadPipelineService
             $markable !== null => "buka penawaran {$markable->code} lalu tekan \"{$action}\"",
             // Ada penawaran terbuka, tetapi belum disetujui: langkah yang
             // KURANG disebutkan, bukan disembunyikan.
-            $undecided->isNotEmpty() => "penawaran {$undecided->first()->code} masih "
-                .mb_strtolower($undecided->first()->status?->label() ?? 'terbuka')
-                ." — ajukan dan setujui dulu, lalu tekan \"{$action}\" di penawaran itu",
+            /*
+             * Langkah yang KURANG, disebut setepat keadaannya: penawaran yang
+             * sudah `submitted` hanya menunggu PERSETUJUAN, dan tombol "Ajukan"
+             * memang tidak digambar untuknya (schema.js menggambarnya hanya pada
+             * draft/rejected). Kalimat lama menyuruh menekan tombol yang tidak
+             * ada di layar itu (verifikasi F-3 putaran 2, 8 Sep 2026).
+             */
+            $undecided->isNotEmpty() => sprintf(
+                'penawaran %s masih %s — %s, lalu tekan "%s" di penawaran itu',
+                $undecided->first()->code,
+                mb_strtolower($undecided->first()->status?->label() ?? 'terbuka'),
+                $undecided->first()->status === DocumentStatus::Submitted
+                    ? 'setujui dulu'
+                    : 'ajukan dan setujui dulu',
+                $action,
+            ),
             // Punya penawaran, semuanya sudah diputuskan (mis. prospek yang
             // sudah Menang lalu penawaran keduanya kalah).
             $lead->quotations()->exists() => 'seluruh penawaran prospek ini sudah diputuskan — '

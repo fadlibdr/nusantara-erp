@@ -148,4 +148,30 @@ class LeadPipelineSpaWiringTest extends ErpTestCase
         $this->assertStringContainsString('action.toast ? action.toast(code, result)', $actions,
             'kait toast per-aksi hilang dari runAction — kalimat di schema.js tidak akan pernah dipakai');
     }
+
+    /**
+     * Antrean kerja harian terbuka pada pekerjaan yang masih terbuka.
+     *
+     * Layar Aktivitas CRM adalah tujuan pemberitahuan 08:30 DAN tautan sidebar.
+     * Urutannya due_at menaik lintas keadaan, jadi tanpa nilai awal ia membuka
+     * ARSIP: aktivitas yang selesai bertahun lalu berdiri di atas pekerjaan hari
+     * ini (diukur verifikasi F-3 putaran 2, 8 Sep 2026 — 105 baris selesai
+     * mendahului pekerjaan hidup). `defaultFilters` mengisinya SEKALI per sesi;
+     * sesudah itu saringannya milik pemakainya.
+     */
+    public function test_the_daily_activity_queue_opens_on_open_work(): void
+    {
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $entry = substr($schema, (int) strpos($schema, "'crm/activities': {"), 900);
+
+        $this->assertStringContainsString("defaultFilters: { state: 'open' }", $entry,
+            'Layar Aktivitas CRM tidak lagi membuka pada keadaan terbuka; ia terbuka di arsip, '
+            .'karena urutannya due_at menaik LINTAS keadaan.');
+
+        $list = (string) file_get_contents(public_path('app/js/views/list.js'));
+        $this->assertStringContainsString('def.defaultFilters', $list,
+            'views/list.js tidak lagi membaca defaultFilters, jadi deklarasi skemanya tidak berarti apa pun.');
+        $this->assertStringContainsString('stateFor(key, def)', $list,
+            'renderList tidak lagi mengoper def ke stateFor(), jadi nilai awalnya tidak pernah sampai.');
+    }
 }
