@@ -1628,16 +1628,29 @@ kekurangan membawa ambang yang menang, nama sumbernya (`threshold_source_label`)
 yang kalah: sebuah baris yang menulis "20" padahal kartu itemnya berkata 100 tanpa mengatakan dari
 mana 20 itu datang adalah angka yang tidak bisa diperiksa siapa pun. **Arah sebaliknya sama
 wajibnya**, dan ia terlewat sampai putaran perbaikan F-6: kartu item adalah satu-satunya layar yang
-memajang angka yang KALAH, jadi `ItemResource` mengirim `reorder_rule_note` bila ada aturan AKTIF
-untuk item itu ("N gudang memakai titik pesan ulang sendiri… stok minimum di atas TIDAK berlaku").
-Tanpa itu, yang menaikkan `min_stock` di sana mengira ia sedang mengubah ambang gudang yang punya
-aturan; ia tidak mengubah apa pun.
+memajang angka yang KALAH, jadi `ItemResource` mengirim `reorder_rule_note` bila ada aturan yang
+BERLAKU untuk item itu ("N gudang memakai titik pesan ulang sendiri… stok minimum di atas TIDAK
+berlaku"). Tanpa itu, yang menaikkan `min_stock` di sana mengira ia sedang mengubah ambang gudang
+yang punya aturan; ia tidak mengubah apa pun.
 
-**"Aktif ✓" BUKAN "berlaku".** Item dan gudang menghapus-lembut, relasi aturan memakai
-`withTrashed()` dengan sengaja (supaya namanya selamat dan barisnya tetap bisa dibuang orangnya),
-tetapi kueri kekurangan membuang item dan gudang terhapus lebih dulu — ambang baris seperti itu
-tidak menentukan apa pun sementara saklarnya masih menyala. `ReorderRuleResource` karena itu
-mengirim `applies` dan `deleted_labels`, dan daftarnya menggambarnya sebagai keping.
+**"Aktif ✓" BUKAN "berlaku", DAN "BERLAKU" PUNYA SATU DEFINISI: `ReorderRule::governing()`.**
+Tiga syarat — `is_active`, itemnya hidup, gudangnya hidup — dan ketiganya sudah lama ditegakkan
+kueri kekurangan (`is_active` di klausa ON, `whereNull` pada kedua join-nya). Item dan gudang
+menghapus-lembut, relasi aturan memakai `withTrashed()` dengan sengaja (supaya namanya selamat dan
+barisnya tetap bisa dibuang orangnya), jadi sebuah baris bisa terlihat hidup sementara ambangnya
+tidak menentukan apa pun. `ReorderRuleResource` karena itu mengirim `applies` (= `->governs()`,
+bentuk baris dari scope yang sama) dan `deleted_labels`, dan daftarnya menggambarnya sebagai keping.
+
+**Salinan yang ketiga adalah bagaimana ia dulu bocor.** Sampai putaran kedua F-6 setiap permukaan
+menghitung "berlaku" sendiri, dengan isi yang berbeda: `loadCount` kartu item memeriksa `is_active`
+saja (jadi kartunya berkata "stok minimum di atas TIDAK berlaku" untuk aturan yang gudangnya sudah
+dibuang, sementara layar sebelahnya menandai baris yang sama "Gudang dibuang"), dan `applies`
+memeriksa kedua `deleted_at` saja (jadi aturan NONAKTIF dikirim `applies: true`). Kueri kekurangan
+**tidak bisa** memanggil scope-nya — ia berangkat dari `inv_stock_balances` dan menyapa tabel aturan
+lewat LEFT JOIN, karena pasangan TANPA aturan pun harus muncul — jadi yang menjaga keduanya satu
+arti adalah **ujinya**: `ReorderThresholdTest` memaku bahwa kumpulan `governing()` PERSIS kumpulan
+aturan yang dipatuhi kueri kekurangan, dan bahwa predikat barisnya sepakat dengan kuerinya satu per
+satu.
 
 ## 32. Usulan PR dari kekurangan stok (`ReorderService`, F-6)
 
@@ -1720,7 +1733,27 @@ sehingga barang yang dipindai masuk ke kartu stok barang lain. Karena itu:
   "tombol cetaknya rusak". Dipaku `PrintFormReachabilityTest` untuk SETIAP formulir bespoke.
 - **Barcode ganda disebut DI LEMBARNYA**, sebelum stikernya menempel di rak. Layar pindai memang
   sudah mengatakannya — tetapi ia mengatakannya berbulan kemudian, ketika seseorang memindai stiker
-  yang sudah tertempel, yaitu pada saat yang paling mahal.
+  yang sudah tertempel, yaitu pada saat yang paling mahal. Peringatannya berlaku pada **KODE**-nya,
+  bukan pada gambarnya, jadi ia berdiri **di luar** ketiga cabang lembar ini: stiker yang batangnya
+  tidak dicetak justru yang kodenya diketik ulang orangnya. Yang memutuskan "ganda" adalah
+  `Item::matchingScanCode()` — aturan layar Pindai, bukan salinan (§34).
+- **KODE TULIS-TANGAN DIPENGGAL DENGAN ATURAN YANG SAMA** dengan teks di bawah batang
+  (`Code128::wrapLabel`, publik sejak putaran kedua F-6), dan `font-size`-nya dicetak dari konstanta
+  PHP yang sama dengan yang dipakai menghitung penggalannya. Cabang penolakan mewarisi stiker
+  tulis-tangan dari cabang NON-ASCII, yang tidak pernah punya aturan pemenggalan karena kode
+  non-ASCII yang pernah jatuh ke sana selalu pendek: diukur di Chromium (media=print, kotak
+  56,5 mm), 63 karakter = **120,43 mm** dan 100 karakter = **191,10 mm**, mendorong `.lembar` ke
+  252 dan **322 mm** di atas kertas yang lebar isinya 194 mm — dua stiker tetangga tertimpa dan
+  ekor kodenya di luar halaman, di balik 62 uji hijau yang semuanya menguji KALIMAT.
+- **DAN SATU JARING UNTUK SELURUH LEMBAR** (`overflow-wrap: anywhere` pada `body`): setiap teks di
+  lembar ini datang dari data yang diketik orang — nama item (200 karakter), kode (40), barcode
+  (100), satuan, nama perusahaan. Dengan nama 120 karakter DAN barcode 100 karakter, `.lembar`
+  terukur **376,11 mm**; sesudah jaringnya, keempat kombinasi terukur 194,01 mm = lebar isi halaman,
+  0 kotak meluap. Jaring itu **bukan** aturannya: di mana kode tulis-tangan patah tetap diputuskan
+  PHP, supaya angkanya bisa dipaku uji dan barisnya bisa dibaca orang baris demi baris. Harness S33
+  memaku keduanya sekaligus — `Range.getClientRects()` menghitung kotak baris yang BENAR-BENAR
+  digambar, jadi font yang dicetak berbeda dari font yang dipakai menghitung penggalan terlihat di
+  situ meski jaringnya menahan luapannya.
 
 **F/LBL adalah formulir BESPOKE**, bukan entri `PrintableDocuments`: registri itu menggambar
 dokumen bertanda tangan (pita empat pihak, blok identitas, tiga kolom tanda tangan), dan lembar
@@ -1793,6 +1826,37 @@ keduanya. Memilih diam-diam berarti stok masuk ke kartu barang lain tanpa satu p
 kekeliruan itu baru terlihat pada opname berikutnya. Pencocokannya **PERSIS**, bukan `like`:
 pemindaian adalah pembacaan mesin, ia tepat atau ia gagal. `items/scan` didaftarkan **di atas**
 `items/{item}` — di bawahnya `scan` tertangkap sebagai `{item}` dan setiap pemindaian menjawab 404.
+
+**"KODE MANA YANG DIANGGAP SAMA" HIDUP DI SATU EKSPRESI: `Modules\Inventory\Models\Item`.**
+`SCAN_KEY_COLUMNS` (`barcode`, `code`) adalah satu-satunya daftar kolom kunci, dan
+`whereScanKeyEquals()` satu-satunya bentuk perbandingannya (`UPPER()` di kedua sisi). Di atas
+keduanya berdiri dua scope, untuk dua pertanyaan yang berbeda dengan aturan yang sama:
+
+| scope | pertanyaannya | pemanggilnya |
+|---|---|---|
+| `matchingScanCode($kode)` | item mana yang dipulangkan pemindaian kode INI | `ItemScanController`, `FormPrintService::labelBarcode()` (peringatan ganda pada lembar F/LBL) |
+| `sharingScanCode($ya)` | item mana yang salah satu kodenya juga dijawab item lain | saringan **"Barcode ganda"** pada `GET inventory/items` |
+
+**Tiga salinan adalah bagaimana ia dulu bocor**, dan ketiganya menjawab berbeda: lembar F/LBL
+memakai `where('barcode', …)` yang **peka huruf** di SQLite (jadi ia DIAM untuk `F6DUP001` vs
+`f6dup001` yang layar Pindai sebut ganda) dengan `withTrashed()` (jadi ia MEMPERINGATKAN tentang
+kartu yang sudah dibuang, yang tidak akan pernah dipulangkan pemindaian), dan saringan auditnya
+`GROUP BY barcode HAVING COUNT(*) > 1` — tidak pernah membandingkan barcode dengan **KODE** item
+lain. Untuk `item5.barcode = 'ITM-0002'` (kode item 2), pemindaiannya `ambiguous` dengan dua item,
+kedua lembar labelnya memperingatkan, dan **saringan auditnya memulangkan nol baris**. Itu jawaban
+yang paling mahal yang bisa diberikan permukaan yang dibuat UNTUK keputusan pemilik: ia membaca
+"Tidak ada data", menyimpulkan katalognya bersih, dan menyetujui `UNIQUE` — migrasi yang lalu gagal
+saat deploy. `ScanCodeParityTest` memaku KESETARAAN ketiganya, termasuk satu sapuan katalog yang
+menuntut jawaban yang sama tentang SETIAP item.
+
+**Item yang DIBUANG bukan kembaran**, di ketiga permukaan: pemindaian tidak memulangkannya, jadi
+peringatan "memindai stiker ini akan memulangkan lebih dari satu item" yang datang dari kartu
+terbuang menjanjikan sesuatu yang tidak akan terjadi. Yang boleh `withTrashed()` adalah SUBJEK
+lembarnya (label item terbuang tetap bisa dicetak), bukan kembarannya.
+
+**Lengan "Tidak" pada saringannya `whereNotExists`,** bukan `NOT IN` atas daftar barcode:
+`NULL NOT IN (…)` bernilai NULL, bukan true, dan setiap item yang belum punya barcode — sebagian
+besar katalog — lenyap dari lengan itu tanpa satu pun tanda.
 
 ## 35. Sapuan dokumentasi saat sebuah layar berubah (F-6, putaran kedua)
 

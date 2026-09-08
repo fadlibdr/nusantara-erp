@@ -3674,10 +3674,24 @@ per gudang membuat angkanya hilang sementara barangnya masih di jalan.
 ### 6.3 Master: Item, Kategori Item, Gudang
 
 **`Persediaan › Item`.** Kolom: Kode · Nama item (dengan kategorinya) · Jenis · Satuan ·
-Stok min. · HPP rata-rata · Aktif. Formulir: **Nama item** (wajib) · Kode (*"Kosongkan
-untuk penomoran otomatis (ITM-xxxx)."*) · **Kategori** (wajib) · **Jenis item** (wajib,
-bawaan Material) · **Satuan** (wajib) · Barcode · Stok minimum · Harga beli terakhir ·
-Aktif. Tidak ada persetujuan; **HPP rata-rata tidak pernah bisa diketik**.
+**Barcode** · Stok min. · HPP rata-rata · Aktif. Formulir: **Nama item** (wajib) · Kode
+(*"Kosongkan untuk penomoran otomatis (ITM-xxxx)."*) · **Kategori** (wajib) · **Jenis
+item** (wajib, bawaan Material) · **Satuan** (wajib) · Barcode · Stok minimum · Harga beli
+terakhir · Aktif. Tidak ada persetujuan; **HPP rata-rata tidak pernah bisa diketik**.
+
+**Saringan `Barcode ganda`** (F-6) menjawab satu pertanyaan: *item mana yang salah satu
+kodenya juga dijawab item lain kalau seseorang memindainya?* Ia memakai **aturan layar
+Pindai**, bukan aturannya sendiri — jadi ia ikut menemukan dua hal yang mudah terlewat:
+kode yang sama dengan **huruf besar-kecil berbeda** (`F6DUP001` vs `f6dup001`; pemindainya
+tidak membedakan keduanya), dan **barcode sebuah item yang sama dengan KODE item lain**
+(memindai `ITM-0002` memulangkan dua kartu). Item yang sudah **dibuang** tidak dihitung,
+karena pemindaian tidak memulangkannya. Lengan **Tidak** memuat sisanya, termasuk setiap
+item yang belum punya barcode sama sekali.
+
+> Kolom `Barcode` **belum dipaksa unik**, dan saringan ini ada supaya keputusan itu bisa
+> diambil dari angka: jalankan saringannya sebelum siapa pun mengusulkan `UNIQUE`, karena
+> migrasi yang menambahkannya akan **GAGAL saat deploy** bila katalog produksi sudah
+> memuat satu saja duplikat.
 
 > **"Jenis item" menentukan pos biaya proyek yang dibebani setiap bon selamanya.**
 > **Alat Bantu** membebani anggaran **Alat** proyek; **Material**, **Sparepart**, dan
