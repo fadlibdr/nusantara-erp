@@ -770,6 +770,12 @@ saringan "Barcode ganda" menggambar 3 baris pada katalog bertabrakan (keempat se
 2. **`deleted_labels` tidak mendapat keping "Nonaktif".** `applies` sekarang memperhitungkan
    `is_active`, tetapi kepingnya tetap hanya menyebut yang benar-benar DIBUANG, karena itulah nama
    kolomnya — dan keadaan "nonaktif" sudah punya kolomnya sendiri di layar yang sama ("Aktif ✗").
-3. **Audit enumerasi layar lama di enam berkas onboarding** (§9.6 butir 2) tetap tidak dikerjakan:
+3. **`SHELL_VERSION` TIDAK dinaikkan lagi** meski `public/app/js/schema.js` (berkas cangkang)
+   ikut disunting putaran ini. §21 menuntutnya "pada setiap RILIS yang mengubah berkas cangkang",
+   dan rilis paket ini sudah membawa `5` (dinaikkan `ff2881e`, belum di-deploy): menaikkannya ke
+   `6` di dalam paket yang sama tidak mengumumkan apa pun kepada siapa pun, karena tidak ada tab
+   di dunia yang pernah melihat `5`. Yang dinaikkan pada rilis berikutnya tetap satu angka.
+
+4. **Audit enumerasi layar lama di enam berkas onboarding** (§9.6 butir 2) tetap tidak dikerjakan:
    ia tidak dibuat salah oleh F-6, dan §35 yang ditambahkan putaran ini adalah aturan untuk paket
    BERIKUTNYA, bukan izin membuka enam berkas peran sekaligus hari ini.
