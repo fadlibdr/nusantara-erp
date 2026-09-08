@@ -7013,6 +7013,170 @@ def s30(pg):
 
 
 
+# --------------------------------------- S30r (verifikasi/perbaikan F-3)
+#
+# ENAM KALIMAT YANG PUTARAN VERIFIKASI 8 SEP 2026 BUKTIKAN SALAH, dan yang
+# hanya bisa dibuktikan benar lagi oleh peramban:
+#
+#   1. KARTU AKTIVITAS TIDAK BOLEH MEMAJANG JUMLAH YANG SALAH. Ia menggambar
+#      paling banyak 100 baris; dulu ia memakai `api.get`, yang membuang
+#      amplopnya, lalu memajang "100 terbuka." pada dokumen berisi 110 — tanpa
+#      satu kalimat pun yang mengakui pemotongan, sementara kartu papan untuk
+#      prospek yang sama menyebut angka sebenarnya.
+#   2. LAYAR DETAIL AKTIVITAS MENYEBUT DOKUMEN INDUKNYA, dan menautkannya:
+#      antrean kerja yang barisnya tidak bisa dibuka sampai ke pekerjaannya
+#      adalah antrean buntu.
+#   3. "DISELESAIKAN OLEH" SEKALI, bukan dua kali dengan id mentah di salah
+#      satunya.
+#   4. ANTREAN HARIAN BISA DITANYAKAN: saringan Keadaan ada, dan tautan
+#      ?state=… yang dibawa pemberitahuan jatuh tempo benar-benar menyaring.
+#   5. "BELUM DITUGASKAN" PUNYA KLIK, dan tautannya bisa dibagikan.
+#   6. PAPAN BISA DIPAKAI TANPA TETIKUS DAN BISA DICETAK: kartunya tombol
+#      (Spasi membukanya alih-alih menggulir halaman), dan pada A4 potret
+#      keenam kolomnya utuh alih-alih tiga yang hilang diam-diam.
+
+@scenario("S30_pipeline_crm_repair")
+def s30r(pg):
+    out = {}
+    admin = token_for("admin@nusantara.test")
+
+    # (0) Fixture. Dua aktivitas lewat API supaya turunannya dihitung layanan,
+    #     sisanya disisipkan langsung ke sqlite: 108 POST akan menabrak plafon
+    #     120 permintaan/menit, dan yang diuji di sini bukan endpoint-nya.
+    status, lead = s30_lead(admin, "PT Seratus Sepuluh (fixture S30r)")
+    lead_id = lead.get("id")
+    dekat = (date.today() + timedelta(days=2)).isoformat()
+    jauh = (date.today() + timedelta(days=40)).isoformat()
+    out["fixture_lead"] = {"status": status, "code": lead.get("code")}
+    out["activity_near"] = s30_activity(admin, lead_id, "Telepon paling awal (S30r)", dekat)[0]
+    out["activity_far"] = s30_activity(admin, lead_id, "Telepon paling akhir (S30r)", jauh)[0]
+
+    con = sqlite3.connect(DB)
+    con.executemany(
+        "INSERT INTO crm_activities (document_type, document_id, type, subject, due_at, created_at, updated_at)"
+        " VALUES ('lead', ?, 'note', ?, ?, datetime('now'), datetime('now'))",
+        [(lead_id, f"Sisipan S30r #{i}", (date.today() + timedelta(days=3 + (i % 30))).isoformat()) for i in range(108)])
+    con.commit()
+    out["activities_total"] = con.execute(
+        "SELECT COUNT(*) FROM crm_activities WHERE document_type='lead' AND document_id=?", (lead_id,)).fetchone()[0]
+    con.close()
+
+    # Satu aktivitas SELESAI pada prospek lain — layar detailnya yang dibaca.
+    status, induk = s30_lead(admin, "PT Induk Aktivitas (fixture S30r)", status="new")
+    code, body = api("crm/activities", admin, "POST", {
+        "document_type": "lead", "document_id": induk.get("id"),
+        "type": "meeting", "subject": "Kunjungan pertama (S30r)", "due_at": date.today().isoformat()})
+    activity_id = (body.get("data") or {}).get("id")
+    out["mark_done"] = api(f"crm/activities/{activity_id}/done", admin, "POST")[0]
+
+    # Satu yang SUNGGUH lewat tanggal, supaya "state=overdue" punya sesuatu
+    # untuk dipulangkan — dan supaya yang SELESAI terbukti tidak ikut.
+    kemarin = (date.today() - timedelta(days=6)).isoformat()
+    out["activity_overdue"] = s30_activity(admin, induk.get("id"), "Telepon tagih dokumen (S30r-LEWAT)", kemarin)[0]
+
+    login(pg, "admin@nusantara.test")
+
+    # (1) KARTU AKTIVITAS pada dokumen yang lebih panjang dari kartunya.
+    pg.goto(BASE + f"#/d/crm/leads/{lead_id}")
+    pg.wait_for_timeout(3500)
+    out["card"] = pg.evaluate("""() => {
+      const card = [...document.querySelectorAll('.card')].find(c => (c.querySelector('h2')||{}).innerText === 'Aktivitas');
+      if (!card) return null;
+      const body = card.querySelector('.card-body');
+      return { lines: [...body.children].slice(0, 3).map(n => n.innerText.replace(/\\s+/g,' ').trim()),
+               drawn: body.querySelectorAll('.attachment').length };
+    }""")
+
+    # (2)+(3) LAYAR DETAIL AKTIVITAS: induknya disebut, ditautkan, dan
+    #         penyelesainya disebut SEKALI.
+    pg.goto(BASE + f"#/d/crm/activities/{activity_id}")
+    pg.wait_for_timeout(2500)
+    out["activity_detail"] = pg.evaluate("""() => {
+      const dl = document.querySelector('dl.kv'); const kv = [];
+      if (dl) { const dts=[...dl.querySelectorAll('dt')], dds=[...dl.querySelectorAll('dd')];
+        dts.forEach((dt,i) => kv.push([dt.innerText.trim(), (dds[i]||{}).innerText.trim()])); }
+      return { kv, parent_links: [...document.querySelectorAll('.main a[href^="#/d/crm/leads/"]')].map(a => a.getAttribute('href')) };
+    }""")
+    pg.screenshot(path=f"{OUT}/s30r-detail-aktivitas.png", full_page=False)
+
+    # (4) ANTREAN HARIAN: saringan Keadaan, dan tautan tersaring.
+    pg.goto(BASE + "#/r/crm/activities?state=overdue")
+    pg.wait_for_timeout(2500)
+    out["activity_list"] = pg.evaluate("""() => {
+      const state = [...document.querySelectorAll('.filters select')].find(s => s.getAttribute('aria-label') === 'Keadaan');
+      return { filters: [...document.querySelectorAll('.filters select, .filters input')].map(n => n.getAttribute('aria-label') || n.placeholder),
+               state_value: state ? state.value : null,
+               state_options: state ? [...state.options].map(o => o.text) : null,
+               hash: location.hash,
+               rows: [...document.querySelectorAll('tbody tr')].map(r => r.innerText.replace(/\\s+/g, ' ').trim()) };
+    }""")
+
+    # (5) "BELUM DITUGASKAN": kliknya ada, dan tautannya selamat.
+    pg.goto(BASE + "#/r/crm/leads?unassigned=1")
+    pg.wait_for_timeout(2500)
+    out["leads_list"] = pg.evaluate("""() => ({
+      filters: [...document.querySelectorAll('.filters select, .filters input')].map(n => n.getAttribute('aria-label') || n.placeholder),
+      hash: location.hash,
+      owners: [...document.querySelectorAll('tbody tr')].map(r => r.innerText.includes('Belum ditugaskan')),
+    })""")
+
+    # (6) PAPAN: kartunya tombol, dan kertasnya memuat semua kolom.
+    pg.goto(BASE + "#/b/crm/leads")
+    pg.wait_for_timeout(3000)
+    out["board_card"] = pg.evaluate("""() => { const c = document.querySelector('.board-card');
+      return c && { role: c.getAttribute('role'), aria: c.getAttribute('aria-label'), tabindex: c.getAttribute('tabindex') }; }""")
+    pg.evaluate("() => { window.scrollTo(0, 0); document.querySelector('.board-card').focus(); }")
+    pg.keyboard.press(" ")
+    pg.wait_for_timeout(1500)
+    out["space_key"] = pg.evaluate("() => ({ hash: location.hash, scrollY: window.scrollY })")
+
+    pg.goto(BASE + "#/b/crm/leads")
+    pg.wait_for_timeout(3000)
+    pg.set_viewport_size({"width": 794, "height": 1123})   # A4 potret @96 dpi
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(800)
+    out["print"] = pg.evaluate("""() => { const g = document.querySelector('.board-grid');
+      const cw = document.documentElement.clientWidth;
+      const lanes = [...document.querySelectorAll('.board-lane')];
+      return { client_width: cw, scroll_width: g.scrollWidth, overflow_x: getComputedStyle(g).overflowX,
+               whole_lanes: lanes.filter(l => l.getBoundingClientRect().right <= cw + 1).length, lanes: lanes.length }; }""")
+    pg.screenshot(path=f"{OUT}/s30r-papan-cetak-a4.png", full_page=False)
+    pg.emulate_media(media="screen")
+    pg.set_viewport_size({"width": 1440, "height": 900})
+
+    card = out["card"] or {}
+    lines = " ".join(card.get("lines") or [])
+    kv = dict((k, v) for k, v in (out["activity_detail"]["kv"] or []))
+    finishers = [k for k, _ in (out["activity_detail"]["kv"] or []) if k == "Diselesaikan oleh"]
+
+    out["checks"] = {
+        "the_card_draws_at_most_a_hundred_rows": card.get("drawn") == 100,
+        "and_says_the_real_total_not_the_drawn_one": f"{out['activities_total']} terbuka" in lines,
+        "and_admits_what_it_cut": f"100 dari {out['activities_total']} digambar" in lines,
+        "the_derived_date_still_names_the_earliest_open_activity": "Telepon paling awal (S30r)" in lines,
+        "the_activity_screen_names_its_parent": kv.get("Dokumen", "").startswith(induk.get("code") or "@"),
+        "and_links_to_it": out["activity_detail"]["parent_links"] == [f"#/d/crm/leads/{induk.get('id')}"],
+        "the_finisher_is_named_once": len(finishers) == 1 and kv.get("Diselesaikan oleh") == "Administrator Sistem",
+        "the_daily_queue_can_be_asked_for": "Keadaan" in (out["activity_list"]["filters"] or []),
+        "and_the_notification_link_survives": out["activity_list"]["state_value"] == "overdue"
+            and out["activity_list"]["hash"].endswith("state=overdue"),
+        "and_it_shows_the_late_work_without_the_finished_work":
+            any("S30r-LEWAT" in row for row in out["activity_list"]["rows"])
+            and not any("Kunjungan pertama (S30r)" in row for row in out["activity_list"]["rows"]),
+        "unassigned_has_a_control": "Belum ditugaskan" in (out["leads_list"]["filters"] or []),
+        "and_its_link_really_filters": out["leads_list"]["hash"].endswith("unassigned=1")
+            and all(out["leads_list"]["owners"]) and len(out["leads_list"]["owners"]) > 0,
+        "a_board_card_announces_itself_as_a_button": (out["board_card"] or {}).get("role") == "button",
+        "space_opens_the_card_instead_of_scrolling": out["space_key"]["hash"].startswith("#/d/crm/leads/")
+            and out["space_key"]["scrollY"] == 0,
+        "every_lane_fits_on_paper": out["print"]["whole_lanes"] == out["print"]["lanes"] == 6,
+        "and_the_board_stops_scrolling_sideways_on_paper": out["print"]["overflow_x"] == "visible",
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
 @scenario("S30_pipeline_crm_mobile")
 def s30m(browser):
     """Papan enam kolom di 390 px: kolomnya menggulir DI DALAM .board-grid, dan
@@ -7059,7 +7223,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None)]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

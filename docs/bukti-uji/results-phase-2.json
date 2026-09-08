@@ -1478,14 +1478,14 @@
   "after_backward": {
    "lane": "new",
    "toasts": [
-    "Pindahkan ke Baru berhasil."
+    "LEAD-0003 dipindahkan ke tahap Baru."
    ]
   },
   "drag_to_won": {
    "lane": "new",
    "toasts": [
-    "Pindahkan ke Baru berhasil.",
-    "status: Prospek LEAD-0003 tidak bisa dipindahkan ke Menang lewat tahap: status Menang/Kalah hanya lahir dari keputusan penawaran, bersama nilai dan tanggal keputusannya. Jalannya: prospek ini belum punya penawaran — buat penawarannya lebih dulu, lalu tekan \"Tandai Menang\" di penawaran itu."
+    "LEAD-0003 dipindahkan ke tahap Baru.",
+    "Prospek LEAD-0003 tidak bisa dipindahkan ke Menang lewat tahap: status Menang/Kalah hanya lahir dari keputusan penawaran, bersama nilai dan tanggal keputusannya. Jalannya: prospek ini belum punya penawaran — buat penawarannya lebih dulu, lalu tekan \"Tandai Menang\" di penawaran itu."
    ]
   },
   "activity_card": {
@@ -1495,10 +1495,10 @@
   },
   "history_card": {
    "found": true,
-   "text": "Riwayat Tahap WAKTU DARI KE ARAH ALASAN DOKUMEN OLEH 08 Sep 2026 04.33 Sudah Dihubungi Baru Mundur Kontak PIC berganti, kualifikasi diulang (uji S30) — Administrator Sistem",
+   "text": "Riwayat Tahap WAKTU DARI KE ARAH ALASAN DOKUMEN OLEH 08 Sep 2026 06.32 Sudah Dihubungi Baru Mundur Kontak PIC berganti, kualifikasi diulang (uji S30) — Administrator Sistem",
    "rows": [
     [
-     "08 Sep 2026 04.33",
+     "08 Sep 2026 06.32",
      "Sudah Dihubungi",
      "Baru",
      "Mundur",
@@ -1581,7 +1581,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 31731,
+  "_ms": 27099,
   "_clicks": 4
  },
  "S30_pipeline_crm_mobile": {
@@ -1598,7 +1598,154 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5822,
+  "_ms": 5600,
+  "_clicks": 0
+ },
+ "S30_pipeline_crm_repair": {
+  "fixture_lead": {
+   "status": 201,
+   "code": "LEAD-0007"
+  },
+  "activity_near": 201,
+  "activity_far": 201,
+  "activities_total": 110,
+  "mark_done": 200,
+  "activity_overdue": 201,
+  "card": {
+   "lines": [
+    "110 terbuka.",
+    "100 dari 110 digambar — sisanya (yang jatuh temponya paling akhir, dan yang tanpa tanggal) ada di layar Aktivitas CRM.",
+    "Tindak lanjut berikutnya 10 Sep 2026 — diturunkan dari aktivitas terbuka paling awal (\"Telepon paling awal (S30r)\")."
+   ],
+   "drawn": 100
+  },
+  "activity_detail": {
+   "kv": [
+    [
+     "Jenis dokumen",
+     "Prospek"
+    ],
+    [
+     "Dokumen",
+     "LEAD-0008 PT Induk Aktivitas (fixture S30r)"
+    ],
+    [
+     "Jenis",
+     "Rapat"
+    ],
+    [
+     "Kegiatan",
+     "Kunjungan pertama (S30r)"
+    ],
+    [
+     "Catatan",
+     "—"
+    ],
+    [
+     "Jatuh tempo",
+     "08 Sep 2026"
+    ],
+    [
+     "Selesai pada",
+     "08 Sep 2026 06.35"
+    ],
+    [
+     "Diselesaikan oleh",
+     "Administrator Sistem"
+    ],
+    [
+     "Pemilik prospek",
+     "Belum ditugaskan"
+    ],
+    [
+     "Masih terbuka",
+     "Tidak"
+    ],
+    [
+     "Lewat tanggal",
+     "Tidak"
+    ]
+   ],
+   "parent_links": [
+    "#/d/crm/leads/8"
+   ]
+  },
+  "activity_list": {
+   "filters": [
+    "Cari",
+    "Keadaan",
+    "Jenis",
+    "Dokumen",
+    "Pemilik",
+    "Dari tanggal",
+    "Sampai tanggal"
+   ],
+   "state_value": "overdue",
+   "state_options": [
+    "Keadaan",
+    "Terbuka",
+    "Lewat tanggal",
+    "Selesai"
+   ],
+   "hash": "#/r/crm/activities?state=overdue",
+   "rows": [
+    "02 Sep 2026 6 hari lalu Telepon tagih dokumen (S30r-LEWAT) Telepon LEAD-0008 PT Induk Aktivitas (fixture S30r) Prospek Belum ditugaskan —"
+   ]
+  },
+  "leads_list": {
+   "filters": [
+    "Cari",
+    "Status",
+    "Pemilik prospek",
+    "Belum ditugaskan"
+   ],
+   "hash": "#/r/crm/leads?unassigned=1",
+   "owners": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "board_card": {
+   "role": "button",
+   "aria": "LEAD-0008 — buka dokumennya",
+   "tabindex": "0"
+  },
+  "space_key": {
+   "hash": "#/d/crm/leads/8",
+   "scrollY": 0
+  },
+  "print": {
+   "client_width": 794,
+   "scroll_width": 794,
+   "overflow_x": "visible",
+   "whole_lanes": 6,
+   "lanes": 6
+  },
+  "checks": {
+   "the_card_draws_at_most_a_hundred_rows": true,
+   "and_says_the_real_total_not_the_drawn_one": true,
+   "and_admits_what_it_cut": true,
+   "the_derived_date_still_names_the_earliest_open_activity": true,
+   "the_activity_screen_names_its_parent": true,
+   "and_links_to_it": true,
+   "the_finisher_is_named_once": true,
+   "the_daily_queue_can_be_asked_for": true,
+   "and_the_notification_link_survives": true,
+   "and_it_shows_the_late_work_without_the_finished_work": true,
+   "unassigned_has_a_control": true,
+   "and_its_link_really_filters": true,
+   "a_board_card_announces_itself_as_a_button": true,
+   "space_opens_the_card_instead_of_scrolling": true,
+   "every_lane_fits_on_paper": true,
+   "and_the_board_stops_scrolling_sideways_on_paper": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 22359,
   "_clicks": 0
  }
 }
