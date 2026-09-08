@@ -256,6 +256,63 @@ class OverheadBudgetTest extends ErpTestCase
         }
     }
 
+    /**
+     * TAHUN BUKU BERUBAH → KODENYA IKUT (verifikasi F-2 putaran 2).
+     *
+     * Kode dicetak sekali saat barisnya dibuat, sedangkan update() dan
+     * OverheadBudgetUpdateRequest mengizinkan `period_year` diganti selama
+     * dokumennya masih draf/ditolak. Terukur sebelum perbaikan:
+     * create(2031) -> OVB/2031/0001; update({period_year: 2032}) -> period_year
+     * 2032 dengan kode TETAP OVB/2031/0001 — dan kalimat penolakan "satu per
+     * tahun" untuk 2032 akan berbunyi "Tahun buku 2032 sudah punya anggaran
+     * overhead yang disetujui (OVB/2031/0001)": dua tahun berbeda dalam satu
+     * kalimat, pada dokumen yang seluruh identitasnya adalah sebuah tahun
+     * (cacat f2-money-10, yang commit 405fa97 tutup untuk jalur pembuatan).
+     */
+    public function test_changing_the_fiscal_year_of_an_editable_budget_reprints_its_code(): void
+    {
+        $budget = $this->budget(2031, ['6-1100' => 100_000_000]);
+        $this->assertSame('OVB/2031/0001', $budget->refresh()->code);
+
+        $this->service->update($budget, ['period_year' => 2032]);
+
+        $budget->refresh();
+        $this->assertSame(2032, $budget->period_year);
+        $this->assertSame('OVB/2032/0001', $budget->code);
+
+        // Tahun yang ditinggalkan tetap punya urutannya sendiri, dan kalimat
+        // penolakannya menyebut SATU tahun.
+        $tetap = $this->budget(2031, ['6-1100' => 200_000_000]);
+        $this->assertSame('OVB/2031/0002', $tetap->refresh()->code);
+
+        $this->service->submit($budget, $this->maker());
+        $this->service->approve($budget, $this->checker());
+
+        $kedua = $this->budget(2032, ['6-1100' => 300_000_000]);
+
+        try {
+            $this->service->submit($kedua, $this->maker());
+            $this->fail('OVB kedua untuk tahun yang sama seharusnya ditolak');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('Tahun buku 2032', $e->getMessage());
+            $this->assertStringContainsString('OVB/2032/0001', $e->getMessage());
+            $this->assertStringNotContainsString('OVB/2031', $e->getMessage());
+        }
+    }
+
+    /** Tahun yang TIDAK berubah tidak menerbitkan nomor baru — kode dokumen tidak bergoyang tanpa sebab. */
+    public function test_updating_a_budget_without_touching_its_year_keeps_its_code(): void
+    {
+        $budget = $this->budget(2033, ['6-1100' => 100_000_000]);
+        $code = $budget->refresh()->code;
+
+        $this->service->update($budget, ['notes' => 'catatan baru']);
+        $this->assertSame($code, $budget->refresh()->code);
+
+        $this->service->update($budget, ['period_year' => 2033, 'notes' => 'lagi']);
+        $this->assertSame($code, $budget->refresh()->code);
+    }
+
     // ----------------------------------------------------------- pembatalan
 
     /**

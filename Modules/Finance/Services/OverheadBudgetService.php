@@ -7,6 +7,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Services\DocumentNumberService;
 use Modules\Core\Support\Money;
 use Modules\Core\Support\WatchedThresholds;
 use Modules\Finance\Models\OverheadBudget;
@@ -64,13 +65,38 @@ class OverheadBudgetService
         });
     }
 
+    /**
+     * DAN TAHUN BUKU YANG BERUBAH MENERBITKAN KODE BARU (verifikasi F-2
+     * putaran 2).
+     *
+     * Kode dicetak sekali saat barisnya dibuat (HasDocumentNumber::creating),
+     * sedangkan tahun bukunya boleh diganti selama dokumennya masih
+     * draf/ditolak. Terukur sebelum perbaikan: create({period_year: 2031}) →
+     * OVB/2031/0001, lalu update({period_year: 2032}) → period_year 2032 dengan
+     * kode TETAP OVB/2031/0001 — dan kalimat penolakan "satu per tahun" untuk
+     * 2032 berbunyi "Tahun buku 2032 sudah punya anggaran overhead yang
+     * disetujui (OVB/2031/0001)": dua tahun berbeda dalam satu kalimat, pada
+     * dokumen yang seluruh identitasnya adalah sebuah tahun.
+     *
+     * Nomornya diambil dari urutan tahun BARU, jadi tidak ada kode yang
+     * bertabrakan; nomor yang ditinggalkan di tahun lama menjadi lubang, sama
+     * seperti lubang yang ditinggalkan draf yang dihapus.
+     */
     public function update(OverheadBudget $budget, array $data): OverheadBudget
     {
         $this->assertEditable($budget, 'diubah');
 
         return DB::transaction(function () use ($budget, $data): OverheadBudget {
+            $year = isset($data['period_year']) ? (int) $data['period_year'] : (int) $budget->period_year;
+
+            if ($year !== (int) $budget->period_year) {
+                $budget->forceFill([
+                    'code' => app(DocumentNumberService::class)->next($budget->documentType, null, $year),
+                ])->save();
+            }
+
             $budget->fill([
-                'period_year' => isset($data['period_year']) ? (int) $data['period_year'] : $budget->period_year,
+                'period_year' => $year,
                 'notes' => $data['notes'] ?? $budget->notes,
             ])->save();
 
