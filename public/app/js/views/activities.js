@@ -8,7 +8,7 @@
  * adalah kartu yang selalu 422, atau dokumen yang diam-diam tidak bisa mencatat
  * satu pun aktivitas).
  *
- * TIGA ATURAN KEJUJURAN YANG MEMBENTUK BERKAS INI.
+ * EMPAT ATURAN KEJUJURAN YANG MEMBENTUK BERKAS INI.
  *
  *  1. KARTU KOSONG MENGATAKAN DIRINYA KOSONG — "Belum ada aktivitas dicatat",
  *     bukan "0 aktivitas". Angka nol yang dipajang sebagai hasil pengukuran
@@ -21,6 +21,14 @@
  *     itu turunan sejak F-3 (T3.3) dan tidak bisa lagi diketik di formulir;
  *     tanpa kalimat ini, satu-satunya penjelasannya adalah 422 yang baru muncul
  *     setelah orangnya terlanjur mengetik.
+ *  4. YANG DIPOTONG DIAKUI, DAN JUMLAHNYA DATANG DARI SERVER (verifikasi F-3,
+ *     8 Sep 2026). Kartu ini mengambil paling banyak PER_CARD baris; sampai
+ *     hari itu ia memakai `api.get`, yang membuang amplopnya, lalu menghitung
+ *     ringkasannya dari baris yang kebetulan termuat — "100 terbuka." pada
+ *     dokumen berisi 110, tanpa satu kalimat pun yang mengakui sisanya. Kini
+ *     `api.list` membawa `meta.total`, kalimat "N dari M digambar" muncul
+ *     seperti di papan, dan pada kartu yang terpotong angka terbuka/lewat
+ *     tanggal ditanyakan lagi ke server alih-alih ditaksir dari yang terlihat.
  */
 
 import { api, session } from '../api.js';
@@ -147,14 +155,56 @@ export function activitiesCard(slug, id, module) {
     body,
   ]);
 
+  /** Baris paling banyak yang digambar kartu ini. Papan memakai angka yang sama. */
+  const PER_CARD = 100;
+
   async function load() {
     clear(body).appendChild(el('p.muted', { text: 'Memuat…', style: { margin: 0 } }));
 
-    let rows;
+    let payload;
     try {
-      rows = await api.get('crm/activities', { document_type: documentType, document_id: id, per_page: 100 });
+      /* api.list, BUKAN api.get: `get` membuang amplopnya dan hanya memulangkan
+         `data`, jadi `meta.total` tidak pernah sampai ke sini dan kartunya
+         menghitung ringkasannya dari baris yang KEBETULAN termuat. Diukur
+         8 Sep 2026 pada satu prospek berisi 110 pekerjaan terbuka: kartu
+         berbunyi "100 terbuka." sementara kartu papan untuk prospek yang sama
+         persis menyebut 110 (server withCount) — dua layar di satu paket, satu
+         di antaranya berbohong tanpa satu kalimat pun yang mengaku. */
+      payload = await api.list('crm/activities',
+        { document_type: documentType, document_id: id, per_page: PER_CARD });
     } catch (error) {
       return clear(body).appendChild(errorState(error, load));
+    }
+
+    const rows = (payload && payload.data) || [];
+    const meta = (payload && payload.meta) || {};
+    const total = typeof meta.total === 'number' ? meta.total : rows.length;
+    const hidden = Math.max(0, total - rows.length);
+
+    /* Yang TIDAK digambar tetap harus dihitung, dan satu-satunya yang bisa
+       menghitungnya adalah server. Dua permintaan tambahan HANYA pada kartu
+       yang terpotong (per_page tercapai) — bukan pada setiap kartu di
+       aplikasi: yang normal tidak membayar apa pun. `state=open` sekaligus
+       memulangkan aktivitas terbuka PALING AWAL (urutannya due_at menaik,
+       yang tanpa tanggal di bawah), yaitu baris yang menjelaskan tanggal
+       tindak lanjut prospek — tanpa ini kalimat turunannya ikut dihitung dari
+       100 baris yang termuat dan bisa menyebut aktivitas yang salah. */
+    let counted = null;
+    if (hidden) {
+      try {
+        const [openPage, overduePage] = await Promise.all([
+          api.list('crm/activities', { document_type: documentType, document_id: id, state: 'open', per_page: 1 }),
+          api.list('crm/activities', { document_type: documentType, document_id: id, state: 'overdue', per_page: 1 }),
+        ]);
+        counted = {
+          open: openPage.meta.total,
+          overdue: overduePage.meta.total,
+          earliest: (openPage.data || [])[0] || null,
+        };
+      } catch {
+        // Gagal = tidak ada angka tambahan, bukan angka karangan.
+        counted = null;
+      }
     }
 
     clear(body);
@@ -162,6 +212,10 @@ export function activitiesCard(slug, id, module) {
     const open = rows.filter((row) => row.is_open);
     const done = rows.filter((row) => !row.is_open);
     const overdue = open.filter((row) => row.is_overdue);
+
+    const openCount = counted ? counted.open : open.length;
+    const overdueCount = counted ? counted.overdue : overdue.length;
+    const doneCount = counted ? total - counted.open : done.length;
 
     /* Kalimat pembuka: apa yang terbuka, berapa yang lewat tanggal. Sebuah
        kartu tanpa satu baris pun MENGATAKANNYA — "Belum ada aktivitas
@@ -173,8 +227,19 @@ export function activitiesCard(slug, id, module) {
       }));
     } else {
       body.appendChild(el('.cell-sub', {
-        text: `${open.length} terbuka${overdue.length ? `, ${overdue.length} lewat tanggal` : ''}`
-          + `${done.length ? ` · ${done.length} selesai` : ''}.`,
+        text: `${openCount} terbuka${overdueCount ? `, ${overdueCount} lewat tanggal` : ''}`
+          + `${doneCount ? ` · ${doneCount} selesai` : ''}.`,
+        style: { margin: '0 0 8px' },
+      }));
+    }
+
+    /* PEMOTONGAN DIAKUI, dengan kalimat yang sama bentuknya dengan papan
+       ("25 dari 31 digambar"): sebuah daftar yang berhenti diam-diam adalah
+       cara orang mengira ia sudah melihat semuanya. */
+    if (hidden) {
+      body.appendChild(el('.cell-sub', {
+        text: `${rows.length} dari ${total} digambar — sisanya (yang jatuh temponya paling akhir, `
+          + 'dan yang tanpa tanggal) ada di layar Aktivitas CRM.',
         style: { margin: '0 0 8px' },
       }));
     }
@@ -182,7 +247,9 @@ export function activitiesCard(slug, id, module) {
     /* Kartu PROSPEK menyebut asal tanggal tindak lanjutnya — kolom turunan
        (T3.3) yang tidak bisa lagi diketik di formulir. */
     if (documentType === 'lead') {
-      const earliest = open.filter((row) => row.due_at).sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
+      const drawnEarliest = open.filter((row) => row.due_at).sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
+      const fromServer = counted && counted.earliest && counted.earliest.due_at ? counted.earliest : null;
+      const earliest = counted ? fromServer : drawnEarliest;
       body.appendChild(el('.cell-sub', {
         text: earliest
           ? `Tindak lanjut berikutnya ${fmt.date(earliest.due_at)} — diturunkan dari aktivitas terbuka paling awal ("${earliest.subject}").`

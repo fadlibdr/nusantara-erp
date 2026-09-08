@@ -92,6 +92,31 @@ class ActivityRegistryTest extends ErpTestCase
         $this->assertStringNotContainsString('0 aktivitas', $body);
     }
 
+    /**
+     * KARTUNYA MEMBACA AMPLOPNYA, dan mengaku bila memotong.
+     *
+     * `api.get` membuang amplop dan hanya memulangkan `data`, jadi kartu yang
+     * memakainya menghitung ringkasannya dari baris yang KEBETULAN termuat.
+     * Diukur 8 Sep 2026 pada satu prospek berisi 110 aktivitas terbuka: kartu
+     * Aktivitas berbunyi "100 terbuka." dan menggambar 100 baris tanpa satu
+     * kalimat pun yang mengakui pemotongan, sementara kartu papan untuk
+     * prospek yang sama berbunyi "110 aktivitas terbuka" (server withCount).
+     * Dua layar di satu paket, satu di antaranya berbohong.
+     */
+    public function test_the_card_reads_the_envelope_and_admits_truncation(): void
+    {
+        $source = (string) file_get_contents(public_path('app/js/views/activities.js'));
+        $body = substr($source, (int) strpos($source, 'import {'));
+
+        $this->assertStringContainsString("api.list('crm/activities'", $body,
+            'kartu memakai api.get: amplopnya dibuang dan meta.total tidak pernah sampai ke ringkasannya');
+        $this->assertStringContainsString('meta.total', $body,
+            'jumlah yang dipajang tidak datang dari server');
+        $this->assertStringContainsString('digambar', $body,
+            'pemotongan tidak diakui satu kalimat pun — sebuah daftar yang berhenti diam-diam '
+            .'adalah cara orang mengira ia sudah melihat semuanya');
+    }
+
     /** @return list<string> */
     private function javascriptSlugs(): array
     {
