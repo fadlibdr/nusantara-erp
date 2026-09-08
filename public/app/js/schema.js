@@ -43,6 +43,24 @@ const ALASAN_MUNDUR = [{
     help: 'Tersimpan permanen di Riwayat Tahap prospek ini dan dibaca saat corong ditinjau. Minimal 5 karakter.',
   },
 }];
+/*
+ * Kalimat toast sebuah perpindahan tahap prospek (F-3; verifikasi 8 Sep 2026).
+ *
+ * SUBJEKNYA PROSPEKNYA, bukan tombolnya. actions.js jatuh ke
+ * "`${action.label} berhasil.`" untuk aksi yang tidak punya bentuk lampau di
+ * PAST — jadi seretan di papan berbunyi "Pindahkan ke Baru berhasil.", yang
+ * pada kolom berisi 31 kartu tidak mengatakan prospek MANA yang berpindah,
+ * sementara server sudah mengirim kalimat yang lebih baik ("LEAD-0003
+ * dipindahkan ke tahap Baru.") yang tidak pernah sampai ke layar. Tahap
+ * tujuannya dibaca dari JAWABAN server, bukan dari tombol yang diklik: satu
+ * fungsi melayani ketujuh aksinya, termasuk "Ubah Tahap" yang tujuannya baru
+ * diketahui setelah orangnya memilih. Tanpa status_label (jawaban yang tidak
+ * memuatnya) kalimatnya mengaku tidak tahu tujuannya alih-alih mengarang.
+ */
+const TOAST_TAHAP = (code, result) => (result && result.status_label
+  ? `${code} dipindahkan ke tahap ${result.status_label}.`
+  : `${code} dipindahkan tahapnya.`);
+
 const IS_DRAFT = (row) => row.status === 'draft';
 const IS_SUBMITTED = (row) => row.status === 'submitted';
 
@@ -313,7 +331,7 @@ export const RESOURCES = {
        */
       {
         key: 'move-stage', label: 'Ubah Tahap', path: '{id}/pipeline', method: 'POST',
-        perm: 'crm.update', variant: 'primary',
+        perm: 'crm.update', variant: 'primary', toast: TOAST_TAHAP,
         when: (row) => row.status !== 'won' && row.status !== 'lost',
         fields: [{
           key: 'status', label: 'Tahap tujuan', type: 'select', required: true,
@@ -349,26 +367,32 @@ export const RESOURCES = {
       {
         key: 'to-new', label: 'Pindahkan ke Baru', path: '{id}/pipeline', method: 'POST',
         perm: 'crm.update', boardOnly: true, body: { status: 'new' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
       },
       {
         key: 'to-contacted', label: 'Pindahkan ke Sudah Dihubungi', path: '{id}/pipeline', method: 'POST',
         perm: 'crm.update', boardOnly: true, body: { status: 'contacted' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
       },
       {
         key: 'to-qualified', label: 'Pindahkan ke Terkualifikasi', path: '{id}/pipeline', method: 'POST',
         perm: 'crm.update', boardOnly: true, body: { status: 'qualified' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
       },
       {
         key: 'to-proposal', label: 'Pindahkan ke Penawaran Dikirim', path: '{id}/pipeline', method: 'POST',
         perm: 'crm.update', boardOnly: true, body: { status: 'proposal' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
       },
       {
         key: 'to-won', label: 'Pindahkan ke Menang', path: '{id}/pipeline', method: 'POST',
         perm: 'crm.update', boardOnly: true, body: { status: 'won' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
       },
       {
         key: 'to-lost', label: 'Pindahkan ke Kalah', path: '{id}/pipeline', method: 'POST',
         perm: 'crm.update', boardOnly: true, body: { status: 'lost' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
       },
     ],
     board: {

@@ -120,4 +120,32 @@ class LeadPipelineSpaWiringTest extends ErpTestCase
     {
         $this->assertStringContainsString("{ label: 'Papan Pipeline', route: 'b/crm/leads' },", $this->schema());
     }
+
+    /**
+     * TOAST PERPINDAHAN MENYEBUT PROSPEKNYA.
+     *
+     * actions.js jatuh ke "`${action.label} berhasil.`" untuk kunci yang tidak
+     * punya bentuk lampau di PAST, dan tidak satu pun aksi pipeline ada di
+     * sana. Terukur di S30 (hasil yang dikomit maupun putaran verifikasi):
+     * after_backward.toasts = ["Pindahkan ke Baru berhasil."] — pada papan
+     * berisi 31 kartu di satu kolom, kalimat itu tidak mengatakan prospek MANA
+     * yang berpindah, sementara server sudah mengirim "LEAD-0003 dipindahkan ke
+     * tahap Baru." yang tidak pernah sampai ke layar. Ketujuh aksinya (tombol
+     * dokumen + enam kolom) memakai satu kalimat, dan tahapnya dibaca dari
+     * jawaban server.
+     */
+    public function test_every_stage_move_announces_the_lead_and_its_new_stage(): void
+    {
+        $source = $this->schema();
+
+        $this->assertStringContainsString('const TOAST_TAHAP = (code, result)', $source);
+        $this->assertStringContainsString('result.status_label', $source,
+            'tahap tujuan ditebak dari tombol, bukan dibaca dari jawaban server');
+        $this->assertSame(7, substr_count($this->leadBlock(), 'toast: TOAST_TAHAP'),
+            'ada aksi tahap yang masih berbunyi "<label> berhasil." tanpa menyebut prospeknya');
+
+        $actions = (string) file_get_contents(public_path('app/js/views/actions.js'));
+        $this->assertStringContainsString('action.toast ? action.toast(code, result)', $actions,
+            'kait toast per-aksi hilang dari runAction — kalimat di schema.js tidak akan pernah dipakai');
+    }
 }
