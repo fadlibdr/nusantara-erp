@@ -186,6 +186,65 @@ class BoardWiringTest extends ErpTestCase
         $this->assertStringContainsString('if (from === to) return;', $source);
     }
 
+    /**
+     * KARTU YANG BISA DIFOKUS PUNYA PERAN, DAN SPASI MEMBUKANYA.
+     *
+     * Kartu papan memasang tabindex="0" sejak P1-G, tetapi tanpa role dan
+     * tanpa penangan Spasi. Diukur 8 Sep 2026 (fokus di kartu pertama, tombol
+     * ditekan berurutan): ArrowRight/ArrowDown tidak memindahkan apa pun,
+     * Spasi menggulirkan halaman (scrollY 0 → 827 → 1614) dan kartunya tetap
+     * di kolomnya. Papan ini memang tidak punya jalan keyboard untuk
+     * MEMINDAHKAN kartu — jalan yang ada adalah membuka dokumennya dan memakai
+     * tombol aksinya — jadi yang wajib: kartunya mengumumkan dirinya sebagai
+     * tombol, Spasi berperilaku seperti pada tombol (tanpa menggulir), dan
+     * kalimat pengantar papan MENYEBUT jalan itu alih-alih membiarkan orang
+     * yang tidak bisa menyeret menyimpulkan sendiri.
+     */
+    public function test_a_board_card_behaves_like_a_button_and_says_the_way_that_exists(): void
+    {
+        $source = (string) file_get_contents(public_path('app/js/views/board.js'));
+
+        $this->assertStringContainsString("tabindex: '0'", $source);
+        $this->assertStringContainsString("role: 'button'", $source,
+            'kartu bisa difokus tanpa peran: pembaca layar mengumumkannya sebagai teks yang entah kenapa bisa difokus');
+        $this->assertStringContainsString("'aria-label'", $source);
+        $this->assertStringContainsString("event.key !== ' '", $source,
+            'Spasi tidak ditangani: ia menggulirkan halaman alih-alih membuka kartunya');
+        $this->assertStringContainsString('event.preventDefault();', $source,
+            'Spasi ditangani tanpa menahan guliran bawaannya');
+        $this->assertStringContainsString('Tanpa menyeret:', $source,
+            'papan tidak menyebutkan jalan yang ADA bagi orang yang tidak bisa menyeret');
+    }
+
+    /**
+     * PAPAN YANG DICETAK TIDAK BOLEH MEMOTONG KOLOM DIAM-DIAM.
+     *
+     * Blok @media print rumah ini mengembalikan setiap pembungkus gulir menjadi
+     * `overflow: visible` (.chart-scroll, .table-wrap — "kertas tidak
+     * menggulung, jadi seluruh baris harus mengalir"); .board-grid terlewat.
+     * Diukur dengan emulate_media('print') pada 794 px (A4 potret @96 dpi):
+     * scrollWidth 1500 px, 3 dari 6 kolom papan prospek utuh di halaman, tiga
+     * sisanya hilang tanpa satu kalimat pun yang mengaku.
+     */
+    public function test_the_print_stylesheet_does_not_cut_the_board(): void
+    {
+        $css = (string) file_get_contents(public_path('app/app.css'));
+
+        $blocks = [];
+        $offset = 0;
+        while (($at = strpos($css, '@media print', $offset)) !== false) {
+            $offset = $at + 12;
+            $end = strpos($css, "\n}", $at);
+            $blocks[] = substr($css, $at, $end === false ? 4000 : $end - $at);
+        }
+
+        $this->assertNotSame([], $blocks, 'tidak ada satu pun blok @media print terbaca');
+        $printed = implode("\n", $blocks);
+
+        $this->assertMatchesRegularExpression('/\.board-grid\s*\{[^}]*overflow:\s*visible/', $printed,
+            'papan tetap menggulir mendatar di kertas — kolom yang tidak muat hilang tanpa mengaku');
+    }
+
     /* ------------------------------------------------------------ perkakas */
 
     /** @return array<string, array{enum: string, lanes: list<string>, moves: array<string, string>}> */

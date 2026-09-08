@@ -1419,5 +1419,333 @@
   "ok": true,
   "_ms": 5465,
   "_clicks": 0
+ },
+ "S30_pipeline_crm": {
+  "lead_created": {
+   "status": 201,
+   "code": "LEAD-0003",
+   "owner": "Belum ditugaskan"
+  },
+  "activity_far": 201,
+  "activity_near": 201,
+  "expected_follow_up": "2026-09-11",
+  "empty_lead": {
+   "status": 201,
+   "code": "LEAD-0004"
+  },
+  "board": {
+   "h1": "Papan Prospek (Lead)",
+   "lanes": [
+    {
+     "status": "new",
+     "cards": []
+    },
+    {
+     "status": "contacted",
+     "cards": [
+      "LEAD-0003 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
+      "LEAD-0004 Rp 0 PT Tanpa Aktivitas (fixture S30) Belum ditugaskan",
+      "LEAD-0002 Rp 4,5 M Ir. Bambang Setiawan Administrator Sistem"
+     ]
+    },
+    {
+     "status": "qualified",
+     "cards": [
+      "LEAD-0001 Rp 65 M Rudi Hartanto Administrator Sistem"
+     ]
+    },
+    {
+     "status": "proposal",
+     "cards": []
+    },
+    {
+     "status": "won",
+     "cards": []
+    },
+    {
+     "status": "lost",
+     "cards": []
+    }
+   ]
+  },
+  "unassigned_card": "LEAD-0003 Rp 0 PT Cahaya Nusantara (fixture S30) 11 Sep 2026 Belum ditugaskan 2 aktivitas terbuka",
+  "backward_dialog": {
+   "open": true,
+   "title": "Alasan mundur",
+   "text": "Alasan mundur Prospek LEAD-0003 mundur dari Sudah Dihubungi ke Baru: sebutkan alasannya (minimal 5 karakter). Alasan ini tersimpan di riwayat tahap prospek dan dibaca saat corong ditinjau. Alasan mundur* Tersimpan permanen di Riwayat Tahap prospek ini dan dibaca saat corong ditinjau. Minimal 5 karakter. Batal Pindahkan"
+  },
+  "after_cancel": "contacted",
+  "after_backward": {
+   "lane": "new",
+   "toasts": [
+    "LEAD-0003 dipindahkan ke tahap Baru."
+   ]
+  },
+  "drag_to_won": {
+   "lane": "new",
+   "toasts": [
+    "LEAD-0003 dipindahkan ke tahap Baru.",
+    "Prospek LEAD-0003 tidak bisa dipindahkan ke Menang lewat tahap: status Menang/Kalah hanya lahir dari keputusan penawaran, bersama nilai dan tanggal keputusannya. Jalannya: prospek ini belum punya penawaran — buat penawarannya lebih dulu, lalu tekan \"Tandai Menang\" di penawaran itu."
+   ]
+  },
+  "activity_card": {
+   "found": true,
+   "text": "Aktivitas 2 terbuka. Tindak lanjut berikutnya 11 Sep 2026 — diturunkan dari aktivitas terbuka paling awal (\"Telepon konfirmasi kebutuhan (S30)\"). Telepon konfirmasi kebutuhan (S30) Telepon · Jatuh tempo 11 Sep 2026 · 3 hari lagi · Belum ditugaskan Selesai Hapus Kirim proposal awal (S30) Telepon · Jatuh tempo 18 Sep 2026 · 10 hari lagi · Belum ditugaskan Selesai Hapus Tambah aktivitas",
+   "rows": []
+  },
+  "history_card": {
+   "found": true,
+   "text": "Riwayat Tahap WAKTU DARI KE ARAH ALASAN DOKUMEN OLEH 08 Sep 2026 06.32 Sudah Dihubungi Baru Mundur Kontak PIC berganti, kualifikasi diulang (uji S30) — Administrator Sistem",
+   "rows": [
+    [
+     "08 Sep 2026 06.32",
+     "Sudah Dihubungi",
+     "Baru",
+     "Mundur",
+     "Kontak PIC berganti, kualifikasi diulang (uji S30)",
+     "—",
+     "Administrator Sistem"
+    ]
+   ]
+  },
+  "kv_follow_up": "11 Sep 2026",
+  "kv_owner": "Belum ditugaskan",
+  "form_has_follow_up_input": false,
+  "list_row": {
+   "head": [
+    "KODE",
+    "KONTAK",
+    "SUMBER",
+    "ESTIMASI NILAI",
+    "PEMILIK PROSPEK",
+    "FOLLOW-UP",
+    "STATUS",
+    ""
+   ],
+   "cells": [
+    "LEAD-0003",
+    "PT Cahaya Nusantara (fixture S30)",
+    "—",
+    "Rp 0",
+    "Belum ditugaskan",
+    "11 Sep 2026 3 hari lagi",
+    "Baru",
+    ""
+   ]
+  },
+  "empty_activity_card": {
+   "found": true,
+   "text": "Aktivitas Belum ada aktivitas dicatat untuk dokumen ini. Tanggal tindak lanjut prospek ini kosong: tidak ada aktivitas terbuka yang bertanggal. Tanggalnya diturunkan dari aktivitas, tidak diketik. Tambah aktivitas",
+   "rows": []
+  },
+  "after_add_activity": {
+   "found": true,
+   "text": "Aktivitas 1 terbuka. Tindak lanjut berikutnya 11 Sep 2026 — diturunkan dari aktivitas terbuka paling awal (\"Telepon pertama dari kartu (S30)\"). Telepon pertama dari kartu (S30) Telepon · Jatuh tempo 11 Sep 2026 · 3 hari lagi · Belum ditugaskan Selesai Hapus Tambah aktivitas",
+   "rows": []
+  },
+  "quotation": {
+   "status": 200,
+   "code": "QTN/2026/VIII/0004"
+  },
+  "quotation_activity": 201,
+  "quotation_activity_card": {
+   "found": true,
+   "text": "Aktivitas 1 terbuka. Klarifikasi teknis dengan pelanggan (S30) Rapat · Jatuh tempo 11 Sep 2026 · 3 hari lagi · Belum ditugaskan Selesai Hapus Tambah aktivitas",
+   "rows": []
+  },
+  "expected_follow_up_text": "11 Sep 2026",
+  "checks": {
+   "the_board_card_names_the_missing_owner": true,
+   "the_document_screen_says_the_same": true,
+   "and_so_does_the_list_row": true,
+   "a_backward_drag_asks_for_a_reason": true,
+   "the_reason_dialog_speaks_the_servers_own_sentence": true,
+   "cancelling_puts_the_card_back": true,
+   "answering_moves_the_card": true,
+   "a_drag_to_won_is_refused": true,
+   "and_the_refusal_names_the_quotation_route": true,
+   "the_refusal_is_the_servers_sentence_not_the_generic_one": true,
+   "the_activity_card_exists": true,
+   "it_lists_both_open_activities": true,
+   "it_names_where_the_follow_up_date_comes_from": true,
+   "the_derived_date_is_the_earliest_open_activity": true,
+   "and_the_information_panel_shows_the_same_date": true,
+   "the_typed_follow_up_field_is_gone_from_the_form": true,
+   "an_empty_activity_card_says_so": true,
+   "adding_an_activity_from_the_card_works": true,
+   "and_the_derived_date_appears_at_once": true,
+   "the_same_card_serves_the_quotation_screen": true,
+   "and_never_prints_a_fabricated_zero": true,
+   "the_backward_reason_is_stored_in_the_history": true,
+   "the_history_names_the_direction": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 27099,
+  "_clicks": 4
+ },
+ "S30_pipeline_crm_mobile": {
+  "lanes": 6,
+  "cards": 4,
+  "grid_scrolls": true,
+  "page_scrolls_sideways": false,
+  "owner_line": true,
+  "checks": {
+   "the_board_renders_on_a_phone": true,
+   "the_lanes_scroll_inside_their_own_box": true,
+   "the_page_never_scrolls_sideways": true,
+   "an_unowned_card_still_names_it": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 5600,
+  "_clicks": 0
+ },
+ "S30_pipeline_crm_repair": {
+  "fixture_lead": {
+   "status": 201,
+   "code": "LEAD-0007"
+  },
+  "activity_near": 201,
+  "activity_far": 201,
+  "activities_total": 110,
+  "mark_done": 200,
+  "activity_overdue": 201,
+  "card": {
+   "lines": [
+    "110 terbuka.",
+    "100 dari 110 digambar — sisanya (yang jatuh temponya paling akhir, dan yang tanpa tanggal) ada di layar Aktivitas CRM.",
+    "Tindak lanjut berikutnya 10 Sep 2026 — diturunkan dari aktivitas terbuka paling awal (\"Telepon paling awal (S30r)\")."
+   ],
+   "drawn": 100
+  },
+  "activity_detail": {
+   "kv": [
+    [
+     "Jenis dokumen",
+     "Prospek"
+    ],
+    [
+     "Dokumen",
+     "LEAD-0008 PT Induk Aktivitas (fixture S30r)"
+    ],
+    [
+     "Jenis",
+     "Rapat"
+    ],
+    [
+     "Kegiatan",
+     "Kunjungan pertama (S30r)"
+    ],
+    [
+     "Catatan",
+     "—"
+    ],
+    [
+     "Jatuh tempo",
+     "08 Sep 2026"
+    ],
+    [
+     "Selesai pada",
+     "08 Sep 2026 06.35"
+    ],
+    [
+     "Diselesaikan oleh",
+     "Administrator Sistem"
+    ],
+    [
+     "Pemilik prospek",
+     "Belum ditugaskan"
+    ],
+    [
+     "Masih terbuka",
+     "Tidak"
+    ],
+    [
+     "Lewat tanggal",
+     "Tidak"
+    ]
+   ],
+   "parent_links": [
+    "#/d/crm/leads/8"
+   ]
+  },
+  "activity_list": {
+   "filters": [
+    "Cari",
+    "Keadaan",
+    "Jenis",
+    "Dokumen",
+    "Pemilik",
+    "Dari tanggal",
+    "Sampai tanggal"
+   ],
+   "state_value": "overdue",
+   "state_options": [
+    "Keadaan",
+    "Terbuka",
+    "Lewat tanggal",
+    "Selesai"
+   ],
+   "hash": "#/r/crm/activities?state=overdue",
+   "rows": [
+    "02 Sep 2026 6 hari lalu Telepon tagih dokumen (S30r-LEWAT) Telepon LEAD-0008 PT Induk Aktivitas (fixture S30r) Prospek Belum ditugaskan —"
+   ]
+  },
+  "leads_list": {
+   "filters": [
+    "Cari",
+    "Status",
+    "Pemilik prospek",
+    "Belum ditugaskan"
+   ],
+   "hash": "#/r/crm/leads?unassigned=1",
+   "owners": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "board_card": {
+   "role": "button",
+   "aria": "LEAD-0008 — buka dokumennya",
+   "tabindex": "0"
+  },
+  "space_key": {
+   "hash": "#/d/crm/leads/8",
+   "scrollY": 0
+  },
+  "print": {
+   "client_width": 794,
+   "scroll_width": 794,
+   "overflow_x": "visible",
+   "whole_lanes": 6,
+   "lanes": 6
+  },
+  "checks": {
+   "the_card_draws_at_most_a_hundred_rows": true,
+   "and_says_the_real_total_not_the_drawn_one": true,
+   "and_admits_what_it_cut": true,
+   "the_derived_date_still_names_the_earliest_open_activity": true,
+   "the_activity_screen_names_its_parent": true,
+   "and_links_to_it": true,
+   "the_finisher_is_named_once": true,
+   "the_daily_queue_can_be_asked_for": true,
+   "and_the_notification_link_survives": true,
+   "and_it_shows_the_late_work_without_the_finished_work": true,
+   "unassigned_has_a_control": true,
+   "and_its_link_really_filters": true,
+   "a_board_card_announces_itself_as_a_button": true,
+   "space_opens_the_card_instead_of_scrolling": true,
+   "every_lane_fits_on_paper": true,
+   "and_the_board_stops_scrolling_sideways_on_paper": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 22359,
+  "_clicks": 0
  }
 }

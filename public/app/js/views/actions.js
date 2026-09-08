@@ -98,12 +98,19 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
     ? `${def.api}/${String(action.path).replace('{id}', row.id)}`
     : `${def.api}/${action.path}`;
 
-  let payload = {};
+  /*
+   * `body`: muatan TETAP milik aksinya (F-3). Papan pipeline memetakan satu
+   * aksi per kolom tujuan ke SATU endpoint (leads/{id}/pipeline) yang menerima
+   * tahap tujuannya di badan permintaan — tanpa ini setiap kolom akan butuh
+   * rutenya sendiri, atau papannya akan menulis status lewat jalur kedua.
+   * Nilai dari dialog (fields) menang atas body: dialog adalah jawaban orang.
+   */
+  let payload = { ...(action.body || {}) };
 
   if (action.fields && action.fields.length) {
     const values = await promptFields(action.label, action.fields, { submitLabel: action.label });
     if (values === null) return;
-    payload = values;
+    payload = { ...payload, ...values };
   } else if (action.confirm) {
     const ok = await confirmDialog({
       title: action.label,
@@ -234,6 +241,15 @@ function keyOf(def) {
 export function actionButtons(def, row, onDone) {
   const panels = [];
   const buttons = (def.actions || [])
+    /*
+     * `boardOnly`: aksi yang hanya berarti sebagai PERPINDAHAN KARTU (F-3).
+     * Papan pipeline memetakan kolom Menang/Kalah ke aksi yang server-nya
+     * SELALU tolak — supaya kartunya kembali membawa kalimat server yang
+     * menyebut penawaran mana yang harus ditandai, bukan tebakan klien. Tombol
+     * seperti itu tidak punya tempat di bilah aksi: sebuah tombol yang ada
+     * hanya untuk ditolak adalah lelucon yang mahal.
+     */
+    .filter((action) => !action.boardOnly)
     // canAct(), bukan can(action.perm): sebuah delegasi meminjamkan
     // `<awalan>.approve` HANYA di pintu keputusan dokumen, dan izin yang sama
     // menggerbangi belasan aksi lain di bilah ini (posting jurnal manual, buka

@@ -91,10 +91,16 @@ class WatchedDeadlines
      *  requires            — extra tables a scope's EXISTS touches, checked before
      *                        querying so a half-migrated sibling module skips
      *                        instead of crashing.
-     *  valid_through_end   — the date is a "berlaku s/d": the row is still valid
-     *                        ON its end day, so that day reports as MENIPIS
-     *                        ("hari ini") and LEWAT starts the day after. Needs
-     *                        lead_days > 0, or the end day would land in no tier.
+     *  valid_through_end   — the end day still counts as ON TIME: a "berlaku
+     *                        s/d" that is valid ON its last day, or a due date
+     *                        whose work can still be done that day (F-3
+     *                        aktivitas). That day reports as MENIPIS ("hari
+     *                        ini") and LEWAT starts the day after. Needs
+     *                        lead_days > 0, or the end day would land in no
+     *                        tier. It must AGREE with the app screens: an entry
+     *                        whose row is still "open" in the UI on its date
+     *                        and "overdue" in the 08:30 mail teaches people to
+     *                        distrust one of the two.
      *  detail              — ['columns' => [...], 'text' => fn (object $row): ?string]:
      *                        extra columns of the entry's own table read per
      *                        row and turned into a clause appended to its
@@ -111,6 +117,77 @@ class WatchedDeadlines
     public static function entries(): array
     {
         return [
+            [
+                /*
+                 * Aktivitas CRM yang jatuh tempo (F-3 / T3.7).
+                 *
+                 * Ini tenggat pertama di daftar ini yang tanggalnya DIJANJIKAN
+                 * SEORANG SALES KEPADA DIRINYA SENDIRI — "telepon lagi Senin
+                 * depan" — dan justru karena itu ia yang paling mudah lewat
+                 * tanpa siapa pun tahu: tidak ada pelanggan yang menagih, tidak
+                 * ada dokumen yang macet, tidak ada angka yang berubah. Yang
+                 * hilang hanyalah prospeknya, enam minggu kemudian.
+                 *
+                 * lead_days 3, bukan 14: sebuah telepon dijadwalkan dalam
+                 * hitungan hari, dan pengingat dua minggu sebelumnya hanya
+                 * melatih orang mengabaikan pemberitahuannya.
+                 *
+                 * `done_at` adalah penanda selesai — itu pula sebabnya
+                 * "Selesai" mencap waktu alih-alih menghapus barisnya: sebuah
+                 * aktivitas yang dihapus akan diam dengan cara yang sama
+                 * dengan yang dikerjakan.
+                 *
+                 * crm.update, bukan crm.view: yang harus bertindak adalah orang
+                 * yang bisa menandainya selesai. 'value' sengaja kosong —
+                 * aktivitas tidak menyimpan rupiah, dan mengutip angka yang
+                 * tidak ada adalah hal yang tidak boleh dilakukan lembar mana
+                 * pun di repo ini.
+                 *
+                 * valid_through_end: HARI JATUH TEMPONYA BELUM TERLAMBAT.
+                 * Sebuah telepon yang dijanjikan hari ini masih bisa ditelepon
+                 * hari ini. Tanpa bendera ini pengawas menyebutnya "lewat
+                 * jatuh tempo" pada pukul 08.30, sementara TIGA permukaan lain
+                 * di paket yang sama menyebutnya belum: Activity::isOverdue
+                 * (`due_at < awal hari ini`), saringan state=overdue di
+                 * ActivityController, dan hitungan lewat-tanggal pada kartu
+                 * papan. Diukur 8 Sep 2026 atas satu aktivitas yang jatuh
+                 * tempo 8 Sep: notifikasi "Aktivitas CRM lewat jatuh tempo"
+                 * sementara kartunya tanpa lencana merah, state=overdue kosong,
+                 * dan papan menghitung 0 — orangnya dikabari bahwa pekerjaannya
+                 * TERLAMBAT lalu tidak menemukan satu pun tanda terlambat di
+                 * layar mana pun. Kini hari itu berbunyi MENIPIS ("hari ini")
+                 * dan LEWAT mulai keesokan harinya, sama dengan ketiganya.
+                 */
+                'key' => 'crm_activity_due',
+                'table' => 'crm_activities',
+                'date' => 'due_at',
+                'display' => 'subject',
+                'label' => 'Aktivitas CRM',
+                'unit' => 'aktivitas',
+                'date_word' => 'jatuh tempo',
+                'lead_days' => 3,
+                'valid_through_end' => true,
+                'permission' => 'crm.update',
+                /*
+                 * ?state=open — pemberitahuan yang membuka antrean SESEORANG,
+                 * bukan arsip. Tanpa saringan itu layarnya terbuka pada urutan
+                 * due_at menaik LINTAS KEADAAN, jadi baris pertamanya adalah
+                 * pekerjaan yang sudah selesai bertahun lalu ("10 Jan 2025 ·
+                 * 606 hari lalu", diukur 8 Sep 2026) — dan kedua tingkat entri
+                 * ini (MENIPIS dan LEWAT) sama-sama bicara tentang aktivitas
+                 * yang BELUM selesai, jadi satu saringan melayani keduanya.
+                 * Kuncinya harus dideklarasikan di `def.filters` schema.js,
+                 * atau views/list.js membuangnya diam-diam — itu yang dipaku
+                 * ActivityDeadlineWatchTest.
+                 */
+                'link' => 'r/crm/activities?state=open',
+                'title_upcoming' => 'Aktivitas CRM mendekati jatuh tempo',
+                'title_overdue' => 'Aktivitas CRM lewat jatuh tempo',
+                'columns' => ['done_at', 'deleted_at'],
+                'scope' => static fn (Builder $query): Builder => $query
+                    ->whereNull('done_at')
+                    ->whereNull('deleted_at'),
+            ],
             [
                 // QTN/2026/VII/0004 (Rp 33,97 jt) is approved, not won, not
                 // lost, valid s/d 2026-08-31 — sales gets 14 days to close or

@@ -480,7 +480,7 @@ class CrmDatabaseSeeder extends Seeder
                 'need_summary' => 'Pembangunan apartemen 12 lantai (2 tower) di BSD, target mulai konstruksi Q1 2027.',
                 'estimated_value' => 65000000000,
                 'status' => 'qualified',
-                'user_id' => $ownerId,
+                'owner_user_id' => $ownerId,
                 'notes' => 'Sudah site visit; menunggu DED final dari konsultan perencana.',
             ],
             [
@@ -493,7 +493,7 @@ class CrmDatabaseSeeder extends Seeder
                 'need_summary' => 'Smart campus: backbone fiber, WiFi, CCTV, dan akses kontrol untuk 4 gedung kampus.',
                 'estimated_value' => 4500000000,
                 'status' => 'contacted',
-                'user_id' => $ownerId,
+                'owner_user_id' => $ownerId,
                 'notes' => 'Aanwijzing dijadwalkan Agustus 2026; siapkan pra-proposal.',
             ],
         ];

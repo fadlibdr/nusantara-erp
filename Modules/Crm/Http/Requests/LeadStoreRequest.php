@@ -24,10 +24,41 @@ class LeadStoreRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'need_summary' => ['nullable', 'string', 'max:1000'],
             'estimated_value' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['nullable', Rule::enum(LeadStatus::class)],
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
-            'next_follow_up_at' => ['nullable', 'date'],
+            /*
+             * Prospek LAHIR di salah satu tahap terbuka — undangan tender
+             * memang lahir langsung "Terkualifikasi". Yang tidak bisa adalah
+             * lahir Menang/Kalah: keduanya hasil keputusan penawaran, dan
+             * sebuah prospek yang diketik langsung sebagai Menang adalah
+             * kemenangan tanpa satu rupiah pun di belakangnya (F-3 / T3.5).
+             */
+            'status' => ['nullable', Rule::enum(LeadStatus::class)->only(
+                array_filter(LeadStatus::cases(), static fn (LeadStatus $status): bool => $status->isOpen()),
+            )],
+            'owner_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            /*
+             * TURUNAN, bukan ketikan (F-3 / T3.3). Tanggal tindak lanjut sebuah
+             * prospek adalah due_at terawal di antara aktivitas terbukanya —
+             * satu penulis, LeadFollowUpService. Ditolak, BUKAN diabaikan
+             * diam-diam: sebuah field yang hilang tanpa suara adalah cara
+             * seseorang mengira ia sudah menjadwalkan tindak lanjut.
+             *
+             * `missing`, BUKAN `prohibited` — aturan yang sama dengan
+             * LeadUpdateRequest, dan disamakan di sini walau prospek baru
+             * memang menurunkan null: dua permukaan satu aturan yang berbeda
+             * bunyinya adalah cara aturan itu hanyut (verifikasi F-3).
+             */
+            'next_follow_up_at' => ['missing'],
             'notes' => ['nullable', 'string'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'status.Illuminate\\Validation\\Rules\\Enum' => 'Prospek tidak bisa dibuat langsung dengan status Menang atau Kalah: '
+                .'keduanya lahir dari keputusan penawaran (Tandai Menang / Tandai Kalah).',
+            'next_follow_up_at.missing' => 'Tanggal tindak lanjut diturunkan dari aktivitas prospek ini, '
+                .'bukan diketik: buat aktivitas berjatuh tempo pada kartu Aktivitas di layar prospek.',
         ];
     }
 }

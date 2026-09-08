@@ -5,6 +5,7 @@ import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast, m
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
+import { activitiesCard, ACTIVITY_DOCUMENTS } from './activities.js';
 import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
 import { openForm } from './form.js';
@@ -33,6 +34,10 @@ const HIDDEN_KEYS = new Set([
   // T3.7: surat penagihan yang boleh dicetak berikutnya — keadaan tombol
   // "Cetak surat penagihan ke-N"; tingkatnya sendiri (dunning_level) tampil.
   'dunning_next_level',
+  // F-3: riwayat tahap prospek dirender sebagai detail.tables ("Riwayat
+  // Tahap"); tanpa baris ini panel Informasi memajang array objeknya sebagai
+  // deretan badge JSON di atas tabelnya sendiri.
+  'status_history',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -45,6 +50,10 @@ const WHEN_SET_KEYS = new Set([
   'days_change', 'new_end_date', 'original_end_date',
   // Cap gerbang IMK (P0-C): kosong sampai security menekan 'periksa'.
   'checked_by', 'checked_at',
+  /* F-3: aktivitas yang BELUM selesai tidak punya penyelesai. "Diselesaikan
+     oleh: —" pada pekerjaan yang memang belum dikerjakan adalah baris yang
+     hanya menambah kebisingan pada kartu yang dibaca sambil menelepon. */
+  'done_by_id', 'done_by_name',
   // P1-ENG: revisi hidup belum digantikan siapa pun — "Digantikan pada: —"
   // pada SDS yang justru sedang berlaku adalah kebalikan dari informasi.
   'superseded_at', 'superseded_by_code',
@@ -90,8 +99,26 @@ const NAME_SHADOWED = {
   // P7: QuotationResource meratakan metode pelaksanaan yang dikutip penawaran.
   // Tanpa baris ini kartu Informasi menuliskan "Method Library Id: 3".
   method_library_id: 'method_library_title',
+  // F-3: pemilik prospek. Nama ratanya TIDAK PERNAH kosong (LeadResource
+  // mengirim "Belum ditugaskan"), jadi baris id mentahnya selalu tergantikan —
+  // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
+  // "belum dimuat".
+  owner_user_id: 'owner_user_name',
+  /* F-3 (verifikasi 8 Sep 2026): tanpa baris ini panel Informasi sebuah
+     aktivitas selesai memajang "Diselesaikan oleh" DUA KALI — sekali sebagai
+     id pengguna mentah ("1"), sekali sebagai namanya. Id mentah di layar
+     adalah persis yang mekanisme ini ada untuk mencegahnya. */
+  done_by_id: 'done_by_name',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
+
+/* Jenis dokumen induk → slug layarnya, DIBALIK dari registri kartu aktivitas
+   (slug → jenis) supaya daftarnya tetap satu dan cerminnya tetap dijaga
+   ActivityRegistryTest. Dipakai autoValue untuk menautkan baris "Dokumen"
+   sebuah aktivitas ke prospek/penawaran/pelanggannya. */
+const PARENT_SCREEN = Object.fromEntries(
+  Object.entries(ACTIVITY_DOCUMENTS).map(([slug, type]) => [type, slug]),
+);
 
 const MONEY_KEY = /(amount|total|value|price|cost|salary|dpp|ppn|pph|budget|payable|paid|outstanding|retention|gross|net|subtotal|discount|rate_internal)/;
 const PERCENT_KEY = /(_pct|_rate)$/;
@@ -111,6 +138,10 @@ const ID_LOOKUPS = {
   // IssueResource memulangkan cancelled_by; tanpa baris ini panel dokumen
   // menuliskan "#3" untuk pembatal bon ISS/2026/VII/0001, bukan namanya.
   cancelled_by: ['users'],
+  // F-3: hanya terpakai bila owner_user_name tidak ikut terkirim (baris daftar
+  // lama, tanggapan POST tanpa relasi) — bayangannya di NAME_SHADOWED yang
+  // biasanya menang.
+  owner_user_id: ['users'],
   account_id: ['accounts'], coa_account_id: ['accounts'], pph_tax_id: ['taxes'],
   bank_account_id: ['bankAccounts'], subcontract_id: ['subcontracts'],
   subcontract_claim_id: ['progressClaims'], service_contract_id: ['serviceContracts'],
@@ -258,7 +289,27 @@ const LABELS = {
   bupot_no: 'No. bukti potong', wbs_code: 'Kode WBS', section_no: 'No. bagian',
   customer_name: 'Pelanggan', company_name: 'Perusahaan', assignee_name: 'Ditugaskan ke',
   technician_name: 'Teknisi', evaluator_name: 'Dievaluasi oleh', requester_name: 'Diminta oleh',
-  reported_by_name: 'Dilaporkan oleh', user_name: 'Pengguna', owner_name: 'Pemilik prospek',
+  reported_by_name: 'Dilaporkan oleh', user_name: 'Pengguna',
+  /* owner_name adalah kolom PAKET TENDER (pemberi tugas/instansi), satu-satunya
+     resource yang mengirimnya sejak F-3 memindahkan pemilik prospek ke
+     owner_user_id/owner_user_name. Sampai 8 Sep 2026 label ini berbunyi
+     "Pemilik prospek", jadi layar Paket Tender menuliskan "Pemilik prospek:
+     Universitas Cendekia Nusantara" — nama instansi pemberi tugas di bawah
+     label yang menyebutnya prospek. */
+  owner_name: 'Pemberi tugas',
+  owner_user_id: 'Pemilik prospek', owner_user_name: 'Pemilik prospek',
+  // F-3 — aktivitas CRM.
+  subject: 'Kegiatan', due_at: 'Jatuh tempo', done_at: 'Selesai pada',
+  done_by_id: 'Diselesaikan oleh', done_by_name: 'Diselesaikan oleh',
+  /* `document_id` DIBERI LABEL, tidak disembunyikan (verifikasi F-3, 8 Sep
+     2026): ia dulu dibayangi `document_label` lewat NAME_SHADOWED, dan
+     `document_label` sendiri dibuang penyaring `_label` panel Informasi — jadi
+     KEDUANYA lenyap dan layar aktivitas tidak pernah menyebut dokumen
+     induknya. Barisnya kini menampilkan nama induknya (autoValue membaca
+     `${key}_label`) dan menautkannya. */
+  document_id: 'Dokumen',
+  document_label: 'Dokumen', document_type: 'Jenis dokumen', document_type_label: 'Jenis dokumen',
+  is_open: 'Masih terbuka', is_overdue: 'Lewat tanggal',
   warehouse_name: 'Gudang', item_name: 'Item', item_code: 'Kode item', site_name: 'Nama site',
   customer_representative: 'Wakil pelanggan', customer_sign_name: 'TTD pelanggan',
   customer_signed_at: 'Ditandatangani pelanggan',
@@ -443,6 +494,30 @@ function autoValue(record, key) {
   }
 
   const labelKey = `${key}_label`;
+
+  /*
+   * INDUK POLIMORFIK (F-3): sebuah aktivitas menggantung pada prospek,
+   * penawaran atau pelanggan lewat document_type + document_id, dan namanya
+   * dirakit server (ActivityController::withDocumentLabels, satu query per
+   * jenis). Yang ditambahkan di sini adalah JALAN KEMBALI: sampai 8 Sep 2026
+   * layar detail aktivitas tidak menyebut induknya sama sekali dan tidak punya
+   * satu pun tautan ke sana, sehingga jalur "pemberitahuan → daftar → baris"
+   * berhenti tepat sebelum pekerjaannya. Petanya dibalik dari registri yang
+   * sudah ada (ACTIVITY_DOCUMENTS, dicermin ActivityRegistryTest) — bukan
+   * daftar kedua yang bisa hanyut. Jenis yang tidak dikenal tetap tampil
+   * sebagai teks: tautan ke layar yang tidak ada lebih buruk daripada tanpa
+   * tautan.
+   */
+  if (key === 'document_id' && record.document_label) {
+    // `document_label`, bukan `${key}_label`: namanya dirakit untuk PASANGAN
+    // document_type + document_id, jadi ia tidak mengikuti pola kunci generik
+    // di bawah — dan itulah sebabnya baris ini dulu memajang "4".
+    const slug = PARENT_SCREEN[record.document_type];
+    return slug
+      ? el('a', { href: `#/d/${slug}/${value}`, text: record.document_label })
+      : el('span', { text: record.document_label });
+  }
+
   if (record[labelKey]) return el('span', { text: record[labelKey] });
 
   if (PERCENT_KEY.test(key)) return el('span.num', { text: fmt.percent(value) });
@@ -979,6 +1054,14 @@ export async function renderDetail(host, { key, def, id }) {
   // attachments card: the registry mirror inside the card decides membership.
   const externalApprovals = externalApprovalsCard(key, record.id, def.module);
   if (externalApprovals) side.appendChild(externalApprovals);
+
+  /* Aktivitas CRM (F-3) — kawat satu baris yang sama; cermin registri di dalam
+     kartunya yang memutuskan prospek/penawaran/pelanggan. Di kolom UTAMA, bukan
+     samping: kartu ini adalah antrean kerja sales (apa yang jatuh tempo, apa
+     yang lewat tanggal, apa yang sudah dikerjakan dan oleh siapa), bukan
+     lampiran yang dibuka sesekali. */
+  const activities = activitiesCard(key, record.id, def.module);
+  if (activities) main.appendChild(activities);
 
   side.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Metadata' })),

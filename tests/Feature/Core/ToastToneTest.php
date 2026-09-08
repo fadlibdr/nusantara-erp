@@ -27,6 +27,25 @@ use Tests\ErpTestCase;
  */
 class ToastToneTest extends ErpTestCase
 {
+    /**
+     * KALIMAT PENOLAKANNYA TIDAK DIAWALI NAMA KOLOM.
+     *
+     * Penolakan pipeline memulangkan SATU kunci galat (`status`) berisi kalimat
+     * utuh; ApiError#details merakit "field: msg", dan toastError dulu hanya
+     * membuang awalan itu untuk MEMBANDINGKAN judul, bukan untuk badan
+     * toast-nya. Terukur kata demi kata di results-phase-2.json
+     * (S30_pipeline_crm.drag_to_won.toasts[1]): "status: Prospek LEAD-0003
+     * tidak bisa dipindahkan ke Menang lewat tahap: …" — kata pertama yang
+     * dibaca sales adalah nama kolom basis data.
+     */
+    public function test_a_single_error_toast_does_not_lead_with_the_field_key(): void
+    {
+        $ui = (string) file_get_contents(public_path('app/js/ui.js'));
+
+        $this->assertStringContainsString('details.length === 1 ? [firstDetail] : details', $ui,
+            'toast 422 berkunci tunggal masih diawali nama kolomnya');
+    }
+
     /** @return list<string> */
     private function tonesTheStylesheetDefines(): array
     {

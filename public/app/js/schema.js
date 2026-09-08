@@ -23,6 +23,44 @@
 import { ENUMS } from './enums.js';
 
 const DRAFT_OR_REJECTED = (row) => ['draft', 'rejected'].includes(row.status);
+
+/*
+ * Jawaban SPA untuk satu penolakan server: "mundur wajib beralasan" (F-3).
+ *
+ * LeadPipelineService menolak perpindahan mundur dengan 422 berkunci `reason`;
+ * mesin confirmResubmit (actions.js) membuka satu isian wajib berisi kalimat
+ * servernya, lalu mengirim ulang permintaan yang sama dengan alasannya. Dipakai
+ * tombol "Ubah Tahap" DAN keenam perpindahan papan, dari satu deklarasi:
+ * dialog alasan yang berbeda-beda antar permukaan adalah cara sebuah aturan
+ * berhenti terasa seperti satu aturan.
+ */
+const ALASAN_MUNDUR = [{
+  test: /^reason$/,
+  title: 'Alasan mundur',
+  confirmLabel: 'Pindahkan',
+  promptField: {
+    key: 'reason', label: 'Alasan mundur', type: 'textarea', required: true,
+    help: 'Tersimpan permanen di Riwayat Tahap prospek ini dan dibaca saat corong ditinjau. Minimal 5 karakter.',
+  },
+}];
+/*
+ * Kalimat toast sebuah perpindahan tahap prospek (F-3; verifikasi 8 Sep 2026).
+ *
+ * SUBJEKNYA PROSPEKNYA, bukan tombolnya. actions.js jatuh ke
+ * "`${action.label} berhasil.`" untuk aksi yang tidak punya bentuk lampau di
+ * PAST — jadi seretan di papan berbunyi "Pindahkan ke Baru berhasil.", yang
+ * pada kolom berisi 31 kartu tidak mengatakan prospek MANA yang berpindah,
+ * sementara server sudah mengirim kalimat yang lebih baik ("LEAD-0003
+ * dipindahkan ke tahap Baru.") yang tidak pernah sampai ke layar. Tahap
+ * tujuannya dibaca dari JAWABAN server, bukan dari tombol yang diklik: satu
+ * fungsi melayani ketujuh aksinya, termasuk "Ubah Tahap" yang tujuannya baru
+ * diketahui setelah orangnya memilih. Tanpa status_label (jawaban yang tidak
+ * memuatnya) kalimatnya mengaku tidak tahu tujuannya alih-alih mengarang.
+ */
+const TOAST_TAHAP = (code, result) => (result && result.status_label
+  ? `${code} dipindahkan ke tahap ${result.status_label}.`
+  : `${code} dipindahkan tahapnya.`);
+
 const IS_DRAFT = (row) => row.status === 'draft';
 const IS_SUBMITTED = (row) => row.status === 'submitted';
 
@@ -189,13 +227,28 @@ export const RESOURCES = {
       { key: 'name', label: 'Kontak', type: 'text', sub: 'company_name' },
       { key: 'source', label: 'Sumber', type: 'text' },
       { key: 'estimated_value', label: 'Estimasi nilai', type: 'currency', align: 'right' },
-      { key: 'owner_name', label: 'Sales', type: 'text' },
+      /* Pemilik prospek. Kunci `owner_user_name` datang dari server dan TIDAK
+         PERNAH kosong: prospek tanpa pemilik berbunyi "Belum ditugaskan" —
+         di daftar, di kartu papan, di layar dokumen, dan di CSV yang diekspor
+         dari daftar ini (cells.js menyalin sel yang sama). Sel kosong akan
+         terbaca "belum dimuat", yang bukan keadaannya. */
+      { key: 'owner_user_name', label: 'Pemilik prospek', type: 'text' },
       // Pengingat funnel awal (temuan #58) — tanggal relatifnya ("3 hari lagi")
       // yang membuat kolom ini terpakai sebagai antrean kerja sales.
       { key: 'next_follow_up_at', label: 'Follow-up', type: 'date', withRelative: true },
       { key: 'status', label: 'Status', type: 'status', width: '1%' },
     ],
-    filters: [{ key: 'status', label: 'Status', enum: 'leadStatus' }],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'leadStatus' },
+      { key: 'owner_user_id', label: 'Pemilik prospek', lookup: 'users' },
+      /* "Prospek mana yang tidak dikejar siapa pun" — satu klik, dan kuncinya
+         dideklarasikan supaya #/r/crm/leads?unassigned=1 bisa DITAUTKAN
+         (seedFromUrl hanya menerima kunci yang ada di sini; sampai 8 Sep 2026
+         tautan itu diam-diam memulangkan seluruh 37 prospek). Combobox
+         "Pemilik prospek" tidak bisa menjawabnya: barisnya "—" adalah tombol
+         kosongkan, bukan "tanpa pemilik". */
+      { key: 'unassigned', label: 'Belum ditugaskan', type: 'boolFilter' },
+    ],
     form: {
       sections: [{
         title: 'Prospek',
@@ -203,29 +256,203 @@ export const RESOURCES = {
           { key: 'name', label: 'Nama kontak', type: 'text', required: true },
           { key: 'company_name', label: 'Perusahaan', type: 'text' },
           { key: 'source', label: 'Sumber', type: 'text', help: 'mis. referral, tender, pameran' },
-          { key: 'status', label: 'Status', type: 'select', enum: 'leadStatus', default: 'new' },
+          /* TAHAP AWAL SAJA, dan hanya saat membuat (F-3 / T3.5). PUT prospek
+             menolak `status` (422): perpindahan tahap lewat tombol "Ubah
+             Tahap" atau papan, yang memeriksa arahnya, menuntut alasan untuk
+             mundur, dan mencatat riwayatnya. Pilihannya tanpa Menang/Kalah —
+             keduanya lahir dari keputusan penawaran, dan server menolak
+             prospek yang diketik langsung sebagai Menang. */
+          {
+            key: 'status', label: 'Tahap awal', type: 'select', default: 'new', createOnly: true,
+            options: [
+              { value: 'new', label: 'Baru' },
+              { value: 'contacted', label: 'Sudah Dihubungi' },
+              { value: 'qualified', label: 'Terkualifikasi' },
+              { value: 'proposal', label: 'Penawaran Dikirim' },
+            ],
+            help: 'Undangan tender boleh lahir langsung "Terkualifikasi". Setelah ini, tahap dipindahkan lewat '
+              + 'tombol "Ubah Tahap" atau papan pipeline.',
+          },
           { key: 'phone', label: 'Telepon', type: 'text' },
           { key: 'email', label: 'Email', type: 'text' },
           { key: 'estimated_value', label: 'Estimasi nilai', type: 'currency' },
-          { key: 'user_id', label: 'Sales penanggung jawab', type: 'lookup', lookup: 'users' },
-          // Pengingat funnel awal (temuan #58): sebelum ada penawaran, tidak
-          // ada dokumen lain yang bisa membawa tanggal tindak lanjut.
-          { key: 'next_follow_up_at', label: 'Follow-up berikutnya', type: 'date' },
+          /* Boleh dikosongkan — dan yang kosong TIDAK ditebak dari siapa pun
+             yang mengetik barisnya (F-3 / T3.4). */
+          { key: 'owner_user_id', label: 'Pemilik prospek (sales)', type: 'lookup', lookup: 'users' },
+          /* Tanggal tindak lanjut TIDAK LAGI DIKETIK (F-3 / T3.3): ia
+             diturunkan dari aktivitas terbuka paling awal prospek ini, dan
+             server menolak (422) field ini dengan kalimat yang menyebut kartu
+             Aktivitas. Sebuah isian yang masih ada di sini akan mengirimkan
+             nilainya pada setiap Simpan dan membuat SETIAP penyuntingan
+             prospek gagal — bukan isian mati, isian yang dihapus. */
           { key: 'need_summary', label: 'Ringkasan kebutuhan', type: 'textarea', span: 2 },
           { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
         ],
       }],
     },
-    actions: [{
-      // "Jadikan pelanggan" (temuan #58): penawaran mensyaratkan customer_id,
-      // jadi data prospek selama ini diketik dua kali. Server idempoten —
-      // klik kedua memulangkan pelanggan yang sama — tapi tombolnya memang
-      // tidak perlu tampil lagi setelah lead punya customer_id.
-      key: 'convert-to-customer', label: 'Jadikan Pelanggan', path: '{id}/convert-to-customer', method: 'POST',
-      perm: 'crm.create', variant: 'success', navigateTo: 'crm/customers',
-      when: (row) => row.status === 'won' && !row.customer_id,
-      confirm: 'Buat pelanggan baru dari data lead ini?',
-    }],
+    detail: {
+      tables: [{
+        // Riwayat tahap (F-3 / T3.5): di sinilah alasan sebuah perpindahan
+        // mundur dibaca. Datang dari LeadResource.status_history, hanya pada
+        // layar dokumen.
+        key: 'status_history', label: 'Riwayat Tahap',
+        columns: [
+          { key: 'created_at', label: 'Waktu', type: 'datetime' },
+          { key: 'from_label', label: 'Dari' },
+          { key: 'to_label', label: 'Ke' },
+          { key: 'direction_label', label: 'Arah' },
+          { key: 'reason', label: 'Alasan' },
+          { key: 'document_code', label: 'Dokumen' },
+          { key: 'user_name', label: 'Oleh' },
+        ],
+      }],
+    },
+    actions: [
+      {
+        // "Jadikan pelanggan" (temuan #58): penawaran mensyaratkan customer_id,
+        // jadi data prospek selama ini diketik dua kali. Server idempoten —
+        // klik kedua memulangkan pelanggan yang sama — tapi tombolnya memang
+        // tidak perlu tampil lagi setelah lead punya customer_id.
+        key: 'convert-to-customer', label: 'Jadikan Pelanggan', path: '{id}/convert-to-customer', method: 'POST',
+        perm: 'crm.create', variant: 'success', navigateTo: 'crm/customers',
+        when: (row) => row.status === 'won' && !row.customer_id,
+        confirm: 'Buat pelanggan baru dari data lead ini?',
+      },
+      /*
+       * UBAH TAHAP (F-3 / T3.5) — satu tombol, satu endpoint, dan aturan yang
+       * ditegakkan SERVER. Pilihannya hanya tahap terbuka: Menang/Kalah lahir
+       * dari keputusan penawaran (Tandai Menang/Kalah), yang sekaligus mencatat
+       * nilai dan tanggal keputusannya.
+       *
+       * `confirmResubmit` menjawab 422 berkunci `reason`: perpindahan MUNDUR
+       * ditolak sekali dengan kalimat servernya, SPA membuka satu isian alasan,
+       * lalu mengirim ulang. Maju tidak pernah melihat dialog itu — dan
+       * aturannya tetap tinggal di satu tempat, bukan disalin ke klien.
+       */
+      {
+        key: 'move-stage', label: 'Ubah Tahap', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', variant: 'primary', toast: TOAST_TAHAP,
+        when: (row) => row.status !== 'won' && row.status !== 'lost',
+        fields: [{
+          key: 'status', label: 'Tahap tujuan', type: 'select', required: true,
+          options: [
+            { value: 'new', label: 'Baru' },
+            { value: 'contacted', label: 'Sudah Dihubungi' },
+            { value: 'qualified', label: 'Terkualifikasi' },
+            { value: 'proposal', label: 'Penawaran Dikirim' },
+          ],
+          help: 'Menang dan Kalah tidak ada di sini: keduanya ditetapkan lewat "Tandai Menang" / "Tandai Kalah" '
+            + 'pada penawarannya, bersama nilai dan tanggal keputusannya.',
+        }],
+        confirmResubmit: ALASAN_MUNDUR,
+      },
+      /*
+       * PERPINDAHAN PAPAN. Satu aksi per kolom tujuan, karena papan memetakan
+       * kolom → kunci aksi; `body` membawa tahap tujuannya ke endpoint yang
+       * sama dengan tombol di atas (actions.js). `boardOnly` menahannya keluar
+       * dari bilah aksi: enam tombol "Pindahkan ke …" di layar dokumen adalah
+       * bilah yang tidak terbaca.
+       *
+       * Kolom MENANG dan KALAH ikut dipetakan — ke aksi yang server-nya selalu
+       * tolak. Itu disengaja: kartu yang dijatuhkan di sana kembali membawa
+       * KALIMAT SERVER yang menyebut penawaran mana yang harus ditandai, alih-
+       * alih kalimat papan generik ("tidak ada aksi yang memindahkan dokumen ke
+       * kolom itu") yang terdengar seperti kerusakan aplikasi.
+       *
+       * Ditulis satu per satu, bukan dihasilkan .map(): BoardWiringTest membaca
+       * berkas ini sebagai TEKS untuk membuktikan setiap perpindahan menunjuk
+       * aksi yang ada dan ber-`path` — dan kunci yang hanya lahir saat runtime
+       * tidak bisa dibacanya.
+       */
+      {
+        key: 'to-new', label: 'Pindahkan ke Baru', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', boardOnly: true, body: { status: 'new' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
+      },
+      {
+        key: 'to-contacted', label: 'Pindahkan ke Sudah Dihubungi', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', boardOnly: true, body: { status: 'contacted' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
+      },
+      {
+        key: 'to-qualified', label: 'Pindahkan ke Terkualifikasi', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', boardOnly: true, body: { status: 'qualified' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
+      },
+      {
+        key: 'to-proposal', label: 'Pindahkan ke Penawaran Dikirim', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', boardOnly: true, body: { status: 'proposal' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
+      },
+      {
+        key: 'to-won', label: 'Pindahkan ke Menang', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', boardOnly: true, body: { status: 'won' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
+      },
+      {
+        key: 'to-lost', label: 'Pindahkan ke Kalah', path: '{id}/pipeline', method: 'POST',
+        perm: 'crm.update', boardOnly: true, body: { status: 'lost' }, confirmResubmit: ALASAN_MUNDUR,
+        toast: TOAST_TAHAP,
+      },
+    ],
+    board: {
+      enum: 'leadStatus',
+      lanes: ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'],
+      moves: {
+        new: 'to-new', contacted: 'to-contacted', qualified: 'to-qualified',
+        proposal: 'to-proposal', won: 'to-won', lost: 'to-lost',
+      },
+      // Muatan papan datang dari rutenya sendiri: N teratas PER KOLOM, dengan
+      // jumlah sebenarnya per kolom (F-3 / T3.6).
+      api: 'crm/pipeline/board',
+      card: { fields: ['owner_user_name', 'activity_note'] },
+      why: 'Papan inilah cara sales melihat corongnya: satu layar, kolom per tahap, dan kartu yang '
+        + 'menyebut siapa pemiliknya — "Belum ditugaskan" pun disebutkan. Kolom Menang dan Kalah ADA '
+        + 'supaya hasilnya terlihat, dan justru penolakan menyeret ke sana yang mengajarkan aturannya: '
+        + 'keduanya lahir dari keputusan penawaran.',
+    },
+  },
+
+  /*
+   * Daftar aktivitas CRM (F-3). BACA SAJA — tanpa blok `form`, karena sebuah
+   * aktivitas selalu menggantung pada satu dokumen dan id induknya tidak bisa
+   * diketik dari layar generik; tempat membuatnya adalah kartu Aktivitas di
+   * layar prospek/penawaran/pelanggan. Layar ini ada supaya antrean kerja
+   * harian bisa ditanyakan lintas dokumen — dan supaya notifikasi jatuh tempo
+   * (WatchedDeadlines) punya tujuan yang sungguhan.
+   */
+  'crm/activities': {
+    module: 'crm', api: 'crm/activities', label: 'Aktivitas CRM', labelOne: 'Aktivitas',
+    /* Antrean kerja HARIAN: terbuka pada yang masih terbuka. Tanpa ini layarnya
+       terbuka di arsip — urutannya due_at menaik lintas keadaan, jadi aktivitas
+       yang selesai bertahun lalu berdiri di atas pekerjaan hari ini (verifikasi
+       F-3 putaran 2). Nilai awal sekali per sesi; sesudah itu saringannya milik
+       pemakainya, termasuk mengosongkannya. */
+    defaultFilters: { state: 'open' },
+    columns: [
+      { key: 'due_at', label: 'Jatuh tempo', type: 'date', withRelative: true },
+      { key: 'subject', label: 'Kegiatan', type: 'text' },
+      { key: 'type', label: 'Jenis', type: 'enum', enum: 'activityType' },
+      // Nama dokumen induknya, ditempelkan server dengan satu query per jenis.
+      { key: 'document_label', label: 'Dokumen', type: 'text', sub: 'document_type_label' },
+      { key: 'owner_user_name', label: 'Pemilik', type: 'text' },
+      { key: 'done_at', label: 'Selesai', type: 'datetime' },
+    ],
+    filters: [
+      /* KEADAAN LEBIH DULU: layar ini adalah tujuan pemberitahuan jatuh tempo
+         (WatchedDeadlines crm_activity_due menautkan ke
+         `r/crm/activities?state=open`), dan pertanyaan yang dibawa orang ke
+         sini adalah "apa yang harus saya kerjakan". Tanpa saringan ini urutan
+         bawaannya (due_at menaik, lintas keadaan) menaruh pekerjaan yang
+         SELESAI 20 bulan lalu di baris pertama — diukur 8 Sep 2026:
+         "10 Jan 2025 · 606 hari lalu · Kunjungan pertama · selesai 15 Jan
+         2025". Servernya sudah punya ketiga keadaannya sejak T3.7; yang tidak
+         ada hanyalah kontrolnya. */
+      { key: 'state', label: 'Keadaan', enum: 'activityState' },
+      { key: 'type', label: 'Jenis', enum: 'activityType' },
+      { key: 'document_type', label: 'Dokumen', enum: 'activityDocument' },
+      { key: 'owner_user_id', label: 'Pemilik', lookup: 'users' },
+    ],
   },
 
   'crm/quotations': {
@@ -6072,6 +6299,12 @@ export const NAV = [
     items: [
       { label: 'Pelanggan', route: 'r/crm/customers' },
       { label: 'Prospek', route: 'r/crm/leads' },
+      // F-3 — papan pipeline: corong yang sama, dilihat sebagai kolom. Satu
+      // baris di bawah daftarnya, seperti papan PR dan papan NCR (P1-G).
+      { label: 'Papan Pipeline', route: 'b/crm/leads' },
+      // F-3 — antrean kerja harian: apa yang jatuh tempo hari ini, lintas
+      // prospek/penawaran/pelanggan.
+      { label: 'Aktivitas CRM', route: 'r/crm/activities' },
       // P7 — berkas lelang duduk di antara prospek dan penawaran karena di
       // situlah pekerjaannya: dokumen lelang dan aanwijzing datang lebih dulu,
       // penawaran menyusul, dan lembar TKDN menguraikan penawaran itu.
