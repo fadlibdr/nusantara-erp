@@ -53,6 +53,16 @@ public/app/
                         (a 500 is not offline) — the offline ribbon's second source
     vendorload.js       lazy <script> loader for UMD vendor files (SortableJS), one promise per
                         src, rejects on failure so the caller decides how to degrade
+    views/anggaran.js   Anggaran vs Realisasi (F-2): portfolio, per project × month, overhead
+                        (OVB). Every number comes from Finance\Services\BudgetRealisationService
+                        — the SAME class the PO/SPK budget gate reads — so the screen and the
+                        gate can never answer differently. A cell with no answer is RULED with
+                        its reason, never drawn as Rp 0 / 0 %
+    views/ambang.js     Ambang & Batas (F-2): the WatchedThresholds registry, sibling of
+                        views/tenggat.js — actual vs limit, with "no limit set", "budgeted at
+                        zero" and "nothing measured yet" printed as their own sentences
+                        (CONVENTIONS §24). A limit of Rp 0 that has already been SPENT is the
+                        loudest row there is, not a missing one — measured, it used to vanish
     kalenderpalette.js  the 8 department dot colours (ΔE-CVD validated) shared by the calendar
                         widget and the full calendar screen — owned by neither
     prefs.js            user preferences (favourites, recent, density, launcher.hidden,
@@ -153,6 +163,36 @@ Add an entry to `RESOURCES` in `js/schema.js` and a link in `NAV`:
 Column and field `type`s are listed at the top of `schema.js`. A resource with
 `customDetail: 'project'` renders a hand-written view from `CUSTOM_DETAILS` in `app.js`
 instead of the generic detail screen.
+
+### A live note under a field (`liveNote`, F-2)
+
+A field spec may carry `liveNote: '<key>'`. `views/form.js` keeps the providers in one
+registry (`LIVE_NOTES`) and renders a `.help` line under that field, refreshed whenever the
+form changes:
+
+```js
+{ key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudgetPo' }
+```
+
+Four rules, all learned the hard way:
+
+* the provider lives in `form.js`, NOT in `schema.js` — `schema.js` is data and imports
+  nothing, and giving it `import { api }` would tie the SPA's largest file to its transport;
+* the refresh is DELEGATED on the form body (`body.addEventListener('change', …)`), the same
+  way `visibleWhen` is: a combobox emits its `change` from the `<input>` inside it, and a
+  listener bound to the lookup wrapper does not see it on every path (measured, harness S29);
+* failure is SILENT. A 403, a module that does not answer, a dropped network — none of them
+  may block the document being created. The warning disappears; the server-side gate still
+  stands behind it with its own refusal sentence;
+* the note must print the number that judges THIS document, not a related one (F-2
+  verification). One provider served both the PO and the SPK form with the project's TOTAL
+  remaining, while the gate measures a PO against the non-subcon side and an SPK against the
+  subcon side: measured on the demo data, the PO form promised "sisa Rp 1.697.500.000" over a
+  non-subcon side of −Rp 105.039.400, and a PO of Rp 1 was refused 422.
+
+Shipped users: the Proyek field of the PO form (`projectBudgetPo` — the non-subcon ceiling)
+and of the SPK form (`projectBudgetSpk` — the subcon ceiling), each with its own sentence,
+its own ≥ 90 % colour, and the same words the gate uses when it refuses that document.
 
 ## Adding a "Cetak" button (formulir rumah)
 

@@ -11,6 +11,7 @@ use Modules\Core\Support\ApprovalPolicy;
 use Modules\Core\Support\ModuleCounts;
 use Modules\Core\Support\ReportableResources;
 use Modules\Core\Support\WatchedDeadlines;
+use Modules\Core\Support\WatchedThresholds;
 use Modules\Finance\Database\Seeders\ChartOfAccountsSeeder;
 use Modules\Finance\Models\FiscalPeriod;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
@@ -47,6 +48,10 @@ abstract class ErpTestCase extends TestCase
         // …dan memo "tabel mana yang membawa needs_director_approval sendiri"
         // milik ApprovalPolicy (F-1), alasan yang sama lagi.
         ApprovalPolicy::flushSchemaMemo();
+        // …dan registri WatchedThresholds (F-2): memo kolom per proses, DAN
+        // pemasok yang didaftarkan ServiceProvider modul fitur — keduanya
+        // melintasi batas aplikasi kalau tidak dibuang di sini.
+        WatchedThresholds::flushSchemaMemo();
     }
 
     /**

@@ -9,6 +9,7 @@ use Modules\Estimation\Models\Boq;
 use Modules\Estimation\Models\CostBudget;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ArInvoice;
+use Modules\Finance\Models\OverheadBudget;
 use Modules\Finance\Models\Payment;
 use Modules\HrPayroll\Models\LeaveRequest;
 use Modules\HrPayroll\Models\PayrollRun;
@@ -145,6 +146,16 @@ class ApprovableDocuments
         // therefore notify the same fin.approve holders and be named the same
         // way when maker-checker refuses it.
         Payment::class => ['prefix' => 'fin', 'label' => 'Pembayaran keluar', 'resource' => 'finance/payments'],
+        /*
+         * F-2 — anggaran overhead perusahaan per tahun buku (OVB). Approvable
+         * penuh seperti RAP: sebuah rencana belanja yang menjadi BATAS begitu
+         * disetujui, jadi ia butuh maker-checker yang sama. Terdaftar di sini
+         * supaya pengajuannya memberi tahu pemegang fin.approve seperti dokumen
+         * lain — dan supaya barisnya muncul di matriks persetujuan F-1, tempat
+         * pemilik boleh memasang ambang direktur atasnya (dikirim TANPA ambang;
+         * memasangnya adalah keputusan pemilik, bukan paket ini).
+         */
+        OverheadBudget::class => ['prefix' => 'fin', 'label' => 'Anggaran overhead', 'resource' => 'finance/overhead-budgets'],
         PayrollRun::class => ['prefix' => 'hr', 'label' => 'Payroll', 'resource' => 'hr/payroll-runs'],
         LeaveRequest::class => ['prefix' => 'hr', 'label' => 'Pengajuan cuti', 'resource' => 'hr/leave-requests'],
     ];

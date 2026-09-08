@@ -43,6 +43,8 @@ teknisi.
 15. [Persetujuan oleh Pemilik/MK](#15-persetujuan-oleh-pemilikmk)
 16. [Engineering — gambar, submittal, IPP](#16-engineering--gambar-submittal-ipp)
 17. [Mutu — inspeksi, NCR, benda uji beton](#17-mutu--inspeksi-ncr-benda-uji-beton)
+18. [Persetujuan — ambang direktur, "a.n.", setujui massal](#18-persetujuan--ambang-direktur-an-dan-setujui-massal-f-1)
+19. [Anggaran vs realisasi — dan apa arti sel yang bergaris](#19-anggaran-vs-realisasi--dan-apa-arti-sel-yang-bergaris)
 
 [bab14]: #14-yang-tidak-bisa-anda-lakukan-sendiri--dan-siapa-yang-bisa
 
@@ -8382,3 +8384,139 @@ Bila kotak centang dan tombol itu **tidak ada**, perusahaan Anda memang belum
 mengaktifkannya. Sebagian baris juga tidak dapat dicentang karena jenis dokumen
 itu disetujui lewat layarnya sendiri; arahkan kursor ke kotaknya untuk membaca
 sebabnya.
+
+
+---
+
+## 19. Anggaran vs realisasi — dan apa arti sel yang bergaris
+
+Layar **Keuangan › Anggaran vs Realisasi** menjawab satu pertanyaan: *berapa
+anggaran proyek ini yang sudah habis, dan berapa yang masih boleh dibelanjakan.*
+
+### Yang dibaca seorang manajer proyek
+
+Tab **Portofolio**, satu baris per proyek yang belum ditutup:
+
+| Kolom | Artinya |
+|---|---|
+| **RAP** | total RAP yang **disetujui** dan sedang berlaku untuk proyek itu (revisi terbaru yang belum digantikan) |
+| **Realisasi** | biaya yang sudah tercatat di buku biaya proyek — tagihan vendor yang disetujui, payroll, bon gudang |
+| **Komitmen** | yang sudah **dijanjikan** tetapi belum ditagih: PO disetujui dikurangi yang sudah ditagihkan, SPK dikurangi opname yang disetujui |
+| **Sisa** | RAP − realisasi − komitmen, **dan di bawahnya kedua sisinya** dalam rupiah penuh: "PO Rp …" (sisi non-subkon) dan "SPK Rp …" (sisi subkon) |
+| **Terpakai** dan **Keadaan** | sisi yang paling dekat ke batasnya — sisi itu disebut di bawah lencananya, bersama persentase totalnya |
+
+**Kolom Realisasi yang bertanda "—"** berarti proyek itu belum punya satu baris
+biaya pun; itu bukan "Rp 0 dibelanjakan". Aturan yang sama dengan kolom
+realisasi per bulan.
+
+**Angka "Sisa PO" adalah nilai PO terbesar yang masih diterima tanpa konfirmasi
+pelampauan** — bukan perkiraan, dan dicetak **dalam rupiah penuh yang dibulatkan
+ke bawah** justru karena itu: sebuah angka ringkas seperti "Rp 31,13 M"
+membulatkan ke atas dan akan menjanjikan dua juta rupiah yang ditolak gerbang,
+dan bahkan pembulatan ke rupiah terdekat sudah cukup (sisa Rp 66.666.666,67
+dicetak "Rp 66.666.667" akan ditolak, terukur). Kalau Anda mengajukan PO tepat
+sebesar angka yang tercetak, ia lolos; satu rupiah di atasnya, gerbang anggaran
+menahannya dan meminta Anda mengakui pelampauannya secara eksplisit.
+
+Kalau sisi itu **sudah lewat**, kalimatnya tidak menawarkan angka sama sekali:
+ia berbunyi "sudah melampaui anggaran sisi ini sebesar Rp …" — karena tidak ada
+satu pun nilai PO yang diterima tanpa konfirmasi, termasuk Rp 0. Itulah sebabnya sisanya dicetak per
+sisi: sebuah PO diukur terhadap anggaran non-subkon (material, upah, alat,
+overhead) dan sebuah SPK terhadap anggaran subkon, jadi total saja akan
+menjanjikan ruang yang tidak dimiliki dokumen yang hendak Anda buat.
+
+### Anggaran bulanan adalah TURUNAN — dan layarnya mengatakannya
+
+Tab **Per bulan** membagi RAP ke bulan-bulan menurut **bobot fase baseline**
+proyek: bulan yang rencananya memikul 12,82 % pekerjaan memikul 12,82 % anggaran.
+Kalimat di atas tabelnya menyebut RAP dan baseline mana yang dipakainya, apa
+adanya. **Tidak ada seorang pun yang mengetik anggaran bulan Maret**; mengubah
+baseline atau RAP mengubah seluruh kolomnya.
+
+### Sel yang bergaris — dan kenapa ia BUKAN Rp 0
+
+Aplikasi ini tidak pernah menulis angka yang tidak diketahuinya. Kalau sebuah sel
+kosong dan bertanda "—", sebabnya selalu dicetak:
+
+| Yang tertulis | Artinya | Yang harus dilakukan |
+|---|---|---|
+| **"Belum ada baseline disetujui"** | anggaran bulanan diturunkan dari bobot fase baseline; tanpa baseline tidak ada bobot | bekukan baseline proyeknya (Proyek › EVM & Baseline) |
+| **"Belum ada RAP disetujui"** | bobot fasenya ada, totalnya belum | setujui RAP-nya (Estimasi › RAP) |
+| **"Di luar rentang baseline"** | biaya mendarat di bulan yang tidak ada dalam rencana | barisnya tetap tampil — biayanya sungguh terjadi; periksa tanggal biayanya atau rencananya |
+| **"—" pada kolom Realisasi** | bulan itu belum punya satu baris biaya pun | tidak ada; ini bukan "Rp 0 dibelanjakan" |
+| **"Tanpa RAP" pada Terpakai** | proyek belum punya RAP disetujui, jadi tidak ada anggaran yang bisa dilampaui | setujui RAP-nya — sampai itu terjadi, **gerbang anggaran diam untuk proyek ini** |
+
+Membagi RAP rata dua belas bulan akan terlihat lebih rapi, dan itulah persis
+alasannya tidak dilakukan: ia mencetak rencana yang tidak pernah disetujui
+siapa pun.
+
+### Peringatan 90 %
+
+Begitu **realisasi + komitmen** mencapai 90 % anggaran RAP, angkanya berwarna dan
+peringatannya muncul di tempat uangnya dibelanjakan:
+
+- **layar proyek** — ubin "Anggaran terpakai" dan pita peringatan di bawahnya.
+  Keduanya menyebut **sisi yang paling dekat ke batasnya**: sebuah proyek yang
+  totalnya 93 % terpakai tetapi sisi PO-nya sudah habis mendapat pita MERAH,
+  karena setiap PO berikutnya memang akan ditolak;
+- **formulir PO dan SPK** — begitu Anda memilih proyeknya, satu kalimat di bawah
+  kotak Proyek menyebut anggaran, realisasi, komitmen dan **sisa sisi yang
+  menghakimi dokumen itu** (PO → non-subkon, SPK → subkon), **sebelum** Anda
+  mengetik satu baris item;
+- **Ringkasan › Ambang & Batas** — daftar semua batas, termasuk RAP terhadap
+  nilai kontrak dan realisasi overhead terhadap OVB.
+
+Peringatan ini **tidak menolak apa pun**. Yang menolak adalah gerbang anggaran
+saat PO/SPK diajukan, dengan kalimat dan angkanya sendiri.
+
+### Revisi RAP
+
+RAP yang sudah disetujui **tidak bisa diubah** — ia sedang menjadi acuan gerbang
+dan laporan. Yang bisa dilakukan adalah **Buat Revisi**: aplikasi menyalin
+rinciannya ke sebuah RAP baru berstatus Draf, dan **alasannya wajib diisi**
+(mis. CCO-01, addendum, eskalasi harga yang disetujui). Alasan itu ikut selamanya
+di riwayat revisi.
+
+**Selama revisinya belum disetujui, RAP lama tetap yang berlaku** — anggaran
+proyek tidak pernah kosong di tengah jalan. Begitu revisinya disetujui, RAP lama
+distempel "digantikan" (isinya tidak diubah satu huruf pun, tetap terbaca utuh)
+dan seluruh angka — layar, gerbang, laporan — pindah ke revisi baru pada detik
+yang sama. Layar RAP memuat dua tabel riwayat: rantai revisinya dengan selisih
+tiap revisi, dan selisih **per kategori biaya**, karena sebuah revisi yang
+totalnya naik bisa saja memindahkan uang dari material ke subkon — dua gerbang
+yang bergerak ke arah berlawanan.
+
+**Kalau sebuah proyek terlanjur punya DUA RAP yang disetujui** — bentuk data yang
+sah sebelum fitur revisi ada — layar RAP menandai dengan lencana **"Mengatur"**
+yang mana dari keduanya yang benar-benar dibaca gerbang, dan yang satunya harus
+ditarik: buka RAP **tanpa** lencana itu, tekan **`Nyatakan digantikan`** (izin
+`est.approve`) dan tuliskan sebabnya. Statusnya, rinciannya dan totalnya tidak
+disentuh — yang ditulis hanya stempel "digantikan", sama seperti kalau ia
+digantikan oleh sebuah revisi — dan proyek itu bisa direvisi lagi. Tanpa langkah
+ini, setiap revisi berikutnya ditolak dengan kalimat "Proyek ini sudah punya RAP
+yang berlaku (…)". RAP yang **satu-satunya** berlaku tidak bisa dinyatakan
+digantikan: proyek tanpa RAP disetujui membuat gerbang anggaran diam, dan setiap
+PO/SPK berikutnya lewat tanpa diperiksa.
+
+### Anggaran overhead (OVB)
+
+Biaya yang tidak dimiliki proyek mana pun — kantor, staf pusat, sewa, penyusutan
+— dianggarkan setahun sekali di **Keuangan › Anggaran Overhead (OVB)**. Anda
+memilih **akun-akun COA** yang dianggarkan beserta nilainya; realisasinya dibaca
+dari mutasi akun-akun itu sendiri di buku besar (jurnal yang **sudah diposting**;
+jurnal draf tidak dihitung). **Satu tahun buku hanya boleh punya satu OVB yang
+disetujui** — pengajuan kedua ditolak dengan menyebut kode yang sudah berdiri.
+Kodenya membawa **tahun buku yang dianggarkan** (OVB/2031/0001 untuk tahun buku
+2031, dibuat tahun berapa pun).
+
+Anggaran yang salah dan sudah terlanjur disetujui **dibatalkan** dengan tombol
+`Batalkan OVB` pada dokumennya (izin `fin.approve`, alasan wajib, tercatat
+permanen di jejak audit). Pembatalan tidak menyentuh satu baris jurnal pun —
+sebuah anggaran adalah rencana, bukan transaksi — dan mengembalikan tahun itu
+ke keadaan "belum ada OVB disetujui", sehingga penggantinya bisa disetujui.
+
+Tab **Overhead (OVB)** pada layar Anggaran vs Realisasi menampilkan
+perbandingannya; akun yang belum bermutasi sekali pun tahun ini bertanda "—",
+bukan Rp 0. Bila **belum satu akun pun** bermutasi, totalnya ikut bertanda "—"
+dan persentasenya kosong: yang benar adalah "belum ada yang tercatat", bukan
+"0 % terpakai, aman".

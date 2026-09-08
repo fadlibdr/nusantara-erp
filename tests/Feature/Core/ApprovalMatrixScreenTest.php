@@ -72,15 +72,20 @@ class ApprovalMatrixScreenTest extends ErpTestCase
     // ------------------------------------------- nilai hari ini sebagai bawaan
 
     /**
-     * DUA PULUH DELAPAN BARIS, dan setiap satunya membawa aturan yang berlaku
+     * DUA PULUH SEMBILAN BARIS, dan setiap satunya membawa aturan yang berlaku
      * hari ini. Angkanya ditulis apa adanya: sebuah uji yang membaca nilainya
      * dari sumber yang sama dengan kodenya akan tetap hijau ketika keduanya
      * bergeser bersama, dan yang dijaga di sini justru pergeseran itu.
+     *
+     * 28 saat F-1 dikirim; baris ke-29 adalah Anggaran overhead (OVB, F-2),
+     * satu-satunya jenis dokumen baru sejak itu. Ia dikirim TANPA ambang
+     * seperti 24 baris lainnya, jadi memasangnya tetap keputusan pemilik dan
+     * tidak ada satu pun keputusan persetujuan yang berubah karena OVB ada.
      */
     public function test_the_matrix_ships_with_the_values_that_govern_each_type_today(): void
     {
         $rows = $this->matrixGroup()['matrix'];
-        $this->assertCount(28, $rows);
+        $this->assertCount(29, $rows);
 
         $policies = ApprovalPolicy::all();
 

@@ -251,6 +251,9 @@ class ApprovalPolicyEquivalenceTest extends ErpTestCase
 
     /**
      * Dua puluh lima jenis tanpa ambang: aturannya, bukan nol.
+     *
+     * (24 saat F-1; 25 sejak F-2 menambahkan Anggaran overhead — yang juga
+     * dikirim TANPA ambang, jadi kalimat uji ini tidak berubah artinya.)
      */
     public function test_the_twenty_five_types_with_no_gate_today_carry_no_threshold(): void
     {
@@ -274,8 +277,8 @@ class ApprovalPolicyEquivalenceTest extends ErpTestCase
             $this->assertFalse($policy->directorRequiredForSingleApproval(999999999999.0));
         }
 
-        // 28 jenis, 4 bergerbang (PO, SPK, addendum SPK, keputusan pemenang).
-        $this->assertSame(24, $withoutGate);
+        // 29 jenis, 4 bergerbang (PO, SPK, addendum SPK, keputusan pemenang).
+        $this->assertSame(25, $withoutGate);
     }
 
     public function test_the_award_decision_ladder_and_the_matrix_row_stay_in_step(): void

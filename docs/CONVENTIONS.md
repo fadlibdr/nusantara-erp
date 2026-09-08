@@ -52,6 +52,22 @@ Modules/<Name>/
 | Engineering | `api/engineering`  | `eng_`       | 001300–001399 |
 | Quality     | `api/quality`      | `qc_`        | 001400–001499 |
 
+**Blok lanjutan** (F-2, 7 Sep 2026). Blok pertama sebuah modul bisa habis, dan dua di antaranya
+sudah: Projects memakai 000799 pada 9 Agustus 2026 dan Finance memakai 001199 pada 25 Juli 2026.
+Pemilik menyetujui rentang lanjutannya (ROADMAP-HASHMICRO §5 baris 5), dan **tabel di bawah ini —
+bukan prosa mana pun — adalah sumber kebenaran rentang blok untuk kedua modul itu:**
+
+| Module      | Blok pertama  | Blok lanjutan | Status |
+|-------------|---------------|---------------|--------|
+| Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
+| Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
+
+Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
+lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
+migrasi Core-lah yang menetapkannya di tabel ini, dalam commit yang sama dengan pemakaian
+pertamanya. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
+commit yang pertama kali memakainya, tidak pernah lebih dulu dan tidak pernah belakangan.
+
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
 inside your block). Never use another module's block.
 
@@ -113,6 +129,13 @@ Cross-module Eloquent relations (belongsTo another module's model) ARE allowed a
   action with `assertRevisiBerlaku()`). Documents with their own versioning pattern
   (DrawingSubmittal, ProjectBaseline, MethodLibraryEntry, BOQ versions, quotation
   revisions) do NOT take this trait.
+- **Setiap aturan "hanya boleh ada SATU" wajib punya jalan keluarnya sendiri** (verifikasi F-2,
+  dua putaran). Sebuah gerbang unik yang menolak baris kedua sementara baris pertama tidak bisa
+  ditarik kembali mengunci datanya selamanya — dan kalimat penolakannya menyuruh operator menekan
+  tombol yang tidak ada. Dua yang ada hari ini: `OverheadBudgetService::cancel()` (satu OVB
+  disetujui per tahun buku) dan `RapService::supersede()` (satu RAP yang mengatur per proyek).
+  Bentuknya sama: alasan WAJIB, jejak di `core_approvals`, tidak satu byte pun isi dokumennya
+  disentuh, dan jalan keluarnya DISEBUT di dalam kalimat penolakan yang menutup pintunya.
 - Helpers: `Modules\Core\Support\Terbilang::rupiah()` (amount → Indonesian words),
   `Modules\Core\Support\Money::format()`.
 
@@ -1099,3 +1122,111 @@ delegasi yang sudah dicabut sampai ia direstart.
 'orang ini menandatangani dokumen'". Keputusan itu tidak diubah F-1, jadi "a.n."
 muncul di jejak persetujuan, di pemberitahuan keputusan dan di layar detail —
 bukan di kertas yang difile orang.
+
+## 24. Registri ambang (`WatchedThresholds`, F-2)
+
+`Modules\Core\Support\WatchedThresholds` adalah saudara `WatchedDeadlines`:
+yang itu menjawab "tanggal apa yang lewat", yang ini "angka apa yang mendekati
+atau melewati batasnya". Satu daftar deklaratif; batas berikutnya yang layak
+diawasi ditambahkan sebagai **satu entri array**, bukan sebagai layar baru.
+
+**ENAM KEADAAN, DAN TIGA DI ANTARANYA BUKAN ANGKA.** Inilah seluruh alasan
+registri ini ada, dan aturan yang mengikat setiap entri baru:
+
+| Keadaan | Artinya | Yang dicetak layar |
+|---|---|---|
+| `aman` | di bawah ambang peringatan | persentasenya |
+| `mendekati` | di ambang peringatan atau di atasnya, masih di bawah batas | persentasenya, berwarna |
+| `lampau` | di batas atau melewatinya — **tepat 100 % ada di sisi ini**, dan **batas Rp 0 yang sudah dibelanjakan ada di sini juga** | persentasenya, merah |
+| `tanpa_anggaran` | batasnya DIKETAHUI dan besarnya nol, belum ada yang dibelanjakan | **aturannya** ("Tidak dianggarkan") |
+| `tanpa_batas` | yang diukur ADA, batasnya tidak pernah disetel | **aturannya**, tidak pernah 0 % |
+| `tidak_terukur` | yang diukurnya sendiri belum ada | **aturannya**, tidak pernah 0 % |
+
+**KEADAAN DIBANDINGKAN PADA ANGKA YANG DICETAK, LAMPAU PADA RUPIAHNYA**
+(verifikasi F-2). `mendekati` diadu dengan `displayPct()` — `pct()` yang
+dibulatkan ke jumlah desimal yang benar-benar dicetak layar (satu) — karena
+sebuah baris yang mencetak "90,0 %" lalu menyebut dirinya "Aman" di bawah judul
+"Peringatan ≥ 90 %" adalah dua pernyataan yang bertentangan pada satu baris
+(terukur: Rp 899.999.999 dari Rp 1.000.000.000). `lampau` diadu dengan
+RUPIAHNYA (`$actual >= $limit`), bukan dengan persen yang dibulatkan: sebuah
+baris "Melampaui" yang masih menyisakan satu rupiah yang DITERIMA gerbang
+adalah perselisihan layar-vs-gerbang yang F-2 ada untuk menghapus.
+
+`tidak_terukur` MENDAHULUI `tanpa_batas` (tanpa satu angka pun, "batasnya belum
+disetel" bukan kalimat yang paling menolong), dan catatan barisnya menyebut
+**kedua** sisi yang hilang supaya satu keadaan tidak menyembunyikan kekurangan
+yang lain.
+
+**BATASNYA TIDAK PERNAH DISIMPULKAN DARI NILAINYA** (verifikasi F-2 putaran 2).
+Baris yang tidak punya batas mengirim `limit` **null**; nol adalah ANGKA. Aturan
+lama "`limit` ≤ 0 berarti tidak ada batas" ditulis untuk `prj_projects.contract_value`
+yang berbawaan 0 (0 di sana berarti belum dicatat, bukan kontrak nol rupiah) —
+dan ia menelan sisi yang paling berbahaya yang ada: RAP yang menganggarkan
+**Rp 0** untuk subkon sementara **Rp 200.000.000** biaya subkon sudah tercatat
+hilang dari registri sebagai "Batas belum disetel", lalu — karena urutannya
+menurut persentase, yang tidak ada — jatuh ke DASAR daftar yang seluruh tugasnya
+menyebutkan apa yang melewati batasnya (terukur di kedua driver). Sekarang
+`rapVersusContract` sendiri yang mengirim null saat nilai kontrak belum dicatat,
+`state()` yang memutuskan arti sebuah batas nol (dibelanjakan → `lampau`, belum →
+`tanpa_anggaran`), dan urutan registri memakai `stateRank()` **lebih dulu**,
+persentase sesudahnya — satu definisi "lebih buruk", dipakai juga
+`BudgetRealisationService::worstSide()`.
+
+**PERSENTASE YANG DICETAK TIDAK PERNAH MEMBANTAH LENCANANYA** (verifikasi F-2
+putaran 2). Sebuah baris yang MASIH di bawah batasnya tidak boleh tercetak
+"100 %": `pct()` memulangkan angka terbesar yang masih tercetak di bawah 100 pada
+presisi layar (99,9 % pada satu desimal) untuk `actual < limit` yang membulat
+menjadi 100. Terukur di peramban: RAP Rp 24.250.000.000 terhadap nilai kontrak
+Rp 24.250.000.001 berbunyi "100% · Mendekati batas", tepat di bawah kartu "Cara
+membacanya" layar itu sendiri ("…menjadi 'Melampaui batas' tepat pada 100 %").
+Pembulatannya condong seperti seluruh registri: boleh memperingatkan lebih awal,
+tidak boleh menenangkan lebih lama.
+
+**Aturan yang sama dengan `WatchedDeadlines`:** `DB::table`, literal string,
+**tanpa impor modul fitur** (dipaku `ThresholdWatchTest::test_core_imports_no_feature_module_to_compute_a_threshold`,
+yang memindai baris `use` berkas registrinya sendiri). Tabel dan kolom dijaga
+`missingSchema()`, jadi modul yang belum bermigrasi menjadi baris SKIPPED —
+bukan `QueryException`, dan bukan entri kosong yang terbaca "semua aman".
+
+**ENTRI YANG ANGKANYA MILIK MODUL LAIN DIPASOK, BUKAN DISALIN.** `project_budget_pct`
+mengukur realisasi + KOMITMEN terhadap RAP, dan aritmetika komitmen hidup di
+`Finance\Services\CommitmentService` — yang dibaca `BudgetGateService` sebelum
+menolak sebuah PO. Menyalin SQL-nya ke Core berarti dua jawaban atas satu
+pertanyaan. Maka Core mendeklarasikan entrinya (label, izin, tautan, ambang,
+keadaan) dan modul pemiliknya memasok barisnya:
+
+```php
+// Modules/Finance/Providers/FinanceServiceProvider::boot()
+WatchedThresholds::supply(
+    'project_budget_pct',
+    static fn (): array => app(BudgetRealisationService::class)->thresholdRows(),
+);
+```
+
+Closure, bukan hasil: pemindaian bisa terjadi kapan saja setelah boot, dan
+menghitungnya saat boot membebani setiap permintaan. Selama tidak ada yang
+memasok, entrinya SKIPPED. Uji wajib memanggil `flushSuppliers()` /
+`flushSchemaMemo()` (sudah dipasang di `ErpTestCase::setUp`).
+
+**Ambang peringatan ada di `config('erp.thresholds.<kunci>')`**, satu kunci per
+entri, bawaan 90 % (ROADMAP-HASHMICRO §5 baris 13). Ini PERINGATAN, bukan
+gerbang: tidak ada satu dokumen pun yang ditolak karena angka di blok itu — yang
+menolak PO/SPK yang menjebol RAP tetap `erp.procurement.budget_gate`, dengan
+kalimatnya sendiri.
+
+Entri yang dikirim F-2: `project_budget_pct` (dipasok Finance),
+`rap_vs_kontrak_pct` dan `overhead_budget_pct` (dihitung Core). Layarnya
+`#/ambang`, tetangga `#/tenggat` di grup Ringkasan.
+
+**BARIS YANG DIPASOK ADALAH SISI YANG DITEGAKKAN, BUKAN AGREGATNYA**
+(verifikasi F-2). `project_budget_pct` memasok sisi PROYEK yang paling dekat ke
+batasnya — non-subkon (dihakimi saat PO diajukan) atau subkon (saat SPK) —
+karena hanya batas per sisi itulah yang benar-benar menolak dokumen; totalnya
+ikut di catatan barisnya. Sebuah registri yang mengukur agregat akan
+membariskan proyek yang totalnya 16,7 % terpakai di antara yang aman sementara
+setiap PO-nya sudah ditolak. Aturannya untuk entri berikutnya: **yang diawasi
+adalah angka yang menolak sesuatu.**
+
+Kolom pertama tabelnya memakai `subject_word` entri apa adanya (dikapitalkan),
+bukan dua pilihan yang dipatok layar: entri yang menyebut satuannya sendiri
+tidak boleh kehilangannya di tabel yang menampilkannya.

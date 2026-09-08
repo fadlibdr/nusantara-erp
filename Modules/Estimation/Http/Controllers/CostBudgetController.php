@@ -107,10 +107,18 @@ class CostBudgetController extends ApiController
         return $this->ok(new CostBudgetResource($costBudget), 'RAP submitted');
     }
 
+    /**
+     * F-2 — lewat LAYANAN, tidak lagi memanggil trait langsung.
+     *
+     * Menyetujui sebuah revisi harus menggantikan pendahulunya dalam transaksi
+     * yang sama; sebuah pintu yang melewati layanan akan membiarkan keduanya
+     * berdiri approved dan "RAP yang mengatur proyek ini" punya dua jawaban —
+     * satu untuk gerbang PO, satu untuk layar anggaran.
+     */
     public function approve(Request $request, CostBudget $costBudget): JsonResponse
     {
         try {
-            $costBudget->approve($request->user(), $request->input('note'));
+            $this->service->approve($costBudget, $request->user(), $request->input('note'));
         } catch (LogicException $e) {
             return $this->error($e->getMessage(), 422);
         }
@@ -121,11 +129,75 @@ class CostBudgetController extends ApiController
     public function reject(Request $request, CostBudget $costBudget): JsonResponse
     {
         try {
-            $costBudget->reject($request->user(), $request->input('note'));
+            $this->service->reject($costBudget, $request->user(), $request->input('note'));
         } catch (LogicException $e) {
             return $this->error($e->getMessage(), 422);
         }
 
         return $this->ok(new CostBudgetResource($costBudget), 'RAP rejected');
+    }
+
+    /** Buat revisi draf dari RAP yang sudah disetujui (F-2 / T2.5). */
+    public function revise(Request $request, CostBudget $costBudget): JsonResponse
+    {
+        $validated = $request->validate([
+            'revision_reason' => ['required', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string'],
+            'target_margin_pct' => ['nullable', 'numeric'],
+        ]);
+
+        try {
+            $revision = $this->service->revise($costBudget, $validated, $request->user());
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
+
+        return $this->created(
+            new CostBudgetResource($revision->load(['boq', 'items.boqItem'])),
+            'Revisi RAP dibuat sebagai draf',
+        );
+    }
+
+    /**
+     * Nyatakan RAP ini sudah digantikan RAP berlaku milik proyek yang sama.
+     *
+     * Satu-satunya jalan keluar untuk proyek yang datanya sudah memuat DUA RAP
+     * disetujui: tanpa ini setiap persetujuan berikutnya ditolak dan RAP
+     * disetujui tidak bisa ditolak, jadi anggarannya terkunci selamanya
+     * (verifikasi F-2 putaran 2).
+     */
+    public function supersede(Request $request, CostBudget $costBudget): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:1000'],
+            // Boleh disebut; bila tidak, layanan memakai RAP yang BERLAKU untuk
+            // proyek itu — jawaban yang sama dengan yang dibaca gerbang.
+            'superseded_by_id' => ['nullable', 'integer', 'exists:est_cost_budgets,id'],
+        ]);
+
+        try {
+            $this->service->supersede(
+                $costBudget,
+                $request->user(),
+                $validated['reason'],
+                isset($validated['superseded_by_id']) ? CostBudget::query()->find($validated['superseded_by_id']) : null,
+            );
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
+
+        return $this->ok(new CostBudgetResource($costBudget->refresh()), 'RAP dinyatakan digantikan');
+    }
+
+    /** Rantai revisi + selisih tiap revisi terhadap pendahulunya. */
+    public function revisions(CostBudget $costBudget): JsonResponse
+    {
+        return $this->ok($this->service->revisionChain($costBudget));
+    }
+
+    /** Selisih per kategori biaya antar revisi. */
+    public function revisionDiff(CostBudget $costBudget): JsonResponse
+    {
+        return $this->ok($this->service->revisionDiff($costBudget));
     }
 }

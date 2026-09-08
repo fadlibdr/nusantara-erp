@@ -920,11 +920,11 @@
   "matrix": {
    "found": true,
    "head": "Matriks Persetujuan",
-   "count_label": "28 jenis dokumen",
-   "rows": 28,
-   "editable_cells": 16,
+   "count_label": "29 jenis dokumen",
+   "rows": 29,
+   "editable_cells": 17,
    "mode_cells": 1,
-   "threshold_cells": 14,
+   "threshold_cells": 15,
    "headers": [
     "JENIS DOKUMEN",
     "WAJIB DIREKTUR MULAI DARI",
@@ -1129,12 +1129,12 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 32908,
+  "_ms": 33673,
   "_clicks": 2
  },
  "S28_matriks_persetujuan_mobile": {
   "found": true,
-  "rows": 28,
+  "rows": 29,
   "wrap_scrolls": true,
   "page_scrolls_sideways": false,
   "checks": {
@@ -1144,7 +1144,280 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5911,
+  "_ms": 5451,
+  "_clicks": 0
+ },
+ "S29_anggaran_vs_realisasi": {
+  "rap_approved": 200,
+  "budget_before": {
+   "budget": 42173913043.47,
+   "used": 4648240000,
+   "pct": 11.02,
+   "state": "aman",
+   "remaining_non_subcon": 31123865391.31,
+   "rap_code": "RAP/2026/0001"
+  },
+  "gate": {
+   "at_limit_status": 200,
+   "over_limit_status": 422,
+   "over_limit_key": [
+    "budget"
+   ],
+   "over_limit_message": "Anggaran RAP non-subkon (material/upah/alat/overhead) proyek ini Rp 31.352.105.391; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 0 menyisakan Rp 31.123.865.391, sedangkan PO PO/2026/IX/0004 membawa DPP Rp 31.123.865.391 — melampaui anggaran Rp 0. Ajukan ulang dengan konfirmasi bila komitmen ini memang harus jalan."
+  },
+  "portfolio": {
+   "found": true,
+   "cells": [
+    "PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai) · RAP RAP/2026/0001",
+    "Rp 48.500.000.000",
+    "Rp 42.173.913.043",
+    "Rp 228.240.000",
+    "Rp 4.420.000.000",
+    "Rp 37.525.673.043 PO Rp 31.123.865.391 · SPK Rp 6.401.807.652",
+    "40,8%",
+    "Aman sisi SPK · total 11%",
+    "Per bulan"
+   ],
+   "headers": [
+    "PROYEK",
+    "NILAI KONTRAK",
+    "RAP",
+    "REALISASI",
+    "KOMITMEN",
+    "SISA",
+    "TERPAKAI",
+    "KEADAAN",
+    ""
+   ],
+   "rows": 2,
+   "zero_cells": []
+  },
+  "portfolio_without_rap": {
+   "found": true,
+   "cells": [
+    "PRJ-2026-002 Instalasi ELV & Data Center Bank Artha Nusantara",
+    "Rp 9.800.000.000",
+    "—",
+    "—",
+    "Rp 115.600.000",
+    "—",
+    "Tanpa RAP",
+    "Tanpa RAP",
+    "Per bulan"
+   ],
+   "headers": [
+    "PROYEK",
+    "NILAI KONTRAK",
+    "RAP",
+    "REALISASI",
+    "KOMITMEN",
+    "SISA",
+    "TERPAKAI",
+    "KEADAAN",
+    ""
+   ],
+   "rows": 2,
+   "zero_cells": []
+  },
+  "monthly_with_baseline": {
+   "derivation": "Anggaran bulanan = RAP RAP/2026/0001 (Rp 42.173.913.043) × bobot fase baseline BSL/2026/VIII/0001 revisi 0. Angka TURUNAN — tidak ada satu pun anggaran bulanan yang diketik orang, dan mengubah baseline atau RAP mengubah seluruh kolomnya.",
+   "alert_tone": "alert info",
+   "headers": [
+    "BULAN",
+    "BOBOT FASE",
+    "ANGGARAN (TURUNAN)",
+    "REALISASI",
+    "SELISIH",
+    "KUMULATIF ANGGARAN",
+    "KUMULATIF REALISASI"
+   ],
+   "months": 17,
+   "budget_cells": [
+    "Rp 1.386.425.217",
+    "Rp 5.406.822.174",
+    "Rp 4.690.371.739",
+    "Rp 4.846.752.609",
+    "Rp 4.690.371.739",
+    "Rp 4.846.752.609",
+    "Rp 4.846.710.435",
+    "Rp 4.690.371.739",
+    "Rp 3.784.433.913",
+    "Rp 857.733.043",
+    "Rp 486.180.870",
+    "Rp 486.138.696",
+    "Rp 439.114.783",
+    "Rp 486.138.696",
+    "Rp 75.702.174",
+    "Rp 78.190.435",
+    "Rp 75.702.174"
+   ],
+   "actual_cells": [
+    "—",
+    "Rp 209.500.000",
+    "—",
+    "—",
+    "—",
+    "Rp 18.740.000",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—",
+    "—"
+   ],
+   "zero_budget_cells": [],
+   "total_budget": "Rp 42.173.913.043",
+   "rupiah_on_screen": true
+  },
+  "monthly_print": {
+   "names_the_project": true,
+   "filters_hidden": true,
+   "head": "Anggaran vs realisasi per bulan\nPRJ-2026-001 · Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)\nRAP RAP/2026/0001Baseline BSL/2026/VIII/0001 rev 0"
+  },
+  "monthly_without_baseline": {
+   "derivation": "Anggaran bulanan TIDAK dihitung: proyek ini belum punya baseline yang disetujui, jadi tidak ada bobot fase untuk membagi RAP ke bulan. Selnya digaris — meratakan RAP per dua belas bulan akan mengarang rencana yang tidak pernah disetujui siapa pun.",
+   "alert_tone": "alert warn",
+   "headers": [],
+   "months": 0,
+   "budget_cells": [],
+   "actual_cells": [],
+   "zero_budget_cells": [],
+   "total_budget": null,
+   "rupiah_on_screen": false
+  },
+  "revision_approved_status": 200,
+  "budget_after_revision": {
+   "budget": 24250000000,
+   "used": 4648240000,
+   "pct": 19.17,
+   "state": "aman",
+   "rap_code": "RAP/2026/0002",
+   "rap_revision": 1
+  },
+  "threshold_fixture": {
+   "dpp": 17904260000.0,
+   "submit": 200,
+   "approve": 200
+  },
+  "budget_after_commitment": {
+   "budget": 24250000000,
+   "used": 22552500000,
+   "pct": 93,
+   "state": "mendekati",
+   "worst_side": "non_subcon",
+   "worst_state": "lampau"
+  },
+  "project_screen": {
+   "budget_tile": "ANGGARAN TERPAKAI 100,6% PO melampaui Rp 105.039.400 · RAP RAP/2026/0002",
+   "warning": "Anggaran RAP non-subkon (material/upah/alat/overhead) Rp 18.027.460.600; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 17.904.260.000 sudah melampaui anggaran sisi ini sebesar Rp 105.039.400 — tidak ada DPP PO yang diterima gerbang tanpa konfirmasi pelampauan (100,6 % terpakai). Realisasi + komitmen Rp 22.552.500.000 dari anggaran RAP RAP/2026/0002 (Rp 24.250.000.000) — 93,0 % terpakai, sisa Rp 1.697.500.000. Gerbang menghakimi PER SISI: PO melampaui Rp 105.039.400, SPK menyisakan Rp 1.802.539.400. Ambang peringatan 90%. Gerbang anggaran menghakimi PO terhadap sisa non-subkon dan SPK terhadap sisa subkon, masing-masing sampai pengajunya mengonfirmasi pelampauannya.",
+   "warning_class": "alert error"
+  },
+  "po_form": {
+   "found": true,
+   "help": [
+    {
+     "text": "Anggaran RAP non-subkon (material/upah/alat/overhead) Rp 18.027.460.600; realisasi Rp 228.240.000 dan komitmen PO berjalan Rp 17.904.260.000 sudah melampaui anggaran sisi ini sebesar Rp 105.039.400 — tidak ada DPP PO yang diterima gerbang tanpa konfirmasi pelampauan (100,6 % terpakai).",
+     "hidden": false,
+     "color": "var(--danger)"
+    }
+   ]
+  },
+  "revision_chain": {
+   "found": true,
+   "rows": [
+    [
+     "0",
+     "RAP/2026/0001",
+     "Disetujui",
+     "—",
+     "Rp 31.352.105.391",
+     "Rp 10.821.807.652",
+     "Rp 42.173.913.043",
+     "—",
+     "—"
+    ],
+    [
+     "1",
+     "RAP/2026/0002",
+     "Disetujui",
+     "Mengatur",
+     "Rp 18.027.460.600",
+     "Rp 6.222.539.400",
+     "Rp 24.250.000.000",
+     "Rp -17.923.913.043",
+     "S29 — revisi target margin (uji riwayat selisih)"
+    ]
+   ]
+  },
+  "ambang": {
+   "found": true,
+   "index": 0,
+   "rows": 2,
+   "cells": [
+    "PRJ-2026-001 Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+    "Rp 18.132.500.000",
+    "Rp 18.027.460.600",
+    "100,6%",
+    "Melampaui batas Sisi non-subkon (material/upah/alat/overhead) — realisasi Rp 228.240.000 + komitmen Rp 17.904.260.000 terhadap RAP RAP/2026/0002. Seluruh proyek: Rp 22.552.500.000 dari Rp 24.250.000.000.",
+    "Buka"
+   ],
+   "states": [
+    "Melampaui batas",
+    "Batas belum disetel"
+   ]
+  },
+  "checks": {
+   "the_gate_accepts_exactly_the_remaining_the_screen_prints": true,
+   "one_cent_more_is_refused_on_the_budget_key": true,
+   "the_refusal_names_the_same_remaining": true,
+   "the_portfolio_row_prints_the_remaining_the_gate_enforces": true,
+   "the_portfolio_row_names_the_governing_rap": true,
+   "a_project_without_a_rap_is_ruled_never_rp_0": true,
+   "no_row_ships_a_fabricated_zero": true,
+   "the_monthly_budget_is_labelled_derived": true,
+   "the_monthly_table_has_a_derived_budget_column": true,
+   "the_printed_monthly_sheet_names_its_project": true,
+   "months_without_realisation_are_ruled_not_zero": true,
+   "a_project_without_a_baseline_says_so": true,
+   "and_invents_no_monthly_number_at_all": true,
+   "the_ruled_screen_warns_instead_of_informing": true,
+   "the_revision_moves_the_governing_budget": true,
+   "a_real_commitment_crosses_the_ninety_percent_threshold": true,
+   "the_over_budget_po_needed_an_explicit_acknowledgement": true,
+   "the_project_screen_carries_the_budget_tile": true,
+   "the_project_screen_raises_the_warning_strip": true,
+   "and_it_names_the_side_the_gate_judges": true,
+   "and_an_exhausted_side_offers_no_ceiling_at_all": true,
+   "the_po_form_warns_before_a_single_line_is_typed": true,
+   "the_po_form_note_is_coloured_at_the_threshold": true,
+   "the_revision_history_shows_both_revisions": true,
+   "and_the_difference_between_them": true,
+   "revision_zero_has_no_difference_to_show": true,
+   "the_threshold_registry_says_what_the_project_screen_says": true,
+   "and_the_row_closest_to_its_limit_stands_at_the_top": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 33512,
+  "_clicks": 3
+ },
+ "S29_anggaran_vs_realisasi_mobile": {
+  "rows": 2,
+  "wrap_scrolls": true,
+  "page_scrolls_sideways": false,
+  "checks": {
+   "the_portfolio_renders_on_a_phone": true,
+   "the_wide_table_scrolls_inside_its_own_box": true,
+   "the_page_never_scrolls_sideways": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 5465,
   "_clicks": 0
  }
 }

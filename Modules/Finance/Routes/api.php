@@ -8,9 +8,11 @@ use Modules\Finance\Http\Controllers\ArRetentionController;
 use Modules\Finance\Http\Controllers\BankAccountController;
 use Modules\Finance\Http\Controllers\BankReconciliationController;
 use Modules\Finance\Http\Controllers\BankStatementController;
+use Modules\Finance\Http\Controllers\BudgetRealisationController;
 use Modules\Finance\Http\Controllers\FiscalPeriodController;
 use Modules\Finance\Http\Controllers\JournalController;
 use Modules\Finance\Http\Controllers\KasbonController;
+use Modules\Finance\Http\Controllers\OverheadBudgetController;
 use Modules\Finance\Http\Controllers\PaymentController;
 use Modules\Finance\Http\Controllers\PettyCashFundController;
 use Modules\Finance\Http\Controllers\PettyCashVoucherController;
@@ -176,6 +178,40 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Project cost ledger
     Route::get('project-costs', [ProjectCostController::class, 'index'])->middleware('permission:fin.view');
+
+    /*
+     * F-2 — anggaran vs realisasi. fin.view, izin yang sama dengan buku biaya
+     * proyek di atas: yang dibaca kedua endpoint ini adalah baris
+     * fin_project_costs itu juga, hanya diadu dengan RAP dan dibelah per bulan.
+     */
+    /*
+     * OVB — anggaran overhead per tahun buku. Approvable penuh: fin.create
+     * menyusunnya, fin.approve memutuskannya, maker-checker di trait. Tidak ada
+     * fin.post di sini — menyetujui sebuah anggaran tidak memposting satu baris
+     * jurnal pun (forward-only: yang berubah adalah BATAS, bukan buku besar).
+     */
+    Route::get('overhead-budgets', [OverheadBudgetController::class, 'index'])->middleware('permission:fin.view');
+    Route::get('overhead-budgets/realisation', [OverheadBudgetController::class, 'realisation'])->middleware('permission:fin.view');
+    Route::post('overhead-budgets', [OverheadBudgetController::class, 'store'])->middleware('permission:fin.create');
+    Route::get('overhead-budgets/{overheadBudget}', [OverheadBudgetController::class, 'show'])->middleware('permission:fin.view');
+    Route::put('overhead-budgets/{overheadBudget}', [OverheadBudgetController::class, 'update'])->middleware('permission:fin.update');
+    Route::delete('overhead-budgets/{overheadBudget}', [OverheadBudgetController::class, 'destroy'])->middleware('permission:fin.delete');
+    Route::post('overhead-budgets/{overheadBudget}/submit', [OverheadBudgetController::class, 'submit'])->middleware('permission:fin.create');
+    Route::post('overhead-budgets/{overheadBudget}/approve', [OverheadBudgetController::class, 'approve'])->middleware('permission:fin.approve');
+    Route::post('overhead-budgets/{overheadBudget}/reject', [OverheadBudgetController::class, 'reject'])->middleware('permission:fin.approve');
+    // Pembatalan OVB yang sudah disetujui (verifikasi F-2): fin.approve, karena
+    // yang ditarik kembali adalah sebuah persetujuan, bukan sebuah posting —
+    // sebuah anggaran tidak pernah memposting satu baris jurnal pun.
+    Route::post('overhead-budgets/{overheadBudget}/cancel', [OverheadBudgetController::class, 'cancel'])->middleware('permission:fin.approve');
+
+    Route::get('budget/portfolio', [BudgetRealisationController::class, 'portfolio'])->middleware('permission:fin.view');
+    Route::get('budget/projects/{project}/monthly', [BudgetRealisationController::class, 'monthly'])->middleware('permission:fin.view');
+    // T2.6 — dibaca formulir PO/SPK dan layar proyek. fin.view ATAU izin
+    // membuat dokumen yang gerbangnya memakai angka ini (pola ast.view|prj.view
+    // pada rute Assets): yang boleh mengajukan PO sudah diberi tahu angka yang
+    // sama oleh kalimat penolakan gerbang — ini hanya lebih awal.
+    Route::get('budget/projects/{project}', [BudgetRealisationController::class, 'project'])
+        ->middleware('permission:fin.view|prc.create|scm.create');
 
     // Bank statements (rekening koran) — import and matching.
     // Matching is fin.update, not fin.post: it writes no ledger row. It records

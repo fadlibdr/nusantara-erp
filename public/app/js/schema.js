@@ -913,6 +913,15 @@ export const RESOURCES = {
       { key: 'project_id', label: 'Proyek', type: 'rel', lookup: 'projects' },
       { key: 'target_margin_pct', label: 'Target margin', type: 'percent', align: 'right' },
       { key: 'total_budget', label: 'Total anggaran', type: 'currency', align: 'right' },
+      // F-2 — revisi ke berapa, dan MANA yang sedang mengatur proyeknya.
+      // 'is_governing' datang dari server (CostBudgetResource): aturannya
+      // dibaca gerbang PO/SPK dan layar anggaran, jadi salinannya di
+      // JavaScript akan menua sendiri.
+      { key: 'revision', label: 'Revisi', type: 'number', align: 'right' },
+      {
+        key: 'is_governing', label: 'Anggaran berlaku', type: 'flag', width: '1%',
+        trueLabel: 'Mengatur', trueTone: 'green', falseLabel: '—', falseTone: '',
+      },
       statusColumn,
     ],
     filters: [
@@ -944,6 +953,37 @@ export const RESOURCES = {
           { key: 'amount', label: 'Jumlah', type: 'currency', align: 'right' },
         ],
         totalKey: 'amount',
+      }, {
+        /* F-2 — rantai revisi, dari revisi 0 ke depan. Kolom "Selisih total"
+           KOSONG pada revisi 0: ia tidak punya pendahulu, jadi selisihnya bukan
+           nol melainkan tidak ada. */
+        key: 'revisions', label: 'Riwayat revisi', endpoint: '{id}/revisions',
+        columns: [
+          { key: 'revision', label: 'Revisi', type: 'number', align: 'right' },
+          { key: 'code', label: 'Kode', type: 'code' },
+          { key: 'status', label: 'Status', type: 'enum', enum: 'documentStatus' },
+          { key: 'is_governing', label: 'Anggaran berlaku', type: 'flag', trueLabel: 'Mengatur', trueTone: 'green', falseLabel: '—', falseTone: '' },
+          { key: 'non_subcon', label: 'Non-subkon', type: 'currency', align: 'right' },
+          { key: 'subcon', label: 'Subkon', type: 'currency', align: 'right' },
+          { key: 'total', label: 'Total', type: 'currency', align: 'right' },
+          { key: 'delta_total', label: 'Selisih total', type: 'currency', align: 'right' },
+          { key: 'revision_reason', label: 'Alasan' },
+        ],
+      }, {
+        /* …dan selisihnya per KATEGORI BIAYA, tempat uangnya benar-benar
+           berpindah: sebuah revisi yang totalnya naik Rp 150 juta tetapi
+           memindahkan Rp 300 juta dari material ke subkon menggerakkan gerbang
+           PO dan gerbang SPK ke arah yang berlawanan. Hanya kategori yang
+           BERUBAH yang muncul. */
+        key: 'revision_diff', label: 'Selisih per kategori biaya', endpoint: '{id}/revision-diff',
+        columns: [
+          { key: 'revision', label: 'Revisi', type: 'number', align: 'right' },
+          { key: 'label', label: 'Kategori' },
+          { key: 'from_code', label: 'Dari', type: 'code' },
+          { key: 'amount_from', label: 'Sebelum', type: 'currency', align: 'right' },
+          { key: 'amount_to', label: 'Sesudah', type: 'currency', align: 'right' },
+          { key: 'delta', label: 'Selisih', type: 'currency', align: 'right' },
+        ],
       }],
     },
     actions: [
@@ -953,6 +993,40 @@ export const RESOURCES = {
         fields: [{ key: 'target_margin_pct', label: 'Target margin (%)', type: 'percent', help: 'Kosongkan untuk memakai margin yang tersimpan.' }],
       },
       ...approvalActions('est'),
+      {
+        /* F-2 — revisi RAP. Hanya pada RAP yang SEDANG BERLAKU: yang draf cukup
+           diubah langsung, dan yang sudah digantikan bukan lagi anggaran
+           siapa pun. Alasannya WAJIB — server menolak yang kosong dengan
+           kalimatnya sendiri, dan kotak ini tidak menyalin aturan itu. */
+        key: 'revise', label: 'Buat Revisi', path: '{id}/revise', method: 'POST',
+        perm: 'est.create', when: (row) => row.status === 'approved' && row.is_governing !== false,
+        variant: 'primary', navigateToResult: true,
+        fields: [
+          {
+            key: 'revision_reason', label: 'Alasan revisi', type: 'textarea', required: true,
+            help: 'Mis. CCO-01, addendum kontrak, eskalasi harga yang disetujui. Alasan ini ikut '
+              + 'selamanya di riwayat revisi RAP.',
+          },
+        ],
+      },
+      {
+        /* JALAN KELUAR DATA WARISAN (verifikasi F-2 putaran 2). Tampil hanya
+           pada RAP yang DISETUJUI, BELUM digantikan, tetapi BUKAN yang
+           mengatur — yaitu tepat baris yang tidak seharusnya ada: dua RAP
+           disetujui berdampingan, bentuk data yang sah sebelum F-2. Selama
+           baris itu berdiri, setiap revisi berikutnya ditolak dan RAP
+           disetujui tidak bisa ditolak, jadi anggaran proyek itu terkunci
+           selamanya. Yang ditulis hanya dua kolom penggantian; status dan
+           isinya tidak disentuh. */
+        key: 'supersede', label: 'Nyatakan digantikan', path: '{id}/supersede', method: 'POST',
+        perm: 'est.approve', variant: 'danger',
+        when: (row) => row.status === 'approved' && !row.superseded_at && row.is_governing === false,
+        fields: [{
+          key: 'reason', label: 'Alasan', type: 'textarea', required: true,
+          help: 'Kenapa RAP ini tidak dipakai lagi. Tercatat permanen di jejak dokumen. Minimal 5 karakter. '
+            + 'RAP yang berlaku untuk proyek ini menjadi penggantinya.',
+        }],
+      },
     ],
   },
 
@@ -2158,6 +2232,13 @@ export const RESOURCES = {
       sections: [{
         title: 'Permintaan pembelian',
         fields: [
+          /* TANPA catatan anggaran, dengan sengaja: sebuah PR tidak dihakimi
+             BudgetGateService sama sekali (yang dihakimi adalah PO yang lahir
+             darinya, terhadap sisa non-subkon). Peringatan yang menjanjikan
+             gerbang di formulir yang tidak bergerbang adalah kalimat yang
+             tidak bisa ditepati. Komentar lama di sini menjelaskan sebuah
+             liveNote yang memang tidak pernah dipasang di formulir ini —
+             ia dihapus pada verifikasi F-2. */
           { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'needed_date', label: 'Dibutuhkan tanggal', type: 'date', required: true },
@@ -2303,7 +2384,13 @@ export const RESOURCES = {
           // formulir cetak — sama seperti alasan override prakualifikasi (T3.8).
           { key: 'pr_bypass_reason', label: 'Alasan tanpa PR', type: 'textarea', span: 2, required: true, visibleWhen: PO_WITHOUT_PR,
             help: 'PO ini dibuat tanpa permintaan pembelian (PR). Sebutkan mengapa pembelian langsung dilakukan (mis. kebutuhan darurat di lapangan).' },
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects' },
+          /* F-2 / T2.6 — peringatan anggaran DI TEMPAT UANGNYA DIBELANJAKAN.
+             Memilih proyek mencetak sisa anggaran RAP NON-SUBKON di bawah
+             kotaknya, berwarna sejak 90 %, sebelum satu baris item pun diketik:
+             sisi yang sama yang menolak PO ini bila DPP-nya melampauinya.
+             Bukan sisa TOTAL — verifikasi F-2 mengukur catatan lama menjanjikan
+             Rp 1.697.500.000 pada proyek yang sisi non-subkonnya sudah minus. */
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', liveNote: 'projectBudgetPo' },
           { key: 'warehouse_id', label: 'Gudang tujuan', type: 'lookup', lookup: 'warehouses' },
           { key: 'order_date', label: 'Tanggal PO', type: 'date', required: true, defaultToday: true },
           // Wajib sejak T3.5: kolom inilah yang dibaca pengawas tenggat
@@ -3359,7 +3446,11 @@ export const RESOURCES = {
         help: 'PPN mengikuti status PKP vendor; tarif PPh final PP 9/2022 di-snapshot dari skema yang dipilih.',
         fields: [
           { key: 'vendor_id', label: 'Subkontraktor', type: 'lookup', lookup: 'subcontractors', required: true },
-          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true },
+          // F-2 / T2.6 — peringatan anggaran di tempat uangnya dibelanjakan.
+          // Sisi SUBKON: persis angka yang dipakai gerbang saat menolak SPK ini
+          // (verifikasi F-2 — sebelumnya catatan ini menyebut anggaran proyek
+          // KESELURUHAN, yang bukan plafon dokumen mana pun).
+          { key: 'project_id', label: 'Proyek', type: 'lookup', lookup: 'projects', required: true, liveNote: 'projectBudgetSpk' },
           { key: 'title', label: 'Judul pekerjaan', type: 'text', required: true, span: 2 },
           { key: 'pph_scheme', label: 'Skema PPh final konstruksi', type: 'select', enum: 'pphScheme', required: true, span: 2 },
           { key: 'retention_pct', label: 'Retensi (%)', type: 'percent', default: 5 },
@@ -4224,6 +4315,89 @@ export const RESOURCES = {
     filters: [
       { key: 'project_id', label: 'Proyek', lookup: 'projects' },
       { key: 'cost_category', label: 'Kategori', enum: 'costCategory' },
+    ],
+  },
+
+  /*
+   * F-2 — OVB, anggaran overhead perusahaan per tahun buku.
+   *
+   * Satu tahun hanya boleh punya SATU OVB disetujui; aturannya ditegakkan
+   * server (layanan + indeks unik parsial), bukan di sini — sebuah salinan
+   * aturan di layar akan menua sendiri dan berbeda kalimat. Layar realisasinya
+   * ada di Anggaran vs Realisasi tab "Overhead"; daftar ini yang menyusun dan
+   * memutuskannya.
+   */
+  'finance/overhead-budgets': {
+    module: 'fin', api: 'finance/overhead-budgets', label: 'Anggaran Overhead (OVB)', labelOne: 'Anggaran Overhead',
+    columns: [
+      codeColumn,
+      /* type 'year', bukan 'number': perender angka memisah ribuan dan mencetak
+         "2.031" untuk tahun buku 2031 (verifikasi F-2 putaran 2). */
+      { key: 'period_year', label: 'Tahun buku', type: 'year', align: 'right' },
+      { key: 'lines_count', label: 'Akun', type: 'number', align: 'right' },
+      { key: 'total_amount', label: 'Total anggaran', type: 'currency', align: 'right' },
+      statusColumn,
+    ],
+    filters: [
+      { key: 'status', label: 'Status', enum: 'documentStatus' },
+      { key: 'period_year', label: 'Tahun buku', type: 'number' },
+    ],
+    editableWhen: DRAFT_OR_REJECTED,
+    deletableWhen: DRAFT_OR_REJECTED,
+    form: {
+      sections: [{
+        title: 'Anggaran overhead tahunan',
+        help: 'Anggaran biaya yang tidak dimiliki proyek mana pun — kantor, staf pusat, sewa, penyusutan. '
+          + 'Realisasinya dibaca dari mutasi akun yang Anda pilih di bawah, jadi tidak ada daftar '
+          + '"akun overhead" yang perlu dipelihara di tempat lain. Satu tahun buku hanya boleh punya '
+          + 'satu OVB yang disetujui.',
+        fields: [
+          { key: 'period_year', label: 'Tahun buku', type: 'number', required: true, default: new Date().getFullYear() },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+      lines: [{
+        key: 'lines', label: 'Akun yang dianggarkan', min: 1,
+        columns: [
+          { key: 'account_id', label: 'Akun', type: 'lookup', lookup: 'postableAccounts', required: true, width: '40%' },
+          { key: 'amount', label: 'Anggaran setahun', type: 'currency', required: true, width: '30%' },
+          { key: 'notes', label: 'Catatan', type: 'text', width: '30%' },
+        ],
+      }],
+    },
+    detail: {
+      /* Alasan pembatalan tidak perlu didaftarkan di sini: renderDetail
+         menampilkan setiap kolom rekaman, dan cancellation_reason ada di
+         WHEN_SET_KEYS — tampil hanya pada dokumen yang memang dibatalkan. */
+      tables: [{
+        key: 'lines', label: 'Akun yang dianggarkan',
+        columns: [
+          { key: 'account.code', label: 'Kode', type: 'code' },
+          { key: 'account.name', label: 'Akun' },
+          { key: 'notes', label: 'Catatan' },
+          { key: 'amount', label: 'Anggaran', type: 'currency', align: 'right' },
+        ],
+        totals: ['amount'],
+      }],
+    },
+    actions: [
+      ...approvalActions('fin', { submitPerm: 'fin.create' }),
+      {
+        /* Satu tahun buku hanya boleh punya satu OVB yang berlaku, dan sampai
+           verifikasi F-2 tidak ada satu pun jalan menarik kembali yang salah:
+           DELETE/reject/PUT semuanya 422 pada dokumen approved, sementara
+           kalimat penolakan "satu per tahun" menyuruh operator membatalkannya.
+           Pembatalan tidak menyentuh satu baris jurnal pun — sebuah anggaran
+           adalah rencana — dan mengembalikan tahun itu ke "belum ada OVB
+           disetujui". */
+        key: 'cancel', label: 'Batalkan OVB', path: '{id}/cancel', method: 'POST',
+        perm: 'fin.approve', variant: 'danger',
+        when: (row) => row.status === 'approved',
+        fields: [{
+          key: 'reason', label: 'Alasan pembatalan', type: 'textarea', required: true,
+          help: 'Tercatat permanen di dokumen dan jejak audit. Minimal 5 karakter.',
+        }],
+      },
     ],
   },
 
@@ -5842,7 +6016,7 @@ export const ANY_APPROVE = (held, lent = []) => held.some((one) => one.endsWith(
  * di 390×844 melihat tiga ubin ber-'—' dengan keterangan kosong).
  */
 export const MODULES = {
-  ringkasan: { accent: 8, icon: 'layout-dashboard', kpi: 'Notifikasi belum dibaca', description: 'Dasbor, tugas persetujuan, tenggat, dan kalender lintas modul.' },
+  ringkasan: { accent: 8, icon: 'layout-dashboard', kpi: 'Notifikasi belum dibaca', description: 'Dasbor, tugas persetujuan, tenggat, ambang anggaran, dan kalender lintas modul.' },
   crm: { accent: 4, icon: 'handshake', kpi: 'Prospek terbuka', description: 'Pelanggan, prospek, paket tender, penawaran, kontrak, dan jaminan.' },
   est: { accent: 4, icon: 'calculator', kpi: 'RAB menunggu persetujuan', description: 'AHSP, BOQ/RAB, RAP, riwayat harga satuan, dan pustaka metode kerja.' },
   eng: { accent: 8, icon: 'drafting-compass', kpi: 'Gambar menunggu keputusan MK', description: 'Register gambar, persetujuan gambar dan material, transmittal, IPP, lokasi tapak.' },
@@ -5891,7 +6065,7 @@ export const NAV = [
        sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
        dan peran yang tidak punya satu sumber pun mendapat kalimat yang
        mengatakannya — bukan baris menu yang hilang tanpa sebab. */
-    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }],
+    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',
@@ -6086,6 +6260,10 @@ export const NAV = [
       { divider: 'Pelaporan' },
       { label: 'Jurnal', route: 'r/finance/journals' },
       { label: 'Biaya Proyek', route: 'r/finance/project-costs' },
+      // F-2 — tepat di bawah Biaya Proyek: baris yang sama, hanya diadu dengan
+      // RAP dan dibelah per bulan.
+      { label: 'Anggaran vs Realisasi', route: 'anggaran' },
+      { label: 'Anggaran Overhead (OVB)', route: 'r/finance/overhead-budgets' },
       { label: 'Pengakuan Pendapatan', route: 'r/finance/revenue-recognition' },
       { label: 'Periode Fiskal', route: 'periods' },
       { label: 'Laporan Keuangan', route: 'reports' },

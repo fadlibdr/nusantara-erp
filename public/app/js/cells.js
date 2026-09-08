@@ -48,6 +48,18 @@ export function renderCell(row, column) {
       return el('span.num', { text, class: column.strong ? 'strong' : '' });
     }
 
+    /* Sebuah TAHUN bukan sebuah JUMLAH. Perender 'number' memakai Intl id-ID,
+       jadi tahun buku 2031 tercetak "2.031" — diukur di #/r/finance/overhead-
+       budgets, sementara panel Informasi pada halaman detail dokumen yang SAMA
+       mencetaknya benar ("Tahun 2031"). Dua bentuk untuk satu angka pada satu
+       dokumen yang seluruh identitasnya adalah tahun itu (verifikasi F-2
+       putaran 2). */
+    case 'year': {
+      if (raw === null || raw === undefined || raw === '') return el('span.muted', { text: '—' });
+      const year = Number(raw);
+      return el('span.num', { text: Number.isFinite(year) ? String(Math.trunc(year)) : String(raw) });
+    }
+
     case 'percent': {
       const value = Number(raw);
       const node = el('span.num', {

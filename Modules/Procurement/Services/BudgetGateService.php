@@ -2,13 +2,10 @@
 
 namespace Modules\Procurement\Services;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use LogicException;
-use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\Money;
-use Modules\Finance\Services\CommitmentService;
+use Modules\Finance\Services\BudgetRealisationService;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Subcontract\Models\Subcontract;
 
@@ -51,9 +48,23 @@ use Modules\Subcontract\Models\Subcontract;
  * Tanpa proyek atau tanpa RAP disetujui gate diam: tidak ada anggaran berarti
  * tidak ada angka yang bisa dilampaui, dan menolak pembelian non-proyek atas
  * nama anggaran yang tidak ada hanyalah mengarang blokir.
+ *
+ * F-2 — KETIGA ANGKANYA TIDAK LAGI DIHITUNG DI SINI. Anggaran, realisasi dan
+ * komitmen pindah ke Finance\Services\BudgetRealisationService, tempat layar
+ * portofolio dan layar anggaran bulanan MEMBACA YANG SAMA. Sebelumnya ketiganya
+ * hidup di tiga metode privat kelas ini, satu-satunya pembacanya adalah gerbang
+ * ini, dan sebuah layar yang menjawab pertanyaan yang sama pasti menulis SQL
+ * keduanya — hari mereka berselisih adalah hari seorang manajer proyek membaca
+ * "sisa Rp 80 juta" lalu ditolak saat memesan Rp 50 juta. Kalimat penolakan,
+ * pembelahan subkon/non-subkon, kebijakan warn/block/off dan setiap ambangnya
+ * TIDAK berubah; yang berubah hanya dari mana ketiga angkanya datang, dan
+ * BudgetPortfolioEqualityTest mengajukan PO/SPK sungguhan tepat di batasnya
+ * untuk membuktikan layar dan gerbang menjawab satu angka yang sama.
  */
 class BudgetGateService
 {
+    public function __construct(private readonly BudgetRealisationService $budgets) {}
+
     public function assertPoWithinBudget(PurchaseOrder $po, bool $confirmed): void
     {
         $this->assertWithinBudget(
@@ -89,37 +100,55 @@ class BudgetGateService
             return;
         }
 
-        $budget = $this->rapBudget($projectId, $subconSide);
+        $side = $this->budgets->side($projectId, $subconSide);
 
-        if ($budget === null) {
+        if ($side['budget'] === null) {
             return;
         }
 
-        $actual = $this->actualCost($projectId, $subconSide);
-        $committed = $this->committed($projectId, $subconSide);
+        $budget = (float) $side['budget'];
+        $actual = $side['actual'];
+        $committed = $side['committed'];
 
-        $remaining = round($budget - $actual - $committed, 2);
+        $remaining = (float) $side['remaining'];
         $overshoot = round($documentDpp - $remaining, 2);
 
         if ($overshoot <= 0) {
             return;
         }
 
-        $sideLabel = $subconSide ? 'subkon' : 'non-subkon (material/upah/alat/overhead)';
-        $committedLabel = $subconSide ? 'komitmen SPK berjalan' : 'komitmen PO berjalan';
+        // Satu kosakata untuk penolakan DAN untuk peringatan: kalimat sisi di
+        // BudgetRealisationService memakai kedua label yang sama, jadi layar
+        // dan gerbang tidak pernah menamai satu sisi dengan dua istilah.
+        $sideLabel = BudgetRealisationService::sideLabel($subconSide);
+        $committedLabel = BudgetRealisationService::committedLabel($subconSide);
 
         $numbers = sprintf(
-            'Anggaran RAP %s proyek ini %s; realisasi %s dan %s %s menyisakan %s, '
+            'Anggaran RAP %s proyek ini %s; realisasi %s dan %s %s %s, '
             .'sedangkan %s membawa DPP %s — melampaui anggaran %s.',
             $sideLabel,
             Money::format($budget, false),
             Money::format($actual, false),
             $committedLabel,
             Money::format($committed, false),
-            Money::format(max(0.0, $remaining), false),
+            // Plafon dibulatkan KE BAWAH, pelampauan KE ATAS — aturan yang sama
+            // dengan kalimat sisi di layar, dari helper yang sama. Sebelum
+            // verifikasi putaran 2 kalimat ini menjepit sisa negatif menjadi
+            // "menyisakan Rp 0": pada sisi yang sudah lampau Rp 105.039.400 itu
+            // menyebut satu angka yang salah di dalam kalimat yang menolak.
+            $remaining < 0.0
+                ? 'sudah lampau '.BudgetRealisationService::overrunRupiah($remaining)
+                : 'menyisakan '.BudgetRealisationService::ceilingRupiah($remaining),
             $documentName,
             Money::format($documentDpp, false),
-            Money::format($overshoot, false),
+            // Pelampauan dibulatkan KE ATAS, aturan yang sama dengan klausa sisa
+            // di atas dan dari helper yang sama. Money::format(…, false)
+            // membulatkan SETENGAH KE ATAS, jadi setiap pelampauan di bawah
+            // Rp 0,50 tercetak "Rp 0" — kalimat yang menolak sambil mengatakan
+            // tidak ada yang dilampaui (verifikasi F-2 putaran 3, 8 Sep 2026:
+            // sisa Rp 66.666.666,67, PO Rp 66.666.667 ditolak "melampaui
+            // anggaran Rp 0").
+            BudgetRealisationService::overrunRupiah(-$overshoot),
         );
 
         if ($mode === 'block') {
@@ -142,71 +171,5 @@ class BudgetGateService
         throw ValidationException::withMessages([
             'budget' => $numbers.' Ajukan ulang dengan konfirmasi bila komitmen ini memang harus jalan.',
         ]);
-    }
-
-    /**
-     * Anggaran RAP sisi yang diminta, dari RAP DISETUJUI terbaru proyek —
-     * definisi "RAP proyek" yang sama dengan ReportService::rapBudgetByCategory,
-     * supaya angka yang ditolak gate ini dan angka di laporan profitabilitas
-     * tidak pernah berbeda cerita. Null bila modul Estimation absen atau
-     * proyek belum punya RAP disetujui.
-     */
-    private function rapBudget(int $projectId, bool $subconSide): ?float
-    {
-        if (! Schema::hasTable('est_cost_budgets') || ! Schema::hasTable('est_cost_budget_items')) {
-            return null;
-        }
-
-        $rapId = DB::table('est_cost_budgets')
-            ->where('project_id', $projectId)
-            ->where('status', DocumentStatus::Approved->value)
-            ->whereNull('deleted_at')
-            ->orderByDesc('id')
-            ->value('id');
-
-        if ($rapId === null) {
-            return null;
-        }
-
-        return round((float) DB::table('est_cost_budget_items')
-            ->where('cost_budget_id', $rapId)
-            ->when(
-                $subconSide,
-                fn ($query) => $query->where('cost_category', 'subcon'),
-                fn ($query) => $query->where('cost_category', '!=', 'subcon'),
-            )
-            ->sum('amount'), 2);
-    }
-
-    /**
-     * Realisasi biaya proyek sisi yang diminta (fin_project_costs — diisi
-     * tagihan vendor, payroll, dan bon gudang).
-     */
-    private function actualCost(int $projectId, bool $subconSide): float
-    {
-        if (! Schema::hasTable('fin_project_costs')) {
-            return 0.0;
-        }
-
-        return round((float) DB::table('fin_project_costs')
-            ->where('project_id', $projectId)
-            ->when(
-                $subconSide,
-                fn ($query) => $query->where('cost_category', 'subcon'),
-                fn ($query) => $query->where('cost_category', '!=', 'subcon'),
-            )
-            ->sum('amount'), 2);
-    }
-
-    /**
-     * Komitmen berjalan sisi yang diminta. Dokumen yang SEDANG diajukan tidak
-     * pernah ada di sini: CommitmentService hanya menghitung dokumen yang
-     * sudah disetujui, dan gate ini berdiri sebelum persetujuan.
-     */
-    private function committed(int $projectId, bool $subconSide): float
-    {
-        $committed = app(CommitmentService::class)->forProject($projectId);
-
-        return (float) ($subconSide ? $committed['subcontracts'] : $committed['purchase_orders']);
     }
 }

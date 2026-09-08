@@ -99,6 +99,11 @@ return [
         'TKD' => 'TKD/{Y}/{RM}/{N4}',   // Lembar hitung TKDN atas satu penawaran (P7)
         'RKK' => 'RKK/{Y}/{RM}/{N4}',   // Rencana Keselamatan Konstruksi penawaran (P7 — Permen PUPR 10/2021)
         'MTD' => 'MTD/{Y}/{N4}',        // Entri pustaka metode kerja (P7 — master, tanpa bulan seperti BOQ/RAP)
+        // F-2: OVB tanpa {RM}, dan {Y}-nya adalah TAHUN BUKU yang dianggarkan
+        // (OverheadBudget::documentNumberYear), bukan tahun jam server — sebuah
+        // anggaran 2031 yang dibuat hari ini berkode OVB/2031/0001. Bulan
+        // pembuatannya kebisingan pada dokumen yang identitasnya sebuah tahun.
+        'OVB' => 'OVB/{Y}/{N4}',        // Anggaran overhead per tahun buku (F-2)
     ],
 
     /*
@@ -491,6 +496,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ambang peringatan registri WatchedThresholds (F-2)
+    |--------------------------------------------------------------------------
+    |
+    | Persen dari BATAS tempat sebuah baris berubah dari "aman" menjadi
+    | "mendekati batas". 90 % adalah rekomendasi yang diterima pemilik
+    | (ROADMAP-HASHMICRO §5 baris 13); satu kunci per entri registri supaya
+    | anggaran proyek dan anggaran overhead bisa berbeda tanpa menyentuh kode.
+    |
+    | Ini PERINGATAN, bukan gerbang: tidak ada satu dokumen pun yang ditolak
+    | karena angka di blok ini. Yang menolak PO/SPK yang menjebol RAP tetap
+    | procurement.budget_gate di atas, dengan kalimatnya sendiri.
+    |
+    | Nilai bukan-angka dibaca sebagai 90 — salah ketik tidak boleh diam-diam
+    | mematikan peringatannya (kebiasaan yang sama dengan budget_gate).
+    */
+    'thresholds' => [
+        'project_budget_pct' => 90,
+        'rap_vs_kontrak_pct' => 90,
+        'overhead_budget_pct' => 90,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Paket tender (P7)
     |--------------------------------------------------------------------------
     |
@@ -704,6 +732,11 @@ return [
         'ap_bill' => ['threshold_two_level' => null],
         'payment' => ['threshold_two_level' => null],
         'payroll_run' => ['threshold_two_level' => null],
+        // F-2 — Anggaran overhead (OVB). Membawa kolom nilai rupiah
+        // (total_amount), jadi ambangnya BISA diisi pemilik; dikirim kosong
+        // seperti empat belas baris lain, supaya memasang OVB tidak mengubah
+        // satu pun keputusan persetujuan.
+        'overhead_budget' => ['threshold_two_level' => null],
 
         /*
          * F-1 — SETUJUI MASSAL. Kosong = fitur MATI, dan itulah bawaannya:

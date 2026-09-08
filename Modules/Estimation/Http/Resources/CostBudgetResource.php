@@ -22,6 +22,19 @@ class CostBudgetResource extends JsonResource
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
             'notes' => $this->notes,
+            /*
+             * F-2 — revisi. `is_governing` dipancarkan sebagai FAKTA server,
+             * bukan disimpulkan layar dari (status = approved && !superseded):
+             * aturan "RAP mana yang mengatur proyek ini" dibaca gerbang PO/SPK,
+             * layar anggaran dan registri ambang, dan sebuah salinan aturan di
+             * JavaScript adalah salinan yang akan menua sendiri.
+             */
+            'revision' => (int) $this->revision,
+            'revised_from_id' => $this->revised_from_id,
+            'revision_reason' => $this->revision_reason,
+            'superseded_at' => $this->superseded_at?->toDateTimeString(),
+            'superseded_by_id' => $this->superseded_by_id,
+            'is_governing' => $this->isGoverning(),
             'items' => CostBudgetItemResource::collection($this->whenLoaded('items')),
             // Jejak persetujuan, bentuk PaymentResource — satu perender di SPA
             // (approvalTimeline) untuk semua dokumen; hanya bila show() memuatnya (T3.3).

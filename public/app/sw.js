@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '1';
+const SHELL_VERSION = '2';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -161,6 +161,8 @@ const SHELL = [
   'js/views/taxexport.js',
   'js/views/tender.js',
   'js/views/tenggat.js',
+  'js/views/ambang.js',
+  'js/views/anggaran.js',
   'js/views/tugas.js',
   'js/views/tutupproyek.js',
   'js/views/varian.js',

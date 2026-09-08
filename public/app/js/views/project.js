@@ -344,6 +344,42 @@ function openMppXmlImport(project, { onImported } = {}) {
 
 const safe = (path, params) => api.get(path, params).then((rows) => rows || []).catch(() => []);
 
+/* Persentase ubin "Anggaran terpakai": sisi yang paling dekat ke batasnya —
+   angka yang sama yang dipakai kolom Terpakai pada layar Anggaran dan registri
+   Ambang, supaya satu proyek tidak punya dua "persen terpakai" di dua layar. */
+function budgetTilePct(budget) {
+  const worst = budget.worst_side ? budget.sides[budget.worst_side] : null;
+  const pct = worst ? worst.pct : budget.pct;
+
+  return pct === null || pct === undefined ? '—' : fmt.percent(pct, { decimals: 1 });
+}
+
+/* Baris bawah ubin: sisi yang paling dekat ke batasnya, dengan rupiah PENUH.
+   rupiahShort membulatkan setengah ke atas (Rp 31.126.000.000 -> "Rp 31,13 M"),
+   dan sebuah plafon yang dibulatkan KE ATAS adalah janji yang ditolak gerbang
+   dua juta rupiah sebelum angkanya tercapai. */
+function budgetTileNote(budget) {
+  if (budget.budget === null) return 'Belum ada RAP disetujui';
+
+  const worst = budget.sides[budget.worst_side];
+
+  if (!worst) return `Sisa ${fmt.rupiah(budget.remaining)} dari RAP ${budget.rap_code}`;
+  if (worst.budget !== null && Number(worst.budget) <= 0) {
+    return `${worst.document} tidak dianggarkan RAP ${budget.rap_code}`;
+  }
+
+  // Sisa negatif dicetak sebagai PELAMPAUANNYA, dan sejak verifikasi putaran 2
+  // kalimat pita di bawahnya menyebut angka yang sama: ia dulu menjepit sisa ke
+  // "menyisakan Rp 0" — yaitu menawarkan Rp 0 sebagai DPP yang diterima pada
+  // sisi yang tidak menerima satu DPP pun, di bawah ubin yang sudah menyebutkan
+  // pelampauannya dengan angka lain.
+  if (Number(worst.remaining) < 0) {
+    return `${worst.document} melampaui ${fmt.rupiah(Math.abs(Number(worst.remaining)))} · RAP ${budget.rap_code}`;
+  }
+
+  return `${worst.document} menyisakan ${fmt.rupiah(worst.remaining)} · RAP ${budget.rap_code}`;
+}
+
 export async function renderProject(host, { id }) {
   clear(host);
   host.appendChild(el('.card', el('.card-body', el('.skeleton', { style: { height: '18px', width: '35%' } }))));
@@ -352,14 +388,20 @@ export async function renderProject(host, { id }) {
   let dashboard;
   let sCurve;
   let evm;
+  let budget;
   try {
-    [project, dashboard, sCurve, evm] = await Promise.all([
+    [project, dashboard, sCurve, evm, budget] = await Promise.all([
       api.get(`projects/${id}`),
       api.get(`projects/${id}/dashboard`).catch(() => null),
       api.get(`projects/${id}/s-curve`).catch(() => null),
       // Fetched here so the kurva-S can draw the frozen baseline alongside the
       // weekly plan; evmCard reuses this response rather than asking twice.
       api.get(`projects/${id}/evm`).catch(() => null),
+      /* F-2 / T2.6 — anggaran vs realisasi + komitmen, angka yang sama yang
+         menolak PO/SPK proyek ini. .catch(() => null): pemakai tanpa izin
+         membacanya (403) atau modul Finance yang diam tidak boleh menghalangi
+         seluruh layar proyek — ubinnya yang hilang, bukan halamannya. */
+      api.get(`finance/budget/projects/${id}`).catch(() => null),
     ]);
   } catch (error) {
     clear(host);
@@ -474,7 +516,49 @@ export async function renderProject(host, { id }) {
       el('.value.sm', { text: fmt.rupiah(project.retention_amount) }),
       el('.delta', { text: `${fmt.percent(project.retention_pct)} dari nilai kontrak` }),
     ]),
+    /* F-2 / T2.6 — anggaran terpakai, di layar yang dibuka manajer proyeknya
+       setiap hari. Sel yang tidak punya jawaban DIGARIS: proyek tanpa RAP
+       disetujui tidak "0 % terpakai", ia tidak punya anggaran sama sekali,
+       dan mencetak 0 % di situ adalah cara termurah membuat ubin ini
+       berbohong. Warna menyala pada ambang yang sama dengan registri (90 %).
+
+       ANGKANYA TOTAL, WARNANYA SISI TERBURUK (verifikasi F-2). "Berapa
+       anggaran proyek ini yang sudah habis" memang dijawab totalnya; yang
+       TIDAK dijawab totalnya adalah "berapa lagi yang boleh dibelanjakan",
+       karena gerbang menghakimi per sisi. Maka baris bawah ubin menyebut sisi
+       yang paling dekat ke batasnya dengan rupiah PENUH — terukur pada data
+       demo: "Sisa Rp 1,7 M" pada proyek yang sisi PO-nya menolak Rp 1. */
+    budget ? el('.stat', [
+      el('.label', { text: 'Anggaran terpakai' }),
+      el('.value', {
+        text: budgetTilePct(budget),
+        style: budget.worst_state === 'lampau'
+          ? { color: 'var(--danger)' }
+          : (budget.worst_state === 'mendekati' ? { color: 'var(--warning)' } : {}),
+      }),
+      el('.delta', { text: budgetTileNote(budget) }),
+    ]) : null,
   ]));
+
+  /* Kalimat penuhnya, dengan kata-kata yang sama yang dipakai gerbang saat
+     menolak PO — dan hanya ketika ia sudah pantas dibaca (mendekati/lampau
+     PADA SALAH SATU SISI, bukan pada totalnya: sebuah proyek yang totalnya
+     "aman" bisa punya sisi PO yang sudah lewat 100 %), supaya baris peringatan
+     tidak menjadi hiasan tetap yang berhenti dibaca. */
+  if (budget && (budget.worst_state === 'mendekati' || budget.worst_state === 'lampau')) {
+    const worst = budget.sides[budget.worst_side];
+
+    host.appendChild(el(budget.worst_state === 'lampau' ? '.alert.error' : '.alert.warn', [
+      el('div', { text: worst.sentence }),
+      el('div', { style: { marginTop: '6px' }, text: budget.sentence }),
+      el('div', {
+        style: { marginTop: '6px' },
+        text: `Ambang peringatan ${fmt.percent(budget.warn_pct, { decimals: 0 })}. `
+          + 'Gerbang anggaran menghakimi PO terhadap sisa non-subkon dan SPK terhadap sisa subkon, '
+          + 'masing-masing sampai pengajunya mengonfirmasi pelampauannya.',
+      }),
+    ]));
+  }
 
   /* Bilah tab (P1-H) — pola paintTabs() views/evm.js, satu-satunya bentuk tab
      di SPA ini. Kepala halaman dan baris ubin di atas tetap terlihat pada

@@ -83,7 +83,12 @@ class SidebarNavWiringTest extends ErpTestCase
             'Keuangan' => [
                 'r/finance/ar-invoices', 'r/finance/ap-bills', 'r/finance/payments', 'siap-tagih', 'retensi',
                 'kas-kecil', 'r/finance/petty-cash-funds', 'bank-recon',
-                'r/finance/journals', 'r/finance/project-costs', 'r/finance/revenue-recognition', 'periods', 'reports', 'buku-besar',
+                'r/finance/journals', 'r/finance/project-costs',
+                // F-2 menambah dua baris di blok Pelaporan, tepat di bawah Biaya
+                // Proyek: baris yang sama, diadu dengan RAP (anggaran) dan
+                // dokumen anggaran overhead tahunannya.
+                'anggaran', 'r/finance/overhead-budgets',
+                'r/finance/revenue-recognition', 'periods', 'reports', 'buku-besar',
                 'tax-exports', 'kalender-pajak', 'ekualisasi-pajak',
                 'r/finance/accounts', 'r/finance/taxes', 'r/finance/bank-accounts',
             ],
@@ -95,7 +100,7 @@ class SidebarNavWiringTest extends ErpTestCase
                 array_filter($this->entries($this->groupBlock($group)), fn (array $entry) => $entry[0] === 'route'),
             ));
 
-            $this->assertSame($routes, $actual, "Rute grup NAV '{$group}' bergeser dari 20 baris yang disepakati T2.5.");
+            $this->assertSame($routes, $actual, "Rute grup NAV '{$group}' bergeser dari daftar yang disepakati (20 baris T2.5; Keuangan 22 sejak F-2).");
         }
     }
 

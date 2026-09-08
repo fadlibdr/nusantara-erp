@@ -6245,8 +6245,10 @@ def s28(pg):
 
     m = out["matrix"]
     checks = {
-        "matrix_renders_every_approvable_type": m.get("rows") == 28,
-        "matrix_is_labelled_by_document_type": m.get("count_label") == "28 jenis dokumen",
+        # 28 saat F-1; baris ke-29 adalah Anggaran overhead (OVB) yang
+        # ditambahkan F-2 ke registri Approvable — dikirim TANPA ambang.
+        "matrix_renders_every_approvable_type": m.get("rows") == 29,
+        "matrix_is_labelled_by_document_type": m.get("count_label") == "29 jenis dokumen",
         "po_row_carries_todays_threshold": any("100.000.000" in c for c in (m.get("po") or [])),
         "spk_row_carries_todays_threshold": any("200.000.000" in c for c in (m.get("spk") or [])),
         "award_row_carries_todays_ladder": any("1.000.000.000" in c for c in (m.get("award") or [])),
@@ -6255,8 +6257,9 @@ def s28(pg):
         "thirteen_rows_have_no_amount": m.get("dash_rows") == 13,
         # Syarat terpenting paket ini: tidak ada satu pun Rp 0 karangan.
         "no_row_ships_a_fabricated_zero": m.get("zero_rows") == [],
-        # 14 ambang = 28 - 13 tanpa nilai rupiah - 1 yang mengikuti SPK.
-        "a_threshold_cell_only_where_something_enforces_it": m.get("threshold_cells") == 14,
+        # 15 ambang = 29 - 13 tanpa nilai rupiah - 1 yang mengikuti SPK.
+        # (14 saat F-1; OVB MEMBAWA kolom nilai rupiah, jadi selnya bisa diisi.)
+        "a_threshold_cell_only_where_something_enforces_it": m.get("threshold_cells") == 15,
         # dan SATU sel mode, pada satu-satunya jenis yang dapat membawanya.
         "the_mode_cell_only_on_the_type_that_can_carry_it": m.get("mode_cells") == 1,
         "core_update_alone_is_refused": out["edit_without_director"]["status"] == 422,
@@ -6341,7 +6344,431 @@ def s28m(browser):
         }""")
         pg.screenshot(path=f"{OUT}/s28-matriks-ponsel-f1.png", full_page=False)
         out["checks"] = {
-            "matrix_renders_on_a_phone": out["found"] and out["rows"] == 28,
+            "matrix_renders_on_a_phone": out["found"] and out["rows"] == 29,
+            "the_wide_table_scrolls_inside_its_own_box": out["wrap_scrolls"] is True,
+            "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
+# ------------------------------------------------------- S29 (Fase 2 / F-2)
+#
+# ANGGARAN VS REALISASI — dan empat kalimat yang hanya bisa dijawab peramban
+# sungguhan di atas data demo yang sebenarnya:
+#
+#   1. ANGKA LAYAR = ANGKA GERBANG. "Sisa" yang tercetak pada baris portofolio
+#      adalah DPP terbesar yang masih diterima gerbang: sebuah PO sungguhan
+#      sebesar angka itu LOLOS, dan satu sen di atasnya DITOLAK 422 dengan
+#      kalimat yang menyebut sisa yang sama. Sampai F-2 tidak ada satu layar
+#      pun yang menampilkannya, jadi tidak ada yang bisa berselisih; sejak F-2
+#      ada dua pembaca dan hanya satu implementasi.
+#   2. ANGGARAN BULANAN BERLABEL TURUNAN. Kalimat penurunannya menyebut RAP dan
+#      baseline yang dipakainya, apa adanya, di atas tabelnya.
+#   3. TANPA BASELINE = DIGARIS, BUKAN DITAKSIR. Proyek tanpa baseline
+#      disetujui tidak punya satu pun sel anggaran bulanan berisi angka, dan
+#      tidak satu pun berbunyi "Rp 0" — yang tercetak adalah sebabnya.
+#   4. PERINGATAN 90 % MUNCUL DI TEMPAT UANGNYA DIBELANJAKAN. Sesudah sebuah
+#      REVISI RAP menurunkan anggarannya, proyek yang tadinya 11 % terpakai
+#      melewati ambang, dan peringatannya muncul di layar proyek DAN di bawah
+#      kotak Proyek pada formulir PO — sebelum satu baris item pun diketik.
+#
+# Skenario ini MENULIS ke basis datanya (menyetujui RAP demo, membuat PO,
+# membuat revisi RAP), jadi ia dijalankan atas salinan coretan seperti seluruh
+# harness.
+
+ANGGARAN_ROW = """(code) => {
+  const table = [...document.querySelectorAll('table.data')]
+    .find(t => [...t.querySelectorAll('thead th')].some(th => /terpakai/i.test(th.innerText)));
+  if (!table) return null;
+  const row = [...table.querySelectorAll('tbody tr')].find(r => r.innerText.includes(code));
+  if (!row) return { found: false };
+  return {
+    found: true,
+    cells: [...row.children].map(td => td.innerText.replace(/\\s+/g, ' ').trim()),
+    headers: [...table.querySelectorAll('thead th')].map(th => th.innerText.replace(/\\s+/g, ' ').trim()),
+    rows: table.querySelectorAll('tbody tr').length,
+    zero_cells: [...table.querySelectorAll('tbody td')].map(td => td.innerText.trim()).filter(t => /^Rp\\s*0$/.test(t)),
+  };
+}"""
+
+BULANAN = """() => {
+  const alert = document.querySelector('.alert');
+  const table = [...document.querySelectorAll('table.data')]
+    .find(t => [...t.querySelectorAll('thead th')].some(th => /bobot fase/i.test(th.innerText)));
+  const rows = table ? [...table.querySelectorAll('tbody tr')] : [];
+  const cell = (r, i) => (r.children[i] ? r.children[i].innerText.replace(/\\s+/g, ' ').trim() : null);
+  return {
+    derivation: alert ? alert.innerText.replace(/\\s+/g, ' ').trim() : null,
+    alert_tone: alert ? alert.className : null,
+    headers: table ? [...table.querySelectorAll('thead th')].map(th => th.innerText.trim()) : [],
+    months: rows.length,
+    budget_cells: rows.map(r => cell(r, 2)),
+    actual_cells: rows.map(r => cell(r, 3)),
+    zero_budget_cells: rows.map(r => cell(r, 2)).filter(t => /^Rp\\s*0$/.test(t || '')),
+    total_budget: table ? (table.querySelector('tfoot tr td:nth-child(3)') || {}).innerText : null,
+    // Ada tidaknya SATU angka rupiah pun di badan tab ini: sebuah proyek yang
+    // digaris tidak boleh menumbuhkan angka anggaran dari mana pun.
+    rupiah_on_screen: [...document.querySelectorAll('.card')].some(c => /Rp\\s/.test(c.innerText)),
+  };
+}"""
+
+PROJECT_WARNING = """() => {
+  const tiles = [...document.querySelectorAll('.stat')].map(s => s.innerText.replace(/\\s+/g, ' ').trim());
+  const alerts = [...document.querySelectorAll('.alert')].map(a => a.innerText.replace(/\\s+/g, ' ').trim());
+  return {
+    // /i WAJIB: app.css memberi .stat .label text-transform uppercase dan
+    // innerText memulangkan teks TERGAMBAR — "ANGGARAN TERPAKAI".
+    budget_tile: tiles.find(t => /anggaran terpakai/i.test(t)) || null,
+    warning: alerts.find(a => /terpakai/i.test(a)) || null,
+    warning_class: ([...document.querySelectorAll('.alert')].find(a => /terpakai/i.test(a.innerText)) || {}).className || null,
+  };
+}"""
+
+FORM_NOTE = """() => {
+  const labels = [...document.querySelectorAll('.modal .field, .field')];
+  const box = labels.find(f => /^Proyek/.test((f.querySelector('label') || {}).innerText || ''));
+  if (!box) return { found: false, labels: labels.map(f => ((f.querySelector('label') || {}).innerText || '').trim()).slice(0, 20) };
+  const help = [...box.querySelectorAll('.help')].map(h => ({ text: h.innerText.replace(/\\s+/g, ' ').trim(), hidden: h.hidden, color: h.style.color }));
+  return { found: true, help };
+}"""
+
+AMBANG_ROW = """(code) => {
+  const card = [...document.querySelectorAll('.card')]
+    .find(c => /Anggaran proyek terpakai/.test((c.querySelector('h2') || {}).innerText || ''));
+  if (!card) return { found: false, cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText) };
+  const rows = [...card.querySelectorAll('tbody tr')];
+  const i = rows.findIndex(r => r.innerText.includes(code));
+  if (i < 0) return { found: false, rows: rows.length };
+  return {
+    found: true,
+    index: i,
+    rows: rows.length,
+    cells: [...rows[i].children].map(td => td.innerText.replace(/\\s+/g, ' ').trim()),
+    states: rows.map(r => (r.querySelector('.badge') || {}).innerText || null),
+  };
+}"""
+
+REVISION_CHAIN = """() => {
+  const card = [...document.querySelectorAll('.card')].find(c => /Riwayat revisi/.test((c.querySelector('h2') || {}).innerText || ''));
+  if (!card) return { found: false, cards: [...document.querySelectorAll('.card h2')].map(h => h.innerText) };
+  return {
+    found: true,
+    rows: [...card.querySelectorAll('tbody tr')].map(r => [...r.children].map(td => td.innerText.replace(/\\s+/g, ' ').trim())),
+  };
+}"""
+
+
+def s29_po(tok, dpp, project_id=1):
+    """PO sungguhan lewat API, sekecil mungkin: satu baris, tanpa PPN."""
+    status, vendors = api("procurement/vendors?per_page=5&is_subcontractor=0", tok)
+    vendor = (vendors.get("data") or [{}])[0].get("id")
+    return api("procurement/purchase-orders", tok, "POST", {
+        "vendor_id": vendor,
+        "project_id": project_id,
+        "order_date": date.today().isoformat(),
+        "expected_date": (date.today() + timedelta(days=30)).isoformat(),
+        "ppn_rate": 0,
+        # PO tanpa PR wajib beralasan (T3.8) — dan alasannya tersimpan di
+        # dokumennya, jadi ia ditulis apa adanya, bukan diakali.
+        "pr_bypass_reason": "Fixture S29 — uji batas gerbang anggaran.",
+        "items": [{"description": "Uji gerbang anggaran S29", "qty": 1, "unit": "ls", "unit_price": dpp}],
+    })
+
+
+@scenario("S29_anggaran_vs_realisasi")
+def s29(pg):
+    out = {}
+    admin = token_for("admin@nusantara.test")
+    direktur = token_for("direktur@nusantara.test")
+
+    # (0) FIXTURE. RAP/2026/0001 dikirim demo dalam status 'submitted' — itulah
+    #     kenapa SETIAP proyek di data demo membaca "Belum ada RAP disetujui".
+    #     Disetujui di sini supaya ada anggaran yang bisa dibandingkan sama
+    #     sekali; idempoten, jadi menjalankan ulang skenario ini tidak jatuh.
+    status, rap = api("estimation/cost-budgets/1", admin)
+    if (rap.get("data") or {}).get("status") != "approved":
+        s, _ = api("estimation/cost-budgets/1/approve", direktur, "POST", {})
+        out["rap_approved"] = s
+
+    status, budget = api("finance/budget/projects/1", admin)
+    b = budget.get("data") or {}
+    out["budget_before"] = {k: b.get(k) for k in ("budget", "used", "pct", "state", "remaining_non_subcon", "rap_code")}
+    remaining = float(b["remaining_non_subcon"])
+
+    # (1) KESETARAAN DI BATASNYA — dua PO sungguhan, diukur pada keadaan yang
+    #     SAMA (keduanya hanya diajukan; PO yang diajukan belum komitmen).
+    s_at, po_at = s29_po(admin, remaining)
+    s_sub_at, sub_at = api(f"procurement/purchase-orders/{po_at['data']['id']}/submit", admin, "POST", {})
+    s_over, po_over = s29_po(admin, round(remaining + 0.01, 2))
+    s_sub_over, sub_over = api(f"procurement/purchase-orders/{po_over['data']['id']}/submit", admin, "POST", {})
+
+    out["gate"] = {
+        "at_limit_status": s_sub_at,
+        "over_limit_status": s_sub_over,
+        "over_limit_key": list((sub_over.get("errors") or {}).keys()),
+        "over_limit_message": ((sub_over.get("errors") or {}).get("budget") or [None])[0],
+    }
+
+    # (2) LAYAR PORTOFOLIO — angka yang sama, dibaca dari DOM.
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/anggaran")
+    pg.wait_for_timeout(3000)
+    assert_screen(pg, "#/anggaran", "Anggaran")
+    out["portfolio"] = pg.evaluate(ANGGARAN_ROW, "PRJ-2026-001")
+    # …dan sebuah proyek yang TIDAK punya RAP disetujui, di tabel yang sama.
+    out["portfolio_without_rap"] = pg.evaluate(ANGGARAN_ROW, "PRJ-2026-002")
+    pg.screenshot(path=f"{OUT}/s29-portofolio-f2.png", full_page=False)
+
+    # (3) PER BULAN — anggaran TURUNAN, berlabel.
+    click(pg, "button.tab:has-text('Per bulan')")
+    pg.wait_for_timeout(800)
+    pg.select_option(".filters select", "1")
+    pg.wait_for_timeout(2500)
+    out["monthly_with_baseline"] = pg.evaluate(BULANAN)
+    pg.screenshot(path=f"{OUT}/s29-bulanan-turunan-f2.png", full_page=False)
+
+    # …dan di KERTAS. app.css menyembunyikan .filters dan .tabs @media print,
+    # jadi kotak pilih proyek — satu-satunya penanda proyek pada versi pertama
+    # layar ini — menghilang justru pada lembar yang dibawa orang ke rapat.
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(400)
+    out["monthly_print"] = pg.evaluate("""() => ({
+      names_the_project: /PRJ-2026-001/.test(document.querySelector('.main').innerText),
+      filters_hidden: getComputedStyle(document.querySelector('.filters')).display === 'none',
+      head: (document.querySelector('.card .card-head') || {}).innerText || null,
+    })""")
+    pg.emulate_media(media="screen")
+    pg.wait_for_timeout(300)
+
+    # (4) …dan proyek TANPA baseline: digaris, bukan ditaksir.
+    pg.select_option(".filters select", "2")
+    pg.wait_for_timeout(2500)
+    out["monthly_without_baseline"] = pg.evaluate(BULANAN)
+    pg.screenshot(path=f"{OUT}/s29-bulanan-digaris-f2.png", full_page=False)
+
+    # (5) REVISI RAP — dibuat lewat pintu yang sungguh ada di layar: "Buat
+    #     Revisi" lalu "Buat dari BOQ" dengan target margin lain. Margin 100 %
+    #     membelah anggarannya menjadi setengah, jadi rantai revisinya membawa
+    #     SELISIH yang nyata alih-alih dua baris kembar.
+    status, rev = api("estimation/cost-budgets/1/revise", admin, "POST",
+                      {"revision_reason": "S29 — revisi target margin (uji riwayat selisih)"})
+    rev_id = (rev.get("data") or {}).get("id")
+    api(f"estimation/cost-budgets/{rev_id}/generate-from-boq", admin, "POST", {"target_margin_pct": 100})
+    api(f"estimation/cost-budgets/{rev_id}/submit", admin, "POST", {})
+    s_rev, _ = api(f"estimation/cost-budgets/{rev_id}/approve", direktur, "POST", {})
+    out["revision_approved_status"] = s_rev
+
+    # (6) MELEWATI AMBANG 90 % — dengan komitmen sungguhan, bukan dengan
+    #     menggeser ambangnya. PO yang melampaui sisa DIAKUI pengajunya
+    #     (confirm_over_budget, jalur yang memang disediakan gerbang) lalu
+    #     disetujui direktur, sehingga ia menjadi komitmen berjalan.
+    status, mid = api("finance/budget/projects/1", admin)
+    m = mid.get("data") or {}
+    out["budget_after_revision"] = {k: m.get(k) for k in ("budget", "used", "pct", "state", "rap_code", "rap_revision")}
+    target = round(0.93 * float(m["budget"]) - float(m["used"]), 2)
+    s_po, po = s29_po(admin, target)
+    s_sub, sub = api(f"procurement/purchase-orders/{po['data']['id']}/submit", admin, "POST",
+                     {"confirm_over_budget": True})
+    s_apr, _ = api(f"procurement/purchase-orders/{po['data']['id']}/approve", direktur, "POST", {})
+    status, after = api("finance/budget/projects/1", admin)
+    a = after.get("data") or {}
+    out["threshold_fixture"] = {"dpp": target, "submit": s_sub, "approve": s_apr}
+    out["budget_after_commitment"] = {k: a.get(k) for k in ("budget", "used", "pct", "state", "worst_side", "worst_state")}
+
+    # (6) PERINGATAN DI TEMPAT UANGNYA DIBELANJAKAN — layar proyek…
+    pg.goto(BASE + "#/d/projects/1")
+    pg.wait_for_timeout(3500)
+    out["project_screen"] = pg.evaluate(PROJECT_WARNING)
+    pg.screenshot(path=f"{OUT}/s29-peringatan-proyek-f2.png", full_page=False)
+
+    # …dan formulir PO, sebelum satu baris item pun diketik.
+    pg.goto(BASE + "#/r/procurement/purchase-orders")
+    pg.wait_for_timeout(2500)
+    click(pg, ".page-head button:has-text('Tambah')")
+    pg.wait_for_timeout(1500)
+    pg.evaluate("""() => {
+      const box = [...document.querySelectorAll('.field')].find(f => /^Proyek/.test((f.querySelector('label')||{}).innerText||''));
+      const input = box.querySelector('input, select');
+      return input ? input.className : null;
+    }""")
+    # Combobox proyek: ketik kodenya lalu pilih usulan pertama.
+    pg.fill(".modal .field:has(label:text-is('Proyek')) input", "PRJ-2026-001")
+    pg.wait_for_timeout(900)
+    pg.keyboard.press("ArrowDown")
+    pg.keyboard.press("Enter")
+    pg.wait_for_timeout(2500)
+    out["po_form"] = pg.evaluate(FORM_NOTE)
+    pg.screenshot(path=f"{OUT}/s29-formulir-po-peringatan-f2.png", full_page=False)
+    pg.keyboard.press("Escape")
+    # Escape pada formulir yang sudah punya isian membuka dialog "Tutup tanpa
+    # menyimpan?", dan dialog itu BERTAHAN melewati navigasi berikutnya: bukti
+    # putaran lalu memuat "s29-riwayat-revisi-f2.png" yang seluruh isinya adalah
+    # dialog itu, bukan riwayat revisi yang namanya ia bawa. Dibuang di sini,
+    # jadi tangkapan layar sesudahnya memotret layarnya sendiri.
+    pg.wait_for_timeout(400)
+    if pg.locator(".modal button:has-text('Buang isian')").count():
+        click(pg, ".modal button:has-text('Buang isian')")
+        pg.wait_for_timeout(600)
+
+    # (7) RIWAYAT REVISI di layar RAP.
+    pg.goto(BASE + f"#/d/estimation/cost-budgets/{rev_id}")
+    pg.wait_for_timeout(3000)
+    out["revision_chain"] = pg.evaluate(REVISION_CHAIN)
+    pg.screenshot(path=f"{OUT}/s29-riwayat-revisi-f2.png", full_page=False)
+
+    # (8) REGISTRI AMBANG — layar KEDUA yang menyebut keadaan proyek yang sama.
+    #     Sesudah f5d691b registri mengirim batas SISI TERBURUK, dan sebuah sisi
+    #     yang dianggarkan Rp 0 kehilangan batasnya (limit <= 0 dibaca "batas
+    #     belum disetel"): layar proyek berkata "Melampaui batas" sementara
+    #     baris registri untuk proyek yang SAMA berbunyi "Batas belum disetel"
+    #     dan — karena urutannya menurut persen yang tidak ada — jatuh ke DASAR
+    #     daftar. Dua layar, satu proyek, dua keadaan (verifikasi putaran 2).
+    pg.goto(BASE + "#/ambang")
+    pg.wait_for_timeout(3000)
+    out["ambang"] = pg.evaluate(AMBANG_ROW, "PRJ-2026-001")
+    pg.screenshot(path=f"{OUT}/s29-ambang-registri-f2.png", full_page=False)
+
+    row = out["portfolio"] or {}
+    cells = row.get("cells") or []
+    monthly = out["monthly_with_baseline"]
+    ruled = out["monthly_without_baseline"]
+    note_texts = [h["text"] for h in (out["po_form"].get("help") or []) if not h["hidden"]]
+
+    out["checks"] = {
+        # 1 — layar dan gerbang
+        "the_gate_accepts_exactly_the_remaining_the_screen_prints": out["gate"]["at_limit_status"] == 200,
+        "one_cent_more_is_refused_on_the_budget_key": (
+            out["gate"]["over_limit_status"] == 422 and out["gate"]["over_limit_key"] == ["budget"]),
+        "the_refusal_names_the_same_remaining": (
+            "31.123.865.391" in (out["gate"]["over_limit_message"] or "")),
+        # Kolom "Sisa" membawa TOTAL-nya, dan di bawahnya kedua sisi yang
+        # benar-benar dihakimi gerbang — dalam RUPIAH PENUH, angka PO yang
+        # diterima di atas apa adanya (format ringkas membulatkan KE ATAS, dan
+        # sebuah plafon yang dibulatkan ke atas adalah janji yang ditolak).
+        "the_portfolio_row_prints_the_remaining_the_gate_enforces": any(
+            "PO Rp 31.123.865.391" in c for c in cells),
+        "the_portfolio_row_names_the_governing_rap": any("RAP/2026/0001" in c for c in cells),
+        # Proyek TANPA RAP disetujui tidak boleh punya satu pun angka anggaran:
+        # RAP, Sisa dan Terpakai harus digaris, tidak pernah "Rp 0".
+        "a_project_without_a_rap_is_ruled_never_rp_0": (
+            out["portfolio_without_rap"].get("found") is True
+            and [out["portfolio_without_rap"]["cells"][i] for i in (2, 5, 6)] == ["—", "—", "Tanpa RAP"]),
+        # …dan TIDAK SATU SEL PUN di seluruh tabel berbunyi "Rp 0". Harness ini
+        # sudah mengumpulkan zero_cells sejak putaran pertama tanpa ada satu
+        # syarat pun yang membacanya — dan yang diukurnya waktu itu ['Rp 0']:
+        # kolom Realisasi PRJ-2026-002, proyek tanpa satu baris biaya pun
+        # (pola "no_row_ships_a_fabricated_zero" milik S28).
+        "no_row_ships_a_fabricated_zero": (
+            (out["portfolio"] or {}).get("zero_cells") == []
+            and (out["portfolio_without_rap"] or {}).get("zero_cells") == []),
+        # 2 — anggaran bulanan berlabel turunan
+        "the_monthly_budget_is_labelled_derived": (
+            "TURUNAN" in (monthly.get("derivation") or "")
+            and "RAP/2026/0001" in (monthly.get("derivation") or "")
+            and "BSL/2026/VIII/0001" in (monthly.get("derivation") or "")),
+        "the_monthly_table_has_a_derived_budget_column": any(
+            "turunan" in h.lower() for h in (monthly.get("headers") or [])),
+        # Lembar tercetak menyebut proyeknya — diuji di media cetak sungguhan,
+        # dengan saringan proyek yang memang tersembunyi di sana.
+        "the_printed_monthly_sheet_names_its_project": (
+            out["monthly_print"]["names_the_project"] is True
+            and out["monthly_print"]["filters_hidden"] is True),
+        "months_without_realisation_are_ruled_not_zero": (
+            "—" in (monthly.get("actual_cells") or []) and monthly.get("zero_budget_cells") == []),
+        # 3 — tanpa baseline
+        "a_project_without_a_baseline_says_so": (
+            "belum punya baseline yang disetujui" in (ruled.get("derivation") or "")),
+        # …dan tidak menumbuhkan satu angka pun dari mana-mana: pada data demo
+        # PRJ-2026-002 tidak punya baseline MAUPUN satu baris biaya, jadi yang
+        # benar adalah nol bulan dan nol rupiah — bukan dua belas baris "Rp 0".
+        "and_invents_no_monthly_number_at_all": (
+            ruled.get("months") == 0
+            and ruled.get("rupiah_on_screen") is False
+            and all(not (c or "").startswith("Rp") for c in (ruled.get("budget_cells") or []))),
+        "the_ruled_screen_warns_instead_of_informing": "warn" in (ruled.get("alert_tone") or ""),
+        # 4 — peringatan 90 % di tempat uangnya dibelanjakan
+        "the_revision_moves_the_governing_budget": (
+            out["budget_after_revision"]["rap_revision"] == 1
+            and float(out["budget_after_revision"]["budget"]) < 42173913043.47),
+        "a_real_commitment_crosses_the_ninety_percent_threshold": (
+            out["budget_after_commitment"]["state"] == "mendekati"
+            and float(out["budget_after_commitment"]["pct"]) >= 90),
+        "the_over_budget_po_needed_an_explicit_acknowledgement": (
+            out["threshold_fixture"]["submit"] == 200 and out["threshold_fixture"]["approve"] == 200),
+        "the_project_screen_carries_the_budget_tile": (
+            out["project_screen"]["budget_tile"] is not None),
+        # Pita peringatan menyala menurut SISI TERBURUK, bukan menurut total:
+        # pada keadaan yang dibuat harness ini totalnya 93 % (mendekati)
+        # sementara sisi PO sudah lewat 100 %, dan pita kuning di atas proyek
+        # yang setiap PO-nya ditolak adalah alarm yang berbohong tenang.
+        "the_project_screen_raises_the_warning_strip": (
+            out["project_screen"]["warning"] is not None
+            and ("error" if out["budget_after_commitment"]["worst_state"] == "lampau" else "warn")
+            in (out["project_screen"]["warning_class"] or "")),
+        # Pita menyebut sisi yang menghakimi, DENGAN kata yang benar untuk
+        # keadaannya: sisi yang sudah lewat tidak menawarkan plafon apa pun
+        # (verifikasi putaran 2 — "PO menyisakan Rp 0" menawarkan Rp 0 sebagai
+        # DPP yang diterima pada sisi yang tidak menerima satu DPP pun).
+        "and_it_names_the_side_the_gate_judges": (
+            "non-subkon" in (out["project_screen"]["warning"] or "")
+            and ("PO melampaui" if out["budget_after_commitment"]["worst_state"] == "lampau"
+                 else "PO menyisakan") in (out["project_screen"]["warning"] or "")),
+        "and_an_exhausted_side_offers_no_ceiling_at_all": (
+            out["budget_after_commitment"]["worst_state"] != "lampau"
+            or ("menyisakan Rp 0" not in (out["project_screen"]["warning"] or "")
+                and "sudah melampaui" in (out["project_screen"]["warning"] or ""))),
+        "the_po_form_warns_before_a_single_line_is_typed": any(
+            "terpakai" in t for t in note_texts),
+        "the_po_form_note_is_coloured_at_the_threshold": any(
+            h.get("color") for h in (out["po_form"].get("help") or []) if not h["hidden"]),
+        # 5 — riwayat revisi
+        "the_revision_history_shows_both_revisions": len((out["revision_chain"].get("rows") or [])) == 2,
+        "and_the_difference_between_them": any(
+            (r[7] or "").startswith("Rp -") for r in (out["revision_chain"].get("rows") or []) if len(r) > 7),
+        "revision_zero_has_no_difference_to_show": any(
+            r[0] == "0" and r[7] == "—" for r in (out["revision_chain"].get("rows") or []) if len(r) > 7),
+        # 6 — registri Ambang: layar kedua, proyek yang sama, SATU keadaan
+        "the_threshold_registry_says_what_the_project_screen_says": (
+            out["ambang"].get("found") is True
+            and {"lampau": "Melampaui batas", "mendekati": "Mendekati batas", "aman": "Aman"}.get(
+                out["budget_after_commitment"]["worst_state"], "?") in " ".join(out["ambang"]["cells"])),
+        # …dan baris yang mendekati/melewati batasnya berdiri di ATAS daftar,
+        # bukan di dasarnya di bawah proyek yang tidak punya keadaan sama sekali.
+        "and_the_row_closest_to_its_limit_stands_at_the_top": (
+            out["ambang"].get("found") is True and out["ambang"]["index"] == 0),
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    return out
+
+
+@scenario("S29_anggaran_vs_realisasi_mobile")
+def s29m(browser):
+    """Portofolio anggaran (9 kolom) di 390 px: tabel lebar menggulir di dalam
+    .table-wrap, halamannya tidak menggulir mendatar, dan kalimat penurunan
+    anggaran bulanan tetap terbaca utuh."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.goto(BASE + "#/anggaran")
+        pg.wait_for_timeout(3500)
+        out = pg.evaluate("""() => {
+          const table = [...document.querySelectorAll('table.data')][0];
+          const wrap = table ? table.closest('.table-wrap') : null;
+          return {
+            rows: table ? table.querySelectorAll('tbody tr').length : 0,
+            wrap_scrolls: wrap ? wrap.scrollWidth > wrap.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s29-portofolio-ponsel-f2.png", full_page=False)
+        out["checks"] = {
+            "the_portfolio_renders_on_a_phone": out["rows"] > 0,
             "the_wide_table_scrolls_inside_its_own_box": out["wrap_scrolls"] is True,
             "the_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
         }
@@ -6362,7 +6789,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()
