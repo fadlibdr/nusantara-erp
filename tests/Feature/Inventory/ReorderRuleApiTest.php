@@ -462,8 +462,13 @@ class ReorderRuleApiTest extends ErpTestCase
 
         // Kolomnya ada di layar, atau saringannya menyaring sesuatu yang tidak
         // bisa dilihat siapa pun.
+        // Blok resource-nya dipotong pada resource BERIKUTNYA, bukan pada
+        // jumlah karakter tetap: satu komentar baru di dalamnya mendorong
+        // kolomnya ke luar jendela dan uji ini menjadi merah untuk perubahan
+        // yang tidak ada hubungannya.
         $schema = (string) file_get_contents(public_path('app/js/schema.js'));
-        $block = substr($schema, (int) strpos($schema, "'inventory/items': {"), 2000);
+        $start = (int) strpos($schema, "'inventory/items': {");
+        $block = substr($schema, $start, (int) strpos($schema, "'inventory/item-categories': {", $start) - $start);
         $this->assertStringContainsString("key: 'barcode', label: 'Barcode'", $block);
         $this->assertStringContainsString("key: 'barcode_duplicate'", $block);
     }
