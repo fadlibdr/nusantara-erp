@@ -137,5 +137,47 @@ class LeadOwnerTest extends ErpTestCase
         $nobody = $this->actingAs($admin)->getJson('/api/crm/leads?unassigned=1')
             ->assertStatus(200)->json('data');
         $this->assertSame([$unowned->id], array_column($nobody, 'id'));
+
+        // "Tidak" adalah jawaban juga: yang SUDAH ditugaskan. Sampai 8 Sep 2026
+        // `boolean()` membuat unassigned=0 memulangkan SELURUH baris — sebuah
+        // pilihan yang berbohong tentang apa yang disaringnya.
+        $someone = $this->actingAs($admin)->getJson('/api/crm/leads?unassigned=0')
+            ->assertStatus(200)->json('data');
+        $this->assertSame([$owned->id], array_column($someone, 'id'));
+
+        // Tanpa parameter: dua-duanya.
+        $all = $this->actingAs($admin)->getJson('/api/crm/leads')->assertStatus(200)->json('data');
+        $this->assertCount(2, $all);
+    }
+
+    /**
+     * Saringan itu punya KLIK, dan tautannya bisa dibagikan.
+     *
+     * views/list.js hanya menerima kunci query yang dideklarasikan
+     * `def.filters` (seedFromUrl → `declared`); sebuah kunci yang hanya hidup
+     * di controller berarti dua hal sekaligus: tidak ada kontrolnya di bilah
+     * saringan, dan #/r/crm/leads?unassigned=1 yang dirakit tangan diam-diam
+     * memulangkan jawaban yang BERBEDA (seluruh prospek). Diukur di peramban
+     * 8 Sep 2026 sebelum perbaikan: hash ditulis ulang menjadi "#/r/crm/leads",
+     * pager "dari 37 data".
+     */
+    public function test_the_unassigned_filter_has_a_control_on_the_screen(): void
+    {
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $block = $this->schemaBlock($schema, 'crm/leads');
+
+        $this->assertStringContainsString("{ key: 'unassigned', label: 'Belum ditugaskan', type: 'boolFilter' }", $block,
+            'saringan "Belum ditugaskan" tidak dideklarasikan: tidak ada kliknya, dan ?unassigned=1 dibuang seedFromUrl');
+    }
+
+    /** Potongan definisi satu resource, dari kunci sampai resource berikutnya. */
+    private function schemaBlock(string $schema, string $key): string
+    {
+        $start = strpos($schema, "  '{$key}': {");
+        $this->assertNotFalse($start, "resource [{$key}] tidak ada di schema.js");
+
+        $end = strpos($schema, "\n  '", $start + 5);
+
+        return substr($schema, $start, $end === false ? null : $end - $start);
     }
 }

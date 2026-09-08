@@ -37,9 +37,22 @@ class LeadController extends ApiController
             })
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('owner_user_id'), fn ($query) => $query->where('owner_user_id', $request->integer('owner_user_id')))
-            // "Belum ditugaskan" adalah saringan yang sungguhan dipakai: satu
-            // klik menjawab "prospek mana yang tidak dikejar siapa pun".
-            ->when($request->boolean('unassigned'), fn ($query) => $query->whereNull('owner_user_id'))
+            /*
+             * "Belum ditugaskan" adalah saringan yang sungguhan dipakai: satu
+             * klik menjawab "prospek mana yang tidak dikejar siapa pun" — dan
+             * kliknya ADA, di bilah saringan daftar prospek (schema.js,
+             * boolFilter). Sampai 8 Sep 2026 komentar ini menjanjikan afordansi
+             * yang tidak digambar layar mana pun, dan ?unassigned=1 yang
+             * dirakit tangan dibuang diam-diam oleh seedFromUrl karena kuncinya
+             * tidak dideklarasikan.
+             *
+             * `filled`, bukan `boolean`: 0 juga sebuah jawaban ("yang SUDAH
+             * ditugaskan"), dan pilihan "Tidak" yang diam-diam memulangkan
+             * seluruh baris adalah saringan yang berbohong.
+             */
+            ->when($request->filled('unassigned'), fn ($query) => $request->boolean('unassigned')
+                ? $query->whereNull('owner_user_id')
+                : $query->whereNotNull('owner_user_id'))
             ->orderByDesc('id');
 
         return $this->listing($request, $query, LeadResource::class,

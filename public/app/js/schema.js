@@ -223,6 +223,13 @@ export const RESOURCES = {
     filters: [
       { key: 'status', label: 'Status', enum: 'leadStatus' },
       { key: 'owner_user_id', label: 'Pemilik prospek', lookup: 'users' },
+      /* "Prospek mana yang tidak dikejar siapa pun" — satu klik, dan kuncinya
+         dideklarasikan supaya #/r/crm/leads?unassigned=1 bisa DITAUTKAN
+         (seedFromUrl hanya menerima kunci yang ada di sini; sampai 8 Sep 2026
+         tautan itu diam-diam memulangkan seluruh 37 prospek). Combobox
+         "Pemilik prospek" tidak bisa menjawabnya: barisnya "—" adalah tombol
+         kosongkan, bukan "tanpa pemilik". */
+      { key: 'unassigned', label: 'Belum ditugaskan', type: 'boolFilter' },
     ],
     form: {
       sections: [{
