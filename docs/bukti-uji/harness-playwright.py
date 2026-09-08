@@ -8153,6 +8153,18 @@ def s33(pg):
             note: (document.querySelector('.catatan') || {}).innerText || null,
             stickers: document.querySelectorAll('.stiker').length,
             hand_lines_per_sticker: st ? st.querySelectorAll('.kode-tangan').length : 0,
+            // BERAPA BARIS CETAK yang sebenarnya dipakai tiap <div> baris.
+            // PHP memutuskan penggalannya untuk font 9 pt; kalau lembarnya
+            // mencetak font LAIN, jaring CSS-nya tetap menahan luapan — jadi
+            // tidak ada satu pun syarat lain yang berubah — dan yang tercetak
+            // menjadi dua baris rapuh per baris yang dihitung. Range
+            // getClientRects() menghitung kotak baris yang BENAR-BENAR
+            // digambar, jadi 9 pt yang dicetak 14 pt terlihat di sini.
+            hand_line_boxes: lines.map(l => {
+              const range = document.createRange();
+              range.selectNodeContents(l);
+              return range.getClientRects().length;
+            }),
             sticker_mm: box === null ? null : +box.toFixed(2),
             // Kotak ISI stikernya: lebar stiker dikurangi padding kiri-kanan.
             sticker_inner_mm: st ? +((st.clientWidth
@@ -8262,6 +8274,11 @@ def s33(pg):
             "and_the_code_a_person_retypes_is_still_whole":
                 out["refused_sheet"]["hand_code"] == "A" * 100
                 and out["refused_sheet"]["hand_lines_per_sticker"] == 4,
+            # …dan penggalan yang DIHITUNG PHP adalah penggalan yang TERCETAK:
+            # satu kotak baris per <div>, bukan dua karena fontnya ternyata
+            # lebih besar daripada yang dipakai menghitungnya.
+            "and_each_line_php_measured_is_one_printed_line":
+                out["refused_sheet"]["hand_line_boxes"] == [1, 1, 1, 1],
             "typing_a_code_finds_the_item_and_its_stock_per_warehouse":
                 len(out["manual"]["warehouses"]) > 0,
             "and_says_whether_it_matched_the_code_or_the_barcode":
