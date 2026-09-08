@@ -40,10 +40,17 @@ class InventoryListingTest extends ErpTestCase
 
     public function test_items_refuse_a_sort_on_a_real_column_the_controller_did_not_whitelist(): void
     {
-        // barcode exists on inv_items; the refusal proves the declared
-        // whitelist decides, not the table schema.
+        // `unit` exists on inv_items; the refusal proves the declared whitelist
+        // decides, not the table schema.
+        //
+        // Contohnya dulu `barcode`, sampai putaran perbaikan F-6 memasukkannya
+        // ke whitelist — daftar Item mendapat kolom Barcode dan saringan
+        // "barcode ganda", dan mengurutkan menurut barcode adalah yang membuat
+        // duplikatnya berdampingan. Contoh yang berpindah ke kolom lain menjaga
+        // ARTI uji ini utuh; contoh yang dibiarkan akan menjadikannya merah
+        // untuk perubahan yang benar.
         $this->actingAs($this->adminUser())
-            ->getJson('/api/inventory/items?sort=barcode')
+            ->getJson('/api/inventory/items?sort=unit')
             ->assertStatus(422)
             ->assertJsonValidationErrors('sort');
     }

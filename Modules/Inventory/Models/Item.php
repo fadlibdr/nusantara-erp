@@ -49,6 +49,20 @@ class Item extends BaseModel
         return $this->belongsTo(ItemCategory::class, 'category_id');
     }
 
+    /**
+     * Aturan titik pesan ulang yang menyebut item ini (F-6).
+     *
+     * Dipakai kartu item untuk MENGATAKAN bahwa `min_stock` di atasnya sudah
+     * tidak berlaku di gudang-gudang itu — satu-satunya layar yang memajang
+     * angka yang KALAH, dan yang sampai putaran perbaikan F-6 tidak menyebut
+     * penggantinya sama sekali. Indeks `item_id` pada migrasi 001700 dibuat
+     * untuk arah ini.
+     */
+    public function reorderRules(): HasMany
+    {
+        return $this->hasMany(ReorderRule::class, 'item_id');
+    }
+
     public function balances(): HasMany
     {
         return $this->hasMany(StockBalance::class, 'item_id');

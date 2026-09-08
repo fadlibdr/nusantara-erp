@@ -4,6 +4,7 @@ namespace Modules\Inventory\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Modules\Core\Http\ApiController;
 use Modules\Inventory\Enums\TransferStatus;
 use Modules\Inventory\Http\Requests\ItemStoreRequest;
@@ -29,10 +30,42 @@ class ItemController extends ApiController
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->filled('item_type'), fn ($query) => $query->where('item_type', $request->string('item_type')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
+            /*
+             * BARCODE GANDA, DICARI DARI DAFTAR — bukan ditemukan kebetulan.
+             *
+             * `inv_items.barcode` nullable dan TIDAK unik, dan itu keputusan
+             * yang sengaja ditunda (migrasi yang menambahkan UNIQUE akan GAGAL
+             * saat deploy bila produksi sudah memuat duplikat). Sampai saringan
+             * ini ada, satu-satunya cara sebuah duplikat terlihat adalah
+             * seseorang memindainya — berbulan sesudah stikernya menempel di
+             * rak, pada saat yang paling mahal. Audit `GROUP BY barcode HAVING
+             * COUNT(*) > 1` yang laporan paket minta kepada pemilik sekarang
+             * bisa dijalankan dari layar Item, tanpa SSH ke produksi.
+             *
+             * Item yang dibuang ikut dihitung ganda dengan sengaja: barangnya
+             * masih di rak dan stikernya masih menempel, jadi pemindaiannya
+             * tetap ambigu — aturan yang sama dengan ItemScanController.
+             */
+            ->when($request->filled('barcode_duplicate'), function ($query) use ($request): void {
+                $shared = DB::table('inv_items')
+                    ->select('barcode')
+                    ->whereNotNull('barcode')
+                    ->where('barcode', '!=', '')
+                    ->groupBy('barcode')
+                    ->havingRaw('COUNT(*) > 1');
+
+                // Lengan "Tidak" MENYEBUT NULL sendiri: `NULL NOT IN (…)`
+                // bernilai NULL, bukan true, jadi tanpa baris ini setiap item
+                // yang belum punya barcode lenyap dari daftar — dan itu
+                // sebagian besar katalognya.
+                $request->boolean('barcode_duplicate')
+                    ? $query->whereIn('barcode', $shared)
+                    : $query->where(fn ($where) => $where->whereNull('barcode')->orWhereNotIn('barcode', $shared));
+            })
             ->orderBy('code');
 
         return $this->listing($request, $query, ItemResource::class,
-            sortable: ['code', 'name', 'item_type', 'min_stock', 'avg_cost', 'is_active']);
+            sortable: ['code', 'name', 'item_type', 'barcode', 'min_stock', 'avg_cost', 'is_active']);
     }
 
     public function store(ItemStoreRequest $request): JsonResponse
@@ -44,7 +77,13 @@ class ItemController extends ApiController
 
     public function show(Item $item): JsonResponse
     {
-        return $this->ok(ItemResource::make($item->load('category', 'balances.warehouse')));
+        // withCount, bukan with: kartu item hanya perlu tahu BERAPA gudang
+        // memakai titik pesan ulang sendiri, dan memuat barisnya berarti satu
+        // kueri lagi untuk kalimat satu baris.
+        $item->load('category', 'balances.warehouse')
+            ->loadCount(['reorderRules as active_reorder_rules_count' => fn ($query) => $query->where('is_active', true)]);
+
+        return $this->ok(ItemResource::make($item));
     }
 
     public function update(ItemUpdateRequest $request, Item $item): JsonResponse

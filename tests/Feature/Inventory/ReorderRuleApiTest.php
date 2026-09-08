@@ -380,6 +380,94 @@ class ReorderRuleApiTest extends ErpTestCase
             ->getJson('api/inventory/reorder-rules?q=Semen')->json('data'));
     }
 
+    /**
+     * KARTU ITEM ADALAH SATU-SATUNYA LAYAR YANG MEMAJANG ANGKA YANG KALAH.
+     *
+     * CONVENTIONS §31 menuntut prioritas ambang DITULIS di layar, dan empat
+     * permukaan menulisnya dari arah aturan → item ("400 · Aturan reorder
+     * gudang ini · stok min. item 200"). Arah sebaliknya tidak dikerjakan:
+     * seseorang membuka ITM-0001, membaca "Stok minimum 200,000", dan
+     * menyimpulkan itulah ambang di seluruh gudang — sementara pasangan
+     * ITM-0001 × Gudang Site berambang 400 dan sedang kurang 50. Yang
+     * menaikkan angka 200 di sana tidak mengubah apa pun.
+     */
+    public function test_the_item_card_says_its_minimum_is_replaced_where_a_rule_exists(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-SITE');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        $admin = $this->adminUser();
+
+        $before = $this->actingAs($admin, 'sanctum')
+            ->getJson("api/inventory/items/{$item->id}")->assertOk()->json('data');
+        $this->assertArrayNotHasKey('reorder_rule_note', $before,
+            'Item tanpa aturan tidak boleh membawa baris kosong di kartunya.');
+
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 400, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $after = $this->actingAs($admin, 'sanctum')
+            ->getJson("api/inventory/items/{$item->id}")->assertOk()->json('data');
+
+        $this->assertArrayHasKey('reorder_rule_note', $after);
+        $this->assertStringContainsString('1 gudang', $after['reorder_rule_note']);
+        $this->assertStringContainsString('TIDAK berlaku', $after['reorder_rule_note']);
+        $this->assertStringContainsString('Aturan Reorder', $after['reorder_rule_note']);
+    }
+
+    /** …dan aturan NONAKTIF tidak menggantikan apa pun, jadi ia tidak disebut. */
+    public function test_an_inactive_rule_leaves_the_item_card_alone(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-SITE');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 400, 'reorder_qty' => 0, 'is_active' => false]);
+
+        $payload = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson("api/inventory/items/{$item->id}")->assertOk()->json('data');
+
+        $this->assertArrayNotHasKey('reorder_rule_note', $payload);
+    }
+
+    /**
+     * BARCODE GANDA BISA DICARI DARI DAFTAR ITEM.
+     *
+     * Laporan paket meminta pemilik menjalankan satu audit `GROUP BY barcode
+     * HAVING COUNT(*) > 1` di produksi sebelum memutuskan apakah kolom itu
+     * harus UNIQUE — dan tidak memberinya satu pun cara menjalankannya kecuali
+     * SSH + tinker. Keputusan yang butuh angka tetapi angkanya tidak bisa
+     * diambil siapa pun adalah keputusan yang tidak akan pernah diambil.
+     */
+    public function test_the_item_list_can_be_narrowed_to_barcodes_more_than_one_item_uses(): void
+    {
+        $this->makeItem('Semen A', ['code' => 'ITM-D001', 'barcode' => 'F6DUP001']);
+        $this->makeItem('Semen B', ['code' => 'ITM-D002', 'barcode' => 'F6DUP001']);
+        $this->makeItem('Semen C', ['code' => 'ITM-D003', 'barcode' => 'F6UNIQ01']);
+        $this->makeItem('Semen D', ['code' => 'ITM-D004']);
+
+        $admin = $this->adminUser();
+
+        $duplicates = $this->actingAs($admin, 'sanctum')
+            ->getJson('api/inventory/items?barcode_duplicate=1')->assertOk()->json('data');
+
+        $this->assertEqualsCanonicalizing(
+            ['ITM-D001', 'ITM-D002'],
+            array_column($duplicates, 'code'),
+            'Saringan barcode ganda harus memulangkan TEPAT item yang berbagi kodenya.',
+        );
+
+        // …dan barcode kosong bukan duplikat: dua item tanpa barcode tidak
+        // berbagi apa pun.
+        $unique = $this->actingAs($admin, 'sanctum')
+            ->getJson('api/inventory/items?barcode_duplicate=0')->assertOk()->json('data');
+
+        $this->assertEqualsCanonicalizing(['ITM-D003', 'ITM-D004'], array_column($unique, 'code'));
+
+        // Kolomnya ada di layar, atau saringannya menyaring sesuatu yang tidak
+        // bisa dilihat siapa pun.
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $block = substr($schema, (int) strpos($schema, "'inventory/items': {"), 2000);
+        $this->assertStringContainsString("key: 'barcode', label: 'Barcode'", $block);
+        $this->assertStringContainsString("key: 'barcode_duplicate'", $block);
+    }
+
     public function test_deleting_a_rule_really_deletes_it_so_the_pair_can_be_ruled_again(): void
     {
         $warehouse = $this->makeWarehouse('GD-PUSAT');

@@ -3037,6 +3037,15 @@ export const RESOURCES = {
       { key: 'name', label: 'Nama item', type: 'text', sub: 'category.name' },
       { key: 'item_type', label: 'Jenis', type: 'enum', enum: 'itemType' },
       { key: 'unit', label: 'Satuan', type: 'text', align: 'center', hideOnNarrow: true },
+      /* F-6: KOLOM BARCODE, dan saringan "barcode ganda" di bawahnya.
+         Tanpa keduanya, satu-satunya cara sebuah duplikat ditemukan adalah
+         kebetulan — seseorang memindainya, berbulan sesudah stikernya
+         menempel. Laporan paket ini meminta pemilik menjalankan satu audit
+         `GROUP BY barcode HAVING COUNT(*) > 1` untuk memutuskan apakah kolom
+         itu harus UNIQUE; keputusan yang butuh angka tetapi angkanya tidak
+         bisa diambil siapa pun adalah keputusan yang tidak akan pernah
+         diambil. */
+      { key: 'barcode', label: 'Barcode', type: 'text', hideOnNarrow: true },
       { key: 'min_stock', label: 'Stok min.', type: 'qty', align: 'right', hideOnNarrow: true },
       { key: 'avg_cost', label: 'HPP rata-rata', type: 'currency', align: 'right' },
       { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center', hideOnNarrow: true },
@@ -3044,6 +3053,7 @@ export const RESOURCES = {
     filters: [
       { key: 'item_type', label: 'Jenis', enum: 'itemType' },
       { key: 'category_id', label: 'Kategori', lookup: 'itemCategories' },
+      { key: 'barcode_duplicate', label: 'Barcode ganda', type: 'boolFilter' },
     ],
     form: {
       sections: [{

@@ -171,6 +171,9 @@ const LABELS = {
   value: 'Nilai', contract_value: 'Nilai kontrak', total_budget: 'Total anggaran',
   target_margin_pct: 'Target margin', unit_price: 'Harga satuan', avg_cost: 'HPP rata-rata',
   last_price: 'Harga beli terakhir', min_stock: 'Stok minimum', base_salary: 'Gaji pokok',
+  // F-6: kalimat yang mengatakan bahwa stok minimum di atasnya tidak berlaku
+  // di gudang yang punya aturan reorder sendiri. Hadir hanya bila ada.
+  reorder_rule_note: 'Titik pesan ulang per gudang',
   customer_id: 'Pelanggan', vendor_id: 'Vendor', project_id: 'Proyek', contract_id: 'Kontrak',
   quotation_id: 'Penawaran', lead_id: 'Prospek', boq_id: 'BOQ', item_id: 'Item',
   warehouse_id: 'Gudang', from_warehouse_id: 'Gudang asal', to_warehouse_id: 'Gudang tujuan',
