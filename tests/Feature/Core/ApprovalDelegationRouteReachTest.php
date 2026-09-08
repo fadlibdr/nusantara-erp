@@ -136,6 +136,12 @@ class ApprovalDelegationRouteReachTest extends ErpTestCase
             '/api/crm/contracts/{contract}/activate',
             '/api/engineering/drawing-submittals/{drawingSubmittal}/decision',
             '/api/engineering/material-submittals/{materialSubmittal}/decision',
+            // Pernyataan "RAP ini digantikan" (verifikasi F-2 putaran 2):
+            // digerbangi est.approve karena yang berubah adalah anggaran mana
+            // yang menghakimi setiap PO/SPK berikutnya — dan seperti pembatalan
+            // OVB di bawah, ia BUKAN keputusan dokumen, jadi sebuah delegasi
+            // tidak meminjamkan wewenang itu.
+            '/api/estimation/cost-budgets/{costBudget}/supersede',
             '/api/finance/fiscal-periods/{fiscalPeriod}/reopen',
             '/api/finance/journals/{journal}/post',
             // Pembatalan OVB (verifikasi F-2): digerbangi fin.approve karena

@@ -603,7 +603,12 @@ export function approvalTimeline(approvals) {
   }
 
   const tone = { approved: 'ok', rejected: 'bad', submitted: 'pending' };
-  const label = { submitted: 'Diajukan', approved: 'Disetujui', rejected: 'Ditolak' };
+  const label = {
+    submitted: 'Diajukan', approved: 'Disetujui', rejected: 'Ditolak',
+    // Jejak yang ditulis pembatalan OVB dan pernyataan "RAP ini digantikan":
+    // tanpa entrinya, timeline mencetak kata Inggris mentahnya.
+    cancelled: 'Dibatalkan', superseded: 'Digantikan',
+  };
 
   return el('.timeline', approvals.map((entry) => el(`.timeline-item${tone[entry.action] ? `.${tone[entry.action]}` : ''}`, [
     el('b', { text: label[entry.action] || entry.action }),

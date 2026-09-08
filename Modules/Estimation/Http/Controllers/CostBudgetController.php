@@ -158,6 +158,37 @@ class CostBudgetController extends ApiController
         );
     }
 
+    /**
+     * Nyatakan RAP ini sudah digantikan RAP berlaku milik proyek yang sama.
+     *
+     * Satu-satunya jalan keluar untuk proyek yang datanya sudah memuat DUA RAP
+     * disetujui: tanpa ini setiap persetujuan berikutnya ditolak dan RAP
+     * disetujui tidak bisa ditolak, jadi anggarannya terkunci selamanya
+     * (verifikasi F-2 putaran 2).
+     */
+    public function supersede(Request $request, CostBudget $costBudget): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:1000'],
+            // Boleh disebut; bila tidak, layanan memakai RAP yang BERLAKU untuk
+            // proyek itu — jawaban yang sama dengan yang dibaca gerbang.
+            'superseded_by_id' => ['nullable', 'integer', 'exists:est_cost_budgets,id'],
+        ]);
+
+        try {
+            $this->service->supersede(
+                $costBudget,
+                $request->user(),
+                $validated['reason'],
+                isset($validated['superseded_by_id']) ? CostBudget::query()->find($validated['superseded_by_id']) : null,
+            );
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
+
+        return $this->ok(new CostBudgetResource($costBudget->refresh()), 'RAP dinyatakan digantikan');
+    }
+
     /** Rantai revisi + selisih tiap revisi terhadap pendahulunya. */
     public function revisions(CostBudget $costBudget): JsonResponse
     {

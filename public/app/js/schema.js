@@ -1009,6 +1009,24 @@ export const RESOURCES = {
           },
         ],
       },
+      {
+        /* JALAN KELUAR DATA WARISAN (verifikasi F-2 putaran 2). Tampil hanya
+           pada RAP yang DISETUJUI, BELUM digantikan, tetapi BUKAN yang
+           mengatur — yaitu tepat baris yang tidak seharusnya ada: dua RAP
+           disetujui berdampingan, bentuk data yang sah sebelum F-2. Selama
+           baris itu berdiri, setiap revisi berikutnya ditolak dan RAP
+           disetujui tidak bisa ditolak, jadi anggaran proyek itu terkunci
+           selamanya. Yang ditulis hanya dua kolom penggantian; status dan
+           isinya tidak disentuh. */
+        key: 'supersede', label: 'Nyatakan digantikan', path: '{id}/supersede', method: 'POST',
+        perm: 'est.approve', variant: 'danger',
+        when: (row) => row.status === 'approved' && !row.superseded_at && row.is_governing === false,
+        fields: [{
+          key: 'reason', label: 'Alasan', type: 'textarea', required: true,
+          help: 'Kenapa RAP ini tidak dipakai lagi. Tercatat permanen di jejak dokumen. Minimal 5 karakter. '
+            + 'RAP yang berlaku untuk proyek ini menjadi penggantinya.',
+        }],
+      },
     ],
   },
 

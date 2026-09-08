@@ -47,6 +47,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
      * memang TIDAK boleh, dan itulah kenapa revisi ada.
      */
     Route::post('cost-budgets/{costBudget}/revise', [CostBudgetController::class, 'revise'])->middleware('permission:est.create');
+    /*
+     * Jalan keluar data warisan (verifikasi F-2 putaran 2): nyatakan sebuah RAP
+     * disetujui sudah DIGANTIKAN oleh RAP berlaku milik proyek yang sama.
+     * est.approve, bukan est.update: yang berubah adalah anggaran mana yang
+     * menghakimi setiap PO/SPK berikutnya.
+     */
+    Route::post('cost-budgets/{costBudget}/supersede', [CostBudgetController::class, 'supersede'])->middleware('permission:est.approve');
     Route::get('cost-budgets/{costBudget}/revisions', [CostBudgetController::class, 'revisions'])->middleware('permission:est.view');
     Route::get('cost-budgets/{costBudget}/revision-diff', [CostBudgetController::class, 'revisionDiff'])->middleware('permission:est.view');
 });

@@ -264,6 +264,15 @@ layar-vs-gerbang tetap struktural — yang diperbaiki adalah SISI mana yang dice
 | 8 | Blok migrasi lanjutan | Finance **001500–001599** (dipakai: 001500 OVB, 001501 pembatalan OVB), Projects **001600–001699** (didaftarkan, belum dipakai) | CONVENTIONS §2 | tabel §2 adalah sumber kebenaran kedua rentang itu |
 | 9 | Izin membatalkan OVB yang sudah disetujui | `fin.approve` | rute Finance | yang boleh menyetujui anggaran tahunan boleh menariknya kembali, dengan alasan wajib yang tercatat |
 | 10 | Format kode OVB | `OVB/{Y}/{N4}` dengan **{Y} = tahun buku** | Pengaturan › Penomoran Dokumen | OVB tahun buku 2031 berkode `OVB/2031/0001`, dibuat tahun berapa pun |
+| 11 | Izin menyatakan sebuah RAP disetujui **digantikan** | `est.approve` | rute Estimation | jalan keluar untuk proyek yang datanya memuat dua RAP disetujui; alasan wajib, dua kolom yang ditulis, isinya tidak disentuh |
+
+**Kalau sebuah proyek warisan memuat DUA RAP disetujui** (bentuk data yang sah sebelum F-2, dan
+alasan paket ini tidak memasang indeks unik): buka RAP yang **tidak** dipakai lagi — layar RAP
+menandai yang berlaku dengan lencana "Mengatur", jadi yang tanpa lencana itulah yang dimaksud —
+lalu tekan **"Nyatakan digantikan"** dan tuliskan sebabnya. Statusnya, rinciannya dan totalnya tidak
+disentuh; yang ditulis hanya `superseded_at`/`superseded_by_id`, dan proyek itu kembali bisa
+direvisi. RAP yang **satu-satunya** berlaku tidak bisa dinyatakan digantikan — proyek tanpa RAP
+disetujui membuat gerbang anggaran diam untuk setiap PO/SPK berikutnya.
 
 **Tiga keputusan yang menunggu pemilik:**
 

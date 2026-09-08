@@ -473,4 +473,152 @@ class RapRevisionTest extends ErpTestCase
         $this->expectExceptionMessage('sudah punya RAP yang berlaku ('.$pertama->code.')');
         $this->service->approve($kedua, $this->checker());
     }
+
+    // ------------------------------------------- jalan keluar data warisan
+
+    /**
+     * PROYEK WARISAN DENGAN DUA RAP DISETUJUI PUNYA JALAN KELUAR — dan sebelum
+     * verifikasi putaran 2 ia terkunci selamanya (temuan f2-rap-1).
+     *
+     * Bentuk data ini SAH sebelum F-2, dan justru karena ia ada maka commit
+     * dce6b27 memilih TIDAK memasang indeks unik parsial (indeks itu akan
+     * menolak bermigrasi persis di pemasangan yang paling membutuhkannya).
+     * Tetapi tanpa jalan keluar, assertNoGoverningRival menolak SETIAP
+     * persetujuan berikutnya, dan RAP disetujui tidak bisa ditolak
+     * ("Cannot reject document … while status is approved") — jadi anggaran
+     * proyek itu tidak bisa direvisi lagi, selamanya.
+     */
+    public function test_legacy_data_with_two_governing_raps_can_be_untangled(): void
+    {
+        $project = $this->project('PRJ-2026-955');
+        $lama = $this->rap($project, ['material' => 1_000_000_000]);
+        $dipakai = $this->rap($project, ['material' => 700_000_000]);
+
+        // Yang dibaca gerbang adalah yang ber-id terbesar…
+        $this->assertSame(700000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+
+        // …dan setiap revisi berikutnya ditolak, dengan kalimat yang kini
+        // menyebutkan jalan keluarnya.
+        $revisi = $this->service->revise($dipakai, ['revision_reason' => 'CCO-11'], $this->maker());
+        $revisi->submit($this->maker());
+
+        try {
+            $this->service->approve($revisi->refresh(), $this->checker());
+            $this->fail('RAP kedua yang mengatur seharusnya ditolak');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('sudah punya RAP yang berlaku ('.$lama->code.')', $e->getMessage());
+            $this->assertStringContainsString('nyatakan RAP itu DIGANTIKAN', $e->getMessage());
+        }
+
+        // JALAN KELUARNYA: nyatakan RAP warisan itu sudah digantikan oleh yang
+        // sungguh dipakai. Alasannya WAJIB dan tercatat.
+        $this->service->supersede($lama->refresh(), $this->checker(), 'Data warisan: sejak 2026 gerbang membaca '.$dipakai->code.'.');
+
+        $lama->refresh();
+        $this->assertNotNull($lama->superseded_at);
+        $this->assertSame($dipakai->id, (int) $lama->superseded_by_id);
+        // APPEND-ONLY: statusnya dan isinya tidak disentuh satu byte pun.
+        $this->assertSame(DocumentStatus::Approved, $lama->status);
+        $this->assertSame(1000000000.0, round((float) $lama->items()->sum('amount'), 2));
+        $this->assertFalse($lama->isGoverning());
+
+        $trail = $lama->approvals()->orderByDesc('id')->first();
+        $this->assertSame('superseded', $trail->action);
+        $this->assertStringContainsString('Data warisan', (string) $trail->note);
+
+        // Dan anggaran proyek itu bisa direvisi lagi.
+        $this->service->approve($revisi->refresh(), $this->checker());
+        $this->assertTrue($revisi->refresh()->isGoverning());
+        $this->assertNotNull($dipakai->refresh()->superseded_at);
+    }
+
+    /**
+     * SATU-SATUNYA RAP yang berlaku tidak bisa menyatakan dirinya digantikan:
+     * proyek tanpa RAP disetujui membuat gerbang anggaran DIAM, dan setiap PO
+     * berikutnya lewat tanpa diperiksa. Sebuah jalan keluar tidak boleh
+     * menjadi jalan mematikan gerbangnya.
+     */
+    public function test_the_only_governing_rap_cannot_declare_itself_superseded(): void
+    {
+        $project = $this->project('PRJ-2026-956');
+        $satu = $this->rap($project, ['material' => 500_000_000]);
+
+        try {
+            $this->service->supersede($satu, $this->checker(), 'coba-coba');
+            $this->fail('RAP satu-satunya seharusnya tidak bisa digantikan begitu saja');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('satu-satunya RAP yang berlaku', $e->getMessage());
+        }
+
+        $this->assertNull($satu->refresh()->superseded_at);
+        $this->assertSame(500000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+    }
+
+    /** Alasan WAJIB — sebuah anggaran yang berhenti berlaku tanpa sebab tertulis tidak bisa diaudit. */
+    public function test_declaring_a_rap_superseded_demands_a_reason(): void
+    {
+        $project = $this->project('PRJ-2026-957');
+        $lama = $this->rap($project, ['material' => 100_000_000]);
+        $this->rap($project, ['material' => 200_000_000]);
+
+        $this->expectExceptionMessage('wajib menyebutkan alasan');
+        $this->service->supersede($lama, $this->checker(), '   ');
+    }
+
+    /**
+     * DAN RIWAYATNYA MENANDAI TEPAT SATU BARIS YANG MENGATUR. `is_governing`
+     * adalah predikat per baris ("approved && belum digantikan"), jadi pada
+     * data warisan KEDUA baris menandai dirinya mengatur — layar riwayat
+     * mencetak Rp 1.000.000.000 sebagai "berlaku" sementara gerbang menolak
+     * dengan Rp 700.000.000 milik yang lain (temuan f2-rap-1, separuh kedua).
+     */
+    public function test_exactly_one_rap_is_flagged_governing_even_in_legacy_data(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $project = $this->project('PRJ-2026-958');
+        $lama = $this->rap($project, ['material' => 1_000_000_000]);
+        $dipakai = $this->rap($project, ['material' => 700_000_000]);
+
+        $this->assertFalse($lama->isGoverning(), 'yang dibaca gerbang adalah RAP lain');
+        $this->assertTrue($dipakai->isGoverning());
+
+        foreach ([$lama, $dipakai] as $rap) {
+            $payload = $this->getJson("/api/estimation/cost-budgets/{$rap->id}")->assertOk()->json('data');
+            $this->assertSame($rap->id === $dipakai->id, $payload['is_governing'], "is_governing salah pada {$rap->code}");
+        }
+
+        $chain = $this->service->revisionChain($lama);
+        $flags = array_column($chain, 'is_governing', 'code');
+        $this->assertFalse($flags[$lama->code]);
+    }
+
+    /**
+     * DAN JALAN KELUARNYA PUNYA RUTE — kalimat penolakan yang menyuruh operator
+     * menekan tombol yang tidak ada adalah cacat yang sama yang ditutup OVB
+     * pada putaran lalu (DELETE 422, reject 422, PUT 422, cancel 404).
+     */
+    public function test_the_way_out_is_reachable_over_http(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $project = $this->project('PRJ-2026-959');
+        $lama = $this->rap($project, ['material' => 100_000_000]);
+        $dipakai = $this->rap($project, ['material' => 200_000_000]);
+
+        // Alasan wajib, dan servernya yang menolak — bukan hanya layarnya.
+        $this->postJson("/api/estimation/cost-budgets/{$lama->id}/supersede", [])->assertStatus(422);
+
+        $payload = $this->postJson("/api/estimation/cost-budgets/{$lama->id}/supersede", [
+            'reason' => 'Data warisan: dua RAP disetujui berdampingan sejak sebelum F-2.',
+        ])->assertOk()->json('data');
+
+        $this->assertNotNull($payload['superseded_at']);
+        $this->assertSame($dipakai->id, $payload['superseded_by_id']);
+        $this->assertFalse($payload['is_governing']);
+        $this->assertSame('approved', $payload['status'], 'isinya tidak disentuh — hanya dua kolom penggantian');
+
+        // Yang berlaku tinggal satu, dan gerbang membacanya.
+        $this->assertSame(200000000.0, app(BudgetRealisationService::class)->project($project->id)['budget']);
+    }
 }

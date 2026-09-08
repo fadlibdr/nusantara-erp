@@ -8486,6 +8486,18 @@ tiap revisi, dan selisih **per kategori biaya**, karena sebuah revisi yang
 totalnya naik bisa saja memindahkan uang dari material ke subkon — dua gerbang
 yang bergerak ke arah berlawanan.
 
+**Kalau sebuah proyek terlanjur punya DUA RAP yang disetujui** — bentuk data yang
+sah sebelum fitur revisi ada — layar RAP menandai dengan lencana **"Mengatur"**
+yang mana dari keduanya yang benar-benar dibaca gerbang, dan yang satunya harus
+ditarik: buka RAP **tanpa** lencana itu, tekan **`Nyatakan digantikan`** (izin
+`est.approve`) dan tuliskan sebabnya. Statusnya, rinciannya dan totalnya tidak
+disentuh — yang ditulis hanya stempel "digantikan", sama seperti kalau ia
+digantikan oleh sebuah revisi — dan proyek itu bisa direvisi lagi. Tanpa langkah
+ini, setiap revisi berikutnya ditolak dengan kalimat "Proyek ini sudah punya RAP
+yang berlaku (…)". RAP yang **satu-satunya** berlaku tidak bisa dinyatakan
+digantikan: proyek tanpa RAP disetujui membuat gerbang anggaran diam, dan setiap
+PO/SPK berikutnya lewat tanpa diperiksa.
+
 ### Anggaran overhead (OVB)
 
 Biaya yang tidak dimiliki proyek mana pun — kantor, staf pusat, sewa, penyusutan

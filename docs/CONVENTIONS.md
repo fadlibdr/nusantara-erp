@@ -129,6 +129,13 @@ Cross-module Eloquent relations (belongsTo another module's model) ARE allowed a
   action with `assertRevisiBerlaku()`). Documents with their own versioning pattern
   (DrawingSubmittal, ProjectBaseline, MethodLibraryEntry, BOQ versions, quotation
   revisions) do NOT take this trait.
+- **Setiap aturan "hanya boleh ada SATU" wajib punya jalan keluarnya sendiri** (verifikasi F-2,
+  dua putaran). Sebuah gerbang unik yang menolak baris kedua sementara baris pertama tidak bisa
+  ditarik kembali mengunci datanya selamanya — dan kalimat penolakannya menyuruh operator menekan
+  tombol yang tidak ada. Dua yang ada hari ini: `OverheadBudgetService::cancel()` (satu OVB
+  disetujui per tahun buku) dan `RapService::supersede()` (satu RAP yang mengatur per proyek).
+  Bentuknya sama: alasan WAJIB, jejak di `core_approvals`, tidak satu byte pun isi dokumennya
+  disentuh, dan jalan keluarnya DISEBUT di dalam kalimat penolakan yang menutup pintunya.
 - Helpers: `Modules\Core\Support\Terbilang::rupiah()` (amount → Indonesian words),
   `Modules\Core\Support\Money::format()`.
 

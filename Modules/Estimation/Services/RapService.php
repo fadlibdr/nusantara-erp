@@ -346,6 +346,115 @@ class RapService
     }
 
     /**
+     * Nyatakan sebuah RAP disetujui SUDAH DIGANTIKAN oleh RAP disetujui lain
+     * milik proyek yang sama — jalan keluar untuk data yang sudah bercabang.
+     *
+     * KENAPA INI ADA (verifikasi F-2 putaran 2). Data SEBELUM F-2 sah memuat
+     * dua RAP disetujui yang belum digantikan pada satu proyek — itu justru
+     * alasan commit dce6b27 TIDAK memasang indeks unik parsial, karena indeks
+     * seperti itu menolak bermigrasi persis di pemasangan yang paling
+     * membutuhkan perbaikan ini. Tetapi tanpa jalan keluar, proyek itu terkunci
+     * SELAMANYA: assertNoGoverningRival menolak setiap persetujuan berikutnya,
+     * dan sebuah RAP yang sudah disetujui tidak bisa ditolak ("Cannot reject
+     * document … while status is approved") — jadi kalimat penolakannya
+     * menyuruh operator melakukan sesuatu yang tidak ada tombolnya. Pola yang
+     * sama dengan OverheadBudgetService::cancel di paket ini.
+     *
+     * YANG DITULIS HANYA DUA KOLOM, sama seperti penggantian oleh revisi:
+     * superseded_at dan superseded_by_id. Status, isi dan totalnya tidak
+     * disentuh satu byte pun — rantai RAP tetap append-only, dan anggaran yang
+     * pernah berlaku tetap terbaca utuh pada audit tahun itu.
+     *
+     * PENGGANTINYA harus RAP yang BERLAKU: bila tidak disebut, ia adalah
+     * governing() proyek itu di luar RAP ini. Menyatakan satu-satunya RAP yang
+     * berlaku sebagai "digantikan" DITOLAK — proyek tanpa RAP disetujui membuat
+     * gerbang anggaran DIAM dan setiap PO berikutnya lewat tanpa diperiksa.
+     *
+     * ALASAN WAJIB, dan jejaknya baris `superseded` di core_approvals — trail
+     * yang sama yang ditulis submit/approve/reject.
+     */
+    public function supersede(CostBudget $budget, User $by, string $reason, ?CostBudget $successor = null): CostBudget
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw new LogicException(
+                "Menyatakan RAP {$budget->code} digantikan wajib menyebutkan alasan. Sebuah anggaran yang "
+                .'berhenti berlaku tanpa sebab tertulis tidak bisa dipertanggungjawabkan pada audit '
+                .'proyek itu.'
+            );
+        }
+
+        if ($budget->status !== DocumentStatus::Approved) {
+            throw new LogicException(
+                "RAP {$budget->code} berstatus {$budget->status->value}, jadi ia tidak pernah mengatur "
+                .'apa pun — yang belum disetujui cukup diubah, ditolak, atau dihapus. Pernyataan '
+                .'digantikan hanya untuk anggaran yang sudah berlaku.'
+            );
+        }
+
+        if ($budget->superseded_at !== null) {
+            throw new LogicException(
+                "RAP {$budget->code} sudah digantikan sejak {$budget->superseded_at->toDateTimeString()}, "
+                .'jadi ia tidak sedang mengatur apa pun.'
+            );
+        }
+
+        if ($budget->project_id === null) {
+            throw new LogicException(
+                "RAP {$budget->code} belum menunjuk proyek, jadi tidak ada proyek yang punya RAP "
+                .'pengganti untuk menggantikannya.'
+            );
+        }
+
+        $successor ??= CostBudget::query()
+            ->where('project_id', $budget->project_id)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('superseded_at')
+            ->where('id', '!=', $budget->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($successor === null) {
+            throw new LogicException(sprintf(
+                'RAP %s adalah satu-satunya RAP yang berlaku untuk proyek ini. Menyatakannya digantikan '
+                .'akan membuat proyek ini tidak punya anggaran yang disetujui sama sekali — dan gerbang '
+                .'anggaran DIAM untuk proyek tanpa RAP, jadi setiap PO/SPK berikutnya lewat tanpa '
+                .'diperiksa. Buat revisinya (revisi menggantikan pendahulunya pada detik ia disetujui) '
+                .'kalau angkanya yang perlu berubah.',
+                $budget->code,
+            ));
+        }
+
+        if ((int) $successor->project_id !== (int) $budget->project_id
+            || $successor->status !== DocumentStatus::Approved
+            || $successor->superseded_at !== null
+            || (int) $successor->id === (int) $budget->id) {
+            throw new LogicException(sprintf(
+                'RAP %s tidak bisa menggantikan RAP %s: penggantinya harus RAP proyek yang sama, sudah '
+                .'disetujui, dan belum digantikan.',
+                $successor->code,
+                $budget->code,
+            ));
+        }
+
+        return DB::transaction(function () use ($budget, $successor, $by, $reason): CostBudget {
+            $budget->forceFill([
+                'superseded_at' => now(),
+                'superseded_by_id' => $successor->id,
+            ])->save();
+
+            $budget->approvals()->create([
+                'action' => 'superseded',
+                'user_id' => $by->id,
+                'note' => $reason.' (digantikan oleh '.$successor->code.')',
+            ]);
+
+            return $budget->refresh();
+        });
+    }
+
+    /**
      * Sesudah persetujuan ini, proyek harus punya TEPAT SATU RAP yang mengatur.
      *
      * Yang dicari: RAP disetujui yang belum digantikan, bukan RAP ini dan bukan
@@ -387,9 +496,14 @@ class RapService
             .'disetujui yang belum digantikan membuat "RAP yang mengatur" punya dua jawaban: layar '
             .'anggaran akan mencetak yang satu sementara gerbang PO/SPK menolak dokumen dengan yang '
             .'lain. Buat RAP ini sebagai REVISI dari %s (revisi menggantikan pendahulunya pada detik '
-            .'ia disetujui), atau tolak salah satunya lebih dulu.',
+            .'ia disetujui), atau tolak salah satunya lebih dulu. Kalau %s sendiri sudah disetujui '
+            .'sejak dulu dan tidak dipakai lagi — data yang sudah bercabang sebelum aturan ini ada — '
+            .'nyatakan RAP itu DIGANTIKAN dari halamannya ("Nyatakan digantikan"): status dan isinya '
+            .'tidak disentuh, hanya dua kolom penggantian yang ditulis, dan proyek ini kembali punya '
+            .'satu anggaran yang berlaku.',
             $rival->code,
             $budget->code,
+            $rival->code,
             $rival->code,
         ));
     }
@@ -441,6 +555,14 @@ class RapService
         $chain = $this->chainOf($budget);
         $rows = [];
         $previous = null;
+        // SATU baris yang mengatur, dihitung sekali untuk seluruh rantai:
+        // "disetujui && belum digantikan" adalah predikat per baris, dan pada
+        // data warisan dua baris memenuhinya sekaligus (verifikasi F-2
+        // putaran 2). Yang mengatur adalah yang dijawab governing() — RAP yang
+        // sama yang dibaca gerbang PO/SPK.
+        $governingId = $budget->project_id === null
+            ? null
+            : $this->governing((int) $budget->project_id)?->id;
 
         foreach ($chain as $entry) {
             $totals = $this->totalsOf($entry);
@@ -450,7 +572,7 @@ class RapService
                 'code' => $entry->code,
                 'revision' => (int) $entry->revision,
                 'status' => $entry->status->value,
-                'is_governing' => $entry->status === DocumentStatus::Approved && $entry->superseded_at === null,
+                'is_governing' => $governingId !== null && (int) $entry->id === (int) $governingId,
                 'subcon' => $totals['subcon'],
                 'non_subcon' => $totals['non_subcon'],
                 'total' => $totals['total'],

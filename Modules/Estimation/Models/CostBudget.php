@@ -94,6 +94,30 @@ class CostBudget extends BaseModel
      */
     public function isGoverning(): bool
     {
-        return $this->status === DocumentStatus::Approved && $this->superseded_at === null;
+        if ($this->status !== DocumentStatus::Approved || $this->superseded_at !== null) {
+            return false;
+        }
+
+        if ($this->project_id === null) {
+            return true;
+        }
+
+        /*
+         * DAN TIDAK ADA SAUDARA BER-ID LEBIH BESAR YANG JUGA BERLAKU
+         * (verifikasi F-2 putaran 2). "Disetujui dan belum digantikan" adalah
+         * predikat per BARIS, sedangkan RapService::governing() memilih id
+         * TERBESAR di antara baris-baris itu — jadi pada data warisan yang
+         * memuat dua RAP disetujui, KEDUA barisnya menandai dirinya mengatur
+         * dan layar riwayat mencetak Rp 1.000.000.000 sebagai "berlaku"
+         * sementara gerbang PO/SPK menolak dengan Rp 700.000.000 milik yang
+         * lain. Satu kueri exists() pada indeks est_cost_budgets_governing_index,
+         * hanya untuk baris yang sudah lolos predikat murah di atas.
+         */
+        return ! static::query()
+            ->where('project_id', $this->project_id)
+            ->where('status', DocumentStatus::Approved->value)
+            ->whereNull('superseded_at')
+            ->where('id', '>', $this->id)
+            ->exists();
     }
 }
