@@ -1172,6 +1172,16 @@ menyebutkan apa yang melewati batasnya (terukur di kedua driver). Sekarang
 persentase sesudahnya — satu definisi "lebih buruk", dipakai juga
 `BudgetRealisationService::worstSide()`.
 
+**PERSENTASE YANG DICETAK TIDAK PERNAH MEMBANTAH LENCANANYA** (verifikasi F-2
+putaran 2). Sebuah baris yang MASIH di bawah batasnya tidak boleh tercetak
+"100 %": `pct()` memulangkan angka terbesar yang masih tercetak di bawah 100 pada
+presisi layar (99,9 % pada satu desimal) untuk `actual < limit` yang membulat
+menjadi 100. Terukur di peramban: RAP Rp 24.250.000.000 terhadap nilai kontrak
+Rp 24.250.000.001 berbunyi "100% · Mendekati batas", tepat di bawah kartu "Cara
+membacanya" layar itu sendiri ("…menjadi 'Melampaui batas' tepat pada 100 %").
+Pembulatannya condong seperti seluruh registri: boleh memperingatkan lebih awal,
+tidak boleh menenangkan lebih lama.
+
 **Aturan yang sama dengan `WatchedDeadlines`:** `DB::table`, literal string,
 **tanpa impor modul fitur** (dipaku `ThresholdWatchTest::test_core_imports_no_feature_module_to_compute_a_threshold`,
 yang memindai baris `use` berkas registrinya sendiri). Tabel dan kolom dijaga

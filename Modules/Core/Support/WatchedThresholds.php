@@ -352,14 +352,38 @@ class WatchedThresholds
         };
     }
 
-    /** Persentase, atau null bila salah satu sisinya tidak ada. */
+    /**
+     * Persentase, atau null bila salah satu sisinya tidak ada.
+     *
+     * DAN SEBUAH BARIS YANG MASIH DI BAWAH BATASNYA TIDAK PERNAH MENCETAK
+     * "100 %" (verifikasi F-2 putaran 2). Terukur di peramban pada #/ambang:
+     * RAP Rp 24.250.000.000 terhadap nilai kontrak Rp 24.250.000.001 membulat
+     * menjadi 100 % dan barisnya berbunyi "100% · Mendekati batas" — tepat di
+     * bawah kartu "Cara membacanya" milik layar yang sama: "…menjadi 'Melampaui
+     * batas' TEPAT PADA 100 %". Dua pernyataan yang bertentangan pada satu
+     * layar, bentuk yang sama dengan cacat "90,0 % · Aman" yang sudah ditutup —
+     * hanya pindah ambang.
+     *
+     * Yang dipulangkan di situ adalah angka terbesar yang MASIH TERCETAK di
+     * bawah 100 pada presisi layar (99,9 % pada satu desimal). Pembulatannya
+     * condong ke arah yang sama dengan seluruh registri ini: sebuah baris boleh
+     * memperingatkan lebih awal, tidak boleh menenangkan lebih lama — 99,9 %
+     * tetap di atas ambang peringatan 90 %, dan keadaannya tetap MENDEKATI
+     * karena rupiahnyalah yang menentukan LAMPAU.
+     */
     public static function pct(?float $actual, ?float $limit): ?float
     {
         if ($actual === null || $limit === null || $limit <= 0.0) {
             return null;
         }
 
-        return round($actual / $limit * 100, 2);
+        $pct = round($actual / $limit * 100, 2);
+
+        if ($actual < $limit && round($pct, self::DISPLAY_DECIMALS) >= 100.0) {
+            return round(100 - 10 ** -self::DISPLAY_DECIMALS, self::DISPLAY_DECIMALS);
+        }
+
+        return $pct;
     }
 
     /**

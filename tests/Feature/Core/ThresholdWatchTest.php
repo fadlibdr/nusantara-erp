@@ -192,10 +192,11 @@ class ThresholdWatchTest extends ErpTestCase
      * sendiri "Peringatan ≥ 90 %" — karena keadaan dihitung dari persentase
      * MENTAH (89,9999999) sementara layar mencetak yang dibulatkan.
      *
-     * Dan kebalikannya juga dijaga: sebuah baris yang mencetak "100,0 %"
-     * tetapi masih menyisakan satu rupiah BUKAN "melampaui", karena gerbang
-     * menerima rupiah itu — LAMPAU dibandingkan pada rupiahnya, bukan pada
-     * persentase yang dibulatkan.
+     * Dan kebalikannya juga dijaga: sebuah baris yang masih menyisakan satu
+     * rupiah BUKAN "melampaui", karena gerbang menerima rupiah itu — LAMPAU
+     * dibandingkan pada rupiahnya, bukan pada persentase yang dibulatkan.
+     * Sejak putaran 2 baris seperti itu tidak lagi MENCETAK "100,0 %" pula:
+     * angka dan lencana pada satu baris tidak boleh saling membantah.
      */
     public function test_the_state_matches_the_percentage_that_is_printed_beside_it(): void
     {
@@ -203,7 +204,7 @@ class ThresholdWatchTest extends ErpTestCase
         $mendekati = $this->project('PRJ-2026-815', 1_000_000_000);
         $this->approvedRap($mendekati, 'RAP/2026/0815', 899_999_999);
 
-        // 99,9999999 % -> dicetak "100,0 %", tetapi masih ada Rp 1 tersisa.
+        // 99,9999999 % -> dulu dicetak "100,0 %", padahal masih ada Rp 1 tersisa.
         $hampir = $this->project('PRJ-2026-816', 1_000_000_000);
         $this->approvedRap($hampir, 'RAP/2026/0816', 999_999_999);
 
@@ -213,9 +214,40 @@ class ThresholdWatchTest extends ErpTestCase
         $this->assertSame(WatchedThresholds::MENDEKATI, $rows['PRJ-2026-815']['state'],
             'baris yang mencetak 90,0 % tidak boleh menyebut dirinya aman');
 
-        $this->assertSame(100.0, $rows['PRJ-2026-816']['pct']);
+        $this->assertSame(99.9, $rows['PRJ-2026-816']['pct'],
+            'baris yang masih menyisakan satu rupiah tidak boleh mencetak "100 %"');
         $this->assertSame(WatchedThresholds::MENDEKATI, $rows['PRJ-2026-816']['state'],
             'Rp 1 yang masih diterima gerbang bukan "melampaui batas"');
+    }
+
+    /**
+     * ANGKA DAN LENCANA PADA SATU BARIS TIDAK BOLEH SALING MEMBANTAH.
+     *
+     * Terukur di peramban (#/ambang, salinan data demo): baris
+     * "PRJ-2026-001 | Rp 24.250.000.000 | Rp 24.250.000.001 | 100% | Mendekati
+     * batas", tepat di bawah kartu "Cara membacanya" layar itu sendiri yang
+     * berbunyi "…menjadi 'Melampaui batas' tepat pada 100 %".
+     */
+    public function test_a_row_still_under_its_limit_never_prints_one_hundred_percent(): void
+    {
+        $id = $this->project('PRJ-2026-817', 24_250_000_001);
+        $this->approvedRap($id, 'RAP/2026/0817', 24_250_000_000);
+
+        $row = $this->rowsOf('rap_vs_kontrak_pct')['PRJ-2026-817'];
+
+        $this->assertSame(WatchedThresholds::MENDEKATI, $row['state']);
+        $this->assertSame('Mendekati batas', $row['state_label']);
+        $this->assertLessThan(100.0, $row['pct'],
+            'lencana "Mendekati batas" di sebelah angka "100 %" adalah dua pernyataan yang bertentangan');
+        $this->assertSame(99.9, $row['pct']);
+
+        // Dan yang sungguh di batasnya tetap mencetak 100 %, di sisi lampau.
+        $tepat = $this->project('PRJ-2026-818', 24_250_000_000);
+        $this->approvedRap($tepat, 'RAP/2026/0818', 24_250_000_000);
+
+        $atLimit = $this->rowsOf('rap_vs_kontrak_pct')['PRJ-2026-818'];
+        $this->assertSame(100.0, $atLimit['pct']);
+        $this->assertSame(WatchedThresholds::LAMPAU, $atLimit['state']);
     }
 
     /**
@@ -236,8 +268,17 @@ class ThresholdWatchTest extends ErpTestCase
                     $this->assertNotNull($row['note'], "[{$measure['key']}/{$row['subject']}] tidak menyebutkan sisi mana yang hilang");
                 }
 
-                if ($row['limit'] !== null) {
-                    $this->assertGreaterThan(0, $row['limit'], "[{$measure['key']}] memperlakukan 0 sebagai batas");
+                // Sebuah batas Rp 0 yang SUNGGUH disetel sebuah dokumen adalah
+                // batas (verifikasi F-2 putaran 2) — yang tetap terlarang
+                // adalah melahirkan PERSENTASE darinya, karena nol tidak bisa
+                // dibagi, dan menenangkannya menjadi "aman".
+                if ($row['limit'] !== null && (float) $row['limit'] <= 0.0) {
+                    $this->assertNull($row['pct'], "[{$measure['key']}/{$row['subject']}] membagi dengan batas nol");
+                    $this->assertContains(
+                        $row['state'],
+                        [WatchedThresholds::LAMPAU, WatchedThresholds::TANPA_ANGGARAN],
+                        "[{$measure['key']}/{$row['subject']}] batas nol tidak boleh terbaca aman",
+                    );
                 }
             }
         }
