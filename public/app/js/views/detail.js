@@ -5,7 +5,7 @@ import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast, m
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
-import { activitiesCard } from './activities.js';
+import { activitiesCard, ACTIVITY_DOCUMENTS } from './activities.js';
 import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
 import { openForm } from './form.js';
@@ -100,11 +100,16 @@ const NAME_SHADOWED = {
   // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
   // "belum dimuat".
   owner_user_id: 'owner_user_name',
-  // F-3: nama dokumen induk sebuah aktivitas ("LEAD-0001 Rudi Hartanto").
-  // Tanpa ini layar aktivitas menuliskan "Document: 3".
-  document_id: 'document_label',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
+
+/* Jenis dokumen induk → slug layarnya, DIBALIK dari registri kartu aktivitas
+   (slug → jenis) supaya daftarnya tetap satu dan cerminnya tetap dijaga
+   ActivityRegistryTest. Dipakai autoValue untuk menautkan baris "Dokumen"
+   sebuah aktivitas ke prospek/penawaran/pelanggannya. */
+const PARENT_SCREEN = Object.fromEntries(
+  Object.entries(ACTIVITY_DOCUMENTS).map(([slug, type]) => [type, slug]),
+);
 
 const MONEY_KEY = /(amount|total|value|price|cost|salary|dpp|ppn|pph|budget|payable|paid|outstanding|retention|gross|net|subtotal|discount|rate_internal)/;
 const PERCENT_KEY = /(_pct|_rate)$/;
@@ -287,6 +292,13 @@ const LABELS = {
   // F-3 — aktivitas CRM.
   subject: 'Kegiatan', due_at: 'Jatuh tempo', done_at: 'Selesai pada',
   done_by_id: 'Diselesaikan oleh', done_by_name: 'Diselesaikan oleh',
+  /* `document_id` DIBERI LABEL, tidak disembunyikan (verifikasi F-3, 8 Sep
+     2026): ia dulu dibayangi `document_label` lewat NAME_SHADOWED, dan
+     `document_label` sendiri dibuang penyaring `_label` panel Informasi — jadi
+     KEDUANYA lenyap dan layar aktivitas tidak pernah menyebut dokumen
+     induknya. Barisnya kini menampilkan nama induknya (autoValue membaca
+     `${key}_label`) dan menautkannya. */
+  document_id: 'Dokumen',
   document_label: 'Dokumen', document_type: 'Jenis dokumen', document_type_label: 'Jenis dokumen',
   is_open: 'Masih terbuka', is_overdue: 'Lewat tanggal',
   warehouse_name: 'Gudang', item_name: 'Item', item_code: 'Kode item', site_name: 'Nama site',
@@ -473,6 +485,30 @@ function autoValue(record, key) {
   }
 
   const labelKey = `${key}_label`;
+
+  /*
+   * INDUK POLIMORFIK (F-3): sebuah aktivitas menggantung pada prospek,
+   * penawaran atau pelanggan lewat document_type + document_id, dan namanya
+   * dirakit server (ActivityController::withDocumentLabels, satu query per
+   * jenis). Yang ditambahkan di sini adalah JALAN KEMBALI: sampai 8 Sep 2026
+   * layar detail aktivitas tidak menyebut induknya sama sekali dan tidak punya
+   * satu pun tautan ke sana, sehingga jalur "pemberitahuan → daftar → baris"
+   * berhenti tepat sebelum pekerjaannya. Petanya dibalik dari registri yang
+   * sudah ada (ACTIVITY_DOCUMENTS, dicermin ActivityRegistryTest) — bukan
+   * daftar kedua yang bisa hanyut. Jenis yang tidak dikenal tetap tampil
+   * sebagai teks: tautan ke layar yang tidak ada lebih buruk daripada tanpa
+   * tautan.
+   */
+  if (key === 'document_id' && record.document_label) {
+    // `document_label`, bukan `${key}_label`: namanya dirakit untuk PASANGAN
+    // document_type + document_id, jadi ia tidak mengikuti pola kunci generik
+    // di bawah — dan itulah sebabnya baris ini dulu memajang "4".
+    const slug = PARENT_SCREEN[record.document_type];
+    return slug
+      ? el('a', { href: `#/d/${slug}/${value}`, text: record.document_label })
+      : el('span', { text: record.document_label });
+  }
+
   if (record[labelKey]) return el('span', { text: record[labelKey] });
 
   if (PERCENT_KEY.test(key)) return el('span.num', { text: fmt.percent(value) });

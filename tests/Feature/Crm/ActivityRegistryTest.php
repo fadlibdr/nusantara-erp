@@ -59,8 +59,48 @@ class ActivityRegistryTest extends ErpTestCase
     {
         $detail = (string) file_get_contents(public_path('app/js/views/detail.js'));
 
-        $this->assertStringContainsString("import { activitiesCard } from './activities.js';", $detail);
+        $this->assertMatchesRegularExpression(
+            "/import \{[^}]*\bactivitiesCard\b[^}]*\} from '\.\/activities\.js';/", $detail,
+            'kartu aktivitas tidak diimpor layar dokumen generik');
         $this->assertStringContainsString('activitiesCard(key, record.id, def.module)', $detail);
+
+        /* Registrinya dipakai SEKALI LAGI di layar itu, dibalik, untuk
+           menautkan baris "Dokumen" sebuah aktivitas ke induknya — satu daftar,
+           bukan dua yang bisa hanyut. */
+        $this->assertStringContainsString('ACTIVITY_DOCUMENTS', $detail,
+            'peta jenis→layar dirakit di luar registri: sebuah daftar kedua yang akan hanyut');
+    }
+
+    /**
+     * LAYAR DETAIL AKTIVITAS MENYEBUT INDUKNYA — dan menautkannya.
+     *
+     * Dua mekanisme detail.js saling meniadakan sampai 8 Sep 2026:
+     * `NAME_SHADOWED.document_id = 'document_label'` menyembunyikan baris id
+     * mentahnya, dan penyaring panel Informasi membuang setiap kunci yang
+     * berakhiran `_label` — jadi KEDUANYA lenyap. Diukur di peramban pada
+     * #/d/crm/activities/8: seluruh pasangan panel Informasi tidak memuat satu
+     * baris "Dokumen" pun, dan satu-satunya tautan ke prospeknya di halaman itu
+     * berasal dari daftar "Terakhir dibuka" di bilah samping. Antrean kerja
+     * yang barisnya tidak bisa dibuka sampai ke pekerjaannya adalah antrean
+     * buntu — padahal ActivityController::withDocumentLabels dibuat justru
+     * supaya namanya ada.
+     */
+    public function test_the_activity_detail_screen_names_and_links_its_parent(): void
+    {
+        $detail = (string) file_get_contents(public_path('app/js/views/detail.js'));
+
+        if (preg_match('/const NAME_SHADOWED = \{(.*?)\n\};/s', $detail, $match) !== 1) {
+            $this->fail('blok NAME_SHADOWED tidak terbaca di detail.js');
+        }
+
+        $this->assertStringNotContainsString('document_id:', $match[1],
+            'document_id dibayangi document_label, yang sendirinya dibuang penyaring _label — baris "Dokumen" hilang seluruhnya');
+        $this->assertStringContainsString("document_id: 'Dokumen'", $detail,
+            'baris induknya tidak punya label Indonesia; titleize() akan menuliskan "Document Id"');
+        $this->assertStringContainsString('#/d/${slug}/${value}', $detail,
+            'nama induknya tergambar tanpa jalan menuju dokumennya');
+        $this->assertStringContainsString("key === 'document_id' && record.document_label", $detail,
+            'barisnya membaca `${key}_label` (document_id_label) yang tidak pernah ada — layarnya memajang id mentah');
     }
 
     /** Jenis aktivitas di SPA = enum-nya di server, tanpa yang mengarang. */
