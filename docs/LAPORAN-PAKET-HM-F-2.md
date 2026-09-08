@@ -356,3 +356,28 @@ disetujui membuat gerbang anggaran diam untuk setiap PO/SPK berikutnya.
   catatan hidup harus mencetak angka yang menghakimi DOKUMEN ITU).
 - `docs/PANDUAN-PENGGUNA.md` §19 — apa yang dibaca manajer proyek, **apa arti setiap sel yang
   bergaris**, peringatan 90 %, revisi RAP, dan OVB.
+
+## Gerbang rilis terakhir (8 September 2026)
+
+Commit rilis **`a448379`**, suite penuh di worktree terpisah, KEDUA driver:
+**SQLite 4.216 uji / 23.446 asersi hijau** (11 dilewati, 13 mnt 04 dtk) dan
+**MySQL 8.0.46 4.216 uji / 23.459 asersi hijau** (6 dilewati, 40 mnt 09 dtk).
+
+### Putaran verifikasi KETIGA — satu kelas cacat yang sama, di permukaan yang belum tersapu
+
+Putaran kedua menutup sepuluh temuan (termasuk regresi registri Ambang dan N+1 portofolio:
+2.551 kueri pada 102 proyek → **10 kueri berapa pun jumlah proyeknya**, muatan identik byte per
+byte). Verifikasi ulangnya menemukan bahwa perbaikan pembulatan putaran kedua tidak menyapu setiap
+permukaan — pola yang sama tiga kali di sesi ini: perbaikan yang benar, diterapkan pada satu layar.
+
+1. **Sel "Sisa" portofolio** memformat sisanya sendiri dengan `fmt.rupiah` (Math.round, setengah KE
+   ATAS): sisa Rp 0,67 tercetak "Rp 1", sementara PO ber-DPP Rp 1 dijawab **422** oleh gerbang yang
+   sama. Server kini menerbitkan `ceiling_text`/`overrun_text` (bawah untuk plafon, atas untuk
+   pelampauan) dan selnya membacanya — satu definisi untuk kalimat sisi, sel tabel dan gerbang.
+2. **Klausa pelampauan pada kalimat penolakan** masih memakai `Money::format`, jadi setiap
+   pelampauan di bawah Rp 0,50 berbunyi "melampaui anggaran **Rp 0**" — kalimat yang menolak sambil
+   mengatakan tidak ada yang dilampaui.
+3. **`supersede()` menerima RAP yang SEDANG MENGATUR** lewat layanan dan rutenya, walau SPA
+   menyembunyikan tombolnya. Diukur pada data warisan: satu POST memindahkan plafon setiap PO/SPK
+   berikutnya **Rp 300 juta** tanpa satu persetujuan anggaran pun, dan jejaknya berbunyi
+   "digantikan oleh" sebuah dokumen yang LEBIH TUA. Penjaganya dipaku uji; mutasi merah.
