@@ -1476,14 +1476,21 @@ class FormPrintService
              *
              * Layar pindai sudah mengatakan "2 ITEM memakai kode yang sama" —
              * tetapi ia mengatakannya SESUDAH stikernya menempel, yaitu pada
-             * saat yang paling mahal. Aturan pencocokannya sama persis dengan
-             * ItemScanController (barcode ATAU kode, cocok persis), karena
-             * yang diperingatkan di sini adalah keadaan yang akan membuat
-             * pemindaian stiker ini ambigu.
+             * saat yang paling mahal.
+             *
+             * ATURANNYA DIPANGGIL, TIDAK DISALIN. Baris ini dulu menulis
+             * `where('barcode', $encoded)->orWhere('code', $encoded)` sendiri
+             * — peka huruf di SQLite, dan `withTrashed()` di atas kembaran
+             * yang tidak pernah dipulangkan pemindaian. Hasilnya: lembar ini
+             * DIAM untuk `F6DUP001` vs `f6dup001` yang layar Pindai sebut
+             * ganda, dan MEMPERINGATKAN tentang kartu yang sudah dibuang.
+             * `Item::matchingScanCode()` adalah aturan yang sama dengan yang
+             * dijalankan layar Pindai — karena yang diperingatkan di sini
+             * adalah keadaan yang akan membuat pemindaian stiker ini ambigu.
              */
-            'sharedWith' => Item::query()->withTrashed()
+            'sharedWith' => Item::query()
                 ->whereKeyNot($item->getKey())
-                ->where(fn ($query) => $query->where('barcode', $encoded)->orWhere('code', $encoded))
+                ->matchingScanCode($encoded)
                 ->orderBy('code')
                 ->limit(5)
                 ->pluck('code')

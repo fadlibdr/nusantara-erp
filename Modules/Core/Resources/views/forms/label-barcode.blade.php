@@ -63,7 +63,9 @@
             border: .7pt solid #000; padding: 2mm; margin-bottom: 4mm;
             font-size: 8pt; line-height: 1.35;
         }
-        .catatan .ganda { display: block; margin-top: 1.5mm; }
+        /* Kotak peringatannya sendiri: ia berlaku pada KODE-nya, dan kode
+           dicetak pada ketiga cabang lembar ini — termasuk yang tanpa batang. */
+        .catatan.ganda { margin-top: -2mm; }
 
         .kisi { display: flex; flex-wrap: wrap; gap: 3mm; }
 
@@ -143,12 +145,6 @@
             {{ $geometry['columns'] }} stiker per baris.
             Jangan memperkecil, memfotokopi mengecil, memotong, atau menempelkan apa pun pada ruang kosong
             di kiri dan kanan batang — ruang itu yang dipakai pemindai untuk menemukan tepi kode.
-            @if ($sharedWith)
-                <span class="ganda"><b>Kode ini tidak unik.</b> {{ $encoded }} juga dipakai
-                    {{ implode(', ', $sharedWith) }}. Memindai stiker ini akan memulangkan lebih dari satu item,
-                    dan layar Pindai Barcode akan meminta orangnya memilih sendiri. Perbaiki kolom Barcode di layar
-                    Item lebih dulu bila kedua kartu itu memang barang yang berbeda.</span>
-            @endif
         </div>
     @elseif ($supported)
         {{--
@@ -179,6 +175,26 @@
             dijadikan Code 128 (hanya huruf, angka, dan tanda baca ASCII biasa yang bisa). Stiker di bawah
             tetap dicetak dengan garis untuk ditulis tangan; perbaiki kode atau barcode item ini di layar
             Item lebih dulu, lalu cetak ulang lembar ini.
+        </div>
+    @endif
+
+    {{--
+        PERINGATAN GANDA BERLAKU PADA KODENYA, BUKAN PADA GAMBARNYA — jadi ia
+        berdiri DI LUAR ketiga cabang di atas.
+
+        Ia dulu hidup di dalam cabang pertama saja, sehingga stiker yang
+        batangnya TIDAK dicetak (kode di luar ASCII 32–126, atau kode yang
+        terlalu panjang untuk tetap terpindai) menempel di rak tanpa satu pun
+        kata — padahal kode itulah yang ditulis tangan dan diketik ulang
+        orangnya, yaitu jalur yang justru paling sering dipakai untuk kode
+        seperti itu.
+    --}}
+    @if ($sharedWith)
+        <div class="catatan ganda">
+            <b>Kode ini tidak unik.</b> {{ $encoded }} juga dipakai
+            {{ implode(', ', $sharedWith) }}. Memindai atau mengetik kode stiker ini akan memulangkan lebih dari
+            satu item, dan layar Pindai Barcode akan meminta orangnya memilih sendiri. Perbaiki kolom Barcode di
+            layar Item lebih dulu bila kedua kartu itu memang barang yang berbeda.
         </div>
     @endif
 

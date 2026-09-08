@@ -68,13 +68,13 @@ class ItemScanController extends ApiController
         $code = trim($data['code']);
         $needle = mb_strtoupper($code);
 
+        // ATURANNYA HIDUP DI SATU TEMPAT (Item::scopeMatchingScanCode), dan
+        // lembar F/LBL serta saringan audit "Barcode ganda" memanggil yang
+        // sama. Sampai putaran kedua F-6 masing-masing menulisnya sendiri, dan
+        // ketiganya menjawab berbeda untuk tabrakan yang sama.
         $items = Item::query()
             ->with('category', 'balances.warehouse')
-            ->where(function ($query) use ($needle): void {
-                $query
-                    ->whereRaw('UPPER(barcode) = ?', [$needle])
-                    ->orWhereRaw('UPPER(code) = ?', [$needle]);
-            })
+            ->matchingScanCode($code)
             ->orderBy('code')
             ->get();
 

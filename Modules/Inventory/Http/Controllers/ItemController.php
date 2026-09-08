@@ -4,7 +4,6 @@ namespace Modules\Inventory\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Modules\Core\Http\ApiController;
 use Modules\Inventory\Enums\TransferStatus;
 use Modules\Inventory\Http\Requests\ItemStoreRequest;
@@ -38,30 +37,23 @@ class ItemController extends ApiController
              * saat deploy bila produksi sudah memuat duplikat). Sampai saringan
              * ini ada, satu-satunya cara sebuah duplikat terlihat adalah
              * seseorang memindainya — berbulan sesudah stikernya menempel di
-             * rak, pada saat yang paling mahal. Audit `GROUP BY barcode HAVING
-             * COUNT(*) > 1` yang laporan paket minta kepada pemilik sekarang
-             * bisa dijalankan dari layar Item, tanpa SSH ke produksi.
+             * rak, pada saat yang paling mahal. Audit yang laporan paket minta
+             * kepada pemilik sekarang bisa dijalankan dari layar Item, tanpa
+             * SSH ke produksi.
              *
-             * Item yang dibuang ikut dihitung ganda dengan sengaja: barangnya
-             * masih di rak dan stikernya masih menempel, jadi pemindaiannya
-             * tetap ambigu — aturan yang sama dengan ItemScanController.
+             * DAN IA MEMAKAI ATURAN PEMINDAINYA, bukan aturannya sendiri.
+             * Versi pertama saringan ini adalah `GROUP BY barcode HAVING
+             * COUNT(*) > 1`: ia tidak pernah membandingkan barcode dengan
+             * KODE item lain dan peka huruf di SQLite, jadi untuk tabrakan
+             * yang layar Pindai sebut ganda ia memulangkan NOL BARIS. Pemilik
+             * yang membaca "Tidak ada data" pada permukaan yang dibuat untuk
+             * keputusannya menyimpulkan katalognya bersih dan menyetujui
+             * UNIQUE — dan migrasi itu gagal di produksi. `sharingScanCode()`
+             * adalah ekspresi yang sama dengan yang dipakai `items/scan` dan
+             * lembar F/LBL.
              */
-            ->when($request->filled('barcode_duplicate'), function ($query) use ($request): void {
-                $shared = DB::table('inv_items')
-                    ->select('barcode')
-                    ->whereNotNull('barcode')
-                    ->where('barcode', '!=', '')
-                    ->groupBy('barcode')
-                    ->havingRaw('COUNT(*) > 1');
-
-                // Lengan "Tidak" MENYEBUT NULL sendiri: `NULL NOT IN (…)`
-                // bernilai NULL, bukan true, jadi tanpa baris ini setiap item
-                // yang belum punya barcode lenyap dari daftar — dan itu
-                // sebagian besar katalognya.
-                $request->boolean('barcode_duplicate')
-                    ? $query->whereIn('barcode', $shared)
-                    : $query->where(fn ($where) => $where->whereNull('barcode')->orWhereNotIn('barcode', $shared));
-            })
+            ->when($request->filled('barcode_duplicate'),
+                fn ($query) => $query->sharingScanCode($request->boolean('barcode_duplicate')))
             ->orderBy('code');
 
         return $this->listing($request, $query, ItemResource::class,

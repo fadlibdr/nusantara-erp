@@ -3047,11 +3047,17 @@ export const RESOURCES = {
       /* F-6: KOLOM BARCODE, dan saringan "barcode ganda" di bawahnya.
          Tanpa keduanya, satu-satunya cara sebuah duplikat ditemukan adalah
          kebetulan — seseorang memindainya, berbulan sesudah stikernya
-         menempel. Laporan paket ini meminta pemilik menjalankan satu audit
-         `GROUP BY barcode HAVING COUNT(*) > 1` untuk memutuskan apakah kolom
+         menempel. Laporan paket ini meminta pemilik memutuskan apakah kolom
          itu harus UNIQUE; keputusan yang butuh angka tetapi angkanya tidak
          bisa diambil siapa pun adalah keputusan yang tidak akan pernah
-         diambil. */
+         diambil.
+         SARINGANNYA MEMAKAI ATURAN LAYAR PINDAI (Item::sharingScanCode),
+         bukan `GROUP BY barcode`: satu kode bisa menjadi barcode sebuah item
+         DAN kode item lain, dan huruf besar-kecil tidak membedakan apa pun
+         bagi pemindainya. Saringan yang mengelompokkan barcode terhadap
+         barcode memulangkan NOL BARIS untuk tabrakan yang layar Pindai sebut
+         ganda — dan "Tidak ada data" di permukaan audit adalah jawaban yang
+         paling mahal yang bisa diberikannya. */
       { key: 'barcode', label: 'Barcode', type: 'text', hideOnNarrow: true },
       { key: 'min_stock', label: 'Stok min.', type: 'qty', align: 'right', hideOnNarrow: true },
       { key: 'avg_cost', label: 'HPP rata-rata', type: 'currency', align: 'right' },
