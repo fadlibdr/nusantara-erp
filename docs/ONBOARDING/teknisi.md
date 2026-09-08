@@ -46,6 +46,11 @@ sidebar Anda pendek, dan itu normal. Layar yang akan Anda pakai minggu ini:
 
 - **Ringkasan** — Dasbor · Tenggat · Kalender.
 - **Persediaan** — Saldo Stok · Penerimaan (GRN) · Pengeluaran · Transfer · Opname.
+  Sejak F-6 tiga baris lagi ikut tampil untuk peran ini karena ia memegang `inv.view`:
+  **Aturan Reorder** (titik pesan ulang per gudang × item), **Usulan Pesan Ulang** (PR
+  **Draf** dari kekurangan — tombolnya menuntut `prc.create`), dan **Pindai Barcode**
+  (membaca kartu item dari kamera atau dari kotak ketik). Ketiganya hanya membaca stok;
+  tidak satu pun memindahkannya. → PANDUAN §6.2, §6.3b.
 - **Layanan** — Tiket · Tiket Lewat SLA · Berita Acara · Jadwal Preventif · Kontrak
   Layanan.
 

@@ -3749,16 +3749,32 @@ dari *Harga beli terakhir* kartu item, dan tiap baris PR menuliskan *"stok X dar
 pesan ulang Y (sumbernya)"* supaya yang menandatangani PR bisa melihat dari mana jumlah
 itu datang.
 
-**Label barcode (Form F/LBL).** Di halaman detail sebuah item, menu **`Cetak ▾ ›
-Cetak Label Barcode`** membuka lembar berisi **12 stiker** untuk digunting (tambahkan
-`?jumlah=` pada alamatnya untuk 1–60). Yang dikodekan: **barcode pemasok** bila kartu item
-punya, dan **kode item** bila tidak — dan lembarnya menuliskan yang mana. Simbologi
-**Code 128**.
+**Label barcode (Form F/LBL).** Di halaman detail sebuah item, menu **`Cetak ▾`**
+menawarkan tiga lembar: **`Cetak Label Barcode (12 stiker)`**, **`(24 stiker)`** dan
+**`(60 stiker)`**. Yang dikodekan: **barcode pemasok** bila kartu item punya, dan **kode
+item** bila tidak — dan lembarnya menuliskan yang mana. Simbologi **Code 128**.
 
-> **Jangan memperkecil, memotong, atau menempelkan apa pun pada ruang kosong di kiri dan
-> kanan batang.** Ruang itu (*quiet zone*) yang dipakai pemindai untuk menemukan tepi
-> kode, dan tanpa ia pemindai gagal **tanpa bunyi apa pun** — yang di gudang terbaca
-> sebagai "pemindainya rusak".
+Tab cetaknya dibuka dari alamat `blob:` (lembarnya diambil dengan token sesi Anda), jadi
+**tidak ada bilah alamat yang bisa ditambahi** — jumlah stiker dipilih dari menunya.
+Jumlah lain adalah perubahan kode.
+
+**Lembarnya menyebut lebar modulnya sendiri, dalam milimeter.** Kotak keterangan di atas
+kisi stiker mencetak *"lebar modul 0,432 mm (minimum terpindai 0,25 mm), tinggi batang
+8,6 mm, 3 stiker per baris"* — angka yang bisa Anda periksa. Kode yang panjang membuat
+batangnya makin rapat, jadi lembarnya **melebarkan stikernya** (3 per baris → 2 → 1)
+alih-alih mengecilkan gambarnya; kode yang tetap tidak muat **tidak dicetak batangnya
+sama sekali**, dengan kalimat yang menyebut panjangnya dan garis untuk ditulis tangan.
+Barcode yang tercetak terlalu rapat tidak terbaca pemindai mana pun, dan gagalnya
+**tanpa bunyi**.
+
+**Kalau kode itu juga dipakai item lain**, lembarnya mengatakannya di kotak keterangan
+("*Kode ini tidak unik. … juga dipakai ITM-0002*") — sebelum stikernya menempel di rak,
+bukan berbulan sesudahnya ketika seseorang memindainya.
+
+> **Jangan memperkecil, memfotokopi mengecil, memotong, atau menempelkan apa pun pada
+> ruang kosong di kiri dan kanan batang.** Ruang itu (*quiet zone*) yang dipakai pemindai
+> untuk menemukan tepi kode, dan tanpa ia pemindai gagal **tanpa bunyi apa pun** — yang
+> di gudang terbaca sebagai "pemindainya rusak".
 
 Kode yang memuat karakter di luar huruf/angka/tanda baca ASCII biasa (mis. `Ø`)
 **tidak dicetak sebagai barcode**. Stikernya tetap keluar, dengan garis untuk ditulis
@@ -4181,9 +4197,15 @@ bertanggal hari pencetakan.
 
 **Yang tidak ada di lajur ini:** tidak ada pelacakan batch, nomor seri, kedaluwarsa, bin,
 atau lokasi rak — satu item di satu gudang adalah satu kuantitas dan satu harga pokok.
-Tidak ada reservasi atau alokasi stok untuk sebuah proyek. Tidak ada titik pemesanan
-ulang dan tidak ada PR otomatis dari baris stok rendah — "Di bawah minimum" adalah daftar
-yang dibaca, tanpa tombol di atasnya.
+Tidak ada reservasi atau alokasi stok untuk sebuah proyek. Tidak ada PR **otomatis**: tidak
+ada penjadwal yang membuat permintaan pembelian sendiri, dan tidak ada satu pun jalur yang
+mengajukan atau menyetujuinya — yang menekan tombolnya tetap orang, di layar
+`Persediaan › Usulan Pesan Ulang` (§6.3b), dan yang dibuatnya berstatus **Draf**.
+
+> Titik pemesanan ulang SENDIRI sudah ada sejak F-6: `Persediaan › Aturan Reorder`
+> menetapkannya per pasangan gudang × item, dan tab **`Perlu dipesan ulang`** pada Saldo
+> Stok (§6.2, sampai F-6 bernama *Di bawah minimum*) punya tombol di atasnya. Sampai
+> September 2026 paragraf ini masih berkata sebaliknya.
 
 ---
 

@@ -52,6 +52,11 @@ layar yang akan Anda pakai minggu ini, per kelompok:
   Material (IMK) · Register K3 (SMK3) · Register Defect (Punch List).
 - **Mutu (QA/QC)** — Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton.
 - **Persediaan** — Saldo Stok · Pengeluaran (draf saja — §6.1).
+  Sejak F-6 tiga baris lagi ikut tampil untuk peran ini karena ia memegang `inv.view`:
+  **Aturan Reorder** (titik pesan ulang per gudang × item), **Usulan Pesan Ulang** (PR
+  **Draf** dari kekurangan — tombolnya menuntut `prc.create`), dan **Pindai Barcode**
+  (membaca kartu item dari kamera atau dari kotak ketik). Ketiganya hanya membaca stok;
+  tidak satu pun memindahkannya. → PANDUAN §6.2, §6.3b.
 - **Subkontrak** — SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon.
 - **Aset** — Daftar Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan.
 - **Sistem** — Impor Data Master · Impor Dokumen (dua baris ini punya izinnya sendiri,
