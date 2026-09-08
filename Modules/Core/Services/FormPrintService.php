@@ -8,11 +8,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Modules\Core\Models\Company;
+use Modules\Core\Support\Code128;
 use Modules\Core\Support\PrintableDocuments;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Services\CrmFormService;
 use Modules\Inventory\Models\GoodsReceipt;
+use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\Transfer;
 use Modules\Projects\Enums\DefectSeverity;
 use Modules\Projects\Enums\DefectStatus;
@@ -159,6 +161,28 @@ class FormPrintService
             'permission' => 'prj.view',
             'compose' => 'izinMaterial',
             'resource' => 'projects/gate-passes',
+            'idField' => 'id',
+            'params' => [],
+        ],
+        /*
+         * F-6 — LEMBAR LABEL BARCODE, satu item per lembar, N stiker.
+         *
+         * BESPOKE DAN BUKAN ENTRI REGISTRI, dan itu bukan kemalasan: registri
+         * PrintableDocuments menggambar dokumen bertanda tangan — pita empat
+         * pihak, blok identitas, tiga kolom tanda tangan, satu-dua tabel
+         * berbingkai. Lembar label bukan salah satunya. Ia kisi stiker yang
+         * digunting, tanpa satu pun pihak yang menandatanganinya, dan
+         * memaksanya lewat generic.blade akan mencetak barcode di dalam sel
+         * tabel di bawah kop proyek — kertas yang tidak bisa dipakai siapa pun.
+         *
+         * inv.view: mencetak adalah membaca dalam bentuk lain, dan itemnya
+         * milik Inventory.
+         */
+        'label-barcode' => [
+            'label' => 'Label Barcode',
+            'permission' => 'inv.view',
+            'compose' => 'labelBarcode',
+            'resource' => 'inventory/items',
             'idField' => 'id',
             'params' => [],
         ],
@@ -1372,6 +1396,67 @@ class FormPrintService
         ]);
 
         return $codes === [] ? null : implode(' / ', $codes);
+    }
+
+    /**
+     * LEMBAR LABEL BARCODE (F/LBL) — satu item, N stiker yang digunting.
+     *
+     * ================================ APA YANG DIKODEKAN ================================
+     * `inv_items.barcode` bila item ini punya barcode pemasok, dan `code`-nya
+     * sendiri (ITM-0001) bila tidak. Urutan itu penting dan bukan pilihan
+     * gaya: kalau kardusnya sudah membawa barcode pabrik, itulah yang akan
+     * dipindai orang gudang, dan mencetak ITM-0001 di sampingnya berarti dua
+     * kode berbeda untuk satu barang. Lembar ini MENULISKAN yang mana yang
+     * dikodekan, di bawah batangnya, supaya tidak ada yang harus menebak.
+     *
+     * ============================ DAN KALAU TIDAK BISA ==================================
+     * ATURAN KEJUJURAN yang berlaku pada setiap formulir rumah berlaku di sini
+     * juga, dalam bentuk yang paling tajam: sebuah barcode yang dicetak dari
+     * teks yang tidak bisa dikodekan bukan sel kosong melainkan gambar yang
+     * SALAH — dan gambar yang salah terbaca sebagai kode LAIN oleh pemindai.
+     * Maka bila kodenya memuat karakter di luar ASCII 32–126, lembar ini
+     * mencetak stikernya TANPA batang, dengan kalimat yang menyebut kodenya
+     * dan menyuruh memperbaikinya lebih dulu. Tidak pernah gambar, tidak
+     * pernah kosong tanpa keterangan.
+     * ====================================================================================
+     */
+    private function labelBarcode(array $context): array
+    {
+        $item = Item::query()->withTrashed()->with('category')->findOrFail($context['id'] ?? null);
+
+        $supplier = trim((string) ($item->barcode ?? ''));
+        $encoded = $supplier !== '' ? $supplier : (string) $item->code;
+
+        // Berapa stiker. Plafonnya 60 (kisi 3 × 20) dan ia PENOLAKAN yang
+        // dibulatkan ke bawah, bukan pemotongan diam-diam: yang dikirim layar
+        // sudah divalidasi FormPrintController, dan angka di luar rentang tidak
+        // pernah sampai ke sini.
+        $count = min(60, max(1, (int) ($context['count'] ?? 12)));
+
+        $supported = Code128::supports($encoded);
+
+        return $this->sheet('label-barcode', [
+            'item' => $item,
+            'company' => Company::current(),
+            'encoded' => $encoded,
+            'encodedFromSupplierBarcode' => $supplier !== '',
+            'supported' => $supported,
+            // Teks manusia menyebut KEDUANYA saat barcode pemasok yang
+            // dikodekan: yang dipindai mesin dan yang dicari orang di layar
+            // adalah dua string berbeda, dan stiker yang hanya membawa salah
+            // satunya membuat separuh pekerjaan mustahil.
+            'svg' => $supported
+                ? Code128::svg($encoded, [
+                    'module' => 2,
+                    'height' => 40,
+                    'fontSize' => 9,
+                    'label' => $supplier !== '' ? $item->code.' · '.$encoded : $encoded,
+                ])
+                : null,
+            'count' => $count,
+            'formTitle' => 'LABEL BARCODE ITEM',
+            'formCode' => 'Form F/LBL',
+        ]);
     }
 
     // ==================================================================

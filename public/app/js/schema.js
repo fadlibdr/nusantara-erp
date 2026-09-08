@@ -3025,6 +3025,13 @@ export const RESOURCES = {
   'inventory/items': {
     module: 'inv', api: 'inventory/items', label: 'Item', labelOne: 'Item',
     lookupSource: 'items',
+    /* F-6 — lembar label barcode (F/LBL), satu item per lembar. Dideklarasikan
+       di sini dan bukan lewat katalog server karena ia formulir BESPOKE:
+       katalog PrintableDocuments menggambar dokumen bertanda tangan, dan
+       lembar stiker bukan salah satunya. */
+    printForms: [
+      { form: 'label-barcode', label: 'Label Barcode' },
+    ],
     columns: [
       codeColumn,
       { key: 'name', label: 'Nama item', type: 'text', sub: 'category.name' },
