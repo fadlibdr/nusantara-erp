@@ -61,7 +61,28 @@ class AttendanceIsNotPayrollInputTest extends ErpTestCase
         foreach (self::PAYROLL_SOURCES as $relative) {
             $source = (string) file_get_contents(base_path($relative));
 
-            foreach (['hr_attendances', 'Models\\Attendance;', 'Attendance::'] as $needle) {
+            /*
+             * Jaring ini pernah bocor (verifikasi F-4). Tiga jarum pertama
+             * tidak melihat `$employee->attendances()` — relasi hasMany di
+             * Employee — maupun service absensi yang di-inject lewat
+             * konstruktor, dan sebuah mutasi yang memotong gaji pokok dari
+             * register GPS lolos HIJAU di kedua lensa. `AttendanceRecap`
+             * sengaja TIDAK ikut terjaring: rekap bulanan memang masukan
+             * payroll yang sah, dan itulah seluruh pemisahannya.
+             */
+            $needles = [
+                'hr_attendances',
+                'Models\\Attendance;',
+                'Attendance::',
+                'attendances(',
+                '->attendances',
+                'AttendanceService',
+                'AttendanceClockService',
+                'AttendanceCorrection',
+                'AttendanceRecapProposal',
+            ];
+
+            foreach ($needles as $needle) {
                 $this->assertStringNotContainsString($needle, $source, sprintf(
                     '%s menyebut register absensi (%s). Register bisa dikoreksi kapan saja; payroll yang '
                     .'disetujui sudah membukukan jurnal. Kalau tautan ini memang diputuskan pemilik, '

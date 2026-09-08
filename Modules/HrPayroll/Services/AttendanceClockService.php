@@ -2,6 +2,7 @@
 
 namespace Modules\HrPayroll\Services;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -75,6 +76,30 @@ class AttendanceClockService
         $deviceAt = $this->deviceTime($data['device_at'] ?? null);
         $date = $this->workingDate($deviceAt, $serverNow);
 
+        /*
+         * Sekali ulang pada tabrakan kunci unik (verifikasi F-4).
+         *
+         * rowFor() melakukan SELECT lalu save() melakukan INSERT, dan di
+         * antaranya baris (karyawan, tanggal) yang sama bisa lahir dari pintu
+         * lain: lembar kerani yang dikirim bersamaan, tab kedua, ponsel kedua.
+         * Tanpa penjaga ini pintu yang aturannya "MENCATAT, tidak pernah
+         * MENOLAK" menjawab HTTP 500 — penolakan paling keras yang tersedia —
+         * dan absennya hilang. Percobaan kedua menemukan baris yang sudah ada
+         * dan menempel padanya. Idiom rumah yang sama dipakai
+         * DailyReportService, HseDailyService dan BankStatementImportService.
+         */
+        try {
+            return $this->write($side, $employee, $data, $userId, $serverNow, $deviceAt, $date);
+        } catch (UniqueConstraintViolationException) {
+            return $this->write($side, $employee, $data, $userId, $serverNow, $deviceAt, $date);
+        }
+    }
+
+    /**
+     * @return array{attendance: Attendance, outcome: string, message: string, selfie_error: ?string}
+     */
+    private function write(string $side, Employee $employee, array $data, ?int $userId, Carbon $serverNow, ?Carbon $deviceAt, string $date): array
+    {
         return DB::transaction(function () use ($side, $employee, $data, $userId, $serverNow, $deviceAt, $date): array {
             $attendance = $this->rowFor($employee, $date, $data, $userId);
 
@@ -256,11 +281,25 @@ class AttendanceClockService
         }
 
         try {
-            return Carbon::parse($raw)->setTimezone(config('app.timezone'));
+            $parsed = Carbon::parse($raw)->setTimezone(config('app.timezone'));
         } catch (\Throwable) {
             // Jam ponsel yang mengirim sampah bukan alasan menolak absensinya.
             return null;
         }
+
+        /*
+         * Jam yang bukan jam sama sekali dibuang, bukan disimpan.
+         *
+         * Carbon::parse('0000-00-00 00:00:00') TIDAK melempar — ia memulangkan
+         * tahun nol, dan menyimpannya berarti dua hal: kolomnya berisi angka
+         * yang tidak pernah menjadi waktu di ponsel siapa pun, dan MySQL dengan
+         * sql_mode ketat MENOLAK menulisnya, sehingga absensinya gagal justru
+         * karena hal yang seharusnya diabaikan. Jendelanya lebar dengan sengaja:
+         * yang dibuang di sini hanya yang mustahil, sedangkan jam yang salah
+         * setel bertahun-tahun tetap DICATAT (pemakaiannya yang dibatasi ±48
+         * jam di workingDate()).
+         */
+        return $parsed->year >= 2000 && $parsed->year <= 2100 ? $parsed : null;
     }
 
     /**

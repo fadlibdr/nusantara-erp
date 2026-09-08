@@ -4,6 +4,7 @@ namespace Tests\Feature\HrPayroll;
 
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\AttendanceCorrection;
@@ -251,6 +252,28 @@ class AttendanceClockTest extends ErpTestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * Jam ponsel yang mengirim sampah kehilangan JAMNYA, bukan absensinya.
+     *
+     * Orangnya berdiri di gerbang dan menekan tombol; yang rusak cuma jam
+     * ponselnya. 422 di sini berarti tidak ada baris, tidak ada selfie, dan
+     * tidak ada catatan bahwa ia datang.
+     */
+    public function test_a_garbage_device_clock_costs_the_clock_not_the_punch(): void
+    {
+        foreach (['banana', '0000-00-00 00:00:00', '', '   '] as $junk) {
+            $employee = $this->makeEmployee();
+            $this->fieldUser($employee);
+
+            $response = $this->postJson('/api/hr/attendances/me/clock-in', ['device_at' => $junk]);
+
+            $response->assertOk();
+            $row = Attendance::query()->where('employee_id', $employee->id)->firstOrFail();
+            $this->assertNotNull($row->check_in_at, "Absensi hilang untuk device_at [{$junk}].");
+            $this->assertNull($row->check_in_device_at, "Jam perangkat yang tidak terbaca harus kosong, bukan ditebak [{$junk}].");
+        }
+    }
+
     /** Jam ponsel yang berjalan MAJU tidak boleh membuat absensi di masa depan. */
     public function test_a_device_clock_running_ahead_never_creates_a_future_day(): void
     {
@@ -384,6 +407,75 @@ class AttendanceClockTest extends ErpTestCase
     }
 
     /**
+     * Baris (karyawan, tanggal) yang sama lahir dari pintu LAIN antara SELECT
+     * dan INSERT — lembar kerani yang dikirim bersamaan, tab kedua, ponsel
+     * kedua. Pintu yang aturannya "MENCATAT, tidak pernah MENOLAK" tidak boleh
+     * menjawab 500: itu penolakan paling keras yang tersedia, dan absennya
+     * hilang bersamanya.
+     *
+     * Balapannya dipalsukan dengan menyisipkan baris pesaing di dalam kait
+     * `creating` — satu-satunya cara menempatkan penulis kedua persis di celah
+     * itu tanpa proses kedua.
+     */
+    public function test_a_racing_first_punch_of_the_day_is_recorded_not_a_five_hundred(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+
+        Carbon::setTestNow(Carbon::parse('2026-09-08 07:00:00'));
+
+        $fired = false;
+        Attendance::creating(function (Attendance $attendance) use (&$fired): void {
+            if ($fired) {
+                return;
+            }
+            $fired = true;
+
+            /*
+             * Penulis kedua menang balapannya: barisnya sudah ada saat INSERT
+             * milik pintu absen mendarat.
+             *
+             * Tanggalnya ditulis '2026-09-08 00:00:00', bukan '2026-09-08'.
+             * Cast `date` Eloquent menyimpan tengah malam, dan di SQLite kunci
+             * unik membandingkan TEKS — dua ejaan hari yang sama tidak
+             * bertabrakan di sana (di MySQL kolomnya DATE dan keduanya sama).
+             * Uji yang memakai ejaan pendek tidak menguji balapan apa pun; ia
+             * hanya membuat baris kedua.
+             */
+            DB::table('hr_attendances')->insert([
+                'employee_id' => $attendance->employee_id,
+                'date' => '2026-09-08 00:00:00',
+                'status' => 'absen',
+                'note' => 'Ditulis kerani sepersekian detik lebih dulu',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        try {
+            $response = $this->postJson('/api/hr/attendances/me/clock-in', []);
+        } finally {
+            Attendance::flushEventListeners();
+            Carbon::setTestNow();
+        }
+
+        $response->assertOk();
+        $this->assertTrue($fired, 'Prasyarat: kait balapan harus benar-benar berjalan.');
+
+        $rows = Attendance::query()->where('employee_id', $employee->id)->get();
+        $this->assertCount(1, $rows, 'Satu baris per orang per hari, bukan dua.');
+        $this->assertNotNull($rows->first()->check_in_at, 'Absennya tercatat, bukan hilang bersama 500.');
+
+        /* Catatan kerani TIDAK diperiksa di sini, dan itu batas jujur dari
+           simulasi ini: baris pesaing disisipkan DI DALAM transaksi percobaan
+           pertama, jadi ia ikut tergulung balik saat kunci uniknya pecah. Yang
+           dibuktikan uji ini adalah yang penting — pintunya menjawab 200,
+           absennya tercatat, dan tidak ada baris kedua. Pada balapan sungguhan
+           (dua proses) baris pesaingnya sudah ter-commit dan percobaan kedua
+           menempel padanya. */
+    }
+
+    /**
      * Pintu ini tidak menerima employee_id. Kalau ia menerimanya, ia menjadi
      * pintu untuk mengabsenkan rekan yang belum datang.
      */
@@ -399,6 +491,45 @@ class AttendanceClockTest extends ErpTestCase
 
         $this->assertSame(0, Attendance::query()->where('employee_id', $someoneElse->id)->count());
         $this->assertSame(1, Attendance::query()->where('employee_id', $me->id)->count());
+    }
+
+    /**
+     * Kartu karyawan yang tertaut tetapi DIARSIPKAN mendapat kalimatnya
+     * sendiri. Kalimat "belum ditautkan" akan menyuruh orangnya meminta HR
+     * menautkan akun yang sudah tertaut; HR memeriksanya, menemukannya benar,
+     * dan tidak punya apa pun untuk dikerjakan.
+     */
+    public function test_an_archived_employee_card_gets_its_own_sentence(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+        $employee->delete();
+
+        $punch = $this->postJson('/api/hr/attendances/me/clock-in', []);
+
+        $punch->assertStatus(422);
+        $this->assertStringContainsString('sudah diarsipkan', $punch->json('message'));
+        $this->assertStringNotContainsString('belum ditautkan', $punch->json('message'));
+        $this->assertSame(0, Attendance::query()->count());
+    }
+
+    /**
+     * Proyek yang diarsipkan tidak boleh lolos validasi lalu diam-diam gagal
+     * diukur: orang yang berdiri tepat di titik proyek akan diberi tahu
+     * "jarak tidak terukur" tanpa satu pun petunjuk kenapa.
+     */
+    public function test_an_archived_project_is_refused_at_the_door_not_silently_unmeasured(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+        $project = $this->project();
+        $project->delete();
+
+        $this->postJson('/api/hr/attendances/me/clock-in', [
+            'project_id' => $project->id,
+            'latitude' => self::SITE_LAT,
+            'longitude' => self::SITE_LNG,
+        ])->assertStatus(422)->assertJsonValidationErrors(['project_id']);
     }
 
     /** Akun tanpa kartu karyawan mendapat kalimat, bukan layar rusak dan bukan absensi orang lain. */

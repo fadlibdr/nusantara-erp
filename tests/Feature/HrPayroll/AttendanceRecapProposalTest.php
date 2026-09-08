@@ -81,6 +81,51 @@ class AttendanceRecapProposalTest extends ErpTestCase
         $this->assertSame($recorded->id, $response->json('data.rows.0.employee_id'));
     }
 
+    /**
+     * Cast `date` menyimpan tengah malam, dan SQLite membandingkan STRING:
+     * '2026-06-30 00:00:00' > '2026-06-30'. Tanpa whereDate, tanggal TERAKHIR
+     * setiap bulan jatuh keluar dari usulan — dan karyawan yang satu-satunya
+     * catatannya jatuh di sana lenyap sama sekali, sementara layarnya mencetak
+     * "register bulan ini kosong" tentang orang yang ada di dalamnya.
+     */
+    public function test_the_last_day_of_the_month_is_inside_the_period(): void
+    {
+        $this->actAsAdmin();
+        $employee = $this->makeEmployee();
+        $onlyOnTheLastDay = $this->makeEmployee();
+
+        $this->mark($employee->id, '2026-06-01', 'hadir');
+        $this->mark($employee->id, '2026-06-30', 'hadir');
+        $this->mark($onlyOnTheLastDay->id, '2026-06-30', 'absen');
+
+        $response = $this->getJson('/api/hr/attendance-recaps/proposal?period_year=2026&period_month=6');
+
+        $response->assertOk();
+        $rows = collect($response->json('data.rows'))->keyBy('employee_id');
+
+        $this->assertSame(2, $rows[$employee->id]['recorded_days'], 'Tanggal 30 ikut terhitung.');
+        $this->assertTrue(
+            $rows->has($onlyOnTheLastDay->id),
+            'Karyawan yang satu-satunya catatannya jatuh di tanggal terakhir tidak boleh lenyap dari usulan.',
+        );
+    }
+
+    /** Bulan 31 hari, dan bulan Februari — dua batas lain yang mudah lolos. */
+    public function test_the_thirty_first_and_the_end_of_february_are_inside_too(): void
+    {
+        $this->actAsAdmin();
+        $employee = $this->makeEmployee();
+
+        $this->mark($employee->id, '2026-01-31', 'hadir');
+        $this->mark($employee->id, '2026-02-28', 'hadir');
+
+        $january = $this->getJson('/api/hr/attendance-recaps/proposal?period_year=2026&period_month=1');
+        $february = $this->getJson('/api/hr/attendance-recaps/proposal?period_year=2026&period_month=2');
+
+        $this->assertSame(1, $january->json('data.rows.0.recorded_days'));
+        $this->assertSame(1, $february->json('data.rows.0.recorded_days'));
+    }
+
     public function test_the_proposal_says_out_loud_what_it_does_not_know(): void
     {
         $this->actAsAdmin();

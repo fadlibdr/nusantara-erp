@@ -6,6 +6,7 @@ use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\AttendanceCorrection;
+use Modules\HrPayroll\Services\HrFormService;
 use Tests\ErpTestCase;
 
 /**
@@ -241,6 +242,78 @@ class AttendanceCorrectionTest extends ErpTestCase
             ->all();
 
         $this->assertSame(['GET|HEAD api/hr/attendances/{attendance}/corrections'], $routes);
+    }
+
+    /**
+     * Jejak tambah-saja yang bisa DIMUSNAHKAN tidak membuktikan apa pun.
+     *
+     * `hr_attendances` tidak memakai softDeletes; sebelum verifikasi F-4 satu
+     * DELETE dari pemegang hr.delete menghapus barisnya beserta setiap baris
+     * jejaknya lewat cascade — dan pemegang hr.delete adalah persis orang yang
+     * punya alasan menghapusnya.
+     */
+    public function test_a_row_that_carries_a_trail_cannot_be_deleted(): void
+    {
+        $this->actAsAdmin();
+        $row = $this->row();
+
+        $this->putJson("/api/hr/attendances/{$row->id}", [
+            'status' => 'absen',
+            'reason' => 'Salah tandai; yang bersangkutan tidak datang.',
+        ])->assertOk();
+
+        $response = $this->deleteJson("/api/hr/attendances/{$row->id}");
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('sudah pernah dikoreksi', $response->json('message'));
+        $this->assertSame(1, Attendance::query()->whereKey($row->id)->count());
+        $this->assertSame(1, AttendanceCorrection::query()->where('attendance_id', $row->id)->count());
+    }
+
+    /** Absen yang dicatat karyawannya sendiri bukan ketikan kerani: dikoreksi, bukan dihapus. */
+    public function test_a_row_that_carries_a_phone_punch_cannot_be_deleted(): void
+    {
+        $this->actAsAdmin();
+        $row = $this->row(['check_in_at' => '2026-09-07 07:12:00']);
+
+        $response = $this->deleteJson("/api/hr/attendances/{$row->id}");
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('absen dari ponsel', $response->json('message'));
+        $this->assertSame(1, Attendance::query()->whereKey($row->id)->count());
+    }
+
+    /** Baris kerani murni yang belum pernah disentuh siapa pun masih bisa dihapus — itu gunanya pintu ini. */
+    public function test_an_untouched_clerk_row_can_still_be_deleted(): void
+    {
+        $this->actAsAdmin();
+        $row = $this->row();
+
+        $this->deleteJson("/api/hr/attendances/{$row->id}")->assertOk();
+
+        $this->assertSame(0, Attendance::query()->whereKey($row->id)->count());
+    }
+
+    /**
+     * Lembar daftar hadir yang dicetak MENCETAK jam yang tercatat, dan menggaris
+     * yang tidak. Garis kosong di atas jam yang sudah tercatat menyerahkan
+     * lembar tanda tangan yang membantah registernya sendiri.
+     */
+    public function test_the_printed_sheet_shows_recorded_clock_times_and_rules_the_rest(): void
+    {
+        $this->actAsAdmin();
+        $clocked = $this->row(['check_in_at' => '2026-09-07 07:12:00', 'check_out_at' => '2026-09-07 17:03:00']);
+        $this->row(['date' => '2026-09-07']); // kerani murni, tanpa jam
+
+        $rows = app(HrFormService::class)->attendanceRows($clocked);
+
+        $withTimes = collect($rows)->firstWhere('jam_masuk', '07:12');
+        $this->assertNotNull($withTimes, 'Jam yang tercatat harus ikut tercetak.');
+        $this->assertSame('17:03', $withTimes['jam_keluar']);
+
+        $ruled = collect($rows)->first(fn (array $row) => $row['jam_masuk'] === null);
+        $this->assertNotNull($ruled, 'Baris tanpa absen ponsel tetap digaris untuk tinta basah.');
+        $this->assertNull($ruled['jam_keluar']);
     }
 
     /** Membaca jejak tidak boleh lebih mudah daripada membaca barisnya sendiri. */

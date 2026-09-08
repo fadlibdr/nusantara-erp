@@ -230,6 +230,26 @@ class SettingService
                         'max' => 400,
                         'help' => 'Kepmenaker 102/2004: upah sejam = 1/173 × upah sebulan.',
                     ],
+                ],
+            ],
+
+            /*
+             * Cuti dan absensi keluar dari grup BPJS (verifikasi F-4).
+             *
+             * Grup itu berbunyi "Perubahan berlaku pada perhitungan payroll
+             * berikutnya" — kalimat yang benar untuk iuran BPJS dan pembagi
+             * lembur, dan justru kebalikan dari yang berlaku di sini: radius
+             * geofence tidak menyentuh satu rupiah pun, dan F-4 menghabiskan
+             * satu paket penuh memastikan register absensi TIDAK menjadi
+             * masukan payroll. Sebuah ambang yang ditaruh di bawah kalimat itu
+             * akan dibaca sebagai ambang yang menggerakkan gaji.
+             */
+            'hr' => [
+                'label' => 'SDM — Cuti & Absensi',
+                'description' => 'Hak cuti dan aturan absensi lapangan. TIDAK satu pun dari nilai di '
+                    .'sini yang langsung menggerakkan payroll: rekap bulanan tetap dokumen yang '
+                    .'diperiksa dan disimpan manusia.',
+                'settings' => [
                     [
                         'key' => 'hr.leave.annual_days',
                         'label' => 'Hak cuti tahunan (hari kerja)',

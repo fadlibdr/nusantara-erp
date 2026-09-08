@@ -30,7 +30,22 @@ return new class extends Migration
     {
         Schema::create('hr_attendance_corrections', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('attendance_id')->constrained('hr_attendances')->cascadeOnDelete();
+            /*
+             * restrictOnDelete, BUKAN cascade (verifikasi F-4).
+             *
+             * Cascade menjadikan seluruh gunanya bohong: `hr_attendances` tidak
+             * memakai softDeletes, jadi satu DELETE dari pemegang hr.delete
+             * menghapus barisnya BESERTA setiap jejak koreksinya — dan pemegang
+             * hr.delete adalah persis orang yang punya alasan menghapusnya.
+             * Log tambah-saja yang bisa dimusnahkan tidak membuktikan apa pun,
+             * sama seperti log yang bisa diedit.
+             *
+             * Penjaga basis data ini adalah lapis KEDUA: AttendanceController
+             * menjawab 422 dengan kalimat sebelum penghapusannya sampai ke
+             * sini. Lapis ini yang menangkap jalur lain — tinker, impor,
+             * perintah artisan — yang tidak lewat controller.
+             */
+            $table->foreignId('attendance_id')->constrained('hr_attendances')->restrictOnDelete();
             $table->string('field', 40);
             // Nilai disimpan sebagai teks: kolom yang dikoreksi bisa enum,
             // tanggal-waktu, atau id proyek, dan log yang harus tahu tipe apa

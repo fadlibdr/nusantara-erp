@@ -52,7 +52,9 @@ return new class extends Migration
                 $table->decimal("{$side}_latitude", 10, 7)->nullable();
                 $table->decimal("{$side}_longitude", 10, 7)->nullable();
                 $table->unsignedInteger("{$side}_accuracy_m")->nullable();
-                // Lintas modul: indeks, tanpa FK (CONVENTIONS §3).
+                // Lintas modul: indeks, tanpa FK (CONVENTIONS §3). Indeksnya
+                // dibuat di bawah — komentar yang menjanjikan indeks tanpa
+                // membuatnya adalah komentar yang membaca seperti jaminan.
                 $table->unsignedBigInteger("{$side}_project_id")->nullable();
                 $table->unsignedInteger("{$side}_distance_m")->nullable();
                 $table->unsignedInteger("{$side}_geofence_m")->nullable();
@@ -60,6 +62,7 @@ return new class extends Migration
                 // lewat AttachmentService, dan absensinya tetap catatan yang sah
                 // tanpa fotonya.
                 $table->unsignedBigInteger("{$side}_attachment_id")->nullable();
+                $table->index("{$side}_project_id", "hr_attendances_{$side}_project_index");
             }
         });
     }
@@ -79,6 +82,7 @@ return new class extends Migration
                     "{$side}_geofence_m",
                     "{$side}_attachment_id",
                 ]);
+                $table->dropIndex("hr_attendances_{$side}_project_index");
             }
         });
     }

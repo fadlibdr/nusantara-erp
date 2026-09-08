@@ -84,8 +84,20 @@ class AttendanceResource extends JsonResource
             return 'Belum tercatat';
         }
 
-        if ($distance === null || $verdict === null) {
+        if ($distance === null) {
             return 'Lokasi tidak terukur';
+        }
+
+        /*
+         * Jarak ADA tetapi ambangnya tidak. Pintu absen selalu menstempel
+         * keduanya bersama, jadi keadaan ini hanya lahir dari impor atau
+         * seed — dan "Lokasi tidak terukur" tepat di atas "Jarak ke titik
+         * proyek: 8,2 km" adalah layar yang membantah dirinya sendiri dalam
+         * dua baris. Usulan rekap juga tidak menghitungnya di kolom mana pun;
+         * kalimat ini yang membuatnya terlihat alih-alih hilang.
+         */
+        if ($verdict === null) {
+            return 'Jarak terukur, radius tidak tercatat';
         }
 
         return $verdict ? 'Di luar lokasi' : 'Di lokasi';

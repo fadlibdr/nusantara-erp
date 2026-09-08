@@ -46,7 +46,25 @@ class AttendanceRecapProposalService
         $rows = DB::table('hr_attendances as a')
             ->join('hr_employees as e', 'e.id', '=', 'a.employee_id')
             ->whereNull('e.deleted_at')
-            ->whereBetween('a.date', [$start->toDateString(), $end->toDateString()])
+            /*
+             * whereDate, BUKAN whereBetween — dan bukan kehalusan gaya.
+             *
+             * Cast `date` MENYIMPAN tengah malam, jadi kolomnya berisi
+             * '2026-06-30 00:00:00'. SQLite membandingkan STRING, sehingga
+             * '2026-06-30 00:00:00' > '2026-06-30' dan tanggal terakhir setiap
+             * bulan jatuh keluar dari rentangnya. MySQL punya kolom DATE
+             * sungguhan dan memaksa nilainya, jadi ia benar — dan produksi
+             * hari ini masih SQLite, jadi yang salah justru yang dipakai.
+             *
+             * Akibatnya lebih berat daripada selisih satu hari: karyawan yang
+             * SATU-SATUNYA catatannya bulan itu jatuh di tanggal terakhir
+             * lenyap sama sekali dari usulan, dan layarnya lalu mencetak
+             * "Register bulan ini kosong" tentang orang yang ada di dalam
+             * register. Idiom yang sama sudah dipakai AttendanceService dan
+             * AttendanceController dengan alasan yang sama.
+             */
+            ->whereDate('a.date', '>=', $start->toDateString())
+            ->whereDate('a.date', '<=', $end->toDateString())
             ->groupBy('a.employee_id', 'e.code', 'e.name')
             ->orderBy('e.code')
             ->get([

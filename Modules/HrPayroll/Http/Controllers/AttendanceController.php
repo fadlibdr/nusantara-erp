@@ -36,6 +36,17 @@ class AttendanceController extends ApiController
         .'jadi tidak ada absensi yang bisa ditampilkan atau dicatat atas namanya. '
         .'Minta HR menautkan akun Anda ke kartu karyawan (Karyawan → akun pengguna).';
 
+    /**
+     * Kartu karyawan yang SUDAH ditautkan tetapi diarsipkan.
+     *
+     * Kalimat di atas akan menyuruh orangnya meminta HR menautkan akun yang
+     * SUDAH tertaut; HR memeriksanya, menemukannya benar, dan tidak punya apa
+     * pun untuk dikerjakan. Dua keadaan, dua kalimat.
+     */
+    private const ARCHIVED_EMPLOYEE_MESSAGE = 'Kartu karyawan yang tertaut ke akun ini sudah '
+        .'diarsipkan, jadi absensi tidak dapat dicatat atas namanya. Minta HR mengaktifkan kembali '
+        .'kartu karyawan Anda.';
+
     public function index(Request $request): JsonResponse
     {
         $query = Attendance::query()
@@ -127,14 +138,14 @@ class AttendanceController extends ApiController
      */
     public function mine(Request $request): JsonResponse
     {
-        $employee = $this->employeeOf($request);
+        ['employee' => $employee, 'message' => $refusal] = $this->employeeOf($request);
 
         if ($employee === null) {
             return $this->ok([
                 'linked' => false,
                 'employee' => null,
                 'data' => [],
-            ], self::NO_EMPLOYEE_MESSAGE);
+            ], $refusal);
         }
 
         $rows = Attendance::query()
@@ -166,10 +177,10 @@ class AttendanceController extends ApiController
 
     private function punch(AttendanceClockRequest $request, string $side): JsonResponse
     {
-        $employee = $this->employeeOf($request);
+        ['employee' => $employee, 'message' => $refusal] = $this->employeeOf($request);
 
         if ($employee === null) {
-            return $this->error(self::NO_EMPLOYEE_MESSAGE, 422);
+            return $this->error($refusal, 422);
         }
 
         $result = $this->clock->clock($side, $employee, $request->validated(), $request->user()?->id);
@@ -192,17 +203,70 @@ class AttendanceController extends ApiController
         ], $message);
     }
 
+    /**
+     * Menghapus baris absensi — kecuali baris yang sudah punya sejarah.
+     *
+     * Sebuah baris yang PERNAH DIKOREKSI membawa jejak tambah-saja, dan sebuah
+     * jejak yang bisa dimusnahkan oleh pemegang hr.delete tidak membuktikan
+     * apa pun: yang paling berkepentingan menghapusnya adalah orang yang
+     * dicatat di dalamnya. Baris yang membawa absen dari ponsel juga ditolak —
+     * itu catatan seseorang tentang dirinya, bukan ketikan kerani; yang salah
+     * dikoreksi lewat pintu koreksi, yang beralasan dan berjejak.
+     *
+     * Yang masih bisa dihapus: baris kerani murni yang belum pernah disentuh
+     * siapa pun. Itulah kasus yang pintu ini memang dibuat untuknya (lembar
+     * ganda, tanggal salah ketik).
+     */
     public function destroy(Attendance $attendance): JsonResponse
     {
+        if ($attendance->corrections()->exists()) {
+            return $this->error(
+                'Baris ini sudah pernah dikoreksi, jadi ia membawa jejak yang tidak boleh ikut hilang. '
+                .'Perbaiki nilainya lewat Rincian → Koreksi; jejaknya tetap terbaca di sana.',
+                422,
+            );
+        }
+
+        if ($attendance->check_in_at !== null || $attendance->check_out_at !== null) {
+            return $this->error(
+                'Baris ini berisi absen dari ponsel yang dicatat karyawannya sendiri dan tidak dapat dihapus. '
+                .'Kalau isinya keliru, koreksi lewat Rincian → Koreksi dengan menyebut alasannya.',
+                422,
+            );
+        }
+
         $attendance->delete();
 
         return $this->ok(null, 'Attendance deleted.');
     }
 
-    private function employeeOf(Request $request): ?Employee
+    /**
+     * Kartu karyawan pemanggil, atau kalimat yang menjelaskan kenapa tidak ada.
+     *
+     * @return array{employee: ?Employee, message: ?string}
+     */
+    private function employeeOf(Request $request): array
     {
         $employeeId = $request->user()?->employee_id;
 
-        return $employeeId === null ? null : Employee::query()->find($employeeId);
+        if ($employeeId === null) {
+            return ['employee' => null, 'message' => self::NO_EMPLOYEE_MESSAGE];
+        }
+
+        $employee = Employee::query()->find($employeeId);
+
+        if ($employee !== null) {
+            return ['employee' => $employee, 'message' => null];
+        }
+
+        // Tertaut, tetapi kartunya di-soft-delete: keadaan yang berbeda, dan
+        // kalimat yang berbeda. withTrashed() membedakan keduanya tanpa
+        // membuka jalan menulis absensi atas nama kartu yang diarsipkan.
+        $archived = Employee::query()->withTrashed()->find($employeeId);
+
+        return [
+            'employee' => null,
+            'message' => $archived === null ? self::NO_EMPLOYEE_MESSAGE : self::ARCHIVED_EMPLOYEE_MESSAGE,
+        ];
     }
 }
