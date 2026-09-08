@@ -1623,10 +1623,21 @@ pun galat. Sebuah baris yang dibuang lembut akan menempati pasangannya selamanya
 yang dihapus tidak pernah bisa dibuat ulang; saklarnya `is_active`, yang memang untuk itu.
 `Rule::unique` di FormRequest menambahkan **kalimatnya**, bukan aturan kedua.
 
-**PRIORITASNYA DITULIS DI LAYAR, bukan hanya berlaku di kode.** Setiap baris membawa ambang yang
-menang, nama sumbernya (`threshold_source_label`), DAN angka item yang kalah. Sebuah baris yang
-menulis "20" padahal kartu itemnya berkata 100 tanpa mengatakan dari mana 20 itu datang adalah
-angka yang tidak bisa diperiksa siapa pun.
+**PRIORITASNYA DITULIS DI LAYAR, bukan hanya berlaku di kode — KE DUA ARAH.** Setiap baris
+kekurangan membawa ambang yang menang, nama sumbernya (`threshold_source_label`), DAN angka item
+yang kalah: sebuah baris yang menulis "20" padahal kartu itemnya berkata 100 tanpa mengatakan dari
+mana 20 itu datang adalah angka yang tidak bisa diperiksa siapa pun. **Arah sebaliknya sama
+wajibnya**, dan ia terlewat sampai putaran perbaikan F-6: kartu item adalah satu-satunya layar yang
+memajang angka yang KALAH, jadi `ItemResource` mengirim `reorder_rule_note` bila ada aturan AKTIF
+untuk item itu ("N gudang memakai titik pesan ulang sendiri… stok minimum di atas TIDAK berlaku").
+Tanpa itu, yang menaikkan `min_stock` di sana mengira ia sedang mengubah ambang gudang yang punya
+aturan; ia tidak mengubah apa pun.
+
+**"Aktif ✓" BUKAN "berlaku".** Item dan gudang menghapus-lembut, relasi aturan memakai
+`withTrashed()` dengan sengaja (supaya namanya selamat dan barisnya tetap bisa dibuang orangnya),
+tetapi kueri kekurangan membuang item dan gudang terhapus lebih dulu — ambang baris seperti itu
+tidak menentukan apa pun sementara saklarnya masih menyala. `ReorderRuleResource` karena itu
+mengirim `applies` dan `deleted_labels`, dan daftarnya menggambarnya sebagai keping.
 
 ## 32. Usulan PR dari kekurangan stok (`ReorderService`, F-6)
 
@@ -1636,12 +1647,24 @@ atau menyetujui (dipaku `ReorderProposalTest`). Alasannya sama dengan §29: sebu
 ketik satu digit akan mengubah dirinya menjadi PO, dan PO adalah uang yang keluar.
 
 **Idempotensi DINYATAKAN, bukan disimpulkan.** Sebuah item dilewati bila ia sudah menjadi baris
-pada PR **terbuka** (`draft`/`submitted`/`approved`, belum dibuang) untuk gudang yang sama **atau**
-pada PR yang tidak menyebut gudang sama sekali. `rejected`/`closed`/`cancelled` **bukan** terbuka:
-PR yang ditolak adalah permintaan yang seseorang tolak, dan mengusulkannya lagi justru yang benar.
+pada **PR ATAU PO terbuka** (`draft`/`submitted`/`approved`, belum dibuang) untuk gudang yang sama
+**atau** pada dokumen yang tidak menyebut gudang sama sekali. `rejected`/`closed`/`cancelled`
+**bukan** terbuka: PR yang ditolak adalah permintaan yang seseorang tolak, dan PO yang `closed`
+sudah diterima penuh (PoService menutupnya sendiri begitu SELURUH barisnya diterima) — kekurangan
+yang tersisa sesudahnya memang nyata.
+
+**PO IKUT, dan itu bukan kelebihan cakupan.** `PurchaseOrderStoreRequest` MENGIZINKAN PO tanpa PR
+(`purchase_requisition_id` nullable + `pr_bypass_reason` wajib bila kosong). Versi pertama layanan
+ini hanya mengkueri baris PR, jadi barang yang sudah ada di PO Disetujui — uangnya sudah terikat —
+muncul lagi sebagai "Akan diusulkan", dan menekan tombolnya melahirkan permintaan kedua yang baru
+terlihat ketika barangnya datang dua kali. Kalimatnya membedakan keduanya: **"Sudah dipesan pada
+PO/…"** versus **"Sudah diminta pada PR/…"**; yang pertama sudah menjadi janji kepada pemasok.
+
 Lengan "tanpa gudang" adalah pilihan ke arah yang lebih sepi, dan biayanya dibayar dengan
-keterlihatan: tiap baris yang dilewati menuliskan **kode PR** yang menutupinya. Kalimat aturannya
-dikirim server (`why_skipped`) — salinan di layar akan menyimpang pada suntingan pertama.
+keterlihatan: tiap baris yang dilewati menuliskan **kode dokumen** yang menutupinya. Kalimat
+aturannya dikirim server (`why_skipped`) — salinan di layar akan menyimpang pada suntingan
+pertama, dan sampai putaran perbaikan F-6 tidak satu pun uji PHP memakunya (hanya harness), jadi ia
+hilang dari gerbang rilis paket berikutnya.
 
 **Satu PR per GUDANG**, karena PR punya satu `warehouse_id`. Proyeknya **diturunkan** dari
 `inv_warehouses.project_id`, taksiran harganya dari `inv_items.last_price`, jumlahnya dari ambang
@@ -1668,7 +1691,36 @@ sehingga barang yang dipindai masuk ke kartu stok barang lain. Karena itu:
   sendiri: uji yang membandingkan lebar terhadap `Code128::QUIET_MODULES` ikut berubah bersama
   mutasinya, dan menyetel konstanta itu ke 0 — yang membuang seluruh zona tenang dan membuat
   pemindai gagal diam-diam — lolos HIJAU (diukur).
-- **Teks terbaca-manusia WAJIB**, dari teks yang sama dengan yang dikodekan.
+- **Teks terbaca-manusia WAJIB**, dari teks yang sama dengan yang dikodekan — dan **DIPATAHKAN,
+  bukan dibiarkan keluar viewport**. `<text text-anchor="middle">` dipusatkan tanpa batas lebar dan
+  akar SVG memotong yang keluar, DI KEDUA UJUNG, diam-diam: barcode 13 digit di bawah kode item 40
+  karakter tercetak sebagai 12 digit yang terlihat lengkap, dan orang yang mengetiknya ulang
+  mendapat "tidak ada item dengan kode itu". Dipatahkan dan bukan dikecilkan fontnya: font yang
+  menyusut sampai muat berhenti bisa dibaca orang.
+- **UKURAN CETAK DIHITUNG DI PHP, TIDAK DISERAHKAN KE CSS.** Lebar modul cetak = lebar kotak ÷
+  `Code128::moduleCount()`, dan di bawah `Code128::MIN_MODULE_MM` (0,25 mm, X-dimension minimum
+  GS1) batangnya menyatu di kertas dan pemindai gagal **diam-diam**. Versi pertama F/LBL memakai
+  `.stiker { width: 62mm }` + `max-width: 100%`: kotaknya tetap dan GAMBARNYA yang dikecilkan —
+  2,8% untuk barcode pemasok 100 karakter, modul 0,055 mm, 0 dari 5 garis pindai terbaca pada
+  raster 600 dpi dari PDF cetaknya sendiri, tanpa satu kata pun di lembarnya. Sekarang **kotaknya
+  yang menyesuaikan** (kisi jatuh 3 → 2 → 1 stiker per baris) dan kode yang tetap tidak muat
+  DITOLAK dengan kalimat yang menyebut panjangnya — aturan kejujuran yang sama dengan karakter di
+  luar ASCII 32–126, karena alasannya sama persis. Opsi `module` hanya memilih satuan viewBox;
+  `widthMm` yang menentukan milimeter di kertas. Uji yang mengukur PIKSEL atribut SVG buta terhadap
+  seluruh kelas cacat ini: tiga mutasi (lebar stiker, `module`, tinggi batang) lolos hijau pada 71
+  uji / 5.963 asersi sebelum uji milimeter ada.
+- **Tinggi batang ≥ 15% lebar simbol** (dan ≥ 8 mm): simbol lebar yang pendek adalah sehelai garis
+  yang tidak bisa dilacak pemindai.
+- **`.lembar` adalah KONTRAK dengan `print.js`, bukan gaya.** `printWhenLoaded()` menunggu
+  `tab.document.querySelector('.lembar')` sebelum memanggil `tab.print()` — `readyState` saja tidak
+  cukup, karena `about:blank` sudah `complete` dan yang tercetak akan menjadi halaman penampung.
+  Lembar bespoke yang tidak mewarisi `forms.layout` **harus membawa pembungkus itu sendiri**: tanpa
+  ia lembarnya tergambar sempurna di tab barunya dan dialog cetak TIDAK PERNAH muncul; sesudah
+  ~7 detik `PRINT_POLL_LIMIT` menyerah tanpa satu pun pesan, dan di gudang itu terbaca sebagai
+  "tombol cetaknya rusak". Dipaku `PrintFormReachabilityTest` untuk SETIAP formulir bespoke.
+- **Barcode ganda disebut DI LEMBARNYA**, sebelum stikernya menempel di rak. Layar pindai memang
+  sudah mengatakannya — tetapi ia mengatakannya berbulan kemudian, ketika seseorang memindai stiker
+  yang sudah tertempel, yaitu pada saat yang paling mahal.
 
 **F/LBL adalah formulir BESPOKE**, bukan entri `PrintableDocuments`: registri itu menggambar
 dokumen bertanda tangan (pita empat pihak, blok identitas, tiga kolom tanda tangan), dan lembar
@@ -1696,6 +1748,33 @@ setelan situs) · **tidak ada** kamera (bukan soal izin). Plus keadaan kelima ya
 menyala dan belum menemukan apa pun. Satu kalimat untuk keempatnya mengirim orang gudang mencari
 setelan izin di ponsel yang memang tidak punya kamera.
 
+**URUTAN PEMERIKSAANNYA BAGIAN DARI ATURANNYA: `isSecureContext` LEBIH DULU.** `BarcodeDetector`
+ber-`[SecureContext]`, jadi pada asal http ia `undefined` DAN `navigator.mediaDevices` ikut
+undefined. Memeriksa detektornya lebih dulu membuat pemakai http di Chrome Android selalu jatuh ke
+cabang pertama dan membaca "buka halaman ini dengan Chrome di Android" — peramban yang sedang ia
+pakai. Konteks tidak aman adalah sebab yang lebih spesifik: ia menjelaskan ketiadaan keduanya.
+Harness yang menyuntikkan `BarcodeDetector` palsu ke dalam halaman tidak aman menguji kombinasi
+yang tidak pernah diproduksi platform mana pun, dan hijau untuk urutan yang salah.
+
+**SATU PENDENGAR PER TOMBOL.** `ui.js` memasang `onClick:` lewat `addEventListener`; menambahkan
+`node.onclick = …` di atasnya adalah pendengar KEDUA, bukan pengganti. Pada tombol kamera itu
+berarti satu klik menjalankan `startCamera()` DAN `stopCamera()`: akuisisi kedua menimpa `stream`
+sebelum yang pertama sempat dihentikan, dan trek yang benar-benar dilihat orangnya kehilangan
+seluruh rujukannya tanpa pernah di-`stop()` — layar berkata "Kamera belum dinyalakan" sementara
+lampu kameranya menyala terus. Tukar SATU variabel handler, jangan menumpuk pendengar.
+
+**PENCOCOKANNYA TIDAK PEDULI BESAR-KECIL HURUF**, dengan `UPPER()` di kedua sisi dan bukan
+collation (SQLite peka huruf pada `=`, MySQL tidak — tanpa itu jawabannya berbeda antara mesin uji
+dan produksi). Papan ketik iOS mengapitalkan huruf pertama secara bawaan dan jalur ketik adalah
+satu-satunya jalur di iPhone; isiannya juga membawa `autocapitalize="none"` dan `autocorrect="off"`
+supaya masukannya tidak diubah sebelum kode ini melihatnya. Permukaan saudaranya
+(`GET inventory/items?q=`) sudah menjawab begitu sejak lama.
+
+**Standar target sentuh 42–46 px berlaku untuk SETIAP tombol di layar ini**, bukan hanya isian
+ketiknya: `.btn` 34 px dan `.btn.sm` 28 px adalah kotak yang dicoba ditekan dua kali oleh orang
+bersarung tangan. `.btn.lg` menyetel `width: 100%`, jadi tingginya disetel lewat satu helper —
+bukan ditaburkan per tombol dan terlupa pada tombol berikutnya.
+
 **`video.play()` tidak boleh di-`await`.** Janjinya baru selesai ketika trek mengirim bingkai
 pertamanya; kamera yang menyala tanpa mengirim apa pun menggantung baris itu selamanya, pemindainya
 tidak pernah mulai, dan kalimat di layar berhenti di "Meminta izin kamera…" — yang persis salah.
@@ -1703,6 +1782,10 @@ tidak pernah mulai, dan kalimat di layar berhenti di "Meminta izin kamera…" �
 **Kamera dimatikan lewat `video.isConnected`**, karena router ini tidak punya kait teardown:
 berpindah rute mencabut `<video>` dari dokumen dan putaran pemindai menghentikan treknya sendiri
 ≤250 ms kemudian. Tanpa itu lampu kamera tetap menyala dan di Android menahan aplikasi lain.
+**Yang diuji adalah keadaan TREKNYA** (`MediaStreamTrack.readyState`, `stream.active`), bukan
+tombolnya dan bukan kalimat statusnya: melumpuhkan `stopCamera()` sepenuhnya meninggalkan ketiga
+skenario harness F-6 hijau semuanya, dan yang menemukannya adalah orang gudang yang baterainya
+habis sebelum jam dua.
 
 **`inv_items.barcode` NULLABLE dan TIDAK UNIK.** Pemindaian yang menemukan dua item **tidak pernah
 memilihkan**: server memulangkan semuanya dengan `status: 'ambiguous'`, dan layar menampilkan
