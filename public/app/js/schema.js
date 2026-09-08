@@ -208,9 +208,12 @@ export const RESOURCES = {
           { key: 'email', label: 'Email', type: 'text' },
           { key: 'estimated_value', label: 'Estimasi nilai', type: 'currency' },
           { key: 'user_id', label: 'Sales penanggung jawab', type: 'lookup', lookup: 'users' },
-          // Pengingat funnel awal (temuan #58): sebelum ada penawaran, tidak
-          // ada dokumen lain yang bisa membawa tanggal tindak lanjut.
-          { key: 'next_follow_up_at', label: 'Follow-up berikutnya', type: 'date' },
+          /* Tanggal tindak lanjut TIDAK LAGI DIKETIK (F-3 / T3.3): ia
+             diturunkan dari aktivitas terbuka paling awal prospek ini, dan
+             server menolak (422) field ini dengan kalimat yang menyebut kartu
+             Aktivitas. Sebuah isian yang masih ada di sini akan mengirimkan
+             nilainya pada setiap Simpan dan membuat SETIAP penyuntingan
+             prospek gagal — bukan isian mati, isian yang dihapus. */
           { key: 'need_summary', label: 'Ringkasan kebutuhan', type: 'textarea', span: 2 },
           { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
         ],

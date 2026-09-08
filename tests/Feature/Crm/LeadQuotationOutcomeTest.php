@@ -170,12 +170,35 @@ class LeadQuotationOutcomeTest extends ErpTestCase
 
     // ---------------------------------------------------------- follow-up date
 
-    public function test_the_follow_up_date_rides_the_lead_endpoints(): void
+    /**
+     * Tanggal tindak lanjut TIDAK LAGI DIKETIK (F-3 / T3.3).
+     *
+     * Uji ini dulu mengirim tanggalnya lewat PUT dan menuntut 200 — perilaku
+     * yang sengaja dicabut: kolomnya kini turunan dari aktivitas terbuka
+     * (LeadFollowUpService), dengan satu penulis. Yang dipaku sekarang adalah
+     * jalan barunya, dari ujung ke ujung: sebuah aktivitas berjatuh tempo
+     * membuat tanggal itu muncul di baris prospeknya sendiri.
+     * LeadFollowUpDerivationTest memaku sisanya, termasuk nasib tanggal yang
+     * sudah terlanjur diketik sebelum paket ini.
+     */
+    public function test_the_follow_up_date_comes_from_an_activity(): void
     {
         $lead = $this->makeLead();
+        $admin = $this->adminUser();
 
-        $this->actingAs($this->adminUser())
+        $this->actingAs($admin)
             ->putJson("/api/crm/leads/{$lead->id}", ['next_follow_up_at' => '2026-08-20'])
+            ->assertStatus(422);
+
+        $this->actingAs($admin)
+            ->postJson('/api/crm/activities', [
+                'document_type' => 'lead', 'document_id' => $lead->id,
+                'type' => 'call', 'subject' => 'Telepon tindak lanjut', 'due_at' => '2026-08-20',
+            ])
+            ->assertStatus(201);
+
+        $this->actingAs($admin)
+            ->getJson("/api/crm/leads/{$lead->id}")
             ->assertStatus(200)
             ->assertJsonPath('data.next_follow_up_at', '2026-08-20');
     }
