@@ -149,8 +149,9 @@ Estimation, Projects, Procurement, Subcontract dan Unit — **3.236 uji, 18.784 
 (11 skipped, semuanya sudah ada sebelum paket ini). `pint --dirty` bersih.
 
 **MySQL** (`phpunit.mysql.xml`): berkas anggaran Finance + `ThresholdWatchTest` +
-`RapRevisionTest` + `DocumentFormatValidationTest` + `ApprovalDelegationRouteReachTest` —
-**141 uji, 609 assertion hijau**, termasuk penegakan "satu OVB disetujui per tahun" lewat kolom
+`RapRevisionTest` + `tests/Unit/Core/DocumentFormatValidationTest` + `ApprovalDelegationRouteReachTest` —
+**176 uji, 805 assertion hijau** (diukur 8 Sep 2026, satu proses, delapan berkas itu persis),
+termasuk penegakan "satu OVB disetujui per tahun" lewat kolom
 generated STORED + UNIQUE (padanan indeks parsial SQLite; keduanya dalam satu migrasi, satu cabang
 driver). Kaki MySQL itu pula yang menangkap `COUNT(*) as lines` — hijau di SQLite, `1064` di
 MySQL 8 (lihat § Putaran verifikasi).
