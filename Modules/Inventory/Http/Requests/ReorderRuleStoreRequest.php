@@ -12,6 +12,34 @@ class ReorderRuleStoreRequest extends FormRequest
         return true; // permission middleware guards the route
     }
 
+    /**
+     * KOTAK YANG DIKOSONGKAN ADALAH ANGKA NOL, BUKAN 500.
+     *
+     * `reorder_qty` dan `is_active` NOT NULL di kedua dialek. `nullable` dalam
+     * aturan validasi hanya berarti "tidak wajib": sebuah null EKSPLISIT —
+     * yang justru dikirim layar, karena form.js membaca isian qty kosong
+     * sebagai null dan mengirimkannya — lolos validasi dan mendarat di INSERT
+     * sebagai QueryException. Yang dibaca penjaga gudang adalah satu kalimat
+     * SQL mentah beserta jalur berkas basis datanya, dan suntingannya hilang.
+     *
+     * Sumbernya yang dipaku di sini, bukan kolomnya yang dilonggarkan: 0 pada
+     * `reorder_qty` SUDAH punya arti yang dinyatakan ("tidak dinyatakan; usulan
+     * PR memakai kekurangannya sendiri" — migrasi 001700), jadi null → 0
+     * adalah terjemahan, bukan tebakan. `is_active` yang tidak disebut adalah
+     * aturan yang menyala: sebuah aturan yang baru dibuat tetapi mati sejak
+     * lahir tidak menjelaskan apa pun kepada yang membuatnya.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('reorder_qty') && $this->input('reorder_qty') === null) {
+            $this->merge(['reorder_qty' => 0]);
+        }
+
+        if (! $this->has('is_active') || $this->input('is_active') === null) {
+            $this->merge(['is_active' => true]);
+        }
+    }
+
     public function rules(): array
     {
         return [

@@ -132,6 +132,106 @@ class ReorderRuleApiTest extends ErpTestCase
         $this->assertSame($central->id, $moving->fresh()->warehouse_id);
     }
 
+    /**
+     * ARAH KEDUA dari penjaga yang sama — dan yang dulu tidak dijaga.
+     *
+     * Penjaga uniknya dulu hanya menumpang pada `warehouse_id`, yang bertanda
+     * `sometimes`: muatan yang hanya menyebut `item_id` melewatkan seluruh
+     * pemeriksaan dan mendarat sebagai 500 dari QueryException — persis
+     * kegagalan yang request ini ada untuk mencegah, dari arah yang lain.
+     */
+    public function test_moving_a_rule_onto_another_item_of_the_same_warehouse_is_refused_too(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-PUSAT');
+        $semen = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        $besi = $this->makeItem('Besi Beton D16', ['min_stock' => 100]);
+
+        $moving = ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $semen->id, 'reorder_point' => 200, 'reorder_qty' => 0, 'is_active' => true]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $besi->id, 'reorder_point' => 20, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $response = $this->actingAs($this->adminUser(), 'sanctum')
+            ->putJson("api/inventory/reorder-rules/{$moving->id}", ['item_id' => $besi->id])
+            ->assertStatus(422);
+
+        $this->assertStringContainsString(
+            'sudah punya aturan reorder',
+            (string) $response->json('errors.item_id.0'),
+        );
+
+        $this->assertSame($semen->id, $moving->fresh()->item_id, 'Barisnya tidak boleh berpindah.');
+    }
+
+    /**
+     * "JUMLAH PESAN" YANG DIKOSONGKAN — persis yang teks bantuan di bawah
+     * kotaknya sarankan sebagai cara menyatakan "pakai kekurangannya".
+     *
+     * Kolomnya NOT NULL di kedua dialek, dan `nullable` dalam aturan validasi
+     * hanya berarti "tidak wajib": sebuah null EKSPLISIT lolos dan mendarat di
+     * UPDATE sebagai 500 yang mencetak SQL mentah beserta jalur berkas basis
+     * data ke layar penjaga gudang. Sumbernya yang dipaku, bukan kolomnya yang
+     * dilonggarkan.
+     */
+    public function test_clearing_the_order_quantity_is_the_documented_way_to_say_use_the_shortage(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-PUSAT');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        $rule = ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 50, 'reorder_qty' => 25, 'is_active' => true]);
+
+        $payload = $this->actingAs($this->adminUser(), 'sanctum')
+            ->putJson("api/inventory/reorder-rules/{$rule->id}", [
+                'warehouse_id' => $warehouse->id,
+                'item_id' => $item->id,
+                'reorder_point' => 50,
+                'reorder_qty' => null,
+                'is_active' => true,
+                'notes' => null,
+            ])
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame(0.0, (float) $payload['reorder_qty']);
+        $this->assertSame('0.000', $rule->fresh()->reorder_qty);
+    }
+
+    /** Sama pada PEMBUATAN: kotak yang dibiarkan kosong bukan 500. */
+    public function test_creating_a_rule_with_an_empty_order_quantity_is_accepted_as_zero(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-SITE');
+        $item = $this->makeItem('Kabel UTP Cat6', ['min_stock' => 100]);
+
+        $payload = $this->actingAs($this->adminUser(), 'sanctum')
+            ->postJson('api/inventory/reorder-rules', [
+                'warehouse_id' => $warehouse->id,
+                'item_id' => $item->id,
+                'reorder_point' => 20,
+                'reorder_qty' => null,
+                'is_active' => null,
+                'notes' => null,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        $this->assertSame(0.0, (float) $payload['reorder_qty']);
+        // is_active null pada PEMBUATAN adalah "tidak dinyatakan", dan sebuah
+        // aturan yang baru dibuat tetapi mati sejak lahir tidak menjelaskan
+        // apa pun kepada yang membuatnya.
+        $this->assertTrue($payload['is_active']);
+    }
+
+    /** …dan is_active null pada SUNTINGAN tidak mematikan saklar yang menyala. */
+    public function test_a_null_switch_on_edit_leaves_the_rule_where_it_was(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-PUSAT');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        $rule = ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 50, 'reorder_qty' => 0, 'is_active' => false]);
+
+        $this->actingAs($this->adminUser(), 'sanctum')
+            ->putJson("api/inventory/reorder-rules/{$rule->id}", ['reorder_point' => 60, 'is_active' => null])
+            ->assertOk();
+
+        $this->assertFalse($rule->fresh()->is_active);
+    }
+
     /** …dan menyunting aturan itu sendiri tanpa memindahkannya tetap boleh. */
     public function test_editing_a_rule_in_place_is_not_blocked_by_its_own_row(): void
     {
