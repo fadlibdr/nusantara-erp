@@ -1654,6 +1654,21 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .upload-item .row-actions { width: 100%; justify-content: flex-end; }
 }
 
+/* F-4 — absensi masuk/pulang.
+   .absensi-actions: empat tombol lg satu kolom penuh, karena layar ini dipakai
+   sambil berdiri dengan satu tangan; .btn.lg di atas sudah width:100%, jadi
+   yang dibutuhkan hanya jarak antar tombol.
+   .absensi-side: satu blok per sisi (masuk/pulang) dengan lencana putusan di
+   kanan judulnya. Garis pemisah, bukan kartu — kartu di dalam kartu membuat
+   panel rincian terlihat seperti empat dokumen berbeda. */
+.absensi-actions { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.absensi-side { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+.absensi-side-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.absensi-side .cell-sub { margin-top: 2px; }
+.absensi-day .card-body > .cell-sub:first-child { margin: 0; }
+.absensi-trail { border-bottom: 1px solid var(--border); padding: 8px 0; }
+.absensi-trail:last-child { border-bottom: 0; }
+
 /* P1-I — pita luring di atas antrean Lapangan. Bentuknya .alert.warn (token yang
    sama, kedua tema ikut sendiri), tetapi kelasnya sendiri karena ia BUKAN alert
    sebuah halaman: ia menyala dan padam mengikuti jaringan, dan ui.js

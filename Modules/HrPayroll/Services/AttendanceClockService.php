@@ -230,6 +230,25 @@ class AttendanceClockService
         ));
     }
 
+    /**
+     * Jam ponsel, DIPINDAHKAN ke zona waktu aplikasi.
+     *
+     * Ponsel mengirim ISO-8601 ber-offset ("2026-09-08T00:30:00.000Z" untuk
+     * pukul 07.30 WIB). Carbon::parse memahaminya dengan benar sebagai SAAT,
+     * tetapi objek yang dihasilkan masih ber-zona UTC — dan dua hal pecah kalau
+     * ia dipakai apa adanya:
+     *
+     *  - `->toDateString()` menjawab tanggal UTC. Absen pukul 06.30 WIB adalah
+     *    23.30 UTC HARI SEBELUMNYA, jadi setiap absen pagi sebelum pukul tujuh
+     *    akan diarsipkan ke tanggal kemarin — dan menabrak kunci unik
+     *    (karyawan, tanggal) milik hari kemarin.
+     *  - kolom `*_device_at` tersimpan sebagai jam dinding UTC di samping
+     *    `*_at` yang tersimpan sebagai jam dinding WIB, sehingga layar
+     *    menampilkan "tercatat 17:41, ditekan di ponsel 10:41" untuk satu
+     *    tombol yang ditekan sekali (terukur di chromium, 8 Sep 2026).
+     *
+     * Keduanya kelihatan seperti bug antrean luring, bukan seperti zona waktu.
+     */
     private function deviceTime(?string $raw): ?Carbon
     {
         if ($raw === null || trim($raw) === '') {
@@ -237,7 +256,7 @@ class AttendanceClockService
         }
 
         try {
-            return Carbon::parse($raw);
+            return Carbon::parse($raw)->setTimezone(config('app.timezone'));
         } catch (\Throwable) {
             // Jam ponsel yang mengirim sampah bukan alasan menolak absensinya.
             return null;

@@ -270,6 +270,31 @@ class AttendanceClockTest extends ErpTestCase
     }
 
     /**
+     * Ponsel mengirim ISO-8601 ber-offset. Absen pukul 06.30 WIB adalah 23.30
+     * UTC HARI SEBELUMNYA — dipakai apa adanya, setiap absen pagi sebelum pukul
+     * tujuh akan diarsipkan ke tanggal kemarin dan menabrak kunci unik hari
+     * kemarin.
+     */
+    public function test_an_iso_offset_from_the_phone_is_read_in_jakarta_time(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->fieldUser($employee);
+
+        Carbon::setTestNow(Carbon::parse('2026-09-08 06:31:00'));
+
+        // 2026-09-07T23:30:00Z == 2026-09-08 06:30 WIB.
+        $this->postJson('/api/hr/attendances/me/clock-in', [
+            'device_at' => '2026-09-07T23:30:00.000Z',
+        ])->assertOk();
+
+        $row = Attendance::query()->where('employee_id', $employee->id)->firstOrFail();
+        $this->assertSame('2026-09-08', $row->date->toDateString(), 'Absen pagi WIB bukan absen kemarin.');
+        $this->assertSame('06:30', $row->check_in_device_at->format('H:i'), 'Jam perangkat dibaca dalam zona aplikasi.');
+
+        Carbon::setTestNow();
+    }
+
+    /**
      * Butir antrean yang sama dikirim ulang membawa jam ponsel yang sama —
      * satu-satunya tanda yang membedakan "kirim ulang" dari "ditekan dua kali".
      */

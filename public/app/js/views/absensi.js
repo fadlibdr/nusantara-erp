@@ -12,10 +12,11 @@
    bisa diperbaiki kapan saja tanpa menyentuh uang yang sudah dibayar. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, toast, toastError, errorState, emptyState, skeletonTable, withBusy, field } from '../ui.js';
+import { el, clear, button, badge, toast, toastError, errorState, emptyState, skeletonTable, withBusy, field, modal, closeModal } from '../ui.js';
 import * as fmt from '../format.js';
 import { loadSource, peek } from '../lookup.js';
 import { openPrintable } from '../print.js';
+import { attachmentsCard } from './attachments.js';
 
 const STATUSES = [
   { value: 'hadir', label: 'Hadir', tone: 'green' },
@@ -35,6 +36,163 @@ const SAVED_PAGE_SIZE = 500;
 function rows(payload) {
   if (Array.isArray(payload)) return payload;
   return (payload && payload.data) || [];
+}
+
+/* ------------------------------------------------ rincian satu hari (F-4) */
+
+/**
+ * Satu sisi absen (masuk atau pulang) sebagai blok yang bisa dibaca.
+ *
+ * `distance_text` dan `verdict_text` datang JADI dari server
+ * (AttendanceResource). Layar ini tidak pernah menyusunnya dari angka: begitu
+ * ia boleh, layar kedua akan menyusunnya sedikit berbeda dan yang ketiga akan
+ * menulis "0 m" untuk jarak yang tidak pernah terukur.
+ */
+function sideBlock(label, side) {
+  if (!side.recorded) {
+    return el('.absensi-side', [
+      el('.absensi-side-head', [el('strong', { text: label }), el('.spacer'), badge('Belum tercatat', '')]),
+      el('.cell-sub', { text: 'Tidak ada absen dari ponsel untuk sisi ini.' }),
+    ]);
+  }
+
+  const tone = side.verdict === 'outside' ? 'red' : (side.verdict === 'inside' ? 'green' : '');
+
+  return el('.absensi-side', [
+    el('.absensi-side-head', [el('strong', { text: label }), el('.spacer'), badge(side.verdict_text, tone)]),
+    el('.cell-sub', {
+      text: side.device_time_text && side.device_time_text !== side.time_text
+        ? `Jam server ${side.time_text} · ditekan di ponsel ${side.device_time_text}`
+        : `Jam server ${side.time_text}`,
+    }),
+    el('.cell-sub', {
+      text: `Jarak ke titik proyek: ${side.distance_text}`
+        + (side.geofence_m ? ` (radius berlaku saat itu ${side.geofence_m} m)` : '')
+        + (side.accuracy_m ? ` · akurasi fix ±${side.accuracy_m} m` : ''),
+    }),
+  ]);
+}
+
+/**
+ * Panel rincian satu baris absensi: apa yang tercatat dari ponsel, selfie yang
+ * menyertainya, jejak koreksinya, dan formulir koreksi yang MENUNTUT alasan.
+ *
+ * Alasan wajib bukan gaya rumah: sejak absensi bisa diisi orangnya sendiri,
+ * menyimpan di sini menimpa catatan seseorang tentang dirinya, dan pertanyaan
+ * "siapa memindahkan jam pulang saya, kapan, kenapa" harus punya jawaban.
+ */
+function openDetail(rowId, onSaved) {
+  const body = el('div');
+  const canEdit = session.can('hr.update');
+
+  modal({
+    title: 'Rincian absensi',
+    body,
+    width: 'wide',
+  });
+
+  async function load() {
+    clear(body).appendChild(el('p.muted', { text: 'Memuat…' }));
+
+    let row;
+    let trail;
+    try {
+      [row, trail] = await Promise.all([
+        api.get(`hr/attendances/${rowId}`),
+        api.get(`hr/attendances/${rowId}/corrections`),
+      ]);
+    } catch (error) {
+      clear(body).appendChild(errorState(error, load));
+      return;
+    }
+
+    clear(body);
+
+    body.appendChild(el('.card', [
+      el('.card-head', [
+        el('h2', { text: `${row.employee ? row.employee.name : '—'} · ${fmt.date(row.date)}` }),
+        el('.spacer'),
+        badge(row.status_label || row.status || '—', row.status === 'hadir' ? 'green' : ''),
+      ]),
+      el('.card-body', [
+        el('.cell-sub', { text: row.project ? `Proyek: ${row.project.code} — ${row.project.name}` : 'Tanpa proyek.' }),
+        sideBlock('Absen masuk', row.check_in),
+        sideBlock('Absen pulang', row.check_out),
+      ]),
+    ]));
+
+    const selfies = attachmentsCard('hr/attendances', row.id, 'hr');
+    if (selfies) body.appendChild(selfies);
+
+    body.appendChild(el('.card', [
+      el('.card-head', [el('h2', { text: 'Jejak koreksi' }), el('.spacer')]),
+      el('.card-body', trail.length
+        ? trail.map((entry) => el('.absensi-trail', [
+          el('.cell-main', { text: `${entry.field_label}: ${entry.old_value === null ? '(kosong)' : entry.old_value} → ${entry.new_value === null ? '(kosong)' : entry.new_value}` }),
+          el('.cell-sub', { text: `${entry.source_label} · ${fmt.dateTime(entry.created_at)}` }),
+          el('.cell-sub', { text: entry.reason }),
+        ]))
+        : el('p.muted', { text: 'Belum pernah dikoreksi.', style: { margin: 0 } })),
+    ]));
+
+    if (!canEdit) {
+      body.appendChild(el('p.muted', { text: 'Anda tidak memiliki izin hr.update — panel ini hanya membaca.' }));
+      return;
+    }
+
+    const statusSelect = el('select', STATUSES.map((status) => el('option', { value: status.value, text: status.label })));
+    statusSelect.value = row.status;
+
+    const noteInput = el('input', { type: 'text', maxlength: '200', value: row.note || '' });
+    const inInput = el('input', { type: 'datetime-local', value: fmt.toDateTimeInput(row.check_in.at) });
+    const outInput = el('input', { type: 'datetime-local', value: fmt.toDateTimeInput(row.check_out.at) });
+    const reasonInput = el('textarea', { rows: '2', maxlength: '500', placeholder: 'Kenapa baris ini dikoreksi?' });
+
+    const save = button('Simpan koreksi', {
+      variant: 'primary',
+      iconName: 'check',
+      onClick: () => withBusy(save, async () => {
+        try {
+          const result = await api.put(`hr/attendances/${row.id}`, {
+            status: statusSelect.value,
+            project_id: row.project_id,
+            note: noteInput.value || null,
+            /* Kotak yang DIKOSONGKAN mengirim null eksplisit — "hapus jam ini" —
+               dan kotak yang tidak berubah tetap mengirim nilainya. Keduanya
+               sengaja: server membedakan kunci yang absen (jangan sentuh) dari
+               null eksplisit (kosongkan), dan panel ini selalu menawarkan kedua
+               kotaknya, jadi ia selalu punya pendapat tentang keduanya. */
+            check_in_at: inInput.value ? inInput.value.replace('T', ' ') : null,
+            check_out_at: outInput.value ? outInput.value.replace('T', ' ') : null,
+            reason: reasonInput.value,
+          });
+          toast(result && result.message ? result.message : 'Koreksi tersimpan.');
+          closeModal();
+          if (onSaved) onSaved();
+        } catch (error) {
+          toastError(error);
+        }
+      }),
+    });
+
+    body.appendChild(el('.card', [
+      el('.card-head', [el('h2', { text: 'Koreksi' }), el('.spacer')]),
+      el('.card-body', [
+        field('Status', statusSelect),
+        field('Catatan', noteInput),
+        field('Jam masuk', inInput, { help: 'Kosongkan untuk membatalkan jam masuk yang salah.' }),
+        field('Jam pulang', outInput, { help: 'Diisi ketika orangnya lupa menekan absen pulang.' }),
+        field('Alasan koreksi', reasonInput, {
+          required: true,
+          help: 'Tersimpan sebagai jejak bersama nilai lamanya. Koordinat, jarak dan radius TIDAK '
+            + 'bisa dikoreksi di sini — itu hasil pengukuran, bukan pendapat.',
+        }),
+        save,
+      ]),
+    ]));
+  }
+
+  load();
 }
 
 export async function renderAbsensi(host) {
@@ -298,6 +456,20 @@ export async function renderAbsensi(host) {
         if (savedRow) {
           const meta = STATUSES.find((status) => status.value === savedRow.status);
           savedCell.appendChild(badge(meta ? meta.label : savedRow.status, meta ? meta.tone : ''));
+          /* Lencana kecil di kolom yang sama, bukan kolom baru: lembar ini
+             sudah tiga kolom di 390 px. Ia hanya muncul untuk baris yang
+             MEMANG punya absen ponsel — baris kerani murni tidak berpura-pura
+             punya sesuatu untuk dilihat. */
+          if (savedRow.check_in && savedRow.check_in.recorded) {
+            const tone = savedRow.check_in.verdict === 'outside'
+              ? 'red'
+              : (savedRow.check_in.verdict === 'inside' ? 'green' : '');
+            savedCell.appendChild(badge(`${savedRow.check_in.time_text} · ${savedRow.check_in.verdict_text}`, tone));
+          }
+          savedCell.appendChild(button('Rincian', {
+            size: 'sm',
+            onClick: () => openDetail(savedRow.id, load),
+          }));
         } else {
           savedCell.appendChild(el('span.muted', { text: '—' }));
         }

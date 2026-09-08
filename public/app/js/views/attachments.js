@@ -53,6 +53,11 @@ export const ATTACHABLE = new Set([
   'subcontract/subcontracts', 'subcontract/progress-claims',
   'finance/ar-invoices', 'finance/ap-bills', 'finance/payments', 'finance/journals',
   'finance/petty-cash-vouchers', 'finance/kasbon',
+  /* F-4: selfie absen masuk/pulang menempel pada BARIS ABSENSINYA. Kartu
+   * lampirannya muncul di panel satu hari pada layar Absensi Harian — dan
+   * hanya di sana, karena melihat foto seseorang tidak boleh lebih mudah
+   * daripada melihat baris absensinya (izin hr). */
+  'hr/attendances',
   'hr/employees', 'hr/certificates', 'hr/leave-requests',
   'servicedesk/tickets', 'servicedesk/field-reports',
   'assets/assets',

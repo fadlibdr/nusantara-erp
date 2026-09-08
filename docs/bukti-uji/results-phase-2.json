@@ -1747,5 +1747,558 @@
   "ok": true,
   "_ms": 22359,
   "_clicks": 0
+ },
+ "S15_lapangan_upload": {
+  "report_created": true,
+  "photos_before": 0,
+  "throttled": {
+   "ms": 9644,
+   "samples": 67,
+   "distinct_pct": 66,
+   "pct_first_last": [
+    0,
+    100
+   ],
+   "states": [
+    "sending"
+   ],
+   "texts": [
+    "1.0 MB · Mengirim… N %",
+    "1.0 MB · Menunggu jawaban server…"
+   ],
+   "toast": [
+    "Foto uji-1mb.jpg terkirim dengan lokasi."
+   ],
+   "photos_after": 1,
+   "queue_rows": 0,
+   "stored_keys": 0
+  },
+  "failed": {
+   "state": "failed",
+   "text": "1.0 MB · Belum terkirim — Tidak dapat terhubung ke server.",
+   "pct": null,
+   "bar_width": null,
+   "buttons": [
+    "Kirim ulang",
+    "Buang"
+   ],
+   "stored_keys": 1,
+   "toasts": []
+  },
+  "after_reload": {
+   "state": "failed",
+   "text": "1.0 MB · Belum terkirim — Tidak dapat terhubung ke server.",
+   "pct": null,
+   "bar_width": null,
+   "buttons": [
+    "Kirim ulang",
+    "Buang"
+   ]
+  },
+  "retry": {
+   "toast": [
+    "Foto uji-putus.jpg terkirim dengan lokasi."
+   ],
+   "queue_rows": 0,
+   "photos_after": 2,
+   "stored_keys": 0,
+   "last_photo": "uji-putus.jpg · lokasi dari perangkat · ±12 m · hari ini · 2.8 km dari lokasi"
+  },
+  "pageerrors": [],
+  "_ms": 22416,
+  "_clicks": 4
+ },
+ "S31_absensi_gps": {
+  "inside_toast": [
+   "Absen masuk tercatat pukul 17:46. Di lokasi proyek — 0 m dari titik proyek."
+  ],
+  "inside": {
+   "linked": true,
+   "info": null,
+   "buttons": [
+    "Absen masuk (sudah tercatat)",
+    "Absen masuk tanpa foto",
+    "Absen pulang + selfie",
+    "Absen pulang tanpa foto"
+   ],
+   "geofence_line": "Radius lokasi yang berlaku: 500 m. Di luar radius, absensi Anda TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.",
+   "queue": [],
+   "days": [
+    {
+     "head": "08 Sep 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Di lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    },
+    {
+     "head": "07 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    },
+    {
+     "head": "06 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "page_scrolls_sideways": false,
+  "button_widths": [
+   328,
+   328,
+   328,
+   328
+  ],
+  "console_errors": [],
+  "outside_toast": [
+   "Absen pulang tercatat pukul 17:46. Tercatat DI LUAR lokasi proyek — 8,0 km dari titik proyek."
+  ],
+  "outside": {
+   "linked": true,
+   "info": null,
+   "buttons": [
+    "Absen masuk (sudah tercatat)",
+    "Absen masuk tanpa foto",
+    "Absen pulang (catat ulang)",
+    "Absen pulang tanpa foto"
+   ],
+   "geofence_line": "Radius lokasi yang berlaku: 500 m. Di luar radius, absensi Anda TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.",
+   "queue": [],
+   "days": [
+    {
+     "head": "08 Sep 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Di lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Di luar lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 8,0 km · akurasi fix ±15 m"
+       ]
+      }
+     ]
+    },
+    {
+     "head": "07 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    },
+    {
+     "head": "06 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "denied_toast": [
+   "Absen pulang tercatat pukul 17:46. Jarak ke lokasi proyek tidak terukur."
+  ],
+  "denied": {
+   "linked": true,
+   "info": null,
+   "buttons": [
+    "Absen masuk (sudah tercatat)",
+    "Absen masuk tanpa foto",
+    "Absen pulang (catat ulang)",
+    "Absen pulang tanpa foto"
+   ],
+   "geofence_line": "Radius lokasi yang berlaku: 500 m. Di luar radius, absensi Anda TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.",
+   "queue": [],
+   "days": [
+    {
+     "head": "08 Sep 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Di lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Lokasi tidak terukur",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: —"
+       ]
+      }
+     ]
+    },
+    {
+     "head": "07 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    },
+    {
+     "head": "06 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "offline": {
+   "linked": true,
+   "info": null,
+   "buttons": [
+    "Absen masuk (sudah tercatat)",
+    "Absen masuk tanpa foto",
+    "Absen pulang (catat ulang)",
+    "Absen pulang tanpa foto"
+   ],
+   "geofence_line": "Radius lokasi yang berlaku: 500 m. Di luar radius, absensi Anda TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.",
+   "queue": [
+    {
+     "state": "failed",
+     "text": "tanpa foto · Belum terkirim — Tidak dapat terhubung ke server.",
+     "buttons": [
+      "Kirim ulang",
+      "Buang"
+     ]
+    }
+   ],
+   "days": []
+  },
+  "offline_ribbon": "Tanpa koneksi. Absensi yang sudah ditekan tersimpan di ponsel ini — setelah sinyal kembali, tekan \"Kirim ulang\" pada barisnya.",
+  "after_reload": {
+   "linked": true,
+   "info": null,
+   "buttons": [
+    "Absen masuk (sudah tercatat)",
+    "Absen masuk tanpa foto",
+    "Absen pulang (catat ulang)",
+    "Absen pulang tanpa foto"
+   ],
+   "geofence_line": "Radius lokasi yang berlaku: 500 m. Di luar radius, absensi Anda TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.",
+   "queue": [
+    {
+     "state": "failed",
+     "text": "tanpa foto · Belum terkirim — Tidak dapat terhubung ke server.",
+     "buttons": [
+      "Kirim ulang",
+      "Buang"
+     ]
+    }
+   ],
+   "days": [
+    {
+     "head": "08 Sep 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Di lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Lokasi tidak terukur",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: —"
+       ]
+      }
+     ]
+    },
+    {
+     "head": "07 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    },
+    {
+     "head": "06 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "retry_toast": [
+   "Absen pulang tercatat pukul 17:46. Di lokasi proyek — 0 m dari titik proyek."
+  ],
+  "after_retry": {
+   "linked": true,
+   "info": null,
+   "buttons": [
+    "Absen masuk (sudah tercatat)",
+    "Absen masuk tanpa foto",
+    "Absen pulang (catat ulang)",
+    "Absen pulang tanpa foto"
+   ],
+   "geofence_line": "Radius lokasi yang berlaku: 500 m. Di luar radius, absensi Anda TETAP tersimpan dan hanya ditandai untuk dilihat pengawas.",
+   "queue": [],
+   "days": [
+    {
+     "head": "08 Sep 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Di lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Di lokasi",
+       "lines": [
+        "Tercatat 17:46",
+        "Jarak ke titik proyek: 0 m · akurasi fix ±12 m"
+       ]
+      }
+     ]
+    },
+    {
+     "head": "07 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    },
+    {
+     "head": "06 Agu 2026",
+     "sides": [
+      {
+       "label": "Absen masuk",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      },
+      {
+       "label": "Absen pulang",
+       "badge": "Belum tercatat",
+       "lines": [
+        "Belum ada catatan."
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "unlinked": {
+   "linked": false,
+   "info": "Akun ini belum ditautkan ke data karyawan, jadi tidak ada absensi yang bisa dicatat atas namanya. Minta HR menautkan akun Anda ke kartu karyawan.",
+   "buttons": [],
+   "geofence_line": null,
+   "queue": [],
+   "days": []
+  },
+  "unlinked_menu": 1,
+  "checks": {
+   "a_technician_with_no_hr_permission_reaches_the_screen": true,
+   "the_screen_says_the_radius_before_the_button_is_pressed": true,
+   "standing_on_site_reads_as_in_place": true,
+   "and_the_toast_repeats_the_servers_own_sentence": true,
+   "eight_kilometres_away_is_flagged_not_refused": true,
+   "and_it_was_still_recorded": true,
+   "a_refused_location_still_records_the_attendance": true,
+   "and_never_claims_zero_metres": true,
+   "offline_the_row_stays_and_offers_a_retry": true,
+   "and_the_buttons_do_not_vanish_with_the_list": true,
+   "and_the_ribbon_tells_the_truth_about_it": true,
+   "the_queued_punch_survives_a_page_reload": true,
+   "and_sending_it_again_empties_the_queue": true,
+   "an_account_with_no_employee_card_is_told_why": true,
+   "and_the_menu_entry_is_still_there_for_it": true,
+   "the_phone_page_never_scrolls_sideways": true,
+   "the_action_card_is_drawn_once_not_twice": true,
+   "the_buttons_are_full_width_on_a_phone": true,
+   "the_screen_raises_no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 24652,
+  "_clicks": 5
+ },
+ "S31_absensi_gps_supervisor": {
+  "detail_buttons": 1,
+  "panel": {
+   "cards": [
+    "Joko Susilo · 08 Sep 2026",
+    "Lampiran",
+    "Jejak koreksi",
+    "Koreksi"
+   ],
+   "sides": [
+    "Absen masuk Di lokasi Jam server 17:46 Jarak ke titik proyek: 0 m (radius berlaku saat itu 500 m) · akurasi fix ±12 m",
+    "Absen pulang Di lokasi Jam server 17:46 Jarak ke titik proyek: 0 m (radius berlaku saat itu 500 m) · akurasi fix ±12 m"
+   ],
+   "fields": [
+    "Status",
+    "Catatan",
+    "Jam masuk",
+    "Jam pulang",
+    "Alasan koreksi*"
+   ],
+   "has_reason": true
+  },
+  "no_reason": {
+   "toasts": [
+    "Alasan koreksi wajib diisi — koreksi absensi tersimpan sebagai jejak, dan jejak tanpa alasan tidak menjelaskan apa pun."
+   ],
+   "modal_open": true
+  },
+  "checks": {
+   "the_supervisor_panel_shows_both_sides": true,
+   "and_offers_a_correction_form_with_a_reason_box": true,
+   "and_a_selfie_card": true,
+   "and_the_trail": true,
+   "saving_without_a_reason_is_refused": true,
+   "and_the_panel_stays_open_so_the_typing_is_not_lost": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 7880,
+  "_clicks": 2
  }
 }
