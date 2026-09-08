@@ -13,6 +13,7 @@ use Modules\Inventory\Services\StockService;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
+use Tests\Support\FixtureSchema;
 
 /**
  * Registri ModuleCounts (P1-C, T1C.2) — SATU angka utama per modul.
@@ -330,6 +331,78 @@ class ModuleCountsTest extends ErpTestCase
     }
 
     // ------------------------------------------------------------- degradasi
+
+    /**
+     * DAFTAR `tables` ADALAH SATU-SATUNYA HAL YANG DIBACA Schema::hasTable —
+     * dan sampai uji ini ada, ia dijaga oleh assertNotEmpty saja.
+     *
+     * Membuang satu nama tabel dari daftar sebuah entri lolos seluruh suite
+     * Core hijau. Akibatnya bukan angka yang salah melainkan DEGRADASI KELAS
+     * DUA: pada jendela deploy sebelum migrasinya jalan, entri yang seharusnya
+     * DIAM ABSEN justru hadir dengan count NULL, dan setiap pembukaan launcher
+     * oleh setiap pengguna menuliskan peringatan di log seolah ada yang rusak.
+     *
+     * Yang dipaku di sini bukan satu tabel melainkan HUBUNGANNYA: setiap tabel
+     * yang kueri entri benar-benar sentuh harus muncul di `tables`. Ia tumbuh
+     * sendiri bersama registri, tanpa daftar kedua yang bisa menyimpang.
+     */
+    public function test_every_table_an_entry_queries_is_declared_in_the_list_that_guards_it(): void
+    {
+        $admin = $this->adminUser();
+
+        foreach (ModuleCounts::entries() as $prefix => $entry) {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+
+            try {
+                ($entry['count'])($admin);
+            } finally {
+                $sql = implode(' ; ', array_column(DB::getQueryLog(), 'query'));
+                DB::disableQueryLog();
+            }
+
+            preg_match_all('/\b(?:from|join)\s+[`"]?([a-z][a-z0-9_]*)[`"]?/i', $sql, $matches);
+            $touched = array_values(array_unique($matches[1]));
+
+            $this->assertNotEmpty($touched, "Kueri entri {$prefix} tidak menyentuh satu tabel pun — kuerinya tidak berjalan.");
+
+            foreach ($touched as $table) {
+                $this->assertContains($table, $entry['tables'],
+                    "Entri {$prefix} membaca `{$table}` tetapi tidak menyebutnya di `tables`, jadi Schema::hasTable "
+                    .'tidak menjaganya: pada jendela deploy sebelum migrasinya jalan, ubinnya hadir dengan angka NULL '
+                    .'dan sebuah peringatan di log, bukan diam absen seperti yang registri janjikan.');
+            }
+        }
+    }
+
+    /**
+     * …dan bentuk konkretnya untuk tabel yang F-6 tambahkan: tanpa
+     * `inv_reorder_rules`, entri Persediaan harus ABSEN, bukan hadir ber-NULL.
+     */
+    public function test_the_inventory_entry_falls_silent_when_the_reorder_rule_table_is_not_there_yet(): void
+    {
+        $this->skipUnlessTransactionalDdl();
+
+        $admin = $this->adminUser();
+        $this->assertContains('inv', array_column(ModuleCounts::for($admin), 'prefix'));
+
+        Log::spy();
+
+        FixtureSchema::withMissingTable('inv_reorder_rules', function () use ($admin): void {
+            ModuleCounts::flushSchemaMemo();
+            $prefixes = array_column(ModuleCounts::for($admin), 'prefix');
+
+            $this->assertNotContains('inv', $prefixes,
+                'Entri Persediaan melapor angka tanpa tabel aturan reorder yang kuerinya join.');
+            $this->assertContains('prc', $prefixes, '…dan modul lain tidak ikut hilang.');
+        });
+
+        ModuleCounts::flushSchemaMemo();
+
+        // Diam ABSEN, bukan "hadir tetapi rusak": tidak ada peringatan yang
+        // ditulis untuk tabel yang memang belum dimigrasikan.
+        Log::shouldNotHaveReceived('warning');
+    }
 
     public function test_a_table_that_does_not_exist_yet_makes_the_entry_absent(): void
     {
