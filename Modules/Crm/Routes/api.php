@@ -8,6 +8,7 @@ use Modules\Crm\Http\Controllers\ContractTerminController;
 use Modules\Crm\Http\Controllers\CustomerController;
 use Modules\Crm\Http\Controllers\GuaranteeController;
 use Modules\Crm\Http\Controllers\LeadController;
+use Modules\Crm\Http\Controllers\PipelineBoardController;
 use Modules\Crm\Http\Controllers\PipelineReportController;
 use Modules\Crm\Http\Controllers\QuotationController;
 use Modules\Crm\Http\Controllers\RkkDocumentController;
@@ -32,6 +33,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Konversi lead→pelanggan (temuan #58). crm.create, karena yang dibuat
     // adalah master pelanggan — bukan sekadar perubahan pada lead-nya.
     Route::post('leads/{lead}/convert-to-customer', [LeadController::class, 'convertToCustomer'])->middleware('permission:crm.create');
+    /*
+     * Perpindahan tahap (F-3 / T3.5) — SATU pintu: layar dokumen, daftar, papan
+     * kanban dan API memanggil rute ini, dan PUT prospek menolak field `status`.
+     * crm.update: yang berubah adalah barisnya sendiri, bukan dokumen baru.
+     */
+    Route::post('leads/{lead}/pipeline', [LeadController::class, 'movePipeline'])->middleware('permission:crm.update');
 
     /*
      * Aktivitas CRM (F-3) — register telepon/rapat/email/kunjungan/catatan yang
@@ -65,6 +72,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // quotation_id dan tanpa alasan selisihnya. crm.create, seperti
     // convert-to-customer: yang dibuat adalah dokumen baru — kontrak.
     Route::post('quotations/{quotation}/create-contract', [QuotationController::class, 'createContract'])->middleware('permission:crm.create');
+
+    /*
+     * Papan pipeline (F-3 / T3.6). MEMBACA saja — perpindahan kartu tetap lewat
+     * POST leads/{id}/pipeline, pintu yang sama dengan layar dokumen.
+     * 'pipeline/board' dideklarasikan sebelum wildcard mana pun; ia rute
+     * literal dan tidak bisa tertelan.
+     */
+    Route::get('pipeline/board', [PipelineBoardController::class, 'board'])->middleware('permission:crm.view');
 
     // Analitik win-rate (temuan #78): agregasi won_at/lost_at/lost_reason yang
     // sudah dicatat Tandai Menang/Kalah — win-rate per kuartal keputusan dan

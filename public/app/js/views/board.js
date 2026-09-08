@@ -85,19 +85,29 @@ export async function renderBoard(host, { key, def }) {
   body.appendChild(skeletonTable(4, 4));
 
   let rows;
+  let lanesMeta = null;
   try {
-    // Jalur data yang SAMA dengan layar daftar: endpoint yang sama, saringan
-    // status di server, dan pemanasan lookup yang sama supaya nama relasi di
-    // kartu ditulis fungsi yang sama dengan tabelnya.
-    const payload = await api.list(def.api, { per_page: PER_LANE * board.lanes.length });
+    /*
+     * Jalur data yang SAMA dengan layar daftar: endpoint yang sama, saringan
+     * status di server, dan pemanasan lookup yang sama supaya nama relasi di
+     * kartu ditulis fungsi yang sama dengan tabelnya.
+     *
+     * `board.api` (F-3) menukar SUMBER BACAnya saja — perpindahan tetap
+     * `runAction` ke `def.api`. Rute papan mengambil N teratas PER KOLOM dan
+     * memulangkan jumlah sebenarnya per kolom di meta.lanes; tanpa itu satu
+     * halaman berisi 300 kartu Menang mendorong kolom "Baru" keluar halaman
+     * dan papannya tampak kosong justru di kolom yang paling dikerjakan.
+     */
+    const payload = await api.list(board.api || def.api, { per_page: PER_LANE * board.lanes.length });
     rows = payload.data || [];
+    lanesMeta = (payload.meta && payload.meta.lanes) || null;
     await preload((def.columns || []).map((column) => column.lookup));
   } catch (error) {
     return clear(body).appendChild(errorState(error, () => renderBoard(host, { key, def })));
   }
 
   clear(body);
-  paint(body, { key, def, board, rows, reload: () => renderBoard(host, { key, def }) });
+  paint(body, { key, def, board, rows, lanesMeta, reload: () => renderBoard(host, { key, def }) });
 }
 
 function paint(host, ctx) {
@@ -125,11 +135,25 @@ function paint(host, ctx) {
       cards.appendChild(el('.board-empty', emptyState('Kosong.', { kind: 'inbox', compact: true, title: null })));
     }
 
+    /* Jumlah SEBENARNYA kolom ini, bila servernya memulangkannya. Lencana
+       tetap memajang yang digambar (itulah yang bisa dihitung ulang setelah
+       satu kartu pindah); selisihnya dikatakan satu baris di bawahnya, karena
+       "50" pada kolom berisi 120 prospek adalah angka yang salah dibaca setiap
+       hari tanpa pernah terasa salah. */
+    const meta = (ctx.lanesMeta || []).find((one) => one.status === lane);
+    const hidden = meta && typeof meta.count === 'number' ? meta.count - laneRows.length : 0;
+
     grid.appendChild(el('.board-lane', [
       el('.board-lane-head', [
         el('span.cell-main', { text: enumLabel(board.enum, lane) || lane }),
         el('span.board-count', { text: String(laneRows.length) }),
       ]),
+      hidden > 0
+        ? el('.cell-sub', {
+          text: `${laneRows.length} dari ${meta.count} digambar — ${hidden} lainnya ada di tampilan daftar.`,
+          style: { padding: '0 10px 6px' },
+        })
+        : null,
       cards,
     ]));
   });
@@ -181,6 +205,15 @@ function card(row, { def }) {
       rel ? el('span.cell-sub', { text: labelFor(rel.lookup, row[rel.key]) || '' }) : null,
       date && row[date.key] ? el('span.cell-sub', { text: fmt.date(row[date.key]) }) : null,
     ]),
+    /* `board.card.fields` (F-3): kalimat SIAP PAKAI dari server, ditulis apa
+       adanya. Papan prospek memakainya untuk pemilik kartu — sebuah kartu
+       tanpa pemilik berbunyi "Belum ditugaskan", kalimat yang sama dengan
+       daftar dan CSV — dan untuk aktivitas yang lewat tanggal. Nilai kosong
+       DILEWATI: baris "0 aktivitas" yang selalu ada mengajari orang
+       mengabaikan barisnya. */
+    ...(((def.board && def.board.card && def.board.card.fields) || [])
+      .filter((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')
+      .map((field) => el('span.cell-sub', { text: String(row[field]), style: { display: 'block' } }))),
   ]);
 }
 

@@ -4,7 +4,6 @@ namespace Modules\Crm\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Modules\Crm\Enums\LeadStatus;
 
 class LeadUpdateRequest extends FormRequest
 {
@@ -26,8 +25,18 @@ class LeadUpdateRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'need_summary' => ['nullable', 'string', 'max:1000'],
             'estimated_value' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['nullable', Rule::enum(LeadStatus::class)],
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            /*
+             * Tahap TIDAK lagi diubah lewat formulir (F-3 / T3.5): satu PUT
+             * dengan {"status":"won"} dulu memenangkan prospek tanpa penawaran,
+             * tanpa nilai dan tanpa tanggal keputusan — dan win-rate per sales
+             * dihitung dari kolom itu. Pintunya sekarang
+             * POST leads/{id}/pipeline (LeadPipelineService), yang memeriksa
+             * arah perpindahan, menuntut alasan untuk mundur, dan mencatat
+             * riwayatnya. Ditolak, bukan diabaikan: yang diabaikan diam-diam
+             * membuat orang mengira tahapnya sudah berpindah.
+             */
+            'status' => ['prohibited'],
+            'owner_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             /*
              * TURUNAN, bukan ketikan (F-3 / T3.3). Tanggal tindak lanjut sebuah
              * prospek adalah due_at terawal di antara aktivitas terbukanya —
@@ -43,6 +52,8 @@ class LeadUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'status.prohibited' => 'Tahap prospek dipindahkan lewat tombol "Ubah Tahap" (atau papan pipeline), '
+                .'bukan lewat formulir: perpindahan mundur menuntut alasan dan setiap perpindahan tercatat di riwayat.',
             'next_follow_up_at.prohibited' => 'Tanggal tindak lanjut diturunkan dari aktivitas prospek ini, '
                 .'bukan diketik: buat aktivitas berjatuh tempo pada kartu Aktivitas di layar prospek.',
         ];

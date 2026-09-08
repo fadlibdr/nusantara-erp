@@ -144,11 +144,19 @@ class QuotationService
         return DB::transaction(function () use ($quotation): Contract {
             $quotation->forceFill(['won_at' => now()])->save();
 
-            // Temuan #58: lead status was purely manual, so the pipeline froze
-            // at "Penawaran Dikirim" unless somebody remembered to edit it —
-            // win-rate per sales was never right. The quotation's fate now
-            // drags its lead along.
-            $quotation->lead?->forceFill(['status' => LeadStatus::Won])->save();
+            /*
+             * Temuan #58: lead status was purely manual, so the pipeline froze
+             * at "Penawaran Dikirim" unless somebody remembered to edit it —
+             * win-rate per sales was never right. The quotation's fate now
+             * drags its lead along.
+             *
+             * Lewat LeadPipelineService sejak F-3: ini SATU-SATUNYA jalan
+             * menuju Menang, dan lewat sana perpindahannya ikut tercatat di
+             * riwayat tahap prospek dengan kode penawaran yang memutuskannya.
+             */
+            if ($quotation->lead !== null) {
+                app(LeadPipelineService::class)->decideByQuotation($quotation->lead, LeadStatus::Won, $quotation);
+            }
 
             $contract = new Contract([
                 'customer_id' => $quotation->customer_id,
@@ -181,13 +189,15 @@ class QuotationService
                 'status' => DocumentStatus::Closed,
             ])->save();
 
-            // Losing drags the lead down too (temuan #58) — UNLESS the lead
-            // already won through another quotation: a second package lost
-            // must not demote a lead whose customer relationship exists.
-            $lead = $quotation->lead;
-
-            if ($lead !== null && $lead->status !== LeadStatus::Won) {
-                $lead->forceFill(['status' => LeadStatus::Lost])->save();
+            /*
+             * Losing drags the lead down too (temuan #58) — UNLESS the lead
+             * already won through another quotation: a second package lost
+             * must not demote a lead whose customer relationship exists. Sejak
+             * F-3 aturan itu dipegang LeadPipelineService::decideByQuotation
+             * (satu tempat, dan ia yang menulis riwayat tahapnya).
+             */
+            if ($quotation->lead !== null) {
+                app(LeadPipelineService::class)->decideByQuotation($quotation->lead, LeadStatus::Lost, $quotation);
             }
 
             return $quotation;

@@ -24,8 +24,17 @@ class LeadStoreRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'need_summary' => ['nullable', 'string', 'max:1000'],
             'estimated_value' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['nullable', Rule::enum(LeadStatus::class)],
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
+            /*
+             * Prospek LAHIR di salah satu tahap terbuka — undangan tender
+             * memang lahir langsung "Terkualifikasi". Yang tidak bisa adalah
+             * lahir Menang/Kalah: keduanya hasil keputusan penawaran, dan
+             * sebuah prospek yang diketik langsung sebagai Menang adalah
+             * kemenangan tanpa satu rupiah pun di belakangnya (F-3 / T3.5).
+             */
+            'status' => ['nullable', Rule::enum(LeadStatus::class)->only(
+                array_filter(LeadStatus::cases(), static fn (LeadStatus $status): bool => $status->isOpen()),
+            )],
+            'owner_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             /*
              * TURUNAN, bukan ketikan (F-3 / T3.3). Tanggal tindak lanjut sebuah
              * prospek adalah due_at terawal di antara aktivitas terbukanya —
@@ -41,6 +50,8 @@ class LeadStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'status.Illuminate\\Validation\\Rules\\Enum' => 'Prospek tidak bisa dibuat langsung dengan status Menang atau Kalah: '
+                .'keduanya lahir dari keputusan penawaran (Tandai Menang / Tandai Kalah).',
             'next_follow_up_at.prohibited' => 'Tanggal tindak lanjut diturunkan dari aktivitas prospek ini, '
                 .'bukan diketik: buat aktivitas berjatuh tempo pada kartu Aktivitas di layar prospek.',
         ];

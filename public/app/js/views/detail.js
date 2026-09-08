@@ -33,6 +33,10 @@ const HIDDEN_KEYS = new Set([
   // T3.7: surat penagihan yang boleh dicetak berikutnya — keadaan tombol
   // "Cetak surat penagihan ke-N"; tingkatnya sendiri (dunning_level) tampil.
   'dunning_next_level',
+  // F-3: riwayat tahap prospek dirender sebagai detail.tables ("Riwayat
+  // Tahap"); tanpa baris ini panel Informasi memajang array objeknya sebagai
+  // deretan badge JSON di atas tabelnya sendiri.
+  'status_history',
 ]);
 
 /** Ditampilkan hanya bila sudah terisi — lihat pemakaiannya di renderDetail(). */
@@ -90,6 +94,11 @@ const NAME_SHADOWED = {
   // P7: QuotationResource meratakan metode pelaksanaan yang dikutip penawaran.
   // Tanpa baris ini kartu Informasi menuliskan "Method Library Id: 3".
   method_library_id: 'method_library_title',
+  // F-3: pemilik prospek. Nama ratanya TIDAK PERNAH kosong (LeadResource
+  // mengirim "Belum ditugaskan"), jadi baris id mentahnya selalu tergantikan —
+  // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
+  // "belum dimuat".
+  owner_user_id: 'owner_user_name',
 };
 const NAME_KEYS = new Set(Object.values(NAME_SHADOWED));
 
@@ -111,6 +120,10 @@ const ID_LOOKUPS = {
   // IssueResource memulangkan cancelled_by; tanpa baris ini panel dokumen
   // menuliskan "#3" untuk pembatal bon ISS/2026/VII/0001, bukan namanya.
   cancelled_by: ['users'],
+  // F-3: hanya terpakai bila owner_user_name tidak ikut terkirim (baris daftar
+  // lama, tanggapan POST tanpa relasi) — bayangannya di NAME_SHADOWED yang
+  // biasanya menang.
+  owner_user_id: ['users'],
   account_id: ['accounts'], coa_account_id: ['accounts'], pph_tax_id: ['taxes'],
   bank_account_id: ['bankAccounts'], subcontract_id: ['subcontracts'],
   subcontract_claim_id: ['progressClaims'], service_contract_id: ['serviceContracts'],
@@ -258,7 +271,15 @@ const LABELS = {
   bupot_no: 'No. bukti potong', wbs_code: 'Kode WBS', section_no: 'No. bagian',
   customer_name: 'Pelanggan', company_name: 'Perusahaan', assignee_name: 'Ditugaskan ke',
   technician_name: 'Teknisi', evaluator_name: 'Dievaluasi oleh', requester_name: 'Diminta oleh',
-  reported_by_name: 'Dilaporkan oleh', user_name: 'Pengguna', owner_name: 'Pemilik prospek',
+  reported_by_name: 'Dilaporkan oleh', user_name: 'Pengguna',
+  /* owner_name adalah kolom PAKET TENDER (pemberi tugas/instansi), satu-satunya
+     resource yang mengirimnya sejak F-3 memindahkan pemilik prospek ke
+     owner_user_id/owner_user_name. Sampai 8 Sep 2026 label ini berbunyi
+     "Pemilik prospek", jadi layar Paket Tender menuliskan "Pemilik prospek:
+     Universitas Cendekia Nusantara" — nama instansi pemberi tugas di bawah
+     label yang menyebutnya prospek. */
+  owner_name: 'Pemberi tugas',
+  owner_user_id: 'Pemilik prospek', owner_user_name: 'Pemilik prospek',
   warehouse_name: 'Gudang', item_name: 'Item', item_code: 'Kode item', site_name: 'Nama site',
   customer_representative: 'Wakil pelanggan', customer_sign_name: 'TTD pelanggan',
   customer_signed_at: 'Ditandatangani pelanggan',

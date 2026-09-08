@@ -48,9 +48,32 @@ class Lead extends BaseModel
         return 'LEAD-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Pemilik prospek — sales/estimator yang bertanggung jawab.
+     *
+     * Kolomnya bernama owner_user_id sejak F-3 (migrasi 000397); sebelumnya
+     * `user_id`, nama yang tidak mengatakan apa-apa pada baris yang tetangganya
+     * punya created_by dan assigned_to. Boleh kosong, dan yang kosong berbunyi
+     * "Belum ditugaskan" di setiap layar — tidak pernah ditebak.
+     */
     public function owner(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    /**
+     * Riwayat tahap — append-only, terbaru di atas (F-3 / T3.5). Di sinilah
+     * alasan sebuah perpindahan mundur tinggal dan dibaca.
+     */
+    public function statusChanges(): HasMany
+    {
+        return $this->hasMany(LeadStatusChange::class, 'lead_id')->orderByDesc('id');
+    }
+
+    /** Aktivitas CRM yang menggantung pada prospek ini (F-3). */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(Activity::class, 'document_id')->where('document_type', 'lead');
     }
 
     public function quotations(): HasMany
