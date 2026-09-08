@@ -8410,11 +8410,17 @@ biaya pun; itu bukan "Rp 0 dibelanjakan". Aturan yang sama dengan kolom
 realisasi per bulan.
 
 **Angka "Sisa PO" adalah nilai PO terbesar yang masih diterima tanpa konfirmasi
-pelampauan** — bukan perkiraan, dan dicetak **dalam rupiah penuh** justru karena
-itu: sebuah angka ringkas seperti "Rp 31,13 M" membulatkan ke atas dan akan
-menjanjikan dua juta rupiah yang ditolak gerbang. Kalau Anda mengajukan PO tepat
-sebesar angka itu, ia lolos; satu rupiah di atasnya, gerbang anggaran menahannya
-dan meminta Anda mengakui pelampauannya secara eksplisit. Itulah sebabnya sisanya dicetak per
+pelampauan** — bukan perkiraan, dan dicetak **dalam rupiah penuh yang dibulatkan
+ke bawah** justru karena itu: sebuah angka ringkas seperti "Rp 31,13 M"
+membulatkan ke atas dan akan menjanjikan dua juta rupiah yang ditolak gerbang,
+dan bahkan pembulatan ke rupiah terdekat sudah cukup (sisa Rp 66.666.666,67
+dicetak "Rp 66.666.667" akan ditolak, terukur). Kalau Anda mengajukan PO tepat
+sebesar angka yang tercetak, ia lolos; satu rupiah di atasnya, gerbang anggaran
+menahannya dan meminta Anda mengakui pelampauannya secara eksplisit.
+
+Kalau sisi itu **sudah lewat**, kalimatnya tidak menawarkan angka sama sekali:
+ia berbunyi "sudah melampaui anggaran sisi ini sebesar Rp …" — karena tidak ada
+satu pun nilai PO yang diterima tanpa konfirmasi, termasuk Rp 0. Itulah sebabnya sisanya dicetak per
 sisi: sebuah PO diukur terhadap anggaran non-subkon (material, upah, alat,
 overhead) dan sebuah SPK terhadap anggaran subkon, jadi total saja akan
 menjanjikan ruang yang tidak dimiliki dokumen yang hendak Anda buat.

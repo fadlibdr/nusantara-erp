@@ -74,10 +74,12 @@ membuktikan nol:
 | sisa subkon Rp 130.000.000 | Sisa SPK Rp 130.000.000 | SPK Rp 130.000.000 **diterima**; +Rp 0,01 **422** |
 | tanpa RAP disetujui | RAP/Sisa/Terpakai ketiganya "—" | **diam** — PO Rp 10 miliar lolos, karena tidak ada aturannya |
 | tepat di anggaran | 100 %, keadaan "Melampaui" | rupiah berikutnya ditolak |
-| lampau anggaran | **140 %**, tidak dijepit ke 100 | kalimatnya tetap "sisa Rp 0" — tidak pernah menjanjikan sisa negatif |
+| lampau anggaran | **140 %**, tidak dijepit ke 100 | kalimatnya berbunyi "sudah lampau Rp 40.000.000" — bukan "sisa Rp 0", yang menyebut satu angka salah di sebelah persentase yang benar (putaran 2) |
 | nilai kontrak 0 | digaris (= belum dicatat) | tidak mengubah satu angka anggaran pun |
 | **RAP direvisi** | sisa pindah ke revisi pada detik persetujuannya | batas atas gerbang ikut pindah, diuji sebelum **dan** sesudah |
-| **sisi habis, total masih lega** (non-subkon Rp 100 jt habis, subkon Rp 500 jt utuh) | kalimat sisi PO "menyisakan Rp 0", keadaan **Melampaui** — walau totalnya 16,7 % terpakai | PO Rp 1 **ditolak**, SPK Rp 500.000.000 **diterima** (putaran verifikasi) |
+| **sisi habis, total masih lega** (non-subkon Rp 100 jt habis, subkon Rp 500 jt utuh) | kalimat sisi PO "menyisakan Rp 0" (sisanya tepat nol), keadaan **Melampaui** — walau totalnya 16,7 % terpakai | PO Rp 1 **ditolak**, SPK Rp 500.000.000 **diterima** (putaran verifikasi) |
+| **sisi yang sisanya bersen** (Rp 66.666.666,67) | "menyisakan **Rp 66.666.666**" — dibulatkan KE BAWAH | PO Rp 66.666.666 **diterima**; Rp 66.666.667 — angka yang dicetak sebelum putaran 2 — **422** |
+| **sisi yang sudah lampau** | "sudah melampaui anggaran sisi ini sebesar Rp 50.000.000 — tidak ada DPP PO yang diterima", bukan "menyisakan Rp 0" | PO Rp 1 **ditolak** |
 | sisi yang RAP-nya **tidak menganggarkan** apa pun | "SPK tidak dianggarkan", bukan "sisa Rp 0" | menolak setiap SPK sampai pelampauannya dikonfirmasi |
 
 Dan di peramban, atas salinan data demo (S29): PO **Rp 31.123.865.391** diterima; PO

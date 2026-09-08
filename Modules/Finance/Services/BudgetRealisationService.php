@@ -740,18 +740,58 @@ class BudgetRealisationService
         }
 
         $pct = WatchedThresholds::pct($used, $budget);
+        $remaining = (float) $side['remaining'];
+        $terpakai = $pct === null ? 'tidak terhitung' : number_format($pct, 1, ',', '.').' %';
+
+        if ($remaining < 0.0) {
+            return sprintf(
+                'Anggaran RAP %s %s; realisasi %s dan %s %s sudah melampaui anggaran sisi ini sebesar %s '
+                .'— tidak ada DPP %s yang diterima gerbang tanpa konfirmasi pelampauan (%s terpakai).',
+                self::sideLabel($subcon),
+                Money::format($budget, false),
+                Money::format($side['actual'], false),
+                self::committedLabel($subcon),
+                Money::format($side['committed'], false),
+                self::overrunRupiah($remaining),
+                $document,
+                $terpakai,
+            );
+        }
 
         return sprintf(
-            'Anggaran RAP %s %s; realisasi %s dan %s %s menyisakan %s — DPP terbesar yang masih '
-            .'diterima gerbang tanpa konfirmasi pelampauan (%s terpakai).',
+            'Anggaran RAP %s %s; realisasi %s dan %s %s menyisakan %s — DPP terbesar dalam rupiah penuh '
+            .'yang masih diterima gerbang tanpa konfirmasi pelampauan (%s terpakai).',
             self::sideLabel($subcon),
             Money::format($budget, false),
             Money::format($side['actual'], false),
             self::committedLabel($subcon),
             Money::format($side['committed'], false),
-            Money::format(max(0.0, (float) $side['remaining']), false),
-            $pct === null ? 'tidak terhitung' : number_format($pct, 1, ',', '.').' %',
+            self::ceilingRupiah($remaining),
+            $terpakai,
         );
+    }
+
+    /**
+     * Sebuah PLAFON dinyatakan dengan pembulatan KE BAWAH; sebuah PELAMPAUAN
+     * dengan pembulatan KE ATAS. Dua arah, satu alasan: kalimat ini tidak boleh
+     * menamai angka yang gerbangnya tolak, dan tidak boleh menyebut pelampauan
+     * yang lebih kecil daripada yang sungguh terjadi.
+     *
+     * Money::format(…, false) memakai number_format(…, 0), yang membulatkan
+     * SETENGAH KE ATAS. Terukur (verifikasi F-2 putaran 2): sisa
+     * Rp 66.666.666,67 dicetak "Rp 66.666.667", lalu PO dengan DPP tepat
+     * sebesar itu ditolak 422 — dengan kalimat penolakan yang menyebut
+     * pelampauan "Rp 0", kalimat yang tidak bisa ditindaklanjuti siapa pun.
+     */
+    public static function ceilingRupiah(float $remaining): string
+    {
+        return Money::format(floor(round($remaining, 2)), false);
+    }
+
+    /** Pelampauan (sisa negatif) sebagai rupiah positif, dibulatkan KE ATAS. */
+    public static function overrunRupiah(float $remaining): string
+    {
+        return Money::format(ceil(abs(round($remaining, 2))), false);
     }
 
     /**
@@ -806,15 +846,21 @@ class BudgetRealisationService
         }
 
         $pct = WatchedThresholds::pct($used, $budget);
+        $remaining = round($budget - $used, 2);
 
         return sprintf(
-            'Realisasi + komitmen %s dari anggaran RAP %s (%s) — %s terpakai, sisa %s. '
+            'Realisasi + komitmen %s dari anggaran RAP %s (%s) — %s terpakai, %s. '
             .'Gerbang menghakimi PER SISI: %s, %s.',
             Money::format($used, false),
             $rapCode,
             Money::format($budget, false),
             $pct === null ? 'tidak terhitung' : number_format($pct, 1, ',', '.').' %',
-            Money::format(max(0.0, round($budget - $used, 2)), false),
+            // "sisa Rp 0" untuk proyek yang 140 % terpakai bukan "tidak
+            // menjanjikan sisa negatif" — ia menyebut satu angka yang salah
+            // (sisanya −Rp 40.000.000) tepat di sebelah persentase yang benar.
+            $remaining < 0.0
+                ? 'sudah lampau '.self::overrunRupiah($remaining)
+                : 'sisa '.self::ceilingRupiah($remaining),
             $this->ceilingPhrase($sides['non_subcon']),
             $this->ceilingPhrase($sides['subcon']),
         );
@@ -829,11 +875,17 @@ class BudgetRealisationService
             return $side['document'].' tidak dianggarkan';
         }
 
-        return sprintf(
-            '%s menyisakan %s',
-            $side['document'],
-            Money::format(max(0.0, (float) $side['remaining']), false),
-        );
+        $remaining = (float) $side['remaining'];
+
+        // Ubin layar proyek mencetak pelampauan sisi ini sebagai
+        // "PO melampaui Rp 105.039.400"; kalimat yang sama di pita di bawahnya
+        // dulu berbunyi "PO menyisakan Rp 0" — dua angka untuk satu fakta, di
+        // satu layar (verifikasi F-2 putaran 2).
+        if ($remaining < 0.0) {
+            return sprintf('%s melampaui %s', $side['document'], self::overrunRupiah($remaining));
+        }
+
+        return sprintf('%s menyisakan %s', $side['document'], self::ceilingRupiah($remaining));
     }
 
     private function periodLabel(string $period): string

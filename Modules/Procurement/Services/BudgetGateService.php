@@ -124,14 +124,21 @@ class BudgetGateService
         $committedLabel = BudgetRealisationService::committedLabel($subconSide);
 
         $numbers = sprintf(
-            'Anggaran RAP %s proyek ini %s; realisasi %s dan %s %s menyisakan %s, '
+            'Anggaran RAP %s proyek ini %s; realisasi %s dan %s %s %s, '
             .'sedangkan %s membawa DPP %s — melampaui anggaran %s.',
             $sideLabel,
             Money::format($budget, false),
             Money::format($actual, false),
             $committedLabel,
             Money::format($committed, false),
-            Money::format(max(0.0, $remaining), false),
+            // Plafon dibulatkan KE BAWAH, pelampauan KE ATAS — aturan yang sama
+            // dengan kalimat sisi di layar, dari helper yang sama. Sebelum
+            // verifikasi putaran 2 kalimat ini menjepit sisa negatif menjadi
+            // "menyisakan Rp 0": pada sisi yang sudah lampau Rp 105.039.400 itu
+            // menyebut satu angka yang salah di dalam kalimat yang menolak.
+            $remaining < 0.0
+                ? 'sudah lampau '.BudgetRealisationService::overrunRupiah($remaining)
+                : 'menyisakan '.BudgetRealisationService::ceilingRupiah($remaining),
             $documentName,
             Money::format($documentDpp, false),
             Money::format($overshoot, false),

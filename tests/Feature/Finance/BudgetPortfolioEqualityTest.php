@@ -326,7 +326,12 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         $this->assertSame(140.0, $row['pct']);
         $this->assertSame(-40000000.0, $row['remaining']);
         $this->assertSame('lampau', $row['state']);
-        $this->assertStringContainsString('sisa Rp 0', $row['sentence'], 'kalimatnya tidak boleh menjanjikan sisa negatif');
+        // "sisa Rp 0" bukan jawaban yang jujur untuk proyek yang 140 %
+        // terpakai: sisanya −Rp 40.000.000, dan menjepitnya ke nol menaruh satu
+        // angka yang salah di sebelah persentase yang benar (verifikasi F-2
+        // putaran 2). Yang dicetak adalah pelampauannya.
+        $this->assertStringContainsString('sudah lampau Rp 40.000.000', $row['sentence']);
+        $this->assertStringNotContainsString('sisa Rp 0', $row['sentence']);
     }
 
     /**
@@ -724,5 +729,73 @@ class BudgetPortfolioEqualityTest extends ErpTestCase
         $this->assertSame('subcon', $row['worst_side']);
         $this->assertSame('mendekati', $row['worst_state']);
         $this->assertSame(95.0, $row['sides']['subcon']['pct']);
+    }
+
+    // ------------------------------------------- plafon yang benar-benar lolos
+
+    /**
+     * PLAFON DIBULATKAN KE BAWAH, karena membulatkan KE ATAS menamai angka yang
+     * gerbangnya tolak (verifikasi F-2 putaran 2).
+     *
+     * Terukur sebelum perbaikan: RAP non-subkon Rp 100.000.000 dengan realisasi
+     * Rp 33.333.333,33 menyisakan Rp 66.666.666,67, dan kalimatnya berbunyi
+     * "menyisakan Rp 66.666.667 — DPP terbesar yang masih diterima gerbang".
+     * PO dengan DPP tepat sebesar itu -> HTTP 422, dengan kalimat penolakan yang
+     * menyebut pelampauan "Rp 0". Sebuah plafon yang ditolak sebelum angkanya
+     * tercapai adalah janji, bukan plafon.
+     */
+    public function test_the_printed_ceiling_is_a_dpp_the_gate_actually_accepts(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $project = $this->project('PRJ-2026-930');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 0, code: 'RAP/2026/0930');
+        $this->cost($project, 'material', 33_333_333.33);
+
+        $row = $this->portfolioRow($project);
+
+        $this->assertSame(66666666.67, $row['sides']['non_subcon']['remaining']);
+        // Yang DICETAK adalah rupiah penuh yang dibulatkan KE BAWAH…
+        $this->assertStringContainsString('menyisakan Rp 66.666.666',
+            $row['sides']['non_subcon']['sentence']);
+        $this->assertStringNotContainsString('Rp 66.666.667', $row['sides']['non_subcon']['sentence']);
+        $this->assertStringContainsString('PO menyisakan Rp 66.666.666', $row['sentence']);
+
+        // …dan gerbang menerimanya, sementara satu rupiah di atasnya ditolak.
+        $this->submitPo($this->po($project, 66_666_666, DocumentStatus::Draft))->assertOk();
+        $this->submitPo($this->po($project, 66_666_667, DocumentStatus::Draft))->assertStatus(422);
+    }
+
+    /**
+     * SISI YANG SUDAH LAMPAU tidak menawarkan "Rp 0" sebagai DPP terbesar yang
+     * diterima: tidak ada satu DPP pun yang diterima.
+     *
+     * Terukur sebelum perbaikan pada keadaan S29 (sisa −Rp 105.039.400): pita
+     * layar proyek dan catatan formulir PO sama-sama berbunyi "menyisakan Rp 0
+     * — DPP terbesar yang masih diterima gerbang", sementara PO Rp 1 dan bahkan
+     * PO Rp 0,01 ditolak 422. Ubin di layar yang sama menyebut fakta itu dengan
+     * angka lain ("PO melampaui Rp 105.039.400").
+     */
+    public function test_a_side_already_over_budget_names_the_overrun_not_a_zero_ceiling(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $project = $this->project('PRJ-2026-931');
+        $this->approvedRap($project, nonSubcon: 100_000_000, subcon: 0, code: 'RAP/2026/0931');
+        $this->cost($project, 'material', 150_000_000);
+
+        $row = $this->portfolioRow($project);
+        $sentence = $row['sides']['non_subcon']['sentence'];
+
+        $this->assertSame(-50000000.0, $row['sides']['non_subcon']['remaining']);
+        $this->assertStringNotContainsString('menyisakan', $sentence);
+        $this->assertStringContainsString('melampaui', $sentence);
+        $this->assertStringContainsString('Rp 50.000.000', $sentence);
+        $this->assertStringContainsString('konfirmasi pelampauan', $sentence);
+        // Kalimat proyek keseluruhan menyebut angka yang sama, bukan "sisa Rp 0".
+        $this->assertStringContainsString('PO melampaui Rp 50.000.000', $row['sentence']);
+
+        // Dan memang tidak ada satu DPP pun yang lolos tanpa konfirmasi.
+        $this->submitPo($this->po($project, 1, DocumentStatus::Draft))->assertStatus(422);
     }
 }
