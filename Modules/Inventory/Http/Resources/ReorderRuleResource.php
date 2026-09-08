@@ -54,8 +54,16 @@ class ReorderRuleResource extends JsonResource
              * bawah 80, dan tidak ada satu pun tanda di layar yang
              * membantahnya. Itu kebalikan dari janji layar ini bahwa
              * prioritasnya harus TERBACA, bukan hanya berlaku.
+             *
+             * KETIGA SYARATNYA DATANG DARI SATU TEMPAT (`governs()`), dan
+             * syarat ketiga itu — `is_active` — dulu hilang di sini: aturan
+             * nonaktif dikirim `applies: true` sementara bantuan formulirnya
+             * sendiri berkata ia "tetap tersimpan dan tidak menentukan ambang
+             * apa pun". Yang menandainya di layar untuk keadaan itu adalah
+             * kolom "Aktif" sendiri; `deleted_labels` di bawah tetap menyebut
+             * hanya yang benar-benar DIBUANG, karena itulah namanya.
              */
-            'applies' => ! $itemTrashed && ! $warehouseTrashed,
+            'applies' => $this->resource->governs(),
             'deleted_labels' => array_values(array_filter([
                 $itemTrashed ? 'Item dibuang' : null,
                 $warehouseTrashed ? 'Gudang dibuang' : null,

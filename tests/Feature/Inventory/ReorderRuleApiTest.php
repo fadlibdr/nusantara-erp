@@ -288,6 +288,33 @@ class ReorderRuleApiTest extends ErpTestCase
         $this->assertTrue($after['item']['deleted']);
     }
 
+    /**
+     * `applies` MENJAWAB PERTANYAAN YANG NAMANYA JANJIKAN: "apakah ambang
+     * baris ini menentukan sesuatu hari ini?"
+     *
+     * Ia dulu hanya memeriksa item/gudang terbuang, jadi aturan NONAKTIF —
+     * yang menurut bantuan formulirnya sendiri "tetap tersimpan dan tidak
+     * menentukan ambang apa pun" — dikirim sebagai `applies: true`. Ketiga
+     * syaratnya sekarang datang dari satu tempat (`ReorderRule::governs()`),
+     * yaitu tiga syarat yang sama dengan yang dipakai kueri kekurangan.
+     */
+    public function test_a_switched_off_rule_does_not_claim_to_apply(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-PUSAT');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 80, 'reorder_qty' => 0, 'is_active' => false]);
+
+        $row = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder-rules')->json('data.0');
+
+        $this->assertFalse($row['is_active']);
+        $this->assertFalse($row['applies'],
+            'Aturan nonaktif tidak menentukan ambang apa pun, dan barisnya tidak boleh mengaku sebaliknya.');
+        // …dan tandanya di layar adalah kolom "Aktif" itu sendiri: tidak ada
+        // yang DIBUANG di sini, jadi tidak ada keping "…dibuang".
+        $this->assertSame([], $row['deleted_labels']);
+    }
+
     /** …dan gudang yang dibuang ditandai dengan kalimatnya sendiri. */
     public function test_a_rule_whose_warehouse_was_thrown_away_says_that_instead(): void
     {
@@ -411,6 +438,38 @@ class ReorderRuleApiTest extends ErpTestCase
         $this->assertStringContainsString('1 gudang', $after['reorder_rule_note']);
         $this->assertStringContainsString('TIDAK berlaku', $after['reorder_rule_note']);
         $this->assertStringContainsString('Aturan Reorder', $after['reorder_rule_note']);
+    }
+
+    /**
+     * …DAN ATURAN YANG GUDANGNYA SUDAH DIBUANG JUGA TIDAK MENGGANTIKAN APA PUN.
+     *
+     * Kalimat kartu item dulu menghitung `is_active` saja dan tidak pernah
+     * menyentuh `inv_warehouses.deleted_at`, sementara kueri kekurangan
+     * membuang gudang terhapus lebih dulu. Kartunya karena itu berkata "stok
+     * minimum di atas TIDAK berlaku" untuk aturan yang tidak menentukan apa
+     * pun — dan layar Aturan Reorder di sebelahnya menandai baris yang sama
+     * "Gudang dibuang". Yang membacanya berhenti menaikkan `min_stock` karena
+     * mengira ada aturan yang menang; tidak ada.
+     */
+    public function test_a_rule_whose_warehouse_was_thrown_away_stops_counting_on_the_item_card(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-SITE');
+        $item = $this->makeItem('Semen Portland', ['min_stock' => 200]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 400, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $admin = $this->adminUser();
+
+        $before = $this->actingAs($admin, 'sanctum')
+            ->getJson("api/inventory/items/{$item->id}")->assertOk()->json('data');
+        $this->assertArrayHasKey('reorder_rule_note', $before);
+
+        $warehouse->delete();
+
+        $after = $this->actingAs($admin, 'sanctum')
+            ->getJson("api/inventory/items/{$item->id}")->assertOk()->json('data');
+
+        $this->assertArrayNotHasKey('reorder_rule_note', $after,
+            'Kartu item menghitung aturan yang gudangnya sudah dibuang — aturan yang tidak menentukan apa pun.');
     }
 
     /** …dan aturan NONAKTIF tidak menggantikan apa pun, jadi ia tidak disebut. */

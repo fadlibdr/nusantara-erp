@@ -72,8 +72,15 @@ class ItemController extends ApiController
         // withCount, bukan with: kartu item hanya perlu tahu BERAPA gudang
         // memakai titik pesan ulang sendiri, dan memuat barisnya berarti satu
         // kueri lagi untuk kalimat satu baris.
+        //
+        // PENJAGANYA `governing()`, bukan `is_active` saja. Hitungan ini dulu
+        // tidak pernah menyentuh inv_warehouses.deleted_at, jadi kartu item
+        // berkata "1 gudang memakai titik pesan ulang sendiri… stok minimum di
+        // atas TIDAK berlaku" untuk aturan yang gudangnya sudah dibuang —
+        // aturan yang tidak menentukan apa pun, dan yang layar Aturan Reorder
+        // di sebelahnya sudah menandai "Gudang dibuang".
         $item->load('category', 'balances.warehouse')
-            ->loadCount(['reorderRules as active_reorder_rules_count' => fn ($query) => $query->where('is_active', true)]);
+            ->loadCount(['reorderRules as governing_reorder_rules_count' => fn ($query) => $query->governing()]);
 
         return $this->ok(ItemResource::make($item));
     }

@@ -34,17 +34,20 @@ class ItemResource extends JsonResource
              * menurunkan angka 200 di sana mengira ia sedang mengubah ambang
              * gudang itu; ia tidak mengubah apa pun.
              *
-             * Hadir hanya bila ada aturan AKTIF, dan hanya pada kartu item
-             * (loadCount di ItemController::show) — daftar item tidak
-             * membutuhkannya dan tidak membayar kuerinya.
+             * Hadir hanya bila ada aturan yang BENAR-BENAR BERLAKU untuk item
+             * ini (`ReorderRule::governing()` — aktif, itemnya hidup,
+             * gudangnya hidup), dan hanya pada kartu item (loadCount di
+             * ItemController::show) — daftar item tidak membutuhkannya dan
+             * tidak membayar kuerinya. Hitungannya dulu `is_active` saja, dan
+             * kalimat ini lalu menghitung aturan yang gudangnya sudah dibuang.
              */
             'reorder_rule_note' => $this->when(
-                (int) ($this->active_reorder_rules_count ?? 0) > 0,
+                (int) ($this->governing_reorder_rules_count ?? 0) > 0,
                 fn (): string => sprintf(
                     '%d gudang memakai titik pesan ulang sendiri untuk item ini. Di gudang itu stok minimum '
                     .'di atas TIDAK berlaku — aturannya menggantikan, termasuk bila lebih rendah. '
                     .'Atur di Persediaan › Aturan Reorder.',
-                    (int) $this->active_reorder_rules_count,
+                    (int) $this->governing_reorder_rules_count,
                 ),
             ),
             'avg_cost' => $this->avg_cost,

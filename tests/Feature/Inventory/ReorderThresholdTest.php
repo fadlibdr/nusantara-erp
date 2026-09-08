@@ -213,4 +213,68 @@ class ReorderThresholdTest extends ErpTestCase
         $this->assertCount(2, $this->alerts());
         $this->assertCount(1, $this->alerts($site->id));
     }
+
+    /**
+     * "ATURAN MANA YANG BENAR-BENAR BERLAKU" PUNYA SATU DEFINISI, DAN INILAH
+     * YANG MEMAKUNYA (putaran kedua F-6).
+     *
+     * Tiga syaratnya — aktif, itemnya hidup, gudangnya hidup — dulu ditegakkan
+     * di tiga tempat dengan tiga isi yang berbeda: kueri kekurangan memeriksa
+     * ketiganya, hitungan kartu item hanya `is_active`, dan `applies` pada
+     * daftar aturan hanya kedua `deleted_at`-nya. Akibatnya kartu item berkata
+     * "stok minimum di atas TIDAK berlaku" untuk aturan yang gudangnya sudah
+     * dibuang, sementara layar sebelahnya menandai baris yang sama "Gudang
+     * dibuang".
+     *
+     * Sekarang keduanya memanggil `ReorderRule::governing()` /
+     * `->governs()`, dan uji ini menuntut KESETARAANNYA dengan kueri yang
+     * benar-benar menghitung kekurangan — bukan tiga jawaban terpisah.
+     */
+    public function test_the_rules_that_govern_are_exactly_the_ones_the_shortage_query_obeys(): void
+    {
+        $live = $this->makeWarehouse('GD-HIDUP');
+        $doomed = $this->makeWarehouse('GD-DIBUANG');
+
+        // min_stock 0 di mana-mana: tanpa aturan yang MENANG tidak ada satu pun
+        // baris kekurangan, jadi setiap baris yang muncul datang dari aturan.
+        $semen = $this->makeItem('Semen Portland', ['min_stock' => 0]);
+        $besi = $this->makeItem('Besi Beton D16', ['min_stock' => 0]);
+        $kabel = $this->makeItem('Kabel UTP Cat6', ['min_stock' => 0]);
+
+        foreach ([$semen, $besi, $kabel] as $item) {
+            $this->balance($live->id, $item->id, 0);
+            $this->balance($doomed->id, $item->id, 0);
+        }
+
+        $governing = ReorderRule::create(['warehouse_id' => $live->id, 'item_id' => $semen->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true]);
+        ReorderRule::create(['warehouse_id' => $live->id, 'item_id' => $besi->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => false]);
+        $itemGone = ReorderRule::create(['warehouse_id' => $live->id, 'item_id' => $kabel->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true]);
+        $warehouseGone = ReorderRule::create(['warehouse_id' => $doomed->id, 'item_id' => $semen->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $kabel->delete();
+        $doomed->delete();
+
+        $this->assertSame(
+            [$governing->id],
+            ReorderRule::query()->governing()->orderBy('id')->pluck('id')->all(),
+            'Scope `governing` tidak menyaring ketiga syaratnya.',
+        );
+
+        $obeyed = array_values(array_unique(array_filter(array_map(
+            fn (object $row): ?int => $row->reorder_rule_id === null ? null : (int) $row->reorder_rule_id,
+            $this->alerts(),
+        ))));
+
+        $this->assertSame([$governing->id], $obeyed,
+            'Kueri kekurangan mematuhi kumpulan aturan yang berbeda dari `governing`.');
+
+        // …dan bentuk BARISNYA sama dengan bentuk SCOPE-nya, satu per satu.
+        foreach ([$governing, $itemGone, $warehouseGone] as $rule) {
+            $this->assertSame(
+                in_array($rule->id, $obeyed, true),
+                $rule->fresh()->governs(),
+                "Predikat baris dan kueri tidak sepakat tentang aturan #{$rule->id}.",
+            );
+        }
+    }
 }
