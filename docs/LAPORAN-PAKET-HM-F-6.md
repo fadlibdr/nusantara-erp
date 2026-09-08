@@ -714,7 +714,7 @@ lain dan sengaja berbeda:
 | `widgets/stok-minimum.js`, tab `custom.js`, `reorder.js` | membaca endpoint yang sama |
 | FormRequest `unique` (gudang × item) | penjaga pasangan, bukan "berlaku" |
 
-### 10.5 Mutasi putaran kedua — 17 dijalankan, 17 dipaku MERAH
+### 10.5 Mutasi putaran kedua — 16 dijalankan, 16 dipaku MERAH
 
 Satu di antaranya **lolos hijau** dan memaksa syarat harness baru (baris terakhir).
 
