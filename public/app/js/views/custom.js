@@ -219,7 +219,23 @@ export async function renderStock(host) {
          yang menulis "20" padahal kartu itemnya berkata 100 adalah angka yang
          tidak bisa diperiksa siapa pun, dan orang yang membukanya akan
          menyangka kartu itemnya yang salah. */
+      /* JALAN DARI DAFTAR INI KE TOMBOL YANG MENGERJAKANNYA.
+         Tab ini dan layar Usulan Pesan Ulang memajang BARIS YANG SAMA; tanpa
+         tautan ini, petugas yang baru saja membaca "kurang 50 zak" harus tahu
+         sendiri bahwa ada entri sidebar bernama "Usulan Pesan Ulang". Digambar
+         hanya bila prc.create dipegang — tombol yang membawa orang ke layar
+         yang tombolnya tidak akan ia dapatkan adalah jalan buntu. */
+      const toProposal = session.can('prc.create')
+        ? button('Usulkan PR dari kekurangan ini', {
+          size: 'sm', iconName: 'chevronRight',
+          onClick: () => navigate('usulan-pesan-ulang'),
+        })
+        : null;
+
       clear(body).appendChild(el('.card', rows.length ? el('div', [
+        el('.card-head', [
+          el('h2', { text: 'Perlu dipesan ulang' }), el('.spacer'), toProposal,
+        ]),
         el('.card-body', el('.cell-sub', {
           text: 'Ambang tiap baris: aturan reorder gudang ini bila ada yang AKTIF untuk pasangan gudang × item, '
             + 'selain itu stok minimum item. Aturan gudang MENGGANTIKAN angka item — termasuk bila ia lebih rendah.',

@@ -74,7 +74,7 @@ class ReorderController extends ApiController
             return $this->ok([
                 'created' => [],
                 'message' => $skipped > 0
-                    ? 'Tidak ada kekurangan yang tersisa untuk diusulkan — semuanya sudah ada di PR terbuka.'
+                    ? 'Tidak ada kekurangan yang tersisa untuk diusulkan — semuanya sudah ada di PR atau PO terbuka.'
                     : 'Tidak ada pasangan gudang × item yang berada di bawah ambangnya. Tidak ada yang perlu diusulkan.',
             ]);
         }

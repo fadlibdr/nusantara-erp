@@ -11,8 +11,10 @@
  *
  *  1. dari mana ambang tiap baris datang (aturan gudang atau stok minimum
  *     item), dan angka yang KALAH di sebelahnya;
- *  2. item mana yang DILEWATI dan karena PR yang mana — dengan kodenya, supaya
- *     orangnya bisa membuka dokumen itu dan memutuskan sendiri;
+ *  2. item mana yang DILEWATI dan karena PR ATAU PO yang mana — dengan
+ *     kodenya, supaya orangnya bisa membuka dokumen itu dan memutuskan
+ *     sendiri. "Sudah dipesan" (PO) dan "sudah diminta" (PR) adalah dua kabar
+ *     yang berbeda: yang pertama sudah menjadi janji kepada pemasok;
  *  3. aturan pelewatan itu sendiri, kalimat penuh, di atas daftarnya. Server
  *     yang mengirim kalimatnya (payload.why_skipped): sebuah salinan di sini
  *     akan menyimpang dari aturan yang benar-benar dijalankan pada suntingan
@@ -44,9 +46,20 @@ export async function renderReorder(host) {
   const select = el('select.filter-w', { 'aria-label': 'Gudang' });
   select.appendChild(el('option', { value: '', text: 'Semua gudang' }));
 
+  /* …dan jalan KEMBALI ke kartu stoknya. Baris di layar ini adalah baris yang
+     sama dengan tab "Perlu dipesan ulang" pada Saldo Stok, dan orang yang
+     ingin memeriksa mutasi sebuah barang sebelum memesannya tidak punya jalan
+     ke sana selain mengingat nama layarnya. */
   const controls = el('.filters', {
     style: { border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: '16px' },
-  }, [select]);
+  }, [
+    select,
+    el('.spacer'),
+    button('Lihat di Saldo Stok', {
+      size: 'sm', variant: 'ghost', iconName: 'chevronRight',
+      onClick: () => navigate('stock'),
+    }),
+  ]);
 
   const body = el('div');
   host.append(controls, body);
@@ -125,7 +138,7 @@ export async function renderReorder(host) {
     if (!canCreate) {
       head.appendChild(el('.cell-sub', { text: 'Membuat PR menuntut izin prc.create.' }));
     } else if (counts.proposable === 0) {
-      head.appendChild(el('.cell-sub', { text: 'Semua kekurangan sudah ada di PR terbuka.' }));
+      head.appendChild(el('.cell-sub', { text: 'Semua kekurangan sudah ada di PR atau PO terbuka.' }));
     }
 
     body.appendChild(el('.card', [

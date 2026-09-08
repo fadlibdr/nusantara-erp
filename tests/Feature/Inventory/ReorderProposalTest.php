@@ -8,7 +8,9 @@ use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Modules\Inventory\Models\ReorderRule;
 use Modules\Inventory\Models\StockBalance;
 use Modules\Inventory\Models\Warehouse;
+use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
+use Modules\Procurement\Models\Vendor;
 use Modules\Procurement\Services\PurchaseRequisitionService;
 use Modules\Projects\Models\Project;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -139,7 +141,7 @@ class ReorderProposalTest extends ErpTestCase
 
         $this->assertSame([], $second['created']);
         $this->assertSame(1, PurchaseRequisition::query()->count());
-        $this->assertStringContainsString('sudah ada di PR terbuka', $second['message']);
+        $this->assertStringContainsString('sudah ada di PR atau PO terbuka', $second['message']);
     }
 
     /** …dan layar MENGATAKAN mengapa, dengan kode PR yang menahannya. */
@@ -348,7 +350,7 @@ class ReorderProposalTest extends ErpTestCase
             ->assertOk()
             ->json('data');
 
-        $this->assertStringContainsString('sudah ada di PR terbuka', $payload['message']);
+        $this->assertStringContainsString('sudah ada di PR atau PO terbuka', $payload['message']);
     }
 
     /**
@@ -461,6 +463,92 @@ class ReorderProposalTest extends ErpTestCase
 
         $pr = PurchaseRequisition::query()->with('items')->firstOrFail();
         $this->assertSame('200.000', $pr->items[0]->qty, 'Angka yang diketik penjaga gudang harus sampai ke kertas PR.');
+    }
+
+    /**
+     * PO TERBUKA YANG DIBUAT TANPA PR MENAHAN USULAN — dan berkata "dipesan",
+     * bukan "diminta".
+     *
+     * PurchaseOrderStoreRequest MENGIZINKAN PO tanpa PR
+     * (`purchase_requisition_id` nullable + `pr_bypass_reason` wajib bila
+     * kosong), dan data demo memuat contohnya. Sebelum ini penjaganya hanya
+     * membaca baris PR: barang yang sudah ada di PO Disetujui — uangnya sudah
+     * terikat — muncul lagi sebagai "Akan diusulkan", dan kartu "Yang
+     * dilewati" tidak menyebut PO sama sekali. Menekan tombolnya melahirkan
+     * permintaan kedua, dan itu baru terlihat ketika barangnya datang dua
+     * kali.
+     */
+    public function test_an_open_purchase_order_made_without_a_requisition_blocks_the_shortage(): void
+    {
+        [$warehouse, $item] = $this->oneShortage();
+        $po = $this->purchaseOrder($warehouse->id, $item->id, DocumentStatus::Approved);
+
+        $payload = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data');
+
+        $row = $payload['rows'][0];
+        $this->assertTrue($row['skipped']);
+        $this->assertSame('po', $row['skipped_kind']);
+        $this->assertSame($po, $row['skipped_requisition_code']);
+        $this->assertStringContainsString("Sudah dipesan pada {$po}", (string) $row['skipped_reason']);
+        $this->assertStringContainsString('PO terbuka', (string) $payload['why_skipped']);
+    }
+
+    /** …dan PO yang SELESAI tidak menahan: barangnya sudah masuk gudang. */
+    public function test_a_closed_purchase_order_does_not_block_the_shortage_that_remains(): void
+    {
+        [$warehouse, $item] = $this->oneShortage();
+        $this->purchaseOrder($warehouse->id, $item->id, DocumentStatus::Closed);
+
+        $row = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data.rows.0');
+
+        $this->assertFalse($row['skipped'], 'PO yang closed sudah diterima penuh; kekurangan yang tersisa nyata.');
+    }
+
+    /** …dan PO untuk GUDANG LAIN tidak menutup kekurangan gudang ini. */
+    public function test_an_open_purchase_order_for_another_warehouse_does_not_cover_this_one(): void
+    {
+        [, $item] = $this->oneShortage();
+        $central = $this->makeWarehouse('GD-PUSAT');
+        $this->purchaseOrder($central->id, $item->id, DocumentStatus::Approved);
+
+        $row = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder/proposal')
+            ->assertOk()
+            ->json('data.rows.0');
+
+        $this->assertFalse($row['skipped']);
+    }
+
+    /** Satu PO terbuka, dibuat tanpa PR — jalur yang PurchaseOrderStoreRequest izinkan. */
+    private function purchaseOrder(int $warehouseId, int $itemId, DocumentStatus $status): string
+    {
+        $vendor = Vendor::query()->create([
+            'code' => 'VND-9001', 'name' => 'PT Pemasok Uji',
+            'is_pkp' => true, 'is_subcontractor' => false, 'classification' => 'material', 'status' => 'active',
+        ]);
+
+        $order = PurchaseOrder::query()->create([
+            'code' => 'PO/2026/IX/9001',
+            'vendor_id' => $vendor->id,
+            'warehouse_id' => $warehouseId,
+            'purchase_requisition_id' => null,
+            'pr_bypass_reason' => 'Pembelian mendesak di lapangan.',
+            'order_date' => now()->toDateString(),
+            'status' => $status,
+        ]);
+
+        $order->items()->create([
+            'line_no' => 1, 'item_id' => $itemId, 'description' => 'Kabel UTP Cat6',
+            'qty' => 50, 'unit' => 'roll', 'unit_price' => 1150000, 'amount' => 57500000,
+        ]);
+
+        return $order->code;
     }
 
     /**

@@ -27,13 +27,25 @@ use Modules\Procurement\Services\PurchaseRequisitionService;
  * Menjalankan usulan dua kali TIDAK BOLEH menghasilkan dua PR draf untuk
  * kekurangan yang sama, dan aturannya DINYATAKAN, bukan disimpulkan:
  *
- *   Sebuah item DILEWATI bila ia sudah menjadi baris pada PR TERBUKA —
+ *   Sebuah item DILEWATI bila ia sudah menjadi baris pada PR ATAU PO TERBUKA —
  *   berstatus draft, submitted atau approved, belum dibuang — yang gudangnya
  *   adalah gudang kekurangan ini ATAU yang tidak menyebut gudang sama sekali.
  *
  * Ditolak (rejected), selesai (closed) dan dibatalkan (cancelled) BUKAN
  * terbuka: PR yang ditolak adalah permintaan yang seseorang tolak, dan
- * mengusulkannya lagi justru yang benar.
+ * mengusulkannya lagi justru yang benar. Sebuah PO yang closed sudah diterima
+ * penuh (PoService menutupnya sendiri begitu SELURUH barisnya diterima), jadi
+ * barangnya sudah masuk gudang dan kekurangan yang tersisa memang nyata.
+ *
+ * PO IKUT, DAN ITU BUKAN KELEBIHAN CAKUPAN. PurchaseOrderStoreRequest
+ * MENGIZINKAN PO tanpa PR (`purchase_requisition_id` nullable +
+ * `pr_bypass_reason` wajib bila kosong), dan data demo memuat contohnya. Versi
+ * pertama layanan ini hanya mengkueri baris PR, jadi barang yang sudah ada di
+ * PO DISETUJUI — sedang berjalan, uangnya sudah terikat — muncul lagi sebagai
+ * "Akan diusulkan", dan kartu "Yang dilewati" tidak menyebut PO sama sekali.
+ * Menekan "Buat PR draf" melahirkan permintaan kedua untuk barang yang sudah
+ * dipesan, dan itu baru terlihat ketika barangnya datang dua kali — persis
+ * risiko yang docblock ini sendiri namai dan tinggalkan tanpa penjaga.
  *
  * Lengan "tidak menyebut gudang" adalah pilihan yang sengaja dibuat ke arah
  * yang lebih sepi. prc_purchase_requisitions.warehouse_id nullable; sebuah PR
@@ -47,7 +59,7 @@ use Modules\Procurement\Services\PurchaseRequisitionService;
  */
 class ReorderService
 {
-    /** Status PR yang dianggap MASIH BERJALAN untuk keperluan melewati item. */
+    /** Status PR/PO yang dianggap MASIH BERJALAN untuk keperluan melewati item. */
     private const OPEN_STATUSES = [
         DocumentStatus::Draft,
         DocumentStatus::Submitted,
@@ -73,7 +85,7 @@ class ReorderService
     public function proposal(?int $warehouseId = null): array
     {
         $shortages = $this->stock->lowStockAlerts($warehouseId);
-        $covered = $this->openRequisitionLines($shortages->pluck('item_id')->unique()->all());
+        $covered = $this->openOrderLines($shortages->pluck('item_id')->unique()->all());
 
         $rows = $shortages->map(function (object $shortage) use ($covered): array {
             $blocking = $this->blockingRequisition($covered, (int) $shortage->item_id, (int) $shortage->warehouse_id);
@@ -95,15 +107,20 @@ class ReorderService
                 'suggested_qty' => (float) $shortage->suggested_qty,
                 'reorder_qty' => $shortage->reorder_qty === null ? null : (float) $shortage->reorder_qty,
                 'skipped' => $blocking !== null,
-                // Kalimatnya menyebut KODE PR-nya. "Sudah ada di PR terbuka"
-                // tanpa kode adalah kabar yang tidak bisa ditindaklanjuti siapa
-                // pun — yang dicari orangnya adalah dokumen itu.
+                // Kalimatnya menyebut KODE dokumennya. "Sudah ada di PR
+                // terbuka" tanpa kode adalah kabar yang tidak bisa
+                // ditindaklanjuti siapa pun — yang dicari orangnya adalah
+                // dokumen itu. Dan "diminta" (PR) berbeda dari "dipesan" (PO):
+                // yang pertama masih bisa dibatalkan di meja sendiri, yang
+                // kedua sudah menjadi janji kepada pemasok.
                 'skipped_reason' => $blocking === null ? null : sprintf(
-                    'Sudah diminta pada %s (%s)%s.',
+                    '%s pada %s (%s)%s.',
+                    $blocking['kind'] === 'po' ? 'Sudah dipesan' : 'Sudah diminta',
                     $blocking['code'],
                     $blocking['status_label'],
                     $blocking['warehouse_id'] === null ? ' yang tidak menyebut gudang' : '',
                 ),
+                'skipped_kind' => $blocking['kind'] ?? null,
                 'skipped_requisition_code' => $blocking['code'] ?? null,
             ];
         })->values()->all();
@@ -117,10 +134,12 @@ class ReorderService
                 'proposable' => count($proposable),
                 'skipped' => count($rows) - count($proposable),
             ],
-            'why_skipped' => 'Item yang sudah menjadi baris pada PR terbuka (draf, diajukan atau disetujui) '
-                .'untuk gudang yang sama — atau pada PR yang tidak menyebut gudang sama sekali — dilewati, '
-                .'supaya menjalankan usulan dua kali tidak menghasilkan dua permintaan untuk kekurangan yang '
-                .'sama. PR yang ditolak, selesai atau dibatalkan tidak menahan apa pun.',
+            'why_skipped' => 'Item yang sudah menjadi baris pada PR ATAU PO terbuka (draf, diajukan atau '
+                .'disetujui) untuk gudang yang sama — atau pada dokumen yang tidak menyebut gudang sama sekali '
+                .'— dilewati, supaya menjalankan usulan dua kali tidak menghasilkan dua permintaan untuk '
+                .'kekurangan yang sama. PO ikut karena PO boleh dibuat tanpa PR. Yang ditolak, selesai atau '
+                .'dibatalkan tidak menahan apa pun: PO yang selesai sudah diterima penuh, jadi kekurangan yang '
+                .'tersisa memang nyata.',
         ];
     }
 
@@ -190,44 +209,62 @@ class ReorderService
     }
 
     /**
-     * Baris PR terbuka untuk item-item ini, dikelompokkan per item.
+     * Baris PR DAN PO terbuka untuk item-item ini, dikelompokkan per item.
      *
-     * Satu kueri untuk seluruh daftar, bukan satu per baris kekurangan: layar
-     * gudang pusat dengan 200 item di bawah ambang akan menjalankan 200 kueri.
+     * DUA KUERI UNTUK SELURUH DAFTAR, bukan dua per baris kekurangan: layar
+     * gudang pusat dengan 200 item di bawah ambang akan menjalankan 400 kueri.
+     *
+     * PO LEBIH DULU dalam daftar tiap item, dan itu bukan urutan sembarang:
+     * bila sebuah item ada di PR terbuka DAN di PO terbuka, yang perlu dibaca
+     * orangnya adalah PO-nya — barangnya sudah dipesan, bukan sekadar diminta,
+     * dan itu kabar yang mengubah tindakan berikutnya.
      *
      * @param  list<int>  $itemIds
-     * @return array<int, list<array{code: string, status_label: string, warehouse_id: ?int}>>
+     * @return array<int, list<array{kind: string, code: string, status_label: string, warehouse_id: ?int}>>
      */
-    private function openRequisitionLines(array $itemIds): array
+    private function openOrderLines(array $itemIds): array
     {
         if ($itemIds === []) {
             return [];
         }
 
-        $rows = DB::table('prc_purchase_requisition_items as l')
+        $statuses = array_map(fn (DocumentStatus $status) => $status->value, self::OPEN_STATUSES);
+
+        $orders = DB::table('prc_purchase_order_items as l')
+            ->join('prc_purchase_orders as p', 'p.id', '=', 'l.purchase_order_id')
+            ->whereNull('p.deleted_at')
+            ->whereIn('p.status', $statuses)
+            ->whereIn('l.item_id', $itemIds)
+            ->orderBy('p.id')
+            ->get(['l.item_id', 'p.code', 'p.status', 'p.warehouse_id']);
+
+        $requisitions = DB::table('prc_purchase_requisition_items as l')
             ->join('prc_purchase_requisitions as p', 'p.id', '=', 'l.purchase_requisition_id')
             ->whereNull('p.deleted_at')
-            ->whereIn('p.status', array_map(fn (DocumentStatus $status) => $status->value, self::OPEN_STATUSES))
+            ->whereIn('p.status', $statuses)
             ->whereIn('l.item_id', $itemIds)
             ->orderBy('p.id')
             ->get(['l.item_id', 'p.code', 'p.status', 'p.warehouse_id']);
 
         $byItem = [];
 
-        foreach ($rows as $row) {
-            $byItem[(int) $row->item_id][] = [
-                'code' => $row->code,
-                'status_label' => (DocumentStatus::tryFrom($row->status)?->label() ?? $row->status),
-                'warehouse_id' => $row->warehouse_id === null ? null : (int) $row->warehouse_id,
-            ];
+        foreach ([['po', $orders], ['pr', $requisitions]] as [$kind, $rows]) {
+            foreach ($rows as $row) {
+                $byItem[(int) $row->item_id][] = [
+                    'kind' => $kind,
+                    'code' => $row->code,
+                    'status_label' => (DocumentStatus::tryFrom($row->status)?->label() ?? $row->status),
+                    'warehouse_id' => $row->warehouse_id === null ? null : (int) $row->warehouse_id,
+                ];
+            }
         }
 
         return $byItem;
     }
 
     /**
-     * @param  array<int, list<array{code: string, status_label: string, warehouse_id: ?int}>>  $covered
-     * @return array{code: string, status_label: string, warehouse_id: ?int}|null
+     * @param  array<int, list<array{kind: string, code: string, status_label: string, warehouse_id: ?int}>>  $covered
+     * @return array{kind: string, code: string, status_label: string, warehouse_id: ?int}|null
      */
     private function blockingRequisition(array $covered, int $itemId, int $warehouseId): ?array
     {
