@@ -75,7 +75,10 @@ pengesahan pemilik ke dalam ledger, bukan pengganti ledgernya.
 Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
 lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
 migrasi Core-lah yang menetapkannya di tabel ini, dalam commit yang sama dengan pemakaian
-pertamanya. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
+pertamanya. **JANGAN memakai 001400–001499 untuk Core**, meski ledger pemilik
+(ROADMAP-HASHMICRO §5 baris 5) menuliskan "Core 001400–?": rentang itu adalah blok PERTAMA
+Quality pada tabel di atas, dan ia sudah berisi enam migrasi (001400/001410/001420/001430/
+001440/001450). Usul pengganti yang menunggu pengesahan pemilik: **001800–001899**. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
 commit yang pertama kali memakainya, tidak pernah lebih dulu dan tidak pernah belakangan.
 
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
@@ -478,10 +481,32 @@ dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri 
 Ketiganya sekarang berindeks (migrasi Core `000196`, hanya indeks, berpenjaga `Schema::hasTable`),
 dan `ModuleCountsTest::test_the_scanning_counts_have_their_indexes` menjaga agar tidak hilang lagi —
 sejak P1-C hitungan ini berjalan setiap kali launcher `#/home` dibuka, yaitu landing ponsel setiap
-pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv` membandingkan `b.qty < i.min_stock`
-antar dua tabel, dan tidak ada indeks yang bisa melayani perbandingan antar kolom; bila
-`inv_stock_balances` tumbuh melewati ~100 rb baris, angka itu perlu tabel ringkasan, bukan indeks.
-Entri baru: jalankan `EXPLAIN`-nya dan tulis hasilnya di sini atau tambahkan indeksnya.
+pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv`. Sejak F-6 (8 Sep 2026) kuerinya bukan lagi
+satu perbandingan `b.qty < i.min_stock` antar dua tabel melainkan DUA LENGAN yang saling
+meniadakan lewat `r.id`, di atas `LEFT JOIN inv_reorder_rules` — ambangnya `r.reorder_point`
+bila ada aturan AKTIF untuk pasangan gudang × item, dan `i.min_stock` bila tidak. `EXPLAIN`-nya
+dijalankan ulang pada kedua driver (putaran perbaikan F-6, 8 Sep 2026):
+
+```
+-- SQLite (EXPLAIN QUERY PLAN, salinan basis data demo yang sudah dimigrasi)
+SCAN b
+SEARCH i USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH w USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH r USING INDEX inv_reorder_rules_warehouse_id_item_id_unique (warehouse_id=? AND item_id=?) LEFT-JOIN
+
+-- MySQL 8 (erp_dryrun)
+b  type=ALL     key=NULL                                            (pemindaian yang disengaja)
+i  type=eq_ref  key=PRIMARY
+w  type=eq_ref  key=PRIMARY
+r  type=eq_ref  key=inv_reorder_rules_warehouse_id_item_id_unique   ref=b.warehouse_id, b.item_id
+```
+
+Join ke tabel aturan TIDAK menambah pemindaian: UNIQUE (warehouse_id, item_id) melayaninya
+sebagai `eq_ref` di MySQL dan sebagai `SEARCH … USING INDEX` di SQLite. Yang tersisa tetap
+`SCAN b` — tidak ada indeks yang bisa melayani perbandingan antar KOLOM (`b.qty <
+r.reorder_point`), dan bila `inv_stock_balances` tumbuh melewati ~100 rb baris angka itu perlu
+tabel ringkasan, bukan indeks. Entri baru, ATAU entri lama yang kuerinya berubah bentuk:
+jalankan `EXPLAIN`-nya dan tulis hasilnya di sini atau tambahkan indeksnya.
 
 `label` punya CERMIN di klien: `schema.js` `MODULES[prefix].kpi`. Ia ada karena ubin harus bisa
 menyebut angka yang tidak dikirim server — entri yang izinnya tidak dipegang tidak ada di jawaban,

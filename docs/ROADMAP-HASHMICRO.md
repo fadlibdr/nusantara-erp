@@ -241,7 +241,7 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 | 2 | Mesin grafik / pustaka vendor | SVG tangan; SortableJS + sprite Lucide saja |
 | 3 | Landing setelah masuk | dasbor di desktop, launcher di ponsel |
 | 4 | Resource report builder v1 / berbagi | 8 resource; per peran |
-| 5 | Blok migrasi lanjutan | Core 001400–?, Finance 001500–, Projects 001600– (CONVENTIONS §2) |
+| 5 | Blok migrasi lanjutan | ~~Core 001400–?~~ **BERTABRAKAN — lihat catatan di bawah**, Finance 001500–, Projects 001600– (CONVENTIONS §2); Inventory 001700–001799 ditetapkan F-6 dan menunggu pengesahan |
 | 6 | Jendela cut-over MySQL / retensi arsip SQLite | Sabtu pagi / 30 hari |
 | 7 | Penyedia WhatsApp & anggaran | Meta Cloud API langsung bila bisnis terverifikasi, else Qontak; bukan Fonnte |
 | 8 | SMTP | kotak surat domain perusahaan, 587 STARTTLS |
@@ -253,6 +253,16 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 | 14 | Geofence absensi & di-luar-geofence; usulan rekap ke payroll | 500 m, dicatat bukan ditolak; usulan yang HR terapkan |
 | 15 | Code 128 vs QR ter-vendor | Code 128 tanpa dependensi |
 | 16 | `queue:retry` shell untuk job pengiriman (`DeliverNotification`): no-op jujur vs terima baris `failed` | ⏳ **no-op jujur = perilaku hari ini** (verifikasi P-0b, 5 Sep 2026): kebenaran pengiriman adalah baris `core_notification_deliveries`; job yang kembali lewat `queue:retry` melewati baris `failed` tanpa mengirim dan menulis satu peringatan di log pekerja yang menunjuk ke Sistem › Pengiriman Notifikasi; layar Antrean Gagal menolak (422) dengan penunjuk yang sama. Alternatif (menerima baris `failed` saat job datang lewat retry) = dua jalur kirim ulang yang bisa saling menimpa |
+
+> **Baris 5 — "Core 001400–?" bertabrakan dengan blok pertama Quality, dan blok itu sudah
+> berisi enam migrasi.** CONVENTIONS §2 memberikan `001400–001499` kepada Quality
+> (`| Quality | api/quality | qc_ | 001400–001499 |`), dan `ls Modules/*/Database/Migrations/*_0014*.php`
+> memulangkan enam berkas: 001400, 001410, 001420, 001430, 001440, 001450. Paket berikutnya
+> yang butuh migrasi Core dan membaca ledger ini akan mengambil mis. 001402 dan membuat dua
+> modul berbagi rentang — nomor yang bertabrakan tidak menghasilkan galat, ia hanya
+> menghapus batas yang §2 lahir untuk menjaga. **Usul: Core memakai `001800–001899`**;
+> penetapannya menunggu pemilik, dan aturan §2 tetap berlaku — didaftarkan di TABEL §2 pada
+> commit yang pertama kali memakainya. (Ditemukan pada putaran perbaikan F-6, 8 Sep 2026.)
 
 ## 6. Urutan pengerjaan yang diusulkan & total
 
