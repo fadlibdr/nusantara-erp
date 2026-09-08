@@ -213,8 +213,12 @@ const LABELS = {
   monthly_depreciation: 'Penyusutan per bulan', acquisition_cost: 'Harga perolehan',
   period_year: 'Tahun', period_month: 'Bulan', run_type: 'Jenis run', payslips_count: 'Jumlah slip',
   // Tanpa entri ini panel Informasi OVB memajang "Lines Count" (verifikasi F-2
-  // putaran 2) — label auto-Inggris yang titleize() memang peringatkan.
+  // putaran 2) — label auto-Inggris yang titleize() memang peringatkan. Empat
+  // berikutnya terlihat pada bukti putaran yang sama, di panel Informasi RAP:
+  // "Revised From", "Revision Reason", "Superseded At", "Is Governing".
   lines_count: 'Jumlah baris',
+  revised_from_id: 'Revisi dari', revision_reason: 'Alasan revisi',
+  superseded_at: 'Digantikan pada', is_governing: 'Anggaran yang berlaku',
   total_gross: 'Total bruto', total_deductions: 'Total potongan', total_net: 'Total netto',
   sla_response_hours: 'SLA respons (jam)', sla_resolution_hours: 'SLA penyelesaian (jam)',
   billing_cycle: 'Siklus penagihan', priority: 'Prioritas', category: 'Kategori', channel: 'Kanal',
