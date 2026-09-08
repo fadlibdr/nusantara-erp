@@ -75,8 +75,10 @@ tidak ada di sidebar Anda. PO Anda baca dari kolom **PO** di daftar GRN dan dari
   daftar Opname; GRN dan bon Anda yang sudah diposting orang lain terbaca dari lencana
   **Diposting** di daftarnya.
 - Kartu **Kalender Acara** (selalu digambar), **Progres proyek** (bila ada proyek
-  berjalan), dan **Stok di bawah minimum** — kartu yang paling berguna bagi Anda: item ·
-  gudang · stok / minimum, digambar hanya bila ada isinya.
+  berjalan), dan **Perlu dipesan ulang** — kartu yang paling berguna bagi Anda: item ·
+  gudang · stok / **ambang**, digambar hanya bila ada isinya. Ambang tiap baris adalah
+  aturan reorder gudang itu bila ada (`Persediaan › Aturan Reorder`), dan stok minimum
+  kartu item bila tidak — kartunya menyebut yang mana.
 
 **Lonceng dan Tenggat** — **tidak satu pun tenggat harian ditujukan kepada peran Anda**
 (PANDUAN §1.7): sembilan belas tenggat itu bergerbang izin penjualan, keuangan,

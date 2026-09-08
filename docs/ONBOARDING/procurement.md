@@ -77,7 +77,7 @@ di sidebar Anda.
   menunggu persetujuan."* untuk Anda, karena Anda tidak menyetujui apa pun. Kabar PR/PO
   Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
   merah) dan lewat lencana status di layar daftarnya.
-- Kartu **Kalender Acara** (selalu digambar) dan **Stok di bawah minimum** (digambar hanya
+- Kartu **Kalender Acara** (selalu digambar) dan **Perlu dipesan ulang** (digambar hanya
   bila ada item di bawah minimum — daftar yang dibaca, tanpa tombol PR di atasnya; §6.10).
 
 **Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7), tiga saja:

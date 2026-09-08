@@ -65,7 +65,7 @@ Sidebar penuh Anda memuat 60 layar lebih; yang di atas cukup untuk minggu pertam
   **`Proyek saya`** dinyalakan; sakelar itu mencocokkan akun Anda dengan kolom manajer
   proyek lewat data karyawan, jadi ia hanya berguna bila akun Anda tertaut karyawan.
 - Kartu **Kalender Acara** (selalu digambar, walau bulan kosong), **Progres proyek** dan
-  **Stok di bawah minimum** (keduanya digambar hanya bila ada isinya).
+  **Perlu dipesan ulang** (keduanya digambar hanya bila ada isinya).
 - Kartu **Menunggu persetujuan Anda** — **untuk peran Anda kartu ini selalu kosong, dan
   itu bukan berarti tidak ada yang menunggu.** Kartu itu hanya mencakup 11 jenis
   dokumen, dan tidak satu pun di antaranya Anda setujui: IPP, inspeksi mutu, BAST,

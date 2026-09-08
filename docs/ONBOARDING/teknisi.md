@@ -58,7 +58,7 @@ ponsel. Anda hanya akan melihat tab **Tiket Servis** (§7.4).
 
 - Ubin **Tiket aktif**, dengan sub-baris *"N melewati SLA"* atau *"SLA aman"*.
 - Kartu **Tiket layanan aktif** (judul, prioritas, lencana SLA *Terlampaui*) dan kartu
-  **Stok di bawah minimum** — keduanya digambar hanya bila ada isinya; kartu **Kalender
+  **Perlu dipesan ulang** — keduanya digambar hanya bila ada isinya; kartu **Kalender
   Acara** selalu digambar (agenda modul yang boleh Anda lihat — kunjungan PM tampil di
   sini).
 - Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak

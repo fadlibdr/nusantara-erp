@@ -64,7 +64,7 @@ pertama. Kelompok Estimasi, Subkontrak, Keuangan, dan Pengadaan tidak ada di sid
   **manajer proyek**, bukan site manager — untuk Anda ia mengembalikan nol baris. Biarkan
   mati.
 - Kartu **Kalender Acara** (selalu digambar, walau bulan kosong), **Progres proyek** dan
-  **Stok di bawah minimum** (keduanya digambar hanya bila ada isinya).
+  **Perlu dipesan ulang** (keduanya digambar hanya bila ada isinya).
 - Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
   menyetujui apa pun. Kabar bahwa dokumen Anda disetujui atau ditolak datang lewat
   **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di layar

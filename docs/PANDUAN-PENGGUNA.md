@@ -3634,17 +3634,34 @@ terbarulah yang tidak terlihat. Persempit dengan dropdown gudang.
 Ia tidak bisa diklik dan tidak pernah menyebut GRN atau bon yang mana. Temukan dokumennya
 di layarnya sendiri lewat tanggal dan gudangnya.
 
-**Tab `Di bawah minimum`.** Item · Gudang · Stok · Minimum · **Kurang** (merah). Bila
-aman: *"Semua item berada di atas stok minimum."*
+**Tab `Perlu dipesan ulang`** (sampai F-6 bernama *Di bawah minimum*). Item · Gudang ·
+Stok · **Ambang** · **Kurang** (merah) · **Usulan pesan**. Bila aman: *"Tidak ada pasangan
+gudang × item yang berada di bawah ambangnya."*
+
+**Ambang tiap baris bukan selalu Stok minimum item.** Sejak F-6 ada `Persediaan › Aturan
+Reorder`, yang menetapkan titik pesan ulang **per pasangan gudang × item**. Aturan yang
+AKTIF untuk sebuah pasangan **MENGGANTIKAN** Stok minimum item untuk pasangan itu —
+termasuk bila angkanya **lebih rendah**; itulah gunanya, karena gudang pusat yang memasok
+delapan proyek dan gudang site yang memasang CCTV di satu gedung tidak punya titik pesan
+ulang yang sama. Kolom **Ambang** karena itu selalu mencetak **dua hal**: angka yang
+berlaku, dan di bawahnya dari mana angka itu datang — *"Aturan reorder gudang ini · stok
+min. item 200"* atau *"Stok minimum item"*. Aturan bertitik **0** berarti pasangan itu
+memang tidak pernah dipesan ulang; aturan yang **nonaktif** tidak menentukan apa pun dan
+angka item berlaku lagi.
+
+Kolom **Usulan pesan** adalah *Jumlah pesan* aturan bila aturan menyebutnya, dan
+**Kurang** bila tidak. Keduanya berdampingan dengan sengaja: jumlah pesan yang lebih kecil
+daripada kekurangan adalah pilihan yang boleh dibuat, dan ia harus terlihat sebagai
+pilihan, bukan sebagai salah hitung.
 
 Dua hal yang membuat tab itu diam padahal tidak seharusnya:
 
 - **Ia hanya memuat item yang sudah punya baris saldo di gudang itu.** Item yang belum
-  pernah masuk ke sebuah gudang tidak akan pernah muncul, setinggi apa pun Stok
-  minimumnya.
-- **Stok minimum adalah satu angka pada master item yang diterapkan ke SETIAP gudang
-  secara terpisah.** Angka 100 berarti "100 di tiap gudang yang pernah memegangnya",
-  bukan 100 secara keseluruhan.
+  pernah masuk ke sebuah gudang tidak akan pernah muncul, setinggi apa pun ambangnya.
+- **Item TANPA aturan reorder memakai Stok minimum dari master item, satu angka yang
+  diterapkan ke SETIAP gudang secara terpisah.** Angka 100 berarti "100 di tiap gudang
+  yang pernah memegangnya", bukan 100 secara keseluruhan. Untuk membedakannya per gudang,
+  buat aturan reorder.
 
 **Kotak cari hanya bekerja di tab pertama.** Di dua tab lain, mengetik tidak menyaring
 apa pun.
@@ -3694,6 +3711,81 @@ riwayat saldo (§6.10).
 `satuan` (**wajib**) · `jenis` · `kategori_kode` (**wajib, harus sudah ada**) ·
 `stok_minimum` · `harga_beli_terakhir` · `barcode` · `aktif`. **Gudang dan Kategori Item
 tidak punya pengimpor**, dan tidak ada pengimpor untuk transaksi stok apa pun.
+
+### 6.3b Aturan Reorder, Usulan Pesan Ulang, Label & Pindai (F-6)
+
+**`Persediaan › Aturan Reorder`.** Satu baris per pasangan **gudang × item**: Gudang ·
+Item · **Titik pesan ulang** · **Stok min. item** · **Jumlah pesan** · Aktif. Kolom
+*Stok min. item* mencetak angka yang aturan ini **gantikan**, di sebelah penggantinya —
+sebuah tabel yang hanya menampilkan 20 tidak memberi tahu siapa pun bahwa angka
+perusahaan untuk barang itu 100.
+
+- **Titik pesan ulang MENGGANTIKAN stok minimum item untuk gudang ini**, termasuk bila
+  lebih rendah. **0** berarti pasangan ini tidak pernah dipesan ulang.
+- **Jumlah pesan** adalah jumlah yang diusulkan sekali pesan. Kosong atau 0 berarti usulan
+  memakai **kekurangannya sendiri**.
+- **Aktif** adalah saklarnya. Aturan nonaktif **tetap tersimpan**, tetap terbaca angkanya,
+  dan **tidak menentukan ambang apa pun**. Gunakan itu, bukan Hapus, untuk mematikan
+  sementara — menghapus benar-benar menghapus.
+- **Satu pasangan hanya boleh punya satu aturan.** Yang kedua ditolak dengan kalimat yang
+  menyebut aturan yang sudah berdiri, karena dua aturan akan menghitung kekurangan yang
+  sama dua kali — di layar ini, di dasbor, DAN di ubin Beranda.
+
+**`Persediaan › Usulan Pesan Ulang`.** Membaca kekurangan per gudang × item dan
+menawarkan satu tombol **`Buat PR draf`**. Layar ini **tidak pernah mengajukan dan tidak
+pernah menyetujui**: PR yang dibuat berstatus **Draf**, dan Andalah yang memeriksanya di
+`Pengadaan › Permintaan Pembelian`. Tombolnya menuntut izin **`prc.create`** — membuat PR
+adalah tindakan pengadaan, dari layar mana pun tombolnya ditekan.
+
+> **Menjalankannya dua kali tidak membuat permintaan kedua.** Item yang sudah menjadi
+> baris pada PR **terbuka** (draf, diajukan, atau disetujui) untuk gudang yang sama —
+> atau pada PR yang **tidak menyebut gudang** sama sekali — ditandai **Dilewati**, dan
+> barisnya menuliskan **kode PR** yang menutupinya supaya Anda bisa membuka dokumen itu.
+> PR yang **ditolak, selesai, atau dibatalkan** tidak menahan apa pun.
+
+Satu PR dibuat **per gudang** (satu PR punya satu gudang tujuan). Proyeknya diambil dari
+proyek gudangnya (gudang pusat tidak punya, dan barisnya tetap kosong), taksiran harganya
+dari *Harga beli terakhir* kartu item, dan tiap baris PR menuliskan *"stok X dari titik
+pesan ulang Y (sumbernya)"* supaya yang menandatangani PR bisa melihat dari mana jumlah
+itu datang.
+
+**Label barcode (Form F/LBL).** Di halaman detail sebuah item, menu **`Cetak ▾ ›
+Cetak Label Barcode`** membuka lembar berisi **12 stiker** untuk digunting (tambahkan
+`?jumlah=` pada alamatnya untuk 1–60). Yang dikodekan: **barcode pemasok** bila kartu item
+punya, dan **kode item** bila tidak — dan lembarnya menuliskan yang mana. Simbologi
+**Code 128**.
+
+> **Jangan memperkecil, memotong, atau menempelkan apa pun pada ruang kosong di kiri dan
+> kanan batang.** Ruang itu (*quiet zone*) yang dipakai pemindai untuk menemukan tepi
+> kode, dan tanpa ia pemindai gagal **tanpa bunyi apa pun** — yang di gudang terbaca
+> sebagai "pemindainya rusak".
+
+Kode yang memuat karakter di luar huruf/angka/tanda baca ASCII biasa (mis. `Ø`)
+**tidak dicetak sebagai barcode**. Stikernya tetap keluar, dengan garis untuk ditulis
+tangan dan kalimat yang menyebut kodenya: barcode yang dicetak dari teks yang tidak bisa
+dikodekan bukan gambar kosong melainkan gambar **yang salah**, dan gambar yang salah
+terbaca sebagai kode **lain**.
+
+**`Persediaan › Pindai Barcode`.** Ketik/tempel kode, atau pindai dengan kamera. Layar ini
+**hanya membaca** — ia tidak memindahkan stok apa pun; hasilnya adalah kartu item beserta
+saldonya per gudang.
+
+- **Kotak ketik selalu ada, di ponsel mana pun.** Ia bukan jalan pintas darurat: **Safari
+  di iPhone dan iPad tidak menyediakan pemindai bawaan peramban** dan tidak ada setelan
+  yang bisa menyalakannya. Di ponsel itu, kotak ketik adalah pemindainya.
+- **Empat sebab kamera tidak bisa dipakai, dan layar menyebut yang mana:** peramban tanpa
+  pemindai bawaan (tidak ada yang bisa diperbaiki) · halaman dibuka lewat `http://` alih-
+  alih `https://` (peramban memang tidak akan pernah meminta kamera) · **izin kamera
+  ditolak** (bisa dicabut kembali lewat ikon gembok di bilah alamat) · **tidak ada kamera**
+  (bukan soal izin). Yang kelima bukan kegagalan: kamera menyala dan belum menemukan apa
+  pun — dekatkan 10–20 cm dan cari cahaya yang lebih rata.
+- **Pencocokannya PERSIS**, pada kolom Barcode **atau** pada kode item. `ITM-000` tidak
+  akan menemukan `ITM-0001`; untuk pencarian sebagian, pakai layar `Item`.
+
+> **Bila satu barcode dipakai lebih dari satu item, layar menampilkan SEMUANYA dan meminta
+> Anda memilih.** Kolom Barcode belum dipaksa unik, jadi keadaan ini nyata. Memilihkan
+> salah satunya akan memasukkan stok ke kartu barang yang keliru, dan kekeliruan itu baru
+> terlihat pada opname berikutnya sebagai dua selisih tanpa penjelasan.
 
 ### 6.4 Penerimaan Barang (GRN) — `Persediaan › Penerimaan (GRN)`
 
