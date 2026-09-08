@@ -3102,6 +3102,52 @@ export const RESOURCES = {
     },
   },
 
+  /*
+   * Aturan titik pesan ulang per GUDANG × ITEM (F-6).
+   *
+   * PRIORITASNYA DITULIS DI LAYAR, di tiga tempat: keterangan daftar, kolom
+   * "Stok min. item" yang mencetak angka yang DIGANTIKAN di sebelah
+   * penggantinya, dan bantuan medan pada formulirnya. Sebuah tabel yang hanya
+   * menampilkan 20 tidak memberi tahu siapa pun bahwa angka perusahaan untuk
+   * barang itu 100 — dan itulah satu-satunya keterangan yang membuat seseorang
+   * berhenti dan memeriksa apakah aturannya masih benar.
+   */
+  'inventory/reorder-rules': {
+    module: 'inv', api: 'inventory/reorder-rules', label: 'Aturan Reorder', labelOne: 'Aturan Reorder',
+    noDetail: true,
+    columns: [
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'item.name', label: 'Item', type: 'text', sub: 'item.code' },
+      { key: 'reorder_point', label: 'Titik pesan ulang', type: 'qty', align: 'right' },
+      { key: 'item.min_stock', label: 'Stok min. item', type: 'qty', align: 'right', hideOnNarrow: true },
+      { key: 'reorder_qty', label: 'Jumlah pesan', type: 'qty', align: 'right' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+    ],
+    filters: [
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+      { key: 'item_id', label: 'Item', lookup: 'items' },
+    ],
+    form: {
+      sections: [{
+        title: 'Aturan reorder',
+        fields: [
+          { key: 'warehouse_id', label: 'Gudang', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true },
+          {
+            key: 'reorder_point', label: 'Titik pesan ulang', type: 'qty', required: true, default: 0,
+            help: 'MENGGANTIKAN stok minimum item untuk gudang ini — termasuk bila lebih rendah. Isi 0 berarti pasangan ini tidak pernah dipesan ulang.',
+          },
+          {
+            key: 'reorder_qty', label: 'Jumlah pesan', type: 'qty', default: 0,
+            help: 'Jumlah yang diusulkan sekali pesan. Kosong atau 0 berarti usulan PR memakai kekurangannya sendiri.',
+          },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true, help: 'Aturan nonaktif tetap tersimpan dan tidak menentukan ambang apa pun.' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
+        ],
+      }],
+    },
+  },
+
   'inventory/goods-receipts': {
     module: 'inv', api: 'inventory/goods-receipts', label: 'Penerimaan Barang (GRN)', labelOne: 'GRN',
     columns: [
@@ -6452,6 +6498,10 @@ export const NAV = [
       { label: 'Item', route: 'r/inventory/items' },
       { label: 'Kategori Item', route: 'r/inventory/item-categories' },
       { label: 'Gudang', route: 'r/inventory/warehouses' },
+      // F-6 — tepat di bawah Gudang karena aturannya milik pasangan gudang ×
+      // item, dan orang yang baru membuat gudang site adalah orang yang
+      // berikutnya menetapkan ambangnya sendiri.
+      { label: 'Aturan Reorder', route: 'r/inventory/reorder-rules' },
       { label: 'Penerimaan (GRN)', route: 'r/inventory/goods-receipts' },
       { label: 'Pengeluaran', route: 'r/inventory/issues' },
       { label: 'Transfer', route: 'r/inventory/transfers' },

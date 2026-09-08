@@ -7,6 +7,7 @@ use Modules\Inventory\Http\Controllers\IssueReturnController;
 use Modules\Inventory\Http\Controllers\ItemCategoryController;
 use Modules\Inventory\Http\Controllers\ItemController;
 use Modules\Inventory\Http\Controllers\PurchaseReturnController;
+use Modules\Inventory\Http\Controllers\ReorderRuleController;
 use Modules\Inventory\Http\Controllers\StockAdjustmentController;
 use Modules\Inventory\Http\Controllers\StockController;
 use Modules\Inventory\Http\Controllers\TransferController;
@@ -100,6 +101,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('stock-adjustments/{stockAdjustment}/submit', [StockAdjustmentController::class, 'submit'])->middleware('permission:inv.update');
     Route::post('stock-adjustments/{stockAdjustment}/approve', [StockAdjustmentController::class, 'approve'])->middleware('permission:inv.approve');
     Route::post('stock-adjustments/{stockAdjustment}/reject', [StockAdjustmentController::class, 'reject'])->middleware('permission:inv.approve');
+
+    // Aturan titik pesan ulang per gudang × item (F-6). Master data biasa
+    // dengan izin inv.* yang sudah ada — tetapi barisnya mengubah arti angka
+    // "perlu dipesan ulang" yang dibaca layar Saldo Stok, widget dasbor, ubin
+    // launcher dan usulan PR, jadi inv.update bukan sekadar formalitas.
+    Route::get('reorder-rules', [ReorderRuleController::class, 'index']);
+    Route::post('reorder-rules', [ReorderRuleController::class, 'store'])->middleware('permission:inv.create');
+    Route::get('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'show']);
+    Route::put('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'update'])->middleware('permission:inv.update');
+    Route::delete('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'destroy'])->middleware('permission:inv.delete');
 
     // Stock reports
     Route::get('stock/balances', [StockController::class, 'balances']);
