@@ -70,8 +70,15 @@ export async function renderBoard(host, { key, def }) {
     el('div', [
       el('h1', { text: `Papan ${def.label}` }),
       el('.desc', {
+        /* Kalimat ketiga ada untuk orang yang TIDAK BISA MENYERET: papan ini
+           tidak punya jalan keyboard untuk memindahkan kartu (diukur 8 Sep
+           2026 — panah, Spasi dan Tab tidak memindahkan apa pun), dan jalan
+           yang memang ada — tombol aksi di halaman dokumennya — harus tertulis
+           di tempat orang membacanya, bukan hanya diketahui orang yang sudah
+           menemukannya. */
         text: 'Seret kartu ke kolom berikutnya untuk menjalankan aksinya. Perpindahan memakai tombol yang '
-          + 'sama dengan halaman dokumen — termasuk catatan, alasan wajib, dan aturan persetujuan.',
+          + 'sama dengan halaman dokumen — termasuk catatan, alasan wajib, dan aturan persetujuan. '
+          + 'Tanpa menyeret: buka kartunya (Enter atau Spasi) lalu pakai tombol aksi di halaman dokumennya.',
       }),
     ]),
     el('.actions', [
@@ -179,12 +186,24 @@ function card(row, { def }) {
   const date = columns.find((column) => column.type === 'date');
   const rel = columns.find((column) => column.type === 'rel');
 
+  const open = () => navigate(`d/${def.apiKey || def.api}/${row.id}`);
+
   return el('.board-card', {
     dataset: { id: String(row.id) },
     tabindex: '0',
-    onclick: () => navigate(`d/${def.apiKey || def.api}/${row.id}`),
+    /* Bisa difokus BERARTI punya peran: tanpa role="button" pembaca layar
+       mengumumkan kartu ini sebagai grup teks yang entah kenapa bisa difokus.
+       Dan Spasi diperlakukan sama dengan Enter — perilaku bawaan sebuah tombol
+       — karena tanpanya Spasi menggulirkan halaman: diukur 8 Sep 2026, fokus
+       di kartu pertama lalu Spasi → scrollY 0 → 827 → 1614, kartunya tidak ke
+       mana-mana. preventDefault menahan gulirannya. */
+    role: 'button',
+    'aria-label': `${row.code || `#${row.id}`} — buka dokumennya`,
+    onclick: open,
     onkeydown: (event) => {
-      if (event.key === 'Enter') navigate(`d/${def.apiKey || def.api}/${row.id}`);
+      if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+      event.preventDefault();
+      open();
     },
   }, [
     el('.board-card-head', [
