@@ -80,8 +80,13 @@ function selSisa(row, unit) {
     return el('td.right', el('span.cell-sub', { text: label }));
   }
 
+  /* Sisa NEGATIF dikatakan sebagai apa adanya: "40 jam lewat", bukan
+     "-40 jam lagi" — sebuah minus yang harus dibaca dua kali di kolom yang
+     seluruh tugasnya memberi tahu berapa lama lagi. */
   return el('td.right.num.strong', {
-    text: `${fmt.qty(row.remaining, unit)} lagi`,
+    text: row.remaining < 0
+      ? `${fmt.qty(Math.abs(row.remaining), unit)} lewat`
+      : `${fmt.qty(row.remaining, unit)} lagi`,
     style: { color: warnaKeadaan(row.state) },
   });
 }
@@ -208,7 +213,7 @@ export async function renderAmbang(host) {
   body.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Cara membacanya' })),
     el('.card-body', [
-      el('p', { text: 'Sebuah baris berubah menjadi "Mendekati batas" saat terpakai mencapai ambang peringatan, dan menjadi "Melampaui batas" tepat pada 100 % — anggaran yang habis persis sudah tidak menyisakan apa pun untuk dokumen berikutnya.' }),
+      el('p', { text: 'Pada ukuran yang berbentuk PERSENTASE, sebuah baris berubah menjadi "Mendekati batas" saat terpakai mencapai ambang peringatan, dan menjadi "Melampaui batas" tepat pada 100 % — anggaran yang habis persis sudah tidak menyisakan apa pun untuk dokumen berikutnya. Ukuran yang tidak berbentuk persentase (servis alat) memakai jarak: peringatannya mulai sekian jam sebelum target, dan "Melampaui batas" tepat saat pembacaan mencapai targetnya.' }),
       el('p', { text: '"Batas belum disetel" berarti angkanya ada tetapi batasnya tidak pernah dipasang (mis. nilai kontrak belum dicatat pada master proyek). Itu sebuah aturan yang dicetak apa adanya, bukan 0 % dan bukan taksiran.' }),
       el('p', { text: '"Tidak dianggarkan" berarti batasnya justru DISETEL — sebuah dokumen yang disetujui menyebut sisi ini dan menyebutnya Rp 0 — dan belum ada yang dibelanjakan di sana. Begitu ada rupiah yang keluar di sisi itu, barisnya menjadi "Melampaui batas": nol adalah batas yang paling mudah dilampaui, bukan batas yang hilang.' }),
       el('p', { text: '"Belum ada yang diukur" berarti yang diukurnya sendiri belum ada (mis. proyek belum punya RAP yang disetujui, atau sebuah alat belum punya satu pun pembacaan hour meter). Catatan pada barisnya menyebut kedua sisi yang hilang — dan, pada alat, menyebut MENGAPA belum ada pembacaan: belum pernah dimobilisasi, mobilisasinya belum punya log, atau lognya ada tetapi tanpa angka hour meter.' }),

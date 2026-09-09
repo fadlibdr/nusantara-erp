@@ -8673,6 +8673,374 @@ def s33m(browser):
         ctx.close()
 
 
+# ------------------------------------------------------------- S34 (F-7)
+#
+# Servis alat per hour-meter. Yang tidak bisa dibuktikan suite PHP ada tiga:
+#
+#  (1) SATUANNYA sampai ke layar. Registri ambang sudah lama mendeklarasikan
+#      'unit' per entri dan layarnya tidak pernah membacanya — entri berjam
+#      pertama akan mencetak "Rp 3.375,50" untuk 3.375,5 JAM, dan sebuah uji
+#      PHP atas array-nya tidak akan melihat apa pun.
+#  (2) "TIDAK TERUKUR" DIGARIS, bukan digambar nol, dan menyebut SEBAB yang
+#      mana dari tiga sebab yang ada.
+#  (3) KEDUA PEMICU tampil berdampingan — jam dan tanggal — di kartu alat dan
+#      di daftar perawatan.
+#
+# Fixture ditanam lewat API, bukan SQL, supaya skenario ini bisa dijalankan
+# ulang di salinan DB demo mana pun. Log jam TIDAK dihapus di akhir: register
+# pembacaan bersifat append-only (EquipmentLogController menolak PUT/DELETE
+# dengan kalimatnya sendiri), dan menanam angka yang sama dua kali diterima
+# penjaga monotonnya. Catatan perawatan yang ditanam dihapus.
+
+F7_ASSETS = {"doosan": "AST-0007", "komatsu": "AST-0001", "truk": "AST-0002",
+             "splicer": "AST-0005", "rak": "AST-0006", "total_station": "AST-0003",
+             "scaffolding": "AST-0004"}
+
+
+def _f7_lookup(tok):
+    """Kode aset -> id, dan id aset -> mobilisasi aktif pertamanya."""
+    _, assets = api("assets/assets?per_page=200", tok)
+    by_code = {a["code"]: a["id"] for a in assets.get("data", [])}
+    _, deps = api("assets/deployments?per_page=200", tok)
+    dep_of = {}
+    for d in deps.get("data", []):
+        dep_of.setdefault(d["asset_id"], d["id"])
+    return by_code, dep_of
+
+
+def _f7_ensure_deployed(tok, asset_id):
+    """Mobilisasi TANPA log — sebab kedua "belum terukur", ditanam idempoten.
+
+    Aset yang sudah termobilisasi dibiarkan apa adanya: menjalankan skenario
+    ini dua kali pada salinan DB yang sama harus mengukur keadaan yang sama,
+    dan register pembacaan tidak bisa dibersihkan (append-only)."""
+    s, d = api(f"assets/assets/{asset_id}", tok)
+    if (d.get("data") or {}).get("status") != "available":
+        return "sudah termobilisasi"
+    _, projects = api("projects?per_page=5", tok)
+    project = (projects.get("data") or [{}])[0].get("id")
+    return api(f"assets/assets/{asset_id}/deploy", tok, "POST", {
+        "project_id": project, "deployed_from": date.today().isoformat(),
+    })[0]
+
+
+def _f7_plant_maintenance(tok, asset_id, hours, due_date=None):
+    s, d = api("assets/maintenances", tok, "POST", {
+        "asset_id": asset_id,
+        "maintenance_date": date.today().isoformat(),
+        "maintenance_type": "service_rutin",
+        "cost": 0,
+        "description": "Fixture S34 (F-7).",
+        "next_due_date": due_date,
+        "next_due_hour_meter": hours,
+    })
+    return (d.get("data") or {}).get("id") if s == 201 else None
+
+
+def _f7_plant_log(tok, deployment_id, hour_meter=None, fuel=None):
+    body = {"deployment_id": deployment_id, "log_date": date.today().isoformat(),
+            "notes": "Fixture S34 (F-7)."}
+    if hour_meter is not None:
+        body["hour_meter"] = hour_meter
+    if fuel is not None:
+        body["fuel_liters"] = fuel
+    return api("assets/equipment-logs", tok, "POST", body)[0]
+
+
+F7_CARD = """(label) => {
+  const card = [...document.querySelectorAll('.card')].find(c => {
+    const h = c.querySelector('.card-head h2');
+    return h && h.innerText.trim() === label;
+  });
+  if (!card) return null;
+  const head = card.querySelector('.card-head');
+  return {
+    badge: head ? (head.innerText.replace(/\\s+/g, ' ').trim()) : null,
+    headers: [...card.querySelectorAll('table.data thead th')].map(t => t.innerText.trim()),
+    rows: [...card.querySelectorAll('table.data tbody tr')].map(tr => ({
+      cells: [...tr.querySelectorAll('td')].map(td => td.innerText.replace(/\\s+/g, ' ').trim()),
+    })),
+    text: card.innerText.replace(/\\s+/g, ' ').trim(),
+  };
+}"""
+
+F7_DUE = """() => {
+  const card = [...document.querySelectorAll('.card')].find(c => {
+    const h = c.querySelector('.card-head h2');
+    return h && h.innerText.trim() === 'Servis berikutnya';
+  });
+  if (!card) return null;
+  return {
+    badge: (card.querySelector('.card-head .badge') || {}).innerText || null,
+    stats: [...card.querySelectorAll('.stat')].map(s => ({
+      label: (s.querySelector('.label') || {}).innerText || null,
+      value: (s.querySelector('.value') || {}).innerText || null,
+      delta: (s.querySelector('.delta') || {}).innerText || null,
+    })),
+    help: (card.querySelector('p.help') || {}).innerText || null,
+    alert: (card.querySelector('.alert') || {}).innerText || null,
+    page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+  };
+}"""
+
+
+@scenario("S34_servis_alat_per_jam")
+def s34(pg):
+    """Enam alat, lima keadaan, dan tiga kalimat berbeda untuk "belum terukur".
+
+    Ambang jam DAN kartu alat diukur pada halaman yang sama-sama sungguhan,
+    karena keduanya membaca satu service dan keduanya bisa kehilangan
+    satuannya sendirian."""
+    tok = token_for("admin@nusantara.test")
+    by_code, dep_of = _f7_lookup(tok)
+    missing = [c for c in F7_ASSETS.values() if c not in by_code]
+    if missing:
+        return {"SKIPPED": f"Aset {', '.join(missing)} tidak ada di salinan DB ini."}
+
+    ids = {k: by_code[c] for k, c in F7_ASSETS.items()}
+    planted = []
+    out = {"assets": ids}
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+    try:
+        # --------------------------------------------------------- fixture
+        # Doosan sudah punya pembacaan 3.240 dan 3.375,5 di data demo.
+        planted.append(_f7_plant_maintenance(tok, ids["doosan"], 3400, "2026-12-01"))   # MENDEKATI, sisa 24,5
+        out["plant_splicer_log"] = _f7_plant_log(tok, dep_of.get(ids["splicer"]), hour_meter=1240)
+        planted.append(_f7_plant_maintenance(tok, ids["splicer"], 1200))                # LAMPAU, sisa -40
+        out["plant_truk_log"] = _f7_plant_log(tok, dep_of.get(ids["truk"]), hour_meter=8150)  # TANPA_BATAS
+        # Tiga sebab "belum terukur" pada TIGA alat, supaya ketiga kalimatnya
+        # bisa dibaca dalam satu jalan dan skenarionya tetap idempoten.
+        out["plant_rak_deploy"] = _f7_ensure_deployed(tok, ids["rak"])                  # mobilisasi, nol log
+        planted.append(_f7_plant_maintenance(tok, ids["rak"], 8760))
+        out["plant_komatsu_fuel"] = _f7_plant_log(tok, dep_of.get(ids["komatsu"]), fuel=150)
+        planted.append(_f7_plant_maintenance(tok, ids["komatsu"], 5000))                # log BBM tanpa jam
+        planted.append(_f7_plant_maintenance(tok, ids["total_station"], 500))           # belum pernah dimobilisasi
+        out["planted"] = planted
+
+        login(pg, "admin@nusantara.test")
+
+        # ------------------------------------------------------ layar ambang
+        pg.goto(BASE + "#/ambang")
+        pg.wait_for_selector("table.data", timeout=20000)
+        pg.wait_for_timeout(1500)
+        assert_screen(pg, "#/ambang", "Ambang")
+        out["ambang"] = pg.evaluate(F7_CARD, "Servis alat menurut jam operasi")
+        pg.screenshot(path=f"{OUT}/s34-ambang-jam.png", full_page=False)
+
+        card = out["ambang"] or {"rows": [], "headers": [], "badge": "", "text": ""}
+        # Sel pertama memuat KODE lalu nama alatnya, dan innerText sudah
+        # dinormalkan menjadi satu baris — jadi kodenya adalah kata pertama.
+        subjects = [r["cells"][0].split(" ")[0] for r in card["rows"] if r["cells"]]
+        out["subjects"] = subjects
+        row_of = {}
+        for r in card["rows"]:
+            if r["cells"]:
+                row_of[r["cells"][0].split(" ")[0]] = r["cells"]
+        out["row_of"] = row_of
+
+        # ------------------------------------- kartu alat: kedua pemicu
+        pg.goto(BASE + f"#/d/assets/assets/{ids['doosan']}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(2000)
+        out["doosan"] = pg.evaluate(F7_DUE)
+        pg.screenshot(path=f"{OUT}/s34-kartu-alat-mendekati.png", full_page=False)
+
+        # ------------------- kartu alat: mobilisasi ADA, log belum ada
+        pg.goto(BASE + f"#/d/assets/assets/{ids['rak']}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(2000)
+        out["rak_tanpa_log"] = pg.evaluate(F7_DUE)
+        pg.screenshot(path=f"{OUT}/s34-kartu-alat-tanpa-log.png", full_page=False)
+
+        # ------------- kartu alat: LOGNYA ADA, angka jamnya tidak pernah diisi
+        # (log BBM tanpa jam kerja — kejadian biasa di lapangan). Kalimatnya
+        # harus BERBEDA dari yang di atas, atau ketiga sebab itu satu "—".
+        pg.goto(BASE + f"#/d/assets/assets/{ids['komatsu']}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(2000)
+        out["komatsu_log_tanpa_jam"] = pg.evaluate(F7_DUE)
+        pg.screenshot(path=f"{OUT}/s34-kartu-alat-log-tanpa-jam.png", full_page=False)
+
+        # ---------------------- kartu alat: belum pernah dimobilisasi
+        pg.goto(BASE + f"#/d/assets/assets/{ids['total_station']}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(2000)
+        out["total_station"] = pg.evaluate(F7_DUE)
+        pg.screenshot(path=f"{OUT}/s34-kartu-alat-belum-dimobilisasi.png", full_page=False)
+
+        # ------------- alat yang BUKAN alat berjam tidak punya kartu itu
+        pg.goto(BASE + f"#/d/assets/assets/{ids['scaffolding']}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out["scaffolding"] = pg.evaluate(F7_DUE)
+
+        # --------------------------------------- daftar perawatan
+        pg.goto(BASE + "#/r/assets/maintenances")
+        pg.wait_for_selector("table.data tbody tr", timeout=20000)
+        pg.wait_for_timeout(1200)
+        out["daftar"] = pg.evaluate("""() => ({
+          headers: [...document.querySelectorAll('table.data thead th')].map(t => t.innerText.trim()),
+          rows: [...document.querySelectorAll('table.data tbody tr')].map(
+            tr => [...tr.querySelectorAll('td')].map(td => td.innerText.replace(/\\s+/g, ' ').trim())),
+        })""")
+        pg.screenshot(path=f"{OUT}/s34-daftar-perawatan.png", full_page=False)
+        out["console_errors"] = errors
+
+        headers = [h.lower() for h in card["headers"]]
+        hour_cells = [c for cells in row_of.values() for c in cells[1:3]]
+        # Label stat digambar huruf besar oleh CSS (text-transform), dan
+        # innerText memulangkan yang TERGAMBAR: dicocokkan tanpa memedulikan
+        # besar-kecil huruf, karena yang diuji adalah adanya stat itu.
+        doosan_stats = {(s["label"] or "").upper(): s for s in (out["doosan"] or {}).get("stats", [])}
+        ts_stats = {(s["label"] or "").upper(): s for s in (out["total_station"] or {}).get("stats", [])}
+        daftar_headers = [h.lower() for h in out["daftar"]["headers"]]
+
+        out["checks"] = {
+            # (1) SATUAN
+            "the_hour_entry_reaches_the_screen_at_all": out["ambang"] is not None,
+            "its_numbers_are_written_in_hours_never_in_rupiah":
+                "Rp" not in card["text"] and any("jam" in c for c in hour_cells),
+            "its_warning_is_stated_in_hours_before_the_target":
+                "50 jam sebelum batas" in card["badge"] and "%" not in card["badge"],
+            "and_its_third_column_is_the_remaining_hours_not_a_percentage":
+                "sisa" in headers and "terpakai" not in headers,
+            "the_row_still_below_its_target_says_how_many_hours_are_left":
+                "24,5 jam lagi" in " ".join(row_of.get(F7_ASSETS["doosan"], [])),
+            # …dan baris yang SUDAH lewat mengatakannya dengan kata, bukan
+            # dengan tanda minus yang harus dibaca dua kali.
+            "and_the_row_past_its_target_says_how_many_hours_it_is_past":
+                "40 jam lewat" in " ".join(row_of.get(F7_ASSETS["splicer"], [])),
+            # (2) TIDAK TERUKUR — DIGARIS, dan menyebut sebabnya
+            "an_unmeasured_asset_is_ruled_never_drawn_as_zero_hours":
+                row_of.get(F7_ASSETS["total_station"], [None, None])[1] == "—",
+            "and_the_cell_that_would_hold_a_number_prints_the_rule_instead":
+                "Belum ada yang diukur" in " ".join(row_of.get(F7_ASSETS["total_station"], [])),
+            "the_worst_row_is_first": subjects[:2] == [F7_ASSETS["splicer"], F7_ASSETS["doosan"]],
+            "an_asset_that_is_not_hour_metered_is_not_listed_at_all":
+                F7_ASSETS["scaffolding"] not in subjects,
+            # (3) KARTU ALAT — kedua pemicu, tiga kalimat
+            "the_asset_card_shows_the_hour_state": (out["doosan"] or {}).get("badge") == "Mendekati batas",
+            "with_the_reading_the_target_and_the_hours_left":
+                doosan_stats.get("PEMBACAAN HOUR METER", {}).get("value") == "3.375,5 jam"
+                and doosan_stats.get("JATUH TEMPO PADA", {}).get("value") == "3.400 jam"
+                and doosan_stats.get("SISA JAM", {}).get("value") == "24,5 jam",
+            "and_the_date_trigger_standing_beside_them":
+                "Des 2026" in (doosan_stats.get("PEMICU TANGGAL", {}).get("value") or ""),
+            "an_asset_with_a_deployment_but_no_log_says_exactly_that":
+                "belum ada satu log BBM & jam alat pun"
+                in ((out["rak_tanpa_log"] or {}).get("help") or ""),
+            "an_asset_whose_logs_never_filled_the_meter_says_something_else":
+                "tidak satu pun mengisi hour meter"
+                in ((out["komatsu_log_tanpa_jam"] or {}).get("help") or ""),
+            "an_asset_never_deployed_says_that_instead":
+                "belum pernah dimobilisasi" in ((out["total_station"] or {}).get("help") or "")
+                and ts_stats.get("PEMBACAAN HOUR METER", {}).get("value") == "—",
+            "a_non_hour_metered_asset_has_no_due_card_at_all": out["scaffolding"] is None,
+            # daftar perawatan
+            "the_maintenance_list_carries_both_triggers":
+                "jadwal berikut" in daftar_headers and "jam berikut" in daftar_headers,
+            "and_an_hour_only_service_prints_its_hours_beside_a_ruled_date":
+                any(r for r in out["daftar"]["rows"] if "8.000 jam" in " ".join(r) or "1.200 jam" in " ".join(r)),
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        for mid in planted:
+            if mid:
+                api(f"assets/maintenances/{mid}", tok, "DELETE")
+
+
+@scenario("S34_servis_alat_per_jam_mobile")
+def s34m(browser):
+    """390 px. Tabel ambang punya enam kolom dan kartu "Servis berikutnya"
+    punya empat stat; keduanya lahir di paket ini, jadi keduanya adalah
+    kandidat pertama yang mendorong halaman melebar di ponsel — dan sebuah
+    kalimat "belum terukur" yang terpotong adalah kalimat yang tidak ada."""
+    tok = token_for("admin@nusantara.test")
+    by_code, dep_of = _f7_lookup(tok)
+    if F7_ASSETS["doosan"] not in by_code:
+        return {"SKIPPED": f"Aset {F7_ASSETS['doosan']} tidak ada di salinan DB ini."}
+
+    doosan = by_code[F7_ASSETS["doosan"]]
+    planted = [_f7_plant_maintenance(tok, doosan, 3400, "2026-12-01")]
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+    try:
+        login(pg, "admin@nusantara.test")
+
+        pg.goto(BASE + "#/ambang")
+        pg.wait_for_selector("table.data", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out = pg.evaluate("""() => {
+          const card = [...document.querySelectorAll('.card')].find(c => {
+            const h = c.querySelector('.card-head h2');
+            return h && h.innerText.trim() === 'Servis alat menurut jam operasi';
+          });
+          const wrap = card ? card.querySelector('.table-wrap') : null;
+          return {
+            card_found: !!card,
+            wrap_scrolls: wrap ? wrap.scrollWidth > wrap.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            badge: card ? (card.querySelector('.card-head .badge') || {}).innerText : null,
+            rows: card ? card.querySelectorAll('table.data tbody tr').length : 0,
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s34-ambang-jam-ponsel.png", full_page=False)
+
+        pg.goto(BASE + f"#/d/assets/assets/{doosan}")
+        pg.wait_for_selector(".page-head", timeout=20000)
+        pg.wait_for_timeout(2000)
+        out["kartu"] = pg.evaluate(F7_DUE)
+        out["kartu_visible"] = pg.evaluate("""() => {
+          const card = [...document.querySelectorAll('.card')].find(c => {
+            const h = c.querySelector('.card-head h2');
+            return h && h.innerText.trim() === 'Servis berikutnya';
+          });
+          if (!card) return null;
+          const help = card.querySelector('p.help');
+          return {
+            help_visible: !!(help && help.checkVisibility()),
+            help_clipped: help ? help.scrollHeight > help.clientHeight + 1 : null,
+            stats: [...card.querySelectorAll('.stat')].map(s => Math.round(s.getBoundingClientRect().width)),
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s34-kartu-alat-ponsel.png", full_page=False)
+        out["console_errors"] = errors
+
+        stats = {(s["label"] or "").upper(): s for s in (out["kartu"] or {}).get("stats", [])}
+        out["checks"] = {
+            "the_hour_entry_renders_on_a_phone": out["card_found"] is True and out["rows"] > 0,
+            "its_wide_table_scrolls_inside_its_own_box": out["wrap_scrolls"] is True,
+            "the_threshold_page_never_scrolls_sideways": out["page_scrolls_sideways"] is False,
+            "the_warning_badge_still_says_hours": "50 jam sebelum batas" in (out["badge"] or ""),
+            "the_due_card_renders_on_a_phone": out["kartu"] is not None,
+            "the_asset_page_never_scrolls_sideways": (out["kartu"] or {}).get("page_scrolls_sideways") is False,
+            "both_triggers_are_still_side_by_side_on_a_phone":
+                stats.get("SISA JAM", {}).get("value") == "24,5 jam"
+                and "Des 2026" in (stats.get("PEMICU TANGGAL", {}).get("value") or ""),
+            "and_the_sentence_under_them_is_not_clipped":
+                (out["kartu_visible"] or {}).get("help_visible") is True
+                and (out["kartu_visible"] or {}).get("help_clipped") is False,
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        for mid in planted:
+            if mid:
+                api(f"assets/maintenances/{mid}", tok, "DELETE")
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -8683,7 +9051,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b")]:
+    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b")]:
         if want and name not in want: continue
         fn(b if arg == "b" else fresh())
     b.close()

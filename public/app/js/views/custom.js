@@ -1877,7 +1877,13 @@ export async function renderAsset(host, { id }) {
           el('.stat', [
             el('.label', { text: 'Sisa jam' }),
             el('.value.sm', {
-              text: due.remaining_hours === null ? '—' : `${fmt.qty(due.remaining_hours, 'jam')}`,
+              // Minus dikatakan dengan kata, bukan dengan tanda: "lewat 40
+              // jam" pada alat yang sudah melewati targetnya.
+              text: due.remaining_hours === null
+                ? '—'
+                : (due.remaining_hours < 0
+                  ? `lewat ${fmt.qty(Math.abs(due.remaining_hours), 'jam')}`
+                  : fmt.qty(due.remaining_hours, 'jam')),
               style: due.state === 'lampau' ? { color: 'var(--danger)' } : (due.state === 'mendekati' ? { color: 'var(--warning)' } : {}),
             }),
             el('.delta', {
