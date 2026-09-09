@@ -865,3 +865,31 @@ sungguhan.
 4. **Audit enumerasi layar lama di enam berkas onboarding** (§9.6 butir 2) tetap tidak dikerjakan:
    ia tidak dibuat salah oleh F-6, dan §35 yang ditambahkan putaran ini adalah aturan untuk paket
    BERIKUTNYA, bukan izin membuka enam berkas peran sekaligus hari ini.
+
+## 11. Gerbang rilis dua driver (9 September 2026)
+
+Dijalankan dari `git worktree` sendiri di commit rilis, dengan `vendor` **disalin** (bukan
+disimbolkan — [[worktree-vendor-symlink-footgun]]).
+
+| Leg | Commit | Uji | Asersi | Dilewati | Waktu |
+|---|---|---|---|---|---|
+| SQLite | `b9aae86` | 4.518 | 30.836 | 11 | 14:03 |
+| MySQL 8.0.46 | `b9aae86` | 4.518 | 30.845 | 7 | 40:03 |
+
+**Putaran pertama gerbang ini MERAH di kedua driver**, satu kegagalan, dan sebabnya bukan F-6.
+`AttendanceIsNotPayrollInputTest::test_the_recap_proposal_has_no_write_door` — paku yang ditulis
+paket F-4 — menuntut daftar PERSIS atas setiap rute yang memuat kata `proposal` **di mana pun di
+tabel rute aplikasi**. F-6 menambahkan `GET api/inventory/reorder/proposal`: rute yang benar, di
+modul lain, tanpa hubungan apa pun dengan payroll.
+
+Itu cacat paku, bukan cacat paket. Uji yang merah karena modul lain memilih nama yang masuk akal
+adalah uji yang mengajari orang MELEMAHKANNYA — dan pelemahan itulah yang pada akhirnya melepaskan
+hal yang sebenarnya dijaga. Keduanya (usulan rekap, dan saudaranya yang memaku jejak koreksi pada
+kata `corrections` — hijau hari ini, merah pada paket berikutnya yang memakai kata itu) kini
+disaring pada URI yang memang mereka jaga, dan sekalian DIPERKUAT: selain menuntut satu-satunya
+rute yang ada adalah `GET`, keduanya menuntut tidak ada metode tulis yang mendarat di URI itu
+lewat rute lain (mis. sebuah resource route yang kebetulan mencakupnya). Commit `b9aae86`.
+
+**Selisih antar-driver** (9 asersi, 11 vs 7 dilewati) sama bentuknya dengan gerbang-gerbang
+sebelumnya: `SqlitePragmaTest` dilewati di MySQL, `MysqlModeTest` dilewati di SQLite, dan beberapa
+uji yang memaku perilaku khusus driver menambah asersinya di sisi MySQL.
