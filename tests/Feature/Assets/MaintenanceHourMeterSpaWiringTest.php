@@ -153,6 +153,19 @@ class MaintenanceHourMeterSpaWiringTest extends ErpTestCase
 
         $this->assertStringContainsString('shown === 0', $ambang);
         $this->assertStringContainsString('bukan bahwa setiap ${measure.subject_word} aman', $ambang);
+
+        /*
+         * ATURANNYA "ATAU", DAN KALIMATNYA HARUS MENGATAKANNYA.
+         *
+         * Registri membariskan apa pun yang punya SALAH SATU sisinya: yang
+         * diukur tanpa batas berbunyi "Batas belum disetel", batas tanpa yang
+         * diukur berbunyi "Belum ada yang diukur". Putaran perbaikan sempat
+         * menuliskannya "DAN", sehingga layar ini membantah dirinya sendiri
+         * dalam satu pemindaian — kalimatnya menuntut keduanya tepat di atas
+         * tabel yang menggambar baris-baris yang hanya punya satu.
+         */
+        $this->assertStringContainsString('ada yang diukur ATAU batasnya disetel', $ambang);
+        $this->assertStringNotContainsString('ada yang diukur DAN batasnya disetel', $ambang);
     }
 
     /**

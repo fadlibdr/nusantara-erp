@@ -20,14 +20,14 @@ class MaintenanceUpdateRequest extends FormRequest
             'maintenance_date' => ['sometimes', 'date'],
             'maintenance_type' => ['sometimes', Rule::enum(MaintenanceType::class)],
             'vendor_id' => ['nullable', 'integer'], // cross-module: prc_vendors.id
-            'cost' => ['sometimes', 'numeric', 'min:0'],
+            'cost' => ['sometimes', 'numeric', 'min:0', 'max:9999999999999999.99'],
             'description' => ['nullable', 'string'],
             'next_due_date' => ['nullable', 'date'],
             // F-7 — alasan gt:0 dan decimal:0,3 ada di MaintenanceStoreRequest:
             // nol adalah angka, "belum disetel" dikatakan dengan NULL, dan
             // 0,0004 yang dibulatkan kolomnya menjadi nol harus ditolak di
             // KEDUA pintu tulis, bukan hanya di pintu buat.
-            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0', 'decimal:0,3'],
+            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0', 'decimal:0,3', 'max:999999999999.999'],
         ];
     }
 }

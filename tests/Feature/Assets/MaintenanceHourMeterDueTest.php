@@ -756,4 +756,60 @@ class MaintenanceHourMeterDueTest extends ErpTestCase
         $this->assertSame('2026-12-14', $row['next_due_date']);
         $this->assertStringContainsString('pemicu tanggal: 14 Des 2026', $row['note']);
     }
+
+    /**
+     * ANGKA YANG TIDAK MUAT DI KOLOMNYA DITOLAK DI PINTU, BUKAN OLEH BASIS DATA.
+     *
+     * `decimal:0,3` menghakimi angka di BELAKANG koma; jangkauan di depannya
+     * tidak dijaga siapa pun sampai verifikasi penutup F-7. Kolomnya
+     * decimal(15,3) — maksimum 999.999.999.999,999 — dan di MySQL dengan
+     * STRICT_TRANS_TABLES kelebihan jangkauan adalah SQLSTATE 22003, yaitu
+     * HTTP 500 di wajah mekanik yang menahan satu tombol angka terlalu lama.
+     * Di SQLite angka yang sama tersimpan DIAM-DIAM sebagai 1.0e+18, dan
+     * setiap layar sisa jam lalu membaca 9,99e+17.
+     *
+     * `cost` di formulir yang SAMA (decimal(18,2)) mendapat penjaga yang sama:
+     * menutup satu kotak dan meninggalkan tetangganya adalah cacat "benar di
+     * satu permukaan, bocor di permukaan lain" yang berulang di kampanye ini.
+     */
+    public function test_a_number_too_large_for_its_column_is_refused_at_the_door(): void
+    {
+        $asset = $this->asset();
+        $this->actingAs($this->adminUser(), 'sanctum');
+
+        $this->postJson('/api/assets/maintenances', [
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-09-09',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 0,
+            'next_due_hour_meter' => 1_000_000_000_000,
+        ])->assertStatus(422)->assertJsonValidationErrors(['next_due_hour_meter']);
+
+        /*
+         * Angka besar yang SAH masih diterima — penjaga yang menolak nilai yang
+         * sah hanya memindahkan cacatnya.
+         *
+         * Dipakai 999.999.999.999 (tanpa desimal), bukan 999.999.999.999,999
+         * yang persis batas kolomnya: JSON memulangkan float, dan PHP dengan
+         * `precision=14` bawaan merender float itu sebagai "1.0E+12" saat
+         * aturan max membandingkannya sebagai teks — sehingga nilai batas
+         * PERSIS tidak bisa dicapai lewat JSON sama sekali. Itu batas
+         * representasi, bukan batas yang dipilih paket ini, dan memakukannya di
+         * uji akan memaku perilaku float PHP alih-alih aturan kita.
+         */
+        $this->postJson('/api/assets/maintenances', [
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-09-09',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 0,
+            'next_due_hour_meter' => 999999999999,
+        ])->assertCreated();
+
+        $this->postJson('/api/assets/maintenances', [
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-09-10',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 10_000_000_000_000_000,
+        ])->assertStatus(422)->assertJsonValidationErrors(['cost']);
+    }
 }

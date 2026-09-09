@@ -136,6 +136,12 @@ def scenario(name):
             print(f"[{name}] {state} {R[name]['_ms']}ms clicks={CLICKS[0]}")
             if R[name].get("ERROR") or failed:
                 FAILED.append(name)
+        # Nama PANJANG dibawa pada fungsinya supaya runner bisa menerimanya
+        # sebagai alias. Nama itulah yang tercetak di setiap laporan dan
+        # menjadi kunci di results-*.json; sampai 9 Sep 2026 ia TIDAK bisa
+        # dipakai memanggil skenarionya, dan panggilan dengan nama itu
+        # dilewati diam-diam (lihat penjaga di runner).
+        wrapper.scenario_name = name
         return wrapper
     return deco
 
@@ -9106,10 +9112,44 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    for name, fn, arg in [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b")]:
-        if want and name not in want: continue
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b")]
+
+    # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
+    #
+    # Sampai 9 Sep 2026 barisnya hanya `if want and name not in want: continue`,
+    # dan daftar ini memakai nama PENDEK ("S34") sementara laporan dan
+    # results-*.json memakai nama PANJANG ("S34_servis_alat_per_jam"). Memanggil
+    # harness dengan nama yang tertulis di buktinya sendiri mencocokkan NOL
+    # entri: seluruh loop dilewati, "saved results.json" tercetak, status keluar
+    # 0, dan pembacanya menyimpulkan skenarionya hijau. Itu terjadi empat kali
+    # di dalam putaran verifikasi F-7 — termasuk sekali yang menyimpulkan sebuah
+    # mutasi "lolos hijau" padahal tidak satu pun skenario dijalankan.
+    alias = {}
+    for short, fn, _arg in RUNS:
+        alias[short] = short
+        long_name = getattr(fn, "scenario_name", None)
+        if long_name:
+            alias[long_name] = short
+
+    unknown = sorted(n for n in want if n not in alias)
+    if unknown:
+        print("NAMA SKENARIO TIDAK DIKENAL: " + ", ".join(unknown))
+        print("Yang dikenal: " + ", ".join(sorted(alias)))
+        b.close()
+        sys.exit(2)
+
+    selected = {alias[n] for n in want}
+    ran = 0
+    for name, fn, arg in RUNS:
+        if want and name not in selected: continue
         fn(b if arg == "b" else fresh())
+        ran += 1
     b.close()
+
+    # Diminta sesuatu dan tidak satu pun jalan: itu bukan kesuksesan.
+    if want and ran == 0:
+        print("TIDAK ADA SKENARIO YANG DIJALANKAN untuk: " + ", ".join(sorted(want)))
+        sys.exit(2)
 
 import os; os.makedirs(OUT, exist_ok=True)  # verifikasi B4 fase 3: OUT yang belum ada menjatuhkan run di akhir, hasil hilang
 json.dump(R, open(f"{OUT}/results.json", "w"), ensure_ascii=False, indent=1)

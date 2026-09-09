@@ -541,3 +541,29 @@ Sebelas rute itu: `#/home`, `#/dashboard`, `#/ambang`, `#/tenggat`,
 | `39bb27e` | assets: pintu register berhenti menjanjikan koreksi yang tidak sampai ke alarm servis | keputusan pemilik 6, D17 |
 | `540718d` | docs: tiga kalimat CONVENTIONS yang bisa diperiksa dan ternyata salah | D5, keputusan pemilik 7 |
 | `41ef072` | docs: angka §5b, §6 dan §7 dijalankan ulang | §5b, §6, §7 |
+
+## Verifikasi penutup — tiga temuan terakhir (9 September 2026)
+
+| # | Jenis | Gejala yang dibaca pemakainya | Perbaikan |
+|---|---|---|---|
+| G1 | HONESTY | Kartu "Servis alat menurut jam operasi · 0 baris" berbunyi "Sebuah baris muncul begitu ada yang diukur **DAN** batasnya disetel" — tepat di atas tabel yang, pada keadaan data lain, menggambar baris yang hanya punya SALAH SATU ("Batas belum disetel" / "Belum ada yang diukur"). Layar membantah dirinya sendiri dalam satu pemindaian. | Satu kata: **ATAU**. Klausanya dipaku uji (`test_the_threshold_screen_says_what_zero_rows_means`) dari dua arah — menuntut "ATAU" dan menolak "DAN". |
+| G2 | TEST-GAP | Menjalankan harness dengan nama yang tertulis di laporan dan di `results-phase-2.json` (`S34_servis_alat_per_jam`) mencocokkan NOL entri: seluruh loop dilewati, "saved results.json" tercetak, status keluar **0**. Empat kali di dalam putaran verifikasi ini sendiri — termasuk sekali yang menyimpulkan sebuah mutasi "lolos hijau" padahal tidak satu skenario pun berjalan. | Runner menolak nama tak dikenal dengan `exit 2` dan mencetak daftar yang dikenal; nama PANJANG kini menjadi alias resmi (dibawa `wrapper.scenario_name`); dan "diminta sesuatu, nol yang jalan" juga `exit 2`. |
+| G3 | BUG | Mekanik yang menahan satu tombol angka terlalu lama pada "Jadwal berikutnya (hour meter)" mendapat **HTTP 500**, bukan tulisan merah di bawah kotaknya. `decimal:0,3` menghakimi angka di belakang koma; 13 angka di depannya tidak dijaga siapa pun. Di MySQL STRICT_TRANS_TABLES itu SQLSTATE 22003; di SQLite tersimpan diam-diam sebagai `1.0e+18` dan setiap layar sisa jam membaca `9,99e+17`. | `max:` sebesar jangkauan kolomnya pada `next_due_hour_meter` **dan** `cost` di formulir yang sama (menutup satu kotak dan meninggalkan tetangganya adalah cacat "benar di satu permukaan, bocor di permukaan lain"), plus `max` pada kotaknya di `schema.js`. |
+
+**Catatan G2 melampaui paket ini.** Cacat itu ada di harness sejak awal dan menyentuh SETIAP paket
+yang buktinya dijalankan ulang dengan nama panjang. Semua bukti F-7 dijalankan ULANG sesudah
+perbaikannya, dengan kedua bentuk nama, dan hijau: `S34_servis_alat_per_jam` 22 syarat,
+`S34_servis_alat_per_jam_mobile` 9 syarat; 25 kunci di `results-phase-2.json`, tidak satu pun dari
+23 kunci lama tersentuh.
+
+**Batas representasi yang ditemukan G3, dinyatakan.** Nilai batas PERSIS kolomnya
+(999.999.999.999,999) tidak bisa dicapai lewat JSON: PHP dengan `precision=14` bawaan merender
+float itu sebagai `1.0E+12` saat aturan `max` membandingkannya, jadi ia ditolak. Itu batas
+representasi float PHP, bukan batas yang dipilih paket ini, dan ujinya memakai 999.999.999.999
+(tanpa desimal) supaya yang dipaku adalah aturan kita, bukan perilaku float.
+
+**Deviasi yang TIDAK ditutup di sini:** `max:` jangkauan kolom belum menjadi aturan rumah untuk
+SETIAP pintu tulis `decimal(p,s)` di aplikasi. Terukur hari ini: `decimal:0,` dipakai di 4 tempat
+di 2 berkas (keduanya F-7, keduanya kini ber-`max`), tetapi kolom rupiah `numeric` tanpa `max` jauh
+lebih banyak dan menyapunya adalah pekerjaan tersendiri. Ia dicatat di sini, bukan dikerjakan
+diam-diam.

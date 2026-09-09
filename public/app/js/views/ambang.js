@@ -186,9 +186,16 @@ export async function renderAmbang(host) {
       shown === 0
         ? el('.card-body', el('p.muted', {
           style: { margin: 0 },
+          /* ATAU, bukan DAN. Registri membariskan apa pun yang punya SALAH SATU
+             sisinya: yang diukur tanpa batas berbunyi "Batas belum disetel",
+             dan batas tanpa yang diukur berbunyi "Belum ada yang diukur".
+             Hanya yang tidak punya keduanya yang benar-benar absen. Kalimat
+             "DAN" membuat layar ini membantah dirinya sendiri dalam satu
+             pemindaian: ia berkata sebuah baris menuntut keduanya, tepat di
+             atas tabel yang menggambar baris-baris yang hanya punya satu. */
           text: `Belum ada satu ${measure.subject_word} pun yang bisa dibariskan di sini. `
-            + 'Sebuah baris muncul begitu ada yang diukur DAN batasnya disetel — nol baris berarti '
-            + `belum ada yang mengukurnya, bukan bahwa setiap ${measure.subject_word} aman.`,
+            + 'Sebuah baris muncul begitu ada yang diukur ATAU batasnya disetel — nol baris berarti '
+            + `belum ada satu pun dari keduanya, bukan bahwa setiap ${measure.subject_word} aman.`,
         }))
         : el('.table-wrap', el('table.data', [
           el('thead', el('tr', [
