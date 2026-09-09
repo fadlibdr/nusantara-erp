@@ -4,6 +4,7 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Modules\Core\Models\Attachment;
 use Modules\Core\Support\WatchedDeadlines;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
@@ -133,5 +134,79 @@ class DeadlineApiTest extends ErpTestCase
     public function test_the_endpoint_requires_authentication(): void
     {
         $this->getJson('/api/core/deadlines')->assertUnauthorized();
+    }
+
+    // ------------------------------------------------- payload ↔ layar
+
+    /**
+     * Klausa 'detail' dikirim PER BARIS, dan layar Tenggat harus merendernya.
+     *
+     * Ini pasangan yang putus di F-8: pemberitahuan 08.30 berbunyi lengkap
+     * ("sertifikat-kalibrasi.pdf berlaku s/d 7 Sep 2026 — 3 hari lalu;
+     * menempel pada Pesanan pembelian #1") sementara layar untuk temuan yang
+     * SAMA hanya menyebut nama berkasnya — dan nama berkas bukan identitas
+     * dokumen apa pun. Entri lampiran adalah yang pertama yang `display`-nya
+     * bukan kode dokumen, jadi tanpa klausa ini barisnya tidak bisa dikenali;
+     * entri lain (ar_invoice_due) kehilangan keterangannya diam-diam.
+     *
+     * Dua sisi dipaku sekaligus, karena satu sisi saja hijau untuk pasangan
+     * yang putus: server benar-benar mengirimnya, dan tenggat.js benar-benar
+     * membacanya.
+     */
+    public function test_the_row_clause_is_sent_by_the_server_and_read_by_the_screen(): void
+    {
+        $this->seedTwoModulesOfTrouble();
+        $order = PurchaseOrder::query()->sole();
+
+        Attachment::query()->create([
+            'attachable_type' => PurchaseOrder::class,
+            'attachable_id' => $order->id,
+            'disk' => 'local',
+            'path' => 'attachments/polis-car.pdf',
+            'original_name' => 'polis-car.pdf',
+            'mime' => 'application/pdf',
+            'extension' => 'pdf',
+            'size_bytes' => 64,
+            'sha256' => str_repeat('a', 64),
+            'valid_until' => '2026-07-30',
+        ]);
+
+        $this->actAsHolderOf('prc.update');
+
+        $finding = collect($this->getJson('/api/core/deadlines')->assertOk()->json('data'))
+            ->firstWhere('key', 'attachment_valid_until_prc');
+
+        $this->assertNotNull($finding, 'Lampiran kedaluwarsa pada PO tidak muncul di payload.');
+        $this->assertSame('polis-car.pdf', $finding['items'][0]['code']);
+        $this->assertSame(
+            'menempel pada Pesanan pembelian #'.$order->id,
+            $finding['items'][0]['detail'],
+            'Server tidak lagi mengirim klausa dokumen induk per baris.',
+        );
+
+        $this->assertStringContainsString(
+            'item.detail',
+            $this->screenCode(),
+            'Layar Tenggat tidak merender item.detail — barisnya menyebut nama berkas tanpa dokumennya, '
+            .'sementara pemberitahuan 08.30 untuk temuan yang sama menyebut keduanya.',
+        );
+    }
+
+    /**
+     * tenggat.js TANPA komentarnya.
+     *
+     * Uji yang mencari sebuah pola di seluruh berkas hijau ketika polanya
+     * hanya ada di dalam komentar yang menjanjikannya — cacat yang sudah
+     * terjadi sekali di kampanye ini (AttachmentSpaPolicyTest menjaga sebuah
+     * komentar, bukan cabang kodenya). Blok /* … *\/ dan baris yang seluruhnya
+     * komentar dilucuti dulu, jadi yang tersisa hanya kode.
+     */
+    private function screenCode(): string
+    {
+        $source = (string) file_get_contents(public_path('app/js/views/tenggat.js'));
+
+        $source = (string) preg_replace('#/\*.*?\*/#s', '', $source);
+
+        return (string) preg_replace('#^\s*//[^\n]*$#m', '', $source);
     }
 }

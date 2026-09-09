@@ -125,7 +125,15 @@ export async function renderTenggat(host) {
           el('th', { text: '' }),
         ])),
         el('tbody', finding.items.map((item) => el('tr', [
-          el('td', el('span.cell-main', { text: item.code })),
+          // item.detail adalah klausa yang SUDAH dikirim server dan yang
+          // dicetak pemberitahuan 08.30 ("…; menempel pada Tagihan vendor
+          // #1."). Tanpanya baris entri lampiran hanya menyebut NAMA BERKAS —
+          // yaitu bukan identitas dokumen apa pun — dan layar ini berkata
+          // lebih sedikit daripada kotak masuk untuk temuan yang sama.
+          el('td', [
+            el('span.cell-main', { text: item.code }),
+            item.detail ? el('.cell-sub', { text: item.detail }) : null,
+          ]),
           el('td', { text: item.date ? fmt.date(item.date) : '—' }),
           el('td.right.num.strong', {
             text: umur(item, finding.tier),

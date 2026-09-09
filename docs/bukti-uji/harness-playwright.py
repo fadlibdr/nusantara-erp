@@ -9270,6 +9270,7 @@ def s35(pg):
         pg.screenshot(path=f"{OUT}/s35-tenggat-lampiran.png", full_page=False)
 
         tenggat_names = [cell for card in (out["tenggat"] or []) for row in card["rows"] for cell in row]
+        tenggat_rows = [row for card in (out["tenggat"] or []) for row in card["rows"]]
         out["console_errors"] = errors
 
         out["checks"] = {
@@ -9303,6 +9304,14 @@ def s35(pg):
             # …dan TIDAK menyebut yang tanpa masa berlaku.
             "tenggat_never_names_the_file_without_an_expiry":
                 not any("foto-lapangan.pdf" in n for n in tenggat_names),
+            # 6. Baris Tenggat menyebut DOKUMEN INDUKNYA. "polis-car.pdf"
+            #    bukan identitas dokumen apa pun — entri lampiran adalah satu-
+            #    satunya yang `display`-nya nama berkas — dan pemberitahuan
+            #    08.30 untuk temuan yang SAMA sudah berbunyi lengkap:
+            #    "…; menempel pada Tagihan vendor #1."
+            "every_tenggat_row_names_the_document_the_file_hangs_on":
+                bool(tenggat_rows) and all(
+                    f"menempel pada {F8_DOC[1]}" in row[0] for row in tenggat_rows),
             "the_screens_raise_no_console_error": out["console_errors"] == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
