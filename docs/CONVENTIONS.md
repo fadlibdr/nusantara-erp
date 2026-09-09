@@ -64,6 +64,7 @@ Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 
 | Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
 | Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
+| Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8) |
 
 Rentang Inventory 001700–001799 **belum ada di ledger pemilik** (ROADMAP-HASHMICRO §5 baris 5
 menyebut Core, Finance dan Projects saja). Ia ditetapkan di sini karena aturan di bawah menuntut
@@ -72,13 +73,17 @@ ia rentang seratusan bebas pertama sesudah Projects (nomor ≥ 001400 yang terpa
 001400/001410/001420/001430/001440/001450/001500/001501). Baris ini adalah usulan yang menunggu
 pengesahan pemilik ke dalam ledger, bukan pengganti ledgernya.
 
-Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
-lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
-migrasi Core-lah yang menetapkannya di tabel ini, dalam commit yang sama dengan pemakaian
-pertamanya. **JANGAN memakai 001400–001499 untuk Core**, meski ledger pemilik
-(ROADMAP-HASHMICRO §5 baris 5) menuliskan "Core 001400–?": rentang itu adalah blok PERTAMA
-Quality pada tabel di atas, dan ia sudah berisi enam migrasi (001400/001410/001420/001430/
-001440/001450). Usul pengganti yang menunggu pengesahan pemilik: **001800–001899**. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
+Core (000100–000199) habis pada 7 September 2026 (F-1 memakai 000198 dan 000199), dan
+**F-8 adalah paket pertama yang butuh migrasi Core sesudah itu** — jadi barisnya ditetapkan
+di tabel di atas pada commit pemakaian pertamanya, 9 September 2026, sesuai aturan di bawah.
+Rentang yang dipakai: **001800–001899**. **JANGAN memakai 001400–001499 untuk Core**, meski
+ledger pemilik (ROADMAP-HASHMICRO §5 baris 5) menuliskan "Core 001400–?": rentang itu adalah
+blok PERTAMA Quality pada tabel di atas, dan ia sudah berisi enam migrasi (001400/001410/
+001420/001430/001440/001450). 001800–001899 dipilih karena ia rentang seratusan bebas pertama
+sesudah Inventory (nomor ≥ 001400 yang terpakai pada 9 Sep 2026 hanya 001400/001410/001420/
+001430/001440/001450/001500/001501/001700). Seperti baris Inventory, baris Core ini adalah
+usulan yang menunggu pengesahan pemilik ke dalam ledger — bukan pengganti ledgernya.
+Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
 commit yang pertama kali memakainya, tidak pernah lebih dulu dan tidak pernah belakangan.
 
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
