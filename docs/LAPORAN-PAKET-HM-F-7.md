@@ -25,7 +25,7 @@ jatuh tempo.
 | T3 | Keadaan jatuh tempo memakai kosakata enam keadaan `WatchedThresholds` | ✅ | `8095c04` — `state()` dipanggil dengan margin; TIDAK_TERUKUR (tanpa pembacaan), TANPA_BATAS (pembacaan tanpa target). Terukur di layar: 6 baris registri pada data demo bercabang → 1 lampau, 1 mendekati, 1 tanpa_batas, 3 tidak_terukur (tiga sebab berbeda) |
 | T4 | Entri registri + kesetaraan dengan service dipaku uji | ✅ | `f9da79c` + `b2dd280` — entri `maintenance_hour_meter` **dipasok** Assets (`supply()`, aturan §24), jadi tidak ada kueri kedua yang bisa berselisih; `ThresholdHourMeterTest::test_the_registry_row_is_the_assets_service_answer` membandingkan `actual/limit/state/note/link` baris demi baris. Core tetap tidak mengimpor Assets (dipaku `ThresholdWatchTest::test_core_imports_no_feature_module_to_compute_a_threshold`, 11 uji hijau) |
 | T5 | Aset dilepas keluar dari pengawasan — dari aturan yang sama dengan pemicu tanggal | ✅ | `b2dd280` — `test_a_disposed_asset_drops_out_of_both_triggers` menanyai **kedua** pengawas atas satu aset: sebelum `disposed` → 1 baris registri + `WatchedDeadlines::scoped()` = 1; sesudah → null + 0. Mutasi M4 merah |
-| T6 | Permukaan pemakai: kedua pemicu berdampingan, tiga kalimat "digaris" | ✅ | `6fe244f` + `7b297b9` — sembilan permukaan (daftar, formulir, resource, listing, endpoint history, kartu aset, tabel riwayat, cetakan kartu aset, layar Ambang). Diukur di Chromium: 8 layar, **0 galat konsol**, 0 respons ≥ 400, 0 gulir samping |
+| T6 | Permukaan pemakai: kedua pemicu berdampingan, tiga kalimat "digaris" | ✅ | `6fe244f` + `7b297b9` — **sepuluh** permukaan (daftar, formulir, resource, listing, endpoint history, kartu aset, tabel riwayat, cetakan kartu aset, layar Ambang, **layar detail satu perawatan** — yang terakhir ditambahkan di putaran verifikasi: layarnya dibuka sejak awal, angkanya baru dibaca kemudian, lihat D12). Diukur di Chromium: 8 layar, **0 galat konsol**, 0 respons ≥ 400, 0 gulir samping |
 | T7 | Uji PHP + mutasi | ✅ | `b2dd280` + `e4b0beb` — **40 uji di tiga berkas baru** (24 + 6 + 10), 143 asersi, ditambah **2 uji baru di berkas lama** (`DeadlineWatchTest`, `AssetPrintTest`) dan satu asersi uji lama yang diperbarui karena kalimatnya memang berubah; **24 mutasi dijalankan, 24 merah** (satu lolos hijau lebih dulu lalu ditutup — lihat §5) |
 | T8 | Harness S34 desktop + ponsel | ✅ | `7b297b9` — `S34_servis_alat_per_jam` (20 syarat) + `S34_servis_alat_per_jam_mobile` (9 syarat), keduanya `ok`. `results-phase-2.json`: 23 kunci lama **tidak berubah satu byte pun** (dibandingkan JSON-nya), 25 kunci sesudahnya. 9 PNG |
 | T9 | Cangkang PWA | ✅ | `6fe244f` — daftar `SHELL` **tidak berubah** (tidak ada berkas baru); `SHELL_VERSION` 5 → 6 karena berkas cangkang berubah (CONVENTIONS §21) |
@@ -314,22 +314,27 @@ yang ditanam dihapus.
 
 ## 7. Sapuan dokumentasi (CONVENTIONS §35)
 
-Angka di bawah ini **dijalankan ulang pada HEAD 9 Sep 2026** (putaran verifikasi:
-tiga dari empat baris versi sebelumnya tidak keluar dari perintah yang tercetak di
-sebelahnya). "SEBELUM" = `main`, "SESUDAH" = cabang ini. **Angka "sesudah"
-memasukkan berkas laporan ini sendiri**; angka dalam kurung mengecualikannya —
-perbedaan itulah yang dulu membuat dua baris terlihat "hampir cocok".
+Angka di bawah ini **dijalankan ulang pada HEAD 9 Sep 2026** (putaran verifikasi: tiga
+dari empat baris versi sebelumnya tidak keluar dari perintah yang tercetak di sebelahnya
+— mis. `grep -rn "Berikutnya" docs/ | wc -l` memulangkan 37/16 di `main` dan bukan
+28/11). Perintahnya **mengecualikan berkas laporan ini sendiri**, karena sapuan yang
+dimaksud adalah sapuan atas dokumen LAIN — dan karena angka yang menghitung dirinya
+sendiri berubah setiap kali paragraf ini disunting. Itu perbedaan yang dulu membuat dua
+baris terlihat "hampir cocok".
 
 ```
-git grep -n  "Berikutnya"        main -- docs/ | wc -l   # sebelum  37 baris / 16 berkas
-grep -rn     "Berikutnya"        docs/         | wc -l   # sesudah  39 baris / 16 berkas  (36 / 15 tanpa laporan ini)
-git grep -n  "Servis aset"       main -- docs/ | wc -l   # sebelum   2 baris /  2 berkas
-grep -rn     "Servis aset"       docs/         | wc -l   # sesudah   6 baris /  4 berkas  ( 4 /  3)
-git grep -n  "Jadwal berikutnya" main -- docs/ | wc -l   # sebelum   2 baris /  1 berkas
-grep -rn     "Jadwal berikutnya" docs/         | wc -l   # sesudah   6 baris /  2 berkas  ( 4 /  1)
-git grep -n  "hour meter"        main -- docs/ | wc -l   # sebelum  11 baris /  5 berkas
-grep -rn     "hour meter"        docs/         | wc -l   # sesudah  27 baris /  9 berkas  (25 /  8)
+# SEBELUM
+git grep -n  "<kata>" main -- docs/ | grep -v LAPORAN-PAKET-HM-F-7 | wc -l
+# SESUDAH
+grep -rn     "<kata>" docs/         | grep -v LAPORAN-PAKET-HM-F-7 | wc -l
 ```
+
+| kata | sebelum (`main`) | sesudah (HEAD) |
+|---|---|---|
+| `Berikutnya` | 37 baris / 16 berkas | **36 / 15** |
+| `Servis aset` | 2 baris / 2 berkas | **4 / 3** |
+| `Jadwal berikutnya` | 2 baris / 1 berkas | **4 / 1** |
+| `hour meter` | 11 baris / 5 berkas | **26 / 8** |
 
 Daftar berkas "Berikutnya" berubah tepat satu masuk satu keluar (`comm` atas kedua
 daftar): yang KELUAR adalah `docs/PANDUAN-PENGGUNA.md`, dan itu disengaja —
@@ -379,6 +384,44 @@ Kalimat yang **menjadi salah** dan sudah diperbaiki:
    ambang berbunyi ulang" untuk seluruh registri, yang belum pernah diputuskan siapa pun.
 5. **Log perjalanan kendaraan** (bagian "+ log perjalanan bila ada kendaraan" pada baris
    roadmap) **tidak dikerjakan** — lihat §9.
+6. **PENGGANTIAN METER DAN SALAH KETIK YANG NAIK BELUM PUNYA JALAN KOREKSI** (putaran
+   verifikasi). Definisi (B) memilih pembacaan TERTINGGI supaya satu digit yang HILANG
+   tidak mendiamkan servis yang sudah lewat. Harganya, yang tidak pernah ditulis sampai
+   sekarang: satu digit yang KELEBIHAN — dan penggantian hour meter, sebab yang pita
+   peringatan kartu alat sebutkan sendiri — mengunci alat itu di "Melampaui batas"
+   selamanya. Terukur lewat HTTP pada salinan DB demo (AST-0007, target 3.400 jam, log
+   33.755 di atas 3.375,5): pembacaan berikutnya yang lebih rendah **422** di mobilisasi
+   yang sama; `PUT` dan `DELETE` ditolak dengan kalimat register; baris koreksi pada
+   mobilisasi **BARU** diterima (201) dan **tidak mengubah apa pun** — `reading=33755
+   latest=3400 remaining=-30355 state=Melampaui batas`. Satu-satunya jalan keluar yang
+   tersisa adalah menaikkan target servisnya, yaitu merusak rencana perawatan untuk
+   mendiamkan alarm palsu — dan PANDUAN-PENGGUNA §9.5 sekarang melarangnya secara
+   eksplisit.
+   **Perilaku hari ini DIPERTAHANKAN dan DINYATAKAN**; yang diperbaiki di putaran ini
+   hanya kalimat-kalimat yang menjanjikan koreksi yang tidak ada (`39bb27e`). Dua
+   mekanisme yang mungkin, keduanya perubahan data/perilaku yang pantas diputuskan
+   pemilik, bukan diselundupkan ke putaran perbaikan:
+   (a) **penanda koreksi** pada `ast_equipment_logs` (mis. `corrects_log_id`, ditulis oleh
+       baris koreksi dan dikecualikan dari `MAX`) — riwayat tetap utuh, register tetap
+       hanya-tambah, dan kalimat penolakannya kembali benar; butuh satu migrasi, satu
+       kotak formulir, dan satu aturan tulis (baris yang dikoreksi harus milik aset yang
+       sama);
+   (b) **puncak dihitung sejak tanggal kartu servis yang berlaku** — kartu "ganti hour
+       meter" menjadi garis awal yang benar; tanpa kolom baru, tetapi ia mengubah arti
+       definisi (B) untuk SETIAP alat dan butuh cadangan "kalau jendelanya kosong, pakai
+       seluruh riwayat" supaya kartu servis yang dicatat hari ini tidak menghapus
+       pembacaan minggu lalu.
+7. **LAYAR TENGGAT SENGAJA HANYA BICARA TANGGAL** (putaran verifikasi). Pengawas yang
+   mengikuti pemberitahuan 08.30 mendarat di `#/tenggat` dan tidak menemukan satu kata pun
+   tentang target jam kartu servis yang sama; CONVENTIONS §36 dulu menulis aturannya
+   sebagai universal ("tidak ada permukaan yang boleh menampilkan satu tanpa yang lain")
+   sambil mendaftar permukaan yang tidak memuat layar itu. Kalimat konvensinya sudah
+   diperbaiki menjadi daftar permukaan + pernyataan eksplisit (`540718d`), dan
+   **perilakunya tidak diubah**: entri `maintenance_next_due` tidak membawa kolom nilai,
+   dan sisi jam memang tidak mengirim pemberitahuan (keputusan 4). Membawa target jam ke
+   baris Tenggat berarti memberi entri tenggat sebuah kolom nilai **beserta satuannya**
+   (`tenggat.js` memformat kolom nilai dengan `fmt.rupiah` tanpa syarat — cacat D1 yang
+   sama, di layar saudaranya). Itu keputusan pemilik, dan pekerjaannya bukan satu baris.
 
 ---
 
@@ -415,10 +458,24 @@ Kalimat yang **menjadi salah** dan sudah diperbaiki:
 | D2 | **Ambang persen tidak berlaku untuk angka yang tidak mulai dari nol.** Meter kumulatif membuat satu angka config memberi tenggang 25–1.225 jam tergantung umur alat | tabel di §4 | **DITUTUP** — `warn_margin_key` + `proportional` |
 | D3 | **Alarm "Servis aset tanpa jadwal berikut" menghukum pemakaian yang benar.** Sejak kolom jam ada, kartu servis yang dijadwalkan dengan jam saja diteriaki setiap pagi | `DeadlineWatchTest::test_a_service_scheduled_by_hour_meter_is_not_a_service_without_a_schedule`; mutasi M16 merah | **DITUTUP** — `missing_scope` |
 | D4 | **Kartu aset cetak menyembunyikan setengah kartu servis.** Sel "JATUH TEMPO BERIKUT" hanya membaca tanggal, jadi servis yang dijadwalkan dengan jam tercetak **bergaris** — persis seperti servis yang tidak menjadwalkan apa pun, di lembar yang ditandatangani | `AssetPrintTest::test_the_asset_card_prints_both_service_triggers`; mutasi M17 merah | **DITUTUP** — satu sel, dua pemicu ("14 Desember 2026 / 5.500 jam") |
-| D5 | **`WatchedThresholds::flushSuppliers()` disebut CONVENTIONS §24 "sudah dipasang di `ErpTestCase::setUp`" — ia TIDAK dipasang di sana.** `grep -rn flushSuppliers` memulangkan dua baris: definisinya, dan satu pemanggilan manual di `ThresholdWatchTest:296` | grep di atas | **DIBIARKAN, DILAPORKAN.** Tidak berbahaya hari ini (setiap pemasok memakai `app()`, jadi ia menyelesaikan container yang sedang berjalan), tetapi kalimat konvensinya salah dan uji berikutnya yang bersandar padanya akan menemukannya dengan cara yang mahal. Perbaikannya satu baris di `ErpTestCase`, dan itu menyentuh setiap uji di repo — bukan pekerjaan yang pantas diselundupkan ke paket fitur |
+| D5 | **`WatchedThresholds::flushSuppliers()` disebut CONVENTIONS §24 "sudah dipasang di `ErpTestCase::setUp`" — ia TIDAK dipasang di sana.** `grep -rn flushSuppliers` memulangkan dua baris: definisinya, dan satu pemanggilan manual di `ThresholdWatchTest:296` | grep di atas | **KALIMATNYA DITUTUP** (`540718d`), perilakunya tetap. `ErpTestCase` tidak disentuh — itu menyentuh setiap uji di repo dan bukan pekerjaan paket fitur — tetapi §24 sekarang mengatakan apa adanya: `flushSchemaMemo()` sudah dipasang, `flushSuppliers()` **belum**, dan uji yang memerlukannya memanggilnya sendiri. Membiarkan kalimat yang salah karena perbaikan KODEnya mahal adalah dua hal yang berbeda |
 | D6 | **Sisa negatif tercetak dengan tanda minus** ("-40 jam lagi") di kolom yang seluruh tugasnya memberi tahu berapa lama lagi | terlihat di Chromium, bukan di uji mana pun | **DITUTUP** — "150 jam lewat" / "lewat 150 jam" |
 | D8 | **Register pembacaan dibaca seluruhnya untuk menjawab lima angka.** Kartu satu alat 147 ms dan layar Ambang 803 ms pada dua tahun register — pada tabel yang hanya bisa membesar | tabel §5b, diukur pada 24.007 pembacaan | **DITUTUP** — empat kueri agregat, 4,0 ms dan 17,0 ms; keluaran identik |
 | D7 | **Kartu "Cara membacanya" menjelaskan ambang 100 %** di layar yang kini memuat tabel tanpa satu persentase pun | terlihat di Chromium | **DITUTUP** — paragrafnya menyebut kedua bentuk ukuran |
+
+**Putaran verifikasi (9 Sep 2026)** — temuan yang ditutup di putaran ini:
+
+| # | Temuan | Bukti | Sikap |
+|---|---|---|---|
+| D9 | **Ambang jam dihakimi pada selisih float MENTAH** sementara sisa yang dicetak layar dibulatkan 3 desimal: dua alat yang sama-sama "50 jam lagi" mendapat dua lencana berbeda pada target PECAHAN (512,2/462,2 → Aman; 5.120,2/5.070,2 → Mendekati) | `state()` diukur langsung; uji baru di kedua berkas memakai target pecahan | **DITUTUP** `f168f0c` — dihakimi pada sisa yang dicetak, aturan yang sama yang F-2 pakai untuk persentase; 2 mutasi merah |
+| D10 | **`gt:0` dijalankan sebelum pembulatan kolom**: `next_due_hour_meter` 0,0004 → 201, tersimpan `0.000`, dan lahirlah keadaan "Tidak dianggarkan" yang tiga docblock bilang mustahil di sisi jam | `POST /api/assets/maintenances` di php -S | **DITUTUP** `0a14c06` — `decimal:0,3` di kedua pintu tulis, kotak formulir berlantai 0,001; mutasi merah |
+| D11 | **Pesan 422 kolom baru berbahasa Inggris** — "next due hour meter harus lebih besar dari 0." di bawah kotak berlabel "Jadwal berikutnya (hour meter)" | 422 diukur lewat HTTP; `grep next_due lang/id/validation.php` = satu baris | **DITUTUP** `10b001a` — satu baris di peta `attributes`, dipaku uji pintu tulis |
+| D12 | **Layar detail satu perawatan mencetak jam MENTAH** ("5212.5"): `next_due_hour_meter` berakhiran `_meter`, tidak cocok satu cabang format pun, jatuh ke `String(value)` | Chromium `#/d/assets/maintenances/2` | **DITUTUP** `904930d` — satu cabang `/hour_meter$/` menutup kolom ini DAN `hour_meter` log alat; mutasi merah |
+| D13 | **Lencana kartu "Servis berikutnya" adalah vonis atas SATU dari dua pemicu yang kartu itu tampilkan**, dan tanggal 86 hari lalu disebut "jadwal kalender berikutnya" | Chromium; layar Tenggat meneriakkan baris yang sama pada hari yang sama | **DITUTUP** `41fd563` — judul menyebut sisinya ("…menurut jam"), tanggal lewat dicetak merah dengan umur relatifnya; 2 syarat S34 baru |
+| D14 | **Entri ambang yang NOL BARIS tidak punya kalimat** — dan nol baris adalah keadaan bawaan setiap pemasangan baru | Chromium pada salinan DB yang jam-nya dikosongkan | **DITUTUP** `fda9025` — berlaku untuk seluruh registri, kalimatnya dari `subject_word` entrinya |
+| D15 | **Tiga uji yang tidak membedakan**: fixture registri menanam SATU pembacaan (menukar `reading`↔`latest_reading` lolos hijau); jalur PUT tidak diuji sama sekali (menghapus aturannya lolos hijau, 205 uji); jarum lencana ambang dipenuhi KOMENTAR di atas kodenya | tiga mutasi yang lolos hijau, semuanya dijalankan | **DITUTUP** `978a519`, `e54a779`, `a2c2f23` — ketiga mutasi sekarang merah |
+| D16 | **Harness**: pendengar konsol dipasang sebelum `login()`, jadi throttle 429 jalan kedua dihakimi sebagai cacat produk; dan syarat "…beside a RULED DATE" tidak pernah memeriksa sel tanggalnya (serta digantung pada literal "8.000 jam" yang tidak pernah ditanam) | dua jalan berturut-turut sebelum/sesudah; `baris_jam_saja` dicetak ke results | **DITUTUP** `16fd881`, `b58f9f4` — mutasi kolom tanggal merah |
+| D17 | **Alasan yang ditulis untuk salinan kelima array `BULAN` sudah tidak benar** ("APP_LOCALE 'en' tanpa direktori lang/") | `APP_LOCALE=id` di kedua `.env*.example`; `lang/id` ada; `translatedFormat('j M Y')` memulangkan "31 Jul 2026" | **DITUTUP** `39bb27e` — alasannya diganti dengan alasan yang masih berlaku, dan diberi tanda agar tidak disalin keenam kalinya |
 
 ---
 
@@ -435,6 +492,21 @@ pemilik):
 | `tests/Feature/Assets` + ambang/tenggat Core | **MySQL** `erp_dryrun` | OK — **205 uji, 717 asersi** (9 mnt 58 dtk) |
 | `pint` atas berkas baru/diubah | — | lolos (dua kegagalan lama di `main` — `FormXlsxExportService`, `ChartMigrationTest` — tidak disentuh) |
 
+**Sesudah putaran verifikasi (9 Sep 2026)** — dijalankan ulang di pohon ini:
+
+| Gerbang | Driver | Hasil |
+|---|---|---|
+| `tests/Feature/Assets` | SQLite | OK — **127 uji, 481 asersi** |
+| `tests/Feature/Core` | SQLite | OK — **984 uji, 8.915 asersi**, 11 dilewati |
+| `tests/Feature/Assets` + `ThresholdHourMeterTest` + `ThresholdWatchTest` + `DeadlineWatchTest` | **MySQL** `erp_dryrun` | OK — **210 uji, 765 asersi** (8 mnt 47 dtk) |
+| `pint` atas 10 berkas PHP yang disentuh putaran ini | — | `{"tool":"pint","result":"passed"}` |
+| Harness `S34` + `S34m` | Chromium | `ok` — **22 + 9 syarat**, dua jalan berturut-turut keduanya hijau |
+| Peramban: 11 rute × 2 ukuran (1440×900 dan 390×844) | Chromium | **0 galat konsol, 0 respons ≥ 400, 0 gulir samping** |
+
+Sebelas rute itu: `#/home`, `#/dashboard`, `#/ambang`, `#/tenggat`,
+`#/r/assets/maintenances`, `#/d/assets/maintenances/{id}`, empat kartu aset, dan
+`#/r/assets/equipment-logs`.
+
 ---
 
 ## 12. Commit
@@ -450,3 +522,22 @@ pemilik):
 | `7b297b9` | harness: S34 desktop + ponsel (29 syarat) |
 | `c16609f` | docs: sapuan dokumentasi, CONVENTIONS §36, laporan paket |
 | `e4b0beb` | assets: ringkasan pembacaan lewat kueri AGREGAT — 147 ms → 4 ms |
+
+**Putaran verifikasi (9 Sep 2026):**
+
+| SHA | Judul | Temuan yang ditutup |
+|---|---|---|
+| `f168f0c` | ambang: dua alat yang sama-sama "50 jam lagi" tidak lagi mendapat dua lencana berbeda | D9 |
+| `0a14c06` | assets: target jam 0,0004 tidak lagi lolos jadi kartu berlencana "Tidak dianggarkan" | D10 |
+| `10b001a` | lang: kotak "Jadwal berikutnya (hour meter)" tidak lagi ditolak dalam bahasa Inggris | D11 |
+| `e54a779` | uji: pintu UBAH target jam dipaku — menghapus aturannya dulu lolos hijau | D15 |
+| `978a519` | uji: fixture registri jam menanam DUA pembacaan | D15 |
+| `904930d` | spa: layar detail perawatan mencetak "5.212,5 jam", bukan "5212.5" | D12 |
+| `a2c2f23` | uji: lencana ambang jam dipaku pada KODENYA | D15 |
+| `41fd563` | spa: kartu servis alat berhenti berlencana "Aman" untuk alat yang servis kalendernya lewat 86 hari | D13 |
+| `16fd881` | harness: throttle gerbang masuk berhenti dihitung sebagai galat konsol produk | D16 |
+| `b58f9f4` | harness: syarat "jam di sebelah tanggal BERGARIS" benar-benar memeriksa sel tanggalnya | D16 |
+| `fda9025` | spa: entri ambang yang nol baris mengatakan apa artinya nol | D14 |
+| `39bb27e` | assets: pintu register berhenti menjanjikan koreksi yang tidak sampai ke alarm servis | keputusan pemilik 6, D17 |
+| `540718d` | docs: tiga kalimat CONVENTIONS yang bisa diperiksa dan ternyata salah | D5, keputusan pemilik 7 |
+| `41ef072` | docs: angka §5b, §6 dan §7 dijalankan ulang | §5b, §6, §7 |
