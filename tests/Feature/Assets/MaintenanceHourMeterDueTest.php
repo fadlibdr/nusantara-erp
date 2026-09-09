@@ -197,6 +197,58 @@ class MaintenanceHourMeterDueTest extends ErpTestCase
         $this->assertStringNotContainsString('TERAKHIR', $row['note']);
     }
 
+    /**
+     * DUA PEMBACAAN PADA HARI YANG SAMA: yang "terakhir" adalah yang ditulis
+     * BELAKANGAN (urutan id), bukan yang angkanya lebih besar.
+     *
+     * Sebuah lokasi mengisi solar pagi dan sore, dan register memang menerima
+     * dua baris pada satu tanggal (migrasi 000543 sengaja tanpa kunci unik).
+     * Kalau salah ketik terjadi pada baris SORE, pita "meter mundur" harus
+     * tetap muncul — dengan urutan id yang salah, layarnya diam.
+     */
+    public function test_within_one_day_the_last_written_reading_is_the_latest(): void
+    {
+        $asset = $this->asset();
+        $deployment = $this->deployment($asset);
+        $this->log($deployment, '2026-07-20', 4800);
+        $this->log($deployment, '2026-07-20', 480); // sore, satu digit hilang
+        $this->maintenance($asset, '2026-05-01', 5000);
+
+        $row = $this->row($asset);
+
+        $this->assertSame(4800.0, $row['reading']);
+        $this->assertSame(480.0, $row['latest_reading']);
+        $this->assertTrue($row['meter_went_backwards']);
+    }
+
+    /**
+     * REGISTER CAMPURAN: log BBM tanpa jam TIDAK ikut dihitung sebagai
+     * pembacaan, dan tidak menggeser tanggal pembacaan terakhir.
+     *
+     * Kalimatnya menyebut "dari 1 pembacaan" pada alat yang punya tiga log —
+     * dua di antaranya solar saja. Menghitung ketiganya membuat kalimat itu
+     * berbohong tentang seberapa banyak yang benar-benar diketahui.
+     */
+    public function test_fuel_only_logs_are_not_counted_as_meter_readings(): void
+    {
+        $asset = $this->asset();
+        $deployment = $this->deployment($asset);
+        $this->log($deployment, '2026-07-01', null, 150);
+        $this->log($deployment, '2026-07-10', 4800);
+        $this->log($deployment, '2026-07-25', null, 180);
+        $this->maintenance($asset, '2026-05-01', 5000);
+
+        $row = $this->row($asset);
+
+        $this->assertSame(1, $row['reading_count']);
+        $this->assertSame(3, $row['log_count']);
+        $this->assertSame('2026-07-10', $row['reading_date']);
+        // Log solar 25 Jul lebih baru, tetapi ia bukan pembacaan meter.
+        $this->assertSame('2026-07-10', $row['latest_reading_date']);
+        $this->assertFalse($row['meter_went_backwards']);
+        $this->assertStringContainsString('dari 1 pembacaan', $row['note']);
+    }
+
     // --------------------------------------- perangkap D: baris yang berlaku
 
     /**
