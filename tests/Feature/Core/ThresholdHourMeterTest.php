@@ -96,6 +96,27 @@ class ThresholdHourMeterTest extends ErpTestCase
             'logged_by' => $clerk->id,
         ]);
 
+        /*
+         * PEMBACAAN KEDUA YANG LEBIH RENDAH — DAN ITU BUKAN HIASAN.
+         *
+         * Dengan SATU pembacaan, reading == latest_reading dan
+         * reading_date == latest_reading_date, jadi setiap asersi kesetaraan
+         * di berkas ini hijau untuk KEDUA field. Terukur (verifikasi F-7):
+         * mutasi yang menukar 'actual' => $row['reading'] menjadi
+         * $row['latest_reading'] di MaintenanceDueService::thresholdRows()
+         * LOLOS HIJAU pada 122 uji — dan di layar, excavator yang sama
+         * berbunyi "Aman, 900 jam" di Ambang & Batas dan "Mendekati batas,
+         * 1.200 jam" di kartunya sendiri, pada hari yang sama. Meter yang
+         * diganti membuat kedua angka itu berbeda di dunia nyata; fixture
+         * yang tidak pernah membedakannya tidak menjaga apa pun.
+         */
+        EquipmentLog::query()->create([
+            'deployment_id' => $deployment->id,
+            'log_date' => '2026-07-15',
+            'hour_meter' => $reading - 860,
+            'logged_by' => $clerk->id,
+        ]);
+
         Maintenance::query()->create([
             'asset_id' => $asset->id,
             'maintenance_date' => '2026-06-14',
@@ -127,6 +148,19 @@ class ThresholdHourMeterTest extends ErpTestCase
         $this->assertSame($service['state'], $row['state']);
         $this->assertSame($service['note'], $row['note']);
         $this->assertSame('d/assets/assets/'.$asset->id, $row['link']);
+
+        /*
+         * DAN YANG DIPASOK ADALAH PEMBACAAN TERTINGGI, BUKAN YANG TERBARU —
+         * angkanya DITULIS di sini, bukan dibaca dari service yang diujinya
+         * (pelajaran F-6). excavator() menanam 4.960 pada 1 Jul lalu 4.100
+         * pada 15 Jul, jadi kedua field itu memang berbeda dan menukar
+         * salah satunya tidak bisa lagi lolos hijau.
+         */
+        $this->assertSame(4960.0, $row['actual']);
+        $this->assertSame(4100.0, $service['latest_reading']);
+        $this->assertNotSame($service['latest_reading'], $row['actual']);
+        $this->assertSame('2026-07-01', $service['reading_date']);
+        $this->assertSame('2026-07-15', $service['latest_reading_date']);
     }
 
     /**
