@@ -2118,3 +2118,80 @@ lulus lalu tersimpan `0.000` dan melahirkan keadaan yang paragraf ini bilang
 mustahil. `decimal:0,3` di kedua pintu tulis memvalidasi presisi yang
 benar-benar disimpan, dan kotak formulirnya berlantai 0,001 — bukan 0, yang
 berselisih dengan gerbang servernya sendiri.
+
+## 37. Masa berlaku lampiran (`core_attachments.valid_until`, F-8)
+
+Satu kolom `date` nullable pada tabel yang tumbuh paling cepat di aplikasi, dan **NULL
+adalah keadaan NORMAL**: hampir setiap baris `core_attachments` adalah foto lapangan, nota
+atau gambar kerja yang tidak punya — dan tidak akan pernah punya — masa berlaku.
+
+**Empat keadaan, dan yang pertama bukan cabang dari tiga lainnya.** Dihitung SEKALI, di
+server (`Modules\Core\Models\Attachment::validityState()`), lalu ikut setiap lampiran yang
+diserialisasi sebagai blok `validity` (`state`, `days`, `lead_days`):
+
+| Keadaan | Arti | Di kartu lampiran |
+|---|---|---|
+| `tanpa_masa_berlaku` | `valid_until` NULL — berkas biasa | teks polos, **bukan lencana** |
+| `berlaku` | > 30 hari lagi | teks polos |
+| `menipis` | ≤ 30 hari lagi, termasuk hari terakhirnya | lencana kuning |
+| `kedaluwarsa` | tanggalnya sudah lewat | lencana merah |
+
+`Attachment::VALID_UNTIL_LEAD_DAYS` = **30**, dan angka itu dibaca DUA permukaan: kartu
+lampiran dan entri `WatchedDeadlines`. Angka kedua di salah satunya adalah cara termurah
+membuat kartu berkata "masih berlaku" sementara kotak masuk pagi berkata "mendekati akhir
+masa berlaku" tentang berkas yang sama — kontradiksi yang sudah dibayar dua kali (F-3
+aktivitas CRM, F-7 servis alat). **Hari terakhirnya MASIH berlaku** (`valid_through_end`),
+bacaan yang sama dengan `VendorDocument::isExpired` dan `Guarantee::isExpired`.
+
+**Pintu tulisnya tiga, dan semuanya menuntut izin yang sama dengan mengubah lampirannya**
+(`{prefix}.update` dokumen pemiliknya, diturunkan dari `AttachableDocuments`): `POST
+core/attachments` (JSON base64), `POST core/attachments/upload` (multipart, kelas 25 MB),
+dan `PATCH core/attachments/{id}` — yang HANYA menerima `valid_until`, dengan aturan
+`present` supaya mengosongkan harus dikatakan dan bukan terjadi karena kuncinya lupa
+dikirim. Nama, isi, sha256 dan geotag sebuah berkas adalah fakta saat ia diunggah.
+
+**Pengawasnya DUA BELAS entri, satu per prefix izin**, dibangkitkan dari
+`AttachableDocuments::byPrefix()` (`attachment_valid_until_<prefix>`). Sebuah temuan
+`WatchedDeadlines` membawa SATU izin dan SATU judul; satu entri untuk seluruh tabel berarti
+memilih satu izin untuk 40 jenis dokumen dari 12 modul, dan izin apa pun yang dipilih salah.
+
+Dua bendera registri lahir di sini (kamus lengkapnya di kepala `WatchedDeadlines`):
+
+- **`dateless_is_normal`** — mematikan baris `BLIND` milik `scan()` untuk entri ini. Tanpa
+  itu, 40.000 foto lapangan tanpa tanggal dilaporkan sebagai "data yang hilang" setiap pagi.
+  Ia juga membuang dua `COUNT(*)` **tanpa saringan tanggal** atas tabel terbesar aplikasi —
+  satu-satunya kueri registri ini yang menyentuh seluruh tabel. Saling eksklusif dengan
+  `alarm_when_date_missing`, dipaku uji.
+- **`calendar_source`** — `false` mengeluarkan entri dari `CalendarEvents`. Bawaannya
+  `true`; sejauh ini hanya lampiran memakainya (alasannya di `CalendarEvents::sources()`).
+
+**Induk yang sudah tidak ada tidak berbunyi.** Kelas di luar registri tidak pernah masuk
+cakupan; induk yang dihapus lunak atau permanen gugur lewat `EXISTS` per kelas atas kolom
+`table` — **literal string baru di `AttachableDocuments`**, dipaku `AttachmentRegistryTest`
+terhadap model aslinya. Penjaga `deleted_at` duduk DI DALAM closure (pola `missing_scope`
+F-7), bukan di `columns`: `hr_attendances` memang tidak menghapus-lunak, dan mendaftarkannya
+akan menggugurkan seluruh entri `hr`.
+
+### Indeks — EXPLAIN kedua driver
+
+Indeksnya **`(attachable_type, valid_until)`**, bukan `(valid_until)`. Diukur 9 Sep 2026
+atas 40.000 baris tiruan (38.577 foto laporan harian, 59 baris bertanggal), kueri
+`attachable_type IN (…3 kelas prj…) AND valid_until <rentang>`:
+
+```
+SQLite, TANPA ANALYZE — keadaan produksi; repo ini tidak pernah menjalankannya
+  indeks (valid_until)                 SEARCH … USING INDEX …attachable_type_attachable_id…   14,689 ms
+  indeks (valid_until, attachable_type) SEARCH … USING INDEX …attachable_type_attachable_id…  14,758 ms
+  indeks (attachable_type, valid_until) SEARCH … USING COVERING INDEX …type_valid_until…       0,024 ms
+
+MySQL 8 (erp_scratch, sesudah ANALYZE TABLE)
+  tanpa indeks baru                     type=ALL   key=NULL          rows=39.844  Using where           44,530 ms
+  indeks (valid_until)                  type=range key=valid_until   rows=34      Using index condition  0,276 ms
+  indeks (attachable_type, valid_until) type=range key=type_valid    rows=35      Using where; Using index 0,382 ms
+```
+
+Perencana SQLite tanpa statistik **selalu** memilih indeks kesetaraan yang sudah ada dan
+mengabaikan indeks satu kolom `valid_until` sepenuhnya. Hanya pasangan berawalan
+`attachable_type` dipakai kedua driver tanpa ANALYZE, dan di keduanya ia COVERING.
+Rencana kueri PENGAWAS YANG SEBENARNYA (bukan kueri contoh) dipaku
+`AttachmentDeadlineWatchTest::test_the_registry_scope_itself_is_planned_through_the_pair_index`.

@@ -1562,7 +1562,7 @@ baca §1 sebelum mengetik yang pertama.
 | `svc:generate-pm` | **06:00 WIB harian** | Ya — `svc_tickets` | Kunjungan preventif tidak lewat tenggat dalam senyap |
 | `erp:backup-watch` | **08:00 WIB harian** | Tidak (kecuali baris notifikasi) | Kegagalan cadangan sampai ke orang, bukan ke mailbox yang tak dibaca |
 | `fin:close-watch` | **08:15 WIB harian** | Tidak | "Periode 2026-02 belum ditutup" menunggu di layar saat finance membuka ERP |
-| `erp:deadline-watch` | **08:30 WIB harian** | Tidak | Delapan belas tanggal yang bisa lewat tanpa ada yang menagih |
+| `erp:deadline-watch` | **08:30 WIB harian** | Tidak | Tiga puluh empat tanggal yang bisa lewat tanpa ada yang menagih |
 | `erp:harden-demo-logins` | **Tidak pernah terjadwal** | Ya — `users`, hapus token | Memutar kata sandi akun yang masih memakai sandi seeder |
 | `erp:inventory-method-check` | **Tidak pernah terjadwal** | Tidak | Menjawab apakah metode persediaan aman diubah sekarang |
 
@@ -1773,7 +1773,7 @@ per 10 Agustus 2026.
 
 ### 5.8 `erp:deadline-watch`
 
-Satu perulangan di atas registri 18 tenggat (§5.11). Tiga jenis baris di layar CLI:
+Satu perulangan di atas registri 34 tenggat (§5.11). Tiga jenis baris di layar CLI:
 
 - `SKIP <kunci>` — tabel atau kolomnya belum ada (tim lain sedang bermigrasi; bukan
   alarm).
@@ -1868,7 +1868,7 @@ berarti satu koneksi persisten per tab demi lencana yang berubah beberapa kali s
 | `scm.update` | admin, project-manager |
 
 > **Akun `admin` memegang setiap izin di sistem, jadi kotak masuk administrator
-> menerima SETIAP kelompok alarm** — cadangan, tutup buku, dan kedelapan belas pengawas
+> menerima SETIAP kelompok alarm** — cadangan, tutup buku, dan ketiga puluh empat pengawas
 > tenggat sekaligus. **Tidak ada penyaringan per-jenis di sisi penerima.** Kotak masuk
 > yang penuh adalah kotak masuk yang berhenti dibaca, dan itu persis kegagalan yang
 > dedupe dan jendela renag dirancang untuk mencegah.
@@ -1904,13 +1904,15 @@ bukan kuning.
 
 ### 5.11 Registri tenggat — apa yang diawasi
 
-Satu daftar deklaratif, **19 entri**. "In the taste of AuditedModels: one declarative
+Satu daftar deklaratif, **34 entri** — 22 tanggal dokumen ditambah 12 kelompok masa berlaku
+lampiran (satu per modul; lihat di bawah tabel). "In the taste of AuditedModels: one declarative
 list, so the next date worth watching is added as one array entry — never a new command,
 never a second loop."
 
 | Kunci | Tanggal yang diawasi | Lead | Izin penerima |
 |---|---|---|---|
-| `quotation_valid_until` | Masa berlaku penawaran | 14 hari | `crm.update` |
+| `crm_activity_due` | Jatuh tempo aktivitas CRM † | 3 hari | `crm.update` |
+| `quotation_valid_until` | Masa berlaku penawaran | 14 | `crm.update` |
 | `tender_submission_deadline` | Batas pemasukan penawaran lelang † | 7 | `crm.create` |
 | `contract_end` | Akhir kontrak | 30 | `crm.approve` |
 | `termin_due` | Jatuh tempo termin | 7 | `fin.create` |
@@ -1922,9 +1924,11 @@ never a second loop."
 | `subcontract_end` | Akhir SPK subkon | 14 | `scm.update` |
 | `milestone_due` | Jatuh tempo milestone | 7 | `prj.update` |
 | `ar_invoice_due` | Jatuh tempo invoice AR | **0** | `fin.create` |
+| `ap_due` | Jatuh tempo tagihan vendor | 7 | `fin.create` |
 | `maintenance_next_due` | Perawatan aset berikutnya ‡§ | 14 | `ast.update` |
 | `deployment_planned_until` | Rencana akhir mobilisasi | 7 | `ast.update` |
 | `svc_contract_period_end` | Akhir kontrak layanan | 60 | `crm.update` |
+| `ticket_sla` | Batas penyelesaian SLA tiket | **0** | `svc.update` |
 | `pkwt_end` | Akhir PKWT karyawan ‡ | 60 | `hr.update` |
 | `certificate_expiry` | Kedaluwarsa sertifikat | 60 | `hr.update` |
 | `vendor_document_valid_until` | Masa berlaku dokumen vendor † | 30 | `prc.update` |
@@ -1933,6 +1937,26 @@ never a second loop."
 † Dokumen "berlaku s/d" masih sah **pada** hari terakhirnya, jadi hari itu terbaca
 "menipis hari ini" dan "lewat" baru mulai keesokan harinya. ‡ Tanggal yang **kosong
 adalah alarmnya sendiri**.
+
+**Dua belas entri terakhir tidak ada di tabel: masa berlaku LAMPIRAN** (F-8, kunci
+`attachment_valid_until_<prefix>`, lead **30**, izin `<prefix>.update`, "berlaku s/d"
+seperti † di atas). Ia satu kolom — `core_attachments.valid_until` — yang dibaca dua belas
+kali karena satu temuan hanya bisa membawa satu izin, dan lampiran sebuah sertifikat
+karyawan tidak boleh dikabarkan kepada orang yang izinnya hanya `svc.update`. Prefix
+izinnya diturunkan dari `AttachableDocuments`, registri yang sama yang memutuskan siapa
+boleh membuka lampiran itu.
+
+**Ia satu-satunya entri yang tanggal kosongnya BUKAN alarm dan BUKAN baris BLIND**
+(bendera `dateless_is_normal`). Hampir setiap baris `core_attachments` adalah foto
+lapangan, nota atau gambar kerja yang tidak punya — dan tidak akan pernah punya — masa
+berlaku; memperlakukan itu seperti ‡ berarti meneriaki puluhan ribu berkas biasa setiap
+pagi. Lampiran yang dokumen induknya sudah dihapus juga keluar dari cakupan, aturan yang
+sama dengan penolakan 404 saat mengunduhnya.
+
+**Entri lampiran sengaja BUKAN sumber Kalender**, satu-satunya entri registri yang tidak.
+Habisnya masa berlaku sebuah berkas bukan acara yang direncanakan siapa pun, dan tiga
+prefix lampiran (est, eng, qc) tidak punya departemen di legenda delapan label milik
+pemilik — keputusan pemilik yang menunggu, dicatat di `docs/LAPORAN-PAKET-HM-F-8.md`.
 
 § **Servis aset punya pemicu KEDUA yang tidak ada di tabel ini** (F-7):
 `ast_maintenances.next_due_hour_meter`, jam operasi, diawasi registri **ambang**
