@@ -193,6 +193,40 @@ class DeadlineApiTest extends ErpTestCase
     }
 
     /**
+     * "Hari ini" adalah kalimat yang SAMA di ketiga permukaan.
+     *
+     * WatchedDeadlines::sentence() menangani days === 0 di KEDUA tier — LEWAT
+     * untuk tanggal yang telat pada hari kedatangannya, MENIPIS untuk entri
+     * valid_through_end pada hari terakhirnya. Kartu lampiran menulis "hari
+     * ini" juga. Layar Tenggat yang menuliskannya "0 hari lagi" membuat satu
+     * berkas punya dua status pada hari yang sama.
+     *
+     * Yang dipaku: cabang days === 0 berdiri SEBELUM percabangan tier di
+     * umur(), bukan di dalam salah satunya.
+     */
+    public function test_the_screen_writes_hari_ini_in_both_tiers_like_the_notification(): void
+    {
+        $screen = $this->screenCode();
+
+        $this->assertSame(
+            1,
+            preg_match('/function umur\(item, tier\) \{(.*?)\n\}/s', $screen, $matches),
+            'Fungsi umur() tidak ditemukan di tenggat.js; uji ini tidak lagi menjaga apa pun.',
+        );
+
+        $body = $matches[1];
+        $hariIni = strpos($body, "if (days === 0) return 'hari ini';");
+
+        $this->assertNotFalse($hariIni, 'umur() tidak punya cabang days === 0 yang berlaku untuk kedua tier.');
+        $this->assertLessThan(
+            strpos($body, "hari lalu"),
+            $hariIni,
+            'Cabang "hari ini" berada di bawah percabangan tier — hari terakhir sebuah masa berlaku '
+            .'akan terbaca "0 hari lagi" di layar sementara kotak masuk menulis "hari ini".',
+        );
+    }
+
+    /**
      * tenggat.js TANPA komentarnya.
      *
      * Uji yang mencari sebuah pola di seluruh berkas hijau ketika polanya

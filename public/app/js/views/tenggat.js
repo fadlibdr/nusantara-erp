@@ -34,8 +34,14 @@ function warnaUmur(item, tier) {
 function umur(item, tier) {
   if (tier === 'tanpa_tanggal' || item.days === null) return 'tidak tercatat';
   const days = Math.abs(item.days);
-  if (tier === 'lewat') return days === 0 ? 'hari ini' : `${days} hari lalu`;
-  return `${days} hari lagi`;
+  /* "hari ini" berlaku di KEDUA tier, aturan yang sama dengan
+     WatchedDeadlines::sentence(): LEWAT untuk tanggal yang telat pada hari
+     kedatangannya, MENIPIS untuk entri valid_through_end pada hari
+     terakhirnya (jaminan, penawaran, dokumen vendor, masa berlaku lampiran).
+     Ditulis "0 hari lagi" di sini, layar ini memberi satu berkas dua status
+     pada hari yang sama — kartunya dan kotak masuk 08.30 menulis "hari ini". */
+  if (days === 0) return 'hari ini';
+  return tier === 'lewat' ? `${days} hari lalu` : `${days} hari lagi`;
 }
 
 export async function renderTenggat(host) {

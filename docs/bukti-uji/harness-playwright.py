@@ -9312,6 +9312,12 @@ def s35(pg):
             "every_tenggat_row_names_the_document_the_file_hangs_on":
                 bool(tenggat_rows) and all(
                     f"menempel pada {F8_DOC[1]}" in row[0] for row in tenggat_rows),
+            # 7. Hari terakhirnya berbunyi SAMA di ketiga permukaan. Kartu:
+            #    "Berlaku s/d 10 Sep 2026 · hari ini". Pemberitahuan: "— hari
+            #    ini". Layar ini menulis "0 hari lagi" sampai F8V-4 ditutup —
+            #    satu berkas, satu hari, dua status.
+            "the_tenggat_row_for_the_last_valid_day_also_reads_hari_ini":
+                any(row[2] == "hari ini" for row in tenggat_rows if "izin-kerja.pdf" in row[0]),
             "the_screens_raise_no_console_error": out["console_errors"] == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
