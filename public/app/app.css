@@ -1630,7 +1630,19 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 /* Baris keadaan masa berlaku. 'Tanpa masa berlaku' mewarisi warna .cell-sub —
    ia keterangan, bukan peringatan; hanya menipis/kedaluwarsa memakai lencana. */
 .attachment-validity { margin-top: 2px; }
-.attachment-validity .badge { font-size: 11px; }
+/* white-space: normal MENIMPA .badge { white-space: nowrap }: lencana ini
+   membawa kalimat ("Berlaku s/d 22 Sep 2026 · 12 hari lagi"), bukan satu kata
+   status, dan pada 390 px kalimat itu terukur TERPOTONG di dalam kotaknya
+   (scrollWidth > clientWidth, harness S35 ponsel). Keterangan yang terpotong
+   adalah keterangan yang tidak ada. */
+.attachment-validity .badge { font-size: 11px; white-space: normal; }
+@media (max-width: 560px) {
+  /* Tiga tombol per baris (Masa berlaku · Unduh · Hapus) tidak muat di samping
+     nama berkas pada ponsel; pola yang sama dengan .upload-item. */
+  .attachment { flex-wrap: wrap; }
+  .attachment-main { flex: 1 0 100%; }
+  .attachment .row-actions { width: 100%; justify-content: flex-end; }
+}
 
 /* ------------------------------------------------------------- lapangan */
 /* The field screen is one column at every width: it is used one-handed on a

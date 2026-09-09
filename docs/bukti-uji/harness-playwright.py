@@ -9102,6 +9102,330 @@ def s34m(browser):
                 api(f"assets/maintenances/{mid}", tok, "DELETE")
 
 
+# ------------------------------------------------------- S35 (Fase 2 / F-8)
+#
+# Masa berlaku lampiran. Yang tidak bisa dibuktikan suite PHP, dan justru itu
+# yang membuat atau menggagalkan paket ini:
+#
+#  1. KEADAAN NORMAL TIDAK BOLEH TERBACA SEBAGAI PERINGATAN. "Tanpa masa
+#     berlaku" harus digambar sebagai keterangan biasa — bukan .badge, bukan
+#     warna. Suite PHP hanya bisa memeriksa STRING keadaannya; apakah ia
+#     berakhir sebagai lencana kuning di layar hanya bisa dilihat di peramban.
+#  2. Kartu dan layar Tenggat harus menyebut berkas yang SAMA dengan status
+#     yang SAMA pada hari yang sama.
+#  3. Dialog "Masa berlaku" benar-benar menulis, dan tombol Kosongkan benar-
+#     benar mengembalikan barisnya ke keadaan normal.
+F8_DOC = ("finance/ap-bills", "Tagihan vendor")
+
+# PDF sungguhan sekecil mungkin: AttachmentService MENGENDUS isinya, jadi
+# byte-nya harus benar-benar PDF atau unggahannya ditolak 422.
+F8_PDF = base64.b64encode(b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n").decode()
+
+F8_ROWS = """() => {
+  const card = [...document.querySelectorAll('.card')].find(c => {
+    const h = c.querySelector('.card-head h2');
+    return h && h.innerText.trim() === 'Lampiran';
+  });
+  if (!card) return null;
+  return [...card.querySelectorAll('.attachment')].map((row) => {
+    const v = row.querySelector('.attachment-validity');
+    const badge = v ? v.querySelector('.badge') : null;
+    return {
+      name: (row.querySelector('.attachment-name') || {}).innerText || null,
+      validity_text: v ? v.innerText.trim() : null,
+      // KELAS lencananya, bukan hanya teksnya: 'tanpa masa berlaku' yang
+      // digambar kuning tetap mencetak kalimat yang benar.
+      badge_class: badge ? badge.className : null,
+      badge_color: badge ? getComputedStyle(badge).color : null,
+      buttons: [...row.querySelectorAll('.row-actions .btn')].map(b => b.innerText.trim()),
+    };
+  });
+}"""
+
+
+def _f8_bill(tok):
+    """Tagihan vendor pertama di salinan DB ini, atau None."""
+    s, d = api("finance/ap-bills?per_page=1", tok)
+    rows = (d.get("data") or []) if s == 200 else []
+    return rows[0] if rows else None
+
+
+def _f8_today(tok):
+    """HARI INI MENURUT SERVER, bukan menurut proses harness.
+
+    Aplikasinya berjalan di Asia/Jakarta dan mesin ini di UTC, jadi selama tujuh
+    jam setiap hari `date.today()` di sini adalah SEHARI LEBIH AWAL daripada
+    tanggal yang dipakai pengawas tenggat dan kartu lampiran. Diukur 9 Sep 2026
+    pukul 17.4x UTC: fixture "berlaku s/d hari ini" ditanam 2026-09-09 dan
+    dibaca server sebagai KEDALUWARSA 1 hari, karena bagi server hari itu sudah
+    2026-09-10. Anchor tanggalnya karena itu diambil dari server sendiri —
+    meta.today milik GET core/deadlines, jam yang sama dengan scan()."""
+    s, d = api("core/deadlines", tok)
+    if s != 200 or not (d.get("meta") or {}).get("today"):
+        raise AssertionError(f"tidak bisa membaca meta.today dari core/deadlines: {s}")
+    return date.fromisoformat(d["meta"]["today"])
+
+
+def _f8_attach(tok, doc_id, filename, valid_until):
+    body = {"document_type": F8_DOC[0], "document_id": doc_id,
+            "filename": filename, "content": F8_PDF}
+    if valid_until is not None:
+        body["valid_until"] = valid_until
+    s, d = api("core/attachments", tok, "POST", body)
+    if s != 201:
+        raise AssertionError(f"unggah {filename} gagal: {s} {json.dumps(d)[:200]}")
+    return d["data"]["id"]
+
+
+def _f8_plant(tok, doc_id):
+    """Empat keadaan yang bisa dilihat sekaligus dalam satu kartu, dihitung dari
+    hari SERVER supaya skenarionya tidak basi pada tanggal berapa pun ia
+    dijalankan — dan tidak meleset satu hari karena zona waktunya."""
+    today = _f8_today(tok)
+    return [
+        _f8_attach(tok, doc_id, "foto-lapangan.pdf", None),
+        _f8_attach(tok, doc_id, "polis-car.pdf", str(today + timedelta(days=12))),
+        _f8_attach(tok, doc_id, "sertifikat-kalibrasi.pdf", str(today - timedelta(days=3))),
+        # Hari terakhirnya: MASIH berlaku (kuning "hari ini"), bukan merah.
+        _f8_attach(tok, doc_id, "izin-kerja.pdf", str(today)),
+    ]
+
+
+@scenario("S35_kedaluwarsa_lampiran")
+def s35(pg):
+    """Empat keadaan dalam satu kartu, dua pintu tulis, dan satu layar Tenggat
+    yang harus setuju dengan kartunya."""
+    tok = token_for("admin@nusantara.test")
+    bill = _f8_bill(tok)
+    if bill is None:
+        return {"SKIPPED": "Tidak ada tagihan vendor di salinan DB ini."}
+
+    today = _f8_today(tok)
+    planted = _f8_plant(tok, bill["id"])
+    out = {"document": bill["code"], "planted": len(planted), "server_today": str(today)}
+    errors = []
+    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+    try:
+        login(pg, "admin@nusantara.test")
+
+        # ------------------------------------------------- kartu lampiran
+        pg.goto(BASE + f"#/d/{F8_DOC[0]}/{bill['id']}")
+        pg.wait_for_selector(".attachment", timeout=20000)
+        pg.wait_for_timeout(1200)
+        assert_screen(pg, f"#/d/{F8_DOC[0]}/{bill['id']}")
+        rows = pg.evaluate(F8_ROWS)
+        out["rows"] = rows
+        pg.screenshot(path=f"{OUT}/s35-kartu-lampiran.png", full_page=False)
+
+        by_name = {r["name"]: r for r in (rows or [])}
+        normal = by_name.get("foto-lapangan.pdf") or {}
+        menipis = by_name.get("polis-car.pdf") or {}
+        lewat = by_name.get("sertifikat-kalibrasi.pdf") or {}
+        hari_ini = by_name.get("izin-kerja.pdf") or {}
+
+        # ------------------------------------------------- dialog masa berlaku
+        # Baris "tanpa masa berlaku" diberi tanggal lewat dialognya, lalu
+        # dikosongkan lagi — dua arah, karena tanggal salah ketik harus bisa
+        # dicabut dan bukan hanya diganti tanggal salah yang lain.
+        target = str(today + timedelta(days=5))
+        row_sel = ".attachment:has(.attachment-name:text-is('foto-lapangan.pdf'))"
+        click(pg, f"{row_sel} .btn:has-text('Masa berlaku')")
+        pg.wait_for_selector("#overlay .modal input[type=date]", timeout=10000)
+        pg.fill("#overlay .modal input[type=date]", target)
+        out["dialog_title"] = pg.evaluate(
+            "() => { const h = document.querySelector('#overlay .modal h2, #overlay .modal .modal-title');"
+            " return h ? h.innerText.trim() : null; }")
+        click(pg, "#overlay .modal .btn:has-text('Simpan')")
+        pg.wait_for_timeout(1500)
+        out["toast_simpan"] = toasts(pg)
+        out["after_set"] = pg.evaluate(F8_ROWS)
+
+        click(pg, f"{row_sel} .btn:has-text('Masa berlaku')")
+        pg.wait_for_selector("#overlay .modal input[type=date]", timeout=10000)
+        click(pg, "#overlay .modal .btn:has-text('Kosongkan')")
+        pg.wait_for_timeout(1500)
+        out["toast_kosongkan"] = toasts(pg)
+        out["after_clear"] = pg.evaluate(F8_ROWS)
+        pg.screenshot(path=f"{OUT}/s35-dialog-sesudah.png", full_page=False)
+
+        # ------------------------------------------------------- layar Tenggat
+        pg.goto(BASE + "#/tenggat")
+        pg.wait_for_selector(".card", timeout=20000)
+        pg.wait_for_timeout(1500)
+        assert_screen(pg, "#/tenggat", "Tenggat")
+        out["tenggat"] = pg.evaluate("""() => {
+          const cards = [...document.querySelectorAll('.card')].filter(c => {
+            const h = c.querySelector('.card-head h2');
+            return h && /^Lampiran /.test(h.innerText.trim());
+          });
+          return cards.map((c) => ({
+            title: c.querySelector('.card-head h2').innerText.trim(),
+            badge: (c.querySelector('.card-head .badge') || {}).innerText || null,
+            rows: [...c.querySelectorAll('table.data tbody tr')].map(
+              (tr) => [...tr.querySelectorAll('td')].map(td => td.innerText.trim())),
+          }));
+        }""")
+        pg.screenshot(path=f"{OUT}/s35-tenggat-lampiran.png", full_page=False)
+
+        tenggat_names = [cell for card in (out["tenggat"] or []) for row in card["rows"] for cell in row]
+        out["console_errors"] = errors
+
+        out["checks"] = {
+            # 1. Keadaan normal BUKAN peringatan.
+            "the_no_expiry_state_is_written_as_plain_text":
+                normal.get("validity_text") == "Tanpa masa berlaku" and normal.get("badge_class") is None,
+            # 2. Menipis kuning, kedaluwarsa merah — kelasnya, bukan hanya kalimatnya.
+            "an_expiring_file_gets_the_amber_badge":
+                (menipis.get("badge_class") or "").find("amber") != -1
+                and "12 hari lagi" in (menipis.get("validity_text") or ""),
+            "an_expired_file_gets_the_red_badge":
+                (lewat.get("badge_class") or "").find("red") != -1
+                and "3 hari lalu" in (lewat.get("validity_text") or "")
+                and (lewat.get("validity_text") or "").startswith("Kedaluwarsa"),
+            # 3. Hari terakhirnya MASIH berlaku: kuning "hari ini", bukan merah.
+            "the_last_valid_day_reads_hari_ini_and_stays_amber":
+                (hari_ini.get("badge_class") or "").find("amber") != -1
+                and "hari ini" in (hari_ini.get("validity_text") or "")
+                and "Kedaluwarsa" not in (hari_ini.get("validity_text") or ""),
+            # 4. Dialognya menulis, dan Kosongkan mengembalikan keadaan normal.
+            "the_dialog_writes_the_date":
+                "5 hari lagi" in (([r for r in (out["after_set"] or [])
+                                    if r["name"] == "foto-lapangan.pdf"] or [{}])[0].get("validity_text") or ""),
+            "clearing_returns_it_to_the_normal_state":
+                (([r for r in (out["after_clear"] or [])
+                   if r["name"] == "foto-lapangan.pdf"] or [{}])[0].get("validity_text")) == "Tanpa masa berlaku",
+            # 5. Kartu dan Tenggat menyebut berkas yang SAMA.
+            "tenggat_names_the_same_two_files_the_card_flagged":
+                any("polis-car.pdf" in n for n in tenggat_names)
+                and any("sertifikat-kalibrasi.pdf" in n for n in tenggat_names),
+            # …dan TIDAK menyebut yang tanpa masa berlaku.
+            "tenggat_never_names_the_file_without_an_expiry":
+                not any("foto-lapangan.pdf" in n for n in tenggat_names),
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        for aid in planted:
+            api(f"core/attachments/{aid}", tok, "DELETE")
+
+
+@scenario("S35_kedaluwarsa_lampiran_ponsel")
+def s35m(browser):
+    """390 px. Kartu lampiran tumbuh satu baris keterangan DAN satu tombol per
+    lampiran di paket ini; keduanya adalah kandidat pertama yang mendorong
+    layar detail melebar di ponsel. Dan dialog tanggalnya harus muat: sebuah
+    tombol Simpan yang berada di luar layar adalah dialog yang tidak bisa
+    dipakai."""
+    tok = token_for("admin@nusantara.test")
+    bill = _f8_bill(tok)
+    if bill is None:
+        return {"SKIPPED": "Tidak ada tagihan vendor di salinan DB ini."}
+
+    planted = _f8_plant(tok, bill["id"])
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    errors = []
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+        pg.goto(BASE + f"#/d/{F8_DOC[0]}/{bill['id']}")
+        pg.wait_for_selector(".attachment", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out = {"document": bill["code"], "rows": pg.evaluate(F8_ROWS)}
+        out["page"] = pg.evaluate("""() => {
+          const card = [...document.querySelectorAll('.card')].find(c => {
+            const h = c.querySelector('.card-head h2');
+            return h && h.innerText.trim() === 'Lampiran';
+          });
+          const v = card ? card.querySelector('.attachment-validity') : null;
+          return {
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            card_found: !!card,
+            // Baris keterangannya tidak boleh terpotong: keterangan yang
+            // terpotong adalah keterangan yang tidak ada.
+            validity_clipped: v ? v.scrollWidth > v.clientWidth + 1 : null,
+            add_row_wraps: (() => {
+              const r = card ? card.querySelector('.attachment-add-row') : null;
+              if (!r) return null;
+              const kids = [...r.children].map(k => Math.round(k.getBoundingClientRect().top));
+              return new Set(kids).size > 1;
+            })(),
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s35-kartu-lampiran-ponsel.png", full_page=False)
+
+        row_sel = ".attachment:has(.attachment-name:text-is('polis-car.pdf'))"
+        click(pg, f"{row_sel} .btn:has-text('Masa berlaku')")
+        pg.wait_for_selector("#overlay .modal input[type=date]", timeout=10000)
+        pg.wait_for_timeout(600)
+        out["dialog"] = pg.evaluate("""() => {
+          const m = document.querySelector('#overlay .modal');
+          if (!m) return null;
+          const box = m.getBoundingClientRect();
+          const save = [...m.querySelectorAll('.btn')].find(b => b.innerText.trim() === 'Simpan');
+          const sb = save ? save.getBoundingClientRect() : null;
+          return {
+            width: Math.round(box.width),
+            fits_viewport: box.left >= -1 && box.right <= window.innerWidth + 1,
+            save_visible: !!(save && save.checkVisibility()),
+            save_inside: sb ? (sb.right <= window.innerWidth + 1 && sb.bottom <= window.innerHeight + 1) : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s35-dialog-ponsel.png", full_page=False)
+        click(pg, "#overlay .modal .btn:has-text('Batal')")
+        pg.wait_for_timeout(500)
+
+        pg.goto(BASE + "#/tenggat")
+        pg.wait_for_selector(".card", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out["tenggat"] = pg.evaluate("""() => {
+          const card = [...document.querySelectorAll('.card')].find(c => {
+            const h = c.querySelector('.card-head h2');
+            return h && /^Lampiran /.test(h.innerText.trim());
+          });
+          const wrap = card ? card.querySelector('.table-wrap') : null;
+          return {
+            card_found: !!card,
+            title: card ? card.querySelector('.card-head h2').innerText.trim() : null,
+            wrap_scrolls: wrap ? wrap.scrollWidth > wrap.clientWidth + 1 : null,
+            page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+          };
+        }""")
+        pg.screenshot(path=f"{OUT}/s35-tenggat-lampiran-ponsel.png", full_page=False)
+        out["console_errors"] = errors
+
+        by_name = {r["name"]: r for r in (out["rows"] or [])}
+        out["checks"] = {
+            "the_card_renders_on_a_phone": out["page"].get("card_found") is True and len(out["rows"] or []) == 4,
+            "the_detail_page_never_scrolls_sideways": out["page"].get("page_scrolls_sideways") is False,
+            "the_validity_line_is_not_clipped": out["page"].get("validity_clipped") is False,
+            "the_no_expiry_state_is_still_plain_text_on_a_phone":
+                (by_name.get("foto-lapangan.pdf") or {}).get("badge_class") is None,
+            "the_expiry_dialog_fits_the_phone":
+                (out["dialog"] or {}).get("fits_viewport") is True
+                and (out["dialog"] or {}).get("save_visible") is True
+                and (out["dialog"] or {}).get("save_inside") is True,
+            "the_dialog_never_widens_the_page": (out["dialog"] or {}).get("page_scrolls_sideways") is False,
+            "the_tenggat_group_renders_on_a_phone": out["tenggat"].get("card_found") is True,
+            "the_tenggat_page_never_scrolls_sideways": out["tenggat"].get("page_scrolls_sideways") is False,
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        for aid in planted:
+            api(f"core/attachments/{aid}", tok, "DELETE")
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -9112,7 +9436,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
