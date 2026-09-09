@@ -77,8 +77,25 @@ class CalendarEventsTest extends ErpTestCase
         $sources = CalendarEvents::sources();
 
         // Every registry entry plus the seven calendar-only sources — a
-        // watcher added to WatchedDeadlines joins the calendar automatically.
-        $this->assertCount(count(WatchedDeadlines::entries()) + count(self::CALENDAR_ONLY_KINDS), $sources);
+        // watcher added to WatchedDeadlines joins the calendar automatically…
+        $optedIn = array_filter(WatchedDeadlines::entries(), static fn (array $entry): bool => $entry['calendar_source'] ?? true);
+        $this->assertCount(count($optedIn) + count(self::CALENDAR_ONLY_KINDS), $sources);
+
+        // …unless it says otherwise. F-8's twelve attachment-expiry entries are
+        // the only ones that do, and they say so deliberately: a file's
+        // validity running out is nobody's scheduled event, twelve extra
+        // sources is +52 % on an endpoint the dashboard fires and field phones
+        // read, and three of their prefixes (est/eng/qc) have no chip in the
+        // owner's eight-label legend. The count is pinned as a LITERAL: reading
+        // it back out of the registry would make this line green for any number,
+        // including zero — and zero is exactly what a forgotten flag looks like.
+        $optedOut = array_column(array_filter(
+            WatchedDeadlines::entries(),
+            static fn (array $entry): bool => ($entry['calendar_source'] ?? true) === false,
+        ), 'key');
+
+        $this->assertCount(12, $optedOut);
+        $this->assertSame([], array_values(array_intersect($optedOut, array_column($sources, 'kind'))));
 
         $chips = ['Penjualan', 'Proyek', 'Keuangan', 'SDM', 'Pengadaan', 'Layanan', 'Aset', 'Persediaan'];
         $permission = '/^('.implode('|', PermissionSeeder::PREFIXES).')\.view$/';

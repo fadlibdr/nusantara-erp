@@ -2160,8 +2160,13 @@ Dua bendera registri lahir di sini (kamus lengkapnya di kepala `WatchedDeadlines
 - **`dateless_is_normal`** — mematikan baris `BLIND` milik `scan()` untuk entri ini. Tanpa
   itu, 40.000 foto lapangan tanpa tanggal dilaporkan sebagai "data yang hilang" setiap pagi.
   Ia juga membuang dua `COUNT(*)` **tanpa saringan tanggal** atas tabel terbesar aplikasi —
-  satu-satunya kueri registri ini yang menyentuh seluruh tabel. Saling eksklusif dengan
-  `alarm_when_date_missing`, dipaku uji.
+  satu-satunya kueri registri ini yang menyentuh seluruh tabel. Diukur di MySQL 8 atas
+  40.000 lampiran tanpa tanggal (9 Sep 2026): cabang BLIND untuk 12 entri lampiran
+  **246,4 ms**, `attachment_valid_until_prj` sendirian **172,4 ms** (rantai OR delapan
+  cabangnya harus dievaluasi untuk setiap baris karena tidak ada saringan tanggal yang
+  memotongnya lebih dulu) — di atas `scan()` penuh yang **106,1 ms**. Benderanya menahan
+  layar Tenggat dari menjadi 3,3x lebih lambat untuk mencetak 12 baris yang salah. Saling
+  eksklusif dengan `alarm_when_date_missing`, dipaku uji.
 - **`calendar_source`** — `false` mengeluarkan entri dari `CalendarEvents`. Bawaannya
   `true`; sejauh ini hanya lampiran memakainya (alasannya di `CalendarEvents::sources()`).
 
@@ -2195,3 +2200,19 @@ mengabaikan indeks satu kolom `valid_until` sepenuhnya. Hanya pasangan berawalan
 `attachable_type` dipakai kedua driver tanpa ANALYZE, dan di keduanya ia COVERING.
 Rencana kueri PENGAWAS YANG SEBENARNYA (bukan kueri contoh) dipaku
 `AttachmentDeadlineWatchTest::test_the_registry_scope_itself_is_planned_through_the_pair_index`.
+
+Dan itu memang kueri registrinya sendiri, bukan bentuk sederhananya — `EXPLAIN` MySQL 8
+atas `WatchedDeadlines::scoped()` + saringan LEWAT, 40.000 lampiran di `erp_dryrun`:
+
+```
+attachment_valid_until_prj   PRIMARY   core_attachments  type=range key=…type_valid_until… rows=40  Using index condition; Using where
+                             DEPENDENT SUBQUERY x8       type=eq_ref key=PRIMARY           rows=1   (penjaga induk per kelas)
+                             1,357 ms/kueri
+attachment_valid_until_fin   PRIMARY   core_attachments  type=range key=…type_valid_until… rows=6   Using index condition; Using where
+                             DEPENDENT SUBQUERY x6       type=eq_ref key=PRIMARY           rows=1
+                             0,846 ms/kueri
+scan() penuh, 34 entri: 109,8 ms
+```
+
+Penjaga induk per kelas tidak mengubah rencananya: setiap `EXISTS` diselesaikan lewat
+PRIMARY KEY induknya (`eq_ref`, rows=1) atas baris yang SUDAH dipotong indeks tanggal.
