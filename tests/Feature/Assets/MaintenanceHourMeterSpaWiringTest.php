@@ -134,6 +134,28 @@ class MaintenanceHourMeterSpaWiringTest extends ErpTestCase
     }
 
     /**
+     * ENTRI YANG NOL BARIS MENGATAKAN APA ARTINYA NOL.
+     *
+     * Keputusan pemilik F-7 ("alat yang tidak punya target jam dan tidak
+     * punya pembacaan tidak dibariskan") membuat NOL BARIS menjadi keadaan
+     * awal setiap pemasangan baru, dan seeder tidak menanam satu
+     * next_due_hour_meter pun. Tanpa kalimat, kartunya berbunyi "Servis alat
+     * menurut jam operasi · Peringatan 50 jam sebelum batas · 0 baris" di
+     * atas judul kolom "ALAT AKTUAL BATAS SISA KEADAAN" dan tidak ada apa-apa
+     * di bawahnya — tidak membedakan "tidak ada alat yang perlu diservis"
+     * dari "tidak ada yang pernah menyetel targetnya". Tiga entri rupiah yang
+     * sudah ada tidak pernah kosong pada data nyata, jadi lubang ini baru
+     * terlihat karena entri ini ada.
+     */
+    public function test_the_threshold_screen_says_what_zero_rows_means(): void
+    {
+        $ambang = $this->file('views/ambang.js');
+
+        $this->assertStringContainsString('shown === 0', $ambang);
+        $this->assertStringContainsString('bukan bahwa setiap ${measure.subject_word} aman', $ambang);
+    }
+
+    /**
      * LAYAR DETAIL SATU PERAWATAN MENGEJA JAMNYA SEPERTI PERMUKAAN LAIN.
      *
      * detail.js memilih pemformat menurut NAMA KUNCI, berurutan: PERCENT_KEY,

@@ -174,39 +174,55 @@ export async function renderAmbang(host) {
         el('p.help', { text: `Yang diukur: ${measure.measures}.` }),
         el('p.help', { text: `Batasnya dari: ${measure.limit_source}.` }),
       ]),
-      el('.table-wrap', el('table.data', [
-        el('thead', el('tr', [
-          /* Kata yang DIDEKLARASIKAN entrinya, bukan dua pilihan yang dipatok
-             layar: entri overhead menyebut subject_word 'tahun buku', dan
-             tabelnya dulu berjudul "SUBJEK" di atas baris berisi "2026"
-             (verifikasi F-2). Registri yang mendeklarasikan satuannya sendiri
-             tidak boleh kehilangannya di tabel yang menampilkannya. */
-          el('th', { text: titleCase(measure.subject_word) }),
-          el('th.right', { text: 'Aktual' }),
-          el('th.right', { text: 'Batas' }),
-          el('th.right', { text: measure.proportional === false ? 'Sisa' : 'Terpakai' }),
-          el('th', { text: 'Keadaan' }),
-          el('th', { text: '' }),
-        ])),
-        el('tbody', rows.map((row) => {
-          const [label, tone] = STATE[row.state] || [row.state, ''];
+      /* NOL BARIS BUKAN "SEMUANYA AMAN", DAN NOL BARIS ADALAH KEADAAN BAWAAN
+         SETIAP PEMASANGAN BARU. Sebuah kartu berjudul entri dengan "0 baris"
+         di atas judul kolom "ALAT AKTUAL BATAS SISA KEADAAN" dan tidak ada
+         apa-apa di bawahnya tidak membedakan "tidak ada yang perlu diservis"
+         dari "tidak ada yang pernah menyetel targetnya" — dan untuk entri jam
+         yang kedua itulah yang benar sampai seseorang menyetel sebuah target
+         atau menulis satu pembacaan. Kalimatnya dirakit dari kata yang
+         ENTRINYA sendiri deklarasikan (subject_word), jadi ia berlaku untuk
+         seluruh registri dan bukan hanya untuk entri jam. */
+      shown === 0
+        ? el('.card-body', el('p.muted', {
+          style: { margin: 0 },
+          text: `Belum ada satu ${measure.subject_word} pun yang bisa dibariskan di sini. `
+            + 'Sebuah baris muncul begitu ada yang diukur DAN batasnya disetel — nol baris berarti '
+            + `belum ada yang mengukurnya, bukan bahwa setiap ${measure.subject_word} aman.`,
+        }))
+        : el('.table-wrap', el('table.data', [
+          el('thead', el('tr', [
+            /* Kata yang DIDEKLARASIKAN entrinya, bukan dua pilihan yang dipatok
+               layar: entri overhead menyebut subject_word 'tahun buku', dan
+               tabelnya dulu berjudul "SUBJEK" di atas baris berisi "2026"
+               (verifikasi F-2). Registri yang mendeklarasikan satuannya sendiri
+               tidak boleh kehilangannya di tabel yang menampilkannya. */
+            el('th', { text: titleCase(measure.subject_word) }),
+            el('th.right', { text: 'Aktual' }),
+            el('th.right', { text: 'Batas' }),
+            el('th.right', { text: measure.proportional === false ? 'Sisa' : 'Terpakai' }),
+            el('th', { text: 'Keadaan' }),
+            el('th', { text: '' }),
+          ])),
+          el('tbody', rows.map((row) => {
+            const [label, tone] = STATE[row.state] || [row.state, ''];
 
-          return el('tr', [
-            el('td', [
-              el('span.cell-main', { text: row.subject }),
-              row.name ? el('span.cell-sub', { text: row.name }) : null,
-            ]),
-            selUkuran(row.actual, measure.unit),
-            selUkuran(row.limit, measure.unit),
-            measure.proportional === false ? selSisa(row, measure.unit) : selPersen(row),
-            el('td', [
-              badge(label, tone),
-              row.note ? el('span.cell-sub', { text: row.note }) : null,
-            ]),
-            el('td.right', button('Buka', { size: 'sm', onClick: () => navigate(row.link) })),
-          ]);
-        })),
-      ])),
+            return el('tr', [
+              el('td', [
+                el('span.cell-main', { text: row.subject }),
+                row.name ? el('span.cell-sub', { text: row.name }) : null,
+              ]),
+              selUkuran(row.actual, measure.unit),
+              selUkuran(row.limit, measure.unit),
+              measure.proportional === false ? selSisa(row, measure.unit) : selPersen(row),
+              el('td', [
+                badge(label, tone),
+                row.note ? el('span.cell-sub', { text: row.note }) : null,
+              ]),
+              el('td.right', button('Buka', { size: 'sm', onClick: () => navigate(row.link) })),
+            ]);
+          })),
+        ])),
     ]));
   });
 
