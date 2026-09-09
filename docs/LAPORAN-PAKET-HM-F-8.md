@@ -597,3 +597,14 @@ memang MENYEBUT angka lama sebagai angka lama.
 
 Uji sesudah perbaikan: `tests/Feature/Core --filter "Inbox|Onboarding|Panduan|Doc"` 181 uji /
 907 asersi hijau; `tests/Feature/Iam` + `DashboardWidgetRegistryTest` 70 uji / 904 asersi hijau.
+
+## Gerbang rilis dua driver
+
+Dijalankan dari `git worktree` sendiri di commit rilis, `vendor` **disalin** (bukan disimbolkan).
+
+| Leg | Commit | Uji | Asersi | Dilewati | Waktu |
+|---|---|---|---|---|---|
+| SQLite | `61910ac` | 4.611 | 31.384 | 11 | 12:43 |
+| MySQL 8.0.46 | `61910ac` | 4.611 | 31.390 | 9 | 28:31 |
+
+Keduanya hijau pada jalan PERTAMA.
