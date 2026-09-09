@@ -1922,7 +1922,7 @@ never a second loop."
 | `subcontract_end` | Akhir SPK subkon | 14 | `scm.update` |
 | `milestone_due` | Jatuh tempo milestone | 7 | `prj.update` |
 | `ar_invoice_due` | Jatuh tempo invoice AR | **0** | `fin.create` |
-| `maintenance_next_due` | Perawatan aset berikutnya ‡ | 14 | `ast.update` |
+| `maintenance_next_due` | Perawatan aset berikutnya ‡§ | 14 | `ast.update` |
 | `deployment_planned_until` | Rencana akhir mobilisasi | 7 | `ast.update` |
 | `svc_contract_period_end` | Akhir kontrak layanan | 60 | `crm.update` |
 | `pkwt_end` | Akhir PKWT karyawan ‡ | 60 | `hr.update` |
@@ -1933,6 +1933,19 @@ never a second loop."
 † Dokumen "berlaku s/d" masih sah **pada** hari terakhirnya, jadi hari itu terbaca
 "menipis hari ini" dan "lewat" baru mulai keesokan harinya. ‡ Tanggal yang **kosong
 adalah alarmnya sendiri**.
+
+§ **Servis aset punya pemicu KEDUA yang tidak ada di tabel ini** (F-7):
+`ast_maintenances.next_due_hour_meter`, jam operasi, diawasi registri **ambang**
+(`WatchedThresholds`, entri `maintenance_hour_meter`) dan bukan registri tenggat —
+sebuah meter bukan sebuah tanggal. Keduanya membaca **baris perawatan terbaru yang sama**
+per aset, dan yang mana pun tercapai lebih dulu, servisnya jatuh tempo. Akibatnya untuk
+alarm ‡ di baris ini: sebuah kartu servis terbaru yang menjadwalkan **dengan jam saja**
+BUKAN kartu tanpa jadwal, jadi ia tidak lagi ikut beralarm — alarm "tanpa jadwal berikut"
+kini berbunyi hanya untuk kartu yang tidak menyebut kedua-duanya. Ambang peringatan sisi
+jam ada di `config('erp.thresholds.maintenance_hour_meter')`, **50 jam** sebelum target,
+dan satuannya JAM (bukan persen) karena meter kumulatif tidak pernah mulai dari nol pada
+servis terakhir: ambang 90 % akan menyala 350 jam lebih awal pada alat 3.500 jam dan
+1.225 jam lebih awal pada alat 12.250 jam, dari satu angka yang sama.
 
 **Lead 0 berarti hanya keterlambatan yang berbunyi** — "a future expected date is
 normal, only lateness alarms."
