@@ -9250,6 +9250,29 @@ def s35(pg):
         out["after_clear"] = pg.evaluate(F8_ROWS)
         pg.screenshot(path=f"{OUT}/s35-dialog-sesudah.png", full_page=False)
 
+        # --------------------------------------- dua unggahan, satu kali ketik
+        # Kotak "Masa berlaku (opsional)" menjanjikan bahwa melampirkan lima
+        # lembar polis yang sama berlakunya tidak menuntut lima kali ketik.
+        # Yang bisa membuktikannya HANYA unggahan kedua: kartunya digambar
+        # ulang di antara keduanya, dan sebuah kotak yang lahir kembali kosong
+        # menyimpan berkas kedua tanpa masa berlaku tanpa satu pun pesan.
+        burst = str(today + timedelta(days=200))
+        pg.fill(".attachment-expiry input[type=date]", burst)   # SEKALI, untuk keduanya
+        for name in ("polis-lembar-1.pdf", "polis-lembar-2.pdf"):
+            path = f"{OUT}/{name}"
+            with open(path, "wb") as f:
+                f.write(base64.b64decode(F8_PDF))
+            pg.set_input_files(".attachment-add input[type=file]", path)
+            pg.wait_for_timeout(2200)
+        out["expiry_box_after_the_burst"] = pg.eval_on_selector(
+            ".attachment-expiry input[type=date]", "e => e.value")
+        out["after_burst"] = pg.evaluate(F8_ROWS)
+        st, dt = api(f"core/attachments?document_type={F8_DOC[0]}&document_id={bill['id']}", tok)
+        burst_rows = [r for r in (dt.get("data") or []) if r["original_name"].startswith("polis-lembar-")]
+        planted += [r["id"] for r in burst_rows]
+        out["burst_on_the_server"] = {r["original_name"]: r["valid_until"] for r in burst_rows}
+        pg.screenshot(path=f"{OUT}/s35-dua-unggahan.png", full_page=False)
+
         # ------------------------------------------------------- layar Tenggat
         pg.goto(BASE + "#/tenggat")
         pg.wait_for_selector(".card", timeout=20000)
@@ -9318,6 +9341,10 @@ def s35(pg):
             #    satu berkas, satu hari, dua status.
             "the_tenggat_row_for_the_last_valid_day_also_reads_hari_ini":
                 any(row[2] == "hari ini" for row in tenggat_rows if "izin-kerja.pdf" in row[0]),
+            # 8. Satu kali ketik menanggung SELURUH rentetan unggahan.
+            "one_typed_expiry_covers_every_file_in_the_burst":
+                out["burst_on_the_server"] == {"polis-lembar-1.pdf": burst, "polis-lembar-2.pdf": burst}
+                and out["expiry_box_after_the_burst"] == burst,
             "the_screens_raise_no_console_error": out["console_errors"] == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]

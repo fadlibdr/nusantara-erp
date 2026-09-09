@@ -387,7 +387,11 @@ git diff main...feat/phase2-f8 -- public/app/vendor/
   keputusan pemilik, bukan tebakan paket.
 - **Pembaruan massal masa berlaku** (satu tanggal untuk banyak berkas sekaligus). Kotak
   "Masa berlaku (opsional)" di kartu **tidak dikosongkan** setelah unggah, jadi melampirkan
-  lima polis dengan masa berlaku sama tetap satu kali ketik — itu ganti murahnya.
+  lima polis dengan masa berlaku sama tetap satu kali ketik — itu ganti murahnya. (Klaim ini
+  tidak benar pada rilis pertama paket: kartunya digambar ulang setiap unggahan dan kotaknya
+  lahir kembali kosong, sehingga berkas kedua dst. tersimpan tanpa tanggal. Ditutup —
+  temuan F8V-2/F8-V3-02 — dan sekarang dipaku harness S35
+  `one_typed_expiry_covers_every_file_in_the_burst`.)
 - **Pengurutan/penyaringan lampiran menurut masa berlaku** di kartu. Kartu menampilkan seluruh
   lampiran satu dokumen; layar Tenggat-lah yang menyusun lintas dokumen.
 - **`ANALYZE` otomatis pada SQLite.** Diukur (§3) dan sengaja tidak dipakai sebagai solusi:

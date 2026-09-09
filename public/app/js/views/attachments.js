@@ -251,12 +251,23 @@ export function attachmentsCard(slug, id, module) {
         list.forEach((attachment) => body.appendChild(attachmentRow(attachment, { canEdit, onChanged: load })));
       }
 
-      if (canEdit) body.appendChild(uploader(slug, id, load));
+      if (uploadBox) body.appendChild(uploadBox);
     } catch (error) {
       // errorState keeps a retry button; a bare alert leaves the card dead.
       clear(body).appendChild(errorState(error, load));
     }
   }
+
+  /* DIBANGUN SEKALI, dipasang ulang setiap kali kartu digambar ulang.
+     Sebuah unggahan yang sukses memanggil load(), dan load() mengosongkan
+     body — jadi uploader() yang dipanggil ulang di sana akan melahirkan
+     <input type="date"> yang BARU dan kosong setiap kali. Orang yang mengetik
+     satu masa berlaku lalu melampirkan lima lembar polis dari set yang sama
+     kemudian menyimpan satu berkas bertanggal dan empat tanpa tanggal, tanpa
+     satu pun pesan — dan keempatnya adalah berkas yang tidak akan pernah
+     ditagih pengawas kedaluwarsa. Node yang sama dipakai kembali, jadi
+     nilainya bertahan persis seperti yang dijanjikan kotaknya. */
+  const uploadBox = canEdit ? uploader(slug, id, load) : null;
 
   load();
   return card;
@@ -279,9 +290,12 @@ function uploader(slug, id, onUploaded) {
   /* Masa berlaku BOLEH diisi sebelum memilih berkas, dan kosong adalah bawaan
      yang benar: sebagian besar berkas yang naik lewat kartu ini tidak punya
      masa berlaku, dan sebuah kotak yang menuntut diisi hanya akan membuat orang
-     mengarang tanggal. Nilainya ikut ke KEDUA transport lewat api.uploadFile();
-     ia tidak dikosongkan setelah unggah, karena orang yang melampirkan lima
-     lembar polis yang sama berlakunya tidak boleh mengetiknya lima kali. */
+     mengarang tanggal. Nilainya ikut ke KEDUA transport lewat api.uploadFile()
+     dan BERTAHAN antar-unggahan — orang yang melampirkan lima lembar polis yang
+     sama berlakunya tidak boleh mengetiknya lima kali. Yang membuatnya bertahan
+     bukan baris di sini melainkan attachmentsCard, yang membangun kotak ini
+     sekali saja dan memasangnya kembali; hanya kotak BERKAS yang dikosongkan
+     (input.value = '') supaya berkas yang sama bisa dipilih dua kali. */
   const validUntil = el('input', { type: 'date' });
 
   input.addEventListener('change', async () => {
