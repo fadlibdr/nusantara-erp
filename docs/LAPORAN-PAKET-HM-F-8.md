@@ -35,10 +35,10 @@ lapangan berteriak setiap pagi**.
 | T9 | **TANPA** `alarm_when_date_missing` (perangkap A) | ✅ | `b6237ed` — bendera `dateless_is_normal`; 60 lampiran tanpa tanggal = **0 temuan, 0 baris BLIND, 0 notifikasi**; mutasi M7 merah |
 | T10 | Kartu lampiran menampilkan masa berlaku; "tanpa masa berlaku" **bukan** peringatan | ✅ | `26937a2` — empat keadaan; harness membaca KELAS lencananya: `badge_class` **null** untuk keadaan normal, `badge amber dot` menipis, `badge red dot` kedaluwarsa |
 | T11 | Sikap e-sign sebagai TULISAN — nol kolom, nol pustaka, nol endpoint | ✅ | `7c636ba` — `docs/SIKAP-E-SIGN.md`; §7 dokumen itu berisi 4 perintah git yang memeriksanya sendiri, semuanya dijalankan (§8 di bawah) |
-| T12 | Uji PHP untuk setiap perubahan server + mutasi merah | ✅ | **35 uji baru** (256 assertion) di 3 berkas + 3 uji ditambahkan ke 2 berkas lama; **14 mutasi dijalankan, 13 merah, 1 lolos dan dilaporkan** (§4) |
-| T13 | Harness S35 desktop + ponsel → `results-phase-2.json` + PNG | ✅ | `0c2669f` — `[S35_kedaluwarsa_lampiran] ok`, `[S35_kedaluwarsa_lampiran_ponsel] ok`; 25 → 27 kunci, irisan kosong di-assert sebelum menulis; 6 PNG |
-| T14 | Cangkang PWA | ✅ | `26937a2` — daftar SHELL **tidak berubah** (tidak ada berkas SPA baru), tetapi `app.css`, `js/api.js`, `js/views/attachments.js` semuanya berkas cangkang → `SHELL_VERSION` 6 → **7** |
-| T15 | Muat `/app/` di Chromium, 0 galat konsol di tiap layar yang tersentuh | ✅ | **13 rute dimuat, `all_console_errors: []`, `http_4xx_5xx: []`** — §6 |
+| T12 | Uji PHP untuk setiap perubahan server + mutasi merah | ✅ | **35 uji baru** (256 assertion) di 3 berkas + 3 uji ditambahkan ke 2 berkas lama; **14 mutasi dijalankan, 13 merah, 1 lolos dan dilaporkan** (§4). Putaran verifikasi menambah **7 uji** (2 `DeadlineApiTest`, 5 `AttachmentSpaPolicyTest`) dan **16 mutasi lagi — 14 merah, 2 hijau yang memang harus hijau** (§4) |
+| T13 | Harness S35 desktop + ponsel → `results-phase-2.json` + PNG | ✅ | `0c2669f` — `[S35_kedaluwarsa_lampiran] ok`, `[S35_kedaluwarsa_lampiran_ponsel] ok`; 25 → 27 kunci, irisan kosong di-assert sebelum menulis; **7 PNG** (satu ditambah putaran verifikasi). Checks S35 bertambah **lima** — §6 |
+| T14 | Cangkang PWA | ✅ | `26937a2` — daftar SHELL **tidak berubah** (tidak ada berkas SPA baru), tetapi `app.css`, `js/api.js`, `js/views/attachments.js` semuanya berkas cangkang → `SHELL_VERSION` 6 → **7**. Putaran verifikasi juga menyentuh `js/views/tenggat.js` dan `js/views/lapangan.js` — keduanya sudah di daftar SHELL, dan **7 belum pernah dirilis**, jadi kenaikan yang sama menanggungnya |
+| T15 | Muat `/app/` di Chromium, 0 galat konsol di tiap layar yang tersentuh | ✅ | **13 rute dimuat, `all_console_errors: []`, `http_4xx_5xx: []`** — §6. Putaran verifikasi mengulanginya lebih lebar: **6 peran × 2 viewport × 6 rute = 12 sesi, 0 galat konsol, 0 permintaan gagal** |
 | T16 | Sapuan dokumentasi (CONVENTIONS §35) | ✅ | `7c636ba` — CONVENTIONS §37 baru, PANDUAN-PENGGUNA §1.7/§2.7/§5.9, PANDUAN-ADMINISTRATOR §5.8/§5.11; angka grep di §7 |
 
 ---
@@ -147,11 +147,11 @@ sederhananya — karena yang bisa membusuk diam-diam adalah kueri yang benar-ben
 
 ---
 
-## 4. Mutasi — 14 dijalankan, 13 merah, **1 LOLOS** dan dilaporkan begitu
+## 4. Mutasi — 14 pada paket (13 merah) + 16 pada putaran verifikasi (14 merah); yang **LOLOS** dilaporkan begitu
 
 | # | Mutasi | Hasil |
 |---|---|---|
-| M1 | Indeks disederhanakan menjadi `(valid_until)` | **MERAH** — 2 uji; pesan gagalnya mencetak rencana kueri yang jatuh kembali ke indeks lama |
+| M1 | Indeks disederhanakan menjadi `(valid_until)` | **MERAH** — **3 uji di 2 berkas** (`AttachmentValidUntilSchemaTest` ×2, `AttachmentDeadlineWatchTest` ×1); pesan gagalnya mencetak rencana kueri yang jatuh kembali ke indeks lama |
 | M2 | Aturan `valid_until` dicabut dari rute **multipart** saja | **MERAH** — 1 uji (rute JSON tetap hijau; itulah gunanya dua uji terpisah) |
 | M3 | `'present'` → `'sometimes'` pada pintu ubah | **MERAH** — PATCH tanpa kuncinya berhenti ditolak, tanggal orang lain terhapus |
 | M4 | Pintu ubah memakai izin `view` alih-alih `update` | **MERAH** — pemegang `fin.view` bisa menulis |
@@ -190,7 +190,31 @@ tanpa whereIn  : MULTI-INDEX OR → 6 × SEARCH core_attachments USING INDEX …
 Jadi paku rencana kueri pun **tidak** menangkapnya: indeksnya tetap dipakai. Ia dibiarkan
 lolos alih-alih dipaksa merah dengan uji yang mencocokkan teks rencana kueri kata demi kata —
 paku seperti itu akan merah pada versi SQLite berikutnya tanpa satu pun perilaku berubah.
-Yang ditulis sebagai gantinya: alasannya ada di komentar `scope`, dan di sini.
+Yang ditulis sebagai gantinya: alasannya ada di komentar `scope`, dan di sini. (Docblock
+`test_the_registry_scope_itself_is_planned_through_the_pair_index` sempat menyatakan
+sebaliknya — bahwa "baris inilah yang menahannya" — dan bertentangan dengan paragraf ini
+sendiri; diperbaiki, temuan F8V-5.)
+
+**Putaran verifikasi — 16 mutasi lagi, 14 merah, 2 hijau yang memang harus hijau.**
+
+| Mutasi | Hasil |
+|---|---|
+| `item.detail` dicabut dari `tenggat.js` (komentarnya dibiarkan) | **MERAH** — `DeadlineApiTest`; komentar dilucuti sebelum dicocokkan, justru supaya ia tidak bisa hijau karena prosa |
+| Cabang `days === 0` dikembalikan ke dalam tier `lewat` | **MERAH** — "umur() tidak punya cabang days === 0 yang berlaku untuk kedua tier" |
+| `uploader()` dibangun ulang setiap `load()` | **MERAH** — S35 `one_typed_expiry…`: `{'polis-lembar-2.pdf': None, …}`, kotak `''` |
+| Cabang bawaan kartu → `badge('amber')` | **MERAH** — `AttachmentSpaPolicyTest` (LOLOS HIJAU sebelum putaran ini) |
+| Cabang bawaan kartu → `badge('red')` | **MERAH** di DUA gerbang — phpunit dan S35 `a_file_still_far_from_its_date_is_plain_text` |
+| **Hanya komentar** `'berlaku'` diubah (nol perubahan perilaku) | **HIJAU** — dan itu perbaikannya: sebelumnya justru ini yang merah |
+| Tombol `Masa berlaku` dihapus dari baris | **MERAH** — `AttachmentSpaPolicyTest` (LOLOS HIJAU sebelumnya) |
+| `valid_until: validUntil.value \|\| null` → `null` | **MERAH** — idem |
+| Entri NON-lampiran memilih keluar kalender (probe) | **MERAH dengan kalimat yang menyebut entrinya**: "Entri berikut memilih keluar dari kalender: crm_activity_due…" — sebelumnya "actual size 13 matches expected size 12" |
+| `calendar_source` dicabut dari entri lampiran | **MERAH** — 4 error, penjagaan lama tetap utuh |
+| Kalimat bantuan dialog kembali menyalin "30 hari" | **MERAH** — `test_the_expiry_dialog_reads_the_warning_window_it_was_sent` |
+| `validityLine()` dicabut dari strip Lapangan | **MERAH** — asersinya menuntut PEMANGGILAN, bukan substring (versi pertama uji ini lolos: "validityLine(attachment)" juga ada di baris deklarasi fungsinya) |
+| `hideWhenNone` dimatikan di strip Lapangan | **MERAH** |
+| Pembungkus kartu dikembalikan ke media query viewport | **MERAH** — S35 `no_attachment_row_is_shredded_on_a_desktop`, dengan geometri aslinya (nama 2-3 baris, lencana 3-5 baris, satu terpotong) |
+| **M1 diulang** (indeks disederhanakan) | **MERAH — 3 uji di 2 berkas** (angka §4 semula menulis 2; F8-V3-8) |
+| **M12 diulang** (`whereIn` dicabut) | **HIJAU** — seperti dilaporkan sejak awal; docblock yang mengklaim menahannya sudah diperbaiki (F8V-5) |
 
 **Uji yang memakai konstanta produksi — diperiksa satu per satu.** Dua uji menyebut jendela
 30 hari (`test_the_thirtieth_day_before_the_date_is_the_first_warning_day`,
@@ -219,6 +243,7 @@ keadaannya dibaca**.
 | `Attachment` model | cast `date:Y-m-d` | `$appends = ['validity']` — **satu aturan, di server** | ✅ |
 | `WatchedDeadlines` (12 entri) | — | tingkat MENIPIS/LEWAT, `valid_through_end` | ✅ |
 | `DeadlineController` (layar Tenggat) | — | menyaring per izin entri | ✅ (tanpa perubahan) |
+| Layar Tenggat SPA (`views/tenggat.js`) | — | baris + klausa "menempel pada &lt;Dokumen&gt; #id", dan "hari ini" di kedua tier | ✅ — F8V-1/F8V-4; sebelumnya `item.detail` tidak pernah dirender dan hari terakhir terbaca "0 hari lagi" |
 | `DeadlineWatchCommand` (08.30) | — | badan pesan + klausa "menempel pada <Dokumen> #id" | ✅ (tanpa perubahan) |
 | `CalendarEvents` | — | **sengaja tidak** — `calendar_source => false`, §9 | ✅ keputusan tertulis |
 | Kartu lampiran SPA (`views/attachments.js`) | kotak unggah + dialog per baris | 4 keadaan, normal = teks polos | ✅ |
@@ -226,8 +251,31 @@ keadaannya dibaca**.
 | Kartu selfie absensi (`views/absensi.js`) | mewarisi kartu yang sama | mewarisi | ✅ otomatis |
 | Layar detail generik + Proyek | mewarisi `attachmentsCard()` | mewarisi | ✅ otomatis |
 | Antrean unggah lapangan (`uploadqueue.js`) | tidak menawarkan tanggal | — | ✅ sengaja — yang naik dari lapangan adalah foto progres |
+| Strip "Foto lapangan" (`views/lapangan.js`) | — | `validityNode()` yang SAMA, keadaan normal disembunyikan | ✅ — F8-V3-07; permukaan BACA kedua, luput dari tabel ini pada rilis pertama |
 | Cetakan / ekspor | — | tidak ada formulir cetak yang memuat daftar lampiran | ✅ diperiksa (`PrintableDocuments`) |
-| Persetujuan eksternal (lembar fisik) | — | lampirannya bukti tanda tangan, bukan dokumen bermasa berlaku | ✅ diperiksa |
+| Persetujuan eksternal — pemilih scan (`views/external.js`) | — | `<select>` nama berkas; pindaian lembar bertanda tangan tidak punya masa berlaku | ✅ diperiksa, sengaja diam |
+
+**Yang DITOLAK: tautan `Buka` per baris ke dokumen induknya.** Temuan verifikasi mengusulkan —
+sebagai alternatif atau tambahan atas klausa "menempel pada …" — agar tombol `Buka` entri
+lampiran membuka `#/d/<slug>/<id>` alih-alih beranda modul, "karena `AttachableDocuments`
+sudah memetakan kelas → slug". Slug-nya memang ada; **rutenya belum tentu**. Dihitung —
+kunci `RESOURCES` dari `schema.js` DITAMBAH yang didaftarkan saat jalan oleh berkas
+`views/*.js` (`kaskecil.js` mendaftarkan `finance/kasbon` dan
+`finance/petty-cash-vouchers`), lalu dibandingkan dengan ke-40 slug
+`AttachableDocuments::slugs()` — **dua** slug tidak punya rute detail SPA sama sekali:
+
+```
+slug lampiran: 40 | kunci RESOURCES: 100
+TIDAK punya rute detail SPA: ['projects/projects', 'hr/attendances']
+```
+
+`projects/projects` karena kunci SPA-nya `projects` (slug API dan kunci layar tidak sama),
+dan `hr/attendances` karena baris absensi memang **tidak punya layar detail**: kartu
+lampirannya hidup di panel satu hari layar Absensi Harian (F-4). Tautan per-baris karena itu
+akan mendarat di `Halaman "…" tidak dikenal` untuk berkas yang menempel pada keduanya, dan
+menutupnya menuntut registri slug → rute SPA yang baru di Core — permukaan baru, di paket
+yang sedang menutup temuan. Yang dikerjakan: barisnya **menyebut** dokumen induknya, dan
+`Buka` tetap beranda modul.
 
 ---
 
@@ -266,8 +314,8 @@ membuka layar yang tidak ada adalah alarm yang lebih buruk daripada tidak ada al
 `results-phase-2.json`):
 
 ```
-[S35_kedaluwarsa_lampiran] ok 9517ms clicks=4
-[S35_kedaluwarsa_lampiran_ponsel] ok 7302ms clicks=2
+[S35_kedaluwarsa_lampiran] ok 14052ms clicks=4
+[S35_kedaluwarsa_lampiran_ponsel] ok 7264ms clicks=2
 ```
 
 Yang diukurnya, dan yang **tidak bisa** dibuktikan suite PHP — **kelas lencananya**:
@@ -278,24 +326,45 @@ Yang diukurnya, dan yang **tidak bisa** dibuktikan suite PHP — **kelas lencana
 | `polis-car.pdf` (+12 hari) | `Berlaku s/d 22 Sep 2026 · 12 hari lagi` | `badge amber dot` |
 | `izin-kerja.pdf` (hari terakhirnya) | `Berlaku s/d 10 Sep 2026 · hari ini` | `badge amber dot` |
 | `sertifikat-kalibrasi.pdf` (−3 hari) | `Kedaluwarsa 07 Sep 2026 · 3 hari lalu` | `badge red dot` |
+| `gambar-kerja.pdf` (+400 hari, keadaan `berlaku`) | `Berlaku s/d 15 Okt 2027` | **null** — ditanam pada putaran verifikasi; sebelumnya keadaan ini tidak pernah digambar satu skenario pun (F8-V3-04) |
 
 …dan bahwa layar Tenggat menyebut **kedua** berkas yang dilencanai kartu, **tidak** menyebut
 yang tanpa masa berlaku, serta bahwa dialognya benar-benar menulis dan tombol `Kosongkan`
 benar-benar mengembalikan barisnya ke keadaan normal.
 
-PNG: `s35-kartu-lampiran.png`, `s35-dialog-sesudah.png`, `s35-tenggat-lampiran.png`,
-`s35-kartu-lampiran-ponsel.png`, `s35-dialog-ponsel.png`, `s35-tenggat-lampiran-ponsel.png`,
-`f8-browsercheck-kartu.png`.
+PNG: `s35-kartu-lampiran.png`, `s35-dialog-sesudah.png`, `s35-dua-unggahan.png`,
+`s35-tenggat-lampiran.png`, `s35-kartu-lampiran-ponsel.png`, `s35-dialog-ponsel.png`,
+`s35-tenggat-lampiran-ponsel.png`, `f8-browsercheck-kartu.png` — **diperbarui pada putaran
+verifikasi**; yang lama merekam cacat yang belum ditutup (`f8-browsercheck-kartu.png` versi
+pertama memperlihatkan sendiri nama berkas yang tercabik dua baris dan lencana yang
+menggumpal, F8-V3-01).
+
+**Putaran verifikasi — diukur ulang pada `127.0.0.1:8205`, salinan DB yang sama.** Empat
+checks baru menjaga apa yang putaran pertama tidak bisa lihat:
+`every_tenggat_row_names_the_document_the_file_hangs_on`,
+`the_tenggat_row_for_the_last_valid_day_also_reads_hari_ini`,
+`one_typed_expiry_covers_every_file_in_the_burst`,
+`a_file_still_far_from_its_date_is_plain_text`,
+`no_attachment_row_is_shredded_on_a_desktop`. Sapuan peramban penuh: **6 peran × 2 viewport
+(1440×900 dan 390×844) × 6 rute** (`#/home`, `#/dashboard`, `#/tenggat`,
+`#/d/finance/ap-bills/1`, `#/lapangan`, `#/kalender`) = 12 sesi —
+**console_errors 0, failed_requests 0**.
 
 ---
 
 ## 7. Sapuan dokumentasi (CONVENTIONS §35)
 
 ```
-grep -rn "kartu Lampiran" docs/ | wc -l      # 17 baris
-grep -rl "kartu Lampiran" docs/ | wc -l      # 8 berkas
-grep -rn "Tambah lampiran" docs/ | wc -l     # 3 baris di 3 berkas
+grep -rn "kartu Lampiran"  docs/ --exclude=LAPORAN-PAKET-HM-F-8.md | wc -l   # 17 baris
+grep -rl "kartu Lampiran"  docs/ --exclude=LAPORAN-PAKET-HM-F-8.md | wc -l   # 8 berkas
+grep -rn "Tambah lampiran" docs/ --exclude=LAPORAN-PAKET-HM-F-8.md | wc -l   # 3 baris di 3 berkas
 ```
+
+`--exclude` laporan ini sendiri, dan itu bukan kosmetik: laporan ini tinggal di `docs/`, jadi
+kalimat yang MENERANGKAN grep-nya ikut terhitung olehnya. Tanpa `--exclude`, ketiga perintah
+itu mengembalikan **21 / 9 / 5** di pohon ini — dan pasangan perintah+angka yang dicetak versi
+pertama §7 (17 / 8 / 3 tanpa `--exclude`) adalah angka `main`, yang tidak bisa diulang di sini.
+Diperbaiki, temuan F8-V3-5.
 
 Ketiga penyebutan `Tambah lampiran`: satu laporan paket lama (sejarah, tidak diubah), satu
 `results-phase-2.json` (bukti terukur, tidak diubah), satu **PANDUAN-PENGGUNA §2.7 — diubah**
@@ -312,6 +381,11 @@ Yang ditulis:
 - **PANDUAN-PENGGUNA §1.7** — kelompok lampiran ditambahkan ke tabel Tenggat.
 - **PANDUAN-ADMINISTRATOR §5.8/§5.11** — registri **18/19 → 34** entri; 12 entri lampiran
   dijelaskan di bawah tabel, termasuk kenapa ia satu-satunya yang bukan sumber kalender.
+- **Putaran verifikasi (kalimat yang salah, bukan bagian baru):** PANDUAN-ADMINISTRATOR §5.11
+  berhenti mengklaim parity dengan penolakan 404 `reachable()` (§9 butir 5); `SIKAP-E-SIGN.md`
+  §5.1 menunjuk ROADMAP **§5 baris 7** (bukan "§7", yang tidak ada) dan §5.3 menghitung **29**
+  jenis dokumen berpersetujuan; PANDUAN-PENGGUNA §1.5 dan kedua berkas ONBOARDING ikut
+  **28 → 29**, ONBOARDING/admin ikut **19 → 34** pengawas — D9/D10 di §11.
 
 ---
 
@@ -445,6 +519,19 @@ Gerbang rilis penuh dijalankan terpisah; yang di atas adalah putaran per-direkto
 kerja. Satu uji lama merah di putaran itu (`CalendarEventsTest`) diperbaiki, bukan
 dilonggarkan — §4.
 
+**Dijalankan ulang pada ujung cabang sesudah putaran verifikasi** (7 uji baru masuk
+`tests/Feature/Core`):
+
+| Yang dijalankan | SQLite | MySQL 8 (`erp_dryrun`) |
+|---|---|---|
+| `tests/Feature/Core` | **OK 1.029 uji, 9.254 assertion** (11 skipped) | ikut baris di bawah |
+| `tests/Unit/Core` | **OK 232 uji, 1.019 assertion** | ikut baris di bawah |
+| `tests/Feature/Core` + `tests/Unit/Core`, satu proses | **OK 1.261 uji, 10.273 assertion** (11 skipped) | **OK 1.261 uji, 10.280 assertion** (9 skipped) — dua paku rencana kueri khusus SQLite di-skip, sisanya identik |
+| Tiga berkas uji lampiran F-8 (tidak disentuh putaran ini) | **OK 35 uji, 256 assertion** | — |
+| Tiga berkas yang DISENTUH putaran ini (`DeadlineApiTest`, `AttachmentSpaPolicyTest`, `CalendarEventsTest`) | **OK 20 uji, 157 assertion** | — |
+| `tests/Unit` + `tests/Feature/Procurement` + `tests/Feature/Projects` + `tests/Feature/HrPayroll` | **OK 1.377 uji, 5.713 assertion** | — |
+| `php vendor/bin/pint --test` (seluruh repo) | gagal hanya pada **enam berkas yang sudah gagal di `main`** dan tidak satu pun disentuh F-8 (`ChartMigrationTest`, `FormXlsxExportService`, `UserFactory`, `ProductionSeeder`, `bootstrap/providers.php`, `bootstrap/app.php`) | — |
+
 ---
 
 ## 13. Commit
@@ -457,3 +544,24 @@ dilonggarkan — §4.
 | `b6237ed` | F-8: pengawas kedaluwarsa lampiran — satu kolom, dua belas audiens, nol teriakan pada foto lapangan |
 | `7c636ba` | F-8: sikap e-sign ditulis sebagai keputusan, bukan dibangun sebagai kode |
 | `0c2669f` | F-8: harness S35 — dan satu keterangan yang terpotong di ponsel, ditemukan olehnya |
+| `7d1f56c` | docs: laporan paket F-8 — dan satu paku kalender yang diperbaiki, bukan dilonggarkan |
+| `8ee20cf` | docs: angka gerbang Core dijalankan ulang pada commit terakhir |
+
+**Putaran verifikasi — 20 temuan ditutup; satu usulan di dalam dua di antaranya (tautan
+per-baris ke dokumen induk) DITOLAK dengan bukti, §5:**
+
+| SHA | Judul |
+|---|---|
+| `3667817` | F-8 (F8V-1 / F8-V3-03): baris Tenggat menyebut nama berkas tanpa dokumennya |
+| `8cc7823` | F-8 (F8V-4): hari terakhir masa berlaku terbaca "0 hari lagi" di layar Tenggat |
+| `d142c2c` | F-8 (F8V-2 / F8-V3-02): berkas kedua diam-diam tersimpan tanpa masa berlaku |
+| `543b9a0` | F-8 (F8-V3-1/2/04/05): uji yang menjaga sebuah KOMENTAR, dan dua docblock yang membalik perilakunya |
+| `fdc277d` | F-8 (F8-V3-4): dua pintu tulis SPA bisa dicabut seluruhnya tanpa gerbang memerah |
+| `a6e1b99` | F-8 (F8-V3-3): paku kalender menghitung SELURUH registri, bukan 12 entri lampiran yang dijaganya |
+| `8c4275d` | F-8 (F8-V3-06): dialog menyalin "30 hari" sementara payload lead_days tidak pernah dibaca |
+| `270b67a` | F-8 (F8-V3-07): strip Foto lapangan menampilkan berkas kedaluwarsa tanpa satu tanda pun |
+| `4713e92` | F-8 (F8-V3-01): nama berkas tercabik 7 baris di SETIAP lebar desktop 901-1900 px |
+| `0e66f39` | F-8 (F8V-3): dua kalimat mengklaim lampiran induk-terbuang tidak terjangkau; ia terunduh 200 |
+| `ee65412` | F-8 (F8V-5): docblock mengklaim menahan pencabutan whereIn; terukur ia tidak menahannya |
+| `03ae61c` | F-8 (F8-V3-6 / F8-V3-7): rujukan §7 yang tidak ada, dan sensus 28 yang sudah 29 |
+| _(commit ini)_ | docs: laporan putaran verifikasi — angka §7 yang bisa diulang, M1 yang 3 uji, dua permukaan yang kurang |

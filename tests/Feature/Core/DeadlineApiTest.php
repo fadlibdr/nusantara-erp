@@ -219,7 +219,7 @@ class DeadlineApiTest extends ErpTestCase
 
         $this->assertNotFalse($hariIni, 'umur() tidak punya cabang days === 0 yang berlaku untuk kedua tier.');
         $this->assertLessThan(
-            strpos($body, "hari lalu"),
+            strpos($body, 'hari lalu'),
             $hariIni,
             'Cabang "hari ini" berada di bawah percabangan tier — hari terakhir sebuah masa berlaku '
             .'akan terbaca "0 hari lagi" di layar sementara kotak masuk menulis "hari ini".',

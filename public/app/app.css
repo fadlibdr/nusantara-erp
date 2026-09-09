@@ -1618,12 +1618,14 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    memakan hampir seluruh baris dan nama berkas terukur tersisa 0-75 px —
    "ser / tifik / at- / kali / bra / si.p / df", 7 baris berisi 2-4 huruf, dan
    lencana masa berlakunya menjadi gumpalan 3-6 baris (diukur 1280/1366/1440).
-   flex-basis 260 px pada bagian utamanya adalah ambangnya: selama tombolnya
-   masih muat di samping teks yang terbaca, barisnya tetap satu baris (kartu
-   >= ~530 px, yaitu desktop 1920); lebih sempit dari itu tombolnya turun ke
-   barisnya sendiri. Media query menurut viewport tidak bisa melihat ini —
-   itulah sebabnya perbaikan ponsel 560 px dulu hijau sementara seluruh pita
-   901-1900 px rusak. */
+   flex-basis 260 px pada bagian utamanya adalah ambangnya: selama nama berkas
+   masih dapat 260 px di samping tombolnya, barisnya tetap SATU baris; lebih
+   sempit dari itu tombolnya turun ke barisnya sendiri dan namanya mendapat
+   seluruh lebar kartu. Terukur: kartu 606 px (viewport 900, .detail-grid sudah
+   runtuh) → tombol tetap sebaris; kartu 537/377/323 px (viewport 1920/1440/
+   1280, kartu di kolom samping) → tombol turun. Media query menurut viewport
+   tidak bisa melihat perbedaan itu — itulah sebabnya perbaikan ponsel 560 px
+   dulu hijau sementara seluruh pita 901-1900 px rusak. */
 .attachment {
   display: flex; align-items: flex-start; gap: 10px;
   flex-wrap: wrap;
@@ -1635,7 +1637,10 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .attachment-name { font-size: 13px; font-weight: 500; word-break: break-word; }
 /* margin-left: auto — ketika tombolnya turun, ia tetap rata kanan; ketika ia
    masih sebaris, bagian utamanya sudah menghabiskan ruang bebas dan aturan ini
-   tidak berpengaruh. Pola yang sama dengan .upload-item. */
+   tidak berpengaruh. (.upload-item menyelesaikan hal yang sama dengan media
+   query 560 px di bawah, dan di sana itu memang cukup: layar Lapangan dan
+   Absensi Saya satu kolom di setiap lebar, jadi lebar kartunya MEMANG lebar
+   viewport-nya. Kartu Lampiran tidak.) */
 .attachment .row-actions { flex: none; margin-left: auto; }
 .attachment-add { padding-top: 10px; }
 .attachment-add .help { margin-top: 6px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
@@ -1653,6 +1658,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    (scrollWidth > clientWidth, harness S35 ponsel). Keterangan yang terpotong
    adalah keterangan yang tidak ada. */
 .attachment-validity .badge { font-size: 11px; white-space: normal; }
+
 /* ------------------------------------------------------------- lapangan */
 /* The field screen is one column at every width: it is used one-handed on a
    phone, and a layout that only collapses below a breakpoint is a layout that

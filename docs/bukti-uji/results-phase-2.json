@@ -3295,14 +3295,31 @@
  },
  "S35_kedaluwarsa_lampiran": {
   "document": "BIL/2026/III/0001",
-  "planted": 4,
+  "planted": 5,
   "server_today": "2026-09-10",
   "rows": [
+   {
+    "name": "gambar-kerja.pdf",
+    "validity_text": "Berlaku s/d 15 Okt 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
    {
     "name": "izin-kerja.pdf",
     "validity_text": "Berlaku s/d 10 Sep 2026 · hari ini",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3314,6 +3331,9 @@
     "validity_text": "Kedaluwarsa 07 Sep 2026 · 3 hari lalu",
     "badge_class": "badge red dot",
     "badge_color": "rgb(198, 40, 40)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3325,6 +3345,9 @@
     "validity_text": "Berlaku s/d 22 Sep 2026 · 12 hari lagi",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3336,6 +3359,9 @@
     "validity_text": "Tanpa masa berlaku",
     "badge_class": null,
     "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3349,10 +3375,27 @@
   ],
   "after_set": [
    {
+    "name": "gambar-kerja.pdf",
+    "validity_text": "Berlaku s/d 15 Okt 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
     "name": "izin-kerja.pdf",
     "validity_text": "Berlaku s/d 10 Sep 2026 · hari ini",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3364,6 +3407,9 @@
     "validity_text": "Kedaluwarsa 07 Sep 2026 · 3 hari lalu",
     "badge_class": "badge red dot",
     "badge_color": "rgb(198, 40, 40)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3375,6 +3421,9 @@
     "validity_text": "Berlaku s/d 22 Sep 2026 · 12 hari lagi",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3386,6 +3435,9 @@
     "validity_text": "Berlaku s/d 15 Sep 2026 · 5 hari lagi",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3399,10 +3451,27 @@
   ],
   "after_clear": [
    {
+    "name": "gambar-kerja.pdf",
+    "validity_text": "Berlaku s/d 15 Okt 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
     "name": "izin-kerja.pdf",
     "validity_text": "Berlaku s/d 10 Sep 2026 · hari ini",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3414,6 +3483,9 @@
     "validity_text": "Kedaluwarsa 07 Sep 2026 · 3 hari lalu",
     "badge_class": "badge red dot",
     "badge_color": "rgb(198, 40, 40)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3425,6 +3497,9 @@
     "validity_text": "Berlaku s/d 22 Sep 2026 · 12 hari lagi",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3436,6 +3511,9 @@
     "validity_text": "Tanpa masa berlaku",
     "badge_class": null,
     "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3443,13 +3521,118 @@
     ]
    }
   ],
+  "expiry_box_after_the_burst": "2027-03-29",
+  "after_burst": [
+   {
+    "name": "polis-lembar-2.pdf",
+    "validity_text": "Berlaku s/d 29 Mar 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
+    "name": "polis-lembar-1.pdf",
+    "validity_text": "Berlaku s/d 29 Mar 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
+    "name": "gambar-kerja.pdf",
+    "validity_text": "Berlaku s/d 15 Okt 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
+    "name": "izin-kerja.pdf",
+    "validity_text": "Berlaku s/d 10 Sep 2026 · hari ini",
+    "badge_class": "badge amber dot",
+    "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
+    "name": "sertifikat-kalibrasi.pdf",
+    "validity_text": "Kedaluwarsa 07 Sep 2026 · 3 hari lalu",
+    "badge_class": "badge red dot",
+    "badge_color": "rgb(198, 40, 40)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
+    "name": "polis-car.pdf",
+    "validity_text": "Berlaku s/d 22 Sep 2026 · 12 hari lagi",
+    "badge_class": "badge amber dot",
+    "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
+    "name": "foto-lapangan.pdf",
+    "validity_text": "Tanpa masa berlaku",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   }
+  ],
+  "burst_on_the_server": {
+   "polis-lembar-2.pdf": "2027-03-29",
+   "polis-lembar-1.pdf": "2027-03-29"
+  },
   "tenggat": [
    {
     "title": "Lampiran Keuangan lewat masa berlaku",
     "badge": "Lewat",
     "rows": [
      [
-      "sertifikat-kalibrasi.pdf",
+      "sertifikat-kalibrasi.pdf\nmenempel pada Tagihan vendor #1",
       "07 Sep 2026",
       "3 hari lalu",
       "Buka"
@@ -3461,13 +3644,13 @@
     "badge": "Menipis",
     "rows": [
      [
-      "izin-kerja.pdf",
+      "izin-kerja.pdf\nmenempel pada Tagihan vendor #1",
       "10 Sep 2026",
-      "0 hari lagi",
+      "hari ini",
       "Buka"
      ],
      [
-      "polis-car.pdf",
+      "polis-car.pdf\nmenempel pada Tagihan vendor #1",
       "22 Sep 2026",
       "12 hari lagi",
       "Buka"
@@ -3480,26 +3663,48 @@
    "the_no_expiry_state_is_written_as_plain_text": true,
    "an_expiring_file_gets_the_amber_badge": true,
    "an_expired_file_gets_the_red_badge": true,
+   "a_file_still_far_from_its_date_is_plain_text": true,
    "the_last_valid_day_reads_hari_ini_and_stays_amber": true,
    "the_dialog_writes_the_date": true,
    "clearing_returns_it_to_the_normal_state": true,
    "tenggat_names_the_same_two_files_the_card_flagged": true,
    "tenggat_never_names_the_file_without_an_expiry": true,
+   "every_tenggat_row_names_the_document_the_file_hangs_on": true,
+   "the_tenggat_row_for_the_last_valid_day_also_reads_hari_ini": true,
+   "one_typed_expiry_covers_every_file_in_the_burst": true,
+   "no_attachment_row_is_shredded_on_a_desktop": true,
    "the_screens_raise_no_console_error": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 9517,
+  "_ms": 14052,
   "_clicks": 4
  },
  "S35_kedaluwarsa_lampiran_ponsel": {
   "document": "BIL/2026/III/0001",
   "rows": [
    {
+    "name": "gambar-kerja.pdf",
+    "validity_text": "Berlaku s/d 15 Okt 2027",
+    "badge_class": null,
+    "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
+    "buttons": [
+     "Masa berlaku",
+     "Unduh",
+     "Hapus"
+    ]
+   },
+   {
     "name": "izin-kerja.pdf",
     "validity_text": "Berlaku s/d 10 Sep 2026 · hari ini",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3511,6 +3716,9 @@
     "validity_text": "Kedaluwarsa 07 Sep 2026 · 3 hari lalu",
     "badge_class": "badge red dot",
     "badge_color": "rgb(198, 40, 40)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3522,6 +3730,9 @@
     "validity_text": "Berlaku s/d 22 Sep 2026 · 12 hari lagi",
     "badge_class": "badge amber dot",
     "badge_color": "rgb(150, 96, 26)",
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": 1,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3533,6 +3744,9 @@
     "validity_text": "Tanpa masa berlaku",
     "badge_class": null,
     "badge_color": null,
+    "name_lines": 1,
+    "validity_clipped": false,
+    "badge_lines": null,
     "buttons": [
      "Masa berlaku",
      "Unduh",
@@ -3573,7 +3787,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7302,
+  "_ms": 7264,
   "_clicks": 2
  }
 }
