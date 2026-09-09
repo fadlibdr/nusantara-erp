@@ -172,7 +172,35 @@ class CalendarEvents
                 'kind' => $entry['key'],
                 'title' => self::TITLE_OVERRIDES[$entry['key']] ?? "{$entry['label']} {$entry['date_word']}",
             ],
-            WatchedDeadlines::entries(),
+            /*
+             * `calendar_source => false` KELUAR DARI KALENDER, dan sejauh ini
+             * hanya masa berlaku lampiran (F-8) memakainya. Tiga alasan, dan
+             * yang ketiga bukan milik paket mana pun untuk diputuskan:
+             *
+             *  - Kalender ini menjawab "apa yang TERJADI kapan" — rapat, mulai
+             *    proyek, hari gajian, tutup buku: hal yang orang rencanakan.
+             *    Habisnya masa berlaku sebuah BERKAS bukan acara siapa pun; ia
+             *    pekerjaan rumah tangga, dan tempatnya layar Tenggat.
+             *  - Biayanya 12 sumber baru pada endpoint yang ikut dipanggil
+             *    dasbor dan dibaca di ponsel lapangan — +52 % dari 23 sumber
+             *    yang ada, untuk baris yang isinya nama berkas.
+             *  - Legenda departemen di bawah ini adalah DAFTAR DELAPAN LABEL
+             *    MILIK PEMILIK, dan tiga prefix lampiran (est, eng, qc) tidak
+             *    punya departemen di dalamnya. Menambah chip "Estimasi",
+             *    "Engineering" dan "Mutu" mengubah legenda yang disetujui
+             *    pemilik; memaksa ketiganya ke "Proyek" mengarang penempatan.
+             *    Keduanya keputusan pemilik, bukan keputusan paket F-8 —
+             *    tercatat di LAPORAN-PAKET-HM-F-8 §Keputusan pemilik.
+             *
+             * Tanpa saringan ini department() melempar InvalidArgumentException
+             * untuk prefix 'core' pada permintaan kalender pertama, bukan pada
+             * sebuah uji — itulah yang membuat baris ini sebuah keputusan yang
+             * ditulis dan bukan kelalaian yang tertutup.
+             */
+            array_values(array_filter(
+                WatchedDeadlines::entries(),
+                static fn (array $entry): bool => $entry['calendar_source'] ?? true,
+            )),
         );
 
         return array_map(

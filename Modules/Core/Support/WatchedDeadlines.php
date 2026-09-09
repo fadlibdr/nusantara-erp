@@ -7,6 +7,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Models\Attachment;
 
 /**
  * Every date in the system that can slide past in silence, listed once.
@@ -69,6 +70,33 @@ class WatchedDeadlines
     private const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
     /**
+     * Nama modul untuk judul entri lampiran (F-8), satu per prefix izin yang
+     * muncul di AttachableDocuments.
+     *
+     * Ditulis sebagai literal dan bukan dibaca dari schema.js: judul entri
+     * masuk ke core_notifications dan HARUS stabil (dedupe bersandar padanya),
+     * sedangkan SpaNav sengaja mendegradasi menjadi daftar KOSONG ketika
+     * berkasnya tidak terbaca — yang di sini akan melahirkan judul
+     * "Lampiran  lewat masa berlaku" dan memecah dedupe-nya. Kesetaraan dengan
+     * label grup NAV dipaku AttachmentDeadlineWatchTest, jadi grup yang
+     * diganti nama di schema.js menjatuhkan uji alih-alih membuat dua nama.
+     */
+    private const MODULE_LABELS = [
+        'ast' => 'Aset',
+        'crm' => 'Penjualan',
+        'eng' => 'Engineering',
+        'est' => 'Estimasi',
+        'fin' => 'Keuangan',
+        'hr' => 'SDM & Payroll',
+        'inv' => 'Persediaan',
+        'prc' => 'Pengadaan',
+        'prj' => 'Proyek',
+        'qc' => 'Mutu (QA/QC)',
+        'scm' => 'Subkontrak',
+        'svc' => 'Layanan',
+    ];
+
+    /**
      * One entry per watched date. Keys:
      *
      *  key / table / date  — identity and the column that can slide past.
@@ -111,6 +139,18 @@ class WatchedDeadlines
      *                        an fin_ar_invoices not yet migrated for T3.7 still
      *                        raises its overdue alarm, only without the
      *                        clause (finding() checks the columns itself).
+     *  dateless_is_normal  — A NULL DATE IS THE ORDINARY CASE for this entry,
+     *                        so silence is health, not blindness (F-8).
+     *                        Mutually exclusive with alarm_when_date_missing:
+     *                        one says a missing date is itself the alarm, the
+     *                        other says it is not news at all, and an entry
+     *                        claiming both is a contradiction the invariant
+     *                        test refuses. It also suppresses scan()'s BLIND
+     *                        accounting — which is the only place this
+     *                        registry counts rows WITHOUT a date filter.
+     *  calendar_source     — false keeps the entry out of CalendarEvents.
+     *                        Default (absent) is true: every watched date is a
+     *                        calendar event unless there is a reason.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -909,7 +949,131 @@ class WatchedDeadlines
                     ->whereNull('disetor_date')
                     ->whereNull('dilapor_date'),
             ],
+            ...self::attachmentExpiryEntries(),
         ];
+    }
+
+    /**
+     * Masa berlaku LAMPIRAN (F-8) — satu entri per modul, dibangkitkan dari
+     * AttachableDocuments.
+     *
+     * SATU KOLOM, DUA BELAS AUDIENS. core_attachments menunjuk ~40 jenis
+     * dokumen dari 12 modul lewat NAMA KELAS; sebuah temuan di registri ini
+     * membawa SATU izin dan SATU judul. Menaruh seluruh tabel dalam satu entri
+     * berarti memilih satu izin untuk semuanya — dan izin apa pun yang dipilih
+     * salah: pemegang svc.update akan membaca masa berlaku sertifikat karyawan,
+     * atau pemilik sertifikat itu tidak pernah diberi tahu. Karena itu entrinya
+     * dipecah menurut PREFIX IZIN dokumen pemiliknya, satu kelompok alarm per
+     * modul, masing-masing dengan {prefix}.update — izin yang sama persis
+     * dengan mengubah lampiran itu (AttachmentController::deny/reachable).
+     * Registri yang menerjemahkan kelas → prefix adalah AttachableDocuments,
+     * yang memang tinggal di Core: itulah jalur yang sah, dan tidak ada satu
+     * pun modul fitur yang diimpor di sini untuk DATA.
+     *
+     * INDUK YANG SUDAH TIDAK ADA TIDAK BERBUNYI. Sebuah lampiran bisa menunjuk
+     * dokumen yang dihapus lunak, atau kelas yang tidak ada lagi di registri.
+     * Keduanya gugur di sini, dengan aturan yang sama dengan yang sudah
+     * dipakai AttachmentController::reachable() untuk menolak unduhannya:
+     * kelas di luar registri tidak pernah masuk `whereIn` di bawah, dan induk
+     * yang dibuang gugur lewat EXISTS per kelas atas TABEL LITERAL milik
+     * AttachableDocuments. Peringatan kedaluwarsa tentang berkas milik
+     * dokumen yang sudah dibuang adalah kebisingan yang mengajari orang
+     * mengabaikan seluruh daftar.
+     *
+     * TANPA alarm_when_date_missing, DAN TANPA baris BLIND. Ini satu-satunya
+     * entri di registri yang tanggal kosongnya adalah keadaan NORMAL: hampir
+     * setiap baris core_attachments adalah foto lapangan, nota atau gambar
+     * kerja yang tidak akan pernah punya masa berlaku. Pola PKWT/servis aset
+     * akan meneriaki puluhan ribu foto setiap pagi, dan baris "BLIND" milik
+     * scan() akan menyebut diamnya sebagai data yang hilang — dua cara berbeda
+     * untuk membuat pengawas ini dimatikan orang pada hari pertama. Benderanya
+     * `dateless_is_normal`, dan ia juga menghapus dua COUNT(*) tanpa saringan
+     * tanggal atas tabel yang tumbuh paling cepat di aplikasi.
+     *
+     * BUKAN SUMBER KALENDER (`calendar_source` => false). Lihat
+     * CalendarEvents::sources().
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function attachmentExpiryEntries(): array
+    {
+        $entries = [];
+
+        foreach (AttachableDocuments::byPrefix() as $prefix => $documents) {
+            $module = self::MODULE_LABELS[$prefix];
+            $tables = array_values(array_unique(array_column($documents, 'table')));
+
+            $entries[] = [
+                'key' => "attachment_valid_until_{$prefix}",
+                'table' => 'core_attachments',
+                'date' => 'valid_until',
+                'display' => 'original_name',
+                'label' => 'Lampiran',
+                'unit' => 'lampiran',
+                'date_word' => 'berlaku s/d',
+                'lead_days' => Attachment::VALID_UNTIL_LEAD_DAYS,
+                // "Berlaku s/d" masih sah PADA hari terakhirnya — bacaan yang
+                // sama dengan Attachment::isExpired, kartu lampiran, dokumen
+                // vendor dan jaminan. Tanpa ini kartu berkata "menipis, hari
+                // ini" sementara kotak masuk pagi yang sama berkata "lewat".
+                'valid_through_end' => true,
+                'permission' => "{$prefix}.update",
+                // Beranda modul: berkasnya menempel pada ~40 jenis dokumen
+                // berbeda, jadi tidak ada SATU register yang benar untuk
+                // seluruh kelompok. Dokumen persisnya disebut per baris oleh
+                // klausa 'detail' di bawah.
+                'link' => "m/{$prefix}",
+                'title_upcoming' => "Lampiran {$module} mendekati akhir masa berlaku",
+                'title_overdue' => "Lampiran {$module} lewat masa berlaku",
+                'dateless_is_normal' => true,
+                'calendar_source' => false,
+                'requires' => $tables,
+                'columns' => array_merge(
+                    ['attachable_type', 'attachable_id'],
+                    array_map(static fn (string $table): string => "{$table}.id", $tables),
+                ),
+                'scope' => static fn (Builder $query): Builder => $query
+                    // Dijalankan DULU dan sebagai IN atas kolom pertama indeks
+                    // (attachable_type, valid_until): inilah bentuk yang
+                    // diukur pada migrasi 001800.
+                    ->whereIn('attachable_type', array_column($documents, 'class'))
+                    ->where(static function (Builder $alive) use ($documents): void {
+                        foreach ($documents as $document) {
+                            $alive->orWhere(static function (Builder $branch) use ($document): void {
+                                $branch->where('attachable_type', $document['class'])
+                                    ->whereExists(static function (Builder $parent) use ($document): void {
+                                        $parent->select(DB::raw(1))
+                                            ->from($document['table'])
+                                            ->whereColumn("{$document['table']}.id", 'core_attachments.attachable_id');
+
+                                        // deleted_at diperiksa DI DALAM closure,
+                                        // bukan didaftarkan di 'columns': yang di
+                                        // 'columns' menggugurkan SELURUH entri
+                                        // ketika kolomnya tidak ada, dan
+                                        // hr_attendances memang tidak
+                                        // menghapus-lunak. Pola guard yang sama
+                                        // dengan missing_scope milik F-7.
+                                        if (in_array('deleted_at', self::tableColumns($document['table']) ?? [], true)) {
+                                            $parent->whereNull("{$document['table']}.deleted_at");
+                                        }
+                                    });
+                            });
+                        }
+                    }),
+                'detail' => [
+                    'columns' => ['attachable_type', 'attachable_id'],
+                    'text' => static function (object $row): ?string {
+                        $slug = AttachableDocuments::slugForClass((string) $row->attachable_type);
+
+                        return $slug === null
+                            ? null
+                            : 'menempel pada '.AttachableDocuments::labelFor($slug).' #'.(int) $row->attachable_id;
+                    },
+                ],
+            ];
+        }
+
+        return $entries;
     }
 
     /**
@@ -985,11 +1149,19 @@ class WatchedDeadlines
                     static fn (Builder $query): Builder => $missingScope
                         ? $missingScope($query->whereNull($date))
                         : $query->whereNull($date));
-            } elseif ($lewat === null && $menipis === null) {
+            } elseif ($lewat === null && $menipis === null && ! ($entry['dateless_is_normal'] ?? false)) {
                 // The watcher matched nothing — distinguish "all dates are
                 // fine" from "there are no dates to watch". Only reached when
                 // the entry is silent, so the two extra counts cost nothing on
                 // the mornings that matter.
+                //
+                // dateless_is_normal opts an entry out (F-8). For attachments
+                // a scope full of NULL dates is not blindness, it is Tuesday:
+                // a field photo has no expiry and never will. The BLIND line
+                // would report tens of thousands of ordinary files as missing
+                // data every morning — and the two COUNT(*)s that produce it
+                // are the only queries in this entry that do not filter on the
+                // date at all, i.e. the only ones that touch the whole table.
                 $inScope = self::scoped($entry)->count();
 
                 if ($inScope > 0 && self::scoped($entry)->whereNotNull($date)->count() === 0) {
