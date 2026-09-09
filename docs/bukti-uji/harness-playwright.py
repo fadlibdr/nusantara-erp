@@ -8808,8 +8808,6 @@ def s34(pg):
     planted = []
     out = {"assets": ids}
     errors = []
-    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
-    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
 
     try:
         # --------------------------------------------------------- fixture
@@ -8836,6 +8834,16 @@ def s34(pg):
         out["planted"] = planted
 
         login(pg, "admin@nusantara.test")
+        # PENDENGAR DIPASANG SESUDAH LOGIN, BUKAN SEBELUM. login() sendiri
+        # mendokumentasikan throttle 429 gerbang masuk dan mencoba ulang sampai
+        # enam kali; percobaan yang di-throttle mendarat di console_errors dan
+        # dihakimi sebagai cacat produk. Terukur: pada salinan DB yang sama,
+        # jalan PERTAMA pasangan S34/S34m hijau dan jalan KEDUA jatuh pada
+        # the_screens_raise_no_console_error dengan satu-satunya galat
+        # "429 (Too Many Requests)". Yang diuji syarat itu adalah layar yang
+        # skenario ini buka, bukan gerbang masuknya.
+        pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
 
         # ------------------------------------------------------ layar ambang
         pg.goto(BASE + "#/ambang")
@@ -8999,10 +9007,12 @@ def s34m(browser):
     ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
     pg = ctx.new_page()
     errors = []
-    pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
-    pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     try:
         login(pg, "admin@nusantara.test")
+        # Sesudah login, dan untuk alasan yang sama seperti S34 desktop: 429
+        # dari gerbang masuk bukan galat konsol layar yang diuji.
+        pg.on("console", lambda m: errors.append(f"{m.type}: {m.text}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
 
         pg.goto(BASE + "#/ambang")
         pg.wait_for_selector("table.data", timeout=20000)
