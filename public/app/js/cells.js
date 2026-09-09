@@ -36,9 +36,13 @@ export function renderCell(row, column) {
     case 'currency2':
       return el('span.num', { text: fmt.rupiah(raw, { decimals: 2 }) });
 
+    /* `unit` opsional (F-7): sebuah angka yang satuannya BUKAN bawaan tabelnya
+       membawa satuannya sendiri di selnya — "3.500 jam", bukan "3.500" yang
+       berdiri di sebelah kolom tanggal dan harus ditebak. Kolom lama tidak
+       mendeklarasikan unit, jadi bentuknya tidak berubah sedikit pun. */
     case 'qty':
       return el('span.num', {
-        text: column.signed && Number(raw) > 0 ? `+${fmt.qty(raw)}` : fmt.qty(raw),
+        text: column.signed && Number(raw) > 0 ? `+${fmt.qty(raw, column.unit)}` : fmt.qty(raw, column.unit),
         class: column.signed ? (Number(raw) < 0 ? 'muted' : '') : '',
       });
 

@@ -412,7 +412,7 @@ const LABELS = {
   closure_override_reason: 'Alasan override penutupan', closed_by: 'Ditutup oleh',
   override_reason: 'Alasan override', weather_am: 'Cuaca pagi', weather_pm: 'Cuaca siang',
   role_on_project: 'Peran di proyek', is_current_today: 'Aktif hari ini',
-  maintenance_type: 'Jenis perawatan', useful_life_months_default: 'Umur manfaat bawaan (bulan)',
+  maintenance_type: 'Jenis perawatan', next_due_hour_meter: 'Jadwal berikutnya (hour meter)', useful_life_months_default: 'Umur manfaat bawaan (bulan)',
   is_fully_depreciated: 'Habis disusutkan', current_project_id: 'Proyek saat ini',
   item_type: 'Jenis item', tax_type: 'Jenis pajak', object_code: 'Kode objek pajak',
   rate: 'Tarif', daily_rate_internal: 'Tarif harian internal', minutes_spent: 'Menit dikerjakan',

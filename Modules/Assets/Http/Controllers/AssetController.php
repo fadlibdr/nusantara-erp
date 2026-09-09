@@ -19,6 +19,7 @@ use Modules\Assets\Models\Asset;
 use Modules\Assets\Services\AssetDisposalService;
 use Modules\Assets\Services\AssetRegisterService;
 use Modules\Assets\Services\DeploymentService;
+use Modules\Assets\Services\MaintenanceDueService;
 use Modules\Core\Http\ApiController;
 
 class AssetController extends ApiController
@@ -162,6 +163,16 @@ class AssetController extends ApiController
 
         return $this->ok([
             'asset' => AssetResource::make($asset),
+            /*
+             * F-7 — keadaan jatuh tempo servis menurut JAM, dihitung
+             * MaintenanceDueService: pembacaan tertinggi alat ini terhadap
+             * target jam pada catatan perawatan terbarunya, dengan kalimat
+             * yang menyebut sebab kalau salah satu sisinya tidak ada. null
+             * untuk alat yang memang tidak diukur dengan jam (scaffolding,
+             * rak server) — kartu alatnya lalu tidak menampilkan kartu itu
+             * sama sekali, bukan menampilkannya kosong.
+             */
+            'hour_meter_due' => app(MaintenanceDueService::class)->forAsset($asset),
             'deployments' => DeploymentResource::collection($asset->deployments),
             'maintenances' => MaintenanceResource::collection($asset->maintenances),
             'equipment_logs' => EquipmentLogResource::collection($asset->equipmentLogs),

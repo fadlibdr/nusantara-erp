@@ -30,7 +30,7 @@ class MaintenanceController extends ApiController
             ->orderByDesc('maintenance_date');
 
         return $this->listing($request, $query, MaintenanceResource::class,
-            sortable: ['code', 'maintenance_date', 'maintenance_type', 'cost', 'next_due_date'],
+            sortable: ['code', 'maintenance_date', 'maintenance_type', 'cost', 'next_due_date', 'next_due_hour_meter'],
             dateColumn: 'maintenance_date');
     }
 

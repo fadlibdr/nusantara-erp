@@ -23,6 +23,20 @@ class MaintenanceStoreRequest extends FormRequest
             'cost' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
             'next_due_date' => ['nullable', 'date', 'after:maintenance_date'],
+            /*
+             * F-7 — pemicu KEDUA, berdiri sendiri: sebuah kartu servis boleh
+             * mengisi tanggal saja, jam saja, keduanya, atau tidak sama sekali
+             * (yang terakhir tetap diteriaki pengawas tenggat).
+             *
+             * gt:0, BUKAN min:0. Nol adalah ANGKA — registri ambang tidak
+             * pernah menyimpulkan "tidak ada batas" dari nilai nol (§24) — dan
+             * "servis berikutnya pada jam ke-0" bukan kalimat yang berarti
+             * apa pun untuk mesin mana pun. Menerimanya akan melahirkan
+             * keadaan TANPA_ANGGARAN ("Tidak dianggarkan") di sisi jam,
+             * tempat kalimat itu tidak punya arti. Yang berarti "belum
+             * disetel" adalah NULL.
+             */
+            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0'],
         ];
     }
 }

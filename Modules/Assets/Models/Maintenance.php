@@ -25,6 +25,9 @@ class Maintenance extends BaseModel
             'maintenance_type' => MaintenanceType::class,
             'cost' => 'decimal:2',
             'next_due_date' => 'date',
+            // F-7 — presisi yang sama persis dengan ast_equipment_logs.hour_meter,
+            // kedua sisi perbandingan "pembacaan >= target".
+            'next_due_hour_meter' => 'decimal:3',
         ];
     }
 

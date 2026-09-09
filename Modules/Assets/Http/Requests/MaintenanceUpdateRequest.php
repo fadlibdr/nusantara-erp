@@ -23,6 +23,9 @@ class MaintenanceUpdateRequest extends FormRequest
             'cost' => ['sometimes', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
             'next_due_date' => ['nullable', 'date'],
+            // F-7 — alasan gt:0 ada di MaintenanceStoreRequest: nol adalah
+            // angka, dan "belum disetel" dikatakan dengan NULL.
+            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0'],
         ];
     }
 }
