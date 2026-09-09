@@ -46,10 +46,13 @@ tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan hilang saat sesi habi
 layar yang akan Anda pakai minggu ini, per kelompok:
 
 - **Ringkasan** — Dasbor · Tenggat · Kalender.
-- **Persediaan** — kedelapan layarnya milik Anda: Saldo Stok · Item · Kategori Item ·
-  Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname. Kedua retur **tidak punya
-  baris di sidebar** — pintunya tombol `Buat Retur` pada GRN atau bon yang sudah diposting
-  (§6.8).
+- **Persediaan** — kesebelas layarnya milik Anda: Saldo Stok · Item · Kategori Item ·
+  Gudang · **Aturan Reorder** · **Usulan Pesan Ulang** · **Pindai Barcode** · Penerimaan
+  (GRN) · Pengeluaran · Transfer · Opname. Kedua retur **tidak punya baris di sidebar** —
+  pintunya tombol `Buat Retur` pada GRN atau bon yang sudah diposting (§6.8).
+  **Pindai Barcode** adalah layar lapangan: ia memindai lewat kamera di Chrome Android
+  dan, di iPhone (yang perambannya tidak bisa memindai), lewat kotak ketik yang selalu
+  ada di paling atas. Ia hanya MEMBACA — tidak memindahkan stok apa pun.
 - **Proyek** — Daftar Proyek · Laporan Harian · Izin Material (IMK) — **baca saja**: 20
   layar proyek tampil untuk Anda tanpa tombol Tambah (§7.1). Yang berguna: kode proyek dan
   status proyek sebelum mengetik bon, dan izin masuk/keluar material yang sudah Disetujui.
@@ -74,15 +77,22 @@ tidak ada di sidebar Anda. PO Anda baca dari kolom **PO** di daftar GRN dan dari
   lewat **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di
   daftar Opname; GRN dan bon Anda yang sudah diposting orang lain terbaca dari lencana
   **Diposting** di daftarnya.
-- Kartu **Kalender Acara** (selalu digambar), **Progres proyek** (bila ada proyek
-  berjalan), dan **Stok di bawah minimum** — kartu yang paling berguna bagi Anda: item ·
-  gudang · stok / minimum, digambar hanya bila ada isinya.
+- Kartu **Kalender Acara**, **Progres proyek** dan **Perlu dipesan ulang** —
+  **ketiganya SELALU digambar**. Yang terakhir adalah kartu yang paling berguna bagi Anda: item ·
+  gudang · stok / **ambang**; bila tidak ada satu pun yang kurang ia berkata *"Tidak ada
+  pasangan gudang × item di bawah ambangnya."* alih-alih menghilang. Ambang tiap baris adalah
+  aturan reorder gudang itu bila ada (`Persediaan › Aturan Reorder`), dan stok minimum
+  kartu item bila tidak — kartunya menyebut yang mana.
 
 **Lonceng dan Tenggat** — **tidak satu pun tenggat harian ditujukan kepada peran Anda**
 (PANDUAN §1.7): sembilan belas tenggat itu bergerbang izin penjualan, keuangan,
 pengadaan, proyek, aset, dan SDM. Layar `Ringkasan › Tenggat` akan kosong untuk Anda, dan
-itu benar. Alarm stok Anda adalah tab **Di bawah minimum** di Saldo Stok dan kartu dasbor
-di atas — keduanya daftar yang dibaca, tanpa PR otomatis (§6.10).
+itu benar. Alarm stok Anda adalah tab **Perlu dipesan ulang** di Saldo Stok dan kartu
+dasbor di atas. Keduanya daftar yang dibaca — tetapi sejak F-6 tab itu punya tombol
+**`Usulkan PR dari kekurangan ini`** bila Anda juga memegang `prc.create`, dan layar
+`Persediaan › Usulan Pesan Ulang` membuat PR **Draf** yang tetap harus diperiksa orang
+(§6.3b). Tidak ada PR OTOMATIS: tidak ada penjadwal, dan tidak ada jalur yang mengajukan
+atau menyetujui (§6.10).
 
 **Enam kalimat untuk semua orang** (PANDUAN §0), satu baris masing-masing:
 
@@ -176,11 +186,15 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    persediaan**, dan **Dalam perjalanan** + **Total dimiliki** hanya tanpa saringan), tab
    **`Kartu stok (ledger)`** (200 baris pertama, **paling lama di atas**, tanpa saringan
    tanggal — persempit dengan dropdown gudang; kolom Referensi menyebut nama teknis
-   `GoodsReceipt`/`Issue`/`Transfer`, bukan nomor dokumen), tab **`Di bawah minimum`**
-   (hanya item yang sudah punya baris saldo di gudang itu; stok minimum diterapkan **per
-   gudang**). HPP rata-rata **per gudang**; item yang sama boleh berbeda HPP di dua
-   gudang. Tidak ada riwayat saldo — Daftar Saldo Stok tercetak selalu bertanggal hari
-   mencetak. → PANDUAN §6.2, §6.10.
+   `GoodsReceipt`/`Issue`/`Transfer`, bukan nomor dokumen), tab **`Perlu dipesan ulang`**
+   (pasangan TANPA aturan reorder hanya muncul bila sudah punya baris saldo di gudang itu;
+   pasangan yang punya aturan AKTIF muncul walau belum pernah kemasukan barang, dengan stok
+   dibaca 0). **Ambangnya**: aturan reorder
+   gudang itu bila ada yang AKTIF untuk pasangan gudang × item, selain itu stok minimum
+   item — aturan gudang **MENGGANTIKAN** angka item, termasuk bila lebih rendah, dan
+   barisnya mencetak keduanya berdampingan. HPP rata-rata **per gudang**; item yang sama
+   boleh berbeda HPP di dua gudang. Tidak ada riwayat saldo — Daftar Saldo Stok tercetak
+   selalu bertanggal hari mencetak. → PANDUAN §6.2, §6.3b, §6.10.
 
 8. **Membaca proyek sebelum mengetik bon.** Layar: `Proyek › Daftar Proyek` (kode dan
    status proyek — bon ke proyek yang salah harus dihapus dan diketik ulang, karena
@@ -266,6 +280,8 @@ Peran Anda memegang **18** formulir rumah, satu baris satu tombol (kode F/ dari 
 - Persediaan — Daftar Saldo Stok (F/SS, mendatar, dari **halaman Gudang** — selalu
   bertanggal hari mencetak)
 - Persediaan — Bukti Retur Pembelian (F/RPB) · Bukti Retur Material (F/RTM)
+- Persediaan — Label Barcode (F/LBL, **halaman Item**, menu `Cetak ▾` — 12, 24 atau 60
+  stiker untuk digunting)
 - Proyek — Data Proyek (F/DP) · Laporan Harian (F/LH) · Detail Schedule / Program Kerja
   (F/DS, ikon printer pada baris Progres Mingguan) · Daftar Temuan / Defect List (F/DT)
 - Proyek — Izin Kerja Lapangan (F/IK) · Izin Kerja Lembur (F/IL) · Izin Masuk / Keluar
@@ -273,7 +289,7 @@ Peran Anda memegang **18** formulir rumah, satu baris satu tombol (kode F/ dari 
 - Proyek — Opname ke Pemilik (OPN) (F/OPN) · BAPP per Zona (F/BAPP) · Formulir K3 Harian
   (F/K3H) · IBPRP (F/IBPRP)
 
-Yang sehari-hari milik Anda adalah tujuh lembar Persediaan; sebelas lembar Proyek tampil
+Yang sehari-hari milik Anda adalah delapan lembar Persediaan; sebelas lembar Proyek tampil
 karena Anda memegang izin lihat proyek. Empat di antaranya juga punya tombol **`XLSX`**:
 Daftar Saldo Stok, Bon Pengeluaran Barang, Bukti Penerimaan Barang, Berita Acara Stock
 Opname (§13.2a). **Aturan kejujuran (§13.5): sel yang bergaris kosong berarti "tidak
@@ -298,8 +314,10 @@ mengisinya dengan nol saat mengolah lanjut.
       menyetujuinya — dan bahwa `Setujui` itu sekaligus posting.
 - [ ] Saya sudah menemukan tombol `Buat Retur` pada GRN Diposting dan tahu drafnya belum
       menggerakkan apa pun.
-- [ ] Saya sudah membuka tab **Di bawah minimum** dan tab **Kartu stok (ledger)**, dan tahu
-      mutasi terbaru bisa tidak terlihat pada item yang sibuk.
+- [ ] Saya sudah membuka tab **Perlu dipesan ulang** dan tab **Kartu stok (ledger)**, dan
+      tahu mutasi terbaru bisa tidak terlihat pada item yang sibuk.
+- [ ] Saya sudah membuka **Persediaan › Pindai Barcode**, mengetik satu kode item di
+      kotak paling atas, dan melihat kartunya beserta saldo per gudang.
 - [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa kosongnya layar itu benar
       untuk peran saya.
 - [ ] Saya sudah mencetak satu Bukti Penerimaan Barang (F/BPB) dan satu Daftar Saldo Stok

@@ -3025,11 +3025,40 @@ export const RESOURCES = {
   'inventory/items': {
     module: 'inv', api: 'inventory/items', label: 'Item', labelOne: 'Item',
     lookupSource: 'items',
+    /* F-6 — lembar label barcode (F/LBL), satu item per lembar. Dideklarasikan
+       di sini dan bukan lewat katalog server karena ia formulir BESPOKE:
+       katalog PrintableDocuments menggambar dokumen bertanda tangan, dan
+       lembar stiker bukan salah satunya. */
+    /* TIGA JUMLAH, karena tab cetaknya dibuka dari `blob:` dan tidak punya
+       bilah alamat yang bisa ditambahi "?jumlah=". Plafon 1-60 sudah
+       divalidasi FormPrintController dan dipaku uji; sebelum ketiga entri ini
+       ada, tidak satu pun pemakai bisa mencapainya, dan PANDUAN menyuruh
+       mereka mengetik alamat API yang menjawab 302 ke halaman masuk. */
+    printForms: [
+      { form: 'label-barcode', label: 'Label Barcode (12 stiker)' },
+      { form: 'label-barcode', label: 'Label Barcode (24 stiker)', query: { jumlah: 24 } },
+      { form: 'label-barcode', label: 'Label Barcode (60 stiker)', query: { jumlah: 60 } },
+    ],
     columns: [
       codeColumn,
       { key: 'name', label: 'Nama item', type: 'text', sub: 'category.name' },
       { key: 'item_type', label: 'Jenis', type: 'enum', enum: 'itemType' },
       { key: 'unit', label: 'Satuan', type: 'text', align: 'center', hideOnNarrow: true },
+      /* F-6: KOLOM BARCODE, dan saringan "barcode ganda" di bawahnya.
+         Tanpa keduanya, satu-satunya cara sebuah duplikat ditemukan adalah
+         kebetulan — seseorang memindainya, berbulan sesudah stikernya
+         menempel. Laporan paket ini meminta pemilik memutuskan apakah kolom
+         itu harus UNIQUE; keputusan yang butuh angka tetapi angkanya tidak
+         bisa diambil siapa pun adalah keputusan yang tidak akan pernah
+         diambil.
+         SARINGANNYA MEMAKAI ATURAN LAYAR PINDAI (Item::sharingScanCode),
+         bukan `GROUP BY barcode`: satu kode bisa menjadi barcode sebuah item
+         DAN kode item lain, dan huruf besar-kecil tidak membedakan apa pun
+         bagi pemindainya. Saringan yang mengelompokkan barcode terhadap
+         barcode memulangkan NOL BARIS untuk tabrakan yang layar Pindai sebut
+         ganda — dan "Tidak ada data" di permukaan audit adalah jawaban yang
+         paling mahal yang bisa diberikannya. */
+      { key: 'barcode', label: 'Barcode', type: 'text', hideOnNarrow: true },
       { key: 'min_stock', label: 'Stok min.', type: 'qty', align: 'right', hideOnNarrow: true },
       { key: 'avg_cost', label: 'HPP rata-rata', type: 'currency', align: 'right' },
       { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center', hideOnNarrow: true },
@@ -3037,6 +3066,7 @@ export const RESOURCES = {
     filters: [
       { key: 'item_type', label: 'Jenis', enum: 'itemType' },
       { key: 'category_id', label: 'Kategori', lookup: 'itemCategories' },
+      { key: 'barcode_duplicate', label: 'Barcode ganda', type: 'boolFilter' },
     ],
     form: {
       sections: [{
@@ -3097,6 +3127,62 @@ export const RESOURCES = {
           { key: 'keeper_employee_id', label: 'Penjaga gudang', type: 'lookup', lookup: 'employees' },
           { key: 'address', label: 'Alamat', type: 'textarea', span: 2 },
           { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+        ],
+      }],
+    },
+  },
+
+  /*
+   * Aturan titik pesan ulang per GUDANG × ITEM (F-6).
+   *
+   * PRIORITASNYA DITULIS DI LAYAR, di tiga tempat: keterangan daftar, kolom
+   * "Stok min. item" yang mencetak angka yang DIGANTIKAN di sebelah
+   * penggantinya, dan bantuan medan pada formulirnya. Sebuah tabel yang hanya
+   * menampilkan 20 tidak memberi tahu siapa pun bahwa angka perusahaan untuk
+   * barang itu 100 — dan itulah satu-satunya keterangan yang membuat seseorang
+   * berhenti dan memeriksa apakah aturannya masih benar.
+   */
+  'inventory/reorder-rules': {
+    module: 'inv', api: 'inventory/reorder-rules', label: 'Aturan Reorder', labelOne: 'Aturan Reorder',
+    noDetail: true,
+    columns: [
+      { key: 'warehouse.name', label: 'Gudang', type: 'text', sub: 'warehouse.code' },
+      { key: 'item.name', label: 'Item', type: 'text', sub: 'item.code' },
+      { key: 'reorder_point', label: 'Titik pesan ulang', type: 'qty', align: 'right' },
+      { key: 'item.min_stock', label: 'Stok min. item', type: 'qty', align: 'right', hideOnNarrow: true },
+      { key: 'reorder_qty', label: 'Jumlah pesan', type: 'qty', align: 'right' },
+      { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
+      /*
+       * "Aktif ✓" TIDAK BERARTI "berlaku". Item dan gudang menghapus-lembut,
+       * dan aturan yang salah satunya sudah dibuang tetap tersimpan dengan
+       * saklarnya menyala — tetapi kueri kekurangan membuang item dan gudang
+       * terhapus lebih dulu, jadi ambangnya tidak menentukan apa pun.
+       * Kepingnya datang dari server (`deleted_labels`), bukan disusun di
+       * sini, karena yang tahu baris mana yang ikut dihitung adalah kueri
+       * yang menghitungnya.
+       */
+      { key: 'deleted_labels', label: 'Peringatan', type: 'tags', tone: 'amber' },
+    ],
+    filters: [
+      { key: 'warehouse_id', label: 'Gudang', lookup: 'warehouses' },
+      { key: 'item_id', label: 'Item', lookup: 'items' },
+    ],
+    form: {
+      sections: [{
+        title: 'Aturan reorder',
+        fields: [
+          { key: 'warehouse_id', label: 'Gudang', type: 'lookup', lookup: 'warehouses', required: true },
+          { key: 'item_id', label: 'Item', type: 'lookup', lookup: 'items', required: true },
+          {
+            key: 'reorder_point', label: 'Titik pesan ulang', type: 'qty', required: true, default: 0,
+            help: 'MENGGANTIKAN stok minimum item untuk gudang ini — termasuk bila lebih rendah. Isi 0 berarti pasangan ini tidak pernah dipesan ulang.',
+          },
+          {
+            key: 'reorder_qty', label: 'Jumlah pesan', type: 'qty', default: 0,
+            help: 'Jumlah yang diusulkan sekali pesan. Kosong atau 0 berarti usulan PR memakai kekurangannya sendiri.',
+          },
+          { key: 'is_active', label: 'Aktif', type: 'bool', default: true, help: 'Aturan nonaktif tetap tersimpan dan tidak menentukan ambang apa pun.' },
+          { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
         ],
       }],
     },
@@ -6250,7 +6336,7 @@ export const MODULES = {
   prj: { accent: 1, icon: 'hard-hat', kpi: 'Proyek aktif', description: 'Pelaksanaan: laporan harian, progres, opname, serah terima, izin dan K3, register.' },
   qc: { accent: 8, icon: 'clipboard-check', kpi: 'NCR terbuka', description: 'Inspeksi mutu, NCR, benda uji beton, dan template inspeksi.' },
   prc: { accent: 3, icon: 'shopping-cart', kpi: 'PO terbuka', description: 'Vendor, permintaan (PR), RFQ, pesanan (PO), PPK alat dan jasa, evaluasi vendor.' },
-  inv: { accent: 3, icon: 'warehouse', kpi: 'Item di bawah stok minimum', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
+  inv: { accent: 3, icon: 'warehouse', kpi: 'Pasangan gudang × item di bawah titik pesan ulang', description: 'Saldo stok, item, gudang, penerimaan, pengeluaran, transfer, dan opname.' },
   scm: { accent: 3, icon: 'file-signature', kpi: 'Opname subkon menunggu persetujuan', description: 'SPK subkon, addendum, opname dan BAST subkon, SP3 dan opname mandor.' },
   fin: { accent: 2, icon: 'landmark', kpi: 'Invoice termin belum lunas', description: 'AR/AP, pembayaran, kas kecil, jurnal, laporan keuangan, pajak, dan master akun.' },
   hr: { accent: 5, icon: 'users', kpi: 'Cuti menunggu persetujuan', description: 'Karyawan, sertifikat dan PKWT, cuti, absensi, dan payroll.' },
@@ -6452,6 +6538,15 @@ export const NAV = [
       { label: 'Item', route: 'r/inventory/items' },
       { label: 'Kategori Item', route: 'r/inventory/item-categories' },
       { label: 'Gudang', route: 'r/inventory/warehouses' },
+      // F-6 — tepat di bawah Gudang karena aturannya milik pasangan gudang ×
+      // item, dan orang yang baru membuat gudang site adalah orang yang
+      // berikutnya menetapkan ambangnya sendiri.
+      { label: 'Aturan Reorder', route: 'r/inventory/reorder-rules' },
+      // …dan tepat di bawahnya, layar yang MEMBACA aturan itu: kekurangan
+      // stok yang ditawarkan sebagai PR draf.
+      { label: 'Usulan Pesan Ulang', route: 'usulan-pesan-ulang' },
+      // …dan pintu lapangan ke kartu item: satu pindaian, satu kartu.
+      { label: 'Pindai Barcode', route: 'pindai' },
       { label: 'Penerimaan (GRN)', route: 'r/inventory/goods-receipts' },
       { label: 'Pengeluaran', route: 'r/inventory/issues' },
       { label: 'Transfer', route: 'r/inventory/transfers' },

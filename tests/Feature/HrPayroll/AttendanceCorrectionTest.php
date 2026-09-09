@@ -232,16 +232,34 @@ class AttendanceCorrectionTest extends ErpTestCase
         $this->assertSame(42, $fresh->check_in_distance_m);
     }
 
-    /** Jejak yang bisa diedit tidak membuktikan apa pun: tidak ada rute update maupun delete. */
+    /**
+     * Jejak yang bisa diedit tidak membuktikan apa pun: tidak ada rute update
+     * maupun delete.
+     *
+     * Disaring pada URI jejak ITU SENDIRI. Bentuk lamanya menuntut daftar persis
+     * atas setiap rute yang memuat kata "corrections" di mana pun di aplikasi —
+     * ranjau yang saudaranya (usulan rekap, kata "proposal") benar-benar
+     * meledak di gerbang rilis F-6 ketika Inventory menamai rutenya dengan
+     * wajar. Uji yang merah karena modul lain memilih nama yang masuk akal
+     * adalah uji yang mengajari orang melemahkannya.
+     */
     public function test_the_trail_has_no_update_or_delete_door(): void
     {
-        $routes = collect(app('router')->getRoutes()->getRoutes())
-            ->map(fn ($route) => implode('|', $route->methods()).' '.$route->uri())
-            ->filter(fn (string $line) => str_contains($line, 'corrections'))
-            ->values()
-            ->all();
+        $trail = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_contains($route->uri(), 'attendances/{attendance}/corrections'));
 
-        $this->assertSame(['GET|HEAD api/hr/attendances/{attendance}/corrections'], $routes);
+        $this->assertSame(
+            ['GET|HEAD api/hr/attendances/{attendance}/corrections'],
+            $trail->map(fn ($route) => implode('|', $route->methods()).' '.$route->uri())->values()->all(),
+        );
+
+        $this->assertSame(
+            [],
+            $trail->flatMap(fn ($route) => $route->methods())
+                ->intersect(['POST', 'PUT', 'PATCH', 'DELETE'])
+                ->values()
+                ->all(),
+        );
     }
 
     /**

@@ -29,10 +29,35 @@ class ItemController extends ApiController
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->filled('item_type'), fn ($query) => $query->where('item_type', $request->string('item_type')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
+            /*
+             * BARCODE GANDA, DICARI DARI DAFTAR — bukan ditemukan kebetulan.
+             *
+             * `inv_items.barcode` nullable dan TIDAK unik, dan itu keputusan
+             * yang sengaja ditunda (migrasi yang menambahkan UNIQUE akan GAGAL
+             * saat deploy bila produksi sudah memuat duplikat). Sampai saringan
+             * ini ada, satu-satunya cara sebuah duplikat terlihat adalah
+             * seseorang memindainya — berbulan sesudah stikernya menempel di
+             * rak, pada saat yang paling mahal. Audit yang laporan paket minta
+             * kepada pemilik sekarang bisa dijalankan dari layar Item, tanpa
+             * SSH ke produksi.
+             *
+             * DAN IA MEMAKAI ATURAN PEMINDAINYA, bukan aturannya sendiri.
+             * Versi pertama saringan ini adalah `GROUP BY barcode HAVING
+             * COUNT(*) > 1`: ia tidak pernah membandingkan barcode dengan
+             * KODE item lain dan peka huruf di SQLite, jadi untuk tabrakan
+             * yang layar Pindai sebut ganda ia memulangkan NOL BARIS. Pemilik
+             * yang membaca "Tidak ada data" pada permukaan yang dibuat untuk
+             * keputusannya menyimpulkan katalognya bersih dan menyetujui
+             * UNIQUE — dan migrasi itu gagal di produksi. `sharingScanCode()`
+             * adalah ekspresi yang sama dengan yang dipakai `items/scan` dan
+             * lembar F/LBL.
+             */
+            ->when($request->filled('barcode_duplicate'),
+                fn ($query) => $query->sharingScanCode($request->boolean('barcode_duplicate')))
             ->orderBy('code');
 
         return $this->listing($request, $query, ItemResource::class,
-            sortable: ['code', 'name', 'item_type', 'min_stock', 'avg_cost', 'is_active']);
+            sortable: ['code', 'name', 'item_type', 'barcode', 'min_stock', 'avg_cost', 'is_active']);
     }
 
     public function store(ItemStoreRequest $request): JsonResponse
@@ -44,7 +69,20 @@ class ItemController extends ApiController
 
     public function show(Item $item): JsonResponse
     {
-        return $this->ok(ItemResource::make($item->load('category', 'balances.warehouse')));
+        // withCount, bukan with: kartu item hanya perlu tahu BERAPA gudang
+        // memakai titik pesan ulang sendiri, dan memuat barisnya berarti satu
+        // kueri lagi untuk kalimat satu baris.
+        //
+        // PENJAGANYA `governing()`, bukan `is_active` saja. Hitungan ini dulu
+        // tidak pernah menyentuh inv_warehouses.deleted_at, jadi kartu item
+        // berkata "1 gudang memakai titik pesan ulang sendiri… stok minimum di
+        // atas TIDAK berlaku" untuk aturan yang gudangnya sudah dibuang —
+        // aturan yang tidak menentukan apa pun, dan yang layar Aturan Reorder
+        // di sebelahnya sudah menandai "Gudang dibuang".
+        $item->load('category', 'balances.warehouse')
+            ->loadCount(['reorderRules as governing_reorder_rules_count' => fn ($query) => $query->governing()]);
+
+        return $this->ok(ItemResource::make($item));
     }
 
     public function update(ItemUpdateRequest $request, Item $item): JsonResponse

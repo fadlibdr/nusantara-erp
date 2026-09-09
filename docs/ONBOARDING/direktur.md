@@ -68,7 +68,7 @@ berumur 12 jam (§1.2).
 **Dasbor Anda** menampilkan enam ubin — **Proyek berjalan**, **Piutang belum tertagih**,
 **Hutang belum dibayar**, **Saldo bank**, **Termin siap ditagih**, **Tiket aktif** — dan
 kartu **Menunggu persetujuan Anda**, **Kalender Acara**, progres proyek, **Piutang jatuh
-tempo terdekat**, **Tiket layanan aktif**, **Stok di bawah minimum**.
+tempo terdekat**, **Tiket layanan aktif**, **Perlu dipesan ulang**.
 
 > **Kartu "Menunggu persetujuan Anda" hanya memuat 11 dari 28 jenis dokumen** — Penawaran,
 > BOQ / RAB, RAP, Permintaan (PR), Pesanan (PO), SPK subkon, Opname subkon, Opname stok,

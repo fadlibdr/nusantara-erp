@@ -2327,5 +2327,516 @@
   "ok": true,
   "_ms": 11936,
   "_clicks": 2
+ },
+ "S32_reorder_usulan_pr": {
+  "target": {
+   "item": "ITM-0001",
+   "warehouse": "WH-PUSAT",
+   "qty": 700.0,
+   "point": 710,
+   "min_stock": 200.0,
+   "order_qty": 750
+  },
+  "rules_screen": {
+   "headers": [
+    "GUDANG",
+    "ITEM",
+    "TITIK PESAN ULANG",
+    "STOK MIN. ITEM",
+    "JUMLAH PESAN",
+    "AKTIF",
+    "PERINGATAN",
+    ""
+   ],
+   "planted_row": "Gudang Pusat (Cakung) WH-PUSAT Semen Portland 50kg ITM-0001 710 200 750 ✓ —"
+  },
+  "stock_low": {
+   "headers": [
+    "ITEM",
+    "GUDANG",
+    "STOK",
+    "AMBANG",
+    "KURANG",
+    "USULAN PESAN"
+   ],
+   "rows": [
+    {
+     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan",
+     "cells": [
+      "Semen Portland 50kg ITM-0001",
+      "Gudang Pusat (Cakung)",
+      "700 zak",
+      "710 Aturan reorder gudang ini · stok min. item 200",
+      "10",
+      "750 zak jumlah pesan aturan"
+     ]
+    }
+   ],
+   "priority_sentence": "Ambang tiap baris: aturan reorder gudang ini bila ada yang AKTIF untuk pasangan gudang × item, selain itu stok minimum item. Aturan gudang MENGGANTIKAN angka item — termasuk bila ia lebih rendah."
+  },
+  "planted_low_row": {
+   "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan",
+   "cells": [
+    "Semen Portland 50kg ITM-0001",
+    "Gudang Pusat (Cakung)",
+    "700 zak",
+    "710 Aturan reorder gudang ini · stok min. item 200",
+    "10",
+    "750 zak jumlah pesan aturan"
+   ]
+  },
+  "before": {
+   "stats": [
+    "BISA DIUSULKAN 1",
+    "DILEWATI 0",
+    "BARIS KEKURANGAN 1"
+   ],
+   "why_skipped_card": "Yang dilewati — dan kenapa Item yang sudah menjadi baris pada PR ATAU PO terbuka (draf, diajukan atau disetujui) untuk gudang yang sama — atau pada dokumen yang tidak menyebut gudang sama sekali — dilewati, supaya menjalankan usulan dua kali tidak menghasilkan dua permintaan untuk kekurangan yang sama. PO ikut karena PO boleh dibuat tanpa PR. Yang ditolak, selesai atau dibatalkan tidak menahan apa pun: PO yang selesai sudah diterima penuh, jadi kekurangan yang tersisa memang nyata.",
+   "rows": [
+    {
+     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Akan diusulkan",
+     "cells": [
+      "Semen Portland 50kg ITM-0001",
+      "Gudang Pusat (Cakung)",
+      "700 zak",
+      "710 Aturan reorder gudang ini · stok min. item 200",
+      "10",
+      "750 zak jumlah pesan aturan",
+      "Akan diusulkan"
+     ]
+    }
+   ],
+   "create_button": 1
+  },
+  "first_press": {
+   "toasts": [
+    "Satu PR draf dibuat. Periksa dan ajukan sendiri dari layar Permintaan Pembelian."
+   ],
+   "hash": "#/d/procurement/purchase-requisitions/3"
+  },
+  "created_codes": [
+   "PR/2026/IX/0003"
+  ],
+  "created_statuses": [
+   "draft"
+  ],
+  "after": {
+   "stats": [
+    "BISA DIUSULKAN 0",
+    "DILEWATI 1",
+    "BARIS KEKURANGAN 1"
+   ],
+   "rows": [
+    {
+     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf).",
+     "cells": [
+      "Semen Portland 50kg ITM-0001",
+      "Gudang Pusat (Cakung)",
+      "700 zak",
+      "710 Aturan reorder gudang ini · stok min. item 200",
+      "10",
+      "750 zak jumlah pesan aturan",
+      "Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf)."
+     ]
+    }
+   ],
+   "create_button": 0,
+   "all_skipped_line": "Semua kekurangan sudah ada di PR atau PO terbuka."
+  },
+  "second_press_direct": {
+   "status": 200,
+   "created": [],
+   "message": "Tidak ada kekurangan yang tersisa untuk diusulkan — semuanya sudah ada di PR atau PO terbuka."
+  },
+  "requisitions_after_second_press": 1,
+  "skipped_row": {
+   "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf).",
+   "cells": [
+    "Semen Portland 50kg ITM-0001",
+    "Gudang Pusat (Cakung)",
+    "700 zak",
+    "710 Aturan reorder gudang ini · stok min. item 200",
+    "10",
+    "750 zak jumlah pesan aturan",
+    "Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf)."
+   ]
+  },
+  "console_errors": [],
+  "checks": {
+   "the_rules_screen_prints_the_item_minimum_the_rule_replaces": true,
+   "and_the_planted_rule_is_listed_with_both_numbers": true,
+   "the_stock_screen_states_the_priority_in_words": true,
+   "a_row_governed_by_a_rule_shows_the_winning_threshold": true,
+   "and_the_item_minimum_it_beat": true,
+   "and_names_the_rule_as_its_source": true,
+   "and_the_order_quantity_comes_from_the_rule_not_the_shortage": true,
+   "the_proposal_screen_states_the_skip_rule_before_it_bites": true,
+   "pressing_the_button_once_creates_a_draft_requisition": true,
+   "the_row_that_was_proposable_now_says_it_was_skipped": true,
+   "and_names_the_requisition_that_covers_it": true,
+   "and_the_create_button_is_gone_because_nothing_is_left": true,
+   "and_the_endpoint_itself_refuses_a_second_run_not_just_the_button": true,
+   "so_a_second_run_raises_no_second_requisition": true,
+   "the_screens_raise_no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 11724,
+  "_clicks": 2
+ },
+ "S32_reorder_usulan_pr_mobile": {
+  "rows": 1,
+  "wrap_scrolls": true,
+  "page_scrolls_sideways": false,
+  "why_visible": true,
+  "why_text": "Yang dilewati — dan kenapa Item yang sudah menjadi baris pada PR ATAU PO terbuka (draf, diajukan atau disetujui) untuk gudang yang sama — atau pada dokumen yang tidak menyebut gudang sama sekali — dilewati, supaya menjalankan usulan dua kali tidak menghasilkan dua permintaan untuk kekurangan yang sama. PO ikut karena PO boleh dibuat tanpa PR. Yang ditolak, selesai atau dibatalkan tidak menahan apa pun: PO yang selesai sudah diterima penuh, jadi kekurangan yang tersisa memang nyata.",
+  "stats": 3,
+  "stock": {
+   "wrap_scrolls": true,
+   "page_scrolls_sideways": false,
+   "source_labels": [
+    "ITM-0001",
+    "Aturan reorder gudang ini · stok min. item 200",
+    "jumlah pesan aturan"
+   ]
+  },
+  "console_errors": [],
+  "checks": {
+   "the_proposal_table_renders_on_a_phone": true,
+   "the_wide_table_scrolls_inside_its_own_box": true,
+   "the_page_never_scrolls_sideways": true,
+   "the_skip_rule_is_still_readable_on_a_phone": true,
+   "the_stock_table_also_stays_inside_its_box": true,
+   "and_every_row_still_names_where_its_threshold_came_from": true,
+   "the_screens_raise_no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 6035,
+  "_clicks": 1
+ },
+ "S33_label_dan_pindai": {
+  "item_id": 1,
+  "action_bar": [
+   "Cetak",
+   "Ubah"
+  ],
+  "print_menu": [
+   "Cetak halaman",
+   "Cetak Label Barcode (12 stiker)",
+   "Cetak Label Barcode (24 stiker)",
+   "Cetak Label Barcode (60 stiker)"
+  ],
+  "sheet": {
+   "print_calls": 1,
+   "has_lembar": true,
+   "stickers": 12,
+   "form_code": true,
+   "note": "Yang dikodekan pada batang di bawah adalah ITM-0001, yaitu kode item-nya sendiri; kartu item ini belum mencatat barcode pemasok. Simbologi Code 128, lebar modul 0,432 mm (minimum terpindai 0,25 mm), tinggi batang 8,6 mm, 3 stiker per baris. Jangan memperkecil, memfotokopi mengecil, memotong, atau menempelkan apa pun pada ruang kosong di kiri dan kanan batang — ruang itu yang dipakai pemindai untuk menemukan tepi kode.",
+   "svg_present": true,
+   "sticker_mm": 62.022,
+   "svg_mm": 57.018,
+   "svg_attr_width": "57mm",
+   "module_mm": 0.432,
+   "bar_height_mm": 8.639,
+   "bars": 31,
+   "bars_painted": 31,
+   "human_readable": "ITM-0001",
+   "text_inside_viewbox": true,
+   "aria": "Barcode ITM-0001",
+   "page_scrolls_sideways": false
+  },
+  "refused_writes": [
+   200
+  ],
+  "refused_sheet": {
+   "svg_present": false,
+   "note": "Barcode tidak dicetak. Kode AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA (100 karakter) membutuhkan 1155 modul, dan bahkan pada satu stiker selebar halaman lebar modulnya jatuh di bawah 0,25 mm — batangnya akan menyatu saat dicetak dan tidak ada pemindai yang bisa membacanya. Stiker di bawah tetap dicetak dengan garis untuk ditulis tangan. Pakai barcode pemasok yang lebih pendek, atau kode item ini sendiri, lalu cetak ulang lembar ini.",
+   "stickers": 12,
+   "hand_lines_per_sticker": 4,
+   "hand_line_boxes": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "sticker_mm": 62.02,
+   "sticker_inner_mm": 56.4,
+   "widest_hand_line_mm": 53.54,
+   "hand_code": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+   "lembar_scroll_mm": 194.01,
+   "lembar_client_mm": 194.01,
+   "body_scroll": 1440,
+   "body_client": 1440,
+   "hand_line_margin_mm": 2.86
+  },
+  "manual": {
+   "cards": [
+    "Ketik kodenya",
+    "Kamera tidak bisa dipakai di peramban ini",
+    "Semen Portland 50kg"
+   ],
+   "reason": [
+    "Cocok pada KODE item ini, bukan pada kolom Barcode-nya."
+   ],
+   "warehouses": [
+    "Gudang Pusat (Cakung) WH-PUSAT 700 zak",
+    "Gudang Site Proyek Graha Sentosa WH-PRJ-2026-001 350 zak"
+   ]
+  },
+  "not_found": "Tidak ketemu: F6-TIDAK-ADA-KODE-INI Tidak ada item dengan barcode atau kode \"F6-TIDAK-ADA-KODE-INI\". Periksa apakah kartu itemnya sudah mencatat barcode ini — kolom Barcode di layar Item.",
+  "probe_writes": [
+   200,
+   200
+  ],
+  "duplicate": {
+   "warning": true,
+   "message": "Barcode ini dipakai lebih dari satu item 2 ITEM memakai kode yang sama (\"F6PROBE9001\"). Pilih sendiri yang dimaksud: memilihkan salah satunya akan memasukkan stok ke kartu barang yang keliru, dan kekeliruan itu baru terlihat pada opname berikutnya.",
+   "item_cards": [
+    "Semen Portland 50kg",
+    "Besi Beton D16"
+   ]
+  },
+  "console_errors": [],
+  "checks": {
+   "the_item_screen_offers_the_label_sheet": true,
+   "the_print_button_really_opens_the_print_dialog": true,
+   "and_carries_its_form_code": true,
+   "and_prints_exactly_the_stickers_the_button_asked_for": true,
+   "the_printed_module_is_wide_enough_to_scan": true,
+   "and_the_symbol_fits_its_sticker_box_so_css_never_shrinks_it": true,
+   "and_the_bars_are_at_least_15_percent_as_tall_as_the_symbol_is_wide": true,
+   "every_bar_has_a_width": true,
+   "and_the_human_readable_line_is_under_it_and_never_clipped": true,
+   "and_the_sheet_says_which_code_it_encoded": true,
+   "the_refused_probe_really_reached_the_item_card": true,
+   "a_code_too_long_to_scan_prints_no_bars_and_says_so": true,
+   "and_its_handwritten_code_stays_inside_the_sticker_box_with_declared_room_to_spare": true,
+   "and_the_sheet_never_grows_wider_than_the_page": true,
+   "and_the_code_a_person_retypes_is_still_whole": true,
+   "and_each_line_php_measured_is_one_printed_line": true,
+   "typing_a_code_finds_the_item_and_its_stock_per_warehouse": true,
+   "and_says_whether_it_matched_the_code_or_the_barcode": true,
+   "an_unknown_code_is_told_where_to_look": true,
+   "the_duplicate_probe_really_reached_both_item_cards": true,
+   "a_barcode_on_two_items_is_never_resolved_silently": true,
+   "and_the_warning_says_how_many_and_why_it_matters": true,
+   "the_screens_raise_no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 32705,
+  "_clicks": 8
+ },
+ "S33_pindai_keadaan_kamera": {
+  "no_detector": {
+   "cards": [
+    "Ketik kodenya",
+    "Kamera tidak bisa dipakai di peramban ini"
+   ],
+   "body": [
+    "Cari Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+    "Peramban ini tidak menyediakan BarcodeDetector — pemindai bawaan peramban. Safari di iPhone dan iPad termasuk yang tidak punya, dan tidak ada setelan yang bisa menyalakannya. Ketik kodenya di kotak di atas, atau buka halaman ini dengan Chrome di Android."
+   ],
+   "manual_input": true,
+   "pageerrors": []
+  },
+  "insecure": {
+   "cards": [
+    "Ketik kodenya",
+    "Kamera dimatikan karena halaman ini bukan HTTPS"
+   ],
+   "body": [
+    "Cari Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+    "Peramban hanya memberikan kamera kepada halaman yang dibuka lewat https:// (atau localhost). Halaman ini bukan salah satunya, jadi kameranya tidak akan pernah diminta — dan itu berlaku di peramban mana pun, termasuk Chrome di Android. Buka aplikasi lewat alamat https-nya, atau ketik kodenya di kotak di atas."
+   ],
+   "manual_input": true,
+   "pageerrors": []
+  },
+  "denied": {
+   "cards": [
+    "Ketik kodenya",
+    "Pindai dengan kamera"
+   ],
+   "body": [
+    "Cari Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+    "Izin kamera ditolak. Buka setelan situs di peramban (ikon gembok di bilah alamat), izinkan Kamera untuk alamat ini, lalu tekan \"Nyalakan kamera\" lagi. Sementara itu, kotak isian di atas tetap bekerja."
+   ],
+   "manual_input": true,
+   "pageerrors": []
+  },
+  "no_camera": {
+   "cards": [
+    "Ketik kodenya",
+    "Pindai dengan kamera"
+   ],
+   "body": [
+    "Cari Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+    "Perangkat ini tidak punya kamera yang bisa dipakai peramban. Bukan soal izin — tidak ada yang bisa diizinkan. Ketik kodenya di kotak di atas."
+   ],
+   "manual_input": true,
+   "pageerrors": []
+  },
+  "scanning": {
+   "status": [
+    "Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+    "Terbaca: ITM-0001",
+    "ITM-0001 · tanpa barcode pemasok · Material Sipil",
+    "Cocok pada KODE item ini, bukan pada kolom Barcode-nya.",
+    "WH-PUSAT",
+    "WH-PRJ-2026-001"
+   ],
+   "input_value": "ITM-0001",
+   "result_cards": [
+    "Ketik kodenya",
+    "Pindai dengan kamera",
+    "Semen Portland 50kg"
+   ],
+   "video": true
+  },
+  "lifecycle_on": {
+   "gum": 1,
+   "stops": 0,
+   "streams": [
+    {
+     "active": true,
+     "tracks": [
+      "live"
+     ]
+    }
+   ]
+  },
+  "lifecycle_off": {
+   "gum": 1,
+   "stops": 1,
+   "streams": [
+    {
+     "active": false,
+     "tracks": [
+      "ended"
+     ]
+    }
+   ]
+  },
+  "lifecycle_screen": {
+   "buttons": [
+    "Cari",
+    "Nyalakan kamera",
+    "Buka kartu item"
+   ],
+   "status": [
+    "Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+    "Kamera belum dinyalakan.",
+    "ITM-0001 · tanpa barcode pemasok · Material Sipil",
+    "Cocok pada KODE item ini, bukan pada kolom Barcode-nya.",
+    "WH-PUSAT",
+    "WH-PRJ-2026-001"
+   ],
+   "heights": [
+    [
+     "Cari",
+     46
+    ],
+    [
+     "Nyalakan kamera",
+     46
+    ],
+    [
+     "Buka kartu item",
+     46
+    ]
+   ]
+  },
+  "lifecycle_route": {
+   "gum": 2,
+   "stops": 2,
+   "streams": [
+    {
+     "active": false,
+     "tracks": [
+      "ended"
+     ]
+    },
+    {
+     "active": false,
+     "tracks": [
+      "ended"
+     ]
+    }
+   ]
+  },
+  "lifecycle_pageerrors": [],
+  "checks": {
+   "a_browser_without_barcodedetector_says_exactly_that": true,
+   "and_it_does_not_pretend_there_is_a_camera_button": true,
+   "and_the_manual_field_is_still_there": true,
+   "and_nothing_throws_where_BarcodeDetector_does_not_exist": true,
+   "an_insecure_page_is_told_it_is_the_protocol_not_the_permission": true,
+   "a_denied_permission_is_told_where_to_grant_it": true,
+   "a_device_with_no_camera_is_told_it_is_not_about_permission": true,
+   "the_four_sentences_are_four_different_sentences": true,
+   "a_working_scanner_fills_the_field_and_looks_the_item_up": true,
+   "and_the_lookup_really_happened": true,
+   "starting_the_camera_asks_for_it_exactly_once": true,
+   "turning_it_off_really_ends_every_track_it_ever_held": true,
+   "and_it_does_not_quietly_ask_for_the_camera_again_on_the_way_out": true,
+   "and_the_screen_only_says_the_camera_is_off_once_it_really_is": true,
+   "leaving_the_route_ends_its_tracks_too": true,
+   "and_every_camera_button_is_a_thumb_sized_target": true,
+   "and_nothing_throws_along_the_way": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 45902,
+  "_clicks": 3
+ },
+ "S33_label_dan_pindai_mobile": {
+  "input_width": 236,
+  "input_height": 46,
+  "button_height": 46,
+  "page_scrolls_sideways": false,
+  "cards": [
+   "Ketik kodenya",
+   "Kamera tidak bisa dipakai di peramban ini"
+  ],
+  "notice": [
+   "Cari Jalur ini selalu tersedia, di ponsel mana pun, dengan atau tanpa kamera.",
+   "Peramban ini tidak menyediakan BarcodeDetector — pemindai bawaan peramban. Safari di iPhone dan iPad termasuk yang tidak punya, dan tidak ada setelan yang bisa menyalakannya. Ketik kodenya di kotak di atas, atau buka halaman ini dengan Chrome di Android."
+  ],
+  "result": {
+   "cards": [
+    "Ketik kodenya",
+    "Kamera tidak bisa dipakai di peramban ini",
+    "Semen Portland 50kg"
+   ],
+   "rows": 2,
+   "page_scrolls_sideways": false,
+   "buttons": [
+    [
+     "Cari",
+     46
+    ],
+    [
+     "Buka kartu item",
+     46
+    ]
+   ]
+  },
+  "console_errors": [],
+  "checks": {
+   "the_manual_field_is_wide_enough_to_type_a_barcode_into": true,
+   "and_tall_enough_for_a_thumb": true,
+   "the_phone_is_told_why_there_is_no_camera_button": true,
+   "and_no_camera_card_is_drawn": true,
+   "the_page_never_scrolls_sideways": true,
+   "a_typed_code_still_finds_the_item_and_its_stock": true,
+   "and_the_result_does_not_widen_the_page": true,
+   "and_every_button_on_the_result_is_a_thumb_sized_target": true,
+   "the_screen_raises_no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 8911,
+  "_clicks": 2
  }
 }

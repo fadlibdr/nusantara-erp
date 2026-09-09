@@ -52,20 +52,33 @@ Modules/<Name>/
 | Engineering | `api/engineering`  | `eng_`       | 001300–001399 |
 | Quality     | `api/quality`      | `qc_`        | 001400–001499 |
 
-**Blok lanjutan** (F-2, 7 Sep 2026). Blok pertama sebuah modul bisa habis, dan dua di antaranya
-sudah: Projects memakai 000799 pada 9 Agustus 2026 dan Finance memakai 001199 pada 25 Juli 2026.
-Pemilik menyetujui rentang lanjutannya (ROADMAP-HASHMICRO §5 baris 5), dan **tabel di bawah ini —
-bukan prosa mana pun — adalah sumber kebenaran rentang blok untuk kedua modul itu:**
+**Blok lanjutan** (F-2, 7 Sep 2026; Inventory ditambahkan F-6, 8 Sep 2026). Blok pertama sebuah
+modul bisa habis, dan tiga di antaranya sudah: Projects memakai 000799 pada 9 Agustus 2026,
+Finance memakai 001199 pada 25 Juli 2026, dan Inventory memakai kesepuluh slot puluhannya
+(000400…000490, ditambah luapan 000491 dan 000495–000499) pada 30 Agustus 2026.
+Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 baris 5), dan
+**tabel di bawah ini — bukan prosa mana pun — adalah sumber kebenaran rentang blok:**
 
 | Module      | Blok pertama  | Blok lanjutan | Status |
 |-------------|---------------|---------------|--------|
 | Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
+| Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
+
+Rentang Inventory 001700–001799 **belum ada di ledger pemilik** (ROADMAP-HASHMICRO §5 baris 5
+menyebut Core, Finance dan Projects saja). Ia ditetapkan di sini karena aturan di bawah menuntut
+penetapannya pada commit pemakaian pertama dan F-6 membutuhkannya; 001700–001799 dipilih karena
+ia rentang seratusan bebas pertama sesudah Projects (nomor ≥ 001400 yang terpakai hanya
+001400/001410/001420/001430/001440/001450/001500/001501). Baris ini adalah usulan yang menunggu
+pengesahan pemilik ke dalam ledger, bukan pengganti ledgernya.
 
 Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
 lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
 migrasi Core-lah yang menetapkannya di tabel ini, dalam commit yang sama dengan pemakaian
-pertamanya. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
+pertamanya. **JANGAN memakai 001400–001499 untuk Core**, meski ledger pemilik
+(ROADMAP-HASHMICRO §5 baris 5) menuliskan "Core 001400–?": rentang itu adalah blok PERTAMA
+Quality pada tabel di atas, dan ia sudah berisi enam migrasi (001400/001410/001420/001430/
+001440/001450). Usul pengganti yang menunggu pengesahan pemilik: **001800–001899**. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
 commit yang pertama kali memakainya, tidak pernah lebih dulu dan tidak pernah belakangan.
 
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
@@ -468,10 +481,57 @@ dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri 
 Ketiganya sekarang berindeks (migrasi Core `000196`, hanya indeks, berpenjaga `Schema::hasTable`),
 dan `ModuleCountsTest::test_the_scanning_counts_have_their_indexes` menjaga agar tidak hilang lagi —
 sejak P1-C hitungan ini berjalan setiap kali launcher `#/home` dibuka, yaitu landing ponsel setiap
-pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv` membandingkan `b.qty < i.min_stock`
-antar dua tabel, dan tidak ada indeks yang bisa melayani perbandingan antar kolom; bila
-`inv_stock_balances` tumbuh melewati ~100 rb baris, angka itu perlu tabel ringkasan, bukan indeks.
-Entri baru: jalankan `EXPLAIN`-nya dan tulis hasilnya di sini atau tambahkan indeksnya.
+pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv`. Sejak F-6 (8 Sep 2026) kuerinya bukan lagi
+satu perbandingan `b.qty < i.min_stock` antar dua tabel melainkan DUA LENGAN yang saling
+meniadakan lewat `r.id`, di atas `LEFT JOIN inv_reorder_rules` — ambangnya `r.reorder_point`
+bila ada aturan AKTIF untuk pasangan gudang × item, dan `i.min_stock` bila tidak. `EXPLAIN`-nya
+dijalankan ulang pada kedua driver (putaran perbaikan F-6, 8 Sep 2026):
+
+```
+-- SQLite (EXPLAIN QUERY PLAN, salinan basis data demo yang sudah dimigrasi)
+SCAN b
+SEARCH i USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH w USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH r USING INDEX inv_reorder_rules_warehouse_id_item_id_unique (warehouse_id=? AND item_id=?) LEFT-JOIN
+
+-- MySQL 8 (erp_dryrun)
+b  type=ALL     key=NULL                                            (pemindaian yang disengaja)
+i  type=eq_ref  key=PRIMARY
+w  type=eq_ref  key=PRIMARY
+r  type=eq_ref  key=inv_reorder_rules_warehouse_id_item_id_unique   ref=b.warehouse_id, b.item_id
+```
+
+Join ke tabel aturan TIDAK menambah pemindaian: UNIQUE (warehouse_id, item_id) melayaninya
+sebagai `eq_ref` di MySQL dan sebagai `SEARCH … USING INDEX` di SQLite. Yang tersisa tetap
+`SCAN b` — tidak ada indeks yang bisa melayani perbandingan antar KOLOM (`b.qty <
+r.reorder_point`), dan bila `inv_stock_balances` tumbuh melewati ~100 rb baris angka itu perlu
+tabel ringkasan, bukan indeks.
+
+Sejak putaran ketiga F-6 entri ini menghitung **dua kueri yang dijumlahkan** (§31): yang di atas,
+dan pasangan yang aturannya hidup tetapi belum punya satu baris saldo pun. `EXPLAIN` yang kedua,
+dijalankan pada kedua driver (9 Sep 2026):
+
+```
+-- SQLite (EXPLAIN QUERY PLAN, salinan basis data demo yang sudah dimigrasi)
+SCAN r
+SEARCH i USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH w USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH b USING COVERING INDEX inv_stock_balances_warehouse_id_item_id_unique (warehouse_id=? AND item_id=?) LEFT-JOIN
+
+-- MySQL 8 (erp_dryrun)
+r  type=ALL     key=NULL                                              Using where
+i  type=eq_ref  key=PRIMARY                                           ref=r.item_id
+w  type=eq_ref  key=PRIMARY                                           ref=r.warehouse_id
+b  type=eq_ref  key=inv_stock_balances_warehouse_id_item_id_unique    ref=r.warehouse_id, r.item_id ; Not exists; Using index
+```
+
+`SCAN r` adalah pemindaian tabel ATURAN — sebesar jumlah aturan yang benar-benar ditetapkan orang,
+bukan sebesar katalog atau sebesar `inv_stock_balances` — dan pencarian saldonya dilayani indeks
+unik pasangan yang sama (`Not exists` di MySQL: ia berhenti pada baris saldo pertama yang cocok).
+Jadi tidak ada pemindaian tabel penuh KEDUA.
+
+Entri baru, ATAU entri lama yang kuerinya berubah bentuk: jalankan `EXPLAIN`-nya dan tulis
+hasilnya di sini atau tambahkan indeksnya.
 
 `label` punya CERMIN di klien: `schema.js` `MODULES[prefix].kpi`. Ia ada karena ubin harus bisa
 menyebut angka yang tidak dikirim server — entri yang izinnya tidak dipegang tidak ada di jawaban,
@@ -1562,3 +1622,365 @@ melanggarnya.
 **Layar yang memakai antrean tidak boleh mendeklarasikan `QUEUE_PREFIX` atau `MAX_BYTES` sendiri**
 (dipaku `UploadQueueTest`): dua antrean di `localStorage` yang sama tidak akan pernah saling
 melihat, dan salinan kedua batas ukuran adalah salinan yang suatu hari berbeda dari servernya.
+
+## 31. Titik pesan ulang (`inv_reorder_rules`, F-6)
+
+Ambang "perlu dipesan ulang" untuk sepasang **gudang × item**. Aturan AKTIF untuk pasangan itu
+**MENGGANTIKAN** `inv_items.min_stock` — bukan menambahnya, bukan "yang paling ketat menang", dan
+itu berlaku juga bila titiknya LEBIH RENDAH. Kalau tidak, aturan gudang site tidak pernah bisa
+lebih longgar daripada angka perusahaan, yang adalah persis alasan tabelnya lahir. `reorder_point`
+0 pada aturan aktif berarti "pasangan ini tidak pernah dipesan ulang", jadi syarat `> 0` berlaku
+pada ambang yang **MENANG**, bukan pada `min_stock`.
+
+**Definisinya hidup di DUA tempat, dengan sengaja:** `StockService::lowStockAlerts()` dan salinan
+literalnya di registri Core `ModuleCounts` entri `inv` (Core tidak boleh mengimpor modul fitur,
+§16). Yang disalin adalah **struktur query builder**, bukan potongan SQL mentah: bentuk dua lengan
+`OR` yang saling meniadakan lewat `r.id`, dengan `is_active` **di klausa ON** — di WHERE ia
+mengubah LEFT JOIN menjadi INNER JOIN dan setiap pasangan tanpa aturan hilang dari daftar
+sekaligus. `ModuleCountsTest` memaku kesetaraan keduanya **dan** memaku bahwa fixture-nya
+benar-benar memisahkan "dengan aturan" dari "hanya min_stock" — tanpa lengan kedua itu, sepasang
+salinan yang sama-sama melupakan tabel aturan lolos hijau.
+
+**DAN KUERINYA PUNYA DUA BAGIAN, karena satu pasangan bisa BELUM PUNYA BARIS SALDO.** Kueri di atas
+berangkat `FROM inv_stock_balances`, jadi pasangan gudang × item yang belum pernah kemasukan barang
+tidak punya baris untuk berangkat — dan itu justru keadaan yang paling membutuhkan pesan ulang:
+seseorang menyatakan "gudang ini menyimpan barang ini, titik pesan ulang 100" untuk barang yang
+stoknya nol karena belum pernah masuk. Sampai putaran ketiga F-6, `governs()` berkata `true`, daftar
+aturan menggambarnya berlaku, kartu itemnya berkata "1 gudang memakai titik pesan ulang sendiri" —
+sementara daftar kekurangan, usulan PR dan tab "Perlu dipesan ulang" semuanya kosong. Bagian kedua
+karena itu berangkat dari `inv_reorder_rules`, membuang pasangan yang PUNYA baris saldo
+(`whereNull('b.id')` atas LEFT JOIN ke saldo), dan memperlakukan sisanya sebagai qty 0. Syaratnya
+sama semuanya — aturan aktif, item hidup, gudang hidup, item aktif, titik > 0 — kalau tidak ia
+menjadi pintu belakang yang melewati `governing()`. **Sebuah baris aturan ADALAH pernyataan "gudang
+ini menyimpan barang ini"**; tanpa pernyataan itu, "setiap item × setiap gudang" adalah perkalian
+yang akan menerbitkan ribuan baris pada `min_stock` perusahaan, dan itulah kenapa bagian kedua
+hanya berangkat dari tabel aturan. **Kedua salinan wajib membawa keduanya**, ditambahkan dan bukan
+di-UNION (satu pasangan punya baris saldo atau tidak punya, jadi keduanya tidak bisa beririsan);
+fixture `ModuleCountsTest` membawa satu pasangan tanpa saldo, jadi salinan yang melupakan bagian
+kedua jatuh.
+
+**UNIQUE (warehouse_id, item_id), dan karena itu TANPA softDeletes** (pola `ast_depreciation_runs`
+dan `core_saved_reports`). Dua baris hidup untuk satu pasangan menggandakan setiap baris kekurangan
+di keempat permukaannya — layar Saldo Stok, widget dasbor, ubin launcher, usulan PR — tanpa satu
+pun galat. Sebuah baris yang dibuang lembut akan menempati pasangannya selamanya sehingga aturan
+yang dihapus tidak pernah bisa dibuat ulang; saklarnya `is_active`, yang memang untuk itu.
+`Rule::unique` di FormRequest menambahkan **kalimatnya**, bukan aturan kedua.
+
+**PRIORITASNYA DITULIS DI LAYAR, bukan hanya berlaku di kode — KE DUA ARAH.** Setiap baris
+kekurangan membawa ambang yang menang, nama sumbernya (`threshold_source_label`), DAN angka item
+yang kalah: sebuah baris yang menulis "20" padahal kartu itemnya berkata 100 tanpa mengatakan dari
+mana 20 itu datang adalah angka yang tidak bisa diperiksa siapa pun. **Arah sebaliknya sama
+wajibnya**, dan ia terlewat sampai putaran perbaikan F-6: kartu item adalah satu-satunya layar yang
+memajang angka yang KALAH, jadi `ItemResource` mengirim `reorder_rule_note` bila ada aturan yang
+BERLAKU untuk item itu ("N gudang memakai titik pesan ulang sendiri… stok minimum di atas TIDAK
+berlaku"). Tanpa itu, yang menaikkan `min_stock` di sana mengira ia sedang mengubah ambang gudang
+yang punya aturan; ia tidak mengubah apa pun.
+
+**"Aktif ✓" BUKAN "berlaku", DAN "BERLAKU" PUNYA SATU DEFINISI: `ReorderRule::governing()`.**
+Empat syarat — aturannya `is_active`, itemnya hidup, gudangnya hidup, ITEMNYA `is_active` — dan
+keempatnya sudah lama ditegakkan kueri kekurangan (`r.is_active` di klausa ON, `whereNull` pada
+kedua join-nya, `i.is_active` di WHERE-nya). Item dan gudang menghapus-lembut, relasi aturan memakai
+`withTrashed()` dengan sengaja (supaya namanya selamat dan barisnya tetap bisa dibuang orangnya),
+jadi sebuah baris bisa terlihat hidup sementara ambangnya tidak menentukan apa pun. Item yang
+DINONAKTIFKAN adalah syarat tersendiri, bukan bagian dari "itemnya hidup": menonaktifkan adalah
+jalur NORMAL untuk barang yang berhenti dibeli — kartunya tetap ada, dan sampai putaran ketiga F-6
+barisnya digambar tanpa satu keping pun dengan `applies: true`. `ReorderRuleResource` karena itu mengirim `applies` (= `->governs()`,
+bentuk baris dari scope yang sama) dan `deleted_labels`. **Yang digambar daftarnya sebagai keping
+hanyalah `deleted_labels`**; `applies` adalah fakta server yang belum punya kolom sendiri, jadi
+baris yang tidak berlaku KARENA ITEMNYA NONAKTIF tidak membawa tanda apa pun di layar itu — kolom
+"Aktif" di sebelahnya adalah saklar ATURANNYA, dan ia memang menyala. Layar itu tidak berbohong
+(ia tidak pernah menulis "berlaku"), tetapi ia juga tidak menjawab pertanyaannya.
+
+**Salinan yang ketiga adalah bagaimana ia dulu bocor.** Sampai putaran kedua F-6 setiap permukaan
+menghitung "berlaku" sendiri, dengan isi yang berbeda: `loadCount` kartu item memeriksa `is_active`
+saja (jadi kartunya berkata "stok minimum di atas TIDAK berlaku" untuk aturan yang gudangnya sudah
+dibuang, sementara layar sebelahnya menandai baris yang sama "Gudang dibuang"), dan `applies`
+memeriksa kedua `deleted_at` saja (jadi aturan NONAKTIF dikirim `applies: true`). Kueri kekurangan
+**tidak bisa** memanggil scope-nya — ia berangkat dari `inv_stock_balances` dan menyapa tabel aturan
+lewat LEFT JOIN, karena pasangan TANPA aturan pun harus muncul — jadi yang menjaga keduanya satu
+arti adalah **ujinya**: `ReorderThresholdTest` memaku bahwa kumpulan `governing()` PERSIS kumpulan
+aturan yang dipatuhi kueri kekurangan, dan bahwa predikat barisnya sepakat dengan kuerinya satu per
+satu.
+
+## 32. Usulan PR dari kekurangan stok (`ReorderService`, F-6)
+
+**Draf, dan tidak selangkah lebih jauh.** Dokumennya dibuat lewat `PurchaseRequisitionService` yang
+sudah ada — yang selalu menyimpan Draf — dan berhenti. Tidak ada rute Inventory yang mengajukan
+atau menyetujui (dipaku `ReorderProposalTest`). Alasannya sama dengan §29: sebuah ambang yang salah
+ketik satu digit akan mengubah dirinya menjadi PO, dan PO adalah uang yang keluar.
+
+**Idempotensi DINYATAKAN, bukan disimpulkan.** Sebuah item dilewati bila ia sudah menjadi baris
+pada **PR ATAU PO terbuka** (`draft`/`submitted`/`approved`, belum dibuang) untuk gudang yang sama
+**atau** pada dokumen yang tidak menyebut gudang sama sekali. `rejected`/`closed`/`cancelled`
+**bukan** terbuka: PR yang ditolak adalah permintaan yang seseorang tolak, dan PO yang `closed`
+sudah diterima penuh (PoService menutupnya sendiri begitu SELURUH barisnya diterima) — kekurangan
+yang tersisa sesudahnya memang nyata.
+
+**PO IKUT, dan itu bukan kelebihan cakupan.** `PurchaseOrderStoreRequest` MENGIZINKAN PO tanpa PR
+(`purchase_requisition_id` nullable + `pr_bypass_reason` wajib bila kosong). Versi pertama layanan
+ini hanya mengkueri baris PR, jadi barang yang sudah ada di PO Disetujui — uangnya sudah terikat —
+muncul lagi sebagai "Akan diusulkan", dan menekan tombolnya melahirkan permintaan kedua yang baru
+terlihat ketika barangnya datang dua kali. Kalimatnya membedakan keduanya: **"Sudah dipesan pada
+PO/…"** versus **"Sudah diminta pada PR/…"**; yang pertama sudah menjadi janji kepada pemasok.
+
+Lengan "tanpa gudang" adalah pilihan ke arah yang lebih sepi, dan biayanya dibayar dengan
+keterlihatan: tiap baris yang dilewati menuliskan **kode dokumen** yang menutupinya. Kalimat
+aturannya dikirim server (`why_skipped`) — salinan di layar akan menyimpang pada suntingan
+pertama, dan sampai putaran perbaikan F-6 tidak satu pun uji PHP memakunya (hanya harness), jadi ia
+hilang dari gerbang rilis paket berikutnya.
+
+**Satu PR per GUDANG**, karena PR punya satu `warehouse_id`. Proyeknya **diturunkan** dari
+`inv_warehouses.project_id`, taksiran harganya dari `inv_items.last_price`, jumlahnya dari ambang
+yang menang (atau `reorder_qty` aturan bila aturan menyebutnya). Tidak ada angka yang dikarang.
+Gerbangnya **`prc.create`**, bukan `inv.*`: yang dibuat adalah dokumen Procurement, dari layar mana
+pun tombolnya ditekan.
+
+## 33. Code 128 & label F/LBL (`Modules\Core\Support\Code128`, F-6)
+
+Barcode yang salah **tidak terlihat salah**: digit periksa mod-103 yang keliru menghasilkan gambar
+rapi yang tidak terbaca pemindai mana pun — atau, lebih buruk, terbaca sebagai **kode lain**,
+sehingga barang yang dipindai masuk ke kartu stok barang lain. Karena itu:
+
+- **Ujinya memuat DEKODER** (`Code128Test`): ia membaca `<rect>` dari SVG produksi, menyusun ulang
+  deret lebar batang DAN spasi, menghitung ulang digit periksanya dari nol, dan mengembalikan teks.
+  Uji yang menghitung jumlah batang, memeriksa `viewBox`, atau membandingkan snapshot HIJAU untuk
+  kedua kegagalan di atas. Tabel `PATTERNS` sendiri diperiksa terhadap sifatnya (107 simbol, 11
+  modul, 13 untuk stop, elemen 1–4 modul, semuanya unik) — encoder dan dekoder membaca tabel yang
+  sama, jadi satu angka tertukar akan bolak-balik dengan sempurna.
+- **Arti sebuah nilai bergantung pada SET yang berlaku.** Di set C, 99 adalah pasangan angka "99";
+  yang berarti "pindah ke set C" hanya di set A/B, dan yang berarti "pindah ke set B" di set C
+  adalah 100. Dekoder yang mengabaikan itu membaca `ITM-9999` sebagai `ITM-`.
+- **Zona tenang 10 modul WAJIB**, dan dipaku dengan **angka 10**, bukan dengan konstantanya
+  sendiri: uji yang membandingkan lebar terhadap `Code128::QUIET_MODULES` ikut berubah bersama
+  mutasinya, dan menyetel konstanta itu ke 0 — yang membuang seluruh zona tenang dan membuat
+  pemindai gagal diam-diam — lolos HIJAU (diukur).
+- **Teks terbaca-manusia WAJIB**, dari teks yang sama dengan yang dikodekan — dan **DIPATAHKAN,
+  bukan dibiarkan keluar viewport**. `<text text-anchor="middle">` dipusatkan tanpa batas lebar dan
+  akar SVG memotong yang keluar, DI KEDUA UJUNG, diam-diam: barcode 13 digit di bawah kode item 40
+  karakter tercetak sebagai 12 digit yang terlihat lengkap, dan orang yang mengetiknya ulang
+  mendapat "tidak ada item dengan kode itu". Dipatahkan dan bukan dikecilkan fontnya: font yang
+  menyusut sampai muat berhenti bisa dibaca orang.
+- **UKURAN CETAK DIHITUNG DI PHP, TIDAK DISERAHKAN KE CSS.** Lebar modul cetak = lebar kotak ÷
+  `Code128::moduleCount()`, dan di bawah `Code128::MIN_MODULE_MM` (0,25 mm, X-dimension minimum
+  GS1) batangnya menyatu di kertas dan pemindai gagal **diam-diam**. Versi pertama F/LBL memakai
+  `.stiker { width: 62mm }` + `max-width: 100%`: kotaknya tetap dan GAMBARNYA yang dikecilkan —
+  2,8% untuk barcode pemasok 100 karakter, modul 0,055 mm, 0 dari 5 garis pindai terbaca pada
+  raster 600 dpi dari PDF cetaknya sendiri, tanpa satu kata pun di lembarnya. Sekarang **kotaknya
+  yang menyesuaikan** (kisi jatuh 3 → 2 → 1 stiker per baris) dan kode yang tetap tidak muat
+  DITOLAK dengan kalimat yang menyebut panjangnya — aturan kejujuran yang sama dengan karakter di
+  luar ASCII 32–126, karena alasannya sama persis. Opsi `module` hanya memilih satuan viewBox;
+  `widthMm` yang menentukan milimeter di kertas. Uji yang mengukur PIKSEL atribut SVG buta terhadap
+  seluruh kelas cacat ini: tiga mutasi (lebar stiker, `module`, tinggi batang) lolos hijau pada 71
+  uji / 5.963 asersi sebelum uji milimeter ada.
+- **Tinggi batang ≥ 15% lebar simbol** (dan ≥ 8 mm): simbol lebar yang pendek adalah sehelai garis
+  yang tidak bisa dilacak pemindai.
+- **`.lembar` adalah KONTRAK dengan `print.js`, bukan gaya.** `printWhenLoaded()` menunggu
+  `tab.document.querySelector('.lembar')` sebelum memanggil `tab.print()` — `readyState` saja tidak
+  cukup, karena `about:blank` sudah `complete` dan yang tercetak akan menjadi halaman penampung.
+  Lembar bespoke yang tidak mewarisi `forms.layout` **harus membawa pembungkus itu sendiri**: tanpa
+  ia lembarnya tergambar sempurna di tab barunya dan dialog cetak TIDAK PERNAH muncul; sesudah
+  ~7 detik `PRINT_POLL_LIMIT` menyerah tanpa satu pun pesan, dan di gudang itu terbaca sebagai
+  "tombol cetaknya rusak". Dipaku `PrintFormReachabilityTest` untuk SETIAP formulir bespoke.
+- **Barcode ganda disebut DI LEMBARNYA**, sebelum stikernya menempel di rak. Layar pindai memang
+  sudah mengatakannya — tetapi ia mengatakannya berbulan kemudian, ketika seseorang memindai stiker
+  yang sudah tertempel, yaitu pada saat yang paling mahal. Peringatannya berlaku pada **KODE**-nya,
+  bukan pada gambarnya, jadi ia berdiri **di luar** ketiga cabang lembar ini: stiker yang batangnya
+  tidak dicetak justru yang kodenya diketik ulang orangnya. Yang memutuskan "ganda" adalah
+  `Item::matchingScanCode()` — aturan layar Pindai, bukan salinan (§34).
+- **KODE TULIS-TANGAN DIPENGGAL DENGAN ATURAN YANG SAMA** dengan teks di bawah batang
+  (`Code128::wrapLabel`, publik sejak putaran kedua F-6), dan `font-size`-nya dicetak dari konstanta
+  PHP yang sama dengan yang dipakai menghitung penggalannya. Cabang penolakan mewarisi stiker
+  tulis-tangan dari cabang NON-ASCII, yang tidak pernah punya aturan pemenggalan karena kode
+  non-ASCII yang pernah jatuh ke sana selalu pendek: diukur di Chromium (media=print, kotak
+  56,5 mm), 63 karakter = **120,43 mm** dan 100 karakter = **191,10 mm**, mendorong `.lembar` ke
+  252 dan **322 mm** di atas kertas yang lebar isinya 194 mm — dua stiker tetangga tertimpa dan
+  ekor kodenya di luar halaman, di balik 62 uji hijau yang semuanya menguji KALIMAT.
+- **DAN SATU JARING UNTUK SELURUH LEMBAR** (`overflow-wrap: anywhere` pada `body`): setiap teks di
+  lembar ini datang dari data yang diketik orang — nama item (200 karakter), kode (40), barcode
+  (100), satuan, nama perusahaan. Dengan nama 120 karakter DAN barcode 100 karakter, `.lembar`
+  terukur **376,11 mm**; sesudah jaringnya, keempat kombinasi terukur 194,01 mm = lebar isi halaman,
+  0 kotak meluap. Jaring itu **bukan** aturannya: di mana kode tulis-tangan patah tetap diputuskan
+  PHP, supaya angkanya bisa dipaku uji dan barisnya bisa dibaca orang baris demi baris. Harness S33
+  memaku keduanya sekaligus — `Range.getClientRects()` menghitung kotak baris yang BENAR-BENAR
+  digambar, jadi font yang dicetak berbeda dari font yang dipakai menghitung penggalan terlihat di
+  situ meski jaringnya menahan luapannya; lebar barisnya diukur pada SALINAN teksnya dalam probe
+  `white-space: pre`, karena jaring yang sama membuat `scrollWidth` (dan kotak Range) tidak pernah
+  melebihi kotaknya, berapa pun lebar hurufnya. **Kesetaraan "font yang dicetak = font yang dipakai
+  menghitung" dipaku uji PHP** (`LabelBarcodePrintTest`), bukan harness saja: harness bukan bagian
+  gerbang rilis, dan suntingan satu baris pada blade — interpolasi ukuran font menjadi angka tetap —
+  meninggalkan seluruh gerbang phpunit hijau.
+
+**F/LBL adalah formulir BESPOKE**, bukan entri `PrintableDocuments`: registri itu menggambar
+dokumen bertanda tangan (pita empat pihak, blok identitas, tiga kolom tanda tangan), dan lembar
+label adalah kisi stiker yang digunting. Yang dikodekan: `inv_items.barcode` bila kartunya punya,
+`code`-nya sendiri bila tidak — dan lembarnya **menuliskan yang mana**. Kode yang memuat karakter
+di luar ASCII 32–126 mencetak stiker **tanpa batang** beserta kalimatnya; tidak pernah gambar yang
+salah, tidak pernah kosong tanpa keterangan.
+
+**Blade: `@else` yang didahului huruf BUKAN direktif.** Blade mencocokkan dengan `\B@`, jadi
+`…berbeda@else` lolos sebagai teks, cabang `@if` di atasnya menelan sisa berkas, dan seluruh lembar
+gagal dengan "unexpected end of file, expecting elseif". Satu direktif per baris.
+
+## 34. Pindai barcode (`views/pindai.js`, F-6)
+
+**`BarcodeDetector` tidak ada di iOS Safari**, dan itu ponsel separuh lapangan. Keberadaannya
+diperiksa lewat `typeof globalThis.BarcodeDetector` — referensi telanjang ke pengenal yang tidak
+ada adalah `ReferenceError` yang menjatuhkan seluruh layar, termasuk isian manualnya, yaitu
+satu-satunya jalan yang tersisa. **Jalur ketik adalah isian PERTAMA di layar**, bukan jalan pintas
+darurat; kamera adalah tambahan di atasnya.
+
+**Empat keadaan, empat kalimat**, karena keempatnya menuntut tindakan berbeda dari yang membacanya:
+peramban tanpa `BarcodeDetector` (tidak ada yang bisa diperbaiki) · halaman bukan konteks aman
+(kamera memang tidak akan pernah diminta) · izin **ditolak** (ada yang bisa dicabut kembali, di
+setelan situs) · **tidak ada** kamera (bukan soal izin). Plus keadaan kelima yang bukan galat:
+menyala dan belum menemukan apa pun. Satu kalimat untuk keempatnya mengirim orang gudang mencari
+setelan izin di ponsel yang memang tidak punya kamera.
+
+**URUTAN PEMERIKSAANNYA BAGIAN DARI ATURANNYA: `isSecureContext` LEBIH DULU.** `BarcodeDetector`
+ber-`[SecureContext]`, jadi pada asal http ia `undefined` DAN `navigator.mediaDevices` ikut
+undefined. Memeriksa detektornya lebih dulu membuat pemakai http di Chrome Android selalu jatuh ke
+cabang pertama dan membaca "buka halaman ini dengan Chrome di Android" — peramban yang sedang ia
+pakai. Konteks tidak aman adalah sebab yang lebih spesifik: ia menjelaskan ketiadaan keduanya.
+Harness yang menyuntikkan `BarcodeDetector` palsu ke dalam halaman tidak aman menguji kombinasi
+yang tidak pernah diproduksi platform mana pun, dan hijau untuk urutan yang salah.
+
+**SATU PENDENGAR PER TOMBOL.** `ui.js` memasang `onClick:` lewat `addEventListener`; menambahkan
+`node.onclick = …` di atasnya adalah pendengar KEDUA, bukan pengganti. Pada tombol kamera itu
+berarti satu klik menjalankan `startCamera()` DAN `stopCamera()`: akuisisi kedua menimpa `stream`
+sebelum yang pertama sempat dihentikan, dan trek yang benar-benar dilihat orangnya kehilangan
+seluruh rujukannya tanpa pernah di-`stop()` — layar berkata "Kamera belum dinyalakan" sementara
+lampu kameranya menyala terus. Tukar SATU variabel handler, jangan menumpuk pendengar.
+
+**PENCOCOKANNYA TIDAK PEDULI BESAR-KECIL HURUF ASCII, TETAPI PEDULI AKSEN — DAN `UPPER()` SAJA
+TIDAK CUKUP UNTUK ITU.** `UPPER()` di kedua sisi menutup selisih huruf besar-kecil ASCII (SQLite
+peka huruf pada `=`; papan ketik iOS mengapitalkan huruf pertama secara bawaan dan jalur ketik
+adalah satu-satunya jalur di iPhone). Ia **tidak** menetralkan collation: yang membandingkan
+hasilnya tetap collation kolomnya, dan kolom itu `utf8mb4_unicode_ci`, sehingga di MySQL 8.0.46
+`UPPER('café') = 'CAFE'` memulangkan **1**. Terukur dengan kartu `CAFÉ-2026` dan `CAFE-2026`:
+SQLite memulangkan satu item, MySQL memulangkan **dua** dan saringan "Barcode ganda" menyebut
+keduanya ganda — yaitu persis selisih yang `UPPER()` dipasang untuk menutup. Maka di MySQL
+perbandingannya dipaksa `COLLATE utf8mb4_bin` (satu cabang driver, di dalam
+`Item::scanKeyExpression()` saja): yang memutuskan "sama" adalah BYTE hasil `UPPER()`-nya. Pindai
+adalah pembacaan mesin — `café` dan `cafe` adalah dua kode berbeda di setiap pemindai di dunia.
+**Yang MASIH berbeda antara kedua mesin** dan sengaja dibiarkan: huruf besar-kecil DI LUAR ASCII
+(`UPPER()` MySQL melipat `é`→`É`, SQLite tanpa ICU tidak). Selisihnya satu arah — MySQL
+memulangkan kumpulan yang sama atau LEBIH BESAR — jadi produksi tidak pernah diam-diam melewatkan
+tabrakan yang mesin uji lihat, dan kode Code 128 sendiri wajib ASCII 32–126. Isiannya juga membawa
+`autocapitalize="none"` dan `autocorrect="off"` supaya masukannya tidak diubah sebelum kode ini
+melihatnya. Permukaan saudaranya (`GET inventory/items?q=`) sudah menjawab begitu sejak lama.
+
+**Standar target sentuh 42–46 px berlaku untuk SETIAP tombol di layar ini**, bukan hanya isian
+ketiknya: `.btn` 34 px dan `.btn.sm` 28 px adalah kotak yang dicoba ditekan dua kali oleh orang
+bersarung tangan. `.btn.lg` menyetel `width: 100%`, jadi tingginya disetel lewat satu helper —
+bukan ditaburkan per tombol dan terlupa pada tombol berikutnya.
+
+**`video.play()` tidak boleh di-`await`.** Janjinya baru selesai ketika trek mengirim bingkai
+pertamanya; kamera yang menyala tanpa mengirim apa pun menggantung baris itu selamanya, pemindainya
+tidak pernah mulai, dan kalimat di layar berhenti di "Meminta izin kamera…" — yang persis salah.
+
+**Kamera dimatikan lewat `video.isConnected`**, karena router ini tidak punya kait teardown:
+berpindah rute mencabut `<video>` dari dokumen dan putaran pemindai menghentikan treknya sendiri
+≤250 ms kemudian. Tanpa itu lampu kamera tetap menyala dan di Android menahan aplikasi lain.
+**Yang diuji adalah keadaan TREKNYA** (`MediaStreamTrack.readyState`, `stream.active`), bukan
+tombolnya dan bukan kalimat statusnya: melumpuhkan `stopCamera()` sepenuhnya meninggalkan ketiga
+skenario harness F-6 hijau semuanya, dan yang menemukannya adalah orang gudang yang baterainya
+habis sebelum jam dua.
+
+**`inv_items.barcode` NULLABLE dan TIDAK UNIK.** Pemindaian yang menemukan dua item **tidak pernah
+memilihkan**: server memulangkan semuanya dengan `status: 'ambiguous'`, dan layar menampilkan
+keduanya. Memilih diam-diam berarti stok masuk ke kartu barang lain tanpa satu pun pesan, dan
+kekeliruan itu baru terlihat pada opname berikutnya. Pencocokannya **PERSIS**, bukan `like`:
+pemindaian adalah pembacaan mesin, ia tepat atau ia gagal. `items/scan` didaftarkan **di atas**
+`items/{item}` — di bawahnya `scan` tertangkap sebagai `{item}` dan setiap pemindaian menjawab 404.
+
+**"KODE MANA YANG DIANGGAP SAMA" HIDUP DI SATU EKSPRESI: `Modules\Inventory\Models\Item`.**
+`SCAN_KEY_COLUMNS` (`barcode`, `code`) adalah satu-satunya daftar kolom kunci, dan
+`whereScanKeyEquals()` satu-satunya bentuk perbandingannya, di atas satu-satunya ekspresi nilai
+(`scanKeyExpression()`: `UPPER()` di kedua sisi, plus `COLLATE utf8mb4_bin` di MySQL). Di atas
+keduanya berdiri dua scope, untuk dua pertanyaan yang berbeda dengan aturan yang sama:
+
+| scope | pertanyaannya | pemanggilnya |
+|---|---|---|
+| `matchingScanCode($kode)` | item mana yang dipulangkan pemindaian kode INI | `ItemScanController`, `FormPrintService::labelBarcode()` (peringatan ganda pada lembar F/LBL) |
+| `sharingScanCode($ya)` | item mana yang salah satu kodenya juga dijawab item lain | saringan **"Barcode ganda"** pada `GET inventory/items` |
+
+**Tiga salinan adalah bagaimana ia dulu bocor**, dan ketiganya menjawab berbeda: lembar F/LBL
+memakai `where('barcode', …)` yang **peka huruf** di SQLite (jadi ia DIAM untuk `F6DUP001` vs
+`f6dup001` yang layar Pindai sebut ganda) dengan `withTrashed()` (jadi ia MEMPERINGATKAN tentang
+kartu yang sudah dibuang, yang tidak akan pernah dipulangkan pemindaian), dan saringan auditnya
+`GROUP BY barcode HAVING COUNT(*) > 1` — tidak pernah membandingkan barcode dengan **KODE** item
+lain. Untuk `item5.barcode = 'ITM-0002'` (kode item 2), pemindaiannya `ambiguous` dengan dua item,
+kedua lembar labelnya memperingatkan, dan **saringan auditnya memulangkan nol baris**. Itu jawaban
+yang paling mahal yang bisa diberikan permukaan yang dibuat UNTUK keputusan pemilik: ia membaca
+"Tidak ada data", menyimpulkan katalognya bersih, dan menyetujui `UNIQUE` — migrasi yang lalu gagal
+saat deploy. `ScanCodeParityTest` memaku KESETARAAN ketiganya, termasuk satu sapuan katalog yang
+menuntut jawaban yang sama tentang SETIAP item.
+
+**Item yang DIBUANG bukan kembaran**, di ketiga permukaan: pemindaian tidak memulangkannya, jadi
+peringatan "memindai stiker ini akan memulangkan lebih dari satu item" yang datang dari kartu
+terbuang menjanjikan sesuatu yang tidak akan terjadi. Yang boleh `withTrashed()` adalah SUBJEK
+lembarnya (label item terbuang tetap bisa dicetak), bukan kembarannya.
+
+**DAN SUBJEK YANG DIBUANG TIDAK MENGHITUNG DIRINYA SENDIRI.** Yang dijanjikan kalimat di lembar itu
+adalah keadaan PEMINDAIAN kode yang ia cetak, jadi yang dihitung adalah berapa item yang
+`matchingScanCode()` pulangkan — bukan berapa kartu lain yang memakai kodenya. Menghitung kembaran
+dan menganggap subjeknya selalu ikut membuat lembar kartu terbuang memperingatkan "lebih dari satu
+item" sementara layar Pindai berkata "Satu item cocok" untuk kode yang sama, pada jalur yang memang
+sengaja didukung.
+
+**Lengan "Tidak" pada saringannya `whereNotExists`,** bukan `NOT IN` atas daftar barcode:
+`NULL NOT IN (…)` bernilai NULL, bukan true, dan setiap item yang belum punya barcode — sebagian
+besar katalog — lenyap dari lengan itu tanpa satu pun tanda.
+
+## 35. Sapuan dokumentasi saat sebuah layar berubah (F-6, putaran kedua)
+
+Sebuah paket yang menambah tombol, mengganti nama tab, atau mengubah arti sebuah angka
+**menjadikan kalimat yang sudah tertulis di `docs/` SALAH** — dan kalimat yang salah di panduan
+peran lebih mahal daripada kalimat yang hilang: ia dibaca sebagai janji, satu kali, pada hari
+pertama orang itu memakai sistemnya, dan sesudah itu ia tidak membukanya lagi.
+
+**ATURANNYA: grep, lalu HITUNG — sebelum dan sesudah.**
+
+```
+grep -rn "<label layar yang berubah>" docs/ | wc -l      # sebelum: N penyebutan
+# …perbaiki…
+grep -rn "<label layar yang berubah>" docs/ | wc -l      # sesudah: N yang sama, semuanya dibaca
+```
+
+**Perintahnya `grep -rn … | wc -l`, BUKAN `grep -rc …`:** yang terakhir mencetak satu hitungan
+PER BERKAS (`path:n`) dan tidak pernah memulangkan satu angka, jadi ia tidak bisa dipakai
+mengklaim apa pun. Kalau yang dicari adalah "berapa berkas", perintahnya `grep -rl … | wc -l`.
+Diukur hari ini (9 Sep 2026, sesudah putaran ketiga F-6):
+
+```
+grep -rn "Perlu dipesan ulang" docs/ | wc -l      # 28 baris
+grep -rl "Perlu dipesan ulang" docs/ | wc -l      # 10 berkas
+grep -rn "Usulkan PR dari kekurangan ini" docs/ | wc -l   # 6 baris di 4 berkas
+```
+
+(Dua dari 28 baris itu adalah contoh perintah di atas: bagian ini ikut terhitung oleh
+perintahnya sendiri, dan itu bukan alasan untuk tidak menuliskan angkanya.)
+
+Dan LABELNYA harus tetap satu baris di berkas Markdown: pembungkusan baris yang memotong
+"**Perlu dipesan / ulang**" di tengah membuat grep di atas tidak menemukannya lagi — sapuan
+berikutnya melewatkan berkas itu tanpa satu tanda pun. Terjadi pada putaran ketiga ini sendiri:
+dua berkas peran keluar dari daftar berkas (**8**, bukan 10) hanya karena label yang dibungkus
+ulang, dan yang menemukannya adalah angka grep-nya, bukan pembacaan ulang.
+
+Angkanya masuk laporan paket. "Keempat penyebutan sudah diperbaiki" tanpa angka grep-nya adalah
+klaim yang tidak bisa diperiksa siapa pun — dan F-6 membuktikan kenapa: sapuan putaran pertamanya
+menyebut "keempat penyebutan tab" sementara penyebutan yang sebenarnya ada belasan. Yang KELIMA
+berdiri di berkas yang sama dengan salah satu dari keempatnya (`docs/ONBOARDING/procurement.md`),
+dan ia berkata kepada petugas pengadaan bahwa daftar itu "tanpa tombol PR di atasnya" — tombol
+yang justru **hanya dia** yang dapat. Diukur di Chromium,
+dua sesi, tab "Perlu dipesan ulang" pada `#/stock` dengan satu baris kekurangan:
+
+| akun | tombol di tab | tombol di kartu dasbor |
+|---|---|---|
+| `procurement@nusantara.test` | **`Usulkan PR dari kekurangan ini`** | `Buka Stok` |
+| `warehouse@nusantara.test` | (tidak ada — tanpa `prc.create`) | `Buka Stok` |
+
+**DAN PERIKSA KEDUA PERMUKAAN YANG MEMAKAI NAMA YANG SAMA.** "Perlu dipesan ulang" adalah nama
+kartu dasbor DAN nama tab Saldo Stok. Kalimat yang benar tentang kartunya ("daftar yang dibaca")
+menjadi bohong begitu pembacanya mengira ia berbicara tentang tabnya. Sebutkan yang mana, dan
+sebutkan di mana tombolnya berdiri.

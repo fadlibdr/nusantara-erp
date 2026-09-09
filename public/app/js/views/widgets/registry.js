@@ -177,8 +177,11 @@ export const CATALOG = [
   },
   {
     id: 'stok-minimum',
-    title: 'Stok di bawah minimum',
-    desc: 'Item per gudang yang saldonya di bawah stok minimum yang ditetapkan.',
+    title: 'Perlu dipesan ulang',
+    /* F-6: keterangannya menyebut ambang yang sebenarnya dipakai. "di bawah
+       stok minimum" menjadi salah begitu sebuah gudang punya aturan reorder
+       sendiri — dan justru gudang site itulah yang paling sering punya. */
+    desc: 'Pasangan gudang × item yang saldonya di bawah ambangnya: aturan reorder gudang bila ada, selain itu stok minimum item.',
     module: 'inv', perm: 'inv.view', route: 'stock',
     sizes: ['sedang', 'lebar'], size: 'sedang',
   },

@@ -60,7 +60,10 @@ layar yang akan Anda pakai minggu ini, per kelompok:
   membeli (§16.4). Register Gambar, SDS, Transmittal, dan IPP ikut tampil; Lokasi Tapak
   tidak (barisnya bergerbang izin proyek).
 - **Persediaan** — Saldo Stok · Penerimaan (GRN) · Item — **baca saja**: tidak ada tombol
-  Tambah untuk Anda di kedelapan layarnya (§5.1).
+  Tambah untuk Anda di kesebelas layarnya (§5.1). Tiga di antaranya baru sejak F-6 —
+  **Aturan Reorder**, **Usulan Pesan Ulang**, **Pindai Barcode** — dan satu-satunya tombol
+  yang benar-benar Anda pegang di lajur ini ada di sana: **`Buat PR draf`** pada Usulan
+  Pesan Ulang menuntut `prc.create`, izin ANDA, bukan izin gudang (PANDUAN §6.3b).
 - **Sistem** — satu baris saja: **Impor Data Master** (vendor massal, §2.9). Baris ini
   punya izinnya sendiri; itu sebabnya kelompok Sistem tampil untuk Anda hanya berisi satu
   baris (§1.4).
@@ -77,8 +80,20 @@ di sidebar Anda.
   menunggu persetujuan."* untuk Anda, karena Anda tidak menyetujui apa pun. Kabar PR/PO
   Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
   merah) dan lewat lencana status di layar daftarnya.
-- Kartu **Kalender Acara** (selalu digambar) dan **Stok di bawah minimum** (digambar hanya
-  bila ada item di bawah minimum — daftar yang dibaca, tanpa tombol PR di atasnya; §6.10).
+- Kartu **Kalender Acara** dan **Perlu dipesan ulang** — **keduanya SELALU digambar**.
+  Kartu pesan ulang memuat pasangan **gudang × item** di bawah **ambang**-nya, dan bila
+  tidak ada satu pun ia berkata *"Tidak ada pasangan gudang × item di bawah ambangnya."*
+  alih-alih menghilang. Ambang tiap baris adalah
+  aturan reorder gudang itu bila ada yang aktif (`Persediaan › Aturan Reorder`), dan stok
+  minimum kartu item bila tidak; kartunya menyebut yang mana. **Kartu ini memang daftar
+  yang dibaca** — kakinya satu tautan, `Buka Stok`. Tombolnya ada satu klik lebih jauh,
+  dan ia milik Anda: pada tab **`Perlu dipesan ulang`** di `Persediaan › Saldo Stok`,
+  sejak F-6 berdiri tombol **`Usulkan PR dari kekurangan ini`** untuk pemegang
+  `prc.create` — di lajur ini, itu **Anda**, dan petugas gudang tidak melihatnya. Tombol
+  itu membawa ke `Persediaan › Usulan Pesan Ulang`, tempat **`Buat PR draf`** membuat
+  permintaan **Draf** yang tetap Anda periksa dan ajukan sendiri (§6.3b). Tidak ada PR
+  **otomatis**: tidak ada penjadwal, dan tidak ada jalur yang mengajukan atau menyetujui
+  (§6.10).
 
 **Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7), tiga saja:
 
@@ -213,7 +228,11 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    untuk IPP (§16.4). `Estimasi › BOQ / RAB`: harga beku baris BOQ adalah plafon yang
    membunyikan dialog harga di PO Anda; `Estimasi › RAP`: proyek tanpa RAP Disetujui
    **tidak punya gerbang anggaran sama sekali** (§4.7). `Persediaan › Saldo Stok`, tab
-   **Di bawah minimum**: daftar yang dibaca — tidak ada PR otomatis darinya (§6.2). Pola
+   **Perlu dipesan ulang**: daftarnya dibaca, dan sejak F-6 tombol **`Buat PR draf`** di
+   layar `Persediaan › Usulan Pesan Ulang` membuat permintaan **Draf** darinya — Anda yang
+   memeriksa dan mengajukannya, dan tidak ada penjadwal yang melakukannya sendiri
+   (§6.2, §6.3b). Barang yang sudah ada di PR ATAU PO terbuka dilewati, dengan kode
+   dokumennya tertulis di barisnya. Pola
    belanja proyek disusun lebih dulu di `Pengadaan › Rencana Pengadaan` → **`Tambah
    Rencana Pengadaan`** (`PBL/2026/0001`) — register perencanaan, tidak menggerakkan uang
    dan tidak dicetak (§5.13).

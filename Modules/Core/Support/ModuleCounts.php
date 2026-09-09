@@ -172,23 +172,86 @@ final class ModuleCounts
             ],
 
             'inv' => [
-                'label' => 'Item di bawah stok minimum',
-                'unit' => 'item',
+                /*
+                 * NOUN-nya PASANGAN, bukan ITEM, karena itulah yang dihitung
+                 * kueri di bawah — satu baris per (gudang, item).
+                 *
+                 * Label lamanya berbunyi "Item di bawah titik pesan ulang" dan
+                 * ubinnya menulis "3 item" untuk 2 item yang kurang di tiga
+                 * gudang. Orang pengadaan yang membaca "3 item" lalu membuka
+                 * Usulan Pesan Ulang, menghitung dua nama barang, dan tidak
+                 * menemukan satu pun kalimat yang menjelaskan selisihnya.
+                 * Aturan reorder per gudang adalah fitur yang MEMBUAT selisih
+                 * itu muncul, jadi ia lahir bersama F-6.
+                 *
+                 * Permukaan saudaranya sudah memakai noun yang benar sejak
+                 * paket itu — widget registry.js, layar Usulan Pesan Ulang dan
+                 * tab Saldo Stok semuanya berkata "pasangan gudang × item".
+                 * Ubin ini yang tertinggal.
+                 */
+                'label' => 'Pasangan gudang × item di bawah titik pesan ulang',
+                'unit' => 'baris',
                 'permission' => 'inv.view',
-                'tables' => ['inv_stock_balances', 'inv_items', 'inv_warehouses'],
+                'tables' => ['inv_stock_balances', 'inv_items', 'inv_warehouses', 'inv_reorder_rules'],
                 'why' => 'Satu-satunya angka persediaan yang menuntut tindakan hari ini. Kueri ini adalah SALINAN '
-                    .'StockService::lowStockAlerts() (per gudang × item, item nonaktif dan min 0 keluar) karena '
+                    .'StockService::lowStockAlerts() (per gudang × item, item nonaktif dan ambang 0 keluar) karena '
                     .'Core tidak boleh mengimpor Inventory — kesetaraan keduanya dipaku ModuleCountsTest, satu-'
-                    .'satunya penjaga yang mungkin untuk sebuah salinan.',
+                    .'satunya penjaga yang mungkin untuk sebuah salinan. Sejak F-6 ambangnya adalah '
+                    .'inv_reorder_rules.reorder_point bila ada aturan AKTIF untuk pasangan gudang × item itu, dan '
+                    .'inv_items.min_stock bila tidak — menggantikan, bukan menambah; itulah kenapa dua lengan OR '
+                    .'di bawah saling meniadakan lewat r.id, bukan satu perbandingan dengan angka terbesar. '
+                    .'Kuerinya punya DUA bagian yang dijumlahkan: pasangan yang punya baris saldo, dan pasangan '
+                    .'yang aturannya hidup tetapi belum punya satu baris inv_stock_balances pun (qty 0). '
+                    .'Keduanya tidak bisa beririsan, jadi jumlahnya adalah hitungan barisnya.',
+                // is_active DI ON, bukan di WHERE: di WHERE ia mengubah LEFT
+                // JOIN menjadi INNER JOIN dan setiap pasangan tanpa aturan
+                // menghilang dari hitungan sekaligus.
                 'count' => static fn (): ?int => (int) DB::table('inv_stock_balances as b')
                     ->join('inv_items as i', 'i.id', '=', 'b.item_id')
                     ->join('inv_warehouses as w', 'w.id', '=', 'b.warehouse_id')
+                    ->leftJoin('inv_reorder_rules as r', function ($join): void {
+                        $join->on('r.warehouse_id', '=', 'b.warehouse_id')
+                            ->on('r.item_id', '=', 'b.item_id')
+                            ->where('r.is_active', '=', true);
+                    })
                     ->whereNull('i.deleted_at')
                     ->whereNull('w.deleted_at')
                     ->where('i.is_active', true)
-                    ->where('i.min_stock', '>', 0)
-                    ->whereColumn('b.qty', '<', 'i.min_stock')
-                    ->count(),
+                    ->where(function ($query): void {
+                        $query
+                            ->where(function ($arm): void {
+                                $arm->whereNotNull('r.id')
+                                    ->where('r.reorder_point', '>', 0)
+                                    ->whereColumn('b.qty', '<', 'r.reorder_point');
+                            })
+                            ->orWhere(function ($arm): void {
+                                $arm->whereNull('r.id')
+                                    ->where('i.min_stock', '>', 0)
+                                    ->whereColumn('b.qty', '<', 'i.min_stock');
+                            });
+                    })
+                    ->count()
+                    // LENGAN KEDUA — salinan `shortageOfPairsWithoutABalanceRow()`.
+                    // Pasangan yang aturannya HIDUP tetapi belum punya satu
+                    // baris saldo pun tidak pernah muncul di kueri di atas,
+                    // yang berangkat FROM inv_stock_balances; qty-nya nol dan
+                    // titik > 0 membuatnya kurang. Ditambahkan, bukan
+                    // di-UNION: kedua lengan tidak bisa beririsan karena
+                    // sebuah pasangan punya baris saldo atau tidak punya.
+                    + (int) DB::table('inv_reorder_rules as r')
+                        ->join('inv_items as i', 'i.id', '=', 'r.item_id')
+                        ->join('inv_warehouses as w', 'w.id', '=', 'r.warehouse_id')
+                        ->leftJoin('inv_stock_balances as b', function ($join): void {
+                            $join->on('b.warehouse_id', '=', 'r.warehouse_id')
+                                ->on('b.item_id', '=', 'r.item_id');
+                        })
+                        ->whereNull('b.id')
+                        ->where('r.is_active', true)
+                        ->whereNull('i.deleted_at')
+                        ->whereNull('w.deleted_at')
+                        ->where('i.is_active', true)
+                        ->where('r.reorder_point', '>', 0)
+                        ->count(),
             ],
 
             'scm' => [

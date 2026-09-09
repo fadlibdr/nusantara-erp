@@ -13,6 +13,7 @@ use Modules\Inventory\Services\StockService;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
+use Tests\Support\FixtureSchema;
 
 /**
  * Registri ModuleCounts (P1-C, T1C.2) — SATU angka utama per modul.
@@ -48,7 +49,7 @@ class ModuleCountsTest extends ErpTestCase
         'prj' => [['prj_projects'], 2],
         'qc' => [['qc_ncr'], 2],
         'prc' => [['prc_purchase_orders'], 2],
-        'inv' => [['inv_items', 'inv_warehouses'], 1],
+        'inv' => [['inv_items', 'inv_warehouses'], 8],
         'scm' => [['scm_progress_claims'], 2],
         'fin' => [['fin_ar_invoices'], 2],
         'hr' => [['hr_leave_requests'], 2],
@@ -167,7 +168,7 @@ class ModuleCountsTest extends ErpTestCase
             'prj' => 2,         // active + finishing; completed & yang dibuang tidak
             'qc' => 2,          // open + under_correction; verified, closed & yang dibuang tidak
             'prc' => 2,         // 2 PO approved = terbuka; draft/submitted/closed & yang dibuang tidak
-            'inv' => 1,         // 1 baris gudang×item di bawah min; item nonaktif, item dibuang, gudang dibuang tidak
+            'inv' => 8,         // 8 BARIS gudang×item di bawah AMBANGNYA — dari 6 item; (f) kurang di dua gudang sekaligus, (e)+(g) belum punya baris saldo
             'scm' => 2,         // 2 opname subkon submitted; draft & yang dibuang tidak
             'fin' => 2,         // 2 invoice approved bersisa; lunas, draft & yang dibuang tidak
             'hr' => 2,          // 2 cuti submitted; approved & yang dibuang tidak
@@ -257,7 +258,190 @@ class ModuleCountsTest extends ErpTestCase
         $this->assertSame(app(StockService::class)->lowStockAlerts()->count(), $counts['inv']);
     }
 
+    /**
+     * …DAN kesetaraan itu harus MEMBEDAKAN sesuatu (F-6).
+     *
+     * Sampai F-6 kedua kueri hanya membaca `inv_items.min_stock`, jadi uji di
+     * atas akan tetap hijau untuk sepasang salinan yang SAMA-SAMA melupakan
+     * tabel aturan reorder — yaitu persis kegagalan yang paling mungkin
+     * terjadi ketika sebuah aturan baru diterapkan di layanan dan tidak di
+     * salinannya. Yang dipaku di sini adalah bahwa fixture-nya benar-benar
+     * memisahkan keduanya: kueri "hanya min_stock" di bawah ini adalah kueri
+     * SEBELUM F-6, kata demi kata, dan jawabannya HARUS berbeda.
+     *
+     * Kalau suatu hari fixture-nya berubah sampai kedua angka bertemu lagi,
+     * uji ini jatuh dengan menyebutkan sebabnya — bukan diam-diam berhenti
+     * menjaga apa pun.
+     */
+    public function test_the_low_stock_fixture_actually_separates_the_reorder_rule_from_min_stock(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $minStockOnly = DB::table('inv_stock_balances as b')
+            ->join('inv_items as i', 'i.id', '=', 'b.item_id')
+            ->join('inv_warehouses as w', 'w.id', '=', 'b.warehouse_id')
+            ->whereNull('i.deleted_at')
+            ->whereNull('w.deleted_at')
+            ->where('i.is_active', true)
+            ->where('i.min_stock', '>', 0)
+            ->whereColumn('b.qty', '<', 'i.min_stock')
+            ->count();
+
+        $withRules = app(StockService::class)->lowStockAlerts()->count();
+
+        $this->assertNotSame(
+            $minStockOnly,
+            $withRules,
+            'Fixture inv tidak lagi memisahkan "dengan aturan reorder" dari "hanya min_stock" (keduanya '
+            ."menjawab {$withRules}). Uji kesetaraan registri karena itu tidak membuktikan apa pun tentang "
+            .'aturan reorder: sepasang salinan yang sama-sama melupakan inv_reorder_rules akan lolos hijau. '
+            .'Kembalikan baris fixture (a)–(e) di seedFixtures().',
+        );
+
+        // …dan yang MENANG adalah yang membaca aturan, di kedua permukaan.
+        $counts = collect(ModuleCounts::for($admin))->pluck('count', 'prefix');
+        $this->assertSame($withRules, $counts['inv']);
+    }
+
+    /**
+     * Bentuk baris yang dibaca layar dan widget: ambang yang MENANG, angka
+     * item yang kalah, dan dari mana ambang itu datang — ketiganya, karena
+     * prioritas yang hanya berlaku di kode adalah angka yang tidak bisa
+     * diperiksa siapa pun (F-6).
+     */
+    public function test_a_row_governed_by_a_rule_carries_both_numbers_and_says_which_won(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $rows = app(StockService::class)->lowStockAlerts();
+
+        $byRule = $rows->firstWhere('threshold_source', 'rule');
+        $this->assertNotNull($byRule, 'Tidak ada satu pun baris yang ambangnya datang dari aturan reorder.');
+        $this->assertSame(12.0, (float) $byRule->reorder_point);
+        $this->assertSame(0.0, (float) $byRule->min_stock, 'min_stock item yang kalah tetap harus ikut di baris.');
+        $this->assertSame('Aturan reorder gudang ini', $byRule->threshold_source_label);
+        $this->assertSame(7.0, (float) $byRule->shortage_qty, 'Kekurangan dihitung dari ambang yang MENANG (12 − 5), bukan dari min_stock.');
+
+        $byItem = $rows->firstWhere('threshold_source', 'item');
+        $this->assertNotNull($byItem, 'Tidak ada satu pun baris yang ambangnya datang dari min_stock item.');
+        $this->assertSame('Stok minimum item', $byItem->threshold_source_label);
+        $this->assertSame((float) $byItem->min_stock, (float) $byItem->reorder_point);
+    }
+
+    /**
+     * ANGKANYA DAN NOUN-nya MENGHITUNG HAL YANG SAMA.
+     *
+     * Kueri entri 'inv' menghitung BARIS (gudang × item); labelnya dulu
+     * berbunyi "Item di bawah titik pesan ulang" dan ubinnya menulis "3 item"
+     * untuk 2 item yang kurang di tiga gudang. Orang pengadaan yang membaca
+     * "3 item" membuka Usulan Pesan Ulang, menghitung dua nama barang, dan
+     * tidak menemukan satu pun kalimat yang menjelaskan selisihnya — dan
+     * aturan reorder per gudang adalah fitur yang MEMBUAT selisih itu muncul.
+     *
+     * ModuleCountsTest memaku kesetaraan KUERI, bukan kesetaraan noun; uji ini
+     * yang menutupnya, di atas fixture yang selisihnya nyata.
+     */
+    public function test_the_inventory_tile_counts_pairs_and_says_pairs(): void
+    {
+        $admin = $this->adminUser();
+        $this->seedFixtures($admin);
+
+        $rows = app(StockService::class)->lowStockAlerts();
+        $distinctItems = $rows->pluck('item_id')->unique()->count();
+
+        $this->assertSame(8, $rows->count());
+        $this->assertSame(6, $distinctItems,
+            'Fixture inv tidak lagi memisahkan BARIS dari ITEM: tanpa satu item yang kurang di dua gudang, '
+            .'label yang menghitung yang satu sambil menyebut yang lain tidak bisa dibedakan uji ini.');
+
+        $entry = ModuleCounts::entries()['inv'];
+        $count = collect(ModuleCounts::for($admin))->firstWhere('prefix', 'inv')['count'];
+
+        $this->assertSame($rows->count(), $count, 'Ubin menghitung baris, bukan item.');
+        $this->assertNotSame($distinctItems, $count);
+
+        // …jadi labelnya harus menyebut PASANGAN, dan satuannya bukan "item".
+        $this->assertStringContainsString('Pasangan gudang × item', $entry['label'],
+            "Label ubin \"{$entry['label']}\" menyebut satuan yang berbeda dari yang dihitung kuerinya.");
+        $this->assertNotSame('item', $entry['unit'],
+            'Satuan "item" pada angka yang menghitung baris membuat ubin menulis "6 item" untuk 5 item.');
+    }
+
     // ------------------------------------------------------------- degradasi
+
+    /**
+     * DAFTAR `tables` ADALAH SATU-SATUNYA HAL YANG DIBACA Schema::hasTable —
+     * dan sampai uji ini ada, ia dijaga oleh assertNotEmpty saja.
+     *
+     * Membuang satu nama tabel dari daftar sebuah entri lolos seluruh suite
+     * Core hijau. Akibatnya bukan angka yang salah melainkan DEGRADASI KELAS
+     * DUA: pada jendela deploy sebelum migrasinya jalan, entri yang seharusnya
+     * DIAM ABSEN justru hadir dengan count NULL, dan setiap pembukaan launcher
+     * oleh setiap pengguna menuliskan peringatan di log seolah ada yang rusak.
+     *
+     * Yang dipaku di sini bukan satu tabel melainkan HUBUNGANNYA: setiap tabel
+     * yang kueri entri benar-benar sentuh harus muncul di `tables`. Ia tumbuh
+     * sendiri bersama registri, tanpa daftar kedua yang bisa menyimpang.
+     */
+    public function test_every_table_an_entry_queries_is_declared_in_the_list_that_guards_it(): void
+    {
+        $admin = $this->adminUser();
+
+        foreach (ModuleCounts::entries() as $prefix => $entry) {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+
+            try {
+                ($entry['count'])($admin);
+            } finally {
+                $sql = implode(' ; ', array_column(DB::getQueryLog(), 'query'));
+                DB::disableQueryLog();
+            }
+
+            preg_match_all('/\b(?:from|join)\s+[`"]?([a-z][a-z0-9_]*)[`"]?/i', $sql, $matches);
+            $touched = array_values(array_unique($matches[1]));
+
+            $this->assertNotEmpty($touched, "Kueri entri {$prefix} tidak menyentuh satu tabel pun — kuerinya tidak berjalan.");
+
+            foreach ($touched as $table) {
+                $this->assertContains($table, $entry['tables'],
+                    "Entri {$prefix} membaca `{$table}` tetapi tidak menyebutnya di `tables`, jadi Schema::hasTable "
+                    .'tidak menjaganya: pada jendela deploy sebelum migrasinya jalan, ubinnya hadir dengan angka NULL '
+                    .'dan sebuah peringatan di log, bukan diam absen seperti yang registri janjikan.');
+            }
+        }
+    }
+
+    /**
+     * …dan bentuk konkretnya untuk tabel yang F-6 tambahkan: tanpa
+     * `inv_reorder_rules`, entri Persediaan harus ABSEN, bukan hadir ber-NULL.
+     */
+    public function test_the_inventory_entry_falls_silent_when_the_reorder_rule_table_is_not_there_yet(): void
+    {
+        $this->skipUnlessTransactionalDdl();
+
+        $admin = $this->adminUser();
+        $this->assertContains('inv', array_column(ModuleCounts::for($admin), 'prefix'));
+
+        Log::spy();
+
+        FixtureSchema::withMissingTable('inv_reorder_rules', function () use ($admin): void {
+            ModuleCounts::flushSchemaMemo();
+            $prefixes = array_column(ModuleCounts::for($admin), 'prefix');
+
+            $this->assertNotContains('inv', $prefixes,
+                'Entri Persediaan melapor angka tanpa tabel aturan reorder yang kuerinya join.');
+            $this->assertContains('prc', $prefixes, '…dan modul lain tidak ikut hilang.');
+        });
+
+        ModuleCounts::flushSchemaMemo();
+
+        // Diam ABSEN, bukan "hadir tetapi rusak": tidak ada peringatan yang
+        // ditulis untuk tabel yang memang belum dimigrasikan.
+        Log::shouldNotHaveReceived('warning');
+    }
 
     public function test_a_table_that_does_not_exist_yet_makes_the_entry_absent(): void
     {
@@ -545,8 +729,8 @@ class ModuleCountsTest extends ErpTestCase
             'status' => 'approved', 'deleted_at' => now(),
         ]);
 
-        // inv — 1 baris di bawah min; di atas min, item nonaktif, item dibuang
-        // dan gudang dibuang semuanya tidak dihitung.
+        // inv — 4 baris di bawah AMBANGNYA; di atas ambang, item nonaktif, item
+        // dibuang dan gudang dibuang semuanya tidak dihitung.
         $category = $this->insert('inv_item_categories', ['code' => $this->code('CAT'), 'name' => 'Semen']);
         $warehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang']);
         // Tiga baris terakhir duduk PERSIS di batas kedua perbandingan numerik entri
@@ -573,6 +757,101 @@ class ModuleCountsTest extends ErpTestCase
         $closedWarehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang dibuang', 'deleted_at' => now()]);
         $liveItem = $this->insert('inv_items', ['code' => $this->code('ITM'), 'name' => 'Item', 'category_id' => $category, 'unit' => 'sak', 'min_stock' => 10, 'is_active' => true]);
         $this->insert('inv_stock_balances', ['warehouse_id' => $closedWarehouse, 'item_id' => $liveItem, 'qty' => 1]);
+
+        /*
+         * F-6 — LIMA BARIS YANG JAWABANNYA BERBEDA ANTARA "DENGAN ATURAN
+         * REORDER" DAN "HANYA min_stock", supaya salinan kueri di registri ini
+         * tidak bisa melupakan join-nya dan tetap hijau. Tanpa kelimanya, uji
+         * kesetaraan di bawah hanya membandingkan dua kueri yang kebetulan
+         * sama-sama mengabaikan tabel aturan.
+         *
+         *  (a) min 0, qty 5, aturan aktif titik 12 → MASUK karena aturannya.
+         *      min_stock sendiri berkata "tidak punya ambang".
+         *  (b) min 100, qty 50, aturan aktif titik 20 → KELUAR karena
+         *      aturannya MENGGANTIKAN, bukan mengambil yang paling ketat.
+         *      Sebuah GREATEST()/max() di kueri mana pun menjatuhkan baris ini.
+         *  (c) min 100, qty 50, aturan NONAKTIF titik 20 → MASUK: aturan mati
+         *      tidak menentukan apa pun, angka item berlaku lagi.
+         *  (d) min 5, qty 3, aturan aktif titik 0 → KELUAR: titik 0 pada
+         *      aturan aktif berarti "pasangan ini tidak pernah dipesan ulang",
+         *      jadi syarat "> 0" berlaku pada ambang yang MENANG, bukan pada
+         *      min_stock.
+         *  (e) min 100, qty 50, aturan aktif titik 20 di GUDANG LAIN → MASUK:
+         *      aturan milik pasangan, bukan milik item. Sebuah join yang lupa
+         *      warehouse_id menjatuhkan baris ini. Sejak putaran ketiga F-6 ia
+         *      menyumbang DUA baris: pasangan bersaldo di gudang pertama lewat
+         *      min_stock-nya, dan pasangan di GUDANG LAIN — yang aturannya
+         *      menyatakan gudang itu menyimpan barang ini dan yang belum punya
+         *      satu baris saldo pun — lewat lengan kedua.
+         */
+        $otherWarehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang lain']);
+        foreach ([
+            ['min' => 0, 'qty' => 5, 'point' => 12, 'active' => true, 'where' => 'same'],
+            ['min' => 100, 'qty' => 50, 'point' => 20, 'active' => true, 'where' => 'same'],
+            ['min' => 100, 'qty' => 50, 'point' => 20, 'active' => false, 'where' => 'same'],
+            ['min' => 5, 'qty' => 3, 'point' => 0, 'active' => true, 'where' => 'same'],
+            ['min' => 100, 'qty' => 50, 'point' => 20, 'active' => true, 'where' => 'other'],
+        ] as $case) {
+            $item = $this->insert('inv_items', [
+                'code' => $this->code('ITM'), 'name' => 'Item aturan', 'category_id' => $category,
+                'unit' => 'sak', 'min_stock' => $case['min'], 'is_active' => true,
+            ]);
+            $this->insert('inv_stock_balances', ['warehouse_id' => $warehouse, 'item_id' => $item, 'qty' => $case['qty']]);
+            $this->insert('inv_reorder_rules', [
+                'warehouse_id' => $case['where'] === 'same' ? $warehouse : $otherWarehouse,
+                'item_id' => $item,
+                'reorder_point' => $case['point'],
+                'reorder_qty' => 0,
+                'is_active' => $case['active'],
+            ]);
+        }
+
+        /*
+         * (f) SATU ITEM YANG KURANG DI DUA GUDANG — dua BARIS, satu ITEM.
+         *
+         * Tanpa baris ini fixture inv tidak pernah membedakan "berapa baris"
+         * dari "berapa item", dan label ubin boleh menghitung yang satu sambil
+         * menyebut yang lain tanpa satu uji pun berubah warna. Itulah persis
+         * yang terjadi sebelum F-6 diperbaiki: ubin berbunyi "3 item" untuk 2
+         * item yang kurang di tiga gudang.
+         */
+        $twoWarehouseItem = $this->insert('inv_items', [
+            'code' => $this->code('ITM'), 'name' => 'Item dua gudang', 'category_id' => $category,
+            'unit' => 'sak', 'min_stock' => 50, 'is_active' => true,
+        ]);
+        $this->insert('inv_stock_balances', ['warehouse_id' => $warehouse, 'item_id' => $twoWarehouseItem, 'qty' => 10]);
+        $this->insert('inv_stock_balances', ['warehouse_id' => $otherWarehouse, 'item_id' => $twoWarehouseItem, 'qty' => 20]);
+
+        /*
+         * (g) SATU PASANGAN YANG BELUM PUNYA BARIS SALDO SAMA SEKALI.
+         *
+         * Kueri kekurangan punya lengan KEDUA sejak putaran ketiga F-6: sebuah
+         * aturan hidup ADALAH pernyataan "gudang ini menyimpan barang ini",
+         * dan pasangan yang belum pernah kemasukan barang punya stok nol —
+         * yaitu keadaan yang paling membutuhkan pesan ulang. Tanpa baris
+         * fixture ini, salinan registri boleh melupakan lengan kedua itu dan
+         * tetap hijau, yang adalah persis kegagalan yang uji kesetaraan di
+         * berkas ini dibuat untuk menangkap.
+         *
+         * Baris kedua di bawah (aturan titik 0) adalah pasangannya yang tetap
+         * DIAM: syarat "> 0" berlaku di lengan kedua juga.
+         */
+        $neverStocked = $this->insert('inv_items', [
+            'code' => $this->code('ITM'), 'name' => 'Item belum pernah masuk', 'category_id' => $category,
+            'unit' => 'sak', 'min_stock' => 0, 'is_active' => true,
+        ]);
+        $this->insert('inv_reorder_rules', [
+            'warehouse_id' => $warehouse, 'item_id' => $neverStocked,
+            'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true,
+        ]);
+        $neverStockedZero = $this->insert('inv_items', [
+            'code' => $this->code('ITM'), 'name' => 'Item belum pernah masuk, titik 0', 'category_id' => $category,
+            'unit' => 'sak', 'min_stock' => 0, 'is_active' => true,
+        ]);
+        $this->insert('inv_reorder_rules', [
+            'warehouse_id' => $warehouse, 'item_id' => $neverStockedZero,
+            'reorder_point' => 0, 'reorder_qty' => 0, 'is_active' => true,
+        ]);
 
         // scm — 2 opname submitted, 1 draft, 1 submitted yang dibuang.
         $subcontract = $this->insert('scm_subcontracts', ['code' => $this->code('SPK'), 'vendor_id' => $vendor, 'title' => 'Pekerjaan', 'pph_scheme' => 'final_2_65']);

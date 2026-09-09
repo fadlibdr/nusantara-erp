@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '4';
+const SHELL_VERSION = '5';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -156,6 +156,10 @@ const SHELL = [
   'js/views/pipeline.js',
   'js/views/pooutstanding.js',
   'js/views/project.js',
+  // F-6 — pindai barcode item (jalur kamera + jalur ketik).
+  'js/views/pindai.js',
+  // F-6 — usulan pesan ulang dari kekurangan stok.
+  'js/views/reorder.js',
   'js/views/rekapalat.js',
   'js/views/reports.js',
   'js/views/retensi.js',

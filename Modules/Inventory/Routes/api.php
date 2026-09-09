@@ -6,7 +6,10 @@ use Modules\Inventory\Http\Controllers\IssueController;
 use Modules\Inventory\Http\Controllers\IssueReturnController;
 use Modules\Inventory\Http\Controllers\ItemCategoryController;
 use Modules\Inventory\Http\Controllers\ItemController;
+use Modules\Inventory\Http\Controllers\ItemScanController;
 use Modules\Inventory\Http\Controllers\PurchaseReturnController;
+use Modules\Inventory\Http\Controllers\ReorderController;
+use Modules\Inventory\Http\Controllers\ReorderRuleController;
 use Modules\Inventory\Http\Controllers\StockAdjustmentController;
 use Modules\Inventory\Http\Controllers\StockController;
 use Modules\Inventory\Http\Controllers\TransferController;
@@ -23,6 +26,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Items (canonical item master for the whole ERP)
     Route::get('items', [ItemController::class, 'index']);
     Route::post('items', [ItemController::class, 'store'])->middleware('permission:inv.create');
+    // Pindai barcode (F-6): satu kode → item yang dimaksudnya. Cocok PERSIS
+    // pada barcode ATAU kode item, dan SELALU mengembalikan semua yang cocok —
+    // inv_items.barcode tidak unik, dan memilihkan salah satu diam-diam berarti
+    // stok masuk ke kartu barang lain tanpa satu pun pesan.
+    //
+    // DI ATAS items/{item}, DAN URUTAN ITU YANG MEMBUATNYA BEKERJA: Laravel
+    // mencocokkan rute dari atas, jadi di bawahnya 'scan' akan tertangkap
+    // sebagai {item} dan endpoint ini menjawab 404 pada setiap pemindaian —
+    // yang di lapangan terbaca sebagai "pemindainya rusak".
+    Route::get('items/scan', ItemScanController::class);
     Route::get('items/{item}', [ItemController::class, 'show']);
     Route::put('items/{item}', [ItemController::class, 'update'])->middleware('permission:inv.update');
     Route::delete('items/{item}', [ItemController::class, 'destroy'])->middleware('permission:inv.delete');
@@ -100,6 +113,31 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('stock-adjustments/{stockAdjustment}/submit', [StockAdjustmentController::class, 'submit'])->middleware('permission:inv.update');
     Route::post('stock-adjustments/{stockAdjustment}/approve', [StockAdjustmentController::class, 'approve'])->middleware('permission:inv.approve');
     Route::post('stock-adjustments/{stockAdjustment}/reject', [StockAdjustmentController::class, 'reject'])->middleware('permission:inv.approve');
+
+    // Aturan titik pesan ulang per gudang × item (F-6). MENULIS memakai izin
+    // inv.* yang sudah ada — dan barisnya mengubah arti angka "perlu dipesan
+    // ulang" yang dibaca layar Saldo Stok, widget dasbor, ubin launcher dan
+    // usulan PR, jadi inv.update bukan sekadar formalitas.
+    //
+    // MEMBACA TIDAK BERGERBANG, sama seperti setiap GET Inventory di atasnya:
+    // siapa pun yang punya sesi bisa membacanya. Itu bawaan modul ini, bukan
+    // lubang yang F-6 buka — tetapi ia ditulis di sini apa adanya, karena ubin
+    // launcher Persediaan MEMANG bergerbang inv.view (registri ModuleCounts)
+    // dan selisih itu tidak boleh disimpulkan sendiri oleh pembaca berikutnya.
+    // Dipaku ReorderRuleApiTest::test_writing_a_rule_needs_inv_create_while_
+    // reading_follows_the_module_default.
+    Route::get('reorder-rules', [ReorderRuleController::class, 'index']);
+    Route::post('reorder-rules', [ReorderRuleController::class, 'store'])->middleware('permission:inv.create');
+    Route::get('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'show']);
+    Route::put('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'update'])->middleware('permission:inv.update');
+    Route::delete('reorder-rules/{reorderRule}', [ReorderRuleController::class, 'destroy'])->middleware('permission:inv.delete');
+
+    // Usulan PR dari kekurangan stok (F-6). Membaca terbuka seperti daftar
+    // Inventory lain; MEMBUAT menuntut prc.create — yang dibuat adalah dokumen
+    // Procurement, jadi ia menuntut hak layar PR sendiri, dari layar mana pun
+    // tombolnya ditekan. Tidak ada rute yang mengajukan atau menyetujui.
+    Route::get('reorder/proposal', [ReorderController::class, 'proposal']);
+    Route::post('reorder/requisitions', [ReorderController::class, 'store'])->middleware('permission:prc.create');
 
     // Stock reports
     Route::get('stock/balances', [StockController::class, 'balances']);

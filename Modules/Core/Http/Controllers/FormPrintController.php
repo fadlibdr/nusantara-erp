@@ -87,6 +87,11 @@ class FormPrintController extends ApiController
             // sheet, which on a punch list is the answer somebody hoping to
             // walk past it would like to get.
             'status' => ['nullable', 'string', 'max:30'],
+            // F-6 — berapa stiker pada lembar label. DITOLAK di luar rentang,
+            // bukan dijepit diam-diam: seseorang yang mengetik 500 sedang
+            // meminta sesuatu yang lembar ini tidak bisa berikan, dan 60 stiker
+            // yang datang tanpa sepatah kata terbaca sebagai kegagalan cetak.
+            'jumlah' => ['nullable', 'integer', 'min:1', 'max:60'],
         ]);
 
         // Round two of the same argument the unknown-form check makes above: a
@@ -98,6 +103,7 @@ class FormPrintController extends ApiController
                 'date' => $filters['tanggal'] ?? null,
                 'week' => isset($filters['minggu']) ? (int) $filters['minggu'] : null,
                 'status' => $filters['status'] ?? null,
+                'count' => isset($filters['jumlah']) ? (int) $filters['jumlah'] : null,
             ]);
         } catch (InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);

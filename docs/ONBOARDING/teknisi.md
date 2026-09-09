@@ -46,6 +46,11 @@ sidebar Anda pendek, dan itu normal. Layar yang akan Anda pakai minggu ini:
 
 - **Ringkasan** — Dasbor · Tenggat · Kalender.
 - **Persediaan** — Saldo Stok · Penerimaan (GRN) · Pengeluaran · Transfer · Opname.
+  Sejak F-6 tiga baris lagi ikut tampil untuk peran ini karena ia memegang `inv.view`:
+  **Aturan Reorder** (titik pesan ulang per gudang × item), **Usulan Pesan Ulang** (PR
+  **Draf** dari kekurangan — tombolnya menuntut `prc.create`), dan **Pindai Barcode**
+  (membaca kartu item dari kamera atau dari kotak ketik). Ketiganya hanya membaca stok;
+  tidak satu pun memindahkannya. → PANDUAN §6.2, §6.3b.
 - **Layanan** — Tiket · Tiket Lewat SLA · Berita Acara · Jadwal Preventif · Kontrak
   Layanan.
 
@@ -57,10 +62,11 @@ ponsel. Anda hanya akan melihat tab **Tiket Servis** (§7.4).
 **Dasbor Anda** (PANDUAN §1.7):
 
 - Ubin **Tiket aktif**, dengan sub-baris *"N melewati SLA"* atau *"SLA aman"*.
-- Kartu **Tiket layanan aktif** (judul, prioritas, lencana SLA *Terlampaui*) dan kartu
-  **Stok di bawah minimum** — keduanya digambar hanya bila ada isinya; kartu **Kalender
-  Acara** selalu digambar (agenda modul yang boleh Anda lihat — kunjungan PM tampil di
-  sini).
+- Kartu **Tiket layanan aktif** (judul, prioritas, lencana SLA *Terlampaui*), kartu
+  **Perlu dipesan ulang**, dan kartu **Kalender Acara** (agenda modul yang boleh Anda
+  lihat — kunjungan PM tampil di sini) — **ketiganya SELALU digambar**. Yang kosong
+  berkata begitu dengan kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah
+  ambangnya."*), bukan menghilang.
 - Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
   menyetujui apa pun. Tiket dan berita acara tidak lewat `Setujui`; opname stok
   disetujui direktur/admin.

@@ -8,11 +8,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Modules\Core\Models\Company;
+use Modules\Core\Support\Code128;
 use Modules\Core\Support\PrintableDocuments;
 use Modules\Crm\Models\Contract;
 use Modules\Crm\Models\ContractChangeOrder;
 use Modules\Crm\Services\CrmFormService;
 use Modules\Inventory\Models\GoodsReceipt;
+use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\Transfer;
 use Modules\Projects\Enums\DefectSeverity;
 use Modules\Projects\Enums\DefectStatus;
@@ -159,6 +161,28 @@ class FormPrintService
             'permission' => 'prj.view',
             'compose' => 'izinMaterial',
             'resource' => 'projects/gate-passes',
+            'idField' => 'id',
+            'params' => [],
+        ],
+        /*
+         * F-6 — LEMBAR LABEL BARCODE, satu item per lembar, N stiker.
+         *
+         * BESPOKE DAN BUKAN ENTRI REGISTRI, dan itu bukan kemalasan: registri
+         * PrintableDocuments menggambar dokumen bertanda tangan — pita empat
+         * pihak, blok identitas, tiga kolom tanda tangan, satu-dua tabel
+         * berbingkai. Lembar label bukan salah satunya. Ia kisi stiker yang
+         * digunting, tanpa satu pun pihak yang menandatanganinya, dan
+         * memaksanya lewat generic.blade akan mencetak barcode di dalam sel
+         * tabel di bawah kop proyek — kertas yang tidak bisa dipakai siapa pun.
+         *
+         * inv.view: mencetak adalah membaca dalam bentuk lain, dan itemnya
+         * milik Inventory.
+         */
+        'label-barcode' => [
+            'label' => 'Label Barcode',
+            'permission' => 'inv.view',
+            'compose' => 'labelBarcode',
+            'resource' => 'inventory/items',
             'idField' => 'id',
             'params' => [],
         ],
@@ -1372,6 +1396,230 @@ class FormPrintService
         ]);
 
         return $codes === [] ? null : implode(' / ', $codes);
+    }
+
+    /**
+     * LEMBAR LABEL BARCODE (F/LBL) — satu item, N stiker yang digunting.
+     *
+     * ================================ APA YANG DIKODEKAN ================================
+     * `inv_items.barcode` bila item ini punya barcode pemasok, dan `code`-nya
+     * sendiri (ITM-0001) bila tidak. Urutan itu penting dan bukan pilihan
+     * gaya: kalau kardusnya sudah membawa barcode pabrik, itulah yang akan
+     * dipindai orang gudang, dan mencetak ITM-0001 di sampingnya berarti dua
+     * kode berbeda untuk satu barang. Lembar ini MENULISKAN yang mana yang
+     * dikodekan, di bawah batangnya, supaya tidak ada yang harus menebak.
+     *
+     * ============================ DAN KALAU TIDAK BISA ==================================
+     * ATURAN KEJUJURAN yang berlaku pada setiap formulir rumah berlaku di sini
+     * juga, dalam bentuk yang paling tajam: sebuah barcode yang dicetak dari
+     * teks yang tidak bisa dikodekan bukan sel kosong melainkan gambar yang
+     * SALAH — dan gambar yang salah terbaca sebagai kode LAIN oleh pemindai.
+     * Maka bila kodenya memuat karakter di luar ASCII 32–126, lembar ini
+     * mencetak stikernya TANPA batang, dengan kalimat yang menyebut kodenya
+     * dan menyuruh memperbaikinya lebih dulu. Tidak pernah gambar, tidak
+     * pernah kosong tanpa keterangan.
+     *
+     * ============================ DAN KALAU TIDAK MUAT ==================================
+     * ATURAN YANG SAMA, SEBAB YANG BERBEDA — dan sebab inilah yang dulu gagal
+     * diam-diam. Lebar modul cetak = lebar kotak stiker ÷ jumlah modul, jadi
+     * kode yang makin panjang berarti batang yang makin tipis. Versi pertama
+     * lembar ini menyerahkannya kepada `max-width: 100%`: stikernya tetap
+     * 62 mm dan GAMBARNYA yang dikecilkan — 80,9% untuk ITM-0001, 26,2% untuk
+     * kode 33 karakter, 2,8% untuk barcode pemasok 100 karakter, yang mendarat
+     * pada modul 0,055 mm dan tidak terbaca satu pun garis pindai pada raster
+     * 600 dpi dari PDF cetaknya sendiri. Tidak ada satu kata pun di lembarnya.
+     *
+     * Sekarang kotaknya yang menyesuaikan, bukan gambarnya: kisi jatuh dari
+     * tiga stiker per baris ke dua, lalu ke satu, sampai lebar modulnya ≥
+     * Code128::MIN_MODULE_MM. Kode yang tidak muat bahkan pada satu stiker
+     * selebar halaman DITOLAK dengan kalimat yang menyebut panjangnya — sama
+     * seperti karakter di luar ASCII 32–126 ditolak, dan karena alasan yang
+     * sama persis: sebuah barcode yang tidak bisa dibaca pemindai lebih buruk
+     * daripada tidak ada barcode, karena ia terlihat seperti ada.
+     * ====================================================================================
+     */
+    private function labelBarcode(array $context): array
+    {
+        $item = Item::query()->withTrashed()->with('category')->findOrFail($context['id'] ?? null);
+
+        $supplier = trim((string) ($item->barcode ?? ''));
+        $encoded = $supplier !== '' ? $supplier : (string) $item->code;
+
+        // Berapa stiker. Plafonnya 60 (kisi 3 × 20) dan ia PENOLAKAN yang
+        // dibulatkan ke bawah, bukan pemotongan diam-diam: yang dikirim layar
+        // sudah divalidasi FormPrintController, dan angka di luar rentang tidak
+        // pernah sampai ke sini.
+        $count = min(60, max(1, (int) ($context['count'] ?? 12)));
+
+        $geometry = Code128::supports($encoded) ? $this->labelGeometry($encoded) : null;
+
+        // Stiker tanpa batang memakai kisi tiga kolom, yaitu lebar yang sama
+        // dengan stiker ber-barcode terpendek: yang tidak dicetak adalah
+        // gambarnya, bukan stikernya.
+        $stickerMm = (float) ($geometry['sticker_mm'] ?? self::LABEL_STICKER_WIDTHS_MM[3]);
+
+        /*
+         * BARCODE GANDA — DIHITUNG DARI PEMINDAIANNYA, BUKAN DARI KEMBARANNYA.
+         *
+         * Yang dijanjikan kalimat di lembar ini adalah keadaan PEMINDAIAN kode
+         * yang ia cetak: "memindai atau mengetik kode stiker ini akan
+         * memulangkan lebih dari satu item". Maka yang dihitung adalah apa yang
+         * benar-benar dipulangkan `Item::matchingScanCode()` — dan subjek
+         * lembar ini ikut di dalamnya HANYA bila kartunya masih hidup.
+         *
+         * Versi sebelumnya menghitung KEMBARANNYA (`whereKeyNot` + hitung
+         * sisanya) dan menganggap subjeknya selalu ikut. Lembar milik kartu
+         * yang DIBUANG — jalur yang sengaja didukung, `withTrashed()` di atas —
+         * karena itu memperingatkan tentang pemindaian ganda yang tidak akan
+         * pernah terjadi: satu kartu hidup dengan kode yang sama membuatnya
+         * berkata "lebih dari satu item" sementara layar Pindai berkata "Satu
+         * item cocok". Kertas yang berjanji begitu adalah kertas yang membuat
+         * orang membuang label yang benar.
+         *
+         * Enam, bukan lima: subjeknya sendiri bisa menempati satu tempat, dan
+         * yang dicetak tetap paling banyak lima kode kembaran.
+         */
+        $scanReturns = Item::query()
+            ->matchingScanCode($encoded)
+            ->orderBy('code')
+            ->limit(6)
+            ->pluck('code', 'id');
+
+        $sharedWith = $scanReturns->count() > 1
+            ? $scanReturns->forget($item->getKey())->take(5)->values()->all()
+            : [];
+
+        return $this->sheet('label-barcode', [
+            'item' => $item,
+            'company' => Company::current(),
+            'encoded' => $encoded,
+            'encodedFromSupplierBarcode' => $supplier !== '',
+            'supported' => Code128::supports($encoded),
+            'geometry' => $geometry,
+            'stickerMm' => $stickerMm,
+            'handFontPt' => self::LABEL_HAND_FONT_PT,
+            /*
+             * KODE TULIS-TANGAN DIPENGGAL DI SINI, dengan aturan yang sama
+             * dengan teks di bawah batang (Code128::wrapLabel) — dan itu
+             * cacat V7-1.
+             *
+             * Cabang "terlalu panjang untuk terpindai" mewarisi stiker
+             * tulis-tangan dari cabang NON-ASCII, yang tidak pernah punya
+             * aturan pemenggalan karena kode non-ASCII yang pernah masuk ke
+             * situ selalu pendek. Diukur di Chromium (media=print, stiker
+             * 56,5 mm): 63 karakter menjadi satu baris 120,43 mm dan 100
+             * karakter menjadi 191,10 mm — menimpa dua stiker tetangganya,
+             * dan mendorong `.lembar` ke 322 mm di atas kertas yang lebar
+             * isinya 194 mm. Semua itu di balik 62 uji hijau, karena tidak
+             * satu pun uji cabang ini mengukur MILIMETER.
+             *
+             * `overflow-wrap: anywhere` pada `.kode-tangan` adalah JARING,
+             * bukan aturannya: yang menentukan di mana barisnya patah adalah
+             * baris ini, supaya angkanya bisa dipaku uji PHP; jaringnya
+             * menangkap font yang ternyata lebih lebar daripada perkiraan
+             * 0,62 em.
+             */
+            'handLines' => $geometry !== null ? [] : Code128::wrapLabel(
+                $encoded,
+                $stickerMm - 2 * self::LABEL_STICKER_PADDING_MM,
+                self::LABEL_HAND_FONT_PT * 25.4 / 72,
+            ),
+            // Teks manusia menyebut KEDUANYA saat barcode pemasok yang
+            // dikodekan: yang dipindai mesin dan yang dicari orang di layar
+            // adalah dua string berbeda, dan stiker yang hanya membawa salah
+            // satunya membuat separuh pekerjaan mustahil.
+            'svg' => $geometry === null ? null : Code128::svg($encoded, [
+                'module' => 2,
+                'height' => $geometry['bar_height_units'],
+                'fontSize' => $geometry['font_size_units'],
+                'widthMm' => $geometry['usable_mm'],
+                'label' => $supplier !== '' ? $item->code.' · '.$encoded : $encoded,
+            ]),
+            /*
+             * BARCODE GANDA, DI PERMUKAAN YANG MENEMPELKANNYA DI RAK.
+             *
+             * Layar pindai sudah mengatakan "2 ITEM memakai kode yang sama" —
+             * tetapi ia mengatakannya SESUDAH stikernya menempel, yaitu pada
+             * saat yang paling mahal.
+             *
+             * ATURANNYA DIPANGGIL, TIDAK DISALIN. Baris ini dulu menulis
+             * `where('barcode', $encoded)->orWhere('code', $encoded)` sendiri
+             * — peka huruf di SQLite, dan `withTrashed()` di atas kembaran
+             * yang tidak pernah dipulangkan pemindaian. Hasilnya: lembar ini
+             * DIAM untuk `F6DUP001` vs `f6dup001` yang layar Pindai sebut
+             * ganda, dan MEMPERINGATKAN tentang kartu yang sudah dibuang.
+             * `Item::matchingScanCode()` adalah aturan yang sama dengan yang
+             * dijalankan layar Pindai — karena yang diperingatkan di sini
+             * adalah keadaan yang akan membuat pemindaian stiker ini ambigu.
+             * Kumpulannya dihitung di atas (lihat `$scanReturns`): yang
+             * menentukan adalah berapa item yang PEMINDAIAN kode ini
+             * pulangkan, bukan berapa kartu yang memakainya.
+             */
+            'sharedWith' => $sharedWith,
+            'count' => $count,
+            'formTitle' => 'LABEL BARCODE ITEM',
+            'formCode' => 'Form F/LBL',
+        ]);
+    }
+
+    /**
+     * Lebar stiker (mm) per jumlah kolom kisi, pada A4 potret bermargin 8 mm
+     * kiri-kanan (lebar isi 194 mm) dengan jarak antar stiker 3 mm.
+     */
+    private const LABEL_STICKER_WIDTHS_MM = [3 => 62.0, 2 => 95.0, 1 => 190.0];
+
+    /** Padding di dalam garis potong stiker, kiri dan kanan. */
+    private const LABEL_STICKER_PADDING_MM = 2.5;
+
+    /**
+     * Tinggi huruf kode tulis-tangan pada stiker tanpa batang, dalam POIN —
+     * dan lembarnya mencetak CSS-nya dari konstanta ini.
+     *
+     * Angka ini dipakai dua kali: untuk memutuskan di mana kodenya dipenggal
+     * (Code128::wrapLabel, dalam milimeter) dan untuk `font-size` di lembarnya.
+     * Menuliskannya dua kali berarti pemenggalan yang dihitung untuk 9 pt
+     * dicetak pada 11 pt, dan barisnya keluar kotak lagi — diam-diam.
+     */
+    private const LABEL_HAND_FONT_PT = 9.0;
+
+    /**
+     * Kisi mana yang membuat kode ini MASIH TERPINDAI — atau null bila tidak
+     * ada satu pun.
+     *
+     * @return array{columns: int, sticker_mm: float, usable_mm: float, module_mm: float, bar_height_mm: float, bar_height_units: int, font_size_units: int, modules: int}|null
+     */
+    private function labelGeometry(string $encoded): ?array
+    {
+        $modules = Code128::moduleCount($encoded);
+
+        foreach (self::LABEL_STICKER_WIDTHS_MM as $columns => $stickerMm) {
+            $usableMm = $stickerMm - 2 * self::LABEL_STICKER_PADDING_MM;
+            $moduleMm = $usableMm / $modules;
+
+            if ($moduleMm < Code128::MIN_MODULE_MM) {
+                continue;
+            }
+
+            // Tinggi batang ≥ 15% lebar simbol — aturan tinggi minimum Code
+            // 128, dan yang menahan simbol lebar dari menjadi sehelai garis.
+            // 8 mm adalah lantai praktis untuk pemindai genggam gudang.
+            $barHeightMm = max(8.0, round(0.15 * $usableMm, 2));
+            $unitsPerMm = ($modules * 2) / $usableMm;
+
+            return [
+                'columns' => $columns,
+                'sticker_mm' => $stickerMm,
+                'usable_mm' => $usableMm,
+                'module_mm' => round($moduleMm, 3),
+                'bar_height_mm' => $barHeightMm,
+                'bar_height_units' => (int) round($barHeightMm * $unitsPerMm),
+                // ~2,2 mm huruf terbaca-manusia, dalam satuan viewBox.
+                'font_size_units' => max(6, (int) round(2.2 * $unitsPerMm)),
+                'modules' => $modules,
+            ];
+        }
+
+        return null;
     }
 
     // ==================================================================

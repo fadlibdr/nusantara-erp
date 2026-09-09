@@ -141,8 +141,12 @@ export function renderCell(row, column) {
     case 'tags': {
       const list = Array.isArray(raw) ? raw : [];
       if (!list.length) return el('span.muted', { text: '—' });
+      // `column.tone` karena tidak semua keping adalah kabar netral: daftar
+      // aturan reorder memakai keping yang sama untuk menandai aturan yang
+      // ambangnya sudah tidak berlaku, dan biru untuk itu terbaca sebagai
+      // keterangan, bukan sebagai peringatan.
       return el('span', { style: { display: 'inline-flex', gap: '4px', flexWrap: 'wrap' } },
-        list.map((tag) => badge(String(tag), 'primary')));
+        list.map((tag) => badge(String(tag), column.tone || 'primary')));
     }
 
     case 'count':

@@ -52,6 +52,11 @@ layar yang akan Anda pakai minggu ini, per kelompok:
   Material (IMK) · Register K3 (SMK3) · Register Defect (Punch List).
 - **Mutu (QA/QC)** — Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton.
 - **Persediaan** — Saldo Stok · Pengeluaran (draf saja — §6.1).
+  Sejak F-6 tiga baris lagi ikut tampil untuk peran ini karena ia memegang `inv.view`:
+  **Aturan Reorder** (titik pesan ulang per gudang × item), **Usulan Pesan Ulang** (PR
+  **Draf** dari kekurangan — tombolnya menuntut `prc.create`), dan **Pindai Barcode**
+  (membaca kartu item dari kamera atau dari kotak ketik). Ketiganya hanya membaca stok;
+  tidak satu pun memindahkannya. → PANDUAN §6.2, §6.3b.
 - **Subkontrak** — SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon.
 - **Aset** — Daftar Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan.
 - **Sistem** — Impor Data Master · Impor Dokumen (dua baris ini punya izinnya sendiri,
@@ -64,8 +69,11 @@ Sidebar penuh Anda memuat 60 layar lebih; yang di atas cukup untuk minggu pertam
 - Ubin **Proyek berjalan** — menjadi **Proyek saya (berjalan)** bila sakelar
   **`Proyek saya`** dinyalakan; sakelar itu mencocokkan akun Anda dengan kolom manajer
   proyek lewat data karyawan, jadi ia hanya berguna bila akun Anda tertaut karyawan.
-- Kartu **Kalender Acara** (selalu digambar, walau bulan kosong), **Progres proyek** dan
-  **Stok di bawah minimum** (keduanya digambar hanya bila ada isinya).
+- Kartu **Kalender Acara** (walau bulan kosong), **Progres proyek** dan
+  **Perlu dipesan ulang** — **ketiganya SELALU digambar**. Kartu yang kosong berkata begitu dengan
+  kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah ambangnya."*), dan
+  kakinya tetap ada: kartu yang menghilang saat tidak ada isinya membuat orang mengira
+  layarnya rusak.
 - Kartu **Menunggu persetujuan Anda** — **untuk peran Anda kartu ini selalu kosong, dan
   itu bukan berarti tidak ada yang menunggu.** Kartu itu hanya mencakup 11 jenis
   dokumen, dan tidak satu pun di antaranya Anda setujui: IPP, inspeksi mutu, BAST,

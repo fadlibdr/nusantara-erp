@@ -19,9 +19,14 @@ use Illuminate\Support\Facades\Schema;
  * driver. Tabel yang belum ada dilewati (Core tidak boleh menuntut modul fitur
  * terpasang), dan indeks yang sudah ada di deployment lain dilewati juga.
  *
- * Yang TIDAK bisa ditolong indeks: `inv_stock_balances` JOIN `inv_items` dengan
- * `qty < min_stock` — perbandingan antar kolom dua tabel tidak bisa dilayani
- * indeks mana pun; catatannya ada di CONVENTIONS § Registri ModuleCounts.
+ * Yang TIDAK bisa ditolong indeks: `inv_stock_balances` yang dibandingkan
+ * dengan AMBANGNYA — sejak F-6 itu `inv_reorder_rules.reorder_point` bila ada
+ * aturan aktif untuk pasangan gudang × item, dan `inv_items.min_stock` bila
+ * tidak. Bentuknya berubah; sifatnya tidak: keduanya perbandingan antar KOLOM
+ * dua tabel, dan itu tidak bisa dilayani indeks mana pun. Join ke tabel aturan
+ * sendiri MEMANG berindeks (UNIQUE warehouse_id+item_id; `eq_ref` di MySQL 8,
+ * `SEARCH … USING INDEX` di SQLite). EXPLAIN kedua driver ada di CONVENTIONS
+ * § Registri ModuleCounts.
  */
 return new class extends Migration
 {

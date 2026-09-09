@@ -50,6 +50,11 @@ layar yang akan Anda pakai minggu ini, per kelompok:
 - **Mutu (QA/QC)** — Inspeksi Mutu (QCI) · Ketidaksesuaian (NCR) · Benda Uji Beton.
 - **Persediaan** — Saldo Stok · Penerimaan (GRN) · Pengeluaran — Anda hanya membuat
   draf (§6.1).
+  Sejak F-6 tiga baris lagi ikut tampil untuk peran ini karena ia memegang `inv.view`:
+  **Aturan Reorder** (titik pesan ulang per gudang × item), **Usulan Pesan Ulang** (PR
+  **Draf** dari kekurangan — tombolnya menuntut `prc.create`), dan **Pindai Barcode**
+  (membaca kartu item dari kamera atau dari kotak ketik). Ketiganya hanya membaca stok;
+  tidak satu pun memindahkannya. → PANDUAN §6.2, §6.3b.
 - **Aset** — satu baris saja: Log BBM & Jam Alat (baris ini punya izinnya sendiri, itu
   sebabnya kelompok Aset tampil untuk Anda hanya berisi satu baris — §1.4, §9.5).
 - **Sistem** — Impor Data Master · Impor Dokumen (dua baris ini juga punya izinnya
@@ -63,8 +68,11 @@ pertama. Kelompok Estimasi, Subkontrak, Keuangan, dan Pengadaan tidak ada di sid
 - Ubin **Proyek berjalan**. Sakelar **`Proyek saya`** mencocokkan akun dengan kolom
   **manajer proyek**, bukan site manager — untuk Anda ia mengembalikan nol baris. Biarkan
   mati.
-- Kartu **Kalender Acara** (selalu digambar, walau bulan kosong), **Progres proyek** dan
-  **Stok di bawah minimum** (keduanya digambar hanya bila ada isinya).
+- Kartu **Kalender Acara** (walau bulan kosong), **Progres proyek** dan
+  **Perlu dipesan ulang** — **ketiganya SELALU digambar**. Kartu yang kosong berkata begitu dengan
+  kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah ambangnya."*), dan
+  kakinya tetap ada: kartu yang menghilang saat tidak ada isinya membuat orang mengira
+  layarnya rusak.
 - Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
   menyetujui apa pun. Kabar bahwa dokumen Anda disetujui atau ditolak datang lewat
   **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di layar

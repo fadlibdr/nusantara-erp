@@ -22,6 +22,9 @@ class PrintCatalogueBespokeTest extends ErpTestCase
     private const BESPOKE = [
         'data-proyek', 'laporan-harian', 'laporan-mingguan', 'daftar-temuan',
         'izin-kerja', 'izin-lembur', 'izin-material',
+        // F-6 — lembar label barcode (F/LBL), bespoke karena ia kisi stiker
+        // dan bukan dokumen bertanda tangan; lihat FormPrintService::FORMS.
+        'label-barcode',
     ];
 
     public function test_the_admin_catalogue_lists_every_form_the_endpoint_serves(): void
@@ -42,7 +45,8 @@ class PrintCatalogueBespokeTest extends ErpTestCase
         // T3.7 menambah tiga: surat-penagihan-1/2/3 (F/SP-1..3) — satu
         // resource, satu tingkat masing-masing; katalog menyatakan onlyWhen
         // supaya hanya surat tingkat invoice itu yang digambar (DunningLetterTest).
-        $this->assertCount(64, $rows, 'katalog = 57 registri + 7 formulir rumah proyek');
+        // F-6 menambah satu formulir rumah BESPOKE: label-barcode (F/LBL).
+        $this->assertCount(65, $rows, 'katalog = 57 registri + 8 formulir rumah bespoke');
 
         $slugs = array_column($rows, 'slug');
         foreach (self::BESPOKE as $slug) {
@@ -71,7 +75,18 @@ class PrintCatalogueBespokeTest extends ErpTestCase
         $this->assertSame('id', $rows['izin-kerja']['idField']);
     }
 
-    public function test_a_caller_without_prj_view_gets_none_of_the_seven(): void
+    /**
+     * Katalog disaring PER FORMULIR, bukan per pemanggil.
+     *
+     * Sampai F-6 kedelapan formulir bespoke semuanya prj.view, jadi uji ini
+     * hanya bisa membuktikan "pemanggil tanpa prj.view tidak mendapat apa-apa"
+     * — yang juga lulus untuk katalog yang salah menyaring per PEMANGGIL alih-
+     * alih per baris. F/LBL adalah bespoke pertama yang izinnya BUKAN prj.view,
+     * jadi sekarang lengan keduanya bisa ada: pemegang inv.view saja mendapat
+     * TEPAT satu formulir bespoke, dan itu formulir yang izinnya memang ia
+     * pegang.
+     */
+    public function test_the_bespoke_catalogue_is_filtered_per_form_not_per_caller(): void
     {
         $user = User::factory()->create();
         $user->givePermissionTo(Permission::findOrCreate('inv.view', 'web'));
@@ -81,8 +96,12 @@ class PrintCatalogueBespokeTest extends ErpTestCase
             'slug',
         );
 
-        foreach (self::BESPOKE as $slug) {
-            $this->assertNotContains($slug, $slugs);
-        }
+        $bespokeSeen = array_values(array_intersect(self::BESPOKE, $slugs));
+
+        $this->assertSame(
+            ['label-barcode'],
+            $bespokeSeen,
+            'Pemegang inv.view saja harus mendapat F/LBL dan tidak satu pun dari tujuh formulir proyek.',
+        );
     }
 }
