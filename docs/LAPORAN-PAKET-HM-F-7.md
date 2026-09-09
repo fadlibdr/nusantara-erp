@@ -383,7 +383,7 @@ pemilik):
 | `tests/Feature/Assets` | SQLite | OK — **123 uji, 441 asersi** |
 | `tests/Feature/Core` | SQLite | OK — 983 uji, 8.907 asersi, 11 dilewati (sebelum penulisan ulang agregat) |
 | Core: ambang + tenggat + kalender (5 berkas) | SQLite | OK — 105 uji, 374 asersi (sesudah penulisan ulang) |
-| `tests/Feature/Assets` + ambang/tenggat Core | **MySQL** `erp_dryrun` | OK — **205 uji, 715 asersi** |
+| `tests/Feature/Assets` + ambang/tenggat Core | **MySQL** `erp_dryrun` | OK — **205 uji, 717 asersi** (9 mnt 58 dtk) |
 | `pint` atas berkas baru/diubah | — | lolos (dua kegagalan lama di `main` — `FormXlsxExportService`, `ChartMigrationTest` — tidak disentuh) |
 
 ---
