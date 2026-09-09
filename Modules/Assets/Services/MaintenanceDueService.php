@@ -291,10 +291,11 @@ class MaintenanceDueService
      *
      * Versi pertama kelas ini mengambil SETIAP baris log milik aset-aset yang
      * diawasi lalu menghitungnya di PHP. Terukur pada 24.007 pembacaan (bentuk
-     * armada kontraktor sekitar dua tahun: ~50 alat x 250 hari kerja):
-     * scan registri 803 ms dan KARTU SATU ALAT 147 ms — pada register yang
-     * hanya bisa membesar, karena ia append-only dan tidak punya pintu hapus.
-     * Sesudah agregasi: 7,7 ms dan 6,4 ms, dengan jumlah kueri yang sama.
+     * armada kontraktor sekitar dua tahun: ~50 alat x 250 hari kerja): seluruh
+     * armada 803 ms dan KARTU SATU ALAT 147 ms — pada register yang hanya bisa
+     * MEMBESAR, karena ia append-only dan tidak punya pintu hapus. Sesudah
+     * agregasi, pada berkas dan mesin yang sama: 17,0 ms dan 4,0 ms (median
+     * dari lima jalan sesudah pemanasan; rentang 15,5-21,6 dan 3,8-5,0).
      *
      * Yang dibutuhkan hanya lima angka per aset, dan ketiganya bisa ditanyakan
      * langsung: berapa log seluruhnya, berapa yang mengisi hour meter,

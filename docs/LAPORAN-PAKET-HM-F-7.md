@@ -21,12 +21,12 @@ jatuh tempo.
 | # | Tugas | Status | Bukti (commit + angka terukur) |
 |---|---|---|---|
 | T1 | Migrasi `next_due_hour_meter`, blok Assets 000500–000599 | ✅ | `e355694` — `2026_09_09_000545_...`, `decimal(15,3)` nullable, maju-saja tanpa backfill. Dijalankan pada dua salinan sqlite scratchpad (`demo.sqlite`, `harness.sqlite`): DONE 4,43 ms / 3,05 ms. Presisinya sama persis dengan `ast_equipment_logs.hour_meter` |
-| T2 | Definisi "pembacaan terakhir" dan "target yang berlaku", satu tempat, alasannya tertulis | ✅ | `8095c04` — `Modules/Assets/Services/MaintenanceDueService.php` (docblock kelas, 2 definisi + 3 sebab tidak-terukur + aturan aset dilepas). Dipaku 22 uji, mutasi M1–M7 merah |
+| T2 | Definisi "pembacaan terakhir" dan "target yang berlaku", satu tempat, alasannya tertulis | ✅ | `8095c04` — `Modules/Assets/Services/MaintenanceDueService.php` (docblock kelas, 2 definisi + 3 sebab tidak-terukur + aturan aset dilepas). Dipaku 24 uji, mutasi M1–M7 merah |
 | T3 | Keadaan jatuh tempo memakai kosakata enam keadaan `WatchedThresholds` | ✅ | `8095c04` — `state()` dipanggil dengan margin; TIDAK_TERUKUR (tanpa pembacaan), TANPA_BATAS (pembacaan tanpa target). Terukur di layar: 6 baris registri pada data demo bercabang → 1 lampau, 1 mendekati, 1 tanpa_batas, 3 tidak_terukur (tiga sebab berbeda) |
 | T4 | Entri registri + kesetaraan dengan service dipaku uji | ✅ | `f9da79c` + `b2dd280` — entri `maintenance_hour_meter` **dipasok** Assets (`supply()`, aturan §24), jadi tidak ada kueri kedua yang bisa berselisih; `ThresholdHourMeterTest::test_the_registry_row_is_the_assets_service_answer` membandingkan `actual/limit/state/note/link` baris demi baris. Core tetap tidak mengimpor Assets (dipaku `ThresholdWatchTest::test_core_imports_no_feature_module_to_compute_a_threshold`, 11 uji hijau) |
 | T5 | Aset dilepas keluar dari pengawasan — dari aturan yang sama dengan pemicu tanggal | ✅ | `b2dd280` — `test_a_disposed_asset_drops_out_of_both_triggers` menanyai **kedua** pengawas atas satu aset: sebelum `disposed` → 1 baris registri + `WatchedDeadlines::scoped()` = 1; sesudah → null + 0. Mutasi M4 merah |
 | T6 | Permukaan pemakai: kedua pemicu berdampingan, tiga kalimat "digaris" | ✅ | `6fe244f` + `7b297b9` — sembilan permukaan (daftar, formulir, resource, listing, endpoint history, kartu aset, tabel riwayat, cetakan kartu aset, layar Ambang). Diukur di Chromium: 8 layar, **0 galat konsol**, 0 respons ≥ 400, 0 gulir samping |
-| T7 | Uji PHP + mutasi | ✅ | `b2dd280` — **38 uji baru/diubah** (22 + 6 + 10), 134 asersi; **21 mutasi dijalankan, 21 merah** (satu lolos hijau lebih dulu lalu ditutup — lihat §5) |
+| T7 | Uji PHP + mutasi | ✅ | `b2dd280` + `e4b0beb` — **40 uji baru** (24 + 6 + 10) plus dua uji lama diubah, 143 asersi; **24 mutasi dijalankan, 24 merah** (satu lolos hijau lebih dulu lalu ditutup — lihat §5) |
 | T8 | Harness S34 desktop + ponsel | ✅ | `7b297b9` — `S34_servis_alat_per_jam` (20 syarat) + `S34_servis_alat_per_jam_mobile` (9 syarat), keduanya `ok`. `results-phase-2.json`: 23 kunci lama **tidak berubah satu byte pun** (dibandingkan JSON-nya), 25 kunci sesudahnya. 9 PNG |
 | T9 | Cangkang PWA | ✅ | `6fe244f` — daftar `SHELL` **tidak berubah** (tidak ada berkas baru); `SHELL_VERSION` 5 → 6 karena berkas cangkang berubah (CONVENTIONS §21) |
 | T10 | Muat `/app/` di Chromium sungguhan | ✅ | php -S 8191 atas salinan sqlite scratchpad; 8 layar; `all_console_errors: []`, `http_4xx_5xx: []` |
@@ -61,8 +61,12 @@ Pembacaan terbaru **tetap dibawa** dan **dikatakan**: kartu alat memasang pita p
 jam — meter diganti atau salah ketik…"). Yang ditolak adalah membiarkan angka yang turun
 **mendiamkan** alarm, bukan menyembunyikan bahwa angkanya turun.
 
-Kasus batas yang ikut dipaku: dua pembacaan **sama tinggi** (alat menganggur) → tanggal yang
-dipulangkan adalah yang **terakhir**, bukan yang pertama (mutasi M2 `>=` → `>` merah).
+Tiga kasus batas ikut dipaku, dan semuanya kini diputuskan SQL (§5b): dua pembacaan **sama
+tinggi** (alat menganggur) → tanggal yang dipulangkan adalah yang **terakhir**, bukan yang
+pertama (mutasi M2 `MAX` → `MIN` merah); dua pembacaan pada **hari yang sama** → yang
+"terakhir" adalah yang ditulis belakangan menurut id, karena salah ketik sore hari harus
+tetap memunculkan pita meter mundur (M2b merah); dan **log BBM tanpa angka jam** tidak
+dihitung sebagai pembacaan maupun menggeser tanggal pembacaan terakhir (M2c, M2d merah).
 
 ### (D) "Target yang berlaku" = catatan perawatan **TERBARU**, baris yang sama dengan pemicu tanggal
 
@@ -149,12 +153,19 @@ Mutasi M15 merah.
 
 ---
 
-## 5. Mutasi — 21 dijalankan, 21 merah (satu lewat lubang lebih dulu)
+## 5. Mutasi — 24 dijalankan, 24 merah (satu lewat lubang lebih dulu)
+
+Dijalankan **dua kali**: sekali atas kode versi pertama (21 mutasi), lalu **seluruhnya
+ulang** atas kode sesudah penulisan ulang agregat (§6) dengan empat mutasi baru yang
+menyasar persis SQL-nya. Tabel ini yang terakhir.
 
 | # | Mutasi | Hasil |
 |---|---|---|
 | M1 | pembacaan tertinggi → terbaru | MERAH |
-| M2 | `>=` → `>` pada pemilihan puncak (tanggal puncak) | MERAH |
+| M2 | tanggal puncak `MAX(log_date)` → `MIN` | MERAH |
+| M2b | id pembacaan terakhir `MAX(id)` → `MIN` | MERAH |
+| M2c | cacah pembacaan `COUNT(hour_meter)` → `COUNT(*)` | MERAH |
+| M2d | `CASE WHEN` yang membuang log tanpa jam dilumpuhkan | MERAH |
 | M3 | perawatan terbaru → terlama | MERAH |
 | M4 | aset `disposed` ikut diawasi | MERAH |
 | M5 | log mobilisasi yang dihapus ikut dihitung | MERAH |
@@ -171,7 +182,7 @@ Mutasi M15 merah.
 | M16 | pengawas tanggal kehilangan klausa jam | MERAH |
 | M17 | cetakan kembali mencetak tanggal saja | MERAH |
 | M18 | endpoint history tanpa blok jam | MERAH |
-| M19 | bawaan margin di entri Core 50 → 999 | **LOLOS HIJAU** → ditutup → MERAH |
+| M19 | bawaan margin di entri Core 50 → 999 | **LOLOS HIJAU** (putaran 1) → ditutup → MERAH |
 | M20 | bawaan margin di service Assets 50 → 999 | MERAH |
 | M21 | angka yang dikirim `config/erp.php` 50 → 999 | MERAH |
 
@@ -187,6 +198,31 @@ lebih dulu lalu menuntut kedua bawaan itu satu angka.
 yang benar-benar dikirim pemilik dipaku terpisah dengan **membaca `config/erp.php` dari
 disk** (`require config_path('erp.php')`), karena `config()` sudah ditimpa setUp — tanpa itu
 mutasi M21 akan lolos hijau.
+
+---
+
+## 5b. Satu jalan buntu yang diukur lalu dibuang
+
+Kelas ini mula-mula mengambil **setiap baris** log milik aset yang diawasi dan menghitungnya
+di PHP. Diukur pada **24.007 pembacaan** — bentuk armada kontraktor sekitar dua tahun
+(~50 alat × 250 hari kerja), disuntikkan ke salinan sqlite scratchpad:
+
+| | seluruh armada (`#/ambang`) | satu alat (kartu aset) |
+|---|---|---|
+| ambil semua log, hitung di PHP | **803 ms** | **147 ms** |
+| pola `whereNotExists` (latest_per_group milik `WatchedDeadlines`) | 1.130 ms — **lebih lambat**, 1.065 ms di antaranya satu subkueri berkorelasi | 218 ms |
+| tiga/empat kueri agregat (yang dikirim) | **17,0 ms** | **4,0 ms** |
+
+(median dari lima jalan sesudah pemanasan; rentang 15,5–21,6 ms dan 3,8–5,0 ms; jumlah kueri
+tidak bertambah.) Register ini **hanya bisa membesar** — ia append-only dan tidak punya pintu
+hapus (`EquipmentLogController` menolak PUT/DELETE) — jadi angka pertama itu adalah angka yang
+memburuk setiap hari. Keluaran ketiganya IDENTIK pada data demo bercabang: enam baris, keadaan,
+sisa dan kalimat yang sama persis.
+
+Yang menarik dari baris kedua: **pola rumah yang sudah terbukti pun harus diukur di tempat
+barunya.** `latest_per_group` benar dan murah pada `ast_maintenances` (satu baris per aset,
+tabel kecil); pada `ast_equipment_logs` ia justru lebih lambat daripada mengambil seluruh
+tabelnya.
 
 ---
 
@@ -324,6 +360,7 @@ Kalimat yang **menjadi salah** dan sudah diperbaiki:
 | D4 | **Kartu aset cetak menyembunyikan setengah kartu servis.** Sel "JATUH TEMPO BERIKUT" hanya membaca tanggal, jadi servis yang dijadwalkan dengan jam tercetak **bergaris** — persis seperti servis yang tidak menjadwalkan apa pun, di lembar yang ditandatangani | `AssetPrintTest::test_the_asset_card_prints_both_service_triggers`; mutasi M17 merah | **DITUTUP** — satu sel, dua pemicu ("14 Desember 2026 / 5.500 jam") |
 | D5 | **`WatchedThresholds::flushSuppliers()` disebut CONVENTIONS §24 "sudah dipasang di `ErpTestCase::setUp`" — ia TIDAK dipasang di sana.** `grep -rn flushSuppliers` memulangkan dua baris: definisinya, dan satu pemanggilan manual di `ThresholdWatchTest:296` | grep di atas | **DIBIARKAN, DILAPORKAN.** Tidak berbahaya hari ini (setiap pemasok memakai `app()`, jadi ia menyelesaikan container yang sedang berjalan), tetapi kalimat konvensinya salah dan uji berikutnya yang bersandar padanya akan menemukannya dengan cara yang mahal. Perbaikannya satu baris di `ErpTestCase`, dan itu menyentuh setiap uji di repo — bukan pekerjaan yang pantas diselundupkan ke paket fitur |
 | D6 | **Sisa negatif tercetak dengan tanda minus** ("-40 jam lagi") di kolom yang seluruh tugasnya memberi tahu berapa lama lagi | terlihat di Chromium, bukan di uji mana pun | **DITUTUP** — "150 jam lewat" / "lewat 150 jam" |
+| D8 | **Register pembacaan dibaca seluruhnya untuk menjawab lima angka.** Kartu satu alat 147 ms dan layar Ambang 803 ms pada dua tahun register — pada tabel yang hanya bisa membesar | tabel §5b, diukur pada 24.007 pembacaan | **DITUTUP** — empat kueri agregat, 4,0 ms dan 17,0 ms; keluaran identik |
 | D7 | **Kartu "Cara membacanya" menjelaskan ambang 100 %** di layar yang kini memuat tabel tanpa satu persentase pun | terlihat di Chromium | **DITUTUP** — paragrafnya menyebut kedua bentuk ukuran |
 
 ---
@@ -335,10 +372,10 @@ pemilik):
 
 | Gerbang | Driver | Hasil |
 |---|---|---|
-| `tests/Feature/Assets` (121 uji) | SQLite | OK — 121 uji, 432 asersi |
-| `tests/Feature/Core` (983 uji) | SQLite | OK — 983 uji, 8.907 asersi, 11 dilewati |
-| tiga berkas uji F-7 (38 uji) | SQLite | OK — 38 uji, 134 asersi |
-| tiga berkas uji F-7 (38 uji) | **MySQL** `erp_dryrun` | OK — 38 uji, 134 asersi |
+| `tests/Feature/Assets` | SQLite | OK — **123 uji, 441 asersi** |
+| `tests/Feature/Core` | SQLite | OK — 983 uji, 8.907 asersi, 11 dilewati (sebelum penulisan ulang agregat) |
+| Core: ambang + tenggat + kalender (5 berkas) | SQLite | OK — 105 uji, 374 asersi (sesudah penulisan ulang) |
+| `tests/Feature/Assets` + ambang/tenggat Core | **MySQL** `erp_dryrun` | OK — **205 uji, 715 asersi** |
 | `pint` atas berkas baru/diubah | — | lolos (dua kegagalan lama di `main` — `FormXlsxExportService`, `ChartMigrationTest` — tidak disentuh) |
 
 ---
@@ -354,3 +391,5 @@ pemilik):
 | `6fe244f` | permukaan: kedua pemicu berdampingan di SETIAP layar, cetakan, dan sel |
 | `b2dd280` | uji: 39 uji F-7 dan 21 mutasi yang dipaku merah |
 | `7b297b9` | harness: S34 desktop + ponsel (29 syarat) |
+| `c16609f` | docs: sapuan dokumentasi, CONVENTIONS §36, laporan paket |
+| `e4b0beb` | assets: ringkasan pembacaan lewat kueri AGREGAT — 147 ms → 4 ms |
