@@ -143,12 +143,12 @@ di luar mandat.
 1. **Penyedia dan anggaran yang disebut namanya.** Satu PSrE terdaftar, satu
    angka tarif (per tanda tangan atau langganan), dan satu plafon biaya per
    bulan — bentuk jawaban yang sama dengan keputusan pemilik #7 untuk penyedia
-   WhatsApp (ROADMAP-HASHMICRO §7).
+   WhatsApp (ROADMAP-HASHMICRO §5, baris 7).
 2. **Pemicu bisnis yang nyata.** Sedikitnya satu dokumen yang tertahan karena
    tanda tangannya harus elektronik — pemberi tugas yang memintanya secara
    tertulis, atau lelang yang mensyaratkannya — dengan nomor dokumen dan
    tanggalnya, bukan kekhawatiran umum.
-3. **Daftar dokumen yang ikut, dan yang tidak.** e-sign untuk SELURUH 28 jenis
+3. **Daftar dokumen yang ikut, dan yang tidak.** e-sign untuk SELURUH 29 jenis
    dokumen adalah biaya yang tidak akan disetujui siapa pun. Yang dibutuhkan
    daftar pendek (kandidat wajar: kontrak, addendum/CCO, BAST, SPK) plus
    pernyataan eksplisit bahwa sisanya tetap basah.

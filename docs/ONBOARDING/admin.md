@@ -29,8 +29,8 @@ Tiga hal yang membuat akun Anda berbeda dari semua akun lain:
   pembayaran lalu memposting pembayaran yang sama, menutup lalu membuka periode yang sama
   (ADMINISTRATOR §3.3, §6.2). Yang masih menahan Anda hanyalah maker-checker dan aturan
   pemegang laci.
-- **Kotak masuk Anda menerima setiap kelompok alarm** — cadangan, tutup buku, kesembilan
-  belas pengawas tenggat, dan pengajuan semua 28 jenis dokumen — tanpa penyaringan
+- **Kotak masuk Anda menerima setiap kelompok alarm** — cadangan, tutup buku, ketiga puluh
+  empat pengawas tenggat, dan pengajuan semua 29 jenis dokumen — tanpa penyaringan
   (ADMINISTRATOR §5.10). Kotak masuk yang penuh adalah kotak masuk yang berhenti dibaca.
 - **Tiga keluarga tombol hari ini hanya bisa Anda tekan** (atau teknisi untuk yang pertama):
   `Posting ke Stok` dan seluruh tombol stok (PANDUAN §6.1); `Bayar Retensi` dan `Cairkan

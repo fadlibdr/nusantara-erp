@@ -20,7 +20,7 @@ izin direktur `prc.approve-director` dan `scm.approve-director` — 30 izin, tan
 `create`, `update`, `delete`, atau `post` (PANDUAN-ADMINISTRATOR §3.2). Kotak masuk
 persetujuan adalah hari kerja Anda.
 
-Yang bisa Anda setujui: **seluruh 28 jenis dokumen berpersetujuan** — dari Penawaran
+Yang bisa Anda setujui: **seluruh 29 jenis dokumen berpersetujuan** — dari Penawaran
 sampai Pengajuan cuti. Pada susunan peran bawaan, untuk penawaran, BOQ/RAB, RAP, PR/PO,
 keputusan pemenang, SPK/addendum/opname subkon, cuti, payroll, dan opname stok, **Anda
 dan admin adalah satu-satunya penyetuju** (ADMINISTRATOR §3.2). Untuk dokumen proyek,

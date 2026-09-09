@@ -519,7 +519,7 @@ dokumen berstatus **Diajukan** yang boleh Anda setujui, yang paling lama menungg
 Widget menampilkan **lima baris** dengan tombol **`Lihat semua (n)`** di bawahnya; daftar
 penuhnya ada di **Ringkasan › Tugas Saya**. Klik baris untuk membukanya.
 
-Kartu ini mencakup **seluruh 28 jenis dokumen** yang punya alur persetujuan — termasuk
+Kartu ini mencakup **seluruh 29 jenis dokumen** yang punya alur persetujuan — termasuk
 pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK, baseline proyek, pengajuan cuti,
 dan ketiga izin lapangan (IKL/ILB/IMK, §7.13). Sampai 2 September 2026 kartu ini hanya
 menanyakan 11 jenis, sehingga sembilan jenis lainnya — pengajuan cuti di antaranya — tidak
