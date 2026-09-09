@@ -392,9 +392,14 @@ class EquipmentLogTest extends ErpTestCase
     // ------------------------------------------------------ no edit, no delete
 
     /**
-     * A register of readings is corrected by the NEXT reading, never by
-     * editing history. The routes exist so the refusal can say that in words
-     * instead of a bare 404/405 that reads as a broken deploy.
+     * A register of readings is corrected by APPENDING, never by editing
+     * history. The routes exist so the refusal can say that in words instead
+     * of a bare 404/405 that reads as a broken deploy.
+     *
+     * And the refusal must ALSO say what appending does not fix (verifikasi
+     * F-7): the hour-meter service alarm judges the HIGHEST reading, so a
+     * figure typed too high is not undone by the correct rows that follow.
+     * The old sentence promised a correction that does not reach that alarm.
      */
     public function test_update_and_delete_are_refused_with_the_correction_rule(): void
     {
@@ -405,11 +410,13 @@ class EquipmentLogTest extends ErpTestCase
 
         $update = $this->actingAs($admin)->putJson("api/assets/equipment-logs/{$log->id}", ['hour_meter' => 1300]);
         $update->assertUnprocessable();
-        $this->assertStringContainsString('pembacaan berikutnya', (string) $update->json('message'));
+        $this->assertStringContainsString('hanya bisa DITAMBAH', (string) $update->json('message'));
+        $this->assertStringContainsString('pembacaan TERTINGGI', (string) $update->json('message'));
 
         $delete = $this->actingAs($admin)->deleteJson("api/assets/equipment-logs/{$log->id}");
         $delete->assertUnprocessable();
-        $this->assertStringContainsString('pembacaan berikutnya', (string) $delete->json('message'));
+        $this->assertStringContainsString('hanya bisa DITAMBAH', (string) $delete->json('message'));
+        $this->assertStringContainsString('pembacaan TERTINGGI', (string) $delete->json('message'));
 
         $this->assertEqualsWithDelta(1200.5, (float) $log->refresh()->hour_meter, 0.001);
         $this->assertSame(1, EquipmentLog::query()->count());

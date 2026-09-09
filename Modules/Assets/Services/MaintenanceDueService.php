@@ -53,6 +53,27 @@ use Modules\Core\Support\WatchedThresholds;
  *     Yang ditolak adalah membiarkan angka yang turun mendiamkan alarm —
  *     bukan menyembunyikan bahwa angkanya turun.
  *
+ *     DAN INI HARGANYA, DITULIS KARENA IA NYATA (verifikasi F-7): MAX
+ *     melindungi dari salah ketik yang TURUN dengan cara yang membuat salah
+ *     ketik yang NAIK — sama mudahnya diketik, dan sama sekali tidak ditalar
+ *     paragraf di atas — TIDAK BISA DIKOREKSI SIAPA PUN. Terukur pada
+ *     salinan DB demo lewat HTTP sungguhan: 33.755 yang diketik di atas
+ *     3.375,5 pada alat bertarget 3.400 jam mengunci alat itu di "Melampaui
+ *     batas · lewat 30.355 jam", dan keempat pintunya tertutup — POST 3.400
+ *     pada mobilisasi yang sama 422 (penjaga monoton), PUT dan DELETE
+ *     menolak dengan kalimatnya sendiri, dan baris koreksi pada mobilisasi
+ *     BARU diterima lalu tidak mengubah apa pun (reading tetap 33.755,
+ *     latest 3.400, meter_went_backwards true). Penggantian meter yang
+ *     SUNGGUHAN — sebab yang pita peringatan di kartu alat sebutkan sendiri
+ *     — mendarat di keadaan yang sama.
+ *
+ *     Memberi penggantian meter wakil kelas satu (penanda koreksi pada
+ *     ast_equipment_logs, atau puncak yang dihitung sejak tanggal kartu
+ *     servis yang berlaku) adalah KEPUTUSAN PEMILIK yang terbuka — lihat
+ *     LAPORAN-PAKET-HM-F-7 §8. Sampai diputuskan, yang berubah hanyalah
+ *     kalimat-kalimatnya: EquipmentLogController tidak lagi menjanjikan
+ *     koreksi yang tidak sampai ke alarm ini.
+ *
  *     DAN SATU DEFINISI LAIN DI MODUL YANG SAMA MEMANG BERBEDA, dengan benar:
  *     RentVsOwnService::hoursLogged menjumlahkan DELTA per mobilisasi
  *     (pembacaan terakhir − pertama pada tiap mobilisasi) karena ia menjawab
@@ -148,10 +169,20 @@ class MaintenanceDueService
      * Bulan pendek untuk kalimat yang disusun kelas ini.
      *
      * Salinan kelima di repo ini (WatchedDeadlines, FormPrintService,
-     * DocumentPdfService, AssetFormService) dan karena alasan mereka:
-     * APP_LOCALE 'en' tanpa direktori lang/, jadi menjangkau
-     * translatedFormat() Carbon berarti memindahkan locale SELURUH aplikasi
-     * ke 'id' dan membawa setiap pesan validasi ikut pindah.
+     * DocumentPdfService, AssetFormService). ALASAN YANG DIWARISI EMPAT
+     * BERKAS ITU SUDAH TIDAK BERLAKU dan tidak boleh disalin lagi: keempatnya
+     * menulis "APP_LOCALE 'en' tanpa direktori lang/", sementara terukur hari
+     * ini APP_LOCALE = 'id' (.env.example:8, .env.production.example:28),
+     * lang/id ADA, dan `Carbon::parse('2026-07-31')->translatedFormat('j M Y')`
+     * memulangkan "31 Jul 2026" — persis keluaran array ini.
+     *
+     * Yang masih benar: format ini dipakai di LIMA berkas dan harus identik di
+     * kelimanya (satu tanggal, satu ejaan, di kalimat registri, cetakan, dan
+     * PDF). Menyerahkannya ke locale runtime membuat kelimanya bisa berubah
+     * bersama-sama saat seorang operator mengganti APP_LOCALE — untuk kalimat
+     * yang bukan terjemahan, melainkan bentuk cetak yang disepakati. Kalau
+     * suatu hari kelimanya disatukan ke satu helper Core, alasan ini ikut
+     * dihapus, bukan disalin keenam kalinya.
      */
     private const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 

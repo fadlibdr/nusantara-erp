@@ -6264,9 +6264,25 @@ termasuk pada mobilisasi yang sudah dikembalikan.
 **Tidak ada tombol Ubah dan tidak ada tombol Hapus, untuk siapa pun** — register
 ini hanya-tambah. Salah ketik dikoreksi dengan baris log baru berangka benar; API
 pun menolak dengan kalimat: *"Baris register tidak diubah dan tidak dihapus —
-register pembacaan dikoreksi oleh pembacaan berikutnya, bukan dengan menyunting
-riwayat. Catat baris log baru dengan angka yang benar dan sebutkan koreksinya di
-catatan."*
+register pembacaan hanya bisa DITAMBAH, tidak disunting. Catat baris log baru
+dengan angka yang benar dan sebutkan koreksinya di catatan; baris lama tetap
+terbaca di riwayat. Satu hal yang TIDAK diperbaiki baris baru itu: jatuh tempo
+servis dihakimi dari pembacaan TERTINGGI alat, jadi angka yang telanjur diketik
+terlalu tinggi tetap yang dihakimi — kartu alatnya akan menyebutkan bahwa
+pembacaan terakhirnya lebih rendah, dan menurunkan angka tertinggi itu belum ada
+jalannya."*
+
+> **SATU BATAS YANG HARUS DIKETAHUI SEBELUM MENGETIK.** Angka hour meter yang
+> telanjur diketik TERLALU TINGGI (satu digit tambahan) mengunci alarm servis
+> alat itu di "Melampaui batas" dan tidak ada jalan menurunkannya: pembacaan
+> berikutnya yang lebih rendah ditolak di mobilisasi yang sama, dan yang dicatat
+> di mobilisasi berikutnya diterima tetapi tidak mengubah vonisnya — yang
+> dihakimi tetap pembacaan tertinggi. Hal yang sama terjadi pada alat yang
+> METERNYA DIGANTI. Yang bisa dilakukan hari ini hanyalah membaca kartu alatnya,
+> yang menyebutkan bahwa pembacaan terakhir lebih rendah. Jalan koreksi yang
+> sesungguhnya adalah keputusan pemilik yang masih terbuka
+> (LAPORAN-PAKET-HM-F-7 §8) — jangan menaikkan target jam servis untuk
+> mendiamkannya: itu merusak rencana perawatan demi mematikan alarm.
 
 Riwayat pembacaannya juga tampil di **halaman aset** (kartu "Log BBM & jam alat" —
 §9.3), di **halaman mobilisasi** (tabel dengan judul yang sama), dan tercetak pada
