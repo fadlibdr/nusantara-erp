@@ -8920,6 +8920,17 @@ def s34(pg):
         doosan_stats = {(s["label"] or "").upper(): s for s in (out["doosan"] or {}).get("stats", [])}
         ts_stats = {(s["label"] or "").upper(): s for s in (out["total_station"] or {}).get("stats", [])}
         daftar_headers = [h.lower() for h in out["daftar"]["headers"]]
+        # BARIS kartu servis yang dijadwalkan dengan JAM SAJA (splicer, target
+        # 1.200 jam tanpa tanggal), dicari lewat INDEKS KOLOMNYA sendiri —
+        # bukan dengan menggabung seluruh sel satu baris menjadi satu string,
+        # yang membuat sel tanggalnya tidak pernah terisolasi dan "bergaris"
+        # tidak pernah teruji meski nama syaratnya menjanjikannya.
+        kolom_tanggal = daftar_headers.index("jadwal berikut") if "jadwal berikut" in daftar_headers else -1
+        kolom_jam = daftar_headers.index("jam berikut") if "jam berikut" in daftar_headers else -1
+        baris_jam_saja = [r for r in out["daftar"]["rows"]
+                          if kolom_jam >= 0 and kolom_tanggal >= 0 and len(r) > max(kolom_jam, kolom_tanggal)
+                          and F7_ASSETS["splicer"] in " ".join(r) and "1.200 jam" in r[kolom_jam]]
+        out["baris_jam_saja"] = baris_jam_saja
 
         out["checks"] = {
             # (1) SATUAN
@@ -8978,8 +8989,14 @@ def s34(pg):
             # daftar perawatan
             "the_maintenance_list_carries_both_triggers":
                 "jadwal berikut" in daftar_headers and "jam berikut" in daftar_headers,
+            # PASANGAN SELNYA. Literal "8.000 jam" yang dulu digantung di sini
+            # tidak pernah ditanam fixture mana pun (yang ditanam 3.400 /
+            # 1.200 / 8.760 / 5.000 / 500), jadi syarat ini bergantung pada
+            # satu literal saja — dan literal itu pun hanya membuktikan angka
+            # jamnya tercetak, hal yang sudah dibuktikan syarat lain.
             "and_an_hour_only_service_prints_its_hours_beside_a_ruled_date":
-                any(r for r in out["daftar"]["rows"] if "8.000 jam" in " ".join(r) or "1.200 jam" in " ".join(r)),
+                len(baris_jam_saja) == 1 and baris_jam_saja[0][kolom_tanggal] == "—"
+                and baris_jam_saja[0][kolom_jam] == "1.200 jam",
             "the_screens_raise_no_console_error": out["console_errors"] == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
