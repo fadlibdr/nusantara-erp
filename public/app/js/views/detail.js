@@ -530,6 +530,15 @@ function autoValue(record, key) {
     const hours = Number(value);
     return el('span.num', { text: fmt.num(hours, Number.isInteger(hours) ? 0 : 2) });
   }
+  /* Dan kunci berjam yang namanya berakhir 'hour_meter' — next_due_hour_meter
+     (F-7), hour_meter log alat — dieja dengan pemformat yang sama dengan
+     setiap permukaan lain: "5.212,5 jam", bukan "5212.5". Cabang /_hours$/ di
+     atas ada persis untuk mencegah angka jam jatuh ke MONEY_KEY; kunci ini
+     luput darinya karena namanya berakhir '_meter', jadi ia mendarat di
+     String(value) di baris terakhir — titik desimal Inggris, tanpa pemisah
+     ribuan, tanpa satuan, di layar yang barisnya sendiri menulis "Biaya Rp 0"
+     dan "Tanggal perawatan 01 Jun 2026". */
+  if (/hour_meter$/.test(key) && !Number.isNaN(Number(value))) return el('span.num', { text: fmt.qty(value, 'jam') });
   if (MONEY_KEY.test(key) && !Number.isNaN(Number(value))) return el('span.num', { text: fmt.rupiah(value) });
   if (DATE_KEY.test(key)) return el('span', { text: String(value).length > 10 ? fmt.dateTime(value) : fmt.date(value) });
   if (key.endsWith('_terbilang')) return el('em', { text: String(value) });

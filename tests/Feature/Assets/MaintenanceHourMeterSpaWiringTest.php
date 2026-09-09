@@ -104,6 +104,30 @@ class MaintenanceHourMeterSpaWiringTest extends ErpTestCase
     }
 
     /**
+     * LAYAR DETAIL SATU PERAWATAN MENGEJA JAMNYA SEPERTI PERMUKAAN LAIN.
+     *
+     * detail.js memilih pemformat menurut NAMA KUNCI, berurutan: PERCENT_KEY,
+     * /_hours$/, MONEY_KEY, DATE_KEY — lalu String(value). 'next_due_hour_meter'
+     * berakhiran '_meter' dan tidak cocok satu pun, jadi ia mendarat di
+     * fallback: panel Informasi berbunyi "Jadwal berikutnya (hour meter)
+     * 5212.5" — titik desimal Inggris, tanpa pemisah ribuan, tanpa satuan —
+     * satu baris di bawah "Jatuh tempo berikutnya 14 Des 2026", untuk angka
+     * yang di daftar, di kartu aset, dan di cetakan berbunyi "5.212,5 jam".
+     * Cabang /_hours$/ ada persis untuk mencegah hal ini pada total_hours;
+     * kunci berjam berikutnya luput darinya karena namanya berakhir lain.
+     */
+    public function test_the_detail_screen_prints_an_hour_meter_key_in_hours(): void
+    {
+        $detail = $this->file('views/detail.js');
+
+        $this->assertStringContainsString("next_due_hour_meter: 'Jadwal berikutnya (hour meter)'", $detail);
+        // Potongan KODE-nya, bukan kata-kata di sekitarnya: sebuah asersi
+        // yang bisa dipenuhi komentar tidak menjaga apa pun (pelajaran F-6).
+        $this->assertStringContainsString('/hour_meter$/.test(key)', $detail);
+        $this->assertStringContainsString("fmt.qty(value, 'jam')", $detail);
+    }
+
+    /**
      * Sel 'qty' meneruskan `unit` — satu baris yang membuat satuan sebuah
      * kolom sampai ke layar. Kolom lama tidak mendeklarasikan unit, jadi
      * bentuknya tidak berubah.
