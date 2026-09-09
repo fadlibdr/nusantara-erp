@@ -218,13 +218,13 @@ class ReorderThresholdTest extends ErpTestCase
      * "ATURAN MANA YANG BENAR-BENAR BERLAKU" PUNYA SATU DEFINISI, DAN INILAH
      * YANG MEMAKUNYA (putaran kedua F-6).
      *
-     * Tiga syaratnya — aktif, itemnya hidup, gudangnya hidup — dulu ditegakkan
-     * di tiga tempat dengan tiga isi yang berbeda: kueri kekurangan memeriksa
-     * ketiganya, hitungan kartu item hanya `is_active`, dan `applies` pada
-     * daftar aturan hanya kedua `deleted_at`-nya. Akibatnya kartu item berkata
-     * "stok minimum di atas TIDAK berlaku" untuk aturan yang gudangnya sudah
-     * dibuang, sementara layar sebelahnya menandai baris yang sama "Gudang
-     * dibuang".
+     * Syaratnya — aturannya aktif, itemnya hidup, gudangnya hidup, ITEMNYA
+     * AKTIF — dulu ditegakkan di tiga tempat dengan tiga isi yang berbeda:
+     * kueri kekurangan memeriksa keempatnya, hitungan kartu item hanya
+     * `is_active` aturannya, dan `applies` pada daftar aturan hanya kedua
+     * `deleted_at`-nya. Akibatnya kartu item berkata "stok minimum di atas
+     * TIDAK berlaku" untuk aturan yang gudangnya sudah dibuang, sementara
+     * layar sebelahnya menandai baris yang sama "Gudang dibuang".
      *
      * Sekarang keduanya memanggil `ReorderRule::governing()` /
      * `->governs()`, dan uji ini menuntut KESETARAANNYA dengan kueri yang
@@ -240,8 +240,13 @@ class ReorderThresholdTest extends ErpTestCase
         $semen = $this->makeItem('Semen Portland', ['min_stock' => 0]);
         $besi = $this->makeItem('Besi Beton D16', ['min_stock' => 0]);
         $kabel = $this->makeItem('Kabel UTP Cat6', ['min_stock' => 0]);
+        // Item yang BERHENTI DIBELI — dinonaktifkan, tidak dibuang. Itu jalur
+        // normalnya, dan kueri kekurangan sudah lama membuangnya lewat
+        // `i.is_active`; syarat keempat itulah yang dulu tidak ikut ke
+        // `governing()`.
+        $stop = $this->makeItem('Keramik Diskontinu', ['min_stock' => 0, 'is_active' => false]);
 
-        foreach ([$semen, $besi, $kabel] as $item) {
+        foreach ([$semen, $besi, $kabel, $stop] as $item) {
             $this->balance($live->id, $item->id, 0);
             $this->balance($doomed->id, $item->id, 0);
         }
@@ -250,6 +255,7 @@ class ReorderThresholdTest extends ErpTestCase
         ReorderRule::create(['warehouse_id' => $live->id, 'item_id' => $besi->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => false]);
         $itemGone = ReorderRule::create(['warehouse_id' => $live->id, 'item_id' => $kabel->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true]);
         $warehouseGone = ReorderRule::create(['warehouse_id' => $doomed->id, 'item_id' => $semen->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true]);
+        $itemOff = ReorderRule::create(['warehouse_id' => $live->id, 'item_id' => $stop->id, 'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true]);
 
         $kabel->delete();
         $doomed->delete();
@@ -257,7 +263,7 @@ class ReorderThresholdTest extends ErpTestCase
         $this->assertSame(
             [$governing->id],
             ReorderRule::query()->governing()->orderBy('id')->pluck('id')->all(),
-            'Scope `governing` tidak menyaring ketiga syaratnya.',
+            'Scope `governing` tidak menyaring keempat syaratnya.',
         );
 
         $obeyed = array_values(array_unique(array_filter(array_map(
@@ -269,7 +275,7 @@ class ReorderThresholdTest extends ErpTestCase
             'Kueri kekurangan mematuhi kumpulan aturan yang berbeda dari `governing`.');
 
         // …dan bentuk BARISNYA sama dengan bentuk SCOPE-nya, satu per satu.
-        foreach ([$governing, $itemGone, $warehouseGone] as $rule) {
+        foreach ([$governing, $itemGone, $warehouseGone, $itemOff] as $rule) {
             $this->assertSame(
                 in_array($rule->id, $obeyed, true),
                 $rule->fresh()->governs(),

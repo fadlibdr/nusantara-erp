@@ -1634,11 +1634,14 @@ berlaku"). Tanpa itu, yang menaikkan `min_stock` di sana mengira ia sedang mengu
 yang punya aturan; ia tidak mengubah apa pun.
 
 **"Aktif ✓" BUKAN "berlaku", DAN "BERLAKU" PUNYA SATU DEFINISI: `ReorderRule::governing()`.**
-Tiga syarat — `is_active`, itemnya hidup, gudangnya hidup — dan ketiganya sudah lama ditegakkan
-kueri kekurangan (`is_active` di klausa ON, `whereNull` pada kedua join-nya). Item dan gudang
-menghapus-lembut, relasi aturan memakai `withTrashed()` dengan sengaja (supaya namanya selamat dan
-barisnya tetap bisa dibuang orangnya), jadi sebuah baris bisa terlihat hidup sementara ambangnya
-tidak menentukan apa pun. `ReorderRuleResource` karena itu mengirim `applies` (= `->governs()`,
+Empat syarat — aturannya `is_active`, itemnya hidup, gudangnya hidup, ITEMNYA `is_active` — dan
+keempatnya sudah lama ditegakkan kueri kekurangan (`r.is_active` di klausa ON, `whereNull` pada
+kedua join-nya, `i.is_active` di WHERE-nya). Item dan gudang menghapus-lembut, relasi aturan memakai
+`withTrashed()` dengan sengaja (supaya namanya selamat dan barisnya tetap bisa dibuang orangnya),
+jadi sebuah baris bisa terlihat hidup sementara ambangnya tidak menentukan apa pun. Item yang
+DINONAKTIFKAN adalah syarat tersendiri, bukan bagian dari "itemnya hidup": menonaktifkan adalah
+jalur NORMAL untuk barang yang berhenti dibeli — kartunya tetap ada, dan sampai putaran ketiga F-6
+barisnya digambar tanpa satu keping pun dengan `applies: true`. `ReorderRuleResource` karena itu mengirim `applies` (= `->governs()`,
 bentuk baris dari scope yang sama) dan `deleted_labels`, dan daftarnya menggambarnya sebagai keping.
 
 **Salinan yang ketiga adalah bagaimana ia dulu bocor.** Sampai putaran kedua F-6 setiap permukaan

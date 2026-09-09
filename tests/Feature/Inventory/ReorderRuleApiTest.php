@@ -315,6 +315,33 @@ class ReorderRuleApiTest extends ErpTestCase
         $this->assertSame([], $row['deleted_labels']);
     }
 
+    /**
+     * …DAN ITEM YANG BERHENTI DIBELI ADALAH SYARAT KEEMPAT.
+     *
+     * `inv_items.is_active = false` adalah jalur normal untuk barang yang
+     * tidak dibeli lagi — dinonaktifkan, bukan dibuang, jadi kartunya tetap
+     * bisa dibaca dan riwayatnya utuh. Kueri kekurangan sudah lama
+     * membuangnya (`->where('i.is_active', true)`), tetapi syarat itu tidak
+     * ikut ke `governing()`: barisnya digambar tanpa satu keping pun,
+     * `applies: true`, untuk aturan yang tidak menentukan apa pun.
+     */
+    public function test_a_rule_for_an_item_that_is_no_longer_bought_does_not_claim_to_apply(): void
+    {
+        $warehouse = $this->makeWarehouse('GD-PUSAT');
+        $item = $this->makeItem('Keramik Diskontinu', ['min_stock' => 200, 'is_active' => false]);
+        ReorderRule::create(['warehouse_id' => $warehouse->id, 'item_id' => $item->id, 'reorder_point' => 80, 'reorder_qty' => 0, 'is_active' => true]);
+
+        $row = $this->actingAs($this->adminUser(), 'sanctum')
+            ->getJson('api/inventory/reorder-rules')->json('data.0');
+
+        $this->assertTrue($row['is_active'], 'Saklar aturannya memang menyala — itulah yang menyesatkan.');
+        $this->assertFalse($row['applies'],
+            'Item nonaktif dibuang kueri kekurangan lebih dulu, jadi ambang baris ini tidak menentukan apa pun.');
+        // Tidak ada yang DIBUANG di sini: kepingnya menyebut penghapusan, dan
+        // nonaktif bukan penghapusan.
+        $this->assertSame([], $row['deleted_labels']);
+    }
+
     /** …dan gudang yang dibuang ditandai dengan kalimatnya sendiri. */
     public function test_a_rule_whose_warehouse_was_thrown_away_says_that_instead(): void
     {
