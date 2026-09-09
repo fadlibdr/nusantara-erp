@@ -9188,6 +9188,11 @@ def _f8_plant(tok, doc_id):
         _f8_attach(tok, doc_id, "sertifikat-kalibrasi.pdf", str(today - timedelta(days=3))),
         # Hari terakhirnya: MASIH berlaku (kuning "hari ini"), bukan merah.
         _f8_attach(tok, doc_id, "izin-kerja.pdf", str(today)),
+        # Keadaan 'berlaku' — MAYORITAS berkas bertanggal di sistem ini, dan
+        # keadaan yang tidak satu pun uji menggambarnya sampai F8-V3-04:
+        # cabang bawaan kartu bisa diubah menjadi lencana merah dan seluruh
+        # gerbang tetap hijau. Ia harus keluar sebagai TEKS POLOS.
+        _f8_attach(tok, doc_id, "gambar-kerja.pdf", str(today + timedelta(days=400))),
     ]
 
 
@@ -9224,6 +9229,7 @@ def s35(pg):
         menipis = by_name.get("polis-car.pdf") or {}
         lewat = by_name.get("sertifikat-kalibrasi.pdf") or {}
         hari_ini = by_name.get("izin-kerja.pdf") or {}
+        berlaku = by_name.get("gambar-kerja.pdf") or {}
 
         # ------------------------------------------------- dialog masa berlaku
         # Baris "tanpa masa berlaku" diberi tanggal lewat dialognya, lalu
@@ -9308,6 +9314,12 @@ def s35(pg):
                 (lewat.get("badge_class") or "").find("red") != -1
                 and "3 hari lalu" in (lewat.get("validity_text") or "")
                 and (lewat.get("validity_text") or "").startswith("Kedaluwarsa"),
+            # 2b. Yang masih jauh dari tanggalnya: TEKS POLOS, tanpa lencana dan
+            #     tanpa hitungan mundur. Ini keadaan mayoritas berkas bertanggal.
+            "a_file_still_far_from_its_date_is_plain_text":
+                berlaku.get("badge_class") is None
+                and (berlaku.get("validity_text") or "").startswith("Berlaku s/d")
+                and "hari lagi" not in (berlaku.get("validity_text") or ""),
             # 3. Hari terakhirnya MASIH berlaku: kuning "hari ini", bukan merah.
             "the_last_valid_day_reads_hari_ini_and_stays_amber":
                 (hari_ini.get("badge_class") or "").find("amber") != -1
@@ -9445,7 +9457,7 @@ def s35m(browser):
 
         by_name = {r["name"]: r for r in (out["rows"] or [])}
         out["checks"] = {
-            "the_card_renders_on_a_phone": out["page"].get("card_found") is True and len(out["rows"] or []) == 4,
+            "the_card_renders_on_a_phone": out["page"].get("card_found") is True and len(out["rows"] or []) == 5,
             "the_detail_page_never_scrolls_sideways": out["page"].get("page_scrolls_sideways") is False,
             "the_validity_line_is_not_clipped": out["page"].get("validity_clipped") is False,
             "the_no_expiry_state_is_still_plain_text_on_a_phone":

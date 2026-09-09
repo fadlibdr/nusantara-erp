@@ -101,27 +101,72 @@ class AttachmentSpaPolicyTest extends ErpTestCase
     /**
      * Empat keadaan masa berlaku (F-8), dan kartu harus mengenali keempatnya.
      *
-     * Nama keadaannya ditulis di server (Attachment::VALIDITY_*) dan dibaca
-     * apa adanya oleh kartu. Sebuah keadaan yang tidak dikenali kartu jatuh ke
-     * cabang terakhir dan digambar sebagai LENCANA KUNING — yaitu keadaan yang
-     * hilang justru muncul sebagai peringatan.
+     * TIGA punya cabangnya sendiri (`validity.state === '…'`); yang keempat,
+     * 'berlaku', SENGAJA tidak — ia cabang bawaan, dan cabang bawaan itulah
+     * yang juga menampung keadaan baru yang belum dikenal versi klien ini.
+     * Apa yang digambar cabang itu dipaku uji berikutnya.
+     *
+     * Dicocokkan terhadap KODE, bukan terhadap berkasnya: versi lama uji ini
+     * mencari substring "'berlaku'" di seluruh attachments.js dan hijau karena
+     * satu-satunya kemunculannya adalah sebuah KOMENTAR — mengedit komentar
+     * itu memerahkannya sementara mengubah perilaku yang dijanjikannya tidak.
      */
     public function test_the_card_handles_every_validity_state_the_model_can_answer(): void
     {
-        $source = $this->spa('views/attachments.js');
+        $code = $this->code('views/attachments.js');
 
         foreach ([
             Attachment::VALIDITY_NONE,
-            Attachment::VALIDITY_OK,
             Attachment::VALIDITY_NEAR,
             Attachment::VALIDITY_EXPIRED,
         ] as $state) {
             $this->assertStringContainsString(
-                "'{$state}'",
-                $source,
-                "Kartu lampiran tidak menyebut keadaan '{$state}'.",
+                "validity.state === '{$state}'",
+                $code,
+                "Kartu lampiran tidak punya cabang untuk keadaan '{$state}'.",
             );
         }
+
+        $this->assertStringNotContainsString(
+            "validity.state === '".Attachment::VALIDITY_OK."'",
+            $code,
+            "'".Attachment::VALIDITY_OK."' adalah cabang BAWAAN kartu, bukan cabang bernama. "
+            .'Bila ia kini punya cabangnya sendiri, uji cabang bawaan di bawah menjaga keadaan '
+            .'yang salah — perbarui keduanya bersama.',
+        );
+    }
+
+    /**
+     * Cabang BAWAAN kartu adalah teks polos, dan itu keputusan, bukan kelalaian.
+     *
+     * Ke sana jatuh keadaan 'berlaku' — gambar kerja yang berlaku sampai 2028,
+     * mayoritas berkas bertanggal di sistem ini — dan juga keadaan apa pun yang
+     * dikirim server versi lebih baru. Sebuah badge() di sini menaruh peringatan
+     * kuning pada setiap berkas yang sama sekali tidak bermasalah, di setiap
+     * kartu lampiran di seluruh aplikasi.
+     *
+     * Sebelum uji ini, mutasi `return el('span', …)` → `return badge(…, 'amber')`
+     * LOLOS HIJAU di seluruh gerbang phpunit.
+     */
+    public function test_the_default_validity_branch_is_plain_text_not_a_badge(): void
+    {
+        $body = $this->functionBody('views/attachments.js', 'validityNode');
+
+        $this->assertGreaterThan(
+            0,
+            preg_match_all('/return ([^;]+);/', $body, $matches),
+            'validityNode() tidak lagi punya satu pun return yang terbaca uji ini.',
+        );
+
+        // Cabang bawaan adalah return TERAKHIR: setiap keadaan bernama pulang
+        // lebih dulu dari cabangnya sendiri.
+        $last = (string) end($matches[1]);
+
+        $this->assertStringNotContainsString('badge(', $last,
+            'Cabang bawaan kartu lampiran digambar sebagai lencana — itu peringatan pada setiap '
+            .'berkas yang masih berlaku, dan pada setiap keadaan yang belum dikenal klien ini.');
+        $this->assertStringContainsString('sampai', $last,
+            'Cabang bawaan tidak lagi menuliskan tanggal berlakunya.');
     }
 
     /**
@@ -152,5 +197,31 @@ class AttachmentSpaPolicyTest extends ErpTestCase
     private function spa(string $file): string
     {
         return (string) file_get_contents(public_path('app/js/'.$file));
+    }
+
+    /**
+     * Berkas SPA tanpa komentarnya.
+     *
+     * Uji yang mencari sebuah pola di seluruh berkas hijau ketika polanya cuma
+     * ada di dalam komentar yang menjanjikannya — dan komentar tidak menjaga
+     * apa pun. Blok komentar dan baris yang seluruhnya komentar dilucuti.
+     */
+    private function code(string $file): string
+    {
+        $source = (string) preg_replace('#/\*.*?\*/#s', '', $this->spa($file));
+
+        return (string) preg_replace('#^\s*//[^\n]*$#m', '', $source);
+    }
+
+    /** Badan satu fungsi tingkat atas, tanpa komentar. */
+    private function functionBody(string $file, string $function): string
+    {
+        $this->assertSame(
+            1,
+            preg_match('/function '.preg_quote($function, '/').'\([^)]*\) \{(.*?)\n\}/s', $this->code($file), $matches),
+            "Fungsi {$function}() tidak ditemukan di {$file}; uji ini tidak lagi menjaga apa pun.",
+        );
+
+        return $matches[1];
     }
 }
