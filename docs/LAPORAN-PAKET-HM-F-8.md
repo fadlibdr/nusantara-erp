@@ -417,7 +417,7 @@ Dijalankan per-direktori selama kerja (gerbang rilis penuh dijalankan terpisah):
 
 | Yang dijalankan | SQLite | MySQL 8 (`erp_dryrun`) |
 |---|---|---|
-| `tests/Feature/Core` (seluruhnya) | **OK 1.020 uji, 9.224 assertion** (11 skipped) | — |
+| `tests/Feature/Core` (seluruhnya, pada `7d1f56c`) | **OK 1.022 uji, 9.231 assertion** (11 skipped) | — |
 | Tujuh berkas uji lampiran | OK | **OK 82 uji, 568 assertion** (2 skipped = paku rencana kueri khusus SQLite) |
 | Tiga berkas uji baru F-8 | **OK 35 uji, 256 assertion** | ikut di atas |
 | `tests/Unit` + `tests/Feature/Procurement` + `tests/Feature/Projects` + `tests/Feature/HrPayroll` | **OK 1.377 uji, 5.712 assertion** | — |
