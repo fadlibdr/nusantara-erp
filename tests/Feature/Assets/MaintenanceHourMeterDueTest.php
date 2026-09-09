@@ -567,13 +567,27 @@ class MaintenanceHourMeterDueTest extends ErpTestCase
         $asset = $this->asset();
         $this->actingAs($this->adminUser());
 
-        $this->postJson('/api/assets/maintenances', [
+        $ditolak = $this->postJson('/api/assets/maintenances', [
             'asset_id' => $asset->id,
             'maintenance_date' => '2026-06-14',
             'maintenance_type' => 'service_rutin',
             'cost' => 0,
             'next_due_hour_meter' => 0,
-        ])->assertStatus(422)->assertJsonValidationErrors('next_due_hour_meter');
+        ])->assertStatus(422)->assertJsonValidationErrors('next_due_hour_meter')
+            ->json('errors.next_due_hour_meter.0');
+
+        /*
+         * DAN KALIMAT PENOLAKANNYA BERBAHASA INDONESIA SELURUHNYA.
+         *
+         * Tanpa entri di peta 'attributes', kalimatnya berbunyi "next due
+         * hour meter harus lebih besar dari 0." — nama kolom basis data
+         * dalam bahasa Inggris, dilukis paintErrors() tepat di bawah kotak
+         * berlabel "Jadwal berikutnya (hour meter)", di sebelah kotak
+         * tetangganya yang gagal dengan aturan yang sama dan berbunyi
+         * "Jatuh tempo …".
+         */
+        $this->assertStringNotContainsString('next due hour meter', $ditolak);
+        $this->assertStringContainsString('Jadwal berikutnya (hour meter)', $ditolak);
 
         $this->postJson('/api/assets/maintenances', [
             'asset_id' => $asset->id,

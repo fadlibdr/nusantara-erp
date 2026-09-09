@@ -427,6 +427,12 @@ return [
         'net_payable' => 'Netto dibayar',
         'new_end_date' => 'Selesai baru',
         'next_due_date' => 'Jatuh tempo',
+        // Kata yang SAMA PERSIS dengan label kotaknya di formulir Perawatan
+        // (schema.js), supaya pemakainya tahu kotak mana yang ditolak: tanpa
+        // baris ini pesannya berbunyi "next due hour meter harus lebih besar
+        // dari 0." tepat di bawah kotak berlabel "Jadwal berikutnya (hour
+        // meter)".
+        'next_due_hour_meter' => 'Jadwal berikutnya (hour meter)',
         'next_follow_up_at' => 'Follow-up',
         'nik_ktp' => 'NIK KTP',
         'normal_balance' => 'Saldo normal',
