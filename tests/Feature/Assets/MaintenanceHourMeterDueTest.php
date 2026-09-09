@@ -627,6 +627,56 @@ class MaintenanceHourMeterDueTest extends ErpTestCase
     }
 
     /**
+     * PINTU UBAH DIUJI JUGA, KARENA MENGHAPUS ATURANNYA LOLOS HIJAU.
+     *
+     * Mutasi (verifikasi F-7): baris 'next_due_hour_meter' dihapus dari
+     * MaintenanceUpdateRequest, lalu tests/Feature/Assets + tiga berkas Core
+     * -> OK (205 uji). Seluruh 24 uji berkas ini memakai POST; tidak satu pun
+     * memakai PUT, dan MaintenanceController::update() memakai validated(),
+     * jadi tanpa aturannya kuncinya dibuang DIAM-DIAM: mekanik mengubah
+     * 5.000 jam menjadi 5.250, membaca toast berhasil, dan barisnya tetap
+     * 5.000. Empat perilaku dipaku sekaligus di sini.
+     */
+    public function test_the_update_door_sets_keeps_clears_and_refuses_an_hour_target(): void
+    {
+        $asset = $this->asset();
+        $this->actingAs($this->adminUser());
+
+        $id = $this->postJson('/api/assets/maintenances', [
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-06-14',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 0,
+        ])->assertStatus(201)->json('data.id');
+
+        // (1) MENYETEL lewat PUT benar-benar tersimpan.
+        $this->putJson('/api/assets/maintenances/'.$id, ['next_due_hour_meter' => 5250])
+            ->assertOk();
+        $this->assertSame(5250.0, (float) $this->getJson('/api/assets/maintenances/'.$id)
+            ->json('data.next_due_hour_meter'));
+
+        // (2) PUT yang TIDAK menyebut kolom itu MEMPERTAHANKAN nilainya —
+        // kunci yang absen tidak masuk validated().
+        $this->putJson('/api/assets/maintenances/'.$id, ['cost' => 1_250_000])->assertOk();
+        $this->assertSame(5250.0, (float) $this->getJson('/api/assets/maintenances/'.$id)
+            ->json('data.next_due_hour_meter'));
+
+        // (3) NULL EKSPLISIT mengosongkannya — cara pemakainya membatalkan
+        // jadwal jam, dan yang dijanjikan bantuan formulirnya ("KOSONGKAN
+        // bila belum dijadwalkan menurut jam").
+        $this->putJson('/api/assets/maintenances/'.$id, ['next_due_hour_meter' => null])->assertOk();
+        $this->assertNull($this->getJson('/api/assets/maintenances/'.$id)
+            ->json('data.next_due_hour_meter'));
+
+        // (4) …dan pintu ubah menolak angka yang sama dengan pintu buat: nol,
+        // dan angka yang dibulatkan kolomnya menjadi nol.
+        $this->putJson('/api/assets/maintenances/'.$id, ['next_due_hour_meter' => 0])
+            ->assertStatus(422)->assertJsonValidationErrors('next_due_hour_meter');
+        $this->putJson('/api/assets/maintenances/'.$id, ['next_due_hour_meter' => 0.0004])
+            ->assertStatus(422)->assertJsonValidationErrors('next_due_hour_meter');
+    }
+
+    /**
      * DAN SEBUAH KARTU SERVIS BOLEH MENJADWALKAN DENGAN JAM SAJA — tanpa
      * tanggal. Alat berat memang dirawat begitu; kalau pintu tulisnya
      * mewajibkan tanggal, seluruh paket ini hanya bisa dipakai oleh orang yang
