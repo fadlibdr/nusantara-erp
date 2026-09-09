@@ -2854,11 +2854,11 @@
   "plant_rak_deploy": "sudah termobilisasi",
   "plant_komatsu_fuel": 201,
   "planted": [
-   33,
-   34,
-   35,
-   36,
-   37
+   39,
+   40,
+   41,
+   42,
+   43
   ],
   "ambang": {
    "badge": "Servis alat menurut jam operasi Peringatan 50 jam sebelum batas 6 baris",
@@ -2877,7 +2877,7 @@
       "1.240 jam",
       "1.200 jam",
       "40 jam lewat",
-      "Melampaui batas Pembacaan tertinggi 1.240 jam pada 9 Sep 2026 dari 7 pembacaan; target dari MTC/2026/IX/034 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+      "Melampaui batas Pembacaan tertinggi 1.240 jam pada 9 Sep 2026 dari 8 pembacaan; target dari MTC/2026/IX/040 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
       "Buka"
      ]
     },
@@ -2887,7 +2887,7 @@
       "3.375,5 jam",
       "3.400 jam",
       "24,5 jam lagi",
-      "Mendekati batas Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/033 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
+      "Mendekati batas Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/039 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
       "Buka"
      ]
     },
@@ -2897,7 +2897,7 @@
       "—",
       "5.000 jam",
       "Belum ada yang diukur",
-      "Belum ada yang diukur 7 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/036 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+      "Belum ada yang diukur 8 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/042 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
       "Buka"
      ]
     },
@@ -2907,7 +2907,7 @@
       "8.150 jam",
       "—",
       "Batas belum disetel",
-      "Batas belum disetel Pembacaan tertinggi 8.150 jam pada 9 Sep 2026 dari 7 pembacaan; belum ada catatan perawatan sama sekali, jadi target jam servis berikutnya belum disetel.",
+      "Batas belum disetel Pembacaan tertinggi 8.150 jam pada 9 Sep 2026 dari 8 pembacaan; belum ada catatan perawatan sama sekali, jadi target jam servis berikutnya belum disetel.",
       "Buka"
      ]
     },
@@ -2917,7 +2917,7 @@
       "—",
       "500 jam",
       "Belum ada yang diukur",
-      "Belum ada yang diukur Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/037 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+      "Belum ada yang diukur Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/043 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
       "Buka"
      ]
     },
@@ -2927,12 +2927,12 @@
       "—",
       "8.760 jam",
       "Belum ada yang diukur",
-      "Belum ada yang diukur 1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/035 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+      "Belum ada yang diukur 1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/041 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
       "Buka"
      ]
     }
    ],
-   "text": "Servis alat menurut jam operasi Peringatan 50 jam sebelum batas 6 baris Yang diukur: Pembacaan hour-meter TERTINGGI yang tercatat untuk alat itu (meter tidak berjalan mundur, jadi angka yang turun adalah salah ketik atau meter diganti — bukan jam yang berkurang). Batasnya dari: Target jam servis berikutnya pada catatan perawatan TERBARU alat itu — baris yang sama yang dibaca pemicu tanggal; pemicu tanggalnya sendiri ada di catatan tiap baris. ALAT AKTUAL BATAS SISA KEADAAN AST-0005 Fusion Splicer Sumitomo T-72C 1.240 jam 1.200 jam 40 jam lewat Melampaui batas Pembacaan tertinggi 1.240 jam pada 9 Sep 2026 dari 7 pembacaan; target dari MTC/2026/IX/034 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka AST-0007 Excavator Doosan DX225LCA (sewa) 3.375,5 jam 3.400 jam 24,5 jam lagi Mendekati batas Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/033 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026. Buka AST-0001 Excavator Komatsu PC200-8 (bekas) — 5.000 jam Belum ada yang diukur Belum ada yang diukur 7 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/036 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka AST-0002 Dump Truck Hino Dutro 130 HD 8.150 jam — Batas belum disetel Batas belum disetel Pembacaan tertinggi 8.150 jam pada 9 Sep 2026 dari 7 pembacaan; belum ada catatan perawatan sama sekali, jadi target jam servis berikutnya belum disetel. Buka AST-0003 Total Station Topcon GM-52 — 500 jam Belum ada yang diukur Belum ada yang diukur Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/037 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka AST-0006 Server Rack 42U + UPS 10kVA — 8.760 jam Belum ada yang diukur Belum ada yang diukur 1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/035 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka"
+   "text": "Servis alat menurut jam operasi Peringatan 50 jam sebelum batas 6 baris Yang diukur: Pembacaan hour-meter TERTINGGI yang tercatat untuk alat itu (meter tidak berjalan mundur, jadi angka yang turun adalah salah ketik atau meter diganti — bukan jam yang berkurang). Batasnya dari: Target jam servis berikutnya pada catatan perawatan TERBARU alat itu — baris yang sama yang dibaca pemicu tanggal; pemicu tanggalnya sendiri ada di catatan tiap baris. ALAT AKTUAL BATAS SISA KEADAAN AST-0005 Fusion Splicer Sumitomo T-72C 1.240 jam 1.200 jam 40 jam lewat Melampaui batas Pembacaan tertinggi 1.240 jam pada 9 Sep 2026 dari 8 pembacaan; target dari MTC/2026/IX/040 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka AST-0007 Excavator Doosan DX225LCA (sewa) 3.375,5 jam 3.400 jam 24,5 jam lagi Mendekati batas Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/039 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026. Buka AST-0001 Excavator Komatsu PC200-8 (bekas) — 5.000 jam Belum ada yang diukur Belum ada yang diukur 8 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/042 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka AST-0002 Dump Truck Hino Dutro 130 HD 8.150 jam — Batas belum disetel Batas belum disetel Pembacaan tertinggi 8.150 jam pada 9 Sep 2026 dari 8 pembacaan; belum ada catatan perawatan sama sekali, jadi target jam servis berikutnya belum disetel. Buka AST-0003 Total Station Topcon GM-52 — 500 jam Belum ada yang diukur Belum ada yang diukur Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/043 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka AST-0006 Server Rack 42U + UPS 10kVA — 8.760 jam Belum ada yang diukur Belum ada yang diukur 1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/041 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan. Buka"
   },
   "subjects": [
    "AST-0005",
@@ -2948,7 +2948,7 @@
     "1.240 jam",
     "1.200 jam",
     "40 jam lewat",
-    "Melampaui batas Pembacaan tertinggi 1.240 jam pada 9 Sep 2026 dari 7 pembacaan; target dari MTC/2026/IX/034 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+    "Melampaui batas Pembacaan tertinggi 1.240 jam pada 9 Sep 2026 dari 8 pembacaan; target dari MTC/2026/IX/040 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
     "Buka"
    ],
    "AST-0007": [
@@ -2956,7 +2956,7 @@
     "3.375,5 jam",
     "3.400 jam",
     "24,5 jam lagi",
-    "Mendekati batas Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/033 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
+    "Mendekati batas Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/039 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
     "Buka"
    ],
    "AST-0001": [
@@ -2964,7 +2964,7 @@
     "—",
     "5.000 jam",
     "Belum ada yang diukur",
-    "Belum ada yang diukur 7 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/036 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+    "Belum ada yang diukur 8 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/042 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
     "Buka"
    ],
    "AST-0002": [
@@ -2972,7 +2972,7 @@
     "8.150 jam",
     "—",
     "Batas belum disetel",
-    "Batas belum disetel Pembacaan tertinggi 8.150 jam pada 9 Sep 2026 dari 7 pembacaan; belum ada catatan perawatan sama sekali, jadi target jam servis berikutnya belum disetel.",
+    "Batas belum disetel Pembacaan tertinggi 8.150 jam pada 9 Sep 2026 dari 8 pembacaan; belum ada catatan perawatan sama sekali, jadi target jam servis berikutnya belum disetel.",
     "Buka"
    ],
    "AST-0003": [
@@ -2980,7 +2980,7 @@
     "—",
     "500 jam",
     "Belum ada yang diukur",
-    "Belum ada yang diukur Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/037 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+    "Belum ada yang diukur Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/043 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
     "Buka"
    ],
    "AST-0006": [
@@ -2988,7 +2988,7 @@
     "—",
     "8.760 jam",
     "Belum ada yang diukur",
-    "Belum ada yang diukur 1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/035 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+    "Belum ada yang diukur 1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/041 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
     "Buka"
    ]
   },
@@ -3003,7 +3003,7 @@
     {
      "label": "JATUH TEMPO PADA",
      "value": "3.400 jam",
-     "delta": "target dari MTC/2026/IX/033"
+     "delta": "target dari MTC/2026/IX/039"
     },
     {
      "label": "SISA JAM",
@@ -3016,7 +3016,7 @@
      "delta": "jadwal kalender berikutnya"
     }
    ],
-   "help": "Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/033 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
+   "help": "Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/039 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
    "alert": null,
    "page_scrolls_sideways": false
   },
@@ -3031,7 +3031,7 @@
     {
      "label": "JATUH TEMPO PADA",
      "value": "8.760 jam",
-     "delta": "target dari MTC/2026/IX/035"
+     "delta": "target dari MTC/2026/IX/041"
     },
     {
      "label": "SISA JAM",
@@ -3044,7 +3044,7 @@
      "delta": "belum dijadwalkan menurut tanggal"
     }
    ],
-   "help": "1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/035 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+   "help": "1 mobilisasi tercatat, tetapi belum ada satu log BBM & jam alat pun; target dari MTC/2026/IX/041 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
    "alert": null,
    "page_scrolls_sideways": false
   },
@@ -3059,7 +3059,7 @@
     {
      "label": "JATUH TEMPO PADA",
      "value": "5.000 jam",
-     "delta": "target dari MTC/2026/IX/036"
+     "delta": "target dari MTC/2026/IX/042"
     },
     {
      "label": "SISA JAM",
@@ -3072,7 +3072,7 @@
      "delta": "belum dijadwalkan menurut tanggal"
     }
    ],
-   "help": "7 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/036 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+   "help": "8 log tercatat, tetapi tidak satu pun mengisi hour meter (log BBM tanpa jam kerja); target dari MTC/2026/IX/042 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
    "alert": null,
    "page_scrolls_sideways": false
   },
@@ -3087,7 +3087,7 @@
     {
      "label": "JATUH TEMPO PADA",
      "value": "500 jam",
-     "delta": "target dari MTC/2026/IX/037"
+     "delta": "target dari MTC/2026/IX/043"
     },
     {
      "label": "SISA JAM",
@@ -3100,7 +3100,7 @@
      "delta": "belum dijadwalkan menurut tanggal"
     }
    ],
-   "help": "Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/037 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
+   "help": "Alat ini belum pernah dimobilisasi, jadi belum ada mobilisasi yang bisa menampung log jam; target dari MTC/2026/IX/043 (servis 9 Sep 2026); pemicu tanggal: belum dijadwalkan.",
    "alert": null,
    "page_scrolls_sideways": false
   },
@@ -3118,7 +3118,7 @@
    ],
    "rows": [
     [
-     "MTC/2026/IX/033",
+     "MTC/2026/IX/039",
      "Excavator Doosan DX225LCA (sewa) AST-0007",
      "09 Sep 2026",
      "Service Rutin",
@@ -3128,7 +3128,7 @@
      ""
     ],
     [
-     "MTC/2026/IX/034",
+     "MTC/2026/IX/040",
      "Fusion Splicer Sumitomo T-72C AST-0005",
      "09 Sep 2026",
      "Service Rutin",
@@ -3138,7 +3138,7 @@
      ""
     ],
     [
-     "MTC/2026/IX/035",
+     "MTC/2026/IX/041",
      "Server Rack 42U + UPS 10kVA AST-0006",
      "09 Sep 2026",
      "Service Rutin",
@@ -3148,7 +3148,7 @@
      ""
     ],
     [
-     "MTC/2026/IX/036",
+     "MTC/2026/IX/042",
      "Excavator Komatsu PC200-8 (bekas) AST-0001",
      "09 Sep 2026",
      "Service Rutin",
@@ -3158,7 +3158,7 @@
      ""
     ],
     [
-     "MTC/2026/IX/037",
+     "MTC/2026/IX/043",
      "Total Station Topcon GM-52 AST-0003",
      "09 Sep 2026",
      "Service Rutin",
@@ -3204,7 +3204,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 17551,
+  "_ms": 22185,
   "_clicks": 0
  },
  "S34_servis_alat_per_jam_mobile": {
@@ -3224,7 +3224,7 @@
     {
      "label": "JATUH TEMPO PADA",
      "value": "3.400 jam",
-     "delta": "target dari MTC/2026/IX/038"
+     "delta": "target dari MTC/2026/IX/044"
     },
     {
      "label": "SISA JAM",
@@ -3237,7 +3237,7 @@
      "delta": "jadwal kalender berikutnya"
     }
    ],
-   "help": "Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/038 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
+   "help": "Pembacaan tertinggi 3.375,5 jam pada 31 Jul 2026 dari 2 pembacaan; target dari MTC/2026/IX/044 (servis 9 Sep 2026); pemicu tanggal: 1 Des 2026.",
    "alert": null,
    "page_scrolls_sideways": false
   },
@@ -3265,7 +3265,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7199,
+  "_ms": 8117,
   "_clicks": 0
  }
 }
