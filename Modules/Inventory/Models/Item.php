@@ -78,11 +78,12 @@ class Item extends BaseModel
      * atau ia gagal. Pencarian sebagian punya tempatnya sendiri
      * (`GET inventory/items?q=`).
      *
-     * TETAPI TIDAK PEDULI BESAR-KECIL HURUF, dengan `UPPER()` di kedua sisi
-     * dan bukan collation: SQLite membandingkan `=` secara peka huruf
-     * sementara MySQL utf8mb4_unicode_ci tidak, jadi tanpa itu jawabannya
-     * BERBEDA antara mesin uji dan produksi. Papan ketik iOS mengapitalkan
-     * huruf pertama, dan jalur ketik adalah satu-satunya jalur di iPhone.
+     * TETAPI TIDAK PEDULI BESAR-KECIL HURUF ASCII, dengan `UPPER()` di kedua
+     * sisi: SQLite membandingkan `=` secara peka huruf, dan papan ketik iOS
+     * mengapitalkan huruf pertama sementara jalur ketik adalah satu-satunya
+     * jalur di iPhone. `UPPER()` sendiri TIDAK menetralkan collation — yang
+     * menutup itu adalah cabang per driver di `scanKeyExpression()`, yang
+     * docblock-nya menyebut selisih terukurnya.
      *
      * ITEM YANG DIBUANG TIDAK IKUT, karena pemindaiannya tidak memulangkan
      * mereka: sebuah peringatan "memindai stiker ini akan memulangkan lebih
@@ -216,13 +217,51 @@ class Item extends BaseModel
     /**
      * NILAI sebuah kolom kunci sebagaimana pemindaian membandingkannya.
      *
-     * `UPPER()` dan bukan collation: SQLite membandingkan `=` secara peka huruf
-     * sementara MySQL utf8mb4_unicode_ci tidak, jadi tanpa ini jawabannya
-     * berbeda antara mesin uji dan produksi.
+     * ====================================================================
+     * DUA HAL, DAN KEDUANYA PERLU — `UPPER()` SAJA TIDAK CUKUP.
+     *
+     * `UPPER()` menutup selisih huruf besar-kecil ASCII (papan ketik iOS
+     * mengapitalkan huruf pertama, dan jalur ketik adalah satu-satunya jalur
+     * di iPhone). Ia TIDAK menetralkan collation: yang membandingkan hasilnya
+     * tetap collation kolomnya, dan kolom itu `utf8mb4_unicode_ci`. Di MySQL
+     * 8.0.46 `UPPER('café') = 'CAFE'` memulangkan 1 — diukur.
+     *
+     * Akibatnya terukur di dua mesin, dengan kartu `CAFÉ-2026` dan
+     * `CAFE-2026`:
+     *
+     *   SQLITE                              MYSQL 8 (sebelum)
+     *   pindai 'CAFE-2026' → satu: E002     → ambiguous: E001, E002
+     *   saringan ganda     → (kosong)       → E001, E002
+     *
+     * Yaitu persis selisih yang `UPPER()` dipasang untuk menutup. Maka di
+     * MySQL perbandingannya dipaksa `utf8mb4_bin`: yang memutuskan "sama"
+     * adalah BYTE hasil `UPPER()`-nya, bukan tabel bobot collation. Pindai
+     * adalah pembacaan MESIN — ia tepat atau ia gagal — dan `café` dan `cafe`
+     * adalah dua kode yang berbeda di setiap pemindai di dunia.
+     *
+     * YANG MASIH BERBEDA ANTARA KEDUA MESIN, dan tidak ditutup ekspresi ini:
+     * huruf besar-kecil DI LUAR ASCII. `UPPER()` MySQL melipat `é` → `É`,
+     * `UPPER()` SQLite (tanpa ICU) tidak. Selisihnya satu arah — MySQL
+     * memulangkan kumpulan yang SAMA atau LEBIH BESAR, tidak pernah lebih
+     * kecil — jadi produksi tidak pernah diam-diam melewatkan tabrakan yang
+     * mesin uji lihat, dan pemindaian ambigu tidak pernah dipilihkan diam-diam
+     * (server memulangkan semuanya). Kode Code 128 sendiri wajib ASCII
+     * 32–126, jadi selisih itu hanya bisa muncul pada kode yang lembarnya
+     * memang cetak tanpa batang.
+     *
+     * SATU FUNGSI, satu cabang: setiap permukaan (pemindaian, lembar F/LBL,
+     * saringan audit, dan kedua sisi pengelompokan `collidingScanKeys`)
+     * membaca ekspresi yang sama, jadi tidak ada permukaan yang bisa memakai
+     * aturan collation yang berbeda dari saudaranya.
+     * ====================================================================
      */
     private static function scanKeyExpression(string $table, string $column): string
     {
-        return "UPPER({$table}.{$column})";
+        $upper = "UPPER({$table}.{$column})";
+
+        return DB::getDriverName() === 'mysql'
+            ? $upper.' COLLATE utf8mb4_bin'
+            : $upper;
     }
 
     /** Kolom kunci yang benar-benar berisi sesuatu — kunci kosong bukan kunci. */

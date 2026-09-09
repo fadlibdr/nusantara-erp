@@ -200,6 +200,60 @@ class ScanCodeParityTest extends ErpTestCase
     }
 
     /**
+     * DUA KODE YANG BERBEDA HANYA PADA HURUF BERAKSEN ADALAH DUA ITEM — DI
+     * KEDUA MESIN (F-6, putaran ketiga).
+     *
+     * `UPPER()` menutup selisih huruf besar-kecil ASCII; ia TIDAK menetralkan
+     * collation. Kolomnya `utf8mb4_unicode_ci`, dan di MySQL 8 ekspresi
+     * `UPPER('café') = 'CAFE'` memulangkan 1. Terukur sebelum perbaikan,
+     * dengan dua kartu berbarcode `CAFÉ-2026` dan `CAFE-2026`:
+     *
+     *   SQLITE                              MYSQL 8.0.46
+     *   pindai 'CAFE-2026' → satu: E002     pindai 'CAFE-2026' → ambiguous: E001, E002
+     *   saringan ganda     → (kosong)       saringan ganda     → E001, E002
+     *
+     * Yaitu persis selisih yang `UPPER()` dipasang untuk menutup, pada
+     * permukaan yang seluruh gunanya adalah pembacaan mesin yang TEPAT: satu
+     * pemindaian yang memulangkan dua kartu karena aksen memaksa orang gudang
+     * memilih sendiri antara dua barang yang kodenya memang berbeda.
+     *
+     * Uji ini harus dijalankan di KEDUA driver — di SQLite ia sudah hijau
+     * sebelum perbaikannya, dan yang membuktikan perbaikannya adalah
+     * `DB_DATABASE=erp_dryrun vendor/bin/phpunit -c phpunit.mysql.xml`.
+     */
+    public function test_two_codes_that_differ_only_by_an_accent_are_two_items_on_every_driver(): void
+    {
+        $accented = $this->makeItem('Keramik Impor', ['code' => 'ITM-E001', 'barcode' => 'CAFÉ-2026']);
+        $plain = $this->makeItem('Keramik Lokal', ['code' => 'ITM-E002', 'barcode' => 'CAFE-2026']);
+
+        $this->assertSame(['ITM-E002'], $this->scanned('CAFE-2026'),
+            'Pemindaian memulangkan kartu yang kodenya beraksen: collation kolom yang membandingkan, bukan aturannya.');
+        $this->assertSame(['ITM-E001'], $this->scanned('CAFÉ-2026'));
+
+        $this->assertFalse($this->sheetWarns($accented),
+            'Lembar labelnya memperingatkan kembaran yang bukan kembaran.');
+        $this->assertFalse($this->sheetWarns($plain));
+
+        $this->assertSame([], $this->auditFilter(true),
+            'Saringan audit menyebut tabrakan yang tidak ada, dan pemilik yang memutuskan UNIQUE membacanya.');
+        $this->assertEqualsCanonicalizing(['ITM-E001', 'ITM-E002'], $this->auditFilter(false));
+    }
+
+    /**
+     * …DAN HURUF BESAR-KECIL ASCII TETAP SATU KODE, di kedua mesin. Inilah
+     * yang `UPPER()` memang tutup, dan yang tidak boleh ikut hilang bersama
+     * perbaikan aksen di atas: papan ketik iOS mengapitalkan huruf pertama.
+     */
+    public function test_ascii_letter_case_is_still_one_code_on_every_driver(): void
+    {
+        $this->makeItem('Semen A', ['code' => 'ITM-E010', 'barcode' => 'f6case10']);
+        $this->makeItem('Semen B', ['code' => 'ITM-E011', 'barcode' => 'F6CASE10']);
+
+        $this->assertEqualsCanonicalizing(['ITM-E010', 'ITM-E011'], $this->scanned('f6CaSe10'));
+        $this->assertEqualsCanonicalizing(['ITM-E010', 'ITM-E011'], $this->auditFilter(true));
+    }
+
+    /**
      * SARINGAN AUDIT HARUS BISA DIBUKA PADA KATALOG SUNGGUHAN.
      *
      * Bentuk pertama penyatuan ini adalah `EXISTS (… other …)` berkorelasi —

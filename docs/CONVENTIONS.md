@@ -1817,12 +1817,23 @@ sebelum yang pertama sempat dihentikan, dan trek yang benar-benar dilihat orangn
 seluruh rujukannya tanpa pernah di-`stop()` — layar berkata "Kamera belum dinyalakan" sementara
 lampu kameranya menyala terus. Tukar SATU variabel handler, jangan menumpuk pendengar.
 
-**PENCOCOKANNYA TIDAK PEDULI BESAR-KECIL HURUF**, dengan `UPPER()` di kedua sisi dan bukan
-collation (SQLite peka huruf pada `=`, MySQL tidak — tanpa itu jawabannya berbeda antara mesin uji
-dan produksi). Papan ketik iOS mengapitalkan huruf pertama secara bawaan dan jalur ketik adalah
-satu-satunya jalur di iPhone; isiannya juga membawa `autocapitalize="none"` dan `autocorrect="off"`
-supaya masukannya tidak diubah sebelum kode ini melihatnya. Permukaan saudaranya
-(`GET inventory/items?q=`) sudah menjawab begitu sejak lama.
+**PENCOCOKANNYA TIDAK PEDULI BESAR-KECIL HURUF ASCII, TETAPI PEDULI AKSEN — DAN `UPPER()` SAJA
+TIDAK CUKUP UNTUK ITU.** `UPPER()` di kedua sisi menutup selisih huruf besar-kecil ASCII (SQLite
+peka huruf pada `=`; papan ketik iOS mengapitalkan huruf pertama secara bawaan dan jalur ketik
+adalah satu-satunya jalur di iPhone). Ia **tidak** menetralkan collation: yang membandingkan
+hasilnya tetap collation kolomnya, dan kolom itu `utf8mb4_unicode_ci`, sehingga di MySQL 8.0.46
+`UPPER('café') = 'CAFE'` memulangkan **1**. Terukur dengan kartu `CAFÉ-2026` dan `CAFE-2026`:
+SQLite memulangkan satu item, MySQL memulangkan **dua** dan saringan "Barcode ganda" menyebut
+keduanya ganda — yaitu persis selisih yang `UPPER()` dipasang untuk menutup. Maka di MySQL
+perbandingannya dipaksa `COLLATE utf8mb4_bin` (satu cabang driver, di dalam
+`Item::scanKeyExpression()` saja): yang memutuskan "sama" adalah BYTE hasil `UPPER()`-nya. Pindai
+adalah pembacaan mesin — `café` dan `cafe` adalah dua kode berbeda di setiap pemindai di dunia.
+**Yang MASIH berbeda antara kedua mesin** dan sengaja dibiarkan: huruf besar-kecil DI LUAR ASCII
+(`UPPER()` MySQL melipat `é`→`É`, SQLite tanpa ICU tidak). Selisihnya satu arah — MySQL
+memulangkan kumpulan yang sama atau LEBIH BESAR — jadi produksi tidak pernah diam-diam melewatkan
+tabrakan yang mesin uji lihat, dan kode Code 128 sendiri wajib ASCII 32–126. Isiannya juga membawa
+`autocapitalize="none"` dan `autocorrect="off"` supaya masukannya tidak diubah sebelum kode ini
+melihatnya. Permukaan saudaranya (`GET inventory/items?q=`) sudah menjawab begitu sejak lama.
 
 **Standar target sentuh 42–46 px berlaku untuk SETIAP tombol di layar ini**, bukan hanya isian
 ketiknya: `.btn` 34 px dan `.btn.sm` 28 px adalah kotak yang dicoba ditekan dua kali oleh orang
@@ -1850,7 +1861,8 @@ pemindaian adalah pembacaan mesin, ia tepat atau ia gagal. `items/scan` didaftar
 
 **"KODE MANA YANG DIANGGAP SAMA" HIDUP DI SATU EKSPRESI: `Modules\Inventory\Models\Item`.**
 `SCAN_KEY_COLUMNS` (`barcode`, `code`) adalah satu-satunya daftar kolom kunci, dan
-`whereScanKeyEquals()` satu-satunya bentuk perbandingannya (`UPPER()` di kedua sisi). Di atas
+`whereScanKeyEquals()` satu-satunya bentuk perbandingannya, di atas satu-satunya ekspresi nilai
+(`scanKeyExpression()`: `UPPER()` di kedua sisi, plus `COLLATE utf8mb4_bin` di MySQL). Di atas
 keduanya berdiri dua scope, untuk dua pertanyaan yang berbeda dengan aturan yang sama:
 
 | scope | pertanyaannya | pemanggilnya |
