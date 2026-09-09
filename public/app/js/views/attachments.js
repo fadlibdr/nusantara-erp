@@ -11,7 +11,7 @@
  * becomes a click. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, confirmDialog, errorState, toast, toastError, withBusy } from '../ui.js';
+import { el, clear, button, icon, badge, field, modal, confirmDialog, errorState, toast, toastError, withBusy } from '../ui.js';
 import * as fmt from '../format.js';
 
 /* Kept in step with Modules\Core\Support\AttachableDocuments by
@@ -100,7 +100,84 @@ async function download(attachment) {
   }
 }
 
+/* MASA BERLAKU: EMPAT KEADAAN, DAN YANG PERTAMA ADALAH KEADAAN NORMAL (F-8).
+ *
+ * `attachment.validity` datang DARI SERVER (Modules\Core\Models\Attachment):
+ * state + sisa hari + jendela peringatannya. Tidak dihitung ulang di sini, dan
+ * itu disengaja — pengawas tenggat 08.30, layar Tenggat dan kartu ini harus
+ * mustahil menyimpulkan berbeda tentang berkas yang sama. Aturan yang sama
+ * dihitung dua kali adalah cara F-3 (aktivitas CRM) dan F-7 (servis alat)
+ * masing-masing melahirkan satu kontradiksi yang harus dibayar belakangan.
+ *
+ * 'tanpa_masa_berlaku' SENGAJA BUKAN LENCANA. Hampir setiap lampiran di sistem
+ * ini adalah foto lapangan, nota atau gambar kerja yang tidak punya — dan tidak
+ * akan pernah punya — masa berlaku. Menandainya kuning, merah, atau bahkan
+ * memberinya lencana abu-abu akan menaruh satu peringatan visual pada setiap
+ * baris di setiap kartu lampiran di seluruh aplikasi. Ia ditulis sebagai
+ * keterangan biasa, satu baris dengan ukuran berkas dan nama pengunggah. */
+function validityNode(attachment) {
+  const validity = attachment.validity;
+  // Respons tanpa blok validity (server lama): diam, bukan menebak.
+  if (!validity) return null;
+
+  if (validity.state === 'tanpa_masa_berlaku') {
+    return el('span', { text: 'Tanpa masa berlaku' });
+  }
+
+  const sampai = `Berlaku s/d ${fmt.date(attachment.valid_until)}`;
+  const days = Math.abs(validity.days === null ? 0 : validity.days);
+
+  if (validity.state === 'menipis') {
+    return badge(`${sampai} · ${days === 0 ? 'hari ini' : `${days} hari lagi`}`, 'amber');
+  }
+  if (validity.state === 'kedaluwarsa') {
+    return badge(`Kedaluwarsa ${fmt.date(attachment.valid_until)} · ${days} hari lalu`, 'red');
+  }
+
+  /* 'berlaku' — dan keadaan apa pun yang belum dikenal versi klien ini.
+     Cabang bawaan sengaja yang PALING TENANG: sebuah keadaan baru yang jatuh
+     ke sini terbaca sebagai keterangan, bukan sebagai peringatan kuning pada
+     berkas yang tidak bersalah. */
+  return el('span', { text: sampai });
+}
+
+/** Satu kolom, satu dialog — lihat AttachmentController::update. */
+function expiryModal(attachment, onSaved) {
+  const input = el('input', { type: 'date', value: attachment.valid_until || '' });
+  const save = button('Simpan', { variant: 'primary' });
+  const clearIt = button('Kosongkan');
+
+  const dialog = modal({
+    title: `Masa berlaku ${attachment.original_name}`,
+    width: 'narrow',
+    body: el('.form-grid', [
+      field('Berlaku sampai dengan', input, {
+        help: 'Kosongkan bila berkas ini memang tidak punya masa berlaku — itu keadaan biasa untuk '
+          + 'foto lapangan, nota dan gambar kerja. Hari terakhirnya masih dihitung berlaku, dan '
+          + 'peringatan mulai 30 hari sebelumnya.',
+      }),
+    ]),
+    footer: [button('Batal', { onClick: () => dialog.close() }), clearIt, save],
+  });
+
+  const write = async (value) => {
+    try {
+      await api.patch(`core/attachments/${attachment.id}`, { valid_until: value });
+      toast(value === null ? 'Masa berlaku dikosongkan.' : 'Masa berlaku disimpan.');
+      dialog.close();
+      onSaved();
+    } catch (error) {
+      toastError(error);
+    }
+  };
+
+  save.addEventListener('click', () => withBusy(save, () => write(input.value || null)));
+  clearIt.addEventListener('click', () => withBusy(clearIt, () => write(null)));
+}
+
 function attachmentRow(attachment, { canEdit, onChanged }) {
+  const validity = validityNode(attachment);
+
   return el('.attachment', [
     el('.attachment-main', [
       el('.attachment-name', { text: attachment.original_name }),
@@ -111,9 +188,20 @@ function attachmentRow(attachment, { canEdit, onChanged }) {
           fmt.relativeDays(attachment.created_at),
         ].filter(Boolean).join(' · '),
       }),
+      validity ? el('.cell-sub.attachment-validity', [validity]) : null,
       attachment.caption ? el('.cell-sub', { text: attachment.caption }) : null,
     ]),
     el('.row-actions', [
+      canEdit
+        // Tanpa iconName: PATHS di ui.js tidak punya ikon kalender, dan nama
+        // yang tidak dikenal menghasilkan kotak kosong tanpa satu pun galat.
+        ? button('Masa berlaku', {
+          size: 'sm',
+          variant: 'ghost',
+          title: 'Atur masa berlaku berkas ini',
+          onClick: () => expiryModal(attachment, onChanged),
+        })
+        : null,
       button('Unduh', { size: 'sm', variant: 'ghost', iconName: 'download', onClick: () => download(attachment) }),
       canEdit
         ? button('Hapus', {
@@ -188,6 +276,14 @@ function uploader(slug, id, onUploaded) {
     onClick: () => input.click(),
   });
 
+  /* Masa berlaku BOLEH diisi sebelum memilih berkas, dan kosong adalah bawaan
+     yang benar: sebagian besar berkas yang naik lewat kartu ini tidak punya
+     masa berlaku, dan sebuah kotak yang menuntut diisi hanya akan membuat orang
+     mengarang tanggal. Nilainya ikut ke KEDUA transport lewat api.uploadFile();
+     ia tidak dikosongkan setelah unggah, karena orang yang melampirkan lima
+     lembar polis yang sama berlakunya tidak boleh mengetiknya lima kali. */
+  const validUntil = el('input', { type: 'date' });
+
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -201,7 +297,11 @@ function uploader(slug, id, onUploaded) {
 
     await withBusy(pick, async () => {
       try {
-        await api.uploadFile(file, { document_type: slug, document_id: id });
+        await api.uploadFile(file, {
+          document_type: slug,
+          document_id: id,
+          valid_until: validUntil.value || null,
+        });
         toast(`${file.name} dilampirkan.`);
         onUploaded();
       } catch (error) {
@@ -213,7 +313,13 @@ function uploader(slug, id, onUploaded) {
   });
 
   return el('.attachment-add', [
-    pick,
+    el('.attachment-add-row', [
+      pick,
+      el('label.attachment-expiry', [
+        el('span', { text: 'Masa berlaku (opsional)' }),
+        validUntil,
+      ]),
+    ]),
     input,
     el('.help', {
       text: 'PDF, gambar, Word, Excel, PowerPoint, CSV/teks, XML, gambar teknik (DWG/DXF) atau jadwal (MPP) — '

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use Modules\Core\Models\Attachment;
 use Modules\Core\Services\AttachmentService;
 use Tests\ErpTestCase;
 
@@ -95,6 +96,57 @@ class AttachmentSpaPolicyTest extends ErpTestCase
             'JSON_UPLOAD_MAX_BYTES could not be found in api.js; uploadFile() no longer picks its transport where this test can see it.',
         );
         $this->assertSame(AttachmentService::MAX_BYTES, (int) $matches[1] * 1024 * 1024);
+    }
+
+    /**
+     * Empat keadaan masa berlaku (F-8), dan kartu harus mengenali keempatnya.
+     *
+     * Nama keadaannya ditulis di server (Attachment::VALIDITY_*) dan dibaca
+     * apa adanya oleh kartu. Sebuah keadaan yang tidak dikenali kartu jatuh ke
+     * cabang terakhir dan digambar sebagai LENCANA KUNING — yaitu keadaan yang
+     * hilang justru muncul sebagai peringatan.
+     */
+    public function test_the_card_handles_every_validity_state_the_model_can_answer(): void
+    {
+        $source = $this->spa('views/attachments.js');
+
+        foreach ([
+            Attachment::VALIDITY_NONE,
+            Attachment::VALIDITY_OK,
+            Attachment::VALIDITY_NEAR,
+            Attachment::VALIDITY_EXPIRED,
+        ] as $state) {
+            $this->assertStringContainsString(
+                "'{$state}'",
+                $source,
+                "Kartu lampiran tidak menyebut keadaan '{$state}'.",
+            );
+        }
+    }
+
+    /**
+     * "Tanpa masa berlaku" adalah KEADAAN NORMAL sebuah lampiran, bukan
+     * peringatan — dan hampir setiap baris core_attachments ada di keadaan itu.
+     * Cabangnya harus mengembalikan teks biasa; sebuah badge() di sana menaruh
+     * satu lencana pada setiap foto lapangan di seluruh aplikasi.
+     */
+    public function test_the_no_expiry_state_is_written_as_plain_text_not_a_badge(): void
+    {
+        $source = $this->spa('views/attachments.js');
+
+        $this->assertSame(
+            1,
+            preg_match(
+                "/if \(validity\.state === '".Attachment::VALIDITY_NONE."'\) \{\s*\n\s*return ([^;]+);/",
+                $source,
+                $matches,
+            ),
+            'Cabang "tanpa masa berlaku" tidak ditemukan di attachments.js; uji ini tidak lagi menjaga apa pun.',
+        );
+
+        $this->assertStringNotContainsString('badge(', $matches[1],
+            'Keadaan normal sebuah lampiran digambar sebagai lencana — itu peringatan pada setiap foto lapangan.');
+        $this->assertStringContainsString('Tanpa masa berlaku', $matches[1]);
     }
 
     private function spa(string $file): string

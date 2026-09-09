@@ -368,6 +368,10 @@ export const api = {
       server dan jumlah kueri yang dijalankan; keduanya milik meta, bukan data. */
   postRaw: (path, body) => request('POST', path, { body, raw: true }),
   put: (path, body) => request('PUT', path, { body }),
+  /* PATCH, bukan PUT: satu-satunya pemakainya (F-8, masa berlaku lampiran)
+     mengirim SATU kolom dan tidak boleh terbaca sebagai "ganti seluruh baris" —
+     nama, isi, sha256 dan geotag sebuah berkas adalah fakta saat ia diunggah. */
+  patch: (path, body) => request('PATCH', path, { body }),
   del: (path) => request('DELETE', path),
   uploadFile,
   /**
