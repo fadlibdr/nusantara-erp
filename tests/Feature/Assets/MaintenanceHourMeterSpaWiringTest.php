@@ -100,7 +100,19 @@ class MaintenanceHourMeterSpaWiringTest extends ErpTestCase
 
         $this->assertStringContainsString("measure.proportional === false ? 'Sisa' : 'Terpakai'", $ambang);
         $this->assertStringContainsString('selSisa(row, measure.unit)', $ambang);
-        $this->assertStringContainsString('sebelum batas', $ambang);
+        /*
+         * LENCANANYA DIPAKU PADA KODENYA, BUKAN PADA KATANYA.
+         *
+         * 'sebelum batas' muncul DUA kali di berkas itu — sekali di komentar
+         * di atas cabangnya, sekali di kodenya — jadi asersi lama hijau meski
+         * seluruh ternary lencananya diganti. Terukur (verifikasi F-7):
+         * mengganti cabang itu dengan `Peringatan ≥ ${fmt.percent(...)}`
+         * sambil membiarkan komentarnya -> OK (6 uji), dan yang terbaca di
+         * Chromium adalah "Servis alat menurut jam operasi / Peringatan ≥ —"
+         * tepat di atas tabel berisi jam (warn_pct null untuk entri jam).
+         */
+        $this->assertStringContainsString('measure.warn_margin === null', $ambang);
+        $this->assertStringContainsString('fmt.qty(measure.warn_margin, measure.unit)', $ambang);
     }
 
     /**
