@@ -206,6 +206,43 @@ class AttachmentSpaPolicyTest extends ErpTestCase
     }
 
     /**
+     * Permukaan BACA lampiran yang KEDUA: strip "Foto lapangan".
+     *
+     * captureCard memanggil core/attachments TANPA menyaring jenis berkas, jadi
+     * polis atau sertifikat yang dilampirkan lewat kartu Lampiran dokumen yang
+     * SAMA (projects/daily-reports, servicedesk/tickets) ikut tampil di sana.
+     * Sebuah berkas yang berbunyi "Kedaluwarsa 06 Sep 2026 · 4 hari lalu" di
+     * kartu tidak boleh diam di layar yang justru dibuka teknisi di lapangan —
+     * itu aturan yang sama ditegakkan di satu permukaan dan bocor di permukaan
+     * lain yang setara.
+     *
+     * Satu sumber, bukan aturan kedua: strip memanggil validityNode() milik
+     * kartu, hanya dengan keadaan NORMAL disembunyikan (setiap foto lapangan
+     * ada di keadaan itu).
+     */
+    public function test_the_field_photo_strip_reads_the_same_validity_the_card_draws(): void
+    {
+        $code = $this->code('views/lapangan.js');
+
+        $this->assertMatchesRegularExpression(
+            "/import \{[^}]*validityNode[^}]*\} from '\.\/attachments\.js';/",
+            $code,
+            'lapangan.js tidak lagi memakai validityNode() milik kartu — dua salinan aturan yang sama '
+            .'akan berbeda dalam enam bulan.',
+        );
+        $this->assertStringContainsString('validityNode(attachment, { hideWhenNone: true })', $code,
+            'Strip Foto lapangan tidak lagi menggambar keadaan masa berlaku berkasnya.');
+        // Dituntut sebagai PEMANGGILAN, bukan sebagai substring: "validityLine(
+        // attachment)" juga muncul di baris deklarasi fungsinya, jadi mencabut
+        // pemasangannya dari photoStrip() akan lolos hijau.
+        $this->assertMatchesRegularExpression(
+            "/\n\s+validityLine\(attachment\),/",
+            $code,
+            'Baris keadaan masa berlaku tidak dipasang di baris strip Foto lapangan.',
+        );
+    }
+
+    /**
      * Dialog masa berlaku MEMBACA jendela peringatannya, tidak menyalinnya.
      *
      * `validity.lead_days` ikut di setiap baris lampiran justru supaya kalimat
@@ -234,7 +271,7 @@ class AttachmentSpaPolicyTest extends ErpTestCase
      */
     public function test_the_no_expiry_state_is_written_as_plain_text_not_a_badge(): void
     {
-        $source = $this->spa('views/attachments.js');
+        $source = $this->code('views/attachments.js');
 
         $this->assertSame(
             1,

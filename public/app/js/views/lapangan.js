@@ -20,6 +20,7 @@ import {
   MAX_BYTES, devicePosition, readAsBase64, readQueue, enqueue, retry, listen, notify,
   queueRows, pendingCard,
 } from '../uploadqueue.js';
+import { validityNode } from './attachments.js';
 
 const MODES = [
   { key: 'harian', label: 'Laporan Harian', module: 'prj' },
@@ -55,6 +56,22 @@ function distanceBadge(attachment) {
   return badge(label, metres <= 250 ? 'green' : (metres <= 1000 ? 'amber' : 'red'));
 }
 
+/* F-8. Strip ini adalah permukaan BACA lampiran yang KEDUA: ia memanggil
+   core/attachments TANPA menyaring jenis berkas, jadi polis, sertifikat atau
+   garansi yang dilampirkan lewat kartu Lampiran dokumen yang sama ikut tampil
+   di sini. Sebuah berkas yang berbunyi "Kedaluwarsa 06 Sep 2026 · 4 hari lalu"
+   di kartu tidak boleh diam di layar yang justru dibuka teknisi di lapangan.
+
+   Keadaan NORMAL sengaja TIDAK ikut ke sini: hampir setiap baris strip ini
+   adalah foto lapangan tanpa masa berlaku, dan satu baris "Tanpa masa berlaku"
+   di bawah setiap foto adalah kebisingan, bukan keterangan. Kartu Lampiran
+   menuliskannya karena di sanalah tombol untuk mengubahnya. */
+function validityLine(attachment) {
+  const node = validityNode(attachment, { hideWhenNone: true });
+
+  return node ? el('.cell-sub.attachment-validity', [node]) : null;
+}
+
 function photoStrip(attachments, onChanged) {
   if (!attachments.length) {
     return el('p.muted', { text: 'Belum ada foto.', style: { margin: '4px 0 0' } });
@@ -70,6 +87,7 @@ function photoStrip(attachments, onChanged) {
           fmt.relativeDays(attachment.created_at),
         ].filter(Boolean).join(' · '),
       }),
+      validityLine(attachment),
     ]),
     distanceBadge(attachment),
   ])));

@@ -115,13 +115,16 @@ async function download(attachment) {
  * memberinya lencana abu-abu akan menaruh satu peringatan visual pada setiap
  * baris di setiap kartu lampiran di seluruh aplikasi. Ia ditulis sebagai
  * keterangan biasa, satu baris dengan ukuran berkas dan nama pengunggah. */
-function validityNode(attachment) {
+export function validityNode(attachment, { hideWhenNone = false } = {}) {
   const validity = attachment.validity;
   // Respons tanpa blok validity (server lama): diam, bukan menebak.
   if (!validity) return null;
 
   if (validity.state === 'tanpa_masa_berlaku') {
-    return el('span', { text: 'Tanpa masa berlaku' });
+    // hideWhenNone dipakai strip Foto lapangan: di sana SETIAP baris ada di
+    // keadaan ini, jadi menuliskannya adalah kebisingan. Di kartu ini ia
+    // ditulis, karena kartu inilah yang punya tombol untuk mengubahnya.
+    return hideWhenNone ? null : el('span', { text: 'Tanpa masa berlaku' });
   }
 
   const sampai = `Berlaku s/d ${fmt.date(attachment.valid_until)}`;
