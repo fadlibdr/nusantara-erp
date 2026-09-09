@@ -1458,6 +1458,37 @@ class FormPrintService
         // gambarnya, bukan stikernya.
         $stickerMm = (float) ($geometry['sticker_mm'] ?? self::LABEL_STICKER_WIDTHS_MM[3]);
 
+        /*
+         * BARCODE GANDA — DIHITUNG DARI PEMINDAIANNYA, BUKAN DARI KEMBARANNYA.
+         *
+         * Yang dijanjikan kalimat di lembar ini adalah keadaan PEMINDAIAN kode
+         * yang ia cetak: "memindai atau mengetik kode stiker ini akan
+         * memulangkan lebih dari satu item". Maka yang dihitung adalah apa yang
+         * benar-benar dipulangkan `Item::matchingScanCode()` — dan subjek
+         * lembar ini ikut di dalamnya HANYA bila kartunya masih hidup.
+         *
+         * Versi sebelumnya menghitung KEMBARANNYA (`whereKeyNot` + hitung
+         * sisanya) dan menganggap subjeknya selalu ikut. Lembar milik kartu
+         * yang DIBUANG — jalur yang sengaja didukung, `withTrashed()` di atas —
+         * karena itu memperingatkan tentang pemindaian ganda yang tidak akan
+         * pernah terjadi: satu kartu hidup dengan kode yang sama membuatnya
+         * berkata "lebih dari satu item" sementara layar Pindai berkata "Satu
+         * item cocok". Kertas yang berjanji begitu adalah kertas yang membuat
+         * orang membuang label yang benar.
+         *
+         * Enam, bukan lima: subjeknya sendiri bisa menempati satu tempat, dan
+         * yang dicetak tetap paling banyak lima kode kembaran.
+         */
+        $scanReturns = Item::query()
+            ->matchingScanCode($encoded)
+            ->orderBy('code')
+            ->limit(6)
+            ->pluck('code', 'id');
+
+        $sharedWith = $scanReturns->count() > 1
+            ? $scanReturns->forget($item->getKey())->take(5)->values()->all()
+            : [];
+
         return $this->sheet('label-barcode', [
             'item' => $item,
             'company' => Company::current(),
@@ -1520,14 +1551,11 @@ class FormPrintService
              * `Item::matchingScanCode()` adalah aturan yang sama dengan yang
              * dijalankan layar Pindai — karena yang diperingatkan di sini
              * adalah keadaan yang akan membuat pemindaian stiker ini ambigu.
+             * Kumpulannya dihitung di atas (lihat `$scanReturns`): yang
+             * menentukan adalah berapa item yang PEMINDAIAN kode ini
+             * pulangkan, bukan berapa kartu yang memakainya.
              */
-            'sharedWith' => Item::query()
-                ->whereKeyNot($item->getKey())
-                ->matchingScanCode($encoded)
-                ->orderBy('code')
-                ->limit(5)
-                ->pluck('code')
-                ->all(),
+            'sharedWith' => $sharedWith,
             'count' => $count,
             'formTitle' => 'LABEL BARCODE ITEM',
             'formCode' => 'Form F/LBL',

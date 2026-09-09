@@ -153,6 +153,15 @@ class ScanCodeParityTest extends ErpTestCase
      * scannable`), jadi lembar yang memperingatkan "memindai stiker ini akan
      * memulangkan lebih dari satu item" karena sebuah kartu yang sudah dibuang
      * sedang berjanji tentang sesuatu yang tidak akan terjadi.
+     *
+     * DAN ITU BERLAKU KE DUA ARAH. Lembar milik kartu yang DIBUANG adalah
+     * jalur yang sengaja didukung (`test_a_soft_deleted_item_can_still_have_
+     * its_label_printed`), dan sampai putaran ketiga F-6 ia menghitung
+     * kembarannya seolah subjeknya masih ikut dipindai: satu kartu hidup
+     * dengan kode yang sama membuatnya berkata "akan memulangkan lebih dari
+     * satu item" sementara layar Pindai berkata "Satu item cocok". Kertas yang
+     * menjanjikan pemindaian ganda yang tidak akan pernah terjadi adalah
+     * kertas yang membuat orang membuang label yang benar.
      */
     public function test_a_thrown_away_twin_is_a_collision_on_none_of_them(): void
     {
@@ -163,7 +172,31 @@ class ScanCodeParityTest extends ErpTestCase
         $this->assertSame(['ITM-C020'], $this->scanned('F6DUP020'));
         $this->assertFalse($this->sheetWarns($live),
             'Lembarnya menjanjikan pemindaian ganda yang tidak akan pernah terjadi.');
+        $this->assertFalse($this->sheetWarns($gone),
+            'Lembar kartu yang DIBUANG memperingatkan pemindaian ganda yang layar Pindai sebut tunggal.');
         $this->assertSame([], $this->auditFilter(true));
+    }
+
+    /**
+     * …DAN LEMBAR KARTU TERBUANG TETAP MEMPERINGATKAN KETIKA PEMINDAIANNYA
+     * MEMANG GANDA.
+     *
+     * Yang dijanjikan kalimatnya adalah keadaan PEMINDAIAN kode itu, bukan
+     * jumlah kartu yang memakainya: dua kartu hidup dengan kode yang sama
+     * membuat pemindaian ambigu, dan stiker yang sedang dicetak dari kartu
+     * ketiga yang sudah dibuang tetap menempel di rak dengan kode itu.
+     */
+    public function test_a_thrown_away_sheet_still_warns_when_the_scan_really_is_ambiguous(): void
+    {
+        $first = $this->makeItem('Semen Hidup A', ['code' => 'ITM-C030', 'barcode' => 'F6DUP030']);
+        $second = $this->makeItem('Semen Hidup B', ['code' => 'ITM-C031', 'barcode' => 'F6DUP030']);
+        $gone = $this->makeItem('Semen Lama', ['code' => 'ITM-C032', 'barcode' => 'F6DUP030']);
+        $gone->delete();
+
+        $this->assertEqualsCanonicalizing(['ITM-C030', 'ITM-C031'], $this->scanned('F6DUP030'));
+        $this->assertTrue($this->sheetWarns($gone));
+        $this->assertTrue($this->sheetWarns($first));
+        $this->assertTrue($this->sheetWarns($second));
     }
 
     /**

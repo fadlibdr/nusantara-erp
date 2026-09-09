@@ -1857,6 +1857,13 @@ peringatan "memindai stiker ini akan memulangkan lebih dari satu item" yang data
 terbuang menjanjikan sesuatu yang tidak akan terjadi. Yang boleh `withTrashed()` adalah SUBJEK
 lembarnya (label item terbuang tetap bisa dicetak), bukan kembarannya.
 
+**DAN SUBJEK YANG DIBUANG TIDAK MENGHITUNG DIRINYA SENDIRI.** Yang dijanjikan kalimat di lembar itu
+adalah keadaan PEMINDAIAN kode yang ia cetak, jadi yang dihitung adalah berapa item yang
+`matchingScanCode()` pulangkan — bukan berapa kartu lain yang memakai kodenya. Menghitung kembaran
+dan menganggap subjeknya selalu ikut membuat lembar kartu terbuang memperingatkan "lebih dari satu
+item" sementara layar Pindai berkata "Satu item cocok" untuk kode yang sama, pada jalur yang memang
+sengaja didukung.
+
 **Lengan "Tidak" pada saringannya `whereNotExists`,** bukan `NOT IN` atas daftar barcode:
 `NULL NOT IN (…)` bernilai NULL, bukan true, dan setiap item yang belum punya barcode — sebagian
 besar katalog — lenyap dari lengan itu tanpa satu pun tanda.
