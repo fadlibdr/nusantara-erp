@@ -9137,6 +9137,20 @@ F8_ROWS = """() => {
       // digambar kuning tetap mencetak kalimat yang benar.
       badge_class: badge ? badge.className : null,
       badge_color: badge ? getComputedStyle(badge).color : null,
+      // GEOMETRI, bukan hanya teks. Kartu Lampiran duduk di kolom samping
+      // .detail-grid (minmax(280px, 1fr)): di seluruh pita desktop 901-1900 px
+      // kartunya sempit sementara viewport-nya lebar, dan nama berkas terukur
+      // tercabik menjadi 7 baris berisi 2-4 huruf sementara lencananya menjadi
+      // gumpalan 3-6 baris. Membaca validity_text saja tidak bisa melihatnya.
+      name_lines: (() => {
+        const n = row.querySelector('.attachment-name');
+        const lh = parseFloat(getComputedStyle(n).lineHeight) || parseFloat(getComputedStyle(n).fontSize) * 1.25;
+        return Math.round(n.getBoundingClientRect().height / lh);
+      })(),
+      validity_clipped: v ? v.scrollWidth > v.clientWidth + 1 : null,
+      badge_lines: badge ? Math.round(
+        badge.getBoundingClientRect().height
+        / (parseFloat(getComputedStyle(badge).lineHeight) || parseFloat(getComputedStyle(badge).fontSize) * 1.25)) : null,
       buttons: [...row.querySelectorAll('.row-actions .btn')].map(b => b.innerText.trim()),
     };
   });
@@ -9357,6 +9371,14 @@ def s35(pg):
             "one_typed_expiry_covers_every_file_in_the_burst":
                 out["burst_on_the_server"] == {"polis-lembar-1.pdf": burst, "polis-lembar-2.pdf": burst}
                 and out["expiry_box_after_the_burst"] == burst,
+            # 9. Geometri pada 1440 px — lebar tempat kartu ini paling sempit
+            #    dan tempat perbaikan ponsel 560 px tidak pernah menyala.
+            "no_attachment_row_is_shredded_on_a_desktop":
+                bool(rows) and all(
+                    r["name_lines"] == 1
+                    and r["validity_clipped"] is False
+                    and r["badge_lines"] in (None, 1)
+                    for r in rows),
             "the_screens_raise_no_console_error": out["console_errors"] == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
