@@ -147,8 +147,9 @@ class AttachmentService
         ?string $caption = null,
         ?int $userId = null,
         array $devicePosition = [],
+        ?string $validUntil = null,
     ): Attachment {
-        return $this->storeBinary($document, $filename, $this->decode($content), $caption, $userId, $devicePosition);
+        return $this->storeBinary($document, $filename, $this->decode($content), $caption, $userId, $devicePosition, $validUntil);
     }
 
     /**
@@ -164,6 +165,7 @@ class AttachmentService
         ?string $caption = null,
         ?int $userId = null,
         array $devicePosition = [],
+        ?string $validUntil = null,
     ): Attachment {
         $extension = $this->extensionOf($filename);
 
@@ -197,6 +199,11 @@ class AttachmentService
             'size_bytes' => strlen($binary),
             'sha256' => hash('sha256', $binary),
             'caption' => $caption,
+            // F-8. Dilewatkan apa adanya, termasuk null — dan null di sini
+            // adalah jawaban yang benar untuk hampir setiap berkas yang lewat
+            // metode ini. Tidak ada nilai bawaan yang dikarang: sebuah tanggal
+            // yang tidak diketikkan siapa pun tidak boleh muncul sebagai fakta.
+            'valid_until' => $validUntil,
             'uploaded_by' => $userId,
         ] + $geo);
     }

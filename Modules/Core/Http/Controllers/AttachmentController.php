@@ -60,6 +60,10 @@ class AttachmentController extends ApiController
             // php-fpm — which would return an empty 413 with no message.
             'content' => ['required', 'string', 'max:7000000'],
             'caption' => ['nullable', 'string', 'max:255'],
+            // F-8 — masa berlaku berkasnya. nullable, dan tidak ada 'required'
+            // yang bisa dibenarkan: hampir setiap berkas yang lewat pintu ini
+            // adalah foto lapangan yang memang tidak punya masa berlaku.
+            'valid_until' => ['nullable', 'date'],
             // Where the phone says it is. Only consulted when the image carries
             // no EXIF GPS of its own — see AttachmentService::geotag().
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
@@ -85,6 +89,7 @@ class AttachmentController extends ApiController
                     'longitude' => $data['longitude'] ?? null,
                     'accuracy_m' => $data['accuracy_m'] ?? null,
                 ],
+                $data['valid_until'] ?? null,
             );
 
             return $this->created($attachment, "Lampiran {$attachment->original_name} disimpan.");
@@ -109,6 +114,11 @@ class AttachmentController extends ApiController
             // shared with the JSON route so the two can never disagree.
             'file' => ['required', 'file'],
             'caption' => ['nullable', 'string', 'max:255'],
+            // F-8 — aturan yang SAMA dengan store(): dua transport, satu
+            // kebijakan. Sebuah gambar kerja 25 MB yang naik lewat multipart
+            // harus bisa membawa masa berlakunya persis seperti PDF 2 MB yang
+            // naik lewat JSON.
+            'valid_until' => ['nullable', 'date'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0'],
@@ -134,12 +144,62 @@ class AttachmentController extends ApiController
                     'longitude' => $data['longitude'] ?? null,
                     'accuracy_m' => $data['accuracy_m'] ?? null,
                 ],
+                $data['valid_until'] ?? null,
             );
 
             return $this->created($attachment, "Lampiran {$attachment->original_name} disimpan.");
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }
+    }
+
+    /**
+     * Mengubah masa berlaku sebuah lampiran yang sudah tersimpan (F-8).
+     *
+     * Ada karena tanggal itu SERING baru diketahui sesudah berkasnya naik:
+     * polis yang discan hari ini diperpanjang bulan depan, sertifikat yang
+     * sudah dilampirkan ternyata berlaku dua tahun bukan satu. Tanpa pintu
+     * kedua ini satu-satunya cara memperbaikinya adalah menghapus berkasnya
+     * dan mengunggah ulang — yang menghapus pula siapa yang mengunggah dan
+     * kapan, dan itu adalah kehilangan jejak demi mengetik satu tanggal.
+     *
+     * IZINNYA SAMA DENGAN MENGUBAH LAMPIRANNYA: {prefix}.update dokumen
+     * pemiliknya, lewat reachable() — jalur, pesan penolakan dan penjaga induk
+     * yang persis sama dengan destroy(). Masa berlaku adalah pernyataan tentang
+     * dokumen itu; siapa pun yang tidak boleh mengubah lampirannya tidak boleh
+     * mengubah pernyataan itu.
+     *
+     * MENGOSONGKAN BOLEH, dan bukan lewat jalur lain: `valid_until: null`
+     * mengembalikannya ke keadaan normal "tanpa masa berlaku". Sebuah tanggal
+     * yang terlanjur salah ketik harus bisa dicabut, bukan hanya diganti
+     * tanggal salah yang lain.
+     */
+    public function update(Request $request, int $attachment): JsonResponse
+    {
+        // Divalidasi SEBELUM izin diperiksa? Tidak — urutan yang sama dengan
+        // index(): penolakan izin lebih dulu, supaya bentuk badan permintaan
+        // tidak bisa dipakai membedakan "id ini ada" dari "id ini tidak ada".
+        $found = $this->reachable($request, $attachment, 'update');
+
+        if (! $found instanceof Attachment) {
+            return $found;
+        }
+
+        // 'present' + nullable: mengosongkan masa berlaku harus DIKATAKAN,
+        // bukan terjadi karena kunci itu lupa dikirim. Sebuah PATCH yang tidak
+        // menyebut valid_until sama sekali adalah permintaan yang tidak jelas
+        // maunya, dan menebaknya sebagai "kosongkan" akan menghapus tanggal
+        // orang lain tanpa satu pun klik yang memintanya.
+        $data = $request->validate([
+            'valid_until' => ['present', 'nullable', 'date'],
+        ]);
+
+        $found->valid_until = $data['valid_until'];
+        $found->save();
+
+        return $this->ok($found->fresh(['uploader']), $data['valid_until'] === null
+            ? "Masa berlaku {$found->original_name} dikosongkan."
+            : "Masa berlaku {$found->original_name} disimpan.");
     }
 
     public function download(Request $request, int $attachment): Response|JsonResponse
