@@ -211,6 +211,28 @@ class ThresholdHourMeterTest extends ErpTestCase
     }
 
     /**
+     * DUA BARIS YANG SAMA-SAMA "50 JAM LAGI" MENDAPAT SATU LENCANA.
+     *
+     * Angka bulat tidak pernah bisa menangkap ini: 5.000 − 50,0 persis, jadi
+     * uji di atas hijau meski keputusannya diambil pada selisih float MENTAH
+     * sementara SISA yang dicetak layar dibulatkan tiga desimal. Pada target
+     * satu desimal keduanya berbeda — 512,2 − 50,0 = 462,20000000000005
+     * sementara pembacaannya 462,19999999999999 — dan dua alat yang sama-sama
+     * 50 jam sebelum target berdiri bersebelahan di layar Ambang dengan dua
+     * lencana yang berbeda. Yang dihakimi harus SISA yang dicetak, aturan
+     * yang sama yang sudah dipegang sisi persen sejak F-2.
+     */
+    public function test_two_rows_with_the_same_printed_hours_left_get_the_same_state(): void
+    {
+        $this->assertSame(WatchedThresholds::MENDEKATI, WatchedThresholds::state(462.2, 512.2, 90.0, 50.0));
+        $this->assertSame(WatchedThresholds::MENDEKATI, WatchedThresholds::state(5070.2, 5120.2, 90.0, 50.0));
+
+        // …dan ambangnya tidak ikut bergeser: 50,1 jam sebelum target masih
+        // AMAN pada target pecahan yang sama.
+        $this->assertSame(WatchedThresholds::AMAN, WatchedThresholds::state(462.1, 512.2, 90.0, 50.0));
+    }
+
+    /**
      * Tiga keadaan yang bukan angka tetap mendahului margin: alat tanpa
      * pembacaan TIDAK_TERUKUR, pembacaan tanpa target TANPA_BATAS.
      */

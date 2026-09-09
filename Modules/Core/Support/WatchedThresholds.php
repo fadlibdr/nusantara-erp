@@ -431,8 +431,18 @@ class WatchedThresholds
             return self::LAMPAU;
         }
 
+        // DAN SISANYA DIBULATKAN SEPERTI YANG DICETAK, karena alasan yang
+        // sama persis dengan persentase di atas: keputusan diambil pada angka
+        // YANG DIBACA ORANG. Terukur (verifikasi F-7): target 512,2 jam
+        // dengan pembacaan 462,2 — `512.2 - 50.0` adalah 462,20000000000005
+        // dan `(float) 462.2` adalah 462,19999999999999, jadi barisnya
+        // berlencana "Aman" sambil mencetak "SISA JAM 50 jam / peringatan
+        // mulai 50 jam sebelum target", bersebelahan dengan alat lain yang
+        // juga "50 jam lagi" tetapi berlencana "Mendekati batas". Sisa yang
+        // dibandingkan di sini adalah ekspresi yang SAMA dengan 'remaining'
+        // yang dikirim measure() ke layar.
         if ($warnMargin !== null) {
-            return $actual >= $limit - $warnMargin ? self::MENDEKATI : self::AMAN;
+            return round($limit - $actual, self::UNIT_DECIMALS) <= $warnMargin ? self::MENDEKATI : self::AMAN;
         }
 
         return (float) self::displayPct($actual, $limit) >= $warnPct ? self::MENDEKATI : self::AMAN;

@@ -408,6 +408,45 @@ class MaintenanceHourMeterDueTest extends ErpTestCase
     }
 
     /**
+     * DUA ALAT YANG SAMA-SAMA "50 JAM LAGI" TIDAK BOLEH BERLENCANA BERBEDA.
+     *
+     * Uji di atas memakai angka BULAT, dan pada angka bulat 5.000 − 50,0
+     * persis — jadi ia hijau meski keputusannya diambil pada selisih float
+     * mentah sementara SISA yang dicetak layar dibulatkan tiga desimal.
+     * Formulirnya melangkah 0,1 jam, jadi target pecahan adalah pemakaian
+     * biasa: 512,2 − 50,0 = 462,20000000000005 sedangkan pembacaannya
+     * 462,19999999999999. Kedua alat di bawah ini duduk bersebelahan di layar
+     * Ambang, sama-sama mencetak "50 jam lagi".
+     */
+    public function test_two_assets_with_the_same_hours_left_get_the_same_state(): void
+    {
+        $dekat = $this->asset(['code' => 'AST-9200']);
+        $this->log($this->deployment($dekat), '2026-07-01', 462.2);
+        $this->maintenance($dekat, '2026-06-14', 512.2);
+
+        $besar = $this->asset(['code' => 'AST-9201']);
+        $this->log($this->deployment($besar), '2026-07-01', 5070.2);
+        $this->maintenance($besar, '2026-06-14', 5120.2);
+
+        $rowDekat = $this->row($dekat);
+        $rowBesar = $this->row($besar);
+
+        $this->assertSame(50.0, $rowDekat['remaining_hours']);
+        $this->assertSame(50.0, $rowBesar['remaining_hours']);
+        $this->assertSame(WatchedThresholds::MENDEKATI, $rowDekat['state']);
+        $this->assertSame(WatchedThresholds::MENDEKATI, $rowBesar['state']);
+
+        // …dan ambangnya tidak bergeser karena targetnya pecahan: 50,1 jam
+        // sebelum target tetap AMAN.
+        $aman = $this->asset(['code' => 'AST-9202']);
+        $this->log($this->deployment($aman), '2026-07-01', 462.1);
+        $this->maintenance($aman, '2026-06-14', 512.2);
+
+        $this->assertSame(50.1, $this->row($aman)['remaining_hours']);
+        $this->assertSame(WatchedThresholds::AMAN, $this->row($aman)['state']);
+    }
+
+    /**
      * Angka yang dikirim paket ini kepada pemilik, dipaku pada nilainya
      * sendiri: 50 jam. Uji di atas menyetel config-nya, jadi tanpa baris ini
      * bawaan produksi bisa berubah menjadi apa pun tanpa satu uji pun merah.
