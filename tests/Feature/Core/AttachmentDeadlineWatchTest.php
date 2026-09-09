@@ -465,12 +465,21 @@ class AttachmentDeadlineWatchTest extends ErpTestCase
      * Indeksnya harus dipakai oleh KUERI PENGAWAS YANG SEBENARNYA, bukan hanya
      * oleh kueri contoh di AttachmentValidUntilSchemaTest.
      *
-     * Cakupan entri ini menyaring attachable_type DUA KALI: sekali sebagai
-     * `IN (…)` di depan, sekali lagi di dalam rantai OR penjaga induk. Yang
-     * kedua sendirian sudah benar — dan justru itu bahayanya: mencabut `IN`
-     * tidak menjatuhkan satu pun uji perilaku, sementara perencana kehilangan
-     * kolom pertama indeks (attachable_type, valid_until) dan jatuh ke
-     * pemindaian. Baris inilah yang menahannya.
+     * YANG DIPAKU: rencana kueri entri ini benar-benar lewat indeks pasangan
+     * (attachable_type, valid_until). Ia MERAH bila indeksnya disederhanakan —
+     * mutasi M1 laporan, `index(['attachable_type','valid_until'])` menjadi
+     * `index(['valid_until'])`, dan pesan gagalnya mencetak rencana yang jatuh
+     * kembali ke core_attachments_attachable_type_attachable_id_index.
+     *
+     * YANG TIDAK DIPAKU, dan jangan dikira begitu: pencabutan `whereIn` di
+     * `scope`. Diukur — mencabutnya memberi "OK (17 tests, 204 assertions)",
+     * karena tiap cabang OR penjaga induk sudah menyaring attachable_type
+     * sendiri, jadi kebenarannya utuh dan SQLite tetap memakai indeks yang sama
+     * (MULTI-INDEX OR dengan enam SEARCH … USING INDEX
+     * core_attachments_attachable_type_valid_until_index). Alasan
+     * mempertahankan `IN` adalah BENTUK rencananya — satu rentang, bukan enam
+     * cabang OR — dan alasan itu berdiri sebagai komentar di `scope`, bukan
+     * sebagai klaim tentang jaring uji yang tidak ada. Lihat laporan §4 (M12).
      */
     public function test_the_registry_scope_itself_is_planned_through_the_pair_index(): void
     {

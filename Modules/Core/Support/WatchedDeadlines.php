@@ -1043,7 +1043,13 @@ class WatchedDeadlines
                 'scope' => static fn (Builder $query): Builder => $query
                     // Dijalankan DULU dan sebagai IN atas kolom pertama indeks
                     // (attachable_type, valid_until): inilah bentuk yang
-                    // diukur pada migrasi 001800.
+                    // diukur pada migrasi 001800 — SATU rentang ber-IN alih-alih
+                    // enam cabang MULTI-INDEX OR. Ia bukan syarat KEBENARAN:
+                    // tiap cabang OR di bawah sudah menyaring attachable_type
+                    // sendiri, dan mencabut baris ini tidak menjatuhkan satu pun
+                    // uji (diukur; laporan §4 M12 mencatatnya LOLOS). Yang
+                    // hilang bila dicabut adalah bentuk rencananya, bukan
+                    // indeksnya.
                     ->whereIn('attachable_type', array_column($documents, 'class'))
                     ->where(static function (Builder $alive) use ($documents): void {
                         foreach ($documents as $document) {
