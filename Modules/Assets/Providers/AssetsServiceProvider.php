@@ -6,6 +6,8 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Assets\Console\Commands\AccruePlantCommand;
+use Modules\Assets\Services\MaintenanceDueService;
+use Modules\Core\Support\WatchedThresholds;
 
 class AssetsServiceProvider extends ServiceProvider
 {
@@ -40,6 +42,26 @@ class AssetsServiceProvider extends ServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('ast:accrue-plant')->dailyAt('05:40')->timezone('Asia/Jakarta');
         });
+
+        /*
+         * F-7 — sisi JAM dari jatuh tempo servis, dipasok ke registri ambang.
+         *
+         * Core mendeklarasikan entrinya (label, izin, tautan, satuan, ambang);
+         * modul pemilik angkanya memasok barisnya, aturan §24 yang sama dengan
+         * project_budget_pct milik Finance. Definisi "pembacaan terakhir" (=
+         * tertinggi) dan "target yang berlaku" (= baris perawatan terbaru)
+         * hidup di MaintenanceDueService, tempat kartu aset membacanya juga —
+         * menyalinnya ke Core berarti layar Ambang dan kartu alat bisa
+         * menghakimi satu excavator dengan dua jawaban.
+         *
+         * Closure, bukan hasil: pemindaian bisa terjadi kapan saja sesudah
+         * boot, dan menghitungnya di sini membebani SETIAP permintaan dengan
+         * kueri log jam seluruh armada.
+         */
+        WatchedThresholds::supply(
+            'maintenance_hour_meter',
+            static fn (): array => app(MaintenanceDueService::class)->thresholdRows(),
+        );
 
         Route::middleware('api')
             ->prefix('api/assets')

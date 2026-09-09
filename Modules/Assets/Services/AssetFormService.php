@@ -117,6 +117,33 @@ class AssetFormService
     }
 
     /**
+     * KEDUA pemicu servis berikutnya dalam satu sel: tanggal dan jam (F-7).
+     *
+     * Kartu aset sudah mencetak "JATUH TEMPO BERIKUT" sejak awal, dan sejak
+     * migrasi 000545 kolom itu hanya menceritakan SETENGAH kartu servis:
+     * sebuah baris yang dijadwalkan pada 5.000 jam tercetak bergaris, yaitu
+     * persis seperti baris yang tidak menjadwalkan apa pun. Di lembar yang
+     * ditandatangani, dua hal yang berbeda yang tercetak sama adalah
+     * kesalahan yang tidak bisa dikoreksi pembacanya.
+     *
+     * Satu sel, bukan satu kolom lagi: lebar kertas potret sudah habis, dan
+     * sebuah kolom kesembilan akan memakan URAIAN — satu-satunya kolom yang
+     * lebarnya mengalir. null (bergaris) hanya bila KEDUANYA tidak ada, yang
+     * memang berarti servis ini tidak menjadwalkan apa pun.
+     */
+    public function nextDueSentence(Maintenance $maintenance): ?string
+    {
+        $parts = array_filter([
+            $maintenance->next_due_date === null ? null : $this->date($maintenance->next_due_date),
+            $maintenance->next_due_hour_meter === null
+                ? null
+                : rtrim(rtrim(number_format((float) $maintenance->next_due_hour_meter, 3, ',', '.'), '0'), ',').' jam',
+        ]);
+
+        return $parts === [] ? null : implode(' / ', $parts);
+    }
+
+    /**
      * What upkeep has cost so far, from the stored cost column.
      *
      * A sum over nothing is 0,00 and the label says "tercatat": an asset with

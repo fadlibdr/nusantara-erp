@@ -88,10 +88,19 @@ Sidebar penuh Anda memuat 60 layar lebih; yang di atas cukup untuk minggu pertam
 | Tindak lanjut insiden K3 | 3 hari sebelum batas waktu |
 | Milestone proyek | 7 hari sebelum jatuh tempo |
 | SPK subkontraktor mendekati tanggal selesai | 14 hari |
-| Servis aset berikutnya | 14 hari |
+| Servis aset berikutnya (menurut TANGGAL) | 14 hari |
 | Penempatan aset melewati rencana kembali | 7 hari |
 
 Baris di Tenggat hilang hanya ketika sebabnya dibereskan, bukan ketika dibaca.
+
+**Servis alat punya pemicu KEDUA yang tidak lewat Tenggat.** Alat berat dirawat menurut
+JAM operasi, bukan kalender, dan sisi jamnya hidup di **Ringkasan › Ambang & Batas**
+(baris *Servis alat menurut jam operasi*, peringatan **50 jam sebelum** target). Yang mana
+pun tercapai lebih dulu — tanggal atau jam — servisnya jatuh tempo, jadi kedua layar itu
+dibaca berpasangan. Alat tanpa satu pun pembacaan hour meter tampil **bergaris** di sana,
+lengkap dengan sebabnya (belum pernah dimobilisasi / mobilisasinya belum punya log / ada
+log tetapi tanpa angka jam) — dan yang mengisi angka jam itu adalah **Log BBM & Jam
+Alat**, yang ditulis orang lapangan Anda.
 
 **Enam kalimat untuk semua orang** (PANDUAN §0), satu baris masing-masing:
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Modules\Assets\Models\Asset;
 use Modules\Assets\Models\Deployment;
+use Modules\Assets\Models\Maintenance;
 use Modules\Assets\Services\AssetFormService;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\Company;
@@ -6781,12 +6782,25 @@ class PrintableDocuments
                             ['label' => 'TANGGAL', 'align' => 'center', 'width' => '26mm',
                                 'value' => 'maintenance_date', 'cast' => 'date'],
                             ['label' => 'JENIS', 'width' => '26mm', 'value' => 'maintenance_type'],
-                            ['label' => 'PELAKSANA', 'width' => '34mm', 'value' => 'vendor.name'],
+                            ['label' => 'PELAKSANA', 'width' => '30mm', 'value' => 'vendor.name'],
                             ['label' => 'URAIAN', 'value' => 'description'],
                             ['label' => 'BIAYA (Rp)', 'align' => 'right', 'width' => '28mm',
                                 'value' => 'cost', 'cast' => 'money'],
-                            ['label' => 'JATUH TEMPO BERIKUT', 'align' => 'center', 'width' => '28mm',
-                                'value' => 'next_due_date', 'cast' => 'date'],
+                            /*
+                             * KEDUA pemicu dalam satu sel (F-7): tanggal DAN
+                             * target jam. Sejak migrasi 000545 sebuah servis
+                             * boleh dijadwalkan menurut jam operasi saja —
+                             * alat berat memang dirawat begitu — dan kolom
+                             * yang hanya mencetak tanggalnya membuat baris itu
+                             * BERGARIS, yaitu persis seperti baris yang tidak
+                             * menjadwalkan apa pun. Di lembar bertanda tangan,
+                             * dua hal berbeda yang tercetak sama adalah
+                             * kesalahan yang tidak bisa dikoreksi pembacanya.
+                             * Empat milimeter diambil dari PELAKSANA, bukan
+                             * dari URAIAN yang lebarnya mengalir.
+                             */
+                            ['label' => 'JATUH TEMPO BERIKUT', 'align' => 'center', 'width' => '32mm',
+                                'value' => fn (Maintenance $row): ?string => app(AssetFormService::class)->nextDueSentence($row)],
                         ],
                         'totals' => [
                             [

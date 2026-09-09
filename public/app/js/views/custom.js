@@ -1821,6 +1821,127 @@ export async function renderAsset(host, { id }) {
       ]),
     ]));
 
+  /* ================================================= SERVIS PER JAM (F-7) ===
+     DUA PEMICU BERDAMPINGAN. Servis alat berat jatuh tempo menurut JAM
+     OPERASI atau menurut TANGGAL, mana pun yang tercapai lebih dulu — dan
+     kartu ini menampilkan keduanya di satu baris supaya tidak ada pembaca
+     yang menyimpulkan hanya satu yang berlaku. Sebuah alat bisa lewat servis
+     menurut jam sementara tanggalnya masih empat bulan lagi.
+
+     TIDAK TERUKUR BUKAN NOL. Alat tanpa satu pun pembacaan hour meter
+     DIGARIS ("—"), tidak pernah digambar 0 jam — 0 berarti "meterannya masih
+     nol", yang adalah fakta tentang mesin baru, bukan tentang ketiadaan data.
+     Kalimat di bawahnya menyebut SEBAB yang mana dari tiga sebab yang ada
+     (belum pernah dimobilisasi / mobilisasi tanpa log / log tanpa angka jam),
+     karena jalan keluarnya berbeda-beda.
+
+     Kartunya TIDAK MUNCUL untuk alat yang memang tidak diukur dengan jam
+     (scaffolding, rak server): tidak punya target dan tidak punya pembacaan
+     berarti bukan alat berjam, dan kartu kosong yang selamanya berbunyi
+     "belum terukur" adalah kebisingan, bukan informasi. */
+  const due = data.hour_meter_due;
+
+  if (due) {
+    const tone = { lampau: 'red', mendekati: 'amber', aman: 'green' }[due.state] || '';
+    const sebab = {
+      belum_dimobilisasi: 'alat ini belum pernah dimobilisasi',
+      tanpa_log: 'mobilisasinya belum punya satu log pun',
+      log_tanpa_jam: 'ada log, tetapi tidak satu pun mengisi hour meter',
+    }[due.unmeasured_reason] || null;
+
+    /* Tanggal jatuh tempo yang SUDAH LEWAT dikatakan sebagai lewat.
+       next_due_date dan fmt.today() sama-sama "yyyy-mm-dd", jadi
+       perbandingannya string — tanpa zona waktu, tanpa Date() yang bisa
+       bergeser sehari. */
+    const tanggalLewat = !!due.next_due_date && due.next_due_date < fmt.today();
+
+    host.appendChild(el('.card', [
+      el('.card-head', [
+        /* "MENURUT JAM", dan itu bukan hiasan: lencana kartu ini adalah vonis
+           atas SATU dari dua pemicu yang kartu ini sendiri tampilkan. Sebuah
+           alat yang masih 4.900 jam lagi tetapi servis kalendernya lewat 86
+           hari akan berlencana hijau "Aman" di bawah judul "Servis
+           berikutnya" — sementara layar Tenggat meneriakkan baris yang sama
+           pada hari yang sama. Judul yang menyebut sisi mana yang dihakimi
+           membuat lencananya tidak bisa dibaca sebagai vonis atas seluruh
+           servis alat itu; sisi tanggalnya berdiri di stat keempat, dengan
+           umur relatifnya sendiri. */
+        el('h2', { text: 'Servis berikutnya menurut jam' }),
+        badge(due.state_label, tone),
+      ]),
+      el('.card-body', [
+        el('.stat-row', [
+          el('.stat', [
+            el('.label', { text: 'Pembacaan hour meter' }),
+            el('.value.sm', { text: due.reading === null ? '—' : fmt.qty(due.reading, 'jam') }),
+            el('.delta', {
+              text: due.reading === null
+                ? (sebab || 'belum ada pembacaan')
+                : `tertinggi, ${fmt.date(due.reading_date)}`,
+            }),
+          ]),
+          el('.stat', [
+            el('.label', { text: 'Jatuh tempo pada' }),
+            el('.value.sm', { text: due.next_due_hour_meter === null ? '—' : fmt.qty(due.next_due_hour_meter, 'jam') }),
+            el('.delta', {
+              text: due.next_due_hour_meter === null
+                ? (due.maintenance_code ? `${due.maintenance_code} belum menyetel target jam` : 'belum ada catatan perawatan')
+                : `target dari ${due.maintenance_code}`,
+            }),
+          ]),
+          el('.stat', [
+            el('.label', { text: 'Sisa jam' }),
+            el('.value.sm', {
+              // Minus dikatakan dengan kata, bukan dengan tanda: "lewat 40
+              // jam" pada alat yang sudah melewati targetnya.
+              text: due.remaining_hours === null
+                ? '—'
+                : (due.remaining_hours < 0
+                  ? `lewat ${fmt.qty(Math.abs(due.remaining_hours), 'jam')}`
+                  : fmt.qty(due.remaining_hours, 'jam')),
+              style: due.state === 'lampau' ? { color: 'var(--danger)' } : (due.state === 'mendekati' ? { color: 'var(--warning)' } : {}),
+            }),
+            el('.delta', {
+              text: due.remaining_hours === null
+                ? due.state_label.toLowerCase()
+                : `peringatan mulai ${fmt.qty(due.warn_margin_hours, 'jam')} sebelum target`,
+            }),
+          ]),
+          /* Pemicu KEDUA, di kartu yang sama: yang mana pun tercapai lebih
+             dulu, servisnya jatuh tempo. */
+          el('.stat', [
+            el('.label', { text: 'Pemicu tanggal' }),
+            el('.value.sm', {
+              text: due.next_due_date ? fmt.date(due.next_due_date) : '—',
+              style: tanggalLewat ? { color: 'var(--danger)' } : {},
+            }),
+            /* Umur relatifnya, seperti kolom "Jadwal berikut" di daftar
+               Perawatan ("14 Des 2026 · 96 hari lagi"). Sebuah tanggal 86
+               hari yang lalu bukan jadwal BERIKUTNYA — ia jadwal yang
+               terlewat, dan layar Tenggat sedang meneriakkannya. */
+            el('.delta', {
+              text: due.next_due_date
+                ? (tanggalLewat ? `lewat — ${fmt.relativeDays(due.next_due_date)}` : fmt.relativeDays(due.next_due_date))
+                : 'belum dijadwalkan menurut tanggal',
+              style: tanggalLewat ? { color: 'var(--danger)' } : {},
+            }),
+          ]),
+        ]),
+        el('p.help', { text: due.note }),
+        /* Meter yang turun tidak boleh diam-diam berarti "servisnya belum
+           jatuh tempo lagi" — yang dihakimi adalah pembacaan TERTINGGI, dan
+           layar mengatakan bahwa ia berbeda dari yang terakhir. */
+        due.meter_went_backwards
+          ? el('.alert.warn', {
+            text: `Pembacaan terakhir (${fmt.date(due.latest_reading_date)}) ${fmt.qty(due.latest_reading, 'jam')} lebih rendah `
+              + `dari pembacaan tertinggi ${fmt.qty(due.reading, 'jam')} — meter diganti atau salah ketik. `
+              + 'Yang dipakai menghakimi servis tetap yang tertinggi: mesin tidak berjalan mundur.',
+          })
+          : null,
+      ]),
+    ]));
+  }
+
   const historyCard = (title, rows, headers, cells, empty) => el('.card', [
     el('.card-head', [el('h2', { text: title }), el('.cell-sub', { text: `${rows.length} baris` })]),
     rows.length
@@ -1868,13 +1989,23 @@ export async function renderAsset(host, { id }) {
   host.appendChild(historyCard(
     'Perawatan',
     maintenances,
-    [{ label: 'Kode' }, { label: 'Tanggal' }, { label: 'Jenis' }, { label: 'Uraian' }, { label: 'Biaya', right: true }],
+    // Kedua pemicu ikut ke tabel riwayat (F-7): tanpa kolom jam, sebuah kartu
+    // servis yang dijadwalkan menurut jam terbaca di sini sebagai kartu yang
+    // tidak menjadwalkan apa pun.
+    [{ label: 'Kode' }, { label: 'Tanggal' }, { label: 'Jenis' }, { label: 'Uraian' },
+      { label: 'Biaya', right: true }, { label: 'Jadwal berikut' }, { label: 'Jam berikut', right: true }],
     (row) => [
       el('td.mono', { text: row.code || '—' }),
       el('td', { text: fmt.date(row.maintenance_date) }),
       el('td', { text: row.maintenance_type_label || row.maintenance_type }),
       el('td', { text: row.description || '—' }),
       el('td.right.num', { text: fmt.rupiah(row.cost) }),
+      el('td', { text: row.next_due_date ? fmt.date(row.next_due_date) : '—' }),
+      el('td.right.num', {
+        text: row.next_due_hour_meter === null || row.next_due_hour_meter === undefined
+          ? '—'
+          : fmt.qty(row.next_due_hour_meter, 'jam'),
+      }),
     ],
     'Belum ada catatan perawatan.',
   ));

@@ -50,6 +50,19 @@ use Illuminate\Support\Facades\Schema;
  * ada), barisnya jatuh ke DASAR daftar yang seluruh tugasnya menyebutkan apa
  * yang melewati batasnya.
  *
+ * SATUANNYA BUKAN SELALU RUPIAH, DAN AMBANGNYA BUKAN SELALU PERSEN (F-7).
+ * Setiap entri sudah lama mendeklarasikan 'unit' dan tidak ada yang
+ * membacanya; entri berjam pertama akan mencetak "Rp 3.375,50" untuk 3.375,5
+ * JAM. Sekarang layar memformat menurut 'unit', dan sebuah entri yang kedua
+ * sisinya BUKAN bagian-dari-keseluruhan (proportional=false) tidak mengirim
+ * persentase sama sekali: meter kumulatif yang tidak pernah mulai dari nol
+ * pada servis terakhir membuat "96 % terpakai" mengukur UMUR alat, bukan sisa
+ * jatah servisnya, dan ambang persen di atasnya memberi tenggang yang
+ * membesar mengikuti umur — 350 jam pada alat 3.500 jam, 1.225 jam pada alat
+ * 12.250 jam, dari satu angka config yang sama. Entri seperti itu
+ * mendeklarasikan ambangnya dalam SATUANNYA (warn_margin_key: 50 jam sebelum
+ * batas) dan layar mencetak SISA-nya. Lima keadaan yang lain tidak berubah.
+ *
  * ATURAN YANG SAMA DENGAN WatchedDeadlines: DB::table, literal string, tanpa
  * impor modul fitur — Core adalah modul yang dibergantungi semua orang.
  * Kolom dan tabel dijaga missingSchema(), jadi modul yang belum bermigrasi
@@ -85,6 +98,9 @@ class WatchedThresholds
     /** Ambang peringatan bawaan bila config tidak menyebut entrinya. */
     private const DEFAULT_WARN_PCT = 90.0;
 
+    /** Desimal satuan non-rupiah (jam) — sama dengan cast qty. */
+    private const UNIT_DECIMALS = 3;
+
     /** Desimal persentase yang dicetak setiap layar registri/anggaran. */
     private const DISPLAY_DECIMALS = 1;
 
@@ -104,9 +120,21 @@ class WatchedThresholds
      *                 disetujui, sebuah kolom master, atau sebuah setelan.
      *                 Dicetak di layar supaya pembaca tahu siapa yang bisa
      *                 mengubah angka yang sedang menghakiminya.
-     *  subject_word   satuan barisnya ("proyek", "tahun buku").
-     *  unit           'rupiah' — satuan kedua sisinya.
+     *  subject_word   satuan barisnya ("proyek", "tahun buku", "alat").
+     *  unit           satuan kedua sisinya: 'rupiah' atau 'jam'. DIBACA layar
+     *                 (F-7) — sebelumnya setiap entri mendeklarasikannya dan
+     *                 tidak ada yang membacanya, jadi entri berjam pertama
+     *                 mencetak "Rp 3.375,50" untuk 3.375,5 JAM.
+     *  proportional   false bila kedua sisinya BUKAN bagian-dari-keseluruhan;
+     *                 persentasenya tidak dihitung dan layar mencetak SISA-nya
+     *                 (lihat pct()). Bawaan true.
      *  warn_key       kunci config erp.thresholds.* untuk ambang peringatan.
+     *  warn_margin_key  kunci config erp.thresholds.* untuk ambang peringatan
+     *                 yang dinyatakan dalam SATUAN ENTRI (mis. 50 jam sebelum
+     *                 target), menggantikan ambang persen. Wajib untuk entri
+     *                 yang tidak proporsional; lihat state().
+     *  warn_margin_default  bawaan margin itu bila config tidak menyebutnya —
+     *                 per entri, karena satuannya berbeda-beda.
      *  permission     izin yang harus dipegang untuk MELIHAT entri ini.
      *  link           rute SPA yang dibuka barisnya.
      *  tables         tabel + kolom yang wajib ada; yang kurang → SKIPPED.
@@ -212,6 +240,61 @@ class WatchedThresholds
                 ],
                 'rows' => static fn (): array => self::overheadVersusBudget(),
             ],
+            [
+                /*
+                 * F-7 — SERVIS ALAT MENURUT JAM OPERASI: pembacaan hour-meter
+                 * tertinggi sebuah alat terhadap target jam servis berikutnya.
+                 *
+                 * PEMICU KEDUA, BUKAN PENGGANTI. next_due_date sudah diawasi
+                 * WatchedDeadlines (entri maintenance_next_due); yang ini
+                 * mengawasi next_due_hour_meter, dan keduanya berdiri
+                 * sendiri-sendiri — yang mana pun tercapai lebih dulu,
+                 * servisnya jatuh tempo. Catatan setiap baris menyebut
+                 * tanggal jatuh temponya juga, supaya layar ini tidak pernah
+                 * terbaca seolah jam adalah satu-satunya pemicu.
+                 *
+                 * TIDAK PROPORSIONAL, DAN ITU SEBABNYA proportional=false ada.
+                 * Meter kumulatif bukan anggaran: meterannya tidak pernah
+                 * mulai dari nol pada servis terakhir, jadi "3.375,5 dari
+                 * 3.500 jam" bukan "96 % terpakai" — persentase itu mengukur
+                 * UMUR alat, bukan sisa jatah servisnya. Terukur: ambang 90 %
+                 * pada alat 3.375,5 jam bertarget 3.500 menyala 350 jam lebih
+                 * awal (satu interval servis penuh 250 jam sudah lewat di
+                 * dalamnya), dan pada alat 12.000 jam bertarget 12.250 menyala
+                 * 1.225 jam lebih awal. Satu angka config memberi tenggang
+                 * yang membesar mengikuti umur alat. Maka ambangnya JAM
+                 * (warn_margin_key), dan yang dicetak layar SISA jamnya.
+                 *
+                 * DIPASOK Assets, TIDAK DISALIN (aturan §24 yang sama dengan
+                 * project_budget_pct). Definisi "pembacaan terakhir" (=
+                 * tertinggi, karena meter tidak berjalan mundur) dan definisi
+                 * "target yang berlaku" (= baris perawatan terbaru, baris yang
+                 * sama yang dibaca pemicu tanggal) hidup di
+                 * Assets\Services\MaintenanceDueService, tempat kartu aset dan
+                 * daftar perawatan membacanya. Menyalin kueri itu ke sini
+                 * berarti dua jawaban atas satu pertanyaan: layar Ambang bisa
+                 * memaafkan satu digit yang salah ketik sementara kartu alatnya
+                 * tidak, atau sebaliknya.
+                 */
+                'key' => 'maintenance_hour_meter',
+                'label' => 'Servis alat menurut jam operasi',
+                'measures' => 'Pembacaan hour-meter TERTINGGI yang tercatat untuk alat itu (meter tidak berjalan mundur, '
+                    .'jadi angka yang turun adalah salah ketik atau meter diganti — bukan jam yang berkurang)',
+                'limit_source' => 'Target jam servis berikutnya pada catatan perawatan TERBARU alat itu — baris yang sama '
+                    .'yang dibaca pemicu tanggal; pemicu tanggalnya sendiri ada di catatan tiap baris',
+                'subject_word' => 'alat',
+                'unit' => 'jam',
+                'proportional' => false,
+                'warn_margin_key' => 'maintenance_hour_meter',
+                'warn_margin_default' => 50.0,
+                // ast.update: izin yang sama dengan pemicu tanggal
+                // (WatchedDeadlines maintenance_next_due) — yang boleh
+                // MELIHAT jatuh tempo servis adalah yang bisa menindaknya.
+                'permission' => 'ast.update',
+                'link' => 'r/assets/maintenances',
+                'tables' => [],
+                'supplied_by' => 'Assets',
+            ],
         ];
     }
 
@@ -279,6 +362,18 @@ class WatchedThresholds
     }
 
     /**
+     * Ambang peringatan yang dinyatakan dalam SATUAN ENTRI, bukan persen
+     * (F-7). Public karena modul pemasoknya membaca angka yang SAMA untuk
+     * layarnya sendiri: satu kunci config, satu jawaban.
+     */
+    public static function warnMargin(string $marginKey, float $default): float
+    {
+        $configured = config('erp.thresholds.'.$marginKey);
+
+        return is_numeric($configured) ? (float) $configured : $default;
+    }
+
+    /**
      * Keadaan satu baris. SATU tempat, dipakai baris yang dihitung Core maupun
      * baris yang dipasok modul lain — supaya "tepat 100 %" tidak pernah
      * mendarat di dua sisi yang berbeda pada dua layar.
@@ -298,8 +393,17 @@ class WatchedThresholds
      *  Satu angka, satu keputusan — dan pembulatannya condong ke arah yang
      *  aman: sebuah baris boleh memperingatkan lebih awal, tidak boleh
      *  menenangkan lebih lama.
+     *
+     * $warnMargin (F-7) MENGGANTIKAN perbandingan persen dengan JARAK dalam
+     * satuan entri: MENDEKATI mulai $warnMargin sebelum batas. Ia ada karena
+     * persentase tidak bisa dipindahkan ke angka yang tidak mulai dari nol —
+     * sebuah meter kumulatif yang sudah berjalan 12.000 jam bertarget 12.250
+     * berada di 97,9 % sejak 1.225 jam sebelum jatuh tempo, jadi ambang persen
+     * di sana adalah alarm yang menyala terus. Empat keadaan yang lain tidak
+     * berubah sedikit pun: LAMPAU tetap dihakimi pada ANGKA-nya, dan ketiga
+     * keadaan yang bukan angka tetap mendahului keduanya.
      */
-    public static function state(?float $actual, ?float $limit, float $warnPct): string
+    public static function state(?float $actual, ?float $limit, float $warnPct, ?float $warnMargin = null): string
     {
         if ($actual === null) {
             return self::TIDAK_TERUKUR;
@@ -325,6 +429,20 @@ class WatchedThresholds
 
         if ($actual >= $limit) {
             return self::LAMPAU;
+        }
+
+        // DAN SISANYA DIBULATKAN SEPERTI YANG DICETAK, karena alasan yang
+        // sama persis dengan persentase di atas: keputusan diambil pada angka
+        // YANG DIBACA ORANG. Terukur (verifikasi F-7): target 512,2 jam
+        // dengan pembacaan 462,2 — `512.2 - 50.0` adalah 462,20000000000005
+        // dan `(float) 462.2` adalah 462,19999999999999, jadi barisnya
+        // berlencana "Aman" sambil mencetak "SISA JAM 50 jam / peringatan
+        // mulai 50 jam sebelum target", bersebelahan dengan alat lain yang
+        // juga "50 jam lagi" tetapi berlencana "Mendekati batas". Sisa yang
+        // dibandingkan di sini adalah ekspresi yang SAMA dengan 'remaining'
+        // yang dikirim measure() ke layar.
+        if ($warnMargin !== null) {
+            return round($limit - $actual, self::UNIT_DECIMALS) <= $warnMargin ? self::MENDEKATI : self::AMAN;
         }
 
         return (float) self::displayPct($actual, $limit) >= $warnPct ? self::MENDEKATI : self::AMAN;
@@ -445,7 +563,15 @@ class WatchedThresholds
 
     private static function measure(array $entry): array
     {
-        $warnPct = self::warnPct($entry['warn_key']);
+        // Satu entri diperingatkan dalam SATUAN-nya sendiri (F-7), sisanya
+        // dalam persen. Yang bermargin tidak punya ambang persen sama sekali
+        // — mengirim "90 %" yang tidak menghakimi apa pun akan mencetak
+        // lencana yang membantah barisnya sendiri di layar.
+        $margin = isset($entry['warn_margin_key'])
+            ? self::warnMargin($entry['warn_margin_key'], (float) ($entry['warn_margin_default'] ?? 0.0))
+            : null;
+        $warnPct = $margin === null ? self::warnPct($entry['warn_key']) : 0.0;
+        $proportional = $entry['proportional'] ?? true;
 
         $rows = isset($entry['supplied_by'])
             ? (self::$suppliers[$entry['key']])()
@@ -468,7 +594,7 @@ class WatchedThresholds
             // batas yang disetel sebuah dokumen, dan state() yang memutuskan
             // apa artinya, satu tempat untuk semua entri.
             $limit = isset($row['limit']) ? (float) $row['limit'] : null;
-            $state = self::state($actual, $limit, $warnPct);
+            $state = self::state($actual, $limit, $warnPct, $margin);
             $states[$state]++;
 
             $finished[] = [
@@ -476,7 +602,15 @@ class WatchedThresholds
                 'name' => $row['name'] ?? null,
                 'actual' => $actual,
                 'limit' => $limit,
-                'pct' => self::pct($actual, $limit),
+                // Entri yang tidak proporsional TIDAK mengirim persentase:
+                // "96 %" atas meter kumulatif adalah umur alat menyamar
+                // sebagai sisa jatah servis. Yang dikirim adalah SISA-nya,
+                // dan selPersen() layar sudah tahu mencetak aturan barisnya
+                // saat tidak ada angka.
+                'pct' => $proportional ? self::pct($actual, $limit) : null,
+                'remaining' => $proportional || $actual === null || $limit === null
+                    ? null
+                    : round($limit - $actual, self::UNIT_DECIMALS),
                 'state' => $state,
                 'state_label' => self::stateLabel($state),
                 'note' => $row['note'] ?? null,
@@ -484,13 +618,13 @@ class WatchedThresholds
             ];
         }
 
-        // Yang paling dekat ke batasnya lebih dulu — KEADAAN dulu, persentase
+        // Yang paling dekat ke batasnya lebih dulu — KEADAAN dulu, kegentingan
         // sesudahnya. Mengurutkan menurut persentase saja menaruh baris LAMPAU
         // yang batasnya Rp 0 (tidak punya persentase) di dasar daftar, di bawah
         // setiap baris yang aman; baris tanpa keadaan yang genting tetap turun
         // ke bawah tanpa berpura-pura bernilai nol.
-        usort($finished, static fn (array $a, array $b): int => [self::stateRank($b['state']), $b['pct'] ?? -1]
-            <=> [self::stateRank($a['state']), $a['pct'] ?? -1]);
+        usort($finished, static fn (array $a, array $b): int => [self::stateRank($b['state']), self::urgency($b)]
+            <=> [self::stateRank($a['state']), self::urgency($a)]);
 
         return [
             'key' => $entry['key'],
@@ -499,13 +633,37 @@ class WatchedThresholds
             'limit_source' => $entry['limit_source'],
             'subject_word' => $entry['subject_word'],
             'unit' => $entry['unit'],
-            'warn_pct' => $warnPct,
+            'proportional' => $proportional,
+            'warn_pct' => $margin === null ? $warnPct : null,
+            'warn_margin' => $margin,
             'permission' => $entry['permission'],
             'link' => $entry['link'],
             'counts' => $states,
             'total' => count($finished),
             'rows' => array_slice($finished, 0, self::MAX_ROWS),
         ];
+    }
+
+    /**
+     * Seberapa genting sebuah baris DI DALAM keadaannya — pengurut kedua.
+     *
+     * Entri proporsional memakai persentasenya. Entri yang tidak (F-7)
+     * memakai SISA-nya, dibalik tandanya: sisa 12 jam lebih genting daripada
+     * sisa 400 jam, sementara persentase di sana akan mengurutkan menurut
+     * umur alat — alat 12.000 jam yang masih 400 jam lagi mendahului alat
+     * 900 jam yang tinggal 12 jam. Baris tanpa angka tetap turun ke bawah.
+     */
+    private static function urgency(array $row): float
+    {
+        if ($row['pct'] !== null) {
+            return (float) $row['pct'];
+        }
+
+        if ($row['remaining'] !== null) {
+            return -(float) $row['remaining'];
+        }
+
+        return -INF;
     }
 
     /**

@@ -20,9 +20,49 @@ class MaintenanceStoreRequest extends FormRequest
             'maintenance_date' => ['required', 'date'],
             'maintenance_type' => ['required', Rule::enum(MaintenanceType::class)],
             'vendor_id' => ['nullable', 'integer'], // cross-module: prc_vendors.id
-            'cost' => ['required', 'numeric', 'min:0'],
+            'cost' => ['required', 'numeric', 'min:0', 'max:9999999999999999.99'],
             'description' => ['nullable', 'string'],
             'next_due_date' => ['nullable', 'date', 'after:maintenance_date'],
+            /*
+             * F-7 — pemicu KEDUA, berdiri sendiri: sebuah kartu servis boleh
+             * mengisi tanggal saja, jam saja, keduanya, atau tidak sama sekali
+             * (yang terakhir tetap diteriaki pengawas tenggat).
+             *
+             * gt:0, BUKAN min:0. Nol adalah ANGKA — registri ambang tidak
+             * pernah menyimpulkan "tidak ada batas" dari nilai nol (§24) — dan
+             * "servis berikutnya pada jam ke-0" bukan kalimat yang berarti
+             * apa pun untuk mesin mana pun. Menerimanya akan melahirkan
+             * keadaan TANPA_ANGGARAN ("Tidak dianggarkan") di sisi jam,
+             * tempat kalimat itu tidak punya arti. Yang berarti "belum
+             * disetel" adalah NULL.
+             *
+             * DAN decimal:0,3 KARENA gt:0 SENDIRIAN TIDAK CUKUP (verifikasi
+             * F-7). Kolomnya decimal(15,3) dan model mengecast 'decimal:3',
+             * jadi 0,0004 lulus gt:0 pada angka yang DIKIRIM lalu tersimpan
+             * '0.000' dan dibaca kembali 0,0 — keadaan "Tidak dianggarkan"
+             * yang paragraf di atas bilang tidak boleh lahir, lahir lewat
+             * pintu ini (terukur: POST 0.0004 -> 201). Yang divalidasi
+             * sekarang adalah presisi yang BENAR-BENAR disimpan.
+             */
+            /*
+             * max: JANGKAUAN kolomnya, bukan hanya jumlah desimalnya.
+             *
+             * `decimal:0,3` menghakimi angka di BELAKANG koma; tidak ada yang
+             * menghakimi 13 angka di depannya. Kolomnya decimal(15,3), yang
+             * memuat sampai 999.999.999.999,999 — dan di MySQL dengan
+             * STRICT_TRANS_TABLES (mode produksi) kelebihan jangkauan adalah
+             * SQLSTATE 22003, yaitu HTTP 500. Mekanik yang jempolnya menahan
+             * satu tombol angka mendapat halaman galat server alih-alih
+             * tulisan merah di bawah kotaknya — sementara di SQLite angka yang
+             * sama tersimpan diam-diam sebagai 1.0e+18 dan setiap layar sisa
+             * jamnya membaca 9,99e+17 (verifikasi penutup F-7).
+             *
+             * Aturan yang sama diberikan pada `cost` di formulir INI JUGA:
+             * menutupnya hanya di kolom F-7 meninggalkan kotak di sebelahnya
+             * membawa cacat yang persis sama — "benar di satu permukaan, bocor
+             * di permukaan lain", cacat yang berulang di kampanye ini.
+             */
+            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0', 'decimal:0,3', 'max:999999999999.999'],
         ];
     }
 }

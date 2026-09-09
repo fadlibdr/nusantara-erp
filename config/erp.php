@@ -527,6 +527,18 @@ return [
         'project_budget_pct' => 90,
         'rap_vs_kontrak_pct' => 90,
         'overhead_budget_pct' => 90,
+
+        /*
+         * F-7 — DAN YANG INI BUKAN PERSEN: berapa JAM sebelum target servis
+         * sebuah alat mulai diperingatkan. Persentase tidak bisa dipakai pada
+         * meter kumulatif (meterannya tidak pernah mulai dari nol pada servis
+         * terakhir), jadi 90 % pada alat 3.500 jam menyala 350 jam lebih awal
+         * dan pada alat 12.250 jam menyala 1.225 jam lebih awal — dari satu
+         * angka yang sama. 50 jam kira-kira lima sampai enam hari kerja alat
+         * berat, cukup untuk memesan sparepart dan menjadwalkan mekanik, dan
+         * sama panjangnya untuk alat baru maupun alat tua.
+         */
+        'maintenance_hour_meter' => 50,
     ],
 
     /*

@@ -1265,8 +1265,10 @@ WatchedThresholds::supply(
 
 Closure, bukan hasil: pemindaian bisa terjadi kapan saja setelah boot, dan
 menghitungnya saat boot membebani setiap permintaan. Selama tidak ada yang
-memasok, entrinya SKIPPED. Uji wajib memanggil `flushSuppliers()` /
-`flushSchemaMemo()` (sudah dipasang di `ErpTestCase::setUp`).
+memasok, entrinya SKIPPED. `flushSchemaMemo()` sudah dipasang di
+`ErpTestCase::setUp`; **`flushSuppliers()` BELUM** — uji yang perlu melihat
+entri yang dipasok modul sebagai SKIPPED harus memanggilnya sendiri (satu-satunya
+pemanggil hari ini: `ThresholdWatchTest:296`).
 
 **Ambang peringatan ada di `config('erp.thresholds.<kunci>')`**, satu kunci per
 entri, bawaan 90 % (ROADMAP-HASHMICRO §5 baris 13). Ini PERINGATAN, bukan
@@ -1276,7 +1278,39 @@ kalimatnya sendiri.
 
 Entri yang dikirim F-2: `project_budget_pct` (dipasok Finance),
 `rap_vs_kontrak_pct` dan `overhead_budget_pct` (dihitung Core). Layarnya
-`#/ambang`, tetangga `#/tenggat` di grup Ringkasan.
+`#/ambang`, tetangga `#/tenggat` di grup Ringkasan. F-7 menambah
+`maintenance_hour_meter` (dipasok Assets) — entri pertama yang satuannya BUKAN
+rupiah dan ambangnya BUKAN persen; lihat dua paragraf berikut.
+
+**SATUANNYA BUKAN SELALU RUPIAH (F-7).** Setiap entri sudah mendeklarasikan
+`unit` sejak F-2 dan **tidak ada yang membacanya**: `ambang.js` memanggil
+`fmt.rupiah` pada kedua sel angkanya, jadi entri berjam pertama mencetak
+"Rp 3.375,50" untuk 3.375,5 JAM. Sekarang layar memformat menurut `unit`
+(`rupiah` → `fmt.rupiah`, selain itu → `fmt.qty(value, unit)`), aturan yang sama
+yang sudah dipegang kolom pertama tabelnya untuk `subject_word`: satuan yang
+dideklarasikan sebuah entri tidak boleh hilang di tabel yang menampilkannya.
+`cells.js` tipe `qty` ikut menerima `unit` opsional untuk alasan yang sama.
+
+**DAN AMBANGNYA BUKAN SELALU PERSEN (F-7).** Sebuah entri yang kedua sisinya
+BUKAN bagian-dari-keseluruhan mendeklarasikan `proportional => false`: `pct`
+tidak dihitung sama sekali (barisnya mengirim `remaining`, dan layar mencetak
+"24,5 jam lagi" / "150 jam lewat"), dan ambangnya dinyatakan dalam SATUAN entri
+lewat `warn_margin_key` + `warn_margin_default` — `state()` menerima parameter
+keempat `$warnMargin` yang menggantikan perbandingan `displayPct` dengan
+`$actual >= $limit - $warnMargin`. **Empat keadaan yang lain tidak berubah**:
+LAMPAU tetap dihakimi pada ANGKA-nya, dan ketiga keadaan yang bukan angka tetap
+mendahului keduanya. Alasan terukurnya: meter kumulatif tidak pernah mulai dari
+nol pada servis terakhir, jadi "96 % terpakai" di sana mengukur UMUR alat, bukan
+sisa jatah servisnya — satu angka config 90 % memberi tenggang 350 jam pada alat
+bertarget 3.500 jam dan 1.225 jam pada alat bertarget 12.250 jam. Urutan baris
+entri seperti itu memakai `remaining` (yang tersisa paling sedikit lebih dulu),
+bukan persentase yang akan mengurutkan menurut umur alat.
+
+**Bawaan margin ada di DUA tempat dan keduanya harus satu angka**: entri Core
+(`warn_margin_default`) dan modul pemasoknya (`MaintenanceDueService::WARN_MARGIN_DEFAULT`).
+Ditemukan lewat mutasi: karena `config/erp.php` selalu menyebutkan kuncinya,
+mengubah bawaan sisi Core dari 50 menjadi 999 **lolos hijau** sampai sebuah uji
+mengosongkan config-nya lebih dulu. `ThresholdHourMeterTest` memaku keduanya.
 
 **BARIS YANG DIPASOK ADALAH SISI YANG DITEGAKKAN, BUKAN AGREGATNYA**
 (verifikasi F-2). `project_budget_pct` memasok sisi PROYEK yang paling dekat ke
@@ -1984,3 +2018,98 @@ dua sesi, tab "Perlu dipesan ulang" pada `#/stock` dengan satu baris kekurangan:
 kartu dasbor DAN nama tab Saldo Stok. Kalimat yang benar tentang kartunya ("daftar yang dibaca")
 menjadi bohong begitu pembacanya mengira ia berbicara tentang tabnya. Sebutkan yang mana, dan
 sebutkan di mana tombolnya berdiri.
+
+## 36. Servis alat: DUA pemicu yang berdiri sendiri (F-7)
+
+`ast_maintenances` membawa dua kolom jatuh tempo, dan keduanya **berdiri
+sendiri-sendiri**: `next_due_date` (kalender, migrasi 000530, diawasi
+`WatchedDeadlines` entri `maintenance_next_due`) dan `next_due_hour_meter`
+(jam operasi, migrasi 000545, diawasi `WatchedThresholds` entri
+`maintenance_hour_meter`). **Yang mana pun tercapai lebih dulu, servisnya jatuh
+tempo.**
+
+**PERMUKAAN YANG MENEGAKKANNYA, DIDAFTAR — bukan "tidak ada permukaan yang
+boleh".** Kalimat universal itu tidak benar dan sudah tidak dipakai lagi
+(verifikasi F-7): daftar perawatan punya dua kolom, formulirnya dua kotak,
+kartu aset menaruh "Pemicu tanggal" di stat row yang sama dengan sisa jamnya
+(dengan umur relatifnya, merah bila sudah lewat), kartu aset cetak menaruh
+keduanya di satu sel ("14 Desember 2026 / 5.500 jam"), dan catatan setiap
+baris registri jam menyebut tanggal jatuh temponya. **Layar Tenggat SENGAJA
+hanya bicara tanggal** — ia adalah layar pengawas tenggat, entrinya
+`maintenance_next_due` tidak membawa kolom nilai, dan sisi jam memang tidak
+mengirim pemberitahuan pagi (keputusan pemilik 4). Pembaca yang perlu sisi
+jam pergi ke **Ringkasan › Ambang & Batas**. Membawa target jam ke baris
+Tenggat adalah keputusan pemilik yang terbuka (LAPORAN-PAKET-HM-F-7 §8),
+bukan aturan yang sedang dilanggar.
+
+**Judul kartu di halaman aset menyebut sisi yang dihakimi lencananya**
+("Servis berikutnya menurut jam"): lencana itu dihitung dari keadaan JAM
+saja, dan sebuah kartu berjudul "Servis berikutnya" yang berlencana hijau
+"Aman" di atas tanggal servis yang lewat 86 hari adalah vonis yang menyamar
+sebagai vonis atas keduanya.
+
+**DUA DEFINISI, DITULIS SEKALI DI `Assets\Services\MaintenanceDueService`:**
+
+1. **"Pembacaan hour-meter terakhir" = pembacaan TERTINGGI yang tercatat**,
+   bukan yang terbaru menurut `(log_date, id)`. Meter tidak berjalan mundur:
+   angka yang turun hanya punya dua sebab (meter diganti, salah ketik) dan tidak
+   satu pun berarti mesinnya berjalan lebih sedikit. Dengan "yang terbaru", satu
+   digit yang hilang mengubah 5.120 jam yang sudah lewat target 5.000 menjadi
+   512 jam yang "masih 4.488 jam lagi" — alarm mati persis pada alat yang paling
+   perlu dilihat. Penjaga monoton `EquipmentLogService` hanya berlaku DI DALAM
+   satu mobilisasi; penggantian meter justru terjadi di antara dua mobilisasi.
+   Pembacaan terbaru tetap dibawa (`latest_reading`), dan bila lebih rendah,
+   layar **mengatakannya** dengan pita peringatan.
+   **HARGANYA, karena ia nyata:** MAX melindungi dari salah ketik yang TURUN
+   dengan cara yang membuat salah ketik yang NAIK — dan penggantian meter —
+   tidak bisa dikoreksi siapa pun. Terukur lewat HTTP: 33.755 di atas 3.375,5
+   pada alat bertarget 3.400 jam mengunci "Melampaui batas · lewat 30.355
+   jam", dan keempat pintunya tertutup (pembacaan berikutnya yang lebih
+   rendah 422 di mobilisasi yang sama; PUT dan DELETE ditolak; baris koreksi
+   di mobilisasi BARU diterima dan tidak mengubah vonisnya). Kalimat
+   penolakan register mengatakan hal ini sekarang; MEKANISME koreksinya
+   (penanda koreksi pada `ast_equipment_logs`, atau puncak yang dihitung
+   sejak tanggal kartu servis yang berlaku) adalah keputusan pemilik yang
+   terbuka — LAPORAN-PAKET-HM-F-7 §8.
+2. **"Target yang berlaku" = milik catatan perawatan TERBARU** (menurut
+   `maintenance_date`, lalu `id`) — **baris yang sama** yang dibaca pemicu
+   tanggal lewat `latest_per_group`. Kartu servis terbaru menggantikan rencana
+   sebelumnya; "target terkecil yang belum terlampaui" akan menghidupkan lagi
+   target yang sudah digantikan mekanik, dan membuat dua pemicu pada satu tabel
+   membaca dua baris yang berbeda. Kartu terbaru yang lupa mengisi target jam
+   menjadi `TANPA_BATAS`, bukan mewarisi target lama.
+
+**TIDAK TERUKUR BUKAN NOL, DAN ADA TIGA SEBABNYA** — tiga kalimat, bukan satu
+"—", karena jalan keluarnya berbeda: belum pernah dimobilisasi / mobilisasinya
+belum punya satu log pun / lognya ada tetapi `hour_meter`-nya NULL pada semuanya
+(kolom itu nullable karena mengisi solar tanpa mencatat jam adalah kejadian biasa
+di lapangan). 0 jam adalah PEMBACAAN — mesin baru yang meterannya masih nol.
+
+**SIAPA YANG DIAWASI.** Alat yang punya target jam ATAU punya pembacaan jam;
+yang tidak punya keduanya bukan alat berjam (scaffolding, rak server) dan tidak
+dibariskan sebagai "belum terukur" selamanya — aturan "masih urusan seseorang"
+milik `WatchedDeadlines`. **Aset `disposed` dan yang dihapus lunak keluar dari
+KEDUA pemicu**, dan `MaintenanceHourMeterDueTest` menanyai keduanya atas satu
+aset yang sama, karena aturan yang benar di satu pemicu dan bocor di pemicu kedua
+adalah cacat yang berulang di kampanye ini.
+
+**AKIBAT PADA PEMICU TANGGAL.** `alarm_when_date_missing` milik
+`maintenance_next_due` kini dipersempit `missing_scope`: kartu servis yang
+menjadwalkan **dengan jam saja** bukan kartu tanpa jadwal, dan alarm yang
+menghukum pemakaian yang benar adalah alarm yang diajari orang untuk diabaikan.
+Penjaga kolom ada DI DALAM closure (pola `superseded_at`), bukan di `columns` —
+yang di `columns` menggugurkan SELURUH entri saat kolomnya belum ada.
+
+**`next_due_hour_meter` nullable, `gt:0` DAN `decimal:0,3` di request.** NULL
+berarti "belum disetel"; nol adalah ANGKA (§24: batas tidak pernah disimpulkan
+dari nilainya),
+dan "servis pada jam ke-0" tidak berarti apa pun untuk mesin mana pun — menerima
+0 akan melahirkan keadaan `TANPA_ANGGARAN` ("Tidak dianggarkan") di sisi jam,
+tempat kalimat itu tidak punya arti. Presisinya `decimal(15,3)`, sama persis
+dengan `ast_equipment_logs.hour_meter`: kedua sisi perbandingan
+"pembacaan >= target" harus punya presisi yang sama — dan **`gt:0` sendirian
+tidak cukup** (verifikasi F-7): ia menghakimi angka yang DIKIRIM, jadi 0,0004
+lulus lalu tersimpan `0.000` dan melahirkan keadaan yang paragraf ini bilang
+mustahil. `decimal:0,3` di kedua pintu tulis memvalidasi presisi yang
+benar-benar disimpan, dan kotak formulirnya berlantai 0,001 — bukan 0, yang
+berselisih dengan gerbang servernya sendiri.

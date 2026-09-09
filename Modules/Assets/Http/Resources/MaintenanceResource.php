@@ -21,6 +21,12 @@ class MaintenanceResource extends JsonResource
             'cost' => $this->cost,
             'description' => $this->description,
             'next_due_date' => $this->next_due_date?->toDateString(),
+            // F-7 — pemicu kedua, dikirim berdampingan dengan yang pertama:
+            // tidak ada permukaan yang boleh menampilkan satu tanpa yang lain.
+            // NULL berarti "belum disetel", tidak pernah 0 jam.
+            'next_due_hour_meter' => $this->next_due_hour_meter === null
+                ? null
+                : (float) $this->next_due_hour_meter,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

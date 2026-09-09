@@ -563,7 +563,7 @@ Yang diawasi Tenggat, dan siapa yang melihatnya:
 | SPK subkontraktor mendekati tanggal selesai | 14 hari | `scm.update` |
 | Milestone proyek | 7 hari | `prj.update` |
 | Tindak lanjut insiden K3 | 3 hari | `prj.update` |
-| Servis aset berikutnya | 14 hari | `ast.update` |
+| Servis aset berikutnya (tanggal; sisi JAM-nya ada di Ambang & Batas) | 14 hari | `ast.update` |
 | Penempatan aset melewati rencana kembali | 7 hari | `ast.update` |
 | Kontrak layanan mendekati akhir periode | 60 hari | `crm.update` |
 | PKWT karyawan | 60 hari | `hr.update` |
@@ -6134,9 +6134,31 @@ empat petak yang lain: **Kepemilikan** (dengan nama lessor-nya) · **Tarif sewa*
 *"alat sewa — tidak di neraca, tidak disusutkan"*. Kartu penyusutan alat sewa yang
 kosong berbunyi *"Alat sewa tidak pernah disusutkan — biayanya tagihan vendor, bukan
 penyusutan."* — bukan "belum", karena tidak akan pernah (§9.7). Di bawahnya, keduanya
-sama: empat kartu riwayat — **Mobilisasi**, **Log BBM & jam alat**, **Perawatan**, dan
-**Penyusutan**. Aset yang sudah dihapusbukukan mendapat panel kuning di atas berisi
+sama: kartu **Servis berikutnya** (hanya pada alat yang diukur dengan jam — lihat di
+bawah) lalu empat kartu riwayat — **Mobilisasi**, **Log BBM & jam alat**, **Perawatan**,
+dan **Penyusutan**. Aset yang sudah dihapusbukukan mendapat panel kuning di atas berisi
 tanggal, alasan, dan hasil pelepasannya.
+
+**Kartu `Servis berikutnya`** memperlihatkan keempat angka yang menentukan kapan alat itu
+masuk bengkel: **Pembacaan hour meter** (yang TERTINGGI yang pernah tercatat, dengan
+tanggalnya) · **Jatuh tempo pada** (target jam dari catatan perawatan terbaru) · **Sisa
+jam** · **Pemicu tanggal**. Kartunya **tidak muncul** pada alat yang memang tidak diukur
+dengan jam — scaffolding, rak server tanpa target — karena baris "belum terukur" yang
+tidak akan pernah terisi adalah kebisingan, bukan informasi.
+
+**Alat tanpa satu pun pembacaan DIGARIS ("—"), tidak pernah digambar 0 jam:** 0 berarti
+"meterannya masih nol" (mesin baru), dan itu fakta yang berbeda dari "tidak ada yang
+tahu". Kartunya menyebut **sebab yang mana** dari tiga sebab yang ada, karena jalan
+keluarnya berbeda-beda: *"alat ini belum pernah dimobilisasi"* (belum ada mobilisasi yang
+bisa menampung log), *"mobilisasinya belum punya satu log pun"*, atau *"ada log, tetapi
+tidak satu pun mengisi hour meter"* (log BBM tanpa jam kerja — kejadian biasa di
+lapangan).
+
+**Kalau pembacaan terakhir LEBIH RENDAH dari yang tertinggi** — meter diganti bengkel,
+atau satu digit salah ketik — kartunya memasang pita peringatan yang menyebut kedua
+angkanya, dan yang dipakai menghakimi servis **tetap yang tertinggi**: mesin tidak
+berjalan mundur, dan satu digit yang salah ketik tidak boleh membatalkan servis yang
+sudah jatuh tempo.
 
 ### 9.4 Mobilisasi dan Demobilisasi
 
@@ -6242,9 +6264,25 @@ termasuk pada mobilisasi yang sudah dikembalikan.
 **Tidak ada tombol Ubah dan tidak ada tombol Hapus, untuk siapa pun** — register
 ini hanya-tambah. Salah ketik dikoreksi dengan baris log baru berangka benar; API
 pun menolak dengan kalimat: *"Baris register tidak diubah dan tidak dihapus —
-register pembacaan dikoreksi oleh pembacaan berikutnya, bukan dengan menyunting
-riwayat. Catat baris log baru dengan angka yang benar dan sebutkan koreksinya di
-catatan."*
+register pembacaan hanya bisa DITAMBAH, tidak disunting. Catat baris log baru
+dengan angka yang benar dan sebutkan koreksinya di catatan; baris lama tetap
+terbaca di riwayat. Satu hal yang TIDAK diperbaiki baris baru itu: jatuh tempo
+servis dihakimi dari pembacaan TERTINGGI alat, jadi angka yang telanjur diketik
+terlalu tinggi tetap yang dihakimi — kartu alatnya akan menyebutkan bahwa
+pembacaan terakhirnya lebih rendah, dan menurunkan angka tertinggi itu belum ada
+jalannya."*
+
+> **SATU BATAS YANG HARUS DIKETAHUI SEBELUM MENGETIK.** Angka hour meter yang
+> telanjur diketik TERLALU TINGGI (satu digit tambahan) mengunci alarm servis
+> alat itu di "Melampaui batas" dan tidak ada jalan menurunkannya: pembacaan
+> berikutnya yang lebih rendah ditolak di mobilisasi yang sama, dan yang dicatat
+> di mobilisasi berikutnya diterima tetapi tidak mengubah vonisnya — yang
+> dihakimi tetap pembacaan tertinggi. Hal yang sama terjadi pada alat yang
+> METERNYA DIGANTI. Yang bisa dilakukan hari ini hanyalah membaca kartu alatnya,
+> yang menyebutkan bahwa pembacaan terakhir lebih rendah. Jalan koreksi yang
+> sesungguhnya adalah keputusan pemilik yang masih terbuka
+> (LAPORAN-PAKET-HM-F-7 §8) — jangan menaikkan target jam servis untuk
+> mendiamkannya: itu merusak rencana perawatan demi mematikan alarm.
 
 Riwayat pembacaannya juga tampil di **halaman aset** (kartu "Log BBM & jam alat" —
 §9.3), di **halaman mobilisasi** (tabel dengan judul yang sama), dan tercetak pada
@@ -6252,22 +6290,41 @@ Riwayat pembacaannya juga tampil di **halaman aset** (kartu "Log BBM & jam alat"
 
 ### 9.6 Perawatan Aset — `Aset › Perawatan`
 
-Kolom: Kode · Aset · Tanggal · Jenis · Biaya · **Berikutnya** (dengan hitungan relatif).
-Saringan: Aset, Jenis.
+Kolom: Kode · Aset · Tanggal · Jenis · Biaya · **Jadwal berikut** (tanggal, dengan
+hitungan relatif) · **Jam berikut** (hour meter). Saringan: Aset, Jenis.
 
 Formulir: **Aset** (wajib) · **Tanggal** (wajib) · **Jenis perawatan** (wajib: Service
-Rutin / Perbaikan / Kalibrasi) · Vendor · **Biaya** (wajib) · **Jadwal berikutnya** ·
-Uraian pekerjaan.
+Rutin / Perbaikan / Kalibrasi) · Vendor · **Biaya** (wajib) · **Jadwal berikutnya
+(tanggal)** · **Jadwal berikutnya (hour meter)** · Uraian pekerjaan.
 
 > **Kolom Biaya di sini adalah CATATAN, bukan pembukuan.** Layar Perawatan tidak membuat
 > jurnal apa pun dan tidak membebani biaya proyek. Biaya perawatan yang benar-benar
 > dibayar tetap harus masuk lewat **Tagihan Vendor (AP)** atau **bon kas kecil** seperti
 > pengeluaran lain. Angka di sini untuk riwayat alat, bukan untuk buku besar.
 
-**`Jadwal berikutnya` adalah pengingat yang benar-benar berbunyi.** Tenggat mengawasinya
-**14 hari** di muka untuk pemegang izin ubah aset, dan hanya baris perawatan **terbaru**
-per aset yang membawa pengingat hidup — jadi mencatat perawatan baru otomatis
-menggulirkannya.
+**DUA PEMICU SERVIS, DAN KEDUANYA BERDIRI SENDIRI.** Alat berat tidak dirawat menurut
+kalender: excavator yang menganggur sebulan tidak butuh servis 250 jam, dan yang bekerja
+dua shift menembusnya dalam dua minggu. Maka sebuah kartu servis boleh menjadwalkan
+yang berikutnya menurut **tanggal**, menurut **jam operasi**, menurut keduanya, atau —
+kalau memang belum dijadwalkan — menurut tidak satu pun. **Yang mana pun tercapai lebih
+dulu, servisnya jatuh tempo.**
+
+- **`Jadwal berikutnya (tanggal)`** diawasi **Tenggat**, **14 hari** di muka, untuk
+  pemegang izin ubah aset.
+- **`Jadwal berikutnya (hour meter)`** diawasi **Ringkasan › Ambang & Batas** pada baris
+  *Servis alat menurut jam operasi*, dengan peringatan mulai **50 jam sebelum** target.
+
+Pada keduanya, hanya baris perawatan **terbaru** per aset yang membawa pengingat hidup —
+jadi mencatat perawatan baru otomatis menggulirkan keduanya. Dan karena keduanya membaca
+baris yang sama: sebuah kartu servis terbaru yang **mengisi jam saja** bukan kartu yang
+lupa menjadwalkan, jadi Tenggat tidak lagi meneriakkan *"Servis aset tanpa jadwal
+berikut"* atasnya; alarm itu kini hanya berbunyi untuk kartu yang tidak menyebut
+**kedua-duanya**.
+
+> **Angka hour meter yang diisi di sini adalah ANGKA YANG HARUS TERBACA DI METER**
+> saat servis berikutnya jatuh tempo (mis. 5.000 jam) — bukan selisih 250 jam dari
+> servis terakhir. **0 tidak boleh diisi**: servis "pada jam ke-0" tidak berarti apa pun
+> untuk mesin mana pun, dan yang berarti "belum disetel" adalah kotak yang dikosongkan.
 
 ### 9.7 Penyusutan — `Aset › Penyusutan`
 
@@ -8725,7 +8782,12 @@ peringatannya muncul di tempat uangnya dibelanjakan:
   menghakimi dokumen itu** (PO → non-subkon, SPK → subkon), **sebelum** Anda
   mengetik satu baris item;
 - **Ringkasan › Ambang & Batas** — daftar semua batas, termasuk RAP terhadap
-  nilai kontrak dan realisasi overhead terhadap OVB.
+  nilai kontrak, realisasi overhead terhadap OVB, dan **jam alat terhadap target
+  servis berikutnya**. Tidak semua ukuran di sana berbentuk persentase: servis alat
+  diukur dengan meter kumulatif yang tidak pernah mulai dari nol pada servis terakhir,
+  jadi kolomnya mencetak **sisa jam** ("24,5 jam lagi", "150 jam lewat") dan
+  peringatannya dinyatakan **50 jam sebelum target** — sama panjang untuk alat baru
+  maupun alat tua, yang tidak bisa dilakukan sebuah ambang persen.
 
 Peringatan ini **tidak menolak apa pun**. Yang menolak adalah gerbang anggaran
 saat PO/SPK diajukan, dengan kalimat dan angkanya sendiri.

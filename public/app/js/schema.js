@@ -5411,7 +5411,15 @@ export const RESOURCES = {
       { key: 'maintenance_date', label: 'Tanggal', type: 'date' },
       { key: 'maintenance_type', label: 'Jenis', type: 'enum', enum: 'maintenanceType' },
       { key: 'cost', label: 'Biaya', type: 'currency', align: 'right' },
-      { key: 'next_due_date', label: 'Berikutnya', type: 'date', withRelative: true },
+      /* DUA PEMICU BERDAMPINGAN (F-7), dan keduanya berdiri sendiri: yang mana
+         pun tercapai lebih dulu, servisnya jatuh tempo. Alat berat dirawat
+         menurut JAM — excavator yang menganggur sebulan tidak butuh servis 250
+         jam — jadi sebuah kartu yang hanya mengisi kolom jam adalah kartu yang
+         lengkap, bukan kartu yang setengah diisi. Judul kolomnya dibedakan
+         ("Jadwal berikut" vs "Jam berikut") karena dua kolom yang sama-sama
+         berjudul "Berikutnya" adalah dua kolom yang tertukar. */
+      { key: 'next_due_date', label: 'Jadwal berikut', type: 'date', withRelative: true },
+      { key: 'next_due_hour_meter', label: 'Jam berikut', type: 'qty', unit: 'jam', align: 'right' },
     ],
     filters: [
       { key: 'asset_id', label: 'Aset', lookup: 'assets' },
@@ -5420,13 +5428,21 @@ export const RESOURCES = {
     form: {
       sections: [{
         title: 'Catatan perawatan',
+        help: 'Dua pemicu servis berikutnya, berdiri sendiri-sendiri: TANGGAL dan HOUR METER. Yang mana pun tercapai lebih dulu, servisnya jatuh tempo — isi salah satu, atau keduanya.',
         fields: [
           { key: 'asset_id', label: 'Aset', type: 'lookup', lookup: 'assets', required: true },
           { key: 'maintenance_date', label: 'Tanggal', type: 'date', required: true, defaultToday: true },
           { key: 'maintenance_type', label: 'Jenis perawatan', type: 'select', enum: 'maintenanceType', required: true },
           { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors' },
           { key: 'cost', label: 'Biaya', type: 'currency', required: true, default: 0 },
-          { key: 'next_due_date', label: 'Jadwal berikutnya', type: 'date' },
+          { key: 'next_due_date', label: 'Jadwal berikutnya (tanggal)', type: 'date' },
+          /* min 0,001 — bukan 0: server menolak 0 (gt:0) dan menolak angka
+             yang dibulatkan kolom decimal(15,3) menjadi nol, jadi lantai
+             kotak ini adalah angka terkecil yang benar-benar bisa disimpan
+             di atas nol. Langkahnya tetap 0,1 karena begitulah meter dibaca.
+             Kotak yang membolehkan 0 sementara server menolaknya adalah dua
+             gerbang yang berselisih di satu formulir. */
+          { key: 'next_due_hour_meter', label: 'Jadwal berikutnya (hour meter)', type: 'number', step: '0.1', min: 0.001, max: 999999999999.999, help: 'Angka yang HARUS TERBACA di meter saat servis berikutnya jatuh tempo — bukan selisih jam. Boleh diisi tanpa tanggal: alat berat dirawat menurut jam. KOSONGKAN bila belum dijadwalkan menurut jam; 0 ditolak server, karena servis "pada jam ke-0" tidak berarti apa pun.' },
           { key: 'description', label: 'Uraian pekerjaan', type: 'textarea', span: 2 },
         ],
       }],
