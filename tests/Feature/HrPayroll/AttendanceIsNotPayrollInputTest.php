@@ -143,15 +143,37 @@ class AttendanceIsNotPayrollInputTest extends ErpTestCase
         $this->assertSame($netBefore, (string) $after->net_pay);
     }
 
-    /** Usulan rekap hanya membaca: tidak ada POST/PUT yang menerimanya. */
+    /**
+     * Usulan rekap hanya membaca: tidak ada POST/PUT yang menerimanya.
+     *
+     * Disaring pada URI usulan rekap ITU SENDIRI, bukan pada kata "proposal" di
+     * seluruh tabel rute. Bentuk lamanya menuntut daftar persis atas SETIAP rute
+     * yang memuat kata itu di mana pun di aplikasi, jadi ia merah di gerbang
+     * rilis F-6 — yang menambahkan `GET api/inventory/reorder/proposal`, sebuah
+     * rute yang benar, di modul lain, yang tidak ada hubungannya dengan payroll.
+     * Uji yang gagal karena modul lain menamai rutenya dengan wajar adalah uji
+     * yang mengajari orang melemahkannya; yang dijaga di sini adalah pintu
+     * usulan rekap, dan hanya itu.
+     */
     public function test_the_recap_proposal_has_no_write_door(): void
     {
         $routes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_contains($route->uri(), 'attendance-recaps/proposal'))
             ->map(fn ($route) => implode('|', $route->methods()).' '.$route->uri())
-            ->filter(fn (string $line) => str_contains($line, 'proposal'))
             ->values()
             ->all();
 
         $this->assertSame(['GET|HEAD api/hr/attendance-recaps/proposal'], $routes);
+
+        // ...dan tidak ada metode tulis yang mendarat di URI itu lewat rute lain
+        // (mis. sebuah resource route yang kebetulan mencakupnya).
+        $writes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_contains($route->uri(), 'attendance-recaps/proposal'))
+            ->flatMap(fn ($route) => $route->methods())
+            ->intersect(['POST', 'PUT', 'PATCH', 'DELETE'])
+            ->values()
+            ->all();
+
+        $this->assertSame([], $writes);
     }
 }
