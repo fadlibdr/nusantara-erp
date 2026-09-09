@@ -2361,17 +2361,6 @@
    ],
    "rows": [
     {
-     "text": "Semen Portland 50kg ITM-0001 Gudang Site Proyek Graha Sentosa 350 zak 400 Aturan reorder gudang ini · stok min. item 200 50 500 zak jumlah pesan aturan",
-     "cells": [
-      "Semen Portland 50kg ITM-0001",
-      "Gudang Site Proyek Graha Sentosa",
-      "350 zak",
-      "400 Aturan reorder gudang ini · stok min. item 200",
-      "50",
-      "500 zak jumlah pesan aturan"
-     ]
-    },
-    {
      "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan",
      "cells": [
       "Semen Portland 50kg ITM-0001",
@@ -2399,23 +2388,11 @@
   "before": {
    "stats": [
     "BISA DIUSULKAN 1",
-    "DILEWATI 1",
-    "BARIS KEKURANGAN 2"
+    "DILEWATI 0",
+    "BARIS KEKURANGAN 1"
    ],
    "why_skipped_card": "Yang dilewati — dan kenapa Item yang sudah menjadi baris pada PR ATAU PO terbuka (draf, diajukan atau disetujui) untuk gudang yang sama — atau pada dokumen yang tidak menyebut gudang sama sekali — dilewati, supaya menjalankan usulan dua kali tidak menghasilkan dua permintaan untuk kekurangan yang sama. PO ikut karena PO boleh dibuat tanpa PR. Yang ditolak, selesai atau dibatalkan tidak menahan apa pun: PO yang selesai sudah diterima penuh, jadi kekurangan yang tersisa memang nyata.",
    "rows": [
-    {
-     "text": "Semen Portland 50kg ITM-0001 Gudang Site Proyek Graha Sentosa 350 zak 400 Aturan reorder gudang ini · stok min. item 200 50 500 zak jumlah pesan aturan Dilewati Sudah dipesan pada PO/2026/II/0001 (Disetujui).",
-     "cells": [
-      "Semen Portland 50kg ITM-0001",
-      "Gudang Site Proyek Graha Sentosa",
-      "350 zak",
-      "400 Aturan reorder gudang ini · stok min. item 200",
-      "50",
-      "500 zak jumlah pesan aturan",
-      "Dilewati Sudah dipesan pada PO/2026/II/0001 (Disetujui)."
-     ]
-    },
     {
      "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Akan diusulkan",
      "cells": [
@@ -2435,10 +2412,10 @@
    "toasts": [
     "Satu PR draf dibuat. Periksa dan ajukan sendiri dari layar Permintaan Pembelian."
    ],
-   "hash": "#/d/procurement/purchase-requisitions/4"
+   "hash": "#/d/procurement/purchase-requisitions/3"
   },
   "created_codes": [
-   "PR/2026/IX/0004"
+   "PR/2026/IX/0003"
   ],
   "created_statuses": [
    "draft"
@@ -2446,24 +2423,12 @@
   "after": {
    "stats": [
     "BISA DIUSULKAN 0",
-    "DILEWATI 2",
-    "BARIS KEKURANGAN 2"
+    "DILEWATI 1",
+    "BARIS KEKURANGAN 1"
    ],
    "rows": [
     {
-     "text": "Semen Portland 50kg ITM-0001 Gudang Site Proyek Graha Sentosa 350 zak 400 Aturan reorder gudang ini · stok min. item 200 50 500 zak jumlah pesan aturan Dilewati Sudah dipesan pada PO/2026/II/0001 (Disetujui).",
-     "cells": [
-      "Semen Portland 50kg ITM-0001",
-      "Gudang Site Proyek Graha Sentosa",
-      "350 zak",
-      "400 Aturan reorder gudang ini · stok min. item 200",
-      "50",
-      "500 zak jumlah pesan aturan",
-      "Dilewati Sudah dipesan pada PO/2026/II/0001 (Disetujui)."
-     ]
-    },
-    {
-     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf).",
+     "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf).",
      "cells": [
       "Semen Portland 50kg ITM-0001",
       "Gudang Pusat (Cakung)",
@@ -2471,7 +2436,7 @@
       "710 Aturan reorder gudang ini · stok min. item 200",
       "10",
       "750 zak jumlah pesan aturan",
-      "Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf)."
+      "Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf)."
      ]
     }
    ],
@@ -2485,7 +2450,7 @@
   },
   "requisitions_after_second_press": 1,
   "skipped_row": {
-   "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf).",
+   "text": "Semen Portland 50kg ITM-0001 Gudang Pusat (Cakung) 700 zak 710 Aturan reorder gudang ini · stok min. item 200 10 750 zak jumlah pesan aturan Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf).",
    "cells": [
     "Semen Portland 50kg ITM-0001",
     "Gudang Pusat (Cakung)",
@@ -2493,7 +2458,7 @@
     "710 Aturan reorder gudang ini · stok min. item 200",
     "10",
     "750 zak jumlah pesan aturan",
-    "Dilewati Sudah diminta pada PR/2026/IX/0004 (Draf)."
+    "Dilewati Sudah diminta pada PR/2026/IX/0003 (Draf)."
    ]
   },
   "console_errors": [],
@@ -2516,7 +2481,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 11259,
+  "_ms": 11724,
   "_clicks": 2
  },
  "S32_reorder_usulan_pr_mobile": {
@@ -2547,7 +2512,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5415,
+  "_ms": 6035,
   "_clicks": 1
  },
  "S33_label_dan_pindai": {
@@ -2597,12 +2562,13 @@
    ],
    "sticker_mm": 62.02,
    "sticker_inner_mm": 56.4,
-   "widest_hand_line_mm": 56.38,
+   "widest_hand_line_mm": 53.54,
    "hand_code": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
    "lembar_scroll_mm": 194.01,
    "lembar_client_mm": 194.01,
    "body_scroll": 1440,
-   "body_client": 1440
+   "body_client": 1440,
+   "hand_line_margin_mm": 2.86
   },
   "manual": {
    "cards": [
@@ -2645,7 +2611,7 @@
    "and_the_sheet_says_which_code_it_encoded": true,
    "the_refused_probe_really_reached_the_item_card": true,
    "a_code_too_long_to_scan_prints_no_bars_and_says_so": true,
-   "and_its_handwritten_code_stays_inside_the_sticker_box": true,
+   "and_its_handwritten_code_stays_inside_the_sticker_box_with_declared_room_to_spare": true,
    "and_the_sheet_never_grows_wider_than_the_page": true,
    "and_the_code_a_person_retypes_is_still_whole": true,
    "and_each_line_php_measured_is_one_printed_line": true,
@@ -2659,7 +2625,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 32012,
+  "_ms": 32705,
   "_clicks": 8
  },
  "S33_pindai_keadaan_kamera": {
@@ -2821,7 +2787,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 45226,
+  "_ms": 45902,
   "_clicks": 3
  },
  "S33_label_dan_pindai_mobile": {
@@ -2870,7 +2836,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 6351,
+  "_ms": 8911,
   "_clicks": 2
  }
 }
