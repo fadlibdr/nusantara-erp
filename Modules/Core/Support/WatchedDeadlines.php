@@ -647,7 +647,7 @@ class WatchedDeadlines
                 'title_overdue' => 'Servis aset lewat jadwal berikut',
                 'alarm_when_date_missing' => true,
                 'title_missing' => 'Servis aset tanpa jadwal berikut',
-                'missing_text' => 'servis terakhir tercatat tanpa jadwal berikut',
+                'missing_text' => 'servis terakhir tercatat tanpa jadwal tanggal maupun target jam berikutnya',
                 'requires' => ['ast_assets'],
                 'columns' => ['deleted_at', 'asset_id', 'ast_assets.status', 'ast_assets.deleted_at'],
                 'latest_per_group' => ['group' => 'asset_id', 'order' => 'maintenance_date', 'soft_deletes' => true],
@@ -659,6 +659,35 @@ class WatchedDeadlines
                         ->whereColumn('ast_assets.id', 'ast_maintenances.asset_id')
                         ->where('ast_assets.status', '!=', 'disposed') // AssetStatus::Disposed
                         ->whereNull('ast_assets.deleted_at')),
+                /*
+                 * F-7 — SEBUAH SERVIS YANG DIJADWALKAN DENGAN JAM BUKAN
+                 * SERVIS YANG TIDAK DIJADWALKAN.
+                 *
+                 * Sejak migrasi 000545 ada pemicu kedua: next_due_hour_meter.
+                 * Kartu servis yang menulis "berikutnya pada 5.000 jam" dan
+                 * mengosongkan tanggalnya adalah kartu yang LENGKAP — alat
+                 * berat memang dirawat menurut jam, bukan kalender — dan
+                 * tanpa klausa ini ia akan diteriaki "tanpa jadwal berikut"
+                 * setiap pagi oleh pengawas tanggal, tepat karena mekaniknya
+                 * memakai pemicu yang benar. Alarm yang menghukum pemakaian
+                 * yang benar adalah alarm yang diajari orang untuk diabaikan.
+                 *
+                 * Yang TETAP beralarm: kartu terbaru yang tidak menyebut
+                 * KEDUA-duanya — itulah servis yang sungguh tidak dijadwalkan,
+                 * dan missing_text sekarang menyebut kedua sisinya.
+                 *
+                 * Penjaga kolom di dalam closure (pola superseded_at milik
+                 * WatchedThresholds::rapVersusContract) alih-alih menambahkan
+                 * next_due_hour_meter ke 'columns': yang di 'columns'
+                 * menggugurkan SELURUH entri saat kolomnya belum ada, jadi
+                 * basis data yang belum menjalankan 000545 akan kehilangan
+                 * pengawas tanggalnya sama sekali — mahal, dan tidak perlu.
+                 */
+                'missing_scope' => static fn (Builder $query): Builder => in_array(
+                    'next_due_hour_meter',
+                    self::tableColumns('ast_maintenances') ?? [],
+                    true,
+                ) ? $query->whereNull('next_due_hour_meter') : $query,
             ],
             [
                 // DEP/2026/V/0003 plans to return asset 5 from PRJ-2026-002 on

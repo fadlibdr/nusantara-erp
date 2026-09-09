@@ -1055,9 +1055,40 @@ class DeadlineWatchTest extends ErpTestCase
 
         $alarm = $this->alarms('Servis aset tanpa jadwal berikut')->sole();
         $this->assertStringContainsString($latest->code, $alarm->body);
-        $this->assertStringContainsString('tanpa jadwal berikut', $alarm->body);
+        // F-7: the sentence names BOTH triggers, because since migrasi 000545
+        // a service can be scheduled by hours instead of by date and this
+        // alarm now means "neither one was recorded".
+        $this->assertStringContainsString('tanpa jadwal tanggal maupun target jam berikutnya', $alarm->body);
         // The superseded reminder stays silent — the alarm is about the miss.
         $this->assertCount(0, $this->alarms('Servis aset mendekati jadwal berikut'));
+    }
+
+    /**
+     * F-7 / perangkap C — DUA PEMICU, DAN YANG SATU TIDAK BOLEH MENERIAKI
+     * PEMAKAIAN YANG BENAR DARI YANG LAIN.
+     *
+     * Alat berat dirawat menurut JAM, bukan kalender. Sebuah kartu servis yang
+     * menulis "berikutnya pada 5.000 jam" dan sengaja mengosongkan tanggalnya
+     * adalah kartu yang lengkap; sebelum missing_scope, pengawas tanggal
+     * meneriakkan "Servis aset tanpa jadwal berikut" atas kartu itu setiap
+     * pagi — menghukum mekanik yang memakai pemicu yang benar, dan mengajari
+     * seluruh kantor mengabaikan alarm itu.
+     */
+    public function test_a_service_scheduled_by_hour_meter_is_not_a_service_without_a_schedule(): void
+    {
+        $this->adminUser();
+        $asset = $this->asset();
+        Maintenance::query()->create([
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-07-28',
+            'maintenance_type' => 'service_rutin',
+            'next_due_date' => null,
+            'next_due_hour_meter' => 5000,
+        ]);
+
+        $this->watch();
+
+        $this->assertCount(0, $this->alarms('Servis aset tanpa jadwal berikut'));
     }
 
     public function test_an_active_deployment_nearing_its_planned_return_alarms(): void
