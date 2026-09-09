@@ -221,11 +221,30 @@ di PHP. Diukur pada **24.007 pembacaan** — bentuk armada kontraktor sekitar du
 | pola `whereNotExists` (latest_per_group milik `WatchedDeadlines`) | 1.130 ms — **lebih lambat**, 1.065 ms di antaranya satu subkueri berkorelasi | 218 ms |
 | tiga/empat kueri agregat (yang dikirim) | **17,0 ms** | **4,0 ms** |
 
-(median dari lima jalan sesudah pemanasan; rentang 15,5–21,6 ms dan 3,8–5,0 ms; jumlah kueri
-tidak bertambah.) Register ini **hanya bisa membesar** — ia append-only dan tidak punya pintu
-hapus (`EquipmentLogController` menolak PUT/DELETE) — jadi angka pertama itu adalah angka yang
+(median dari lima jalan sesudah pemanasan; rentang 15,5–21,6 ms dan 3,8–5,0 ms.) Register ini
+**hanya bisa membesar** — ia append-only dan tidak punya pintu hapus
+(`EquipmentLogController` menolak PUT/DELETE) — jadi angka pertama itu adalah angka yang
 memburuk setiap hari. Keluaran ketiganya IDENTIK pada data demo bercabang: enam baris, keadaan,
 sisa dan kalimat yang sama persis.
+
+**DUA KOREKSI PADA TABEL DI ATAS (putaran verifikasi, 9 Sep 2026).** Kalimat "jumlah kueri
+tidak bertambah" **salah**, dan tabelnya hanya mengukur SATU sumbu:
+
+| bentuk data | versi | kueri per `rows()` | median 5 jalan |
+|---|---|---|---|
+| 50 alat × 480 pembacaan (**24.002**) | sebelum (`e4b0beb^`) | 4 | **775,0 ms** (752,6–1.072,6) |
+| 50 alat × 480 pembacaan | HEAD | **7** | **39,3 ms** (37,1–45,3) |
+| **300 alat** × 2 pembacaan (602) | sebelum (`e4b0beb^`) | 4 | **58,3 ms** (52,6–65,0) |
+| **300 alat** × 2 pembacaan | HEAD | **7** | **92,7 ms** (72,1–94,1) |
+
+Jadi arah perbaikannya benar pada sumbu PEMBACAAN (≈20×) dan **terbalik pada sumbu JUMLAH
+ALAT** (1,6× lebih lambat): kueri (2) dan (3) merakit rantai `orWhere` yang bercabang satu
+kali per aset, jadi armada besar membayar panjang SQL yang tumbuh linear. Angkanya masih di
+bawah 0,1 detik untuk 300 alat berjam — armada kontraktor yang sangat besar — jadi yang
+dikirim tetap versi agregat; menggantinya dengan satu subkueri window/`ROW_NUMBER` atau join
+ke agregat adalah pekerjaan yang **belum** dilakukan dan tidak boleh diklaim sudah.
+(Diukur dengan `DB::listen` + median lima jalan sesudah pemanasan, skrip penanam bentuk data
+dan pengukurnya di scratchpad; versi lama diambil dengan `git show e4b0beb^:…`.)
 
 Yang menarik dari baris kedua: **pola rumah yang sudah terbukti pun harus diukur di tempat
 barunya.** `latest_per_group` benar dan murah pada `ast_maintenances` (satu baris per aset,
@@ -252,6 +271,14 @@ tidak disentuh), Chromium headless, login `admin@nusantara.test`:
 
 Total: **0 galat konsol, 0 respons ≥ 400** di seluruh sesi.
 
+**LAYARNYA DIBUKA, ANGKANYA TIDAK DIBACA** (putaran verifikasi): baris terakhir tabel di
+atas benar — layar detail satu perawatan memang dimuat tanpa galat — dan justru di sana
+angkanya tercetak mentah, "5212.5", karena tidak ada yang membacanya. "0 galat konsol"
+bukan "layarnya benar". Sesudah perbaikan, diukur di Chromium pada
+`#/d/assets/maintenances/2` (php -S 127.0.0.1:8195, salinan DB demo):
+"Jatuh tempo berikutnya 14 Des 2026 · **Jadwal berikutnya (hour meter) 5.212,5 jam**",
+0 galat konsol.
+
 **Dua kalimat yang HANYA terlihat sesudah halamannya dimuat** — keduanya diperbaiki:
 
 1. Sisa negatif tercetak **"-40 jam lagi"** — sebuah minus yang harus dibaca dua kali di
@@ -265,31 +292,53 @@ Total: **0 galat konsol, 0 respons ≥ 400** di seluruh sesi.
 
 | Skenario | Syarat | Hasil |
 |---|---|---|
-| `S34_servis_alat_per_jam` (desktop 1440×900) | 20 | `ok` |
+| `S34_servis_alat_per_jam` (desktop 1440×900) | 22 | `ok` |
 | `S34_servis_alat_per_jam_mobile` (390×844) | 9 | `ok` |
 
-Fixture-nya ditanam **lewat API**, bukan SQL, dan **idempoten**: dijalankan dua kali
-berturut-turut pada salinan DB yang sama, keduanya hijau. Log jam tidak dihapus di akhir
-(register pembacaan append-only — `EquipmentLogController` menolak PUT/DELETE dengan
-kalimatnya sendiri); catatan perawatan yang ditanam dihapus.
+Fixture-nya ditanam **lewat API**, bukan SQL, dan **idempoten**. Klaim "dijalankan dua kali
+berturut-turut, keduanya hijau" **tidak reproduksi pada versi pertama** dan sudah
+diperbaiki: pendengar konsol dipasang sebelum `login()`, jadi throttle 429 gerbang masuk
+pada jalan kedua dihakimi sebagai galat konsol produk. Terukur pada satu salinan DB
+(`php -S 127.0.0.1:8195`):
+
+| | jalan 1 | jalan 2 |
+|---|---|---|
+| sebelum perbaikan | S34 `ok`, S34m `ok` | S34 `ok`, **S34m GAGAL** `the_screens_raise_no_console_error` (`["error: … 429 (Too Many Requests)"]`) |
+| sesudah perbaikan | S34 `ok`, S34m `ok` | S34 `ok`, S34m `ok` |
+
+Log jam tidak dihapus di akhir (register pembacaan append-only —
+`EquipmentLogController` menolak PUT/DELETE dengan kalimatnya sendiri); catatan perawatan
+yang ditanam dihapus.
 
 ---
 
 ## 7. Sapuan dokumentasi (CONVENTIONS §35)
 
+Angka di bawah ini **dijalankan ulang pada HEAD 9 Sep 2026** (putaran verifikasi:
+tiga dari empat baris versi sebelumnya tidak keluar dari perintah yang tercetak di
+sebelahnya). "SEBELUM" = `main`, "SESUDAH" = cabang ini. **Angka "sesudah"
+memasukkan berkas laporan ini sendiri**; angka dalam kurung mengecualikannya —
+perbedaan itulah yang dulu membuat dua baris terlihat "hampir cocok".
+
 ```
-grep -rn "Berikutnya" docs/ | wc -l          # sebelum 28 baris / 11 berkas → sesudah 27 / 10
-grep -rn "Servis aset" docs/ | wc -l         # sebelum  2 baris /  2 berkas → sesudah  3 /  2
-grep -rn "Jadwal berikutnya" docs/ | wc -l   # sebelum  2 baris /  1 berkas → sesudah  4 /  1
-grep -rn "hour meter" docs/ | wc -l          # sebelum 12 baris /  6 berkas → sesudah 19 /  7
+git grep -n  "Berikutnya"        main -- docs/ | wc -l   # sebelum  37 baris / 16 berkas
+grep -rn     "Berikutnya"        docs/         | wc -l   # sesudah  39 baris / 16 berkas  (36 / 15 tanpa laporan ini)
+git grep -n  "Servis aset"       main -- docs/ | wc -l   # sebelum   2 baris /  2 berkas
+grep -rn     "Servis aset"       docs/         | wc -l   # sesudah   6 baris /  4 berkas  ( 4 /  3)
+git grep -n  "Jadwal berikutnya" main -- docs/ | wc -l   # sebelum   2 baris /  1 berkas
+grep -rn     "Jadwal berikutnya" docs/         | wc -l   # sesudah   6 baris /  2 berkas  ( 4 /  1)
+git grep -n  "hour meter"        main -- docs/ | wc -l   # sebelum  11 baris /  5 berkas
+grep -rn     "hour meter"        docs/         | wc -l   # sesudah  27 baris /  9 berkas  (25 /  8)
 ```
 
-Berkas yang keluar dari daftar "Berikutnya" adalah `docs/PANDUAN-PENGGUNA.md`, dan itu
-disengaja: satu-satunya penyebutannya adalah **judul kolom** daftar perawatan, yang kini
-bernama **"Jadwal berikut"** (tanggal) berdampingan dengan **"Jam berikut"** — dua kolom yang
-sama-sama berjudul "Berikutnya" adalah dua kolom yang tertukar. Sepuluh berkas sisanya
-diperiksa satu per satu: seluruhnya laporan UX/paket lain dan berkas patch, tidak satu pun
-berbicara tentang layar ini.
+Daftar berkas "Berikutnya" berubah tepat satu masuk satu keluar (`comm` atas kedua
+daftar): yang KELUAR adalah `docs/PANDUAN-PENGGUNA.md`, dan itu disengaja —
+satu-satunya penyebutannya adalah **judul kolom** daftar perawatan, yang kini bernama
+**"Jadwal berikut"** (tanggal) berdampingan dengan **"Jam berikut"**, karena dua kolom
+yang sama-sama berjudul "Berikutnya" adalah dua kolom yang tertukar. Yang MASUK adalah
+berkas laporan ini sendiri. **Lima belas berkas sisanya** diperiksa satu per satu:
+seluruhnya laporan UX/paket lain, berkas patch, dan berkas bukti harness
+(`results-phase-*.json`) — tidak satu pun berbicara tentang layar ini.
 
 Kalimat yang **menjadi salah** dan sudah diperbaiki:
 
