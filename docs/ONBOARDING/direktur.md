@@ -70,13 +70,15 @@ berumur 12 jam (§1.2).
 kartu **Menunggu persetujuan Anda**, **Kalender Acara**, progres proyek, **Piutang jatuh
 tempo terdekat**, **Tiket layanan aktif**, **Perlu dipesan ulang**.
 
-> **Kartu "Menunggu persetujuan Anda" hanya memuat 11 dari 28 jenis dokumen** — Penawaran,
-> BOQ / RAB, RAP, Permintaan (PR), Pesanan (PO), SPK subkon, Opname subkon, Opname stok,
-> Invoice termin, Tagihan vendor, Payroll — paling banyak 10 baris (§1.7). **Tujuh belas
-> jenis lainnya** — pembayaran keluar, pekerjaan tambah-kurang, keputusan pemenang, PPK,
-> addendum SPK, BAST subkon, SP3 dan opname mandor, baseline, IPP, inspeksi mutu, opname
-> owner, BAST, ketiga izin lapangan, dan cuti — hanya sampai lewat lonceng dan lewat layar
-> daftarnya masing-masing yang Anda saring ke status **Diajukan**.
+> **Kartu "Menunggu persetujuan Anda" memuat SETIAP jenis dokumen berpersetujuan** — ke-29
+> jenis yang sama dengan yang disebut di atas, dari Penawaran sampai Pengajuan cuti. Kartu
+> dasbor menggambar lima baris teratas; sisanya ada di **Tugas Saya**, yang kakinya ditaut
+> dari kartu itu.
+>
+> Sampai 2 September 2026 kartu ini hanya menanyakan 11 jenis, sehingga pengajuan cuti yang
+> menunggu tidak pernah terlihat oleh direktur ber-`hr.approve`. Itu sudah diperbaiki (P1-D,
+> satu permintaan `GET core/inbox` yang membaca registri jenis dokumen); kalimat ini ada
+> supaya panduan lama yang masih menyebut "11 dari 28" bisa dikenali sebagai panduan lama.
 
 **Lonceng dan Tenggat.** Layar **Ringkasan › Tenggat** mengawasi **dua** hal untuk peran
 Anda (§1.7): **Kontrak** mendekati tanggal *berakhir* (30 hari) dan **Jaminan & asuransi**
@@ -259,8 +261,7 @@ PANDUAN-ADMINISTRATOR §12 dan ANALISIS §5; itu keputusan Anda, bukan keputusan
 
 ---
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** dengan satu kotak masuk untuk
-> **semua 28 jenis dokumen** (bukan 11); draf formulir bertahan di peramban saat sesi
-> habis; catatan persetujuan diketik langsung di halaman tanpa dialog; ganti kata sandi
-> sendiri. Sampai rilis itu tayang, panduan ini yang berlaku.
+> **Sudah tayang di erp1 sejak 5 September 2026** (cabang `ux/p0-measured`, digabung dan
+> ter-deploy): layar **Tugas Saya** dengan satu kotak masuk untuk **semua jenis dokumen
+> berpersetujuan** (bukan 11); draf formulir bertahan di peramban saat sesi habis; catatan
+> persetujuan diketik langsung di halaman tanpa dialog; ganti kata sandi sendiri.

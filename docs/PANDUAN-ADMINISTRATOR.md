@@ -3608,7 +3608,7 @@ uang. Orang yang mengubah aturan persetujuan harus berdiri di dalam aturan itu.
 
 ### Membaca matriksnya
 
-Pengaturan › **Matriks Persetujuan**, satu baris per jenis dokumen (28), empat
+Pengaturan › **Matriks Persetujuan**, satu baris per jenis dokumen (29), empat
 kolom.
 
 | Yang tertulis di sel | Artinya |

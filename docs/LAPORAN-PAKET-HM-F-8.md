@@ -339,7 +339,7 @@ verifikasi**; yang lama merekam cacat yang belum ditutup (`f8-browsercheck-kartu
 pertama memperlihatkan sendiri nama berkas yang tercabik dua baris dan lencana yang
 menggumpal, F8-V3-01).
 
-**Putaran verifikasi — diukur ulang pada `127.0.0.1:8205`, salinan DB yang sama.** Empat
+**Putaran verifikasi — diukur ulang pada `127.0.0.1:8205`, salinan DB yang sama.** Lima
 checks baru menjaga apa yang putaran pertama tidak bisa lihat:
 `every_tenggat_row_names_the_document_the_file_hangs_on`,
 `the_tenggat_row_for_the_last_valid_day_also_reads_hari_ini`,
@@ -565,3 +565,35 @@ per-baris ke dokumen induk) DITOLAK dengan bukti, §5:**
 | `ee65412` | F-8 (F8V-5): docblock mengklaim menahan pencabutan whereIn; terukur ia tidak menahannya |
 | `03ae61c` | F-8 (F8-V3-6 / F8-V3-7): rujukan §7 yang tidak ada, dan sensus 28 yang sudah 29 |
 | _(commit ini)_ | docs: laporan putaran verifikasi — angka §7 yang bisa diulang, M1 yang 3 uji, dua permukaan yang kurang |
+
+## Verifikasi penutup — tiga kalimat yang salah, dan sensus yang lebih basi dari yang dilaporkan
+
+Verifier penutup menyatakan paket ini SIAP gerbang dan menemukan tiga temuan, ketiganya HONESTY.
+Dua di antaranya ternyata ujung dari kebusukan dokumentasi yang lebih dalam, dan diperbaiki sampai
+ke akarnya alih-alih diselaraskan angkanya saja:
+
+| # | Gejala | Perbaikan |
+|---|---|---|
+| G1 | `PANDUAN-ADMINISTRATOR` §Membaca matriksnya: "satu baris per jenis dokumen (28)" sementara kepala kartu di layar berbunyi "29 jenis dokumen". | 29 — angka yang benar-benar keluar dari `ApprovableDocuments`. |
+| G2 | `ONBOARDING/direktur.md` membantah dirinya sendiri: baris 23 "seluruh 29 jenis dokumen", baris 73 "hanya memuat 11 dari 28 jenis dokumen". | Blockquote-nya TIDAK sekadar diperbaiki angkanya: ia memerikan perilaku SEBELUM P1-D. Kartu dasbor sudah memuat SETIAP jenis sejak 2 Sep 2026 (satu `GET core/inbox` yang membaca registri), jadi paragrafnya ditulis ulang ke perilaku hari ini, dengan satu kalimat yang menyebut keadaan lama supaya panduan lama bisa dikenali sebagai panduan lama. |
+| G3 | Laporan §6: "Empat checks baru" lalu mencantumkan LIMA nama di kalimat yang sama. | Lima. |
+
+**Dua kebusukan lain yang ikut ditemukan saat menutup G2**, keduanya di luar apa yang temuan
+sebutkan dan keduanya diperbaiki karena membiarkannya berarti memperbaiki setengah kalimat:
+
+1. `docs/ONBOARDING/direktur.md` masih memerikan cabang `ux/p0-measured` sebagai **"belum tayang
+   di erp1 hari ini … belum digabung"**. Cabang itu digabung dan ter-deploy **5 September 2026**.
+   Seorang direktur baru membaca panduan hari pertamanya dan diberi tahu bahwa layar yang ada di
+   depan matanya belum ada.
+2. `public/app/js/views/widgets/inbox.js` membuka dengan "SATU permintaan untuk **28** jenis
+   dokumen". Komentar itu memaku sebuah angka yang tumbuh bersama registri — ia sudah basi satu
+   angka, dan akan basi lagi pada paket berikutnya yang menambah jenis dokumen. Kini ia menyebut
+   SUMBERNYA (`ApprovableDocuments`) dan menyebut angkanya sebagai pengukuran bertanggal, dengan
+   alasan itu tertulis di tempatnya.
+
+**Sensusnya sekarang satu angka, dari satu sumber.** `grep -rn "28 jenis\|dari 28\|(28)"` atas
+`docs/ONBOARDING/` dan `docs/PANDUAN-ADMINISTRATOR.md` memulangkan satu baris — kalimat di G2 yang
+memang MENYEBUT angka lama sebagai angka lama.
+
+Uji sesudah perbaikan: `tests/Feature/Core --filter "Inbox|Onboarding|Panduan|Doc"` 181 uji /
+907 asersi hijau; `tests/Feature/Iam` + `DashboardWidgetRegistryTest` 70 uji / 904 asersi hijau.

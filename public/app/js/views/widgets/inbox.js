@@ -1,8 +1,12 @@
 /* Widget "Menunggu persetujuan Anda" (P1-D) — GET core/inbox.
-   SATU permintaan untuk 28 jenis dokumen (InboxController), bukan satu per
-   jenis: sampai 2 Sep 2026 dasbor menanyakan 11 jenis dan karena itu tidak
-   pernah mencakup 17 lainnya — pengajuan cuti yang menunggu tak terlihat oleh
-   direktur ber-hr.approve. */
+   SATU permintaan untuk SETIAP jenis dokumen berpersetujuan (InboxController
+   membaca registri ApprovableDocuments; 29 jenis per 9 Sep 2026), bukan satu
+   permintaan per jenis: sampai 2 Sep 2026 dasbor menanyakan 11 jenis dan karena
+   itu tidak pernah mencakup sisanya — pengajuan cuti yang menunggu tak terlihat
+   oleh direktur ber-hr.approve. Angka jenisnya sengaja TIDAK dipatri di sini:
+   ia tumbuh bersama registri, dan komentar yang menyebut angka tetap adalah
+   komentar yang basi pada paket berikutnya (terukur: komentar ini sendiri
+   berkata 28 sampai F-8). */
 
 import { el, icon } from '../../ui.js';
 import * as fmt from '../../format.js';
