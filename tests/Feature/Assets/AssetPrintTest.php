@@ -221,6 +221,49 @@ class AssetPrintTest extends ErpTestCase
     }
 
     /**
+     * F-7 — SEBUAH SERVIS YANG DIJADWALKAN MENURUT JAM TIDAK BOLEH TERCETAK
+     * SAMA DENGAN SERVIS YANG TIDAK MENJADWALKAN APA PUN.
+     *
+     * Alat berat dirawat menurut jam operasi, jadi sebuah kartu servis yang
+     * menulis "berikutnya pada 5.000 jam" dan mengosongkan tanggalnya adalah
+     * kartu yang LENGKAP. Sebelum paket ini, sel JATUH TEMPO BERIKUT hanya
+     * membaca next_due_date dan baris itu tercetak BERGARIS — di lembar yang
+     * ditandatangani, dua hal berbeda yang tercetak sama adalah kesalahan yang
+     * tidak bisa dikoreksi pembacanya. Keduanya sekarang tercetak, dan pada
+     * baris yang punya keduanya keduanya muncul.
+     */
+    public function test_the_asset_card_prints_both_service_triggers(): void
+    {
+        $asset = $this->asset();
+        $this->maintenance($asset); // tanggal saja: 14 Agustus 2026
+        Maintenance::query()->create([
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-05-20',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 2_400_000,
+            'description' => 'Servis 250 jam.',
+            'next_due_date' => null,
+            'next_due_hour_meter' => 5000, // jam saja
+        ]);
+        Maintenance::query()->create([
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-06-30',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 3_100_000,
+            'description' => 'Servis 500 jam.',
+            'next_due_date' => '2026-12-14',
+            'next_due_hour_meter' => 5500,
+        ]);
+
+        $html = $this->forms->html('kartu-aset', ['id' => $asset->id]);
+
+        $this->assertStringContainsString('5.000 jam', $html);
+        $this->assertStringContainsString('14 Desember 2026 / 5.500 jam', $html);
+        // Baris yang hanya bertanggal tetap mencetak tanggalnya saja.
+        $this->assertStringContainsString('14 Agustus 2026', $html);
+    }
+
+    /**
      * An asset nobody has moved or serviced has no history, and the two tables
      * say so in words. A pad of ruled rows here would invite a mobilisation to
      * be written onto a card by hand, outside the register that charges the
