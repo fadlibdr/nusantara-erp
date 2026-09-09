@@ -972,13 +972,21 @@ class WatchedDeadlines
      *
      * INDUK YANG SUDAH TIDAK ADA TIDAK BERBUNYI. Sebuah lampiran bisa menunjuk
      * dokumen yang dihapus lunak, atau kelas yang tidak ada lagi di registri.
-     * Keduanya gugur di sini, dengan aturan yang sama dengan yang sudah
-     * dipakai AttachmentController::reachable() untuk menolak unduhannya:
-     * kelas di luar registri tidak pernah masuk `whereIn` di bawah, dan induk
-     * yang dibuang gugur lewat EXISTS per kelas atas TABEL LITERAL milik
-     * AttachableDocuments. Peringatan kedaluwarsa tentang berkas milik
-     * dokumen yang sudah dibuang adalah kebisingan yang mengajari orang
-     * mengabaikan seluruh daftar.
+     * Keduanya gugur di sini: kelas di luar registri tidak pernah masuk
+     * `whereIn` di bawah, dan induk yang dibuang gugur lewat EXISTS per kelas
+     * atas TABEL LITERAL milik AttachableDocuments. Peringatan kedaluwarsa
+     * tentang berkas milik dokumen yang sudah dibuang adalah kebisingan yang
+     * mengajari orang mengabaikan seluruh daftar.
+     *
+     * Ini SENGAJA lebih ketat daripada AttachmentController::reachable(), dan
+     * bukan aturan yang sama dengannya: reachable() memakai ->withTrashed(),
+     * jadi ia hanya menolak induk yang hilang PERMANEN dan kelas di luar
+     * registri. Terukur pada lampiran tiket layanan yang tiketnya di-soft-
+     * delete: pengawas ini diam, sementara `GET .../download` tetap 200 dan
+     * `PATCH .../{id}` tetap 200 untuk pemegang svc.update. Menyamakan
+     * keduanya adalah keputusan atas reachable() — sebuah berkas yang hilang
+     * dari dua layar tetapi masih terunduh bukan sesuatu yang boleh diubah
+     * diam-diam oleh entri registri.
      *
      * TANPA alarm_when_date_missing, DAN TANPA baris BLIND. Ini satu-satunya
      * entri di registri yang tanggal kosongnya adalah keadaan NORMAL: hampir

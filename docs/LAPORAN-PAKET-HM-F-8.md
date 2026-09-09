@@ -369,7 +369,19 @@ git diff main...feat/phase2-f8 -- public/app/vendor/
 4. **Sikap e-sign** (§8) menunggu keempat syarat `SIKAP-E-SIGN.md` §5: penyedia + anggaran
    bernama, pemicu bisnis dengan nomor dokumen, daftar dokumen yang ikut, kesiapan
    penandatangan luar.
-5. **Merge dan deploy** adalah langkah pemilik. Deploy menyalin **pohon kerja**, bukan `main`
+5. **Lampiran milik dokumen yang di-soft-delete: pengawasnya diam, layarnya tidak.**
+   `AttachmentController::reachable()` memakai `->withTrashed()` (kode warisan dari `main`),
+   jadi ia hanya menolak induk yang hilang **permanen** dan kelas di luar registri. Entri
+   pengawas F-8 sengaja lebih ketat: induk yang dibuang gugur dari cakupan. Terukur pada
+   lampiran tiket layanan yang tiketnya di-soft-delete, sebagai pemegang `svc.update`:
+   `download` **200**, `PATCH` **200**, pengawas **diam** (`items: []`). **Perilaku hari ini
+   dipertahankan** dan kini ditulis apa adanya di `WatchedDeadlines` dan PANDUAN-ADMINISTRATOR
+   §5.11 — dua kalimat yang sebelumnya mengklaim "aturan yang sama dengan penolakan 404 saat
+   mengunduh" sudah diperbaiki. **Pertanyaan untuk pemilik:** haruskah lampiran ikut hilang
+   dari unduhan ketika dokumen induknya dibuang? Itu keputusan atas `reachable()` — ia
+   mengubah perilaku SEMUA lampiran di 40 jenis dokumen, bukan hanya masa berlakunya, dan
+   karena itu bukan sesuatu yang boleh diubah diam-diam oleh paket ini.
+6. **Merge dan deploy** adalah langkah pemilik. Deploy menyalin **pohon kerja**, bukan `main`
    (`deploy/sync-erp1.sh`) — dan ia menambah tabel/kolom, jadi urutan "migrate lalu verifikasi
    kolomnya benar-benar mendarat" berlaku.
 

@@ -1950,8 +1950,14 @@ boleh membuka lampiran itu.
 (bendera `dateless_is_normal`). Hampir setiap baris `core_attachments` adalah foto
 lapangan, nota atau gambar kerja yang tidak punya — dan tidak akan pernah punya — masa
 berlaku; memperlakukan itu seperti ‡ berarti meneriaki puluhan ribu berkas biasa setiap
-pagi. Lampiran yang dokumen induknya sudah dihapus juga keluar dari cakupan, aturan yang
-sama dengan penolakan 404 saat mengunduhnya.
+pagi. Lampiran yang dokumen induknya sudah dihapus juga keluar dari cakupan —
+dan di sini pengawasnya sengaja **lebih ketat** daripada layar: berkas milik dokumen yang
+di-soft-delete tidak lagi ditagih pagi hari maupun di layar Tenggat, tetapi ia masih
+terunduh dan masih bisa diubah masa berlakunya oleh pemegang izin modulnya (diukur:
+`download` 200, `PATCH` 200, pengawas diam). Yang benar-benar ditolak 404 saat diunduh
+hanyalah lampiran yang induknya hilang PERMANEN atau yang kelasnya tidak ada di registri.
+Menyamakan keduanya adalah keputusan atas `AttachmentController::reachable()`, bukan atas
+pengawas ini — lihat `docs/LAPORAN-PAKET-HM-F-8.md` §9.
 
 **Entri lampiran sengaja BUKAN sumber Kalender**, satu-satunya entri registri yang tidak.
 Habisnya masa berlaku sebuah berkas bukan acara yang direncanakan siapa pun, dan tiga
