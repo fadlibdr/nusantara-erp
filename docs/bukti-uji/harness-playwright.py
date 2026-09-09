@@ -8182,8 +8182,13 @@ def s33(pg):
             // Range.getClientRects() atas isi simpulnya mengukur TEKS, tetapi
             // kotak-kotak barisnya juga dipotong jaring itu: sebuah baris yang
             // PHP hitung terlalu panjang dipatahkan peramban dan terukur
-            // kembali ~selebar kotaknya. Maka yang diukur di sini adalah lebar
-            // baris itu TANPA pematahan: salinan teksnya di dalam probe
+            // kembali ~selebar kotaknya. Diukur, dengan mutasi font 14 pt yang
+            // penggalannya dihitung untuk 9 pt: bentuk Range memulangkan
+            // 56,49 mm terhadap kotak 56,40 mm (merah hanya berkat margin yang
+            // dinyatakan di bawah; dengan toleransi lama +0,1 mm ia HIJAU),
+            // sementara lebar teks yang sebenarnya 83,24 mm. Maka yang diukur
+            // di sini adalah lebar baris itu TANPA pematahan: salinan teksnya
+            // di dalam probe
             // `white-space: pre` dengan font yang BENAR-BENAR dipakai
             // menggambarnya. Itulah satu-satunya angka yang menjawab
             // pertanyaannya — "apakah penggalan yang dihitung PHP muat pada
