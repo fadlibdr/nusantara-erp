@@ -567,3 +567,16 @@ SETIAP pintu tulis `decimal(p,s)` di aplikasi. Terukur hari ini: `decimal:0,` di
 di 2 berkas (keduanya F-7, keduanya kini ber-`max`), tetapi kolom rupiah `numeric` tanpa `max` jauh
 lebih banyak dan menyapunya adalah pekerjaan tersendiri. Ia dicatat di sini, bukan dikerjakan
 diam-diam.
+
+## Gerbang rilis dua driver
+
+Dijalankan dari `git worktree` sendiri di commit rilis, `vendor` **disalin** (bukan disimbolkan).
+
+| Leg | Commit | Uji | Asersi | Dilewati | Waktu |
+|---|---|---|---|---|---|
+| SQLite | `e4c90e3` | 4.566 | 31.042 | 11 | 14:03 |
+| MySQL 8.0.46 | `e4c90e3` | 4.566 | 31.051 | 7 | 38:38 |
+
+Keduanya hijau pada jalan PERTAMA. Selisih antar-driver (9 asersi, 11 vs 7 dilewati) sama bentuknya
+dengan gerbang-gerbang sebelumnya: `SqlitePragmaTest` dilewati di MySQL, `MysqlModeTest` dilewati di
+SQLite.
