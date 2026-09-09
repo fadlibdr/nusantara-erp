@@ -50,11 +50,14 @@ use Modules\Inventory\Models\Item;
  * Aturan yang ditegakkan di satu permukaan dan bocor di permukaan lain adalah
  * cacat yang berulang di kampanye ini; di sini keduanya dijawab sama.
  *
- * UPPER() di kedua sisi, bukan collation: SQLite membandingkan `=` secara
- * peka-huruf sementara MySQL utf8mb4_unicode_ci tidak, jadi tanpa baris ini
- * jawaban endpoint-nya BERBEDA antara mesin uji dan produksi. Kolom barcode
- * tidak berindeks hari ini, dan tabel item berukuran master data — jadi
- * UPPER() tidak membuang indeks yang ada.
+ * UPPER() di kedua sisi menutup selisih huruf besar-kecil ASCII, dan HANYA
+ * itu — ia tidak menetralkan collation. Yang menyamakan jawaban kedua mesin
+ * adalah cabang `COLLATE utf8mb4_bin` di Item::scanKeyExpression(): tanpa
+ * cabang itu MySQL utf8mb4_unicode_ci menganggap 'CAFÉ' = 'CAFE' sementara
+ * SQLite tidak, dan endpoint ini menjawab "satu item" di mesin uji untuk
+ * tabrakan yang produksi sebut ganda (verifikasi F-6, putaran 3). Kolom
+ * barcode tidak berindeks hari ini, dan tabel item berukuran master data —
+ * jadi UPPER() tidak membuang indeks yang ada.
  * =========================================================================
  */
 class ItemScanController extends ApiController

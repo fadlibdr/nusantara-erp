@@ -35,8 +35,10 @@ class ItemResource extends JsonResource
              * gudang itu; ia tidak mengubah apa pun.
              *
              * Hadir hanya bila ada aturan yang BENAR-BENAR BERLAKU untuk item
-             * ini (`ReorderRule::governing()` — aktif, itemnya hidup,
-             * gudangnya hidup), dan hanya pada kartu item (loadCount di
+             * ini (`ReorderRule::governing()` — aturannya aktif, itemnya
+             * hidup, gudangnya hidup, dan ITEMNYA aktif; empat syarat, sama
+             * dengan yang ditegakkan kueri kekurangan), dan hanya pada kartu
+             * item (loadCount di
              * ItemController::show) — daftar item tidak membutuhkannya dan
              * tidak membayar kuerinya. Hitungannya dulu `is_active` saja, dan
              * kalimat ini lalu menghitung aturan yang gudangnya sudah dibuang.
