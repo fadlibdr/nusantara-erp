@@ -68,6 +68,14 @@ pertama (mutasi M2 `MAX` → `MIN` merah); dua pembacaan pada **hari yang sama**
 tetap memunculkan pita meter mundur (M2b merah); dan **log BBM tanpa angka jam** tidak
 dihitung sebagai pembacaan maupun menggeser tanggal pembacaan terakhir (M2c, M2d merah).
 
+**Dan satu definisi lain di modul yang sama memang berbeda, dengan benar.**
+`RentVsOwnService::hoursLogged` menjumlahkan **delta per mobilisasi** (pembacaan terakhir −
+pertama pada tiap mobilisasi), karena ia menjawab pertanyaan yang lain: "berapa jam alat ini
+BERJALAN", untuk membagi biaya menjadi rupiah per jam. Meter yang diganti di antara dua
+mobilisasi tidak merusaknya, karena tiap delta dihitung **di dalam** satu mobilisasi. Paket
+ini menjawab "apa yang tertulis di meternya SEKARANG". Dua pertanyaan, dua definisi, dan
+docblock keduanya kini saling menyebut — menyatukannya akan merusak salah satunya.
+
 ### (D) "Target yang berlaku" = catatan perawatan **TERBARU**, baris yang sama dengan pemicu tanggal
 
 `WatchedDeadlines` sudah memilih baris perawatan terbaru per aset (`latest_per_group`,

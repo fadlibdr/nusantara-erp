@@ -53,6 +53,15 @@ use Modules\Core\Support\WatchedThresholds;
  *     Yang ditolak adalah membiarkan angka yang turun mendiamkan alarm —
  *     bukan menyembunyikan bahwa angkanya turun.
  *
+ *     DAN SATU DEFINISI LAIN DI MODUL YANG SAMA MEMANG BERBEDA, dengan benar:
+ *     RentVsOwnService::hoursLogged menjumlahkan DELTA per mobilisasi
+ *     (pembacaan terakhir − pertama pada tiap mobilisasi) karena ia menjawab
+ *     pertanyaan yang lain — "berapa jam alat ini BERJALAN", untuk membagi
+ *     biaya menjadi rupiah per jam. Meter yang diganti di antara dua
+ *     mobilisasi tidak merusaknya, karena tiap delta dihitung di dalam satu
+ *     mobilisasi. Kelas ini menjawab "apa yang tertulis di meternya SEKARANG".
+ *     Dua pertanyaan, dua definisi; menyatukannya akan merusak salah satunya.
+ *
  * (2) "next_due_hour_meter YANG BERLAKU" = milik catatan perawatan TERBARU
  *     alat itu (menurut maintenance_date, lalu id), bukan target terkecil
  *     yang belum terlampaui.
