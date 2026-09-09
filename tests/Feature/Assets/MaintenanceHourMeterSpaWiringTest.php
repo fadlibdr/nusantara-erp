@@ -69,6 +69,24 @@ class MaintenanceHourMeterSpaWiringTest extends ErpTestCase
         $this->assertStringContainsString('log_tanpa_jam:', $custom);
         // Meter yang turun dikatakan, bukan disembunyikan (perangkap B).
         $this->assertStringContainsString('due.meter_went_backwards', $custom);
+
+        /*
+         * DAN LENCANANYA MENGATAKAN SISI MANA YANG DIHAKIMINYA.
+         *
+         * Lencana kartu ini dihitung dari keadaan JAM saja, sementara kartu
+         * itu sendiri juga menampilkan pemicu tanggal. Terukur di Chromium:
+         * alat dengan pembacaan 100 jam terhadap target 5.000 (masih 4.900
+         * jam lagi) dan next_due_date 15 Jun 2026 berlencana HIJAU "Aman" di
+         * bawah judul "Servis berikutnya", dengan "15 Jun 2026 — jadwal
+         * kalender berikutnya" di sebelahnya, pada hari yang layar Tenggat
+         * menyebut baris yang sama "lewat 86 hari".
+         */
+        $this->assertStringContainsString("el('h2', { text: 'Servis berikutnya menurut jam' })", $custom);
+        $this->assertStringContainsString('fmt.relativeDays(due.next_due_date)', $custom);
+        $this->assertStringContainsString('due.next_due_date < fmt.today()', $custom);
+        // Kalimat yang menyebut tanggal 86 hari lalu "jadwal kalender
+        // BERIKUTNYA" tidak boleh kembali.
+        $this->assertStringNotContainsString('jadwal kalender berikutnya', $custom);
     }
 
     /**

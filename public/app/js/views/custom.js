@@ -1849,9 +1849,24 @@ export async function renderAsset(host, { id }) {
       log_tanpa_jam: 'ada log, tetapi tidak satu pun mengisi hour meter',
     }[due.unmeasured_reason] || null;
 
+    /* Tanggal jatuh tempo yang SUDAH LEWAT dikatakan sebagai lewat.
+       next_due_date dan fmt.today() sama-sama "yyyy-mm-dd", jadi
+       perbandingannya string — tanpa zona waktu, tanpa Date() yang bisa
+       bergeser sehari. */
+    const tanggalLewat = !!due.next_due_date && due.next_due_date < fmt.today();
+
     host.appendChild(el('.card', [
       el('.card-head', [
-        el('h2', { text: 'Servis berikutnya' }),
+        /* "MENURUT JAM", dan itu bukan hiasan: lencana kartu ini adalah vonis
+           atas SATU dari dua pemicu yang kartu ini sendiri tampilkan. Sebuah
+           alat yang masih 4.900 jam lagi tetapi servis kalendernya lewat 86
+           hari akan berlencana hijau "Aman" di bawah judul "Servis
+           berikutnya" — sementara layar Tenggat meneriakkan baris yang sama
+           pada hari yang sama. Judul yang menyebut sisi mana yang dihakimi
+           membuat lencananya tidak bisa dibaca sebagai vonis atas seluruh
+           servis alat itu; sisi tanggalnya berdiri di stat keempat, dengan
+           umur relatifnya sendiri. */
+        el('h2', { text: 'Servis berikutnya menurut jam' }),
         badge(due.state_label, tone),
       ]),
       el('.card-body', [
@@ -1896,8 +1911,20 @@ export async function renderAsset(host, { id }) {
              dulu, servisnya jatuh tempo. */
           el('.stat', [
             el('.label', { text: 'Pemicu tanggal' }),
-            el('.value.sm', { text: due.next_due_date ? fmt.date(due.next_due_date) : '—' }),
-            el('.delta', { text: due.next_due_date ? 'jadwal kalender berikutnya' : 'belum dijadwalkan menurut tanggal' }),
+            el('.value.sm', {
+              text: due.next_due_date ? fmt.date(due.next_due_date) : '—',
+              style: tanggalLewat ? { color: 'var(--danger)' } : {},
+            }),
+            /* Umur relatifnya, seperti kolom "Jadwal berikut" di daftar
+               Perawatan ("14 Des 2026 · 96 hari lagi"). Sebuah tanggal 86
+               hari yang lalu bukan jadwal BERIKUTNYA — ia jadwal yang
+               terlewat, dan layar Tenggat sedang meneriakkannya. */
+            el('.delta', {
+              text: due.next_due_date
+                ? (tanggalLewat ? `lewat — ${fmt.relativeDays(due.next_due_date)}` : fmt.relativeDays(due.next_due_date))
+                : 'belum dijadwalkan menurut tanggal',
+              style: tanggalLewat ? { color: 'var(--danger)' } : {},
+            }),
           ]),
         ]),
         el('p.help', { text: due.note }),

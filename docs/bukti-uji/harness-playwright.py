@@ -8724,10 +8724,15 @@ def _f7_ensure_deployed(tok, asset_id):
     })[0]
 
 
-def _f7_plant_maintenance(tok, asset_id, hours, due_date=None):
+def _f7_plant_maintenance(tok, asset_id, hours, due_date=None, on=None):
+    """`on` menggeser TANGGAL SERVIS-nya ke masa lalu.
+
+    Dibutuhkan untuk menanam next_due_date yang SUDAH LEWAT: pintu tulisnya
+    menuntut after:maintenance_date, jadi jadwal berikut yang lewat hanya bisa
+    lahir dari kartu servis yang tanggalnya lebih lampau lagi."""
     s, d = api("assets/maintenances", tok, "POST", {
         "asset_id": asset_id,
-        "maintenance_date": date.today().isoformat(),
+        "maintenance_date": (on or date.today()).isoformat(),
         "maintenance_type": "service_rutin",
         "cost": 0,
         "description": "Fixture S34 (F-7).",
@@ -8767,10 +8772,11 @@ F7_CARD = """(label) => {
 F7_DUE = """() => {
   const card = [...document.querySelectorAll('.card')].find(c => {
     const h = c.querySelector('.card-head h2');
-    return h && h.innerText.trim() === 'Servis berikutnya';
+    return h && h.innerText.trim().startsWith('Servis berikutnya');
   });
   if (!card) return null;
   return {
+    title: (card.querySelector('.card-head h2') || {}).innerText || null,
     badge: (card.querySelector('.card-head .badge') || {}).innerText || null,
     stats: [...card.querySelectorAll('.stat')].map(s => ({
       label: (s.querySelector('.label') || {}).innerText || null,
@@ -8779,6 +8785,7 @@ F7_DUE = """() => {
     })),
     help: (card.querySelector('p.help') || {}).innerText || null,
     alert: (card.querySelector('.alert') || {}).innerText || null,
+    text: card.innerText.replace(/\\s+/g, ' ').trim(),
     page_scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
   };
 }"""
@@ -8817,7 +8824,15 @@ def s34(pg):
         planted.append(_f7_plant_maintenance(tok, ids["rak"], 8760))
         out["plant_komatsu_fuel"] = _f7_plant_log(tok, dep_of.get(ids["komatsu"]), fuel=150)
         planted.append(_f7_plant_maintenance(tok, ids["komatsu"], 5000))                # log BBM tanpa jam
-        planted.append(_f7_plant_maintenance(tok, ids["total_station"], 500))           # belum pernah dimobilisasi
+        # Belum pernah dimobilisasi — DAN pemicu TANGGALNYA sudah lewat 86
+        # hari sementara sisi jamnya tidak menghakimi apa pun. Kartu alat
+        # adalah tempat kedua vonis berdiri bersebelahan, jadi ia juga tempat
+        # sebuah lencana bisa terbaca sebagai vonis atas keduanya, dan sebuah
+        # tanggal masa lalu bisa disebut "jadwal berikutnya".
+        out["ts_due_date"] = (date.today() - timedelta(days=86)).isoformat()
+        planted.append(_f7_plant_maintenance(tok, ids["total_station"], 500,
+                                             due_date=out["ts_due_date"],
+                                             on=date.today() - timedelta(days=150)))
         out["planted"] = planted
 
         login(pg, "admin@nusantara.test")
@@ -8938,6 +8953,19 @@ def s34(pg):
             "an_asset_never_deployed_says_that_instead":
                 "belum pernah dimobilisasi" in ((out["total_station"] or {}).get("help") or "")
                 and ts_stats.get("PEMBACAAN HOUR METER", {}).get("value") == "—",
+            # LENCANA KARTU INI MENGHAKIMI SATU DARI DUA PEMICU, DAN JUDULNYA
+            # MENGATAKANNYA. Komatsu: sisi jamnya belum terukur sama sekali,
+            # sisi tanggalnya lewat 86 hari — dan layar Tenggat meneriakkan
+            # baris yang sama pada hari yang sama.
+            "the_due_card_says_which_trigger_its_badge_judges":
+                ((out["total_station"] or {}).get("title") or "").strip()
+                == "Servis berikutnya menurut jam",
+            # …dan tanggal yang sudah lewat dikatakan LEWAT, bukan disebut
+            # "jadwal kalender berikutnya" — kalimat yang untuk tanggal 86
+            # hari lalu tidak benar.
+            "a_date_trigger_already_past_is_printed_as_past":
+                "hari lalu" in (ts_stats.get("PEMICU TANGGAL", {}).get("delta") or "")
+                and "jadwal kalender" not in ((out["total_station"] or {}).get("text") or ""),
             "a_non_hour_metered_asset_has_no_due_card_at_all": out["scaffolding"] is None,
             # daftar perawatan
             "the_maintenance_list_carries_both_triggers":
@@ -9002,7 +9030,7 @@ def s34m(browser):
         out["kartu_visible"] = pg.evaluate("""() => {
           const card = [...document.querySelectorAll('.card')].find(c => {
             const h = c.querySelector('.card-head h2');
-            return h && h.innerText.trim() === 'Servis berikutnya';
+            return h && h.innerText.trim().startsWith('Servis berikutnya');
           });
           if (!card) return null;
           const help = card.querySelector('p.help');
