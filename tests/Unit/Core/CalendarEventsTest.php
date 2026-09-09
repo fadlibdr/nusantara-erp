@@ -77,8 +77,40 @@ class CalendarEventsTest extends ErpTestCase
         $sources = CalendarEvents::sources();
 
         // Every registry entry plus the seven calendar-only sources — a
-        // watcher added to WatchedDeadlines joins the calendar automatically.
-        $this->assertCount(count(WatchedDeadlines::entries()) + count(self::CALENDAR_ONLY_KINDS), $sources);
+        // watcher added to WatchedDeadlines joins the calendar automatically…
+        $optedIn = array_filter(WatchedDeadlines::entries(), static fn (array $entry): bool => $entry['calendar_source'] ?? true);
+        $this->assertCount(count($optedIn) + count(self::CALENDAR_ONLY_KINDS), $sources);
+
+        // …unless it says otherwise. F-8's twelve attachment-expiry entries say
+        // so deliberately: a file's validity running out is nobody's scheduled
+        // event, twelve extra sources is +52 % on an endpoint the dashboard
+        // fires and field phones read, and three of their prefixes (est/eng/qc)
+        // have no chip in the owner's eight-label legend.
+        $optedOut = array_column(array_filter(
+            WatchedDeadlines::entries(),
+            static fn (array $entry): bool => ($entry['calendar_source'] ?? true) === false,
+        ), 'key');
+
+        // The twelve are counted as a LITERAL — reading the number back out of
+        // the registry would make this line green for any number, including
+        // zero, and zero is exactly what a forgotten flag looks like. The count
+        // is SCOPED to the attachment keys it guards: counting the whole
+        // registry made this line red the day any OTHER package opted a date
+        // out for its own good reason, with a message ("actual size 13 matches
+        // expected size 12") that names neither attachments nor the new entry —
+        // and whose obvious "fix" (12 → 13) silently unpins F-8.
+        $attachments = array_values(array_filter($optedOut, static fn (string $key): bool => str_starts_with($key, 'attachment_valid_until_')));
+        $this->assertCount(12, $attachments);
+
+        // Anyone else opting out is not forbidden, but it must be a decision
+        // someone wrote down — so the failure names the entry, not a number.
+        $others = array_values(array_diff($optedOut, $attachments));
+        $this->assertSame([], $others,
+            'Entri berikut memilih keluar dari kalender: '.implode(', ', $others)
+            .'. Itu boleh — tetapi tuliskan alasannya di entrinya dan tambahkan barisnya di sini, '
+            .'jangan sekadar menaikkan angka di atas.');
+
+        $this->assertSame([], array_values(array_intersect($optedOut, array_column($sources, 'kind'))));
 
         $chips = ['Penjualan', 'Proyek', 'Keuangan', 'SDM', 'Pengadaan', 'Layanan', 'Aset', 'Persediaan'];
         $permission = '/^('.implode('|', PermissionSeeder::PREFIXES).')\.view$/';

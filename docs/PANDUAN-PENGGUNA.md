@@ -519,7 +519,7 @@ dokumen berstatus **Diajukan** yang boleh Anda setujui, yang paling lama menungg
 Widget menampilkan **lima baris** dengan tombol **`Lihat semua (n)`** di bawahnya; daftar
 penuhnya ada di **Ringkasan › Tugas Saya**. Klik baris untuk membukanya.
 
-Kartu ini mencakup **seluruh 28 jenis dokumen** yang punya alur persetujuan — termasuk
+Kartu ini mencakup **seluruh 29 jenis dokumen** yang punya alur persetujuan — termasuk
 pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK, baseline proyek, pengajuan cuti,
 dan ketiga izin lapangan (IKL/ILB/IMK, §7.13). Sampai 2 September 2026 kartu ini hanya
 menanyakan 11 jenis, sehingga sembilan jenis lainnya — pengajuan cuti di antaranya — tidak
@@ -556,6 +556,7 @@ Yang diawasi Tenggat, dan siapa yang melihatnya:
 | Jaminan & asuransi mendekati berakhir | 30 hari | `crm.approve` |
 | Retensi BAST mendekati jadwal pengembalian | 14 hari | `fin.create` |
 | Invoice pelanggan lewat jatuh tempo | 0 hari | `fin.create` |
+| Tagihan vendor mendekati jatuh tempo | 7 hari | `fin.create` |
 | Setoran pajak masa | 7 hari | `fin.create` |
 | Permintaan pembelian mendekati tanggal dibutuhkan | 7 hari | `prc.create` |
 | Pesanan pembelian lewat tanggal terima | 0 hari | `prc.update` |
@@ -566,8 +567,18 @@ Yang diawasi Tenggat, dan siapa yang melihatnya:
 | Servis aset berikutnya (tanggal; sisi JAM-nya ada di Ambang & Batas) | 14 hari | `ast.update` |
 | Penempatan aset melewati rencana kembali | 7 hari | `ast.update` |
 | Kontrak layanan mendekati akhir periode | 60 hari | `crm.update` |
+| Tiket layanan lewat batas SLA | 0 hari | `svc.update` |
 | PKWT karyawan | 60 hari | `hr.update` |
 | Sertifikat keahlian | 60 hari | `hr.update` |
+| **Lampiran mendekati akhir masa berlaku** — satu kelompok per modul | 30 hari | `<modul>.update` |
+
+Baris terakhir itu bukan satu pengawas melainkan **dua belas**, satu untuk tiap modul yang
+dokumennya bisa berlampiran (§2.7): masa berlaku sebuah berkas dikabarkan kepada orang yang
+boleh mengubah lampiran dokumen pemiliknya, jadi pemegang `hr.update` membaca sertifikat
+karyawan dan pemegang `prc.update` membaca dokumen vendor — tidak pernah sebaliknya. Berkas
+**tanpa** masa berlaku (mayoritas mutlak: foto lapangan, nota, gambar kerja) tidak pernah
+muncul di sini sama sekali; "tanpa tanggal" pada lampiran berarti berkas biasa, bukan
+kelalaian. Lampiran milik dokumen yang sudah dibuang juga tidak muncul.
 
 Pemindaian yang sama berjalan otomatis setiap hari pukul **08.30 WIB** dan mengirim
 pemberitahuan. Yang menipis diingatkan lagi paling sering seminggu sekali; yang sudah
@@ -819,8 +830,9 @@ menunggu tombol Ubah muncul lagi.
 
 ### 2.7 Lampiran
 
-Kartu **Lampiran** hanya ada pada 39 jenis dokumen. Untuk melihatnya Anda butuh
-`<modul>.view`; untuk **`Tambah lampiran`** dan **`Hapus`** Anda butuh `<modul>.update`.
+Kartu **Lampiran** hanya ada pada 40 jenis dokumen. Untuk melihatnya Anda butuh
+`<modul>.view`; untuk **`Tambah lampiran`**, **`Masa berlaku`** dan **`Hapus`** Anda butuh
+`<modul>.update`.
 
 Yang bisa berlampiran: penawaran · **paket tender** · kontrak · jaminan · BOQ · RAP ·
 **pustaka metode kerja** · submittal gambar (SDS) · submittal material (SMS) ·
@@ -829,7 +841,8 @@ BAST · temuan defect · opname owner (OPN) · insiden K3 · izin kerja lapangan
 izin masuk/keluar material · PR · PO · vendor · dokumen vendor · BA negosiasi (BAN) ·
 penerimaan barang · opname stok · SPK subkon · opname subkon · invoice AR · tagihan
 AP · pembayaran · jurnal · voucher kas kecil · kasbon · karyawan · sertifikat · cuti ·
-tiket · berita acara servis · aset.
+tiket · berita acara servis · aset · **absensi harian** (kartu selfienya hanya muncul di
+panel satu hari pada layar Absensi Harian).
 
 Yang **tidak** bisa: RFQ, evaluasi vendor, bon pengeluaran, transfer, kedua jenis retur,
 milestone, progres mingguan, penugasan personel, izin kerja lembur (lembar
@@ -869,6 +882,32 @@ Server memeriksa **isi berkas**, bukan namanya. Yang ditolak, dengan pesan persi
 
 Menghapus lampiran permanen: *"Berkasnya dihapus dari penyimpanan dan tidak dapat
 dikembalikan."*
+
+**Masa berlaku berkas.** Sebagian dokumen benar hanya sampai sebuah tanggal: polis asuransi
+CAR pada SPK, STNK dan KIR pada kartu aset, sertifikat kalibrasi pada lembar inspeksi, izin
+kerja yang dipindai. Isi kotak **`Masa berlaku (opsional)`** di sebelah tombol `Tambah
+lampiran` sebelum memilih berkas, atau tekan tombol **`Masa berlaku`** pada barisnya kapan
+saja sesudahnya — dialognya punya tombol **`Kosongkan`**, karena tanggal yang salah ketik
+harus bisa dicabut, bukan hanya diganti tanggal salah yang lain.
+
+**Mengosongkannya adalah keadaan yang benar untuk hampir semua berkas.** Foto lapangan, nota
+warung dan gambar kerja tidak punya masa berlaku dan tidak akan pernah punya; barisnya
+berbunyi *"Tanpa masa berlaku"* sebagai keterangan biasa — bukan peringatan, dan bukan
+tanda ada yang lupa diisi.
+
+Empat keadaan yang bisa Anda baca pada barisnya:
+
+| Yang tertulis | Artinya |
+|---|---|
+| `Tanpa masa berlaku` | berkas biasa — keadaan normal, tanpa warna |
+| `Berlaku s/d 31 Des 2026` | masih jauh, tanpa warna |
+| `Berlaku s/d 31 Agu 2026 · 12 hari lagi` (kuning) | masuk jendela peringatan **30 hari** |
+| `Kedaluwarsa 30 Jul 2026 · 2 hari lalu` (merah) | sudah lewat |
+
+**Hari terakhirnya masih berlaku.** Sebuah berkas "berlaku s/d hari ini" berbunyi *"hari
+ini"* dan berwarna kuning, bukan merah — bacaan yang sama dengan jaminan bank dan dokumen
+vendor, dan bacaan yang sama dengan pemberitahuan pagi (§1.7), supaya kartu dan kotak masuk
+tidak pernah menyebut berkas yang sama dengan dua status berbeda.
 
 ### 2.8 Tiga tombol cetak yang berbeda
 
@@ -3229,10 +3268,14 @@ dibatalkan…"`), jadi **balikkan pembayarannya dulu, baru batalkan tagihannya**
 dibukukan sebagai jurnal manual di Keuangan — pesan-pesan penolakan di atas mengatakannya
 sendiri.
 
-**Tidak ada saringan "belum lunas" pada daftar AP**, dan **tidak ada alarm Tenggat untuk
-tagihan vendor yang jatuh tempo** (Tenggat hanya mengawasi invoice pelanggan). Pengganti
-praktisnya: klik judul kolom **Jatuh tempo** untuk mengurutkan, lalu baca kolom **Sisa**
-— ia berubah hijau di angka nol.
+**Tidak ada saringan "belum lunas" pada daftar AP.** Pengganti praktisnya: klik judul kolom
+**Jatuh tempo** untuk mengurutkan, lalu baca kolom **Sisa** — ia berubah hijau di angka nol.
+
+Kalimat yang berdiri di sini sampai 9 Sep 2026 — *"tidak ada alarm Tenggat untuk tagihan
+vendor yang jatuh tempo (Tenggat hanya mengawasi invoice pelanggan)"* — **sudah salah**:
+pengawas `Tagihan vendor mendekati jatuh tempo` ada di layar Tenggat dan di pemberitahuan
+08.30 untuk pemegang `fin.create`, **7 hari** di muka (§1.7). "Belum lunas" yang dipakainya
+adalah definisi umur hutang, bukan kolom `amount_paid`.
 
 **Mencetak:** **`Cetak Lembar Verifikasi Tagihan`** (Form F/VT) — lembar yang
 ditandatangani pemeriksa sebelum uang dilepas.

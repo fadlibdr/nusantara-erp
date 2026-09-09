@@ -274,5 +274,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // arithmetically cannot carry — see AttachmentService::MAX_BYTES.
     Route::post('attachments/upload', [AttachmentController::class, 'upload']);
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->whereNumber('attachment');
+    // F-8 — masa berlaku sesudah unggah. Satu-satunya kolom yang boleh diubah
+    // lewat pintu ini: nama, isi, sha256 dan geotag sebuah berkas adalah fakta
+    // saat ia diunggah, bukan pendapat yang boleh direvisi. Izinnya
+    // {prefix}.update dokumen pemiliknya, diturunkan di controller.
+    Route::patch('attachments/{attachment}', [AttachmentController::class, 'update'])->whereNumber('attachment');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->whereNumber('attachment');
 });

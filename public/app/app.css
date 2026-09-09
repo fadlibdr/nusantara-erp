@@ -1611,17 +1611,53 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .notif.unread { border-left: 2px solid var(--danger); padding-left: 10px; margin-left: -12px; }
 
 /* ----------------------------------------------------------- attachments */
+/* Membungkus menurut lebar KARTU, bukan lebar viewport. Kartu Lampiran tinggal
+   di kolom samping .detail-grid (minmax(280px, 1fr)), jadi di SETIAP lebar
+   desktop antara 901 px dan ~1900 px kartunya sempit sementara viewport-nya
+   lebar: tiga tombol (Masa berlaku · Unduh · Hapus) berukuran tetap 258 px
+   memakan hampir seluruh baris dan nama berkas terukur tersisa 0-75 px —
+   "ser / tifik / at- / kali / bra / si.p / df", 7 baris berisi 2-4 huruf, dan
+   lencana masa berlakunya menjadi gumpalan 3-6 baris (diukur 1280/1366/1440).
+   flex-basis 260 px pada bagian utamanya adalah ambangnya: selama nama berkas
+   masih dapat 260 px di samping tombolnya, barisnya tetap SATU baris; lebih
+   sempit dari itu tombolnya turun ke barisnya sendiri dan namanya mendapat
+   seluruh lebar kartu. Terukur: kartu 606 px (viewport 900, .detail-grid sudah
+   runtuh) → tombol tetap sebaris; kartu 537/377/323 px (viewport 1920/1440/
+   1280, kartu di kolom samping) → tombol turun. Media query menurut viewport
+   tidak bisa melihat perbedaan itu — itulah sebabnya perbaikan ponsel 560 px
+   dulu hijau sementara seluruh pita 901-1900 px rusak. */
 .attachment {
   display: flex; align-items: flex-start; gap: 10px;
+  flex-wrap: wrap;
   padding: 9px 0;
   border-bottom: 1px solid var(--border);
 }
 .attachment:first-child { padding-top: 0; }
-.attachment-main { min-width: 0; flex: 1; }
+.attachment-main { min-width: 0; flex: 1 1 260px; }
 .attachment-name { font-size: 13px; font-weight: 500; word-break: break-word; }
-.attachment .row-actions { flex: none; }
+/* margin-left: auto — ketika tombolnya turun, ia tetap rata kanan; ketika ia
+   masih sebaris, bagian utamanya sudah menghabiskan ruang bebas dan aturan ini
+   tidak berpengaruh. (.upload-item menyelesaikan hal yang sama dengan media
+   query 560 px di bawah, dan di sana itu memang cukup: layar Lapangan dan
+   Absensi Saya satu kolom di setiap lebar, jadi lebar kartunya MEMANG lebar
+   viewport-nya. Kartu Lampiran tidak.) */
+.attachment .row-actions { flex: none; margin-left: auto; }
 .attachment-add { padding-top: 10px; }
 .attachment-add .help { margin-top: 6px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+/* F-8. Tombol + kotak tanggal membungkus alih-alih memaksa kartu melebar:
+   kartu lampiran juga dirender di kolom sempit layar detail di ponsel. */
+.attachment-add-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.attachment-expiry { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+.attachment-expiry input { height: 30px; }
+/* Baris keadaan masa berlaku. 'Tanpa masa berlaku' mewarisi warna .cell-sub —
+   ia keterangan, bukan peringatan; hanya menipis/kedaluwarsa memakai lencana. */
+.attachment-validity { margin-top: 2px; }
+/* white-space: normal MENIMPA .badge { white-space: nowrap }: lencana ini
+   membawa kalimat ("Berlaku s/d 22 Sep 2026 · 12 hari lagi"), bukan satu kata
+   status, dan pada 390 px kalimat itu terukur TERPOTONG di dalam kotaknya
+   (scrollWidth > clientWidth, harness S35 ponsel). Keterangan yang terpotong
+   adalah keterangan yang tidak ada. */
+.attachment-validity .badge { font-size: 11px; white-space: normal; }
 
 /* ------------------------------------------------------------- lapangan */
 /* The field screen is one column at every width: it is used one-handed on a

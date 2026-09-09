@@ -64,6 +64,7 @@ Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 
 | Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
 | Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
+| Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8) |
 
 Rentang Inventory 001700–001799 **belum ada di ledger pemilik** (ROADMAP-HASHMICRO §5 baris 5
 menyebut Core, Finance dan Projects saja). Ia ditetapkan di sini karena aturan di bawah menuntut
@@ -72,13 +73,17 @@ ia rentang seratusan bebas pertama sesudah Projects (nomor ≥ 001400 yang terpa
 001400/001410/001420/001430/001440/001450/001500/001501). Baris ini adalah usulan yang menunggu
 pengesahan pemilik ke dalam ledger, bukan pengganti ledgernya.
 
-Core (000100–000199) juga habis pada 7 September 2026 (F-1 memakai 000198 dan 000199); blok
-lanjutannya belum ditetapkan pemilik dan **belum dibutuhkan** — paket berikutnya yang perlu
-migrasi Core-lah yang menetapkannya di tabel ini, dalam commit yang sama dengan pemakaian
-pertamanya. **JANGAN memakai 001400–001499 untuk Core**, meski ledger pemilik
-(ROADMAP-HASHMICRO §5 baris 5) menuliskan "Core 001400–?": rentang itu adalah blok PERTAMA
-Quality pada tabel di atas, dan ia sudah berisi enam migrasi (001400/001410/001420/001430/
-001440/001450). Usul pengganti yang menunggu pengesahan pemilik: **001800–001899**. Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
+Core (000100–000199) habis pada 7 September 2026 (F-1 memakai 000198 dan 000199), dan
+**F-8 adalah paket pertama yang butuh migrasi Core sesudah itu** — jadi barisnya ditetapkan
+di tabel di atas pada commit pemakaian pertamanya, 9 September 2026, sesuai aturan di bawah.
+Rentang yang dipakai: **001800–001899**. **JANGAN memakai 001400–001499 untuk Core**, meski
+ledger pemilik (ROADMAP-HASHMICRO §5 baris 5) menuliskan "Core 001400–?": rentang itu adalah
+blok PERTAMA Quality pada tabel di atas, dan ia sudah berisi enam migrasi (001400/001410/
+001420/001430/001440/001450). 001800–001899 dipilih karena ia rentang seratusan bebas pertama
+sesudah Inventory (nomor ≥ 001400 yang terpakai pada 9 Sep 2026 hanya 001400/001410/001420/
+001430/001440/001450/001500/001501/001700). Seperti baris Inventory, baris Core ini adalah
+usulan yang menunggu pengesahan pemilik ke dalam ledger — bukan pengganti ledgernya.
+Aturan itu berlaku untuk setiap blok lanjutan: didaftarkan **di tabel ini** pada
 commit yang pertama kali memakainya, tidak pernah lebih dulu dan tidak pernah belakangan.
 
 Migration filenames: `2026_07_25_000710_create_prj_wbs_tasks_table.php` (increment by 10
@@ -2113,3 +2118,101 @@ lulus lalu tersimpan `0.000` dan melahirkan keadaan yang paragraf ini bilang
 mustahil. `decimal:0,3` di kedua pintu tulis memvalidasi presisi yang
 benar-benar disimpan, dan kotak formulirnya berlantai 0,001 — bukan 0, yang
 berselisih dengan gerbang servernya sendiri.
+
+## 37. Masa berlaku lampiran (`core_attachments.valid_until`, F-8)
+
+Satu kolom `date` nullable pada tabel yang tumbuh paling cepat di aplikasi, dan **NULL
+adalah keadaan NORMAL**: hampir setiap baris `core_attachments` adalah foto lapangan, nota
+atau gambar kerja yang tidak punya — dan tidak akan pernah punya — masa berlaku.
+
+**Empat keadaan, dan yang pertama bukan cabang dari tiga lainnya.** Dihitung SEKALI, di
+server (`Modules\Core\Models\Attachment::validityState()`), lalu ikut setiap lampiran yang
+diserialisasi sebagai blok `validity` (`state`, `days`, `lead_days`):
+
+| Keadaan | Arti | Di kartu lampiran |
+|---|---|---|
+| `tanpa_masa_berlaku` | `valid_until` NULL — berkas biasa | teks polos, **bukan lencana** |
+| `berlaku` | > 30 hari lagi | teks polos |
+| `menipis` | ≤ 30 hari lagi, termasuk hari terakhirnya | lencana kuning |
+| `kedaluwarsa` | tanggalnya sudah lewat | lencana merah |
+
+`Attachment::VALID_UNTIL_LEAD_DAYS` = **30**, dan angka itu dibaca DUA permukaan: kartu
+lampiran dan entri `WatchedDeadlines`. Angka kedua di salah satunya adalah cara termurah
+membuat kartu berkata "masih berlaku" sementara kotak masuk pagi berkata "mendekati akhir
+masa berlaku" tentang berkas yang sama — kontradiksi yang sudah dibayar dua kali (F-3
+aktivitas CRM, F-7 servis alat). **Hari terakhirnya MASIH berlaku** (`valid_through_end`),
+bacaan yang sama dengan `VendorDocument::isExpired` dan `Guarantee::isExpired`.
+
+**Pintu tulisnya tiga, dan semuanya menuntut izin yang sama dengan mengubah lampirannya**
+(`{prefix}.update` dokumen pemiliknya, diturunkan dari `AttachableDocuments`): `POST
+core/attachments` (JSON base64), `POST core/attachments/upload` (multipart, kelas 25 MB),
+dan `PATCH core/attachments/{id}` — yang HANYA menerima `valid_until`, dengan aturan
+`present` supaya mengosongkan harus dikatakan dan bukan terjadi karena kuncinya lupa
+dikirim. Nama, isi, sha256 dan geotag sebuah berkas adalah fakta saat ia diunggah.
+
+**Pengawasnya DUA BELAS entri, satu per prefix izin**, dibangkitkan dari
+`AttachableDocuments::byPrefix()` (`attachment_valid_until_<prefix>`). Sebuah temuan
+`WatchedDeadlines` membawa SATU izin dan SATU judul; satu entri untuk seluruh tabel berarti
+memilih satu izin untuk 40 jenis dokumen dari 12 modul, dan izin apa pun yang dipilih salah.
+
+Dua bendera registri lahir di sini (kamus lengkapnya di kepala `WatchedDeadlines`):
+
+- **`dateless_is_normal`** — mematikan baris `BLIND` milik `scan()` untuk entri ini. Tanpa
+  itu, 40.000 foto lapangan tanpa tanggal dilaporkan sebagai "data yang hilang" setiap pagi.
+  Ia juga membuang dua `COUNT(*)` **tanpa saringan tanggal** atas tabel terbesar aplikasi —
+  satu-satunya kueri registri ini yang menyentuh seluruh tabel. Diukur di MySQL 8 atas
+  40.000 lampiran tanpa tanggal (9 Sep 2026): cabang BLIND untuk 12 entri lampiran
+  **246,4 ms**, `attachment_valid_until_prj` sendirian **172,4 ms** (rantai OR delapan
+  cabangnya harus dievaluasi untuk setiap baris karena tidak ada saringan tanggal yang
+  memotongnya lebih dulu) — di atas `scan()` penuh yang **106,1 ms**. Benderanya menahan
+  layar Tenggat dari menjadi 3,3x lebih lambat untuk mencetak 12 baris yang salah. Saling
+  eksklusif dengan `alarm_when_date_missing`, dipaku uji.
+- **`calendar_source`** — `false` mengeluarkan entri dari `CalendarEvents`. Bawaannya
+  `true`; sejauh ini hanya lampiran memakainya (alasannya di `CalendarEvents::sources()`).
+
+**Induk yang sudah tidak ada tidak berbunyi.** Kelas di luar registri tidak pernah masuk
+cakupan; induk yang dihapus lunak atau permanen gugur lewat `EXISTS` per kelas atas kolom
+`table` — **literal string baru di `AttachableDocuments`**, dipaku `AttachmentRegistryTest`
+terhadap model aslinya. Penjaga `deleted_at` duduk DI DALAM closure (pola `missing_scope`
+F-7), bukan di `columns`: `hr_attendances` memang tidak menghapus-lunak, dan mendaftarkannya
+akan menggugurkan seluruh entri `hr`.
+
+### Indeks — EXPLAIN kedua driver
+
+Indeksnya **`(attachable_type, valid_until)`**, bukan `(valid_until)`. Diukur 9 Sep 2026
+atas 40.000 baris tiruan (38.577 foto laporan harian, 59 baris bertanggal), kueri
+`attachable_type IN (…3 kelas prj…) AND valid_until <rentang>`:
+
+```
+SQLite, TANPA ANALYZE — keadaan produksi; repo ini tidak pernah menjalankannya
+  indeks (valid_until)                 SEARCH … USING INDEX …attachable_type_attachable_id…   14,689 ms
+  indeks (valid_until, attachable_type) SEARCH … USING INDEX …attachable_type_attachable_id…  14,758 ms
+  indeks (attachable_type, valid_until) SEARCH … USING COVERING INDEX …type_valid_until…       0,024 ms
+
+MySQL 8 (erp_scratch, sesudah ANALYZE TABLE)
+  tanpa indeks baru                     type=ALL   key=NULL          rows=39.844  Using where           44,530 ms
+  indeks (valid_until)                  type=range key=valid_until   rows=34      Using index condition  0,276 ms
+  indeks (attachable_type, valid_until) type=range key=type_valid    rows=35      Using where; Using index 0,382 ms
+```
+
+Perencana SQLite tanpa statistik **selalu** memilih indeks kesetaraan yang sudah ada dan
+mengabaikan indeks satu kolom `valid_until` sepenuhnya. Hanya pasangan berawalan
+`attachable_type` dipakai kedua driver tanpa ANALYZE, dan di keduanya ia COVERING.
+Rencana kueri PENGAWAS YANG SEBENARNYA (bukan kueri contoh) dipaku
+`AttachmentDeadlineWatchTest::test_the_registry_scope_itself_is_planned_through_the_pair_index`.
+
+Dan itu memang kueri registrinya sendiri, bukan bentuk sederhananya — `EXPLAIN` MySQL 8
+atas `WatchedDeadlines::scoped()` + saringan LEWAT, 40.000 lampiran di `erp_dryrun`:
+
+```
+attachment_valid_until_prj   PRIMARY   core_attachments  type=range key=…type_valid_until… rows=40  Using index condition; Using where
+                             DEPENDENT SUBQUERY x8       type=eq_ref key=PRIMARY           rows=1   (penjaga induk per kelas)
+                             1,357 ms/kueri
+attachment_valid_until_fin   PRIMARY   core_attachments  type=range key=…type_valid_until… rows=6   Using index condition; Using where
+                             DEPENDENT SUBQUERY x6       type=eq_ref key=PRIMARY           rows=1
+                             0,846 ms/kueri
+scan() penuh, 34 entri: 109,8 ms
+```
+
+Penjaga induk per kelas tidak mengubah rencananya: setiap `EXISTS` diselesaikan lewat
+PRIMARY KEY induknya (`eq_ref`, rows=1) atas baris yang SUDAH dipotong indeks tanggal.

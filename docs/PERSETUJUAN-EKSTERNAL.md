@@ -134,3 +134,13 @@ diketahui dicatat di sini supaya perluasannya tidak mengulang desain.
   diam-diam; tidak ada lonceng "tautan akan kedaluwarsa besok". Bila kelak
   dibutuhkan, tempatnya registri tenggat (`WatchedDeadlines`) — bukan cron
   baru.
+
+## Sikap terhadap e-sign (F-8, 9 Sep 2026)
+
+Mekanisme di berkas ini — tautan sekali-pakai + pencatatan lembar fisik
+bertanda tangan basah — adalah **jawaban resmi** repo ini untuk "bagaimana
+pihak luar menandatangani", dan integrasi PSrE (tanda tangan elektronik
+tersertifikasi, e-Materai, sertifikat digital per penandatangan) **ditolak
+tertulis untuk sekarang**. Alasannya, apa yang tidak dibangun, dan keempat
+syarat yang harus dipenuhi pemilik sebelum penolakan itu ditinjau ulang:
+[`SIKAP-E-SIGN.md`](SIKAP-E-SIGN.md).

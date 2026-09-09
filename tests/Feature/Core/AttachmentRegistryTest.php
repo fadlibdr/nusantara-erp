@@ -65,6 +65,24 @@ class AttachmentRegistryTest extends ErpTestCase
         }
     }
 
+    /**
+     * `table` per slug adalah LITERAL (F-8), dan literal itu memikul beban:
+     * pengawas masa berlaku lampiran memakainya untuk memeriksa apakah dokumen
+     * induk sebuah berkas masih ada. Sebuah tabel yang diganti nama di lane tim
+     * lain harus menjatuhkan uji ini — bukan diam-diam membuat setiap lampiran
+     * modul itu tampak yatim dan menghilang dari pengawasan.
+     */
+    public function test_every_parent_table_literal_matches_the_model_it_belongs_to(): void
+    {
+        foreach (AttachableDocuments::all() as $slug => $entry) {
+            $this->assertSame(
+                (new $entry['class'])->getTable(),
+                $entry['table'],
+                "AttachableDocuments['{$slug}']['table'] bukan tabel {$entry['class']}.",
+            );
+        }
+    }
+
     /** @return list<string> */
     private function javascriptSlugs(): array
     {
