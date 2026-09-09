@@ -8170,8 +8170,43 @@ def s33(pg):
             sticker_inner_mm: st ? +((st.clientWidth
               - parseFloat(getComputedStyle(st).paddingLeft)
               - parseFloat(getComputedStyle(st).paddingRight)) / pxPerMm).toFixed(2) : null,
+            // LEBAR TEKS-nya, bukan lebar KOTAKNYA — dan lebar teks SEBELUM
+            // jaring CSS-nya ikut campur.
+            //
+            // Versi sebelumnya membaca `scrollWidth` <div> pembungkusnya.
+            // Dengan `overflow-wrap: anywhere` terpasang teksnya tidak pernah
+            // meluap, jadi scrollWidth == clientWidth == lebar kotak apa pun
+            // isinya: syaratnya lulus dengan sisa 0,10 mm — persis
+            // toleransinya sendiri — dan tidak bisa merah lagi.
+            //
+            // Range.getClientRects() atas isi simpulnya mengukur TEKS, tetapi
+            // kotak-kotak barisnya juga dipotong jaring itu: sebuah baris yang
+            // PHP hitung terlalu panjang dipatahkan peramban dan terukur
+            // kembali ~selebar kotaknya. Maka yang diukur di sini adalah lebar
+            // baris itu TANPA pematahan: salinan teksnya di dalam probe
+            // `white-space: pre` dengan font yang BENAR-BENAR dipakai
+            // menggambarnya. Itulah satu-satunya angka yang menjawab
+            // pertanyaannya — "apakah penggalan yang dihitung PHP muat pada
+            // font yang dicetak lembarnya" — dan ia merah untuk 14 pt yang
+            // penggalannya dihitung untuk 9 pt.
             widest_hand_line_mm: lines.length
-              ? +(Math.max(...lines.map(l => l.scrollWidth)) / pxPerMm).toFixed(2) : null,
+              ? +(Math.max(...lines.map(l => {
+                  const cs = getComputedStyle(l);
+                  const probe = document.createElement('span');
+                  probe.style.cssText = 'position:absolute;left:-9999px;top:0;'
+                    + 'white-space:pre;overflow-wrap:normal;word-break:normal;';
+                  probe.style.fontFamily = cs.fontFamily;
+                  probe.style.fontSize = cs.fontSize;
+                  probe.style.fontWeight = cs.fontWeight;
+                  probe.style.fontStyle = cs.fontStyle;
+                  probe.style.fontStretch = cs.fontStretch;
+                  probe.style.letterSpacing = cs.letterSpacing;
+                  probe.textContent = l.textContent;
+                  document.body.appendChild(probe);
+                  const w = probe.getBoundingClientRect().width;
+                  probe.remove();
+                  return w;
+                })) / pxPerMm).toFixed(2) : null,
             // Kode yang tercetak harus tetap UTUH: yang diketik ulang orangnya
             // adalah kode ini, dan kode yang kehilangan ekornya adalah kode LAIN.
             hand_code: lines.map(l => l.textContent).join(''),
@@ -8181,6 +8216,11 @@ def s33(pg):
             body_client: document.body.clientWidth,
           };
         }""")
+        # Sisa ruang yang benar-benar ada — angka, bukan hanya lulus/tidak.
+        if (out["refused_sheet"]["sticker_inner_mm"] is not None
+                and out["refused_sheet"]["widest_hand_line_mm"] is not None):
+            out["refused_sheet"]["hand_line_margin_mm"] = round(
+                out["refused_sheet"]["sticker_inner_mm"] - out["refused_sheet"]["widest_hand_line_mm"], 2)
         refused.screenshot(path=f"{OUT}/s33-lembar-ditolak.png", full_page=False)
         refused.close()
 
@@ -8264,9 +8304,26 @@ def s33(pg):
             "a_code_too_long_to_scan_prints_no_bars_and_says_so":
                 out["refused_sheet"]["svg_present"] is False
                 and "Barcode tidak dicetak" in (out["refused_sheet"]["note"] or ""),
-            "and_its_handwritten_code_stays_inside_the_sticker_box":
-                (out["refused_sheet"]["widest_hand_line_mm"] or 999)
-                <= (out["refused_sheet"]["sticker_inner_mm"] or 0) + 0.1,
+            # LEBAR TEKS terhadap kotak isi stikernya, DENGAN MARGIN YANG
+            # DINYATAKAN. Versi sebelumnya mengukur scrollWidth <div>
+            # pembungkusnya dan lulus dengan sisa 0,10 mm — yaitu persis
+            # toleransinya sendiri, karena dengan `overflow-wrap: anywhere`
+            # scrollWidth == clientWidth == lebar kotak apa pun isinya.
+            #
+            # 1,0 mm, dan alasannya: PHP memenggal dengan perkiraan 0,62 em per
+            # karakter monospace (28 karakter × 9 pt = 55,12 mm menurut
+            # perkiraan itu), sementara lebar sesungguhnya bergantung font
+            # sistem — diukur di Chromium headless 53,54 mm terhadap kotak
+            # 56,40 mm, sisa 2,86 mm. Font yang lebih lebar daripada
+            # perkiraannya membuat sisa itu menyusut; begitu ia habis, peramban
+            # MEMATAHKAN barisnya (`hand_line_boxes` di bawah menangkap itu) dan
+            # kertasnya berhenti sesuai dengan yang dihitung PHP. Margin ini
+            # adalah peringatan yang datang LEBIH DULU.
+            "and_its_handwritten_code_stays_inside_the_sticker_box_with_declared_room_to_spare":
+                out["refused_sheet"]["widest_hand_line_mm"] is not None
+                and out["refused_sheet"]["sticker_inner_mm"] is not None
+                and out["refused_sheet"]["widest_hand_line_mm"]
+                <= out["refused_sheet"]["sticker_inner_mm"] - 1.0,
             "and_the_sheet_never_grows_wider_than_the_page":
                 out["refused_sheet"]["lembar_scroll_mm"] is not None
                 and out["refused_sheet"]["lembar_scroll_mm"] <= out["refused_sheet"]["lembar_client_mm"] + 0.1

@@ -1774,7 +1774,12 @@ sehingga barang yang dipindai masuk ke kartu stok barang lain. Karena itu:
   PHP, supaya angkanya bisa dipaku uji dan barisnya bisa dibaca orang baris demi baris. Harness S33
   memaku keduanya sekaligus — `Range.getClientRects()` menghitung kotak baris yang BENAR-BENAR
   digambar, jadi font yang dicetak berbeda dari font yang dipakai menghitung penggalan terlihat di
-  situ meski jaringnya menahan luapannya.
+  situ meski jaringnya menahan luapannya; lebar barisnya diukur pada SALINAN teksnya dalam probe
+  `white-space: pre`, karena jaring yang sama membuat `scrollWidth` (dan kotak Range) tidak pernah
+  melebihi kotaknya, berapa pun lebar hurufnya. **Kesetaraan "font yang dicetak = font yang dipakai
+  menghitung" dipaku uji PHP** (`LabelBarcodePrintTest`), bukan harness saja: harness bukan bagian
+  gerbang rilis, dan suntingan satu baris pada blade — interpolasi ukuran font menjadi angka tetap —
+  meninggalkan seluruh gerbang phpunit hijau.
 
 **F/LBL adalah formulir BESPOKE**, bukan entri `PrintableDocuments`: registri itu menggambar
 dokumen bertanda tangan (pita empat pihak, blok identitas, tiga kolom tanda tangan), dan lembar

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Inventory;
 
 use App\Models\User;
+use Modules\Core\Services\FormPrintService;
 use Modules\Core\Support\Code128;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -269,6 +270,59 @@ class LabelBarcodePrintTest extends ErpTestCase
         //    daripada perkiraan 0,62 em.
         $this->assertStringContainsString('overflow-wrap: anywhere', $html,
             'Tanpa jaring CSS-nya, satu font yang lebih lebar daripada perkiraan mengembalikan luapan yang sama.');
+    }
+
+    /**
+     * FONT YANG DICETAK = FONT YANG DIPAKAI MENGHITUNG PENGGALANNYA.
+     *
+     * `Code128::wrapLabel()` memutuskan di mana kode tulis-tangan patah dengan
+     * satu tinggi huruf dalam milimeter; lembarnya mencetak `font-size` dari
+     * konstanta PHP yang SAMA. Mengganti interpolasi itu menjadi angka tetap
+     * membuat penggalan yang dihitung untuk 9 pt dicetak pada 11 atau 14 pt:
+     * jaring `overflow-wrap` menahan luapannya, jadi tidak satu pun syarat
+     * lain berubah, dan yang tercetak menjadi dua baris rapuh untuk setiap
+     * baris yang dihitung.
+     *
+     * Sampai putaran ketiga F-6 invarian itu hanya dijaga harness — yang bukan
+     * bagian gerbang rilis — sehingga suntingan satu baris pada blade
+     * meninggalkan SELURUH gerbang phpunit hijau. Uji ini memindahkannya ke
+     * PHP, dan ia membaca konstantanya lewat refleksi supaya kode produksi
+     * tidak perlu membuka apa pun untuk diuji.
+     */
+    public function test_the_font_the_sheet_prints_is_the_font_the_wrapping_was_measured_with(): void
+    {
+        $barcode = str_repeat('X', 63);
+        $item = $this->makeItem('Barang Impor', ['code' => 'ITM-0103', 'barcode' => $barcode]);
+
+        $html = $this->actingAs($this->adminUser(), 'sanctum')
+            ->get($this->url($item->id, 'jumlah=1'))->assertOk()->getContent();
+
+        // 1. Ukuran huruf yang BENAR-BENAR dicetak untuk .kode-tangan.
+        $this->assertSame(1, preg_match(
+            '/\.stiker \.kode-tangan \{[^}]*font-size:\s*([0-9.]+)pt/',
+            $html,
+            $css,
+        ), 'Lembar F/LBL tidak menyatakan font-size .kode-tangan dalam poin: pemenggalannya tidak bisa diperiksa siapa pun.');
+        $printedPt = (float) $css[1];
+
+        // 2. …adalah konstanta yang dipakai MENGHITUNG penggalannya.
+        $measuredPt = (float) (new \ReflectionClass(FormPrintService::class))->getConstant('LABEL_HAND_FONT_PT');
+        $this->assertGreaterThan(0.0, $measuredPt);
+        $this->assertSame($measuredPt, $printedPt,
+            "Lembar mencetak {$printedPt} pt sementara penggalannya dihitung untuk {$measuredPt} pt: "
+            .'setiap baris yang dihitung PHP menjadi dua baris di kertas, dan jaring CSS-nya menyembunyikannya.');
+
+        // 3. …dan pada ukuran yang BENAR-BENAR dicetak itu, tiap baris masih
+        //    muat di dalam kotak isi stikernya. Angka 0,62 em adalah perkiraan
+        //    lebar karakter monospace yang sama dengan yang dipakai wrapLabel.
+        preg_match_all('/<div class="kode-tangan">([^<]*)<\/div>/', $html, $matches);
+        $usableMm = 62.0 - 2 * 2.5;
+        $charMm = $printedPt * 25.4 / 72 * 0.62;
+
+        foreach ($matches[1] as $line) {
+            $this->assertLessThanOrEqual($usableMm, round(mb_strlen($line) * $charMm, 3),
+                "Baris \"{$line}\" tidak muat pada font yang benar-benar dicetak lembarnya.");
+        }
     }
 
     public static function refusedCodes(): array
