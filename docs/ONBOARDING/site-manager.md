@@ -68,8 +68,11 @@ pertama. Kelompok Estimasi, Subkontrak, Keuangan, dan Pengadaan tidak ada di sid
 - Ubin **Proyek berjalan**. Sakelar **`Proyek saya`** mencocokkan akun dengan kolom
   **manajer proyek**, bukan site manager — untuk Anda ia mengembalikan nol baris. Biarkan
   mati.
-- Kartu **Kalender Acara** (selalu digambar, walau bulan kosong), **Progres proyek** dan
-  **Perlu dipesan ulang** (keduanya digambar hanya bila ada isinya).
+- Kartu **Kalender Acara** (walau bulan kosong), **Progres proyek** dan
+  **Perlu dipesan ulang** — **ketiganya SELALU digambar**. Kartu yang kosong berkata begitu dengan
+  kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah ambangnya."*), dan
+  kakinya tetap ada: kartu yang menghilang saat tidak ada isinya membuat orang mengira
+  layarnya rusak.
 - Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
   menyetujui apa pun. Kabar bahwa dokumen Anda disetujui atau ditolak datang lewat
   **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di layar

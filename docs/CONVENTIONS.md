@@ -505,8 +505,33 @@ Join ke tabel aturan TIDAK menambah pemindaian: UNIQUE (warehouse_id, item_id) m
 sebagai `eq_ref` di MySQL dan sebagai `SEARCH … USING INDEX` di SQLite. Yang tersisa tetap
 `SCAN b` — tidak ada indeks yang bisa melayani perbandingan antar KOLOM (`b.qty <
 r.reorder_point`), dan bila `inv_stock_balances` tumbuh melewati ~100 rb baris angka itu perlu
-tabel ringkasan, bukan indeks. Entri baru, ATAU entri lama yang kuerinya berubah bentuk:
-jalankan `EXPLAIN`-nya dan tulis hasilnya di sini atau tambahkan indeksnya.
+tabel ringkasan, bukan indeks.
+
+Sejak putaran ketiga F-6 entri ini menghitung **dua kueri yang dijumlahkan** (§31): yang di atas,
+dan pasangan yang aturannya hidup tetapi belum punya satu baris saldo pun. `EXPLAIN` yang kedua,
+dijalankan pada kedua driver (9 Sep 2026):
+
+```
+-- SQLite (EXPLAIN QUERY PLAN, salinan basis data demo yang sudah dimigrasi)
+SCAN r
+SEARCH i USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH w USING INTEGER PRIMARY KEY (rowid=?)
+SEARCH b USING COVERING INDEX inv_stock_balances_warehouse_id_item_id_unique (warehouse_id=? AND item_id=?) LEFT-JOIN
+
+-- MySQL 8 (erp_dryrun)
+r  type=ALL     key=NULL                                              Using where
+i  type=eq_ref  key=PRIMARY                                           ref=r.item_id
+w  type=eq_ref  key=PRIMARY                                           ref=r.warehouse_id
+b  type=eq_ref  key=inv_stock_balances_warehouse_id_item_id_unique    ref=r.warehouse_id, r.item_id ; Not exists; Using index
+```
+
+`SCAN r` adalah pemindaian tabel ATURAN — sebesar jumlah aturan yang benar-benar ditetapkan orang,
+bukan sebesar katalog atau sebesar `inv_stock_balances` — dan pencarian saldonya dilayani indeks
+unik pasangan yang sama (`Not exists` di MySQL: ia berhenti pada baris saldo pertama yang cocok).
+Jadi tidak ada pemindaian tabel penuh KEDUA.
+
+Entri baru, ATAU entri lama yang kuerinya berubah bentuk: jalankan `EXPLAIN`-nya dan tulis
+hasilnya di sini atau tambahkan indeksnya.
 
 `label` punya CERMIN di klien: `schema.js` `MODULES[prefix].kpi`. Ia ada karena ubin harus bisa
 menyebut angka yang tidak dikirim server — entri yang izinnya tidak dipegang tidak ada di jawaban,
@@ -1660,7 +1685,11 @@ jadi sebuah baris bisa terlihat hidup sementara ambangnya tidak menentukan apa p
 DINONAKTIFKAN adalah syarat tersendiri, bukan bagian dari "itemnya hidup": menonaktifkan adalah
 jalur NORMAL untuk barang yang berhenti dibeli — kartunya tetap ada, dan sampai putaran ketiga F-6
 barisnya digambar tanpa satu keping pun dengan `applies: true`. `ReorderRuleResource` karena itu mengirim `applies` (= `->governs()`,
-bentuk baris dari scope yang sama) dan `deleted_labels`, dan daftarnya menggambarnya sebagai keping.
+bentuk baris dari scope yang sama) dan `deleted_labels`. **Yang digambar daftarnya sebagai keping
+hanyalah `deleted_labels`**; `applies` adalah fakta server yang belum punya kolom sendiri, jadi
+baris yang tidak berlaku KARENA ITEMNYA NONAKTIF tidak membawa tanda apa pun di layar itu — kolom
+"Aktif" di sebelahnya adalah saklar ATURANNYA, dan ia memang menyala. Layar itu tidak berbohong
+(ia tidak pernah menulis "berlaku"), tetapi ia juga tidak menjawab pertanyaannya.
 
 **Salinan yang ketiga adalah bagaimana ia dulu bocor.** Sampai putaran kedua F-6 setiap permukaan
 menghitung "berlaku" sendiri, dengan isi yang berbeda: `loadCount` kartu item memeriksa `is_active`
@@ -1918,12 +1947,32 @@ grep -rn "<label layar yang berubah>" docs/ | wc -l      # sebelum: N penyebutan
 grep -rn "<label layar yang berubah>" docs/ | wc -l      # sesudah: N yang sama, semuanya dibaca
 ```
 
+**Perintahnya `grep -rn … | wc -l`, BUKAN `grep -rc …`:** yang terakhir mencetak satu hitungan
+PER BERKAS (`path:n`) dan tidak pernah memulangkan satu angka, jadi ia tidak bisa dipakai
+mengklaim apa pun. Kalau yang dicari adalah "berapa berkas", perintahnya `grep -rl … | wc -l`.
+Diukur hari ini (9 Sep 2026, sesudah putaran ketiga F-6):
+
+```
+grep -rn "Perlu dipesan ulang" docs/ | wc -l      # 28 baris
+grep -rl "Perlu dipesan ulang" docs/ | wc -l      # 10 berkas
+grep -rn "Usulkan PR dari kekurangan ini" docs/ | wc -l   # 6 baris di 4 berkas
+```
+
+(Dua dari 28 baris itu adalah contoh perintah di atas: bagian ini ikut terhitung oleh
+perintahnya sendiri, dan itu bukan alasan untuk tidak menuliskan angkanya.)
+
+Dan LABELNYA harus tetap satu baris di berkas Markdown: pembungkusan baris yang memotong
+"**Perlu dipesan / ulang**" di tengah membuat grep di atas tidak menemukannya lagi — sapuan
+berikutnya melewatkan berkas itu tanpa satu tanda pun. Terjadi pada putaran ketiga ini sendiri:
+dua berkas peran keluar dari daftar berkas (**8**, bukan 10) hanya karena label yang dibungkus
+ulang, dan yang menemukannya adalah angka grep-nya, bukan pembacaan ulang.
+
 Angkanya masuk laporan paket. "Keempat penyebutan sudah diperbaiki" tanpa angka grep-nya adalah
 klaim yang tidak bisa diperiksa siapa pun — dan F-6 membuktikan kenapa: sapuan putaran pertamanya
-menyebut "keempat penyebutan tab", sementara `grep -rc "Perlu dipesan ulang" docs/` memulangkan
-**13 penyebutan di delapan berkas**. Yang KELIMA berdiri di berkas yang sama dengan salah satu dari
-keempatnya (`docs/ONBOARDING/procurement.md`), dan ia berkata kepada petugas pengadaan bahwa daftar
-itu "tanpa tombol PR di atasnya" — tombol yang justru **hanya dia** yang dapat. Diukur di Chromium,
+menyebut "keempat penyebutan tab" sementara penyebutan yang sebenarnya ada belasan. Yang KELIMA
+berdiri di berkas yang sama dengan salah satu dari keempatnya (`docs/ONBOARDING/procurement.md`),
+dan ia berkata kepada petugas pengadaan bahwa daftar itu "tanpa tombol PR di atasnya" — tombol
+yang justru **hanya dia** yang dapat. Diukur di Chromium,
 dua sesi, tab "Perlu dipesan ulang" pada `#/stock` dengan satu baris kekurangan:
 
 | akun | tombol di tab | tombol di kartu dasbor |

@@ -80,8 +80,10 @@ di sidebar Anda.
   menunggu persetujuan."* untuk Anda, karena Anda tidak menyetujui apa pun. Kabar PR/PO
   Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
   merah) dan lewat lencana status di layar daftarnya.
-- Kartu **Kalender Acara** (selalu digambar) dan **Perlu dipesan ulang** — digambar hanya
-  bila ada pasangan **gudang × item** di bawah **ambang**-nya. Ambang tiap baris adalah
+- Kartu **Kalender Acara** dan **Perlu dipesan ulang** — **keduanya SELALU digambar**.
+  Kartu pesan ulang memuat pasangan **gudang × item** di bawah **ambang**-nya, dan bila
+  tidak ada satu pun ia berkata *"Tidak ada pasangan gudang × item di bawah ambangnya."*
+  alih-alih menghilang. Ambang tiap baris adalah
   aturan reorder gudang itu bila ada yang aktif (`Persediaan › Aturan Reorder`), dan stok
   minimum kartu item bila tidak; kartunya menyebut yang mana. **Kartu ini memang daftar
   yang dibaca** — kakinya satu tautan, `Buka Stok`. Tombolnya ada satu klik lebih jauh,

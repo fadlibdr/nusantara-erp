@@ -7,16 +7,22 @@ Tidak di-merge, tidak di-deploy. 8 September 2026.
 
 ## 1. Tugas → status → bukti
 
+> **Angka di kolom "Bukti terukur" adalah angka HARI INI** (9 September 2026, sesudah tiga
+> putaran perbaikan), bukan angka commit yang disebut di sebelahnya — SHA itu menunjuk commit
+> yang MENGERJAKAN tugasnya, dan uji yang sama sudah tumbuh sejak. Angka gerbang lengkap ada
+> di §10.6, mutasinya di §4 (putaran paket), §9.3 (putaran perbaikan) dan §10.5 (putaran
+> kedua); §9 dan §10 menyatakan sendiri apa yang mereka gantikan.
+
 | # | Tugas (dari perintah paket) | Status | Bukti terukur |
 |---|---|---|---|
-| 1 | `inv_reorder_rules` per item × gudang, **blok lanjutan Inventory didaftarkan di CONVENTIONS §2 pada commit yang sama** | SELESAI | `b56fb70`. Migrasi `2026_09_08_001700_create_inv_reorder_rules_table.php`; baris `Inventory │ 000400–000499 │ **001700–001799** │ DIPAKAI` di tabel "Blok lanjutan" §2. `ReorderRuleSchemaTest` **5 uji / 17 pernyataan**, termasuk uji yang membaca CONVENTIONS.md dan menuntut barisnya ada |
-| 2 | Definisi "perlu dipesan ulang" yang menghormati aturan **di atas** `min_stock`, di `StockService` DAN salinan `ModuleCounts`, dengan uji kesetaraan **DIPERKUAT** | SELESAI | `98a3e07`. `ReorderThresholdTest` **9 / 29**; `ModuleCountsTest` **20 / 173** (dari 18 uji sebelum paket ini) dengan 5 baris fixture baru dan 2 uji baru. Angka entri `inv` di fixture: **1 → 4** |
-| 3 | API aturan reorder (CRUD, izin `inv.*`) + layar/daftar di SPA | SELESAI | `baaad56`. `ReorderRuleApiTest` **9 / 23**. 5 rute `inventory/reorder-rules`, `RESOURCES['inventory/reorder-rules']`, entri NAV "Aturan Reorder" |
-| 4 | Usulan PR yang MEMBACA kekurangan dan membuat PR **DRAF** lewat `PurchaseRequisitionService`; **idempoten**; tidak pernah mengajukan/menyetujui | SELESAI | `33504ea`. `ReorderProposalTest` **12 / 58**, termasuk uji yang memaku awalan rute `reorder/` hanya punya 2 rute dan tidak satu pun bernama `submit`/`approve` |
-| 5 | Code 128 sebagai SVG di PHP dengan **DEKODER di uji**; formulir cetak F/LBL di registri rumah | SELESAI | `db55d4d`. `Code128Test` **35 / 5.782** (23 perjalanan bolak-balik + tabel simbol + zona tenang); `LabelBarcodePrintTest` **8 / 27**. Katalog cetak **64 → 65** baris |
-| 6 | Layar pindai `BarcodeDetector` + jalur manual + tiga (jadinya **empat**) kalimat keadaan; barcode duplikat | SELESAI | `ff2881e`. `ItemScanTest` **10 / 37**. Empat keadaan kamera + keadaan kelima ("belum ketemu") diukur harness S33k |
-| 7 | Uji PHP untuk setiap perubahan server + **mutasi yang dipaku merah** | SELESAI | **88 uji / 5.973 pernyataan** pada tujuh berkas uji baru; **21 mutasi** dijalankan, 20 merah + 1 yang **lolos hijau dan memaksa ujinya diperbaiki** (§4) |
-| 8 | Harness S32 + S33 (desktop + ponsel) → `results-phase-2.json` + PNG | SELESAI | `2090af9`. **5 skenario, 55 syarat, semuanya hijau**. `results-phase-2.json` **18 → 23 kunci** (digabung per kunci; tidak satu pun skenario lain tersentuh). **17 PNG** |
+| 1 | `inv_reorder_rules` per item × gudang, **blok lanjutan Inventory didaftarkan di CONVENTIONS §2 pada commit yang sama** | SELESAI | `b56fb70`. Migrasi `2026_09_08_001700_create_inv_reorder_rules_table.php`; baris `Inventory │ 000400–000499 │ **001700–001799** │ DIPAKAI` di tabel "Blok lanjutan" §2. `ReorderRuleSchemaTest` **6 uji / 19 pernyataan**, termasuk uji yang membaca CONVENTIONS.md dan menuntut barisnya ada |
+| 2 | Definisi "perlu dipesan ulang" yang menghormati aturan **di atas** `min_stock`, di `StockService` DAN salinan `ModuleCounts`, dengan uji kesetaraan **DIPERKUAT** | SELESAI | `98a3e07`. `ReorderThresholdTest` **13 / 57**; `ModuleCountsTest` **23 / 214** (dari 18 uji sebelum paket ini) dengan 7 baris fixture baru dan 2 uji baru. Angka entri `inv` di fixture: **1 → 8**. Kuerinya punya DUA lengan sejak putaran ketiga (pasangan bersaldo, dan pasangan yang aturannya hidup tanpa baris saldo), dan keduanya ada di kedua salinan |
+| 3 | API aturan reorder (CRUD, izin `inv.*`) + layar/daftar di SPA | SELESAI | `baaad56`. `ReorderRuleApiTest` **21 / 70**. 5 rute `inventory/reorder-rules`, `RESOURCES['inventory/reorder-rules']`, entri NAV "Aturan Reorder" |
+| 4 | Usulan PR yang MEMBACA kekurangan dan membuat PR **DRAF** lewat `PurchaseRequisitionService`; **idempoten**; tidak pernah mengajukan/menyetujui | SELESAI | `33504ea`. `ReorderProposalTest` **23 / 100**, termasuk uji yang memaku awalan rute `reorder/` hanya punya 2 rute dan tidak satu pun bernama `submit`/`approve` |
+| 5 | Code 128 sebagai SVG di PHP dengan **DEKODER di uji**; formulir cetak F/LBL di registri rumah | SELESAI | `db55d4d`. `Code128Test` **36 / 6.004** (23 perjalanan bolak-balik + tabel simbol + zona tenang); `LabelBarcodePrintTest` **24 / 146**, termasuk uji yang memaku font yang DICETAK sama dengan font yang dipakai menghitung penggalannya. Katalog cetak **64 → 65** baris |
+| 6 | Layar pindai `BarcodeDetector` + jalur manual + tiga (jadinya **empat**) kalimat keadaan; barcode duplikat | SELESAI | `ff2881e`. `ItemScanTest` **17 / 65**; `ScanCodeParityTest` **8 / 105** (satu aturan, tiga permukaan, dan satu kasus yang berbeda hanya pada huruf beraksen). Empat keadaan kamera + keadaan kelima ("belum ketemu") diukur harness S33k |
+| 7 | Uji PHP untuk setiap perubahan server + **mutasi yang dipaku merah** | SELESAI | **148 uji / 6.566 pernyataan** pada **delapan** berkas uji baru; **21 + 28 + 17 + 10 mutasi** dijalankan di empat putaran (§4, §9.3, §10.5, dan putaran ketiga di riwayat commit), tiga di antaranya **lolos hijau lebih dulu dan memaksa ujinya diperbaiki** |
+| 8 | Harness S32 + S33 (desktop + ponsel) → `results-phase-2.json` + PNG | SELESAI | `2090af9`. **5 skenario, 71 syarat, semuanya hijau**. `results-phase-2.json` **18 → 23 kunci** (digabung per kunci; 18 kunci non-F-6 diperiksa byte-identik sebelum berkasnya ditulis). **19 PNG** |
 | 9 | Berkas cangkang PWA baru → tambahkan ke `SHELL` dan naikkan `SHELL_VERSION` | SELESAI | `js/views/reorder.js` + `js/views/pindai.js` masuk `SHELL`; `SHELL_VERSION` **4 → 5**. `PwaServiceWorkerTest` hijau (cocok dua arah dengan berkas yang benar-benar ada) |
 | 10 | MUAT `/app/` DI CHROMIUM, 0 galat konsol pada setiap layar yang disentuh | SELESAI | **0 galat konsol** dan **0 permintaan gagal** pada boot + 7 rute + tab "Perlu dipesan ulang". Chromium headless (Playwright) di atas `php -S 127.0.0.1:8161` melayani SALINAN sqlite |
 | 11 | `docs/LAPORAN-PAKET-HM-F-6.md` | SELESAI | Berkas ini |
@@ -46,9 +52,9 @@ aturan §2 sendiri. §31–§34 pada `edc747a`.
 
 Diterapkan pada **keduanya**, dan uji kesetaraannya **diperkuat, bukan dilemahkan**.
 
-Yang dilakukan lebih dari sekadar menyalin: sampai F-6, `ModuleCountsTest::test_the_low_stock_count_equals_the_stock_screens_own_query` membandingkan dua kueri yang **sama-sama bisa melupakan tabel aturan dan tetap hijau**. Fixture `inv` karena itu mendapat **lima baris yang jawabannya berbeda** antara "dengan aturan" dan "hanya `min_stock`" — aturan yang menaikkan, yang menurunkan, yang nonaktif, yang bertitik 0, dan yang milik gudang lain — dan sebuah **uji kedua** menjalankan kueri PRA-F-6 kata demi kata lalu menuntut jawabannya BERBEDA. Kalau fixture itu suatu hari kehilangan kemampuan membedakan, ia jatuh dengan menyebut sebabnya alih-alih diam-diam berhenti menjaga apa pun.
+Yang dilakukan lebih dari sekadar menyalin: sampai F-6, `ModuleCountsTest::test_the_low_stock_count_equals_the_stock_screens_own_query` membandingkan dua kueri yang **sama-sama bisa melupakan tabel aturan dan tetap hijau**. Fixture `inv` karena itu mendapat **tujuh baris yang jawabannya berbeda** antara "dengan aturan" dan "hanya `min_stock`" — aturan yang menaikkan, yang menurunkan, yang nonaktif, yang bertitik 0, yang milik gudang lain, dan (putaran ketiga) dua pasangan yang belum punya baris saldo sama sekali: satu bertitik 100 yang HARUS muncul lewat lengan kedua, satu bertitik 0 yang tetap diam — dan sebuah **uji kedua** menjalankan kueri PRA-F-6 kata demi kata lalu menuntut jawabannya BERBEDA. Kalau fixture itu suatu hari kehilangan kemampuan membedakan, ia jatuh dengan menyebut sebabnya alih-alih diam-diam berhenti menjaga apa pun.
 
-Angka terukur pada fixture registri: **min_stock saja = 5, dengan aturan = 4**.
+Angka terukur pada fixture registri (keadaan akhir, sesudah dua baris fixture putaran ketiga): **min_stock saja = 7, dengan aturan = 8**.
 
 **Empat permukaan, bukan satu.** Layanan, salinan registri (label ubin berubah menjadi "Item di bawah titik pesan ulang", beserta cerminnya di `schema.js MODULES.kpi` yang dipaku uji), tab "Perlu dipesan ulang" di layar Saldo Stok, dan widget dasbor `stok-minimum` (judul + keterangan + urutan, yang dulu mengurutkan menurut `qty − min_stock`, angka yang tidak dipakai satu pun baris beraturan).
 
@@ -257,6 +263,15 @@ yang mungkin tidak menjamin apa pun.
    layar meminta orangnya memilih). Yang dibutuhkan sebelum memutuskan: satu audit
    `SELECT barcode, COUNT(*) … GROUP BY barcode HAVING COUNT(*) > 1` di produksi.
 
+   **Dan satu peringatan yang lahir dari perbaikan collation putaran ketiga:** saringan "Barcode
+   ganda" menjawab pertanyaan *pemindaian* — sejak putaran ketiga ia membandingkan BYTE hasil
+   `UPPER()` (§34), jadi `CAFÉ-2026` dan `CAFE-2026` adalah dua kode berbeda baginya. Sebuah
+   `UNIQUE` di MySQL pada kolom `utf8mb4_unicode_ci` **lebih ketat dari itu**: collation ci
+   menyamakan `é` dengan `e`, jadi migrasinya akan menolak pasangan yang saringan ini sebut bersih.
+   Saringan itu adalah syarat perlu, bukan syarat cukup; audit terakhir sebelum menambahkan UNIQUE
+   harus dijalankan **dengan collation kolomnya sendiri** (`GROUP BY barcode` apa adanya, tanpa
+   `COLLATE`), di produksi.
+
 2. **Rentang blok migrasi Inventory 001700–001799 belum ada di ledger.** ROADMAP-HASHMICRO §5
    baris 5 menyebut Core, Finance dan Projects saja. Rentangnya ditetapkan di tabel CONVENTIONS §2
    karena aturan §2 sendiri menuntut penetapannya pada commit pemakaian pertama dan F-6
@@ -288,8 +303,11 @@ yang mungkin tidak menjamin apa pun.
    tabel penuh yang tersisa (`b.qty < i.min_stock` — perbandingan antar kolom dua tabel yang tidak
    bisa dilayani indeks). F-6 menambahkan satu LEFT JOIN ke `inv_reorder_rules` (berindeks unik
    pada pasangannya, jadi join-nya sendiri murah), tetapi **tidak mengubah** sifat pemindaiannya.
-   Ambang "~100 rb baris `inv_stock_balances` butuh tabel ringkasan" tetap berlaku dan tetap belum
-   tercapai.
+   Lengan kedua (putaran ketiga: pasangan yang aturannya hidup tanpa baris saldo) berangkat dari
+   `inv_reorder_rules` — tabel yang sebesar jumlah aturan yang benar-benar ditetapkan orang, bukan
+   sebesar katalog — dan menyapa saldo lewat indeks unik pasangan yang sama, jadi ia tidak
+   menambahkan pemindaian tabel penuh kedua. Ambang "~100 rb baris `inv_stock_balances` butuh tabel
+   ringkasan" tetap berlaku dan tetap belum tercapai.
 
 ---
 
@@ -739,27 +757,61 @@ Satu di antaranya **lolos hijau** dan memaksa syarat harness baru (baris terakhi
 | font tulis-tangan 14 pt, penggalan tetap dihitung 9 pt | blade F/LBL | **LOLOS HIJAU** → syarat `Range.getClientRects()` ditambahkan, lalu **S33 merah** |
 | bentuk `EXISTS` berkorelasi dikembalikan (aturan sama, biaya kuadratik) | `Item` | 1 uji PHP (6,5 detik untuk 2.000 item, anggaran 2 detik) |
 
-### 10.6 Angka gerbang sesudah putaran kedua
+### 10.6 Angka gerbang — KEADAAN AKHIR (9 September 2026)
+
+Angka di bawah menggantikan angka gerbang di §9.4 dan angka putaran kedua yang dulu berdiri di
+sini. Semuanya dijalankan ulang di atas kode akhir.
 
 | Perintah | Hasil |
 |---|---|
-| `vendor/bin/phpunit tests/Feature/Inventory tests/Feature/Procurement` | **OK 615 uji / 8.916 pernyataan** (01:50) |
-| `vendor/bin/phpunit tests/Feature/Core` | **OK 972 uji / 8.870 pernyataan, 11 dilewati** (03:18) |
+| `vendor/bin/phpunit tests/Feature/Inventory tests/Feature/Procurement` | **OK 623 uji / 8.978 pernyataan** (02:15) |
+| `vendor/bin/phpunit tests/Feature/Core` | **OK 972 uji / 8.870 pernyataan, 11 dilewati** (03:53) |
 | `vendor/bin/phpunit tests/Feature/Iam` | **OK 62 uji / 472 pernyataan** (00:21) |
-| MySQL 8 (`phpunit.mysql.xml`, `DB_DATABASE=erp_dryrun`), 11 berkas F-6 | **OK 188 uji / 6.789 pernyataan, 3 dilewati**; diulang untuk bentuk saringan yang baru (27 uji / 158 pernyataan) |
+| MySQL 8 — perintah PERSISNYA di bawah tabel ini | **OK 183 uji / 6.888 pernyataan, 3 dilewati** (02:13) |
 | `vendor/bin/pint --test` pada berkas yang disentuh | **lolos** |
-| Harness S32/S32m/S33/S33k/S33m | **5 skenario, 71 syarat** (dari 65), semuanya hijau |
+| Harness S32/S32m/S33/S33k/S33m | **5 skenario, 71 syarat**, semuanya hijau |
 | `results-phase-2.json` | **23 kunci**; 18 kunci non-F-6 **byte-identik** dengan sebelumnya (diperiksa sebelum ditulis) |
 
-**Peramban.** Chromium headless di atas `php -S 127.0.0.1:8171` (dimatikan berdasarkan PID)
+**Perintah MySQL itu, dan berkas apa yang dijalankannya.** Baris gerbang yang tidak bisa
+dijalankan ulang siapa pun bukan bukti; daftar berkasnya karena itu DITURUNKAN dari branch, bukan
+diketik:
+
+```
+set -a; . <berkas-cred>; set +a
+export DB_DATABASE=erp_dryrun          # BUKAN erp_test — itu milik gerbang rilis
+vendor/bin/phpunit -c phpunit.mysql.xml $(git diff --name-only main...HEAD -- tests/)
+```
+
+`git diff --name-only main...HEAD -- tests/` memulangkan **12 berkas** (bukan 11 seperti tertulis
+sebelumnya, yang tidak menyebut satu nama pun):
+
+```
+tests/Feature/Core/ModuleCountsTest.php
+tests/Feature/Core/PrintCatalogueBespokeTest.php
+tests/Feature/Core/PrintFormReachabilityTest.php
+tests/Feature/Inventory/Code128Test.php
+tests/Feature/Inventory/InventoryListingTest.php
+tests/Feature/Inventory/ItemScanTest.php
+tests/Feature/Inventory/LabelBarcodePrintTest.php
+tests/Feature/Inventory/ReorderProposalTest.php
+tests/Feature/Inventory/ReorderRuleApiTest.php
+tests/Feature/Inventory/ReorderRuleSchemaTest.php
+tests/Feature/Inventory/ReorderThresholdTest.php
+tests/Feature/Inventory/ScanCodeParityTest.php
+```
+
+Termasuk kasus huruf beraksen (`CAFÉ-2026` vs `CAFE-2026`), yang **merah di MySQL sebelum
+perbaikan collation** dan hijau sesudahnya — satu-satunya cara membuktikannya adalah menjalankannya
+di sana.
+
+**Peramban.** Chromium headless di atas `php -S 127.0.0.1:8181` (dimatikan berdasarkan PID)
 melayani SALINAN sqlite di scratchpad. Empat sesi (admin, warehouse, procurement, warehouse@390px)
 × **10 pemuatan rute** — `#/home`, `#/dashboard`, `#/stock` + tab "Perlu dipesan ulang",
 `#/r/inventory/items`, saringan `?barcode_duplicate=1`, `#/d/inventory/items/1`,
-`#/r/inventory/reorder-rules`, `#/usulan-pesan-ulang`, `#/pindai`:
+`#/r/inventory/reorder-rules`, `#/usulan-pesan-ulang`, `#/pindai` = **40 pemuatan**:
 
 ```
 console_errors: 0   pageerrors: 0   failed_requests: 0   responses_4xx_5xx: 0
-saringan "Barcode ganda" menggambar 3 baris pada katalog bertabrakan (keempat sesi)
 ```
 
 ### 10.8 Cacat KETUJUH, yang lahir dari perbaikan ini sendiri

@@ -3654,10 +3654,20 @@ Kolom **Usulan pesan** adalah *Jumlah pesan* aturan bila aturan menyebutnya, dan
 daripada kekurangan adalah pilihan yang boleh dibuat, dan ia harus terlihat sebagai
 pilihan, bukan sebagai salah hitung.
 
+**Di atas tabel ini berdiri tombol `Usulkan PR dari kekurangan ini`** — tetapi hanya bagi
+pemegang izin **`prc.create`**: petugas gudang tanpa izin itu melihat tabel yang sama
+tanpa tombolnya, dan itu bukan kesalahan. Tab ini sendiri **hanya membaca**; tombolnya
+membawa ke `Persediaan › Usulan Pesan Ulang` (§6.3b), tempat permintaan pembelian
+berstatus **Draf** dibuat dan diperiksa orangnya sebelum diajukan.
+
 Dua hal yang membuat tab itu diam padahal tidak seharusnya:
 
-- **Ia hanya memuat item yang sudah punya baris saldo di gudang itu.** Item yang belum
-  pernah masuk ke sebuah gudang tidak akan pernah muncul, setinggi apa pun ambangnya.
+- **Pasangan TANPA aturan reorder hanya muncul bila sudah punya baris saldo di gudang
+  itu.** Item yang belum pernah masuk ke sebuah gudang tidak punya baris untuk
+  dibandingkan, dan Stok minimum item saja tidak menyatakan bahwa gudang itu memang
+  menyimpan barang tersebut. **Aturan reorder yang aktif menyatakannya**: pasangan yang
+  punya aturan hidup muncul walau belum pernah kemasukan barang — stoknya dibaca **0** dan
+  kekurangannya sama dengan titik pesan ulangnya.
 - **Item TANPA aturan reorder memakai Stok minimum dari master item, satu angka yang
   diterapkan ke SETIAP gudang secara terpisah.** Angka 100 berarti "100 di tiap gudang
   yang pernah memegangnya", bukan 100 secara keseluruhan. Untuk membedakannya per gudang,
@@ -3745,8 +3755,10 @@ perusahaan untuk barang itu 100.
   menyebut aturan yang sudah berdiri, karena dua aturan akan menghitung kekurangan yang
   sama dua kali — di layar ini, di dasbor, DAN di ubin Beranda.
 
-**`Persediaan › Usulan Pesan Ulang`.** Membaca kekurangan per gudang × item dan
-menawarkan satu tombol **`Buat PR draf`**. Layar ini **tidak pernah mengajukan dan tidak
+**`Persediaan › Usulan Pesan Ulang`.** Dibuka dari NAV, atau dari tombol
+**`Usulkan PR dari kekurangan ini`** di atas tab *Perlu dipesan ulang* pada Saldo Stok
+(§6.2) — tombol yang hanya dilihat pemegang **`prc.create`**. Layar ini membaca kekurangan
+per gudang × item dan menawarkan satu tombol **`Buat PR draf`**. Layar ini **tidak pernah mengajukan dan tidak
 pernah menyetujui**: PR yang dibuat berstatus **Draf**, dan Andalah yang memeriksanya di
 `Pengadaan › Permintaan Pembelian`. Tombolnya menuntut izin **`prc.create`** — membuat PR
 adalah tindakan pengadaan, dari layar mana pun tombolnya ditekan.

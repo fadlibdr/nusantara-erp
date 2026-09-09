@@ -69,8 +69,11 @@ Sidebar penuh Anda memuat 60 layar lebih; yang di atas cukup untuk minggu pertam
 - Ubin **Proyek berjalan** — menjadi **Proyek saya (berjalan)** bila sakelar
   **`Proyek saya`** dinyalakan; sakelar itu mencocokkan akun Anda dengan kolom manajer
   proyek lewat data karyawan, jadi ia hanya berguna bila akun Anda tertaut karyawan.
-- Kartu **Kalender Acara** (selalu digambar, walau bulan kosong), **Progres proyek** dan
-  **Perlu dipesan ulang** (keduanya digambar hanya bila ada isinya).
+- Kartu **Kalender Acara** (walau bulan kosong), **Progres proyek** dan
+  **Perlu dipesan ulang** — **ketiganya SELALU digambar**. Kartu yang kosong berkata begitu dengan
+  kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah ambangnya."*), dan
+  kakinya tetap ada: kartu yang menghilang saat tidak ada isinya membuat orang mengira
+  layarnya rusak.
 - Kartu **Menunggu persetujuan Anda** — **untuk peran Anda kartu ini selalu kosong, dan
   itu bukan berarti tidak ada yang menunggu.** Kartu itu hanya mencakup 11 jenis
   dokumen, dan tidak satu pun di antaranya Anda setujui: IPP, inspeksi mutu, BAST,

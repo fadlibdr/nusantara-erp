@@ -77,9 +77,10 @@ tidak ada di sidebar Anda. PO Anda baca dari kolom **PO** di daftar GRN dan dari
   lewat **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di
   daftar Opname; GRN dan bon Anda yang sudah diposting orang lain terbaca dari lencana
   **Diposting** di daftarnya.
-- Kartu **Kalender Acara** (selalu digambar), **Progres proyek** (bila ada proyek
-  berjalan), dan **Perlu dipesan ulang** — kartu yang paling berguna bagi Anda: item ·
-  gudang · stok / **ambang**, digambar hanya bila ada isinya. Ambang tiap baris adalah
+- Kartu **Kalender Acara**, **Progres proyek** dan **Perlu dipesan ulang** —
+  **ketiganya SELALU digambar**. Yang terakhir adalah kartu yang paling berguna bagi Anda: item ·
+  gudang · stok / **ambang**; bila tidak ada satu pun yang kurang ia berkata *"Tidak ada
+  pasangan gudang × item di bawah ambangnya."* alih-alih menghilang. Ambang tiap baris adalah
   aturan reorder gudang itu bila ada (`Persediaan › Aturan Reorder`), dan stok minimum
   kartu item bila tidak — kartunya menyebut yang mana.
 
@@ -186,7 +187,9 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    **`Kartu stok (ledger)`** (200 baris pertama, **paling lama di atas**, tanpa saringan
    tanggal — persempit dengan dropdown gudang; kolom Referensi menyebut nama teknis
    `GoodsReceipt`/`Issue`/`Transfer`, bukan nomor dokumen), tab **`Perlu dipesan ulang`**
-   (hanya item yang sudah punya baris saldo di gudang itu). **Ambangnya**: aturan reorder
+   (pasangan TANPA aturan reorder hanya muncul bila sudah punya baris saldo di gudang itu;
+   pasangan yang punya aturan AKTIF muncul walau belum pernah kemasukan barang, dengan stok
+   dibaca 0). **Ambangnya**: aturan reorder
    gudang itu bila ada yang AKTIF untuk pasangan gudang × item, selain itu stok minimum
    item — aturan gudang **MENGGANTIKAN** angka item, termasuk bila lebih rendah, dan
    barisnya mencetak keduanya berdampingan. HPP rata-rata **per gudang**; item yang sama
