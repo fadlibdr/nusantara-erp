@@ -35,8 +35,16 @@ class MaintenanceStoreRequest extends FormRequest
              * keadaan TANPA_ANGGARAN ("Tidak dianggarkan") di sisi jam,
              * tempat kalimat itu tidak punya arti. Yang berarti "belum
              * disetel" adalah NULL.
+             *
+             * DAN decimal:0,3 KARENA gt:0 SENDIRIAN TIDAK CUKUP (verifikasi
+             * F-7). Kolomnya decimal(15,3) dan model mengecast 'decimal:3',
+             * jadi 0,0004 lulus gt:0 pada angka yang DIKIRIM lalu tersimpan
+             * '0.000' dan dibaca kembali 0,0 — keadaan "Tidak dianggarkan"
+             * yang paragraf di atas bilang tidak boleh lahir, lahir lewat
+             * pintu ini (terukur: POST 0.0004 -> 201). Yang divalidasi
+             * sekarang adalah presisi yang BENAR-BENAR disimpan.
              */
-            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0'],
+            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0', 'decimal:0,3'],
         ];
     }
 }

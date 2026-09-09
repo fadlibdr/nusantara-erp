@@ -5436,7 +5436,13 @@ export const RESOURCES = {
           { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors' },
           { key: 'cost', label: 'Biaya', type: 'currency', required: true, default: 0 },
           { key: 'next_due_date', label: 'Jadwal berikutnya (tanggal)', type: 'date' },
-          { key: 'next_due_hour_meter', label: 'Jadwal berikutnya (hour meter)', type: 'number', step: '0.1', min: 0, help: 'Angka yang HARUS TERBACA di meter saat servis berikutnya jatuh tempo — bukan selisih jam. Boleh diisi tanpa tanggal: alat berat dirawat menurut jam. KOSONGKAN bila belum dijadwalkan menurut jam; 0 ditolak server, karena servis "pada jam ke-0" tidak berarti apa pun.' },
+          /* min 0,001 — bukan 0: server menolak 0 (gt:0) dan menolak angka
+             yang dibulatkan kolom decimal(15,3) menjadi nol, jadi lantai
+             kotak ini adalah angka terkecil yang benar-benar bisa disimpan
+             di atas nol. Langkahnya tetap 0,1 karena begitulah meter dibaca.
+             Kotak yang membolehkan 0 sementara server menolaknya adalah dua
+             gerbang yang berselisih di satu formulir. */
+          { key: 'next_due_hour_meter', label: 'Jadwal berikutnya (hour meter)', type: 'number', step: '0.1', min: 0.001, help: 'Angka yang HARUS TERBACA di meter saat servis berikutnya jatuh tempo — bukan selisih jam. Boleh diisi tanpa tanggal: alat berat dirawat menurut jam. KOSONGKAN bila belum dijadwalkan menurut jam; 0 ditolak server, karena servis "pada jam ke-0" tidak berarti apa pun.' },
           { key: 'description', label: 'Uraian pekerjaan', type: 'textarea', span: 2 },
         ],
       }],

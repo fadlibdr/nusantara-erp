@@ -582,6 +582,34 @@ class MaintenanceHourMeterDueTest extends ErpTestCase
             'cost' => 0,
             'next_due_hour_meter' => null,
         ])->assertStatus(201)->assertJsonPath('data.next_due_hour_meter', null);
+
+        /*
+         * DAN ANGKA YANG DIBULATKAN KOLOMNYA MENJADI NOL DITOLAK JUGA.
+         *
+         * gt:0 dijalankan pada angka yang DIKIRIM, sementara kolomnya
+         * decimal(15,3): 0,0004 lulus gt:0, tersimpan '0.000', dan dibaca
+         * kembali sebagai 0,0 — persis keadaan TANPA_ANGGARAN yang paragraf
+         * di atas bilang tidak boleh lahir di sisi jam. Yang divalidasi harus
+         * presisi yang BENAR-BENAR disimpan.
+         */
+        $this->postJson('/api/assets/maintenances', [
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-06-14',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 0,
+            'next_due_hour_meter' => 0.0004,
+        ])->assertStatus(422)->assertJsonValidationErrors('next_due_hour_meter');
+
+        // …dan tiga desimal — presisi kolomnya sendiri — tetap diterima.
+        $diterima = $this->postJson('/api/assets/maintenances', [
+            'asset_id' => $asset->id,
+            'maintenance_date' => '2026-06-14',
+            'maintenance_type' => 'service_rutin',
+            'cost' => 0,
+            'next_due_hour_meter' => 512.125,
+        ])->assertStatus(201)->json('data.next_due_hour_meter');
+
+        $this->assertSame(512.125, (float) $diterima);
     }
 
     /**

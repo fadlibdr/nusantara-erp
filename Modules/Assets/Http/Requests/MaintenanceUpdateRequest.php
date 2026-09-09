@@ -23,9 +23,11 @@ class MaintenanceUpdateRequest extends FormRequest
             'cost' => ['sometimes', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
             'next_due_date' => ['nullable', 'date'],
-            // F-7 — alasan gt:0 ada di MaintenanceStoreRequest: nol adalah
-            // angka, dan "belum disetel" dikatakan dengan NULL.
-            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0'],
+            // F-7 — alasan gt:0 dan decimal:0,3 ada di MaintenanceStoreRequest:
+            // nol adalah angka, "belum disetel" dikatakan dengan NULL, dan
+            // 0,0004 yang dibulatkan kolomnya menjadi nol harus ditolak di
+            // KEDUA pintu tulis, bukan hanya di pintu buat.
+            'next_due_hour_meter' => ['nullable', 'numeric', 'gt:0', 'decimal:0,3'],
         ];
     }
 }
