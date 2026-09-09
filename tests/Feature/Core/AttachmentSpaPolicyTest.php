@@ -170,6 +170,42 @@ class AttachmentSpaPolicyTest extends ErpTestCase
     }
 
     /**
+     * DUA PINTU TULIS, dan keduanya bisa dicabut tanpa satu pun uji memerah.
+     *
+     * Seluruh isi F-8 di sisi klien adalah dua benda: tombol "Masa berlaku"
+     * per baris (di dalam cabang canEdit, izin yang sama dengan servernya) dan
+     * kotak tanggal di kotak unggah yang nilainya benar-benar ikut naik.
+     * Menghapus tombolnya, atau mengganti `validUntil.value` menjadi literal
+     * `null` sehingga kotaknya menjadi hiasan, LOLOS HIJAU di seluruh gerbang
+     * phpunit sebelum uji ini — pemakai mengetik tanggal, menekan unggah, dan
+     * barisnya berbunyi "Tanpa masa berlaku" tanpa satu pun pesan.
+     */
+    public function test_the_row_offers_the_expiry_door_to_whoever_may_edit(): void
+    {
+        $body = $this->functionBody('views/attachments.js', 'attachmentRow');
+
+        $this->assertMatchesRegularExpression(
+            "/canEdit\s*\?\s*button\('Masa berlaku'/s",
+            $body,
+            'Baris lampiran tidak lagi menawarkan tombol "Masa berlaku" di dalam cabang canEdit.',
+        );
+        $this->assertStringContainsString('expiryModal(attachment', $body,
+            'Tombol "Masa berlaku" tidak lagi membuka dialognya.');
+    }
+
+    public function test_the_uploader_actually_sends_what_the_date_box_holds(): void
+    {
+        $body = $this->functionBody('views/attachments.js', 'uploader');
+
+        $this->assertMatchesRegularExpression(
+            '/valid_until:\s*validUntil\.value\s*\|\|\s*null/',
+            $body,
+            'Kotak "Masa berlaku (opsional)" tidak lagi ikut ke api.uploadFile() — ia menjadi hiasan, '
+            .'dan berkas yang diunggah dengan tanggal tersimpan tanpa tanggal.',
+        );
+    }
+
+    /**
      * "Tanpa masa berlaku" adalah KEADAAN NORMAL sebuah lampiran, bukan
      * peringatan — dan hampir setiap baris core_attachments ada di keadaan itu.
      * Cabangnya harus mengembalikan teks biasa; sebuah badge() di sana menaruh
