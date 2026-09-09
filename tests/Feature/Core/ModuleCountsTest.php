@@ -49,7 +49,7 @@ class ModuleCountsTest extends ErpTestCase
         'prj' => [['prj_projects'], 2],
         'qc' => [['qc_ncr'], 2],
         'prc' => [['prc_purchase_orders'], 2],
-        'inv' => [['inv_items', 'inv_warehouses'], 6],
+        'inv' => [['inv_items', 'inv_warehouses'], 8],
         'scm' => [['scm_progress_claims'], 2],
         'fin' => [['fin_ar_invoices'], 2],
         'hr' => [['hr_leave_requests'], 2],
@@ -168,7 +168,7 @@ class ModuleCountsTest extends ErpTestCase
             'prj' => 2,         // active + finishing; completed & yang dibuang tidak
             'qc' => 2,          // open + under_correction; verified, closed & yang dibuang tidak
             'prc' => 2,         // 2 PO approved = terbuka; draft/submitted/closed & yang dibuang tidak
-            'inv' => 6,         // 6 BARIS gudang×item di bawah AMBANGNYA — dari 5 item; (f) kurang di dua gudang sekaligus
+            'inv' => 8,         // 8 BARIS gudang×item di bawah AMBANGNYA — dari 6 item; (f) kurang di dua gudang sekaligus, (e)+(g) belum punya baris saldo
             'scm' => 2,         // 2 opname subkon submitted; draft & yang dibuang tidak
             'fin' => 2,         // 2 invoice approved bersisa; lunas, draft & yang dibuang tidak
             'hr' => 2,          // 2 cuti submitted; approved & yang dibuang tidak
@@ -351,8 +351,8 @@ class ModuleCountsTest extends ErpTestCase
         $rows = app(StockService::class)->lowStockAlerts();
         $distinctItems = $rows->pluck('item_id')->unique()->count();
 
-        $this->assertSame(6, $rows->count());
-        $this->assertSame(5, $distinctItems,
+        $this->assertSame(8, $rows->count());
+        $this->assertSame(6, $distinctItems,
             'Fixture inv tidak lagi memisahkan BARIS dari ITEM: tanpa satu item yang kurang di dua gudang, '
             .'label yang menghitung yang satu sambil menyebut yang lain tidak bisa dibedakan uji ini.');
 
@@ -778,7 +778,11 @@ class ModuleCountsTest extends ErpTestCase
          *      min_stock.
          *  (e) min 100, qty 50, aturan aktif titik 20 di GUDANG LAIN → MASUK:
          *      aturan milik pasangan, bukan milik item. Sebuah join yang lupa
-         *      warehouse_id menjatuhkan baris ini.
+         *      warehouse_id menjatuhkan baris ini. Sejak putaran ketiga F-6 ia
+         *      menyumbang DUA baris: pasangan bersaldo di gudang pertama lewat
+         *      min_stock-nya, dan pasangan di GUDANG LAIN — yang aturannya
+         *      menyatakan gudang itu menyimpan barang ini dan yang belum punya
+         *      satu baris saldo pun — lewat lengan kedua.
          */
         $otherWarehouse = $this->insert('inv_warehouses', ['code' => $this->code('WH'), 'name' => 'Gudang lain']);
         foreach ([
@@ -817,6 +821,37 @@ class ModuleCountsTest extends ErpTestCase
         ]);
         $this->insert('inv_stock_balances', ['warehouse_id' => $warehouse, 'item_id' => $twoWarehouseItem, 'qty' => 10]);
         $this->insert('inv_stock_balances', ['warehouse_id' => $otherWarehouse, 'item_id' => $twoWarehouseItem, 'qty' => 20]);
+
+        /*
+         * (g) SATU PASANGAN YANG BELUM PUNYA BARIS SALDO SAMA SEKALI.
+         *
+         * Kueri kekurangan punya lengan KEDUA sejak putaran ketiga F-6: sebuah
+         * aturan hidup ADALAH pernyataan "gudang ini menyimpan barang ini",
+         * dan pasangan yang belum pernah kemasukan barang punya stok nol —
+         * yaitu keadaan yang paling membutuhkan pesan ulang. Tanpa baris
+         * fixture ini, salinan registri boleh melupakan lengan kedua itu dan
+         * tetap hijau, yang adalah persis kegagalan yang uji kesetaraan di
+         * berkas ini dibuat untuk menangkap.
+         *
+         * Baris kedua di bawah (aturan titik 0) adalah pasangannya yang tetap
+         * DIAM: syarat "> 0" berlaku di lengan kedua juga.
+         */
+        $neverStocked = $this->insert('inv_items', [
+            'code' => $this->code('ITM'), 'name' => 'Item belum pernah masuk', 'category_id' => $category,
+            'unit' => 'sak', 'min_stock' => 0, 'is_active' => true,
+        ]);
+        $this->insert('inv_reorder_rules', [
+            'warehouse_id' => $warehouse, 'item_id' => $neverStocked,
+            'reorder_point' => 100, 'reorder_qty' => 0, 'is_active' => true,
+        ]);
+        $neverStockedZero = $this->insert('inv_items', [
+            'code' => $this->code('ITM'), 'name' => 'Item belum pernah masuk, titik 0', 'category_id' => $category,
+            'unit' => 'sak', 'min_stock' => 0, 'is_active' => true,
+        ]);
+        $this->insert('inv_reorder_rules', [
+            'warehouse_id' => $warehouse, 'item_id' => $neverStockedZero,
+            'reorder_point' => 0, 'reorder_qty' => 0, 'is_active' => true,
+        ]);
 
         // scm — 2 opname submitted, 1 draft, 1 submitted yang dibuang.
         $subcontract = $this->insert('scm_subcontracts', ['code' => $this->code('SPK'), 'vendor_id' => $vendor, 'title' => 'Pekerjaan', 'pph_scheme' => 'final_2_65']);

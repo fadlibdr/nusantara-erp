@@ -1616,6 +1616,24 @@ sekaligus. `ModuleCountsTest` memaku kesetaraan keduanya **dan** memaku bahwa fi
 benar-benar memisahkan "dengan aturan" dari "hanya min_stock" — tanpa lengan kedua itu, sepasang
 salinan yang sama-sama melupakan tabel aturan lolos hijau.
 
+**DAN KUERINYA PUNYA DUA BAGIAN, karena satu pasangan bisa BELUM PUNYA BARIS SALDO.** Kueri di atas
+berangkat `FROM inv_stock_balances`, jadi pasangan gudang × item yang belum pernah kemasukan barang
+tidak punya baris untuk berangkat — dan itu justru keadaan yang paling membutuhkan pesan ulang:
+seseorang menyatakan "gudang ini menyimpan barang ini, titik pesan ulang 100" untuk barang yang
+stoknya nol karena belum pernah masuk. Sampai putaran ketiga F-6, `governs()` berkata `true`, daftar
+aturan menggambarnya berlaku, kartu itemnya berkata "1 gudang memakai titik pesan ulang sendiri" —
+sementara daftar kekurangan, usulan PR dan tab "Perlu dipesan ulang" semuanya kosong. Bagian kedua
+karena itu berangkat dari `inv_reorder_rules`, membuang pasangan yang PUNYA baris saldo
+(`whereNull('b.id')` atas LEFT JOIN ke saldo), dan memperlakukan sisanya sebagai qty 0. Syaratnya
+sama semuanya — aturan aktif, item hidup, gudang hidup, item aktif, titik > 0 — kalau tidak ia
+menjadi pintu belakang yang melewati `governing()`. **Sebuah baris aturan ADALAH pernyataan "gudang
+ini menyimpan barang ini"**; tanpa pernyataan itu, "setiap item × setiap gudang" adalah perkalian
+yang akan menerbitkan ribuan baris pada `min_stock` perusahaan, dan itulah kenapa bagian kedua
+hanya berangkat dari tabel aturan. **Kedua salinan wajib membawa keduanya**, ditambahkan dan bukan
+di-UNION (satu pasangan punya baris saldo atau tidak punya, jadi keduanya tidak bisa beririsan);
+fixture `ModuleCountsTest` membawa satu pasangan tanpa saldo, jadi salinan yang melupakan bagian
+kedua jatuh.
+
 **UNIQUE (warehouse_id, item_id), dan karena itu TANPA softDeletes** (pola `ast_depreciation_runs`
 dan `core_saved_reports`). Dua baris hidup untuk satu pasangan menggandakan setiap baris kekurangan
 di keempat permukaannya — layar Saldo Stok, widget dasbor, ubin launcher, usulan PR — tanpa satu

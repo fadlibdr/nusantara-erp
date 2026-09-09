@@ -199,7 +199,10 @@ final class ModuleCounts
                     .'satunya penjaga yang mungkin untuk sebuah salinan. Sejak F-6 ambangnya adalah '
                     .'inv_reorder_rules.reorder_point bila ada aturan AKTIF untuk pasangan gudang × item itu, dan '
                     .'inv_items.min_stock bila tidak — menggantikan, bukan menambah; itulah kenapa dua lengan OR '
-                    .'di bawah saling meniadakan lewat r.id, bukan satu perbandingan dengan angka terbesar.',
+                    .'di bawah saling meniadakan lewat r.id, bukan satu perbandingan dengan angka terbesar. '
+                    .'Kuerinya punya DUA bagian yang dijumlahkan: pasangan yang punya baris saldo, dan pasangan '
+                    .'yang aturannya hidup tetapi belum punya satu baris inv_stock_balances pun (qty 0). '
+                    .'Keduanya tidak bisa beririsan, jadi jumlahnya adalah hitungan barisnya.',
                 // is_active DI ON, bukan di WHERE: di WHERE ia mengubah LEFT
                 // JOIN menjadi INNER JOIN dan setiap pasangan tanpa aturan
                 // menghilang dari hitungan sekaligus.
@@ -227,7 +230,28 @@ final class ModuleCounts
                                     ->whereColumn('b.qty', '<', 'i.min_stock');
                             });
                     })
-                    ->count(),
+                    ->count()
+                    // LENGAN KEDUA — salinan `shortageOfPairsWithoutABalanceRow()`.
+                    // Pasangan yang aturannya HIDUP tetapi belum punya satu
+                    // baris saldo pun tidak pernah muncul di kueri di atas,
+                    // yang berangkat FROM inv_stock_balances; qty-nya nol dan
+                    // titik > 0 membuatnya kurang. Ditambahkan, bukan
+                    // di-UNION: kedua lengan tidak bisa beririsan karena
+                    // sebuah pasangan punya baris saldo atau tidak punya.
+                    + (int) DB::table('inv_reorder_rules as r')
+                        ->join('inv_items as i', 'i.id', '=', 'r.item_id')
+                        ->join('inv_warehouses as w', 'w.id', '=', 'r.warehouse_id')
+                        ->leftJoin('inv_stock_balances as b', function ($join): void {
+                            $join->on('b.warehouse_id', '=', 'r.warehouse_id')
+                                ->on('b.item_id', '=', 'r.item_id');
+                        })
+                        ->whereNull('b.id')
+                        ->where('r.is_active', true)
+                        ->whereNull('i.deleted_at')
+                        ->whereNull('w.deleted_at')
+                        ->where('i.is_active', true)
+                        ->where('r.reorder_point', '>', 0)
+                        ->count(),
             ],
 
             'scm' => [
