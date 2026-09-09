@@ -147,14 +147,20 @@ function expiryModal(attachment, onSaved) {
   const save = button('Simpan', { variant: 'primary' });
   const clearIt = button('Kosongkan');
 
+  /* Jendela peringatannya DIBACA dari barisnya — `validity.lead_days` ikut di
+     setiap lampiran justru untuk ini. Sebuah kalimat yang menyalin angkanya
+     tetap berkata "30 hari" pada hari jendelanya diubah, sementara lencana
+     kuning di kartu yang sama menyala di ambang yang lain. */
+  const lead = attachment.validity ? attachment.validity.lead_days : null;
+
   const dialog = modal({
     title: `Masa berlaku ${attachment.original_name}`,
     width: 'narrow',
     body: el('.form-grid', [
       field('Berlaku sampai dengan', input, {
         help: 'Kosongkan bila berkas ini memang tidak punya masa berlaku — itu keadaan biasa untuk '
-          + 'foto lapangan, nota dan gambar kerja. Hari terakhirnya masih dihitung berlaku, dan '
-          + 'peringatan mulai 30 hari sebelumnya.',
+          + 'foto lapangan, nota dan gambar kerja. Hari terakhirnya masih dihitung berlaku'
+          + (lead === null ? '.' : `, dan peringatan mulai ${lead} hari sebelumnya.`),
       }),
     ]),
     footer: [button('Batal', { onClick: () => dialog.close() }), clearIt, save],

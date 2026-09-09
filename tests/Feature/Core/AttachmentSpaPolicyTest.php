@@ -206,6 +206,27 @@ class AttachmentSpaPolicyTest extends ErpTestCase
     }
 
     /**
+     * Dialog masa berlaku MEMBACA jendela peringatannya, tidak menyalinnya.
+     *
+     * `validity.lead_days` ikut di setiap baris lampiran justru supaya kalimat
+     * bantuan dialognya tidak perlu menyalin angkanya — itu yang dijanjikan
+     * docblock Attachment::getValidityAttribute. Sebelum ini kalimatnya literal
+     * "30 hari sebelumnya" dan payload-nya tidak pernah dibaca: mengubah
+     * jendelanya meninggalkan dialog yang berbohong kepada pemakai sementara
+     * lencana kuning menyala di ambang yang lain.
+     */
+    public function test_the_expiry_dialog_reads_the_warning_window_it_was_sent(): void
+    {
+        $body = $this->functionBody('views/attachments.js', 'expiryModal');
+
+        $this->assertStringContainsString('validity.lead_days', $body,
+            'Dialog masa berlaku tidak membaca jendela peringatan yang dikirim server.');
+        $this->assertDoesNotMatchRegularExpression('/\d+ hari sebelumnya/', $body,
+            'Kalimat bantuan dialog menyalin jendela peringatan sebagai angka — ia akan tetap '
+            .'menyebut angka lama pada hari jendelanya diubah.');
+    }
+
+    /**
      * "Tanpa masa berlaku" adalah KEADAAN NORMAL sebuah lampiran, bukan
      * peringatan — dan hampir setiap baris core_attachments ada di keadaan itu.
      * Cabangnya harus mengembalikan teks biasa; sebuah badge() di sana menaruh
