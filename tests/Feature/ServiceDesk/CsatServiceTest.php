@@ -291,6 +291,21 @@ class CsatServiceTest extends ErpTestCase
         $this->assertStringNotContainsString($komentar, $notification->body);
         $this->assertStringNotContainsString('merokok', $notification->body);
         $this->assertSame("#/d/servicedesk/tickets/{$ticket->id}", $notification->link);
+
+        /*
+         * …DAN BUKAN NAMA KONTAK PELANGGANNYA. Aturan 6 CsatService berbunyi
+         * lonceng ini membawa "SKOR dan kode tiketnya saja", dengan alasan
+         * yang bisa diperiksa: badan notifikasi dibaca pemegang svc.update,
+         * himpunan yang tidak dijamin sama dengan pemegang svc.view. Argumen
+         * itu berlaku persis sama untuk `recipient_name`, yang hidup di baris
+         * svc_csat_ratings yang SELURUHNYA bergerbang svc.view — tetapi sampai
+         * assertion ini ada, hanya `comment` yang dijaga dan namanya lolos
+         * tanpa siapa pun memutuskannya (terukur 10 Sep 2026: "…dari Ibu Sari
+         * (PIC RS Melati)").
+         */
+        $this->assertStringNotContainsString('Ibu Sinta', $notification->body,
+            'badan lonceng membawa nama kontak pelanggan ke gerbang yang lebih longgar');
+        $this->assertStringNotContainsString('Ibu Sinta', (string) $notification->title);
     }
 
     public function test_an_empty_comment_is_stored_as_nothing_and_a_long_one_is_trimmed(): void

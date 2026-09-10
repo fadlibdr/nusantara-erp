@@ -70,10 +70,12 @@ use Modules\ServiceDesk\Models\Ticket;
  *  6. KOMENTAR PELANGGAN ADALAH TEKS BEBAS TENTANG SEORANG TEKNISI YANG
  *     NAMANYA ADA DI TIKET. Ia hidup di gerbang yang sama dengan tiketnya
  *     (svc.view) dan tidak pernah lebih longgar. Karena itu lonceng yang
- *     diterbitkan di bawah membawa SKOR dan kode tiketnya saja: badan
- *     notifikasi dibaca pemegang svc.update — himpunan yang tidak dijamin sama
- *     dengan pemegang svc.view oleh apa pun selain kebetulan seeding peran —
- *     jadi komentarnya tinggal di tiketnya, di mana gerbangnya diperiksa.
+ *     diterbitkan di bawah membawa SKOR dan kode tiketnya saja — bukan
+ *     komentarnya, dan bukan pula nama kontak pelanggannya: badan notifikasi
+ *     dibaca pemegang svc.update, himpunan yang tidak dijamin sama dengan
+ *     pemegang svc.view oleh apa pun selain kebetulan seeding peran. Keduanya
+ *     hidup di baris yang bergerbang svc.view, jadi keduanya tinggal di
+ *     tiketnya, di mana gerbangnya diperiksa.
  */
 class CsatService
 {
@@ -267,13 +269,20 @@ class CsatService
     // ------------------------------------------------------------ side effects
 
     /**
-     * Lonceng untuk pemegang svc.update — dan SENGAJA tanpa komentarnya.
+     * Lonceng untuk pemegang svc.update — SKOR dan kode tiketnya saja.
      *
      * Badan notifikasi adalah permukaan yang gerbangnya svc.update, bukan
      * svc.view; keduanya kebetulan dipegang peran yang sama hari ini, tetapi
      * "kebetulan dipegang peran yang sama" bukan penegakan. Skornya boleh
      * lewat (ia angka tentang layanan), komentarnya tinggal di tiket, di mana
      * gerbangnya diperiksa setiap kali dibaca.
+     *
+     * NAMA KONTAK PELANGGAN juga tidak ikut, dan itu koreksi: argumen di atas
+     * berlaku persis sama untuknya — `recipient_name` hidup di baris
+     * svc_csat_ratings yang SELURUHNYA bergerbang svc.view — tetapi sampai 10
+     * Sep 2026 badan lonceng menulis "…dari Ibu Sari (PIC RS Melati)" di bawah
+     * paragraf yang menjanjikan "skor dan kode tiketnya saja". Kode tiket
+     * sudah cukup untuk menuju tiketnya, dan di sanalah namanya berada.
      */
     private function afterRating(CsatRating $rating, Ticket $ticket): void
     {
@@ -281,10 +290,9 @@ class CsatService
             'svc.update',
             "Penilaian pelanggan masuk: {$ticket->code}",
             sprintf(
-                '%s (%d dari 5) dari %s.%s',
+                '%s (%d dari 5).%s',
                 $rating->score?->label(),
                 $rating->score?->value,
-                $rating->recipient_name,
                 filled($rating->comment) ? ' Komentarnya ada di tiketnya.' : '',
             ),
             "#/d/servicedesk/tickets/{$ticket->getKey()}",

@@ -262,7 +262,7 @@ punya akun".
 | 9 | Cetakan house-form — **kedua lembar modul ini**, `berita-acara-servis` dan `kontrak-layanan` (petanya `Modules/Core/Support/PrintableDocuments`, bukan `ServiceDeskFormService`) | tidak | `the_printed_ticket_form_carries_no_comment` — **dirender**, bukan digeledah dari sumber |
 | 10 | Ekspor XLSX daftar | tidak — ia menulis kolom `schema.js`, dan tidak ada kolom CSAT | konsekuensi #5 |
 | 11 | Registri Laporan Bebas (`ReportableResources`) | tidak | `the_csat_table_is_not_a_free_report_source` |
-| 12 | Lonceng notifikasi (`svc.update`) | **tidak — skor saja** | `the_bell_carries_the_score_but_never_the_comment` |
+| 12 | Lonceng notifikasi (`svc.update`) | **tidak — skor + kode tiket saja, juga tanpa nama kontak pelanggan** | `the_bell_carries_the_score_but_never_the_comment` (memaku ketiadaan komentar DAN ketiadaan nama) |
 | 13 | Halaman publik | hanya komentar **milik pemegang tautan itu sendiri** | `a_second_invitation_never_shows_the_first_persons_score` |
 | 14 | Kartu SPA di detail tiket | ya — dan kartunya `return null` tanpa `svc.view` | `csatCard()` |
 | 15 | Layar `#/csat` | ya — rutenya `accessDenied` tanpa `svc.view` | `app.js` |
@@ -390,7 +390,8 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
    sebaliknya, itu bukan satu `if`: ia menuntut gerbang per-baris pada dua endpoint, kartu
    tiket, layar ringkasan, dan setiap ekspor yang kelak dibuat — dan tetap tidak bisa mencegah
    atasannya menunjukkannya.
-4. **Lonceng penilaian pergi ke pemegang `svc.update`, tanpa komentarnya.** Bila pemilik ingin
+4. **Lonceng penilaian pergi ke pemegang `svc.update`, tanpa komentarnya dan tanpa nama kontak
+   pelanggannya.** Bila pemilik ingin
    skor rendah (1–2) berbunyi ke meja yang lebih tinggi, izin tujuannya berubah — dan
    komentarnya tetap tidak boleh ikut, karena itulah yang membuat gerbangnya berarti.
 5. **Tautan diterbitkan MANUAL, satu per satu.** Tidak ada penerbitan otomatis saat tiket
