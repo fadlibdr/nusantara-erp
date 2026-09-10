@@ -178,6 +178,48 @@ class CsatPublicPageTest extends ErpTestCase
         $this->assertNull($row->fresh()->rated_at);
     }
 
+    /**
+     * KOMENTAR YANG BUKAN TEKS ditolak di pintu yang sama dengan skornya.
+     *
+     * `comment[]=a` — dari pemindai, atau dari klien yang rusak — pernah
+     * menjadi `(string) [...]` "Array to string conversion" dan halaman
+     * "500 Server Error" berbahasa Inggris di satu-satunya layar yang pernah
+     * dilihat pelanggan, dengan penilaiannya TIDAK tercatat. Penjagaan ketat
+     * yang sudah diberikan kepada `score` diberikan juga kepada tetangganya
+     * di baris yang sama.
+     */
+    public function test_a_comment_that_is_not_a_string_is_refused_instead_of_crashing(): void
+    {
+        [$row, $token] = $this->invite();
+
+        $answer = $this->post("/penilaian/{$token}", ['score' => 5, 'comment' => ['a', 'b']]);
+
+        $answer->assertStatus(422);
+        $answer->assertSee('Komentar Anda tidak terbaca');
+        $this->assertSame(5, substr_count($answer->getContent(), 'name="score"'),
+            'formulirnya kembali utuh, bukan halaman galat');
+        $this->assertNull($row->fresh()->rated_at, 'kiriman yang tidak terbaca tidak mencatat apa pun');
+        $this->assertNull($row->fresh()->score);
+    }
+
+    /**
+     * …dan pada tautan yang SUDAH dipakai, kiriman yang tidak terbaca tetap
+     * dijawab struknya — keadaan baris menang atas "isian Anda salah", persis
+     * seperti pada POST tanpa skor.
+     */
+    public function test_an_unreadable_comment_on_a_used_link_is_still_a_receipt(): void
+    {
+        [$row, $token] = $this->invite();
+
+        $this->post("/penilaian/{$token}", ['score' => 5, 'comment' => 'Cepat.'])->assertOk();
+
+        $answer = $this->post("/penilaian/{$token}", ['score' => 1, 'comment' => ['a']])->assertOk();
+
+        $answer->assertDontSee('name="score"', false);
+        $answer->assertSee('5 dari 5');
+        $this->assertSame('Cepat.', $row->fresh()->comment);
+    }
+
     /** Skor di luar 1..5 tidak menjadi penilaian dan tidak menjadi 500. */
     public function test_a_score_outside_the_scale_is_refused(): void
     {

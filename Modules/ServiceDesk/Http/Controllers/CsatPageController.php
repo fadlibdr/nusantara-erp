@@ -73,8 +73,9 @@ class CsatPageController extends Controller
         }
 
         $score = $this->scoreFrom($request->input('score'));
+        $comment = $this->commentFrom($request->input('comment'));
 
-        if ($score === null) {
+        if ($score === null || $comment === null) {
             /*
              * KEADAAN BARIS MENANG ATAS "PILIH DULU", dan urutannya harus
              * sama persis dengan show() — termasuk cabang isRated() yang dulu
@@ -92,11 +93,11 @@ class CsatPageController extends Controller
                 return $this->stateFor($row, $token);
             }
 
-            return $this->form($row, $token,
-                error: 'Pilih dulu salah satu bintang penilaian Anda.', status: 422);
+            return $this->form($row, $token, error: $score === null
+                ? 'Pilih dulu salah satu bintang penilaian Anda.'
+                : 'Komentar Anda tidak terbaca — tulis ulang komentarnya, lalu pilih penilaian Anda.',
+                status: 422);
         }
-
-        $comment = (string) $request->input('comment', '');
 
         try {
             $rated = $this->service->rate($token, $score->value, $comment);
@@ -148,6 +149,28 @@ class CsatPageController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Komentar yang dikirim formulir ('' bila tidak diisi), atau NULL bila
+     * yang datang bukan teks sama sekali.
+     *
+     * Penjagaan yang sama dengan scoreFrom(), dan di pintu yang sama — sampai
+     * baris ini ada, tetangganya `(string) $request->input('comment', '')`
+     * menjawab `comment[]=a` dengan "Array to string conversion": halaman
+     * "500 Server Error" berbahasa Inggris di satu-satunya layar yang pernah
+     * dilihat pelanggan, dan penilaiannya tidak tercatat sama sekali (terukur
+     * 10 Sep 2026, SQLite dan MySQL 8). Kiriman yang tidak terbaca DITOLAK,
+     * bukan dicatat separuh: sebuah struk "penilaian Anda tercatat" yang
+     * membuang komentar yang menyertainya adalah struk yang berbohong.
+     */
+    private function commentFrom(mixed $input): ?string
+    {
+        if ($input === null) {
+            return '';
+        }
+
+        return is_string($input) ? $input : null;
     }
 
     // ----------------------------------------------------------------- state
