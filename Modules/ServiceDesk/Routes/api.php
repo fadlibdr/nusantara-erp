@@ -48,7 +48,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
      * juga pemilih (lookup.js memaginasi endpoint yang sama sampai 10.000
      * baris) dan ekspor XLSX-nya, dan satu kunci di sana akan menaruh komentar
      * pelanggan di tiga permukaan sekaligus. Sensus permukaannya dipaku
-     * CsatSurfaceTest.
+     * CsatApiTest::no_other_ticket_surface_carries_the_comment dan
+     * ::the_ticket_resource_carries_no_csat_key_at_all — dan, untuk cetakan
+     * serta registri Laporan Bebas, ::the_printed_ticket_form_carries_no_comment
+     * dan ::the_csat_table_is_not_a_free_report_source.
      *
      * Halaman yang dibuka PELANGGAN bukan di sini melainkan di Routes/web.php:
      * tanpa sesi, tanpa izin, tokennya-lah kapabilitasnya.
