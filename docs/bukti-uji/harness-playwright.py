@@ -9502,6 +9502,404 @@ def s35m(browser):
             api(f"core/attachments/{aid}", tok, "DELETE")
 
 
+# ------------------------------------------------------------- S36 (F-9)
+#
+# CSAT tiket lewat tautan sekali pakai. Yang diukur di sini adalah tiga hal
+# yang TIDAK bisa dibuktikan uji PHP:
+#
+#   1. URL polosnya benar-benar SAMPAI ke tangan manusia — ia hanya ada di
+#      dalam satu dialog, sekali, dan skenario ini menyalinnya dari dialog itu
+#      lalu benar-benar membukanya. Sebuah tombol yang menerbitkan tautan yang
+#      tidak bisa dibaca siapa pun adalah tombol yang tidak berguna, dan suite
+#      hijau tidak akan mengatakannya (pelajaran F-4).
+#   2. Halaman publiknya dibuka PERAMBAN TANPA SESI — konteks Playwright
+#      sendiri, tanpa satu cookie pun. Itulah keadaan pelanggan sungguhan, dan
+#      itu tidak bisa dipalsukan dari dalam sesi yang sudah masuk.
+#   3. Rata-ratanya tampil BERSAMA jumlah yang menopangnya, dengan SATU
+#      desimal. Keduanya cacat yang benar-benar terjadi: fmt.num(4.6, 1)
+#      mencetak "5" (fmt.num hanya mengenal 0 dan 2 desimal), dan sebuah "4,6"
+#      telanjang dari dua jawaban terbaca sama dengan 4,6 dari dua ratus.
+
+S36_CARD = """() => {
+  const card = [...document.querySelectorAll('.card')].find(c => {
+    const h = c.querySelector('.card-head h2');
+    return h && /Kepuasan Pelanggan/.test(h.innerText);
+  });
+  if (!card) return null;
+  return {
+    text: card.innerText,
+    chips: [...card.querySelectorAll('.badge')].map(b => b.innerText.trim()),
+    buttons: [...card.querySelectorAll('.btn')].map(b => b.innerText.trim()),
+    help: [...card.querySelectorAll('.help')].map(h => h.innerText.trim()),
+  };
+}"""
+
+S36_STATS = """() => [...document.querySelectorAll('.stat')].map(s => ({
+  label: (s.querySelector('.label') || {}).innerText || null,
+  value: (s.querySelector('.value') || {}).innerText || null,
+  delta: (s.querySelector('.delta') || {}).innerText || null,
+}))"""
+
+S36_PUBLIC = """() => ({
+  title: document.title,
+  h1: (document.querySelector('h1') || {}).innerText || null,
+  buttons: [...document.querySelectorAll('button[name=score]')].map(b => ({
+    text: b.innerText.trim(),
+    value: b.value,
+    height: Math.round(b.getBoundingClientRect().height),
+    inside: b.getBoundingClientRect().right <= window.innerWidth + 1,
+  })),
+  has_form: !!document.querySelector('form'),
+  has_script: !!document.querySelector('script'),
+  cookies: document.cookie,
+  text: document.body.innerText,
+  scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+})"""
+
+
+def _f9_ticket(tok):
+    """Tiket SELESAI yang belum dinilai, milik skenario ini sendiri.
+
+    Dibuat baru setiap kali dijalankan (pola fixture S30) dan TIDAK dihapus:
+    TicketService::delete hanya menerima tiket open/cancelled, dan sebuah tiket
+    resolved yang sudah dinilai memang tidak boleh bisa dihapus — penilaian
+    pelanggan adalah bukti. Satu baris per jalannya, bernama jelas.
+    """
+    status, contracts = api("servicedesk/contracts?per_page=1", tok)
+    rows = (contracts or {}).get("data") or []
+    if status != 200 or not rows:
+        return None
+
+    status, made = api("servicedesk/tickets", tok, "POST", {
+        "service_contract_id": rows[0]["id"],
+        "title": "Kamera parkir basement mati (fixture S36)",
+        "category": "incident",
+        "priority": "medium",
+        "channel": "phone",
+        "reported_by_name": "Fixture S36",
+        "description": "Ditanam harness S36 (F-9).",
+    })
+    if status not in (200, 201):
+        return None
+
+    ticket = made["data"]
+    api(f"servicedesk/tickets/{ticket['id']}/resolve", tok, "POST",
+        {"resolution_notes": "Ganti adaptor kamera (fixture S36)."})
+
+    return ticket
+
+
+def _f9_open_public(pg, url):
+    """Buka halaman publik, dan JATUHKAN dengan sebab yang benar bila 429.
+
+    /penilaian/{token} berpagar throttle:10,1 — sengaja, itulah yang menahan
+    penebakan token. Konsekuensinya: dijalankan berdekatan (dua skenario S36
+    beruntun, plus percobaan tangan), halaman yang kembali adalah "Too Many
+    Requests" yang TIDAK punya satu tombol skor pun, dan skenarionya mati di
+    wait_for_selector dengan pesan yang menuduh halamannya rusak. Terukur
+    10 Sep 2026. Sebabnya disebut di sini supaya yang membaca kegagalannya
+    tahu harus menunggu semenit, bukan mencari bug yang tidak ada.
+    """
+    resp = pg.goto(url)
+    if resp is not None and resp.status == 429:
+        raise AssertionError(
+            "halaman publik menjawab 429 (throttle:10,1 per IP): jalankan ulang setelah satu menit — "
+            "ini pagar yang memang dipasang paket ini, bukan halaman yang rusak")
+    pg.wait_for_selector("button[name=score]", timeout=20000)
+    return resp
+
+
+def _f9_issue_from_dialog(pg, name="Ibu Sinta Dewi (S36)"):
+    """Terbitkan tautan lewat DIALOGNYA dan salin URL dari layar.
+
+    Bukan lewat API: yang diuji justru bahwa satu-satunya tempat URL itu hidup
+    benar-benar bisa dibaca dan disalin orang.
+    """
+    click(pg, ".card:has(.card-head h2:text-is('Kepuasan Pelanggan (CSAT)')) .btn:has-text('Terbitkan Tautan Penilaian')")
+    pg.wait_for_selector("#overlay .modal", timeout=10000)
+    pg.wait_for_timeout(400)
+    pg.fill("#overlay .modal .field:has-text('Nama penilai') input", name)
+    click(pg, "#overlay .modal .btn:has-text('Terbitkan')")
+    pg.wait_for_selector("#overlay .modal:has-text('Tautan penilaian diterbitkan')", timeout=10000)
+    pg.wait_for_timeout(500)
+    return pg.evaluate("""() => {
+      const m = document.querySelector('#overlay .modal');
+      const input = m ? m.querySelector('input[type=text]') : null;
+      return {
+        url: input ? input.value : null,
+        readonly: input ? input.readOnly : null,
+        text: m ? m.innerText : null,
+        copy_button: !!(m && [...m.querySelectorAll('.btn')].some(b => b.innerText.trim() === 'Salin')),
+      };
+    }""")
+
+
+@scenario("S36_csat_tautan_penilaian")
+def s36(browser):
+    """Terbitkan tautan dari layar tiket, buka sebagai pelanggan tanpa sesi,
+    nilai, lalu baca angkanya kembali di dua layar."""
+    tok = token_for("admin@nusantara.test")
+    ticket = _f9_ticket(tok)
+    if ticket is None:
+        return {"SKIPPED": "Tidak ada kontrak layanan di salinan DB ini — tiket fixture tidak bisa dibuat."}
+
+    errors = []
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"app console {m.type}: {m.text}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"app pageerror: {e}"))
+
+        out = {"ticket": ticket["code"]}
+
+        pg.goto(BASE + f"#/d/servicedesk/tickets/{ticket['id']}")
+        pg.wait_for_selector(".page-head h1", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out["card_before"] = pg.evaluate(S36_CARD)
+
+        out["dialog"] = _f9_issue_from_dialog(pg)
+        pg.screenshot(path=f"{OUT}/s36-dialog-tautan.png", full_page=False)
+        click(pg, "#overlay .modal .btn:has-text('Tutup')")
+        pg.wait_for_timeout(600)
+        out["card_issued"] = pg.evaluate(S36_CARD)
+        pg.screenshot(path=f"{OUT}/s36-kartu-csat-terbit.png", full_page=False)
+
+        url = (out["dialog"] or {}).get("url")
+        if not url:
+            out["ok"] = False
+            out["failed_checks"] = ["dialog tidak memberi URL"]
+            out["console_errors"] = errors
+            return out
+
+        # ---- PERAMBAN TANPA SESI. Konteks sendiri: tidak satu cookie pun ikut.
+        pelanggan = browser.new_context(viewport={"width": 1440, "height": 900})
+        pgp = pelanggan.new_page()
+        pgp.on("console", lambda m: errors.append(f"public console {m.type}: {m.text}") if m.type == "error" else None)
+        pgp.on("pageerror", lambda e: errors.append(f"public pageerror: {e}"))
+        try:
+            _f9_open_public(pgp, url)
+            out["public_form"] = pgp.evaluate(S36_PUBLIC)
+            out["public_storage"] = pgp.evaluate(
+                "() => ({ cookies: document.cookie, local: Object.keys(localStorage).length })")
+            pgp.screenshot(path=f"{OUT}/s36-halaman-publik.png", full_page=True)
+
+            pgp.fill("#comment", "Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).")
+            pgp.click("button[name=score][value='4']")
+            pgp.wait_for_timeout(1200)
+            out["public_receipt"] = pgp.evaluate(S36_PUBLIC)
+            pgp.screenshot(path=f"{OUT}/s36-struk-publik.png", full_page=True)
+
+            # Buka lagi: struk yang sama, bukan formulir lagi.
+            pgp.goto(url)
+            pgp.wait_for_timeout(900)
+            out["public_second_open"] = pgp.evaluate(S36_PUBLIC)
+        finally:
+            pelanggan.close()
+
+        # ---- kembali ke aplikasi: penilaian terlihat PADA tiketnya
+        pg.goto(BASE + "#/dashboard")
+        pg.wait_for_timeout(800)
+        pg.goto(BASE + f"#/d/servicedesk/tickets/{ticket['id']}")
+        pg.wait_for_selector(".page-head h1", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out["card_rated"] = pg.evaluate(S36_CARD)
+        pg.screenshot(path=f"{OUT}/s36-kartu-csat-dinilai.png", full_page=False)
+
+        # ---- dan di layar ringkasan
+        nav_click(pg, "#/csat")
+        pg.wait_for_selector(".page-head h1", timeout=20000)
+        pg.wait_for_timeout(1800)
+        assert_screen(pg, "#/csat", "Kepuasan Pelanggan")
+        out["summary_stats"] = pg.evaluate(S36_STATS)
+        out["summary_cards"] = pg.evaluate(
+            "() => [...document.querySelectorAll('.card .card-head h2')].map(h => h.innerText.trim())")
+        out["summary_text"] = pg.evaluate("() => document.querySelector('#view').innerText")
+        # Ke atas dulu: bukti utama paket ini adalah BARIS ANGKA, dan tangkapan
+        # layar yang tergulir melewatinya membuktikan komentar, bukan rata-rata.
+        pg.evaluate("() => window.scrollTo(0, 0)")
+        pg.wait_for_timeout(300)
+        pg.screenshot(path=f"{OUT}/s36-ringkasan-csat.png", full_page=False)
+        out["console_errors"] = errors
+
+        rata = next((s for s in out["summary_stats"] if s["label"] and "RATA-RATA" in s["label"].upper()), None)
+        form = out["public_form"] or {}
+        receipt = out["public_receipt"] or {}
+        second = out["public_second_open"] or {}
+        issued = out["card_issued"] or {}
+        rated = out["card_rated"] or {}
+
+        out["checks"] = {
+            # 1. URL polosnya benar-benar bisa dibaca dan disalin orang.
+            "the_dialog_hands_over_a_readable_url":
+                (out["dialog"] or {}).get("url", "").startswith("http")
+                and "/penilaian/" in (out["dialog"] or {}).get("url", "")
+                and (out["dialog"] or {}).get("copy_button") is True,
+            # 2. …dan ia mengatakan APA ADANYA tentang surel.
+            "the_dialog_says_the_system_sends_no_email":
+                "tidak mengirim" in ((out["dialog"] or {}).get("text") or "").lower()
+                and "sudah dikirim" not in ((out["dialog"] or {}).get("text") or "").lower(),
+            "the_card_shows_the_link_as_issued": "Terbit" in (issued.get("chips") or []),
+            # 3. Pelanggan tanpa sesi: lima tombol, tanpa cookie, tanpa skrip.
+            "the_customer_needs_no_session":
+                out["public_storage"]["cookies"] == "" and out["public_storage"]["local"] == 0,
+            "the_public_page_offers_five_scores":
+                [b["value"] for b in form.get("buttons", [])] == ["1", "2", "3", "4", "5"],
+            "the_public_page_runs_no_script": form.get("has_script") is False,
+            "the_public_page_names_the_ticket": ticket["code"] in (form.get("text") or ""),
+            "the_public_page_never_promises_an_email":
+                not any(w in (form.get("text") or "").lower() for w in ("e-mail", "email", "surel")),
+            # 4. Penilaiannya tercatat dan strukna miliknya.
+            "the_receipt_shows_the_score_that_was_clicked": "4 dari 5" in (receipt.get("text") or ""),
+            "the_receipt_repeats_the_customers_own_comment": "sparepart-nya harus dipesan" in (receipt.get("text") or ""),
+            "the_receipt_is_not_a_form_again": receipt.get("buttons") == [],
+            "reopening_the_link_shows_the_receipt_not_the_form":
+                second.get("buttons") == [] and "4 dari 5" in (second.get("text") or ""),
+            # 5. Terlihat pada TIKETNYA, komentar dan semuanya.
+            "the_rating_is_visible_on_its_own_ticket":
+                "4 dari 5" in (rated.get("text") or "") and "sparepart-nya harus dipesan" in (rated.get("text") or ""),
+            "the_ticket_says_why_no_new_link_can_be_issued":
+                any("sudah dinilai" in h for h in (rated.get("help") or [])),
+            # 6. PERANGKAP A — rata-rata tidak pernah sendirian, dan berdesimal.
+            "the_average_is_written_with_one_decimal":
+                bool(rata) and bool(re.match(r"^\d+,\d dari 5$", (rata.get("value") or "").strip())),
+            "the_average_never_stands_without_its_basis":
+                bool(rata) and "dinilai" in (rata.get("delta") or ""),
+            "the_summary_shows_the_customers_comment":
+                "sparepart-nya harus dipesan" in (out["summary_text"] or ""),
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
+@scenario("S36_csat_tautan_penilaian_ponsel")
+def s36m(browser):
+    """390 px. Halaman publik CSAT adalah SATU-SATUNYA layar sistem ini yang
+    hampir selalu dibuka di ponsel — pelanggan menerimanya lewat WhatsApp —
+    jadi ia diukur di ponsel, bukan di desktop yang dikecilkan. Lima tombol
+    yang tidak muat, atau satu yang tingginya 22 px, adalah penilaian yang
+    tidak pernah masuk."""
+    tok = token_for("admin@nusantara.test")
+    ticket = _f9_ticket(tok)
+    if ticket is None:
+        return {"SKIPPED": "Tidak ada kontrak layanan di salinan DB ini — tiket fixture tidak bisa dibuat."}
+
+    status, issued = api(f"servicedesk/tickets/{ticket['id']}/csat", tok, "POST",
+                         {"recipient_name": "Bapak Rudi (S36m)"})
+    if status not in (200, 201):
+        return {"SKIPPED": f"Penerbitan tautan menjawab HTTP {status}."}
+
+    url = issued["data"]["url"]
+    errors = []
+
+    pelanggan = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pgp = pelanggan.new_page()
+    pgp.on("console", lambda m: errors.append(f"public console {m.type}: {m.text}") if m.type == "error" else None)
+    pgp.on("pageerror", lambda e: errors.append(f"public pageerror: {e}"))
+    out = {"ticket": ticket["code"]}
+    try:
+        _f9_open_public(pgp, url)
+        pgp.wait_for_timeout(600)
+        out["public_form"] = pgp.evaluate(S36_PUBLIC)
+        pgp.screenshot(path=f"{OUT}/s36-halaman-publik-ponsel.png", full_page=True)
+
+        pgp.fill("#comment", "Sudah beres, terima kasih (S36m).")
+        pgp.click("button[name=score][value='5']")
+        pgp.wait_for_timeout(1200)
+        out["public_receipt"] = pgp.evaluate(S36_PUBLIC)
+        pgp.screenshot(path=f"{OUT}/s36-struk-publik-ponsel.png", full_page=True)
+    finally:
+        pelanggan.close()
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"app console {m.type}: {m.text}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"app pageerror: {e}"))
+
+        pg.goto(BASE + "#/csat")
+        pg.wait_for_selector(".page-head h1", timeout=20000)
+        pg.wait_for_timeout(1800)
+        out["summary_stats"] = pg.evaluate(S36_STATS)
+        out["summary_page"] = pg.evaluate("""() => {
+          const wrap = document.querySelector('#view .table-wrap');
+          return {
+            scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+            /* Berapa BARIS yang ditempati keempat ubin. Bukan "harus empat":
+               .stat-row seluruh aplikasi ini adalah
+               repeat(auto-fit, minmax(158px, 1fr)), yang pada 390 px memang
+               memberi DUA kolom — memaku empat baris di sini akan memerahkan
+               layar CSAT karena aturan yang bukan miliknya (pelajaran F-4/F-6:
+               paku yang menyapu seluruh aplikasi). Yang dijaga: mereka
+               MEMBUNGKUS (tidak berdesakan di satu baris). */
+            stats_rows: (() => {
+              const tops = [...document.querySelectorAll('.stat')].map(s => Math.round(s.getBoundingClientRect().top));
+              return new Set(tops).size;
+            })(),
+            /* Yang benar-benar bisa berbohong di ponsel: angka yang TERPOTONG.
+               "4,5 dari 5" yang terpangkas menjadi "4,5 dari" masih terbaca
+               seperti angka, dan baris penopangnya yang terpotong menghapus
+               justru bagian yang membuat rata-ratanya jujur. */
+            clipped: [...document.querySelectorAll('.stat')].flatMap(s =>
+              [...s.querySelectorAll('.label, .value, .delta')]
+                .filter(n => n.scrollWidth > n.clientWidth + 1)
+                .map(n => n.innerText)),
+            table_scrolls_inside: wrap ? wrap.scrollWidth <= wrap.clientWidth + 1 : null,
+          };
+        }""")
+        pg.evaluate("() => window.scrollTo(0, 0)")
+        pg.wait_for_timeout(300)
+        pg.screenshot(path=f"{OUT}/s36-ringkasan-csat-ponsel.png", full_page=False)
+
+        pg.goto(BASE + f"#/d/servicedesk/tickets/{ticket['id']}")
+        pg.wait_for_selector(".page-head h1", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out["card"] = pg.evaluate(S36_CARD)
+        out["card_page"] = pg.evaluate(
+            "() => ({ scrolls_sideways: document.documentElement.scrollWidth > window.innerWidth + 1 })")
+        pg.screenshot(path=f"{OUT}/s36-kartu-csat-ponsel.png", full_page=False)
+        out["console_errors"] = errors
+
+        form = out["public_form"] or {}
+        receipt = out["public_receipt"] or {}
+        rata = next((s for s in out["summary_stats"] if s["label"] and "RATA-RATA" in s["label"].upper()), None)
+
+        out["checks"] = {
+            "every_score_button_fits_the_phone":
+                len(form.get("buttons", [])) == 5 and all(b["inside"] for b in form.get("buttons", [])),
+            # 40 px: lantai sasaran jempol yang sama dengan baris radio dialog
+            # (CONVENTIONS §13) — di halaman ini ia satu-satunya kendali.
+            "every_score_button_is_thumb_sized":
+                all(b["height"] >= 40 for b in form.get("buttons", [])),
+            "the_public_form_never_scrolls_sideways": form.get("scrolls_sideways") is False,
+            "the_public_receipt_never_scrolls_sideways": receipt.get("scrolls_sideways") is False,
+            "the_receipt_shows_the_score_that_was_tapped": "5 dari 5" in (receipt.get("text") or ""),
+            "the_summary_never_scrolls_sideways": out["summary_page"].get("scrolls_sideways") is False,
+            "the_summary_stats_wrap_instead_of_crowding_one_row":
+                (out["summary_page"].get("stats_rows") or 0) >= 2,
+            "no_stat_number_or_its_basis_is_clipped_on_a_phone":
+                out["summary_page"].get("clipped") == [],
+            "the_distribution_table_scrolls_inside_its_wrap":
+                out["summary_page"].get("table_scrolls_inside") is True,
+            "the_average_is_written_with_one_decimal":
+                bool(rata) and bool(re.match(r"^\d+,\d dari 5$", (rata.get("value") or "").strip())),
+            "the_average_never_stands_without_its_basis":
+                bool(rata) and "dinilai" in (rata.get("delta") or ""),
+            "the_ticket_card_never_widens_the_phone": out["card_page"].get("scrolls_sideways") is False,
+            "the_screens_raise_no_console_error": out["console_errors"] == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -9512,7 +9910,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
