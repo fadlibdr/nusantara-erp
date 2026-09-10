@@ -14,9 +14,17 @@ use Modules\ServiceDesk\Http\Controllers\CsatPageController;
  * disalin PERSIS dari Modules/Core/Routes/web.php, dan alasannya disalin ikut
  * karena alasan itulah yang membuatnya benar:
  *
- *  - throttle:10,1 mengikuti preseden rute login (Modules/Iam/Routes/api.php):
- *    sepuluh percobaan per menit per IP membuat menebak token 40 karakter bukan
- *    serangan yang selesai sebelum matahari padam;
+ *  - throttle:10,1 mengikuti preseden rute login (Modules/Iam/Routes/api.php).
+ *    YANG MEMBUAT PENEBAKAN TOKEN MUSTAHIL BUKAN THROTTLE INI melainkan entropi
+ *    Str::random(40); throttle-nya rem terhadap penyalahgunaan kasar, dan —
+ *    selama bootstrap/app.php berbunyi trustProxies(at: '*') — ia TIDAK
+ *    per-klien-sungguhan: embernya dikunci pada IP yang dipercaya dari header,
+ *    jadi siapa pun yang boleh menyetel X-Forwarded-For mereset kuotanya
+ *    sendiri. Terukur 10 Sep 2026 di port 8215: sesudah ember polos habis
+ *    (429, remaining 0), 30 permintaan dengan 30 nilai X-Forwarded-For berbeda
+ *    semuanya dijawab 404 dengan remaining 9. Kondisi ini pra-ada, berlaku sama
+ *    pada /persetujuan/{token}, dan paket ini tidak bisa menutupnya sendiri
+ *    (menyentuh bootstrap/* dilarang) — dicatat LAPORAN §11 DV-F9-7;
  *  - regex token yang sama ketatnya, jadi apa pun yang tidak berbentuk token
  *    tidak pernah mencapai controller (404 router, bukan kueri);
  *  - TANPA grup 'web': tidak ada sesi, cookie, atau CSRF yang perlu dilindungi
