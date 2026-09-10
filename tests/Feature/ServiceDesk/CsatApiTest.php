@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\ServiceDesk;
 
+use Modules\Core\Services\FormPrintService;
 use Modules\ServiceDesk\Enums\TicketStatus;
 use Modules\ServiceDesk\Models\CsatRating;
+use Modules\ServiceDesk\Models\FieldReport;
 use Modules\ServiceDesk\Services\CsatService;
 use Tests\ErpTestCase;
 
@@ -252,18 +254,59 @@ class CsatApiTest extends ErpTestCase
         }
     }
 
-    /** Cetakan house-form tiket tidak boleh memuat komentar pelanggan. */
+    /**
+     * CETAKAN HOUSE-FORM TIKET TIDAK MEMUAT KOMENTAR PELANGGAN — dan ini
+     * DIRENDER, bukan digeledah dari berkas yang kebetulan bernama mirip.
+     *
+     * Sampai uji ini berbentuk begini, ia membaca sumber
+     * `ServiceDeskFormService.php` — berkas yang TIDAK memuat peta medan
+     * cetakan sama sekali (petanya `Modules/Core/Support/PrintableDocuments`,
+     * entri `berita-acara-servis`). Terukur 10 Sep 2026: menambahkan
+     * `'PENILAIAN PELANGGAN' => 'ticket.csatRating.comment'` ke peta itu
+     * mencetak komentar pelanggan di atas baris "TEKNISI PELAKSANA" pada
+     * lembar yang ditandatangani — dengan suite tetap hijau.
+     *
+     * KEDUA lembar milik modul ini dirender, karena keduanya membawa tiket
+     * atau kontraknya; sensusnya berhenti di situ dan tidak menggeledah
+     * registri cetak seluruh aplikasi (pelajaran F-4/F-6: paku yang menyapu
+     * memerah ketika modul lain memilih nama yang wajar).
+     */
     public function test_the_printed_ticket_form_carries_no_comment(): void
     {
         $ticket = CsatFixtures::ticket();
         $issuer = CsatFixtures::userWith(['svc.view', 'svc.update', 'core.view']);
         $issued = $this->service->issue($issuer, $ticket, ['recipient_name' => 'Ibu Sinta']);
-        $this->service->rate($issued['token'], 2, 'Datang terlambat tiga jam.');
 
-        $source = file_get_contents(base_path('Modules/ServiceDesk/Services/ServiceDeskFormService.php'));
+        $komentar = 'Teknisinya merokok di ruang server dan membentak satpam kami.';
+        $this->service->rate($issued['token'], 2, $komentar);
 
-        $this->assertStringNotContainsString('csat', mb_strtolower((string) $source),
-            'ServiceDeskFormService menyentuh CSAT — cetakan adalah permukaan tersendiri');
+        $report = FieldReport::query()->create([
+            'code' => 'BA/2026/IX/0001',
+            'ticket_id' => $ticket->id,
+            'report_date' => now()->toDateString(),
+            'technician_employee_id' => CsatFixtures::technician('Rizal Mahendra')->id,
+            'findings' => 'Adaptor kamera lobi rusak.',
+            'actions_taken' => 'Ganti adaptor dan uji ulang.',
+            'status' => 'draft',
+        ]);
+
+        $forms = app(FormPrintService::class);
+
+        $lembar = [
+            'berita-acara-servis' => $forms->html('berita-acara-servis', ['id' => $report->id]),
+            'kontrak-layanan' => $forms->html('kontrak-layanan', ['id' => $ticket->service_contract_id]),
+        ];
+
+        // Lembar berita acara memang lembar TIKET ITU — kalau tidak, ketiadaan
+        // komentarnya tidak membuktikan apa pun.
+        $this->assertStringContainsString($ticket->code, $lembar['berita-acara-servis']);
+
+        foreach ($lembar as $nama => $html) {
+            $this->assertStringNotContainsString($komentar, $html, "cetakan {$nama} membawa komentar CSAT");
+            $this->assertStringNotContainsString('merokok', $html, "cetakan {$nama} membawa komentar CSAT");
+            $this->assertStringNotContainsString('Ibu Sinta', $html, "cetakan {$nama} membawa nama penilai");
+            $this->assertStringNotContainsStringIgnoringCase('csat', $html, "cetakan {$nama} menyebut CSAT");
+        }
     }
 
     /** …dan tabelnya tidak ada di registri Laporan Bebas. */

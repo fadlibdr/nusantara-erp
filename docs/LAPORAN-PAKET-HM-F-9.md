@@ -259,7 +259,7 @@ punya akun".
 | 6 | `GET servicedesk/tickets` (daftar **dan** pemilih `lookup.js`) | tidak | `no_other_ticket_surface_carries_the_comment` |
 | 7 | `GET servicedesk/tickets-sla-breaches` | tidak | idem |
 | 8 | `GET core/search` (pencarian global) | tidak | idem |
-| 9 | Cetakan house-form (`ServiceDeskFormService`) | tidak | `the_printed_ticket_form_carries_no_comment` |
+| 9 | Cetakan house-form — **kedua lembar modul ini**, `berita-acara-servis` dan `kontrak-layanan` (petanya `Modules/Core/Support/PrintableDocuments`, bukan `ServiceDeskFormService`) | tidak | `the_printed_ticket_form_carries_no_comment` — **dirender**, bukan digeledah dari sumber |
 | 10 | Ekspor XLSX daftar | tidak — ia menulis kolom `schema.js`, dan tidak ada kolom CSAT | konsekuensi #5 |
 | 11 | Registri Laporan Bebas (`ReportableResources`) | tidak | `the_csat_table_is_not_a_free_report_source` |
 | 12 | Lonceng notifikasi (`svc.update`) | **tidak — skor saja** | `the_bell_carries_the_score_but_never_the_comment` |
