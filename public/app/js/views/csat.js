@@ -3,9 +3,10 @@
  * Dua permukaan di satu berkas, karena keduanya menegakkan aturan yang sama
  * dan memisahkannya berarti dua tempat yang bisa berselisih:
  *
- *   csatCard(ticket, reload)   kartu di layar detail tiket — undangan yang
+ *   csatCard(ticket)           kartu di layar detail tiket — undangan yang
  *                              terbit, penilaian yang masuk, tombol terbitkan
- *   renderCsat(host)           layar ringkasan #/csat — rata-rata yang jujur
+ *   renderCsat(host, page)     layar ringkasan #/csat — rata-rata yang jujur,
+ *                              dan halaman komentar yang sedang dibaca
  *
  * TIGA ATURAN YANG DIPEGANG DI SINI, dan yang ketiganya adalah alasan berkas
  * ini ditulis dan bukan disalin dari kartu lampiran:
