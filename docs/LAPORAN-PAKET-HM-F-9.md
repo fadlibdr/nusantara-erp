@@ -40,7 +40,7 @@ longgar daripada tiketnya.
 | T14 | Endpoint + resource, komentar di **tepat dua** endpoint bergerbang `svc.view` | ✅ | `da6d0cb` — 4 rute; `CsatApiTest` sensus 7 permukaan lain, semuanya bersih |
 | T15 | Tombol terbitkan di layar tiket, **kalimat yang benar tentang surel** | ✅ | `da6d0cb` — "Kirim tautan ini … lewat saluran Anda sendiri. Sistem tidak mengirimkannya."; harness memakunya |
 | T16 | Penilaian terlihat pada tiketnya + ringkasan CSAT `#/csat` | ✅ | `da6d0cb` — kartu di detail tiket, layar di grup NAV Layanan |
-| T17 | Uji PHP + mutasi | ✅ | **59 uji baru** (327 assertion) di 5 berkas; **26 mutasi dijalankan — 24 merah, 2 LOLOS HIJAU dan dilaporkan** (§4) |
+| T17 | Uji PHP + mutasi | ✅ | **61 uji baru** (335 assertion) di 5 berkas; **28 mutasi dijalankan — 26 merah, 2 LOLOS HIJAU dan dilaporkan** (§4) |
 | T18 | Harness S36 desktop + ponsel (halaman publik = konteksnya sendiri) | ✅ | `65ec12d` — `[S36_csat_tautan_penilaian] ok`, `[S36_csat_tautan_penilaian_ponsel] ok`; **27 → 29 kunci, nol kunci lama berubah**; 31 syarat hijau; 10 PNG |
 | T19 | Cangkang PWA | ✅ | `da6d0cb` — `js/views/csat.js` ditambahkan ke `SHELL`, `SHELL_VERSION` **7 → 8**; `PwaServiceWorkerTest` 12 uji hijau |
 | T20 | `/app/` dimuat di Chromium, 0 galat konsol di tiap layar tersentuh | ✅ | **54 pemuatan** (3 peran × 2 viewport × 8 rute + 6 halaman publik), `all_console_errors: []` di aplikasi, `http_4xx_5xx: []` — §6 |
@@ -153,9 +153,9 @@ mengabari Anda lewat e-mail" adalah janji yang tidak akan pernah ditepati.
 
 ---
 
-## 4. Mutasi — 26 dijalankan, 24 merah, **2 LOLOS HIJAU** dan dilaporkan begitu
+## 4. Mutasi — 28 dijalankan, 26 merah, **2 LOLOS HIJAU** dan dilaporkan begitu
 
-### Merah (24)
+### Merah (26)
 
 | # | Mutasi | Uji yang memerahkannya |
 |---|---|---|
@@ -183,6 +183,8 @@ mengabari Anda lewat e-mail" adalah janji yang tidak akan pernah ditepati.
 | A4 | universe memuat `cancelled` | `open_and_cancelled_tickets_are_not_part…` |
 | A5 | jendela waktu memakai `reported_at` | `the_window_filters_on_when_the_work_finished` |
 | A6 | baris ber-`rated_at` tanpa skor ikut penyebut | `a_rated_row_without_a_score…` |
+| P10 | cabang `isRated()` dilucuti dari jalan masuk POST-tanpa-skor | `a_post_without_a_score_on_a_used_link_is_still_a_receipt` |
+| P11 | `TicketStatus::Closed` diberi transisi keluar `[InProgress]` | `a_closed_ticket_has_no_way_back…` |
 
 ### LOLOS HIJAU — dan apa yang dilakukan terhadapnya (2)
 
@@ -200,7 +202,7 @@ uji baru berfixture 5·4·3·2·1 — **3 adalah satu-satunya nilai yang membeda
 
 ---
 
-## 5. Tiga cacat yang ditemukan uji dan peramban sendiri (bukan oleh mutasi)
+## 5. Empat cacat yang ditemukan uji dan peramban sendiri (bukan oleh mutasi)
 
 **D1 — rata-rata 2,5 dari satu jawaban bintang 5.** `summary()` melewati baris ber-`rated_at`
 tanpa skor dari penjumlahan tetapi **tetap menghitungnya sebagai penyebut**: nol bintang lewat
@@ -220,6 +222,16 @@ sedangkan "5 dari 5" terbaca sebagai satu penilaian. Disensus 10 Sep 2026: **tid
 `fmt.num` lain di seluruh SPA yang meminta desimal selain 0 atau 2**, dan keenam kolom
 ber-`decimals:` di `schema.js` bernilai `2` — jadi D3 tidak menyentuh layar lain pada tanggal itu.
 Lihat §11. (`da6d0cb`)
+
+**D4 — janji "tidak pernah formulir lagi" dibatalkan lewat pintu belakang.** Halaman publik
+punya DUA jalan masuk: `show()` dan cabang "pilih dulu bintangnya" di dalam `rate()`. Yang
+kedua punya daftar keadaan matinya sendiri, dan daftar itu memeriksa dicabut / kedaluwarsa /
+sudah-dinilai-lewat-tautan-lain tetapi **tidak** memeriksa "tautan INI sendiri sudah dipakai".
+Akibatnya satu POST tanpa skor pada tautan terpakai mengembalikan **formulir berikut lima
+tombolnya** — persis hal yang §2(C) berjanji tidak akan pernah terjadi. Ditemukan saat menutup
+perangkap C, bukan oleh mutasi: mutasinya baru bisa ditulis setelah cacatnya ada namanya.
+Diperbaiki dengan memanggil `stateFor()` yang sama, sehingga tidak ada dua daftar keadaan yang
+bisa berselisih. (`bd0fe52`)
 
 ---
 
@@ -321,8 +333,8 @@ Yang S36 buktikan dan uji PHP tidak bisa:
 
 | Gerbang | Hasil |
 |---|---|
-| `tests/Feature/ServiceDesk` (SQLite) | **105 uji, 529 assertion — hijau** |
-| `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **105 uji, 529 assertion — hijau** |
+| `tests/Feature/ServiceDesk` (SQLite) | **107 uji, 537 assertion — hijau** |
+| `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **107 uji, 537 assertion — hijau** |
 | `tests/Feature/Core` (SQLite) | **1018 lulus, 11 dilewati — hijau** |
 | `php artisan erp:mysql-preflight` | **Verdict: ok** (6 situs SQLite-only, semuanya lama dan berpenjaga) |
 | `./vendor/bin/pint --test` atas seluruh berkas paket ini | **passed** (dua kegagalan lama di `main` tidak disentuh) |
@@ -421,7 +433,8 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
 | `9dad81f` | `summary()` / `ratedQuery()` — rata-rata yang jujur |
 | `da6d0cb` | endpoint, resource, request, kartu tiket, layar `#/csat`, NAV, `sw.js` |
 | `65ec12d` | harness S36 desktop + ponsel, `results-phase-2.json`, 10 PNG |
-| *(ini)* | laporan paket |
+| `346625c` | laporan paket |
+| `bd0fe52` | verifikasi penutup: D4 (formulir yang kembali pada tautan terpakai) + dua paku baru |
 
 **Blok migrasi:** ServiceDesk `001200–001299` masih longgar — `001280` dipakai, `001290` bebas.
 Tidak ada blok lanjutan yang perlu didaftarkan di CONVENTIONS §2.

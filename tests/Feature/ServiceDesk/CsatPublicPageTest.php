@@ -209,6 +209,46 @@ class CsatPublicPageTest extends ErpTestCase
         $this->get("/penilaian/{$token}")->assertOk()->assertDontSee('name="score"', false);
     }
 
+    /**
+     * POST TANPA SKOR pada tautan yang SUDAH dipakai harus tetap struk.
+     *
+     * Cabang "pilih dulu bintangnya" adalah jalan masuk kedua ke halaman ini,
+     * dan ia punya daftar keadaan matinya sendiri. Sampai uji ini ada, daftar
+     * itu memeriksa dicabut/kedaluwarsa/dinilai-lewat-tautan-lain tetapi TIDAK
+     * memeriksa "tautan ini sendiri sudah dipakai" — sehingga satu POST kosong
+     * mengembalikan FORMULIR berikut lima tombolnya pada tautan terpakai,
+     * membatalkan janji "tidak pernah formulir lagi" lewat pintu belakang.
+     */
+    public function test_a_post_without_a_score_on_a_used_link_is_still_a_receipt(): void
+    {
+        [$row, $token] = $this->invite();
+
+        $this->post("/penilaian/{$token}", ['score' => 5, 'comment' => 'Cepat.'])->assertOk();
+
+        $answer = $this->post("/penilaian/{$token}", ['comment' => 'Lupa memilih.'])->assertOk();
+
+        $answer->assertDontSee('name="score"', false);
+        $answer->assertSee('5 dari 5');
+        $this->assertSame('Cepat.', $row->fresh()->comment, 'komentar pertama tidak boleh tertimpa');
+    }
+
+    /**
+     * Tautan untuk tiket yang DIBUKA KEMBALI SESUDAH DITUTUP: pertanyaannya
+     * dijawab enum, bukan halaman ini. `TicketStatus::Closed` tidak punya satu
+     * transisi keluar pun, jadi satu-satunya pembukaan kembali yang bisa
+     * terjadi hari ini adalah dari `Resolved` — dan itulah yang ditangani uji
+     * di atas. Paku ini ada supaya penambahan `Closed => [InProgress]` kelak
+     * memerahkan uji CSAT, bukan diam-diam menghidupkan jalur yang belum
+     * pernah dipikirkan.
+     */
+    public function test_a_closed_ticket_has_no_way_back_which_is_why_only_resolved_can_reopen(): void
+    {
+        $this->assertSame([], TicketStatus::Closed->allowedTransitions());
+        $this->assertSame([], TicketStatus::Cancelled->allowedTransitions());
+
+        $this->assertContains(TicketStatus::InProgress, TicketStatus::Resolved->allowedTransitions());
+    }
+
     // ------------------------------------------------------------- terminals
 
     public function test_a_revoked_link_is_gone_and_leaks_neither_the_recipient_nor_the_title(): void

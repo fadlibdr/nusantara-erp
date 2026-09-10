@@ -75,12 +75,24 @@ class CsatPageController extends Controller
         $score = $this->scoreFrom($request->input('score'));
 
         if ($score === null) {
-            $terminal = $this->terminalFor($row);
+            /*
+             * KEADAAN BARIS MENANG ATAS "PILIH DULU", dan urutannya harus
+             * sama persis dengan show() — termasuk cabang isRated() yang dulu
+             * hilang di sini. Tanpa baris itu, satu POST kosong pada tautan
+             * yang SUDAH dipakai mengembalikan FORMULIR berikut lima
+             * tombolnya: janji "sesudah dipakai tidak pernah formulir lagi"
+             * dibatalkan lewat pintu belakang, di jalan masuk kedua halaman
+             * yang sama. Terukur 10 Sep 2026.
+             *
+             * stateFor() dipanggil apa adanya supaya tidak ada dua daftar
+             * keadaan yang bisa berselisih; "pilih dulu bintangnya" hanya
+             * ditambahkan ketika tautannya memang masih hidup.
+             */
+            if ($row->isRated() || $this->terminalFor($row) !== null) {
+                return $this->stateFor($row, $token);
+            }
 
-            // Keadaan mati menang atas "pilih dulu": menyuruh orang memilih
-            // bintang pada tautan yang sudah kedaluwarsa adalah menyuruhnya
-            // melakukan sesuatu yang pasti gagal.
-            return $terminal ?? $this->form($row, $token,
+            return $this->form($row, $token,
                 error: 'Pilih dulu salah satu bintang penilaian Anda.', status: 422);
         }
 
