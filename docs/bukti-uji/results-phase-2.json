@@ -3791,7 +3791,7 @@
   "_clicks": 2
  },
  "S36_csat_tautan_penilaian": {
-  "ticket": "TKT-202609-0015",
+  "ticket": "TKT-202609-0005",
   "card_before": {
    "text": "Kepuasan Pelanggan (CSAT)\n\nBelum ada tautan penilaian untuk tiket ini.\n\nTerbitkan Tautan Penilaian\nURL-nya hanya tampil sekali saat diterbitkan, dan Anda yang mengirimkannya kepada pelanggan — sistem ini tidak mengirim e-mail.",
    "chips": [],
@@ -3803,13 +3803,13 @@
    ]
   },
   "dialog": {
-   "url": "http://127.0.0.1:8211/penilaian/lIdebLdlHwBVI1xEZazolHL0kQlOj8sqxmiOpJFh",
+   "url": "http://127.0.0.1:8215/penilaian/WyfQNcu1fo8CsIxwiPQcYjNVVZrkIYiAcGICnsMa",
    "readonly": true,
    "text": "Tautan penilaian diterbitkan\n\nKirim tautan ini kepada Ibu Sinta Dewi (S36) lewat saluran Anda sendiri (WhatsApp/e-mail). Sistem tidak mengirimkannya.\n\nSalin\nSalin sekarang — tautan hanya ditampilkan sekali dan tidak dapat dilihat lagi. Bila hilang: cabut tautan ini, lalu terbitkan yang baru.\nTutup",
    "copy_button": true
   },
   "card_issued": {
-   "text": "Kepuasan Pelanggan (CSAT)\nIbu Sinta Dewi (S36)\nDiterbitkan hari ini oleh Administrator Sistem · berlaku s/d 24 Sep 2026 14.37\nTerbit\nCabut\nTerbitkan Tautan Penilaian\nURL-nya hanya tampil sekali saat diterbitkan, dan Anda yang mengirimkannya kepada pelanggan — sistem ini tidak mengirim e-mail.",
+   "text": "Kepuasan Pelanggan (CSAT)\nIbu Sinta Dewi (S36)\nDiterbitkan hari ini oleh Administrator Sistem · berlaku s/d 24 Sep 2026 16.37\nTerbit\nCabut\nTerbitkan Tautan Penilaian\nURL-nya hanya tampil sekali saat diterbitkan, dan Anda yang mengirimkannya kepada pelanggan — sistem ini tidak mengirim e-mail.",
    "chips": [
     "Terbit"
    ],
@@ -3859,7 +3859,7 @@
    "has_form": true,
    "has_script": false,
    "cookies": "",
-   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nBagaimana layanan kami?\n\nUntuk: Ibu Sinta Dewi (S36)\n\nNomor tiket\tTKT-202609-0015\nPekerjaan\tKamera parkir basement mati (fixture S36)\nSelesai\t10-09-2026\nTautan berlaku s/d\t24-09-2026 21:37\nKomentar (opsional) — tulis dulu di sini, lalu pilih penilaian Anda:\n1 Sangat tidak puas\n2 Tidak puas\n3 Cukup\n4 Puas\n5 Sangat puas\n\nTautan ini SEKALI PAKAI: penilaian pertama yang tercatat berlaku dan tidak dapat diubah dari sini.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
+   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nBagaimana layanan kami?\n\nUntuk: Ibu Sinta Dewi (S36)\n\nNomor tiket\tTKT-202609-0005\nPekerjaan\tKamera parkir basement mati (fixture S36)\nSelesai\t10-09-2026\nTautan berlaku s/d\t24-09-2026 23:37\nKomentar (opsional) — tulis dulu di sini, lalu pilih penilaian Anda:\n1 Sangat tidak puas\n2 Tidak puas\n3 Cukup\n4 Puas\n5 Sangat puas\n\nTautan ini SEKALI PAKAI: penilaian pertama yang tercatat berlaku dan tidak dapat diubah dari sini.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
    "scrolls_sideways": false
   },
   "public_storage": {
@@ -3868,26 +3868,26 @@
   },
   "public_receipt": {
    "title": "Penilaian Layanan — PT Nusantara Karya Integrasi",
-   "h1": "Tiket TKT-202609-0015",
+   "h1": "Tiket TKT-202609-0005",
    "buttons": [],
    "has_form": false,
    "has_script": false,
    "cookies": "",
-   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nTiket TKT-202609-0015\n\nTerima kasih — penilaian Anda tercatat.\n\n4 dari 5 — Puas\n\nDicatat: 10-09-2026 21:37\nKomentar Anda: Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n\n\nPenilaian tidak dapat diubah dari tautan ini. Bila ada yang perlu diperbaiki, hubungi kami dan sebutkan nomor tiket di atas.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
+   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nTiket TKT-202609-0005\n\nTerima kasih — penilaian Anda tercatat.\n\n4 dari 5 — Puas\n\nDicatat: 10-09-2026 23:37\nKomentar Anda: Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n\n\nPenilaian tidak dapat diubah dari tautan ini. Bila ada yang perlu diperbaiki, hubungi kami dan sebutkan nomor tiket di atas.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
    "scrolls_sideways": false
   },
   "public_second_open": {
    "title": "Penilaian Layanan — PT Nusantara Karya Integrasi",
-   "h1": "Tiket TKT-202609-0015",
+   "h1": "Tiket TKT-202609-0005",
    "buttons": [],
    "has_form": false,
    "has_script": false,
    "cookies": "",
-   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nTiket TKT-202609-0015\n\nTautan ini sudah Anda gunakan. Penilaian yang tercatat:\n\n4 dari 5 — Puas\n\nDicatat: 10-09-2026 21:37\nKomentar Anda: Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n\n\nPenilaian tidak dapat diubah dari tautan ini. Bila ada yang perlu diperbaiki, hubungi kami dan sebutkan nomor tiket di atas.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
+   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nTiket TKT-202609-0005\n\nTautan ini sudah Anda gunakan. Penilaian yang tercatat:\n\n4 dari 5 — Puas\n\nDicatat: 10-09-2026 23:37\nKomentar Anda: Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n\n\nPenilaian tidak dapat diubah dari tautan ini. Bila ada yang perlu diperbaiki, hubungi kami dan sebutkan nomor tiket di atas.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
    "scrolls_sideways": false
   },
   "card_rated": {
-   "text": "Kepuasan Pelanggan (CSAT)\nPENILAIAN PELANGGAN\n4 dari 5\nPuas · 10 Sep 2026 14.37\nIbu Sinta Dewi (S36)\nDinilai 10 Sep 2026 14.37 lewat tautan\n“Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).”\nDiterbitkan hari ini oleh Administrator Sistem\n4 dari 5 — Puas\nTiket ini sudah dinilai. Satu tiket dinilai sekali, jadi tidak ada tautan baru yang bisa diterbitkan.",
+   "text": "Kepuasan Pelanggan (CSAT)\nPENILAIAN PELANGGAN\n4 dari 5\nPuas · 10 Sep 2026 16.37\nIbu Sinta Dewi (S36)\nDinilai 10 Sep 2026 16.37 lewat tautan\n“Teknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).”\nDiterbitkan hari ini oleh Administrator Sistem\n4 dari 5 — Puas\nTiket ini sudah dinilai. Satu tiket dinilai sekali, jadi tidak ada tautan baru yang bisa diterbitkan.",
    "chips": [
     "4 dari 5 — Puas"
    ],
@@ -3899,30 +3899,30 @@
   "summary_stats": [
    {
     "label": "RATA-RATA KEPUASAN",
-    "value": "4,4 dari 5",
-    "delta": "11 dari 13 tiket selesai dinilai"
+    "value": "4,0 dari 5",
+    "delta": "1 dari 3 tiket selesai dinilai"
    },
    {
     "label": "TIKET SELESAI",
-    "value": "13",
-    "delta": "12 sudah diundang menilai"
+    "value": "3",
+    "delta": "1 sudah diundang menilai"
    },
    {
     "label": "TINGKAT JAWABAN",
-    "value": "92%",
-    "delta": "11 dari 12 undangan dijawab"
+    "value": "100%",
+    "delta": "1 dari 1 tiket yang diundang sudah menjawab"
    },
    {
     "label": "PUAS (4–5)",
-    "value": "10 dari 11",
+    "value": "1 dari 1",
     "delta": "dari jawaban yang masuk"
    }
   ],
   "summary_cards": [
-   "Komentar pelanggan (11)",
+   "Komentar pelanggan (1)",
    "Sebaran penilaian"
   ],
-  "summary_text": "Kepuasan Pelanggan (CSAT)\nRata-rata dihitung HANYA dari tiket yang benar-benar dinilai pelanggan; tiket yang belum dijawab tidak dihitung nol. Angka di bawah mencakup SELURUH riwayat tiket yang sudah selesai, bukan satu bulan.\nRATA-RATA KEPUASAN\n4,4 dari 5\n11 dari 13 tiket selesai dinilai\nTIKET SELESAI\n13\n12 sudah diundang menilai\nTINGKAT JAWABAN\n92%\n11 dari 12 undangan dijawab\nPUAS (4–5)\n10 dari 11\ndari jawaban yang masuk\nKomentar pelanggan (11)\n4 dari 5 — Puas\nTKT-202609-0015 · Ibu Sinta Dewi (S36) · 10 Sep 2026 14.37\nTeknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n3 dari 5 — Cukup\nTKT-202609-0014 · Struk Peramban · 10 Sep 2026 14.25\nCukup.\n5 dari 5 — Sangat puas\nTKT-202609-0013 · Bapak Rudi (S36m) · 10 Sep 2026 14.21\nSudah beres, terima kasih (S36m).\n4 dari 5 — Puas\nTKT-202609-0012 · Ibu Sinta Dewi (S36) · 10 Sep 2026 14.21\nTeknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n5 dari 5 — Sangat puas\nTKT-202609-0011 · Bapak Rudi (S36m) · 10 Sep 2026 14.20\nSudah beres, terima kasih (S36m).\n4 dari 5 — Puas\nTKT-202609-0010 · Ibu Sinta Dewi (S36) · 10 Sep 2026 14.20\nTeknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n5 dari 5 — Sangat puas\nTKT-202609-0009 · Bapak Rudi (S36m) · 10 Sep 2026 14.19\nSudah beres, terima kasih (S36m).\n5 dari 5 — Sangat puas\nTKT-202609-0007 · Bapak Rudi (S36m) · 10 Sep 2026 14.18\nSudah beres, terima kasih (S36m).\n4 dari 5 — Puas\nTKT-202609-0006 · Ibu Sinta Dewi (S36) · 10 Sep 2026 14.18\nTeknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\n4 dari 5 — Puas\nTKT-202606-0002 · Ibu Sinta Dewi · 10 Sep 2026 14.14\nPerbaikan berhasil tapi datangnya terlambat dua jam.\n5 dari 5 — Sangat puas\nTKT-202606-0001 · Ibu Sinta Dewi · 10 Sep 2026 14.13\nTeknisinya datang cepat dan menjelaskan penyebabnya dengan sabar.\nSebaran penilaian\nPENILAIAN\tJUMLAH\tBAGIAN\n5 Sangat puas\t5\t45%\n4 Puas\t5\t45%\n3 Cukup\t1\t9%\n2 Tidak puas\t0\t0%\n1 Sangat tidak puas\t0\t0%",
+  "summary_text": "Kepuasan Pelanggan (CSAT)\nRata-rata dihitung HANYA dari tiket yang benar-benar dinilai pelanggan; tiket yang belum dijawab tidak dihitung nol. Angka di bawah mencakup SELURUH riwayat tiket yang sudah selesai, bukan satu bulan.\nRATA-RATA KEPUASAN\n4,0 dari 5\n1 dari 3 tiket selesai dinilai\nTIKET SELESAI\n3\n1 sudah diundang menilai\nTINGKAT JAWABAN\n100%\n1 dari 1 tiket yang diundang sudah menjawab\nPUAS (4–5)\n1 dari 1\ndari jawaban yang masuk\nKomentar pelanggan (1)\n4 dari 5 — Puas\nTKT-202609-0005 · Ibu Sinta Dewi (S36) · 10 Sep 2026 16.37\nTeknisinya datang cepat, tetapi sparepart-nya harus dipesan dulu (S36).\nSebaran penilaian\nPENILAIAN\tJUMLAH\tBAGIAN\n5 Sangat puas\t0\t0%\n4 Puas\t1\t100%\n3 Cukup\t0\t0%\n2 Tidak puas\t0\t0%\n1 Sangat tidak puas\t0\t0%",
   "console_errors": [],
   "checks": {
    "the_dialog_hands_over_a_readable_url": true,
@@ -3946,11 +3946,11 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 13769,
+  "_ms": 14985,
   "_clicks": 4
  },
  "S36_csat_tautan_penilaian_ponsel": {
-  "ticket": "TKT-202609-0016",
+  "ticket": "TKT-202609-0006",
   "public_form": {
    "title": "Penilaian Layanan — PT Nusantara Karya Integrasi",
    "h1": "Bagaimana layanan kami?",
@@ -3989,38 +3989,38 @@
    "has_form": true,
    "has_script": false,
    "cookies": "",
-   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nBagaimana layanan kami?\n\nUntuk: Bapak Rudi (S36m)\n\nNomor tiket\tTKT-202609-0016\nPekerjaan\tKamera parkir basement mati (fixture S36)\nSelesai\t10-09-2026\nTautan berlaku s/d\t24-09-2026 21:37\nKomentar (opsional) — tulis dulu di sini, lalu pilih penilaian Anda:\n1 Sangat tidak puas\n2 Tidak puas\n3 Cukup\n4 Puas\n5 Sangat puas\n\nTautan ini SEKALI PAKAI: penilaian pertama yang tercatat berlaku dan tidak dapat diubah dari sini.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
+   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nBagaimana layanan kami?\n\nUntuk: Bapak Rudi (S36m)\n\nNomor tiket\tTKT-202609-0006\nPekerjaan\tKamera parkir basement mati (fixture S36)\nSelesai\t10-09-2026\nTautan berlaku s/d\t24-09-2026 23:37\nKomentar (opsional) — tulis dulu di sini, lalu pilih penilaian Anda:\n1 Sangat tidak puas\n2 Tidak puas\n3 Cukup\n4 Puas\n5 Sangat puas\n\nTautan ini SEKALI PAKAI: penilaian pertama yang tercatat berlaku dan tidak dapat diubah dari sini.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
    "scrolls_sideways": false
   },
   "public_receipt": {
    "title": "Penilaian Layanan — PT Nusantara Karya Integrasi",
-   "h1": "Tiket TKT-202609-0016",
+   "h1": "Tiket TKT-202609-0006",
    "buttons": [],
    "has_form": false,
    "has_script": false,
    "cookies": "",
-   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nTiket TKT-202609-0016\n\nTerima kasih — penilaian Anda tercatat.\n\n5 dari 5 — Sangat puas\n\nDicatat: 10-09-2026 21:37\nKomentar Anda: Sudah beres, terima kasih (S36m).\n\n\nPenilaian tidak dapat diubah dari tautan ini. Bila ada yang perlu diperbaiki, hubungi kami dan sebutkan nomor tiket di atas.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
+   "text": "PT Nusantara Karya Integrasi\nPENILAIAN LAYANAN\nTiket TKT-202609-0006\n\nTerima kasih — penilaian Anda tercatat.\n\n5 dari 5 — Sangat puas\n\nDicatat: 10-09-2026 23:37\nKomentar Anda: Sudah beres, terima kasih (S36m).\n\n\nPenilaian tidak dapat diubah dari tautan ini. Bila ada yang perlu diperbaiki, hubungi kami dan sebutkan nomor tiket di atas.\n\nHalaman ini diterbitkan PT Nusantara Karya Integrasi untuk satu penilaian atas satu tiket layanan. Jangan meneruskan tautan kepada pihak lain.",
    "scrolls_sideways": false
   },
   "summary_stats": [
    {
     "label": "RATA-RATA KEPUASAN",
-    "value": "4,4 dari 5",
-    "delta": "12 dari 14 tiket selesai dinilai"
+    "value": "4,5 dari 5",
+    "delta": "2 dari 4 tiket selesai dinilai"
    },
    {
     "label": "TIKET SELESAI",
-    "value": "14",
-    "delta": "13 sudah diundang menilai"
+    "value": "4",
+    "delta": "2 sudah diundang menilai"
    },
    {
     "label": "TINGKAT JAWABAN",
-    "value": "92%",
-    "delta": "12 dari 13 undangan dijawab"
+    "value": "100%",
+    "delta": "2 dari 2 tiket yang diundang sudah menjawab"
    },
    {
     "label": "PUAS (4–5)",
-    "value": "11 dari 12",
+    "value": "2 dari 2",
     "delta": "dari jawaban yang masuk"
    }
   ],
@@ -4031,7 +4031,7 @@
    "table_scrolls_inside": true
   },
   "card": {
-   "text": "Kepuasan Pelanggan (CSAT)\nPENILAIAN PELANGGAN\n5 dari 5\nSangat puas · 10 Sep 2026 14.37\nBapak Rudi (S36m)\nDinilai 10 Sep 2026 14.37 lewat tautan\n“Sudah beres, terima kasih (S36m).”\nDiterbitkan hari ini oleh Administrator Sistem\n5 dari 5 — Sangat puas\nTiket ini sudah dinilai. Satu tiket dinilai sekali, jadi tidak ada tautan baru yang bisa diterbitkan.",
+   "text": "Kepuasan Pelanggan (CSAT)\nPENILAIAN PELANGGAN\n5 dari 5\nSangat puas · 10 Sep 2026 16.37\nBapak Rudi (S36m)\nDinilai 10 Sep 2026 16.37 lewat tautan\n“Sudah beres, terima kasih (S36m).”\nDiterbitkan hari ini oleh Administrator Sistem\n5 dari 5 — Sangat puas\nTiket ini sudah dinilai. Satu tiket dinilai sekali, jadi tidak ada tautan baru yang bisa diterbitkan.",
    "chips": [
     "5 dari 5 — Sangat puas"
    ],
@@ -4061,7 +4061,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8457,
+  "_ms": 8436,
   "_clicks": 0
  }
 }
