@@ -46,9 +46,14 @@ final class CsatFixtures
     {
         return Employee::query()->firstOrCreate(['name' => $name], [
             'code' => 'EMP-'.substr(md5($name), 0, 4),
+            'nik_ktp' => substr(preg_replace('/\D/', '', md5($name)).'0000000000000000', 0, 16),
+            'gender' => 'male',
+            'birth_date' => '1990-04-11',
+            'ptkp_status' => 'K/1',
+            'join_date' => '2024-01-05',
+            'employment_type' => 'tetap',
             'position' => 'Teknisi ELV',
-            'hire_date' => '2024-01-05',
-            'employment_type' => 'permanent',
+            'department' => 'servis',
             'status' => 'active',
         ]);
     }
