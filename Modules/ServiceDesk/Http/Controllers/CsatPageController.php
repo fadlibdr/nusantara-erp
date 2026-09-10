@@ -249,12 +249,26 @@ class CsatPageController extends Controller
         ], $status);
     }
 
+    /**
+     * Struk penilaian YANG INI — dan satu-satunya halaman yang membaca tiket
+     * TERHAPUS.
+     *
+     * stateFor() memeriksa isRated() sebelum terminalFor(), jadi struk bisa
+     * digambar untuk tiket yang sudah dihapus-lunak sesudah dinilai. Tanpa
+     * withTrashed di sini kepalanya berbunyi "Tiket —" lalu penutupnya
+     * menyuruh pelanggan "sebutkan nomor tiket di atas": halaman yang meminta
+     * nomor yang baru saja ia tolak cetak (terukur 10 Sep 2026). Bukan
+     * kebocoran: pemegang tautan ini yang menulis penilaiannya, dan kode itu
+     * sudah tercetak di halaman yang ia isi. Jalur TERMINAL tetap tidak
+     * melihat tiket terhapus — di sana pemegangnya belum tentu pernah
+     * melihat apa pun.
+     */
     private function receipt(CsatRating $row, bool $fresh): Response
     {
         return $this->view([
             'state' => 'receipt',
             'row' => $row,
-            'ticket' => $this->summarize($this->ticket($row)),
+            'ticket' => $this->summarize($this->ticket($row, withTrashed: true)),
             'fresh' => $fresh,
         ], 200);
     }
@@ -290,9 +304,15 @@ class CsatPageController extends Controller
 
     // ------------------------------------------------------------- the ticket
 
-    private function ticket(CsatRating $row): ?Ticket
+    private function ticket(CsatRating $row, bool $withTrashed = false): ?Ticket
     {
-        return Ticket::query()->find($row->ticket_id);
+        $query = Ticket::query();
+
+        if ($withTrashed) {
+            $query->withTrashed();
+        }
+
+        return $query->find($row->ticket_id);
     }
 
     /**

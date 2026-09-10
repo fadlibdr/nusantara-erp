@@ -291,6 +291,55 @@ class CsatPublicPageTest extends ErpTestCase
         $this->assertContains(TicketStatus::InProgress, TicketStatus::Resolved->allowedTransitions());
     }
 
+    /**
+     * STRUK UNTUK TIKET YANG SUDAH DIHAPUS tetap menyebut nomor tiketnya.
+     *
+     * stateFor() memeriksa isRated() SEBELUM terminalFor(), dan hanya
+     * terminalFor() yang memeriksa apakah tiketnya masih ada — jadi sampai
+     * baris ini ada, struk untuk tiket yang dihapus-lunak berkepala
+     * "Tiket —" lalu menutup dengan "hubungi kami dan sebutkan nomor tiket
+     * di atas": halaman yang menyuruh pelanggan menyebutkan nomor yang baru
+     * saja ia tolak cetak (terukur 10 Sep 2026). Pemegang tautan ini SUDAH
+     * pernah melihat kode itu — ia yang menilainya — jadi mencetaknya kembali
+     * tidak membuka apa pun yang belum ia punya.
+     */
+    public function test_a_receipt_for_a_deleted_ticket_does_not_ask_for_a_number_it_hides(): void
+    {
+        [, $token, $ticket] = $this->invite();
+
+        $this->post("/penilaian/{$token}", ['score' => 4, 'comment' => 'Bagus, rapi.'])->assertOk();
+
+        $ticket->delete();
+
+        $page = $this->get("/penilaian/{$token}")->assertOk();
+
+        $page->assertSee($ticket->code);
+        $page->assertSee('sebutkan nomor tiket di atas');
+        $this->assertStringNotContainsString('>—<', $page->getContent(), 'kepalanya tidak boleh "Tiket —"');
+
+        // …dan tetap tidak membawa apa pun yang bukan milik pemegangnya.
+        $this->assertStringNotContainsString($ticket->title, $page->getContent());
+    }
+
+    /**
+     * Asimetrinya DISENGAJA: hanya struk yang membaca tiket terhapus.
+     * Pemegang tautan yang belum menilai belum pernah melihat apa pun, jadi
+     * tautannya tetap dijawab 410 tanpa kode tiketnya.
+     */
+    public function test_an_unrated_link_on_a_deleted_ticket_is_still_a_bare_410(): void
+    {
+        $ticket = CsatFixtures::ticket();
+        [, $token] = $this->invite($ticket);
+
+        $ticket->delete();
+
+        $page = $this->get("/penilaian/{$token}")->assertStatus(410);
+
+        $page->assertSee('sudah tidak ada di sistem');
+        $this->assertStringNotContainsString($ticket->code, $page->getContent());
+        $this->assertStringNotContainsString($ticket->title, $page->getContent());
+    }
+
     // ------------------------------------------------------------- terminals
 
     public function test_a_revoked_link_is_gone_and_leaks_neither_the_recipient_nor_the_title(): void
