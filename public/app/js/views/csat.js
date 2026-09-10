@@ -379,15 +379,35 @@ function distributionCard(summary) {
   ]);
 }
 
-function commentsCard(rows) {
+/* SATU HALAMAN PENILAIAN, dan pagernya. Layarnya meminta 50 penilaian terbaru
+   sekali jalan; tanpa pager, komentar ke-51 — yang bintang satunya justru
+   paling perlu dibaca — tidak bisa dicapai dari layar ini selamanya. */
+const COMMENT_PAGE_SIZE = 50;
+
+/**
+ * Kartu komentar — judulnya dari angka SERVER, dan pagernya dari `meta`.
+ *
+ * `summary.commented` adalah berapa komentar yang benar-benar ada pada rentang
+ * ini; `rows` hanyalah halaman yang kebetulan dimuat. Menghitung judulnya dari
+ * `rows` mencetak UKURAN HALAMAN sebagai jumlah — "Komentar pelanggan (50)" di
+ * samping ubin "61 dari 62 tiket selesai dinilai" (terukur di Chromium 10 Sep
+ * 2026) — persis kelas cacat yang aturan 1 berkas ini ada untuk menutup.
+ */
+function commentsCard(rows, summary, meta, goToPage) {
   const body = el('.card-body');
 
   const withComment = rows.filter((row) => row.comment);
+  const total = Number(meta.total || rows.length);
+  const perPage = Number(meta.per_page || COMMENT_PAGE_SIZE);
+  const page = Number(meta.current_page || 1);
+  const lastPage = Number(meta.last_page || 1);
+  const from = total ? (page - 1) * perPage + 1 : 0;
+  const to = (page - 1) * perPage + rows.length;
 
   if (!withComment.length) {
     body.appendChild(el('p.muted', {
       text: rows.length
-        ? 'Penilaian yang masuk tidak disertai komentar.'
+        ? 'Penilaian pada halaman ini tidak disertai komentar.'
         : 'Belum ada penilaian yang masuk.',
       style: { margin: 0 },
     }));
@@ -403,16 +423,35 @@ function commentsCard(rows) {
     ]))));
   }
 
+  /* Halaman mana yang sedang dibaca, dan bahwa ada sisanya. Sebuah daftar yang
+     berhenti tanpa satu kalimat pun terbaca sebagai daftar yang habis. */
+  if (lastPage > 1) {
+    body.appendChild(el('.pager', [
+      el('span', { text: `Menampilkan penilaian ${from}–${to} dari ${total} (halaman ${page} dari ${lastPage})` }),
+      el('.spacer'),
+      button('Sebelumnya', {
+        size: 'sm', variant: 'ghost', disabled: page <= 1,
+        onClick: () => goToPage(page - 1),
+      }),
+      button('Berikutnya', {
+        size: 'sm', variant: 'ghost', disabled: page >= lastPage,
+        onClick: () => goToPage(page + 1),
+      }),
+    ]));
+  }
+
   return el('.card', [
-    el('.card-head', el('h2', { text: `Komentar pelanggan (${withComment.length})` })),
+    el('.card-head', el('h2', {
+      text: `Komentar pelanggan (${summary.commented ?? withComment.length})`,
+    })),
     body,
   ]);
 }
 
-export async function renderCsat(host) {
+export async function renderCsat(host, page = 1) {
   clear(host);
 
-  const reload = () => renderCsat(host);
+  const reload = () => renderCsat(host, page);
 
   host.appendChild(el('.page-head', [
     el('div', [
@@ -436,7 +475,7 @@ export async function renderCsat(host) {
 
   let payload;
   try {
-    payload = await api.list('servicedesk/csat-summary', { per_page: 50 });
+    payload = await api.list('servicedesk/csat-summary', { per_page: COMMENT_PAGE_SIZE, page });
   } catch (error) {
     return clear(body).appendChild(errorState(error, reload));
   }
@@ -453,7 +492,7 @@ export async function renderCsat(host) {
 
   body.appendChild(summaryStats(summary));
   body.appendChild(el('.detail-grid', [
-    el('div', [commentsCard(rows)]),
+    el('div', [commentsCard(rows, summary, payload.meta || {}, (next) => renderCsat(host, next))]),
     el('div', [distributionCard(summary)]),
   ]));
 }

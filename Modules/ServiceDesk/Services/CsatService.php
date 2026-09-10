@@ -295,8 +295,15 @@ class CsatService
      * null ini. Sebuah 0,0 di sini akan menjadi 0,0 di layar, di ekspor, dan
      * di setiap tangkapan layar yang dikirim ke pemilik.
      *
+     * `commented` ada karena alasan yang sama: kartu "Komentar pelanggan (N)"
+     * di layar ringkasan memaginasi daftarnya, dan sebuah judul yang
+     * menghitung baris HALAMAN mencetak ukuran halaman sebagai jumlah — "50"
+     * di samping "61 dari 62 tiket selesai dinilai" (terukur di Chromium 10
+     * Sep 2026). Jumlah komentar hanya bisa dihitung server, jadi server yang
+     * menghitungnya.
+     *
      * @param  array{from?: ?string, to?: ?string, service_contract_id?: ?int, customer_id?: ?int}  $filters
-     * @return array{ratable: int, invited: int, rated: int, average: float|null, distribution: array<int, int>, satisfied: int, response_rate: float|null, window: array{from: ?string, to: ?string}}
+     * @return array{ratable: int, invited: int, rated: int, commented: int, average: float|null, distribution: array<int, int>, satisfied: int, response_rate: float|null, window: array{from: ?string, to: ?string}}
      */
     public function summary(array $filters = []): array
     {
@@ -312,7 +319,7 @@ class CsatService
         $rated = CsatRating::query()
             ->whereNotNull('rated_at')
             ->whereIn('ticket_id', (clone $tickets)->select('svc_tickets.id'))
-            ->get(['score']);
+            ->get(['score', 'comment']);
 
         $distribution = [];
 
@@ -332,6 +339,7 @@ class CsatService
         $count = 0;
         $sum = 0;
         $satisfied = 0;
+        $commented = 0;
 
         foreach ($rated as $row) {
             $score = $row->score;
@@ -344,12 +352,14 @@ class CsatService
             $distribution[$score->value]++;
             $sum += $score->value;
             $satisfied += $score->isSatisfied() ? 1 : 0;
+            $commented += filled($row->comment) ? 1 : 0;
         }
 
         return [
             'ratable' => $ratable,
             'invited' => $invited,
             'rated' => $count,
+            'commented' => $commented,
             'average' => $count === 0 ? null : round($sum / $count, 2),
             'distribution' => $distribution,
             'satisfied' => $satisfied,

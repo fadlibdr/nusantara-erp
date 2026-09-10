@@ -96,6 +96,40 @@ class CsatSummaryTest extends ErpTestCase
     }
 
     /**
+     * BERAPA KOMENTAR YANG SEBENARNYA ADA — angka yang dikirim server, bukan
+     * panjang halaman pertama.
+     *
+     * Kartu "Komentar pelanggan (N)" di layar #/csat memakai N ini. Sampai
+     * angka ini dikirim, judulnya menghitung baris halaman yang kebetulan
+     * dimuat: dengan 61 penilaian berkomentar dan `per_page=50`, kartunya
+     * berbunyi "Komentar pelanggan (50)" — dibaca sebagai "segini seluruhnya"
+     * di rapat bulanan (terukur di Chromium 10 Sep 2026).
+     *
+     * Fixture 10/3/2 di atas punya TEPAT SATU komentar dari DUA jawaban: angka
+     * yang berbeda dari `rated`, dari `invited`, dan dari `ratable`, jadi
+     * sebuah judul yang memakai salah satunya tetap bisa dibedakan.
+     */
+    public function test_the_summary_says_how_many_of_the_answers_carry_a_comment(): void
+    {
+        $this->tenFinishedTicketsThreeInvitedTwoAnswered();
+
+        $summary = $this->service->summary();
+
+        $this->assertSame(1, $summary['commented'], 'hanya satu dari dua jawaban menulis komentar');
+        $this->assertSame(2, $summary['rated']);
+        $this->assertSame(3, $summary['invited']);
+        $this->assertSame(10, $summary['ratable']);
+    }
+
+    /** Tanpa satu pun jawaban: nol komentar, dan nol yang jujur (bukan null). */
+    public function test_nothing_rated_means_nothing_commented(): void
+    {
+        CsatFixtures::ticket(TicketStatus::Resolved, null, 'Kunjungan tanpa jawaban');
+
+        $this->assertSame(0, $this->service->summary()['commented']);
+    }
+
+    /**
      * Ambang "puas" adalah top-2-box (4 dan 5), dan fixture ini memuat 3
      * justru karena 3 adalah satu-satunya nilai yang membedakannya: dengan
      * jawaban 5 dan 4 saja, ambang >= 3 dan >= 4 memberi angka yang sama dan

@@ -7581,8 +7581,11 @@ paling perlu dibaca menghilang dari kartu Komentar pelanggan.
 >
 > Angkanya mencakup **seluruh riwayat** tiket yang sudah selesai, bukan satu bulan.
 
-Kartu **Komentar pelanggan** memuat komentar yang masuk (klik barisnya untuk membuka
-tiketnya); kartu **Sebaran penilaian** memuat jumlah dan persentase per bintang.
+Kartu **Komentar pelanggan** menuliskan di judulnya berapa komentar yang **benar-benar ada**
+pada rentang itu, tetapi memuat **50 penilaian terbaru sekaligus**: bila ada lebih, barisnya
+sendiri berbunyi *"Menampilkan penilaian 1–50 dari 61 (halaman 1 dari 2)"* dan tombol
+`Berikutnya` membuka sisanya (klik sebuah barisnya untuk membuka tiketnya). Kartu **Sebaran
+penilaian** memuat jumlah dan persentase per bintang.
 
 Komentar pelanggan hanya dapat dibaca pemegang izin **lihat layanan** (`svc.view`) —
 termasuk teknisi yang dinilai, yang namanya memang sudah ada di tiket itu.
