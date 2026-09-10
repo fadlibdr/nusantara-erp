@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '7';
+const SHELL_VERSION = '8';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -128,6 +128,8 @@ const SHELL = [
   'js/views/board.js',
   'js/views/bukubesar.js',
   'js/views/cashflow.js',
+  // F-9 — kartu CSAT di layar tiket + layar ringkasan #/csat.
+  'js/views/csat.js',
   'js/views/custom.js',
   'js/views/dashboard.js',
   'js/views/dashsetup.js',

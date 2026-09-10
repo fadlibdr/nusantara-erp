@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\ServiceDesk\Http\Controllers\CsatController;
 use Modules\ServiceDesk\Http\Controllers\FieldReportController;
 use Modules\ServiceDesk\Http\Controllers\PreventiveScheduleController;
 use Modules\ServiceDesk\Http\Controllers\ServiceContractController;
@@ -25,6 +26,37 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('tickets/{ticket}/activities', [TicketController::class, 'storeActivity'])->middleware('permission:svc.update');
     Route::post('tickets/{ticket}/resolve', [TicketController::class, 'resolve'])->middleware('permission:svc.update');
     Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->middleware('permission:svc.update');
+
+    /*
+     * CSAT tiket (F-9) — kepuasan pelanggan lewat tautan sekali pakai.
+     *
+     * MEMBACA = permission:svc.view — dan itu LEBIH KETAT daripada tiketnya
+     * sendiri, dengan sengaja. Rute baca modul ini (dan seluruh aplikasi ini)
+     * hanya bersesi: `GET tickets/{ticket}` tidak menuntut satu izin pun, jadi
+     * "gerbang yang sama dengan tiketnya" berarti "siapa pun yang punya akun".
+     * Komentar CSAT adalah teks bebas seorang pelanggan tentang seorang
+     * TEKNISI yang namanya ada di tiket itu; ia mendapat gerbangnya sendiri,
+     * dan gerbang itu tidak pernah lebih longgar daripada tiketnya.
+     *
+     * MENERBITKAN dan MENCABUT = svc.update, gerbang yang sama dengan
+     * menyelesaikan dan menutup tiket — bukan svc.approve, izin yang di modul
+     * ini tidak menjaga apa pun dan karenanya tidak dipegang siapa pun yang
+     * benar-benar bekerja di tiket.
+     *
+     * DUA ENDPOINT INI ADALAH SATU-SATUNYA TEMPAT `comment` MENYEBERANGI
+     * KAWAT. TicketResource sengaja TIDAK membawanya: daftar tiket melayani
+     * juga pemilih (lookup.js memaginasi endpoint yang sama sampai 10.000
+     * baris) dan ekspor XLSX-nya, dan satu kunci di sana akan menaruh komentar
+     * pelanggan di tiga permukaan sekaligus. Sensus permukaannya dipaku
+     * CsatSurfaceTest.
+     *
+     * Halaman yang dibuka PELANGGAN bukan di sini melainkan di Routes/web.php:
+     * tanpa sesi, tanpa izin, tokennya-lah kapabilitasnya.
+     */
+    Route::get('csat-summary', [CsatController::class, 'summary'])->middleware('permission:svc.view');
+    Route::get('tickets/{ticket}/csat', [CsatController::class, 'index'])->middleware('permission:svc.view');
+    Route::post('tickets/{ticket}/csat', [CsatController::class, 'store'])->middleware('permission:svc.update');
+    Route::post('csat/{csatRating}/revoke', [CsatController::class, 'revoke'])->middleware('permission:svc.update');
 
     // Preventive maintenance schedules (jadwal PM)
     Route::get('preventive-schedules', [PreventiveScheduleController::class, 'index']);
