@@ -365,6 +365,13 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
    undangan baru — juga bila ia dibuka kembali dan dikerjakan lagi berminggu-minggu kemudian.
    Alternatifnya (penilaian kedua yang menggantikan, dengan jejak) bisa dibenarkan, tetapi ia
    mengubah arti "rata-rata per tiket" dan harus diputuskan sebelum ada data.
+   Sisi lain keputusan yang sama: **penilaian yang sudah masuk tetap dihitung selama tiketnya
+   dibuka kembali** — ia bukti atas pekerjaan yang saat itu dinyatakan selesai, dan
+   mengeluarkannya membuat rata-ratanya **naik** tepat ketika sebuah pekerjaan harus diulang
+   (terukur 10 Sep 2026 sebelum diperbaiki: 4,2 → 4,3, penyebutnya 13 → 12, dan komentar
+   "Pekerjaannya harus diulang minggu depan." lenyap dari kartunya). Universe ringkasannya
+   karena itu satu: **tiket yang selesai hari ini, ditambah tiket yang sudah pernah dinilai**
+   (`CsatSummaryTest::test_a_rating_survives_its_ticket_being_reopened…`).
 3. **Teknisi yang dinilai boleh membaca penilaian tentang dirinya** (§6). Bila pemilik ingin
    sebaliknya, itu bukan satu `if`: ia menuntut gerbang per-baris pada dua endpoint, kartu
    tiket, layar ringkasan, dan setiap ekspor yang kelak dibuat — dan tetap tidak bisa mencegah

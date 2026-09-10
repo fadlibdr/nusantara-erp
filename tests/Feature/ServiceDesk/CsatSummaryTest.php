@@ -196,6 +196,79 @@ class CsatSummaryTest extends ErpTestCase
         $this->assertSame(5.0, $summary['average'], 'baris tanpa skor tidak boleh dijumlahkan sebagai nol');
     }
 
+    /**
+     * TIKET YANG DIBUKA KEMBALI TIDAK MENGHAPUS PENILAIAN YANG SUDAH MASUK —
+     * dan terutama tidak menaikkan rata-ratanya.
+     *
+     * Sebuah penilaian adalah bukti atas pekerjaan yang saat itu dinyatakan
+     * selesai; membuka tiketnya kembali tidak membatalkan bukti itu, dan yang
+     * paling sering membuat tiket dibuka kembali adalah persis pekerjaan yang
+     * dinilai buruk. Sampai uji ini ada, satu bintang-2 yang tiketnya dibuka
+     * kembali LENYAP dari rata-rata — angkanya NAIK justru karena pekerjaannya
+     * harus diulang, penyebutnya diam-diam turun, komentarnya hilang dari
+     * kartu, dan kartu CSAT di tiketnya tetap menampilkannya (terukur 10 Sep
+     * 2026: 4,2 → 4,3, "13 dari 49" → "12 dari 48").
+     *
+     * Angkanya LITERAL: 3,5 sebelum dan 3,5 sesudah, bukan dihitung ulang dari
+     * yang diuji.
+     */
+    public function test_a_rating_survives_its_ticket_being_reopened_and_never_lifts_the_average(): void
+    {
+        $issuer = CsatFixtures::userWith(['svc.update']);
+
+        $mulus = CsatFixtures::ticket(TicketStatus::Resolved, null, 'Kunjungan yang mulus');
+        $diulang = CsatFixtures::ticket(TicketStatus::Resolved, null, 'Kunjungan yang harus diulang');
+        CsatFixtures::ticket(TicketStatus::Resolved, null, 'Kunjungan yang diam');
+
+        $a = $this->service->issue($issuer, $mulus, ['recipient_name' => 'Ibu Sinta']);
+        $b = $this->service->issue($issuer, $diulang, ['recipient_name' => 'Bapak Rudi']);
+        $this->service->rate($a['token'], 5, null);
+        $this->service->rate($b['token'], 2, 'Pekerjaannya harus diulang minggu depan.');
+
+        $sebelum = $this->service->summary();
+        $this->assertSame(3, $sebelum['ratable']);
+        $this->assertSame(2, $sebelum['invited']);
+        $this->assertSame(2, $sebelum['rated']);
+        $this->assertSame(3.5, $sebelum['average']);
+
+        // Tiketnya dibuka kembali — persis karena pekerjaannya harus diulang.
+        $diulang->forceFill(['status' => TicketStatus::InProgress, 'resolved_at' => null])->save();
+
+        $sesudah = $this->service->summary();
+
+        $this->assertSame(3.5, $sesudah['average'], 'bintang 2 tidak boleh hilang karena tiketnya dikerjakan lagi');
+        $this->assertSame(2, $sesudah['rated']);
+        $this->assertSame(3, $sesudah['ratable'], 'penyebutnya tidak boleh menyusut diam-diam');
+        $this->assertSame(2, $sesudah['invited']);
+        $this->assertSame([1 => 0, 2 => 1, 3 => 0, 4 => 0, 5 => 1], $sesudah['distribution']);
+        $this->assertSame(1.0, $sesudah['response_rate']);
+
+        // …dan komentarnya tetap terbaca di kartu Komentar pelanggan.
+        $komentar = $this->service->ratedQuery()->get()->pluck('comment')->all();
+        $this->assertContains('Pekerjaannya harus diulang minggu depan.', $komentar);
+    }
+
+    /**
+     * Yang tetap dikecualikan: tiket yang dibuka kembali dan BELUM pernah
+     * dinilai. Ia bukan bukti apa pun, jadi ia keluar dari penyebut sampai
+     * pekerjaannya dinyatakan selesai lagi.
+     */
+    public function test_a_reopened_ticket_that_was_never_rated_is_not_in_any_denominator(): void
+    {
+        $selesai = CsatFixtures::ticket(TicketStatus::Resolved, null, 'Selesai');
+        $dibuka = CsatFixtures::ticket(TicketStatus::Resolved, null, 'Dibuka kembali');
+        $this->service->issue(CsatFixtures::userWith(['svc.update']), $dibuka, ['recipient_name' => 'Ibu Wati']);
+
+        $dibuka->forceFill(['status' => TicketStatus::InProgress, 'resolved_at' => null])->save();
+
+        $summary = $this->service->summary();
+
+        $this->assertSame(1, $summary['ratable'], 'hanya '.$selesai->code.' yang selesai hari ini');
+        $this->assertSame(0, $summary['invited']);
+        $this->assertSame(0, $summary['rated']);
+        $this->assertNull($summary['average']);
+    }
+
     // ----------------------------------------------------------------- window
 
     /**

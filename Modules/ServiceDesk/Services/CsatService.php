@@ -393,16 +393,41 @@ class CsatService
     // ---------------------------------------------------------------- guards
 
     /**
-     * Tiket yang MASUK HITUNGAN: sudah selesai, belum dibuang.
+     * Tiket yang MASUK HITUNGAN: sudah selesai — ATAU sudah pernah dinilai,
+     * apa pun statusnya hari ini. Yang dibuang tetap keluar (softDeletes).
      *
      * Ini penyebut "ratable" dan juga saringan setiap angka lain, supaya tidak
-     * ada dua definisi "tiket yang layak dinilai" di dalam satu berkas.
+     * ada dua definisi "tiket yang layak dinilai" di dalam satu berkas — dan
+     * SATU definisi itulah yang menjaga penyebutnya tidak pernah lebih kecil
+     * daripada pembilangnya (dua kueri yang berbeda bisa mencetak tingkat
+     * jawaban di atas 100 %).
+     *
+     * KENAPA "atau sudah pernah dinilai": sebuah penilaian adalah bukti atas
+     * pekerjaan yang saat itu DINYATAKAN SELESAI, dan membuka tiketnya kembali
+     * tidak membatalkan bukti itu. Yang paling sering membuat tiket dibuka
+     * kembali justru pekerjaan yang dinilai buruk — jadi menyaring baris
+     * ternilai dengan status HARI INI membuat rata-ratanya NAIK tepat ketika
+     * sebuah pekerjaan harus diulang, penyebutnya menyusut diam-diam, dan
+     * komentar keluhannya lenyap dari kartunya sementara kartu CSAT di tiketnya
+     * masih menampilkannya (terukur 10 Sep 2026: 4,2 → 4,3, "13 dari 49" →
+     * "12 dari 48"). Tiket yang dibuka kembali dan BELUM dinilai tetap keluar:
+     * ia belum menjadi bukti apa pun.
+     *
+     * Jendela waktu tetap diukur pada `resolved_at`, jadi tiket yang sedang
+     * dikerjakan kembali (resolved_at kosong) tidak muncul di ringkasan
+     * BERJENDELA sampai pekerjaannya dinyatakan selesai lagi — layar #/csat
+     * hari ini tidak berjendela dan menampilkan seluruh riwayat.
      *
      * @return Builder<Ticket>
      */
     private function ratableTicketQuery(array $filters = [])
     {
-        $query = Ticket::query()->whereIn('status', self::RATABLE);
+        $query = Ticket::query()->where(function ($query): void {
+            $query->whereIn('status', self::RATABLE)
+                ->orWhereExists(fn ($sub) => $sub->from('svc_csat_ratings')
+                    ->whereColumn('svc_csat_ratings.ticket_id', 'svc_tickets.id')
+                    ->whereNotNull('svc_csat_ratings.rated_at'));
+        });
 
         // Jendela waktu diukur pada SELESAINYA pekerjaan, bukan pada
         // dilaporkannya: CSAT bulan Agustus adalah kepuasan atas pekerjaan

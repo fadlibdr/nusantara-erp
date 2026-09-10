@@ -7559,6 +7559,11 @@ diubah dari sana. Tautan yang dicabut atau kedaluwarsa mengatakan sebabnya. Tike
 **dibuka kembali** membuat tautannya tidur sementara — *"Tautan Anda tetap berlaku, silakan
 buka lagi setelah pekerjaannya dinyatakan selesai"* — bukan mati.
 
+**Penilaian yang sudah masuk tetap dihitung meski tiketnya kemudian dibuka kembali**: ia
+adalah penilaian atas pekerjaan yang **saat itu dinyatakan selesai**. Kalau ia dikeluarkan,
+rata-ratanya justru **naik** tepat ketika sebuah pekerjaan harus diulang — dan keluhan yang
+paling perlu dibaca menghilang dari kartu Komentar pelanggan.
+
 **Layar ringkasan** `Layanan › Kepuasan Pelanggan` — empat kotak dan dua kartu:
 
 | kotak | isinya |
