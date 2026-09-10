@@ -16,8 +16,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * `comment` IKUT di sini karena seluruh permukaan ini bergerbang svc.view —
  * gerbang yang sama dengan tiketnya. Ia TIDAK ikut ke TicketResource pada
  * daftar tiket: daftar itu juga melayani pemilih (lookup.js memaginasi
- * endpoint yang sama sampai 10.000 baris), dan komentar pelanggan tentang
- * seorang teknisi tidak punya urusan di dalam sebuah pemilih.
+ * endpoint yang sama sampai plafonnya, `ROW_CEILING = MAX_PAGES * PAGE_SIZE`),
+ * dan komentar pelanggan tentang seorang teknisi tidak punya urusan di dalam
+ * sebuah pemilih.
  */
 class CsatRatingResource extends JsonResource
 {

@@ -45,8 +45,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
      *
      * DUA ENDPOINT INI ADALAH SATU-SATUNYA TEMPAT `comment` MENYEBERANGI
      * KAWAT. TicketResource sengaja TIDAK membawanya: daftar tiket melayani
-     * juga pemilih (lookup.js memaginasi endpoint yang sama sampai 10.000
-     * baris) dan ekspor XLSX-nya, dan satu kunci di sana akan menaruh komentar
+     * juga pemilih (lookup.js memaginasi endpoint yang sama sampai plafonnya,
+     * `ROW_CEILING = MAX_PAGES * PAGE_SIZE`) dan ekspor XLSX-nya, dan satu
+     * kunci di sana akan menaruh komentar
      * pelanggan di tiga permukaan sekaligus. Sensus permukaannya dipaku
      * CsatApiTest::no_other_ticket_surface_carries_the_comment dan
      * ::the_ticket_resource_carries_no_csat_key_at_all — dan, untuk cetakan

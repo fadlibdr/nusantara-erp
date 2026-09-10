@@ -35,12 +35,16 @@ use Modules\ServiceDesk\Services\CsatService;
  *   kalimat sebabnya, tidak pernah nama penerima, nama teknisi, atau skor
  *   milik tautan lain.
  *
- * Enam keadaan:
+ * Keadaan halaman — daftarnya, bukan jumlahnya (sebuah angka di sini basi pada
+ * keadaan berikutnya yang ditambahkan, dan sampai baris ini diperbaiki ia
+ * memang sudah basi: tertulis "enam", terdaftar tujuh, dan yang kedelapan
+ * tidak terdaftar sama sekali):
  *   unknown   404  token tak dikenal — tidak membocorkan apa pun
  *   form      200  formulir: kode + judul + tanggal selesai, 5 tombol, komentar
  *   receipt   200  struk penilaian YANG INI — pemberi nilai berhak melihatnya
  *   revoked   410  dicabut penerbitnya
  *   expired   410  masa berlaku habis
+ *   missing   410  tiketnya sudah tidak ada di sistem (dihapus sesudah undangan)
  *   taken     410  tiket sudah dinilai lewat tautan LAIN (tanpa skornya)
  *   reopened  409  tiket sedang dikerjakan kembali — tautannya masih berlaku
  *
@@ -131,10 +135,19 @@ class CsatPageController extends Controller
      *
      * Perbandingan KETAT terhadap lima nilai yang benar-benar dicetak
      * halamannya — bukan `(int) $input`. Cast itu diam-diam menerima "4.5"
-     * sebagai 4, "4abc" sebagai 4, dan " 5 " sebagai 5: sebuah nilai yang tidak
+     * sebagai 4, "4abc" sebagai 4, dan "05" sebagai 5: sebuah nilai yang tidak
      * pernah ditawarkan halaman ini akan tercatat sebagai penilaian pelanggan,
      * dibulatkan tanpa satu kata pun. Terukur 10 Sep 2026 — "4.5" tercatat 4
      * sampai baris ini ada.
+     *
+     * Yang TIDAK dijaga baris ini, meski dulu tertulis begitu: " 5 " dengan
+     * spasi. Ia tidak pernah sampai ke sini karena TrimStrings adalah
+     * middleware GLOBAL Laravel 12 (Foundation/Configuration/Middleware.php),
+     * jadi ia berjalan juga pada rute ini yang sengaja tanpa grup 'web'.
+     * Terukur lewat HTTP sungguhan 10 Sep 2026: `score=" 5 "` → 200, tersimpan
+     * 5. Akibatnya tidak berbahaya, tetapi yang menjaganya bukan baris ini —
+     * dan komentar yang memuji penjaga yang salah membuat orang berikutnya
+     * menyangka rute ini kebal spasi karena dirinya sendiri.
      */
     private function scoreFrom(mixed $input): ?CsatScore
     {
