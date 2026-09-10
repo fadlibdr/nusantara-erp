@@ -7589,7 +7589,10 @@ sendiri berbunyi *"Menampilkan penilaian 1–50 dari 61 (halaman 1 dari 2)"* dan
 penilaian** memuat jumlah dan persentase per bintang.
 
 Komentar pelanggan hanya dapat dibaca pemegang izin **lihat layanan** (`svc.view`) —
-termasuk teknisi yang dinilai, yang namanya memang sudah ada di tiket itu.
+termasuk teknisi yang dinilai, yang namanya memang sudah ada di tiket itu. Diukur 10 September
+2026, izin itu dipegang empat peran: **Administrator, Direktur, Sales, dan Teknisi**. Sales
+ikut karena `svc.view` memang sudah ada di perannya; kalau itu tidak dikehendaki, yang perlu
+diubah adalah izinnya, bukan layar ini.
 
 ### 12.6 Berita Acara Lapangan — `Layanan › Berita Acara`
 

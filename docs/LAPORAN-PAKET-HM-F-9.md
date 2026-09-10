@@ -268,6 +268,15 @@ punya akun".
 | 15 | Layar `#/csat` | ya — rutenya `accessDenied` tanpa `svc.view` | `app.js` |
 | 16 | `ModuleCounts`, widget dasbor, `WatchedDeadlines`/`Thresholds` | tidak menyentuh `svc_csat_ratings` | tidak ada entri baru |
 
+**SIAPA SAJA YANG MEMBACANYA, apa adanya.** `svc.view` dipegang **empat** dari dua belas peran
+— `admin`, `direktur`, `sales`, `teknisi` (diukur dari `RoleSeeder::intended()` pada 10 Sep
+2026; kalau angkanya berubah, sumbernya itu, bukan kalimat ini). Yang paling perlu dibaca
+pemilik dari daftar itu adalah `sales`: seluruh peran penjualan membaca **setiap** komentar
+pelanggan di layar `#/csat`, termasuk "Teknisinya merokok di ruang server" tentang seorang
+karyawan yang bukan urusannya. Itu konsekuensi dari memakai `svc.view` — izin yang sudah ada —
+alih-alih menerbitkan izin baru; kalau pemilik tidak menginginkannya, jalannya izin tersendiri
+(mis. `svc.csat-view`), bukan satu `if`.
+
 **Apakah teknisi yang dinilai boleh membaca penilaian tentang dirinya? YA** — dan itu
 keputusan, bukan kelalaian. Peran `teknisi` memegang `svc.view`, namanya sudah ada di tiket
 itu, dan umpan balik yang tidak boleh dibacanya adalah umpan balik yang tidak mengubah apa pun.
@@ -386,10 +395,16 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
    "Pekerjaannya harus diulang minggu depan." lenyap dari kartunya). Universe ringkasannya
    karena itu satu: **tiket yang selesai hari ini, ditambah tiket yang sudah pernah dinilai**
    (`CsatSummaryTest::test_a_rating_survives_its_ticket_being_reopened…`).
-3. **Teknisi yang dinilai boleh membaca penilaian tentang dirinya** (§6). Bila pemilik ingin
+3. **Komentar pelanggan dibaca pemegang `svc.view` — hari ini `admin`, `direktur`, `sales`,
+   `teknisi`** (empat dari dua belas peran; diukur dari `RoleSeeder::intended()` 10 Sep 2026),
+   **termasuk teknisi yang dinilai** (§6). Dua hal untuk ditandatangani, bukan satu. Yang
+   pertama: teknisi yang dinilai boleh membaca penilaian tentang dirinya — bila pemilik ingin
    sebaliknya, itu bukan satu `if`: ia menuntut gerbang per-baris pada dua endpoint, kartu
    tiket, layar ringkasan, dan setiap ekspor yang kelak dibuat — dan tetap tidak bisa mencegah
-   atasannya menunjukkannya.
+   atasannya menunjukkannya. Yang kedua: **seluruh peran `sales` juga membacanya**, karena
+   paket ini memakai izin yang sudah ada alih-alih menerbitkan yang baru. Bila `sales` tidak
+   seharusnya membaca komentar tentang seorang teknisi, jalannya izin tersendiri
+   (`svc.csat-view`) — satu izin baru, dua endpoint, satu entri NAV, satu penjaga rute SPA.
 4. **Lonceng penilaian pergi ke pemegang `svc.update`, tanpa komentarnya dan tanpa nama kontak
    pelanggannya.** Bila pemilik ingin
    skor rendah (1–2) berbunyi ke meja yang lebih tinggi, izin tujuannya berubah — dan
