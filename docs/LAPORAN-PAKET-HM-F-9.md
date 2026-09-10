@@ -231,7 +231,7 @@ Akibatnya satu POST tanpa skor pada tautan terpakai mengembalikan **formulir ber
 tombolnya** — persis hal yang §2(C) berjanji tidak akan pernah terjadi. Ditemukan saat menutup
 perangkap C, bukan oleh mutasi: mutasinya baru bisa ditulis setelah cacatnya ada namanya.
 Diperbaiki dengan memanggil `stateFor()` yang sama, sehingga tidak ada dua daftar keadaan yang
-bisa berselisih. (`bd0fe52`)
+bisa berselisih. (`f46dd7e`)
 
 ---
 
@@ -434,7 +434,7 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
 | `da6d0cb` | endpoint, resource, request, kartu tiket, layar `#/csat`, NAV, `sw.js` |
 | `65ec12d` | harness S36 desktop + ponsel, `results-phase-2.json`, 10 PNG |
 | `346625c` | laporan paket |
-| `bd0fe52` | verifikasi penutup: D4 (formulir yang kembali pada tautan terpakai) + dua paku baru |
+| `f46dd7e` | verifikasi penutup: D4 (formulir yang kembali pada tautan terpakai) + dua paku baru |
 
 **Blok migrasi:** ServiceDesk `001200–001299` masih longgar — `001280` dipakai, `001290` bebas.
 Tidak ada blok lanjutan yang perlu didaftarkan di CONVENTIONS §2.
