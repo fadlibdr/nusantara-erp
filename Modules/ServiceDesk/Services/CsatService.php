@@ -295,6 +295,16 @@ class CsatService
      * null ini. Sebuah 0,0 di sini akan menjadi 0,0 di layar, di ekspor, dan
      * di setiap tangkapan layar yang dikirim ke pemilik.
      *
+     * `invited` MENGHITUNG TIKET, bukan baris undangan — tiket yang punya
+     * minimal satu undangan, berapa pun kali tautannya diterbitkan ulang
+     * (aturan 3 di atas sengaja membolehkannya). Layar yang menuliskannya
+     * WAJIB memakai kata "tiket": memakai kata "undangan" untuk angka ini
+     * membuat satu bilangan melayani dua arti pada satu layar, dan selisihnya
+     * tumbuh persis sebanding dengan seberapa sering tautan diterbitkan ulang.
+     * Tiket yang undangan tunggalnya DICABUT tetap terhitung sudah ditanyai:
+     * ia memang sudah ditanyai, dan mengeluarkannya akan menaikkan tingkat
+     * jawaban justru karena kita menarik pertanyaannya kembali.
+     *
      * `commented` ada karena alasan yang sama: kartu "Komentar pelanggan (N)"
      * di layar ringkasan memaginasi daftarnya, dan sebuah judul yang
      * menghitung baris HALAMAN mencetak ukuran halaman sebagai jumlah — "50"

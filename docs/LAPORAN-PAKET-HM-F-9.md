@@ -59,7 +59,7 @@ membuat seluruh angkanya tidak berguna:
 | penyebut | apa artinya | pada fixture 10/3/2 |
 |---|---|---|
 | tiket **selesai** (`ratable`) | "berapa banyak yang bisa dinilai" | 9 / 10 = **0,9** |
-| **undangan** terbit (`invited`) | "berapa banyak yang kita tanyai" | 9 / 3 = **3,0** |
+| **tiket yang diundang** (`invited`) | "berapa banyak yang kita tanyai" — TIKET yang punya ≥ 1 undangan, bukan baris undangan: satu tiket boleh diundang beberapa kali, dan tiket yang undangannya dicabut tetap terhitung sudah ditanyai | 9 / 3 = **3,0** |
 | **jawaban** masuk (`rated`) | "berapa banyak yang menjawab" | 9 / 2 = **4,5** ← benar |
 
 `CsatService::summary()` mengembalikan **ketiganya bersama-sama**, dan itu bukan kelengkapan

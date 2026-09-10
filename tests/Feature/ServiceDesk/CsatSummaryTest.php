@@ -121,6 +121,43 @@ class CsatSummaryTest extends ErpTestCase
         $this->assertSame(10, $summary['ratable']);
     }
 
+    /**
+     * `invited` MENGHITUNG TIKET, BUKAN BARIS UNDANGAN — dan layarnya harus
+     * menyebutnya dengan kata itu.
+     *
+     * Beberapa undangan per tiket memang sengaja dibolehkan (aturan 3
+     * CsatService: yang pertama hilang di WhatsApp, PIC-nya berganti), jadi
+     * "berapa undangan terbit" dan "berapa tiket yang kita tanyai" adalah dua
+     * angka yang berbeda dan selisihnya tumbuh persis sebanding dengan
+     * seberapa sering tautan diterbitkan ulang. Fixture ini membedakan
+     * keduanya: SATU tiket dengan TIGA baris undangan (dua dicabut) — 1, bukan
+     * 3. Sampai uji ini ada, layar menuliskan angka per-tiket dengan kata
+     * "undangan" (terukur 10 Sep 2026: "16 dari 21 undangan dijawab" saat 24
+     * undangan benar-benar terbit).
+     */
+    public function test_invited_counts_tickets_that_were_asked_not_invitation_rows(): void
+    {
+        $issuer = CsatFixtures::userWith(['svc.update']);
+        $ticket = CsatFixtures::ticket(TicketStatus::Resolved, null, 'Tiga kali diundang');
+
+        $pertama = $this->service->issue($issuer, $ticket, ['recipient_name' => 'PIC lama']);
+        $this->service->revoke($pertama['rating'], $issuer);
+        $kedua = $this->service->issue($issuer, $ticket, ['recipient_name' => 'PIC yang berganti']);
+        $this->service->revoke($kedua['rating'], $issuer);
+        $ketiga = $this->service->issue($issuer, $ticket, ['recipient_name' => 'PIC yang menjawab']);
+
+        $this->assertSame(3, CsatRating::query()->where('ticket_id', $ticket->getKey())->count(),
+            'tiga BARIS undangan benar-benar ada di tabelnya');
+
+        $this->service->rate($ketiga['token'], 5, null);
+
+        $summary = $this->service->summary();
+
+        $this->assertSame(1, $summary['invited'], 'satu tiket yang ditanyai, bukan tiga undangan');
+        $this->assertSame(1, $summary['rated']);
+        $this->assertSame(1.0, $summary['response_rate'], 'satu tiket ditanyai, satu menjawab — 100 %');
+    }
+
     /** Tanpa satu pun jawaban: nol komentar, dan nol yang jujur (bukan null). */
     public function test_nothing_rated_means_nothing_commented(): void
     {

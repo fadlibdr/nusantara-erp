@@ -7569,8 +7569,8 @@ paling perlu dibaca menghilang dari kartu Komentar pelanggan.
 | kotak | isinya |
 |---|---|
 | **Rata-rata kepuasan** | mis. *4,5 dari 5*, dengan **"8 dari 10 tiket selesai dinilai"** di bawahnya |
-| **Tiket selesai** | berapa yang bisa dinilai, dan berapa yang sudah diundang |
-| **Tingkat jawaban** | berapa undangan yang dijawab |
+| **Tiket selesai** | berapa yang bisa dinilai, dan berapa **tiket** yang sudah diundang |
+| **Tingkat jawaban** | berapa **tiket yang diundang** sudah menjawab — bukan berapa undangan: satu tiket boleh menerima beberapa undangan (yang pertama hilang di WhatsApp, PIC-nya berganti), dan tiket yang undangannya dicabut tetap dihitung sudah ditanyai |
 | **Puas (4–5)** | berapa jawaban yang 4 atau 5 |
 
 > **Rata-ratanya dihitung HANYA dari tiket yang benar-benar dinilai.** Tiket yang diundang

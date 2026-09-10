@@ -335,10 +335,16 @@ function summaryStats(summary) {
       el('.value', { text: fmt.num(summary.ratable, 0) }),
       el('.delta', { text: `${summary.invited} sudah diundang menilai` }),
     ]),
+    /* "TIKET YANG DIUNDANG", bukan "undangan": `invited` menghitung TIKET yang
+       punya minimal satu undangan, dan beberapa undangan per tiket memang
+       sengaja dibolehkan (yang pertama hilang di WhatsApp, PIC-nya berganti).
+       Kata "undangan" di sini membuat satu angka melayani dua arti pada satu
+       layar — terukur 10 Sep 2026: "16 dari 21 undangan dijawab" saat 24
+       undangan benar-benar terbit. */
     el('.stat', [
       el('.label', { text: 'Tingkat jawaban' }),
       el('.value', { text: rateText }),
-      el('.delta', { text: `${summary.rated} dari ${summary.invited} undangan dijawab` }),
+      el('.delta', { text: `${summary.rated} dari ${summary.invited} tiket yang diundang sudah menjawab` }),
     ]),
     el('.stat', [
       el('.label', { text: 'Puas (4–5)' }),
