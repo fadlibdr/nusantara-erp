@@ -72,6 +72,41 @@ class CsatServiceTest extends ErpTestCase
         $this->travelBack();
     }
 
+    /**
+     * PLAFON MASA BERLAKU DITEGAKKAN DI SERVICE, bukan hanya di FormRequest.
+     *
+     * Permukaan yang menerbitkan tautan hari ini cuma satu (POST
+     * tickets/{ticket}/csat lewat CsatLinkStoreRequest), tetapi aturan paket
+     * ini hidup di service — "ENAM ATURAN YANG DITEGAKKAN DI SINI, BUKAN DI
+     * CONTROLLER" — dan sebuah plafon yang hanya ada di pintu HTTP adalah
+     * plafon yang hilang pada pemanggil berikutnya (perintah konsol, seeder,
+     * penerbitan otomatis saat SMTP tiba). 90 hari, LITERAL.
+     */
+    public function test_the_service_itself_refuses_a_link_that_outlives_the_ceiling(): void
+    {
+        $issuer = CsatFixtures::userWith(['svc.update']);
+
+        try {
+            $this->service->issue($issuer, CsatFixtures::ticket(), [
+                'recipient_name' => 'Abadi',
+                'expires_at' => '2099-12-31 23:59:00',
+            ]);
+            $this->fail('service harus menolak masa berlaku di luar plafonnya');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('90 hari', $e->getMessage());
+        }
+
+        $this->assertSame(0, CsatRating::query()->count());
+
+        // 80 hari tetap terbit — plafonnya batas, bukan larangan.
+        $issued = $this->service->issue($issuer, CsatFixtures::ticket(TicketStatus::Closed, null, 'Delapan puluh hari'), [
+            'recipient_name' => 'Ibu Sinta',
+            'expires_at' => now()->addDays(80)->format('Y-m-d H:i:s'),
+        ]);
+
+        $this->assertNotNull($issued['token']);
+    }
+
     public function test_only_a_finished_ticket_can_be_invited_to_rate(): void
     {
         $issuer = CsatFixtures::userWith(['svc.update']);

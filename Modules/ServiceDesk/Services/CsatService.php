@@ -132,6 +132,7 @@ class CsatService
         $this->assertTicketIsRatable($ticket);
         $this->assertTicketIsNotRatedYet($ticket);
         $this->assertIssuerIsNotTheRatedTechnician($ticket, $by);
+        $expiresAt = $this->expiryFrom($data['expires_at'] ?? null);
 
         $token = Str::random(40);
 
@@ -140,9 +141,7 @@ class CsatService
             'recipient_name' => $data['recipient_name'],
             'recipient_email' => $data['recipient_email'] ?? null,
             'token_hash' => hash('sha256', $token),
-            'expires_at' => isset($data['expires_at'])
-                ? Carbon::parse($data['expires_at'])
-                : now()->addDays(self::DEFAULT_VALIDITY_DAYS),
+            'expires_at' => $expiresAt,
             'issued_by' => $by->id,
         ]);
 
@@ -500,6 +499,38 @@ class CsatService
         }
 
         return $query;
+    }
+
+    /**
+     * Masa berlaku yang diminta, atau bawaannya — dan plafonnya ditegakkan DI
+     * SINI, bukan hanya di CsatLinkStoreRequest.
+     *
+     * Pintu HTTP-nya memang satu hari ini, dan pesan yang dibaca operator
+     * memang lahir di FormRequest itu. Tetapi aturan paket ini hidup di
+     * service (lihat enam aturan di kepala berkas), dan sebuah plafon yang
+     * hanya ada di pintu HTTP adalah plafon yang hilang pada pemanggil
+     * berikutnya — perintah konsol, seeder, atau penerbitan otomatis yang
+     * menunggu SMTP (P-3a).
+     */
+    private function expiryFrom(mixed $requested): Carbon
+    {
+        if ($requested === null) {
+            return now()->addDays(self::DEFAULT_VALIDITY_DAYS);
+        }
+
+        $expiresAt = Carbon::parse($requested);
+        $ceiling = now()->addDays(self::MAX_VALIDITY_DAYS);
+
+        if ($expiresAt->greaterThan($ceiling)) {
+            throw ValidationException::withMessages(['expires_at' => sprintf(
+                'Masa berlaku tautan penilaian paling lama %d hari (sampai %s) — undangan yang berlaku '
+                .'lebih lama dari itu bukan lagi tautan yang kedaluwarsa.',
+                self::MAX_VALIDITY_DAYS,
+                $ceiling->format('d-m-Y H:i'),
+            )]);
+        }
+
+        return $expiresAt;
     }
 
     private function assertTicketIsRatable(Ticket $ticket): void
