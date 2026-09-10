@@ -93,9 +93,8 @@ final class CsatFixtures
         $role = Role::findOrCreate('peran-'.$key, 'web');
         $role->syncPermissions($permissions);
 
-        $user = User::query()->create([
+        $user = User::query()->firstOrCreate(['email' => $email ?? ($key.'@test.local')], [
             'name' => 'Pemegang '.implode(' ', $permissions),
-            'email' => $email ?? ($key.'@test.local'),
             'password' => 'password',
             'is_active' => true,
             'employee_id' => $employeeId,
