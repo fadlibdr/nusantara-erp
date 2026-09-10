@@ -45,6 +45,7 @@ longgar daripada tiketnya.
 | T19 | Cangkang PWA | ✅ | `da6d0cb` — `js/views/csat.js` ditambahkan ke `SHELL`, `SHELL_VERSION` **7 → 8**; `PwaServiceWorkerTest` 12 uji hijau |
 | T20 | `/app/` dimuat di Chromium, 0 galat konsol di tiap layar tersentuh | ✅ | **54 pemuatan** (3 peran × 2 viewport × 8 rute + 6 halaman publik), `all_console_errors: []` di aplikasi, `http_4xx_5xx: []` — §6 |
 | T21 | Halaman publik dimuat sebagai peramban **tanpa sesi** | ✅ | §6 — `document.cookie` kosong, `localStorage` kosong, **0 subresource**, 0 `<script>` |
+| T22 | Sapuan dokumentasi (CONVENTIONS §35) | ✅ | PANDUAN-PENGGUNA §12.5 baru (dan §12.5→§12.6, §12.6→§12.7 dengan **11 rujukan silang** diperbaiki di 3 berkas), PANDUAN-ADMINISTRATOR §3.5, ONBOARDING/teknisi butir 5; sensus di §13 |
 
 ---
 
@@ -419,11 +420,57 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
 | **DV-F9-1** | `fmt.num(value, decimals)` di `public/app/js/format.js` **diam-diam mengabaikan** setiap `decimals` selain 2 dan jatuh ke nol desimal, sehingga `fmt.num(4.6, 1)` mencetak `"5"`. Tanda tangannya menjanjikan jumlah desimal bebas; implementasinya memberi dua pilihan. | **Belum diperbaiki — sengaja.** Layar CSAT memakai formatter sendiri, dan sensus 10 Sep 2026 menunjukkan **tidak ada pemanggil lain** yang meminta desimal selain 0/2 (keenam kolom ber-`decimals:` di `schema.js` bernilai `2`). Memperbaiki `fmt.num` menyentuh **18 pemanggilan di 7 berkas** di luar paket ini (diukur 10 Sep 2026: 21 pemanggilan di 8 berkas, 3 di antaranya milik `views/csat.js`) — perubahan yang pantas dapat pakunya sendiri, bukan menumpang F-9. |
 | **DV-F9-2** | Uji tepi waktu yang membandingkan kolom ber-cast `'datetime'` dengan `now()` **tidak bisa membedakan `<` dari `<=`** kecuali waktunya dibekukan pada **detik bulat** — `freezeTime()` saja tidak cukup, karena waktu beku pun ber-mikrodetik sementara cast membuangnya. Dua mutasi lolos hijau sebelum ini dipahami. | **Diperbaiki di dalam paket** (uji CSAT). Preseden yang sama di `ExternalApprovalPublicTest::test_expiry_is_enforced_at_the_exact_boundary` **kebetulan aman** karena ia ber-`travelTo($row->expires_at)` dari nilai yang sudah dibaca DB (sudah terpotong ke detik). Dicatat di sini supaya penulis uji tepi berikutnya tahu sebabnya. |
 | **DV-F9-3** | Harness yang membuka halaman ber-`throttle` mati di `wait_for_selector` dengan pesan yang menuduh halamannya rusak, bukan menyebut 429-nya. | **Diperbaiki di dalam paket** (`_f9_open_public`). Sejenis dengan cacat "nama skenario tidak dikenal dilewati diam-diam" yang diperbaiki di F-7: sebuah kegagalan harness yang menyebut sebab yang salah membuang waktu mencari bug yang tidak ada. |
+| **DV-F9-5** | `PANDUAN-ADMINISTRATOR` §3.5 membuka dengan *"Satu halaman — dan hanya satu — dibuka tanpa login"*. F-9 **menjadikan kalimat itu salah** pada hari ia di-merge: sekarang ada dua. | **Diperbaiki di dalam paket.** Persis kelas cacat yang CONVENTIONS §35 ada untuk menangkap, dan ia tidak akan tertangkap oleh satu uji pun — hanya oleh sapuan. |
+| **DV-F9-6** | Dokumen repo ini **tidak sepakat tentang gerbang Basic-auth nginx erp1**: catatan pemilik menyebutnya sudah diturunkan 5 Sep 2026, sementara `PANDUAN-ADMINISTRATOR` §3.5/§12 dan `PERSETUJUAN-EKSTERNAL.md` masih menuliskannya berdiri dan menyimpulkan "pintu yang berfungsi penuh adalah lembar fisik". | **Tidak diselesaikan — sengaja, dan dicatat.** Keadaan gerbang adalah fakta PRODUKSI yang tidak bisa diperiksa dari repo, dan menuliskan tebakan ke dalam panduan operasional lebih buruk daripada menuliskan bahwa jawabannya belum pasti. Komentar `Modules/ServiceDesk/Routes/web.php` karena itu **tidak mengklaim** keadaannya; ia menyuruh operator membuka satu tautan uji dari luar jaringan sebelum mengirim yang pertama kepada pelanggan sungguhan. Menyelaraskan ketiga dokumen itu butuh satu fakta yang hanya pemilik punya. |
 | **DV-F9-4** | Rute BACA di seluruh aplikasi ini hanya bersesi (`GET servicedesk/tickets/{ticket}` dan puluhan saudaranya tidak menuntut `*.view`), sementara NAV SPA menyaring dengan `perm: 'svc.view'`. Artinya izin `*.view` hari ini adalah **kendali tampilan, bukan kendali akses**. | **Di luar lingkup F-9, tidak diubah.** Paket ini menutup bagiannya dengan menggerbangi endpoint CSAT-nya sendiri di `svc.view` — lebih ketat daripada tetangganya. Menutup deviasinya sendiri berarti menyentuh ratusan rute di 14 modul dan berisiko memutus peran yang hari ini bekerja; ia butuh paketnya sendiri dan keputusan pemilik. |
 
 ---
 
-## 12. Commit
+## 12. Sapuan dokumentasi (CONVENTIONS §35)
+
+F-9 **menambah** satu layar dan satu halaman publik; ia tidak mengganti nama apa pun. Yang
+tetap membuatnya berbahaya adalah dua hal yang hanya sapuan bisa menangkap.
+
+**(a) Kalimat yang menjadi salah.** `PANDUAN-ADMINISTRATOR` §3.5 berbunyi *"Satu halaman —
+dan hanya satu — dibuka tanpa login: `/persetujuan/{token}`"*. Sejak paket ini, ada **dua**.
+Kalimat itu ditulis ulang untuk menyebut keduanya, dengan catatan bahwa seluruh paragraf
+pengerasannya berlaku kata per kata untuk keduanya — karena memang pola yang sama.
+
+**(b) Nomor bagian yang bergeser.** Layar baru disisipkan sebagai **§12.5** (tepat sesudah
+dua layar tiket, karena itulah hubungannya), sehingga Berita Acara §12.5 → **§12.6** dan
+Jadwal Preventif §12.6 → **§12.7**. Rujukan silangnya dihitung sebelum dan sesudah:
+
+```
+grep -rn "§12.5" docs/ | wc -l     # sebelum: 10   sesudah:  0
+grep -rn "§12.6" docs/ | wc -l     # sebelum:  1   sesudah: 10
+grep -rn "§12.7" docs/ | wc -l     # sebelum:  0   sesudah:  1
+                                   # total    11            11
+```
+
+Kesebelasnya dibaca satu per satu, di **tiga** berkas (`PANDUAN-PENGGUNA.md`,
+`ONBOARDING/teknisi.md`, `ONBOARDING/warehouse.md`) — sepuluh menunjuk Berita Acara dan satu
+menunjuk Jadwal Preventif, dan sesudah pergeseran keduanya masih menunjuk benda yang sama.
+Penggantiannya dijalankan **§12.6 → §12.7 lebih dulu**: urutan sebaliknya membuat sebagian
+rujukan melompat dua kali.
+
+**(c) Yang ditambahkan.** `PANDUAN-PENGGUNA` §12.5 (menerbitkan, kapan tombolnya tidak ada
+dan mengapa, apa yang dilihat pelanggan, dan mengapa rata-ratanya hanya dari yang dinilai) ·
+`PANDUAN-ADMINISTRATOR` §3.5 (halaman publik kedua, dan tiga hal yang berbeda darinya) ·
+`ONBOARDING/teknisi.md` butir 5 — yang menyebut terang bahwa **penerbitan untuk tiketnya
+sendiri akan ditolak**, karena orang itulah yang akan menabraknya lebih dulu, dan sebuah
+penolakan yang tidak dijelaskan di panduan perannya terbaca sebagai sistem yang rusak.
+
+Sensus sesudah sapuan (10 Sep 2026):
+
+```
+grep -rn "Kepuasan Pelanggan" docs/ | wc -l   # 15 baris
+grep -rl "Kepuasan Pelanggan" docs/ | wc -l   #  4 berkas
+grep -rn "/penilaian/" docs/ | wc -l          #  6 baris
+```
+
+---
+
+## 13. Commit
 
 | commit | isi |
 |---|---|

@@ -182,7 +182,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
 | SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
-| Layanan | Tiket · Tiket Lewat SLA · Kontrak Layanan · Jadwal Preventif · Berita Acara |
+| Layanan | Tiket · Tiket Lewat SLA · Kepuasan Pelanggan · Kontrak Layanan · Jadwal Preventif · Berita Acara |
 | Aset | Daftar Aset · Kategori Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset · Evaluasi Sewa vs Beli |
 | Sistem | Pengguna · Peran & Hak Akses · Profil Perusahaan · Impor Data Master · Impor Dokumen · Pengaturan |
 
@@ -3638,7 +3638,7 @@ ditagih tidak dikarang di sini."*
 
 Pada susunan peran bawaan, izin posting stok (`inv.post`) dipegang **`admin` dan —
 sejak 22 Agustus 2026 — `teknisi`**. Izin itu diberikan kepada teknisi supaya ia bisa
-mengesahkan sendiri berita acara servis yang memakai suku cadang (§12.5); harganya,
+mengesahkan sendiri berita acara servis yang memakai suku cadang (§12.6); harganya,
 yang diterima sadar, adalah bahwa izin ini juga membuka seluruh tombol stok di bab
 ini. Setiap tombol yang benar-benar menggerakkan stok bergerbang izin itu:
 
@@ -4200,7 +4200,7 @@ Persediaan / Cr HPP diposting, biaya proyek berkurang, dan dokumen tidak bisa di
 lagi."*
 
 Penolakan: `"Bon {kode} berstatus {status}; retur material hanya dapat dibuat/diposting
-atas bon yang sudah diposting."` · bon yang lahir dari berita acara servis (§12.5) ·
+atas bon yang sudah diposting."` · bon yang lahir dari berita acara servis (§12.6) ·
 baris ganda · kelebihan retur · *"Alasan retur terlalu singkat; jelaskan mengapa material
 ini kembali."*
 
@@ -7415,8 +7415,8 @@ tanggal 25 Juni melunasi akrual bertanggal 30 Juni.
 
 ## 12. Layanan & pemeliharaan
 
-Kelompok **Layanan**: **Tiket · Tiket Lewat SLA · Kontrak Layanan · Jadwal Preventif ·
-Berita Acara**.
+Kelompok **Layanan**: **Tiket · Tiket Lewat SLA · Kepuasan Pelanggan · Kontrak Layanan ·
+Jadwal Preventif · Berita Acara**.
 
 ### 12.1 Siapa boleh apa
 
@@ -7426,7 +7426,7 @@ layanan. Peran `sales` memegang lihat layanan (baca saja). Persetujuan layanan a
 pada direktur dan admin.
 
 Izin posting stok itu diberikan justru untuk bab ini: **seorang teknisi kini bisa
-menyelesaikan sendiri kunjungan yang memakai suku cadang** (§12.5). Izin yang sama
+menyelesaikan sendiri kunjungan yang memakai suku cadang** (§12.6). Izin yang sama
 juga membuka tombol posting/pembatalan stok di bab 6 untuk peran teknisi — itu harga
 yang diterima sadar saat izinnya diberikan (§6.1).
 
@@ -7521,7 +7521,68 @@ respons pertama ATAU penyelesaian lewat dan belum selesai)**.
 Bila kosong: *"Tidak ada tiket yang melewati SLA. Daftar ini hanya memuat tiket yang belum
 selesai dan sudah lewat batas waktu."*
 
-### 12.5 Berita Acara Lapangan — `Layanan › Berita Acara`
+### 12.5 Kepuasan Pelanggan (CSAT) — `Layanan › Kepuasan Pelanggan`
+
+Sesudah sebuah tiket **selesai**, pelanggan boleh diminta menilainya lewat **tautan sekali
+pakai**. Pelanggan **tidak punya akun** di sistem ini dan tidak perlu membuatnya —
+tautannyalah izinnya, persis seperti tautan persetujuan MK/Owner.
+
+**Menerbitkan tautan** — dari halaman tiketnya, kartu **Kepuasan Pelanggan (CSAT)**, tombol
+**`Terbitkan Tautan Penilaian`**. Isi nama orang di pihak pelanggan (wajib), e-mailnya
+(opsional), dan masa berlaku dalam hari (kosongkan untuk **14 hari**).
+
+> **SISTEM INI TIDAK MENGIRIM E-MAIL.** Sesudah menekan `Terbitkan`, URL-nya muncul **satu
+> kali** di sebuah dialog dengan tombol `Salin`. **Andalah yang mengirimnya** kepada
+> pelanggan — WhatsApp, e-mail pribadi, apa pun saluran Anda. Kolom e-mail hanya arsip
+> "untuk siapa tautan ini diterbitkan".
+>
+> Tautan itu **tidak bisa dilihat lagi**. Kalau hilang: **cabut** tautan itu, lalu terbitkan
+> yang baru.
+
+**Kapan tombolnya tidak ada, dan mengapa** — kartunya selalu mengatakannya:
+
+- tiket belum selesai → *"Tautan penilaian baru dapat diterbitkan setelah tiket dinyatakan
+  selesai (resolved / closed); tiket ini …"*;
+- tiket sudah dinilai → *"Tiket ini sudah dinilai. Satu tiket dinilai sekali, jadi tidak ada
+  tautan baru yang bisa diterbitkan."*;
+- Anda **teknisi yang mengerjakan tiket itu** → penerbitan ditolak: penerbit melihat
+  tautannya dan bisa membukanya sendiri, jadi penilaiannya akan mengukur dirinya sendiri.
+  Minta rekan atau atasan yang menerbitkannya.
+
+**Yang dilihat pelanggan** — satu halaman ponsel: nomor tiket, pekerjaan, tanggal selesai,
+kotak komentar (opsional), dan lima tombol **1 Sangat tidak puas … 5 Sangat puas**. Nama
+teknisi, deskripsi masalah, dan catatan penyelesaian **tidak** ditampilkan di sana.
+
+**Sekali pakai.** Penilaian pertama yang tercatat berlaku; membuka tautannya lagi
+menampilkan **struk** penilaiannya sendiri, tidak pernah formulir lagi, dan tidak dapat
+diubah dari sana. Tautan yang dicabut atau kedaluwarsa mengatakan sebabnya. Tiket yang
+**dibuka kembali** membuat tautannya tidur sementara — *"Tautan Anda tetap berlaku, silakan
+buka lagi setelah pekerjaannya dinyatakan selesai"* — bukan mati.
+
+**Layar ringkasan** `Layanan › Kepuasan Pelanggan` — empat kotak dan dua kartu:
+
+| kotak | isinya |
+|---|---|
+| **Rata-rata kepuasan** | mis. *4,5 dari 5*, dengan **"8 dari 10 tiket selesai dinilai"** di bawahnya |
+| **Tiket selesai** | berapa yang bisa dinilai, dan berapa yang sudah diundang |
+| **Tingkat jawaban** | berapa undangan yang dijawab |
+| **Puas (4–5)** | berapa jawaban yang 4 atau 5 |
+
+> **Rata-ratanya dihitung HANYA dari tiket yang benar-benar dinilai.** Tiket yang diundang
+> tetapi belum dijawab **tidak dihitung nol bintang** — kalau dihitung, sembilan tiket yang
+> diam akan menyeret angkanya ke 0,9 dan angkanya berhenti berarti apa-apa. Karena itu
+> jumlah yang menopangnya selalu tertulis **di samping** rata-ratanya, dan bila belum ada
+> satu pun penilaian yang tertulis adalah kalimat **"Belum ada penilaian"**, bukan "0,0".
+>
+> Angkanya mencakup **seluruh riwayat** tiket yang sudah selesai, bukan satu bulan.
+
+Kartu **Komentar pelanggan** memuat komentar yang masuk (klik barisnya untuk membuka
+tiketnya); kartu **Sebaran penilaian** memuat jumlah dan persentase per bintang.
+
+Komentar pelanggan hanya dapat dibaca pemegang izin **lihat layanan** (`svc.view`) —
+termasuk teknisi yang dinilai, yang namanya memang sudah ada di tiket itu.
+
+### 12.6 Berita Acara Lapangan — `Layanan › Berita Acara`
 
 Kolom: Kode · Tiket · Tanggal · Teknisi · TTD pelanggan · Status (Draf / Diajukan /
 Disahkan Pelanggan). Bisa diubah/dihapus hanya saat **Draf**.
@@ -7592,7 +7653,7 @@ satu-satunya jalan mundur, dan **ia berhenti bekerja begitu pelanggan menandatan
 
 **Mencetak:** **`Cetak Berita Acara Servis`** (Form F/BS). Berlampiran: ya.
 
-### 12.6 Jadwal Preventif — `Layanan › Jadwal Preventif`
+### 12.7 Jadwal Preventif — `Layanan › Jadwal Preventif`
 
 Kolom: Jadwal (dengan kode kontrak) · Lokasi · Frekuensi · **Jatuh tempo** (dengan "N hari
 lagi") · Teknisi · Aktif. Saringan: Kontrak.
@@ -7984,7 +8045,7 @@ Ini bukan kerusakan. Tombol yang izinnya tidak Anda pegang **tidak digambar**.
 | **finance** | `Setujui` invoice/tagihan/pembayaran · **`Posting Jurnal`** · `Terbitkan nomor bukti potong` | manajer keuangan atau direktur |
 | **finance-manager** | membuat dokumen apa pun; `Posting Pembayaran` | petugas keuangan |
 | **hr** | `Setujui` cuti · **`Setujui` payroll** (yang sekaligus memposting) | direktur |
-| **teknisi** | menghapus tiket (butuh izin hapus layanan; `Sahkan Pelanggan` bersuku-cadang sudah bisa sejak 22 Agu 2026 — §12.5) | **admin** |
+| **teknisi** | menghapus tiket (butuh izin hapus layanan; `Sahkan Pelanggan` bersuku-cadang sudah bisa sejak 22 Agu 2026 — §12.6) | **admin** |
 | **direktur** | membuat/mengubah dokumen apa pun; `Posting ke Stok`; `Posting Penyusutan` | pemegang perannya masing-masing |
 | **pemegang kas kecil** | memposting bon atau mencairkan kasbon **di laci orang lain** | pemegang laci itu sendiri |
 

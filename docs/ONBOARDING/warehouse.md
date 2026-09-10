@@ -340,7 +340,7 @@ mengisinya dengan nol saat mengolah lanjut.
 - **Periode fiskal tertutup yang menolak tanggal Anda** → administrator, yang memegang
   tutup buku (PANDUAN-ADMINISTRATOR §6).
 - **Bon yang lahir dari berita acara servis** (tidak bisa dibatalkan) → teknisi; koreksinya
-  opname (§12.5).
+  opname (§12.6).
 
 Eskalasi dalam dua baris (PANDUAN §14.5): kirim **alamat halaman** (seluruh isi bilah
 alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan** —

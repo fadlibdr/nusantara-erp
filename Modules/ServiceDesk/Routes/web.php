@@ -23,10 +23,17 @@ use Modules\ServiceDesk\Http\Controllers\CsatPageController;
  *    di halaman tanpa identitas ini — CSRF melindungi sesi yang di sini memang
  *    tidak ada.
  *
- * CATATAN OPS: gerbang Basic Auth nginx erp1 sudah DITURUNKAN (5 Sep 2026),
- * jadi halaman ini benar-benar terbuka untuk pelanggan di produksi — tidak
- * seperti /persetujuan/{token} sewaktu ditulis. Yang TIDAK berubah: tidak ada
- * satu pun surel yang terkirim dari sini (MAIL_MAILER=log), penerbitlah yang
+ * CATATAN OPS — PERIKSA SEBELUM MENGIRIM TAUTAN PERTAMA. Halaman ini hanya
+ * benar-benar terbuka untuk pelanggan bila gerbang Basic Auth nginx erp1 sudah
+ * turun; selama ia berdiri, pelanggan mendapat kotak sandi, bukan formulir.
+ * Keadaan gerbang itu adalah fakta PRODUKSI, bukan fakta repo — dan dokumen
+ * repo ini sendiri belum sepakat tentangnya (PANDUAN-ADMINISTRATOR §3.5/§12
+ * dan PERSETUJUAN-EKSTERNAL.md masih menuliskannya berdiri). Jangan menebak
+ * dari sini: buka satu tautan uji dari luar jaringan sebelum mengirim yang
+ * pertama kepada pelanggan sungguhan.
+ *
+ * Yang TIDAK bergantung pada gerbang mana pun: tidak ada satu surel pun yang
+ * terkirim dari sini (MAIL_MAILER=log di kedua .env), penerbitlah yang
  * mengirim tautannya.
  */
 
