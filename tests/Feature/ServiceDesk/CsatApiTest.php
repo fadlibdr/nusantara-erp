@@ -64,6 +64,29 @@ class CsatApiTest extends ErpTestCase
         $this->assertFalse($meta['already_rated']);
     }
 
+    /**
+     * MASA BERLAKUNYA DIKIRIM SERVER, tidak dipegang dua pihak.
+     *
+     * Dialog penerbitan menulis "Kosongkan untuk N hari" dan medan `days`-nya
+     * berbatas; sampai meta ini ada, kedua angka itu adalah salinan yang
+     * dipegang `views/csat.js` sendiri — mengubah `DEFAULT_VALIDITY_DAYS`
+     * memerahkan TEPAT SATU uji dan membiarkan dialognya berbohong dengan
+     * suite tetap hijau (terukur 10 Sep 2026).
+     *
+     * Angkanya LITERAL di sini, bukan dibaca dari konstanta yang diuji.
+     */
+    public function test_the_list_meta_hands_the_screen_the_validity_window(): void
+    {
+        $ticket = CsatFixtures::ticket();
+
+        $meta = $this->actingAs(CsatFixtures::userWith(['svc.view', 'svc.update']))
+            ->getJson("/api/servicedesk/tickets/{$ticket->id}/csat")
+            ->assertOk()
+            ->json('meta');
+
+        $this->assertSame(14, $meta['default_validity_days']);
+    }
+
     public function test_issuing_for_an_unfinished_ticket_is_refused_with_a_sentence(): void
     {
         $ticket = CsatFixtures::ticket(TicketStatus::InProgress);

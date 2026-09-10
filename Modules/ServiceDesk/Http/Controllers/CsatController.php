@@ -44,6 +44,12 @@ class CsatController extends ApiController
             'ratable_statuses' => CsatService::RATABLE,
             'ticket_status' => $ticket->status?->value,
             'already_rated' => $this->service->ratingFor($ticket) !== null,
+            // Masa berlaku dikirim SERVER, tidak dipegang dua pihak: dialog
+            // penerbitan menuliskannya ("Kosongkan untuk N hari") dan medan
+            // harinya berbatas atasnya. Sebuah salinan di SPA berarti mengubah
+            // konstantanya membuat dialognya berbohong dengan suite tetap
+            // hijau — hanya SATU uji yang memerah (terukur 10 Sep 2026).
+            'default_validity_days' => CsatService::DEFAULT_VALIDITY_DAYS,
         ]);
     }
 

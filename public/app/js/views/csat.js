@@ -33,10 +33,6 @@ import * as fmt from '../format.js';
 import { promptFields } from './form.js';
 import { navigate } from '../router.js';
 
-/* CsatService::DEFAULT_VALIDITY_DAYS — dipakai HANYA untuk kalimat bantuan
-   "Kosongkan untuk N hari"; server tetap yang memutuskan. */
-const DEFAULT_VALIDITY_DAYS = 14;
-
 /* Modules\ServiceDesk\Enums\CsatScore — label yang sama dengan halaman publik
    dan dengan PHP-nya. */
 const SCORE_LABELS = {
@@ -193,7 +189,10 @@ function expiresAtFromDays(days) {
     + `${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
 }
 
-async function issueLink(ticketId, onChanged) {
+/* MASA BERLAKUNYA DATANG DARI SERVER (meta `default_validity_days`), tidak
+   dipegang berkas ini: satu angka yang hidup di dua tempat adalah dialog yang
+   berbohong pada hari konstantanya berubah, dengan suite tetap hijau. */
+async function issueLink(ticketId, onChanged, { defaultDays }) {
   const values = await promptFields('Terbitkan Tautan Penilaian', [
     { key: 'recipient_name', label: 'Nama penilai di pihak pelanggan', required: true },
     {
@@ -203,7 +202,7 @@ async function issueLink(ticketId, onChanged) {
     },
     {
       key: 'days', label: 'Masa berlaku (hari)', type: 'number', min: 1,
-      help: `Kosongkan untuk ${DEFAULT_VALIDITY_DAYS} hari.`,
+      help: defaultDays ? `Kosongkan untuk ${defaultDays} hari.` : 'Kosongkan untuk masa berlaku bawaan.',
     },
   ], {
     submitLabel: 'Terbitkan',
@@ -300,7 +299,7 @@ export function csatCard(ticket) {
         button('Terbitkan Tautan Penilaian', {
           size: 'sm',
           iconName: 'plus',
-          onClick: () => issueLink(ticket.id, load),
+          onClick: () => issueLink(ticket.id, load, { defaultDays: meta.default_validity_days }),
         }),
       ]),
       el('.help', {

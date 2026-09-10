@@ -360,7 +360,14 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
    tangannya membuka tautannya hari itu juga karena pekerjaan berhenti menunggunya; pelanggan
    yang diminta menilai tidak menunggu apa pun, dan undangan yang mati di hari ketujuh hilang
    bersama cuti seminggu satu orang. Kalau pemilik ingin angka lain, tempatnya `SettingService`,
-   bukan konstanta — satu perubahan, satu uji yang angkanya dipaku literal.
+   bukan konstanta. **Berapa tempat yang ikut berubah, terhitung apa adanya:** satu konstanta
+   (`CsatService::DEFAULT_VALIDITY_DAYS`), **dua** uji yang angkanya dipaku literal
+   (`CsatServiceTest::test_a_link_lives_fourteen_days_by_default` dan
+   `CsatApiTest::test_the_list_meta_hands_the_screen_the_validity_window`), dan **dua** kalimat
+   panduan (PANDUAN-PENGGUNA §12.5, PANDUAN-ADMINISTRATOR §3.5). Dialog penerbitan di SPA
+   **tidak** ikut: ia membaca `default_validity_days` dari `meta` endpoint-nya, karena satu
+   angka yang hidup di dua tempat adalah dialog yang berbohong pada hari konstantanya berubah
+   dengan suite tetap hijau.
 2. **Satu tiket satu penilaian, selamanya.** Tiket yang sudah dinilai tidak bisa menerima
    undangan baru — juga bila ia dibuka kembali dan dikerjakan lagi berminggu-minggu kemudian.
    Alternatifnya (penilaian kedua yang menggantikan, dengan jejak) bisa dibenarkan, tetapi ia
