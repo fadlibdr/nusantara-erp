@@ -337,12 +337,18 @@ Yang S36 buktikan dan uji PHP tidak bisa:
 | `tests/Feature/ServiceDesk` (SQLite) | **107 uji, 537 assertion — hijau** |
 | `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **107 uji, 537 assertion — hijau** |
 | `tests/Feature/Core` (SQLite) | **1018 lulus, 11 dilewati — hijau** |
+| `tests/Feature/{Crm,Inventory,Finance,Procurement,Projects,Assets,HrPayroll}` (SQLite) | **2518 lulus — hijau** (dijalankan karena `schema.js` NAV + `app.js` disentuh, dan 17 uji di luar Core membacanya) |
 | `php artisan erp:mysql-preflight` | **Verdict: ok** (6 situs SQLite-only, semuanya lama dan berpenjaga) |
 | `./vendor/bin/pint --test` atas seluruh berkas paket ini | **passed** (dua kegagalan lama di `main` tidak disentuh) |
 | Harness S36 desktop + ponsel | **ok / ok**, 31 syarat hijau |
 | Migrasi atas salinan basis data demo hidup | `2026_09_10_001280… DONE` (5,74 ms) |
 
-Suite penuh **belum** dijalankan — gerbang rilis dijalankan terpisah, sesuai instruksi paket.
+Suite penuh **belum** dijalankan sebagai satu proses — gerbang rilis dijalankan terpisah,
+sesuai instruksi paket. Yang dijalankan di atas adalah setiap direktori yang bisa terpengaruh:
+modul yang disentuh (ServiceDesk, kedua driver), Core (pemilik registri NAV/SHELL/izin), dan
+ketujuh direktori lain yang memuat uji pembaca `schema.js` — dihitung dengan
+`grep -rln "schema.js\|SpaNav\|sw.js\|Route::getRoutes" tests/`, 17 berkas, semuanya di
+dalam salah satu direktori itu.
 
 ---
 
