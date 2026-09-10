@@ -40,7 +40,7 @@ longgar daripada tiketnya.
 | T14 | Endpoint + resource, komentar di **tepat dua** endpoint bergerbang `svc.view` | ✅ | `da6d0cb` — 4 rute; `CsatApiTest` sensus 7 permukaan lain, semuanya bersih |
 | T15 | Tombol terbitkan di layar tiket, **kalimat yang benar tentang surel** | ✅ | `da6d0cb` — "Kirim tautan ini … lewat saluran Anda sendiri. Sistem tidak mengirimkannya."; harness memakunya |
 | T16 | Penilaian terlihat pada tiketnya + ringkasan CSAT `#/csat` | ✅ | `da6d0cb` — kartu di detail tiket, layar di grup NAV Layanan |
-| T17 | Uji PHP + mutasi | ✅ | **76 uji** (419 assertion) di 5 berkas — 61 pada putaran pembangunan, **15 ditambahkan putaran perbaikan 10 Sep** untuk menutup temuan verifikasi; **28 mutasi** putaran pembangunan (26 merah, 2 LOLOS HIJAU dan dilaporkan, §4) ditambah dua belas mutasi putaran perbaikan yang dicatat di pesan commit-nya masing-masing |
+| T17 | Uji PHP + mutasi | ✅ | **76 uji** (421 assertion) di 5 berkas — 61 pada putaran pembangunan, **15 ditambahkan putaran perbaikan 10 Sep** untuk menutup temuan verifikasi; **28 mutasi** putaran pembangunan (26 merah, 2 LOLOS HIJAU dan dilaporkan, §4) ditambah **empat belas mutasi** putaran perbaikan — dua di antaranya (kata "undangan" dan label ubin puas di `views/csat.js`) LOLOS HIJAU sampai pakunya ditambahkan, dan itu dicatat di pesan commit-nya |
 | T18 | Harness S36 desktop + ponsel (halaman publik = konteksnya sendiri) | ✅ | `65ec12d` — `[S36_csat_tautan_penilaian] ok`, `[S36_csat_tautan_penilaian_ponsel] ok`; **27 → 29 kunci, nol kunci lama berubah**; 31 syarat hijau; 10 PNG |
 | T19 | Cangkang PWA | ✅ | `da6d0cb` — `js/views/csat.js` ditambahkan ke `SHELL`, `SHELL_VERSION` **7 → 8**; `PwaServiceWorkerTest` 12 uji hijau |
 | T20 | `/app/` dimuat di Chromium, 0 galat konsol di tiap layar tersentuh | ✅ | Putaran pembangunan: **54 pemuatan** (3 peran × 2 viewport × 8 rute + 6 halaman publik) — §6. **Dijalankan ulang di atas kode putaran perbaikan** (10 Sep): **80 pemuatan** (5 peran × 2 viewport × 8 rute), `console_errors: []`, `http_4xx_5xx: []`, dan gerbangnya berlaku di peramban (`warehouse` mendapat "Anda tidak memiliki hak akses \"svc.view\"", entri NAV-nya tidak digambar) |
@@ -349,8 +349,8 @@ Yang S36 buktikan dan uji PHP tidak bisa:
 
 | Gerbang | Hasil |
 |---|---|
-| `tests/Feature/ServiceDesk` (SQLite) | **122 uji, 621 assertion — hijau** |
-| `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **122 uji, 621 assertion — hijau** |
+| `tests/Feature/ServiceDesk` (SQLite) | **122 uji, 623 assertion — hijau** |
+| `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **122 uji, 623 assertion — hijau** |
 | `tests/Feature/Core` (SQLite) | **1029 uji, 9262 assertion — 1018 lulus, 11 dilewati, hijau** |
 | `tests/Feature/{Crm,Inventory,Finance,Procurement,Projects,Assets,HrPayroll}` (SQLite) | **2518 lulus — hijau** (dijalankan karena `schema.js` NAV + `app.js` disentuh, dan 17 uji di luar Core membacanya) |
 | `php artisan erp:mysql-preflight` | **Verdict: ok** (6 situs SQLite-only, semuanya lama dan berpenjaga) |

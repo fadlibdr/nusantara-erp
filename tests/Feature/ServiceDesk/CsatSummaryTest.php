@@ -363,6 +363,20 @@ class CsatSummaryTest extends ErpTestCase
             'judul yang menghitung baris halaman mencetak ukuran halaman sebagai jumlah');
         $this->assertStringContainsString('meta.last_page', $layar,
             'sisa halaman harus bisa dicapai, bukan hanya diakui');
+
+        /*
+         * Dua regresi lain di berkas yang sama, dipaku NEGATIF supaya
+         * penulisan ulang yang wajar tetap bebas dan hanya bentuk yang salah
+         * yang merah:
+         *  - `invited` menghitung TIKET, jadi ia tidak boleh dilabeli
+         *    "undangan" (satu angka untuk dua arti pada satu layar);
+         *  - ambang "puas" datang dari server, jadi label ubinnya tidak boleh
+         *    diketik sebagai literal.
+         */
+        $this->assertStringNotContainsString('${summary.invited} undangan dijawab', $layar,
+            'angka per-TIKET tidak boleh dilabeli "undangan"');
+        $this->assertStringNotContainsString("text: 'Puas", $layar,
+            'label ubin puas harus disusun dari satisfied_scores yang dikirim server');
     }
 
     // ----------------------------------------------------------------- window
