@@ -463,10 +463,14 @@ class CsatService
      * "12 dari 48"). Tiket yang dibuka kembali dan BELUM dinilai tetap keluar:
      * ia belum menjadi bukti apa pun.
      *
-     * Jendela waktu tetap diukur pada `resolved_at`, jadi tiket yang sedang
-     * dikerjakan kembali (resolved_at kosong) tidak muncul di ringkasan
-     * BERJENDELA sampai pekerjaannya dinyatakan selesai lagi — layar #/csat
-     * hari ini tidak berjendela dan menampilkan seluruh riwayat.
+     * Jendela waktu tetap diukur pada `resolved_at`, dan itu aman: tidak ada
+     * satu jalur aplikasi pun yang mengosongkan kolom itu hari ini —
+     * TicketService tidak punya metode buka-kembali sama sekali (`update()`
+     * dan `assign()` menolak tiket `resolved`), meski enum TicketStatus
+     * mengizinkan resolved → in_progress. Sebuah baris ternilai yang
+     * `resolved_at` tiketnya dikosongkan lewat sunting langsung akan hilang
+     * dari ringkasan BERJENDELA sampai tiketnya dinyatakan selesai lagi;
+     * layar #/csat hari ini tidak berjendela dan menampilkan seluruh riwayat.
      *
      * @return Builder<Ticket>
      */
