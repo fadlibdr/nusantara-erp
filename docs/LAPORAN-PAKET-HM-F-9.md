@@ -40,10 +40,10 @@ longgar daripada tiketnya.
 | T14 | Endpoint + resource, komentar di **tepat dua** endpoint bergerbang `svc.view` | ✅ | `da6d0cb` — 4 rute; `CsatApiTest` sensus 7 permukaan lain, semuanya bersih |
 | T15 | Tombol terbitkan di layar tiket, **kalimat yang benar tentang surel** | ✅ | `da6d0cb` — "Kirim tautan ini … lewat saluran Anda sendiri. Sistem tidak mengirimkannya."; harness memakunya |
 | T16 | Penilaian terlihat pada tiketnya + ringkasan CSAT `#/csat` | ✅ | `da6d0cb` — kartu di detail tiket, layar di grup NAV Layanan |
-| T17 | Uji PHP + mutasi | ✅ | **61 uji baru** (335 assertion) di 5 berkas; **28 mutasi dijalankan — 26 merah, 2 LOLOS HIJAU dan dilaporkan** (§4) |
+| T17 | Uji PHP + mutasi | ✅ | **75 uji** (416 assertion) di 5 berkas — 61 pada putaran pembangunan, **14 ditambahkan putaran perbaikan 10 Sep** untuk menutup temuan verifikasi; **28 mutasi** putaran pembangunan (26 merah, 2 LOLOS HIJAU dan dilaporkan, §4) ditambah sebelas mutasi putaran perbaikan yang dicatat di pesan commit-nya masing-masing |
 | T18 | Harness S36 desktop + ponsel (halaman publik = konteksnya sendiri) | ✅ | `65ec12d` — `[S36_csat_tautan_penilaian] ok`, `[S36_csat_tautan_penilaian_ponsel] ok`; **27 → 29 kunci, nol kunci lama berubah**; 31 syarat hijau; 10 PNG |
 | T19 | Cangkang PWA | ✅ | `da6d0cb` — `js/views/csat.js` ditambahkan ke `SHELL`, `SHELL_VERSION` **7 → 8**; `PwaServiceWorkerTest` 12 uji hijau |
-| T20 | `/app/` dimuat di Chromium, 0 galat konsol di tiap layar tersentuh | ✅ | **54 pemuatan** (3 peran × 2 viewport × 8 rute + 6 halaman publik), `all_console_errors: []` di aplikasi, `http_4xx_5xx: []` — §6 |
+| T20 | `/app/` dimuat di Chromium, 0 galat konsol di tiap layar tersentuh | ✅ | Putaran pembangunan: **54 pemuatan** (3 peran × 2 viewport × 8 rute + 6 halaman publik) — §6. **Dijalankan ulang di atas kode putaran perbaikan** (10 Sep): **80 pemuatan** (5 peran × 2 viewport × 8 rute), `console_errors: []`, `http_4xx_5xx: []`, dan gerbangnya berlaku di peramban (`warehouse` mendapat "Anda tidak memiliki hak akses \"svc.view\"", entri NAV-nya tidak digambar) |
 | T21 | Halaman publik dimuat sebagai peramban **tanpa sesi** | ✅ | §6 — `document.cookie` kosong, `localStorage` kosong, **0 subresource**, 0 `<script>` |
 | T22 | Sapuan dokumentasi (CONVENTIONS §35) | ✅ | PANDUAN-PENGGUNA §12.5 baru (dan §12.5→§12.6, §12.6→§12.7 dengan **11 rujukan silang** diperbaiki di 3 berkas), PANDUAN-ADMINISTRATOR §3.5, ONBOARDING/teknisi butir 5; sensus di §13 |
 
@@ -68,12 +68,18 @@ Layarnya menuliskan keduanya dalam satu ekspresi (`averageText` + `averageBasis`
 tidak ada jalan menghapus yang kedua tanpa menyentuh yang pertama:
 
 ```
-RATA-RATA KEPUASAN        TIKET SELESAI      TINGKAT JAWABAN      PUAS (4–5)
-4,5 dari 5                10                 89%                  8 dari 8
-8 dari 10 tiket           9 sudah diundang   8 dari 9 undangan    dari jawaban
-selesai dinilai           menilai            dijawab              yang masuk
+RATA-RATA KEPUASAN        TIKET SELESAI      TINGKAT JAWABAN        PUAS (4–5)
+4,0 dari 5                3                  100%                   1 dari 1
+1 dari 3 tiket            1 sudah diundang   1 dari 1 tiket yang    dari jawaban
+selesai dinilai           menilai            diundang sudah         yang masuk
+                                             menjawab
 ```
-(`docs/bukti-uji/s36-ringkasan-csat.png`, diukur 10 Sep 2026 pada salinan DB demo.)
+(Ditranskripsi dari `docs/bukti-uji/s36-ringkasan-csat.png` **yang ada di HEAD**, 10 Sep 2026.
+**Angka-angka ini tumbuh setiap kali harness dijalankan** di atas salinan DB yang baru — blok
+ini ada untuk BENTUKNYA, bukan untuk angkanya: tidak satu ubin pun memajang angka tanpa
+penyebut di bawahnya. Untuk angka hari ini, baca berkasnya. Blok sebelumnya mentranskripsi
+versi PNG yang sudah tidak ada di pohon: ia berbunyi 4,5 / 10 / 89 % / 8 dari 8, angka yang
+tidak bisa ditemukan di berkas mana pun sejak `d906287` menjalankan ulang buktinya.)
 
 Fixture ujinya sengaja **tidak simetris**. Sebuah fixture di mana "selesai" = "diundang" =
 "dinilai" akan hijau untuk keempat rumus sekaligus — itu persis bentuk kegagalan yang membuat
@@ -343,9 +349,9 @@ Yang S36 buktikan dan uji PHP tidak bisa:
 
 | Gerbang | Hasil |
 |---|---|
-| `tests/Feature/ServiceDesk` (SQLite) | **107 uji, 537 assertion — hijau** |
-| `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **107 uji, 537 assertion — hijau** |
-| `tests/Feature/Core` (SQLite) | **1018 lulus, 11 dilewati — hijau** |
+| `tests/Feature/ServiceDesk` (SQLite) | **121 uji, 618 assertion — hijau** |
+| `tests/Feature/ServiceDesk` (MySQL 8, `erp_dryrun`, `phpunit.mysql.xml`) | **121 uji, 618 assertion — hijau** |
+| `tests/Feature/Core` (SQLite) | **1029 uji, 9262 assertion — 1018 lulus, 11 dilewati, hijau** |
 | `tests/Feature/{Crm,Inventory,Finance,Procurement,Projects,Assets,HrPayroll}` (SQLite) | **2518 lulus — hijau** (dijalankan karena `schema.js` NAV + `app.js` disentuh, dan 17 uji di luar Core membacanya) |
 | `php artisan erp:mysql-preflight` | **Verdict: ok** (6 situs SQLite-only, semuanya lama dan berpenjaga) |
 | `./vendor/bin/pint --test` atas seluruh berkas paket ini | **passed** (dua kegagalan lama di `main` tidak disentuh) |
@@ -355,9 +361,12 @@ Yang S36 buktikan dan uji PHP tidak bisa:
 Suite penuh **belum** dijalankan sebagai satu proses — gerbang rilis dijalankan terpisah,
 sesuai instruksi paket. Yang dijalankan di atas adalah setiap direktori yang bisa terpengaruh:
 modul yang disentuh (ServiceDesk, kedua driver), Core (pemilik registri NAV/SHELL/izin), dan
-ketujuh direktori lain yang memuat uji pembaca `schema.js` — dihitung dengan
-`grep -rln "schema.js\|SpaNav\|sw.js\|Route::getRoutes" tests/`, 17 berkas, semuanya di
-dalam salah satu direktori itu.
+ketujuh direktori lain yang memuat uji pembaca `schema.js`. Dihitung dengan
+`grep -rln "schema.js\|SpaNav\|sw.js\|Route::getRoutes" tests/`: **40 berkas** — 23 di
+`tests/Feature/Core` dan **17 di luar Core** (Crm 5, Inventory 4, Finance 3, ServiceDesk 2,
+Assets 1, Procurement 1, Projects 1), jadi keempat puluhnya memang berada di dalam direktori
+yang dijalankan di atas. Angka 17 yang dicetak versi sebelumnya adalah jumlah DI LUAR Core,
+bukan keluaran perintah yang dicetak di sampingnya.
 
 ---
 
@@ -460,7 +469,7 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
 
 | # | Deviasi | Status |
 |---|---|---|
-| **DV-F9-1** | `fmt.num(value, decimals)` di `public/app/js/format.js` **diam-diam mengabaikan** setiap `decimals` selain 2 dan jatuh ke nol desimal, sehingga `fmt.num(4.6, 1)` mencetak `"5"`. Tanda tangannya menjanjikan jumlah desimal bebas; implementasinya memberi dua pilihan. | **Belum diperbaiki — sengaja.** Layar CSAT memakai formatter sendiri, dan sensus 10 Sep 2026 menunjukkan **tidak ada pemanggil lain** yang meminta desimal selain 0/2 (keenam kolom ber-`decimals:` di `schema.js` bernilai `2`). Memperbaiki `fmt.num` menyentuh **18 pemanggilan di 7 berkas** di luar paket ini (diukur 10 Sep 2026: 21 pemanggilan di 8 berkas, 3 di antaranya milik `views/csat.js`) — perubahan yang pantas dapat pakunya sendiri, bukan menumpang F-9. |
+| **DV-F9-1** | `fmt.num(value, decimals)` di `public/app/js/format.js` **diam-diam mengabaikan** setiap `decimals` selain 2 dan jatuh ke nol desimal, sehingga `fmt.num(4.6, 1)` mencetak `"5"`. Tanda tangannya menjanjikan jumlah desimal bebas; implementasinya memberi dua pilihan. | **Belum diperbaiki — sengaja.** Layar CSAT memakai formatter sendiri, dan sensus 10 Sep 2026 menunjukkan **tidak ada pemanggil lain** yang meminta desimal selain 0/2 (keenam kolom ber-`decimals:` di `schema.js` bernilai `2`). Memperbaiki `fmt.num` menyentuh **16 baris di 7 berkas** di luar paket ini (diukur 10 Sep 2026: `grep -rn "fmt\.num(" js/` → 21 baris di 8 berkas; 5 di antaranya di `views/csat.js` — dua panggilan sungguhan dan tiga di dalam komentar — jadi 21 − 5 = 16 baris di `cells.js`, `k3.js`, `tender.js`, `custom.js`, `laporanbebas.js`, `detail.js`, `rfq.js`) — perubahan yang pantas dapat pakunya sendiri, bukan menumpang F-9. |
 | **DV-F9-2** | Uji tepi waktu yang membandingkan kolom ber-cast `'datetime'` dengan `now()` **tidak bisa membedakan `<` dari `<=`** kecuali waktunya dibekukan pada **detik bulat** — `freezeTime()` saja tidak cukup, karena waktu beku pun ber-mikrodetik sementara cast membuangnya. Dua mutasi lolos hijau sebelum ini dipahami. | **Diperbaiki di dalam paket** (uji CSAT). Preseden yang sama di `ExternalApprovalPublicTest::test_expiry_is_enforced_at_the_exact_boundary` **kebetulan aman** karena ia ber-`travelTo($row->expires_at)` dari nilai yang sudah dibaca DB (sudah terpotong ke detik). Dicatat di sini supaya penulis uji tepi berikutnya tahu sebabnya. |
 | **DV-F9-3** | Harness yang membuka halaman ber-`throttle` mati di `wait_for_selector` dengan pesan yang menuduh halamannya rusak, bukan menyebut 429-nya. | **Diperbaiki di dalam paket** (`_f9_open_public`). Sejenis dengan cacat "nama skenario tidak dikenal dilewati diam-diam" yang diperbaiki di F-7: sebuah kegagalan harness yang menyebut sebab yang salah membuang waktu mencari bug yang tidak ada. |
 | **DV-F9-5** | `PANDUAN-ADMINISTRATOR` §3.5 membuka dengan *"Satu halaman — dan hanya satu — dibuka tanpa login"*. F-9 **menjadikan kalimat itu salah** pada hari ia di-merge: sekarang ada dua. | **Diperbaiki di dalam paket.** Persis kelas cacat yang CONVENTIONS §35 ada untuk menangkap, dan ia tidak akan tertangkap oleh satu uji pun — hanya oleh sapuan. |
@@ -484,18 +493,26 @@ pengerasannya berlaku kata per kata untuk keduanya — karena memang pola yang s
 dua layar tiket, karena itulah hubungannya), sehingga Berita Acara §12.5 → **§12.6** dan
 Jadwal Preventif §12.6 → **§12.7**. Rujukan silangnya dihitung sebelum dan sesudah:
 
-```
-grep -rn "§12.5" docs/ | wc -l     # sebelum: 10   sesudah:  0
-grep -rn "§12.6" docs/ | wc -l     # sebelum:  1   sesudah: 10
-grep -rn "§12.7" docs/ | wc -l     # sebelum:  0   sesudah:  1
-                                   # total    11            11
-```
-
-Kesebelasnya dibaca satu per satu, di **tiga** berkas (`PANDUAN-PENGGUNA.md`,
-`ONBOARDING/teknisi.md`, `ONBOARDING/warehouse.md`) — sepuluh menunjuk Berita Acara dan satu
-menunjuk Jadwal Preventif, dan sesudah pergeseran keduanya masih menunjuk benda yang sama.
+**Sebelas rujukan lama bergeser** — sepuluh yang menunjuk Berita Acara (§12.5 → §12.6) dan
+satu yang menunjuk Jadwal Preventif (§12.6 → §12.7), di **tiga** berkas
+(`PANDUAN-PENGGUNA.md`, `ONBOARDING/teknisi.md`, `ONBOARDING/warehouse.md`). Kesebelasnya
+dibaca satu per satu, dan sesudah pergeseran semuanya masih menunjuk benda yang sama.
 Penggantiannya dijalankan **§12.6 → §12.7 lebih dulu**: urutan sebaliknya membuat sebagian
 rujukan melompat dua kali.
+
+Sapuan yang sama **menambahkan dua rujukan BARU ke §12.5** — `docs/PANDUAN-ADMINISTRATOR.md`
+dan `docs/ONBOARDING/teknisi.md`, keduanya menunjuk layar CSAT yang baru. Jadi "total 11 → 11"
+adalah kekekalan yang tidak ada: yang kekal adalah kesebelas rujukan lama, dan di sampingnya
+ada dua yang baru. Keadaan hari ini, dengan perintah yang benar-benar dijalankan (laporan ini
+sendiri dikeluarkan supaya angkanya tidak bergantung pada apa yang tertulis di sini):
+
+```
+grep -rn "§12.5" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l   # 2   (keduanya rujukan BARU)
+grep -rn "§12.6" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l   # 10  (Berita Acara, bergeser)
+grep -rn "§12.7" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l   # 1   (Jadwal Preventif, bergeser)
+                                                                   # ---
+                                                                   # 13  = 11 lama + 2 baru
+```
 
 **(c) Yang ditambahkan.** `PANDUAN-PENGGUNA` §12.5 (menerbitkan, kapan tombolnya tidak ada
 dan mengapa, apa yang dilihat pelanggan, dan mengapa rata-ratanya hanya dari yang dinilai) ·
@@ -507,9 +524,9 @@ penolakan yang tidak dijelaskan di panduan perannya terbaca sebagai sistem yang 
 Sensus sesudah sapuan (10 Sep 2026):
 
 ```
-grep -rn "Kepuasan Pelanggan" docs/ | wc -l   # 15 baris
-grep -rl "Kepuasan Pelanggan" docs/ | wc -l   #  4 berkas
-grep -rn "/penilaian/" docs/ | wc -l          #  6 baris
+grep -rn "Kepuasan Pelanggan" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l   # 15 baris
+grep -rl "Kepuasan Pelanggan" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l   #  4 berkas
+grep -rn "/penilaian/" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l          #  5 baris
 ```
 
 ---
