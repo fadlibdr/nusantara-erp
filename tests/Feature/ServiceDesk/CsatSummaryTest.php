@@ -342,6 +342,29 @@ class CsatSummaryTest extends ErpTestCase
         $this->assertNull($summary['average']);
     }
 
+    /**
+     * LAYARNYA MEMAKAI ANGKA SERVER, dan itu dipaku — bukan hanya diukur
+     * sekali di peramban.
+     *
+     * Tidak ada satu uji PHP pun yang memuat `views/csat.js`, jadi mengembalikan
+     * judul kartu ke panjang HALAMAN (`withComment.length`) akan lolos hijau
+     * selamanya. Preseden rumah untuk memakukan satu kalimat SPA dari PHP:
+     * `Tests\Feature\Assets\RentVsOwnTest` menggeledah
+     * `public/app/js/views/sewavsbeli.js` dengan cara yang sama. Lingkupnya
+     * SATU berkas dan dua string — bukan sapuan seluruh SPA (pelajaran F-4/F-6).
+     */
+    public function test_the_summary_screen_takes_the_comment_count_from_the_server(): void
+    {
+        $layar = (string) file_get_contents(public_path('app/js/views/csat.js'));
+
+        $this->assertStringContainsString('summary.commented', $layar,
+            'judul kartu komentar harus memakai angka yang dikirim server');
+        $this->assertStringNotContainsString('Komentar pelanggan (${withComment.length})', $layar,
+            'judul yang menghitung baris halaman mencetak ukuran halaman sebagai jumlah');
+        $this->assertStringContainsString('meta.last_page', $layar,
+            'sisa halaman harus bisa dicapai, bukan hanya diakui');
+    }
+
     // ----------------------------------------------------------------- window
 
     /**
