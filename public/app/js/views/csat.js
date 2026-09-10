@@ -50,11 +50,37 @@ const STATE_CHIP = {
   live: () => badge('Terbit', 'amber'),
 };
 
-/** Nada lencana skor: 4–5 baik, 3 menengah, 1–2 buruk. */
-function scoreTone(score) {
-  if (score >= 4) return 'green';
+/* AMBANG "PUAS" DATANG DARI SERVER, tidak ditulis ulang di sini.
+ *
+ * Modules\ServiceDesk\Enums\CsatScore::isSatisfied() adalah satu-satunya
+ * tempat ambang top-2-box hidup; ia tiba sebagai `is_satisfied` pada tiap baris
+ * dan sebagai `summary.satisfied_scores` pada ringkasan. Sebuah `score >= 4`
+ * yang disalin ke berkas ini membuat ubin "Puas" dan lencana/stempelnya
+ * berselisih tentang satu penilaian yang sama pada hari ambangnya digeser —
+ * dengan suite tetap hijau. Angka 3 di bawah bukan ambang itu: ia "cukup",
+ * titik tengah skalanya, dan tetap titik tengah apa pun ambang puasnya. */
+
+/** Nada lencana satu baris penilaian: puas hijau, cukup oranye, sisanya merah. */
+function rowTone(row) {
+  if (row.is_satisfied) return 'green';
+  if (row.score === 3) return 'amber';
+  return 'red';
+}
+
+/** Nada satu nilai skala pada tabel sebaran, memakai ambang dari server. */
+function scaleTone(score, satisfiedScores) {
+  if ((satisfiedScores || []).includes(score)) return 'green';
   if (score === 3) return 'amber';
   return 'red';
+}
+
+/** "Puas (4–5)" — rentangnya dari server, bukan diketik. */
+function satisfiedLabel(satisfiedScores) {
+  const scores = (satisfiedScores || []).slice().sort((a, b) => a - b);
+  if (!scores.length) return 'Puas';
+  return scores.length === 1
+    ? `Puas (${scores[0]})`
+    : `Puas (${scores[0]}–${scores[scores.length - 1]})`;
 }
 
 /* SATU DESIMAL, SELALU, dan formatter-nya sendiri — bukan fmt.num().
@@ -115,7 +141,7 @@ function ratingRow(row, { canIssue, onChanged }) {
       ...subLines.map((line) => el('.cell-sub', { text: line })),
     ]),
     el('.row-actions', [
-      row.state === 'rated' ? badge(`${row.score} dari 5 — ${row.score_label || SCORE_LABELS[row.score] || ''}`, scoreTone(row.score)) : STATE_CHIP[row.state](),
+      row.state === 'rated' ? badge(`${row.score} dari 5 — ${row.score_label || SCORE_LABELS[row.score] || ''}`, rowTone(row)) : STATE_CHIP[row.state](),
       revocable
         ? button('Cabut', {
           size: 'sm',
@@ -350,7 +376,7 @@ function summaryStats(summary) {
       el('.delta', { text: `${summary.rated} dari ${summary.invited} tiket yang diundang sudah menjawab` }),
     ]),
     el('.stat', [
-      el('.label', { text: 'Puas (4–5)' }),
+      el('.label', { text: satisfiedLabel(summary.satisfied_scores) }),
       el('.value', { text: summary.rated ? `${summary.satisfied} dari ${summary.rated}` : 'Belum ada penilaian' }),
       el('.delta', { text: summary.rated ? 'dari jawaban yang masuk' : 'tidak dihitung dari yang belum menjawab' }),
     ]),
@@ -374,7 +400,7 @@ function distributionCard(summary) {
         el('th', { text: 'Bagian', style: { textAlign: 'right' } }),
       ])),
       el('tbody', [5, 4, 3, 2, 1].map((score) => el('tr', [
-        el('td', [badge(`${score}`, scoreTone(score)), el('span', { text: ` ${SCORE_LABELS[score]}`, style: { marginLeft: '6px' } })]),
+        el('td', [badge(`${score}`, scaleTone(score, summary.satisfied_scores)), el('span', { text: ` ${SCORE_LABELS[score]}`, style: { marginLeft: '6px' } })]),
         el('td', { text: fmt.num(summary.distribution[score] || 0, 0), style: { textAlign: 'right' } }),
         el('td', { text: fmt.percent(((summary.distribution[score] || 0) / total) * 100, { decimals: 0 }), style: { textAlign: 'right' } }),
       ]))),

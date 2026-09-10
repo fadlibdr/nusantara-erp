@@ -340,6 +340,30 @@ class CsatPublicPageTest extends ErpTestCase
         $this->assertStringNotContainsString($ticket->title, $page->getContent());
     }
 
+    /**
+     * STEMPEL STRUK MEMBACA AMBANGNYA DARI ENUM, tidak menulis ulang `>= 4`.
+     *
+     * Sampai baris ini ada, blade-nya berbunyi `$nilai >= 4 ? 'baik' : ...` —
+     * jadi menggeser `CsatScore::isSatisfied()` (kenop yang §9 perlakukan
+     * sebagai bisa dibalik) mengubah ubin "Puas" di ringkasan sementara
+     * stempel pelanggan tetap memakai ambang lama: satu penilaian 3 bintang
+     * "puas" di ringkasan dan oranye "cukup" di halaman pelanggannya, dengan
+     * suite tetap hijau.
+     *
+     * Kelasnya dipaku LITERAL: 5 dan 4 baik, 3 cukup, 2 dan 1 buruk.
+     */
+    public function test_the_receipt_stamp_reads_the_satisfied_threshold_from_the_enum(): void
+    {
+        foreach ([5 => 'baik', 4 => 'baik', 3 => 'cukup', 2 => 'buruk', 1 => 'buruk'] as $score => $kelas) {
+            [, $token] = $this->invite();
+
+            $body = $this->post("/penilaian/{$token}", ['score' => $score])->assertOk()->getContent();
+
+            $this->assertStringContainsString('class="stempel '.$kelas.'"', $body,
+                "skor {$score} seharusnya berstempel {$kelas}");
+        }
+    }
+
     // ------------------------------------------------------------- terminals
 
     public function test_a_revoked_link_is_gone_and_leaks_neither_the_recipient_nor_the_title(): void

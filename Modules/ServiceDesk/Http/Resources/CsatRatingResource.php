@@ -37,6 +37,11 @@ class CsatRatingResource extends JsonResource
             'revoked_by_name' => $this->whenLoaded('revokedBy', fn () => $this->revokedBy?->name),
             'score' => $this->score?->value,
             'score_label' => $this->score?->label(),
+            // Ambang "puas" (top-2-box) datang dari CsatScore::isSatisfied(),
+            // tidak ditulis ulang klien: sebuah `score >= 4` di SPA membuat
+            // lencana kartu dan ubin ringkasan berselisih pada hari ambangnya
+            // digeser, dengan suite tetap hijau.
+            'is_satisfied' => $this->score?->isSatisfied(),
             'comment' => $this->comment,
             'rated_at' => $this->rated_at?->toIso8601String(),
             'rated_via' => $this->rated_via,

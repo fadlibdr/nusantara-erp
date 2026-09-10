@@ -336,7 +336,7 @@ class CsatService
      * menghitungnya.
      *
      * @param  array{from?: ?string, to?: ?string, service_contract_id?: ?int, customer_id?: ?int}  $filters
-     * @return array{ratable: int, invited: int, rated: int, commented: int, average: float|null, distribution: array<int, int>, satisfied: int, response_rate: float|null, window: array{from: ?string, to: ?string}}
+     * @return array{ratable: int, invited: int, rated: int, commented: int, average: float|null, distribution: array<int, int>, satisfied: int, satisfied_scores: list<int>, response_rate: float|null, window: array{from: ?string, to: ?string}}
      */
     public function summary(array $filters = []): array
     {
@@ -396,6 +396,14 @@ class CsatService
             'average' => $count === 0 ? null : round($sum / $count, 2),
             'distribution' => $distribution,
             'satisfied' => $satisfied,
+            // Skor mana yang dihitung "puas" — dikirim, bukan ditebak klien.
+            // Layar memakainya untuk label ubin ("Puas (4–5)") dan nada
+            // lencananya; tanpa ini ambangnya ditulis ulang di dua permukaan
+            // dan bisa berselisih dengan angka di sebelahnya.
+            'satisfied_scores' => array_values(array_map(
+                fn (CsatScore $score): int => $score->value,
+                array_filter(CsatScore::ascending(), fn (CsatScore $score): bool => $score->isSatisfied()),
+            )),
             'response_rate' => $invited === 0 ? null : round($count / $invited, 4),
             'window' => [
                 'from' => $filters['from'] ?? null,

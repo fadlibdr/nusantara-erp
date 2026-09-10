@@ -187,6 +187,8 @@ class CsatSummaryTest extends ErpTestCase
 
         $this->assertSame(5, $summary['rated']);
         $this->assertSame(2, $summary['satisfied'], 'hanya 4 dan 5 yang dihitung puas — 3 bukan');
+        // …dan ambangnya DIKIRIM, supaya layar tidak menulis ulang "4–5".
+        $this->assertSame([4, 5], $summary['satisfied_scores']);
         $this->assertSame(3.0, $summary['average']);
         $this->assertSame([1 => 1, 2 => 1, 3 => 1, 4 => 1, 5 => 1], $summary['distribution']);
     }

@@ -119,8 +119,13 @@
             <p class="pesan">Tautan ini sudah Anda gunakan. Penilaian yang tercatat:</p>
         @endif
 
+        {{-- AMBANG "PUAS" DIBACA DARI ENUM, bukan ditulis ulang di sini: sebuah
+             `>= 4` yang disalin ke halaman ini membuat stempel pelanggan dan
+             ubin "Puas" di ringkasan bisa berselisih tentang satu penilaian
+             yang sama pada hari ambangnya digeser. --}}
         @php($nilai = $row->score?->value)
-        <div class="stempel {{ $nilai >= 4 ? 'baik' : ($nilai == 3 ? 'cukup' : 'buruk') }}">
+        @php($puas = $row->score?->isSatisfied())
+        <div class="stempel {{ $puas ? 'baik' : ($nilai == 3 ? 'cukup' : 'buruk') }}">
             {{ $nilai }} dari 5 — {{ $row->score?->label() }}
         </div>
 

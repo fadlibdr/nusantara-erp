@@ -366,6 +366,9 @@ class CsatApiTest extends ErpTestCase
         $this->assertSame('Teknisinya sangat membantu.', $row['comment']);
         $this->assertSame(5, $row['score']);
         $this->assertSame('Sangat puas', $row['score_label']);
+        // Ambang "puas" ikut barisnya, jadi lencana SPA tidak menghitungnya
+        // sendiri dari skornya.
+        $this->assertTrue($row['is_satisfied']);
         $this->assertSame($ticket->code, $row['ticket_code']);
         $this->assertSame('rated', $row['state']);
     }

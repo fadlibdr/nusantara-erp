@@ -26,7 +26,7 @@ longgar daripada tiketnya.
 |---|---|---|---|
 | T1 | Migrasi ServiceDesk blok 001280, meniru sisi token `core_external_approvals` | ✅ | `2817372` — `2026_09_10_001280_create_svc_csat_ratings_table.php`; `token_hash char(64) nullable unique`, `expires_at`, `issued_by`, `revoked_at/by`; `CsatSchemaTest` 6 uji |
 | T2 | `score` NULLABLE — tiket yang belum menjawab TIDAK punya skor | ✅ | `2817372` — mutasi M1 (`->nullable()` → `->default(0)`) **merah** |
-| T3 | Enum skala 1..5 berlabel Indonesia, satu sumber untuk empat permukaan | ✅ | `2817372` — `CsatScore`; angka & label dipaku **literal** di uji, bukan dibaca dari enum yang diuji |
+| T3 | Enum skala 1..5 berlabel Indonesia, satu sumber untuk empat permukaan — **angka, label, DAN ambang "puas"** | ✅ | `2817372` — `CsatScore`; angka & label dipaku **literal** di uji, bukan dibaca dari enum yang diuji. Ambang `isSatisfied()` semula ditulis ulang di blade publik (`$nilai >= 4`) dan di `views/csat.js` (`score >= 4`); ia kini tiba sebagai `is_satisfied` per baris dan `summary.satisfied_scores` per ringkasan, dan mutasi `>= 4` → `>= 3` memerahkan **3** uji termasuk stempel struk pelanggan |
 | T4 | Service penerbitan: hash tersimpan, polos **tepat sekali** | ✅ | `e4b9af5` — `CsatService::issue()`; uji memaku `token_hash` = sha256 dan bahwa token polos tidak ada di satu atribut baris pun |
 | T5 | Sekali-pakai di bawah balapan (baca ulang TERKUNCI di transaksi) | ✅ | `e4b9af5` — `rate()`; uji "kalah pada baca ulang terkunci, bukan pada salinan usang"; mutasi M10 **merah** |
 | T6 | **Satu tiket satu penilaian**, juga lewat tautan lain | ✅ | `e4b9af5` — dua undangan hidup, satu penilaian; mutasi M7 **merah** |
