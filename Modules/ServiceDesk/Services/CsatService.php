@@ -278,6 +278,109 @@ class CsatService
         );
     }
 
+    // ------------------------------------------------------------- summary
+
+    /**
+     * RATA-RATA HANYA DARI YANG DINILAI, dan tidak pernah sendirian.
+     *
+     * Sembilan dari sepuluh tiket yang belum dijawab BUKAN nol bintang, jadi
+     * penyebut rata-rata adalah `rated`, bukan `ratable` dan bukan `invited`.
+     * Ketiga angka itu dikembalikan bersama-sama justru supaya pemanggil tidak
+     * bisa memajang rata-ratanya tanpa jumlah yang menopangnya: "4,6 dari 5"
+     * dari dua jawaban dan "4,6 dari 5" dari dua ratus jawaban adalah dua
+     * pernyataan yang sangat berbeda.
+     *
+     * `average` NULL — bukan 0.0 — ketika belum ada satu pun penilaian.
+     * "Belum ada penilaian" adalah KALIMAT, dan kalimat itu ditulis layar dari
+     * null ini. Sebuah 0,0 di sini akan menjadi 0,0 di layar, di ekspor, dan
+     * di setiap tangkapan layar yang dikirim ke pemilik.
+     *
+     * @param  array{from?: ?string, to?: ?string, service_contract_id?: ?int, customer_id?: ?int}  $filters
+     * @return array{ratable: int, invited: int, rated: int, average: float|null, distribution: array<int, int>, satisfied: int, response_rate: float|null, window: array{from: ?string, to: ?string}}
+     */
+    public function summary(array $filters = []): array
+    {
+        $tickets = $this->ratableTicketQuery($filters);
+
+        $ratable = (clone $tickets)->count();
+
+        $invited = (clone $tickets)
+            ->whereExists(fn ($query) => $query->from('svc_csat_ratings')
+                ->whereColumn('svc_csat_ratings.ticket_id', 'svc_tickets.id'))
+            ->count();
+
+        $rated = CsatRating::query()
+            ->whereNotNull('rated_at')
+            ->whereIn('ticket_id', (clone $tickets)->select('svc_tickets.id'))
+            ->get(['score']);
+
+        $distribution = [];
+
+        foreach (CsatScore::ascending() as $score) {
+            $distribution[$score->value] = 0;
+        }
+
+        /*
+         * PEMBILANG DAN PENYEBUT DIHITUNG DI LOOP YANG SAMA, dan itu bukan
+         * gaya melainkan koreksi: sebuah baris ber-rated_at TANPA skor (impor,
+         * sunting tangan — rate() tidak bisa membuatnya) yang dilewati dari
+         * penjumlahan tetapi ikut dihitung sebagai penyebut menjadikannya nol
+         * bintang lewat pintu belakang. Terukur 10 Sep 2026: satu baris cacat
+         * di samping satu skor 5 mencetak 2,5. Yang tidak punya skor bukan
+         * penilaian, jadi ia tidak masuk pembilang MAUPUN penyebut.
+         */
+        $count = 0;
+        $sum = 0;
+        $satisfied = 0;
+
+        foreach ($rated as $row) {
+            $score = $row->score;
+
+            if ($score === null) {
+                continue;
+            }
+
+            $count++;
+            $distribution[$score->value]++;
+            $sum += $score->value;
+            $satisfied += $score->isSatisfied() ? 1 : 0;
+        }
+
+        return [
+            'ratable' => $ratable,
+            'invited' => $invited,
+            'rated' => $count,
+            'average' => $count === 0 ? null : round($sum / $count, 2),
+            'distribution' => $distribution,
+            'satisfied' => $satisfied,
+            'response_rate' => $invited === 0 ? null : round($count / $invited, 4),
+            'window' => [
+                'from' => $filters['from'] ?? null,
+                'to' => $filters['to'] ?? null,
+            ],
+        ];
+    }
+
+    /**
+     * Penilaian yang SUDAH masuk, terbaru dulu — untuk layar ringkasan.
+     *
+     * Membawa komentarnya, jadi pemanggilnya WAJIB sudah memeriksa svc.view.
+     * Tidak ada varian "tanpa komentar" di sini: dua bentuk jawaban untuk satu
+     * pertanyaan adalah dua tempat yang bisa berselisih tentang siapa boleh
+     * membaca apa.
+     *
+     * @return Builder<CsatRating>
+     */
+    public function ratedQuery(array $filters = [])
+    {
+        return CsatRating::query()
+            ->whereNotNull('rated_at')
+            ->whereIn('ticket_id', $this->ratableTicketQuery($filters)->select('svc_tickets.id'))
+            ->with('ticket:id,code,title,customer_id,service_contract_id,assigned_to,status')
+            ->orderByDesc('rated_at')
+            ->orderByDesc('id');
+    }
+
     /** Penilaian tiket ini, bila sudah ada. */
     public function ratingFor(Ticket $ticket): ?CsatRating
     {
@@ -288,6 +391,40 @@ class CsatService
     }
 
     // ---------------------------------------------------------------- guards
+
+    /**
+     * Tiket yang MASUK HITUNGAN: sudah selesai, belum dibuang.
+     *
+     * Ini penyebut "ratable" dan juga saringan setiap angka lain, supaya tidak
+     * ada dua definisi "tiket yang layak dinilai" di dalam satu berkas.
+     *
+     * @return Builder<Ticket>
+     */
+    private function ratableTicketQuery(array $filters = [])
+    {
+        $query = Ticket::query()->whereIn('status', self::RATABLE);
+
+        // Jendela waktu diukur pada SELESAINYA pekerjaan, bukan pada
+        // dilaporkannya: CSAT bulan Agustus adalah kepuasan atas pekerjaan
+        // yang selesai di Agustus, betapa pun lamanya tiket itu terbuka.
+        if (filled($filters['from'] ?? null)) {
+            $query->whereDate('resolved_at', '>=', $filters['from']);
+        }
+
+        if (filled($filters['to'] ?? null)) {
+            $query->whereDate('resolved_at', '<=', $filters['to']);
+        }
+
+        if (filled($filters['service_contract_id'] ?? null)) {
+            $query->where('service_contract_id', (int) $filters['service_contract_id']);
+        }
+
+        if (filled($filters['customer_id'] ?? null)) {
+            $query->where('customer_id', (int) $filters['customer_id']);
+        }
+
+        return $query;
+    }
 
     private function assertTicketIsRatable(Ticket $ticket): void
     {
