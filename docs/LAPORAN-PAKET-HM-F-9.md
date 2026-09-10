@@ -368,6 +368,13 @@ Lima hal yang sudah diputuskan **di dalam kode** dan bisa dibalik pemilik dengan
    **tidak** ikut: ia membaca `default_validity_days` dari `meta` endpoint-nya, karena satu
    angka yang hidup di dua tempat adalah dialog yang berbohong pada hari konstantanya berubah
    dengan suite tetap hijau.
+   **Dan plafonnya: 90 hari** (`CsatService::MAX_VALIDITY_DAYS`, enam kali bawaannya).
+   Sampai plafon itu ada, aturan `expires_at` hanya punya lantai (`after:now`) dan penerbit
+   bisa meminta tautan yang berlaku sampai tahun 9999 lewat satu medan angka — salah satu dari
+   empat sifat yang dijanjikan tautan ini (di-hash, tampil sekali, **kedaluwarsa**, bisa
+   dicabut) dilucuti dari luar tanpa satu kalimat penolakan (terukur 10 Sep 2026: HTTP 201,
+   kartu tiket "berlaku s/d 31 Des 9999 16.59"). Angka 90 itu sendiri kenop pemilik; yang
+   bukan kenop adalah **adanya** plafon.
 2. **Satu tiket satu penilaian, selamanya.** Tiket yang sudah dinilai tidak bisa menerima
    undangan baru — juga bila ia dibuka kembali dan dikerjakan lagi berminggu-minggu kemudian.
    Alternatifnya (penilaian kedua yang menggantikan, dengan jejak) bisa dibenarkan, tetapi ia

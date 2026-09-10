@@ -628,7 +628,8 @@ atau kedaluwarsa dijawab 410 dengan alasannya.
 Halaman kedua, **`/penilaian/{token}`**, meminta pelanggan menilai satu tiket yang
 sudah selesai (panduan pengguna §12.5; `Modules/ServiceDesk/Routes/web.php`).
 Perbedaan yang perlu Anda tahu sebagai administrator: masa berlakunya **14 hari**
-(bukan 7), satu tiket hanya menerima **satu** penilaian betapa pun banyak undangan
+(bukan 7) dan **paling lama 90 hari** meski penerbit mengetik angka lebih besar,
+satu tiket hanya menerima **satu** penilaian betapa pun banyak undangan
 yang terbit, dan tiket yang **dibuka kembali** menjawab **409** — tautannya tidur,
 bukan mati, dan hidup lagi begitu tiketnya selesai lagi. Seperti halaman
 persetujuan, **tidak ada satu surel pun yang dikirim sistem**: penerbitlah yang

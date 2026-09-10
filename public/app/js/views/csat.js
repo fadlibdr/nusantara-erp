@@ -192,7 +192,7 @@ function expiresAtFromDays(days) {
 /* MASA BERLAKUNYA DATANG DARI SERVER (meta `default_validity_days`), tidak
    dipegang berkas ini: satu angka yang hidup di dua tempat adalah dialog yang
    berbohong pada hari konstantanya berubah, dengan suite tetap hijau. */
-async function issueLink(ticketId, onChanged, { defaultDays }) {
+async function issueLink(ticketId, onChanged, { defaultDays, maxDays }) {
   const values = await promptFields('Terbitkan Tautan Penilaian', [
     { key: 'recipient_name', label: 'Nama penilai di pihak pelanggan', required: true },
     {
@@ -201,8 +201,9 @@ async function issueLink(ticketId, onChanged, { defaultDays }) {
       help: 'Opsional, arsip untuk siapa tautan diterbitkan — sistem tidak mengirim e-mail.',
     },
     {
-      key: 'days', label: 'Masa berlaku (hari)', type: 'number', min: 1,
-      help: defaultDays ? `Kosongkan untuk ${defaultDays} hari.` : 'Kosongkan untuk masa berlaku bawaan.',
+      key: 'days', label: 'Masa berlaku (hari)', type: 'number', min: 1, max: maxDays || null,
+      help: `${defaultDays ? `Kosongkan untuk ${defaultDays} hari.` : 'Kosongkan untuk masa berlaku bawaan.'}`
+        + `${maxDays ? ` Paling lama ${maxDays} hari.` : ''}`,
     },
   ], {
     submitLabel: 'Terbitkan',
@@ -299,7 +300,10 @@ export function csatCard(ticket) {
         button('Terbitkan Tautan Penilaian', {
           size: 'sm',
           iconName: 'plus',
-          onClick: () => issueLink(ticket.id, load, { defaultDays: meta.default_validity_days }),
+          onClick: () => issueLink(ticket.id, load, {
+            defaultDays: meta.default_validity_days,
+            maxDays: meta.max_validity_days,
+          }),
         }),
       ]),
       el('.help', {

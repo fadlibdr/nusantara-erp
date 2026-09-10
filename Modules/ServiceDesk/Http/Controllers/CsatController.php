@@ -50,6 +50,7 @@ class CsatController extends ApiController
             // konstantanya membuat dialognya berbohong dengan suite tetap
             // hijau — hanya SATU uji yang memerah (terukur 10 Sep 2026).
             'default_validity_days' => CsatService::DEFAULT_VALIDITY_DAYS,
+            'max_validity_days' => CsatService::MAX_VALIDITY_DAYS,
         ]);
     }
 

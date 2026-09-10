@@ -7529,7 +7529,8 @@ tautannyalah izinnya, persis seperti tautan persetujuan MK/Owner.
 
 **Menerbitkan tautan** — dari halaman tiketnya, kartu **Kepuasan Pelanggan (CSAT)**, tombol
 **`Terbitkan Tautan Penilaian`**. Isi nama orang di pihak pelanggan (wajib), e-mailnya
-(opsional), dan masa berlaku dalam hari (kosongkan untuk **14 hari**).
+(opsional), dan masa berlaku dalam hari (kosongkan untuk **14 hari**; **paling lama 90
+hari** — undangan yang berlaku lebih lama dari itu bukan lagi tautan yang kedaluwarsa).
 
 > **SISTEM INI TIDAK MENGIRIM E-MAIL.** Sesudah menekan `Terbitkan`, URL-nya muncul **satu
 > kali** di sebuah dialog dengan tombol `Salin`. **Andalah yang mengirimnya** kepada

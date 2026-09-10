@@ -87,6 +87,56 @@ class CsatApiTest extends ErpTestCase
         $this->assertSame(14, $meta['default_validity_days']);
     }
 
+    /**
+     * MASA BERLAKU PUNYA PLAFON, bukan hanya lantai.
+     *
+     * Dari empat sifat yang dijanjikan tautan ini — di-hash, tampil sekali,
+     * KEDALUWARSA, bisa dicabut — yang ketiga bisa dilucuti dari luar lewat
+     * satu medan formulir selama aturannya hanya `after:now`: terukur 10 Sep
+     * 2026, `expires_at = 9999-12-31` diterima HTTP 201 dan kartu tiketnya
+     * menulis "berlaku s/d 31 Des 9999".
+     *
+     * Angkanya LITERAL di sini (90 hari), bukan dibaca dari konstantanya.
+     */
+    public function test_a_link_cannot_be_issued_to_outlive_the_work_it_asks_about(): void
+    {
+        $ticket = CsatFixtures::ticket();
+        $user = CsatFixtures::userWith(['svc.view', 'svc.update']);
+
+        foreach (['9999-12-31 23:59:00', '2099-01-01 00:00:00', now()->addDays(120)->format('Y-m-d H:i:s')] as $abadi) {
+            $this->actingAs($user)
+                ->postJson("/api/servicedesk/tickets/{$ticket->id}/csat", [
+                    'recipient_name' => 'Abadi',
+                    'expires_at' => $abadi,
+                ])
+                ->assertStatus(422)
+                ->assertJsonPath('errors.expires_at.0', fn ($m) => str_contains((string) $m, '90 hari'));
+        }
+
+        $this->assertSame(0, CsatRating::query()->count(), 'tidak satu undangan pun terbit');
+
+        // …dan yang di dalam plafonnya tetap terbit.
+        $this->actingAs($user)
+            ->postJson("/api/servicedesk/tickets/{$ticket->id}/csat", [
+                'recipient_name' => 'Ibu Sinta Dewi',
+                'expires_at' => now()->addDays(80)->format('Y-m-d H:i:s'),
+            ])
+            ->assertCreated();
+    }
+
+    /** Plafonnya juga dikirim ke layar, supaya medannya berbatas di dua sisi. */
+    public function test_the_list_meta_hands_the_screen_the_validity_ceiling(): void
+    {
+        $ticket = CsatFixtures::ticket();
+
+        $meta = $this->actingAs(CsatFixtures::userWith(['svc.view', 'svc.update']))
+            ->getJson("/api/servicedesk/tickets/{$ticket->id}/csat")
+            ->assertOk()
+            ->json('meta');
+
+        $this->assertSame(90, $meta['max_validity_days']);
+    }
+
     public function test_issuing_for_an_unfinished_ticket_is_refused_with_a_sentence(): void
     {
         $ticket = CsatFixtures::ticket(TicketStatus::InProgress);

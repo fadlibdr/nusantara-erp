@@ -92,6 +92,21 @@ class CsatService
     public const DEFAULT_VALIDITY_DAYS = 14;
 
     /**
+     * PLAFON masa berlaku yang boleh diminta penerbit — 90 hari.
+     *
+     * Tanpa plafon, aturan `after:now` hanya punya lantai, dan salah satu dari
+     * empat sifat yang dijanjikan tautan ini (di-hash, tampil sekali,
+     * KEDALUWARSA, bisa dicabut) bisa dilucuti dari luar lewat satu medan
+     * angka: terukur 10 Sep 2026, `expires_at = 9999-12-31` diterima 201 dan
+     * kartu tiketnya menulis "berlaku s/d 31 Des 9999". 90 hari dipilih
+     * sebagai enam kali bawaannya — cukup lebar untuk pelanggan yang butuh
+     * rapat internal dulu, dan masih di dalam kuartal yang pekerjaannya
+     * dinilai. Angkanya keputusan pemilik (LAPORAN §9); ia dipaku LITERAL di
+     * ujinya, bukan dibaca dari konstanta ini.
+     */
+    public const MAX_VALIDITY_DAYS = 90;
+
+    /**
      * Status tiket yang boleh dinilai — dan satu-satunya daftarnya.
      *
      * `resolved` dan `closed`, bukan `cancelled`: tiket yang dibatalkan tidak
