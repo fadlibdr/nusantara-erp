@@ -111,6 +111,26 @@ class DeliverNotification implements ShouldQueueAfterCommit
             return;
         }
 
+        // Jam tenang (T3a.2), diperiksa ULANG di sini: backoff 60 s setelah
+        // penolakan pukul 21.59 mendarat pukul 22.00 — di dalam jendela.
+        // Dilepas kembali ke antrean sampai jendela berakhir, tanpa mencatat
+        // percobaan; baris tetap `queued` dan mengatakan sampai kapan.
+        // (release() ikut menaikkan hitungan percobaan PEKERJA — satu kali per
+        // jendela; pada QUEUE_CONNECTION=sync release() tidak melakukan apa-apa
+        // dan job berhenti di sini.)
+        $postpone = DeliveryGate::postponement($recipient);
+
+        if ($postpone !== null) {
+            $delivery->forceFill([
+                'next_attempt_at' => $postpone['until'],
+                'error' => $postpone['reason'],
+            ])->save();
+
+            $this->release($postpone['until']);
+
+            return;
+        }
+
         // attempts disimpan SEBELUM mengirim: pekerja yang dibunuh pcntl pada
         // batas --timeout (SMTP yang bisu) tidak pernah sampai ke blok catch,
         // dan tanpa ini baris tetap attempts=0 setelah lima kali dibunuh

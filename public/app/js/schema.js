@@ -5912,6 +5912,10 @@ export const RESOURCES = {
       { key: 'status', label: 'Status', type: 'status', enum: 'deliveryStatus', width: '1%' },
       { key: 'attempts', label: 'Percobaan', type: 'number', align: 'right', width: '1%', hideOnNarrow: true },
       { key: 'error', label: 'Galat / alasan', type: 'text', hideOnNarrow: true },
+      // P-3a: jadwal percobaan berikutnya — backoff pekerja ATAU akhir jam
+      // tenang penerima (baris `queued` yang ditunda mengatakannya di sini
+      // dan di kolom alasan). Tanpa kolom ini "Antre" sejak 02.00 terbaca macet.
+      { key: 'next_attempt_at', label: 'Berikutnya', type: 'datetime', hideOnNarrow: true },
       { key: 'sent_at', label: 'Terkirim', type: 'datetime', hideOnNarrow: true },
     ],
     filters: [
@@ -6394,7 +6398,7 @@ export const NAV = [
        sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
        dan peran yang tidak punya satu sumber pun mendapat kalimat yang
        mengatakannya — bukan baris menu yang hilang tanpa sebab. */
-    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }],
+    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',

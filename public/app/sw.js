@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '8';
+const SHELL_VERSION = '9';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -157,6 +157,8 @@ const SHELL = [
   'js/views/periods.js',
   'js/views/pipeline.js',
   'js/views/pooutstanding.js',
+  // P-3a — Profil & Notifikasi (kanal luar, jam tenang, nomor WhatsApp).
+  'js/views/profil.js',
   'js/views/project.js',
   // F-6 — pindai barcode item (jalur kamera + jalur ketik).
   'js/views/pindai.js',

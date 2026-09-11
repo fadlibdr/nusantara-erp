@@ -94,6 +94,9 @@ class UserPreferencesTest extends ErpTestCase
             ['key' => 'recent', 'label' => 'Terakhir dibuka', 'max_bytes' => 8192, 'max_entries' => 20],
             ['key' => 'density', 'label' => 'Kepadatan', 'max_bytes' => 64, 'max_entries' => null],
             ['key' => 'dashboard.layout', 'label' => 'Susunan dasbor', 'max_bytes' => 16384, 'max_entries' => 24],
+            // P-3a (T3a.2): kanal notifikasi + jam tenang — bentuknya dipaku NotificationPreferencesTest.
+            ['key' => 'notify.channels', 'label' => 'Kanal notifikasi', 'max_bytes' => 256, 'max_entries' => null],
+            ['key' => 'notify.quiet_hours', 'label' => 'Jam tenang', 'max_bytes' => 64, 'max_entries' => null],
             ['key' => 'launcher.hidden', 'label' => 'Modul disembunyikan', 'max_bytes' => 512, 'max_entries' => 32],
         ], $meta);
 
@@ -164,6 +167,8 @@ class UserPreferencesTest extends ErpTestCase
             'recent' => 8192,
             'density' => 64,
             'dashboard.layout' => 16384,
+            'notify.channels' => 256,
+            'notify.quiet_hours' => 64,
             'launcher.hidden' => 512,
         ], array_map(fn (array $entry) => $entry['max_bytes'], UserPreferences::keys()));
 

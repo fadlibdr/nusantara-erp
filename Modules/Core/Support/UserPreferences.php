@@ -217,6 +217,60 @@ final class UserPreferences
             ],
 
             /*
+             * Kanal notifikasi LUAR yang dipilih orangnya (P-3a, T3a.2):
+             * {email: bool, whatsapp: bool}. Kunci yang tidak disebut = nyala
+             * (bawaan milik pengirim: kanal yang mati diam-diam untuk semua
+             * orang bukan bawaan). Dibaca DeliveryGate::userEnabled di kotak
+             * keluar, Kirim ulang, dan job — mematikannya di sini benar-benar
+             * membuat baris `skipped` "Dimatikan pengguna di Profil".
+             *
+             * Di UserPreferences dan bukan tabel baru, dengan sengaja: ini
+             * persis "apa pun yang seseorang PILIH untuk dirinya sendiri"
+             * (CONVENTIONS §15), plafon dan whitelist-nya sudah ada, endpoint
+             * dan cerminnya sudah ada — dan tidak butuh migrasi. Yang
+             * membutuhkan kolom sungguhan adalah opt-in WhatsApp berstempel
+             * waktu (T3a.3, users.whatsapp_opt_in_at): persetujuan bukan
+             * preferensi, dan preferensi boleh dihapus tanpa jejak.
+             */
+            'notify.channels' => [
+                'label' => 'Kanal notifikasi',
+                'max_bytes' => 256,
+                'max_entries' => null,
+                'validate' => static function (mixed $value): ?string {
+                    if (! is_array($value) || array_is_list($value)) {
+                        return 'Kanal notifikasi harus berupa objek {email: true/false, whatsapp: true/false}.';
+                    }
+
+                    $extra = array_diff(array_keys($value), DeliveryGate::USER_CHANNELS);
+                    if ($extra !== []) {
+                        return sprintf('Kanal tidak dikenal: %s.', implode(', ', $extra));
+                    }
+
+                    foreach ($value as $channel => $on) {
+                        if (! is_bool($on)) {
+                            return sprintf('Nilai kanal "%s" harus true atau false.', $channel);
+                        }
+                    }
+
+                    return null;
+                },
+            ],
+
+            /*
+             * Jam tenang (P-3a, T3a.2): {start:"HH:MM", end:"HH:MM"} WIB, atau
+             * false = tanpa jam tenang (bukan null: kolomnya NOT NULL, dan
+             * preferensi tidak punya DELETE). Aturannya milik QuietHours — pengirim
+             * membaca nilai yang SAMA lewat kelas yang sama, jadi yang lolos
+             * validasi di sini pasti bisa dihitung di sana.
+             */
+            'notify.quiet_hours' => [
+                'label' => 'Jam tenang',
+                'max_bytes' => 64,
+                'max_entries' => null,
+                'validate' => static fn (mixed $value): ?string => QuietHours::reject($value),
+            ],
+
+            /*
              * Modul yang disembunyikan dari launcher #/home. Prefix grup NAV,
              * diperiksa lewat SpaNav dengan alasan yang sama seperti favorit.
              */

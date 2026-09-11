@@ -383,10 +383,28 @@ class NotificationService
             'error' => $reason,
         ]);
 
+        // Jam tenang (T3a.2): MENUNDA, tidak membuang — baris tetap `queued`,
+        // next_attempt_at = akhir jendela, job diantrekan dengan delay yang
+        // sama. Baris dalam aplikasi sudah ditulis oleh write() sebelum ini.
+        $postpone = $delivery->status === NotificationDelivery::QUEUED
+            ? DeliveryGate::postponement($recipient)
+            : null;
+
+        if ($postpone !== null) {
+            $delivery->next_attempt_at = $postpone['until'];
+            $delivery->error = $postpone['reason'];
+        }
+
         $delivery->save();
 
         if ($delivery->status === NotificationDelivery::QUEUED) {
-            $this->guard(fn () => DeliverNotification::dispatch($delivery->id));
+            $this->guard(function () use ($delivery, $postpone): void {
+                $job = DeliverNotification::dispatch($delivery->id);
+
+                if ($postpone !== null) {
+                    $job->delay($postpone['until']);
+                }
+            });
         }
     }
 
@@ -441,13 +459,20 @@ class NotificationService
 
         $delivery->recipient = DeliveryGate::address($delivery->channel, $recipient);
 
+        // Jam tenang berlaku untuk Kirim ulang juga: operator menekan tombol
+        // pukul 23.00, pesannya berangkat 06.00 — dan layar mengatakannya.
+        $postpone = DeliveryGate::postponement($recipient);
+
         $delivery->forceFill([
             'status' => NotificationDelivery::QUEUED,
-            'error' => null,
-            'next_attempt_at' => null,
+            'error' => $postpone['reason'] ?? null,
+            'next_attempt_at' => $postpone['until'] ?? null,
         ])->save();
 
-        DeliverNotification::dispatch($delivery->id);
+        $job = DeliverNotification::dispatch($delivery->id);
+        if ($postpone !== null) {
+            $job->delay($postpone['until']);
+        }
         $this->forgetFailedJobsFor($delivery);
 
         return $delivery->refresh();
