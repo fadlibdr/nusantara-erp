@@ -15,6 +15,7 @@ use Modules\Core\Models\FailedJob;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\ApprovableDocuments;
+use Modules\Core\Support\DeliveryGate;
 use Modules\Core\Support\Erp;
 use Modules\Core\Support\SegregationOfDuties;
 
@@ -334,9 +335,10 @@ class NotificationService
         }
     }
 
-    public const SKIP_EMAIL_DISABLED = 'E-mail dinonaktifkan di Pengaturan.';
+    /** Dipertahankan untuk pemanggil lama; kalimatnya kini milik DeliveryGate (P-3a). */
+    public const SKIP_EMAIL_DISABLED = DeliveryGate::EMAIL_DISABLED;
 
-    public const SKIP_NO_ADDRESS = 'Penerima tidak punya alamat e-mail.';
+    public const SKIP_NO_ADDRESS = DeliveryGate::EMAIL_NO_ADDRESS;
 
     /**
      * Kotak keluar: satu baris pengiriman per kanal luar untuk notifikasi yang
@@ -348,26 +350,25 @@ class NotificationService
      * tidak boleh membatalkan persetujuan yang sedang dilaporkan, dan baris
      * `queued` tanpa job adalah persis yang dilihat operator di layar (dan
      * yang dihitung core/health sebagai queued_deliveries_older_than_1h).
+     *
+     * Sebab `skipped` datang dari DeliveryGate — satu daftar untuk kotak
+     * keluar, Kirim ulang, dan job (P-3a): e-mail dimatikan di Pengaturan,
+     * MAIL_MAILER masih log (sebelumnya baris ini `queued` lalu `sent` dengan
+     * Message-ID lokal — diukur 11 Sep 2026), atau penerima tanpa alamat.
      */
     private function outbox(Notification $notification, User $recipient): void
     {
-        $address = trim((string) $recipient->email);
+        $channel = NotificationDelivery::CHANNEL_EMAIL;
+        $reason = DeliveryGate::reasonToSkip($channel, $recipient);
 
         $delivery = new NotificationDelivery([
             'notification_id' => $notification->id,
-            'channel' => NotificationDelivery::CHANNEL_EMAIL,
-            'recipient' => $address,
-            'status' => NotificationDelivery::QUEUED,
+            'channel' => $channel,
+            'recipient' => DeliveryGate::address($channel, $recipient),
+            'status' => $reason === null ? NotificationDelivery::QUEUED : NotificationDelivery::SKIPPED,
             'attempts' => 0,
+            'error' => $reason,
         ]);
-
-        if (! $this->emailEnabled()) {
-            $delivery->status = NotificationDelivery::SKIPPED;
-            $delivery->error = self::SKIP_EMAIL_DISABLED;
-        } elseif ($address === '') {
-            $delivery->status = NotificationDelivery::SKIPPED;
-            $delivery->error = self::SKIP_NO_ADDRESS;
-        }
 
         $delivery->save();
 
@@ -410,19 +411,22 @@ class NotificationService
             throw new DeliveryRetryRefusedException('Pengiriman ini sudah diterima penyedia; tidak ada yang perlu dikirim ulang.');
         }
 
-        if ($delivery->channel === NotificationDelivery::CHANNEL_EMAIL) {
-            if (! $this->emailEnabled()) {
-                throw new DeliveryRetryRefusedException('E-mail masih dinonaktifkan di Pengaturan — nyalakan dulu, lalu kirim ulang.');
-            }
+        $recipient = $delivery->notification?->user;
 
-            $address = trim((string) $delivery->notification?->user?->email);
-
-            if ($address === '') {
-                throw new DeliveryRetryRefusedException('Penerima tidak punya alamat e-mail; lengkapi alamatnya di Sistem › Pengguna, lalu kirim ulang.');
-            }
-
-            $delivery->recipient = $address;
+        if ($recipient === null) {
+            throw new DeliveryRetryRefusedException('Penerima notifikasi ini sudah tidak ada; tidak ada alamat untuk dikirimi.');
         }
+
+        // Gerbang yang SAMA dengan pengiriman pertama (DeliveryGate, P-3a):
+        // sebabnya ditolak dengan kalimat + petunjuknya, bukan diantrekan
+        // untuk `skipped` lagi.
+        $reason = DeliveryGate::reasonToSkip($delivery->channel, $recipient);
+
+        if ($reason !== null) {
+            throw new DeliveryRetryRefusedException(DeliveryGate::retryRefusal($reason));
+        }
+
+        $delivery->recipient = DeliveryGate::address($delivery->channel, $recipient);
 
         $delivery->forceFill([
             'status' => NotificationDelivery::QUEUED,
@@ -447,11 +451,6 @@ class NotificationService
         foreach (FailedJob::forDelivery($delivery->id) as $failed) {
             $failer->forget((string) $failed->uuid);
         }
-    }
-
-    private function emailEnabled(): bool
-    {
-        return Erp::bool('notifications.email_enabled', false);
     }
 
     /**

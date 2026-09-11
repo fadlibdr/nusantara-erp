@@ -10,8 +10,11 @@ use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Modules\Core\Exceptions\DeliveryRejectedException;
+use Modules\Core\Exceptions\DeliverySkippedException;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\DeliveryChannels;
+use Modules\Core\Support\DeliveryGate;
 use Throwable;
 
 /**
@@ -33,6 +36,21 @@ use Throwable;
  * ShouldQueueAfterCommit: dispatch dari dalam transaksi ditunda sampai
  * commit — baris pengiriman yang belum ter-commit tidak boleh dikerjakan
  * pekerja lain.
+ *
+ * P-3a (11 Sep 2026) menambah dua hasil selain sent/failed, dan satu syarat:
+ *
+ *   skipped   kanal MEMUTUSKAN tidak mencoba (DeliverySkippedException:
+ *             mailer masih log, kanal belum dikonfigurasi, penerima belum
+ *             opt-in) — tanpa percobaan ulang, dengan sebabnya di error.
+ *             Gerbang DeliveryGate diperiksa ulang di sini SEBELUM mengirim:
+ *             keadaan bisa berubah antara baris ditulis dan job berjalan.
+ *   failed    SEKETIKA bila penyedia menolak permanen (DeliveryRejectedException:
+ *             token salah, template tidak ada) — mengulang lima kali hanya
+ *             menunda kabar buruknya 78 menit.
+ *   sent      HANYA dengan pengenal dari penyedia. Kanal yang memulangkan
+ *             kosong tanpa melempar tidak memberi bukti; itu dicatat sebagai
+ *             percobaan gagal. Sebelum ini MAIL_MAILER=log menghasilkan `sent`
+ *             ber-Message-ID lokal — klaim tanpa server di baliknya.
  */
 class DeliverNotification implements ShouldQueueAfterCommit
 {
@@ -57,7 +75,7 @@ class DeliverNotification implements ShouldQueueAfterCommit
 
     public function handle(): void
     {
-        $delivery = NotificationDelivery::query()->with('notification')->find($this->deliveryId);
+        $delivery = NotificationDelivery::query()->with(['notification', 'notification.user'])->find($this->deliveryId);
 
         // Baris dihapus (notifikasinya dihapus, cascade) atau sudah selesai
         // lewat jalur lain: tidak ada yang perlu dikirim, dan mengirim ulang
@@ -78,6 +96,21 @@ class DeliverNotification implements ShouldQueueAfterCommit
             return;
         }
 
+        // Gerbang yang sama dengan kotak keluar dan Kirim ulang, diperiksa
+        // ULANG saat job benar-benar berjalan: sakelar yang dimatikan atau
+        // mailer yang diganti sesudah baris ditulis membuat baris `skipped`
+        // dengan sebabnya — bukan surat yang tetap keluar, bukan `failed`.
+        $recipient = $delivery->notification->user;
+        $reason = $recipient === null
+            ? 'Penerima tidak ada lagi.'
+            : DeliveryGate::reasonToSkip($delivery->channel, $recipient);
+
+        if ($reason !== null) {
+            $this->skip($delivery, $reason);
+
+            return;
+        }
+
         // attempts disimpan SEBELUM mengirim: pekerja yang dibunuh pcntl pada
         // batas --timeout (SMTP yang bisu) tidak pernah sampai ke blok catch,
         // dan tanpa ini baris tetap attempts=0 setelah lima kali dibunuh
@@ -85,7 +118,26 @@ class DeliverNotification implements ShouldQueueAfterCommit
         $delivery->forceFill(['attempts' => $delivery->attempts + 1])->save();
 
         try {
-            $providerId = DeliveryChannels::for($delivery->channel)->send($delivery, $delivery->notification);
+            $providerId = trim((string) DeliveryChannels::for($delivery->channel)->send($delivery, $delivery->notification));
+
+            if ($providerId === '') {
+                throw new \RuntimeException(
+                    'Kanal tidak memulangkan pengenal dari penyedia; tanpa itu tidak ada bukti pesan diterima, '
+                    .'jadi status tidak ditandai terkirim.',
+                );
+            }
+        } catch (DeliverySkippedException $e) {
+            $this->skip($delivery, $e->getMessage());
+
+            return;
+        } catch (DeliveryRejectedException $e) {
+            $delivery->forceFill([
+                'status' => NotificationDelivery::FAILED,
+                'error' => self::message($e),
+                'next_attempt_at' => null,
+            ])->save();
+
+            return;
         } catch (Throwable $e) {
             // Percobaan ke-n gagal: catat, jadwalkan, lempar ulang. Yang
             // menentukan jadwal adalah hitungan PEKERJA untuk job ini
@@ -108,9 +160,23 @@ class DeliverNotification implements ShouldQueueAfterCommit
 
         $delivery->forceFill([
             'status' => NotificationDelivery::SENT,
-            'provider_id' => $providerId,
+            'provider_id' => Str::limit($providerId, 190, ''),
             'error' => null,
             'sent_at' => now(),
+            'next_attempt_at' => null,
+        ])->save();
+    }
+
+    /**
+     * `skipped`: tidak pernah dicoba (atau diputuskan tidak dicoba), dengan
+     * sebabnya. attempts tidak disentuh — ini bukan percobaan — dan tidak ada
+     * yang dilempar ulang: pekerja tidak punya apa-apa untuk diulang.
+     */
+    private function skip(NotificationDelivery $delivery, string $reason): void
+    {
+        $delivery->forceFill([
+            'status' => NotificationDelivery::SKIPPED,
+            'error' => Str::limit(trim($reason) === '' ? 'Dilewati tanpa sebab yang disebut kanal.' : trim($reason), 480),
             'next_attempt_at' => null,
         ])->save();
     }

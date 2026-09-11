@@ -399,8 +399,9 @@ class SettingService
                         'label' => 'Kirim juga lewat email',
                         'type' => 'boolean',
                         'help' => 'Nyalakan hanya setelah MAIL_MAILER di .env diarahkan ke server email '
-                            .'sungguhan. Pada pemasangan baru nilainya "log", sehingga menyalakan ini '
-                            .'hanya menuliskan isi pemberitahuan ke berkas log.',
+                            .'sungguhan (DEPLOYMENT.md §11). Pada pemasangan baru nilainya "log": selama itu '
+                            .'setiap pengiriman e-mail dicatat Dilewati — "belum ada server surel" — di '
+                            .'Sistem › Pengiriman Notifikasi, bukan Terkirim.',
                     ],
                 ],
             ],
