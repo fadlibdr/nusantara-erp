@@ -16,6 +16,7 @@ Batas:
 3. **Jangan menyentuh berkas bersama:** `bootstrap/*`, `composer.json`, `database/seeders/DatabaseSeeder.php`, `routes/*`. Modul mendaftar sendiri (`CONVENTIONS.md §1`).
 4. **Jangan pernah mengisi sel formulir cetak dengan nilai tebakan.** Sel tanpa sumber data tetap bergaris kosong (`PANDUAN-PENGGUNA.md §13.5`). Menutup deviasi berarti **menambah sumber data**, bukan melonggarkan aturan itu.
 5. **Jangan membangun yang sudah ditolak tertulis:** portal pelanggan, multi-valuta, peminjaman alat kecil, bank host-to-host, WhatsApp, aplikasi native, multi-tenant.
+   > *Catatan 11 Sep 2026 (P-3a T3a.0):* **penolakan WhatsApp DICABUT** oleh keputusan pemilik (ROADMAP-HASHMICRO Fase 3 / P-3a) dengan tiga prasyarat milik pemilik — lihat [`KEPUTUSAN-INTEGRASI.md`](KEPUTUSAN-INTEGRASI.md). Enam butir lainnya tetap ditolak. Kalimat di atas dipertahankan apa adanya sebagai sejarah.
 6. Bila spesifikasi di sini bertentangan dengan `CONVENTIONS.md`, **CONVENTIONS.md menang** — catat pertentangannya di laporan akhir.
 
 ---
