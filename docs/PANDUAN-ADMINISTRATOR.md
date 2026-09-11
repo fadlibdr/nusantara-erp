@@ -604,8 +604,15 @@ keluar-masuk.**
 **Pembatasan laju**: login 10 percobaan per menit; seluruh API 120 permintaan per
 menit per pengguna.
 
-**Satu halaman — dan hanya satu — dibuka tanpa login: `/persetujuan/{token}`**
-(sejak 28 Agustus 2026). Itu halaman keputusan MK/Owner atas tautan sekali-pakai
+**DUA halaman dibuka tanpa login, dan hanya dua** — `/persetujuan/{token}` (sejak
+28 Agustus 2026) dan `/penilaian/{token}` (sejak 10 September 2026, CSAT tiket
+layanan). Keduanya dibangun dari pola yang sama, dan seluruh paragraf di bawah ini
+berlaku untuk keduanya kata per kata: `throttle:10,1`, regex token yang sama,
+tanpa grup `web`, dan hanya sha256 token yang tersimpan. Yang membedakan hanya
+modul pemiliknya (`CoreServiceProvider` vs `ServiceDeskServiceProvider`) dan apa
+yang dicatat halamannya.
+
+Yang pertama adalah halaman keputusan MK/Owner atas tautan sekali-pakai
 (panduan pengguna bab 15; desainnya di
 [`PERSETUJUAN-EKSTERNAL.md`](PERSETUJUAN-EKSTERNAL.md)). GET menampilkan formulir
 keputusan, POST mencatatnya; keduanya dimuat `CoreServiceProvider` dari
@@ -617,6 +624,16 @@ yang bisa Anda tampilkan ulang untuk penerbit yang kehilangan tautannya, termasu
 lewat tinker; jalannya cabut lalu terbitkan baru. Token tak dikenal dijawab 404
 tanpa keterangan; yang sudah dipakai menampilkan struk keputusannya; yang dicabut
 atau kedaluwarsa dijawab 410 dengan alasannya.
+
+Halaman kedua, **`/penilaian/{token}`**, meminta pelanggan menilai satu tiket yang
+sudah selesai (panduan pengguna §12.5; `Modules/ServiceDesk/Routes/web.php`).
+Perbedaan yang perlu Anda tahu sebagai administrator: masa berlakunya **14 hari**
+(bukan 7) dan **paling lama 90 hari** meski penerbit mengetik angka lebih besar,
+satu tiket hanya menerima **satu** penilaian betapa pun banyak undangan
+yang terbit, dan tiket yang **dibuka kembali** menjawab **409** — tautannya tidur,
+bukan mati, dan hidup lagi begitu tiketnya selesai lagi. Seperti halaman
+persetujuan, **tidak ada satu surel pun yang dikirim sistem**: penerbitlah yang
+menyalin URL-nya dan mengirimkannya sendiri.
 
 > **Di erp1 hari ini halaman itu tetap terhalang gerbang Basic-auth nginx.**
 > MK/Owner tanpa kredensial gerbang tidak bisa membukanya sampai gerbang

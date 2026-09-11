@@ -37,6 +37,7 @@ import { renderMasterData } from './views/masterdata.js';
 import { renderDocumentImport } from './views/dokumenimpor.js';
 import { openSearch, registerSearchShortcut } from './search.js';
 import { renderSlaBreaches } from './views/slabreaches.js';
+import { renderCsat } from './views/csat.js';
 import { renderRetensi } from './views/retensi.js';
 import { renderSiapTagih } from './views/siaptagih.js';
 import { renderPeriods } from './views/periods.js';
@@ -1201,6 +1202,17 @@ function registerRoutes() {
     const host = view();
     if (!session.can('svc.view')) return accessDenied(host, 'svc');
     return guard(host, () => renderSlaBreaches(host));
+  });
+
+  /* F-9 — ringkasan CSAT. Gerbangnya svc.view, sama dengan endpoint-nya:
+     komentar pelanggan tentang seorang teknisi tidak pernah lebih longgar
+     daripada itu. */
+  route('csat', () => {
+    setCrumbs(['Layanan', 'Kepuasan Pelanggan']);
+    setActiveNav('csat');
+    const host = view();
+    if (!session.can('svc.view')) return accessDenied(host, 'svc');
+    return guard(host, () => renderCsat(host));
   });
 
   route('master-data', () => {

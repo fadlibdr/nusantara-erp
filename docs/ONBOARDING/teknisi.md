@@ -130,24 +130,34 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    jurnalnya masuk buku besar — dan bon itu tidak bisa dibatalkan. Laporan tanpa
    sparepart adalah tanda tangan murni: tanpa gudang, tanpa stok. Kotak *Nama
    penandatangan* di formulir bukan bukti tanda tangan; hanya `Sahkan Pelanggan` yang
-   mencapnya. → PANDUAN §12.5.
+   mencapnya. → PANDUAN §12.6.
 
-5. **Dari ponsel di lokasi.** Layar: `#/lapangan` → tab **Tiket Servis** → pilih tiket
+5. **Penilaian pelanggan (CSAT).** Setelah tiket **selesai**, halaman tiketnya punya
+   kartu **Kepuasan Pelanggan (CSAT)** dengan tombol **`Terbitkan Tautan Penilaian`**.
+   URL-nya muncul **sekali** di sebuah dialog; **sistem ini tidak mengirim e-mail** —
+   Andalah (atau atasan Anda) yang mengirimkannya lewat WhatsApp. **Untuk tiket yang
+   ANDA kerjakan sendiri, penerbitan ditolak:** penerbit melihat tautannya dan bisa
+   membukanya sendiri, jadi penilaiannya akan mengukur dirinya sendiri. Itu bukan
+   kesalahan sistem — minta rekan atau atasan Anda yang menerbitkannya. Penilaian yang
+   masuk (termasuk komentarnya, juga bila komentarnya tentang Anda) terlihat pada
+   tiketnya dan di `Layanan › Kepuasan Pelanggan`. → PANDUAN §12.5.
+
+6. **Dari ponsel di lokasi.** Layar: `#/lapangan` → tab **Tiket Servis** → pilih tiket
    dari daftar tiket terbuka → kartu **Foto lapangan** → **`Ambil foto`** (kamera
    belakang, batas 5 MB, GPS diminta sekali per jepretan; *"Foto terkirim dengan lokasi."*
    atau *"Foto terkirim (tanpa lokasi)."*). Foto menempel sebagai lampiran tiket itu.
    Tanpa tiket terbuka, layar berkata *"Tidak ada tiket terbuka."* → PANDUAN §7.4.
 
-6. **Jadwal preventif dan tiket PM.** Layar: `Layanan › Jadwal Preventif` → **`Tambah
+7. **Jadwal preventif dan tiket PM.** Layar: `Layanan › Jadwal Preventif` → **`Tambah
    Jadwal PM`** → Kontrak layanan, ID lokasi, Nama jadwal, Frekuensi (Bulanan /
    Triwulanan / Semesteran), Jatuh tempo berikutnya, Teknisi, Checklist (satu butir per
    baris) → **`Simpan`**. Tombol **`Buat Tiket PM`** di kepala daftar membuat satu tiket
    per jadwal yang jatuh tempo (kategori Pemeliharaan Preventif, prioritas Rendah, judul
    `{nama jadwal} — dd/mm/yyyy`) lalu menggulirkan jatuh temponya — dan pekerjaan yang
    sama sudah berjalan otomatis setiap malam, jadi menekannya biasanya tidak perlu. Satu
-   tiket susulan per jadwal, bukan per periode yang terlewat. → PANDUAN §12.6.
+   tiket susulan per jadwal, bukan per periode yang terlewat. → PANDUAN §12.7.
 
-7. **Memposting dokumen stok yang disiapkan gudang.** Pemicu: penjaga gudang (peran
+8. **Memposting dokumen stok yang disiapkan gudang.** Pemicu: penjaga gudang (peran
    `warehouse`) menyerahkan draf — ia bisa mengetik, tidak bisa memposting; Anda
    sebaliknya: **tombol `Tambah GRN` / `Tambah Pengeluaran Barang` tidak digambar untuk
    Anda** (tanpa izin buat persediaan), tetapi tombol postingnya ada. Layar dan tombol:
@@ -163,7 +173,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    Sebelum menekan apa pun: baca `Persediaan › Saldo Stok` untuk gudang dan item itu.
    → PANDUAN §6.1, §6.2, §6.4, §6.5, §6.6, §6.8.
 
-8. **Kontrak layanan.** Layar: `Layanan › Kontrak Layanan` → **`Tambah Kontrak Layanan`**
+9. **Kontrak layanan.** Layar: `Layanan › Kontrak Layanan` → **`Tambah Kontrak Layanan`**
    → Pelanggan, Nama kontrak, Periode, Nilai, Siklus penagihan, **SLA respons (jam)**,
    **SLA penyelesaian (jam)**, tabel **Lokasi layanan** (minimal 1) → **`Simpan`**.
    Tabel Lokasi layanan pada halaman kontrak adalah tempat Anda membaca **nomor id
@@ -182,16 +192,16 @@ untuk peran Anda, apa adanya:
   edited.` — tidak bisa diubah, tidak bisa ditugaskan ulang, tidak ada tombol buka
   kembali; yang tersisa `Tutup Tiket`. Lokasi salah kontrak: `"The selected site does not
   belong to the selected service contract."`
-- **Berita acara, saat `Ajukan`** (§12.5): *"Laporan PM/… belum dapat diajukan. Pengesahan
+- **Berita acara, saat `Ajukan`** (§12.6): *"Laporan PM/… belum dapat diajukan. Pengesahan
   pelanggan nanti mengeluarkan suku cadangnya dari gudang, dan pengeluaran itu diuji
   sekarang — hasilnya ditolak: {pesan asli} Perbaiki selagi laporan masih berstatus draf:
   setelah diajukan seluruh kolomnya terkunci, dan periode yang memuat tanggal kunjungan
   tidak dapat ditutup sampai laporan ini selesai. Pemeriksaan ini tidak membuat bon maupun
   mutasi stok — nomor bon yang mungkin disebut di atas hanya nomor uji coba."*
-- **Berita acara tanpa gudang** (§12.5): *"Laporan PM/… mencantumkan suku cadang, tetapi
+- **Berita acara tanpa gudang** (§12.6): *"Laporan PM/… mencantumkan suku cadang, tetapi
   gudang asalnya belum diisi. Isi kolom 'Gudang suku cadang' pada laporan, lalu ulangi
   pengesahan pelanggan — tanpa gudang, stok tidak dapat dikeluarkan."*
-- **Sesudah pelanggan menandatangani** (§12.5): *"Laporan PM/… sudah disahkan pelanggan dan
+- **Sesudah pelanggan menandatangani** (§12.6): *"Laporan PM/… sudah disahkan pelanggan dan
   tidak dapat dikembalikan ke draf. Pengesahan itu sudah menerbitkan bon ISS/…: suku
   cadangnya sudah keluar dari gudang dan jurnalnya sudah ada di buku besar. Bon yang lahir
   dari berita acara tidak dapat dibatalkan, jadi koreksinya lewat opname."* — dan pada bon
@@ -266,7 +276,7 @@ bukan 0.
 - **Draf GRN/bon/transfer/retur salah isi sebelum diposting** → petugas gudang, lewat
   `Ubah` pada drafnya (§6.4, §6.5).
 - **Suku cadang salah pada berita acara yang sudah disahkan** → petugas gudang menyusun
-  opname; direktur atau admin menekan `Setujui` (§6.7, §12.5).
+  opname; direktur atau admin menekan `Setujui` (§6.7, §12.6).
 - **Periode fiskal tertutup menolak posting** → manajer keuangan atau administrator
   (§6.10; PANDUAN-ADMINISTRATOR §6).
 - **Kontrak layanan pelanggan, SLA, akhir periode** → sales (§12.2).

@@ -16,6 +16,7 @@ import { navigate, back } from '../router.js';
 // miliknya sendiri saat impor — sebelum boot() app.js berjalan.
 import { fundPaymentPanels } from './kaskecil.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
+import { csatCard } from './csat.js';
 
 /* Label ringkas jenis potongan pajak pada baris alokasi penerimaan. Ini
    cerminan Modules/Finance/Enums/WithholdingType; jenis yang belum dikenal
@@ -487,6 +488,13 @@ export async function renderTicket(host, { id }) {
       el('dt', { text: 'Ditutup' }), el('dd', { text: fmt.dateTime(ticket.closed_at) }),
     ])),
   ]));
+
+  /* CSAT (F-9) — penilaian pelanggan terlihat PADA TIKETNYA, bukan hanya di
+     layar ringkasan: orang yang membuka tiket karena pelanggannya menelepon
+     harus melihat apa yang sudah ditulis pelanggan itu tanpa berpindah layar.
+     Kartunya menghilang sendiri (null) untuk sesi tanpa svc.view. */
+  const csat = csatCard(ticket);
+  if (csat) main.appendChild(csat);
 
   const reports = await api.get('servicedesk/field-reports', { ticket_id: id }).catch(() => []);
   side.appendChild(el('.card', [

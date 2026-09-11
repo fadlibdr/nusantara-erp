@@ -18,9 +18,19 @@ class ServiceDeskServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
 
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'svcdesk');
+
         Route::middleware('api')
             ->prefix('api/servicedesk')
             ->group(__DIR__.'/../Routes/api.php');
+
+        /*
+         * Halaman penilaian pelanggan (CSAT, F-9) — publik, tanpa prefix api
+         * dan TANPA grup middleware 'web'. Pola CoreServiceProvider untuk
+         * /persetujuan/{token}: rute web milik modul tinggal di modulnya,
+         * routes/* akar tidak disentuh. Lihat komentar Routes/web.php.
+         */
+        Route::group([], __DIR__.'/../Routes/web.php');
 
         $this->commands([
             GeneratePreventiveTickets::class,

@@ -6647,6 +6647,10 @@ export const NAV = [
     items: [
       { label: 'Tiket', route: 'r/servicedesk/tickets' },
       { label: 'Tiket Lewat SLA', route: 'sla-breaches' },
+      // F-9 — CSAT. Tepat di bawah dua layar tiket karena itulah hubungannya:
+      // layar ini membaca tiket yang sudah SELESAI, dua layar di atasnya
+      // membaca yang belum.
+      { label: 'Kepuasan Pelanggan', route: 'csat' },
       { label: 'Kontrak Layanan', route: 'r/servicedesk/contracts' },
       { label: 'Jadwal Preventif', route: 'r/servicedesk/preventive-schedules' },
       { label: 'Berita Acara', route: 'r/servicedesk/field-reports' },
