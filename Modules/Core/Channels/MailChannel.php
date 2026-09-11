@@ -6,9 +6,11 @@ use Illuminate\Support\Facades\Mail;
 use Modules\Core\Contracts\DeliveryChannel;
 use Modules\Core\Exceptions\DeliverySkippedException;
 use Modules\Core\Mail\ApprovalNotificationMail;
+use Modules\Core\Mail\EventNotificationMail;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\MailTransport;
+use Modules\Core\Support\NotificationTemplates;
 use RuntimeException;
 
 /**
@@ -57,9 +59,15 @@ class MailChannel implements DeliveryChannel
             ? null
             : rtrim((string) config('app.url'), '/').'/app/'.$notification->link;
 
-        $sent = Mail::to($delivery->recipient)->send(
-            new ApprovalNotificationMail($notification->title, (string) $notification->body, $url),
-        );
+        // Template per peristiwa (T3a.1) bila notifikasinya menyebut salah satu
+        // dari lima kunci NotificationTemplates; selain itu TEMPLATE UMUM
+        // P-0b — dikatakan di sini, bukan ditebak dari judul.
+        $template = NotificationTemplates::forNotification($notification);
+        $mailable = $template === null
+            ? new ApprovalNotificationMail($notification->title, (string) $notification->body, $url)
+            : new EventNotificationMail($template, $notification->title, (string) $notification->body, $url);
+
+        $sent = Mail::to($delivery->recipient)->send($mailable);
 
         try {
             $id = $sent?->getMessageId();

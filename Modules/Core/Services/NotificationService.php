@@ -17,6 +17,7 @@ use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\ApprovableDocuments;
 use Modules\Core\Support\DeliveryGate;
 use Modules\Core\Support\Erp;
+use Modules\Core\Support\NotificationTemplates;
 use Modules\Core\Support\SegregationOfDuties;
 
 /**
@@ -180,10 +181,21 @@ class NotificationService
      * tier-change escalation; bodies still mutate daily (ages), which is why
      * the comparison is this fingerprint and never the body text. Null keeps
      * the title-only dedupe byte-identical for every non-deadline caller.
+     *
+     * $template (P-3a, T3a.1) is one of the five NotificationTemplates keys,
+     * stored on the row so the outside channels pick the right mail shape
+     * and the right Meta-approved WhatsApp template. Null — every caller
+     * that does not name one — means the GENERIC template, on purpose and
+     * out loud: unknown keys are refused here rather than stored, so a typo
+     * cannot become a silent "generic".
      */
-    public function system(string $permission, string $title, string $body, ?string $link = null, ?int $renagAfterDays = null, ?string $signature = null): void
+    public function system(string $permission, string $title, string $body, ?string $link = null, ?int $renagAfterDays = null, ?string $signature = null, ?string $template = null): void
     {
-        $this->guard(function () use ($permission, $title, $body, $link, $renagAfterDays, $signature): void {
+        if ($template !== null && ! NotificationTemplates::has($template)) {
+            throw new \InvalidArgumentException("Template notifikasi \"{$template}\" tidak terdaftar di NotificationTemplates.");
+        }
+
+        $this->guard(function () use ($permission, $title, $body, $link, $renagAfterDays, $signature, $template): void {
             $holders = $this->approvers($permission, null);
 
             // Silence here would be an alarm about alarms failing: a system
@@ -217,6 +229,7 @@ class NotificationService
             $this->write($recipients, fn (User $recipient): array => [
                 'user_id' => $recipient->id,
                 'event' => Notification::SYSTEM,
+                'template' => $template,
                 'title' => $title,
                 'body' => $body,
                 'link' => $link,

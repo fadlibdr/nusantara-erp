@@ -5,6 +5,7 @@ namespace Modules\Core\Console\Commands;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Modules\Core\Services\NotificationService;
+use Modules\Core\Support\NotificationTemplates;
 
 /**
  * Reads the offsite-backup status that deploy/backup-erp1.sh writes, and raises
@@ -39,11 +40,18 @@ class BackupWatchCommand extends Command
                 return self::SUCCESS;
             }
 
+            // Ketujuh alarm cadangan memakai satu template luar (T3a.1:
+            // backup.stale) — semuanya satu peristiwa bagi orang yang menerimanya:
+            // "cadangan perlu tindakan di server".
             $notifications->system(
                 'core.approve',
                 'Cadangan tidak pernah berjalan',
                 "Berkas status cadangan tidak ditemukan di {$path}. Cron backup di server "
                     .'kemungkinan tidak pernah berhasil satu kali pun — periksa /var/log/erp1-backup.log.',
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn('Status file missing on production — alarm raised.');
 
@@ -57,6 +65,10 @@ class BackupWatchCommand extends Command
                 'core.approve',
                 'Status cadangan tidak terbaca',
                 "Berkas {$path} bukan JSON yang sah — skrip backup kemungkinan gagal di tengah jalan.",
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn('Status file unparseable — alarm raised.');
 
@@ -71,6 +83,10 @@ class BackupWatchCommand extends Command
                     .'dilindunginya. Bila disk itu mati, seluruh data perusahaan ikut mati. '
                     .'Isi /etc/erp1/backup.conf di server (contoh: deploy/erp1-backup.conf.example), '
                     .'lalu jalankan backup-erp1.sh --offsite-only dan --restore-drill.',
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn('Offsite not configured — alarm raised.');
 
@@ -89,6 +105,10 @@ class BackupWatchCommand extends Command
                 "Sinkronisasi offsite ke {$status['destination']} {$days} berhasil "
                     ."(ambang: {$maxAgeDays} hari). Periksa /var/log/erp1-backup.log di server; "
                     .'jalankan backup-erp1.sh --offsite-only untuk mencoba ulang.',
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn("Offsite stale ({$days}) — alarm raised.");
 
@@ -109,6 +129,10 @@ class BackupWatchCommand extends Command
                 "Sinkronisasi ke {$status['destination']} dilaporkan berhasil tetapi tidak ada "
                     .'satu pun arsip di tujuan. Cadangan offsite secara efektif tidak ada — '
                     .'periksa /var/log/erp1-backup.log di server.',
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn('Offsite remote is empty — alarm raised.');
 
@@ -129,6 +153,10 @@ class BackupWatchCommand extends Command
                     .'Kemungkinan cadangan LOKAL berhenti dibuat — sinkronisasi yang tidak '
                     .'punya apa-apa untuk dikirim tetap tampak berhasil. Periksa '
                     .'/var/log/erp1-backup.log di server.',
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn("Newest offsite artifact is {$when} old — alarm raised.");
 
@@ -142,6 +170,10 @@ class BackupWatchCommand extends Command
                 "Restore drill terakhir terhadap {$status['destination']} GAGAL — salinan "
                     .'offsite mungkin tidak dapat dipulihkan. Jalankan backup-erp1.sh '
                     .'--restore-drill di server dan baca kegagalannya di /var/log/erp1-backup.log.',
+                null,
+                null,
+                null,
+                NotificationTemplates::BACKUP_STALE,
             );
             $this->warn('Last restore drill failed — alarm raised.');
 

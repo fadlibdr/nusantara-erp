@@ -19,6 +19,8 @@ class NotificationDeliveryResource extends JsonResource
             'notification_id' => $this->notification_id,
             'title' => $this->notification?->title,
             'event' => $this->notification?->event,
+            // P-3a: kunci NotificationTemplates milik notifikasinya; null = template umum.
+            'template' => $this->notification?->template,
             'user_name' => $this->notification?->user?->name,
             'channel' => $this->channel,
             'recipient' => $this->recipient,

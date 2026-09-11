@@ -5,6 +5,7 @@ namespace Modules\Core\Console\Commands;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Modules\Core\Services\NotificationService;
+use Modules\Core\Support\NotificationTemplates;
 use Modules\Core\Support\WatchedDeadlines;
 
 /**
@@ -95,6 +96,9 @@ class DeadlineWatchCommand extends Command
                 $finding['link'],
                 self::RENAG_DAYS[$finding['tier']],
                 WatchedDeadlines::signature($finding),
+                // T3a.1: invoice pelanggan LEWAT = ar.dunning; tanggal lain =
+                // deadline.due; TANPA_TANGGAL = umum (data hilang, bukan tenggat).
+                NotificationTemplates::forDeadlineFinding($finding['key'], $finding['tier']),
             );
         }
 
