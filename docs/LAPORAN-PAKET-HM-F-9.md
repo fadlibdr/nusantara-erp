@@ -546,3 +546,15 @@ grep -rn "/penilaian/" docs/ --exclude=LAPORAN-PAKET-HM-F-9.md | wc -l          
 
 **Blok migrasi:** ServiceDesk `001200–001299` masih longgar — `001280` dipakai, `001290` bebas.
 Tidak ada blok lanjutan yang perlu didaftarkan di CONVENTIONS §2.
+
+## Gerbang rilis dua driver
+
+Dijalankan dari `git worktree` sendiri di commit rilis, `vendor` **disalin** (bukan disimbolkan).
+
+| Leg | Commit | Uji | Asersi | Dilewati | Waktu |
+|---|---|---|---|---|---|
+| SQLite | `f44a347` | 4.687 | 31.813 | 11 | 13:33 |
+| MySQL 8.0.46 | `f44a347` | 4.687 | 31.819 | 9 | 30:47 |
+
+Keduanya hijau pada jalan PERTAMA. Verifier penutup menyatakan **nol temuan** — paket pertama fase
+ini yang sampai ke gerbang tanpa satu pun sisa.
