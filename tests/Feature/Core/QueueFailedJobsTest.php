@@ -19,6 +19,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
 use Tests\Support\AlwaysFailingJob;
+use Tests\Support\UsesCapturingMailer;
 
 /**
  * Sistem › Antrean Gagal (Fase 0 / P-0b, T0b.4): tabel failed_jobs dari layar.
@@ -30,6 +31,8 @@ use Tests\Support\AlwaysFailingJob;
  */
 class QueueFailedJobsTest extends ErpTestCase
 {
+    use UsesCapturingMailer;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -76,6 +79,9 @@ class QueueFailedJobsTest extends ErpTestCase
     private function failOneDelivery(): int
     {
         app(SettingService::class)->set('notifications.email_enabled', true);
+        // P-3a: MAIL_MAILER=array (phpunit.xml) kini jujur `skipped` sebelum
+        // kanal dipanggil; stub penolak di bawah butuh mailer yang "sungguhan".
+        $this->useCapturingMailer();
         app()->instance(MailChannel::class, new class implements DeliveryChannel
         {
             public function name(): string
