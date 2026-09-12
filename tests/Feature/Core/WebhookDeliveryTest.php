@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Modules\Core\Jobs\DeliverWebhook;
 use Modules\Core\Models\WebhookDelivery;
 use Modules\Core\Models\WebhookSubscription;
@@ -276,6 +277,32 @@ class WebhookDeliveryTest extends ErpTestCase
         $delivery = WebhookDelivery::query()->where('event', 'document.approved')->firstOrFail();
         $this->assertSame(WebhookDelivery::FAILED, $delivery->status);
         $this->assertStringContainsString('jaringan server ini', (string) $delivery->error);
+        Http::assertSentCount(0);
+    }
+
+    /**
+     * TABEL YANG BELUM ADA TIDAK MENJATUHKAN PERSETUJUAN.
+     *
+     * Pelajaran "deploy migration race": `deploy/sync-erp1.sh` menyalin pohon
+     * kerja lebih dulu dan menjalankan `migrate` sesudahnya, dan `migrate`
+     * pernah melewatkan satu blok tanpa suara. Selama jendela itu, kode P-3d
+     * berjalan di atas basis data yang belum punya `core_webhook_subscriptions`
+     * — dan setiap persetujuan dokumen melewati pendengar ini. Yang boleh
+     * terjadi adalah satu baris peringatan di log; yang TIDAK boleh adalah
+     * sebuah tagihan vendor yang gagal disetujui karena tabel webhook belum
+     * ada.
+     */
+    public function test_a_missing_webhook_table_does_not_fail_the_approval(): void
+    {
+        Schema::drop('core_webhook_deliveries');
+        Schema::drop('core_webhook_subscriptions');
+
+        $approver = $this->userWith('fin.approve');
+        $bill = $this->bill();
+        $bill->submit($this->userWith('fin.create'));
+        $bill->approve($approver, 'Disetujui saat tabel webhook belum ada.');
+
+        $this->assertSame('approved', $bill->fresh()->status->value);
         Http::assertSentCount(0);
     }
 
