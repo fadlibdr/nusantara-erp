@@ -75,7 +75,7 @@ class ApiTokenAndWebhookSpaTest extends ErpTestCase
 
         $this->assertStringContainsString("import { renderWebhook } from './views/webhook.js';", $app);
         $this->assertStringContainsString("route('webhook'", $app);
-        $this->assertStringContainsString("renderWebhook(host)", $app);
+        $this->assertStringContainsString('renderWebhook(host)', $app);
 
         $this->assertStringContainsString("{ label: 'Webhook', route: 'webhook', perm: 'core.update' },", $schema);
     }
