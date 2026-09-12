@@ -225,6 +225,51 @@ class WhatsAppWebhookTest extends ErpTestCase
         $this->assertNotNull($row->sent_at, 'Diterima penyedia tetap fakta; yang gagal adalah perjalanannya.');
     }
 
+    /**
+     * error_data.details Meta yang panjang tidak boleh melewati varchar(500)
+     * kolom `error` (migrasi Core 000194): di MySQL strict INSERT-nya gagal,
+     * webhook menjawab 500, dan Meta mengulangnya terus-menerus (verifikasi
+     * P-3a, 12 Sep 2026, V4). SQLite tidak memotong, jadi panjang yang
+     * tersimpan di sini adalah panjang yang akan dikirim ke MySQL.
+     */
+    public function test_a_long_meta_failure_detail_is_stored_within_the_error_column(): void
+    {
+        $this->configured();
+        $row = $this->sentRow('wamid.A');
+        [$raw, $sig] = $this->signed($this->statusPayload('wamid.A', 'failed', ['errors' => [[
+            'code' => 131026, 'title' => 'Message undeliverable',
+            'error_data' => ['details' => str_repeat('Recipient is not a valid WhatsApp user. ', 15)],
+        ]]]));
+
+        $this->hook($raw, $sig)->assertOk();
+
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::FAILED, $row->status);
+        $this->assertStringStartsWith('Meta melaporkan gagal (131026): Message undeliverable — Recipient is not a valid WhatsApp user.', (string) $row->error);
+        $this->assertLessThanOrEqual(500, mb_strlen((string) $row->error), 'varchar(500) menghitung karakter.');
+        $this->assertStringEndsWith('…', (string) $row->error, 'Dipotong dengan elipsis, bukan diam-diam.');
+    }
+
+    /**
+     * Paku statis, DIBATASI pada berkas ini (pelajaran 4): perbandingan tanda
+     * tangan (perangkap D) harus waktu-konstan — mutasi `hash_equals` →
+     * `!==` lolos hijau 8/8 (verifikasi P-3a, 12 Sep 2026, T1) karena tidak
+     * ada uji yang bisa mengukur waktu. Yang bisa diukur adalah sumbernya.
+     */
+    public function test_both_signature_comparisons_in_the_webhook_controller_use_hash_equals(): void
+    {
+        $source = (string) file_get_contents(base_path('Modules/Core/Http/Controllers/WhatsAppWebhookController.php'));
+        $this->assertNotSame('', $source, 'berkas controller tidak terbaca');
+
+        $this->assertMatchesRegularExpression('/hash_equals\(\$expected, \$token\)/', $source, 'GET verifikasi: verify token dibandingkan hash_equals.');
+        $this->assertMatchesRegularExpression('/hash_equals\(\$expected, \$header\)/', $source, 'POST: X-Hub-Signature-256 dibandingkan hash_equals.');
+        // Tidak ada perbandingan string biasa ANTARA nilai yang diterima dan yang
+        // diharapkan (perbandingan dengan null/'' untuk kehadiran boleh).
+        $this->assertDoesNotMatchRegularExpression('/\$(header|token)\s*[!=]==?\s*\$expected\b/', $source);
+        $this->assertDoesNotMatchRegularExpression('/\$expected\s*[!=]==?\s*\$(header|token)\b/', $source);
+        $this->assertStringNotContainsString('strcmp(', $source);
+    }
+
     public function test_the_webhook_needs_no_session_and_no_csrf_token(): void
     {
         $this->configured();

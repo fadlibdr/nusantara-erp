@@ -69,6 +69,15 @@ class PhoneOptInTest extends ErpTestCase
             $this->assertNull(PhoneNumber::normalize($bad), "\"{$bad}\" harus ditolak.");
         }
 
+        // Batas atas dipaku PADA TEPINYA: E.164 maksimum 15 digit, dan kolom
+        // users.phone_e164 adalah string(16) = '+' + 15 — 16 digit lolos pola
+        // yang longgar satu angka (\d{7,15}) tetapi tidak muat di kolom:
+        // MySQL strict menjawab 500, bukan 422 (verifikasi P-3a, 12 Sep 2026, V6).
+        $this->assertSame('+621234567890123', PhoneNumber::normalize('+621234567890123'), '15 digit diterima.');
+        $this->assertNull(PhoneNumber::normalize('+6212345678901234'), '16 digit ditolak.');
+        $this->assertSame('/^\+[1-9]\d{7,14}$/', PhoneNumber::PATTERN, 'Pola simpan: + lalu 8–15 digit (E.164), muat di string(16).');
+        $this->assertSame(16, strlen('+621234567890123'));
+
         $this->assertSame('628123456789', PhoneNumber::digits('+628123456789'));
         $this->assertSame(1, preg_match(PhoneNumber::PATTERN, '+628123456789'));
         $this->assertSame(0, preg_match(PhoneNumber::PATTERN, '+62 812'));
@@ -208,6 +217,10 @@ class PhoneOptInTest extends ErpTestCase
 
         $response = $this->putJson('/api/iam/me/phone', ['phone_e164' => '8123456789', 'whatsapp_opt_in' => true])->assertStatus(422);
         $this->assertSame(PhoneNumber::MESSAGE, $response->json('errors.phone_e164.0'));
+        $this->assertSame('Nomor WhatsApp harus format internasional E.164, mis. +6281234567890 (8–15 digit setelah +, tanpa spasi/strip). Nomor lokal 08… diterima dan diubah ke +62.', PhoneNumber::MESSAGE);
+        // 16 digit lewat pintu HTTP: 422 dengan kalimatnya, bukan galat server.
+        $this->putJson('/api/iam/me/phone', ['phone_e164' => '+6212345678901234', 'whatsapp_opt_in' => true])->assertStatus(422)
+            ->assertJsonFragment(['phone_e164' => [PhoneNumber::MESSAGE]]);
 
         $this->putJson('/api/iam/me/phone', ['phone_e164' => '+62 812', 'whatsapp_opt_in' => true])->assertStatus(422);
         $this->putJson('/api/iam/me/phone', ['phone_e164' => 'nol delapan', 'whatsapp_opt_in' => false])->assertStatus(422);

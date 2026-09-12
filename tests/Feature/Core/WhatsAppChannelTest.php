@@ -125,6 +125,24 @@ class WhatsAppChannelTest extends ErpTestCase
 
     // ---------------------------------------------- sebab skipped, tanpa HTTP
 
+    /**
+     * Kalimat sebab dipaku LITERAL, bukan dibaca dari konstanta yang diujinya
+     * (pelajaran F-6; verifikasi P-3a 12 Sep 2026, V3: mutasi konstanta ke
+     * Bahasa Inggris lolos hijau). Kalimat inilah yang dibaca orang di kolom
+     * "Galat / alasan" — seluruh deliverable T3a.3 bagi pembaca layar.
+     */
+    public function test_the_whatsapp_reason_sentences_are_indonesian_and_pinned_literally(): void
+    {
+        $this->assertSame('WhatsApp dinonaktifkan di Pengaturan.', DeliveryGate::WHATSAPP_DISABLED);
+        $this->assertSame('Kanal WhatsApp belum dikonfigurasi (WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID di .env kosong — prasyarat pemilik, KEPUTUSAN-INTEGRASI.md §4).', WhatsAppSetup::SKIP_UNCONFIGURED);
+        $this->assertSame('Dimatikan pengguna di Profil › Notifikasi.', DeliveryGate::USER_OFF);
+        $this->assertSame('Penerima tidak punya nomor WhatsApp (diisi di Profil › Notifikasi atau Sistem › Pengguna).', DeliveryGate::WHATSAPP_NO_PHONE);
+        $this->assertSame('Penerima belum opt-in WhatsApp — persetujuan berstempel waktu belum tercatat.', DeliveryGate::WHATSAPP_NO_OPTIN);
+        $this->assertSame('Peristiwa ini tidak punya template WhatsApp; Meta hanya menerima pesan template, jadi tidak dikirim.', DeliveryGate::WHATSAPP_NO_TEMPLATE_FOR_EVENT);
+        $this->assertSame('Template WhatsApp untuk peristiwa ar.dunning belum disetujui Meta / belum diisi di .env (WHATSAPP_TEMPLATE_AR_DUNNING) — Meta hanya menerima pesan template yang disetujui.', WhatsAppSetup::templateSkipReason('ar.dunning'));
+        $this->assertSame('Belum ada satu pun template WhatsApp yang disetujui Meta / diisi di .env (0 dari 5, WHATSAPP_TEMPLATE_*) — prasyarat pemilik (KEPUTUSAN-INTEGRASI.md §4); setiap pesan WhatsApp akan Dilewati sampai satu template terisi.', DeliveryGate::whatsappNoTemplateAtAll());
+    }
+
     public function test_each_prerequisite_missing_is_a_skipped_row_with_its_own_sentence_and_no_http_call(): void
     {
         Http::fake();
@@ -133,18 +151,18 @@ class WhatsAppChannelTest extends ErpTestCase
 
         $expectations = [
             // 1. sakelar Pengaturan mati (bawaan)
-            [fn () => null, DeliveryGate::WHATSAPP_DISABLED],
+            [fn () => null, 'WhatsApp dinonaktifkan di Pengaturan.'],
             // 2. sakelar nyala, .env kosong
-            [fn () => app(SettingService::class)->set('notifications.whatsapp_enabled', true), WhatsAppSetup::SKIP_UNCONFIGURED],
+            [fn () => app(SettingService::class)->set('notifications.whatsapp_enabled', true), 'Kanal WhatsApp belum dikonfigurasi (WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID di .env kosong — prasyarat pemilik, KEPUTUSAN-INTEGRASI.md §4).'],
             // 3. terkonfigurasi, pengguna mematikan
             [function () use ($user): void {
                 $this->fullyConfigured();
                 UserPreference::query()->updateOrCreate(['user_id' => $user->id, 'key' => 'notify.channels'], ['value' => ['whatsapp' => false]]);
-            }, DeliveryGate::USER_OFF],
+            }, 'Dimatikan pengguna di Profil › Notifikasi.'],
             // 4. dinyalakan, tanpa nomor
-            [fn () => UserPreference::query()->where('user_id', $user->id)->delete(), DeliveryGate::WHATSAPP_NO_PHONE],
+            [fn () => UserPreference::query()->where('user_id', $user->id)->delete(), 'Penerima tidak punya nomor WhatsApp (diisi di Profil › Notifikasi atau Sistem › Pengguna).'],
             // 5. nomor ada, belum opt-in
-            [fn () => $user->forceFill(['phone_e164' => '+628123456789'])->save(), DeliveryGate::WHATSAPP_NO_OPTIN],
+            [fn () => $user->forceFill(['phone_e164' => '+628123456789'])->save(), 'Penerima belum opt-in WhatsApp — persetujuan berstempel waktu belum tercatat.'],
             // 6. opt-in ada, template peristiwa ini belum diisi
             [function () use ($user): void {
                 $user->forceFill(['whatsapp_opt_in_at' => now(), 'whatsapp_opt_in_via' => 'profil'])->save();
@@ -183,7 +201,7 @@ class WhatsAppChannelTest extends ErpTestCase
 
         $row = $this->waRow();
         $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
-        $this->assertSame(DeliveryGate::WHATSAPP_NO_TEMPLATE_FOR_EVENT, $row->error);
+        $this->assertSame('Peristiwa ini tidak punya template WhatsApp; Meta hanya menerima pesan template, jadi tidak dikirim.', $row->error);
         Http::assertNothingSent();
         Queue::assertNothingPushed();
     }
@@ -333,6 +351,42 @@ class WhatsAppChannelTest extends ErpTestCase
         $this->assertStringContainsString('HTTP 429 (130429): Too many requests', (string) $row->error);
     }
 
+    /**
+     * 401/403 = permanen APA PUN badannya (token dicabut Meta, halaman HTML
+     * dari proxy/WAF) — cabang ini tidak pernah dijalankan uji: satu-satunya
+     * kasus 401 membawa kode 190 yang memang ada di PERMANENT_CODES, jadi
+     * menghapus jalan pintasnya lolos hijau (verifikasi P-3a, 12 Sep 2026,
+     * B-3/V7). Tanpa cabang itu token yang dicabut diulang lima kali selama
+     * 78 menit — persis "failed yang diulang lima kali sia-sia".
+     */
+    public function test_a_401_or_403_without_a_meta_error_code_is_still_permanent_and_a_400_without_code_is_retried(): void
+    {
+        $this->fullyConfigured();
+        $this->optedIn($this->holder());
+        config(['queue.default' => 'database']);
+        Http::fake(['graph.facebook.com/*' => Http::sequence()
+            ->push('<html><body>Forbidden</body></html>', 403, ['Content-Type' => 'text/html'])
+            ->push(['error' => ['message' => 'Unsupported request', 'type' => 'GraphMethodException']], 400)]);
+
+        $this->alarm();
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+        $row = $this->waRow();
+        $this->assertSame(NotificationDelivery::FAILED, $row->status, '403 tanpa kode Meta: tetap permanen.');
+        $this->assertSame(1, $row->attempts);
+        $this->assertNull($row->next_attempt_at);
+        $this->assertSame(0, DB::table('jobs')->count());
+        $this->assertStringStartsWith('WhatsApp (Meta) HTTP 403: <html><body>Forbidden</body></html>', (string) $row->error);
+
+        Notification::query()->delete();
+        NotificationDelivery::query()->delete();
+        $this->alarm();
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+        $row = $this->waRow();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status, '400 tanpa kode yang dikenal: sementara, diulang.');
+        $this->assertSame(1, DB::table('jobs')->count());
+        $this->assertStringStartsWith('WhatsApp (Meta) HTTP 400: Unsupported request', (string) $row->error);
+    }
+
     public function test_a_5xx_is_retried_and_a_dead_network_too(): void
     {
         $this->fullyConfigured();
@@ -428,7 +482,22 @@ class WhatsAppChannelTest extends ErpTestCase
         $this->assertStringContainsString('[nomor]', $out);
         $this->assertLessThanOrEqual(ProviderErrorScrubber::LIMIT + 1, mb_strlen($out));
 
-        $this->assertLessThanOrEqual(ProviderErrorScrubber::LIMIT + 1, mb_strlen(ProviderErrorScrubber::scrub(str_repeat('a', 2000))));
+        // Aturan 3 (token=/secret=) untuk rahasia yang TIDAK ada di daftar
+        // secrets() — mis. token lain yang ikut tercetak penyedia. Sebelumnya
+        // setiap rahasia uji sudah tertutup aturan 1, jadi menghapus aturan
+        // 3 lolos hijau (verifikasi P-3a, 12 Sep 2026, B-3).
+        $foreign = ProviderErrorScrubber::scrub('retry access_token=EAABlainYangTidakTerdaftarXyz&fields=id app_secret=abcd1234efgh token=t.u-v', []);
+        $this->assertStringNotContainsString('EAABlainYangTidakTerdaftarXyz', $foreign);
+        $this->assertStringNotContainsString('abcd1234efgh', $foreign);
+        $this->assertSame('retry access_token=[rahasia]&fields=id app_secret=[rahasia] token=[rahasia]', $foreign);
+
+        // Batas 480 dipaku LITERAL: kolom `error` adalah varchar(500) (migrasi
+        // Core 000194) dan webhook menulis hasil saringan langsung ke sana —
+        // LIMIT yang dinaikkan diam-diam berarti INSERT gagal di MySQL strict
+        // dan Meta mengulang webhook itu terus-menerus (V4).
+        $this->assertSame(480, ProviderErrorScrubber::LIMIT);
+        $this->assertLessThanOrEqual(500 - 1, ProviderErrorScrubber::LIMIT + 1, 'Batas + elipsis harus muat di varchar(500).');
+        $this->assertLessThanOrEqual(481, mb_strlen(ProviderErrorScrubber::scrub(str_repeat('a', 2000))));
     }
 
     // ----------------------------------------------------------- job & profil
@@ -446,7 +515,7 @@ class WhatsAppChannelTest extends ErpTestCase
         (new DeliverNotification($row->id))->handle();
 
         $this->assertSame(NotificationDelivery::SKIPPED, $row->refresh()->status);
-        $this->assertSame(DeliveryGate::WHATSAPP_NO_OPTIN, $row->error);
+        $this->assertSame('Penerima belum opt-in WhatsApp — persetujuan berstempel waktu belum tercatat.', $row->error);
         Http::assertNothingSent();
     }
 
@@ -457,7 +526,7 @@ class WhatsAppChannelTest extends ErpTestCase
 
         $data = $this->getJson('/api/core/me/notification-channels')->assertOk()->json('data');
         $this->assertSame(['provider' => 'meta', 'configured' => false, 'templates_ready' => 0, 'templates_total' => 5, 'phone_e164' => null, 'opt_in_at' => null, 'opt_in_via' => null], $data['whatsapp']);
-        $this->assertSame(DeliveryGate::WHATSAPP_DISABLED, $data['channels'][1]['reason']);
+        $this->assertSame('WhatsApp dinonaktifkan di Pengaturan.', $data['channels'][1]['reason']);
 
         // Kredensial terisi, opt-in ada, tetapi 0 dari 5 template disetujui —
         // jendela nyata berhari-hari (KEPUTUSAN-INTEGRASI §4.2: 1–7 hari, bisa

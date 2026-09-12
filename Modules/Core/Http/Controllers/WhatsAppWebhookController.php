@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 use Modules\Core\Http\ApiController;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\ProviderErrorScrubber;
@@ -155,7 +156,10 @@ class WhatsAppWebhookController extends ApiController
                 'status' => NotificationDelivery::FAILED,
                 'provider_status' => 'failed',
                 'provider_status_at' => $at,
-                'error' => ProviderErrorScrubber::whatsapp($text),
+                // Jaring kedua yang sama dengan DeliverNotification::message():
+                // kolom error varchar(500) (migrasi Core 000194), dan webhook
+                // yang gagal INSERT dijawab 500 lalu diulang Meta terus-menerus.
+                'error' => Str::limit(ProviderErrorScrubber::whatsapp($text), 480),
                 'next_attempt_at' => null,
             ])->save();
 

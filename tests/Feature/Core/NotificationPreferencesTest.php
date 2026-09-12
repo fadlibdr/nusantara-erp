@@ -216,6 +216,34 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->assertSame(1, Notification::query()->where('user_id', $user->id)->count());
     }
 
+    /**
+     * Urutan sebab GLOBAL-DULU (DeliveryGate: Pengaturan → mailer → pengguna →
+     * alamat) hanya dipaku harness S37, tidak oleh PHP — mutasi yang memeriksa
+     * "Dimatikan pengguna" SEBELUM MailTransport lolos hijau (verifikasi P-3a,
+     * 12 Sep 2026, B-3). Dipaku di kedua permukaan: kotak keluar dan Profil.
+     */
+    public function test_with_a_log_mailer_the_global_reason_wins_over_the_users_switch_at_both_surfaces(): void
+    {
+        Queue::fake();
+        app(SettingService::class)->set('notifications.email_enabled', true);
+        config(['mail.default' => 'log']);
+        $user = $this->holder();
+        $this->prefer($user, 'notify.channels', ['email' => false]);
+
+        $this->alarm();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
+        $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
+        $this->assertStringStartsWith('MAIL_MAILER=log — belum ada server surel', (string) $row->error);
+        $this->assertStringNotContainsString('Dimatikan pengguna', (string) $row->error);
+
+        $this->actingAs($user, 'sanctum');
+        $email = $this->getJson('/api/core/me/notification-channels')->assertOk()->json('data.channels.0');
+        $this->assertFalse($email['enabled_by_user'], 'Pilihannya tersimpan…');
+        $this->assertFalse($email['will_deliver']);
+        $this->assertStringStartsWith('MAIL_MAILER=log — belum ada server surel', (string) $email['reason'], '…tetapi sebab yang lebih global yang disebut.');
+        Queue::assertNothingPushed();
+    }
+
     public function test_a_key_never_written_means_on(): void
     {
         Queue::fake();
