@@ -145,7 +145,7 @@ class DeliverWebhook implements ShouldQueueAfterCommit
                 ->withBody((string) $delivery->payload, 'application/json')
                 ->post((string) $delivery->url);
         } catch (Throwable $e) {
-            $scrubbed = ProviderErrorScrubber::scrub($e->getMessage(), self::secretsOf($subscription));
+            $scrubbed = ProviderErrorScrubber::scrub($e->getMessage(), $secret === '' ? [] : [$secret]);
 
             $this->recordAttemptFailure($delivery, null, $scrubbed);
 
@@ -179,7 +179,7 @@ class DeliverWebhook implements ShouldQueueAfterCommit
         $reason = $response->redirect()
             ? "Penerima menjawab {$response->status()} (redirect). Redirect tidak diikuti: sebuah kiriman bertanda tangan "
                 .'yang mengikuti Location bisa mendarat di alamat internal. Pakai URL tujuan akhirnya langsung.'
-            : $this->recipientSentence($response->status(), (string) $response->body(), $subscription);
+            : $this->recipientSentence($response->status(), (string) $response->body(), $secret);
 
         $this->recordAttemptFailure($delivery, $response->status(), $reason);
 
@@ -252,17 +252,22 @@ class DeliverWebhook implements ShouldQueueAfterCommit
      * setiap backup, membatalkan janji "tampil sekali". Ia diserahkan ke
      * penyaring sebagai rahasia yang DIKENAL, jalur yang sama dengan P-3a.
      */
-    private function recipientSentence(int $status, string $body, WebhookSubscription $subscription): string
+    private function recipientSentence(int $status, string $body, string $secret): string
     {
         if ($body !== '' && ! mb_check_encoding($body, 'UTF-8')) {
             return "Penerima menjawab {$status} dengan badan yang bukan teks (".strlen($body).' byte). '
                 .'Isinya tidak dikutip di sini karena bukan kalimat yang bisa dibaca.';
         }
 
-        return "Penerima menjawab {$status}. ".ProviderErrorScrubber::scrub($body, self::secretsOf($subscription));
+        return "Penerima menjawab {$status}. ".ProviderErrorScrubber::scrub($body, $secret === '' ? [] : [$secret]);
     }
 
-    /** @return list<string> */
+    /**
+     * Rahasia langganan untuk `failed()`, tempat barisnya bisa sudah hilang
+     * atau ciphertext-nya tidak bisa dibaca.
+     *
+     * @return list<string>
+     */
     private static function secretsOf(?WebhookSubscription $subscription): array
     {
         try {
