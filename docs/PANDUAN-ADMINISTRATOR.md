@@ -1408,7 +1408,11 @@ menggandakan**.
 lama menulis "empat" — Lokasi Tapak menyusul di P1-ENG dan luput dicatat di sini). Kolom
 `npwp` pada vendors/customers/employees tunduk pada aturan bentuk NPWP §4.2 per baris:
 baris yang bentuknya salah dilewati dan dilaporkan dengan kalimatnya, baris lain mendarat;
-lembar yang tidak membawa kolom `npwp` membiarkan nilai lama apa adanya:
+lembar yang tidak membawa kolom `npwp` membiarkan nilai lama apa adanya; dan **baris lama yang
+mengirim NPWP lamanya kembali persis seperti tersimpan tidak diperiksa ulang** — jadi
+ekspor → sunting kolom lain di Excel → impor balik memperbarui semua baris, termasuk yang
+NPWP-nya `N/A` warisan (aturan yang sama dengan formulir; hanya nilai yang DIUBAH dan baris
+BARU yang diperiksa):
 
 | Sumber daya | Izin | Kolom wajib |
 |---|---|---|

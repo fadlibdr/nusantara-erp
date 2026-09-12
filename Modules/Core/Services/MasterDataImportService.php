@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 use LogicException;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\Core\Support\ImportableResources;
 use Modules\Core\Support\SpreadsheetReader;
 
@@ -77,11 +78,12 @@ class MasterDataImportService
         $file = $this->read($filename, $content, $definition);
 
         $existing = $this->existingKeys($definition);
+        $stored = $this->forwardOnlyStored($definition);
         $seen = [];
         $prepared = [];
 
         foreach ($file['rows'] as $index => $raw) {
-            $prepared[] = $this->prepare($definition, $raw, $index + 2, $existing, $seen, $file['headers']);
+            $prepared[] = $this->prepare($definition, $raw, $index + 2, $existing, $seen, $file['headers'], $stored);
         }
 
         return [
@@ -315,8 +317,9 @@ class MasterDataImportService
      *
      * @param  array<string, int>  $existing  business key => id already in the table
      * @param  array<string, int>  $seen  business key => line number earlier in THIS file
+     * @param  array<string, array<string, ?string>>  $stored  business key => [field => stored value] for forward-only columns
      */
-    private function prepare(array $definition, array $raw, int $line, array $existing, array &$seen, array $present): array
+    private function prepare(array $definition, array $raw, int $line, array $existing, array &$seen, array $present, array $stored = []): array
     {
         $values = [];
         $errors = [];
@@ -367,13 +370,36 @@ class MasterDataImportService
             }
         }
 
+        $key = (string) ($values[$definition['unique']] ?? '');
+
+        // MAJU-SAJA, the same way the four PUT gates do it. The app's own export
+        // ALWAYS carries the npwp column, so "export → edit the city in Excel →
+        // import back" — the bulk-edit path this exporter exists for — sends
+        // every legacy NPWP back exactly as stored. A row whose value is the
+        // one already in the table is not a new NPWP and is not re-checked
+        // (ValidNpwp::unlessUnchanged); a CHANGED value, and every NEW row, gets
+        // the full rule. Before this the importer skipped the legacy row with
+        // the NPWP sentence and its city edit never landed, while the vendor
+        // form accepted the identical payload — the recurring "right rule at
+        // one gate, a different rule at the next" defect.
+        if ($key !== '' && isset($stored[$key])) {
+            foreach ($rules as $field => $fieldRules) {
+                if (! array_key_exists($field, $stored[$key])) {
+                    continue;
+                }
+
+                $rules[$field] = array_map(
+                    fn ($rule) => $rule instanceof ValidNpwp ? ValidNpwp::unlessUnchanged($stored[$key][$field]) : $rule,
+                    $fieldRules,
+                );
+            }
+        }
+
         $validator = Validator::make($values, $rules, [], $this->attributeNames($definition));
 
         foreach ($validator->errors()->all() as $message) {
             $errors[] = $message;
         }
-
-        $key = (string) ($values[$definition['unique']] ?? '');
 
         // A file that lists the same code twice is a mistake worth naming. Left
         // alone, the second row would silently overwrite the first and the
@@ -419,6 +445,45 @@ class MasterDataImportService
             ->pluck('id', $definition['unique'])
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    /**
+     * Stored values of every column whose rule is forward-only (ValidNpwp), by
+     * business key — one query per import, only for resources that carry such
+     * a column. This is what lets prepare() tell "sent back unchanged" from
+     * "typed anew" for an existing row.
+     *
+     * @return array<string, array<string, ?string>>
+     */
+    private function forwardOnlyStored(array $definition): array
+    {
+        $fields = [];
+
+        foreach ($definition['columns'] as $column) {
+            foreach ($column['rules'] ?? [] as $rule) {
+                if ($rule instanceof ValidNpwp) {
+                    $fields[] = $column['field'];
+                    break;
+                }
+            }
+        }
+
+        if ($fields === []) {
+            return [];
+        }
+
+        $model = $definition['model'];
+        $unique = $definition['unique'];
+        $stored = [];
+
+        foreach ($model::query()->select(array_merge([$unique], $fields))->cursor() as $record) {
+            foreach ($fields as $field) {
+                $value = $record->{$field};
+                $stored[(string) $record->{$unique}][$field] = $value === null ? null : (string) $value;
+            }
+        }
+
+        return $stored;
     }
 
     private function summarise(array $rows): array

@@ -2361,9 +2361,12 @@ NIK/NPWP-16; "000000000000000" sah dan dipaku). Tampilan: 15 berformat cetak lam
 digit utuh; nilai lama yang tidak dikenali dipulangkan apa adanya. `Modules\Core\Rules\
 ValidNpwp` dipasang di KETUJUH pintu: Customer/Vendor/Employee Store+Update, `PUT core/company`,
 kolom `npwp` `ImportableResources` (vendors/customers/employees — daftar dipaku literal
-`NpwpTest`). **Maju-saja**: `ValidNpwp::unlessUnchanged($tersimpan)` pada pintu UPDATE —
-nilai yang dikirim kembali PERSIS sama bukan penulisan baru; nilai yang berubah diperiksa;
-tidak ada backfill, tidak ada penolakan saat dibaca/dicetak/diekspor. Yang disimpan = yang
+`NpwpTest`). **Maju-saja**: `ValidNpwp::unlessUnchanged($tersimpan)` pada pintu UPDATE DAN
+pada baris impor yang kodenya sudah ada (`MasterDataImportService::prepare` menukar aturan
+kolom itu per baris dengan nilai tersimpan — ekspor aplikasi selalu membawa kolom `npwp`, jadi
+impor-balik tanpa ini menyandera setiap baris warisan) — nilai yang dikirim kembali PERSIS
+sama bukan penulisan baru; nilai yang berubah dan baris baru diperiksa; tidak ada backfill,
+tidak ada penolakan saat dibaca/dicetak/diekspor. Yang disimpan = yang
 diketik (dipangkas). Pintu baru yang menerima NPWP = satu baris `new ValidNpwp` /
 `unlessUnchanged`, tidak pernah regex sendiri.
 

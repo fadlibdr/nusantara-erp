@@ -226,6 +226,65 @@ class NpwpTest extends ErpTestCase
         $this->assertSame('N/A', $vendor->npwp);
     }
 
+    /**
+     * MAJU-SAJA DI PINTU KE-7 JUGA. Ekspor aplikasi SELALU membawa kolom npwp,
+     * jadi "ekspor → sunting kota di Excel → impor balik" — jalur sunting massal
+     * yang menjadi alasan ekspor itu ada — mengirim setiap NPWP lama kembali
+     * apa adanya. Baris lama yang nilainya PERSIS sama dengan yang tersimpan
+     * bukan penulisan NPWP baru: aturan yang sama dengan keempat pintu PUT
+     * (ValidNpwp::unlessUnchanged), bukan aturan yang lebih ketat di pintu
+     * yang kebetulan berbeda (temuan V2-1/V3-2/V3b-4).
+     */
+    public function test_the_apps_own_export_imports_back_unchanged_even_when_a_legacy_npwp_is_in_it(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+        Vendor::query()->create(['code' => 'VND-LAMA', 'name' => 'PT Lama', 'npwp' => 'N/A', 'classification' => 'material', 'city' => 'Depok']);
+        Vendor::query()->create(['code' => 'VND-SAH', 'name' => 'PT Sah', 'npwp' => '01.334.556.7-007.000', 'classification' => 'material']);
+
+        $exported = $this->getJson('/api/core/master-data/vendors/export')->assertOk()->getContent();
+        $this->assertStringContainsString('N/A', $exported, 'ekspor membawa nilai lama apa adanya');
+
+        $this->postJson('/api/core/master-data/vendors/import', [
+            'filename' => 'vendor.csv',
+            'content' => base64_encode($exported),
+        ])->assertOk()
+            ->assertJsonPath('data.updated', 2)
+            ->assertJsonPath('data.skipped', 0);
+
+        $this->assertSame('N/A', Vendor::query()->where('code', 'VND-LAMA')->value('npwp'));
+    }
+
+    public function test_a_legacy_row_sent_back_with_its_own_npwp_lands_its_other_edits_while_a_changed_bad_value_is_refused(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+        Vendor::query()->create(['code' => 'VND-LAMA', 'name' => 'PT Lama', 'npwp' => 'N/A', 'classification' => 'material', 'city' => 'Depok']);
+        Vendor::query()->create(['code' => 'VND-LAIN', 'name' => 'PT Lain', 'npwp' => 'N/A', 'classification' => 'material', 'city' => 'Depok']);
+
+        $response = $this->postJson('/api/core/master-data/vendors/import', [
+            'filename' => 'vendor.csv',
+            'content' => base64_encode(
+                "kode,nama,npwp,kota\n"
+                ."VND-LAMA,PT Lama,N/A,Bekasi\n"          // NPWP lama dikirim kembali apa adanya → kota mendarat
+                ."VND-LAIN,PT Lain,N/B,Bogor\n"           // NPWP DIUBAH ke nilai lain yang tidak sah → dilewati
+                ."VND-BARU,PT Baru,N/A,Tangerang\n",     // baris BARU: tidak ada nilai tersimpan, aturan penuh
+            ),
+        ])->assertOk();
+
+        $this->assertSame(1, $response->json('data.updated'));
+        $this->assertSame(0, $response->json('data.created'));
+        $this->assertSame(2, $response->json('data.skipped'));
+        $this->assertSame(['VND-LAIN', 'VND-BARU'], array_column($response->json('data.rows'), 'key'));
+        foreach ($response->json('data.rows') as $row) {
+            $this->assertStringContainsString(ValidNpwp::MESSAGE, implode(' ', $row['errors']), $row['key']);
+        }
+
+        $lama = Vendor::query()->where('code', 'VND-LAMA')->first();
+        $this->assertSame('Bekasi', $lama->city);
+        $this->assertSame('N/A', $lama->npwp);
+        $this->assertSame('Depok', Vendor::query()->where('code', 'VND-LAIN')->value('city'));
+        $this->assertNull(Vendor::query()->where('code', 'VND-BARU')->first());
+    }
+
     public function test_every_master_data_resource_with_an_npwp_column_carries_the_rule(): void
     {
         $resources = ImportableResources::all();

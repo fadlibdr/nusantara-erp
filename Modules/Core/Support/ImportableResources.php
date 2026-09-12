@@ -66,7 +66,10 @@ class ImportableResources
                     ['header' => 'nama', 'field' => 'name', 'required' => true, 'rules' => ['string', 'max:200']],
                     ['header' => 'nama_badan_hukum', 'field' => 'legal_name', 'rules' => ['string', 'max:200']],
                     // P-3b: pintu tulis NPWP yang sama dengan formulirnya — 15 / 16 / 22 digit.
-                    // Lembar yang tidak membawa kolom ini membiarkan nilai lama apa adanya.
+                    // Lembar yang tidak membawa kolom ini membiarkan nilai lama apa adanya, dan
+                    // baris lama yang mengirim nilainya kembali PERSIS seperti tersimpan tidak
+                    // diperiksa ulang (MasterDataImportService::prepare menukar aturan ini dengan
+                    // ValidNpwp::unlessUnchanged per baris — maju-saja yang sama dengan pintu PUT).
                     ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30', new ValidNpwp]],
                     ['header' => 'pkp', 'field' => 'is_pkp', 'cast' => 'bool', 'default' => false],
                     ['header' => 'subkontraktor', 'field' => 'is_subcontractor', 'cast' => 'bool', 'default' => false],
