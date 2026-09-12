@@ -12,6 +12,7 @@ use Modules\Core\Support\Money;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ArInvoice;
 use Modules\Finance\Support\BuktiPotongNumber;
+use Modules\Finance\Support\DjpFormats;
 
 /**
  * Statutory tax reporting exports.
@@ -30,9 +31,20 @@ use Modules\Finance\Support\BuktiPotongNumber;
  * Coretax has been progressively replacing since 2025. DJP revises these layouts,
  * and an importer that rejects a file is a good day — one that accepts a file
  * with columns shifted is not. Import one period into a sandbox and reconcile
- * the totals before trusting a run. This mirrors how config/erp.php treats the
+ * the totals before trusting a run. This mirrors how Pph21TerService treats the
  * PPh 21 TER brackets: transcribed carefully, and flagged as needing checking
- * against the current regulation.
+ * against the current regulation (the brackets live in that service, NOT in
+ * config/erp.php — an earlier version of this paragraph pointed there).
+ *
+ * SINCE P-3b THAT WARNING IS NO LONGER ONLY HERE. Modules\Finance\Support\
+ * DjpFormats is the registry of every DJP/BPJS file format — the two writers
+ * below plus the three that wait for an official template — and each carries
+ * verified_against: the sample file in docs/samples/pajak/ its columns were
+ * matched against, or null. Null reads "BELUM DIVERIFIKASI terhadap template
+ * DJP", and that sentence reaches the overview API, the screen, and the file
+ * itself (a comment line on top, a suffix on the name; see stampCsv and
+ * filename). The column writers are untouched by that: the registry decorates
+ * the result, it does not reshape it.
  *
  * WHAT IS DELIBERATELY NOT GUESSED
  * --------------------------------
@@ -201,8 +213,9 @@ class TaxExportService
                 'dpp_faktur' => round(array_sum(array_column($rows, 'dpp_faktur')), 2),
                 'ppn' => round(array_sum(array_column($rows, 'ppn')), 2),
             ],
-            'filename' => sprintf('efaktur-%04d-%02d.csv', $year, $month),
-            'csv' => implode("\n", $lines)."\n",
+            'format' => DjpFormats::get(DjpFormats::EFAKTUR_CSV_LEGACY),
+            'filename' => DjpFormats::filename(DjpFormats::EFAKTUR_CSV_LEGACY, sprintf('efaktur-%04d-%02d.csv', $year, $month)),
+            'csv' => DjpFormats::stampCsv(DjpFormats::EFAKTUR_CSV_LEGACY, implode("\n", $lines)."\n"),
         ];
     }
 
@@ -309,14 +322,17 @@ class TaxExportService
                 'dpp' => round(array_sum(array_column($rows, 'dpp')), 2),
                 'pph' => round(array_sum(array_column($rows, 'pph')), 2),
             ],
-            'filename' => sprintf('ebupot-%04d-%02d.csv', $year, $month),
-            'csv' => implode("\n", $lines)."\n",
+            'format' => DjpFormats::get(DjpFormats::EBUPOT_UNIFIKASI_CSV),
+            'filename' => DjpFormats::filename(DjpFormats::EBUPOT_UNIFIKASI_CSV, sprintf('ebupot-%04d-%02d.csv', $year, $month)),
+            'csv' => DjpFormats::stampCsv(DjpFormats::EBUPOT_UNIFIKASI_CSV, implode("\n", $lines)."\n"),
         ];
     }
 
     /**
      * Both exports plus the company's own tax identity, for the screen that
-     * offers them side by side.
+     * offers them side by side — and the whole format registry (P-3b), so the
+     * screen can show every format DJP/BPJS expects, including the three that
+     * have no writer yet and say which file they wait for.
      *
      * @return array<string, mixed>
      */
@@ -325,6 +341,7 @@ class TaxExportService
         return [
             'efaktur' => $this->eFaktur($year, $month),
             'ebupot' => $this->eBupot($year, $month),
+            'formats' => DjpFormats::forApi(),
         ];
     }
 

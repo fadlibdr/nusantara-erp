@@ -7058,11 +7058,29 @@ layar Kalender Pajak dahulu"*.
 Periode bawaannya bulan yang baru saja lewat. Dua tab: **e-Faktur (PPN Keluaran)** dan
 **e-Bupot (PPh Dipotong)**, masing-masing menyebut jumlah yang siap diekspor.
 
-Pemberitahuan tetap di layar:
+**Kartu pertama — "Format berkas DJP/BPJS — status verifikasi" (P-3b).** Lima baris, satu per
+format yang dikenal sistem: e-Faktur CSV (skema desktop), e-Faktur Coretax XML, e-Bupot
+Unifikasi CSV, e-Bupot PPh 21/26 bulanan, SIPP BPJS. Tiap baris membawa dua lencana —
+**Ada** / **Menunggu template**, dan **Belum diverifikasi terhadap template DJP** (amber) atau
+**Diverifikasi {tanggal}** (hijau) — plus kalimat sumber resminya. Selama folder
+`docs/samples/pajak/` belum berisi berkas contoh resmi yang diunduh pemilik/konsultan,
+**semua** format berlencana amber, dan itu bukan galat: sistem memang tidak mengarang tata
+letak berkas DJP. Format yang **Menunggu template** tidak punya tombol unduh; ia menyebut
+berkas apa yang harus diletakkan di `docs/samples/pajak/` (nama berpola, bertanggal — lihat
+README di folder itu). Baris e-Bupot 21/26 menautkan ke rekap internal
+(`SDM & Payroll › Rekap PPh 21 Bulanan`, §12.9) bagi pemegang `hr.view`.
 
-> "Tata letak kolom mengikuti skema impor e-Faktur/e-Bupot dan dapat berubah mengikuti
-> ketentuan DJP. Impor satu periode ke lingkungan uji dan cocokkan totalnya sebelum dipakai
-> untuk pelaporan."
+Di atas tiap tab, kotak amber mengulang kalimat verifikasi format tab itu, misalnya:
+
+> "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di
+> docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya
+> sebelum dipakai melapor (docs/samples/pajak/README.md)."
+
+Kalimat itu datang dari registri server, bukan dari layar, dan ia juga ada pada **nama
+berkas** (`efaktur-2026-03-belum-diverifikasi.csv`) dan sebagai **baris pertama** berkas yang
+diunduh (`# BELUM DIVERIFIKASI …`). Kolom data di bawahnya tidak berubah. Sesudah pemilik
+meletakkan berkas resmi dan pengembang mengisi `verified_against`, akhiran nama dan baris
+komentar itu hilang dengan sendirinya.
 
 Kotak: Siap diekspor · Total DPP · PPN keluaran / PPh dipotong · **Tertahan**. Kartu
 **"Isi berkas — {nama file}"** dengan **`Unduh CSV`**, lalu kartu **"Tertahan — tidak masuk

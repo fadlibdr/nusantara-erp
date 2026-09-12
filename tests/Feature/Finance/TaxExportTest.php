@@ -88,7 +88,10 @@ class TaxExportTest extends ErpTestCase
         $this->assertSame(0, $export['summary']['blocked']);
         $this->assertSame(100_000_000.0, $export['summary']['dpp']);
         $this->assertSame(11_000_000.0, $export['summary']['ppn']);   // 100jt x 11%
-        $this->assertSame('efaktur-2026-03.csv', $export['filename']);
+        // P-3b: selama tata letaknya belum dicocokkan dengan berkas contoh resmi
+        // (docs/samples/pajak/ kosong), namanya mengatakan itu — DjpFormatsTest
+        // menjaga kedua keadaan; di sini hanya nama hari ini yang dipaku.
+        $this->assertSame('efaktur-2026-03-belum-diverifikasi.csv', $export['filename']);
     }
 
     /**

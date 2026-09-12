@@ -4,11 +4,23 @@
  * importer: what will be exported, what cannot be and why, and the totals to
  * reconcile against the ledger. The download is built client-side from the CSV
  * text the API returns, because the API authenticates on a header and a plain
- * download link carries none. */
+ * download link carries none.
+ *
+ * P-3b — SATU KALIMAT KEJUJURAN, DARI SERVER. Setiap format berkas DJP/BPJS
+ * yang ada atau direncanakan hidup di registri server (DjpFormats), dan
+ * registri itulah yang tahu apakah tata letaknya sudah dicocokkan dengan
+ * berkas contoh resmi di docs/samples/pajak/. Layar ini TIDAK mengarang
+ * kalimat "sesuai DJP" atau "dapat berubah mengikuti ketentuan": lencana per
+ * format, kalimat di atas setiap tab, nama berkas, dan baris pertama berkas
+ * yang diunduh semuanya datang dari `data.formats` dan `data.<tab>.format`.
+ * Format yang "menunggu template" tidak punya tombol unduh — yang ia punya
+ * hanya kalimat yang menyebut berkas apa yang harus diletakkan di
+ * docs/samples/pajak/. */
 
 import { api, session } from '../api.js';
 import { el, clear, button, badge, icon, errorState, skeletonTable, confirmDialog, toast, toastError } from '../ui.js';
 import * as fmt from '../format.js';
+import { navigate } from '../router.js';
 // Pola unduhan Blob+BOM file ini justru yang dibakukan csv.js — kini diimpor
 // balik dari sana supaya polanya hidup di satu tempat.
 import { downloadCsv } from '../csv.js';
@@ -44,6 +56,57 @@ function defaultPeriod() {
 }
 
 const state = { ...defaultPeriod(), tab: 'efaktur' };
+
+/* Format yang belum punya writer tetapi sudah punya REKAP INTERNAL: tautan
+   ke layarnya, hanya bila pemakai memegang izinnya. Rekap itu bukan berkas
+   impor DJP dan layarnya mengatakannya sendiri. */
+const INTERNAL_RECAP = {
+  ebupot_2126_bulanan: { route: 'rekap-pph21', perm: 'hr.view', label: 'Buka rekap internal PPh 21/26 bulanan' },
+};
+
+function formatBadges(format) {
+  return [
+    badge(format.status_label, format.status === 'ada' ? 'blue' : 'amber'),
+    format.verified
+      ? badge(`Diverifikasi ${format.verified_against.date}`, 'green')
+      : badge(`Belum diverifikasi terhadap template ${format.authority}`, 'amber'),
+  ];
+}
+
+/* Satu blok per entri registri — kelima format, termasuk yang tidak punya
+   writer, supaya orang yang mencari "e-Faktur Coretax XML" menemukan
+   jawabannya di sini dan bukan menyimpulkan bahwa CSV legacy adalah itu. */
+function formatsCard(formats) {
+  return el('.card', [
+    el('.card-head', [
+      el('h2', { text: 'Format berkas DJP/BPJS — status verifikasi' }),
+      el('.spacer'),
+      badge(`${formats.filter((f) => f.verified).length} dari ${formats.length} diverifikasi`, formats.every((f) => f.verified) ? 'green' : 'amber'),
+    ]),
+    el('.card-body', { style: { display: 'grid', gap: '10px' } }, formats.map((format) => {
+      const recap = INTERNAL_RECAP[format.key];
+      return el('.djp-format', {
+        'data-key': format.key,
+        'data-status': format.status,
+        'data-verified': String(Boolean(format.verified)),
+        style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)' },
+      }, [
+        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
+          el('strong', { text: format.label }),
+          ...formatBadges(format),
+        ]),
+        el('.muted', { style: { fontSize: '12px' }, text: `Sumber: ${format.source}` }),
+        el('.muted.djp-verification', { style: { fontSize: '12px' }, text: format.verification }),
+        format.awaiting_file
+          ? el('.djp-awaiting-file', { style: { fontSize: '12px', color: 'var(--warning)' }, text: format.awaiting_file })
+          : null,
+        recap && session.can(recap.perm)
+          ? el('div', button(recap.label, { size: 'sm', onClick: () => navigate(recap.route) }))
+          : null,
+      ]);
+    })),
+  ]);
+}
 
 function summaryTiles(exp, tab) {
   const s = exp.summary;
@@ -139,7 +202,11 @@ export async function renderTaxExport(host) {
   host.appendChild(el('.page-head', [
     el('div', [
       el('h1', { text: 'Ekspor Pajak' }),
-      el('.desc', { text: 'Berkas impor untuk aplikasi DJP — dibentuk dari dokumen yang sudah disetujui.' }),
+      el('.desc', {
+        text: 'Berkas impor untuk aplikasi DJP — dibentuk dari dokumen yang sudah disetujui. '
+          + 'Status verifikasi tiap format terhadap template resmi tertulis di kartu pertama; '
+          + 'tidak ada pengiriman ke DJP dari layar ini.',
+      }),
     ]),
   ]));
 
@@ -184,16 +251,19 @@ export async function renderTaxExport(host) {
     const tab = TABS.find((t) => t.key === state.tab);
     const exp = payload[state.tab];
 
-    body.appendChild(el('.alert.info', [
+    // Registri format DI ATAS tab yang dipilih: ia berlaku untuk keduanya
+    // (dan untuk tiga format yang tidak punya tab sama sekali).
+    body.appendChild(formatsCard(payload.formats || []));
+
+    /* Kalimat verifikasi datang dari registri server — bukan dari SPA. Warna
+       kotaknya ikut: amber selama belum diverifikasi, biru sesudahnya. */
+    body.appendChild(el(`.alert.${exp.format.verified ? 'info' : 'warn'}.djp-export-verification`, {
+      'data-verified': String(Boolean(exp.format.verified)),
+    }, [
       icon('warn', 15),
       el('div', [
-        el('div', { text: `Periode ${exp.period.label} · NPWP ${exp.company.npwp || '—'}` }),
-        el('.muted', {
-          style: { fontSize: '12px' },
-          text: 'Tata letak kolom mengikuti skema impor e-Faktur/e-Bupot dan dapat berubah mengikuti '
-            + 'ketentuan DJP. Impor satu periode ke lingkungan uji dan cocokkan totalnya sebelum dipakai '
-            + 'untuk pelaporan.',
-        }),
+        el('div', { text: `Periode ${exp.period.label} · NPWP ${exp.company.npwp || '—'} · ${exp.format.label}` }),
+        el('.muted', { style: { fontSize: '12px' }, text: exp.format.verification }),
       ]),
     ]));
 
