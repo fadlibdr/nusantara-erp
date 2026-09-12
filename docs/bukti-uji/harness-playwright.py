@@ -9900,6 +9900,249 @@ def s36m(browser):
         ctx.close()
 
 
+# ============================================================================
+# S37 — P-3a Kanal notifikasi (12 Sep 2026): layar Pengiriman Notifikasi
+# menampilkan sebab `skipped` yang DITULIS PIPELINE SUNGGUHAN (bukan fixture
+# yang diketik harness), dan layar Profil & Notifikasi menyimpan pilihan
+# kanal, jam tenang, nomor WhatsApp + opt-in — lalu menampilkan keadaan yang
+# sama dengan yang akan ditulis kotak keluar (DeliveryGate).
+#
+# Fixture: sakelar e-mail dinyalakan lewat API, lalu `erp:watchdog-alarm
+# --force` dijalankan atas ERP_DB (subprocess, DB yang sama dengan yang
+# dilayani php -S). MAIL_MAILER server = log (.env), jadi baris e-mail HARUS
+# "Dilewati — MAIL_MAILER=log — belum ada server surel" dan baris WhatsApp
+# "Dilewati — WhatsApp dinonaktifkan di Pengaturan." Keduanya kalimat
+# DeliveryGate; harness hanya membacanya dari layar.
+# ============================================================================
+import subprocess
+REPO_ROOT = os.path.dirname(os.path.dirname(SPA_EVIDENCE))
+
+S37_TABLE = """() => {
+  // textContent, bukan innerText: CSS th { text-transform: uppercase } membuat innerText "GALAT / ALASAN".
+  const ths = [...document.querySelectorAll('table thead th')].map(t => t.textContent.trim());
+  const rows = [...document.querySelectorAll('table tbody tr')].slice(0, 12).map(tr => {
+    const tds = [...tr.querySelectorAll('td')]; const o = {};
+    ths.forEach((h, i) => { if (tds[i]) o[h] = tds[i].innerText.trim(); });
+    return o;
+  });
+  return { headers: ths, rows,
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 };
+}"""
+
+S37_PROFIL = """() => {
+  const ch = [...document.querySelectorAll('.profil-channel')].map(n => ({
+    channel: n.dataset.channel,
+    checked: n.querySelector('input[type=checkbox]').checked,
+    state: (n.querySelector('.profil-status') || {}).dataset ? n.querySelector('.profil-status').dataset.state : null,
+    status: (n.querySelector('.profil-status') || {}).innerText || null,
+  }));
+  const optin = document.querySelector('.profil-optin');
+  return { channels: ch,
+    quiet_on: !!(document.querySelector('#quiet-on') || {}).checked,
+    quiet_start: (document.querySelector('#quiet-start') || {}).value || null,
+    quiet_end: (document.querySelector('#quiet-end') || {}).value || null,
+    phone: (document.querySelector('#wa-phone') || {}).value || null,
+    optin_state: optin ? optin.dataset.state : null,
+    optin_text: optin ? optin.innerText : null,
+    h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 };
+}"""
+
+def _p3a_settings(tok, values):
+    return api("core/settings", tok, "PUT", {"settings": values})
+
+def _p3a_raise_alarm():
+    """Alarm penjadwal lewat perintah SUNGGUHAN atas ERP_DB — NotificationService menulis kotak masuk
+    dan kedua baris kotak keluar dengan sebab dari DeliveryGate. Alarm lama yang belum dibaca
+    ditandai dibaca dulu: system() menahan salinan kedua yang belum dibaca (dedupe P-0b)."""
+    con = sqlite3.connect(DB)
+    con.execute("UPDATE core_notifications SET read_at = datetime('now') WHERE title = 'Penjadwal tidak berjalan' AND read_at IS NULL")
+    con.commit(); con.close()
+    env = dict(os.environ, DB_DATABASE=DB)
+    run = subprocess.run(["php", "artisan", "erp:watchdog-alarm", "--force"], cwd=REPO_ROOT, env=env,
+                         capture_output=True, text=True, timeout=120)
+    return {"exit": run.returncode, "tail": (run.stdout + run.stderr).strip()[-300:]}
+
+def _p3a_cleanup(tok):
+    api("core/me/preferences/notify.channels", tok, "PUT", {"value": {"email": True, "whatsapp": True}})
+    api("core/me/preferences/notify.quiet_hours", tok, "PUT", {"value": False})
+    api("iam/me/phone", tok, "PUT", {"phone_e164": None, "whatsapp_opt_in": False})
+    _p3a_settings(tok, {"notifications.email_enabled": False})
+
+@scenario("S37_kanal_notifikasi_profil")
+def s37(browser):
+    """1440×900 sebagai admin@: (1) Pengiriman Notifikasi memperlihatkan dua baris Dilewati dari
+    alarm sungguhan — e-mail "MAIL_MAILER=log — belum ada server surel", WhatsApp "dinonaktifkan di
+    Pengaturan" — plus kolom Berikutnya dan Status penyedia; (2) Profil & Notifikasi: lencana kanal
+    mengatakan hal yang sama; mematikan e-mail lalu menyimpan tersimpan di server, dan lencananya
+    tetap menyebut sebab yang lebih global (mailer log) — bukan "Dimatikan pengguna"; jam tenang
+    22:00–06:00 tersimpan; nomor 0812-3456-7890 tersimpan sebagai +6281234567890 dengan opt-in
+    berstempel lewat Profil; (3) 0 galat konsol."""
+    tok = token_for("admin@nusantara.test")
+    _p3a_cleanup(tok)
+    st, _ = _p3a_settings(tok, {"notifications.email_enabled": True})
+    if st != 200:
+        return {"SKIPPED": f"PUT core/settings menjawab HTTP {st}."}
+    alarm = _p3a_raise_alarm()
+    if alarm["exit"] not in (0, 1):
+        return {"SKIPPED": f"erp:watchdog-alarm keluar {alarm['exit']}: {alarm['tail']}"}
+
+    errors = []
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"alarm": alarm}
+
+        # ---- (1) Pengiriman Notifikasi
+        pg.goto(BASE + "#/r/core/notification-deliveries")
+        pg.wait_for_selector("table tbody tr", timeout=20000)
+        pg.wait_for_timeout(800)
+        assert_screen(pg, "#/r/core/notification-deliveries", "Pengiriman Notifikasi")
+        table = pg.evaluate(S37_TABLE)
+        out["deliveries"] = table
+        pg.screenshot(path=f"{OUT}/s37-pengiriman-dilewati.png", full_page=False)
+        email_rows = [r for r in table["rows"] if r.get("Kanal") == "E-mail" and "Penjadwal tidak berjalan" in (r.get("Notifikasi") or "")]
+        wa_rows = [r for r in table["rows"] if r.get("Kanal") == "WhatsApp" and "Penjadwal tidak berjalan" in (r.get("Notifikasi") or "")]
+        out["email_row"] = email_rows[0] if email_rows else None
+        out["wa_row"] = wa_rows[0] if wa_rows else None
+
+        # ---- (2) Profil & Notifikasi
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-channel", timeout=20000)
+        pg.wait_for_timeout(600)
+        assert_screen(pg, "#/profil", "Profil & Notifikasi")
+        out["profil_before"] = pg.evaluate(S37_PROFIL)
+        pg.screenshot(path=f"{OUT}/s37-profil-sebelum.png", full_page=True)
+
+        # matikan e-mail → simpan → sebabnya berpindah ke "Dimatikan pengguna"
+        click(pg, "#chan-email")
+        click(pg, "button:has-text('Simpan pilihan kanal')")
+        pg.wait_for_selector(".toast", timeout=8000)
+        pg.wait_for_selector(".profil-channel[data-channel='email'] .profil-status", timeout=8000)
+        pg.wait_for_timeout(700)
+        out["profil_after_channel"] = pg.evaluate(S37_PROFIL)
+        _, prefs = api("core/me/preferences", tok)
+        out["prefs_channels"] = next((r.get("value") for r in (prefs.get("data") or []) if r.get("key") == "notify.channels"), None)
+
+        # jam tenang 22:00–06:00
+        click(pg, "#quiet-on")
+        pg.fill("#quiet-start", "22:00")
+        pg.fill("#quiet-end", "06:00")
+        click(pg, "button:has-text('Simpan jam tenang')")
+        pg.wait_for_selector(".toast", timeout=8000)
+        pg.wait_for_timeout(900)
+        _, chan = api("core/me/notification-channels", tok)
+        out["server_channels"] = chan.get("data")
+
+        # nomor lokal → E.164 + opt-in berstempel
+        pg.wait_for_selector("#wa-phone", timeout=8000)
+        pg.fill("#wa-phone", "0812-3456-7890")
+        if not pg.is_checked("#wa-optin"):
+            click(pg, "#wa-optin")
+        click(pg, "button:has-text('Simpan nomor & opt-in')")
+        pg.wait_for_selector(".profil-optin[data-state='on']", timeout=8000)
+        pg.wait_for_timeout(500)
+        out["profil_after_phone"] = pg.evaluate(S37_PROFIL)
+        _, me = api("iam/auth/me", tok)
+        out["me_phone"] = {k: (me.get("data") or {}).get(k) for k in ("phone_e164", "whatsapp_opt_in", "whatsapp_opt_in_via")}
+        pg.screenshot(path=f"{OUT}/s37-profil-sesudah.png", full_page=True)
+
+        out["console_errors"] = errors
+        er = out["email_row"] or {}
+        wr = out["wa_row"] or {}
+        pb = out["profil_before"]; pa = out["profil_after_channel"]; pp = out["profil_after_phone"]
+        sc = out["server_channels"] or {}
+        chans_after = {c["channel"]: c for c in pa["channels"]}
+        out["checks"] = {
+            "the_list_has_the_two_new_columns": "Berikutnya" in table["headers"] and "Status penyedia" in table["headers"],
+            "the_email_row_is_skipped_because_the_mailer_is_log":
+                er.get("Status") == "Dilewati" and (er.get("Galat / alasan") or "").startswith("MAIL_MAILER=log — belum ada server surel"),
+            "the_whatsapp_row_is_skipped_because_the_switch_is_off":
+                wr.get("Status") == "Dilewati" and (wr.get("Galat / alasan") or "") == "WhatsApp dinonaktifkan di Pengaturan.",
+            "nothing_is_called_sent": all(r.get("Status") != "Terkirim" for r in table["rows"]),
+            "the_profile_says_the_same_as_the_outbox":
+                [c["channel"] for c in pb["channels"]] == ["email", "whatsapp"]
+                and pb["channels"][0]["state"] == "skipped" and "MAIL_MAILER=log" in (pb["channels"][0]["status"] or "")
+                and pb["channels"][1]["state"] == "skipped" and "dinonaktifkan di Pengaturan" in (pb["channels"][1]["status"] or ""),
+            # Sebab yang lebih GLOBAL menang (DeliveryGate: Pengaturan → mailer → pengguna → alamat):
+            # dengan MAIL_MAILER=log, mematikan e-mail tersimpan tetapi lencananya tetap menyebut
+            # mailer — "Dimatikan pengguna" baru tampil setelah server surel ada (dipaku PHP).
+            "switching_email_off_is_stored_and_the_global_reason_still_wins":
+                out["prefs_channels"] == {"email": False, "whatsapp": True}
+                and chans_after["email"]["checked"] is False
+                and "MAIL_MAILER=log" in (chans_after["email"]["status"] or ""),
+            "quiet_hours_are_stored_on_the_server": (sc.get("quiet_hours") or {}).get("start") == "22:00" and (sc.get("quiet_hours") or {}).get("end") == "06:00",
+            "a_local_number_is_stored_as_e164_with_a_dated_opt_in":
+                out["me_phone"] == {"phone_e164": "+6281234567890", "whatsapp_opt_in": True, "whatsapp_opt_in_via": "profil"}
+                and pp["optin_state"] == "on" and "Opt-in tercatat" in (pp["optin_text"] or ""),
+            "the_screens_never_scroll_sideways": table["scrolls_sideways"] is False and pp["scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        _p3a_cleanup(tok)
+
+@scenario("S37_kanal_notifikasi_profil_ponsel")
+def s37m(browser):
+    """390×844 (is_mobile, has_touch) sebagai admin@: Profil & Notifikasi dan Pengiriman
+    Notifikasi tidak menggulir ke samping; kedua kartu kanal tampil; mematikan WhatsApp dari
+    ponsel tersimpan, dan lencananya tetap jujur — sebab global (dinonaktifkan di Pengaturan)
+    menang atas pilihan pengguna; 0 galat konsol."""
+    tok = token_for("admin@nusantara.test")
+    _p3a_cleanup(tok)
+    errors = []
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {}
+
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-channel", timeout=20000)
+        pg.wait_for_timeout(600)
+        out["profil"] = pg.evaluate(S37_PROFIL)
+        pg.screenshot(path=f"{OUT}/s37m-profil.png", full_page=True)
+
+        tap(pg, "#chan-whatsapp")
+        tap(pg, "button:has-text('Simpan pilihan kanal')")
+        pg.wait_for_selector(".toast", timeout=8000)
+        pg.wait_for_timeout(900)
+        out["profil_after"] = pg.evaluate(S37_PROFIL)
+        _, prefs = api("core/me/preferences", tok)
+        out["prefs_channels"] = next((r.get("value") for r in (prefs.get("data") or []) if r.get("key") == "notify.channels"), None)
+
+        pg.goto(BASE + "#/r/core/notification-deliveries")
+        pg.wait_for_selector(".page-head h1", timeout=20000)
+        pg.wait_for_timeout(900)
+        out["deliveries"] = pg.evaluate(S37_TABLE)
+        pg.screenshot(path=f"{OUT}/s37m-pengiriman.png", full_page=False)
+
+        out["console_errors"] = errors
+        wa_after = next((c for c in out["profil_after"]["channels"] if c["channel"] == "whatsapp"), {})
+        out["checks"] = {
+            "the_profile_renders_both_channels_on_a_phone": [c["channel"] for c in out["profil"]["channels"]] == ["email", "whatsapp"],
+            "the_profile_never_scrolls_sideways": out["profil"]["scrolls_sideways"] is False and out["profil_after"]["scrolls_sideways"] is False,
+            "switching_whatsapp_off_from_a_phone_is_stored": out["prefs_channels"] == {"email": True, "whatsapp": False} and wa_after.get("checked") is False,
+            "the_global_switch_still_wins_over_the_users_choice": "dinonaktifkan di Pengaturan" in (wa_after.get("status") or ""),
+            "the_deliveries_screen_never_scrolls_sideways": out["deliveries"]["scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        _p3a_cleanup(tok)
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -9910,7 +10153,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
