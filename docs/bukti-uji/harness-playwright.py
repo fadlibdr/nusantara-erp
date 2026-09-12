@@ -10500,6 +10500,279 @@ def s38m(browser):
         ctx.close()
 
 
+# ============================================================================
+# S39 — P-3c Bank (12 Sep 2026): folder terpantau + preset per rekening. Folder
+# sementara (env ERP_BANK_INBOX_PATH — sama dengan BANK_INBOX_PATH yang dibaca
+# server php -S) diisi harness dari luar aplikasi: MT940 contoh demo untuk
+# BANK-MDR-PRJ, CSV contoh demo untuk BANK-BCA-OPS (presetnya disimpan lewat
+# pipeline sungguhan, fixtures/s39-preset.php), satu CSV yang judul kolomnya
+# bergeser (→ Gagal dengan kalimat yang menyebut kolomnya), dan satu berkas di
+# sub-folder asing (→ Diabaikan). Perintah fin:bank-inbox dijalankan harness
+# lewat subprocess atas DB salinan, lalu layar menampilkan LEDGER-nya; tombol
+# Periksa sekarang dijalankan dari peramban dan dibuktikan idempoten (jumlah
+# rekening koran dan baris ledger di sqlite tidak bertambah). Kedua contoh demo
+# dipakai untuk membuktikan JALUR folder, bukan tata letak bank mana pun.
+# ============================================================================
+
+S39_INBOX = os.environ.get("ERP_BANK_INBOX_PATH", "")
+
+S39_SCREEN = """() => ({
+  h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+  active_tab: (document.querySelector('.tabs button.active') || {}).innerText || null,
+  tabs: [...document.querySelectorAll('.tabs button')].map(b => b.innerText.trim()),
+  // textContent: .stat .label di-uppercase CSS (jebakan S37/S38).
+  tiles: [...document.querySelectorAll('.stat')].map(s => ({ label: ((s.querySelector('.label')||{}).textContent || '').trim(), value: ((s.querySelector('.value')||{}).textContent || '').trim() })),
+  folder_note: (document.querySelector('.inbox-folder-note') || {}).innerText || null,
+  folder_text: (document.querySelector('.inbox-folder .card-body') || {}).innerText || null,
+  check_button: !![...document.querySelectorAll('.inbox-folder button')].find(b => b.innerText.trim() === 'Periksa sekarang'),
+  accounts: [...document.querySelectorAll('.inbox-accounts tbody tr')].map(tr => ({ code: tr.dataset.code, badge: (tr.querySelector('.badge')||{}).innerText || null, note: (tr.querySelector('.inbox-preset-note')||{}).innerText || null })),
+  files: [...document.querySelectorAll('.inbox-files tbody tr')].map(tr => {
+    const td = [...tr.querySelectorAll('td')];
+    return { path: tr.dataset.path, status: tr.dataset.status, badge: (td[1].querySelector('.badge')||{}).innerText || null,
+      statement: (td[2].querySelector('button')||{}).innerText || null, error: td[3].innerText.trim() };
+  }),
+  scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+})"""
+
+S39_IMPORT = """() => ({
+  presets: [...document.querySelectorAll('.bank-preset')].map(n => ({ key: n.dataset.key, selectable: n.dataset.selectable, verified: n.dataset.verified,
+    badge: (n.querySelector('.badge')||{}).innerText || null, verification: (n.querySelector('.bank-preset-verification')||{}).innerText || null,
+    awaiting: (n.querySelector('.bank-preset-awaiting')||{}).innerText || null, demo: (n.querySelector('.bank-preset-demo')||{}).innerText || null })),
+  head_badge: (document.querySelector('.bank-presets-head .badge')||{}).innerText || null,
+  picker: (() => { const l=[...document.querySelectorAll('label')].find(l => l.innerText.trim() === 'Pemetaan kolom'); if(!l) return null;
+    const sel = l.parentElement.querySelector('select'); return sel ? { value: sel.value, options: [...sel.options].map(o => o.innerText) } : null; })(),
+  preset_card: (document.querySelector('.bank-preset-card h2')||{}).innerText || null,
+  preset_header: (document.querySelector('.bank-preset-header')||{}).innerText || null,
+  scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+})"""
+
+# Jumlah simpul teks pada kartu paket ini yang TERPOTONG leluhur: tepi kanannya melewati batas
+# leluhur pertama yang overflow-x-nya bukan visible — bila leluhur itu bisa digulir (auto/scroll,
+# mis. .table-wrap tabel lebar), batasnya adalah lebar gulirnya (teks tercapai dengan menggulir tabel,
+# pola baku aplikasi); bila hidden/clip atau tidak ada, batasnya viewport. Diukur 12 Sep 2026: versi
+# yang memakai viewport saja menghitung 13 sel tabel yang seluruhnya bisa digulir sebagai "terpotong".
+S39_OVERFLOW = """() => {
+  let n = 0;
+  for (const el of document.querySelectorAll('.inbox-folder, .inbox-folder *, .inbox-accounts, .inbox-accounts *, .inbox-files, .inbox-files *, .bank-preset, .bank-preset *, .bank-preset-card, .bank-preset-card *, .stat-row *')) {
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0) continue;
+      let limit = document.documentElement.clientWidth + 1;
+      for (let a = el; a && a !== document.body; a = a.parentElement) {
+        const o = getComputedStyle(a).overflowX;
+        if (o === 'visible') continue;
+        const r = a.getBoundingClientRect();
+        limit = (o === 'auto' || o === 'scroll') ? r.left + a.scrollWidth + 1 : r.right + 1;
+        break;
+      }
+      if (rect.right > limit) n++;
+    }
+  }
+  return n;
+}"""
+
+def _p3c_db_truth():
+    con = sqlite3.connect(DB)
+    out = {
+        "statements": con.execute("select count(*) from fin_bank_statements").fetchone()[0],
+        "codes": [r[0] for r in con.execute("select code from fin_bank_statements order by id").fetchall()],
+        "ledger": [(r[0], r[1]) for r in con.execute("select relative_path, status from fin_bank_inbox_files order by relative_path").fetchall()],
+        "failed_alarms": con.execute("select count(*) from core_notifications n join users u on u.id = n.user_id where u.email = 'admin@nusantara.test' and n.title = 'Berkas rekening koran di folder terpantau gagal diimpor'").fetchone()[0],
+        "checked_at": (con.execute("select value from core_settings where key = 'bank_inbox.checked_at'").fetchone() or [None])[0],
+    }
+    con.close()
+    return out
+
+def _p3c_fixture():
+    """Preset BANK-BCA-OPS lewat pipeline sungguhan + empat berkas di folder sementara (ditulis HARNESS,
+    bukan aplikasi) + satu kali fin:bank-inbox lewat subprocess. Idempoten."""
+    if not S39_INBOX:
+        return {"SKIPPED": "ERP_BANK_INBOX_PATH tidak diset — folder terpantau harus sama dengan BANK_INBOX_PATH server"}
+    out = {"inbox": "(folder sementara di scratch)"}
+    env = dict(os.environ, DB_DATABASE=DB, BANK_INBOX_PATH=S39_INBOX)
+    run = subprocess.run(["php", "docs/bukti-uji/fixtures/s39-preset.php"], cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=180)
+    try:
+        out["preset"] = json.loads(run.stdout.strip().splitlines()[-1])
+    except Exception:
+        return {"SKIPPED": "fixture preset gagal: " + (run.stdout + run.stderr).strip()[-300:]}
+
+    samples = os.path.join(REPO_ROOT, "docs", "samples")
+    mandiri = open(os.path.join(samples, "rekening-koran-mandiri-2026-02.sta"), encoding="utf-8").read()
+    bca = open(os.path.join(samples, "rekening-koran-bca-2026-04.csv"), encoding="utf-8").read()
+    files = {
+        "BANK-MDR-PRJ/rekening-koran-mandiri-2026-02.sta": mandiri,
+        "BANK-BCA-OPS/rekening-koran-bca-2026-04.csv": bca,
+        # Judul kolom bergeser (Debit → Mutasi): harus Gagal dengan kalimat yang menyebut kolom 4.
+        "BANK-BCA-OPS/mei-judul-bergeser.csv": bca.replace("Debit", "Mutasi", 1),
+        # Sub-folder yang bukan kode rekening: Diabaikan, tidak dibaca.
+        "BANK-XYZ/asing.sta": mandiri,
+    }
+    for rel, content in files.items():
+        path = os.path.join(S39_INBOX, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+    out["files_placed"] = sorted(files)
+    before = {rel: os.stat(os.path.join(S39_INBOX, rel)).st_mtime_ns for rel in files}
+
+    run = subprocess.run(["php", "artisan", "fin:bank-inbox"], cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=300)
+    out["command"] = {"exit": run.returncode, "last_line": (run.stdout.strip().splitlines() or [""])[-1][:200], "stderr": run.stderr.strip()[-200:]}
+    out["folder_untouched_by_command"] = before == {rel: os.stat(os.path.join(S39_INBOX, rel)).st_mtime_ns for rel in files} \
+        and sorted(os.listdir(S39_INBOX)) == sorted({rel.split("/")[0] for rel in files})
+    return out
+
+@scenario("S39_folder_terpantau")
+def s39(browser):
+    """1440×900 sebagai admin@: fixture (preset lewat pipeline + 4 berkas di folder + fin:bank-inbox lewat subprocess)
+    → tab Folder terpantau menampilkan ledger (2 Diimpor, 1 Gagal dengan kalimat kolom, 1 Diabaikan), Terakhir
+    diperiksa dari stempel, kesiapan per rekening dari server; Periksa sekarang dari peramban idempoten (sqlite
+    tidak bertambah); tab Impor: 4 preset bawaan tak bisa dipilih + pemilih preset rekening; 0 galat konsol."""
+    fx = _p3c_fixture()
+    if "SKIPPED" in fx:
+        return fx
+    truth = _p3c_db_truth()
+    tok = token_for("admin@nusantara.test")
+
+    errors = []
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"fixture": fx, "db_after_command": truth}
+
+        pg.goto(BASE + "#/bank-recon?tab=inbox")
+        pg.wait_for_selector(".inbox-files", timeout=20000)
+        pg.wait_for_timeout(600)
+        assert_screen(pg, "#/bank-recon?tab=inbox", "Rekonsiliasi Bank")
+        out["screen"] = pg.evaluate(S39_SCREEN)
+        pg.screenshot(path=f"{OUT}/s39-folder-terpantau.png", full_page=True)
+
+        # Periksa sekarang dari peramban: jalur yang sama, idempoten.
+        click(pg, ".inbox-folder button:has-text('Periksa sekarang')")
+        pg.wait_for_timeout(2500)
+        out["toasts_after_check"] = toasts(pg)
+        pg.wait_for_selector(".inbox-files", timeout=20000)
+        out["screen_after_check"] = pg.evaluate(S39_SCREEN)
+        out["db_after_check"] = _p3c_db_truth()
+        _, api_inbox = api("finance/bank-inbox", tok)
+        api_data = api_inbox.get("data") or {}
+        out["api"] = {"files": [(f["relative_path"], f["status"]) for f in api_data.get("files", [])],
+                      "counts": api_data.get("counts"), "folder_exists": (api_data.get("folder") or {}).get("exists"),
+                      "last_checked_at": api_data.get("last_checked_at"),
+                      "absolute_path_leaks": S39_INBOX in json.dumps(api_inbox)}
+
+        # Tab Impor: registri bawaan + pemilih preset rekening (BANK-BCA-OPS adalah rekening pertama).
+        pg.goto(BASE + "#/bank-recon?tab=import")
+        pg.wait_for_selector(".bank-preset", timeout=20000)
+        pg.wait_for_timeout(500)
+        out["import"] = pg.evaluate(S39_IMPORT)
+        pg.screenshot(path=f"{OUT}/s39-impor-preset.png", full_page=True)
+
+        out["console_errors"] = errors
+        sc = out["screen"]; sc2 = out["screen_after_check"]; im = out["import"]
+        tile = {t["label"]: t["value"] for t in sc["tiles"]}
+        files = {f["path"]: f for f in sc["files"]}
+        failed = files.get("BANK-BCA-OPS/mei-judul-bergeser.csv", {})
+        out["checks"] = {
+            "the_preset_fixture_ran_through_the_real_pipeline": (fx.get("preset") or {}).get("balance_column") == 5
+                and ((fx.get("preset") or {}).get("expected_header") or [{}] * 3)[2] == {"index": 3, "cell": "Debit"},
+            "the_command_ran_and_counted_four_files": fx["command"]["exit"] == 0 and fx["command"]["last_line"].startswith("4 berkas: 2 diimpor, 1 gagal, 0 salinan, 1 diabaikan, 0 tidak berubah"),
+            "the_command_did_not_touch_the_folder": fx["folder_untouched_by_command"] is True,
+            "two_statements_exist_in_sqlite_after_the_command": truth["statements"] == 2 and len(truth["codes"]) == 2,
+            "the_ledger_in_sqlite_has_the_four_rows_with_their_statuses": truth["ledger"] == [
+                ("BANK-BCA-OPS/mei-judul-bergeser.csv", "failed"), ("BANK-BCA-OPS/rekening-koran-bca-2026-04.csv", "imported"),
+                ("BANK-MDR-PRJ/rekening-koran-mandiri-2026-02.sta", "imported"), ("BANK-XYZ/asing.sta", "ignored")],
+            "the_screen_has_five_tabs_and_the_inbox_tab_is_active": sc["tabs"] == ["Ringkasan Semua Rekening", "Rekonsiliasi", "Rekening Koran", "Impor", "Folder terpantau"] and sc["active_tab"] == "Folder terpantau",
+            "the_tiles_read_the_ledger": tile.get("Diimpor") == "2" and tile.get("Gagal") == "1" and tile.get("Salinan") == "0" and tile.get("Diabaikan") == "1",
+            "last_checked_is_the_written_stamp_not_never": tile.get("Terakhir diperiksa") not in (None, "", "belum pernah") and truth["checked_at"] is not None,
+            "the_folder_exists_so_no_missing_note_is_shown": sc["folder_note"] is None and out["api"]["folder_exists"] is True,
+            "the_folder_card_says_who_puts_files_there_and_that_nothing_is_moved": "dari luar aplikasi" in (sc["folder_text"] or "") and "tidak dipindah" in (sc["folder_text"] or ""),
+            "the_folder_card_does_not_claim_the_scheduler_is_alive": "tidak dilaporkan layar ini" in (sc["folder_text"] or ""),
+            "the_imported_rows_link_to_their_statements": all(files.get(p, {}).get("status") == "imported" and (files.get(p, {}).get("statement") or "").startswith("BST/")
+                for p in ["BANK-BCA-OPS/rekening-koran-bca-2026-04.csv", "BANK-MDR-PRJ/rekening-koran-mandiri-2026-02.sta"]),
+            "the_shifted_header_row_is_failed_and_names_the_column": failed.get("status") == "failed" and failed.get("badge") == "Gagal"
+                and failed.get("error") == "Kolom 4 pada preset «BCA contoh demo (S39)» diharapkan 'Debit', berkas berisi 'Mutasi'.",
+            "the_foreign_subfolder_row_is_ignored_with_its_sentence": files.get("BANK-XYZ/asing.sta", {}).get("status") == "ignored"
+                and files.get("BANK-XYZ/asing.sta", {}).get("error") == "Sub-folder BANK-XYZ bukan kode rekening bank yang aktif; berkas tidak dibaca.",
+            "the_accounts_card_reads_the_server_sentence": any(a["code"] == "BANK-BCA-OPS" and a["badge"] == "CSV & MT940" and "memetakan kolom saldo" in (a["note"] or "") for a in sc["accounts"])
+                and any(a["code"] == "BANK-MDR-PRJ" and a["badge"] == "MT940 saja" and "Tanpa preset" in (a["note"] or "") for a in sc["accounts"]),
+            "check_now_from_the_browser_is_idempotent": any(t.startswith("4 berkas diperiksa: 0 diimpor, 1 gagal, 0 salinan, 1 diabaikan.") for t in out["toasts_after_check"])
+                and out["db_after_check"]["statements"] == 2 and len(out["db_after_check"]["ledger"]) == 4,
+            "the_failed_file_was_announced_once_not_per_check": truth["failed_alarms"] == 1 and out["db_after_check"]["failed_alarms"] == 1,
+            "the_api_agrees_with_the_screen_and_leaks_no_absolute_path": sorted(out["api"]["files"]) == sorted(out["db_after_check"]["ledger"])
+                and out["api"]["counts"] == {"imported": 2, "failed": 1, "duplicate": 0, "ignored": 1} and out["api"]["absolute_path_leaks"] is False,
+            "the_four_built_in_presets_render_none_selectable": [p["key"] for p in im["presets"]] == ["bca", "mandiri", "bni", "bri"]
+                and all(p["selectable"] == "false" and p["badge"] == "Belum ada berkas ekspor nyata" and (p["verification"] or "").startswith("BELUM ADA BERKAS EKSPOR NYATA") for p in im["presets"])
+                and im["head_badge"] == "0 dari 4 bank punya berkas ekspor nyata",
+            "the_awaiting_sentence_names_the_folder_and_the_demo_note_says_demo": all("docs/samples/bank/" in (p["awaiting"] or "") for p in im["presets"])
+                and "contoh demo" in (next((p["demo"] for p in im["presets"] if p["key"] == "bca"), "") or ""),
+            "the_account_preset_picker_offers_the_saved_preset_and_the_card_remembers_the_header": (im["picker"] or {}).get("value") == "preset"
+                and any("BCA contoh demo (S39)" in o for o in (im["picker"] or {}).get("options", []))
+                and (im["preset_card"] or "").startswith("2 · Preset «BCA contoh demo (S39)»") and "Kolom 4 'Debit'" in (im["preset_header"] or ""),
+            "the_screens_never_scroll_sideways": sc["scrolls_sideways"] is False and sc2["scrolls_sideways"] is False and im["scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+@scenario("S39_folder_terpantau_ponsel")
+def s39m(browser):
+    """390×844 (is_mobile, has_touch) sebagai admin@: tab Folder terpantau dan kartu registri preset tergambar
+    tanpa gulir samping dan tanpa simpul teks yang terpotong leluhur; 0 galat konsol."""
+    fx = _p3c_fixture()
+    if "SKIPPED" in fx:
+        return fx
+    errors = []
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"fixture": {"command": fx["command"], "folder_untouched_by_command": fx["folder_untouched_by_command"]}}
+
+        pg.goto(BASE + "#/bank-recon?tab=inbox")
+        pg.wait_for_selector(".inbox-files", timeout=20000)
+        pg.wait_for_timeout(600)
+        out["screen"] = pg.evaluate(S39_SCREEN)
+        out["inbox_overflow"] = pg.evaluate(S39_OVERFLOW)
+        pg.screenshot(path=f"{OUT}/s39m-folder-terpantau.png", full_page=False)
+
+        pg.goto(BASE + "#/bank-recon?tab=import")
+        pg.wait_for_selector(".bank-preset", timeout=20000)
+        pg.wait_for_timeout(500)
+        out["import"] = pg.evaluate(S39_IMPORT)
+        out["import_overflow"] = pg.evaluate(S39_OVERFLOW)
+        pg.screenshot(path=f"{OUT}/s39m-impor-preset.png", full_page=False)
+
+        out["console_errors"] = errors
+        sc = out["screen"]; im = out["import"]
+        files = {f["path"]: f for f in sc["files"]}
+        out["checks"] = {
+            "the_command_ran_before_the_screen_was_measured": fx["command"]["exit"] == 0 and "berkas:" in fx["command"]["last_line"],
+            "the_ledger_renders_on_a_phone_with_its_four_rows": sorted(files) == ["BANK-BCA-OPS/mei-judul-bergeser.csv", "BANK-BCA-OPS/rekening-koran-bca-2026-04.csv", "BANK-MDR-PRJ/rekening-koran-mandiri-2026-02.sta", "BANK-XYZ/asing.sta"],
+            "the_failed_sentence_is_readable_on_a_phone": "Kolom 4 pada preset" in (files.get("BANK-BCA-OPS/mei-judul-bergeser.csv", {}).get("error") or ""),
+            "the_inbox_screen_never_scrolls_sideways": sc["scrolls_sideways"] is False,
+            "no_inbox_text_is_clipped_on_a_phone": out["inbox_overflow"] == 0,
+            "the_four_presets_render_on_a_phone_none_selectable": len(im["presets"]) == 4 and all(p["selectable"] == "false" for p in im["presets"]),
+            "the_import_screen_never_scrolls_sideways": im["scrolls_sideways"] is False,
+            "no_preset_text_is_clipped_on_a_phone": out["import_overflow"] == 0,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -10510,7 +10783,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
