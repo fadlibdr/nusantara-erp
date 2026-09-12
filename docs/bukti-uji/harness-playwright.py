@@ -10522,10 +10522,14 @@ S39_SCREEN = """() => ({
   tabs: [...document.querySelectorAll('.tabs button')].map(b => b.innerText.trim()),
   // textContent: .stat .label di-uppercase CSS (jebakan S37/S38).
   tiles: [...document.querySelectorAll('.stat')].map(s => ({ label: ((s.querySelector('.label')||{}).textContent || '').trim(), value: ((s.querySelector('.value')||{}).textContent || '').trim() })),
+  // data-iso = stempel mentah core_settings yang dipulangkan API; dibandingkan dengan sqlite (V-permukaan-4).
+  last_checked_iso: ((document.querySelector('.inbox-checked .value') || {}).dataset || {}).iso || null,
+  counts_note: (document.querySelector('.inbox-counts-note') || {}).innerText || null,
   folder_note: (document.querySelector('.inbox-folder-note') || {}).innerText || null,
   folder_text: (document.querySelector('.inbox-folder .card-body') || {}).innerText || null,
   check_button: !![...document.querySelectorAll('.inbox-folder button')].find(b => b.innerText.trim() === 'Periksa sekarang'),
-  accounts: [...document.querySelectorAll('.inbox-accounts tbody tr')].map(tr => ({ code: tr.dataset.code, badge: (tr.querySelector('.badge')||{}).innerText || null, note: (tr.querySelector('.inbox-preset-note')||{}).innerText || null })),
+  accounts: [...document.querySelectorAll('.inbox-accounts tbody tr')].map(tr => ({ code: tr.dataset.code, badge: (tr.querySelector('.badge')||{}).innerText || null, note: (tr.querySelector('.inbox-preset-note')||{}).innerText || null,
+    subfolder_note: (tr.querySelector('.inbox-subfolder-note')||{}).innerText || null })),
   files: [...document.querySelectorAll('.inbox-files tbody tr')].map(tr => {
     const td = [...tr.querySelectorAll('td')];
     return { path: tr.dataset.path, status: tr.dataset.status, badge: (td[1].querySelector('.badge')||{}).innerText || null,
@@ -10543,6 +10547,10 @@ S39_IMPORT = """() => ({
     const sel = l.parentElement.querySelector('select'); return sel ? { value: sel.value, options: [...sel.options].map(o => o.innerText) } : null; })(),
   preset_card: (document.querySelector('.bank-preset-card h2')||{}).innerText || null,
   preset_header: (document.querySelector('.bank-preset-header')||{}).innerText || null,
+  // Sesudah Pratinjau: kalimat 422 (errorState) dan lencana preset pada kartu pratinjau (bila ada).
+  preview_error: ((document.querySelector('.alert.error > div')||{}).innerText || '').split(String.fromCharCode(10))[0] || null,
+  preview_badges: [...document.querySelectorAll('.card-head')].filter(h => ((h.querySelector('h2')||{}).innerText || '').startsWith('3 · Pratinjau'))
+    .flatMap(h => [...h.querySelectorAll('.badge')].map(b => b.innerText)),
   scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
 })"""
 
@@ -10553,7 +10561,7 @@ S39_IMPORT = """() => ({
 # yang memakai viewport saja menghitung 13 sel tabel yang seluruhnya bisa digulir sebagai "terpotong".
 S39_OVERFLOW = """() => {
   let n = 0;
-  for (const el of document.querySelectorAll('.inbox-folder, .inbox-folder *, .inbox-accounts, .inbox-accounts *, .inbox-files, .inbox-files *, .bank-preset, .bank-preset *, .bank-preset-card, .bank-preset-card *, .stat-row *')) {
+  for (const el of document.querySelectorAll('.inbox-folder, .inbox-folder *, .inbox-accounts, .inbox-accounts *, .inbox-files, .inbox-files *, .bank-preset, .bank-preset *, .bank-preset-card, .bank-preset-card *, .stat-row *, .inbox-counts-note')) {
     for (const node of el.childNodes) {
       if (node.nodeType !== 3 || !node.textContent.trim()) continue;
       const range = document.createRange(); range.selectNodeContents(node);
@@ -10583,6 +10591,11 @@ def _p3c_db_truth():
         "checked_at": (con.execute("select value from core_settings where key = 'bank_inbox.checked_at'").fetchone() or [None])[0],
     }
     con.close()
+    # SettingService menyimpan nilai ter-JSON ('"2026-…"'); yang dibandingkan dengan ubin adalah string ISO-nya.
+    try:
+        out["checked_at_iso"] = json.loads(out["checked_at"]) if out["checked_at"] else None
+    except Exception:
+        out["checked_at_iso"] = out["checked_at"]
     return out
 
 def _p3c_fixture():
@@ -10628,7 +10641,10 @@ def s39(browser):
     """1440×900 sebagai admin@: fixture (preset lewat pipeline + 4 berkas di folder + fin:bank-inbox lewat subprocess)
     → tab Folder terpantau menampilkan ledger (2 Diimpor, 1 Gagal dengan kalimat kolom, 1 Diabaikan), Terakhir
     diperiksa dari stempel, kesiapan per rekening dari server; Periksa sekarang dari peramban idempoten (sqlite
-    tidak bertambah); tab Impor: 4 preset bawaan tak bisa dipilih + pemilih preset rekening; 0 galat konsol."""
+    tidak bertambah); tab Impor: 4 preset bawaan tak bisa dipilih + pemilih preset rekening; pratinjau lewat layar
+    dengan preset atas berkas judul-bergeser → badan permintaan use_preset:true + periode/saldo saja dan kalimat 422
+    yang menyebut kolom; pemilih manual → use_preset:false tanpa lencana preset; tab berganti menulis hash dan tautan
+    ?tab=inbox sesudahnya mendarat (putaran verifikasi V-permukaan-1/-2/-4, V-preset-4); 0 galat konsol."""
     fx = _p3c_fixture()
     if "SKIPPED" in fx:
         return fx
@@ -10672,8 +10688,48 @@ def s39(browser):
         out["import"] = pg.evaluate(S39_IMPORT)
         pg.screenshot(path=f"{OUT}/s39-impor-preset.png", full_page=True)
 
+        # Pratinjau LEWAT LAYAR dengan pemilih «Preset rekening ini» dan berkas judul-bergeser (V-permukaan-1 /
+        # V-preset-4): badan permintaan harus use_preset:true + pemetaan HANYA periode/saldo, dan layar harus
+        # menggambar kalimat 422 yang menyebut kolomnya — bukan pratinjau "Seimbang" yang keliru.
+        previews = []
+        pg.on("request", lambda r: previews.append(json.loads(r.post_data or "{}")) if r.url.endswith("/bank-statements/preview") else None)
+        deliberate_from = len(errors)   # 422 yang DIRANCANG (penolakan header) juga tercatat Chromium sebagai "Failed to load resource"
+        pg.set_input_files("input[type=file]", os.path.join(S39_INBOX, "BANK-BCA-OPS/mei-judul-bergeser.csv"))
+        pg.wait_for_timeout(600)
+        click(pg, ".card-foot button:has-text('Pratinjau')")
+        pg.wait_for_selector(".alert.error, .card-head .badge", timeout=20000)
+        pg.wait_for_timeout(400)
+        out["preview_with_preset"] = pg.evaluate(S39_IMPORT)
+        pg.screenshot(path=f"{OUT}/s39-pratinjau-preset-422.png", full_page=True)
+
+        # Pemilih «Tetapkan kolom sendiri»: preset TIDAK boleh diterapkan diam-diam (use_preset:false, pemetaan penuh, tanpa lencana preset).
+        pg.evaluate("""() => { const l = [...document.querySelectorAll('label')].find(l => l.innerText.trim() === 'Pemetaan kolom');
+          const sel = l.parentElement.querySelector('select'); sel.value = 'manual'; sel.dispatchEvent(new Event('change', { bubbles: true })); }""")
+        pg.wait_for_timeout(400)
+        click(pg, ".card-foot button:has-text('Pratinjau')")
+        pg.wait_for_timeout(2500)
+        out["preview_manual"] = pg.evaluate(S39_IMPORT)
+        out["preview_requests"] = previews
+        # Galat konsol dari dua pratinjau yang sengaja ditolak 422 dicatat terpisah (pola S23 stub_errors) dan
+        # dituntut HANYA berupa pesan sumber-daya 422 — galat lain di antaranya tetap menjatuhkan no_console_error.
+        out["deliberate_422_console"] = errors[deliberate_from:]
+        del errors[deliberate_from:]
+
+        # Tab yang berganti ditulis ke hash; tautan notifikasi ke ?tab=inbox sesudah itu tetap mendarat (V-permukaan-2).
+        pg.goto(BASE + "#/bank-recon?tab=inbox")
+        pg.wait_for_selector(".inbox-files", timeout=20000)
+        click(pg, ".tabs button:has-text('Rekonsiliasi')")
+        pg.wait_for_timeout(1500)
+        out["hash_after_tab_click"] = pg.evaluate("() => location.hash")
+        pg.evaluate("() => { location.hash = '#/bank-recon?tab=inbox'; }")   # persis yang dilakukan notifications.js «Buka dokumen»
+        pg.wait_for_timeout(1500)
+        out["tab_after_deeplink"] = pg.evaluate("() => (document.querySelector('.tabs button.active') || {}).innerText || null")
+
         out["console_errors"] = errors
         sc = out["screen"]; sc2 = out["screen_after_check"]; im = out["import"]
+        pv = out["preview_with_preset"]; pm = out["preview_manual"]
+        req_preset = previews[0] if len(previews) > 0 else {}
+        req_manual = previews[1] if len(previews) > 1 else {}
         tile = {t["label"]: t["value"] for t in sc["tiles"]}
         files = {f["path"]: f for f in sc["files"]}
         failed = files.get("BANK-BCA-OPS/mei-judul-bergeser.csv", {})
@@ -10689,6 +10745,9 @@ def s39(browser):
             "the_screen_has_five_tabs_and_the_inbox_tab_is_active": sc["tabs"] == ["Ringkasan Semua Rekening", "Rekonsiliasi", "Rekening Koran", "Impor", "Folder terpantau"] and sc["active_tab"] == "Folder terpantau",
             "the_tiles_read_the_ledger": tile.get("Diimpor") == "2" and tile.get("Gagal") == "1" and tile.get("Salinan") == "0" and tile.get("Diabaikan") == "1",
             "last_checked_is_the_written_stamp_not_never": tile.get("Terakhir diperiksa") not in (None, "", "belum pernah") and truth["checked_at"] is not None,
+            "last_checked_tile_carries_the_sqlite_stamp_not_the_clock": sc["last_checked_iso"] is not None and sc["last_checked_iso"] == truth["checked_at_iso"],
+            "the_tiles_say_they_count_the_last_check": sc["counts_note"] == "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
+            "no_account_is_flagged_as_unusable_subfolder": all(a["subfolder_note"] is None for a in sc["accounts"]) and len(sc["accounts"]) >= 2,
             "the_folder_exists_so_no_missing_note_is_shown": sc["folder_note"] is None and out["api"]["folder_exists"] is True,
             "the_folder_card_says_who_puts_files_there_and_that_nothing_is_moved": "dari luar aplikasi" in (sc["folder_text"] or "") and "tidak dipindah" in (sc["folder_text"] or ""),
             "the_folder_card_does_not_claim_the_scheduler_is_alive": "tidak dilaporkan layar ini" in (sc["folder_text"] or ""),
@@ -10713,6 +10772,16 @@ def s39(browser):
             "the_account_preset_picker_offers_the_saved_preset_and_the_card_remembers_the_header": (im["picker"] or {}).get("value") == "preset"
                 and any("BCA contoh demo (S39)" in o for o in (im["picker"] or {}).get("options", []))
                 and (im["preset_card"] or "").startswith("2 · Preset «BCA contoh demo (S39)»") and "Kolom 4 'Debit'" in (im["preset_header"] or ""),
+            "preview_with_preset_sends_use_preset_true_and_only_per_file_keys": req_preset.get("use_preset") is True
+                and sorted((req_preset.get("mapping") or {}).keys()) == ["closing_balance", "opening_balance", "period_end", "period_start"],
+            "preview_with_preset_draws_the_422_sentence_naming_the_column": pv["preview_error"]
+                == "Kolom 4 pada preset «BCA contoh demo (S39)» diharapkan 'Debit', berkas berisi 'Mutasi'." and pv["preview_badges"] == [],
+            "only_the_two_deliberate_422s_touched_the_console": all("status of 422" in e for e in out["deliberate_422_console"]) and 1 <= len(out["deliberate_422_console"]) <= 2,
+            "manual_mapping_sends_use_preset_false_with_the_full_mapping_and_no_preset_badge": req_manual.get("use_preset") is False
+                and "delimiter" in (req_manual.get("mapping") or {}) and (pm["picker"] or {}).get("value") == "manual"
+                and not any(b.startswith("Preset «") for b in pm["preview_badges"]),
+            "switching_tab_rewrites_the_hash": out["hash_after_tab_click"].startswith("#/bank-recon?tab=reconcile&account="),
+            "a_deeplink_to_inbox_after_switching_tabs_lands_on_the_inbox_tab": out["tab_after_deeplink"] == "Folder terpantau",
             "the_screens_never_scroll_sideways": sc["scrolls_sideways"] is False and sc2["scrolls_sideways"] is False and im["scrolls_sideways"] is False,
             "no_console_error": errors == [],
         }
@@ -10761,6 +10830,7 @@ def s39m(browser):
             "the_failed_sentence_is_readable_on_a_phone": "Kolom 4 pada preset" in (files.get("BANK-BCA-OPS/mei-judul-bergeser.csv", {}).get("error") or ""),
             "the_inbox_screen_never_scrolls_sideways": sc["scrolls_sideways"] is False,
             "no_inbox_text_is_clipped_on_a_phone": out["inbox_overflow"] == 0,
+            "last_checked_tile_carries_the_sqlite_stamp_on_a_phone": sc["last_checked_iso"] is not None and sc["last_checked_iso"] == _p3c_db_truth()["checked_at_iso"],
             "the_four_presets_render_on_a_phone_none_selectable": len(im["presets"]) == 4 and all(p["selectable"] == "false" for p in im["presets"]),
             "the_import_screen_never_scrolls_sideways": im["scrolls_sideways"] is False,
             "no_preset_text_is_clipped_on_a_phone": out["import_overflow"] == 0,

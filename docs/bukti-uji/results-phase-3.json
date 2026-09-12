@@ -1939,7 +1939,8 @@
     ]
    ],
    "failed_alarms": 1,
-   "checked_at": "\"2026-09-13T00:16:52+07:00\""
+   "checked_at": "\"2026-09-13T01:44:06+07:00\"",
+   "checked_at_iso": "2026-09-13T01:44:06+07:00"
   },
   "screen": {
    "h1": "Rekonsiliasi Bank",
@@ -1970,9 +1971,11 @@
     },
     {
      "label": "Terakhir diperiksa",
-     "value": "12 Sep 2026 17.16"
+     "value": "12 Sep 2026 18.44"
     }
    ],
+   "last_checked_iso": "2026-09-13T01:44:06+07:00",
+   "counts_note": "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
    "folder_note": null,
    "folder_text": "Tata letak: <folder terpantau>/<KODE-REKENING>/<berkas>. Jalurnya diatur administrator lewat BANK_INBOX_PATH di .env server.\nBerkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.\nPemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan tab Impor: tie-out, rantai periode/saldo, identitas berkas.",
    "check_button": true,
@@ -1980,12 +1983,14 @@
     {
      "code": "BANK-BCA-OPS",
      "badge": "CSV & MT940",
-     "note": "Preset «BCA contoh demo (S39)» memetakan kolom saldo: berkas CSV rekening ini dibaca dari folder; periode dan saldo diturunkan dari kolom saldo berkas."
+     "note": "Preset «BCA contoh demo (S39)» memetakan kolom saldo: berkas CSV rekening ini dibaca dari folder; periode dan saldo diturunkan dari kolom saldo berkas.",
+     "subfolder_note": null
     },
     {
      "code": "BANK-MDR-PRJ",
      "badge": "MT940 saja",
-     "note": "Tanpa preset: berkas CSV rekening ini di folder akan gagal; MT940 tetap dibaca. Simpan preset dari tab Impor."
+     "note": "Tanpa preset: berkas CSV rekening ini di folder akan gagal; MT940 tetap dibaca. Simpan preset dari tab Impor.",
+     "subfolder_note": null
     }
    ],
    "files": [
@@ -2052,9 +2057,11 @@
     },
     {
      "label": "Terakhir diperiksa",
-     "value": "12 Sep 2026 17.16"
+     "value": "12 Sep 2026 18.44"
     }
    ],
+   "last_checked_iso": "2026-09-13T01:44:09+07:00",
+   "counts_note": "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
    "folder_note": null,
    "folder_text": "Tata letak: <folder terpantau>/<KODE-REKENING>/<berkas>. Jalurnya diatur administrator lewat BANK_INBOX_PATH di .env server.\nBerkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.\nPemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan tab Impor: tie-out, rantai periode/saldo, identitas berkas.",
    "check_button": true,
@@ -2062,12 +2069,14 @@
     {
      "code": "BANK-BCA-OPS",
      "badge": "CSV & MT940",
-     "note": "Preset «BCA contoh demo (S39)» memetakan kolom saldo: berkas CSV rekening ini dibaca dari folder; periode dan saldo diturunkan dari kolom saldo berkas."
+     "note": "Preset «BCA contoh demo (S39)» memetakan kolom saldo: berkas CSV rekening ini dibaca dari folder; periode dan saldo diturunkan dari kolom saldo berkas.",
+     "subfolder_note": null
     },
     {
      "code": "BANK-MDR-PRJ",
      "badge": "MT940 saja",
-     "note": "Tanpa preset: berkas CSV rekening ini di folder akan gagal; MT940 tetap dibaca. Simpan preset dari tab Impor."
+     "note": "Tanpa preset: berkas CSV rekening ini di folder akan gagal; MT940 tetap dibaca. Simpan preset dari tab Impor.",
+     "subfolder_note": null
     }
    ],
    "files": [
@@ -2127,7 +2136,8 @@
     ]
    ],
    "failed_alarms": 1,
-   "checked_at": "\"2026-09-13T00:16:56+07:00\""
+   "checked_at": "\"2026-09-13T01:44:09+07:00\"",
+   "checked_at_iso": "2026-09-13T01:44:09+07:00"
   },
   "api": {
    "files": [
@@ -2155,7 +2165,7 @@
     "ignored": 1
    },
    "folder_exists": true,
-   "last_checked_at": "2026-09-13T00:16:56+07:00",
+   "last_checked_at": "2026-09-13T01:44:09+07:00",
    "absolute_path_leaks": false
   },
   "import": {
@@ -2207,8 +2217,161 @@
    },
    "preset_card": "2 · Preset «BCA contoh demo (S39)»",
    "preset_header": "Judul kolom yang diingat: Kolom 1 'Tanggal' · Kolom 2 'Keterangan' · Kolom 4 'Debit' · Kolom 5 'Kredit' · Kolom 6 'Saldo'",
+   "preview_error": null,
+   "preview_badges": [],
    "scrolls_sideways": false
   },
+  "preview_with_preset": {
+   "presets": [
+    {
+     "key": "bca",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Central Asia — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/bca-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari KlikBCA Bisnis (ekspor mutasi rekening) / myBCA Bisnis (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": "docs/samples/rekening-koran-bca-2026-04.csv adalah contoh demo yang cocok dengan data demo — bukan berkas ekspor bank, dan bukan preset."
+    },
+    {
+     "key": "mandiri",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Mandiri — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/mandiri-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari Kopra by Mandiri (ekspor mutasi / MT940) / Mandiri Cash Management (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": "docs/samples/rekening-koran-mandiri-2026-02.sta adalah contoh demo MT940 yang cocok dengan data demo — bukan berkas ekspor bank, dan bukan preset."
+    },
+    {
+     "key": "bni",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Negara Indonesia — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/bni-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari BNIDirect (ekspor mutasi rekening) (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": null
+    },
+    {
+     "key": "bri",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Rakyat Indonesia — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/bri-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari Qlola by BRI / BRImo Bisnis (ekspor mutasi rekening) (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": null
+    }
+   ],
+   "head_badge": "0 dari 4 bank punya berkas ekspor nyata",
+   "picker": {
+    "value": "preset",
+    "options": [
+     "Preset rekening ini: «BCA contoh demo (S39)»",
+     "Tetapkan kolom sendiri"
+    ]
+   },
+   "preset_card": "2 · Preset «BCA contoh demo (S39)»",
+   "preset_header": "Judul kolom yang diingat: Kolom 1 'Tanggal' · Kolom 2 'Keterangan' · Kolom 4 'Debit' · Kolom 5 'Kredit' · Kolom 6 'Saldo'",
+   "preview_error": "Kolom 4 pada preset «BCA contoh demo (S39)» diharapkan 'Debit', berkas berisi 'Mutasi'.",
+   "preview_badges": [],
+   "scrolls_sideways": false
+  },
+  "preview_manual": {
+   "presets": [
+    {
+     "key": "bca",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Central Asia — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/bca-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari KlikBCA Bisnis (ekspor mutasi rekening) / myBCA Bisnis (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": "docs/samples/rekening-koran-bca-2026-04.csv adalah contoh demo yang cocok dengan data demo — bukan berkas ekspor bank, dan bukan preset."
+    },
+    {
+     "key": "mandiri",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Mandiri — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/mandiri-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari Kopra by Mandiri (ekspor mutasi / MT940) / Mandiri Cash Management (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": "docs/samples/rekening-koran-mandiri-2026-02.sta adalah contoh demo MT940 yang cocok dengan data demo — bukan berkas ekspor bank, dan bukan preset."
+    },
+    {
+     "key": "bni",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Negara Indonesia — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/bni-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari BNIDirect (ekspor mutasi rekening) (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": null
+    },
+    {
+     "key": "bri",
+     "selectable": "false",
+     "verified": "false",
+     "badge": "Belum ada berkas ekspor nyata",
+     "verification": "BELUM ADA BERKAS EKSPOR NYATA Bank Rakyat Indonesia — belum ada berkas ekspor nyata di docs/samples/bank/ untuk bank ini; preset bawaannya tidak ditulis dari ingatan. Simpan preset per rekening dari layar Impor sesudah pratinjau berkas Anda sendiri berhasil (docs/samples/bank/README.md).",
+     "awaiting": "Menunggu berkas docs/samples/bank/bri-<kanal>-<YYYY-MM-DD>.<ekstensi asli> — ekspor nyata dari Qlola by BRI / BRImo Bisnis (ekspor mutasi rekening) (diletakkan pemilik; lihat docs/samples/bank/README.md).",
+     "demo": null
+    }
+   ],
+   "head_badge": "0 dari 4 bank punya berkas ekspor nyata",
+   "picker": {
+    "value": "manual",
+    "options": [
+     "Preset rekening ini: «BCA contoh demo (S39)»",
+     "Tetapkan kolom sendiri"
+    ]
+   },
+   "preset_card": null,
+   "preset_header": null,
+   "preview_error": "Baris 2 mengisi kolom debit dan kredit sekaligus.",
+   "preview_badges": [],
+   "scrolls_sideways": false
+  },
+  "preview_requests": [
+   {
+    "bank_account_id": 1,
+    "format": "csv",
+    "content": "Tanggal;Keterangan;Cabang;Mutasi;Kredit;Saldo\n02/04/2026;TRSF E-BANKING DB PT SEMEN DISTRIBUSI UTAMA;0001;232.545.000,00;;-232.545.000,00\n30/04/2026;BIAYA ADM BULANAN;0001;250.000,00;;-232.795.000,00\n",
+    "use_preset": true,
+    "mapping": {
+     "period_start": "2026-08-01",
+     "period_end": "2026-08-31",
+     "opening_balance": 0,
+     "closing_balance": 0
+    }
+   },
+   {
+    "bank_account_id": 1,
+    "format": "csv",
+    "content": "Tanggal;Keterangan;Cabang;Mutasi;Kredit;Saldo\n02/04/2026;TRSF E-BANKING DB PT SEMEN DISTRIBUSI UTAMA;0001;232.545.000,00;;-232.545.000,00\n30/04/2026;BIAYA ADM BULANAN;0001;250.000,00;;-232.795.000,00\n",
+    "use_preset": false,
+    "mapping": {
+     "delimiter": ";",
+     "skip_rows": 1,
+     "date_column": 0,
+     "date_format": "dd/mm/yyyy",
+     "description_column": 1,
+     "amount_mode": "debit_credit",
+     "debit_column": 2,
+     "credit_column": 3,
+     "amount_column": null,
+     "indicator_column": null,
+     "balance_column": null,
+     "reference_column": null,
+     "number_format": "id",
+     "period_start": "2026-08-01",
+     "period_end": "2026-08-31",
+     "opening_balance": 0,
+     "closing_balance": 0
+    }
+   }
+  ],
+  "deliberate_422_console": [
+   "console error: Failed to load resource: the server responded with a status of 422 (Unprocessable Content)",
+   "console error: Failed to load resource: the server responded with a status of 422 (Unprocessable Content)"
+  ],
+  "hash_after_tab_click": "#/bank-recon?tab=reconcile&account=1",
+  "tab_after_deeplink": "Folder terpantau",
   "console_errors": [],
   "checks": {
    "the_preset_fixture_ran_through_the_real_pipeline": true,
@@ -2219,6 +2382,9 @@
    "the_screen_has_five_tabs_and_the_inbox_tab_is_active": true,
    "the_tiles_read_the_ledger": true,
    "last_checked_is_the_written_stamp_not_never": true,
+   "last_checked_tile_carries_the_sqlite_stamp_not_the_clock": true,
+   "the_tiles_say_they_count_the_last_check": true,
+   "no_account_is_flagged_as_unusable_subfolder": true,
    "the_folder_exists_so_no_missing_note_is_shown": true,
    "the_folder_card_says_who_puts_files_there_and_that_nothing_is_moved": true,
    "the_folder_card_does_not_claim_the_scheduler_is_alive": true,
@@ -2232,13 +2398,19 @@
    "the_four_built_in_presets_render_none_selectable": true,
    "the_awaiting_sentence_names_the_folder_and_the_demo_note_says_demo": true,
    "the_account_preset_picker_offers_the_saved_preset_and_the_card_remembers_the_header": true,
+   "preview_with_preset_sends_use_preset_true_and_only_per_file_keys": true,
+   "preview_with_preset_draws_the_422_sentence_naming_the_column": true,
+   "only_the_two_deliberate_422s_touched_the_console": true,
+   "manual_mapping_sends_use_preset_false_with_the_full_mapping_and_no_preset_badge": true,
+   "switching_tab_rewrites_the_hash": true,
+   "a_deeplink_to_inbox_after_switching_tabs_lands_on_the_inbox_tab": true,
    "the_screens_never_scroll_sideways": true,
    "no_console_error": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7605,
-  "_clicks": 1
+  "_ms": 14825,
+  "_clicks": 4
  },
  "S39_folder_terpantau_ponsel": {
   "fixture": {
@@ -2278,9 +2450,11 @@
     },
     {
      "label": "Terakhir diperiksa",
-     "value": "12 Sep 2026 17.16"
+     "value": "12 Sep 2026 18.44"
     }
    ],
+   "last_checked_iso": "2026-09-13T01:44:20+07:00",
+   "counts_note": "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
    "folder_note": null,
    "folder_text": "Tata letak: <folder terpantau>/<KODE-REKENING>/<berkas>. Jalurnya diatur administrator lewat BANK_INBOX_PATH di .env server.\nBerkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.\nPemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan tab Impor: tie-out, rantai periode/saldo, identitas berkas.",
    "check_button": true,
@@ -2288,12 +2462,14 @@
     {
      "code": "BANK-BCA-OPS",
      "badge": "CSV & MT940",
-     "note": "Preset «BCA contoh demo (S39)» memetakan kolom saldo: berkas CSV rekening ini dibaca dari folder; periode dan saldo diturunkan dari kolom saldo berkas."
+     "note": "Preset «BCA contoh demo (S39)» memetakan kolom saldo: berkas CSV rekening ini dibaca dari folder; periode dan saldo diturunkan dari kolom saldo berkas.",
+     "subfolder_note": null
     },
     {
      "code": "BANK-MDR-PRJ",
      "badge": "MT940 saja",
-     "note": "Tanpa preset: berkas CSV rekening ini di folder akan gagal; MT940 tetap dibaca. Simpan preset dari tab Impor."
+     "note": "Tanpa preset: berkas CSV rekening ini di folder akan gagal; MT940 tetap dibaca. Simpan preset dari tab Impor.",
+     "subfolder_note": null
     }
    ],
    "files": [
@@ -2378,6 +2554,8 @@
    },
    "preset_card": "2 · Preset «BCA contoh demo (S39)»",
    "preset_header": "Judul kolom yang diingat: Kolom 1 'Tanggal' · Kolom 2 'Keterangan' · Kolom 4 'Debit' · Kolom 5 'Kredit' · Kolom 6 'Saldo'",
+   "preview_error": null,
+   "preview_badges": [],
    "scrolls_sideways": false
   },
   "import_overflow": 0,
@@ -2388,6 +2566,7 @@
    "the_failed_sentence_is_readable_on_a_phone": true,
    "the_inbox_screen_never_scrolls_sideways": true,
    "no_inbox_text_is_clipped_on_a_phone": true,
+   "last_checked_tile_carries_the_sqlite_stamp_on_a_phone": true,
    "the_four_presets_render_on_a_phone_none_selectable": true,
    "the_import_screen_never_scrolls_sideways": true,
    "no_preset_text_is_clipped_on_a_phone": true,
@@ -2395,7 +2574,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 5174,
+  "_ms": 3848,
   "_clicks": 0
  }
 }
