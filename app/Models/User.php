@@ -34,6 +34,10 @@ class User extends Authenticatable
             // Deliberately not fillable: only PUT iam/me/onboarding writes it,
             // through forceFill, on the caller's own record.
             'onboarding_seen_at' => 'datetime',
+            // P-3a: phone_e164 / whatsapp_opt_in_* are written ONLY through
+            // Modules\Core\Support\WhatsAppConsent (forceFill) — consent is
+            // stamped, never mass-assigned.
+            'whatsapp_opt_in_at' => 'datetime',
         ];
     }
 }

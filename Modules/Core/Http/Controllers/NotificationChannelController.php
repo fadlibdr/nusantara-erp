@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 use Modules\Core\Http\ApiController;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\DeliveryGate;
+use Modules\Core\Support\NotificationTemplates;
 use Modules\Core\Support\QuietHours;
+use Modules\Core\Support\WhatsAppSetup;
 
 /**
  * GET core/me/notification-channels — apa yang akan TERJADI pada
@@ -35,7 +37,9 @@ class NotificationChannelController extends ApiController
 
         $channels = [];
         foreach (DeliveryGate::USER_CHANNELS as $channel) {
-            $reason = DeliveryGate::reasonToSkip($channel, $user);
+            // Tanpa pemeriksaan template: ringkasan ini tentang ORANGNYA, bukan
+            // satu peristiwa; kesiapan template dilaporkan terpisah di bawah.
+            $reason = DeliveryGate::reasonToSkip($channel, $user, null, false);
 
             $channels[] = [
                 'channel' => $channel,
@@ -56,6 +60,22 @@ class NotificationChannelController extends ApiController
             'quiet_now' => $postpone !== null,
             'postponed_until' => $postpone === null ? null : $postpone['until']->toIso8601String(),
             'zone' => QuietHours::ZONE,
+            // Kesiapan WhatsApp — angka yang DIUKUR dari .env, bukan klaim:
+            // "0 dari 5 template terisi" adalah keadaan repo ini sampai pemilik
+            // memasukkannya (KEPUTUSAN-INTEGRASI.md §4). Tanpa satu pun nilai
+            // rahasia di jawaban ini.
+            'whatsapp' => [
+                'provider' => WhatsAppSetup::provider(),
+                'configured' => WhatsAppSetup::configured(),
+                'templates_ready' => count(array_filter(
+                    NotificationTemplates::KEYS,
+                    static fn (string $key): bool => WhatsAppSetup::templateName($key) !== null,
+                )),
+                'templates_total' => count(NotificationTemplates::KEYS),
+                'phone_e164' => $user->phone_e164,
+                'opt_in_at' => $user->whatsapp_opt_in_at?->toIso8601String(),
+                'opt_in_via' => $user->whatsapp_opt_in_via,
+            ],
         ]);
     }
 }

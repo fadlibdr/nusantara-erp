@@ -97,7 +97,7 @@ class QueueFailedJobsTest extends ErpTestCase
 
         app(NotificationService::class)->system('core.update', 'Uji pengiriman', 'Isi.');
 
-        $delivery = NotificationDelivery::query()->sole();
+        $delivery = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::QUEUED, $delivery->status);
 
         foreach (range(1, 5) as $attempt) {
@@ -173,7 +173,7 @@ class QueueFailedJobsTest extends ErpTestCase
 
         $this->assertSame(1, DB::table('failed_jobs')->count(), 'Catatan gagal tidak boleh hilang bila tidak ada yang dikirim ulang.');
         $this->assertSame(0, DB::table('jobs')->count(), 'Tidak ada job yang boleh kembali ke antrean.');
-        $this->assertSame(NotificationDelivery::FAILED, NotificationDelivery::query()->sole()->status);
+        $this->assertSame(NotificationDelivery::FAILED, NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole()->status);
 
         // Daftarnya menyebut baris pengirimannya, dan SPA menyembunyikan tombolnya.
         $row = $this->getJson('/api/core/queue/failed')->assertOk()->json('data.0');

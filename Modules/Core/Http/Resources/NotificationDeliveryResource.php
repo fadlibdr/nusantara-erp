@@ -27,6 +27,9 @@ class NotificationDeliveryResource extends JsonResource
             'status' => $this->status,
             'attempts' => (int) $this->attempts,
             'provider_id' => $this->provider_id,
+            // P-3a: status balik dari webhook Meta (sent|delivered|read|failed), terpisah dari `status`.
+            'provider_status' => $this->provider_status,
+            'provider_status_at' => $this->provider_status_at?->toIso8601String(),
             'error' => $this->error,
             'sent_at' => $this->sent_at?->toIso8601String(),
             'next_attempt_at' => $this->next_attempt_at?->toIso8601String(),

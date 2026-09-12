@@ -116,6 +116,61 @@ function channelsCard(state, reload) {
   ]);
 }
 
+/* Nomor WhatsApp + opt-in (T3a.3). Persetujuan BERTANGGAL: yang dikirim hanya
+   sikap (true/false) dan nomornya; stempel "kapan, lewat apa" dipasang server
+   (WhatsAppConsent, via 'profil') dan dibaca kembali dari jawaban. Mengganti
+   nomor mengosongkan persetujuan lama — kalimat itu ditulis di layar. */
+function phoneCard(state, reload) {
+  const wa = state.whatsapp || {};
+  const phone = el('input', { type: 'tel', id: 'wa-phone', placeholder: '+6281234567890', autocomplete: 'tel' });
+  phone.value = wa.phone_e164 || '';
+  const optIn = el('input', { type: 'checkbox', id: 'wa-optin' });
+  optIn.checked = Boolean(wa.opt_in_at);
+
+  const stamp = wa.opt_in_at
+    ? el('.cell-sub.profil-optin', { dataset: { state: 'on' }, text: `Opt-in tercatat ${wib(wa.opt_in_at)} lewat ${wa.opt_in_via === 'admin' ? 'administrator' : 'Profil'}.` })
+    : el('.cell-sub.profil-optin', { dataset: { state: 'off' }, text: 'Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.' });
+
+  const readiness = el('.cell-sub', {
+    text: `Kesiapan kanal di server: penyedia ${wa.provider || 'meta'}, kredensial ${wa.configured ? 'terisi' : 'belum diisi'}, `
+      + `template disetujui Meta ${wa.templates_ready ?? 0} dari ${wa.templates_total ?? 5} — prasyarat pemilik (docs/KEPUTUSAN-INTEGRASI.md).`,
+  });
+
+  const save = button('Simpan nomor & opt-in', {
+    variant: 'primary', iconName: 'check',
+    onClick: (event) => withBusy(event.currentTarget, async () => {
+      try {
+        const payload = await api.put('iam/me/phone', { phone_e164: phone.value.trim() || null, whatsapp_opt_in: optIn.checked });
+        // Jawabannya berbentuk auth/me: salinan sesi ikut diperbarui.
+        if (payload && payload.id) session.setUser(payload);
+        toast('Nomor WhatsApp disimpan.');
+        await reload();
+      } catch (error) {
+        // 422 E.164 dari server: kalimatnya ke orangnya, di bawah kotaknya.
+        toastError(error);
+      }
+    }),
+  });
+
+  return el('.card.profil-phone', [
+    el('.card-head', [el('h2', { text: 'Nomor WhatsApp' }), el('.spacer')]),
+    el('.card-body', [
+      el('.form-grid', [
+        el('.field', [el('label', { for: 'wa-phone', text: 'Nomor (format internasional E.164)' }), phone,
+          el('.help', { text: 'Contoh +6281234567890, tanpa spasi/strip. Nomor lokal 08… diterima dan diubah ke +62. Kosongkan untuk menghapus.' })]),
+        el('.field', [
+          el('label', { text: 'Persetujuan' }),
+          el('.check-row', [optIn, el('label', { for: 'wa-optin', text: 'Saya setuju menerima pemberitahuan Nusantara ERP lewat WhatsApp di nomor ini' })]),
+          stamp,
+        ]),
+      ]),
+      el('.cell-sub', { style: { marginTop: '6px' }, text: 'Mengganti nomor mengosongkan persetujuan lama; centang lagi bila nomor baru juga disetujui.' }),
+      readiness,
+      el('.row-actions', { style: { marginTop: '12px' } }, [save]),
+    ]),
+  ]);
+}
+
 function quietHoursCard(state, reload) {
   const quiet = state.quiet_hours;
   const on = el('input', { type: 'checkbox', id: 'quiet-on' });
@@ -196,6 +251,7 @@ export async function renderProfil(host) {
     }
     clear(body);
     body.appendChild(channelsCard(state, reload));
+    body.appendChild(phoneCard(state, reload));
     body.appendChild(quietHoursCard(state, reload));
   }
 
@@ -207,5 +263,7 @@ export async function renderProfil(host) {
 export const PROFIL_SELECTORS = {
   channel: '.profil-channel',
   status: '.profil-status',
+  phone: '.profil-phone',
+  optin: '.profil-optin',
   quiet: '.profil-quiet',
 };

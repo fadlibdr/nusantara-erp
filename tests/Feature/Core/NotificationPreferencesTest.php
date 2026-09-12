@@ -164,7 +164,7 @@ class NotificationPreferencesTest extends ErpTestCase
 
         $this->alarm();
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
         $this->assertSame('Dimatikan pengguna di Profil › Notifikasi.', $row->error);
         Queue::assertNothingPushed();
@@ -180,7 +180,7 @@ class NotificationPreferencesTest extends ErpTestCase
 
         $this->alarm();
 
-        $this->assertSame(NotificationDelivery::QUEUED, NotificationDelivery::query()->sole()->status);
+        $this->assertSame(NotificationDelivery::QUEUED, NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole()->status);
         Queue::assertPushed(DeliverNotification::class, 1);
     }
 
@@ -191,7 +191,7 @@ class NotificationPreferencesTest extends ErpTestCase
         $user = $this->holder();
         $this->prefer($user, 'notify.channels', ['email' => false]);
         $this->alarm();
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
 
         $this->actingAs($this->adminUser(), 'sanctum');
         $response = $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertStatus(422);
@@ -262,7 +262,7 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->assertSame('2026-09-12 02:00', $inApp->created_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
 
         // Kotak keluar: menunggu, tidak dibuang.
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::QUEUED, $row->status);
         $this->assertSame('2026-09-12 06:00', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
         $this->assertSame(
@@ -288,7 +288,7 @@ class NotificationPreferencesTest extends ErpTestCase
 
         $this->alarm();
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame('2026-09-12 06:00', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
         $this->assertStringContainsString('sampai 12 Sep 2026 06:00 WIB', (string) $row->error);
     }
@@ -303,7 +303,7 @@ class NotificationPreferencesTest extends ErpTestCase
 
         $this->alarm();
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertNull($row->next_attempt_at);
         $this->assertNull($row->error);
         Queue::assertPushed(DeliverNotification::class, fn (DeliverNotification $job) => $job->delay === null);
@@ -323,7 +323,7 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->prefer($user, 'notify.quiet_hours', ['start' => '22:00', 'end' => '06:00']);
         $this->atWib('12:00');
         $this->alarm();
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertNull($row->next_attempt_at, 'Ditulis di luar jendela: tanpa penundaan.');
 
         // Pekerja baru sempat mengambilnya pukul 22.05.

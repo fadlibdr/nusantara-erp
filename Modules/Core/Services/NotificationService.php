@@ -46,8 +46,11 @@ use Modules\Core\Support\SegregationOfDuties;
  *    still wraps is the DISPATCH: a dead queue must never roll back an
  *    approval, but the queued row it leaves behind is exactly what the screen
  *    shows.
- *  - WHATSAPP and web push are Fase 3: implement DeliveryChannel, register it
- *    in DeliveryChannels, and write their rows in outbox().
+ *  - WHATSAPP (Fase 3 / P-3a, T3a.3) goes through the same outbox: one row
+ *    per recipient beside the e-mail row, `skipped` with the reason until the
+ *    owner's prerequisites are met (KEPUTUSAN-INTEGRASI.md). Web push is
+ *    still Fase 3 (P-3e): implement DeliveryChannel, register it in
+ *    DeliveryChannels, add it to DeliveryGate::USER_CHANNELS.
  */
 class NotificationService
 {
@@ -355,7 +358,7 @@ class NotificationService
 
     /**
      * Kotak keluar: satu baris pengiriman per kanal luar untuk notifikasi yang
-     * baru ditulis, lalu job-nya. Hari ini satu kanal (e-mail).
+     * baru ditulis, lalu job-nya. Dua kanal sejak T3a.3 (e-mail, WhatsApp).
      *
      * Barisnya ditulis DULU — kalau tulisan ke tabel sendiri gagal, tidak ada
      * yang bisa dilaporkan selain log, dan write() menjaga agar kegagalan itu
@@ -371,8 +374,17 @@ class NotificationService
      */
     private function outbox(Notification $notification, User $recipient): void
     {
-        $channel = NotificationDelivery::CHANNEL_EMAIL;
-        $reason = DeliveryGate::reasonToSkip($channel, $recipient);
+        // Satu baris per kanal luar per penerima — e-mail DAN WhatsApp (T3a.3),
+        // masing-masing di balik guard-nya sendiri: tulisan WhatsApp yang gagal
+        // tidak boleh menghilangkan baris e-mail orang yang sama.
+        foreach (DeliveryGate::USER_CHANNELS as $channel) {
+            $this->guard(fn () => $this->outboxRow($notification, $recipient, $channel));
+        }
+    }
+
+    private function outboxRow(Notification $notification, User $recipient, string $channel): void
+    {
+        $reason = DeliveryGate::reasonToSkip($channel, $recipient, $notification->template);
 
         $delivery = new NotificationDelivery([
             'notification_id' => $notification->id,
@@ -451,7 +463,7 @@ class NotificationService
         // Gerbang yang SAMA dengan pengiriman pertama (DeliveryGate, P-3a):
         // sebabnya ditolak dengan kalimat + petunjuknya, bukan diantrekan
         // untuk `skipped` lagi.
-        $reason = DeliveryGate::reasonToSkip($delivery->channel, $recipient);
+        $reason = DeliveryGate::reasonToSkip($delivery->channel, $recipient, $delivery->notification?->template);
 
         if ($reason !== null) {
             throw new DeliveryRetryRefusedException(DeliveryGate::retryRefusal($reason));

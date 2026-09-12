@@ -5501,6 +5501,8 @@ export const RESOURCES = {
       { key: 'name', label: 'Nama', type: 'text', sub: 'email' },
       { key: 'roles', label: 'Peran', type: 'tags' },
       { key: 'employee_id', label: 'Karyawan', type: 'rel', lookup: 'employees' },
+      // P-3a: nomor WhatsApp; sub-barisnya "Opt-in …" dibaca dari kolom turunan.
+      { key: 'phone_e164', label: 'WhatsApp', type: 'text', hideOnNarrow: true },
       { key: 'is_active', label: 'Aktif', type: 'bool', align: 'center' },
     ],
     filters: [
@@ -5517,6 +5519,12 @@ export const RESOURCES = {
           { key: 'employee_id', label: 'Karyawan terkait', type: 'lookup', lookup: 'employees' },
           { key: 'roles', label: 'Peran', type: 'multiselect', lookup: 'roles', valueKey: 'name', span: 2 },
           { key: 'is_active', label: 'Aktif', type: 'bool', default: true },
+          /* P-3a (T3a.3) — nomor WhatsApp E.164 + opt-in yang dicatat administrator
+             atas persetujuan yang diberikan DI LUAR aplikasi (stempelnya via 'admin',
+             bertanggal saat disimpan). Orangnya sendiri mengisinya di Profil ›
+             Notifikasi. Mengganti nomor mengosongkan persetujuan lama. */
+          { key: 'phone_e164', label: 'Nomor WhatsApp (E.164)', type: 'text', help: '+6281234567890 tanpa spasi/strip; 08… diterima dan diubah ke +62. Kosongkan bila tidak ada.' },
+          { key: 'whatsapp_opt_in', label: 'Opt-in WhatsApp tercatat', type: 'bool', help: 'Centang hanya bila orangnya sudah menyetujui menerima pesan WhatsApp dari ERP (persetujuan dicatat bertanggal, lewat administrator).' },
         ],
       }],
     },
@@ -5917,6 +5925,9 @@ export const RESOURCES = {
       // dan di kolom alasan). Tanpa kolom ini "Antre" sejak 02.00 terbaca macet.
       { key: 'next_attempt_at', label: 'Berikutnya', type: 'datetime', hideOnNarrow: true },
       { key: 'sent_at', label: 'Terkirim', type: 'datetime', hideOnNarrow: true },
+      // P-3a: status balik webhook Meta — kosong untuk e-mail dan untuk pesan
+      // yang belum dilaporkan; `sent` baris ≠ sampai ke orangnya.
+      { key: 'provider_status', label: 'Status penyedia', type: 'enum', enum: 'waProviderStatus', width: '1%', hideOnNarrow: true },
     ],
     filters: [
       { key: 'status', label: 'Status', enum: 'deliveryStatus' },

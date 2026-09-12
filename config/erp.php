@@ -325,6 +325,46 @@ return [
     */
     'notifications' => [
         'email_enabled' => false,
+        // P-3a: sakelar WhatsApp — mati sampai WHATSAPP_* di .env terisi dan
+        // template disetujui Meta (KEPUTUSAN-INTEGRASI.md §4).
+        'whatsapp_enabled' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | WhatsApp (P-3a, T3a.3) — SEMUA dari .env, KOSONG di repo
+    |--------------------------------------------------------------------------
+    | Penyedia: 'meta' = Meta Cloud API langsung (jalur utama, KEPUTUSAN-
+    | INTEGRASI §5); 'qontak' dikenali tetapi pengirimnya belum ditulis
+    | (kanal menjawab skipped yang mengatakannya). Fonnte & sejenis tidak punya
+    | mode — dengan sengaja.
+    |
+    | token, app_secret, verify_token adalah RAHASIA: hanya di .env, tidak
+    | pernah di core_settings, jawaban API, kolom error, atau log
+    | (ProviderErrorScrubber menyaring jawaban penyedia sebelum disimpan).
+    |
+    | templates.* = NAMA template yang DISETUJUI Meta untuk tiap peristiwa
+    | NotificationTemplates, tiga placeholder {{1}} judul {{2}} isi {{3}}
+    | tautan. Kosong = peristiwa itu skipped "template belum disetujui".
+    | Nama variabelnya tercantum di DEPLOYMENT.md §11.
+    */
+    'whatsapp' => [
+        'provider' => env('WHATSAPP_PROVIDER', 'meta'),
+        'api_base' => env('WHATSAPP_API_BASE', 'https://graph.facebook.com'),
+        'api_version' => env('WHATSAPP_API_VERSION', 'v21.0'),
+        'token' => env('WHATSAPP_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
+        'language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'id'),
+        'timeout_seconds' => 15,
+        'templates' => [
+            'deadline.due' => env('WHATSAPP_TEMPLATE_DEADLINE_DUE'),
+            'approval.escalated' => env('WHATSAPP_TEMPLATE_APPROVAL_ESCALATED'),
+            'ar.dunning' => env('WHATSAPP_TEMPLATE_AR_DUNNING'),
+            'backup.stale' => env('WHATSAPP_TEMPLATE_BACKUP_STALE'),
+            'scheduler.down' => env('WHATSAPP_TEMPLATE_SCHEDULER_DOWN'),
+        ],
     ],
 
     /*

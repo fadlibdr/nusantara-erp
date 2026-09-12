@@ -281,11 +281,9 @@ class NotificationTemplatesTest extends ErpTestCase
         $this->assertStringContainsString('Buka dokumen', (string) $generic->getHtmlBody());
         $this->assertStringContainsString('/app/r/finance/periods', (string) $generic->getHtmlBody());
 
-        $this->assertSame(
-            ['backup.stale', null],
-            NotificationDelivery::query()->orderBy('id')->get()->map(fn ($d) => $d->notification->template)->all(),
-        );
-        $this->assertSame([NotificationDelivery::SENT, NotificationDelivery::SENT], NotificationDelivery::query()->orderBy('id')->pluck('status')->all());
+        $emailRows = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->orderBy('id')->get();
+        $this->assertSame(['backup.stale', null], $emailRows->map(fn ($d) => $d->notification->template)->all());
+        $this->assertSame([NotificationDelivery::SENT, NotificationDelivery::SENT], $emailRows->pluck('status')->all());
     }
 
     public function test_the_delivery_resource_carries_the_template(): void
@@ -295,7 +293,7 @@ class NotificationTemplatesTest extends ErpTestCase
         app(NotificationService::class)->system('core.update', 'Penjadwal tidak berjalan', 'Isi.', null, null, null, NotificationTemplates::SCHEDULER_DOWN);
 
         $this->actingAs($admin, 'sanctum');
-        $row = $this->getJson('/api/core/notification-deliveries')->assertOk()->json('data.0');
+        $row = $this->getJson('/api/core/notification-deliveries?channel=email')->assertOk()->json('data.0');
 
         $this->assertSame('scheduler.down', $row['template']);
         $this->assertSame('Penjadwal tidak berjalan', $row['title']);

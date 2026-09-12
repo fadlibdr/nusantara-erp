@@ -20,6 +20,14 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'employee_id' => $this->employee_id,
             'is_active' => (bool) $this->is_active,
+            // P-3a (T3a.3): nomor WhatsApp E.164 + opt-in BERSTEMPEL WAKTU.
+            // `whatsapp_opt_in` adalah turunan (stempel ada?) supaya formulir
+            // generik Sistem › Pengguna membulatkannya kembali; kebenarannya
+            // tetap `whatsapp_opt_in_at` + `whatsapp_opt_in_via`.
+            'phone_e164' => $this->phone_e164,
+            'whatsapp_opt_in' => $this->whatsapp_opt_in_at !== null,
+            'whatsapp_opt_in_at' => $this->whatsapp_opt_in_at?->toIso8601String(),
+            'whatsapp_opt_in_via' => $this->whatsapp_opt_in_via,
             'roles' => $this->roles->pluck('name')->values(),
             'permissions' => $this->getAllPermissions()->pluck('name')->sort()->values(),
             /*

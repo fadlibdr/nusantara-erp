@@ -134,7 +134,7 @@ class NotificationDeliveryTest extends ErpTestCase
 
         $this->bill()->submit($this->userWith('fin.create', 'Staf AP'));
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::QUEUED, $row->status);
         $this->assertSame(NotificationDelivery::CHANNEL_EMAIL, $row->channel);
         $this->assertSame($approver->email, $row->recipient);
@@ -151,7 +151,7 @@ class NotificationDeliveryTest extends ErpTestCase
 
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
         $this->assertSame('E-mail dinonaktifkan di Pengaturan.', $row->error);
         $this->assertNull($row->sent_at);
@@ -169,7 +169,7 @@ class NotificationDeliveryTest extends ErpTestCase
 
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
         $this->assertSame('Penerima tidak punya alamat e-mail.', $row->error);
         Queue::assertNothingPushed();
@@ -186,7 +186,7 @@ class NotificationDeliveryTest extends ErpTestCase
         $bill->submit($this->userWith('fin.create', 'Staf'));
 
         $this->assertSame('submitted', $bill->refresh()->status->value);
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::QUEUED, $row->status);
         $this->assertSame(0, $row->attempts);
     }
@@ -221,9 +221,12 @@ class NotificationDeliveryTest extends ErpTestCase
         $inApp = Notification::query()->where('event', Notification::SUBMITTED)->pluck('user_id')->sort()->values()->all();
         $this->assertSame(collect([$a->id, $b->id])->sort()->values()->all(), $inApp, 'Kedua penyetuju harus punya baris dalam aplikasi.');
 
-        // Penerima yang tulisannya gagal tidak punya baris kotak keluar (hanya
-        // log); penerima berikutnya tetap diproses.
-        $this->assertSame(1, NotificationDelivery::query()->count());
+        // Penerima yang tulisannya gagal tidak punya baris E-MAIL (hanya log);
+        // baris WhatsApp-nya (skipped, kanal mati) dan penerima berikutnya
+        // tetap diproses — sejak T3a.3 dua baris per penerima, masing-masing
+        // di balik guard-nya sendiri.
+        $this->assertSame(3, NotificationDelivery::query()->count());
+        $this->assertSame(1, NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->count());
         Queue::assertPushed(DeliverNotification::class, 1);
     }
 
@@ -245,7 +248,8 @@ class NotificationDeliveryTest extends ErpTestCase
 
         $this->assertSame(2, Notification::query()->where('event', Notification::SYSTEM)->count());
         $this->assertSame(1, Notification::query()->where('user_id', $second->id)->count());
-        $this->assertSame(1, NotificationDelivery::query()->count());
+        // Tulisan pertama (e-mail admin) gagal; tiga baris lain (WA admin, e-mail + WA admin kedua) tetap ada.
+        $this->assertSame(3, NotificationDelivery::query()->count());
     }
 
     /**
@@ -279,7 +283,8 @@ class NotificationDeliveryTest extends ErpTestCase
         }
 
         $this->assertSame(1, DB::table('jobs')->count(), 'Transaksi yang dibatalkan tidak menyisakan job.');
-        $this->assertSame(1, NotificationDelivery::query()->count(), 'Dan tidak menyisakan baris pengiriman.');
+        // Dua baris (e-mail queued + WhatsApp skipped) dari transaksi yang commit; nol dari yang dibatalkan.
+        $this->assertSame(2, NotificationDelivery::query()->count(), 'Dan tidak menyisakan baris pengiriman.');
     }
 
     // ------------------------------------------------------------------ job
@@ -293,7 +298,7 @@ class NotificationDeliveryTest extends ErpTestCase
         // QUEUE_CONNECTION=sync di phpunit.xml: job berjalan di dalam dispatch.
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::SENT, $row->status);
         $this->assertNotNull($row->sent_at);
         $this->assertSame(1, $row->attempts);
@@ -324,7 +329,7 @@ class NotificationDeliveryTest extends ErpTestCase
 
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::QUEUED, $row->status);
         $this->assertSame(1, DB::table('jobs')->count(), 'Job harus mendarat di tabel jobs.');
 
@@ -472,7 +477,7 @@ class NotificationDeliveryTest extends ErpTestCase
             $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
         }
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::FAILED, $row->status);
         $this->assertSame(1, DB::table('failed_jobs')->count());
 
@@ -530,7 +535,7 @@ class NotificationDeliveryTest extends ErpTestCase
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
         $admin = $this->adminUser();
 
-        $row = NotificationDelivery::query()->where('recipient', '')->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->where('recipient', '')->sole();
         $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
 
         $this->actingAs($admin, 'sanctum');

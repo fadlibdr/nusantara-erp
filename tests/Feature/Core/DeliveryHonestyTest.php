@@ -139,7 +139,7 @@ class DeliveryHonestyTest extends ErpTestCase
 
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
 
-        $row = NotificationDelivery::query()->sole();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::SKIPPED, $row->status);
         $this->assertStringStartsWith('MAIL_MAILER=log — belum ada server surel', (string) $row->error);
         $this->assertNull($row->provider_id);

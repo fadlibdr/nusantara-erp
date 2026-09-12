@@ -103,7 +103,7 @@ class DeliverNotification implements ShouldQueueAfterCommit
         $recipient = $delivery->notification->user;
         $reason = $recipient === null
             ? 'Penerima tidak ada lagi.'
-            : DeliveryGate::reasonToSkip($delivery->channel, $recipient);
+            : DeliveryGate::reasonToSkip($delivery->channel, $recipient, $delivery->notification->template);
 
         if ($reason !== null) {
             $this->skip($delivery, $reason);
