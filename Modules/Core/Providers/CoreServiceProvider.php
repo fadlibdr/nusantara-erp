@@ -20,6 +20,7 @@ use Modules\Core\Console\Commands\SqliteToMysqlCommand;
 use Modules\Core\Console\Commands\WatchdogAlarmCommand;
 use Modules\Core\Events\DocumentTransitioned;
 use Modules\Core\Http\Middleware\ExplainTokenScopeRefusal;
+use Modules\Core\Listeners\DispatchDocumentWebhooks;
 use Modules\Core\Listeners\SendApprovalNotifications;
 use Modules\Core\Models\Approval;
 use Modules\Core\Services\AuditService;
@@ -124,6 +125,14 @@ class CoreServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'coredoc');
 
         Event::listen(DocumentTransitioned::class, SendApprovalNotifications::class);
+
+        /*
+         * P-3d — pendengar KEDUA: webhook keluar. Didaftarkan di sebelah yang
+         * pertama dan dengan bentuk yang sama (ShouldHandleEventsAfterCommit),
+         * karena keduanya menghadapi masalah yang sama: peristiwanya
+         * dipancarkan dari DALAM transaksi bisnis.
+         */
+        Event::listen(DocumentTransitioned::class, DispatchDocumentWebhooks::class);
 
         $this->registerApiTokenScope();
 
