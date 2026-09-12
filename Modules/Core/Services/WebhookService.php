@@ -84,7 +84,10 @@ class WebhookService
         }
 
         $eventId = WebhookPayload::newEventId();
-        $body = WebhookPayload::encode(WebhookPayload::build($document, $action, $actor, $note, $eventId));
+        $payload = WebhookPayload::build($document, $action, $actor, $note, $eventId);
+        // SATU KALI menjadi byte, dan byte itulah yang ditandatangani, dikirim,
+        // dan disimpan. Lihat WebhookPayload::encode().
+        $body = WebhookPayload::encode($payload);
         $timestamp = now()->getTimestamp();
         $queued = 0;
 
@@ -97,7 +100,7 @@ class WebhookService
                 'event' => $event,
                 'document_type' => $documentType,
                 'document_id' => (int) $document->getKey(),
-                'document_code' => $body === '' ? null : (json_decode($body, true)['data']['document_code'] ?? null),
+                'document_code' => $payload['data']['document_code'],
                 'payload' => $body,
                 'signature' => WebhookSignature::header($body, (string) $subscription->secret, $timestamp),
                 'status' => WebhookDelivery::QUEUED,

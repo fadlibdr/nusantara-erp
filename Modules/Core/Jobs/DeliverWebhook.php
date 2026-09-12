@@ -115,7 +115,7 @@ class DeliverWebhook implements ShouldQueueAfterCommit
                 ->withBody((string) $delivery->payload, 'application/json')
                 ->post((string) $delivery->url);
         } catch (Throwable $e) {
-            $this->recordAttemptFailure($delivery, $subscription, null, ProviderErrorScrubber::scrub($e->getMessage()), $webhooks);
+            $this->recordAttemptFailure($delivery, null, ProviderErrorScrubber::scrub($e->getMessage()));
 
             // Alamat yang ditolak kebijakan SSRF tidak akan berubah karena
             // diulang empat kali lagi; ia gagal SEKETIKA, seperti penolakan
@@ -149,7 +149,7 @@ class DeliverWebhook implements ShouldQueueAfterCommit
                 .'yang mengikuti Location bisa mendarat di alamat internal. Pakai URL tujuan akhirnya langsung.'
             : "Penerima menjawab {$response->status()}. ".ProviderErrorScrubber::scrub((string) $response->body());
 
-        $this->recordAttemptFailure($delivery, $subscription, $response->status(), $reason, $webhooks);
+        $this->recordAttemptFailure($delivery, $response->status(), $reason);
 
         throw new \RuntimeException($reason);
     }
@@ -187,13 +187,16 @@ class DeliverWebhook implements ShouldQueueAfterCommit
         }
     }
 
-    private function recordAttemptFailure(
-        WebhookDelivery $delivery,
-        WebhookSubscription $subscription,
-        ?int $status,
-        string $reason,
-        WebhookService $webhooks,
-    ): void {
+    /**
+     * Satu PERCOBAAN yang gagal — bukan satu pengiriman.
+     *
+     * `consecutive_failures` langganan SENGAJA tidak disentuh di sini:
+     * ambang nonaktif-otomatis menghitung PENGIRIMAN yang gagal (lima
+     * percobaannya habis), bukan percobaan. Kalau tidak, satu penerima yang
+     * mati akan mencapai dua puluh dalam empat pengiriman.
+     */
+    private function recordAttemptFailure(WebhookDelivery $delivery, ?int $status, string $reason): void
+    {
         $attempt = $this->attempts();
         $delay = self::BACKOFF[$attempt - 1] ?? null;
 
@@ -202,8 +205,6 @@ class DeliverWebhook implements ShouldQueueAfterCommit
             'error' => Str::limit($reason, 490),
             'next_attempt_at' => $delay === null || $attempt >= $this->tries ? null : now()->addSeconds($delay),
         ])->save();
-
-        unset($webhooks);
     }
 
     private function stop(WebhookDelivery $delivery, string $reason): void
