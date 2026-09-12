@@ -387,20 +387,33 @@ class SettingService
 
             /*
              * Two-way contract for this group:
-             *   notifications.email_enabled  NotificationService::emailEnabled()
+             *   notifications.email_enabled     DeliveryGate::emailReason()
+             *   notifications.whatsapp_enabled  DeliveryGate::whatsappReason()   (P-3a)
              */
             'notifications' => [
                 'label' => 'Notifikasi',
-                'description' => 'Pemberitahuan persetujuan dokumen. Pemberitahuan di dalam aplikasi '
-                    .'selalu aktif; email hanya dikirim bila server email sudah disetel.',
+                'description' => 'Pemberitahuan persetujuan dokumen dan alarm sistem. Pemberitahuan di dalam '
+                    .'aplikasi selalu aktif; e-mail dan WhatsApp hanya dikirim bila servernya sudah disetel '
+                    .'— dan setiap yang tidak terkirim tercatat dengan sebabnya di Sistem › Pengiriman Notifikasi.',
                 'settings' => [
                     [
                         'key' => 'notifications.email_enabled',
                         'label' => 'Kirim juga lewat email',
                         'type' => 'boolean',
                         'help' => 'Nyalakan hanya setelah MAIL_MAILER di .env diarahkan ke server email '
-                            .'sungguhan. Pada pemasangan baru nilainya "log", sehingga menyalakan ini '
-                            .'hanya menuliskan isi pemberitahuan ke berkas log.',
+                            .'sungguhan (DEPLOYMENT.md §11). Pada pemasangan baru nilainya "log": selama itu '
+                            .'setiap pengiriman e-mail dicatat Dilewati — "belum ada server surel" — di '
+                            .'Sistem › Pengiriman Notifikasi, bukan Terkirim.',
+                    ],
+                    [
+                        'key' => 'notifications.whatsapp_enabled',
+                        'label' => 'Kirim juga lewat WhatsApp',
+                        'type' => 'boolean',
+                        'help' => 'Nyalakan hanya setelah tiga prasyarat pemilik terpenuhi (docs/KEPUTUSAN-INTEGRASI.md): '
+                            .'akun WABA terverifikasi Meta (WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID di .env), lima '
+                            .'template disetujui Meta (WHATSAPP_TEMPLATE_* di .env), dan anggaran per percakapan. '
+                            .'Sebelum itu setiap pengiriman WhatsApp dicatat Dilewati dengan sebab yang menyebut apa '
+                            .'yang kurang. Penerima juga harus mengisi nomor dan opt-in di Profil › Notifikasi.',
                     ],
                 ],
             ],

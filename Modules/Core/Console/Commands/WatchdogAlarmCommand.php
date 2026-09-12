@@ -5,6 +5,7 @@ namespace Modules\Core\Console\Commands;
 use Illuminate\Console\Command;
 use Modules\Core\Services\HealthService;
 use Modules\Core\Services\NotificationService;
+use Modules\Core\Support\NotificationTemplates;
 
 /**
  * Alarm dalam aplikasi ketika penjadwal berhenti (Fase 0 / P-0b, T0b.2).
@@ -63,6 +64,7 @@ class WatchdogAlarmCommand extends Command
             null,
             null,
             $at?->toIso8601String() ?? 'never',
+            NotificationTemplates::SCHEDULER_DOWN,
         );
 
         $this->warn(($at === null ? 'Detak jantung belum pernah ada' : "Detak jantung basi ({$age} detik)").' — alarm dinaikkan.');

@@ -19,6 +19,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
 use Tests\Support\AlwaysFailingJob;
+use Tests\Support\UsesCapturingMailer;
 
 /**
  * Sistem › Antrean Gagal (Fase 0 / P-0b, T0b.4): tabel failed_jobs dari layar.
@@ -30,6 +31,8 @@ use Tests\Support\AlwaysFailingJob;
  */
 class QueueFailedJobsTest extends ErpTestCase
 {
+    use UsesCapturingMailer;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -76,6 +79,9 @@ class QueueFailedJobsTest extends ErpTestCase
     private function failOneDelivery(): int
     {
         app(SettingService::class)->set('notifications.email_enabled', true);
+        // P-3a: MAIL_MAILER=array (phpunit.xml) kini jujur `skipped` sebelum
+        // kanal dipanggil; stub penolak di bawah butuh mailer yang "sungguhan".
+        $this->useCapturingMailer();
         app()->instance(MailChannel::class, new class implements DeliveryChannel
         {
             public function name(): string
@@ -91,7 +97,7 @@ class QueueFailedJobsTest extends ErpTestCase
 
         app(NotificationService::class)->system('core.update', 'Uji pengiriman', 'Isi.');
 
-        $delivery = NotificationDelivery::query()->sole();
+        $delivery = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
         $this->assertSame(NotificationDelivery::QUEUED, $delivery->status);
 
         foreach (range(1, 5) as $attempt) {
@@ -167,7 +173,7 @@ class QueueFailedJobsTest extends ErpTestCase
 
         $this->assertSame(1, DB::table('failed_jobs')->count(), 'Catatan gagal tidak boleh hilang bila tidak ada yang dikirim ulang.');
         $this->assertSame(0, DB::table('jobs')->count(), 'Tidak ada job yang boleh kembali ke antrean.');
-        $this->assertSame(NotificationDelivery::FAILED, NotificationDelivery::query()->sole()->status);
+        $this->assertSame(NotificationDelivery::FAILED, NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole()->status);
 
         // Daftarnya menyebut baris pengirimannya, dan SPA menyembunyikan tombolnya.
         $row = $this->getJson('/api/core/queue/failed')->assertOk()->json('data.0');

@@ -3,6 +3,7 @@
 namespace Modules\Iam\Support;
 
 use App\Models\User;
+use Modules\Core\Support\MailTransport;
 
 /**
  * Apa yang halaman masuk boleh katakan soal kata sandi — dijawab server,
@@ -21,12 +22,15 @@ final class PasswordHelp
     /**
      * Mailer yang "berhasil" tanpa ada orang yang menerima: log menulis ke
      * berkas, array menyimpan di memori proses (uji), null membuang.
+     *
+     * Sejak P-3a jawabannya dibaca dari Core\Support\MailTransport — predikat
+     * yang SAMA dipakai kotak keluar notifikasi untuk menulis `skipped`, supaya
+     * halaman masuk dan layar Pengiriman Notifikasi tidak pernah berselisih
+     * tentang apakah surat benar-benar keluar dari mesin ini.
      */
-    private const UNDELIVERED = ['log', 'array', 'null'];
-
     public static function resetByEmail(): bool
     {
-        return ! in_array((string) config('mail.default'), self::UNDELIVERED, true);
+        return MailTransport::leavesTheMachine();
     }
 
     /**

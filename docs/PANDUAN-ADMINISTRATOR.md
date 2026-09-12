@@ -104,7 +104,7 @@ saldo seimbang.
   pembayaran, voucher kas kecil, penerimaan barang, bon material (§8.4 Kategori A dan B).
 
 **Ke mana alarm keluar** (§5.10): **hanya lonceng di header aplikasi**, polling 90 detik.
-Email mati secara bawaan; WhatsApp tidak ada. Keluaran CLI keenam perintah terjadwal
+Email mati secara bawaan; WhatsApp ada sejak P-3a (12 Sep 2026) tetapi mati sampai tiga prasyarat pemilik terpenuhi (`docs/KEPUTUSAN-INTEGRASI.md`) — dan setiap yang tidak terkirim tercatat **Dilewati dengan sebabnya** di Sistem › Pengiriman Notifikasi. Keluaran CLI keenam perintah terjadwal
 dibuang ke `/dev/null` (§5.2), jadi baris SKIP dan **BLIND** hanya terbaca bila
 perintahnya dijalankan tangan. Kotak masuk `admin` menerima **setiap** kelompok alarm
 sekaligus, tanpa penyaringan.
@@ -1863,8 +1863,12 @@ yang hidup secara bawaan:**
   alamat. **Mati secara bawaan**, karena mailer bawaan pada instalasi baru adalah `log`,
   dan "silently writing approval traffic into the application log is worse than not
   sending it".
-- **WhatsApp tidak ada.** Butuh akun gateway dan template yang disetujui Meta, "none of
-  which can ship inside the application".
+- **WhatsApp, hanya bila** `notifications.whatsapp_enabled` menyala, `WHATSAPP_*` di `.env`
+  terisi (DEPLOYMENT.md §11), penerimanya punya nomor E.164 + opt-in bertanggal (Profil ›
+  Notifikasi atau Sistem › Pengguna), dan peristiwanya punya template yang disetujui Meta —
+  lima peristiwa operasional saja (tenggat, eskalasi, penagihan, cadangan, penjadwal). Hanya
+  pesan template; tidak ada teks bebas. Sebelum semua itu: kanalnya ada, barisnya Dilewati
+  dengan sebab yang menyebut apa yang kurang (P-3a; `docs/KEPUTUSAN-INTEGRASI.md`).
 
 **Permukaannya**: lonceng di header. Ia **polling setiap 90 detik**, bukan push, dan
 dijeda saat tab tidak terlihat — tidak ada endpoint websocket/SSE, dan menambahkannya
@@ -2024,8 +2028,9 @@ permintaan "tolong awasi tanggal X juga" adalah perubahan kecil, bukan proyek.
 - **Tidak ada perintah, layar, atau endpoint yang menjalankan kejar-tayang akrual alat
   lintas-bulan sekaligus.** Kejar-tayangnya adalah beberapa invokasi terpisah,
   dijalankan tangan, dari yang tertua.
-- **Tidak ada notifikasi email yang menyala secara bawaan, dan tidak ada saluran
-  WhatsApp sama sekali.**
+- **Tidak ada notifikasi email maupun WhatsApp yang menyala secara bawaan** — kedua kanal
+  ada (P-3a), keduanya mati sampai pemilik menyetel server surel / akun WABA (DEPLOYMENT.md §11),
+  dan selama itu setiap pengiriman tercatat Dilewati dengan sebabnya.
 - **Tidak ada halaman riwayat atau arsip alarm sistem di luar lonceng**, dan tidak ada
   penyaringan menurut jenis peristiwa di server.
 - **Tidak ada perintah untuk membatalkan atau menghapus baris akrual alat yang telanjur
@@ -2801,7 +2806,8 @@ menurunkan ulang jumlah PPh yang sudah diputuskan operator sebelumnya.
 - **Tidak ada batal atau balik untuk run penyusutan, pelepasan aset, atau demobilisasi.**
   Modul Aset tidak punya satu pun metode `cancel()`, `reverse()`, atau `unpost()`.
 - **Tidak ada pembatalan pelepasan retensi pelanggan.**
-- **Tidak ada pengiriman notifikasi WhatsApp.**
+- **Pengiriman WhatsApp ada sejak P-3a tetapi menunggu prasyarat pemilik** (WABA, template Meta,
+  anggaran); Qontak dikenali tetapi pengirimnya belum ditulis; Fonnte dan sejenis ditolak.
 - **Tindakan siklus pembayaran (Ajukan/Setujui/Tolak/Posting/Balikkan) tidak ada di
   definisi layar generik** — ia layar detail khusus. Begitu pula kas kecil, kasbon,
   periode fiskal, retensi, dan rekonsiliasi bank. Ini disebut di sini supaya siapa pun

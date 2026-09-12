@@ -15,7 +15,9 @@ use Modules\Core\Models\FailedJob;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Support\ApprovableDocuments;
+use Modules\Core\Support\DeliveryGate;
 use Modules\Core\Support\Erp;
+use Modules\Core\Support\NotificationTemplates;
 use Modules\Core\Support\SegregationOfDuties;
 
 /**
@@ -44,8 +46,11 @@ use Modules\Core\Support\SegregationOfDuties;
  *    still wraps is the DISPATCH: a dead queue must never roll back an
  *    approval, but the queued row it leaves behind is exactly what the screen
  *    shows.
- *  - WHATSAPP and web push are Fase 3: implement DeliveryChannel, register it
- *    in DeliveryChannels, and write their rows in outbox().
+ *  - WHATSAPP (Fase 3 / P-3a, T3a.3) goes through the same outbox: one row
+ *    per recipient beside the e-mail row, `skipped` with the reason until the
+ *    owner's prerequisites are met (KEPUTUSAN-INTEGRASI.md). Web push is
+ *    still Fase 3 (P-3e): implement DeliveryChannel, register it in
+ *    DeliveryChannels, add it to DeliveryGate::USER_CHANNELS.
  */
 class NotificationService
 {
@@ -179,10 +184,21 @@ class NotificationService
      * tier-change escalation; bodies still mutate daily (ages), which is why
      * the comparison is this fingerprint and never the body text. Null keeps
      * the title-only dedupe byte-identical for every non-deadline caller.
+     *
+     * $template (P-3a, T3a.1) is one of the five NotificationTemplates keys,
+     * stored on the row so the outside channels pick the right mail shape
+     * and the right Meta-approved WhatsApp template. Null — every caller
+     * that does not name one — means the GENERIC template, on purpose and
+     * out loud: unknown keys are refused here rather than stored, so a typo
+     * cannot become a silent "generic".
      */
-    public function system(string $permission, string $title, string $body, ?string $link = null, ?int $renagAfterDays = null, ?string $signature = null): void
+    public function system(string $permission, string $title, string $body, ?string $link = null, ?int $renagAfterDays = null, ?string $signature = null, ?string $template = null): void
     {
-        $this->guard(function () use ($permission, $title, $body, $link, $renagAfterDays, $signature): void {
+        if ($template !== null && ! NotificationTemplates::has($template)) {
+            throw new \InvalidArgumentException("Template notifikasi \"{$template}\" tidak terdaftar di NotificationTemplates.");
+        }
+
+        $this->guard(function () use ($permission, $title, $body, $link, $renagAfterDays, $signature, $template): void {
             $holders = $this->approvers($permission, null);
 
             // Silence here would be an alarm about alarms failing: a system
@@ -216,6 +232,7 @@ class NotificationService
             $this->write($recipients, fn (User $recipient): array => [
                 'user_id' => $recipient->id,
                 'event' => Notification::SYSTEM,
+                'template' => $template,
                 'title' => $title,
                 'body' => $body,
                 'link' => $link,
@@ -334,13 +351,14 @@ class NotificationService
         }
     }
 
-    public const SKIP_EMAIL_DISABLED = 'E-mail dinonaktifkan di Pengaturan.';
+    /** Dipertahankan untuk pemanggil lama; kalimatnya kini milik DeliveryGate (P-3a). */
+    public const SKIP_EMAIL_DISABLED = DeliveryGate::EMAIL_DISABLED;
 
-    public const SKIP_NO_ADDRESS = 'Penerima tidak punya alamat e-mail.';
+    public const SKIP_NO_ADDRESS = DeliveryGate::EMAIL_NO_ADDRESS;
 
     /**
      * Kotak keluar: satu baris pengiriman per kanal luar untuk notifikasi yang
-     * baru ditulis, lalu job-nya. Hari ini satu kanal (e-mail).
+     * baru ditulis, lalu job-nya. Dua kanal sejak T3a.3 (e-mail, WhatsApp).
      *
      * Barisnya ditulis DULU — kalau tulisan ke tabel sendiri gagal, tidak ada
      * yang bisa dilaporkan selain log, dan write() menjaga agar kegagalan itu
@@ -348,31 +366,57 @@ class NotificationService
      * tidak boleh membatalkan persetujuan yang sedang dilaporkan, dan baris
      * `queued` tanpa job adalah persis yang dilihat operator di layar (dan
      * yang dihitung core/health sebagai queued_deliveries_older_than_1h).
+     *
+     * Sebab `skipped` datang dari DeliveryGate — satu daftar untuk kotak
+     * keluar, Kirim ulang, dan job (P-3a): e-mail dimatikan di Pengaturan,
+     * MAIL_MAILER masih log (sebelumnya baris ini `queued` lalu `sent` dengan
+     * Message-ID lokal — diukur 11 Sep 2026), atau penerima tanpa alamat.
      */
     private function outbox(Notification $notification, User $recipient): void
     {
-        $address = trim((string) $recipient->email);
+        // Satu baris per kanal luar per penerima — e-mail DAN WhatsApp (T3a.3),
+        // masing-masing di balik guard-nya sendiri: tulisan WhatsApp yang gagal
+        // tidak boleh menghilangkan baris e-mail orang yang sama.
+        foreach (DeliveryGate::USER_CHANNELS as $channel) {
+            $this->guard(fn () => $this->outboxRow($notification, $recipient, $channel));
+        }
+    }
+
+    private function outboxRow(Notification $notification, User $recipient, string $channel): void
+    {
+        $reason = DeliveryGate::reasonToSkip($channel, $recipient, $notification->template);
 
         $delivery = new NotificationDelivery([
             'notification_id' => $notification->id,
-            'channel' => NotificationDelivery::CHANNEL_EMAIL,
-            'recipient' => $address,
-            'status' => NotificationDelivery::QUEUED,
+            'channel' => $channel,
+            'recipient' => DeliveryGate::address($channel, $recipient),
+            'status' => $reason === null ? NotificationDelivery::QUEUED : NotificationDelivery::SKIPPED,
             'attempts' => 0,
+            'error' => $reason,
         ]);
 
-        if (! $this->emailEnabled()) {
-            $delivery->status = NotificationDelivery::SKIPPED;
-            $delivery->error = self::SKIP_EMAIL_DISABLED;
-        } elseif ($address === '') {
-            $delivery->status = NotificationDelivery::SKIPPED;
-            $delivery->error = self::SKIP_NO_ADDRESS;
+        // Jam tenang (T3a.2): MENUNDA, tidak membuang — baris tetap `queued`,
+        // next_attempt_at = akhir jendela, job diantrekan dengan delay yang
+        // sama. Baris dalam aplikasi sudah ditulis oleh write() sebelum ini.
+        $postpone = $delivery->status === NotificationDelivery::QUEUED
+            ? DeliveryGate::postponement($recipient)
+            : null;
+
+        if ($postpone !== null) {
+            $delivery->next_attempt_at = $postpone['until'];
+            $delivery->error = $postpone['reason'];
         }
 
         $delivery->save();
 
         if ($delivery->status === NotificationDelivery::QUEUED) {
-            $this->guard(fn () => DeliverNotification::dispatch($delivery->id));
+            $this->guard(function () use ($delivery, $postpone): void {
+                $job = DeliverNotification::dispatch($delivery->id);
+
+                if ($postpone !== null) {
+                    $job->delay($postpone['until']);
+                }
+            });
         }
     }
 
@@ -402,6 +446,16 @@ class NotificationService
      * ditangani. Antrean Gagal sendiri menolak mengembalikan job pengiriman
      * (QueueFailedJobController) — satu tombol Kirim ulang, di sini.
      *
+     * KIRIM ULANG ADALAH PESAN BARU: provider_id, provider_status,
+     * provider_status_at, dan sent_at pesan lama dikosongkan. Diukur 12 Sep
+     * 2026 (verifikasi P-3a): dengan wamid lama yang masih menempel, webhook
+     * `failed` yang Meta ULANG untuk pesan lama menggagalkan baris yang baru
+     * di-antre ulang — dan job Kirim ulangnya berhenti tanpa mengirim apa pun;
+     * bila kirim ulang berhasil, "Gagal di jalan" pesan lama menempel pada
+     * baris Terkirim ber-wamid baru. Aturan yang sama dijaga di dua permukaan
+     * lain: job mereset status penyedia saat `sent`, dan webhook hanya
+     * menerapkan status pada baris `sent`.
+     *
      * @throws DeliveryRetryRefusedException bila tidak bisa dikirim ulang
      */
     public function retry(NotificationDelivery $delivery): NotificationDelivery
@@ -410,27 +464,41 @@ class NotificationService
             throw new DeliveryRetryRefusedException('Pengiriman ini sudah diterima penyedia; tidak ada yang perlu dikirim ulang.');
         }
 
-        if ($delivery->channel === NotificationDelivery::CHANNEL_EMAIL) {
-            if (! $this->emailEnabled()) {
-                throw new DeliveryRetryRefusedException('E-mail masih dinonaktifkan di Pengaturan — nyalakan dulu, lalu kirim ulang.');
-            }
+        $recipient = $delivery->notification?->user;
 
-            $address = trim((string) $delivery->notification?->user?->email);
-
-            if ($address === '') {
-                throw new DeliveryRetryRefusedException('Penerima tidak punya alamat e-mail; lengkapi alamatnya di Sistem › Pengguna, lalu kirim ulang.');
-            }
-
-            $delivery->recipient = $address;
+        if ($recipient === null) {
+            throw new DeliveryRetryRefusedException('Penerima notifikasi ini sudah tidak ada; tidak ada alamat untuk dikirimi.');
         }
+
+        // Gerbang yang SAMA dengan pengiriman pertama (DeliveryGate, P-3a):
+        // sebabnya ditolak dengan kalimat + petunjuknya, bukan diantrekan
+        // untuk `skipped` lagi.
+        $reason = DeliveryGate::reasonToSkip($delivery->channel, $recipient, $delivery->notification?->template);
+
+        if ($reason !== null) {
+            throw new DeliveryRetryRefusedException(DeliveryGate::retryRefusal($reason));
+        }
+
+        $delivery->recipient = DeliveryGate::address($delivery->channel, $recipient);
+
+        // Jam tenang berlaku untuk Kirim ulang juga: operator menekan tombol
+        // pukul 23.00, pesannya berangkat 06.00 — dan layar mengatakannya.
+        $postpone = DeliveryGate::postponement($recipient);
 
         $delivery->forceFill([
             'status' => NotificationDelivery::QUEUED,
-            'error' => null,
-            'next_attempt_at' => null,
+            'error' => $postpone['reason'] ?? null,
+            'next_attempt_at' => $postpone['until'] ?? null,
+            'provider_id' => null,
+            'provider_status' => null,
+            'provider_status_at' => null,
+            'sent_at' => null,
         ])->save();
 
-        DeliverNotification::dispatch($delivery->id);
+        $job = DeliverNotification::dispatch($delivery->id);
+        if ($postpone !== null) {
+            $job->delay($postpone['until']);
+        }
         $this->forgetFailedJobsFor($delivery);
 
         return $delivery->refresh();
@@ -447,11 +515,6 @@ class NotificationService
         foreach (FailedJob::forDelivery($delivery->id) as $failed) {
             $failer->forget((string) $failed->uuid);
         }
-    }
-
-    private function emailEnabled(): bool
-    {
-        return Erp::bool('notifications.email_enabled', false);
     }
 
     /**

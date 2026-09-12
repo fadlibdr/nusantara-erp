@@ -33,7 +33,7 @@ class NotificationDeliveryController extends ApiController
         ]);
 
         $query = NotificationDelivery::query()
-            ->with(['notification:id,title,event,user_id', 'notification.user:id,name'])
+            ->with(['notification:id,title,event,template,user_id', 'notification.user:id,name'])
             ->when(isset($data['status']), fn ($q) => $q->where('status', $data['status']))
             ->when(isset($data['channel']), fn ($q) => $q->where('channel', $data['channel']))
             ->when(filled($data['q'] ?? null), function ($q) use ($data): void {
@@ -54,7 +54,7 @@ class NotificationDeliveryController extends ApiController
 
     public function show(NotificationDelivery $notificationDelivery): JsonResponse
     {
-        $notificationDelivery->load(['notification:id,title,event,user_id', 'notification.user:id,name']);
+        $notificationDelivery->load(['notification:id,title,event,template,user_id', 'notification.user:id,name']);
 
         return $this->ok(new NotificationDeliveryResource($notificationDelivery));
     }
@@ -73,7 +73,7 @@ class NotificationDeliveryController extends ApiController
             return $this->error('Antrean tidak dapat menerima job: '.$e->getMessage().' Baris tetap berstatus antre.', 503);
         }
 
-        $delivery->load(['notification:id,title,event,user_id', 'notification.user:id,name']);
+        $delivery->load(['notification:id,title,event,template,user_id', 'notification.user:id,name']);
 
         return $this->ok(new NotificationDeliveryResource($delivery), 'Pengiriman diantrekan ulang.');
     }

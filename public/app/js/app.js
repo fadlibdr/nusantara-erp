@@ -61,6 +61,7 @@ import { renderGaleriProyek } from './views/galeriproyek.js';
 import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
 import { renderTugas } from './views/tugas.js';
+import { renderProfil } from './views/profil.js';
 import { openForm } from './views/form.js';
 import { openOnboarding, closeOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
@@ -728,6 +729,8 @@ function openUserMenu(user) {
       button('Tutup', { onClick: () => dialog.close() }),
       // Menu akun hanya "Tutup · Keluar" sampai 2 Sep 2026 (HASIL-UJI §1, S9).
       button('Ganti kata sandi', { onClick: () => { dialog.close(); openChangePassword(); } }),
+      // P-3a: kanal notifikasi luar, jam tenang, nomor WhatsApp — layar sendiri.
+      button('Profil & Notifikasi', { onClick: () => { dialog.close(); navigate('profil'); } }),
       /* Jalan kembali ke panduan yang dilewati saat masuk (5 Sep 2026). Dibuka
          dari sini tidak mencatat apa pun; Lewati/Selesai di dalamnya tetap. */
       button('Panduan onboarding', { onClick: () => { dialog.close(); openOnboarding({ auto: false }).catch(() => {}); } }),
@@ -1138,6 +1141,16 @@ function registerRoutes() {
     const host = view();
     // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
     return guard(host, () => renderTugas(host));
+  });
+
+  /* P-3a — Profil & Notifikasi: kanal luar + jam tenang milik pemanggil
+     sendiri. Tanpa gerbang izin: setiap endpoint-nya hanya menyentuh rekam
+     pemanggil (core/me/*). */
+  route('profil', () => {
+    setCrumbs(['Ringkasan', 'Profil & Notifikasi']);
+    setActiveNav('profil');
+    const host = view();
+    return guard(host, () => renderProfil(host));
   });
 
   route('tenggat', () => {

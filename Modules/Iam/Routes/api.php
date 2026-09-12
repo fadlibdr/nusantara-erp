@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Iam\Http\Controllers\AuthController;
 use Modules\Iam\Http\Controllers\OnboardingController;
 use Modules\Iam\Http\Controllers\PermissionController;
+use Modules\Iam\Http\Controllers\PhoneController;
 use Modules\Iam\Http\Controllers\RoleController;
 use Modules\Iam\Http\Controllers\UserController;
 
@@ -38,6 +39,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // aplikasi). Rekam milik sendiri, tanpa izin tambahan.
     Route::get('me/onboarding', [OnboardingController::class, 'show']);
     Route::put('me/onboarding', [OnboardingController::class, 'update']);
+    // P-3a (T3a.3): nomor WhatsApp + opt-in berstempel waktu milik sendiri —
+    // rekam pemanggil, tanpa izin tambahan; via 'profil'.
+    Route::put('me/phone', [PhoneController::class, 'update']);
 
     Route::middleware('permission:iam.view')->group(function (): void {
         Route::get('users', [UserController::class, 'index']);

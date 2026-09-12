@@ -835,5 +835,367 @@
   ],
   "_ms": 5135,
   "_clicks": 0
+ },
+ "S37_kanal_notifikasi_profil": {
+  "alarm": {
+   "exit": 1,
+   "tail": "Detak jantung belum pernah ada — alarm dinaikkan."
+  },
+  "deliveries": {
+   "headers": [
+    "Dibuat",
+    "Kanal",
+    "Penerima",
+    "Notifikasi",
+    "Status",
+    "Percobaan",
+    "Galat / alasan",
+    "Berikutnya",
+    "Terkirim",
+    "Status penyedia"
+   ],
+   "rows": [
+    {
+     "Dibuat": "12 Sep 2026 03.20",
+     "Kanal": "WhatsApp",
+     "Penerima": "—",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    },
+    {
+     "Dibuat": "12 Sep 2026 03.20",
+     "Kanal": "E-mail",
+     "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    },
+    {
+     "Dibuat": "12 Sep 2026 03.18",
+     "Kanal": "WhatsApp",
+     "Penerima": "—",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    },
+    {
+     "Dibuat": "12 Sep 2026 03.18",
+     "Kanal": "E-mail",
+     "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    }
+   ],
+   "scrolls_sideways": false
+  },
+  "email_row": {
+   "Dibuat": "12 Sep 2026 03.20",
+   "Kanal": "E-mail",
+   "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+   "Notifikasi": "Penjadwal tidak berjalan",
+   "Status": "Dilewati",
+   "Percobaan": "0",
+   "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+   "Berikutnya": "—",
+   "Terkirim": "—",
+   "Status penyedia": "—"
+  },
+  "wa_row": {
+   "Dibuat": "12 Sep 2026 03.20",
+   "Kanal": "WhatsApp",
+   "Penerima": "—",
+   "Notifikasi": "Penjadwal tidak berjalan",
+   "Status": "Dilewati",
+   "Percobaan": "0",
+   "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+   "Berikutnya": "—",
+   "Terkirim": "—",
+   "Status penyedia": "—"
+  },
+  "profil_before": {
+   "channels": [
+    {
+     "channel": "email",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11)."
+    },
+    {
+     "channel": "whatsapp",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+    }
+   ],
+   "quiet_on": false,
+   "quiet_start": "22:00",
+   "quiet_end": "06:00",
+   "phone": null,
+   "optin_state": "off",
+   "optin_text": "Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.",
+   "h1": "Profil & Notifikasi",
+   "scrolls_sideways": false
+  },
+  "profil_after_channel": {
+   "channels": [
+    {
+     "channel": "email",
+     "checked": false,
+     "state": "skipped",
+     "status": "Dilewati MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11)."
+    },
+    {
+     "channel": "whatsapp",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+    }
+   ],
+   "quiet_on": false,
+   "quiet_start": "22:00",
+   "quiet_end": "06:00",
+   "phone": null,
+   "optin_state": "off",
+   "optin_text": "Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.",
+   "h1": "Profil & Notifikasi",
+   "scrolls_sideways": false
+  },
+  "prefs_channels": {
+   "email": false,
+   "whatsapp": true
+  },
+  "server_channels": {
+   "channels": [
+    {
+     "channel": "email",
+     "label": "E-mail",
+     "address": "admin@nusantara.test",
+     "enabled_by_user": false,
+     "will_deliver": false,
+     "reason": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11)."
+    },
+    {
+     "channel": "whatsapp",
+     "label": "WhatsApp",
+     "address": null,
+     "enabled_by_user": true,
+     "will_deliver": false,
+     "reason": "WhatsApp dinonaktifkan di Pengaturan."
+    }
+   ],
+   "quiet_hours": {
+    "start": "22:00",
+    "end": "06:00",
+    "zone": "Asia/Jakarta"
+   },
+   "quiet_now": false,
+   "postponed_until": null,
+   "zone": "Asia/Jakarta",
+   "whatsapp": {
+    "provider": "meta",
+    "configured": false,
+    "templates_ready": 0,
+    "templates_total": 5,
+    "phone_e164": null,
+    "opt_in_at": null,
+    "opt_in_via": null
+   }
+  },
+  "profil_after_phone": {
+   "channels": [
+    {
+     "channel": "email",
+     "checked": false,
+     "state": "skipped",
+     "status": "Dilewati MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11)."
+    },
+    {
+     "channel": "whatsapp",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+    }
+   ],
+   "quiet_on": true,
+   "quiet_start": "22:00",
+   "quiet_end": "06:00",
+   "phone": "+6281234567890",
+   "optin_state": "on",
+   "optin_text": "Opt-in tercatat 12 Sep 2026 10:20 WIB lewat Profil.",
+   "h1": "Profil & Notifikasi",
+   "scrolls_sideways": false
+  },
+  "me_phone": {
+   "phone_e164": "+6281234567890",
+   "whatsapp_opt_in": true,
+   "whatsapp_opt_in_via": "profil"
+  },
+  "console_errors": [],
+  "checks": {
+   "the_list_has_the_two_new_columns": true,
+   "the_email_row_is_skipped_because_the_mailer_is_log": true,
+   "the_whatsapp_row_is_skipped_because_the_switch_is_off": true,
+   "nothing_is_called_sent": true,
+   "the_profile_says_the_same_as_the_outbox": true,
+   "switching_email_off_is_stored_and_the_global_reason_still_wins": true,
+   "quiet_hours_are_stored_on_the_server": true,
+   "a_local_number_is_stored_as_e164_with_a_dated_opt_in": true,
+   "the_screens_never_scroll_sideways": true,
+   "no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 8783,
+  "_clicks": 6
+ },
+ "S37_kanal_notifikasi_profil_ponsel": {
+  "profil": {
+   "channels": [
+    {
+     "channel": "email",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati E-mail dinonaktifkan di Pengaturan."
+    },
+    {
+     "channel": "whatsapp",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+    }
+   ],
+   "quiet_on": false,
+   "quiet_start": "22:00",
+   "quiet_end": "06:00",
+   "phone": null,
+   "optin_state": "off",
+   "optin_text": "Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.",
+   "h1": "Profil & Notifikasi",
+   "scrolls_sideways": false
+  },
+  "profil_after": {
+   "channels": [
+    {
+     "channel": "email",
+     "checked": true,
+     "state": "skipped",
+     "status": "Dilewati E-mail dinonaktifkan di Pengaturan."
+    },
+    {
+     "channel": "whatsapp",
+     "checked": false,
+     "state": "skipped",
+     "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+    }
+   ],
+   "quiet_on": false,
+   "quiet_start": "22:00",
+   "quiet_end": "06:00",
+   "phone": null,
+   "optin_state": "off",
+   "optin_text": "Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.",
+   "h1": "Profil & Notifikasi",
+   "scrolls_sideways": false
+  },
+  "prefs_channels": {
+   "email": true,
+   "whatsapp": false
+  },
+  "deliveries": {
+   "headers": [
+    "Dibuat",
+    "Kanal",
+    "Penerima",
+    "Notifikasi",
+    "Status",
+    "Percobaan",
+    "Galat / alasan",
+    "Berikutnya",
+    "Terkirim",
+    "Status penyedia"
+   ],
+   "rows": [
+    {
+     "Dibuat": "12 Sep 2026 03.20",
+     "Kanal": "WhatsApp",
+     "Penerima": "—",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    },
+    {
+     "Dibuat": "12 Sep 2026 03.20",
+     "Kanal": "E-mail",
+     "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    },
+    {
+     "Dibuat": "12 Sep 2026 03.18",
+     "Kanal": "WhatsApp",
+     "Penerima": "—",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    },
+    {
+     "Dibuat": "12 Sep 2026 03.18",
+     "Kanal": "E-mail",
+     "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+     "Notifikasi": "Penjadwal tidak berjalan",
+     "Status": "Dilewati",
+     "Percobaan": "0",
+     "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+     "Berikutnya": "—",
+     "Terkirim": "—",
+     "Status penyedia": "—"
+    }
+   ],
+   "scrolls_sideways": false
+  },
+  "console_errors": [],
+  "checks": {
+   "the_profile_renders_both_channels_on_a_phone": true,
+   "the_profile_never_scrolls_sideways": true,
+   "switching_whatsapp_off_from_a_phone_is_stored": true,
+   "the_global_switch_still_wins_over_the_users_choice": true,
+   "the_deliveries_screen_never_scrolls_sideways": true,
+   "no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 6531,
+  "_clicks": 2
  }
 }

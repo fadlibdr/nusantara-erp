@@ -1201,3 +1201,128 @@ machine other than erp1 if one is available so the client's own CPU is not
 in the number; from erp1 itself the figures include the client and are
 conservative. The write-path burst of §10.6 (`burst.py`) stays where it is:
 against `erp_scratch`, never against `erp`.
+
+## 11. SMTP dan WhatsApp — runbook pemilik (Fase 3 / P-3a, 12 Sep 2026)
+
+> **Keadaan erp1 hari ini: `MAIL_MAILER=log` dan tidak ada satu pun `WHATSAPP_*`.**
+> Sejak P-3a itu bukan lagi keadaan yang diam: setiap pengiriman e-mail dicatat
+> **Dilewati — "MAIL_MAILER=log — belum ada server surel"** dan setiap pengiriman
+> WhatsApp **Dilewati — "WhatsApp dinonaktifkan di Pengaturan"** di Sistem › Pengiriman
+> Notifikasi, bukan "Terkirim". (Sebelum P-3a baris e-mail ditandai `sent` dengan
+> Message-ID buatan lokal — diukur 11 Sep 2026; tidak ada surel yang pernah keluar.)
+> Paket ini **tidak mengubah `.env` mana pun**. Kedua langkah di bawah milik pemilik.
+> Nama variabel saja yang ditulis di sini — tidak ada nilai.
+
+### 11.1 SMTP (ledger ROADMAP-HASHMICRO §5 #8: kotak surat domain perusahaan, 587 STARTTLS)
+
+1. Siapkan **satu kotak surat khusus** di domain perusahaan (mis. `erp@…`), bukan akun
+   pribadi — kata sandinya akan tersimpan di `.env` server. Bila penyedia surel memakai
+   "kata sandi aplikasi" (Google Workspace, Microsoft 365), pakai itu, bukan sandi akun.
+2. Di `/var/www/erp1.pi2.co.id/.env` (root, `chmod 600`, jangan lewat editor yang
+   meninggalkan salinan), isi — **nilainya milik pemilik**:
+
+   ```
+   MAIL_MAILER=smtp
+   MAIL_HOST=            # host SMTP penyedia
+   MAIL_PORT=587         # STARTTLS dinegosiasikan otomatis (lihat catatan di bawah)
+   MAIL_USERNAME=        # alamat kotak surat khusus
+   MAIL_PASSWORD=        # sandi / sandi aplikasi
+   MAIL_FROM_ADDRESS=    # alamat yang sama, atau alias resmi
+   MAIL_FROM_NAME="Nusantara ERP"
+   ```
+
+   Kode membaca `config/mail.php` bawaan Laravel; tidak ada kunci baru. **Laravel 12 tidak
+   membaca `MAIL_ENCRYPTION`** (`config/mail.php` hanya memuat `MAIL_SCHEME`; diverifikasi
+   12 Sep 2026: `grep MAIL_ENCRYPTION config/mail.php vendor/laravel/framework/src/Illuminate/Mail/MailManager.php`
+   = 0 baris). Pada port 587 tanpa `MAIL_SCHEME`, transport `smtp` bernegosiasi STARTTLS
+   otomatis (Symfony `EsmtpTransport` autoTls); `MAIL_SCHEME=smtps` hanya untuk port 465 (TLS
+   implisit). Mengisi `MAIL_ENCRYPTION=tls` tidak berpengaruh apa pun — jangan mengandalkannya.
+3. `php artisan config:clear` (atau restart php-fpm bila config di-cache), lalu **restart
+   pekerja antrean**: `systemctl restart erp1-queue` — pekerja memegang konfigurasi lama
+   sampai dimulai ulang (§6).
+4. **Baru** nyalakan **Pengaturan › Notifikasi › "Kirim juga lewat email"** di aplikasi
+   (pemegang `core.update`). Sakelar inilah saklarnya; `.env` saja belum mengirim apa pun.
+5. Uji satu surat sungguhan tanpa menunggu alarm pagi: Sistem › Pengiriman Notifikasi ›
+   pilih satu baris Dilewati "belum ada server surel" milik akun Anda sendiri › **Kirim
+   ulang**. Baris harus menjadi **Antre → Terkirim** dengan `provider_id` = Message-ID
+   (`…@<domain>`), dan suratnya tiba di kotak masuk. Bila **Gagal**: kolom "Galat / alasan"
+   memuat jawaban server SMTP (mis. `535 Authentication failed`) — perbaiki `.env`, ulangi
+   langkah 3, Kirim ulang lagi.
+6. Alamat penerima dibaca dari `users.email`. Pengguna yang mematikan e-mail di **Profil ›
+   Notifikasi** tetap Dilewati "Dimatikan pengguna" — itu pilihannya, bukan kegagalan.
+   Jam tenang pengguna (Profil) **menunda** ke akhir jendela, tidak membuang.
+
+**Jalan pulang:** kembalikan `MAIL_MAILER=log`, restart `erp1-queue`, matikan sakelarnya.
+Baris yang sudah Terkirim tetap Terkirim (itu fakta); baris berikutnya Dilewati lagi.
+
+### 11.2 WhatsApp — Meta Cloud API langsung (ledger #7; prasyarat di `docs/KEPUTUSAN-INTEGRASI.md` §4)
+
+Tiga prasyarat pemilik **sebelum** satu variabel pun diisi: akun WhatsApp Business (WABA)
+terverifikasi Meta, lima template disetujui Meta (1–7 hari, bisa ditolak), dan anggaran
+per percakapan. Tanpa itu kanalnya ada dan **setiap baris Dilewati dengan sebab yang
+menyebut apa yang kurang** — itu perilaku yang benar, bukan cacat.
+
+1. **Meta Business Suite** → verifikasi bisnis (NIB/akta, domain). Buat aplikasi Meta
+   tipe Business, tambahkan produk WhatsApp, daftarkan nomor pengirim (nomor yang belum
+   pernah dipakai WhatsApp pribadi). Catat dari panel WhatsApp › API Setup:
+   **Phone number ID** dan buat **System User token** permanen (bukan token 24 jam dari
+   panel uji coba) dengan izin `whatsapp_business_messaging`. Dari App › Settings › Basic:
+   **App Secret**. Tentukan sendiri sebuah **Verify Token** acak (mis. `openssl rand -hex 24`).
+2. **Ajukan lima template** kategori *Utility*, bahasa `id`, masing-masing dengan **tepat
+   tiga placeholder** `{{1}}` judul, `{{2}}` isi, `{{3}}` tautan (kontrak
+   `NotificationTemplates::whatsappParameters`, CONVENTIONS §38). Satu template per
+   peristiwa: tenggat (`deadline.due`), eskalasi persetujuan (`approval.escalated`),
+   penagihan piutang (`ar.dunning`), cadangan (`backup.stale`), penjadwal (`scheduler.down`).
+   Contoh isi yang lolos kategori utility: "Nusantara ERP — {{1}}. {{2}} Buka: {{3}}".
+   Kalimat promosi ditolak Meta. Tunggu status **Approved** untuk tiap template; nama
+   template yang disetujui itulah yang diisi di bawah.
+3. Di `.env` erp1 (nama variabel; nilainya milik pemilik):
+
+   ```
+   WHATSAPP_PROVIDER=meta
+   WHATSAPP_TOKEN=                    # System User token (RAHASIA)
+   WHATSAPP_PHONE_NUMBER_ID=          # Phone number ID pengirim
+   WHATSAPP_APP_SECRET=               # App Secret (RAHASIA) — verifikasi tanda tangan webhook
+   WHATSAPP_VERIFY_TOKEN=             # token acak buatan sendiri untuk verifikasi langganan
+   WHATSAPP_TEMPLATE_LANGUAGE=id
+   WHATSAPP_TEMPLATE_DEADLINE_DUE=        # nama template yang DISETUJUI
+   WHATSAPP_TEMPLATE_APPROVAL_ESCALATED=
+   WHATSAPP_TEMPLATE_AR_DUNNING=
+   WHATSAPP_TEMPLATE_BACKUP_STALE=
+   WHATSAPP_TEMPLATE_SCHEDULER_DOWN=
+   ```
+
+   Opsional: `WHATSAPP_API_VERSION` (bawaan `v21.0`), `WHATSAPP_API_BASE` (bawaan
+   `https://graph.facebook.com`). **Tidak ada nilai rahasia yang pernah masuk `core_settings`,
+   jawaban API, kolom error, atau log** — jawaban penyedia disaring (`ProviderErrorScrubber`)
+   sebelum disimpan.
+4. `php artisan config:clear`, `systemctl restart erp1-queue`.
+5. **Webhook status** (supaya kolom "Status penyedia" terisi sampai/dibaca/gagal): di panel
+   WhatsApp › Configuration, Callback URL `https://erp1.pi2.co.id/whatsapp/webhook`,
+   Verify token = `WHATSAPP_VERIFY_TOKEN`, langganan field `messages`. Meta memanggil
+   `GET /whatsapp/webhook?hub.mode=subscribe&…` — aplikasi menjawab `hub.challenge` hanya
+   bila tokennya cocok. Setiap POST diverifikasi `X-Hub-Signature-256` (HMAC-SHA256 badan
+   mentah dengan App Secret); tanpa `WHATSAPP_APP_SECRET` semua POST 403. Tidak ada CSRF
+   dan tidak ada sesi di rute ini — persis seperti halaman persetujuan eksternal.
+6. Nyalakan **Pengaturan › Notifikasi › "Kirim juga lewat WhatsApp"**.
+7. **Penerima**: masing-masing mengisi nomor E.164 dan opt-in di **Profil › Notifikasi**
+   (stempel `via profil`), atau administrator mencatatnya di **Sistem › Pengguna** atas
+   persetujuan yang diberikan di luar aplikasi (stempel `via admin`, bertanggal).
+   Tanpa nomor → Dilewati "tidak punya nomor"; tanpa stempel → Dilewati "belum opt-in".
+8. Uji satu pesan sungguhan: picu satu alarm bertemplate — mis. `php artisan
+   erp:watchdog-alarm --force` sebagai www-data — lalu Sistem › Pengiriman Notifikasi:
+   baris WhatsApp harus **Terkirim** dengan `provider_id` `wamid.…`, dan beberapa detik
+   kemudian "Status penyedia" **Sampai**/**Dibaca** dari webhook. Baris **Gagal** memuat
+   kode Meta (mis. `(132001) Template name does not exist`) — betulkan nama template di
+   `.env`, ulangi langkah 4, Kirim ulang.
+9. Biaya: Meta menagih per percakapan 24 jam per nomor; cocokkan tagihan bulanan dengan
+   hitungan baris Terkirim kanal `whatsapp` (saring di layar).
+
+**Jalur kedua — Qontak** (bila verifikasi bisnis Meta tidak dapat ditempuh): kode mengenali
+`WHATSAPP_PROVIDER=qontak` tetapi **pengirimnya belum ditulis** (bentuk API-nya tidak
+dikarang, KEPUTUSAN-INTEGRASI §5) — memilihnya menghasilkan Dilewati yang mengatakannya.
+**Fonnte/Wablas/gateway WhatsApp Web ditolak**: tidak ada mode untuknya, dengan sengaja.
+
+**Jalan pulang:** matikan sakelar Pengaturan (pesan berhenti seketika; baris berikutnya
+Dilewati); kosongkan `WHATSAPP_TOKEN` bila token harus dicabut; token yang bocor dicabut
+di Meta Business Suite (System User › token), bukan hanya dihapus dari `.env`.

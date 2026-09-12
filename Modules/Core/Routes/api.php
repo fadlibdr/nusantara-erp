@@ -18,6 +18,7 @@ use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
 use Modules\Core\Http\Controllers\ModuleCountController;
+use Modules\Core\Http\Controllers\NotificationChannelController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
@@ -118,6 +119,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // tidak dikenal harus dijawab 422 yang menyebut kuncinya, bukan 404 yang
     // terbaca sebagai "endpoint-nya hilang" saat dibaca dari konsol peramban.
     Route::put('me/preferences/{key}', [UserPreferenceController::class, 'update'])->where('key', '[A-Za-z0-9._-]{1,64}');
+    // P-3a (T3a.2): keadaan kanal luar bagi PEMANGGIL SENDIRI — sebab yang
+    // sama yang akan ditulis kotak keluar (DeliveryGate), jadi layar Profil
+    // tidak pernah menjanjikan "terkirim" untuk kanal yang akan Dilewati.
+    // Tanpa gerbang izin, alasan yang sama dengan me/preferences.
+    Route::get('me/notification-channels', NotificationChannelController::class);
 
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update'])->middleware('permission:core.update');

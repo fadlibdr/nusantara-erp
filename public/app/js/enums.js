@@ -14,6 +14,13 @@ export const ENUMS = {
      Warna dipasang di sini: `queued` bukan keadaan normal yang layak hijau,
      dan `skipped` adalah keputusan yang jujur, bukan galat. */
   deliveryChannel: opts([['email', 'E-mail'], ['whatsapp', 'WhatsApp'], ['webpush', 'Web push']]),
+  /* P-3a — status balik dari webhook Meta (kosakata Meta apa adanya), terpisah
+     dari status baris: `sent` = diterima penyedia; ini = apa yang terjadi
+     sesudahnya di jalan. */
+  waProviderStatus: opts([
+    ['sent', 'Diterima Meta', ''], ['delivered', 'Sampai', 'green'],
+    ['read', 'Dibaca', 'green'], ['failed', 'Gagal di jalan', 'red'],
+  ]),
   deliveryStatus: opts([
     ['queued', 'Antre', 'amber'], ['sent', 'Terkirim', 'green'],
     ['failed', 'Gagal', 'red'], ['skipped', 'Dilewati', ''],

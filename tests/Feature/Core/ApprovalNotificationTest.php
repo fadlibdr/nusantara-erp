@@ -16,6 +16,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
+use Tests\Support\UsesCapturingMailer;
 use Tests\Unit\Finance\FinanceFixtures;
 
 /**
@@ -30,6 +31,7 @@ use Tests\Unit\Finance\FinanceFixtures;
 class ApprovalNotificationTest extends ErpTestCase
 {
     use FinanceFixtures;
+    use UsesCapturingMailer;
 
     private NotificationService $notifications;
 
@@ -205,17 +207,24 @@ class ApprovalNotificationTest extends ErpTestCase
         Mail::assertNotSent(ApprovalNotificationMail::class);
     }
 
+    /**
+     * Sejak P-3a bukan Mail::fake(): fake memulangkan null dari send(), dan
+     * null berarti "tidak ada bukti diterima" — barisnya `failed`, bukan
+     * `sent`. Transport tangkap (tests/Support) berlaku seperti SMTP yang
+     * menjawab 250, tanpa satu surel pun keluar dari mesin ini.
+     */
     public function test_email_goes_out_when_it_is_turned_on(): void
     {
-        Mail::fake();
+        $transport = $this->useCapturingMailer();
         app(SettingService::class)->set('notifications.email_enabled', true);
 
         $approver = $this->userWith('fin.approve', 'Direktur');
         $this->bill()->submit($this->userWith('fin.create', 'Staf'));
 
-        Mail::assertSent(ApprovalNotificationMail::class, function (ApprovalNotificationMail $mail) use ($approver): bool {
-            return $mail->hasTo($approver->email) && str_contains($mail->title, 'menunggu persetujuan');
-        });
+        $this->assertCount(1, $transport->messages);
+        $message = $transport->messages[0];
+        $this->assertSame($approver->email, $message->getEnvelope()->getRecipients()[0]->getAddress());
+        $this->assertStringContainsString('menunggu persetujuan', $message->getOriginalMessage()->getSubject());
     }
 
     // ----------------------------------------------------------------- inbox

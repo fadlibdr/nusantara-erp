@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Modules\Core\Services\NotificationService;
 use Modules\Core\Support\ApprovalQueue;
 use Modules\Core\Support\Erp;
+use Modules\Core\Support\NotificationTemplates;
 
 /**
  * Umur antrean persetujuan — tanggal yang tidak diawasi siapa pun.
@@ -61,9 +62,15 @@ class ApprovalWatchCommand extends Command
 
             // Signature = kode dokumen: satu pengingat hidup per dokumen; body
             // (umur) boleh berubah tiap hari tanpa membanjiri kotak masuk.
-            $notifications->system($row['permission'], $title, $body, $row['link'], 3, $row['code']);
+            // Template WhatsApp/surel hanya untuk ESKALASI (T3a.1:
+            // approval.escalated). Pengingat biasa memakai template umum —
+            // ia bukan eskalasi, dan menyebutnya begitu di ponsel direktur
+            // adalah kebohongan kecil yang membuat alarm berhenti dibaca.
+            $template = $escalate ? NotificationTemplates::APPROVAL_ESCALATED : null;
+
+            $notifications->system($row['permission'], $title, $body, $row['link'], 3, $row['code'], $template);
             if ($escalate && $row['permission'] !== 'fin.approve') {
-                $notifications->system('fin.approve', $title, $body, $row['link'], 3, $row['code']);
+                $notifications->system('fin.approve', $title, $body, $row['link'], 3, $row['code'], $template);
             }
         }
 

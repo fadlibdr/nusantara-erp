@@ -39,6 +39,7 @@ class NotificationDelivery extends BaseModel
             'attempts' => 'integer',
             'sent_at' => 'datetime',
             'next_attempt_at' => 'datetime',
+            'provider_status_at' => 'datetime',
         ];
     }
 
