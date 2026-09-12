@@ -446,6 +446,16 @@ class NotificationService
      * ditangani. Antrean Gagal sendiri menolak mengembalikan job pengiriman
      * (QueueFailedJobController) — satu tombol Kirim ulang, di sini.
      *
+     * KIRIM ULANG ADALAH PESAN BARU: provider_id, provider_status,
+     * provider_status_at, dan sent_at pesan lama dikosongkan. Diukur 12 Sep
+     * 2026 (verifikasi P-3a): dengan wamid lama yang masih menempel, webhook
+     * `failed` yang Meta ULANG untuk pesan lama menggagalkan baris yang baru
+     * di-antre ulang — dan job Kirim ulangnya berhenti tanpa mengirim apa pun;
+     * bila kirim ulang berhasil, "Gagal di jalan" pesan lama menempel pada
+     * baris Terkirim ber-wamid baru. Aturan yang sama dijaga di dua permukaan
+     * lain: job mereset status penyedia saat `sent`, dan webhook hanya
+     * menerapkan status pada baris `sent`.
+     *
      * @throws DeliveryRetryRefusedException bila tidak bisa dikirim ulang
      */
     public function retry(NotificationDelivery $delivery): NotificationDelivery
@@ -479,6 +489,10 @@ class NotificationService
             'status' => NotificationDelivery::QUEUED,
             'error' => $postpone['reason'] ?? null,
             'next_attempt_at' => $postpone['until'] ?? null,
+            'provider_id' => null,
+            'provider_status' => null,
+            'provider_status_at' => null,
+            'sent_at' => null,
         ])->save();
 
         $job = DeliverNotification::dispatch($delivery->id);

@@ -178,9 +178,15 @@ class DeliverNotification implements ShouldQueueAfterCommit
             throw $e;
         }
 
+        // Pesan BARU diterima penyedia: status penyedia (webhook) milik pesan
+        // sebelumnya — bila ada — tidak boleh menempel padanya (verifikasi
+        // P-3a, 12 Sep 2026: "Terkirim" hijau di samping "Gagal di jalan"
+        // merah bertanggal sebelum jam Terkirim-nya).
         $delivery->forceFill([
             'status' => NotificationDelivery::SENT,
             'provider_id' => Str::limit($providerId, 190, ''),
+            'provider_status' => null,
+            'provider_status_at' => null,
             'error' => null,
             'sent_at' => now(),
             'next_attempt_at' => null,

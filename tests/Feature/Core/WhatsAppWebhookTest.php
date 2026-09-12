@@ -3,9 +3,13 @@
 namespace Tests\Feature\Core;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
+use Modules\Core\Jobs\DeliverNotification;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
+use Modules\Core\Services\SettingService;
 use Tests\ErpTestCase;
 
 /**
@@ -236,5 +240,114 @@ class WhatsAppWebhookTest extends ErpTestCase
         $listed = $this->getJson('/api/core/notification-deliveries?channel=whatsapp')->assertOk()->json('data.0');
         $this->assertSame('delivered', $listed['provider_status']);
         $this->assertNotNull($listed['provider_status_at']);
+    }
+
+    // ------------------------------------------- Kirim ulang = PESAN BARU
+
+    /**
+     * Verifikasi P-3a (12 Sep 2026, B-2/D1/D2/V1): sesudah Kirim ulang, wamid
+     * LAMA masih menempel di baris `queued`, jadi webhook `failed` yang Meta
+     * ULANG untuk pesan lama (Meta memang mengirim duplikat) menggagalkan
+     * baris itu lagi — dan job Kirim ulang lalu berhenti tanpa mengirim apa
+     * pun. Dan bila kirim ulangnya berhasil, "Status penyedia: Gagal di jalan"
+     * milik wamid lama menempel pada baris Terkirim ber-wamid baru.
+     *
+     * Kirim ulang adalah pesan baru: pengenal dan status penyedia pesan lama
+     * tidak ikut. Diukur lewat pekerja sungguhan (queue database).
+     */
+    public function test_a_resend_is_a_new_message_so_a_repeated_failed_webhook_for_the_old_wamid_cannot_cancel_it(): void
+    {
+        Http::preventStrayRequests();
+        $this->configured();
+        config(['erp.whatsapp.phone_number_id' => '109876543210', 'erp.whatsapp.templates.backup.stale' => 'erp_backup_stale', 'queue.default' => 'database']);
+        app(SettingService::class)->set('notifications.whatsapp_enabled', true);
+        $row = $this->sentRow('wamid.LAMA');
+        $row->notification->user->forceFill(['phone_e164' => '+628123456789', 'whatsapp_opt_in_at' => now(), 'whatsapp_opt_in_via' => 'profil'])->save();
+        $failed = $this->statusPayload('wamid.LAMA', 'failed', ['errors' => [['code' => 131026, 'title' => 'Message undeliverable']]]);
+
+        // 1. Meta melaporkan gagal → baris failed (keputusan pemilik H), sent_at tetap.
+        [$raw, $sig] = $this->signed($failed);
+        $this->hook($raw, $sig)->assertOk();
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::FAILED, $row->status);
+        $this->assertSame('failed', $row->provider_status);
+
+        // 2. Operator menekan Kirim ulang: baris kembali `queued` TANPA jejak pesan lama.
+        $this->actingAs($this->adminUser(), 'sanctum');
+        $this->postJson("/api/core/notification-deliveries/{$row->id}/retry")->assertOk();
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status);
+        $this->assertNull($row->provider_id, 'wamid lama milik pesan yang sudah dinyatakan gagal.');
+        $this->assertNull($row->provider_status);
+        $this->assertNull($row->provider_status_at);
+        $this->assertNull($row->sent_at);
+        $this->assertNull($row->error);
+        $this->assertSame(1, $row->attempts, 'Riwayat percobaan tetap.');
+
+        // 3. Meta mengulang webhook `failed` yang SAMA untuk wamid lama: 200, tidak ada yang cocok, tidak ada yang berubah.
+        $this->assertSame(['received' => 1, 'updated' => 0], $this->hook($raw, $sig)->assertOk()->json('data'));
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status, 'Webhook pesan lama tidak boleh membatalkan kirim ulang yang sudah antre.');
+        $this->assertNull($row->error);
+
+        // 4. Pekerja mengirim pesan baru; Meta menjawab wamid BARU.
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.BARU']]], 200)]);
+        DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+        $row->refresh();
+        Http::assertSentCount(1);
+        $this->assertSame(NotificationDelivery::SENT, $row->status);
+        $this->assertSame('wamid.BARU', $row->provider_id);
+        $this->assertSame(2, $row->attempts);
+        $this->assertNotNull($row->sent_at);
+        $this->assertNull($row->provider_status, 'Status penyedia pesan lama tidak menempel pada pesan baru.');
+        $this->assertNull($row->provider_status_at);
+
+        // 5. Webhook lama sekali lagi: tetap tidak cocok. Webhook untuk wamid BARU: berlaku.
+        $this->assertSame(0, $this->hook($raw, $sig)->assertOk()->json('data.updated'));
+        $this->assertSame(NotificationDelivery::SENT, $row->refresh()->status);
+        [$raw2, $sig2] = $this->signed($this->statusPayload('wamid.BARU', 'delivered'));
+        $this->assertSame(1, $this->hook($raw2, $sig2)->assertOk()->json('data.updated'));
+        $this->assertSame('delivered', $row->refresh()->provider_status);
+    }
+
+    /**
+     * Ketiga permukaan aturan "pesan baru" dipaku SENDIRI-SENDIRI, supaya satu
+     * yang bocor tidak tertutup oleh dua yang benar (cacat berulang kampanye
+     * ini): job mereset status penyedia saat `sent`; webhook hanya menerapkan
+     * status pada baris `sent`; Kirim ulang mengosongkan pengenal (uji di atas).
+     */
+    public function test_the_job_and_the_webhook_each_refuse_a_stale_provider_status_on_their_own(): void
+    {
+        Http::preventStrayRequests();
+        $this->configured();
+        config(['erp.whatsapp.phone_number_id' => '109876543210', 'erp.whatsapp.templates.backup.stale' => 'erp_backup_stale']);
+        app(SettingService::class)->set('notifications.whatsapp_enabled', true);
+
+        // Job: baris `queued` yang masih membawa status penyedia pesan lama → `sent` bersih.
+        $row = $this->sentRow('wamid.LAMA');
+        $row->notification->user->forceFill(['phone_e164' => '+628123456789', 'whatsapp_opt_in_at' => now(), 'whatsapp_opt_in_via' => 'profil'])->save();
+        $row->forceFill(['status' => 'queued', 'provider_id' => null, 'provider_status' => 'failed', 'provider_status_at' => now()->subMinutes(30)])->save();
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.BARU']]], 200)]);
+        (new DeliverNotification($row->id))->handle();
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::SENT, $row->status);
+        $this->assertSame('wamid.BARU', $row->provider_id);
+        $this->assertNull($row->provider_status);
+        $this->assertNull($row->provider_status_at);
+
+        // Webhook: baris yang BUKAN `sent` tidak disentuh walau wamid-nya cocok — 200 dan diabaikan.
+        foreach ([NotificationDelivery::QUEUED, NotificationDelivery::FAILED, NotificationDelivery::SKIPPED] as $status) {
+            $stale = $this->sentRow('wamid.'.strtoupper($status));
+            $stale->forceFill(['status' => $status, 'error' => 'sebab lama'])->save();
+            [$raw, $sig] = $this->signed($this->statusPayload($stale->provider_id, 'delivered'));
+            $this->assertSame(['received' => 1, 'updated' => 0], $this->hook($raw, $sig)->assertOk()->json('data'), "baris {$status}");
+            [$raw, $sig] = $this->signed($this->statusPayload($stale->provider_id, 'failed', ['errors' => [['code' => 131026, 'title' => 'Message undeliverable']]]));
+            $this->assertSame(0, $this->hook($raw, $sig)->assertOk()->json('data.updated'), "baris {$status}");
+            $stale->refresh();
+            $this->assertSame($status, $stale->status);
+            $this->assertNull($stale->provider_status);
+            $this->assertSame('sebab lama', $stale->error);
+        }
     }
 }

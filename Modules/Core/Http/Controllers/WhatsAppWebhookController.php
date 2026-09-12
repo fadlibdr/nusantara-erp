@@ -31,10 +31,16 @@ use Modules\Core\Support\WhatsAppSetup;
  *    (waktu-konstan). Hilang/salah → 403 TANPA menyentuh satu baris pun.
  *  - Tanpa WHATSAPP_APP_SECRET di .env → 403 untuk semua orang; webhook tanpa
  *    tanda tangan tidak pernah diterima.
- *  - Hanya memperbarui baris yang provider_id-nya (wamid) COCOK dan kanalnya
- *    whatsapp. Tidak pernah membuat baris. wamid yang tidak dikenal → 200 dan
- *    diabaikan: Meta mengulang webhook yang tidak 200, dan mengulang status
- *    untuk pesan yang bukan milik kita tidak berguna bagi siapa pun.
+ *  - Hanya memperbarui baris yang provider_id-nya (wamid) COCOK, kanalnya
+ *    whatsapp, DAN statusnya `sent`. Tidak pernah membuat baris. wamid yang
+ *    tidak dikenal → 200 dan diabaikan: Meta mengulang webhook yang tidak 200,
+ *    dan mengulang status untuk pesan yang bukan milik kita tidak berguna bagi
+ *    siapa pun. Baris `queued`/`failed`/`skipped` juga 200-dan-abaikan: status
+ *    Meta hanya bermakna untuk pesan yang sedang diterima penyedia — Kirim
+ *    ulang mengosongkan wamid lama (NotificationService::retry), dan saringan
+ *    ini adalah pertahanan keduanya (verifikasi P-3a, 12 Sep 2026: webhook
+ *    `failed` yang Meta ulang untuk wamid lama membatalkan kirim ulang yang
+ *    sudah antre).
  *  - Urutan: sent < delivered < read; status yang lebih rendah tidak menimpa
  *    yang lebih tinggi (webhook bisa datang tidak berurutan). `failed`
  *    selalu berlaku: status baris → failed (pesan itu memang tidak sampai),
@@ -119,6 +125,7 @@ class WhatsAppWebhookController extends ApiController
 
         $delivery = NotificationDelivery::query()
             ->where('channel', NotificationDelivery::CHANNEL_WHATSAPP)
+            ->where('status', NotificationDelivery::SENT)
             ->where('provider_id', $wamid)
             ->first();
 
