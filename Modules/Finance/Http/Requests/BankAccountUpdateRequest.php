@@ -4,6 +4,7 @@ namespace Modules\Finance\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Finance\Models\BankAccount;
 
 class BankAccountUpdateRequest extends FormRequest
 {
@@ -15,7 +16,7 @@ class BankAccountUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['sometimes', 'string', 'max:40', Rule::unique('fin_bank_accounts', 'code')->ignore($this->route('bankAccount')?->id)],
+            'code' => ['sometimes', 'string', 'max:40', 'regex:'.BankAccount::CODE_PATTERN, Rule::unique('fin_bank_accounts', 'code')->ignore($this->route('bankAccount')?->id)],
             'name' => ['sometimes', 'string', 'max:100'],
             'bank_name' => ['sometimes', 'string', 'max:100'],
             'account_no' => ['sometimes', 'string', 'max:40'],
@@ -23,5 +24,10 @@ class BankAccountUpdateRequest extends FormRequest
             'coa_account_id' => ['sometimes', 'integer', Rule::exists('fin_accounts', 'id'), Rule::unique('fin_bank_accounts', 'coa_account_id')->whereNull('deleted_at')->ignore($this->route('bankAccount'))],
             'is_active' => ['boolean'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['code.regex' => BankAccount::CODE_RULE_MESSAGE];
     }
 }

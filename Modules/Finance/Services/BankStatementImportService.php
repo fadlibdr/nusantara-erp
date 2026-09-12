@@ -48,10 +48,10 @@ class BankStatementImportService
      * Parse and check without writing anything — what the operator sees before
      * committing, and the only place a CSV column mapping can be corrected.
      */
-    public function preview(BankAccount $bankAccount, string $format, string $content, array $mapping = []): array
+    public function preview(BankAccount $bankAccount, string $format, string $content, array $mapping = [], bool $unattended = false): array
     {
         $statement = $this->parse($format, $content, $mapping);
-        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping);
+        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping, $unattended);
 
         return [
             'bank_account' => [
@@ -73,9 +73,10 @@ class BankStatementImportService
         string $content,
         array $mapping = [],
         ?int $userId = null,
+        bool $unattended = false,
     ): BankStatement {
         $statement = $this->parse($format, $content, $mapping);
-        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping);
+        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping, $unattended);
 
         if ($blockers !== []) {
             throw new LogicException($blockers[0]);
@@ -262,12 +263,17 @@ class BankStatementImportService
      *
      * @return list<string>
      */
+    /**
+     * @param  bool  $unattended  jalur folder terpantau (P-3c): tidak ada operator yang "memilih" rekening —
+     *                            kalimat salah-rekening menyebut sub-folder tempat berkasnya berada.
+     */
     private function blockers(
         BankAccount $bankAccount,
         ParsedStatement $statement,
         string $format,
         string $content,
         array $mapping,
+        bool $unattended = false,
     ): array {
         $blockers = [];
 
@@ -299,7 +305,7 @@ class BankStatementImportService
                     .($duplicate->bankAccount?->name ?? '?').'. Periksa rekening yang Anda pilih.';
         }
 
-        $mismatch = $this->accountIdentificationBlocker($bankAccount, $statement);
+        $mismatch = $this->accountIdentificationBlocker($bankAccount, $statement, $unattended);
 
         if ($mismatch !== null) {
             $blockers[] = $mismatch;
@@ -319,7 +325,7 @@ class BankStatementImportService
      * prefix the number with a BIC or branch code and pad it inconsistently, so
      * an equality test would refuse almost every real file.
      */
-    private function accountIdentificationBlocker(BankAccount $bankAccount, ParsedStatement $statement): ?string
+    private function accountIdentificationBlocker(BankAccount $bankAccount, ParsedStatement $statement, bool $unattended = false): ?string
     {
         $declared = preg_replace('/\D/', '', (string) $statement->accountIdentification) ?? '';
         $selected = preg_replace('/\D/', '', (string) $bankAccount->account_no) ?? '';
@@ -330,6 +336,18 @@ class BankStatementImportService
 
         if (str_contains($declared, $selected) || str_contains($selected, $declared)) {
             return null;
+        }
+
+        if ($unattended) {
+            // Folder terpantau: yang salah adalah sub-folder tempat berkas diletakkan, bukan pilihan
+            // siapa pun — kalimatnya menyebut tindakan yang benar (V-folder-8).
+            return sprintf(
+                'Rekening koran ini untuk rekening %s, sedangkan berkasnya berada di sub-folder %s (%s %s); letakkan di sub-folder kode rekening yang benar.',
+                $statement->accountIdentification,
+                $bankAccount->code,
+                $bankAccount->account_no,
+                $bankAccount->name,
+            );
         }
 
         return sprintf(

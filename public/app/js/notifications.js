@@ -9,6 +9,7 @@
 import { api, session } from './api.js';
 import { el, clear, button, icon, badge, toast, toastError, modal, closeModal, withBusy, emptyState } from './ui.js';
 import * as fmt from './format.js';
+import { resolve } from './router.js';
 
 const POLL_MS = 90_000;
 
@@ -77,7 +78,11 @@ function row(notification, onChanged) {
             // Close first: the router paints behind the overlay, so navigating
             // with the modal still open looks like the click did nothing.
             closeModal();
-            window.location.hash = notification.link.replace(/^#/, '');
+            const target = `#${notification.link.replace(/^#/, '')}`;
+            // Hash yang sudah sama tidak memicu hashchange: layar yang sudah berpindah tab
+            // di dalam dirinya tampak mengabaikan tombol ini — jadi router diminta menggambar ulang.
+            if (window.location.hash === target) resolve();
+            else window.location.hash = target;
             onChanged();
           },
         })

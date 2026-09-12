@@ -25,6 +25,10 @@ class BankInboxController extends ApiController
         $summary = $this->inbox->scan();
         $c = $summary['counts'];
 
+        if ($summary['locked']) {
+            return $this->ok(['summary' => $summary] + $this->inbox->status(), BankInboxService::LOCKED_NOTE);
+        }
+
         return $this->ok(
             ['summary' => $summary] + $this->inbox->status(),
             $summary['folder_exists']

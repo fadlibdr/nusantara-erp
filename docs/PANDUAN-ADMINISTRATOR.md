@@ -2106,23 +2106,51 @@ install -d -o www-data -g www-data -m 0750 /var/www/erp1.pi2.co.id/storage/app/p
 
 Yang dibutuhkan aplikasi hanya **hak baca** (`www-data` membaca folder dan berkasnya); ia
 tidak butuh hak tulis dan tidak memakainya. Berkas yang tidak terbaca tercatat *"Berkas
-tidak bisa dibaca (hak akses) …"* — bukan galat.
+tidak bisa dibaca (hak akses) …"* — bukan galat — satu baris dan satu notifikasi **per
+berkas**; sesudah hak aksesnya dibetulkan, pemeriksaan berikutnya membaca berkasnya dan
+baris lama menjadi *Digantikan* (tidak dihitung ubin).
+
+**Nama sub-folder = kode rekening, dan kodenya dibatasi.** Kode rekening bank hanya boleh
+huruf, angka, titik, strip, dan garis bawah (tanpa spasi; `Keuangan › Rekening Bank`
+menolak yang lain sejak putaran verifikasi P-3c). Rekening lama yang kodenya berspasi
+ditandai di kartu *Kesiapan per rekening* (*"Kode rekening … tidak bisa menjadi nama
+sub-folder …"*) — ubah kodenya, jangan membuat sub-folder berspasi: sub-folder yang
+namanya tidak sah tercatat *Diabaikan* dengan kalimatnya, tidak dibaca.
 
 **Mengisi foldernya.** Dari luar aplikasi — `scp`, `rclone`, atau salinan manual — ke
 sub-folder kode rekeningnya. Nama berkas bebas; ekstensi yang dibaca `.csv`, `.txt`,
 `.sta`, `.940`, `.mt940` (`.txt` dianggap MT940 bila memuat `:61:`, selain itu CSV). Berkas
 tersembunyi (diawali titik), sub-folder bersarang, dan sub-folder yang bukan kode rekening
 **aktif** tidak dibaca (yang terakhir tercatat *Diabaikan* dengan kalimatnya). Batas 2 MB
-per berkas — sama dengan layar Impor.
+per berkas — sama dengan layar Impor — dan batas itu diperiksa **sebelum** satu byte pun
+dibaca: berkas sebesar apa pun yang salah taruh tercatat *Gagal "lebih dari 2 MB"* tanpa
+pernah masuk memori, dan berkas berikutnya tetap diperiksa. **Tautan simbolik** ke luar
+folder tidak diikuti: baris *Diabaikan "tautan simbolik; tidak dibaca"* — targetnya tidak
+dibaca, tidak dihash, tidak diukur.
 
 **Apa yang terjadi sesudah diproses: TIDAK ADA — pada berkasnya.** Aplikasi tidak
 memindah ke `processed/`, tidak mengganti nama, tidak menghapus, tidak menulis penanda.
-Yang ditulis adalah **ledger** `fin_bank_inbox_files` (jalur relatif, sha256 isi, status
-`imported|failed|duplicate|ignored`, kalimat sebab, kapan terakhir diperiksa) — itulah yang
-membuat pemeriksaan per jam idempoten: berkas yang sama tidak diimpor dua kali; salinan
-berganti nama tercatat *Salinan*; isi yang berubah di bawah nama lama adalah berkas baru.
+Yang ditulis adalah **ledger** `fin_bank_inbox_files` (jalur relatif, sha256 isi — atau
+kunci dari jalurnya untuk berkas yang ditolak sebelum dibaca —, status
+`imported|failed|duplicate|ignored|superseded`, kalimat sebab, kapan terakhir diperiksa) —
+itulah yang membuat pemeriksaan per jam idempoten: berkas yang sama tidak diimpor dua kali;
+salinan berganti nama (atau yang hanya beda baris kosong di ujung) tercatat *Salinan* dengan
+menyebut berkas mana yang lebih dulu diimpor; isi yang berubah di bawah nama lama adalah
+berkas baru, dan baris lama yang belum menjadi rekening koran menjadi *Digantikan*.
 **Membersihkan folder adalah pekerjaan Anda**, kapan pun — ledgernya tetap mengingat sha256,
 jadi berkas yang Anda taruh lagi tidak diimpor dua kali.
+
+**Sesudah rekening koran hasil impor folder DIHAPUS** (obat pemetaan kolom yang salah,
+PANDUAN §10.4): berkasnya di folder diperlakukan sebagai **berkas baru lagi** pada
+pemeriksaan berikutnya — perbaiki dulu presetnya (atau ambil berkasnya dari folder), baru
+hapus rekening korannya; kalau tidak, jam berikutnya berkas yang sama diimpor lagi dengan
+pemetaan yang sama. Baris ledger untuk berkas yang sudah tidak di folder tampil *Rekening
+koran dihapus*, bukan *Diimpor*.
+
+**Satu pemeriksaan pada satu waktu.** Tombol *Periksa sekarang* yang ditekan saat
+pemeriksaan per jam sedang berjalan (atau sebaliknya) tidak menumpuk: yang kedua pulang
+dengan *"Pemeriksaan folder terpantau lain sedang berjalan; coba lagi sebentar."* dan tidak
+menulis apa pun (kunci cache `fin:bank-inbox`, 15 menit; jadwalnya `withoutOverlapping`).
 
 **Kegagalan.** Setiap berkas `failed` tercatat dengan kalimat Indonesia di ledger dan
 dibunyikan **sekali** di lonceng pemegang `fin.update` (dedupe judul + sha256 berkas;
@@ -2136,9 +2164,11 @@ untuk membaca ringkasannya jalankan tangan sebagai `www-data`:
 e tidak berubah"*.
 
 **Membaca keadaannya tanpa terminal.** Keuangan › Rekonsiliasi Bank › tab **Folder
-terpantau** (`GET api/finance/bank-inbox`, `fin.view`): ubin, *Terakhir diperiksa* (stempel
+terpantau** (`GET api/finance/bank-inbox`, `fin.view`): ubin **pemeriksaan terakhir**
+(berkas yang ada di folder saat itu — bukan seluruh sejarah; folder yang Anda bersihkan
+membuat ubinnya ikut kosong), *Terakhir diperiksa* (stempel
 `core_settings` `bank_inbox.checked_at` yang ditulis perintah — bukan asumsi dari jadwal),
-kesiapan per rekening, dan tabel berkas. Tombol **Periksa sekarang** (`fin.create`)
+kesiapan per rekening, dan tabel berkas (seluruh sejarah ledger). Tombol **Periksa sekarang** (`fin.create`)
 menjalankan pemeriksaan yang sama saat itu juga. **Layar itu tidak tahu apakah penjadwal
 hidup** — bila stempelnya berhenti bergerak, periksa `GET api/core/health` /
 `systemctl status erp1-scheduler` (§5.2).

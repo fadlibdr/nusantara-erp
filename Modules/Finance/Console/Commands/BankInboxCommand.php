@@ -36,6 +36,14 @@ class BankInboxCommand extends Command
         $result = $inbox->scan();
         $c = $result['counts'];
 
+        if ($result['locked']) {
+            // Tombol "Periksa sekarang" atau jam sebelumnya masih memegang kuncinya: tidak ada yang
+            // diperiksa, tidak ada yang ditulis — dikatakan, keluar 0 (V-folder-1).
+            $this->info(BankInboxService::LOCKED_NOTE);
+
+            return self::SUCCESS;
+        }
+
         $this->info(sprintf(
             '%d berkas: %d diimpor, %d gagal, %d salinan, %d diabaikan, %d tidak berubah',
             $c['seen'], $c['imported'], $c['failed'], $c['duplicate'], $c['ignored'], $c['unchanged'],

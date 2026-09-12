@@ -30,6 +30,17 @@ export function navigate(path, { replace = false } = {}) {
   else location.hash = target;
 }
 
+/* Tulis ulang bagian query hash TANPA memicu hashchange, dan beri tahu router
+ * bahwa itulah lokasi sekarang — untuk layar bertab yang berpindah tab di
+ * dalam dirinya sendiri: tautan berikutnya ke '#/x?tab=a' (notifikasi "Buka
+ * dokumen") berbeda dari hash sekarang, jadi hashchange sungguh berjalan, dan
+ * muat ulang halaman kembali ke tab yang sedang dibuka, bukan tab dari query
+ * lama. */
+export function replacePath(path) {
+  history.replaceState(null, '', `#/${String(path).replace(/^\/?#?\/?/, '')}`);
+  current = currentPath();
+}
+
 export function back() {
   if (history.length > 1) history.back();
   else navigate('dashboard');

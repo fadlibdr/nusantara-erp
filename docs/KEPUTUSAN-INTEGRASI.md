@@ -238,9 +238,11 @@ sama dengan §1–§9: apa yang ditolak, mengapa, apa yang dipilih, dan batasnya
 
 **Batasnya — apa yang TIDAK otomatis, dan dikatakan di setiap permukaan.**
 
-1. Berkasnya tidak datang sendiri dari bank. Tidak ada kalimat "otomatis dari bank",
-   "langsung dari bank", atau "terhubung ke bank" di layar, notifikasi, README, atau
-   panduan (dipaku uji pada berkas paket ini).
+1. Berkasnya tidak datang sendiri dari bank. Tidak ada kalimat «otomatis dari bank»,
+   «langsung dari bank», atau «terhubung ke bank» di layar, notifikasi, README, maupun
+   panduan — dipaku uji `BankInboxTest` atas berkas paket ini utuh (layar, service,
+   perintah, controller, registri, `docs/samples/bank/README.md`, ONBOARDING finance/admin)
+   dan atas irisan PANDUAN-PENGGUNA §10.4, PANDUAN-ADMINISTRATOR §5.13, dan §10 ini.
 2. Preset bawaan BCA/Mandiri/BNI/BRI **tidak ada** sampai pemilik meletakkan berkas
    ekspor nyata di `docs/samples/bank/` (README di sana daftar belanjanya); yang ada
    hari ini adalah preset **per rekening** yang disimpan operator dari pratinjau yang

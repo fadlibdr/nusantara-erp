@@ -44,8 +44,10 @@ class FinanceServiceProvider extends ServiceProvider
             $schedule->command('fin:close-watch')->dailyAt('08:15')->timezone('Asia/Jakarta');
             // P-3c — folder terpantau rekening koran, tiap jam (roadmap: "impor
             // dari folder terpantau per jam"). Folder yang belum ada = diam,
-            // keluar 0. Cadence-nya dipaku BankInboxTest lewat schedule:list.
-            $schedule->command('fin:bank-inbox')->hourly();
+            // keluar 0. Cadence-nya dipaku BankInboxTest lewat schedule:list;
+            // withoutOverlapping: jam berikutnya tidak menumpuk di atas pemeriksaan
+            // yang lambat (service-nya sendiri juga memegang kunci cache — V-folder-1).
+            $schedule->command('fin:bank-inbox')->hourly()->withoutOverlapping();
         });
 
         /*

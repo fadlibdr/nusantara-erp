@@ -3,15 +3,23 @@
 namespace Tests\Feature\Finance;
 
 use App\Models\User;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use LogicException;
+use Mockery;
 use Modules\Core\Models\Notification;
+use Modules\Core\Services\NotificationService;
 use Modules\Core\Services\SettingService;
+use Modules\Finance\Models\Account;
 use Modules\Finance\Models\BankAccount;
 use Modules\Finance\Models\BankInboxFile;
 use Modules\Finance\Models\BankStatement;
 use Modules\Finance\Services\BankInboxService;
 use Modules\Finance\Services\BankStatementImportService;
+use Modules\Finance\Services\CsvStatementParser;
+use Modules\Finance\Services\Mt940Parser;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -267,7 +275,13 @@ class BankInboxTest extends ErpTestCase
 
         $row = BankInboxFile::query()->sole();
         $this->assertSame('failed', $row->status);
-        $this->assertStringContainsString('Rekening koran ini untuk rekening MANDIRI/9988776655', (string) $row->error);
+        // Di folder tidak ada yang "memilih" rekening (V-folder-8): kalimatnya menyebut sub-folder dan tindakan yang benar.
+        $this->assertSame(
+            'Rekening koran ini untuk rekening MANDIRI/9988776655, sedangkan berkasnya berada di sub-folder BANK-BCA-OPS (1234567890 BCA Operasional); letakkan di sub-folder kode rekening yang benar.',
+            $row->error,
+        );
+        $this->assertStringNotContainsString('Anda pilih', (string) $this->alarms()[0]->body);
+        $this->assertStringContainsString('berada di sub-folder BANK-BCA-OPS', (string) $this->alarms()[0]->body);
         $this->assertSame(0, BankStatement::query()->count());
     }
 
@@ -605,28 +619,393 @@ class BankInboxTest extends ErpTestCase
         $this->assertStringContainsString('folder.note', $screen, 'kalimat folder-belum-ada harus dari server');
         $this->assertStringContainsString('last_checked_at', $screen);
         $this->assertStringContainsString('file.status_label', $screen, 'label status dari server');
+        $this->assertStringContainsString("text: file.error || ''", $screen, 'kalimat sebab ledger dari server, bukan disusun SPA (V-permukaan-5)');
+        $this->assertStringContainsString('fmt.dateTime(data.last_checked_at)', $screen, 'ubin Terakhir diperiksa = stempel yang ditulis, bukan jam sekarang (V-permukaan-4)');
+        $this->assertStringContainsString("'data-iso': data.last_checked_at", $screen, 'stempel ISO diekspos supaya harness membandingkan ubin dengan core_settings');
         $this->assertStringContainsString('account.preset.note', $screen, 'kalimat kesiapan preset per rekening dari server');
+        $this->assertStringContainsString('account.subfolder.note', $screen, 'kode rekening yang tidak bisa menjadi sub-folder dikatakan di kartu Kesiapan (V-permukaan-3)');
+        $this->assertStringContainsString('data.counts_note', $screen, 'ubin dari pemeriksaan terakhir, tabel = sejarah — kalimatnya dari server (V-folder-7)');
+        $this->assertStringContainsString('replacePath(`bank-recon?tab=${state.tab}', $screen, 'tab yang berganti ditulis kembali ke hash supaya tautan notifikasi ke ?tab=inbox tidak mati (V-permukaan-2)');
 
         // Sapuan DIBATASI pada berkas paket ini, tak peka huruf besar; komentar
         // yang menyebut frasa terlarang memakai «guillemet» agar tidak menangkap dirinya sendiri.
+        // Berkas paket ini utuh + IRISAN panduan yang paket ini tulis (V-preset-2): bukan seluruh
+        // PANDUAN (modul lain boleh memakai kata yang wajar — pelajaran 4), tetapi bagian yang
+        // KEPUTUSAN §10 batas 1 klaim terpaku. Irisan yang tidak ditemukan = uji merah.
+        $surfaces = [
+            'bankrecon.js' => (string) file_get_contents(public_path('app/js/views/bankrecon.js')),
+            'BankInboxService.php' => (string) file_get_contents(base_path('Modules/Finance/Services/BankInboxService.php')),
+            'BankInboxCommand.php' => (string) file_get_contents(base_path('Modules/Finance/Console/Commands/BankInboxCommand.php')),
+            'BankInboxController.php' => (string) file_get_contents(base_path('Modules/Finance/Http/Controllers/BankInboxController.php')),
+            'BankPresets.php' => (string) file_get_contents(base_path('Modules/Finance/Support/BankPresets.php')),
+            'samples/bank/README.md' => (string) file_get_contents(base_path('docs/samples/bank/README.md')),
+            'ONBOARDING/finance.md' => (string) file_get_contents(base_path('docs/ONBOARDING/finance.md')),
+            'ONBOARDING/admin.md' => (string) file_get_contents(base_path('docs/ONBOARDING/admin.md')),
+            'PANDUAN-PENGGUNA.md §10.4' => $this->section(base_path('docs/PANDUAN-PENGGUNA.md'), '### 10.4 ', '### '),
+            'PANDUAN-ADMINISTRATOR.md §5.13' => $this->section(base_path('docs/PANDUAN-ADMINISTRATOR.md'), '### 5.13 ', '### '),
+            'KEPUTUSAN-INTEGRASI.md §10' => $this->section(base_path('docs/KEPUTUSAN-INTEGRASI.md'), '## 10. ', '## '),
+        ];
+
         $promises = [];
-        foreach ([
-            public_path('app/js/views/bankrecon.js'),
-            base_path('Modules/Finance/Services/BankInboxService.php'),
-            base_path('Modules/Finance/Console/Commands/BankInboxCommand.php'),
-            base_path('Modules/Finance/Http/Controllers/BankInboxController.php'),
-            base_path('Modules/Finance/Support/BankPresets.php'),
-            base_path('docs/samples/bank/README.md'),
-        ] as $file) {
-            $this->assertFileExists($file);
-            $code = (string) file_get_contents($file);
+        foreach ($surfaces as $name => $code) {
+            $this->assertGreaterThan(200, strlen($code), "permukaan {$name} kosong — irisan tidak ditemukan");
             foreach (['otomatis dari bank', 'langsung dari bank', 'terhubung ke bank', 'penjadwal aktif', 'penjadwal berjalan', 'diambil dari bank'] as $needle) {
                 if (preg_match('/(?<!belum |tidak |bukan |tanpa |«)'.preg_quote($needle, '/').'(?!»)/iu', $code) === 1) {
-                    $promises[] = basename($file).': '.$needle;
+                    $promises[] = $name.': '.$needle;
                 }
             }
         }
 
         $this->assertSame([], $promises, 'kalimat yang menjanjikan sesuatu yang tidak terjadi');
+    }
+
+    /** Irisan dokumen dari baris yang diawali $heading sampai judul setingkat berikutnya ('' bila tidak ada). */
+    private function section(string $file, string $heading, string $nextHeadingPrefix): string
+    {
+        $lines = preg_split('/\R/', (string) file_get_contents($file)) ?: [];
+        $out = [];
+        $inside = false;
+
+        foreach ($lines as $line) {
+            if (! $inside) {
+                $inside = str_starts_with($line, $heading);
+            } elseif (str_starts_with($line, $nextHeadingPrefix)) {
+                break;
+            }
+
+            if ($inside) {
+                $out[] = $line;
+            }
+        }
+
+        return implode("\n", $out);
+    }
+    // ------------------------------------------------ putaran verifikasi (V-folder-*)
+
+    /**
+     * V-folder-1: dua pemeriksaan bersamaan atas satu berkas baru. Proses lain menang
+     * (rekening koran + baris `imported` lahir di tengah), import() proses ini
+     * memantul "Berkas ini sudah diimpor." — baris pemenang TIDAK ditimpa menjadi
+     * `failed`, tidak ada notifikasi gagal, tidak ada rekening koran kedua.
+     */
+    public function test_two_checks_racing_on_one_new_file_keep_the_imported_row_and_raise_no_failure_alarm(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $real = app(BankStatementImportService::class);
+        $bank = $this->bank;
+        $winner = null;
+
+        $racing = Mockery::mock(BankStatementImportService::class, [app(Mt940Parser::class), app(CsvStatementParser::class)])->makePartial();
+        $racing->shouldReceive('import')->once()->andReturnUsing(function () use ($real, $bank, &$winner): never {
+            // Proses yang menang menyelesaikan seluruh pekerjaannya di tengah proses ini.
+            $winner = $real->import($bank, 'mt940', $this->marchMt940(), [], null);
+            (new BankInboxFile)->forceFill([
+                'relative_path' => 'BANK-BCA-OPS/maret.sta', 'sha256' => hash('sha256', $this->marchMt940()), 'size' => strlen($this->marchMt940()),
+                'status' => 'imported', 'bank_account_id' => $bank->id, 'bank_statement_id' => $winner->id,
+                'first_seen_at' => now(), 'checked_at' => now(),
+            ])->save();
+
+            throw new LogicException('Berkas ini sudah diimpor.');
+        });
+        $this->instance(BankStatementImportService::class, $racing);
+
+        $summary = $this->scan();
+
+        $this->assertSame(['seen' => 1, 'imported' => 0, 'failed' => 0, 'duplicate' => 0, 'ignored' => 0, 'unchanged' => 1], $summary['counts']);
+        $row = BankInboxFile::query()->sole();
+        $this->assertSame('imported', $row->status);
+        $this->assertSame($winner->id, $row->bank_statement_id);
+        $this->assertNull($row->error);
+        $this->assertSame(1, BankStatement::query()->count());
+        $this->assertCount(0, $this->alarms()->where('title', BankInboxService::FAILED_TITLE), 'notifikasi GAGAL palsu untuk berkas yang berhasil diimpor');
+    }
+
+    /** V-folder-1 + V-folder-5: kalah balapan dari impor LAYAR → `duplicate` yang menyebut layar, bukan `failed`. */
+    public function test_a_check_that_loses_the_race_to_a_screen_import_records_a_duplicate_not_a_failure(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $real = app(BankStatementImportService::class);
+        $bank = $this->bank;
+        $admin = $this->admin;
+
+        $racing = Mockery::mock(BankStatementImportService::class, [app(Mt940Parser::class), app(CsvStatementParser::class)])->makePartial();
+        $racing->shouldReceive('import')->once()->andReturnUsing(function () use ($real, $bank, $admin): never {
+            $real->import($bank, 'mt940', $this->marchMt940(), [], $admin->id);   // operator di layar menang
+
+            throw new LogicException('Berkas ini sudah diimpor.');
+        });
+        $this->instance(BankStatementImportService::class, $racing);
+
+        $summary = $this->scan();
+
+        $this->assertSame(1, $summary['counts']['duplicate']);
+        $row = BankInboxFile::query()->sole();
+        $this->assertSame('duplicate', $row->status);
+        $this->assertSame(BankStatement::query()->sole()->id, $row->bank_statement_id);
+        $this->assertSame('Berkas ini sudah diimpor sebagai '.BankStatement::query()->sole()->code.' (lewat layar Impor).', $row->error);
+        $this->assertCount(0, $this->alarms()->where('title', BankInboxService::FAILED_TITLE));
+    }
+
+    /** V-folder-1: kunci cache — tombol layar dan penjadwal tidak bersaing; yang kedua ditolak dengan kalimat, tanpa baris. */
+    public function test_a_second_check_while_one_is_running_is_refused_with_a_sentence_and_touches_nothing(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $lock = Cache::lock('fin:bank-inbox', 60);
+        $this->assertTrue($lock->get());
+
+        try {
+            $summary = $this->scan();
+            $this->assertTrue($summary['locked']);
+            $this->assertSame(0, $summary['counts']['seen']);
+            $this->assertSame(0, BankInboxFile::query()->count());
+            $this->assertSame(0, BankStatement::query()->count());
+            $this->assertNull(app(SettingService::class)->get(BankInboxService::CHECKED_AT_KEY), 'stempel tidak boleh bergerak untuk pemeriksaan yang tidak berjalan');
+
+            $this->artisan('fin:bank-inbox')
+                ->expectsOutputToContain('Pemeriksaan folder terpantau lain sedang berjalan; coba lagi sebentar.')
+                ->assertExitCode(0);
+        } finally {
+            $lock->release();
+        }
+
+        $this->assertSame(1, $this->scan()['counts']['imported'], 'sesudah kunci dilepas pemeriksaan berjalan biasa');
+    }
+
+    public function test_the_scheduled_check_does_not_overlap_itself(): void
+    {
+        $event = collect(app(Schedule::class)->events())->first(fn ($event): bool => str_contains((string) $event->command, 'fin:bank-inbox'));
+
+        $this->assertNotNull($event);
+        $this->assertTrue($event->withoutOverlapping, 'fin:bank-inbox harus withoutOverlapping(): jam berikutnya tidak boleh menumpuk di atas pemeriksaan yang lambat');
+    }
+
+    /**
+     * V-folder-2: berkas > 2 MB TIDAK PERNAH dibaca ke memori — sha256 barisnya kunci jalur, bukan isi.
+     * Batas memori diturunkan supaya pembacaan 512 MB (bila terjadi) mematikan proses, bukan lolos diam-diam;
+     * berkas berikutnya dalam urutan abjad tetap diperiksa dan stempel ditulis.
+     */
+    public function test_an_oversized_file_is_never_read_into_memory_and_the_next_file_is_still_checked(): void
+    {
+        $size = 512 * 1024 * 1024;
+        $path = $this->root.'/BANK-BCA-OPS/besar.sta';
+        @mkdir(dirname($path), 0777, true);
+        $handle = fopen($path, 'w');
+        ftruncate($handle, $size);   // berkas jarang: tidak memakan disk, tetapi 512 MB bila dibaca
+        fclose($handle);
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $limit = ini_get('memory_limit');
+        ini_set('memory_limit', (string) (memory_get_usage(true) + 64 * 1024 * 1024));
+
+        try {
+            $summary = $this->scan();
+        } finally {
+            ini_set('memory_limit', $limit);
+        }
+
+        $this->assertSame(['seen' => 2, 'imported' => 1, 'failed' => 1, 'duplicate' => 0, 'ignored' => 0, 'unchanged' => 0], $summary['counts']);
+        $row = BankInboxFile::query()->where('relative_path', 'BANK-BCA-OPS/besar.sta')->sole();
+        $this->assertSame('Berkas lebih dari 2 MB (536.870.912 byte); rekening koran sebulan tidak sebesar ini — periksa berkasnya.', $row->error);
+        $this->assertSame(hash('sha256', 'oversize|BANK-BCA-OPS/besar.sta|536870912'), $row->sha256, 'kunci baris dari jalur+ukuran, bukan dari isi yang tidak dibaca');
+        $this->assertSame($size, $row->size);
+        $this->assertSame('imported', BankInboxFile::query()->where('relative_path', 'BANK-BCA-OPS/maret.sta')->sole()->status);
+        $this->assertNotNull(app(SettingService::class)->get(BankInboxService::CHECKED_AT_KEY));
+        $this->assertCount(2, $this->alarms(), 'satu notifikasi gagal (besar) + satu berhasil (maret)');
+    }
+
+    /**
+     * V-folder-3: dua berkas yang tidak terbaca = dua kunci, dua notifikasi (bukan satu sha256 dari string
+     * kosong untuk semuanya); sesudah terbaca, baris lama menjadi `superseded` dan tidak dihitung ubin.
+     * Uji berjalan sebagai root (chmod 000 tidak menghalangi), jadi pembacanya yang disuntik.
+     */
+    public function test_two_unreadable_files_are_announced_separately_and_their_rows_heal_once_readable(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $this->drop('BANK-BCA-OPS/april.sta', $this->aprilMt940());
+
+        $blind = Mockery::mock(BankInboxService::class, [
+            app(BankStatementImportService::class), app(CsvStatementParser::class), app(NotificationService::class), app(SettingService::class),
+        ])->makePartial()->shouldAllowMockingProtectedMethods();
+        $blind->shouldReceive('read')->twice()->andReturn(false);
+
+        $summary = $blind->scan();
+
+        $this->assertSame(2, $summary['counts']['failed']);
+        $rows = BankInboxFile::query()->orderBy('relative_path')->get();
+        $this->assertSame(['BANK-BCA-OPS/april.sta', 'BANK-BCA-OPS/maret.sta'], $rows->pluck('relative_path')->all());
+        $this->assertSame(hash('sha256', 'unreadable|BANK-BCA-OPS/april.sta'), $rows[0]->sha256);
+        $this->assertSame(hash('sha256', 'unreadable|BANK-BCA-OPS/maret.sta'), $rows[1]->sha256);
+        $this->assertSame('Berkas tidak bisa dibaca (hak akses); pastikan www-data boleh membaca folder dan berkasnya.', $rows[0]->error);
+        $alarms = $this->alarms();
+        $this->assertCount(2, $alarms, 'satu notifikasi per BERKAS yang tidak terbaca');
+        $this->assertNotSame($alarms[0]->document_code, $alarms[1]->document_code);
+
+        // Hak akses dibetulkan: pembaca sungguhan.
+        $summary = $this->scan();
+
+        $this->assertSame(2, $summary['counts']['imported']);
+        $this->assertSame(['superseded', 'superseded'], BankInboxFile::query()->where('sha256', 'like', hash('sha256', 'unreadable|BANK-BCA-OPS/april.sta'))
+            ->orWhere('sha256', hash('sha256', 'unreadable|BANK-BCA-OPS/maret.sta'))->pluck('status')->all());
+        $this->assertSame(['imported' => 2, 'failed' => 0, 'duplicate' => 0, 'ignored' => 0], app(BankInboxService::class)->status()['counts']);
+        $this->assertSame('Digantikan', BankInboxFile::query()->where('status', 'superseded')->first()->statusLabel());
+    }
+
+    /**
+     * V-folder-4: rekening koran hasil impor folder dihapus (obat pemetaan yang salah) → berkasnya
+     * diimpor ULANG pada pemeriksaan berikutnya; salinan tidak pernah dijawab "sebagai ?".
+     */
+    public function test_a_deleted_statement_lets_the_folder_file_be_imported_again_and_no_copy_is_told_question_mark(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $this->scan();
+        $first = BankStatement::query()->sole();
+        app(BankStatementImportService::class)->delete($first);
+        $this->assertSame(0, BankStatement::query()->count());
+
+        $summary = $this->scan();
+
+        $this->assertSame(1, $summary['counts']['imported']);
+        $second = BankStatement::query()->sole();
+        $this->assertNotSame($first->id, $second->id);
+        $row = BankInboxFile::query()->sole();
+        $this->assertSame('imported', $row->status);
+        $this->assertSame($second->id, $row->bank_statement_id);
+
+        $this->drop('BANK-BCA-OPS/maret-salinan.sta', $this->marchMt940());
+        $this->scan();
+
+        $copy = BankInboxFile::query()->where('relative_path', 'BANK-BCA-OPS/maret-salinan.sta')->sole();
+        $this->assertSame('duplicate', $copy->status);
+        $this->assertSame("Isi berkas sama dengan BANK-BCA-OPS/maret.sta yang sudah diimpor sebagai {$second->code}.", $copy->error);
+        $this->assertStringNotContainsString('?', (string) $copy->error);
+    }
+
+    /** V-folder-4: berkasnya sudah tidak di folder, rekening korannya dihapus — layar berkata begitu, bukan "Diimpor" tanpa rekening koran. */
+    public function test_a_row_whose_statement_was_deleted_is_shown_as_such_not_as_imported(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $this->scan();
+        app(BankStatementImportService::class)->delete(BankStatement::query()->sole());
+        unlink($this->root.'/BANK-BCA-OPS/maret.sta');
+        $this->scan();
+
+        $file = app(BankInboxService::class)->status()['files'][0];
+
+        $this->assertSame('statement_deleted', $file['status']);
+        $this->assertSame('Rekening koran dihapus', $file['status_label']);
+        $this->assertNull($file['bank_statement']);
+        $this->assertSame(
+            'Rekening koran hasil impor berkas ini sudah dihapus (obat pemetaan yang salah); bila berkasnya masih di folder, ia diimpor ulang pada pemeriksaan berikutnya.',
+            $file['error'],
+        );
+    }
+
+    /** V-folder-5: salinan yang hanya beda byte tak-berarti dari impor FOLDER tidak mengaku "lewat layar Impor". */
+    public function test_a_copy_that_differs_only_in_a_trailing_newline_from_a_folder_import_does_not_claim_the_screen(): void
+    {
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+        $this->scan();
+        $this->drop('BANK-BCA-OPS/maret-akhir.sta', $this->marchMt940()."\n");
+
+        $this->scan();
+
+        $copy = BankInboxFile::query()->where('relative_path', 'BANK-BCA-OPS/maret-akhir.sta')->sole();
+        $this->assertSame('duplicate', $copy->status);
+        $this->assertSame('Isi berkas sama dengan BANK-BCA-OPS/maret.sta yang sudah diimpor sebagai '.BankStatement::query()->sole()->code.'.', $copy->error);
+        $this->assertStringNotContainsString('layar', (string) $copy->error);
+        $this->assertSame(1, BankStatement::query()->count());
+    }
+
+    /** V-folder-6 + V-permukaan-6: tautan simbolik ke luar folder — berkas maupun sub-folder — tidak dibaca DAN targetnya tidak disentuh. */
+    public function test_symlinks_out_of_the_folder_are_ignored_without_touching_their_target(): void
+    {
+        $outside = sys_get_temp_dir().'/bank-outside-'.uniqid();
+        mkdir($outside, 0777, true);
+        file_put_contents($outside.'/luar.sta', $this->marchMt940());
+        @mkdir($this->root.'/BANK-BCA-OPS', 0777, true);
+        symlink($outside.'/luar.sta', $this->root.'/BANK-BCA-OPS/tautan.sta');
+        $this->makeBankAccount('1-1220', ['code' => 'BANK-MDR-PRJ']);
+        symlink($outside, $this->root.'/BANK-MDR-PRJ');   // sub-folder bernama kode rekening aktif → folder luar
+
+        try {
+            $summary = $this->scan();
+
+            $this->assertSame(['seen' => 2, 'imported' => 0, 'failed' => 0, 'duplicate' => 0, 'ignored' => 2, 'unchanged' => 0], $summary['counts']);
+            foreach (['BANK-BCA-OPS/tautan.sta', 'BANK-MDR-PRJ/luar.sta'] as $relative) {
+                $row = BankInboxFile::query()->where('relative_path', $relative)->sole();
+                $this->assertSame('ignored', $row->status, $relative);
+                $this->assertSame('Berkas menunjuk ke luar folder terpantau (tautan simbolik); tidak dibaca.', $row->error, $relative);
+                $this->assertSame(hash('sha256', 'symlink|'.$relative), $row->sha256, "{$relative}: kunci baris dari jalur, bukan dari isi target");
+                $this->assertNotSame(hash('sha256', $this->marchMt940()), $row->sha256, "{$relative}: isi target dibaca untuk hash");
+                $this->assertSame(0, $row->size, "{$relative}: ukuran target diukur");
+                $this->assertNull($row->file_mtime, "{$relative}: mtime target diukur");
+            }
+            $this->assertSame(0, BankStatement::query()->count());
+            $this->assertCount(0, $this->alarms());
+        } finally {
+            @unlink($outside.'/luar.sta');
+            @rmdir($outside);
+        }
+    }
+
+    /** V-folder-7: ubin menghitung berkas pada pemeriksaan TERAKHIR; sejarah ledger tetap di tabel. */
+    public function test_the_tiles_count_the_last_check_not_the_whole_ledger(): void
+    {
+        $this->drop('BANK-BCA-OPS/salah.sta', $this->mt940(':61:2603100310C150000000,00NTRFINV-1//BCA0001'));
+        $this->scan();
+        $this->travel(1)->hours();   // stempel bergranularitas detik: pemeriksaan berikutnya harus punya stempel lain
+        $this->drop('BANK-BCA-OPS/salah.sta', $this->mt940(':61:2603100310C160000000,00NTRFINV-1//BCA0001'));   // isi berganti, tetap tidak seimbang
+        $this->scan();
+
+        $status = app(BankInboxService::class)->status();
+
+        $this->assertSame(['superseded', 'failed'], BankInboxFile::query()->orderBy('id')->pluck('status')->all(), 'sejarah: dua baris, yang lama digantikan');
+        $this->assertCount(2, $status['files']);
+        $this->assertSame(['imported' => 0, 'failed' => 1, 'duplicate' => 0, 'ignored' => 0], $status['counts'], 'ubin: satu berkas gagal pada pemeriksaan terakhir');
+        $this->assertSame('Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.', $status['counts_note']);
+
+        unlink($this->root.'/BANK-BCA-OPS/salah.sta');
+        $this->travel(1)->hours();
+        $this->scan();
+
+        $this->assertSame(['imported' => 0, 'failed' => 0, 'duplicate' => 0, 'ignored' => 0], app(BankInboxService::class)->status()['counts'], 'folder dibersihkan pemilik → ubin ikut kosong');
+    }
+
+    /**
+     * V-permukaan-3: kode rekening berspasi tidak bisa menjadi nama sub-folder. Tiga permukaan: Request
+     * menolak kode baru yang begitu, kartu Kesiapan mengatakannya untuk kode lama, dan sub-folder yang
+     * namanya tidak sah dicatat `ignored` dengan kalimat — bukan dilewati bisu.
+     */
+    public function test_an_account_code_that_cannot_be_a_subfolder_is_refused_flagged_and_its_folder_is_not_silently_skipped(): void
+    {
+        $this->seed(PermissionSeeder::class);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->makeBankAccount('1-1220', ['code' => 'BCA OPS', 'name' => 'BCA Lama']);   // data lama, lewat model
+        $this->drop('BCA OPS/y.sta', $this->marchMt940());
+
+        $summary = $this->scan();
+
+        $this->assertSame(1, $summary['counts']['ignored']);
+        $this->assertSame(
+            'Sub-folder BCA OPS bukan nama yang sah untuk kode rekening (huruf/angka/titik/strip/garis bawah, tanpa spasi); berkas tidak dibaca.',
+            BankInboxFile::query()->where('relative_path', 'BCA OPS/y.sta')->sole()->error,
+        );
+        $this->assertSame(0, BankStatement::query()->count());
+
+        $accounts = collect(app(BankInboxService::class)->status()['accounts']);
+        $this->assertFalse($accounts->firstWhere('code', 'BCA OPS')['subfolder']['valid']);
+        $this->assertSame(
+            'Kode rekening BCA OPS tidak bisa menjadi nama sub-folder (huruf/angka/titik/strip/garis bawah, tanpa spasi); ubah kodenya di Keuangan › Rekening Bank agar berkasnya bisa dibaca dari folder.',
+            $accounts->firstWhere('code', 'BCA OPS')['subfolder']['note'],
+        );
+        $this->assertTrue($accounts->firstWhere('code', 'BANK-BCA-OPS')['subfolder']['valid']);
+        $this->assertNull($accounts->firstWhere('code', 'BANK-BCA-OPS')['subfolder']['note']);
+
+        $this->actingAs($this->userWith(['fin.view', 'fin.create', 'fin.update']), 'sanctum');
+        $coa = Account::query()->create(['code' => '1-1230', 'name' => 'Bank BNI Proyek', 'account_type' => 'asset', 'normal_balance' => 'debit', 'is_postable' => true, 'is_active' => true, 'parent_id' => $this->accountId('1-1200')]);
+        $payload = ['code' => 'BNI PRJ', 'name' => 'BNI Proyek', 'bank_name' => 'BNI', 'account_no' => '555', 'account_name' => 'PT', 'coa_account_id' => $coa->id];
+        $this->postJson('/api/finance/bank-accounts', $payload)->assertStatus(422)
+            ->assertJsonPath('errors.code.0', 'Kode rekening hanya boleh huruf, angka, titik, strip, dan garis bawah (tanpa spasi) — ia menjadi nama sub-folder folder terpantau.');
+        $this->putJson('/api/finance/bank-accounts/'.$this->bank->id, ['code' => 'BANK BCA'])->assertStatus(422);
+        $this->postJson('/api/finance/bank-accounts', ['code' => 'BANK-BNI.PRJ_2'] + $payload)->assertCreated();
     }
 }

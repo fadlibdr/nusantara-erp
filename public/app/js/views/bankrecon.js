@@ -17,6 +17,7 @@ import {
   toast, toastError, modal, confirmDialog, withBusy, field,
 } from '../ui.js';
 import * as fmt from '../format.js';
+import { replacePath } from '../router.js';
 
 const TABS = [
   // Every account at once, before drilling into one. The endpoint behind it has
@@ -30,7 +31,7 @@ const TABS = [
   { key: 'inbox', label: 'Folder terpantau' },
 ];
 
-const FILE_STATUS_TONE = { imported: 'green', failed: 'red', duplicate: 'amber', ignored: '' };
+const FILE_STATUS_TONE = { imported: 'green', failed: 'red', duplicate: 'amber', ignored: '', superseded: '', statement_deleted: 'amber' };
 
 /* Tautan dalam (notifikasi, tombol Buka): #/bank-recon?tab=inbox atau
  * ?tab=statements&account=<id>&statement=<id>. Dibaca sekali saat layar dibuka. */
@@ -1050,10 +1051,12 @@ function renderInbox(host, data, reload) {
     el('.stat', [el('.label', { text: 'Diabaikan' }), el('.value', { text: String(counts.ignored || 0) })]),
     el('.stat.inbox-checked', [
       el('.label', { text: 'Terakhir diperiksa' }),
-      el('.value.sm', { text: data.last_checked_at ? fmt.dateTime(data.last_checked_at) : 'belum pernah' }),
+      // data-iso = stempel mentah dari core_settings, supaya harness membandingkan ubin dengan stempelnya.
+      el('.value.sm', { 'data-iso': data.last_checked_at || '', text: data.last_checked_at ? fmt.dateTime(data.last_checked_at) : 'belum pernah' }),
       el('.delta', { text: 'stempel yang ditulis pemeriksaan, bukan jadwal' }),
     ]),
   ]));
+  host.appendChild(el('p.muted.inbox-counts-note', { style: { margin: '0 0 10px', fontSize: '12px' }, text: data.counts_note || '' }));
 
   host.appendChild(el('.card.inbox-folder', [
     el('.card-head', [
@@ -1095,7 +1098,12 @@ function renderInbox(host, data, reload) {
         el('th', { text: 'Sub-folder (kode rekening)' }), el('th', { text: 'Rekening' }), el('th', { text: 'Preset' }), el('th', { text: 'Yang bisa dibaca dari folder' }),
       ])),
       el('tbody', accounts.map((account) => el('tr', { 'data-code': account.code }, [
-        el('td.code', { text: `${account.code}/` }),
+        el('td', [
+          el('.cell-main.code', { text: `${account.code}/` }),
+          account.subfolder && !account.subfolder.valid
+            ? el('.cell-sub.inbox-subfolder-note', { style: { whiteSpace: 'normal', minWidth: '14rem', color: 'var(--danger)' }, text: account.subfolder.note })
+            : null,
+        ]),
         el('td', { text: account.name }),
         el('td', { text: account.preset.name || '—' }),
         el('td', [
@@ -1212,6 +1220,11 @@ export async function renderBankRecon(host) {
 
   async function load({ repaintTabs = false } = {}) {
     if (repaintTabs) { accountSelect.value = String(state.bankAccountId); paintTabs(); }
+    // Tab aktif ditulis kembali ke hash (tanpa hashchange): tautan notifikasi ke
+    // ?tab=inbox sesudah berpindah tab tetap berbeda dari hash sekarang, dan muat
+    // ulang halaman kembali ke tab ini — bukan ke tab dari query lama.
+    replacePath(`bank-recon?tab=${state.tab}${state.tab === 'statements' || state.tab === 'reconcile'
+      ? `&account=${state.bankAccountId}${state.tab === 'statements' && state.statementId ? `&statement=${state.statementId}` : ''}` : ''}`);
     clear(body);
     // The overview covers every account, so the account picker would mislead;
     // the as-of date still applies, so the row is kept and only the picker hides.

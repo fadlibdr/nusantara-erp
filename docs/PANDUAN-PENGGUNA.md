@@ -6721,6 +6721,10 @@ baris yang dicocokkan. Batalkan pencocokan itu lebih dulu…"*).
 
 **Menghapus rekening koran adalah obat untuk pemetaan kolom yang salah** — jadi periksa
 pratinjaunya sebelum mengimpor, karena setelah beberapa pencocokan, kesalahan itu mahal.
+Untuk rekening koran yang datang dari **folder terpantau** (tab e): sesudah dihapus,
+berkasnya di folder server dianggap **berkas baru lagi** dan diimpor ulang pada pemeriksaan
+berikutnya — perbaiki presetnya dulu (atau minta administrator mengambil berkasnya), baru
+hapus; kalau tidak, sejam kemudian ia kembali dengan pemetaan yang sama.
 
 **c. Tab Rekonsiliasi.** Empat kotak: Saldo rekening koran · Saldo buku besar · Pos
 terbuka · **Selisih belum dijelaskan**. Lalu tabel **Jembatan rekonsiliasi**:
@@ -6742,21 +6746,33 @@ Lencananya: **`Cocok sepenuhnya`** / **`Selisih dijelaskan — N pos terbuka`** 
 **e. Tab Folder terpantau (P-3c).** Ledger berkas rekening koran yang diletakkan
 administrator di **folder server** (`<folder terpantau>/<KODE-REKENING>/<berkas>`;
 runbook PANDUAN-ADMINISTRATOR §5.13) dan dibaca **tiap jam** oleh penjadwal — atau sekarang,
-lewat **`Periksa sekarang`** (izin yang sama dengan impor). Ubin: Diimpor · Gagal · Salinan
-· Diabaikan · **Terakhir diperiksa** (stempel yang benar-benar ditulis pemeriksaan — bila
+lewat **`Periksa sekarang`** (izin yang sama dengan impor; bila pemeriksaan per jam sedang
+berjalan, tombolnya menjawab *"Pemeriksaan folder terpantau lain sedang berjalan; coba lagi
+sebentar."* dan tidak menulis apa pun). Ubin: Diimpor · Gagal · Salinan · Diabaikan —
+**untuk pemeriksaan terakhir** (berkas yang ada di folder saat itu; folder yang dibersihkan
+administrator membuat ubin ikut kosong, sedangkan tabel di bawahnya tetap seluruh sejarah)
+· **Terakhir diperiksa** (stempel yang benar-benar ditulis pemeriksaan — bila
 tertulis *belum pernah*, pemeriksaannya memang belum pernah berjalan). Kartu **Kesiapan per
 rekening**: *CSV & MT940* bila preset rekening memetakan kolom saldo, *MT940 saja* bila
-tidak — kalimatnya dari server. Tabel berkas: jalur relatif, status, tautan ke rekening
-korannya, dan **keterangan** — setiap kegagalan disebut dengan kalimat yang sama dengan
-penghalang tab Impor (tidak seimbang, rantai putus, berkas ganda, rekening lain), atau:
+tidak — kalimatnya dari server; rekening yang kodenya tidak bisa menjadi nama sub-folder
+(berspasi) ditandai merah dengan kalimatnya. Tabel berkas: jalur relatif, status (*Diimpor*
+· *Gagal* · *Salinan* · *Diabaikan* · *Digantikan* untuk baris lama yang isinya sudah
+berganti · *Rekening koran dihapus* untuk hasil impor yang kemudian dihapus), tautan ke
+rekening korannya, dan **keterangan** — setiap kegagalan disebut dengan kalimat yang sama
+dengan penghalang tab Impor (tidak seimbang, rantai putus, berkas ganda), atau:
 
 - *"Rekening BANK-… belum punya preset impor. Simpan preset dari layar Impor sesudah
   pratinjau pemetaan Anda berhasil."*
 - *"Preset «…» rekening BANK-… tidak memetakan kolom saldo: preset tanpa kolom saldo tidak
   bisa diimpor otomatis; impor lewat layar."*
+- *"Rekening koran ini untuk rekening MANDIRI/…, sedangkan berkasnya berada di sub-folder
+  BANK-BCA-OPS (…); letakkan di sub-folder kode rekening yang benar."* (berkas salah
+  sub-folder — tidak ada yang "memilih" rekening di folder).
 - *"Sub-folder BANK-XYZ bukan kode rekening bank yang aktif; berkas tidak dibaca."*
 - *"Isi berkas sama dengan BANK-…/maret.sta yang sudah diimpor sebagai BST/…"* (salinan
   berganti nama bukan berkas baru; isi yang berubah di bawah nama lama adalah berkas baru).
+  Kalimat *"(lewat layar Impor)"* hanya muncul bila rekening korannya memang diimpor
+  seseorang dari layar.
 
 > **Yang tidak otomatis, dan tidak dijanjikan siapa pun.** Berkasnya **tidak datang
 > sendiri dari bank** — tidak ada koneksi ke bank, tidak ada SFTP; administrator atau alat

@@ -11,6 +11,15 @@ class BankAccount extends BaseModel
 {
     use SoftDeletes;
 
+    /**
+     * Kode rekening = nama sub-folder folder terpantau (P-3c): huruf/angka/titik/strip/garis bawah,
+     * tanpa spasi, tanpa pemisah jalur. SATU pola untuk Request (kode baru), pemindai folder, dan
+     * kartu Kesiapan (kode lama) — V-permukaan-3.
+     */
+    public const CODE_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/';
+
+    public const CODE_RULE_MESSAGE = 'Kode rekening hanya boleh huruf, angka, titik, strip, dan garis bawah (tanpa spasi) — ia menjadi nama sub-folder folder terpantau.';
+
     protected $table = 'fin_bank_accounts';
 
     protected function casts(): array
