@@ -1,0 +1,1272 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nusantara ERP — API integrasi",
+    "version": "1.0.0",
+    "description": "DIPELIHARA TANGAN. ROADMAP-HASHMICRO P-3d menolak pembangkit otomatis secara eksplisit: ia menuntut dependensi Composer baru dan akan memuntahkan 862 rute yang tidak terkurasi, yang tidak seorang pun bisa membacanya sebagai janji. Yang didokumentasikan di sini adalah DUA PULUH endpoint yang benar-benar dipakai sebuah integrasi luar: masuk, memeriksa token, lalu membaca daftar dan detail dokumen utama (pelanggan, vendor, PO, AR, AP, pembayaran, jurnal, SPK, penerimaan barang) plus dua layar webhook. tests/Feature/Core/OpenApiDriftTest membandingkan setiap baris di bawah ini terhadap Route::getRoutes() pada TIGA hal — jalur, metode HTTP, dan izin yang menggerbanginya — DAN HANYA untuk kedua puluh ini, supaya endpoint baru sebuah modul lain tidak memerahkan gerbang tanpa sebab. Berkas ini statis: tidak ada pembangkit, tidak ada dependensi."
+  },
+  "servers": [
+    {
+      "url": "https://erp1.pi2.co.id",
+      "description": "Produksi"
+    }
+  ],
+  "x-autentikasi": {
+    "header": "Authorization: Bearer <token>",
+    "header_alternatif": "X-Api-Token: <token> — dipakai ketika sebuah gerbang HTTP di depan aplikasi sudah menguasai header Authorization.",
+    "token_pribadi": "Dibuat pemiliknya sendiri di Profil > Token API. Teksnya tampil SEKALI. Masa berlaku 1-365 hari, dipilih saat dibuat.",
+    "ability": "Setiap token pribadi membawa daftar ability = nama izin (mis. fin.view). Sebuah permintaan ditolak 403 bila tokennya tidak membawa izin yang digerbangi rutenya, DAN bila pemilik tokennya sudah tidak memegang izin itu lagi — ability adalah SUBSET izin, bukan pemberian.",
+    "cors": "KOSONG, dengan sengaja (ledger pemilik ROADMAP-HASHMICRO §5 baris 10). Tidak ada Access-Control-Allow-Origin yang dikirim, jadi API ini tidak bisa dipanggil dari JavaScript di halaman asal lain. Integrasi memanggilnya dari server ke server, tempat token tidak terlihat pemakai."
+  },
+  "x-batas-ability": "Ability menyempitkan GERBANG IZIN, dan tidak menciptakan gerbang di tempat aplikasi ini sendiri tidak menggerbangi apa pun. Diukur 12 Sep 2026: 862 rute di bawah /api, 644 dijaga sebuah izin dan 218 hanya menuntut autentikasi. Endpoint yang x-izin-nya kosong ada di golongan kedua: ia dijangkau token terbatas milik seseorang persis seperti sesi peramban orang itu. tests/Feature/Core/UngatedApiRouteCensusTest menghitungnya dan memaku daftar rute TULIS-nya.",
+  "x-webhook": {
+    "peristiwa": [
+      "document.submitted",
+      "document.approved",
+      "document.rejected"
+    ],
+    "versi_muatan": 1,
+    "tanda_tangan": {
+      "header": "X-Nusantara-Signature",
+      "bentuk": "t=<detik unix>,v1=<hex 64>",
+      "algoritma": "sha256",
+      "yang_ditandatangani": "\"<t>.<badan mentah>\" — stempel waktunya IKUT ditandatangani",
+      "bandingkan": "hash_equals(), bukan ===",
+      "jendela_detik": 300,
+      "id_peristiwa": "X-Nusantara-Event — uuid yang sama di kelima percobaan dan di semua langganan pada transisi yang sama; tolak yang sudah pernah diproses",
+      "redirect": "Tidak diikuti. Jawaban 3xx dicatat GAGAL; hanya 2xx dihitung terkirim.",
+      "percobaan": "5, dengan jeda 60/300/900/3600 detik"
+    }
+  },
+  "security": [
+    {
+      "bearerToken": []
+    },
+    {
+      "apiTokenHeader": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerToken": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "apiTokenHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Token"
+      }
+    },
+    "schemas": {
+      "Amplop": {
+        "type": "object",
+        "description": "Bentuk jawaban setiap endpoint: data, dan meta untuk daftar berhalaman.",
+        "properties": {
+          "data": {
+            "description": "Objek untuk detail, larik untuk daftar."
+          },
+          "message": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "current_page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              },
+              "sortable": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Galat": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "GalatAbility": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "examples": [
+              "Token API yang Anda pakai tidak memiliki ability «fin.view». …"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "properties": {
+              "token_abilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "message"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/api/iam/auth/login": {
+      "post": {
+        "summary": "Masuk dan menerima token sesi",
+        "description": "Menukar email + kata sandi dengan token sesi SPA (abilities [\"*\"], berlaku 720 menit). Integrasi TIDAK memakai pintu ini: ia memakai token pribadi dari Profil > Token API, yang tidak pernah kedaluwarsa dalam 12 jam.",
+        "operationId": "post_api_iam_auth_login",
+        "tags": [
+          "iam"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Email atau password salah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/iam/auth/me": {
+      "get": {
+        "summary": "Identitas dan peran pemilik token",
+        "description": "Panggilan pertama setiap klien: memastikan tokennya hidup dan mengetahui peran pemiliknya. 401 berarti token mati atau dicabut.",
+        "operationId": "get_api_iam_auth_me",
+        "tags": [
+          "iam"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/customers": {
+      "get": {
+        "summary": "Daftar pelanggan",
+        "description": "Hanya menuntut autentikasi: rute ini tidak dijaga izin apa pun, jadi ability token tidak mempersempitnya (lihat x-batas-ability).",
+        "operationId": "get_api_crm_customers",
+        "tags": [
+          "crm"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Membuat pelanggan",
+        "description": "Token harus membawa ability crm.create DAN pemiliknya harus memegang izin itu.",
+        "operationId": "post_api_crm_customers",
+        "tags": [
+          "crm"
+        ],
+        "x-izin": [
+          "crm.create"
+        ],
+        "responses": {
+          "201": {
+            "description": "Dibuat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validasi gagal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crm/customers/{customer}": {
+      "get": {
+        "summary": "Satu pelanggan",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_crm_customers_customer",
+        "tags": [
+          "crm"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/procurement/vendors": {
+      "get": {
+        "summary": "Daftar vendor",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_procurement_vendors",
+        "tags": [
+          "procurement"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/procurement/vendors/{vendor}": {
+      "get": {
+        "summary": "Satu vendor",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_procurement_vendors_vendor",
+        "tags": [
+          "procurement"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vendor",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/procurement/purchase-orders": {
+      "get": {
+        "summary": "Daftar pesanan pembelian",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_procurement_purchase-orders",
+        "tags": [
+          "procurement"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/procurement/purchase-orders/{purchaseOrder}": {
+      "get": {
+        "summary": "Satu pesanan pembelian",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_procurement_purchase-orders_purchaseOrder",
+        "tags": [
+          "procurement"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "purchaseOrder",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/finance/ar-invoices": {
+      "get": {
+        "summary": "Daftar invoice termin (AR)",
+        "description": "Token harus membawa ability fin.view.",
+        "operationId": "get_api_finance_ar-invoices",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/ar-invoices/{arInvoice}": {
+      "get": {
+        "summary": "Satu invoice termin",
+        "description": "Dipanggil sesudah webhook document.approved atas finance/ar-invoices.",
+        "operationId": "get_api_finance_ar-invoices_arInvoice",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "arInvoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/finance/ap-bills": {
+      "get": {
+        "summary": "Daftar tagihan vendor (AP)",
+        "description": "Token harus membawa ability fin.view.",
+        "operationId": "get_api_finance_ap-bills",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/ap-bills/{apBill}": {
+      "get": {
+        "summary": "Satu tagihan vendor",
+        "description": "Dipanggil sesudah webhook document.approved atas finance/ap-bills.",
+        "operationId": "get_api_finance_ap-bills_apBill",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "apBill",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/finance/payments": {
+      "get": {
+        "summary": "Daftar pembayaran",
+        "description": "Token harus membawa ability fin.view.",
+        "operationId": "get_api_finance_payments",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/payments/{payment}": {
+      "get": {
+        "summary": "Satu pembayaran",
+        "description": "Token harus membawa ability fin.view.",
+        "operationId": "get_api_finance_payments_payment",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "payment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/finance/journals": {
+      "get": {
+        "summary": "Daftar jurnal",
+        "description": "Token harus membawa ability fin.view.",
+        "operationId": "get_api_finance_journals",
+        "tags": [
+          "finance"
+        ],
+        "x-izin": [
+          "fin.view"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subcontract/subcontracts": {
+      "get": {
+        "summary": "Daftar SPK subkontraktor",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_subcontract_subcontracts",
+        "tags": [
+          "subcontract"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/goods-receipts": {
+      "get": {
+        "summary": "Daftar penerimaan barang",
+        "description": "Hanya menuntut autentikasi.",
+        "operationId": "get_api_inventory_goods-receipts",
+        "tags": [
+          "inventory"
+        ],
+        "x-izin": [],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/core/webhooks": {
+      "get": {
+        "summary": "Daftar langganan webhook",
+        "description": "Rahasia langganan TIDAK pernah ikut di jawaban ini.",
+        "operationId": "get_api_core_webhooks",
+        "tags": [
+          "core"
+        ],
+        "x-izin": [
+          "core.update"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/core/webhooks/deliveries": {
+      "get": {
+        "summary": "Log pengiriman webhook",
+        "description": "Satu baris per peristiwa per langganan, dengan attempts dan sebab kegagalannya.",
+        "operationId": "get_api_core_webhooks_deliveries",
+        "tags": [
+          "core"
+        ],
+        "x-izin": [
+          "core.update"
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Amplop"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token tidak ada, kedaluwarsa, atau dicabut",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalatAbility"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
