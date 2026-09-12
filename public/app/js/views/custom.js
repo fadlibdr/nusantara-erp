@@ -1,12 +1,12 @@
 /* Screens that need more than the generic detail view can express. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, progressBar, errorState, emptyState, toast, toastError, field, withBusy, confirmDialog } from '../ui.js';
+import { el, clear, button, badge, icon, progressBar, errorState, emptyState, toast, toastError, field, setFieldError, withBusy, confirmDialog } from '../ui.js';
 import { downloadPdf, pdfName } from '../print.js';
 import * as fmt from '../format.js';
 import { loadSource, optionsFor, preload, labelFor } from '../lookup.js';
 import { ENUMS, enumLabel } from '../enums.js';
-import { RESOURCES } from '../schema.js';
+import { RESOURCES, NPWP_HELP } from '../schema.js';
 import { openForm, promptFields, buildInput } from './form.js';
 import { actionButtons } from './actions.js';
 import { approvalTimeline, formButtons } from './detail.js';
@@ -2318,7 +2318,7 @@ export async function renderCompany(host) {
   const FIELDS = [
     { key: 'name', label: 'Nama perusahaan', type: 'text', required: true, span: 2 },
     { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
-    { key: 'npwp', label: 'NPWP', type: 'text', help: 'NPWP 15 digit (lama), 16 digit (baru / NIK), atau NITKU 22 digit; titik dan strip boleh.' },
+    { key: 'npwp', label: 'NPWP', type: 'text', help: NPWP_HELP },
     { key: 'nib', label: 'NIB', type: 'text' },
     { key: 'is_pkp', label: 'Pengusaha Kena Pajak (PKP)', type: 'bool' },
     { key: 'sppkp_number', label: 'Nomor SPPKP', type: 'text' },
@@ -2343,20 +2343,50 @@ export async function renderCompany(host) {
     }
     const wrapper = spec.type === 'bool'
       ? el('label.field', [el('label', { text: ' ' }), control.node])
-      : field(spec.label, control.node, { required: spec.required });
+      : field(spec.label, control.node, { required: spec.required, help: spec.help });
     if (spec.span === 2) wrapper.classList.add('span2');
     grid.appendChild(wrapper);
   }
 
+  /* 422 dilukis DI BAWAH kolomnya, seperti formulir schema-driven (form.js
+     paintErrors): kunci galat yang punya kontrol → setFieldError + toast
+     "Periksa isian yang ditandai."; kunci yang tidak terpetakan tetap disebut
+     lewat toast. Dulu formulir ini hanya toastError — kalimat NPWP 15/16/22
+     digit lewat sebagai toast di pojok lalu hilang, kolomnya tetap putih. */
+  const clearErrors = () => Object.values(controls).forEach((control) => setFieldError(control.input || control.node, ''));
+  const paintErrors = (error) => {
+    if (!error || !error.errors) {
+      toastError(error);
+      return;
+    }
+    const unmapped = [];
+    for (const [key, messages] of Object.entries(error.errors)) {
+      const message = [].concat(messages)[0];
+      const control = controls[key.split('.')[0]];
+      if (control) {
+        setFieldError(control.input || control.node, message);
+        continue;
+      }
+      unmapped.push(`${key}: ${message}`);
+    }
+    if (!unmapped.length) {
+      toast('Periksa isian yang ditandai.', { tone: 'err' });
+      return;
+    }
+    const painted = unmapped.length < Object.keys(error.errors).length;
+    toastError({ message: painted ? 'Periksa isian yang ditandai.' : error.message, details: unmapped });
+  };
+
   const save = button('Simpan Profil', { variant: 'primary' });
   save.addEventListener('click', async () => {
     const payload = Object.fromEntries(Object.entries(controls).map(([key, control]) => [key, control.read()]));
+    clearErrors();
     await withBusy(save, async () => {
       try {
         await api.put('core/company', payload);
         toast('Profil perusahaan disimpan.');
       } catch (error) {
-        toastError(error);
+        paintErrors(error);
       }
     });
   });

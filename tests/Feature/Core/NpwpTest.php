@@ -203,6 +203,41 @@ class NpwpTest extends ErpTestCase
             ->assertJsonPath('errors.npwp.0', ValidNpwp::MESSAGE);
     }
 
+    /**
+     * Keempat formulir SPA yang menerima NPWP membawa SATU teks bantuan dari SATU
+     * konstanta (schema.js NPWP_HELP) yang menyebut ketiga bentuk DAN ketiga
+     * pemisah yang diterima aturannya — sebelum ini tiga formulir berkata
+     * "titik dan strip boleh" sementara kalimat 422 di kolom yang sama berkata
+     * "Titik, strip, dan spasi boleh ditulis" (V3-4). Formulir Profil Perusahaan
+     * bukan schema-driven: ia harus MENERUSKAN help ke field() dan melukis 422 di
+     * bawah kolomnya sendiri — kunci `help:` di FIELDS-nya dulu konfigurasi mati
+     * dan kalimat 422 hanya toast (V3-1/V2-2).
+     */
+    public function test_the_four_spa_forms_share_one_npwp_help_text_and_the_company_form_paints_it_and_its_422(): void
+    {
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $custom = (string) file_get_contents(public_path('app/js/views/custom.js'));
+
+        $this->assertSame(1, preg_match("/^export const NPWP_HELP = '([^']+)';$/mu", $schema, $m), 'schema.js tidak mengekspor NPWP_HELP');
+        foreach (['15 digit', '16 digit', '22 digit', 'NIK', 'NITKU', 'titik', 'strip', 'spasi'] as $needle) {
+            $this->assertStringContainsString($needle, $m[1], "NPWP_HELP tidak menyebut {$needle}");
+        }
+
+        // Tiga formulir schema-driven (pelanggan, vendor, karyawan) + Profil Perusahaan = 4, tidak satu pun menulis kalimatnya sendiri.
+        $this->assertSame(3, preg_match_all('/help: NPWP_HELP\b/u', $schema), 'schema.js: tepat tiga field npwp memakai NPWP_HELP');
+        $this->assertSame(1, preg_match_all('/help: NPWP_HELP\b/u', $custom), 'custom.js: field npwp Profil Perusahaan memakai NPWP_HELP');
+        $this->assertSame(1, preg_match_all('/NPWP 15 digit/u', $schema), 'kalimat bantuan NPWP ditulis lebih dari sekali di schema.js');
+        $this->assertSame(0, preg_match_all('/NPWP 15 digit/u', $custom), 'custom.js menulis kalimat bantuan NPWP sendiri');
+        $this->assertMatchesRegularExpression("/import \\{[^}]*\\bNPWP_HELP\\b[^}]*\\} from '\\.\\.\\/schema\\.js'/u", $custom);
+
+        // renderCompany: help sampai ke field(), dan 422 dipetakan ke kolomnya (setFieldError), bukan hanya toast.
+        $company = substr($custom, (int) strpos($custom, 'export async function renderCompany'));
+        $this->assertMatchesRegularExpression('/field\(spec\.label, control\.node, \{[^}]*help: spec\.help[^}]*\}\)/u', $company,
+            'renderCompany tidak meneruskan spec.help ke field()');
+        $this->assertStringContainsString('setFieldError(', $company, 'renderCompany tidak melukis 422 di bawah kolomnya');
+        $this->assertMatchesRegularExpression("/import \\{[^}]*\\bsetFieldError\\b[^}]*\\} from '\\.\\.\\/ui\\.js'/u", $custom);
+    }
+
     // --------------------------------------------------------- impor master
 
     private function vendorFile(string ...$rows): string
