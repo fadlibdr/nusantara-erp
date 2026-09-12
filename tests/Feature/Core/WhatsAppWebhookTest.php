@@ -148,12 +148,15 @@ class WhatsAppWebhookTest extends ErpTestCase
     public function test_a_valid_status_updates_only_the_matching_whatsapp_row(): void
     {
         $this->configured();
-        $target = $this->sentRow('wamid.TARGET');
         $other = $this->sentRow('wamid.LAIN');
+        // Umpan: baris E-MAIL dengan pengenal yang kebetulan sama, dibuat LEBIH
+        // DULU (id lebih kecil) — tanpa saringan kanal, first() akan memilihnya
+        // (mutasi MW3 lolos hijau ketika umpan ini dibuat belakangan).
         $email = NotificationDelivery::query()->create([
-            'notification_id' => $target->notification_id, 'channel' => 'email', 'recipient' => 'x@y.test',
+            'notification_id' => $other->notification_id, 'channel' => 'email', 'recipient' => 'x@y.test',
             'status' => 'sent', 'attempts' => 1, 'provider_id' => 'wamid.TARGET', 'sent_at' => now(),
         ]);
+        $target = $this->sentRow('wamid.TARGET');
         [$raw, $sig] = $this->signed($this->statusPayload('wamid.TARGET', 'delivered'));
 
         $response = $this->hook($raw, $sig)->assertOk();

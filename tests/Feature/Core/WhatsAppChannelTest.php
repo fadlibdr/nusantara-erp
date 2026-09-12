@@ -341,11 +341,14 @@ class WhatsAppChannelTest extends ErpTestCase
 
         $calls = 0;
         Http::fake(['graph.facebook.com/*' => function () use (&$calls) {
-            if (++$calls === 1) {
-                return Http::response('Bad Gateway', 502);
-            }
-
-            throw new ConnectionException('cURL error 28: Connection timed out after 5001 ms for https://graph.facebook.com/v21.0/'.self::PHONE_ID.'/messages?access_token='.self::TOKEN);
+            return match (++$calls) {
+                1 => Http::response('Bad Gateway', 502),
+                // 5xx yang badannya membawa kode "permanen" (100): tetap
+                // SEMENTARA — statusnya yang menentukan, bukan kodenya (mutasi
+                // MW6 lolos hijau sebelum kasus ini ada).
+                2 => Http::response(['error' => ['message' => 'An unknown error occurred', 'code' => 100]], 500),
+                default => throw new ConnectionException('cURL error 28: Connection timed out after 5001 ms for https://graph.facebook.com/v21.0/'.self::PHONE_ID.'/messages?access_token='.self::TOKEN),
+            };
         }]);
 
         $this->alarm();
@@ -353,6 +356,14 @@ class WhatsAppChannelTest extends ErpTestCase
         $row = $this->waRow();
         $this->assertSame(NotificationDelivery::QUEUED, $row->status);
         $this->assertStringContainsString('HTTP 502: Bad Gateway', (string) $row->error);
+
+        Notification::query()->delete();
+        NotificationDelivery::query()->delete();
+        $this->alarm();
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
+        $row = $this->waRow();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status, '500 dengan kode 100 tetap diulang.');
+        $this->assertStringContainsString('HTTP 500 (100)', (string) $row->error);
 
         Notification::query()->delete();
         NotificationDelivery::query()->delete();
