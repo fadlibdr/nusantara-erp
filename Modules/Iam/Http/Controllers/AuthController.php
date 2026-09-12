@@ -14,6 +14,7 @@ use Modules\Iam\Http\Requests\ForgotPasswordRequest;
 use Modules\Iam\Http\Requests\LoginRequest;
 use Modules\Iam\Http\Requests\ResetPasswordRequest;
 use Modules\Iam\Http\Resources\UserResource;
+use Modules\Iam\Models\ApiToken;
 use Modules\Iam\Support\PasswordHelp;
 
 class AuthController extends ApiController
@@ -34,7 +35,17 @@ class AuthController extends ApiController
             return $this->error('Akun Anda dinonaktifkan. Hubungi administrator.', 403);
         }
 
-        $token = $user->createToken('api')->plainTextToken;
+        /*
+         * Token cangkang SPA — `['*']` dan plafon 720 menit, persis seperti
+         * sebelum P-3d. Yang baru hanya STEMPELNYA: `kind = session` membuat
+         * kebijakan kedaluwarsa di IamServiceProvider bisa memperlakukan token
+         * pribadi berbeda tanpa menebak dari nama (nama token pribadi diketik
+         * pemiliknya dan boleh berbunyi 'api') atau dari ada-tidaknya
+         * `expires_at`. Baris lama tanpa stempel dibaca sebagai sesi juga.
+         */
+        $issued = $user->createToken('api');
+        $issued->accessToken->forceFill(['kind' => ApiToken::KIND_SESSION])->save();
+        $token = $issued->plainTextToken;
 
         return $this->ok([
             'token' => $token,

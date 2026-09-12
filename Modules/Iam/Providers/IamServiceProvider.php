@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 use Modules\Iam\Console\Commands\PermissionCheckCommand;
+use Modules\Iam\Models\ApiToken;
 use Modules\Iam\Support\PasswordHelp;
 
 class IamServiceProvider extends ServiceProvider
@@ -68,6 +69,46 @@ class IamServiceProvider extends ServiceProvider
          */
         Sanctum::getAccessTokenFromRequestUsing(
             static fn (Request $request): ?string => $request->header('X-Api-Token') ?: $request->bearerToken()
+        );
+
+        /*
+         * P-3d — token pribadi dinilai dari expires_at MILIKNYA SENDIRI.
+         *
+         * Tanpa ini, `Laravel\Sanctum\Guard::isValidAccessToken()` menuntut
+         * DUA syarat sekaligus, dan yang global membunuh yang per-token:
+         *
+         *     (! $expiration || $token->created_at->gt(now()->subMinutes($expiration)))
+         *  && (! $token->expires_at || ! $token->expires_at->isPast())
+         *
+         * dengan `$expiration` = `config('sanctum.expiration')` = 720 menit.
+         * Sebuah token pribadi yang layarnya berkata "berlaku sampai tahun
+         * depan" akan berhenti bekerja 12 jam sesudah dibuat — fitur yang ada,
+         * terlihat benar, dan diam-diam tidak berfungsi.
+         *
+         * Callback ini MENGGANTI hasil pemeriksaan itu untuk baris `personal`
+         * saja. Token sesi SPA — `kind` = 'session' DAN setiap baris yang lahir
+         * sebelum paket ini (`kind` NULL) — tetap tunduk pada plafon 720 menit
+         * apa adanya, jadi tidak ada baris produksi yang menjadi abadi dan
+         * tidak ada backfill yang harus mengejarnya. Itulah sebabnya
+         * `config/sanctum.php` tidak disentuh sama sekali.
+         *
+         * Yang hilang dari `$isValid` untuk baris personal hanyalah plafon
+         * global dan `hasValidProvider()`; guard `sanctum` di `config/auth.php`
+         * sengaja tanpa provider (komentar di berkas itu menjelaskan alasannya),
+         * jadi pemeriksaan kedua itu selalu true dan tidak ada syarat yang ikut
+         * terbuang. Token personal TANPA `expires_at` ditolak — bukan diterima
+         * selamanya. Dipaku `tests/Feature/Iam/ApiTokenExpiryTest`.
+         */
+        Sanctum::usePersonalAccessTokenModel(ApiToken::class);
+
+        Sanctum::authenticateAccessTokensUsing(
+            static function ($accessToken, bool $isValid): bool {
+                if (! $accessToken instanceof ApiToken || ! $accessToken->isPersonal()) {
+                    return $isValid;
+                }
+
+                return $accessToken->expires_at !== null && ! $accessToken->expires_at->isPast();
+            }
         );
 
         Route::middleware('api')
