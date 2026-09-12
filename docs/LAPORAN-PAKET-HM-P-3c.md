@@ -424,6 +424,18 @@ diimpor") → **Buka dokumen** pada yang gagal → `#/bank-recon?tab=inbox`, tab
 
 ## 12. Deviasi baru yang ditemukan
 
+Gerbang rilis (§15.2):
+
+- **`config/erp.php` harus bisa di-`require` TANPA aplikasi yang di-boot.** Paket ini mula-mula
+  menulis `'path' => env('BANK_INBOX_PATH', storage_path('app/private/bank-inbox'))`; `storage_path()`
+  memanggil `Container::getInstance()->storagePath()`, dan penyedia data STATIS
+  `tests/Unit/Core/DocumentFormatValidationTest::shippedDocumentFormats()` me-require berkas itu apa
+  adanya sebelum aplikasi ada. Akibatnya SELURUH suite gagal di KEDUA driver (4.861 uji, 1 error,
+  pesan "Call to undefined method Illuminate\Container\Container::storagePath()") — dan tidak satu
+  pun gerbang per-direktori paket ini melihatnya, karena `tests/Unit` tidak ikut. Bawaannya kini
+  diselesaikan di `BankInboxService::path()` (`DEFAULT_PATH`), config memulangkan `''`, dan
+  kontraknya dipaku lewat subproses di `BankInboxTest` (CONVENTIONS §40).
+
 Putaran verifikasi (§15):
 
 - **Stempel `checked_at` bergranularitas detik**: ubin "pemeriksaan terakhir" menyamakan baris lewat

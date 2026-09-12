@@ -2475,8 +2475,15 @@ kolom bank sebagai fakta — dipaku `BankPresetsTest`). Dua contoh demo di `docs
 disebut sebagai contoh demo (`demo_note`), tidak dinaikkan menjadi preset.
 
 **Folder terpantau: satu-satunya permukaan disk, dan aplikasi HANYA membacanya.**
-`config('erp.bank_inbox.path')` (env `BANK_INBOX_PATH`, bawaan `storage/app/private/bank-inbox`
-— dikecualikan `rsync --delete`, ikut cadangan), sub-folder per KODE rekening aktif
+`config('erp.bank_inbox.path')` (env `BANK_INBOX_PATH`; **kosong = bawaan
+`BankInboxService::DEFAULT_PATH` yang diselesaikan DI SERVICE** — `config/erp.php` harus bisa
+di-`require` tanpa aplikasi yang di-boot, karena penyedia data statis
+`DocumentFormatValidationTest::shippedDocumentFormats()` me-require-nya apa adanya; satu
+`storage_path()`/`base_path()` sebagai nilai bawaan di berkas itu memanggil
+`Container::getInstance()->storagePath()` pada Container telanjang dan menjatuhkan SELURUH suite di
+kedua driver — terukur di gerbang P-3c, tidak terlihat gerbang per-direktori; dipaku
+`BankInboxTest::test_the_erp_config_can_be_required_without_a_booted_application`. Bawaannya
+`storage/app/private/bank-inbox` — dikecualikan `rsync --delete`, ikut cadangan), sub-folder per KODE rekening aktif
 (`BankAccount::CODE_PATTERN` — SATU pola untuk Request kode rekening, pemindai, dan kartu
 Kesiapan; `realpath` di bawah root; symlink keluar → `ignored` TANPA menyentuh target — tidak
 dibaca, tidak dihash, tidak di-stat; SUB-FOLDER yang berupa symlink tidak diikuti sampai ke

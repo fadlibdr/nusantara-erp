@@ -260,9 +260,18 @@ return [
     | begitu dan keluar 0. Bukan SFTP, bukan host-to-host
     | (docs/KEPUTUSAN-INTEGRASI.md §10). Konstanta waktu-pasang, sengaja
     | tidak di layar Pengaturan.
+    |
+    | KOSONG = bawaan BankInboxService::DEFAULT_PATH (storage/app/private/
+    | bank-inbox), yang diselesaikan DI SERVICE dan bukan di sini: berkas
+    | konfigurasi ini harus bisa di-`require` TANPA aplikasi yang di-boot —
+    | `storage_path()` memanggil `Container::getInstance()->storagePath()`, yang
+    | tidak ada pada Container telanjang, dan penyedia data statis
+    | `DocumentFormatValidationTest::shippedDocumentFormats()` me-require berkas
+    | ini apa adanya. Satu `storage_path()` di sini menjatuhkan SELURUH suite di
+    | kedua driver (terukur di gerbang P-3c, bukan di gerbang per-direktori).
     */
     'bank_inbox' => [
-        'path' => env('BANK_INBOX_PATH', storage_path('app/private/bank-inbox')),
+        'path' => env('BANK_INBOX_PATH', ''),
         // Batas yang sama dengan BankStatementParseRequest::MAX_CONTENT (~2 MB teks).
         'max_bytes' => 2_000_000,
     ],

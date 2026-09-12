@@ -72,6 +72,9 @@ class BankInboxService
 
     public const LAYOUT = '<folder terpantau>/<KODE-REKENING>/<berkas>';
 
+    /** Relatif terhadap storage_path(): dikecualikan `rsync --delete` deploy dan ikut dicadangkan bersama lampiran. */
+    public const DEFAULT_PATH = 'app/private/bank-inbox';
+
     public const FOLDER_MISSING_NOTE = 'Folder terpantau belum ada di server; administrator membuatnya sesuai PANDUAN-ADMINISTRATOR §5.13. Sampai itu tidak ada berkas yang diperiksa.';
 
     /**
@@ -131,9 +134,24 @@ class BankInboxService
         private readonly SettingService $settings,
     ) {}
 
+    /**
+     * Jalur folder terpantau. Bawaannya diselesaikan DI SINI, bukan di
+     * config/erp.php: berkas konfigurasi itu di-`require` apa adanya oleh
+     * penyedia data statis (DocumentFormatValidationTest) tanpa aplikasi yang
+     * di-boot, dan `storage_path()` di dalamnya menjatuhkan SELURUH suite
+     * ("Call to undefined method Container::storagePath()").
+     */
     public function path(): string
     {
-        return rtrim((string) config('erp.bank_inbox.path'), '/');
+        $configured = trim((string) config('erp.bank_inbox.path'));
+
+        return rtrim($configured !== '' ? $configured : storage_path(self::DEFAULT_PATH), '/');
+    }
+
+    /** Benar bila jalurnya bawaan (env kosong) — yang dilaporkan layar. */
+    public function isDefaultPath(): bool
+    {
+        return trim((string) config('erp.bank_inbox.path')) === '';
     }
 
     public function maxBytes(): int
@@ -325,7 +343,7 @@ class BankInboxService
             'folder' => [
                 'exists' => $exists,
                 'configured_via' => self::CONFIGURED_VIA,
-                'is_default' => (string) config('erp.bank_inbox.path') === storage_path('app/private/bank-inbox'),
+                'is_default' => $this->isDefaultPath(),
                 'layout' => self::LAYOUT,
                 'readable' => $readable,
                 'note' => match (true) {

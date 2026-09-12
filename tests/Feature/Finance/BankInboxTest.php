@@ -1055,6 +1055,31 @@ class BankInboxTest extends ErpTestCase
     }
 
     /**
+     * Gerbang P-3c: `config/erp.php` harus bisa di-`require` TANPA aplikasi yang di-boot.
+     *
+     * Penyedia data STATIS `tests/Unit/Core/DocumentFormatValidationTest::shippedDocumentFormats()`
+     * me-require berkas itu apa adanya (PHPUnit menyelesaikan penyedia data sebelum aplikasi ada).
+     * Satu `storage_path()` sebagai nilai bawaan di sana — persis yang ditambahkan paket ini mula-mula
+     * — memanggil `Container::getInstance()->storagePath()` pada Container telanjang dan menjatuhkan
+     * SELURUH suite di KEDUA driver dengan pesan yang tidak menyebut sebabnya. Gerbang per-direktori
+     * tidak pernah melihatnya (tests/Unit tidak ikut); gerbang dua driver melihatnya.
+     */
+    public function test_the_erp_config_can_be_required_without_a_booted_application(): void
+    {
+        $script = 'require '.var_export(base_path('vendor/autoload.php'), true).';'
+            .'$c = require '.var_export(base_path('config/erp.php'), true).';'
+            .'echo isset($c["bank_inbox"]["path"]) && isset($c["documents"]) ? "ok" : "missing";';
+
+        $output = [];
+        $exit = 1;
+        exec(escapeshellcmd(PHP_BINARY).' -r '.escapeshellarg($script).' 2>&1', $output, $exit);
+        $text = trim(implode("\n", $output));
+
+        $this->assertSame(0, $exit, "config/erp.php tidak bisa di-require tanpa aplikasi:\n{$text}");
+        $this->assertSame('ok', $text);
+    }
+
+    /**
      * V-close-1 (dasar): direktori yang scandir-nya GAGAL memulangkan false, bukan daftar kosong.
      * Tanpa pembedaan ini "tidak boleh dibaca" dan "kosong" adalah jawaban yang sama dan seluruh
      * cabang di atas tidak pernah tercapai di produksi.
