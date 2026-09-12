@@ -64,7 +64,7 @@ Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 
 | Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
 | Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
-| Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8) |
+| Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8); `2026_09_11_001801_add_template_to_core_notifications_table.php` dan `2026_09_11_001802_add_provider_status_to_core_notification_deliveries_table.php` (P-3a) |
 
 Rentang Inventory 001700–001799 **belum ada di ledger pemilik** (ROADMAP-HASHMICRO §5 baris 5
 menyebut Core, Finance dan Projects saja). Ia ditetapkan di sini karena aturan di bawah menuntut
