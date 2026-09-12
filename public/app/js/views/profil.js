@@ -134,15 +134,23 @@ function phoneCard(state, reload) {
     ? el('.cell-sub.profil-optin', { dataset: { state: 'on' }, text: `Opt-in tercatat ${wib(wa.opt_in_at)} lewat ${wa.opt_in_via === 'admin' ? 'administrator' : 'Profil'}.` })
     : el('.cell-sub.profil-optin', { dataset: { state: 'off' }, text: 'Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.' });
 
-  // Persetujuan melekat pada NOMOR: begitu angkanya diubah, kotak yang
-  // tercentang dari persetujuan nomor lama dilepas dan orangnya harus
-  // mencentang lagi untuk nomor baru — kalau tidak, "centang lagi bila nomor
-  // baru juga disetujui" di bawah tidak pernah terjadi (verifikasi P-3a,
-  // 12 Sep 2026: nomor baru distempel tanpa satu tindakan pun).
+  // Persetujuan melekat pada NOMOR: begitu angka nomor yang persetujuannya
+  // TERCATAT diubah, centang dari persetujuan lama dilepas — bersama kalimat
+  // "Nomor berubah" di bawah — dan orangnya harus mencentang lagi untuk nomor
+  // baru (verifikasi P-3a, 12 Sep 2026: nomor baru distempel tanpa satu
+  // tindakan pun). Dilepas HANYA pada peralihan dari nomor tersimpan itu, bukan
+  // pada setiap ketikan: centang yang baru dipasang orangnya untuk nomor baru
+  // tidak boleh hilang diam-diam ketika ia membetulkan satu angka, dan tanpa
+  // persetujuan tercatat tidak ada yang perlu dibatalkan (verifikasi penutup
+  // P-3a G-3: centang dilepas tanpa satu kalimat pun).
   const savedPhone = wa.phone_e164 || '';
+  let previous = savedPhone;
   phone.addEventListener('input', () => {
-    const changed = phone.value.trim() !== savedPhone;
-    if (changed && optIn.checked) optIn.checked = false;
+    const current = phone.value.trim();
+    const changed = current !== savedPhone;
+    const leavingConsented = Boolean(wa.opt_in_at) && previous === savedPhone && changed;
+    previous = current;
+    if (leavingConsented && optIn.checked) optIn.checked = false;
     if (changed && wa.opt_in_at) {
       stamp.dataset.state = 'off';
       stamp.textContent = 'Nomor berubah — persetujuan nomor lama tidak berlaku; centang bila nomor baru disetujui.';
