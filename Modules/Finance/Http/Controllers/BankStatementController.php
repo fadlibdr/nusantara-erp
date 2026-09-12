@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use LogicException;
 use Modules\Core\Http\ApiController;
+use Modules\Finance\Http\Requests\BankImportPresetRequest;
 use Modules\Finance\Http\Requests\BankStatementParseRequest;
 use Modules\Finance\Models\BankAccount;
 use Modules\Finance\Models\BankStatement;
@@ -15,6 +16,7 @@ use Modules\Finance\Models\JournalLine;
 use Modules\Finance\Models\Payment;
 use Modules\Finance\Services\BankStatementImportService;
 use Modules\Finance\Services\BankStatementMatchService;
+use Modules\Finance\Support\BankPresets;
 
 /**
  * Import bank statements and match their lines against what the ERP posted.
@@ -91,12 +93,16 @@ class BankStatementController extends ApiController
     public function preview(BankStatementParseRequest $request): JsonResponse
     {
         try {
-            return $this->ok($this->imports->preview(
-                BankAccount::query()->findOrFail($request->integer('bank_account_id')),
-                (string) $request->input('format'),
-                (string) $request->input('content'),
-                $request->mapping(),
-            ));
+            $bankAccount = BankAccount::query()->findOrFail($request->integer('bank_account_id'));
+            $format = (string) $request->input('format');
+            $content = (string) $request->input('content');
+            $mapping = $this->imports->resolveMapping($bankAccount, $format, $content, $request->mapping(), $request->usePreset());
+
+            $preview = $this->imports->preview($bankAccount, $format, $content, $mapping);
+            // Layar berkata preset mana yang dipakai — dari sini, bukan disimpulkan SPA.
+            $preview['preset'] = $this->presetUsed($bankAccount, $format, $request->usePreset());
+
+            return $this->ok($preview);
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }
@@ -105,13 +111,12 @@ class BankStatementController extends ApiController
     public function store(BankStatementParseRequest $request): JsonResponse
     {
         try {
-            $statement = $this->imports->import(
-                BankAccount::query()->findOrFail($request->integer('bank_account_id')),
-                (string) $request->input('format'),
-                (string) $request->input('content'),
-                $request->mapping(),
-                $request->user()?->id,
-            );
+            $bankAccount = BankAccount::query()->findOrFail($request->integer('bank_account_id'));
+            $format = (string) $request->input('format');
+            $content = (string) $request->input('content');
+            $mapping = $this->imports->resolveMapping($bankAccount, $format, $content, $request->mapping(), $request->usePreset());
+
+            $statement = $this->imports->import($bankAccount, $format, $content, $mapping, $request->user()?->id);
 
             return $this->created(
                 $statement->load(['bankAccount', 'lines']),
@@ -120,6 +125,49 @@ class BankStatementController extends ApiController
         } catch (LogicException $e) {
             return $this->error($e->getMessage());
         }
+    }
+
+    /**
+     * @return array{used: bool, name: string|null}
+     */
+    private function presetUsed(BankAccount $bankAccount, string $format, bool $usePreset): array
+    {
+        $used = $usePreset && $format === 'csv' && $bankAccount->importPreset() !== null;
+
+        return ['used' => $used, 'name' => $used ? (string) $bankAccount->importPreset()['name'] : null];
+    }
+
+    // ------------------------------------------------------- preset (P-3c)
+
+    /** Registri preset bawaan per bank — kalimatnya dari BankPresets, apa adanya. */
+    public function presets(): JsonResponse
+    {
+        return $this->ok(['presets' => BankPresets::forApi(), 'summary' => BankPresets::summary()]);
+    }
+
+    public function savePreset(BankImportPresetRequest $request, BankAccount $bankAccount): JsonResponse
+    {
+        try {
+            $preset = $this->imports->savePreset(
+                $bankAccount,
+                (string) $request->input('name'),
+                (string) $request->input('format'),
+                (string) $request->input('content'),
+                $request->mapping(),
+                $request->user()?->id,
+            );
+
+            return $this->ok($preset, "Preset «{$preset['name']}» disimpan untuk rekening {$bankAccount->code}.");
+        } catch (LogicException $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    public function deletePreset(BankAccount $bankAccount): JsonResponse
+    {
+        $this->imports->deletePreset($bankAccount);
+
+        return $this->ok(null, "Preset rekening {$bankAccount->code} dihapus.");
     }
 
     public function destroy(BankStatement $bankStatement): JsonResponse

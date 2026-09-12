@@ -31,36 +31,57 @@ class BankStatementParseRequest extends FormRequest
 
     public function rules(): array
     {
+        $csv = $this->input('format') === BankStatementFormat::Csv->value;
+        // use_preset (P-3c): kolom datang dari preset rekening — yang diketik
+        // operator tinggal periode/saldo. Bukan sniffing: tanpa use_preset,
+        // pemetaan penuh tetap wajib persis seperti sebelumnya.
+        $columns = $csv && ! $this->boolean('use_preset');
+
         return [
             'bank_account_id' => ['required', 'integer', Rule::exists('fin_bank_accounts', 'id')->whereNull('deleted_at')],
             'format' => ['required', Rule::in(array_column(BankStatementFormat::cases(), 'value'))],
             'content' => ['required', 'string', 'max:'.self::MAX_CONTENT],
+            'use_preset' => ['sometimes', 'boolean'],
 
-            'mapping' => ['required_if:format,csv', 'array'],
-            'mapping.delimiter' => ['required_if:format,csv', Rule::in(array_keys(CsvStatementParser::DELIMITERS))],
+            'mapping' => [Rule::requiredIf($csv), 'array'],
+        ] + self::mappingRules($columns) + [
+            'mapping.period_start' => [Rule::requiredIf($csv), 'date'],
+            'mapping.period_end' => [Rule::requiredIf($csv), 'date'],
+            'mapping.opening_balance' => [Rule::requiredIf($csv), 'numeric'],
+            'mapping.closing_balance' => [Rule::requiredIf($csv), 'numeric'],
+        ];
+    }
+
+    /**
+     * Aturan pemetaan KOLOM saja (tanpa periode/saldo) — dipakai juga oleh
+     * BankImportPresetRequest, supaya preset menerima persis bentuk yang
+     * diterima pratinjau.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public static function mappingRules(bool $required): array
+    {
+        return [
+            'mapping.delimiter' => [Rule::requiredIf($required), Rule::in(array_keys(CsvStatementParser::DELIMITERS))],
             'mapping.skip_rows' => ['nullable', 'integer', 'between:0,100'],
-            'mapping.date_column' => ['required_if:format,csv', 'integer', 'between:0,200'],
-            'mapping.date_format' => ['required_if:format,csv', Rule::in(array_keys(CsvStatementParser::DATE_FORMATS))],
+            'mapping.date_column' => [Rule::requiredIf($required), 'integer', 'between:0,200'],
+            'mapping.date_format' => [Rule::requiredIf($required), Rule::in(array_keys(CsvStatementParser::DATE_FORMATS))],
             'mapping.description_column' => ['nullable', 'integer', 'between:0,200'],
             'mapping.reference_column' => ['nullable', 'integer', 'between:0,200'],
             'mapping.balance_column' => ['nullable', 'integer', 'between:0,200'],
-            'mapping.amount_mode' => ['required_if:format,csv', Rule::in(CsvStatementParser::AMOUNT_MODES)],
+            'mapping.amount_mode' => [Rule::requiredIf($required), Rule::in(CsvStatementParser::AMOUNT_MODES)],
             'mapping.debit_column' => ['required_if:mapping.amount_mode,debit_credit', 'nullable', 'integer', 'between:0,200'],
             'mapping.credit_column' => ['required_if:mapping.amount_mode,debit_credit', 'nullable', 'integer', 'between:0,200'],
             'mapping.amount_column' => ['nullable', 'integer', 'between:0,200'],
             'mapping.indicator_column' => ['nullable', 'integer', 'between:0,200'],
-            'mapping.number_format' => ['required_if:format,csv', Rule::in(CsvStatementParser::NUMBER_FORMATS)],
-            'mapping.period_start' => ['required_if:format,csv', 'date'],
-            'mapping.period_end' => ['required_if:format,csv', 'date'],
-            'mapping.opening_balance' => ['required_if:format,csv', 'numeric'],
-            'mapping.closing_balance' => ['required_if:format,csv', 'numeric'],
+            'mapping.number_format' => [Rule::requiredIf($required), Rule::in(CsvStatementParser::NUMBER_FORMATS)],
         ];
     }
 
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {
-            if ($this->input('format') !== BankStatementFormat::Csv->value) {
+            if ($this->input('format') !== BankStatementFormat::Csv->value || $this->boolean('use_preset')) {
                 return;
             }
 
@@ -69,6 +90,11 @@ class BankStatementParseRequest extends FormRequest
                 $validator->errors()->add('mapping.amount_column', 'Kolom nilai wajib dipilih untuk mode ini.');
             }
         });
+    }
+
+    public function usePreset(): bool
+    {
+        return $this->boolean('use_preset');
     }
 
     public function mapping(): array

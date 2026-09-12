@@ -9,6 +9,7 @@ use Modules\Finance\Enums\BankStatementFormat;
 use Modules\Finance\Enums\BankStatementMatchStatus;
 use Modules\Finance\Models\BankAccount;
 use Modules\Finance\Models\BankStatement;
+use Modules\Finance\Support\ImportPreset;
 use Modules\Finance\Support\ParsedStatement;
 
 /**
@@ -118,6 +119,88 @@ class BankStatementImportService
             // same message as if they had gone second, not a 500.
             throw new LogicException('Berkas ini sudah diimpor.');
         }
+    }
+
+    // ------------------------------------------------------- preset per rekening
+
+    /**
+     * Pemetaan yang benar-benar dipakai parser — SATU jalur untuk layar Impor
+     * dan job folder terpantau (P-3c). Preset diterapkan HANYA bila diminta
+     * ($usePreset): tidak ada sniffing, tidak ada preset yang diam-diam
+     * menggantikan pemetaan yang dikirim operator. MT940 tidak butuh preset.
+     *
+     * Header berkas pada kolom yang dipetakan ≠ yang diingat preset → ditolak
+     * dengan kalimat yang MENYEBUT kolomnya, sebelum satu baris pun diparse:
+     * kolom yang bergeser menghasilkan pemetaan yang keliru-tetapi-seimbang,
+     * dan tie-out tidak bisa melihatnya.
+     *
+     * @param  array<string, mixed>  $perFile  periode/saldo (layar) — atau pemetaan penuh bila $usePreset false
+     * @return array<string, mixed>
+     */
+    public function resolveMapping(BankAccount $bankAccount, string $format, string $content, array $perFile, bool $usePreset): array
+    {
+        if (! $usePreset || $format !== BankStatementFormat::Csv->value) {
+            return $perFile;
+        }
+
+        $preset = $bankAccount->importPreset();
+
+        if ($preset === null) {
+            throw new LogicException(
+                "Rekening {$bankAccount->code} belum punya preset impor. Simpan preset dari layar Impor sesudah pratinjau pemetaan Anda berhasil."
+            );
+        }
+
+        if (trim($content) === '') {
+            throw new LogicException('Berkas rekening koran kosong.');
+        }
+
+        $mapping = ImportPreset::merge($preset, $perFile);
+        $headerRow = $this->csv->physicalRow($content, $mapping, (int) ($mapping['skip_rows'] ?? 0));
+        $mismatches = ImportPreset::headerMismatches($preset, $headerRow);
+
+        if ($mismatches !== []) {
+            throw new LogicException(implode(' ', $mismatches));
+        }
+
+        return $mapping;
+    }
+
+    /**
+     * Menyimpan preset dari pemetaan yang BARU SAJA berhasil dipratinjau: parse
+     * harus jalan DAN tie-out nol atas berkas ini (pemetaan yang tidak seimbang
+     * justru pemetaan yang salah). Penghalang rantai/identitas sengaja tidak
+     * ikut: berkas yang sudah pernah diimpor tetap bukti sah bagi tata letaknya.
+     *
+     * @param  array<string, mixed>  $mapping  pemetaan layar penuh
+     * @return array<string, mixed> preset yang tersimpan
+     */
+    public function savePreset(BankAccount $bankAccount, string $name, string $format, string $content, array $mapping, ?int $userId): array
+    {
+        if ($format !== BankStatementFormat::Csv->value) {
+            throw new LogicException('MT940 tidak butuh preset — tata letaknya baku. Preset hanya untuk CSV.');
+        }
+
+        $statement = $this->parse($format, $content, $mapping);
+
+        if (! $statement->tiesOut()) {
+            throw new LogicException(
+                'Preset hanya disimpan dari pemetaan yang pratinjaunya seimbang; berkas ini tidak seimbang (selisih '
+                .$this->rupiah($statement->tieOutDifferenceCents()).'). Perbaiki pemetaannya dulu.'
+            );
+        }
+
+        $headerRow = $this->csv->physicalRow($content, $mapping, (int) ($mapping['skip_rows'] ?? 0));
+        $preset = ImportPreset::build($name, $mapping, $headerRow, $userId);
+
+        $bankAccount->forceFill(['import_preset' => $preset])->save();
+
+        return $preset;
+    }
+
+    public function deletePreset(BankAccount $bankAccount): void
+    {
+        $bankAccount->forceFill(['import_preset' => null])->save();
     }
 
     /**

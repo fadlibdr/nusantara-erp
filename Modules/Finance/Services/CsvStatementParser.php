@@ -155,6 +155,48 @@ class CsvStatementParser
     }
 
     /**
+     * Satu baris FISIK berkas (1-based), dibaca dengan konfigurasi fgetcsv yang
+     * sama dengan readRows() — dipakai preset per rekening (P-3c) untuk membaca
+     * baris judul yang dilewati parser (baris ke-skip_rows) dan membandingkan
+     * selnya dengan yang diingat preset. null bila berkas lebih pendek dari itu.
+     *
+     * @return list<string>|null
+     */
+    public function physicalRow(string $text, array $mapping, int $rowNo): ?array
+    {
+        if ($rowNo < 1) {
+            return null;
+        }
+
+        $delimiter = $this->delimiter($mapping);
+        $handle = fopen('php://memory', 'r+');
+
+        if ($handle === false) {
+            throw new LogicException('Berkas tidak dapat dibaca.');
+        }
+
+        fwrite($handle, str_replace(["\r\n", "\r"], "\n", ltrim($text, "\u{FEFF}")));
+        rewind($handle);
+
+        $current = 0;
+        $found = null;
+
+        while (($fields = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
+            $current++;
+
+            if ($current === $rowNo) {
+                $found = $fields === [null] ? [] : array_map(static fn ($value): string => trim((string) $value), $fields);
+
+                break;
+            }
+        }
+
+        fclose($handle);
+
+        return $found;
+    }
+
+    /**
      * fgetcsv over a memory stream, so a quoted field containing the delimiter
      * or a newline survives — which str_getcsv per physical line would not.
      *

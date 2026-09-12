@@ -17,7 +17,16 @@ class BankAccount extends BaseModel
     {
         return [
             'is_active' => 'boolean',
+            'import_preset' => 'array',
         ];
+    }
+
+    /** Preset impor per rekening (P-3c) — null selama belum disimpan dari pratinjau yang berhasil. */
+    public function importPreset(): ?array
+    {
+        $preset = $this->import_preset;
+
+        return is_array($preset) && $preset !== [] ? $preset : null;
     }
 
     public function coaAccount(): BelongsTo

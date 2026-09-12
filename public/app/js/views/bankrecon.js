@@ -195,14 +195,29 @@ function columnOptions() {
   return options;
 }
 
+/* Kunci pemetaan yang milik tiap berkas — dengan preset, hanya ini yang diketik. */
+const PER_FILE_KEYS = ['period_start', 'period_end', 'opening_balance', 'closing_balance'];
+
+function perFileMapping(mapping) {
+  const out = {};
+  PER_FILE_KEYS.forEach((key) => { out[key] = mapping[key]; });
+  return out;
+}
+
 function renderImport(host, accounts, onImported) {
   const form = importDefaults();
   // Start from the account chosen in the toolbar, not from whichever happens
   // to be first — importing a statement against the wrong account is the one
   // mistake here that is expensive to undo.
   form.bankAccountId = state.bankAccountId ?? (accounts[0] && accounts[0].id);
+  const account = () => accounts.find((a) => a.id === form.bankAccountId) || null;
+  const savedPreset = () => (account() && account().import_preset) || null;
+  // Preset adalah PILIHAN EKSPLISIT (P-3c): dipakai hanya bila pemilih ini
+  // berkata begitu, dan pemilihnya hanya ada bila rekeningnya punya preset.
+  form.usePreset = Boolean(savedPreset());
   const body = el('div');
   const previewHost = el('div');
+  const registryHost = el('div');
 
   function paint() {
     clear(body);
@@ -221,12 +236,14 @@ function renderImport(host, accounts, onImported) {
       },
     });
 
+    const preset = savedPreset();
+
     body.appendChild(el('.card', [
       el('.card-head', [el('h2', { text: '1 · Berkas' })]),
       el('.form-grid', [
         selectField('Rekening bank', form.bankAccountId,
           accounts.map((a) => [String(a.id), `${a.name} — ${a.bank_name} ${a.account_no}`]),
-          (value) => { form.bankAccountId = Number(value); }),
+          (value) => { form.bankAccountId = Number(value); form.usePreset = Boolean(savedPreset()); clear(previewHost); paint(); }),
         selectField('Format', form.format, [['csv', 'CSV rekening koran'], ['mt940', 'MT940 (SWIFT)']],
           (value) => { form.format = value; paint(); }),
         field('Berkas', fileInput, {
@@ -234,10 +251,19 @@ function renderImport(host, accounts, onImported) {
             ? `Terbaca: ${form.filename}`
             : 'Berkas dibaca di peramban dan dikirim sebagai teks; tidak ada berkas yang disimpan di server.',
         }),
-      ]),
+        form.format === 'csv' && preset
+          ? selectField('Pemetaan kolom', form.usePreset ? 'preset' : 'manual', [
+            ['preset', `Preset rekening ini: «${preset.name}»`],
+            ['manual', 'Tetapkan kolom sendiri'],
+          ], (value) => { form.usePreset = value === 'preset'; clear(previewHost); paint(); },
+          'Preset dipakai hanya bila dipilih di sini. Kolom tidak pernah ditebak dari isi berkas.')
+          : null,
+      ].filter(Boolean)),
     ]));
 
-    if (form.format === 'csv') body.appendChild(mappingCard(form, paint));
+    if (form.format === 'csv') {
+      body.appendChild(form.usePreset && preset ? presetCard(form, preset, onPresetDeleted) : mappingCard(form, paint));
+    }
 
     body.appendChild(el('.card-foot', [
       button('Pratinjau', {
@@ -248,12 +274,71 @@ function renderImport(host, accounts, onImported) {
     ]));
   }
 
+  function usingPreset() {
+    return form.format === 'csv' && form.usePreset && Boolean(savedPreset());
+  }
+
   async function payload() {
     return {
       bank_account_id: form.bankAccountId,
       format: form.format,
       content: form.content,
-      mapping: form.format === 'csv' ? form.mapping : undefined,
+      use_preset: usingPreset(),
+      mapping: form.format === 'csv' ? (usingPreset() ? perFileMapping(form.mapping) : form.mapping) : undefined,
+    };
+  }
+
+  async function onPresetDeleted() {
+    const current = account();
+    if (!current) return;
+    await api.del(`finance/bank-accounts/${current.id}/import-preset`);
+    current.import_preset = null;
+    form.usePreset = false;
+    toast('Preset rekening dihapus.');
+    clear(previewHost);
+    paint();
+  }
+
+  /* Simpan preset dari pemetaan yang BARU SAJA berhasil dipratinjau — tombolnya
+   * hanya ada di kartu pratinjau yang hijau, jadi tidak ada preset yang lahir
+   * dari pemetaan yang belum pernah dilihat orang. */
+  function offerSavePreset(result) {
+    if (form.format !== 'csv' || !result.can_import || usingPreset() || !session.can('fin.update')) return null;
+    return (node) => {
+      const nameInput = el('input', { type: 'text', maxLength: 60, value: savedPreset() ? savedPreset().name : '', placeholder: 'mis. BCA KlikBCA Bisnis' });
+      const save = button('Simpan preset', {
+        variant: 'primary',
+        onClick: (event) => withBusy(event.currentTarget, async () => {
+          const name = nameInput.value.trim();
+          if (!name) { toastError(new Error('Beri nama presetnya.')); return; }
+          try {
+            const current = account();
+            const saved = await api.put(`finance/bank-accounts/${current.id}/import-preset`, {
+              name, format: 'csv', content: form.content, mapping: form.mapping,
+            });
+            current.import_preset = saved;
+            dialog.close();
+            toast(`Preset «${saved.name}» disimpan untuk rekening ${current.code}.`);
+            form.usePreset = true;
+            clear(previewHost);
+            paint();
+          } catch (error) {
+            toastError(error);
+          }
+        }),
+      });
+      const dialog = modal({
+        title: 'Simpan sebagai preset rekening ini',
+        body: el('div', [
+          el('p.muted', { text: 'Yang disimpan: pemisah, kolom, format tanggal/angka, dan sel baris judul pada kolom yang '
+            + 'dipetakan. Periode dan saldo tidak disimpan — keduanya milik tiap berkas. Bulan depan berkas yang judul '
+            + 'kolomnya bergeser akan ditolak dengan menyebut kolomnya.' }),
+          field('Nama preset', nameInput, { required: true }),
+        ]),
+        footer: [button('Batal', { onClick: () => dialog.close() }), save],
+        initialFocus: nameInput,
+      });
+      void node;
     };
   }
 
@@ -269,14 +354,102 @@ function renderImport(host, accounts, onImported) {
           clear(previewHost);
           onImported(created);
         });
-      }));
+      }, offerSavePreset(result)));
     } catch (error) {
       previewHost.appendChild(errorState(error, () => preview()));
     }
   }
 
   paint();
-  host.append(body, previewHost);
+  host.append(body, previewHost, registryHost);
+  presetRegistryCard(registryHost);
+}
+
+/* Kartu preset rekening: kolom dibaca dari preset, periode/saldo tetap diketik. */
+function presetCard(form, preset, onDelete) {
+  const m = form.mapping;
+  const set = (key) => (value) => { m[key] = value === null ? null : value; };
+  const setNum = (key) => (value) => { m[key] = value === null ? null : Number(value); };
+  const header = preset.expected_header
+    ? Object.entries(preset.expected_header).map(([index, cell]) => `Kolom ${Number(index) + 1} '${cell}'`).join(' · ')
+    : null;
+
+  return el('.card.bank-preset-card', [
+    el('.card-head', [
+      el('h2', { text: `2 · Preset «${preset.name}»` }),
+      el('.spacer'),
+      session.can('fin.update')
+        ? button('Hapus preset', {
+          size: 'sm', variant: 'ghost', iconName: 'trash',
+          onClick: () => confirmDialog({
+            title: `Hapus preset «${preset.name}»?`,
+            message: 'Rekening ini kembali tanpa preset: pemetaan kolom diketik lagi di layar, dan berkas CSV di folder '
+              + 'terpantau untuk rekening ini tidak bisa diimpor sampai preset baru disimpan.',
+            onConfirm: onDelete,
+          }),
+        })
+        : null,
+    ]),
+    el('.alert.info', [
+      icon('warn', 15),
+      el('div', { text: 'Kolom dibaca dari preset; periode dan saldo tetap Anda ketik dari lembar rekening koran. '
+        + 'Berkas yang judul kolomnya bergeser ditolak dengan menyebut kolomnya — bukan diimpor keliru-tetapi-seimbang.' }),
+    ]),
+    el('.card-body', { style: { display: 'grid', gap: '4px', fontSize: '12px', minWidth: 0 } }, [
+      el('.muted', { text: `Disimpan ${preset.saved_at ? fmt.dateTime(preset.saved_at) : '—'}.` }),
+      el('.muted.bank-preset-header', { style: { overflowWrap: 'anywhere' }, text: header ? `Judul kolom yang diingat: ${header}` : (preset.header_note || '') }),
+      preset.mapping && (preset.mapping.balance_column === null || preset.mapping.balance_column === undefined)
+        ? el('div', { style: { color: 'var(--warning)' }, text: 'Preset ini tidak memetakan kolom saldo: berkas CSV rekening ini di folder terpantau tidak bisa diimpor otomatis; impor lewat layar ini.' })
+        : null,
+    ]),
+    el('.form-grid', [
+      inputField('Periode mulai', m.period_start, 'date', set('period_start')),
+      inputField('Periode selesai', m.period_end, 'date', set('period_end')),
+      inputField('Saldo awal', m.opening_balance, 'number', setNum('opening_balance')),
+      inputField('Saldo akhir', m.closing_balance, 'number', setNum('closing_balance')),
+    ]),
+  ]);
+}
+
+/* Registri preset bawaan per bank — setiap kalimat dari API (BankPresets), SPA
+ * hanya memilih warna lencana. Hari ini keempatnya menunggu berkas ekspor
+ * nyata milik pemilik (docs/samples/bank/README.md); tidak satu pun bisa dipilih. */
+async function presetRegistryCard(host) {
+  clear(host);
+  let registry;
+  try {
+    registry = await api.get('finance/bank-statements/presets');
+  } catch (error) {
+    host.appendChild(errorState(error, () => presetRegistryCard(host)));
+    return;
+  }
+  const presets = registry.presets || [];
+  const headBadge = badge(registry.summary.label, registry.summary.verified === registry.summary.total ? 'green' : 'amber');
+  Object.assign(headBadge.style, { whiteSpace: 'normal', height: 'auto' });
+  const text = { fontSize: '12px', minWidth: 0, overflowWrap: 'anywhere' };
+
+  host.appendChild(el('.card', { style: { minWidth: 0 } }, [
+    el('.card-head.bank-presets-head', { style: { flexWrap: 'wrap', rowGap: '6px' } }, [
+      el('h2', { text: 'Preset bawaan per bank' }),
+      el('.spacer'),
+      headBadge,
+    ]),
+    el('.card-body', { style: { display: 'grid', gap: '10px', minWidth: 0 } }, presets.map((preset) => el('.bank-preset', {
+      'data-key': preset.key,
+      'data-selectable': String(Boolean(preset.selectable)),
+      'data-verified': String(Boolean(preset.verified)),
+      style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 0 },
+    }, [
+      el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', minWidth: 0 } }, [
+        el('strong', { style: { minWidth: 0, overflowWrap: 'anywhere' }, text: `${preset.label} — ${preset.bank}` }),
+        (() => { const b = badge(preset.badge_label, preset.verified ? 'green' : 'amber'); Object.assign(b.style, { whiteSpace: 'normal', height: 'auto' }); return b; })(),
+      ]),
+      el('.muted', { style: text, text: `Kanal: ${(preset.channels || []).join(' · ')}` }),
+      el('.muted.bank-preset-verification', { style: text, text: preset.verification }),
+      preset.awaiting_file ? el('.bank-preset-awaiting', { style: { ...text, color: 'var(--warning)' }, text: preset.awaiting_file }) : null,
+      preset.demo_note ? el('.muted.bank-preset-demo', { style: text, text: preset.demo_note }) : null,
+    ]))),
+  ]));
 }
 
 function mappingCard(form, repaint) {
@@ -323,7 +496,8 @@ function mappingCard(form, repaint) {
       ...amountFields.filter(Boolean),
       selectField('Kolom saldo', m.balance_column, columnOptions(), setNum('balance_column'),
         'Sangat dianjurkan. Saldo berjalan bank adalah satu-satunya pemeriksaan yang tidak bergantung '
-        + 'pada angka yang Anda ketik, dan menunjuk baris yang salah baca.'),
+        + 'pada angka yang Anda ketik, dan menunjuk baris yang salah baca. Wajib bila rekening ini '
+        + 'akan diimpor dari folder terpantau.'),
       selectField('Kolom referensi', m.reference_column, columnOptions(), setNum('reference_column')),
       inputField('Periode mulai', m.period_start, 'date', set('period_start')),
       inputField('Periode selesai', m.period_end, 'date', set('period_end')),
@@ -333,14 +507,16 @@ function mappingCard(form, repaint) {
   ]);
 }
 
-function previewCard(result, onImport) {
+function previewCard(result, onImport, onSavePreset) {
   const s = result.statement;
   const blocked = !result.can_import;
+  const preset = result.preset || { used: false, name: null };
 
   return el('.card', [
     el('.card-head', [
       el('h2', { text: '3 · Pratinjau' }),
       el('.spacer'),
+      preset.used ? badge(`Preset «${preset.name}»`, '') : null,
       badge(s.ties_out ? 'Seimbang' : 'Tidak seimbang', s.ties_out ? 'green' : 'red'),
     ]),
     el('.stat-row', [
@@ -374,6 +550,14 @@ function previewCard(result, onImport) {
         title: blocked ? 'Perbaiki hal di atas lebih dulu' : undefined,
         onClick: (event) => onImport(event.currentTarget),
       }),
+      onSavePreset
+        ? button('Simpan sebagai preset rekening ini', {
+          variant: 'ghost',
+          iconName: 'check',
+          title: 'Ingat pemetaan kolom ini (dan judul kolomnya) untuk berkas rekening ini bulan berikutnya',
+          onClick: (event) => onSavePreset(event.currentTarget),
+        })
+        : null,
     ]),
   ]);
 }
