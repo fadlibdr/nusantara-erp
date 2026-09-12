@@ -94,7 +94,10 @@ function channelsCard(state, reload) {
       Object.keys(boxes).forEach((key) => { value[key] = boxes[key].checked; });
       try {
         await api.put('core/me/preferences/notify.channels', { value });
-        toast('Pilihan kanal disimpan. Yang dimatikan akan tercatat "Dilewati — dimatikan pengguna" di kotak keluar.');
+        // Bukan "akan tercatat 'Dilewati — dimatikan pengguna'": sebab yang lebih
+        // global (mailer log, sakelar Pengaturan) menang di kotak keluar, dan
+        // lencana di bawah membaca DeliveryGate yang sama (verifikasi P-3a).
+        toast('Pilihan kanal disimpan — lencana di bawah menunjukkan sebab yang akan tercatat di kotak keluar.');
         await reload();
       } catch (error) {
         toastError(error);
