@@ -366,7 +366,12 @@ diimpor") → **Buka dokumen** pada yang gagal → `#/bank-recon?tab=inbox`, tab
 - `vendor/bin/pint --test` bersih pada **setiap** berkas PHP yang disentuh
   (`git diff --name-only b4fb40b...HEAD | grep '\.php$' | xargs vendor/bin/pint --test` → passed); dua
   kegagalan pint lama tidak disentuh.
-- Suite penuh dua driver = gerbang rilis sesi utama (§15), bukan bagian laporan ini.
+- **Gerbang rilis (sesi utama, suite PENUH dua driver dari worktree terisolasi, vendor disalin):**
+  `a1130fe` — **GAGAL identik di kedua driver** (4.861 uji, 1 error:
+  `DocumentFormatValidationTest` — `storage_path()` di `config/erp.php`, §12) → ditutup `036f02b`.
+  **`036f02b` (ujung cabang): SQLite 4.922 uji / 33.932 asersi (11 dilewati, 14 mnt 08 dtk) hijau;
+  MySQL `erp_dryrun` 4.922 / 33.938 (9 dilewati, 30 mnt 19 dtk) hijau.** main `b4fb40b` membawa
+  4.849 → **+73 uji**. Log `p3c-gate-<sha>.log` di scratchpad sesi.
 
 ---
 
