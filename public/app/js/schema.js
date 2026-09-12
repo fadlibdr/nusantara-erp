@@ -6655,6 +6655,10 @@ export const NAV = [
       { label: 'Usulan Rekap Absensi', route: 'usulan-rekap' },
       { label: 'Rekap Absensi', route: 'r/hr/attendance-recaps' },
       { label: 'Payroll', route: 'r/hr/payroll-runs' },
+      // P-3b — tepat di bawah Payroll: rekap dibentuk dari slip run yang
+      // disetujui, untuk diisi ke e-Bupot 21/26 oleh petugas pajak (bukan
+      // berkas impor DJP; layarnya mengatakannya).
+      { label: 'Rekap PPh 21 Bulanan', route: 'rekap-pph21' },
     ],
   },
   {

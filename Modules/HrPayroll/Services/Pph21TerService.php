@@ -20,6 +20,16 @@ use Modules\HrPayroll\Enums\PtkpStatus;
 class Pph21TerService
 {
     /**
+     * P-3b (T3b.3): the bracket tables below were TRANSCRIBED, and that status
+     * is a fact the operator must see — not only the maintainer reading this
+     * file. The recap screen and its API carry this sentence verbatim. It is a
+     * flag, not a promise: nothing in this package changed a single bracket.
+     */
+    public const VERIFICATION_NOTE = 'Tabel TER (PMK 168/2023) disalin ke Pph21TerService dan ditandai '
+        .'perlu dicek terhadap peraturan yang berlaku (lampiran resmi PMK 168/2023) sebelum dipakai produksi; '
+        .'angkanya tidak diubah oleh paket P-3b.';
+
+    /**
      * Pasal 21 ayat (5a) UU PPh: recipients without an NPWP are withheld at 120%.
      * Since PMK 112/PMK.03/2022 the NIK functions as NPWP, so in practice the
      * surcharge only hits employees with neither NPWP nor an activated NIK.
