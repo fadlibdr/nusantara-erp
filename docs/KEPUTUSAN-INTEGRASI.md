@@ -324,7 +324,8 @@ aplikasi ini sendiri tidak menggerbangi apa pun. Diukur 12 Sep 2026: **862** rut
 di bawah `/api`, **644** dijaga sebuah izin, **218** hanya menuntut autentikasi.
 Endpoint di golongan kedua dijangkau token terbatas seseorang persis seperti sesi
 peramban orang itu, dan kalimat itu ditulis di layar Token API, di
-PANDUAN-PENGGUNA §20, dan di `docs/api/openapi.json`. `UngatedApiRouteCensusTest`
-mengukur angkanya dan memaku daftar **31** rute TULIS tanpa gerbang izin, supaya
+PANDUAN-PENGGUNA §20, dan di `docs/api/openapi.json`. Angka di atas **diukur**
+dengan `Route::getRoutes()`, bukan dipaku; yang dipaku `UngatedApiRouteCensusTest`
+adalah daftar **31** rute TULIS tanpa gerbang izin, supaya
 yang ke-32 memerahkan gerbang alih-alih diam-diam memperlebar apa yang bisa
 dilakukan sebuah token "hanya baca".
