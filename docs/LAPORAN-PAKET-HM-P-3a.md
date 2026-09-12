@@ -24,16 +24,20 @@ uji, `Http::preventStrayRequests()` di setiap uji WhatsApp, `MAIL_MAILER=log` di
 
 ## 1. Tugas → status → bukti
 
+> Angka di laporan ini adalah angka di **ujung cabang** (§8, §14); angka yang berlaku pada satu
+> commit disebut bersama SHA-nya. Verifier penutup (G-1, 12 Sep 2026) menemukan lima angka putaran
+> pertama yang basi di sini — dibetulkan di ujung cabang, bukan ditimpa per putaran.
+
 | # | Tugas | Status | Bukti (commit + angka terukur) |
 |---|---|---|---|
 | T3a.0 | Cabut penolakan WhatsApp tertulis di `docs/KEPUTUSAN-INTEGRASI.md` (bentuk SIKAP-E-SIGN) — SEBELUM satu baris kode | ✅ | `34370ed` — apa yang dulu ditolak & di mana (ROADMAP-DEVIASI baris 18, LAPORAN-DEVIASI-v2, kedua PANDUAN; **ASSESSMENT ternyata tidak memuat kata "WhatsApp"** — `grep -in whatsapp docs/ASSESSMENT*.md` = 0 baris), mengapa dicabut, TIGA prasyarat pemilik, penyedia (Meta langsung / Qontak / Fonnte ditolak), apa yang terjadi sebelum prasyarat terpenuhi; catatan kaki di ROADMAP-DEVIASI baris 18 |
 | 1 | Kejujuran status (perangkap A): audit `MAIL_MAILER=log` → `sent` | ✅ **cacat nyata ditemukan & ditutup** | `0c71b28`, `626e159` — probe: `status=sent provider_id='49220f04…@example.co.id'`. Kini `Core\Support\MailTransport` (transport log/array/null = tidak keluar dari mesin; **TRANSPORT** yang diperiksa, bukan hanya nama mailer), `DeliveryGate` (satu daftar sebab, empat permukaan), `DeliverySkippedException` → `skipped` tanpa ulang, `DeliveryRejectedException` → `failed` seketika, `sent` hanya dengan pengenal. `Iam\Support\PasswordHelp` membaca predikat yang sama. `DeliveryHonestyTest` **13 uji**; 5 mutasi merah (§4) |
 | T3a.1 | Template per peristiwa (5) untuk e-mail, satu tempat pemetaan; peristiwa lain memakai template umum DAN itu dikatakan | ✅ | `f0fcbcb` — `NotificationTemplates` (lima kunci literal), `core_notifications.template` (migrasi Core **001801**), `EventNotificationMail` (awalan subjek `[Cadangan]` dst.), `system(..., $template)` menolak kunci salah eja; watchdog → `scheduler.down`, 7 alarm backup-watch → `backup.stale`, approval-watch → `approval.escalated` HANYA eskalasi, deadline-watch → `ar.dunning` untuk invoice pelanggan LEWAT / `deadline.due` lainnya / umum untuk TANPA_TANGGAL. `NotificationTemplatesTest` **12 uji** menjalankan keempat perintah sungguhan; 4 mutasi merah |
-| T3a.2 | Preferensi kanal per pengguna + jam tenang (TUNDA, bukan buang); tulis pilihan tempat penyimpanan; layar Profil | ✅ | `a662467` — dua kunci di `UserPreferences` (§9 keputusan A), `QuietHours` (Asia/Jakarta; melintasi tengah malam diuji dua sisi + dua batas), penundaan di kotak keluar, Kirim ulang, DAN job (pekerja sungguhan diukur: `available_at` = akhir jendela; semula `release()`, yang memakan hitungan percobaan pekerja — ditutup 12 Sep 2026, §12), `GET core/me/notification-channels`, `#/profil` (`views/profil.js`, NAV Ringkasan, menu akun), kolom "Berikutnya", `SHELL_VERSION` 8 → 9. `NotificationPreferencesTest` **14 uji**; 5 mutasi merah |
-| T3a.3 | `users.phone_e164` + opt-in berstempel (Iam **000252**); `WhatsAppChannel` atas `Http::`; webhook publik bertanda tangan; konfigurasi + 5 nama template dari env, KOSONG di repo | ✅ | `6a019de`, `1760245` — `PhoneNumber` (E.164 ketat, 08… → +62…), `WhatsAppConsent` (satu-satunya penulis tiga kolom; ganti nomor mengosongkan stempel), `PUT iam/me/phone` (via `profil`) + `PUT iam/users/{id}` (via `admin`), `WhatsAppSetup`, `WhatsAppChannel` (Meta Cloud API, template + 3 parameter, wamid wajib, kode permanen vs sementara), `ProviderErrorScrubber`, `WhatsAppWebhookController` (GET verifikasi, POST HMAC atas badan mentah, hanya baris cocok), migrasi Core **001802** (`provider_status`, `provider_status_at`, indeks `provider_id`), `config/erp.php whatsapp.*` dari `.env`, `.env.example` NAMA variabel saja. `WhatsAppChannelTest` **13**, `WhatsAppWebhookTest` **8**, `PhoneOptInTest` **7** uji; 9 mutasi — **7 merah, 2 LOLOS HIJAU** lalu dipaku (§4) |
+| T3a.2 | Preferensi kanal per pengguna + jam tenang (TUNDA, bukan buang); tulis pilihan tempat penyimpanan; layar Profil | ✅ | `a662467` — dua kunci di `UserPreferences` (§9 keputusan A), `QuietHours` (Asia/Jakarta; melintasi tengah malam diuji dua sisi + dua batas), penundaan di kotak keluar, Kirim ulang, DAN job (pekerja sungguhan diukur: `available_at` = akhir jendela; semula `release()`, yang memakan hitungan percobaan pekerja — ditutup 12 Sep 2026, §12), `GET core/me/notification-channels`, `#/profil` (`views/profil.js`, NAV Ringkasan, menu akun), kolom "Berikutnya", `SHELL_VERSION` 8 → 9. `NotificationPreferencesTest` **14 uji** di `a662467` — **19** di ujung cabang (+4 putaran perbaikan B-1, +1 paku penjaga sync G-2); 5 mutasi merah |
+| T3a.3 | `users.phone_e164` + opt-in berstempel (Iam **000252**); `WhatsAppChannel` atas `Http::`; webhook publik bertanda tangan; konfigurasi + 5 nama template dari env, KOSONG di repo | ✅ | `6a019de`, `1760245` — `PhoneNumber` (E.164 ketat, 08… → +62…), `WhatsAppConsent` (satu-satunya penulis tiga kolom; ganti nomor mengosongkan stempel), `PUT iam/me/phone` (via `profil`) + `PUT iam/users/{id}` (via `admin`), `WhatsAppSetup`, `WhatsAppChannel` (Meta Cloud API, template + 3 parameter, wamid wajib, kode permanen vs sementara), `ProviderErrorScrubber`, `WhatsAppWebhookController` (GET verifikasi, POST HMAC atas badan mentah, hanya baris cocok), migrasi Core **001802** (`provider_status`, `provider_status_at`, indeks `provider_id`), `config/erp.php whatsapp.*` dari `.env`, `.env.example` NAMA variabel saja. `WhatsAppChannelTest` **13**, `WhatsAppWebhookTest` **8**, `PhoneOptInTest` **7** uji di `6a019de` — **15 / 12 / 8** di ujung cabang sesudah putaran perbaikan; 9 mutasi — **7 merah, 2 LOLOS HIJAU** lalu dipaku (§4) |
 | T3a.4 | Verifikasi ulang-kirim 1/5/15/60 yang sudah ada dan paku; in-app tetap kanal kebenaran | ✅ | `6830a46` — `DeliveryRetryScheduleTest` **4 uji**: `[60, 300, 900, 3600]` dan `tries 5` literal; pekerja sungguhan lima kali dengan jam dimajukan → `next_attempt_at` DAN `available_at` job berjarak persis 60/300/900/3600 detik, lalu kosong + `failed`; flag unit `erp1-queue.service` (`--tries=5 --backoff=60`) ikut dipaku; kedua kanal luar mati → 2 baris kotak masuk seketika, 4 baris kotak keluar `skipped`, 0 HTTP; keduanya ditolak penyedia → kotak masuk tetap ada |
 | 6 | DEPLOYMENT.md runbook SMTP + WhatsApp (variabel tanpa nilai) | ✅ | `ae6d7ef` — §11.1 SMTP 587 STARTTLS (ledger #8), §11.2 Meta (verifikasi bisnis, System User token, 5 template utility 3 placeholder, webhook + verify token, jalan pulang); Qontak/Fonnte dinyatakan; **tidak ada `.env` yang disentuh** |
-| 7 | Uji PHP: Mail::fake tidak lagi cukup; `Http::fake` + `preventStrayRequests`; tanda tangan webhook dengan app secret palsu; penyaring dengan token palsu; mutasi | ✅ | **71 uji baru** di 7 berkas (13+12+14+13+8+7+4), 4 berkas uji lama diadaptasi (`git diff --name-status main...HEAD -- tests` = M pada ApprovalNotificationTest, NotificationDeliveryTest, QueueFailedJobsTest, UserPreferencesTest); `tests/Support/CapturingMailTransport` + `UsesCapturingMailer`; **25 mutasi**: 23 merah, 2 LOLOS HIJAU dan dipaku (§4) |
+| 7 | Uji PHP: Mail::fake tidak lagi cukup; `Http::fake` + `preventStrayRequests`; tanda tangan webhook dengan app secret palsu; penyaring dengan token palsu; mutasi | ✅ | **83 uji baru** di 7 berkas di ujung cabang (13+12+19+15+12+8+4; 71 di `c756d48`, +11 putaran perbaikan 12 Sep, +1 paku G-2), 4 berkas uji lama diadaptasi (`git diff --name-status main...HEAD -- tests` = M pada ApprovalNotificationTest, NotificationDeliveryTest, QueueFailedJobsTest, UserPreferencesTest); `tests/Support/CapturingMailTransport` + `UsesCapturingMailer`; **64 mutasi** dalam tiga putaran (§4): 25 pembangunan (23 merah, 2 LOLOS HIJAU lalu dipaku), 18 putaran perbaikan (18 merah), 21 verifier penutup (19 merah, 1 hijau-redundan, 1 LOLOS HIJAU lalu dipaku) |
 | 8 | Harness S37 (Pengiriman Notifikasi menampilkan sebab `skipped`; Profil; desktop + ponsel) → `results-phase-3.json` | ✅ | `c756d48` — `[S37_kanal_notifikasi_profil] ok` (10 syarat), `[S37_kanal_notifikasi_profil_ponsel] ok` (6 syarat); fixture dari pipeline sungguhan (`erp:watchdog-alarm --force` atas ERP_DB); **8 kunci Fase 0 tetap, 2 ditambahkan**; 3 PNG di `docs/bukti-uji/` |
 | 9 | Cangkang PWA | ✅ | `a662467` — `js/views/profil.js` di `SHELL`, `SHELL_VERSION` 8 → 9; `PwaServiceWorkerTest` hijau |
 | 10 | `/app/` dimuat di Chromium, 0 galat konsol di setiap layar tersentuh | ✅ | §7 — `#/profil`, `#/r/core/notification-deliveries`, `#/r/iam/users`, `#/settings`, `#/dashboard` × 1440×900 dan 390×844, `console_errors: []`, `http_errors: []`, tidak ada gulir samping |
@@ -102,13 +106,15 @@ yang tidak tertangkap `Http::fake()` menjatuhkan ujinya.
 
 ---
 
-## 4. Mutasi — 25 dijalankan, 23 merah, **2 LOLOS HIJAU** dan dipaku
+## 4. Mutasi — 64 dalam tiga putaran, 60 merah, **4 LOLOS HIJAU**: 3 dipaku, 1 redundan
+
+### Putaran pembangunan — 25 dijalankan, 23 merah, 2 LOLOS HIJAU dan dipaku
 
 Setiap mutasi diterapkan pada kode yang sudah di-commit, ujinya dijalankan, lalu dikembalikan
 dengan `git checkout` (satu kali, pada langkah 1, `git checkout` atas berkas yang BELUM
 di-commit menghapus suntingan saya sendiri — pelajaran: commit dulu, baru mutasi).
 
-### Merah (23)
+#### Merah (23)
 
 | # | Mutasi | Uji yang merah |
 |---|---|---|
@@ -136,7 +142,7 @@ di-commit menghapus suntingan saya sendiri — pelajaran: commit dulu, baru muta
 | MW3′ | (setelah dipaku) saringan kanal webhook dihapus | 1 uji |
 | MW6′ | (setelah dipaku) penjaga 429/5xx dihapus | 1 uji |
 
-### LOLOS HIJAU — dan apa yang dilakukan (2)
+#### LOLOS HIJAU — dan apa yang dilakukan (2)
 
 | # | Mutasi | Mengapa lolos | Paku (`1760245`) |
 |---|---|---|---|
@@ -145,6 +151,25 @@ di-commit menghapus suntingan saya sendiri — pelajaran: commit dulu, baru muta
 
 Keduanya berbentuk sama dengan pelajaran F-6: asersi yang kebetulan benar karena fixture-nya
 tersusun ramah. Keduanya merah sekarang.
+
+### Putaran perbaikan (12 Sep 2026) — 18 mutasi, 18 merah
+
+Tujuh di antaranya adalah mutasi tiga verifier yang pada putaran pertama LOLOS HIJAU dan dipaku
+di `6df3448` (urutan sebab global-dulu, aturan `token=`/`secret=` penyaring, jalan pintas 401/403,
+kalimat `WHATSAPP_NO_OPTIN`, batas 480 penyaring, tepi 15 digit E.164, `hash_equals`); sebelas
+lainnya menjaga perbaikan B-1/B-2/F1 (`release()` kembali, pengganti tanpa sisa jadwal, `failed()`
+membawa kalimat penundaan, `backoff()` tidak dipotong, indeks backoff mengabaikan `priorAttempts`,
+`retry()` tidak mengosongkan `provider_id`, saringan status webhook dibuang, job tidak mereset
+`provider_status`, `WhatsAppConsent` `$numberChanged=false` dan kembali ke `??`, ringkasan Profil
+mengabaikan 0 dari 5 template). Uji yang merah per mutasi ada di jurnal alur kerja
+`wf_d47bbb06-bf6`.
+
+### Verifier penutup — 21 mutasi (18 ulangan + X1/X2/X3), 19 merah, 2 LOLOS HIJAU
+
+| # | Mutasi | Mengapa lolos | Apa yang dilakukan |
+|---|---|---|---|
+| X1 | `Str::limit` jaring kedua di webhook dibuang | REDUNDAN, bukan celah: `ProviderErrorScrubber::scrub()` sendiri sudah memotong 480 + '…' dan batas itu dipaku (V4 merah) | tidak perlu paku |
+| X3 | `\|\| $this->job instanceof SyncJob` di `DeliverNotification::handOverAfter()` dibuang (penjaga lahir dari B-1) | 31 uji jam tenang memakai `Queue::fake()` (`handle()` tidak berjalan) atau memanggil `handle()` langsung (`$this->job === null`); pada driver `sync` tanpa penjaga, `dispatch()` di dalam job memanggil `handle()` lagi tanpa dasar — probe verifier: 21 kali sebelum pendengarnya berhenti | **dipaku** `a51e908`: `test_on_the_sync_driver_a_postponed_delivery_runs_once_and_stops` — TANPA `Queue::fake`, `JobProcessing` terpancar tepat satu kali, baris `queued` 06:00, tabel `jobs` kosong; mutasi diulang → merah (Tests 1, Failures 1), berkas dipulihkan identik |
 
 ---
 
@@ -177,10 +202,12 @@ Satu permukaan yang **sengaja tidak** menegakkan pilihan pengguna: `GET core/not
 - `git grep -n "WHATSAPP_" -- .env.example config/` = **25 baris**, semuanya NAMA variabel;
   `.env` tidak disentuh (`git status` bersih terhadap berkas yang di-ignore, dan `.env` tidak
   pernah masuk `git add` bernama).
-- `git grep -nE "EAAB[A-Za-z0-9]{10,}" -- . ':!vendor'` = **2 baris**: token PALSU
-  `uji-token-RAHASIA-EAABsbCS1iHgBO9x` di `WhatsAppChannelTest` — sengaja berbentuk seperti token
-  Meta supaya penyaringnya diuji terhadap bentuk yang sebenarnya — dan baris ini sendiri di
-  laporan, yang mengutipnya.
+- `git grep -nE "EAAB[A-Za-z0-9]{10,}" -- . ':!vendor'` = **4 baris** di ujung cabang, semuanya
+  PALSU: konstanta `uji-token-RAHASIA-EAABsbCS1iHgBO9x` di `WhatsAppChannelTest` (baris 52) —
+  sengaja berbentuk seperti token Meta supaya penyaringnya diuji terhadap bentuk yang sebenarnya —,
+  dua baris paku aturan 3 penyaring `access_token=EAABlainYangTidakTerdaftarXyz` (baris 489–490,
+  `6df3448`), dan baris ini sendiri di laporan, yang mengutipnya. (Angka putaran pertama "2" sudah
+  basi ketika dikoreksi di `6a737ad` — verifier penutup G-1; hitung ulang dengan perintah di atas.)
 
 ---
 
@@ -191,7 +218,7 @@ Chromium sungguhan (Playwright), server `php -S` dengan **router Laravel `server
 migrasi dijalankan pada salinan itu dengan `DB_DATABASE=<salinan> php artisan migrate --force`).
 
 ```
-admin@ × 2 viewport (1440×900, 390×844) × 5 rute
+admin@ × 2 viewport (1440×900, 390×844) × 5 rute   (putaran pembangunan, `c756d48`)
   profil · r/core/notification-deliveries · r/iam/users · settings · dashboard
 console_errors : []
 http_errors    : []      (setiap permintaan /api/ berstatus < 400)
@@ -208,6 +235,23 @@ Harness: `[S37_kanal_notifikasi_profil] ok 7710ms clicks=6`,
 `[S37_kanal_notifikasi_profil_ponsel] ok 5339ms clicks=2` — 16 syarat hijau; PNG
 `s37-pengiriman-dilewati.png` (dua baris Dilewati dengan kalimatnya, tidak ada Terkirim),
 `s37-profil-sesudah.png`, `s37m-profil.png`.
+
+**Putaran perbaikan dan penutup (12 Sep 2026).** Diulang dua kali di atas kode putaran perbaikan
+(`9ba3bc5`): agen perbaikan (php -S 8225) dan verifier penutup (php -S 8226), masing-masing
+**6 rute** (`home` ditambahkan) × 2 viewport = **12 pemuatan**, `console_errors: []`, 0 `/api/`
+≥ 400, tanpa gulir samping — di sinilah verifier penutup menemukan G-3 (centang dilepas diam-diam).
+Sesudah G-3 ditutup (`3d23697`, php -S 8227 atas pohon kerja, salinan DB demo): A — nomor tersimpan
+beropt-in: ketik nomor lain → centang lepas + kalimat "Nomor berubah" → centang → ketik satu angka
+lagi → **tetap tercentang** → kembali ke nomor tersimpan → stempel pulih → berpaling lagi → lepas +
+kalimat; B — tanpa nomor tersimpan: ketik → centang → ketik satu angka lagi → **tetap tercentang**
+→ Simpan → "Opt-in tercatat 12 Sep 2026 10:21 WIB lewat Profil." (server `opt_in_via=profil`);
+4 rute × 2 viewport, `console_errors: []`, 0 `/api/` ≥ 400. S37 + S37m dijalankan ulang di atas
+kode yang sama: `ok 8783ms` (10 syarat) dan `ok 6531ms` (6 syarat), `console []`, digabung
+BERDASARKAN KUNCI (`3d23697`). Jebakan harness yang ditemukan di sini: tiga sesi peramban beruntun
+sebagai satu pengguna → run pertama gagal membaca `auth/me` (kemungkinan pembatas laju 120/menit
+per pengguna; log `php -S` tidak mencatat status `/api/`, jadi tidak dibuktikan) — tabel `cache`
+SALINAN dikosongkan, diulang bersih. Dan satu jebakan probe: `press_sequentially` sesudah `fill`
+menyisipkan di posisi 0 (`9+62…`) → 422 E.164 yang memang benar.
 
 ---
 
@@ -293,6 +337,16 @@ Harness: `[S37_kanal_notifikasi_profil] ok 7710ms clicks=6`,
   menunggu akhir jendela — lima percobaan tetap lima, 1/5/15/60 berlanjut dari posisinya, dan
   kalimat penundaan tidak pernah menjadi "Pesan penyedia terakhir" pada baris `failed`
   (`NotificationPreferencesTest`, pekerja sungguhan: 4 gagal → tunda → 06:00 percobaan ke-5).
+- Centang opt-in di Profil dilepas oleh SETIAP ketikan yang berbeda dari nomor tersimpan
+  (perbaikan V8, `e6844dc`) — centang yang baru dipasang orangnya untuk nomor baru hilang diam-diam
+  ketika ia membetulkan satu angka, dan pada pengguna tanpa nomor tersimpan tanpa satu kalimat pun
+  (verifier penutup G-3, Chromium). Datanya tidak pernah salah (stempel hanya ditulis dengan
+  centang saat Simpan). **Ditutup** `3d23697`: dilepas hanya pada peralihan dari nomor yang
+  persetujuannya TERCATAT ke nomor lain — persis ketika kalimat "Nomor berubah — …" muncul (§7).
+- Penjaga `SyncJob` di `DeliverNotification::handOverAfter()` (lahir dari B-1) tidak dijaga uji:
+  mutasi yang membuangnya LOLOS HIJAU pada 31 uji, karena setiap uji jam tenang memakai
+  `Queue::fake()` atau memanggil `handle()` langsung (verifier penutup G-2). **Ditutup** `a51e908`
+  (§4, X3): satu uji pada driver `sync` tanpa `Queue::fake`, merah di bawah mutasi.
 
 ## 13. Sapuan dokumentasi (CONVENTIONS §35)
 
@@ -315,6 +369,20 @@ a662467  T3a.2  UserPreferences (2 kunci), QuietHours, me/notification-channels,
 6830a46  T3a.4  DeliveryRetryScheduleTest
 ae6d7ef  dokumen: DEPLOYMENT §11, CONVENTIONS §38, PANDUAN, ledger
 c756d48  bukti: harness S37/S37m, results-phase-3.json, 3 PNG
+1e8026a  laporan: berkas ini (putaran pertama; gerbang dua driver di c756d48)
+7a4471b  B-2/D1/D2/V1  Kirim ulang = pesan baru; webhook hanya menyentuh baris `sent`
+8f132af  B-1/B-5  penundaan jam tenang tanpa release(): job pengganti mewarisi sisa jadwal
+e6844dc  F1/F2/V5/V8  ganti nomor + opt-in lagi → stempel; kotak Profil tidak pra-tercentang dari nomor lama
+39f1797  V2  Profil tidak menjanjikan "Akan dikirim" saat 0 dari 5 template
+6df3448  B-3/V3/V4/V6/V7/T1  tujuh mutasi yang lolos hijau dipaku
+af3e1c2  B-4  toast Profil tidak menjanjikan sebab yang tidak pernah ditulis kotak keluar
+6a737ad  V9/B-6  koreksi kalimat laporan; keputusan B (zona kolom Berikutnya)
+9ba3bc5  V4 susulan  elipsis jaring kedua webhook = elipsis penyaring
+7bee525  bukti: S37/S37m ulang di atas 9ba3bc5, BERDASARKAN KUNCI
+a51e908  G-2 paku  penjaga SyncJob: uji pada driver sync tanpa Queue::fake, merah di bawah mutasi
+3d23697  G-3  centang opt-in dilepas hanya saat berpaling dari nomor berpersetujuan; S37/S37m ulang
+(commit ini)  G-1  angka ujung cabang di laporan ini; baris gerbang ujung cabang (§8) menyusul
+              dalam commit dokumen tersendiri sesudah gerbang berjalan di atas commit ini
 ```
 
 Skema yang berubah, dan apakah migrasinya aman di MySQL dengan data lama: tiga migrasi, semuanya
