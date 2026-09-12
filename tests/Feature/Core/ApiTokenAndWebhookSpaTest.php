@@ -78,6 +78,23 @@ class ApiTokenAndWebhookSpaTest extends ErpTestCase
         $this->assertStringContainsString('renderWebhook(host)', $app);
 
         $this->assertStringContainsString("{ label: 'Webhook', route: 'webhook', perm: 'core.update' },", $schema);
+
+        // V-OPENAPI-3: SIDEBAR YANG MENYEMBUNYIKAN BARISNYA BUKAN GERBANG.
+        // Orang membuka tautan yang di-share dan bookmark lama; tanpa baris ini
+        // layar menggambar teks mentah 403 server — «User does not have the
+        // right permissions.» berbahasa Inggris di layar berbahasa Indonesia —
+        // ditambah satu galat konsol untuk setiap pemakai non-admin.
+        $this->assertStringContainsString(
+            "if (!session.can('core.update')) return accessDenied(host, 'core', 'core.update');",
+            $this->withoutComments($app),
+        );
+
+        // Dan kalimat rumahnya menyebut izin yang BENAR-BENAR digerbangi layar
+        // ini, bukan `core.view` yang dirangkai bawaan accessDenied().
+        $this->assertStringContainsString(
+            'Anda tidak memiliki hak akses "${permission || `${moduleKey}.view`}" untuk halaman ini.',
+            $app,
+        );
     }
 
     public function test_the_two_screens_promise_only_what_the_server_said(): void

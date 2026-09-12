@@ -10955,6 +10955,51 @@ def _p3d_reset():
     return {"cleared": left == 0}
 
 
+def _s40_non_admin(browser):
+    """V-OPENAPI-3 — layar yang sama, dibuka orang yang tidak berhak.
+
+    finance@ tidak memegang `core.update`. Sidebar memang menyembunyikan barisnya, tetapi hash-nya tetap
+    bisa diketik (atau di-share rekan, atau di-bookmark), dan sampai putaran verifikasi ini layarnya
+    dirender apa adanya: «User does not have the right permissions.» — kalimat Inggris pustaka izin — di
+    layar berbahasa Indonesia, ditambah satu galat konsol 403 yang membatalkan klaim "0 galat konsol"
+    paket ini untuk setiap pemakai non-admin. Konteks peramban SENDIRI supaya sesi admin di atas tidak
+    tersentuh.
+    """
+    errors = []
+    forbidden = []
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        login(pg, "finance@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        pg.on("response", lambda r: forbidden.append(f"{r.status} {r.url}") if r.status >= 400 else None)
+
+        pg.goto(BASE + "#/webhook")
+        pg.wait_for_selector("#view .alert.error", timeout=20000)
+        pg.wait_for_timeout(700)
+
+        out = {
+            "alert": (pg.locator("#view .alert.error").first.inner_text() or "").strip(),
+            "webhook_form_rendered": pg.locator(".webhook-form").count() > 0,
+            "nav_has_webhook": pg.locator("nav.nav a:has-text('Webhook')").count() > 0,
+            "console_errors": errors,
+            "forbidden_responses": [r for r in forbidden if "core/webhooks" in r],
+        }
+
+        # SYARAT INI HARUS BISA GAGAL: orang yang sama membuka layar yang MEMANG
+        # boleh dilihatnya, supaya "tidak ada galat" tidak berarti "tidak ada
+        # apa-apa yang dimuat".
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-tokens", timeout=20000)
+        pg.wait_for_timeout(500)
+        out["allowed_screen_h1"] = (pg.locator("h1").first.inner_text() or "").strip()
+
+        return out
+    finally:
+        ctx.close()
+
+
 @scenario("S40_token_api_dan_webhook")
 def s40(browser):
     """1440×900 sebagai admin@: Profil › Token API — buat token lewat layar (nama + ability + 90 hari) →
@@ -11057,6 +11102,7 @@ def s40(browser):
         del errors[deliberate_from:]
 
         out["console_errors"] = errors
+        out["non_admin"] = _s40_non_admin(browser)
         tb, ta, tr, trv = (out["tokens_before"], out["tokens_after_create"],
                            out["tokens_after_reload"], out["tokens_after_revoke"])
         wa, wr = out["webhook_after_create"], out["webhook_after_reload"]
@@ -11089,11 +11135,26 @@ def s40(browser):
                 and "t.badan_mentah" in wr["signature"] and "300 detik" in wr["signature"],
             "the_signature_note_tells_the_receiver_how_to_compare": "hash_equals" in (wr["signature_note"] or "")
                 and "Redirect tidak diikuti" in (wr["signature_note"] or ""),
+            # V-webhook-5: bentuk rahasianya dikatakan di layar juga. Penerima
+            # yang meng-hex-decode kunci 64 karakter itu gagal pada SETIAP
+            # kiriman, tanpa satu pun pesan yang menunjuk ke sebabnya.
+            "the_screen_says_the_secret_is_used_as_is_not_hex_decoded": any(
+                "64 karakter heksadesimal" in d and "bukan di-decode dari hex" in d for d in (wr["signature"] or [])),
             "the_screen_says_when_a_subscription_is_switched_off_automatically": "20 pengiriman gagal berturut-turut" in (wr["disable_note"] or ""),
             "the_subscription_landed_in_sqlite_with_its_https_url": out["db_after_webhook"]["subscriptions"]
                 == [("Akuntansi eksternal S40", "https://penerima.contoh.co.id/nusantara/webhook")],
             "the_screens_never_scroll_sideways": ta["scrolls_sideways"] is False and wr["scrolls_sideways"] is False
                 and ta["main_scrolls_sideways"] is False and wr["main_scrolls_sideways"] is False,
+            # V-OPENAPI-3: pemakai tanpa core.update yang mengetik/membuka
+            # tautannya mendapat kalimat RUMAH, bukan teks mentah 403 server —
+            # dan tanpa satu pun galat konsol, karena layarnya tidak pernah
+            # memanggil API yang akan menolaknya.
+            "a_user_without_core_update_gets_the_house_sentence_not_the_english_one": out["non_admin"]["alert"]
+                == 'Anda tidak memiliki hak akses "core.update" untuk halaman ini.',
+            "the_refused_screen_never_calls_the_api_it_may_not_call": out["non_admin"]["console_errors"] == []
+                and out["non_admin"]["forbidden_responses"] == [],
+            "the_sidebar_hides_the_row_from_them_too": out["non_admin"]["nav_has_webhook"] is False,
+            "and_the_same_person_still_sees_a_screen_they_may_see": out["non_admin"]["allowed_screen_h1"] == "Profil & Notifikasi",
             "no_console_error": errors == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]

@@ -825,10 +825,12 @@ function view() {
   return clear(node);
 }
 
-function accessDenied(host, moduleKey) {
+/* `permission` menimpa gerbang `${moduleKey}.view` bawaan: sebuah layar yang
+   digerbangi core.update harus menyebut core.update, bukan core.view. */
+function accessDenied(host, moduleKey, permission) {
   host.appendChild(el('.alert.error', [
     icon('warn', 16),
-    el('div', `Anda tidak memiliki hak akses "${moduleKey}.view" untuk halaman ini.`),
+    el('div', `Anda tidak memiliki hak akses "${permission || `${moduleKey}.view`}" untuk halaman ini.`),
   ]));
 }
 
@@ -1171,9 +1173,15 @@ function registerRoutes() {
     setCrumbs(['Sistem', 'Webhook']);
     setActiveNav('webhook');
     const host = view();
-    // Gerbang izinnya milik API (permission:core.update di rutenya); layar ini
-    // mengikuti pola settings: sidebar sudah menyembunyikan barisnya dari yang
-    // tidak berhak, dan yang mengetik hash-nya langsung mendapat 403 server.
+    /* V-OPENAPI-3: DIGERBANGI DI SINI, bukan hanya di API-nya. Sidebar memang
+       menyembunyikan barisnya dari yang tidak berhak, tetapi orang membuka
+       tautan yang di-share rekannya dan bookmark lama; tanpa baris ini layar
+       menggambar teks mentah 403 server — «User does not have the right
+       permissions.», berbahasa Inggris di layar berbahasa Indonesia — plus
+       tombol «Coba lagi» yang tidak akan pernah berhasil dan satu galat konsol
+       untuk setiap pemakai non-admin. Layar sebelah dengan gerbang yang sama
+       (Pengiriman Notifikasi, Antrean Gagal) memakai kalimat rumah ini. */
+    if (!session.can('core.update')) return accessDenied(host, 'core', 'core.update');
     return guard(host, () => renderWebhook(host));
   });
 
