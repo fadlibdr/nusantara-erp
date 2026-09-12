@@ -181,7 +181,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
-| SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
+| SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll · Rekap PPh 21 Bulanan |
 | Layanan | Tiket · Tiket Lewat SLA · Kepuasan Pelanggan · Kontrak Layanan · Jadwal Preventif · Berita Acara |
 | Aset | Daftar Aset · Kategori Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset · Evaluasi Sewa vs Beli |
 | Sistem | Pengguna · Peran & Hak Akses · Profil Perusahaan · Impor Data Master · Impor Dokumen · Pengaturan |
@@ -7068,7 +7068,7 @@ Unifikasi CSV, e-Bupot PPh 21/26 bulanan, SIPP BPJS. Tiap baris membawa dua lenc
 letak berkas DJP. Format yang **Menunggu template** tidak punya tombol unduh; ia menyebut
 berkas apa yang harus diletakkan di `docs/samples/pajak/` (nama berpola, bertanggal — lihat
 README di folder itu). Baris e-Bupot 21/26 menautkan ke rekap internal
-(`SDM & Payroll › Rekap PPh 21 Bulanan`, §12.9) bagi pemegang `hr.view`.
+(`SDM & Payroll › Rekap PPh 21 Bulanan`, §11.8) bagi pemegang `hr.view`.
 
 Di atas tiap tab, kotak amber mengulang kalimat verifikasi format tab itu, misalnya:
 
@@ -7145,7 +7145,7 @@ Bank · Nomor rekening · Atas nama · **Akun COA**. Menghapus ditolak:
 ## 11. SDM
 
 Kelompok **SDM & Payroll**: **Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi
-Harian · Rekap Absensi · Payroll**.
+Harian · Rekap Absensi · Payroll · Rekap PPh 21 Bulanan**.
 
 ### 11.1 Siapa boleh apa
 
@@ -7165,8 +7165,9 @@ Status. Saringan: Departemen, Status, Status kerja.
 Formulir, tiga bagian:
 
 - *Data pribadi*: **Nama lengkap** (wajib) · **NIK KTP** (wajib, **tepat 16 digit dan
-  unik**) · NPWP · **Jenis kelamin** (wajib) · **Tanggal lahir** (wajib, harus sebelum
-  hari ini) · **Status PTKP** (wajib, TK/0 sampai K/3).
+  unik**) · NPWP (bila diisi: 15, 16, atau 22 digit — lihat §11.8 untuk aturannya) ·
+  **Jenis kelamin** (wajib) · **Tanggal lahir** (wajib, harus sebelum hari ini) ·
+  **Status PTKP** (wajib, TK/0 sampai K/3).
 - *Kepegawaian*: **Jabatan** (wajib) · **Departemen** (wajib: Proyek / Engineering /
   Keuangan / HR & GA / Procurement / Servis) · **Status kerja** (wajib: Karyawan Tetap
   (PKWTT) / Karyawan Kontrak (PKWT) / Tenaga Harian Lepas) · **Dasar PKWT** · **Akhir
@@ -7432,6 +7433,40 @@ Badan · PPN Keluaran · Beban Yang Masih Harus Dibayar**. Selain itu ditolak:
 Plafon per akun yang ditampilkan layar adalah kredit terposting **sampai akhir bulan
 tanggal pembayaran** dikurangi debit terposting — itulah yang memungkinkan pembayaran
 tanggal 25 Juni melunasi akrual bertanggal 30 Juni.
+
+### 11.8 Rekap PPh 21/26 Bulanan — `SDM & Payroll › Rekap PPh 21 Bulanan`
+
+Layar **baca saja** (P-3b), untuk pemegang izin lihat SDM. Pilih masa (bawaan: bulan yang
+baru lewat). Satu baris per pegawai: **Pegawai · NIK / NPWP · Jenis identitas · Bruto · TER
+(kategori · tarif) · PPh 21** — dibentuk dari **slip gaji run yang sudah disetujui/diposting**
+pada masa itu, bukan dihitung ulang dari gaji hari ini. Gaji dan THR di bulan yang sama
+dijumlahkan ke satu baris; arahkan kursor ke angka PPh 21 untuk melihat pembagiannya per
+run.
+
+Judul layar berbunyi persis: *"Rekap internal PPh 21/26 bulanan — untuk diisi ke e-Bupot
+21/26 oleh petugas pajak. BUKAN berkas impor DJP."* Kotak amber di bawahnya mengulang status
+format impor e-Bupot 21/26 dari registri (§10.12): **Menunggu template** dan **BELUM
+DIVERIFIKASI terhadap template DJP** — sistem tidak mengarang tata letak berkas DJP.
+
+Kartu **"Run payroll masa ini"** menyebut setiap run masa itu: yang **Disetujui/Selesai**
+masuk rekap; yang **Draf / Diajukan / Ditolak** ditandai *"tidak masuk rekap; hanya run yang
+disetujui/diposting yang dihitung"*. Rekap kosong pada bulan yang run-nya masih draf berkata
+begitu, bukan "tidak ada gaji".
+
+Ubin: **Pegawai · Total bruto · Total PPh 21 · Pegawai tanpa identitas pajak**. Identitas
+diambil dari data pegawai hari ini: NPWP bila bentuknya dikenali (15 / 16 / 22 digit), bila
+tidak NIK bila 16 digit, bila tidak pun **sel dibiarkan kosong** — bukan 0, bukan garis —
+dengan sebabnya pada keterangan sel (arahkan kursor), dan pegawainya dihitung di ubin itu.
+Baris pegawai itu tetap ada beserta angkanya; lengkapi NPWP/NIK-nya di **Karyawan**. Masa
+Desember tidak punya kategori TER (perhitungan tahunan Pasal 17): kolom TER kosong.
+
+**`Unduh CSV rekap internal`** → `rekap-internal-pph21-YYYY-MM.csv`: pemisah titik koma,
+desimal koma (Excel Indonesia), baris pertama berbunyi label yang sama dengan judul layar
+beserta run yang membentuknya. Sel identitas yang tidak dikenali kosong di berkas juga.
+
+Catatan di kaki layar, dari server: tabel TER (PMK 168/2023) disalin ke kode dan ditandai
+**perlu dicek terhadap peraturan yang berlaku** — bukan janji bahwa angkanya sudah
+diperiksa. NTPN tetap dicatat manual di Kalender Pajak (§10.10).
 
 ---
 

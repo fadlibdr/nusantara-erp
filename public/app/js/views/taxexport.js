@@ -10,7 +10,7 @@
  * yang ada atau direncanakan hidup di registri server (DjpFormats), dan
  * registri itulah yang tahu apakah tata letaknya sudah dicocokkan dengan
  * berkas contoh resmi di docs/samples/pajak/. Layar ini TIDAK mengarang
- * kalimat "sesuai DJP" atau "dapat berubah mengikuti ketentuan": lencana per
+ * kalimat «sesuai DJP» atau «dapat berubah mengikuti ketentuan»: lencana per
  * format, kalimat di atas setiap tab, nama berkas, dan baris pertama berkas
  * yang diunduh semuanya datang dari `data.formats` dan `data.<tab>.format`.
  * Format yang "menunggu template" tidak punya tombol unduh — yang ia punya

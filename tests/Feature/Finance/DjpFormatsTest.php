@@ -280,6 +280,51 @@ class DjpFormatsTest extends ErpTestCase
         }
     }
 
+    /**
+     * T3b.3 — sapuan kejujuran pada yang SUDAH ada. Tiga kalimat yang harus
+     * tetap berdiri: NTPN adalah entri MANUAL (kalender pajak + service), tabel
+     * TER ditandai perlu dicek dari tempat tabel itu hidup (Pph21TerService,
+     * BUKAN config/erp.php — docblock lama TaxExportService menunjuk ke sana
+     * dan dibetulkan), dan tidak satu pun berkas aplikasi menjanjikan NTPN
+     * otomatis atau berkas "sesuai DJP".
+     */
+    public function test_ntpn_stays_manual_and_nothing_promises_automation_or_djp_conformance(): void
+    {
+        $kalender = (string) file_get_contents(public_path('app/js/views/kalenderpajak.js'));
+        $this->assertStringContainsString('NTPN diketik dari SSP/BPN asli, tidak ada integrasi e-filing', $kalender);
+        $this->assertStringContainsString('dipilih manual, tidak ada yang otomatis', $kalender);
+
+        $obligations = (string) file_get_contents(base_path('Modules/Finance/Services/TaxObligationService.php'));
+        $this->assertStringContainsString('harus mencantumkan NTPN dari SSP/BPN-nya', $obligations);
+
+        $ter = (string) file_get_contents(base_path('Modules/HrPayroll/Services/Pph21TerService.php'));
+        $this->assertStringContainsString('verify against', $ter);
+        $this->assertStringContainsString("'rate' => 34.0", $ter, 'tabel TER masih ada di Pph21TerService');
+        $this->assertStringNotContainsString("'ter'", (string) file_get_contents(config_path('erp.php')),
+            'config/erp.php TIDAK memuat tabel TER — bila suatu hari dipindah ke sana, kalimat VERIFICATION_NOTE harus ikut pindah');
+
+        $taxExport = (string) file_get_contents(base_path('Modules/Finance/Services/TaxExportService.php'));
+        $this->assertStringContainsString('the brackets live in that service, NOT in', $taxExport,
+            'docblock TaxExportService kembali menunjuk config/erp.php untuk tabel TER');
+
+        $promises = [];
+        foreach (array_merge(
+            glob(public_path('app/js/views/*.js')) ?: [],
+            glob(base_path('Modules/*/Services/*.php')) ?: [],
+            glob(base_path('Modules/*/Http/Controllers/*.php')) ?: [],
+        ) as $file) {
+            $code = (string) file_get_contents($file);
+            foreach (['NTPN otomatis', 'otomatis dari DJP', 'siap Coretax', 'sesuai DJP', 'siap diekspor ke DJP'] as $needle) {
+                // Komentar yang MENJELASKAN larangan boleh menyebut frasanya; yang dijaga adalah string yang tampil.
+                if (preg_match('/[\'"][^\'"\n]*'.preg_quote($needle, '/').'[^\'"\n]*[\'"]/u', $code) === 1) {
+                    $promises[] = basename($file).': '.$needle;
+                }
+            }
+        }
+
+        $this->assertSame([], $promises, 'kalimat yang menjanjikan sesuatu yang tidak terjadi');
+    }
+
     /** Layar Ekspor Pajak membaca registri dari API — bukan kalimat yang dikarang di SPA. */
     public function test_the_tax_export_screen_reads_the_registry_from_the_api(): void
     {

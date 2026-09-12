@@ -2332,3 +2332,51 @@ keadaan tiap kanal dari `GET core/me/notification-channels` — sebab yang SAMA 
 kotak keluar — dan kesiapan WhatsApp yang DIUKUR ("template disetujui Meta 0 dari 5").
 Pengiriman Notifikasi mendapat kolom "Berikutnya" (`next_attempt_at`) dan "Status penyedia"
 (`waProviderStatus`). Sistem › Pengguna mendapat nomor + opt-in.
+
+## 39. Registri format DJP/BPJS dan aturan NPWP/NIK/NITKU (P-3b)
+
+**Tidak mengarang tata letak berkas DJP.** `Modules\Finance\Support\DjpFormats` mendaftar
+SETIAP format keluaran pajak yang ada atau direncanakan — PERSIS lima kunci literal:
+`efaktur_csv_legacy` (ada), `efaktur_coretax_xml` (menunggu template), `ebupot_unifikasi_csv`
+(ada), `ebupot_2126_bulanan` (menunggu template), `sipp_bpjs` (menunggu template) — masing-
+masing dengan `verified_against`: path berkas contoh resmi di `docs/samples/pajak/` + tanggal,
+atau **null = "BELUM DIVERIFIKASI terhadap template DJP"** (BPJS untuk SIPP). `describe()`
+adalah fungsi murni: klaim yang berkasnya tidak ada di pohon diturunkan kembali ke belum
+diverifikasi. Kalimatnya sampai ke TIGA permukaan dari satu sumber: `GET finance/tax-exports`
+(`data.formats` + `data.<tab>.format`), layar Ekspor Pajak (`.djp-format` per entri, kalimat
+di atas tab), dan berkas unduhan (`DjpFormats::filename` → akhiran `-belum-diverifikasi`,
+`stampCsv` → satu baris komentar `#` di atas; **writer kolom tidak disentuh**, berkas yang
+sudah diverifikasi dikembalikan apa adanya). Format "menunggu template" `downloadable: false`
+dan membawa `awaiting_file` yang menyebut berkas apa yang harus diletakkan. Menambah format =
+satu entri di sini + satu baris di `docs/samples/pajak/README.md` (dipaku `DjpFormatsTest`:
+README menyebut setiap kunci dan pola nama berkas, dan TIDAK memuat nama kolom skema mana
+pun). Daftar tutup buku membaca kalimat yang sama ("siap masuk berkas ekspor pajak — …").
+Parameter `format=coretax_xml` SENGAJA tidak ada sampai template resminya ada.
+
+**NPWP: satu kelas, satu Rule, SEMUA pintu tulis.** `Modules\Core\Support\Npwp` (di Core
+karena kolomnya milik empat modul; pola `PhoneNumber`): klasifikasi HANYA dari panjang digit
+setelah titik/strip/spasi dibuang — **15** = NPWP format lama, **16** = NPWP baru (orang
+pribadi = NIK), **22** = NITKU — TANPA digit periksa (DJP tidak menerbitkannya untuk
+NIK/NPWP-16; "000000000000000" sah dan dipaku). Tampilan: 15 berformat cetak lama, 16/22
+digit utuh; nilai lama yang tidak dikenali dipulangkan apa adanya. `Modules\Core\Rules\
+ValidNpwp` dipasang di KETUJUH pintu: Customer/Vendor/Employee Store+Update, `PUT core/company`,
+kolom `npwp` `ImportableResources` (vendors/customers/employees — daftar dipaku literal
+`NpwpTest`). **Maju-saja**: `ValidNpwp::unlessUnchanged($tersimpan)` pada pintu UPDATE —
+nilai yang dikirim kembali PERSIS sama bukan penulisan baru; nilai yang berubah diperiksa;
+tidak ada backfill, tidak ada penolakan saat dibaca/dicetak/diekspor. Yang disimpan = yang
+diketik (dipangkas). Pintu baru yang menerima NPWP = satu baris `new ValidNpwp` /
+`unlessUnchanged`, tidak pernah regex sendiri.
+
+**Rekap PPh 21/26 bulanan = rekap INTERNAL, bukan berkas impor DJP.**
+`Modules\HrPayroll\Services\Pph21RecapService::monthly()` membaca SNAPSHOT `hr_payslips`
+(`ter_category`, `ter_rate`, `pph21_amount`) dari run `approved`/`closed` saja (status yang
+sama dengan `decemberTax` dan `TaxEqualizationService`); draf/diajukan/ditolak disebut di
+`runs.excluded` beserta statusnya; satu baris per pegawai per masa (gaji + THR dijumlahkan,
+setiap slip disebut di `slips`); identitas dari master pegawai: npwp bila dikenali → NIK bila
+16 digit → **sel kosong** (bukan 0, bukan garis) + `tax_id_issue` + `summary.without_tax_id`.
+`GET hr/pph21-recap` di balik `hr.view` (data pribadi — gerbang yang sama dengan register
+sertifikat/cuti/absensi), jalur sendiri agar tidak ditelan `{payrollRun}`. CSV `;` + desimal
+koma, baris pertama `# Rekap internal … BUKAN berkas impor DJP`. Muatan membawa entri
+registri `ebupot_2126_bulanan` dan `Pph21TerService::VERIFICATION_NOTE` ("tabel TER … perlu
+dicek terhadap peraturan yang berlaku") — tabel TER hidup di `Pph21TerService`, BUKAN di
+`config/erp.php`, dan angkanya tidak diubah paket ini. NTPN tetap manual (Kalender Pajak).

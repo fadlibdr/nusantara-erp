@@ -120,7 +120,8 @@ sandi baru. Emailnya tidak bisa dipakai ulang. Anda tidak bisa menonaktifkan dir
 **4. Profil perusahaan sebelum invoice pertama** — ADMINISTRATOR §4.2
 Pemicu: sebelum invoice pertama dan ekspor pajak pertama. **Sistem › Profil Perusahaan**:
 `legal_name` adalah kop setiap formulir; `npwp` ikut ke muatan e-Faktur/e-Bupot **dan tidak
-ada yang memeriksanya** — di erp1 hari ini masih `01.234.567.8-012.000`, dummy seeder.
+ada yang memeriksa isinya** — di erp1 hari ini masih `01.234.567.8-012.000`, dummy seeder
+(yang diperiksa sejak P-3b hanya BENTUKNYA saat disimpan: 15 / 16 / 22 digit).
 Logo tidak bisa diunggah dari layar; berkasnya ditaruh di server (PNG/JPG/GIF, ≤ 1 MiB)
 dan yang salah format diam-diam tidak menghasilkan logo.
 

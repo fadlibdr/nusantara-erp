@@ -117,7 +117,8 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    layar Pelanggan (butir 2). → PANDUAN §3.2.
 
 2. **Pelanggan.** Layar: `Penjualan › Pelanggan` → **`Tambah Pelanggan`** → **Nama
-   pelanggan**, Kode (kosong = `CUST-xxxx`), NPWP, **Pengusaha Kena Pajak (PKP)**, Alamat
+   pelanggan**, Kode (kosong = `CUST-xxxx`), NPWP (15 / 16 / 22 digit — ditolak dengan
+   kalimat yang menyebut ketiganya bila bentuknya lain), **Pengusaha Kena Pajak (PKP)**, Alamat
    penagihan, PIC, **Termin pembayaran (hari)** → **`Simpan`**. Dua kolom yang menipu:
    **centang PKP pada pelanggan tidak menghitung apa pun** — tarif PPN 11% tetap terisi di
    setiap penawaran, kontrak, dan invoice; untuk pelanggan non-PKP Anda mengetiknya

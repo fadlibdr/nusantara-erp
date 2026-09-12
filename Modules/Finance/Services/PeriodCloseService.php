@@ -743,7 +743,7 @@ class PeriodCloseService
         }
 
         if ($blockers === []) {
-            // "siap masuk berkas", bukan "siap diekspor ke DJP": tata letak
+            // «siap masuk berkas», bukan «siap diekspor ke DJP»: tata letak
             // berkasnya belum tentu sudah dicocokkan dengan template resmi, dan
             // registri formatlah yang tahu (P-3b). Kalimatnya dibawa apa adanya
             // supaya daftar tutup buku tidak menjanjikan lebih daripada layar

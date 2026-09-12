@@ -262,6 +262,15 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 > `docs/LAPORAN-PAKET-HM-P-3a.md`). Keputusan yang masih milik pemilik: penyedia dan
 > anggaran (#7), kotak surat (#8), dan pemangkasan baris `skipped` kotak keluar (LAPORAN P-3a).
 
+> **Baris 9 — P-3b dibangun 12 Sep 2026 HANYA pada bagian yang tidak menunggu pemilik**:
+> registri format DJP/BPJS (`DjpFormats`, kelima format "BELUM DIVERIFIKASI" karena
+> `docs/samples/pajak/` kosong), aturan NPWP 15/16/22 digit di semua pintu tulis, rekap
+> internal PPh 21/26 bulanan (bukan berkas impor DJP). **Yang menunggu pemilik/konsultan**:
+> berkas template resmi per format ke `docs/samples/pajak/` (README-nya daftar belanjanya),
+> uji satu masa di sandbox Coretax, dan keputusan `phpoffice/phpspreadsheet` bila template
+> SIPP ternyata XLSX — tidak ada dependensi yang ditambahkan, tidak ada `format=coretax_xml`
+> yang menghasilkan berkas karangan (`docs/LAPORAN-PAKET-HM-P-3b.md`).
+
 > **Baris 5 — "Core 001400–?" bertabrakan dengan blok pertama Quality, dan blok itu sudah
 > berisi enam migrasi.** CONVENTIONS §2 memberikan `001400–001499` kepada Quality
 > (`| Quality | api/quality | qc_ | 001400–001499 |`), dan `ls Modules/*/Database/Migrations/*_0014*.php`
