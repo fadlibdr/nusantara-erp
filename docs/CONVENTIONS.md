@@ -61,7 +61,7 @@ Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 
 
 | Module      | Blok pertama  | Blok lanjutan | Status |
 |-------------|---------------|---------------|--------|
-| Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2) dan `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2) |
+| Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2), `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2), `2026_09_12_001502_add_import_preset_to_fin_bank_accounts_table.php` dan `2026_09_12_001503_create_fin_bank_inbox_files_table.php` (P-3c) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
 | Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
 | Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8); `2026_09_11_001801_add_template_to_core_notifications_table.php` dan `2026_09_11_001802_add_provider_status_to_core_notification_deliveries_table.php` (P-3a) |
@@ -2433,3 +2433,119 @@ koma, baris pertama `# Rekap internal … BUKAN berkas impor DJP`. Muatan membaw
 registri `ebupot_2126_bulanan` dan `Pph21TerService::VERIFICATION_NOTE` ("tabel TER … perlu
 dicek terhadap peraturan yang berlaku") — tabel TER hidup di `Pph21TerService`, BUKAN di
 `config/erp.php`, dan angkanya tidak diubah paket ini. NTPN tetap manual (Kalender Pajak).
+
+## 40. Preset impor per rekening dan folder terpantau rekening koran (P-3c)
+
+**Preset adalah pilihan eksplisit, bukan sniffing.** `fin_bank_accounts.import_preset`
+(JSON nullable, migrasi 001502; bentuk di `Modules\Finance\Support\ImportPreset`): `name`,
+`format` (`csv` saja — MT940 tidak butuh preset dan `savePreset` menolaknya), `mapping` =
+kunci kolom `ImportPreset::MAPPING_KEYS` **tanpa** `period_*`/`opening_*`/`closing_*`
+(`PER_FILE_KEYS`, milik tiap berkas), `expected_header` = sel baris fisik ke-`skip_rows`
+pada kolom yang DIPETAKAN saja (`mappedColumns`), `header_note` bila tanpa baris judul,
+`saved_at`, `saved_by`. **Satu preset per rekening** (menyimpan lagi menimpa) — keputusan
+LAPORAN P-3c §2. Disimpan HANYA lewat `BankStatementImportService::savePreset` dari
+pemetaan yang **parse-nya jalan DAN tie-out nol** atas berkas yang dikirim (penghalang
+rantai/identitas sengaja tidak ikut); pintu `PUT/DELETE finance/bank-accounts/{id}/import-preset`
+= `fin.update`. Diterapkan HANYA bila `use_preset: true` (`BankStatementParseRequest`:
+kolom tidak wajib, periode/saldo tetap wajib) lewat **satu jalur**
+`BankStatementImportService::resolveMapping(account, format, content, perFile, usePreset)` —
+dipakai controller (preview/store) DAN `BankInboxService`; tidak ada jalur kedua. Header
+pada kolom yang dipetakan ≠ `expected_header` → `LogicException` yang menyebut kolomnya
+(`ImportPreset::headerMismatches`: "Kolom 4 pada preset «BCA KlikBCA» diharapkan 'Debit',
+berkas berisi 'Mutasi'." — nomor 1-based = label layar, SEMUA kolom yang bergeser disebut),
+sebelum satu baris pun diparse. Preset **tidak pernah melonggarkan** tie-out/rantai/
+identitas (dipaku `BankImportPresetTest`). Layar: pemilih "Pemetaan kolom" hanya bila
+rekening punya preset; tombol simpan hanya di kartu pratinjau yang `can_import`; muatan
+pratinjau membawa `preset: {used, name}` dari controller, bukan disimpulkan SPA.
+
+**Registri preset bawaan per bank** `Modules\Finance\Support\BankPresets` (pola
+`DjpFormats` §39): PERSIS empat kunci `bca|mandiri|bni|bri`; `verified_against` = berkas
+ekspor NYATA pemilik di `docs/samples/bank/<bank>-<kanal>-<YYYY-MM-DD>.<ekstensi>` + tanggal +
+siapa, atau null = "BELUM ADA BERKAS EKSPOR NYATA"; `mapping` hanya ikut bila berkasnya ADA di
+pohon DAN jalurnya lolos `BankPresets::evidencePath()` (di bawah `docs/samples/bank/`, nama
+`<kunci>-<kanal>-<YYYY-MM-DD>.<ekstensi>`, tanggal `YYYY-MM-DD`) — contoh demo `docs/samples/*`
+atau `README.md` yang ditunjuk sebagai bukti diturunkan sambil menyebut jalurnya (`describe()`
+murni menurunkan klaim tanpa berkas/tanpa pola DAN menahan pemetaannya; V-preset-1);
+`selectable` = terverifikasi DAN punya pemetaan. Hari ini folder itu hanya berisi README
+(dipaku) → keempatnya tidak bisa dipilih. Kalimatnya sampai ke `GET finance/bank-statements/presets`
+(`data.presets` + `summary`), kartu `.bank-preset` di tab Impor (`badge_label`/`verification`/
+`awaiting_file`/`demo_note` apa adanya; `bankrecon.js` tidak boleh memuat literal
+«diverifikasi»/«ekspor nyata»), dan README (menyebut setiap kunci + `sample_stem`, TANPA nama
+kolom bank sebagai fakta — dipaku `BankPresetsTest`). Dua contoh demo di `docs/samples/`
+disebut sebagai contoh demo (`demo_note`), tidak dinaikkan menjadi preset.
+
+**Folder terpantau: satu-satunya permukaan disk, dan aplikasi HANYA membacanya.**
+`config('erp.bank_inbox.path')` (env `BANK_INBOX_PATH`; **kosong = bawaan
+`BankInboxService::DEFAULT_PATH` yang diselesaikan DI SERVICE** — `config/erp.php` harus bisa
+di-`require` tanpa aplikasi yang di-boot, karena penyedia data statis
+`DocumentFormatValidationTest::shippedDocumentFormats()` me-require-nya apa adanya; satu
+`storage_path()`/`base_path()` sebagai nilai bawaan di berkas itu memanggil
+`Container::getInstance()->storagePath()` pada Container telanjang dan menjatuhkan SELURUH suite di
+kedua driver — terukur di gerbang P-3c, tidak terlihat gerbang per-direktori; dipaku
+`BankInboxTest::test_the_erp_config_can_be_required_without_a_booted_application`. Bawaannya
+`storage/app/private/bank-inbox` — dikecualikan `rsync --delete`, ikut cadangan), sub-folder per KODE rekening aktif
+(`BankAccount::CODE_PATTERN` — SATU pola untuk Request kode rekening, pemindai, dan kartu
+Kesiapan; `realpath` di bawah root; symlink keluar → `ignored` TANPA menyentuh target — tidak
+dibaca, tidak dihash, tidak di-stat; SUB-FOLDER yang berupa symlink tidak diikuti sampai ke
+daftar isinya — satu baris `ignored` untuk tautannya, bukan satu baris per berkas di folder
+tujuan, yang sebelumnya memulangkan daftar direktori asing lewat API; tersembunyi/bersarang
+dilewati; berkas di akar dan sub-folder yang namanya tidak memenuhi pola → `ignored` dengan
+kalimat, bukan dilewati bisu). **Direktori yang tidak bisa dibaca ≠ direktori kosong**:
+`BankInboxService::entries()` memulangkan `false` (bukan `[]`) saat `scandir` gagal — akar yang
+tidak terbaca → `folder_readable: false` + `FOLDER_UNREADABLE_NOTE` di layar dan keluaran
+perintah (tanpa baris ledger: tidak satu berkas pun terlihat), satu SUB-FOLDER yang tidak
+terbaca → satu baris `failed` atas sub-foldernya + satu notifikasi + kartu Kesiapan
+(`subfolder.readable`), sub-folder lain tetap diperiksa. Suite berjalan sebagai root (menembus
+`chmod 000`), jadi cabang itu diuji lewat seam `protected entries()`.
+Tidak ada `fopen` mode tulis, `rename`, `unlink`, `mkdir` terhadap folder itu — `BankInboxTest`
+memotret nama/ukuran/inode/mtime sebelum = sesudah. Yang ditulis: ledger `fin_bank_inbox_files`
+(migrasi 001503; unik `(relative_path, sha256)` — sha256 isi untuk berkas yang dibaca,
+`BankInboxService::pathKey(jenis, jalur)` untuk berkas yang ditolak SEBELUM dibaca: symlink,
+sub-folder asing, > 2 MB, hak akses — ukuran diperiksa sebelum satu byte pun dibaca, berkas
+sebesar apa pun tidak masuk memori; status `imported|failed|duplicate|ignored|superseded`;
+`statement_deleted` hanya di muatan API untuk `imported`/`duplicate` yang rekening korannya sudah
+dihapus; `error` kalimat Indonesia; tanpa FK) dan stempel `core_settings` `bank_inbox.checked_at`
+(`SettingService::INTERNAL_KEYS` — Core hanya mendaftarkan kuncinya). Idempoten: nama+kunci sama
+→ `unchanged` bila rekening korannya masih ada (dihapus → berkas baru lagi); `content_hash`
+service sudah ada → `duplicate` dengan kalimat yang menyebut kanal dari FAKTANYA (baris ledger
+`imported` lain → "Isi berkas sama dengan <jalur>"; `imported_by` null tanpa baris → tanpa klaim
+kanal; `imported_by` terisi → "(lewat layar Impor)"); isi berubah → baris baru dan baris lama
+`failed|ignored|duplicate` jalur itu → `superseded`; `failed`/`ignored` diperiksa ulang tiap jam.
+Balapan: `Cache::lock('fin:bank-inbox', 900)` di `scan()` (yang kedua pulang `locked`, tanpa
+tulisan, `LOCKED_NOTE`) + jadwal `withoutOverlapping()`; `record()` tidak pernah menurunkan baris
+`imported`/`duplicate` yang rekening korannya ada, dan `UniqueConstraintViolation` dibaca ulang;
+"Berkas ini sudah diimpor…" dari `import()` → `duplicate`, bukan `failed`. `status()['counts']` =
+baris dengan `checked_at` = stempel terakhir (ubin pemeriksaan terakhir), `files` = sejarah.
+Impor lewat `BankStatementImportService` yang sama (preview → blockers → import transaksional;
+`imported_by` null; `unattended: true` mengganti kalimat salah-rekening "yang Anda pilih" dengan
+"berada di sub-folder …; letakkan di sub-folder kode rekening yang benar"). CSV: preset WAJIB dan
+WAJIB memetakan kolom saldo; periode/saldo dari `CsvStatementParser::deriveEndpoints`
+(saldo awal = saldo baris mutasi pertama − mutasi pertama, saldo akhir = saldo baris
+terakhir, periode = min/max tanggal; `dd/mm` tanpa tahun → gagal dengan kalimat) — tie-out
+yang menyusul adalah aritmetika berkas sendiri. Batas 2 MB = `BankStatementParseRequest`;
+bukan UTF-8 → latin1; ekstensi selain `csv|txt|sta|940|mt940` → `failed`; `Throwable` lain →
+`failed` + log, berkas lain tetap diproses. **Notifikasi**: `failed` →
+`NotificationService::system('fin.update', FAILED_TITLE, "Berkas <relatif> untuk rekening
+<kode nama>: <sebab>", '/bank-recon?tab=inbox', 7, signature, null)` — signature = **40 karakter
+pertama sha256** (`BankInboxService::signature`; `core_notifications.document_code` varchar(40) — sha256 utuh
+lolos di SQLite, ditolak MySQL dan ditelan `guard()`: nol notifikasi tanpa galat) — sekali per berkas
+(dedupe judul+signature), bukan tiap jam (dipaku 3 jam berturut); dua berkas tak terbaca = dua
+signature (kunci jalur), bukan satu sha256 string kosong; `imported` → satu
+notifikasi ringkas bertautan `/bank-recon?tab=statements&account=…&statement=…`; template
+`null` = generik, sengaja; tidak ada jalur absolut di ledger/API/notifikasi (dipaku).
+**Layar bertab dan tautan dalam**: tab yang berganti di dalam `bankrecon.js` ditulis kembali ke
+hash lewat `router.replacePath()` (tanpa `hashchange`), dan `notifications.js` memanggil
+`router.resolve()` bila hash tujuan sudah sama — kalau tidak, "Buka dokumen" ke `?tab=inbox`
+sesudah pemakai berpindah tab tampak mati (V-permukaan-2).
+`fin:bank-inbox` `hourly()` di `FinanceServiceProvider` (dipaku lewat `schedule:list` +
+regex ekspresi cron — kolomnya dirapikan); folder belum ada → kalimat, keluar 0, tanpa
+ledger, tanpa notifikasi, stempel tetap ditulis. `GET finance/bank-inbox` (`fin.view`) →
+`folder{exists, configured_via, is_default, layout, note}`, `last_checked_at`, `counts`,
+`accounts[].preset{name, auto_csv, note}`, `files[]`; `POST finance/bank-inbox/run`
+(`fin.create` = izin impor). Layar: tab `inbox` "Folder terpantau" — kalimat folder-belum-ada,
+label status, dan kalimat kesiapan preset dari server; tautan dalam `#/bank-recon?tab=…&account=…&statement=…`
+dibaca dari hash. **Tidak ada klaim "penjadwal aktif"** di SPA: hidup-matinya penjadwal milik
+`core/health`. **Sapuan frasa janji** («otomatis dari bank», «langsung dari bank», «terhubung ke
+bank», «penjadwal aktif/berjalan», «diambil dari bank») dipaku TERBATAS pada berkas paket ini
+(`BankInboxTest`), tak peka huruf besar, negasi wajar dan guillemet dikecualikan. SFTP dan
+host-to-host: `docs/KEPUTUSAN-INTEGRASI.md` §10; runbook folder: PANDUAN-ADMINISTRATOR §5.13.

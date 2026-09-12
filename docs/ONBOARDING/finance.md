@@ -154,7 +154,14 @@ saldo**), **`Pratinjau`**, lalu **`Impor rekening koran`** hanya bila tanpa peng
 merah. Tab **Rekening Koran**: **`Cocokkan`** per baris, atau **`Tanpa padanan`** dengan
 alasan. Layar ini tidak pernah membuat jurnal; biaya admin bank dibukukan lewat Jurnal
 (butir 6) lalu dicocokkan. Tab **Rekonsiliasi**: baca kartu **"Periksa — kemungkinan
-salah catat"** walau jembatannya tampak menutup.
+salah catat"** walau jembatannya tampak menutup. Sesudah pratinjau CSV pertama hijau,
+**`Simpan sebagai preset rekening ini`** (butuh izin ubah keuangan — `fin.update`; dalam data
+demo itu peran `finance`, bukan `finance-manager` yang hanya melihat dan menyetujui):
+bulan depan tinggal pilih presetnya dan ketik periode/saldo; berkas yang judul kolomnya
+bergeser ditolak dengan menyebut kolomnya. Petakan **Kolom saldo** bila rekening itu akan
+dibaca dari **folder terpantau** (tab kelima): berkas yang administrator letakkan di folder
+server diimpor tiap jam lewat pemeriksaan yang sama; yang gagal muncul di lonceng dan di
+tab itu dengan sebabnya. Berkasnya tidak datang sendiri dari bank — seseorang meletakkannya.
 
 **8. Kas kecil dan kasbon** — §10.5–§10.8
 Pemicu: laci perlu dana, bon masuk, karyawan minta kasbon. Register laci di **Keuangan ›

@@ -193,3 +193,63 @@ aslinya dipertahankan — ia sejarah); PANDUAN-ADMINISTRATOR dan PANDUAN-PENGGUN
 diperbarui pada kalimat "WhatsApp tidak ada" (sapuan CONVENTIONS §35); LAPORAN-DEVIASI-v2
 tidak disunting (laporan bertanggal). SIKAP-E-SIGN §6 sudah menyebut pencabutan ini
 sejak F-8.
+
+---
+
+## 10. Bank (P-3c, 12 Sep 2026): folder terpantau DIPILIH; SFTP TIDAK; host-to-host TETAP DITOLAK
+
+Paket HM **P-3c** (ROADMAP-HASHMICRO Fase 3) membangun impor rekening koran dari
+**folder terpantau** dan **tidak** membangun dua hal lain yang biasa disandingkan
+dengannya. Paragraf ini ditulis SEBELUM satu baris kode P-3c pun, dengan bentuk yang
+sama dengan §1–§9: apa yang ditolak, mengapa, apa yang dipilih, dan batasnya.
+
+**Yang tetap DITOLAK — dan tetap tertulis di tempat lamanya.**
+
+| Yang ditolak | Di mana penolakannya tertulis | Mengapa masih benar hari ini |
+|---|---|---|
+| **Bank host-to-host** (koneksi langsung ke API bank, saldo/mutasi ditarik aplikasi) | [`ROADMAP-DEVIASI.md`](ROADMAP-DEVIASI.md) §0 batas 5; [`ROADMAP-HASHMICRO.md`](ROADMAP-HASHMICRO.md) §6 kalimat terakhir; P-3c: "host-to-host tetap ditolak" | Menuntut perjanjian host-to-host per bank, kredensial bank hidup di server aplikasi, alamat IP terdaftar, dan audit keamanan yang tidak bisa dikirim di dalam rilis perangkat lunak. Kegagalannya diam: sebuah pemetaan yang salah pada aliran otomatis mengimpor rekening koran yang **seimbang dan salah**, setiap jam, tanpa pratinjau siapa pun. |
+| **Klien SFTP/FTP di dalam aplikasi** (aplikasi mengunduh berkas dari server bank/pemilik) | P-3c: "SFTP tidak" — baris ini | Sama: kredensial jauh di server aplikasi, koneksi keluar terjadwal ke host yang tidak dikelola aplikasi, dan satu permukaan lagi yang bisa gagal diam-diam. Tidak ada dependensi Composer baru di paket ini, dan `ext-ssh2` tidak terpasang di produksi. |
+
+**Yang DIPILIH: folder terpantau — dan aplikasi HANYA MEMBACANYA.**
+
+- Satu folder di server (`BANK_INBOX_PATH` di `.env`; bawaan
+  `storage/app/private/bank-inbox`, di bawah folder yang sudah dikecualikan
+  `rsync --delete` oleh `deploy/sync-erp1.sh` dan ikut dicadangkan `deploy/backup-erp1.sh`
+  bersama lampiran), dengan **sub-folder per KODE rekening bank** (mis. `BANK-BCA-OPS/`).
+- Berkas sampai ke sana **dari luar aplikasi**: `scp`/`rclone`/salinan manual oleh
+  pemilik atau administrator (runbook `docs/PANDUAN-ADMINISTRATOR.md` §5.13). Aplikasi
+  **tidak pernah menulis, memindah, mengganti nama, atau menghapus** satu berkas pun di
+  folder itu — prinsip docblock `BankStatementParseRequest` ("nothing in this application
+  writes to disk") tetap berdiri; yang ditulis adalah **ledger** `fin_bank_inbox_files`
+  di basis data (jalur relatif, sha256, status, sebab), sehingga pemeriksaan per jam
+  idempoten dan pembersihan folder adalah pekerjaan pemilik.
+- Pemeriksaan berjalan **tiap jam** lewat penjadwal P-0b (`fin:bank-inbox`), atau saat
+  tombol *Periksa sekarang* ditekan di layar. Setiap berkas melewati **jalur impor yang
+  sama** dengan layar Impor (`BankStatementImportService`: tie-out, rantai periode/saldo,
+  identitas sha256) — tidak ada jalur kedua yang lebih longgar. Yang gagal menjadi baris
+  ledger `failed` dengan kalimatnya **dan satu notifikasi** (sekali per berkas, bukan
+  tiap jam); yang berhasil menjadi rekening koran `BST/…` dengan notifikasi ringkas.
+- **CSV di folder hanya bisa diimpor bila rekeningnya punya preset yang memetakan kolom
+  saldo**: tidak ada operator yang mengetik periode/saldo, jadi keduanya diturunkan dari
+  kolom saldo berkas (saldo awal = saldo baris pertama − mutasi pertama, saldo akhir =
+  saldo baris terakhir, periode = tanggal min/max) dan tie-out-nya adalah aritmetika
+  berkas sendiri. Preset tanpa kolom saldo → `failed` "preset tanpa kolom saldo tidak
+  bisa diimpor otomatis; impor lewat layar". MT940 tidak butuh preset.
+
+**Batasnya — apa yang TIDAK otomatis, dan dikatakan di setiap permukaan.**
+
+1. Berkasnya tidak datang sendiri dari bank. Tidak ada kalimat «otomatis dari bank»,
+   «langsung dari bank», atau «terhubung ke bank» di layar, notifikasi, README, maupun
+   panduan — dipaku uji `BankInboxTest` atas berkas paket ini utuh (layar, service,
+   perintah, controller, registri, `docs/samples/bank/README.md`, ONBOARDING finance/admin)
+   dan atas irisan PANDUAN-PENGGUNA §10.4, PANDUAN-ADMINISTRATOR §5.13, dan §10 ini.
+2. Preset bawaan BCA/Mandiri/BNI/BRI **tidak ada** sampai pemilik meletakkan berkas
+   ekspor nyata di `docs/samples/bank/` (README di sana daftar belanjanya); yang ada
+   hari ini adalah preset **per rekening** yang disimpan operator dari pratinjau yang
+   berhasil atas berkasnya sendiri.
+3. Folder yang belum ada (keadaan bawaan setiap instalasi baru, termasuk produksi
+   sesudah deploy) membuat perintahnya berkata begitu dan keluar 0 — tanpa galat, tanpa
+   notifikasi, tanpa baris ledger.
+4. Apakah penjadwalnya hidup **tidak diklaim layar ini**: sumbernya `GET core/health`
+   dan spanduk dasbor P-0b. Layar hanya menampilkan "terakhir diperiksa" dari stempel
+   yang benar-benar ditulis perintah.

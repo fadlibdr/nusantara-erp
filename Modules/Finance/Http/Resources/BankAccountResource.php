@@ -23,6 +23,9 @@ class BankAccountResource extends JsonResource
                 'name' => $this->coaAccount->name,
             ]),
             'is_active' => (bool) $this->is_active,
+            // Preset impor per rekening (P-3c): tidak ada data rahasia di dalamnya —
+            // nama, pemetaan kolom, sel baris judul yang diharapkan, siapa/kapan.
+            'import_preset' => $this->importPreset(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

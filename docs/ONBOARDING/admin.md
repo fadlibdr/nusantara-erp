@@ -76,7 +76,12 @@ tenggat; Anda melihat seluruhnya di **Ringkasan › Tenggat**). Menandai dibaca 
 pintu** kiriman berikutnya; alarm cadangan dan tutup buku berbunyi lagi besok sampai
 sebabnya dibereskan. Keluaran CLI keenam perintah terjadwal dibuang ke `/dev/null`; baris
 **BLIND** hanya terbaca bila perintahnya dijalankan tangan
-(ADMINISTRATOR §5.1, §5.2, §5.8, §5.10, §5.11).
+(ADMINISTRATOR §5.1, §5.2, §5.8, §5.10, §5.11). Sejak P-3c ada satu perintah **per jam**:
+`fin:bank-inbox` membaca folder terpantau rekening koran di server (sub-folder per kode
+rekening; Anda yang membuat foldernya dan meletakkan berkasnya — `scp`/`rclone`/salinan
+manual, bukan koneksi ke bank) dan mengimpor berkas baru lewat pemeriksaan yang sama dengan
+layar Impor; folder yang belum ada bukan galat, dan aplikasi tidak memindah/menghapus berkas
+di sana (ADMINISTRATOR §5.13).
 
 **Enam kalimat untuk semua orang** (PANDUAN §0) — dan apa artinya bagi Anda:
 

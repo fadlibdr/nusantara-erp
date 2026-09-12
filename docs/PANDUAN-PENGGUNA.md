@@ -6621,14 +6621,36 @@ Pemilih akunnya mencakup **seluruh** bagan akun, termasuk akun kelompok.
 
 **Layar ini tidak pernah membuat jurnal.** Deskripsinya mengatakan itu sendiri.
 
-Empat tab: **Ringkasan Semua Rekening** · **Rekonsiliasi** · **Rekening Koran** ·
-**Impor**. Bilah alat: pemilih rekening + **Sampai tanggal** + **`Muat ulang`**.
+Lima tab: **Ringkasan Semua Rekening** · **Rekonsiliasi** · **Rekening Koran** ·
+**Impor** · **Folder terpantau** (P-3c). Bilah alat: pemilih rekening + **Sampai tanggal** +
+**`Muat ulang`**.
 
-**a. Tab Impor** — tiga kartu.
+**a. Tab Impor** — tiga kartu, ditambah kartu registri di bawahnya.
 
 *1 · Berkas*: **Rekening bank**, **Format** (CSV rekening koran / MT940 (SWIFT)),
 **Berkas**. Berkasnya dibaca di peramban dan dikirim sebagai teks — *"tidak ada berkas
-yang disimpan di server"*.
+yang disimpan di server"*. Bila rekening yang dipilih **sudah punya preset**, muncul pemilih
+**Pemetaan kolom**: *Preset rekening ini: «nama»* atau *Tetapkan kolom sendiri* — preset
+dipakai **hanya bila dipilih di sini**; kolom tidak pernah ditebak dari isi berkas.
+
+> **Preset per rekening (P-3c).** Sesudah pratinjau CSV **hijau** (tanpa penghalang), kartu
+> Pratinjau menawarkan **`Simpan sebagai preset rekening ini`** (butuh izin ubah keuangan):
+> yang disimpan adalah pemisah, kolom, format tanggal/angka, dan **sel baris judul pada
+> kolom yang dipetakan** — periode dan saldo TIDAK disimpan, keduanya milik tiap berkas.
+> Bulan berikutnya pilih presetnya, ketik periode/saldo, Pratinjau. Berkas yang judul
+> kolomnya bergeser ditolak dengan menyebut kolomnya:
+> *"Kolom 4 pada preset «BCA KlikBCA» diharapkan 'Debit', berkas berisi 'Mutasi'."*
+> — semua kolom yang bergeser disebut sekaligus. Preset tidak pernah melonggarkan tie-out,
+> rantai saldo, atau pemeriksaan berkas ganda. Satu preset per rekening; menyimpan lagi
+> menimpa; **`Hapus preset`** ada di kartu preset. Petakan **Kolom saldo** bila rekening
+> ini akan dibaca dari folder terpantau (butir e).
+
+*Preset bawaan per bank* — kartu registri di bawah tab Impor. Hari ini keempat bank
+(BCA, Mandiri, BNI, BRI) berlencana **Belum ada berkas ekspor nyata** dan tidak satu pun
+bisa dipilih: preset bawaan hanya boleh lahir dari berkas ekspor bank sungguhan milik
+pemilik di `docs/samples/bank/` (README di sana daftar belanjanya). Kalimat di kartu itu
+datang dari server; dua berkas contoh di `docs/samples/` adalah contoh demo, bukan
+berkas bank.
 
 *2 · Pemetaan kolom* (khusus CSV), dengan pemberitahuan tetap **"Kolom tidak ditebak…"**:
 Pemisah kolom · Format angka (Indonesia `1.234.567,89` / Inggris) · Baris judul yang
@@ -6699,6 +6721,10 @@ baris yang dicocokkan. Batalkan pencocokan itu lebih dulu…"*).
 
 **Menghapus rekening koran adalah obat untuk pemetaan kolom yang salah** — jadi periksa
 pratinjaunya sebelum mengimpor, karena setelah beberapa pencocokan, kesalahan itu mahal.
+Untuk rekening koran yang datang dari **folder terpantau** (tab e): sesudah dihapus,
+berkasnya di folder server dianggap **berkas baru lagi** dan diimpor ulang pada pemeriksaan
+berikutnya — perbaiki presetnya dulu (atau minta administrator mengambil berkasnya), baru
+hapus; kalau tidak, sejam kemudian ia kembali dengan pemetaan yang sama.
 
 **c. Tab Rekonsiliasi.** Empat kotak: Saldo rekening koran · Saldo buku besar · Pos
 terbuka · **Selisih belum dijelaskan**. Lalu tabel **Jembatan rekonsiliasi**:
@@ -6716,6 +6742,48 @@ Lencananya: **`Cocok sepenuhnya`** / **`Selisih dijelaskan — N pos terbuka`** 
 > menampilkannya beserta kalimat *"Keduanya saling meniadakan sehingga jembatan tetap
 > tertutup — selisihnya tidak akan muncul di baris mana pun."* **Bacalah kartu itu walau
 > jembatannya tampak sempurna.**
+
+**e. Tab Folder terpantau (P-3c).** Ledger berkas rekening koran yang diletakkan
+administrator di **folder server** (`<folder terpantau>/<KODE-REKENING>/<berkas>`;
+runbook PANDUAN-ADMINISTRATOR §5.13) dan dibaca **tiap jam** oleh penjadwal — atau sekarang,
+lewat **`Periksa sekarang`** (izin yang sama dengan impor; bila pemeriksaan per jam sedang
+berjalan, tombolnya menjawab *"Pemeriksaan folder terpantau lain sedang berjalan; coba lagi
+sebentar."* dan tidak menulis apa pun). Ubin: Diimpor · Gagal · Salinan · Diabaikan —
+**untuk pemeriksaan terakhir** (berkas yang ada di folder saat itu; folder yang dibersihkan
+administrator membuat ubin ikut kosong, sedangkan tabel di bawahnya tetap seluruh sejarah)
+· **Terakhir diperiksa** (stempel yang benar-benar ditulis pemeriksaan — bila
+tertulis *belum pernah*, pemeriksaannya memang belum pernah berjalan). Kartu **Kesiapan per
+rekening**: *CSV & MT940* bila preset rekening memetakan kolom saldo, *MT940 saja* bila
+tidak — kalimatnya dari server; rekening yang kodenya tidak bisa menjadi nama sub-folder
+(berspasi) ditandai merah dengan kalimatnya. Tabel berkas: jalur relatif, status (*Diimpor*
+· *Gagal* · *Salinan* · *Diabaikan* · *Digantikan* untuk baris lama yang isinya sudah
+berganti · *Rekening koran dihapus* untuk hasil impor yang kemudian dihapus), tautan ke
+rekening korannya, dan **keterangan** — setiap kegagalan disebut dengan kalimat yang sama
+dengan penghalang tab Impor (tidak seimbang, rantai putus, berkas ganda), atau:
+
+- *"Rekening BANK-… belum punya preset impor. Simpan preset dari layar Impor sesudah
+  pratinjau pemetaan Anda berhasil."*
+- *"Preset «…» rekening BANK-… tidak memetakan kolom saldo: preset tanpa kolom saldo tidak
+  bisa diimpor otomatis; impor lewat layar."*
+- *"Rekening koran ini untuk rekening MANDIRI/…, sedangkan berkasnya berada di sub-folder
+  BANK-BCA-OPS (…); letakkan di sub-folder kode rekening yang benar."* (berkas salah
+  sub-folder — tidak ada yang "memilih" rekening di folder).
+- *"Sub-folder BANK-XYZ bukan kode rekening bank yang aktif; berkas tidak dibaca."*
+- *"Isi berkas sama dengan BANK-…/maret.sta yang sudah diimpor sebagai BST/…"* (salinan
+  berganti nama bukan berkas baru; isi yang berubah di bawah nama lama adalah berkas baru).
+  Kalimat *"(lewat layar Impor)"* hanya muncul bila rekening korannya memang diimpor
+  seseorang dari layar.
+
+> **Yang tidak otomatis, dan tidak dijanjikan siapa pun.** Berkasnya **tidak datang
+> sendiri dari bank** — tidak ada koneksi ke bank, tidak ada SFTP; administrator atau alat
+> milik pemilik yang meletakkannya. CSV dibaca dari folder **hanya** bila presetnya
+> memetakan kolom saldo: periode dan saldo diturunkan dari kolom saldo berkas (saldo awal
+> = saldo baris pertama − mutasi pertama; saldo akhir = saldo baris terakhir), dan tie-out
+> tetap diperiksa. Berkas yang gagal **satu kali** dibunyikan di lonceng (pemegang izin
+> ubah keuangan), bukan tiap jam; yang berhasil dibunyikan sekali dengan tautan ke rekening
+> korannya. Aplikasi **tidak memindah dan tidak menghapus** berkas di folder itu. Folder
+> yang belum ada bukan galat: kartu folder mengatakannya. Hidup atau tidaknya penjadwal
+> **tidak diklaim layar ini** — spanduk dasbor / kesehatan sistem yang mengatakannya.
 
 ### 10.5 Kasir Kas Kecil — `Keuangan › Kasir Kas Kecil`
 

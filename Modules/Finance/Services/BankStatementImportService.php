@@ -9,6 +9,7 @@ use Modules\Finance\Enums\BankStatementFormat;
 use Modules\Finance\Enums\BankStatementMatchStatus;
 use Modules\Finance\Models\BankAccount;
 use Modules\Finance\Models\BankStatement;
+use Modules\Finance\Support\ImportPreset;
 use Modules\Finance\Support\ParsedStatement;
 
 /**
@@ -47,10 +48,10 @@ class BankStatementImportService
      * Parse and check without writing anything — what the operator sees before
      * committing, and the only place a CSV column mapping can be corrected.
      */
-    public function preview(BankAccount $bankAccount, string $format, string $content, array $mapping = []): array
+    public function preview(BankAccount $bankAccount, string $format, string $content, array $mapping = [], bool $unattended = false): array
     {
         $statement = $this->parse($format, $content, $mapping);
-        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping);
+        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping, $unattended);
 
         return [
             'bank_account' => [
@@ -72,9 +73,10 @@ class BankStatementImportService
         string $content,
         array $mapping = [],
         ?int $userId = null,
+        bool $unattended = false,
     ): BankStatement {
         $statement = $this->parse($format, $content, $mapping);
-        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping);
+        $blockers = $this->blockers($bankAccount, $statement, $format, $content, $mapping, $unattended);
 
         if ($blockers !== []) {
             throw new LogicException($blockers[0]);
@@ -118,6 +120,88 @@ class BankStatementImportService
             // same message as if they had gone second, not a 500.
             throw new LogicException('Berkas ini sudah diimpor.');
         }
+    }
+
+    // ------------------------------------------------------- preset per rekening
+
+    /**
+     * Pemetaan yang benar-benar dipakai parser — SATU jalur untuk layar Impor
+     * dan job folder terpantau (P-3c). Preset diterapkan HANYA bila diminta
+     * ($usePreset): tidak ada sniffing, tidak ada preset yang diam-diam
+     * menggantikan pemetaan yang dikirim operator. MT940 tidak butuh preset.
+     *
+     * Header berkas pada kolom yang dipetakan ≠ yang diingat preset → ditolak
+     * dengan kalimat yang MENYEBUT kolomnya, sebelum satu baris pun diparse:
+     * kolom yang bergeser menghasilkan pemetaan yang keliru-tetapi-seimbang,
+     * dan tie-out tidak bisa melihatnya.
+     *
+     * @param  array<string, mixed>  $perFile  periode/saldo (layar) — atau pemetaan penuh bila $usePreset false
+     * @return array<string, mixed>
+     */
+    public function resolveMapping(BankAccount $bankAccount, string $format, string $content, array $perFile, bool $usePreset): array
+    {
+        if (! $usePreset || $format !== BankStatementFormat::Csv->value) {
+            return $perFile;
+        }
+
+        $preset = $bankAccount->importPreset();
+
+        if ($preset === null) {
+            throw new LogicException(
+                "Rekening {$bankAccount->code} belum punya preset impor. Simpan preset dari layar Impor sesudah pratinjau pemetaan Anda berhasil."
+            );
+        }
+
+        if (trim($content) === '') {
+            throw new LogicException('Berkas rekening koran kosong.');
+        }
+
+        $mapping = ImportPreset::merge($preset, $perFile);
+        $headerRow = $this->csv->physicalRow($content, $mapping, (int) ($mapping['skip_rows'] ?? 0));
+        $mismatches = ImportPreset::headerMismatches($preset, $headerRow);
+
+        if ($mismatches !== []) {
+            throw new LogicException(implode(' ', $mismatches));
+        }
+
+        return $mapping;
+    }
+
+    /**
+     * Menyimpan preset dari pemetaan yang BARU SAJA berhasil dipratinjau: parse
+     * harus jalan DAN tie-out nol atas berkas ini (pemetaan yang tidak seimbang
+     * justru pemetaan yang salah). Penghalang rantai/identitas sengaja tidak
+     * ikut: berkas yang sudah pernah diimpor tetap bukti sah bagi tata letaknya.
+     *
+     * @param  array<string, mixed>  $mapping  pemetaan layar penuh
+     * @return array<string, mixed> preset yang tersimpan
+     */
+    public function savePreset(BankAccount $bankAccount, string $name, string $format, string $content, array $mapping, ?int $userId): array
+    {
+        if ($format !== BankStatementFormat::Csv->value) {
+            throw new LogicException('MT940 tidak butuh preset — tata letaknya baku. Preset hanya untuk CSV.');
+        }
+
+        $statement = $this->parse($format, $content, $mapping);
+
+        if (! $statement->tiesOut()) {
+            throw new LogicException(
+                'Preset hanya disimpan dari pemetaan yang pratinjaunya seimbang; berkas ini tidak seimbang (selisih '
+                .$this->rupiah($statement->tieOutDifferenceCents()).'). Perbaiki pemetaannya dulu.'
+            );
+        }
+
+        $headerRow = $this->csv->physicalRow($content, $mapping, (int) ($mapping['skip_rows'] ?? 0));
+        $preset = ImportPreset::build($name, $mapping, $headerRow, $userId);
+
+        $bankAccount->forceFill(['import_preset' => $preset])->save();
+
+        return $preset;
+    }
+
+    public function deletePreset(BankAccount $bankAccount): void
+    {
+        $bankAccount->forceFill(['import_preset' => null])->save();
     }
 
     /**
@@ -179,12 +263,17 @@ class BankStatementImportService
      *
      * @return list<string>
      */
+    /**
+     * @param  bool  $unattended  jalur folder terpantau (P-3c): tidak ada operator yang "memilih" rekening —
+     *                            kalimat salah-rekening menyebut sub-folder tempat berkasnya berada.
+     */
     private function blockers(
         BankAccount $bankAccount,
         ParsedStatement $statement,
         string $format,
         string $content,
         array $mapping,
+        bool $unattended = false,
     ): array {
         $blockers = [];
 
@@ -216,7 +305,7 @@ class BankStatementImportService
                     .($duplicate->bankAccount?->name ?? '?').'. Periksa rekening yang Anda pilih.';
         }
 
-        $mismatch = $this->accountIdentificationBlocker($bankAccount, $statement);
+        $mismatch = $this->accountIdentificationBlocker($bankAccount, $statement, $unattended);
 
         if ($mismatch !== null) {
             $blockers[] = $mismatch;
@@ -236,7 +325,7 @@ class BankStatementImportService
      * prefix the number with a BIC or branch code and pad it inconsistently, so
      * an equality test would refuse almost every real file.
      */
-    private function accountIdentificationBlocker(BankAccount $bankAccount, ParsedStatement $statement): ?string
+    private function accountIdentificationBlocker(BankAccount $bankAccount, ParsedStatement $statement, bool $unattended = false): ?string
     {
         $declared = preg_replace('/\D/', '', (string) $statement->accountIdentification) ?? '';
         $selected = preg_replace('/\D/', '', (string) $bankAccount->account_no) ?? '';
@@ -247,6 +336,18 @@ class BankStatementImportService
 
         if (str_contains($declared, $selected) || str_contains($selected, $declared)) {
             return null;
+        }
+
+        if ($unattended) {
+            // Folder terpantau: yang salah adalah sub-folder tempat berkas diletakkan, bukan pilihan
+            // siapa pun — kalimatnya menyebut tindakan yang benar (V-folder-8).
+            return sprintf(
+                'Rekening koran ini untuk rekening %s, sedangkan berkasnya berada di sub-folder %s (%s %s); letakkan di sub-folder kode rekening yang benar.',
+                $statement->accountIdentification,
+                $bankAccount->code,
+                $bankAccount->account_no,
+                $bankAccount->name,
+            );
         }
 
         return sprintf(

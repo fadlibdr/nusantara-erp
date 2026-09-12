@@ -6,6 +6,7 @@ use Modules\Finance\Http\Controllers\ApBillController;
 use Modules\Finance\Http\Controllers\ArInvoiceController;
 use Modules\Finance\Http\Controllers\ArRetentionController;
 use Modules\Finance\Http\Controllers\BankAccountController;
+use Modules\Finance\Http\Controllers\BankInboxController;
 use Modules\Finance\Http\Controllers\BankReconciliationController;
 use Modules\Finance\Http\Controllers\BankStatementController;
 use Modules\Finance\Http\Controllers\BudgetRealisationController;
@@ -100,6 +101,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('bank-accounts/{bankAccount}', [BankAccountController::class, 'show'])->middleware('permission:fin.view');
     Route::put('bank-accounts/{bankAccount}', [BankAccountController::class, 'update'])->middleware('permission:fin.update');
     Route::delete('bank-accounts/{bankAccount}', [BankAccountController::class, 'destroy'])->middleware('permission:fin.delete');
+    // P-3c — preset impor per rekening: disimpan dari pratinjau yang berhasil,
+    // diterapkan hanya bila use_preset diminta. fin.update: mengubah cara
+    // rekening ini dibaca bulan demi bulan adalah perubahan master, bukan impor.
+    Route::put('bank-accounts/{bankAccount}/import-preset', [BankStatementController::class, 'savePreset'])->middleware('permission:fin.update');
+    Route::delete('bank-accounts/{bankAccount}/import-preset', [BankStatementController::class, 'deletePreset'])->middleware('permission:fin.update');
 
     // Payments (RCV in / PAY out)
     Route::get('payments', [PaymentController::class, 'index'])->middleware('permission:fin.view');
@@ -217,6 +223,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Matching is fin.update, not fin.post: it writes no ledger row. It records
     // that a bank movement and an existing posting are the same event.
     Route::get('bank-statements', [BankStatementController::class, 'index'])->middleware('permission:fin.view');
+    // Registri preset bawaan per bank (P-3c) — sebelum {bankStatement} supaya 'presets' tidak ditelan.
+    Route::get('bank-statements/presets', [BankStatementController::class, 'presets'])->middleware('permission:fin.view');
+    // Folder terpantau (P-3c): ledger fin.view; "Periksa sekarang" = impor → fin.create.
+    Route::get('bank-inbox', [BankInboxController::class, 'show'])->middleware('permission:fin.view');
+    Route::post('bank-inbox/run', [BankInboxController::class, 'run'])->middleware('permission:fin.create');
     Route::post('bank-statements/preview', [BankStatementController::class, 'preview'])->middleware('permission:fin.create');
     Route::post('bank-statements', [BankStatementController::class, 'store'])->middleware('permission:fin.create');
     Route::get('bank-statements/{bankStatement}', [BankStatementController::class, 'show'])->middleware('permission:fin.view');
