@@ -459,9 +459,31 @@ class WhatsAppChannelTest extends ErpTestCase
         $this->assertSame(['provider' => 'meta', 'configured' => false, 'templates_ready' => 0, 'templates_total' => 5, 'phone_e164' => null, 'opt_in_at' => null, 'opt_in_via' => null], $data['whatsapp']);
         $this->assertSame(DeliveryGate::WHATSAPP_DISABLED, $data['channels'][1]['reason']);
 
+        // Kredensial terisi, opt-in ada, tetapi 0 dari 5 template disetujui —
+        // jendela nyata berhari-hari (KEPUTUSAN-INTEGRASI §4.2: 1–7 hari, bisa
+        // ditolak): SETIAP baris WhatsApp akan Dilewati, jadi lencananya tidak
+        // boleh hijau "Akan dikirim" (verifikasi P-3a, 12 Sep 2026).
+        $this->fullyConfigured();
+        $this->optedIn($user);
+        foreach (NotificationTemplates::KEYS as $key) {
+            config(["erp.whatsapp.templates.{$key}" => '']);
+        }
+        $data = $this->getJson('/api/core/me/notification-channels')->assertOk()->json('data');
+        $this->assertSame(0, $data['whatsapp']['templates_ready']);
+        $this->assertFalse($data['channels'][1]['will_deliver'], 'Tanpa satu pun template, tidak ada yang akan dikirim.');
+        $this->assertSame(
+            'Belum ada satu pun template WhatsApp yang disetujui Meta / diisi di .env (0 dari 5, WHATSAPP_TEMPLATE_*) — prasyarat pemilik (KEPUTUSAN-INTEGRASI.md §4); setiap pesan WhatsApp akan Dilewati sampai satu template terisi.',
+            $data['channels'][1]['reason'],
+        );
+        // …dan kotak keluar pada keadaan yang sama memang Dilewati, tanpa HTTP.
+        Http::fake();
+        $this->alarm();
+        $this->assertSame(NotificationDelivery::SKIPPED, $this->waRow()->status);
+        Http::assertNothingSent();
+
+        // Satu template terisi sudah cukup untuk "akan mencoba" — per peristiwa diperiksa kotak keluar.
         $this->fullyConfigured();
         config(['erp.whatsapp.templates.ar.dunning' => '']);
-        $this->optedIn($user);
         $json = $this->getJson('/api/core/me/notification-channels')->assertOk()->getContent();
         $data = json_decode($json, true)['data'];
         $this->assertTrue($data['whatsapp']['configured']);

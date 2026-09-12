@@ -109,6 +109,15 @@ final class WhatsAppSetup
         return $name === '' ? null : $name;
     }
 
+    /** Berapa dari kelima template peristiwa yang sudah diisi pemilik — angka yang DIUKUR dari .env. */
+    public static function templatesReady(): int
+    {
+        return count(array_filter(
+            NotificationTemplates::KEYS,
+            static fn (string $key): bool => self::templateName($key) !== null,
+        ));
+    }
+
     public static function templateSkipReason(string $templateKey): ?string
     {
         if (self::templateName($templateKey) !== null) {

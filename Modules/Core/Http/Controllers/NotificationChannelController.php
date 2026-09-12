@@ -67,10 +67,7 @@ class NotificationChannelController extends ApiController
             'whatsapp' => [
                 'provider' => WhatsAppSetup::provider(),
                 'configured' => WhatsAppSetup::configured(),
-                'templates_ready' => count(array_filter(
-                    NotificationTemplates::KEYS,
-                    static fn (string $key): bool => WhatsAppSetup::templateName($key) !== null,
-                )),
+                'templates_ready' => WhatsAppSetup::templatesReady(),
                 'templates_total' => count(NotificationTemplates::KEYS),
                 'phone_e164' => $user->phone_e164,
                 'opt_in_at' => $user->whatsapp_opt_in_at?->toIso8601String(),

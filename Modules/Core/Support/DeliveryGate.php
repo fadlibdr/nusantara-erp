@@ -59,6 +59,22 @@ final class DeliveryGate
     public const USER_CHANNELS = [NotificationDelivery::CHANNEL_EMAIL, NotificationDelivery::CHANNEL_WHATSAPP];
 
     /**
+     * Ringkasan per orang (layar Profil) ketika TIDAK SATU PUN template
+     * terisi: setiap pesan WhatsApp akan Dilewati, jadi lencananya tidak
+     * boleh "Akan dikirim" — jendela ini nyata dan berhari-hari (persetujuan
+     * template Meta 1–7 hari, KEPUTUSAN-INTEGRASI §4.2), sementara token dan
+     * Phone Number ID tersedia lebih dulu (verifikasi P-3a, 12 Sep 2026).
+     */
+    public static function whatsappNoTemplateAtAll(): string
+    {
+        return sprintf(
+            'Belum ada satu pun template WhatsApp yang disetujui Meta / diisi di .env (0 dari %d, WHATSAPP_TEMPLATE_*) — '
+            .'prasyarat pemilik (KEPUTUSAN-INTEGRASI.md §4); setiap pesan WhatsApp akan Dilewati sampai satu template terisi.',
+            count(NotificationTemplates::KEYS),
+        );
+    }
+
+    /**
      * Sebab `skipped`, atau null bila kanal ini boleh mencoba mengirim kepada
      * orang ini untuk peristiwa ini.
      *
@@ -107,6 +123,7 @@ final class DeliveryGate
             $reason === self::WHATSAPP_NO_TEMPLATE_FOR_EVENT => self::WHATSAPP_NO_TEMPLATE_FOR_EVENT.' Kirim ulang tidak akan mengubahnya.',
             str_starts_with($reason, 'Kanal WhatsApp belum dikonfigurasi') => 'Kanal WhatsApp belum dikonfigurasi — isi WHATSAPP_TOKEN dan WHATSAPP_PHONE_NUMBER_ID di .env (DEPLOYMENT.md §11), lalu kirim ulang.',
             str_starts_with($reason, 'Template WhatsApp untuk peristiwa') => rtrim($reason, '.').' — isi nama template yang disetujui Meta di .env, lalu kirim ulang.',
+            str_starts_with($reason, 'Belum ada satu pun template WhatsApp') => 'Belum ada satu pun template WhatsApp yang disetujui Meta — isi WHATSAPP_TEMPLATE_* di .env (DEPLOYMENT.md §11), lalu kirim ulang.',
             str_starts_with($reason, 'MAIL_MAILER=') => 'MAIL_MAILER masih '.MailTransport::mailerName().' — belum ada server surel. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11), lalu kirim ulang.',
             default => rtrim($reason, '.').' — betulkan dulu, lalu kirim ulang.',
         };
@@ -208,8 +225,11 @@ final class DeliveryGate
             return self::WHATSAPP_NO_OPTIN;
         }
 
+        // Ringkasan per orang tidak membicarakan satu peristiwa, tetapi tanpa
+        // satu pun template TIDAK ADA peristiwa yang akan terkirim — dan itu
+        // harus dikatakan, bukan "Akan dikirim".
         if (! $checkTemplate) {
-            return null;
+            return WhatsAppSetup::templatesReady() === 0 ? self::whatsappNoTemplateAtAll() : null;
         }
 
         if (! NotificationTemplates::has($templateKey)) {
