@@ -50,6 +50,7 @@ class WebhookController extends ApiController
                 'algorithm' => WebhookSignature::ALGORITHM,
                 'signed_value' => 't.badan_mentah',
                 'tolerance_seconds' => WebhookSignature::TOLERANCE,
+                'secret_form' => WebhookSignature::SECRET_FORM,
                 'note' => 'HMAC-SHA256 atas "<t>.<badan mentah>" dengan rahasia langganan; '
                     .'bandingkan dengan hash_equals, tolak bila selisih waktu lebih dari '
                     .WebhookSignature::TOLERANCE.' detik, dan tolak '.WebhookSignature::EVENT_HEADER
@@ -85,9 +86,11 @@ class WebhookController extends ApiController
 
     /**
      * Memutar rahasia: nilai baru tampil sekali, nilai lama berhenti berlaku
-     * SEKETIKA — kiriman yang sudah diantrekan membawa tanda tangan yang dibuat
-     * dengan rahasia LAMA di kolom signature-nya, dan itu disengaja: tanda
-     * tangan sebuah kiriman dibuat saat kiriman itu lahir.
+     * SEKETIKA — termasuk untuk kiriman yang sudah diantrekan, yang percobaan
+     * berikutnya ditandatangani dengan rahasia BARU (V-webhook-1: tanda tangan
+     * dihitung per percobaan, tepat sebelum POST-nya, karena stempel waktunya
+     * ikut ditandatangani). Penerima yang memasang rahasia barunya lebih dulu
+     * karena itu tidak kehilangan kiriman yang sedang dicoba ulang.
      */
     public function rotate(WebhookSubscription $webhook): JsonResponse
     {

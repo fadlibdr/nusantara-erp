@@ -10,7 +10,6 @@ use Modules\Core\Models\WebhookDelivery;
 use Modules\Core\Models\WebhookSubscription;
 use Modules\Core\Support\AttachableDocuments;
 use Modules\Core\Support\WebhookPayload;
-use Modules\Core\Support\WebhookSignature;
 use Throwable;
 
 /**
@@ -88,7 +87,6 @@ class WebhookService
         // SATU KALI menjadi byte, dan byte itulah yang ditandatangani, dikirim,
         // dan disimpan. Lihat WebhookPayload::encode().
         $body = WebhookPayload::encode($payload);
-        $timestamp = now()->getTimestamp();
         $queued = 0;
 
         foreach ($subscriptions as $subscription) {
@@ -102,7 +100,13 @@ class WebhookService
                 'document_id' => (int) $document->getKey(),
                 'document_code' => $payload['data']['document_code'],
                 'payload' => $body,
-                'signature' => WebhookSignature::header($body, (string) $subscription->secret, $timestamp),
+                // TANDA TANGANNYA BELUM ADA DI SINI, dan itu keputusan
+                // (V-webhook-1). Ia memuat stempel waktu yang ikut
+                // ditandatangani, dan percobaan ke-5 berangkat 4.860 detik
+                // sesudah baris ini lahir — sebuah stempel yang dibekukan di
+                // sini membuat tiga dari lima percobaan ditolak penerima yang
+                // menegakkan jendela 300 detik yang dokumen kita suruh ia
+                // tegakkan. Ia dihitung di DeliverWebhook, sekali per PERCOBAAN.
                 'status' => WebhookDelivery::QUEUED,
             ]);
 

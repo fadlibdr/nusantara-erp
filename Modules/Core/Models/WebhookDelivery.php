@@ -14,6 +14,13 @@ namespace Modules\Core\Models;
  *            yang tidak akan berubah bila diulang; `error` menyebut sebabnya
  *            dalam bahasa Indonesia dan sudah lewat ProviderErrorScrubber.
  *
+ * `signature` ADALAH CATATAN, BUKAN JANJI. Ia memuat nilai header yang
+ * benar-benar dikirim pada percobaan TERAKHIR — dihitung ulang tiap percobaan
+ * karena stempel waktunya ikut ditandatangani dan penerima menolak stempel yang
+ * lebih tua dari `WebhookSignature::TOLERANCE` detik. `payload` sebaliknya
+ * tidak pernah berubah: byte-nya sama di kelima percobaan, dan itulah yang
+ * membuat tanda tangan mana pun bisa diperiksa ulang terhadapnya (perangkap D).
+ *
  * Satu baris per PERISTIWA per LANGGANAN, bukan satu per percobaan: kelima
  * percobaan menyangkut kiriman yang sama, membawa `X-Nusantara-Event` yang
  * sama, dan penerima yang benar memperlakukan ketiganya sebagai satu. Berapa

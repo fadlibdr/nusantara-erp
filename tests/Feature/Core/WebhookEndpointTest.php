@@ -129,6 +129,13 @@ class WebhookEndpointTest extends ErpTestCase
         $this->assertSame('sha256', $response->json('data.signature.algorithm'));
         $this->assertSame('t.badan_mentah', $response->json('data.signature.signed_value'));
         $this->assertSame(300, $response->json('data.signature.tolerance_seconds'));
+        // V-webhook-5: bentuk rahasianya ikut, karena penerima yang meng-hex-decode
+        // kunci 64 karakter itu gagal pada SETIAP kiriman tanpa satu pun petunjuk.
+        $this->assertSame(
+            'Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA '
+            .'(byte ASCII-nya), bukan di-decode dari hex.',
+            $response->json('data.signature.secret_form'),
+        );
         $this->assertSame(WebhookPayload::EVENTS, $response->json('data.selectable_events'));
         $this->assertSame(1, $response->json('data.payload_version'));
         $this->assertSame(WebhookService::DISABLE_AFTER_FAILURES, $response->json('data.disable_after_failures'));

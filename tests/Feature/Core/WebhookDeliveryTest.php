@@ -152,8 +152,13 @@ class WebhookDeliveryTest extends ErpTestCase
 
         Http::assertSent(function ($request) use ($delivery, $subscription): bool {
             $this->assertSame((string) $delivery->payload, $request->body());
-            $this->assertSame((string) $delivery->signature, $request->header(WebhookSignature::HEADER)[0]);
             $this->assertSame((string) $delivery->event_id, $request->header(WebhookSignature::EVENT_HEADER)[0]);
+
+            // Yang dipaku adalah HEADER YANG BERANGKAT terhadap BADAN YANG
+            // BERANGKAT — bukan kolom `signature`, yang sejak V-webhook-1
+            // adalah catatan percobaan terakhir dan dihitung ulang tiap
+            // percobaan. Barisnya lalu dituntut mencatat header yang sama.
+            $this->assertSame((string) $delivery->signature, $request->header(WebhookSignature::HEADER)[0]);
 
             return WebhookSignature::verify(
                 $request->header(WebhookSignature::HEADER)[0],
@@ -324,8 +329,19 @@ class WebhookDeliveryTest extends ErpTestCase
         $bill->approve($approver, 'Disetujui walau langganan webhook rusak.');
 
         $this->assertSame('approved', $bill->fresh()->status->value);
-        $this->assertSame(0, WebhookDelivery::query()->count());
         Http::assertSentCount(0);
+
+        // Sejak V-webhook-1 rahasianya dibaca di JOB, bukan saat mengantre:
+        // barisnya lahir, lalu berhenti dengan sebabnya sendiri. Tidak satu pun
+        // POST berangkat, dan persetujuannya tetap berdiri.
+        $rows = WebhookDelivery::query()->get();
+        $this->assertCount(2, $rows);
+
+        foreach ($rows as $row) {
+            $this->assertSame(WebhookDelivery::FAILED, $row->status);
+            $this->assertStringContainsString('Rahasia langganan ini tidak bisa dibaca', (string) $row->error);
+            $this->assertNull($row->signature);
+        }
     }
 
     /** Pola antrean rumah, dipaku literal — bukan dibaca dari kelas yang diujinya. */

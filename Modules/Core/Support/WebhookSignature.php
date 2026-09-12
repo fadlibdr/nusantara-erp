@@ -8,7 +8,9 @@ namespace Modules\Core\Support;
  * Resepnya lengkap di sini karena penerimanya harus bisa menirunya tanpa
  * membaca satu baris pun kode kita. Kalimat yang sama ada di
  * `docs/PANDUAN-ADMINISTRATOR.md` §5.14 dan di `docs/api/openapi.json`, dan
- * `WebhookSignatureTest` memaku ketiganya sama.
+ * `WebhookSignatureTest` benar-benar MEMBACA ketiga berkas itu dan menuntut
+ * isinya sama dengan konstanta di bawah (V-OPENAPI-7: sampai putaran
+ * verifikasi ini kalimat tersebut menyebut sebuah berkas uji yang tidak ada).
  *
  * BENTUK HEADER
  *
@@ -17,6 +19,13 @@ namespace Modules\Core\Support;
  * APA YANG DITANDATANGANI
  *
  *     hash_hmac('sha256', "{t}.{badan mentah}", rahasia_langganan)
+ *
+ * BENTUK RAHASIANYA, yang tidak bisa ditebak dari nilainya (V-webhook-5).
+ * `SECRET_FORM` dituliskan ke setiap permukaan karena sebuah string 64
+ * karakter [0-9a-f] TAMPAK seperti 32 byte yang di-hex-encode, dan penerima
+ * yang menyimpulkan itu memanggil HMAC dengan kunci yang sudah di-decode
+ * lalu mendapat "tanda tangan tidak cocok" pada SETIAP kiriman — tanpa ada
+ * yang salah di kedua sisi. Kuncinya adalah ke-64 karakter itu apa adanya.
  *
  * `t` adalah detik Unix dan IA IKUT DITANDATANGANI — itulah yang membuat
  * jendela waktu berarti. Sebuah tanda tangan yang hanya menutupi badan
@@ -33,6 +42,8 @@ namespace Modules\Core\Support;
  *
  * CARA PENERIMA MEMERIKSANYA
  *
+ *   0. rahasianya dipakai APA ADANYA sebagai kunci HMAC — 64 karakter
+ *      heksadesimal, BUKAN 32 byte yang perlu di-decode dulu;
  *   1. baca header, pisahkan `t` dan `v1`;
  *   2. tolak bila `|sekarang − t| > 300 detik` (TOLERANCE);
  *   3. hitung `hash_hmac('sha256', t.'.'.badan_mentah, rahasia)`;
@@ -54,6 +65,15 @@ final class WebhookSignature
 
     /** Jendela yang DISARANKAN kepada penerima, dalam detik. */
     public const TOLERANCE = 300;
+
+    /**
+     * Bentuk rahasianya, dikatakan di setiap permukaan (V-webhook-5).
+     *
+     * Satu-satunya definisi: layar dan PANDUAN §5.14 membacanya lewat
+     * `WebhookController::index`, dan `WebhookSignatureTest` menuntut layar,
+     * PANDUAN dan `openapi.json` memuat kalimat ini.
+     */
+    public const SECRET_FORM = 'Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA (byte ASCII-nya), bukan di-decode dari hex.';
 
     /** Nilai header untuk badan ini, pada detik ini. */
     public static function header(string $rawBody, string $secret, int $timestamp): string

@@ -2237,6 +2237,7 @@ tokennya berlaku.
 3. Hitung `hash_hmac('sha256', t + '.' + badan_mentah, rahasia_langganan)`.
    Yang ditandatangani adalah **byte badan yang persis diterima** — jangan
    mem-parse lalu meng-encode ulang JSON-nya sebelum menghitung.
+   Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA (byte ASCII-nya), bukan di-decode dari hex.
 4. Bandingkan dengan **`hash_equals()`**, bukan `===`: perbandingan string biasa
    membocorkan posisi karakter pertama yang berbeda lewat waktu eksekusi.
 5. **Tolak `X-Nusantara-Event` yang sudah pernah diproses.** Kelima percobaan
@@ -2247,7 +2248,8 @@ hiasan, karena penyerang bisa memutar ulang kiriman lama dengan stempel baru.
 
 #### Rahasia langganan
 
-Muncul **sekali**, di layar, saat langganan dibuat atau saat Anda menekan
+Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA (byte ASCII-nya), bukan di-decode dari hex.
+Ia muncul **sekali**, di layar, saat langganan dibuat atau saat Anda menekan
 **Putar rahasia**. Tersimpan terenkripsi (`APP_KEY`) dan **tidak pernah**
 dipulangkan API mana pun. Memutarnya membuat penerima lama berhenti bisa
 memverifikasi sampai rahasia barunya dipasang di sana — jadi putar hanya ketika

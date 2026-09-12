@@ -62,7 +62,11 @@ return new class extends Migration
             // ulang saat ditampilkan: tanda tangan hanya bisa diperiksa ulang
             // terhadap byte yang sama persis (perangkap D).
             $table->text('payload');
-            $table->string('signature', 120);
+            // CATATAN percobaan TERAKHIR, bukan janji yang dibuat saat
+            // mengantre: nilai header yang benar-benar berangkat, ditulis
+            // tepat sebelum POST-nya (V-webhook-1). null selama baris ini
+            // belum pernah dicoba.
+            $table->string('signature', 120)->nullable();
             $table->string('status', 12)->index();
             $table->unsignedTinyInteger('attempts')->default(0);
             $table->unsignedSmallInteger('response_status')->nullable();

@@ -25,6 +25,17 @@ use LogicException;
  *     termasuk metadata awan — dan fe80::/10), CGNAT (100.64/10), 0.0.0.0/8,
  *     dan nama yang berakhiran `.local`, `.internal`, `.localhost` atau
  *     `localhost` telanjang.
+ *
+ *     **DAN BENTUK SAMARANNYA** (V-webhook-2). Sebuah alamat ditulis dengan
+ *     lebih dari satu cara, dan penilaian yang membaca bentuknya alih-alih
+ *     alamatnya menolak `https://127.0.0.1/` sambil meloloskan
+ *     `https://[::ffff:127.0.0.1]/`, `https://2130706433/`,
+ *     `https://0177.0.0.1/` dan `https://127.1/` — yang semuanya mendarat di
+ *     soket yang SAMA. Maka setiap alamat DINORMALKAN dulu (`normalize()`:
+ *     ::ffff:a.b.c.d, ::a.b.c.d dan NAT64 64:ff9b::a.b.c.d diturunkan ke IPv4)
+ *     dan setiap host yang bukan nama sungguhan diterjemahkan lebih dulu
+ *     (`numericIpv4()`: bentuk desimal, oktal, heksa dan pendek ala
+ *     `inet_aton`), lalu yang dinilai adalah hasilnya.
  *  3. **Diperiksa DUA KALI: saat MENYIMPAN dan saat MENGIRIM.** DNS bisa
  *     berubah di antara keduanya — sebuah nama yang hari ini menunjuk ke
  *     alamat publik bisa besok menunjuk ke 127.0.0.1, dan itu bukan serangan
@@ -94,11 +105,12 @@ final class WebhookUrl
             throw new LogicException("Alamat «{$host}» adalah nama jaringan internal. Webhook hanya dikirim ke alamat yang bisa dijangkau dari luar.");
         }
 
-        // Host berupa alamat IP: diperiksa langsung, tanpa DNS.
-        $literal = trim($host, '[]');
+        // Host berupa alamat IP — termasuk yang tidak TAMPAK seperti alamat IP:
+        // diperiksa langsung, tanpa DNS.
+        $literal = self::literalAddress($host);
 
-        if (filter_var($literal, FILTER_VALIDATE_IP) !== false && ! self::isPublicIp($literal)) {
-            throw new LogicException(self::internalAddressSentence($host, $literal));
+        if ($literal !== null && ! self::isPublicIp($literal)) {
+            throw new LogicException(self::internalAddressSentence($host, self::normalize($literal)));
         }
     }
 
@@ -115,9 +127,11 @@ final class WebhookUrl
         self::assertShape($url);
 
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        $literal = trim($host, '[]');
 
-        if (filter_var($literal, FILTER_VALIDATE_IP) !== false) {
+        // Sebuah alamat literal sudah dinilai `assertShape()` di atas, dalam
+        // bentuk apa pun ia ditulis — dan tidak punya nama untuk ditanyakan
+        // kepada DNS.
+        if (self::literalAddress($host) !== null) {
             return;
         }
 
@@ -129,9 +143,114 @@ final class WebhookUrl
 
         foreach ($addresses as $address) {
             if (! self::isPublicIp($address)) {
-                throw new LogicException(self::internalAddressSentence($host, $address));
+                throw new LogicException(self::internalAddressSentence($host, self::normalize($address)));
             }
         }
+    }
+
+    /**
+     * Alamat IP yang benar-benar dituju host ini tanpa bertanya kepada DNS,
+     * atau null bila host-nya sebuah NAMA.
+     *
+     * Dua bentuk yang tidak dikenali `filter_var` ikut dihitung di sini
+     * (V-webhook-2): host di dalam kurung siku (`[::1]`) dan bentuk numerik
+     * ala `inet_aton` (`2130706433`, `0177.0.0.1`, `127.1`), yang dipakai
+     * pustaka HTTP dan libc persis seperti alamat bertitik empat.
+     */
+    private static function literalAddress(string $host): ?string
+    {
+        $literal = trim($host, '[]');
+
+        if (filter_var($literal, FILTER_VALIDATE_IP) !== false) {
+            return $literal;
+        }
+
+        return self::numericIpv4($literal);
+    }
+
+    /**
+     * Bentuk `inet_aton` → alamat bertitik empat, atau null bila host-nya
+     * bukan angka sama sekali.
+     *
+     * Satu bagian = 32 bit utuh (`2130706433`), dua bagian = a.bbb, tiga =
+     * a.b.cc, empat = biasa; setiap bagian boleh desimal, oktal (`0177`) atau
+     * heksa (`0x7f`). Sebuah nama sungguhan tidak pernah lolos: `contoh.co.id`
+     * berhenti di bagian pertama yang bukan angka.
+     */
+    private static function numericIpv4(string $host): ?string
+    {
+        $parts = explode('.', $host);
+        $count = count($parts);
+
+        if ($count > 4) {
+            return null;
+        }
+
+        $values = [];
+
+        foreach ($parts as $part) {
+            if (preg_match('/^0[xX][0-9a-fA-F]{1,8}$/', $part) === 1) {
+                $values[] = (int) hexdec(substr($part, 2));
+            } elseif (preg_match('/^0[0-7]{1,11}$/', $part) === 1) {
+                $values[] = (int) octdec($part);
+            } elseif (preg_match('/^(0|[1-9][0-9]{0,9})$/', $part) === 1) {
+                $values[] = (int) $part;
+            } else {
+                return null;
+            }
+        }
+
+        $last = array_pop($values);
+
+        if ($last === null || $last < 0 || $last >= 256 ** (5 - $count)) {
+            return null;
+        }
+
+        $long = $last;
+
+        foreach ($values as $index => $value) {
+            if ($value > 255) {
+                return null;
+            }
+
+            $long += $value * 256 ** (3 - $index);
+        }
+
+        return long2ip($long);
+    }
+
+    /**
+     * Alamat yang sama, ditulis dalam bentuk yang dinilai.
+     *
+     * IPv6 yang MEMBAWA alamat IPv4 di dalamnya diturunkan ke IPv4 itu:
+     * ::ffff:a.b.c.d (bertopeng, RFC 4291), ::a.b.c.d (kompatibel, usang tapi
+     * masih dirutekan tumpukan sistem) dan 64:ff9b::a.b.c.d (NAT64, RFC 6052).
+     * Yang bukan salah satunya dipulangkan apa adanya.
+     */
+    public static function normalize(string $address): string
+    {
+        if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false) {
+            return $address;
+        }
+
+        $packed = @inet_pton($address);
+
+        if ($packed === false || strlen($packed) !== 16) {
+            return $address;
+        }
+
+        $prefix = substr($packed, 0, 12);
+        $embedded = substr($packed, 12, 4);
+
+        $mapped = str_repeat("\0", 10)."\xff\xff";
+        $compatible = str_repeat("\0", 12);
+        $nat64 = "\x00\x64\xff\x9b".str_repeat("\0", 8);
+
+        if ($prefix === $mapped || $prefix === $compatible || $prefix === $nat64) {
+            return (string) inet_ntop($embedded);
+        }
+
+        return $address;
     }
 
     /**
@@ -139,12 +258,19 @@ final class WebhookUrl
      *
      * `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE` milik PHP menutup loopback,
      * privat RFC1918, link-local dan rentang yang dicadangkan sekaligus —
-     * termasuk 169.254.169.254 dan ::1. Yang TIDAK ditutupnya adalah CGNAT
-     * 100.64/10, yang di banyak jaringan operator adalah "di dalam", jadi ia
+     * termasuk 169.254.169.254 dan ::1. Yang TIDAK ditutupnya ada dua: CGNAT
+     * 100.64/10, yang di banyak jaringan operator adalah "di dalam", dan
+     * ::ffff:0:0/96 — alamat IPv4 yang ditulis sebagai IPv6. Keduanya
      * diperiksa sendiri.
      */
     public static function isPublicIp(string $address): bool
     {
+        // DINORMALKAN DULU (V-webhook-2). `::ffff:127.0.0.1` memulangkan true
+        // dari filter di bawah — PHP tidak menganggap ::ffff:0:0/96 sebagai
+        // rentang yang dicadangkan — dan POST bertanda tangannya benar-benar
+        // mendarat di loopback.
+        $address = self::normalize($address);
+
         if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
             return false;
         }

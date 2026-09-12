@@ -33,6 +33,7 @@
       "yang_ditandatangani": "\"<t>.<badan mentah>\" — stempel waktunya IKUT ditandatangani",
       "bandingkan": "hash_equals(), bukan ===",
       "jendela_detik": 300,
+      "rahasia": "Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA (byte ASCII-nya), bukan di-decode dari hex.",
       "id_peristiwa": "X-Nusantara-Event — uuid yang sama di kelima percobaan dan di semua langganan pada transisi yang sama; tolak yang sudah pernah diproses",
       "redirect": "Tidak diikuti. Jawaban 3xx dicatat GAGAL; hanya 2xx dihitung terkirim.",
       "percobaan": "5, dengan jeda 60/300/900/3600 detik"

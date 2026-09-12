@@ -74,6 +74,7 @@ function signatureCard(state) {
         el('dt', { text: 'Yang ditandatangani' }), el('dd', { text: s.signed_value || '' }),
         el('dt', { text: 'Id peristiwa' }), el('dd', { text: s.event_header || '' }),
         el('dt', { text: 'Jendela waktu' }), el('dd', { text: `${s.tolerance_seconds ?? ''} detik` }),
+        el('dt', { text: 'Bentuk rahasia' }), el('dd', { text: s.secret_form || '' }),
         el('dt', { text: 'Versi muatan' }), el('dd', { text: String(state.payload_version ?? '') }),
       ]),
       el('.cell-sub', { text: s.note || '' }),

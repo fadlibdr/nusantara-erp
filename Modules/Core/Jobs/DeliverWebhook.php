@@ -87,10 +87,40 @@ class DeliverWebhook implements ShouldQueueAfterCommit
             return;
         }
 
+        // RAHASIA YANG TIDAK BISA DIBACA BERHENTI DI SINI, dengan kalimatnya
+        // sendiri. Cast `encrypted` melempar ketika ciphertext-nya tidak sah
+        // (APP_KEY berganti, baris disunting tangan); sejak tanda tangannya
+        // dihitung di job dan bukan saat mengantre (V-webhook-1), di sinilah
+        // pembacaan itu terjadi — dan sebuah DecryptException berbahasa Inggris
+        // yang diulang lima kali bukan sebab yang bisa dibaca pemilik.
+        try {
+            $secret = (string) $subscription->secret;
+        } catch (Throwable $e) {
+            $reason = 'Rahasia langganan ini tidak bisa dibaca dari basis data (ciphertext tidak sah — APP_KEY berubah?). '
+                .'Putar rahasianya di Sistem › Webhook, lalu pasang nilai barunya di penerima.';
+
+            $this->stop($delivery, $reason);
+            $webhooks->recordFailure($subscription, $reason);
+
+            return;
+        }
+
+        // TANDA TANGAN DIHITUNG DI SINI, SEKALI PER PERCOBAAN (V-webhook-1).
+        // Stempel waktunya IKUT ditandatangani, dan percobaan kelima berangkat
+        // 4.860 detik sesudah barisnya lahir — jauh di luar jendela
+        // WebhookSignature::TOLERANCE yang dokumen kita suruh penerima
+        // tegakkan. Yang dibekukan hanyalah `payload`: byte-nya sama di kelima
+        // percobaan, jadi tanda tangan mana pun tetap bisa diperiksa ulang
+        // terhadap baris log (perangkap D tidak tersentuh).
+        $signature = WebhookSignature::header((string) $delivery->payload, $secret, now()->getTimestamp());
+
         // attempts disimpan SEBELUM mengirim: pekerja yang dibunuh pada batas
         // --timeout tidak pernah sampai ke blok catch, dan tanpa ini barisnya
         // tetap attempts=0 sesudah lima kali dibunuh (pelajaran P-0b).
-        $delivery->forceFill(['attempts' => $delivery->attempts + 1])->save();
+        $delivery->forceFill([
+            'attempts' => $delivery->attempts + 1,
+            'signature' => $signature,
+        ])->save();
 
         try {
             // DNS DIPERIKSA LAGI DI SINI, bukan hanya saat langganan disimpan:
@@ -102,7 +132,7 @@ class DeliverWebhook implements ShouldQueueAfterCommit
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
                 'User-Agent' => 'Nusantara-ERP-Webhook/'.WebhookSignature::ALGORITHM,
-                WebhookSignature::HEADER => (string) $delivery->signature,
+                WebhookSignature::HEADER => $signature,
                 WebhookSignature::EVENT_HEADER => (string) $delivery->event_id,
                 WebhookSignature::DELIVERY_HEADER => (string) $delivery->getKey(),
             ])
@@ -115,14 +145,16 @@ class DeliverWebhook implements ShouldQueueAfterCommit
                 ->withBody((string) $delivery->payload, 'application/json')
                 ->post((string) $delivery->url);
         } catch (Throwable $e) {
-            $this->recordAttemptFailure($delivery, null, ProviderErrorScrubber::scrub($e->getMessage()));
+            $scrubbed = ProviderErrorScrubber::scrub($e->getMessage(), self::secretsOf($subscription));
+
+            $this->recordAttemptFailure($delivery, null, $scrubbed);
 
             // Alamat yang ditolak kebijakan SSRF tidak akan berubah karena
             // diulang empat kali lagi; ia gagal SEKETIKA, seperti penolakan
             // permanen penyedia di DeliverNotification.
             if ($e instanceof \LogicException) {
-                $this->stop($delivery, ProviderErrorScrubber::scrub($e->getMessage()));
-                $webhooks->recordFailure($subscription, ProviderErrorScrubber::scrub($e->getMessage()));
+                $this->stop($delivery, $scrubbed);
+                $webhooks->recordFailure($subscription, $scrubbed);
 
                 return;
             }
@@ -147,7 +179,7 @@ class DeliverWebhook implements ShouldQueueAfterCommit
         $reason = $response->redirect()
             ? "Penerima menjawab {$response->status()} (redirect). Redirect tidak diikuti: sebuah kiriman bertanda tangan "
                 .'yang mengikuti Location bisa mendarat di alamat internal. Pakai URL tujuan akhirnya langsung.'
-            : "Penerima menjawab {$response->status()}. ".ProviderErrorScrubber::scrub((string) $response->body());
+            : $this->recipientSentence($response->status(), (string) $response->body(), $subscription);
 
         $this->recordAttemptFailure($delivery, $response->status(), $reason);
 
@@ -170,17 +202,16 @@ class DeliverWebhook implements ShouldQueueAfterCommit
 
         $last = trim((string) $delivery->error);
         $suffix = $last === '' ? '' : " Jawaban terakhir penerima: {$last}";
+        $subscription = WebhookSubscription::query()->find($delivery->subscription_id);
 
         $error = match (true) {
             $e instanceof TimeoutExceededException => 'Pekerja antrean kehabisan waktu saat mengirim — penerima tidak menjawab dalam batas waktu pekerja.'.$suffix,
             $e instanceof MaxAttemptsExceededException => 'Percobaan habis sebelum penerima menjawab.'.$suffix,
             $e === null => $last === '' ? 'Gagal tanpa pesan.' : $last,
-            default => ProviderErrorScrubber::scrub($e->getMessage()),
+            default => ProviderErrorScrubber::scrub($e->getMessage(), self::secretsOf($subscription)),
         };
 
         $this->stop($delivery, $error);
-
-        $subscription = WebhookSubscription::query()->find($delivery->subscription_id);
 
         if ($subscription !== null) {
             app(WebhookService::class)->recordFailure($subscription, $error);
@@ -205,6 +236,42 @@ class DeliverWebhook implements ShouldQueueAfterCommit
             'error' => Str::limit($reason, 490),
             'next_attempt_at' => $delay === null || $attempt >= $this->tries ? null : now()->addSeconds($delay),
         ])->save();
+    }
+
+    /**
+     * Kalimat untuk jawaban penerima yang BUKAN 2xx.
+     *
+     * DUA HAL YANG TIDAK BOLEH SAMPAI KE KOLOM `error` (V-webhook-3 dan
+     * V-webhook-4). (1) Byte yang bukan teks: sebuah badan galat
+     * windows-1252 atau ter-gzip menjatuhkan penulisan barisnya di MySQL
+     * (`1366 Incorrect string value`), dan yang akhirnya terbaca di layar
+     * adalah kalimat Inggris yang menyebut soket dan nama basis data — bukan
+     * sebab pengiriman. Ia diganti hitungan byte-nya. (2) Rahasia langganan:
+     * penerima yang menolong ("your secret … is wrong") menuliskannya ke
+     * kolom 500 karakter yang dibaca setiap pemegang core.update dan ikut ke
+     * setiap backup, membatalkan janji "tampil sekali". Ia diserahkan ke
+     * penyaring sebagai rahasia yang DIKENAL, jalur yang sama dengan P-3a.
+     */
+    private function recipientSentence(int $status, string $body, WebhookSubscription $subscription): string
+    {
+        if ($body !== '' && ! mb_check_encoding($body, 'UTF-8')) {
+            return "Penerima menjawab {$status} dengan badan yang bukan teks (".strlen($body).' byte). '
+                .'Isinya tidak dikutip di sini karena bukan kalimat yang bisa dibaca.';
+        }
+
+        return "Penerima menjawab {$status}. ".ProviderErrorScrubber::scrub($body, self::secretsOf($subscription));
+    }
+
+    /** @return list<string> */
+    private static function secretsOf(?WebhookSubscription $subscription): array
+    {
+        try {
+            $secret = (string) ($subscription?->secret ?? '');
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        return $secret === '' ? [] : [$secret];
     }
 
     private function stop(WebhookDelivery $delivery, string $reason): void
