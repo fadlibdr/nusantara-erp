@@ -383,8 +383,9 @@ function presetCard(form, preset, onDelete) {
   const m = form.mapping;
   const set = (key) => (value) => { m[key] = value === null ? null : value; };
   const setNum = (key) => (value) => { m[key] = value === null ? null : Number(value); };
-  const header = preset.expected_header
-    ? Object.entries(preset.expected_header).map(([index, cell]) => `Kolom ${Number(index) + 1} '${cell}'`).join(' · ')
+  // Daftar {index, cell} dari server (bukan peta berindeks: JsonResource membuang kunci numerik).
+  const header = Array.isArray(preset.expected_header) && preset.expected_header.length
+    ? preset.expected_header.map((h) => `Kolom ${Number(h.index) + 1} '${h.cell}'`).join(' · ')
     : null;
 
   return el('.card.bank-preset-card', [

@@ -118,8 +118,12 @@ class BankImportPresetTest extends ErpTestCase
         $this->assertSame($expected, $stored);
         $this->assertArrayNotHasKey('period_start', $preset['mapping']);
         $this->assertArrayNotHasKey('opening_balance', $preset['mapping']);
-        // Sel baris judul HANYA pada kolom yang dipetakan (Cabang, kolom 3, tidak dipetakan → tidak diingat).
-        $this->assertSame(['0' => 'Tanggal', '1' => 'Keterangan', '3' => 'Debit', '4' => 'Kredit', '5' => 'Saldo'], $preset['expected_header']);
+        // Sel baris judul HANYA pada kolom yang dipetakan (Cabang, kolom 3, tidak dipetakan → tidak diingat) —
+        // sebagai DAFTAR {index, cell}: peta berkunci angka di-array_values() oleh JsonResource (lihat uji resource di bawah).
+        $this->assertSame([
+            ['index' => 0, 'cell' => 'Tanggal'], ['index' => 1, 'cell' => 'Keterangan'], ['index' => 3, 'cell' => 'Debit'],
+            ['index' => 4, 'cell' => 'Kredit'], ['index' => 5, 'cell' => 'Saldo'],
+        ], $preset['expected_header']);
         $this->assertNotNull($preset['saved_at']);
         $this->assertSame(auth()->id(), $preset['saved_by']);
 
@@ -131,6 +135,26 @@ class BankImportPresetTest extends ErpTestCase
             ->assertOk()
             ->assertJsonPath('data.import_preset.name', 'BCA KlikBCA')
             ->assertJsonPath('data.import_preset.mapping.balance_column', 5);
+    }
+
+    /**
+     * Ditemukan di Chromium (S39): JsonResource menjalankan array_values() atas array berkunci numerik,
+     * jadi expected_header {"0","1","3",…} sampai ke layar sebagai daftar dan kartu preset menulis
+     * "Kolom 3 'Debit'" untuk kolom 4. Indeks kolom harus SELAMAT melewati resource DAN daftar rekening.
+     */
+    public function test_the_header_indexes_survive_the_resource_so_the_screen_can_name_the_right_column(): void
+    {
+        $this->savePreset();
+
+        $viaShow = $this->getJson("/api/finance/bank-accounts/{$this->bank->id}")->assertOk()->json('data.import_preset.expected_header');
+        $viaIndex = collect($this->getJson('/api/finance/bank-accounts?per_page=100')->assertOk()->json('data'))
+            ->firstWhere('id', $this->bank->id)['import_preset']['expected_header'];
+
+        foreach ([$viaShow, $viaIndex] as $header) {
+            $this->assertSame(3, $header[2]['index']);
+            $this->assertSame('Debit', $header[2]['cell']);
+            $this->assertSame([0, 1, 3, 4, 5], array_column($header, 'index'));
+        }
     }
 
     public function test_saving_a_preset_needs_fin_update_not_only_fin_create(): void

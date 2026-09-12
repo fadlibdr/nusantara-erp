@@ -80,9 +80,15 @@ final class ImportPreset
      * DILEWATI parser (baris fisik ke-skip_rows). null bila preset tidak
      * punya baris judul (skip_rows 0) atau barisnya tidak ada.
      *
+     * DAFTAR objek {index, cell}, BUKAN peta berindeks angka: JsonResource
+     * Laravel (BankAccountResource) menjalankan array_values() atas array
+     * berkunci numerik, sehingga {"0","1","3"} sampai ke layar sebagai
+     * ["…","…","…"] dan kartu preset menulis "Kolom 3 'Debit'" untuk kolom 4
+     * — terukur di Chromium (harness S39) sebelum bentuk ini diganti.
+     *
      * @param  list<string>|null  $headerRow
      * @param  array<string, mixed>  $mapping
-     * @return array<string, string>|null indeks (string) => sel
+     * @return list<array{index: int, cell: string}>|null
      */
     public static function expectedHeader(?array $headerRow, array $mapping): ?array
     {
@@ -93,7 +99,7 @@ final class ImportPreset
         $expected = [];
 
         foreach (self::mappedColumns($mapping) as $index) {
-            $expected[(string) $index] = trim((string) ($headerRow[$index] ?? ''));
+            $expected[] = ['index' => $index, 'cell' => trim((string) ($headerRow[$index] ?? ''))];
         }
 
         return $expected;
@@ -141,15 +147,21 @@ final class ImportPreset
         $name = (string) ($preset['name'] ?? '');
         $sentences = [];
 
-        foreach ($expected as $index => $cell) {
-            $actual = $headerRow === null ? '' : trim((string) ($headerRow[(int) $index] ?? ''));
+        foreach ($expected as $entry) {
+            if (! is_array($entry) || ! isset($entry['index'])) {
+                continue;
+            }
 
-            if ($actual !== (string) $cell) {
+            $index = (int) $entry['index'];
+            $cell = (string) ($entry['cell'] ?? '');
+            $actual = $headerRow === null ? '' : trim((string) ($headerRow[$index] ?? ''));
+
+            if ($actual !== $cell) {
                 $sentences[] = sprintf(
                     "Kolom %d pada preset «%s» diharapkan '%s', berkas berisi '%s'.",
-                    (int) $index + 1,
+                    $index + 1,
                     $name,
-                    (string) $cell,
+                    $cell,
                     $actual,
                 );
             }
