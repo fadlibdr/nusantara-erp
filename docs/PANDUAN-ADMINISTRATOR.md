@@ -2278,7 +2278,10 @@ langganan disimpan (422 dengan kalimatnya) dan lagi saat kiriman berangkat (nama
 yang hari ini publik bisa besok menunjuk ke `127.0.0.1`). Yang ditolak: loopback,
 `10/8`, `172.16/12`, `192.168/16`, `169.254/16` (termasuk `169.254.169.254`,
 alamat metadata awan), `100.64/10`, `::1`, `fc00::/7`, dan nama berakhiran
-`.local` / `.internal`. **Redirect tidak diikuti**: sebuah penerima yang menjawab
+`.local` / `.internal`. Bentuk samaran dari alamat yang sama ikut ditolak —
+`[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`, NAT64 `[64:ff9b::7f00:1]`, dan
+bentuk numerik `2130706433` / `0177.0.0.1` / `127.1` — karena semuanya mendarat
+di soket yang sama. **Redirect tidak diikuti**: sebuah penerima yang menjawab
 `302 Location: http://169.254.169.254/` akan memindahkan kiriman bertanda tangan
 kita ke sana tanpa satu pun pemeriksaan di atas berlaku lagi. Sikap ini tertulis
 di `docs/KEPUTUSAN-INTEGRASI.md` §11.

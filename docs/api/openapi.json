@@ -135,7 +135,123 @@
         },
         "required": [
           "message"
+        ],
+        "description": "Badan 403 KETIKA yang kurang adalah ability TOKEN. Ketika yang kurang adalah izin PENGGUNANYA, badannya bentuk Galat: hanya `message`, tanpa `errors`."
+      },
+      "AmplopDaftar": {
+        "type": "object",
+        "description": "Jawaban DAFTAR berhalaman: data adalah larik, dan meta menyebut halaman mana yang Anda pegang. Minta halaman berikutnya dengan parameter kueri `page`.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "current_page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "from": {
+                "type": "integer",
+                "nullable": true
+              },
+              "to": {
+                "type": "integer",
+                "nullable": true
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              },
+              "sortable": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Kolom yang boleh dipakai parameter sort. Nama lain dijawab 422, tidak pernah diabaikan diam-diam."
+              },
+              "sort": {
+                "type": "string",
+                "nullable": true
+              },
+              "dir": {
+                "type": "string",
+                "enum": [
+                  "asc",
+                  "desc"
+                ]
+              }
+            },
+            "required": [
+              "current_page",
+              "per_page",
+              "total",
+              "last_page"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
         ]
+      }
+    },
+    "parameters": {
+      "Halaman": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Halaman ke berapa, mulai dari 1. Halaman terakhir ada di meta.last_page.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "PerHalaman": {
+        "name": "per_page",
+        "in": "query",
+        "required": false,
+        "description": "Baris per halaman. Nilai yang bukan bilangan positif memakai bawaan daftar ini (20 pada sebagian besar daftar).",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20
+        }
+      },
+      "Urut": {
+        "name": "sort",
+        "in": "query",
+        "required": false,
+        "description": "Kolom pengurutan; harus salah satu nama di meta.sortable, nama lain dijawab 422.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Arah": {
+        "name": "dir",
+        "in": "query",
+        "required": false,
+        "description": "Arah pengurutan. Selain 'desc' diperlakukan 'asc'.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "default": "asc"
+        }
       }
     }
   },
@@ -169,9 +285,56 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validasi gagal — email atau password tidak dikirim, atau email bukan alamat yang sah. errors menyebut field-nya.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Batas laju terlampaui. PINTU INI JAUH LEBIH KETAT daripada 300 permintaan/menit yang berlaku untuk token integrasi: 10 permintaan/menit per kombinasi e-mail + alamat IP (throttle:10,1 pada rutenya). Badannya «Too Many Attempts.» berbahasa Inggris — kalimat bawaan pembatas laju Laravel, bukan kalimat aplikasi ini — dan header Retry-After menyebut berapa detik lagi. Klien yang mengulang masuk di dalam loop menabraknya.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Galat"
+                }
+              }
+            }
           }
         },
-        "security": []
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "examples": [
+                      "admin@nusantara.test"
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/api/iam/auth/me": {
@@ -205,7 +368,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -238,11 +401,11 @@
         "x-izin": [],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -258,7 +421,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -277,7 +440,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       },
       "post": {
         "summary": "Membuat pelanggan",
@@ -321,7 +498,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -337,6 +514,96 @@
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "nullable": true,
+                    "description": "Kosongkan untuk dinomori otomatis; bila diisi harus unik."
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "legal_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true
+                  },
+                  "npwp": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "nullable": true,
+                    "description": "15, 16 (NIK) atau 22 digit (NITKU). Format lain dijawab 422."
+                  },
+                  "is_pkp": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "billing_address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "nullable": true
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "nullable": true
+                  },
+                  "province": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "nullable": true
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "nullable": true
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 255,
+                    "nullable": true
+                  },
+                  "pic_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "nullable": true
+                  },
+                  "pic_phone": {
+                    "type": "string",
+                    "maxLength": 30,
+                    "nullable": true
+                  },
+                  "payment_term_days": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365,
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ],
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "name"
+                ]
               }
             }
           }
@@ -374,7 +641,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -417,11 +684,11 @@
         "x-izin": [],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -437,7 +704,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -456,7 +723,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/procurement/vendors/{vendor}": {
@@ -490,7 +771,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -533,11 +814,11 @@
         "x-izin": [],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -553,7 +834,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -572,7 +853,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/procurement/purchase-orders/{purchaseOrder}": {
@@ -606,7 +901,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -651,11 +946,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -671,7 +966,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -690,7 +985,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/finance/ar-invoices/{arInvoice}": {
@@ -726,7 +1035,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -771,11 +1080,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -791,7 +1100,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -810,7 +1119,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/finance/ap-bills/{apBill}": {
@@ -846,7 +1169,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -891,11 +1214,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -911,7 +1234,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -930,7 +1253,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/finance/payments/{payment}": {
@@ -966,7 +1303,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1011,11 +1348,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -1031,7 +1368,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1050,7 +1387,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/subcontract/subcontracts": {
@@ -1064,11 +1415,11 @@
         "x-izin": [],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -1084,7 +1435,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1103,7 +1454,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/inventory/goods-receipts": {
@@ -1117,11 +1482,11 @@
         "x-izin": [],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -1137,7 +1502,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1156,7 +1521,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     },
     "/api/core/webhooks": {
@@ -1192,7 +1571,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1227,11 +1606,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil — satu halaman. meta.current_page menyebut halaman yang Anda pegang; minta berikutnya dengan page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Amplop"
+                  "$ref": "#/components/schemas/AmplopDaftar"
                 }
               }
             }
@@ -1247,7 +1626,7 @@
             }
           },
           "403": {
-            "description": "Token tidak membawa ability yang dibutuhkan, atau pemiliknya tidak memegang izinnya. Badan jawaban menyebut ability yang kurang di errors.token_abilities.",
+            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1266,7 +1645,21 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Halaman"
+          },
+          {
+            "$ref": "#/components/parameters/PerHalaman"
+          },
+          {
+            "$ref": "#/components/parameters/Urut"
+          },
+          {
+            "$ref": "#/components/parameters/Arah"
+          }
+        ]
       }
     }
   }

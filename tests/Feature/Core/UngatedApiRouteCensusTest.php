@@ -13,51 +13,30 @@ use Tests\ErpTestCase;
  * pun. Sebuah rute yang hanya menuntut autentikasi dijangkau token terbatas
  * milik seseorang persis seperti sesi peramban orang itu.
  *
- * Batas itu hanya jujur selama UKURANNYA diketahui. Uji ini mengukurnya dan
- * memaku angkanya (12 Sep 2026), jadi rute TULIS ke-30 yang tidak dijaga izin
- * apa pun memerahkan gerbang alih-alih diam-diam memperlebar apa yang bisa
- * dilakukan sebuah token "hanya baca".
+ * Batas itu hanya jujur selama setiap rute TULIS tanpa gerbang izin adalah
+ * rute yang SESEORANG SUDAH MELIHATNYA. Itulah — dan hanya itulah — yang
+ * dipaku di sini: daftar literal, yang tiap barisnya sebuah keputusan.
  *
- * DIBATASI PADA APA YANG DIJAGANYA. Ia tidak memaku 852 nama rute — daftar
- * sepanjang itu akan merah setiap kali sebuah modul menambahkan endpoint yang
- * wajar (pelajaran 4). Yang dipaku adalah (a) tiga hitungan, dan (b) daftar
- * LITERAL rute TULIS tanpa gerbang izin, yang tiap barisnya adalah keputusan:
- * setiap satu di antaranya harus self-service (rekam pemanggil sendiri) atau
- * memeriksa izin DI DALAM controllernya.
+ * DIBATASI PADA APA YANG DIJAGANYA (pelajaran 4, V-OPENAPI-6). Versi pertama
+ * uji ini juga memaku EMPAT total seluruh aplikasi (862 rute api, 644
+ * bergerbang, 218 tidak, 646 kemunculan middleware). Sebuah rute baru yang
+ * sepenuhnya wajar DAN dijaga izin — `GET crm/customers/{customer}/
+ * ringkasan-piutang` dengan `permission:crm.view` — memerahkan gerbang P-3d
+ * dengan pesan yang menyuruh penulisnya menyunting berkas uji P-3d dan laporan
+ * P-3d, untuk sesuatu yang tidak ada hubungannya dengan token maupun webhook.
+ * Paku yang merah tanpa sebab adalah paku yang akan dimatikan orang, dan yang
+ * ikut mati adalah daftar di bawah — satu-satunya bagian yang berharga.
+ *
+ * Jumlah berjalannya diukur dengan `php artisan route:list --json` ketika ada
+ * yang ingin tahu; ia tidak dipaku di mana pun, karena ia tumbuh.
  */
 class UngatedApiRouteCensusTest extends ErpTestCase
 {
     /**
-     * Diukur `php artisan route:list --json` SESUDAH P-3d, 12 Sep 2026.
-     *
-     * Pada main 8438066 angkanya 852 / 637 / 215; P-3d menambah sepuluh rute —
-     * tiga Profil › Token API dan tujuh Sistem › Webhook.
-     */
-    private const API_ROUTES = 862;
-
-    private const WITH_PERMISSION_MIDDLEWARE = 644;
-
-    private const WITHOUT_PERMISSION_MIDDLEWARE = 218;
-
-    /**
-     * 637 RUTE, 639 MIDDLEWARE — dan selisih dua itu adalah cara angka ini
-     * pertama kali diukur SALAH.
-     *
-     * `php artisan route:list --json` memulangkan satu baris per rute dengan
-     * DAFTAR middlewarenya, dan menghitung kemunculan `PermissionMiddleware`
-     * di seluruh daftar itu memberi 639: `POST subcontract/subcontracts/
-     * {subcontract}/advance-payout` dan `.../retention-release` masing-masing
-     * membawa DUA (`scm.post` DAN `fin.approve` — satu klik di sana mencetak
-     * tagihan AP yang sudah disetujui). Uji ini menghitung RUTE, dan itulah
-     * angka yang berarti bagi sebuah token: 637 dijaga izin, 215 tidak.
-     */
-    private const PERMISSION_MIDDLEWARE_OCCURRENCES = 646;
-
-    /**
      * Rute TULIS di bawah `api/` yang tidak membawa `permission:` sama sekali.
      *
      * Masing-masing sudah diperiksa satu per satu dan masuk salah satu dari dua
-     * golongan, yang disebut di LAPORAN P-3d §5:
+     * golongan, yang disebut di LAPORAN P-3d §12.1:
      *
      *   session-only  menyentuh kredensial atau identitas pemanggil, dan
      *                 karena itu ditolak untuk token pribadi oleh
@@ -142,34 +121,6 @@ class UngatedApiRouteCensusTest extends ErpTestCase
         return $rows;
     }
 
-    public function test_the_measured_size_of_the_api_surface_has_not_drifted(): void
-    {
-        $rows = $this->apiRoutes();
-
-        $this->assertCount(self::API_ROUTES, $rows, 'Jumlah rute api berubah — perbarui angka DAN LAPORAN P-3d §0.');
-
-        $gated = array_filter($rows, static fn (array $row): bool => $row['gated']);
-
-        $this->assertCount(self::WITH_PERMISSION_MIDDLEWARE, $gated);
-        $this->assertCount(self::WITHOUT_PERMISSION_MIDDLEWARE, array_diff_key($rows, $gated));
-
-        $occurrences = 0;
-
-        foreach (Route::getRoutes() as $route) {
-            if (! str_starts_with(ltrim((string) $route->uri(), '/'), 'api/')) {
-                continue;
-            }
-
-            foreach ($route->gatherMiddleware() as $middleware) {
-                if (is_string($middleware) && str_starts_with($middleware, 'permission:')) {
-                    $occurrences++;
-                }
-            }
-        }
-
-        $this->assertSame(self::PERMISSION_MIDDLEWARE_OCCURRENCES, $occurrences);
-    }
-
     public function test_every_write_route_without_a_permission_gate_is_one_that_was_looked_at(): void
     {
         $writes = [];
@@ -191,7 +142,7 @@ class UngatedApiRouteCensusTest extends ErpTestCase
             'Sebuah rute TULIS tanpa gerbang izin ditambahkan atau dihapus. Setiap baris di daftar ini adalah '
             .'keputusan: ia harus self-service atau memeriksa izin di dalam controllernya, karena ability token '
             .'tidak bisa mempersempit apa yang tidak dijaga izin. Periksa rutenya, lalu perbarui daftar ini dan '
-            .'LAPORAN P-3d §5.',
+            .'LAPORAN P-3d §12.1.',
         );
     }
 }

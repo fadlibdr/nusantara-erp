@@ -264,6 +264,16 @@ class ApiTokenAbilityMatrixTest extends ErpTestCase
         $response = $this->asToken($token, '/api/finance/journals')->assertForbidden();
 
         $this->assertStringNotContainsString('tidak memiliki ability', (string) $response->json('message'));
+
+        // V-OPENAPI-2: BENTUK BADANNYA BERBEDA, dan dokumen sekarang
+        // mengatakannya. Kasus ini — token integrasi milik akun teknis yang
+        // perannya dipersempit pemilik — adalah 403 yang paling sering
+        // terjadi di produksi, dan klien yang menulis
+        // `body.errors.token_abilities` dari dokumen mendapat kunci yang tidak
+        // ada. Yang dipaku di sini adalah kenyataannya; openapi.json menyalin
+        // kalimat ini, dan OpenApiDriftTest menuntut keduanya tetap sama.
+        $this->assertNull($response->json('errors'));
+        $this->assertStringContainsString('User does not have the right permissions.', (string) $response->json('message'));
     }
 
     /**

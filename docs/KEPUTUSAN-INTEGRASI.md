@@ -290,6 +290,7 @@ diketik pemakainya adalah **proxy permintaan ke dalam jaringannya sendiri**.
 | nama berakhiran `.local`, `.internal`, `.localhost`, `.home.arpa`, dan `localhost` telanjang | Nama yang tidak pernah keluar dari jaringan sendiri |
 | URL yang membawa nama pengguna/kata sandi | Rahasianya adalah tanda tangan, bukan URL-nya |
 | **Redirect** (`3xx`) | Sebuah penerima yang menjawab `302 Location: http://169.254.169.254/` memindahkan kiriman bertanda tangan kita ke sana tanpa satu pun baris di atas berlaku lagi |
+| **Bentuk samaran dari alamat yang sama** — `[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`, `[::10.0.0.1]`, NAT64 `[64:ff9b::7f00:1]`, dan bentuk numerik `2130706433` / `0177.0.0.1` / `127.1` | Sebuah alamat ditulis dengan lebih dari satu cara dan mendarat di soket yang SAMA. `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` milik PHP TIDAK menutup `::ffff:0:0/96`, dan `filter_var` tidak mengenali bentuk numerik sebagai IP sama sekali sehingga host-nya diperlakukan sebagai NAMA. Maka alamatnya dinormalkan lebih dulu, lalu dinilai (putaran verifikasi V-webhook-2) |
 
 **Diperiksa DUA KALI: saat menyimpan DAN saat mengirim.** DNS bisa berubah di
 antara keduanya — sebuah nama yang hari ini menunjuk ke alamat publik bisa besok
