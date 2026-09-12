@@ -28,8 +28,13 @@ use InvalidArgumentException;
  * describe() murni: klaim `verified_against` yang berkasnya tidak ada di pohon
  * diturunkan kembali menjadi "belum ada berkas ekspor nyata" DAN pemetaannya
  * ditahan (null) — klaim tidak pernah boleh mendahului buktinya, termasuk pada
- * deploy yang lupa menyalin docs/. Kalimatnya sampai ke API (`data.presets`),
- * kartu registri di layar Impor, dan README dari SATU sumber ini.
+ * deploy yang lupa menyalin docs/. Berkas yang ADA pun hanya dihitung bila ia
+ * berkas ekspor nyata menurut aturan README §2–§3: di bawah SAMPLES_DIR, dengan
+ * nama <kunci>-<kanal>-<YYYY-MM-DD>.<ekstensi>, dan tanggal verifikasi
+ * YYYY-MM-DD — contoh demo di docs/samples/ atau README.md yang ditunjuk sebagai
+ * "bukti" diturunkan sambil menyebut jalur yang salah (putaran verifikasi
+ * V-preset-1). Kalimatnya sampai ke API (`data.presets`), kartu registri di
+ * layar Impor, dan README dari SATU sumber ini.
  *
  * Preset yang BISA dipakai hari ini adalah preset per REKENING (kolom
  * fin_bank_accounts.import_preset, T3c.1): disimpan operator dari pemetaan
@@ -57,6 +62,16 @@ final class BankPresets
 
     /** Awalan kalimat yang dipaku uji dan dicari harness — jangan diparafrasakan. */
     public const UNVERIFIED_PREFIX = 'BELUM ADA BERKAS EKSPOR NYATA';
+
+    /**
+     * Jalur yang boleh menjadi bukti: docs/samples/bank/<kunci>-<kanal>-<YYYY-MM-DD>.<ekstensi> —
+     * persis pola nama README §2. Apa pun di luar itu (contoh demo docs/samples/*, README.md)
+     * bukan berkas ekspor nyata, walaupun ada di pohon.
+     */
+    public static function evidencePath(string $key, string $path): bool
+    {
+        return preg_match('#^'.preg_quote(self::SAMPLES_DIR, '#').'/'.preg_quote($key, '#').'-[a-z0-9]+-\d{4}-\d{2}-\d{2}\.[a-z0-9]+$#', $path) === 1;
+    }
 
     /**
      * Deklarasi mentah. verified_against: null, atau ['path' => …, 'date' =>
@@ -195,7 +210,21 @@ final class BankPresets
         $against = null;
 
         if (is_array($declared) && isset($declared['path'], $declared['date'], $declared['by'])) {
-            if (is_file(base_path((string) $declared['path']))) {
+            $wellFormed = self::evidencePath($key, (string) $declared['path']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $declared['date']) === 1;
+
+            if (! $wellFormed) {
+                $verification = sprintf(
+                    '%s %s — registri menunjuk %s (%s, %s), tetapi itu bukan berkas ekspor nyata menurut %s: yang dihitung hanya %s/%s.<ekstensi> dengan tanggal YYYY-MM-DD; contoh demo tidak dinaikkan menjadi preset.',
+                    self::UNVERIFIED_PREFIX,
+                    $bank,
+                    $declared['path'],
+                    $declared['date'],
+                    $declared['by'],
+                    self::README,
+                    self::SAMPLES_DIR,
+                    $stem,
+                );
+            } elseif (is_file(base_path((string) $declared['path']))) {
                 $verified = true;
                 $against = ['path' => (string) $declared['path'], 'date' => (string) $declared['date'], 'by' => (string) $declared['by']];
                 $verification = sprintf(

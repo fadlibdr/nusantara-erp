@@ -422,7 +422,14 @@ class BankImportPresetTest extends ErpTestCase
     {
         $screen = (string) file_get_contents(public_path('app/js/views/bankrecon.js'));
 
-        $this->assertStringContainsString('use_preset', $screen, 'bankrecon.js tidak mengirim use_preset');
+        // Literal, bukan sekadar kata: `use_preset: true` tanpa syarat (pemilih "Tetapkan kolom sendiri"
+        // diam-diam memakai preset) dan `use_preset: false` + pemetaan preset yang digabung SPA (preset
+        // diterapkan tanpa pemeriksaan header server) keduanya LOLOS pada paku kata — putaran verifikasi
+        // V-preset-4 / V-permukaan-1.
+        $this->assertStringContainsString('use_preset: usingPreset(),', $screen, 'use_preset harus persis mengikuti pemilih preset');
+        $this->assertStringContainsString("mapping: form.format === 'csv' ? (usingPreset() ? perFileMapping(form.mapping) : form.mapping) : undefined,", $screen,
+            'dengan preset hanya periode/saldo yang dikirim; tanpa preset pemetaan penuh — server yang menerapkan preset, bukan SPA');
+        $this->assertStringContainsString("const PER_FILE_KEYS = ['period_start', 'period_end', 'opening_balance', 'closing_balance'];", $screen);
         $this->assertStringContainsString('import_preset', $screen, 'bankrecon.js tidak membaca import_preset dari resource rekening');
         $this->assertStringContainsString('/import-preset', $screen, 'bankrecon.js tidak memanggil PUT/DELETE import-preset');
         $this->assertStringContainsString('bank-statements/presets', $screen, 'bankrecon.js tidak membaca registri preset bawaan dari API');

@@ -155,7 +155,8 @@ merah. Tab **Rekening Koran**: **`Cocokkan`** per baris, atau **`Tanpa padanan`*
 alasan. Layar ini tidak pernah membuat jurnal; biaya admin bank dibukukan lewat Jurnal
 (butir 6) lalu dicocokkan. Tab **Rekonsiliasi**: baca kartu **"Periksa — kemungkinan
 salah catat"** walau jembatannya tampak menutup. Sesudah pratinjau CSV pertama hijau,
-**`Simpan sebagai preset rekening ini`** (butuh izin ubah keuangan — `finance-manager`):
+**`Simpan sebagai preset rekening ini`** (butuh izin ubah keuangan — `fin.update`; dalam data
+demo itu peran `finance`, bukan `finance-manager` yang hanya melihat dan menyetujui):
 bulan depan tinggal pilih presetnya dan ketik periode/saldo; berkas yang judul kolomnya
 bergeser ditolak dengan menyebut kolomnya. Petakan **Kolom saldo** bila rekening itu akan
 dibaca dari **folder terpantau** (tab kelima): berkas yang administrator letakkan di folder

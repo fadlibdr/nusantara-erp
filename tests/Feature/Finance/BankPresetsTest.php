@@ -117,46 +117,108 @@ class BankPresetsTest extends ErpTestCase
         $this->assertSame('Belum ada berkas ekspor nyata', $entry['badge_label']);
     }
 
-    /** …dan klaim yang berkasnya ADA naik menjadi terverifikasi, dengan pemetaannya dan siapa yang memverifikasi. */
-    public function test_a_declared_verification_with_the_file_present_is_reported_with_path_date_and_person(): void
+    /**
+     * …dan klaim yang berkasnya ADA — di docs/samples/bank/ dengan nama <kunci>-<kanal>-<YYYY-MM-DD>.<ekstensi> —
+     * naik menjadi terverifikasi, dengan pemetaannya dan siapa yang memverifikasi. Berkasnya dibuat sementara
+     * (folder itu hari ini hanya berisi README, dipaku uji lain) dan dihapus lagi.
+     */
+    public function test_a_declared_verification_with_a_real_export_file_present_is_reported_with_path_date_and_person(): void
     {
         $mapping = ['delimiter' => ';', 'skip_rows' => 1, 'date_column' => 0, 'date_format' => 'dd/mm/yyyy',
             'amount_mode' => 'debit_credit', 'debit_column' => 2, 'credit_column' => 3, 'balance_column' => 4, 'number_format' => 'id'];
+        $path = 'docs/samples/bank/bri-brimo-2026-09-30.csv';
+        file_put_contents(base_path($path), "sementara\n");
 
-        $entry = BankPresets::describe([
-            'key' => 'bri', 'label' => 'BRI', 'bank' => 'Bank Rakyat Indonesia', 'channels' => ['BRImo Bisnis'],
-            // Berkas yang ADA di pohon: README folder itu sendiri — cukup untuk membuktikan cabangnya.
-            'verified_against' => ['path' => 'docs/samples/bank/README.md', 'date' => '2026-09-12', 'by' => 'pemilik'],
-            'mapping' => $mapping,
-            'demo_note' => null,
-        ]);
+        try {
+            $entry = BankPresets::describe([
+                'key' => 'bri', 'label' => 'BRI', 'bank' => 'Bank Rakyat Indonesia', 'channels' => ['BRImo Bisnis'],
+                'verified_against' => ['path' => $path, 'date' => '2026-09-30', 'by' => 'pemilik'],
+                'mapping' => $mapping,
+                'demo_note' => null,
+            ]);
+            $bare = BankPresets::describe([
+                'key' => 'bri', 'label' => 'BRI', 'bank' => 'Bank Rakyat Indonesia', 'channels' => ['BRImo Bisnis'],
+                'verified_against' => ['path' => $path, 'date' => '2026-09-30', 'by' => 'pemilik'],
+                'mapping' => null,
+                'demo_note' => null,
+            ]);
+        } finally {
+            unlink(base_path($path));
+        }
 
         $this->assertTrue($entry['verified']);
         $this->assertTrue($entry['selectable']);
         $this->assertSame($mapping, $entry['mapping']);
-        $this->assertSame(['path' => 'docs/samples/bank/README.md', 'date' => '2026-09-12', 'by' => 'pemilik'], $entry['verified_against']);
+        $this->assertSame(['path' => $path, 'date' => '2026-09-30', 'by' => 'pemilik'], $entry['verified_against']);
         $this->assertSame(
-            'Diverifikasi terhadap docs/samples/bank/README.md (2026-09-12, pemilik) — cocokkan ulang bila Bank Rakyat Indonesia mengubah tata letak ekspornya; register verifikasi di docs/samples/bank/README.md §4.',
+            'Diverifikasi terhadap docs/samples/bank/bri-brimo-2026-09-30.csv (2026-09-30, pemilik) — cocokkan ulang bila Bank Rakyat Indonesia mengubah tata letak ekspornya; register verifikasi di docs/samples/bank/README.md §4.',
             $entry['verification'],
         );
-        $this->assertSame('Diverifikasi 2026-09-12', $entry['badge_label']);
+        $this->assertSame('Diverifikasi 2026-09-30', $entry['badge_label']);
         $this->assertNull($entry['awaiting_file']);
         $this->assertSame(BankPresets::STATUS_ADA, $entry['status']);
+
+        // Berkas ada tetapi pemetaannya belum ditulis: terverifikasi bukan berarti bisa dipilih.
+        $this->assertTrue($bare['verified']);
+        $this->assertFalse($bare['selectable']);
+        $this->assertNull($bare['mapping']);
     }
 
-    /** Berkas ada tetapi pemetaannya belum ditulis: terverifikasi bukan berarti bisa dipilih. */
-    public function test_a_verified_entry_without_a_mapping_is_still_not_selectable(): void
+    /**
+     * V-preset-1: berkas yang ADA di pohon tetapi bukan berkas ekspor nyata menurut aturan README —
+     * contoh demo di docs/samples/, README.md folder itu sendiri, nama yang tidak berpola, tanggal
+     * yang bukan YYYY-MM-DD — TIDAK menaikkan apa pun: verified false, mapping ditahan, kalimatnya
+     * menyebut jalur yang salah. Inilah yang menjaga "contoh demo tidak dinaikkan menjadi preset".
+     */
+    public function test_a_file_that_exists_but_is_not_a_real_export_under_samples_bank_never_verifies(): void
     {
-        $entry = BankPresets::describe([
-            'key' => 'bri', 'label' => 'BRI', 'bank' => 'Bank Rakyat Indonesia', 'channels' => ['BRImo Bisnis'],
-            'verified_against' => ['path' => 'docs/samples/bank/README.md', 'date' => '2026-09-12', 'by' => 'pemilik'],
-            'mapping' => null,
+        $mapping = ['delimiter' => ';', 'skip_rows' => 1, 'date_column' => 0, 'date_format' => 'dd/mm/yyyy',
+            'amount_mode' => 'debit_credit', 'debit_column' => 3, 'credit_column' => 4, 'balance_column' => 5, 'number_format' => 'id'];
+        $this->assertFileExists(base_path('docs/samples/rekening-koran-bca-2026-04.csv'));
+
+        $demo = BankPresets::describe([
+            'key' => 'bca', 'label' => 'BCA', 'bank' => 'Bank Central Asia', 'channels' => ['KlikBCA Bisnis'],
+            'verified_against' => ['path' => 'docs/samples/rekening-koran-bca-2026-04.csv', 'date' => '2026-09-12', 'by' => 'agen'],
+            'mapping' => $mapping,
             'demo_note' => null,
         ]);
 
-        $this->assertTrue($entry['verified']);
-        $this->assertFalse($entry['selectable']);
-        $this->assertNull($entry['mapping']);
+        $this->assertFalse($demo['verified']);
+        $this->assertFalse($demo['selectable']);
+        $this->assertNull($demo['mapping']);
+        $this->assertNull($demo['verified_against']);
+        $this->assertSame('Belum ada berkas ekspor nyata', $demo['badge_label']);
+        $this->assertSame(BankPresets::STATUS_MENUNGGU, $demo['status']);
+        $this->assertSame(
+            'BELUM ADA BERKAS EKSPOR NYATA Bank Central Asia — registri menunjuk docs/samples/rekening-koran-bca-2026-04.csv (2026-09-12, agen), tetapi itu bukan berkas ekspor nyata menurut docs/samples/bank/README.md: yang dihitung hanya docs/samples/bank/bca-<kanal>-<YYYY-MM-DD>.<ekstensi> dengan tanggal YYYY-MM-DD; contoh demo tidak dinaikkan menjadi preset.',
+            $demo['verification'],
+        );
+        $this->assertStringContainsString('docs/samples/bank/bca-<kanal>-<YYYY-MM-DD>', $demo['awaiting_file']);
+
+        foreach ([
+            ['docs/samples/bank/README.md', '2026-09-12'],          // README folder itu, bukan berkas ekspor
+            ['docs/samples/bank/bri-brimo-2026-09-30.csv', 'x'],    // nama benar, tanggal bukan YYYY-MM-DD
+            ['docs/samples/bank/bca-klikbca-2026-09-30.csv', '2026-09-30'],   // kunci lain (bri ≠ bca)
+            ['docs/samples/bank/brimo-2026-09-30.csv', '2026-09-30'],         // tanpa kunci
+        ] as [$path, $date]) {
+            $entry = BankPresets::describe([
+                'key' => 'bri', 'label' => 'BRI', 'bank' => 'Bank Rakyat Indonesia', 'channels' => ['BRImo Bisnis'],
+                'verified_against' => ['path' => $path, 'date' => $date, 'by' => 'pemilik'],
+                'mapping' => $mapping,
+                'demo_note' => null,
+            ]);
+            $this->assertFalse($entry['verified'], $path);
+            $this->assertFalse($entry['selectable'], $path);
+            $this->assertNull($entry['mapping'], $path);
+            $this->assertStringContainsString("registri menunjuk {$path} ({$date}, pemilik), tetapi itu bukan berkas ekspor nyata", $entry['verification'], $path);
+        }
+
+        $this->assertTrue(BankPresets::evidencePath('bri', 'docs/samples/bank/bri-brimo-2026-09-30.csv'));
+        $this->assertTrue(BankPresets::evidencePath('mandiri', 'docs/samples/bank/mandiri-kopra-2026-10-01.sta'));
+        $this->assertFalse(BankPresets::evidencePath('bri', 'docs/samples/bank/README.md'));
+        $this->assertFalse(BankPresets::evidencePath('bca', 'docs/samples/rekening-koran-bca-2026-04.csv'));
+        $this->assertFalse(BankPresets::evidencePath('bri', 'docs/samples/bank/sub/bri-brimo-2026-09-30.csv'));
+        $this->assertFalse(BankPresets::evidencePath('bri', '../docs/samples/bank/bri-brimo-2026-09-30.csv'));
     }
 
     /**
