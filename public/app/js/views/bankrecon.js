@@ -1078,7 +1078,9 @@ function renderInbox(host, data, reload) {
         })
         : null,
     ]),
-    !folder.exists
+    /* Kalimat keadaan folder digambar kapan pun server mengirimkannya: belum ada, ATAU ada
+       tetapi tidak terbaca (V-close-1) — bukan hanya kasus pertama. */
+    folder.note
       ? el('.alert.warn.inbox-folder-note', [icon('warn', 15), el('div', { text: folder.note })])
       : null,
     el('.card-body', { style: { display: 'grid', gap: '6px', fontSize: '12px' } }, [
@@ -1100,7 +1102,7 @@ function renderInbox(host, data, reload) {
       el('tbody', accounts.map((account) => el('tr', { 'data-code': account.code }, [
         el('td', [
           el('.cell-main.code', { text: `${account.code}/` }),
-          account.subfolder && !account.subfolder.valid
+          account.subfolder && account.subfolder.note
             ? el('.cell-sub.inbox-subfolder-note', { style: { whiteSpace: 'normal', minWidth: '14rem', color: 'var(--danger)' }, text: account.subfolder.note })
             : null,
         ]),
@@ -1142,7 +1144,7 @@ function renderInbox(host, data, reload) {
           el('td', { text: file.checked_at ? fmt.dateTime(file.checked_at) : '—' }),
         ]))),
       ]))
-      : el('.card-body', el('p.muted', { style: { margin: 0 }, text: folder.exists
+      : el('.card-body', el('p.muted', { style: { margin: 0 }, text: folder.exists && folder.readable !== false
         ? 'Belum ada berkas yang diperiksa. Letakkan berkas di sub-folder kode rekening, lalu tunggu pemeriksaan tiap jam atau tekan Periksa sekarang.'
         : 'Belum ada berkas yang diperiksa.' })),
   ]));

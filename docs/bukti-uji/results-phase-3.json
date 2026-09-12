@@ -1939,8 +1939,8 @@
     ]
    ],
    "failed_alarms": 1,
-   "checked_at": "\"2026-09-13T01:44:06+07:00\"",
-   "checked_at_iso": "2026-09-13T01:44:06+07:00"
+   "checked_at": "\"2026-09-13T02:37:29+07:00\"",
+   "checked_at_iso": "2026-09-13T02:37:29+07:00"
   },
   "screen": {
    "h1": "Rekonsiliasi Bank",
@@ -1971,10 +1971,10 @@
     },
     {
      "label": "Terakhir diperiksa",
-     "value": "12 Sep 2026 18.44"
+     "value": "12 Sep 2026 19.37"
     }
    ],
-   "last_checked_iso": "2026-09-13T01:44:06+07:00",
+   "last_checked_iso": "2026-09-13T02:37:29+07:00",
    "counts_note": "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
    "folder_note": null,
    "folder_text": "Tata letak: <folder terpantau>/<KODE-REKENING>/<berkas>. Jalurnya diatur administrator lewat BANK_INBOX_PATH di .env server.\nBerkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.\nPemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan tab Impor: tie-out, rantai periode/saldo, identitas berkas.",
@@ -2057,10 +2057,10 @@
     },
     {
      "label": "Terakhir diperiksa",
-     "value": "12 Sep 2026 18.44"
+     "value": "12 Sep 2026 19.37"
     }
    ],
-   "last_checked_iso": "2026-09-13T01:44:09+07:00",
+   "last_checked_iso": "2026-09-13T02:37:33+07:00",
    "counts_note": "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
    "folder_note": null,
    "folder_text": "Tata letak: <folder terpantau>/<KODE-REKENING>/<berkas>. Jalurnya diatur administrator lewat BANK_INBOX_PATH di .env server.\nBerkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.\nPemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan tab Impor: tie-out, rantai periode/saldo, identitas berkas.",
@@ -2136,8 +2136,8 @@
     ]
    ],
    "failed_alarms": 1,
-   "checked_at": "\"2026-09-13T01:44:09+07:00\"",
-   "checked_at_iso": "2026-09-13T01:44:09+07:00"
+   "checked_at": "\"2026-09-13T02:37:33+07:00\"",
+   "checked_at_iso": "2026-09-13T02:37:33+07:00"
   },
   "api": {
    "files": [
@@ -2165,7 +2165,7 @@
     "ignored": 1
    },
    "folder_exists": true,
-   "last_checked_at": "2026-09-13T01:44:09+07:00",
+   "last_checked_at": "2026-09-13T02:37:33+07:00",
    "absolute_path_leaks": false
   },
   "import": {
@@ -2409,7 +2409,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 14825,
+  "_ms": 15003,
   "_clicks": 4
  },
  "S39_folder_terpantau_ponsel": {
@@ -2450,10 +2450,10 @@
     },
     {
      "label": "Terakhir diperiksa",
-     "value": "12 Sep 2026 18.44"
+     "value": "12 Sep 2026 19.37"
     }
    ],
-   "last_checked_iso": "2026-09-13T01:44:20+07:00",
+   "last_checked_iso": "2026-09-13T02:37:44+07:00",
    "counts_note": "Ubin menghitung berkas pada pemeriksaan terakhir; tabel di bawah adalah seluruh sejarah ledger.",
    "folder_note": null,
    "folder_text": "Tata letak: <folder terpantau>/<KODE-REKENING>/<berkas>. Jalurnya diatur administrator lewat BANK_INBOX_PATH di .env server.\nBerkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.\nPemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan tab Impor: tie-out, rantai periode/saldo, identitas berkas.",
@@ -2574,7 +2574,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 3848,
+  "_ms": 3974,
   "_clicks": 0
  }
 }

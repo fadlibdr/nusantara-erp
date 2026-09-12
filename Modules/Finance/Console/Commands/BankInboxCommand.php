@@ -36,6 +36,14 @@ class BankInboxCommand extends Command
         $result = $inbox->scan();
         $c = $result['counts'];
 
+        // Folder ada tetapi tidak terbaca: pemeriksaan memang tidak melihat apa pun, dan itu
+        // DIKATAKAN — "0 berkas" dengan stempel yang bergerak adalah kegagalan diam (V-close-1).
+        if (! $result['folder_readable']) {
+            $this->warn(BankInboxService::FOLDER_UNREADABLE_NOTE);
+
+            return self::SUCCESS;
+        }
+
         if ($result['locked']) {
             // Tombol "Periksa sekarang" atau jam sebelumnya masih memegang kuncinya: tidak ada yang
             // diperiksa, tidak ada yang ditulis — dikatakan, keluar 0 (V-folder-1).

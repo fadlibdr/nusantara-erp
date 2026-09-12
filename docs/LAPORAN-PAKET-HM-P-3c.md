@@ -553,3 +553,27 @@ koran Mandiri dihapus + berkasnya diambil → baris "Rekening koran dihapus"; is
 diganti → baris lama "Digantikan"; lonceng sungguhan → "Buka dokumen" pada notifikasi gagal sesudah
 pindah ke tab Rekonsiliasi **mendarat di Folder terpantau** — juga ketika hash dipaksa sudah sama
 (`history.replaceState`) — 0 galat konsol, 0 simpul teks terpotong, tanpa gulir samping di kedua viewport.
+
+### 15.1 Putaran penutup (verifier penutup atas `13d217a`: 5 temuan, semuanya ditutup sesi utama)
+
+Verifier penutup menjalankan ulang setiap perintah verifier putaran pertama di ujung cabang (18/18
+tertutup, direproduksi), 31 mutasi (27 merah), harness dan Chromium sendiri — lalu menambah lima
+temuan sendiri dan memberi putusan **"BELUM SIAP"** atas yang pertama.
+
+| ID | Jenis | Temuan (gejala) | Penutupan | Bukti mutasi |
+|---|---|---|---|---|
+| V-close-1 | BUG | Folder ATAU sub-folder yang ADA tetapi tidak bisa dibaca proses aplikasi → pemeriksaan diam: "0 berkas", stempel bergerak tiap jam, tanpa baris ledger, tanpa notifikasi, kartu Kesiapan berkata sub-folder sah. Ini kegagalan diam yang §0 justru menjanjikan tidak ada | `entries()` memulangkan `false` (bukan `[]`) saat `scandir` gagal — akar → `folder_readable: false` + `FOLDER_UNREADABLE_NOTE` di layar dan keluaran perintah; satu sub-folder → satu baris `failed` atas sub-foldernya + satu notifikasi (dedupe jalur) + `subfolder.readable` di kartu Kesiapan, sub-folder lain tetap diperiksa; runbook §5.13 menulis hak akses yang dibutuhkan dan obatnya. Suite berjalan sebagai root (menembus `chmod 000`) → diuji lewat seam `protected entries()`, DAN metode produksinya dipaku langsung atas direktori yang benar-benar gagal di-`scandir` | `entries()` → `[]` (perilaku sebelum perbaikan): uji dasar MERAH |
+| V-close-2 | HONESTY | Tautan simbolik sebagai SUB-FOLDER tetap diikuti untuk daftar isinya: nama berkas di folder tujuan (di mana pun di server) masuk ledger dan dipulangkan API kepada setiap pemegang `fin.view` — sementara kalimatnya mengaku tidak mengikuti tautan | `is_link() && is_dir()` mendahului `is_dir()`: satu baris `ignored` untuk tautannya, `scandir` target tidak pernah dipanggil; uji memaku bahwa nama berkas di folder tujuan TIDAK ada di ledger; runbook §5.13 menulisnya | cabang dihapus → uji symlink MERAH |
+| V-close-3 | TEST-GAP | `mapping.period_start` wajib bersama `use_preset` tidak dipaku (uji mengirimkannya lalu memaku tiga kunci lain); tanpa aturan itu jalurnya 500 `Undefined array key`, bukan 422 | permintaan TANPA `period_start` → `assertJsonValidationErrors(['mapping.period_start'])` | aturan → `nullable`: MERAH |
+| V-close-4 | TEST-GAP | Cabang `statement_deleted` untuk baris **duplicate** tidak dipaku (hanya `imported`) | uji: salinan berganti nama + rekening koran dihapus → kedua baris berlabel "Rekening koran dihapus" | daftar dibatasi ke `IMPORTED`: MERAH |
+| V-close-5 | TEST-GAP | Perbandingan judul kolom tidak dipaku untuk dua tepi: beda HURUF saja, dan berkas ber-baris-judul lebih dari satu (`skip_rows ≥ 2`) | dua uji: `'DEBIT'` vs `'Debit'` ditolak menyebut kolom; `skip_rows 2` membandingkan baris judul KOLOM (baris 1 boleh berubah tiap unduhan) | `strcasecmp`: MERAH; baris judul dipaku ke baris 1: MERAH |
+
+**Bukti sesudah penutupan** (pohon utama, ujung cabang): `tests/Feature/Finance` **983 uji / 5.233
+asersi** hijau (977 + 6 uji baru), `tests/Feature/Core` **1.113 / 10.106** (11 dilewati) hijau, empat
+kelas kabel SPA **32 / 612** hijau (dijalankan LEWAT JALUR berkasnya — `--filter` menyeret
+`tests/Unit/Core/DocumentFormatValidationTest` yang penyedia datanya memang gagal di luar suite penuh,
+cacat lama yang tidak disentuh paket ini dan hijau di gerbang penuh), `pint --test` bersih pada berkas
+yang disentuh. Harness dijalankan ulang atas salinan DB karena layarnya berubah: S39 **ok 15003 ms
+(32 syarat)**, S39m **ok 3974 ms (10 syarat)**, `console_errors []`, `folder_untouched_by_command
+true`, perintah `4 berkas: 2 diimpor, 1 gagal, 0 salinan, 1 diabaikan`; `results-phase-3.json`
+digabung BERDASARKAN KUNCI (14 kunci tetap), 5 PNG diperbarui.

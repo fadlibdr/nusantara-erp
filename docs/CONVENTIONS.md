@@ -2479,8 +2479,17 @@ disebut sebagai contoh demo (`demo_note`), tidak dinaikkan menjadi preset.
 — dikecualikan `rsync --delete`, ikut cadangan), sub-folder per KODE rekening aktif
 (`BankAccount::CODE_PATTERN` — SATU pola untuk Request kode rekening, pemindai, dan kartu
 Kesiapan; `realpath` di bawah root; symlink keluar → `ignored` TANPA menyentuh target — tidak
-dibaca, tidak dihash, tidak di-stat; tersembunyi/bersarang dilewati; berkas di akar dan
-sub-folder yang namanya tidak memenuhi pola → `ignored` dengan kalimat, bukan dilewati bisu).
+dibaca, tidak dihash, tidak di-stat; SUB-FOLDER yang berupa symlink tidak diikuti sampai ke
+daftar isinya — satu baris `ignored` untuk tautannya, bukan satu baris per berkas di folder
+tujuan, yang sebelumnya memulangkan daftar direktori asing lewat API; tersembunyi/bersarang
+dilewati; berkas di akar dan sub-folder yang namanya tidak memenuhi pola → `ignored` dengan
+kalimat, bukan dilewati bisu). **Direktori yang tidak bisa dibaca ≠ direktori kosong**:
+`BankInboxService::entries()` memulangkan `false` (bukan `[]`) saat `scandir` gagal — akar yang
+tidak terbaca → `folder_readable: false` + `FOLDER_UNREADABLE_NOTE` di layar dan keluaran
+perintah (tanpa baris ledger: tidak satu berkas pun terlihat), satu SUB-FOLDER yang tidak
+terbaca → satu baris `failed` atas sub-foldernya + satu notifikasi + kartu Kesiapan
+(`subfolder.readable`), sub-folder lain tetap diperiksa. Suite berjalan sebagai root (menembus
+`chmod 000`), jadi cabang itu diuji lewat seam `protected entries()`.
 Tidak ada `fopen` mode tulis, `rename`, `unlink`, `mkdir` terhadap folder itu — `BankInboxTest`
 memotret nama/ukuran/inode/mtime sebelum = sesudah. Yang ditulis: ledger `fin_bank_inbox_files`
 (migrasi 001503; unik `(relative_path, sha256)` — sha256 isi untuk berkas yang dibaca,

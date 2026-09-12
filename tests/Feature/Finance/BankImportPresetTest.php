@@ -380,6 +380,71 @@ class BankImportPresetTest extends ErpTestCase
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['mapping.period_end', 'mapping.opening_balance', 'mapping.closing_balance'])
             ->assertJsonMissingValidationErrors(['mapping.delimiter', 'mapping.date_column', 'mapping.amount_mode']);
+
+        // …TERMASUK period_start sendiri (V-close-3): tanpa aturannya, jalur preset jatuh
+        // "Undefined array key period_start" = 500, bukan 422 yang menyebut kolomnya.
+        $this->postJson('/api/finance/bank-statements/preview', [
+            'bank_account_id' => $this->bank->id,
+            'format' => 'csv',
+            'content' => $this->csv(),
+            'use_preset' => true,
+            'mapping' => ['period_end' => '2026-03-31', 'opening_balance' => 0, 'closing_balance' => 0],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['mapping.period_start']);
+    }
+
+    /**
+     * V-close-5: judul kolom dibandingkan PERSIS. 'DEBIT' bukan 'Debit' — bank yang mengubah
+     * kapitalisasi judulnya juga mengubah berkasnya, dan diam-diam menerimanya adalah pintu
+     * masuk pemetaan yang keliru-tetapi-seimbang.
+     */
+    public function test_a_header_that_differs_only_in_letter_case_is_refused_naming_the_column(): void
+    {
+        $this->savePreset();
+
+        $response = $this->postJson('/api/finance/bank-statements/preview', [
+            'bank_account_id' => $this->bank->id,
+            'format' => 'csv',
+            'content' => $this->csv('Tanggal;Keterangan;Cabang;DEBIT;Kredit;Saldo'),
+            'use_preset' => true,
+            'mapping' => ['period_start' => '2026-03-01', 'period_end' => '2026-03-31', 'opening_balance' => 1_000_000_000, 'closing_balance' => 1_200_000_000],
+        ])->assertStatus(422);
+
+        $this->assertStringContainsString(
+            "Kolom 4 pada preset «BCA KlikBCA» diharapkan 'Debit', berkas berisi 'DEBIT'.",
+            (string) $response->json('message'),
+        );
+    }
+
+    /**
+     * V-close-5: berkas yang baris judulnya lebih dari satu (judul rekening lalu judul kolom).
+     * Yang dibandingkan adalah baris ke-skip_rows — baris judul kolom — di KEDUA sisi; baris di
+     * atasnya boleh berubah tiap unduhan (nomor rekening, tanggal cetak) tanpa menolak berkas.
+     */
+    public function test_a_file_with_two_header_rows_compares_the_column_header_row_not_the_first(): void
+    {
+        $sheet = static fn (string $banner, string $header): string => implode("\n", [
+            $banner,
+            $header,
+            '10/03/2026;TRSF E-BANKING CR PT GRAHA;0001;;250.000.000,00;1.250.000.000,00',
+            '15/03/2026;BIAYA ADM;0001;50.000.000,00;;1.200.000.000,00',
+        ]);
+        $this->savePreset('BCA dua baris judul', ['skip_rows' => 2], $sheet('Rekening 5230456789;;;;;', self::HEADER));
+
+        $periods = ['period_start' => '2026-03-01', 'period_end' => '2026-03-31', 'opening_balance' => 1_000_000_000, 'closing_balance' => 1_200_000_000];
+        $preview = fn (string $content) => $this->postJson('/api/finance/bank-statements/preview', [
+            'bank_account_id' => $this->bank->id, 'format' => 'csv', 'content' => $content, 'use_preset' => true, 'mapping' => $periods,
+        ]);
+
+        // Baris pertama berubah tiap unduhan — bukan alasan menolak.
+        $preview($sheet('Rekening 5230456789;dicetak 01/04/2026;;;;', self::HEADER))->assertOk();
+
+        // Baris judul KOLOM bergeser — ditolak dengan kolomnya.
+        $response = $preview($sheet('Rekening 5230456789;;;;;', 'Tanggal;Keterangan;Cabang;Mutasi;Kredit;Saldo'))->assertStatus(422);
+        $this->assertStringContainsString(
+            "Kolom 4 pada preset «BCA dua baris judul» diharapkan 'Debit', berkas berisi 'Mutasi'.",
+            (string) $response->json('message'),
+        );
     }
 
     // -------------------------------------------------------------- menghapus

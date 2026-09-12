@@ -74,6 +74,14 @@ class BankInboxService
 
     public const FOLDER_MISSING_NOTE = 'Folder terpantau belum ada di server; administrator membuatnya sesuai PANDUAN-ADMINISTRATOR §5.13. Sampai itu tidak ada berkas yang diperiksa.';
 
+    /**
+     * Folder ADA tetapi proses aplikasi tidak boleh membacanya (mis. disalin `scp -r` dari home
+     * administrator dengan umask 077 → 0700 root, sementara aplikasi berjalan sebagai www-data).
+     * Tanpa kalimat ini pemeriksaan pulang "0 berkas" dengan stempel yang bergerak tiap jam —
+     * kegagalan diam yang justru dijanjikan tidak ada (V-close-1).
+     */
+    public const FOLDER_UNREADABLE_NOTE = 'Folder terpantau ada di server tetapi tidak bisa dibaca proses aplikasi (hak akses); pastikan pengguna aplikasi (www-data) boleh membaca foldernya — PANDUAN-ADMINISTRATOR §5.13. Sampai itu tidak ada berkas yang diperiksa.';
+
     public const FAILED_TITLE = 'Berkas rekening koran di folder terpantau gagal diimpor';
 
     /** Ubin layar menghitung pemeriksaan TERAKHIR (baris dengan checked_at = stempel), tabel = sejarah (V-folder-7). */
@@ -140,6 +148,16 @@ class BankInboxService
         return $path !== '' && is_dir($path);
     }
 
+    /**
+     * Folder ada DAN daftar isinya bisa dibaca. Dipisahkan dari folderExists() karena keduanya
+     * adalah dua kegagalan yang berbeda dengan dua obat yang berbeda (buat foldernya vs perbaiki
+     * hak aksesnya), dan yang kedua tidak terlihat sama sekali sebelum V-close-1.
+     */
+    public function folderReadable(): bool
+    {
+        return $this->folderExists() && $this->entries($this->path()) !== false;
+    }
+
     public function lastCheckedAt(): ?string
     {
         $value = $this->settings->get(self::CHECKED_AT_KEY);
@@ -151,7 +169,7 @@ class BankInboxService
      * Satu pemeriksaan penuh. Idempoten; tidak menulis ke folder. Bila pemeriksaan
      * lain sedang memegang kuncinya: locked = true, tidak ada yang dibaca atau ditulis.
      *
-     * @return array{folder_exists: bool, locked: bool, checked_at: string|null, counts: array<string, int>}
+     * @return array{folder_exists: bool, folder_readable: bool, locked: bool, checked_at: string|null, counts: array<string, int>}
      */
     public function scan(): array
     {
@@ -159,7 +177,7 @@ class BankInboxService
         $lock = Cache::lock(self::LOCK_KEY, self::LOCK_SECONDS);
 
         if (! $lock->get()) {
-            return ['folder_exists' => $this->folderExists(), 'locked' => true, 'checked_at' => $this->lastCheckedAt(), 'counts' => $counts];
+            return ['folder_exists' => $this->folderExists(), 'folder_readable' => $this->folderReadable(), 'locked' => true, 'checked_at' => $this->lastCheckedAt(), 'counts' => $counts];
         }
 
         try {
@@ -171,7 +189,7 @@ class BankInboxService
 
     /**
      * @param  array<string, int>  $counts
-     * @return array{folder_exists: bool, locked: bool, checked_at: string, counts: array<string, int>}
+     * @return array{folder_exists: bool, folder_readable: bool, locked: bool, checked_at: string, counts: array<string, int>}
      */
     private function runScan(array $counts): array
     {
@@ -180,21 +198,63 @@ class BankInboxService
         if (! $this->folderExists()) {
             $this->settings->set(self::CHECKED_AT_KEY, $now->toIso8601String());
 
-            return ['folder_exists' => false, 'locked' => false, 'checked_at' => $now->toIso8601String(), 'counts' => $counts];
+            return ['folder_exists' => false, 'folder_readable' => false, 'locked' => false, 'checked_at' => $now->toIso8601String(), 'counts' => $counts];
         }
 
         $root = realpath($this->path()) ?: $this->path();
         $accounts = BankAccount::query()->where('is_active', true)->get()->keyBy('code');
+        $rootEntries = $this->entries($root);
 
-        foreach ($this->entries($root) as $name) {
+        // Akar yang tidak terbaca bukan "folder kosong": tidak satu berkas pun bisa terlihat, jadi
+        // tidak ada baris ledger yang bisa ditulis untuk berkas yang mana pun. Yang bisa dikatakan
+        // adalah keadaan foldernya — di layar dan di keluaran perintah, bukan diam (V-close-1).
+        if ($rootEntries === false) {
+            $this->settings->set(self::CHECKED_AT_KEY, $now->toIso8601String());
+
+            return ['folder_exists' => true, 'folder_readable' => false, 'locked' => false, 'checked_at' => $now->toIso8601String(), 'counts' => $counts];
+        }
+
+        foreach ($rootEntries as $name) {
             $path = $root.'/'.$name;
+
+            // Sub-folder yang sebenarnya TAUTAN SIMBOLIK tidak diikuti sama sekali: sebelum ini
+            // is_dir() benar untuk tautan, scandir membaca daftar isi folder tujuan (di mana pun ia
+            // berada di server), dan nama-nama berkas di luar folder terpantau muncul di ledger
+            // sebagai "Diabaikan" — daftar direktori asing yang dipulangkan API kepada setiap
+            // pemegang fin.view, dengan kalimat yang justru mengaku tidak mengikuti tautan
+            // (V-close-2). Satu baris untuk tautannya, tanpa membaca apa pun di baliknya.
+            if (is_link($path) && is_dir($path)) {
+                $counts['seen']++;
+                $status = $this->record($name.'/', null, BankInboxFile::IGNORED, sprintf(
+                    'Sub-folder %s adalah tautan simbolik; tidak diikuti (daftar isi folder tujuannya tidak dibaca).',
+                    $name,
+                ), null, $now, self::pathKey('symlink', $name.'/'), null, null);
+                $counts[$status]++;
+
+                continue;
+            }
 
             if (is_dir($path)) {
                 // Nama yang tidak mungkin menjadi kode rekening: setiap berkasnya tetap DICATAT
                 // `ignored` dengan kalimatnya — dilewati bisu adalah kegagalan diam (V-permukaan-3).
                 $badName = ! preg_match(BankAccount::CODE_PATTERN, $name);
+                $inside = $this->entries($path);
 
-                foreach ($this->entries($path) as $file) {
+                // Sub-folder ada tetapi daftar isinya tidak terbaca: berkas di dalamnya tidak
+                // terlihat sama sekali, jadi yang dicatat adalah SUB-FOLDERNYA — satu baris, satu
+                // notifikasi (dedupe per jalur), bukan "0 berkas" tiap jam (V-close-1).
+                if ($inside === false) {
+                    $counts['seen']++;
+                    $status = $this->record($name.'/', $accounts->get($name), BankInboxFile::FAILED, sprintf(
+                        'Sub-folder %s tidak bisa dibaca (hak akses); berkas di dalamnya tidak terlihat sama sekali. Pastikan pengguna aplikasi (www-data) boleh membaca foldernya — PANDUAN-ADMINISTRATOR §5.13.',
+                        $name,
+                    ), null, $now, self::pathKey('unreadable-dir', $name.'/'), null, null, notify: true);
+                    $counts[$status]++;
+
+                    continue;
+                }
+
+                foreach ($inside as $file) {
                     $filePath = $path.'/'.$file;
 
                     if (! is_file($filePath)) {
@@ -233,7 +293,7 @@ class BankInboxService
 
         $this->settings->set(self::CHECKED_AT_KEY, $now->toIso8601String());
 
-        return ['folder_exists' => true, 'locked' => false, 'checked_at' => $now->toIso8601String(), 'counts' => $counts];
+        return ['folder_exists' => true, 'folder_readable' => true, 'locked' => false, 'checked_at' => $now->toIso8601String(), 'counts' => $counts];
     }
 
     /**
@@ -244,6 +304,7 @@ class BankInboxService
     public function status(): array
     {
         $exists = $this->folderExists();
+        $readable = $exists && $this->folderReadable();
         $files = BankInboxFile::query()->with(['bankAccount', 'bankStatement'])->orderByDesc('checked_at')->orderByDesc('id')->limit(500)->get();
         $counts = ['imported' => 0, 'failed' => 0, 'duplicate' => 0, 'ignored' => 0];
         $stamp = $this->lastCheckedAt();
@@ -266,7 +327,12 @@ class BankInboxService
                 'configured_via' => self::CONFIGURED_VIA,
                 'is_default' => (string) config('erp.bank_inbox.path') === storage_path('app/private/bank-inbox'),
                 'layout' => self::LAYOUT,
-                'note' => $exists ? null : self::FOLDER_MISSING_NOTE,
+                'readable' => $readable,
+                'note' => match (true) {
+                    ! $exists => self::FOLDER_MISSING_NOTE,
+                    ! $readable => self::FOLDER_UNREADABLE_NOTE,
+                    default => null,
+                },
             ],
             'last_checked_at' => $stamp,
             'counts' => $counts,
@@ -334,27 +400,46 @@ class BankInboxService
      */
     public function subfolderReadiness(BankAccount $account): array
     {
-        if (preg_match(BankAccount::CODE_PATTERN, (string) $account->code) === 1) {
-            return ['valid' => true, 'note' => null];
+        if (preg_match(BankAccount::CODE_PATTERN, (string) $account->code) !== 1) {
+            return ['valid' => false, 'readable' => true, 'note' => sprintf(
+                'Kode rekening %s tidak bisa menjadi nama sub-folder (huruf/angka/titik/strip/garis bawah, tanpa spasi); ubah kodenya di Keuangan › Rekening Bank agar berkasnya bisa dibaca dari folder.',
+                $account->code,
+            )];
         }
 
-        return ['valid' => false, 'note' => sprintf(
-            'Kode rekening %s tidak bisa menjadi nama sub-folder (huruf/angka/titik/strip/garis bawah, tanpa spasi); ubah kodenya di Keuangan › Rekening Bank agar berkasnya bisa dibaca dari folder.',
-            $account->code,
-        )];
+        // Sub-folder rekening ini ada tetapi tidak terbaca: kartu Kesiapan mengatakannya, karena
+        // ledger hanya bisa menyebut sub-foldernya dan bukan berkas yang ada di dalamnya (V-close-1).
+        $path = $this->path().'/'.$account->code;
+
+        if (is_dir($path) && ! is_link($path) && $this->entries($path) === false) {
+            return ['valid' => true, 'readable' => false, 'note' => sprintf(
+                'Sub-folder %s ada tetapi tidak bisa dibaca proses aplikasi (hak akses); berkas di dalamnya tidak terlihat sama sekali — PANDUAN-ADMINISTRATOR §5.13.',
+                $account->code,
+            )];
+        }
+
+        return ['valid' => true, 'readable' => true, 'note' => null];
     }
 
     // ------------------------------------------------------------- per berkas
 
     /**
-     * @return list<string> nama entri, urut, tanpa yang tersembunyi
+     * Daftar isi satu direktori, atau FALSE bila direktorinya tidak bisa dibaca — dua hal yang
+     * sebelumnya sama-sama menjadi daftar kosong, sehingga folder tanpa hak baca tidak bisa
+     * dibedakan dari folder kosong dan pemeriksaan pulang diam (V-close-1).
+     *
+     * `protected` supaya uji bisa menyuntik kegagalan hak akses: suite berjalan sebagai root, dan
+     * root menembus chmod 000 (CAP_DAC_OVERRIDE) — tanpa seam ini cabang ini tidak bisa diuji
+     * di sini sama sekali.
+     *
+     * @return list<string>|false nama entri, urut, tanpa yang tersembunyi
      */
-    private function entries(string $dir): array
+    protected function entries(string $dir): array|false
     {
         $names = @scandir($dir);
 
         if ($names === false) {
-            return [];
+            return false;
         }
 
         return array_values(array_filter($names, static fn (string $name): bool => $name !== '.' && $name !== '..' && ! str_starts_with($name, '.')));

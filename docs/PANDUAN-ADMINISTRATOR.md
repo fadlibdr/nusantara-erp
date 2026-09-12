@@ -2110,6 +2110,25 @@ tidak bisa dibaca (hak akses) …"* — bukan galat — satu baris dan satu noti
 berkas**; sesudah hak aksesnya dibetulkan, pemeriksaan berikutnya membaca berkasnya dan
 baris lama menjadi *Digantikan* (tidak dihitung ubin).
 
+**Foldernya sendiri juga harus bisa dibaca `www-data`, dan itu kesalahan yang paling mudah
+dibuat**: sub-folder yang disalin `scp -r`/`rsync -a` dari home administrator datang dengan
+kepemilikan dan mode asalnya (umask 077 → `0700 root`), dan proses aplikasi tidak bisa
+membaca daftar isinya sama sekali. Yang terjadi kemudian **dikatakan, bukan didiamkan**
+(putaran penutup P-3c):
+
+- **Akar folder terpantau** tidak terbaca → perintah menulis *"Folder terpantau ada di
+  server tetapi tidak bisa dibaca proses aplikasi (hak akses) …"* dan keluar 0; layar
+  menampilkan kalimat yang sama di tab Folder terpantau. Tidak ada baris ledger, karena
+  tidak satu berkas pun terlihat.
+- **Satu sub-folder** tidak terbaca → satu baris ledger **Gagal** atas sub-foldernya
+  (*"Sub-folder BANK-… tidak bisa dibaca (hak akses); berkas di dalamnya tidak terlihat
+  sama sekali …"*) + satu notifikasi, kartu *Kesiapan per rekening* mengatakannya, dan
+  sub-folder lain **tetap** diperiksa.
+
+Obatnya sama untuk keduanya: `chown -R www-data:www-data <folder>` dan `chmod 0750`
+(atau berikan grup `www-data` hak baca + telusur). Sesudah itu pemeriksaan berikutnya
+membaca isinya seperti biasa.
+
 **Nama sub-folder = kode rekening, dan kodenya dibatasi.** Kode rekening bank hanya boleh
 huruf, angka, titik, strip, dan garis bawah (tanpa spasi; `Keuangan › Rekening Bank`
 menolak yang lain sejak putaran verifikasi P-3c). Rekening lama yang kodenya berspasi
@@ -2126,7 +2145,10 @@ per berkas — sama dengan layar Impor — dan batas itu diperiksa **sebelum** s
 dibaca: berkas sebesar apa pun yang salah taruh tercatat *Gagal "lebih dari 2 MB"* tanpa
 pernah masuk memori, dan berkas berikutnya tetap diperiksa. **Tautan simbolik** ke luar
 folder tidak diikuti: baris *Diabaikan "tautan simbolik; tidak dibaca"* — targetnya tidak
-dibaca, tidak dihash, tidak diukur.
+dibaca, tidak dihash, tidak diukur. Tautan simbolik yang dipakai sebagai **sub-folder**
+juga tidak diikuti, dan itu berlaku sampai ke daftar isinya: satu baris *Diabaikan
+"Sub-folder … adalah tautan simbolik; tidak diikuti (daftar isi folder tujuannya tidak
+dibaca)"*, bukan satu baris per berkas di folder tujuan (putaran penutup P-3c).
 
 **Apa yang terjadi sesudah diproses: TIDAK ADA — pada berkasnya.** Aplikasi tidak
 memindah ke `processed/`, tidak mengganti nama, tidak menghapus, tidak menulis penanda.
