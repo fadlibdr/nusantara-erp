@@ -253,3 +253,77 @@ sama dengan §1–§9: apa yang ditolak, mengapa, apa yang dipilih, dan batasnya
 4. Apakah penjadwalnya hidup **tidak diklaim layar ini**: sumbernya `GET core/health`
    dan spanduk dasbor P-0b. Layar hanya menampilkan "terakhir diperiksa" dari stempel
    yang benar-benar ditulis perintah.
+
+## 11. API & webhook (P-3d, 12 Sep 2026): CORS KOSONG; alamat internal DITOLAK; token yang bisa mencetak token DITOLAK
+
+Paket HM **P-3d** membuka API ini untuk sistem lain — token akses pribadi dan
+webhook keluar. Membuka sesuatu adalah keputusan, dan tiga di antaranya
+dituliskan di sini dengan bentuk yang sama dengan §1–§10: apa yang ditolak,
+mengapa, apa yang dipilih, dan batasnya.
+
+### 11.1 CORS tetap KOSONG
+
+Ledger pemilik [`ROADMAP-HASHMICRO.md`](ROADMAP-HASHMICRO.md) §5 baris 10:
+**"CORS / laju token integrasi → kosong / 300 per menit"**. Tidak satu pun
+header `Access-Control-Allow-Origin` dikirim aplikasi ini, dan itu tetap
+demikian sesudah P-3d.
+
+Alasannya bukan kehati-hatian umum. Sebuah API yang membuka CORS bisa dipanggil
+oleh JavaScript di halaman asal lain **dengan kredensial orang yang membuka
+halaman itu**; token integrasi sebaliknya dipakai **server ke server**, tempat
+ia tidak pernah terlihat pemakai dan tidak pernah ada peramban yang bisa
+dibujuk. Sebuah integrasi yang menuntut CORS adalah integrasi yang menaruh token
+di dalam JavaScript — yaitu menerbitkan tokennya.
+
+Uji `OpenApiDriftTest::test_cors_is_actually_empty` memeriksa konfigurasi yang
+benar-benar berjalan, bukan kalimat di dokumen ini.
+
+### 11.2 URL webhook: alamat internal DITOLAK, redirect TIDAK DIIKUTI
+
+Sebuah aplikasi yang mengirim POST bertanda tangan ke alamat apa pun yang
+diketik pemakainya adalah **proxy permintaan ke dalam jaringannya sendiri**.
+
+| Yang ditolak | Mengapa |
+|---|---|
+| `http://` apa pun | Muatan memuat nomor dan status dokumen; tanda tangan tidak melindungi isinya dari siapa pun yang membaca kabel |
+| loopback (`127.0.0.0/8`, `::1`), privat (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`), link-local (`169.254/16`, `fe80::/10`), CGNAT (`100.64/10`), `0.0.0.0/8` | `169.254.169.254` memulangkan kredensial mesin di sebagian besar penyedia awan; `127.0.0.1:9200` adalah layanan tetangga di server yang sama |
+| nama berakhiran `.local`, `.internal`, `.localhost`, `.home.arpa`, dan `localhost` telanjang | Nama yang tidak pernah keluar dari jaringan sendiri |
+| URL yang membawa nama pengguna/kata sandi | Rahasianya adalah tanda tangan, bukan URL-nya |
+| **Redirect** (`3xx`) | Sebuah penerima yang menjawab `302 Location: http://169.254.169.254/` memindahkan kiriman bertanda tangan kita ke sana tanpa satu pun baris di atas berlaku lagi |
+
+**Diperiksa DUA KALI: saat menyimpan DAN saat mengirim.** DNS bisa berubah di
+antara keduanya — sebuah nama yang hari ini menunjuk ke alamat publik bisa besok
+menunjuk ke `127.0.0.1`, dan itu bukan serangan teoretis melainkan teknik dengan
+nama sendiri (DNS rebinding). Waktu tunggu dibatasi (5 s koneksi, 10 s total)
+supaya penerima yang menggantung tidak menahan pekerja antrean.
+
+**Yang TIDAK dilakukan:** aplikasi ini tidak memelihara daftar-putih host, dan
+tidak menawarkan "izinkan alamat internal untuk instalasi di dalam kantor".
+Sebuah sakelar seperti itu akan dinyalakan satu kali untuk satu kebutuhan yang
+masuk akal dan tetap menyala selamanya.
+
+### 11.3 Sebuah token tidak boleh mencetak token
+
+Ability token adalah **subset izin pemiliknya**, dan ditegakkan di satu tempat
+yang dilewati setiap pemeriksaan izin. Tiga pintu layanan mandiri tetap menuntut
+**sesi** (masuk lewat halaman masuk), karena ability tidak bisa mempersempit
+sesuatu yang memang tidak dijaga izin:
+
+- `POST/DELETE iam/me/api-tokens` — kalau tidak, token "hanya baca keuangan"
+  mencetak token kedua dengan SELURUH izin pemiliknya, dan setiap pembatasan
+  yang dibangun paket ini berumur satu permintaan;
+- `PUT iam/me/password` — kunci akun berpindah tangan;
+- `PUT iam/me/phone` — nomor WhatsApp dan persetujuan bertanggalnya; alarm
+  operasional perusahaan diarahkan ke nomor lain.
+
+### 11.4 Batasnya — apa yang ability TIDAK batasi, dikatakan di setiap permukaan
+
+Ability menyempitkan **gerbang izin**, dan tidak menciptakan gerbang di tempat
+aplikasi ini sendiri tidak menggerbangi apa pun. Diukur 12 Sep 2026: **862** rute
+di bawah `/api`, **644** dijaga sebuah izin, **218** hanya menuntut autentikasi.
+Endpoint di golongan kedua dijangkau token terbatas seseorang persis seperti sesi
+peramban orang itu, dan kalimat itu ditulis di layar Token API, di
+PANDUAN-PENGGUNA §20, dan di `docs/api/openapi.json`. `UngatedApiRouteCensusTest`
+mengukur angkanya dan memaku daftar **31** rute TULIS tanpa gerbang izin, supaya
+yang ke-32 memerahkan gerbang alih-alih diam-diam memperlebar apa yang bisa
+dilakukan sebuah token "hanya baca".
