@@ -38,7 +38,7 @@ use Throwable;
  * preset rekening memetakan kolom saldo; MT940 tidak butuh preset.
  *
  * Gagal → baris `failed` dengan kalimat Indonesia + SATU notifikasi per berkas
- * (dedupe judul + signature = sha256, renag 7 hari), bukan tiap jam; berhasil
+ * (dedupe judul + signature = 40 karakter pertama sha256, renag 7 hari), bukan tiap jam; berhasil
  * → satu notifikasi ringkas dengan tautan ke rekening korannya. Template
  * notifikasi null = generik (NotificationTemplates), dan itu sengaja: tidak
  * ada template WhatsApp/e-mail untuk peristiwa ini. Kalimat notifikasi tidak
@@ -67,6 +67,20 @@ class BankInboxService
     private const CODE_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/';
 
     private const RENAG_DAYS = 7;
+
+    /**
+     * Signature notifikasi = 40 karakter pertama sha256 berkas: core_notifications.document_code
+     * adalah varchar(40) (migrasi Core 000140). sha256 utuh (64) LOLOS di SQLite (panjang tidak
+     * ditegakkan) dan DITOLAK MySQL — galatnya ditelan NotificationService::guard(), jadi tidak ada
+     * satu notifikasi pun yang lahir dan tidak ada galat yang terlihat; terukur di gerbang
+     * erp_dryrun (4 uji merah), hijau di SQLite.
+     */
+    public const SIGNATURE_LENGTH = 40;
+
+    public static function signature(string $sha256): string
+    {
+        return substr($sha256, 0, self::SIGNATURE_LENGTH);
+    }
 
     public function __construct(
         private readonly BankStatementImportService $imports,
@@ -381,7 +395,7 @@ class BankInboxService
             ),
             "/bank-recon?tab=statements&account={$account->id}&statement={$statement->id}",
             null,
-            $sha,
+            self::signature($sha),
             null,   // template null = generik: tidak ada template kanal luar untuk peristiwa ini, sengaja
         );
 
@@ -426,7 +440,7 @@ class BankInboxService
                 sprintf('Berkas %s untuk rekening %s: %s', $relative, $account ? "{$account->code} {$account->name}" : '?', (string) $error),
                 '/bank-recon?tab=inbox',
                 self::RENAG_DAYS,
-                $sha,
+                self::signature($sha),
                 null,   // template null = generik, sengaja
             );
         }

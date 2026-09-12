@@ -2492,7 +2492,9 @@ yang menyusul adalah aritmetika berkas sendiri. Batas 2 MB = `BankStatementParse
 bukan UTF-8 → latin1; ekstensi selain `csv|txt|sta|940|mt940` → `failed`; `Throwable` lain →
 `failed` + log, berkas lain tetap diproses. **Notifikasi**: `failed` →
 `NotificationService::system('fin.update', FAILED_TITLE, "Berkas <relatif> untuk rekening
-<kode nama>: <sebab>", '/bank-recon?tab=inbox', 7, sha256, null)` — sekali per berkas
+<kode nama>: <sebab>", '/bank-recon?tab=inbox', 7, signature, null)` — signature = **40 karakter
+pertama sha256** (`BankInboxService::signature`; `core_notifications.document_code` varchar(40) — sha256 utuh
+lolos di SQLite, ditolak MySQL dan ditelan `guard()`: nol notifikasi tanpa galat) — sekali per berkas
 (dedupe judul+signature), bukan tiap jam (dipaku 3 jam berturut); `imported` → satu
 notifikasi ringkas bertautan `/bank-recon?tab=statements&account=…&statement=…`; template
 `null` = generik, sengaja; tidak ada jalur absolut di ledger/API/notifikasi (dipaku).

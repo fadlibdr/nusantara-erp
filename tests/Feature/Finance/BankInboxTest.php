@@ -377,7 +377,10 @@ class BankInboxTest extends ErpTestCase
         $this->assertSame('Berkas rekening koran di folder terpantau gagal diimpor', $alarms[0]->title);
         $this->assertStringStartsWith('Berkas BANK-BCA-OPS/salah.sta untuk rekening BANK-BCA-OPS BCA Operasional: Berkas tidak seimbang', $alarms[0]->body);
         $this->assertSame('/bank-recon?tab=inbox', $alarms[0]->link);
-        $this->assertSame(hash('sha256', $this->mt940(':61:2603100310C150000000,00NTRFINV-1//BCA0001')), $alarms[0]->document_code, 'signature = sha256 berkas');
+        // 40 karakter pertama sha256: document_code varchar(40) — sha256 utuh ditolak MySQL dan ditelan guard()
+        // (terukur di erp_dryrun: 0 notifikasi, hijau di SQLite yang tidak menegakkan panjang).
+        $this->assertSame(substr(hash('sha256', $this->mt940(':61:2603100310C150000000,00NTRFINV-1//BCA0001')), 0, 40), $alarms[0]->document_code, 'signature = 40 karakter pertama sha256 berkas');
+        $this->assertSame(40, strlen((string) $alarms[0]->document_code));
         $this->assertStringNotContainsString($this->root, $alarms[0]->body);
     }
 
