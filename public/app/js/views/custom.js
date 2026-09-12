@@ -2318,7 +2318,7 @@ export async function renderCompany(host) {
   const FIELDS = [
     { key: 'name', label: 'Nama perusahaan', type: 'text', required: true, span: 2 },
     { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
-    { key: 'npwp', label: 'NPWP', type: 'text' },
+    { key: 'npwp', label: 'NPWP', type: 'text', help: 'NPWP 15 digit (lama), 16 digit (baru / NIK), atau NITKU 22 digit; titik dan strip boleh.' },
     { key: 'nib', label: 'NIB', type: 'text' },
     { key: 'is_pkp', label: 'Pengusaha Kena Pajak (PKP)', type: 'bool' },
     { key: 'sppkp_number', label: 'Nomor SPPKP', type: 'text' },

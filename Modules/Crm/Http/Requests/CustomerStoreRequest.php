@@ -4,6 +4,7 @@ namespace Modules\Crm\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Core\Rules\ValidNpwp;
 
 class CustomerStoreRequest extends FormRequest
 {
@@ -18,7 +19,8 @@ class CustomerStoreRequest extends FormRequest
             'code' => ['nullable', 'string', 'max:40', Rule::unique('crm_customers', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'legal_name' => ['nullable', 'string', 'max:255'],
-            'npwp' => ['nullable', 'string', 'max:30'],
+            // P-3b: 15 / 16 (NIK) / 22 (NITKU) digit — satu aturan untuk semua pintu NPWP.
+            'npwp' => ['nullable', 'string', 'max:30', new ValidNpwp],
             'is_pkp' => ['nullable', 'boolean'],
             'billing_address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:100'],

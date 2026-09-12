@@ -3,6 +3,7 @@
 namespace Modules\Core\Support;
 
 use Modules\Core\Models\Location;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\Crm\Models\Customer;
 use Modules\HrPayroll\Models\Employee;
 use Modules\Inventory\Models\Item;
@@ -64,7 +65,9 @@ class ImportableResources
                     ['header' => 'kode', 'field' => 'code', 'required' => true, 'cast' => 'text', 'rules' => ['string', 'max:40']],
                     ['header' => 'nama', 'field' => 'name', 'required' => true, 'rules' => ['string', 'max:200']],
                     ['header' => 'nama_badan_hukum', 'field' => 'legal_name', 'rules' => ['string', 'max:200']],
-                    ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30']],
+                    // P-3b: pintu tulis NPWP yang sama dengan formulirnya — 15 / 16 / 22 digit.
+                    // Lembar yang tidak membawa kolom ini membiarkan nilai lama apa adanya.
+                    ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30', new ValidNpwp]],
                     ['header' => 'pkp', 'field' => 'is_pkp', 'cast' => 'bool', 'default' => false],
                     ['header' => 'subkontraktor', 'field' => 'is_subcontractor', 'cast' => 'bool', 'default' => false],
                     ['header' => 'klasifikasi', 'field' => 'classification', 'rules' => ['in:material,jasa,ict,sipil,me'], 'default' => 'material'],
@@ -90,7 +93,7 @@ class ImportableResources
                     ['header' => 'kode', 'field' => 'code', 'required' => true, 'cast' => 'text', 'rules' => ['string', 'max:40']],
                     ['header' => 'nama', 'field' => 'name', 'required' => true, 'rules' => ['string', 'max:200']],
                     ['header' => 'nama_badan_hukum', 'field' => 'legal_name', 'rules' => ['string', 'max:200']],
-                    ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30']],
+                    ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30', new ValidNpwp]],
                     ['header' => 'pkp', 'field' => 'is_pkp', 'cast' => 'bool', 'default' => false],
                     ['header' => 'alamat_tagihan', 'field' => 'billing_address', 'rules' => ['string', 'max:255']],
                     ['header' => 'kota', 'field' => 'city', 'rules' => ['string', 'max:80']],
@@ -115,7 +118,7 @@ class ImportableResources
                     // NIK doubles as the tax id under PMK 112/2022, so a blank one
                     // costs the employee a 20% PPh 21 surcharge. Required.
                     ['header' => 'nik_ktp', 'field' => 'nik_ktp', 'required' => true, 'cast' => 'text', 'rules' => ['string', 'size:16']],
-                    ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30']],
+                    ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30', new ValidNpwp]],
                     ['header' => 'jenis_kelamin', 'field' => 'gender', 'required' => true, 'rules' => ['in:male,female']],
                     ['header' => 'tanggal_lahir', 'field' => 'birth_date', 'required' => true, 'cast' => 'date', 'rules' => ['date']],
                     ['header' => 'status_ptkp', 'field' => 'ptkp_status', 'required' => true, 'rules' => ['in:TK/0,TK/1,TK/2,TK/3,K/0,K/1,K/2,K/3']],

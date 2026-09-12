@@ -7,6 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\HrPayroll\Enums\EmploymentType;
 use Modules\HrPayroll\Enums\PkwtBasis;
 use Modules\HrPayroll\Enums\PtkpStatus;
@@ -58,7 +59,8 @@ class EmployeeUpdateRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'nik_ktp' => ['sometimes', 'required', 'digits:16', Rule::unique('hr_employees', 'nik_ktp')->ignore($employee?->id)],
-            'npwp' => ['nullable', 'string', 'max:30'],
+            // P-3b: nilai lama yang dikirim kembali apa adanya bukan penulisan baru (maju-saja).
+            'npwp' => ['nullable', 'string', 'max:30', ValidNpwp::unlessUnchanged($this->route('employee')?->npwp)],
             'gender' => ['sometimes', 'required', Rule::in(['male', 'female'])],
             'birth_date' => ['sometimes', 'required', 'date', 'before:today'],
             'ptkp_status' => ['sometimes', 'required', Rule::enum(PtkpStatus::class)],

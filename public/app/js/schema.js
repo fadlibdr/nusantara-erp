@@ -198,7 +198,7 @@ export const RESOURCES = {
             { key: 'name', label: 'Nama pelanggan', type: 'text', required: true, span: 2 },
             { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
             { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis (CUST-xxxx).' },
-            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'npwp', label: 'NPWP', type: 'text', help: 'NPWP 15 digit (lama), 16 digit (baru / NIK), atau NITKU 22 digit; titik dan strip boleh.' },
             { key: 'is_pkp', label: 'Pengusaha Kena Pajak (PKP)', type: 'bool' },
             { key: 'status', label: 'Status', type: 'select', enum: 'activeStatus', default: 'active' },
           ],
@@ -2371,7 +2371,7 @@ export const RESOURCES = {
             { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
             { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis.' },
             { key: 'classification', label: 'Klasifikasi', type: 'select', enum: 'vendorClassification', required: true },
-            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'npwp', label: 'NPWP', type: 'text', help: 'NPWP 15 digit (lama), 16 digit (baru / NIK), atau NITKU 22 digit; titik dan strip boleh.' },
             { key: 'sppkp_number', label: 'No. SPPKP', type: 'text', help: 'Wajib bila vendor berstatus PKP.' },
             { key: 'is_pkp', label: 'PKP', type: 'bool' },
             /* P4 — menggantikan centang "Subkontraktor" lama: vendor_type
@@ -4739,7 +4739,7 @@ export const RESOURCES = {
           fields: [
             { key: 'name', label: 'Nama lengkap', type: 'text', required: true, span: 2 },
             { key: 'nik_ktp', label: 'NIK KTP', type: 'text', required: true, help: '16 digit' },
-            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'npwp', label: 'NPWP', type: 'text', help: 'NPWP 15 digit (lama), 16 digit (baru / NIK), atau NITKU 22 digit; titik dan strip boleh.' },
             { key: 'gender', label: 'Jenis kelamin', type: 'select', enum: 'gender', required: true },
             { key: 'birth_date', label: 'Tanggal lahir', type: 'date', required: true },
             { key: 'ptkp_status', label: 'Status PTKP', type: 'select', enum: 'ptkpStatus', required: true },

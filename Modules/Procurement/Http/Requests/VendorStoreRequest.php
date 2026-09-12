@@ -4,6 +4,7 @@ namespace Modules\Procurement\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\Procurement\Enums\VendorClassification;
 use Modules\Procurement\Enums\VendorStatus;
 use Modules\Procurement\Enums\VendorType;
@@ -21,7 +22,8 @@ class VendorStoreRequest extends FormRequest
             'code' => ['nullable', 'string', 'max:40', Rule::unique('prc_vendors', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'legal_name' => ['nullable', 'string', 'max:255'],
-            'npwp' => ['nullable', 'string', 'max:30'],
+            // P-3b: 15 / 16 (NIK) / 22 (NITKU) digit — satu aturan untuk semua pintu NPWP.
+            'npwp' => ['nullable', 'string', 'max:30', new ValidNpwp],
             'is_pkp' => ['nullable', 'boolean'],
             'sppkp_number' => ['nullable', 'string', 'max:50', 'required_if:is_pkp,true'],
             // Deprecated pair: is_subcontractor is the legacy door the SPA
