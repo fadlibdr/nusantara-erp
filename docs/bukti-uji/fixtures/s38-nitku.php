@@ -12,7 +12,7 @@
  *
  * Keluaran: satu baris JSON {customer, contract, invoice, status, faktur}.
  */
-$root = dirname(__DIR__, 2);
+$root = dirname(__DIR__, 3);   // docs/bukti-uji/fixtures → akar repo
 require $root.'/vendor/autoload.php';
 $app = require $root.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
