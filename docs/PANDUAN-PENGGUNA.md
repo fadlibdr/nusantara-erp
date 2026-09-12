@@ -7495,18 +7495,27 @@ Melengkapi NIK **sesudah** run disetujui tidak mengubah slip maupun kalimatnya �
 kini dikenali tetapi slipnya 120 % berkata *"Identitas kini dikenali, tetapi slip masa ini
 dihitung DENGAN tambahan 20 % — NPWP/NIK dilengkapi sesudah run dihitung; angka slip tidak
 dihitung ulang."* Slip yang dihitung sebelum kolom ini ada (run lama) disimpulkan dari
-angkanya bila mungkin; bila tidak, kalimatnya berbunyi *"Perlakuan slip ini tidak tercatat
-(slip lama). Menurut data pegawai SAAT INI payroll akan memotong …; angka slip masa ini tidak
-dihitung ulang dan bisa berbeda."* Rekap tidak menghitung ulang apa pun; mengubah definisi
-identitas payroll adalah keputusan pemilik.
+angkanya bila mungkin (gaji bulanan non-Desember); bila tidak — THR lama, Desember lama,
+bruto nol — kalimatnya berbunyi *"Perlakuan slip ini tidak tercatat (slip lama). Menurut data
+pegawai SAAT INI payroll akan memotong …; angka slip masa ini tidak dihitung ulang dan bisa
+berbeda."*, **juga pada baris yang identitasnya dikenali hari ini** (sel kosong di kolom
+perlakuan berarti "dikenali dan tarif normal", dan itu tidak diketahui untuk slip lama).
+Gaji dan THR satu bulan yang dihitung dengan perlakuan berbeda (NIK dilengkapi di antara dua
+run) disebut per run: *"Slip masa ini dihitung dengan perlakuan yang BERBEDA antar run —
+PYR/…: tambahan 20 %; PYR/…: tarif normal."*; bila salah satunya slip lama tanpa catatan:
+*"Sebagian slip masa ini tidak tercatat perlakuannya (slip lama) — …"*. Ubin **Pegawai tanpa
+identitas pajak** juga menyebut *"N dikenali kini tetapi slipnya 120 %"*. Rekap tidak
+menghitung ulang apa pun; mengubah definisi identitas payroll adalah keputusan pemilik.
 
 **`Unduh CSV rekap internal`** → `rekap-internal-pph21-YYYY-MM.csv`: pemisah titik koma,
 desimal koma (Excel Indonesia), baris pertama berbunyi label yang sama dengan judul layar
 beserta run yang membentuknya. Sel identitas yang tidak dikenali kosong di berkas juga, dan
 kolom terakhir **`perlakuan_identitas`** menyebut perlakuannya (*tarif normal* / *tambahan 20 %*
-/ *tambahan 20 % (identitas dilengkapi sesudah run)* / *tidak tercatat*; kosong bila dikenali
-dan tarif normal) — dua baris bersel kosong dengan bruto sama tetapi PPh 157.500 dan 189.000
-bisa dibedakan dari berkasnya saja.
+/ *tambahan 20 % (identitas dilengkapi sesudah run)* / *tidak tercatat* / *berbeda antar slip*
+/ *sebagian tidak tercatat*; **kosong hanya bila dikenali DAN tercatat atau disimpulkan tarif
+normal**) — dua baris bersel kosong dengan bruto sama tetapi PPh 157.500 dan 189.000 bisa
+dibedakan dari berkasnya saja. Pegawai yang terhapus keras dari basis data tetap punya baris:
+kode `#<id>` dan nama *Data pegawai tidak ditemukan*.
 
 Catatan di kaki layar, dari server: tabel TER (PMK 168/2023) disalin ke kode dan ditandai
 **perlu dicek terhadap peraturan yang berlaku** — bukan janji bahwa angkanya sudah

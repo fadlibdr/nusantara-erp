@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Procurement;
 
+use Illuminate\Support\Arr;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Rules\ValidNpwp;
 use Modules\Procurement\Models\Vendor;
@@ -153,9 +154,12 @@ class VendorNpwpGateTest extends ErpTestCase
             ->assertJsonPath('errors.doc_type.0', 'Jenis yang dipilih tidak sah.');
 
         // Setiap kunci pesan bawaan Laravel punya padanan Indonesia — tidak ada kalimat Inggris yang bocor.
+        // Kunci DAUN (Arr::dot), bukan hanya tingkat atas: sub-kunci password.* yang hilang
+        // dulu LOLOS HIJAU pada pembanding array_keys (R3-pintu-2).
         $id = require base_path('lang/id/validation.php');
         $en = require base_path('vendor/laravel/framework/src/Illuminate/Translation/lang/en/validation.php');
-        $this->assertSame([], array_values(array_diff(array_keys($en), array_keys($id))), 'kunci validation.php yang belum diterjemahkan');
+        $leaf = fn (array $messages): array => array_keys(Arr::dot(array_diff_key($messages, ['custom' => 1, 'attributes' => 1])));
+        $this->assertSame([], array_values(array_diff($leaf($en), $leaf($id))), 'kunci validation.php yang belum diterjemahkan');
     }
 
     /** Formulir Dokumen Vendor mengatakan aturannya di kolom Nomor — sebelum 422-nya. */

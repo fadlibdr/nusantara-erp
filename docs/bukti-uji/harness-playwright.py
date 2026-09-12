@@ -10169,6 +10169,21 @@ S38_FORMATS = """() => [...document.querySelectorAll('.djp-format')].map(n => ({
   buttons: [...n.querySelectorAll('button')].map(b => b.innerText.trim()),
 }))"""
 
+# Jumlah simpul teks di kartu registri yang tepi kanannya melewati viewport (dipotong leluhur).
+S38_FORMAT_OVERFLOW = """() => {
+  const limit = document.documentElement.clientWidth + 1;
+  let n = 0;
+  for (const el of document.querySelectorAll('.djp-format, .djp-format *, .djp-formats-head, .djp-formats-head *')) {
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      if (rect.width > 0 && rect.right > limit) n++;
+    }
+  }
+  return n;
+}"""
+
 S38_EXPORT = """() => ({
   alert: (document.querySelector('.djp-export-verification') || {}).innerText || null,
   // Putaran kedua (R2-kejujuran-2): kartu catatan NPWP ≠ 15 digit dan kalimat baris pertama — dari API.
@@ -10405,6 +10420,8 @@ def s38(browser):
             "the_ter_note_is_shown": "perlu dicek terhadap peraturan yang berlaku" in (rc["ter_note"] or ""),
             "the_screens_never_scroll_sideways": out["efaktur"]["scrolls_sideways"] is False and rc["scrolls_sideways"] is False,
             # ---- putaran kedua (R2-kejujuran-2, R2-rekap-2/3/5)
+            # Fixture yang gagal harus terlihat SEBAGAI sebabnya, bukan sebagai tiga syarat lain yang jatuh (R3-rekap-2).
+            "the_nitku_fixture_ran": nitku_inv is not None,
             "the_nitku_invoice_is_exported_not_blocked_and_noted":
                 nitku_inv is not None and nitku_inv in ae["exported"] and nitku_inv not in ae["blocked"]
                 and any(n["document"] == nitku_inv and "tersimpan 22 digit (NITKU)" in n["note"] for n in ae["notes"]),
@@ -10451,6 +10468,7 @@ def s38m(browser):
         pg.wait_for_timeout(700)
         out["formats"] = pg.evaluate(S38_FORMATS)
         out["efaktur"] = pg.evaluate(S38_EXPORT)
+        out["format_overflow"] = pg.evaluate(S38_FORMAT_OVERFLOW)
         pg.screenshot(path=f"{OUT}/s38m-ekspor-pajak.png", full_page=False)
 
         _p3b_open_recap(pg)
@@ -10467,7 +10485,10 @@ def s38m(browser):
             "the_recap_screen_never_scrolls_sideways": rc["scrolls_sideways"] is False,
             "the_recap_title_says_internal_not_a_djp_file": "BUKAN berkas impor DJP" in (rc["desc"] or ""),
             # ---- putaran kedua
+            "the_nitku_fixture_ran": (fx.get("nitku") or {}).get("invoice") is not None,
             "the_file_note_renders_on_a_phone": "Hapus baris pertama ini sebelum mengimpor" in (out["efaktur"]["file_note"] or ""),
+            # R3-kejujuran-3: 'tanpa gulir samping' benar karena leluhur MEMOTONG — ukur simpul teks yang keluar viewport.
+            "no_format_text_is_clipped_on_a_phone": out["format_overflow"] == 0,
             "the_treatment_sentence_wraps_to_at_most_four_lines_on_a_phone":
                 0 < fixture_row.get("treatment_lines", 0) <= 4 and "tarif NORMAL" in (fixture_row.get("treatment") or ""),
             "no_console_error": errors == [],

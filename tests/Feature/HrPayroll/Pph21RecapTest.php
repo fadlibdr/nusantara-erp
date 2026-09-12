@@ -3,6 +3,8 @@
 namespace Tests\Feature\HrPayroll;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\HrPayroll\Enums\PayrollRunType;
@@ -326,6 +328,7 @@ class Pph21RecapTest extends ErpTestCase
         $screen = (string) file_get_contents(public_path('app/js/views/rekappph21.js'));
         $this->assertStringContainsString('row.tax_id_treatment', $screen, 'rekappph21.js tidak menampilkan tax_id_treatment');
         $this->assertStringContainsString('s.without_tax_id_normal_rate', $screen, 'rekappph21.js tidak membaca without_tax_id_normal_rate');
+        $this->assertStringContainsString('s.identified_but_surcharged', $screen, 'rekappph21.js tidak membaca identified_but_surcharged (R3-rekap-5)');
         $this->assertMatchesRegularExpression('/el\(\'span\.cell-sub\.tax-id-treatment\', \{\s*\/\/[^\n]*\n[^\n]*\n\s*style: \{ display: \'block\', whiteSpace: \'normal\', minWidth: \'16rem\'/', $screen,
             'kalimat perlakuan harus di bawah nama (td pertama) dengan lebar minimum — di ponsel kolom pertama menciut ke 91 px (R2-rekap-3)');
     }
@@ -368,6 +371,122 @@ class Pph21RecapTest extends ErpTestCase
         // Ubin hanya menghitung yang PASTI: EMP-0003 tidak masuk "dihitung tarif normal".
         $this->assertSame(3, $recap['summary']['without_tax_id']);
         $this->assertSame(1, $recap['summary']['without_tax_id_normal_rate']);
+    }
+
+    /**
+     * R3-rekap-3 (a/d) + R3-rekap-1: run THR membekukan flag juga; slip THR LAMA
+     * (tanpa flag) tidak bisa disimpulkan — juga untuk pegawai yang DIKENALI hari
+     * ini: sel kosong berarti "dikenali dan tarif normal", dan itu tidak diketahui.
+     */
+    public function test_a_thr_slip_freezes_the_flag_and_a_legacy_thr_slip_is_declared_unrecorded_even_for_a_recognised_employee(): void
+    {
+        $a = $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'NIK Warisan', 'base_salary' => 9_000_000, 'npwp' => 'N/A', 'nik_ktp' => 'BELUM-ADA']);
+        $b = $this->makeEmployee(['code' => 'EMP-0002', 'name' => 'Tanpa Apa Pun', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '']);
+        $thr = $this->approved(['run_type' => PayrollRunType::Thr, 'payment_date' => '2026-06-20']);
+
+        $flags = Payslip::query()->where('payroll_run_id', $thr->id)->get()->keyBy('employee_id');
+        $this->assertTrue($flags[$a->id]->has_tax_id);
+        $this->assertFalse($flags[$b->id]->has_tax_id);
+        $this->assertMoney(1_282_500.0, (float) $flags[$a->id]->pph21_amount);   // TER gabungan 18 jt (8 %) − TER 9 jt (1,75 %)
+        $this->assertMoney(1_539_000.0, (float) $flags[$b->id]->pph21_amount);   // × 1,2
+
+        // Slip THR lama: flag hilang, NIK EMP-0002 dilengkapi sesudahnya → dikenali hari ini.
+        Payslip::query()->where('payroll_run_id', $thr->id)->update(['has_tax_id' => null]);
+        $b->forceFill(['nik_ktp' => '3173042708860099'])->save();
+
+        $rows = collect($this->recap->monthly(2026, 6)['rows'])->keyBy('employee_code');
+
+        $this->assertNull($rows['EMP-0001']['tax_id_treated_as_identified']);
+        $this->assertSame('current', $rows['EMP-0001']['tax_id_treatment_source']);
+        $this->assertSame('tidak tercatat', $rows['EMP-0001']['tax_id_treatment_label']);
+
+        // Dikenali hari ini, slipnya 120 % — TIDAK boleh tampil sebagai "dikenali dan tarif normal".
+        $this->assertSame('3173042708860099', $rows['EMP-0002']['tax_id']);
+        $this->assertNull($rows['EMP-0002']['tax_id_treated_as_identified']);
+        $this->assertSame('current', $rows['EMP-0002']['tax_id_treatment_source']);
+        $this->assertSame('tidak tercatat', $rows['EMP-0002']['tax_id_treatment_label']);
+        $this->assertStringContainsString('tidak tercatat (slip lama)', (string) $rows['EMP-0002']['tax_id_treatment']);
+        $this->assertStringContainsString('SAAT INI payroll akan memotong tarif NORMAL', (string) $rows['EMP-0002']['tax_id_treatment']);
+    }
+
+    /**
+     * R3-rekap-3 (b) + R3-rekap-4: NIK dilengkapi DI ANTARA run THR dan run gaji
+     * → perlakuan berbeda antar slip, disebut per run; bila salah satu slip lama
+     * tanpa flag (masa peralihan migrasi), yang tercatat TETAP disebut per run.
+     */
+    public function test_slips_of_one_month_with_different_or_partly_unrecorded_treatments_are_named_per_run(): void
+    {
+        $employee = $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'Dilengkapi di Tengah', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '']);
+        $thr = $this->approved(['run_type' => PayrollRunType::Thr, 'payment_date' => '2026-06-20']);   // 120 %
+        $employee->forceFill(['nik_ktp' => '3173042708860099'])->save();
+        $regular = $this->approved();                                                                   // tarif normal
+
+        $row = collect($this->recap->monthly(2026, 6)['rows'])->keyBy('employee_code')['EMP-0001'];
+
+        $this->assertNull($row['tax_id_treated_as_identified']);
+        $this->assertSame('snapshot', $row['tax_id_treatment_source']);
+        $this->assertSame('berbeda antar slip', $row['tax_id_treatment_label']);
+        $this->assertStringContainsString('BERBEDA antar run', (string) $row['tax_id_treatment']);
+        $this->assertStringContainsString($thr->code.': tambahan 20 %', (string) $row['tax_id_treatment']);
+        $this->assertStringContainsString($regular->code.': tarif normal', (string) $row['tax_id_treatment']);
+
+        // Slip THR lama (flag hilang) + slip gaji bertanda: sebagian tidak tercatat, per run.
+        Payslip::query()->where('payroll_run_id', $thr->id)->update(['has_tax_id' => null]);
+        $recap = $this->recap->monthly(2026, 6);
+        $row = collect($recap['rows'])->keyBy('employee_code')['EMP-0001'];
+
+        $this->assertNull($row['tax_id_treated_as_identified']);
+        $this->assertSame('partial', $row['tax_id_treatment_source']);
+        $this->assertSame('sebagian tidak tercatat', $row['tax_id_treatment_label']);
+        $this->assertStringContainsString($thr->code.': tidak tercatat', (string) $row['tax_id_treatment']);
+        $this->assertStringContainsString($regular->code.': tarif normal', (string) $row['tax_id_treatment']);
+        $this->assertSame(0, $recap['summary']['identified_but_surcharged']);
+    }
+
+    /** R3-rekap-3 (c): bruto × tarif = 0 tidak bisa membedakan normal dari 120 % → tidak disimpulkan. */
+    public function test_a_legacy_slip_with_zero_tax_base_is_not_inferred(): void
+    {
+        $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'Gaji Nol', 'base_salary' => 0, 'npwp' => 'N/A', 'nik_ktp' => 'BELUM-ADA']);
+        $run = $this->approved();
+        Payslip::query()->where('payroll_run_id', $run->id)->update(['has_tax_id' => null]);
+
+        $row = collect($this->recap->monthly(2026, 6)['rows'])->keyBy('employee_code')['EMP-0001'];
+
+        $this->assertNull($row['tax_id_treated_as_identified']);
+        $this->assertSame('current', $row['tax_id_treatment_source']);
+        $this->assertSame('tidak tercatat', $row['tax_id_treatment_label']);
+    }
+
+    /** R3-rekap-6: pegawai terhapus keras — berkas tetap menyebut id-nya, dan tidak ada ramalan payroll untuk orang yang tidak ada. */
+    public function test_a_hard_deleted_employee_keeps_its_id_in_the_csv_and_gets_no_forecast(): void
+    {
+        $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'Masih Ada', 'base_salary' => 9_000_000, 'npwp' => '07.123.456.7-013.000']);
+        $gone = $this->makeEmployee(['code' => 'EMP-0002', 'name' => 'Terhapus Keras', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '']);
+        $run = $this->approved();
+        Payslip::query()->where('payroll_run_id', $run->id)->where('employee_id', $gone->id)->update(['has_tax_id' => null]);
+        // Hapus keras di balik FK: SQLite tidak bisa mematikan foreign_keys di dalam transaksi
+        // uji, tetapi bisa MENUNDA pemeriksaannya sampai commit (yang tidak pernah terjadi).
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::statement('PRAGMA defer_foreign_keys = ON');
+        } else {
+            Schema::disableForeignKeyConstraints();
+        }
+        DB::table('hr_employees')->where('id', $gone->id)->delete();
+
+        $recap = $this->recap->monthly(2026, 6);
+        $row = collect($recap['rows'])->first(fn (array $r): bool => $r['employee_id'] === $gone->id);
+
+        $this->assertNull($row['employee_code']);
+        $this->assertSame('Data pegawai tidak ditemukan.', $row['tax_id_issue']);
+        $this->assertSame('tidak tercatat', $row['tax_id_treatment_label']);
+        $this->assertStringContainsString('data pegawai tidak ditemukan', (string) $row['tax_id_treatment']);
+        $this->assertStringNotContainsString('akan memotong', (string) $row['tax_id_treatment']);
+
+        $lines = explode("\r\n", rtrim($recap['csv'], "\r\n"));
+        $line = collect($lines)->first(fn (string $l): bool => str_starts_with($l, '#'.$gone->id.';'));   // baris '#' pertama adalah komentar
+        $this->assertNotNull($line, 'baris pegawai terhapus tidak ada di CSV');
+        $this->assertStringStartsWith('#'.$gone->id.';Data pegawai tidak ditemukan;;;9000000,00;', $line);
+        $this->assertStringEndsWith(';tidak tercatat', $line);
     }
 
     // ---------------------------------------------------------------- CSV

@@ -138,6 +138,10 @@ class EmployeeNpwpGateTest extends ErpTestCase
         $this->makeEmployee(['code' => 'EMP-0008', 'nik_ktp' => '3171012345678908']);
         $this->makeEmployee(['code' => 'EMP-X', 'nik_ktp' => '3171012345678907']);
         $this->makeEmployee(['code' => 'EMP-R2-00', 'nik_ktp' => '3171012345678906']);
+        // R3-pintu-1: 20 digit → PHP_INT_MAX → float 'EMP-9.2233720368548E+18' dan jaring
+        // while-exists yang tidak pernah selesai; 10 digit → kode 11 digit selamanya.
+        $this->makeEmployee(['code' => 'EMP-99999999999999999999', 'nik_ktp' => '3171012345678903']);
+        $this->makeEmployee(['code' => 'EMP-9999999999', 'nik_ktp' => '3171012345678902']);
 
         $this->postJson('/api/hr/employees', $this->payload(['nik_ktp' => '3171012345678905']))
             ->assertCreated()

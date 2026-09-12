@@ -267,6 +267,10 @@ class Pph21RecapService
      * definisi identitas payroll = keputusan pemilik (laporan §9-I).
      *
      * @param  Collection<int, Payslip>  $group
+     *                                           Sumber: `snapshot` (flag slip), `inferred` (dari angka), `partial`
+     *                                           (sebagian slip masa ini tanpa flag), `current` (tidak tercatat — kalimat
+     *                                           hanya menyebut data pegawai hari ini). Label kosong HANYA bila dikenali
+     *                                           DAN tercatat/disimpulkan tarif normal.
      * @return array{tax_id_treated_as_identified: ?bool, tax_id_treatment_source: ?string, tax_id_treatment: ?string, tax_id_treatment_label: string}
      */
     private function treatment(?Employee $employee, Collection $group, bool $identified): array
@@ -315,34 +319,53 @@ class Pph21RecapService
             ];
         }
 
-        if ($known) {
-            // Slip-slip satu masa dihitung dengan perlakuan yang berbeda (mis. NIK
-            // dilengkapi di antara run gaji dan run THR) — disebut per run.
+        $anyKnown = array_filter($values, fn (?bool $v): bool => $v !== null) !== [];
+
+        if ($known || ($anyKnown && count($verdicts) > 1)) {
+            // Slip-slip satu masa dihitung dengan perlakuan yang berbeda (NIK
+            // dilengkapi di antara run gaji dan run THR), atau sebagian tercatat
+            // dan sebagian slip lama (masa peralihan migrasi — R3-rekap-4):
+            // disebut PER RUN, tidak dibungkam menjadi satu kalimat.
             $parts = array_map(
-                fn (array $v): string => sprintf('%s: %s', $v['run'] ?? '?', $v['value'] ? 'tarif normal' : "tambahan {$surcharge} %"),
+                fn (array $v): string => sprintf('%s: %s', $v['run'] ?? '?', match ($v['value']) {
+                    true => 'tarif normal',
+                    false => "tambahan {$surcharge} %",
+                    null => 'tidak tercatat',
+                }),
                 $verdicts,
             );
 
             return [
                 'tax_id_treated_as_identified' => null,
-                'tax_id_treatment_source' => 'snapshot',
-                'tax_id_treatment' => 'Slip masa ini dihitung dengan perlakuan yang BERBEDA antar run — '.implode('; ', $parts).'.',
-                'tax_id_treatment_label' => 'berbeda antar slip',
+                'tax_id_treatment_source' => $known ? 'snapshot' : 'partial',
+                'tax_id_treatment' => $known
+                    ? 'Slip masa ini dihitung dengan perlakuan yang BERBEDA antar run — '.implode('; ', $parts).'.'
+                    : 'Sebagian slip masa ini tidak tercatat perlakuannya (slip lama) — '.implode('; ', $parts).'; angka slip tidak dihitung ulang.',
+                'tax_id_treatment_label' => $known ? 'berbeda antar slip' : 'sebagian tidak tercatat',
             ];
         }
 
-        // Tidak tercatat dan tidak bisa disimpulkan: yang bisa dikatakan hanya
-        // apa yang AKAN dilakukan payroll menurut data pegawai hari ini.
-        $now = $employee?->hasTaxId();
+        // Tidak tercatat dan tidak bisa disimpulkan — untuk baris yang dikenali
+        // hari ini SEKALIPUN (R3-rekap-1): sel kosong berarti "dikenali dan tarif
+        // normal", dan itu tidak diketahui di sini. Yang bisa dikatakan hanya apa
+        // yang AKAN dilakukan payroll menurut data pegawai hari ini.
+        if ($employee === null) {
+            return [
+                'tax_id_treated_as_identified' => null,
+                'tax_id_treatment_source' => 'current',
+                'tax_id_treatment' => 'Perlakuan slip ini tidak tercatat (slip lama) dan data pegawai tidak ditemukan.',
+                'tax_id_treatment_label' => 'tidak tercatat',
+            ];
+        }
 
         return [
             'tax_id_treated_as_identified' => null,
             'tax_id_treatment_source' => 'current',
-            'tax_id_treatment' => $identified && $now === true ? null : sprintf(
+            'tax_id_treatment' => sprintf(
                 'Perlakuan slip ini tidak tercatat (slip lama). Menurut data pegawai SAAT INI payroll akan memotong %s; angka slip masa ini tidak dihitung ulang dan bisa berbeda.',
-                $now === true ? 'tarif NORMAL' : "DENGAN tambahan {$surcharge} %",
+                $employee->hasTaxId() ? 'tarif NORMAL' : "DENGAN tambahan {$surcharge} %",
             ),
-            'tax_id_treatment_label' => $identified && $now === true ? '' : 'tidak tercatat',
+            'tax_id_treatment_label' => 'tidak tercatat',
         ];
     }
 
@@ -417,8 +440,8 @@ class Pph21RecapService
 
         foreach ($rows as $row) {
             $lines[] = $this->csvLine([
-                $row['employee_code'],
-                $row['employee_name'],
+                $row['employee_code'] ?? '#'.$row['employee_id'],            // pegawai terhapus keras: id-nya, seperti di layar
+                $row['employee_name'] ?? 'Data pegawai tidak ditemukan',
                 $row['tax_id'],                 // kosong bila tidak dikenali — bukan 0, bukan garis
                 $row['tax_id_kind_label'],
                 $this->csvNumber($row['gross']),

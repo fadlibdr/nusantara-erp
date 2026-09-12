@@ -47,9 +47,11 @@ function summaryTiles(payload) {
       el('.value', { text: String(s.without_tax_id), style: s.without_tax_id ? { color: 'var(--danger)' } : {} }),
       // V2-7/V3b-3: sel kosong ≠ tambahan 20 % — sebut berapa yang dihitung tarif normal.
       el('.delta', {
-        text: !s.without_tax_id
+        text: (!s.without_tax_id
           ? 'semua dikenali'
-          : `sel identitas dibiarkan kosong · ${s.without_tax_id_normal_rate ?? 0} dihitung tarif normal`,
+          : `sel identitas dibiarkan kosong · ${s.without_tax_id_normal_rate ?? 0} dihitung tarif normal`)
+          // R3-rekap-5: baris yang KINI dikenali tetapi slipnya 120 % juga dihitung di sini.
+          + (s.identified_but_surcharged ? ` · ${s.identified_but_surcharged} dikenali kini tetapi slipnya 120 %` : ''),
       }),
     ]),
   ]);

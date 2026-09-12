@@ -69,38 +69,46 @@ const INTERNAL_RECAP = {
    kalimatnya disusun di sini — satu permukaan lagi yang bisa berkata lain
    daripada baris .djp-verification di bawahnya. */
 function formatBadges(format) {
+  // whiteSpace normal: lencana terpanjang ('… template BPJS Ketenagakerjaan') nowrap
+  // melebarkan track grid melewati viewport 390 px dan teks kartu terpotong (R3-kejujuran-3).
+  const wrap = { whiteSpace: 'normal', height: 'auto' };
   return [
     badge(format.status_label, format.status === 'ada' ? 'blue' : 'amber'),
     badge(format.badge_label, format.verified ? 'green' : 'amber'),
-  ];
+  ].map((node) => { Object.assign(node.style, wrap); return node; });
 }
 
 /* Satu blok per entri registri — kelima format, termasuk yang tidak punya
    writer, supaya orang yang mencari entri XML Coretax menemukan jawabannya di
    sini dan bukan menyimpulkan bahwa CSV legacy adalah itu. */
 function formatsCard(formats, summary) {
-  return el('.card', [
-    el('.card-head', [
+  const headBadge = badge(summary.label, summary.verified === summary.total ? 'green' : 'amber');
+  Object.assign(headBadge.style, { whiteSpace: 'normal', height: 'auto' });
+  // minWidth 0 pada setiap tingkat grid/flex: tanpa itu isi terpanjang menentukan lebar track
+  // dan kartu meluber 22 px di 390 px — 'tanpa gulir samping' hanya karena leluhur memotongnya.
+  const text = { fontSize: '12px', minWidth: 0, overflowWrap: 'anywhere' };
+  return el('.card', { style: { minWidth: 0 } }, [
+    el('.card-head.djp-formats-head', { style: { flexWrap: 'wrap', rowGap: '6px' } }, [
       el('h2', { text: 'Format berkas DJP/BPJS — status verifikasi' }),
       el('.spacer'),
-      badge(summary.label, summary.verified === summary.total ? 'green' : 'amber'),
+      headBadge,
     ]),
-    el('.card-body', { style: { display: 'grid', gap: '10px' } }, formats.map((format) => {
+    el('.card-body', { style: { display: 'grid', gap: '10px', minWidth: 0 } }, formats.map((format) => {
       const recap = INTERNAL_RECAP[format.key];
       return el('.djp-format', {
         'data-key': format.key,
         'data-status': format.status,
         'data-verified': String(Boolean(format.verified)),
-        style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)' },
+        style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 0 },
       }, [
-        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
-          el('strong', { text: format.label }),
+        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', minWidth: 0 } }, [
+          el('strong', { style: { minWidth: 0, overflowWrap: 'anywhere' }, text: format.label }),
           ...formatBadges(format),
         ]),
-        el('.muted', { style: { fontSize: '12px' }, text: `Sumber: ${format.source}` }),
-        el('.muted.djp-verification', { style: { fontSize: '12px' }, text: format.verification }),
+        el('.muted', { style: text, text: `Sumber: ${format.source}` }),
+        el('.muted.djp-verification', { style: text, text: format.verification }),
         format.awaiting_file
-          ? el('.djp-awaiting-file', { style: { fontSize: '12px', color: 'var(--warning)' }, text: format.awaiting_file })
+          ? el('.djp-awaiting-file', { style: { ...text, color: 'var(--warning)' }, text: format.awaiting_file })
           : null,
         recap && session.can(recap.perm)
           ? el('div', button(recap.label, { size: 'sm', onClick: () => navigate(recap.route) }))

@@ -1580,6 +1580,7 @@
    "the_csv_is_labelled_and_the_fixture_cell_is_empty_in_it": true,
    "the_ter_note_is_shown": true,
    "the_screens_never_scroll_sideways": true,
+   "the_nitku_fixture_ran": true,
    "the_nitku_invoice_is_exported_not_blocked_and_noted": true,
    "the_notes_card_reads_the_api_sentence": true,
    "the_ready_tile_counts_the_noted_rows": true,
@@ -1591,7 +1592,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7624,
+  "_ms": 7670,
   "_clicks": 1
  },
  "S38_kepatuhan_djp_ponsel": {
@@ -1685,6 +1686,7 @@
    "h1": "Ekspor Pajak",
    "scrolls_sideways": false
   },
+  "format_overflow": 0,
   "recap": {
    "h1": "Rekap PPh 21/26 Bulanan",
    "desc": "Rekap internal PPh 21/26 bulanan — untuk diisi ke e-Bupot 21/26 oleh petugas pajak. BUKAN berkas impor DJP.",
@@ -1858,13 +1860,15 @@
    "the_recap_renders_with_the_empty_identity_cell": true,
    "the_recap_screen_never_scrolls_sideways": true,
    "the_recap_title_says_internal_not_a_djp_file": true,
+   "the_nitku_fixture_ran": true,
    "the_file_note_renders_on_a_phone": true,
+   "no_format_text_is_clipped_on_a_phone": true,
    "the_treatment_sentence_wraps_to_at_most_four_lines_on_a_phone": true,
    "no_console_error": true
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4470,
+  "_ms": 5626,
   "_clicks": 0
  }
 }

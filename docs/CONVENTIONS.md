@@ -2345,7 +2345,10 @@ adalah fungsi murni: klaim yang berkasnya tidak ada di pohon diturunkan kembali 
 diverifikasi. Kalimatnya sampai ke TIGA permukaan dari satu sumber: `GET finance/tax-exports`
 (`data.formats` + `data.<tab>.format` + `data.formats_summary`), layar Ekspor Pajak (`.djp-format`
 per entri — teks lencana `badge_label` dan lencana hitungan `formats_summary.label` digambar apa
-adanya, SPA hanya memilih warnanya dan tidak menyusun satu kata pun; tombol `Unduh CSV` hanya
+adanya, SPA hanya memilih warnanya dan tidak menyusun satu kata pun; kartu dan setiap tingkat grid/flex
+di dalamnya `min-width: 0` dan lencananya boleh membungkus — di 390 px isi terpanjang dulu melebarkan
+track 22 px melewati viewport dan teks terpotong tanpa gulir samping (R3-kejujuran-3; S38m mengukur
+simpul teks yang keluar viewport); tombol `Unduh CSV` hanya
 dari `downloadable`; `DjpFormatsTest` memaku bahwa `taxexport.js` tidak memuat string
 berisi «diverifikasi»/«sesuai»/«coretax» dan hanya punya satu literal `Unduh` di dalam cabang
 `exp.format.downloadable`), dan berkas unduhan (`DjpFormats::filename` → akhiran `-belum-diverifikasi`,
@@ -2382,10 +2385,13 @@ kedua pintu** (R2-pintu-1): kolom importer menandai `'forward_only' => ['digits:
 (`MasterDataImportService::prepare` membuang aturan bentuk itu bila nilai yang dikirim PERSIS sama
 dengan yang tersimpan), `EmployeeUpdateRequest::nikUnchanged()` melakukan hal yang sama pada PUT;
 keunikan NIK tidak pernah ikut maju-saja. `EmployeeService::nextCode()` hanya menghitung kode
-berpola `EMP-<angka>` (R2-pintu-2: satu kode impor 'EMP-X' dulu membuat setiap tambah pegawai 500).
+berpola `EMP-<1–9 digit>` dengan jaring berbatas 10.000 percobaan (R2-pintu-2: satu kode impor 'EMP-X'
+dulu membuat setiap tambah pegawai 500; R3-pintu-1: 'EMP-' + 20 digit dulu menjadi PHP_INT_MAX → float
+'EMP-9.2233720368548E+18' dan jaring `while` tidak pernah selesai).
 `lang/id/validation.php` memuat SETIAP kunci pesan bawaan Laravel (dipaku `VendorNpwpGateTest`
-terhadap `vendor/laravel/framework/.../lang/en/validation.php` — R2-pintu-5: `Rule::enum` dulu
-menjawab "The selected Jenis is invalid.").
+terhadap `vendor/laravel/framework/.../lang/en/validation.php`, kunci DAUN lewat `Arr::dot` — R2-pintu-5:
+`Rule::enum` dulu menjawab "The selected Jenis is invalid."; R3-pintu-2: pembanding tingkat atas
+meloloskan sub-kunci `password.*` yang hilang).
 **Maju-saja**: `ValidNpwp::unlessUnchanged($tersimpan)` pada pintu UPDATE DAN
 pada baris impor yang kodenya sudah ada (`MasterDataImportService::prepare` menukar aturan
 kolom itu per baris dengan nilai tersimpan — ekspor aplikasi selalu membawa kolom `npwp`, jadi
@@ -2410,10 +2416,14 @@ pegawai hari ini, yang berbalik begitu HR melengkapi NIK sesudah run. Slip lama 
 dari angkanya bila deterministik (gaji bulanan non-Desember: pph = bruto × tarif atau × 1,2), sisanya
 (THR lama, Desember lama) "tidak tercatat" dengan kalimat yang hanya menyebut apa yang AKAN
 dilakukan payroll hari ini. Per baris: `tax_id_treatment` (kalimat), `tax_id_treated_as_identified`
-(true/false/null), `tax_id_treatment_source` (`snapshot`/`inferred`/`current`),
-`tax_id_treatment_label` (kolom CSV terakhir `perlakuan_identitas` — R2-rekap-5); baris yang KINI
-dikenali tetapi slipnya 120 % mendapat kalimatnya sendiri. Ubin: `summary.without_tax_id_normal_rate`
-(hanya yang pasti) dan `summary.identified_but_surcharged`. Kalimat digambar DI BAWAH NAMA pegawai
+(true/false/null), `tax_id_treatment_source` (`snapshot`/`inferred`/`partial`/`current`),
+`tax_id_treatment_label` (kolom CSV terakhir `perlakuan_identitas` — R2-rekap-5; kosong HANYA bila
+dikenali DAN tercatat/disimpulkan tarif normal — R3-rekap-1); baris yang KINI dikenali tetapi slipnya
+120 % mendapat kalimatnya sendiri; slip satu masa dengan perlakuan berbeda atau sebagian tanpa flag
+disebut PER RUN ('berbeda antar slip' / 'sebagian tidak tercatat' — R3-rekap-4); pegawai terhapus keras:
+CSV `#<id>` + "Data pegawai tidak ditemukan", tanpa ramalan (R3-rekap-6). Ubin "Pegawai tanpa identitas
+pajak" membaca `summary.without_tax_id_normal_rate` (hanya yang pasti) DAN
+`summary.identified_but_surcharged` di delta-nya (R3-rekap-5). Kalimat digambar DI BAWAH NAMA pegawai
 (`span.cell-sub.tax-id-treatment`, lebar minimum 16rem — di ponsel kolom pertama menciut ke 91 px,
 R2-rekap-3); sel identitas dan jenis TETAP kosong (S38 memaku). Rekap tidak menghitung ulang apa
 pun; mengubah definisi identitas payroll mengubah pemotongan = keputusan pemilik (LAPORAN P-3b §9-I).

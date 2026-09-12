@@ -41,7 +41,7 @@ migrasi (kolom `npwp` varchar(30) sudah memuat NITKU 22 digit).
 | T3b.2 | Rekap PPh 21/26 bulanan dari snapshot slip run disetujui/diposting; endpoint baca-saja; layar; CSV berlabel; uji kesetaraan; run draf tidak masuk; sel kosong | ✅ | `9c9bbc3` — `Pph21RecapService::monthly()` membaca `hr_payslips.ter_category/ter_rate/pph21_amount` (bukan hitung ulang: gaji diubah sesudah run disetujui → rekap tidak bergeser, dipaku), hanya run `approved`/`closed` (status yang sama dengan `decemberTax`, `TaxEqualizationService`), draf/diajukan/ditolak DISEBUT di `runs.excluded`, terhapus lunak tidak di kedua daftar; THR + gaji satu bulan → satu baris pegawai (setiap slip disebut); identitas: npwp dikenali → NIK 16 digit → **kosong** + `tax_id_issue` + `summary.without_tax_id`; CSV `;` + desimal koma, baris pertama `# Rekap internal PPh 21/26 … BUKAN berkas impor DJP`, `rekap-internal-pph21-YYYY-MM.csv`. `GET hr/pph21-recap` di balik **`hr.view`** (izin yang sudah ada — §2C). Layar `#/rekap-pph21` (`views/rekappph21.js`; NAV SDM & Payroll di bawah Payroll; `SHELL_VERSION` 9 → 10). `Pph21RecapTest` **14 uji**, merah dulu (14 error); kesetaraan `SUM(hr_payslips.pph21_amount)` dipaku di uji DAN di harness atas sqlite salinan (§7); 10 mutasi merah (§4) |
 | T3b.3 | Sapuan kejujuran: docblock ke permukaan; TER HANYA diverifikasi; NTPN tetap manual | ✅ dengan **satu temuan** | `75df8f2` — **`config/erp.php` TIDAK memuat tabel TER** (`grep -n "'ter'" config/erp.php` = 0 baris): tabel dan tanda "verify against the official PMK 168/2023 attachment" hidup di `Pph21TerService`; docblock `TaxExportService` yang menunjuk `config/erp.php` dibetulkan (`16b0c61`). Tandanya diangkat ke permukaan pemakai sebagai `Pph21TerService::VERIFICATION_NOTE` ("…ditandai perlu dicek terhadap peraturan yang berlaku…") di API dan kaki layar rekap — **tidak satu angka TER pun berubah** (`git diff main...HEAD -- Modules/HrPayroll/Services/Pph21TerService.php` hanya menambah satu konstanta kalimat + docblock-nya). NTPN: `kalenderpajak.js` ("MANUAL — NTPN diketik dari SSP/BPN asli, tidak ada integrasi e-filing"; "dipilih manual, tidak ada yang otomatis") dan `TaxObligationService` ("harus mencantumkan NTPN dari SSP/BPN-nya") dipaku; sapuan string tampil di `views/*.js`, `Modules/*/Services/*.php`, `Modules/*/Http/Controllers/*.php` untuk "NTPN otomatis", "otomatis dari DJP", "siap Coretax", "sesuai DJP", "siap diekspor ke DJP" = **0** (uji `test_ntpn_stays_manual_and_nothing_promises_automation_or_djp_conformance`) |
 | 4 | Uji PHP + mutasi; per-direktori, bukan suite penuh | ✅ | **56 uji baru** di 6 berkas (15+14+5+4+4+14; `grep -c 'public function test_'`), 1 pin lama diperbarui (`TaxExportTest` nama berkas jujur); **25 mutasi, 25 merah, 0 LOLOS HIJAU** (§4); per-direktori §8 |
-| 5 | Harness S38 (desktop + ponsel) → `results-phase-3.json` BERDASARKAN KUNCI | ✅ | `d7cde2b` — `[S38_kepatuhan_djp] ok 5240ms clicks=1` (**19 syarat**), `[S38_kepatuhan_djp_ponsel] ok 4264ms clicks=0` (**6 syarat**), `console_errors: []` keduanya; **10 kunci lama tetap, 2 ditambahkan** (dihitung: 10 → 12); 4 PNG. Run pertama S38 JATUH pada satu syarat karena harness membaca `innerText` ubin yang di-uppercase CSS — kode aplikasi tidak berubah, harness dibetulkan ke `textContent` (jebakan S37 pada `th`, muncul lagi pada `.stat .label`) |
+| 5 | Harness S38 (desktop + ponsel) → `results-phase-3.json` BERDASARKAN KUNCI | ✅ | `d7cde2b` — `[S38_kepatuhan_djp] ok 5240ms clicks=1` (**19 syarat**), `[S38_kepatuhan_djp_ponsel] ok 4264ms clicks=0` (**6 syarat**), `console_errors: []` keduanya; **10 kunci lama tetap, 2 ditambahkan** (dihitung: 10 → 12); 4 PNG. **Dijalankan ulang di ujung cabang** (§15.3): desktop **27 syarat**, ponsel **10 syarat**, fixture NITKU lewat pipeline sungguhan (`docs/bukti-uji/fixtures/s38-nitku.php`), kedua kunci diganti berdasarkan kunci, 4 PNG diperbarui. Run pertama S38 JATUH pada satu syarat karena harness membaca `innerText` ubin yang di-uppercase CSS — kode aplikasi tidak berubah, harness dibetulkan ke `textContent` (jebakan S37 pada `th`, muncul lagi pada `.stat .label`) |
 | 6 | Cangkang PWA | ✅ | `9c9bbc3` — `js/views/rekappph21.js` di `SHELL`, `SHELL_VERSION` 9 → 10; `PwaServiceWorkerTest` hijau (bagian dari 32 uji kabel SPA) |
 | 7 | `/app/` dimuat di Chromium, 0 galat konsol pada setiap layar yang disentuh, desktop + ponsel | ✅ | §7 — 8 rute × 2 viewport sebagai admin@ + 1 sesi finance@: ponsel `console_errors: []`, finance `[]`; desktop `[]` pada kedelapan pemuatan rute, lalu **satu** baris `Failed to load resource: 422` yang ditulis Chromium sendiri untuk **probe 422 yang disengaja** (formulir pelanggan, NPWP `123`); `http_errors: []` di luar probe; tidak ada gulir samping |
 | 8 | Laporan ini | ✅ | berkas ini; sapuan dokumentasi §13 |
@@ -354,11 +354,12 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
 - `grep -rn "Tata letak kolom mengikuti" docs/ | grep -v LAPORAN-PAKET-HM-P-3b | wc -l` — **1 → 0**
   di luar laporan ini (PANDUAN-PENGGUNA §10.12 ditulis ulang untuk kartu registri, kalimat dari
   server, nama dan baris pertama berkas; tanpa `grep -v` hasilnya 1 — baris ini sendiri, V2-9).
-- `grep -rn "Rekap PPh 21 Bulanan" docs/ --include=*.md | wc -l` — **8** baris di
-  **5** berkas Markdown (PANDUAN-PENGGUNA ×4: tabel §1, §10.12, daftar grup §11, judul §11.8;
-  ONBOARDING hr.md, finance.md; `docs/samples/pajak/README.md` §2; laporan ini — CONVENTIONS §39
-  memakai ejaan "Rekap PPh 21/26 bulanan" dan tidak tertangkap grep ini; rincian dibetulkan
-  R2-kejujuran-4) — semuanya dibaca.
+- `grep -rn "Rekap PPh 21 Bulanan" docs/ --include=*.md | grep -v LAPORAN-PAKET-HM-P-3b | wc -l` —
+  **7** baris di **4** berkas di luar laporan ini (PANDUAN-PENGGUNA ×4: tabel §1, §10.12, daftar grup
+  §11, judul §11.8; ONBOARDING hr.md, finance.md; `docs/samples/pajak/README.md` §2 — CONVENTIONS §39
+  memakai ejaan "Rekap PPh 21/26 bulanan" dan tidak tertangkap grep ini); laporan ini sendiri menyebut
+  frasa itu berkali-kali sehingga dikeluarkan dari hitungan (R2-kejujuran-4, R3-kejujuran-4) — semuanya
+  dibaca.
 - `grep -rn "BELUM DIVERIFIKASI" docs/ --include=*.md | grep -v LAPORAN-PAKET-HM-P-3b | wc -l` —
   **6** baris (README samples, PANDUAN §10.12, CONVENTIONS §39, ROADMAP §5).
 - Berkas yang disapu: `docs/samples/pajak/README.md` (baru), `docs/CONVENTIONS.md` §39 (baru),
@@ -451,7 +452,7 @@ Semua 14 diterima dan ditutup pada commit putaran kedua (§14).
 | R2-pintu-4 | DESIGN | PUT siup→npwp TANPA kunci `number` menyimpan `ABC-123` sebagai NPWP | `withValidator`: nomor tersimpan diperiksa `ValidNpwp` bila jenis menjadi npwp; paku |
 | R2-pintu-5 | UX | `Rule::enum` menjawab "The selected Jenis is invalid." — 39 kunci `lang/id/validation.php` hilang | 39 kunci ditambahkan; paku: `doc_type 'paspor'` → "Jenis yang dipilih tidak sah." + `array_diff` kunci `en` framework = [] |
 | R2-kejujuran-1 | TEST-GAP | Penjaga `isVerified` pada catatan NPWP dihapus → tetap hijau (tidak ada format terverifikasi hari ini) | `TaxExportService::npwpShapeNoteFor(entri)` murni; paku dengan entri `describe()` buatan terverifikasi → null |
-| R2-kejujuran-2 | TEST-GAP | `notesCard()` selalu null / cabang `file_note` dimatikan → hijau; S38 tidak membaca selektornya | paku struktural regex di `TaxExportTest`/`DjpFormatsTest`; S38: fixture NITKU lewat pipeline nyata (`docs/bukti-uji/fixtures/s38-nitku.php`) + 4 syarat baru desktop, 1 ponsel |
+| R2-kejujuran-2 | TEST-GAP | `notesCard()` selalu null / cabang `file_note` dimatikan → hijau; S38 tidak membaca selektornya | paku struktural regex di `TaxExportTest`/`DjpFormatsTest`; S38: fixture NITKU lewat pipeline nyata (`docs/bukti-uji/fixtures/s38-nitku.php`) + 4 syarat baru desktop, 1 ponsel — run pertama di `9b8dd5d` GAGAL (akar repo fixture salah satu tingkat, R3-kejujuran-1/R3-rekap-2), hijau sejak `f039cf6` (§15.3) |
 | R2-kejujuran-3 | UX | Kalimat "22 digit (NITKU (22 digit))" — kurung bersarang; PANDUAN mengutip "(NITKU)" | nama jenis pendek dari `Npwp::kind()`; paku literal `tersimpan 22 digit (NITKU); skema e-Faktur desktop` + `NotContains('((')` |
 | R2-kejujuran-4 | DOCS | §13 rincian berkas "Rekap PPh 21 Bulanan" salah (CONVENTIONS 0, README samples 1, PANDUAN 4) | §13 ditulis ulang per berkas |
 | R2-rekap-1 | HONESTY | Kalimat perlakuan dibaca dari data pegawai HARI INI — berbalik sesudah NIK disunting pasca-persetujuan; arah sebaliknya diam | flag `has_tax_id` dibekukan di slip (migrasi 001093 + `PayrollService`), rekap membacanya (`snapshot`), slip lama disimpulkan (`inferred`) atau "tidak tercatat" (`current`); kalimat untuk baris yang kini dikenali tetapi slipnya 120 %; `summary.identified_but_surcharged`; PANDUAN §11.8 |
@@ -463,4 +464,31 @@ Semua 14 diterima dan ditutup pada commit putaran kedua (§14).
 **Yang tidak diubah walau disebut verifier:** definisi `hasTaxId()` payroll (keputusan I); keunikan NIK di
 importer (jebakan lama §4.9); THR/Desember lama tidak disimpulkan (kalimat "tidak tercatat" — jujur, bukan
 tebakan).
+
+### 15.3 Putaran penutup (Workflow `p3b-verify-close` atas `9b8dd5d`: 2 lensa → 12 temuan)
+
+Dua verifier (`close:pintu` = pintu + kejujuran, `close:rekap` = rekap + snapshot), 142 pemakaian
+alat, 20 menit. Tiga temuan sudah tertutup oleh `f039cf6` (bukti S38) sebelum putaran selesai; sembilan
+lainnya ditutup pada commit putaran penutup (§14).
+
+| ID | Jenis | Temuan (gejala) | Penutupan |
+|---|---|---|---|
+| R3-pintu-1 | BUG | Kode impor `EMP-` + ≥19 digit → `(int)` = PHP_INT_MAX → float `EMP-9.2233720368548E+18`, lalu jaring `while exists` tidak pernah selesai (Tambah Karyawan menggantung/500 untuk semua orang) | `nextCode()` hanya `EMP-<1–9 digit>`, aritmetika int, jaring berbatas 10.000 + `RuntimeException`; paku: `EMP-99999999999999999999` + `EMP-9999999999` lalu dua POST → `EMP-0009`, `EMP-0010` |
+| R3-pintu-2 | TEST-GAP | Paku `array_diff` kunci `lang/en` hanya tingkat atas — sub-kunci `password.letters` hilang LOLOS HIJAU | pembanding kunci DAUN `Arr::dot` (tanpa `custom`/`attributes`) |
+| R3-kejujuran-1 | BUG | Fixture S38 NITKU me-`require` `docs/vendor/autoload.php` (`dirname(__DIR__, 2)`) — harness S38 gagal 3 syarat | `dirname(__DIR__, 3)`; S38/S38m dijalankan ulang, hijau (`f039cf6`) |
+| R3-kejujuran-2 | HONESTY | §15.2 mengklaim bukti S38 untuk R2-kejujuran-2 padahal `results-phase-3.json` masih rekaman `d7cde2b` | `f039cf6` merekam run yang benar; §1 baris 5 dan §15.2 disunting |
+| R3-kejujuran-3 | UX | Di 390 px kartu registri meluber 22 px dan DIPOTONG (badge kepala, ujung baris teks) — "tanpa gulir samping" benar karena leluhur memotongnya | `min-width: 0` di kartu/grid/flex, `overflow-wrap: anywhere`, lencana boleh membungkus; S38m syarat baru `no_format_text_is_clipped_on_a_phone` (simpul teks dengan `rect.right > clientWidth`) |
+| R3-kejujuran-4 | DOCS | §13 "Rekap PPh 21 Bulanan" 8 baris — di ujung cabang 9 (LAPORAN ×2) | §13 memakai `grep -v LAPORAN` dan menyebut angka ujung cabang |
+| R3-rekap-1 | HONESTY | Baris DIKENALI hari ini dengan slip lama yang tidak bisa disimpulkan tampil tanpa kalimat dan sel CSV kosong (= "dikenali dan tarif normal") padahal slipnya bisa 120 % | cabang `current` selalu berkalimat dan berlabel `tidak tercatat`, terlepas dari identitas hari ini; paku THR lama + NIK dilengkapi |
+| R3-rekap-2 | BUG | = R3-kejujuran-1 (lensa lain) + `_p3b_nitku_fixture` menelan galat | `f039cf6`; syarat `the_nitku_fixture_ran` di S38 dan S38m menyebut sebabnya |
+| R3-rekap-3 | TEST-GAP | Mutasi hijau: THR tidak menulis flag; cabang "berbeda antar run" dihapus; penjaga `base <= 0`; penjaga THR di inferensi | empat paku baru (THR membekukan flag 1.282.500/1.539.000; berbeda antar run menyebut kedua kode run; bruto 0 → `current`; THR lama → `current`) |
+| R3-rekap-4 | DESIGN | Satu slip lama tanpa flag + satu slip bertanda dalam satu masa → seluruh baris "tidak tercatat", slip yang tercatat 120 % dibungkam | sebagian tercatat → disebut PER RUN (`partial`, label `sebagian tidak tercatat`); paku |
+| R3-rekap-5 | DOCS | CONVENTIONS menyebut `identified_but_surcharged` sebagai ubin — layar tidak membacanya; PANDUAN tidak memuat nilai `berbeda antar slip` | delta ubin membaca `s.identified_but_surcharged` (dipaku); PANDUAN §11.8 memuat semua nilai kolom |
+| R3-rekap-6 | UX | Pegawai terhapus keras: baris CSV dimulai `;;;;` tanpa id; kalimat `current` meramal payroll untuk orang yang tidak ada | CSV `#<id>` + "Data pegawai tidak ditemukan"; kalimat tanpa ramalan; paku (hapus keras di balik FK dengan `PRAGMA defer_foreign_keys`) |
+
+Verifier lensa rekap juga membuktikan yang TIDAK ditemukan: inferensi dari angka tidak pernah ambigu
+untuk ketiga tabel TER (1.738 kombinasi bruto × tarif × flag, `wrong = 0`; satu-satunya basis yang
+ambigu secara aritmetika adalah 0,01/0,02, sedangkan basis non-nol terkecil tabel = 13.500);
+migrasi 001093 bolak-balik bersih tanpa backfill; kalimat PANDUAN §11.8 sama kata demi kata dengan
+`Pph21RecapService::treatment`.
 
