@@ -185,7 +185,7 @@
         "x-izin": [],
         "responses": {
           "200": {
-            "description": "Berhasil",
+            "description": "Berhasil. `data.token_abilities` adalah ability TOKEN YANG MEMANGGIL — [\"*\"] untuk token sesi SPA, null bila permintaannya tidak memakai token pribadi — dan ini satu-satunya pintu lewat mana sebuah token bisa membaca batasnya sendiri. `data.permissions` menjawab pertanyaan yang LAIN: izin yang dipegang ORANGNYA, yang bisa jauh lebih besar daripada yang boleh dipanggil tokennya. Tulis klien terhadap token_abilities.",
             "content": {
               "application/json": {
                 "schema": {

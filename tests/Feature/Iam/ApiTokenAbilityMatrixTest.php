@@ -21,9 +21,9 @@ use Tests\ErpTestCase;
  * ini ikut diuji, karena penegakan yang hanya menutup satu di antaranya adalah
  * penegakan yang bocor:
  *
- *   1. middleware rute `permission:` (637 dari 852 rute api, diukur 12 Sep 2026)
- *   2. pemeriksaan izin DI DALAM controller (di antara 215 sisanya — mis.
- *      lampiran, yang menurunkan izinnya dari DOKUMEN, bukan dari rutenya)
+ *   1. middleware rute `permission:` (bentuk yang paling banyak dipakai)
+ *   2. pemeriksaan izin DI DALAM controller — mis. lampiran, yang menurunkan
+ *      izinnya dari DOKUMEN, bukan dari rutenya
  *   3. `Gate::before` delegasi persetujuan — satu-satunya jalur pemberian yang
  *      tidak lewat hasPermissionTo() milik orang yang memakainya
  *
@@ -111,9 +111,10 @@ class ApiTokenAbilityMatrixTest extends ErpTestCase
      * Gerbang di DALAM controller, bukan di rutenya.
      *
      * `POST core/attachments` tidak membawa `permission:` sama sekali — izinnya
-     * diturunkan dari jenis dokumennya (`fin.update` untuk tagihan vendor). Ini
-     * salah satu dari 29 rute TULIS yang akan lolos tanpa penjaga bila
-     * penegakan ability dibaca dari parameter rute.
+     * diturunkan dari jenis dokumennya (`fin.update` untuk tagihan vendor). Ia
+     * salah satu rute TULIS yang akan lolos tanpa penjaga bila penegakan
+     * ability dibaca dari parameter rute — daftar lengkapnya ada di
+     * `UngatedApiRouteCensusTest::UNGATED_WRITES`.
      */
     public function test_an_in_controller_permission_check_is_narrowed_too(): void
     {
@@ -149,6 +150,96 @@ class ApiTokenAbilityMatrixTest extends ErpTestCase
         $this->asToken($token, '/api/finance/journals')->assertOk();
         $this->asToken($token, '/api/iam/users')->assertOk();
         $this->asToken($token, '/api/crm/customers?per_page=1')->assertOk();
+    }
+
+    /**
+     * V-TOKEN-1: PANGGILAN PERTAMA SETIAP KLIEN HARUS MENYEBUT ABILITY TOKENNYA.
+     *
+     * `GET iam/auth/me` adalah satu dari 20 endpoint terkurasi, dan dokumennya
+     * menyebutnya "panggilan pertama setiap klien". Ia memulangkan
+     * `permissions` — 94 nama untuk akun admin, `fin.approve` di antaranya —
+     * yang menjawab pertanyaan "apa yang dipegang ORANGNYA", bukan "apa yang
+     * boleh dilakukan TOKEN INI". Sebelum field ini ada, tidak ada satu pun
+     * pintu yang memberi tahu sebuah token apa abilitynya: `iam/me/api-tokens`
+     * ditutup `SessionOnly` justru untuk token. Penulis integrasi membaca
+     * `permissions`, menulis kliennya terhadap daftar itu, lalu setiap
+     * panggilan di luar abilitynya menjawab 403 «…» pada saat berjalan.
+     */
+    public function test_auth_me_names_the_abilities_of_the_token_that_asked(): void
+    {
+        $user = $this->adminUser();
+        $token = $this->personalToken($user, ['prj.view']);
+
+        $response = $this->asToken($token, '/api/iam/auth/me')->assertOk();
+
+        $this->assertSame(['prj.view'], $response->json('data.token_abilities'));
+
+        // Dan yang lama tetap ada, dengan artinya yang lama: izin ORANGNYA.
+        $permissions = (array) $response->json('data.permissions');
+        $this->assertContains('fin.approve', $permissions);
+        $this->assertNotContains('fin.approve', (array) $response->json('data.token_abilities'));
+    }
+
+    /** Token cangkang SPA menyebut `*`, dan itulah yang membuatnya tidak dipersempit. */
+    public function test_auth_me_says_the_spa_token_carries_the_wildcard(): void
+    {
+        $user = $this->adminUser();
+        $user->forceFill(['password' => 'password'])->save();
+
+        $login = $this->postJson('/api/iam/auth/login', ['email' => $user->email, 'password' => 'password'])->assertOk();
+
+        $response = $this->asToken((string) $login->json('data.token'), '/api/iam/auth/me')->assertOk();
+
+        $this->assertSame(['*'], $response->json('data.token_abilities'));
+    }
+
+    /**
+     * Baris ORANG LAIN tidak menjawab pertanyaan tentang token pemanggil.
+     *
+     * `UserResource` yang sama dipulangkan daftar pengguna sampai 200 baris;
+     * `token_abilities` menjawab "apa yang boleh SAYA lakukan", jadi ia null
+     * di setiap baris yang bukan baris pemanggilnya.
+     */
+    public function test_another_users_row_never_claims_to_know_its_token(): void
+    {
+        $user = $this->adminUser();
+        $token = $this->personalToken($user, ['iam.view']);
+
+        /** @var User $other */
+        $other = User::query()->create([
+            'name' => 'Orang lain', 'email' => 'lain@test.local', 'password' => 'password', 'is_active' => true,
+        ]);
+
+        $response = $this->asToken($token, '/api/iam/users/'.$other->id)->assertOk();
+
+        $this->assertNull($response->json('data.token_abilities'));
+    }
+
+    /**
+     * V-TOKEN-2: 403 YANG SAMPAI KE SINI SEBAGAI PENGECUALIAN, bukan sebagai
+     * jawaban yang sudah dirender.
+     *
+     * `Illuminate\Routing\Pipeline::carry()` membungkus setiap pipa dan
+     * `prepareDestination()` membungkus controllernya, jadi dalam jalur biasa
+     * `UnauthorizedException` spatie SUDAH menjadi jawaban 403 sebelum
+     * middleware ini melihatnya — cabang `catch` tidak pernah berjalan, dan
+     * sampai uji ini menghapusnya seluruhnya tetap hijau. Yang membuatnya
+     * berjalan adalah penangan pengecualian yang MELEMPAR ULANG, yaitu
+     * `withoutExceptionHandling()` di sini dan setiap pemanggil yang
+     * memasangnya. Cabang itu dipertahankan sebagai lapis kedua, dan sekarang
+     * ada yang memerah bila ia dihapus.
+     */
+    public function test_a_refusal_that_arrives_as_an_exception_still_names_the_ability(): void
+    {
+        $this->withoutExceptionHandling();
+
+        $user = $this->adminUser();
+        $token = $this->personalToken($user, ['fin.view']);
+
+        $response = $this->asToken($token, '/api/iam/users')->assertForbidden();
+
+        $this->assertStringContainsString('«iam.view»', (string) $response->json('message'));
+        $this->assertSame(['iam.view'], $response->json('errors.token_abilities'));
     }
 
     /**

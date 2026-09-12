@@ -177,6 +177,14 @@ class OpenApiDriftTest extends ErpTestCase
         );
         $this->assertSame(1, $doc['x-webhook']['versi_muatan']);
 
+        // V-TOKEN-1: `GET iam/auth/me` adalah satu-satunya pintu lewat mana
+        // sebuah token bisa membaca abilitynya sendiri, dan dokumen harus
+        // mengatakan field mana yang menjawab pertanyaan itu — `permissions`
+        // menjawab pertanyaan yang lain dan jauh lebih besar.
+        $me = $doc['paths']['/api/iam/auth/me']['get']['responses']['200']['description'];
+        $this->assertStringContainsString('token_abilities', $me);
+        $this->assertStringContainsString('data.permissions', $me);
+
         $this->assertStringContainsString('X-Api-Token', $doc['x-autentikasi']['header_alternatif']);
         $this->assertStringContainsString('KOSONG', $doc['x-autentikasi']['cors']);
         $this->assertStringContainsString('SUBSET izin', $doc['x-autentikasi']['ability']);

@@ -28,13 +28,26 @@ use Throwable;
  * permintaan ini. Permintaan yang ditolak karena izin penggunanya memang
  * kurang lewat apa adanya, dengan kalimatnya yang lama.
  *
- * DUA JALAN MASUK, DAN KEDUANYA HARUS DITANGANI. `Illuminate\Routing\Pipeline`
- * menangkap pengecualian di dalam `carry()` MILIK SETIAP PIPA, jadi
- * pengecualian yang dilempar middleware rute keluar lewat `$next($request)`
- * middleware INI sebagai pengecualian — bukan sebagai jawaban 403 yang sudah
- * dirender. Menangkap hanya salah satunya meninggalkan separuh kasus dalam
- * bahasa Inggris (637 rute memakai middleware rute; 215 tidak — diukur
- * 12 Sep 2026, `UngatedApiRouteCensusTest`).
+ * DUA JALAN MASUK, DAN YANG SATU JAUH LEBIH JARANG DARIPADA YANG DIKIRA
+ * VERSI PERTAMA KOMENTAR INI (V-TOKEN-2). `Illuminate\Routing\Pipeline`
+ * MENANGKAP pengecualian di dalam `carry()` milik setiap pipa — dan
+ * `prepareDestination()` membungkus controllernya — lalu menyerahkannya ke
+ * `ExceptionHandler` yang MERENDERNYA. Jadi dalam jalur produksi biasa
+ * `UnauthorizedException` spatie sudah menjadi jawaban 403 sebelum middleware
+ * ini melihatnya: yang berjalan adalah cabang JAWABAN, untuk 403 dari
+ * middleware rute maupun dari dalam controller. Komentar sebelumnya
+ * menjanjikan sebaliknya dengan angka yang terdengar terukur ("637 memakai
+ * middleware rute; 215 tidak"), dan cabang `catch`-nya bisa dihapus
+ * seluruhnya tanpa satu pun uji memerah.
+ *
+ * Cabang `catch` TETAP ADA sebagai lapis kedua, dan sekarang ada yang
+ * memerahkannya: setiap penangan pengecualian yang MELEMPAR ULANG alih-alih
+ * merender — `withoutExceptionHandling()` dan pemanggilnya — membuat
+ * pengecualian itu benar-benar keluar lewat `$next($request)` di sini.
+ * `ApiTokenAbilityMatrixTest::test_a_refusal_that_arrives_as_an_exception_still_names_the_ability`
+ * menjalankannya, dan
+ * `::test_the_refusal_names_the_missing_ability_in_indonesian` menjalankan
+ * cabang jawaban.
  *
  * Dipasang pada GRUP `api` lewat `pushMiddlewareToGroup` di CoreServiceProvider
  * (bukan di `bootstrap/app.php`, yang tidak boleh disentuh paket ini), jadi ia

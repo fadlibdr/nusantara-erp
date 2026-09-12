@@ -23,12 +23,20 @@ use Laravel\Sanctum\PersonalAccessToken;
  * dalam controller, `hasAnyPermission()` di dalam service — bermuara pada SATU
  * metode: `App\Models\User::hasPermissionTo()`. Di sanalah penyempitan ini
  * dipasang, jadi tidak ada rute yang bisa melewatinya karena seseorang lupa
- * menambahkan sesuatu pada rutenya. Diukur 12 Sep 2026: 852 rute di bawah
- * `api/`, 637 di antaranya membawa `permission:` di rutenya dan 215 TIDAK —
- * sebagian dari yang terakhir memeriksa izin di dalam controller (mis.
- * `AttachmentController`, yang menurunkan izin dari DOKUMEN-nya, bukan dari
- * rutenya). Sebuah gerbang ability yang membaca parameter `permission:` rute
- * akan membiarkan 29 rute TULIS di antaranya tanpa penjaga sama sekali.
+ * menambahkan sesuatu pada rutenya. Sebagian rute `api/` TIDAK membawa
+ * `permission:` di rutenya sama sekali dan memeriksa izin di dalam controller
+ * (mis. `AttachmentController`, yang menurunkan izin dari DOKUMEN-nya, bukan
+ * dari rutenya), jadi sebuah gerbang ability yang membaca parameter
+ * `permission:` rute akan membiarkan rute TULIS di antaranya tanpa penjaga
+ * sama sekali.
+ *
+ * BERAPA BANYAK — TANYAKAN, JANGAN KUTIP (pelajaran 5, V-TOKEN-4). Angka itu
+ * tumbuh setiap kali modul mana pun menambah endpoint; versi pertama komentar
+ * ini menuliskan sensus `main` 8438066 (852 / 637 / 215, dan 29 rute tulis
+ * tanpa gerbang) tanpa mengatakan dari pohon mana, dan sudah salah di cabang
+ * yang memuatnya. Yang dipaku adalah DAFTAR LITERAL rute tulis tanpa gerbang
+ * izin di `UngatedApiRouteCensusTest`; jumlah berjalannya diukur dengan
+ * `php artisan route:list --json`.
  *
  * `Gate::before` SENGAJA TIDAK DIPAKAI untuk menolak. Spatie mendaftarkan
  * `Gate::before`-nya sendiri lewat `callAfterResolving(Gate::class)` di dalam
@@ -124,6 +132,32 @@ final class TokenScope
         $this->denied[$ability] = true;
 
         return false;
+    }
+
+    /**
+     * Ability token yang sedang mempersempit pengguna ini, atau null bila
+     * tidak ada token yang berpendapat (V-TOKEN-1).
+     *
+     * SATU-SATUNYA PINTU LEWAT MANA SEBUAH TOKEN BISA MENGETAHUI BATASNYA
+     * SENDIRI. `GET iam/auth/me` memulangkan `permissions` — izin ORANGNYA,
+     * yang untuk akun admin memuat `fin.approve` — dan sampai putaran
+     * verifikasi ini tidak ada field mana pun yang menyebut ability tokennya;
+     * `iam/me/api-tokens` ditutup `SessionOnly` justru untuk token, jadi tidak
+     * ada pintu lain sama sekali. Sumbernya sengaja SAMA dengan sumber
+     * penegakannya: yang dikatakan field itu persis yang menyempitkan
+     * permintaan ini, bukan tebakan yang bisa berbeda.
+     *
+     * @return list<string>|null
+     */
+    public function abilitiesFor(User $user): ?array
+    {
+        $token = $this->tokenFor($user);
+
+        if ($token === null) {
+            return null;
+        }
+
+        return array_values(array_filter((array) $token->abilities, 'is_string'));
     }
 
     /** Ability yang ditolak permintaan ini, untuk kalimat 403. */

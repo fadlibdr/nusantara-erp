@@ -109,6 +109,38 @@ class ApprovalDelegationTokenScopeTest extends ErpTestCase
         $this->assertTrue(Gate::forUser($delegate)->allows('fin.approve'));
     }
 
+    /**
+     * V-TOKEN-3: TOKEN PEMANGGIL TIDAK MEMPERSEMPIT JAWABAN TENTANG ORANG LAIN.
+     *
+     * `TokenScope::tokenFor()` memeriksa PEMILIK baris tokennya, dan cabang itu
+     * tidak dijaga apa pun sampai uji ini: sebuah permintaan di aplikasi ini
+     * bisa menanyakan izin ORANG LAIN — delegasi memeriksa izin PEMBERINYA
+     * (`ApprovalDelegations::holdsNatively($grantor, …)`), maker-checker
+     * memeriksa izin pengajunya — dan token delegat tidak boleh menjadi
+     * jawaban tentang pemberi.
+     *
+     * Bentuknya dipilih supaya mutasi bisa membedakannya: token delegat
+     * membawa `fin.approve` SAJA, sedangkan yang ditanyakan adalah
+     * `prc.approve` milik PEMBERI. Tanpa pemeriksaan pemilik, daftar yang
+     * dipinjamkan kehilangan `prc.approve` — layar "a.n. Sari" berhenti
+     * menyebut separuh haknya, dan jawaban yang salah itu menyangkut orang
+     * yang tokennya tidak ada hubungannya dengan permintaan ini.
+     */
+    public function test_the_callers_token_never_narrows_answers_about_someone_else(): void
+    {
+        $this->giver->givePermissionTo('prc.approve');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        ApprovalDelegations::flushMemo();
+
+        $delegate = $this->tokened($this->delegate, ['fin.approve']);
+
+        $lent = ApprovalDelegations::lentAbilitiesFor($delegate);
+
+        $this->assertArrayHasKey('fin.approve', $lent);
+        $this->assertArrayHasKey('prc.approve', $lent, 'izin PEMBERI dipersempit oleh token DELEGAT');
+        $this->assertSame([$this->giver->name], $lent['prc.approve']);
+    }
+
     /** Token cangkang SPA (`["*"]`) tidak mempersempit apa pun, termasuk delegasi. */
     public function test_a_wildcard_token_still_uses_the_delegation(): void
     {

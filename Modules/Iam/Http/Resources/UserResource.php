@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Core\Support\ApprovalDelegations;
+use Modules\Core\Support\TokenScope;
 
 /**
  * @mixin User
@@ -29,6 +30,21 @@ class UserResource extends JsonResource
             'whatsapp_opt_in_at' => $this->whatsapp_opt_in_at?->toIso8601String(),
             'whatsapp_opt_in_via' => $this->whatsapp_opt_in_via,
             'roles' => $this->roles->pluck('name')->values(),
+            /*
+             * V-TOKEN-1 — APA YANG BOLEH DILAKUKAN TOKEN INI, di field sendiri.
+             *
+             * `permissions` di bawah menjawab "apa yang DIPEGANG orang ini",
+             * dan untuk pemilik sebuah token sempit jawabannya jauh lebih besar
+             * daripada yang boleh dipanggil tokennya: sebuah token
+             * ber-ability `prj.view` membaca 94 nama di sana, `fin.approve` di
+             * antaranya, lalu setiap panggilan di luar abilitynya dijawab 403
+             * saat berjalan. Nilainya diambil dari TokenScope — sumber yang
+             * sama dengan penegakannya — jadi ia tidak bisa berbeda pendapat
+             * dengan gerbangnya. `["*"]` untuk token cangkang SPA; null ketika
+             * tidak ada token yang berpendapat (sesi pihak pertama, perintah
+             * artisan) dan pada setiap baris yang BUKAN baris pemanggilnya.
+             */
+            'token_abilities' => $this->tokenAbilities($request),
             'permissions' => $this->getAllPermissions()->pluck('name')->sort()->values(),
             /*
              * F-1 (verifikasi putaran 2) — HAK YANG DIPINJAM, DI FIELD SENDIRI.
@@ -58,6 +74,22 @@ class UserResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /**
+     * Ability token permintaan ini — hanya pada baris pemanggilnya sendiri.
+     *
+     * @return list<string>|null
+     */
+    private function tokenAbilities(Request $request): ?array
+    {
+        $viewer = $request->user();
+
+        if ($viewer === null || (int) $viewer->getKey() !== (int) $this->id) {
+            return null;
+        }
+
+        return app(TokenScope::class)->abilitiesFor($viewer);
     }
 
     /**
