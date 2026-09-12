@@ -427,8 +427,12 @@ diimpor") → **Buka dokumen** pada yang gagal → `#/bank-recon?tab=inbox`, tab
 Putaran verifikasi (§15):
 
 - **Stempel `checked_at` bergranularitas detik**: ubin "pemeriksaan terakhir" menyamakan baris lewat
-  `checked_at` = stempel; dua pemeriksaan dalam satu detik yang sama (hanya mungkin di uji — produksi
-  per jam + kunci) berbagi stempel. Uji memakai `travel(1)->hours()`; dicatat di sini, tidak diubah.
+  `checked_at` = stempel, jadi dua pemeriksaan yang jatuh pada DETIK yang sama berbagi stempel dan
+  ubinnya menghitung keduanya. Bukan "hanya mungkin di uji" seperti tertulis sebelumnya (dikoreksi
+  putaran penutup): dua klik **Periksa sekarang** dalam satu detik cukup — yang dibutuhkan hanyalah
+  perubahan isi folder di antara keduanya agar angkanya terlihat lain, dan itu sebabnya dampaknya
+  tetap nihil dalam praktik (pemeriksaan terjadwal per jam, dan kuncinya menolak yang kedua selama
+  yang pertama berjalan). Uji memakai `travel(1)->hours()`; dicatat di sini, tidak diubah.
 - **Chromium mencatat 422 yang dirancang sebagai galat konsol** ("Failed to load resource"): S39 memisahkan
   galat dari dua pratinjau yang sengaja ditolak (pola S23 `stub_errors`) dan menuntut hanya pesan 422.
 - **`'\n'` di dalam string JS yang dibungkus string Python non-raw** menjadi baris baru sungguhan →
