@@ -266,6 +266,12 @@ menyisipkan di posisi 0 (`9+62…`) → 422 E.164 yang memang benar.
 - **Suite penuh MySQL 8.0.46 (`erp_dryrun`, worktree terpisah, vendor DISALIN) di `c756d48`:**
   **4.758 uji / 32.393 asersi, 9 dilewati, hijau** (34 mnt 20 dtk) — termasuk ketiga migrasi baru
   di atas skema MySQL nyata (indeks `provider_id` varchar(190) diterima).
+- **Gerbang rilis di UJUNG CABANG `45c0be3`** (12 Sep 2026; worktree terisolasi `p3a-gate-45c0be3`,
+  vendor DISALIN bukan symlink, `.env` disalin; pohon bersih sebelum dan sesudah, `dirty=0`):
+  **SQLite 4.770 uji / 32.576 asersi, 11 dilewati, hijau** (15 mnt 12 dtk);
+  **MySQL 8.0.46 `erp_dryrun` 4.770 uji / 32.582 asersi, 9 dilewati, hijau** (42 mnt 39 dtk) —
+  `main` 649601d membawa 4.687 → **+83 uji paket ini** (= §1 baris 7). Log: scratchpad
+  `p3a-gate-45c0be3.log`. Commit yang menambah baris ini hanya mengubah dokumen.
 - `vendor/bin/pint --test` bersih pada setiap berkas yang disentuh (dua kegagalan pint lama tidak
   disentuh).
 
@@ -381,8 +387,9 @@ af3e1c2  B-4  toast Profil tidak menjanjikan sebab yang tidak pernah ditulis kot
 7bee525  bukti: S37/S37m ulang di atas 9ba3bc5, BERDASARKAN KUNCI
 a51e908  G-2 paku  penjaga SyncJob: uji pada driver sync tanpa Queue::fake, merah di bawah mutasi
 3d23697  G-3  centang opt-in dilepas hanya saat berpaling dari nomor berpersetujuan; S37/S37m ulang
-(commit ini)  G-1  angka ujung cabang di laporan ini; baris gerbang ujung cabang (§8) menyusul
-              dalam commit dokumen tersendiri sesudah gerbang berjalan di atas commit ini
+45c0be3  G-1  angka ujung cabang di laporan ini (§1/§4/§7/§12/§14)
+(commit ini)  §8 baris gerbang dua driver di 45c0be3 — dokumen saja; tidak ada kode/uji yang
+              berubah sesudah gerbang
 ```
 
 Skema yang berubah, dan apakah migrasinya aman di MySQL dengan data lama: tiga migrasi, semuanya
