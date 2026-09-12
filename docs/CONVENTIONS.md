@@ -2216,3 +2216,113 @@ scan() penuh, 34 entri: 109,8 ms
 
 Penjaga induk per kelas tidak mengubah rencananya: setiap `EXISTS` diselesaikan lewat
 PRIMARY KEY induknya (`eq_ref`, rows=1) atas baris yang SUDAH dipotong indeks tanggal.
+
+## 38. Kanal notifikasi luar — kejujuran status, template, preferensi, WhatsApp (P-3a)
+
+**`sent` adalah klaim, `skipped` adalah kejujuran.** Sebuah baris `core_notification_deliveries`
+hanya boleh `sent` bila **penyedia memberi pengenal** (`provider_id`: Message-ID setelah
+percakapan SMTP selesai; `wamid` dari Meta). Kanal yang memulangkan null/kosong dicatat
+sebagai percobaan gagal, bukan terkirim (`DeliverNotification`). Diukur 11 Sep 2026 sebelum
+P-3a: `MAIL_MAILER=log` (keadaan .env pengembangan DAN produksi) menghasilkan `sent` dengan
+Message-ID buatan lokal `…@example.co.id`.
+
+**Empat hasil job**, dibedakan karena akibatnya berbeda bagi pembaca layar Pengiriman
+Notifikasi: `sent` (pengenal ada) · `skipped` (`DeliverySkippedException` atau gerbang —
+tidak pernah dicoba, tanpa ulang, sebab di `error`) · `failed` seketika
+(`DeliveryRejectedException` — penolakan permanen: token, template, nomor bukan WhatsApp) ·
+`failed` setelah 5 percobaan (pengecualian biasa; backoff 60/300/900/3600 detik, dipaku
+literal `DeliveryRetryScheduleTest` DAN diukur lewat pekerja sungguhan).
+
+**Satu daftar sebab, empat permukaan.** `Core\Support\DeliveryGate::reasonToSkip(channel,
+penerima, kunci template)` adalah SATU-SATUNYA tempat sebab `skipped` ditulis, dan dipanggil
+oleh kotak keluar (`NotificationService::outbox` → tulis `skipped`), Kirim ulang (`retry` →
+422 + petunjuk, `retryRefusal`), job (`handle` → diperiksa ULANG saat berjalan: keadaan bisa
+berubah sejak baris ditulis), dan `GET core/me/notification-channels` (layar Profil). Urutan
+sebabnya dari yang paling global: sakelar Pengaturan → konfigurasi server (`MailTransport`,
+`WhatsAppSetup`) → pilihan pengguna → alamat/nomor → opt-in → template peristiwa. Menambah
+sebab = satu konstanta + satu cabang di sini, tidak pernah `if` di kanal. `Iam\Support\
+PasswordHelp::resetByEmail()` membaca `MailTransport` yang sama, supaya halaman masuk dan
+kotak keluar tidak berselisih tentang apakah surat keluar dari mesin.
+
+**Satu baris per kanal luar per penerima** (`DeliveryGate::USER_CHANNELS` = email, whatsapp),
+masing-masing di balik `guard()`-nya sendiri, SESUDAH semua baris kotak masuk ditulis (P-0b).
+Dengan kedua sakelar mati (bawaan) setiap notifikasi menghasilkan dua baris `skipped` —
+pertumbuhan tabel adalah keputusan pemilik (LAPORAN P-3a), bukan alasan menyembunyikan baris.
+
+**Template per peristiwa** — `Core\Support\NotificationTemplates`: PERSIS lima kunci
+`deadline.due`, `approval.escalated`, `ar.dunning`, `backup.stale`, `scheduler.down`
+(dipaku literal), disimpan di `core_notifications.template` (migrasi 001801) oleh
+`NotificationService::system(..., $template)`; kunci salah eja ditolak, bukan disimpan sebagai
+umum. Peristiwa lain (`document.*`, pengingat persetujuan yang belum eskalasi, tutup buku,
+`TANPA_TANGGAL`) memakai **template umum** `ApprovalNotificationMail` — dikatakan di
+`forNotification()` (null) dan di `MailChannel`, tidak ditebak dari judul. Surel per peristiwa =
+`EventNotificationMail` (awalan subjek `[Cadangan]` dst., kalimat pembuka, label tombol).
+Pemetaan pengawas: watchdog → `scheduler.down`; ketujuh alarm backup-watch → `backup.stale`;
+approval-watch → `approval.escalated` HANYA saat eskalasi; deadline-watch → `ar.dunning` untuk
+`ar_invoice_due` LEWAT, `deadline.due` untuk tanggal lain (`forDeadlineFinding`).
+
+**Kontrak placeholder WhatsApp**: tiga, tetap, untuk kelima template — `{{1}}` judul, `{{2}}`
+isi (diratakan: tanpa baris baru/tab/4+ spasi, ≤ 400 karakter), `{{3}}` tautan atau `-`
+(`whatsappParameters`). Pemilik mengajukan template ke Meta dengan tiga placeholder itu; nama
+yang disetujui diisi di `WHATSAPP_TEMPLATE_<PERISTIWA>` (.env, kosong di repo).
+
+**Preferensi kanal dan jam tenang hidup di `UserPreferences` (§15), bukan tabel baru**:
+`notify.channels` `{email, whatsapp: bool}` (kunci yang tidak disebut = nyala; plafon 256 B)
+dan `notify.quiet_hours` `{start, end: "HH:MM"}` atau **`false`** (bukan null — kolom `value`
+NOT NULL dan preferensi tidak punya DELETE; plafon 64 B; `start ≠ end`). Alasannya: keduanya
+"apa pun yang seseorang PILIH untuk dirinya sendiri", whitelist/plafon/endpoint sudah ada, tanpa
+migrasi. Yang menuntut kolom sungguhan adalah **persetujuan**, karena preferensi boleh dihapus
+tanpa jejak. SPA menulis kedua kunci LANGSUNG (`PUT core/me/preferences/<kunci>`) dari
+`views/profil.js`, bukan lewat `prefs.set()` — keduanya dibaca SERVER, bukan SPA, jadi tanpa
+cermin localStorage, dan 422 whitelist harus sampai ke orangnya (prefs.set menelannya).
+
+**Jam tenang MENUNDA, tidak pernah membuang, tidak pernah menyentuh kotak masuk** —
+`Core\Support\QuietHours`, zona **Asia/Jakarta tetap** (tidak ada kolom zona per pengguna
+sebelum ada pengguna di luar WIB). Baris kotak keluar tetap `queued` dengan `next_attempt_at` =
+akhir jendela, kalimat "Ditunda oleh jam tenang penerima (22:00–06:00 WIB) sampai … — tidak
+dibuang" di `error`, job ber-`delay` sama; dihitung di kotak keluar, Kirim ulang, dan job
+(`release()` sampai jendela berakhir — satu hitungan percobaan pekerja per jendela). Jendela
+melintasi tengah malam: awal inklusif, akhir eksklusif, sisi malam → besok pagi, sisi pagi →
+hari ini. `resumeAt()` memulangkan zona aplikasi — Eloquent memformat Carbon dalam zona objeknya,
+dan Carbon UTC di kolom `datetime` bergeser tujuh jam (kelas cacat absensi F-4; ditemukan lagi
+di webhook `createFromTimestamp`, dikonversi sebelum disimpan).
+
+**WhatsApp = Meta Cloud API langsung, HANYA template, tanpa SDK** (`Core\Channels\WhatsAppChannel`,
+`Http::`). Pemeriksaan konfigurasi SEBELUM `Http::` — tanpa kredensial nol permintaan keluar;
+uji memasang `Http::preventStrayRequests()` di `setUp`. Kode Meta permanen di
+`WhatsAppChannel::PERMANENT_CODES` + HTTP 401/403 → `DeliveryRejectedException`; 429/5xx/
+jaringan → diulang (status HTTP menang atas kode di badan). Penyedia: `meta`; `qontak`
+dikenali tetapi pengirimnya belum ditulis (skipped yang mengatakannya — bentuk API tidak
+dikarang); gateway WhatsApp Web (Fonnte dsb.) tidak punya mode. Semua konfigurasi di
+`config('erp.whatsapp')` dari `.env`, KOSONG di repo (`WhatsAppSetup`).
+
+**Rahasia tidak bocor lewat kolom error** — `Core\Support\ProviderErrorScrubber`: setiap
+rahasia yang dikenal → `[rahasia]`, `Bearer …` → `Bearer [rahasia]`, `token=…`/`secret=…` →
+`=[rahasia]`, query string URL → `?[…]`, deretan 8–15 digit → `[nomor]`, potong 480. Kode
+galat Meta (≤ 6 digit) tidak tersentuh. Setiap kalimat yang meninggalkan `WhatsAppChannel`
+dan webhook melewatinya; dipaku dengan token palsu yang dicari kembali di kolom error dan
+jawaban API.
+
+**Webhook status** (`Modules/Core/Routes/web.php`, tanpa grup web/CSRF): GET verifikasi
+`hub.challenge` hanya bila `WHATSAPP_VERIFY_TOKEN` cocok; POST diverifikasi
+`X-Hub-Signature-256` = HMAC-SHA256(**badan mentah** `getContent()`, App Secret) dengan
+`hash_equals` — hilang/salah/secret kosong = 403 tanpa menyentuh satu baris pun; hanya
+memperbarui baris `whatsapp` yang `provider_id`-nya cocok (`provider_status`
+sent<delivered<read tidak pernah menurun; `failed` → `status` failed + pesan Meta tersaring),
+tidak pernah membuat baris, wamid asing 200-dan-abaikan (Meta mengulang yang bukan 200).
+Migrasi 001802: `provider_status`, `provider_status_at`, indeks `provider_id`.
+
+**Nomor E.164 + opt-in berstempel waktu** — `users.phone_e164`, `whatsapp_opt_in_at`,
+`whatsapp_opt_in_via` (`profil` | `admin`; migrasi Iam 000252). `Core\Support\PhoneNumber`:
+satu bentuk simpan `^\+[1-9]\d{7,14}$`, 08… → +62…, digit telanjang ditolak.
+`Core\Support\WhatsAppConsent::apply()` adalah SATU-SATUNYA penulis ketiga kolom (forceFill,
+bukan fillable): ganti nomor mengosongkan stempel; stempel yang ada tidak ditulis ulang;
+`false` mencabut; nomor kosong mencabut. Dua pintu: `PUT iam/me/phone` (orangnya, via
+`profil`) dan `PUT iam/users/{id}` (administrator, via `admin`); `UserResource` memulangkan
+`whatsapp_opt_in` sebagai TURUNAN supaya formulir generik membulatkannya kembali.
+
+**Layar**: `#/profil` (`views/profil.js`, NAV Ringkasan, tombol di menu akun) menampilkan
+keadaan tiap kanal dari `GET core/me/notification-channels` — sebab yang SAMA yang akan ditulis
+kotak keluar — dan kesiapan WhatsApp yang DIUKUR ("template disetujui Meta 0 dari 5").
+Pengiriman Notifikasi mendapat kolom "Berikutnya" (`next_attempt_at`) dan "Status penyedia"
+(`waProviderStatus`). Sistem › Pengguna mendapat nomor + opt-in.

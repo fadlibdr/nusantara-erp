@@ -507,8 +507,12 @@ Yang perlu Anda ketahui tentang lonceng:
 - Alarm sistem (cadangan basi, tutup buku telat, tenggat harian) muncul dengan lencana
   kosong **"—"**, jadi tampilannya berbeda dari tiga jenis pemberitahuan dokumen di
   sekitarnya.
-- **Email mati secara bawaan, dan WhatsApp tidak ada.** Bila perusahaan Anda ingin
-  pemberitahuan dikirim lewat email, itu keputusan administrator.
+- **Email dan WhatsApp mati secara bawaan.** Keduanya keputusan administrator (server surel,
+  akun WhatsApp Business). Anda sendiri mengatur **kanal mana yang Anda mau**, **jam tenang**
+  (e-mail/WhatsApp ditunda sampai jam tenang berakhir — tidak dibuang; lonceng tetap masuk
+  seketika), dan **nomor WhatsApp + persetujuan** Anda di **Ringkasan › Profil & Notifikasi**
+  (juga dari menu akun). Layar itu mengatakan apa yang benar-benar akan terjadi pada tiap
+  kanal — "Akan dikirim" atau "Dilewati" beserta sebabnya — bukan apa yang Anda pilih.
 
 ### 1.7 Tiga pintu tempat pekerjaan sampai kepada Anda
 
@@ -8034,7 +8038,7 @@ Bab ini ada supaya Anda berhenti mencari tombol yang memang tidak ada.
 | Menambah izin atau peran | Peran diatur di `Sistem › Peran & Hak Akses` | administrator |
 | Membuka menu yang tidak ada di sidebar Anda | Kelompok menu bergerbang izin | administrator |
 | Keluar dari perangkat lain | Tidak ada daftar sesi dan tidak ada "keluar dari semua perangkat" | administrator |
-| Mengaktifkan pemberitahuan email | Mati secara bawaan; WhatsApp tidak ada | administrator |
+| Mengaktifkan pemberitahuan email / WhatsApp | Mati secara bawaan; keduanya butuh server/akun yang disetel administrator (DEPLOYMENT.md §11) | administrator — tetapi kanal mana yang Anda mau, jam tenang, dan nomor WhatsApp Anda: **Profil & Notifikasi** |
 | Mematikan "Wajib pemisahan tugas" | Ada di Pengaturan, butuh izin sistem | administrator (dan itu keputusan kebijakan, bukan kemudahan) |
 | Mengubah tarif pajak, ambang persetujuan direktur, format penomoran dokumen | Ada di Pengaturan | administrator |
 | Mengubah **Profil Perusahaan** (kop setiap formulir cetak) | Kolomnya terlihat tetapi mati tanpa izin sistem | administrator |
