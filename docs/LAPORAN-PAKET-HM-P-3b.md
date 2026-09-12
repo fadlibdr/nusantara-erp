@@ -253,8 +253,13 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
   env, `DB_DATABASE=erp_dryrun` menimpa `phpunit.mysql.xml`):** **139 uji / 698 asersi, hijau** (1 mnt 27 dtk; `DjpFormatsTest`, `TaxExportTest`, `NpwpTest`, `CustomerNpwpGateTest`, `VendorNpwpGateTest`, `EmployeeNpwpGateTest`, `Pph21RecapTest`, `MasterDataImportTest`, `PeriodCloseChecklistTest`) — log `p3b/gate-mysql.log` di scratchpad
 - `vendor/bin/pint --test` bersih pada setiap berkas PHP yang disentuh (dua kegagalan pint lama
   tidak disentuh); `EmployeeUpdateRequest` hanya dirapikan urutan import-nya oleh pint.
-- Suite penuh dua driver dari worktree terisolasi = langkah gerbang rilis pemilik/alur kerja
-  berikutnya (tidak diminta paket ini).
+- **Gerbang rilis (sesi utama, sesudah tiga putaran verifikasi §15), suite PENUH dua driver dari
+  worktree terisolasi (vendor disalin, bukan symlink):** `eba257b` — SQLite **4.849 uji / 33.342
+  asersi** (11 dilewati, 15 mnt 31 dtk) hijau; MySQL `erp_dryrun` 4.849 / 33.287 — **2 error**, keduanya
+  fixtur SQLite-saja (dua NIK kosong `''` dan `'  '` pada indeks unik: kolasi MySQL PAD SPACE
+  menyamakannya) → dibetulkan `aafa57c`. **`aafa57c` (ujung cabang): SQLite 4.849 / 33.341 (11 dilewati,
+  15 mnt 22 dtk) hijau; MySQL `erp_dryrun` 4.849 / 33.347 (9 dilewati, 46 mnt 18 dtk) hijau.** main
+  `09bb1c8` membawa 4.770 → **+79 uji**. Log `p3b-gate-<sha>.log` di scratchpad sesi.
 
 ---
 
@@ -384,7 +389,11 @@ f480ad1  laporan   laporan ini (versi pertama)
 2a78f33  V3b-1/V2-3/V3b-6   paku kalimat tutup buku cabang OK, paku 20 digit, needle Coretax
 b23859b  V3-1/V2-2/V3-4   NPWP_HELP satu konstanta, renderCompany help + setFieldError, kalimat spasi
 9780f44  V3-3/V3-5/V2-6/V2-7/V3b-3/V3b-7/V2-9   digits:16 impor, pintu ke-8, notes ekspor, tax_id_treatment, FIRST_LINE_INSTRUCTION/file_note, §13
-(commit ini)  laporan   §1/§5/§9/§11/§12/§14/§15 diperbarui
+9b8dd5d  R2-* (14)   maju-saja nik_ktp dua pintu, nextCode, withValidator, 39 kunci lang, npwpShapeNoteFor, migrasi 001093 has_tax_id + snapshot rekap, kolom CSV, S38 fixture NITKU; §1/§5/§9/§11/§12/§14/§15
+f039cf6  bukti   S38 27/8 → 26/8 dijalankan ulang (fixture akar repo), results-phase-3.json berdasarkan kunci, 4 PNG
+eba257b  R3-* (12)   nextCode 1–9 digit + jaring berbatas, Arr::dot lang, kartu registri min-width 0, cabang current/partial/terhapus keras, delta ubin, 6 paku; S38 27/10
+aafa57c  gerbang   dua fixtur Pph21RecapTest satu NIK kosong (MySQL PAD SPACE); §15.3 batas kejujuran
+(commit ini)  gerbang   §8 angka gerbang dua driver, §14
 ```
 
 Skema: **satu migrasi** sejak putaran kedua — `2026_09_12_001093_add_has_tax_id_to_hr_payslips_table.php`
