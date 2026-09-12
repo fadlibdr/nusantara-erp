@@ -486,6 +486,12 @@ lainnya ditutup pada commit putaran penutup (§14).
 | R3-rekap-5 | DOCS | CONVENTIONS menyebut `identified_but_surcharged` sebagai ubin — layar tidak membacanya; PANDUAN tidak memuat nilai `berbeda antar slip` | delta ubin membaca `s.identified_but_surcharged` (dipaku); PANDUAN §11.8 memuat semua nilai kolom |
 | R3-rekap-6 | UX | Pegawai terhapus keras: baris CSV dimulai `;;;;` tanpa id; kalimat `current` meramal payroll untuk orang yang tidak ada | CSV `#<id>` + "Data pegawai tidak ditemukan"; kalimat tanpa ramalan; paku (hapus keras di balik FK dengan `PRAGMA defer_foreign_keys`) |
 
+**Batas kejujuran putaran ini:** sembilan penutupan R3 di commit putaran penutup TIDAK diverifikasi
+lagi oleh agen independen — yang menjaganya adalah paku PHP (mutasi arah masing-masing merah saat
+ditulis), harness S38/S38m yang dijalankan ulang di ujung cabang (27 + 10 syarat, termasuk syarat
+pemotongan ponsel dan fixture NITKU), dan gerbang dua driver §8. Putaran verifikasi berikutnya, bila
+diminta, mulai dari sana.
+
 Verifier lensa rekap juga membuktikan yang TIDAK ditemukan: inferensi dari angka tidak pernah ambigu
 untuk ketiga tabel TER (1.738 kombinasi bruto × tarif × flag, `wrong = 0`; satu-satunya basis yang
 ambigu secara aritmetika adalah 0,01/0,02, sedangkan basis non-nol terkecil tabel = 13.500);

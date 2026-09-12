@@ -246,15 +246,16 @@ class Pph21RecapTest extends ErpTestCase
      * NIK terisi APA PUN — saat run dihitung — dan flag itu DIBEKUKAN di slip
      * (hr_payslips.has_tax_id). Rekap membacanya dari sana, bukan dari data
      * pegawai hari ini, jadi kalimatnya tidak berbalik ketika HR melengkapi NIK
-     * sesudah run disetujui. Fixtur ASIMETRIS (1 tarif normal : 2 tambahan 20 %)
+     * sesudah run disetujui. Fixtur ASIMETRIS (2 tarif normal : 1 tambahan 20 %)
      * agar cabang hitungan yang terbalik tidak memberi angka yang sama (R2-rekap-2).
+     * Hanya SATU NIK kosong per uji: indeks unik MySQL (PAD SPACE) menyamakan '' dan '  '.
      */
     public function test_the_treatment_comes_from_the_payslip_snapshot_not_from_todays_employee_row(): void
     {
         // Semua 9.000.000 → TER A 1,75 % = 157.500 dengan identitas; × 1,2 = 189.000 tanpa.
         $legacy = $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'NIK Warisan', 'base_salary' => 9_000_000, 'npwp' => 'N/A', 'nik_ktp' => 'BELUM-ADA']);
         $blank = $this->makeEmployee(['code' => 'EMP-0002', 'name' => 'Tanpa Apa Pun', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '']);
-        $spaces = $this->makeEmployee(['code' => 'EMP-0003', 'name' => 'Spasi Saja', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '  ']);
+        $another = $this->makeEmployee(['code' => 'EMP-0003', 'name' => 'NIK Warisan Lain', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => 'BELUM-JUGA']);
         $this->makeEmployee(['code' => 'EMP-0004', 'name' => 'Ber-NIK', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '3173042708860002']);
         $run = $this->approved();
 
@@ -262,7 +263,7 @@ class Pph21RecapTest extends ErpTestCase
         $flags = Payslip::query()->where('payroll_run_id', $run->id)->get()->keyBy('employee_id');
         $this->assertTrue($flags[$legacy->id]->has_tax_id);
         $this->assertFalse($flags[$blank->id]->has_tax_id);
-        $this->assertFalse($flags[$spaces->id]->has_tax_id);
+        $this->assertTrue($flags[$another->id]->has_tax_id);
 
         $recap = $this->recap->monthly(2026, 6);
         $rows = collect($recap['rows'])->keyBy('employee_code');
@@ -279,15 +280,19 @@ class Pph21RecapTest extends ErpTestCase
         $this->assertStringContainsString('BELUM-ADA', (string) $rows['EMP-0001']['tax_id_issue']);
         $this->assertStringContainsString('tanpa tambahan 20 %', (string) $rows['EMP-0001']['tax_id_issue']);
 
-        // Kedua kolom kosong (atau hanya spasi) → payroll memotong 120 %.
-        foreach (['EMP-0002', 'EMP-0003'] as $code) {
-            $this->assertNull($rows[$code]['tax_id'], $code);
-            $this->assertFalse($rows[$code]['tax_id_treated_as_identified'], $code);
-            $this->assertMoney(189_000.0, $rows[$code]['pph21'], $code);
-            $this->assertStringContainsString('DENGAN tambahan 20 %', (string) $rows[$code]['tax_id_treatment'], $code);
-            $this->assertSame('tambahan 20 %', $rows[$code]['tax_id_treatment_label'], $code);
-        }
+        // Kedua kolom kosong → payroll memotong 120 %.
+        $this->assertNull($rows['EMP-0002']['tax_id']);
+        $this->assertFalse($rows['EMP-0002']['tax_id_treated_as_identified']);
+        $this->assertMoney(189_000.0, $rows['EMP-0002']['pph21']);
+        $this->assertStringContainsString('DENGAN tambahan 20 %', (string) $rows['EMP-0002']['tax_id_treatment']);
+        $this->assertSame('tambahan 20 %', $rows['EMP-0002']['tax_id_treatment_label']);
         $this->assertStringContainsString('NPWP kosong; NIK kosong', (string) $rows['EMP-0002']['tax_id_issue']);
+
+        // NIK warisan lain yang tidak dikenali → tarif normal juga (kolom terisi).
+        $this->assertNull($rows['EMP-0003']['tax_id']);
+        $this->assertTrue($rows['EMP-0003']['tax_id_treated_as_identified']);
+        $this->assertMoney(157_500.0, $rows['EMP-0003']['pph21']);
+        $this->assertSame('tarif normal', $rows['EMP-0003']['tax_id_treatment_label']);
 
         // Baris yang dikenali dan dihitung normal: tidak ada kalimat perlakuan.
         $this->assertTrue($rows['EMP-0004']['tax_id_treated_as_identified']);
@@ -296,7 +301,7 @@ class Pph21RecapTest extends ErpTestCase
         $this->assertNull($rows['EMP-0004']['tax_id_issue']);
 
         $this->assertSame(3, $recap['summary']['without_tax_id']);
-        $this->assertSame(1, $recap['summary']['without_tax_id_normal_rate']);
+        $this->assertSame(2, $recap['summary']['without_tax_id_normal_rate']);
         $this->assertSame(0, $recap['summary']['identified_but_surcharged']);
 
         // HR melengkapi/mengosongkan identitas SESUDAH run disetujui: slip tidak berubah,
@@ -318,7 +323,7 @@ class Pph21RecapTest extends ErpTestCase
         $this->assertStringContainsString('NIK kosong', (string) $rows['EMP-0001']['tax_id_issue']);
 
         $this->assertSame(2, $summary['without_tax_id']);
-        $this->assertSame(1, $summary['without_tax_id_normal_rate']);
+        $this->assertSame(2, $summary['without_tax_id_normal_rate']);
         $this->assertSame(1, $summary['identified_but_surcharged']);
 
         // Angka "20 %" datang dari konstanta payroll, bukan diketik ulang di rekap.
@@ -343,7 +348,7 @@ class Pph21RecapTest extends ErpTestCase
     {
         $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'NIK Warisan', 'base_salary' => 9_000_000, 'npwp' => 'N/A', 'nik_ktp' => 'BELUM-ADA']);
         $this->makeEmployee(['code' => 'EMP-0002', 'name' => 'Tanpa Apa Pun', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '']);
-        $this->makeEmployee(['code' => 'EMP-0003', 'name' => 'Desember Lama', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '  ']);
+        $this->makeEmployee(['code' => 'EMP-0003', 'name' => 'Desember Lama', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => 'BELUM-JUGA']);
         $run = $this->approved();
         Payslip::query()->where('payroll_run_id', $run->id)->update(['has_tax_id' => null]);   // slip lama
         // EMP-0003: seolah slip Desember lama (Pasal 17 — tanpa tarif TER) → tidak bisa disimpulkan.
@@ -364,7 +369,7 @@ class Pph21RecapTest extends ErpTestCase
         $this->assertNull($rows['EMP-0003']['tax_id_treated_as_identified']);
         $this->assertSame('current', $rows['EMP-0003']['tax_id_treatment_source']);
         $this->assertStringContainsString('Perlakuan slip ini tidak tercatat (slip lama)', (string) $rows['EMP-0003']['tax_id_treatment']);
-        $this->assertStringContainsString('SAAT INI payroll akan memotong DENGAN tambahan 20 %', (string) $rows['EMP-0003']['tax_id_treatment']);
+        $this->assertStringContainsString('SAAT INI payroll akan memotong tarif NORMAL', (string) $rows['EMP-0003']['tax_id_treatment']);
         $this->assertStringContainsString('bisa berbeda', (string) $rows['EMP-0003']['tax_id_treatment']);
         $this->assertSame('tidak tercatat', $rows['EMP-0003']['tax_id_treatment_label']);
 
