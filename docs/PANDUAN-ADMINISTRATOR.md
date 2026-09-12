@@ -962,8 +962,9 @@ Kolom mana yang benar-benar terpakai:
 > Satu-satunya instruksi jujur adalah: **buka Sistem → Profil Perusahaan dan periksa
 > sendiri sebelum invoice pertama dan ekspor pajak pertama.**
 
-**Bentuk NPWP diperiksa saat disimpan — di keempat pintu (P-3b).** Profil perusahaan,
-pelanggan, vendor, karyawan (formulir DAN Impor Data Master) memakai satu aturan:
+**Bentuk NPWP diperiksa saat disimpan — di kelima pintu (P-3b).** Profil perusahaan,
+pelanggan, vendor, karyawan (formulir DAN Impor Data Master), dan nomor **Dokumen Vendor
+berjenis NPWP** (jenis lain bebas) memakai satu aturan:
 NPWP diperiksa saat DISIMPAN (P-3b): **15 digit** (format lama), **16 digit** (NPWP baru; untuk orang pribadi = NIK), atau **22 digit** (NITKU) — titik, strip, dan spasi boleh; tidak ada digit periksa. Nilai lama yang tidak memenuhi bentuk itu tetap terbaca dan boleh dikirim kembali apa adanya saat menyunting kolom lain; hanya nilai yang DIUBAH yang diperiksa.
 Yang tidak diperiksa: apakah nomornya milik badan yang benar — itu tetap tugas manusia.
 Status verifikasi setiap format berkas DJP/BPJS terhadap template resmi tertulis di kartu
@@ -1461,11 +1462,11 @@ nomor rekening berawalan nol, dan barcode dibaca sebagai **teks**.
 >    memakai soft delete, jadi baris terhapus tak terlihat oleh pencarian importer,
 >    lalu `create()` menabrak indeks unik pada `code`. **1.999 baris baik ikut hilang.**
 > 2. **NIK ganda melakukan hal yang sama.** `hr_employees.nik_ktp` UNIK di skema, tetapi
->    aturan importer hanya `string, size:16` tanpa pemeriksaan unik — dua kode karyawan
->    berbagi satu NIK lolos pratinjau dan meledak saat commit. Importer dan formulir
->    karyawan juga tidak sepakat: formulir menuntut **16 digit** dan unik, importer
->    menerima 16 **karakter** apa pun. NIK 16 karakter non-numerik lolos impor lalu
->    gagal di formulir sunting sesudahnya.
+>    aturan importer `digits:16` tanpa pemeriksaan unik — dua kode karyawan
+>    berbagi satu NIK lolos pratinjau dan meledak saat commit. (Sejak P-3b importer dan
+>    formulir SEPAKAT soal bentuk: keduanya menuntut **16 digit**; NIK enam belas huruf
+>    yang dulu lolos impor lalu muncul bersel kosong di Rekap PPh 21 kini dilewati dengan
+>    kalimat *"nik_ktp harus 16 digit."* — yang belum sepakat hanya keunikannya.)
 > 3. **`kategori_kode` dicari tanpa filter soft-delete**, jadi kategori yang sudah
 >    dihapus tetap ketemu dan item yang diimpor menempel padanya — item yang tidak
 >    dicantumkan layar mana pun.

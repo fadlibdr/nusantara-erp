@@ -9,6 +9,7 @@ use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\Company;
 use Modules\Core\Support\Erp;
 use Modules\Core\Support\Money;
+use Modules\Core\Support\Npwp;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ArInvoice;
 use Modules\Finance\Support\BuktiPotongNumber;
@@ -113,6 +114,7 @@ class TaxExportService
 
         $rows = [];
         $blockers = [];
+        $notes = [];
         $lines = [$this->eFakturHeader()];
 
         foreach ($invoices as $invoice) {
@@ -133,6 +135,10 @@ class TaxExportService
             $faktur = $this->splitFakturNumber((string) $invoice->faktur_pajak_no);
             $customer = $invoice->customer;
             $dppFaktur = $this->fakturDpp($invoice);
+
+            if (($note = $this->npwpShapeNote(DjpFormats::EFAKTUR_CSV_LEGACY, $customer->npwp, 'pelanggan', $customer->name, 'e-Faktur desktop')) !== null) {
+                $notes[] = ['document' => $invoice->code, 'partner' => $customer->name, 'npwp' => $this->digits($customer->npwp), 'note' => $note];
+            }
 
             $rows[] = [
                 'document' => $invoice->code,
@@ -206,9 +212,11 @@ class TaxExportService
             'columns' => ['document', 'faktur_pajak_no', 'invoice_date', 'partner', 'npwp', 'dpp', 'ppn'],
             'rows' => $rows,
             'blockers' => $blockers,
+            'notes' => $notes,
             'summary' => [
                 'exported' => count($rows),
                 'blocked' => count($blockers),
+                'noted' => count($notes),
                 'dpp' => round(array_sum(array_column($rows, 'dpp')), 2),
                 'dpp_faktur' => round(array_sum(array_column($rows, 'dpp_faktur')), 2),
                 'ppn' => round(array_sum(array_column($rows, 'ppn')), 2),
@@ -250,6 +258,7 @@ class TaxExportService
 
         $rows = [];
         $blockers = [];
+        $notes = [];
         $lines = [$this->eBupotHeader()];
 
         foreach ($bills as $bill) {
@@ -277,6 +286,10 @@ class TaxExportService
             // potong must report what was actually deducted.
             $rate = $dpp > 0 ? round($pph / $dpp * 100, 4) : 0.0;
             $slipNumber = $this->buktiPotongNumber($bill);
+
+            if (($note = $this->npwpShapeNote(DjpFormats::EBUPOT_UNIFIKASI_CSV, $vendor->npwp, 'vendor', $vendor->name, 'e-Bupot Unifikasi')) !== null) {
+                $notes[] = ['document' => $bill->code, 'partner' => $vendor->name, 'npwp' => $this->digits($vendor->npwp), 'note' => $note];
+            }
 
             $rows[] = [
                 'slip_no' => $slipNumber,
@@ -316,9 +329,11 @@ class TaxExportService
             'columns' => ['slip_no', 'document', 'bill_date', 'partner', 'npwp', 'tax_code', 'object_code', 'dpp', 'rate', 'pph'],
             'rows' => $rows,
             'blockers' => $blockers,
+            'notes' => $notes,
             'summary' => [
                 'exported' => count($rows),
                 'blocked' => count($blockers),
+                'noted' => count($notes),
                 'dpp' => round(array_sum(array_column($rows, 'dpp')), 2),
                 'pph' => round(array_sum(array_column($rows, 'pph')), 2),
             ],
@@ -477,6 +492,42 @@ class TaxExportService
     private function buktiPotongNumber(ApBill $bill): string
     {
         return (string) $bill->bupot_no;
+    }
+
+    /* --------------------------------------------------------------- notes */
+
+    /**
+     * V2-6: the door rules now admit 16-digit (NIK/NPWP baru) and 22-digit
+     * (NITKU) numbers, while both writers were copied from schemas that assume
+     * the 15-digit form and only ever blocked "< 15 digits". Such a row is still
+     * EXPORTED — the column is not changed and the importer, not this service,
+     * decides — but it is named, with its shape, so the officer matches it
+     * against the official template before importing. The note exists only
+     * while the format is unverified: verification is the column-by-column
+     * match that settles what the template accepts.
+     */
+    private function npwpShapeNote(string $formatKey, ?string $npwp, string $role, ?string $name, string $scheme): ?string
+    {
+        if (DjpFormats::isVerified($formatKey)) {
+            return null;
+        }
+
+        $digits = $this->digits($npwp);
+
+        if (strlen($digits) === 15) {
+            return null;
+        }
+
+        $kind = Npwp::describe($npwp)['kind_label'] ?? null;
+
+        return sprintf(
+            'NPWP %s %s tersimpan %d digit%s; skema %s yang disalin aplikasi mengasumsikan 15 digit — cocokkan baris ini dengan template resmi sebelum mengimpor.',
+            $role,
+            (string) $name,
+            strlen($digits),
+            $kind === null ? '' : " ({$kind})",
+            $scheme,
+        );
     }
 
     /* ------------------------------------------------------------ blockers */

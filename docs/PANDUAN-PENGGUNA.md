@@ -2849,6 +2849,13 @@ Konstruksi / SKK Penanggung Jawab / Sertifikat Principal / Akta Perusahaan / Kom
 K3L / Pakta Integritas / **CV Mandor** / Lainnya) · **Nama dokumen** (wajib) · Nomor ·
 Penerbit · Terbit · Berlaku s/d (≥ Terbit) · **Wajib untuk PO/SPK** · Catatan.
 
+**Nomor pada jenis NPWP mengikuti aturan NPWP** (P-3b): 15 / 16 / 22 digit seperti kolom NPWP
+di formulir vendor (titik, strip, spasi boleh); bentuk lain ditolak dengan kalimat yang sama.
+Jenis lain (SIUP, SBU, akta, …) menerima nomor apa adanya dari berkasnya. Nomor lama pada
+dokumen NPWP yang sudah ada boleh dikirim kembali apa adanya saat menyunting kolom lain;
+mengganti jenis dokumen lain MENJADI NPWP memeriksa nomornya. Teks bantuan kolom Nomor
+mengatakannya.
+
 **CV Mandor** adalah lembar kualifikasi mandor borongan (P4): rekamlah CV-nya di sini
 (lampirkan berkasnya bila ada), dan lembar cetak F/CVM di halaman vendor (§5.2) akan
 memuatnya di register dokumennya. CV menjawab *siapa dia*; ia **bukan** pengganti
@@ -7086,6 +7093,21 @@ Kotak: Siap diekspor · Total DPP · PPN keluaran / PPh dipotong · **Tertahan**
 **"Isi berkas — {nama file}"** dengan **`Unduh CSV`**, lalu kartu **"Tertahan — tidak masuk
 file (N)"** berisi alasan per dokumen.
 
+**Baris pertama berkas yang belum diverifikasi harus dihapus sebelum diimpor.** Baris `#`
+itu berbunyi *"… Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di
+baris 1."*, dan kartu **Isi berkas** mengulangnya (kalimat dari registri server). Aplikasi
+DJP mengharapkan header di baris 1; berkas yang diunduh sengaja tidak bisa diimpor apa
+adanya selama formatnya belum dicocokkan dengan template resmi.
+
+**Kartu "Perlu dicocokkan — NPWP bukan 15 digit (N)"** muncul bila ada baris yang DIEKSPOR
+dengan NPWP 16 digit (NIK / NPWP baru) atau 22 digit (NITKU): skema e-Faktur desktop dan
+e-Bupot yang disalin aplikasi mengasumsikan 15 digit, dan penghalang hanya menahan yang
+kurang dari 15. Baris itu tetap masuk berkas dengan nomornya apa adanya — kolom tidak
+diubah — dan kartu menyebutnya per dokumen (*"NPWP pelanggan {nama} tersimpan 22 digit
+(NITKU); skema e-Faktur desktop yang disalin aplikasi mengasumsikan 15 digit — cocokkan
+baris ini dengan template resmi sebelum mengimpor."*). Ubin **Siap diekspor** menghitungnya
+(*"N baris perlu dicocokkan"*). Kartu ini hilang sendiri sesudah formatnya diverifikasi.
+
 Penghalang e-Faktur:
 
 - *"Nomor faktur pajak belum diisi — catat nomor seri dari DJP pada invoice ini."* (§3.11)
@@ -7459,6 +7481,16 @@ tidak NIK bila 16 digit, bila tidak pun **sel dibiarkan kosong** — bukan 0, bu
 dengan sebabnya pada keterangan sel (arahkan kursor), dan pegawainya dihitung di ubin itu.
 Baris pegawai itu tetap ada beserta angkanya; lengkapi NPWP/NIK-nya di **Karyawan**. Masa
 Desember tidak punya kategori TER (perhitungan tahunan Pasal 17): kolom TER kosong.
+
+**Sel identitas kosong TIDAK berarti PPh 21-nya dipotong dengan tambahan 20 %.** Payroll
+menganggap pegawai ber-identitas bila kolom NPWP ATAU NIK terisi apa pun — jadi pegawai
+warisan yang NIK-nya "BELUM-ADA" dipotong dengan **tarif normal**, sedangkan pegawai yang
+kedua kolomnya kosong dipotong **120 %**. Pada baris bersel kosong, kalimat di bawah nama
+pegawai menyebut mana yang terjadi (*"PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan 20 %
+— payroll menganggap identitas terisi karena kolom NPWP/NIK tidak kosong (menurut data
+pegawai saat ini)."* atau *"… DENGAN tambahan 20 % …"*), dan ubin **Pegawai tanpa identitas
+pajak** menyebut berapa yang tarif normal. Rekap tidak menghitung ulang apa pun; mengubah
+definisi identitas payroll adalah keputusan pemilik.
 
 **`Unduh CSV rekap internal`** → `rekap-internal-pph21-YYYY-MM.csv`: pemisah titik koma,
 desimal koma (Excel Indonesia), baris pertama berbunyi label yang sama dengan judul layar

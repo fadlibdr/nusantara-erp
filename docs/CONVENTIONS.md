@@ -2349,8 +2349,13 @@ adanya, SPA hanya memilih warnanya dan tidak menyusun satu kata pun; tombol `Und
 dari `downloadable`; `DjpFormatsTest` memaku bahwa `taxexport.js` tidak memuat string
 berisi «diverifikasi»/«sesuai»/«coretax» dan hanya punya satu literal `Unduh` di dalam cabang
 `exp.format.downloadable`), dan berkas unduhan (`DjpFormats::filename` → akhiran `-belum-diverifikasi`,
-`stampCsv` → satu baris komentar `#` di atas; **writer kolom tidak disentuh**, berkas yang
-sudah diverifikasi dikembalikan apa adanya). Format "menunggu template" `downloadable: false`
+`stampCsv` → satu baris komentar `#` di atas yang DITUTUP `FIRST_LINE_INSTRUCTION` "Hapus baris
+pertama ini sebelum mengimpor" dan diulang ke layar lewat `file_note` registri — V3b-7; **writer
+kolom tidak disentuh**, berkas yang sudah diverifikasi dikembalikan apa adanya). Baris yang
+diekspor dengan NPWP ≠ 15 digit (16 = NIK/NPWP baru, 22 = NITKU) pada skema yang mengasumsikan
+15 digit TIDAK ditahan dan kolomnya tidak diubah, tetapi disebut di `notes` + `summary.noted`
+(`TaxExportService::npwpShapeNote`, kartu `.djp-npwp-notes`) selama formatnya belum
+diverifikasi — V2-6. Format "menunggu template" `downloadable: false`
 dan membawa `awaiting_file` yang menyebut berkas apa yang harus diletakkan. Menambah format =
 satu entri di sini + satu baris di `docs/samples/pajak/README.md` (dipaku `DjpFormatsTest`:
 README menyebut setiap kunci dan pola nama berkas, dan TIDAK memuat nama kolom skema mana
@@ -2363,9 +2368,13 @@ setelah titik/strip/spasi dibuang — **15** = NPWP format lama, **16** = NPWP b
 pribadi = NIK), **22** = NITKU — TANPA digit periksa (DJP tidak menerbitkannya untuk
 NIK/NPWP-16; "000000000000000" sah dan dipaku). Tampilan: 15 berformat cetak lama, 16/22
 digit utuh; nilai lama yang tidak dikenali dipulangkan apa adanya. `Modules\Core\Rules\
-ValidNpwp` dipasang di KETUJUH pintu: Customer/Vendor/Employee Store+Update, `PUT core/company`,
+ValidNpwp` dipasang di KEDELAPAN pintu: Customer/Vendor/Employee Store+Update, `PUT core/company`,
 kolom `npwp` `ImportableResources` (vendors/customers/employees — daftar dipaku literal
-`NpwpTest`). **Maju-saja**: `ValidNpwp::unlessUnchanged($tersimpan)` pada pintu UPDATE DAN
+`NpwpTest`), dan kolom `number` Dokumen Vendor **hanya bila `doc_type = npwp`**
+(`VendorDocumentStoreRequest::npwpRuleFor`; jenis lain bebas bentuknya — V3-5; mengganti jenis
+dokumen lain MENJADI npwp diperiksa penuh). Kolom `nik_ktp` importer karyawan = `digits:16`,
+persis aturan formulir (`size:16` dulu meloloskan enam belas HURUF — V3-3).
+**Maju-saja**: `ValidNpwp::unlessUnchanged($tersimpan)` pada pintu UPDATE DAN
 pada baris impor yang kodenya sudah ada (`MasterDataImportService::prepare` menukar aturan
 kolom itu per baris dengan nilai tersimpan — ekspor aplikasi selalu membawa kolom `npwp`, jadi
 impor-balik tanpa ini menyandera setiap baris warisan) — nilai yang dikirim kembali PERSIS
@@ -2381,6 +2390,12 @@ sama dengan `decemberTax` dan `TaxEqualizationService`); draf/diajukan/ditolak d
 `runs.excluded` beserta statusnya; satu baris per pegawai per masa (gaji + THR dijumlahkan,
 setiap slip disebut di `slips`); identitas dari master pegawai: npwp bila dikenali → NIK bila
 16 digit → **sel kosong** (bukan 0, bukan garis) + `tax_id_issue` + `summary.without_tax_id`.
+**Sel kosong ≠ tambahan 20 %** (V2-7/V3b-3): payroll memakai `Employee::hasTaxId()` = kolom
+NPWP ATAU NIK terisi APA PUN, jadi baris warisan ber-NIK "BELUM-ADA" dipotong tarif normal;
+rekap tidak menghitung ulang, ia MENYEBUT perlakuan itu — `tax_id_treatment` +
+`tax_id_treated_as_identified` per baris (kalimat dari `Pph21TerService::NON_TAX_ID_SURCHARGE`,
+"menurut data pegawai saat ini"), `summary.without_tax_id_normal_rate` di ubin. Mengubah
+definisi identitas payroll mengubah pemotongan = keputusan pemilik (LAPORAN P-3b §9-I).
 `GET hr/pph21-recap` di balik `hr.view` (data pribadi — gerbang yang sama dengan register
 sertifikat/cuti/absensi), jalur sendiri agar tidak ditelan `{payrollRun}`. CSV `;` + desimal
 koma, baris pertama `# Rekap internal … BUKAN berkas impor DJP`. Muatan membawa entri

@@ -57,6 +57,14 @@ final class DjpFormats
     /** Awalan kalimat yang dipaku uji dan dicari harness — jangan diparafrasakan. */
     public const UNVERIFIED_PREFIX = 'BELUM DIVERIFIKASI terhadap template';
 
+    /**
+     * Kalimat yang menutup baris '#' di atas berkas yang belum diverifikasi, DAN
+     * kalimat `file_note` yang dibaca layar (V3b-7): importer DJP mengharapkan
+     * header di baris 1, jadi berkas unduhan tidak bisa diimpor apa adanya —
+     * dan harus ada permukaan yang mengatakannya, bukan hanya penolakan importer.
+     */
+    public const FIRST_LINE_INSTRUCTION = 'Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1.';
+
     private const FILENAME_SUFFIX = '-belum-diverifikasi';
 
     /**
@@ -236,7 +244,7 @@ final class DjpFormats
 
         return '# '.self::UNVERIFIED_PREFIX.' '.$entry['authority']
             .' — tata letak kolom berkas ini belum dicocokkan dengan berkas contoh resmi; lihat '
-            .self::README.' sebelum mengimpornya.'."\n".$csv;
+            .self::README.' sebelum mengimpornya. '.self::FIRST_LINE_INSTRUCTION."\n".$csv;
     }
 
     /**
@@ -319,6 +327,16 @@ final class DjpFormats
                 ? sprintf('Diverifikasi %s', $against['date'])
                 : sprintf('Belum diverifikasi terhadap template %s', $authority),
             'awaiting_file' => $awaiting,
+            // Kalimat untuk kartu "Isi berkas" di layar — dari sini, bukan disusun SPA:
+            // berkas yang belum diverifikasi dibuka oleh satu baris komentar '#'.
+            'file_note' => $verified || ! ((bool) $entry['writer'] && $entry['status'] === self::STATUS_ADA)
+                ? null
+                : sprintf(
+                    'Baris pertama berkas ini adalah komentar "# %s %s …". %s',
+                    self::UNVERIFIED_PREFIX,
+                    $authority,
+                    self::FIRST_LINE_INSTRUCTION,
+                ),
             'sample_stem' => $stem.'-<YYYY-MM-DD>',
         ];
     }

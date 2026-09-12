@@ -326,8 +326,9 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
 
 ## 13. Sapuan dokumentasi (CONVENTIONS §35, `grep -rn … | wc -l` di ujung cabang)
 
-- `grep -rn "Tata letak kolom mengikuti" docs/ | wc -l` — **1 → 0** (PANDUAN-PENGGUNA §10.12
-  ditulis ulang untuk kartu registri, kalimat dari server, nama dan baris pertama berkas).
+- `grep -rn "Tata letak kolom mengikuti" docs/ | grep -v LAPORAN-PAKET-HM-P-3b | wc -l` — **1 → 0**
+  di luar laporan ini (PANDUAN-PENGGUNA §10.12 ditulis ulang untuk kartu registri, kalimat dari
+  server, nama dan baris pertama berkas; tanpa `grep -v` hasilnya 1 — baris ini sendiri, V2-9).
 - `grep -rn "Rekap PPh 21 Bulanan" docs/ --include=*.md | wc -l` — **8** baris di
   **5** berkas Markdown (PANDUAN-PENGGUNA daftar grup ×2 + §11.8 baru; CONVENTIONS §39;
   ONBOARDING hr.md, finance.md; laporan ini) — semuanya dibaca.

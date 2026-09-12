@@ -45,7 +45,12 @@ function summaryTiles(payload) {
     el('.stat.without-tax-id', { 'data-count': String(s.without_tax_id) }, [
       el('.label', { text: 'Pegawai tanpa identitas pajak' }),
       el('.value', { text: String(s.without_tax_id), style: s.without_tax_id ? { color: 'var(--danger)' } : {} }),
-      el('.delta', { text: s.without_tax_id ? 'sel identitas dibiarkan kosong' : 'semua dikenali' }),
+      // V2-7/V3b-3: sel kosong ≠ tambahan 20 % — sebut berapa yang dihitung tarif normal.
+      el('.delta', {
+        text: !s.without_tax_id
+          ? 'semua dikenali'
+          : `sel identitas dibiarkan kosong · ${s.without_tax_id_normal_rate ?? 0} dihitung tarif normal`,
+      }),
     ]),
   ]);
 }
@@ -120,6 +125,11 @@ function rowsTable(payload) {
       el('td', el('span', [
         el('span.cell-main', { text: row.employee_name || `#${row.employee_id}` }),
         el('span.cell-sub.mono', { text: row.employee_code || '' }),
+        // V2-7/V3b-3: perlakuan payroll pada baris tanpa identitas yang dikenali —
+        // kalimat dari API, di bawah nama; sel identitas dan jenisnya TETAP kosong.
+        row.tax_id_treatment
+          ? el('span.cell-sub.tax-id-treatment', { style: { whiteSpace: 'normal', color: 'var(--warning)' }, text: row.tax_id_treatment })
+          : null,
       ])),
       // KOSONG bila tidak dikenali — bukan 0, bukan "—". Sebabnya di title.
       el('td.mono.tax-id', {

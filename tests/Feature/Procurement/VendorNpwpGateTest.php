@@ -5,6 +5,7 @@ namespace Tests\Feature\Procurement;
 use Laravel\Sanctum\Sanctum;
 use Modules\Core\Rules\ValidNpwp;
 use Modules\Procurement\Models\Vendor;
+use Modules\Procurement\Models\VendorDocument;
 use Tests\ErpTestCase;
 
 /**
@@ -71,5 +72,71 @@ class VendorNpwpGateTest extends ErpTestCase
         $this->putJson("/api/procurement/vendors/{$vendor->id}", ['name' => 'CV Warisan', 'npwp' => '0013345567007000'])
             ->assertOk();
         $this->assertSame('0013345567007000', $vendor->fresh()->npwp);
+    }
+
+    // ------------------------------------------------ register dokumen vendor
+
+    /**
+     * Pintu ke-8 yang menulis NOMOR NPWP: Dokumen Vendor jenis "NPWP". Nomornya
+     * adalah NPWP vendor yang diketik orang dari berkas pindaian, dan sebelum
+     * ini ia menerima apa pun ("ABC-123") sementara kolom NPWP di formulir
+     * vendor yang sama menolak "ABC" (V3-5). Aturan yang sama, HANYA untuk jenis
+     * npwp — nomor SIUP/SBU/akta bebas bentuknya — dan maju-saja pada PUT.
+     */
+    public function test_a_vendor_document_of_type_npwp_carries_the_npwp_rule_and_other_types_do_not(): void
+    {
+        $vendor = Vendor::query()->create($this->payload(['npwp' => '01.334.556.7-007.000']));
+        $base = ['vendor_id' => $vendor->id, 'name' => 'NPWP PT Vendor Baru'];
+
+        $this->postJson('/api/procurement/vendor-documents', $base + ['doc_type' => 'npwp', 'number' => 'ABC-123'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
+
+        $this->postJson('/api/procurement/vendor-documents', $base + ['doc_type' => 'npwp', 'number' => '0013345567007000000001'])
+            ->assertCreated()
+            ->assertJsonPath('data.number', '0013345567007000000001');
+
+        // Jenis lain: nomor apa pun dari berkasnya.
+        $this->postJson('/api/procurement/vendor-documents', $base + ['doc_type' => 'siup', 'name' => 'SIUP', 'number' => 'ABC-123'])
+            ->assertCreated();
+    }
+
+    public function test_a_legacy_npwp_document_number_is_re_savable_unchanged_but_not_changeable_to_a_bad_one(): void
+    {
+        $vendor = Vendor::query()->create($this->payload(['npwp' => '01.334.556.7-007.000']));
+        $document = VendorDocument::query()->create([
+            'vendor_id' => $vendor->id, 'doc_type' => 'npwp', 'name' => 'NPWP lama', 'number' => 'N/A',
+        ]);
+
+        // Menyunting penerbit dengan nomor lama terkirim apa adanya: bukan penulisan NPWP baru.
+        $this->putJson("/api/procurement/vendor-documents/{$document->id}", ['number' => 'N/A', 'issuer' => 'KPP Pratama'])
+            ->assertOk();
+        $this->assertSame('KPP Pratama', $document->fresh()->issuer);
+        $this->assertSame('N/A', $document->fresh()->number);
+
+        $this->putJson("/api/procurement/vendor-documents/{$document->id}", ['number' => 'N/B'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
+        $this->assertSame('N/A', $document->fresh()->number);
+
+        // Mengganti JENIS menjadi npwp pada dokumen lain ikut membawa aturannya.
+        $siup = VendorDocument::query()->create(['vendor_id' => $vendor->id, 'doc_type' => 'siup', 'name' => 'SIUP', 'number' => 'ABC-123']);
+        $this->putJson("/api/procurement/vendor-documents/{$siup->id}", ['doc_type' => 'npwp', 'number' => 'ABC-124'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
+    }
+
+    /** Formulir Dokumen Vendor mengatakan aturannya di kolom Nomor — sebelum 422-nya. */
+    public function test_the_vendor_document_form_says_the_number_rule_for_type_npwp(): void
+    {
+        $schema = (string) file_get_contents(public_path('app/js/schema.js'));
+        $start = strpos($schema, "'procurement/vendor-documents': {");
+        $this->assertNotFalse($start);
+        $block = substr($schema, $start, strpos($schema, "'procurement/purchase-requisitions'", $start) - $start);
+
+        $this->assertSame(1, preg_match("/key: 'number', label: 'Nomor', type: 'text',\s*help: '([^']+)'/u", $block, $m), 'kolom Nomor tanpa teks bantuan');
+        $this->assertStringContainsString('Jenis NPWP', $m[1]);
+        $this->assertStringContainsString('15 / 16 / 22 digit', $m[1]);
+        $this->assertStringContainsString('Jenis lain', $m[1]);
     }
 }

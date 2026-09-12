@@ -119,8 +119,11 @@ class ImportableResources
                     ['header' => 'kode', 'field' => 'code', 'required' => true, 'cast' => 'text', 'rules' => ['string', 'max:40']],
                     ['header' => 'nama', 'field' => 'name', 'required' => true, 'rules' => ['string', 'max:200']],
                     // NIK doubles as the tax id under PMK 112/2022, so a blank one
-                    // costs the employee a 20% PPh 21 surcharge. Required.
-                    ['header' => 'nik_ktp', 'field' => 'nik_ktp', 'required' => true, 'cast' => 'text', 'rules' => ['string', 'size:16']],
+                    // costs the employee a 20% PPh 21 surcharge. Required — and
+                    // digits:16 exactly like EmployeeStore/UpdateRequest: size:16 let
+                    // sixteen LETTERS land here and surface in the PPh 21 recap as an
+                    // empty identity cell (P-3b V3-3). One rule at both doors.
+                    ['header' => 'nik_ktp', 'field' => 'nik_ktp', 'required' => true, 'cast' => 'text', 'rules' => ['digits:16']],
                     ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30', new ValidNpwp]],
                     ['header' => 'jenis_kelamin', 'field' => 'gender', 'required' => true, 'rules' => ['in:male,female']],
                     ['header' => 'tanggal_lahir', 'field' => 'birth_date', 'required' => true, 'cast' => 'date', 'rules' => ['date']],

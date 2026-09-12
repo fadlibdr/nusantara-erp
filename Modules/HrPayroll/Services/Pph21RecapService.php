@@ -12,6 +12,7 @@ use Modules\HrPayroll\Enums\PayrollRunType;
 use Modules\HrPayroll\Models\Employee;
 use Modules\HrPayroll\Models\PayrollRun;
 use Modules\HrPayroll\Models\Payslip;
+use Modules\HrPayroll\Services\Pph21TerService as Ter;
 
 /**
  * Rekap PPh 21/26 bulanan dari SNAPSHOT slip gaji (P-3b, T3b.2).
@@ -105,6 +106,13 @@ class Pph21RecapService
             'gross' => round((float) array_sum(array_column($rows, 'gross')), 2),
             'pph21' => round((float) array_sum(array_column($rows, 'pph21')), 2),
             'without_tax_id' => count(array_filter($rows, fn (array $row): bool => $row['tax_id'] === null)),
+            // V2-7/V3b-3: dari baris tanpa identitas yang dikenali, berapa yang slipnya
+            // dihitung payroll dengan tarif NORMAL (kolom NPWP/NIK terisi sesuatu yang
+            // tidak dikenali — Employee::hasTaxId menganggapnya ber-identitas).
+            'without_tax_id_normal_rate' => count(array_filter(
+                $rows,
+                fn (array $row): bool => $row['tax_id'] === null && ($row['tax_id_treated_as_identified'] ?? false),
+            )),
             'runs_included' => $included->count(),
             'runs_excluded' => $excluded->count(),
         ];
@@ -132,7 +140,7 @@ class Pph21RecapService
             // Registri T3b.0: format impor e-Bupot 21/26 menunggu template resmi.
             'format' => DjpFormats::get(DjpFormats::EBUPOT_2126_BULANAN),
             // T3b.3: tabel TER ditandai perlu dicek — kalimatnya dari tempat tabel itu hidup.
-            'ter_note' => Pph21TerService::VERIFICATION_NOTE,
+            'ter_note' => Ter::VERIFICATION_NOTE,
             'filename' => sprintf('rekap-internal-pph21-%04d-%02d.csv', $year, $month),
             'csv' => $this->csv($period, $rows, $runsMeta['included']),
         ];
@@ -153,7 +161,7 @@ class Pph21RecapService
 
         $identity = $employee !== null
             ? $this->identity($employee)
-            : ['tax_id' => null, 'tax_id_kind' => null, 'tax_id_kind_label' => null, 'tax_id_source' => null, 'tax_id_issue' => 'Data pegawai tidak ditemukan.'];
+            : ['tax_id' => null, 'tax_id_kind' => null, 'tax_id_kind_label' => null, 'tax_id_source' => null, 'tax_id_issue' => 'Data pegawai tidak ditemukan.', 'tax_id_treated_as_identified' => null, 'tax_id_treatment' => null];
 
         return array_merge([
             'employee_id' => (int) $first->employee_id,
@@ -181,7 +189,15 @@ class Pph21RecapService
      * NPWP bila dikenali, lalu NIK bila 16 digit, lalu kosong — dengan
      * kalimat yang menyebut apa yang tersimpan dan tidak dikenali.
      *
-     * @return array{tax_id: ?string, tax_id_kind: ?string, tax_id_kind_label: ?string, tax_id_source: ?string, tax_id_issue: ?string}
+     * Dua permukaan satu fakta (V2-7/V3b-3): sel identitas rekap KOSONG tidak
+     * berarti payroll memotong dengan tambahan 20 %. Payroll memakai
+     * Employee::hasTaxId() — kolom NPWP ATAU NIK terisi APA PUN — jadi baris
+     * warisan ber-NIK "BELUM-ADA" dihitung dengan tarif normal. Rekap tidak
+     * menghitung ulang; ia MENYEBUT perlakuan itu (`tax_id_treatment`) di
+     * samping sel kosongnya, menurut data pegawai saat ini. Mengganti definisi
+     * identitas payroll mengubah pemotongan = keputusan pemilik (laporan §9-I).
+     *
+     * @return array{tax_id: ?string, tax_id_kind: ?string, tax_id_kind_label: ?string, tax_id_source: ?string, tax_id_issue: ?string, tax_id_treated_as_identified: ?bool, tax_id_treatment: ?string}
      */
     private function identity(Employee $employee): array
     {
@@ -194,6 +210,8 @@ class Pph21RecapService
                 'tax_id_kind_label' => $npwp['kind_label'],
                 'tax_id_source' => 'npwp',
                 'tax_id_issue' => null,
+                'tax_id_treated_as_identified' => true,
+                'tax_id_treatment' => null,
             ];
         }
 
@@ -210,6 +228,8 @@ class Pph21RecapService
                 'tax_id_kind_label' => 'NIK (16 digit)',
                 'tax_id_source' => 'nik_ktp',
                 'tax_id_issue' => $npwpIssue === null ? null : $npwpIssue.'; dipakai NIK.',
+                'tax_id_treated_as_identified' => true,
+                'tax_id_treatment' => null,
             ];
         }
 
@@ -217,13 +237,27 @@ class Pph21RecapService
             ? 'NIK kosong'
             : sprintf('NIK tersimpan "%s" bukan 16 digit', $employee->nik_ktp);
 
+        $treatedAsIdentified = $employee->hasTaxId();
+        $surcharge = (int) round((Ter::NON_TAX_ID_SURCHARGE - 1) * 100);
+        $treatment = $treatedAsIdentified
+            ? sprintf(
+                'PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan %d %% — payroll menganggap identitas terisi karena kolom NPWP/NIK tidak kosong (menurut data pegawai saat ini).',
+                $surcharge,
+            )
+            : sprintf(
+                'PPh 21 slip dihitung DENGAN tambahan %d %% (tanpa NPWP/NIK — menurut data pegawai saat ini).',
+                $surcharge,
+            );
+
         return [
             'tax_id' => null,
             'tax_id_kind' => null,
             'tax_id_kind_label' => null,
             'tax_id_source' => null,
             'tax_id_issue' => implode('; ', array_filter([$npwpIssue ?? 'NPWP kosong', $nikIssue]))
-                .' — lengkapi di data pegawai; baris ini tetap dihitung.',
+                .' — lengkapi di data pegawai; baris ini tetap dihitung. '.$treatment,
+            'tax_id_treated_as_identified' => $treatedAsIdentified,
+            'tax_id_treatment' => $treatment,
         ];
     }
 

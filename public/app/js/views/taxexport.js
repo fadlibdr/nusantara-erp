@@ -116,7 +116,10 @@ function summaryTiles(exp, tab) {
     el('.stat', [
       el('.label', { text: 'Siap diekspor' }),
       el('.value', { text: String(s.exported) }),
-      el('.delta', { text: `dari ${s.exported + s.blocked} dokumen periode ini` }),
+      el('.delta', {
+        text: `dari ${s.exported + s.blocked} dokumen periode ini`
+          + (s.noted ? ` · ${s.noted} baris perlu dicocokkan` : ''),
+      }),
     ]),
     el('.stat', [el('.label', { text: 'Total DPP' }), el('.value.sm', { text: fmt.rupiah(s.dpp) })]),
     el('.stat', [el('.label', { text: tab.valueLabel }), el('.value.sm', { text: fmt.rupiah(s[tab.valueKey]) })]),
@@ -155,6 +158,33 @@ function rowsTable(exp) {
       return el('td', { text: i === 0 ? 'Total' : '' });
     }))),
   ]));
+}
+
+/* V2-6: baris yang DIEKSPOR tetapi NPWP-nya bukan 15 digit (16 = NIK/NPWP
+   baru, 22 = NITKU) pada skema yang mengasumsikan 15 digit. Kalimatnya dari
+   server; kartu ini hilang sendiri sesudah formatnya diverifikasi. */
+function notesCard(exp) {
+  if (!exp.notes || !exp.notes.length) return null;
+
+  return el('.card.djp-npwp-notes', [
+    el('.card-head', [
+      el('h2', { text: `Perlu dicocokkan — NPWP bukan 15 digit (${exp.notes.length})` }),
+    ]),
+    el('.table-wrap', el('table.data', [
+      el('thead', el('tr', [
+        el('th', { text: 'Dokumen' }),
+        el('th', { text: 'Mitra' }),
+        el('th', { text: 'NPWP' }),
+        el('th', { text: 'Catatan' }),
+      ])),
+      el('tbody', exp.notes.map((n) => el('tr', { 'data-document': n.document }, [
+        el('td.code', { text: n.document }),
+        el('td', { text: n.partner || '—' }),
+        el('td.code', { text: n.npwp || '—' }),
+        el('td', { text: n.note }),
+      ]))),
+    ])),
+  ]);
 }
 
 function blockersCard(exp, tab, onIssueNumbers) {
@@ -288,8 +318,17 @@ export async function renderTaxExport(host) {
           })
           : el('.muted.djp-awaiting-file', { style: { fontSize: '12px' }, text: exp.format.awaiting_file || exp.format.verification }),
       ]),
+      /* V3b-7: baris pertama berkas adalah komentar '#' — kalimat "hapus baris
+         itu sebelum mengimpor" datang dari registri (file_note), bukan dari SPA. */
+      exp.format.file_note
+        ? el('.card-body.djp-file-note', { style: { paddingTop: 0 } },
+          el('p.muted', { style: { margin: 0, fontSize: '12px' }, text: exp.format.file_note }))
+        : null,
       rowsTable(exp),
     ]));
+
+    const notes = notesCard(exp);
+    if (notes) body.appendChild(notes);
 
     const blockers = blockersCard(exp, tab, issueNumbers);
     if (blockers) body.appendChild(blockers);

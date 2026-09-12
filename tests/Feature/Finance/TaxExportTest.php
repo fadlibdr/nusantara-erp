@@ -203,6 +203,61 @@ class TaxExportTest extends ErpTestCase
         $this->assertStringContainsString('Nomor faktur pajak belum diisi', $export['blockers'][0]['reason']);
     }
 
+    /**
+     * V2-6: pintu tulis kini menerima 16 digit (NIK/NPWP baru) dan 22 digit
+     * (NITKU), sedangkan kedua writer disalin dari skema yang mengasumsikan 15
+     * digit dan penghalangnya hanya "< 15". Baris seperti itu TETAP diekspor
+     * (kolom tidak diubah, importer yang memutuskan) — tetapi disebut, dengan
+     * bentuknya, di `notes` + `summary.noted`, dan layar menggambarnya.
+     */
+    public function test_an_exported_row_whose_npwp_is_not_15_digits_is_named_in_the_notes_not_blocked(): void
+    {
+        $this->approvedInvoice(['customer' => ['name' => 'PT Cabang NITKU', 'npwp' => '0012345678011000000002'], 'invoice' => ['code' => 'INV-NITKU']]);
+        $this->approvedInvoice(['customer' => ['name' => 'PT Lima Belas', 'npwp' => '01.345.678.9-091.000'], 'faktur' => '010.000-26.00000002']);
+
+        $export = $this->exports->eFaktur(2026, 3);
+
+        $this->assertSame([], $export['blockers']);
+        $this->assertSame(2, $export['summary']['exported']);
+        $this->assertSame(1, $export['summary']['noted']);
+        $this->assertCount(1, $export['notes']);
+        $this->assertSame('PT Cabang NITKU', $export['notes'][0]['partner']);
+        $this->assertSame('0012345678011000000002', $export['notes'][0]['npwp']);
+        $this->assertStringContainsString('22 digit', $export['notes'][0]['note']);
+        $this->assertStringContainsString('NITKU', $export['notes'][0]['note']);
+        $this->assertStringContainsString('mengasumsikan 15 digit', $export['notes'][0]['note']);
+        $this->assertStringContainsString('cocokkan baris ini dengan template resmi sebelum mengimpor', $export['notes'][0]['note']);
+        // Kolom NPWP di berkas TIDAK diubah: 22 digit apa adanya pada rekaman FK.
+        $fk = collect($this->recordsOfType($export['csv'], 'FK'))->map(fn (string $line): array => str_getcsv($line))
+            ->first(fn (array $r): bool => ($r[7] ?? null) === '0012345678011000000002');
+        $this->assertNotNull($fk, 'baris NITKU tidak diekspor apa adanya');
+
+        // e-Bupot: vendor 16 digit → satu catatan; 15 digit → tidak ada.
+        $this->billWithholding(vendorNpwp: '0013345567007000');
+        $bupot = $this->exports->eBupot(2026, 3);
+
+        $this->assertSame([], $bupot['blockers']);
+        $this->assertSame(1, $bupot['summary']['noted']);
+        $this->assertStringContainsString('16 digit', $bupot['notes'][0]['note']);
+        $this->assertStringContainsString('e-Bupot Unifikasi', $bupot['notes'][0]['note']);
+
+        // Layar: kartu catatan dan hitungannya dibaca dari API, tidak disusun sendiri.
+        $screen = (string) file_get_contents(public_path('app/js/views/taxexport.js'));
+        $this->assertStringContainsString('exp.notes', $screen, 'taxexport.js tidak membaca notes dari API');
+        $this->assertStringContainsString('.djp-npwp-notes', $screen);
+        $this->assertStringContainsString('s.noted', $screen, 'taxexport.js tidak membaca summary.noted');
+    }
+
+    public function test_a_15_digit_npwp_gets_no_note(): void
+    {
+        $this->approvedInvoice();
+
+        $export = $this->exports->eFaktur(2026, 3);
+
+        $this->assertSame([], $export['notes']);
+        $this->assertSame(0, $export['summary']['noted']);
+    }
+
     public function test_a_customer_without_an_npwp_is_reported(): void
     {
         $this->approvedInvoice(['customer' => ['npwp' => null]]);

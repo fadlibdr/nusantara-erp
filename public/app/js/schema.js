@@ -2437,7 +2437,9 @@ export const RESOURCES = {
           { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
           { key: 'doc_type', label: 'Jenis', type: 'select', enum: 'vendorDocumentType', required: true },
           { key: 'name', label: 'Nama dokumen', type: 'text', required: true, span: 2 },
-          { key: 'number', label: 'Nomor', type: 'text' },
+          // P-3b (V3-5): jenis NPWP memakai aturan NPWP yang sama dengan kolom NPWP vendor.
+          { key: 'number', label: 'Nomor', type: 'text',
+            help: 'Jenis NPWP: nomor harus 15 / 16 / 22 digit seperti kolom NPWP vendor (titik, strip, spasi boleh). Jenis lain: nomor ditulis apa adanya dari berkasnya.' },
           { key: 'issuer', label: 'Penerbit', type: 'text' },
           { key: 'issued_date', label: 'Terbit', type: 'date' },
           { key: 'valid_until', label: 'Berlaku s/d', type: 'date' },

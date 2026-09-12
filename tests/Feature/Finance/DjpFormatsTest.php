@@ -196,8 +196,37 @@ class DjpFormatsTest extends ErpTestCase
         $lines = explode("\n", $stamped);
 
         $this->assertStringStartsWith('# BELUM DIVERIFIKASI terhadap template DJP', $lines[0]);
+        // V3b-7: baris '#' itu membuat berkas tidak bisa diimpor apa adanya — ia harus
+        // mengatakannya sendiri, bukan menyerahkannya pada penolakan importer.
+        $this->assertStringEndsWith('Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1.', $lines[0]);
+        $this->assertSame(DjpFormats::FIRST_LINE_INSTRUCTION, 'Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1.');
         // Kolom data tidak disentuh: baris kedua dan seterusnya adalah berkas lama apa adanya.
         $this->assertSame(['FK,KD', 'FK,01', ''], array_slice($lines, 1));
+    }
+
+    /** V3b-7: kalimat "hapus baris pertama" juga sampai ke layar — dari registri (`file_note`), bukan disusun SPA. */
+    public function test_the_registry_tells_the_screen_about_the_first_line_only_for_an_unverified_file_that_exists(): void
+    {
+        $unverified = DjpFormats::get('efaktur_csv_legacy');
+        $this->assertIsString($unverified['file_note']);
+        $this->assertStringStartsWith('Baris pertama berkas ini adalah komentar "# BELUM DIVERIFIKASI terhadap template DJP', $unverified['file_note']);
+        $this->assertStringEndsWith(DjpFormats::FIRST_LINE_INSTRUCTION, $unverified['file_note']);
+        $this->assertStringContainsString('Hapus baris pertama ini sebelum mengimpor', $unverified['file_note']);
+
+        // Format yang menunggu template tidak punya berkas, jadi tidak ada baris pertama untuk dihapus.
+        $this->assertNull(DjpFormats::get('efaktur_coretax_xml')['file_note']);
+        $this->assertNull(DjpFormats::get('sipp_bpjs')['file_note']);
+
+        // Berkas yang sudah diverifikasi dikembalikan apa adanya — tanpa baris '#', tanpa kalimat.
+        $verified = DjpFormats::describe([
+            'key' => 'contoh', 'label' => 'Contoh', 'status' => 'ada', 'authority' => 'DJP', 'source' => 'uji',
+            'writer' => true, 'verified_against' => ['path' => 'docs/samples/pajak/README.md', 'date' => '2026-09-12'], 'awaiting_file' => null,
+        ]);
+        $this->assertNull($verified['file_note']);
+
+        $screen = (string) file_get_contents(public_path('app/js/views/taxexport.js'));
+        $this->assertStringContainsString('exp.format.file_note', $screen, 'taxexport.js tidak menampilkan file_note dari registri');
+        $this->assertStringContainsString('.djp-file-note', $screen);
     }
 
     public function test_a_verified_export_is_left_exactly_as_the_writer_produced_it(): void
@@ -270,6 +299,8 @@ class DjpFormatsTest extends ErpTestCase
 
         $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template DJP', $response->json('data.efaktur.format.verification'));
         $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template DJP', $response->json('data.ebupot.format.verification'));
+        $this->assertStringContainsString('Hapus baris pertama ini sebelum mengimpor', (string) $response->json('data.efaktur.format.file_note'));
+        $this->assertStringContainsString('Hapus baris pertama ini sebelum mengimpor', (string) $response->json('data.ebupot.format.file_note'));
         $this->assertSame('efaktur-2026-03-belum-diverifikasi.csv', $response->json('data.efaktur.filename'));
 
         // Format yang menunggu template menyebut berkas yang harus diletakkan — dan tidak bisa diunduh.

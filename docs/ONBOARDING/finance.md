@@ -172,10 +172,12 @@ saat mencatat tanggal setor), tanggal setor, tanggal lapor. Kolom *JV penyetoran
 bisa dipakai — tulis nomor JV di Catatan. **`Cetak Register`** (Form F/KP). **Keuangan ›
 Ekspor Pajak**: baca dulu kartu **"Format berkas DJP/BPJS — status verifikasi"** — selama
 lencananya **Belum diverifikasi terhadap template DJP**, berkas yang Anda unduh bernama
-`…-belum-diverifikasi.csv` dan baris pertamanya mengatakannya; impor satu masa ke sandbox
+`…-belum-diverifikasi.csv` dan baris pertamanya mengatakannya — **hapus baris pertama itu
+sebelum mengimpor** (kartu Isi berkas mengulanginya); impor satu masa ke sandbox
 dan cocokkan totalnya sebelum dipakai melapor (PANDUAN §10.12). **`Unduh CSV`** e-Faktur /
 e-Bupot; baca kartu **"Tertahan"** — nomor faktur kosong dan NPWP kurang dari 15 digit
-menahan dokumen. **`Terbitkan nomor bukti potong`** bukan tombol Anda (butuh izin
+menahan dokumen — dan kartu **"Perlu dicocokkan"** — NPWP 16/22 digit tetap diekspor,
+tetapi harus dicocokkan dengan template resmi lebih dulu. **`Terbitkan nomor bukti potong`** bukan tombol Anda (butuh izin
 persetujuan). Rekap PPh 21 bulanan ada di `SDM & Payroll › Rekap PPh 21 Bulanan` (Anda
 memegang izin lihat SDM) — rekap internal, bukan berkas impor DJP.
 

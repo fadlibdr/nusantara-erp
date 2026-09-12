@@ -315,6 +315,30 @@ class MasterDataImportTest extends ErpTestCase
         $this->imports->commit('employees', 'e.csv', $this->employeeFile($joinDate));
     }
 
+    /**
+     * The import gate and the employee form must agree on what a NIK is. The
+     * form says digits:16; this column said size:16 — sixteen LETTERS landed
+     * through the importer and then surfaced in the PPh 21 recap as an empty
+     * identity cell saying 'NIK tersimpan "ABCDEFGHIJKLMNOP" bukan 16 digit'
+     * (V3-3). Same rule at both gates: the letter row is skipped and named,
+     * the digit row lands.
+     */
+    public function test_a_nik_of_sixteen_letters_is_refused_by_the_importer_exactly_like_the_form(): void
+    {
+        $result = $this->imports->commit('employees', 'e.csv', $this->csv(
+            "kode,nama,nik_ktp,jenis_kelamin,tanggal_lahir,status_ptkp,tanggal_masuk,jenis_hubungan_kerja,jabatan,departemen\n"
+            ."EMP-901,Impor NIK Huruf,ABCDEFGHIJKLMNOP,male,1990-01-01,K/1,2026-01-05,tetap,Pelaksana,proyek\n"
+            ."EMP-902,Impor NIK Digit,3201010101900002,male,1990-01-01,K/1,2026-01-05,tetap,Pelaksana,proyek\n",
+        ));
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame(1, $result['skipped']);
+        $this->assertSame('EMP-901', $result['rows'][0]['key']);
+        $this->assertStringContainsString('harus 16 digit', implode(' ', $result['rows'][0]['errors']));
+        $this->assertNull(DB::table('hr_employees')->where('code', 'EMP-901')->value('id'));
+        $this->assertSame('3201010101900002', DB::table('hr_employees')->where('code', 'EMP-902')->value('nik_ktp'));
+    }
+
     // ------------------------------------------------------------- the lookup
 
     public function test_a_category_is_matched_by_its_code(): void

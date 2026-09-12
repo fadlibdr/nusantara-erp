@@ -237,6 +237,61 @@ class Pph21RecapTest extends ErpTestCase
         $this->assertSame(4, $recap['summary']['employees']);
     }
 
+    /**
+     * V2-7/V3b-3: sel identitas KOSONG tidak berarti payroll memotong dengan
+     * tambahan 20 %. Payroll memakai Employee::hasTaxId() = kolom NPWP ATAU NIK
+     * terisi APA PUN, jadi baris warisan ber-NIK "BELUM-ADA" dihitung tarif
+     * normal, sedangkan baris yang KEDUA kolomnya kosong dihitung 120 %. Rekap
+     * tidak menghitung ulang — ia menyebut perlakuan itu di samping sel kosong,
+     * dan ubin menghitung berapa yang tarif normal. Mengubah definisi identitas
+     * payroll = keputusan pemilik (laporan §9-I).
+     */
+    public function test_an_empty_identity_cell_says_whether_payroll_applied_the_surcharge_or_the_normal_rate(): void
+    {
+        // Keduanya 9.000.000 → TER A 1,75 % = 157.500 dengan identitas; × 1,2 = 189.000 tanpa.
+        $this->makeEmployee(['code' => 'EMP-0001', 'name' => 'NIK Warisan', 'base_salary' => 9_000_000, 'npwp' => 'N/A', 'nik_ktp' => 'BELUM-ADA']);
+        $this->makeEmployee(['code' => 'EMP-0002', 'name' => 'Tanpa Apa Pun', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '']);
+        $this->makeEmployee(['code' => 'EMP-0003', 'name' => 'Ber-NIK', 'base_salary' => 9_000_000, 'npwp' => null, 'nik_ktp' => '3173042708860002']);
+        $this->approved();
+
+        $recap = $this->recap->monthly(2026, 6);
+        $rows = collect($recap['rows'])->keyBy('employee_code');
+
+        // Kolom terisi sesuatu yang tidak dikenali → payroll menganggap ber-identitas → tarif normal.
+        $this->assertNull($rows['EMP-0001']['tax_id']);
+        $this->assertTrue($rows['EMP-0001']['tax_id_treated_as_identified']);
+        $this->assertMoney(157_500.0, $rows['EMP-0001']['pph21']);
+        $this->assertStringContainsString('tarif NORMAL, tanpa tambahan 20 %', (string) $rows['EMP-0001']['tax_id_treatment']);
+        $this->assertStringContainsString('menurut data pegawai saat ini', (string) $rows['EMP-0001']['tax_id_treatment']);
+        // …dan kalimat sebabnya di sel membawa perlakuan itu juga (title pada sel kosong).
+        $this->assertStringContainsString('BELUM-ADA', (string) $rows['EMP-0001']['tax_id_issue']);
+        $this->assertStringContainsString('tanpa tambahan 20 %', (string) $rows['EMP-0001']['tax_id_issue']);
+
+        // Kedua kolom kosong → payroll memotong 120 %.
+        $this->assertNull($rows['EMP-0002']['tax_id']);
+        $this->assertFalse($rows['EMP-0002']['tax_id_treated_as_identified']);
+        $this->assertMoney(189_000.0, $rows['EMP-0002']['pph21']);
+        $this->assertStringContainsString('DENGAN tambahan 20 %', (string) $rows['EMP-0002']['tax_id_treatment']);
+        $this->assertStringContainsString('NPWP kosong; NIK kosong', (string) $rows['EMP-0002']['tax_id_issue']);
+
+        // Baris yang dikenali: tidak ada kalimat perlakuan.
+        $this->assertTrue($rows['EMP-0003']['tax_id_treated_as_identified']);
+        $this->assertNull($rows['EMP-0003']['tax_id_treatment']);
+        $this->assertNull($rows['EMP-0003']['tax_id_issue']);
+
+        $this->assertSame(2, $recap['summary']['without_tax_id']);
+        $this->assertSame(1, $recap['summary']['without_tax_id_normal_rate']);
+
+        // Angka "20 %" datang dari konstanta payroll, bukan diketik ulang di rekap.
+        $this->assertSame(1.2, Pph21TerService::NON_TAX_ID_SURCHARGE);
+
+        // Layar membaca kalimat dan hitungannya dari API — tidak menyusun sendiri.
+        $screen = (string) file_get_contents(public_path('app/js/views/rekappph21.js'));
+        $this->assertStringContainsString('row.tax_id_treatment', $screen, 'rekappph21.js tidak menampilkan tax_id_treatment');
+        $this->assertStringContainsString('s.without_tax_id_normal_rate', $screen, 'rekappph21.js tidak membaca without_tax_id_normal_rate');
+        $this->assertStringContainsString('.tax-id-treatment', $screen);
+    }
+
     // ---------------------------------------------------------------- CSV
 
     public function test_the_csv_is_labelled_internal_not_a_djp_import_file_and_its_totals_equal_the_slips(): void
