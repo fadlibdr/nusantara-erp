@@ -247,6 +247,28 @@ return [
     */
     /*
     |--------------------------------------------------------------------------
+    | Folder terpantau rekening koran (Fase 3 / P-3c)
+    |--------------------------------------------------------------------------
+    | Satu folder di server, sub-folder per KODE rekening bank, diisi oleh
+    | pemilik/administrator DARI LUAR aplikasi (scp/rclone/salinan manual —
+    | PANDUAN-ADMINISTRATOR §5.13). fin:bank-inbox membacanya tiap jam dan
+    | HANYA membaca: aplikasi tidak pernah menulis, memindah, atau menghapus
+    | berkas di sana; yang ditulis adalah ledger fin_bank_inbox_files. Bawaan
+    | di bawah storage/app/private, yang sudah dikecualikan rsync --delete
+    | oleh deploy/sync-erp1.sh dan ikut dicadangkan bersama lampiran. Folder
+    | yang belum ada = keadaan bawaan setiap instalasi baru: perintah berkata
+    | begitu dan keluar 0. Bukan SFTP, bukan host-to-host
+    | (docs/KEPUTUSAN-INTEGRASI.md §10). Konstanta waktu-pasang, sengaja
+    | tidak di layar Pengaturan.
+    */
+    'bank_inbox' => [
+        'path' => env('BANK_INBOX_PATH', storage_path('app/private/bank-inbox')),
+        // Batas yang sama dengan BankStatementParseRequest::MAX_CONTENT (~2 MB teks).
+        'max_bytes' => 2_000_000,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Backup watch
     |--------------------------------------------------------------------------
     | Where deploy/backup-erp1.sh records the offsite-copy status, and how old

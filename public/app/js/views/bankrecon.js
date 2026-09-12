@@ -25,7 +25,20 @@ const TABS = [
   { key: 'reconcile', label: 'Rekonsiliasi' },
   { key: 'statements', label: 'Rekening Koran' },
   { key: 'import', label: 'Impor' },
+  // P-3c: ledger folder terpantau — apa yang dibaca dari folder server, apa
+  // yang gagal dan mengapa, kapan terakhir diperiksa. Bukan klaim "aktif".
+  { key: 'inbox', label: 'Folder terpantau' },
 ];
+
+const FILE_STATUS_TONE = { imported: 'green', failed: 'red', duplicate: 'amber', ignored: '' };
+
+/* Tautan dalam (notifikasi, tombol Buka): #/bank-recon?tab=inbox atau
+ * ?tab=statements&account=<id>&statement=<id>. Dibaca sekali saat layar dibuka. */
+function hashQuery() {
+  const hash = location.hash || '';
+  const cut = hash.indexOf('?');
+  return new URLSearchParams(cut === -1 ? '' : hash.slice(cut + 1));
+}
 
 const REASONS = {
   bank_charge: 'Biaya/admin bank',
@@ -1018,6 +1031,114 @@ function mismatchCard(rows) {
   ]);
 }
 
+/* ------------------------------------------------------------------ inbox */
+
+function renderInbox(host, data, reload) {
+  const folder = data.folder || {};
+  const counts = data.counts || {};
+  const files = data.files || [];
+  const accounts = data.accounts || [];
+
+  host.appendChild(el('.stat-row', [
+    el('.stat.inbox-imported', [el('.label', { text: 'Diimpor' }), el('.value', { text: String(counts.imported || 0) })]),
+    el('.stat.inbox-failed', [
+      el('.label', { text: 'Gagal' }),
+      el('.value', { text: String(counts.failed || 0), style: counts.failed ? { color: 'var(--danger)' } : {} }),
+    ]),
+    el('.stat', [el('.label', { text: 'Salinan' }), el('.value', { text: String(counts.duplicate || 0) })]),
+    el('.stat', [el('.label', { text: 'Diabaikan' }), el('.value', { text: String(counts.ignored || 0) })]),
+    el('.stat.inbox-checked', [
+      el('.label', { text: 'Terakhir diperiksa' }),
+      el('.value.sm', { text: data.last_checked_at ? fmt.dateTime(data.last_checked_at) : 'belum pernah' }),
+      el('.delta', { text: 'stempel yang ditulis pemeriksaan, bukan jadwal' }),
+    ]),
+  ]));
+
+  host.appendChild(el('.card.inbox-folder', [
+    el('.card-head', [
+      el('h2', { text: 'Folder terpantau' }),
+      el('.spacer'),
+      session.can('fin.create')
+        ? button('Periksa sekarang', {
+          size: 'sm', variant: 'primary', iconName: 'refresh',
+          title: 'Membaca folder sekarang, tanpa menunggu pemeriksaan tiap jam',
+          onClick: (event) => withBusy(event.currentTarget, async () => {
+            try {
+              const result = await api.postRaw('finance/bank-inbox/run');
+              toast(result.message || 'Folder diperiksa.');
+              reload();
+            } catch (error) {
+              toastError(error);
+            }
+          }),
+        })
+        : null,
+    ]),
+    !folder.exists
+      ? el('.alert.warn.inbox-folder-note', [icon('warn', 15), el('div', { text: folder.note })])
+      : null,
+    el('.card-body', { style: { display: 'grid', gap: '6px', fontSize: '12px' } }, [
+      el('.muted', { text: `Tata letak: ${folder.layout}. Jalurnya diatur administrator lewat ${folder.configured_via} di .env server.` }),
+      el('.muted', { text: 'Berkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). '
+        + 'Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.' }),
+      el('.muted', { text: 'Pemeriksaan berjalan tiap jam lewat penjadwal server, atau saat tombol Periksa sekarang ditekan. Hidup atau tidaknya '
+        + 'penjadwal tidak dilaporkan layar ini — lihat spanduk dasbor / kesehatan sistem. Setiap berkas lewat pemeriksaan yang sama dengan '
+        + 'tab Impor: tie-out, rantai periode/saldo, identitas berkas.' }),
+    ]),
+  ]));
+
+  host.appendChild(el('.card.inbox-accounts', [
+    el('.card-head', [el('h2', { text: 'Kesiapan per rekening' })]),
+    el('.table-wrap', el('table.data', [
+      el('thead', el('tr', [
+        el('th', { text: 'Sub-folder (kode rekening)' }), el('th', { text: 'Rekening' }), el('th', { text: 'Preset' }), el('th', { text: 'Yang bisa dibaca dari folder' }),
+      ])),
+      el('tbody', accounts.map((account) => el('tr', { 'data-code': account.code }, [
+        el('td.code', { text: `${account.code}/` }),
+        el('td', { text: account.name }),
+        el('td', { text: account.preset.name || '—' }),
+        el('td', [
+          badge(account.preset.auto_csv ? 'CSV & MT940' : 'MT940 saja', account.preset.auto_csv ? 'green' : 'amber'),
+          el('.cell-sub.inbox-preset-note', { style: { whiteSpace: 'normal', minWidth: '14rem' }, text: account.preset.note }),
+        ]),
+      ]))),
+    ])),
+  ]));
+
+  host.appendChild(el('.card.inbox-files', [
+    el('.card-head', [el('h2', { text: `Berkas yang pernah diperiksa (${files.length})` })]),
+    files.length
+      ? el('.table-wrap', el('table.data', [
+        el('thead', el('tr', [
+          el('th', { text: 'Berkas' }), el('th', { text: 'Status' }), el('th', { text: 'Rekening koran' }), el('th', { text: 'Keterangan' }), el('th', { text: 'Diperiksa' }),
+        ])),
+        el('tbody', files.map((file) => el('tr', { 'data-status': file.status, 'data-path': file.relative_path }, [
+          el('td', [
+            el('.cell-main.mono', { style: { overflowWrap: 'anywhere' }, text: file.relative_path }),
+            el('.cell-sub', { text: file.bank_account ? `${file.bank_account.code} · ${file.bank_account.name}` : '' }),
+          ]),
+          el('td', badge(file.status_label, FILE_STATUS_TONE[file.status] || '')),
+          el('td', file.bank_statement
+            ? button(file.bank_statement.code, {
+              size: 'sm', variant: 'ghost',
+              onClick: () => {
+                state.tab = 'statements';
+                if (file.bank_account) state.bankAccountId = file.bank_account.id;
+                state.statementId = file.bank_statement.id;
+                reload({ repaintTabs: true });
+              },
+            })
+            : el('span.muted', { text: '—' })),
+          el('td', { style: { whiteSpace: 'normal', minWidth: '16rem', overflowWrap: 'anywhere' }, text: file.error || '' }),
+          el('td', { text: file.checked_at ? fmt.dateTime(file.checked_at) : '—' }),
+        ]))),
+      ]))
+      : el('.card-body', el('p.muted', { style: { margin: 0 }, text: folder.exists
+        ? 'Belum ada berkas yang diperiksa. Letakkan berkas di sub-folder kode rekening, lalu tunggu pemeriksaan tiap jam atau tekan Periksa sekarang.'
+        : 'Belum ada berkas yang diperiksa.' })),
+  ]));
+}
+
 /* ------------------------------------------------------------------- shell */
 
 export async function renderBankRecon(host) {
@@ -1057,6 +1178,12 @@ export async function renderBankRecon(host) {
     return;
   }
 
+  // Tautan dalam: tab dan (untuk rekening koran) rekening + rekening korannya.
+  const query = hashQuery();
+  if (TABS.some((tab) => tab.key === query.get('tab'))) state.tab = query.get('tab');
+  if (query.get('account')) state.bankAccountId = Number(query.get('account'));
+  if (query.get('statement')) state.statementId = Number(query.get('statement'));
+
   if (!accounts.some((a) => a.id === state.bankAccountId)) state.bankAccountId = accounts[0].id;
 
   const accountSelect = el('select.filter-w', {
@@ -1082,11 +1209,12 @@ export async function renderBankRecon(host) {
     })));
   }
 
-  async function load() {
+  async function load({ repaintTabs = false } = {}) {
+    if (repaintTabs) { accountSelect.value = String(state.bankAccountId); paintTabs(); }
     clear(body);
     // The overview covers every account, so the account picker would mislead;
     // the as-of date still applies, so the row is kept and only the picker hides.
-    controls.style.display = state.tab === 'import' ? 'none' : '';
+    controls.style.display = state.tab === 'import' || state.tab === 'inbox' ? 'none' : '';
     accountSelect.style.display = state.tab === 'overview' ? 'none' : '';
     body.appendChild(skeletonTable(6, 5));
 
@@ -1094,6 +1222,13 @@ export async function renderBankRecon(host) {
       if (state.tab === 'import') {
         clear(body);
         renderImport(body, accounts, () => { state.tab = 'statements'; paintTabs(); load(); });
+        return;
+      }
+
+      if (state.tab === 'inbox') {
+        const inbox = await api.get('finance/bank-inbox');
+        clear(body);
+        renderInbox(body, inbox, load);
         return;
       }
 

@@ -6,6 +6,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Support\WatchedThresholds;
+use Modules\Finance\Console\Commands\BankInboxCommand;
 use Modules\Finance\Console\Commands\CloseWatchCommand;
 use Modules\Finance\Console\Commands\EnsureFiscalCalendarCommand;
 use Modules\Finance\Services\BudgetRealisationService;
@@ -24,6 +25,7 @@ class FinanceServiceProvider extends ServiceProvider
         $this->commands([
             EnsureFiscalCalendarCommand::class,
             CloseWatchCommand::class,
+            BankInboxCommand::class,
         ]);
 
         /*
@@ -40,6 +42,10 @@ class FinanceServiceProvider extends ServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('fin:ensure-calendar')->dailyAt('05:30')->timezone('Asia/Jakarta');
             $schedule->command('fin:close-watch')->dailyAt('08:15')->timezone('Asia/Jakarta');
+            // P-3c — folder terpantau rekening koran, tiap jam (roadmap: "impor
+            // dari folder terpantau per jam"). Folder yang belum ada = diam,
+            // keluar 0. Cadence-nya dipaku BankInboxTest lewat schedule:list.
+            $schedule->command('fin:bank-inbox')->hourly();
         });
 
         /*

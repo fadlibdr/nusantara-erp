@@ -155,6 +155,89 @@ class CsvStatementParser
     }
 
     /**
+     * Periode dan saldo awal/akhir DITURUNKAN dari berkas (P-3c, folder
+     * terpantau) — hanya bila balance_column dipetakan: saldo awal = saldo
+     * baris mutasi pertama − mutasi pertama, saldo akhir = saldo baris mutasi
+     * terakhir, periode = tanggal terkecil/terbesar. Tidak ada operator yang
+     * mengetik, jadi tie-out yang menyusul adalah aritmetika berkas sendiri,
+     * dan parse() tetap memeriksa saldo berjalan setiap baris.
+     *
+     * Format tanggal tanpa tahun (dd/mm) tidak bisa menurunkan periode —
+     * ditolak dengan kalimat, bukan ditebak dari bulan ini.
+     *
+     * @param  array  $mapping  pemetaan kolom (periode/saldo diabaikan bila ada)
+     * @return array{period_start: string, period_end: string, opening_balance: float, closing_balance: float}
+     */
+    public function deriveEndpoints(string $text, array $mapping, string $presetName = ''): array
+    {
+        if (! isset($mapping['balance_column']) || $mapping['balance_column'] === '') {
+            throw new LogicException('preset tanpa kolom saldo tidak bisa diimpor otomatis; impor lewat layar.');
+        }
+
+        $format = (string) ($mapping['date_format'] ?? '');
+
+        if ($format === 'dd/mm') {
+            throw new LogicException(sprintf(
+                'Format tanggal dd/mm pada preset «%s» tidak memuat tahun, jadi periode tidak bisa diturunkan dari berkas; impor lewat layar.',
+                $presetName,
+            ));
+        }
+
+        // Jendela lebar hanya untuk parseDate(): tahun dibaca dari sel, bukan dari jendela ini.
+        $wideStart = CarbonImmutable::create(1970, 1, 1);
+        $wideEnd = CarbonImmutable::create(2999, 12, 31);
+        $rows = $this->readRows($text, $mapping);
+        $dates = [];
+        $openingCents = null;
+        $closingCents = null;
+
+        foreach ($rows as $rowNo => $fields) {
+            $dateCell = $this->cell($fields, $mapping['date_column'] ?? null);
+
+            if ($this->isContinuation($fields, $mapping, $dateCell)) {
+                continue;
+            }
+
+            [$direction, $amountCents] = $this->movementFor($fields, $mapping, $rowNo);
+
+            if ($amountCents === 0) {
+                continue;
+            }
+
+            $balanceCell = $this->cell($fields, $mapping['balance_column']);
+
+            if ($balanceCell === '') {
+                throw new LogicException("Baris {$rowNo}: kolom saldo kosong, periode dan saldo tidak bisa diturunkan dari berkas; impor lewat layar.");
+            }
+
+            [$numeric, $marker] = $this->tokenise($balanceCell);
+            $reported = $this->amountCents($numeric, $mapping, $rowNo);
+
+            if ($reported > 0 && in_array(strtoupper($marker), self::DEBIT_TOKENS, true)) {
+                $reported = -$reported;
+            }
+
+            if ($openingCents === null) {
+                $openingCents = $reported - $direction->sign() * $amountCents;
+            }
+
+            $closingCents = $reported;
+            $dates[] = $this->parseDate($dateCell, $mapping, $wideStart, $wideEnd, $rowNo);
+        }
+
+        if ($openingCents === null || $closingCents === null || $dates === []) {
+            throw new LogicException('Tidak ada baris mutasi yang terbaca. Periksa jumlah baris judul dan pemetaan kolom.');
+        }
+
+        return [
+            'period_start' => min($dates),
+            'period_end' => max($dates),
+            'opening_balance' => $openingCents / 100,
+            'closing_balance' => $closingCents / 100,
+        ];
+    }
+
+    /**
      * Satu baris FISIK berkas (1-based), dibaca dengan konfigurasi fgetcsv yang
      * sama dengan readRows() — dipakai preset per rekening (P-3c) untuk membaca
      * baris judul yang dilewati parser (baris ke-skip_rows) dan membandingkan

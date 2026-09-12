@@ -6,6 +6,7 @@ use Modules\Finance\Http\Controllers\ApBillController;
 use Modules\Finance\Http\Controllers\ArInvoiceController;
 use Modules\Finance\Http\Controllers\ArRetentionController;
 use Modules\Finance\Http\Controllers\BankAccountController;
+use Modules\Finance\Http\Controllers\BankInboxController;
 use Modules\Finance\Http\Controllers\BankReconciliationController;
 use Modules\Finance\Http\Controllers\BankStatementController;
 use Modules\Finance\Http\Controllers\BudgetRealisationController;
@@ -224,6 +225,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('bank-statements', [BankStatementController::class, 'index'])->middleware('permission:fin.view');
     // Registri preset bawaan per bank (P-3c) — sebelum {bankStatement} supaya 'presets' tidak ditelan.
     Route::get('bank-statements/presets', [BankStatementController::class, 'presets'])->middleware('permission:fin.view');
+    // Folder terpantau (P-3c): ledger fin.view; "Periksa sekarang" = impor → fin.create.
+    Route::get('bank-inbox', [BankInboxController::class, 'show'])->middleware('permission:fin.view');
+    Route::post('bank-inbox/run', [BankInboxController::class, 'run'])->middleware('permission:fin.create');
     Route::post('bank-statements/preview', [BankStatementController::class, 'preview'])->middleware('permission:fin.create');
     Route::post('bank-statements', [BankStatementController::class, 'store'])->middleware('permission:fin.create');
     Route::get('bank-statements/{bankStatement}', [BankStatementController::class, 'show'])->middleware('permission:fin.view');

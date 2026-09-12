@@ -804,6 +804,15 @@ class SettingService
             'type' => 'timestamp',
             'group' => 'system',
         ],
+        // P-3c: stempel "terakhir diperiksa" folder terpantau rekening koran,
+        // ditulis fin:bank-inbox (Finance) — Core hanya mendaftarkan KUNCI-nya
+        // supaya baris core_settings itu sah; tidak ada data Finance yang dibaca.
+        'bank_inbox.checked_at' => [
+            'key' => 'bank_inbox.checked_at',
+            'label' => 'Folder terpantau rekening koran terakhir diperiksa',
+            'type' => 'timestamp',
+            'group' => 'system',
+        ],
     ];
 
     public function isInternal(string $key): bool
