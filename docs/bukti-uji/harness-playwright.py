@@ -10843,6 +10843,329 @@ def s39m(browser):
         ctx.close()
 
 
+# S40 — P-3d API & webhook (12 Sep 2026): Profil › Token API dan Sistem › Webhook.
+#
+# Yang diukur adalah dua JANJI, dan keduanya hanya bisa diperiksa di peramban
+# sungguhan: teks kredensial TAMPIL SEKALI (muat ulang → hilang, dan tidak ada
+# pintu yang membacakannya kembali), dan token yang dibuat di layar itu
+# BENAR-BENAR dibatasi ability-nya ketika dipakai memanggil API.
+#
+# Setiap syarat di bawah bisa GAGAL — termasuk "fixture berjalan": token dan
+# langganan dibuat LEWAT LAYAR, bukan disuntikkan ke sqlite, jadi sebuah layar
+# yang tidak menyimpan apa pun menjatuhkan skenarionya.
+S40_TOKENS = """() => {
+  const rows = [...document.querySelectorAll('.token-row')].map(r => ({
+    name: (r.querySelector('b') || {}).innerText || null,
+    badge: (r.querySelector('.badge') || {}).innerText || null,
+    abilities: (r.querySelector('.token-abilities') || {}).innerText || null,
+    meta: [...r.querySelectorAll('.cell-sub')].map(s => s.innerText.trim()),
+  }));
+  const secret = document.querySelector('.token-secret');
+  return {
+    rows,
+    secret_shown: !!secret,
+    secret_value: secret ? (secret.querySelector('.token-value') || {}).value || null : null,
+    secret_note: secret ? ((secret.querySelector('.token-once') || {}).innerText || null) : null,
+    scope_note: (document.querySelector('.token-scope-note') || {}).innerText || null,
+    card_note: (document.querySelector('.profil-tokens .muted') || {}).innerText || null,
+    ability_boxes: [...document.querySelectorAll('.profil-tokens input[type=checkbox]')].map(b => b.value),
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    // DAN kolom utamanya. Di cangkang ini `.main` ber-overflow-x:auto, jadi satu
+    // kata panjang tanpa pemutus TIDAK memperlebar dokumen dan TIDAK terpotong
+    // leluhur — ia membuat .main bisa digulir ke samping, yang tidak terlihat
+    // oleh kedua ukuran lain. Terukur 12 Sep 2026: mutasi 120 karakter
+    // white-space:nowrap di kartu Token API meloloskan keduanya.
+    main_scrolls_sideways: (() => { const m = document.querySelector('.main'); return !!m && m.scrollWidth > m.clientWidth; })(),
+  };
+}"""
+
+S40_WEBHOOK = """() => {
+  const subs = [...document.querySelectorAll('.webhook-subscription')].map(s => ({
+    name: (s.querySelector('b') || {}).innerText || null,
+    badge: (s.querySelector('.badge') || {}).innerText || null,
+    url: (s.querySelector('.webhook-url') || {}).innerText || null,
+    disabled_reason: (s.querySelector('.webhook-disabled-reason') || {}).innerText || null,
+  }));
+  const deliveries = [...document.querySelectorAll('.webhook-delivery')].map(r => ({
+    status: r.dataset.status,
+    badge: (r.querySelector('.badge') || {}).innerText || null,
+    error: (r.querySelector('.webhook-error') || {}).innerText || null,
+    cells: [...r.querySelectorAll('td')].map(c => c.innerText.trim()),
+  }));
+  const sig = document.querySelector('.webhook-signature');
+  const secret = document.querySelector('.webhook-secret');
+  return {
+    subs, deliveries,
+    signature: sig ? [...sig.querySelectorAll('dd')].map(d => d.innerText.trim()) : null,
+    signature_note: sig ? ((sig.querySelector('.cell-sub') || {}).innerText || null) : null,
+    secret_shown: !!secret,
+    secret_note: secret ? ((secret.querySelector('.secret-note') || {}).innerText || null) : null,
+    disable_note: (document.querySelector('.card-head .cell-sub') || {}).innerText || null,
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    main_scrolls_sideways: (() => { const m = document.querySelector('.main'); return !!m && m.scrollWidth > m.clientWidth; })(),
+  };
+}"""
+
+S40_OVERFLOW = """() => {
+  let n = 0;
+  for (const el of document.querySelectorAll('.profil-tokens, .profil-tokens *, .token-secret, .token-secret *, .webhook-subscription, .webhook-subscription *, .webhook-signature, .webhook-signature *, .webhook-secret, .webhook-secret *, .webhook-log .cell-sub')) {
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0) continue;
+      let limit = document.documentElement.clientWidth + 1;
+      for (let a = el; a && a !== document.body; a = a.parentElement) {
+        const o = getComputedStyle(a).overflowX;
+        if (o === 'visible') continue;
+        const r = a.getBoundingClientRect();
+        limit = (o === 'auto' || o === 'scroll') ? r.left + a.scrollWidth + 1 : r.right + 1;
+        break;
+      }
+      if (rect.right > limit) n++;
+    }
+  }
+  return n;
+}"""
+
+
+def _p3d_db_truth():
+    con = sqlite3.connect(DB)
+    out = {
+        "personal_tokens": [(r[0], r[1], r[2]) for r in con.execute(
+            "select name, abilities, kind from personal_access_tokens where kind = 'personal' order by id").fetchall()],
+        "session_tokens": con.execute("select count(*) from personal_access_tokens where kind = 'session' or kind is null").fetchone()[0],
+        "subscriptions": [(r[0], r[1]) for r in con.execute("select name, url from core_webhook_subscriptions order by id").fetchall()],
+        "deliveries": [(r[0], r[1]) for r in con.execute("select event, status from core_webhook_deliveries order by id").fetchall()],
+    }
+    con.close()
+    return out
+
+
+def _p3d_reset():
+    """Layar dimulai dari keadaan kosong yang DIKETAHUI — dan pembersihnya sendiri harus bisa gagal."""
+    con = sqlite3.connect(DB)
+    con.execute("delete from personal_access_tokens where kind = 'personal'")
+    con.execute("delete from core_webhook_subscriptions")
+    con.execute("delete from core_webhook_deliveries")
+    con.commit()
+    left = con.execute("select count(*) from personal_access_tokens where kind = 'personal'").fetchone()[0] \
+        + con.execute("select count(*) from core_webhook_subscriptions").fetchone()[0]
+    con.close()
+    return {"cleared": left == 0}
+
+
+@scenario("S40_token_api_dan_webhook")
+def s40(browser):
+    """1440×900 sebagai admin@: Profil › Token API — buat token lewat layar (nama + ability + 90 hari) →
+    teksnya tampil SEKALI dengan kalimat server, muat ulang → tidak tampil lagi; token yang baru dibuat
+    dipakai memanggil API sungguhan: rute ability-nya 200, rute lain 403 dengan kalimat yang menyebut
+    ability yang kurang; cabut → 401 pada permintaan berikutnya. Sistem › Webhook — buat langganan lewat
+    layar (https), rahasia tampil sekali, resep tanda tangan digambar dari server, URL internal ditolak
+    dengan kalimatnya; log pengiriman menampilkan sebab kegagalan apa adanya. 0 galat konsol."""
+    reset = _p3d_reset()
+    if not reset["cleared"]:
+        return {"SKIPPED": "sqlite tidak bisa dibersihkan"}
+
+    errors = []
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"reset": reset}
+
+        # ---------------------------------------------------------- Token API
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-tokens", timeout=20000)
+        pg.wait_for_timeout(500)
+        assert_screen(pg, "#/profil", "Profil")
+        out["tokens_before"] = pg.evaluate(S40_TOKENS)
+
+        pg.fill("#tok-name", "Integrasi akuntansi S40")
+        pg.fill("#tok-days", "90")
+        pg.check("#tok-ab-fin\\.view")
+        click(pg, ".profil-tokens button:has-text('Buat token')")
+        pg.wait_for_selector(".token-secret", timeout=20000)
+        pg.wait_for_timeout(600)
+        out["tokens_after_create"] = pg.evaluate(S40_TOKENS)
+        pg.screenshot(path=f"{OUT}/s40-token-api.png", full_page=True)
+
+        plain = out["tokens_after_create"]["secret_value"]
+
+        # TAMPIL SEKALI: muat ulang layar, kotak rahasianya harus hilang — dan
+        # tidak ada pintu yang memulangkannya lagi.
+        pg.reload()
+        pg.wait_for_selector(".profil-tokens", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["tokens_after_reload"] = pg.evaluate(S40_TOKENS)
+        out["token_text_in_reloaded_html"] = bool(plain) and plain in pg.content()
+
+        # Token itu dipakai SUNGGUHAN: ability-nya membatasi, dan kalimat 403-nya menyebut yang kurang.
+        allowed_status, allowed_body = api("finance/journals", plain)
+        denied_status, denied_body = api("iam/users", plain)
+        out["token_use"] = {
+            "allowed_status": allowed_status,
+            "denied_status": denied_status,
+            "denied_message": denied_body.get("message"),
+            "denied_abilities": (denied_body.get("errors") or {}).get("token_abilities"),
+        }
+        out["db_after_create"] = _p3d_db_truth()
+
+        # Cabut lewat layar, lalu pakai lagi: 401.
+        pg.once("dialog", lambda d: d.accept())
+        click(pg, ".token-row button:has-text('Cabut')")
+        pg.wait_for_timeout(400)
+        click(pg, ".modal button:has-text('Cabut')")
+        pg.wait_for_timeout(1500)
+        out["tokens_after_revoke"] = pg.evaluate(S40_TOKENS)
+        out["after_revoke_status"] = api("finance/journals", plain)[0]
+        out["db_after_revoke"] = _p3d_db_truth()
+
+        # ------------------------------------------------------------ Webhook
+        pg.goto(BASE + "#/webhook")
+        pg.wait_for_selector(".webhook-form", timeout=20000)
+        pg.wait_for_timeout(500)
+        assert_screen(pg, "#/webhook", "Webhook")
+        out["webhook_before"] = pg.evaluate(S40_WEBHOOK)
+
+        # URL internal ditolak dengan kalimatnya — 422 yang DIRANCANG.
+        deliberate_from = len(errors)
+        pg.fill("#wh-name", "Langganan internal S40")
+        pg.fill("#wh-url", "https://169.254.169.254/latest/meta-data/")
+        pg.check("#wh-ev-document\\.approved")
+        click(pg, ".webhook-form button:has-text('Buat langganan')")
+        pg.wait_for_timeout(1500)
+        out["toasts_internal_url"] = toasts(pg)
+
+        pg.fill("#wh-name", "Akuntansi eksternal S40")
+        pg.fill("#wh-url", "https://penerima.contoh.co.id/nusantara/webhook")
+        pg.check("#wh-ev-document\\.approved")
+        click(pg, ".webhook-form button:has-text('Buat langganan')")
+        pg.wait_for_selector(".webhook-secret", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["webhook_after_create"] = pg.evaluate(S40_WEBHOOK)
+        pg.screenshot(path=f"{OUT}/s40-webhook.png", full_page=True)
+
+        pg.reload()
+        pg.wait_for_selector(".webhook-subscription", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["webhook_after_reload"] = pg.evaluate(S40_WEBHOOK)
+        out["db_after_webhook"] = _p3d_db_truth()
+        out["deliberate_422_console"] = errors[deliberate_from:]
+        del errors[deliberate_from:]
+
+        out["console_errors"] = errors
+        tb, ta, tr, trv = (out["tokens_before"], out["tokens_after_create"],
+                           out["tokens_after_reload"], out["tokens_after_revoke"])
+        wa, wr = out["webhook_after_create"], out["webhook_after_reload"]
+        out["checks"] = {
+            "the_screen_starts_empty_so_the_rows_below_were_really_created_here": tb["rows"] == [] and tb["secret_shown"] is False,
+            "the_ability_picker_offers_only_permission_names": "fin.view" in tb["ability_boxes"] and "*" not in tb["ability_boxes"] and len(tb["ability_boxes"]) > 10,
+            "creating_a_token_shows_its_text_exactly_once": ta["secret_shown"] is True and bool(ta["secret_value"]) and "|" in (ta["secret_value"] or ""),
+            "the_shown_once_sentence_comes_from_the_server": (ta["secret_note"] or "").startswith("Salin token ini sekarang.")
+                and "sidik jarinya" in (ta["secret_note"] or ""),
+            "reloading_the_screen_never_shows_the_text_again": tr["secret_shown"] is False and out["token_text_in_reloaded_html"] is False,
+            "the_token_row_lists_its_ability_and_expiry": len(tr["rows"]) == 1 and tr["rows"][0]["abilities"] == "fin.view"
+                and tr["rows"][0]["badge"] == "Berlaku" and any("Berlaku sampai" in m for m in tr["rows"][0]["meta"]),
+            "the_row_landed_in_sqlite_as_a_personal_token": out["db_after_create"]["personal_tokens"] == [("Integrasi akuntansi S40", '["fin.view"]', "personal")],
+            "the_created_token_really_works_on_its_own_ability": out["token_use"]["allowed_status"] == 200,
+            "the_created_token_is_really_refused_elsewhere": out["token_use"]["denied_status"] == 403,
+            "the_refusal_names_the_missing_ability_in_indonesian": "«iam.view»" in (out["token_use"]["denied_message"] or "")
+                and out["token_use"]["denied_abilities"] == ["iam.view"],
+            "revoking_from_the_screen_removes_the_row_and_the_credential": trv["rows"] == []
+                and out["after_revoke_status"] == 401 and out["db_after_revoke"]["personal_tokens"] == [],
+            "the_session_token_of_this_very_browser_still_works": out["db_after_revoke"]["session_tokens"] >= 1,
+            "the_screen_says_what_abilities_do_not_limit": "tidak dijaga izin apa pun" in (tb["scope_note"] or ""),
+            "the_screen_reads_the_rate_limit_from_the_server": "300 permintaan per menit" in (tb["card_note"] or ""),
+            "an_internal_webhook_url_is_refused_with_its_sentence": any("jaringan server ini" in t for t in out["toasts_internal_url"])
+                and out["webhook_after_create"]["subs"][0]["name"] == "Akuntansi eksternal S40",
+            "only_the_deliberate_422_touched_the_console": all("status of 422" in e for e in out["deliberate_422_console"]) and len(out["deliberate_422_console"]) <= 1,
+            "creating_a_subscription_shows_its_secret_exactly_once": wa["secret_shown"] is True
+                and "Salin rahasia ini sekarang" in (wa["secret_note"] or "") and wr["secret_shown"] is False,
+            "the_signature_recipe_is_drawn_from_the_server": wr["signature"] is not None
+                and "X-Nusantara-Signature" in wr["signature"] and "sha256" in wr["signature"]
+                and "t.badan_mentah" in wr["signature"] and "300 detik" in wr["signature"],
+            "the_signature_note_tells_the_receiver_how_to_compare": "hash_equals" in (wr["signature_note"] or "")
+                and "Redirect tidak diikuti" in (wr["signature_note"] or ""),
+            "the_screen_says_when_a_subscription_is_switched_off_automatically": "20 pengiriman gagal berturut-turut" in (wr["disable_note"] or ""),
+            "the_subscription_landed_in_sqlite_with_its_https_url": out["db_after_webhook"]["subscriptions"]
+                == [("Akuntansi eksternal S40", "https://penerima.contoh.co.id/nusantara/webhook")],
+            "the_screens_never_scroll_sideways": ta["scrolls_sideways"] is False and wr["scrolls_sideways"] is False
+                and ta["main_scrolls_sideways"] is False and wr["main_scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
+@scenario("S40_token_api_dan_webhook_ponsel")
+def s40m(browser):
+    """390×844 (is_mobile, has_touch) sebagai admin@: kartu Token API dan layar Webhook tergambar tanpa
+    gulir samping dan tanpa simpul teks yang terpotong leluhur — termasuk kotak rahasia yang panjangnya
+    64 dan 70+ karakter, yang di 390 px adalah kandidat pertama terpotong; 0 galat konsol."""
+    reset = _p3d_reset()
+    if not reset["cleared"]:
+        return {"SKIPPED": "sqlite tidak bisa dibersihkan"}
+
+    errors = []
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"reset": reset}
+
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-tokens", timeout=20000)
+        pg.wait_for_timeout(500)
+        pg.fill("#tok-name", "Integrasi ponsel S40")
+        pg.fill("#tok-days", "30")
+        pg.check("#tok-ab-fin\\.view")
+        click(pg, ".profil-tokens button:has-text('Buat token')")
+        pg.wait_for_selector(".token-secret", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["tokens"] = pg.evaluate(S40_TOKENS)
+        out["tokens_overflow"] = pg.evaluate(S40_OVERFLOW)
+        pg.screenshot(path=f"{OUT}/s40m-token-api.png", full_page=False)
+
+        pg.goto(BASE + "#/webhook")
+        pg.wait_for_selector(".webhook-form", timeout=20000)
+        pg.wait_for_timeout(500)
+        pg.fill("#wh-name", "Akuntansi ponsel S40")
+        pg.fill("#wh-url", "https://penerima.contoh.co.id/nusantara/webhook")
+        pg.check("#wh-ev-document\\.approved")
+        click(pg, ".webhook-form button:has-text('Buat langganan')")
+        pg.wait_for_selector(".webhook-secret", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["webhook"] = pg.evaluate(S40_WEBHOOK)
+        out["webhook_overflow"] = pg.evaluate(S40_OVERFLOW)
+        pg.screenshot(path=f"{OUT}/s40m-webhook.png", full_page=False)
+
+        out["console_errors"] = errors
+        tk, wh = out["tokens"], out["webhook"]
+        out["checks"] = {
+            "the_token_was_really_created_from_the_phone": len(tk["rows"]) == 1 and tk["secret_shown"] is True,
+            "the_token_screen_never_scrolls_sideways": tk["scrolls_sideways"] is False and tk["main_scrolls_sideways"] is False,
+            "no_token_text_is_clipped_on_a_phone": out["tokens_overflow"] == 0,
+            "the_subscription_was_really_created_from_the_phone": len(wh["subs"]) == 1 and wh["secret_shown"] is True,
+            "the_webhook_screen_never_scrolls_sideways": wh["scrolls_sideways"] is False and wh["main_scrolls_sideways"] is False,
+            "no_webhook_text_is_clipped_on_a_phone": out["webhook_overflow"] == 0,
+            "the_signature_recipe_is_readable_on_a_phone": wh["signature"] is not None and "sha256" in wh["signature"],
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -10853,7 +11176,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

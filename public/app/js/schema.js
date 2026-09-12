@@ -6736,6 +6736,10 @@ export const NAV = [
       // di Pengaturan, jadi bergerbang orang yang sama (core.update).
       { label: 'Pengiriman Notifikasi', route: 'r/core/notification-deliveries', perm: 'core.update' },
       { label: 'Antrean Gagal', route: 'r/core/queue/failed', perm: 'core.update' },
+      // P-3d: langganan webhook keluar + log pengirimannya. Gerbang yang sama
+      // dengan kedua baris di atasnya — ketiganya memutuskan ke mana peristiwa
+      // perusahaan ini dikirim.
+      { label: 'Webhook', route: 'webhook', perm: 'core.update' },
     ],
   },
 ];

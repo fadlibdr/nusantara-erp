@@ -63,6 +63,7 @@ import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
 import { renderTugas } from './views/tugas.js';
 import { renderProfil } from './views/profil.js';
+import { renderWebhook } from './views/webhook.js';
 import { openForm } from './views/form.js';
 import { openOnboarding, closeOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
@@ -1161,6 +1162,19 @@ function registerRoutes() {
     setActiveNav('profil');
     const host = view();
     return guard(host, () => renderProfil(host));
+  });
+
+  /* P-3d — Sistem › Webhook. Gerbangnya core.update, sama dengan Pengiriman
+     Notifikasi dan Antrean Gagal: ketiganya memutuskan ke mana peristiwa
+     perusahaan ini dikirim. */
+  route('webhook', () => {
+    setCrumbs(['Sistem', 'Webhook']);
+    setActiveNav('webhook');
+    const host = view();
+    // Gerbang izinnya milik API (permission:core.update di rutenya); layar ini
+    // mengikuti pola settings: sidebar sudah menyembunyikan barisnya dari yang
+    // tidak berhak, dan yang mengetik hash-nya langsung mendapat 403 server.
+    return guard(host, () => renderWebhook(host));
   });
 
   route('tenggat', () => {

@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '11';
+const SHELL_VERSION = '12';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -185,6 +185,7 @@ const SHELL = [
   // F-4 — usulan rekap bulanan dari register absensi.
   'js/views/usulanrekap.js',
   'js/views/varian.js',
+  'js/views/webhook.js',
   'js/views/widgets/aging.js',
   'js/views/widgets/ap-aging.js',
   'js/views/widgets/ar-aging.js',
