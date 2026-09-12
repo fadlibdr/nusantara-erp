@@ -53,7 +53,13 @@ final class WhatsAppConsent
             $changes['whatsapp_opt_in_via'] = null;
         }
 
-        $hasStamp = ($changes['whatsapp_opt_in_at'] ?? $user->whatsapp_opt_in_at) !== null;
+        // Stempel yang masih berlaku: yang ada pada penggunanya, KECUALI baris
+        // di atas baru saja mencabutnya untuk nomor ini. Bukan `??`: nilai
+        // null yang baru diset adalah keputusan, dan `null ?? stempel-lama`
+        // membacanya sebagai "stempel sudah ada" — ganti nomor sambil
+        // menyatakan opt-in lagi lalu berakhir TANPA stempel di kedua pintu
+        // (verifikasi P-3a, 12 Sep 2026).
+        $hasStamp = ! array_key_exists('whatsapp_opt_in_at', $changes) && $user->whatsapp_opt_in_at !== null;
 
         if ($phone !== null && $optIn === true && ! $hasStamp) {
             $changes['whatsapp_opt_in_at'] = now();

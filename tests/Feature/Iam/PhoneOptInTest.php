@@ -138,6 +138,70 @@ class PhoneOptInTest extends ErpTestCase
         $this->assertStringContainsString('Nomor WhatsApp dihapus', $response->json('message'));
     }
 
+    /**
+     * Verifikasi P-3a (12 Sep 2026, F1/F2/V5): ganti nomor SAMBIL menyatakan
+     * opt-in lagi → stempel HILANG di kedua pintu (`??` menelan null yang
+     * baru saja diset untuk nomor berganti, lalu membaca stempel lama sebagai
+     * "sudah ada"), padahal migrasi 000252 dan layar Profil menjanjikan
+     * "kecuali opt-in dinyatakan lagi pada saat yang sama". Dan aturan "ganti
+     * nomor mengosongkan stempel" sendiri tidak dijaga satu uji pun: setiap
+     * langkah yang mengganti nomor juga mengirim opt_in=false.
+     *
+     * Dipaku dengan JAM yang berbeda: stempel nomor baru harus bertanggal saat
+     * nomor baru disetujui, bukan tanggal persetujuan nomor lama.
+     */
+    public function test_a_new_number_declared_with_opt_in_gets_a_fresh_stamp_at_both_doors_and_without_it_the_old_stamp_goes(): void
+    {
+        // ---- pintu Profil (via 'profil')
+        $user = $this->user();
+        $this->actingAs($user, 'sanctum');
+        Carbon::setTestNow('2026-09-11 10:00:00');
+        $this->putJson('/api/iam/me/phone', ['phone_e164' => '+628123456789', 'whatsapp_opt_in' => true])->assertOk();
+        $this->assertSame('2026-09-11 10:00:00', $user->refresh()->whatsapp_opt_in_at->format('Y-m-d H:i:s'));
+
+        Carbon::setTestNow('2026-09-13 08:00:00');
+        $response = $this->putJson('/api/iam/me/phone', ['phone_e164' => '+628999999999', 'whatsapp_opt_in' => true])->assertOk();
+        $user->refresh();
+        $this->assertSame('+628999999999', $user->phone_e164);
+        $this->assertSame('2026-09-13 08:00:00', $user->whatsapp_opt_in_at?->format('Y-m-d H:i:s'), 'Stempel BARU untuk nomor baru — bukan hilang, bukan tanggal nomor lama.');
+        $this->assertSame('profil', $user->whatsapp_opt_in_via);
+        $this->assertTrue($response->json('data.whatsapp_opt_in'));
+        $this->assertSame('Nomor +628999999999 disimpan dengan opt-in tercatat 13 Sep 2026 08:00 WIB.', $response->json('message'));
+
+        // ---- pintu administrator (via 'admin')
+        $admin = $this->admin();
+        $target = $this->user('Sari');
+        $this->actingAs($admin, 'sanctum');
+        Carbon::setTestNow('2026-09-11 11:00:00');
+        $this->putJson("/api/iam/users/{$target->id}", ['phone_e164' => '+6281300001111', 'whatsapp_opt_in' => true])->assertOk();
+        $this->assertSame('2026-09-11 11:00:00', $target->refresh()->whatsapp_opt_in_at->format('Y-m-d H:i:s'));
+
+        // Formulir generik: nomor dibetulkan dengan kotak "Opt-in WhatsApp tercatat" tetap tercentang.
+        Carbon::setTestNow('2026-09-13 09:00:00');
+        $response = $this->putJson("/api/iam/users/{$target->id}", ['phone_e164' => '+6281300002222', 'whatsapp_opt_in' => true])->assertOk();
+        $target->refresh();
+        $this->assertSame('+6281300002222', $target->phone_e164);
+        $this->assertSame('2026-09-13 09:00:00', $target->whatsapp_opt_in_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('admin', $target->whatsapp_opt_in_via);
+        $this->assertTrue($response->json('data.whatsapp_opt_in'));
+
+        // Nomor berganti TANPA sikap opt-in (kunci tidak dikirim): persetujuan nomor lama tidak ikut.
+        Carbon::setTestNow('2026-09-14 09:00:00');
+        $response = $this->putJson("/api/iam/users/{$target->id}", ['phone_e164' => '+6281300003333'])->assertOk();
+        $target->refresh();
+        $this->assertSame('+6281300003333', $target->phone_e164);
+        $this->assertNull($target->whatsapp_opt_in_at, 'Persetujuan melekat pada nomor: nomor baru tanpa pernyataan = tanpa stempel.');
+        $this->assertNull($target->whatsapp_opt_in_via);
+        $this->assertFalse($response->json('data.whatsapp_opt_in'));
+
+        // Sunting NAMA saja sesudah itu: nomor tetap, tetap tanpa stempel — dan nomor yang sama
+        // dengan opt-in dinyatakan lagi mendapat stempel hari itu.
+        $this->putJson("/api/iam/users/{$target->id}", ['name' => 'Sari Dewi'])->assertOk();
+        $this->assertNull($target->refresh()->whatsapp_opt_in_at);
+        $this->putJson("/api/iam/users/{$target->id}", ['whatsapp_opt_in' => true])->assertOk();
+        $this->assertSame('2026-09-14 09:00:00', $target->refresh()->whatsapp_opt_in_at?->format('Y-m-d H:i:s'));
+    }
+
     public function test_bad_numbers_and_a_missing_stance_are_refused_in_indonesian(): void
     {
         $this->actingAs($this->user(), 'sanctum');

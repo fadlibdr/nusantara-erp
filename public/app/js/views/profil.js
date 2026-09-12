@@ -131,6 +131,25 @@ function phoneCard(state, reload) {
     ? el('.cell-sub.profil-optin', { dataset: { state: 'on' }, text: `Opt-in tercatat ${wib(wa.opt_in_at)} lewat ${wa.opt_in_via === 'admin' ? 'administrator' : 'Profil'}.` })
     : el('.cell-sub.profil-optin', { dataset: { state: 'off' }, text: 'Belum ada persetujuan tercatat — WhatsApp tidak akan dikirim ke nomor ini.' });
 
+  // Persetujuan melekat pada NOMOR: begitu angkanya diubah, kotak yang
+  // tercentang dari persetujuan nomor lama dilepas dan orangnya harus
+  // mencentang lagi untuk nomor baru — kalau tidak, "centang lagi bila nomor
+  // baru juga disetujui" di bawah tidak pernah terjadi (verifikasi P-3a,
+  // 12 Sep 2026: nomor baru distempel tanpa satu tindakan pun).
+  const savedPhone = wa.phone_e164 || '';
+  phone.addEventListener('input', () => {
+    const changed = phone.value.trim() !== savedPhone;
+    if (changed && optIn.checked) optIn.checked = false;
+    if (changed && wa.opt_in_at) {
+      stamp.dataset.state = 'off';
+      stamp.textContent = 'Nomor berubah — persetujuan nomor lama tidak berlaku; centang bila nomor baru disetujui.';
+    } else if (!changed && wa.opt_in_at) {
+      stamp.dataset.state = 'on';
+      stamp.textContent = `Opt-in tercatat ${wib(wa.opt_in_at)} lewat ${wa.opt_in_via === 'admin' ? 'administrator' : 'Profil'}.`;
+      optIn.checked = true;
+    }
+  });
+
   const readiness = el('.cell-sub', {
     text: `Kesiapan kanal di server: penyedia ${wa.provider || 'meta'}, kredensial ${wa.configured ? 'terisi' : 'belum diisi'}, `
       + `template disetujui Meta ${wa.templates_ready ?? 0} dari ${wa.templates_total ?? 5} — prasyarat pemilik (docs/KEPUTUSAN-INTEGRASI.md).`,

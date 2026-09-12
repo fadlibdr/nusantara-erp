@@ -5524,7 +5524,7 @@ export const RESOURCES = {
              bertanggal saat disimpan). Orangnya sendiri mengisinya di Profil ›
              Notifikasi. Mengganti nomor mengosongkan persetujuan lama. */
           { key: 'phone_e164', label: 'Nomor WhatsApp (E.164)', type: 'text', help: '+6281234567890 tanpa spasi/strip; 08… diterima dan diubah ke +62. Kosongkan bila tidak ada.' },
-          { key: 'whatsapp_opt_in', label: 'Opt-in WhatsApp tercatat', type: 'bool', help: 'Centang hanya bila orangnya sudah menyetujui menerima pesan WhatsApp dari ERP (persetujuan dicatat bertanggal, lewat administrator).' },
+          { key: 'whatsapp_opt_in', label: 'Opt-in WhatsApp tercatat', type: 'bool', help: 'Centang hanya bila orangnya sudah menyetujui menerima pesan WhatsApp dari ERP (persetujuan dicatat bertanggal, lewat administrator). Persetujuan melekat pada nomor: mengganti nomor dengan kotak tercentang = mencatat persetujuan BARU bertanggal hari ini untuk nomor baru; tanpa centang, persetujuan nomor lama dihapus.' },
         ],
       }],
     },
