@@ -205,10 +205,27 @@ membagi jatah yang salah.
 6. **94 baris centang.** Tangkapan layar S40 pertama menunjukkan kartu Token API setinggi ±1.300 px
    untuk seorang admin (94 izin), dengan tombol "Buat token" jauh di bawah lipatan. Diperbaiki
    menjadi kisi responsif.
+7. **Uji yang menjatuhkan tabel adalah uji yang benar di SQLite dan merusak di MySQL.** Versi
+   pertama uji ketahanan webhook memakai `Schema::drop()` untuk menirukan jendela deploy (kode
+   disalin lebih dulu, `migrate` sesudahnya). Di SQLite itu transaksional dan rollback
+   mengembalikannya; di MySQL **DDL adalah commit implisit** — transaksi `RefreshDatabase` pecah,
+   tabelnya tidak pernah kembali, dan setiap uji sesudahnya di proses yang sama berjalan di atas
+   skema yang bolong. Diganti dengan kegagalan yang sama bentuknya TANPA DDL: satu baris langganan
+   yang `secret`-nya bukan ciphertext sah (kasus nyata: `APP_KEY` yang dirotasi), sehingga cast
+   `encrypted` melempar tepat di tengah `queueDeliveries()`. Persetujuannya tetap berhasil, 0 baris
+   kiriman, 0 permintaan HTTP.
+8. **Uji per-berkas hijau BUKAN uji per-direktori hijau.** Gerbang dua driver menemukan satu
+   kegagalan yang enam putaran uji per-berkas tidak bisa melihat: aturan tanpa-CDN P1-A
+   (`VendorManifestTest`) menolak literal `https://contoh.co.id/…` di `webhook.js` — dan ia BENAR
+   menolaknya, karena ia tidak punya aturan untuk bentuk itu. `webhook.js` lahir SESUDAH
+   `tests/Feature/Core` terakhir dijalankan utuh, dan setiap putaran sesudahnya per-berkas.
+   Ditutup `fff53af` dengan **aturan** (atribut `placeholder` tidak pernah menjadi pemuat pada
+   elemen mana pun), bukan allowlist — uji itu sendiri yang menuntut demikian — dan dibuktikan
+   tetap sempit dengan tiga varian (§4, V1–V3).
 
 ---
 
-## 4. Mutasi — 21 dijalankan, **20 merah, 1 LOLOS HIJAU → syarat diperbaiki, lalu merah**
+## 4. Mutasi — 24 dijalankan, **22 merah, 1 LOLOS HIJAU → syarat diperbaiki lalu merah, 1 hijau by design**
 
 Yang LOLOS HIJAU (M20) dicatat apa adanya, karena itulah gunanya mutasi: ia menemukan sebuah UKURAN
 yang tidak bisa gagal (§3.5), dan syaratnya diperbaiki sampai mutasi yang sama memerahkannya.
@@ -235,7 +252,16 @@ yang tidak bisa gagal (§3.5), dan syaratnya diperbaiki sampai mutasi yang sama 
 | M18 | "300 permintaan/menit" di dokumen → "3000" | `…states_the_contract_the_application_actually_implements` |
 | M19 | Penegakan ability dimatikan, diukur **di Chromium** | S40: 2 syarat merah |
 | M20 | 120 karakter `nowrap` di kartu token, **di Chromium** | ❗ **LOLOS HIJAU** pada versi pertama → syarat diperbaiki (§3.5) → **merah** sesudahnya |
-| M21 | `WebhookService::dispatchFor` tidak lagi menelan `Throwable` | `…missing_webhook_table_does_not_fail_the_approval` |
+| M21 | `WebhookService::dispatchFor` tidak lagi menelan `Throwable` | `…subscription_that_cannot_even_be_read_does_not_fail_the_approval` |
+
+Dan tiga varian atas salinan `public/app` (`SPA_ROOT`) yang membuktikan **aturan `placeholder` yang
+baru tetap sempit** (§3.7):
+
+| # | Varian | Hasil |
+|---|---|---|
+| V1 | alamat yang SAMA dipindah ke `src:` | **merah** — ia pemuat |
+| V2 | `<script src="https://cdn.jsdelivr.net/…">` baru di `index.html` | **merah** |
+| V3 | `placeholder:` ke CDN sungguhan | hijau — **memang**: ia teks yang dibaca orang, bukan alamat yang diambil peramban |
 
 ---
 

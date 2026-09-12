@@ -7,7 +7,6 @@ use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Schema;
 use Modules\Core\Jobs\DeliverWebhook;
 use Modules\Core\Models\WebhookDelivery;
 use Modules\Core\Models\WebhookSubscription;
@@ -281,28 +280,51 @@ class WebhookDeliveryTest extends ErpTestCase
     }
 
     /**
-     * TABEL YANG BELUM ADA TIDAK MENJATUHKAN PERSETUJUAN.
+     * LANGGANAN YANG RUSAK DI BASIS DATA TIDAK MENJATUHKAN PERSETUJUAN.
      *
-     * Pelajaran "deploy migration race": `deploy/sync-erp1.sh` menyalin pohon
-     * kerja lebih dulu dan menjalankan `migrate` sesudahnya, dan `migrate`
-     * pernah melewatkan satu blok tanpa suara. Selama jendela itu, kode P-3d
-     * berjalan di atas basis data yang belum punya `core_webhook_subscriptions`
-     * — dan setiap persetujuan dokumen melewati pendengar ini. Yang boleh
-     * terjadi adalah satu baris peringatan di log; yang TIDAK boleh adalah
-     * sebuah tagihan vendor yang gagal disetujui karena tabel webhook belum
-     * ada.
+     * Kasus nyatanya bukan hipotetis: `secret` disimpan terenkripsi dengan
+     * `APP_KEY`, jadi sebuah kunci yang dirotasi — atau satu baris yang ditulis
+     * tangan lewat tinker — membuat cast-nya MELEMPAR tepat di tengah
+     * `queueDeliveries()`. Bentuk kegagalan yang sama terjadi di jendela deploy:
+     * `deploy/sync-erp1.sh` menyalin pohon kerja LEBIH DULU dan menjalankan
+     * `migrate` SESUDAHNYA, dan `migrate` pernah melewatkan satu blok tanpa
+     * suara — selama jendela itu tabel webhook belum ada dan setiap persetujuan
+     * dokumen melewati pendengar ini.
+     *
+     * Yang boleh terjadi: satu baris peringatan di log. Yang TIDAK boleh: sebuah
+     * tagihan vendor yang gagal disetujui karena webhook-nya bermasalah.
+     *
+     * DIUJI TANPA DDL, dengan sengaja. Menjatuhkan tabelnya di dalam uji adalah
+     * cara paling langsung menirukan jendela deploy, dan ia benar di SQLite —
+     * tetapi di MySQL DDL adalah COMMIT IMPLISIT: transaksi RefreshDatabase
+     * pecah, tabel yang dijatuhkan tidak pernah kembali, dan setiap uji
+     * sesudahnya di proses yang sama berjalan di atas skema yang bolong. Versi
+     * pertama uji ini melakukannya.
      */
-    public function test_a_missing_webhook_table_does_not_fail_the_approval(): void
+    public function test_a_subscription_that_cannot_even_be_read_does_not_fail_the_approval(): void
     {
-        Schema::drop('core_webhook_deliveries');
-        Schema::drop('core_webhook_subscriptions');
+        // Baris yang ADA tetapi `secret`-nya bukan ciphertext yang sah: cast
+        // 'encrypted' melempar DecryptException saat dibaca.
+        DB::table('core_webhook_subscriptions')->insert([
+            'name' => 'Langganan rusak',
+            'url' => self::URL,
+            'secret' => 'bukan-ciphertext-yang-sah',
+            'secret_set_at' => now(),
+            'events' => json_encode(WebhookPayload::EVENTS),
+            'document_types' => null,
+            'is_active' => true,
+            'consecutive_failures' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $approver = $this->userWith('fin.approve');
         $bill = $this->bill();
         $bill->submit($this->userWith('fin.create'));
-        $bill->approve($approver, 'Disetujui saat tabel webhook belum ada.');
+        $bill->approve($approver, 'Disetujui walau langganan webhook rusak.');
 
         $this->assertSame('approved', $bill->fresh()->status->value);
+        $this->assertSame(0, WebhookDelivery::query()->count());
         Http::assertSentCount(0);
     }
 
