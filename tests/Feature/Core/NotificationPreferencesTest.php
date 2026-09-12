@@ -4,10 +4,12 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Modules\Core\Channels\MailChannel;
 use Modules\Core\Contracts\DeliveryChannel;
@@ -424,6 +426,47 @@ class NotificationPreferencesTest extends ErpTestCase
 
         $this->assertSame(NotificationDelivery::SENT, $row->refresh()->status);
         $this->assertCount(1, $transport->messages);
+    }
+
+    /**
+     * Driver `sync` (bawaan phpunit.xml — dan instalasi tanpa pekerja):
+     * dispatch() menjalankan job SEKETIKA dan mengabaikan delay. Job yang
+     * menunda di dalam jendela lalu men-dispatch pengganti ber-delay akan, pada
+     * driver ini, memanggil handle() lagi di dalam dirinya sendiri — masih di
+     * dalam jendela, men-dispatch lagi — rekursi tanpa dasar, dan permintaan
+     * HTTP penulis notifikasi berakhir 500. Penjaga SyncJob di handOverAfter()
+     * menghentikannya pada job pertama: baris tetap `queued` dengan
+     * next_attempt_at = akhir jendela. TANPA Queue::fake, supaya job benar-benar
+     * berjalan (verifikasi penutup P-3a, 12 Sep 2026: penjaga ada, tetapi
+     * mutasi yang membuangnya lolos hijau pada 31 uji).
+     */
+    public function test_on_the_sync_driver_a_postponed_delivery_runs_once_and_stops(): void
+    {
+        $this->assertSame('sync', config('queue.default'), 'Uji ini hanya berarti pada driver sync.');
+        $transport = $this->useCapturingMailer();
+        app(SettingService::class)->set('notifications.email_enabled', true);
+        $user = $this->holder();
+        $this->prefer($user, 'notify.quiet_hours', ['start' => '22:00', 'end' => '06:00']);
+        $this->atWib('02:00', '2026-09-12');
+
+        $runs = 0;
+        Event::listen(JobProcessing::class, function () use (&$runs): void {
+            $runs++;
+            if ($runs > 20) {
+                throw new RuntimeException('Rekursi: job sync dijalankan lebih dari 20 kali untuk satu penundaan.');
+            }
+        });
+
+        $this->alarm();
+
+        $this->assertSame(1, $runs, 'Job sync berjalan sekali, menunda, dan berhenti — tidak men-dispatch pengganti secara sinkron.');
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status);
+        $this->assertSame(0, $row->attempts, 'Menunda bukan mencoba.');
+        $this->assertSame('2026-09-12 06:00', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
+        $this->assertStringContainsString('Ditunda oleh jam tenang', (string) $row->error);
+        $this->assertSame([], $transport->messages);
+        $this->assertSame(0, DB::table('jobs')->count(), 'Driver sync tidak menulis tabel jobs: tidak ada pengganti yang tertinggal.');
     }
 
     public function test_retry_during_the_window_queues_for_its_end_and_says_so(): void
