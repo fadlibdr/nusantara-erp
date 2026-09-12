@@ -64,24 +64,26 @@ const INTERNAL_RECAP = {
   ebupot_2126_bulanan: { route: 'rekap-pph21', perm: 'hr.view', label: 'Buka rekap internal PPh 21/26 bulanan' },
 };
 
+/* Teks lencana datang dari registri (format.badge_label) dan digambar apa
+   adanya; layar ini hanya memilih WARNANYA dari format.verified. Sebelumnya
+   kalimatnya disusun di sini — satu permukaan lagi yang bisa berkata lain
+   daripada baris .djp-verification di bawahnya. */
 function formatBadges(format) {
   return [
     badge(format.status_label, format.status === 'ada' ? 'blue' : 'amber'),
-    format.verified
-      ? badge(`Diverifikasi ${format.verified_against.date}`, 'green')
-      : badge(`Belum diverifikasi terhadap template ${format.authority}`, 'amber'),
+    badge(format.badge_label, format.verified ? 'green' : 'amber'),
   ];
 }
 
 /* Satu blok per entri registri — kelima format, termasuk yang tidak punya
-   writer, supaya orang yang mencari "e-Faktur Coretax XML" menemukan
-   jawabannya di sini dan bukan menyimpulkan bahwa CSV legacy adalah itu. */
-function formatsCard(formats) {
+   writer, supaya orang yang mencari entri XML Coretax menemukan jawabannya di
+   sini dan bukan menyimpulkan bahwa CSV legacy adalah itu. */
+function formatsCard(formats, summary) {
   return el('.card', [
     el('.card-head', [
       el('h2', { text: 'Format berkas DJP/BPJS — status verifikasi' }),
       el('.spacer'),
-      badge(`${formats.filter((f) => f.verified).length} dari ${formats.length} diverifikasi`, formats.every((f) => f.verified) ? 'green' : 'amber'),
+      badge(summary.label, summary.verified === summary.total ? 'green' : 'amber'),
     ]),
     el('.card-body', { style: { display: 'grid', gap: '10px' } }, formats.map((format) => {
       const recap = INTERNAL_RECAP[format.key];
@@ -253,7 +255,7 @@ export async function renderTaxExport(host) {
 
     // Registri format DI ATAS tab yang dipilih: ia berlaku untuk keduanya
     // (dan untuk tiga format yang tidak punya tab sama sekali).
-    body.appendChild(formatsCard(payload.formats || []));
+    body.appendChild(formatsCard(payload.formats || [], payload.formats_summary || { total: 0, verified: 0, label: '' }));
 
     /* Kalimat verifikasi datang dari registri server — bukan dari SPA. Warna
        kotaknya ikut: amber selama belum diverifikasi, biru sesudahnya. */
@@ -269,16 +271,22 @@ export async function renderTaxExport(host) {
 
     body.appendChild(summaryTiles(exp, tab));
 
+    /* Tombol unduh HANYA bila registri berkata format ini punya writer dan
+       statusnya "ada" (exp.format.downloadable). Format yang menunggu template
+       tidak pernah punya berkas untuk diunduh — yang ia punya kalimat berkas
+       apa yang ditunggu. */
     body.appendChild(el('.card', [
       el('.card-head', [
         el('h2', { text: `Isi berkas — ${exp.filename}` }),
         el('.spacer'),
-        button('Unduh CSV', {
-          variant: 'primary',
-          iconName: 'download',
-          disabled: exp.rows.length === 0,
-          onClick: () => downloadCsv(exp.filename, exp.csv),
-        }),
+        exp.format.downloadable
+          ? button('Unduh CSV', {
+            variant: 'primary',
+            iconName: 'download',
+            disabled: exp.rows.length === 0,
+            onClick: () => downloadCsv(exp.filename, exp.csv),
+          })
+          : el('.muted.djp-awaiting-file', { style: { fontSize: '12px' }, text: exp.format.awaiting_file || exp.format.verification }),
       ]),
       rowsTable(exp),
     ]));

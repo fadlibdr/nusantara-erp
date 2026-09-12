@@ -342,6 +342,7 @@ class TaxExportService
             'efaktur' => $this->eFaktur($year, $month),
             'ebupot' => $this->eBupot($year, $month),
             'formats' => DjpFormats::forApi(),
+            'formats_summary' => DjpFormats::summary(),
         ];
     }
 

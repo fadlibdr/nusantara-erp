@@ -15,7 +15,7 @@ use InvalidArgumentException;
  * kalimat itu ke TIGA permukaan yang benar-benar dilihat orang — jawaban API
  * ikhtisar, lencana per format di layar Ekspor Pajak, dan nama + baris pertama
  * berkas yang diunduh — dari satu sumber, supaya tidak ada permukaan yang
- * berkata "sesuai DJP" sementara permukaan lain berkata "belum dicek".
+ * berkata «sesuai DJP» sementara permukaan lain berkata «belum dicek».
  *
  * APA YANG TIDAK DIKARANG. verified_against hanya boleh menunjuk berkas
  * resmi yang benar-benar ada di docs/samples/pajak/ (diunduh pemilik atau
@@ -124,6 +124,18 @@ final class DjpFormats
     }
 
     /**
+     * Deklarasi mentah, sebelum describe() menurunkan apa pun — publik supaya uji
+     * bisa memaku bahwa hari ini TIDAK ADA klaim verified_against sama sekali,
+     * bukan hanya bahwa klaim yang salah sudah diturunkan (V2-4).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function declared(): array
+    {
+        return self::entries();
+    }
+
+    /**
      * Semua entri, dijelaskan — kunci => entri.
      *
      * @return array<string, array<string, mixed>>
@@ -166,6 +178,23 @@ final class DjpFormats
     public static function isVerified(string $key): bool
     {
         return (bool) self::get($key)['verified'];
+    }
+
+    /**
+     * Lencana hitungan di kepala kartu layar — dari sini, bukan disusun SPA.
+     *
+     * @return array{total: int, verified: int, label: string}
+     */
+    public static function summary(): array
+    {
+        $all = self::all();
+        $verified = count(array_filter($all, fn (array $entry): bool => (bool) $entry['verified']));
+
+        return [
+            'total' => count($all),
+            'verified' => $verified,
+            'label' => sprintf('%d dari %d diverifikasi terhadap template resmi', $verified, count($all)),
+        ];
     }
 
     /** Nama berkas unduhan untuk sebuah format: akhiran jujur bila belum diverifikasi. */
@@ -283,6 +312,12 @@ final class DjpFormats
             'verified' => $verified,
             'verified_against' => $against,
             'verification' => $verification,
+            // Teks lencana layar — dari sini, apa adanya. SPA yang menyusun kalimatnya
+            // sendiri adalah satu permukaan lagi yang bisa berkata «sesuai DJP» tanpa
+            // satu uji PHP pun merah (V3b-2/V2-5).
+            'badge_label' => $verified
+                ? sprintf('Diverifikasi %s', $against['date'])
+                : sprintf('Belum diverifikasi terhadap template %s', $authority),
             'awaiting_file' => $awaiting,
             'sample_stem' => $stem.'-<YYYY-MM-DD>',
         ];

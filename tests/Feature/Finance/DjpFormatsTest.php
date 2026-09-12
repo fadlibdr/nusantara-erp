@@ -84,7 +84,23 @@ class DjpFormatsTest extends ErpTestCase
             $this->assertNull($entry['verified_against'], "{$key} menunjuk berkas contoh yang tidak ada");
             $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template ', $entry['verification'], $key);
             $this->assertStringContainsString('docs/samples/pajak/README.md', $entry['verification'], $key);
+            // Bukan kalimat "registri menunjuk … tetapi berkasnya tidak ada di pohon ini": itu kalimat
+            // jujur untuk klaim yang salah, dan hari ini tidak boleh ada klaim sama sekali (V2-4).
+            $this->assertStringNotContainsString('tidak ada di pohon ini', $entry['verification'], $key);
+            $this->assertStringStartsWith('Belum diverifikasi terhadap template ', $entry['badge_label'], $key);
         }
+
+        // Deklarasi MENTAH, sebelum describe() menurunkan apa pun: hari ini setiap
+        // verified_against adalah null — sebuah klaim bertanggal yang tidak pernah dibuat
+        // siapa pun tidak boleh lolos hanya karena describe() sudah menurunkannya (V2-4).
+        foreach (DjpFormats::declared() as $entry) {
+            $this->assertNull($entry['verified_against'], "{$entry['key']} mendeklarasikan verified_against");
+        }
+
+        $this->assertSame(
+            ['total' => 5, 'verified' => 0, 'label' => '0 dari 5 diverifikasi terhadap template resmi'],
+            DjpFormats::summary(),
+        );
     }
 
     public function test_the_two_existing_writers_are_available_and_the_three_planned_ones_wait_for_a_template(): void
@@ -145,6 +161,8 @@ class DjpFormatsTest extends ErpTestCase
         $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template DJP', $entry['verification']);
         $this->assertStringContainsString('tidak-ada-2026-09-12.csv', $entry['verification']);
         $this->assertStringContainsString('tidak ada di pohon ini', $entry['verification']);
+        // Teks lencana layar juga dari sini — LITERAL, supaya SPA tidak punya alasan menyusunnya sendiri.
+        $this->assertSame('Belum diverifikasi terhadap template DJP', $entry['badge_label']);
     }
 
     public function test_a_declared_verification_with_the_file_present_is_reported_with_its_path_and_date(): void
@@ -164,6 +182,7 @@ class DjpFormatsTest extends ErpTestCase
         $this->assertTrue($entry['verified']);
         $this->assertSame(['path' => 'docs/samples/pajak/README.md', 'date' => '2026-09-12'], $entry['verified_against']);
         $this->assertStringStartsWith('Diverifikasi terhadap docs/samples/pajak/README.md (2026-09-12)', $entry['verification']);
+        $this->assertSame('Diverifikasi 2026-09-12', $entry['badge_label']);
     }
 
     // ---------------------------------------------------------- berkas unduhan
@@ -244,7 +263,10 @@ class DjpFormatsTest extends ErpTestCase
         foreach ($formats as $format) {
             $this->assertFalse($format['verified'], $format['key']);
             $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template ', $format['verification'], $format['key']);
+            $this->assertStringStartsWith('Belum diverifikasi terhadap template ', $format['badge_label'], $format['key']);
         }
+
+        $this->assertSame('0 dari 5 diverifikasi terhadap template resmi', $response->json('data.formats_summary.label'));
 
         $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template DJP', $response->json('data.efaktur.format.verification'));
         $this->assertStringStartsWith('BELUM DIVERIFIKASI terhadap template DJP', $response->json('data.ebupot.format.verification'));
@@ -307,16 +329,35 @@ class DjpFormatsTest extends ErpTestCase
         $this->assertStringContainsString('the brackets live in that service, NOT in', $taxExport,
             'docblock TaxExportService kembali menunjuk config/erp.php untuk tabel TER');
 
+        // Sapuan DIBATASI pada permukaan pajak yang dijaga paket ini (pelajaran 4:
+        // paku yang menyapu seluruh aplikasi merah ketika modul lain menulis
+        // "belum sesuai DJP" yang wajar — V2-8), TIDAK peka huruf besar (mutasi
+        // "Sesuai DJP" lolos hijau — V3b-2), dan mengabaikan negasi wajar.
         $promises = [];
-        foreach (array_merge(
-            glob(public_path('app/js/views/*.js')) ?: [],
-            glob(base_path('Modules/*/Services/*.php')) ?: [],
-            glob(base_path('Modules/*/Http/Controllers/*.php')) ?: [],
-        ) as $file) {
+        foreach ([
+            public_path('app/js/views/taxexport.js'),
+            public_path('app/js/views/rekappph21.js'),
+            public_path('app/js/views/kalenderpajak.js'),
+            base_path('Modules/Finance/Support/DjpFormats.php'),
+            base_path('Modules/Finance/Services/TaxExportService.php'),
+            base_path('Modules/Finance/Services/PeriodCloseService.php'),
+            base_path('Modules/Finance/Services/TaxObligationService.php'),
+            base_path('Modules/Finance/Http/Controllers/TaxExportController.php'),
+            base_path('Modules/HrPayroll/Services/Pph21RecapService.php'),
+            base_path('Modules/HrPayroll/Http/Controllers/Pph21RecapController.php'),
+        ] as $file) {
+            $this->assertFileExists($file);
             $code = (string) file_get_contents($file);
-            foreach (['NTPN otomatis', 'otomatis dari DJP', 'siap Coretax', 'sesuai DJP', 'siap diekspor ke DJP'] as $needle) {
-                // Komentar yang MENJELASKAN larangan boleh menyebut frasanya; yang dijaga adalah string yang tampil.
-                if (preg_match('/[\'"][^\'"\n]*'.preg_quote($needle, '/').'[^\'"\n]*[\'"]/u', $code) === 1) {
+            foreach ([
+                'NTPN otomatis', 'otomatis dari DJP', 'siap Coretax', 'sesuai DJP', 'sesuai Coretax', 'sesuai template',
+                'siap diekspor ke', 'siap dilaporkan ke', 'siap diimpor ke', 'siap dikirim ke', 'format sudah cocok',
+                'diterima DJP', 'diterima Coretax',
+            ] as $needle) {
+                // Komentar yang MENJELASKAN larangan boleh menyebut frasanya (guillemet); yang dijaga
+                // adalah string yang tampil — termasuk template literal. Negasi wajar ("belum sesuai DJP",
+                // "tidak sesuai DJP", "bukan …") bukan janji dan tidak ditangkap.
+                $pattern = '/[\'"`][^\'"`\n]*(?<!belum |tidak |bukan |tanpa )'.preg_quote($needle, '/').'[^\'"`\n]*[\'"`]/iu';
+                if (preg_match($pattern, $code) === 1) {
                     $promises[] = basename($file).': '.$needle;
                 }
             }
@@ -335,6 +376,20 @@ class DjpFormatsTest extends ErpTestCase
         $this->assertStringContainsString('exp.format.verification', $screen, 'taxexport.js tidak menampilkan kalimat verifikasi ekspor dari API');
         $this->assertStringNotContainsString('Tata letak kolom mengikuti skema impor', $screen,
             'kalimat lama yang dikarang SPA masih ada — kalimatnya harus datang dari registri lewat API');
+
+        // Lencana per format dan lencana hitungan di kepala kartu: teks dari server, apa adanya.
+        // Sebelum ini SPA menyusun `Belum diverifikasi terhadap template ${authority}` sendiri, dan
+        // mutasi menjadi lencana hijau "Sesuai DJP" LOLOS HIJAU di suite PHP (V3b-2/V2-5).
+        $this->assertStringContainsString('format.badge_label', $screen, 'taxexport.js tidak membaca badge_label dari API');
+        $this->assertStringContainsString('payload.formats_summary', $screen, 'taxexport.js tidak membaca formats_summary dari API');
+        $this->assertDoesNotMatchRegularExpression('/[\'"`][^\'"`\n]*(diverifikasi|sesuai|coretax)/iu', $screen,
+            'taxexport.js menyusun sendiri kalimat verifikasi/kesesuaian — kalimat itu hanya boleh datang dari registri lewat API');
+
+        // Tombol unduh HANYA dari `downloadable` server: satu literal, di dalam cabang exp.format.downloadable.
+        // Mutasi yang menambah tombol Unduh pada format "menunggu template" LOLOS HIJAU sebelum ini (V3b-5).
+        $this->assertSame(1, preg_match_all('/Unduh/u', $screen), 'taxexport.js punya lebih dari satu tombol/teks Unduh');
+        $this->assertMatchesRegularExpression('/exp\.format\.downloadable\s*\?[^;]*Unduh CSV/su', $screen,
+            'tombol Unduh CSV tidak digerbangi exp.format.downloadable');
     }
 
     private function userWith(array $permissions): User

@@ -2343,8 +2343,12 @@ masing dengan `verified_against`: path berkas contoh resmi di `docs/samples/paja
 atau **null = "BELUM DIVERIFIKASI terhadap template DJP"** (BPJS untuk SIPP). `describe()`
 adalah fungsi murni: klaim yang berkasnya tidak ada di pohon diturunkan kembali ke belum
 diverifikasi. Kalimatnya sampai ke TIGA permukaan dari satu sumber: `GET finance/tax-exports`
-(`data.formats` + `data.<tab>.format`), layar Ekspor Pajak (`.djp-format` per entri, kalimat
-di atas tab), dan berkas unduhan (`DjpFormats::filename` → akhiran `-belum-diverifikasi`,
+(`data.formats` + `data.<tab>.format` + `data.formats_summary`), layar Ekspor Pajak (`.djp-format`
+per entri — teks lencana `badge_label` dan lencana hitungan `formats_summary.label` digambar apa
+adanya, SPA hanya memilih warnanya dan tidak menyusun satu kata pun; tombol `Unduh CSV` hanya
+dari `downloadable`; `DjpFormatsTest` memaku bahwa `taxexport.js` tidak memuat string
+berisi «diverifikasi»/«sesuai»/«coretax» dan hanya punya satu literal `Unduh` di dalam cabang
+`exp.format.downloadable`), dan berkas unduhan (`DjpFormats::filename` → akhiran `-belum-diverifikasi`,
 `stampCsv` → satu baris komentar `#` di atas; **writer kolom tidak disentuh**, berkas yang
 sudah diverifikasi dikembalikan apa adanya). Format "menunggu template" `downloadable: false`
 dan membawa `awaiting_file` yang menyebut berkas apa yang harus diletakkan. Menambah format =
