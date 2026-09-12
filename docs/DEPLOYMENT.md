@@ -1224,17 +1224,19 @@ against `erp_scratch`, never against `erp`.
    ```
    MAIL_MAILER=smtp
    MAIL_HOST=            # host SMTP penyedia
-   MAIL_PORT=587
-   MAIL_ENCRYPTION=tls   # STARTTLS di 587
+   MAIL_PORT=587         # STARTTLS dinegosiasikan otomatis (lihat catatan di bawah)
    MAIL_USERNAME=        # alamat kotak surat khusus
    MAIL_PASSWORD=        # sandi / sandi aplikasi
    MAIL_FROM_ADDRESS=    # alamat yang sama, atau alias resmi
    MAIL_FROM_NAME="Nusantara ERP"
    ```
 
-   Kode membaca `config/mail.php` bawaan Laravel; tidak ada kunci baru. `MAIL_ENCRYPTION`
-   dibaca `MAIL_SCHEME`/`MAIL_PORT` pada Laravel 12 — 587 dengan STARTTLS adalah bawaan
-   transport `smtp` ketika port 587 dan tanpa `MAIL_SCHEME=smtps`.
+   Kode membaca `config/mail.php` bawaan Laravel; tidak ada kunci baru. **Laravel 12 tidak
+   membaca `MAIL_ENCRYPTION`** (`config/mail.php` hanya memuat `MAIL_SCHEME`; diverifikasi
+   12 Sep 2026: `grep MAIL_ENCRYPTION config/mail.php vendor/laravel/framework/src/Illuminate/Mail/MailManager.php`
+   = 0 baris). Pada port 587 tanpa `MAIL_SCHEME`, transport `smtp` bernegosiasi STARTTLS
+   otomatis (Symfony `EsmtpTransport` autoTls); `MAIL_SCHEME=smtps` hanya untuk port 465 (TLS
+   implisit). Mengisi `MAIL_ENCRYPTION=tls` tidak berpengaruh apa pun — jangan mengandalkannya.
 3. `php artisan config:clear` (atau restart php-fpm bila config di-cache), lalu **restart
    pekerja antrean**: `systemctl restart erp1-queue` — pekerja memegang konfigurasi lama
    sampai dimulai ulang (§6).

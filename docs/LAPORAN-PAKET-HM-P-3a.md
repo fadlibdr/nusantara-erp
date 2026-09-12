@@ -33,7 +33,7 @@ uji, `Http::preventStrayRequests()` di setiap uji WhatsApp, `MAIL_MAILER=log` di
 | T3a.3 | `users.phone_e164` + opt-in berstempel (Iam **000252**); `WhatsAppChannel` atas `Http::`; webhook publik bertanda tangan; konfigurasi + 5 nama template dari env, KOSONG di repo | ✅ | `6a019de`, `1760245` — `PhoneNumber` (E.164 ketat, 08… → +62…), `WhatsAppConsent` (satu-satunya penulis tiga kolom; ganti nomor mengosongkan stempel), `PUT iam/me/phone` (via `profil`) + `PUT iam/users/{id}` (via `admin`), `WhatsAppSetup`, `WhatsAppChannel` (Meta Cloud API, template + 3 parameter, wamid wajib, kode permanen vs sementara), `ProviderErrorScrubber`, `WhatsAppWebhookController` (GET verifikasi, POST HMAC atas badan mentah, hanya baris cocok), migrasi Core **001802** (`provider_status`, `provider_status_at`, indeks `provider_id`), `config/erp.php whatsapp.*` dari `.env`, `.env.example` NAMA variabel saja. `WhatsAppChannelTest` **13**, `WhatsAppWebhookTest` **8**, `PhoneOptInTest` **7** uji; 9 mutasi — **7 merah, 2 LOLOS HIJAU** lalu dipaku (§4) |
 | T3a.4 | Verifikasi ulang-kirim 1/5/15/60 yang sudah ada dan paku; in-app tetap kanal kebenaran | ✅ | `6830a46` — `DeliveryRetryScheduleTest` **4 uji**: `[60, 300, 900, 3600]` dan `tries 5` literal; pekerja sungguhan lima kali dengan jam dimajukan → `next_attempt_at` DAN `available_at` job berjarak persis 60/300/900/3600 detik, lalu kosong + `failed`; flag unit `erp1-queue.service` (`--tries=5 --backoff=60`) ikut dipaku; kedua kanal luar mati → 2 baris kotak masuk seketika, 4 baris kotak keluar `skipped`, 0 HTTP; keduanya ditolak penyedia → kotak masuk tetap ada |
 | 6 | DEPLOYMENT.md runbook SMTP + WhatsApp (variabel tanpa nilai) | ✅ | `ae6d7ef` — §11.1 SMTP 587 STARTTLS (ledger #8), §11.2 Meta (verifikasi bisnis, System User token, 5 template utility 3 placeholder, webhook + verify token, jalan pulang); Qontak/Fonnte dinyatakan; **tidak ada `.env` yang disentuh** |
-| 7 | Uji PHP: Mail::fake tidak lagi cukup; `Http::fake` + `preventStrayRequests`; tanda tangan webhook dengan app secret palsu; penyaring dengan token palsu; mutasi | ✅ | **71 uji baru** di 7 berkas (13+12+14+13+8+7+4), 5 berkas uji lama diadaptasi; `tests/Support/CapturingMailTransport` + `UsesCapturingMailer`; **25 mutasi**: 23 merah, 2 LOLOS HIJAU dan dipaku (§4) |
+| 7 | Uji PHP: Mail::fake tidak lagi cukup; `Http::fake` + `preventStrayRequests`; tanda tangan webhook dengan app secret palsu; penyaring dengan token palsu; mutasi | ✅ | **71 uji baru** di 7 berkas (13+12+14+13+8+7+4), 4 berkas uji lama diadaptasi (`git diff --name-status main...HEAD -- tests` = M pada ApprovalNotificationTest, NotificationDeliveryTest, QueueFailedJobsTest, UserPreferencesTest); `tests/Support/CapturingMailTransport` + `UsesCapturingMailer`; **25 mutasi**: 23 merah, 2 LOLOS HIJAU dan dipaku (§4) |
 | 8 | Harness S37 (Pengiriman Notifikasi menampilkan sebab `skipped`; Profil; desktop + ponsel) → `results-phase-3.json` | ✅ | `c756d48` — `[S37_kanal_notifikasi_profil] ok` (10 syarat), `[S37_kanal_notifikasi_profil_ponsel] ok` (6 syarat); fixture dari pipeline sungguhan (`erp:watchdog-alarm --force` atas ERP_DB); **8 kunci Fase 0 tetap, 2 ditambahkan**; 3 PNG di `docs/bukti-uji/` |
 | 9 | Cangkang PWA | ✅ | `a662467` — `js/views/profil.js` di `SHELL`, `SHELL_VERSION` 8 → 9; `PwaServiceWorkerTest` hijau |
 | 10 | `/app/` dimuat di Chromium, 0 galat konsol di setiap layar tersentuh | ✅ | §7 — `#/profil`, `#/r/core/notification-deliveries`, `#/r/iam/users`, `#/settings`, `#/dashboard` × 1440×900 dan 390×844, `console_errors: []`, `http_errors: []`, tidak ada gulir samping |
@@ -177,9 +177,10 @@ Satu permukaan yang **sengaja tidak** menegakkan pilihan pengguna: `GET core/not
 - `git grep -n "WHATSAPP_" -- .env.example config/` = **25 baris**, semuanya NAMA variabel;
   `.env` tidak disentuh (`git status` bersih terhadap berkas yang di-ignore, dan `.env` tidak
   pernah masuk `git add` bernama).
-- `git grep -nE "EAAB[A-Za-z0-9]{10,}" -- . ':!vendor'` = **1 baris**: token PALSU
+- `git grep -nE "EAAB[A-Za-z0-9]{10,}" -- . ':!vendor'` = **2 baris**: token PALSU
   `uji-token-RAHASIA-EAABsbCS1iHgBO9x` di `WhatsAppChannelTest` — sengaja berbentuk seperti token
-  Meta supaya penyaringnya diuji terhadap bentuk yang sebenarnya.
+  Meta supaya penyaringnya diuji terhadap bentuk yang sebenarnya — dan baris ini sendiri di
+  laporan, yang mengutipnya.
 
 ---
 
@@ -231,7 +232,7 @@ Harness: `[S37_kanal_notifikasi_profil] ok 7710ms clicks=6`,
 | # | Keputusan | Rekomendasi / yang dipakai kode sampai dijawab |
 |---|---|---|
 | A | **Tempat penyimpanan preferensi kanal + jam tenang**: `UserPreferences` (P1-C) vs tabel baru | **`UserPreferences`** — dipakai. Alasan di §2(C) dan CONVENTIONS §38. Bila suatu hari perlu jejak audit atas perubahan jam tenang, saat itulah tabel |
-| B | **Jam tenang melintasi tengah malam**: awal inklusif, akhir eksklusif, sisi malam → besok pagi, sisi pagi → hari ini; zona Asia/Jakarta tetap tanpa kolom zona per pengguna | dipakai; pengguna di luar WIB adalah pemicu kolom zona |
+| B | **Jam tenang melintasi tengah malam**: awal inklusif, akhir eksklusif, sisi malam → besok pagi, sisi pagi → hari ini; zona Asia/Jakarta tetap tanpa kolom zona per pengguna | dipakai; pengguna di luar WIB adalah pemicu kolom zona. Verifikasi 12 Sep 2026 (B-6): kolom "Berikutnya" — seperti semua kolom datetime layar (Dibuat, Terkirim) — berzona PERAMBAN, sedangkan kalimat penundaan di kolom sebelahnya memaku WIB; pada perangkat di luar WIB satu baris Antre menyebut dua jam ("Berikutnya 11 Sep 2026 23.00" di samping "sampai 12 Sep 2026 06:00 WIB"). **Dipertahankan** — tidak ada pengguna di luar WIB; pemicunya sama dengan kolom zona, dan saat itu kolom datetime diformat Asia/Jakarta seperti `profil.js wib()` |
 | C | **Penyedia WhatsApp** (ledger #7): Meta Cloud API langsung vs Qontak | kode memakai `meta`; `qontak` dikenali tetapi pengirimnya belum ditulis — bentuk API tidak dikarang; Fonnte/Wablas tidak punya mode |
 | D | **Bentuk konfigurasi template**: nama template per peristiwa di `.env` (`WHATSAPP_TEMPLATE_<PERISTIWA>`), tiga placeholder tetap, bahasa satu untuk semua | dipakai; alternatif (tabel `core_settings` yang bisa disunting dari layar) ditolak karena nama template bukan rahasia tetapi status persetujuannya milik Meta, dan `.env` sudah tempat kredensialnya |
 | E | **Pertumbuhan tabel kotak keluar**: dengan kedua sakelar mati (bawaan), setiap notifikasi menulis DUA baris `skipped` (sebelumnya satu) | tidak dipangkas di paket ini; kandidat: `erp:outbox-prune` untuk baris `skipped` > 90 hari, atau tidak menulis baris kanal yang sakelar globalnya mati (asimetris dengan e-mail P-0b) |
@@ -250,7 +251,8 @@ Harness: `[S37_kanal_notifikasi_profil] ok 7710ms clicks=6`,
 3. **Anggaran per percakapan** (USD, kartu bisnis Meta) — plafon bulanan pemilik; cocokkan dengan
    hitungan baris Terkirim kanal `whatsapp`.
 4. **Kotak surat SMTP** domain perusahaan → `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT=587`,
-   `MAIL_ENCRYPTION=tls`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_*`.
+   `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_*` — tanpa `MAIL_ENCRYPTION` (Laravel 12 tidak
+   membacanya; STARTTLS pada 587 dinegosiasikan otomatis, DEPLOYMENT §11.1).
 5. Sesudah `.env`: `config:clear`, `systemctl restart erp1-queue`, lalu sakelar
    **Pengaturan › Notifikasi** (e-mail, WhatsApp) — dan setiap penerima mengisi nomor + opt-in di
    **Profil › Notifikasi** (atau administrator di Sistem › Pengguna).
