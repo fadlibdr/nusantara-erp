@@ -915,6 +915,19 @@ class BankInboxTest extends ErpTestCase
         $this->assertSame(1, BankStatement::query()->count());
     }
 
+    /** V-folder-5: rekening koran tanpa operator DAN tanpa baris ledger (mis. ledger dibersihkan) — tanpa klaim kanal sama sekali. */
+    public function test_a_statement_imported_without_an_operator_and_without_a_ledger_row_is_named_without_a_channel(): void
+    {
+        app(BankStatementImportService::class)->import($this->bank, 'mt940', $this->marchMt940(), [], null);
+        $this->drop('BANK-BCA-OPS/maret.sta', $this->marchMt940());
+
+        $this->scan();
+
+        $row = BankInboxFile::query()->sole();
+        $this->assertSame('duplicate', $row->status);
+        $this->assertSame('Berkas ini sudah diimpor sebagai '.BankStatement::query()->sole()->code.'.', $row->error);
+    }
+
     /** V-folder-6 + V-permukaan-6: tautan simbolik ke luar folder — berkas maupun sub-folder — tidak dibaca DAN targetnya tidak disentuh. */
     public function test_symlinks_out_of_the_folder_are_ignored_without_touching_their_target(): void
     {
