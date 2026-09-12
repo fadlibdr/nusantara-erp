@@ -4,9 +4,13 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Queue\MaxAttemptsExceededException;
+use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Modules\Core\Channels\MailChannel;
+use Modules\Core\Contracts\DeliveryChannel;
 use Modules\Core\Jobs\DeliverNotification;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
@@ -17,6 +21,7 @@ use Modules\Core\Support\DeliveryGate;
 use Modules\Core\Support\QuietHours;
 use Modules\Core\Support\UserPreferences;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
+use RuntimeException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -89,6 +94,45 @@ class NotificationPreferencesTest extends ErpTestCase
     private function alarm(string $title = 'Cadangan basi'): void
     {
         app(NotificationService::class)->system('core.update', $title, 'Isi.');
+    }
+
+    /**
+     * Kanal e-mail yang SELALU ditolak sementara ("SMTP 421 … #n") dan
+     * menghitung berapa kali ia benar-benar dipanggil — pekerja sungguhan yang
+     * mengukur percobaan, bukan stub yang mengaku.
+     */
+    private function refusingMail(): object
+    {
+        $counter = new class
+        {
+            public int $calls = 0;
+        };
+        app()->instance(MailChannel::class, new class($counter) implements DeliveryChannel
+        {
+            public function __construct(private readonly object $counter) {}
+
+            public function name(): string
+            {
+                return NotificationDelivery::CHANNEL_EMAIL;
+            }
+
+            public function send(NotificationDelivery $delivery, Notification $notification): ?string
+            {
+                $this->counter->calls++;
+
+                throw new RuntimeException('SMTP 421 4.7.0 try again later #'.$this->counter->calls);
+            }
+        });
+
+        return $counter;
+    }
+
+    /** Pekerja sungguhan mengambil job yang ada pada jam WIB ini (available_at dipaksa lewat). */
+    private function workAt(string $hhmm, string $date = '2026-09-11'): void
+    {
+        $this->atWib($hhmm, $date);
+        DB::table('jobs')->update(['available_at' => 0, 'reserved_at' => null]);
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--tries' => 5]);
     }
 
     /** Jam WIB pada 11 Sep 2026, ditetapkan lewat UTC (WIB = UTC+7). */
@@ -314,7 +358,7 @@ class NotificationPreferencesTest extends ErpTestCase
      * jendela (backoff yang jatuh pukul 22.00) dilepas kembali sampai 06.00,
      * tanpa mencatat percobaan dan tanpa memanggil kanal.
      */
-    public function test_a_worker_arriving_inside_the_window_releases_the_job_until_it_ends(): void
+    public function test_a_worker_arriving_inside_the_window_hands_the_job_over_until_it_ends(): void
     {
         $transport = $this->useCapturingMailer();
         app(SettingService::class)->set('notifications.email_enabled', true);
@@ -342,7 +386,7 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->assertSame(
             '2026-09-12 06:00',
             CarbonImmutable::createFromTimestamp((int) $job->available_at, 'UTC')->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'),
-            'Job dilepas kembali dengan available_at = akhir jendela.',
+            'Job pengganti menunggu dengan available_at = akhir jendela.',
         );
 
         // Pukul 06.00 ia berangkat.
@@ -371,6 +415,146 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->assertStringContainsString('Ditunda oleh jam tenang penerima', $response->json('data.error'));
         $this->assertSame('2026-09-12 06:00', CarbonImmutable::parse($response->json('data.next_attempt_at'))->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
         Queue::assertPushed(DeliverNotification::class, fn (DeliverNotification $job) => $job->delay instanceof \DateTimeInterface);
+    }
+
+    // ------------------------- jam tenang TIDAK memakan hitungan percobaan
+
+    /**
+     * Verifikasi P-3a (12 Sep 2026, B-1): job yang dilepas release() oleh jam
+     * tenang menaikkan hitungan percobaan PEKERJA. Empat kegagalan sementara
+     * dalam 21 menit (21:30 → 21:51) lalu backoff 3600 s mendarat 22:51 — di
+     * dalam 22:00–06:00 — dan pukul 06:00 pekerja menggagalkan job SEBELUM
+     * handle() berjalan: baris `failed` "Percobaan habis … Pesan penyedia
+     * terakhir: Ditunda oleh jam tenang …" dengan hanya EMPAT panggilan
+     * kanal. Satu malam gangguan SMTP sementara sudah cukup (kegagalan
+     * pertama antara ±20:39 dan ±04:39 WIB), bukan "lima malam berturut-turut".
+     *
+     * Penundaan bukan percobaan: pukul 06:00 percobaan KELIMA harus terjadi.
+     */
+    public function test_a_quiet_hours_postponement_costs_no_worker_attempt_so_the_fifth_attempt_still_happens_after_the_window(): void
+    {
+        $this->emailOn();
+        $counter = $this->refusingMail();
+        config(['queue.default' => 'database']);
+        $user = $this->holder();
+        $this->prefer($user, 'notify.quiet_hours', ['start' => '22:00', 'end' => '06:00']);
+
+        $this->atWib('21:30');
+        $this->alarm();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
+        $this->assertNull($row->next_attempt_at, 'Ditulis di luar jendela: tanpa penundaan.');
+
+        foreach ([['21:30', 60], ['21:31', 300], ['21:36', 900], ['21:51', 3600]] as $i => [$clock, $delay]) {
+            $this->workAt($clock);
+            $row->refresh();
+            $this->assertSame($i + 1, $row->attempts, 'percobaan ke-'.($i + 1));
+            $this->assertSame(NotificationDelivery::QUEUED, $row->status);
+            $this->assertSame($delay, (int) $this->atWib($clock)->diffInSeconds($row->next_attempt_at), 'backoff setelah percobaan ke-'.($i + 1));
+        }
+        $this->assertSame('2026-09-11 22:51', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'), 'Percobaan ke-5 jatuh DI DALAM jendela.');
+
+        // 22:51 — pekerja mengambilnya di dalam jendela: ditunda, BUKAN dicoba, BUKAN dihitung.
+        $this->workAt('22:51');
+        $row->refresh();
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status);
+        $this->assertSame(4, $row->attempts, 'Menunda bukan mencoba.');
+        $this->assertSame(4, $counter->calls);
+        $this->assertSame('2026-09-12 06:00', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
+        $this->assertStringContainsString('Ditunda oleh jam tenang penerima (22:00–06:00 WIB) sampai 12 Sep 2026 06:00 WIB', (string) $row->error);
+        $this->assertSame(0, DB::table('failed_jobs')->count());
+        $job = DB::table('jobs')->sole();
+        $this->assertSame('2026-09-12 06:00', CarbonImmutable::createFromTimestamp((int) $job->available_at, 'UTC')->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
+        $payload = json_decode((string) $job->payload, true);
+        $this->assertSame(0, (int) $job->attempts, 'Job yang menunggu 06:00 belum dihitung sekali pun oleh pekerja.');
+        $this->assertSame(1, (int) $payload['maxTries'], 'Sisa jadwal: satu percobaan lagi dari lima.');
+
+        // 06:00 — percobaan KELIMA benar-benar terjadi; gagal lagi → failed dengan pesan PENYEDIA.
+        $this->workAt('06:00', '2026-09-12');
+        $row->refresh();
+        $this->assertSame(5, $counter->calls, 'Kanal dipanggil lima kali: penundaan tidak memakan percobaan.');
+        $this->assertSame(5, $row->attempts);
+        $this->assertSame(NotificationDelivery::FAILED, $row->status);
+        $this->assertSame('SMTP 421 4.7.0 try again later #5', $row->error);
+        $this->assertStringNotContainsString('Ditunda', (string) $row->error);
+        $this->assertStringNotContainsString('Percobaan habis', (string) $row->error);
+        $this->assertNull($row->next_attempt_at);
+        $this->assertSame(0, DB::table('jobs')->count());
+        $this->assertSame(1, DB::table('failed_jobs')->count());
+    }
+
+    /** Jadwal 1/5/15/60 tidak diulang dari awal sesudah penundaan: ia berlanjut dari posisinya. */
+    public function test_after_a_postponement_the_backoff_schedule_continues_where_it_stopped(): void
+    {
+        $this->emailOn();
+        $counter = $this->refusingMail();
+        config(['queue.default' => 'database']);
+        $user = $this->holder();
+        $this->prefer($user, 'notify.quiet_hours', ['start' => '22:00', 'end' => '06:00']);
+
+        $this->atWib('21:40');
+        $this->alarm();
+        $row = NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->sole();
+
+        $this->workAt('21:40'); // ke-1 gagal → +60
+        $this->workAt('21:41'); // ke-2 gagal → +300
+        $this->workAt('21:46'); // ke-3 gagal → +900 = 22:01, di dalam jendela
+        $row->refresh();
+        $this->assertSame(3, $row->attempts);
+        $this->assertSame('2026-09-11 22:01', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'));
+
+        $this->workAt('22:01'); // ditunda sampai 06:00
+        $row->refresh();
+        $this->assertSame(3, $row->attempts);
+        $this->assertSame(2, (int) json_decode((string) DB::table('jobs')->sole()->payload, true)['maxTries'], 'Dua percobaan tersisa dari lima.');
+
+        $this->workAt('06:00', '2026-09-12'); // ke-4 gagal → +3600 (bukan +60: jadwal berlanjut)
+        $row->refresh();
+        $this->assertSame(4, $row->attempts);
+        $this->assertSame(4, $counter->calls);
+        $this->assertSame(NotificationDelivery::QUEUED, $row->status);
+        $this->assertSame('2026-09-12 07:00', $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'), 'Setelah percobaan ke-4: 3600 s, posisi jadwal dipertahankan.');
+        $this->assertSame(
+            '2026-09-12 07:00',
+            CarbonImmutable::createFromTimestamp((int) DB::table('jobs')->sole()->available_at, 'UTC')->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'),
+            'Pekerja pun melepas job dengan jeda yang sama.',
+        );
+
+        $this->workAt('07:00', '2026-09-12'); // ke-5 gagal → failed
+        $row->refresh();
+        $this->assertSame(5, $row->attempts);
+        $this->assertSame(NotificationDelivery::FAILED, $row->status);
+        $this->assertSame('SMTP 421 4.7.0 try again later #5', $row->error);
+        $this->assertSame(0, DB::table('jobs')->count());
+    }
+
+    /**
+     * Kalimat penundaan bukan pesan penyedia: bila pekerja menggagalkan job
+     * tanpa sempat mendapat jawaban penyedia (kehabisan waktu, percobaan habis)
+     * sementara kolom error masih memuat "Ditunda oleh jam tenang …", kalimat
+     * itu tidak boleh dibawa sebagai "Pesan penyedia terakhir".
+     */
+    public function test_the_postponement_sentence_is_never_reported_as_the_providers_last_message(): void
+    {
+        $user = $this->holder();
+        $this->prefer($user, 'notify.quiet_hours', ['start' => '22:00', 'end' => '06:00']);
+        $sentence = QuietHours::forUser($user)->postponedSentence($this->atWib('06:00', '2026-09-12'));
+        $this->assertStringStartsWith('Ditunda oleh jam tenang penerima (22:00–06:00 WIB) sampai 12 Sep 2026 06:00 WIB — tidak dibuang', $sentence);
+        $notification = Notification::query()->create(['user_id' => $user->id, 'event' => Notification::SYSTEM, 'title' => 'Cadangan basi', 'body' => 'Isi.']);
+        $make = fn () => NotificationDelivery::query()->create(['notification_id' => $notification->id, 'channel' => 'email', 'recipient' => $user->email, 'status' => 'queued', 'attempts' => 4, 'error' => $sentence]);
+
+        $exhausted = $make();
+        (new DeliverNotification($exhausted->id))->failed(new MaxAttemptsExceededException(DeliverNotification::class.' has been attempted too many times.'));
+        $this->assertSame('Percobaan habis sebelum penyedia menjawab.', $exhausted->refresh()->error);
+
+        $timedOut = $make();
+        (new DeliverNotification($timedOut->id))->failed(new TimeoutExceededException(DeliverNotification::class.' has timed out.'));
+        $this->assertSame('Pekerja antrean kehabisan waktu saat mengirim — penyedia tidak menjawab dalam batas waktu pekerja.', $timedOut->refresh()->error);
+
+        // Pesan penyedia sungguhan tetap dibawa.
+        $refused = $make();
+        $refused->forceFill(['error' => 'SMTP 421 4.7.0 try again later'])->save();
+        (new DeliverNotification($refused->id))->failed(new MaxAttemptsExceededException('x'));
+        $this->assertSame('Percobaan habis sebelum penyedia menjawab. Pesan penyedia terakhir: SMTP 421 4.7.0 try again later', $refused->refresh()->error);
     }
 
     // ---------------------------------------------- GET me/notification-channels

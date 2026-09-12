@@ -44,6 +44,8 @@ final class QuietHours
 
     private const FIELDS = ['start', 'end'];
 
+    private const POSTPONED_PREFIX = 'Ditunda oleh jam tenang penerima (';
+
     private function __construct(public readonly string $start, public readonly string $end) {}
 
     /** Kalimat 422 untuk nilai preferensi, atau null bila sah. */
@@ -139,10 +141,21 @@ final class QuietHours
     public function postponedSentence(CarbonImmutable $until): string
     {
         return sprintf(
-            'Ditunda oleh jam tenang penerima (%s) sampai %s WIB — tidak dibuang; pemberitahuan di dalam aplikasi sudah masuk.',
+            self::POSTPONED_PREFIX.'%s) sampai %s WIB — tidak dibuang; pemberitahuan di dalam aplikasi sudah masuk.',
             $this->label(),
             $until->setTimezone(self::ZONE)->format('d M Y H:i'),
         );
+    }
+
+    /**
+     * Apakah teks di kolom error adalah kalimat penundaan di atas — bukan
+     * jawaban penyedia. DeliverNotification::failed() membawa "pesan penyedia
+     * terakhir" ke baris `failed`; kalimat "tidak dibuang" bukan pesan
+     * penyedia dan tidak boleh ikut (verifikasi P-3a, 12 Sep 2026).
+     */
+    public static function isPostponedSentence(?string $text): bool
+    {
+        return str_starts_with(trim((string) $text), self::POSTPONED_PREFIX);
     }
 
     /** @return array{start: string, end: string, zone: string} */

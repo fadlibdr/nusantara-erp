@@ -2280,8 +2280,14 @@ cermin localStorage, dan 422 whitelist harus sampai ke orangnya (prefs.set menel
 `Core\Support\QuietHours`, zona **Asia/Jakarta tetap** (tidak ada kolom zona per pengguna
 sebelum ada pengguna di luar WIB). Baris kotak keluar tetap `queued` dengan `next_attempt_at` =
 akhir jendela, kalimat "Ditunda oleh jam tenang penerima (22:00–06:00 WIB) sampai … — tidak
-dibuang" di `error`, job ber-`delay` sama; dihitung di kotak keluar, Kirim ulang, dan job
-(`release()` sampai jendela berakhir — satu hitungan percobaan pekerja per jendela). Jendela
+dibuang" di `error`, job ber-`delay` sama; dihitung di kotak keluar, Kirim ulang, dan job.
+Di job, penundaan BUKAN `release()`: `release()` memakan satu hitungan percobaan PEKERJA per
+jendela, dan diukur 12 Sep 2026 empat kegagalan SMTP sementara + satu penundaan = pekerja
+menggagalkan job pukul 06:00 SEBELUM percobaan kelima ("Percobaan habis"). Job yang tertunda
+selesai dan mewariskan sisa jadwalnya kepada job pengganti (`DeliverNotification::$priorAttempts`,
+`$tries` sisa, `backoff()` dipotong) yang menunggu akhir jendela — lima percobaan tetap lima,
+1/5/15/60 berlanjut dari posisinya, `attempts` baris tetap riwayat; kalimat penundaan bukan
+pesan penyedia dan tidak dibawa `failed()` (`QuietHours::isPostponedSentence`). Jendela
 melintasi tengah malam: awal inklusif, akhir eksklusif, sisi malam → besok pagi, sisi pagi →
 hari ini. `resumeAt()` memulangkan zona aplikasi — Eloquent memformat Carbon dalam zona objeknya,
 dan Carbon UTC di kolom `datetime` bergeser tujuh jam (kelas cacat absensi F-4; ditemukan lagi
