@@ -9,6 +9,7 @@ use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ArInvoice;
 use Modules\Finance\Models\Tax;
 use Modules\Finance\Services\TaxExportService;
+use Modules\Finance\Support\DjpFormats;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -88,7 +89,10 @@ class TaxExportTest extends ErpTestCase
         $this->assertSame(0, $export['summary']['blocked']);
         $this->assertSame(100_000_000.0, $export['summary']['dpp']);
         $this->assertSame(11_000_000.0, $export['summary']['ppn']);   // 100jt x 11%
-        $this->assertSame('efaktur-2026-03.csv', $export['filename']);
+        // P-3b: selama tata letaknya belum dicocokkan dengan berkas contoh resmi
+        // (docs/samples/pajak/ kosong), namanya mengatakan itu — DjpFormatsTest
+        // menjaga kedua keadaan; di sini hanya nama hari ini yang dipaku.
+        $this->assertSame('efaktur-2026-03-belum-diverifikasi.csv', $export['filename']);
     }
 
     /**
@@ -198,6 +202,86 @@ class TaxExportTest extends ErpTestCase
         $this->assertSame(0, $export['summary']['exported']);
         $this->assertSame(1, $export['summary']['blocked']);
         $this->assertStringContainsString('Nomor faktur pajak belum diisi', $export['blockers'][0]['reason']);
+    }
+
+    /**
+     * V2-6: pintu tulis kini menerima 16 digit (NIK/NPWP baru) dan 22 digit
+     * (NITKU), sedangkan kedua writer disalin dari skema yang mengasumsikan 15
+     * digit dan penghalangnya hanya "< 15". Baris seperti itu TETAP diekspor
+     * (kolom tidak diubah, importer yang memutuskan) — tetapi disebut, dengan
+     * bentuknya, di `notes` + `summary.noted`, dan layar menggambarnya.
+     */
+    public function test_an_exported_row_whose_npwp_is_not_15_digits_is_named_in_the_notes_not_blocked(): void
+    {
+        $this->approvedInvoice(['customer' => ['name' => 'PT Cabang NITKU', 'npwp' => '0012345678011000000002'], 'invoice' => ['code' => 'INV-NITKU']]);
+        $this->approvedInvoice(['customer' => ['name' => 'PT Lima Belas', 'npwp' => '01.345.678.9-091.000'], 'faktur' => '010.000-26.00000002']);
+
+        $export = $this->exports->eFaktur(2026, 3);
+
+        $this->assertSame([], $export['blockers']);
+        $this->assertSame(2, $export['summary']['exported']);
+        $this->assertSame(1, $export['summary']['noted']);
+        $this->assertCount(1, $export['notes']);
+        $this->assertSame('PT Cabang NITKU', $export['notes'][0]['partner']);
+        $this->assertSame('0012345678011000000002', $export['notes'][0]['npwp']);
+        // Kalimat persis seperti yang dikutip PANDUAN §10.12 — bukan '22 digit (NITKU (22 digit))' (R2-kejujuran-3).
+        $this->assertStringContainsString('tersimpan 22 digit (NITKU); skema e-Faktur desktop', $export['notes'][0]['note']);
+        $this->assertStringNotContainsString('((', $export['notes'][0]['note']);
+        $this->assertStringContainsString('mengasumsikan 15 digit', $export['notes'][0]['note']);
+        $this->assertStringContainsString('cocokkan baris ini dengan template resmi sebelum mengimpor', $export['notes'][0]['note']);
+        // Kolom NPWP di berkas TIDAK diubah: 22 digit apa adanya pada rekaman FK.
+        $fk = collect($this->recordsOfType($export['csv'], 'FK'))->map(fn (string $line): array => str_getcsv($line))
+            ->first(fn (array $r): bool => ($r[7] ?? null) === '0012345678011000000002');
+        $this->assertNotNull($fk, 'baris NITKU tidak diekspor apa adanya');
+
+        // e-Bupot: vendor 16 digit → satu catatan; 15 digit → tidak ada.
+        $this->billWithholding(vendorNpwp: '0013345567007000');
+        $bupot = $this->exports->eBupot(2026, 3);
+
+        $this->assertSame([], $bupot['blockers']);
+        $this->assertSame(1, $bupot['summary']['noted']);
+        $this->assertStringContainsString('tersimpan 16 digit (NPWP 16 digit / NIK); skema e-Bupot Unifikasi', $bupot['notes'][0]['note']);
+
+        // Layar: kartu catatan dan hitungannya dibaca dari API, tidak disusun sendiri.
+        $screen = (string) file_get_contents(public_path('app/js/views/taxexport.js'));
+        // Struktural, bukan sekadar "string ada": penjaga kartu catatan persis seperti ini
+        // (mutasi `|| true` yang mematikan kartu LOLOS HIJAU pada paku string — R2-kejujuran-2).
+        $this->assertMatchesRegularExpression('/if \(!exp\.notes \|\| !exp\.notes\.length\) return null;/', $screen,
+            'penjaga notesCard() berubah — kartu .djp-npwp-notes bisa tidak pernah digambar');
+        $this->assertMatchesRegularExpression('/el\(\'\.card\.djp-npwp-notes\'/', $screen);
+        $this->assertMatchesRegularExpression('/s\.noted \? `[^`]*\$\{s\.noted\} baris perlu dicocokkan` : \'\'/', $screen,
+            'ubin Siap diekspor tidak menyebut jumlah baris yang perlu dicocokkan');
+    }
+
+    public function test_a_15_digit_npwp_gets_no_note(): void
+    {
+        $this->approvedInvoice();
+
+        $export = $this->exports->eFaktur(2026, 3);
+
+        $this->assertSame([], $export['notes']);
+        $this->assertSame(0, $export['summary']['noted']);
+    }
+
+    /**
+     * R2-kejujuran-1: "hanya selama formatnya belum diverifikasi" dipaku dengan
+     * entri registri buatan yang terverifikasi — hari ini tidak satu pun format
+     * terverifikasi, jadi menghapus penjaganya dulu LOLOS HIJAU.
+     */
+    public function test_the_note_disappears_once_the_format_is_verified(): void
+    {
+        $unverified = DjpFormats::get(DjpFormats::EFAKTUR_CSV_LEGACY);
+        $verified = DjpFormats::describe([
+            'key' => 'contoh', 'label' => 'Contoh', 'status' => 'ada', 'authority' => 'DJP', 'source' => 'uji',
+            'writer' => true, 'verified_against' => ['path' => 'docs/samples/pajak/README.md', 'date' => '2026-09-12'], 'awaiting_file' => null,
+        ]);
+        $this->assertFalse($unverified['verified']);
+        $this->assertTrue($verified['verified']);
+
+        $this->assertNotNull(TaxExportService::npwpShapeNoteFor($unverified, '0012345678011000000002', 'pelanggan', 'PT X', 'e-Faktur desktop'));
+        $this->assertNull(TaxExportService::npwpShapeNoteFor($verified, '0012345678011000000002', 'pelanggan', 'PT X', 'e-Faktur desktop'));
+        $this->assertNull(TaxExportService::npwpShapeNoteFor($unverified, '01.234.567.8-011.000', 'pelanggan', 'PT X', 'e-Faktur desktop'));
+        $this->assertNull(TaxExportService::npwpShapeNoteFor($unverified, '01 234 567 8 011 000', 'pelanggan', 'PT X', 'e-Faktur desktop'));
     }
 
     public function test_a_customer_without_an_npwp_is_reported(): void

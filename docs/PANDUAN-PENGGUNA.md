@@ -181,7 +181,7 @@ isinya, dan keadaan lipatan itu diingat peramban Anda.
 | Persediaan | Saldo Stok · Item · Kategori Item · Gudang · Penerimaan (GRN) · Pengeluaran · Transfer · Opname |
 | Subkontrak | SPK Subkon · Addendum SPK · Opname Subkon · BAST Subkon · SP3 Mandor · Opname Mandor |
 | Keuangan | Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Kasir Kas Kecil · Kas Kecil & Kasbon · Jurnal · Biaya Proyek · Termin Siap Ditagih · Piutang Retensi · Pengakuan Pendapatan · Periode Fiskal · Laporan Keuangan · Buku Besar · Ekspor Pajak · Kalender Pajak · Ekualisasi Pajak · Rekonsiliasi Bank · Bagan Akun · Pajak · Rekening Bank |
-| SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll |
+| SDM & Payroll | Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi Harian · Rekap Absensi · Payroll · Rekap PPh 21 Bulanan |
 | Layanan | Tiket · Tiket Lewat SLA · Kepuasan Pelanggan · Kontrak Layanan · Jadwal Preventif · Berita Acara |
 | Aset | Daftar Aset · Kategori Aset · Mobilisasi · Log BBM & Jam Alat · Perawatan · Penyusutan · Utilisasi Aset · Evaluasi Sewa vs Beli |
 | Sistem | Pengguna · Peran & Hak Akses · Profil Perusahaan · Impor Data Master · Impor Dokumen · Pengaturan |
@@ -2848,6 +2848,13 @@ Kolomnya: **Vendor** (wajib) · **Jenis** (wajib: NIB / SIUP / NPWP / SPPKP (PKP
 Konstruksi / SKK Penanggung Jawab / Sertifikat Principal / Akta Perusahaan / Komitmen
 K3L / Pakta Integritas / **CV Mandor** / Lainnya) · **Nama dokumen** (wajib) · Nomor ·
 Penerbit · Terbit · Berlaku s/d (≥ Terbit) · **Wajib untuk PO/SPK** · Catatan.
+
+**Nomor pada jenis NPWP mengikuti aturan NPWP** (P-3b): 15 / 16 / 22 digit seperti kolom NPWP
+di formulir vendor (titik, strip, spasi boleh); bentuk lain ditolak dengan kalimat yang sama.
+Jenis lain (SIUP, SBU, akta, …) menerima nomor apa adanya dari berkasnya. Nomor lama pada
+dokumen NPWP yang sudah ada boleh dikirim kembali apa adanya saat menyunting kolom lain;
+mengganti jenis dokumen lain MENJADI NPWP memeriksa nomornya. Teks bantuan kolom Nomor
+mengatakannya.
 
 **CV Mandor** adalah lembar kualifikasi mandor borongan (P4): rekamlah CV-nya di sini
 (lampirkan berkasnya bila ada), dan lembar cetak F/CVM di halaman vendor (§5.2) akan
@@ -7058,15 +7065,48 @@ layar Kalender Pajak dahulu"*.
 Periode bawaannya bulan yang baru saja lewat. Dua tab: **e-Faktur (PPN Keluaran)** dan
 **e-Bupot (PPh Dipotong)**, masing-masing menyebut jumlah yang siap diekspor.
 
-Pemberitahuan tetap di layar:
+**Kartu pertama — "Format berkas DJP/BPJS — status verifikasi" (P-3b).** Lima baris, satu per
+format yang dikenal sistem: e-Faktur CSV (skema desktop), e-Faktur Coretax XML, e-Bupot
+Unifikasi CSV, e-Bupot PPh 21/26 bulanan, SIPP BPJS. Tiap baris membawa dua lencana —
+**Ada** / **Menunggu template**, dan **Belum diverifikasi terhadap template DJP** (amber) atau
+**Diverifikasi {tanggal}** (hijau) — plus kalimat sumber resminya. Selama folder
+`docs/samples/pajak/` belum berisi berkas contoh resmi yang diunduh pemilik/konsultan,
+**semua** format berlencana amber, dan itu bukan galat: sistem memang tidak mengarang tata
+letak berkas DJP. Format yang **Menunggu template** tidak punya tombol unduh; ia menyebut
+berkas apa yang harus diletakkan di `docs/samples/pajak/` (nama berpola, bertanggal — lihat
+README di folder itu). Baris e-Bupot 21/26 menautkan ke rekap internal
+(`SDM & Payroll › Rekap PPh 21 Bulanan`, §11.8) bagi pemegang `hr.view`.
 
-> "Tata letak kolom mengikuti skema impor e-Faktur/e-Bupot dan dapat berubah mengikuti
-> ketentuan DJP. Impor satu periode ke lingkungan uji dan cocokkan totalnya sebelum dipakai
-> untuk pelaporan."
+Di atas tiap tab, kotak amber mengulang kalimat verifikasi format tab itu, misalnya:
+
+> "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di
+> docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya
+> sebelum dipakai melapor (docs/samples/pajak/README.md)."
+
+Kalimat itu datang dari registri server, bukan dari layar, dan ia juga ada pada **nama
+berkas** (`efaktur-2026-03-belum-diverifikasi.csv`) dan sebagai **baris pertama** berkas yang
+diunduh (`# BELUM DIVERIFIKASI …`). Kolom data di bawahnya tidak berubah. Sesudah pemilik
+meletakkan berkas resmi dan pengembang mengisi `verified_against`, akhiran nama dan baris
+komentar itu hilang dengan sendirinya.
 
 Kotak: Siap diekspor · Total DPP · PPN keluaran / PPh dipotong · **Tertahan**. Kartu
 **"Isi berkas — {nama file}"** dengan **`Unduh CSV`**, lalu kartu **"Tertahan — tidak masuk
 file (N)"** berisi alasan per dokumen.
+
+**Baris pertama berkas yang belum diverifikasi harus dihapus sebelum diimpor.** Baris `#`
+itu berbunyi *"… Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di
+baris 1."*, dan kartu **Isi berkas** mengulangnya (kalimat dari registri server). Aplikasi
+DJP mengharapkan header di baris 1; berkas yang diunduh sengaja tidak bisa diimpor apa
+adanya selama formatnya belum dicocokkan dengan template resmi.
+
+**Kartu "Perlu dicocokkan — NPWP bukan 15 digit (N)"** muncul bila ada baris yang DIEKSPOR
+dengan NPWP 16 digit (NIK / NPWP baru) atau 22 digit (NITKU): skema e-Faktur desktop dan
+e-Bupot yang disalin aplikasi mengasumsikan 15 digit, dan penghalang hanya menahan yang
+kurang dari 15. Baris itu tetap masuk berkas dengan nomornya apa adanya — kolom tidak
+diubah — dan kartu menyebutnya per dokumen (*"NPWP pelanggan {nama} tersimpan 22 digit
+(NITKU); skema e-Faktur desktop yang disalin aplikasi mengasumsikan 15 digit — cocokkan
+baris ini dengan template resmi sebelum mengimpor."*). Ubin **Siap diekspor** menghitungnya
+(*"N baris perlu dicocokkan"*). Kartu ini hilang sendiri sesudah formatnya diverifikasi.
 
 Penghalang e-Faktur:
 
@@ -7127,7 +7167,7 @@ Bank · Nomor rekening · Atas nama · **Akun COA**. Menghapus ditolak:
 ## 11. SDM
 
 Kelompok **SDM & Payroll**: **Karyawan · Sertifikat & PKWT · Cuti & Izin · Absensi
-Harian · Rekap Absensi · Payroll**.
+Harian · Rekap Absensi · Payroll · Rekap PPh 21 Bulanan**.
 
 ### 11.1 Siapa boleh apa
 
@@ -7147,8 +7187,9 @@ Status. Saringan: Departemen, Status, Status kerja.
 Formulir, tiga bagian:
 
 - *Data pribadi*: **Nama lengkap** (wajib) · **NIK KTP** (wajib, **tepat 16 digit dan
-  unik**) · NPWP · **Jenis kelamin** (wajib) · **Tanggal lahir** (wajib, harus sebelum
-  hari ini) · **Status PTKP** (wajib, TK/0 sampai K/3).
+  unik**) · NPWP (bila diisi: 15, 16, atau 22 digit — lihat §11.8 untuk aturannya) ·
+  **Jenis kelamin** (wajib) · **Tanggal lahir** (wajib, harus sebelum hari ini) ·
+  **Status PTKP** (wajib, TK/0 sampai K/3).
 - *Kepegawaian*: **Jabatan** (wajib) · **Departemen** (wajib: Proyek / Engineering /
   Keuangan / HR & GA / Procurement / Servis) · **Status kerja** (wajib: Karyawan Tetap
   (PKWTT) / Karyawan Kontrak (PKWT) / Tenaga Harian Lepas) · **Dasar PKWT** · **Akhir
@@ -7414,6 +7455,71 @@ Badan · PPN Keluaran · Beban Yang Masih Harus Dibayar**. Selain itu ditolak:
 Plafon per akun yang ditampilkan layar adalah kredit terposting **sampai akhir bulan
 tanggal pembayaran** dikurangi debit terposting — itulah yang memungkinkan pembayaran
 tanggal 25 Juni melunasi akrual bertanggal 30 Juni.
+
+### 11.8 Rekap PPh 21/26 Bulanan — `SDM & Payroll › Rekap PPh 21 Bulanan`
+
+Layar **baca saja** (P-3b), untuk pemegang izin lihat SDM. Pilih masa (bawaan: bulan yang
+baru lewat). Satu baris per pegawai: **Pegawai · NIK / NPWP · Jenis identitas · Bruto · TER
+(kategori · tarif) · PPh 21** — dibentuk dari **slip gaji run yang sudah disetujui/diposting**
+pada masa itu, bukan dihitung ulang dari gaji hari ini. Gaji dan THR di bulan yang sama
+dijumlahkan ke satu baris; arahkan kursor ke angka PPh 21 untuk melihat pembagiannya per
+run.
+
+Judul layar berbunyi persis: *"Rekap internal PPh 21/26 bulanan — untuk diisi ke e-Bupot
+21/26 oleh petugas pajak. BUKAN berkas impor DJP."* Kotak amber di bawahnya mengulang status
+format impor e-Bupot 21/26 dari registri (§10.12): **Menunggu template** dan **BELUM
+DIVERIFIKASI terhadap template DJP** — sistem tidak mengarang tata letak berkas DJP.
+
+Kartu **"Run payroll masa ini"** menyebut setiap run masa itu: yang **Disetujui/Selesai**
+masuk rekap; yang **Draf / Diajukan / Ditolak** ditandai *"tidak masuk rekap; hanya run yang
+disetujui/diposting yang dihitung"*. Rekap kosong pada bulan yang run-nya masih draf berkata
+begitu, bukan "tidak ada gaji".
+
+Ubin: **Pegawai · Total bruto · Total PPh 21 · Pegawai tanpa identitas pajak**. Identitas
+diambil dari data pegawai hari ini: NPWP bila bentuknya dikenali (15 / 16 / 22 digit), bila
+tidak NIK bila 16 digit, bila tidak pun **sel dibiarkan kosong** — bukan 0, bukan garis —
+dengan sebabnya pada keterangan sel (arahkan kursor), dan pegawainya dihitung di ubin itu.
+Baris pegawai itu tetap ada beserta angkanya; lengkapi NPWP/NIK-nya di **Karyawan**. Masa
+Desember tidak punya kategori TER (perhitungan tahunan Pasal 17): kolom TER kosong.
+
+**Sel identitas kosong TIDAK berarti PPh 21-nya dipotong dengan tambahan 20 %.** Payroll
+menganggap pegawai ber-identitas bila kolom NPWP ATAU NIK terisi apa pun **pada saat run
+dihitung** — jadi pegawai warisan yang NIK-nya "BELUM-ADA" dipotong dengan **tarif normal**,
+sedangkan pegawai yang kedua kolomnya kosong dipotong **120 %**. Keputusan itu **dibekukan di
+slip** bersama angkanya, dan rekap membacanya dari sana: pada baris bersel kosong, kalimat di
+bawah nama pegawai menyebut mana yang terjadi (*"PPh 21 slip dihitung dengan tarif NORMAL,
+tanpa tambahan 20 % — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK
+tidak kosong)."* atau *"PPh 21 slip dihitung DENGAN tambahan 20 % (tanpa NPWP/NIK saat run
+dihitung)."*), dan ubin **Pegawai tanpa identitas pajak** menyebut berapa yang tarif normal.
+Melengkapi NIK **sesudah** run disetujui tidak mengubah slip maupun kalimatnya — baris yang
+kini dikenali tetapi slipnya 120 % berkata *"Identitas kini dikenali, tetapi slip masa ini
+dihitung DENGAN tambahan 20 % — NPWP/NIK dilengkapi sesudah run dihitung; angka slip tidak
+dihitung ulang."* Slip yang dihitung sebelum kolom ini ada (run lama) disimpulkan dari
+angkanya bila mungkin (gaji bulanan non-Desember); bila tidak — THR lama, Desember lama,
+bruto nol — kalimatnya berbunyi *"Perlakuan slip ini tidak tercatat (slip lama). Menurut data
+pegawai SAAT INI payroll akan memotong …; angka slip masa ini tidak dihitung ulang dan bisa
+berbeda."*, **juga pada baris yang identitasnya dikenali hari ini** (sel kosong di kolom
+perlakuan berarti "dikenali dan tarif normal", dan itu tidak diketahui untuk slip lama).
+Gaji dan THR satu bulan yang dihitung dengan perlakuan berbeda (NIK dilengkapi di antara dua
+run) disebut per run: *"Slip masa ini dihitung dengan perlakuan yang BERBEDA antar run —
+PYR/…: tambahan 20 %; PYR/…: tarif normal."*; bila salah satunya slip lama tanpa catatan:
+*"Sebagian slip masa ini tidak tercatat perlakuannya (slip lama) — …"*. Ubin **Pegawai tanpa
+identitas pajak** juga menyebut *"N dikenali kini tetapi slipnya 120 %"*. Rekap tidak
+menghitung ulang apa pun; mengubah definisi identitas payroll adalah keputusan pemilik.
+
+**`Unduh CSV rekap internal`** → `rekap-internal-pph21-YYYY-MM.csv`: pemisah titik koma,
+desimal koma (Excel Indonesia), baris pertama berbunyi label yang sama dengan judul layar
+beserta run yang membentuknya. Sel identitas yang tidak dikenali kosong di berkas juga, dan
+kolom terakhir **`perlakuan_identitas`** menyebut perlakuannya (*tarif normal* / *tambahan 20 %*
+/ *tambahan 20 % (identitas dilengkapi sesudah run)* / *tidak tercatat* / *berbeda antar slip*
+/ *sebagian tidak tercatat*; **kosong hanya bila dikenali DAN tercatat atau disimpulkan tarif
+normal**) — dua baris bersel kosong dengan bruto sama tetapi PPh 157.500 dan 189.000 bisa
+dibedakan dari berkasnya saja. Pegawai yang terhapus keras dari basis data tetap punya baris:
+kode `#<id>` dan nama *Data pegawai tidak ditemukan*.
+
+Catatan di kaki layar, dari server: tabel TER (PMK 168/2023) disalin ke kode dan ditandai
+**perlu dicek terhadap peraturan yang berlaku** — bukan janji bahwa angkanya sudah
+diperiksa. NTPN tetap dicatat manual di Kalender Pajak (§10.10).
 
 ---
 

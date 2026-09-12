@@ -4,6 +4,7 @@ namespace Modules\Crm\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Core\Rules\ValidNpwp;
 
 class CustomerUpdateRequest extends FormRequest
 {
@@ -20,7 +21,8 @@ class CustomerUpdateRequest extends FormRequest
             'code' => ['sometimes', 'string', 'max:40', Rule::unique('crm_customers', 'code')->ignore($customerId)],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'legal_name' => ['nullable', 'string', 'max:255'],
-            'npwp' => ['nullable', 'string', 'max:30'],
+            // P-3b: nilai lama yang dikirim kembali apa adanya bukan penulisan baru (maju-saja).
+            'npwp' => ['nullable', 'string', 'max:30', ValidNpwp::unlessUnchanged($this->route('customer')?->npwp)],
             'is_pkp' => ['nullable', 'boolean'],
             'billing_address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:100'],

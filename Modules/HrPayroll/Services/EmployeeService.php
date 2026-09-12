@@ -54,13 +54,35 @@ class EmployeeService
      */
     public function nextCode(): string
     {
-        $last = Employee::withTrashed()
-            ->where('code', 'like', 'EMP-%')
-            ->orderByDesc('code')
-            ->value('code');
+        // Only codes of the EMP-<digits> family count (R2-pintu-2): the importer
+        // accepts any code, and one imported 'EMP-X' sorted above 'EMP-0009'
+        // lexically, (int) substr gave 0, and every form create after it died
+        // 500 on the unique index with 'EMP-0001'.
+        // 1–9 digits only (R3-pintu-1): an imported 'EMP-' + 20 digits cast to
+        // PHP_INT_MAX, $max + 1 became a float, the code came out as
+        // 'EMP-9.2233720368548E+18' and the safety net below never terminated.
+        $max = 0;
 
-        $next = $last === null ? 1 : ((int) substr((string) $last, 4)) + 1;
+        foreach (Employee::withTrashed()->where('code', 'like', 'EMP-%')->pluck('code') as $code) {
+            if (preg_match('/^EMP-(\d{1,9})$/', (string) $code, $m) === 1) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
 
-        return 'EMP-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        $next = $max + 1;
+
+        // Safety net against a code that matches the pattern but sits outside
+        // the numeric maximum (e.g. 'EMP-00009' padded differently) — bounded.
+        for ($i = 0; $i < 10_000; $i++) {
+            $candidate = 'EMP-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+
+            if (! Employee::withTrashed()->where('code', $candidate)->exists()) {
+                return $candidate;
+            }
+
+            $next++;
+        }
+
+        throw new \RuntimeException('Tidak menemukan kode karyawan EMP-nnnn yang bebas dalam 10.000 percobaan.');
     }
 }

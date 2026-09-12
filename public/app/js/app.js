@@ -56,6 +56,7 @@ import { renderKalender } from './views/kalender.js';
 import { renderKasKecil } from './views/kaskecil.js';
 import { renderBukuBesar } from './views/bukubesar.js';
 import { renderKalenderPajak } from './views/kalenderpajak.js';
+import { renderRekapPph21 } from './views/rekappph21.js';
 import { renderEkualisasi } from './views/ekualisasi.js';
 import { renderGaleriProyek } from './views/galeriproyek.js';
 import { renderPipeline } from './views/pipeline.js';
@@ -1007,6 +1008,15 @@ function registerRoutes() {
     const host = view();
     if (!session.can('hr.view')) return accessDenied(host, 'hr');
     return guard(host, () => renderUsulanRekap(host));
+  });
+
+  // P-3b — rekap internal PPh 21/26 bulanan (baca-saja, hr.view seperti API-nya).
+  route('rekap-pph21', () => {
+    setCrumbs(['SDM & Payroll', 'Rekap PPh 21 Bulanan']);
+    setActiveNav('rekap-pph21');
+    const host = view();
+    if (!session.can('hr.view')) return accessDenied(host, 'hr');
+    return guard(host, () => renderRekapPph21(host));
   });
 
   route('absensi-saya', () => {

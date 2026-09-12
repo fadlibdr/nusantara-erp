@@ -315,6 +315,72 @@ class MasterDataImportTest extends ErpTestCase
         $this->imports->commit('employees', 'e.csv', $this->employeeFile($joinDate));
     }
 
+    /**
+     * The import gate and the employee form must agree on what a NIK is. The
+     * form says digits:16; this column said size:16 — sixteen LETTERS landed
+     * through the importer and then surfaced in the PPh 21 recap as an empty
+     * identity cell saying 'NIK tersimpan "ABCDEFGHIJKLMNOP" bukan 16 digit'
+     * (V3-3). Same rule at both gates: the letter row is skipped and named,
+     * the digit row lands.
+     */
+    public function test_a_nik_of_sixteen_letters_is_refused_by_the_importer_exactly_like_the_form(): void
+    {
+        $result = $this->imports->commit('employees', 'e.csv', $this->csv(
+            "kode,nama,nik_ktp,jenis_kelamin,tanggal_lahir,status_ptkp,tanggal_masuk,jenis_hubungan_kerja,jabatan,departemen\n"
+            ."EMP-901,Impor NIK Huruf,ABCDEFGHIJKLMNOP,male,1990-01-01,K/1,2026-01-05,tetap,Pelaksana,proyek\n"
+            ."EMP-902,Impor NIK Digit,3201010101900002,male,1990-01-01,K/1,2026-01-05,tetap,Pelaksana,proyek\n",
+        ));
+
+        $this->assertSame(1, $result['created']);
+        $this->assertSame(1, $result['skipped']);
+        $this->assertSame('EMP-901', $result['rows'][0]['key']);
+        $this->assertStringContainsString('harus 16 digit', implode(' ', $result['rows'][0]['errors']));
+        $this->assertNull(DB::table('hr_employees')->where('code', 'EMP-901')->value('id'));
+        $this->assertSame('3201010101900002', DB::table('hr_employees')->where('code', 'EMP-902')->value('nik_ktp'));
+    }
+
+    /**
+     * R2-pintu-1: the app's own export carries nik_ktp, so "export → edit a
+     * column in Excel → import back" sends every legacy NIK back exactly as
+     * stored. Like npwp, an unchanged value is not a new NIK: the row's other
+     * edits land. A CHANGED bad NIK, and a new row with a bad NIK, are skipped.
+     */
+    public function test_a_legacy_nik_sent_back_unchanged_lets_the_rows_other_edits_land(): void
+    {
+        DB::table('hr_employees')->insert([
+            'code' => 'EMP-LAMA', 'name' => 'Pegawai Warisan', 'nik_ktp' => 'BELUM-ADA', 'gender' => 'male',
+            'birth_date' => '1988-04-01', 'ptkp_status' => 'TK/0', 'join_date' => '2020-01-01', 'employment_type' => 'tetap',
+            'position' => 'Operator', 'department' => 'proyek', 'base_salary' => 9000000, 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('hr_employees')->insert([
+            'code' => 'EMP-LAIN', 'name' => 'Pegawai Lain', 'nik_ktp' => 'BELUM-JUGA', 'gender' => 'male',
+            'birth_date' => '1988-04-01', 'ptkp_status' => 'TK/0', 'join_date' => '2020-01-01', 'employment_type' => 'tetap',
+            'position' => 'Operator', 'department' => 'proyek', 'base_salary' => 9000000, 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $header = "kode,nama,nik_ktp,jenis_kelamin,tanggal_lahir,status_ptkp,tanggal_masuk,jenis_hubungan_kerja,jabatan,departemen\n";
+        $result = $this->imports->commit('employees', 'e.csv', $this->csv(
+            $header
+            ."EMP-LAMA,Pegawai Warisan,BELUM-ADA,male,1988-04-01,TK/0,2020-01-01,tetap,Mandor,proyek\n"      // NIK lama apa adanya → jabatan mendarat
+            ."EMP-LAIN,Pegawai Lain,BELUM-LAGI,male,1988-04-01,TK/0,2020-01-01,tetap,Mandor,proyek\n"      // NIK DIUBAH ke bentuk salah → dilewati
+            ."EMP-BARU,Pegawai Baru,BELUM-ADA-BARU,male,1990-01-01,K/1,2026-01-05,tetap,Pelaksana,proyek\n", // baris BARU: aturan penuh
+        ));
+
+        $this->assertSame(1, $result['updated']);
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(2, $result['skipped']);
+        $this->assertSame(['EMP-LAIN', 'EMP-BARU'], array_column($result['rows'], 'key'));
+        foreach ($result['rows'] as $row) {
+            $this->assertStringContainsString('harus 16 digit', implode(' ', $row['errors']), $row['key']);
+        }
+        $this->assertSame('Mandor', DB::table('hr_employees')->where('code', 'EMP-LAMA')->value('position'));
+        $this->assertSame('BELUM-ADA', DB::table('hr_employees')->where('code', 'EMP-LAMA')->value('nik_ktp'));
+        $this->assertSame('Operator', DB::table('hr_employees')->where('code', 'EMP-LAIN')->value('position'));
+        $this->assertNull(DB::table('hr_employees')->where('code', 'EMP-BARU')->value('id'));
+    }
+
     // ------------------------------------------------------------- the lookup
 
     public function test_a_category_is_matched_by_its_code(): void

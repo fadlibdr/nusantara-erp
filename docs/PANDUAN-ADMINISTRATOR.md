@@ -962,6 +962,18 @@ Kolom mana yang benar-benar terpakai:
 > Satu-satunya instruksi jujur adalah: **buka Sistem → Profil Perusahaan dan periksa
 > sendiri sebelum invoice pertama dan ekspor pajak pertama.**
 
+**Bentuk NPWP diperiksa saat disimpan — di kelima pintu (P-3b).** Profil perusahaan,
+pelanggan, vendor, karyawan (formulir DAN Impor Data Master), dan nomor **Dokumen Vendor
+berjenis NPWP** (jenis lain bebas) memakai satu aturan:
+NPWP diperiksa saat DISIMPAN (P-3b): **15 digit** (format lama), **16 digit** (NPWP baru; untuk orang pribadi = NIK), atau **22 digit** (NITKU) — titik, strip, dan spasi boleh; tidak ada digit periksa. Nilai lama yang tidak memenuhi bentuk itu tetap terbaca dan boleh dikirim kembali apa adanya saat menyunting kolom lain; hanya nilai yang DIUBAH yang diperiksa.
+Yang tidak diperiksa: apakah nomornya milik badan yang benar — itu tetap tugas manusia.
+Aturan maju-saja yang sama berlaku untuk **NIK karyawan** (`digits:16` di formulir DAN importer):
+NIK warisan yang dikirim kembali persis seperti tersimpan tidak menyandera suntingan kolom lain;
+NIK yang diubah diperiksa bentuk dan keunikannya.
+Status verifikasi setiap format berkas DJP/BPJS terhadap template resmi tertulis di kartu
+pertama layar Ekspor Pajak dan di `docs/samples/pajak/README.md` (folder yang harus diisi
+pemilik/konsultan; kosong pada 12 Sep 2026).
+
 **Logo perusahaan tidak bisa disetel dari aplikasi.** `logo_path` tidak ada di daftar
 kolom tervalidasi `CompanyController::update()`, tidak ada di formulir SPA
 (`public/app/js/views/custom.js:2062+`), dan tidak ada rute unggah untuk itu.
@@ -1397,7 +1409,14 @@ sehingga menjalankan ulang berkas yang sudah diperbaiki **memperbarui, bukan
 menggandakan**.
 
 **A. Data master rata** — Sistem → Impor Data Master. **Lima sumber daya** (dokumen
-lama menulis "empat" — Lokasi Tapak menyusul di P1-ENG dan luput dicatat di sini):
+lama menulis "empat" — Lokasi Tapak menyusul di P1-ENG dan luput dicatat di sini). Kolom
+`npwp` pada vendors/customers/employees tunduk pada aturan bentuk NPWP §4.2 per baris:
+baris yang bentuknya salah dilewati dan dilaporkan dengan kalimatnya, baris lain mendarat;
+lembar yang tidak membawa kolom `npwp` membiarkan nilai lama apa adanya; dan **baris lama yang
+mengirim NPWP lamanya kembali persis seperti tersimpan tidak diperiksa ulang** — jadi
+ekspor → sunting kolom lain di Excel → impor balik memperbarui semua baris, termasuk yang
+NPWP-nya `N/A` warisan (aturan yang sama dengan formulir; hanya nilai yang DIUBAH dan baris
+BARU yang diperiksa):
 
 | Sumber daya | Izin | Kolom wajib |
 |---|---|---|
@@ -1446,11 +1465,15 @@ nomor rekening berawalan nol, dan barcode dibaca sebagai **teks**.
 >    memakai soft delete, jadi baris terhapus tak terlihat oleh pencarian importer,
 >    lalu `create()` menabrak indeks unik pada `code`. **1.999 baris baik ikut hilang.**
 > 2. **NIK ganda melakukan hal yang sama.** `hr_employees.nik_ktp` UNIK di skema, tetapi
->    aturan importer hanya `string, size:16` tanpa pemeriksaan unik — dua kode karyawan
->    berbagi satu NIK lolos pratinjau dan meledak saat commit. Importer dan formulir
->    karyawan juga tidak sepakat: formulir menuntut **16 digit** dan unik, importer
->    menerima 16 **karakter** apa pun. NIK 16 karakter non-numerik lolos impor lalu
->    gagal di formulir sunting sesudahnya.
+>    aturan importer `digits:16` tanpa pemeriksaan unik — dua kode karyawan
+>    berbagi satu NIK lolos pratinjau dan meledak saat commit. (Sejak P-3b importer dan
+>    formulir SEPAKAT soal bentuk: keduanya menuntut **16 digit** dan keduanya maju-saja —
+>    NIK warisan yang dikirim kembali apa adanya tidak diperiksa ulang, jadi ekspor → sunting
+>    → impor balik tetap memperbarui baris ber-NIK warisan; NIK enam belas huruf yang BARU
+>    dilewati dengan kalimat *"nik_ktp harus 16 digit."* — yang belum sepakat hanya
+>    keunikannya.) Kode karyawan bebas berawalan `EMP-` yang bukan angka (mis. `EMP-X`) dulu
+>    membuat setiap tambah karyawan dari formulir jatuh 500 pada indeks unik kode — sudah
+>    dibetulkan (P-3b putaran kedua): penomoran hanya menghitung kode `EMP-<angka>`.
 > 3. **`kategori_kode` dicari tanpa filter soft-delete**, jadi kategori yang sudah
 >    dihapus tetap ketemu dan item yang diimpor menempel padanya — item yang tidak
 >    dicantumkan layar mana pun.

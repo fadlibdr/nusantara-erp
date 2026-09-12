@@ -25,6 +25,7 @@ class Payslip extends BaseModel
             'bpjs_company_total' => 'decimal:2',
             'ter_rate' => 'decimal:4',
             'pph21_amount' => 'decimal:2',
+            'has_tax_id' => 'boolean',
             'total_deductions' => 'decimal:2',
             'net_pay' => 'decimal:2',
         ];

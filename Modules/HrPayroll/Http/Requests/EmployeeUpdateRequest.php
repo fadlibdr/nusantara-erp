@@ -7,6 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\HrPayroll\Enums\EmploymentType;
 use Modules\HrPayroll\Enums\PkwtBasis;
 use Modules\HrPayroll\Enums\PtkpStatus;
@@ -57,8 +58,18 @@ class EmployeeUpdateRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'nik_ktp' => ['sometimes', 'required', 'digits:16', Rule::unique('hr_employees', 'nik_ktp')->ignore($employee?->id)],
-            'npwp' => ['nullable', 'string', 'max:30'],
+            // P-3b R2-pintu-1: maju-saja seperti npwp — NIK warisan yang dikirim
+            // kembali PERSIS seperti tersimpan bukan penulisan NIK baru (formulir
+            // SPA selalu mengirim seluruh baris), jadi menyunting kolom lain pada
+            // pegawai ber-NIK "BELUM-ADA" tidak tersandera; NIK yang BERUBAH
+            // diperiksa penuh, keunikannya selalu.
+            'nik_ktp' => array_values(array_filter([
+                'sometimes', 'required',
+                $this->nikUnchanged($employee) ? null : 'digits:16',
+                Rule::unique('hr_employees', 'nik_ktp')->ignore($employee?->id),
+            ])),
+            // P-3b: nilai lama yang dikirim kembali apa adanya bukan penulisan baru (maju-saja).
+            'npwp' => ['nullable', 'string', 'max:30', ValidNpwp::unlessUnchanged($this->route('employee')?->npwp)],
             'gender' => ['sometimes', 'required', Rule::in(['male', 'female'])],
             'birth_date' => ['sometimes', 'required', 'date', 'before:today'],
             'ptkp_status' => ['sometimes', 'required', Rule::enum(PtkpStatus::class)],
@@ -157,5 +168,16 @@ class EmployeeUpdateRequest extends FormRequest
             'pkwt_end_date.after' => 'Tanggal akhir PKWT harus setelah tanggal masuk.',
             'pkwt_end_date.before_or_equal' => 'Jangka waktu PKWT maksimal 5 tahun sejak tanggal masuk (PP 35/2021 Pasal 8).',
         ];
+    }
+
+    private function nikUnchanged(?Employee $employee): bool
+    {
+        if ($employee === null || ! $this->has('nik_ktp')) {
+            return false;
+        }
+
+        $stored = trim((string) $employee->nik_ktp);
+
+        return $stored !== '' && trim((string) $this->input('nik_ktp')) === $stored;
     }
 }

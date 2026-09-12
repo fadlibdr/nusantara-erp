@@ -6,6 +6,7 @@ use Exception;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\HrPayroll\Enums\EmploymentType;
 use Modules\HrPayroll\Enums\PkwtBasis;
 use Modules\HrPayroll\Enums\PtkpStatus;
@@ -37,7 +38,8 @@ class EmployeeStoreRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'nik_ktp' => ['required', 'digits:16', Rule::unique('hr_employees', 'nik_ktp')],
-            'npwp' => ['nullable', 'string', 'max:30'],
+            // P-3b: 15 / 16 (NIK sebagai NPWP) / 22 (NITKU) digit — satu aturan untuk semua pintu NPWP.
+            'npwp' => ['nullable', 'string', 'max:30', new ValidNpwp],
             'gender' => ['required', Rule::in(['male', 'female'])],
             'birth_date' => ['required', 'date', 'before:today'],
             'ptkp_status' => ['required', Rule::enum(PtkpStatus::class)],

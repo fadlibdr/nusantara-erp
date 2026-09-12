@@ -7,6 +7,7 @@ use Modules\HrPayroll\Http\Controllers\CertificateController;
 use Modules\HrPayroll\Http\Controllers\EmployeeController;
 use Modules\HrPayroll\Http\Controllers\LeaveRequestController;
 use Modules\HrPayroll\Http\Controllers\PayrollRunController;
+use Modules\HrPayroll\Http\Controllers\Pph21RecapController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     // Employees
@@ -104,4 +105,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('payroll-runs/{payrollRun}/approve', [PayrollRunController::class, 'approve'])->middleware('permission:hr.approve');
     Route::post('payroll-runs/{payrollRun}/reject', [PayrollRunController::class, 'reject'])->middleware('permission:hr.approve');
     Route::get('payroll-runs/{payrollRun}/payslips', [PayrollRunController::class, 'payslips']);
+
+    /*
+     * P-3b — rekap internal PPh 21/26 bulanan dari snapshot slip run yang
+     * disetujui/diposting. Baca-saja, di balik hr.view (nama + NIK/NPWP +
+     * penghasilan = data pribadi, gerbang yang sama dengan register
+     * sertifikat dan cuti). Jalurnya sendiri ('pph21-recap', bukan
+     * 'payroll-runs/pph21-recap') supaya tidak pernah ditelan pengikat model
+     * {payrollRun} — jebakan yang sama dengan 'attendances/me' di atas.
+     */
+    Route::get('pph21-recap', [Pph21RecapController::class, 'index'])->middleware('permission:hr.view');
 });

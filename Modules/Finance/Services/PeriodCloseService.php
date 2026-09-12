@@ -743,8 +743,22 @@ class PeriodCloseService
         }
 
         if ($blockers === []) {
+            // «siap masuk berkas», bukan «siap diekspor ke DJP»: tata letak
+            // berkasnya belum tentu sudah dicocokkan dengan template resmi, dan
+            // registri formatlah yang tahu (P-3b). Kalimatnya dibawa apa adanya
+            // supaya daftar tutup buku tidak menjanjikan lebih daripada layar
+            // Ekspor Pajak.
+            $unverified = array_values(array_filter(
+                [$overview['efaktur']['format'] ?? null, $overview['ebupot']['format'] ?? null],
+                fn (?array $format): bool => $format !== null && ! $format['verified'],
+            ));
+
+            $sentence = $unverified === []
+                ? "{$documents} dokumen siap masuk berkas ekspor pajak."
+                : "{$documents} dokumen siap masuk berkas ekspor pajak — {$unverified[0]['verification']}";
+
             return $this->item('tax_export_ready', 'Ekspor pajak siap', self::WARN, self::OK,
-                "{$documents} dokumen siap diekspor ke DJP.", 'ekspor pajak', 'tax-exports');
+                $sentence, 'ekspor pajak', 'tax-exports');
         }
 
         $named = implode(', ', array_map(

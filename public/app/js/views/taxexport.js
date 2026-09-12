@@ -4,11 +4,23 @@
  * importer: what will be exported, what cannot be and why, and the totals to
  * reconcile against the ledger. The download is built client-side from the CSV
  * text the API returns, because the API authenticates on a header and a plain
- * download link carries none. */
+ * download link carries none.
+ *
+ * P-3b — SATU KALIMAT KEJUJURAN, DARI SERVER. Setiap format berkas DJP/BPJS
+ * yang ada atau direncanakan hidup di registri server (DjpFormats), dan
+ * registri itulah yang tahu apakah tata letaknya sudah dicocokkan dengan
+ * berkas contoh resmi di docs/samples/pajak/. Layar ini TIDAK mengarang
+ * kalimat «sesuai DJP» atau «dapat berubah mengikuti ketentuan»: lencana per
+ * format, kalimat di atas setiap tab, nama berkas, dan baris pertama berkas
+ * yang diunduh semuanya datang dari `data.formats` dan `data.<tab>.format`.
+ * Format yang "menunggu template" tidak punya tombol unduh — yang ia punya
+ * hanya kalimat yang menyebut berkas apa yang harus diletakkan di
+ * docs/samples/pajak/. */
 
 import { api, session } from '../api.js';
 import { el, clear, button, badge, icon, errorState, skeletonTable, confirmDialog, toast, toastError } from '../ui.js';
 import * as fmt from '../format.js';
+import { navigate } from '../router.js';
 // Pola unduhan Blob+BOM file ini justru yang dibakukan csv.js — kini diimpor
 // balik dari sana supaya polanya hidup di satu tempat.
 import { downloadCsv } from '../csv.js';
@@ -45,13 +57,77 @@ function defaultPeriod() {
 
 const state = { ...defaultPeriod(), tab: 'efaktur' };
 
+/* Format yang belum punya writer tetapi sudah punya REKAP INTERNAL: tautan
+   ke layarnya, hanya bila pemakai memegang izinnya. Rekap itu bukan berkas
+   impor DJP dan layarnya mengatakannya sendiri. */
+const INTERNAL_RECAP = {
+  ebupot_2126_bulanan: { route: 'rekap-pph21', perm: 'hr.view', label: 'Buka rekap internal PPh 21/26 bulanan' },
+};
+
+/* Teks lencana datang dari registri (format.badge_label) dan digambar apa
+   adanya; layar ini hanya memilih WARNANYA dari format.verified. Sebelumnya
+   kalimatnya disusun di sini — satu permukaan lagi yang bisa berkata lain
+   daripada baris .djp-verification di bawahnya. */
+function formatBadges(format) {
+  // whiteSpace normal: lencana terpanjang ('… template BPJS Ketenagakerjaan') nowrap
+  // melebarkan track grid melewati viewport 390 px dan teks kartu terpotong (R3-kejujuran-3).
+  const wrap = { whiteSpace: 'normal', height: 'auto' };
+  return [
+    badge(format.status_label, format.status === 'ada' ? 'blue' : 'amber'),
+    badge(format.badge_label, format.verified ? 'green' : 'amber'),
+  ].map((node) => { Object.assign(node.style, wrap); return node; });
+}
+
+/* Satu blok per entri registri — kelima format, termasuk yang tidak punya
+   writer, supaya orang yang mencari entri XML Coretax menemukan jawabannya di
+   sini dan bukan menyimpulkan bahwa CSV legacy adalah itu. */
+function formatsCard(formats, summary) {
+  const headBadge = badge(summary.label, summary.verified === summary.total ? 'green' : 'amber');
+  Object.assign(headBadge.style, { whiteSpace: 'normal', height: 'auto' });
+  // minWidth 0 pada setiap tingkat grid/flex: tanpa itu isi terpanjang menentukan lebar track
+  // dan kartu meluber 22 px di 390 px — 'tanpa gulir samping' hanya karena leluhur memotongnya.
+  const text = { fontSize: '12px', minWidth: 0, overflowWrap: 'anywhere' };
+  return el('.card', { style: { minWidth: 0 } }, [
+    el('.card-head.djp-formats-head', { style: { flexWrap: 'wrap', rowGap: '6px' } }, [
+      el('h2', { text: 'Format berkas DJP/BPJS — status verifikasi' }),
+      el('.spacer'),
+      headBadge,
+    ]),
+    el('.card-body', { style: { display: 'grid', gap: '10px', minWidth: 0 } }, formats.map((format) => {
+      const recap = INTERNAL_RECAP[format.key];
+      return el('.djp-format', {
+        'data-key': format.key,
+        'data-status': format.status,
+        'data-verified': String(Boolean(format.verified)),
+        style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 0 },
+      }, [
+        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', minWidth: 0 } }, [
+          el('strong', { style: { minWidth: 0, overflowWrap: 'anywhere' }, text: format.label }),
+          ...formatBadges(format),
+        ]),
+        el('.muted', { style: text, text: `Sumber: ${format.source}` }),
+        el('.muted.djp-verification', { style: text, text: format.verification }),
+        format.awaiting_file
+          ? el('.djp-awaiting-file', { style: { ...text, color: 'var(--warning)' }, text: format.awaiting_file })
+          : null,
+        recap && session.can(recap.perm)
+          ? el('div', button(recap.label, { size: 'sm', onClick: () => navigate(recap.route) }))
+          : null,
+      ]);
+    })),
+  ]);
+}
+
 function summaryTiles(exp, tab) {
   const s = exp.summary;
   return el('.stat-row', [
     el('.stat', [
       el('.label', { text: 'Siap diekspor' }),
       el('.value', { text: String(s.exported) }),
-      el('.delta', { text: `dari ${s.exported + s.blocked} dokumen periode ini` }),
+      el('.delta', {
+        text: `dari ${s.exported + s.blocked} dokumen periode ini`
+          + (s.noted ? ` · ${s.noted} baris perlu dicocokkan` : ''),
+      }),
     ]),
     el('.stat', [el('.label', { text: 'Total DPP' }), el('.value.sm', { text: fmt.rupiah(s.dpp) })]),
     el('.stat', [el('.label', { text: tab.valueLabel }), el('.value.sm', { text: fmt.rupiah(s[tab.valueKey]) })]),
@@ -90,6 +166,33 @@ function rowsTable(exp) {
       return el('td', { text: i === 0 ? 'Total' : '' });
     }))),
   ]));
+}
+
+/* V2-6: baris yang DIEKSPOR tetapi NPWP-nya bukan 15 digit (16 = NIK/NPWP
+   baru, 22 = NITKU) pada skema yang mengasumsikan 15 digit. Kalimatnya dari
+   server; kartu ini hilang sendiri sesudah formatnya diverifikasi. */
+function notesCard(exp) {
+  if (!exp.notes || !exp.notes.length) return null;
+
+  return el('.card.djp-npwp-notes', [
+    el('.card-head', [
+      el('h2', { text: `Perlu dicocokkan — NPWP bukan 15 digit (${exp.notes.length})` }),
+    ]),
+    el('.table-wrap', el('table.data', [
+      el('thead', el('tr', [
+        el('th', { text: 'Dokumen' }),
+        el('th', { text: 'Mitra' }),
+        el('th', { text: 'NPWP' }),
+        el('th', { text: 'Catatan' }),
+      ])),
+      el('tbody', exp.notes.map((n) => el('tr', { 'data-document': n.document }, [
+        el('td.code', { text: n.document }),
+        el('td', { text: n.partner || '—' }),
+        el('td.code', { text: n.npwp || '—' }),
+        el('td', { text: n.note }),
+      ]))),
+    ])),
+  ]);
 }
 
 function blockersCard(exp, tab, onIssueNumbers) {
@@ -139,7 +242,11 @@ export async function renderTaxExport(host) {
   host.appendChild(el('.page-head', [
     el('div', [
       el('h1', { text: 'Ekspor Pajak' }),
-      el('.desc', { text: 'Berkas impor untuk aplikasi DJP — dibentuk dari dokumen yang sudah disetujui.' }),
+      el('.desc', {
+        text: 'Berkas impor untuk aplikasi DJP — dibentuk dari dokumen yang sudah disetujui. '
+          + 'Status verifikasi tiap format terhadap template resmi tertulis di kartu pertama; '
+          + 'tidak ada pengiriman ke DJP dari layar ini.',
+      }),
     ]),
   ]));
 
@@ -184,34 +291,52 @@ export async function renderTaxExport(host) {
     const tab = TABS.find((t) => t.key === state.tab);
     const exp = payload[state.tab];
 
-    body.appendChild(el('.alert.info', [
+    // Registri format DI ATAS tab yang dipilih: ia berlaku untuk keduanya
+    // (dan untuk tiga format yang tidak punya tab sama sekali).
+    body.appendChild(formatsCard(payload.formats || [], payload.formats_summary || { total: 0, verified: 0, label: '' }));
+
+    /* Kalimat verifikasi datang dari registri server — bukan dari SPA. Warna
+       kotaknya ikut: amber selama belum diverifikasi, biru sesudahnya. */
+    body.appendChild(el(`.alert.${exp.format.verified ? 'info' : 'warn'}.djp-export-verification`, {
+      'data-verified': String(Boolean(exp.format.verified)),
+    }, [
       icon('warn', 15),
       el('div', [
-        el('div', { text: `Periode ${exp.period.label} · NPWP ${exp.company.npwp || '—'}` }),
-        el('.muted', {
-          style: { fontSize: '12px' },
-          text: 'Tata letak kolom mengikuti skema impor e-Faktur/e-Bupot dan dapat berubah mengikuti '
-            + 'ketentuan DJP. Impor satu periode ke lingkungan uji dan cocokkan totalnya sebelum dipakai '
-            + 'untuk pelaporan.',
-        }),
+        el('div', { text: `Periode ${exp.period.label} · NPWP ${exp.company.npwp || '—'} · ${exp.format.label}` }),
+        el('.muted', { style: { fontSize: '12px' }, text: exp.format.verification }),
       ]),
     ]));
 
     body.appendChild(summaryTiles(exp, tab));
 
+    /* Tombol unduh HANYA bila registri berkata format ini punya writer dan
+       statusnya "ada" (exp.format.downloadable). Format yang menunggu template
+       tidak pernah punya berkas untuk diunduh — yang ia punya kalimat berkas
+       apa yang ditunggu. */
     body.appendChild(el('.card', [
       el('.card-head', [
         el('h2', { text: `Isi berkas — ${exp.filename}` }),
         el('.spacer'),
-        button('Unduh CSV', {
-          variant: 'primary',
-          iconName: 'download',
-          disabled: exp.rows.length === 0,
-          onClick: () => downloadCsv(exp.filename, exp.csv),
-        }),
+        exp.format.downloadable
+          ? button('Unduh CSV', {
+            variant: 'primary',
+            iconName: 'download',
+            disabled: exp.rows.length === 0,
+            onClick: () => downloadCsv(exp.filename, exp.csv),
+          })
+          : el('.muted.djp-awaiting-file', { style: { fontSize: '12px' }, text: exp.format.awaiting_file || exp.format.verification }),
       ]),
+      /* V3b-7: baris pertama berkas adalah komentar '#' — kalimat "hapus baris
+         itu sebelum mengimpor" datang dari registri (file_note), bukan dari SPA. */
+      exp.format.file_note
+        ? el('.card-body.djp-file-note', { style: { paddingTop: 0 } },
+          el('p.muted', { style: { margin: 0, fontSize: '12px' }, text: exp.format.file_note }))
+        : null,
       rowsTable(exp),
     ]));
+
+    const notes = notesCard(exp);
+    if (notes) body.appendChild(notes);
 
     const blockers = blockersCard(exp, tab, issueNumbers);
     if (blockers) body.appendChild(blockers);

@@ -1197,5 +1197,678 @@
   "ok": true,
   "_ms": 6531,
   "_clicks": 2
+ },
+ "S38_kepatuhan_djp": {
+  "fixture": {
+   "employee": "inserted",
+   "nitku": {
+    "customer": "CUST-S38",
+    "contract": 4,
+    "invoice": "INV/2026/IX/0002",
+    "status": "approved",
+    "faktur": "010.000-26.00000002"
+   },
+   "calculate": 200,
+   "submit": 200,
+   "approve": {
+    "status": 200,
+    "message": "Payroll run approved and posted to the ledger."
+   },
+   "approved_run_id": 3,
+   "thr_draft_id": 4
+  },
+  "db": {
+   "slips": 9,
+   "pph21": 22974350.0,
+   "gross": 196720000.0,
+   "runs": [
+    [
+     "PYR/2026/09/003",
+     "regular",
+     "approved"
+    ],
+    [
+     "PYR/2026/09/004",
+     "thr",
+     "draft"
+    ]
+   ]
+  },
+  "formats": [
+   {
+    "key": "efaktur_csv_legacy",
+    "status": "ada",
+    "verified": "false",
+    "badges": [
+     "Ada",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": null,
+    "buttons": []
+   },
+   {
+    "key": "efaktur_coretax_xml",
+    "status": "menunggu template",
+    "verified": "false",
+    "badges": [
+     "Menunggu template",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": "Menunggu berkas docs/samples/pajak/efaktur-coretax-xml-<YYYY-MM-DD>.<ekstensi asli> — template impor XML faktur keluaran dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+    "buttons": []
+   },
+   {
+    "key": "ebupot_unifikasi_csv",
+    "status": "ada",
+    "verified": "false",
+    "badges": [
+     "Ada",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": null,
+    "buttons": []
+   },
+   {
+    "key": "ebupot_2126_bulanan",
+    "status": "menunggu template",
+    "verified": "false",
+    "badges": [
+     "Menunggu template",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": "Menunggu berkas docs/samples/pajak/ebupot-2126-bulanan-<YYYY-MM-DD>.<ekstensi asli> — template impor bukti potong PPh 21/26 bulanan dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+    "buttons": [
+     "Buka rekap internal PPh 21/26 bulanan"
+    ]
+   },
+   {
+    "key": "sipp_bpjs",
+    "status": "menunggu template",
+    "verified": "false",
+    "badges": [
+     "Menunggu template",
+     "Belum diverifikasi terhadap template BPJS Ketenagakerjaan"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template BPJS Ketenagakerjaan — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": "Menunggu berkas docs/samples/pajak/sipp-bpjs-<YYYY-MM-DD>.<ekstensi asli> — template unggah data upah/iuran dari SIPP Online (bila XLSX: keputusan phpspreadsheet, ledger #9) (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+    "buttons": []
+   }
+  ],
+  "efaktur": {
+   "alert": "Periode Juli 2026 · NPWP 01.234.567.8-012.000 · e-Faktur CSV (skema impor desktop, FK/LT/OF)\nBELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+   "file_note": "Baris pertama berkas ini adalah komentar \"# BELUM DIVERIFIKASI terhadap template DJP …\". Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1.",
+   "notes_title": "Perlu dicocokkan — NPWP bukan 15 digit (1)",
+   "notes_rows": [
+    {
+     "document": "INV/2026/IX/0002",
+     "note": "NPWP pelanggan PT Cabang NITKU (fixture S38) tersimpan 22 digit (NITKU); skema e-Faktur desktop yang disalin aplikasi mengasumsikan 15 digit — cocokkan baris ini dengan template resmi sebelum mengimpor."
+    }
+   ],
+   "ready_delta": "dari 1 dokumen periode ini · 1 baris perlu dicocokkan",
+   "alert_verified": "false",
+   "file_title": "Isi berkas — efaktur-2026-07-belum-diverifikasi.csv",
+   "download": {
+    "disabled": false
+   },
+   "h1": "Ekspor Pajak",
+   "scrolls_sideways": false
+  },
+  "ebupot": {
+   "alert": "Periode Juli 2026 · NPWP 01.234.567.8-012.000 · e-Bupot Unifikasi CSV (PPh 23 / PPh final 4(2))\nBELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+   "file_note": "Baris pertama berkas ini adalah komentar \"# BELUM DIVERIFIKASI terhadap template DJP …\". Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1.",
+   "notes_title": null,
+   "notes_rows": [],
+   "ready_delta": "dari 0 dokumen periode ini",
+   "alert_verified": "false",
+   "file_title": "Isi berkas — ebupot-2026-07-belum-diverifikasi.csv",
+   "download": {
+    "disabled": true
+   },
+   "h1": "Ekspor Pajak",
+   "scrolls_sideways": false
+  },
+  "api_formats": [
+   [
+    "efaktur_csv_legacy",
+    false,
+    true
+   ],
+   [
+    "efaktur_coretax_xml",
+    false,
+    false
+   ],
+   [
+    "ebupot_unifikasi_csv",
+    false,
+    true
+   ],
+   [
+    "ebupot_2126_bulanan",
+    false,
+    false
+   ],
+   [
+    "sipp_bpjs",
+    false,
+    false
+   ]
+  ],
+  "api_efaktur": {
+   "exported": [
+    "INV/2026/IX/0002"
+   ],
+   "blocked": [],
+   "notes": [
+    {
+     "document": "INV/2026/IX/0002",
+     "partner": "PT Cabang NITKU (fixture S38)",
+     "npwp": "0012345678011000000002",
+     "note": "NPWP pelanggan PT Cabang NITKU (fixture S38) tersimpan 22 digit (NITKU); skema e-Faktur desktop yang disalin aplikasi mengasumsikan 15 digit — cocokkan baris ini dengan template resmi sebelum mengimpor."
+    }
+   ],
+   "summary": {
+    "exported": 1,
+    "blocked": 0,
+    "noted": 1,
+    "dpp": 100000000,
+    "dpp_faktur": 91666666.67,
+    "ppn": 11000000
+   },
+   "file_note": "Baris pertama berkas ini adalah komentar \"# BELUM DIVERIFIKASI terhadap template DJP …\". Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1."
+  },
+  "recap": {
+   "h1": "Rekap PPh 21/26 Bulanan",
+   "desc": "Rekap internal PPh 21/26 bulanan — untuk diisi ke e-Bupot 21/26 oleh petugas pajak. BUKAN berkas impor DJP.",
+   "alert": "Masa Juli 2026 · e-Bupot PPh 21/26 bulanan (pegawai tetap): Menunggu template\nBELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).\nMenunggu berkas docs/samples/pajak/ebupot-2126-bulanan-<YYYY-MM-DD>.<ekstensi asli> — template impor bukti potong PPh 21/26 bulanan dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+   "awaiting": "Menunggu berkas docs/samples/pajak/ebupot-2126-bulanan-<YYYY-MM-DD>.<ekstensi asli> — template impor bukti potong PPh 21/26 bulanan dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+   "ter_note": "Tabel TER (PMK 168/2023) disalin ke Pph21TerService dan ditandai perlu dicek terhadap peraturan yang berlaku (lampiran resmi PMK 168/2023) sebelum dipakai produksi; angkanya tidak diubah oleh paket P-3b.",
+   "tiles": [
+    {
+     "label": "Pegawai",
+     "value": "9"
+    },
+    {
+     "label": "Total bruto",
+     "value": "Rp 196.720.000"
+    },
+    {
+     "label": "Total PPh 21",
+     "value": "Rp 22.974.350"
+    },
+    {
+     "label": "Pegawai tanpa identitas pajak",
+     "value": "1"
+    }
+   ],
+   "without": "1",
+   "without_delta": "sel identitas dibiarkan kosong · 1 dihitung tarif normal",
+   "runs": [
+    {
+     "run": "PYR/2026/09/003",
+     "jenis": "Gaji Bulanan",
+     "status": "Disetujui",
+     "slip": "9",
+     "ket": "Masuk rekap",
+     "included": "true"
+    },
+    {
+     "run": "PYR/2026/09/004",
+     "jenis": "THR Keagamaan",
+     "status": "Draf",
+     "slip": "9",
+     "ket": "Status Draf — tidak masuk rekap; hanya run yang disetujui/diposting yang dihitung.",
+     "included": "false"
+    }
+   ],
+   "rows": [
+    {
+     "employee": "EMP-0001",
+     "name": "Budi Santoso",
+     "tax_id": "07.123.456.7-013.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "C · 20%",
+     "pph": "Rp 12.100.000",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0002",
+     "name": "Rina Wijaya",
+     "tax_id": "08.234.567.8-014.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "A · 14%",
+     "pph": "Rp 4.712.400",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0003",
+     "name": "Agus Prasetyo",
+     "tax_id": "09.345.678.9-015.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "B · 9%",
+     "pph": "Rp 1.971.900",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0004",
+     "name": "Dewi Lestari",
+     "tax_id": "10.456.789.0-016.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "A · 10%",
+     "pph": "Rp 2.641.000",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0005",
+     "name": "Andi Kurniawan",
+     "tax_id": "11.567.890.1-017.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "B · 4%",
+     "pph": "Rp 530.400",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0006",
+     "name": "Siti Rahayu",
+     "tax_id": "12.678.901.2-018.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "A · 4%",
+     "pph": "Rp 486.400",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0007",
+     "name": "Joko Susilo",
+     "tax_id": "3603120507950007",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NIK (16 digit)",
+     "ter": "A · 1,75%",
+     "pph": "Rp 151.550",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0008",
+     "name": "Made Wirawan",
+     "tax_id": "13.789.012.3-019.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "B · 2%",
+     "pph": "Rp 223.200",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-S38",
+     "name": "Pegawai Warisan (fixture S38)",
+     "tax_id": "",
+     "tax_id_empty": "true",
+     "tax_id_title": "NPWP kosong; NIK tersimpan \"BELUM-ADA\" bukan 16 digit — lengkapi di data pegawai; baris ini tetap dihitung. PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan 20 % — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK tidak kosong).",
+     "kind": "",
+     "ter": "A · 1,75%",
+     "pph": "Rp 157.500",
+     "treatment": "PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan 20 % — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK tidak kosong).",
+     "treatment_lines": 2
+    }
+   ],
+   "foot": [
+    "Total",
+    "Rp 196.720.000",
+    "",
+    "Rp 22.974.350"
+   ],
+   "download": {
+    "disabled": false,
+    "text": "Unduh CSV rekap internal"
+   },
+   "scrolls_sideways": false
+  },
+  "api_summary": {
+   "employees": 9,
+   "slips": 9,
+   "gross": 196720000,
+   "pph21": 22974350,
+   "without_tax_id": 1,
+   "without_tax_id_normal_rate": 1,
+   "identified_but_surcharged": 0,
+   "runs_included": 1,
+   "runs_excluded": 1
+  },
+  "csv_first_line": "# Rekap internal PPh 21/26 bulanan — untuk diisi ke e-Bupot 21/26 oleh petugas pajak. BUKAN berkas impor DJP. Masa Juli 2026. Dibentuk dari slip gaji run yang disetujui/diposting: PYR/2026/09/003. Format impor e-Bupot 21",
+  "csv_fixture_line": "EMP-S38;Pegawai Warisan (fixture S38);;;9000000,00;A;1,75;157500,00;1;PYR/2026/09/003;tarif normal",
+  "console_errors": [],
+  "checks": {
+   "five_formats_in_registry_order": true,
+   "every_format_is_unverified_with_the_badge": true,
+   "the_sipp_badge_names_bpjs": true,
+   "awaiting_formats_name_their_file_and_offer_no_download": true,
+   "the_api_says_the_same": true,
+   "both_tabs_say_unverified_above_the_table": true,
+   "the_download_filename_says_unverified": true,
+   "the_recap_title_says_internal_not_a_djp_file": true,
+   "the_recap_format_alert_is_awaiting_a_template": true,
+   "the_legacy_employee_has_an_empty_identity_cell": true,
+   "the_tile_counts_the_employee_without_a_tax_identity": true,
+   "the_nik_identity_is_labelled": true,
+   "the_thr_draft_is_listed_as_excluded": true,
+   "the_approved_run_is_listed_as_included": true,
+   "the_recap_total_equals_the_sum_of_the_slips_in_sqlite": true,
+   "the_csv_is_labelled_and_the_fixture_cell_is_empty_in_it": true,
+   "the_ter_note_is_shown": true,
+   "the_screens_never_scroll_sideways": true,
+   "the_nitku_fixture_ran": true,
+   "the_nitku_invoice_is_exported_not_blocked_and_noted": true,
+   "the_notes_card_reads_the_api_sentence": true,
+   "the_ready_tile_counts_the_noted_rows": true,
+   "the_file_note_tells_to_delete_the_first_line": true,
+   "the_treatment_sentence_sits_under_the_name_not_in_the_identity_cells": true,
+   "the_tile_says_how_many_empty_cells_were_normal_rate": true,
+   "the_csv_names_the_treatment": true,
+   "no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 7670,
+  "_clicks": 1
+ },
+ "S38_kepatuhan_djp_ponsel": {
+  "fixture": {
+   "employee": "reused",
+   "nitku": {
+    "customer": "CUST-S38",
+    "contract": 4,
+    "invoice": "INV/2026/IX/0002",
+    "status": "approved",
+    "faktur": "010.000-26.00000002"
+   },
+   "approved_run_id": 3,
+   "thr_draft_id": 4
+  },
+  "formats": [
+   {
+    "key": "efaktur_csv_legacy",
+    "status": "ada",
+    "verified": "false",
+    "badges": [
+     "Ada",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": null,
+    "buttons": []
+   },
+   {
+    "key": "efaktur_coretax_xml",
+    "status": "menunggu template",
+    "verified": "false",
+    "badges": [
+     "Menunggu template",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": "Menunggu berkas docs/samples/pajak/efaktur-coretax-xml-<YYYY-MM-DD>.<ekstensi asli> — template impor XML faktur keluaran dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+    "buttons": []
+   },
+   {
+    "key": "ebupot_unifikasi_csv",
+    "status": "ada",
+    "verified": "false",
+    "badges": [
+     "Ada",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": null,
+    "buttons": []
+   },
+   {
+    "key": "ebupot_2126_bulanan",
+    "status": "menunggu template",
+    "verified": "false",
+    "badges": [
+     "Menunggu template",
+     "Belum diverifikasi terhadap template DJP"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": "Menunggu berkas docs/samples/pajak/ebupot-2126-bulanan-<YYYY-MM-DD>.<ekstensi asli> — template impor bukti potong PPh 21/26 bulanan dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+    "buttons": [
+     "Buka rekap internal PPh 21/26 bulanan"
+    ]
+   },
+   {
+    "key": "sipp_bpjs",
+    "status": "menunggu template",
+    "verified": "false",
+    "badges": [
+     "Menunggu template",
+     "Belum diverifikasi terhadap template BPJS Ketenagakerjaan"
+    ],
+    "verification": "BELUM DIVERIFIKASI terhadap template BPJS Ketenagakerjaan — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+    "awaiting": "Menunggu berkas docs/samples/pajak/sipp-bpjs-<YYYY-MM-DD>.<ekstensi asli> — template unggah data upah/iuran dari SIPP Online (bila XLSX: keputusan phpspreadsheet, ledger #9) (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+    "buttons": []
+   }
+  ],
+  "efaktur": {
+   "alert": "Periode Agustus 2026 · NPWP 01.234.567.8-012.000 · e-Faktur CSV (skema impor desktop, FK/LT/OF)\nBELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).",
+   "file_note": "Baris pertama berkas ini adalah komentar \"# BELUM DIVERIFIKASI terhadap template DJP …\". Hapus baris pertama ini sebelum mengimpor — importer mengharapkan header di baris 1.",
+   "notes_title": null,
+   "notes_rows": [],
+   "ready_delta": "dari 0 dokumen periode ini",
+   "alert_verified": "false",
+   "file_title": "Isi berkas — efaktur-2026-08-belum-diverifikasi.csv",
+   "download": {
+    "disabled": true
+   },
+   "h1": "Ekspor Pajak",
+   "scrolls_sideways": false
+  },
+  "format_overflow": 0,
+  "recap": {
+   "h1": "Rekap PPh 21/26 Bulanan",
+   "desc": "Rekap internal PPh 21/26 bulanan — untuk diisi ke e-Bupot 21/26 oleh petugas pajak. BUKAN berkas impor DJP.",
+   "alert": "Masa Juli 2026 · e-Bupot PPh 21/26 bulanan (pegawai tetap): Menunggu template\nBELUM DIVERIFIKASI terhadap template DJP — belum ada berkas contoh resmi di docs/samples/pajak/ untuk format ini; impor satu masa ke sandbox dan cocokkan totalnya sebelum dipakai melapor (docs/samples/pajak/README.md).\nMenunggu berkas docs/samples/pajak/ebupot-2126-bulanan-<YYYY-MM-DD>.<ekstensi asli> — template impor bukti potong PPh 21/26 bulanan dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+   "awaiting": "Menunggu berkas docs/samples/pajak/ebupot-2126-bulanan-<YYYY-MM-DD>.<ekstensi asli> — template impor bukti potong PPh 21/26 bulanan dari Coretax (diunduh pemilik/konsultan dari sumber resmi; lihat docs/samples/pajak/README.md).",
+   "ter_note": "Tabel TER (PMK 168/2023) disalin ke Pph21TerService dan ditandai perlu dicek terhadap peraturan yang berlaku (lampiran resmi PMK 168/2023) sebelum dipakai produksi; angkanya tidak diubah oleh paket P-3b.",
+   "tiles": [
+    {
+     "label": "Pegawai",
+     "value": "9"
+    },
+    {
+     "label": "Total bruto",
+     "value": "Rp 196.720.000"
+    },
+    {
+     "label": "Total PPh 21",
+     "value": "Rp 22.974.350"
+    },
+    {
+     "label": "Pegawai tanpa identitas pajak",
+     "value": "1"
+    }
+   ],
+   "without": "1",
+   "without_delta": "sel identitas dibiarkan kosong · 1 dihitung tarif normal",
+   "runs": [
+    {
+     "run": "PYR/2026/09/003",
+     "jenis": "Gaji Bulanan",
+     "status": "Disetujui",
+     "slip": "9",
+     "ket": "Masuk rekap",
+     "included": "true"
+    },
+    {
+     "run": "PYR/2026/09/004",
+     "jenis": "THR Keagamaan",
+     "status": "Draf",
+     "slip": "9",
+     "ket": "Status Draf — tidak masuk rekap; hanya run yang disetujui/diposting yang dihitung.",
+     "included": "false"
+    }
+   ],
+   "rows": [
+    {
+     "employee": "EMP-0001",
+     "name": "Budi Santoso",
+     "tax_id": "07.123.456.7-013.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "C · 20%",
+     "pph": "Rp 12.100.000",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0002",
+     "name": "Rina Wijaya",
+     "tax_id": "08.234.567.8-014.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "A · 14%",
+     "pph": "Rp 4.712.400",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0003",
+     "name": "Agus Prasetyo",
+     "tax_id": "09.345.678.9-015.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "B · 9%",
+     "pph": "Rp 1.971.900",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0004",
+     "name": "Dewi Lestari",
+     "tax_id": "10.456.789.0-016.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "A · 10%",
+     "pph": "Rp 2.641.000",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0005",
+     "name": "Andi Kurniawan",
+     "tax_id": "11.567.890.1-017.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "B · 4%",
+     "pph": "Rp 530.400",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0006",
+     "name": "Siti Rahayu",
+     "tax_id": "12.678.901.2-018.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "A · 4%",
+     "pph": "Rp 486.400",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0007",
+     "name": "Joko Susilo",
+     "tax_id": "3603120507950007",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NIK (16 digit)",
+     "ter": "A · 1,75%",
+     "pph": "Rp 151.550",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-0008",
+     "name": "Made Wirawan",
+     "tax_id": "13.789.012.3-019.000",
+     "tax_id_empty": "false",
+     "tax_id_title": null,
+     "kind": "NPWP 15 digit (format lama)",
+     "ter": "B · 2%",
+     "pph": "Rp 223.200",
+     "treatment": null,
+     "treatment_lines": 0
+    },
+    {
+     "employee": "EMP-S38",
+     "name": "Pegawai Warisan (fixture S38)",
+     "tax_id": "",
+     "tax_id_empty": "true",
+     "tax_id_title": "NPWP kosong; NIK tersimpan \"BELUM-ADA\" bukan 16 digit — lengkapi di data pegawai; baris ini tetap dihitung. PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan 20 % — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK tidak kosong).",
+     "kind": "",
+     "ter": "A · 1,75%",
+     "pph": "Rp 157.500",
+     "treatment": "PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan 20 % — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK tidak kosong).",
+     "treatment_lines": 4
+    }
+   ],
+   "foot": [
+    "Total",
+    "Rp 196.720.000",
+    "",
+    "Rp 22.974.350"
+   ],
+   "download": {
+    "disabled": false,
+    "text": "Unduh CSV rekap internal"
+   },
+   "scrolls_sideways": false
+  },
+  "console_errors": [],
+  "checks": {
+   "five_format_blocks_render_on_a_phone": true,
+   "the_export_screen_never_scrolls_sideways": true,
+   "the_recap_renders_with_the_empty_identity_cell": true,
+   "the_recap_screen_never_scrolls_sideways": true,
+   "the_recap_title_says_internal_not_a_djp_file": true,
+   "the_nitku_fixture_ran": true,
+   "the_file_note_renders_on_a_phone": true,
+   "no_format_text_is_clipped_on_a_phone": true,
+   "the_treatment_sentence_wraps_to_at_most_four_lines_on_a_phone": true,
+   "no_console_error": true
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 5626,
+  "_clicks": 0
  }
 }

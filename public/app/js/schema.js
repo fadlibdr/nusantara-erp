@@ -25,6 +25,17 @@ import { ENUMS } from './enums.js';
 const DRAFT_OR_REJECTED = (row) => ['draft', 'rejected'].includes(row.status);
 
 /*
+ * SATU teks bantuan NPWP untuk KEEMPAT formulir yang menerimanya (pelanggan,
+ * vendor, karyawan di sini; Profil Perusahaan di views/custom.js). Kalimatnya
+ * menyebut ketiga bentuk DAN ketiga pemisah yang diterima aturan server
+ * (Modules\Core\Rules\ValidNpwp) — sebelumnya tiga salinan berkata "titik dan
+ * strip boleh" sementara kalimat 422 di kolom yang sama berkata "Titik, strip,
+ * dan spasi boleh ditulis". Satu konstanta = satu tempat kalimatnya bisa
+ * berbeda dari aturannya, dan NpwpTest memaku bahwa tidak ada salinan lain.
+ */
+export const NPWP_HELP = 'NPWP 15 digit (lama), 16 digit (baru / NIK), atau NITKU 22 digit; titik, strip, dan spasi boleh.';
+
+/*
  * Jawaban SPA untuk satu penolakan server: "mundur wajib beralasan" (F-3).
  *
  * LeadPipelineService menolak perpindahan mundur dengan 422 berkunci `reason`;
@@ -198,7 +209,7 @@ export const RESOURCES = {
             { key: 'name', label: 'Nama pelanggan', type: 'text', required: true, span: 2 },
             { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
             { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis (CUST-xxxx).' },
-            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'npwp', label: 'NPWP', type: 'text', help: NPWP_HELP },
             { key: 'is_pkp', label: 'Pengusaha Kena Pajak (PKP)', type: 'bool' },
             { key: 'status', label: 'Status', type: 'select', enum: 'activeStatus', default: 'active' },
           ],
@@ -2371,7 +2382,7 @@ export const RESOURCES = {
             { key: 'legal_name', label: 'Nama badan hukum', type: 'text', span: 2 },
             { key: 'code', label: 'Kode', type: 'text', help: 'Kosongkan untuk penomoran otomatis.' },
             { key: 'classification', label: 'Klasifikasi', type: 'select', enum: 'vendorClassification', required: true },
-            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'npwp', label: 'NPWP', type: 'text', help: NPWP_HELP },
             { key: 'sppkp_number', label: 'No. SPPKP', type: 'text', help: 'Wajib bila vendor berstatus PKP.' },
             { key: 'is_pkp', label: 'PKP', type: 'bool' },
             /* P4 — menggantikan centang "Subkontraktor" lama: vendor_type
@@ -2426,7 +2437,9 @@ export const RESOURCES = {
           { key: 'vendor_id', label: 'Vendor', type: 'lookup', lookup: 'vendors', required: true },
           { key: 'doc_type', label: 'Jenis', type: 'select', enum: 'vendorDocumentType', required: true },
           { key: 'name', label: 'Nama dokumen', type: 'text', required: true, span: 2 },
-          { key: 'number', label: 'Nomor', type: 'text' },
+          // P-3b (V3-5): jenis NPWP memakai aturan NPWP yang sama dengan kolom NPWP vendor.
+          { key: 'number', label: 'Nomor', type: 'text',
+            help: 'Jenis NPWP: nomor harus 15 / 16 / 22 digit seperti kolom NPWP vendor (titik, strip, spasi boleh). Jenis lain: nomor ditulis apa adanya dari berkasnya.' },
           { key: 'issuer', label: 'Penerbit', type: 'text' },
           { key: 'issued_date', label: 'Terbit', type: 'date' },
           { key: 'valid_until', label: 'Berlaku s/d', type: 'date' },
@@ -4739,7 +4752,7 @@ export const RESOURCES = {
           fields: [
             { key: 'name', label: 'Nama lengkap', type: 'text', required: true, span: 2 },
             { key: 'nik_ktp', label: 'NIK KTP', type: 'text', required: true, help: '16 digit' },
-            { key: 'npwp', label: 'NPWP', type: 'text' },
+            { key: 'npwp', label: 'NPWP', type: 'text', help: NPWP_HELP },
             { key: 'gender', label: 'Jenis kelamin', type: 'select', enum: 'gender', required: true },
             { key: 'birth_date', label: 'Tanggal lahir', type: 'date', required: true },
             { key: 'ptkp_status', label: 'Status PTKP', type: 'select', enum: 'ptkpStatus', required: true },
@@ -6655,6 +6668,10 @@ export const NAV = [
       { label: 'Usulan Rekap Absensi', route: 'usulan-rekap' },
       { label: 'Rekap Absensi', route: 'r/hr/attendance-recaps' },
       { label: 'Payroll', route: 'r/hr/payroll-runs' },
+      // P-3b — tepat di bawah Payroll: rekap dibentuk dari slip run yang
+      // disetujui, untuk diisi ke e-Bupot 21/26 oleh petugas pajak (bukan
+      // berkas impor DJP; layarnya mengatakannya).
+      { label: 'Rekap PPh 21 Bulanan', route: 'rekap-pph21' },
     ],
   },
   {

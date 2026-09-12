@@ -46,8 +46,10 @@ tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan hilang saat sesi habi
 layar yang akan Anda pakai minggu ini, per kelompok:
 
 - **Ringkasan** — Dasbor · Tenggat · Kalender.
-- **SDM & Payroll** — keenam layarnya milik Anda: Karyawan · Sertifikat & PKWT · Cuti &
-  Izin · Absensi Harian · Rekap Absensi · Payroll.
+- **SDM & Payroll** — ketujuh layarnya milik Anda: Karyawan · Sertifikat & PKWT · Cuti &
+  Izin · Absensi Harian · Rekap Absensi · Payroll · **Rekap PPh 21 Bulanan** (baca saja;
+  rekap internal dari slip run yang disetujui, untuk petugas pajak — bukan berkas impor DJP,
+  PANDUAN §11.8).
 - **Sistem** — Pengguna · Peran & Hak Akses · Profil Perusahaan · Pengaturan — semuanya
   **baca saja** (Anda memegang izin lihat sistem, bukan ubah: tidak ada tombol Tambah di
   Pengguna, dan kolom Profil Perusahaan terlihat tetapi mati — §14.1); ditambah **Impor

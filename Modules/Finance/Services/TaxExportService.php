@@ -9,9 +9,11 @@ use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Models\Company;
 use Modules\Core\Support\Erp;
 use Modules\Core\Support\Money;
+use Modules\Core\Support\Npwp;
 use Modules\Finance\Models\ApBill;
 use Modules\Finance\Models\ArInvoice;
 use Modules\Finance\Support\BuktiPotongNumber;
+use Modules\Finance\Support\DjpFormats;
 
 /**
  * Statutory tax reporting exports.
@@ -30,9 +32,20 @@ use Modules\Finance\Support\BuktiPotongNumber;
  * Coretax has been progressively replacing since 2025. DJP revises these layouts,
  * and an importer that rejects a file is a good day — one that accepts a file
  * with columns shifted is not. Import one period into a sandbox and reconcile
- * the totals before trusting a run. This mirrors how config/erp.php treats the
+ * the totals before trusting a run. This mirrors how Pph21TerService treats the
  * PPh 21 TER brackets: transcribed carefully, and flagged as needing checking
- * against the current regulation.
+ * against the current regulation (the brackets live in that service, NOT in
+ * config/erp.php — an earlier version of this paragraph pointed there).
+ *
+ * SINCE P-3b THAT WARNING IS NO LONGER ONLY HERE. Modules\Finance\Support\
+ * DjpFormats is the registry of every DJP/BPJS file format — the two writers
+ * below plus the three that wait for an official template — and each carries
+ * verified_against: the sample file in docs/samples/pajak/ its columns were
+ * matched against, or null. Null reads "BELUM DIVERIFIKASI terhadap template
+ * DJP", and that sentence reaches the overview API, the screen, and the file
+ * itself (a comment line on top, a suffix on the name; see stampCsv and
+ * filename). The column writers are untouched by that: the registry decorates
+ * the result, it does not reshape it.
  *
  * WHAT IS DELIBERATELY NOT GUESSED
  * --------------------------------
@@ -101,6 +114,7 @@ class TaxExportService
 
         $rows = [];
         $blockers = [];
+        $notes = [];
         $lines = [$this->eFakturHeader()];
 
         foreach ($invoices as $invoice) {
@@ -121,6 +135,10 @@ class TaxExportService
             $faktur = $this->splitFakturNumber((string) $invoice->faktur_pajak_no);
             $customer = $invoice->customer;
             $dppFaktur = $this->fakturDpp($invoice);
+
+            if (($note = $this->npwpShapeNote(DjpFormats::EFAKTUR_CSV_LEGACY, $customer->npwp, 'pelanggan', $customer->name, 'e-Faktur desktop')) !== null) {
+                $notes[] = ['document' => $invoice->code, 'partner' => $customer->name, 'npwp' => $this->digits($customer->npwp), 'note' => $note];
+            }
 
             $rows[] = [
                 'document' => $invoice->code,
@@ -194,15 +212,18 @@ class TaxExportService
             'columns' => ['document', 'faktur_pajak_no', 'invoice_date', 'partner', 'npwp', 'dpp', 'ppn'],
             'rows' => $rows,
             'blockers' => $blockers,
+            'notes' => $notes,
             'summary' => [
                 'exported' => count($rows),
                 'blocked' => count($blockers),
+                'noted' => count($notes),
                 'dpp' => round(array_sum(array_column($rows, 'dpp')), 2),
                 'dpp_faktur' => round(array_sum(array_column($rows, 'dpp_faktur')), 2),
                 'ppn' => round(array_sum(array_column($rows, 'ppn')), 2),
             ],
-            'filename' => sprintf('efaktur-%04d-%02d.csv', $year, $month),
-            'csv' => implode("\n", $lines)."\n",
+            'format' => DjpFormats::get(DjpFormats::EFAKTUR_CSV_LEGACY),
+            'filename' => DjpFormats::filename(DjpFormats::EFAKTUR_CSV_LEGACY, sprintf('efaktur-%04d-%02d.csv', $year, $month)),
+            'csv' => DjpFormats::stampCsv(DjpFormats::EFAKTUR_CSV_LEGACY, implode("\n", $lines)."\n"),
         ];
     }
 
@@ -237,6 +258,7 @@ class TaxExportService
 
         $rows = [];
         $blockers = [];
+        $notes = [];
         $lines = [$this->eBupotHeader()];
 
         foreach ($bills as $bill) {
@@ -264,6 +286,10 @@ class TaxExportService
             // potong must report what was actually deducted.
             $rate = $dpp > 0 ? round($pph / $dpp * 100, 4) : 0.0;
             $slipNumber = $this->buktiPotongNumber($bill);
+
+            if (($note = $this->npwpShapeNote(DjpFormats::EBUPOT_UNIFIKASI_CSV, $vendor->npwp, 'vendor', $vendor->name, 'e-Bupot Unifikasi')) !== null) {
+                $notes[] = ['document' => $bill->code, 'partner' => $vendor->name, 'npwp' => $this->digits($vendor->npwp), 'note' => $note];
+            }
 
             $rows[] = [
                 'slip_no' => $slipNumber,
@@ -303,20 +329,25 @@ class TaxExportService
             'columns' => ['slip_no', 'document', 'bill_date', 'partner', 'npwp', 'tax_code', 'object_code', 'dpp', 'rate', 'pph'],
             'rows' => $rows,
             'blockers' => $blockers,
+            'notes' => $notes,
             'summary' => [
                 'exported' => count($rows),
                 'blocked' => count($blockers),
+                'noted' => count($notes),
                 'dpp' => round(array_sum(array_column($rows, 'dpp')), 2),
                 'pph' => round(array_sum(array_column($rows, 'pph')), 2),
             ],
-            'filename' => sprintf('ebupot-%04d-%02d.csv', $year, $month),
-            'csv' => implode("\n", $lines)."\n",
+            'format' => DjpFormats::get(DjpFormats::EBUPOT_UNIFIKASI_CSV),
+            'filename' => DjpFormats::filename(DjpFormats::EBUPOT_UNIFIKASI_CSV, sprintf('ebupot-%04d-%02d.csv', $year, $month)),
+            'csv' => DjpFormats::stampCsv(DjpFormats::EBUPOT_UNIFIKASI_CSV, implode("\n", $lines)."\n"),
         ];
     }
 
     /**
      * Both exports plus the company's own tax identity, for the screen that
-     * offers them side by side.
+     * offers them side by side — and the whole format registry (P-3b), so the
+     * screen can show every format DJP/BPJS expects, including the three that
+     * have no writer yet and say which file they wait for.
      *
      * @return array<string, mixed>
      */
@@ -325,6 +356,8 @@ class TaxExportService
         return [
             'efaktur' => $this->eFaktur($year, $month),
             'ebupot' => $this->eBupot($year, $month),
+            'formats' => DjpFormats::forApi(),
+            'formats_summary' => DjpFormats::summary(),
         ];
     }
 
@@ -459,6 +492,61 @@ class TaxExportService
     private function buktiPotongNumber(ApBill $bill): string
     {
         return (string) $bill->bupot_no;
+    }
+
+    /* --------------------------------------------------------------- notes */
+
+    /**
+     * V2-6: the door rules now admit 16-digit (NIK/NPWP baru) and 22-digit
+     * (NITKU) numbers, while both writers were copied from schemas that assume
+     * the 15-digit form and only ever blocked "< 15 digits". Such a row is still
+     * EXPORTED — the column is not changed and the importer, not this service,
+     * decides — but it is named, with its shape, so the officer matches it
+     * against the official template before importing. The note exists only
+     * while the format is unverified: verification is the column-by-column
+     * match that settles what the template accepts.
+     */
+    private function npwpShapeNote(string $formatKey, ?string $npwp, string $role, ?string $name, string $scheme): ?string
+    {
+        return self::npwpShapeNoteFor(DjpFormats::get($formatKey), $npwp, $role, $name, $scheme);
+    }
+
+    /**
+     * Pure over the registry ENTRY (a describe() result), so the "no note once
+     * verified" branch can be pinned with a synthetic verified entry — the
+     * registry itself has no verified format while docs/samples/pajak/ is
+     * empty (R2-kejujuran-1).
+     *
+     * @param  array<string, mixed>  $format
+     */
+    public static function npwpShapeNoteFor(array $format, ?string $npwp, string $role, ?string $name, string $scheme): ?string
+    {
+        if ((bool) ($format['verified'] ?? false)) {
+            return null;
+        }
+
+        $digits = Npwp::normalize($npwp);
+
+        if (strlen($digits) === 15) {
+            return null;
+        }
+
+        // Short kind names — the label 'NITKU (22 digit)' would nest the
+        // parentheses: '22 digit (NITKU (22 digit))' (R2-kejujuran-3).
+        $kind = match (Npwp::kind($npwp)) {
+            Npwp::KIND_NITKU => 'NITKU',
+            Npwp::KIND_NPWP16 => 'NPWP 16 digit / NIK',
+            default => null,
+        };
+
+        return sprintf(
+            'NPWP %s %s tersimpan %d digit%s; skema %s yang disalin aplikasi mengasumsikan 15 digit — cocokkan baris ini dengan template resmi sebelum mengimpor.',
+            $role,
+            (string) $name,
+            strlen($digits),
+            $kind === null ? '' : " ({$kind})",
+            $scheme,
+        );
     }
 
     /* ------------------------------------------------------------ blockers */
