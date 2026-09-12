@@ -10143,6 +10143,280 @@ def s37m(browser):
         _p3a_cleanup(tok)
 
 
+# ============================================================================
+# S38 — P-3b Kepatuhan DJP (12 Sep 2026): layar Ekspor Pajak menampilkan
+# REGISTRI format (lima blok, semuanya "Belum diverifikasi terhadap template
+# DJP/BPJS" karena docs/samples/pajak/ kosong), format yang menunggu template
+# menyebut berkas yang ditunggu TANPA tombol unduh, nama berkas dan kalimat di
+# atas tab datang dari server; layar Rekap PPh 21 Bulanan menampilkan sel
+# identitas KOSONG untuk pegawai tanpa NIK/NPWP yang dikenali, menghitungnya
+# di ubin, menyebut run draf sebagai tidak masuk, dan totalnya SAMA dengan
+# jumlah slip di basis data.
+#
+# Fixture lewat PIPELINE SUNGGUHAN atas ERP_DB (salinan): satu baris pegawai
+# warisan (nik_ktp 'BELUM-ADA', tanpa NPWP — bentuk yang pintu tulis P-3b kini
+# tolak, tetapi ada di data lama) disisipkan lewat sqlite, lalu run gaji Juli
+# 2026 dibuat, dihitung, diajukan admin@, disetujui direktur@ lewat API
+# (maker-checker), plus run THR Juli yang DIBIARKAN draf. Idempoten: run yang
+# sudah ada dipakai ulang.
+# ============================================================================
+
+S38_FORMATS = """() => [...document.querySelectorAll('.djp-format')].map(n => ({
+  key: n.dataset.key, status: n.dataset.status, verified: n.dataset.verified,
+  badges: [...n.querySelectorAll('.badge')].map(b => b.innerText.trim()),
+  verification: (n.querySelector('.djp-verification') || {}).innerText || null,
+  awaiting: (n.querySelector('.djp-awaiting-file') || {}).innerText || null,
+  buttons: [...n.querySelectorAll('button')].map(b => b.innerText.trim()),
+}))"""
+
+S38_EXPORT = """() => ({
+  alert: (document.querySelector('.djp-export-verification') || {}).innerText || null,
+  alert_verified: (document.querySelector('.djp-export-verification') || {dataset: {}}).dataset.verified,
+  file_title: [...document.querySelectorAll('.card-head h2')].map(h => h.innerText).find(t => t.startsWith('Isi berkas')) || null,
+  download: (() => { const b = [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Unduh CSV'); return b ? {disabled: b.disabled} : null; })(),
+  h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+  scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+})"""
+
+S38_RECAP = """() => ({
+  h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+  desc: (document.querySelector('.page-head .desc') || {}).innerText || null,
+  alert: (document.querySelector('.recap-format') || {}).innerText || null,
+  awaiting: (document.querySelector('.recap-awaiting-file') || {}).innerText || null,
+  ter_note: (document.querySelector('.recap-ter-note') || {}).innerText || null,
+  // textContent, bukan innerText: CSS .stat .label { text-transform: uppercase } membuat innerText "PEGAWAI TANPA IDENTITAS PAJAK" (jebakan S37 pada th).
+  tiles: [...document.querySelectorAll('.stat')].map(s => ({ label: ((s.querySelector('.label')||{}).textContent || '').trim(), value: ((s.querySelector('.value')||{}).textContent || '').trim() })),
+  without: (document.querySelector('.stat.without-tax-id') || {dataset: {}}).dataset.count,
+  runs: [...document.querySelectorAll('table.runs tbody tr')].map(tr => {
+    const td = [...tr.querySelectorAll('td')].map(t => t.innerText.trim());
+    return { run: td[0], jenis: td[1], status: td[2], slip: td[3], ket: td[4], included: tr.dataset.included };
+  }),
+  rows: [...document.querySelectorAll('table.recap tbody tr')].map(tr => {
+    const td = [...tr.querySelectorAll('td')];
+    return { employee: tr.dataset.employee, name: (td[0].querySelector('.cell-main')||{}).innerText,
+      tax_id: td[1].textContent, tax_id_empty: td[1].dataset.empty, tax_id_title: td[1].getAttribute('title'),
+      kind: td[2].textContent, ter: td[4].innerText.trim(), pph: td[5].innerText.trim() };
+  }),
+  foot: [...document.querySelectorAll('table.recap tfoot td')].map(t => t.innerText.trim()),
+  download: (() => { const b = [...document.querySelectorAll('button')].find(b => b.innerText.trim().startsWith('Unduh CSV rekap internal')); return b ? {disabled: b.disabled, text: b.innerText.trim()} : null; })(),
+  scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+})"""
+
+S38_YEAR, S38_MONTH = 2026, 7
+
+def _p3b_fixture():
+    """Pegawai warisan + run gaji Juli 2026 disetujui + run THR Juli draf — lewat sqlite (pegawai)
+    dan API sungguhan (run: buat → hitung → ajukan admin@ → setujui direktur@)."""
+    out = {}
+    con = sqlite3.connect(DB)
+    if not con.execute("select 1 from hr_employees where code = 'EMP-S38'").fetchone():
+        con.execute("""insert into hr_employees (code, name, nik_ktp, npwp, gender, birth_date, ptkp_status, join_date,
+            employment_type, position, department, base_salary, status, created_at, updated_at)
+            values ('EMP-S38', 'Pegawai Warisan (fixture S38)', 'BELUM-ADA', NULL, 'male', '1988-04-01', 'TK/0',
+            '2020-01-01', 'tetap', 'Operator', 'proyek', 9000000, 'active', datetime('now'), datetime('now'))""")
+        con.commit()
+        out["employee"] = "inserted"
+    else:
+        out["employee"] = "reused"
+    existing = {(r[1], r[2]): r[0] for r in con.execute(
+        "select id, run_type, status from hr_payroll_runs where period_year = ? and period_month = ? and deleted_at is null",
+        (S38_YEAR, S38_MONTH)).fetchall()}
+    con.close()
+
+    admin = token_for("admin@nusantara.test")
+    direktur = token_for("direktur@nusantara.test")
+
+    approved_id = next((rid for (rt, st), rid in existing.items() if rt == "regular" and st in ("approved", "closed")), None)
+    if approved_id is None:
+        draft_id = next((rid for (rt, st), rid in existing.items() if rt == "regular"), None)
+        if draft_id is None:
+            s, d = api("hr/payroll-runs", admin, "POST", {"period_year": S38_YEAR, "period_month": S38_MONTH,
+                                                          "run_type": "regular", "payment_date": f"{S38_YEAR}-{S38_MONTH:02d}-25"})
+            if s != 201:
+                return {"SKIPPED": f"POST hr/payroll-runs → {s} {json.dumps(d)[:200]}"}
+            draft_id = d["data"]["id"]
+        s, d = api(f"hr/payroll-runs/{draft_id}/calculate", admin, "POST", {})
+        out["calculate"] = s
+        s, d = api(f"hr/payroll-runs/{draft_id}/submit", admin, "POST", {})
+        out["submit"] = s
+        s, d = api(f"hr/payroll-runs/{draft_id}/approve", direktur, "POST", {})
+        out["approve"] = {"status": s, "message": (d.get("message") or "")[:160]}
+        if s != 200:
+            return {"SKIPPED": f"approve run Juli → {s} {json.dumps(d)[:200]}"}
+        approved_id = draft_id
+    out["approved_run_id"] = approved_id
+
+    thr_id = next((rid for (rt, st), rid in existing.items() if rt == "thr"), None)
+    if thr_id is None:
+        s, d = api("hr/payroll-runs", admin, "POST", {"period_year": S38_YEAR, "period_month": S38_MONTH,
+                                                      "run_type": "thr", "payment_date": f"{S38_YEAR}-{S38_MONTH:02d}-20"})
+        if s == 201:
+            thr_id = d["data"]["id"]
+            api(f"hr/payroll-runs/{thr_id}/calculate", admin, "POST", {})
+    out["thr_draft_id"] = thr_id
+    out["admin_token"] = admin
+    return out
+
+def _p3b_db_truth():
+    con = sqlite3.connect(DB)
+    row = con.execute("""select count(*), round(coalesce(sum(p.pph21_amount), 0), 2), round(coalesce(sum(p.gross_income), 0), 2)
+        from hr_payslips p join hr_payroll_runs r on r.id = p.payroll_run_id
+        where r.period_year = ? and r.period_month = ? and r.deleted_at is null and r.status in ('approved', 'closed')""",
+        (S38_YEAR, S38_MONTH)).fetchone()
+    runs = con.execute("select code, run_type, status from hr_payroll_runs where period_year = ? and period_month = ? and deleted_at is null order by id",
+                       (S38_YEAR, S38_MONTH)).fetchall()
+    con.close()
+    return {"slips": row[0], "pph21": row[1], "gross": row[2], "runs": runs}
+
+def _p3b_open_recap(pg):
+    pg.goto(BASE + "#/rekap-pph21")
+    pg.wait_for_selector(".page-head h1", timeout=20000)
+    pg.select_option("select[aria-label='Masa']", str(S38_MONTH))
+    pg.fill("input[aria-label='Tahun']", str(S38_YEAR))
+    pg.dispatch_event("input[aria-label='Tahun']", "change")
+    pg.wait_for_selector("table.recap tbody tr", timeout=20000)
+    pg.wait_for_timeout(600)
+
+@scenario("S38_kepatuhan_djp")
+def s38(browser):
+    """1440×900 sebagai admin@: (1) Ekspor Pajak — kartu registri lima format, semuanya belum
+    diverifikasi, yang menunggu template tanpa tombol unduh + kalimat berkas yang ditunggu, kalimat
+    di atas tab dan nama berkas dari server; (2) Rekap PPh 21 Bulanan Juli 2026 — sel identitas
+    kosong untuk pegawai warisan, ubin menghitungnya, THR draf disebut tidak masuk, total = jumlah
+    slip di sqlite, identitas NIK berlabel; (3) 0 galat konsol, tanpa gulir samping."""
+    fx = _p3b_fixture()
+    if "SKIPPED" in fx:
+        return fx
+    truth = _p3b_db_truth()
+    tok = fx.pop("admin_token")
+
+    errors = []
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"fixture": fx, "db": truth}
+
+        # ---- (1) Ekspor Pajak
+        pg.goto(BASE + "#/tax-exports")
+        pg.wait_for_selector(".djp-format", timeout=20000)
+        pg.wait_for_timeout(700)
+        assert_screen(pg, "#/tax-exports", "Ekspor Pajak")
+        out["formats"] = pg.evaluate(S38_FORMATS)
+        out["efaktur"] = pg.evaluate(S38_EXPORT)
+        pg.screenshot(path=f"{OUT}/s38-ekspor-pajak-registri.png", full_page=True)
+        click(pg, ".tabs button:has-text('e-Bupot')")
+        pg.wait_for_timeout(500)
+        out["ebupot"] = pg.evaluate(S38_EXPORT)
+        _, api_overview = api(f"finance/tax-exports?year={S38_YEAR}&month=6", tok)
+        out["api_formats"] = [(f["key"], f["verified"], f["downloadable"]) for f in (api_overview.get("data") or {}).get("formats", [])]
+
+        # ---- (2) Rekap PPh 21 Bulanan
+        _p3b_open_recap(pg)
+        assert_screen(pg, "#/rekap-pph21", "Rekap PPh 21/26 Bulanan")
+        out["recap"] = pg.evaluate(S38_RECAP)
+        pg.screenshot(path=f"{OUT}/s38-rekap-pph21.png", full_page=True)
+        _, api_recap = api(f"hr/pph21-recap?year={S38_YEAR}&month={S38_MONTH}", tok)
+        summary = (api_recap.get("data") or {}).get("summary") or {}
+        out["api_summary"] = summary
+        csv_text = (api_recap.get("data") or {}).get("csv") or ""
+        out["csv_first_line"] = csv_text.split("\r\n")[0][:220]
+        out["csv_fixture_line"] = next((l for l in csv_text.split("\r\n") if l.startswith("EMP-S38;")), None)
+
+        out["console_errors"] = errors
+        fm = out["formats"]; rc = out["recap"]
+        fixture_row = next((r for r in rc["rows"] if r["employee"] == "EMP-S38"), {})
+        nik_row = next((r for r in rc["rows"] if r["employee"] == "EMP-0007"), {})  # Joko Susilo: tanpa NPWP, ber-NIK (data demo)
+        waiting = [f for f in fm if f["status"] == "menunggu template"]
+        tile = {t["label"]: t["value"] for t in rc["tiles"]}
+        out["checks"] = {
+            "five_formats_in_registry_order": [f["key"] for f in fm] == ["efaktur_csv_legacy", "efaktur_coretax_xml", "ebupot_unifikasi_csv", "ebupot_2126_bulanan", "sipp_bpjs"],
+            "every_format_is_unverified_with_the_badge": all(f["verified"] == "false" and any(b.startswith("Belum diverifikasi terhadap template") for b in f["badges"]) for f in fm),
+            "the_sipp_badge_names_bpjs": any("BPJS Ketenagakerjaan" in b for f in fm if f["key"] == "sipp_bpjs" for b in f["badges"]),
+            "awaiting_formats_name_their_file_and_offer_no_download":
+                len(waiting) == 3 and all("docs/samples/pajak/" in (f["awaiting"] or "") for f in waiting)
+                and all(not any("Unduh" in b for b in f["buttons"]) for f in waiting),
+            "the_api_says_the_same": out["api_formats"] == [("efaktur_csv_legacy", False, True), ("efaktur_coretax_xml", False, False), ("ebupot_unifikasi_csv", False, True), ("ebupot_2126_bulanan", False, False), ("sipp_bpjs", False, False)],
+            "both_tabs_say_unverified_above_the_table":
+                out["efaktur"]["alert_verified"] == "false" and "BELUM DIVERIFIKASI terhadap template DJP" in (out["efaktur"]["alert"] or "")
+                and out["ebupot"]["alert_verified"] == "false" and "BELUM DIVERIFIKASI terhadap template DJP" in (out["ebupot"]["alert"] or ""),
+            "the_download_filename_says_unverified":
+                "belum-diverifikasi.csv" in (out["efaktur"]["file_title"] or "") and "belum-diverifikasi.csv" in (out["ebupot"]["file_title"] or ""),
+            "the_recap_title_says_internal_not_a_djp_file": "BUKAN berkas impor DJP" in (rc["desc"] or "") and "Rekap internal" in (rc["desc"] or ""),
+            "the_recap_format_alert_is_awaiting_a_template":
+                "Menunggu template" in (rc["alert"] or "") and "BELUM DIVERIFIKASI terhadap template DJP" in (rc["alert"] or "")
+                and "docs/samples/pajak/ebupot-2126-bulanan-" in (rc["awaiting"] or ""),
+            "the_legacy_employee_has_an_empty_identity_cell":
+                fixture_row.get("tax_id") == "" and fixture_row.get("tax_id_empty") == "true" and fixture_row.get("kind") == ""
+                and "BELUM-ADA" in (fixture_row.get("tax_id_title") or ""),
+            "the_tile_counts_the_employee_without_a_tax_identity": rc["without"] == "1" and tile.get("Pegawai tanpa identitas pajak") == "1",
+            "the_nik_identity_is_labelled": nik_row.get("kind") == "NIK (16 digit)" and len(nik_row.get("tax_id") or "") == 16,
+            "the_thr_draft_is_listed_as_excluded": any(r["jenis"] == "THR Keagamaan" and r["status"] == "Draf" and r["included"] == "false" and "tidak masuk rekap" in r["ket"] for r in rc["runs"]),
+            "the_approved_run_is_listed_as_included": any(r["jenis"] == "Gaji Bulanan" and r["status"] == "Disetujui" and r["included"] == "true" for r in rc["runs"]),
+            "the_recap_total_equals_the_sum_of_the_slips_in_sqlite":
+                truth["slips"] == summary.get("slips") and abs(float(summary.get("pph21") or 0) - truth["pph21"]) < 0.005
+                and abs(float(summary.get("gross") or 0) - truth["gross"]) < 0.005 and len(rc["rows"]) == summary.get("employees"),
+            "the_csv_is_labelled_and_the_fixture_cell_is_empty_in_it":
+                out["csv_first_line"].startswith("# Rekap internal PPh 21/26") and "BUKAN berkas impor DJP" in out["csv_first_line"]
+                and (out["csv_fixture_line"] or "").startswith("EMP-S38;Pegawai Warisan (fixture S38);;;"),
+            "the_ter_note_is_shown": "perlu dicek terhadap peraturan yang berlaku" in (rc["ter_note"] or ""),
+            "the_screens_never_scroll_sideways": out["efaktur"]["scrolls_sideways"] is False and rc["scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+@scenario("S38_kepatuhan_djp_ponsel")
+def s38m(browser):
+    """390×844 (is_mobile, has_touch) sebagai admin@: kedua layar tergambar tanpa gulir samping —
+    lima blok format di Ekspor Pajak, sel identitas kosong di Rekap PPh 21 Juli 2026; 0 galat konsol."""
+    fx = _p3b_fixture()
+    if "SKIPPED" in fx:
+        return fx
+    fx.pop("admin_token", None)
+    errors = []
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        out = {"fixture": fx}
+
+        pg.goto(BASE + "#/tax-exports")
+        pg.wait_for_selector(".djp-format", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["formats"] = pg.evaluate(S38_FORMATS)
+        out["efaktur"] = pg.evaluate(S38_EXPORT)
+        pg.screenshot(path=f"{OUT}/s38m-ekspor-pajak.png", full_page=False)
+
+        _p3b_open_recap(pg)
+        out["recap"] = pg.evaluate(S38_RECAP)
+        pg.screenshot(path=f"{OUT}/s38m-rekap-pph21.png", full_page=False)
+
+        out["console_errors"] = errors
+        rc = out["recap"]
+        fixture_row = next((r for r in rc["rows"] if r["employee"] == "EMP-S38"), {})
+        out["checks"] = {
+            "five_format_blocks_render_on_a_phone": len(out["formats"]) == 5 and all(f["verified"] == "false" for f in out["formats"]),
+            "the_export_screen_never_scrolls_sideways": out["efaktur"]["scrolls_sideways"] is False,
+            "the_recap_renders_with_the_empty_identity_cell": fixture_row.get("tax_id") == "" and fixture_row.get("tax_id_empty") == "true",
+            "the_recap_screen_never_scrolls_sideways": rc["scrolls_sideways"] is False,
+            "the_recap_title_says_internal_not_a_djp_file": "BUKAN berkas impor DJP" in (rc["desc"] or ""),
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -10153,7 +10427,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
