@@ -1588,12 +1588,12 @@ impor pembuatan.
 
 ---
 
-## 5. Rutinitas — delapan perintah dan sistem alarm
+## 5. Rutinitas — sembilan perintah dan sistem alarm
 
 Semua perintah di bab ini dijalankan dari direktori situs hidup, sebagai `www-data` —
 baca §1 sebelum mengetik yang pertama.
 
-### 5.1 Delapan perintah sekilas
+### 5.1 Sembilan perintah sekilas
 
 | Perintah | Jadwal | Menulis data? | Yang dijaganya |
 |---|---|---|---|
@@ -1603,6 +1603,7 @@ baca §1 sebelum mengetik yang pertama.
 | `erp:backup-watch` | **08:00 WIB harian** | Tidak (kecuali baris notifikasi) | Kegagalan cadangan sampai ke orang, bukan ke mailbox yang tak dibaca |
 | `fin:close-watch` | **08:15 WIB harian** | Tidak | "Periode 2026-02 belum ditutup" menunggu di layar saat finance membuka ERP |
 | `erp:deadline-watch` | **08:30 WIB harian** | Tidak | Tiga puluh empat tanggal yang bisa lewat tanpa ada yang menagih |
+| `fin:bank-inbox` | **Tiap jam, menit 0** (P-3c, 12 Sep 2026) | Ya — `fin_bank_inbox_files` (ledger), `fin_bank_statements` (impor), baris notifikasi, stempel `bank_inbox.checked_at`; **tidak pernah** berkas di foldernya | Berkas rekening koran yang diletakkan administrator di folder server dibaca lewat pemeriksaan yang sama dengan layar Impor; yang gagal tercatat + dibunyikan sekali; folder yang belum ada = diam, keluar 0 — §5.13 |
 | `erp:harden-demo-logins` | **Tidak pernah terjadwal** | Ya — `users`, hapus token | Memutar kata sandi akun yang masih memakai sandi seeder |
 | `erp:inventory-method-check` | **Tidak pernah terjadwal** | Tidak | Menjawab apakah metode persediaan aman diubah sekarang |
 
@@ -2059,8 +2060,95 @@ permintaan "tolong awasi tanggal X juga" adalah perubahan kecil, bukan proyek.
 - **Tidak ada perintah untuk membatalkan atau menghapus baris akrual alat yang telanjur
   salah.** Koreksi hanya lewat menjalankan ulang bulan yang sama (yang menimpa) atau
   lewat residual saat demobilisasi.
-- **Tidak ada `--dry-run`** pada tujuh dari delapan perintah; hanya
+- **Tidak ada `--dry-run`** pada delapan dari sembilan perintah; hanya
   `erp:harden-demo-logins` yang punya.
+- **Tidak ada klien SFTP/FTP dan tidak ada koneksi host-to-host ke bank** (P-3c;
+  `docs/KEPUTUSAN-INTEGRASI.md` §10). `fin:bank-inbox` membaca folder di server ini —
+  berkasnya sampai ke sana dari tangan Anda atau alat milik pemilik (§5.13).
+- **`fin:bank-inbox` tidak memindah, tidak mengganti nama, dan tidak menghapus berkas
+  apa pun** di folder terpantau. Berkas yang sudah diimpor tetap di tempatnya; yang
+  membersihkan folder adalah Anda (§5.13).
+
+### 5.13 `fin:bank-inbox` — folder terpantau rekening koran (runbook)
+
+**Apa ini.** Sejak P-3c (12 Sep 2026) rekening koran bisa diimpor dari satu folder di
+server tanpa ada yang membuka layar Impor: `fin:bank-inbox` membaca folder itu **tiap jam**
+(penjadwal `erp1-scheduler`, §5.2) dan mengimpor berkas baru lewat **pemeriksaan yang sama
+persis** dengan layar (tie-out, rantai periode/saldo per rekening, identitas berkas). Yang
+tidak sama hanya satu: tidak ada operator yang mengetik periode dan saldo untuk CSV — maka
+CSV dibaca **hanya** bila preset rekeningnya memetakan kolom saldo (PANDUAN §10.4).
+
+**Di mana.** `BANK_INBOX_PATH` di `.env` (nama variabel di `.env.example`); bawaan bila
+kosong: `storage/app/private/bank-inbox` di bawah direktori situs. Bawaan itu dipilih
+karena `storage/app/private/**` sudah **dikecualikan** `rsync --delete` oleh
+`deploy/sync-erp1.sh` (deploy tidak menghapusnya) dan **ikut dicadangkan**
+`deploy/backup-erp1.sh` bersama lampiran (§10.1) — berkas rekening koran adalah data
+perusahaan dan ikut ke offsite. Tata letaknya:
+
+```
+<folder terpantau>/
+  BANK-BCA-OPS/      ← sub-folder = KODE rekening bank (Keuangan › Rekening Bank), persis
+    2026-04.csv
+    2026-05.sta
+  BANK-MDR-PRJ/
+    2026-04.sta
+```
+
+**Membuat foldernya (sekali, sebagai root di server).** Folder **belum ada** pada setiap
+instalasi baru, termasuk erp1 sesudah deploy — selama itu perintah menulis
+*"Folder terpantau belum ada: … — tidak ada yang diperiksa"* dan keluar 0, tanpa
+notifikasi, tanpa baris ledger; layar berkata *"Folder terpantau belum ada di server …"*.
+
+```
+install -d -o www-data -g www-data -m 0750 /var/www/erp1.pi2.co.id/storage/app/private/bank-inbox
+install -d -o www-data -g www-data -m 0750 /var/www/erp1.pi2.co.id/storage/app/private/bank-inbox/BANK-BCA-OPS
+```
+
+Yang dibutuhkan aplikasi hanya **hak baca** (`www-data` membaca folder dan berkasnya); ia
+tidak butuh hak tulis dan tidak memakainya. Berkas yang tidak terbaca tercatat *"Berkas
+tidak bisa dibaca (hak akses) …"* — bukan galat.
+
+**Mengisi foldernya.** Dari luar aplikasi — `scp`, `rclone`, atau salinan manual — ke
+sub-folder kode rekeningnya. Nama berkas bebas; ekstensi yang dibaca `.csv`, `.txt`,
+`.sta`, `.940`, `.mt940` (`.txt` dianggap MT940 bila memuat `:61:`, selain itu CSV). Berkas
+tersembunyi (diawali titik), sub-folder bersarang, dan sub-folder yang bukan kode rekening
+**aktif** tidak dibaca (yang terakhir tercatat *Diabaikan* dengan kalimatnya). Batas 2 MB
+per berkas — sama dengan layar Impor.
+
+**Apa yang terjadi sesudah diproses: TIDAK ADA — pada berkasnya.** Aplikasi tidak
+memindah ke `processed/`, tidak mengganti nama, tidak menghapus, tidak menulis penanda.
+Yang ditulis adalah **ledger** `fin_bank_inbox_files` (jalur relatif, sha256 isi, status
+`imported|failed|duplicate|ignored`, kalimat sebab, kapan terakhir diperiksa) — itulah yang
+membuat pemeriksaan per jam idempoten: berkas yang sama tidak diimpor dua kali; salinan
+berganti nama tercatat *Salinan*; isi yang berubah di bawah nama lama adalah berkas baru.
+**Membersihkan folder adalah pekerjaan Anda**, kapan pun — ledgernya tetap mengingat sha256,
+jadi berkas yang Anda taruh lagi tidak diimpor dua kali.
+
+**Kegagalan.** Setiap berkas `failed` tercatat dengan kalimat Indonesia di ledger dan
+dibunyikan **sekali** di lonceng pemegang `fin.update` (dedupe judul + sha256 berkas;
+diulang paling cepat 7 hari sesudah dibaca) — bukan tiap jam. Berkas `failed` **diperiksa
+ulang tiap jam** (rantai yang putus bisa tersambung sesudah periode sebelumnya diimpor).
+Yang berhasil dibunyikan sekali dengan tautan ke rekening korannya. Kalimat notifikasi dan
+API hanya memuat **jalur relatif** di bawah folder — jalur absolut server tidak pernah
+keluar dari mesin ini. Keluaran CLI perintah terjadwal dibuang ke `/dev/null` (§5.2);
+untuk membaca ringkasannya jalankan tangan sebagai `www-data`:
+`php artisan fin:bank-inbox` → *"N berkas: a diimpor, b gagal, c salinan, d diabaikan,
+e tidak berubah"*.
+
+**Membaca keadaannya tanpa terminal.** Keuangan › Rekonsiliasi Bank › tab **Folder
+terpantau** (`GET api/finance/bank-inbox`, `fin.view`): ubin, *Terakhir diperiksa* (stempel
+`core_settings` `bank_inbox.checked_at` yang ditulis perintah — bukan asumsi dari jadwal),
+kesiapan per rekening, dan tabel berkas. Tombol **Periksa sekarang** (`fin.create`)
+menjalankan pemeriksaan yang sama saat itu juga. **Layar itu tidak tahu apakah penjadwal
+hidup** — bila stempelnya berhenti bergerak, periksa `GET api/core/health` /
+`systemctl status erp1-scheduler` (§5.2).
+
+**Yang tidak dilakukan aplikasi, dengan sengaja.** Tidak mengunduh dari bank (tidak ada
+host-to-host — penolakan tertulis dipertahankan), tidak menarik dari server lain (tidak ada
+klien SFTP/FTP, tidak ada kredensial bank di server), tidak menebak tata letak CSV (preset
+per rekening yang Anda simpan dari pratinjau yang berhasil; preset bawaan per bank menunggu
+berkas ekspor nyata pemilik di `docs/samples/bank/`), tidak membuat foldernya sendiri, dan
+tidak menyentuh berkas di dalamnya.
 
 ---
 

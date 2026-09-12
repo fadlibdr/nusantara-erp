@@ -271,6 +271,14 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 > SIPP ternyata XLSX — tidak ada dependensi yang ditambahkan, tidak ada `format=coretax_xml`
 > yang menghasilkan berkas karangan (`docs/LAPORAN-PAKET-HM-P-3b.md`).
 
+> **P-3c dibangun 12 Sep 2026** dengan tiga keputusan yang dipakai sampai dijawab pemilik:
+> preset impor **per rekening** (bukan tabel banyak-per-rekening; roadmap menulis "per bank"),
+> preset bawaan BCA/Mandiri/BNI/BRI **tidak ada** sampai berkas ekspor nyata diletakkan di
+> `docs/samples/bank/` (registri `BankPresets` berkata "BELUM ADA BERKAS EKSPOR NYATA"), dan
+> folder terpantau di `storage/app/private/bank-inbox` (`BANK_INBOX_PATH`) yang **hanya
+> dibaca** aplikasi — SFTP tidak dibangun, host-to-host tetap ditolak
+> (`docs/KEPUTUSAN-INTEGRASI.md` §10, `docs/LAPORAN-PAKET-HM-P-3c.md`).
+
 > **Baris 5 — "Core 001400–?" bertabrakan dengan blok pertama Quality, dan blok itu sudah
 > berisi enam migrasi.** CONVENTIONS §2 memberikan `001400–001499` kepada Quality
 > (`| Quality | api/quality | qc_ | 001400–001499 |`), dan `ls Modules/*/Database/Migrations/*_0014*.php`
