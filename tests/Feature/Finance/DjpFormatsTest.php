@@ -225,8 +225,9 @@ class DjpFormatsTest extends ErpTestCase
         $this->assertNull($verified['file_note']);
 
         $screen = (string) file_get_contents(public_path('app/js/views/taxexport.js'));
-        $this->assertStringContainsString('exp.format.file_note', $screen, 'taxexport.js tidak menampilkan file_note dari registri');
-        $this->assertStringContainsString('.djp-file-note', $screen);
+        // Struktural (R2-kejujuran-2): cabangnya persis `exp.format.file_note ? el(` — mutasi `&& false` merah.
+        $this->assertMatchesRegularExpression('/exp\.format\.file_note\s*\?\s*el\(\'\.card-body\.djp-file-note\'/', $screen,
+            'taxexport.js tidak menggambar .djp-file-note dari exp.format.file_note');
     }
 
     public function test_a_verified_export_is_left_exactly_as_the_writer_produced_it(): void

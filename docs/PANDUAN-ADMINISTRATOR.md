@@ -967,6 +967,9 @@ pelanggan, vendor, karyawan (formulir DAN Impor Data Master), dan nomor **Dokume
 berjenis NPWP** (jenis lain bebas) memakai satu aturan:
 NPWP diperiksa saat DISIMPAN (P-3b): **15 digit** (format lama), **16 digit** (NPWP baru; untuk orang pribadi = NIK), atau **22 digit** (NITKU) — titik, strip, dan spasi boleh; tidak ada digit periksa. Nilai lama yang tidak memenuhi bentuk itu tetap terbaca dan boleh dikirim kembali apa adanya saat menyunting kolom lain; hanya nilai yang DIUBAH yang diperiksa.
 Yang tidak diperiksa: apakah nomornya milik badan yang benar — itu tetap tugas manusia.
+Aturan maju-saja yang sama berlaku untuk **NIK karyawan** (`digits:16` di formulir DAN importer):
+NIK warisan yang dikirim kembali persis seperti tersimpan tidak menyandera suntingan kolom lain;
+NIK yang diubah diperiksa bentuk dan keunikannya.
 Status verifikasi setiap format berkas DJP/BPJS terhadap template resmi tertulis di kartu
 pertama layar Ekspor Pajak dan di `docs/samples/pajak/README.md` (folder yang harus diisi
 pemilik/konsultan; kosong pada 12 Sep 2026).
@@ -1464,9 +1467,13 @@ nomor rekening berawalan nol, dan barcode dibaca sebagai **teks**.
 > 2. **NIK ganda melakukan hal yang sama.** `hr_employees.nik_ktp` UNIK di skema, tetapi
 >    aturan importer `digits:16` tanpa pemeriksaan unik — dua kode karyawan
 >    berbagi satu NIK lolos pratinjau dan meledak saat commit. (Sejak P-3b importer dan
->    formulir SEPAKAT soal bentuk: keduanya menuntut **16 digit**; NIK enam belas huruf
->    yang dulu lolos impor lalu muncul bersel kosong di Rekap PPh 21 kini dilewati dengan
->    kalimat *"nik_ktp harus 16 digit."* — yang belum sepakat hanya keunikannya.)
+>    formulir SEPAKAT soal bentuk: keduanya menuntut **16 digit** dan keduanya maju-saja —
+>    NIK warisan yang dikirim kembali apa adanya tidak diperiksa ulang, jadi ekspor → sunting
+>    → impor balik tetap memperbarui baris ber-NIK warisan; NIK enam belas huruf yang BARU
+>    dilewati dengan kalimat *"nik_ktp harus 16 digit."* — yang belum sepakat hanya
+>    keunikannya.) Kode karyawan bebas berawalan `EMP-` yang bukan angka (mis. `EMP-X`) dulu
+>    membuat setiap tambah karyawan dari formulir jatuh 500 pada indeks unik kode — sudah
+>    dibetulkan (P-3b putaran kedua): penomoran hanya menghitung kode `EMP-<angka>`.
 > 3. **`kategori_kode` dicari tanpa filter soft-delete**, jadi kategori yang sudah
 >    dihapus tetap ketemu dan item yang diimpor menempel padanya — item yang tidak
 >    dicantumkan layar mana pun.

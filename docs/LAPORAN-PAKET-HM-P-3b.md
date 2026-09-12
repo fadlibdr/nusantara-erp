@@ -37,7 +37,7 @@ migrasi (kolom `npwp` varchar(30) sudah memuat NITKU 22 digit).
 | # | Tugas | Status | Bukti (commit + angka terukur) |
 |---|---|---|---|
 | T3b.0 | Registri format DJP + label jujur, SEBELUM satu baris kode lain | ✅ | `16b0c61` — `docs/samples/pajak/README.md` (daftar berkas per kunci, konvensi nama bertanggal, siapa memverifikasi, **tanpa satu contoh kolom pun** — dipaku `DjpFormatsTest`: README menyebut setiap kunci + pola nama, dan TIDAK memuat `KD_JENIS_TRANSAKSI`/`NOMOR_BUKTI_POTONG`/`<xml`); `Modules\Finance\Support\DjpFormats` lima kunci literal (`efaktur_csv_legacy` ada, `efaktur_coretax_xml` menunggu, `ebupot_unifikasi_csv` ada, `ebupot_2126_bulanan` menunggu, `sipp_bpjs` menunggu) + `describe()` murni (klaim tanpa berkas → belum diverifikasi); tiga permukaan: `GET finance/tax-exports` → `data.formats` + `data.<tab>.format`; layar `.djp-format` per entri + kalimat di atas tab dari API (kalimat SPA "dapat berubah mengikuti ketentuan DJP" dihapus, PANDUAN §10.12 disapu 1 → 0); berkas: `DjpFormats::filename` (akhiran) + `stampCsv` (baris `#` di atas) — **writer kolom tidak disentuh** (uji memaku header FK/`NOMOR_BUKTI_POTONG` di baris kedua). Tutup buku: "siap masuk berkas ekspor pajak — <kalimat registri>", bukan "siap diekspor ke DJP". `DjpFormatsTest` **15 uji** di ujung cabang (14 di `16b0c61`); 7 mutasi merah (§4) |
-| T3b.1 | Aturan NPWP 16 digit / NIK / NITKU tanpa checksum karangan; satu kelas nilai; SATU Rule di SETIAP pintu tulis | ✅ | `1be9ecd` — `Modules\Core\Support\Npwp` (**di Core**: kolomnya milik empat modul; §2A) — klasifikasi HANYA dari panjang digit **15/16/22** (literal di uji), tanpa digit periksa (`000000000000000` sah, dipaku), tampilan 15 berformat cetak lama / 16 & 22 digit utuh, nilai lama tidak dikenali dipulangkan apa adanya; `Modules\Core\Rules\ValidNpwp` (kalimat 422 menyebut ketiga bentuk) di **7 pintu** (§5); maju-saja lewat `unlessUnchanged()` (§2B); teks bantuan pada 4 formulir SPA. **56 − 15 − 14 = 27 uji** di 4 berkas (`NpwpTest` 14, `CustomerNpwpGateTest` 5, `VendorNpwpGateTest` 4, `EmployeeNpwpGateTest` 4), merah dulu (8 error + 13 gagal), 8 mutasi merah (§4). Chromium: 422 tergambar di bawah field dengan kalimatnya, koreksi ke 16 digit → "Pelanggan dibuat." (§7) |
+| T3b.1 | Aturan NPWP 16 digit / NIK / NITKU tanpa checksum karangan; satu kelas nilai; SATU Rule di SETIAP pintu tulis | ✅ | `1be9ecd` — `Modules\Core\Support\Npwp` (**di Core**: kolomnya milik empat modul; §2A) — klasifikasi HANYA dari panjang digit **15/16/22** (literal di uji), tanpa digit periksa (`000000000000000` sah, dipaku), tampilan 15 berformat cetak lama / 16 & 22 digit utuh, nilai lama tidak dikenali dipulangkan apa adanya; `Modules\Core\Rules\ValidNpwp` (kalimat 422 menyebut ketiga bentuk) di **7 pintu** (§5) — **8 sejak putaran verifikasi** (`9780f44`: nomor Dokumen Vendor berjenis NPWP, V3-5); maju-saja lewat `unlessUnchanged()` (§2B) — **juga per baris impor** sejak `4699d79` (V2-1); teks bantuan pada 4 formulir SPA — **Profil Perusahaan baru benar-benar menggambarnya sejak `b23859b`** (V3-1/V2-2). **56 − 15 − 14 = 27 uji** di 4 berkas (`NpwpTest` 14, `CustomerNpwpGateTest` 5, `VendorNpwpGateTest` 4, `EmployeeNpwpGateTest` 4), merah dulu (8 error + 13 gagal), 8 mutasi merah (§4). Chromium: 422 tergambar di bawah field dengan kalimatnya, koreksi ke 16 digit → "Pelanggan dibuat." (§7) |
 | T3b.2 | Rekap PPh 21/26 bulanan dari snapshot slip run disetujui/diposting; endpoint baca-saja; layar; CSV berlabel; uji kesetaraan; run draf tidak masuk; sel kosong | ✅ | `9c9bbc3` — `Pph21RecapService::monthly()` membaca `hr_payslips.ter_category/ter_rate/pph21_amount` (bukan hitung ulang: gaji diubah sesudah run disetujui → rekap tidak bergeser, dipaku), hanya run `approved`/`closed` (status yang sama dengan `decemberTax`, `TaxEqualizationService`), draf/diajukan/ditolak DISEBUT di `runs.excluded`, terhapus lunak tidak di kedua daftar; THR + gaji satu bulan → satu baris pegawai (setiap slip disebut); identitas: npwp dikenali → NIK 16 digit → **kosong** + `tax_id_issue` + `summary.without_tax_id`; CSV `;` + desimal koma, baris pertama `# Rekap internal PPh 21/26 … BUKAN berkas impor DJP`, `rekap-internal-pph21-YYYY-MM.csv`. `GET hr/pph21-recap` di balik **`hr.view`** (izin yang sudah ada — §2C). Layar `#/rekap-pph21` (`views/rekappph21.js`; NAV SDM & Payroll di bawah Payroll; `SHELL_VERSION` 9 → 10). `Pph21RecapTest` **14 uji**, merah dulu (14 error); kesetaraan `SUM(hr_payslips.pph21_amount)` dipaku di uji DAN di harness atas sqlite salinan (§7); 10 mutasi merah (§4) |
 | T3b.3 | Sapuan kejujuran: docblock ke permukaan; TER HANYA diverifikasi; NTPN tetap manual | ✅ dengan **satu temuan** | `75df8f2` — **`config/erp.php` TIDAK memuat tabel TER** (`grep -n "'ter'" config/erp.php` = 0 baris): tabel dan tanda "verify against the official PMK 168/2023 attachment" hidup di `Pph21TerService`; docblock `TaxExportService` yang menunjuk `config/erp.php` dibetulkan (`16b0c61`). Tandanya diangkat ke permukaan pemakai sebagai `Pph21TerService::VERIFICATION_NOTE` ("…ditandai perlu dicek terhadap peraturan yang berlaku…") di API dan kaki layar rekap — **tidak satu angka TER pun berubah** (`git diff main...HEAD -- Modules/HrPayroll/Services/Pph21TerService.php` hanya menambah satu konstanta kalimat + docblock-nya). NTPN: `kalenderpajak.js` ("MANUAL — NTPN diketik dari SSP/BPN asli, tidak ada integrasi e-filing"; "dipilih manual, tidak ada yang otomatis") dan `TaxObligationService` ("harus mencantumkan NTPN dari SSP/BPN-nya") dipaku; sapuan string tampil di `views/*.js`, `Modules/*/Services/*.php`, `Modules/*/Http/Controllers/*.php` untuk "NTPN otomatis", "otomatis dari DJP", "siap Coretax", "sesuai DJP", "siap diekspor ke DJP" = **0** (uji `test_ntpn_stays_manual_and_nothing_promises_automation_or_djp_conformance`) |
 | 4 | Uji PHP + mutasi; per-direktori, bukan suite penuh | ✅ | **56 uji baru** di 6 berkas (15+14+5+4+4+14; `grep -c 'public function test_'`), 1 pin lama diperbarui (`TaxExportTest` nama berkas jujur); **25 mutasi, 25 merah, 0 LOLOS HIJAU** (§4); per-direktori §8 |
@@ -161,10 +161,12 @@ Cacat berulang kampanye ini: aturan yang benar di satu permukaan bocor di permuk
 |---|---|---|---|---|---|---|---|
 | "BELUM DIVERIFIKASI terhadap template" | — | ✅ `TaxExportService` (`format`, `filename`, `csv`), `PeriodCloseService` (kalimat tutup buku), `Pph21RecapService` (`format`) | ✅ `GET finance/tax-exports` (`formats` + per tab), `GET hr/pph21-recap` (`format`) | ✅ `.djp-format` ×5 + `.djp-export-verification`; `.recap-format` | ✅ nama `-belum-diverifikasi` + baris `#` (e-Faktur, e-Bupot); rekap: label "BUKAN berkas impor DJP" | tidak ada cetakan berkas DJP | — |
 | Format menunggu template = tanpa unduhan | — | `downloadable: false` | ✅ | ✅ blok tanpa tombol Unduh, kalimat `awaiting_file` | tidak ada berkas | — | — |
-| NPWP 15/16/22 digit di pintu tulis | ✅ `CustomerStore/Update`, `VendorStore/Update`, `EmployeeStore/Update`, `PUT core/company` | — (tidak ada service yang menulis npwp: `grep -rn npwp Modules/*/Services` = pembaca saja) | resource memulangkan nilai apa adanya (tidak ada `npwp_kind` — tidak ada layar yang memakainya di luar rekap) | ✅ teks bantuan 4 formulir; 422 tergambar di bawah field (Chromium §7) | — | ✅ cetakan tidak menolak nilai lama (`Npwp::format` apa adanya; `PrintableDocuments`/blade tidak diubah) | ✅ kolom `npwp` vendors/customers/employees, per baris; lembar tanpa kolom = nilai lama utuh |
+| NPWP 15/16/22 digit di pintu tulis | ✅ `CustomerStore/Update`, `VendorStore/Update`, `EmployeeStore/Update`, `PUT core/company`, **`VendorDocumentStore/Update` kolom `number` hanya bila `doc_type = npwp`** (`9780f44`, V3-5) | — (tidak ada service yang menulis npwp: `grep -rn npwp Modules/*/Services` = pembaca saja) | resource memulangkan nilai apa adanya (tidak ada `npwp_kind` — tidak ada layar yang memakainya di luar rekap) | ✅ teks bantuan 4 formulir + kolom Nomor Dokumen Vendor; 422 tergambar di bawah field — Profil Perusahaan sejak `b23859b` (Chromium §7, §15) | ✅ baris ber-NPWP ≠ 15 digit disebut di `notes`/kartu "Perlu dicocokkan" (`9780f44`, V2-6) | ✅ cetakan tidak menolak nilai lama (`Npwp::format` apa adanya; `PrintableDocuments`/blade tidak diubah) | ✅ kolom `npwp` vendors/customers/employees, per baris, **maju-saja per baris yang kodenya sudah ada** (`4699d79`, V2-1); **`nik_ktp` karyawan `digits:16` = formulir** (`9780f44`, V3-3) |
 | Nilai lama tidak disentuh | ✅ `unlessUnchanged` ×4 | — | ✅ GET memulangkan `N/A` apa adanya (3 uji) | — | ✅ `TaxExportService::digits` tidak berubah (NPWP < 15 digit tetap penghalang, bukan galat) | ✅ | ✅ |
 | Rekap = slip run disetujui/diposting saja | ✅ | ✅ `whereIn status` + `withCount` + terhapus lunak keluar | ✅ `runs.included/excluded` | ✅ kartu "Run payroll masa ini" | ✅ baris `#` menyebut run yang membentuk | — | — |
 | Sel kosong untuk yang tidak diketahui | — | ✅ `tax_id: null`, `ter_category/ter_rate: null` | ✅ null, bukan 0 | ✅ `td.tax-id[data-empty]` teks kosong; TER kosong / "Ps. 17" hanya Desember | ✅ `;;` di CSV | — | — |
+| Sel kosong ≠ tambahan 20 % (V2-7/V3b-3) | — | ✅ `identity()` → `tax_id_treatment` + `tax_id_treated_as_identified` dari `Employee::hasTaxId()`, angka dari `Pph21TerService::NON_TAX_ID_SURCHARGE` | ✅ per baris + `summary.without_tax_id_normal_rate` | ✅ kalimat di bawah nama pegawai (`.tax-id-treatment`); sel identitas & jenis TETAP kosong; ubin "N dihitung tarif normal" | CSV tidak berubah (header dipaku) — permukaan berkas diam, disebut §15 | — | — |
+| Baris `#` berkata hapus dirinya (V3b-7) | — | ✅ `DjpFormats::FIRST_LINE_INSTRUCTION` menutup baris `#`; `describe()` → `file_note` (null untuk menunggu template / terverifikasi) | ✅ `data.<tab>.format.file_note` | ✅ `.djp-file-note` di kartu Isi berkas — kalimat dari registri (taxexport.js tidak boleh memuat "diverifikasi") | ✅ baris `#` | — | — |
 
 Pintu yang **diperiksa dan ternyata tidak menulis npwp**: `TenderQualificationService` (membaca
 `vendors.npwp` untuk daftar kualifikasi), `DocumentImportService` (dokumen induk+baris, tidak
@@ -268,6 +270,8 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
 | F | **16 digit tidak dibedakan NIK vs NPWP badan** dari digit pertama | dipakai (klasifikasi panjang saja, sesuai perintah); §2B menyebut inferensi yang TIDAK dipakai |
 | G | **`unlessUnchanged` hanya di pintu API; importer per baris ketat** (lembar tanpa kolom = nilai lama utuh) | dipakai; §2B |
 | H | Tabel TER: kalimat "perlu dicek" tampil di layar rekap sebagai catatan kaki | dipakai; angkanya tidak diubah — verifikasi terhadap lampiran PMK 168/2023 adalah pekerjaan konsultan |
+| I | **Definisi identitas pajak di PAYROLL** (V2-7/V3b-3): `Employee::hasTaxId()` = kolom NPWP ATAU NIK terisi APA PUN (pra-P-3b) — pegawai warisan ber-NIK "BELUM-ADA" dipotong tarif normal, bukan 120 %. Pilihan: (a) biarkan, rekap MENYEBUT perlakuan yang TERJADI (dipakai: flag dibekukan di slip `hr_payslips.has_tax_id`, R2-rekap-1); (b) `hasTaxId()` = `Npwp::isValid(npwp) \|\| NIK 16 digit`, maju-saja (hanya run yang dihitung sesudahnya) | **(a) dipakai** — (b) mengubah pemotongan pegawai yang ada dan karena itu keputusan pemilik; bila (b) dipilih, satu baris di `Employee::hasTaxId()` + paku di `PayrollRunCalculationTest`, slip lama tidak disentuh; berapa pegawai yang terdampak = `select count(*) from hr_employees where npwp/nik tidak berbentuk` — di data demo 1 (EMP-S38 fixture) |
+| J | **Nomor Dokumen Vendor berjenis NPWP** (V3-5): (a) bebas (register arsip) + disebut di dokumen, atau (b) aturan NPWP hanya untuk jenis npwp | **(b) dipakai** (`9780f44`) — jenis lain tetap bebas; mengganti jenis lain MENJADI npwp diperiksa penuh; nomor lama dokumen npwp maju-saja |
 
 ## 10. Prasyarat pemilik — tidak satu pun ada di repo
 
@@ -300,9 +304,11 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
 - **`npwp_kind` pada resource pelanggan/vendor/pegawai** — tidak ditambahkan: tidak ada layar
   yang memakainya (perintah: hanya bila layar memakainya); jenis identitas hanya di muatan rekap.
 - **Klasifikasi NIK vs NPWP badan dari digit pertama** — tidak (§2B, keputusan F).
-- **Migrasi** — tidak ada; kolom `npwp` varchar(30) sudah memuat 22 digit. Blok §2 CONVENTIONS
-  tidak berubah.
-- **Deploy dan merge** — dilarang untuk agen di alur kerja ini.
+- **Migrasi** — satu, aditif, nullable, tanpa backfill (putaran kedua): HrPayroll `001093`
+  `hr_payslips.has_tax_id` (flag identitas yang DIPAKAI payroll saat run dihitung — R2-rekap-1);
+  kolom `npwp` varchar(30) sudah memuat 22 digit. Blok §2 CONVENTIONS tidak berubah (blok pertama
+  HrPayroll 001000–001099 masih punya ruang).
+- **Deploy dan merge** — dilarang untuk agen di alur kerja pembangunan; dilakukan sesi utama sesudah gerbang dua driver (§8, §15) sesuai perintah tetap "berkelanjutan, satu per satu".
 
 ## 12. Deviasi baru yang ditemukan
 
@@ -318,6 +324,25 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
 - Peran `finance-manager` tidak memegang `hr.view` → tidak bisa membuka rekap PPh 21 (keputusan C).
 - `.stat .label` di-uppercase CSS — harness yang membandingkan label ubin harus memakai
   `textContent` (S37 mencatatnya untuk `th`; S38 menemukannya lagi di ubin).
+- Importer karyawan menerima NIK enam belas HURUF (`size:16`, pra-P-3b) sementara formulir
+  menuntut `digits:16` — dan P-3b menjadikan `nik_ktp` identitas pajak cadangan di rekap. **Ditutup**
+  (`9780f44`, V3-3); keunikan NIK di importer tetap jebakan lama (PANDUAN-ADMINISTRATOR §4.9).
+- Register Dokumen Vendor jenis NPWP menerima nomor apa pun ("ABC-123") — pintu ke-8 yang tidak ada
+  di inventaris §5. **Ditutup** (`9780f44`, V3-5, keputusan J).
+- `Employee::hasTaxId()` menganggap NIK "BELUM-ADA" sebagai identitas (tarif normal) sementara rekap
+  menampilkan sel kosong — dua permukaan satu fakta. **Disebut** di rekap (`9780f44`); definisinya
+  keputusan pemilik I.
+- Kedua writer pajak mengasumsikan NPWP 15 digit sementara pintu tulis kini menerima 16/22 — baris
+  seperti itu diekspor diam-diam. **Ditutup** (`9780f44`, V2-6: catatan per baris, kolom tidak diubah).
+- `EmployeeService::nextCode()` mengurutkan `EMP-%` secara leksikal: satu kode impor bebas `EMP-X`
+  membuat SETIAP tambah karyawan dari formulir jatuh 500 pada indeks unik (pra-P-3b, ditemukan
+  verifier putaran kedua lewat importer). **Ditutup** (R2-pintu-2).
+- `lang/id/validation.php` tidak memuat 39 kunci pesan bawaan Laravel (`enum`, `list`, `ulid`, …):
+  `Rule::enum` di pintu mana pun menjawab kalimat Inggris. **Ditutup** (R2-pintu-5, dipaku terhadap
+  berkas `en` framework).
+- Maju-saja bocor lagi pada `nik_ktp` begitu importer memakai `digits:16` (V3-3): impor-balik ekspor
+  karyawan menyandera setiap pegawai ber-NIK warisan; formulir SPA pun (mengirim seluruh baris).
+  **Ditutup** (R2-pintu-1) di kedua pintu.
 - Berkas PID yang ditulis `nohup php -S … & echo $!` dari dalam alat shell memuat PID **pembungkus
   bash**, bukan proses `php`: `kill` atas PID itu membiarkan `php -S` hidup (port masih menjawab
   200). PID yang benar dibaca dari soket yang mendengarkan (`ss -ltnp 'sport = :8231'` →
@@ -330,8 +355,10 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
   di luar laporan ini (PANDUAN-PENGGUNA §10.12 ditulis ulang untuk kartu registri, kalimat dari
   server, nama dan baris pertama berkas; tanpa `grep -v` hasilnya 1 — baris ini sendiri, V2-9).
 - `grep -rn "Rekap PPh 21 Bulanan" docs/ --include=*.md | wc -l` — **8** baris di
-  **5** berkas Markdown (PANDUAN-PENGGUNA daftar grup ×2 + §11.8 baru; CONVENTIONS §39;
-  ONBOARDING hr.md, finance.md; laporan ini) — semuanya dibaca.
+  **5** berkas Markdown (PANDUAN-PENGGUNA ×4: tabel §1, §10.12, daftar grup §11, judul §11.8;
+  ONBOARDING hr.md, finance.md; `docs/samples/pajak/README.md` §2; laporan ini — CONVENTIONS §39
+  memakai ejaan "Rekap PPh 21/26 bulanan" dan tidak tertangkap grep ini; rincian dibetulkan
+  R2-kejujuran-4) — semuanya dibaca.
 - `grep -rn "BELUM DIVERIFIKASI" docs/ --include=*.md | grep -v LAPORAN-PAKET-HM-P-3b | wc -l` —
   **6** baris (README samples, PANDUAN §10.12, CONVENTIONS §39, ROADMAP §5).
 - Berkas yang disapu: `docs/samples/pajak/README.md` (baru), `docs/CONVENTIONS.md` §39 (baru),
@@ -350,8 +377,90 @@ kartu registri menampilkan tombol "Buka rekap internal PPh 21/26 bulanan" pada b
                 NAV, SHELL 10, Pph21RecapTest 14
 75df8f2  T3b.3  sapuan kejujuran + paku NTPN/TER (DjpFormatsTest 15), CONVENTIONS §39, PANDUAN, ONBOARDING, ledger
 d7cde2b  bukti  harness S38/S38m, results-phase-3.json BERDASARKAN KUNCI (10 → 12), 4 PNG
-(commit ini)  laporan
+f480ad1  laporan   laporan ini (versi pertama)
+4699d79  V2-1/V3-2/V3b-4   maju-saja per baris impor (MasterDataImportService::prepare), NpwpTest 4 paku
+3d3eeef  V3b-2/V3b-5/V2-5/V2-8/V2-4   badge_label/formats_summary dari server, downloadable dibaca, sapuan tak peka huruf & terbatas permukaan pajak, klaim tanpa berkas
+2a78f33  V3b-1/V2-3/V3b-6   paku kalimat tutup buku cabang OK, paku 20 digit, needle Coretax
+b23859b  V3-1/V2-2/V3-4   NPWP_HELP satu konstanta, renderCompany help + setFieldError, kalimat spasi
+9780f44  V3-3/V3-5/V2-6/V2-7/V3b-3/V3b-7/V2-9   digits:16 impor, pintu ke-8, notes ekspor, tax_id_treatment, FIRST_LINE_INSTRUCTION/file_note, §13
+(commit ini)  laporan   §1/§5/§9/§11/§12/§14/§15 diperbarui
 ```
 
-Skema: **tidak ada migrasi**. `git diff --stat main...HEAD` di ujung cabang sebelum laporan ini:
-46 berkas, 18 ditambah (A) + 28 diubah (M), +3.596/−54 baris.
+Skema: **satu migrasi** sejak putaran kedua — `2026_09_12_001093_add_has_tax_id_to_hr_payslips_table.php`
+(boolean nullable, tanpa backfill; slip lama null dan rekap berkata "tidak tercatat" bila tidak bisa
+disimpulkan). `git diff --stat main...HEAD` di ujung cabang sebelum laporan pertama (`f480ad1`): 46 berkas,
+18 ditambah (A) + 28 diubah (M), +3.596/−54 baris; angka ujung cabang akhir di §15.2.
+
+---
+
+## 15. Putaran verifikasi (Workflow: 3 lensa → 21 temuan; ditutup 5 commit)
+
+Alur kerja P-3b: satu agen pembangun (6 commit `16b0c61`…`f480ad1`) → tiga verifier lensa di
+worktree masing-masing (`verify:pintu` V2-*, `verify:kejujuran` V3b-*, `verify:skeptic` V3-*; setiap
+verifier `git reset --hard` ke ujung cabang lebih dulu — worktree lahir di `58426c3`) → penutupan
+oleh sesi utama. Tidak satu temuan pun dibiarkan tanpa keputusan tertulis.
+
+| ID | Jenis | Temuan (gejala) | Penutupan | Commit |
+|---|---|---|---|---|
+| V2-1 | BUG | Impor-balik ekspor aplikasi sendiri melewati SETIAP baris warisan ber-NPWP "N/A" — kota yang disunting di Excel tidak mendarat | `MasterDataImportService::prepare` menukar aturan `npwp` per baris yang kodenya sudah ada dengan `ValidNpwp::unlessUnchanged($tersimpan)`; ekspor → impor tanpa perubahan = `updated N, skipped 0` (dipaku) | `4699d79` |
+| V3-2 | DESIGN | Jalur ekspor→sunting→impor menyandera baris lama (sama dengan V2-1, lensa lain) | idem | `4699d79` |
+| V3b-4 | DESIGN | Impor dan API tidak sepakat soal nilai lama yang dikirim kembali apa adanya | idem — kini sepakat: PUT dan baris impor berkode sama-sama maju-saja | `4699d79` |
+| V3b-2 | TEST-GAP | Lencana SPA HIJAU "Sesuai DJP" LOLOS HIJAU — sapuan peka huruf besar, teks lencana disusun SPA | `badge_label` + `formats_summary.label` dari `DjpFormats::describe()/summary()`; sapuan `/i`; paku statis: `taxexport.js` tanpa string ber-«diverifikasi»/«sesuai»/«coretax» | `3d3eeef` |
+| V3b-5 | TEST-GAP | Tombol Unduh pada format "menunggu template" LOLOS HIJAU — `downloadable` tidak pernah dibaca | SPA membaca `exp.format.downloadable`; paku: tepat satu literal `Unduh`, di dalam cabang itu | `3d3eeef` |
+| V2-5 | DESIGN | Teks lencana dikarang SPA, bukan dari server seperti diklaim | idem V3b-2 | `3d3eeef` |
+| V2-8 | DESIGN | Paku sapuan frasa menyapu SELURUH aplikasi — merah pada negasi wajar modul lain | sapuan dibatasi 10 berkas permukaan pajak, mengabaikan «belum/tidak/bukan/tanpa …» | `3d3eeef` |
+| V2-4 | TEST-GAP | `verified_against` yang menunjuk berkas TIDAK ADA lolos hijau | paku `describe()` atas entri buatan dengan path yang tidak ada → `verified=false` + kalimat "berkasnya tidak ada di pohon ini" | `3d3eeef` |
+| V3b-1 | TEST-GAP | Kalimat tutup buku "N dokumen siap diekspor ke Coretax" LOLOS HIJAU — cabang OK tidak dipaku | `PeriodCloseChecklistTest`: invoice siap → detail DIMULAI "N dokumen siap masuk berkas ekspor pajak — BELUM DIVERIFIKASI…"; needle «Coretax»/«diekspor ke» | `2a78f33` |
+| V2-3 | TEST-GAP | Kalimat tutup buku tidak dijaga uji apa pun | idem | `2a78f33` |
+| V3b-6 | TEST-GAP | `Npwp::kind` menerima 20 digit sebagai NITKU tanpa uji merah — paku panjang hanya 14/17/21/23 | paku setiap panjang 1…30 selain 15/16/22 | `2a78f33` |
+| V3-1 | HONESTY | Profil Perusahaan: teks bantuan NPWP TIDAK PERNAH digambar, 422 hanya toast — laporan mengklaim "4 formulir" | `renderCompany` meneruskan `help: spec.help` ke `field()` dan memetakan `error.errors` ke kolom (`setFieldError`, pola `form.js`); satu konstanta `NPWP_HELP` di `schema.js` dipakai 3+1 formulir (dipaku); Chromium: help tampil, 422 di `.field.invalid .err` | `b23859b` |
+| V2-2 | UX | idem, lensa lain | idem | `b23859b` |
+| V3-4 | UX | Teks bantuan berkata "titik dan strip boleh" sementara aturan dan 422 menerima SPASI juga | `NPWP_HELP` menyebut titik, strip, spasi | `b23859b` |
+| V3-3 | DESIGN | Importer karyawan menerima 16 HURUF sebagai NIK (`size:16`) — muncul bersel kosong di rekap | `digits:16` = formulir; baris huruf dilewati "nik_ktp harus 16 digit.", baris digit mendarat (dipaku) | `9780f44` |
+| V3-5 | DESIGN | Dokumen Vendor jenis NPWP menerima "ABC-123" — pintu ke-8 di luar inventaris | `VendorDocumentStore/UpdateRequest::npwpRuleFor` hanya untuk `doc_type = npwp`; maju-saja hanya pada dokumen yang sudah npwp; teks bantuan kolom Nomor; keputusan J | `9780f44` |
+| V2-6 | DESIGN | Writer e-Faktur/e-Bupot menerima NPWP 16/22 digit tanpa catatan pada skema 15 digit | `npwpShapeNote` → `notes` + `summary.noted` + kartu "Perlu dicocokkan — NPWP bukan 15 digit"; kolom tidak diubah; hanya selama belum diverifikasi | `9780f44` |
+| V2-7 | DESIGN | Rekap "tanpa identitas" sementara slipnya dihitung tarif normal (tanpa 120 %) | `tax_id_treatment` per baris (dari `hasTaxId()`, angka dari `NON_TAX_ID_SURCHARGE`), `without_tax_id_normal_rate` di ubin, kalimat di bawah nama; keputusan I | `9780f44` |
+| V3b-3 | DESIGN | idem, lensa lain (ubin vs angka baris) | idem | `9780f44` |
+| V3b-7 | UX | Baris `#` tidak berkata "hapus baris ini sebelum mengimpor" | `FIRST_LINE_INSTRUCTION` menutup baris `#`; `file_note` registri → kartu Isi berkas; PANDUAN §10.12, ONBOARDING | `9780f44` |
+| V2-9 | HONESTY | Angka §13 "1 → 0" tidak tereproduksi (laporan mengutip frasa grep-nya sendiri) | perintah diberi `grep -v LAPORAN-PAKET-HM-P-3b`, hasilnya disebut apa adanya | `9780f44` |
+
+**Yang tidak diubah walau disebut verifier:** keunikan NIK di importer (jebakan lama §4.9
+PANDUAN-ADMINISTRATOR, di luar paket); definisi `hasTaxId()` payroll (keputusan I); CSV rekap tetap
+tanpa kolom perlakuan (header dipaku; permukaan berkas diam — lihat §15.2 bila putaran kedua
+menuntutnya).
+
+### 15.1 Bukti putaran pertama
+
+Verifier: 14 + 18 + 7 mutasi tambahan MERAH di luar 25 mutasi laporan; yang LOLOS HIJAU (VX1, VX2,
+MB/ME/MI/MQ, V3b-6) menjadi temuan di atas dan kini merah. Setiap verifier mengembalikan pohonnya
+bersih (`git status --short` kosong, mutasi dipulihkan `cmp`), server `php -S` dimatikan per PID,
+`database/database.sqlite` hidup tidak disentuh (mtime tetap).
+
+### 15.2 Putaran kedua (Workflow `p3b-verify-round2` atas `9780f44`: 3 lensa → 14 temuan; ditutup 1 commit)
+
+Tiga verifier (`verify:pintu`, `verify:kejujuran`, `verify:rekap`) di worktree masing-masing (lahir di
+`58426c3`, di-reset ke `9780f44`), 213 pemakaian alat, 28 menit; setiap lensa: probe HTTP nyata atas
+salinan DB, mutasi paku (dipulihkan `cmp`), Chromium desktop + ponsel, harness S38 (lensa rekap).
+Semua 14 diterima dan ditutup pada commit putaran kedua (§14).
+
+| ID | Jenis | Temuan (gejala) | Penutupan |
+|---|---|---|---|
+| R2-pintu-1 | BUG | Impor-balik ekspor karyawan menyandera setiap pegawai ber-NIK warisan ("nik_ktp harus 16 digit."), formulir SPA idem — regresi maju-saja V2-1 pada `nik_ktp` | `'forward_only' => ['digits:16']` di kolom importer + `MasterDataImportService::forwardOnlyRules`; `EmployeeUpdateRequest::nikUnchanged()`; keunikan tetap; 2 paku (importer, PUT) |
+| R2-pintu-2 | BUG | Satu kode impor `EMP-X` → setiap Tambah Karyawan 500 `UNIQUE hr_employees.code` (`nextCode` leksikal) | `nextCode()` hanya menghitung `EMP-<angka>` + jaring `while exists`; paku: `EMP-X` + `EMP-R2-00` lalu POST → `EMP-0009`, `EMP-0010` |
+| R2-pintu-3 | TEST-GAP | Mutasi "maju-saja walau jenis tersimpan bukan npwp" LOLOS HIJAU | paku PUT siup→npwp dengan nomor LAMA `ABC-123` → 422 |
+| R2-pintu-4 | DESIGN | PUT siup→npwp TANPA kunci `number` menyimpan `ABC-123` sebagai NPWP | `withValidator`: nomor tersimpan diperiksa `ValidNpwp` bila jenis menjadi npwp; paku |
+| R2-pintu-5 | UX | `Rule::enum` menjawab "The selected Jenis is invalid." — 39 kunci `lang/id/validation.php` hilang | 39 kunci ditambahkan; paku: `doc_type 'paspor'` → "Jenis yang dipilih tidak sah." + `array_diff` kunci `en` framework = [] |
+| R2-kejujuran-1 | TEST-GAP | Penjaga `isVerified` pada catatan NPWP dihapus → tetap hijau (tidak ada format terverifikasi hari ini) | `TaxExportService::npwpShapeNoteFor(entri)` murni; paku dengan entri `describe()` buatan terverifikasi → null |
+| R2-kejujuran-2 | TEST-GAP | `notesCard()` selalu null / cabang `file_note` dimatikan → hijau; S38 tidak membaca selektornya | paku struktural regex di `TaxExportTest`/`DjpFormatsTest`; S38: fixture NITKU lewat pipeline nyata (`docs/bukti-uji/fixtures/s38-nitku.php`) + 4 syarat baru desktop, 1 ponsel |
+| R2-kejujuran-3 | UX | Kalimat "22 digit (NITKU (22 digit))" — kurung bersarang; PANDUAN mengutip "(NITKU)" | nama jenis pendek dari `Npwp::kind()`; paku literal `tersimpan 22 digit (NITKU); skema e-Faktur desktop` + `NotContains('((')` |
+| R2-kejujuran-4 | DOCS | §13 rincian berkas "Rekap PPh 21 Bulanan" salah (CONVENTIONS 0, README samples 1, PANDUAN 4) | §13 ditulis ulang per berkas |
+| R2-rekap-1 | HONESTY | Kalimat perlakuan dibaca dari data pegawai HARI INI — berbalik sesudah NIK disunting pasca-persetujuan; arah sebaliknya diam | flag `has_tax_id` dibekukan di slip (migrasi 001093 + `PayrollService`), rekap membacanya (`snapshot`), slip lama disimpulkan (`inferred`) atau "tidak tercatat" (`current`); kalimat untuk baris yang kini dikenali tetapi slipnya 120 %; `summary.identified_but_surcharged`; PANDUAN §11.8 |
+| R2-rekap-2 | TEST-GAP | Mutasi hitungan ubin dari `=== false` LOLOS HIJAU (fixtur 1:1) | fixtur asimetris 1 normal : 2 tambahan (`without_tax_id 3`, `normal_rate 1`); paku `normal_rate` di uji identitas; S38 membaca `.delta` ubin |
+| R2-rekap-3 | UX | Di 390 px kolom Pegawai menciut ke 91 px, kalimat terbungkus 17 baris (tinggi baris 408 px) | `display:block; min-width:16rem; max-width:32rem` pada `span.tax-id-treatment`; S38m mengukur ≤ 4 baris |
+| R2-rekap-4 | DOCS | Tiga rujukan "§9-I" menunjuk baris yang belum ada | baris I (dan J) ditulis di §9 |
+| R2-rekap-5 | DESIGN | CSV rekap diam: 157.500 dan 189.000 bersel kosong tidak bisa dibedakan dari berkas | kolom terakhir `perlakuan_identitas` (header dipaku diperbarui; S38 `csv_fixture_line` berakhir `;tarif normal`) |
+
+**Yang tidak diubah walau disebut verifier:** definisi `hasTaxId()` payroll (keputusan I); keunikan NIK di
+importer (jebakan lama §4.9); THR/Desember lama tidak disimpulkan (kalimat "tidak tercatat" — jujur, bukan
+tebakan).
+

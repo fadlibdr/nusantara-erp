@@ -508,17 +508,36 @@ class TaxExportService
      */
     private function npwpShapeNote(string $formatKey, ?string $npwp, string $role, ?string $name, string $scheme): ?string
     {
-        if (DjpFormats::isVerified($formatKey)) {
+        return self::npwpShapeNoteFor(DjpFormats::get($formatKey), $npwp, $role, $name, $scheme);
+    }
+
+    /**
+     * Pure over the registry ENTRY (a describe() result), so the "no note once
+     * verified" branch can be pinned with a synthetic verified entry — the
+     * registry itself has no verified format while docs/samples/pajak/ is
+     * empty (R2-kejujuran-1).
+     *
+     * @param  array<string, mixed>  $format
+     */
+    public static function npwpShapeNoteFor(array $format, ?string $npwp, string $role, ?string $name, string $scheme): ?string
+    {
+        if ((bool) ($format['verified'] ?? false)) {
             return null;
         }
 
-        $digits = $this->digits($npwp);
+        $digits = Npwp::normalize($npwp);
 
         if (strlen($digits) === 15) {
             return null;
         }
 
-        $kind = Npwp::describe($npwp)['kind_label'] ?? null;
+        // Short kind names — the label 'NITKU (22 digit)' would nest the
+        // parentheses: '22 digit (NITKU (22 digit))' (R2-kejujuran-3).
+        $kind = match (Npwp::kind($npwp)) {
+            Npwp::KIND_NITKU => 'NITKU',
+            Npwp::KIND_NPWP16 => 'NPWP 16 digit / NIK',
+            default => null,
+        };
 
         return sprintf(
             'NPWP %s %s tersimpan %d digit%s; skema %s yang disalin aplikasi mengasumsikan 15 digit — cocokkan baris ini dengan template resmi sebelum mengimpor.',

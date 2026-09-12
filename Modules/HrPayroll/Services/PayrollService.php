@@ -202,6 +202,8 @@ class PayrollService
             'ter_category' => $tax['category'],
             'ter_rate' => $tax['rate'],
             'pph21_amount' => $tax['amount'],
+            // Frozen: the flag this very computation used (P-3b R2-rekap-1).
+            'has_tax_id' => $hasTaxId,
             'total_deductions' => $totalDeductions,
             'net_pay' => round($gross - $totalDeductions, 2),
         ];
@@ -252,6 +254,7 @@ class PayrollService
             'ter_category' => $combined['category'],
             'ter_rate' => $combined['rate'],
             'pph21_amount' => $pph21,
+            'has_tax_id' => $hasTaxId,
             'total_deductions' => $pph21,
             'net_pay' => round($thr - $pph21, 2),
         ];

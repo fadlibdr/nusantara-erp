@@ -382,16 +382,27 @@ class MasterDataImportService
         // the NPWP sentence and its city edit never landed, while the vendor
         // form accepted the identical payload — the recurring "right rule at
         // one gate, a different rule at the next" defect.
+        // The same forward-only rule for a column that declares `forward_only`
+        // (nik_ktp: digits:16 — R2-pintu-1): a value sent back EXACTLY as stored
+        // drops those shape rules; a changed value and a new row keep them.
         if ($key !== '' && isset($stored[$key])) {
+            $forwardOnly = $this->forwardOnlyRules($definition);
+
             foreach ($rules as $field => $fieldRules) {
                 if (! array_key_exists($field, $stored[$key])) {
                     continue;
                 }
 
-                $rules[$field] = array_map(
-                    fn ($rule) => $rule instanceof ValidNpwp ? ValidNpwp::unlessUnchanged($stored[$key][$field]) : $rule,
+                $unchanged = isset($values[$field])
+                    && $stored[$key][$field] !== null
+                    && trim((string) $values[$field]) === trim($stored[$key][$field]);
+
+                $rules[$field] = array_values(array_filter(array_map(
+                    fn ($rule) => $rule instanceof ValidNpwp
+                        ? ValidNpwp::unlessUnchanged($stored[$key][$field])
+                        : (($unchanged && in_array($rule, $forwardOnly[$field] ?? [], true)) ? null : $rule),
                     $fieldRules,
-                );
+                ), fn ($rule) => $rule !== null));
             }
         }
 
@@ -448,6 +459,25 @@ class MasterDataImportService
     }
 
     /**
+     * Shape rules a column declares as forward-only (`'forward_only' => ['digits:16']`):
+     * dropped for an existing row whose value is sent back exactly as stored.
+     *
+     * @return array<string, list<string>>
+     */
+    private function forwardOnlyRules(array $definition): array
+    {
+        $rules = [];
+
+        foreach ($definition['columns'] as $column) {
+            if (($column['forward_only'] ?? []) !== []) {
+                $rules[$column['field']] = array_values($column['forward_only']);
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
      * Stored values of every column whose rule is forward-only (ValidNpwp), by
      * business key — one query per import, only for resources that carry such
      * a column. This is what lets prepare() tell "sent back unchanged" from
@@ -460,6 +490,12 @@ class MasterDataImportService
         $fields = [];
 
         foreach ($definition['columns'] as $column) {
+            if (($column['forward_only'] ?? []) !== []) {
+                $fields[] = $column['field'];
+
+                continue;
+            }
+
             foreach ($column['rules'] ?? [] as $rule) {
                 if ($rule instanceof ValidNpwp) {
                     $fields[] = $column['field'];

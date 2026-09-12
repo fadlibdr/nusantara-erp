@@ -10171,6 +10171,11 @@ S38_FORMATS = """() => [...document.querySelectorAll('.djp-format')].map(n => ({
 
 S38_EXPORT = """() => ({
   alert: (document.querySelector('.djp-export-verification') || {}).innerText || null,
+  // Putaran kedua (R2-kejujuran-2): kartu catatan NPWP ≠ 15 digit dan kalimat baris pertama — dari API.
+  file_note: (document.querySelector('.djp-file-note') || {}).innerText || null,
+  notes_title: (document.querySelector('.djp-npwp-notes h2') || {}).innerText || null,
+  notes_rows: [...document.querySelectorAll('.djp-npwp-notes tbody tr')].map(tr => ({ document: tr.dataset.document, note: tr.querySelector('td:last-child').innerText })),
+  ready_delta: (document.querySelector('.stat .delta') || {}).innerText || null,
   alert_verified: (document.querySelector('.djp-export-verification') || {dataset: {}}).dataset.verified,
   file_title: [...document.querySelectorAll('.card-head h2')].map(h => h.innerText).find(t => t.startsWith('Isi berkas')) || null,
   download: (() => { const b = [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Unduh CSV'); return b ? {disabled: b.disabled} : null; })(),
@@ -10187,15 +10192,22 @@ S38_RECAP = """() => ({
   // textContent, bukan innerText: CSS .stat .label { text-transform: uppercase } membuat innerText "PEGAWAI TANPA IDENTITAS PAJAK" (jebakan S37 pada th).
   tiles: [...document.querySelectorAll('.stat')].map(s => ({ label: ((s.querySelector('.label')||{}).textContent || '').trim(), value: ((s.querySelector('.value')||{}).textContent || '').trim() })),
   without: (document.querySelector('.stat.without-tax-id') || {dataset: {}}).dataset.count,
+  without_delta: (document.querySelector('.stat.without-tax-id .delta') || {}).innerText || null,
   runs: [...document.querySelectorAll('table.runs tbody tr')].map(tr => {
     const td = [...tr.querySelectorAll('td')].map(t => t.innerText.trim());
     return { run: td[0], jenis: td[1], status: td[2], slip: td[3], ket: td[4], included: tr.dataset.included };
   }),
   rows: [...document.querySelectorAll('table.recap tbody tr')].map(tr => {
     const td = [...tr.querySelectorAll('td')];
+    const treat = td[0].querySelector('.tax-id-treatment');
+    const lh = treat ? (parseFloat(getComputedStyle(treat).lineHeight) || 16) : 16;
     return { employee: tr.dataset.employee, name: (td[0].querySelector('.cell-main')||{}).innerText,
       tax_id: td[1].textContent, tax_id_empty: td[1].dataset.empty, tax_id_title: td[1].getAttribute('title'),
-      kind: td[2].textContent, ter: td[4].innerText.trim(), pph: td[5].innerText.trim() };
+      kind: td[2].textContent, ter: td[4].innerText.trim(), pph: td[5].innerText.trim(),
+      // Perlakuan payroll pada sel kosong: kalimat DI BAWAH NAMA (td[0]), sel identitas/jenis tetap kosong;
+      // jumlah barisnya diukur untuk ponsel (R2-rekap-3: dulu 17 baris pada kolom 91 px).
+      treatment: treat ? treat.innerText : null,
+      treatment_lines: treat ? Math.round(treat.getBoundingClientRect().height / lh) : 0 };
   }),
   foot: [...document.querySelectorAll('table.recap tfoot td')].map(t => t.innerText.trim()),
   download: (() => { const b = [...document.querySelectorAll('button')].find(b => b.innerText.trim().startsWith('Unduh CSV rekap internal')); return b ? {disabled: b.disabled, text: b.innerText.trim()} : null; })(),
@@ -10222,6 +10234,10 @@ def _p3b_fixture():
         "select id, run_type, status from hr_payroll_runs where period_year = ? and period_month = ? and deleted_at is null",
         (S38_YEAR, S38_MONTH)).fetchall()}
     con.close()
+
+    # Putaran kedua: pelanggan NITKU 22 digit + invoice disetujui ber-nomor faktur pada masa S38,
+    # lewat pipeline sungguhan (docs/bukti-uji/fixtures/s38-nitku.php) — untuk kartu "Perlu dicocokkan".
+    out["nitku"] = _p3b_nitku_fixture(S38_YEAR, S38_MONTH)
 
     admin = token_for("admin@nusantara.test")
     direktur = token_for("direktur@nusantara.test")
@@ -10256,6 +10272,22 @@ def _p3b_fixture():
     out["thr_draft_id"] = thr_id
     out["admin_token"] = admin
     return out
+
+def _p3b_nitku_fixture(year, month):
+    env = dict(os.environ, DB_DATABASE=DB)
+    run = subprocess.run(["php", "docs/bukti-uji/fixtures/s38-nitku.php", str(year), str(month)], cwd=REPO_ROOT, env=env,
+                         capture_output=True, text=True, timeout=180)
+    try:
+        return json.loads(run.stdout.strip().splitlines()[-1])
+    except Exception:
+        return {"error": (run.stdout + run.stderr).strip()[-400:]}
+
+def _p3b_select_export_period(pg):
+    pg.select_option("select[aria-label='Masa pajak']", str(S38_MONTH))
+    pg.fill("input[aria-label='Tahun pajak']", str(S38_YEAR))
+    pg.dispatch_event("input[aria-label='Tahun pajak']", "change")
+    pg.wait_for_selector(".djp-export-verification", timeout=20000)
+    pg.wait_for_timeout(700)
 
 def _p3b_db_truth():
     con = sqlite3.connect(DB)
@@ -10304,14 +10336,21 @@ def s38(browser):
         pg.wait_for_selector(".djp-format", timeout=20000)
         pg.wait_for_timeout(700)
         assert_screen(pg, "#/tax-exports", "Ekspor Pajak")
+        _p3b_select_export_period(pg)   # masa S38: di situ invoice NITKU fixture berada
         out["formats"] = pg.evaluate(S38_FORMATS)
         out["efaktur"] = pg.evaluate(S38_EXPORT)
         pg.screenshot(path=f"{OUT}/s38-ekspor-pajak-registri.png", full_page=True)
         click(pg, ".tabs button:has-text('e-Bupot')")
         pg.wait_for_timeout(500)
         out["ebupot"] = pg.evaluate(S38_EXPORT)
-        _, api_overview = api(f"finance/tax-exports?year={S38_YEAR}&month=6", tok)
-        out["api_formats"] = [(f["key"], f["verified"], f["downloadable"]) for f in (api_overview.get("data") or {}).get("formats", [])]
+        _, api_overview = api(f"finance/tax-exports?year={S38_YEAR}&month={S38_MONTH}", tok)
+        api_data = api_overview.get("data") or {}
+        out["api_formats"] = [(f["key"], f["verified"], f["downloadable"]) for f in api_data.get("formats", [])]
+        api_efaktur = api_data.get("efaktur") or {}
+        out["api_efaktur"] = {"exported": [r["document"] for r in api_efaktur.get("rows", [])],
+                              "blocked": [b["document"] for b in api_efaktur.get("blockers", [])],
+                              "notes": api_efaktur.get("notes", []), "summary": api_efaktur.get("summary", {}),
+                              "file_note": (api_efaktur.get("format") or {}).get("file_note")}
 
         # ---- (2) Rekap PPh 21 Bulanan
         _p3b_open_recap(pg)
@@ -10331,6 +10370,8 @@ def s38(browser):
         nik_row = next((r for r in rc["rows"] if r["employee"] == "EMP-0007"), {})  # Joko Susilo: tanpa NPWP, ber-NIK (data demo)
         waiting = [f for f in fm if f["status"] == "menunggu template"]
         tile = {t["label"]: t["value"] for t in rc["tiles"]}
+        ae = out["api_efaktur"]
+        nitku_inv = (fx.get("nitku") or {}).get("invoice")
         out["checks"] = {
             "five_formats_in_registry_order": [f["key"] for f in fm] == ["efaktur_csv_legacy", "efaktur_coretax_xml", "ebupot_unifikasi_csv", "ebupot_2126_bulanan", "sipp_bpjs"],
             "every_format_is_unverified_with_the_badge": all(f["verified"] == "false" and any(b.startswith("Belum diverifikasi terhadap template") for b in f["badges"]) for f in fm),
@@ -10363,6 +10404,23 @@ def s38(browser):
                 and (out["csv_fixture_line"] or "").startswith("EMP-S38;Pegawai Warisan (fixture S38);;;"),
             "the_ter_note_is_shown": "perlu dicek terhadap peraturan yang berlaku" in (rc["ter_note"] or ""),
             "the_screens_never_scroll_sideways": out["efaktur"]["scrolls_sideways"] is False and rc["scrolls_sideways"] is False,
+            # ---- putaran kedua (R2-kejujuran-2, R2-rekap-2/3/5)
+            "the_nitku_invoice_is_exported_not_blocked_and_noted":
+                nitku_inv is not None and nitku_inv in ae["exported"] and nitku_inv not in ae["blocked"]
+                and any(n["document"] == nitku_inv and "tersimpan 22 digit (NITKU)" in n["note"] for n in ae["notes"]),
+            "the_notes_card_reads_the_api_sentence":
+                out["efaktur"]["notes_title"] == f"Perlu dicocokkan — NPWP bukan 15 digit ({len(ae['notes'])})"
+                and any(r["document"] == nitku_inv and r["note"] == next((n["note"] for n in ae["notes"] if n["document"] == nitku_inv), None)
+                        for r in out["efaktur"]["notes_rows"]),
+            "the_ready_tile_counts_the_noted_rows": f"{ae['summary'].get('noted')} baris perlu dicocokkan" in (out["efaktur"]["ready_delta"] or ""),
+            "the_file_note_tells_to_delete_the_first_line":
+                out["efaktur"]["file_note"] == ae["file_note"] and "Hapus baris pertama ini sebelum mengimpor" in (ae["file_note"] or "")
+                and "Hapus baris pertama ini sebelum mengimpor" in (out["ebupot"]["file_note"] or ""),
+            "the_treatment_sentence_sits_under_the_name_not_in_the_identity_cells":
+                "tarif NORMAL" in (fixture_row.get("treatment") or "") and fixture_row.get("kind") == "" and fixture_row.get("tax_id") == "",
+            "the_tile_says_how_many_empty_cells_were_normal_rate":
+                "1 dihitung tarif normal" in (rc["without_delta"] or "") and summary.get("without_tax_id_normal_rate") == 1,
+            "the_csv_names_the_treatment": (out["csv_fixture_line"] or "").endswith(";tarif normal"),
             "no_console_error": errors == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
@@ -10408,6 +10466,10 @@ def s38m(browser):
             "the_recap_renders_with_the_empty_identity_cell": fixture_row.get("tax_id") == "" and fixture_row.get("tax_id_empty") == "true",
             "the_recap_screen_never_scrolls_sideways": rc["scrolls_sideways"] is False,
             "the_recap_title_says_internal_not_a_djp_file": "BUKAN berkas impor DJP" in (rc["desc"] or ""),
+            # ---- putaran kedua
+            "the_file_note_renders_on_a_phone": "Hapus baris pertama ini sebelum mengimpor" in (out["efaktur"]["file_note"] or ""),
+            "the_treatment_sentence_wraps_to_at_most_four_lines_on_a_phone":
+                0 < fixture_row.get("treatment_lines", 0) <= 4 and "tarif NORMAL" in (fixture_row.get("treatment") or ""),
             "no_console_error": errors == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]

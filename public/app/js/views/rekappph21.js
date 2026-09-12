@@ -128,7 +128,12 @@ function rowsTable(payload) {
         // V2-7/V3b-3: perlakuan payroll pada baris tanpa identitas yang dikenali —
         // kalimat dari API, di bawah nama; sel identitas dan jenisnya TETAP kosong.
         row.tax_id_treatment
-          ? el('span.cell-sub.tax-id-treatment', { style: { whiteSpace: 'normal', color: 'var(--warning)' }, text: row.tax_id_treatment })
+          ? el('span.cell-sub.tax-id-treatment', {
+            // display:block + minWidth: tanpa itu tata letak tabel meminimalkan kolom
+            // pertama sampai 91 px di ponsel dan kalimatnya terbungkus 17 baris (R2-rekap-3).
+            style: { display: 'block', whiteSpace: 'normal', minWidth: '16rem', maxWidth: '32rem', color: 'var(--warning)' },
+            text: row.tax_id_treatment,
+          })
           : null,
       ])),
       // KOSONG bila tidak dikenali — bukan 0, bukan "—". Sebabnya di title.

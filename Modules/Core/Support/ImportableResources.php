@@ -122,8 +122,11 @@ class ImportableResources
                     // costs the employee a 20% PPh 21 surcharge. Required — and
                     // digits:16 exactly like EmployeeStore/UpdateRequest: size:16 let
                     // sixteen LETTERS land here and surface in the PPh 21 recap as an
-                    // empty identity cell (P-3b V3-3). One rule at both doors.
-                    ['header' => 'nik_ktp', 'field' => 'nik_ktp', 'required' => true, 'cast' => 'text', 'rules' => ['digits:16']],
+                    // empty identity cell (P-3b V3-3). One rule at both doors — and
+                    // forward-only at both (R2-pintu-1): a legacy NIK sent back
+                    // exactly as stored is not a new NIK, so the export → edit →
+                    // import-back path does not hold the row hostage to it.
+                    ['header' => 'nik_ktp', 'field' => 'nik_ktp', 'required' => true, 'cast' => 'text', 'rules' => ['digits:16'], 'forward_only' => ['digits:16']],
                     ['header' => 'npwp', 'field' => 'npwp', 'cast' => 'text', 'rules' => ['string', 'max:30', new ValidNpwp]],
                     ['header' => 'jenis_kelamin', 'field' => 'gender', 'required' => true, 'rules' => ['in:male,female']],
                     ['header' => 'tanggal_lahir', 'field' => 'birth_date', 'required' => true, 'cast' => 'date', 'rules' => ['date']],

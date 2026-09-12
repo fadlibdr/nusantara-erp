@@ -12,8 +12,9 @@ use Tests\ErpTestCase;
  *
  * Kolom npwp pegawai boleh memuat NIK-nya sendiri (16 digit berfungsi
  * sebagai NPWP sejak PMK 112/2022) — bentuk 16 digit diterima persis seperti
- * bentuk 15 dan 22. Kolom nik_ktp punya aturannya sendiri (digits:16) dan
- * tidak disentuh paket ini.
+ * bentuk 15 dan 22. Kolom nik_ktp punya aturannya sendiri (digits:16) — dan
+ * sejak R2-pintu-1 ia maju-saja seperti npwp: NIK warisan yang dikirim kembali
+ * apa adanya bukan penulisan NIK baru.
  */
 class EmployeeNpwpGateTest extends ErpTestCase
 {
@@ -91,5 +92,59 @@ class EmployeeNpwpGateTest extends ErpTestCase
         $this->putJson("/api/hr/employees/{$employee->id}", ['npwp' => '3174051506710001'])
             ->assertOk();
         $this->assertSame('3174051506710001', $employee->fresh()->npwp);
+    }
+
+    // ------------------------------------------------------ NIK maju-saja
+
+    /**
+     * R2-pintu-1: formulir SPA mengirim seluruh baris, jadi menyunting jabatan
+     * pegawai warisan ber-NIK "BELUM-ADA" mengirim NIK itu kembali. Nilai yang
+     * PERSIS sama dengan yang tersimpan bukan NIK baru; NIK yang BERUBAH ke
+     * bentuk salah tetap ditolak, dan keunikan selalu diperiksa.
+     */
+    public function test_a_legacy_nik_sent_back_unchanged_lets_other_edits_land_while_a_changed_bad_nik_is_refused(): void
+    {
+        $legacy = $this->makeEmployee(['code' => 'EMP-LAMA', 'nik_ktp' => 'BELUM-ADA', 'position' => 'Operator']);
+        $other = $this->makeEmployee(['code' => 'EMP-LAIN', 'nik_ktp' => '3171012345678909']);
+
+        $this->putJson("/api/hr/employees/{$legacy->id}", ['nik_ktp' => 'BELUM-ADA', 'position' => 'Mandor'])
+            ->assertOk();
+        $this->assertSame('Mandor', $legacy->fresh()->position);
+        $this->assertSame('BELUM-ADA', $legacy->fresh()->nik_ktp);
+
+        $this->putJson("/api/hr/employees/{$legacy->id}", ['nik_ktp' => 'BELUM-ADA-2', 'position' => 'Kepala'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.nik_ktp.0', 'NIK KTP harus 16 digit.');
+        $this->assertSame('Mandor', $legacy->fresh()->position);
+
+        // Keunikan tidak ikut maju-saja: NIK pegawai lain tetap ditolak.
+        $this->putJson("/api/hr/employees/{$legacy->id}", ['nik_ktp' => '3171012345678909'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.nik_ktp.0', 'NIK KTP sudah dipakai.');
+
+        // NIK baru yang sah mendarat.
+        $this->putJson("/api/hr/employees/{$legacy->id}", ['nik_ktp' => '3171012345678910'])->assertOk();
+        $this->assertSame('3171012345678910', $legacy->fresh()->nik_ktp);
+        $this->assertSame('3171012345678909', $other->fresh()->nik_ktp);
+    }
+
+    /**
+     * R2-pintu-2: satu baris impor berkode 'EMP-X' membuat nextCode() mengurutkan
+     * secara leksikal, membaca 0, dan SETIAP tambah pegawai sesudahnya jatuh 500
+     * pada indeks unik 'EMP-0001'. Kode yang bukan EMP-<angka> tidak ikut dihitung.
+     */
+    public function test_a_free_form_imported_code_does_not_break_the_next_employee_code(): void
+    {
+        $this->makeEmployee(['code' => 'EMP-0008', 'nik_ktp' => '3171012345678908']);
+        $this->makeEmployee(['code' => 'EMP-X', 'nik_ktp' => '3171012345678907']);
+        $this->makeEmployee(['code' => 'EMP-R2-00', 'nik_ktp' => '3171012345678906']);
+
+        $this->postJson('/api/hr/employees', $this->payload(['nik_ktp' => '3171012345678905']))
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'EMP-0009');
+
+        $this->postJson('/api/hr/employees', $this->payload(['name' => 'Berikutnya', 'nik_ktp' => '3171012345678904']))
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'EMP-0010');
     }
 }

@@ -7483,18 +7483,30 @@ Baris pegawai itu tetap ada beserta angkanya; lengkapi NPWP/NIK-nya di **Karyawa
 Desember tidak punya kategori TER (perhitungan tahunan Pasal 17): kolom TER kosong.
 
 **Sel identitas kosong TIDAK berarti PPh 21-nya dipotong dengan tambahan 20 %.** Payroll
-menganggap pegawai ber-identitas bila kolom NPWP ATAU NIK terisi apa pun — jadi pegawai
-warisan yang NIK-nya "BELUM-ADA" dipotong dengan **tarif normal**, sedangkan pegawai yang
-kedua kolomnya kosong dipotong **120 %**. Pada baris bersel kosong, kalimat di bawah nama
-pegawai menyebut mana yang terjadi (*"PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan 20 %
-— payroll menganggap identitas terisi karena kolom NPWP/NIK tidak kosong (menurut data
-pegawai saat ini)."* atau *"… DENGAN tambahan 20 % …"*), dan ubin **Pegawai tanpa identitas
-pajak** menyebut berapa yang tarif normal. Rekap tidak menghitung ulang apa pun; mengubah
-definisi identitas payroll adalah keputusan pemilik.
+menganggap pegawai ber-identitas bila kolom NPWP ATAU NIK terisi apa pun **pada saat run
+dihitung** — jadi pegawai warisan yang NIK-nya "BELUM-ADA" dipotong dengan **tarif normal**,
+sedangkan pegawai yang kedua kolomnya kosong dipotong **120 %**. Keputusan itu **dibekukan di
+slip** bersama angkanya, dan rekap membacanya dari sana: pada baris bersel kosong, kalimat di
+bawah nama pegawai menyebut mana yang terjadi (*"PPh 21 slip dihitung dengan tarif NORMAL,
+tanpa tambahan 20 % — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK
+tidak kosong)."* atau *"PPh 21 slip dihitung DENGAN tambahan 20 % (tanpa NPWP/NIK saat run
+dihitung)."*), dan ubin **Pegawai tanpa identitas pajak** menyebut berapa yang tarif normal.
+Melengkapi NIK **sesudah** run disetujui tidak mengubah slip maupun kalimatnya — baris yang
+kini dikenali tetapi slipnya 120 % berkata *"Identitas kini dikenali, tetapi slip masa ini
+dihitung DENGAN tambahan 20 % — NPWP/NIK dilengkapi sesudah run dihitung; angka slip tidak
+dihitung ulang."* Slip yang dihitung sebelum kolom ini ada (run lama) disimpulkan dari
+angkanya bila mungkin; bila tidak, kalimatnya berbunyi *"Perlakuan slip ini tidak tercatat
+(slip lama). Menurut data pegawai SAAT INI payroll akan memotong …; angka slip masa ini tidak
+dihitung ulang dan bisa berbeda."* Rekap tidak menghitung ulang apa pun; mengubah definisi
+identitas payroll adalah keputusan pemilik.
 
 **`Unduh CSV rekap internal`** → `rekap-internal-pph21-YYYY-MM.csv`: pemisah titik koma,
 desimal koma (Excel Indonesia), baris pertama berbunyi label yang sama dengan judul layar
-beserta run yang membentuknya. Sel identitas yang tidak dikenali kosong di berkas juga.
+beserta run yang membentuknya. Sel identitas yang tidak dikenali kosong di berkas juga, dan
+kolom terakhir **`perlakuan_identitas`** menyebut perlakuannya (*tarif normal* / *tambahan 20 %*
+/ *tambahan 20 % (identitas dilengkapi sesudah run)* / *tidak tercatat*; kosong bila dikenali
+dan tarif normal) — dua baris bersel kosong dengan bruto sama tetapi PPh 157.500 dan 189.000
+bisa dibedakan dari berkasnya saja.
 
 Catatan di kaki layar, dari server: tabel TER (PMK 168/2023) disalin ke kode dan ditandai
 **perlu dicek terhadap peraturan yang berlaku** — bukan janji bahwa angkanya sudah

@@ -4,6 +4,8 @@ namespace Modules\Procurement\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+use Modules\Core\Rules\ValidNpwp;
 use Modules\Procurement\Enums\VendorDocumentType;
 use Modules\Procurement\Models\VendorDocument;
 
@@ -41,5 +43,34 @@ class VendorDocumentUpdateRequest extends FormRequest
             'is_mandatory' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * R2-pintu-4: a PUT that turns a non-NPWP document INTO an NPWP document
+     * without sending `number` would otherwise adopt the stored number ("ABC-123")
+     * as an NPWP unchecked — a number no door would accept typed anew. The stored
+     * number is validated as if it had been sent.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            /** @var VendorDocument|null $document */
+            $document = $this->route('vendorDocument');
+
+            if ($document === null || $this->has('number') || $validator->errors()->has('doc_type')) {
+                return;
+            }
+
+            $becomesNpwp = $this->input('doc_type') === VendorDocumentType::Npwp->value
+                && $document->doc_type !== VendorDocumentType::Npwp;
+
+            if (! $becomesNpwp || blank($document->number)) {
+                return;
+            }
+
+            (new ValidNpwp)->validate('number', (string) $document->number, function (string $message) use ($validator): void {
+                $validator->errors()->add('number', $message);
+            });
+        });
     }
 }

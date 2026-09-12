@@ -119,11 +119,43 @@ class VendorNpwpGateTest extends ErpTestCase
             ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
         $this->assertSame('N/A', $document->fresh()->number);
 
-        // Mengganti JENIS menjadi npwp pada dokumen lain ikut membawa aturannya.
+        // Mengganti JENIS menjadi npwp pada dokumen lain ikut membawa aturannya —
+        // juga bila nomornya dikirim kembali TIDAK berubah (R2-pintu-3: maju-saja
+        // hanya untuk dokumen yang SUDAH berjenis npwp), dan juga bila kunci number
+        // tidak dikirim sama sekali (R2-pintu-4: nomor tersimpan diperiksa).
         $siup = VendorDocument::query()->create(['vendor_id' => $vendor->id, 'doc_type' => 'siup', 'name' => 'SIUP', 'number' => 'ABC-123']);
         $this->putJson("/api/procurement/vendor-documents/{$siup->id}", ['doc_type' => 'npwp', 'number' => 'ABC-124'])
             ->assertStatus(422)
             ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
+        $this->putJson("/api/procurement/vendor-documents/{$siup->id}", ['doc_type' => 'npwp', 'number' => 'ABC-123'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
+        $this->putJson("/api/procurement/vendor-documents/{$siup->id}", ['doc_type' => 'npwp'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.number.0', ValidNpwp::MESSAGE);
+        $this->assertSame('siup', $siup->fresh()->doc_type->value);
+        $this->assertSame('ABC-123', $siup->fresh()->number);
+
+        // …tetapi SIUP tanpa nomor boleh menjadi NPWP tanpa nomor (tidak ada yang diperiksa),
+        // dan NPWP boleh kembali menjadi SIUP dengan nomor bebas.
+        $blank = VendorDocument::query()->create(['vendor_id' => $vendor->id, 'doc_type' => 'siup', 'name' => 'SIUP kosong', 'number' => null]);
+        $this->putJson("/api/procurement/vendor-documents/{$blank->id}", ['doc_type' => 'npwp'])->assertOk();
+        $this->putJson("/api/procurement/vendor-documents/{$document->id}", ['doc_type' => 'siup', 'number' => 'ABC'])->assertOk();
+    }
+
+    /** R2-pintu-5: Rule::enum menjawab bahasa Indonesia, bukan "The selected Jenis is invalid." */
+    public function test_an_unknown_document_type_is_refused_in_indonesian(): void
+    {
+        $vendor = Vendor::query()->create($this->payload());
+
+        $this->postJson('/api/procurement/vendor-documents', ['vendor_id' => $vendor->id, 'doc_type' => 'paspor', 'name' => 'X', 'number' => 'ABC'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.doc_type.0', 'Jenis yang dipilih tidak sah.');
+
+        // Setiap kunci pesan bawaan Laravel punya padanan Indonesia — tidak ada kalimat Inggris yang bocor.
+        $id = require base_path('lang/id/validation.php');
+        $en = require base_path('vendor/laravel/framework/src/Illuminate/Translation/lang/en/validation.php');
+        $this->assertSame([], array_values(array_diff(array_keys($en), array_keys($id))), 'kunci validation.php yang belum diterjemahkan');
     }
 
     /** Formulir Dokumen Vendor mengatakan aturannya di kolom Nomor — sebelum 422-nya. */

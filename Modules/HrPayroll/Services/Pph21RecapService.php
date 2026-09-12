@@ -61,10 +61,15 @@ class Pph21RecapService
 
     public const KIND_NIK = 'nik';
 
-    /** Kolom CSV — pemisah ';' dan desimal koma (Excel-ID, konvensi csv.js), CRLF. */
+    /**
+     * Kolom CSV — pemisah ';' dan desimal koma (Excel-ID, konvensi csv.js), CRLF.
+     * Kolom terakhir `perlakuan_identitas` (R2-rekap-5): petugas yang hanya
+     * membaca berkas harus bisa membedakan 157.500 (tarif normal) dari 189.000
+     * (tambahan 20 %) pada dua baris bersel-identitas-kosong yang brutonya sama.
+     */
     private const CSV_COLUMNS = [
         'kode_pegawai', 'nama', 'identitas_pajak', 'jenis_identitas', 'bruto',
-        'kategori_ter', 'tarif_ter_persen', 'pph21', 'jumlah_slip', 'run',
+        'kategori_ter', 'tarif_ter_persen', 'pph21', 'jumlah_slip', 'run', 'perlakuan_identitas',
     ];
 
     /**
@@ -107,11 +112,18 @@ class Pph21RecapService
             'pph21' => round((float) array_sum(array_column($rows, 'pph21')), 2),
             'without_tax_id' => count(array_filter($rows, fn (array $row): bool => $row['tax_id'] === null)),
             // V2-7/V3b-3: dari baris tanpa identitas yang dikenali, berapa yang slipnya
-            // dihitung payroll dengan tarif NORMAL (kolom NPWP/NIK terisi sesuatu yang
-            // tidak dikenali — Employee::hasTaxId menganggapnya ber-identitas).
+            // dihitung payroll dengan tarif NORMAL (saat run dihitung kolom NPWP/NIK
+            // terisi sesuatu yang tidak dikenali — Employee::hasTaxId menganggapnya
+            // ber-identitas). Hanya yang PASTI (snapshot/disimpulkan), bukan tebakan.
             'without_tax_id_normal_rate' => count(array_filter(
                 $rows,
-                fn (array $row): bool => $row['tax_id'] === null && ($row['tax_id_treated_as_identified'] ?? false),
+                fn (array $row): bool => $row['tax_id'] === null && $row['tax_id_treated_as_identified'] === true,
+            )),
+            // R2-rekap-1: identitas KINI dikenali, tetapi slip masa ini dihitung 120 %
+            // (NPWP/NIK dilengkapi sesudah run) — angka slip tidak dihitung ulang.
+            'identified_but_surcharged' => count(array_filter(
+                $rows,
+                fn (array $row): bool => $row['tax_id'] !== null && $row['tax_id_treated_as_identified'] === false,
             )),
             'runs_included' => $included->count(),
             'runs_excluded' => $excluded->count(),
@@ -161,13 +173,20 @@ class Pph21RecapService
 
         $identity = $employee !== null
             ? $this->identity($employee)
-            : ['tax_id' => null, 'tax_id_kind' => null, 'tax_id_kind_label' => null, 'tax_id_source' => null, 'tax_id_issue' => 'Data pegawai tidak ditemukan.', 'tax_id_treated_as_identified' => null, 'tax_id_treatment' => null];
+            : ['tax_id' => null, 'tax_id_kind' => null, 'tax_id_kind_label' => null, 'tax_id_source' => null, 'tax_id_issue' => 'Data pegawai tidak ditemukan.'];
+
+        $treatment = $this->treatment($employee, $group, $identity['tax_id'] !== null);
+
+        // Kalimat sebab pada sel kosong membawa perlakuannya juga (title sel).
+        if ($identity['tax_id'] === null && $employee !== null && $treatment['tax_id_treatment'] !== null) {
+            $identity['tax_id_issue'] .= ' '.$treatment['tax_id_treatment'];
+        }
 
         return array_merge([
             'employee_id' => (int) $first->employee_id,
             'employee_code' => $employee?->code,
             'employee_name' => $employee?->name,
-        ], $identity, [
+        ], $identity, $treatment, [
             'gross' => round((float) $group->sum(fn (Payslip $slip): float => (float) $slip->gross_income), 2),
             'ter_category' => $lead->ter_category,
             'ter_rate' => $lead->ter_rate === null ? null : (float) $lead->ter_rate,
@@ -189,15 +208,7 @@ class Pph21RecapService
      * NPWP bila dikenali, lalu NIK bila 16 digit, lalu kosong — dengan
      * kalimat yang menyebut apa yang tersimpan dan tidak dikenali.
      *
-     * Dua permukaan satu fakta (V2-7/V3b-3): sel identitas rekap KOSONG tidak
-     * berarti payroll memotong dengan tambahan 20 %. Payroll memakai
-     * Employee::hasTaxId() — kolom NPWP ATAU NIK terisi APA PUN — jadi baris
-     * warisan ber-NIK "BELUM-ADA" dihitung dengan tarif normal. Rekap tidak
-     * menghitung ulang; ia MENYEBUT perlakuan itu (`tax_id_treatment`) di
-     * samping sel kosongnya, menurut data pegawai saat ini. Mengganti definisi
-     * identitas payroll mengubah pemotongan = keputusan pemilik (laporan §9-I).
-     *
-     * @return array{tax_id: ?string, tax_id_kind: ?string, tax_id_kind_label: ?string, tax_id_source: ?string, tax_id_issue: ?string, tax_id_treated_as_identified: ?bool, tax_id_treatment: ?string}
+     * @return array{tax_id: ?string, tax_id_kind: ?string, tax_id_kind_label: ?string, tax_id_source: ?string, tax_id_issue: ?string}
      */
     private function identity(Employee $employee): array
     {
@@ -210,8 +221,6 @@ class Pph21RecapService
                 'tax_id_kind_label' => $npwp['kind_label'],
                 'tax_id_source' => 'npwp',
                 'tax_id_issue' => null,
-                'tax_id_treated_as_identified' => true,
-                'tax_id_treatment' => null,
             ];
         }
 
@@ -228,8 +237,6 @@ class Pph21RecapService
                 'tax_id_kind_label' => 'NIK (16 digit)',
                 'tax_id_source' => 'nik_ktp',
                 'tax_id_issue' => $npwpIssue === null ? null : $npwpIssue.'; dipakai NIK.',
-                'tax_id_treated_as_identified' => true,
-                'tax_id_treatment' => null,
             ];
         }
 
@@ -237,28 +244,137 @@ class Pph21RecapService
             ? 'NIK kosong'
             : sprintf('NIK tersimpan "%s" bukan 16 digit', $employee->nik_ktp);
 
-        $treatedAsIdentified = $employee->hasTaxId();
-        $surcharge = (int) round((Ter::NON_TAX_ID_SURCHARGE - 1) * 100);
-        $treatment = $treatedAsIdentified
-            ? sprintf(
-                'PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan %d %% — payroll menganggap identitas terisi karena kolom NPWP/NIK tidak kosong (menurut data pegawai saat ini).',
-                $surcharge,
-            )
-            : sprintf(
-                'PPh 21 slip dihitung DENGAN tambahan %d %% (tanpa NPWP/NIK — menurut data pegawai saat ini).',
-                $surcharge,
-            );
-
         return [
             'tax_id' => null,
             'tax_id_kind' => null,
             'tax_id_kind_label' => null,
             'tax_id_source' => null,
             'tax_id_issue' => implode('; ', array_filter([$npwpIssue ?? 'NPWP kosong', $nikIssue]))
-                .' — lengkapi di data pegawai; baris ini tetap dihitung. '.$treatment,
-            'tax_id_treated_as_identified' => $treatedAsIdentified,
-            'tax_id_treatment' => $treatment,
+                .' — lengkapi di data pegawai; baris ini tetap dihitung.',
         ];
+    }
+
+    /**
+     * Dua permukaan satu fakta (V2-7/V3b-3, R2-rekap-1): sel identitas KOSONG
+     * tidak berarti payroll memotong dengan tambahan 20 %. Payroll memakai
+     * Employee::hasTaxId() — kolom NPWP ATAU NIK terisi APA PUN — SAAT RUN
+     * DIHITUNG, dan sejak R2-rekap-1 flag itu dibekukan di slip
+     * (`hr_payslips.has_tax_id`). Rekap membacanya dari sana; slip lama tanpa
+     * flag disimpulkan dari angkanya bila deterministik (gaji bulanan non-
+     * Desember: pph = bruto × tarif, atau × 1,2); yang tidak bisa disimpulkan
+     * (THR lama, Desember lama) memakai data pegawai HARI INI dengan kalimat
+     * yang mengatakannya. Rekap tidak menghitung ulang apa pun; mengubah
+     * definisi identitas payroll = keputusan pemilik (laporan §9-I).
+     *
+     * @param  Collection<int, Payslip>  $group
+     * @return array{tax_id_treated_as_identified: ?bool, tax_id_treatment_source: ?string, tax_id_treatment: ?string, tax_id_treatment_label: string}
+     */
+    private function treatment(?Employee $employee, Collection $group, bool $identified): array
+    {
+        $surcharge = (int) round((Ter::NON_TAX_ID_SURCHARGE - 1) * 100);
+        $verdicts = [];
+
+        foreach ($group as $slip) {
+            if ($slip->has_tax_id !== null) {
+                $verdicts[] = ['value' => (bool) $slip->has_tax_id, 'source' => 'snapshot', 'run' => $slip->payrollRun?->code];
+
+                continue;
+            }
+
+            $inferred = $employee === null ? null : $this->inferHasTaxId($slip, $employee);
+            $verdicts[] = ['value' => $inferred, 'source' => $inferred === null ? 'current' : 'inferred', 'run' => $slip->payrollRun?->code];
+        }
+
+        $values = array_column($verdicts, 'value');
+        $known = ! in_array(null, $values, true);
+        $distinct = array_values(array_unique($values, SORT_REGULAR));
+
+        if ($known && count($distinct) === 1) {
+            $treated = (bool) $distinct[0];
+            $source = in_array('inferred', array_column($verdicts, 'source'), true) ? 'inferred' : 'snapshot';
+
+            if ($identified) {
+                return [
+                    'tax_id_treated_as_identified' => $treated,
+                    'tax_id_treatment_source' => $source,
+                    'tax_id_treatment' => $treated ? null : sprintf(
+                        'Identitas kini dikenali, tetapi slip masa ini dihitung DENGAN tambahan %d %% — NPWP/NIK dilengkapi sesudah run dihitung; angka slip tidak dihitung ulang.',
+                        $surcharge,
+                    ),
+                    'tax_id_treatment_label' => $treated ? '' : sprintf('tambahan %d %% (identitas dilengkapi sesudah run)', $surcharge),
+                ];
+            }
+
+            return [
+                'tax_id_treated_as_identified' => $treated,
+                'tax_id_treatment_source' => $source,
+                'tax_id_treatment' => $treated
+                    ? sprintf('PPh 21 slip dihitung dengan tarif NORMAL, tanpa tambahan %d %% — saat run dihitung payroll menganggap identitas terisi (kolom NPWP/NIK tidak kosong).', $surcharge)
+                    : sprintf('PPh 21 slip dihitung DENGAN tambahan %d %% (tanpa NPWP/NIK saat run dihitung).', $surcharge),
+                'tax_id_treatment_label' => $treated ? 'tarif normal' : sprintf('tambahan %d %%', $surcharge),
+            ];
+        }
+
+        if ($known) {
+            // Slip-slip satu masa dihitung dengan perlakuan yang berbeda (mis. NIK
+            // dilengkapi di antara run gaji dan run THR) — disebut per run.
+            $parts = array_map(
+                fn (array $v): string => sprintf('%s: %s', $v['run'] ?? '?', $v['value'] ? 'tarif normal' : "tambahan {$surcharge} %"),
+                $verdicts,
+            );
+
+            return [
+                'tax_id_treated_as_identified' => null,
+                'tax_id_treatment_source' => 'snapshot',
+                'tax_id_treatment' => 'Slip masa ini dihitung dengan perlakuan yang BERBEDA antar run — '.implode('; ', $parts).'.',
+                'tax_id_treatment_label' => 'berbeda antar slip',
+            ];
+        }
+
+        // Tidak tercatat dan tidak bisa disimpulkan: yang bisa dikatakan hanya
+        // apa yang AKAN dilakukan payroll menurut data pegawai hari ini.
+        $now = $employee?->hasTaxId();
+
+        return [
+            'tax_id_treated_as_identified' => null,
+            'tax_id_treatment_source' => 'current',
+            'tax_id_treatment' => $identified && $now === true ? null : sprintf(
+                'Perlakuan slip ini tidak tercatat (slip lama). Menurut data pegawai SAAT INI payroll akan memotong %s; angka slip masa ini tidak dihitung ulang dan bisa berbeda.',
+                $now === true ? 'tarif NORMAL' : "DENGAN tambahan {$surcharge} %",
+            ),
+            'tax_id_treatment_label' => $identified && $now === true ? '' : 'tidak tercatat',
+        ];
+    }
+
+    /**
+     * Slip lama tanpa `has_tax_id`: gaji bulanan non-Desember menyimpan bruto
+     * dan tarif TER-nya, jadi PPh = bruto × tarif (normal) atau × 1,2 (tanpa
+     * identitas) — deterministik selama bruto × tarif > 0. Slip THR menyimpan
+     * tarif GABUNGAN tetapi bukan gaji dasarnya, dan Desember memakai Pasal 17
+     * tahunan: keduanya tidak bisa disimpulkan → null.
+     */
+    private function inferHasTaxId(Payslip $slip, Employee $employee): ?bool
+    {
+        if ($slip->payrollRun?->run_type === PayrollRunType::Thr || $slip->ter_rate === null) {
+            return null;
+        }
+
+        $base = round((float) $slip->gross_income * (float) $slip->ter_rate / 100, 2);
+        $amount = round((float) $slip->pph21_amount, 2);
+
+        if ($base <= 0.0) {
+            return null;
+        }
+
+        if (abs($amount - $base) < 0.005) {
+            return true;
+        }
+
+        if (abs($amount - round($base * Ter::NON_TAX_ID_SURCHARGE, 2)) < 0.005) {
+            return false;
+        }
+
+        return null;
     }
 
     /**
@@ -311,6 +427,7 @@ class Pph21RecapService
                 $this->csvNumber($row['pph21']),
                 (string) count($row['slips']),
                 implode(' + ', array_column($row['slips'], 'run_code')),
+                $row['tax_id_treatment_label'],   // '' bila dikenali dan tarif normal
             ]);
         }
 

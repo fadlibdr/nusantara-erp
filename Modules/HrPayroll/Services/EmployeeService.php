@@ -54,12 +54,25 @@ class EmployeeService
      */
     public function nextCode(): string
     {
-        $last = Employee::withTrashed()
-            ->where('code', 'like', 'EMP-%')
-            ->orderByDesc('code')
-            ->value('code');
+        // Only codes of the EMP-<digits> family count (R2-pintu-2): the importer
+        // accepts any code, and one imported 'EMP-X' sorted above 'EMP-0009'
+        // lexically, (int) substr gave 0, and every form create after it died
+        // 500 on the unique index with 'EMP-0001'.
+        $max = 0;
 
-        $next = $last === null ? 1 : ((int) substr((string) $last, 4)) + 1;
+        foreach (Employee::withTrashed()->where('code', 'like', 'EMP-%')->pluck('code') as $code) {
+            if (preg_match('/^EMP-(\d+)$/', (string) $code, $m) === 1) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
+
+        $next = $max + 1;
+
+        // Safety net against a code that matches the pattern but sits outside
+        // the numeric maximum (e.g. 'EMP-00009' padded differently).
+        while (Employee::withTrashed()->where('code', 'EMP-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT))->exists()) {
+            $next++;
+        }
 
         return 'EMP-'.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
