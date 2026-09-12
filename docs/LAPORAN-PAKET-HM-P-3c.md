@@ -35,6 +35,11 @@ aditif nullable tanpa backfill (Finance 001502, 001503 — CONVENTIONS §2 diper
 
 > Angka di laporan ini adalah angka di **ujung cabang** (§8); angka yang berlaku pada satu commit
 > disebut bersama SHA-nya. Setiap angka keluar dari perintah yang dijalankan.
+> **Putaran verifikasi (§15, 12–13 Sep 2026)** menutup 18 temuan verifier dalam lima commit
+> (`2d9c311`…): angka ujung cabang sesudahnya — `BankInboxTest` **38 uji / 237 asersi**,
+> `BankPresetsTest` **10 / 194**, `BankImportPresetTest` **18 / 97**, harness S39 **32 syarat** +
+> S39m **10 syarat**, `tests/Feature/Finance` **977 / 5.177**. Angka per-tugas di tabel ini adalah
+> angka pada SHA yang disebutnya.
 
 | # | Tugas | Status | Bukti (commit + angka terukur) |
 |---|---|---|---|
@@ -155,7 +160,7 @@ penjadwal tidak diklaim layar ini (`core/health` P-0b yang berkata).
 
 ---
 
-## 4. Mutasi — 21 dijalankan, **21 merah, 0 LOLOS HIJAU**
+## 4. Mutasi — 21 dijalankan, **21 merah, 0 LOLOS HIJAU**; putaran verifikasi (§4b) 26 dijalankan, **25 merah, 1 LOLOS HIJAU → ditutup**
 
 Setiap mutasi diterapkan pada kode yang **sudah di-commit**, ujinya dijalankan, lalu dikembalikan
 dengan `git checkout` berkas itu (pohon bersih diperiksa sesudah setiap putaran).
@@ -187,6 +192,41 @@ dengan `git checkout` berkas itu (pohon bersih diperiksa sesudah setiap putaran)
 Ditambah satu **cacat nyata** yang ditemukan Chromium (§3.1) dengan uji yang dibuktikan merah
 terhadap kode lama — bukan mutasi, tetapi jenis bukti yang sama.
 
+### 4b. Mutasi putaran verifikasi (atas `e14f87d`, skrip `p3c/repair/mutate.py`, berkas dikembalikan `git checkout` — pohon bersih sesudahnya)
+
+Verifier membuktikan enam mutasi LOLOS HIJAU pada kode `61b3fcc` (M4 sapuan panduan, M6/M-b
+`use_preset`, M-d symlink, M-d ubin jam sekarang, M-a `file.error`). Sesudah perbaikan, setiap paku
+baru diuji lagi dengan mutasinya:
+
+| # | Mutasi | Hasil |
+|---|---|---|
+| M1 | `record()` tidak menjaga baris `imported` (V-folder-1) | merah, 1 gagal |
+| M2 | kunci cache dimatikan (`if (false)`) | merah |
+| M3 | jadwal tanpa `withoutOverlapping()` | merah |
+| M4 | "Berkas ini sudah diimpor" dari `import()` tetap `failed` | merah |
+| M5 | baris > 2 MB dihash dari isi (dibaca) — V-folder-2 | merah: **phpunit mati** "Allowed memory size … exhausted (tried to allocate 536879136)" — persis kegagalan verifier, kini tertangkap uji |
+| M6 | baris lama tidak di-`superseded` (V-folder-3) | merah, 2 gagal |
+| M7 | berkas tak terbaca dikunci `sha256('')` | merah |
+| M8 | `isSettled()` tanpa memeriksa rekening koran masih ada (V-folder-4) | merah |
+| M9 | `duplicateSentence()` selalu "(lewat layar Impor)" (V-folder-5) | **LOLOS HIJAU** pada `e14f87d` — cabang "tanpa operator DAN tanpa baris ledger" belum dipaku; **ditutup `3f6c249`**, M9 diulang → merah |
+| M9b | baris ledger diabaikan (twin lewat jalur) | merah, 2 gagal |
+| M10 | penjaga symlink/realpath dimatikan (mutasi verifier M-d) | merah — dulu 25/25 hijau |
+| M11 | ubin menghitung seluruh ledger (V-folder-7) | merah |
+| M12 | kalimat "yang Anda pilih" di jalur folder (V-folder-8) | merah |
+| M13a | Request tanpa pola kode (V-permukaan-3) | merah |
+| M13b | sub-folder tak sah dilewati bisu (`continue`) | merah |
+| M14 | `evidencePath()` selalu benar (V-preset-1) | merah |
+| M15a–d | janji ditambahkan ke ONBOARDING finance / PANDUAN §10.4 / KEPUTUSAN §10 / ADMINISTRATOR §5.13 (mutasi verifier M4) | merah keempatnya — dulu hijau |
+| M16a | `use_preset: true` tanpa syarat (mutasi verifier M6) | merah — dulu hijau |
+| M16b | `use_preset: false` + preset digabung SPA (mutasi verifier M-b) | merah di paku PHP; **harness S39 merah pada 2 syarat** (badan permintaan, kalimat 422) |
+| M17 | kalimat sebab disusun SPA (mutasi verifier M-a) | merah — dulu hanya harness yang merah |
+| M18 | ubin "Terakhir diperiksa" = jam sekarang (mutasi verifier M-d) | merah di paku PHP; **harness S39 merah** `last_checked_tile_carries_the_sqlite_stamp_not_the_clock` |
+| M19 | tab tidak menulis hash (V-permukaan-2) | merah di paku PHP; **harness S39 merah** pada `switching_tab_rewrites_the_hash` + `a_deeplink_to_inbox_after_switching_tabs_lands_on_the_inbox_tab` |
+
+M16b + M18 + M19 diterapkan bersama pada `bankrecon.js` lalu S39 dijalankan atas salinan segar:
+`GAGAL: last_checked_tile…, preview_with_preset_sends…, preview_with_preset_draws…,
+switching_tab_rewrites_the_hash, a_deeplink_to_inbox…` — lima syarat, tepat yang dijaga ketiganya.
+
 ---
 
 ## 5. Permukaan — setiap aturan baru, diperiksa satu per satu
@@ -208,7 +248,15 @@ terhadap kode lama — bukan mutasi, tetapi jenis bukti yang sama.
 | Terakhir diperiksa = stempel yang ditulis | — | ✅ `bank_inbox.checked_at` (INTERNAL_KEYS) | ✅ `last_checked_at` | ✅ ubin "stempel yang ditulis pemeriksaan, bukan jadwal" | — | ✅ | ✅ |
 | Tidak mengklaim penjadwal hidup | — | — | — | ✅ kalimat "tidak dilaporkan layar ini" (dipaku sapuan) | — | ✅ | ✅ S39 |
 | Jadwal `hourly()` | — | ✅ `FinanceServiceProvider` (MI6) | — | — | — | ✅ ADMINISTRATOR §5.1 | — |
-| Sapuan frasa janji | — | ✅ | — | ✅ | — | ✅ README | — |
+| Sapuan frasa janji | — | ✅ | — | ✅ | — | ✅ README + ONBOARDING finance/admin utuh + irisan PANDUAN §10.4 / ADMINISTRATOR §5.13 / KEPUTUSAN §10 (M15a–d; V-preset-2) | — |
+| Satu pemeriksaan pada satu waktu (V-folder-1) | ✅ `run` memulangkan `LOCKED_NOTE` | ✅ `Cache::lock` + `withoutOverlapping` + `record()` tidak menurunkan; "sudah diimpor" → `duplicate` | ✅ `summary.locked` | ✅ toast kalimat server | tidak ada notifikasi gagal palsu (dipaku) | ✅ ADMINISTRATOR §5.13, PANDUAN §10.4 | — |
+| Berkas yang ditolak tidak pernah dibaca (V-folder-2/-3, V-permukaan-6) | — | ✅ ukuran sebelum `read()`, `pathKey`, symlink tanpa stat; try/Throwable per berkas | ✅ `size` 0 / `file_mtime` null untuk symlink | ✅ | ✅ satu signature per berkas | ✅ ADMINISTRATOR §5.13 | — |
+| Rekening koran dihapus = berkas baru lagi (V-folder-4) | — | ✅ `isSettled()` | ✅ `statement_deleted` + kalimat | ✅ lencana "Rekening koran dihapus" (Chromium 8255) | — | ✅ PANDUAN §10.4 paragraf obat, ADMINISTRATOR §5.13 | — |
+| Kalimat kanal dari fakta (V-folder-5) | — | ✅ `duplicateSentence()` (M9/M9b) | ✅ | ✅ | — | ✅ PANDUAN §10.4 | — |
+| Ubin = pemeriksaan terakhir (V-folder-7) | — | ✅ `checked_at` = stempel | ✅ `counts`, `counts_note` | ✅ kalimat server di bawah ubin | — | ✅ | ✅ S39 `the_tiles_say_they_count_the_last_check` |
+| Salah sub-folder (V-folder-8) | — | ✅ `unattended: true` | ✅ | ✅ | ✅ badan menyebut sub-folder | ✅ PANDUAN §10.4 | — |
+| Kode rekening = nama sub-folder (V-permukaan-3) | ✅ Store/Update `regex` + pesan Indonesia | ✅ `BankAccount::CODE_PATTERN`; sub-folder tak sah → `ignored` | ✅ `accounts[].subfolder` | ✅ catatan merah kartu Kesiapan (Chromium 8255, desktop + ponsel) | — | ✅ ADMINISTRATOR §5.13, PANDUAN §10.4 | ✅ S39 `no_account_is_flagged…` |
+| Tab menulis hash; tautan ke ?tab=inbox mendarat (V-permukaan-2) | — | — | — | ✅ `router.replacePath()`, `notifications.js` → `resolve()` bila hash sama | ✅ "Buka dokumen" mendarat (lonceng sungguhan, Chromium) | ✅ CONVENTIONS §40 | ✅ S39 dua syarat |
 
 ---
 
@@ -298,17 +346,23 @@ diimpor") → **Buka dokumen** pada yang gagal → `#/bank-recon?tab=inbox`, tab
   sesudah T3c.3 — pembaca docs (`SidebarNavWiring`, `Onboarding`, `RentVsOwn`, `ReorderRuleSchema`) **33** hijau;
   kabel SPA (`PwaServiceWorkerTest`, `NavRouteRegistryTest`, `SidebarNavWiringTest`, `LauncherWiringTest`)
   **32 uji / 612 asersi** hijau.
-- **Ujung cabang, SQLite (`:memory:`):** `tests/Feature/Finance` **964 uji / 5.039 asersi** hijau (2 mnt 22 dtk;
+- **Ujung cabang sebelum putaran verifikasi (`61b3fcc`), SQLite (`:memory:`):** `tests/Feature/Finance` **964 uji / 5.039 asersi** hijau (2 mnt 22 dtk;
   di `55f7996` 964 / 5.038 — +1 asersi dari paku panjang signature); `tests/Feature/Core` **1.124 uji / 10.106
   asersi, 11 dilewati** hijau (di `55f7996`; perubahan sesudahnya — `BankInboxService`, `BankInboxTest`,
   CONVENTIONS — tidak menyentuh Core). Log `p3c/build/gate.log` dan `gate2.log` di scratchpad.
-- **Ujung cabang, MySQL 8.0 `erp_dryrun` (SATU proses; 11 berkas yang disentuh/baru; kredensial dari env,
+- **Ujung cabang sebelum putaran verifikasi, MySQL 8.0 `erp_dryrun` (SATU proses; 11 berkas yang disentuh/baru; kredensial dari env,
   `DB_DATABASE=erp_dryrun` menimpa `phpunit.mysql.xml`):** **208 uji / 1.995 asersi, hijau, 1 dilewati**
   (`BankPresetsTest`, `BankImportPresetTest`, `BankInboxTest`, `BankStatementImportTest`,
   `BankReconciliationTest`, `DjpFormatsTest`, `FiscalCalendarTest`, `SchedulerHeartbeatTest`,
   `SettingValidationTest`, `SettingApiTest`, `PwaServiceWorkerTest`). **Putaran pertama MySQL (di `55f7996`)
   merah 4 uji `BankInboxTest`** — signature sha256 64 karakter pada kolom varchar(40), ditelan `guard()`
   (§3.5); ditutup `711873a`, keduanya hijau sesudahnya.
+- **Ujung cabang sesudah putaran verifikasi (`3f6c249`), SQLite:** `tests/Feature/Finance` **977 uji / 5.177
+  asersi** hijau; `tests/Feature/Core` **1.124 uji / 10.106 asersi, 11 dilewati** hijau (log
+  `p3c/repair/gate-finance-sqlite.txt`, `gate-core-sqlite.txt`). **MySQL `erp_dryrun`, SATU proses** atas
+  empat berkas uji yang disentuh (`BankInboxTest`, `BankPresetsTest`, `BankImportPresetTest`,
+  `BankStatementImportTest` — service-nya berubah): **105 uji / 616 asersi, hijau** (`gate-mysql.txt`).
+  Uji berkas 512 MB jarang + `memory_limit` diturunkan berjalan di kedua driver.
 - `vendor/bin/pint --test` bersih pada **setiap** berkas PHP yang disentuh
   (`git diff --name-only b4fb40b...HEAD | grep '\.php$' | xargs vendor/bin/pint --test` → passed); dua
   kegagalan pint lama tidak disentuh.
@@ -329,6 +383,10 @@ diimpor") → **Buka dokumen** pada yang gagal → `#/bank-recon?tab=inbox`, tab
 | G | **`failed`/`ignored` diperiksa ulang tiap jam** (dipakai) vs hanya sekali | dipakai — rantai yang putus tersambung sesudah periode sebelumnya masuk; notifikasi tetap sekali (dedupe) |
 | H | **Renag notifikasi gagal 7 hari** sesudah dibaca | dipakai; angka di `BankInboxService::RENAG_DAYS` |
 | I | **Sakelar mematikan pemeriksaan per jam** dari Pengaturan | tidak dibangun — folder yang tidak ada/kosong sudah membuatnya diam; bila dibutuhkan: satu kunci `core_settings` + satu baris di command |
+| J | **Pola kode rekening bank ditegakkan di Request** (V-permukaan-3): (a) `regex` huruf/angka/titik/strip/garis bawah pada `POST/PUT finance/bank-accounts` — kontrak API berubah untuk kode baru; (b) hanya menandai di kartu Kesiapan tanpa menolak | **(a) dipakai** + (b) untuk kode lama; kedua rekening produksi (`BANK-BCA-OPS`, `BANK-MDR-PRJ`) lolos pola; kode lama yang berspasi tidak diubah data-nya (maju-saja) — pemilik yang mengubah lewat layar bila ingin dibaca dari folder |
+| K | **Pemeriksaan kedua saat kunci dipegang**: pulang dengan kalimat tanpa menunggu (dipakai) vs menunggu (`block()`) | dipakai — tombol layar tidak boleh menggantung sampai 15 menit; jam berikutnya mengulang sendiri |
+| L | **Rekening koran hasil folder dihapus** → berkas diimpor ulang jam berikutnya (dipakai) vs ditandai "jangan impor lagi" | dipakai — obat pemetaan yang salah menuntut impor ulang; runbook menyuruh perbaiki preset dulu. Bila pemilik ingin "hapus = jangan lagi", satu status ledger + satu syarat di `isSettled()` |
+| M | **Status `superseded`** untuk baris lama jalur yang isinya berganti (dipakai) vs menghapus barisnya | dipakai — sejarah tetap terbaca di tabel, ubin tidak menghitungnya |
 
 ## 10. Prasyarat pemilik — tidak satu pun ada di repo
 
@@ -365,6 +423,22 @@ diimpor") → **Buka dokumen** pada yang gagal → `#/bank-recon?tab=inbox`, tab
 - **Deploy dan merge** — dilarang untuk agen di alur kerja ini; langkah sesi utama sesudah gerbang.
 
 ## 12. Deviasi baru yang ditemukan
+
+Putaran verifikasi (§15):
+
+- **Stempel `checked_at` bergranularitas detik**: ubin "pemeriksaan terakhir" menyamakan baris lewat
+  `checked_at` = stempel; dua pemeriksaan dalam satu detik yang sama (hanya mungkin di uji — produksi
+  per jam + kunci) berbagi stempel. Uji memakai `travel(1)->hours()`; dicatat di sini, tidak diubah.
+- **Chromium mencatat 422 yang dirancang sebagai galat konsol** ("Failed to load resource"): S39 memisahkan
+  galat dari dua pratinjau yang sengaja ditolak (pola S23 `stub_errors`) dan menuntut hanya pesan 422.
+- **`'\n'` di dalam string JS yang dibungkus string Python non-raw** menjadi baris baru sungguhan →
+  `Page.evaluate: SyntaxError`; harness memakai `String.fromCharCode(10)`.
+- **Mockery partial mock atas kelas dengan konstruktor promoted readonly**: `partialMock()` Laravel tidak
+  memanggil konstruktor → properti tidak terinisialisasi; dipakai `Mockery::mock(Class, [deps])->makePartial()`.
+- **Pembaca berkas diprotected-kan** (`BankInboxService::read()`) supaya kasus hak akses bisa diuji di
+  proses root — satu seam, dipakai produksi, bukan kait uji.
+- **`SHELL_VERSION` tidak dinaikkan lagi** (tetap 11): 11 belum pernah dirilis (produksi masih 10), jadi
+  cangkang lama sudah diumumkan usang oleh kenaikan `d987037`.
 
 - `JsonResource` menjalankan `array_values()` atas array berkunci numerik — bentuk "peta indeks →
   nilai" **tidak selamat** melewati resource mana pun di aplikasi ini. **Ditutup** untuk
@@ -422,7 +496,12 @@ d987037  SHELL_VERSION 10 → 11
 6e4e49e  bukti: harness S39 + S39m, fixture s39-preset.php, results-phase-3.json berdasarkan kunci (12 → 14), 4 PNG
 55f7996  bukti: fixture — use di atas bootstrap (pint-bersih dan tetap jalan)
 711873a  gerbang MySQL: signature notifikasi 40 karakter pertama sha256 (document_code varchar(40); guard() menelan)
-(commit ini)  laporan ini
+61b3fcc  laporan ini (§0–§14)
+2d9c311  putaran verifikasi: V-preset-1 (evidencePath), V-preset-3 (ONBOARDING fin.update), V-preset-4/V-permukaan-1 paku literal
+6ea6bbf  putaran verifikasi: V-folder-1…8, V-permukaan-2/-3/-4/-5/-6, V-preset-2 — service, model, Request, provider, SPA, dokumen
+e14f87d  putaran verifikasi (bukti): harness S39 32 syarat + S39m 10, results-phase-3.json berdasarkan kunci, 5 PNG
+3f6c249  putaran verifikasi: paku cabang V-folder-5 yang mutasi M9 lolos hijau
+(commit ini)  §1/§4b/§5/§8/§9/§12/§14/§15 laporan ini
 ```
 
 Skema: **dua migrasi** — `2026_09_12_001502_add_import_preset_to_fin_bank_accounts_table.php` (JSON
@@ -434,4 +513,43 @@ backfill, tanpa `constrained()` lintas modul. `git diff --stat b4fb40b...HEAD` s
 
 ## 15. Putaran verifikasi
 
-(diisi sesi utama)
+Temuan verifier (18) atas `61b3fcc`, ditutup 12–13 Sep 2026. Setiap temuan direproduksi dulu
+(perintah verifier atau uji merah-dulu), setiap paku dibuktikan membedakan dengan mutasi (§4b).
+Tidak ada temuan yang ditolak. Reproduksi yang dicatat: `describe()` atas contoh demo →
+`{"verified":true,"badge":"Diverifikasi 2026-09-12"}` dan README.md → `"Diverifikasi x"`;
+validator `code` menerima `'BCA OPS'`; `fin:bank-inbox` atas salinan (`p3c/repair/repro.sqlite`):
+`feb.sta` impor folder dijawab "(lewat layar Impor)", `tautan.csv → /etc/hostname` mendapat sha256
+isi hostname + size 11, `BCA OPS/y.sta` tanpa baris ledger, notifikasi "sedangkan yang Anda pilih",
+ubin sepanjang masa `failed 2` vs pemeriksaan `1 gagal`; uji berkas 512 MB sebelum perbaikan →
+`Allowed memory size … BankInboxService.php on line 421`.
+
+| Id | Jenis | Gejala | Penutupan | Commit |
+|---|---|---|---|---|
+| V-preset-1 | DESIGN | contoh demo / README.md yang ditunjuk `verified_against` naik menjadi "Diverifikasi", selectable | `BankPresets::evidencePath()` + tanggal `YYYY-MM-DD`; yang lain diturunkan sambil menyebut jalurnya; uji README.md dibalik, uji positif memakai berkas berpola sementara | `2d9c311` |
+| V-preset-2 | TEST-GAP | sapuan janji tidak menyentuh panduan yang KEPUTUSAN §10 klaim terpaku | ONBOARDING finance/admin utuh + irisan §10.4 / §5.13 / §10 (irisan kosong = merah); KEPUTUSAN memakai «guillemet» | `6ea6bbf` |
+| V-preset-3 | DOCS | ONBOARDING: "finance-manager" padahal peran itu 403 | "fin.update; dalam data demo peran `finance`, bukan `finance-manager`" | `2d9c311` |
+| V-preset-4 | TEST-GAP | `use_preset: true` tanpa syarat lolos semua paku | paku literal `use_preset: usingPreset(),` + baris mapping + `PER_FILE_KEYS`; S39 pemilih manual → `use_preset:false`, tanpa lencana preset | `2d9c311`, `e14f87d` |
+| V-folder-1 | BUG | dua pemeriksaan bersamaan: baris `imported` ditimpa `failed`, notifikasi gagal palsu | `Cache::lock` + `withoutOverlapping` + `record()` tidak menurunkan + "sudah diimpor" → `duplicate`; 4 uji | `6ea6bbf` |
+| V-folder-2 | BUG | berkas > 2 MB / symlink dibaca seluruhnya → 500 / OOM, pemeriksaan berhenti | ukuran sebelum `read()`, `pathKey`, try/Throwable per berkas; uji 512 MB + `memory_limit` | `6ea6bbf` |
+| V-folder-3 | BUG | N berkas tak terbaca = 1 notifikasi; baris tidak sembuh | kunci `unreadable\|<jalur>`, status `superseded`; pembaca disuntik | `6ea6bbf` |
+| V-folder-4 | DESIGN | rekening koran dihapus → berkas tidak pernah diimpor ulang; "sebagai ?" | `isSettled()` menuntut rekening koran ada; `statement_deleted` di API/layar; twin lewat `content_hash` + ledger; PANDUAN/ADMINISTRATOR | `6ea6bbf` |
+| V-folder-5 | HONESTY | "(lewat layar Impor)" untuk impor folder | `duplicateSentence()` dari fakta; 3 uji (cabang ketiga `3f6c249`) | `6ea6bbf`, `3f6c249` |
+| V-folder-6 | TEST-GAP | penjaga symlink tidak dipaku | uji symlink berkas + sub-folder; target tidak disentuh | `6ea6bbf` |
+| V-folder-7 | UX | ubin sepanjang masa vs ringkasan pemeriksaan | `counts` = baris `checked_at` = stempel; `counts_note` | `6ea6bbf` |
+| V-folder-8 | UX | notifikasi "sedangkan yang Anda pilih" | `preview/import(unattended: true)` → kalimat sub-folder | `6ea6bbf` |
+| V-permukaan-1 | TEST-GAP | preset digabung SPA tanpa `use_preset` lolos; harness tidak mengirim pratinjau | paku literal + S39 pratinjau sungguhan (badan permintaan + kalimat 422) | `2d9c311`, `e14f87d` |
+| V-permukaan-2 | UX | "Buka dokumen" mati bila hash sudah `?tab=inbox` | `router.replacePath()` dari `load()`; `notifications.js` → `resolve()`; Chromium lonceng sungguhan + S39 | `6ea6bbf`, `e14f87d` |
+| V-permukaan-3 | BUG | kode berspasi: sub-folder dilewati bisu | `BankAccount::CODE_PATTERN` di Request + pemindai (`ignored` + kalimat) + kartu Kesiapan; keputusan J | `6ea6bbf` |
+| V-permukaan-4 | TEST-GAP | ubin jam sekarang lolos | paku `fmt.dateTime(data.last_checked_at)` + `data-iso`; S39/S39m membandingkan dengan stempel sqlite | `6ea6bbf`, `e14f87d` |
+| V-permukaan-5 | TEST-GAP | `file.error` tidak dipaku PHP | `text: file.error \|\| ''` dipaku | `6ea6bbf` |
+| V-permukaan-6 | HONESTY | "tidak dibaca" tetapi dihash + diukur | symlink: kunci jalur, size 0, mtime null, target tidak di-stat | `6ea6bbf` |
+
+**Bukti peramban putaran ini** (`php -S 127.0.0.1:8255`, salinan sqlite `p3c/repair/harness.sqlite`,
+`BANK_INBOX_PATH` scratchpad, reset per putaran, server dimatikan berdasarkan PID dari `ss`): S39
+`ok 14825ms clicks=4` (32 syarat), S39m `ok 3848ms` (10 syarat), 0 galat konsol di luar dua 422 yang
+dirancang; `p3c/repair/edgecheck.py` (Chromium 1440×900 + 390×844): rekening `BCA OPS` (disisipkan
+langsung) → catatan merah kartu Kesiapan, baris `BCA OPS/y.sta` Diabaikan dengan kalimatnya; rekening
+koran Mandiri dihapus + berkasnya diambil → baris "Rekening koran dihapus"; isi `mei-judul-bergeser.csv`
+diganti → baris lama "Digantikan"; lonceng sungguhan → "Buka dokumen" pada notifikasi gagal sesudah
+pindah ke tab Rekonsiliasi **mendarat di Folder terpantau** — juga ketika hash dipaksa sudah sama
+(`history.replaceState`) — 0 galat konsol, 0 simpul teks terpotong, tanpa gulir samping di kedua viewport.
