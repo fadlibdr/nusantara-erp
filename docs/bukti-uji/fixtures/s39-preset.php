@@ -14,14 +14,18 @@
  * Berkas contoh demo dipakai untuk membuktikan JALUR folder terpantau, bukan
  * tata letak bank mana pun (docs/samples/bank/README.md §5).
  */
+use App\Models\User;
+use Illuminate\Contracts\Console\Kernel;
+use Modules\Finance\Models\BankAccount;
+use Modules\Finance\Services\BankStatementImportService;
+
+// `use` SEBELUM bootstrap: Kernel::class di baris bootstrap dibaca saat kompilasi, dan pint
+// (ordered_imports) memindahkan import ke atas — import yang berada sesudah pemakaiannya
+// menjatuhkan fixture dengan "Class \"Kernel\" does not exist" (terukur 12 Sep 2026).
 $root = dirname(__DIR__, 3);   // docs/bukti-uji/fixtures → akar repo
 require $root.'/vendor/autoload.php';
 $app = require $root.'/bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-
-use App\Models\User;
-use Modules\Finance\Models\BankAccount;
-use Modules\Finance\Services\BankStatementImportService;
+$app->make(Kernel::class)->bootstrap();
 
 $account = BankAccount::query()->where('code', 'BANK-BCA-OPS')->firstOrFail();
 $admin = User::query()->where('email', 'admin@nusantara.test')->firstOrFail();
