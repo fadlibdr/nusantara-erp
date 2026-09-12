@@ -10,6 +10,7 @@ use Modules\Finance\Models\FiscalPeriod;
 use Modules\Finance\Services\PeriodCloseService;
 use Modules\Finance\Services\RevenueRecognitionService;
 use Modules\Finance\Services\TaxExportService;
+use Modules\Finance\Support\DjpFormats;
 use Modules\Projects\Models\Project;
 use Tests\ErpTestCase;
 use Tests\Unit\Finance\FinanceFixtures;
@@ -371,6 +372,46 @@ class PeriodCloseChecklistTest extends ErpTestCase
 
         $this->assertStringContainsString('Nomor faktur pajak belum diisi', $item['detail']);
         $this->assertStringContainsString('datang dari DJP', $item['detail']);
+    }
+
+    /**
+     * The OK branch is pinned WORD FOR WORD. It used to read "N dokumen siap
+     * diekspor ke DJP" — the one promise this package exists to forbid — and a
+     * mutation that put "siap diekspor ke Coretax" back passed every test in
+     * the suite, because only the WARN branches were ever pinned and the demo
+     * database never reaches this branch (V3b-1 / V2-3). The prefix is a
+     * literal; the registry sentence after the dash is read from DjpFormats so
+     * it changes together with the registry — but its own prefix is literal too.
+     */
+    public function test_an_exportable_invoice_makes_the_tax_export_item_ok_without_promising_djp_conformance(): void
+    {
+        $customer = $this->makeCustomer(['npwp' => '01.234.567.8-011.000']);
+        $contract = $this->makeContract($customer);
+        $invoice = $this->approveInvoice($this->arInvoices()->create([
+            'customer_id' => $customer->id,
+            'contract_id' => $contract->id,
+            'description' => 'Termin 1',
+            'dpp' => 100000000,
+            'ppn_rate' => 11.0,
+            'invoice_date' => '2026-06-10',
+        ]));
+        $this->arInvoices()->registerFakturPajak($invoice, '010.000-26.00000001');
+
+        $item = $this->assertItem(self::YEAR, self::MONTH, 'tax_export_ready',
+            PeriodCloseService::WARN, PeriodCloseService::OK);
+
+        $this->assertStringStartsWith(
+            '1 dokumen siap masuk berkas ekspor pajak — BELUM DIVERIFIKASI terhadap template DJP',
+            $item['detail'],
+        );
+        $this->assertSame(
+            '1 dokumen siap masuk berkas ekspor pajak — '.DjpFormats::get(DjpFormats::EFAKTUR_CSV_LEGACY)['verification'],
+            $item['detail'],
+        );
+        foreach (['Coretax', 'diekspor ke', 'dilaporkan ke', 'sesuai DJP', 'sudah cocok'] as $promise) {
+            $this->assertStringNotContainsString($promise, $item['detail'], $promise);
+        }
+        $this->assertSame('tax-exports', $item['link']);
     }
 
     /**

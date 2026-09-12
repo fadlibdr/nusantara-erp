@@ -57,6 +57,27 @@ class NpwpTest extends ErpTestCase
         $this->assertNull(Npwp::kind(null));
     }
 
+    /**
+     * SEMUA panjang 1..30 diulang, dan hanya tiga literal yang dikenali. Paku
+     * negatif yang hanya menyebut 14/17/21/23 membiarkan mutasi "20 digit =
+     * NITKU" lolos hijau di keempat pintu (V3b-6).
+     */
+    public function test_every_length_other_than_15_16_and_22_is_refused(): void
+    {
+        foreach (range(1, 30) as $length) {
+            $digits = str_repeat('7', $length);
+            $expected = match ($length) {
+                15 => 'npwp15',
+                16 => 'npwp16',
+                22 => 'nitku',
+                default => null,
+            };
+
+            $this->assertSame($expected, Npwp::kind($digits), "{$length} digit");
+            $this->assertSame($expected !== null, Npwp::isValid($digits), "{$length} digit");
+        }
+    }
+
     /** Tidak ada digit periksa: deretan yang "tidak terlihat benar" tetap sah bila panjangnya sah. */
     public function test_no_checksum_is_invented(): void
     {
