@@ -11,6 +11,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 use Modules\Iam\Console\Commands\PermissionCheckCommand;
 use Modules\Iam\Models\ApiToken;
+use Modules\Iam\Support\IntegrationRate;
 use Modules\Iam\Support\PasswordHelp;
 
 class IamServiceProvider extends ServiceProvider
@@ -68,7 +69,7 @@ class IamServiceProvider extends ServiceProvider
          * existing clients and curl examples are unaffected.
          */
         Sanctum::getAccessTokenFromRequestUsing(
-            static fn (Request $request): ?string => $request->header('X-Api-Token') ?: $request->bearerToken()
+            static fn (Request $request): ?string => IntegrationRate::tokenStringFrom($request)
         );
 
         /*
