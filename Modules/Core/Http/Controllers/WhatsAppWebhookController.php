@@ -159,7 +159,7 @@ class WhatsAppWebhookController extends ApiController
                 // Jaring kedua yang sama dengan DeliverNotification::message():
                 // kolom error varchar(500) (migrasi Core 000194), dan webhook
                 // yang gagal INSERT dijawab 500 lalu diulang Meta terus-menerus.
-                'error' => Str::limit(ProviderErrorScrubber::whatsapp($text), 480),
+                'error' => Str::limit(ProviderErrorScrubber::whatsapp($text), 480, '…'),
                 'next_attempt_at' => null,
             ])->save();
 
