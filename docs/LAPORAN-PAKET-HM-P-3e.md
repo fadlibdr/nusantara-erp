@@ -157,8 +157,10 @@ tentu gagal"; **"gagal berarti gagal" tidak dilonggarkan sedikit pun** — kanal
 
 Langganan yang dijawab 404/410 **dihapus**, dan kejadiannya ditulis ke **`core_audit_log`** dengan
 label perangkatnya. Menuliskannya "di baris langganan" tidak berarti apa-apa: baris itulah yang
-dihapus. Log audit adalah append-only, punya layarnya sendiri (Sistem › Log Audit), dan tidak punya
-jalur hapus di aplikasi ini. Baris kotak keluar yang memicunya `failed` seketika dengan kalimat yang
+dihapus. Log audit adalah append-only dan tidak punya jalur hapus di aplikasi ini. **Aplikasi ini
+belum punya layar Log Audit** — tidak ada entri navigasi dan tidak ada rute SPA (PANDUAN-ADMINISTRATOR
+§3.10 mengatakannya apa adanya); yang membaca barisnya adalah
+`GET api/core/audit-log?auditable_type=PushSubscription`, digerbangi `core.view`. Baris kotak keluar yang memicunya `failed` seketika dengan kalimat yang
 menyebut perangkat itu — dua catatan, dua umur, satu kejadian.
 
 ### 3.4 Muatan dipotong 2.820 byte, bukan 4.078

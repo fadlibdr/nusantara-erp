@@ -2,6 +2,7 @@
 
 namespace Modules\Core\Channels;
 
+use LogicException;
 use Minishlink\WebPush\Encryption;
 use Modules\Core\Contracts\ChannelWithoutMessageId;
 use Modules\Core\Contracts\DeliveryChannel;
@@ -11,6 +12,7 @@ use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Models\PushSubscription;
 use Modules\Core\Support\ProviderErrorScrubber;
+use Modules\Core\Support\PushEndpoint;
 use Modules\Core\Support\PushSubscriptions;
 use Modules\Core\Support\WebPushSender;
 use Modules\Core\Support\WebPushSetup;
@@ -85,6 +87,21 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
         }
 
         $subscription = $this->subscriptionOf($delivery);
+        $endpoint = (string) $subscription->endpoint;
+
+        // PEMERIKSAAN KEDUA, TEPAT SEBELUM MENGIRIM (putaran verifikasi:
+        // A-1/B-2). Yang pertama berjalan saat perangkat didaftarkan; ini
+        // berjalan sekarang, karena sebuah baris kotak keluar bisa menunggu
+        // berjam-jam di jam tenang dan sebuah nama yang kemarin menunjuk
+        // alamat publik bisa hari ini menunjuk 127.0.0.1. Alasannya sama
+        // persis dengan DeliverWebhook, dan kodenya memang sama (P-3d §11).
+        try {
+            PushEndpoint::assertSafeToSend($endpoint);
+        } catch (LogicException $e) {
+            throw new DeliveryRejectedException(
+                "Perangkat «{$subscription->label()}» tidak dikirimi: ".$e->getMessage(),
+            );
+        }
 
         try {
             $report = app(WebPushSender::class)->send($subscription, self::payloadFor($notification));
@@ -93,7 +110,7 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
             // diurai, kunci peramban rusak). Itu bukan jawaban penyedia, tetapi
             // juga bukan sesuatu yang berubah bila diulang.
             throw new DeliveryRejectedException(
-                'Pengiriman web push gagal disiapkan: '.ProviderErrorScrubber::webPush($e->getMessage()),
+                'Pengiriman web push gagal disiapkan: '.ProviderErrorScrubber::webPush($e->getMessage(), $endpoint),
             );
         }
 
@@ -116,6 +133,23 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
             );
         }
 
+        $status = $report->getResponse()?->getStatusCode();
+
+        // PENGALIHAN TIDAK DIIKUTI, DAN TIDAK PERNAH DIHITUNG TERKIRIM
+        // (putaran verifikasi: A-2). Dengan allow_redirects dimatikan di
+        // WebPushSender, Guzzle memulangkan 3xx itu sendiri sebagai jawaban
+        // yang berhasil — dan pustaka ini menandai setiap jawaban yang bukan
+        // galat HTTP sebagai success, termasuk 3xx. Tanpa cabang ini sebuah
+        // 307 akan tercatat `sent` sementara layanan push tidak pernah
+        // menerima apa pun.
+        if ($status !== null && $status >= 300 && $status < 400) {
+            throw new DeliveryRejectedException(
+                "Layanan push menjawab HTTP {$status} (pengalihan) untuk perangkat «{$subscription->label()}». "
+                .'Pengalihan TIDAK diikuti: sebuah permintaan bertanda tangan yang dipindahkan ke alamat lain '
+                .'meninggalkan setiap pemeriksaan alamat yang berlaku di atasnya. Pemberitahuan ini tidak terkirim.',
+            );
+        }
+
         if ($report->isSuccess()) {
             // "Terakhir berhasil" milik PERANGKATNYA, bukan barisnya: layar
             // Profil menjawab "kapan perangkat ini terakhir benar-benar
@@ -130,8 +164,7 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
             return trim((string) ($report->getResponse()?->getHeaderLine('Location') ?? ''));
         }
 
-        $status = $report->getResponse()?->getStatusCode();
-        $message = $this->describe($report->getReason(), $status, $subscription->label());
+        $message = $this->describe($report->getReason(), $status, $subscription->label(), $endpoint);
 
         // 401/403 = header VAPID ditolak layanan push: kunci salah, subject
         // ditolak, atau langganan dibuat dengan applicationServerKey LAIN
@@ -176,9 +209,33 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
         // Potong sampai muat. Dilakukan di sini, bukan dibiarkan melempar di
         // pustaka: sebuah notifikasi yang isinya panjang harus SAMPAI dengan
         // isi terpotong, bukan tidak sampai sama sekali.
-        while (strlen($payload) > self::MAX_PAYLOAD_BYTES && $body !== '') {
+        //
+        // SYARAT HENTINYA ADALAH "ISINYA MASIH MENGECIL", BUKAN "ISINYA
+        // KOSONG" (putaran verifikasi: A-7/B-8). Setiap putaran menambahkan
+        // '…' di ujung, jadi $body TIDAK PERNAH menjadi string kosong: ia
+        // mengecil sampai '…' lalu berhenti mengecil. Penjaga lama karena itu
+        // tidak pernah bisa menyala, dan bila bagian muatan yang TIDAK
+        // dipotong (judul, tautan) sendirian sudah melewati plafon, gelungnya
+        // berputar tanpa akhir DI DALAM PEKERJA ANTREAN — bukan galat yang
+        // tercatat, melainkan pekerja yang menggantung sampai --timeout
+        // membunuhnya, berulang untuk setiap percobaan. Diukur 13 Sep 2026
+        // dengan app.url sepanjang 3.000 aksara: 40 putaran, $body terkunci
+        // pada '…', panjang muatan mandek di 3.061 byte.
+        while (strlen($payload) > self::MAX_PAYLOAD_BYTES && mb_strlen($body) > 1) {
             $body = rtrim(mb_substr($body, 0, max(0, (int) (mb_strlen($body) * 0.8) - 1))).'…';
             $payload = $build($body);
+        }
+
+        // Isinya sudah habis dan muatannya MASIH kelewat besar: yang kelewat
+        // panjang adalah judul atau tautannya, dan memotong isi lagi tidak
+        // akan menolong. Satu baris `failed` yang bisa dibaca jauh lebih baik
+        // daripada pekerja yang menggantung.
+        if (strlen($payload) > self::MAX_PAYLOAD_BYTES) {
+            throw new DeliveryRejectedException(
+                'Muatan pemberitahuan ini tetap melewati '.self::MAX_PAYLOAD_BYTES.' byte setelah isinya dipotong '
+                .'habis: judul atau tautannya sendiri sudah kelewat panjang. Periksa APP_URL di .env — tautan '
+                .'notifikasi dibentuk dari sana.',
+            );
         }
 
         return $payload;
@@ -193,21 +250,53 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
     private function subscriptionOf(NotificationDelivery $delivery): PushSubscription
     {
         $id = $delivery->push_subscription_id;
+        $ownerId = $delivery->notification?->user_id;
 
-        $subscription = $id === null ? null : PushSubscription::query()->find($id);
+        // DICARI DI DALAM LINGKUP PEMILIK BARIS (putaran verifikasi: B-1).
+        // Langganan push milik PERAMBAN, bukan akun: di komputer yang dipakai
+        // bergantian, peramban memulangkan endpoint yang SAMA untuk siapa pun
+        // yang sedang masuk, dan menekan "Aktifkan" MEMINDAHKAN barisnya ke
+        // orang kedua — id barisnya tidak berubah. Sebuah baris kotak keluar
+        // milik orang pertama yang masih `queued` (di jam tenang ia bisa
+        // menunggu sampai 8 jam) akan, tanpa lingkup ini, mengirim judul dan
+        // isi pemberitahuannya ke layar orang kedua — dan mencatat `sent`
+        // atas nama orang pertama. Diukur 13 Sep 2026 di pohon ini: baris itu
+        // benar-benar terkirim dan benar-benar tercatat `sent`.
+        //
+        // Jalur "Kirim ulang" sudah memakai lingkup yang sama
+        // (NotificationService::retry); jalur yang benar-benar MENGIRIM tidak
+        // punya — itu asimetri, bukan keputusan.
+        $subscription = $id === null || $ownerId === null
+            ? null
+            : PushSubscription::query()->where('user_id', $ownerId)->find($id);
 
         if ($subscription === null) {
             throw new DeliverySkippedException(
-                'Perangkat tujuan baris ini sudah tidak terdaftar (dicabut pemiliknya atau dihapus karena langganannya '
-                .'kedaluwarsa); tidak ada yang bisa dikirimi.',
+                'Perangkat tujuan baris ini sudah tidak terdaftar atas nama penerimanya (dicabut pemiliknya, dihapus '
+                .'karena langganannya kedaluwarsa, atau didaftarkan ulang oleh pengguna lain di peramban yang sama); '
+                .'tidak ada yang bisa dikirimi.',
             );
         }
 
         return $subscription;
     }
 
-    /** Kalimat yang masuk kolom "Galat / alasan" — disaring sebelum meninggalkan kelas ini. */
-    private function describe(string $reason, ?int $status, string $label): string
+    /**
+     * Kalimat yang masuk kolom "Galat / alasan" — disaring sebelum
+     * meninggalkan kelas ini, DAN endpoint-nya ikut disamarkan.
+     *
+     * Pesan Guzzle memuat URL permintaan lengkap, jadi tanpa penyamaran
+     * endpoint 188 karakter itu mendarat apa adanya di
+     * core_notification_deliveries.error — yang digambar sebagai
+     * "Galat / alasan" bagi SETIAP pemegang core.update, ikut ke setiap
+     * cadangan, dan ikut ke setiap tangkapan layar yang dikirim orang saat
+     * minta bantuan (putaran verifikasi: A-6/B-4). Endpoint push adalah
+     * KAPABILITAS — POST push/rotate memakainya sebagai satu-satunya
+     * kredensial — jadi ia diperlakukan sebagai kredensial di sini juga.
+     * Yang tersisa di kalimat, LABEL perangkatnya, sudah menjawab "perangkat
+     * mana yang gagal".
+     */
+    private function describe(string $reason, ?int $status, string $label, string $endpoint): string
     {
         $text = sprintf(
             'Layanan push %s untuk perangkat «%s»%s',
@@ -216,7 +305,7 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
             trim($reason) === '' ? '' : ': '.trim($reason),
         );
 
-        return ProviderErrorScrubber::webPush($text);
+        return ProviderErrorScrubber::webPush($text, $endpoint);
     }
 
     /** Satu baris, tanpa baris baru/tab, dipotong pada batasnya. */

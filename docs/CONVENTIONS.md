@@ -2714,8 +2714,9 @@ paling pribadi): `WEBPUSH_DISABLED` (sakelar Pengaturan) → `WebPushSetup::skip
 buntu yang **tidak bisa** diatasi tindakan apa pun di peramban, jadi tombolnya tidak ditawarkan.
 
 **404/410 → langganan DIHAPUS, dan kejadiannya dicatat di `core_audit_log`.** Mencatatnya "di baris
-langganan" tidak berarti apa-apa: baris itulah yang dihapus. Log audit append-only punya layarnya
-sendiri (Sistem › Log Audit) dan tidak punya jalur hapus di aplikasi ini. Baris kotak keluarnya
+langganan" tidak berarti apa-apa: baris itulah yang dihapus. Log audit append-only dan tidak punya
+jalur hapus di aplikasi ini; ia **tidak punya layar** (PANDUAN-ADMINISTRATOR §3.10) — yang membacanya
+`GET api/core/audit-log`, izin `core.view`. Baris kotak keluarnya
 `failed` seketika (permanen), dan Kirim ulang atasnya **ditolak 422**. **401/403** = kunci VAPID
 ditolak layanan push (termasuk: kunci baru saja diganti) — juga permanen. **429/5xx/jaringan** =
 pengecualian biasa, lima percobaan dengan backoff yang sudah ada.

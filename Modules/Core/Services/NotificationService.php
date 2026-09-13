@@ -421,6 +421,15 @@ class NotificationService
         // Gerbang berkata "ada perangkat" dan daftarnya kosong: perangkat
         // terakhir dicabut di antara dua kueri. Satu baris skipped dengan
         // sebab yang sama, bukan nol baris.
+        //
+        // (Dua kueri untuk data yang sama — COUNT di gerbang lalu SELECT di
+        // sini — dibiarkan dengan sengaja, putaran verifikasi B-7: gerbang
+        // adalah SATU daftar sebab yang dipakai kotak keluar, Kirim ulang dan
+        // layar Profil, dan meneruskan koleksi perangkat ke dalamnya membuat
+        // salah satu pemanggilnya harus memuat perangkat yang tidak
+        // dibutuhkannya. Yang benar-benar dibayar semua orang — COUNT pada
+        // pemasangan yang web push-nya mati — sudah ditutup di
+        // DeliveryGate::deviceSummary().)
         if ($devices->isEmpty()) {
             $this->outboxRow($notification, $recipient, $channel, DeliveryGate::WEBPUSH_NO_DEVICE);
 

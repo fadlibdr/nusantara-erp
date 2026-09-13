@@ -35,8 +35,36 @@ use Modules\Core\Models\PushSubscription;
 class WebPushSender
 {
     /**
-     * Opsi klien Guzzle. KOSONG di produksi; subkelas uji memasang handler
+     * OPSI YANG BERLAKU DI SETIAP PENGIRIMAN, TERMASUK DI DALAM UJI.
+     *
+     * `allow_redirects => false` bukan penyetelan, melainkan aturan 4
+     * kebijakan P-3d yang ditulis untuk persis bahaya ini (putaran verifikasi:
+     * A-2): "sebuah penerima yang menjawab `302 Location:
+     * http://169.254.169.254/` memindahkan permintaan bertanda tangan kita ke
+     * sana tanpa satu pun pemeriksaan di atas berlaku lagi". Guzzle mengikuti
+     * pengalihan secara bawaan, dan daftar protokolnya bawaan memuat `http`,
+     * jadi penurunan skema pun diikuti. Diukur 13 Sep 2026 SEBELUM baris ini
+     * ada: sebuah 307 ke http://169.254.169.254/ benar-benar dibuat, dan
+     * barisnya berakhir `sent`.
+     *
+     * `connect_timeout` terpisah dari waktu tunggu jawaban: sebuah alamat yang
+     * tidak pernah menjawab SYN menahan pekerja antrean selama waktu tunggu
+     * penuh (diukur 15,002 detik), dan pekerja yang sama melayani e-mail dan
+     * WhatsApp.
+     */
+    private const CLIENT_OPTIONS = [
+        'allow_redirects' => false,
+        'connect_timeout' => PushEndpoint::CONNECT_TIMEOUT,
+    ];
+
+    /**
+     * Opsi klien TAMBAHAN. KOSONG di produksi; subkelas uji memasang handler
      * tiruan di sini. Lihat docblock kelas.
+     *
+     * Ia DITIMPAKAN di atas CLIENT_OPTIONS, bukan menggantikannya: sebuah uji
+     * yang memasang handler tiruan harus tetap berjalan dengan aturan
+     * pengalihan yang sama seperti produksi, karena kalau tidak, uji yang
+     * memaku "307 tidak diikuti" akan memaku sesuatu yang hanya benar di uji.
      *
      * @var array<string, mixed>
      */
@@ -48,7 +76,7 @@ class WebPushSender
             WebPushSetup::auth(),
             ['TTL' => WebPushSetup::ttlSeconds()],
             WebPushSetup::timeoutSeconds(),
-            $this->clientOptions,
+            array_replace(self::CLIENT_OPTIONS, $this->clientOptions),
         );
 
         return $client->sendOneNotification($this->subscriptionFor($subscription), $payload);

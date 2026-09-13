@@ -2380,9 +2380,12 @@ jawaban **201** dari layanan push. Kami tidak mengarang pengenal untuk mengisi k
 #### Perangkat yang hilang membersihkan dirinya sendiri
 
 Peramban yang dipasang ulang, profil yang dihapus, izin yang dicabut: layanan push menjawab
-**404/410**, aplikasi **menghapus** langganan itu, dan mencatat penghapusannya di
-**Sistem › Log Audit** dengan label perangkatnya. Catatan itu sengaja berada di sana dan
-bukan "di baris langganan" — baris itulah yang dihapus. Baris kotak keluar yang memicunya
+**404/410**, aplikasi **menghapus** langganan itu, dan mencatat penghapusannya di tabel
+**`core_audit_log`** dengan label perangkatnya. Catatan itu sengaja berada di sana dan
+bukan "di baris langganan" — baris itulah yang dihapus. Jangan mencarinya di menu **Sistem**:
+layar Log Audit tidak pernah dibangun (§3.10). Yang membacanya adalah
+`GET api/core/audit-log?auditable_type=PushSubscription` di balik izin `core.view` — §3.10
+menuliskan dua caranya, keduanya dari shell server. Baris kotak keluar yang memicunya
 menjadi **Gagal** dengan kalimat yang menyebut perangkat itu, dan **Kirim ulang** atasnya
 ditolak dengan kalimat: sasarannya sudah tidak ada.
 

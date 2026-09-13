@@ -20,6 +20,7 @@ use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Models\PushSubscription;
 use Modules\Core\Services\SettingService;
 use Modules\Core\Support\DeliveryGate;
+use Modules\Core\Support\WebhookUrl;
 use Modules\Core\Support\WebPushSender;
 use RuntimeException;
 use Tests\ErpTestCase;
@@ -76,6 +77,23 @@ class WebPushChannelTest extends ErpTestCase
         ]);
 
         app(SettingService::class)->set('notifications.webpush_enabled', true);
+
+        // PENYELESAI NAMA ADALAH SEAM, DAN UJI INI TIDAK MENYENTUH DNS.
+        // Kanal memeriksa alamat endpoint sekali lagi tepat sebelum mengirim
+        // (putaran verifikasi: A-1/B-2), dan pemeriksaan itu bertanya kepada
+        // resolver. Tanpa baris ini uji di berkas ini benar-benar menanyakan
+        // fcm.googleapis.com kepada DNS mesin uji — yaitu uji yang hasilnya
+        // bergantung pada jaringan orang yang menjalankannya. Diukur 13 Sep
+        // 2026 dengan resolver yang melempar: delapan uji di berkas ini
+        // menyentuhnya.
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+    }
+
+    protected function tearDown(): void
+    {
+        WebhookUrl::resolverUsing(null);
+
+        parent::tearDown();
     }
 
     /** Kunci langganan harus SAH: kunci karangan gagal di enkripsi, bukan di jaringan. */

@@ -122,9 +122,23 @@ final class DeliveryGate
         };
     }
 
-    /** "1 perangkat" / "3 perangkat" / '' bila belum ada satu pun. */
+    /**
+     * "1 perangkat" / "3 perangkat" / '' bila belum ada satu pun.
+     *
+     * DIHITUNG HANYA KETIKA ANGKANYA BISA BERARTI APA-APA (putaran
+     * verifikasi: B-7). Ketika gerbang sisi server sudah punya sebabnya —
+     * sakelar Pengaturan mati (itu keadaan BAWAAN setiap pemasangan), atau
+     * VAPID kosong — ringkasan ini tidak dipakai satu pembaca pun, dan
+     * COUNT-nya tetap dibayar satu kali per pemberitahuan per penerima,
+     * selamanya, pada setiap pemasangan yang tidak memakai web push sama
+     * sekali.
+     */
     private static function deviceSummary(User $recipient): string
     {
+        if (self::webPushServerReason() !== null) {
+            return '';
+        }
+
         $count = PushSubscriptions::countFor($recipient);
 
         return $count === 0 ? '' : $count.' perangkat';

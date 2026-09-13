@@ -1381,8 +1381,10 @@ sekaligus, jadi umumkan lebih dulu.
 
 **Perangkat yang hilang membersihkan dirinya sendiri.** Langganan yang dijawab **404/410** oleh
 layanan push (peramban dipasang ulang, profil dihapus, izin dicabut) **dihapus** dari
-`core_push_subscriptions`, dan kejadiannya dicatat di **Sistem › Log Audit** (append-only) dengan
-label perangkatnya — barisnya sendiri hilang, jadi catatannya harus berada di tempat lain.
+`core_push_subscriptions`, dan kejadiannya dicatat di **`core_audit_log`** (append-only) dengan
+label perangkatnya — barisnya sendiri hilang, jadi catatannya harus berada di tempat lain. **Tidak
+ada layar Log Audit di menu Sistem**: bacalah lewat `GET api/core/audit-log?auditable_type=PushSubscription`
+(izin `core.view`), caranya di PANDUAN-ADMINISTRATOR §3.10.
 Baris kotak keluar yang memicunya menjadi **Gagal** dengan kalimat yang menyebut perangkat itu,
 dan "Kirim ulang" atasnya **ditolak 422**: sasarannya sudah tidak ada.
 

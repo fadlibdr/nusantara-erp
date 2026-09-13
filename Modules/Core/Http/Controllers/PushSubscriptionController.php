@@ -5,10 +5,14 @@ namespace Modules\Core\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use LogicException;
+use Modules\Core\Exceptions\PushDeviceLimitException;
 use Modules\Core\Http\ApiController;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Models\PushSubscription;
 use Modules\Core\Support\DeliveryGate;
+use Modules\Core\Support\PushEndpoint;
 use Modules\Core\Support\PushSubscriptions;
 use Modules\Core\Support\WebPushSetup;
 
@@ -77,17 +81,41 @@ class PushSubscriptionController extends ApiController
             'endpoint' => ['required', 'string', 'max:1000', 'url', 'starts_with:https://'],
             'keys.p256dh' => ['required', 'string', 'max:255'],
             'keys.auth' => ['required', 'string', 'max:255'],
+            // Endpoint yang DIGANTIKAN langganan ini, dikirim klien pada jalur
+            // InvalidStateError (kunci VAPID baru saja diganti): peramban yang
+            // sama membuang langganan lamanya dan berlangganan ulang, yang
+            // memberi endpoint BARU. Tanpa nilai ini baris lama bertahan
+            // selamanya sebagai perangkat hantu — satu baris merah "Gagal" per
+            // pemberitahuan, untuk perangkat yang sebenarnya sehat
+            // (putaran verifikasi: B-5/C-4).
+            'previous_endpoint' => ['sometimes', 'nullable', 'string', 'max:1000', 'url', 'starts_with:https://'],
         ], [
             'endpoint.starts_with' => 'Endpoint langganan push harus https://.',
+            'previous_endpoint.starts_with' => 'Endpoint langganan push harus https://.',
         ]);
 
-        $device = PushSubscriptions::register(
-            $user,
-            $data['endpoint'],
-            $data['keys']['p256dh'],
-            $data['keys']['auth'],
-            $request->userAgent(),
-        );
+        // Alamat DI DALAM jaringan server bukan perangkat siapa pun (P-3d §11,
+        // dipakai ulang lewat PushEndpoint — putaran verifikasi: A-1/B-2).
+        try {
+            PushEndpoint::assertShape($data['endpoint']);
+        } catch (LogicException $e) {
+            throw ValidationException::withMessages(['endpoint' => $e->getMessage()]);
+        }
+
+        try {
+            $device = PushSubscriptions::register(
+                $user,
+                $data['endpoint'],
+                $data['keys']['p256dh'],
+                $data['keys']['auth'],
+                $request->userAgent(),
+                $data['previous_endpoint'] ?? null,
+            );
+        } catch (PushDeviceLimitException $e) {
+            // Plafon perangkat (A-5): kalimatnya menyebut angkanya DAN jalan
+            // keluarnya, karena "gagal" tanpa jalan keluar adalah tombol mati.
+            throw ValidationException::withMessages(['endpoint' => $e->getMessage()]);
+        }
 
         return $this->ok([
             'id' => $device->getKey(),

@@ -31,11 +31,28 @@ class FakeWebPushSender extends WebPushSender
     public array $sent = [];
 
     /**
+     * Antrean jawaban yang BELUM diambil.
+     *
+     * Dibuka supaya sebuah uji bisa menghitung berapa PERMINTAAN yang
+     * benar-benar dibuat, bukan hanya berapa kali send() dipanggil — satu
+     * pengiriman yang diikuti pengalihan membuat DUA permintaan dari satu
+     * panggilan, dan itulah yang dipaku uji "307 tidak diikuti" (putaran
+     * verifikasi: A-2). MockHandler adalah Countable.
+     */
+    public MockHandler $handler;
+
+    /**
      * @param  list<mixed>  $responses  antrean jawaban/pengecualian Guzzle
      */
     public function __construct(array $responses)
     {
-        $this->clientOptions = ['handler' => HandlerStack::create(new MockHandler($responses))];
+        $this->handler = new MockHandler($responses);
+        // Hanya handler-nya yang dipasang: opsi produksi (allow_redirects,
+        // connect_timeout) tetap berlaku karena WebPushSender menimpakan
+        // properti ini DI ATAS-nya, bukan menggantikannya. Sebuah uji yang
+        // memaku "pengalihan tidak diikuti" di atas klien yang aturannya
+        // berbeda dari produksi memaku sesuatu yang hanya benar di uji.
+        $this->clientOptions = ['handler' => HandlerStack::create($this->handler)];
     }
 
     public function send(PushSubscription $subscription, string $payload): MessageSentReport

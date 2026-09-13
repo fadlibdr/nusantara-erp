@@ -4,6 +4,7 @@ namespace Modules\Core\Support;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Modules\Core\Exceptions\PushDeviceLimitException;
 use Modules\Core\Models\PushSubscription;
 use Modules\Core\Services\AuditService;
 
@@ -21,14 +22,40 @@ use Modules\Core\Services\AuditService;
  *
  * KEJADIAN 404/410 TERCATAT DI TEMPAT YANG BERTAHAN SESUDAH BARISNYA HILANG.
  * Menuliskannya "di baris langganan" tidak berarti apa-apa: baris itulah yang
- * dihapus. Jadi ia ditulis ke core_audit_log — append-only, punya layarnya
- * sendiri (Sistem › Log Audit), dan ikut ke setiap cadangan — dengan label
- * perangkat dan sebabnya. Baris kotak keluar yang memicunya juga menyimpan
- * kalimat yang sama di kolom `error`, tetapi baris itu boleh dipangkas
- * operator suatu hari; log audit tidak punya jalur hapus di aplikasi ini.
+ * dihapus. Jadi ia ditulis ke core_audit_log — append-only dan ikut ke setiap
+ * cadangan — dengan label perangkat dan sebabnya. Baris kotak keluar yang
+ * memicunya juga menyimpan kalimat yang sama di kolom `error`, tetapi baris
+ * itu boleh dipangkas operator suatu hari; log audit tidak punya jalur hapus
+ * di aplikasi ini.
+ *
+ * APLIKASI INI BELUM PUNYA LAYAR LOG AUDIT (putaran verifikasi: B-3).
+ * Barisnya memang ditulis; yang tidak ada adalah menu untuk membacanya —
+ * tidak ada entri navigasi dan tidak ada rute SPA, dan PANDUAN-ADMINISTRATOR
+ * §3.10 mengatakannya hitam di atas putih. Yang ada adalah
+ * `GET api/core/audit-log?auditable_type=…` di balik izin core.view. Menyebut
+ * "Sistem › Log Audit" di sini akan mengirim administrator yang sedang
+ * menyelidiki ke menu yang tidak punya barisnya, lalu membuatnya menyimpulkan
+ * catatannya tidak ada.
+ *
+ * PLAFON PERANGKAT (putaran verifikasi: A-5). Satu baris kotak keluar per
+ * perangkat berarti seorang penerima dengan N perangkat menghasilkan N
+ * permintaan keluar per pemberitahuan, masing-masing bisa menahan pekerja
+ * antrean sampai waktu tunggunya habis. Karena itu MAX_PER_USER: bukan aturan
+ * kenyamanan, melainkan batas penguatan lalu lintas yang bisa dipicu pengguna
+ * biasa.
  */
 final class PushSubscriptions
 {
+    /**
+     * Perangkat yang boleh dipegang seorang pengguna sekaligus.
+     *
+     * Sepuluh adalah angka yang tidak pernah ditemui orang sungguhan — ponsel,
+     * komputer kantor, komputer rumah, tablet lapangan sudah empat — dan
+     * sekaligus plafon yang membuat satu pemberitahuan tidak pernah menjadi
+     * ratusan permintaan keluar.
+     */
+    public const MAX_PER_USER = 10;
+
     /** @return Collection<int, PushSubscription> */
     public static function forUser(User $user): Collection
     {
@@ -46,9 +73,24 @@ final class PushSubscriptions
     /**
      * Daftarkan (atau perbarui) satu perangkat.
      *
-     * $previousEndpoint diisi HANYA oleh rotasi pushsubscriptionchange: baris
-     * lama dibuang lebih dulu supaya perangkat yang sama tidak meninggalkan
-     * endpoint mati yang akan dikirimi sampai layanan push menjawab 410.
+     * $previousEndpoint diisi oleh DUA pemanggil, dan keduanya punya alasan
+     * yang sama: peramban yang SAMA baru saja memberi endpoint yang BERBEDA.
+     * Rotasi `pushsubscriptionchange` adalah satu; yang kedua adalah layar
+     * Profil pada jalur InvalidStateError, yaitu hari setelah pemilik
+     * mengganti kunci VAPID — langganan lama dibuang di peramban dan yang baru
+     * dibuat dengan kunci baru (putaran verifikasi: B-5/C-4). Tanpa nilai ini
+     * baris lama bertahan sebagai perangkat hantu yang tidak pernah dibuang
+     * siapa pun: 404/410 menghapus, tetapi langganan lama sesudah ganti kunci
+     * dijawab 401/403, dan 401/403 tidak menghapus apa pun.
+     *
+     * SATU ENDPOINT, SATU PEMILIK — DAN PERPINDAHANNYA DICATAT (putaran
+     * verifikasi: A-3). Langganan push milik PERAMBAN, bukan akun: di komputer
+     * lapangan yang dipakai bergantian, peramban memulangkan endpoint yang
+     * SAMA untuk siapa pun yang sedang masuk. Jadi barisnya memang harus
+     * berpindah — dua baris untuk satu langganan berarti pemberitahuan orang
+     * pertama tetap dikirim ke layar orang kedua. Yang tidak boleh adalah
+     * berpindah DIAM-DIAM: perpindahan antar-pengguna menulis baris audit,
+     * supaya "kenapa perangkat saya hilang dari daftar" punya jawaban.
      */
     public static function register(User $user, string $endpoint, string $p256dh, string $auth, ?string $userAgent = null, ?string $previousEndpoint = null): PushSubscription
     {
@@ -59,8 +101,17 @@ final class PushSubscriptions
                 ->delete();
         }
 
-        return PushSubscription::query()->updateOrCreate(
-            ['endpoint_hash' => PushSubscription::hashFor($endpoint)],
+        $hash = PushSubscription::hashFor($endpoint);
+        $existing = PushSubscription::query()->where('endpoint_hash', $hash)->first();
+
+        if ($existing === null) {
+            self::assertRoomFor($user);
+        }
+
+        $previousOwner = $existing === null ? null : (int) $existing->user_id;
+
+        $device = PushSubscription::query()->updateOrCreate(
+            ['endpoint_hash' => $hash],
             [
                 'user_id' => $user->getKey(),
                 'endpoint' => trim($endpoint),
@@ -68,6 +119,36 @@ final class PushSubscriptions
                 'auth' => $auth,
                 'device_label' => PushDeviceLabel::fromUserAgent($userAgent),
             ],
+        );
+
+        if ($previousOwner !== null && $previousOwner !== (int) $user->getKey()) {
+            app(AuditService::class)->event(
+                $device,
+                'updated',
+                [
+                    'user_id' => ['from' => $previousOwner, 'to' => (int) $user->getKey()],
+                    'alasan' => ['from' => null, 'to' => 'Peramban yang sama didaftarkan oleh pengguna lain (perangkat bersama); langganannya berpindah.'],
+                ],
+                $device->label(),
+            );
+        }
+
+        return $device;
+    }
+
+    /**
+     * @throws PushDeviceLimitException bila plafon sudah penuh
+     */
+    private static function assertRoomFor(User $user): void
+    {
+        if (self::countFor($user) < self::MAX_PER_USER) {
+            return;
+        }
+
+        throw new PushDeviceLimitException(
+            'Akun ini sudah memegang '.self::MAX_PER_USER.' perangkat, dan itu batasnya: setiap pemberitahuan '
+            .'dikirim ke SETIAP perangkat, satu per satu. Cabut perangkat yang sudah tidak dipakai di '
+            .'Profil › Notifikasi, lalu aktifkan perangkat ini lagi.',
         );
     }
 
