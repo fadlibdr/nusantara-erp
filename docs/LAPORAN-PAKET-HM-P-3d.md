@@ -2,8 +2,8 @@
 
 **Cabang:** `feat/phase3-p3d` (dari `main` 8438066 = merge P-3c) · **Tanggal:** 12 September 2026
 **Roadmap:** `docs/ROADMAP-HASHMICRO.md` Fase 3 / P-3d (8 hari-orang), tugas T3d.0–T3d.4
-**Status:** selesai di cabang — **belum di-merge, belum di-deploy** (keduanya langkah pemilik;
-deploy dilarang untuk agen di alur kerja ini).
+**Status:** selesai di cabang, **satu putaran verifikasi ditutup** (§15) — **belum di-merge, belum
+di-deploy** (keduanya langkah pemilik; deploy dilarang untuk agen di alur kerja ini).
 
 ---
 
@@ -16,14 +16,22 @@ membawa `["*"]` dan **tidak ada satu pun `tokenCan()` di seluruh kode** (grep = 
 **menyetujui pembayaran** — maka penegakannya dipasang lebih dulu, di **satu tempat yang dilewati
 setiap pemeriksaan izin** (`App\Models\User::hasPermissionTo()`), dibuktikan dengan matriks 403 yang
 menyebut ability yang kurang, dan **batasnya dikatakan apa adanya** di layar, panduan, dan dokumen
-OpenAPI (218 dari 862 rute tidak dijaga izin apa pun dan tetap dijangkau token terbatas).
+OpenAPI (diukur 12 Sep 2026: 218 dari 862 rute tidak dijaga izin apa pun dan tetap dijangkau token
+terbatas — **angka itu diukur, bukan dipaku**, §12.4).
 Kedaluwarsa Sanctum yang **punya dua kunci** — plafon global 720 menit yang diam-diam membunuh
 `expires_at` per token — diperbaiki tanpa menyentuh `config/sanctum.php` dan **tanpa backfill**,
 sehingga tidak satu pun baris produksi menjadi abadi. Webhook keluar menandatangani **byte yang
 persis dikirim**, menunggu **commit** dua lapis sebelum berangkat, menolak alamat internal **dua
 kali** (menyimpan dan mengirim) dengan redirect yang tidak diikuti, dan mencatat `sent` **hanya**
 pada 2xx. OpenAPI dua puluh endpoint ditulis tangan dan dijaga uji anti-drift yang **dibuktikan bisa
-memerah pada jalur, metode, dan izin**.
+memerah pada jalur, metode, izin, dan autentikasi**.
+
+Putaran verifikasi menutup **16 temuan** (§15): dua di antaranya SECURITY — alamat internal dalam
+bentuk IPv6 bertopeng IPv4 (`https://[::ffff:169.254.169.254]/`) yang lolos **kedua** pintu SSRF dan
+POST bertanda tangannya benar-benar berangkat, dan rahasia langganan yang digemakan penerima lalu
+mendarat di kolom log yang dibaca setiap pemegang `core.update`. Satu BUG membuat 3 dari 5 percobaan
+webhook **mustahil diterima** penerima yang memasang resep yang kita terbitkan sendiri. Tidak ada
+temuan yang ditolak.
 
 Tidak ada dependensi baru (`git diff 8438066...HEAD -- composer.json composer.lock package.json` =
 **0 baris**); **tidak ada sentuhan** pada `bootstrap/*`, `routes/*` akar, atau `DatabaseSeeder`
@@ -43,12 +51,12 @@ blok pertama Iam yang masih longgar).
 | T3d.0 | Ukur dulu: rute api, 20 endpoint yang akan didokumentasikan, keadaan kedaluwarsa Sanctum hari ini | ✅ | §0 tabel di bawah + `5fd2b21` — `ApiTokenExpiryTest` membuktikan dengan `travel()` bahwa token pribadi "berlaku setahun" **mati 13 jam** sebelum paket ini |
 | T3d.1a | Kedaluwarsa: migrasi Iam 000253 (`kind`), `ApiToken`, `Sanctum::authenticateAccessTokensUsing()` | ✅ | `5fd2b21` — `ApiTokenExpiryTest` **8 uji / 9 asersi**, merah dulu (5 error + 1 gagal), 3 mutasi merah (§4) |
 | T3d.1b | Token CRUD: `iam/me/api-tokens`, ability ⊆ izin, ≤ 365 hari, tampil sekali, `SessionOnly` | ✅ | `dc062e1` — `ApiTokenEndpointTest` **11 uji / 53 asersi** |
-| T3d.2 | Penegakan ability di satu tempat + matriks + batas laju 300/menit | ✅ | `377398c` — `ApiTokenAbilityMatrixTest` **9 / 27**, `ApprovalDelegationTokenScopeTest` **4 / 4**, `IntegrationRateLimitTest` **5 / 17**, `UngatedApiRouteCensusTest` **2 / 5**; 5 mutasi merah (§4) |
-| T3d.3 | Webhook: migrasi Core 001803, model, service, job, listener, HMAC, SSRF, layar log | ✅ | `7900bd1` — `WebhookDeliveryTest` **10 / 43**, `WebhookGuardTest` **27 / 79**, `WebhookEndpointTest` **10 / 60**; 5 mutasi merah (§4) |
-| T3d.4 | OpenAPI tangan 20 endpoint + anti-drift tiga arah | ✅ | `80a9881` — `docs/api/openapi.json`, `OpenApiDriftTest` **5 / 59**; 5 mutasi merah (§4) |
-| 5 | Layar Profil › Token API + Sistem › Webhook; `SHELL_VERSION` 11 → 12 | ✅ | `057a078` — `ApiTokenAndWebhookSpaTest` **7 / 57** |
+| T3d.2 | Penegakan ability di satu tempat + matriks + batas laju 300/menit | ✅ | `377398c` + `675c10d` — `ApiTokenAbilityMatrixTest` **13 / 41**, `ApprovalDelegationTokenScopeTest` **5 / 7**, `IntegrationRateLimitTest` **5 / 17**, `UngatedApiRouteCensusTest` **1 / 1**; 5 + 3 mutasi merah (§4) |
+| T3d.3 | Webhook: migrasi Core 001803, model, service, job, listener, HMAC, SSRF, layar log | ✅ | `7900bd1` + `8a534d9` — `WebhookDeliveryTest` **10 / 50**, `WebhookGuardTest` **40 / 133**, `WebhookEndpointTest` **10 / 61**, `WebhookSignatureTest` **4 / 48**; 5 + 5 mutasi merah (§4) |
+| T3d.4 | OpenAPI tangan 20 endpoint + anti-drift **empat** arah | ✅ | `80a9881` + `ba599ec` — `docs/api/openapi.json`, `OpenApiDriftTest` **8 / 197**; 5 + 4 mutasi merah (§4) |
+| 5 | Layar Profil › Token API + Sistem › Webhook; `SHELL_VERSION` 11 → 12 | ✅ | `057a078` + `0fd26be` — `ApiTokenAndWebhookSpaTest` **7 / 59** |
 | 6 | Dokumen: PANDUAN-PENGGUNA §20, ADMINISTRATOR §5.14, KEPUTUSAN-INTEGRASI §11, CONVENTIONS §41, ROADMAP, `.env.example` | ✅ | `aebe995` |
-| 7 | Harness S40 + S40m → `results-phase-3.json` BERDASARKAN KUNCI | ✅ | `057a078` — **23 syarat** desktop + **8 syarat** ponsel, `console_errors: []` keduanya; 14 kunci lama utuh → **16** |
+| 7 | Harness S40 + S40m → `results-phase-3.json` BERDASARKAN KUNCI | ✅ | `057a078` + `0fd26be` — **28 syarat** desktop + **8 syarat** ponsel, `console_errors: []` keduanya; 16 kunci tetap **16** |
 | 8 | `/app/` dimuat di Chromium desktop + ponsel | ✅ | §7 — 12 rute × 2 viewport, 0 galat konsol, 0 jawaban ≥ 400, 0 gulir samping |
 | 9 | Gerbang dua driver + `tests/Unit` + pint | ✅ | §8 |
 | 10 | Laporan ini | ✅ | berkas ini |
@@ -65,6 +73,12 @@ blok pertama Iam yang masih longgar).
 | `tokenCan()` di seluruh kode | **0** | 0 (penegakannya bukan lewat `tokenCan()` — §2A) |
 
 Roadmap menulis "793 rute tak terkurasi"; angka itu sudah basi dan diganti angka terukur di atas.
+
+Angka-angka ini **diukur, tidak dipaku** (§12.4 — pelajaran 5). Yang dijaga uji hanyalah **daftar
+literal rute TULIS tanpa gerbang izin** (`UngatedApiRouteCensusTest::UNGATED_WRITES`), karena rute
+bergerbang baru di modul mana pun bukan urusan paket ini. Diukur ulang sesudah putaran verifikasi
+dengan `Route::getRoutes()` (`scratchpad/p3d/repair/census.php`): **862 / 644 / 218 / 646 / 31** —
+tidak berubah, putaran verifikasi tidak menambah satu rute pun.
 
 ---
 
@@ -254,6 +268,32 @@ yang tidak bisa gagal (§3.5), dan syaratnya diperbaiki sampai mutasi yang sama 
 | M20 | 120 karakter `nowrap` di kartu token, **di Chromium** | ❗ **LOLOS HIJAU** pada versi pertama → syarat diperbaiki (§3.5) → **merah** sesudahnya |
 | M21 | `WebhookService::dispatchFor` tidak lagi menelan `Throwable` | `…subscription_that_cannot_even_be_read_does_not_fail_the_approval` |
 
+### Mutasi putaran verifikasi — 16 dijalankan, **16 memerah yang seharusnya merah**
+
+Dua di antaranya (M-R10, M-R14b) adalah mutasi yang harus tetap **HIJAU**, dan itu pun diperiksa:
+sebuah paku yang merah untuk hal yang bukan urusannya sama buruknya dengan paku yang tidak pernah
+merah. M-R10 menemukan bahwa versi PERTAMA perbaikan V-OPENAPI-1 masih hijau — `withoutMiddleware()`
+tidak mengeluarkan middlewarenya dari `gatherMiddleware()`.
+
+| # | Mutasi | Hasil |
+|---|---|---|
+| M-R1 | `WebhookSignature::TOLERANCE` 300 → 600 | **merah** — `WebhookSignatureTest` (konstanta ≠ openapi.json ≠ §5.14) |
+| M-R2 | `normalize()` tidak dipanggil `isPublicIp()` | **merah** — 6 baris provider bertopeng + uji job |
+| M-R3 | `numericIpv4()` selalu null | **merah** — `2130706433`, `0177.0.0.1`, `127.1` lolos pintu SIMPAN |
+| M-R4 | `scrub()` tanpa rahasia yang dikenal | **merah** — rahasia langganan utuh di kolom `error` |
+| M-R5 | Badan bukan-teks tidak diganti kalimatnya | **merah** — `…not_valid_utf8_still_produces_an_indonesian_reason` |
+| M-R6 | Tanda tangan dibekukan lagi saat mengantre | **merah** — percobaan ke-3 (+360 dtk) di luar jendela 300 dtk |
+| M-R7 | Pemeriksaan pemilik di `TokenScope::tokenFor()` dibuang | **merah** — izin PEMBERI dipersempit token DELEGAT |
+| M-R8 | Cabang `catch` `ExplainTokenScopeRefusal` dibuang | **merah** — uji `withoutExceptionHandling()` (sebelum putaran ini: hijau) |
+| M-R9 | `token_abilities` dipulangkan untuk SETIAP baris | **merah** — baris orang lain mengaku tahu token pemanggil |
+| M-R10 | `->withoutMiddleware('auth:sanctum')` pada rute yang didokumentasikan | ❗ **LOLOS HIJAU** pada versi pertama syaratnya (hanya `gatherMiddleware()` yang dibaca) → `excludedMiddleware()` ikut dibaca → **merah** |
+| M-R11 | `requestBody` login dihapus dari dokumen | **merah** |
+| M-R12 | Parameter `page` dibuang dari satu daftar | **merah** |
+| M-R13 | `throttle:10,1` login → `throttle:20,1` | **merah** — dokumen menyebut angka yang bukan angka rutenya |
+| M-R14 | Rute BERGERBANG baru di modul lain (reproduksi V-OPENAPI-6) | **merah** pada sensus lama → sesudah perbaikan **hijau**, dan itu benar |
+| M-R15 | Rute TULIS baru TANPA gerbang izin | **merah** — daftar literal tetap menjaga apa yang harus dijaga |
+| M-R16 | Gerbang layar `#/webhook` dibuang, diukur **di Chromium** | **merah** — S40 2 syarat gagal, alert «User does not have the right permissions.» + 1 galat konsol 403 |
+
 Dan tiga varian atas salinan `public/app` (`SPA_ROOT`) yang membuktikan **aturan `placeholder` yang
 baru tetap sempit** (§3.7):
 
@@ -269,7 +309,7 @@ baru tetap sempit** (§3.7):
 
 | Aturan | Request | Middleware | Service/Job | Event/Listener | API | Layar SPA | Log | OpenAPI | PANDUAN | Harness |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Ability = subset izin | `ApiTokenStoreRequest` | `ExplainTokenScopeRefusal` (kalimat) | `TokenScope` di `User::hasPermissionTo()` + gerbang delegasi | — | 403 + `errors.token_abilities` | `token-scope-note` | — | `x-autentikasi.ability`, 403 tiap operasi | §20 | S40 (403 sungguhan) |
+| Ability = subset izin | `ApiTokenStoreRequest` | `ExplainTokenScopeRefusal` (kalimat) | `TokenScope` di `User::hasPermissionTo()` + gerbang delegasi | — | 403 + `errors.token_abilities`; **`data.token_abilities` di `auth/me`** (V-TOKEN-1) | `token-scope-note` | — | `x-autentikasi.ability`, **403 tiap operasi dengan KEDUA bentuk badannya** | §20 | S40 (403 sungguhan) |
 | Kedaluwarsa ≤ 1 tahun | `expires_in_days` 1–365 | — | `authenticateAccessTokensUsing` | — | `expires_at`, `expired` | baris token | — | `x-autentikasi.token_pribadi` | §20 | S40 ("Berlaku sampai") |
 | Rahasia tampil sekali | — | — | — | — | hanya di `store`/`rotate` | `token-secret` / `webhook-secret` + `shown_once` | — | — | §20, §5.14 | S40 (muat ulang → hilang) |
 | Token tidak mencetak token | — | `SessionOnly` | — | — | 403 | (tak terlihat: SPA memakai sesi) | — | — | §20 tabel | `ApiTokenEndpointTest` |
@@ -280,6 +320,12 @@ baru tetap sempit** (§3.7):
 | Nonaktif otomatis 20× | — | — | `WebhookService::recordFailure` | — | `disable_after_failures` | `webhook-disabled-reason` + Aktifkan lagi | `consecutive_failures` | — | §5.14 | S40 (kalimat ambang) |
 | Laju 300/menit | — | `throttleApi` + `IntegrationRate` | — | — | 429 + `Retry-After` | kalimat kartu | — | 429 tiap operasi | §20, §5.14 | S40 (kalimat kartu) |
 | CORS kosong | — | — | — | — | — | — | — | `x-autentikasi.cors` | §5.14 | `OpenApiDriftTest` (config nyata) |
+| **Tanda tangan per PERCOBAAN** (V-webhook-1) | — | — | `DeliverWebhook` (tepat sebelum POST) | — | — | — | kolom `signature` = catatan percobaan terakhir | `x-webhook.tanda_tangan.percobaan` | §5.14 | `WebhookGuardTest` (travel 4.860 dtk) |
+| **Bentuk samaran alamat internal** (V-webhook-2) | `WebhookSubscriptionRequest` (422) | — | `WebhookUrl::normalize()` + `numericIpv4()` (job) | — | 422 | toast | `error` baris | — | §5.14, KEPUTUSAN §11.2 | `WebhookGuardTest` (9 bentuk) |
+| **Rahasia tidak pernah ke log** (V-webhook-4) | — | — | `ProviderErrorScrubber` dengan rahasia langganan | — | kolom `error` yang dipulangkan `deliveries` | `webhook-error` | `[rahasia]` | — | §5.14 | `WebhookGuardTest` |
+| **Badan penerima selalu UTF-8 sah** (V-webhook-3) | — | — | `ProviderErrorScrubber` (setiap pemanggil, termasuk P-3a) | — | — | `webhook-error` | kolom `error` | — | — | `WebhookGuardTest` (WAJIB di MySQL) |
+| **Bentuk rahasia dikatakan** (V-webhook-5) | — | — | `WebhookSignature::SECRET_FORM` | — | `data.signature.secret_form` | `webhook-signature` | — | `x-webhook.tanda_tangan.rahasia` | §5.14 ×2 | S40 + `WebhookSignatureTest` |
+| **Layar digerbangi izinnya sendiri** (V-OPENAPI-3) | — | — | — | — | 403 | `accessDenied(host, 'core', 'core.update')` | — | — | — | S40 (finance@) |
 
 ---
 
@@ -304,7 +350,7 @@ baru tetap sempit** (§3.7):
 Chromium headless, server `php -S 127.0.0.1:8271` atas **salinan** data demo (migrasi dijalankan
 lebih dulu), dimatikan berdasarkan PID dari `ss -ltnp`.
 
-* **Harness S40** (1440×900): **23 syarat**, semuanya hijau, `console_errors: []`, 5 klik.
+* **Harness S40** (1440×900): **28 syarat**, semuanya hijau, `console_errors: []`, 5 klik.
   Token dan langganan dibuat **lewat layar**, bukan disuntikkan ke sqlite. Yang dibuktikan di
   peramban dan tidak bisa dibuktikan di suite: teks token hilang sesudah muat ulang **dan tidak ada
   di mana pun di HTML halaman**; token itu dipakai memanggil API sungguhan (`finance/journals` 200,
@@ -318,14 +364,71 @@ lebih dulu), dimatikan berdasarkan PID dari `ss -ltnp`.
   pemeriksaan izin di aplikasi — satu regresi di sana akan mematikan layar yang tidak ada
   hubungannya dengan paket ini.
 
+**Putaran verifikasi** (server `php -S 127.0.0.1:8275` atas salinan yang sama; dibuktikan memakai
+SALINAN dengan menulis penanda ke baris `finance@` di sqlite dan membacanya kembali lewat
+`auth/me`, lalu mengembalikannya — basis data demo hidup tidak disentuh):
+
+* `#/webhook` sebagai **finance@nusantara.test** (tanpa `core.update`), 1440×900:
+  `alert` = «Anda tidak memiliki hak akses "core.update" untuk halaman ini.», `webhook_form_rendered`
+  false, `nav_has_webhook` false, `console_errors` **[]**, jawaban ≥ 400 ke `core/webhooks` **[]** —
+  dan orang yang sama tetap melihat layar yang boleh dilihatnya (`Profil & Notifikasi`).
+* Empat syarat itu **dibuktikan bisa gagal**: dengan baris gerbangnya dibuang, S40 melaporkan
+  `a_user_without_core_update_gets_the_house_sentence_not_the_english_one` dan
+  `the_refused_screen_never_calls_the_api_it_may_not_call` merah, dengan `alert` = «User does not
+  have the right permissions.» dan satu galat konsol 403 (M-R16).
+* **HTTP sungguhan, V-TOKEN-1**: token pribadi ber-ability `prj.view` saja →
+  `GET /api/iam/auth/me` memulangkan `token_abilities: ["prj.view"]` sementara `permissions` tetap
+  **94** nama (termasuk `fin.approve` dan `fin.post`); `POST /api/finance/payments/1/approve` →
+  403 «fin.approve» dengan `errors.token_abilities: ["fin.approve"]`. Token sesi SPA → `["*"]`.
+* **HTTP sungguhan, V-OPENAPI-2**: `GET /api/core/webhooks` sebagai finance@ → 403 dengan `message`
+  saja dan **tanpa** kunci `errors` — bentuk yang kini dituliskan dokumen apa adanya.
+* **HTTP sungguhan, V-OPENAPI-4/5**: `?page=2&per_page=1&sort=name&dir=desc` → `meta` =
+  `{current_page: 2, per_page: 1, from: 2, to: 2, total: 3, last_page: 3, sort: 'name', dir: 'desc'}`;
+  `POST auth/login` badan kosong → **422**; sesudah 10 kali → **429** dengan `Retry-After: 34`.
+
 Tangkapan layar: `docs/bukti-uji/s40-token-api.png`, `s40-webhook.png`, `s40m-token-api.png`,
-`s40m-webhook.png`.
+`s40m-webhook.png` (keempatnya diambil ulang pada putaran verifikasi).
 
 ---
 
 ## 8. Gerbang
 
-Diisi dari `/tmp/…/p3d-gate-aebe995.log` (worktree terisolasi, vendor disalin bukan symlink).
+Dijalankan di worktree terisolasi `/root/p3d` (vendor **disalin**, bukan symlink — pelajaran
+"worktree vendor symlink"), **atas `78e7513`**, ujung cabang pada saat gerbang dijalankan. Satu
+proses phpunit per basis data; MySQL memakai `erp_dryrun`, bukan `erp_test`.
+
+| Driver | Perintah | Hasil |
+|---|---|---|
+| SQLite | `php vendor/bin/phpunit` | **OK — 5.044 uji / 34.620 asersi, 11 dilewati**, 16 mnt 12 dtk |
+| MySQL `erp_dryrun` | `php vendor/bin/phpunit -c phpunit.mysql.xml` | **OK — 5.044 uji / 34.626 asersi, 9 dilewati**, 38 mnt 42 dtk |
+
+Selisih dilewati (11 SQLite : 9 MySQL) dan asersi (34.620 : 34.626) berbentuk sama persis dengan
+LAPORAN P-3b §8 (11 : 9 di sana juga): dua uji yang dilewati di SQLite berjalan di MySQL, dan
+asersinya ikut terhitung.
+
+`tests/Unit` **ikut di dalam gerbang penuh** (`phpunit.xml` memuat suite `tests/Unit`; **630 uji /
+2.168 asersi** bila dijalankan sendiri) — disebut terpisah di sini karena gerbang per-direktori
+yang dipakai selama bekerja TIDAK memuatnya, dan paket ini menyentuh `config/` dan rute. Gerbang
+per-direktori yang dijalankan pada putaran ini: `tests/Feature/Core tests/Feature/Iam tests/Unit` →
+**OK, 1.946 uji / 13.542 asersi, 11 dilewati**.
+
+`vendor/bin/pint --test` atas **setiap** berkas PHP yang disentuh putaran verifikasi (11 berkas
+`Modules/`, 9 berkas `tests/` — `git diff --name-only 8fe7d4e..HEAD`) → `passed`. Dua kegagalan pint lama yang sengaja tidak direformat
+(`FormXlsxExportService`, `ChartMigrationTest`) tidak disentuh.
+
+**Delta terhadap `main` 8438066: +122 kasus uji.** Diturunkan, bukan ditebak: `git diff --name-only
+main..HEAD -- tests/` menyebut 13 berkas, **12 di antaranya BARU** (tidak ada di `main`) dan yang
+ke-13 (`VendorManifestTest`) punya jumlah metode uji yang sama di kedua sisi (6 : 6, hanya asersinya
+bertambah). Jumlah kasus di kedua belas berkas baru itu: 40 + 13 + 11 + 10 + 10 + 8 + 8 + 7 + 5 + 5
++ 4 + 1 = **122**, jadi `main` = 5.044 − 122 = **4.922**. Gerbang penuh atas `main` sendiri TIDAK
+dijalankan di putaran ini (ia menuntut worktree ketiga beserta vendornya); angka 4.922 karena itu
+ditandai sebagai **turunan**, bukan hasil pengukuran.
+
+Satu-satunya berkas yang berubah sesudah gerbang dijalankan adalah laporan ini
+(`git diff 78e7513..HEAD --stat` → hanya `docs/LAPORAN-PAKET-HM-P-3d.md`); tidak ada uji di
+repositori ini yang membacanya. Itu dikatakan di sini karena putaran verifikasi ini menutup sebuah
+temuan yang persis tentang baris gerbang ✅ yang menunjuk ke log dari commit yang bukan HEAD
+(V-webhook-6 / V-OPENAPI-8).
 
 ---
 
@@ -334,6 +437,26 @@ Diisi dari `/tmp/…/p3d-gate-aebe995.log` (worktree terisolasi, vendor disalin 
 Tidak ada yang menunggu pemilik untuk paket ini berfungsi. Yang **dipakai sebagai rekomendasi
 sampai dijawab**: ledger §5 baris 10 (CORS kosong / 300 per menit) dipakai apa adanya, dan angka 20
 untuk ambang nonaktif otomatis adalah pilihan paket ini (§2F) yang bisa diubah pemilik.
+
+### (V-OPENAPI-2) 403 "izin penggunanya kurang": dokumen yang jujur, atau kalimat yang diterjemahkan
+
+Sebuah 403 di aplikasi ini punya **dua** bentuk badan. Ability token yang kurang → kalimat Indonesia
++ `errors.token_abilities` (buatan paket ini). Izin PENGGUNA yang kurang → «User does not have the
+right permissions.» berbahasa Inggris, tanpa `errors` — kalimat bawaan pustaka izin, dan itu bentuk
+yang sudah ada di `main` untuk **seluruh 644 rute bergerbang**, jauh sebelum P-3d.
+
+* **(a) Dokumen mengatakan keduanya apa adanya** — dipilih dan diterapkan. Dokumen berhenti
+  berbohong hari ini, bentuk kedua kasus dipaku uji HTTP, dan tidak ada satu pun perilaku di luar
+  P-3d yang berubah.
+* **(b) `ExplainTokenScopeRefusal` ikut menerjemahkan `UnauthorizedException` spatie** menjadi
+  kalimat Indonesia berbentuk `Galat`. Lebih ramah, tetapi ia mengubah **badan 403 setiap rute api
+  di aplikasi ini** — 644 rute bergerbang di sembilan modul, termasuk yang tidak pernah disentuh
+  paket ini — jadi ia menuntut verifikasi selebar `main`, bukan selebar P-3d. Sebuah putaran
+  perbaikan bukan tempatnya.
+
+Rekomendasi: (b) dikerjakan sebagai paketnya sendiri, bersama keputusan apakah kalimat izin yang
+kurang boleh **menyebutkan nama izinnya** (hari ini tidak — dan itu sendiri keputusan keamanan:
+ia memberi tahu pemanggil peta izin aplikasi).
 
 ## 10. Prasyarat pemilik
 
@@ -353,7 +476,8 @@ untuk ambang nonaktif otomatis adalah pilihan paket ini (§2F) yang bisa diubah 
 4. **Peristiwa selain `DocumentTransitioned`.** Tidak ada `document.deleted`, `payment.posted`, dll.
 5. **Penyempitan rute yang tidak dijaga izin apa pun.** 218 rute tetap terbuka bagi token terbatas;
    menutupnya adalah perubahan perilaku yang menyentuh setiap modul, dan batasnya **dikatakan** di
-   layar, panduan, dokumen OpenAPI, dan dijaga sensus (§2A, §12.1).
+   layar, panduan, dan dokumen OpenAPI. Yang dijaga uji adalah **daftar literal 31 rute TULIS** di
+   antaranya, bukan jumlahnya (§2A, §12.1, §12.4).
 6. **Sunting ability sebuah token yang sudah ada.** Ability dipilih saat dibuat; mengubahnya berarti
    token yang sama berganti arti di tengah umurnya.
 
@@ -372,6 +496,36 @@ untuk ambang nonaktif otomatis adalah pilihan paket ini (§2F) yang bisa diubah 
    berkas), tetapi dicatat di CONVENTIONS §41: uji yang menguji ability harus memakai token
    sungguhan lewat HTTP.
 
+### Ditemukan pada putaran verifikasi
+
+4. **Sensus rute adalah UKURAN, bukan paku** (V-OPENAPI-6, pelajaran 4). Versi pertama
+   `UngatedApiRouteCensusTest` memaku empat total seluruh aplikasi; satu rute baru yang wajar DAN
+   bergerbang izin di modul mana pun memerahkan gerbang P-3d. Keempat total dibuang; yang tinggal
+   adalah daftar literal rute TULIS tanpa gerbang izin. Konsekuensinya: **angka 862/644/218/646/31
+   di §0 tidak dijaga uji apa pun** — ia diukur ulang dengan perintah ketika ada yang ingin tahu,
+   dan itu disengaja.
+
+5. **`Illuminate\Routing\Pipeline` merender pengecualian sebelum middleware grup melihatnya**
+   (V-TOKEN-2). Cabang `catch` di `ExplainTokenScopeRefusal` karena itu tidak pernah berjalan di
+   jalur produksi — yang berjalan adalah cabang JAWABAN, untuk 403 dari middleware rute MAUPUN dari
+   dalam controller. Cabangnya dipertahankan sebagai lapis kedua (ia hidup ketika penangan
+   pengecualian melempar ulang, mis. `withoutExceptionHandling()`), dan docblock-nya berhenti
+   menjanjikan bahwa separuh aplikasi bergantung padanya.
+
+6. **Pola `r/<modul>/<resource>` menuliskan `${module}.view` walau `viewPerm` berbeda.**
+   Dua entri di `schema.js` memakai `viewPerm: 'core.update'`, tetapi `accessDenied()` dipanggil
+   dengan `def.module` saja, jadi layar itu berkata «hak akses "core.view"» kepada orang yang
+   sebenarnya kurang `core.update`. **TIDAK diubah di sini**: ia ada sejak sebelum P-3d, menyentuh
+   tiga pemanggil generik dan setiap layar `r/`, dan bukan temuan putaran ini. `accessDenied()`
+   kini **menerima** nama izin penuh, jadi perbaikannya tinggal meneruskan `def.viewPerm`.
+
+7. **Langganan dengan `secret` yang tidak bisa didekripsi kini MELAHIRKAN baris log, lalu berhenti**
+   (akibat V-webhook-1). Sebelumnya rahasianya dibaca saat mengantre, jadi `DecryptException`
+   ditelan `dispatchFor()` dan tidak ada baris sama sekali; sekarang ia dibaca di job. Persetujuan
+   dokumennya tetap berdiri (itu yang dijaga), tidak satu pun POST berangkat, dan barisnya `failed`
+   dengan kalimat Indonesia yang menyuruh memutar rahasianya. Perubahan perilaku yang disengaja:
+   kegagalan yang terlihat lebih baik daripada kegagalan yang diam.
+
 ## 13. Commit (urut lama → baru)
 
 | SHA | Isi |
@@ -384,12 +538,59 @@ untuk ambang nonaktif otomatis adalah pilihan paket ini (§2F) yang bisa diubah 
 | `057a078` | Layar Token API & Webhook, `SHELL_VERSION` 12, harness S40/S40m |
 | `13958d6` | pint `single_quote` pada uji kabel SPA |
 | `aebe995` | Dokumen (PANDUAN ×2, KEPUTUSAN-INTEGRASI §11, CONVENTIONS §41, ROADMAP, `.env.example`) |
+| `8e278e9` | Laporan + uji: tabel webhook yang belum ada tidak boleh menjatuhkan persetujuan |
+| `a0479a3` | Rapi: parameter mati di `recordAttemptFailure`, muatan yang di-decode ulang |
+| `fff53af` | Aturan ketiga `VendorManifestTest` — `placeholder` adalah contoh, bukan pemuat |
+| `8fe7d4e` | Uji ketahanan webhook tanpa DDL (benar di SQLite, merusak di MySQL) |
+
+**Putaran verifikasi:**
+
+| SHA | Isi | Temuan yang ditutup |
+|---|---|---|
+| `8a534d9` | Webhook: normalisasi alamat, tanda tangan per percobaan, rahasia ke penyaring, badan bukan-teks, resep tiga permukaan | V-webhook-1..5, V-OPENAPI-7 |
+| `675c10d` | Token: `token_abilities`, cabang `catch` yang dijaga, pemeriksaan pemilik, angka yang dikutip | V-TOKEN-1..4 |
+| `ba599ec` | OpenAPI: arah keempat, 403 dua bentuk, `requestBody`/paging, batas laju login, sensus yang menyempit | V-OPENAPI-1, 2, 4, 5, 6, 8 (rujukan silang) |
+| `0fd26be` | Layar: `#/webhook` digerbangi `core.update`, S40 +4 syarat | V-OPENAPI-3 |
+| (laporan) | §8 diisi angka gerbang yang benar-benar dijalankan, §15 | V-webhook-6, V-OPENAPI-8 |
 
 ## 14. Penyimpangan konvensi yang disengaja
 
 Lihat §12.2 (`ApiToken` menuruni kelas Sanctum) dan §2A (`pushMiddlewareToGroup` alih-alih alias di
 `bootstrap/app.php` — dipilih justru **agar** `bootstrap/*` tidak disentuh).
 
+Putaran verifikasi menambah satu: **migrasi Core 001803 disunting, bukan ditambahi migrasi kedua**
+(kolom `signature` menjadi nullable, V-webhook-1). Aturan "migrasi aditif nullable tanpa backfill"
+menjaga baris yang SUDAH ADA di produksi; migrasi ini belum pernah dijalankan di mana pun di luar
+worktree ini — `docs/api/openapi.json` dan tabelnya lahir bersama cabang ini dan belum di-deploy —
+jadi migrasi kedua yang mengubah kolom yang belum pernah ada hanya akan menambah satu langkah yang
+tidak berarti bagi siapa pun. Bila cabang ini sudah terlanjur di-deploy ketika ini dibaca, yang
+benar adalah migrasi kedua.
+
 ## 15. Putaran verifikasi
 
-Diisi sesi utama.
+Enam belas temuan, **enam belas ditutup, nol ditolak**. Setiap satu direproduksi lebih dulu dengan
+perintah verifier, lalu diperbaiki dengan paku yang **merah sebelum perbaikan** (§4, M-R1…M-R16).
+
+| Id | Jenis | Gejala | Penutupan | Commit |
+|---|---|---|---|---|
+| V-webhook-2 | SECURITY | `https://[::ffff:169.254.169.254]/` lolos KEDUA pintu SSRF dan POST bertanda tangannya berangkat; bentuk desimal/oktal/pendek lolos pintu SIMPAN | Alamat DINORMALKAN sebelum dinilai (`::ffff:`, `::a.b.c.d`, NAT64) dan host numerik diterjemahkan ala `inet_aton`; 9 bentuk baru di data provider + uji job `assertSentCount(0)` | `8a534d9` |
+| V-webhook-4 | SECURITY | Rahasia langganan yang digemakan penerima tersimpan utuh di kolom `error` yang dipulangkan API dan dibaca setiap pemegang `core.update` | Rahasia diserahkan ke `ProviderErrorScrubber` sebagai rahasia yang dikenal, di ketiga pemanggilnya | `8a534d9` |
+| V-webhook-1 | BUG | Tanda tangan dibekukan saat mengantre; percobaan ke-3/4/5 (+360/+1260/+4860 dtk) selalu di luar jendela 300 dtk yang dokumen suruh penerima tegakkan — 3 dari 5 percobaan mustahil berhasil | Ditandatangani per PERCOBAAN tepat sebelum POST; kolom `signature` menjadi catatan percobaan terakhir (nullable); uji `travel()` sampai +4.860 dtk | `8a534d9` |
+| V-webhook-3 | BUG | Badan jawaban yang bukan UTF-8 sah menjatuhkan penulisan baris log di MySQL (1366); layar lalu menampilkan galat SQL Inggris yang menyebut soket dan nama basis data | Penyaring memaksa keluarannya UTF-8 sah (melindungi P-3a juga) + badan bukan-teks diganti hitungan byte; diuji **di kedua driver** | `8a534d9` |
+| V-webhook-5 | DOCS | Resep tidak pernah mengatakan rahasianya dipakai apa adanya; penerima yang meng-hex-decode 64 karakter itu gagal pada SETIAP kiriman | `WebhookSignature::SECRET_FORM` → layar, PANDUAN ×2, openapi.json; dipaku `WebhookEndpointTest`, `WebhookSignatureTest`, S40 | `8a534d9` |
+| V-OPENAPI-7 | DOCS | Docblock mengklaim `WebhookSignatureTest` memaku ketiga permukaan; berkas itu tidak ada, dan tidak ada uji apa pun yang membaca PANDUAN | Berkas itu ditulis: ia MEMBACA §5.14 dan `openapi.json` dan membandingkannya dengan konstanta (4 uji / 48 asersi); mutasi TOLERANCE 300→600 merah | `8a534d9` |
+| V-TOKEN-1 | HONESTY | `auth/me` menyerahkan 94 izin termasuk `fin.approve` kepada token ber-ability `prj.view`, dan tidak ada pintu mana pun untuk membaca ability tokennya sendiri | `token_abilities` dari `TokenScope` (sumber penegakan yang sama), hanya pada baris pemanggil; didokumentasikan + dipaku HTTP | `675c10d` |
+| V-TOKEN-2 | TEST-GAP | Cabang `catch` bisa dihapus seluruhnya dengan 107 uji tetap hijau, sementara docblock-nya menjanjikan separuh aplikasi bergantung padanya | Docblock dikoreksi (Pipeline merender lebih dulu), cabangnya dipertahankan sebagai lapis kedua, dan uji `withoutExceptionHandling()` menjalankannya | `675c10d` |
+| V-TOKEN-3 | TEST-GAP | Pemeriksaan PEMILIK di `TokenScope::tokenFor()` dibuang tanpa satu pun uji memerah | Uji delegasi: izin PEMBERI ditanyakan sementara token DELEGAT diingat, dengan ability yang sengaja berbeda | `675c10d` |
+| V-TOKEN-4 | DOCS | Docblock mengutip sensus `main` (852/637/215/29) tanpa syarat di cabang yang angkanya 862/644/218/31 | Angka dibuang dari komentar; yang dipaku adalah daftar literal, jumlahnya diukur dengan perintah (§12.4) | `675c10d` |
+| V-OPENAPI-1 | TEST-GAP | `->withoutMiddleware('auth:sanctum')` pada endpoint yang didokumentasikan LOLOS HIJAU — dokumen menjanjikan Bearer untuk rute yang terbuka bagi siapa pun | Arah keempat ditambahkan, membaca `excludedMiddleware()` juga; login dipaku sebagai satu-satunya `security: []` | `ba599ec` |
+| V-OPENAPI-2 | HONESTY | 19 operasi menjanjikan `errors.token_abilities` untuk kasus yang badannya justru tanpa `errors` sama sekali | Kedua kasus dituliskan terpisah; bentuk badan keduanya dipaku uji HTTP; pilihan a/b ditulis di §9 | `ba599ec` |
+| V-OPENAPI-4 | DOCS | Nol `requestBody`, nol parameter kueri — integrasi tidak bisa masuk dan tidak bisa meminta halaman kedua | `requestBody` untuk kedua operasi TULIS, skema `AmplopDaftar`, parameter bersama pada 10 daftar; dua asersi baru + satu uji HTTP | `ba599ec` |
+| V-OPENAPI-5 | HONESTY | Login didokumentasikan 200/401 dan uji MEMAKU kelalaian itu, padahal rutenya `throttle:10,1` dan menjawab 429 serta 422 | 422 + 429 didokumentasikan dengan angka 10/menit; asersi 19 → 20; angkanya dipaku terhadap rutenya | `ba599ec` |
+| V-OPENAPI-6 | DESIGN | Empat total seluruh aplikasi dipaku; satu rute bergerbang baru di modul mana pun memerahkan gerbang P-3d | Keempat total dibuang, daftar literal dipertahankan; dibuktikan hijau untuk rute bergerbang baru dan merah untuk rute TULIS tak bergerbang | `ba599ec` |
+| V-OPENAPI-3 | UX | `#/webhook` menggambar «User does not have the right permissions.» kepada setiap pengguna tanpa `core.update`, plus satu galat konsol | Rutenya digerbangi di layar; `accessDenied()` menerima nama izin penuh; S40 +4 syarat, dibuktikan bisa gagal (M-R16) | `0fd26be` |
+| V-webhook-6, V-OPENAPI-8 | HONESTY / DOCS | Baris gerbang ✅ menunjuk §8 yang kosong dan sebuah log di `/tmp` yang bukan HEAD; dua rujukan silang salah arah | §8 diisi angka yang benar-benar dijalankan di kedua driver atas HEAD; §7 → §4 dan §5 → §12.1 diperbaiki | `ba599ec` + laporan ini |
+
+Yang **tidak** dikerjakan di putaran ini, dan alasannya, ada di §9 (pilihan b V-OPENAPI-2) dan §12.6
+(kalimat `${module}.view` pada pola `r/` generik — ada sejak sebelum P-3d, bukan temuan putaran ini,
+dan jalannya sudah dibuka).
