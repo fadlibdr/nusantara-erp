@@ -98,6 +98,17 @@ final class PushEndpoint
         if ($literal !== null && ! WebhookUrl::isPublicIp($literal)) {
             throw new LogicException(self::sentence($host, WebhookUrl::normalize($literal)));
         }
+
+        // Aturan yang sama dengan gerbang webhook, dan untuk sebab yang sama:
+        // Guzzle 7.15.2 menolak alamat IP bertitik-ekor di transport, jadi
+        // menerimanya di sini berarti menyimpan perangkat yang tidak akan
+        // pernah bisa dikirimi (WebhookUrl::assertShape menjelaskannya).
+        if ($literal !== null && str_ends_with(rtrim($parts['host']), '.')) {
+            throw new LogicException(
+                "Endpoint «{$parts['host']}» ditulis sebagai alamat IP dengan titik di ujungnya. Titik di ujung "
+                ."hanya berarti pada NAMA, tidak pada alamat — tulis «{$host}» tanpa titik."
+            );
+        }
     }
 
     /**

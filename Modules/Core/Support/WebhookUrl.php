@@ -131,6 +131,34 @@ final class WebhookUrl
         if ($literal !== null && ! self::isPublicIp($literal)) {
             throw new LogicException(self::internalAddressSentence($host, self::normalize($literal)));
         }
+
+        /*
+         * TITIK EKOR SAH PADA NAMA, TIDAK PADA ALAMAT — dan sejak Guzzle
+         * 7.15.2 transport menolaknya SELAMANYA.
+         *
+         * `contoh.co.id.` adalah bentuk FQDN absolut dan tetap diterima
+         * (canonicalHost hanya membuang titiknya). `203.0.113.10.` bukan nama
+         * sama sekali: ia alamat IP publik dengan titik yang tidak berarti
+         * apa-apa, dan `HostValidator::assertNotADottedAddress()` milik Guzzle
+         * — tambalan CVE-2026-69246 yang masuk bersama kenaikan paket ini —
+         * menolak setiap host yang berbentuk satu sampai empat bagian
+         * desimal/oktal/heksa diikuti titik.
+         *
+         * Tanpa baris ini bentuk itu DITERIMA di layar ("tersimpan"), lalu
+         * setiap pengiriman mati di transport dengan kalimat INGGRIS dari
+         * pustaka di kolom `error`, lima percobaan penuh (60/300/900/3600
+         * detik) per pengiriman. Itu bukan lubang keamanan — ia gagal-tertutup
+         * — melainkan layar yang berjanji dan transport yang menolak, dan
+         * inkonsistensi itu HANYA ada sesudah gabungan ini. Yang benar adalah
+         * menolaknya di sini, saat menyimpan, dalam Bahasa Indonesia, dengan
+         * menyebut cara menulisnya.
+         */
+        if ($literal !== null && str_ends_with(rtrim($parts['host']), '.')) {
+            throw new LogicException(
+                "Alamat «{$parts['host']}» ditulis sebagai alamat IP dengan titik di ujungnya. Titik di ujung hanya "
+                ."berarti pada NAMA (bentuk FQDN absolut), tidak pada alamat — tulis «{$host}» tanpa titik."
+            );
+        }
     }
 
     /**

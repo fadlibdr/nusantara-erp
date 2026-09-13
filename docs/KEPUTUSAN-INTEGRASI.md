@@ -292,6 +292,9 @@ diketik pemakainya adalah **proxy permintaan ke dalam jaringannya sendiri**.
 | **Redirect** (`3xx`) | Sebuah penerima yang menjawab `302 Location: http://169.254.169.254/` memindahkan kiriman bertanda tangan kita ke sana tanpa satu pun baris di atas berlaku lagi |
 | **Bentuk samaran dari alamat yang sama** — `[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`, `[::10.0.0.1]`, NAT64 `[64:ff9b::7f00:1]`, dan bentuk numerik `2130706433` / `0177.0.0.1` / `127.1` | Sebuah alamat ditulis dengan lebih dari satu cara dan mendarat di soket yang SAMA. `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` milik PHP TIDAK menutup `::ffff:0:0/96`, dan `filter_var` tidak mengenali bentuk numerik sebagai IP sama sekali sehingga host-nya diperlakukan sebagai NAMA. Maka alamatnya dinormalkan lebih dulu, lalu dinilai (putaran verifikasi V-webhook-2) |
 
+| **Titik ekor** — `127.0.0.1.`, `kasir.local.`, `2130706433.` | Menunjuk ke soket yang persis sama, tetapi `filter_var` menolak bentuk bertitik-ekor sebagai IP dan pengurai numerik berhenti di bagian kelima yang kosong — jadi host-nya dibaca sebagai NAMA, dan yang menolaknya hanyalah DNS yang kebetulan tidak menjawab. Host dikanonkan (huruf kecil + titik ekor dibuang) sebelum apa pun dinilai, di gerbang webhook DAN gerbang endpoint push |
+| **Titik ekor pada ALAMAT, bukan nama** — `203.0.113.10.`, `8.8.8.8.` | `contoh.co.id.` adalah bentuk FQDN absolut dan tetap DITERIMA; sebuah alamat IP tidak punya bentuk absolut, dan Guzzle ≥ 7.15.2 menolaknya di transport (CVE-2026-69246). Menerimanya di layar berarti menyimpan URL yang tidak akan pernah bisa dikirimi: lima percobaan per pengiriman, kalimat pustaka berbahasa Inggris di kolom Galat, dan nonaktif otomatis sesudah 20 pengiriman gagal. Ditolak saat MENYIMPAN, dalam Bahasa Indonesia |
+
 **Diperiksa DUA KALI: saat menyimpan DAN saat mengirim.** DNS bisa berubah di
 antara keduanya — sebuah nama yang hari ini menunjuk ke alamat publik bisa besok
 menunjuk ke `127.0.0.1`, dan itu bukan serangan teoretis melainkan teknik dengan
@@ -302,6 +305,36 @@ supaya penerima yang menggantung tidak menahan pekerja antrean.
 tidak menawarkan "izinkan alamat internal untuk instalasi di dalam kantor".
 Sebuah sakelar seperti itu akan dinyalakan satu kali untuk satu kebutuhan yang
 masuk akal dan tetap menyala selamanya.
+
+**Yang BELUM ditutup, dan diketahui** (audit gabungan keamanan, 13 Sep 2026 —
+diukur, bukan dugaan; masing-masing pekerjaan tersendiri):
+
+* `isPublicIp()` menganggap beberapa rentang khusus IANA sebagai publik:
+  `192.0.0.0/24` (IETF Protocol Assignments, termasuk `192.0.0.171`),
+  `198.18.0.0/15` (benchmarking RFC 2544, lazim dipakai di dalam jaringan lab
+  dan appliance) dan multicast `224.0.0.0/4`. Yang pertama dua bisa menunjuk
+  layanan nyata di sebagian jaringan; multicast di atas TCP tidak pernah
+  membentuk koneksi. **Ini PRA-ADA** — `isPublicIp()` identik byte-per-byte
+  dengan keadaan sebelum kenaikan paket ini. Perbaikannya sempit (tiga
+  perbandingan bit seperti pola `100.64/10` yang sudah ada), **tetapi blok
+  dokumentasi TEST-NET tidak boleh ikut ditolak**: `203.0.113.10` adalah
+  fikstur "alamat publik" baku rumah ini di 14 tempat pada 4 berkas uji, dan
+  menolaknya memerahkan 11 uji.
+* Host **ber-persen-escape** (`127.0.0.%31`) dan host **non-ASCII**
+  (`ерп.contoh.co.id`) lolos gerbang SIMPAN: keduanya dibaca sebagai NAMA, dan
+  yang menolaknya hanyalah resolver yang kebetulan gagal — bukan aturan.
+  Sejak kenaikan ke Guzzle 7.15.2 transport menutup keduanya, jadi lubangnya
+  tertutup hari ini **oleh pustaka, bukan oleh gerbang ini**. Pintu push tidak
+  terkena bentuk persen (aturan `url` Laravel menolaknya lebih dulu). Nama
+  internasional yang ditulis benar sebagai A-label (`xn--…`) diterima di
+  gerbang dan di transport.
+* **Gerbang uji tidak bisa melihat kelas regresi transport.** Setiap uji
+  keluar-jaringan memakai `Http::fake()` atau MockHandler, dan
+  `HostValidator::assertRequestHost()` hanya dipanggil dari handler sungguhan
+  (Curl/CurlMulti/Stream). Satu-satunya uji yang menyentuh lapisan itu adalah
+  `WebhookGuardTest::test_the_gate_and_the_transport_never_disagree_about_a_host`,
+  yang memanggil validatornya LANGSUNG. Sebuah kenaikan Guzzle berikutnya lolos
+  gerbang dengan cara yang sama kecuali tabel di uji itu ikut bertambah.
 
 ### 11.3 Sebuah token tidak boleh mencetak token
 

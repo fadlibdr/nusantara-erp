@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Core;
 
+use GuzzleHttp\Handler\HostValidator;
+use GuzzleHttp\Psr7\Request;
 use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Support\Facades\Http;
 use LogicException;
@@ -9,6 +11,7 @@ use Modules\Core\Jobs\DeliverWebhook;
 use Modules\Core\Models\WebhookDelivery;
 use Modules\Core\Models\WebhookSubscription;
 use Modules\Core\Services\WebhookService;
+use Modules\Core\Support\PushEndpoint;
 use Modules\Core\Support\WebhookPayload;
 use Modules\Core\Support\WebhookSignature;
 use Modules\Core\Support\WebhookUrl;
@@ -577,5 +580,80 @@ class WebhookGuardTest extends ErpTestCase
             'signature' => WebhookSignature::header($body, (string) $subscription->secret, now()->getTimestamp()),
             'status' => WebhookDelivery::QUEUED,
         ]);
+    }
+
+    /* ------------------------------ gerbang vs transport (gabungan keamanan) */
+
+    /**
+     * SATU-SATUNYA UJI DI SELURUH SUITE YANG MENYENTUH LAPISAN TEMPAT GUZZLE
+     * BERUBAH — dan ia ada karena kenaikan ke 7.15.2 membawa aturan host baru.
+     *
+     * Seluruh uji keluar-jaringan rumah ini memakai `Http::fake()` atau
+     * MockHandler, dan `HostValidator::assertRequestHost()` hanya dipanggil
+     * dari handler SUNGGUHAN (CurlHandler, CurlMultiHandler, StreamHandler).
+     * Artinya gerbang hijau BUKAN bukti bahwa sebuah kenaikan Guzzle netral:
+     * perubahan transport berikutnya akan lolos dengan cara yang persis sama.
+     * Uji ini memanggil validator itu LANGSUNG — tanpa soket, tanpa DNS — dan
+     * menuntut satu hal saja: GERBANG DAN TRANSPORT BERKATA SAMA.
+     *
+     * Yang ditemukan audit gabungan ini (C-1): `https://203.0.113.10./…`
+     * DITERIMA gerbang dan DITOLAK transport. Akibatnya gagal-tertutup, bukan
+     * lubang keamanan — layar berkata "tersimpan", lalu setiap pengiriman mati
+     * dengan kalimat INGGRIS dari pustaka di kolom `error`, lima percobaan
+     * penuh per pengiriman, dan sesudah 20 pengiriman gagal berturut-turut
+     * (WebhookService::DISABLE_AFTER_FAILURES) langganannya dinonaktifkan
+     * otomatis. Titik ekor pada NAMA sungguhan tetap sah di ketiganya: ia
+     * bentuk FQDN absolut, dan baris pertama tabel di bawah memakukannya.
+     */
+    #[DataProvider('hostsTheGateAndTheTransportMustAgreeOn')]
+    public function test_the_gate_and_the_transport_never_disagree_about_a_host(string $url, bool $acceptable): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        $gate = true;
+        try {
+            WebhookUrl::assertShape($url);
+        } catch (LogicException $e) {
+            $gate = false;
+        }
+
+        $push = true;
+        try {
+            PushEndpoint::assertShape($url);
+        } catch (LogicException $e) {
+            $push = false;
+        }
+
+        $transport = true;
+        try {
+            HostValidator::assertRequestHost(new Request('POST', $url));
+        } catch (\Throwable $e) {
+            $transport = false;
+        }
+
+        $this->assertSame($acceptable, $gate, "Gerbang webhook tidak sependapat dengan tabel tentang «{$url}».");
+        $this->assertSame($acceptable, $push, "Gerbang push tidak sependapat dengan gerbang webhook tentang «{$url}».");
+        $this->assertSame(
+            $gate,
+            $transport,
+            "Gerbang dan transport berselisih tentang «{$url}». Sebuah URL yang diterima layar tetapi ditolak "
+            .'transport tersimpan sebagai "berhasil" lalu gagal pada SETIAP pengiriman, dengan kalimat pustaka '
+            .'berbahasa Inggris di kolom Galat — dan sebuah URL yang ditolak layar tetapi diterima transport '
+            .'berarti gerbangnya menolak sesuatu yang sebenarnya bisa dikirimi.',
+        );
+    }
+
+    /** @return array<string, array{0: string, 1: bool}> */
+    public static function hostsTheGateAndTheTransportMustAgreeOn(): array
+    {
+        return [
+            'nama dengan titik ekor adalah FQDN absolut' => ['https://contoh.co.id./nusantara/webhook', true],
+            'nama biasa' => ['https://contoh.co.id/nusantara/webhook', true],
+            'alamat publik' => ['https://203.0.113.10/nusantara/webhook', true],
+            'alamat publik dengan titik ekor' => ['https://203.0.113.10./nusantara/webhook', false],
+            'alamat publik lain dengan titik ekor' => ['https://8.8.8.8./x', false],
+            'bentuk desimal panjang dengan titik ekor' => ['https://3405803786./x', false],
+            'loopback dengan titik ekor' => ['https://127.0.0.1./x', false],
+        ];
     }
 }
