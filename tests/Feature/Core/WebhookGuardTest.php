@@ -98,6 +98,33 @@ class WebhookGuardTest extends ErpTestCase
             'akhiran .local titik ekor' => ['https://kasir.local./masuk', 'nama jaringan internal'],
             // Tidak tersisa apa pun sesudah titik ekornya dibuang.
             'host hanya titik' => ['https://./masuk', 'tidak bisa dibaca'],
+            // RENTANG KHUSUS IANA yang DILEWATKAN
+            // FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE. Ketiganya lolos kedua
+            // pintu sebelum perbaikan ini — diukur, bukan diduga.
+            'IETF protocol assignments 192.0.0.0/24' => ['https://192.0.0.171/masuk', 'jaringan server ini'],
+            'awal 192.0.0.0/24' => ['https://192.0.0.0/masuk', 'jaringan server ini'],
+            'akhir 192.0.0.0/24' => ['https://192.0.0.255/masuk', 'jaringan server ini'],
+            'benchmarking 198.18.0.0/15' => ['https://198.18.0.1/masuk', 'jaringan server ini'],
+            'akhir 198.18.0.0/15' => ['https://198.19.255.255/masuk', 'jaringan server ini'],
+            'multicast 224.0.0.0/4' => ['https://224.0.0.1/masuk', 'jaringan server ini'],
+            'akhir multicast 224.0.0.0/4' => ['https://239.255.255.255/masuk', 'jaringan server ini'],
+            // Dan bentuk samarannya ikut, tanpa satu baris pun tambahan:
+            // penilaiannya dilakukan SESUDAH normalize().
+            'multicast bertopeng v4' => ['https://[::ffff:224.0.0.1]/masuk', 'jaringan server ini'],
+            'DNS64 bertopeng v4' => ['https://[::ffff:192.0.0.171]/masuk', 'jaringan server ini'],
+            'benchmarking bentuk desimal' => ['https://3323068417/masuk', 'jaringan server ini'],
+            // HOST YANG KAMI DAN TRANSPORT BACA BERBEDA. Kelima bentuk di
+            // bawah lolos KEDUA pintu sebelum perbaikan ini: `numericIpv4()`
+            // berhenti di bagian yang bukan angka dan `filter_var` menolaknya
+            // sebagai IP, jadi host-nya dinilai sebagai NAMA — dan yang
+            // menolaknya sesudah itu hanyalah resolver yang kebetulan gagal.
+            'host ber-escape persen' => ['https://127.0.0.%31/masuk', 'escape persen'],
+            'host ber-escape persen seluruhnya' => ['https://%31%32%37.0.0.1/masuk', 'escape persen'],
+            'host ber-escape persen dan titik ekor' => ['https://127.0.0.%31./masuk', 'escape persen'],
+            'host non-ASCII' => ['https://ерп.contoh.co.id/masuk', 'di luar ASCII'],
+            // Spasi bertahan melewati parse_url (tidak seperti byte kendali,
+            // yang diganti menjadi «_» — lihat KEPUTUSAN-INTEGRASI §11.2).
+            'host berspasi' => ['https://contoh .co.id/masuk', 'di luar ASCII'],
         ];
     }
 
@@ -140,6 +167,125 @@ class WebhookGuardTest extends ErpTestCase
         // Dan sebuah alamat publik yang kebetulan ditulis bertopeng TETAP publik.
         $this->assertTrue(WebhookUrl::isPublicIp('::ffff:203.0.113.10'));
         $this->assertTrue(WebhookUrl::isPublicIp('2606:4700:4700::1111'));
+
+        // Nama internasional yang ditulis BENAR sebagai A-label tetap
+        // diterima — aturan non-ASCII di bawah menolak bentuknya, bukan
+        // namanya. «xn--e1auc» adalah bentuk A-label dari «ерп».
+        WebhookUrl::assertShape('https://xn--e1auc.contoh.co.id/nusantara/webhook');
+    }
+
+    /**
+     * RENTANG KHUSUS IANA — DAN GARIS YANG TIDAK BOLEH DILEWATI SEBELAHNYA.
+     *
+     * `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE` melewatkan tiga rentang yang
+     * bukan internet publik: `192.0.0.0/24` (IETF Protocol Assignments,
+     * termasuk DNS64 `192.0.0.170`/`.171`), `198.18.0.0/15` (benchmarking
+     * RFC 2544, lazim dirutekan di dalam jaringan lab dan appliance) dan
+     * multicast `224.0.0.0/4`. Ketiganya PUBLIK menurut gerbang ini sebelum
+     * perbaikan — diukur 13 Sep 2026, dan cacatnya PRA-ADA: badan
+     * `isPublicIp()` identik byte-per-byte dengan keadaan sebelum gabungan
+     * keamanan.
+     *
+     * SETENGAH KEDUA UJI INI SAMA PENTINGNYA. Sebuah mask yang meleset satu
+     * bit menelan tetangganya tanpa satu uji pun memerah, dan blok dokumentasi
+     * RFC 5737 (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) ada
+     * TEPAT di sebelah dua di antaranya. `203.0.113.10` adalah fikstur
+     * "alamat publik" baku rumah ini di 30 tempat pada 4 berkas uji: mutasi
+     * yang menambahkan `203.0.113.0/24` ke daftar memerahkan 15 uji (diukur),
+     * dan memindahkan fikstur itu adalah pekerjaan tersendiri yang harus
+     * DIPUTUSKAN.
+     */
+    public function test_the_special_iana_ranges_are_refused_and_the_documentation_blocks_are_not(): void
+    {
+        // Yang ditutup perbaikan ini — batas bawah dan batas atas tiap rentang.
+        foreach ([
+            '192.0.0.0', '192.0.0.170', '192.0.0.171', '192.0.0.255',
+            '198.18.0.0', '198.18.0.1', '198.19.255.255',
+            '224.0.0.0', '224.0.0.1', '239.255.255.255',
+        ] as $address) {
+            $this->assertFalse(
+                WebhookUrl::isPublicIp($address),
+                "«{$address}» dinilai publik: ia ada di rentang khusus IANA yang bukan internet publik.",
+            );
+        }
+
+        // SATU ALAMAT DI LUAR TIAP BATAS — supaya mask yang meleset satu bit
+        // memerahkan sesuatu alih-alih diam-diam menelan tetangganya.
+        foreach ([
+            '191.255.255.255', '192.0.1.0', '192.0.1.1',
+            '198.17.255.255', '198.20.0.0', '198.20.0.1',
+            '223.255.255.255',
+            // TIDAK ADA pasangan "tepat di atas" untuk multicast: 240.0.0.0/4
+            // tepat di sebelahnya dan sudah ditolak FILTER_FLAG_NO_RES_RANGE,
+            // jadi batas atas 224.0.0.0/4 dijaga dari bawah saja.
+        ] as $address) {
+            $this->assertTrue(
+                WebhookUrl::isPublicIp($address),
+                "«{$address}» ditolak: ia ada DI LUAR rentang khusus IANA, dan gerbang yang menolak alamat yang "
+                .'sebenarnya bisa dikirimi sama salahnya dengan gerbang yang meloloskan alamat internal.',
+            );
+        }
+
+        // BLOK DOKUMENTASI RFC 5737 TETAP PUBLIK — dengan sengaja. Lihat
+        // docblock di atas dan KEPUTUSAN-INTEGRASI §11.2.
+        foreach (['192.0.2.1', '198.51.100.1', '203.0.113.10', '203.0.113.255'] as $address) {
+            $this->assertTrue(
+                WebhookUrl::isPublicIp($address),
+                "«{$address}» ada di blok dokumentasi RFC 5737, yang SENGAJA tidak ikut ditolak: ia fikstur "
+                .'"alamat publik" baku suite ini.',
+            );
+        }
+
+        // Bentuk samarannya dinilai lewat jalan yang sama, karena penilaiannya
+        // terjadi SESUDAH normalize().
+        $this->assertFalse(WebhookUrl::isPublicIp('::ffff:192.0.0.171'));
+        $this->assertFalse(WebhookUrl::isPublicIp('::ffff:198.18.0.1'));
+        $this->assertFalse(WebhookUrl::isPublicIp('::ffff:224.0.0.1'));
+    }
+
+    /**
+     * DAN BENTUK-BENTUK ITU DITOLAK TANPA BERTANYA KEPADA DNS.
+     *
+     * Uji provider di atas hijau juga bila yang menolak `127.0.0.%31`
+     * hanyalah resolver yang tidak menjawab nama itu — dan resolver yang
+     * membajak NXDOMAIN bukan barang langka. Di sini resolvernya menjawab
+     * SETIAP nama dengan alamat publik, jadi satu-satunya yang bisa menolak
+     * adalah ATURAN di gerbang.
+     *
+     * Diukur sebelum perbaikan, dengan resolver yang sama: gerbang SIMPAN dan
+     * gerbang KIRIM menerima keduanya. Yang menutup lubang itu hari ini adalah
+     * Guzzle 7.15.2 (`HostValidator::assertRequestHost()`) — PUSTAKANYA, bukan
+     * gerbang ini — dan docblock `WebhookUrl` berkata gerbangnya menilai
+     * alamat dengan penguraiannya sendiri dan tidak pernah menumpang
+     * normalisasi pustaka HTTP. Uji ini adalah kalimat itu, dibuat benar.
+     */
+    public function test_a_percent_escaped_or_non_ascii_host_is_refused_without_asking_dns(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        foreach ([
+            'https://127.0.0.%31/masuk' => 'escape persen',
+            'https://%31%32%37.0.0.1/masuk' => 'escape persen',
+            'https://ерп.contoh.co.id/masuk' => 'di luar ASCII',
+        ] as $url => $fragment) {
+            foreach (['assertShape', 'assertSafeToSend'] as $gate) {
+                try {
+                    WebhookUrl::{$gate}($url);
+                    $this->fail(
+                        "«{$url}» lolos WebhookUrl::{$gate}() ketika resolver menjawab setiap nama dengan alamat "
+                        .'publik — artinya yang menolaknya selama ini hanyalah DNS, bukan gerbangnya. libcurl '
+                        .'memecahkan %31 menjadi 1 dan menyambung ke 127.0.0.1 (CVE-2026-69246).',
+                    );
+                } catch (LogicException $e) {
+                    $this->assertStringContainsString($fragment, $e->getMessage());
+                }
+            }
+        }
+
+        // Nama internasional yang ditulis BENAR lolos keduanya — aturan ini
+        // menolak bentuk yang ambigu, bukan nama yang bukan bahasa Inggris.
+        WebhookUrl::assertShape('https://xn--e1auc.contoh.co.id/masuk');
+        WebhookUrl::assertSafeToSend('https://xn--e1auc.contoh.co.id/masuk');
     }
 
     /**
@@ -654,6 +800,17 @@ class WebhookGuardTest extends ErpTestCase
             'alamat publik lain dengan titik ekor' => ['https://8.8.8.8./x', false],
             'bentuk desimal panjang dengan titik ekor' => ['https://3405803786./x', false],
             'loopback dengan titik ekor' => ['https://127.0.0.1./x', false],
+            // Gerbang dan transport kini sependapat tentang kedua bentuk
+            // yang §11.2 catat sebagai belum ditutup SAMPAI perbaikan ini.
+            // Sebelumnya baris-baris di bawah merah pada kolom GERBANG, bukan
+            // pada kolom transport: Guzzle 7.15.2 sudah menolak keduanya,
+            // gerbangnya belum.
+            'host ber-escape persen' => ['https://127.0.0.%31/x', false],
+            'host ber-escape persen seluruhnya' => ['https://%31%32%37.0.0.1/x', false],
+            'host non-ASCII' => ['https://ерп.contoh.co.id/x', false],
+            // Dan bentuk A-label-nya diterima ketiganya — kalau tidak, aturan
+            // di atas menolak setiap nama yang bukan bahasa Inggris.
+            'nama internasional bentuk A-label' => ['https://xn--e1auc.contoh.co.id/x', true],
         ];
     }
 }

@@ -89,6 +89,35 @@ final class PushEndpoint
             throw new LogicException('Endpoint langganan push tidak bisa dibaca sebagai alamat.');
         }
 
+        /*
+         * Aturan yang SAMA dengan gerbang webhook, dan sengaja dipasang walau
+         * pintu-pintu push tidak bisa dicapai bentuk ini hari ini: aturan
+         * `url` milik Laravel menolak escape persen dan huruf non-ASCII lebih
+         * dulu di FormRequest. Ini pertahanan berlapis, bukan tambalan —
+         * dan ia ada karena lapisan yang menolaknya sekarang BUKAN lapisan
+         * yang menjanjikannya. `PushEndpoint::assertShape()` dipanggil juga
+         * dari kanal, bukan hanya dari pintu HTTP, dan sebuah aturan validasi
+         * yang diganti orang enam bulan lagi tidak boleh diam-diam membuka
+         * kembali bentuk yang gerbang webhook tutup.
+         *
+         * Sebabnya sendiri dijelaskan di WebhookUrl::assertShape().
+         */
+        if (str_contains($host, '%')) {
+            throw new LogicException(
+                "Endpoint «{$host}» memuat escape persen (%) pada bagian host-nya. Sebuah host ditulis apa adanya, "
+                .'tanpa escape: pustaka HTTP memecahkan %31 menjadi 1 sebelum menyambung, sehingga alamat yang '
+                .'benar-benar dituju berbeda dari alamat yang tertulis.'
+            );
+        }
+
+        if (preg_match('/\A[\x21-\x7E]*\z/D', $host) !== 1) {
+            throw new LogicException(
+                "Endpoint «{$host}» memuat huruf di luar ASCII pada bagian host-nya. Sebuah nama internasional "
+                .'punya bentuk A-label yang dimulai dengan «xn--»; tulislah bentuk itu, supaya alamat yang dituju '
+                .'tidak bergantung pada pihak mana yang menerjemahkannya.'
+            );
+        }
+
         if (WebhookUrl::isPrivateName($host)) {
             throw new LogicException(self::sentence($host, null));
         }

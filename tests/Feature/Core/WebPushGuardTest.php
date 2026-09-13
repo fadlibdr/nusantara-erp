@@ -864,4 +864,97 @@ class WebPushGuardTest extends ErpTestCase
             $this->assertStringContainsString('di dalam jaringan server ini', $e->getMessage());
         }
     }
+
+    /* ------------------------------ rentang khusus IANA & bentuk host (§11.2) */
+
+    /**
+     * RENTANG KHUSUS IANA, DI PINTU PERANGKAT.
+     *
+     * `PushEndpoint` tidak menilai alamat sendiri: ia memanggil
+     * `WebhookUrl::isPublicIp()`. Maka ketiga rentang yang baru ditutup
+     * (`192.0.0.0/24`, `198.18.0.0/15`, `224.0.0.0/4`) ikut tertutup di sini
+     * TANPA satu baris pun di kelas ini — dan uji ini ada supaya kalimat itu
+     * diukur, bukan diandaikan. Sebuah `PushEndpoint` yang suatu hari menilai
+     * alamat dengan daftarnya sendiri memerahkan uji ini.
+     */
+    public function test_a_special_iana_range_is_never_accepted_as_a_device(): void
+    {
+        $user = User::factory()->create();
+
+        $candidates = [
+            'https://192.0.0.171/x',
+            'https://198.18.0.1/x',
+            'https://224.0.0.1/x',
+            'https://[::ffff:224.0.0.1]/x',
+        ];
+
+        foreach ($candidates as $candidate) {
+            $this->actingAs($user, 'sanctum')
+                ->postJson('api/core/me/push-subscriptions', $this->payload($candidate))
+                ->assertStatus(422, "Bentuk «{$candidate}» diterima sebagai perangkat.")
+                ->assertJsonValidationErrors('endpoint');
+        }
+
+        $this->assertSame(0, PushSubscription::query()->count());
+
+        // Dan blok dokumentasi RFC 5737 TETAP diterima — `203.0.113.10` adalah
+        // fikstur "alamat publik" baku suite ini.
+        PushEndpoint::assertShape('https://203.0.113.10/x');
+    }
+
+    /**
+     * HOST BER-ESCAPE PERSEN DAN HOST NON-ASCII — PERTAHANAN BERLAPIS, DAN
+     * ITU DIKATAKAN APA ADANYA.
+     *
+     * Yang menolak kedua bentuk ini di pintu HTTP hari ini BUKAN
+     * `PushEndpoint`: aturan `url` milik Laravel menolaknya lebih dulu di
+     * FormRequest. Maka uji ini memanggil `PushEndpoint::assertShape()`
+     * LANGSUNG — sebuah uji yang hanya menekan rutenya akan tetap hijau
+     * dengan `PushEndpoint` dikembalikan sepenuhnya, dan karena itu tidak
+     * memaku apa pun tentang kelas ini.
+     *
+     * Kelas ini dipanggil juga dari kanal, bukan hanya dari pintu HTTP, dan
+     * sebuah aturan validasi yang diganti orang enam bulan lagi tidak boleh
+     * diam-diam membuka kembali bentuk yang gerbang webhook tutup.
+     */
+    public function test_a_percent_escaped_or_non_ascii_endpoint_is_refused_by_the_class_itself(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        foreach ([
+            'https://127.0.0.%31/x' => 'escape persen',
+            'https://%31%32%37.0.0.1/x' => 'escape persen',
+            'https://ерп.contoh.co.id/x' => 'di luar ASCII',
+        ] as $endpoint => $fragment) {
+            foreach (['assertShape', 'assertSafeToSend'] as $gate) {
+                try {
+                    PushEndpoint::{$gate}($endpoint);
+                    $this->fail(
+                        "«{$endpoint}» lolos PushEndpoint::{$gate}() ketika resolver menjawab setiap nama dengan "
+                        .'alamat publik — artinya yang menolaknya hanyalah DNS atau aturan `url` Laravel, bukan '
+                        .'gerbang ini.',
+                    );
+                } catch (\LogicException $e) {
+                    $this->assertStringContainsString($fragment, $e->getMessage());
+                }
+            }
+        }
+
+        // Dan bentuk A-label-nya diterima — aturan di atas menolak bentuk yang
+        // ambigu, bukan nama yang bukan bahasa Inggris.
+        PushEndpoint::assertShape('https://xn--e1auc.contoh.co.id/x');
+    }
+
+    /** Dan pintu perangkat menolaknya juga — walau yang menjawab 422 di sana aturan `url`. */
+    public function test_the_device_door_refuses_a_percent_escaped_endpoint_too(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('api/core/me/push-subscriptions', $this->payload('https://127.0.0.%31/x'))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('endpoint');
+
+        $this->assertSame(0, PushSubscription::query()->count());
+    }
 }
