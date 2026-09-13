@@ -5928,7 +5928,10 @@ export const RESOURCES = {
     columns: [
       { key: 'created_at', label: 'Dibuat', type: 'datetime', width: '1%' },
       { key: 'channel', label: 'Kanal', type: 'enum', enum: 'deliveryChannel', width: '1%' },
-      { key: 'recipient', label: 'Penerima', type: 'text', sub: 'user_name' },
+      // Untuk baris web push kolom ini membawa LABEL PERANGKAT ("Chrome di
+      // Android"), bukan alamat: satu orang bisa punya beberapa perangkat, dan
+      // sub-barisnya tetap menyebut orangnya (P-3e).
+      { key: 'recipient', label: 'Penerima / perangkat', type: 'text', sub: 'user_name' },
       { key: 'title', label: 'Notifikasi', type: 'text' },
       { key: 'status', label: 'Status', type: 'status', enum: 'deliveryStatus', width: '1%' },
       { key: 'attempts', label: 'Percobaan', type: 'number', align: 'right', width: '1%', hideOnNarrow: true },
@@ -5951,8 +5954,18 @@ export const RESOURCES = {
         key: 'retry', label: 'Kirim ulang', path: '{id}/retry', method: 'POST', variant: 'primary',
         perm: 'core.update',
         when: (row) => ['queued', 'failed', 'skipped'].includes(row.status),
-        confirm: (row) => `Antrekan ulang pengiriman ${row.channel === 'email' ? 'e-mail' : row.channel} ke ${row.recipient || '(tanpa alamat)'}? `
-          + 'Percobaan sebelumnya tetap tercatat.',
+        // P-3e: kanal ketiga, dan satu perbedaan yang harus terbaca di kalimat
+        // konfirmasi — baris web push adalah satu PERANGKAT, bukan satu orang,
+        // dan perangkat yang sudah dicabut membuat server menolak Kirim ulang
+        // dengan kalimatnya sendiri (422).
+        confirm: (row) => {
+          const kanal = { email: 'e-mail', whatsapp: 'WhatsApp', webpush: 'web push' }[row.channel] || row.channel;
+          const tujuan = row.channel === 'webpush'
+            ? `perangkat «${row.recipient || 'tanpa label'}»`
+            : (row.recipient || '(tanpa alamat)');
+          return `Antrekan ulang pengiriman ${kanal} ke ${tujuan}? Percobaan sebelumnya tetap tercatat.`
+            + (row.channel === 'webpush' ? ' Bila perangkat itu sudah dicabut pemiliknya, server menolak dengan kalimatnya.' : '');
+        },
         toast: () => 'Pengiriman diantrekan ulang — statusnya menjadi Antre sampai pekerja antrean mengambilnya.',
       },
     ],
