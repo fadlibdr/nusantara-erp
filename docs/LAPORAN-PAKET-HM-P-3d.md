@@ -424,7 +424,13 @@ bertambah). Jumlah kasus di kedua belas berkas baru itu: 40 + 13 + 11 + 10 + 10 
 dijalankan di putaran ini (ia menuntut worktree ketiga beserta vendornya); angka 4.922 karena itu
 ditandai sebagai **turunan**, bukan hasil pengukuran.
 
-Satu-satunya berkas yang berubah sesudah gerbang dijalankan adalah laporan ini
+**Gerbang rilis (sesi utama, suite PENUH dua driver dari worktree terisolasi, vendor disalin, di
+ujung cabang `7f7062f` = sesudah putaran penutup §15.1):** SQLite **5.044 uji / 34.636 asersi**
+(11 dilewati, 15 mnt 11 dtk) hijau; MySQL `erp_dryrun` **5.044 / 34.642** (9 dilewati, 36 mnt 32 dtk)
+hijau. main `8438066` membawa 4.922 → **+122 uji**. Log `p3d-gate-7f7062f.log` di scratchpad sesi.
+Berkas yang berubah sesudah gerbang ITU: hanya laporan ini (baris ini sendiri).
+
+Satu-satunya berkas yang berubah sesudah gerbang [putaran pembangunan] dijalankan adalah laporan ini
 (`git diff 78e7513..HEAD --stat` → hanya `docs/LAPORAN-PAKET-HM-P-3d.md`); tidak ada uji di
 repositori ini yang membacanya. Itu dikatakan di sini karena putaran verifikasi ini menutup sebuah
 temuan yang persis tentang baris gerbang ✅ yang menunjuk ke log dari commit yang bukan HEAD
