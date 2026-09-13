@@ -14,10 +14,12 @@ use Modules\Core\Jobs\DeliverNotification;
 use Modules\Core\Models\FailedJob;
 use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
+use Modules\Core\Models\PushSubscription;
 use Modules\Core\Support\ApprovableDocuments;
 use Modules\Core\Support\DeliveryGate;
 use Modules\Core\Support\Erp;
 use Modules\Core\Support\NotificationTemplates;
+use Modules\Core\Support\PushSubscriptions;
 use Modules\Core\Support\SegregationOfDuties;
 
 /**
@@ -374,22 +376,67 @@ class NotificationService
      */
     private function outbox(Notification $notification, User $recipient): void
     {
-        // Satu baris per kanal luar per penerima — e-mail DAN WhatsApp (T3a.3),
-        // masing-masing di balik guard-nya sendiri: tulisan WhatsApp yang gagal
-        // tidak boleh menghilangkan baris e-mail orang yang sama.
+        // Satu baris per kanal luar per penerima — e-mail, WhatsApp (T3a.3)
+        // dan web push (T3e.3), masing-masing di balik guard-nya sendiri:
+        // tulisan WhatsApp yang gagal tidak boleh menghilangkan baris e-mail
+        // orang yang sama.
         foreach (DeliveryGate::USER_CHANNELS as $channel) {
-            $this->guard(fn () => $this->outboxRow($notification, $recipient, $channel));
+            $this->guard(fn () => $this->outboxChannel($notification, $recipient, $channel));
         }
     }
 
-    private function outboxRow(Notification $notification, User $recipient, string $channel): void
+    /**
+     * Satu kanal untuk satu penerima — SATU baris, kecuali web push.
+     *
+     * WEB PUSH BER-FAN-OUT: satu baris per LANGGANAN (P-3e, T3e.3). Seseorang
+     * bisa punya tiga perangkat yang menjawab berbeda — satu 201, satu 410,
+     * satu timeout — dan satu baris tidak bisa jujur tentang tiga jawaban.
+     * Dengan satu baris per perangkat, "Kirim ulang" mengulang ke perangkat
+     * yang gagal saja dan kolom alasan menyebut perangkat yang mana. Harganya
+     * dikatakan apa adanya di LAPORAN §2: barisnya berlipat sebanyak
+     * perangkat.
+     *
+     * Kalau gerbangnya menolak (sakelar mati, VAPID kosong, orangnya
+     * mematikan, atau belum ada satu perangkat pun), yang ditulis tetap SATU
+     * baris `skipped` dengan sebabnya — sebuah kanal yang tidak meninggalkan
+     * baris apa pun adalah kanal yang hilang dari layar.
+     */
+    private function outboxChannel(Notification $notification, User $recipient, string $channel): void
     {
         $reason = DeliveryGate::reasonToSkip($channel, $recipient, $notification->template);
 
+        if ($channel !== NotificationDelivery::CHANNEL_WEBPUSH || $reason !== null) {
+            $this->outboxRow($notification, $recipient, $channel, $reason);
+
+            return;
+        }
+
+        $devices = PushSubscriptions::forUser($recipient);
+
+        // Gerbang berkata "ada perangkat" dan daftarnya kosong: perangkat
+        // terakhir dicabut di antara dua kueri. Satu baris skipped dengan
+        // sebab yang sama, bukan nol baris.
+        if ($devices->isEmpty()) {
+            $this->outboxRow($notification, $recipient, $channel, DeliveryGate::WEBPUSH_NO_DEVICE);
+
+            return;
+        }
+
+        foreach ($devices as $device) {
+            $this->guard(fn () => $this->outboxRow($notification, $recipient, $channel, null, $device));
+        }
+    }
+
+    private function outboxRow(Notification $notification, User $recipient, string $channel, ?string $reason, ?PushSubscription $device = null): void
+    {
         $delivery = new NotificationDelivery([
             'notification_id' => $notification->id,
             'channel' => $channel,
-            'recipient' => DeliveryGate::address($channel, $recipient),
+            'push_subscription_id' => $device?->getKey(),
+            // Untuk web push kolom ini membawa LABEL perangkat, bukan
+            // endpoint: ia dibaca manusia di layar, dan endpoint 188 karakter
+            // di sana tidak memberi tahu siapa pun apa pun.
+            'recipient' => $device === null ? DeliveryGate::address($channel, $recipient) : $device->label(),
             'status' => $reason === null ? NotificationDelivery::QUEUED : NotificationDelivery::SKIPPED,
             'attempts' => 0,
             'error' => $reason,
@@ -479,7 +526,27 @@ class NotificationService
             throw new DeliveryRetryRefusedException(DeliveryGate::retryRefusal($reason));
         }
 
-        $delivery->recipient = DeliveryGate::address($delivery->channel, $recipient);
+        // Alamat dibaca ULANG — kecuali web push, yang tidak punya SATU alamat
+        // untuk seorang penerima: baris ini milik satu PERANGKAT, dan
+        // perangkat yang sudah tidak terdaftar tidak bisa dikirimi apa pun.
+        if ($delivery->channel === NotificationDelivery::CHANNEL_WEBPUSH) {
+            $device = $delivery->push_subscription_id === null
+                ? null
+                : PushSubscription::query()->where('user_id', $recipient->getKey())->find($delivery->push_subscription_id);
+
+            if ($device === null) {
+                throw new DeliveryRetryRefusedException(
+                    'Perangkat tujuan baris ini sudah tidak terdaftar (dicabut pemiliknya, atau dihapus karena '
+                    .'langganannya dijawab 404/410 layanan push). Tidak ada sasaran untuk dikirimi: pemiliknya harus '
+                    .'menekan "Aktifkan notifikasi di perangkat ini" lagi di Profil › Notifikasi, dan pemberitahuan '
+                    .'berikutnya akan sampai ke perangkat itu.',
+                );
+            }
+
+            $delivery->recipient = $device->label();
+        } else {
+            $delivery->recipient = DeliveryGate::address($delivery->channel, $recipient);
+        }
 
         // Jam tenang berlaku untuk Kirim ulang juga: operator menekan tombol
         // pukul 23.00, pesannya berangkat 06.00 — dan layar mengatakannya.

@@ -639,7 +639,9 @@ class NotificationPreferencesTest extends ErpTestCase
 
         // E-mail mati di Pengaturan: sebab yang sama dengan kotak keluar.
         $data = $this->getJson('/api/core/me/notification-channels')->assertOk()->json('data');
-        $this->assertSame(['email', 'whatsapp'], array_column($data['channels'], 'channel'));
+        // P-3e: kanal ketiga, di urutan terakhir (paling baru, paling butuh
+        // tindakan orangnya sendiri).
+        $this->assertSame(['email', 'whatsapp', 'webpush'], array_column($data['channels'], 'channel'));
         $email = $data['channels'][0];
         $this->assertSame($user->email, $email['address']);
         $this->assertTrue($email['enabled_by_user']);
