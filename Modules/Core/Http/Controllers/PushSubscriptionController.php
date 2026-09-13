@@ -65,6 +65,13 @@ class PushSubscriptionController extends ApiController
             // keempat T3e.4 — dan kalimatnya sama persis dengan yang ditulis
             // kotak keluar, bukan kalimat kedua yang mirip.
             'server_reason' => DeliveryGate::webPushServerReason(),
+            // Kanal ini DIMATIKAN ORANGNYA sendiri di kartu di atas (putaran
+            // verifikasi: C-5). Ia tidak bisa dibaca dari `reason` saja:
+            // `reason` juga berbunyi WEBPUSH_NO_DEVICE, dan itu justru keadaan
+            // yang tombolnya ada untuk mengubah. Kalimatnya tetap datang dari
+            // `reason` — yang dikirim di sini hanya PENANDA keadaannya, bukan
+            // kalimat kedua yang mirip.
+            'user_off' => ! DeliveryGate::userEnabled(NotificationDelivery::CHANNEL_WEBPUSH, $user),
         ]);
     }
 

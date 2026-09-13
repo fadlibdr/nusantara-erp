@@ -1337,6 +1337,20 @@ tidak ada akun Google.** Peramban memilih sendiri layanan push-nya — Chrome me
 mem-POST ke alamat yang diberikan peramban itu. Endpoint FCM yang muncul di basis data adalah
 pilihan Chrome, bukan integrasi kita.
 
+> **Syarat nol: halaman harus dilayani lewat HTTPS.** Push API — dan service worker yang
+> membawanya — hanya ada di *secure context*: `https://`, atau `http://localhost` di mesin
+> pengembang. Pada pemasangan `http://<alamat-IP>/app/`, `'serviceWorker' in navigator`
+> bernilai **false** di Chrome dan Firefox yang sehat, dan kartu Profil mengatakannya apa
+> adanya sejak putaran verifikasi P-3e ("halaman ini dilayani lewat http://… sampaikan kepada
+> administrator") alih-alih menyuruh orangnya memasang peramban lain. erp1 sudah di belakang
+> TLS; sebuah pemasangan baru yang belum, tidak akan bisa menyalakan web push sama sekali —
+> berapa pun kunci VAPID yang diisi.
+>
+> **Alamat internal ditolak sebagai endpoint perangkat.** Endpoint langganan melewati penjaga
+> yang sama dengan URL webhook (§11 P-3d): loopback, 10/8, 169.254/16, CGNAT dan nama
+> `*.internal` ditolak saat disimpan **dan** sekali lagi saat dikirim, dan pengalihan (3xx)
+> tidak pernah diikuti. Satu pemasangan memegang paling banyak **10 perangkat per pengguna**.
+
 1. **Buat sepasang kunci VAPID** di server (satu kali, seumur pemasangan):
 
    ```

@@ -91,20 +91,132 @@ class WebPushSpaWiringTest extends ErpTestCase
      * sebagai satu kalimat penuh. Mengubahnya dengan sengaja berarti mengubah
      * baris ini juga — itulah gunanya.
      */
-    public function test_all_four_dead_ends_are_actually_reachable_in_the_order_of_the_gate(): void
+    public function test_all_seven_dead_ends_are_actually_reachable_in_the_order_of_the_gate(): void
     {
         $body = $this->functionBody($this->withoutComments($this->source(self::PROFIL)), 'pushBlocker');
 
         $this->assertSame(
             "{ if (state.server_reason) return { kind: 'server', text: state.server_reason }; "
             ."if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL }; "
+            ."if (!window.isSecureContext) return { kind: 'insecure', text: NO_HTTPS }; "
             ."if (!hasPushApi()) return { kind: 'unsupported', text: NO_API }; "
+            ."if (state.no_worker) return { kind: 'no-worker', text: NO_WORKER }; "
             ."if (window.Notification && Notification.permission === 'denied') return { kind: 'denied', text: DENIED_HELP }; "
+            ."if (state.user_off && state.reason) return { kind: 'user-off', text: state.reason + USER_OFF_HINT }; "
             .'return null; }',
             $this->squash($body),
-            'pushBlocker() bukan lagi keempat jalan buntu itu, dalam urutan itu. Urutannya mengikuti DeliveryGate — '
+            'pushBlocker() bukan lagi ketujuh jalan buntu itu, dalam urutan itu. Urutannya mengikuti DeliveryGate — '
             .'dari yang paling global ke yang paling pribadi — supaya seseorang tidak disuruh memasang aplikasi ke '
             .'Layar Utama pada pemasangan yang VAPID-nya kosong.',
+        );
+    }
+
+    /**
+     * Tiga jalan buntu yang DITAMBAHKAN putaran verifikasi, dan kenapa
+     * masing-masing bukan salah satu dari empat yang sudah ada.
+     *
+     * C-7 — konteks tidak aman. `'serviceWorker' in navigator` bernilai false
+     * di http:// yang bukan localhost, jadi tanpa jalan buntu ini Chrome dan
+     * Firefox yang SEHAT dijawab "Peramban ini tidak mendukung Push API" dan
+     * disodori daftar peramban lain yang sudah memuat peramban mereka. Ia
+     * harus lebih dulu daripada NO_API, karena di keadaan itu keduanya menyala.
+     *
+     * C-3 — tidak ada registrasi worker. hasPushApi() hanya memeriksa ADANYA
+     * API; app.js sengaja menelan kegagalan pendaftaran. Tanpa ini tombolnya
+     * ditawarkan, izin diberikan (permanen), dan `serviceWorker.ready` tidak
+     * pernah selesai — withBusy() berputar sampai halaman dimuat ulang.
+     *
+     * C-5 — kanalnya dimatikan orangnya sendiri satu kartu di atas. Tanpa ini
+     * ia ditawari tombol lalu diberi tahu "pemberitahuan berikutnya akan
+     * muncul", sementara kotak keluar akan menulis Dilewati pada setiap baris.
+     * Penandanya `user_off` dari server, BUKAN `reason` saja: `reason` juga
+     * berbunyi WEBPUSH_NO_DEVICE, dan itu justru keadaan yang tombolnya ada
+     * untuk mengubah.
+     */
+    public function test_the_three_dead_ends_added_by_the_verification_round_have_their_own_sentences(): void
+    {
+        $code = $this->source(self::PROFIL);
+
+        $this->assertStringContainsString('dilayani lewat http://', $code, 'C-7: konteks tidak aman tidak punya kalimatnya sendiri.');
+        $this->assertStringContainsString('Peramban Anda tidak bermasalah', $code, 'C-7: kalimatnya masih menyalahkan peramban orangnya.');
+        $this->assertStringContainsString('belum terpasang sebagai pekerja latar', $code, 'C-3: worker yang belum terdaftar tidak punya kalimatnya sendiri.');
+        $this->assertStringContainsString('Simpan pilihan kanal', $code, 'C-5: kartu tidak menunjukkan di mana kanalnya dinyalakan lagi.');
+
+        // C-5: kalimat SEBABNYA tetap milik server — yang ditambahkan klien
+        // hanya petunjuk tindakan. Kalau klien menulis sebabnya sendiri, dua
+        // permukaan akan menyimpang diam-diam.
+        $this->assertStringContainsString(
+            'text: state.reason + USER_OFF_HINT',
+            $this->withoutComments($code),
+            'Kartu menyusun kalimat sebabnya sendiri alih-alih memakai kalimat DeliveryGate apa adanya.',
+        );
+
+        // C-3: sebuah janji yang tidak pernah selesai harus punya batas waktu,
+        // atau tombolnya berputar selamanya — `finally` withBusy() tidak
+        // pernah berjalan.
+        $subscribe = $this->functionBody($this->withoutComments($code), 'subscribeHere');
+        $this->assertStringContainsString(
+            'Promise.race',
+            $subscribe,
+            'serviceWorker.ready ditunggu tanpa batas: pada peramban tanpa registrasi ia tidak pernah selesai, dan '
+            .'tombolnya berputar sampai halaman dimuat ulang — sesudah orangnya terlanjur memberikan izin.',
+        );
+    }
+
+    /**
+     * C-6 — sesudah orangnya menekan Blokir, yang keluar adalah DENIED_HELP,
+     * dan kartunya BERPINDAH ke jalan buntu 3.
+     *
+     * Dua kalimat untuk satu keadaan adalah bentuk yang paket ini kejar di
+     * tempat lain; yang lebih berguna dari keduanya — ikon gembok →
+     * Pemberitahuan → Izinkan → muat ulang — justru yang tidak pernah terlihat,
+     * karena cabang galat tidak menggambar ulang kartunya.
+     */
+    public function test_a_denied_permission_uses_the_one_sentence_that_says_how_to_undo_it(): void
+    {
+        $code = $this->withoutComments($this->source(self::PROFIL));
+        $subscribe = $this->functionBody($code, 'subscribeHere');
+
+        $this->assertStringContainsString(
+            '? DENIED_HELP',
+            $subscribe,
+            'Ada kalimat KEDUA untuk izin yang ditolak; DENIED_HELP yang menyebut langkah konkretnya tidak pernah terlihat.',
+        );
+
+        $push = $this->functionBody($code, 'pushCard');
+        $this->assertMatchesRegularExpression(
+            '~catch \(error\) \{ toastError\(error\); await reload\(\); \}~',
+            $this->squash($push),
+            'Cabang galat tidak menggambar ulang kartunya: keadaan yang baru saja membuat percobaan gagal (izin kini '
+            .'ditolak, worker ternyata tidak ada) punya jalan buntunya sendiri, dan tombolnya tetap berdiri tanpa itu.',
+        );
+    }
+
+    /**
+     * B-5/C-4 — endpoint lama IKUT DIKIRIM pada jalur InvalidStateError.
+     *
+     * Jalur itu ada persis untuk hari setelah pemilik mengganti kunci VAPID:
+     * langganan lama dibuang di peramban dan yang baru dibuat dengan kunci
+     * baru, yang memberi endpoint BERBEDA. Tanpa `previous_endpoint` baris
+     * lama tinggal di server selamanya — 404/410 menghapus, tetapi langganan
+     * lama sesudah ganti kunci dijawab 401/403, dan 401/403 tidak menghapus
+     * apa pun. Parameter keenam register() sudah ada sejak T3e.2 dan tidak
+     * pernah dipanggil siapa pun sampai baris ini.
+     */
+    public function test_the_old_endpoint_is_sent_when_a_stale_subscription_is_replaced(): void
+    {
+        $subscribe = $this->functionBody($this->withoutComments($this->source(self::PROFIL)), 'subscribeHere');
+
+        $this->assertStringContainsString(
+            'endpointLama = stale.endpoint',
+            $subscribe,
+            'Endpoint lama dibuang tanpa ditangkap: server tidak punya cara mengenali baris mana yang digantikan.',
+        );
+        $this->assertStringContainsString(
+            'muatan.previous_endpoint = endpointLama',
+            $subscribe,
+            'Endpoint lama ditangkap tetapi tidak dikirim: baris lama tetap menjadi perangkat hantu yang menghasilkan '
+            .'satu baris "Gagal" per pemberitahuan, selamanya.',
         );
     }
 

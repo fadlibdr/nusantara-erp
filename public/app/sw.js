@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '13';
+const SHELL_VERSION = '14';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -407,12 +407,32 @@ self.addEventListener('push', (event) => {
   })());
 });
 
+/*
+ * Tautan dari MUATAN push hanya dipakai bila ia berada di asal ini.
+ *
+ * Muatannya memang disusun server kita (WebPushChannel::payloadFor() selalu
+ * memberi awalan config('app.url').'/app/'), tetapi yang menavigasi tab
+ * aplikasi orang itu adalah baris di bawah — dan satu APP_URL yang salah di
+ * .env, atau satu perubahan muatan di paket berikutnya, sudah cukup untuk
+ * memindahkannya ke asal lain (putaran verifikasi: C-1). Nilai yang tidak bisa
+ * diurai atau berada di asal lain jatuh ke SCOPE: membuka beranda aplikasi
+ * selalu benar, membuka situs orang lain tidak pernah.
+ */
+function tautanAman(nilai) {
+  try {
+    const url = new URL(String(nilai || ''), self.location.href);
+    return url.origin === self.location.origin ? url.href : SCOPE;
+  } catch (error) {
+    return SCOPE;
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   // Tutup dulu: notifikasi yang tetap menggantung sesudah diketuk adalah
   // notifikasi yang diketuk dua kali.
   event.notification.close();
 
-  const tautan = (event.notification.data && event.notification.data.tautan) || SCOPE;
+  const tautan = tautanAman(event.notification.data && event.notification.data.tautan);
 
   event.waitUntil((async () => {
     // Tab yang SUDAH terbuka difokuskan, bukan ditimpa jendela baru: orang

@@ -296,6 +296,56 @@ const NO_API = 'Peramban ini tidak mendukung Push API, jadi pemberitahuan di lua
   + 'Yang mendukungnya: Chrome, Edge, Firefox dan Opera di Android/Windows/macOS/Linux, serta Safari di iOS 16.4+ '
   + 'lewat "Tambahkan ke Layar Utama". Pemberitahuan di dalam aplikasi (lonceng) tetap bekerja seperti biasa.';
 
+/*
+ * Jalan buntu 5 — dan kenapa ia BUKAN NO_API (putaran verifikasi: C-7).
+ *
+ * `'serviceWorker' in navigator` bernilai false di konteks yang tidak aman:
+ * http:// yang bukan localhost. Di sana kalimat NO_API menyalahkan PERAMBAN
+ * dan menyodorkan daftar peramban lain — padahal peramban orang itu sudah
+ * termasuk daftarnya, dan yang kurang ada di sisi pemasangan. Menyuruh orang
+ * memasang peramban baru untuk masalah yang tidak ada padanya adalah bentuk
+ * kalimat salah yang paling mahal: ia terdengar membantu.
+ */
+const NO_HTTPS = 'Halaman ini dilayani lewat http://, dan pemberitahuan di luar aplikasi hanya bisa dinyalakan di '
+  + 'halaman https:// (aturan peramban, bukan setelan aplikasi). Peramban Anda tidak bermasalah — yang harus diubah '
+  + 'ada di sisi pemasangan; sampaikan kepada administrator (DEPLOYMENT.md §11.3). Pemberitahuan di dalam aplikasi '
+  + '(lonceng) tetap bekerja seperti biasa.';
+
+/*
+ * Jalan buntu 6: worker BELUM TERDAFTAR (putaran verifikasi: C-3).
+ *
+ * hasPushApi() hanya memeriksa ADANYA API, bukan adanya registrasi — dan
+ * app.js sengaja menelan kegagalan pendaftaran worker (sw.js 404 sesudah rilis
+ * yang setengah tersinkron, penyimpanan situs diblokir peramban). Tanpa jalan
+ * buntu ini tombolnya DITAWARKAN, orangnya menekan, MEMBERIKAN izin
+ * pemberitahuan — permanen, untuk tidak ada apa-apa — lalu
+ * `navigator.serviceWorker.ready` tidak pernah selesai dan withBusy() berputar
+ * sampai halaman dimuat ulang. Tombol mati tanpa kalimat, persis cacat yang
+ * kartu ini ada untuk mencegahnya.
+ */
+const NO_WORKER = 'Aplikasi ini belum terpasang sebagai pekerja latar di peramban ini, jadi pemberitahuan di luar '
+  + 'aplikasi belum bisa dinyalakan. Muat ulang halaman (Ctrl+Shift+R) dan coba lagi; kalau tetap begini, peramban '
+  + 'Anda memblokir penyimpanan situs untuk alamat ini. Pemberitahuan di dalam aplikasi (lonceng) tetap bekerja.';
+
+/*
+ * Jalan buntu 7: kanalnya DIMATIKAN ORANGNYA di kartu di atas (putaran
+ * verifikasi: C-5).
+ *
+ * `GET core/me/push-subscriptions` sudah menjawab `reason` — kalimat
+ * DeliveryGate yang UTUH — dan versi pertama kartu ini hanya membaca
+ * `server_reason`. Akibatnya orang yang menghapus centang "Web push" tetap
+ * ditawari tombolnya dan, sesudah menekan, diberi tahu "pemberitahuan
+ * berikutnya akan muncul" — sementara kotak keluar akan menulis "Dilewati —
+ * Dimatikan pengguna di Profil › Notifikasi." pada setiap baris. Aturan berkas
+ * ini sendiri: layar tidak boleh menjanjikan apa yang kotak keluar akan
+ * lewati.
+ *
+ * Kalimatnya datang dari server apa adanya; yang ditambahkan klien hanyalah
+ * PETUNJUK tindakannya, bukan sebab kedua.
+ */
+const USER_OFF_HINT = ' Hapus dulu keadaan itu di kartu "Kanal pemberitahuan" di atas: centang «Web push», lalu '
+  + 'tekan Simpan pilihan kanal.';
+
 /** base64url → Uint8Array. Ditulis tangan: applicationServerKey menuntut byte, bukan teks. */
 function urlBase64ToUint8Array(value) {
   const padded = String(value).replace(/-/g, '+').replace(/_/g, '/');
@@ -326,9 +376,34 @@ function hasPushApi() {
 function pushBlocker(state) {
   if (state.server_reason) return { kind: 'server', text: state.server_reason };
   if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL };
+  if (!window.isSecureContext) return { kind: 'insecure', text: NO_HTTPS };
   if (!hasPushApi()) return { kind: 'unsupported', text: NO_API };
+  if (state.no_worker) return { kind: 'no-worker', text: NO_WORKER };
   if (window.Notification && Notification.permission === 'denied') return { kind: 'denied', text: DENIED_HELP };
+  if (state.user_off && state.reason) return { kind: 'user-off', text: state.reason + USER_OFF_HINT };
   return null;
+}
+
+/**
+ * Keadaan worker di peramban INI: apakah ada registrasi sama sekali, dan
+ * endpoint langganannya bila ada.
+ *
+ * Keduanya dibaca SEKALI, dari satu getRegistration(). Sebelum putaran
+ * verifikasi (C-3) hanya endpoint-nya yang dibaca, dan "tidak ada registrasi"
+ * tidak bisa dibedakan dari "belum berlangganan" — dua keadaan dengan dua
+ * jalan keluar yang berbeda sama sekali.
+ */
+async function workerState() {
+  if (!hasPushApi()) return { registered: false, endpoint: null };
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return { registered: false, endpoint: null };
+    if (!registration.pushManager) return { registered: true, endpoint: null };
+    const subscription = await registration.pushManager.getSubscription();
+    return { registered: true, endpoint: subscription ? subscription.endpoint : null };
+  } catch (error) {
+    return { registered: false, endpoint: null };
+  }
 }
 
 /** Langganan peramban ini sekarang — null bila belum ada worker atau belum berlangganan. */
@@ -350,15 +425,29 @@ async function subscribeHere(publicKey) {
   // digambar.
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
+    // SATU KEADAAN, SATU KALIMAT (putaran verifikasi: C-6). Versi pertama
+    // melempar kalimat pendek KEDUA untuk 'denied', sementara DENIED_HELP —
+    // yang menyebut ikon gembok, menu Pemberitahuan, dan muat ulang — sudah
+    // ditulis lengkap tepat di atas dan tidak pernah terlihat, karena kartu
+    // baru berpindah ke jalan buntu 3 setelah halaman dimuat ulang.
     throw new Error(permission === 'denied'
-      ? 'Anda menolak pemberitahuan untuk situs ini. Ubah setelan situs di peramban untuk mengizinkannya lagi.'
+      ? DENIED_HELP
       : 'Izin pemberitahuan belum diberikan — tekan "Izinkan" pada permintaan peramban.');
   }
 
-  const registration = await navigator.serviceWorker.ready;
+  // `serviceWorker.ready` adalah janji yang TIDAK PERNAH SELESAI bila tidak
+  // ada registrasi (putaran verifikasi: C-3). Tanpa batas waktu di sini,
+  // withBusy() memasang pemutar di tombol dan `finally`-nya tidak pernah
+  // berjalan: tombol berputar sampai orangnya memuat ulang halaman, sesudah
+  // ia terlanjur memberikan izin pemberitahuan untuk tidak ada apa-apa.
+  const registration = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, tolak) => setTimeout(() => tolak(new Error(NO_WORKER)), 8000)),
+  ]);
   const options = { userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) };
 
   let subscription;
+  let endpointLama = null;
   try {
     subscription = await registration.pushManager.subscribe(options);
   } catch (error) {
@@ -368,12 +457,21 @@ async function subscribeHere(publicKey) {
     // adalah membuang langganan lama lalu berlangganan dengan kunci baru.
     const stale = await registration.pushManager.getSubscription();
     if (!stale) throw error;
+    // Endpoint lama DITANGKAP sebelum dibuang: berlangganan ulang memberi
+    // endpoint BARU, dan tanpa nilai ini baris lama tinggal di server sebagai
+    // perangkat hantu yang tidak pernah dibuang siapa pun — 404/410
+    // menghapus, tetapi langganan lama sesudah ganti kunci dijawab 401/403
+    // (putaran verifikasi: B-5/C-4).
+    endpointLama = stale.endpoint || null;
     await stale.unsubscribe();
     subscription = await registration.pushManager.subscribe(options);
   }
 
   const json = subscription.toJSON();
-  return api.post('core/me/push-subscriptions', { endpoint: json.endpoint, keys: json.keys });
+  const muatan = { endpoint: json.endpoint, keys: json.keys };
+  if (endpointLama && endpointLama !== json.endpoint) muatan.previous_endpoint = endpointLama;
+
+  return api.post('core/me/push-subscriptions', muatan);
 }
 
 function deviceRow(device, thisEndpoint, reload) {
@@ -434,6 +532,12 @@ function pushCard(state, thisEndpoint, reload) {
         await reload();
       } catch (error) {
         toastError(error);
+        // DAN KARTUNYA DIGAMBAR ULANG (putaran verifikasi: C-6). Keadaan yang
+        // membuat percobaan ini gagal — izin baru saja menjadi 'denied', worker
+        // ternyata tidak terdaftar — adalah keadaan yang punya jalan buntunya
+        // sendiri; tanpa baris ini tombolnya tetap berdiri dan setiap tekanan
+        // berikutnya menghasilkan toast yang sama.
+        await reload();
       }
     }),
   });
@@ -638,7 +742,8 @@ export async function renderProfil(host) {
     body.appendChild(channelsCard(state, reload));
     // Endpoint langganan peramban INI — dibaca dari worker, bukan ditebak:
     // hanya dengan itu daftar perangkat bisa menandai "Perangkat ini".
-    body.appendChild(pushCard(push, (await currentSubscription())?.endpoint || null, reload));
+    const worker = await workerState();
+    body.appendChild(pushCard({ ...push, no_worker: !worker.registered }, worker.endpoint, reload));
     body.appendChild(phoneCard(state, reload));
     body.appendChild(quietHoursCard(state, reload));
   }

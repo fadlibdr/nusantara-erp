@@ -268,6 +268,136 @@ class PwaServiceWorkerTest extends TestCase
     }
 
     /**
+     * P-3e (putaran verifikasi: C-2) — TIDAK ADA JALAN KELUAR SEBELUM
+     * showNotification().
+     *
+     * Uji di atas memaku bentuk `catch { isi = {}; }` dan jumlah
+     * showNotification() = 1, dan docblock-nya menjanjikan bahwa pendengar
+     * yang "keluar diam-diam" akan merah. Ia TIDAK merah untuk bentuk
+     * kegagalan yang paling mungkin ditulis orang berikutnya: `if
+     * (!event.data) return;` sebagai baris pertama — diukur 13 Sep 2026,
+     * mutasi itu lolos dengan 15 uji hijau. Push TANPA muatan sah dalam
+     * standarnya, dan justru itulah yang melanggar kontrak userVisibleOnly
+     * yang uji ini ada untuk menjaganya: peramban mencabut langganan perangkat
+     * itu, dan baris kotak keluarnya tetap berbunyi Terkirim.
+     *
+     * Harness S41 juga tidak menangkapnya: kedua push yang dikirimnya (muatan
+     * baik dan muatan rusak) SELALU membawa data.
+     */
+    public function test_nothing_returns_or_throws_before_the_notification_is_shown(): void
+    {
+        $body = $this->listenerBody('push');
+
+        $sebelum = substr($body, 0, (int) strpos($body, 'showNotification('));
+
+        $this->assertSame(
+            0,
+            preg_match_all('~\breturn\b~', $sebelum),
+            'Ada `return` sebelum showNotification(): sebuah push yang mengambil cabang itu tidak menampilkan '
+            .'notifikasi apa pun, dan peramban boleh mencabut langganan perangkat itu tanpa ada yang tahu. Push '
+            .'tanpa muatan sah dalam standarnya — ia harus tetap berakhir di satu showNotification().',
+        );
+        $this->assertSame(
+            0,
+            preg_match_all('~\bthrow\b~', $sebelum),
+            'Ada `throw` sebelum showNotification(): sama akibatnya dengan `return`.',
+        );
+    }
+
+    /**
+     * P-3e (putaran verifikasi: C-1) — badan `notificationclick` DIBANDINGKAN,
+     * bukan dipercaya.
+     *
+     * LAPORAN §7 mengaku perilaku pendengar ini "dipaku sebagai bentuk kode".
+     * Ia tidak: diukur 13 Sep 2026, SELURUH badannya bisa diganti dengan satu
+     * `openWindow()` polos — tanpa close(), tanpa matchAll/focus, tanpa
+     * pemeriksaan asal — dan berkas ini tetap 15 uji hijau. Pendengar ini juga
+     * TIDAK diuji di peramban (tidak ada pintu CDP untuk mengetuk notifikasi),
+     * jadi perbandingan bentuk inilah satu-satunya jaring yang ada.
+     *
+     * Tiga perilaku yang menentukan pengalaman orangnya, dan masing-masing
+     * punya harganya: notifikasi yang tidak ditutup diketuk dua kali; jendela
+     * kedua alih-alih tab yang difokuskan membuat orang yang sedang mengisi
+     * formulir kehilangan isinya; dan tautan dari muatan yang dipakai tanpa
+     * pemeriksaan asal menavigasi tab aplikasi orang itu ke tempat lain.
+     */
+    public function test_the_notification_click_listener_is_pinned_whole(): void
+    {
+        $body = $this->listenerBody('notificationclick');
+
+        $this->assertStringContainsString(
+            'event.notification.close();',
+            $body,
+            'Notifikasi tidak lagi ditutup saat diketuk: ia menggantung di baki dan diketuk dua kali.',
+        );
+        $this->assertStringContainsString(
+            'tautanAman(',
+            $body,
+            'Tautan dari MUATAN push dipakai tanpa pemeriksaan asal. Satu APP_URL yang salah di .env cukup untuk '
+            .'menavigasi tab aplikasi orang itu ke asal lain.',
+        );
+
+        $matchAll = strpos($body, 'clients.matchAll');
+        $focus = strpos($body, '.focus()');
+        $openWindow = strpos($body, 'openWindow(');
+
+        $this->assertNotFalse($matchAll, 'Tab yang sudah terbuka tidak lagi dicari.');
+        $this->assertNotFalse($focus, 'Tab yang sudah terbuka tidak lagi difokuskan.');
+        $this->assertNotFalse($openWindow, 'Tidak ada jalan membuka jendela sama sekali.');
+        $this->assertLessThan(
+            $openWindow,
+            $focus,
+            'openWindow() mendahului focus(): setiap ketukan membuka jendela kedua, dan orang yang sedang mengisi '
+            .'formulir di tab pertama kehilangan isinya.',
+        );
+    }
+
+    /**
+     * P-3e (putaran verifikasi: C-1/C-10) — `tautanAman()` benar-benar
+     * membandingkan asal, dan ketiga pendengar tidak pernah menyebut host
+     * asing.
+     *
+     * Satu-satunya penjaga jaringan pada uji di atas adalah harfiah `/api`.
+     * Itu tidak menghalangi apa pun yang berbahaya di sini: sebuah `fetch()`
+     * di pendengar `push` yang mengirim judul dan isi pemberitahuan seseorang
+     * ke host pihak ketiga tidak menyebut `/api` sama sekali, dan lolos hijau
+     * (diukur 13 Sep 2026). Muatan push sudah didekripsi ketika pendengar itu
+     * berjalan — ia satu-satunya tempat di aplikasi ini yang memegang isi
+     * pemberitahuan dalam bentuk terbaca DI LUAR server.
+     *
+     * Rotasi memang ber-fetch, dan itu benar: alamatnya relatif
+     * (`new URL('../push/rotate', self.location)`), jadi ia tidak pernah
+     * meninggalkan asal ini. Yang dilarang adalah alamat MUTLAK.
+     */
+    public function test_the_web_push_listeners_never_name_a_foreign_host(): void
+    {
+        foreach (['push', 'notificationclick', 'pushsubscriptionchange'] as $event) {
+            $body = $this->listenerBody($event);
+
+            $this->assertSame(
+                0,
+                preg_match_all('~https?://~i', $body),
+                "Pendengar `{$event}` menyebut alamat MUTLAK. Satu-satunya alamat yang boleh disentuh worker ini "
+                .'adalah asalnya sendiri, dan alamat relatif adalah cara mengatakannya yang tidak bisa salah — '
+                .'muatan push yang sudah didekripsi memuat judul dan isi pemberitahuan seseorang.',
+            );
+        }
+
+        $helper = $this->functionBody('tautanAman');
+
+        $this->assertStringContainsString(
+            'self.location.origin',
+            $helper,
+            'tautanAman() tidak lagi membandingkan asal: namanya berjanji sesuatu yang tidak dilakukannya.',
+        );
+        $this->assertStringContainsString(
+            'SCOPE',
+            $helper,
+            'Tautan yang ditolak tidak lagi jatuh ke SCOPE: ketukan pada notifikasi tidak membuka apa-apa.',
+        );
+    }
+
+    /**
      * P-3e — `pushsubscriptionchange` mengirim endpoint LAMA bersama yang baru.
      *
      * Tanpa endpoint lama, server tidak punya cara mengenali baris mana yang
