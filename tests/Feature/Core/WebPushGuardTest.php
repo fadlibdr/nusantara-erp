@@ -609,6 +609,29 @@ class WebPushGuardTest extends ErpTestCase
         }
 
         $this->assertLessThan(5.0, microtime(true) - $mulai, 'Pemotongan muatan memakan waktu seperti gelung yang tidak berhenti.');
+
+        // DAN KALIMAT ITU SAMPAI KE KOLOM `error` APA ADANYA. Muatan dibentuk
+        // DI LUAR try pengirim justru karena itu: di dalamnya, `catch
+        // (Throwable)` milik kegagalan PUSTAKA (kunci VAPID tidak bisa diurai)
+        // membungkusnya dengan "Pengiriman web push gagal disiapkan: …", dan
+        // yang membaca layar akan pergi memeriksa kunci VAPID untuk sebuah
+        // baris yang sebenarnya mengeluh tentang APP_URL. Dua sebab berbeda
+        // tidak boleh berbagi satu kalimat pembuka.
+        $device = $this->device($user);
+        $row = $this->rowFor($notification, $device);
+        $sender = $this->fakeSender([new Response(201)]);
+
+        (new DeliverNotification($row->id))->handle();
+
+        $this->assertSame([], $sender->sent, 'Muatan yang melewati plafon tetap dikirim.');
+        $this->assertSame(NotificationDelivery::FAILED, $row->refresh()->status);
+        $this->assertStringContainsString('APP_URL', (string) $row->error);
+        $this->assertStringNotContainsString(
+            'gagal disiapkan',
+            (string) $row->error,
+            'Kalimat pemotong muatan dibungkus awalan milik kegagalan pustaka: yang membaca layar akan pergi '
+            .'memeriksa kunci VAPID untuk baris yang sebenarnya mengeluh tentang APP_URL.',
+        );
     }
 
     /** Dan muatan yang WAJAR tetap dipotong dan tetap terkirim — plafonnya bukan larangan. */

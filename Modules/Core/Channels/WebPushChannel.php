@@ -113,8 +113,14 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
             );
         }
 
+        // Muatan dibentuk DI LUAR try di bawah: payloadFor() punya kegagalannya
+        // sendiri dengan kalimatnya sendiri (muatan yang tidak bisa mengecil
+        // lagi), dan membungkusnya dengan "gagal disiapkan: …" milik pustaka
+        // hanya menambahkan awalan yang salah di depan kalimat yang benar.
+        $payload = self::payloadFor($notification);
+
         try {
-            $report = app(WebPushSender::class)->send($subscription, self::payloadFor($notification));
+            $report = app(WebPushSender::class)->send($subscription, $payload);
         } catch (Throwable $e) {
             // Pustaka melempar SEBELUM ada permintaan (kunci VAPID tidak bisa
             // diurai, kunci peramban rusak). Itu bukan jawaban penyedia, tetapi

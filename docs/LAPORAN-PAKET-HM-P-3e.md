@@ -530,7 +530,7 @@ pendaftaran di pintu sebelah menerima host apa pun.
 | A-4 | `push/rotate` tanpa sesi menghapus baris milik akun lain | Batas keempat: `$existing->user_id !== $old->user_id` → 422 | M10 |
 | A-5 | Tidak ada plafon perangkat: fan-out sebagai penguat lalu lintas | `PushSubscriptions::MAX_PER_USER = 10`, 422 berkalimat; pendaftaran ulang perangkat yang ADA tetap boleh | M6 |
 | A-6, B-4 | Endpoint utuh di kolom `error` yang dibaca setiap pemegang `core.update` | Endpoint ikut daftar samaran `ProviderErrorScrubber::webPush()`; docblock yang membantah `PushRotationController` dibetulkan | M11 |
-| A-7, B-8 | Syarat henti gelung pemotong tidak pernah bisa menyala | `mb_strlen($body) > 1` + lemparan akhir berkalimat | M13 (merah dengan **menggantung** — itu bentuk cacatnya), M14 |
+| A-7, B-8 | Syarat henti gelung pemotong tidak pernah bisa menyala | `mb_strlen($body) > 1` + lemparan akhir berkalimat | M13 (merah dengan **menggantung** — itu bentuk cacatnya), M14, M16 |
 | B-1 | Kanal mengirim ke langganan yang sudah pindah pemilik, dan mencatat `sent` | `subscriptionOf()` mencari di dalam lingkup pemilik baris; ketidakcocokan = `skipped`, bukan `failed` | M8 |
 | B-3 | Lima kalimat menjanjikan layar "Sistem › Log Audit" yang tidak pernah dibangun | Kelimanya menyebut tabel + `GET api/core/audit-log` + PANDUAN §3.10 | (dokumen) |
 | B-5, C-4 | Berlangganan ulang sesudah ganti kunci VAPID menumpuk baris hantu; `$previousEndpoint` kode mati | Klien mengirim `previous_endpoint`, `store()` meneruskannya — docblock-nya menjadi benar | M12, C-4m |
@@ -557,6 +557,14 @@ resolver tersendat sepuluh detik adalah penjaga yang menimbulkan kerugiannya sen
 kelas pengecualian (`LogicException` vs `RuntimeException`) dan dipaku (M15: menyatukannya lagi →
 merah). Sebuah penjaga keamanan yang membuang pemberitahuan orang adalah penjaga yang akan
 dimatikan orang.
+
+**Dan satu lagi dari sumber yang sama**: muatan kini dibentuk DI LUAR `try` pengirim. Di dalamnya,
+`catch (Throwable)` milik kegagalan PUSTAKA membungkus kalimat pemotong muatan (A-7) dengan
+"Pengiriman web push gagal disiapkan: …" — dan orang yang membaca baris itu di layar akan pergi
+memeriksa kunci VAPID untuk sebuah baris yang sebenarnya mengeluh tentang `APP_URL`. Dua sebab
+berbeda tidak boleh berbagi satu kalimat pembuka (M16). Uji A-7 diperluas menjalankan jalur
+pengiriman SUNGGUHAN, bukan hanya `payloadFor()` langsung — versi pertamanya tidak pernah menyentuh
+pembungkus itu dan mutasinya lolos hijau.
 
 ### 13.3 Ditolak — satu
 
