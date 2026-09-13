@@ -35,7 +35,8 @@ use LogicException;
  *     ::ffff:a.b.c.d, ::a.b.c.d dan NAT64 64:ff9b::a.b.c.d diturunkan ke IPv4)
  *     dan setiap host yang bukan nama sungguhan diterjemahkan lebih dulu
  *     (`numericIpv4()`: bentuk desimal, oktal, heksa dan pendek ala
- *     `inet_aton`), lalu yang dinilai adalah hasilnya.
+ *     `inet_aton`), lalu yang dinilai adalah hasilnya. Titik ekor dibuang
+ *     lebih dulu oleh `canonicalHost()`, yang menjelaskan sebabnya.
  *  3. **Diperiksa DUA KALI: saat MENYIMPAN dan saat MENGIRIM.** DNS bisa
  *     berubah di antara keduanya — sebuah nama yang hari ini menunjuk ke
  *     alamat publik bisa besok menunjuk ke 127.0.0.1, dan itu bukan serangan
@@ -111,7 +112,13 @@ final class WebhookUrl
             throw new LogicException('URL webhook tidak boleh membawa nama pengguna atau kata sandi di dalamnya. Rahasianya adalah tanda tangan, bukan URL-nya.');
         }
 
-        $host = strtolower($parts['host']);
+        $host = self::canonicalHost($parts['host']);
+
+        // Sebuah host yang TIDAK TERSISA apa-apa sesudah titik ekornya dibuang
+        // (`https://./`, `https://.../`) bukan nama dan bukan alamat.
+        if ($host === '') {
+            throw new LogicException('URL webhook tidak bisa dibaca. Tulis lengkap dengan skema, mis. https://contoh.co.id/nusantara/webhook.');
+        }
 
         if (self::isPrivateName($host)) {
             throw new LogicException("Alamat «{$host}» adalah nama jaringan internal. Webhook hanya dikirim ke alamat yang bisa dijangkau dari luar.");
@@ -138,7 +145,7 @@ final class WebhookUrl
     {
         self::assertShape($url);
 
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = self::canonicalHost((string) parse_url($url, PHP_URL_HOST));
 
         // Sebuah alamat literal sudah dinilai `assertShape()` di atas, dalam
         // bentuk apa pun ia ditulis — dan tidak punya nama untuk ditanyakan
@@ -166,6 +173,34 @@ final class WebhookUrl
         $host = strtolower(trim($host));
 
         return $host === 'localhost' || Str::endsWith($host, self::PRIVATE_SUFFIXES);
+    }
+
+    /**
+     * Host yang dinilai: huruf kecil, DAN TANPA TITIK EKOR.
+     *
+     * TITIK EKOR ADALAH BENTUK SAMARAN YANG KESEMBILAN (lihat §2 di atas).
+     * `127.0.0.1.` menunjuk ke soket yang persis sama dengan `127.0.0.1`,
+     * tetapi dibaca berbeda oleh dua pihak yang berbeda: `filter_var` menolak
+     * bentuk bertitik-ekor sebagai IP, dan `numericIpv4()` berhenti di bagian
+     * kelima yang kosong — sehingga TANPA baris ini keduanya memulangkan
+     * "ini sebuah NAMA", lalu yang dinilai adalah jawaban DNS atas nama
+     * `127.0.0.1.` alih-alih alamat 127.0.0.1 itu sendiri. libcurl 8.21.0
+     * membuang titik itu sebelum menyambung; kamilah yang membacanya sebagai
+     * nama. Hal yang sama menyelamatkan `kasir.local.` dari daftar
+     * PRIVATE_SUFFIXES, yang mencocokkan akhiran `.local` dan bukan `.local.`.
+     *
+     * Yang TIDAK berubah: `contoh.co.id.` — titik ekor pada NAMA sungguhan
+     * hanyalah bentuk absolut FQDN, dan ia tetap diterima.
+     *
+     * Di bawah perbaikan ini gerbangnya berhenti bergantung pada DNS untuk
+     * menolak bentuk itu. Guzzle 7.15.2 menutup lubang yang sama dari sisi
+     * transport (`HostValidator::assertNotADottedAddress()`, CVE-2026-69246),
+     * tetapi gerbang ini menilai alamat dengan penguraiannya SENDIRI dan tidak
+     * pernah menumpang normalisasi pustaka HTTP — dua jaring, bukan satu.
+     */
+    private static function canonicalHost(string $host): string
+    {
+        return rtrim(strtolower($host), '.');
     }
 
     /**

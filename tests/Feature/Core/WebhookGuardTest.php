@@ -74,6 +74,27 @@ class WebhookGuardTest extends ErpTestCase
             'desimal' => ['https://2130706433/masuk', 'jaringan server ini'],
             'oktal' => ['https://0177.0.0.1/masuk', 'jaringan server ini'],
             'pendek' => ['https://127.1/masuk', 'jaringan server ini'],
+            // BENTUK SAMARAN KESEMBILAN: titik ekor. Ketujuh baris di bawah
+            // ini lolos PINTU PERTAMA sebelum `canonicalHost()` ada —
+            // `filter_var` menolak `127.0.0.1.` sebagai IP dan `numericIpv4()`
+            // berhenti di bagian kelima yang kosong, jadi host-nya
+            // diperlakukan sebagai NAMA. Yang menutupnya dulu hanyalah DNS
+            // yang kebetulan tidak menjawab nama itu; sebuah penyelesai yang
+            // membajak NXDOMAIN (dan ada yang begitu) meloloskannya ke
+            // transport, dan libcurl 8.21.0 membuang titiknya lalu menyambung
+            // ke 127.0.0.1. Jaring kedua ada di Guzzle 7.15.2
+            // (HostValidator, CVE-2026-69246); ini jaring pertama.
+            'loopback titik ekor' => ['https://127.0.0.1./masuk', 'jaringan server ini'],
+            'loopback titik ekor berlapis' => ['https://127.0.0.1.../masuk', 'jaringan server ini'],
+            'desimal titik ekor' => ['https://2130706433./masuk', 'jaringan server ini'],
+            'oktal titik ekor' => ['https://0177.0.0.1./masuk', 'jaringan server ini'],
+            'pendek titik ekor' => ['https://127.1./masuk', 'jaringan server ini'],
+            'metadata awan titik ekor' => ['https://169.254.169.254./latest/meta-data/', 'jaringan server ini'],
+            // PRIVATE_SUFFIXES mencocokkan `.local`, dan `kasir.local.`
+            // berakhiran `.local.` — bukan hal yang sama.
+            'akhiran .local titik ekor' => ['https://kasir.local./masuk', 'nama jaringan internal'],
+            // Tidak tersisa apa pun sesudah titik ekornya dibuang.
+            'host hanya titik' => ['https://./masuk', 'tidak bisa dibaca'],
         ];
     }
 
@@ -90,6 +111,10 @@ class WebhookGuardTest extends ErpTestCase
     {
         WebhookUrl::assertShape('https://penerima.contoh.co.id/nusantara/webhook');
         WebhookUrl::assertShape('https://203.0.113.10/nusantara/webhook');
+
+        // Titik ekor pada NAMA SUNGGUHAN adalah bentuk absolut FQDN, dan ia
+        // tetap diterima: `canonicalHost()` membuang titiknya, bukan URL-nya.
+        WebhookUrl::assertShape('https://penerima.contoh.co.id./nusantara/webhook');
 
         $this->assertTrue(WebhookUrl::isPublicIp('203.0.113.10'));
         $this->assertFalse(WebhookUrl::isPublicIp('127.0.0.1'));
@@ -169,6 +194,38 @@ class WebhookGuardTest extends ErpTestCase
         $this->expectExceptionMessageMatches('/tidak bisa diterjemahkan/');
 
         WebhookUrl::assertSafeToSend('https://hilang.contoh.co.id/masuk');
+    }
+
+    /**
+     * TITIK EKOR DITOLAK TANPA BANTUAN DNS.
+     *
+     * Ini asersi yang sebenarnya di balik `canonicalHost()`. Sebelumnya
+     * `https://127.0.0.1./` memang berakhir ditolak di kotak mana pun yang
+     * penyelesainya waras — tetapi ditolak dengan kalimat yang SALAH («tidak
+     * bisa diterjemahkan»), dan ditolak KARENA DNS tidak menjawab, bukan
+     * karena gerbangnya mengenali alamatnya. Penyelesai di bawah ini menjawab
+     * setiap nama dengan sebuah alamat publik — persis kelakuan penyelesai
+     * yang membajak NXDOMAIN — dan di bawah penyelesai itu bentuk bertitik
+     * ekor DULU LOLOS ke transport, tempat libcurl membuang titiknya dan
+     * menyambung ke loopback.
+     *
+     * Yang dipaku: kalimatnya menyebut alamat internal, bukan kegagalan DNS.
+     */
+    public function test_a_trailing_dot_address_is_refused_even_when_dns_answers_everything(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        foreach (['https://127.0.0.1./masuk', 'https://2130706433./masuk', 'https://169.254.169.254./x'] as $url) {
+            try {
+                WebhookUrl::assertSafeToSend($url);
+                $this->fail("«{$url}» diloloskan gerbang; ia mendarat di soket yang sama dengan alamat tanpa titik ekor.");
+            } catch (LogicException $e) {
+                $this->assertStringContainsString('jaringan server ini', $e->getMessage());
+            }
+        }
+
+        // Dan nama sungguhan berbentuk FQDN absolut TETAP berangkat.
+        WebhookUrl::assertSafeToSend('https://penerima.contoh.co.id./masuk');
     }
 
     /** Satu alamat internal di antara beberapa sudah cukup untuk menolak. */
