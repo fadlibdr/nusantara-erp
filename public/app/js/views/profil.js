@@ -237,7 +237,7 @@ function quietHoursCard(state, reload) {
       state.quiet_now
         ? el('.alert.info', { style: { marginBottom: '10px' } }, [
           icon('warn', 16),
-          el('div', { text: `Sekarang di dalam jam tenang Anda: e-mail/WhatsApp yang ditulis saat ini berangkat ${wib(state.postponed_until)}.` }),
+          el('div', { text: `Sekarang di dalam jam tenang Anda: e-mail, WhatsApp dan web push yang ditulis saat ini berangkat ${wib(state.postponed_until)}.` }),
         ])
         : null,
       el('.check-row', [on, el('label', { for: 'quiet-on', text: 'Aktifkan jam tenang (WIB)' })]),
@@ -247,7 +247,7 @@ function quietHoursCard(state, reload) {
       ]),
       el('.cell-sub', {
         style: { marginTop: '8px' },
-        text: 'Selama jam tenang, e-mail dan WhatsApp DITUNDA sampai jam selesai — tidak pernah dibuang. '
+        text: 'Selama jam tenang, KETIGA kanal luar — e-mail, WhatsApp dan web push — DITUNDA sampai jam selesai, tidak pernah dibuang. '
           + 'Pemberitahuan di dalam aplikasi tetap masuk seketika. Jendela boleh melintasi tengah malam (mis. 22:00–06:00). '
           + 'Zona waktu Asia/Jakarta (WIB).',
       }),
@@ -343,7 +343,7 @@ const NO_WORKER = 'Aplikasi ini belum terpasang sebagai pekerja latar di peramba
  * Kalimatnya datang dari server apa adanya; yang ditambahkan klien hanyalah
  * PETUNJUK tindakannya, bukan sebab kedua.
  */
-const USER_OFF_HINT = ' Hapus dulu keadaan itu di kartu "Kanal pemberitahuan" di atas: centang «Web push», lalu '
+const USER_OFF_HINT = ' Hapus dulu keadaan itu di kartu "Kanal notifikasi" di atas: centang «Web push», lalu '
   + 'tekan Simpan pilihan kanal.';
 
 /** base64url → Uint8Array. Ditulis tangan: applicationServerKey menuntut byte, bukan teks. */

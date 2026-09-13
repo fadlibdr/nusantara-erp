@@ -217,8 +217,9 @@ final class UserPreferences
             ],
 
             /*
-             * Kanal notifikasi LUAR yang dipilih orangnya (P-3a, T3a.2):
-             * {email: bool, whatsapp: bool}. Kunci yang tidak disebut = nyala
+             * Kanal notifikasi LUAR yang dipilih orangnya (P-3a, T3a.2;
+             * webpush sejak P-3e, T3e.3): SATU kunci bool per kanal di
+             * DeliveryGate::USER_CHANNELS. Kunci yang tidak disebut = nyala
              * (bawaan milik pengirim: kanal yang mati diam-diam untuk semua
              * orang bukan bawaan). Dibaca DeliveryGate::userEnabled di kotak
              * keluar, Kirim ulang, dan job — mematikannya di sini benar-benar
@@ -238,7 +239,15 @@ final class UserPreferences
                 'max_entries' => null,
                 'validate' => static function (mixed $value): ?string {
                     if (! is_array($value) || array_is_list($value)) {
-                        return 'Kanal notifikasi harus berupa objek {email: true/false, whatsapp: true/false}.';
+                        // Bentuknya DITURUNKAN dari USER_CHANNELS, tidak dieja:
+                        // kalimat yang mengeja kanalnya membusuk diam-diam pada
+                        // kanal berikutnya, dan itu persis yang terjadi pada P-3e
+                        // (putaran penutup, V-5) — pesan yang ADA untuk
+                        // memberi tahu bentuk yang benar menyebut dua dari tiga.
+                        return sprintf(
+                            'Kanal notifikasi harus berupa objek {%s}.',
+                            implode(', ', array_map(static fn (string $channel): string => $channel.': true/false', DeliveryGate::USER_CHANNELS)),
+                        );
                     }
 
                     $extra = array_diff(array_keys($value), DeliveryGate::USER_CHANNELS);

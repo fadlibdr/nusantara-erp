@@ -8,6 +8,7 @@ use Modules\Core\Models\Notification;
 use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Models\PushSubscription;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\DeliveryGate;
 use Modules\Iam\Database\Seeders\PermissionSeeder;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
@@ -447,5 +448,52 @@ class WebPushSpaWiringTest extends ErpTestCase
         $this->assertStringContainsString('tidak terdaftar', (string) $response->json('message'));
         $this->assertStringContainsString('Aktifkan notifikasi di perangkat ini', (string) $response->json('message'));
         $this->assertSame(NotificationDelivery::FAILED, $row->refresh()->status, 'Baris yang ditolak tidak boleh berubah menjadi Antre.');
+    }
+
+    /**
+     * KARTU JAM TENANG MENYEBUT SETIAP KANAL YANG BENAR-BENAR DITUNDANYA
+     * (putaran penutup, V-1).
+     *
+     * Kalimatnya berbunyi "e-mail dan WhatsApp DITUNDA sampai jam selesai" —
+     * dua kanal dari tiga, di layar yang paket ini sendiri tambahi kanal
+     * ketiganya, dan satu kartu di atas kartu web push. Kesimpulan yang wajar
+     * bagi pembacanya: web push TIDAK ikut jam tenang, jadi ponselnya akan
+     * berbunyi pukul 02.00. Kode melakukan sebaliknya — WebPushOutboxTest
+     * memakukannya. Ini bentuk §13: layar MENYANGKAL sesuatu yang dilakukan
+     * kode, dan tidak ada uji yang menyentuh kalimatnya.
+     *
+     * Yang diulang uji ini adalah DAFTAR KANAL, bukan kalimatnya: kanal
+     * keempat memerahkan berkas ini dengan menyuruh orangnya menamainya di
+     * sini DAN di layar. Peta nama sengaja dieja di sini, bukan diturunkan
+     * dari kode yang diuji — pin yang membaca harapannya sendiri tidak pernah
+     * bisa merah (pelajaran Fase 2).
+     */
+    public function test_the_quiet_hours_card_names_every_channel_it_actually_postpones(): void
+    {
+        $names = [
+            NotificationDelivery::CHANNEL_EMAIL => 'e-mail',
+            NotificationDelivery::CHANNEL_WHATSAPP => 'WhatsApp',
+            NotificationDelivery::CHANNEL_WEBPUSH => 'web push',
+        ];
+
+        $card = $this->functionBody($this->withoutComments($this->source(self::PROFIL)), 'quietHoursCard');
+
+        foreach (DeliveryGate::USER_CHANNELS as $channel) {
+            $this->assertArrayHasKey(
+                $channel,
+                $names,
+                "Kanal {$channel} tidak punya nama di uji ini. Kanal baru harus disebut DI KARTU JAM TENANG juga: "
+                .'jam tenang menunda setiap baris `queued` tanpa memandang kanal, jadi kartu yang menyebut sebagian '
+                .'kanal sedang menyangkal perilaku yang benar untuk sisanya.',
+            );
+
+            $this->assertStringContainsString(
+                $names[$channel],
+                $card,
+                "Kartu \"Jam tenang\" tidak menyebut {$names[$channel]}, padahal jam tenang MENUNDA barisnya juga "
+                .'(WebPushOutboxTest memakukannya). Kanal yang tidak disebut terbaca sebagai kanal yang tidak ditunda — '
+                .'dan itu kalimat yang membangunkan orang pukul 02.00.',
+            );
+        }
     }
 }

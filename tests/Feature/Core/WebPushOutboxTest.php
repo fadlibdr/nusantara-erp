@@ -4,6 +4,8 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Base64Url\Base64Url;
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Queue;
 use Minishlink\WebPush\VAPID;
@@ -16,6 +18,7 @@ use Modules\Core\Models\UserPreference;
 use Modules\Core\Services\NotificationService;
 use Modules\Core\Services\SettingService;
 use Modules\Core\Support\DeliveryGate;
+use Modules\Core\Support\QuietHours;
 use Modules\Core\Support\WebPushSetup;
 use Tests\ErpTestCase;
 
@@ -328,5 +331,60 @@ class WebPushOutboxTest extends ErpTestCase
 
         $this->expectException(DeliveryRetryRefusedException::class);
         app(NotificationService::class)->retry($row->refresh());
+    }
+
+    /* -------------------------------------------------------- jam tenang */
+
+    /**
+     * JAM TENANG MENUNDA KANAL KETIGA JUGA (putaran penutup, V-1).
+     *
+     * `outboxRow()` memanggil `DeliveryGate::postponement()` untuk SETIAP baris
+     * yang berstatus `queued`, tanpa memandang kanal — jadi baris web push
+     * ditunda persis seperti e-mail dan WhatsApp, satu penundaan per perangkat.
+     * Sampai putaran penutup tidak ada satu uji pun yang menyentuh perilaku itu
+     * untuk web push, dan karena itu kartu "Jam tenang" di layar Profil bisa
+     * berbunyi "e-mail dan WhatsApp DITUNDA" — dua kanal dari tiga — tanpa
+     * memerahkan apa pun. Orang yang membacanya menyimpulkan ponselnya akan
+     * berbunyi pukul 02.00, yang tidak benar. Uji ini memaku yang TERJADI;
+     * WebPushSpaWiringTest memaku yang DIKATAKAN.
+     */
+    public function test_quiet_hours_postpones_every_web_push_row_one_per_device(): void
+    {
+        $user = User::factory()->create();
+        $this->device($user, 'Ponsel');
+        $this->device($user, 'Tablet lapangan');
+
+        UserPreference::query()->updateOrCreate(
+            ['user_id' => $user->id, 'key' => 'notify.quiet_hours'],
+            ['value' => ['start' => '22:00', 'end' => '06:00']],
+        );
+
+        Carbon::setTestNow(CarbonImmutable::parse('2026-09-12 02:00', QuietHours::ZONE)->setTimezone('UTC'));
+
+        $rows = $this->pushRows($this->notify($user));
+
+        $this->assertCount(2, $rows, 'Satu penundaan per perangkat, bukan satu untuk keduanya.');
+
+        foreach ($rows as $row) {
+            $this->assertSame(
+                NotificationDelivery::QUEUED,
+                $row->status,
+                'Jam tenang MENUNDA; ia tidak pernah membuang. Baris yang `skipped` karena jam tenang adalah pesan yang hilang.',
+            );
+            $this->assertNotNull(
+                $row->next_attempt_at,
+                'Baris web push berangkat SEKARANG di tengah jam tenang: tidak ada waktu tunggu sama sekali. '
+                .'Itulah yang kartu "Jam tenang" di Profil sempat katakan kepada orangnya — dua kanal dari tiga.',
+            );
+            $this->assertSame(
+                '2026-09-12 06:00',
+                $row->next_attempt_at->setTimezone(QuietHours::ZONE)->format('Y-m-d H:i'),
+                'Baris web push harus menunggu sampai jendela tenang selesai, sama seperti dua kanal lain.',
+            );
+            $this->assertStringContainsString('Ditunda oleh jam tenang', (string) $row->error);
+            $this->assertSame(0, $row->attempts);
+        }
+
+        Carbon::setTestNow();
     }
 }

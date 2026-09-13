@@ -168,7 +168,7 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->putJson('/api/core/me/preferences/notify.channels', ['value' => ['email' => 'ya']])
             ->assertStatus(422)->assertJsonFragment(['message' => 'notify.channels: Nilai kanal "email" harus true atau false.']);
         $this->putJson('/api/core/me/preferences/notify.channels', ['value' => ['email']])
-            ->assertStatus(422)->assertJsonFragment(['message' => 'notify.channels: Kanal notifikasi harus berupa objek {email: true/false, whatsapp: true/false}.']);
+            ->assertStatus(422)->assertJsonFragment(['message' => 'notify.channels: Kanal notifikasi harus berupa objek {email: true/false, whatsapp: true/false, webpush: true/false}.']);
     }
 
     public function test_notify_quiet_hours_accepts_a_window_or_null_and_refuses_the_rest(): void

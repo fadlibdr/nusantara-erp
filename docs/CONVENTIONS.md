@@ -2252,7 +2252,9 @@ kotak keluar tidak berselisih tentang apakah surat keluar dari mesin.
 **Satu baris per kanal luar per penerima** (`DeliveryGate::USER_CHANNELS` = email, whatsapp; sejak
 P-3e ditambah webpush, yang ber-FAN-OUT per perangkat — §42),
 masing-masing di balik `guard()`-nya sendiri, SESUDAH semua baris kotak masuk ditulis (P-0b).
-Dengan kedua sakelar mati (bawaan) setiap notifikasi menghasilkan dua baris `skipped` —
+Dengan ketiga sakelar mati (bawaan) setiap notifikasi menghasilkan tiga baris `skipped` —
+(web push tanpa perangkat terdaftar juga satu baris: fan-out per perangkat atas nol perangkat tetap
+menulis satu baris yang menyebut sebabnya, bukan diam) —
 pertumbuhan tabel adalah keputusan pemilik (LAPORAN P-3a), bukan alasan menyembunyikan baris.
 
 **Template per peristiwa** — `Core\Support\NotificationTemplates`: PERSIS lima kunci

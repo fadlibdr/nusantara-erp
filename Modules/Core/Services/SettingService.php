@@ -394,7 +394,7 @@ class SettingService
             'notifications' => [
                 'label' => 'Notifikasi',
                 'description' => 'Pemberitahuan persetujuan dokumen dan alarm sistem. Pemberitahuan di dalam '
-                    .'aplikasi selalu aktif; e-mail dan WhatsApp hanya dikirim bila servernya sudah disetel '
+                    .'aplikasi selalu aktif; e-mail, WhatsApp dan web push hanya dikirim bila servernya sudah disetel '
                     .'— dan setiap yang tidak terkirim tercatat dengan sebabnya di Sistem › Pengiriman Notifikasi.',
                 'settings' => [
                     [
