@@ -2713,6 +2713,38 @@ paling pribadi): `WEBPUSH_DISABLED` (sakelar Pengaturan) → `WebPushSetup::skip
 `DeliveryGate::webPushServerReason()` karena layar Profil membutuhkannya sendiri: itulah jalan
 buntu yang **tidak bisa** diatasi tindakan apa pun di peramban, jadi tombolnya tidak ditawarkan.
 
+**TUJUH jalan buntu di kartu Profil** (empat sampai putaran verifikasi P-3e, 13 Sep 2026), dalam
+urutan gerbang: sebab server → iOS tanpa Layar Utama → **konteks tidak aman** → tanpa Push API →
+**worker belum terdaftar** → izin ditolak → **kanal dimatikan pengguna**. Ketiga yang baru masing-
+masing menutup sebuah tombol mati tanpa kalimat: halaman tanpa TLS membuat `'serviceWorker' in
+navigator` bernilai false dan kalimat "peramban tidak mendukung" menyalahkan peramban yang sehat;
+tanpa registrasi worker, `navigator.serviceWorker.ready` **tidak pernah selesai** dan `finally`
+`withBusy()` tidak pernah berjalan (karena itu ia dibungkus `Promise.race` berkalimat); dan kanal
+yang dimatikan pengguna membuat kartu menjanjikan "pemberitahuan berikutnya akan muncul" untuk
+baris yang kotak keluar akan tulis **Dilewati**. Badan `pushBlocker()` **dibandingkan UTUH** di
+uji — sebuah gerbang yang memilih satu kalimat dari tujuh hanya bisa dipaku sebagai satu kalimat
+penuh.
+
+**ENDPOINT PERANGKAT ADALAH URL MILIK ORANG LAIN, dan ia melewati penjaga §11** (putaran
+verifikasi P-3e). `Core\Support\PushEndpoint` memakai **penilaian `WebhookUrl` apa adanya** —
+bentuk samaran, CGNAT, nama internal, resolver sebagai seam — dan hanya mengganti kalimatnya.
+Diperiksa di **tiga pintu**: pendaftaran, rotasi, dan sekali lagi tepat sebelum mengirim (DNS
+rebinding). **Pengalihan tidak diikuti** (`allow_redirects => false`), dan sebuah 3xx tidak pernah
+`sent` — pustaka ini menandai setiap jawaban yang bukan galat HTTP sebagai sukses, termasuk 3xx.
+**Dua kegagalan penjaga punya umur berbeda**: alamat internal = PERMANEN (`LogicException` →
+`failed` seketika), nama yang tidak bisa diterjemahkan sekarang = SEMENTARA (`RuntimeException` →
+diulang pekerja). Plafon **`PushSubscriptions::MAX_PER_USER` = 10** membatasi fan-out yang bisa
+dipicu pengguna biasa.
+
+**SATU LANGGANAN, SATU PEMILIK — DAN KANAL MEMERIKSANYA.** Langganan push milik PERAMBAN, bukan
+akun: di komputer yang dipakai bergantian, peramban memulangkan endpoint yang SAMA untuk siapa pun
+yang sedang masuk, jadi menekan "Aktifkan" **memindahkan** barisnya (id barisnya tidak berubah).
+Karena itu `WebPushChannel::subscriptionOf()` mencari langganan **di dalam lingkup pemilik baris**,
+dan ketidakcocokan adalah `skipped` — bukan `failed`: tidak ada yang gagal, sasarannya yang
+berpindah. Perpindahan antar-pengguna menulis baris audit. Endpoint **disamarkan** sebelum masuk
+kolom `error` (`ProviderErrorScrubber::webPush($teks, $endpoint)`): ia kapabilitas — `push/rotate`
+memakainya sebagai satu-satunya kredensial — dan kolom itu dibaca setiap pemegang `core.update`.
+
 **404/410 → langganan DIHAPUS, dan kejadiannya dicatat di `core_audit_log`.** Mencatatnya "di baris
 langganan" tidak berarti apa-apa: baris itulah yang dihapus. Log audit append-only dan tidak punya
 jalur hapus di aplikasi ini; ia **tidak punya layar** (PANDUAN-ADMINISTRATOR §3.10) — yang membacanya
@@ -2743,8 +2775,10 @@ base64url; yang dipakai adalah kelas `WebPush` (lewat `VAPID::validate`). `Conte
 kenyamanan: service worker **tidak bisa membaca token sesi** (ia di `localStorage`, yang tidak
 punya API di sana), peristiwanya menyala **ketika tidak ada satu tab pun terbuka**, dan §21 memaku
 bahwa kode `sw.js` tidak menyebut `/api` sama sekali. Kapabilitasnya adalah **endpoint lama**;
-rutenya **tidak pernah MEMBUAT** baris (endpoint lama yang tidak dikenal dijawab tanpa menulis) dan
-asal endpoint baru harus **sama** dengan yang lama.
+**lima batas** menjaganya — rutenya **tidak pernah MEMBUAT** baris (endpoint lama yang tidak dikenal
+dijawab tanpa menulis), asal endpoint baru harus **sama** dengan yang lama, ia **tidak pernah
+menyentuh baris milik akun lain** (putaran verifikasi: tanpa batas ini satu POST tanpa sesi
+menghapus langganan korban), alamatnya bukan alamat internal, dan lajunya dibatasi.
 
 **Yang boleh diklaim tentang privasinya, dan hanya itu:** isi pesan dienkripsi ujung-ke-ujung
 dengan kunci milik peramban penerima, jadi layanan push **tidak bisa membacanya**. Yang TETAP

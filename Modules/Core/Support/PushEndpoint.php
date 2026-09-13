@@ -3,6 +3,7 @@
 namespace Modules\Core\Support;
 
 use LogicException;
+use RuntimeException;
 
 /**
  * ENDPOINT LANGGANAN PUSH ADALAH URL MILIK ORANG LAIN (P-3e, putaran
@@ -96,7 +97,15 @@ final class PushEndpoint
      * rebinding). Penyelesai namanya adalah seam yang sama
      * (WebhookUrl::resolverUsing()), jadi uji kanal ini tidak menyentuh DNS.
      *
-     * @throws LogicException
+     * DUA KEGAGALAN, DUA KELAS — dan bedanya bukan kosmetik. "Alamatnya di
+     * dalam jaringan server" TIDAK akan berubah bila diulang: ia permanen, dan
+     * mengulanginya lima kali hanya mengulang permintaan yang justru dilarang.
+     * "Namanya tidak bisa diterjemahkan" bisa berubah semenit lagi — resolver
+     * yang sedang bermasalah bukan alasan menyatakan sebuah pemberitahuan
+     * gagal selamanya. Pemanggil membedakannya lewat kelas pengecualian.
+     *
+     * @throws LogicException alamatnya internal atau bentuknya salah — PERMANEN
+     * @throws RuntimeException namanya tidak bisa diterjemahkan sekarang — SEMENTARA
      */
     public static function assertSafeToSend(string $endpoint): void
     {
@@ -111,7 +120,7 @@ final class PushEndpoint
         $addresses = WebhookUrl::resolve($host);
 
         if ($addresses === []) {
-            throw new LogicException(
+            throw new RuntimeException(
                 "Alamat layanan push «{$host}» tidak bisa diterjemahkan ke satu pun alamat IP saat pengiriman dicoba.",
             );
         }

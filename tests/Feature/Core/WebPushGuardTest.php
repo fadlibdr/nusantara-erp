@@ -235,6 +235,45 @@ class WebPushGuardTest extends ErpTestCase
         $this->assertStringContainsString('di dalam jaringan server ini', (string) $row->error);
     }
 
+    /**
+     * A-1/B-2, sisi lain yang sama pentingnya: RESOLVER YANG SEDANG BERMASALAH
+     * BUKAN KEGAGALAN PERMANEN.
+     *
+     * Dua kegagalan penjaga alamat punya umur yang berbeda. "Alamatnya di
+     * dalam jaringan server" tidak akan berubah bila diulang — permanen, satu
+     * percobaan. "Namanya tidak bisa diterjemahkan" bisa berubah semenit lagi,
+     * dan menyatakan sebuah pemberitahuan gagal SELAMANYA karena resolver
+     * tersendat sepuluh detik adalah penjaga yang menimbulkan kerugiannya
+     * sendiri. Dipisahkan di kelas pengecualian, dipaku di sini — kalau tidak,
+     * penyederhanaan berikutnya akan menyatukannya lagi dan tidak ada yang
+     * memerah.
+     */
+    public function test_a_name_that_cannot_be_resolved_right_now_is_retried_not_failed_forever(): void
+    {
+        $user = User::factory()->create();
+        $device = $this->device($user, 'https://push.contoh.example/wpush/v2/'.bin2hex(random_bytes(16)));
+        $row = $this->rowFor($this->notificationFor($user), $device);
+
+        WebhookUrl::resolverUsing(static fn (): array => []);
+
+        $sender = $this->fakeSender([new Response(201)]);
+
+        try {
+            (new DeliverNotification($row->id))->handle();
+        } catch (\RuntimeException) {
+            // Job melempar ulang supaya pekerja menjadwalkan percobaan berikutnya.
+        }
+
+        $this->assertSame([], $sender->sent, 'Permintaan keluar ke nama yang tidak bisa diterjemahkan.');
+        $this->assertNotSame(
+            NotificationDelivery::FAILED,
+            $row->refresh()->status,
+            'Resolver yang tersendat menyatakan pemberitahuan ini gagal SELAMANYA: penjaga alamat menimbulkan '
+            .'kerugiannya sendiri, dan percobaan berikutnya yang akan berhasil tidak pernah terjadi.',
+        );
+        $this->assertStringContainsString('tidak bisa diterjemahkan', (string) $row->error);
+    }
+
     /* -------------------------------------------------------------- (2) */
 
     /**

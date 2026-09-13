@@ -137,7 +137,7 @@ class WebPushSpaWiringTest extends ErpTestCase
     {
         $code = $this->source(self::PROFIL);
 
-        $this->assertStringContainsString('dilayani lewat http://', $code, 'C-7: konteks tidak aman tidak punya kalimatnya sendiri.');
+        $this->assertStringContainsString('TIDAK dilayani lewat HTTPS', $code, 'C-7: konteks tidak aman tidak punya kalimatnya sendiri.');
         $this->assertStringContainsString('Peramban Anda tidak bermasalah', $code, 'C-7: kalimatnya masih menyalahkan peramban orangnya.');
         $this->assertStringContainsString('belum terpasang sebagai pekerja latar', $code, 'C-3: worker yang belum terdaftar tidak punya kalimatnya sendiri.');
         $this->assertStringContainsString('Simpan pilihan kanal', $code, 'C-5: kartu tidak menunjukkan di mana kanalnya dinyalakan lagi.');

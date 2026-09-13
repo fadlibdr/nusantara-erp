@@ -181,13 +181,20 @@ menyala **ketika tidak ada satu tab pun terbuka** — itu seluruh gunanya. Pilih
 ke halaman", karena itu bukan jawaban.
 
 Kapabilitasnya adalah **endpoint lama**, yang dalam standar Web Push sendiri sudah menjadi
-kapabilitas. Tiga batas: rute ini **tidak pernah MEMBUAT** baris, **asal endpoint baru harus sama**
-dengan yang lama, dan lajunya dibatasi (`throttle:30,1`).
+kapabilitas. **Lima batas** (tiga sejak T3e.5, dua sejak putaran verifikasi): rute ini **tidak pernah
+MEMBUAT** baris, **asal endpoint baru harus sama** dengan yang lama, **tidak pernah menyentuh baris
+milik akun lain** (A-4 — tanpa ini, satu POST tanpa sesi menghapus langganan korban; diukur),
+**bukan alamat internal** (A-1/B-2, penjaga yang sama dengan pendaftaran), dan lajunya dibatasi
+(`throttle:30,1`).
 
 **Batas yang TERSISA** (juga di KEPUTUSAN-INTEGRASI §12.4): seseorang yang berhasil membaca endpoint
-milik orang lain — dari basis data, atau dari peramban orang itu — dapat memindahkan langganan itu ke
-perangkatnya sendiri **di dalam layanan push yang sama**, dan sejak itu menerima pemberitahuan yang
-seharusnya untuk orang tadi. Siapa pun yang bisa melakukan salah satunya sudah memegang lebih banyak
+milik orang lain dapat memindahkan langganan itu ke perangkatnya sendiri **di dalam akun pemiliknya,
+di dalam layanan push yang sama** — pemiliknya berhenti menerima pemberitahuan di perangkat itu.
+Endpoint bisa dibaca dari basis data atau dari peramban orang itu; **sumber KETIGA yang paragraf ini
+dulu tidak sebut — kolom "Galat / alasan" di Sistem › Pengiriman Notifikasi, yang dibaca setiap
+pemegang `core.update` dan ikut setiap cadangan — ditutup di putaran verifikasi (A-6/B-4): endpoint
+kini disamarkan sebelum masuk kolom itu.** Siapa pun yang bisa melakukan salah satu dari dua yang
+tersisa sudah memegang lebih banyak
 daripada itu; ini dicatat bukan karena bisa ditutup dengan satu pemeriksaan lagi, melainkan supaya
 tidak ditemukan sebagai kejutan.
 
@@ -299,14 +306,28 @@ Paku P-3d bekerja persis seperti yang dijanjikannya.
    adalah tidak menyalakan kanalnya (KEPUTUSAN-INTEGRASI §12.3).
 2. **iPhone/iPad hanya lewat Layar Utama, iOS 16.4+.** Di tab Safari biasa Push API tidak ada; layar
    mengatakan cara memasangnya alih-alih menampilkan tombol yang gagal.
-3. **Rotasi publik** — batasnya di §3.5.
-4. **Mengganti kunci VAPID membatalkan SELURUH langganan.** Tidak ada jalan pintas; itu sifat
+3. **Rotasi publik** — batasnya di §3.5, EMPAT batas sejak putaran verifikasi (A-4): tidak pernah
+   membuat, asal harus sama, tidak pernah menyentuh baris milik akun lain, dan bukan alamat internal.
+4. **Endpoint perangkat hanya boleh menunjuk ke LUAR jaringan server** (putaran verifikasi A-1/B-2).
+   Ia melewati penjaga yang sama dengan URL webhook (P-3d §11): https wajib, loopback/privat/
+   link-local/CGNAT/nama internal ditolak dalam bentuk apa pun ia ditulis, diperiksa saat menyimpan
+   DAN saat mengirim, dan pengalihan tidak diikuti. Yang TIDAK dilakukan: daftar-izin host layanan
+   push yang dikenal — ia harus benar untuk setiap peramban di dunia termasuk yang belum ada, dan
+   sebuah layanan push yang sah tetapi tidak terdaftar akan gagal dengan kalimat yang menyalahkan
+   orangnya. Plafon **10 perangkat per pengguna** (A-5) membatasi penguatan lalu lintas yang bisa
+   dipicu pengguna biasa; ia bukan batas kenyamanan.
+5. **Satu peramban = satu langganan, dan pemiliknya adalah orang yang TERAKHIR menekan Aktifkan.**
+   Itu sifat protokolnya, bukan pilihan kita: di komputer yang dipakai bergantian, peramban
+   memulangkan endpoint yang SAMA untuk siapa pun yang sedang masuk. Yang paket ini jamin sejak
+   putaran verifikasi: perpindahannya menulis baris audit (A-3), dan baris kotak keluar milik
+   pemilik LAMA tidak pernah dikirim ke perangkat itu (B-1) — ia `skipped` dengan kalimatnya.
+6. **Mengganti kunci VAPID membatalkan SELURUH langganan.** Tidak ada jalan pintas; itu sifat
    protokolnya, dan yang bisa dilakukan paket ini hanyalah mengatakannya di tiga tempat (perintah,
    DEPLOYMENT §11.3, PANDUAN-ADMINISTRATOR §5.15).
-5. **Tidak ada bukti "sampai ke orangnya".** `sent` berarti layanan push menerima pesannya. Web Push
+7. **Tidak ada bukti "sampai ke orangnya".** `sent` berarti layanan push menerima pesannya. Web Push
    tidak punya webhook status seperti Meta; kolom "Status penyedia" tetap kosong untuk kanal ini,
    dan `last_success_at` perangkat adalah "layanan push menerima", bukan "orangnya melihat".
-6. **Jam tenang berlaku sama** seperti kanal lain: menunda, tidak membuang. Tidak ada perilaku baru,
+8. **Jam tenang berlaku sama** seperti kanal lain: menunda, tidak membuang. Tidak ada perilaku baru,
    dan tidak ada kode baru — `DeliveryGate::postponement()` yang sudah ada.
 
 ---
@@ -395,6 +416,7 @@ pernah memulangkan satu angka).
 | `tests/Feature/Core` + `tests/Unit` + `tests/Feature/Iam` (paket ini menyentuh `config/` dan rute) | **OK — 2.013 uji / 13.851 asersi, 11 dilewati**, 5 mnt 44 dtk |
 | `vendor/bin/pint --dirty` atas setiap berkas yang disentuh | `passed` |
 | Harness S41 + S41m + S37 + S37m atas `php -S` + Chromium | **4 skenario ok**, `console_errors: []` |
+| *(putaran verifikasi)* Harness S41 + S41m diulang atas sqlite yang DIBUAT BARU dari migrasi + seeder | **S41 12/12, S41m 10/10**, `console_errors: []` keduanya |
 | Migrasi atas salinan sqlite demo (001804 + 001805) | `DONE` keduanya |
 
 **Gerbang penuh dua driver adalah langkah sesi utama**, seperti pada paket-paket sebelumnya. Yang
@@ -453,7 +475,11 @@ paket ini sudah dijalankan di `erp_dryrun` sekali selama pembangunan — `PushSu
 | `8dc6d07` | T3e.3 — `WebPushChannel`, `WebPushSender`, `ChannelWithoutMessageId`, fan-out, 404/410, gerbang |
 | `02ef731` | T3e.4 + T3e.5 — endpoint perangkat, kartu Profil, tiga pendengar `sw.js`, `SHELL_VERSION` 13, `push/rotate` |
 | `09be261` | T3e.6 — layar Pengiriman Notifikasi, penyaring kanal, kalimat Kirim ulang |
-| (commit ini) | T3e.7 — dokumen, harness S41/S41m, laporan, perbaikan label kanal ketiga (§3.6) |
+| `47869dd` | T3e.7 — dokumen, harness S41/S41m, laporan, perbaikan label kanal ketiga (§3.6) |
+| `4436683` | Putaran verifikasi (§13) — 12 temuan sisi server: SSRF endpoint, pengalihan, kepemilikan baris, plafon perangkat, endpoint di kolom error, gelung pemotong |
+| `bf19aaf` | Putaran verifikasi (§13) — 7 temuan peramban: tiga jalan buntu baru, pendengar yang dipaku, `SHELL_VERSION` 14 |
+| `5e74cfe` | Putaran verifikasi (§13) — C-8: S41m dua konteks, syarat 5 → 10 |
+| (commit ini) | Putaran verifikasi (§13) — §6/§3.5/§12.4 dibetulkan, §13 ditulis, gerbang |
 
 ---
 
@@ -471,3 +497,94 @@ paket ini sudah dijalankan di `erp_dryrun` sekali selama pembangunan — `PushSu
    oleh orang yang tidak sedang memikirkannya adalah uji yang akan disunting sampai hijau.
 4. **Pendengar `sw.js` naik dari empat menjadi tujuh.** Pelonggaran itu dibayar di tempat yang sama
    dengan tiga pin baru yang membaca badan ketiga pendengar satu per satu (CONVENTIONS §21 dan §42).
+
+---
+
+## 13. Putaran verifikasi (13 Sep 2026) — 25 temuan tiga lensa
+
+Tiga lensa membaca paket ini sesudah `47869dd` dan memulangkan 25 temuan. **24 diperbaiki, 1
+ditolak.** Setiap perbaikan punya uji yang dibuktikan merah oleh mutasi; angka mutasinya di bawah.
+
+### 13.1 Bentuk yang berulang
+
+Enam temuan tertinggi punya satu bentuk yang sama, dan menamainya lebih berguna daripada
+menghitungnya: **sebuah nilai yang datang dari luar dipercaya sebagai identitas.** Endpoint
+dipercaya sebagai alamat yang boleh dituju (A-1/B-2), jawaban pengalihan dipercaya sebagai tujuan
+yang sama (A-2), endpoint dipercaya sebagai kunci baris yang boleh ditulis (A-3) dan dihapus (A-4),
+dan id langganan dipercaya sebagai perangkat penerimanya (B-1).
+
+Yang paling mahal untuk diakui: **kebijakan SSRF sudah ada, lengkap, di pohon yang sama.** P-3d
+menulisnya delapan hari sebelumnya — `WebhookUrl`, KEPUTUSAN-INTEGRASI §11 — beserta bentuk
+samarannya, pemeriksaan ganda, dan resolver sebagai seam. P-3e tidak memakai satu baris pun.
+Asimetri yang menunjukkan ini kelupaan dan bukan keputusan: **rotasi memaksa asal endpoint baru
+sama dengan yang lama** karena "langganan bisa dialihkan ke layanan push penyerang", sementara
+pendaftaran di pintu sebelah menerima host apa pun.
+
+### 13.2 Diperbaiki
+
+| # | Temuan | Perbaikan | Mutasi |
+|---|---|---|---|
+| A-1, B-2 | Endpoint https APA SAJA diterima; server benar-benar membuka soket ke alamat internal | `PushEndpoint` memakai penilaian `WebhookUrl` apa adanya; tiga pintu: simpan, rotasi, dan sekali lagi saat kirim. Alamat internal = permanen, nama yang tak terselesaikan = SEMENTARA | M1, M2, M3, M15 |
+| A-2 | Pengalihan diikuti (termasuk https→http ke link-local), dan barisnya `sent` | `allow_redirects => false` + `connect_timeout`, ditimpakan DI BAWAH opsi uji; 3xx = gagal berkalimat | M4, M5 |
+| A-3 | `store()` memindahkan kepemilikan baris orang lain tanpa jejak | Perpindahan tetap terjadi (itu sifat peramban bersama) tetapi menulis baris audit | M7 |
+| A-4 | `push/rotate` tanpa sesi menghapus baris milik akun lain | Batas keempat: `$existing->user_id !== $old->user_id` → 422 | M10 |
+| A-5 | Tidak ada plafon perangkat: fan-out sebagai penguat lalu lintas | `PushSubscriptions::MAX_PER_USER = 10`, 422 berkalimat; pendaftaran ulang perangkat yang ADA tetap boleh | M6 |
+| A-6, B-4 | Endpoint utuh di kolom `error` yang dibaca setiap pemegang `core.update` | Endpoint ikut daftar samaran `ProviderErrorScrubber::webPush()`; docblock yang membantah `PushRotationController` dibetulkan | M11 |
+| A-7, B-8 | Syarat henti gelung pemotong tidak pernah bisa menyala | `mb_strlen($body) > 1` + lemparan akhir berkalimat | M13 (merah dengan **menggantung** — itu bentuk cacatnya), M14 |
+| B-1 | Kanal mengirim ke langganan yang sudah pindah pemilik, dan mencatat `sent` | `subscriptionOf()` mencari di dalam lingkup pemilik baris; ketidakcocokan = `skipped`, bukan `failed` | M8 |
+| B-3 | Lima kalimat menjanjikan layar "Sistem › Log Audit" yang tidak pernah dibangun | Kelimanya menyebut tabel + `GET api/core/audit-log` + PANDUAN §3.10 | (dokumen) |
+| B-5, C-4 | Berlangganan ulang sesudah ganti kunci VAPID menumpuk baris hantu; `$previousEndpoint` kode mati | Klien mengirim `previous_endpoint`, `store()` meneruskannya — docblock-nya menjadi benar | M12, C-4m |
+| B-6 | Lingkup pemilik di Kirim ulang tidak punya uji sama sekali | Uji tiga langkah; sebelumnya membuang lingkupnya meninggalkan 85 uji hijau | M9 |
+| B-7 | COUNT perangkat dibayar setiap pemasangan yang web push-nya mati | `deviceSummary()` diam bila `webPushServerReason() !== null` | — |
+| C-1 | `notificationclick` mengaku "dipaku" — seluruh badannya bisa dibuang dan gerbang hijau; `tautan` dipakai tanpa pemeriksaan asal | Badan dipaku (close, matchAll+focus SEBELUM openWindow); `tautanAman()` menjatuhkan asal lain ke SCOPE | 5 mutasi sw.js |
+| C-2 | Pin muatan rusak tidak melihat jalan keluar sebelum `showNotification` | Tidak boleh ada `return`/`throw` sebelum panggilan itu | 1 mutasi sw.js |
+| C-3 | Tanpa registrasi worker, tombol berputar selamanya sesudah izin diberikan | Jalan buntu 6 + `Promise.race` berkalimat | 2 mutasi profil.js |
+| C-5 | Kartu mengabaikan `reason`: janji "akan muncul" untuk baris yang akan Dilewati | Jalan buntu 7 dengan penanda `user_off` dari server; kalimatnya tetap kalimat DeliveryGate | 1 mutasi profil.js |
+| C-6 | Sesudah Blokir keluar kalimat KEDUA, dan kartu tidak berpindah sampai dimuat ulang | `DENIED_HELP` yang dilempar, dan cabang galat menggambar ulang kartunya | 2 mutasi profil.js |
+| C-7 | "Peramban tidak mendukung Push API" juga keluar untuk peramban sehat di pemasangan `http://` | Jalan buntu 5 sendiri (`isSecureContext`); DEPLOYMENT §11.3 menyebut HTTPS sebagai syarat nol. Kalimatnya ditulis tanpa literal `http(s)://` — `VendorManifestTest` memindai setiap literal semacam itu di `public/app`, dan melonggarkan aturan anti-CDN demi sebuah kalimat adalah harga yang salah | 1 mutasi profil.js |
+| C-8 | S41m mengukur pemotongan teks pada kartu tanpa satu baris perangkat pun | Dua konteks: iPhone (blocker) + Android 390 px dengan perangkat berlabel 33 karakter; syarat 5 → 10 | Skenario tanpa fixture → 2 syarat merah |
+| C-10 | Satu-satunya penjaga jaringan adalah harfiah `/api`: `fetch()` ke host pihak ketiga lolos | Tidak ada alamat MUTLAK di ketiga badan pendengar | 1 mutasi sw.js |
+
+Badan `pushBlocker()` tetap dibandingkan UTUH: **empat jalan buntu menjadi tujuh**, dalam urutan
+DeliveryGate. `SHELL_VERSION` 13 → 14 (CONVENTIONS §21).
+
+**Satu perbaikan yang tidak berasal dari temuan mana pun**, melainkan dari memeriksa perbaikan
+A-1/B-2 sendiri: penjaga alamat punya DUA kegagalan dengan UMUR yang berbeda, dan versi pertama
+perbaikan ini memperlakukan keduanya sama. "Alamatnya di dalam jaringan server" permanen —
+mengulanginya lima kali hanya mengulang permintaan yang justru dilarang. "Namanya tidak bisa
+diterjemahkan **sekarang**" sementara, dan menyatakan sebuah pemberitahuan gagal SELAMANYA karena
+resolver tersendat sepuluh detik adalah penjaga yang menimbulkan kerugiannya sendiri. Dipisahkan di
+kelas pengecualian (`LogicException` vs `RuntimeException`) dan dipaku (M15: menyatukannya lagi →
+merah). Sebuah penjaga keamanan yang membuang pemberitahuan orang adalah penjaga yang akan
+dimatikan orang.
+
+### 13.3 Ditolak — satu
+
+**C-9: "`listenerBody()` menjanjikan 'tanpa komentar' tetapi tidak membuang komentar."** Premisnya
+salah. `listenerBody()` memanggil `$this->code()`, yang adalah `stripComments($this->worker())` —
+persis seperti penolong sekerabatnya di baris 572/578 yang temuan itu sebut sebagai pembanding.
+Dibuktikan langsung: menyisipkan `// Bentuk muatannya: judul, isi, tautan, tag }` (kurung tak
+seimbang di dalam komentar, contoh temuan itu sendiri) tepat sebelum `let isi = {};` lalu
+menjalankan `stripComments()` atas kedua versi — komentarnya **tidak ada** di keluaran (`str_contains(…,
+'Bentuk muatannya') === false`), jadi kurungnya tidak pernah sampai ke penghitung kurung dan
+potongan yang dipulangkan tidak bergeser. Berkas ujinya tetap hijau karena tidak ada yang rusak,
+bukan karena pemeriksaannya lolos diam-diam. Tidak ada perubahan.
+
+### 13.4 Yang MASIH diragukan sesudah putaran ini
+
+1. **Perpindahan langganan di peramban bersama tetap terjadi**, dan itu memang keputusan: dua baris
+   untuk satu langganan berarti pemberitahuan orang pertama tetap dikirim ke layar orang kedua.
+   Yang berubah hanya bahwa ia tidak lagi diam-diam (audit) dan bahwa baris lama tidak lagi dikirim
+   (B-1). Orang pertama tetap berhenti menerima web push di komputer itu **tanpa diberi tahu di
+   layar** — hanya log audit yang tahu, dan log audit belum punya layar (B-3).
+2. **Plafon 10 adalah angka yang dipilih, bukan diukur.** Ia menutup penguatan lalu lintas; ia tidak
+   berdasar data pemakaian, karena belum ada pemakaian.
+3. **`notificationclick` tetap tidak diuji di peramban** — tidak ada pintu CDP untuk mengetuk
+   notifikasi. Yang berubah: sekarang ia dipaku sebagai bentuk kode, dan §7 tidak lagi mengaku
+   lebih daripada itu.
+4. **Badan jawaban penyedia masih masuk kolom `error`** (endpoint-nya yang disamarkan). Dengan SSRF
+   tertutup, sasarannya adalah layanan push sungguhan; kalau suatu hari badan itu terbukti membawa
+   sesuatu yang tidak boleh dilihat, potongan 480 karakter bukan jawabannya.
+5. **Satu kalimat "Sistem › Log Audit" TERSISA di luar paket ini**
+   (`PANDUAN-ADMINISTRATOR.md` baris ~3984, matriks persetujuan) — cacat yang sama, tetapi milik
+   paket lain; tidak disentuh supaya putaran ini tidak melebar.

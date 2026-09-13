@@ -300,16 +300,16 @@ const NO_API = 'Peramban ini tidak mendukung Push API, jadi pemberitahuan di lua
  * Jalan buntu 5 — dan kenapa ia BUKAN NO_API (putaran verifikasi: C-7).
  *
  * `'serviceWorker' in navigator` bernilai false di konteks yang tidak aman:
- * http:// yang bukan localhost. Di sana kalimat NO_API menyalahkan PERAMBAN
+ * halaman tanpa TLS yang bukan localhost. Di sana kalimat NO_API menyalahkan PERAMBAN
  * dan menyodorkan daftar peramban lain — padahal peramban orang itu sudah
  * termasuk daftarnya, dan yang kurang ada di sisi pemasangan. Menyuruh orang
  * memasang peramban baru untuk masalah yang tidak ada padanya adalah bentuk
  * kalimat salah yang paling mahal: ia terdengar membantu.
  */
-const NO_HTTPS = 'Halaman ini dilayani lewat http://, dan pemberitahuan di luar aplikasi hanya bisa dinyalakan di '
-  + 'halaman https:// (aturan peramban, bukan setelan aplikasi). Peramban Anda tidak bermasalah — yang harus diubah '
-  + 'ada di sisi pemasangan; sampaikan kepada administrator (DEPLOYMENT.md §11.3). Pemberitahuan di dalam aplikasi '
-  + '(lonceng) tetap bekerja seperti biasa.';
+const NO_HTTPS = 'Halaman ini TIDAK dilayani lewat HTTPS, dan pemberitahuan di luar aplikasi hanya bisa dinyalakan '
+  + 'di halaman HTTPS — itu aturan peramban, bukan setelan aplikasi. Peramban Anda tidak bermasalah; yang harus '
+  + 'diubah ada di sisi pemasangan, jadi sampaikan kepada administrator (DEPLOYMENT.md §11.3). Pemberitahuan di '
+  + 'dalam aplikasi (lonceng) tetap bekerja seperti biasa.';
 
 /*
  * Jalan buntu 6: worker BELUM TERDAFTAR (putaran verifikasi: C-3).

@@ -98,8 +98,18 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
         try {
             PushEndpoint::assertSafeToSend($endpoint);
         } catch (LogicException $e) {
+            // PERMANEN: alamatnya tidak akan berhenti berada di dalam jaringan
+            // server bila diulang, dan mengulanginya lima kali hanya mengulang
+            // permintaan yang justru dilarang.
             throw new DeliveryRejectedException(
                 "Perangkat «{$subscription->label()}» tidak dikirimi: ".$e->getMessage(),
+            );
+        } catch (RuntimeException $e) {
+            // SEMENTARA: resolver yang sedang bermasalah bukan alasan
+            // menyatakan sebuah pemberitahuan gagal selamanya. Pengecualian
+            // biasa → lima percobaan dengan backoff yang sudah ada.
+            throw new RuntimeException(
+                "Perangkat «{$subscription->label()}» belum bisa dikirimi: ".$e->getMessage(),
             );
         }
 

@@ -414,14 +414,29 @@ token sesi** (ia di `localStorage`, yang tidak punya API di service worker), dan
 `pushsubscriptionchange` menyala **ketika tidak ada satu tab pun terbuka**.
 
 Kapabilitasnya adalah **endpoint lama** — nilai yang, dalam standar Web Push itu sendiri,
-sudah menjadi kapabilitas. Tiga batas menjaganya: rute ini **tidak pernah MEMBUAT** baris
-(endpoint lama yang tidak cocok apa pun dijawab tanpa menulis, jadi ia tidak bisa dipakai
-mendaftarkan perangkat), **asal endpoint baru harus sama** dengan yang lama (layanan push
-memutar endpoint di dalam layanannya sendiri), dan lajunya dibatasi.
+sudah menjadi kapabilitas. **Lima batas** menjaganya — tiga sejak P-3e, dua sejak putaran
+verifikasinya (13 Sep 2026): rute ini **tidak pernah MEMBUAT** baris (endpoint lama yang tidak
+cocok apa pun dijawab tanpa menulis, jadi ia tidak bisa dipakai mendaftarkan perangkat),
+**asal endpoint baru harus sama** dengan yang lama (layanan push memutar endpoint di dalam
+layanannya sendiri), **tidak pernah MENYENTUH baris milik akun lain** (rotasi memindahkan
+langganan DI DALAM satu akun; tanpa batas ini, cabang "endpoint barunya sudah terdaftar"
+membuang baris SIAPA PUN yang endpoint-nya dipegang pemanggil — dari rute yang tidak meminta
+sesi, diukur), **bukan alamat internal** (penjaga yang sama dengan URL webhook, §11), dan
+lajunya dibatasi.
 
 **Batas yang tersisa, dikatakan apa adanya:** seseorang yang berhasil membaca endpoint milik
-orang lain — dari basis data, atau dari peramban orang itu — dapat memindahkan langganan itu
-ke perangkatnya sendiri di dalam layanan push yang sama, dan sejak itu menerima pemberitahuan
-yang seharusnya untuk orang tadi. Siapa pun yang bisa melakukan salah satu dari keduanya sudah
-memegang lebih banyak daripada itu; ini dicatat bukan karena bisa diperbaiki dengan menambah
-pemeriksaan, melainkan supaya tidak ditemukan lagi sebagai kejutan.
+orang lain dapat memindahkan langganan itu ke perangkatnya sendiri **di dalam akun pemiliknya**,
+di dalam layanan push yang sama — pemiliknya berhenti menerima pemberitahuan di perangkat itu.
+
+Endpoint itu bisa dibaca dari basis data atau dari peramban orang itu. Versi pertama paragraf ini
+menyebut hanya dua sumber tersebut dan menenangkan diri dengan "siapa pun yang bisa melakukan
+salah satunya sudah memegang lebih banyak daripada itu" — dan premis itu **salah**: ada sumber
+ketiga, dan ia sebuah LAYAR. Setiap kegagalan 429/5xx/jaringan menuliskan pesan Guzzle lengkap
+dengan URL endpoint ke kolom `error`, yang digambar sebagai "Galat / alasan" di Sistem ›
+Pengiriman Notifikasi bagi setiap pemegang `core.update` — bukan pemegang basis data — dan ikut
+setiap cadangan. Sumber itu **ditutup**: endpoint langganan yang bersangkutan kini ikut
+disamarkan `ProviderErrorScrubber::webPush()`, dan yang tersisa di kalimat adalah LABEL
+perangkatnya, yang sudah menjawab "perangkat mana yang gagal".
+
+Dua sumber yang tersisa dicatat bukan karena bisa diperbaiki dengan menambah pemeriksaan,
+melainkan supaya tidak ditemukan lagi sebagai kejutan.
