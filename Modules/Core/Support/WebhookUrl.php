@@ -35,7 +35,8 @@ use LogicException;
  *     ::ffff:a.b.c.d, ::a.b.c.d dan NAT64 64:ff9b::a.b.c.d diturunkan ke IPv4)
  *     dan setiap host yang bukan nama sungguhan diterjemahkan lebih dulu
  *     (`numericIpv4()`: bentuk desimal, oktal, heksa dan pendek ala
- *     `inet_aton`), lalu yang dinilai adalah hasilnya.
+ *     `inet_aton`), lalu yang dinilai adalah hasilnya. Titik ekor dibuang
+ *     lebih dulu oleh `canonicalHost()`, yang menjelaskan sebabnya.
  *  3. **Diperiksa DUA KALI: saat MENYIMPAN dan saat MENGIRIM.** DNS bisa
  *     berubah di antara keduanya — sebuah nama yang hari ini menunjuk ke
  *     alamat publik bisa besok menunjuk ke 127.0.0.1, dan itu bukan serangan
@@ -111,7 +112,13 @@ final class WebhookUrl
             throw new LogicException('URL webhook tidak boleh membawa nama pengguna atau kata sandi di dalamnya. Rahasianya adalah tanda tangan, bukan URL-nya.');
         }
 
-        $host = strtolower($parts['host']);
+        $host = self::canonicalHost($parts['host']);
+
+        // Sebuah host yang TIDAK TERSISA apa-apa sesudah titik ekornya dibuang
+        // (`https://./`, `https://.../`) bukan nama dan bukan alamat.
+        if ($host === '') {
+            throw new LogicException('URL webhook tidak bisa dibaca. Tulis lengkap dengan skema, mis. https://contoh.co.id/nusantara/webhook.');
+        }
 
         if (self::isPrivateName($host)) {
             throw new LogicException("Alamat «{$host}» adalah nama jaringan internal. Webhook hanya dikirim ke alamat yang bisa dijangkau dari luar.");
@@ -123,6 +130,34 @@ final class WebhookUrl
 
         if ($literal !== null && ! self::isPublicIp($literal)) {
             throw new LogicException(self::internalAddressSentence($host, self::normalize($literal)));
+        }
+
+        /*
+         * TITIK EKOR SAH PADA NAMA, TIDAK PADA ALAMAT — dan sejak Guzzle
+         * 7.15.2 transport menolaknya SELAMANYA.
+         *
+         * `contoh.co.id.` adalah bentuk FQDN absolut dan tetap diterima
+         * (canonicalHost hanya membuang titiknya). `203.0.113.10.` bukan nama
+         * sama sekali: ia alamat IP publik dengan titik yang tidak berarti
+         * apa-apa, dan `HostValidator::assertNotADottedAddress()` milik Guzzle
+         * — tambalan CVE-2026-69246 yang masuk bersama kenaikan paket ini —
+         * menolak setiap host yang berbentuk satu sampai empat bagian
+         * desimal/oktal/heksa diikuti titik.
+         *
+         * Tanpa baris ini bentuk itu DITERIMA di layar ("tersimpan"), lalu
+         * setiap pengiriman mati di transport dengan kalimat INGGRIS dari
+         * pustaka di kolom `error`, lima percobaan penuh (60/300/900/3600
+         * detik) per pengiriman. Itu bukan lubang keamanan — ia gagal-tertutup
+         * — melainkan layar yang berjanji dan transport yang menolak, dan
+         * inkonsistensi itu HANYA ada sesudah gabungan ini. Yang benar adalah
+         * menolaknya di sini, saat menyimpan, dalam Bahasa Indonesia, dengan
+         * menyebut cara menulisnya.
+         */
+        if ($literal !== null && str_ends_with(rtrim($parts['host']), '.')) {
+            throw new LogicException(
+                "Alamat «{$parts['host']}» ditulis sebagai alamat IP dengan titik di ujungnya. Titik di ujung hanya "
+                ."berarti pada NAMA (bentuk FQDN absolut), tidak pada alamat — tulis «{$host}» tanpa titik."
+            );
         }
     }
 
@@ -138,7 +173,7 @@ final class WebhookUrl
     {
         self::assertShape($url);
 
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = self::canonicalHost((string) parse_url($url, PHP_URL_HOST));
 
         // Sebuah alamat literal sudah dinilai `assertShape()` di atas, dalam
         // bentuk apa pun ia ditulis — dan tidak punya nama untuk ditanyakan
@@ -166,6 +201,42 @@ final class WebhookUrl
         $host = strtolower(trim($host));
 
         return $host === 'localhost' || Str::endsWith($host, self::PRIVATE_SUFFIXES);
+    }
+
+    /**
+     * Host yang dinilai: huruf kecil, DAN TANPA TITIK EKOR.
+     *
+     * TITIK EKOR ADALAH BENTUK SAMARAN YANG KESEMBILAN (lihat §2 di atas).
+     * `127.0.0.1.` menunjuk ke soket yang persis sama dengan `127.0.0.1`,
+     * tetapi dibaca berbeda oleh dua pihak yang berbeda: `filter_var` menolak
+     * bentuk bertitik-ekor sebagai IP, dan `numericIpv4()` berhenti di bagian
+     * kelima yang kosong — sehingga TANPA baris ini keduanya memulangkan
+     * "ini sebuah NAMA", lalu yang dinilai adalah jawaban DNS atas nama
+     * `127.0.0.1.` alih-alih alamat 127.0.0.1 itu sendiri. libcurl 8.21.0
+     * membuang titik itu sebelum menyambung; kamilah yang membacanya sebagai
+     * nama. Hal yang sama menyelamatkan `kasir.local.` dari daftar
+     * PRIVATE_SUFFIXES, yang mencocokkan akhiran `.local` dan bukan `.local.`.
+     *
+     * Yang TIDAK berubah: `contoh.co.id.` — titik ekor pada NAMA sungguhan
+     * hanyalah bentuk absolut FQDN, dan ia tetap diterima.
+     *
+     * Di bawah perbaikan ini gerbangnya berhenti bergantung pada DNS untuk
+     * menolak bentuk itu. Guzzle 7.15.2 menutup lubang yang sama dari sisi
+     * transport (`HostValidator::assertNotADottedAddress()`, CVE-2026-69246),
+     * tetapi gerbang ini menilai alamat dengan penguraiannya SENDIRI dan tidak
+     * pernah menumpang normalisasi pustaka HTTP — dua jaring, bukan satu.
+     *
+     * PUBLIK, dan itu bukan kelonggaran: `PushEndpoint` (P-3e) menilai host
+     * dengan penolong kelas ini tetapi MENGURAI URL-nya sendiri, sehingga
+     * tambalan ini tidak sampai kepadanya selama ia masih memanggil
+     * `strtolower()` polos. Diukur pada commit gabungan ini: enam bentuk
+     * alamat internal bertitik-ekor DITOLAK di sini dan LOLOS di sana. Satu
+     * gerbang berarti satu kanonikalisasi; dua kanonikalisasi yang mirip
+     * adalah cara lubang yang sama ditutup sekali dan dibiarkan sekali.
+     */
+    public static function canonicalHost(string $host): string
+    {
+        return rtrim(strtolower($host), '.');
     }
 
     /**

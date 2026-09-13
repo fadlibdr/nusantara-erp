@@ -74,7 +74,20 @@ final class PushEndpoint
             throw new LogicException('Endpoint langganan push tidak boleh membawa nama pengguna atau kata sandi di dalamnya.');
         }
 
-        $host = strtolower($parts['host']);
+        // Kanonikalisasi yang SAMA dengan gerbang webhook — bukan strtolower()
+        // kedua yang mirip. Sebuah titik ekor (`127.0.0.1.`) menunjuk ke soket
+        // yang persis sama tetapi dibaca sebagai NAMA oleh filter_var dan oleh
+        // numericIpv4(), jadi tanpa baris ini enam bentuk alamat internal lolos
+        // di sini sementara WebhookUrl menolaknya (diukur pada commit gabungan
+        // yang menambal WebhookUrl: 127.0.0.1. / 169.254.169.254. /
+        // kasir.local. / 10.0.0.5. / localhost. / 2130706433.).
+        $host = WebhookUrl::canonicalHost($parts['host']);
+
+        // Host yang tidak menyisakan apa pun sesudah titiknya dibuang
+        // (`https://./`) bukan nama dan bukan alamat.
+        if ($host === '') {
+            throw new LogicException('Endpoint langganan push tidak bisa dibaca sebagai alamat.');
+        }
 
         if (WebhookUrl::isPrivateName($host)) {
             throw new LogicException(self::sentence($host, null));
@@ -84,6 +97,17 @@ final class PushEndpoint
 
         if ($literal !== null && ! WebhookUrl::isPublicIp($literal)) {
             throw new LogicException(self::sentence($host, WebhookUrl::normalize($literal)));
+        }
+
+        // Aturan yang sama dengan gerbang webhook, dan untuk sebab yang sama:
+        // Guzzle 7.15.2 menolak alamat IP bertitik-ekor di transport, jadi
+        // menerimanya di sini berarti menyimpan perangkat yang tidak akan
+        // pernah bisa dikirimi (WebhookUrl::assertShape menjelaskannya).
+        if ($literal !== null && str_ends_with(rtrim($parts['host']), '.')) {
+            throw new LogicException(
+                "Endpoint «{$parts['host']}» ditulis sebagai alamat IP dengan titik di ujungnya. Titik di ujung "
+                ."hanya berarti pada NAMA, tidak pada alamat — tulis «{$host}» tanpa titik."
+            );
         }
     }
 
@@ -111,7 +135,7 @@ final class PushEndpoint
     {
         self::assertShape($endpoint);
 
-        $host = strtolower((string) parse_url(trim($endpoint), PHP_URL_HOST));
+        $host = WebhookUrl::canonicalHost((string) parse_url(trim($endpoint), PHP_URL_HOST));
 
         if (WebhookUrl::literalAddress($host) !== null) {
             return;
